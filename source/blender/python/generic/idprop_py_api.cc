@@ -1012,11 +1012,11 @@ static IDProperty *idp_from_DatablockPointer(IDProperty *prop_exist,
   return prop;
 }
 
-static IDProperty *idp_from_PyObject(IDProperty *prop_exist,
-                                     const char *name,
-                                     PyObject *ob,
-                                     const bool do_conversion,
-                                     const bool can_create)
+IDProperty *BPy_IDProperty_FromPyObject(IDProperty *prop_exist,
+                                        const char *name,
+                                        PyObject *ob,
+                                        const bool do_conversion,
+                                        const bool can_create)
 {
   if (name == nullptr) {
     return nullptr;
@@ -1067,14 +1067,14 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *key, IDProperty *group, PyOb
 
   /* If the container is an array of IDProperties, always add a new property to it. */
   if (group->type == IDP_IDPARRAY) {
-    IDProperty *new_prop = idp_from_PyObject(nullptr, name, ob, false, true);
+    IDProperty *new_prop = BPy_IDProperty_FromPyObject(nullptr, name, ob, false, true);
     if (new_prop == nullptr) {
       return false;
     }
 
     IDP_AppendArray(group, new_prop);
     /* IDP_AppendArray does a shallow copy (memcpy), only free memory */
-    MEM_freeN(new_prop);
+    MEM_delete(new_prop);
 
     return true;
   }
@@ -1084,7 +1084,7 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *key, IDProperty *group, PyOb
   /* If existing property is flagged to be statically typed, do not re-type it. Assign the value if
    * possible (potentially converting it), or fail. See #122743. */
   if (prop_exist && (prop_exist->flag & IDP_FLAG_STATIC_TYPE) != 0) {
-    IDProperty *prop = idp_from_PyObject(prop_exist, name, ob, true, false);
+    IDProperty *prop = BPy_IDProperty_FromPyObject(prop_exist, name, ob, true, false);
     BLI_assert(ELEM(prop, prop_exist, nullptr));
     if (prop != prop_exist) {
       PyErr_Format(PyExc_TypeError,
@@ -1099,7 +1099,7 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *key, IDProperty *group, PyOb
 
   /* Attempt to assign new value in existing IDProperty, if types (and potentially subtypes) match
    * exactly. Otherwise, create a new IDProperty. */
-  IDProperty *new_prop = idp_from_PyObject(prop_exist, name, ob, false, true);
+  IDProperty *new_prop = BPy_IDProperty_FromPyObject(prop_exist, name, ob, false, true);
   if (new_prop == nullptr) {
     return false;
   }
@@ -2371,10 +2371,10 @@ static int BPy_IDArray_ass_slice(BPy_IDArray *self, int begin, int end, PyObject
   alloc_len = size * elem_size;
 
   /* NOTE: we count on int/float being the same size here */
-  vec = MEM_mallocN(alloc_len, "array assignment");
+  vec = MEM_new_uninitialized(alloc_len, "array assignment");
 
   if (PyC_AsArray(vec, elem_size, seq, size, py_type, "slice assignment: ") == -1) {
-    MEM_freeN(vec);
+    MEM_delete_void(vec);
     return -1;
   }
 
@@ -2383,7 +2383,7 @@ static int BPy_IDArray_ass_slice(BPy_IDArray *self, int begin, int end, PyObject
       vec,
       alloc_len);
 
-  MEM_freeN(vec);
+  MEM_delete_void(vec);
   return 0;
 }
 
@@ -2499,7 +2499,7 @@ static int BPy_IDArray_getbuffer(BPy_IDArray *self, Py_buffer *view, int flags)
   view->itemsize = itemsize;
   view->format = const_cast<char *>(idp_format_from_array_type(prop->subtype));
 
-  Py_ssize_t *shape = MEM_mallocN<Py_ssize_t>(__func__);
+  Py_ssize_t *shape = MEM_new_uninitialized<Py_ssize_t>(__func__);
   shape[0] = prop->len;
   view->shape = shape;
 
@@ -2508,7 +2508,7 @@ static int BPy_IDArray_getbuffer(BPy_IDArray *self, Py_buffer *view, int flags)
 
 static void BPy_IDArray_releasebuffer(BPy_IDArray * /*self*/, Py_buffer *view)
 {
-  MEM_freeN(view->shape);
+  MEM_delete(view->shape);
 }
 
 static PyBufferProcs BPy_IDArray_Buffer = {
@@ -2693,7 +2693,11 @@ static PyMethodDef IDProp_methods[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     IDProp_module_doc,
-    "This module provides access id property types (currently mainly for docs).");
+    "This module provides access to ID property types, used for\n"
+    "custom properties on data-blocks, accessed via ``[\"key\"]`` syntax.\n"
+    "\n"
+    "- See :ref:`info_quickstart-custom_properties` for example usage.\n"
+    "- See :ref:`bpy_types-custom_properties` for types that support custom properties.\n");
 static PyModuleDef IDProp_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "idprop",
@@ -2716,7 +2720,7 @@ PyObject *BPyInit_idprop()
 
   /* idprop.types */
   PyModule_AddObject(mod, "types", (submodule = BPyInit_idprop_types()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   return mod;
 }

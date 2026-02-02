@@ -269,13 +269,19 @@ bool IDP_EqualsProperties(const IDProperty *prop1,
  * \endcode
  *
  * Note that you MUST either attach the id property to an id property group with
- * IDP_AddToGroup or MEM_freeN the property, doing anything else might result in
+ * IDP_AddToGroup or MEM_delete the property, doing anything else might result in
  * a memory leak.
  */
 IDProperty *IDP_New(char type,
                     const IDPropertyTemplate *val,
                     StringRef name,
                     eIDPropertyFlag flags = {}) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+
+/* ----------- Allocators for simple types ----------- */
+
+[[nodiscard]] IDProperty *IDP_NewInt(int value,
+                                     blender::StringRef name,
+                                     eIDPropertyFlag flags = {});
 
 /**
  * \note This will free allocated data, all child properties of arrays and groups, and unlink IDs!
