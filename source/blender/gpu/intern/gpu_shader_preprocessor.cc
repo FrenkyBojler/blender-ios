@@ -504,25 +504,17 @@ template<typename Trait, typename T = int> class ID {
   }
 };
 
-/* TODO(fclem): Meh find a better way. Exceptions? */
-static void report_fn(int /*error_line*/,
-                      int /*error_char*/,
-                      std::string /*error_line_string*/,
-                      const char * /*error_str*/)
-{
-  BLI_assert_unreachable();
-}
-
-shader::parser::report_callback report_fn_ptr = report_fn;
-
 /**
  * Boiler plate class exposing lexer structure using typed IDs.
  */
-struct IntermediateFormWithIDs : shader::parser::IntermediateForm<AtomicLexer, NullParser> {
+struct AtomicLexerWithIDs {
+ protected:
+  AtomicLexer lex_;
 
-  IntermediateFormWithIDs(StringRef str)
-      : IntermediateForm<AtomicLexer, NullParser>(str, report_fn_ptr)
+ public:
+  AtomicLexerWithIDs(StringRef str)
   {
+    lex_.lexical_analysis(str);
   }
 
   struct TokenTrait {};
@@ -609,13 +601,13 @@ struct IntermediateFormWithIDs : shader::parser::IntermediateForm<AtomicLexer, N
     LineID end = get_end(dir);
     Token tok_start = lex_[int(get_start(start))];
     Token tok_end = lex_[int(get_end(end))];
-    return substr_range_inclusive_view(tok_start, tok_end);
+    return lex_.substr(tok_start, tok_end);
   }
   StringRef str(LineID line)
   {
     Token start = get_start(line);
     Token end = get_end(line);
-    return substr_range_inclusive_view(start, end);
+    return lex_.substr(start, end);
   }
 
   StringRef str_with_whitespace(DirectiveID dir)
@@ -624,7 +616,7 @@ struct IntermediateFormWithIDs : shader::parser::IntermediateForm<AtomicLexer, N
     LineID end = get_end(dir);
     Token tok_start = lex_[int(get_start(start))];
     Token tok_end = lex_[int(get_true_end(end))];
-    return substr_range_inclusive_view(tok_start, tok_end);
+    return lex_.substr(tok_start, tok_end);
   }
 
   /* Return valid value if hash is a known string. Is full hash lookup + hashing. */
@@ -761,7 +753,7 @@ struct IntermediateFormWithIDs : shader::parser::IntermediateForm<AtomicLexer, N
  * \{ */
 
 /* Fast C (incomplete) preprocessor implementation.  */
-struct Preprocessor : IntermediateFormWithIDs {
+struct Preprocessor : AtomicLexerWithIDs {
  private:
   using ExpressionLexer = shader::parser::ExpressionLexer;
   using ExpressionParser = shader::parser::ExpressionParser;
@@ -919,7 +911,7 @@ struct Preprocessor : IntermediateFormWithIDs {
 
  public:
   Preprocessor(const std::string_view str)
-      : IntermediateFormWithIDs(str),
+      : AtomicLexerWithIDs(str),
         out_stream(Token::invalid(&lex_),
                    lex_.hash("return"),
                    lex_.hash("thread"),
@@ -1241,13 +1233,6 @@ struct Preprocessor : IntermediateFormWithIDs {
 
   bool evaluate_expression(const Token start, const Token end)
   {
-#ifndef NDEBUG
-    /* For debugging. */
-    std::string_view original_expr = substr_range_inclusive_view(parser_[int(start)],
-                                                                 parser_[int(end)]);
-    UNUSED_VARS(original_expr);
-#endif
-
     /* Expand expression into integer ops string. */
     StreamPtr expand = expand_expression(start, end);
 
@@ -1270,8 +1255,7 @@ struct Preprocessor : IntermediateFormWithIDs {
       return expression_parser.eval() != 0;
     }
     catch (const std::exception &e) {
-      std::cout << "\"" << substr_range_inclusive_view(start, end) << "\" > \"" << expand->str()
-                << "\" ";
+      std::cout << "\"" << lex_.substr(start, end) << "\" > \"" << expand->str() << "\" ";
       std::cerr << "Error: " << e.what() << "\n";
       return false;
     }
