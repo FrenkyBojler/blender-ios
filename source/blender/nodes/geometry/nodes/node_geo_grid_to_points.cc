@@ -5,7 +5,6 @@
 #include "node_geometry_util.hh"
 
 #include "BLI_math_matrix.hh"
-#include "BLI_timeit.hh"
 
 #include "BKE_attribute_math.hh"
 #include "BKE_pointcloud.hh"
@@ -122,6 +121,8 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     }
   }
 }
+
+#ifdef WITH_OPENVDB
 
 template<typename LeafNodeT>
 static void process_leaf_node(const LeafNodeT &leaf_node,
@@ -315,9 +316,10 @@ static void process_tree(const TreeT &tree,
   });
 }
 
+#endif
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  SCOPED_TIMER_AVERAGED(__func__);
 #ifdef WITH_OPENVDB
   const bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid");
   if (!grid) {
