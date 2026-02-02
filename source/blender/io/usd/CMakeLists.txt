@@ -10,9 +10,9 @@ if(UNIX AND NOT APPLE)
   add_definitions(-D_GLIBCXX_PERMIT_BACKWARD_HASH)
 endif()
 if(WIN32)
+  # We need to keep BOOST_DEBUG_PYTHON for the vendored copy of boost inside USD.
   add_definitions(-DNOMINMAX -DWIN32_LEAN_AND_MEAN -DBOOST_DEBUG_PYTHON)
 endif()
-add_definitions(-DBOOST_ALL_NO_LIB)
 
 # Pre-compiled Linux libraries are made with GCC, and USD uses some extensions
 # which lead to an incompatible ABI for Clang. Using those extensions with
@@ -106,6 +106,8 @@ set(SRC
   intern/usd_skel_root_utils.cc
 
   usd.hh
+  usd_api_hook.hh
+  usd_api_modifier.hh
   usd_private.hh
 
   intern/usd_armature_utils.hh
@@ -205,7 +207,6 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_io_common
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
   PRIVATE bf::windowmanager
   PRIVATE bf::dependencies::optional::python

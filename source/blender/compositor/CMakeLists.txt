@@ -158,7 +158,6 @@ set(SRC
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blentranslation
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::functions
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
@@ -222,7 +221,6 @@ set(GLSL_SRC
   shaders/infos/compositor_pixelate_infos.hh
   shaders/infos/compositor_plane_deform_infos.hh
   shaders/infos/compositor_premultiply_alpha_infos.hh
-  shaders/infos/compositor_read_input_infos.hh
   shaders/infos/compositor_realize_on_domain_infos.hh
   shaders/infos/compositor_relative_to_pixel_infos.hh
   shaders/infos/compositor_sample_pixel_infos.hh
@@ -326,7 +324,6 @@ set(GLSL_SRC
   shaders/compositor_plane_deform.glsl
   shaders/compositor_premultiply_alpha.glsl
   shaders/compositor_radial_lens_distortion.glsl
-  shaders/compositor_read_input.glsl
   shaders/compositor_realize_on_domain.glsl
   shaders/compositor_relative_to_pixel_float.glsl
   shaders/compositor_relative_to_pixel_float_per_dimension.glsl
@@ -406,7 +403,7 @@ set(GLSL_INC
   shaders/infos
 )
 
-set(GLSL_C)
+set(GLSL_C "")
 foreach(GLSL_FILE ${GLSL_SRC})
   glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
@@ -453,5 +450,5 @@ endif()
 blender_add_lib(bf_compositor "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 if(CXX_WARN_NO_SUGGEST_OVERRIDE)
-  target_compile_options(bf_compositor PRIVATE "-Wsuggest-override")
+  target_compile_options(bf_compositor PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>)
 endif()
