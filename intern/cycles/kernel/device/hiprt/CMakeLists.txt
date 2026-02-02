@@ -141,4 +141,4 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNEL_DEVICE_HIPRT_HEADERS}"
 if(WITH_CYCLES_DEVICE_HIPRT)
   delayed_install(${HIPRT_INCLUDE_DIR}        "${SRC_KERNEL_DEVICE_HIPRT_SDK_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/device/hiprt/hiprt)
   delayed_install(${HIPRT_INCLUDE_DIR}        "${SRC_KERNEL_DEVICE_HIPRT_SDK}" ${CYCLES_INSTALL_PATH}/source/kernel/device/hiprt/hiprt/impl)
-endif()  
+endif()
