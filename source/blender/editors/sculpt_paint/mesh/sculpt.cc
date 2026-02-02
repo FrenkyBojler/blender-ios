@@ -8208,7 +8208,7 @@ void mask_overlay_check(bContext &C, wmOperator &op)
     }
 
     if (v3d->overlay.sculpt_mode_mask_opacity == 0.0f) {
-      BKE_report(op.reports, RPT_WARNING, RPT_("Mask overlay opacity set to 0"));
+      BKE_report(op.reports, RPT_WARNING, RPT_("Mask overlay opacity is currently set to 0"));
     }
   }
 }
@@ -8230,7 +8230,7 @@ void face_set_overlay_check(bContext &C, wmOperator &op)
     }
 
     if (v3d->overlay.sculpt_mode_face_sets_opacity == 0.0f) {
-      BKE_report(op.reports, RPT_WARNING, RPT_("Face Sets overlay opacity set to 0"));
+      BKE_report(op.reports, RPT_WARNING, RPT_("Face Sets overlay opacity is currently set to 0"));
     }
   }
 }
