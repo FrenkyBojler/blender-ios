@@ -2255,26 +2255,8 @@ static constexpr int gabor_impulses_count = 8;
  * normalization", to ensure a zero mean, which should help with normalization. */
 static float2 compute_2d_gabor_kernel(const float2 position,
                                       const float frequency,
-                                      const float orientation)
-{
-  const float distance_squared = math::length_squared(position);
-  const float hann_window = 0.5f + 0.5f * math::cos(math::numbers::pi * distance_squared);
-  const float gaussian_envelop = math::exp(-math::numbers::pi * distance_squared);
-  const float windowed_gaussian_envelope = gaussian_envelop * hann_window;
-
-  const float2 frequency_vector = frequency * float2(cos(orientation), sin(orientation));
-  const float angle = 2.0f * math::numbers::pi * math::dot(position, frequency_vector);
-  const float2 phasor = float2(math::cos(angle), math::sin(angle));
-
-  return windowed_gaussian_envelope * phasor;
-}
-
-/* Computes the 2D Gabor kernel and its derivative with respect to position. */
-static void compute_2d_gabor_kernel_with_derivative(const float2 position,
-                                                     const float frequency,
-                                                     const float orientation,
-                                                     float2 *r_kernel_value,
-                                                     float2 *r_kernel_derivative)
+                                      const float orientation,
+                                      float2 *r_kernel_derivative = nullptr)
 {
   const float distance_squared = math::length_squared(position);
   const float hann_window = 0.5f + 0.5f * math::cos(math::numbers::pi * distance_squared);
@@ -2287,19 +2269,23 @@ static void compute_2d_gabor_kernel_with_derivative(const float2 position,
   const float sin_angle = math::sin(angle);
   const float2 phasor = float2(cos_angle, sin_angle);
 
-  *r_kernel_value = windowed_gaussian_envelope * phasor;
+  const float2 kernel_value = windowed_gaussian_envelope * phasor;
 
-  /* Compute derivative of envelope: envelope = gaussian * hann */
-  /* ∇envelope = -π * p * exp(-πr²) * (sin(πr²) + 2 * hann) */
-  const float2 envelope_derivative = -math::numbers::pi * position * gaussian_envelop *
-                                     (math::sin(math::numbers::pi * distance_squared) + 2.0f * hann_window);
+  if (r_kernel_derivative) {
+    /* Compute derivative of envelope: envelope = gaussian * hann */
+    /* ∇envelope = -π * p * exp(-πr²) * (sin(πr²) + 2 * hann) */
+    const float2 envelope_derivative = -math::numbers::pi * position * gaussian_envelop *
+                                       (math::sin(math::numbers::pi * distance_squared) + 2.0f * hann_window);
 
-  /* Compute derivative of sin(θ) where θ = 2π * dot(p, f) */
-  /* ∇sin(θ) = cos(θ) * ∇θ = cos(θ) * 2π * frequency_vector */
-  const float2 sin_derivative = cos_angle * 2.0f * math::numbers::pi * frequency_vector;
+    /* Compute derivative of sin(θ) where θ = 2π * dot(p, f) */
+    /* ∇sin(θ) = cos(θ) * ∇θ = cos(θ) * 2π * frequency_vector */
+    const float2 sin_derivative = cos_angle * 2.0f * math::numbers::pi * frequency_vector;
 
-  /* Apply product rule: ∇(envelope * sin(θ)) = ∇envelope * sin(θ) + envelope * ∇sin(θ) */
-  *r_kernel_derivative = envelope_derivative * sin_angle + windowed_gaussian_envelope * sin_derivative;
+    /* Apply product rule: ∇(envelope * sin(θ)) = ∇envelope * sin(θ) + envelope * ∇sin(θ) */
+    *r_kernel_derivative = envelope_derivative * sin_angle + windowed_gaussian_envelope * sin_derivative;
+  }
+
+  return kernel_value;
 }
 
 /**
@@ -2354,10 +2340,12 @@ static float2 compute_2d_gabor_noise_cell(const float2 cell,
                                           const float2 position,
                                           const float frequency,
                                           const float isotropy,
-                                          const float base_orientation)
+                                          const float base_orientation,
+                                          float2 *r_derivative = nullptr)
 
 {
   float2 noise(0.0f);
+  float2 derivative(0.0f);
   for (const int i : IndexRange(gabor_impulses_count)) {
     /* Compute unique seeds for each of the needed random variables. */
     const float3 seed_for_orientation(cell.x, cell.y, i * 3);
@@ -2385,7 +2373,14 @@ static float2 compute_2d_gabor_noise_cell(const float2 cell,
      * probability. */
     const float weight = noise::hash_float_to_float(seed_for_weight) < 0.5f ? -1.0f : 1.0f;
 
-    noise += weight * compute_2d_gabor_kernel(position_in_kernel_space, frequency, orientation);
+    float2 kernel_deriv;
+    noise += weight * compute_2d_gabor_kernel(position_in_kernel_space, frequency, orientation, r_derivative ? &kernel_deriv : nullptr);
+    if (r_derivative) {
+      derivative += weight * kernel_deriv;
+    }
+  }
+  if (r_derivative) {
+    *r_derivative = derivative;
   }
   return noise;
 }
@@ -2395,32 +2390,8 @@ static float2 compute_2d_gabor_noise_cell(const float2 cell,
 static float2 compute_2d_gabor_noise(const float2 coordinates,
                                      const float frequency,
                                      const float isotropy,
-                                     const float base_orientation)
-{
-  const float2 cell_position = math::floor(coordinates);
-  const float2 local_position = coordinates - cell_position;
-
-  float2 sum(0.0f);
-  for (int j = -1; j <= 1; j++) {
-    for (int i = -1; i <= 1; i++) {
-      const float2 cell_offset = float2(i, j);
-      const float2 current_cell_position = cell_position + cell_offset;
-      const float2 position_in_cell_space = local_position - cell_offset;
-      sum += compute_2d_gabor_noise_cell(
-          current_cell_position, position_in_cell_space, frequency, isotropy, base_orientation);
-    }
-  }
-
-  return sum;
-}
-
-/* Computes the 2D Gabor noise value and its derivative. */
-static void compute_2d_gabor_noise_with_derivative(const float2 coordinates,
-                                                    const float frequency,
-                                                    const float isotropy,
-                                                    const float base_orientation,
-                                                    float2 *r_noise,
-                                                    float2 *r_derivative)
+                                     const float base_orientation,
+                                     float2 *r_derivative = nullptr)
 {
   const float2 cell_position = math::floor(coordinates);
   const float2 local_position = coordinates - cell_position;
@@ -2432,42 +2403,21 @@ static void compute_2d_gabor_noise_with_derivative(const float2 coordinates,
       const float2 cell_offset = float2(i, j);
       const float2 current_cell_position = cell_position + cell_offset;
       const float2 position_in_cell_space = local_position - cell_offset;
-
-      float2 cell_noise(0.0f);
-      float2 cell_derivative(0.0f);
-      for (const int k : IndexRange(gabor_impulses_count)) {
-        const float3 seed_for_orientation(current_cell_position.x, current_cell_position.y, k * 3);
-        const float3 seed_for_kernel_center(current_cell_position.x, current_cell_position.y, k * 3 + 1);
-        const float3 seed_for_weight(current_cell_position.x, current_cell_position.y, k * 3 + 2);
-
-        const float random_orientation = (noise::hash_float_to_float(seed_for_orientation) - 0.5f) *
-                                        math::numbers::pi;
-        const float orientation = base_orientation + random_orientation * isotropy;
-
-        const float2 kernel_center = noise::hash_float_to_float2(seed_for_kernel_center);
-        const float2 position_in_kernel_space = position_in_cell_space - kernel_center;
-
-        if (math::length_squared(position_in_kernel_space) >= 1.0f) {
-          continue;
-        }
-
-        const float weight = noise::hash_float_to_float(seed_for_weight) < 0.5f ? -1.0f : 1.0f;
-
-        float2 kernel_value;
-        float2 kernel_deriv;
-        compute_2d_gabor_kernel_with_derivative(
-            position_in_kernel_space, frequency, orientation, &kernel_value, &kernel_deriv);
-        cell_noise += weight * kernel_value;
-        cell_derivative += weight * kernel_deriv;
+      float2 cell_derivative;
+      sum += compute_2d_gabor_noise_cell(
+          current_cell_position, position_in_cell_space, frequency, isotropy, base_orientation, r_derivative ? &cell_derivative : nullptr);
+      if (r_derivative) {
+        derivative_sum += cell_derivative;
       }
-      sum += cell_noise;
-      derivative_sum += cell_derivative;
     }
   }
 
-  *r_noise = sum;
-  *r_derivative = derivative_sum;
+  if (r_derivative) {
+    *r_derivative = derivative_sum;
+  }
+  return sum;
 }
+
 
 /* Identical to compute_2d_gabor_kernel, except it is evaluated in 3D space. Notice that Equation
  * (6) in the original Gabor noise paper computes the frequency vector using (cos(w_0), sin(w_0)),
@@ -2475,26 +2425,8 @@ static void compute_2d_gabor_noise_with_derivative(const float2 coordinates,
  * vector, so we just need to scale it by the frequency value. */
 static float2 compute_3d_gabor_kernel(const float3 position,
                                       const float frequency,
-                                      const float3 orientation)
-{
-  const float distance_squared = math::length_squared(position);
-  const float hann_window = 0.5f + 0.5f * math::cos(math::numbers::pi * distance_squared);
-  const float gaussian_envelop = math::exp(-math::numbers::pi * distance_squared);
-  const float windowed_gaussian_envelope = gaussian_envelop * hann_window;
-
-  const float3 frequency_vector = frequency * orientation;
-  const float angle = 2.0f * math::numbers::pi * math::dot(position, frequency_vector);
-  const float2 phasor = float2(math::cos(angle), math::sin(angle));
-
-  return windowed_gaussian_envelope * phasor;
-}
-
-/* Computes the 3D Gabor kernel and its derivative with respect to position. */
-static void compute_3d_gabor_kernel_with_derivative(const float3 position,
-                                                    const float frequency,
-                                                    const float3 orientation,
-                                                    float2 *r_kernel_value,
-                                                    float3 *r_kernel_derivative)
+                                      const float3 orientation,
+                                      float3 *r_kernel_derivative = nullptr)
 {
   const float distance_squared = math::length_squared(position);
   const float hann_window = 0.5f + 0.5f * math::cos(math::numbers::pi * distance_squared);
@@ -2507,17 +2439,21 @@ static void compute_3d_gabor_kernel_with_derivative(const float3 position,
   const float sin_angle = math::sin(angle);
   const float2 phasor = float2(cos_angle, sin_angle);
 
-  *r_kernel_value = windowed_gaussian_envelope * phasor;
+  const float2 kernel_value = windowed_gaussian_envelope * phasor;
 
-  /* Compute derivative of envelope */
-  const float3 envelope_derivative = -math::numbers::pi * position * gaussian_envelop *
-                                     (math::sin(math::numbers::pi * distance_squared) + 2.0f * hann_window);
+  if (r_kernel_derivative) {
+    /* Compute derivative of envelope */
+    const float3 envelope_derivative = -math::numbers::pi * position * gaussian_envelop *
+                                       (math::sin(math::numbers::pi * distance_squared) + 2.0f * hann_window);
 
-  /* Compute derivative of sin(θ) where θ = 2π * dot(p, f) */
-  const float3 sin_derivative = cos_angle * 2.0f * math::numbers::pi * frequency_vector;
+    /* Compute derivative of sin(θ) where θ = 2π * dot(p, f) */
+    const float3 sin_derivative = cos_angle * 2.0f * math::numbers::pi * frequency_vector;
 
-  /* Apply product rule: ∇(envelope * sin(θ)) = ∇envelope * sin(θ) + envelope * ∇sin(θ) */
-  *r_kernel_derivative = envelope_derivative * sin_angle + windowed_gaussian_envelope * sin_derivative;
+    /* Apply product rule: ∇(envelope * sin(θ)) = ∇envelope * sin(θ) + envelope * ∇sin(θ) */
+    *r_kernel_derivative = envelope_derivative * sin_angle + windowed_gaussian_envelope * sin_derivative;
+  }
+
+  return kernel_value;
 }
 
 /* Identical to compute_2d_gabor_standard_deviation except we do triple integration in 3D. The only
@@ -2565,10 +2501,12 @@ static float2 compute_3d_gabor_noise_cell(const float3 cell,
                                           const float3 position,
                                           const float frequency,
                                           const float isotropy,
-                                          const float3 base_orientation)
+                                          const float3 base_orientation,
+                                          float3 *r_derivative = nullptr)
 
 {
   float2 noise(0.0f);
+  float3 derivative(0.0f);
   for (const int i : IndexRange(gabor_impulses_count)) {
     /* Compute unique seeds for each of the needed random variables. */
     const float4 seed_for_orientation(cell.x, cell.y, cell.z, i * 3);
@@ -2591,7 +2529,14 @@ static float2 compute_3d_gabor_noise_cell(const float3 cell,
      * probability. */
     const float weight = noise::hash_float_to_float(seed_for_weight) < 0.5f ? -1.0f : 1.0f;
 
-    noise += weight * compute_3d_gabor_kernel(position_in_kernel_space, frequency, orientation);
+    float3 kernel_deriv;
+    noise += weight * compute_3d_gabor_kernel(position_in_kernel_space, frequency, orientation, r_derivative ? &kernel_deriv : nullptr);
+    if (r_derivative) {
+      derivative += weight * kernel_deriv;
+    }
+  }
+  if (r_derivative) {
+    *r_derivative = derivative;
   }
   return noise;
 }
@@ -2600,34 +2545,8 @@ static float2 compute_3d_gabor_noise_cell(const float3 cell,
 static float2 compute_3d_gabor_noise(const float3 coordinates,
                                      const float frequency,
                                      const float isotropy,
-                                     const float3 base_orientation)
-{
-  const float3 cell_position = math::floor(coordinates);
-  const float3 local_position = coordinates - cell_position;
-
-  float2 sum(0.0f);
-  for (int k = -1; k <= 1; k++) {
-    for (int j = -1; j <= 1; j++) {
-      for (int i = -1; i <= 1; i++) {
-        const float3 cell_offset = float3(i, j, k);
-        const float3 current_cell_position = cell_position + cell_offset;
-        const float3 position_in_cell_space = local_position - cell_offset;
-        sum += compute_3d_gabor_noise_cell(
-            current_cell_position, position_in_cell_space, frequency, isotropy, base_orientation);
-      }
-    }
-  }
-
-  return sum;
-}
-
-/* Computes the 3D Gabor noise value and its derivative. */
-static void compute_3d_gabor_noise_with_derivative(const float3 coordinates,
-                                                   const float frequency,
-                                                   const float isotropy,
-                                                   const float3 base_orientation,
-                                                   float2 *r_noise,
-                                                   float3 *r_derivative)
+                                     const float3 base_orientation,
+                                     float3 *r_derivative = nullptr)
 {
   const float3 cell_position = math::floor(coordinates);
   const float3 local_position = coordinates - cell_position;
@@ -2640,42 +2559,22 @@ static void compute_3d_gabor_noise_with_derivative(const float3 coordinates,
         const float3 cell_offset = float3(i, j, k);
         const float3 current_cell_position = cell_position + cell_offset;
         const float3 position_in_cell_space = local_position - cell_offset;
-
-        float2 cell_noise(0.0f);
-        float3 cell_derivative(0.0f);
-        for (const int l : IndexRange(gabor_impulses_count)) {
-          const float4 seed_for_orientation(current_cell_position.x, current_cell_position.y, current_cell_position.z, l * 3);
-          const float4 seed_for_kernel_center(current_cell_position.x, current_cell_position.y, current_cell_position.z, l * 3 + 1);
-          const float4 seed_for_weight(current_cell_position.x, current_cell_position.y, current_cell_position.z, l * 3 + 2);
-
-          const float3 orientation = compute_3d_orientation(
-              base_orientation, isotropy, seed_for_orientation);
-
-          const float3 kernel_center = noise::hash_float_to_float3(seed_for_kernel_center);
-          const float3 position_in_kernel_space = position_in_cell_space - kernel_center;
-
-          if (math::length_squared(position_in_kernel_space) >= 1.0f) {
-            continue;
-          }
-
-          const float weight = noise::hash_float_to_float(seed_for_weight) < 0.5f ? -1.0f : 1.0f;
-
-          float2 kernel_value;
-          float3 kernel_deriv;
-          compute_3d_gabor_kernel_with_derivative(
-              position_in_kernel_space, frequency, orientation, &kernel_value, &kernel_deriv);
-          cell_noise += weight * kernel_value;
-          cell_derivative += weight * kernel_deriv;
+        float3 cell_derivative;
+        sum += compute_3d_gabor_noise_cell(
+            current_cell_position, position_in_cell_space, frequency, isotropy, base_orientation, r_derivative ? &cell_derivative : nullptr);
+        if (r_derivative) {
+          derivative_sum += cell_derivative;
         }
-        sum += cell_noise;
-        derivative_sum += cell_derivative;
       }
     }
   }
 
-  *r_noise = sum;
-  *r_derivative = derivative_sum;
+  if (r_derivative) {
+    *r_derivative = derivative_sum;
+  }
+  return sum;
 }
+
 
 void gabor(const float2 coordinates,
            const float scale,
@@ -2691,16 +2590,9 @@ void gabor(const float2 coordinates,
   const float isotropy = 1.0f - math::clamp(anisotropy, 0.0f, 1.0f);
   const float sanitized_frequency = math::max(0.001f, frequency);
 
-  float2 phasor;
   float2 derivative;
-  if (r_derivatives) {
-    compute_2d_gabor_noise_with_derivative(
-        scaled_coordinates, sanitized_frequency, isotropy, orientation, &phasor, &derivative);
-  }
-  else {
-    phasor = compute_2d_gabor_noise(
-        scaled_coordinates, sanitized_frequency, isotropy, orientation);
-  }
+  const float2 phasor = compute_2d_gabor_noise(
+      scaled_coordinates, sanitized_frequency, isotropy, orientation, r_derivatives ? &derivative : nullptr);
   const float standard_deviation = compute_2d_gabor_standard_deviation();
 
   /* Normalize the noise by dividing by six times the standard deviation, which was determined
@@ -2724,10 +2616,16 @@ void gabor(const float2 coordinates,
     *r_intensity = math::length(phasor) / normalization_factor;
   }
 
-  /* Compute and store the derivatives, scaled and normalized. */
+  /* Compute and store the derivatives, scaled and normalized.
+   * For Geometry Nodes, we normalize the derivatives. The coordinates are typically in local space,
+   * and users can transform to world space using nodes if needed. */
   if (r_derivatives) {
-    /* Extend 2D derivative to 3D and scale by the scale factor */
-    *r_derivatives = float3(derivative.x * scale, derivative.y * scale, 0.0f) / normalization_factor;
+    /* Extend 2D derivative to 3D: invert X and Y (Blender convention), set Z=1 for upward normal.
+     * Keep Z=1 constant (not divided by normalization_factor) to ensure upward normal. */
+    float3 normal = float3(-derivative.x * scale / normalization_factor,
+                            -derivative.y * scale / normalization_factor,
+                            1.0f);
+    *r_derivatives = math::normalize(normal);
   }
 }
 
@@ -2746,16 +2644,9 @@ void gabor(const float3 coordinates,
   const float sanitized_frequency = math::max(0.001f, frequency);
 
   const float3 normalized_orientation = math::normalize(orientation);
-  float2 phasor;
   float3 derivative;
-  if (r_derivatives) {
-    compute_3d_gabor_noise_with_derivative(
-        scaled_coordinates, sanitized_frequency, isotropy, normalized_orientation, &phasor, &derivative);
-  }
-  else {
-    phasor = compute_3d_gabor_noise(
-        scaled_coordinates, sanitized_frequency, isotropy, normalized_orientation);
-  }
+  const float2 phasor = compute_3d_gabor_noise(
+      scaled_coordinates, sanitized_frequency, isotropy, normalized_orientation, r_derivatives ? &derivative : nullptr);
   const float standard_deviation = compute_3d_gabor_standard_deviation();
 
   /* Normalize the noise by dividing by six times the standard deviation, which was determined
@@ -2779,9 +2670,13 @@ void gabor(const float3 coordinates,
     *r_intensity = math::length(phasor) / normalization_factor;
   }
 
-  /* Compute and store the derivatives, scaled and normalized. */
+  /* Compute and store the derivatives, scaled and normalized.
+   * For Geometry Nodes, we normalize the derivatives. The coordinates are typically in local space,
+   * and users can transform to world space using nodes if needed. */
   if (r_derivatives) {
-    *r_derivatives = derivative * scale / normalization_factor;
+    /* Invert X and Y (Blender convention) and scale by the scale factor */
+    float3 normal = float3(-derivative.x * scale, -derivative.y * scale, derivative.z * scale) / normalization_factor;
+    *r_derivatives = math::normalize(normal);
   }
 }
 
