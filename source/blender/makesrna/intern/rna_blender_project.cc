@@ -35,6 +35,27 @@ const EnumPropertyItem rna_enum_project_variable_type_items[] = {
 
 namespace blender {
 
+using namespace bke;
+
+/* TODO: these are copied from rna_action.cc.  Should move them to a shared place. */
+template<typename T>
+static void rna_iterator_array_begin(CollectionPropertyIterator *iter,
+                                     PointerRNA *ptr,
+                                     Span<T *> items)
+{
+  rna_iterator_array_begin(iter, ptr, (void *)items.data(), sizeof(T *), items.size(), 0, nullptr);
+}
+
+template<typename T>
+static void rna_iterator_array_begin(CollectionPropertyIterator *iter,
+                                     PointerRNA *ptr,
+                                     MutableSpan<T *> items)
+{
+  rna_iterator_array_begin(iter, ptr, (void *)items.data(), sizeof(T *), items.size(), 0, nullptr);
+}
+
+/* --------------------------------------------------------- */
+
 static void project_mark_dirty()
 {
   BKE_blender_project().is_dirty = true;
@@ -60,27 +81,27 @@ static void rna_BlenderProject_update(Main * /*bmain*/, Scene * /*scene*/, Point
 
 static int rna_ProjectVariable_type_get(PointerRNA *ptr)
 {
-  const bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
   return int(var->type);
 }
 
 static void rna_ProjectVariable_name_get(PointerRNA *ptr, char *value)
 {
-  const bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
 
   strcpy(value, var->name.c_str());
 }
 
 static int rna_ProjectVariable_name_length(PointerRNA *ptr)
 {
-  const bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
 
   return var->name.size();
 }
 
 static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
 {
-  bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
 
   var->name.clear();
   var->name.append(value);
@@ -88,45 +109,45 @@ static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
 
 static int rna_ProjectVariable_value_int_get(PointerRNA *ptr)
 {
-  const bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
   return var->value_int;
 }
 
 static void rna_ProjectVariable_value_int_set(PointerRNA *ptr, int value)
 {
-  bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
   var->value_int = value;
 }
 
 static float rna_ProjectVariable_value_float_get(PointerRNA *ptr)
 {
-  const bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
   return var->value_float;
 }
 
 static void rna_ProjectVariable_value_float_set(PointerRNA *ptr, float value)
 {
-  bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
   var->value_float = value;
 }
 
 static void rna_ProjectVariable_value_string_get(PointerRNA *ptr, char *value)
 {
-  const bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
 
   strcpy(value, var->value_string.c_str());
 }
 
 static int rna_ProjectVariable_value_string_length(PointerRNA *ptr)
 {
-  const bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
 
   return var->value_string.size();
 }
 
 static void rna_ProjectVariable_value_string_set(PointerRNA *ptr, const char *value)
 {
-  bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
 
   var->value_string.clear();
   var->value_string.append(value);
@@ -167,6 +188,74 @@ static int rna_BlenderProjectData_root_path_length(PointerRNA *ptr)
   const bke::BlenderProjectData *project_data = static_cast<bke::BlenderProjectData *>(ptr->data);
 
   return project_data->get_root_path().size();
+}
+
+static void rna_iterator_BlenderProjectData_variables_begin(CollectionPropertyIterator *iter,
+                                                            PointerRNA *ptr)
+{
+  bke::BlenderProjectData *project_data = static_cast<bke::BlenderProjectData *>(ptr->data);
+
+  // rna_iterator_array_begin(iter, ptr, project_data->variables.as_span());
+  rna_iterator_array_begin(iter,
+                           ptr,
+                           (void *)project_data->variables.begin(),
+                           sizeof(ProjectVariable),
+                           project_data->variables.size(),
+                           0,
+                           nullptr);
+}
+
+static int rna_iterator_BlenderProjectData_variables_length(PointerRNA *ptr)
+{
+  const bke::BlenderProjectData *project_data = static_cast<bke::BlenderProjectData *>(ptr->data);
+  return project_data->variables.size();
+}
+
+static ProjectVariable *rna_ProjectVariables_new(bke::BlenderProjectData *project_data,
+                                                 ReportList *reports,
+                                                 const char *name,
+                                                 int type)
+{
+  if (name[0] == 0) {
+    BKE_reportf(reports, RPT_ERROR, "Invalid variable name '%s': name must not be empty.", name);
+    return nullptr;
+  }
+
+  project_data->variables.append(ProjectVariable{
+      std::string(name),
+      bke::ProjectVarType(type),
+      0,
+      0.0,
+      std::string(),
+  });
+
+  project_mark_dirty();
+
+  return &project_data->variables.last();
+}
+
+void rna_ProjectVariables_remove(bke::BlenderProjectData *project_data,
+                                 ReportList *reports,
+                                 PointerRNA *variable_ptr)
+{
+  const ProjectVariable *var = static_cast<ProjectVariable *>(variable_ptr->data);
+
+  int index = -1;
+  for (int i = 0; i < project_data->variables.size(); i++) {
+    if (project_data->variables[i].name == var->name) {
+      index = i;
+      break;
+    }
+  }
+
+  if (index == -1) {
+    BKE_reportf(reports, RPT_ERROR, "Variable not found in project variables.");
+    return;
+  }
+
+  project_data->variables.remove(index);
+
+  project_mark_dirty();
 }
 
 /* --------------------------------------------------------- */
@@ -271,6 +360,42 @@ void rna_def_project_variable(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
 }
 
+static void rna_def_ProjectVariables(BlenderRNA *brna, PropertyRNA *cprop)
+{
+  StructRNA *srna;
+
+  FunctionRNA *func;
+  PropertyRNA *parm;
+
+  RNA_def_property_srna(cprop, "ProjectVariables");
+  srna = RNA_def_struct(brna, "ProjectVariables", nullptr);
+  RNA_def_struct_sdna(srna, "BlenderProjectData");
+  RNA_def_struct_ui_text(srna, "Project Variables", "Collection of project variables");
+
+  /* BlenderProjectData.variables.new(...) */
+  func = RNA_def_function(srna, "new", "rna_ProjectVariables_new");
+  RNA_def_function_ui_description(func, "Add a new variable to the project");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  parm = RNA_def_string(func, "name", "Variable", 0, "Name", "Name of the new variable");
+  parm = RNA_def_enum(func,
+                      "type",
+                      rna_enum_project_variable_type_items,
+                      int(bke::ProjectVarType::STRING),
+                      "Variable Type",
+                      "The data type of the variable");
+  parm = RNA_def_pointer(
+      func, "variable", "ProjectVariable", "", "Newly created project variable");
+  RNA_def_function_return(func, parm);
+
+  /* BlenderProjectData.variables.remove(variable) */
+  func = RNA_def_function(srna, "remove", "rna_ProjectVariables_remove");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  RNA_def_function_ui_description(func, "Remove a variable from the project");
+  parm = RNA_def_pointer(
+      func, "variable", "ProjectVariable", "Variable", "The variable to remove");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_RNAPTR);
+}
+
 void rna_def_blender_project_data(BlenderRNA *brna)
 {
   StructRNA *srna = RNA_def_struct(brna, "BlenderProjectData", nullptr);
@@ -294,6 +419,21 @@ void rna_def_blender_project_data(BlenderRNA *brna)
                                 "rna_BlenderProjectData_root_path_length",
                                 nullptr);
   RNA_def_property_ui_text(prop, "Root Folder", "The path to the root folder of the project");
+
+  /* Collection properties. */
+  prop = RNA_def_property(srna, "variables", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(prop, "ProjectVariable");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_iterator_BlenderProjectData_variables_begin",
+                                    "rna_iterator_array_next",
+                                    "rna_iterator_array_end",
+                                    "rna_iterator_array_dereference_get",
+                                    "rna_iterator_BlenderProjectData_variables_length",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_ui_text(prop, "Project Variables", "The variables in this project");
+  rna_def_ProjectVariables(brna, prop);
 }
 
 void rna_def_blender_project(BlenderRNA *brna)

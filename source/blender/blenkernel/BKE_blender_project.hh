@@ -17,10 +17,10 @@
 namespace blender::bke {
 
 enum class ProjectVarType {
-  INTEGER,
-  FLOAT,
-  STRING,
-  FILEPATH,
+  INTEGER = 0,
+  FLOAT = 1,
+  STRING = 2,
+  FILEPATH = 3,
 };
 
 struct ProjectVariable {
@@ -45,13 +45,13 @@ struct ProjectVariable {
  * project is loaded or not.
  */
 class BlenderProjectData {
+ public:
   /* The name and root path should never be empty. */
   std::string name_;
   std::string root_path_;
 
   Vector<ProjectVariable> variables;
 
- public:
   /**
    * Set the project's name.
    *
