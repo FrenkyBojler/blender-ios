@@ -6,6 +6,8 @@
  * \ingroup gpu
  */
 
+#include "BKE_global.hh"
+
 #include "BLI_index_range.hh"
 
 #include "vk_resource_state_tracker.hh"
@@ -32,6 +34,7 @@ ResourceHandle VKResourceStateTracker::create_resource_slot()
 
 void VKResourceStateTracker::add_image(VkImage vk_image,
                                        bool use_subresource_tracking,
+                                       VKResourceBarrierState barrier_state,
                                        const char *name)
 {
   UNUSED_VARS_NDEBUG(name);
@@ -45,13 +48,35 @@ void VKResourceStateTracker::add_image(VkImage vk_image,
   resource.type = VKResourceType::IMAGE;
   resource.image.vk_image = vk_image;
   resource.image.use_subresource_tracking = use_subresource_tracking;
+  resource.barrier_state = barrier_state;
+
 #ifndef NDEBUG
-  resource.name = name;
+  if (name) {
+    resource.name = name;
+  }
 #endif
 
 #ifdef VK_RESOURCE_STATE_TRACKER_VALIDATION
   validate();
 #endif
+}
+
+void VKResourceStateTracker::add_image(VkImage vk_image,
+                                       bool use_subresource_tracking,
+                                       const char *name)
+{
+  add_image(vk_image, use_subresource_tracking, {}, name);
+}
+
+void VKResourceStateTracker::add_swapchain_image(VkImage vk_image, const char *name)
+{
+  add_image(vk_image,
+            false,
+            {
+                VK_ACCESS_NONE,
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            },
+            name);
 }
 
 void VKResourceStateTracker::add_buffer(VkBuffer vk_buffer, const char *name)
@@ -67,13 +92,29 @@ void VKResourceStateTracker::add_buffer(VkBuffer vk_buffer, const char *name)
   resource.type = VKResourceType::BUFFER;
   resource.buffer.vk_buffer = vk_buffer;
   resource.stamp = 0;
+
 #ifndef NDEBUG
-  resource.name = name;
+  if (name) {
+    resource.name = name;
+  }
 #endif
 
 #ifdef VK_RESOURCE_STATE_TRACKER_VALIDATION
   validate();
 #endif
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Image layout
+ * \{ */
+
+void VKResourceStateTracker::update_image_layout(VkImage vk_image, VkImageLayout vk_image_layout)
+{
+  ResourceHandle handle = image_resources_.lookup(vk_image);
+  Resource &resource = resources_.lookup(handle);
+  resource.barrier_state.image_layout = vk_image_layout;
 }
 
 /** \} */

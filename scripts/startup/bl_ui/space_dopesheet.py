@@ -205,7 +205,12 @@ class DOPESHEET_HT_header(Header):
         st = context.space_data
 
         layout.template_header()
-        layout.prop(st, "ui_mode", text="")
+
+        if st.mode != 'TIMELINE':
+            # Timeline mode is special, as it's presented as a sub-type of the
+            # dope sheet editor, rather than a mode. So this shouldn't show the
+            # mode selector.
+            layout.prop(st, "ui_mode", text="")
 
         DOPESHEET_MT_editor_menus.draw_collapsible(context, layout)
         DOPESHEET_HT_editor_buttons.draw_header(context, layout)
@@ -217,7 +222,12 @@ class DOPESHEET_HT_editor_buttons:
     @classmethod
     def draw_header(cls, context, layout):
         st = context.space_data
-        tool_settings = context.tool_settings
+
+        if st.mode == 'TIMELINE':
+            playback_controls(layout, context)
+            layout.separator()
+            cls._draw_overlay_selector(context, layout)
+            return
 
         if st.mode in {'ACTION', 'SHAPEKEY'} and context.object:
             layout.separator_spacer()
@@ -262,6 +272,8 @@ class DOPESHEET_HT_editor_buttons:
             icon='FILTER',
         )
 
+        tool_settings = context.tool_settings
+
         # Grease Pencil mode doesn't need snapping, as it's frame-aligned only
         if st.mode != 'GPENCIL':
             row = layout.row(align=True)
@@ -283,8 +295,14 @@ class DOPESHEET_HT_editor_buttons:
             icon_only=True,
             panel="DOPESHEET_PT_proportional_edit",
         )
-        overlays = st.overlays
 
+        cls._draw_overlay_selector(context, layout)
+
+    @classmethod
+    def _draw_overlay_selector(cls, context, layout):
+        st = context.space_data
+
+        overlays = st.overlays
         row = layout.row(align=True)
         row.prop(overlays, "show_overlays", text="", icon='OVERLAY')
         sub = row.row(align=True)
@@ -304,7 +322,7 @@ class DOPESHEET_HT_editor_buttons:
         row.template_action(animated_id, new="action.new", unlink="action.unlink")
 
         adt = animated_id and animated_id.animation_data
-        if not adt or not adt.action or not adt.action.is_action_layered:
+        if not adt or not adt.action:
             return
 
         # Store the animated ID in the context, so that the new/unlink operators
@@ -379,6 +397,21 @@ class DOPESHEET_MT_editor_menus(Menu):
         layout = self.layout
         st = context.space_data
         active_action = context.active_action
+
+        if st.mode == 'TIMELINE':
+            # Draw the 'timeline' menus, which are simpler. Most importantly, the
+            # 'selected only' toggle is in the menu, and actually stored as a scene
+            # flag instead of the space data.
+            horizontal = (layout.direction == 'VERTICAL')
+            if horizontal:
+                row = layout.row()
+                sub = row.row(align=True)
+            else:
+                sub = layout
+            sub.menu("TIME_MT_view")
+            if st.show_markers:
+                sub.menu("DOPESHEET_MT_marker")
+            return
 
         layout.menu("DOPESHEET_MT_view")
         layout.menu("DOPESHEET_MT_select")
@@ -572,7 +605,7 @@ class DOPESHEET_MT_channel(Menu):
         layout.operator("action.clean", text="Clean Channels").channels = True
 
         layout.separator()
-        layout.operator("anim.channels_group")
+        layout.operator("anim.channels_group", text="Group Channels...")
         layout.operator("anim.channels_ungroup")
 
         layout.separator()
@@ -589,7 +622,7 @@ class DOPESHEET_MT_channel(Menu):
         layout.operator("anim.channels_collapse")
 
         layout.separator()
-        layout.operator_menu_enum("anim.channels_move", "direction", text="Move...")
+        layout.operator_menu_enum("anim.channels_move", "direction", text="Move Channels")
 
         layout.separator()
         layout.operator("anim.channels_fcurves_enable")
@@ -779,7 +812,7 @@ class DOPESHEET_MT_gpencil_channel(Menu):
         # layout.operator("anim.channels_collapse")
 
         layout.separator()
-        layout.operator_menu_enum("anim.channels_move", "direction", text="Move...")
+        layout.operator_menu_enum("anim.channels_move", "direction", text="Move Channels")
 
         layout.separator()
         layout.operator("anim.channels_view_selected")
@@ -860,7 +893,7 @@ class DOPESHEET_MT_channel_context_menu(Menu):
         layout.operator("anim.channels_setting_disable", text="Unprotect Channels").type = 'PROTECT'
 
         layout.separator()
-        layout.operator("anim.channels_group")
+        layout.operator("anim.channels_group", text="Group Channels...")
         layout.operator("anim.channels_ungroup")
 
         layout.separator()
@@ -884,7 +917,7 @@ class DOPESHEET_MT_channel_context_menu(Menu):
         layout.operator("anim.channels_collapse")
 
         layout.separator()
-        layout.operator_menu_enum("anim.channels_move", "direction", text="Move...")
+        layout.operator_menu_enum("anim.channels_move", "direction", text="Move Channels")
 
         layout.separator()
 

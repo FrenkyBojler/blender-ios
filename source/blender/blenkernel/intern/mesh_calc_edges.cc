@@ -15,6 +15,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_filter.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
@@ -209,6 +210,25 @@ static IndexMask mask_first_distinct_edges(const Span<int2> edges,
       });
 }
 
+static void map_edge_to_span_index(const Span<int2> edges,
+                                   const Span<EdgeMap> edge_maps,
+                                   const uint32_t parallel_mask,
+                                   const OffsetIndices<int> edge_offsets,
+                                   MutableSpan<int> indices)
+{
+  threading::parallel_for_each(edge_maps.index_range(), [&](const int map_i) {
+    int edge_map_iter = 0;
+    for (const int edge_i : edges.index_range()) {
+      const int edge_map = calc_edges::edge_to_hash_map_i(edges[edge_i], parallel_mask);
+      if (map_i != edge_map) {
+        continue;
+      }
+      indices[edge_offsets[edge_map][edge_map_iter]] = edge_i;
+      edge_map_iter++;
+    }
+  });
+}
+
 }  // namespace calc_edges
 
 void mesh_calc_edges(Mesh &mesh,
@@ -218,7 +238,7 @@ void mesh_calc_edges(Mesh &mesh,
 {
 
   if (mesh.edges_num == 0 && mesh.corners_num == 0) {
-    /* BLI_assert(BKE_mesh_is_valid(&mesh)); */
+    /* BLI_assert(mesh_is_valid(mesh)); */
     return;
   }
 
@@ -226,7 +246,7 @@ void mesh_calc_edges(Mesh &mesh,
     CustomData_free(&mesh.edge_data);
     mesh.edges_num = 0;
     mesh.tag_loose_edges_none();
-    /* BLI_assert(BKE_mesh_is_valid(&mesh)); */
+    /* BLI_assert(mesh_is_valid(mesh)); */
     return;
   }
 
@@ -252,7 +272,7 @@ void mesh_calc_edges(Mesh &mesh,
   const bool original_edges_are_distinct = original_unique_edge_num == mesh.edges_num;
 
   if (mesh.corners_num == 0 && keep_existing_edges && original_edges_are_distinct) {
-    /* BLI_assert(BKE_mesh_is_valid(&mesh)); */
+    /* BLI_assert(mesh_is_valid(&mesh)); */
     return;
   }
 
@@ -268,6 +288,8 @@ void mesh_calc_edges(Mesh &mesh,
   corner_edges.fill(-1);
 #endif
 
+  const int result_edges_num = edge_offsets.total_size();
+
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int2> original_edges = mesh.edges();
   const Span<int> corner_verts = mesh.corner_verts();
@@ -276,18 +298,26 @@ void mesh_calc_edges(Mesh &mesh,
      * that case. TODO: make this optional. */
     calc_edges::update_edge_indices_in_face_loops(
         faces, corner_verts, edge_maps, parallel_mask, edge_offsets, corner_edges);
+
+    Array<int> edge_map_to_result_index(result_edges_num);
+#ifndef NDEBUG
+    edge_map_to_result_index.as_mutable_span().fill(-1);
+#endif
+    calc_edges::map_edge_to_span_index(
+        original_edges, edge_maps, parallel_mask, edge_offsets, edge_map_to_result_index);
+    array_utils::gather(edge_map_to_result_index.as_span(), corner_edges.as_span(), corner_edges);
+
     BLI_assert(!corner_edges.contains(-1));
-    BLI_assert(BKE_mesh_is_valid(&mesh));
+    BLI_assert(mesh_is_valid(mesh));
     return;
   }
-
-  const int result_edges_num = edge_offsets.total_size();
 
   IndexMaskMemory memory;
   IndexRange back_range_of_new_edges;
   IndexMask src_to_dst_mask;
 
-  MutableSpan<int2> edge_verts(MEM_malloc_arrayN<int2>(result_edges_num, AT), result_edges_num);
+  MutableSpan<int2> edge_verts(MEM_new_array_uninitialized<int2>(result_edges_num, AT),
+                               result_edges_num);
 #ifndef NDEBUG
   edge_verts.fill(int2(-1));
 #endif
@@ -321,18 +351,11 @@ void mesh_calc_edges(Mesh &mesh,
     if (original_edges_are_distinct) {
       /* TODO: Do we can group edges by .low vertex? Or by hash, but with Span<int> of edges by
        * group?... */
-      threading::parallel_for_each(edge_maps.index_range(), [&](const int map_i) {
-        int edge_map_iter = 0;
-        for (const int edge_i : IndexRange(mesh.edges_num)) {
-          const int edge_map = calc_edges::edge_to_hash_map_i(original_edges[edge_i],
-                                                              parallel_mask);
-          if (map_i != edge_map) {
-            continue;
-          }
-          edge_map_to_result_index[edge_offsets[edge_map][edge_map_iter]] = edge_i;
-          edge_map_iter++;
-        }
-      });
+      calc_edges::map_edge_to_span_index(original_edges.take_front(mesh.edges_num),
+                                         edge_maps,
+                                         parallel_mask,
+                                         edge_offsets,
+                                         edge_map_to_result_index);
     }
     else {
       src_to_dst_mask.foreach_index(
@@ -421,7 +444,7 @@ void mesh_calc_edges(Mesh &mesh,
           array_utils::scatter<int2>(
               edge_map.as_span().cast<int2>(),
               edge_map_to_result_index.as_span().slice(edge_offsets[task_index]),
-              edge_verts.slice(edge_offsets[task_index]));
+              edge_verts);
         });
 
         calc_edges::update_edge_indices_in_face_loops(
@@ -475,34 +498,48 @@ void mesh_calc_edges(Mesh &mesh,
     dst_attributes.remove(attribute);
   }
 
-  CustomData_free_layer_named(&mesh.edge_data, ".edge_verts");
-  for (CustomDataLayer &layer : MutableSpan(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
-    const void *src_data = layer.data;
-    const size_t elem_size = CustomData_sizeof(eCustomDataType(layer.type));
-
-    void *dst_data = MEM_malloc_arrayN(result_edges_num, elem_size, AT);
-    if (src_data != nullptr) {
-      if (layer.type == CD_ORIGINDEX) {
-        const Span src(static_cast<const int *>(src_data), mesh.edges_num);
-        MutableSpan dst(static_cast<int *>(dst_data), result_edges_num);
-        array_utils::gather(src, src_to_dst_mask, dst.take_front(src_to_dst_mask.size()));
-        dst.slice(back_range_of_new_edges).fill(-1);
-      }
-      else {
-        const CPPType *type = custom_data_type_to_cpp_type(eCustomDataType(layer.type));
-        BLI_assert(type != nullptr);
-        const GSpan src(type, src_data, mesh.edges_num);
-        GMutableSpan dst(type, dst_data, result_edges_num);
-        array_utils::gather(src, src_to_dst_mask, dst.take_front(src_to_dst_mask.size()));
-        type->fill_assign_n(type->default_value(),
-                            dst.slice(back_range_of_new_edges).data(),
-                            dst.slice(back_range_of_new_edges).size());
-      }
-      layer.sharing_info->remove_user_and_delete_if_last();
+  mesh.attribute_storage.wrap().remove(".edge_verts");
+  for (bke::Attribute &attr : mesh.attribute_storage.wrap()) {
+    if (attr.domain() != bke::AttrDomain::Edge) {
+      continue;
     }
+    switch (attr.storage_type()) {
+      case AttrStorageType::Single: {
+        break;
+      }
+      case AttrStorageType::Array: {
+        const CPPType &type = bke::attribute_type_to_cpp_type(attr.data_type());
+        const auto &src_data = std::get<bke::Attribute::ArrayData>(attr.data());
+        auto dst_data = bke::Attribute::ArrayData::from_uninitialized(type, result_edges_num);
+        const GSpan src(type, src_data.data, mesh.edges_num);
+        GMutableSpan dst(type, dst_data.data, result_edges_num);
+        array_utils::gather(src, src_to_dst_mask, dst.take_front(src_to_dst_mask.size()));
+        type.fill_construct_n(type.default_value(),
+                              dst.slice(back_range_of_new_edges).data(),
+                              dst.slice(back_range_of_new_edges).size());
+        attr.assign_data(std::move(dst_data));
+        break;
+      }
+    }
+  }
 
-    layer.data = dst_data;
-    layer.sharing_info = implicit_sharing::info_for_mem_free(dst_data);
+  {
+    const int orig_index_layer = CustomData_get_layer_index(&mesh.edge_data, CD_ORIGINDEX);
+    if (orig_index_layer != -1) {
+      CustomDataLayer &layer = mesh.edge_data.layers[orig_index_layer];
+      const int *src_data = static_cast<const int *>(layer.data);
+
+      int *dst_data = MEM_new_array_uninitialized<int>(result_edges_num, __func__);
+      MutableSpan dst(dst_data, result_edges_num);
+      if (src_data != nullptr) {
+        const Span src(src_data, mesh.edges_num);
+        array_utils::gather(src, src_to_dst_mask, dst.take_front(src_to_dst_mask.size()));
+      }
+      dst.slice(back_range_of_new_edges).fill(-1);
+      layer.sharing_info->remove_user_and_delete_if_last();
+      layer.data = dst_data;
+      layer.sharing_info = implicit_sharing::info_for_mem_free(dst_data);
+    }
   }
 
   mesh.edges_num = result_edges_num;
@@ -514,10 +551,7 @@ void mesh_calc_edges(Mesh &mesh,
     dst_attributes.remove(".select_edge");
     if (ELEM(back_range_of_new_edges.size(), 0, mesh.edges_num)) {
       const bool fill_value = back_range_of_new_edges.size() == mesh.edges_num;
-      dst_attributes.add<int2>(
-          ".select_edge",
-          AttrDomain::Edge,
-          AttributeInitVArray(VArray<bool>::from_single(fill_value, mesh.edges_num)));
+      dst_attributes.add<bool>(".select_edge", AttrDomain::Edge, AttributeInitValue(fill_value));
     }
     else {
       SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_or_add_for_write_span<bool>(
@@ -536,7 +570,7 @@ void mesh_calc_edges(Mesh &mesh,
   /* Explicitly clear edge maps, because that way it can be parallelized. */
   calc_edges::clear_hash_tables(edge_maps);
 
-  /* BLI_assert(BKE_mesh_is_valid(&mesh)); */
+  /* BLI_assert(mesh_is_valid(mesh)); */
 }
 
 void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, const bool select_new_edges)

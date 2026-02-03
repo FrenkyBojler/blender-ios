@@ -40,6 +40,8 @@ BLOCKLIST = [
     "light_path_is_shadow_ray.blend",
     # Blocked as the test seems to alternate between two different states
     "light_path_is_diffuse_ray.blend",
+    # Blocked due to stochastic diffuse/transmission layering resulting in non-deterministic surfel lighting.
+    "principled_bsdf_transmission.blend",
 ]
 
 BLOCKLIST_METAL = [
@@ -56,10 +58,11 @@ BLOCKLIST_METAL = [
 ]
 
 BLOCKLIST_VULKAN = [
-    # Blocked due to difference in screen space tracing (to be fixed).
-    "sss_reflection_clamp.blend",
     # Blocked due to difference in screen space tracing (to be investigated).
-    "image.blend"
+    "image.blend",
+]
+
+BLOCKLIST_INTEL = [
 ]
 
 
@@ -68,6 +71,9 @@ def setup():
 
     for scene in bpy.data.scenes:
         scene.render.engine = 'BLENDER_EEVEE'
+
+        skip_hair_setup = scene.get("EEVEE_skip_hair_setup", False)
+        skip_shadow_setup = scene.get("EEVEE_skip_shadow_setup", False)
 
         # Enable Eevee features
         eevee = scene.eevee
@@ -84,10 +90,13 @@ def setup():
         eevee.light_threshold = 0.001
 
         # Hair
-        scene.render.hair_type = 'STRIP'
+        if not skip_hair_setup:
+            scene.render.hair_type = 'STRIP'
 
         # Shadow
-        eevee.shadow_step_count = 16
+        if not skip_shadow_setup:
+            eevee.shadow_step_count = 16
+            eevee.shadow_pool_size = '1024'
 
         # Volumetric
         eevee.volumetric_tile_size = '2'
@@ -114,7 +123,7 @@ def setup():
 
         # Only include the plane in probes
         for ob in scene.objects:
-            if ob.type == 'LIGHT':
+            if ob.type == 'LIGHT' and not skip_shadow_setup:
                 # Set maximum resolution
                 ob.data.shadow_maximum_resolution = 0.0
 
@@ -170,26 +179,6 @@ if inside_blender:
         sys.exit(1)
 
 
-def get_gpu_device_type(blender):
-    # TODO: This always fails.
-    command = [
-        blender,
-        "--background",
-        "--factory-startup",
-        "--python",
-        str(pathlib.Path(__file__).parent / "gpu_info.py")
-    ]
-    try:
-        completed_process = subprocess.run(command, stdout=subprocess.PIPE)
-        for line in completed_process.stdout.read_text():
-            if line.startswith("GPU_DEVICE_TYPE:"):
-                vendor = line.split(':')[1]
-                return vendor
-    except Exception:
-        return None
-    return None
-
-
 def get_arguments(filepath, output_filepath, gpu_backend):
     arguments = [
         "--background",
@@ -230,16 +219,15 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
-    gpu_device_type = get_gpu_device_type(args.blender)
-    reference_override_dir = None
-    if gpu_device_type == "AMD":
-        reference_override_dir = "eevee_renders/amd"
-
     blocklist = BLOCKLIST
     if args.gpu_backend == "metal":
         blocklist += BLOCKLIST_METAL
     elif args.gpu_backend == "vulkan":
         blocklist += BLOCKLIST_VULKAN
+
+    gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
+    if gpu_vendor == "INTEL":
+        blocklist += BLOCKLIST_INTEL
 
     report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":
@@ -249,7 +237,6 @@ def main():
 
     report.set_pixelated(True)
     report.set_reference_dir("eevee_renders")
-    report.set_reference_override_dir(reference_override_dir)
 
     test_dir_name = Path(args.testdir).name
     if test_dir_name.startswith('image_mapping'):
@@ -260,12 +247,18 @@ def main():
     elif test_dir_name.startswith('displacement'):
         # metal shadow and wireframe difference. To be fixed.
         report.set_fail_threshold(0.07)
+    elif test_dir_name.startswith('bsdf'):
+        # metallic thinfilm tests and dithered transparency
+        report.set_fail_threshold(0.045)
+    elif test_dir_name.startswith('principled_bsdf'):
+        # principled bsdf transmission test
+        report.set_fail_threshold(0.02)
 
     # Noise pattern changes depending on platform. Mostly caused by transparency.
     # TODO(fclem): See if we can just increase number of samples per file.
     if test_dir_name.startswith('render_layer'):
         # shadow pass, rlayer flag
-        report.set_fail_threshold(0.075)
+        report.set_fail_threshold(0.08)
     elif test_dir_name.startswith('hair'):
         # hair close up
         report.set_fail_threshold(0.0275)
@@ -278,6 +271,9 @@ def main():
     elif test_dir_name.startswith('light_linking'):
         # Noise difference in transparent material
         report.set_fail_threshold(0.05)
+    elif test_dir_name.startswith('light'):
+        # Noise difference in background
+        report.set_fail_threshold(0.03)
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
     sys.exit(not ok)

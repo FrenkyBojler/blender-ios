@@ -8,6 +8,10 @@
 
 #pragma once
 
+#ifdef __cplusplus
+namespace blender {
+#endif
+
 /**
  * Scaling factor for all UI elements, based on the "Resolution Scale" user preference and the
  * DPI/OS Scale of each monitor. This is a read-only, run-time value calculated by
@@ -339,10 +343,10 @@ typedef struct ThemeSpace {
 
   unsigned char nurb_uline[4], nurb_vline[4];
   unsigned char nurb_sel_uline[4], nurb_sel_vline[4];
-  char _pad5[4];
 
   /** Dope-sheet. */
-  unsigned char ds_ipoline[4];
+  unsigned char anim_interpolation_linear[4], anim_interpolation_constant[4],
+      anim_interpolation_other[4];
   /** Keyframe border. */
   unsigned char keyborder[4], keyborder_select[4];
   char _pad4[3];
@@ -363,6 +367,8 @@ typedef struct ThemeSpace {
   unsigned char syntaxd[4], syntaxr[4]; /* In node-space used for distort. */
 
   unsigned char line_numbers[4];
+
+  unsigned char node_outline[4];
 
   unsigned char nodeclass_output[4], nodeclass_filter[4];
   unsigned char nodeclass_vector[4], nodeclass_texture[4];
@@ -397,8 +403,10 @@ typedef struct ThemeSpace {
   unsigned char camera_passepartout[4];
   unsigned char _pad1[2];
 
+  unsigned char gp_wire_edit[4];
   unsigned char gp_vertex_size;
   unsigned char gp_vertex[4], gp_vertex_select[4];
+  char _pad11[12];
 
   unsigned char preview_back[4];
   unsigned char preview_stitch_face[4];
@@ -556,3 +564,7 @@ typedef struct bTheme {
   (CHECK_TYPE_INLINE(btheme, bTheme *), &((btheme)->space_properties))
 #define UI_THEMESPACE_END(btheme) \
   (CHECK_TYPE_INLINE(btheme, bTheme *), (&((btheme)->space_spreadsheet) + 1))
+
+#ifdef __cplusplus
+}  // namespace blender
+#endif

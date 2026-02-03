@@ -9,6 +9,7 @@
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_assert.h"
+#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
@@ -22,15 +23,15 @@
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
+
 #include "BLT_translation.hh"
 
 #include "DNA_anim_types.h"
-#include "DNA_array_utils.hh"
 #include "DNA_gpencil_legacy_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -82,7 +83,9 @@
 #include "UI_resources.hh"
 #include <limits>
 
-namespace blender::ed::greasepencil {
+namespace blender {
+
+namespace ed::greasepencil {
 
 /* -------------------------------------------------------------------- */
 /** \name Smooth Stroke Operator
@@ -92,7 +95,7 @@ static wmOperatorStatus grease_pencil_stroke_smooth_exec(bContext *C, wmOperator
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const int iterations = RNA_int_get(op->ptr, "iterations");
   const float influence = RNA_float_get(op->ptr, "factor");
@@ -274,7 +277,7 @@ static wmOperatorStatus grease_pencil_stroke_simplify_exec(bContext *C, wmOperat
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const SimplifyMode mode = SimplifyMode(RNA_enum_get(op->ptr, "mode"));
 
@@ -327,6 +330,10 @@ static wmOperatorStatus grease_pencil_stroke_simplify_exec(bContext *C, wmOperat
       }
       case SimplifyMode::SAMPLE: {
         const float resample_length = RNA_float_get(op->ptr, "length");
+        /* Prevent division by zero. */
+        if (resample_length == 0.0f) {
+          break;
+        }
         info.drawing.strokes_for_write() = geometry::resample_to_length(
             curves, strokes, VArray<float>::from_single(resample_length, curves.curves_num()), {});
         info.drawing.tag_topology_changed();
@@ -367,30 +374,30 @@ static wmOperatorStatus grease_pencil_stroke_simplify_exec(bContext *C, wmOperat
 
 static void grease_pencil_simplify_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
   wmWindowManager *wm = CTX_wm_manager(C);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  layout->prop(&ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(&ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   const SimplifyMode mode = SimplifyMode(RNA_enum_get(op->ptr, "mode"));
 
   switch (mode) {
     case SimplifyMode::FIXED:
-      layout->prop(&ptr, "steps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(&ptr, "steps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SimplifyMode::ADAPTIVE:
-      layout->prop(&ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(&ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SimplifyMode::SAMPLE:
-      layout->prop(&ptr, "length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(&ptr, "length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SimplifyMode::MERGE:
-      layout->prop(&ptr, "distance", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(&ptr, "distance", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     default:
       break;
@@ -414,7 +421,7 @@ static void GREASE_PENCIL_OT_stroke_simplify(wmOperatorType *ot)
 
   prop = RNA_def_float(ot->srna, "factor", 0.01f, 0.0f, 100.0f, "Factor", "", 0.0f, 100.0f);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-  prop = RNA_def_float(ot->srna, "length", 0.05f, 0.01f, 100.0f, "Length", "", 0.01f, 1.0f);
+  prop = RNA_def_float(ot->srna, "length", 0.05f, 0.0f, 100.0f, "Length", "", 0.01f, 1.0f);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_float(ot->srna, "distance", 0.01f, 0.0f, 100.0f, "Distance", "", 0.0f, 1.0f);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
@@ -440,7 +447,7 @@ static wmOperatorStatus grease_pencil_delete_exec(bContext *C, wmOperator * /*op
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
       scene->toolsettings);
@@ -584,7 +591,7 @@ static wmOperatorStatus grease_pencil_dissolve_exec(bContext *C, wmOperator *op)
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const DissolveMode mode = DissolveMode(RNA_enum_get(op->ptr, "type"));
 
@@ -673,7 +680,7 @@ static wmOperatorStatus grease_pencil_delete_frame_exec(bContext *C, wmOperator 
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
   const int current_frame = scene->r.cfra;
 
   const DeleteFrameMode mode = DeleteFrameMode(RNA_enum_get(op->ptr, "type"));
@@ -732,11 +739,10 @@ static void GREASE_PENCIL_OT_delete_frame(wmOperatorType *ot)
 
 static wmOperatorStatus grease_pencil_stroke_material_set_exec(bContext *C, wmOperator *op)
 {
-  using namespace blender;
   Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
   Material *ma = nullptr;
   char name[MAX_ID_NAME - 2];
   RNA_string_get(op->ptr, "material", name);
@@ -853,7 +859,7 @@ static wmOperatorStatus grease_pencil_cyclical_set_exec(bContext *C, wmOperator 
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const CyclicalMode mode = CyclicalMode(RNA_enum_get(op->ptr, "type"));
   const bool subdivide_cyclic_segment = RNA_boolean_get(op->ptr, "subdivide_cyclic_segment");
@@ -945,7 +951,7 @@ static wmOperatorStatus grease_pencil_set_active_material_exec(bContext *C, wmOp
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   if (object->totcol == 0) {
     return OPERATOR_CANCELLED;
@@ -993,7 +999,7 @@ static wmOperatorStatus grease_pencil_set_uniform_thickness_exec(bContext *C, wm
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   /* Radius is half of the thickness. */
   const float radius = RNA_float_get(op->ptr, "thickness") * 0.5f;
@@ -1049,7 +1055,7 @@ static wmOperatorStatus grease_pencil_set_uniform_opacity_exec(bContext *C, wmOp
 
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const float opacity_stroke = RNA_float_get(op->ptr, "opacity_stroke");
   const float opacity_fill = RNA_float_get(op->ptr, "opacity_fill");
@@ -1063,7 +1069,7 @@ static wmOperatorStatus grease_pencil_set_uniform_opacity_exec(bContext *C, wmOp
     if (strokes.is_empty()) {
       return;
     }
-    CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     MutableAttributeAccessor attributes = curves.attributes_for_write();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
@@ -1071,11 +1077,12 @@ static wmOperatorStatus grease_pencil_set_uniform_opacity_exec(bContext *C, wmOp
     bke::curves::fill_points<float>(points_by_curve, strokes, opacity_stroke, opacities);
 
     if (SpanAttributeWriter<float> fill_opacities = attributes.lookup_or_add_for_write_span<float>(
-            "fill_opacity", AttrDomain::Curve))
+            "fill_opacity",
+            AttrDomain::Curve,
+            bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
     {
-      strokes.foreach_index(GrainSize(2048), [&](const int64_t curve) {
-        fill_opacities.span[curve] = opacity_fill;
-      });
+      index_mask::masked_fill(fill_opacities.span, opacity_fill, strokes);
+      fill_opacities.finish();
     }
 
     changed = true;
@@ -1117,7 +1124,7 @@ static wmOperatorStatus grease_pencil_stroke_switch_direction_exec(bContext *C,
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -1237,7 +1244,7 @@ static wmOperatorStatus grease_pencil_set_start_point_exec(bContext *C, wmOperat
   using namespace bke::greasepencil;
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -1307,7 +1314,7 @@ static wmOperatorStatus grease_pencil_caps_set_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const CapsMode mode = CapsMode(RNA_enum_get(op->ptr, "type"));
 
@@ -1415,7 +1422,7 @@ static const EnumPropertyItem *material_enum_itemf(bContext *C,
                                                    PropertyRNA * /*prop*/,
                                                    bool *r_free)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = (C) ? CTX_data_active_object(C) : nullptr;
   EnumPropertyItem *item = nullptr, item_tmp = {0};
   int totitem = 0;
 
@@ -1443,7 +1450,7 @@ static const EnumPropertyItem *material_enum_itemf(bContext *C,
 static wmOperatorStatus grease_pencil_set_material_exec(bContext *C, wmOperator *op)
 {
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
   const int slot = RNA_enum_get(op->ptr, "slot");
 
   /* Try to get material slot. */
@@ -1485,7 +1492,7 @@ static wmOperatorStatus grease_pencil_duplicate_exec(bContext *C, wmOperator * /
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
       scene->toolsettings);
@@ -1541,7 +1548,7 @@ static wmOperatorStatus grease_pencil_clean_loose_exec(bContext *C, wmOperator *
   Scene &scene = *CTX_data_scene(C);
   const int limit = RNA_int_get(op->ptr, "limit");
 
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
@@ -1613,7 +1620,7 @@ static wmOperatorStatus gpencil_stroke_subdivide_exec(bContext *C, wmOperator *o
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
       scene->toolsettings);
 
@@ -1823,7 +1830,7 @@ static wmOperatorStatus grease_pencil_stroke_reorder_exec(bContext *C, wmOperato
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const ReorderDirection direction = ReorderDirection(RNA_enum_get(op->ptr, "direction"));
 
@@ -1895,7 +1902,7 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
   bool changed = false;
 
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   std::string target_layer_name = RNA_string_get(op->ptr, "target_layer_name");
   const bool add_new_layer = RNA_boolean_get(op->ptr, "add_new_layer");
@@ -1930,9 +1937,22 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
       continue;
     }
 
-    if (!layer_dst.frames().lookup_ptr(info.frame_number)) {
+    bool is_key_inserted = false;
+    bool has_active_key = false;
+    if (layer_dst.frames().is_empty()) {
+      /* If the target layer doesn't have any keyframes, insert a new key at the current frame. */
+      grease_pencil.insert_frame(layer_dst, scene->r.cfra);
+      is_key_inserted = true;
+      has_active_key = true;
+    }
+    else {
+      has_active_key = ensure_active_keyframe(
+          *scene, grease_pencil, layer_dst, false, is_key_inserted);
+    }
+
+    if (has_active_key && is_key_inserted) {
       /* Move geometry to a new drawing in target layer. */
-      Drawing &drawing_dst = *grease_pencil.insert_frame(layer_dst, info.frame_number);
+      Drawing &drawing_dst = *grease_pencil.get_drawing_at(layer_dst, info.frame_number);
       drawing_dst.strokes_for_write() = bke::curves_copy_curve_selection(
           curves_src, selected_strokes, {});
 
@@ -1976,7 +1996,7 @@ static wmOperatorStatus grease_pencil_move_to_layer_invoke(bContext *C,
   const bool add_new_layer = RNA_boolean_get(op->ptr, "add_new_layer");
   if (add_new_layer) {
     Object *object = CTX_data_active_object(C);
-    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+    GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
     const std::string unique_name = grease_pencil.unique_layer_name("Layer");
     RNA_string_set(op->ptr, "target_layer_name", unique_name.c_str());
@@ -2070,7 +2090,7 @@ static Object *duplicate_grease_pencil_object(Main *bmain,
   object_dst->mode = OB_MODE_OBJECT;
   GreasePencil *grease_pencil_dst = BKE_grease_pencil_add(bmain, grease_pencil_src.id.name + 2);
   BKE_grease_pencil_copy_parameters(grease_pencil_src, *grease_pencil_dst);
-  object_dst->data = grease_pencil_dst;
+  object_dst->data = id_cast<ID *>(grease_pencil_dst);
 
   return object_dst;
 }
@@ -2107,10 +2127,10 @@ static bool grease_pencil_separate_selected(bContext &C,
   using namespace bke::greasepencil;
   bool changed = false;
 
-  GreasePencil &grease_pencil_src = *static_cast<GreasePencil *>(object_src.data);
+  GreasePencil &grease_pencil_src = *id_cast<GreasePencil *>(object_src.data);
   Object *object_dst = duplicate_grease_pencil_object(
       &bmain, &scene, &view_layer, &base_prev, grease_pencil_src);
-  GreasePencil &grease_pencil_dst = *static_cast<GreasePencil *>(object_dst->data);
+  GreasePencil &grease_pencil_dst = *id_cast<GreasePencil *>(object_dst->data);
 
   /* Iterate through all the drawings at current scene frame. */
   const Vector<MutableDrawingInfo> drawings_src = retrieve_editable_drawings(scene,
@@ -2184,7 +2204,7 @@ static bool grease_pencil_separate_layer(bContext &C,
   using namespace bke::greasepencil;
   bool changed = false;
 
-  GreasePencil &grease_pencil_src = *static_cast<GreasePencil *>(object_src.data);
+  GreasePencil &grease_pencil_src = *id_cast<GreasePencil *>(object_src.data);
 
   /* Create a new object for each layer. */
   for (const int layer_i : grease_pencil_src.layers().index_range()) {
@@ -2195,7 +2215,7 @@ static bool grease_pencil_separate_layer(bContext &C,
 
     Object *object_dst = duplicate_grease_pencil_object(
         &bmain, &scene, &view_layer, &base_prev, grease_pencil_src);
-    GreasePencil &grease_pencil_dst = *static_cast<GreasePencil *>(object_dst->data);
+    GreasePencil &grease_pencil_dst = *id_cast<GreasePencil *>(object_dst->data);
     Vector<int> src_to_dst_layer_indices;
     Layer &layer_dst = find_or_create_layer_in_dst_by_name(
         layer_i, grease_pencil_src, grease_pencil_dst, src_to_dst_layer_indices);
@@ -2263,7 +2283,7 @@ static bool grease_pencil_separate_material(bContext &C,
   using namespace bke::greasepencil;
   bool changed = false;
 
-  GreasePencil &grease_pencil_src = *static_cast<GreasePencil *>(object_src.data);
+  GreasePencil &grease_pencil_src = *id_cast<GreasePencil *>(object_src.data);
 
   /* Create a new object for each material. */
   for (const int mat_i : IndexRange(object_src.totcol).drop_front(1)) {
@@ -2273,7 +2293,7 @@ static bool grease_pencil_separate_material(bContext &C,
 
     Object *object_dst = duplicate_grease_pencil_object(
         &bmain, &scene, &view_layer, &base_prev, grease_pencil_src);
-    GreasePencil &grease_pencil_dst = *static_cast<GreasePencil *>(object_dst->data);
+    GreasePencil &grease_pencil_dst = *id_cast<GreasePencil *>(object_dst->data);
 
     /* Add object materials. */
     BKE_object_material_array_assign(&bmain,
@@ -2342,7 +2362,7 @@ static wmOperatorStatus grease_pencil_separate_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Base *base_prev = CTX_data_active_base(C);
   Object *object_src = CTX_data_active_object(C);
-  GreasePencil &grease_pencil_src = *static_cast<GreasePencil *>(object_src->data);
+  GreasePencil &grease_pencil_src = *id_cast<GreasePencil *>(object_src->data);
 
   const SeparateMode mode = SeparateMode(RNA_enum_get(op->ptr, "mode"));
   bool changed = false;
@@ -2443,7 +2463,7 @@ static struct Clipboard {
 } *grease_pencil_clipboard = nullptr;
 
 /** The clone brush accesses the clipboard from multiple threads. Protect from parallel access. */
-blender::Mutex grease_pencil_clipboard_lock;
+Mutex grease_pencil_clipboard_lock;
 
 static Clipboard &ensure_grease_pencil_clipboard()
 {
@@ -2471,8 +2491,8 @@ static Array<int> clipboard_materials_remap(Main &bmain, Object &object)
 
   /* Get a list of all materials in the scene. */
   Map<uint, Material *> scene_materials;
-  LISTBASE_FOREACH (Material *, material, &bmain.materials) {
-    scene_materials.add(material->id.session_uid, material);
+  for (Material &material : bmain.materials) {
+    scene_materials.add(material.id.session_uid, &material);
   }
 
   const Clipboard &clipboard = ensure_grease_pencil_clipboard();
@@ -2513,7 +2533,8 @@ static bke::GeometrySet join_geometries_with_transforms(Span<bke::GeometrySet> g
   geometry::RealizeInstancesOptions options;
   options.keep_original_ids = true;
   options.realize_instance_attributes = false;
-  return realize_instances(bke::GeometrySet::from_instances(instances.release()), options);
+  return realize_instances(bke::GeometrySet::from_instances(instances.release()), options)
+      .geometry;
 }
 static bke::GeometrySet join_geometries_with_transform(Span<bke::GeometrySet> geometries,
                                                        const float4x4 &transform)
@@ -2528,7 +2549,7 @@ static wmOperatorStatus grease_pencil_copy_strokes_exec(bContext *C, wmOperator 
 
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
       scene->toolsettings);
 
@@ -2676,15 +2697,17 @@ static IndexRange clipboard_paste_strokes_ex(Main &bmain,
 
   drawing.strokes_for_write() = std::move(joined_curves.get_curves_for_write()->geometry.wrap());
 
-  /* Remap the material indices of the pasted curves to the target object material indices. */
-  bke::MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
-  bke::SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
-      "material_index", bke::AttrDomain::Curve);
-  if (material_indices) {
-    for (const int i : pasted_curves_range) {
-      material_indices.span[i] = clipboard_material_remap[material_indices.span[i]];
+  if (!clipboard_material_remap.is_empty()) {
+    /* Remap the material indices of the pasted curves to the target object material indices. */
+    bke::MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
+    bke::SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
+        "material_index", bke::AttrDomain::Curve);
+    if (material_indices) {
+      for (const int i : pasted_curves_range) {
+        material_indices.span[i] = clipboard_material_remap[material_indices.span[i]];
+      }
+      material_indices.finish();
     }
-    material_indices.finish();
   }
 
   drawing.tag_topology_changed();
@@ -2705,7 +2728,7 @@ static wmOperatorStatus grease_pencil_paste_strokes_exec(bContext *C, wmOperator
   Object *object = CTX_data_active_object(C);
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
       scene.toolsettings);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const PasteType type = PasteType(RNA_enum_get(op->ptr, "type"));
 
@@ -2935,7 +2958,7 @@ static wmOperatorStatus grease_pencil_stroke_merge_by_distance_exec(bContext *C,
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const float threshold = RNA_float_get(op->ptr, "threshold");
   const bool use_unselected = RNA_boolean_get(op->ptr, "use_unselected");
@@ -3133,7 +3156,7 @@ static wmOperatorStatus grease_pencil_extrude_exec(bContext *C, wmOperator * /*o
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -3179,6 +3202,20 @@ static void GREASE_PENCIL_OT_extrude(wmOperatorType *ot)
 /** \name Reproject Strokes Operator
  * \{ */
 
+/* Determine how much the radius needs to be scaled to look the same from the view. */
+static float calculate_radius_projection_factor(const RegionView3D *rv3d,
+                                                const float3 &old_pos,
+                                                const float3 &new_pos)
+{
+  /* Don't scale the radius when the view is orthographic. */
+  if (!rv3d->is_persp) {
+    return 1.0f;
+  }
+
+  const float3 view_center = float3(rv3d->viewinv[3]);
+  return math::length(new_pos - view_center) / math::length(old_pos - view_center);
+}
+
 static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op)
 {
   Scene &scene = *CTX_data_scene(C);
@@ -3187,18 +3224,23 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op
   View3D *v3d = CTX_wm_view3d(C);
   ARegion *region = CTX_wm_region(C);
 
+  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+
   const ReprojectMode mode = ReprojectMode(RNA_enum_get(op->ptr, "type"));
   const bool keep_original = RNA_boolean_get(op->ptr, "keep_original");
 
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
   const float offset = RNA_float_get(op->ptr, "offset");
 
   /* Init snap context for geometry projection. */
-  transform::SnapObjectContext *snap_context = nullptr;
-  if (mode == ReprojectMode::Surface) {
-    snap_context = transform::snap_object_context_create(&scene, 0);
-  }
+  threading::EnumerableThreadSpecific<transform::SnapObjectContext *> thread_snap_contexts(
+      [&]() -> transform::SnapObjectContext * {
+        if (mode == ReprojectMode::Surface) {
+          return transform::snap_object_context_create();
+        }
+        return nullptr;
+      });
 
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
       scene.toolsettings);
@@ -3244,6 +3286,7 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op
 
     threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
       bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      MutableSpan<float> radii = curves.radius_for_write();
 
       IndexMaskMemory memory;
       const IndexMask editable_points = retrieve_editable_points(
@@ -3299,6 +3342,7 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op
 
             transform::SnapObjectParams params{};
             params.snap_target_select = SCE_SNAP_TARGET_ALL;
+            transform::SnapObjectContext *snap_context = thread_snap_contexts.local();
             if (transform::snap_object_project_ray(snap_context,
                                                    depsgraph,
                                                    v3d,
@@ -3310,9 +3354,14 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op
                                                    hit_normal))
             {
               /* Apply offset over surface. */
-              position = math::transform_point(
+              const float3 new_pos = math::transform_point(
                   world_space_to_layer_space,
                   hit_position + math::normalize(ray_start - hit_position) * offset);
+
+              if (selection_name == ".selection") {
+                radii[point_i] *= calculate_radius_projection_factor(rv3d, position, new_pos);
+              }
+              position = new_pos;
             }
           });
         }
@@ -3320,7 +3369,12 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op
           const DrawingPlacement drawing_placement(
               scene, *region, *v3d, *object, &layer, mode, offset, nullptr);
           points_to_reproject.foreach_index(GrainSize(4096), [&](const int point_i) {
-            positions[point_i] = drawing_placement.reproject(positions[point_i]);
+            const float3 new_pos = drawing_placement.reproject(positions[point_i]);
+            if (selection_name == ".selection") {
+              radii[point_i] *= calculate_radius_projection_factor(
+                  rv3d, positions[point_i], new_pos);
+            }
+            positions[point_i] = new_pos;
           });
         }
 
@@ -3330,8 +3384,10 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op
     });
   }
 
-  if (snap_context != nullptr) {
-    transform::snap_object_context_destroy(snap_context);
+  for (transform::SnapObjectContext *snap_context : thread_snap_contexts) {
+    if (snap_context != nullptr) {
+      transform::snap_object_context_destroy(snap_context);
+    }
   }
 
   if (mode == ReprojectMode::Surface) {
@@ -3349,22 +3405,19 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op
 
 static void grease_pencil_reproject_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
-  uiLayout *row;
+  ui::Layout &layout = *op->layout;
 
   const ReprojectMode type = ReprojectMode(RNA_enum_get(op->ptr, "type"));
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  row = &layout->row(true);
-  row->prop(op->ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+
+  layout.row(true).prop(op->ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (type == ReprojectMode::Surface) {
-    row = &layout->row(true);
-    row->prop(op->ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.row(true).prop(op->ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  row = &layout->row(true);
-  row->prop(op->ptr, "keep_original", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.row(true).prop(op->ptr, "keep_original", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void GREASE_PENCIL_OT_reproject(wmOperatorType *ot)
@@ -3463,7 +3516,7 @@ static wmOperatorStatus grease_pencil_snap_to_grid_exec(bContext *C, wmOperator 
 
   const Scene &scene = *CTX_data_scene(C);
   Object &object = *CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
   const View3D &v3d = *CTX_wm_view3d(C);
   const ARegion &region = *CTX_wm_region(C);
   const float grid_size = ED_view3d_grid_view_scale(&scene, &v3d, &region, nullptr);
@@ -3539,7 +3592,7 @@ static wmOperatorStatus grease_pencil_snap_to_cursor_exec(bContext *C, wmOperato
 
   const Scene &scene = *CTX_data_scene(C);
   Object &object = *CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
   const bool use_offset = RNA_boolean_get(op->ptr, "use_offset");
   const float3 cursor_world = scene.cursor.location;
 
@@ -3574,7 +3627,7 @@ static wmOperatorStatus grease_pencil_snap_to_cursor_exec(bContext *C, wmOperato
 
         /* Offset from first point of the curve. */
         const float3 offset = cursor_layer - positions[points.first()];
-        selected_points.slice_content(points).foreach_index(
+        selected_points.slice_content(points).foreach_index_optimized<int>(
             GrainSize(4096), [&](const int point_i) { positions[point_i] += offset; });
       });
     }
@@ -3676,7 +3729,7 @@ static wmOperatorStatus grease_pencil_snap_cursor_to_sel_exec(bContext *C, wmOpe
 {
   Scene &scene = *CTX_data_scene(C);
   const Object &object = *CTX_data_active_object(C);
-  const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  const GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
   float3 &cursor = reinterpret_cast<float3 &>(scene.cursor.location);
 
   float3 centroid, points_min, points_max;
@@ -3746,7 +3799,7 @@ static wmOperatorStatus grease_pencil_texture_gradient_exec(bContext *C, wmOpera
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   ARegion *region = CTX_wm_region(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -3917,7 +3970,7 @@ static wmOperatorStatus grease_pencil_set_curve_type_exec(bContext *C, wmOperato
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const CurveType dst_type = CurveType(RNA_enum_get(op->ptr, "type"));
   const bool use_handles = RNA_boolean_get(op->ptr, "use_handles");
@@ -3985,7 +4038,7 @@ static wmOperatorStatus grease_pencil_set_handle_type_exec(bContext *C, wmOperat
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   using namespace ed::curves;
   const SetHandleType dst_type = SetHandleType(RNA_enum_get(op->ptr, "type"));
@@ -4045,6 +4098,7 @@ static wmOperatorStatus grease_pencil_set_handle_type_exec(bContext *C, wmOperat
     });
 
     curves.calculate_bezier_auto_handles();
+    curves.calculate_bezier_aligned_handles();
     curves.tag_topology_changed();
     info.drawing.tag_topology_changed();
 
@@ -4089,7 +4143,7 @@ static wmOperatorStatus grease_pencil_set_curve_resolution_exec(bContext *C, wmO
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const int resolution = RNA_int_get(op->ptr, "resolution");
 
@@ -4153,7 +4207,7 @@ static wmOperatorStatus grease_pencil_reset_uvs_exec(bContext *C, wmOperator * /
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -4245,15 +4299,14 @@ static wmOperatorStatus grease_pencil_stroke_split_exec(bContext *C, wmOperator 
 {
   const Scene &scene = *CTX_data_scene(C);
   Object &object = *CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
   std::atomic<bool> changed = false;
 
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
-    const IndexMask selected_points =
-        blender::ed::greasepencil::retrieve_editable_and_selected_points(
-            object, info.drawing, info.layer_index, memory);
+    const IndexMask selected_points = ed::greasepencil::retrieve_editable_and_selected_points(
+        object, info.drawing, info.layer_index, memory);
 
     if (selected_points.is_empty()) {
       return;
@@ -4301,7 +4354,7 @@ static wmOperatorStatus grease_pencil_remove_fill_guides_exec(bContext *C, wmOpe
   using namespace blender::bke::greasepencil;
   const Scene &scene = *CTX_data_scene(C);
   Object &object = *CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
 
   const RemoveFillGuidesMode mode = RemoveFillGuidesMode(RNA_enum_get(op->ptr, "mode"));
 
@@ -4393,7 +4446,7 @@ static wmOperatorStatus grease_pencil_outline_exec(bContext *C, wmOperator *op)
 
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const float radius = RNA_float_get(op->ptr, "radius");
   const float offset_factor = RNA_float_get(op->ptr, "offset_factor");
@@ -4626,7 +4679,7 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const CurveType dst_type = CurveType(RNA_enum_get(op->ptr, "type"));
   const float threshold = RNA_float_get(op->ptr, "threshold");
@@ -4671,15 +4724,15 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
 
 static void grease_pencil_convert_curve_type_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
   wmWindowManager *wm = CTX_wm_manager(C);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  layout->prop(&ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(&ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   const CurveType dst_type = CurveType(RNA_enum_get(op->ptr, "type"));
 
@@ -4687,7 +4740,7 @@ static void grease_pencil_convert_curve_type_ui(bContext *C, wmOperator *op)
     return;
   }
 
-  layout->prop(&ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(&ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
@@ -4746,7 +4799,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const CornerType corner_type = CornerType(RNA_enum_get(op->ptr, "corner_type"));
   float miter_angle = RNA_float_get(op->ptr, "miter_angle");
@@ -4812,15 +4865,15 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
 
 static void grease_pencil_set_corner_type_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
   wmWindowManager *wm = CTX_wm_manager(C);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  layout->prop(&ptr, "corner_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(&ptr, "corner_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   const CornerType corner_type = CornerType(RNA_enum_get(op->ptr, "corner_type"));
 
@@ -4828,7 +4881,7 @@ static void grease_pencil_set_corner_type_ui(bContext *C, wmOperator *op)
     return;
   }
 
-  layout->prop(&ptr, "miter_angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(&ptr, "miter_angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void GREASE_PENCIL_OT_set_corner_type(wmOperatorType *ot)
@@ -4862,7 +4915,7 @@ static void GREASE_PENCIL_OT_set_corner_type(wmOperatorType *ot)
 
 /** \} */
 
-}  // namespace blender::ed::greasepencil
+}  // namespace ed::greasepencil
 
 void ED_operatortypes_grease_pencil_edit()
 {
@@ -4912,7 +4965,7 @@ void ED_operatortypes_grease_pencil_edit()
 /** \name Join Objects Operator
  * \{ */
 
-namespace blender::ed::greasepencil {
+namespace ed::greasepencil {
 
 /* Note: the `duplicate_layer` API would be nicer, but only supports duplicating groups from the
  * same datablock. */
@@ -4944,16 +4997,16 @@ static void copy_layer_group_content(GreasePencil &grease_pencil_dst,
 {
   using namespace blender::bke::greasepencil;
 
-  LISTBASE_FOREACH (GreasePencilLayerTreeNode *, child, &group_src.children) {
-    switch (child->type) {
+  for (GreasePencilLayerTreeNode &child : group_src.children) {
+    switch (child.type) {
       case GP_LAYER_TREE_LEAF: {
-        Layer &layer_src = reinterpret_cast<GreasePencilLayer *>(child)->wrap();
+        Layer &layer_src = reinterpret_cast<GreasePencilLayer *>(&child)->wrap();
         Layer &layer_dst = copy_layer(grease_pencil_dst, group_dst, layer_src);
         layer_name_map.add_new(layer_src.name(), layer_dst.name());
         break;
       }
       case GP_LAYER_TREE_GROUP: {
-        LayerGroup &group_src = reinterpret_cast<GreasePencilLayerTreeGroup *>(child)->wrap();
+        LayerGroup &group_src = reinterpret_cast<GreasePencilLayerTreeGroup *>(&child)->wrap();
         copy_layer_group_recursive(grease_pencil_dst, group_dst, group_src, layer_name_map);
         break;
       }
@@ -5007,16 +5060,15 @@ static void remap_material_indices(bke::greasepencil::Drawing &drawing,
   material_writer.finish();
 }
 
-static Map<StringRefNull, StringRefNull> add_vertex_groups(Object &object,
-                                                           GreasePencil &grease_pencil,
-                                                           const ListBase &vertex_group_names)
+static Map<StringRefNull, StringRefNull> add_vertex_groups(
+    Object &object, GreasePencil &grease_pencil, const ListBaseT<bDeformGroup> &vertex_group_names)
 {
   Map<StringRefNull, StringRefNull> vertex_group_map;
-  LISTBASE_FOREACH (bDeformGroup *, dg, &vertex_group_names) {
-    bDeformGroup *vgroup = static_cast<bDeformGroup *>(MEM_dupallocN(dg));
+  for (bDeformGroup &dg : vertex_group_names) {
+    bDeformGroup *vgroup = MEM_dupalloc(&dg);
     BKE_object_defgroup_unique_name(vgroup, &object);
     BLI_addtail(&grease_pencil.vertex_group_names, vgroup);
-    vertex_group_map.add_new(dg->name, vgroup->name);
+    vertex_group_map.add_new(dg.name, vgroup->name);
   }
   return vertex_group_map;
 }
@@ -5024,8 +5076,8 @@ static Map<StringRefNull, StringRefNull> add_vertex_groups(Object &object,
 static void remap_vertex_groups(bke::greasepencil::Drawing &drawing,
                                 const Map<StringRefNull, StringRefNull> &vertex_group_map)
 {
-  LISTBASE_FOREACH (bDeformGroup *, dg, &drawing.strokes_for_write().vertex_group_names) {
-    STRNCPY_UTF8(dg->name, vertex_group_map.lookup(dg->name).c_str());
+  for (bDeformGroup &dg : drawing.strokes_for_write().vertex_group_names) {
+    STRNCPY_UTF8(dg.name, vertex_group_map.lookup(dg.name).c_str());
   }
 
   /* Indices in vertex weights remain valid, they are local to the drawing's vertex groups.
@@ -5083,8 +5135,8 @@ static void join_object_with_active(Main &bmain,
 
   BLI_assert(ob_src.type == OB_GREASE_PENCIL);
   BLI_assert(ob_dst.type == OB_GREASE_PENCIL);
-  GreasePencil &grease_pencil_src = *static_cast<GreasePencil *>(ob_src.data);
-  GreasePencil &grease_pencil_dst = *static_cast<GreasePencil *>(ob_dst.data);
+  GreasePencil &grease_pencil_src = *id_cast<GreasePencil *>(ob_src.data);
+  GreasePencil &grease_pencil_dst = *id_cast<GreasePencil *>(ob_dst.data);
   /* Number of existing layers that don't need to be updated. */
   const int orig_layers_num = grease_pencil_dst.layers().size();
 
@@ -5096,8 +5148,8 @@ static void join_object_with_active(Main &bmain,
    * mapped to the new index range. */
   const int new_drawing_array_num = grease_pencil_dst.drawing_array_num +
                                     grease_pencil_src.drawing_array_num;
-  GreasePencilDrawingBase **new_drawing_array = static_cast<GreasePencilDrawingBase **>(
-      MEM_malloc_arrayN(new_drawing_array_num, sizeof(GreasePencilDrawingBase *), __func__));
+  GreasePencilDrawingBase **new_drawing_array =
+      MEM_new_array_uninitialized<GreasePencilDrawingBase *>(new_drawing_array_num, __func__);
   MutableSpan<GreasePencilDrawingBase *> new_drawings = {new_drawing_array, new_drawing_array_num};
   const IndexRange new_drawings_dst = IndexRange::from_begin_size(
       0, grease_pencil_dst.drawing_array_num);
@@ -5134,11 +5186,11 @@ static void join_object_with_active(Main &bmain,
     /* Update newly added layers. */
     if (!is_orig_layer) {
       /* Update name references for masks. */
-      LISTBASE_FOREACH (GreasePencilLayerMask *, dst_mask, &layer.masks) {
-        const StringRefNull *new_mask_name = layer_name_map.lookup_ptr(dst_mask->layer_name);
+      for (GreasePencilLayerMask &dst_mask : layer.masks) {
+        const StringRefNull *new_mask_name = layer_name_map.lookup_ptr(dst_mask.layer_name);
         if (new_mask_name) {
-          MEM_SAFE_FREE(dst_mask->layer_name);
-          dst_mask->layer_name = BLI_strdup(new_mask_name->c_str());
+          MEM_SAFE_DELETE(dst_mask.layer_name);
+          dst_mask.layer_name = BLI_strdup(new_mask_name->c_str());
         }
       }
       /* Shift drawing indices to match the new drawings array. */
@@ -5194,9 +5246,9 @@ static void join_object_with_active(Main &bmain,
     }
     /* Fix driver targets. */
     if (fcu->driver) {
-      LISTBASE_FOREACH (DriverVar *, dvar, &fcu->driver->variables) {
+      for (DriverVar &dvar : fcu->driver->variables) {
         /* Only change the used targets, since the others will need fixing manually anyway. */
-        DRIVER_TARGETS_USED_LOOPER_BEGIN (dvar) {
+        DRIVER_TARGETS_USED_LOOPER_BEGIN (&dvar) {
           if (dtar->id != &grease_pencil_src.id) {
             continue;
           }
@@ -5248,7 +5300,7 @@ static void join_object_with_active(Main &bmain,
   }
 }
 
-}  // namespace blender::ed::greasepencil
+}  // namespace ed::greasepencil
 
 wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op)
 {
@@ -5276,19 +5328,18 @@ wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op)
   }
 
   Object *ob_dst = ob_active;
-  GreasePencil *grease_pencil_dst = static_cast<GreasePencil *>(ob_dst->data);
+  GreasePencil *grease_pencil_dst = id_cast<GreasePencil *>(ob_dst->data);
 
-  blender::VectorSet<Material *> materials;
-  blender::Array<int> material_index_map = blender::ed::greasepencil::add_materials_to_map(
-      *ob_dst, materials);
+  VectorSet<Material *> materials;
+  Array<int> material_index_map = ed::greasepencil::add_materials_to_map(*ob_dst, materials);
   /* Reassign material indices in the original layers, in case materials are deduplicated. */
   for (GreasePencilDrawingBase *drawing_base : grease_pencil_dst->drawings()) {
     if (drawing_base->type != GP_DRAWING) {
       continue;
     }
-    blender::bke::greasepencil::Drawing &drawing =
+    bke::greasepencil::Drawing &drawing =
         reinterpret_cast<GreasePencilDrawing *>(drawing_base)->wrap();
-    blender::ed::greasepencil::remap_material_indices(drawing, material_index_map);
+    ed::greasepencil::remap_material_indices(drawing, material_index_map);
   }
 
   /* Loop and join all data. */
@@ -5297,10 +5348,10 @@ wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    blender::ed::greasepencil::join_object_with_active(*bmain, *ob_iter, *ob_dst, materials);
+    ed::greasepencil::join_object_with_active(*bmain, *ob_iter, *ob_dst, materials);
 
     /* Free the old object. */
-    blender::ed::object::base_free_and_unlink(bmain, scene, ob_iter);
+    ed::object::base_free_and_unlink(bmain, scene, ob_iter);
   }
   CTX_DATA_END;
 
@@ -5322,3 +5373,5 @@ wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op)
 }
 
 /** \} */
+
+}  // namespace blender

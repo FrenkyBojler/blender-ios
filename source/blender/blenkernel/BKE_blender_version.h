@@ -3,7 +3,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
+
+namespace blender {
 
 /** \file
  * \ingroup bke
@@ -27,7 +30,7 @@
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
-#define BLENDER_FILE_SUBVERSION 0
+#define BLENDER_FILE_SUBVERSION 21
 
 /* Minimum Blender version that supports reading file written with the current
  * version. Older Blender versions will test this and cancel loading the file, showing a warning to
@@ -65,3 +68,5 @@ void BKE_blender_version_blendfile_string_from_values(char *str_buff,
                                                       const size_t str_buff_maxncpy,
                                                       const short file_version,
                                                       const short file_subversion);
+
+}  // namespace blender

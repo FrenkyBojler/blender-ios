@@ -7,6 +7,7 @@ set(INC
 
   ../asset
   ../include
+  ../mesh
   ../uvedit
   ../../blenlib
   ../../makesrna
@@ -16,7 +17,6 @@ set(INC
 )
 
 set(INC_SYS
-  ${ZSTD_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -79,7 +79,6 @@ set(SRC
   paint_utils.cc
   paint_vertex.cc
   paint_vertex_color_ops.cc
-  paint_vertex_proj.cc
   paint_vertex_weight_ops.cc
   paint_vertex_weight_utils.cc
   paint_weight.cc
@@ -98,6 +97,7 @@ set(SRC
   sculpt_geodesic.cc
   sculpt_gesture.cc
   sculpt_hide.cc
+  sculpt_mask_extract.cc
   sculpt_mask_init.cc
   sculpt_ops.cc
   sculpt_paint_color.cc
@@ -179,7 +179,6 @@ set(LIB
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::draw
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::functions
   PRIVATE bf::geometry
   PRIVATE bf::gpu
@@ -190,17 +189,9 @@ set(LIB
   PRIVATE bf::nodes
   PRIVATE bf::render
   PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::zstd
+  PRIVATE bf::dependencies::optional::potrace
 )
-
-if(WITH_POTRACE)
-  list(APPEND INC
-    ${POTRACE_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${POTRACE_LIBRARIES}
-  )
-  add_definitions(-DWITH_POTRACE)
-endif()
 
 if(WIN32)
   add_definitions(-DNOMINMAX)
@@ -210,6 +201,7 @@ if(WITH_GTESTS)
   set(TEST_SRC
     mesh_brush_common_tests.cc
     paint_test.cc
+    sculpt_boundary_tests.cc
     sculpt_detail_test.cc
     sculpt_undo_test.cc
   )

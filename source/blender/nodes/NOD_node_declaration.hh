@@ -22,11 +22,16 @@
 
 #include "NOD_socket_usage_inference_fwd.hh"
 
+namespace blender {
+
 struct bContext;
 struct bNode;
-struct uiLayout;
 
-namespace blender::nodes {
+namespace ui {
+struct Layout;
+}  // namespace ui
+
+namespace nodes {
 
 class NodeDeclarationBuilder;
 class PanelDeclaration;
@@ -184,7 +189,7 @@ struct SocketNameRNA {
 
 struct CustomSocketDrawParams {
   const bContext &C;
-  uiLayout &layout;
+  ui::Layout &layout;
   bNodeTree &tree;
   bNode &node;
   bNodeSocket &socket;
@@ -193,12 +198,14 @@ struct CustomSocketDrawParams {
   StringRefNull label;
   const Map<const bNode *, const bNode *> *menu_switch_source_by_index_switch = nullptr;
 
-  void draw_standard(uiLayout &layout, std::optional<StringRefNull> label_override = std::nullopt);
+  void draw_standard(ui::Layout &layout,
+                     std::optional<StringRefNull> label_override = std::nullopt);
 };
 
 using CustomSocketDrawFn = std::function<void(CustomSocketDrawParams &params)>;
-using InputSocketUsageInferenceFn = std::function<std::optional<bool>(
-    const socket_usage_inference::InputSocketUsageParams &params)>;
+using CustomSocketLabelFn = std::function<StringRefNull(bNode node)>;
+using SocketUsageInferenceFn =
+    std::function<std::optional<bool>(const socket_usage_inference::SocketUsageParams &params)>;
 
 /**
  * Describes a single input or output socket. This is subclassed for different socket types.
@@ -256,7 +263,7 @@ class SocketDeclaration : public ItemDeclaration {
 
  public:
   /** Some input sockets can have non-trivial values in the case when they are unlinked. */
-  NodeDefaultInputType default_input_type;
+  NodeDefaultInputType default_input_type = NodeDefaultInputType::NODE_DEFAULT_INPUT_VALUE;
   /**
    * Property that stores the name of the socket so that it can be modified directly from the
    * node without going to the side-bar.
@@ -267,10 +274,14 @@ class SocketDeclaration : public ItemDeclaration {
    */
   std::unique_ptr<CustomSocketDrawFn> custom_draw_fn;
   /**
-   * Determines whether this input socket is used based on other input values and based on which
-   * outputs are used.
+   * Custom label function so a socket can display a different text depending on what it does.
    */
-  std::unique_ptr<InputSocketUsageInferenceFn> usage_inference_fn;
+  std::unique_ptr<CustomSocketLabelFn> label_fn;
+  /**
+   * Determines whether this socket is used based on other input values and based on which outputs
+   * are used.
+   */
+  std::unique_ptr<SocketUsageInferenceFn> usage_inference_fn;
 
   friend NodeDeclarationBuilder;
   friend class BaseSocketDeclarationBuilder;
@@ -427,10 +438,15 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &custom_draw(CustomSocketDrawFn fn);
 
   /**
-   * Provide a function that determines whether this input socket is used based on other input
-   * values and based on which outputs are used.
+   * Provide a function that determines whether this socket is used based on other input values and
+   * based on which outputs are used.
    */
-  BaseSocketDeclarationBuilder &usage_inference(InputSocketUsageInferenceFn fn);
+  BaseSocketDeclarationBuilder &usage_inference(SocketUsageInferenceFn fn);
+
+  /**
+   * Provide a function that determines the UI label of this socket.
+   */
+  BaseSocketDeclarationBuilder &label_fn(CustomSocketLabelFn fn);
 
   /**
    * Utility method for the case when the node has a single menu input and this socket is only used
@@ -502,7 +518,7 @@ class SocketDeclarationBuilder : public BaseSocketDeclarationBuilder {
 
 using SocketDeclarationPtr = std::unique_ptr<SocketDeclaration>;
 
-using DrawNodeLayoutFn = void(uiLayout *, bContext *, PointerRNA *);
+using DrawNodeLayoutFn = void(ui::Layout &, bContext *, PointerRNA *);
 
 class SeparatorDeclaration : public ItemDeclaration {};
 
@@ -591,7 +607,7 @@ class DeclarationListBuilder {
 
   void add_separator();
   void add_default_layout();
-  void add_layout(std::function<void(uiLayout *, bContext *, PointerRNA *)> draw);
+  void add_layout(std::function<void(ui::Layout &, bContext *, PointerRNA *)> draw);
 };
 
 class PanelDeclarationBuilder : public DeclarationListBuilder {
@@ -829,4 +845,5 @@ inline bool BaseSocketDeclarationBuilder::is_output() const
 
 /** \} */
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender

@@ -21,7 +21,7 @@ class BrushAssetShelf:
         'ACTIVATE_FOR_CONTEXT_MENU',
     }
     bl_activate_operator = "BRUSH_OT_asset_activate"
-    bl_default_preview_size = 48
+    filter_brush = True
     brush_type_prop = None
     mode_prop = None
 
@@ -114,6 +114,7 @@ class BrushAssetShelf:
 
     @classmethod
     def draw_context_menu(self, context, asset, layout):
+        del context, asset
         # Currently this menu adds operators that deal with the affected brush and don't take the
         # asset into account. Luckily that is okay for now, since right clicking in the grid view
         # also activates the item.
@@ -149,7 +150,8 @@ class BrushAssetShelf:
 
         display_name = brush.name if (brush and show_name) else None
         if display_name and brush.has_unsaved_changes:
-            display_name = display_name + "*"
+            # Show "*" to the left for consistency with unsaved files in the title bar.
+            display_name = "* " + display_name
 
         layout.template_asset_shelf_popover(
             shelf_name,
@@ -309,8 +311,8 @@ class UnifiedPaintPanel:
             curve_visibility_name,
             text="",
             icon='DOWNARROW_HLT' if is_active else 'RIGHTARROW',
-            emboss=False)
-
+            emboss=False,
+        )
         if is_active:
             subcol = layout.column()
             subcol.active = getattr(brush, pressure_name)
@@ -582,7 +584,8 @@ class StrokePanel(BrushPanel):
                     "show_jitter_curve",
                     icon='DOWNARROW_HLT' if settings.show_jitter_curve else 'RIGHTARROW',
                     text="",
-                    emboss=False)
+                    emboss=False,
+                )
             # Pen pressure mapping curve for Jitter.
             if settings.show_jitter_curve and self.is_popover is False:
                 subcol = col.column()
@@ -670,9 +673,12 @@ class FalloffPanel(BrushPanel):
             col.prop(brush, "curve_distance_falloff_preset", text="")
 
         if brush.curve_distance_falloff_preset == 'CUSTOM':
-            layout.template_curve_mapping(brush, "curve_distance_falloff", brush=True,
-                                          use_negative_slope=True, show_presets=True)
-
+            layout.template_curve_mapping(
+                brush, "curve_distance_falloff",
+                brush=True,
+                use_negative_slope=True,
+                show_presets=True,
+            )
             col = layout.column(align=True)
             row = col.row(align=True)
 
@@ -865,8 +871,12 @@ def brush_settings(layout, context, brush, popover=False):
         # use_persistent, set_persistent_base
         if capabilities.has_persistence:
             layout.separator()
-            layout.prop(brush, "use_persistent")
-            layout.operator("sculpt.set_persistent_base")
+            col = layout.column()
+            # Persistent base is not supported when Dyntopo is enabled.
+            if context.sculpt_object and context.sculpt_object.use_dynamic_topology_sculpting:
+                col.enabled = False
+            col.prop(brush, "use_persistent")
+            col.operator("sculpt.set_persistent_base")
             layout.separator()
 
         if capabilities.has_color:
@@ -1083,7 +1093,7 @@ def brush_settings(layout, context, brush, popover=False):
 def brush_shared_settings(layout, context, brush, popover=False):
     """ Draw simple brush settings that are shared between different paint modes. """
 
-    paint = UnifiedPaintPanel.paint_settings(context)
+    # paint    paint = UnifiedPaintPanel.paint_settings(context)  # UNUSED.
     mode = UnifiedPaintPanel.get_brush_mode(context)
 
     ### Determine which settings to draw. ###
@@ -1730,8 +1740,8 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
                 "show_size_curve",
                 text="",
                 icon='DOWNARROW_HLT' if paint.show_size_curve else 'RIGHTARROW',
-                emboss=False)
-
+                emboss=False,
+            )
             if paint.show_size_curve:
                 col = layout.column()
                 col.active = brush.use_pressure_size
@@ -1746,8 +1756,8 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
                 "show_strength_curve",
                 text="",
                 icon='DOWNARROW_HLT' if paint.show_strength_curve else 'RIGHTARROW',
-                emboss=False)
-
+                emboss=False,
+            )
             if paint.show_strength_curve:
                 col = layout.column()
                 col.active = brush.use_pressure_strength

@@ -22,6 +22,7 @@
 #include "mtl_query.hh"
 #include "mtl_shader.hh"
 #include "mtl_storage_buffer.hh"
+#include "mtl_texture_pool.hh"
 #include "mtl_uniform_buffer.hh"
 #include "mtl_vertex_buffer.hh"
 
@@ -100,6 +101,14 @@ Shader *MTLBackend::shader_alloc(const char *name)
 Texture *MTLBackend::texture_alloc(const char *name)
 {
   return new gpu::MTLTexture(name);
+}
+
+TexturePool *MTLBackend::texturepool_alloc()
+{
+  if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
+    return new TexturePoolImpl();
+  }
+  return new MTLTexturePool();
 }
 
 UniformBuf *MTLBackend::uniformbuf_alloc(size_t size, const char *name)
@@ -493,6 +502,7 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
                                16384 :
                                8192;
   GCaps.max_texture_3d_size = 2048;
+  GCaps.max_buffer_texture_size = UINT_MAX;
   GCaps.max_texture_layers = 2048;
   GCaps.max_textures = (MTLBackend::capabilities.supports_family_mac1) ?
                            128 :

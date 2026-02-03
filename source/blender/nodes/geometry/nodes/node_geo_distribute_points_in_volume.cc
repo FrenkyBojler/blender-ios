@@ -30,13 +30,13 @@ static const EnumPropertyItem mode_items[] = {
     {GEO_NODE_DISTRIBUTE_POINTS_IN_VOLUME_DENSITY_RANDOM,
      "DENSITY_RANDOM",
      0,
-     "Random",
-     "Distribute points randomly inside of the volume"},
+     N_("Random"),
+     N_("Distribute points randomly inside of the volume")},
     {GEO_NODE_DISTRIBUTE_POINTS_IN_VOLUME_DENSITY_GRID,
      "DENSITY_GRID",
      0,
-     "Grid",
-     "Distribute the points in a grid pattern inside of the volume"},
+     N_("Grid"),
+     N_("Distribute the points in a grid pattern inside of the volume")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -80,7 +80,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   /* Still used for forward compatibility. */
-  node->storage = MEM_callocN<NodeGeometryDistributePointsInVolume>(__func__);
+  node->storage = MEM_new<NodeGeometryDistributePointsInVolume>(__func__);
 }
 
 #ifdef WITH_OPENVDB
@@ -247,22 +247,22 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, "GeometryNodeDistributePointsInVolume", GEO_NODE_DISTRIBUTE_POINTS_IN_VOLUME);
   ntype.ui_name = "Distribute Points in Volume";
   ntype.ui_description = "Generate points inside a volume";
   ntype.enum_name_legacy = "DISTRIBUTE_POINTS_IN_VOLUME";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometryDistributePointsInVolume",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryDistributePointsInVolume",
+                         node_free_standard_storage,
+                         node_copy_standard_storage);
   ntype.initfunc = node_init;
-  blender::bke::node_type_size(ntype, 170, 100, 320);
+  bke::node_type_size(ntype, 170, 100, 320);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
