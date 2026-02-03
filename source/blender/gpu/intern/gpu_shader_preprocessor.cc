@@ -522,19 +522,31 @@ Directive AtomicLexer::directive(int index) const
 }
 
 struct Stream {
+  /* Ensure to add a Space after the previous token. */
   struct Space {};
+  /* Will paste a "1" token in the stream. */
   struct True {};
+  /* Will paste a "0" token in the stream. */
   struct False {};
-  struct ConcatNext {};
+  /* Concatenate the previous token with the next one. */
+  struct Concatenate {};
 
-  AtomicLexer &lex;
-
-  bool concat_next = false;
-
+  /* Data container. The tokens can be from different lexers.
+   * We can't iterate using tok.next(). */
   Vector<Token> tokens;
 
-  explicit Stream(AtomicLexer &lex) : lex(lex) {};
+ private:
+  /* Needed for token pasting. */
+  AtomicLexer &lex_;
+  /* State tracking. */
+  bool concat_next_ = false;
+  /* Cached output buffer to avoid reallocations. */
+  std::string result_buf_;
 
+ public:
+  explicit Stream(AtomicLexer &lex) : lex_(lex) {};
+
+  /* Set size to 0. Doesn't reallocate. */
   void clear()
   {
     tokens.clear();
@@ -549,11 +561,11 @@ struct Stream {
   Stream &operator<<(Token tok)
   {
     bool followed_by_space = tok.followed_by_whitespace();
-    if (UNLIKELY(concat_next)) {
+    if (UNLIKELY(concat_next_)) {
       tok = paste_token(tokens.last().str(), tok.str(), followed_by_space);
       tok.flag = followed_by_space;
       tokens.last() = tok;
-      concat_next = false;
+      concat_next_ = false;
     }
     else {
       tok.flag = followed_by_space;
@@ -580,14 +592,14 @@ struct Stream {
       *this << tok;
     }
     /* "Cancel" concatenation in case range is empty. */
-    concat_next = false;
+    concat_next_ = false;
     return *this;
   }
 
-  Stream &operator<<(const ConcatNext /*concat*/)
+  Stream &operator<<(const Concatenate /*concat*/)
   {
     /* Don't concat if there is nothing to concatenate. */
-    concat_next = !tokens.is_empty();
+    concat_next_ = !tokens.is_empty();
     return *this;
   }
 
@@ -599,22 +611,21 @@ struct Stream {
     return *this;
   }
 
-  std::string result_buf;
-
   /* TODO(fclem): Remove this. Only there for expansion parser. */
   std::string str()
   {
-    result_buf.clear();
-    result_buf.reserve(tokens.size() * 7);
+    result_buf_.clear();
+    result_buf_.reserve(tokens.size() * 7);
     for (const auto stream_tok : tokens) {
-      result_buf += stream_tok.str();
+      result_buf_ += stream_tok.str();
       if (stream_tok.flag) {
-        result_buf += ' ';
+        result_buf_ += ' ';
       }
     }
-    return result_buf;
+    return result_buf_;
   }
 
+  /* Wrapper to allow the same interface as a Token on a Token pointer. */
   struct Iterator {
     const Stream *stream;
     const Token *tok;
@@ -726,7 +737,7 @@ struct Stream {
     if (followed_by_space) {
       pasted += ' ';
     }
-    return lex.paste_token(pasted, Word, followed_by_space);
+    return lex_.paste_token(pasted, Word, followed_by_space);
   }
 };
 
@@ -1439,7 +1450,7 @@ struct Preprocessor {
     StreamPtr ts = stream_pool.alloc();
     for (const auto &def_tok : *macro.definition) {
       if (def_tok.type() == Hash) {
-        *ts << Stream::ConcatNext{};
+        *ts << Stream::Concatenate{};
         continue;
       }
       if (def_tok.type() == Word && !macro_args.is_empty()) {
