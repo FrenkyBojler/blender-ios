@@ -433,13 +433,12 @@ static void draw_dots(const float4x4 &transform,
   const float objscale = math::average(float3(object.scale));
   constexpr const float radius_to_pixel_factor =
       2.0f / bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
-  const bool is_perspective = (rv3d.winmat[3][3] == 0.0f);
   const float pixel_scale = objscale * radius_scale * radius_to_pixel_factor /
                             (1000.0f * rv3d.pixsize);
   for (const int point_i : indices) {
     const float3 &position = positions[point_i];
     float perspective_factor = 1.0f;
-    if (is_perspective) {
+    if (rv3d.is_persp) {
       const float3 view_position = math::transform_point(float4x4(rv3d.persmat), position);
       perspective_factor = math::safe_rcp(view_position.z);
     }
