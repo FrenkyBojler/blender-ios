@@ -99,16 +99,14 @@ struct AtomicLexer : lexit::TokenBuffer {
   /* Preprocessor directive to line index. */
   Vector<int> directive_lines;
 
+ public:
+  AtomicLexer(StringRef str)
+  {
+    lexical_analysis(str);
+  }
+
   Line line(int index) const;
   Directive directive(int index) const;
-
-  void lexical_analysis(std::string_view input)
-  {
-    process(input, lexit::char_class_table);
-    merge_spaces();
-
-    lex_pass();
-  }
 
   /* Chosen to be easily masked. */
   constexpr static TokenAtom long_atom_range_start = 0x8000;
@@ -142,6 +140,13 @@ struct AtomicLexer : lexit::TokenBuffer {
   }
 
  protected:
+  void lexical_analysis(std::string_view input)
+  {
+    process(input, lexit::char_class_table);
+    merge_spaces();
+    lex_pass();
+  }
+
   constexpr BLI_INLINE char perfect_hash(std::string_view s)
   {
     return s.size() * 3 + (s[0] - s.back());
@@ -506,30 +511,6 @@ Directive find_next_matching_conditional(Directive dir)
   return Directive::invalid();
 }
 
-/**
- * Boiler plate class exposing lexer structure using typed IDs.
- */
-struct AtomicLexerWithIDs {
- protected:
-  AtomicLexer lex_;
-
- public:
-  AtomicLexerWithIDs(StringRef str)
-  {
-    lex_.lexical_analysis(str);
-  }
-
-  /* Cached keyword identifier. */
-  TokenAtom defined_atom = get_atom("defined");
-  TokenAtom va_args_atom = get_atom("__VA_ARGS__");
-
-  /* Return valid value if hash is a known string. Is full hash lookup + hashing. */
-  TokenAtom get_atom(StringRef str)
-  {
-    return lex_.hash(str);
-  }
-};
-
 Line AtomicLexer::line(int index) const
 {
   return Line(this, index);
@@ -781,13 +762,15 @@ DCEStream &operator<<(DCEStream &dst, const Token &tok)
 /** \name Preprocessor.
  * \{ */
 
-/* Fast C (incomplete) preprocessor implementation.  */
-struct Preprocessor : AtomicLexerWithIDs {
+/* Fast C preprocessor implementation.  */
+struct Preprocessor {
  private:
   using ExpressionLexer = shader::parser::ExpressionLexer;
   using ExpressionParser = shader::parser::ExpressionParser;
 
-  DCEStream out_stream;
+  AtomicLexer lex_;
+
+  DCEStream out_stream_;
 
   /* Cache the expression lexer to avoid memory allocations. */
   ExpressionLexer expression_lexer;
@@ -938,14 +921,20 @@ struct Preprocessor : AtomicLexerWithIDs {
    * Used to resume token expansion after this line. */
   Line last_directive_end = Line::invalid();
 
+  /* Cached keyword identifier. */
+  TokenAtom defined_atom;
+  TokenAtom va_args_atom;
+
  public:
   Preprocessor(const std::string_view str)
-      : AtomicLexerWithIDs(str),
-        out_stream(Token::invalid(&lex_),
-                   lex_.hash("return"),
-                   lex_.hash("thread"),
-                   lex_.hash("device"),
-                   lex_.hash("layout"))
+      : lex_(str),
+        out_stream_(Token::invalid(&lex_),
+                    lex_.hash("return"),
+                    lex_.hash("thread"),
+                    lex_.hash("device"),
+                    lex_.hash("layout")),
+        defined_atom(lex_.hash("defined")),
+        va_args_atom(lex_.hash("__VA_ARGS__"))
   {
     /* From our stats. Should be enough for 100% of our cases. */
     defines.reserve(1000);
@@ -995,15 +984,21 @@ struct Preprocessor : AtomicLexerWithIDs {
     entry_points.append(lex_.hash("derivative_scale_get"));
     entry_points.append(lex_.hash("closure_to_rgba"));
 
-    out_stream.optimize(entry_points.as_span());
+    out_stream_.optimize(entry_points.as_span());
   }
 
   std::string result_get()
   {
-    return out_stream.str();
+    return out_stream_.str();
   }
 
  private:
+  /* Return valid value if hash is a known string. Is full hash lookup + hashing. */
+  TokenAtom get_atom(StringRef str)
+  {
+    return lex_.hash(str);
+  }
+
   void evaluate_directive(Directive dir)
   {
     DirectiveType dir_type = dir.type();
@@ -1035,7 +1030,7 @@ struct Preprocessor : AtomicLexerWithIDs {
         process_pragma(dir);
         ATTR_FALLTHROUGH;
       case DirectiveType::Other:
-        out_stream << dir.str_with_whitespace();
+        out_stream_ << dir.str_with_whitespace();
         break;
     }
   }
@@ -1057,10 +1052,10 @@ struct Preprocessor : AtomicLexerWithIDs {
       if (tok.atom() == dce_atom) {
         tok = tok.next();
         if (tok.atom() == off_atom) {
-          out_stream.set_enabled_parsing(false);
+          out_stream_.set_enabled_parsing(false);
         }
         else if (tok.atom() == on_atom) {
-          out_stream.set_enabled_parsing(true);
+          out_stream_.set_enabled_parsing(true);
         }
         else {
           BLI_assert_msg(false, "Invalid dead_code_elimination pragma. Expecting on or off.");
@@ -1302,7 +1297,7 @@ struct Preprocessor : AtomicLexerWithIDs {
       return;
     }
     if (start == end) {
-      out_stream << lex_[start];
+      out_stream_ << lex_[start];
       return;
     }
 
@@ -1315,11 +1310,11 @@ struct Preprocessor : AtomicLexerWithIDs {
       const Directive macro_id = defines.lookup_default(tok.atom(), Directive::invalid());
       /* Emit tokens between the last emitted token and this one. */
       if (int(after_last_emitted) < *it) {
-        out_stream << TokenRange<Token>{after_last_emitted, tok.prev()};
+        out_stream_ << TokenRange<Token>{after_last_emitted, tok.prev()};
       }
 
       if (macro_id == Directive::invalid()) {
-        out_stream << tok;
+        out_stream_ << tok;
         after_last_emitted = tok.next();
         ++it;
         continue;
@@ -1334,7 +1329,7 @@ struct Preprocessor : AtomicLexerWithIDs {
     }
 
     const Token last_tok = lex_[end];
-    out_stream << TokenRange<Token>{after_last_emitted, last_tok};
+    out_stream_ << TokenRange<Token>{after_last_emitted, last_tok};
   }
 
   /* Cached vector to avoid reallocation. */
@@ -1362,7 +1357,7 @@ struct Preprocessor : AtomicLexerWithIDs {
   BLI_NOINLINE Token expand_and_replace(const Token tok, const Directive macro_id)
   {
     auto [replacement, end] = expand_macro(tok, get_macro(macro_id));
-    out_stream << *replacement;
+    out_stream_ << *replacement;
     return end;
   }
 
@@ -1601,9 +1596,9 @@ struct Preprocessor : AtomicLexerWithIDs {
   void erase_lines(Line start, Line end)
   {
     if (int(end) > int(start)) {
-      out_stream << new_lines(start, end);
+      out_stream_ << new_lines(start, end);
     }
-    out_stream << end.end().str_with_whitespace();
+    out_stream_ << end.end().str_with_whitespace();
   }
 
   /* Buffer of newlines since the StringRef must stay valid until result string is built.
