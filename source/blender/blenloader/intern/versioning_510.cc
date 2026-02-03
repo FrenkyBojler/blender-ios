@@ -670,7 +670,7 @@ void do_versions_after_linking_510(FileData *fd, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 4)) {
-     for (Object &ob : bmain->objects) {
+    for (Object &ob : bmain->objects) {
       for (ModifierData &md : ob.modifiers) {
         if (md.type == eModifierType_Multires) {
           MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(&md);

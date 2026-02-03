@@ -460,9 +460,9 @@ void multires_reshape_tangent_matrix_for_corner_for_versioning(
     const MultiresReshapeContext *reshape_context,
     const int face_index,
     const int corner,
-    const blender::float3 &dPdu,
-    const blender::float3 &dPdv,
-    blender::float3x3 &r_tangent_matrix)
+    const float3 &dPdu,
+    const float3 &dPdv,
+    float3x3 &r_tangent_matrix)
 {
   /* For a quad faces we would need to flip the tangent, since they will use
    * use different coordinates within displacement grid compared to the ptex face. */
@@ -564,14 +564,14 @@ void multires_reshape_evaluate_base_mesh_limit_at_grid(
 void multires_reshape_evaluate_base_mesh_limit_at_grid_for_versioning(
     const MultiresReshapeContext *reshape_context,
     const GridCoord *grid_coord,
-    blender::float3 &r_P,
-    blender::float3x3 &r_tangent_matrix)
+    float3 &r_P,
+    float3x3 &r_tangent_matrix)
 {
-  blender::float3 dPdu;
-  blender::float3 dPdv;
+  float3 dPdu;
+  float3 dPdv;
   const PTexCoord ptex_coord = multires_reshape_grid_coord_to_ptex(reshape_context, grid_coord);
-  blender::bke::subdiv::Subdiv *subdiv = reshape_context->subdiv;
-  blender::bke::subdiv::eval_limit_point_and_derivatives(
+  bke::subdiv::Subdiv *subdiv = reshape_context->subdiv;
+  bke::subdiv::eval_limit_point_and_derivatives(
       subdiv, ptex_coord.ptex_face_index, ptex_coord.u, ptex_coord.v, r_P, dPdu, dPdv);
 
   const int face_index = multires_reshape_grid_to_face_index(reshape_context,
@@ -824,14 +824,14 @@ static void assign_final_coords_from_mdisps_for_versioning(
     const GridCoord *grid_coord,
     void * /*userdata_v*/)
 {
-  blender::float3 P;
-  blender::float3x3 tangent_matrix;
+  float3 P;
+  float3x3 tangent_matrix;
   multires_reshape_evaluate_base_mesh_limit_at_grid_for_versioning(
       reshape_context, grid_coord, P, tangent_matrix);
 
   ReshapeGridElement grid_element = multires_reshape_grid_element_for_grid_coord(reshape_context,
                                                                                  grid_coord);
-  const blender::float3 D = blender::math::transform_direction(tangent_matrix,
+  const float3 D = math::transform_direction(tangent_matrix,
                                                                *grid_element.displacement);
 
   *grid_element.displacement = P + D;

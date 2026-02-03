@@ -104,25 +104,25 @@ void multires_do_versions_simple_to_catmull_clark(Object *object, MultiresModifi
 void multires_do_versions_tangent_space_conversion(Object *object, MultiresModifierData *mmd)
 {
 #ifdef WITH_OPENSUBDIV
-  const Mesh *base_mesh = static_cast<const Mesh *>(object->data);
+  const Mesh *base_mesh = id_cast<const Mesh *>(object->data);
   if (base_mesh->corners_num == 0) {
     return;
   }
 
   {
-    blender::bke::subdiv::Settings subdiv_settings;
+    bke::subdiv::Settings subdiv_settings;
     BKE_multires_subdiv_settings_init(&subdiv_settings, mmd);
-    blender::bke::subdiv::Subdiv *subdiv = blender::bke::subdiv::new_from_mesh(&subdiv_settings,
+    bke::subdiv::Subdiv *subdiv = bke::subdiv::new_from_mesh(&subdiv_settings,
                                                                                base_mesh);
     OpenSubdiv_EvaluatorSettings evaluator_settings = {0};
-    blender::bke::subdiv::eval_begin(
-        subdiv, blender::bke::subdiv::SUBDIV_EVALUATOR_TYPE_CPU, nullptr, &evaluator_settings);
-    blender::bke::subdiv::eval_refine_from_mesh(subdiv, base_mesh, {});
+    bke::subdiv::eval_begin(
+        subdiv, bke::subdiv::SUBDIV_EVALUATOR_TYPE_CPU, nullptr, &evaluator_settings);
+    bke::subdiv::eval_refine_from_mesh(subdiv, base_mesh, {});
     MultiresReshapeContext reshape_context;
     if (!multires_reshape_context_create_from_subdiv(
             &reshape_context, object, mmd, subdiv, mmd->totlvl))
     {
-      blender::bke::subdiv::free(subdiv);
+      bke::subdiv::free(subdiv);
       return;
     }
 
@@ -130,7 +130,7 @@ void multires_do_versions_tangent_space_conversion(Object *object, MultiresModif
     multires_reshape_assign_final_coords_from_mdisps_for_versioning(&reshape_context);
     multires_reshape_context_free(&reshape_context);
 
-    blender::bke::subdiv::free(subdiv);
+    bke::subdiv::free(subdiv);
   }
 
   /* Calculate the new tangent displacement against the new Catmull-Clark limit surface. */
