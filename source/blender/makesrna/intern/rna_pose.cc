@@ -107,7 +107,6 @@ static void rna_PoseBone_visibility_update(Main * /* bmain */,
                                            PointerRNA *ptr)
 {
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
-  /* ND_BONE_SELECT should cover hide well. */
   WM_main_add_notifier(NC_OBJECT | ND_BONE_SELECT, ptr->owner_id);
 }
 
