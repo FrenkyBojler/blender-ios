@@ -542,10 +542,10 @@ static void IMAGE_GGT_compositor_box_mask(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_box_mask_poll;
+  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_box_mask_image_poll;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_box_mask_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare;
+  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_image_draw_prepare;
   gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_mask_refresh;
 }
 
