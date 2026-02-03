@@ -83,6 +83,8 @@ struct [[host_shared]] GPencilStrokeData {
   int caps_start;
   int caps_end;
   bool32_t fill_stroke;
+  float _pad1;
+  float4 _pad2;
 };
 
 struct [[host_shared]] GPUClipPlanes {
