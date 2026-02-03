@@ -355,5 +355,6 @@ float raytrace_screen_2(float3 vs_origin,
     }
   }
 
+  /* No hit was found. Return -1 to signal the failure. */
   return -1.0f;
 }
