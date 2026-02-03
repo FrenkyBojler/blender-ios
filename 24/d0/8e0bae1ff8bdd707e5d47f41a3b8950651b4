@@ -4,3 +4,4 @@ Referenced by issue #142093, Viewport: Blender crashes when entering sculpting m
 Referenced by issue #144035, Texture Paint is NOT SHOWING selected faces, but shows EVERYTHING
 Referenced by pull request #144105, Fix #144035: Image Editor ignores face selection
 Referenced by commit e02eb13a596f788583579d9f0ebe2896cd771618, Fix #144035: Image Editor ignores face selection
+Referenced by issue #153806, The 3D viewport will become laggy when operating after opening the UV image window.
