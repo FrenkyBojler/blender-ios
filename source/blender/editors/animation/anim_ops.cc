@@ -1491,8 +1491,7 @@ static wmOperatorStatus replace_action_new_exec(bContext *C, wmOperator *op)
   }
 
   animrig::Action &old_action = old_dna_action->wrap();
-  const std::string new_action_name = RNA_string_get(op->ptr, "new_action_name");
-  animrig::Action &new_action = animrig::action_add(*bmain, new_action_name);
+  animrig::Action &new_action = animrig::action_add(*bmain, DATA_("Action"));
   /* We are not adding any slots to the new action here. This will happen automatically once the
    * user starts adding keyframes. */
 
@@ -1515,7 +1514,7 @@ static wmOperatorStatus replace_action_new_invoke(bContext *C,
   BLI_assert(dna_action != nullptr);
   RNA_int_set(op->ptr, "old_session_uid", int(dna_action->id.session_uid));
 
-  return WM_operator_props_dialog_popup(C, op, 400, IFACE_("Replace Action"), IFACE_("Replace"));
+  return replace_action_new_exec(C, op);
 }
 
 /**
@@ -1544,13 +1543,6 @@ static void ANIM_OT_replace_action_new(wmOperatorType *ot)
                                   0,
                                   0);
   RNA_def_property_flag(prop, PROP_HIDDEN);
-
-  ot->prop = RNA_def_string(ot->srna,
-                            "new_action_name",
-                            "Action",
-                            MAX_ID_NAME - 2,
-                            "New Action Name",
-                            "The name of the newly created action");
 }
 
 /** \} */
