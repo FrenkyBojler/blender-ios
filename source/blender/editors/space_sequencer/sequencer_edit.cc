@@ -616,10 +616,12 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
     /* No handles selected: choose either left or right of active
      * strip based on mouse position relative to playhead. */
     if (!group_delta.has_value()) {
-      if (snap_side == seq::SIDE_LEFT) {
+      /* NOTE: Behavior feels more natural when "right side of playhead" means that the whole strip
+       * ends up on the right, "left side" -> whole strip on the left. This code ensures that. */
+      if (snap_side == seq::SIDE_RIGHT) {
         group_delta = cur_frame - strip->left_handle();
       }
-      else if (snap_side == seq::SIDE_RIGHT) {
+      else if (snap_side == seq::SIDE_LEFT) {
         group_delta = cur_frame - strip->right_handle(scene);
       }
     }
@@ -736,12 +738,13 @@ void SEQUENCER_OT_snap(wmOperatorType *ot)
       "Whether the selection should be snapped as a whole or by each individual strip");
 
   PropertyRNA *prop;
-  prop = RNA_def_enum(ot->srna,
-                      "side",
-                      prop_side_types,
-                      seq::SIDE_MOUSE,
-                      "Snap Side",
-                      "If no handles are selected, which strip side to snap to the playhead");
+  prop = RNA_def_enum(
+      ot->srna,
+      "side",
+      prop_snap_side_types,
+      seq::SIDE_MOUSE,
+      "Snap Side",
+      "If no handles are selected, which side of the playhead the strip should snap to");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
@@ -1772,7 +1775,14 @@ static const EnumPropertyItem prop_split_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-const EnumPropertyItem prop_side_types[] = {
+const EnumPropertyItem prop_snap_side_types[] = {
+    {seq::SIDE_MOUSE, "MOUSE", 0, "Mouse Position", ""},
+    {seq::SIDE_LEFT, "LEFT", 0, "Left", ""},
+    {seq::SIDE_RIGHT, "RIGHT", 0, "Right", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+const EnumPropertyItem prop_split_side_types[] = {
     {seq::SIDE_MOUSE, "MOUSE", 0, "Mouse Position", ""},
     {seq::SIDE_LEFT, "LEFT", 0, "Left", ""},
     {seq::SIDE_RIGHT, "RIGHT", 0, "Right", ""},
@@ -1998,7 +2008,7 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
 
   prop = RNA_def_enum(ot->srna,
                       "side",
-                      prop_side_types,
+                      prop_split_side_types,
                       seq::SIDE_MOUSE,
                       "Side",
                       "The side that remains selected after splitting");
