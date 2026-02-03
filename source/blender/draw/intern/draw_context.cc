@@ -1188,141 +1188,160 @@ static void drw_callbacks_pre_scene(DRWContext &draw_ctx)
   /* State is reset later at the beginning of `draw_ctx.engines_draw_scene()`. */
 }
 
-static void drw_callbacks_post_scene(DRWContext &draw_ctx)
+static void drw_callbacks_post_scene_view3d(DRWContext &draw_ctx)
 {
-  RegionView3D *rv3d = draw_ctx.rv3d;
-  ARegion *region = draw_ctx.region;
-  View3D *v3d = draw_ctx.v3d;
   Depsgraph *depsgraph = draw_ctx.depsgraph;
+  ARegion *region = draw_ctx.region;
+  RegionView3D *rv3d = draw_ctx.rv3d;
+  View3D *v3d = draw_ctx.v3d;
 
   const bool do_annotations = draw_show_annotation();
 
-  /* State has been reset at the end `draw_ctx.engines_draw_scene()`. */
+  DefaultFramebufferList *dfbl = DRW_context_get()->viewport_framebuffer_list_get();
 
-  DRW_submission_start();
-  if (draw_ctx.evil_C) {
-    DefaultFramebufferList *dfbl = DRW_context_get()->viewport_framebuffer_list_get();
+  GPU_framebuffer_bind(dfbl->overlay_fb);
 
-    GPU_framebuffer_bind(dfbl->overlay_fb);
+  GPU_matrix_projection_set(rv3d->winmat);
+  GPU_matrix_set(rv3d->viewmat);
 
-    GPU_matrix_projection_set(rv3d->winmat);
-    GPU_matrix_set(rv3d->viewmat);
-
-    /* annotations - temporary drawing buffer (3d space) */
-    /* XXX: Or should we use a proper draw/overlay engine for this case? */
-    if (do_annotations) {
-      GPU_depth_test(GPU_DEPTH_NONE);
-      /* XXX: as `scene->gpd` is not copied for copy-on-eval yet. */
-      ED_annotation_draw_view3d(DEG_get_input_scene(depsgraph), depsgraph, v3d, region, true);
-      GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
-    }
-
+  /* annotations - temporary drawing buffer (3d space) */
+  /* XXX: Or should we use a proper draw/overlay engine for this case? */
+  if (do_annotations) {
     GPU_depth_test(GPU_DEPTH_NONE);
-    /* Apply state for callbacks. */
-    GPU_apply_state();
+    /* XXX: as `scene->gpd` is not copied for copy-on-eval yet. */
+    ED_annotation_draw_view3d(DEG_get_input_scene(depsgraph), depsgraph, v3d, region, true);
+    GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+  }
 
-    ED_region_draw_cb_draw(draw_ctx.evil_C, draw_ctx.region, REGION_DRAW_POST_VIEW);
+  GPU_depth_test(GPU_DEPTH_NONE);
+  /* Apply state for callbacks. */
+  GPU_apply_state();
 
+  ED_region_draw_cb_draw(draw_ctx.evil_C, draw_ctx.region, REGION_DRAW_POST_VIEW);
+
+  /* XR Session Mirror (mirror of the XR view in the desktop window View3D). */
 #ifdef WITH_XR_OPENXR
-    /* XR callbacks (controllers, custom draw functions) for session mirror. */
-    if ((v3d->flag & V3D_XR_SESSION_MIRROR) != 0) {
-      if ((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) {
-        ARegionType *art = WM_xr_surface_controller_region_type_get();
+  /* XR callbacks (controllers, custom draw functions) for session mirror. */
+  if ((v3d->flag & V3D_XR_SESSION_MIRROR) != 0) {
+    if ((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) {
+      ARegionType *art = WM_xr_surface_controller_region_type_get();
+      if (art) {
+        ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
+      }
+    }
+    if ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
+      SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
+      if (st) {
+        ARegionType *art = BKE_regiontype_from_id(st, RGN_TYPE_XR);
         if (art) {
           ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
         }
       }
-      if ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
-        SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
-        if (st) {
-          ARegionType *art = BKE_regiontype_from_id(st, RGN_TYPE_XR);
-          if (art) {
-            ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
-          }
-        }
-      }
     }
+  }
 #endif
 
-    /* Callback can be nasty and do whatever they want with the state.
+  /* Callback can be nasty and do whatever they want with the state.
      * Don't trust them! */
-    draw::command::StateSet::set();
+  draw::command::StateSet::set();
 
-    /* Needed so gizmo isn't occluded. */
-    if ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0) {
-      GPU_depth_test(GPU_DEPTH_NONE);
-      DRW_draw_gizmo_3d(draw_ctx.evil_C, region);
-    }
-
+  /* Needed so gizmo isn't occluded. */
+  if ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0) {
     GPU_depth_test(GPU_DEPTH_NONE);
-    DRW_draw_region_info(draw_ctx.evil_C, region);
+    DRW_draw_gizmo_3d(draw_ctx.evil_C, region);
+  }
 
-    /* Annotations - temporary drawing buffer (screen-space). */
-    /* XXX: Or should we use a proper draw/overlay engine for this case? */
-    if (((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) && (do_annotations)) {
-      GPU_depth_test(GPU_DEPTH_NONE);
-      /* XXX: as `scene->gpd` is not copied for copy-on-eval yet */
-      ED_annotation_draw_view3d(DEG_get_input_scene(depsgraph), depsgraph, v3d, region, false);
-    }
+  GPU_depth_test(GPU_DEPTH_NONE);
+  DRW_draw_region_info(draw_ctx.evil_C, region);
 
-    if ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0) {
-      /* Draw 2D after region info so we can draw on top of the camera passepartout overlay.
+  /* Annotations - temporary drawing buffer (screen-space). */
+  /* XXX: Or should we use a proper draw/overlay engine for this case? */
+  if (((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) && (do_annotations)) {
+    GPU_depth_test(GPU_DEPTH_NONE);
+    /* XXX: as `scene->gpd` is not copied for copy-on-eval yet */
+    ED_annotation_draw_view3d(DEG_get_input_scene(depsgraph), depsgraph, v3d, region, false);
+  }
+
+  if ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0) {
+    /* Draw 2D after region info so we can draw on top of the camera passepartout overlay.
        * 'DRW_draw_region_info' sets the projection in pixel-space. */
-      GPU_depth_test(GPU_DEPTH_NONE);
-      DRW_draw_gizmo_2d(draw_ctx.evil_C, region);
-    }
+    GPU_depth_test(GPU_DEPTH_NONE);
+    DRW_draw_gizmo_2d(draw_ctx.evil_C, region);
+  }
 
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+}
+
+static void drw_callbacks_post_scene_xr_surface(DRWContext &draw_ctx)
+{
+  Depsgraph *depsgraph = draw_ctx.depsgraph;
+  ARegion *region = draw_ctx.region;
+  RegionView3D *rv3d = draw_ctx.rv3d;
+  View3D *v3d = draw_ctx.v3d;
+
+  if (v3d && ((v3d->flag2 & V3D_SHOW_ANNOTATION) != 0)) {
+    GPU_depth_test(GPU_DEPTH_NONE);
+    /* XXX: as `scene->gpd` is not copied for copy-on-eval yet */
+    ED_annotation_draw_view3d(DEG_get_input_scene(depsgraph), depsgraph, v3d, region, true);
     GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
   }
-  else {
-    if (v3d && ((v3d->flag2 & V3D_SHOW_ANNOTATION) != 0)) {
-      GPU_depth_test(GPU_DEPTH_NONE);
-      /* XXX: as `scene->gpd` is not copied for copy-on-eval yet */
-      ED_annotation_draw_view3d(DEG_get_input_scene(depsgraph), depsgraph, v3d, region, true);
-      GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+
+  DefaultFramebufferList *dfbl = DRW_context_get()->viewport_framebuffer_list_get();
+
+  draw::command::StateSet::set();
+
+  GPU_framebuffer_bind(dfbl->overlay_fb);
+
+  GPU_matrix_projection_set(rv3d->winmat);
+  GPU_matrix_set(rv3d->viewmat);
+
+  /* XR callbacks (controllers, custom draw functions) for the session surface. */
+  if (((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) ||
+      ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0))
+  {
+    GPU_depth_test(GPU_DEPTH_NONE);
+    GPU_apply_state();
+
+    if ((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) {
+      ARegionType *art = WM_xr_surface_controller_region_type_get();
+      if (art) {
+        ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
+      }
     }
+    if ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
+      SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
+      if (st) {
+        ARegionType *art = BKE_regiontype_from_id(st, RGN_TYPE_XR);
+        if (art) {
+          ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
+        }
+      }
+    }
+
+    draw::command::StateSet::set();
+  }
+
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+}
+
+static void drw_callbacks_post_scene(DRWContext &draw_ctx)
+{
+  /* State has been reset at the end `draw_ctx.engines_draw_scene()`. */
+  DRW_submission_start();
 
 #ifdef WITH_XR_OPENXR
-    if ((v3d->flag & V3D_XR_SESSION_SURFACE) != 0) {
-      DefaultFramebufferList *dfbl = DRW_context_get()->viewport_framebuffer_list_get();
-
-      draw::command::StateSet::set();
-
-      GPU_framebuffer_bind(dfbl->overlay_fb);
-
-      GPU_matrix_projection_set(rv3d->winmat);
-      GPU_matrix_set(rv3d->viewmat);
-
-      /* XR callbacks (controllers, custom draw functions) for session surface. */
-      if (((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) ||
-          ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0))
-      {
-        GPU_depth_test(GPU_DEPTH_NONE);
-        GPU_apply_state();
-
-        if ((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) {
-          ARegionType *art = WM_xr_surface_controller_region_type_get();
-          if (art && draw_ctx.evil_C) {
-            ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
-          }
-        }
-        if ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
-          SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
-          if (st) {
-            ARegionType *art = BKE_regiontype_from_id(st, RGN_TYPE_XR);
-            if (art && draw_ctx.evil_C) {
-              ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
-            }
-          }
-        }
-
-        draw::command::StateSet::set();
-      }
-
-      GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
-    }
+  const bool is_xr_surface = draw_ctx.v3d->flag & V3D_XR_SESSION_SURFACE;
+#else
+  const bool is_xr_surface = false;
 #endif
+
+  if (is_xr_surface) {
+    drw_callbacks_post_scene_xr_surface(draw_ctx);
   }
+  else {
+    drw_callbacks_post_scene_view3d(draw_ctx);
+  }
+
   DRW_submission_end();
 
   draw::command::StateSet::set();
