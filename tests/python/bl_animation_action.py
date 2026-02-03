@@ -874,6 +874,8 @@ class ReplaceAction(unittest.TestCase):
 
         new_action = bpy.data.actions["Action"]
         self.assertEqual(self.obj_animated.animation_data.action, new_action)
+        # The new action should have the same slots as the previous one.
+        self.assertNotEqual(self.obj_animated.animation_data.action_slot, None)
         self.assertEqual(self.obj_no_slot_after.animation_data.action, new_action)
         self.assertEqual(self.obj_no_slot_before.animation_data.action, new_action)
         self.assertEqual(self.armature.animation_data.action, new_action)

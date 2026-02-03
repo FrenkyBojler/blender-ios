@@ -1492,8 +1492,10 @@ static wmOperatorStatus replace_action_new_exec(bContext *C, wmOperator *op)
 
   animrig::Action &old_action = old_dna_action->wrap();
   animrig::Action &new_action = animrig::action_add(*bmain, DATA_("Action"));
-  /* We are not adding any slots to the new action here. This will happen automatically once the
-   * user starts adding keyframes. */
+  for (animrig::Slot *old_slot : old_action.slots()) {
+    animrig::Slot &new_slot = new_action.slot_add();
+    new_action.slot_identifier_define(new_slot, old_slot->identifier);
+  }
 
   Vector<ID *> failures = replace_action(*bmain, old_action, new_action);
   replace_action_common_failure_report(failures, *op->reports);
