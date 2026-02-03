@@ -807,7 +807,7 @@ def _download_queued_items(
             while connection.poll():
                 try:
                     received_msg: PipeMessage = connection.recv()
-                except (EOFError, ConnectionResetError):
+                except (EOFError, OSError):
                     # The Python documentation mentions EOFError, but in
                     # practice I (Sybren) have also seen a ConnectionResetError
                     # being raised when Blender shuts down uncleanly. The
