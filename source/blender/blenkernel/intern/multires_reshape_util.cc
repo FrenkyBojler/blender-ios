@@ -831,8 +831,7 @@ static void assign_final_coords_from_mdisps_for_versioning(
 
   ReshapeGridElement grid_element = multires_reshape_grid_element_for_grid_coord(reshape_context,
                                                                                  grid_coord);
-  const float3 D = math::transform_direction(tangent_matrix,
-                                                               *grid_element.displacement);
+  const float3 D = math::transform_direction(tangent_matrix, *grid_element.displacement);
 
   *grid_element.displacement = P + D;
 }

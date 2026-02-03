@@ -56,8 +56,8 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(float3x3 &tangent_matrix,
 
   /* Do cross product in double precision due to possibility of nearly parallel partial derivative
    * tangent vectors */
-  float3 N = float3(math::normalize(math::cross(
-      double3(tangent_matrix.x_axis()), double3(tangent_matrix.y_axis()))));
+  float3 N = float3(math::normalize(
+      math::cross(double3(tangent_matrix.x_axis()), double3(tangent_matrix.y_axis()))));
 
   constexpr float eps = 0.000001f;
   /* Check for a bad cross product by inspecting the length, if within this arbitrary epsilon,
@@ -69,10 +69,9 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(float3x3 &tangent_matrix,
 
   tangent_matrix.z_axis() = N;
 
-  const float angle_between = RAD2DEGF(math::acos(
-      math::dot(tangent_matrix.x_axis(), tangent_matrix.y_axis()) /
-      (math::length(tangent_matrix.x_axis() *
-                             math::length(tangent_matrix.y_axis())))));
+  const float angle_between = RAD2DEGF(
+      math::acos(math::dot(tangent_matrix.x_axis(), tangent_matrix.y_axis()) /
+                 (math::length(tangent_matrix.x_axis() * math::length(tangent_matrix.y_axis())))));
 
   /* Adjust the angle by a small amount to not have nearly parallel lines */
   constexpr float threshold = 85.0f;
@@ -97,7 +96,7 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(float3x3 &tangent_matrix,
   }
 
   const float geometric_mean = math::sqrt(math::length(tangent_matrix.x_axis()) *
-                                                   math::length(tangent_matrix.y_axis()));
+                                          math::length(tangent_matrix.y_axis()));
 
   tangent_matrix.x_axis() = tangent_matrix.x_axis();
   tangent_matrix.y_axis() = tangent_matrix.y_axis();
@@ -112,11 +111,10 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(float3x3 &tangent_matrix,
   }
 }
 
-BLI_INLINE void BKE_multires_construct_tangent_matrix_for_versioning(
-    float3x3 &tangent_matrix,
-    const float3 &dPdu,
-    const float3 &dPdv,
-    const int corner)
+BLI_INLINE void BKE_multires_construct_tangent_matrix_for_versioning(float3x3 &tangent_matrix,
+                                                                     const float3 &dPdu,
+                                                                     const float3 &dPdv,
+                                                                     const int corner)
 {
   if (corner == 0) {
     tangent_matrix.x_axis() = dPdv * -1.0f;

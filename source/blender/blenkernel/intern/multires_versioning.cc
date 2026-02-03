@@ -112,8 +112,7 @@ void multires_do_versions_tangent_space_conversion(Object *object, MultiresModif
   {
     bke::subdiv::Settings subdiv_settings;
     BKE_multires_subdiv_settings_init(&subdiv_settings, mmd);
-    bke::subdiv::Subdiv *subdiv = bke::subdiv::new_from_mesh(&subdiv_settings,
-                                                                               base_mesh);
+    bke::subdiv::Subdiv *subdiv = bke::subdiv::new_from_mesh(&subdiv_settings, base_mesh);
     OpenSubdiv_EvaluatorSettings evaluator_settings = {0};
     bke::subdiv::eval_begin(
         subdiv, bke::subdiv::SUBDIV_EVALUATOR_TYPE_CPU, nullptr, &evaluator_settings);
