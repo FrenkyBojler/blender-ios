@@ -242,7 +242,7 @@ static StripDrawContext strip_draw_context_get(const TimelineDrawContext &ctx, S
   strip_ctx.missing_data_block = !strip_has_valid_data(strip);
   strip_ctx.missing_media = media_presence_is_missing(scene, strip);
   strip_ctx.is_connected = is_strip_connected(strip);
-  strip_ctx.has_retiming = retiming_has_keys(strip) && !retiming_show_keys(strip);
+  strip_ctx.has_retiming = retiming_has_keys(strip);
   if (strip->type == STRIP_TYPE_META) {
     const ListBaseT<Strip> *seqbase = &strip->seqbase;
     for (const Strip &sub : *seqbase) {
@@ -917,8 +917,6 @@ static void draw_icon_centered(const TimelineDrawContext &ctx,
 static void draw_strip_icons(const TimelineDrawContext &ctx,
                              const Vector<StripDrawContext> &strips)
 {
-  const float icon_size_x = ICON_SIZE * ctx.pixelx * UI_SCALE_FAC;
-
   for (const StripDrawContext &strip : strips) {
     const bool missing_data = strip.missing_data_block;
     const bool missing_media = strip.missing_media;
@@ -933,29 +931,35 @@ static void draw_strip_icons(const TimelineDrawContext &ctx,
       uchar col[4];
       get_strip_text_color(strip, col);
 
-      float icon_indent = 2.0f * strip.handle_width - 4 * ctx.pixelx * UI_SCALE_FAC;
+      const float icon_size_x = ICON_SIZE * ctx.pixelx * UI_SCALE_FAC;
+      const float icon_indent = 2.0f * strip.handle_width - 4 * ctx.pixelx * UI_SCALE_FAC;
+      const float icon_spacing = 3.0f * ctx.pixelx * UI_SCALE_FAC;
       rctf rect;
       rect.ymin = strip.top - strip_header_size_get(ctx);
       rect.ymax = strip.top;
       rect.xmin = max_ff(strip.left_handle, ctx.v2d->cur.xmin) + icon_indent;
       if (missing_data) {
-        rect.xmax = min_ff(strip.right_handle - strip.handle_width, rect.xmin + icon_size_x);
+        rect.xmax = min_ff(strip.right_handle - strip.handle_width,
+                           rect.xmin + icon_size_x + icon_spacing);
         draw_icon_centered(ctx, rect, ICON_LIBRARY_DATA_BROKEN, col);
         rect.xmin = rect.xmax;
       }
       if (missing_media) {
-        rect.xmax = min_ff(strip.right_handle - strip.handle_width, rect.xmin + icon_size_x);
+        rect.xmax = min_ff(strip.right_handle - strip.handle_width,
+                           rect.xmin + icon_size_x + icon_spacing);
         draw_icon_centered(ctx, rect, ICON_ERROR, col);
         rect.xmin = rect.xmax;
       }
       if (is_connected) {
-        rect.xmax = min_ff(strip.right_handle - strip.handle_width, rect.xmin + icon_size_x);
+        rect.xmax = min_ff(strip.right_handle - strip.handle_width,
+                           rect.xmin + icon_size_x + icon_spacing);
         draw_icon_centered(ctx, rect, ICON_LINKED, col);
         rect.xmin = rect.xmax;
       }
       if (has_retiming) {
-        rect.xmax = min_ff(strip.right_handle - strip.handle_width, rect.xmin + icon_size_x);
-        draw_icon_centered(ctx, rect, ICON_TIME, col);
+        rect.xmax = min_ff(strip.right_handle - strip.handle_width,
+                           rect.xmin + icon_size_x + icon_spacing);
+        draw_icon_centered(ctx, rect, ICON_MOD_TIME, col);
       }
     }
 
@@ -1002,7 +1006,8 @@ static void draw_seq_text_overlay(const TimelineDrawContext &ctx,
   uchar col[4];
   get_strip_text_color(strip_ctx, col);
 
-  float text_margin = 2.0f * strip_ctx.handle_width;
+  /* Note that the subtracted portion is half of `icon_indent`'s  in `draw_strip_icons`. */
+  float text_margin = 2.0f * strip_ctx.handle_width - 2 * ctx.pixelx * UI_SCALE_FAC;
   rctf rect;
   rect.xmin = strip_ctx.left_handle + text_margin;
   rect.xmax = strip_ctx.right_handle - text_margin;
@@ -1023,7 +1028,8 @@ static void draw_seq_text_overlay(const TimelineDrawContext &ctx,
   if (strip_ctx.has_retiming) {
     num_icons++;
   }
-  rect.xmin += num_icons * ICON_SIZE * ctx.pixelx * UI_SCALE_FAC;
+  rect.xmin += num_icons * ICON_SIZE * ctx.pixelx * UI_SCALE_FAC; /* Icon widths. */
+  rect.xmin += num_icons * 3.0f * ctx.pixelx * UI_SCALE_FAC;      /* Icon spacings. */
   rect.xmin = min_ff(rect.xmin, ctx.v2d->cur.xmax);
 
   CLAMP(rect.xmax, ctx.v2d->cur.xmin + text_margin, ctx.v2d->cur.xmax);
