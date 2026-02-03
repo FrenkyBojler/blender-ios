@@ -602,6 +602,27 @@ static void convert_brush_flags_to_type(Brush &brush)
   }
 }
 
+/* Saving file extension is now a property of the the File Output node. So inherit this
+ * setting from the active scene to restore the old behavior.
+ * Note: One limitation is that node groups containing file outputs that are not part of any
+ * scene are not affected by versioning. */
+static void do_version_file_output_use_file_extension_recursive(bNodeTree &node_tree,
+                                                                const Scene &scene)
+{
+  for (bNode &node : node_tree.nodes) {
+    if (node.type_legacy == CMP_NODE_OUTPUT_FILE) {
+      NodeCompositorFileOutput *data = static_cast<NodeCompositorFileOutput *>(node.storage);
+      data->use_file_extension = scene.r.scemode & R_EXTENSION;
+    }
+    else if (node.type_legacy == NODE_GROUP) {
+      bNodeTree *ngroup = id_cast<bNodeTree *>(node.id);
+      if (ngroup) {
+        do_version_file_output_use_file_extension_recursive(*ngroup, scene);
+      }
+    }
+  }
+}
+
 void do_versions_after_linking_510(FileData *fd, Main *bmain)
 {
   /* Some blend files were saved with an invalid active viewer key, possibly due to a bug that
@@ -664,6 +685,18 @@ void do_versions_after_linking_510(FileData *fd, Main *bmain)
       if ((gp_style.flag & GP_MATERIAL_FILL_SHOW) == 0) {
         gp_style.fill_rgba[3] = 0.0f;
       }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 24)) {
+    for (Scene &scene : bmain->scenes) {
+      bNodeTree *node_tree = version_get_scene_compositor_node_tree(bmain, &scene);
+
+      if (node_tree == nullptr) {
+        continue;
+      }
+
+      do_version_file_output_use_file_extension_recursive(*node_tree, scene);
     }
   }
 

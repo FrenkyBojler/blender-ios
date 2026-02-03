@@ -105,6 +105,7 @@ static void node_init(const bContext *C, PointerRNA *node_pointer)
   NodeCompositorFileOutput *data = MEM_new<NodeCompositorFileOutput>(__func__);
   node->storage = data;
   data->save_as_render = true;
+  data->use_file_extension = true;
   data->file_name = BLI_strdup("file_name");
 
   BKE_image_format_init(&data->format);
@@ -189,7 +190,7 @@ static Vector<bke::path_templates::Error> compute_image_path(const StringRefNull
                                       &template_variables,
                                       frame_number,
                                       &format,
-                                      scene.r.scemode & R_EXTENSION,
+                                      bool(node_storage(node).use_file_extension),
                                       is_animation_render,
                                       BKE_scene_multiview_view_suffix_get(&scene.r, view));
 }
@@ -210,6 +211,11 @@ static void format_layout(ui::Layout *layout,
   col.use_property_decorate_set(false);
   col.prop(node_or_item_pointer,
            "save_as_render",
+           ui::ITEM_R_SPLIT_EMPTY_NAME,
+           std::nullopt,
+           ICON_NONE);
+  col.prop(node_or_item_pointer,
+           "use_file_extension",
            ui::ITEM_R_SPLIT_EMPTY_NAME,
            std::nullopt,
            ICON_NONE);
