@@ -10,11 +10,6 @@
 #include "eevee_defines.hh"
 #include "gpu_shader_create_info.hh"
 
-GPU_SHADER_CREATE_INFO(eevee_object_id_out)
-DEFINE("MAT_OBJECT_ID")
-FRAGMENT_OUT(PREPASS_FRAG_OUT_OB_ID, uint, out_object_id)
-GPU_SHADER_CREATE_END()
-
 GPU_SHADER_CREATE_INFO(eevee_raycast)
 DEFINE("MAT_RAYCAST")
 SAMPLER(OBJECT_ID_TEX_SLOT, usampler2D, object_id_tx)

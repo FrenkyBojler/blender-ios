@@ -222,8 +222,8 @@
 #endif
 
 #define PREPASS_FRAG_OUT_NORMAL 0
-#define PREPASS_FRAG_OUT_VELOCITY 1
-#define PREPASS_FRAG_OUT_OB_ID 2
+#define PREPASS_FRAG_OUT_OB_ID 1
+#define PREPASS_FRAG_OUT_VELOCITY 2
 
 /* Resource bindings. */
 
