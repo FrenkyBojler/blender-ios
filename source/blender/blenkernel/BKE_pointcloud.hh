@@ -64,7 +64,7 @@ bool BKE_pointcloud_attribute_required(const PointCloud *pointcloud, StringRef n
  */
 void pointcloud_copy_parameters(const PointCloud &src, PointCloud &dst);
 
-void pointcloud_resize(PointCloud &pointcloud, int newcount);
+void pointcloud_resize(PointCloud &pointcloud, int size);
 
 /* Dependency Graph */
 
