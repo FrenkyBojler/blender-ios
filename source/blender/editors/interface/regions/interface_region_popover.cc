@@ -134,8 +134,7 @@ static Block *block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *ar
   }
 
   block_layout_resolve(block);
-  const int direction = pup->panel_type->popup_draw_direction ==
-                                PopupAttachDirection::Horizontal ?
+  const int direction = pup->panel_type->popup_draw_direction == PopupAttachDirection::Horizontal ?
                             UI_DIR_LEFT :
                             UI_DIR_DOWN | UI_DIR_CENTER_X;
   block_direction_set(block, direction);
@@ -170,7 +169,7 @@ static Block *block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *ar
     if (!slideout) {
       ARegion *region = CTX_wm_region(C);
 
-      if (region && region->panels.first && (direction != UI_DIR_LEFT)) {
+      if (region && region->panels.first && (direction & UI_DIR_DOWN)) {
         /* For regions with panels, prefer to open to top so we can
          * see the values of the buttons below changing. */
         block_direction_set(block, UI_DIR_UP | UI_DIR_CENTER_X);
