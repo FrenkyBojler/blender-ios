@@ -25,6 +25,25 @@
 
 CCL_NAMESPACE_BEGIN
 
+static float halton(int index, int base)
+{
+  float f = 1.0f;
+  float r = 0.0f;
+
+  while (index > 0) {
+    f *= float(base);
+    r += float(index % base) / f;
+    index /= base;
+  }
+
+  return r;
+}
+
+static float2 halton_jitter_pattern(int index)
+{
+  return make_float2(halton(index, 2) - 0.5f, halton(index, 3) - 0.5f);
+}
+
 NODE_DEFINE(Integrator)
 {
   NodeType *type = NodeType::add("integrator", create);
@@ -353,24 +372,10 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   kintegrator->has_shadow_catcher = scene->has_shadow_catcher();
 
   if (use_jitter) {
-    const auto halton_func = [](uint32_t index, uint32_t base) -> float {
-      float f = 1.0f;
-      float r = 0.0f;
-
-      while (index > 0) {
-        f *= float(base);
-        r += float(index % base) / f;
-        index /= base;
-      }
-
-      return r;
-    };
-    kintegrator->jitter.x = halton_func(frame, 2) - 0.5f;
-    kintegrator->jitter.y = halton_func(frame, 3) - 0.5f;
+    kintegrator->jitter = halton_jitter_pattern(frame);
   }
   else {
-    kintegrator->jitter.x = 0.0f;
-    kintegrator->jitter.y = 0.0f;
+    kintegrator->jitter = zero_float2();
   }
 
   dscene->sample_pattern_lut.clear_modified();
