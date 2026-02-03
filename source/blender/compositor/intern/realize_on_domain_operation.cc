@@ -143,12 +143,8 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
         shader_name = "compositor_realize_on_domain_float4";
       else if (anisotropic)
         shader_name = "compositor_realize_on_domain_anisotropic";
-      else if (options.sampler == math::Sampler::Bspline)
-        shader_name = "compositor_realize_on_domain_bspline_float4";
-      else if (options.sampler == math::Sampler::Bilinear)
-        shader_name = "compositor_realize_on_domain_bilinear_float4";
       else
-        shader_name = "compositor_realize_on_domain_box_float4";
+        shader_name = "compositor_realize_on_domain_sampler";
       break;
     case ResultType::Int:
       fast = nearest = true;
@@ -182,6 +178,7 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
   else {
     GPU_shader_uniform_mat3_as_mat4(shader, "inverse_matrix", inverse_transformation.ptr());
     GPU_shader_uniform_2fv(shader, "wh", wh);
+    GPU_shader_uniform_1i(shader, "sampler", int(options.sampler));
   }
 
   if (anisotropic) {
