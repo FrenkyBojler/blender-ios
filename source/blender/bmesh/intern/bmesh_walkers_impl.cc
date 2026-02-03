@@ -847,12 +847,16 @@ static bool bm_edge_is_single(BMEdge *e)
           (BM_edge_is_boundary(e->l->next->e) || BM_edge_is_boundary(e->l->prev->e)));
 }
 
-static bool bmw_EdgeloopWalker_delimit_mark_check(BMVert *v, BMEdge *e, BMEdge *e_next, const BMWDelimitFlag delimit) {
+static bool bmw_EdgeloopWalker_delimit_mark_check(BMwEdgeLoopWalker owalk,
+                                                  BMVert *v,
+                                                  BMEdge *e,
+                                                  const BMWDelimitFlag delimit)
+{
   /* When starting on a mark, stop when the next edge does not have the mark.
    * Otherwise, stop when any edge connected to the next vert has the mark. */
   if (delimit & BMW_DELIMIT_EDGE_MARK_SEAM) {
-    if (BM_elem_flag_test(e, BM_ELEM_SEAM)) {
-      if (!BM_elem_flag_test(e_next, BM_ELEM_SEAM)) {
+    if (BM_elem_flag_test(owalk.cur, BM_ELEM_SEAM)) {
+      if (!BM_elem_flag_test(e, BM_ELEM_SEAM)) {
         return true;
       }
     }
@@ -867,8 +871,8 @@ static bool bmw_EdgeloopWalker_delimit_mark_check(BMVert *v, BMEdge *e, BMEdge *
     }
   }
   if (delimit & BMW_DELIMIT_EDGE_MARK_SHARP) {
-    if (!BM_elem_flag_test(e, BM_ELEM_SMOOTH)) {
-      if (BM_elem_flag_test(e_next, BM_ELEM_SMOOTH)) {
+    if (!BM_elem_flag_test(owalk.cur, BM_ELEM_SMOOTH)) {
+      if (BM_elem_flag_test(e, BM_ELEM_SMOOTH)) {
         return true;
       }
     }
@@ -879,32 +883,6 @@ static bool bmw_EdgeloopWalker_delimit_mark_check(BMVert *v, BMEdge *e, BMEdge *
         if (!BM_elem_flag_test(e_connected, BM_ELEM_SMOOTH)) {
           return true;
         }
-      }
-    }
-  }
-  return false;
-}
-
-static bool bmw_EdgeloopWalker_delimit_ngon_check(BMwEdgeLoopWalker owalk, BMVert *v, BMEdge *e, BMEdge *e_next, const BMWDelimitFlag delimit) {
-  /* When starting on an n-gon, stop when leaving the face.
-   * Otherwise, stop when entering an n-gon. */
-  if (e->l && delimit & BMW_DELIMIT_EDGE_LOOP_NGONS) {
-    /* Check when on a boundary loop. */
-    if (owalk.is_boundary && owalk.is_single != bm_edge_is_single(e_next)) {
-      return true;
-    }
-    /* Check regular cases. */
-    BMFace *ngon = nullptr;
-    BMLoop *l_iter = owalk.cur->l;
-    do {
-      if (l_iter->f->len > 4) {
-        ngon = l_iter->f;
-      }
-    } while (ngon == nullptr && (l_iter = l_iter->radial_next) != e->l);
-
-    if (ngon != nullptr) {
-      if (ngon != e_next->l->f) {
-        return true;
       }
     }
   }
@@ -1122,7 +1100,7 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
 
     vert_edge_tot = BM_vert_edge_count_nonwire(v);
 
-    const bool has_delimit = bmw_EdgeloopWalker_delimit_mark_check(v, lwalk->cur, e, walker->delimit);
+    const bool has_delimit = bmw_EdgeloopWalker_delimit_mark_check(owalk, v, e, walker->delimit);
 
     /* Typical looping over edges in the middle of a mesh.
      * Why use 2 here at all? - for internal ngon loops it can be useful. */
@@ -1141,10 +1119,6 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
       } while (++i != i_opposite);
     }
     else {
-      l = nullptr;
-    }
-
-    if (l && bmw_EdgeloopWalker_delimit_ngon_check(owalk, v, e, l->e, walker->delimit)) {
       l = nullptr;
     }
 
@@ -1170,7 +1144,7 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
     vert_edge_tot = BM_vert_edge_count_nonwire(v);
 
     /* Check if any delimits should stop the step. */
-    bool has_delimit = false;
+    bool has_delimit = bmw_EdgeloopWalker_delimit_mark_check(owalk, v, e, walker->delimit);
     if ((walker->delimit & BMW_DELIMIT_EDGE_LOOP_INNER_CORNERS) != 0) {
       if (vert_edge_tot > 3) {
         has_delimit = true;
@@ -1197,10 +1171,6 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
           break;
         }
       } while (true);
-    }
-
-    if (l && bmw_EdgeloopWalker_delimit_ngon_check(owalk, v, e, l->e, walker->delimit)) {
-      l = nullptr;
     }
 
     /* Stop at delimiting n-gons here so that Rewind picks the correct edge to start from. */
