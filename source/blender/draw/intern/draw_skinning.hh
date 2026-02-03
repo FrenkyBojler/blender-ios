@@ -30,20 +30,18 @@ struct MeshBufferCache;
 namespace blender::draw {
 
 struct DRWSkinningCache {
-
-  gpu::UniformBuf *in_armspace_buf;
-  gpu::StorageBuf *in_bonedata_buf;
-
   /* Uniform buffers for target mesh and armature spaces */
-  // gpu::UniformBuf *in_armspace_buf;
-  // gpu::UniformBuf *in_targspace_buf;
-  /* input buffer rest position mesh index influences */
+  gpu::UniformBuf *in_armspace_buf;
+  /* BendyBones */
+  gpu::StorageBuf *in_bonebendy_buf;
+
+  /* rest position mesh index influences ssbo */
   gpu::VertBuf *in_indices_buf;
-  /* input buffer rest position mesh weight influences */
+  /* rest position mesh weight influences ssbo */
   gpu::VertBuf *in_weights_buf;
-  /* input buffer of armature bone matrices */
+  /* armature bone matrices ssbo */
   gpu::StorageBuf *in_bonemat_buf;
-  /* input buffer rest position mesh position */
+  /* rest position mesh position ssbo */
   gpu::VertBuf *in_vertpos_buf;
 
   /* Deformation shader */
@@ -69,22 +67,20 @@ struct DRWSkinningCache {
 
   /* Bone extraction data */
   float *bonedata_mat;
-  ArmatureSpace *armature_buf;
-  BoneData *bonedata_buf;
-
-  /* segments per bone */
-  // gpu::StorageBuf *in_bonesegments_buf;
-  // /* offset into bonemat_buf per bone */
-  // gpu::StorageBuf *in_boneoffsets_buf;
-  // /* bone lengths for segment calculation */
-  // gpu::StorageBuf *in_bonelengths_buf;
-  // /* inverse arm matrices for bone space transform */
-  // gpu::StorageBuf *in_bone_invarmmat_buf;
+  ArmatureSpace *armaturedata_space;
+  BoneData *bonedata_bendy;
 
   /* Mesh extraction buffers */
   float *meshdata_pos;
   float *meshdata_nor;
   float *meshdata_tan;
+  uint32_t *adjacency_offsets;
+  uint32_t *adjacency_lists;
+  uint32_t *corner_verts_data;
+  uint32_t *face_offsets_data;
+  uint32_t *sharp_faces_data;
+  int total_adjacency;
+  int sharp_faces_words;
 
   float *meshdata_wgt;
   uint32_t *meshdata_idx;

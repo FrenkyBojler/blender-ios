@@ -58,12 +58,9 @@ GPU_SHADER_CREATE_INFO(draw_skinning_normals_accumulate)
 LOCAL_GROUP_SIZE(SKINNING_LOCAL_SIZE)
 TYPEDEF_SOURCE("draw_shader_shared.hh")
 
-/* Input: deformed positions (per-corner, from LBS pass) */
 STORAGE_BUF(0, read, float4, skinned_pos_buf[])
-/* Input: face adjacency data for each vertex */
 STORAGE_BUF(1, read, uint, face_adjacency_offsets[])
 STORAGE_BUF(2, read, uint, face_adjacency_lists[])
-/* Input: corner to vertex mapping (to find vertex in face) */
 STORAGE_BUF(3, read, uint, corner_verts_buf[])
 
 /* Output: accumulated vertex normals */
@@ -86,18 +83,13 @@ GPU_SHADER_CREATE_INFO(draw_skinning_normals_finalize)
 LOCAL_GROUP_SIZE(SKINNING_LOCAL_SIZE)
 TYPEDEF_SOURCE("draw_shader_shared.hh")
 
-/* Input: deformed positions (per-corner) */
 STORAGE_BUF(0, read, float4, skinned_pos_buf[])
-/* Input: accumulated vertex normals */
 STORAGE_BUF(1, read, float4, vert_normals_buf[])
-/* Input: corner to vertex mapping */
 STORAGE_BUF(2, read, uint, corner_verts_buf[])
-/* Input: face offsets (start corner index for each face) */
 STORAGE_BUF(3, read, uint, face_offsets_buf[])
-/* Input: face smooth flags (bit per face) */
 STORAGE_BUF(4, read, uint, sharp_faces_buf[])
 
-/* Output: final per-corner normals */
+/* Output*/
 STORAGE_BUF(5, write, float4, out_skinned_nor[])
 
 PUSH_CONSTANT(int, face_count)

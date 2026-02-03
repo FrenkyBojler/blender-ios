@@ -6,44 +6,11 @@
 
 COMPUTE_SHADER_CREATE_INFO(draw_skinning_normals_accumulate)
 
-/* Newell's method accumulates Area-Weighted cross products */
 void add_newell_cross_v3_v3v3(inout float3 n, float3 v_prev, float3 v_curr)
 {
   n[0] += (v_prev[1] - v_curr[1]) * (v_prev[2] + v_curr[2]);
   n[1] += (v_prev[2] - v_curr[2]) * (v_prev[0] + v_curr[0]);
   n[2] += (v_prev[0] - v_curr[0]) * (v_prev[1] + v_curr[1]);
-}
-
-void find_vertex_in_face(uint face_start,
-                         uint face_size,
-                         uint vertex_index,
-                         out uint curr,
-                         out uint next,
-                         out uint prev)
-{
-  /* Fallback defaults */
-  curr = 0;
-  next = 1;
-  prev = face_size - 1;
-
-  for (uint i = 0; i < face_size; i++) {
-    uint corner_vert = corner_verts_buf[face_start + i];
-    if (corner_vert == vertex_index) {
-      curr = i;
-      next = (i + 1) % face_size;
-      prev = (i + face_size - 1) % face_size;
-      return;
-    }
-  }
-}
-
-float3 safe_normalize(float3 v)
-{
-  float len_sq = dot(v, v);
-  if (len_sq > 1e-12f) {
-    return v * inversesqrt(len_sq);
-  }
-  return float3(0.0f);
 }
 
 void main()
@@ -64,50 +31,67 @@ void main()
     uint face_start = packed_face_info & 0x00FFFFFFu;
     uint face_size = (packed_face_info >> 24) & 0xFFu;
 
-    /* 1. Compute Face Normal (Newell's Method) */
-    /* CRITICAL: This vector is NOT normalized. Its length is 2 * Face Area. */
-    float3 face_normal = float3(0.0f);
-
-    /* Read positions directly (N-Gon support) */
-    for (uint j = 0; j < face_size; j++) {
-      uint j_next = (j + 1) % face_size;
-      float3 v_curr = skinned_pos_buf[face_start + j].xyz;
-      float3 v_next = skinned_pos_buf[face_start + j_next].xyz;
-      add_newell_cross_v3_v3v3(face_normal, v_curr, v_next);
+    if (face_size < 3) {
+      continue;
     }
 
-    /* FIX: Normalize here to remove Area Weighting.
-     * Now it represents direction only. */
-    float3 face_normal_normalized = safe_normalize(face_normal);
+    float3 face_normal = float3(0.0f);
+    uint curr_idx = 0;
+    float3 v_curr, v_prev, v_next;
+    bool found_vertex = false;
 
-    /* 2. Compute Angle */
-    uint curr_idx, next_idx, prev_idx;
-    find_vertex_in_face(face_start, face_size, vertex_index, curr_idx, next_idx, prev_idx);
+    for (uint j = 0; j < face_size; j++) {
+      uint corner_idx = face_start + j;
+      uint corner_vert = corner_verts_buf[corner_idx];
+      float3 v_j = skinned_pos_buf[corner_idx].xyz;
 
-    float3 v_curr = skinned_pos_buf[face_start + curr_idx].xyz;
-    float3 v_prev = skinned_pos_buf[face_start + prev_idx].xyz;
-    float3 v_next = skinned_pos_buf[face_start + next_idx].xyz;
+      /* Check if this is our vertex */
+      if (corner_vert == vertex_index) {
+        curr_idx = j;
+        v_curr = v_j;
+        found_vertex = true;
+      }
 
-    /* Vectors pointing OUT from current vertex to neighbors */
-    float3 edvec_prev = safe_normalize(v_prev - v_curr);
-    float3 edvec_next = safe_normalize(v_next - v_curr);
+      uint j_next = (j + 1) % face_size;
+      float3 v_j_next = skinned_pos_buf[face_start + j_next].xyz;
+      add_newell_cross_v3_v3v3(face_normal, v_j, v_j_next);
+    }
 
-    /* Calculate Angle */
-    float dot_prod = dot(edvec_prev, edvec_next);
-    float fac = acos(clamp(dot_prod, -1.0f, 1.0f));
+    if (!found_vertex) {
+      continue;
+    }
 
-    /* 3. Accumulate: Face Normal (Direction) * Angle (fac) */
-    /* Use the normalized version here */
-    accumulated_normal += face_normal_normalized * fac;
+    float face_len_sq = dot(face_normal, face_normal);
+    if (face_len_sq < 1e-12f) {
+      continue;
+    }
+    float3 face_normal_normalized = face_normal * inversesqrt(face_len_sq);
+
+    uint prev_idx = (curr_idx + face_size - 1) % face_size;
+    uint next_idx = (curr_idx + 1) % face_size;
+    v_prev = skinned_pos_buf[face_start + prev_idx].xyz;
+    v_next = skinned_pos_buf[face_start + next_idx].xyz;
+
+    float3 edvec_prev = v_prev - v_curr;
+    float3 edvec_next = v_next - v_curr;
+
+    float prev_len_sq = dot(edvec_prev, edvec_prev);
+    float next_len_sq = dot(edvec_next, edvec_next);
+
+    if (prev_len_sq > 1e-12f && next_len_sq > 1e-12f) {
+      edvec_prev *= inversesqrt(prev_len_sq);
+      edvec_next *= inversesqrt(next_len_sq);
+
+      float dot_prod = dot(edvec_prev, edvec_next);
+      float fac = acos(clamp(dot_prod, -1.0f, 1.0f));
+
+      accumulated_normal += face_normal_normalized * fac;
+    }
   }
 
-  /* Final Normalize */
-  float3 normal = safe_normalize(accumulated_normal);
-
-  /* Fallback for degenerate geometry */
-  if (dot(normal, normal) == 0.0f) {
-    normal = float3(0.0f, 0.0f, 1.0f);
+  if (dot(accumulated_normal, accumulated_normal) == 0.0f) {
+    accumulated_normal = float3(0.0f, 0.0f, 1.0f);
   }
 
-  vert_normals_buf[vertex_index] = float4(normal, 0.0f);
+  vert_normals_buf[vertex_index] = float4(accumulated_normal, 0.0f);
 }

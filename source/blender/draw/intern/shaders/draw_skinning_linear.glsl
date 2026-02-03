@@ -19,34 +19,25 @@ void bbone_deform_clamp_segment_index(float head_tail,
                                       out int r_index,
                                       out float r_blend)
 {
-  head_tail = clamp(head_tail, 0.0f, 1.0f);
-
-  float pre_blend = head_tail * float(segments);
+  float pre_blend = clamp(head_tail, 0.0f, 1.0f) * float(segments);
 
   /* Determine the base segment index */
   int index = int(floor(pre_blend));
   index = clamp(index, 0, segments - 1);
 
   /* calculate blend factor (fractional part) for the next segment */
-  float blend = pre_blend - float(index);
-  blend = clamp(blend, 0.0f, 1.0f);
-
   r_index = index;
-  r_blend = blend;
+  r_blend = pre_blend - float(index);
 }
 
 /**
  * Applies the transform of a specific B-Bone segment.
  */
 void accumulate_bbone(
-    int bone_idx, float3 co, float weight, int seg_index, inout float3 position_delta)
+    int offset, float3 co, float weight, int seg_index, inout float3 position_delta)
 {
-  BoneData bonedata = Bonedata_buf[bone_idx];
-  int offset = int(bonedata.offsets);
-
   /* vbones store a matrix for every individual segment*/
   float4x4 pose_mat = bonemat_buf[offset + seg_index];
-
   float3 P_transformed = (pose_mat * float4(co, 1.0f)).xyz;
 
   /* Accumulate the difference from the rest position */
@@ -58,21 +49,19 @@ void accumulate_bbone(
  * this finds where the vertex lies along the bone's length to
  * interpolate between the correct segments.
  */
-void b_bone_deform(int bone_idx, float3 co, float weight, inout float3 position_delta)
+void b_bone_deform(int offset,
+                   float4x4 inv_arm_mat,
+                   float bone_length,
+                   int segments,
+                   float3 co,
+                   float weight,
+                   inout float3 position_delta)
 {
-  BoneData bonedata = Bonedata_buf[bone_idx];
-
-  int segments = int(bonedata.segments);
-  float bone_length = bonedata.lengths;
-
   /* Handle degenerate bones */
   if (bone_length < 0.0001f) {
-    accumulate_bbone(bone_idx, co, weight, 0, position_delta);
+    accumulate_bbone(offset, co, weight, 0, position_delta);
     return;
   }
-
-  /* Transform vertex into the bone's local rest space. */
-  float4x4 inv_arm_mat = bonedata.inverse_arm;
 
   /* We only need the Y-coordinate (length axis) in local space to find position along the bone */
   float y = inv_arm_mat[0][1] * co.x + inv_arm_mat[1][1] * co.y + inv_arm_mat[2][1] * co.z +
@@ -84,17 +73,17 @@ void b_bone_deform(int bone_idx, float3 co, float weight, inout float3 position_
   float blend;
   bbone_deform_clamp_segment_index(head_tail, segments, index, blend);
 
-  accumulate_bbone(bone_idx, co, weight * (1.0f - blend), index, position_delta);
-  accumulate_bbone(bone_idx, co, weight * blend, index + 1, position_delta);
+  float weight_a = weight * (1.0f - blend);
+  float weight_b = weight * blend;
+
+  accumulate_bbone(offset, co, weight_a, index, position_delta);
+  accumulate_bbone(offset, co, weight_b, index + 1, position_delta);
 }
 
 /* regular skinning */
-void accumulate_simple(int bone_idx, float3 co, float weight, inout float3 position_delta)
+void accumulate_simple(int offset, float3 co, float weight, inout float3 position_delta)
 {
-  BoneData bonedata = Bonedata_buf[bone_idx];
-  int offset = int(bonedata.offsets);
   float4x4 pose_mat = bonemat_buf[offset];
-
   float3 P_transformed = (pose_mat * float4(co, 1.0f)).xyz;
   position_delta += weight * (P_transformed - co);
 }
@@ -105,7 +94,9 @@ void main()
   if (gid >= uint(vertex_count)) {
     return;
   }
+
   ArmatureSpace armspace = armspace_buf;
+
   /* Rest Position */
   float3 P_rest = pos_buf[gid].xyz;
 
@@ -129,26 +120,26 @@ void main()
 
     int bone_idx = int(bi);
     BoneData bonedata = Bonedata_buf[bone_idx];
+    int offset = int(bonedata.offsets);
     int segments = int(bonedata.segments);
 
     if (segments > 1) {
-      b_bone_deform(bone_idx, co_armature, weight, position_delta);
+      b_bone_deform(offset,
+                    bonedata.inverse_arm,
+                    bonedata.lengths,
+                    segments,
+                    co_armature,
+                    weight,
+                    position_delta);
     }
     else {
-      accumulate_simple(bone_idx, co_armature, weight, position_delta);
+      accumulate_simple(offset, co_armature, weight, position_delta);
     }
 
     total_weight += weight;
   }
 
-  /* Apply the accumulated deformation */
-  float3 P_arm_final;
-  if (total_weight <= 1e-4) {
-    P_arm_final = co_armature;
-  }
-  else {
-    P_arm_final = co_armature + position_delta * (1.0f / total_weight);
-  }
+  float3 P_arm_final = co_armature + position_delta * (1.0f / max(total_weight, 1e-4f));
 
   float4 P_skinned = armspace.ArmatureToSpace * float4(P_arm_final, 1.0f);
 
