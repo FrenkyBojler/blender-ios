@@ -8,6 +8,7 @@
 
 #include "infos/eevee_geom_infos.hh"
 #include "infos/eevee_nodetree_infos.hh"
+#include "infos/eevee_raycast_infos.hh"
 #include "infos/eevee_surf_depth_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
@@ -73,7 +74,9 @@ void main()
   out_velocity = velocity_pack(out_velocity);
 #endif
 
-  /* Always written, but may be optimized out by framebuffer/subpass setup. */
-  out_normal.rgb = normalize(interp.N) * 0.5f + 0.5f;
+#ifdef MAT_OBJECT_ID
   out_object_id = drw_resource_id() & 0xFFFF;
+#endif
+
+  out_normal.rgb = normalize(interp.N) * 0.5f + 0.5f;
 }

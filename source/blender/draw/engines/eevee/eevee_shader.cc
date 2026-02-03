@@ -842,10 +842,22 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     }
   }
 
-  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST) &&
-      ELEM(pipeline_type, MAT_PIPE_DEFERRED, MAT_PIPE_FORWARD))
-  {
-    info.additional_info("eevee_raycast");
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST)) {
+    switch (pipeline_type) {
+      case MAT_PIPE_PREPASS_DEFERRED:
+      case MAT_PIPE_PREPASS_DEFERRED_VELOCITY:
+      case MAT_PIPE_PREPASS_FORWARD:
+      case MAT_PIPE_PREPASS_FORWARD_VELOCITY:
+      case MAT_PIPE_PREPASS_PLANAR:
+        info.additional_info("eevee_object_id_out");
+        break;
+      case MAT_PIPE_DEFERRED:
+      case MAT_PIPE_FORWARD:
+        info.additional_info("eevee_raycast");
+        break;
+      default:
+        break;
+    }
   }
 
   SlotAllocator slots = add_pipeline_create_info(
