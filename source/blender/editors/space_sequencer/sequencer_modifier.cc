@@ -68,6 +68,9 @@ static const EnumPropertyItem *filter_modifiers_by_sequence_type_itemf(bContext 
     if (ELEM(strip->type, STRIP_TYPE_SOUND)) {
       return rna_enum_strip_sound_modifier_type_items;
     }
+    if (ELEM(strip->type, STRIP_TYPE_META)) {
+      return rna_enum_strip_modifier_type_items;
+    }
   }
   return rna_enum_strip_video_modifier_type_items;
 }

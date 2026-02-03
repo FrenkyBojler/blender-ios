@@ -65,7 +65,6 @@ const EnumPropertyItem rna_enum_strip_modifier_type_items[] = {
 
 const EnumPropertyItem rna_enum_strip_video_modifier_type_items[] = {
     RNA_ENUM_SEQUENCER_VIDEO_MODIFIER_TYPE_ITEMS,
-    RNA_ENUM_SEQUENCER_AUDIO_MODIFIER_TYPE_ITEMS,
     {0, nullptr, 0, nullptr, nullptr},
 };
 
