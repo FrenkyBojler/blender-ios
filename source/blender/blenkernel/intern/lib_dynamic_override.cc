@@ -443,7 +443,7 @@ DynamicOverrideRuleProperty *dynamic_override_rule_rna_property_add(DynamicOverr
   PointerRNA owner_id_ptr, ptr;
   PropertyRNA *prop;
 
-  RNA_id_pointer_create(rule_iddata.owner_id);
+  owner_id_ptr = RNA_id_pointer_create(rule_iddata.owner_id);
   RNA_path_resolve(&owner_id_ptr, rna_path.path.c_str(), &ptr, &prop);
 
   if (!ptr.data || !prop) {
