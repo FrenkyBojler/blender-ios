@@ -10,6 +10,7 @@
  * representation of the OpenXR runtime connection within the application.
  */
 
+#include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_main.hh"
@@ -57,8 +58,9 @@ static void wm_xr_error_handler(const GHOST_XrError *error)
   }
 }
 
-bool wm_xr_init(wmWindowManager *wm)
+bool wm_xr_init(bContext *C)
 {
+  wmWindowManager *wm = CTX_wm_manager(C);
   if (wm->xr.runtime && wm->xr.runtime->ghost_context) {
     return true;
   }
@@ -131,9 +133,15 @@ bool wm_xr_init(wmWindowManager *wm)
     if (!wm->xr.runtime) {
       wm->xr.runtime = wm_xr_runtime_data_create();
       wm->xr.runtime->ghost_context = ghost_context;
+
+      wm->xr.runtime->b_context = CTX_create();
+      CTX_wm_manager_set(wm->xr.runtime->b_context, CTX_wm_manager(C));
+      CTX_wm_window_set(wm->xr.runtime->b_context, CTX_wm_window(C));
+      CTX_data_main_set(wm->xr.runtime->b_context, CTX_data_main(C));
+      CTX_data_scene_set(wm->xr.runtime->b_context, CTX_data_scene(C)); // TODO: would this cause issue with the XR scene being desync from the main context scene?
     }
   }
-  BLI_assert(wm->xr.runtime && wm->xr.runtime->ghost_context);
+  BLI_assert(wm->xr.runtime && wm->xr.runtime->ghost_context && wm->xr.runtime->b_context);
 
   return true;
 }
@@ -203,6 +211,9 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
 
     GHOST_XrContextDestroy(ghost_context);
   }
+
+  CTX_free((*runtime)->b_context);
+
   MEM_SAFE_DELETE(*runtime);
 }
 

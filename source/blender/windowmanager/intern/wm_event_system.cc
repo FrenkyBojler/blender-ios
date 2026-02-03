@@ -4015,11 +4015,9 @@ static bool wm_event_xr_handler_matches_actiondata(const wmEventHandler_Op *op_h
   return (handler_op_type_match && handler_op_properties_match);
 }
 
-static void wm_event_handle_xrevent(bContext *C,
-                                    wmWindowManager *wm,
-                                    wmWindow *win,
-                                    wmEvent *event)
+static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent *event)
 {
+  bContext *xr_C = WM_xr_session_context_get(&wm->xr);
   ScrArea *area = WM_xr_session_area_get(&wm->xr);
   if (!area) {
     return;
@@ -4033,8 +4031,8 @@ static void wm_event_handle_xrevent(bContext *C,
   }
   BLI_assert(WM_region_use_viewport(area, region)); /* For operators using GPU-based selection. */
 
-  CTX_wm_area_set(C, area);
-  CTX_wm_region_set(C, region);
+  CTX_wm_area_set(xr_C, area);
+  CTX_wm_region_set(xr_C, region);
 
   ListBaseT<wmEventHandler> *modalhandlers = &win->runtime->modalhandlers;
 
@@ -4058,7 +4056,7 @@ static void wm_event_handle_xrevent(bContext *C,
       /* Only execute operator handler matching the XR action data carried by the event. */
       if (wm_event_xr_handler_matches_actiondata(op_handler, actiondata)) {
         action = wm_handler_operator_call(
-            C, modalhandlers, &handler_base, event, nullptr, nullptr);
+            xr_C, modalhandlers, &handler_base, event, nullptr, nullptr);
       }
 
       if (action & WM_HANDLER_BREAK) {
@@ -4067,7 +4065,7 @@ static void wm_event_handle_xrevent(bContext *C,
     }
   }
 
-  wm_event_handler_return_value_check(C, event, action);
+  wm_event_handler_return_value_check(xr_C, event, action);
 
   if ((action & WM_HANDLER_BREAK) == 0) {
     if (actiondata->ot->modal && event->val == KM_RELEASE) {
@@ -4080,7 +4078,7 @@ static void wm_event_handle_xrevent(bContext *C,
       if (actiondata->ot->invoke) {
         /* Invoke operator, either executing operator or transferring responsibility to window
          * modal handlers. */
-        wm_operator_invoke(C,
+        wm_operator_invoke(xr_C,
                            actiondata->ot,
                            event,
                            actiondata->op_properties ? &properties : nullptr,
@@ -4092,15 +4090,15 @@ static void wm_event_handle_xrevent(bContext *C,
         /* Execute operator. */
         wmOperator *op = wm_operator_create(
             wm, actiondata->ot, actiondata->op_properties ? &properties : nullptr, nullptr);
-        if ((WM_operator_call(C, op) & OPERATOR_HANDLED) == 0) {
+        if ((WM_operator_call(xr_C, op) & OPERATOR_HANDLED) == 0) {
           WM_operator_free(op);
         }
       }
     }
   }
 
-  CTX_wm_region_set(C, nullptr);
-  CTX_wm_area_set(C, nullptr);
+  CTX_wm_region_set(xr_C, nullptr);
+  CTX_wm_area_set(xr_C, nullptr);
 }
 #endif /* WITH_XR_OPENXR */
 
@@ -4252,7 +4250,7 @@ void wm_event_do_handlers(bContext *C)
 
 #ifdef WITH_XR_OPENXR
       if (event->type == EVT_XR_ACTION) {
-        wm_event_handle_xrevent(C, wm, &win, event);
+        wm_event_handle_xrevent(wm, &win, event);
         BLI_remlink(&win.runtime->event_queue, event);
         wm_event_free_last_handled(&win, event);
         /* Skip mouse event handling below, which is unnecessary for XR events. */

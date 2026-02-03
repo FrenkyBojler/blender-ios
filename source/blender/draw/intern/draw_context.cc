@@ -1229,7 +1229,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
       if ((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) {
         ARegionType *art = WM_xr_surface_controller_region_type_get();
         if (art) {
-          ED_region_surface_draw_cb_draw(art, REGION_DRAW_POST_VIEW);
+          ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
         }
       }
       if ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
@@ -1237,7 +1237,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
         if (st) {
           ARegionType *art = BKE_regiontype_from_id(st, RGN_TYPE_XR);
           if (art) {
-            ED_region_surface_draw_cb_draw(art, REGION_DRAW_POST_VIEW);
+            ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
           }
         }
       }
@@ -1302,16 +1302,16 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
 
         if ((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) {
           ARegionType *art = WM_xr_surface_controller_region_type_get();
-          if (art) {
-            ED_region_surface_draw_cb_draw(art, REGION_DRAW_POST_VIEW);
+          if (art && draw_ctx.evil_C) {
+            ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
           }
         }
         if ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
           SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
           if (st) {
             ARegionType *art = BKE_regiontype_from_id(st, RGN_TYPE_XR);
-            if (art) {
-              ED_region_surface_draw_cb_draw(art, REGION_DRAW_POST_VIEW);
+            if (art && draw_ctx.evil_C) {
+              ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
             }
           }
         }
@@ -1535,6 +1535,7 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
                                     RenderEngineType *engine_type,
                                     ARegion *region,
                                     View3D *v3d,
+                                    bContext *context,
                                     const bool is_image_render,
                                     const bool draw_background,
                                     const bool do_color_management,
@@ -1560,7 +1561,7 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   UNUSED_VARS_NDEBUG(is_image_render);
   DRWContext::Mode mode = is_xr_surface ? DRWContext::VIEWPORT_XR : DRWContext::VIEWPORT_RENDER;
 
-  DRWContext draw_ctx(mode, depsgraph, render_viewport, nullptr, region, v3d);
+  DRWContext draw_ctx(mode, depsgraph, render_viewport, context, region, v3d);
   draw_ctx.acquire_data();
   draw_ctx.options.draw_background = draw_background;
 

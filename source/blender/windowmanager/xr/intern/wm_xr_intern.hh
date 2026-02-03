@@ -86,7 +86,11 @@ struct wmXrSessionState {
 };
 
 struct wmXrRuntimeData {
+  /* GHOST context */
   GHOST_IXrContext *ghost_context;
+
+  /* XR specific bContext. Initialized from the main Blender context on session creation. */
+  bContext *b_context;
 
   /** The window the session was started in. Stored to be able to follow its view-layer. This may
    * be an invalid reference, i.e. the window may have been closed. */

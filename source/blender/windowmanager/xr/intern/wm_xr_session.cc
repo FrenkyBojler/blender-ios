@@ -125,9 +125,7 @@ static void wm_xr_session_begin_info_create(wmXrData *xr_data,
   r_begin_info->exit_customdata = xr_data;
 }
 
-void wm_xr_session_toggle(wmWindowManager *wm,
-                          wmWindow *session_root_win,
-                          wmXrSessionExitFn session_exit_fn)
+void wm_xr_session_toggle(wmWindowManager *wm, wmXrSessionExitFn session_exit_fn)
 {
   wmXrData *xr_data = &wm->xr;
 
@@ -140,7 +138,7 @@ void wm_xr_session_toggle(wmWindowManager *wm,
   else {
     GHOST_XrSessionBeginInfo begin_info;
 
-    xr_data->runtime->session_root_win = session_root_win;
+    xr_data->runtime->session_root_win = CTX_wm_window(WM_xr_session_context_get(xr_data));
     xr_data->runtime->session_state.is_started = true;
     xr_data->runtime->exit_fn = session_exit_fn;
 
@@ -248,6 +246,9 @@ static void wm_xr_session_scene_and_depsgraph_get(const wmWindowManager *wm,
   /* Follow the scene & view layer shown in the root 3D View. */
   Scene *scene = WM_window_get_active_scene(root_win);
   ViewLayer *view_layer = WM_window_get_active_view_layer(root_win);
+
+  /* Ensure the XR-specific context stays in sync. */
+  CTX_data_scene_set(wm->xr.runtime->b_context, scene);
 
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
   BLI_assert(scene && view_layer && depsgraph);
@@ -437,6 +438,11 @@ wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr)
 ScrArea *WM_xr_session_area_get(const wmXrData *xr)
 {
   return xr->runtime ? xr->runtime->area : nullptr;
+}
+
+bContext *WM_xr_session_context_get(const wmXrData *xr)
+{
+  return xr->runtime ? xr->runtime->b_context : nullptr;
 }
 
 bool WM_xr_session_state_viewer_pose_location_get(const wmXrData *xr, float r_location[3])
@@ -1559,7 +1565,7 @@ static wmSurface *wm_xr_session_surface_create()
   surface->system_gpu_context = DRW_system_gpu_context_get();
   surface->blender_gpu_context = static_cast<GPUContext *>(DRW_xr_blender_gpu_context_get());
 
-  data->controller_art->regionid = RGN_TYPE_XR;
+  data->controller_art->regionid = RGN_TYPE_XR; // TODO: perhpas this is enough to implement..
   surface->customdata = data;
 
   g_xr_surface = surface;
