@@ -29,6 +29,14 @@ template<typename T>
 inline void copy(const VArray<T> &src, MutableSpan<T> dst, const int64_t grain_size = 4096)
 {
   BLI_assert(src.size() == dst.size());
+  if (dst.is_empty()) {
+    return;
+  }
+  if (src.is_single()) {
+    dst.fill(src.get_internal_single());
+    return;
+  }
+
   threading::parallel_for(src.index_range(), grain_size, [&](const IndexRange range) {
     src.materialize_to_uninitialized(range, dst);
   });
@@ -147,6 +155,14 @@ inline void gather(const VArray<T> &src,
                    const int64_t grain_size = 4096)
 {
   BLI_assert(indices.size() == dst.size());
+  if (dst.is_empty()) {
+    return;
+  }
+  if (src.is_single()) {
+    dst.fill(src.get_internal_single());
+    return;
+  }
+
   threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
     src.materialize_compressed_to_uninitialized(indices.slice(range), dst.slice(range));
   });
@@ -197,6 +213,14 @@ inline void gather(const VArray<T> &src,
                    const int64_t grain_size = 4096)
 {
   BLI_assert(indices.size() == dst.size());
+  if (dst.is_empty()) {
+    return;
+  }
+  if (src.is_single()) {
+    dst.fill(src.get_internal_single());
+    return;
+  }
+
   devirtualize_varray(src, [&](const auto &src) {
     threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
       for (const int64_t i : range) {
@@ -225,6 +249,15 @@ inline void gather_group_to_group(const OffsetIndices<int> src_offsets,
                                   const VArray<T> src,
                                   MutableSpan<T> dst)
 {
+  BLI_assert(selection.size() == dst_offsets.size());
+  if (selection.is_empty()) {
+    return;
+  }
+  if (src.is_single()) {
+    dst.fill(src.get_internal_single());
+    return;
+  }
+
   selection.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
     src.materialize_compressed(src_offsets[src_i], dst.slice(dst_offsets[dst_i]));
   });

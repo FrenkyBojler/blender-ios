@@ -19,6 +19,19 @@ void copy(const GVArray &src, GMutableSpan dst, const int64_t grain_size)
 {
   BLI_assert(src.type() == dst.type());
   BLI_assert(src.size() == dst.size());
+
+  if (dst.is_empty()) {
+    return;
+  }
+  if (src.is_single()) {
+    const CPPType &type = dst.type();
+    BUFFER_FOR_CPP_TYPE_VALUE(type, value);
+    src.get_internal_single(value);
+    type.fill_construct_n(value, dst.data(), dst.size());
+    type.destruct(value);
+    return;
+  }
+
   threading::parallel_for(src.index_range(), grain_size, [&](const IndexRange range) {
     src.materialize_to_uninitialized(range, dst.data());
   });
@@ -44,6 +57,19 @@ void gather(const GVArray &src,
 {
   BLI_assert(src.type() == dst.type());
   BLI_assert(indices.size() == dst.size());
+
+  if (dst.is_empty()) {
+    return;
+  }
+  if (src.is_single()) {
+    const CPPType &type = dst.type();
+    BUFFER_FOR_CPP_TYPE_VALUE(type, value);
+    src.get_internal_single(value);
+    type.fill_construct_n(value, dst.data(), dst.size());
+    type.destruct(value);
+    return;
+  }
+
   threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
     src.materialize_compressed_to_uninitialized(indices.slice(range), dst.slice(range).data());
   });

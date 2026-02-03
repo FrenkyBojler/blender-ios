@@ -623,6 +623,9 @@ void gather_attributes(const AttributeAccessor src_attributes,
                        const IndexMask &selection,
                        MutableAttributeAccessor dst_attributes)
 {
+  BLI_assert(selection.size() == dst_attributes.domain_size(dst_domain));
+  BLI_assert(selection.min_array_size() <= src_attributes.domain_size(src_domain));
+
   const int src_size = src_attributes.domain_size(src_domain);
   src_attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (iter.domain != src_domain) {
@@ -811,6 +814,16 @@ void copy_attributes_group_to_group(const AttributeAccessor src_attributes,
   if (selection.is_empty()) {
     return;
   }
+
+  if (const std::optional<IndexRange> as_range = selection.to_range()) {
+    if (src_offsets[*as_range] == IndexRange(src_attributes.domain_size(src_domain))) {
+      if (dst_offsets[*as_range] == IndexRange(dst_attributes.domain_size(dst_domain))) {
+        copy_attributes(src_attributes, src_domain, dst_domain, attribute_filter, dst_attributes);
+        return;
+      }
+    }
+  }
+
   src_attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (iter.domain != src_domain) {
       return;
@@ -876,6 +889,16 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
     if (type.is_equal(value.get(), info.data)) {
       return;
     }
+
+    if (range == IndexRange(attributes.domain_size(domain))) {
+      if (!attributes.contains(iter.name) || attributes.remove(iter.name)) {
+        if (!attributes.add(iter.name, domain, iter.data_type, AttributeInitValue(value))) {
+          BLI_assert_unreachable();
+        }
+        return;
+      }
+    }
+
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
     GMutableSpan data = attribute.span.slice(range);
     type.fill_assign_n(value.get(), data.data(), data.size());
