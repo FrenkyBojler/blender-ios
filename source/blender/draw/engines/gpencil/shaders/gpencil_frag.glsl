@@ -344,12 +344,13 @@ void main()
     if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT))  // dot and squares
     {
       if (is_multi_dot) {
-        float radius1;
-        float radius2;
+        float radius1 = 0.0f;
+        float radius2 = 0.0f;
 
-        float4 ndc1 = screen_space_to_ndc_and_radius(gp_interp_flat.sspos, radius1, viewport_size);
+        float4 ndc1 = screen_space_to_ndc_and_radius(
+            gp_interp_flat.sspos_1, radius1, viewport_size);
         float4 ndc2 = screen_space_to_ndc_and_radius(
-            gp_interp_flat.sspos_adj, radius2, viewport_size);
+            gp_interp_flat.sspos_2, radius2, viewport_size);
 
         float3 v1 = ndc_to_view(ndc1);
         float3 v2 = ndc_to_view(ndc2);
@@ -395,7 +396,7 @@ void main()
         }
       }
       else {
-        float2 uv = (gl_FragCoord.xy - gp_interp_flat.sspos.xy) / gp_interp_flat.sspos.w;
+        float2 uv = (gl_FragCoord.xy - gp_interp_flat.sspos_1.xy) / gp_interp_flat.sspos_1.w;
 
         int i = int(gp_interp_flat.point_length.x);
 
@@ -414,10 +415,10 @@ void main()
     }
     else {  // line
       frag_color = get_color(gp_interp.uv);
-      frag_color *= gpencil_stroke_mask(gp_interp_flat.sspos.xy,
-                                        gp_interp_flat.sspos.zw,
-                                        gp_interp_flat.sspos_adj.xy,
-                                        gp_interp_flat.sspos_adj.zw,
+      frag_color *= gpencil_stroke_mask(gp_interp_flat.sspos_1.xy,
+                                        gp_interp_flat.sspos_2.xy,
+                                        gp_interp_flat.sspos_0,
+                                        gp_interp_flat.sspos_3,
                                         gp_interp.uv,
                                         gp_interp_flat.mat_flag,
                                         gp_interp_noperspective.thickness.x,

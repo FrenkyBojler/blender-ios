@@ -426,10 +426,11 @@ float4 gpencil_vertex(float4 viewport_res,
                       float &out_strength,
                       /* UV coordinates. */
                       float2 &out_uv,
-                      /* Screen-Space segment endpoints. */
-                      float4 &out_sspos,
-                      /* Screen-Space adjacent segment endpoints. */
-                      float4 &out_sspos_adj,
+                      /* Screen-Space positions. */
+                      float2 &out_sspos_0,
+                      float4 &out_sspos_1,
+                      float4 &out_sspos_2,
+                      float2 &out_sspos_3,
                       /* Object-space accumulated length from the start of the stroke
                         (x: point 1, y: point 2, z: point density). */
                       float3 &out_point_length,
@@ -556,8 +557,7 @@ float4 gpencil_vertex(float4 viewport_res,
     float2 ss3 = gpencil_project_to_screenspace(ndc3, viewport_res);
 
     /* Screen-space Lines tangents. */
-    float line_len;
-    float2 line = safe_normalize_and_get_length(ss2.xy - ss1.xy, line_len);
+    float2 line = safe_normalize(ss2.xy - ss1.xy);
     float2 line1 = safe_normalize(ss1.xy - ss0);
     float2 line2 = safe_normalize(ss3 - ss2.xy);
     float2 line_adj = (use_curr) ? line1 : line2;
@@ -572,24 +572,24 @@ float4 gpencil_vertex(float4 viewport_res,
     out_hardness = gpencil_decode_hardness(use_curr ? point_data1.packed_data :
                                                       point_data2.packed_data);
 
-    out_sspos.xy = ss1.xy;
+    out_sspos_1 = ss1;
     if (ma2.x != -1) {
-      out_sspos.zw = ss2.xy;
+      out_sspos_2 = ss2;
     }
     else {
-      out_sspos.zw = out_sspos.xy;
+      out_sspos_2 = out_sspos_1;
     }
     if (ma.x != -1) {
-      out_sspos_adj.xy = ss0;
+      out_sspos_0 = ss0;
     }
     else {
-      out_sspos_adj.xy = out_sspos.xy;
+      out_sspos_0 = out_sspos_1.xy;
     }
     if (ma3.x != -1) {
-      out_sspos_adj.zw = ss3;
+      out_sspos_3 = ss3;
     }
     else {
-      out_sspos_adj.zw = out_sspos.zw;
+      out_sspos_3 = out_sspos_2.xy;
     }
 
     /* z is calculated later. */
@@ -646,7 +646,7 @@ float4 gpencil_vertex(float4 viewport_res,
       out_aspect.xy = 1.0f / out_aspect.xy;
 
       out_ndc.xy += (x * x_axis + y * y_axis) * viewport_res.zw * clamped_thickness;
-      out_sspos_adj.xy = ss1.xy + x_axis * 0.5;
+      out_sspos_0.xy = ss1.xy + x_axis * 0.5;
 
       out_thickness.x = (is_squares) ? 1e18f : (clamped_thickness / out_ndc.w);
       out_thickness.y = (is_squares) ? 1e18f : (thickness / out_ndc.w);
@@ -725,8 +725,10 @@ float4 gpencil_vertex(float4 viewport_res,
     out_thickness.w = MITER_LIMIT_TYPE_ROUND;
     out_hardness = 1.0f;
     out_aspect = float4(1.0f, 1.0f, 1.0f, 0.0f);
-    out_sspos = float4(0.0f);
-    out_sspos_adj = float4(0.0f);
+    out_sspos_0 = float2(0.0f);
+    out_sspos_1 = float4(0.0f);
+    out_sspos_2 = float4(0.0f);
+    out_sspos_3 = float2(0.0f);
     out_point_length = float3(0.0);
 
     /* Flat normal following camera and object bounds. */
@@ -757,8 +759,10 @@ float4 gpencil_vertex(float4 viewport_res,
                       float4 &out_color,
                       float &out_strength,
                       float2 &out_uv,
-                      float4 &out_sspos,
-                      float4 &out_sspos_adj,
+                      float2 &out_sspos_0,
+                      float4 &out_sspos_1,
+                      float4 &out_sspos_2,
+                      float2 &out_sspos_3,
                       float3 &out_point_length,
                       float4 &out_aspect,
                       float4 &out_thickness,
@@ -772,8 +776,10 @@ float4 gpencil_vertex(float4 viewport_res,
                         out_color,
                         out_strength,
                         out_uv,
-                        out_sspos,
-                        out_sspos_adj,
+                        out_sspos_0,
+                        out_sspos_1,
+                        out_sspos_2,
+                        out_sspos_3,
                         out_point_length,
                         out_aspect,
                         out_thickness,
