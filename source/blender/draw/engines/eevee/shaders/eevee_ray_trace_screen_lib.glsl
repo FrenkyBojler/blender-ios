@@ -234,11 +234,11 @@ bool clip_ray(float3 &start,
   for (int i = 0; i < 6; i++) {
     /* Make normals point outwards.
      * This way xyz * w represents a point in the plane surface. */
-    float3 plane_normal = -frustum_planes[i].xyz;
-    float plane_distance = frustum_planes[i].w;
+    const float3 plane_normal = -frustum_planes[i].xyz;
+    const float plane_distance = frustum_planes[i].w;
 
-    float NoR = dot(plane_normal, direction);
-    float NoS = dot(plane_normal, start);
+    const float NoR = dot(plane_normal, direction);
+    const float NoS = dot(plane_normal, start);
 
     if (abs(NoR) < 1e-6f) {
       /* Parallel ray. */
@@ -249,7 +249,7 @@ bool clip_ray(float3 &start,
       continue;
     }
 
-    float plane_t = (plane_distance - NoS) / NoR;
+    const float plane_t = (plane_distance - NoS) / NoR;
 
     if (NoR > 0.0f) {
       /* Ray going outside. */
@@ -267,15 +267,15 @@ bool clip_ray(float3 &start,
   return max_t > min_t;
 }
 
-float raytrace_screen_2(float3 vs_origin,
-                        float3 vs_end,
-                        float3 vs_direction,
+float raytrace_screen_2(const float3 vs_origin,
+                        const float3 vs_end,
+                        const float3 vs_direction,
                         sampler2D hiz_tx,
-                        float thickness,
-                        int max_steps,
-                        float jitter,
+                        const float thickness,
+                        const int max_steps,
+                        const float jitter,
                         usampler2D ob_id_tx,
-                        uint object_id,
+                        const uint object_id,
                         float2 &r_hit_uv)
 {
   /* Convert ray start and end into NDC for correct interpolation. */
@@ -289,34 +289,34 @@ float raytrace_screen_2(float3 vs_origin,
 #if 0
   /* TODO: This should be the correct code but it currently fails when rendering probes.
    * (The values are always the ones from the main View) */
-  float2 extent = float2(uniform_buf.film.render_extent);
-  float2 hiz_uv_scale = uniform_buf.hiz.uv_scale;
+  const float2 extent = float2(uniform_buf.film.render_extent);
+  const float2 hiz_uv_scale = uniform_buf.hiz.uv_scale;
 #else
-  float2 extent = float2(textureSize(ob_id_tx, 0).xy);
-  float2 hiz_uv_scale = extent / float2(textureSize(hiz_tx, 0));
+  const float2 extent = float2(textureSize(ob_id_tx, 0).xy);
+  const float2 hiz_uv_scale = extent / float2(textureSize(hiz_tx, 0));
 #endif
-  float2 hiz_texel_to_uv = (float2(1.0f) / extent) * hiz_uv_scale;
+  const float2 hiz_texel_to_uv = (float2(1.0f) / extent) * hiz_uv_scale;
 
-  float2 total_pixel_delta = abs(start.xy - end.xy) * extent;
+  const float2 total_pixel_delta = abs(start.xy - end.xy) * extent;
   /* Number of steps required to trace a fully contiguous line. */
   int steps = int(max(total_pixel_delta.x, total_pixel_delta.y)) + 1;
   /* Limit to max steps. */
   steps = min(steps, max_steps);
 
   /* Per-step delta. */
-  float4 delta = (end - start) / float(steps);
+  const float4 delta = (end - start) / float(steps);
 
-  float max_t = max(steps - 1, 1);
+  const float max_t = max(steps - 1, 1);
+  const bool forward = end.z > start.z;
   float previous_step_z = start.z;
-  bool forward = end.z > start.z;
 
   /* Skip the first step to avoid self-occlusion. But iterate at least once. */
   for (int i = 1; i < steps || i == 1; i++) {
     /* Ensure we don't go past ray end. */
-    float step_t = min(float(i) + jitter, max_t);
-    float4 step = start + delta * step_t;
+    const float step_t = min(float(i) + jitter, max_t);
+    const float4 step = start + delta * step_t;
 
-    float2 texel = step.xy * extent;
+    const float2 texel = step.xy * extent;
     if (object_id != 0 && object_id != texelFetch(ob_id_tx, int2(texel), 0).r) {
       previous_step_z = step.z;
       continue;
@@ -327,19 +327,19 @@ float raytrace_screen_2(float3 vs_origin,
      * - Fetch depth using both point and linear sampling.
      * - Use the furthest one for intersection check.
      * - Use the closest one for thickness check. */
-    float hit_depth_point = texelFetch(hiz_tx, int2(texel), 0).r;
-    float2 gather_uv = round(texel) * hiz_texel_to_uv;
-    float4 depth4 = textureGather(hiz_tx, gather_uv);
-    float2 bilinear_coords = fract(texel - 0.5f);
-    float hit_depth_linear = mix(mix(depth4.w, depth4.z, bilinear_coords.x),
-                                 mix(depth4.x, depth4.y, bilinear_coords.x),
-                                 bilinear_coords.y);
-    float hit_min_z = min(hit_depth_point, hit_depth_linear);
-    float hit_max_z = max(hit_depth_point, hit_depth_linear);
+    const float hit_depth_point = texelFetch(hiz_tx, int2(texel), 0).r;
+    const float2 gather_uv = round(texel) * hiz_texel_to_uv;
+    const float4 depth4 = textureGather(hiz_tx, gather_uv);
+    const float2 bilinear_coords = fract(texel - 0.5f);
+    const float hit_depth_linear = mix(mix(depth4.w, depth4.z, bilinear_coords.x),
+                                       mix(depth4.x, depth4.y, bilinear_coords.x),
+                                       bilinear_coords.y);
+    const float hit_min_z = min(hit_depth_point, hit_depth_linear);
+    const float hit_max_z = max(hit_depth_point, hit_depth_linear);
 
     /* Ensure the allowed depth range is not lower than the step delta. */
-    float min_z = forward ? min(step.w, previous_step_z) : step.w;
-    float max_z = forward ? step.z : max(step.z, previous_step_z);
+    const float min_z = forward ? min(step.w, previous_step_z) : step.w;
+    const float max_z = forward ? step.z : max(step.z, previous_step_z);
 
     // previous_step_z = step.z;
     /* Using step.z is more "correct", but step.w mitigates missed hits against planes
@@ -349,7 +349,7 @@ float raytrace_screen_2(float3 vs_origin,
     if (max_z >= hit_max_z && min_z <= hit_min_z) {
       r_hit_uv = step.xy;
       /* We have a hit. Compute the distance. */
-      float3 vs_hit_point = drw_point_screen_to_view(float3(step.xy, hit_depth_point));
+      const float3 vs_hit_point = drw_point_screen_to_view(float3(step.xy, hit_depth_point));
       /* Hit point projection along the ray. */
       return dot(vs_hit_point - vs_origin, vs_direction);
     }
