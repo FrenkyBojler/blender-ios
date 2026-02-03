@@ -1,1 +1,2 @@
 Referenced by issue #98594, Changing UV smoothing mode in Subdivision Surface in geometry node does not refresh UV Editor View
+Referenced by issue #153806, The 3D viewport will become laggy when operating after opening the UV image window.
