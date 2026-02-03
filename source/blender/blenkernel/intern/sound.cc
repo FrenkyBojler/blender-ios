@@ -821,16 +821,13 @@ void BKE_sound_update_scene_listener(Scene *scene)
   AUD_Sequence_setDistanceModel(sound, AUD_DistanceModel(scene->audio.distance_model));
 }
 
-// Ramon: only used to add sound of scene strips
 void *BKE_sound_scene_add_scene_sound(
     Scene *scene, Strip *strip, int startframe, int endframe, int frameskip)
 {
-  void *parent_sound_scene = BKE_strip_get_parent_sound_scene(strip, scene);
-  strip->runtime->last_parent_sound_scene = parent_sound_scene;
   sound_verify_evaluated_id(&scene->id);
   if (strip->scene && scene != strip->scene) {
     const double fps = scene->frames_per_second();
-    return AUD_Sequence_add(parent_sound_scene,
+    return AUD_Sequence_add(scene->runtime->audio.sound_scene,
                             strip->scene->runtime->audio.sound_scene,
                             startframe / fps,
                             endframe / fps,
