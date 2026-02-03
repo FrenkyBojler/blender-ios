@@ -122,13 +122,17 @@ void ED_preview_kill_jobs_for_id(wmWindowManager *wm, const ID *id);
 
 /**
  * Inform the preview system that a preview was requested for download. Should be called right
- * before a download request is done (regardless if the preview was already or will be requested
- * to be loaded from disk or not!), so the downloading status is made known to the preview system.
+ * before a download request is done, so the downloading status is made known to the preview
+ * system.
+ *
+ * This needs to be called regardless of the loading/loaded status of the preview; it doesn't
+ * matter whether or not it was already loaded, or will be requested to be loaded, from disk.
  */
 void ED_preview_online_download_requested(StringRef preview_full_filepath);
 /**
  * Inform the preview system that a preview has finished downloading (successfully or not) meaning
- * the preview may be available on disk.
+ * the preview may be available on disk (and if it doesn't exist on disk, it won't appear without
+ * requesting a download again).
  */
 void ED_preview_online_download_finished(wmWindowManager *wm, StringRef preview_full_filepath);
 
