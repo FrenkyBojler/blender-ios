@@ -600,6 +600,12 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
      * to calculate the offset for the entire strip group. */
     Strip *strip = seq::select_active_get(scene);
 
+    /* Ensure active strip always participates in the operation to avoid inconsistent snapping. */
+    if (!(strip->flag & SEQ_SELECT)) {
+      strip->flag |= SEQ_SELECT;
+      selected.add(strip);
+    }
+
     const bool left_sel = strip->flag & SEQ_LEFTSEL;
     const bool right_sel = strip->flag & SEQ_RIGHTSEL;
 
