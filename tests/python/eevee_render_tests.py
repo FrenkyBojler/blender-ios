@@ -127,8 +127,8 @@ def setup():
         eevee.gi_cubemap_resolution = '256'
 
         # Light-path intensity
-        eevee.direct_intensity = 1.0
-        eevee.indirect_intensity = 1.0
+        eevee.direct_light_intensity = 1.0
+        eevee.indirect_light_intensity = 1.0
 
         # Only include the plane in probes
         for ob in scene.objects:

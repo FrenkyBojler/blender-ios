@@ -8267,7 +8267,7 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
-  prop = RNA_def_property(srna, "direct_intensity", PROP_FLOAT, PROP_FACTOR);
+  prop = RNA_def_property(srna, "direct_light_intensity", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_text(
       prop, "Direct Light Strength", "Scale the contribution of direct lighting");
   RNA_def_property_range(prop, 0, FLT_MAX);
@@ -8276,7 +8276,7 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
-  prop = RNA_def_property(srna, "indirect_intensity", PROP_FLOAT, PROP_FACTOR);
+  prop = RNA_def_property(srna, "indirect_light_intensity", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_text(
       prop, "Indirect Light Strength", "Scale the contribution of indirect lighting");
   RNA_def_property_range(prop, 0, FLT_MAX);

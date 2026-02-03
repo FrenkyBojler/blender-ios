@@ -593,8 +593,8 @@ class RENDER_PT_eevee_light_paths(RenderButtonsPanel, Panel):
         props = scene.eevee
 
         col = layout.column(align=True)
-        layout.prop(props, "direct_intensity", text="Direct Intensity")
-        layout.prop(props, "indirect_intensity", text="Indirect Intensity")
+        col.prop(props, "direct_light_intensity", text="Direct Intensity")
+        col.prop(props, "indirect_light_intensity", text="Indirect Intensity")
 
 
 class RENDER_PT_eevee_sampling_shadows(RenderButtonsPanel, Panel):
