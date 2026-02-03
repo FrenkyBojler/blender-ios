@@ -10,7 +10,6 @@
 #include "BLI_struct_equality_utils.hh"
 
 #include "shader_tool/expression.hh"
-#include "shader_tool/intermediate.hh"
 
 #include "gpu_shader_dead_code_elimination.hh"
 #include "gpu_shader_private.hh"
@@ -35,12 +34,65 @@ template<typename IToken> struct TokenRange {
 class Line;
 class Directive;
 
+struct TokenPastingBuffer : lexit::TokenBuffer {
+ private:
+  /** WORKAROUND: We need the string to be immutable since the atomization_map_ contains StringRef.
+   * But we also need the pasted token to be in a continuous string buffer for the TokenBuffer.
+   * So we keep the old string around when we need to grow the buffer. */
+  Vector<std::unique_ptr<std::string>> pasted_tokens_str;
+
+ public:
+  TokenPastingBuffer()
+  {
+    pasted_tokens_str.append(std::make_unique<std::string>());
+    pasted_tokens_str.last()->resize(1024 * 2);
+    this->reserve(512);
+    this->whitespaces_collapsed_ = true;
+    this->offsets_[0] = 0;
+    this->original_offsets_[0] = 0;
+  }
+
+  /**
+   * tok_str is the final token string with the optional added space at the end.
+   */
+  BLI_INLINE_METHOD TokenMut paste_token(const std::string &tok_str,
+                                         const TokenType type,
+                                         const bool followed_by_space)
+  {
+    std::string *str_ptr = pasted_tokens_str.last().get();
+    int occupied = str_.length();
+
+    int token_size = tok_str.size();
+
+    while (occupied + token_size > str_ptr->size()) {
+      /* Create new larger buffer and copy current content.
+       * Do not free old string to not invalidate the StringRefs inside the atomization map.
+       * Cost is relatively small. */
+      pasted_tokens_str.append(std::make_unique<std::string>());
+      std::string *new_str_ptr = pasted_tokens_str.last().get();
+      new_str_ptr->resize(str_ptr->size() * 2);
+      std::memcpy(new_str_ptr->data(), str_ptr->data(), str_ptr->size());
+      /* Continue logic with new string buffer. */
+      str_ptr = new_str_ptr;
+    }
+
+    /* Copy token string. */
+    std::memcpy(str_ptr->data() + occupied, tok_str.data(), token_size);
+    /* Update buffer string_ref. */
+    str_ = {str_ptr->data(), size_t(occupied + token_size)};
+    /* Add token to buffer. */
+    append(type, 0, token_size - followed_by_space, token_size);
+
+    return TokenMut(this, size_ - 1);
+  }
+};
+
 /**
  * Lexer variant for very fast tokenization for the preprocessor.
  * Does not merge newlines and spaces together.
  * Convert all identifier strings (words) into unique identifiers (TokenAtom) for fast comparison.
  */
-struct AtomicLexer : LexerBase {
+struct AtomicLexer : lexit::TokenBuffer {
   /* Line index to token range. */
   blender::OffsetIndices<int> line_offsets;
 
@@ -52,22 +104,10 @@ struct AtomicLexer : LexerBase {
 
   void lexical_analysis(std::string_view input)
   {
-    str = input;
     process(input, lexit::char_class_table);
     merge_spaces();
 
-    token_types_str = std::string_view((const char *)types_.get(), size_);
-    token_types = {types_.get(), size_};
-    token_offsets = {offsets_.get(), size_ + 1};
-
     lex_pass();
-
-    pasted_tokens_str.append(std::make_unique<std::string>());
-    pasted_tokens_str.last()->resize(1024 * 2);
-    pasted_tokens_buf.reserve(512);
-    pasted_tokens_buf.whitespaces_collapsed_ = true;
-    pasted_tokens_buf.offsets_[0] = 0;
-    pasted_tokens_buf.original_offsets_[0] = 0;
   }
 
   /* Chosen to be easily masked. */
@@ -88,46 +128,17 @@ struct AtomicLexer : LexerBase {
     }
   }
 
-  /** WORKAROUND: We need the string to be immutable since the atomization_map_ contains StringRef.
-   * But we also need the pasted token to be in a continuous string buffer for the TokenBuffer.
-   * So we keep the old string around when we need to grow the buffer. */
-  Vector<std::unique_ptr<std::string>> pasted_tokens_str;
-  lexit::TokenBuffer pasted_tokens_buf;
+  TokenPastingBuffer pasting_buf;
 
-  /**
-   * tok_str is the final token string with the optional added space at the end.
-   */
   BLI_INLINE_METHOD Token paste_token(const std::string &tok_str,
                                       const TokenType type,
                                       const bool followed_by_space)
   {
-    std::string *str_ptr = pasted_tokens_str.last().get();
-    int occupied = pasted_tokens_buf.str_.length();
-
-    int token_size = tok_str.size();
-
-    while (occupied + token_size > str_ptr->size()) {
-      /* Create new larger buffer and copy current content.
-       * Do not free old string to not invalidate the StringRefs inside the atomization map.
-       * Cost is relatively small. */
-      pasted_tokens_str.append(std::make_unique<std::string>());
-      std::string *new_str_ptr = pasted_tokens_str.last().get();
-      new_str_ptr->resize(str_ptr->size() * 2);
-      std::memcpy(new_str_ptr->data(), str_ptr->data(), str_ptr->size());
-      /* Continue logic with new string buffer. */
-      str_ptr = new_str_ptr;
-    }
-    /* Copy token string. */
-    std::memcpy(str_ptr->data() + occupied, tok_str.data(), token_size);
-    /* Update buffer string_ref. */
-    pasted_tokens_buf.str_ = {str_ptr->data(), size_t(occupied + token_size)};
+    TokenMut tok = pasting_buf.paste_token(tok_str, type, followed_by_space);
     /** IMPORTANT: The hash function need to store a StringRef of the string. We have to make sure
      * to feed it the final stored string to avoid referencing freed memory. */
-    TokenAtom atom = hash({str_ptr->data() + occupied, token_size - followed_by_space});
-    /* Add token to buffer. */
-    pasted_tokens_buf.append(type, atom, token_size - followed_by_space, token_size);
-
-    return pasted_tokens_buf.back();
+    tok.atom() = hash(tok.str());
+    return tok;
   }
 
  protected:
@@ -188,12 +199,12 @@ struct AtomicLexer : LexerBase {
   BLI_NOINLINE void lex_pass()
   {
     /* From checking our statistics. This heuristic should be enough for 99% of our cases. */
-    atomization_map_.reserve(token_types.size() / 17);
+    atomization_map_.reserve(size() / 17);
     /* From checking our statistics. This heuristic should be enough for 100% of our cases. */
-    line_offsets_buf_.reserve(token_types.size() / 7);
+    line_offsets_buf_.reserve(size() / 7);
     directive_lines.reserve(line_offsets_buf_.size() / 2);
 
-    std::memset(atoms_.get(), 0, token_types.size() * sizeof(TokenAtom));
+    std::memset(atoms_.get(), 0, size() * sizeof(TokenAtom));
 
     line_offsets_buf_.append(0);
     for (auto tok : *this) {
