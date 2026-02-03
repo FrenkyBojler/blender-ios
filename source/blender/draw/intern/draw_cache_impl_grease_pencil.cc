@@ -1150,6 +1150,10 @@ static float segment_radius_length(const float l, const float r1, const float r2
   const float E = (l + a) / (l - a);
   const float E_i = a / r1 + 1.0f;
 
+  if (E <= 0.0f || E_i <= 0.0f) {
+    return 0.0f;
+  }
+
   return 2.0f * log(E_i) / log(E);
 }
 
