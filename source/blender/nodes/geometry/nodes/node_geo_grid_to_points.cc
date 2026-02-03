@@ -54,7 +54,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   panel.add_output<decl::Int>("Z").field_on_all().description(
       "Z coordinate of the voxel in index space, or the minimum Z coordinate of a tile");
   panel.add_output<decl::Bool>("Is Tile").field_on_all().description(
-      "If a created point represents a tile (multiple voxels) rather than a single voxel");
+      "The point represents a tile (multiple voxels) rather than a single voxel");
   panel.add_output<decl::Int>("Extent").field_on_all().description(
       "The size of the tile or voxel. For individual voxels this is 1, for tiles this represents "
       "the cubic size of the tile");
