@@ -391,7 +391,6 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
    * So instead, we calculate the circular mean of the rotation by measuring the angular
    * deviation for every vertex and averaging them to find the best fit alignment. */
   for (const int i : verts.index_range()) {
-    float vec[2];
     sub_v2_v2v2(vec, verts[i].co_2d, center);
     const float angle_diff = atan2f(vec[1], vec[0]) - (step * i);
     sum_sin += sinf(angle_diff);
