@@ -50,7 +50,7 @@ struct NodeBBoxWidgetGroup {
   } update_data;
 };
 
-static SpaceNode *find_node_editor(const bContext *C)
+SpaceNode *find_node_editor(const bContext *C)
 {
   // printf("find_node_editor\n");
   wmWindowManager *window_manager = CTX_wm_manager(C);
@@ -98,10 +98,10 @@ static float2 node_gizmo_safe_calc_dims(const ImBuf *ibuf, const float2 &fallbac
   return fallback_dims;
 }
 
-static void node_gizmo_calc_matrix_space(const ARegion *region,
-                                         const float zoom,
-                                         const float2 offset,
-                                         float matrix_space[4][4])
+void node_gizmo_calc_matrix_space(const ARegion *region,
+                                  const float zoom,
+                                  const float2 offset,
+                                  float matrix_space[4][4])
 {
   unit_m4(matrix_space);
   mul_v3_fl(matrix_space[0], zoom);
@@ -153,28 +153,6 @@ static bool node_gizmo_is_set_visible(const bContext *C)
   return false;
 }
 
-bool WIDGETGROUP_node_box_mask_node_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
-{
-  if (!node_gizmo_is_set_visible(C)) {
-    return false;
-  }
-
-  SpaceNode *snode = CTX_wm_space_node(C);
-  bNode *node = bke::node_get_active(*snode->edittree);
-
-  if (node && node->is_type("CompositorNodeBoxMask")) {
-    snode->edittree->ensure_topology_cache();
-    for (bNodeSocket &input : node->inputs) {
-      if (STR_ELEM(input.name, "Position", "Size", "Rotation") && input.is_directly_linked()) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  return false;
-}
-
 bool WIDGETGROUP_node_box_mask_image_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   // todo(habib): handle visibility
@@ -201,6 +179,29 @@ bool WIDGETGROUP_node_box_mask_image_poll(const bContext *C, wmGizmoGroupType * 
   return false;
 }
 
+bool box_mask_show(const SpaceNode &snode)
+{
+  bNodeTree *node_tree = snode.edittree;
+  BLI_assert(node_tree);
+
+  bNode *node = bke::node_get_active(*node_tree);
+  if (node == nullptr) {
+    return false;
+  }
+
+  if (node && node->is_type("CompositorNodeBoxMask")) {
+    node_tree->ensure_topology_cache();
+    for (bNodeSocket &input : node->inputs) {
+      if (STR_ELEM(input.name, "Position", "Size", "Rotation") && input.is_directly_linked()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
 void WIDGETGROUP_bbox_node_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   ARegion *region = CTX_wm_region(C);
@@ -210,17 +211,6 @@ void WIDGETGROUP_bbox_node_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup
 
   node_gizmo_calc_matrix_space(
       region, snode->zoom, float2{-snode->xof, -snode->yof}, gz->matrix_space);
-}
-
-void WIDGETGROUP_bbox_image_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
-{
-  ARegion *region = CTX_wm_region(C);
-  wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
-
-  SpaceImage *sima = CTX_wm_space_image(C);
-  const float2 offset = float2{sima->xof, sima->yof} * sima->zoom;
-
-  node_gizmo_calc_matrix_space(region, sima->zoom, offset, gz->matrix_space);
 }
 
 static void gizmo_node_box_mask_prop_matrix_get(const wmGizmo *gz,

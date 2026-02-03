@@ -11,12 +11,15 @@ struct wmGizmoGroupType;
 
 namespace blender::nodes::gizmos {
 
-bool WIDGETGROUP_node_box_mask_node_poll(const bContext *C, wmGizmoGroupType *gzgt);
-bool WIDGETGROUP_node_box_mask_image_poll(const bContext *C, wmGizmoGroupType *gzgt);
+SpaceNode *find_node_editor(const bContext *C);
+bool box_mask_show(const SpaceNode &snode);
+
+void node_gizmo_calc_matrix_space(const ARegion *region,
+                                  const float zoom,
+                                  const float2 offset,
+                                  float matrix_space[4][4]);
+
 void WIDGETGROUP_node_box_mask_setup(const bContext *C, wmGizmoGroup *gzgroup);
-// todo(habib): move draw prepare and poll back to specific editors
-void WIDGETGROUP_bbox_node_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup);
-void WIDGETGROUP_bbox_image_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup);
 void WIDGETGROUP_node_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup);
 
 }  // namespace blender::nodes::gizmos

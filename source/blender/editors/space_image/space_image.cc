@@ -535,6 +535,28 @@ static void IMAGE_GGT_navigate(wmGizmoGroupType *gzgt)
   ui::VIEW2D_GGT_navigate_impl(gzgt, "IMAGE_GGT_navigate");
 }
 
+static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+{
+  // todo(habib): handle visibility
+  const SpaceNode *snode = nodes::gizmos::find_node_editor(C);
+  if (snode == nullptr || snode->edittree == nullptr) {
+    return false;
+  }
+
+  return nodes::gizmos::box_mask_show(*snode->edittree);
+}
+
+void WIDGETGROUP_bbox_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
+{
+  ARegion *region = CTX_wm_region(C);
+  wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
+
+  SpaceImage *sima = CTX_wm_space_image(C);
+  const float2 offset = float2{sima->xof, sima->yof} * sima->zoom;
+
+  nodes::gizmos::node_gizmo_calc_matrix_space(region, sima->zoom, offset, gz->matrix_space);
+}
+
 static void IMAGE_GGT_compositor_box_mask(wmGizmoGroupType *gzgt)
 {
   gzgt->name = "Backdrop Box Mask Widget";
@@ -542,10 +564,10 @@ static void IMAGE_GGT_compositor_box_mask(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_box_mask_image_poll;
+  gzgt->poll = WIDGETGROUP_node_box_mask_poll;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_box_mask_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_image_draw_prepare;
+  gzgt->draw_prepare = WIDGETGROUP_bbox_draw_prepare;
   gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_mask_refresh;
 }
 
