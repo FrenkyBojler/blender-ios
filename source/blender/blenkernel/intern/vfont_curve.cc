@@ -844,7 +844,8 @@ static bool vfont_to_curve(Object *ob,
     curbox = 0;
   }
 
-  bool in_space = false;
+  /* Start assuming the current index is in a space so that initial spaces are ignored. */
+  bool in_space = true;
 
   i = 0;
   while (i <= slen) {
