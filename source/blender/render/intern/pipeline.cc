@@ -46,6 +46,7 @@
 #include "BKE_callbacks.hh"
 #include "BKE_camera.h"
 #include "BKE_colortools.hh"
+#include "BKE_compositor.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
@@ -1685,7 +1686,7 @@ static bool scene_has_compositor_output(Scene *scene)
     return true;
   }
 
-  return compositor::node_tree_has_file_output(*scene->compositing_node_group);
+  return bke::compositor::node_tree_has_file_output(*scene->compositing_node_group);
 }
 
 /* Identify if the compositor can run on the GPU. Currently, this only checks if the compositor is

@@ -17,6 +17,7 @@ namespace blender {
 struct Scene;
 struct ViewLayer;
 struct bContext;
+struct bNodeTree;
 
 namespace bke::compositor {
 
@@ -28,6 +29,8 @@ Set<std::string> get_used_passes(const Scene &scene, const ViewLayer *view_layer
 /* Checks if the viewport compositor is currently being used. This is similar to
  * DRWContext::is_viewport_compositor_enabled but checks all 3D views. */
 bool is_viewport_compositor_used(const bContext &context);
+
+bool node_tree_has_file_output(const bNodeTree &node_tree);
 
 }  // namespace bke::compositor
 }  // namespace blender

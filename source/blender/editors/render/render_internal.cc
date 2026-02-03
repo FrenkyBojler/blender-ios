@@ -28,6 +28,7 @@
 #include "DNA_view3d_types.h"
 
 #include "BKE_colortools.hh"
+#include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"
@@ -388,7 +389,7 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
    * a compositor File Output. */
   if (is_animation && !(scene->r.mode & R_SAVE_OUTPUT) &&
       !((scene->r.scemode & R_DOCOMP) && scene->compositing_node_group &&
-        compositor::node_tree_has_file_output(*scene->compositing_node_group)))
+        bke::compositor::node_tree_has_file_output(*scene->compositing_node_group)))
   {
     BKE_report(op->reports,
                RPT_ERROR,
@@ -1094,7 +1095,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
    * a compositor File Output. */
   if (is_animation && !(scene->r.mode & R_SAVE_OUTPUT) &&
       !((scene->r.scemode & R_DOCOMP) && scene->compositing_node_group &&
-        compositor::node_tree_has_file_output(*scene->compositing_node_group)))
+        bke::compositor::node_tree_has_file_output(*scene->compositing_node_group)))
   {
     BKE_report(op->reports,
                RPT_ERROR,
