@@ -95,6 +95,7 @@ set(SRC
   intern/gpu_shader_dependency.cc
   intern/gpu_shader_interface.cc
   intern/gpu_shader_log.cc
+  intern/gpu_shader_preprocessor.cc
   intern/gpu_state.cc
   intern/gpu_storage_buffer.cc
   intern/gpu_texture.cc
@@ -120,6 +121,8 @@ set(SRC
   shader_tool/struct.cc
   shader_tool/template.cc
   shader_tool/union.cc
+
+  shader_tool/lexit/lexit.cc
 
   GPU_attribute_convert.hh
   GPU_batch.hh
@@ -212,6 +215,7 @@ set(OPENGL_SRC
   opengl/gl_state.cc
   opengl/gl_storage_buffer.cc
   opengl/gl_texture.cc
+  opengl/gl_texture_pool.cc
   opengl/gl_uniform_buffer.cc
   opengl/gl_vertex_array.cc
   opengl/gl_vertex_buffer.cc
@@ -430,7 +434,6 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
   PRIVATE bf::dependencies::optional::opencolorio
 )
@@ -797,7 +800,7 @@ endif()
 if(WITH_METAL_BACKEND)
   list(APPEND GLSL_SRC ${MTL_BACKEND_GLSL_SRC})
 
-  set(MSL_C)
+  set(MSL_C "")
   foreach(MSL_FILE ${MSL_SRC})
     data_to_c_simple(${MSL_FILE} MSL_C)
   endforeach()
@@ -819,12 +822,12 @@ set(GLSL_INC
   vulkan/shaders
 )
 
-set(GLSL_C)
+set(GLSL_C "")
 foreach(GLSL_FILE ${GLSL_SRC})
   glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
 
-set(SHADER_C)
+set(SHADER_C "")
 list(APPEND SHADER_C ${GLSL_C})
 if(WITH_METAL_BACKEND)
   list(APPEND SHADER_C ${MSL_C})
@@ -910,8 +913,8 @@ endif()
 
 
 if(WITH_GTESTS)
-  set(TEST_SRC)
-  set(TEST_INC)
+  set(TEST_SRC "")
+  set(TEST_INC "")
   set(TEST_LIB
     bf_intern_ghost
     bf_imbuf
