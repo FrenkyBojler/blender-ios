@@ -825,9 +825,11 @@ void *BKE_sound_scene_add_scene_sound(
     Scene *scene, Strip *strip, int startframe, int endframe, int frameskip)
 {
   sound_verify_evaluated_id(&scene->id);
+  void *parent_sound_scene = BKE_strip_get_parent_sound_scene(strip, scene);
+  strip->runtime->last_parent_sound_scene = parent_sound_scene;
   if (strip->scene && scene != strip->scene) {
     const double fps = scene->frames_per_second();
-    return AUD_Sequence_add(scene->runtime->audio.sound_scene,
+    return AUD_Sequence_add(parent_sound_scene,
                             strip->scene->runtime->audio.sound_scene,
                             startframe / fps,
                             endframe / fps,
