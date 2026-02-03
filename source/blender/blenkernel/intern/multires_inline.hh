@@ -17,6 +17,8 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
+namespace blender {
+
 static float euclidean_norm(const blender::float3x3 mat)
 {
   blender::Span<float> values(mat.base_ptr(), 9);
@@ -137,7 +139,9 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix_for_versioning(
   }
   tangent_matrix.z_axis() = blender::math::cross(dPdu, dPdv);
 
-  tangent_matrix.x_axis() = blender::math::normalize(tangent_matrix.x_axis());
-  tangent_matrix.y_axis() = blender::math::normalize(tangent_matrix.y_axis());
-  tangent_matrix.z_axis() = blender::math::normalize(tangent_matrix.z_axis());
+  tangent_matrix.x_axis() = math::normalize(tangent_matrix.x_axis());
+  tangent_matrix.y_axis() = math::normalize(tangent_matrix.y_axis());
+  tangent_matrix.z_axis() = math::normalize(tangent_matrix.z_axis());
 }
+
+}  // namespace blender

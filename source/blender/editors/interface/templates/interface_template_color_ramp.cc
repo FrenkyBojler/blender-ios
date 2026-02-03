@@ -104,7 +104,6 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
                                    UI_UNIT_Y,
                                    nullptr,
                                    "");
-    button_retval_set(but, 1);
     button_func_set(but, [coba, cb](bContext &C) {
       colorband_flip(&C, coba);
       ED_region_tag_redraw(CTX_wm_region(&C));
@@ -122,7 +121,6 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
                                    UI_UNIT_Y,
                                    nullptr,
                                    "");
-    button_retval_set(but, 1);
     button_func_set(but, [coba, cb](bContext &C) {
       colorband_distribute(&C, coba, false);
       ED_region_tag_redraw(CTX_wm_region(&C));
@@ -140,7 +138,6 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
                                    UI_UNIT_Y,
                                    nullptr,
                                    "");
-    button_retval_set(but, 1);
     button_func_set(but, [coba, cb](bContext &C) {
       colorband_distribute(&C, coba, true);
       ED_region_tag_redraw(CTX_wm_region(&C));
@@ -165,7 +162,6 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
                                    UI_UNIT_Y,
                                    nullptr,
                                    "");
-    button_retval_set(but, 1);
     button_func_set(but, [coba, cb](bContext &C) {
       BKE_colorband_init(coba, true);
       ED_undo_push(&C, "Reset Color Ramp");
@@ -222,7 +218,7 @@ static void colorband_buttons_layout(Layout &layout,
   const float xs = butr->xmin;
   const float ys = butr->ymin;
 
-  PointerRNA ptr = RNA_pointer_create_discrete(cb.ptr.owner_id, &RNA_ColorRamp, coba);
+  PointerRNA ptr = RNA_pointer_create_discrete(cb.ptr.owner_id, RNA_ColorRamp, coba);
 
   Layout *split = &layout.split(0.4f, false);
 
@@ -306,7 +302,7 @@ static void colorband_buttons_layout(Layout &layout,
   if (coba->tot) {
     CBData *cbd = coba->data + coba->cur;
 
-    ptr = RNA_pointer_create_discrete(cb.ptr.owner_id, &RNA_ColorRampElement, cbd);
+    ptr = RNA_pointer_create_discrete(cb.ptr.owner_id, RNA_ColorRampElement, cbd);
 
     if (!expand) {
       split = &layout.split(0.3f, false);
@@ -390,7 +386,7 @@ void template_color_ramp(Layout *layout,
   }
 
   const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
-  if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_ColorRamp)) {
+  if (!cptr.data || !RNA_struct_is_a(cptr.type, RNA_ColorRamp)) {
     return;
   }
 

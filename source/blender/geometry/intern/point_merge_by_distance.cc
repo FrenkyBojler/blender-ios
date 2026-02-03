@@ -29,7 +29,7 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
   /* Create the KD tree based on only the selected points, to speed up merge detection and
    * balancing. */
   KDTree_3d *tree = kdtree_3d_new(selection.size());
-  selection.foreach_index_optimized<int64_t>(
+  selection.foreach_index(
       [&](const int64_t i, const int64_t pos) { kdtree_3d_insert(tree, pos, positions[i]); });
   kdtree_3d_balance(tree);
 
@@ -131,8 +131,7 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
     }
 
     bke::GAttributeReader src_attribute = src_attributes.lookup(id);
-    bke::attribute_math::convert_to_static_type(src_attribute.varray.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    bke::attribute_math::to_static_type(src_attribute.varray.type(), [&]<typename T>() {
       if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
         bke::SpanAttributeWriter<T> dst_attribute =
             dst_attributes.lookup_or_add_for_write_only_span<T>(id, bke::AttrDomain::Point);

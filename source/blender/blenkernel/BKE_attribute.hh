@@ -22,17 +22,19 @@
 
 #include "BKE_attribute_filters.hh"
 
+namespace blender {
+
 struct ID;
 struct Mesh;
 struct PointCloud;
-namespace blender::fn {
+namespace fn {
 namespace multi_function {
 class MultiFunction;
 }
 class GField;
-}  // namespace blender::fn
+}  // namespace fn
 
-namespace blender::bke {
+namespace bke {
 
 class AttributeAccessor;
 class MutableAttributeAccessor;
@@ -40,25 +42,25 @@ class MutableAttributeAccessor;
 /** Some storage types are only relevant for certain attribute types. */
 enum class AttrStorageType : int8_t {
   /** #AttributeDataArray. */
-  Array,
+  Array = 0,
   /** A single value for the whole attribute. */
-  Single,
+  Single = 1,
 };
 
 enum class AttrType : int16_t {
-  Bool,
-  Int8,
-  Int16_2D,
-  Int32,
-  Int32_2D,
-  Float,
-  Float2,
-  Float3,
-  Float4x4,
-  ColorByte,
-  ColorFloat,
-  Quaternion,
-  String,
+  Bool = 0,
+  Int8 = 1,
+  Int16_2D = 2,
+  Int32 = 3,
+  Int32_2D = 4,
+  Float = 5,
+  Float2 = 6,
+  Float3 = 7,
+  Float4x4 = 8,
+  ColorByte = 9,
+  ColorFloat = 10,
+  Quaternion = 11,
+  String = 12,
 };
 
 const CPPType &attribute_type_to_cpp_type(AttrType type);
@@ -109,6 +111,8 @@ struct AttributeInit {
   enum class Type {
     /** #AttributeInitConstruct. */
     Construct,
+    /** #AttributeInitValue. */
+    Value,
     /** #AttributeInitDefaultValue. */
     DefaultValue,
     /** #AttributeInitVArray. */
@@ -128,6 +132,20 @@ struct AttributeInit {
  */
 struct AttributeInitConstruct : public AttributeInit {
   AttributeInitConstruct() : AttributeInit(Type::Construct) {}
+};
+
+/**
+ * Create attribute data with the given value, which must be the same as the specified type.
+ */
+struct AttributeInitValue : public AttributeInit {
+  GPointer value;
+
+  /** \warning The value argument must out-live this attribute initialization operation. */
+  template<typename T>
+  AttributeInitValue(const T &value) : AttributeInit(Type::Value), value(GPointer(&value))
+  {
+  }
+  AttributeInitValue(const GPointer value) : AttributeInit(Type::Value), value(value) {}
 };
 
 /**
@@ -429,6 +447,11 @@ class AttributeIter {
   StringRefNull name;
   AttrDomain domain;
   AttrType data_type;
+  /**
+   * If the attribute is stored with a specific storage type, this is set (it's not set, for
+   * example, when an attribute is stored as a vertex group).
+   */
+  std::optional<AttrStorageType> storage_type;
   bool is_builtin = false;
   mutable const AttributeAccessor *accessor = nullptr;
 
@@ -498,6 +521,7 @@ struct AttributeAccessorFunctions {
   std::optional<AttributeDomainAndType> (*builtin_domain_and_type)(const void *owner,
                                                                    StringRef attribute_id);
   GPointer (*get_builtin_default)(const void *owner, StringRef attribute_id);
+  std::optional<AttributeMetaData> (*lookup_meta_data)(const void *owner, StringRef attribute_id);
   GAttributeReader (*lookup)(const void *owner, StringRef attribute_id);
   GVArray (*adapt_domain)(const void *owner,
                           const GVArray &varray,
@@ -514,6 +538,7 @@ struct AttributeAccessorFunctions {
               AttrDomain domain,
               AttrType data_type,
               const AttributeInit &initializer);
+  bool (*assign_data)(void *owner, StringRef attribute_id, const AttributeInit &initializer);
 };
 
 /**
@@ -554,12 +579,18 @@ class AttributeAccessor {
   /**
    * \return True, when the attribute is available.
    */
-  bool contains(StringRef attribute_id) const;
+  bool contains(StringRef attribute_id) const
+  {
+    return this->lookup_meta_data(attribute_id).has_value();
+  }
 
   /**
    * \return Information about the attribute if it exists.
    */
-  std::optional<AttributeMetaData> lookup_meta_data(StringRef attribute_id) const;
+  std::optional<AttributeMetaData> lookup_meta_data(StringRef attribute_id) const
+  {
+    return fn_->lookup_meta_data(owner_, attribute_id);
+  }
 
   /**
    * \return True, when attributes can exist on that domain.
@@ -804,6 +835,12 @@ class MutableAttributeAccessor : public AttributeAccessor {
     return this->add(attribute_id, domain, data_type, initializer);
   }
 
+  bool assign_data(const StringRef attribute_id, const AttributeInit &initializer)
+  {
+    BLI_assert(this->contains(attribute_id));
+    return fn_->assign_data(owner_, attribute_id, initializer);
+  }
+
   /**
    * Find an attribute with the given id, domain and data type. If it does not exist, create a new
    * attribute. If the attribute does not exist and can't be created (e.g. because it already
@@ -995,4 +1032,5 @@ void fill_attribute_range_default(MutableAttributeAccessor dst_attributes,
 void transform_custom_normal_attribute(const float4x4 &transform,
                                        MutableAttributeAccessor &attributes);
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender

@@ -67,7 +67,7 @@ void Instance::init()
     state.xray_flag_enabled = SHADING_XRAY_FLAG_ENABLED(state.v3d->shading) &&
                               !state.is_depth_only_drawing;
     state.vignette_enabled = ctx->mode == DRWContext::VIEWPORT_XR &&
-                             state.v3d->vignette_aperture < M_SQRT1_2;
+                             state.v3d->xr_vignette_aperture < M_SQRT1_2;
 
     const bool viewport_uses_workbench = state.v3d->shading.type <= OB_SOLID ||
                                          BKE_scene_uses_blender_workbench(state.scene);
@@ -93,7 +93,7 @@ void Instance::init()
                         (ctx->v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0;
     }
     else {
-      memset(&state.overlay, 0, sizeof(state.overlay));
+      _DNA_internal_memzero(&state.overlay, sizeof(state.overlay));
       state.v3d_flag = 0;
       state.v3d_gridflag = 0;
       state.overlay.flag = V3D_OVERLAY_HIDE_TEXT | V3D_OVERLAY_HIDE_MOTION_PATHS |
@@ -108,7 +108,8 @@ void Instance::init()
                               ctx->object_pose != nullptr;
   }
   else if (state.is_space_image()) {
-    SpaceImage *space_image = (SpaceImage *)state.space_data;
+    SpaceImage *space_image = reinterpret_cast<SpaceImage *>(
+        const_cast<SpaceLink *>(state.space_data));
 
     state.clear_in_front = false;
     state.use_in_front = false;
@@ -922,10 +923,6 @@ void Instance::draw_v3d(Manager &manager, View &view)
     infront.wireframe.copy_depth(resources.depth_target_in_front_tx);
   }
   {
-    /* Grid is drawn before outline; it would clip otherwise due to lack of depth output. */
-    grid.draw_line(resources.overlay_line_fb, manager, view);
-  }
-  {
     /* TODO(fclem): This is really bad for performance as the outline pass will then split the
      * render pass and do a framebuffer switch. This also only fix the issue for non-infront
      * objects.
@@ -939,6 +936,11 @@ void Instance::draw_v3d(Manager &manager, View &view)
     /* Overlay (+Line) pass. */
     draw(regular, resources.overlay_fb);
     draw_line(regular, resources.overlay_line_fb);
+
+    /* Here as it does depth+blending, and should draw after most overlay line passes.. */
+    if (!state.is_depth_only_drawing) {
+      grid.draw_line(resources.overlay_line_fb, manager, view);
+    }
 
     /* Here because of custom order of regular.facing. */
     infront.facing.draw(resources.overlay_fb, manager, view);
@@ -1037,7 +1039,9 @@ bool Instance::object_is_particle_edit_mode(const ObjectRef &ob_ref)
 
 bool Instance::object_is_sculpt_mode(const Object *object)
 {
-  if (object->sculpt && (object->sculpt->mode_type == OB_MODE_SCULPT)) {
+  if (object->runtime->sculpt_session &&
+      (object->runtime->sculpt_session->mode_type == OB_MODE_SCULPT))
+  {
     return object == state.object_active;
   }
   return false;
