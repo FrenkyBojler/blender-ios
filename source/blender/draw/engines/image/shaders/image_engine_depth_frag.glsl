@@ -5,7 +5,9 @@
 #include "infos/engine_image_infos.hh"
 
 #include "draw_colormanagement_lib.glsl"
-#include "image_engine_lib.glsl"
+
+#define Z_DEPTH_BORDER 1.0f
+#define Z_DEPTH_IMAGE 0.75f
 
 bool is_border(float2 uv)
 {
