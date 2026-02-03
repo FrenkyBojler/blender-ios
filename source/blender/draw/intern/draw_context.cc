@@ -1219,7 +1219,7 @@ static void drw_callbacks_post_scene_view3d(DRWContext &draw_ctx)
 
   ED_region_draw_cb_draw(draw_ctx.evil_C, draw_ctx.region, REGION_DRAW_POST_VIEW);
 
-  /* XR Session Mirror (mirror of the XR view in the desktop window View3D). */
+  /* Desktop window View3D XR session mirror view. */
 #ifdef WITH_XR_OPENXR
   /* XR callbacks (controllers, custom draw functions) for session mirror. */
   if ((v3d->flag & V3D_XR_SESSION_MIRROR) != 0) {
@@ -1332,7 +1332,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
 #ifdef WITH_XR_OPENXR
   const bool is_xr_surface = draw_ctx.v3d->flag & V3D_XR_SESSION_SURFACE;
 #else
-  const bool is_xr_surface = false;
+  constexpr bool is_xr_surface = false;
 #endif
 
   if (is_xr_surface) {

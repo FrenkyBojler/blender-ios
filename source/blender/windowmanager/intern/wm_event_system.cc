@@ -4025,13 +4025,13 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
   BLI_assert(xr_area->spacetype == SPACE_VIEW3D && xr_area->spacedata.first);
 
   /* Find a valid region for XR operator execution and modal handling. */
-  // TODO: couldn't this region always be correctly set to whatever is required?
   ARegion *region = BKE_area_find_region_type(xr_area, RGN_TYPE_WINDOW);
   if (!region) {
     return;
   }
-  BLI_assert(
-      WM_region_use_viewport(xr_area, region)); /* For operators using GPU-based selection. */
+
+  /* For operators using GPU-based selection. */
+  BLI_assert(WM_region_use_viewport(xr_area, region));
 
   CTX_wm_region_set(xr_C, region);
 

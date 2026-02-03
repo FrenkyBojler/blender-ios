@@ -136,10 +136,10 @@ bool wm_xr_init(bContext *C)
 
       /* Create a minimal XR-specific context. */
       wm->xr.runtime->b_context = CTX_create();
+
       /* Main and WM pointers. */
       CTX_wm_manager_set(wm->xr.runtime->b_context, CTX_wm_manager(C));
       CTX_data_main_set(wm->xr.runtime->b_context, CTX_data_main(C));
-
       /* XR root-window and current scene. */
       CTX_wm_window_set(wm->xr.runtime->b_context, CTX_wm_window(C));
       CTX_data_scene_set(wm->xr.runtime->b_context, CTX_data_scene(C));

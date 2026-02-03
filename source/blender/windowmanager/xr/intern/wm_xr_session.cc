@@ -219,6 +219,7 @@ static void wm_xr_session_draw_data_populate(wmXrData *xr_data,
 wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
                                                     const wmXrRuntimeData *runtime_data)
 {
+  /* Try to obtain the XR root window (the window the XR session was started in). */
   wmWindow *xr_root_window = CTX_wm_window(runtime_data->b_context);
   if (xr_root_window && BLI_findindex(&wm->windows, xr_root_window) != -1) {
     /* Root XR window is still valid, use it. */
