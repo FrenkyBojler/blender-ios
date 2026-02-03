@@ -992,7 +992,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       def_but_icon(but, ICON_VIEWZOOM, UI_HAS_ICON);
       button_placeholder_set(but, IFACE_("Search"));
 
-		  but = uiDefIconButBitC(block,
+      but = uiDefIconButBitC(block,
                              ButtonType::Toggle,
                              1,
                              ICON_SORTALPHA,

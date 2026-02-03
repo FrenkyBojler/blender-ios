@@ -142,7 +142,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   /**
    * When true, sort elements alphabatically.
    */
-   std::shared_ptr<char> sort_alpha_ = std::make_shared<char>(0);
+  std::shared_ptr<char> sort_alpha_ = std::make_shared<char>(0);
 
   friend class AbstractTreeViewItem;
   friend class TreeViewBuilder;
