@@ -840,6 +840,12 @@ void *CCL_python_module_init()
     PyModule_AddObjectRef(mod, "with_openimagedenoise", Py_False);
   }
 
+#ifdef WITH_DLSS
+  PyModule_AddObjectRef(mod, "with_dlss", Py_True);
+#else
+  PyModule_AddObjectRef(mod, "with_dlss", Py_False);
+#endif
+
 #ifdef WITH_CYCLES_DEBUG
   PyModule_AddObjectRef(mod, "with_debug", Py_True);
 #else  /* WITH_CYCLES_DEBUG */
