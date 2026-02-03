@@ -68,7 +68,7 @@ struct VertOut {
 
 VertOut vertex_main(GreasePencilStrokeData vert_in)
 {
-  float defaultpixsize = gpencil_stroke_data.pixsize * (1000.0f / gpencil_stroke_data.pixfactor);
+  float thickness_scale = gpencil_stroke_data.pixfactor / gpencil_stroke_data.pixsize;
 
   VertOut vert_out;
   vert_out.gpu_position = ModelViewProjectionMatrix * float4(vert_in.position, 1.0f);
@@ -79,8 +79,8 @@ VertOut vertex_main(GreasePencilStrokeData vert_in)
   }
   else {
     float size = (ProjectionMatrix[3][3] == 0.0f) ?
-                     (vert_in.stroke_thickness / (vert_out.gpu_position.z * defaultpixsize)) :
-                     (vert_in.stroke_thickness / defaultpixsize);
+                     (vert_in.stroke_thickness * thickness_scale / vert_out.gpu_position.z) :
+                     (vert_in.stroke_thickness * thickness_scale);
     vert_out.final_thickness = max(size * gpencil_stroke_data.objscale, 1.0f);
   }
   return vert_out;
