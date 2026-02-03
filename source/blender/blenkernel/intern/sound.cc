@@ -889,7 +889,7 @@ void *BKE_sound_add_scene_sound(
   {
     AUD_Sequence_remove(strip->runtime->last_parent_sound_scene, strip->runtime->scene_sound);
   }
-  /* Store last handle so it can be removed in the next run. */
+  /* Store last sequence so it can be removed in the next run. */
   strip->runtime->last_parent_sound_scene = parent_sound_scene;
 
   int parent_start = 0;
@@ -981,7 +981,6 @@ void BKE_sound_update_scene_sound(void *handle, bSound *sound)
 
 #endif /* WITH_AUDASPACE */
 
-// Ramon: used for applying modifier effects
 void BKE_sound_update_sequence_handle(void *handle, void *sound_handle)
 {
 #ifdef WITH_AUDASPACE

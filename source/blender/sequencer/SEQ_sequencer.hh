@@ -69,7 +69,7 @@ ENUM_OPERATORS(StripRuntimeFlag);
 struct StripRuntime {
   SessionUID session_uid = {};
   StripRuntimeFlag flag = StripRuntimeFlag::None;
-  void *scene_sound = nullptr; /* AUD_SequenceEntry */
+  void *scene_sound = nullptr;      /* AUD_SequenceEntry */
   void *meta_scene_sound = nullptr; /* AUD_SequenceEntry */
   void *last_parent_sound_scene = nullptr;
   Vector<MovieReader *, 1> movie_readers;

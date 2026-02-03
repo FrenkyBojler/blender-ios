@@ -124,11 +124,6 @@ static void strip_update_sound_bounds_recursive_impl(const Scene *scene,
         offset_time += strip->startofs / scene->frames_per_second();
       }
 
-      //// Ramon: this seems to be the place
-      /* Ramon: Note that the handle that is added to a meta strip does not get moved. This is
-       * because the meta handle needs strip start -meta strip start. Currently the offset is
-       * handled because we recreate the meta handle each time but for a proper implementation we
-       * should do the right calculation of where the strip should be in the sound_move logic. */
       BKE_sound_move_scene_sound(scene,
                                  strip->runtime->scene_sound,
                                  strip->start + startofs - metastrip_start_get(strip_meta),

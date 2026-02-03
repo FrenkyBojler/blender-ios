@@ -1071,11 +1071,7 @@ static bool seq_mute_sound_strips_cb(Strip *strip, void *user_data)
 /* Adds sound of strip to the `scene->sound_scene` - "sound timeline". */
 static void strip_update_mix_sounds(Scene *scene, Strip *strip)
 {
-  // Ramon: this is the place that prevents the audio from getting added multible times. Problem is
-  // that when a strip gets grouped into a meta strip this also prevents the handle from getting
-  // moved into this new handle
   void *parent_sound_scene = BKE_strip_get_parent_sound_scene(strip, scene);
-
   if (strip->runtime->scene_sound != nullptr &&
       parent_sound_scene == strip->runtime->last_parent_sound_scene)
   {
@@ -1083,8 +1079,7 @@ static void strip_update_mix_sounds(Scene *scene, Strip *strip)
   }
 
   if (strip->sound != nullptr || strip->type == STRIP_TYPE_META) {
-    /* Adds `strip->sound->playback_handle` to `scene->sound_scene` */  // to parent sound scene
-
+    /* Adds `strip->sound->playback_handle` to parent sound scene. */
     strip->runtime->scene_sound = BKE_sound_add_scene_sound_defaults(scene, strip);
   }
   else if (strip->type == STRIP_TYPE_SCENE && strip->scene != nullptr) {

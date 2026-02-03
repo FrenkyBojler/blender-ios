@@ -106,7 +106,6 @@ static void strip_update_muting_recursive(ListBase *channels,
   LISTBASE_FOREACH (Strip *, strip, seqbasep) {
     bool strip_mute = (mute || render_is_muted(channels, strip));
 
-    // Ramon: No need to change this since all the sound strip handles get muted reliably.
     if (strip->type == STRIP_TYPE_META) {
       /* if this is the current meta-strip, unmute because
        * all strips above this were set to mute */
