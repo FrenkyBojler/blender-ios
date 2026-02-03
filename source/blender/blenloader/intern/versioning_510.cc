@@ -612,7 +612,7 @@ static void do_version_file_output_use_file_extension_recursive(bNodeTree &node_
   for (bNode &node : node_tree.nodes) {
     if (node.type_legacy == CMP_NODE_OUTPUT_FILE) {
       NodeCompositorFileOutput *data = static_cast<NodeCompositorFileOutput *>(node.storage);
-      data->use_file_extension = scene.r.scemode & R_EXTENSION;
+      data->use_file_extension = (scene.r.scemode & R_EXTENSION) != 0;
     }
     else if (node.type_legacy == NODE_GROUP) {
       bNodeTree *ngroup = id_cast<bNodeTree *>(node.id);
@@ -688,7 +688,7 @@ void do_versions_after_linking_510(FileData *fd, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 24)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 25)) {
     for (Scene &scene : bmain->scenes) {
       bNodeTree *node_tree = version_get_scene_compositor_node_tree(bmain, &scene);
 
