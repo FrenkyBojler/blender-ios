@@ -13,6 +13,7 @@
 #endif
 
 #include "GHOST_Event.hh"
+#include "GHOST_Types.hh"
 
 /**
  * Gamepad trigger event.

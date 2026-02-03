@@ -35,7 +35,7 @@ using namespace blender::compositor;
 
 class ImageInfoOperation : public NodeOperation {
  public:
-  ImageInfoOperation(Context &context, DNode node) : NodeOperation(context, node)
+  ImageInfoOperation(Context &context, const bNode &node) : NodeOperation(context, node)
   {
     InputDescriptor &image_descriptor = this->get_input_descriptor("Image");
     image_descriptor.skip_type_conversion = true;
@@ -118,26 +118,24 @@ class ImageInfoOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new ImageInfoOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_image_info_cc
-
-static void register_node_type_cmp_image_info()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_composite_image_info_cc;
-
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeImageInfo", CMP_NODE_IMAGE_INFO);
   ntype.ui_name = "Image Info";
   ntype.ui_description = "Returns information about an image";
   ntype.nclass = NODE_CLASS_INPUT;
-  ntype.declare = file_ns::node_declare;
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.declare = node_declare;
+  ntype.get_compositor_operation = get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_image_info)
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_composite_image_info_cc

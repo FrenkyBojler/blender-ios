@@ -18,7 +18,8 @@
 #include "view3d_navigate.hh"
 
 #ifdef WITH_INPUT_GAMEPAD
-namespace blender::view3d {
+namespace blender{
+namespace view3d  {
 void gamepad_fly(const wmGamepadAxisData &gamepad,
                  View3D * /*v3d*/,
                  RegionView3D *rv3d,
@@ -130,7 +131,7 @@ static wmOperatorStatus gamepad_all_invoke_impl(bContext *C,
   ED_region_tag_redraw(region);
   return OPERATOR_FINISHED;
 }
-}  // namespace blender::view3d
+}  // namespace view3d
 
 void VIEW3D_OT_gamepad_all(wmOperatorType *ot)
 {
@@ -146,5 +147,6 @@ void VIEW3D_OT_gamepad_all(wmOperatorType *ot)
   /* flags */
   ot->flag = 0;
 }
+}  // namespace blender
 
 #endif /* WITH_INPUT_GAMEPAD */

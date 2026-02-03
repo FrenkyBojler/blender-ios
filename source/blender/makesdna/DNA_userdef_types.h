@@ -22,7 +22,10 @@
 #include "DNA_userdef_enums.h"
 #include "DNA_vec_types.h"
 
+namespace blender {
+
 struct IDProperty;
+struct bUserMenuItem;
 
 /** #UserDef.flag */
 enum eUserPref_Flag {
@@ -54,6 +57,7 @@ enum eUserPref_Flag {
   USER_TXT_TABSTOSPACES_DISABLE = (1 << 25),
   USER_TOOLTIPS_PYTHON = (1 << 26),
   USER_FLAG_UNUSED_27 = (1 << 27), /* dirty */
+  USER_HIDE_DOT_DATABLOCK = (1 << 28),
 };
 
 /** #UserDef.extension_flag */
@@ -574,7 +578,7 @@ struct bUserMenu {
   char space_type = 0;
   char _pad0[7] = {};
   char context[64] = "";
-  ListBaseT<struct bUserMenuItem> items = {nullptr, nullptr};
+  ListBaseT<bUserMenuItem> items = {nullptr, nullptr};
 };
 
 /** May be part of #bUserMenu or other list. */
@@ -590,7 +594,7 @@ struct bUserMenuItem_Op {
   char op_idname[64] = "";
   struct IDProperty *prop = nullptr;
   char op_prop_enum[64] = "";
-  char opcontext = 0; /* #blender::wm::OpCallContext */
+  char opcontext = 0; /* #wm::OpCallContext */
   char _pad0[7] = {};
 };
 
@@ -695,7 +699,7 @@ struct WalkNavigation {
 };
 
 struct XrNavigation {
-  float vignette_intensity = 60;
+  float vignette_intensity = 70;
   float turn_speed = DEG2RAD(60);
   float turn_amount = DEG2RAD(30);
   short flag = USER_XR_NAV_SNAP_TURN;
@@ -805,7 +809,8 @@ struct UserDef_Experimental {
   char use_sculpt_texture_paint = 0;
   char use_shader_node_previews = 0;
   char use_geometry_nodes_lists = 0;
-  char _pad[5] = {};
+  char use_geometry_bundle = 0;
+  char _pad[4] = {};
 };
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
@@ -852,7 +857,8 @@ struct UserDef {
 
   /** #eUserPref_Flag. */
   int flag = (USER_AUTOSAVE | USER_TOOLTIPS | USER_RELPATHS | USER_RELEASECONFIRM |
-              USER_SCRIPT_AUTOEXEC_DISABLE | USER_NONEGFRAMES | USER_FILECOMPRESS);
+              USER_SCRIPT_AUTOEXEC_DISABLE | USER_NONEGFRAMES | USER_FILECOMPRESS |
+              USER_HIDE_DOT_DATABLOCK);
   /** #eDupli_ID_Flags. */
   unsigned int dupflag = USER_DUP_MESH | USER_DUP_CURVE | USER_DUP_SURF | USER_DUP_LATTICE |
                          USER_DUP_FONT | USER_DUP_MBALL | USER_DUP_LAMP | USER_DUP_ARM |
@@ -1218,3 +1224,5 @@ struct UserDef {
 
 /** From `source/blender/blenkernel/intern/blender.cc`. */
 extern UserDef U;
+
+}  // namespace blender

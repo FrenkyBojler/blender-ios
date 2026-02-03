@@ -18,6 +18,8 @@
 
 #include "DNA_windowmanager_enums.h"
 
+namespace blender {
+
 /**
  * Size of the sphere being dragged for trackball rotation within the view bounds.
  * also affects speed (smaller is faster).
@@ -142,10 +144,10 @@ struct ViewOpsData {
     /** The ones below are unrelated to the state of the 3D view. */
 
     /** #wmEvent.xy. */
-    blender::int2 event_xy;
+    int2 event_xy;
     /* Offset used when "use_cursor_init" is false to simulate pressing in the middle of the
      * region. */
-    blender::int2 event_xy_offset;
+    int2 event_xy_offset;
     /** #wmEvent.type that triggered the operator. */
     int event_type;
 
@@ -306,7 +308,7 @@ extern const ViewOpsType ViewOpsType_ndof_all;
 
 #ifdef WITH_INPUT_GAMEPAD
 struct wmGamepadAxisData;
-namespace blender::view3d {
+namespace view3d {
 void gamepad_fly(const wmGamepadAxisData &gamepad,
                  View3D *v3d,
                  RegionView3D *rv3d,
@@ -414,7 +416,7 @@ void VIEW3D_OT_smoothview(wmOperatorType *ot);
  * \param depsgraph: The evaluated depsgraph.
  * \param clip_bounds: Clip the bounds by the viewport clipping.
  */
-std::optional<blender::Bounds<blender::float3>> view3d_calc_minmax_visible(
+std::optional<Bounds<float3>> view3d_calc_minmax_visible(
     Depsgraph *depsgraph, ScrArea *area, ARegion *region, bool use_all_regions, bool clip_bounds);
 /**
  * Return the bounds of selected contents of the 3D viewport.
@@ -423,12 +425,12 @@ std::optional<blender::Bounds<blender::float3>> view3d_calc_minmax_visible(
  * \param r_do_zoom: When false, the bounds should be treated as a point
  * (don't zoom to view the point).
  */
-std::optional<blender::Bounds<blender::float3>> view3d_calc_minmax_selected(Depsgraph *depsgraph,
-                                                                            ScrArea *area,
-                                                                            ARegion *region,
-                                                                            bool use_all_regions,
-                                                                            bool clip_bounds,
-                                                                            bool *r_do_zoom);
+std::optional<Bounds<float3>> view3d_calc_minmax_selected(Depsgraph *depsgraph,
+                                                          ScrArea *area,
+                                                          ARegion *region,
+                                                          bool use_all_regions,
+                                                          bool clip_bounds,
+                                                          bool *r_do_zoom);
 
 /**
  * Iterate over objects and check if `point` might is inside any of them.
@@ -436,7 +438,7 @@ std::optional<blender::Bounds<blender::float3>> view3d_calc_minmax_selected(Deps
 bool view3d_calc_point_in_selected_bounds(Depsgraph *depsgraph,
                                           struct ViewLayer *view_layer_eval,
                                           const View3D *v3d,
-                                          const blender::float3 &point,
+                                          const float3 &point,
                                           const float scale_margin);
 
 void VIEW3D_OT_view_all(wmOperatorType *ot);
@@ -485,3 +487,5 @@ extern const ViewOpsType ViewOpsType_zoom;
 /* view3d_navigate_zoom_border.cc */
 
 void VIEW3D_OT_zoom_border(wmOperatorType *ot);
+
+}  // namespace blender

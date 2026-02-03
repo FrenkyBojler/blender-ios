@@ -116,7 +116,7 @@ class GHOST_System : public GHOST_ISystem {
    * Dispatches events that are generated once per frame, such as gamepad events, and send them
    * to the event consumers.
    */
-  void dispatch_frame_events();
+  void dispatch_frame_events() override;
 
   /***************************************************************************************
    * Cursor management functionality
