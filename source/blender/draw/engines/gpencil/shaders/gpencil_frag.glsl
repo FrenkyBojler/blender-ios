@@ -344,13 +344,11 @@ void main()
     if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT))  // dot and squares
     {
       if (is_multi_dot) {
-        float radius1 = 0.0f;
-        float radius2 = 0.0f;
+        float radius1 = screen_space_to_radius(gp_interp_flat.sspos_1);
+        float radius2 = screen_space_to_radius(gp_interp_flat.sspos_2);
 
-        float4 ndc1 = screen_space_to_ndc_and_radius(
-            gp_interp_flat.sspos_1, radius1, viewport_size);
-        float4 ndc2 = screen_space_to_ndc_and_radius(
-            gp_interp_flat.sspos_2, radius2, viewport_size);
+        float4 ndc1 = screen_space_to_ndc(gp_interp_flat.sspos_1, viewport_size);
+        float4 ndc2 = screen_space_to_ndc(gp_interp_flat.sspos_2, viewport_size);
 
         float3 v1 = ndc_to_view(ndc1);
         float3 v2 = ndc_to_view(ndc2);

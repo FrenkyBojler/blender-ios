@@ -205,10 +205,9 @@ float4 screen_space_to_ndc(float4 ss, float2 viewport_res)
   return float4((ss.xy / viewport_res - 0.5) * 2.0 * ss.z, 0, ss.z);
 }
 
-float4 screen_space_to_ndc_and_radius(float4 ss, out float radius, float2 viewport_res)
+float screen_space_to_radius(float4 ss)
 {
-  radius = ss.w * ss.z;
-  return screen_space_to_ndc(ss, viewport_res);
+  return ss.w * ss.z;
 }
 
 float2 gpencil_decode_aspect(int packed_data)
