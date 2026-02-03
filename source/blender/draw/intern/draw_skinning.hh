@@ -32,7 +32,7 @@ namespace blender::draw {
 struct DRWSkinningCache {
   /* Uniform buffers for target mesh and armature spaces */
   gpu::UniformBuf *in_armspace_buf;
-  /* BendyBones */
+  /* BendyBones data ssbo */
   gpu::StorageBuf *in_bonebendy_buf;
 
   /* rest position mesh index influences ssbo */
@@ -43,6 +43,8 @@ struct DRWSkinningCache {
   gpu::StorageBuf *in_bonemat_buf;
   /* rest position mesh position ssbo */
   gpu::VertBuf *in_vertpos_buf;
+
+  gpu::VertBuf *in_verttan_buf;
 
   /* Deformation shader */
   gpu::Shader *skin_shader;
@@ -129,7 +131,7 @@ void DRW_create_skinning(Object &evaluated_object,
 
 void draw_skinning_compute_position(gpu::VertBuf *vbo_pos,
                                     // gpu::VertBuf *vbo_nor,
-                                    // gpu::VertBuf *vbo_tan,
+                                    gpu::VertBuf *vbo_tan,
                                     const DRWSkinningCache &cache);
 
 void draw_skinning_accumulate_normals(gpu::VertBuf *vbo_pos,

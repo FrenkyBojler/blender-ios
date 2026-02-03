@@ -348,13 +348,13 @@ void mesh_buffer_cache_create_requested_skinning(MeshBatchCache &cache,
 
   bool need_pos = !buffers.vbos.contains(VBOType::Position);
   bool need_nor = !buffers.vbos.contains(VBOType::CornerNormal);
-  // bool need_tan = !buffers.vbos.contains(VBOType::Tangents);
+  bool need_tan = !buffers.vbos.contains(VBOType::Tangents);
 
   bool run_skinning = false;
   for (const VBOType request : vbo_requests) {
     if ((request == VBOType::Position && need_pos) ||
-        (request == VBOType::CornerNormal && need_nor))  //||
-    // (request == VBOType::Tangents && need_tan))
+        (request == VBOType::CornerNormal && need_nor) ||
+        (request == VBOType::Tangents && need_tan))
     {
       run_skinning = true;
       break;
@@ -363,24 +363,23 @@ void mesh_buffer_cache_create_requested_skinning(MeshBatchCache &cache,
 
   static const GPUVertFormat format_pos = GPU_vertformat_from_attribute(
       "pos", gpu::VertAttrType::SFLOAT_32_32_32_32);
+  static const GPUVertFormat format_tan = GPU_vertformat_from_attribute(
+      "tan", gpu::VertAttrType::SFLOAT_32_32_32_32);
   static const GPUVertFormat format_nor = GPU_vertformat_from_attribute(
       "nor", gpu::VertAttrType::SFLOAT_32_32_32_32);
-
   if (run_skinning) {
     int vert_len = mr.corners_num + mr.loose_indices_num;
 
     gpu::VertBufPtr vbo_pos = gpu::VertBufPtr(GPU_vertbuf_create_on_device(format_pos, vert_len));
     gpu::VertBufPtr vbo_nor = gpu::VertBufPtr(GPU_vertbuf_create_on_device(format_nor, vert_len));
-#if 0
-    gpu::VertBufPtr vbo_tan = gpu::VertBufPtr(GPU_vertbuf_create_on_device(
-        get_skinning_tan_format(), vert_len));
-#endif
+    gpu::VertBufPtr vbo_tan = gpu::VertBufPtr(GPU_vertbuf_create_on_device(format_tan, vert_len));
 
-    draw_skinning_compute_position(vbo_pos.get(),
-                                   /*vbo_nor.get(), vbo_tan.get(),*/ skinning_cache);
+    draw_skinning_compute_position(
+        vbo_pos.get(), vbo_tan.get(), /*vbo_nor.get(),*/ skinning_cache);
     draw_skinning_accumulate_normals(vbo_pos.get(), vbo_nor.get(), skinning_cache);
     draw_skinning_finalize_normals(vbo_pos.get(), vbo_nor.get(), skinning_cache);
-    /* place holder... until we have a fast approximate/heuristic precomputed approach, expensive for now..*/
+    /* place holder... activate until we have a fast approximate/heuristic precomputed approach,
+     * expensive for now..*/
     // draw_skinning_compute_bounds(const_cast<Mesh *>(mr.mesh), skinning_cache, vbo_pos.get());
 
     if (need_pos) {
@@ -389,11 +388,9 @@ void mesh_buffer_cache_create_requested_skinning(MeshBatchCache &cache,
     if (need_nor) {
       buffers.vbos.add_new(VBOType::CornerNormal, std::move(vbo_nor));
     }
-#if 0
     if (need_tan) {
       buffers.vbos.add_new(VBOType::Tangents, std::move(vbo_tan));
     }
-#endif
   }
 }
 

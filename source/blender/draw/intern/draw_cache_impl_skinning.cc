@@ -125,7 +125,7 @@ void draw_free_skinning_runtime_cache(const Object &ob)
  * Extracts mesh data and compresses to save on GPU memory.
  * \{ */
 
-static void draw_skinning_pack_vertex_data(Object *armature_ob,
+static void draw_skinning_pack_mesh_data(Object *armature_ob,
                                            DRWSkinningCache *cache,
                                            MeshRenderData &mr)
 {
@@ -257,8 +257,9 @@ static void draw_skinning_pack_vertex_data(Object *armature_ob,
     }
     loose_vert_nor_data[i] = encode_octahedral(n);
   }
+#endif
 
-  MutableSpan<float4> tan_data(reinterpret_cast<float4 *>(*r_meshdata_tan), total_elements);
+  MutableSpan<float4> tan_data(reinterpret_cast<float4 *>(cache->meshdata_tan), total_elements);
 
   MutableSpan corners_tan_data = tan_data.take_front(mr.corners_num);
   MutableSpan loose_edge_tan_data = tan_data.slice(mr.corners_num, mr.loose_edges.size() * 2);
@@ -307,7 +308,6 @@ static void draw_skinning_pack_vertex_data(Object *armature_ob,
   for (int i = 0; i < mr.loose_verts.size(); i++) {
     loose_vert_tan_data[i] = float4(1.0f, 0.0f, 0.0f, 1.0f);
   }
-#endif
 
   int max_influences = U.gpuskin_influences;
 
@@ -667,6 +667,7 @@ static void draw_skinning_setup_buffers(Object *armature_ob,
   }
   GPU_vertbuf_init_with_format_ex(*cache->in_vertnor_buf, nor_in_format, GPU_USAGE_STATIC);
   GPU_vertbuf_data_alloc(*cache->in_vertnor_buf, cache->corner_nums);
+#endif
 
   cache->in_verttan_buf = GPU_vertbuf_calloc();
   static GPUVertFormat tan_in_format = {0};
@@ -675,7 +676,6 @@ static void draw_skinning_setup_buffers(Object *armature_ob,
   }
   GPU_vertbuf_init_with_format_ex(*cache->in_verttan_buf, tan_in_format, GPU_USAGE_STATIC);
   GPU_vertbuf_data_alloc(*cache->in_verttan_buf, cache->corner_nums);
-#endif
 
   cache->cached_deform_flag = amd ? amd->deformflag : 0;
 
@@ -687,7 +687,7 @@ static void draw_skinning_setup_buffers(Object *armature_ob,
   cache->meshdata_idx = cache->in_indices_buf->data<uint32_t>().data();
   cache->meshdata_pos = cache->in_vertpos_buf->data<float>().data();
   // cache->meshdata_nor = cache->in_vertnor_buf->data<float>().data();
-  // cache->meshdata_tan = cache->in_verttan_buf->data<float>().data();
+  cache->meshdata_tan = cache->in_verttan_buf->data<float>().data();
 
   cache->skin_shader = DRW_shader_armature_skinning_lbs_get();
 }
@@ -697,7 +697,7 @@ static void draw_skinning_setup_buffers(Object *armature_ob,
 /* -------------------------------------------------------------------- */
 /** \name Normal Reconstruction Buffers Setup
  *
- * Builds face adjacency data for reconstructing normals from deformed positions.
+ * Setups reconstructing accumulate normals buffers.
  * \{ */
 
 static void draw_skinning_setup_normal_buffers(DRWSkinningCache *cache, MeshRenderData &mr)
@@ -834,30 +834,30 @@ void draw_skinning_finalize_normals(gpu::VertBuf *vbo_pos,
 
 void draw_skinning_compute_position(gpu::VertBuf *vbo_pos_output,
                                     // gpu::VertBuf *vbo_nor_output,
-                                    // gpu::VertBuf *vbo_tan_output,
+                                    gpu::VertBuf *vbo_tan_output,
                                     const DRWSkinningCache &cache)
 {
   GPU_shader_bind(cache.skin_shader);
 
   /* inputs */
 
-  GPU_vertbuf_bind_as_ssbo(cache.in_indices_buf, 0);
-  GPU_vertbuf_bind_as_ssbo(cache.in_weights_buf, 1);
-  GPU_storagebuf_bind(cache.in_bonemat_buf, 2);
-  GPU_uniformbuf_bind(cache.in_armspace_buf, 3);
-  GPU_storagebuf_bind(cache.in_bonebendy_buf, 4);
+  GPU_vertbuf_bind_as_ssbo(cache.in_indices_buf, LBS_INFLUENCE_INDICES_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(cache.in_weights_buf, LBS_INFLUENCE_WEIGHTS_BUF_SLOT);
+  GPU_storagebuf_bind(cache.in_bonemat_buf, LBS_BONE_MATRICES_BUF_SLOT);
+  GPU_uniformbuf_bind(cache.in_armspace_buf, LBS_BONE_ARMATURE_SPACE_BUF_SLOT);
+  GPU_storagebuf_bind(cache.in_bonebendy_buf, LBS_BONE_BENDY_BUF_SLOT);
 
-  GPU_vertbuf_bind_as_ssbo(cache.in_vertpos_buf, 5);
-  GPU_vertbuf_bind_as_ssbo(vbo_pos_output, 6);
+  GPU_vertbuf_bind_as_ssbo(cache.in_vertpos_buf, LBS_VERT_POS_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(cache.in_verttan_buf, LBS_VERT_TAN_BUF_SLOT);
 /* Unused for now, might be used again: we could have two performance modes for the user to choose
  * between properly recomputed normals or directly skinning normals...*/
 #if 0
   GPU_vertbuf_bind_as_ssbo(cache.in_vertnor_buf, LBS_VERT_NOR_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(cache.in_verttan_buf, LBS_VERT_TAN_BUF_SLOT);
 
   GPU_vertbuf_bind_as_ssbo(vbo_nor_output, LBS_SKINNED_NOR_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(vbo_tan_output, LBS_SKINNED_TAN_BUF_SLOT);
 #endif
+  GPU_vertbuf_bind_as_ssbo(vbo_pos_output, LBS_SKINNED_POS_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(vbo_tan_output, LBS_SKINNED_TAN_BUF_SLOT);
 
   GPU_shader_uniform_1i(cache.skin_shader, "vertex_count", cache.corner_nums);
   GPU_shader_uniform_1i(cache.skin_shader, "influence_count", cache.influence_nums);
@@ -1021,7 +1021,7 @@ static void draw_create_skinning(Object &ob,
             GPU_storagebuf_update(skincache->in_bonebendy_buf, skincache->bonedata_bendy);
 
             /* This expensive operation only needs to run once per cache lifetime */
-            draw_skinning_pack_vertex_data(amd->object, skincache, mr);
+            draw_skinning_pack_mesh_data(amd->object, skincache, mr);
 
             skincache->vertex_data_packed = true;
           }

@@ -11,9 +11,7 @@
 
 #include "extract_mesh.hh"
 
-#include "draw_skinning.hh"
 #include "draw_subdivision.hh"
-
 
 namespace blender::draw {
 

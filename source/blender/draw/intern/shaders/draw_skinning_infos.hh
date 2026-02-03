@@ -22,22 +22,16 @@ STORAGE_BUF(1, read, float, weights_buf[])
 
 STORAGE_BUF(2, read, float4x4, bonemat_buf[])
 UNIFORM_BUF(3, ArmatureSpace, armspace_buf)
-// UNIFORM_BUF(3, float4x4, armspace_buf)
-// UNIFORM_BUF(4, float4x4, targspace_buf)
 
-// STORAGE_BUF(5, read, int, bone_segments[])
-// STORAGE_BUF(6, read, int, bone_offsets[])
-// STORAGE_BUF(7, read, float, bone_lengths[])
-// STORAGE_BUF(8, read, float4x4, bone_invarmmat[])
 STORAGE_BUF(4, read, BoneData, Bonedata_buf[])
 
 STORAGE_BUF(5, read, float4, pos_buf[])
 // STORAGE_BUF(10, read, float2, nor_buf[])
-// STORAGE_BUF(11, read, float4, tan_buf[])
+STORAGE_BUF(6, read, float4, tan_buf[])
 
-STORAGE_BUF(6, write, float4, out_skinned_pos[])
+STORAGE_BUF(7, write, float4, out_skinned_pos[])
 // STORAGE_BUF(13, write, float4, out_skinned_nor[])
-// STORAGE_BUF(14, write, float4, out_skinned_tan[])
+STORAGE_BUF(8, write, float4, out_skinned_tan[])
 
 
 PUSH_CONSTANT(int, vertex_count)
