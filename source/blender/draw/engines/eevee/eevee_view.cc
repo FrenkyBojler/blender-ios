@@ -118,7 +118,7 @@ void ShadingView::render()
 
   /* If camera has any motion, compute motion vector in the film pass. Otherwise, we avoid float
    * precision issue by setting the motion of all static geometry to 0. */
-  /* TODO: Clear using GPU_framebuffer? */
+  /* TODO: Clear using GPU_framebuffer. */
   float4 clear_velocity = float4(inst_.velocity.camera_has_motion() ? VELOCITY_INVALID : 0.0f);
   GPU_texture_clear(rbufs.vector_tx, GPU_DATA_FLOAT, &clear_velocity);
   if (with_raycast) {
