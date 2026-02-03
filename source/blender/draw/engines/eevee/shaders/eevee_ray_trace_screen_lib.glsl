@@ -267,6 +267,16 @@ bool clip_ray(float3 &start,
   return max_t > min_t;
 }
 
+/*
+ * Similar to raytrace_screen, but modified to fit the needs of the Raycast node:
+ * - Improves the support for rays parallel or nearly parallel to the incoming direction.
+ * - Supports discarding hits against other objects.
+ * - Traverses every single pixel between start and end, unless the number of steps required is
+ *   greater than max_steps, in that case the steps are evenly distributed across the full
+ *   distance.
+ * Expects vs_origin and vs_end to be already clipped to the view frustum (see clip_ray above).
+ * Returns the hit distance, or -1 if no hit was found.
+ */
 float raytrace_screen_2(const float3 vs_origin,
                         const float3 vs_end,
                         const float3 vs_direction,
