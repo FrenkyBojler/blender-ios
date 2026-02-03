@@ -10,7 +10,8 @@
 
 #include "DRW_engine.hh"
 
-#include "image_drawing_mode.hh"
+#include "image_drawing_mode_image_space.hh"
+#include "image_drawing_mode_screen_space.hh"
 #include "image_private.hh"
 #include "image_space.hh"
 #include "image_space_image.hh"
@@ -40,9 +41,8 @@ static inline std::unique_ptr<AbstractSpaceAccessor> space_accessor_from_space(
 class Instance : public DrawEngine {
  private:
   std::unique_ptr<AbstractSpaceAccessor> space_;
+  std::unique_ptr<AbstractDrawingMode> drawing_mode_;
   Main *main_;
-
-  ScreenSpaceDrawingMode drawing_mode_;
 
  public:
   const ARegion *region;
@@ -50,10 +50,6 @@ class Instance : public DrawEngine {
   Manager *manager = nullptr;
 
  public:
-  Instance() : drawing_mode_(*this) {}
-
-  virtual ~Instance() = default;
-
   StringRefNull name_get() final
   {
     return "UV/Image";
@@ -66,11 +62,68 @@ class Instance : public DrawEngine {
     region = ctx_state->region;
     space_ = space_accessor_from_space(ctx_state->space_data);
     manager = DRW_manager_get();
+    this->construct_drawing_mode();
+  }
+
+  void construct_drawing_mode()
+  {
+    /* Tile drawing isn't supported by ImageDrawingMode */
+    if (this->state.flags.do_tile_drawing) {
+      this->drawing_mode_ = std::make_unique<ScreenSpaceDrawingMode>(*this);
+      return;
+    }
+
+    /* Although drivers report that they support 16K images it is not guaranteed that they will
+     * allocate it as it depends on the actual used data type. */
+    const int max_resolution = U.glreslimit ? U.glreslimit : 12000;
+
+    if (!this->state.image) {
+      this->drawing_mode_ = std::make_unique<ImageSpaceDrawingMode>(*this);
+      return;
+    }
+
+    if (this->state.image->source != IMA_SRC_TILED) {
+      ImBuf *buffer = BKE_image_acquire_ibuf(this->state.image, space_->get_image_user(), nullptr);
+      BLI_SCOPED_DEFER([&]() { BKE_image_release_ibuf(this->state.image, buffer, nullptr); });
+      if (!buffer) {
+        this->drawing_mode_ = std::make_unique<ImageSpaceDrawingMode>(*this);
+        return;
+      }
+
+      const int max_dimension = math::max(buffer->x, buffer->y);
+      if (max_dimension > max_resolution) {
+        this->drawing_mode_ = std::make_unique<ScreenSpaceDrawingMode>(*this);
+        return;
+      }
+
+      this->drawing_mode_ = std::make_unique<ImageSpaceDrawingMode>(*this);
+      return;
+    }
+
+    for (ImageTile &tile : this->state.image->tiles) {
+      ImageTileWrapper image_tile(&tile);
+      ImageUser tile_user = space_->get_image_user() ? *space_->get_image_user() :
+                                                       ImageUser{.scene = nullptr};
+      tile_user.tile = image_tile.get_tile_number();
+      ImBuf *buffer = BKE_image_acquire_ibuf(this->state.image, &tile_user, nullptr);
+      BLI_SCOPED_DEFER([&]() { BKE_image_release_ibuf(this->state.image, buffer, nullptr); });
+      if (!buffer) {
+        continue;
+      }
+
+      const int max_dimension = math::max(buffer->x, buffer->y);
+      if (max_dimension > max_resolution) {
+        this->drawing_mode_ = std::make_unique<ScreenSpaceDrawingMode>(*this);
+        return;
+      }
+    }
+
+    this->drawing_mode_ = std::make_unique<ImageSpaceDrawingMode>(*this);
   }
 
   void begin_sync() final
   {
-    drawing_mode_.begin_sync();
+    drawing_mode_->begin_sync();
 
     /* Setup full screen view matrix. */
     float4x4 viewmat = math::projection::orthographic(
@@ -116,7 +169,7 @@ class Instance : public DrawEngine {
     else {
       BKE_image_multiview_index(state.image, iuser);
     }
-    drawing_mode_.image_sync(state.image, iuser);
+    drawing_mode_->image_sync(state.image, iuser);
   }
 
   void object_sync(ObjectRef & /*obref*/, Manager & /*manager*/) final {}
@@ -126,8 +179,8 @@ class Instance : public DrawEngine {
   void draw(Manager & /*manager*/) final
   {
     DRW_submission_start();
-    drawing_mode_.draw_viewport();
-    drawing_mode_.draw_finish();
+    drawing_mode_->draw_viewport();
+    drawing_mode_->draw_finish();
     state.image = nullptr;
     DRW_submission_end();
   }

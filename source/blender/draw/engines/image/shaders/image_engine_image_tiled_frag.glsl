@@ -1,0 +1,23 @@
+/* SPDX-FileCopyrightText: 2026 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "infos/engine_image_infos.hh"
+
+#include "gpu_shader_math_matrix_transform_lib.glsl"
+#include "gpu_shader_tiled_image_lookup_lib.glsl"
+#include "image_engine_lib.glsl"
+
+void main()
+{
+  const float2 coordinates = transform_point(image_matrix, float3(screen_uv, 0.0f)).xy();
+  float3 tiled_coordinates = float3(coordinates, 0.0f);
+  if (!tiled_image_lookup(tiled_coordinates, image_tile_array, image_tile_data)) {
+    gpu_discard_fragment();
+    return;
+  }
+
+  float4 tex_color = texture(image_tile_array, tiled_coordinates);
+  out_color = image_engine_apply_parameters(
+      tex_color, draw_flags, is_image_premultiplied, shuffle, FAR_DISTANCE, NEAR_DISTANCE);
+}
