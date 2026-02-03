@@ -11,37 +11,19 @@
 #include "BKE_armature_deform_gpu.hh"
 #include "BKE_global.hh"
 #include "BKE_main.hh"
-#include "BKE_mesh.hh"
-#include "BKE_report.hh"
 #include "BKE_workspace.hh"
 
-
 #include "BLI_listbase.h"
 
 #include "DEG_depsgraph_query.hh"
-#include "DNA_armature_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_vec_types.h"
 
-
-#include "BLI_listbase.h"
-#include "BLI_utildefines.h"
-#include "DEG_depsgraph_query.hh"
-#include "DNA_listBase.h"
 #include "DNA_modifier_types.h"
-#include "DNA_screen_types.h"
 #include "DNA_space_enums.h"
-#include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_view3D_types.h"
-#include "DNA_windowmanager_types.h"
-#include "DRW_engine.hh"
+
 #include "GPU_capabilities.hh"
 #include "GPU_context.hh"
 
 #include "WM_api.hh"
-
 
 bool BKE_skinning_available_user()
 {
@@ -116,8 +98,7 @@ bool BKE_skinning_is_cycles_active(const Scene &scene, const Depsgraph &depsgrap
 
   if (STREQ(scene.r.engine, "CYCLES")) {
 
-    if (DEG_get_mode(&depsgraph) == DAG_EVAL_RENDER
-        || BKE_is_any_viewport_rendered(depsgraph)) {
+    if (DEG_get_mode(&depsgraph) == DAG_EVAL_RENDER || BKE_is_any_viewport_rendered(depsgraph)) {
 
       if (!cycles_report) {
         BKE_skinning_cycles_warning(depsgraph);
@@ -140,8 +121,7 @@ static bool BKE_skinning_object_mode(const Object &ob)
 
 bool BKE_is_skinning_possible(const Object &ob, const Scene &scene, const Depsgraph &depsgraph)
 {
-  if (!BKE_skinning_available_user() ||
-      !BKE_skinning_object_mode(ob) ||
+  if (!BKE_skinning_available_user() || !BKE_skinning_object_mode(ob) ||
       BKE_skinning_is_cycles_active(scene, depsgraph))
   {
     return false;
@@ -156,9 +136,4 @@ bool BKE_is_skinning_possible(const Object &ob, const Scene &scene, const Depsgr
   }
 
   return false;
-}
-
-bool BKE_is_skinning_available_ob(const Mesh &mesh)
-{
-  return mesh.runtime->is_skinned_gpu;
 }

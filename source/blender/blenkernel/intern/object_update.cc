@@ -34,7 +34,6 @@
 #include "BKE_pointcloud.hh"
 #include "BKE_scene.hh"
 #include "BKE_volume.hh"
-#include "BKE_armature_deform_gpu.hh"
 
 #include "MEM_guardedalloc.h"
 

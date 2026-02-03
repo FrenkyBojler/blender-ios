@@ -74,6 +74,8 @@ struct DRWSkinningCache {
   float *meshdata_pos;
   float *meshdata_nor;
   float *meshdata_tan;
+
+  /* Mesh Normals extraction*/
   uint32_t *adjacency_offsets;
   uint32_t *adjacency_lists;
   uint32_t *corner_verts_data;
@@ -82,6 +84,7 @@ struct DRWSkinningCache {
   int total_adjacency;
   int sharp_faces_words;
 
+  /* Mesh Influences extraction*/
   float *meshdata_wgt;
   uint32_t *meshdata_idx;
 

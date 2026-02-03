@@ -20,7 +20,6 @@
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
-
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_deform.hh"

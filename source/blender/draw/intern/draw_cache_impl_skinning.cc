@@ -5,7 +5,7 @@
 /** \file
  * \ingroup draw
  *
- * \brief GPU Acceleration for Armature modifier and Shape keys
+ * \brief GPU Acceleration for Armature modifier
  */
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
@@ -425,6 +425,7 @@ static void draw_skinning_pack_vertex_data(Object *armature_ob,
   }
 
   const int faces_num = cache->faces_num;
+  const int sharp_faces_words = cache->sharp_faces_words;
 
   if (verts_num > 0 && faces_num > 0) {
     /* Calculate vertex face counts */
@@ -476,9 +477,6 @@ static void draw_skinning_pack_vertex_data(Object *armature_ob,
       face_data[face_i] = uint32_t(mr.faces[face_i].start());
     }
     face_data[faces_num] = uint32_t(mr.corners_num);
-
-    const int faces_num = cache->faces_num;
-    const int sharp_faces_words = cache->sharp_faces_words;
 
     MutableSpan<uint32_t> sharp_data(reinterpret_cast<uint32_t *>(cache->sharp_faces_data),
                                      sharp_faces_words);

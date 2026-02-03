@@ -24,6 +24,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
+#include "BKE_armature_deform_gpu.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_cache.hh"
 #include "BKE_geometry_set.hh"
@@ -40,7 +41,6 @@
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
-#include "BKE_armature_deform_gpu.hh"
 
 #include "BKE_shrinkwrap.hh"
 #include "DEG_depsgraph.hh"
