@@ -37,8 +37,8 @@ void foreach_fcurve_in_action(Action &action, FunctionRef<void(FCurve &fcurve)> 
 
 /**
  * Iterates over all FCurves of the given slot handle in the Action and executes the callback on
- * it. This includes data that may be locked. To ensure the callback is only executed with editable
- * data use `foreach_fcurve_in_action_slot_editable`.
+ * it. This includes data that may be locked. If you want to limit this to editable data only use
+ * `foreach_fcurve_in_action_slot_editable`.
  *
  * \note This could almost take a `const Action &` except for the fact that we do need to iterate
  * all FCurves in an editable way sometimes, e.g. for the pose library code.

@@ -43,8 +43,9 @@ void foreach_fcurve_in_action_slot_editable(Action &action,
                                             slot_handle_t handle,
                                             FunctionRef<void(FCurve &fcurve)> callback)
 {
+  /* Once layers can be locked, this needs to be checked here. */
+  assert_baklava_phase_1_invariants(action);
   for (Layer *layer : action.layers()) {
-    /* Once layers can be locked, this needs to be checked here. */
     for (Strip *strip : layer->strips()) {
       if (strip->type() != Strip::Type::Keyframe) {
         continue;
