@@ -22,85 +22,44 @@
 
 namespace blender::nodes::node_geo_grid_clip_cc {
 
-enum class Space : int8_t {
-  Index = 0,
-  World = 1,
-};
-
-static EnumPropertyItem space_items[] = {
-    {int(Space::Index),
-     "INDEX",
-     0,
-     N_("Index"),
-     N_("Use grid index coordinates for the bounding box")},
-    {int(Space::World),
-     "WORLD",
-     0,
-     N_("World"),
-     N_("Use world space coordinates for the bounding box")},
-    {0, nullptr, 0, nullptr, nullptr},
-};
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.use_custom_socket_order();
-  b.allow_any_socket_order();
-  b.add_default_layout();
   const bNode *node = b.node_or_null();
   if (!node) {
     return;
   }
-  const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
+
+  const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
-
-  b.add_input<decl::Menu>("Coordinates")
-      .static_items(space_items)
-      .default_value(Space::World)
-      .expanded()
-      .description("Coordinate system for the bounding box")
-      .optional_label();
-
-  b.add_input<decl::Vector>("Min")
-      .default_value(float3(-1.0f))
-      .structure_type(StructureType::Single)
-      .usage_by_single_menu(int(Space::World))
-      .description("Minimum world-space coordinates of the clipping bounding box");
-  b.add_input<decl::Vector>("Max")
-      .default_value(float3(1.0f))
-      .structure_type(StructureType::Single)
-      .usage_by_single_menu(int(Space::World))
-      .description("Maximum world-space coordinates of the clipping bounding box");
 
   b.add_input<decl::Int>("Min X")
       .default_value(0)
       .structure_type(StructureType::Single)
-      .usage_by_single_menu(int(Space::Index))
       .description("Minimum X index of the clipping bounding box");
   b.add_input<decl::Int>("Min Y")
       .default_value(0)
       .structure_type(StructureType::Single)
-      .usage_by_single_menu(int(Space::Index))
       .description("Minimum Y index of the clipping bounding box");
   b.add_input<decl::Int>("Min Z")
       .default_value(0)
       .structure_type(StructureType::Single)
-      .usage_by_single_menu(int(Space::Index))
       .description("Minimum Z index of the clipping bounding box");
   b.add_input<decl::Int>("Max X")
       .default_value(32)
       .structure_type(StructureType::Single)
-      .usage_by_single_menu(int(Space::Index))
       .description("Maximum X index of the clipping bounding box");
   b.add_input<decl::Int>("Max Y")
       .default_value(32)
       .structure_type(StructureType::Single)
-      .usage_by_single_menu(int(Space::Index))
       .description("Maximum Y index of the clipping bounding box");
   b.add_input<decl::Int>("Max Z")
       .default_value(32)
       .structure_type(StructureType::Single)
-      .usage_by_single_menu(int(Space::Index))
       .description("Maximum Z index of the clipping bounding box");
 }
 
@@ -149,9 +108,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const Space space = params.extract_input<Space>("Coordinates");
-  const float3 min_coords = params.extract_input<float3>("Min");
-  const float3 max_coords = params.extract_input<float3>("Max");
   const int3 min_index = int3(params.extract_input<int>("Min X"),
                               params.extract_input<int>("Min Y"),
                               params.extract_input<int>("Min Z"));
@@ -159,89 +115,20 @@ static void node_geo_exec(GeoNodeExecParams params)
                               params.extract_input<int>("Max Y"),
                               params.extract_input<int>("Max Z"));
 
-  // Optimize clipping performance by clamping bounding boxes to only process regions with active
-  // voxels. For some reason OpenVDB's clipping functions scale extremely poorly with large empty
-  // clip bounding boxes, even though there are no additional voxels to process. To get around this
-  // we can skip clipping if the active bounding box is already within the clip region and clamp
-  // the clip region to the actual active voxel bounds to minimize processing time.
   bke::VolumeTreeAccessToken tree_token;
   openvdb::GridBase &grid_base = grid.get_for_write().grid_for_write(tree_token);
 
-  if (space == Space::World) {
-    const openvdb::BBoxd bbox(openvdb::Vec3d(min_coords.x, min_coords.y, min_coords.z),
-                              openvdb::Vec3d(max_coords.x, max_coords.y, max_coords.z));
+  const openvdb::CoordBBox coord_bbox(openvdb::Coord(min_index.x, min_index.y, min_index.z),
+                                      openvdb::Coord(max_index.x, max_index.y, max_index.z));
 
-    bke::volume_grid::to_typed_grid(grid_base, [&](auto &typed_grid) {
-      const auto active_bbox = typed_grid.evalActiveVoxelBoundingBox();
-      if (active_bbox.empty()) {
-        return;
-      }
-
-      const openvdb::math::Transform &transform = typed_grid.transform();
-      const openvdb::Vec3d active_min_world = transform.indexToWorld(active_bbox.min().asVec3d());
-      const openvdb::Vec3d active_max_world = transform.indexToWorld(active_bbox.max().asVec3d());
-      const openvdb::BBoxd active_world_bbox(active_min_world, active_max_world);
-
-      if (!active_world_bbox.hasOverlap(bbox)) {
-        typed_grid.clear();
-        return;
-      }
-
-      if (bbox.isInside(active_world_bbox)) {
-        return;
-      }
-
-      const openvdb::BBoxd clamped_bbox(
-          openvdb::Vec3d(std::max(bbox.min().x(), active_world_bbox.min().x()),
-                         std::max(bbox.min().y(), active_world_bbox.min().y()),
-                         std::max(bbox.min().z(), active_world_bbox.min().z())),
-          openvdb::Vec3d(std::min(bbox.max().x(), active_world_bbox.max().x()),
-                         std::min(bbox.max().y(), active_world_bbox.max().y()),
-                         std::min(bbox.max().z(), active_world_bbox.max().z())));
-
-      const openvdb::Vec3d clamped_min_index = transform.worldToIndex(clamped_bbox.min());
-      const openvdb::Vec3d clamped_max_index = transform.worldToIndex(clamped_bbox.max());
-      const openvdb::CoordBBox clamped_index_bbox(
-          openvdb::Coord(int(std::floor(clamped_min_index.x())),
-                         int(std::floor(clamped_min_index.y())),
-                         int(std::floor(clamped_min_index.z()))),
-          openvdb::Coord(int(std::ceil(clamped_max_index.x())),
-                         int(std::ceil(clamped_max_index.y())),
-                         int(std::ceil(clamped_max_index.z()))));
-
-      typed_grid.clip(clamped_index_bbox);
-    });
-  }
-  else {  // Index Space
-    const openvdb::CoordBBox coord_bbox(openvdb::Coord(min_index.x, min_index.y, min_index.z),
-                                        openvdb::Coord(max_index.x, max_index.y, max_index.z));
-
-    bke::volume_grid::to_typed_grid(grid_base, [&](auto &typed_grid) {
-      const auto active_bbox = typed_grid.evalActiveVoxelBoundingBox();
-      if (active_bbox.empty()) {
-        return;
-      }
-
-      if (!active_bbox.hasOverlap(coord_bbox)) {
-        typed_grid.clear();
-        return;
-      }
-
-      if (coord_bbox.isInside(active_bbox)) {
-        return;
-      }
-
-      const openvdb::CoordBBox clamped_bbox(
-          openvdb::Coord(std::max(coord_bbox.min().x(), active_bbox.min().x()),
-                         std::max(coord_bbox.min().y(), active_bbox.min().y()),
-                         std::max(coord_bbox.min().z(), active_bbox.min().z())),
-          openvdb::Coord(std::min(coord_bbox.max().x(), active_bbox.max().x()),
-                         std::min(coord_bbox.max().y(), active_bbox.max().y()),
-                         std::min(coord_bbox.max().z(), active_bbox.max().z())));
-
-      typed_grid.clip(clamped_bbox);
-    });
-  }
+  bke::volume_grid::to_typed_grid(grid_base, [&](auto &typed_grid) {
+    auto active_bbox = typed_grid.evalActiveVoxelBoundingBox();
+    if (active_bbox.empty()) {
+      return;
+    }
+    active_bbox.intersect(coord_bbox);
+    typed_grid.clip(active_bbox);
+  });
 
   params.set_output("Grid", std::move(grid));
 #else
@@ -272,7 +159,7 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeGridClip");
   ntype.ui_name = "Clip Grid";
   ntype.ui_description =
-      "Clip a grid using a bounding box in either world or index space. Voxels outside the "
+      "Clip a grid using minimum and maximum index values. Voxels outside the "
       "bounding box are deactivated and set to the background value.";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
