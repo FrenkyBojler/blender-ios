@@ -4019,21 +4019,15 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
 {
   bContext *xr_C = WM_xr_session_context_get(&wm->xr);
   ScrArea *xr_area = CTX_wm_area(xr_C);
+  ARegion *xr_region = CTX_wm_region(xr_C);
+
   if (!xr_area) {
     return;
   }
   BLI_assert(xr_area->spacetype == SPACE_VIEW3D && xr_area->spacedata.first);
 
-  /* Find a valid region for XR operator execution and modal handling. */
-  ARegion *region = BKE_area_find_region_type(xr_area, RGN_TYPE_WINDOW);
-  if (!region) {
-    return;
-  }
-
   /* For operators using GPU-based selection. */
-  BLI_assert(WM_region_use_viewport(xr_area, region));
-
-  CTX_wm_region_set(xr_C, region);
+  BLI_assert(WM_region_use_viewport(xr_area, xr_region));
 
   ListBaseT<wmEventHandler> *modalhandlers = &win->runtime->modalhandlers;
 
@@ -4049,7 +4043,7 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
     if (handler_base.type == WM_HANDLER_TYPE_OP) {
       BLI_assert((handler_base.flag & WM_HANDLER_DO_FREE) == 0);
 
-      if (handler_base.poll != nullptr && !handler_base.poll(win, xr_area, region, event)) {
+      if (handler_base.poll != nullptr && !handler_base.poll(win, xr_area, xr_region, event)) {
         continue;
       }
 
@@ -4097,8 +4091,6 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
       }
     }
   }
-
-  CTX_wm_region_set(xr_C, nullptr);
 }
 #endif /* WITH_XR_OPENXR */
 

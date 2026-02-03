@@ -1178,7 +1178,7 @@ static void drw_callbacks_pre_scene(DRWContext &draw_ctx)
   GPU_matrix_projection_set(rv3d->winmat);
   GPU_matrix_set(rv3d->viewmat);
 
-  if (draw_ctx.evil_C) {
+  if (draw_ctx.evil_C && !(draw_ctx.v3d->flag & V3D_XR_SESSION_SURFACE)) {
     draw::command::StateSet::set();
     DRW_submission_start();
     ED_region_draw_cb_draw(draw_ctx.evil_C, draw_ctx.region, REGION_DRAW_PRE_VIEW);

@@ -1316,7 +1316,12 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
       /* Ensure an XR area exists for events. */
       bContext *xr_C = WM_xr_session_context_get(xr);
       if (!CTX_wm_area(xr_C)) {
-        CTX_wm_area_set(xr_C, ED_area_offscreen_create(win, SPACE_VIEW3D));
+        ScrArea *xr_area = ED_area_offscreen_create(win, SPACE_VIEW3D);
+        CTX_wm_area_set(xr_C, xr_area);
+
+        /* Find a valid region for XR operator execution and modal handling. */
+        ARegion *xr_region = BKE_area_find_region_type(xr_area, RGN_TYPE_WINDOW);
+        CTX_wm_region_set(xr_C, xr_region);
       }
 
       /* Set XR area object type flags for operators. */
