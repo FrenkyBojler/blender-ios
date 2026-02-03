@@ -870,10 +870,9 @@ class ReplaceAction(unittest.TestCase):
         self.assertEqual(self.obj_animated.animation_data.action, self.initial_action)
 
         bpy.ops.anim.replace_action_new(
-            old_session_uid=self.initial_action.session_uid,
-            new_action_name="new_test_action")
+            old_session_uid=self.initial_action.session_uid)
 
-        new_action = bpy.data.actions["new_test_action"]
+        new_action = bpy.data.actions["Action"]
         self.assertEqual(self.obj_animated.animation_data.action, new_action)
         self.assertEqual(self.obj_no_slot_after.animation_data.action, new_action)
         self.assertEqual(self.obj_no_slot_before.animation_data.action, new_action)
