@@ -20,6 +20,7 @@ set(SRC
   intern/colormanagement.cc
   intern/colormanagement_inline.h
   intern/conversion.cc
+  intern/deep.cc
   intern/filetype.cc
   intern/filter.cc
   intern/format_bmp.cc

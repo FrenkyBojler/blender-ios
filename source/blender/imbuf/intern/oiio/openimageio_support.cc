@@ -5,6 +5,7 @@
 #include "openimageio_support.hh"
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/imagebufalgo.h>
+#include <OpenImageIO/deepdata.h>
 
 #include <algorithm>
 
@@ -174,12 +175,189 @@ static void set_file_colorspace(ImFileColorSpace &r_colorspace,
   }
 }
 
+/* Convert OpenImageIO DeepData to ImBufDeepBuffer */
+static bool convert_oiio_deep_to_imbuf(const DeepData &deepdata,
+                                       ImBufDeepBuffer &deep_buffer,
+                                       int width,
+                                       int height)
+{
+  const int pixel_count = width * height;
+  const int nchannels = deepdata.channels();
+
+  if (nchannels < 1) {
+    CLOG_ERROR(&LOG_READ, "Deep image has no channels");
+    return false;
+  }
+
+  /* Find the Z channel index - search through channel names */
+  int z_channel = -1;
+  for (int c = 0; c < nchannels; c++) {
+    std::string channel_name = deepdata.channelname(c);
+    if (channel_name == "Z") {
+      z_channel = c;
+      break;
+    }
+  }
+
+  if (z_channel < 0) {
+    CLOG_ERROR(&LOG_READ, "Deep image missing Z channel");
+    return false;
+  }
+
+  /* Allocate sample_counts */
+  deep_buffer.sample_counts.resize(pixel_count);
+
+  /* Copy sample counts and calculate total */
+  int total_samples = 0;
+  for (int i = 0; i < pixel_count; i++) {
+    int count = deepdata.samples(i);
+    deep_buffer.sample_counts[i] = count;
+    total_samples += count;
+  }
+
+  /* Build sample_offsets (prefix sum) */
+  deep_buffer.sample_offsets.resize(pixel_count + 1);
+  deep_buffer.sample_offsets[0] = 0;
+  for (int i = 0; i < pixel_count; i++) {
+    deep_buffer.sample_offsets[i + 1] = deep_buffer.sample_offsets[i] +
+                                        deep_buffer.sample_counts[i];
+  }
+
+  /* Allocate depths array */
+  deep_buffer.depths.resize(total_samples);
+
+  /* Copy depth values */
+  for (int pixel = 0; pixel < pixel_count; pixel++) {
+    int sample_start = deep_buffer.sample_offsets[pixel];
+    int num_samples = deep_buffer.sample_counts[pixel];
+
+    for (int s = 0; s < num_samples; s++) {
+      deep_buffer.depths[sample_start + s] = deepdata.deep_value(pixel, z_channel, s);
+    }
+  }
+
+  /* Determine non-Z channels to copy */
+  deep_buffer.channels_per_sample = nchannels - 1; /* Exclude Z */
+  deep_buffer.channel_data.resize(total_samples * deep_buffer.channels_per_sample);
+  deep_buffer.channel_names.clear();
+
+  /* Copy channel names and data (skip Z channel) */
+  int channel_idx = 0;
+  for (int c = 0; c < nchannels; c++) {
+    if (c == z_channel) {
+      continue; /* Skip Z, it's in depths array */
+    }
+
+    deep_buffer.channel_names.append(deepdata.channelname(c));
+
+    /* Copy this channel's data for all samples */
+    for (int pixel = 0; pixel < pixel_count; pixel++) {
+      int sample_start = deep_buffer.sample_offsets[pixel];
+      int num_samples = deep_buffer.sample_counts[pixel];
+
+      for (int s = 0; s < num_samples; s++) {
+        int data_idx = (sample_start + s) * deep_buffer.channels_per_sample + channel_idx;
+        deep_buffer.channel_data[data_idx] = deepdata.deep_value(pixel, c, s);
+      }
+    }
+    channel_idx++;
+  }
+
+  return true;
+}
+
+/* Load a deep EXR image into an ImBuf with deep_buffer populated */
+static ImBuf *load_deep_image(ImageInput *in,
+                              const ReadContext &ctx,
+                              ImFileColorSpace &r_colorspace)
+{
+  const ImageSpec &spec = in->spec();
+  const int width = spec.width;
+  const int height = spec.height;
+
+  /* Allocate ImBuf (no pixel data, only metadata) */
+  ImBuf *ibuf = IMB_allocImBuf(width, height, 32, 0);
+  if (!ibuf) {
+    return nullptr;
+  }
+
+  /* Skip actual data loading during test phase */
+  if (ctx.flags & IB_test) {
+    ibuf->flags |= IB_deep_data;
+    ibuf->ftype = ctx.file_type;
+    set_file_colorspace(r_colorspace, ctx, spec, true);
+    return ibuf;
+  }
+
+  /* Read deep data from OIIO */
+  DeepData deepdata;
+  if (!in->read_native_deep_image(0,0, deepdata)) {
+    CLOG_ERROR(&LOG_READ, "Failed to read deep image: %s", in->geterror().c_str());
+    IMB_freeImBuf(ibuf);
+    return nullptr;
+  }
+
+  /* Convert OIIO DeepData to ImBufDeepBuffer */
+  if (!convert_oiio_deep_to_imbuf(deepdata, ibuf->deep_buffer, width, height)) {
+    IMB_freeImBuf(ibuf);
+    return nullptr;
+  }
+
+  /* Set flags and metadata */
+  ibuf->flags |= IB_deep_data;
+  ibuf->ftype = ctx.file_type;
+  ibuf->foptions.flag |= (spec.format == TypeDesc::HALF) ? OPENEXR_HALF : 0;
+
+  set_file_colorspace(r_colorspace, ctx, spec, true);
+
+  /* Copy resolution metadata */
+  double x_res = spec.get_float_attribute("XResolution", 0.0f);
+  double y_res = spec.get_float_attribute("YResolution", 0.0f);
+  if (!(x_res > 0.0f && y_res > 0.0f)) {
+    x_res = spec.get_int_attribute("XResolution", 0);
+    y_res = spec.get_int_attribute("YResolution", 0);
+  }
+
+  if (x_res > 0.0f && y_res > 0.0f) {
+    double scale = 1.0;
+    auto unit = spec.get_string_attribute("ResolutionUnit", "");
+    if (ELEM(unit, "in", "inch")) {
+      scale = 100.0 / 2.54;
+    }
+    else if (unit == "cm") {
+      scale = 100.0;
+    }
+    ibuf->ppm[0] = scale * x_res;
+    ibuf->ppm[1] = scale * y_res;
+  }
+
+  /* Transfer metadata if requested */
+  if (ctx.flags & IB_metadata) {
+    IMB_metadata_ensure(&ibuf->metadata);
+    ibuf->flags |= spec.extra_attribs.empty() ? 0 : IB_metadata;
+
+    for (const auto &attrib : spec.extra_attribs) {
+      if (attrib.name().find("ICCProfile") != string::npos) {
+        continue;
+      }
+      IMB_metadata_set_field(ibuf->metadata, attrib.name().c_str(), attrib.get_string().c_str());
+    }
+  }
+
+  return ibuf;
+}
+
 /**
  * Get an #ImBuf filled in with pixel data and associated metadata using the provided ImageInput.
  */
 static ImBuf *get_oiio_ibuf(ImageInput *in, const ReadContext &ctx, ImFileColorSpace &r_colorspace)
 {
   const ImageSpec &spec = in->spec();
+
+  if (spec.deep) {
+    return load_deep_image(in, ctx, r_colorspace);
+  }
+
   const int width = spec.width;
   const int height = spec.height;
   const bool has_alpha = spec.alpha_channel != -1;

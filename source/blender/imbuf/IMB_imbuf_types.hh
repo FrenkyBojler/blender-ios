@@ -14,6 +14,7 @@
 #include "DNA_vec_types.h" /* for rcti */
 
 #include "IMB_imbuf_enums.h"
+#include "BLI_vector.hh"
 
 namespace blender {
 
@@ -82,6 +83,39 @@ struct ImbFormatOptions {
 };
 
 /* -------------------------------------------------------------------- */
+/** \name Deep Pixel Samples
+ * \brief
+ * \{ */
+
+struct ImBufDeepBuffer {
+  /** Number of samples per pixel (size = width * height). */
+  blender::Vector<int> sample_counts;
+
+  /** Cumulative sample offsets for O(1) pixel access (size = width * height + 1).
+   * sample_offsets[i] = sum of sample_counts[0..i-1]
+   * sample_offsets[0] = 0
+   * sample_offsets[pixel] gives the start index in depths/channel_data arrays.
+   * The last entry equals the total number of samples. */
+  blender::Vector<int> sample_offsets;
+
+  /** Depth values for all samples.
+   * Size = total_samples (sum of all sample_counts).
+   * depths[i] is the Z depth for sample i. */
+  blender::Vector<float> depths;
+
+  /** Channel data for all samples (size = total_samples * channels_per_sample).
+   * For sample i, channels start at: channel_data[i * channels_per_sample]
+   * Example: For RGBA, sample 0 = [R0,G0,B0,A0], sample 1 = [R1,G1,B1,A1], etc. */
+  blender::Vector<float> channel_data;
+
+  /** Number of channels per sample (e.g., 4 for RGBA) */
+  int channels_per_sample = 0;
+
+  /** Channel names (e.g., "R", "G", "B", "A") */
+  blender::Vector<std::string> channel_names;
+};
+
+/* -------------------------------------------------------------------- */
 /** \name ImBuf Component flags
  * \brief These flags determine the components of an ImBuf struct.
  * \{ */
@@ -115,6 +149,8 @@ enum eImBufFlags {
    * The image contains display window information. See ImbBuf.display_size and other members for
    * more information. */
   IB_has_display_window = 1 << 17,
+  /** Contains deep pixel data */
+  IB_deep_data = 1 << 18,
 };
 
 /** \} */
@@ -244,6 +280,9 @@ struct ImBuf {
    * \note Formats that support higher more than 8 but channels load as floats.
    */
   ImBufFloatBuffer float_buffer;
+
+  /** Deep image pixel buffer (for OpenEXR deep images via OpenImageIO) */
+  ImBufDeepBuffer deep_buffer;
 
   /** Image buffer on the GPU. */
   ImBufGPU gpu;
