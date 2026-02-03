@@ -718,6 +718,13 @@ if(TEST_SRC_DIR_EXISTS)
     --
     --testdir "${TEST_SRC_DIR}/node_group"
   )
+
+  add_blender_test(
+    bl_node_link_drag
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_link_drag.py
+    --
+    --testdir "${TEST_SRC_DIR}/node_group"
+  )
 endif()
 
 # ------------------------------------------------------------------------------
@@ -1445,8 +1452,12 @@ if(WITH_UI_TESTS)
   # list explicitly so changes bisecting/updated are sure to re-run CMake.
   set(_ui_tests
     test_sculpt.asset_shelf_brush_selection
-    test_sculpt.mask_expand_and_invert
     test_sculpt.face_set_expand
+    test_sculpt.face_set_gestures
+    test_sculpt.hide_gestures
+    test_sculpt.mask_expand_and_invert
+    test_sculpt.mask_gestures
+    test_sculpt.trim_gestures
     test_tools.sculpt_mode_toolbar
     test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix
