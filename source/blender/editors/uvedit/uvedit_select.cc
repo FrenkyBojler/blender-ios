@@ -65,6 +65,12 @@
 
 namespace blender {
 
+enum class UVDelimitMode : int {
+  SEAM = 1,
+  SHARP = 2,
+  MATERIAL = 4,
+};
+
 static void uv_select_all_perform_multi_ex(const Scene *scene,
                                            Span<Object *> objects,
                                            int action,
@@ -2532,7 +2538,7 @@ static void uv_select_linked_multi(const Scene *scene,
                                    bool deselect,
                                    const bool toggle,
                                    const bool select_faces,
-                                   const bool delimit_seams,
+                                   const int delimit_mode,
                                    const char hflag)
 {
   if (select_faces) {
@@ -2668,7 +2674,11 @@ static void uv_select_linked_multi(const Scene *scene,
       efa = BM_face_at_index(bm, a);
 
       blender::VectorSet<BMEdge *> edges;
-      if (delimit_seams) {
+      if (ELEM(delimit_mode,
+               int(UVDelimitMode::SEAM),
+               int(UVDelimitMode::SHARP),
+               int(UVDelimitMode::MATERIAL)))
+      {
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           edges.add(l->e);
         }
@@ -2695,21 +2705,45 @@ static void uv_select_linked_multi(const Scene *scene,
           }
 
           if (!flag[iterv->face_index]) {
-            if (delimit_seams) {
+            if (ELEM(delimit_mode,
+                     int(UVDelimitMode::SEAM),
+                     int(UVDelimitMode::SHARP),
+                     int(UVDelimitMode::MATERIAL)))
+            {
               BMFace *iterv_f = BM_face_at_index(bm, iterv->face_index);
-              bool shares_non_seam_edge = false;
+              bool shares_valid_edge = false;
               BMLoop *iterv_l;
               BMIter iterv_iter;
               BM_ITER_ELEM (iterv_l, &iterv_iter, iterv_f, BM_LOOPS_OF_FACE) {
                 if (edges.contains(iterv_l->e)) {
-                  if (!BM_elem_flag_test(iterv_l->e, BM_ELEM_SEAM)) {
-                    shares_non_seam_edge = true;
+                  bool edge_valid = true;
+
+                  if (delimit_mode & int(UVDelimitMode::SEAM) &&
+                      BM_elem_flag_test(iterv_l->e, BM_ELEM_SEAM))
+                  {
+                    edge_valid = false;
+                  }
+
+                  if (delimit_mode & int(UVDelimitMode::SHARP) &&
+                      !BM_elem_flag_test(iterv_l->e, BM_ELEM_SMOOTH))
+                  {
+                    edge_valid = false;
+                  }
+
+                  if (delimit_mode & int(UVDelimitMode::MATERIAL) &&
+                      efa->mat_nr != iterv_f->mat_nr)
+                  {
+                    edge_valid = false;
+                  }
+
+                  if (edge_valid) {
+                    shares_valid_edge = true;
                     break;
                   }
                 }
               }
 
-              if (!shares_non_seam_edge) {
+              if (!shares_valid_edge) {
                 continue;
               }
             }
@@ -2864,8 +2898,7 @@ static void uv_select_linked_multi_for_select_island(const Scene *scene,
   UvNearestHit hit = {};
   hit.ob = obedit;
   hit.efa = efa;
-  uv_select_linked_multi(
-      scene, objects, &hit, extend, deselect, toggle, select_faces, false, hflag);
+  uv_select_linked_multi(scene, objects, &hit, extend, deselect, toggle, select_faces, 0, hflag);
 }
 
 const float *uvedit_first_selected_uv_from_vertex(Scene *scene,
@@ -3576,7 +3609,7 @@ static bool uv_mouse_select_multi(bContext *C,
       /* Current behavior of 'extend'
        * is actually toggling, so pass extend flag as 'toggle' here */
       uv_select_linked_multi(
-          scene, objects, &hit, extend, deselect, toggle, false, false, BM_ELEM_SELECT);
+          scene, objects, &hit, extend, deselect, toggle, false, 0, BM_ELEM_SELECT);
       /* TODO: check if this actually changed. */
       changed = true;
     }
@@ -4005,15 +4038,14 @@ static wmOperatorStatus uv_select_linked_internal(bContext *C,
   bool deselect = false;
   bool select_faces = (ts->uv_flag & UV_FLAG_SELECT_SYNC) && (ts->selectmode & SCE_SELECT_FACE) &&
                       (ts->uv_sticky == UV_STICKY_VERT);
-  bool delimit_seams;
   UvNearestHit hit = region ? uv_nearest_hit_init_max(&region->v2d) :
                               uv_nearest_hit_init_max_default();
 
   if (pick) {
     extend = RNA_boolean_get(op->ptr, "extend");
     deselect = RNA_boolean_get(op->ptr, "deselect");
-    delimit_seams = RNA_boolean_get(op->ptr, "delimit_seams");
   }
+  int delimit_mode = RNA_enum_get(op->ptr, "delimit");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -4047,7 +4079,7 @@ static wmOperatorStatus uv_select_linked_internal(bContext *C,
                          deselect,
                          false,
                          select_faces,
-                         delimit_seams,
+                         delimit_mode,
                          BM_ELEM_SELECT);
 
   if (pick) {
@@ -4071,6 +4103,12 @@ static wmOperatorStatus uv_select_linked_exec(bContext *C, wmOperator *op)
 
 void UV_OT_select_linked(wmOperatorType *ot)
 {
+  static const EnumPropertyItem delimit_mode_items[] = {
+      {int(UVDelimitMode::SEAM), "SEAM", 0, "Seam", "Delimit by edge seams"},
+      {int(UVDelimitMode::SHARP), "SHARP", 0, "Sharp", "Delimit by sharp edges"},
+      {int(UVDelimitMode::MATERIAL), "MATERIAL", 0, "Material", "Delimit by face material"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
   /* identifiers */
   ot->name = "Select Linked";
   ot->description = "Select all UV vertices linked to the active UV map";
@@ -4082,6 +4120,15 @@ void UV_OT_select_linked(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  PropertyRNA *prop;
+  prop = RNA_def_enum_flag(ot->srna,
+                           "delimit",
+                           delimit_mode_items,
+                           0,
+                           "Delimit",
+                           "Delimit selection when selecting linked UVs");
 }
 
 /** \} */
@@ -4104,6 +4151,13 @@ static wmOperatorStatus uv_select_linked_pick_exec(bContext *C, wmOperator *op)
 
 void UV_OT_select_linked_pick(wmOperatorType *ot)
 {
+  static const EnumPropertyItem delimit_mode_items[] = {
+      {int(UVDelimitMode::SEAM), "SEAM", 0, "Seam", "Delimit by edge seams"},
+      {int(UVDelimitMode::SHARP), "SHARP", 0, "Sharp", "Delimit by sharp edges"},
+      {int(UVDelimitMode::MATERIAL), "MATERIAL", 0, "Material", "Delimit by face material"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   /* identifiers */
   ot->name = "Select Linked Pick";
   ot->description = "Select all UV vertices linked under the mouse";
@@ -4131,11 +4185,12 @@ void UV_OT_select_linked_pick(wmOperatorType *ot)
                          "Deselect",
                          "Deselect linked UV vertices rather than selecting them");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-  prop = RNA_def_boolean(ot->srna,
-                         "delimit_seams",
-                         false,
-                         "Delimit Seams",
-                         "Delimit seams when selecting linked UVs");
+  prop = RNA_def_enum_flag(ot->srna,
+                           "delimit",
+                           delimit_mode_items,
+                           0,
+                           "Delimit",
+                           "Delimit selection when selecting linked UVs");
   prop = RNA_def_float_vector(
       ot->srna,
       "location",
