@@ -402,7 +402,7 @@ static void threaded_copy(const GVArray &src, GMutableSpan dst)
   BLI_assert(src.size() == dst.size());
   BLI_assert(src.type() == dst.type());
   threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
-    src.materialize_to_uninitialized(range, dst.slice(range).data());
+    src.materialize_compressed_to_uninitialized(range, dst.slice(range).data());
   });
 }
 
