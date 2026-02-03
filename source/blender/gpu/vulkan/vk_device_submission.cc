@@ -48,6 +48,7 @@ struct VKRenderGraphSubmitTask {
 TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_graph,
                                             VKDiscardPool &context_discard_pool,
                                             bool submit_to_device,
+                                            bool wait_for_submission,
                                             bool wait_for_completion,
                                             VkPipelineStageFlags wait_dst_stage_mask,
                                             VkSemaphore wait_semaphore,
@@ -61,6 +62,16 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
     return timeline_value_;
   }
 
+  /* Syncing input flags. */
+  /* When we wait for completion/submission we must submit to device. */
+  submit_to_device |= wait_for_completion;
+  submit_to_device |= wait_for_submission;
+  /* We need to wait for submission when a signal semaphore is present, otherwise the semaphore
+   * could be in an invalid state it is being waited for, but not have been submitted. */
+  wait_for_submission |= signal_semaphore != VK_NULL_HANDLE;
+  /* We don't need to wait for submission when waiting for completion. */
+  wait_for_submission &= !wait_for_completion;
+
   VKRenderGraphSubmitTask *submit_task = MEM_new<VKRenderGraphSubmitTask>(__func__);
   submit_task->render_graph = render_graph;
   submit_task->submit_to_device = submit_to_device;
@@ -70,9 +81,6 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
   submit_task->signal_fence = signal_fence;
   submit_task->wait_for_submission = nullptr;
 
-  /* We need to wait for submission as otherwise the signal semaphore can still not be in an
-   * initial state. */
-  const bool wait_for_submission = signal_semaphore != VK_NULL_HANDLE && !wait_for_completion;
   VKRenderGraphWait wait_condition{};
   if (wait_for_submission) {
     submit_task->wait_for_submission = &wait_condition;
@@ -157,6 +165,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
   submit_infos.reserve(2);
   std::optional<render_graph::VKCommandBufferWrapper> command_buffer;
   uint64_t previous_gc_timeline = 0;
+  uint64_t num_nodes = 0;
 
   CLOG_TRACE(&LOG, "Submission runner initialized");
   while (!BLI_task_pool_current_canceled(pool)) {
@@ -216,6 +225,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
       command_builder.build_nodes(render_graph, *command_buffer, node_handles);
     }
     command_builder.record_commands(render_graph, *command_buffer, node_handles);
+    num_nodes += node_handles.size();
 
     if (submit_task->submit_to_device) {
       /* Create submit infos for previous command buffers. */
@@ -260,6 +270,13 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
                                      signal_semaphore_len,
                                      signal_semaphores};
       submit_infos.append(vk_submit_info);
+
+      CLOG_TRACE(&LOG,
+                 "Submitting %u render graph nodes in %u command buffers using %u submit infos.",
+                 uint32_t(num_nodes),
+                 uint32_t(unsubmitted_command_buffers.size()),
+                 uint32_t(submit_infos.size()));
+      num_nodes = 0;
 
       {
         std::scoped_lock lock_queue(*device->queue_mutex_);

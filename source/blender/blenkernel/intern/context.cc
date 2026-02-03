@@ -113,13 +113,13 @@ struct bContext {
 
 bContext *CTX_create()
 {
-  bContext *C = MEM_callocN<bContext>(__func__);
+  bContext *C = MEM_new_zeroed<bContext>(__func__);
   return C;
 }
 
 bContext *CTX_copy(const bContext *C)
 {
-  bContext *newC = MEM_callocN<bContext>(__func__);
+  bContext *newC = MEM_new_zeroed<bContext>(__func__);
   *newC = *C;
 
   memset(&newC->wm.operator_poll_msg_dyn_params, 0, sizeof(newC->wm.operator_poll_msg_dyn_params));
@@ -132,7 +132,7 @@ void CTX_free(bContext *C)
   /* This may contain a dynamically allocated message, free. */
   CTX_wm_operator_poll_msg_clear(C);
 
-  MEM_freeN(C);
+  MEM_delete(C);
 }
 
 /* store */
@@ -317,7 +317,7 @@ static std::string ctx_result_brief_repr(const bContextDataResult &result)
             if (name && name[0] != '\0') {
               member_name = name;
               if (name != name_buf) {
-                MEM_freeN(name);
+                MEM_delete(name);
               }
             }
           }
@@ -385,7 +385,7 @@ static void ctx_member_log_access(const bContext *C,
                                   const eContextResult lookup_result)
 {
   const bool use_logging = CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE) ||
-                           (C && CTX_member_logging_get(C));
+                           CTX_member_logging_get(C);
 
   if (!use_logging) {
     return;
@@ -404,7 +404,7 @@ static void ctx_member_log_access(const bContext *C,
 #ifdef WITH_PYTHON
   /* Get current Python location if available and Python is properly initialized. */
   std::optional<std::string> python_location;
-  if (C && CTX_py_init_get(C)) {
+  if (CTX_py_init_get(C)) {
     python_location = BPY_python_current_file_and_line();
   }
   const char *location = python_location ? python_location->c_str() : "unknown:0";
@@ -417,7 +417,7 @@ static void ctx_member_log_access(const bContext *C,
   if (CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE)) {
     CLOG_TRACE(BKE_LOG_CONTEXT, format, location, member, value_desc);
   }
-  else if (C && CTX_member_logging_get(C)) {
+  else if (CTX_member_logging_get(C)) {
     /* Force output at TRACE level even if not enabled via command line. */
     CLOG_AT_LEVEL_NOCHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE, format, location, member, value_desc);
   }
@@ -432,7 +432,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
   bool found_member = false;
 
 #ifdef WITH_PYTHON
-  if (UNLIKELY(C && CTX_py_dict_get(C))) {
+  if (UNLIKELY(CTX_py_dict_get(C))) {
     bContextDataResult result{};
     if (BPY_context_member_get(const_cast<bContext *>(C), member, &result)) {
       found_member = true;
@@ -578,7 +578,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
 static void *ctx_data_pointer_get(const bContext *C, const char *member)
 {
   bContextDataResult result;
-  if (C && ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
+  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
     BLI_assert(result.type == ContextDataType::Pointer);
     return result.ptr.data;
   }
@@ -588,12 +588,6 @@ static void *ctx_data_pointer_get(const bContext *C, const char *member)
 
 static bool ctx_data_pointer_verify(const bContext *C, const char *member, void **pointer)
 {
-  /* if context is nullptr, pointer must be nullptr too and that is a valid return */
-  if (C == nullptr) {
-    *pointer = nullptr;
-    return true;
-  }
-
   bContextDataResult result;
   if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
     BLI_assert(result.type == ContextDataType::Pointer);
@@ -644,7 +638,7 @@ static bool ctx_data_base_collection_get(const bContext *C,
     Object *ob = static_cast<Object *>(ctx_object.data);
     Base *base = BKE_view_layer_base_find(view_layer, ob);
     if (base != nullptr) {
-      CTX_data_list_add(&result, &scene->id, &RNA_ObjectBase, base);
+      CTX_data_list_add(&result, &scene->id, RNA_ObjectBase, base);
       ok = true;
     }
   }
@@ -780,7 +774,7 @@ static void data_dir_add(ListBaseT<LinkData> *lb, const char *member, const bool
     return;
   }
 
-  link = MEM_callocN<LinkData>(__func__);
+  link = MEM_new_zeroed<LinkData>(__func__);
   link->data = const_cast<char *>(member);
   BLI_addtail(lb, link);
 }
@@ -805,7 +799,7 @@ ListBaseT<LinkData> CTX_data_dir_get_ex(const bContext *C,
 
     PropertyRNA *iterprop;
     PointerRNA ctx_ptr = RNA_pointer_create_discrete(
-        nullptr, &RNA_Context, const_cast<bContext *>(C));
+        nullptr, RNA_Context, const_cast<bContext *>(C));
 
     iterprop = RNA_struct_iterator_property(ctx_ptr.type);
 
@@ -813,7 +807,7 @@ ListBaseT<LinkData> CTX_data_dir_get_ex(const bContext *C,
       name = RNA_struct_name_get_alloc(&itemptr, name_buf, sizeof(name_buf), &namelen);
       data_dir_add(&lb, name, use_all);
       if (name != name_buf) {
-        MEM_freeN(name);
+        MEM_delete(name);
       }
     }
     RNA_PROP_END;
@@ -944,24 +938,23 @@ bool CTX_wm_interface_locked(const bContext *C)
 
 wmWindow *CTX_wm_window(const bContext *C)
 {
-  return static_cast<wmWindow *>(
-      ctx_wm_python_context_get(C, "window", &RNA_Window, C->wm.window));
+  return static_cast<wmWindow *>(ctx_wm_python_context_get(C, "window", RNA_Window, C->wm.window));
 }
 
 WorkSpace *CTX_wm_workspace(const bContext *C)
 {
   return static_cast<WorkSpace *>(
-      ctx_wm_python_context_get(C, "workspace", &RNA_WorkSpace, C->wm.workspace));
+      ctx_wm_python_context_get(C, "workspace", RNA_WorkSpace, C->wm.workspace));
 }
 
 bScreen *CTX_wm_screen(const bContext *C)
 {
-  return static_cast<bScreen *>(ctx_wm_python_context_get(C, "screen", &RNA_Screen, C->wm.screen));
+  return static_cast<bScreen *>(ctx_wm_python_context_get(C, "screen", RNA_Screen, C->wm.screen));
 }
 
 ScrArea *CTX_wm_area(const bContext *C)
 {
-  return static_cast<ScrArea *>(ctx_wm_python_context_get(C, "area", &RNA_Area, C->wm.area));
+  return static_cast<ScrArea *>(ctx_wm_python_context_get(C, "area", RNA_Area, C->wm.area));
 }
 
 SpaceLink *CTX_wm_space_data(const bContext *C)
@@ -972,7 +965,7 @@ SpaceLink *CTX_wm_space_data(const bContext *C)
 
 ARegion *CTX_wm_region(const bContext *C)
 {
-  return static_cast<ARegion *>(ctx_wm_python_context_get(C, "region", &RNA_Region, C->wm.region));
+  return static_cast<ARegion *>(ctx_wm_python_context_get(C, "region", RNA_Region, C->wm.region));
 }
 
 void *CTX_wm_region_data(const bContext *C)
