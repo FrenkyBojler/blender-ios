@@ -2,9 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_lib_id.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_closure.hh"
+#include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_log.hh"
 
 #include "BLI_listbase.h"
@@ -18,6 +18,7 @@
 #include "BKE_curves.hh"
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -862,8 +863,9 @@ GeoTreeLogger &GeoNodesLog::get_local_tree_logger(const ComputeContext &compute_
     const std::optional<nodes::ClosureSourceLocation> &location =
         context->closure_source_location();
     if (location.has_value()) {
-      BLI_assert(DEG_is_evaluated(location->tree));
-      tree_logger.tree_orig_session_uid = DEG_get_original_id(&location->tree->id)->session_uid;
+      tree_logger.tree_orig_session_uid =
+          location->tree->runtime->self_geometry_nodes_lazy_function_graph_info
+              ->original_tree_session_uid;
     }
   }
   else if (const auto *context = dynamic_cast<const bke::ModifierComputeContext *>(
@@ -991,10 +993,10 @@ const ViewerNodeLog *GeoNodesLog::find_viewer_node_log_for_path(const ViewerPath
   }
   const Object *object = parsed_path->object;
   NodesModifierData *nmd = nullptr;
-  LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
-    if (md->persistent_uid == parsed_path->modifier_uid) {
-      if (md->type == eModifierType_Nodes) {
-        nmd = reinterpret_cast<NodesModifierData *>(md);
+  for (ModifierData &md : object->modifiers) {
+    if (md.persistent_uid == parsed_path->modifier_uid) {
+      if (md.type == eModifierType_Nodes) {
+        nmd = reinterpret_cast<NodesModifierData *>(&md);
       }
     }
   }
@@ -1007,7 +1009,10 @@ const ViewerNodeLog *GeoNodesLog::find_viewer_node_log_for_path(const ViewerPath
   nodes::geo_eval_log::GeoNodesLog *root_log = nmd->runtime->eval_log.get();
 
   bke::ComputeContextCache compute_context_cache;
-  const ComputeContext *compute_context = &compute_context_cache.for_modifier(nullptr, *nmd);
+  const ComputeContext *object_context = &compute_context_cache.for_data_block(
+      nullptr, parsed_path->object->id);
+  const ComputeContext *compute_context = &compute_context_cache.for_modifier(object_context,
+                                                                              *nmd);
   for (const ViewerPathElem *elem : parsed_path->node_path) {
     compute_context = ed::viewer_path::compute_context_for_viewer_path_elem(
         *elem, compute_context_cache, compute_context);

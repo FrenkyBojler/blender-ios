@@ -93,15 +93,13 @@ Object *GreasePencilImporter::create_object(const StringRefNull name)
                                      context_.v3d->local_view_uid :
                                      ushort(0);
 
-  Object *ob_gpencil = blender::ed::object::add_type(
+  Object *ob_gpencil = ed::object::add_type(
       &context_.C, OB_GREASE_PENCIL, name.c_str(), cur_loc, rot, false, local_view_bits);
 
   return ob_gpencil;
 }
 
-int GreasePencilImporter::create_material(const StringRefNull name,
-                                          const bool stroke,
-                                          const bool fill)
+int GreasePencilImporter::create_material(const StringRefNull name)
 {
   const ColorGeometry4f default_stroke_color = {0.0f, 0.0f, 0.0f, 1.0f};
   const ColorGeometry4f default_fill_color = {0.5f, 0.5f, 0.5f, 1.0f};
@@ -113,17 +111,9 @@ int GreasePencilImporter::create_material(const StringRefNull name,
     Material *mat_gp = BKE_grease_pencil_object_material_new(
         bmain, object_, name.c_str(), &new_idx);
     MaterialGPencilStyle *gp_style = mat_gp->gp_style;
-    gp_style->flag &= ~GP_MATERIAL_STROKE_SHOW;
-    gp_style->flag &= ~GP_MATERIAL_FILL_SHOW;
 
     copy_v4_v4(gp_style->stroke_rgba, default_stroke_color);
     copy_v4_v4(gp_style->fill_rgba, default_fill_color);
-    if (stroke) {
-      gp_style->flag |= GP_MATERIAL_STROKE_SHOW;
-    }
-    if (fill) {
-      gp_style->flag |= GP_MATERIAL_FILL_SHOW;
-    }
     mat_index = object_->totcol - 1;
   }
 
@@ -147,7 +137,7 @@ std::optional<Bounds<float2>> GreasePencilExporter::compute_screen_space_drawing
   std::optional<Bounds<float2>> drawing_bounds = std::nullopt;
 
   BLI_assert(object.type == OB_GREASE_PENCIL);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
 
   const Layer &layer = *grease_pencil.layers()[layer_index];
   const float4x4 layer_to_world = layer.to_world_space(object);
@@ -195,7 +185,7 @@ std::optional<Bounds<float2>> GreasePencilExporter::compute_objects_bounds(
 
   for (const ObjectInfo &info : objects) {
     Object *object_eval = DEG_get_evaluated(&depsgraph, info.object);
-    const GreasePencil &grease_pencil_eval = *static_cast<GreasePencil *>(object_eval->data);
+    const GreasePencil &grease_pencil_eval = *id_cast<GreasePencil *>(object_eval->data);
 
     for (const int layer_index : grease_pencil_eval.layers().index_range()) {
       const Layer &layer = *grease_pencil_eval.layers()[layer_index];
@@ -343,16 +333,16 @@ Vector<GreasePencilExporter::ObjectInfo> GreasePencilExporter::retrieve_objects(
       add_object(params_.object);
       break;
     case SelectMode::Selected:
-      LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-        if (base->flag & BASE_SELECTED) {
-          add_object(base->object);
+      for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+        if (base.flag & BASE_SELECTED) {
+          add_object(base.object);
         }
       }
       break;
     case SelectMode::Visible:
-      LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-        if ((base->flag & BASE_ENABLED_RENDER) != 0) {
-          add_object(base->object);
+      for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+        if ((base.flag & BASE_ENABLED_RENDER) != 0) {
+          add_object(base.object);
         }
       }
       break;
@@ -389,6 +379,10 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
       "start_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
   const VArray<int8_t> end_caps = *attributes.lookup_or_default<int8_t>(
       "end_cap", bke::AttrDomain::Curve, 0);
+  const VArray<bool> hide_stroke = *attributes.lookup_or_default<bool>(
+      "hide_stroke", bke::AttrDomain::Curve, false);
+  const VArray<int> fill_ids = *attributes.lookup_or_default<int>(
+      "fill_id", bke::AttrDomain::Curve, 0);
   /* Point attributes. */
   const Span<float3> positions = curves.positions();
   const Span<float3> positions_left = *curves.handle_positions_left();
@@ -424,11 +418,10 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
     if (material->gp_style->flag & GP_MATERIAL_HIDE) {
       continue;
     }
-    const bool is_stroke_material = (material->gp_style->flag & GP_MATERIAL_STROKE_SHOW);
-    const bool is_fill_material = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW);
+    const bool is_fill = fill_ids[i_curve] != 0;
 
     /* Fill. */
-    if (is_fill_material && params_.export_fill_materials) {
+    if (is_fill && params_.export_fill_materials) {
       const ColorGeometry4f material_fill_color = ColorGeometry4f(material->gp_style->fill_rgba);
       const ColorGeometry4f fill_color = math::interpolate(
           material_fill_color, fill_colors[i_curve], fill_colors[i_curve].a);
@@ -445,7 +438,7 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
     }
 
     /* Stroke. */
-    if (is_stroke_material && params_.export_stroke_materials) {
+    if (!hide_stroke[i_curve] && params_.export_stroke_materials) {
       const ColorGeometry4f stroke_color = compute_average_stroke_color(
           *material, vertex_colors.slice(points));
       const float stroke_opacity = compute_average_stroke_opacity(opacities.slice(points)) *

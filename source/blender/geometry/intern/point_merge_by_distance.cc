@@ -28,18 +28,18 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
 
   /* Create the KD tree based on only the selected points, to speed up merge detection and
    * balancing. */
-  KDTree_3d *tree = BLI_kdtree_3d_new(selection.size());
-  selection.foreach_index_optimized<int64_t>(
-      [&](const int64_t i, const int64_t pos) { BLI_kdtree_3d_insert(tree, pos, positions[i]); });
-  BLI_kdtree_3d_balance(tree);
+  KDTree_3d *tree = kdtree_3d_new(selection.size());
+  selection.foreach_index(
+      [&](const int64_t i, const int64_t pos) { kdtree_3d_insert(tree, pos, positions[i]); });
+  kdtree_3d_balance(tree);
 
   /* Find the duplicates in the KD tree. Because the tree only contains the selected points, the
    * resulting indices are indices into the selection, rather than indices of the source point
    * cloud. */
   Array<int> selection_merge_indices(selection.size(), -1);
-  const int duplicate_count = BLI_kdtree_3d_calc_duplicates_fast(
+  const int duplicate_count = kdtree_3d_calc_duplicates_fast(
       tree, merge_distance, false, selection_merge_indices.data());
-  BLI_kdtree_3d_free(tree);
+  kdtree_3d_free(tree);
 
   /* Create the new point cloud and add it to a temporary component for the attribute API. */
   const int dst_size = src_size - duplicate_count;
@@ -131,8 +131,7 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
     }
 
     bke::GAttributeReader src_attribute = src_attributes.lookup(id);
-    bke::attribute_math::convert_to_static_type(src_attribute.varray.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    bke::attribute_math::to_static_type(src_attribute.varray.type(), [&]<typename T>() {
       if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
         bke::SpanAttributeWriter<T> dst_attribute =
             dst_attributes.lookup_or_add_for_write_only_span<T>(id, bke::AttrDomain::Point);

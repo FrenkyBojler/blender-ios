@@ -259,7 +259,8 @@ void ShadowPipeline::sync()
   }
 }
 
-PassMain::Sub *ShadowPipeline::surface_material_add(::Material *material, GPUMaterial *gpumat)
+PassMain::Sub *ShadowPipeline::surface_material_add(blender::Material *material,
+                                                    GPUMaterial *gpumat)
 {
   PassMain::Sub *pass = (material->blend_flag & MA_BL_CULL_BACKFACE_SHADOW) ?
                             surface_single_sided_ps_ :
@@ -382,7 +383,7 @@ void ForwardPipeline::end_sync()
   inst_.pipelines.data.use_monochromatic_transmittance = !use_colored_transparency();
 }
 
-PassMain::Sub *ForwardPipeline::prepass_opaque_add(::Material *blender_mat,
+PassMain::Sub *ForwardPipeline::prepass_opaque_add(blender::Material *blender_mat,
                                                    GPUMaterial *gpumat,
                                                    bool has_motion)
 {
@@ -403,7 +404,8 @@ PassMain::Sub *ForwardPipeline::prepass_opaque_add(::Material *blender_mat,
   return &pass->sub(GPU_material_get_name(gpumat));
 }
 
-PassMain::Sub *ForwardPipeline::material_opaque_add(::Material *blender_mat, GPUMaterial *gpumat)
+PassMain::Sub *ForwardPipeline::material_opaque_add(blender::Material *blender_mat,
+                                                    GPUMaterial *gpumat)
 {
   BLI_assert_msg(GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT) == false,
                  "Forward Transparent should be registered directly without calling "
@@ -415,7 +417,7 @@ PassMain::Sub *ForwardPipeline::material_opaque_add(::Material *blender_mat, GPU
 }
 
 PassMain::Sub *ForwardPipeline::prepass_transparent_add(const Object *ob,
-                                                        ::Material *blender_mat,
+                                                        blender::Material *blender_mat,
                                                         GPUMaterial *gpumat)
 {
   if ((blender_mat->blend_flag & MA_BL_HIDE_BACKFACE) == 0) {
@@ -442,7 +444,7 @@ PassMain::Sub *ForwardPipeline::prepass_transparent_add(const Object *ob,
 }
 
 PassMain::Sub *ForwardPipeline::material_transparent_add(const Object *ob,
-                                                         ::Material *blender_mat,
+                                                         blender::Material *blender_mat,
                                                          GPUMaterial *gpumat)
 {
   DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_TRANSPARENCY |
@@ -529,6 +531,13 @@ void ForwardPipeline::render(View &view,
   transp_buffer_.acquire(extent, use_colored_transparency());
 
   if (!use_colored_transparency()) {
+    /* NOTE: When using Vulkan this triggers a (false positive) validation warning about writing to
+     * an attachment that isn't filled. The warning could be removed by adding dummy attachments,
+     * recompiling the shader, etc. But it is not worth the hassle.
+     *
+     * VUID: Undefined-Value-ShaderOutputNotConsumed-DynamicRendering
+     * MessageId: 0x46877e3e
+     */
     transparent_fb.ensure(GPU_ATTACHMENT_TEXTURE(depth_tx),
                           GPU_ATTACHMENT_TEXTURE(transp_buffer_.r_channel_tx));
   }
@@ -902,7 +911,7 @@ void DeferredLayer::end_sync(bool is_first_pass,
   }
 }
 
-PassMain::Sub *DeferredLayer::prepass_add(::Material *blender_mat,
+PassMain::Sub *DeferredLayer::prepass_add(blender::Material *blender_mat,
                                           GPUMaterial *gpumat,
                                           bool has_motion)
 {
@@ -915,7 +924,7 @@ PassMain::Sub *DeferredLayer::prepass_add(::Material *blender_mat,
   return &pass->sub(GPU_material_get_name(gpumat));
 }
 
-PassMain::Sub *DeferredLayer::material_add(::Material *blender_mat, GPUMaterial *gpumat)
+PassMain::Sub *DeferredLayer::material_add(blender::Material *blender_mat, GPUMaterial *gpumat)
 {
   eClosureBits closure_bits = shader_closure_bits_from_flag(gpumat);
   if (closure_bits == eClosureBits(0)) {
@@ -1111,7 +1120,7 @@ void DeferredPipeline::debug_draw(draw::View &view, gpu::FrameBuffer *combined_f
   inst.manager->submit(debug_draw_ps_, view);
 }
 
-PassMain::Sub *DeferredPipeline::prepass_add(::Material *blender_mat,
+PassMain::Sub *DeferredPipeline::prepass_add(blender::Material *blender_mat,
                                              GPUMaterial *gpumat,
                                              bool has_motion)
 {
@@ -1121,7 +1130,7 @@ PassMain::Sub *DeferredPipeline::prepass_add(::Material *blender_mat,
   return opaque_layer_.prepass_add(blender_mat, gpumat, has_motion);
 }
 
-PassMain::Sub *DeferredPipeline::material_add(::Material *blender_mat, GPUMaterial *gpumat)
+PassMain::Sub *DeferredPipeline::material_add(blender::Material *blender_mat, GPUMaterial *gpumat)
 {
   if (blender_mat->blend_flag & MA_BL_SS_REFRACTION) {
     return refraction_layer_.material_add(blender_mat, gpumat);
@@ -1207,7 +1216,7 @@ void VolumeLayer::sync()
 }
 
 PassMain::Sub *VolumeLayer::occupancy_add(const Object *ob,
-                                          const ::Material *blender_mat,
+                                          const blender::Material *blender_mat,
                                           GPUMaterial *gpumat)
 {
   BLI_assert_msg((ob->type == OB_VOLUME) || GPU_material_has_volume_output(gpumat),
@@ -1224,7 +1233,7 @@ PassMain::Sub *VolumeLayer::occupancy_add(const Object *ob,
 }
 
 PassMain::Sub *VolumeLayer::material_add(const Object *ob,
-                                         const ::Material * /*blender_mat*/,
+                                         const blender::Material * /*blender_mat*/,
                                          GPUMaterial *gpumat)
 {
   BLI_assert_msg((ob->type == OB_VOLUME) || GPU_material_has_volume_output(gpumat),
@@ -1436,7 +1445,8 @@ void DeferredProbePipeline::end_sync()
   }
 }
 
-PassMain::Sub *DeferredProbePipeline::prepass_add(::Material *blender_mat, GPUMaterial *gpumat)
+PassMain::Sub *DeferredProbePipeline::prepass_add(blender::Material *blender_mat,
+                                                  GPUMaterial *gpumat)
 {
   PassMain::Sub *pass = (blender_mat->blend_flag & MA_BL_CULL_BACKFACE) ?
                             opaque_layer_.prepass_single_sided_static_ps_ :
@@ -1445,7 +1455,8 @@ PassMain::Sub *DeferredProbePipeline::prepass_add(::Material *blender_mat, GPUMa
   return &pass->sub(GPU_material_get_name(gpumat));
 }
 
-PassMain::Sub *DeferredProbePipeline::material_add(::Material *blender_mat, GPUMaterial *gpumat)
+PassMain::Sub *DeferredProbePipeline::material_add(blender::Material *blender_mat,
+                                                   GPUMaterial *gpumat)
 {
   eClosureBits closure_bits = shader_closure_bits_from_flag(gpumat);
   if (closure_bits == eClosureBits(0)) {
@@ -1555,7 +1566,8 @@ void PlanarProbePipeline::end_sync()
   }
 }
 
-PassMain::Sub *PlanarProbePipeline::prepass_add(::Material *blender_mat, GPUMaterial *gpumat)
+PassMain::Sub *PlanarProbePipeline::prepass_add(blender::Material *blender_mat,
+                                                GPUMaterial *gpumat)
 {
   PassMain::Sub *pass = (blender_mat->blend_flag & MA_BL_CULL_BACKFACE) ?
                             prepass_single_sided_static_ps_ :
@@ -1563,7 +1575,8 @@ PassMain::Sub *PlanarProbePipeline::prepass_add(::Material *blender_mat, GPUMate
   return &pass->sub(GPU_material_get_name(gpumat));
 }
 
-PassMain::Sub *PlanarProbePipeline::material_add(::Material *blender_mat, GPUMaterial *gpumat)
+PassMain::Sub *PlanarProbePipeline::material_add(blender::Material *blender_mat,
+                                                 GPUMaterial *gpumat)
 {
   eClosureBits closure_bits = shader_closure_bits_from_flag(gpumat);
   if (closure_bits == eClosureBits(0)) {
@@ -1594,6 +1607,8 @@ void PlanarProbePipeline::render(View &view,
                                  int2 extent)
 {
   GPU_debug_group_begin("Planar.Capture");
+
+  radiance_behind_tx_ = dummy_black_;
 
   inst_.pipelines.data.ray_type = RAY_TYPE_GLOSSY;
   inst_.uniform_data.push_update();
@@ -1648,7 +1663,8 @@ void CapturePipeline::sync()
   surface_ps_.bind_resources(inst_.uniform_data);
 }
 
-PassMain::Sub *CapturePipeline::surface_material_add(::Material *blender_mat, GPUMaterial *gpumat)
+PassMain::Sub *CapturePipeline::surface_material_add(blender::Material *blender_mat,
+                                                     GPUMaterial *gpumat)
 {
   PassMain::Sub &sub_pass = surface_ps_.sub(GPU_material_get_name(gpumat));
   GPUPass *gpupass = GPU_material_get_pass(gpumat);
