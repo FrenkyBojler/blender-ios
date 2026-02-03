@@ -2454,8 +2454,14 @@ static ImBuf *imb_load_openexr_deep(IMemStream &membuf,
     return nullptr;
   }
 
-  /* Fill the float buffer with a flattened version. */
-  ibuf = flatten_deep_to_float(ibuf);
+  /* Flatten deep image to float buffer for display */
+  ImBuf *flattened_ibuf = flatten_deep_to_float(ibuf);
+
+  /* Free the original deep ibuf since we now have a flattened version */
+  IMB_freeImBuf(ibuf);
+
+  /* Use the flattened image from here on */
+  ibuf = flattened_ibuf;
 
   /* Check line order and flip if image is stored bottom-to-top */
   if (ibuf && header.lineOrder() == INCREASING_Y) {
