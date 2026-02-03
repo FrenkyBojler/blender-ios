@@ -1,2 +1,3 @@
 Referenced by issue #153513, Image Texture not displayed correctly when using Rec.2020
 Referenced by pull request #153816, Fix: Cycles standalone doesn't compile after recent colorspace changes
+Referenced by commit 78b1605861ddd7525f38e9fc1e95706be5683229, Fix: Cycles standalone doesn't compile after recent colorspace changes
