@@ -447,6 +447,11 @@ class AttributeIter {
   StringRefNull name;
   AttrDomain domain;
   AttrType data_type;
+  /**
+   * If the attribute is stored with a specific storage type, this is set (it's not set, for
+   * example, when an attribute is stored as a vertex group).
+   */
+  std::optional<AttrStorageType> storage_type;
   bool is_builtin = false;
   mutable const AttributeAccessor *accessor = nullptr;
 
@@ -945,6 +950,8 @@ struct AttributeTransferData {
 /**
  * Retrieve attribute arrays and writers for attributes that should be transferred between
  * data-blocks of the same type.
+ * \note Attributes stored as single values are immediately added to the result attributes and are
+ * not included as array references in the return value.
  */
 Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     const AttributeAccessor src_attributes,
