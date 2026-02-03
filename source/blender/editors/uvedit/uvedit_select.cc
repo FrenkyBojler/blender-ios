@@ -4054,7 +4054,6 @@ void UV_OT_select_linked_pick(wmOperatorType *ot)
                          false,
                          "Delimit Seams",
                          "Delimit seams when selecting linked UVs");
-  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_float_vector(
       ot->srna,
       "location",
