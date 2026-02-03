@@ -1548,7 +1548,7 @@ static void ANIM_OT_replace_action_new(wmOperatorType *ot)
   ot->prop = RNA_def_string(ot->srna,
                             "new_action_name",
                             "Action",
-                            0,
+                            MAX_ID_NAME - 2,
                             "New Action Name",
                             "The name of the newly created action");
 }
