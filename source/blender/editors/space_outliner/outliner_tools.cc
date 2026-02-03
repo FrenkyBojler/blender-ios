@@ -3525,7 +3525,6 @@ static wmOperatorStatus outliner_data_operation_exec(bContext *C, wmOperator *op
   switch (datalevel) {
     case TSE_POSE_CHANNEL: {
       outliner_do_data_operation(space_outliner, datalevel, event, pchan_fn, nullptr);
-      /* ND_BONE_SELECT should cover select, deselect, hide & unhide well. */
       WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, nullptr);
       ED_undo_push(C, "PoseChannel operation");
 
@@ -3533,7 +3532,6 @@ static wmOperatorStatus outliner_data_operation_exec(bContext *C, wmOperator *op
     }
     case TSE_BONE: {
       outliner_do_data_operation(space_outliner, datalevel, event, bone_fn, nullptr);
-      /* ND_BONE_SELECT should cover select, deselect, hide & unhide well. */
       WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, nullptr);
       ED_undo_push(C, "Bone operation");
 
@@ -3541,7 +3539,6 @@ static wmOperatorStatus outliner_data_operation_exec(bContext *C, wmOperator *op
     }
     case TSE_EBONE: {
       outliner_do_data_operation(space_outliner, datalevel, event, ebone_fn, nullptr);
-      /* ND_BONE_SELECT should cover select, deselect, hide & unhide well. */
       WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, nullptr);
       ED_undo_push(C, "EditBone operation");
 

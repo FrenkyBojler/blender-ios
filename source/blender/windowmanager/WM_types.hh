@@ -462,8 +462,14 @@ struct wmNotifier {
 /* NC_OBJECT Object. */
 #define ND_TRANSFORM (18 << 16)
 #define ND_OB_SHADING (19 << 16)
+/** For non-structural posemode changes like transforms. Note: renaming, selecting, bone
+ * collections have their own dedicated notifiers, also see #ND_BONE_SELECT. */
 #define ND_POSE (20 << 16)
 #define ND_BONE_ACTIVE (21 << 16)
+/** Not only for selection (in posemode and editmode), used for most editmode changes (also
+ * "structural" like adding, deleting, subdividing, filling, ..., bones) as well. Also covers
+ * hiding/revealing (in posemode and editmode). Note this causes a full (possibly slow) rebuild of
+ * the Outliner tree. */
 #define ND_BONE_SELECT (22 << 16)
 #define ND_DRAW (23 << 16)
 #define ND_MODIFIER (24 << 16)

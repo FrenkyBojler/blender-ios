@@ -243,8 +243,7 @@ static void restrictbutton_ebone_visibility_fn(bContext *C, void *poin, void *po
     restrictbutton_recursive_ebone(arm, ebone, BONE_HIDDEN_A, (ebone->flag & BONE_HIDDEN_A) != 0);
   }
 
-  /* ND_BONE_SELECT should cover hide well. */
-  WM_event_add_notifier(C, ND_BONE_SELECT | ND_POSE, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, nullptr);
 }
 
 static void restrictbutton_gp_layer_flag_fn(bContext *C, void *poin, void * /*poin2*/)
