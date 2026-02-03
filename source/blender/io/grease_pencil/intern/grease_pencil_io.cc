@@ -396,12 +396,14 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
   Array<float3> world_positions(positions.size());
   math::transform_points(positions, layer_to_world, world_positions);
 
-  int fill_index = 0;
-
+  /* Fills are made of multiple curves. Keep track of which curve is part of which fill. */
   Array<int> fill_index_by_curves(curves.curves_num(), -1);
+  /* Keep track of which curve is the first in a fill (e.g. the same index is used for each curve
+   * in the same fill). */
   Array<int> first_curves(curves.curves_num());
   array_utils::fill_index_range<int>(first_curves);
 
+  int fill_index = 0;
   for (const int i_curve : curves.curves_range()) {
     const bool is_filled = fill_ids[i_curve] != 0;
     const bool active_filled = is_filled && (fill_index_by_curves[i_curve] == -1);
@@ -420,6 +422,9 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
     }
   }
 
+  /* Iterate over all the curves and render the strokes (if shown). For fills, make sure that they
+   * are rendered when the first curve of the fill is encountered and don't rerender the same fill
+   * multiple times. */
   for (const int i_curve : curves.curves_range()) {
     /* Will be `-1` if not a fill. */
     const int fill_index = fill_index_by_curves[i_curve];
