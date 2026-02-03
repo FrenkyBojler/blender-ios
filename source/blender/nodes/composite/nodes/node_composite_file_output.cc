@@ -214,11 +214,6 @@ static void format_layout(ui::Layout *layout,
            ui::ITEM_R_SPLIT_EMPTY_NAME,
            std::nullopt,
            ICON_NONE);
-  col.prop(node_or_item_pointer,
-           "use_file_extension",
-           ui::ITEM_R_SPLIT_EMPTY_NAME,
-           std::nullopt,
-           ICON_NONE);
   const bool save_as_render = RNA_boolean_get(node_or_item_pointer, "save_as_render");
   uiTemplateImageSettings(layout, context, format_pointer, save_as_render);
 
@@ -357,6 +352,9 @@ static void node_draw_buttons_extended(ui::Layout &layout,
   if (ui::Layout *panel = layout.panel(context, "output_paths", true, IFACE_("Output Paths"))) {
     const bNode &node = *node_pointer->data_as<bNode>();
     const ImageFormatData &node_format = *format_pointer.data_as<ImageFormatData>();
+
+    panel->prop(
+        node_pointer, "use_file_extension", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
     if (is_multi_layer) {
       output_paths_layout(*panel, context, "", node, node_format);
