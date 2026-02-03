@@ -920,7 +920,6 @@ bool BKE_fcurve_has_selected_control_points(const FCurve &fcu)
     }
   }
   return false;
-
 }
 
 void BKE_fcurve_deselect_all_keys(FCurve &fcu)
