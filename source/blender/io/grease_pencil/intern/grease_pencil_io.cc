@@ -402,32 +402,32 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
   Array<int> first_curves(curves.curves_num());
   array_utils::fill_index_range<int>(first_curves);
 
-  for (const int curve_i : curves.curves_range()) {
-    const bool is_filled = fill_ids[curve_i] != 0;
-    const bool active_filled = is_filled && (fill_index_by_curves[curve_i] == -1);
+  for (const int i_curve : curves.curves_range()) {
+    const bool is_filled = fill_ids[i_curve] != 0;
+    const bool active_filled = is_filled && (fill_index_by_curves[i_curve] == -1);
 
     /* Keep track of already rendered fills. */
     if (active_filled) {
       const Span<int> fill = (*fills)[fill_index];
       const int first_curve = fill.first();
       for (const int pos : fill.index_range()) {
-        const int curve_i = fill[pos];
-        fill_index_by_curves[curve_i] = fill_index;
-        first_curves[curve_i] = first_curve;
+        const int i_curve = fill[pos];
+        fill_index_by_curves[i_curve] = fill_index;
+        first_curves[i_curve] = first_curve;
       }
 
       fill_index++;
     }
   }
 
-  for (const int curve_i : curves.curves_range()) {
+  for (const int i_curve : curves.curves_range()) {
     /* Will be `-1` if not a fill. */
-    const int fill_index = fill_index_by_curves[curve_i];
+    const int fill_index = fill_index_by_curves[i_curve];
 
     const bool is_filled = fill_index != -1;
-    const bool active_filled = is_filled && (first_curves[curve_i] == curve_i);
+    const bool active_filled = is_filled && (first_curves[i_curve] == i_curve);
 
-    const int material_index = material_indices[curve_i];
+    const int material_index = material_indices[i_curve];
     const Material *material = [&]() {
       const Material *material = BKE_object_material_get(const_cast<Object *>(&object),
                                                          material_index + 1);
@@ -449,7 +449,7 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
 
       const ColorGeometry4f material_fill_color = ColorGeometry4f(material->gp_style->fill_rgba);
       const ColorGeometry4f fill_color = math::interpolate(
-          material_fill_color, fill_colors[curve_i], fill_colors[curve_i].a);
+          material_fill_color, fill_colors[i_curve], fill_colors[i_curve].a);
       shape_fn(positions,
                positions_left,
                positions_right,
@@ -465,8 +465,8 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
     }
 
     /* Stroke. */
-    if (!hide_stroke[curve_i] && params_.export_stroke_materials) {
-      const IndexRange points = points_by_curve[curve_i];
+    if (!hide_stroke[i_curve] && params_.export_stroke_materials) {
+      const IndexRange points = points_by_curve[i_curve];
 
       const ColorGeometry4f stroke_color = compute_average_stroke_color(
           *material, vertex_colors.slice(points));
@@ -479,12 +479,12 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
                                                          radii.slice(points)) :
                                                      std::nullopt;
       if (uniform_width) {
-        const GreasePencilStrokeCapType start_cap = GreasePencilStrokeCapType(start_caps[curve_i]);
-        const GreasePencilStrokeCapType end_cap = GreasePencilStrokeCapType(end_caps[curve_i]);
+        const GreasePencilStrokeCapType start_cap = GreasePencilStrokeCapType(start_caps[i_curve]);
+        const GreasePencilStrokeCapType end_cap = GreasePencilStrokeCapType(end_caps[i_curve]);
         const bool round_cap = start_cap == GP_STROKE_CAP_TYPE_ROUND ||
                                end_cap == GP_STROKE_CAP_TYPE_ROUND;
 
-        const Array<int> shape(1, curve_i);
+        const Array<int> shape(1, i_curve);
 
         shape_fn(positions,
                  positions_left,
@@ -500,7 +500,7 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
                  false);
       }
       else {
-        const IndexMask single_curve_mask = IndexRange::from_single(curve_i);
+        const IndexMask single_curve_mask = IndexRange::from_single(i_curve);
 
         constexpr int corner_subdivisions = 3;
         constexpr float outline_radius = 0.0f;
