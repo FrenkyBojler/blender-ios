@@ -873,7 +873,7 @@ static bool vfont_to_curve(Object *ob,
       che = nullptr;
     }
 
-    const bool is_space = ELEM(charcode, ' ', '\n', '\t');
+    const bool is_space = ELEM(charcode, ' ', '\n', '\r', '\t');
     if (is_space && !in_space) {
       wnr++;
     }
