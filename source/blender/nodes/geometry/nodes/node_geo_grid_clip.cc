@@ -149,7 +149,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const Space space = params.extract_input<Space>("Space");
+  const Space space = params.extract_input<Space>("Coordinates");
   const float3 min_coords = params.extract_input<float3>("Min");
   const float3 max_coords = params.extract_input<float3>("Max");
   const int3 min_index = int3(params.extract_input<int>("Min X"),
