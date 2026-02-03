@@ -287,7 +287,8 @@ float raytrace_screen_2(float3 vs_origin,
   end.w = drw_depth_view_to_screen(min(vs_end.z + thickness, drw_view_near()));
 
 #if 0
-  /* Wrong value when rendering probes. */
+  /* TODO: This should be the correct code but it currently fails when rendering probes.
+   * (The values are always the ones from the main View) */
   float2 extent = float2(uniform_buf.film.render_extent);
   float2 hiz_uv_scale = uniform_buf.hiz.uv_scale;
 #else
