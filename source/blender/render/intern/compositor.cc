@@ -173,7 +173,7 @@ class Context : public compositor::Context {
       render_result->have_combined = true;
 
       if (result.is_single_value()) {
-        float *data = MEM_malloc_arrayN<float>(
+        float *data = MEM_new_array_uninitialized<float>(
             4 * size_t(render_result->rectx) * size_t(render_result->recty), __func__);
         IMB_assign_float_buffer(image_buffer, data, IB_TAKE_OWNERSHIP);
         IMB_rectfill(image_buffer, result.get_single_value<compositor::Color>());
@@ -184,7 +184,7 @@ class Context : public compositor::Context {
         IMB_assign_float_buffer(image_buffer, output_buffer, IB_TAKE_OWNERSHIP);
       }
       else {
-        float *data = MEM_malloc_arrayN<float>(
+        float *data = MEM_new_array_uninitialized<float>(
             4 * size_t(render_result->rectx) * size_t(render_result->recty), __func__);
         IMB_assign_float_buffer(image_buffer, data, IB_TAKE_OWNERSHIP);
         std::memcpy(image_buffer->float_buffer.data,
@@ -201,14 +201,11 @@ class Context : public compositor::Context {
     BLI_thread_unlock(LOCK_DRAW_IMAGE);
   }
 
-  void write_viewer(const compositor::Result &result) override
+  void write_viewer_image(const compositor::Result &viewer_result)
   {
     Image *image = BKE_image_ensure_viewer(G.main, IMA_TYPE_COMPOSITE, "Viewer Node");
-    const float2 translation = result.domain().transformation.location();
-    image->runtime->backdrop_offset[0] = translation.x;
-    image->runtime->backdrop_offset[1] = translation.y;
 
-    if (result.meta_data.is_non_color_data) {
+    if (viewer_result.meta_data.is_non_color_data) {
       image->flag &= ~IMA_VIEW_AS_RENDER;
     }
     else {
@@ -230,8 +227,8 @@ class Context : public compositor::Context {
     void *lock;
     ImBuf *image_buffer = BKE_image_acquire_ibuf(image, &image_user, &lock);
 
-    const int2 size = result.is_single_value() ? this->get_render_size() :
-                                                 result.domain().data_size;
+    const int2 size = viewer_result.is_single_value() ? this->get_render_size() :
+                                                        viewer_result.domain().data_size;
     if (image_buffer->x != size.x || image_buffer->y != size.y) {
       IMB_free_byte_pixels(image_buffer);
       IMB_free_float_pixels(image_buffer);
@@ -241,23 +238,58 @@ class Context : public compositor::Context {
       image_buffer->userflags |= IB_DISPLAY_BUFFER_INVALID;
     }
 
-    if (result.is_single_value()) {
-      IMB_rectfill(image_buffer, result.get_single_value<compositor::Color>());
+    if (!viewer_result.is_single_value()) {
+      image_buffer->flags |= IB_has_display_window;
+      const int2 display_offset = int2(viewer_result.domain().transformation.location());
+      copy_v2_v2_int(image_buffer->display_size, viewer_result.domain().display_size);
+      copy_v2_v2_int(image_buffer->display_offset, display_offset);
+      copy_v2_v2_int(image_buffer->data_offset, viewer_result.domain().data_offset);
+    }
+
+    if (viewer_result.is_single_value()) {
+      IMB_rectfill(image_buffer, viewer_result.get_single_value<compositor::Color>());
     }
     else if (this->use_gpu()) {
       GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-      float *output_buffer = static_cast<float *>(GPU_texture_read(result, GPU_DATA_FLOAT, 0));
+      float *output_buffer = static_cast<float *>(
+          GPU_texture_read(viewer_result, GPU_DATA_FLOAT, 0));
       IMB_assign_float_buffer(image_buffer, output_buffer, IB_TAKE_OWNERSHIP);
     }
     else {
       std::memcpy(image_buffer->float_buffer.data,
-                  result.cpu_data().data(),
+                  viewer_result.cpu_data().data(),
                   size.x * size.y * 4 * sizeof(float));
     }
 
     BKE_image_partial_update_mark_full_update(image);
     BKE_image_release_ibuf(image, image_buffer, lock);
     BLI_thread_unlock(LOCK_DRAW_IMAGE);
+  }
+
+  void write_viewer(compositor::Result &viewer_result) override
+  {
+    using namespace compositor;
+
+    /* Realize the transforms if needed. */
+    const InputDescriptor input_descriptor = {ResultType::Color,
+                                              InputRealizationMode::OperationDomain};
+    SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
+        *this, viewer_result, input_descriptor, viewer_result.domain());
+
+    if (realization_operation) {
+      Result realize_input = this->create_result(ResultType::Color, viewer_result.precision());
+      realize_input.wrap_external(viewer_result);
+      realization_operation->map_input_to_result(&realize_input);
+      realization_operation->evaluate();
+
+      Result &realized_viewer_result = realization_operation->get_result();
+      this->write_viewer_image(realized_viewer_result);
+      realized_viewer_result.release();
+      delete realization_operation;
+      return;
+    }
+
+    this->write_viewer_image(viewer_result);
   }
 
   compositor::ResultType get_pass_data_type(const RenderPass *pass)
@@ -549,6 +581,11 @@ class Context : public compositor::Context {
         continue;
       }
 
+      if (this->is_canceled()) {
+        output_result.release();
+        continue;
+      }
+
       /* Realize the output on the compositing domain if needed. */
       const Domain compositing_domain = this->get_compositing_domain();
       const InputDescriptor input_descriptor = {ResultType::Color,
@@ -627,12 +664,12 @@ class Compositor {
        * render system GPU context, use the DRW context directly, while for threaded rendering when
        * we have a render system GPU context, use the render's system GPU context to avoid blocking
        * with the global DST. */
-      void *re_system_gpu_context = RE_system_gpu_context_get(&render_);
+      GHOST_IContext *re_system_gpu_context = RE_system_gpu_context_get(&render_);
       if (BLI_thread_is_main() || re_system_gpu_context == nullptr) {
         DRW_gpu_context_enable();
       }
       else {
-        void *re_system_gpu_context = RE_system_gpu_context_get(&render_);
+        GHOST_IContext *re_system_gpu_context = RE_system_gpu_context_get(&render_);
         WM_system_gpu_context_activate(re_system_gpu_context);
 
         void *re_blender_gpu_context = RE_blender_gpu_context_ensure(&render_);
@@ -660,14 +697,14 @@ class Compositor {
     if (context.use_gpu()) {
       gpu::TexturePool::get().reset();
 
-      void *re_system_gpu_context = RE_system_gpu_context_get(&render_);
+      GHOST_IContext *re_system_gpu_context = RE_system_gpu_context_get(&render_);
       if (BLI_thread_is_main() || re_system_gpu_context == nullptr) {
         DRW_gpu_context_disable();
       }
       else {
         GPU_render_end();
         GPU_context_active_set(nullptr);
-        void *re_system_gpu_context = RE_system_gpu_context_get(&render_);
+        GHOST_IContext *re_system_gpu_context = RE_system_gpu_context_get(&render_);
         WM_system_gpu_context_release(re_system_gpu_context);
       }
     }

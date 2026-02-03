@@ -171,10 +171,32 @@ class Context : public compositor::Context {
     GPU_shader_unbind();
   }
 
-  void write_viewer(const compositor::Result &result) override
+  void write_viewer(compositor::Result &viewer_result) override
   {
-    /* Within compositor modifier, output and viewer output function the same. */
-    this->write_output(result);
+    using namespace compositor;
+
+    /* Realize the on the compositing domain if needed. */
+    const Domain compositing_domain = this->get_compositing_domain();
+    const InputDescriptor input_descriptor = {ResultType::Color,
+                                              InputRealizationMode::OperationDomain};
+    SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
+        *this, viewer_result, input_descriptor, compositing_domain);
+
+    if (realization_operation) {
+      Result realize_input = this->create_result(ResultType::Color, viewer_result.precision());
+      realize_input.wrap_external(viewer_result);
+      realization_operation->map_input_to_result(&realize_input);
+      realization_operation->evaluate();
+
+      Result &realized_viewer_result = realization_operation->get_result();
+      this->write_output(realized_viewer_result);
+      realized_viewer_result.release();
+      viewer_was_written_ = true;
+      delete realization_operation;
+      return;
+    }
+
+    this->write_output(viewer_result);
     viewer_was_written_ = true;
   }
 
@@ -189,20 +211,20 @@ class Context : public compositor::Context {
    * returns an unallocated result instead. */
   compositor::Result get_pass_result(const char *pass_name)
   {
-    /* The combined pass is a special case where we return the viewport color texture, because it
-     * includes Grease Pencil objects since GP is drawn using their own engine. */
+    /* Return the pass that was written by the engine if such pass was found. */
+    if (DRW_viewport_pass_texture_exists(pass_name)) {
+      gpu::Texture *pass_texture = DRW_viewport_pass_texture_get(pass_name).gpu_texture();
+      compositor::Result pass = compositor::Result(*this, GPU_texture_format(pass_texture));
+      pass.wrap_external(pass_texture);
+      return pass;
+    }
+
+    /* The combined pass is a special case where we return the viewport color texture if the engine
+     * didn't provide a combined pass. */
     if (STREQ(pass_name, RE_PASSNAME_COMBINED)) {
       gpu::Texture *combined_texture = DRW_context_get()->viewport_texture_list_get()->color;
       compositor::Result pass = compositor::Result(*this, GPU_texture_format(combined_texture));
       pass.wrap_external(combined_texture);
-      return pass;
-    }
-
-    /* Return the pass that was written by the engine if such pass was found. */
-    gpu::Texture *pass_texture = DRW_viewport_pass_texture_get(pass_name).gpu_texture();
-    if (pass_texture) {
-      compositor::Result pass = compositor::Result(*this, GPU_texture_format(pass_texture));
-      pass.wrap_external(pass_texture);
       return pass;
     }
 
@@ -329,8 +351,12 @@ class Context : public compositor::Context {
           this->create_result(ResultType::Color, ResultPrecision::Half));
       if (input_socket == node_group.interface_inputs()[0]) {
         /* First socket is the viewport combined pass. */
-        gpu::Texture *combined_texture = DRW_context_get()->viewport_texture_list_get()->color;
-        input_result->wrap_external(combined_texture);
+        const int active_view_layer_index = BLI_findstringindex(
+            &scene_->view_layers, DRW_context_get()->view_layer->name, offsetof(ViewLayer, name));
+        Result combined_pass = this->get_pass(
+            scene_, active_view_layer_index, RE_PASSNAME_COMBINED);
+        input_result->share_data(combined_pass);
+        combined_pass.release();
       }
       else {
         /* The rest of the sockets are not supported. */

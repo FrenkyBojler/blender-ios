@@ -199,7 +199,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   declare_extra_passes(b, scene, view_layer);
 }
 
-static void node_draw(ui::Layout &layout, bContext *context, PointerRNA *node_pointer)
+static void node_draw_buttons(ui::Layout &layout, bContext *context, PointerRNA *node_pointer)
 {
   template_id(&layout, context, node_pointer, "scene", nullptr, nullptr, nullptr);
 
@@ -257,7 +257,7 @@ static void node_extra_info(NodeExtraInfoParams &parameters)
   bool is_any_pass_used = false;
   for (const bNodeSocket *output : parameters.node.output_sockets()) {
     /* Combined pass is always available. */
-    if (StringRef(output->name) == "Image" || StringRef(output->name) == "Alpha") {
+    if (STR_ELEM(output->name, "Image", "Alpha", "Grease Pencil")) {
       continue;
     }
     if (output->is_logically_linked()) {
@@ -306,6 +306,7 @@ class RenderLayerOperation : public NodeOperation {
       }
 
       Result pass = this->context().get_pass(scene, view_layer, output->identifier);
+      result.set_type(pass.type());
       result.set_precision(pass.precision());
       result.steal_data(pass);
       pass.release();
@@ -328,7 +329,7 @@ static NodeOperation *get_compositor_operation(Context &context, const bNode &no
   return new RenderLayerOperation(context, node);
 }
 
-static void register_node()
+static void node_register()
 {
   static bke::bNodeType ntype;
 
@@ -340,13 +341,13 @@ static void register_node()
   ntype.flag |= NODE_PREVIEW;
   ntype.initfunc_api = node_init;
   ntype.declare = node_declare;
-  ntype.draw_buttons = node_draw;
+  ntype.draw_buttons = node_draw_buttons;
   ntype.get_compositor_operation = get_compositor_operation;
   ntype.get_extra_info = node_extra_info;
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);
 
   bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node)
+NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_composite_render_layer_cc
