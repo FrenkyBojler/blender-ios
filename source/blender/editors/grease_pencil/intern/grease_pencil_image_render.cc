@@ -286,8 +286,6 @@ static gpu::UniformBuf *create_shader_ubo(const RegionView3D &rv3d,
   copy_v2_v2(data.viewport, float2(win_size));
   data.pixsize = rv3d.pixsize;
   data.objscale = math::average(float3(object.scale));
-  /* X-ray mode always to 3D space to avoid wrong Z-depth calculation (#60051). */
-  data.xraymode = GP_XRAY_3DSPACE;
   data.caps_start = cap_start;
   data.caps_end = cap_end;
   data.fill_stroke = is_fill_stroke;

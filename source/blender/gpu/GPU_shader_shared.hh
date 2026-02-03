@@ -80,11 +80,9 @@ struct [[host_shared]] GPencilStrokeData {
   float2 viewport;
   float pixsize;
   float objscale;
-  int xraymode;
   int caps_start;
   int caps_end;
   bool32_t fill_stroke;
-  float4 _pad;
 };
 
 struct [[host_shared]] GPUClipPlanes {

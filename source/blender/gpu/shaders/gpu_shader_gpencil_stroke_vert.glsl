@@ -10,10 +10,6 @@ VERTEX_SHADER_CREATE_INFO(gpu_shader_gpencil_stroke)
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
-#define GP_XRAY_FRONT 0
-#define GP_XRAY_3DSPACE 1
-#define GP_XRAY_BACK 2
-
 #define GPENCIL_FLATCAP 1
 
 /* project 3d point to 2d on screen space */
@@ -25,18 +21,7 @@ float2 toScreenSpace(float4 vert)
 /* Get Z-depth value. */
 float getZdepth(float4 point)
 {
-  if (gpencil_stroke_data.xraymode == GP_XRAY_FRONT) {
-    return 0.0f;
-  }
-  if (gpencil_stroke_data.xraymode == GP_XRAY_3DSPACE) {
-    return (point.z / point.w);
-  }
-  if (gpencil_stroke_data.xraymode == GP_XRAY_BACK) {
-    return 1.0f;
-  }
-
-  /* in front by default */
-  return 0.0f;
+  return (point.z / point.w);
 }
 
 /* check equality but with a small tolerance */
