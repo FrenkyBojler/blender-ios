@@ -142,7 +142,7 @@ bool wm_xr_init(bContext *C)
 
       /* XR root-window and current scene. */
       CTX_wm_window_set(wm->xr.runtime->b_context, CTX_wm_window(C));
-      CTX_data_scene_set(wm->xr.runtime->b_context, CTX_data_scene(C)); // TODO: would this cause issue with the XR scene being desync from the main context scene?
+      CTX_data_scene_set(wm->xr.runtime->b_context, CTX_data_scene(C));
     }
   }
   BLI_assert(wm->xr.runtime && wm->xr.runtime->ghost_context && wm->xr.runtime->b_context);

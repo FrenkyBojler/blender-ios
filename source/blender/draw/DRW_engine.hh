@@ -66,7 +66,8 @@ void DRW_draw_region_engine_info(int xoffset, int *yoffset, int line_height);
 
 /**
  * \param viewport: can be nullptr, in this case we create one.
- * \param context: can be nullptr, used for interactivity purposes (draw callbacks, 3D view emulation, etc..).
+ * \param context: can be nullptr, used for interactivity purposes (draw callbacks, 3D view
+ * emulation, etc..).
  */
 void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
                                     RenderEngineType *engine_type,

@@ -4030,7 +4030,8 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
   if (!region) {
     return;
   }
-  BLI_assert(WM_region_use_viewport(xr_area, region)); /* For operators using GPU-based selection. */
+  BLI_assert(
+      WM_region_use_viewport(xr_area, region)); /* For operators using GPU-based selection. */
 
   CTX_wm_region_set(xr_C, region);
 
@@ -4097,7 +4098,7 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
     }
   }
 
-//  CTX_wm_region_set(xr_C, nullptr);
+  CTX_wm_region_set(xr_C, nullptr);
 }
 #endif /* WITH_XR_OPENXR */
 

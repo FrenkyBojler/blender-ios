@@ -1242,7 +1242,7 @@ static void drw_callbacks_post_scene_view3d(DRWContext &draw_ctx)
 #endif
 
   /* Callback can be nasty and do whatever they want with the state.
-     * Don't trust them! */
+   * Don't trust them! */
   draw::command::StateSet::set();
 
   /* Needed so gizmo isn't occluded. */
@@ -1264,7 +1264,7 @@ static void drw_callbacks_post_scene_view3d(DRWContext &draw_ctx)
 
   if ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0) {
     /* Draw 2D after region info so we can draw on top of the camera passepartout overlay.
-       * 'DRW_draw_region_info' sets the projection in pixel-space. */
+     * 'DRW_draw_region_info' sets the projection in pixel-space. */
     GPU_depth_test(GPU_DEPTH_NONE);
     DRW_draw_gizmo_2d(draw_ctx.evil_C, region);
   }

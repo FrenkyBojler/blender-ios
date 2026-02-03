@@ -1559,7 +1559,7 @@ static wmSurface *wm_xr_session_surface_create()
   surface->system_gpu_context = DRW_system_gpu_context_get();
   surface->blender_gpu_context = static_cast<GPUContext *>(DRW_xr_blender_gpu_context_get());
 
-  data->controller_art->regionid = RGN_TYPE_XR; // TODO: perhpas this is enough to implement..
+  data->controller_art->regionid = RGN_TYPE_XR;
   surface->customdata = data;
 
   g_xr_surface = surface;
