@@ -2674,11 +2674,7 @@ static void uv_select_linked_multi(const Scene *scene,
       efa = BM_face_at_index(bm, a);
 
       blender::VectorSet<BMEdge *> edges;
-      if (ELEM(delimit_mode,
-               int(UVDelimitMode::SEAM),
-               int(UVDelimitMode::SHARP),
-               int(UVDelimitMode::MATERIAL)))
-      {
+      if (delimit_mode != 0) {
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           edges.add(l->e);
         }
@@ -2705,11 +2701,7 @@ static void uv_select_linked_multi(const Scene *scene,
           }
 
           if (!flag[iterv->face_index]) {
-            if (ELEM(delimit_mode,
-                     int(UVDelimitMode::SEAM),
-                     int(UVDelimitMode::SHARP),
-                     int(UVDelimitMode::MATERIAL)))
-            {
+            if (delimit_mode != 0) {
               BMFace *iterv_f = BM_face_at_index(bm, iterv->face_index);
               bool shares_valid_edge = false;
               BMLoop *iterv_l;
