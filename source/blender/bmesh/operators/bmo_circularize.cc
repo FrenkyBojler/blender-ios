@@ -34,11 +34,9 @@ struct CircleVert {
 struct LoopData {
   Vector<BMVert *> verts;
   bool is_closed;
-  /* If this loop was generated from a single selected vertex, this pointer is set. */
-  BMVert *center_vert = nullptr;
 };
 
-/* Detect whether an edge should be considered a valid boundary
+/* Detects whether an edge should be considered a valid boundary
  * edge for circularization. */
 static bool is_valid_boundary_edge(BMEdge *e,
                                    const bool check_x,
@@ -155,9 +153,7 @@ static bool walk_boundary_loop(BMesh * /*bm*/,
   return false;
 }
 
-
-/* Collects all valid boundary edge loops and isolated single-vertex loops from the current
- * selection. */
+/* Collects all valid boundary edge loops from the current selection. */
 static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops, const bool check_mirror)
 {
   /* If the selection has near zero extent along an axis, disable mirror plane filtering
