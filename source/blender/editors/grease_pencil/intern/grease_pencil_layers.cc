@@ -666,8 +666,11 @@ static wmOperatorStatus grease_pencil_layer_duplicate_exec(bContext *C, wmOperat
     grease_pencil.move_node_after(new_group.as_node(), active_group.as_node());
     grease_pencil.set_active_node(&new_group.as_node());
 
-    WM_msg_publish_rna_prop(
-        CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3LayerGroup, active);
+    WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
+                            &grease_pencil.id,
+                            &grease_pencil,
+                            GreasePencilv3LayerGroup,
+                            active);
   }
   else {
     Layer &active_layer = active_node->as_layer();
