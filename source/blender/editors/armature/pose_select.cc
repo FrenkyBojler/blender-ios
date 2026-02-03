@@ -400,30 +400,30 @@ static void selectconnected_posebonechildren(Object &ob,
                                              bPoseChannel &pose_bone,
                                              const bool extend)
 {
-  animrig::pose_bone_descendent_depth_iterator(
-      *ob.pose, pose_bone, [extend, &pose_bone](bPoseChannel &child) {
-        if (!child.bone) {
-          BLI_assert_unreachable();
-          return false;
-        }
-        /* Ignore the check if it starts at the root of a chain, this allows the children to be
-         * selected. See Fix: #153068 */
-        if (&child != &pose_bone) {
-          /* Stop when unconnected child is encountered, or when unselectable bone is encountered.
-           */
-          if (!(child.bone->flag & BONE_CONNECTED) || (child.bone->flag & BONE_UNSELECTABLE)) {
-            return false;
-          }
-        }
+  animrig::pose_bone_descendent_depth_iterator(*ob.pose, pose_bone, [&](bPoseChannel &child) {
+    if (!child.bone) {
+      BLI_assert_unreachable();
+      return false;
+    }
+    /* pose_bone_descendent_depth_iterator also visits `pose_bone` itself, and that should
+     * always be (de)selected, because it's always "connected" to itself. */
+    const bool is_input_bone = (&child == &pose_bone);
+    const bool is_connected = is_input_bone || (child.bone->flag & BONE_CONNECTED);
+    const bool is_selectable = (child.bone->flag & BONE_UNSELECTABLE) == 0;
+    const bool is_ok = is_selectable && is_connected;
+    if (!is_ok) {
+      /* Stop when unconnected child or unselectable bone is encountered. */
+      return false;
+    }
 
-        if (extend) {
-          animrig::bone_deselect(&child);
-        }
-        else {
-          animrig::bone_select(&child);
-        }
-        return true;
-      });
+    if (extend) {
+      animrig::bone_deselect(&child);
+    }
+    else {
+      animrig::bone_select(&child);
+    }
+    return true;
+  });
 }
 
 /* within active object context */
