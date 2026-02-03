@@ -563,6 +563,20 @@ void SEQUENCER_OT_gap_insert(wmOperatorType *ot)
 /** \name Snap Strips to the Current Frame Operator
  * \{ */
 
+static int mouse_frame_side_get(View2D *v2d, short mouse_x, int frame)
+{
+  int mval[2];
+  float mouseloc[2];
+
+  mval[0] = mouse_x;
+  mval[1] = 0;
+
+  /* Choose the side based on which side of the current frame the mouse is on. */
+  ui::view2d_region_to_view(v2d, mval[0], mval[1], &mouseloc[0], &mouseloc[1]);
+
+  return mouseloc[0] > frame ? seq::SIDE_RIGHT : seq::SIDE_LEFT;
+}
+
 static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
@@ -571,6 +585,7 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
   const ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
   const bool keep_offset = RNA_boolean_get(op->ptr, "keep_offset");
   const int cur_frame = RNA_int_get(op->ptr, "frame");
+  const int snap_side = RNA_enum_get(op->ptr, "side");
 
   VectorSet<Strip *> selected = seq::query_selected_strips(ed->current_strips());
   selected.remove_if([&](Strip *strip) { return seq::transform_is_locked(channels, strip); });
@@ -581,39 +596,32 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
 
   std::optional<int> group_delta;
   if (keep_offset) {
-    /* If handles are selected, choose closest handle as the anchor to calculate the offset for the
-     * entire strip group. Otherwise, choose leftmost left handle of the group. */
-    int min_dist = std::numeric_limits<int>::max();
-    for (Strip *strip : selected) {
-      const bool left_sel = strip->flag & SEQ_LEFTSEL;
-      const bool right_sel = strip->flag & SEQ_RIGHTSEL;
+    /* If handles are selected, choose active strip handle as the anchor
+     * to calculate the offset for the entire strip group. */
+    Strip *strip = seq::select_active_get(scene);
 
-      if (!left_sel && !right_sel) {
-        continue;
-      }
+    const bool left_sel = strip->flag & SEQ_LEFTSEL;
+    const bool right_sel = strip->flag & SEQ_RIGHTSEL;
 
-      auto update_min_dist = [&](int delta) {
-        if (math::abs(delta) < min_dist) {
-          min_dist = math::abs(delta);
-          group_delta = delta;
-        }
-      };
-
-      if (left_sel) {
-        update_min_dist(cur_frame - strip->left_handle());
-      }
-      if (right_sel) {
-        update_min_dist(cur_frame - strip->right_handle(scene));
+    if (left_sel) {
+      group_delta = cur_frame - strip->left_handle();
+    }
+    if (right_sel) {
+      const int right_delta = cur_frame - strip->right_handle(scene);
+      if (!group_delta.has_value() || math::abs(right_delta) < group_delta) {
+        group_delta = right_delta;
       }
     }
 
-    /* No handles selected: anchor to leftmost left handle. */
+    /* No handles selected: choose either left or right of active
+     * strip based on mouse position relative to playhead. */
     if (!group_delta.has_value()) {
-      int leftmost = std::numeric_limits<int>::max();
-      for (Strip *strip : selected) {
-        leftmost = std::min(leftmost, strip->left_handle());
+      if (snap_side == seq::SIDE_LEFT) {
+        group_delta = cur_frame - strip->left_handle();
       }
-      group_delta = cur_frame - leftmost;
+      else if (snap_side == seq::SIDE_RIGHT) {
+        group_delta = cur_frame - strip->right_handle(scene);
+      }
     }
   }
 
@@ -674,12 +682,24 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus sequencer_snap_invoke(bContext *C,
-                                              wmOperator *op,
-                                              const wmEvent * /*event*/)
+static wmOperatorStatus sequencer_snap_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
-  RNA_int_set(op->ptr, "frame", scene->r.cfra);
+  View2D *v2d = ui::view2d_fromcontext(C);
+
+  int snap_frame = scene->r.cfra;
+  RNA_int_set(op->ptr, "frame", snap_frame);
+
+  int snap_side = RNA_enum_get(op->ptr, "side");
+  if (snap_side == seq::SIDE_MOUSE) {
+    if (ED_operator_sequencer_active(C) && v2d) {
+      snap_side = mouse_frame_side_get(v2d, event->mval[0], snap_frame);
+    }
+    else {
+      snap_side = seq::SIDE_LEFT;
+    }
+  }
+  RNA_enum_set(op->ptr, "side", snap_side);
   return sequencer_snap_exec(C, op);
 }
 
@@ -714,6 +734,15 @@ void SEQUENCER_OT_snap(wmOperatorType *ot)
       true,
       "Keep Offset",
       "Whether the selection should be snapped as a whole or by each individual strip");
+
+  PropertyRNA *prop;
+  prop = RNA_def_enum(ot->srna,
+                      "side",
+                      prop_side_types,
+                      seq::SIDE_MOUSE,
+                      "Snap Side",
+                      "If no handles are selected, which strip side to snap to the playhead");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -1737,20 +1766,6 @@ void SEQUENCER_OT_swap_inputs(wmOperatorType *ot)
 /** \name Split Strips Operator
  * \{ */
 
-static int mouse_frame_side(View2D *v2d, short mouse_x, int frame)
-{
-  int mval[2];
-  float mouseloc[2];
-
-  mval[0] = mouse_x;
-  mval[1] = 0;
-
-  /* Choose the side based on which side of the current frame the mouse is on. */
-  ui::view2d_region_to_view(v2d, mval[0], mval[1], &mouseloc[0], &mouseloc[1]);
-
-  return mouseloc[0] > frame ? seq::SIDE_RIGHT : seq::SIDE_LEFT;
-}
-
 static const EnumPropertyItem prop_split_types[] = {
     {seq::SPLIT_SOFT, "SOFT", 0, "Soft", ""},
     {seq::SPLIT_HARD, "HARD", 0, "Hard", ""},
@@ -1882,7 +1897,7 @@ static wmOperatorStatus sequencer_split_invoke(bContext *C, wmOperator *op, cons
 
   if (split_side == seq::SIDE_MOUSE) {
     if (ED_operator_sequencer_active(C) && v2d) {
-      split_side = mouse_frame_side(v2d, event->mval[0], split_frame);
+      split_side = mouse_frame_side_get(v2d, event->mval[0], split_frame);
     }
     else {
       split_side = seq::SIDE_BOTH;
