@@ -46,7 +46,7 @@ const char *openSubdiv_getGLSLPatchBasisSource()
         "#define OsdPatchArray_host_shared_ OsdPatchArray\n"
         "#define OsdPatchCoord_host_shared_ OsdPatchCoord\n";
 #ifdef __APPLE__
-    if (GPU_backend_type_get() == GPU_BACKEND_METAL) {
+    if (blender::GPU_backend_get_type() == blender::GPU_BACKEND_METAL) {
       patch_basis_source += OpenSubdiv::Osd::MTLPatchShaderSource::GetPatchBasisShaderSource();
     }
     else {
