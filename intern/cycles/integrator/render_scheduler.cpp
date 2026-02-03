@@ -293,7 +293,7 @@ bool RenderScheduler::done() const
     return true;
   }
 
-  return get_num_rendered_samples() >= num_samples_;
+  return get_num_rendered_samples() >= get_num_samples();
 }
 
 RenderWork RenderScheduler::get_render_work()
@@ -882,7 +882,7 @@ int RenderScheduler::get_num_samples_to_path_trace() const
    * more than N samples. */
   const int num_samples_pot = round_num_samples_to_power_of_2(num_samples_per_update);
 
-  const int max_num_samples_to_render = sample_offset_ + num_samples_ - path_trace_start_sample;
+  const int max_num_samples_to_render = sample_offset_ + get_num_samples() - path_trace_start_sample;
 
   int num_samples_to_render = min(num_samples_pot, max_num_samples_to_render);
 
@@ -1062,7 +1062,7 @@ bool RenderScheduler::work_need_denoise(bool &delayed, bool &ready_to_display)
 
   /* Immediately denoise when we reach the start sample or last sample. */
   if (num_samples_finished == denoiser_params_.start_sample ||
-      num_samples_finished == num_samples_)
+      num_samples_finished == get_num_samples())
   {
     return true;
   }
