@@ -286,6 +286,20 @@ static void view2d_draw_lines(const View2D *v2d,
 using PositionToString =
     void (*)(void *user_data, float value, float step, char *r_str, uint str_maxncpy);
 
+static float get_max_label_width(PositionToString to_string,
+                                 void *to_string_data,
+                                 const float2 data_range)
+{
+  const int font_id = BLF_set_default();
+  char text[32];
+  to_string(to_string_data, data_range.x, 0, text, sizeof(text));
+  const float left_text_width = BLF_width(font_id, text, strlen(text));
+  to_string(to_string_data, data_range.y, 0, text, sizeof(text));
+  const float right_text_width = BLF_width(font_id, text, strlen(text));
+  const float max_text_width = max_ff(left_text_width, right_text_width);
+  return max_text_width;
+}
+
 /**
  * \param distance is the distance between lines in the data unit of the v2d (frame or value).
  */
@@ -332,11 +346,8 @@ static void draw_horizontal_scale_indicators(const ARegion *region,
   /* Calculate max_label_count and draw_frequency based on largest visible label. */
   int draw_frequency;
   {
-    to_string(to_string_data, start, 0, text, sizeof(text));
-    const float left_text_width = BLF_width(font_id, text, strlen(text));
-    to_string(to_string_data, start + steps * distance, 0, text, sizeof(text));
-    const float right_text_width = BLF_width(font_id, text, strlen(text));
-    const float max_text_width = max_ff(left_text_width, right_text_width);
+    const float max_text_width = get_max_label_width(
+        to_string, to_string_data, {start, start + steps * distance});
     const float max_label_count = (BLI_rcti_size_x(&v2d->mask) + 1) / (max_text_width + 6.0f);
     draw_frequency = ceil(float(steps) / max_label_count);
   }
