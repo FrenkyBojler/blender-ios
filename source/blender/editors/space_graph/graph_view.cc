@@ -173,34 +173,20 @@ void get_graph_keyframe_extents(bAnimContext *ac,
     /* If max/min are equal (without handles) it means only one controlpoint is selected, in that
      * situation don't zoom in too much to prevent tedious zooming out.
      */
-    bool is_single_control_point = xmax_without_handles == xmin_without_handles &&
-                                   ymax_without_handles == ymin_without_handles;
+    float margin = xmax_without_handles == xmin_without_handles &&
+                           ymax_without_handles == ymin_without_handles ?
+                       0.05f :
+                       0.0005f;
 
     /* Ensure that the extents are not too extreme that view implodes. */
     if (foundBounds) {
-      if (xmin && xmax) {
-        if (fabsf(*xmax - *xmin) < 0.001f) {
-          if (is_single_control_point) {
-            *xmin -= 0.05f;
-            *xmax += 0.05f;
-          }
-          else {
-            *xmin -= 0.0005f;
-            *xmax += 0.0005f;
-          }
-        }
+      if ((xmin && xmax) && (fabsf(*xmax - *xmin) < 0.001f)) {
+        *xmin -= margin;
+        *xmax += margin;
       }
-      if (ymin && ymax) {
-        if (fabsf(*ymax - *ymin) < 0.001f) {
-          if (is_single_control_point) {
-            *ymin -= 0.05f;
-            *ymax += 0.05f;
-          }
-          else {
-            *ymin -= 0.0005f;
-            *ymax += 0.0005f;
-          }
-        }
+      if ((ymin && ymax) && (fabsf(*ymax - *ymin) < 0.001f)) {
+        *ymin -= margin;
+        *ymax += margin;
       }
     }
     else {
