@@ -574,30 +574,6 @@ struct Fentry {
   float y;
 };
 
-/* Same as wrap_coord but Border is treated as Extend */
-BLI_INLINE int32_t wrap_coord_noclip(float u, int32_t size, InterpWrapMode wrap)
-{
-  if (u >= 0) {
-    if (u < float(size)) {
-      return int32_t(u);
-    }
-    switch (wrap) {
-      default: /* case InterpWrapMode::Extend: */
-        return size - 1;
-      case InterpWrapMode::Repeat:
-        return int32_t(uint32_t(u) % uint32_t(size));
-    }
-  }
-  switch (wrap) {
-    default: /* case InterpWrapMode::Extend: */
-      return 0;
-    case InterpWrapMode::Repeat: {
-      int32_t x = int32_t(uint32_t(-floorf(u)) % uint32_t(size));
-      return x ? size - x : 0;
-    }
-  }
-}
-
 template<enum Sampler sampler> BLI_INLINE float weight(float x);
 
 /* Sample orthogonal rectangle of size wh centered on uv.
@@ -616,20 +592,24 @@ static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const 
   int nx = 0;
   for (float x = a.x - uv.x; x < r.x; x += d.x) {
     float wt = weight<sampler>(abs(x / w1.x));
-    xfilter[nx++] = {wrap_coord_noclip(x + uv.x, source.width, source.wrap_x) * source.step, wt};
     divx += wt;
+    const int xi = wrap_coord(x + uv.x, source.width, source.wrap_x);
+    if (xi >= 0)
+      xfilter[nx++] = {xi * source.step, wt};
   }
   F4 sum = F4C(0.0f);
   float div = 0.0f;
   for (float y = a.y - uv.y; y < r.y; y += d.y) {
-    const float *p = source.row(wrap_coord_noclip(y + uv.y, source.height, source.wrap_y));
     float wt = weight<sampler>(abs(y / w1.y));
-    F4 sumx = F4C(0.0f);
-    for (int j = 0; j < nx; j++) {
-      sumx = F4ADD(sumx, F4MULC(F4P(p + xfilter[j].x), xfilter[j].y));
-    }
-    sum = F4ADD(sum, F4MULC(sumx, wt));
     div += wt;
+    const int yi = wrap_coord(y + uv.y, source.height, source.wrap_y);
+    if (yi >= 0) {
+      const float *p = source.row(yi);
+      F4 sumx = F4C(0.0f);
+      for (int j = 0; j < nx; j++)
+        sumx = F4ADD(sumx, F4MULC(F4P(p + xfilter[j].x), xfilter[j].y));
+      sum = F4ADD(sum, F4MULC(sumx, wt));
+    }
   }
   sum = F4MULC(sum, 1.0f / (div * divx));
   return F4V(sum);
@@ -656,17 +636,37 @@ float4 _sample_rect<Sampler::Bilinear>(const SamplerSource &source,
                                        const float2 &)
 {
   const float x = uv.x - 0.5f; /* convert to pixel-center coordinates*/
-  const int x1 = wrap_coord_noclip(x, source.width, source.wrap_x);
-  const int x2 = wrap_coord_noclip(x + 1, source.width, source.wrap_x);
+  const int x1 = wrap_coord(x, source.width, source.wrap_x);
+  const int x2 = wrap_coord(x + 1, source.width, source.wrap_x);
 
   const float y = uv.y - 0.5f; /* convert to pixel-center coordinates*/
-  const int y1 = wrap_coord_noclip(y, source.height, source.wrap_y);
-  const int y2 = wrap_coord_noclip(y + 1, source.height, source.wrap_y);
+  const int y1 = wrap_coord(y, source.height, source.wrap_y);
+  const int y2 = wrap_coord(y + 1, source.height, source.wrap_y);
 
   const float *row1 = source.row(y1) + x1 * source.step;
   const float *row2 = source.row(y2) + x1 * source.step;
   const float *row3 = source.row(y1) + x2 * source.step;
   const float *row4 = source.row(y2) + x2 * source.step;
+
+  static const float zeros[4] = { 0.0f };
+  if (x1 < 0) {
+    if (x2 < 0) return float4(0.0f);
+    row1 = row2 = zeros;
+    if (y1 < 0) {
+      if (y2 < 0) return float4(0.0f);
+      row3 = zeros;
+    } else if (y2 < 0) {
+      row4 = zeros;
+    }
+  } else if (x2 < 0) {
+    row3 = row4 = zeros;
+    if (y1 < 0) {
+      if (y2 < 0) return float4(0.0f);
+      row1 = zeros;
+    } else if (y2 < 0) {
+      row2 = zeros;
+    }
+  }
 
   float a = x - floorf(x);
   float b = y - floorf(y);
@@ -693,20 +693,25 @@ float4 _sample_rect<Sampler::Box>(const SamplerSource &source, const float2 &uv,
   int nx = 0;
   for (float x = a.x - uv.x; x < r.x; x += d.x) {
     float wt = min(r.x - abs(x), 1.0f);
-    xfilter[nx++] = {wrap_coord_noclip(x + uv.x, source.width, source.wrap_x) * source.step, wt};
     divx += wt;
+    const int x1 = wrap_coord(x + uv.x, source.width, source.wrap_x);
+    if (x1 >= 0)
+      xfilter[nx++] = {x1 * source.step, wt};
   }
   F4 sum = F4C(0.0f);
   float div = 0.0f;
   for (float y = a.y - uv.y; y < r.y; y += d.y) {
-    const float *p = source.row(wrap_coord_noclip(y + uv.y, source.height, source.wrap_y));
     float wt = min(r.y - abs(y), 1.0f);
-    F4 sumx = F4C(0.0f);
-    for (int j = 0; j < nx; j++) {
-      sumx = F4ADD(sumx, F4MULC(F4P(p + xfilter[j].x), xfilter[j].y));
-    }
-    sum = F4ADD(sum, F4MULC(sumx, wt));
     div += wt;
+    const int yi = wrap_coord(y + uv.y, source.height, source.wrap_y);
+    if (yi >= 0) {
+      const float *p = source.row(yi);
+      F4 sumx = F4C(0.0f);
+      for (int j = 0; j < nx; j++) {
+        sumx = F4ADD(sumx, F4MULC(F4P(p + xfilter[j].x), xfilter[j].y));
+      }
+      sum = F4ADD(sum, F4MULC(sumx, wt));
+    }
   }
   sum = F4MULC(sum, 1.0f / (div * divx));
   return F4V(sum);
@@ -718,47 +723,21 @@ template<> float weight<Sampler::Bspline>(float x)
                     ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
 }
 
-/* Compute "sharp" black border. The source should be set to extend.
- * clip&1 indicates horizontal clipping, clip&2 indicates vertical.
- */
-template<Sampler sampler>
-static float4 _sample_rect_clip(const SamplerSource &source, const float2 &uv, const float2 &wh)
-{
-  /* compute intersection of wh with image border */
-  float m = 1.0f;
-  if (source.wrap_x == InterpWrapMode::Border) {
-    float v = math::min(uv.x, float(source.width) - uv.x) / wh.x + 0.5f;
-    if (v <= 0.0f)
-      return float4(0.0f);
-    if (v < 1.0f)
-      m = v;
-  }
-  if (source.wrap_y == InterpWrapMode::Border) {
-    float v = math::min(uv.y, float(source.height) - uv.y) / wh.y + 0.5f;
-    if (v <= 0.0f)
-      return float4(0.0f);
-    if (v < 1.0f)
-      m *= v;
-  }
-  return _sample_rect<sampler>(source, uv, wh) * m;
-}
-
-/* Return the function to call to sample the given source. This checks the filter
- * and whether clipping is needed.
+/* Return the function to call to sample the given source. This checks the filter,
+ * may also check other parts of source.
  */
 SampleRect sample_rect(const SamplerSource &source)
 {
   BLI_assert(source.components == 4);
-  bool clip = source.wrap_x == InterpWrapMode::Border || source.wrap_y == InterpWrapMode::Border;
   switch (source.sampler) {
     case Sampler::Nearest:
       return _sample_rect<Sampler::Nearest>;
     case Sampler::Bilinear:
-      return clip ? _sample_rect_clip<Sampler::Bilinear> : _sample_rect<Sampler::Bilinear>;
+      return _sample_rect<Sampler::Bilinear>;
     default: /* case Sampler::Box */
-      return clip ? _sample_rect_clip<Sampler::Box> : _sample_rect<Sampler::Box>;
+      return _sample_rect<Sampler::Box>;
     case Sampler::Bspline:
-      return clip ? _sample_rect_clip<Sampler::Bspline> : _sample_rect<Sampler::Bspline>;
+      return _sample_rect<Sampler::Bspline>;
   }
 }
 

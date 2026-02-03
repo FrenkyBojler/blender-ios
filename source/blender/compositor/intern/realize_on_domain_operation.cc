@@ -129,18 +129,9 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
   Result &input = this->get_input();
 
   bool nearest = options.sampler == math::Sampler::Nearest;
-  int clip = 0;
   GPUSamplerExtendMode extend_x = map_wrap_mode_to_extend_mode(options.wrap_x);
-  if (!nearest && extend_x == GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER) {
-    clip = 1;
-    extend_x = GPU_SAMPLER_EXTEND_MODE_EXTEND;
-  }
   GPUSamplerExtendMode extend_y = map_wrap_mode_to_extend_mode(options.wrap_y);
-  if (!nearest && extend_y == GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER) {
-    clip |= 2;
-    extend_y = GPU_SAMPLER_EXTEND_MODE_EXTEND;
-  }
-  bool fast = (nearest || (options.sampler == math::Sampler::Bilinear && !clip));
+  bool fast = (nearest || (options.sampler == math::Sampler::Bilinear));
   bool anisotropic = options.sampler == math::Sampler::Anisotropic;
 
   const char *shader_name = nullptr;
@@ -194,7 +185,6 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
     GPU_shader_uniform_mat3_as_mat4(shader, "inverse_matrix", inverse_transformation.ptr());
     GPU_shader_uniform_2fv(shader, "wh", wh);
   }
-  GPU_shader_uniform_1i(shader, "clip", clip);
 
   if (anisotropic) {
     GPU_texture_mipmap_mode(input, true, true);
