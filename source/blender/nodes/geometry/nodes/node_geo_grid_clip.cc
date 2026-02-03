@@ -270,7 +270,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeGridClip");
-  ntype.ui_name = "Grid Clip";
+  ntype.ui_name = "Clip Grid";
   ntype.ui_description =
       "Clip a grid using a bounding box in either world or index space. Voxels outside the "
       "bounding box are deactivated and set to the background value.";
