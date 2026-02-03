@@ -2493,8 +2493,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
     }
 
     auto imagetype = file_header.type();
-    const bool is_deep = imagetype == Imf::DEEPSCANLINE ||
-                         imagetype == Imf::DEEPTILE;
+    const bool is_deep = imagetype == Imf::DEEPSCANLINE || imagetype == Imf::DEEPTILE;
     if (is_deep) {
       return imb_load_openexr_deep(*membuf, *file, width, height, flags, r_colorspace);
     }

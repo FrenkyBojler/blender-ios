@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "openimageio_support.hh"
+#include <OpenImageIO/deepdata.h>
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/imagebufalgo.h>
-#include <OpenImageIO/deepdata.h>
 
 #include <algorithm>
 
@@ -291,7 +291,7 @@ static ImBuf *load_deep_image(ImageInput *in,
 
   /* Read deep data from OIIO */
   DeepData deepdata;
-  if (!in->read_native_deep_image(0,0, deepdata)) {
+  if (!in->read_native_deep_image(0, 0, deepdata)) {
     CLOG_ERROR(&LOG_READ, "Failed to read deep image: %s", in->geterror().c_str());
     IMB_freeImBuf(ibuf);
     return nullptr;

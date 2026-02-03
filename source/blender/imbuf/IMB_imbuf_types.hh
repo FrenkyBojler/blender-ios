@@ -13,8 +13,8 @@
 
 #include "DNA_vec_types.h" /* for rcti */
 
-#include "IMB_imbuf_enums.h"
 #include "BLI_vector.hh"
+#include "IMB_imbuf_enums.h"
 
 namespace blender {
 
