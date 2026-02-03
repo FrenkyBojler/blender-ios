@@ -84,7 +84,7 @@ void RenderBuffers::acquire(int2 extent)
     prepass_normal_tx.acquire(extent, gpu::TextureFormat::UNORM_10_10_10_2, usage_attachment_read);
   }
   else {
-    /* Still acquire them, since the passes can't conditionally attach textures. */
+    /* Still acquire them, since the passes can't conditionally bind textures. */
     object_id_tx.acquire(int2(1), gpu::TextureFormat::UINT_16, GPU_TEXTURE_USAGE_SHADER_READ);
     prepass_normal_tx.acquire(
         int2(1), gpu::TextureFormat::UNORM_10_10_10_2, GPU_TEXTURE_USAGE_SHADER_READ);

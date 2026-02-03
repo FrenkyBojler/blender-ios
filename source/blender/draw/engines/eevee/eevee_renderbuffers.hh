@@ -26,7 +26,6 @@ class RenderBuffers {
 
   static constexpr gpu::TextureFormat color_format = gpu::TextureFormat::SFLOAT_16_16_16_16;
   static constexpr gpu::TextureFormat float_format = gpu::TextureFormat::SFLOAT_16;
-  ;
 
   Texture depth_tx;
   TextureFromPool combined_tx;
