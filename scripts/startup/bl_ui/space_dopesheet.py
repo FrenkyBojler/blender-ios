@@ -37,9 +37,8 @@ def dopesheet_filter(layout, context):
         row.prop(dopesheet, "show_only_slot_of_active_object", text="")
 
     # Only Show Selected has no effect in the action editor.
-    only_selected_layout = row.row(align=True)
-    only_selected_layout.active = not is_action_editor
-    only_selected_layout.prop(dopesheet, "show_only_selected", text="")
+    if not is_action_editor:
+        row.prop(dopesheet, "show_only_selected", text="")
 
     row.prop(dopesheet, "show_hidden", text="")
 
