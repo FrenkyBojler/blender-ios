@@ -286,11 +286,6 @@ static gpu::UniformBuf *create_shader_ubo(const RegionView3D &rv3d,
   copy_v2_v2(data.viewport, float2(win_size));
   data.pixsize = rv3d.pixsize;
   data.objscale = math::average(float3(object.scale));
-  /* TODO Was based on the GP_DATA_STROKE_KEEPTHICKNESS flag which is currently not converted. */
-  data.keep_size = false;
-  data.pixfactor = 1.0f;
-  /* X-ray mode always to 3D space to avoid wrong Z-depth calculation (#60051). */
-  data.xraymode = GP_XRAY_3DSPACE;
   data.caps_start = cap_start;
   data.caps_end = cap_end;
   data.fill_stroke = is_fill_stroke;
@@ -339,11 +334,8 @@ static void draw_grease_pencil_stroke(const float4x4 &transform,
   gpu::Batch *batch = immBeginBatchAtMost(GPU_PRIM_LINE_STRIP_ADJ,
                                           indices.size() + cyclic_add + 2);
 
-  constexpr const float radius_to_pixel_factor =
-      2.0f / bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
-  const float pixel_scale = radius_scale * radius_to_pixel_factor;
   auto draw_point = [&](const int point_i) {
-    const float thickness = radii[point_i] * pixel_scale;
+    const float thickness = 4.0f * radii[point_i] * radius_scale;
 
     immAttr4fv(attr_color, colors[point_i]);
     immAttr1f(attr_thickness, std::max(thickness, min_stroke_thickness));
@@ -431,10 +423,7 @@ static void draw_dots(const float4x4 &transform,
   /* Includes viewport zoom factor and perspective projection. The point shader does not include
    * these factors internally, unlike the line shader. */
   const float objscale = math::average(float3(object.scale));
-  constexpr const float radius_to_pixel_factor =
-      2.0f / bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
-  const float pixel_scale = objscale * radius_scale * radius_to_pixel_factor /
-                            (1000.0f * rv3d.pixsize);
+  const float pixel_scale = 4.0f * radius_scale * objscale / rv3d.pixsize;
   for (const int point_i : indices) {
     const float3 &position = positions[point_i];
     float perspective_factor = 1.0f;
