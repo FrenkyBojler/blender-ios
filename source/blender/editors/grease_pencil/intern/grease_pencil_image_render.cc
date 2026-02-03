@@ -39,8 +39,6 @@
 #include "GPU_uniform_buffer.hh"
 #include "GPU_vertex_format.hh"
 
-#include <iostream>
-
 namespace blender::ed::greasepencil::image_render {
 
 /* Enable GPU debug capture (needs WITH_RENDERDOC option). */
