@@ -1884,8 +1884,8 @@ class VIEW3D_MT_edit_mesh_select_loops(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("mesh.loop_multi_select", text="Edge Loops").ring = False
-        layout.operator("mesh.loop_multi_select", text="Edge Rings").ring = True
+        layout.operator("mesh.select_edge_loop_multi", text="Edge Loops")
+        layout.operator("mesh.select_edge_ring_multi", text="Edge Rings")
 
         layout.separator()
 
@@ -2866,6 +2866,7 @@ class VIEW3D_MT_object_animation(Menu):
 
         layout.operator("nla.bake", text="Bake Action...")
         layout.operator("grease_pencil.bake_grease_pencil_animation", text="Bake Object Transform to Grease Pencil...")
+        layout.operator("anim.replace_action")
 
 
 class VIEW3D_MT_object_rigid_body(Menu):

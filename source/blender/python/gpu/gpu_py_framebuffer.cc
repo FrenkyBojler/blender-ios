@@ -254,7 +254,7 @@ static PyTypeObject FramebufferStackContext_Type = {
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_framebuffer_bind_doc,
-    ".. function:: bind()\n"
+    ".. method:: bind()\n"
     "\n"
     "   Context manager to ensure balanced bind calls, even in the case of an error.\n");
 static PyObject *pygpu_framebuffer_bind(BPyGPUFrameBuffer *self)
@@ -349,7 +349,6 @@ static PyObject *pygpu_framebuffer__tp_new(PyTypeObject * /*self*/, PyObject *ar
   PyObject *color_attachements = nullptr;
   static const char *_keywords[] = {"depth_slot", "color_slots", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O"  /* `depth_slot` */
       "O"  /* `color_slots` */
@@ -448,7 +447,6 @@ static PyObject *pygpu_framebuffer_clear(BPyGPUFrameBuffer *self, PyObject *args
 
   static const char *_keywords[] = {"color", "depth", "stencil", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O"  /* `color` */
       "O"  /* `depth` */
@@ -497,7 +495,7 @@ static PyObject *pygpu_framebuffer_clear(BPyGPUFrameBuffer *self, PyObject *args
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_framebuffer_viewport_set_doc,
-    ".. function:: viewport_set(x, y, xsize, ysize)\n"
+    ".. method:: viewport_set(x, y, xsize, ysize)\n"
     "\n"
     "   Set the viewport for this framebuffer object.\n"
     "   Note: The viewport state is not saved upon framebuffer rebind.\n"
@@ -520,7 +518,7 @@ static PyObject *pygpu_framebuffer_viewport_set(BPyGPUFrameBuffer *self, PyObjec
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_framebuffer_viewport_get_doc,
-    ".. function:: viewport_get()\n"
+    ".. method:: viewport_get()\n"
     "\n"
     "   Returns position and dimension to current viewport.\n");
 static PyObject *pygpu_framebuffer_viewport_get(BPyGPUFrameBuffer *self)
@@ -541,7 +539,7 @@ static PyObject *pygpu_framebuffer_viewport_get(BPyGPUFrameBuffer *self)
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_framebuffer_read_color_doc,
-    ".. function:: read_color(x, y, xsize, ysize, channels, slot, format, *, data=None)\n"
+    ".. method:: read_color(x, y, xsize, ysize, channels, slot, format, *, data=None)\n"
     "\n"
     "   Read a block of pixels from the frame buffer.\n"
     "\n"
@@ -575,7 +573,6 @@ static PyObject *pygpu_framebuffer_read_color(BPyGPUFrameBuffer *self,
   static const char *_keywords[] = {
       "x", "y", "xsize", "ysize", "channels", "slot", "format", "data", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `x` */
       "i"  /* `y` */
       "i"  /* `xsize` */
@@ -620,6 +617,13 @@ static PyObject *pygpu_framebuffer_read_color(BPyGPUFrameBuffer *self,
     return nullptr;
   }
 
+  int2 extent = GPU_framebuffer_extent_get(self->fb);
+  if (x < 0 || w < 0 || x + w > extent.x || y < 0 || h < 0 || y + h > extent.y) {
+    PyErr_SetString(PyExc_ValueError,
+                    "Trying to read color outside the extent of the framebuffer");
+    return nullptr;
+  }
+
   if (py_buffer) {
     if (pygpu_dataformat.value_found != py_buffer->format) {
       PyErr_SetString(PyExc_AttributeError,
@@ -661,7 +665,7 @@ static PyObject *pygpu_framebuffer_read_color(BPyGPUFrameBuffer *self,
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_framebuffer_read_depth_doc,
-    ".. function:: read_depth(x, y, xsize, ysize, *, data=None)\n"
+    ".. method:: read_depth(x, y, xsize, ysize, *, data=None)\n"
     "\n"
     "   Read a pixel depth block from the frame buffer.\n"
     "\n"
@@ -683,7 +687,6 @@ static PyObject *pygpu_framebuffer_read_depth(BPyGPUFrameBuffer *self,
 
   static const char *_keywords[] = {"x", "y", "xsize", "ysize", "data", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `x` */
       "i"  /* `y` */
       "i"  /* `xsize` */
@@ -697,6 +700,13 @@ static PyObject *pygpu_framebuffer_read_depth(BPyGPUFrameBuffer *self,
   if (!_PyArg_ParseTupleAndKeywordsFast(
           args, kwds, &_parser, &x, &y, &w, &h, &BPyGPU_BufferType, &py_buffer))
   {
+    return nullptr;
+  }
+
+  int2 extent = GPU_framebuffer_extent_get(self->fb);
+  if (x < 0 || w < 0 || x + w > extent.x || y < 0 || h < 0 || y + h > extent.y) {
+    PyErr_SetString(PyExc_ValueError,
+                    "Trying to read depth outside the extent of the framebuffer");
     return nullptr;
   }
 

@@ -1422,7 +1422,7 @@ static const EnumPropertyItem *material_enum_itemf(bContext *C,
                                                    PropertyRNA * /*prop*/,
                                                    bool *r_free)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = (C) ? CTX_data_active_object(C) : nullptr;
   EnumPropertyItem *item = nullptr, item_tmp = {0};
   int totitem = 0;
 
@@ -3237,7 +3237,7 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op
   threading::EnumerableThreadSpecific<transform::SnapObjectContext *> thread_snap_contexts(
       [&]() -> transform::SnapObjectContext * {
         if (mode == ReprojectMode::Surface) {
-          return transform::snap_object_context_create(&scene, 0);
+          return transform::snap_object_context_create();
         }
         return nullptr;
       });
@@ -5065,7 +5065,7 @@ static Map<StringRefNull, StringRefNull> add_vertex_groups(
 {
   Map<StringRefNull, StringRefNull> vertex_group_map;
   for (bDeformGroup &dg : vertex_group_names) {
-    bDeformGroup *vgroup = static_cast<bDeformGroup *>(MEM_dupallocN(&dg));
+    bDeformGroup *vgroup = MEM_dupalloc(&dg);
     BKE_object_defgroup_unique_name(vgroup, &object);
     BLI_addtail(&grease_pencil.vertex_group_names, vgroup);
     vertex_group_map.add_new(dg.name, vgroup->name);
@@ -5148,8 +5148,8 @@ static void join_object_with_active(Main &bmain,
    * mapped to the new index range. */
   const int new_drawing_array_num = grease_pencil_dst.drawing_array_num +
                                     grease_pencil_src.drawing_array_num;
-  GreasePencilDrawingBase **new_drawing_array = MEM_malloc_arrayN<GreasePencilDrawingBase *>(
-      new_drawing_array_num, __func__);
+  GreasePencilDrawingBase **new_drawing_array =
+      MEM_new_array_uninitialized<GreasePencilDrawingBase *>(new_drawing_array_num, __func__);
   MutableSpan<GreasePencilDrawingBase *> new_drawings = {new_drawing_array, new_drawing_array_num};
   const IndexRange new_drawings_dst = IndexRange::from_begin_size(
       0, grease_pencil_dst.drawing_array_num);
@@ -5189,7 +5189,7 @@ static void join_object_with_active(Main &bmain,
       for (GreasePencilLayerMask &dst_mask : layer.masks) {
         const StringRefNull *new_mask_name = layer_name_map.lookup_ptr(dst_mask.layer_name);
         if (new_mask_name) {
-          MEM_SAFE_FREE(dst_mask.layer_name);
+          MEM_SAFE_DELETE(dst_mask.layer_name);
           dst_mask.layer_name = BLI_strdup(new_mask_name->c_str());
         }
       }

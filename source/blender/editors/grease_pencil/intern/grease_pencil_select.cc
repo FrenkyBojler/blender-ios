@@ -304,7 +304,7 @@ bool selection_update(const ViewContext *vc,
   if (changed) {
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
      * generic attribute for now. */
-    DEG_id_tag_update(static_cast<ID *>(object->data), ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(object->data, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(vc->C, NC_GEOM | ND_DATA, object->data);
   }
 
@@ -655,8 +655,8 @@ static void select_similar_by_value(Scene *scene,
 
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
-    const IndexMask mask = ed::greasepencil::retrieve_editable_points(
-        *object, info.drawing, info.layer_index, memory);
+    const IndexMask elements = ed::greasepencil::retrieve_editable_elements(
+        *object, info, selection_domain, memory);
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     const VArraySpan<T> values = *curves.attributes().lookup_or_default<T>(
         attribute_id, selection_domain, default_value);
@@ -668,7 +668,7 @@ static void select_similar_by_value(Scene *scene,
           curves, selection_domain, bke::AttrType::Bool, selection_attribute_names[i]);
       MutableSpan<bool> selection = selection_writer.span.typed<bool>();
 
-      mask.foreach_index(GrainSize(1024), [&](const int index) {
+      elements.foreach_index(GrainSize(1024), [&](const int index) {
         if (selection[index]) {
           return;
         }
@@ -907,7 +907,7 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
     const GVArray src = *attributes.lookup(".selection", domain);
     if (src) {
       const CPPType &type = src.type();
-      void *dst = MEM_malloc_arrayN(attributes.domain_size(domain), type.size, __func__);
+      void *dst = MEM_new_array_uninitialized(attributes.domain_size(domain), type.size, __func__);
       src.materialize(dst);
 
       attributes.remove(".selection");
@@ -916,7 +916,7 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
                           bke::cpp_type_to_attribute_type(type),
                           bke::AttributeInitMoveArray(dst)))
       {
-        MEM_freeN(dst);
+        MEM_delete_void(dst);
       }
 
       changed = true;
