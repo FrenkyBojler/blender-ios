@@ -171,8 +171,13 @@ class Domain {
   /* The options that describe how this domain prefer to be realized on some other domain. See the
    * RealizationOptions struct for more information. */
   RealizationOptions realization_options;
-  /* Convert realization_options to math::SamplerOptions */
-  math::SamplerOptions get_sampler_options() const;
+  /* Convert realization_options to math:: */
+  struct SamplerOptions {
+    math::Sampler sampler;
+    math::InterpWrapMode wrap_x;
+    math::InterpWrapMode wrap_y;
+  };
+  SamplerOptions get_sampler_options() const;
 
   /* A size only constructor that sets the transformation to identity. */
   Domain(const int2 &size);

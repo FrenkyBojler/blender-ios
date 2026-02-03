@@ -59,11 +59,11 @@ class RealizeOnDomainOperation : public SimpleOperation {
 
  private:
   void realize_on_domain_gpu(const int2 &size,
-                             const math::SamplerOptions &options,
+                             const Domain::SamplerOptions &options,
                              const float3x3 &inverse_transformation,
                              const float2 &wh);
   void realize_on_domain_cpu(const int2 &size,
-                             const math::SamplerOptions &options,
+                             const Domain::SamplerOptions &options,
                              const float3x3 &inverse_transformation,
                              const float2 &wh);
 };

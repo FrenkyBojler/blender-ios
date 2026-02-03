@@ -454,7 +454,7 @@ class Result {
                    Extension extension_mode) const;
 
   /* Return structure used by math::sample functions */
-  math::SamplerSource samplerSource(const math::SamplerOptions &) const;
+  math::sampler2D sampler2D() const;
 
  private:
   /* Allocates the image data for the given size.
@@ -536,17 +536,15 @@ BLI_INLINE_METHOD GMutableSpan Result::cpu_data()
   return cpu_data_;
 }
 
-BLI_INLINE_METHOD math::SamplerSource Result::samplerSource(
-    const math::SamplerOptions &options) const
+BLI_INLINE_METHOD math::sampler2D Result::sampler2D() const
 {
   const int components = int(channels_count());
-  return math::SamplerSource{options,
-                             static_cast<const float *>(cpu_data_.data()),
-                             domain_.data_size.x,
-                             domain_.data_size.y,
-                             components,
-                             domain_.data_size.x * components,
-                             components};
+  return math::sampler2D{static_cast<const float *>(cpu_data_.data()),
+                         domain_.data_size.x,
+                         domain_.data_size.y,
+                         components,
+                         domain_.data_size.x * components,
+                         components};
 }
 
 template<typename T> BLI_INLINE_METHOD const T &Result::get_single_value() const

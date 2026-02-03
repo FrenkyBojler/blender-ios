@@ -86,27 +86,21 @@ enum class Sampler {
   Anisotropic
 };
 
-/** Filter and wrap mode in both directions, in a single structure to simplify function parameters.
- * Compositor has equivalent structure called RealizationOptions.
- */
-struct SamplerOptions {
-  Sampler sampler = Sampler::Box;
-  InterpWrapMode wrap_x = InterpWrapMode::Extend;
-  InterpWrapMode wrap_y = InterpWrapMode::Extend;
-};
-
-/** All arguments to sampler functions that don't vary per-pixel.
+/** Emulation of BSL/GLSL object for sampling images.
+ * This object is subject to change! 
  * The stride/step can be used to sample from cropped rectangles out of
  * a larger buffer, to do transpose or mirroring, or to pull the image
  * out of one with a different number of components.
  */
-struct SamplerSource : public SamplerOptions {
+struct sampler2D {
   const float *buffer; /* points at x=y=0 */
   int width;
   int height;
   int components;
   int stride; /* distance between y and y+1 */
   int step;   /* distance between x and x+1 */
+  InterpWrapMode wrap_x = InterpWrapMode::Extend;
+  InterpWrapMode wrap_y = InterpWrapMode::Extend;
   const float *row(int y) const
   {
     return buffer + y * int64_t(stride);
@@ -530,20 +524,20 @@ void interpolate_cubic_mitchell_fl(
  * the sample area must be approximated by this rectangle, hypot(dPdx,dPdy) is recommended.
  * Sampler::Anisotropic does Sampler::Box.
  */
-using SampleRect = float4 (*)(const SamplerSource &source, const float2 &uv, const float2 &wh);
-/** Lookup optimized function to call for \a source. */
-SampleRect sample_rect(const SamplerSource &source);
+using SampleRect = float4 (*)(const sampler2D &source, const float2 &uv, const float2 &wh);
+/** Lookup optimized function to call for \a source and sampler. */
+SampleRect sample_rect(Sampler sampler, const sampler2D &source);
 
 /**
  * Filtered sampling based on derivatives of the sample location. Only Sampler::Anisotropic
  * does something different here, all others call sample_rect.
  */
-using SampleArea = float4 (*)(const SamplerSource &source,
+using SampleArea = float4 (*)(const sampler2D &source,
                               const float2 &uv,
                               const float2 &dPdx,
                               const float2 &dPdy);
 /** Lookup optimized function to call for \a source. */
-SampleArea sample_area(const SamplerSource &source);
+SampleArea sample_area(Sampler sampler, const sampler2D &source);
 
 }  // namespace math
 

@@ -11,7 +11,7 @@ template<enum Sampler sampler> inline float weight(float x) {}
 /* Sample orthogonal rectangle of size wh centered on uv.
  * Generic version works for any cubic filter (todo: fix for filters with negative weights)
  */
-template<enum Sampler sampler> float4 sample_rect(sampler2D source, float2 uv, float2 wh)
+template<enum Sampler sampler> float4 sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
 {
   const float2 w1 = max(wh, 1.0f);
   const float2 r = 2 * w1;
@@ -50,13 +50,13 @@ template<enum Sampler sampler> float4 sample_rect(sampler2D source, float2 uv, f
 }
 
 /* specialized as wh is ignored and it maps directly to texture() */
-template<> float4 sample_rect<Sampler::Bilinear>(sampler2D source, float2 uv, float2 wh)
+template<> float4 sample_rect<Sampler::Bilinear>(const sampler2D &source, const float2 &uv, const float2 &wh)
 {
   return texture(source, uv / float2(textureSize(source, 0)));
 }
 
 /* specialized as r is smaller and weight function needs to know size of a pixel */
-template<> float4 sample_rect<Sampler::Box>(sampler2D source, float2 uv, float2 wh)
+template<> float4 sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uv, const float2 &wh)
 {
   const float2 r = max((wh + 1) / 2.0f, 1.0f);
   const float2 a = floor(uv - r + 0.5f) + 0.5f;                // first non-zero sample

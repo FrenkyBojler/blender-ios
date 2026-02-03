@@ -579,8 +579,8 @@ template<enum Sampler sampler> BLI_INLINE float weight(float x);
 /* Sample orthogonal rectangle of size wh centered on uv.
  * Generic version works for any cubic filter (todo: fix for filters with negative weights)
  */
-template<Sampler sampler>
-static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const float2 &wh)
+template<enum Sampler sampler>
+static float4 _sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
 {
   const float2 w1 = max(wh, 1.0f);
   const float2 r = 2 * w1;
@@ -617,7 +617,7 @@ static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const 
 
 /* specialized as wh is ignored and it reads exactly one pixel */
 template<>
-float4 _sample_rect<Sampler::Nearest>(const SamplerSource &source,
+float4 _sample_rect<Sampler::Nearest>(const sampler2D &source,
                                       const float2 &uv,
                                       const float2 &)
 {
@@ -631,7 +631,7 @@ float4 _sample_rect<Sampler::Nearest>(const SamplerSource &source,
 
 /* specialized as wh is ignored and it reads exactly four pixels */
 template<>
-float4 _sample_rect<Sampler::Bilinear>(const SamplerSource &source,
+float4 _sample_rect<Sampler::Bilinear>(const sampler2D &source,
                                        const float2 &uv,
                                        const float2 &)
 {
@@ -682,7 +682,7 @@ float4 _sample_rect<Sampler::Bilinear>(const SamplerSource &source,
 
 /* specialized as r is smaller and weight function needs to know size of a pixel */
 template<>
-float4 _sample_rect<Sampler::Box>(const SamplerSource &source, const float2 &uv, const float2 &wh)
+float4 _sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uv, const float2 &wh)
 {
   const float2 r = max((wh + 1.0f) / 2.0f, 1.0f);
   const float2 a = floor(uv - r + 0.5f) + 0.5f;  // first non-zero sample
@@ -723,13 +723,14 @@ template<> float weight<Sampler::Bspline>(float x)
                     ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
 }
 
-/* Return the function to call to sample the given source. This checks the filter,
- * may also check other parts of source.
+/* Return the function to call to sample the given source. This depends on the
+ * sampler. The source may also be used to specialize base on the wrapping or the
+ * size or channels or type of the image (NYI).
  */
-SampleRect sample_rect(const SamplerSource &source)
+SampleRect sample_rect(Sampler sampler, const sampler2D &)
 {
   BLI_assert(source.components == 4);
-  switch (source.sampler) {
+  switch (sampler) {
     case Sampler::Nearest:
       return _sample_rect<Sampler::Nearest>;
     case Sampler::Bilinear:
@@ -746,8 +747,8 @@ BLI_INLINE float2 hypot(const float2 &a, const float2 &b)
   return float2{hypotf(a.x, b.x), hypotf(a.y, b.y)};
 }
 
-template<Sampler sampler>
-static float4 _sample_area(const SamplerSource &source,
+template<enum Sampler sampler>
+static float4 _sample_area(const sampler2D &source,
                            const float2 &uv,
                            const float2 &dPdx,
                            const float2 &dPdy)
@@ -757,7 +758,7 @@ static float4 _sample_area(const SamplerSource &source,
 
 // specializations that skip unused computation of hypot
 template<>
-float4 _sample_area<Sampler::Nearest>(const SamplerSource &source,
+float4 _sample_area<Sampler::Nearest>(const sampler2D &source,
                                       const float2 &uv,
                                       const float2 &dPdx,
                                       const float2 &)
@@ -766,7 +767,7 @@ float4 _sample_area<Sampler::Nearest>(const SamplerSource &source,
 }
 
 template<>
-float4 _sample_area<Sampler::Bilinear>(const SamplerSource &source,
+float4 _sample_area<Sampler::Bilinear>(const sampler2D &source,
                                        const float2 &uv,
                                        const float2 &dPdx,
                                        const float2 &)
@@ -803,7 +804,7 @@ BLI_INLINE int32_t wrap_coord_i(int32_t u, int32_t size, InterpWrapMode wrap)
 
 static void read_callback(void *userdata, int u, int v, float result[4])
 {
-  const SamplerSource &source = *(SamplerSource *)userdata;
+  const sampler2D &source = *(sampler2D *)userdata;
   int x = wrap_coord_i(u, source.width, source.wrap_x);
   int y = wrap_coord_i(v, source.height, source.wrap_y);
   if (x < 0 || y < 0) {
@@ -814,7 +815,7 @@ static void read_callback(void *userdata, int u, int v, float result[4])
   memcpy(result, data, 4 * sizeof(float));
 }
 
-static float4 sample_anisotropic(const SamplerSource &source,
+static float4 sample_anisotropic(const sampler2D &source,
                                  const float2 &uv,
                                  const float2 &dPdx,
                                  const float2 &dPdy)
@@ -834,10 +835,10 @@ static float4 sample_anisotropic(const SamplerSource &source,
   return pixel_value;
 }
 
-SampleArea sample_area(const SamplerSource &source)
+SampleArea sample_area(Sampler sampler, const sampler2D &)
 {
   BLI_assert(source.components == 4);
-  switch (source.sampler) {
+  switch (sampler) {
     case Sampler::Nearest:
       return _sample_area<Sampler::Nearest>;
     case Sampler::Bilinear:

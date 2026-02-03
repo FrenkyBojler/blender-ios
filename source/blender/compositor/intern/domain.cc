@@ -94,9 +94,9 @@ GPUSamplerExtendMode map_wrap_mode_to_extend_mode(math::InterpWrapMode mode)
   return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
 }
 
-math::SamplerOptions Domain::get_sampler_options() const
+Domain::SamplerOptions Domain::get_sampler_options() const
 {
-  math::SamplerOptions ret;
+  Domain::SamplerOptions ret;
   switch (realization_options.interpolation) {
     case Interpolation::Nearest:
       ret.sampler = math::Sampler::Nearest;
