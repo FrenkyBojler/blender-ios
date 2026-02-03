@@ -510,7 +510,6 @@ static void do_version_render_layers_node_albedo_normal_swap(bNode &node)
   }
 }
 
-void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 /* Some nodes no longer have storage but their storage is still allocated at write time for
  * forward compatibility. This only happens during writes from 4.5, so we need to free this
  * storage again when loading any file from 4.5. But before this versioning was done, it was
@@ -665,19 +664,6 @@ void do_versions_after_linking_510(FileData *fd, Main *bmain)
       if ((gp_style.flag & GP_MATERIAL_FILL_SHOW) == 0) {
         gp_style.fill_rgba[3] = 0.0f;
       }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 25)) {
-    for (Scene &scene : bmain->scenes) {
-      scene.r.mode |= R_SAVE_OUTPUT;
-
-      bNodeTree *node_tree = version_get_scene_compositor_node_tree(bmain, &scene);
-      if (node_tree == nullptr) {
-        continue;
-      }
-
-      do_version_file_output_use_file_extension_recursive(*node_tree, scene);
     }
   }
 
@@ -906,6 +892,12 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 25)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.r.mode |= R_SAVE_OUTPUT;
+    }
   }
 
   /**
