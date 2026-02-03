@@ -89,15 +89,10 @@ struct wmXrRuntimeData {
   /* GHOST context */
   GHOST_IXrContext *ghost_context;
 
-  /* XR specific bContext. Initialized from the main Blender context on session creation. */
+  /* XR specific bContext. Initialized from the main Blender context on session creation.
+   * Contains the XR root-window (the window the XR session was started in) and the off-screen
+   * area used for XR events. */
   bContext *b_context;
-
-  /** The window the session was started in. Stored to be able to follow its view-layer. This may
-   * be an invalid reference, i.e. the window may have been closed. */
-  wmWindow *session_root_win;
-
-  /** Off-screen area used for XR events. */
-  struct ScrArea *area;
 
   /** Although this struct is internal, RNA gets a handle to this for state information queries. */
   wmXrSessionState session_state;

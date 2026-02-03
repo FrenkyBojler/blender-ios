@@ -45,12 +45,12 @@ static void wm_xr_error_handler(const GHOST_XrError *error)
 {
   wmXrErrorHandlerData *handler_data = static_cast<wmXrErrorHandlerData *>(error->customdata);
   wmWindowManager *wm = handler_data->wm;
-  wmWindow *root_win = wm->xr.runtime ? wm->xr.runtime->session_root_win : nullptr;
+  wmWindow *xr_root_win = CTX_wm_window(wm->xr.runtime->b_context);
 
   BKE_reports_clear(&wm->runtime->reports);
   WM_global_report(RPT_ERROR, error->user_message);
-  /* Rely on the fallback when `root_win` is nullptr. */
-  WM_report_banner_show(wm, root_win);
+  /* Internally rely on the first WM window as a fallback when `xr_root_win` is nullptr. */
+  WM_report_banner_show(wm, xr_root_win);
 
   if (wm->xr.runtime) {
     /* Just play safe and destroy the entire runtime data, including context. */
@@ -134,10 +134,14 @@ bool wm_xr_init(bContext *C)
       wm->xr.runtime = wm_xr_runtime_data_create();
       wm->xr.runtime->ghost_context = ghost_context;
 
+      /* Create a minimal XR-specific context. */
       wm->xr.runtime->b_context = CTX_create();
+      /* Main and WM pointers. */
       CTX_wm_manager_set(wm->xr.runtime->b_context, CTX_wm_manager(C));
-      CTX_wm_window_set(wm->xr.runtime->b_context, CTX_wm_window(C));
       CTX_data_main_set(wm->xr.runtime->b_context, CTX_data_main(C));
+
+      /* XR root-window and current scene. */
+      CTX_wm_window_set(wm->xr.runtime->b_context, CTX_wm_window(C));
       CTX_data_scene_set(wm->xr.runtime->b_context, CTX_data_scene(C)); // TODO: would this cause issue with the XR scene being desync from the main context scene?
     }
   }
@@ -198,18 +202,21 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
      * the first call, see comment above. */
     (*runtime)->ghost_context = nullptr;
 
-    if ((*runtime)->area) {
-      wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
-      wmWindow *win = wm_xr_session_root_window_or_fallback_get(wm, (*runtime));
-
-      WM_event_remove_handlers_by_area(&win->runtime->handlers, (*runtime)->area);
-      ED_area_offscreen_free(wm, win, (*runtime)->area);
-      (*runtime)->area = nullptr;
-    }
     wm_xr_session_data_free(&(*runtime)->session_state);
     WM_xr_actionmaps_clear(*runtime);
 
     GHOST_XrContextDestroy(ghost_context);
+  }
+
+  ScrArea *xr_area = CTX_wm_area((*runtime)->b_context);
+
+  if (xr_area) {
+    wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
+    wmWindow *win = wm_xr_session_root_window_or_fallback_get(wm, (*runtime));
+
+    WM_event_remove_handlers_by_area(&win->runtime->handlers, xr_area);
+    ED_area_offscreen_free(wm, win, xr_area);
+    CTX_wm_area_set((*runtime)->b_context, nullptr);
   }
 
   CTX_free((*runtime)->b_context);

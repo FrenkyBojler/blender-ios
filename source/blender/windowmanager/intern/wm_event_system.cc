@@ -4018,20 +4018,20 @@ static bool wm_event_xr_handler_matches_actiondata(const wmEventHandler_Op *op_h
 static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent *event)
 {
   bContext *xr_C = WM_xr_session_context_get(&wm->xr);
-  ScrArea *area = WM_xr_session_area_get(&wm->xr);
-  if (!area) {
+  ScrArea *xr_area = CTX_wm_area(xr_C);
+  if (!xr_area) {
     return;
   }
-  BLI_assert(area->spacetype == SPACE_VIEW3D && area->spacedata.first);
+  BLI_assert(xr_area->spacetype == SPACE_VIEW3D && xr_area->spacedata.first);
 
   /* Find a valid region for XR operator execution and modal handling. */
-  ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  // TODO: couldn't this region always be correctly set to whatever is required?
+  ARegion *region = BKE_area_find_region_type(xr_area, RGN_TYPE_WINDOW);
   if (!region) {
     return;
   }
-  BLI_assert(WM_region_use_viewport(area, region)); /* For operators using GPU-based selection. */
+  BLI_assert(WM_region_use_viewport(xr_area, region)); /* For operators using GPU-based selection. */
 
-  CTX_wm_area_set(xr_C, area);
   CTX_wm_region_set(xr_C, region);
 
   ListBaseT<wmEventHandler> *modalhandlers = &win->runtime->modalhandlers;
@@ -4048,7 +4048,7 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
     if (handler_base.type == WM_HANDLER_TYPE_OP) {
       BLI_assert((handler_base.flag & WM_HANDLER_DO_FREE) == 0);
 
-      if (handler_base.poll != nullptr && !handler_base.poll(win, area, region, event)) {
+      if (handler_base.poll != nullptr && !handler_base.poll(win, xr_area, region, event)) {
         continue;
       }
 
@@ -4097,8 +4097,7 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
     }
   }
 
-  CTX_wm_region_set(xr_C, nullptr);
-  CTX_wm_area_set(xr_C, nullptr);
+//  CTX_wm_region_set(xr_C, nullptr);
 }
 #endif /* WITH_XR_OPENXR */
 

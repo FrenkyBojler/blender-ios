@@ -138,7 +138,6 @@ void wm_xr_session_toggle(wmWindowManager *wm, wmXrSessionExitFn session_exit_fn
   else {
     GHOST_XrSessionBeginInfo begin_info;
 
-    xr_data->runtime->session_root_win = CTX_wm_window(WM_xr_session_context_get(xr_data));
     xr_data->runtime->session_state.is_started = true;
     xr_data->runtime->exit_fn = session_exit_fn;
 
@@ -220,11 +219,10 @@ static void wm_xr_session_draw_data_populate(wmXrData *xr_data,
 wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
                                                     const wmXrRuntimeData *runtime_data)
 {
-  if (runtime_data->session_root_win &&
-      BLI_findindex(&wm->windows, runtime_data->session_root_win) != -1)
-  {
-    /* Root window is still valid, use it. */
-    return runtime_data->session_root_win;
+  wmWindow *xr_root_window = CTX_wm_window(runtime_data->b_context);
+  if (xr_root_window && BLI_findindex(&wm->windows, xr_root_window) != -1) {
+    /* Root XR window is still valid, use it. */
+    return xr_root_window;
   }
   /* Otherwise, fall back. */
   return static_cast<wmWindow *>(wm->windows.first);
@@ -433,11 +431,6 @@ void wm_xr_session_state_update(const XrSessionSettings *settings,
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr)
 {
   return xr->runtime ? &xr->runtime->session_state : nullptr;
-}
-
-ScrArea *WM_xr_session_area_get(const wmXrData *xr)
-{
-  return xr->runtime ? xr->runtime->area : nullptr;
 }
 
 bContext *WM_xr_session_context_get(const wmXrData *xr)
@@ -1320,12 +1313,13 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
 
     if (win) {
       /* Ensure an XR area exists for events. */
-      if (!xr->runtime->area) {
-        xr->runtime->area = ED_area_offscreen_create(win, SPACE_VIEW3D);
+      bContext *xr_C = WM_xr_session_context_get(xr);
+      if (!CTX_wm_area(xr_C)) {
+        CTX_wm_area_set(xr_C, ED_area_offscreen_create(win, SPACE_VIEW3D));
       }
 
       /* Set XR area object type flags for operators. */
-      View3D *v3d = static_cast<View3D *>(xr->runtime->area->spacedata.first);
+      View3D *v3d = static_cast<View3D *>(CTX_wm_area(xr_C)->spacedata.first);
       v3d->object_type_exclude_viewport = settings->object_type_exclude_viewport;
       v3d->object_type_exclude_select = settings->object_type_exclude_select;
 

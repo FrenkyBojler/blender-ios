@@ -271,9 +271,7 @@ static void ed_region_draw_cb_draw(const bContext *C, ARegion *region, ARegionTy
 
 void ED_region_draw_cb_draw(const bContext *C, ARegion *region, int type)
 {
-  if (region->runtime->type) {
-    ed_region_draw_cb_draw(C, region, region->runtime->type, type);
-  }
+  ed_region_draw_cb_draw(C, region, region->runtime->type, type);
 }
 
 void ED_region_surface_draw_cb_draw(const bContext *C, ARegionType *art, int type)
