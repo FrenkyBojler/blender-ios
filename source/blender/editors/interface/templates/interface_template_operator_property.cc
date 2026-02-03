@@ -341,14 +341,13 @@ static wmOperator *minimal_operator_create(wmOperatorType *ot, PointerRNA *prope
   return op;
 }
 
-static void draw_import_controls(bContext *C, Layout &layout, const std::string &label, bool valid)
+static void draw_import_controls(bContext *, Layout &layout, const std::string &label, bool valid)
 {
   layout.label(label, ICON_NONE);
   if (valid) {
     Layout &row = layout.row(false);
     row.emboss_set(EmbossType::None);
-    row.popover(C, "WM_PT_operator_presets", "", ICON_PRESET);
-    row.op("COLLECTION_OT_importer_import", "", ICON_IMPORT);
+    /* TODO: Provide control for actual import operator and, potentially, presets. */
   }
 }
 
