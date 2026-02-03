@@ -3660,7 +3660,7 @@ static void wm_block_save_modified_images_save_button(ui::Block *block,
                                                       wmGenericCallback *post_action)
 {
   ui::Button *but = uiDefIconTextBut(
-      block, ui::ButtonType::But, ICON_NONE, "Save File", 0, 0, 0, UI_UNIT_Y, nullptr, "");
+      block, ui::ButtonType::But, ICON_NONE, IFACE_("Save"), 0, 0, 0, UI_UNIT_Y, nullptr, "");
   button_func_set(but, wm_block_save_modified_images_save, block, post_action);
   button_drawflag_disable(but, ui::BUT_TEXT_LEFT);
   button_flag_enable(but, ui::BUT_ACTIVE_DEFAULT);
@@ -4122,7 +4122,7 @@ void WM_OT_save_as_mainfile(wmOperatorType *ot)
   prop = RNA_def_boolean(
       ot->srna,
       "show_save_modified_images_dialog",
-      true,
+      false,
       "Show Save Modified Images Dialog",
       "Show a popup dialog to save modified images before saving the blend file");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
@@ -4241,7 +4241,7 @@ void WM_OT_save_mainfile(wmOperatorType *ot)
   prop = RNA_def_boolean(
       ot->srna,
       "show_save_modified_images_dialog",
-      true,
+      false,
       "Show Save Modified Images Dialog",
       "Show a popup dialog to save modified images before saving the blend file");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
