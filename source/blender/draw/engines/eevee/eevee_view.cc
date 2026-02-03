@@ -100,8 +100,8 @@ void ShadingView::render()
   prepass_fb_.ensure(
       GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
       with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.prepass_normal_tx) : GPU_ATTACHMENT_NONE,
-      GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx),
-      with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx) : GPU_ATTACHMENT_NONE);
+      with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx) : GPU_ATTACHMENT_NONE,
+      GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx));
 
   GBuffer &gbuf = inst_.gbuffer;
   gbuf.acquire(extent_,
@@ -364,8 +364,8 @@ void CaptureView::render_probes()
     prepass_fb.ensure(
         GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
         with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.prepass_normal_tx) : GPU_ATTACHMENT_NONE,
-        GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx),
-        with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx) : GPU_ATTACHMENT_NONE);
+        with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx) : GPU_ATTACHMENT_NONE,
+        GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx));
 
     rbufs.vector_tx.clear(float4(0.0f));
     if (with_raycast) {

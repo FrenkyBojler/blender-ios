@@ -113,8 +113,8 @@ void PlanarProbeModule::set_view(const draw::View &main_view, int2 main_view_ext
     res.prepass_fb.ensure(
         GPU_ATTACHMENT_TEXTURE(depth_tx_),
         with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.prepass_normal_tx) : GPU_ATTACHMENT_NONE,
-        GPU_ATTACHMENT_NONE, /* motion vectors */
-        with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx) : GPU_ATTACHMENT_NONE);
+        with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx) : GPU_ATTACHMENT_NONE,
+        GPU_ATTACHMENT_NONE /* motion vectors */);
     if (with_raycast) {
       rbufs.object_id_tx.clear(uint4(0));
       rbufs.prepass_normal_tx.clear(float4(0.0f));

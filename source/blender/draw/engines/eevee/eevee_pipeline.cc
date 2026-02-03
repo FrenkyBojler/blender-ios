@@ -302,8 +302,8 @@ void Prepass::setup_subpasses(DRWState common_state)
                            (double_sided ? DRW_STATE_NO_DRAW : DRW_STATE_CULL_BACK));
         subpass->subpass_transition(GPU_ATTACHMENT_WRITE,
                                     {GPU_ATTACHMENT_WRITE, /* normal */
-                                     moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE,
-                                     write_id ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
+                                     write_id ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE,
+                                     moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
       }
     }
   }
