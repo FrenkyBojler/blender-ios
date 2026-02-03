@@ -155,106 +155,6 @@ static bool walk_boundary_loop(BMesh * /*bm*/,
   return false;
 }
 
-/* Walks connected edges to build a vertex loop for isolated vertex face fans. */
-static void sort_fan_edges(const Set<BMEdge *> &edges, Vector<BMVert *> &r_loop)
-{
-  if (edges.is_empty()) {
-    return;
-  }
-
-  /* Start with an arbitrary edge. */
-  BMEdge *start_edge = *edges.begin();
-  BMEdge *curr_edge = start_edge;
-  BMVert *curr_vert = start_edge->v1;
-
-  Set<BMEdge *> processed;
-
-  bool found_next = true;
-
-  while (found_next) {
-    found_next = false;
-    processed.add(curr_edge);
-    r_loop.append(curr_vert);
-
-    /* Traverse to the other side of the edge. */
-    curr_vert = BM_edge_other_vert(curr_edge, curr_vert);
-
-    /* Check if we closed the loop. */
-    if (curr_vert == start_edge->v1) {
-      break;
-    }
-
-    /* Find the next edge in our specific set. */
-    BMIter eiter;
-    BMEdge *next_edge;
-    BM_ITER_ELEM (next_edge, &eiter, curr_vert, BM_EDGES_OF_VERT) {
-      if (next_edge != curr_edge && edges.contains(next_edge) && !processed.contains(next_edge)) {
-        curr_edge = next_edge;
-        found_next = true;
-        break;
-      }
-    }
-  }
-}
-
-/* Builds closed loops from face-fan boundary edges around isolated vertices. */
-static void get_single_vertex_loops(BMesh *bm, Vector<LoopData> &r_loops)
-{
-  BMIter viter;
-  BMVert *v;
-  BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
-    if (!BM_elem_flag_test(v, BM_ELEM_SELECT) || BM_elem_flag_test(v, BM_ELEM_HIDDEN)) {
-      continue;
-    }
-
-    /* Check if this is an isolated selection. */
-    bool has_selected_edge = false;
-    BMIter eiter;
-    BMEdge *e;
-    BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
-      if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-        has_selected_edge = true;
-        break;
-      }
-    }
-
-    if (has_selected_edge) {
-      continue;
-    }
-
-    /* Collect boundary edges of the face fan surrounding this vertex. */
-    Set<BMEdge *> fan_edges;
-    BMIter fiter;
-    BMFace *f;
-    BM_ITER_ELEM (f, &fiter, v, BM_FACES_OF_VERT) {
-      if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
-        continue;
-      }
-
-      /* Add edges of this face that do not touch the center vertex. */
-      BMLoop *l_start = f->l_first;
-      BMLoop *l_iter = l_start;
-      do {
-        if (l_iter->v != v && l_iter->next->v != v) {
-          fan_edges.add(l_iter->e);
-        }
-      } while ((l_iter = l_iter->next) != l_start);
-    }
-
-    if (fan_edges.size() >= 3) {
-      LoopData ld;
-      sort_fan_edges(fan_edges, ld.verts);
-
-      /* Only valid if we formed a proper loop around the vertex. */
-      if (ld.verts.size() >= 3) {
-        /* Single vertex surroundings are conceptually closed loops. */
-        ld.is_closed = true;
-        ld.center_vert = v;
-        r_loops.append(ld);
-      }
-    }
-  }
-}
 
 /* Collects all valid boundary edge loops and isolated single-vertex loops from the current
  * selection. */
@@ -306,8 +206,6 @@ static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops, const bool che
       r_loops.append(ld);
     }
   }
-
-  get_single_vertex_loops(bm, r_loops);
 }
 
 static void calculate_plane_basis(
