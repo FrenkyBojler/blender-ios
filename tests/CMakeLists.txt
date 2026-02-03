@@ -51,10 +51,18 @@ endif()
 # For testing with Valgrind
 # set(TEST_BLENDER_EXE valgrind --track-origins=yes --error-limit=no ${TEST_BLENDER_EXE})
 
+# Set Python expression separately for disabling thumbnail creation
+set(_test_python_expr "import bpy;bpy.context.preferences.filepaths.file_preview_type=\"NONE\"")
+
 # Standard Blender arguments for running tests.
 # Specify exit code so that if a Python script error happens, the test fails.
 set(TEST_BLENDER_EXE_PARAMS
-  --background --factory-startup --debug-memory --debug-exit-on-error --python-exit-code 1
+  --background
+  --factory-startup
+  --python-expr "${_test_python_expr}"
+  --debug-memory
+  --debug-exit-on-error
+  --python-exit-code 1
 )
 
 # Python CTests
