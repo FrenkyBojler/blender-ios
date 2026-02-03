@@ -51,18 +51,23 @@ endif()
 # For testing with Valgrind
 # set(TEST_BLENDER_EXE valgrind --track-origins=yes --error-limit=no ${TEST_BLENDER_EXE})
 
-# Set Python expression separately for disabling thumbnail creation
-set(_test_python_expr "import bpy\\\;bpy.context.preferences.filepaths.file_preview_type=\"NONE\"")
-
 # Standard Blender arguments for running tests.
 # Specify exit code so that if a Python script error happens, the test fails.
 set(TEST_BLENDER_EXE_PARAMS
   --background
   --factory-startup
-  --python-expr "${_test_python_expr}"
   --debug-memory
   --debug-exit-on-error
   --python-exit-code 1
+)
+
+# The `TEST_BLENDER_EXE_PARAMS` list might be edited in some cases (see e.g. `add_blender_test_allow_error`).
+# This will break in case a parameter contains a `;` that should remain litteral,
+# instead of being interpreted as a list item separator by CMake.
+# So this additional variable is always added after `TEST_BLENDER_EXE_PARAMS`, always as-is.
+set(TEST_BLENDER_EXE_PARAMS_NO_EDIT
+  # Python expression to disable thumbnails creation on blendfile saving.
+  --python-expr [=[import bpy\;bpy.context.preferences.filepaths.file_preview_type='NONE']=]
 )
 
 # Python CTests
