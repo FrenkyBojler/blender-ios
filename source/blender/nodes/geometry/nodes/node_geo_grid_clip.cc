@@ -159,8 +159,8 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeGridClip");
   ntype.ui_name = "Clip Grid";
   ntype.ui_description =
-      "Clip a grid using minimum and maximum index values. Voxels outside the "
-      "bounding box are deactivated and set to the background value.";
+      "Deactivate grid voxels outside minimum and maximum coordinates, setting them to the "
+      "background value.";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
