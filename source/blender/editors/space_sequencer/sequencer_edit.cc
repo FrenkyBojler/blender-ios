@@ -693,14 +693,13 @@ static wmOperatorStatus sequencer_snap_invoke(bContext *C, wmOperator *op, const
   RNA_int_set(op->ptr, "frame", snap_frame);
 
   int snap_side = RNA_enum_get(op->ptr, "side");
-  if (snap_side == seq::SIDE_MOUSE) {
-    if (ED_operator_sequencer_active(C) && v2d) {
-      snap_side = mouse_frame_side_get(v2d, event->mval[0], snap_frame);
-    }
-    else {
-      snap_side = seq::SIDE_LEFT;
-    }
+  if (ED_operator_sequencer_active(C) && v2d) {
+    snap_side = mouse_frame_side_get(v2d, event->mval[0], snap_frame);
   }
+  else {
+    snap_side = seq::SIDE_LEFT;
+  }
+
   RNA_enum_set(op->ptr, "side", snap_side);
   return sequencer_snap_exec(C, op);
 }
@@ -710,7 +709,9 @@ void SEQUENCER_OT_snap(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Snap Strips to the Current Frame";
   ot->idname = "SEQUENCER_OT_snap";
-  ot->description = "Frame where selected strips will be snapped";
+  ot->description =
+      "Snap strips to the current frame, using the active strip as the anchor, and the mouse "
+      "cursor relative to the playhead to determine the side of the playhead to snap to";
 
   /* API callbacks. */
   ot->invoke = sequencer_snap_invoke;
@@ -718,7 +719,7 @@ void SEQUENCER_OT_snap(wmOperatorType *ot)
   ot->poll = sequencer_edit_poll;
 
   /* Flags. */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
   RNA_def_int(ot->srna,
               "frame",
@@ -742,9 +743,9 @@ void SEQUENCER_OT_snap(wmOperatorType *ot)
       ot->srna,
       "side",
       prop_snap_side_types,
-      seq::SIDE_MOUSE,
+      seq::SIDE_LEFT,
       "Snap Side",
-      "If no handles are selected, which side of the playhead the strip should snap to");
+      "Which side of the playhead strips should snap to when no handles are selected");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
@@ -1776,7 +1777,6 @@ static const EnumPropertyItem prop_split_types[] = {
 };
 
 const EnumPropertyItem prop_snap_side_types[] = {
-    {seq::SIDE_MOUSE, "MOUSE", 0, "Mouse Position", ""},
     {seq::SIDE_LEFT, "LEFT", 0, "Left", ""},
     {seq::SIDE_RIGHT, "RIGHT", 0, "Right", ""},
     {0, nullptr, 0, nullptr, nullptr},
