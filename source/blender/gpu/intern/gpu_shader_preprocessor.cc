@@ -32,6 +32,9 @@ template<typename IToken> struct TokenRange {
 /** \name Parser / Lexer classes.
  * \{ */
 
+class Line;
+class Directive;
+
 /**
  * Lexer variant for very fast tokenization for the preprocessor.
  * Does not merge newlines and spaces together.
@@ -40,8 +43,12 @@ template<typename IToken> struct TokenRange {
 struct AtomicLexer : LexerBase {
   /* Line index to token range. */
   blender::OffsetIndices<int> line_offsets;
+
   /* Preprocessor directive to line index. */
   Vector<int> directive_lines;
+
+  Line line(int index) const;
+  Directive directive(int index) const;
 
   void lexical_analysis(std::string_view input)
   {
@@ -139,7 +146,7 @@ struct AtomicLexer : LexerBase {
       case perfect_hash("else"):
         return (s == "else") ? Else : Word;
       case perfect_hash("line"):
-        return (s == "line") ? Line : Word;
+        return (s == "line") ? TokenType::Line : Word;
       case perfect_hash("endif"):
         return (s == "endif") ? Endif : Word;
       case perfect_hash("ifdef"):
@@ -226,6 +233,301 @@ struct AtomicLexer : LexerBase {
     line_offsets = line_offsets_buf_.as_span();
   }
 };
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Type-safe identifier management.
+ * \{ */
+
+/* Has quite a performance hit in debug. Enable if needed. */
+// #define DEBUG_ID_STRING
+
+class Line {
+  friend Directive;
+  friend AtomicLexer;
+
+ private:
+#ifdef DEBUG_ID_STRING
+  std::string_view debug_str_;
+#endif
+  const AtomicLexer *lex_;
+  int index_;
+
+  Line() : lex_(nullptr), index_(-1) {};
+
+  Line(const AtomicLexer *lex, int index) : lex_(lex), index_(index)
+  {
+    BLI_assert(is_valid());
+#ifdef DEBUG_ID_STRING
+    debug_str_ = str();
+#endif
+  };
+
+ public:
+  static Line invalid()
+  {
+    return Line();
+  }
+
+  explicit operator int() const
+  {
+    return index_;
+  }
+
+  Token first() const
+  {
+    return (*lex_)[lex_->line_offsets[index_].first()];
+  }
+  /* Return the end element. Return the token before \n or \n if line is empty. */
+  Token last() const
+  {
+    blender::IndexRange range = lex_->line_offsets[index_];
+    return (*lex_)[range.size() > 1 ? range.last(1) : range.last()];
+  }
+  /* NOTE: Return the end of line character '\n'. */
+  Token end() const
+  {
+    return (*lex_)[lex_->line_offsets[index_].last()];
+  }
+
+  StringRef str() const
+  {
+    IndexRange range = lex_->line_offsets[index_];
+    return lex_->substr((*lex_)[range.first()], (*lex_)[range.last()]);
+  }
+
+  bool is_last() const
+  {
+    return (lex_->line_offsets.size() - 1) == index_;
+  }
+
+  bool is_valid() const
+  {
+    return index_ >= 0 && index_ < lex_->line_offsets.size();
+  }
+
+  /* Return next token. Result in undefined behavior if id is last. */
+  Line next() const
+  {
+    return Line(lex_, index_ + 1);
+  }
+  /* Return previous token. Result in undefined behavior if id is first. */
+  Line prev() const
+  {
+    return Line(lex_, index_ - 1);
+  }
+
+  BLI_STRUCT_EQUALITY_OPERATORS_1(Line, index_)
+
+  uint64_t hash() const
+  {
+    return index_;
+  }
+};
+
+enum class DirectiveType : char {
+  Define = TokenType::Define,
+  Undef = TokenType::Undef,
+  Line = TokenType::Line,
+  If = TokenType::If,
+  Ifdef = TokenType::Ifdef,
+  Ifndef = TokenType::Ifndef,
+  Elif = TokenType::Elif,
+  Else = TokenType::Else,
+  Endif = TokenType::Endif,
+  Pragma = TokenType::Pragma,
+  /* Any other unhandled directives (warnings / errors / pragma etc...). */
+  Other = TokenType::Word,
+};
+
+/* Simple integer identifier with a debug string view.
+ * Allow type safety and function overload. */
+class Directive {
+  friend AtomicLexer;
+
+ private:
+#ifdef DEBUG_ID_STRING
+  std::string_view debug_str_;
+#endif
+  const AtomicLexer *lex_;
+  int index_;
+
+  Directive() : lex_(nullptr), index_(-1) {};
+  Directive(const AtomicLexer *lex, int index) : lex_(lex), index_(index)
+  {
+    BLI_assert(is_valid());
+#ifdef DEBUG_ID_STRING
+    debug_str_ = str();
+#endif
+  };
+
+ public:
+  static Directive invalid()
+  {
+    return Directive();
+  }
+
+  explicit operator int() const
+  {
+    return index_;
+  }
+
+  Line first() const
+  {
+    return lex_->line(lex_->directive_lines[index_]);
+  }
+
+  Line last() const
+  {
+    /* Could be precomputed if becoming a bottleneck. */
+    Line line = first();
+    while (line.last() == Backslash) {
+      line = line.next();
+    }
+    return line;
+  }
+
+  DirectiveType type() const
+  {
+    return DirectiveType(identifier().type());
+  }
+
+  /* Return token defining the directive type (e.g. define, undef, if ...). */
+  Token identifier() const
+  {
+    Line line = first();
+    Token hash_tok = line.first();
+    BLI_assert(hash_tok == Hash);
+    Token dir_tok = hash_tok.next();
+    return dir_tok;
+  }
+
+  bool is_valid() const
+  {
+    return index_ >= 0 && index_ < lex_->directive_lines.size();
+  }
+
+  bool is_last() const
+  {
+    return (lex_->directive_lines.size() - 1) == index_;
+  }
+
+  Directive next() const
+  {
+    return Directive(lex_, index_ + 1);
+  }
+  Directive prev() const
+  {
+    return Directive(lex_, index_ - 1);
+  }
+
+  StringRef str() const
+  {
+    Line start = first();
+    Line end = last();
+    Token tok_start = start.first();
+    Token tok_end = end.last();
+    return lex_->substr(tok_start, tok_end);
+  }
+
+  StringRef str_with_whitespace() const
+  {
+    Line start = first();
+    Line end = last();
+    Token tok_start = start.first();
+    Token tok_end = end.end();
+    return lex_->substr(tok_start, tok_end);
+  }
+
+  BLI_STRUCT_EQUALITY_OPERATORS_1(Directive, index_)
+
+  uint64_t hash() const
+  {
+    return index_;
+  }
+};
+
+/* Returns the type of conditional. */
+DirectiveType increment_to_next_conditional(Directive &dir)
+{
+  dir = dir.next();
+  while (dir.is_valid()) {
+    DirectiveType type = dir.type();
+    if (ELEM(type,
+             DirectiveType::If,
+             DirectiveType::Ifdef,
+             DirectiveType::Ifndef,
+             DirectiveType::Else,
+             DirectiveType::Elif,
+             DirectiveType::Endif))
+    {
+      return type;
+    }
+    dir = dir.next();
+  }
+  /* Missing matching #endif. */
+  // TODO exception?
+  BLI_assert_unreachable();
+  return DirectiveType::Other;
+}
+
+Directive find_next_matching_conditional(Directive dir)
+{
+  int stack = 1;
+  while (dir.is_valid()) {
+    DirectiveType type = increment_to_next_conditional(dir);
+    if (ELEM(type, DirectiveType::If, DirectiveType::Ifdef, DirectiveType::Ifndef)) {
+      stack++;
+    }
+    else if (ELEM(type, DirectiveType::Endif)) {
+      stack--;
+    }
+
+    if (stack == 0) {
+      return dir; /* Endif. */
+    }
+    if (stack == 1 && ELEM(type, DirectiveType::Else, DirectiveType::Elif)) {
+      return dir;
+    }
+  }
+  BLI_assert_unreachable();
+  return Directive::invalid();
+}
+
+/**
+ * Boiler plate class exposing lexer structure using typed IDs.
+ */
+struct AtomicLexerWithIDs {
+ protected:
+  AtomicLexer lex_;
+
+ public:
+  AtomicLexerWithIDs(StringRef str)
+  {
+    lex_.lexical_analysis(str);
+  }
+
+  /* Cached keyword identifier. */
+  TokenAtom defined_atom = get_atom("defined");
+  TokenAtom va_args_atom = get_atom("__VA_ARGS__");
+
+  /* Return valid value if hash is a known string. Is full hash lookup + hashing. */
+  TokenAtom get_atom(StringRef str)
+  {
+    return lex_.hash(str);
+  }
+};
+
+Line AtomicLexer::line(int index) const
+{
+  return Line(this, index);
+}
+
+Directive AtomicLexer::directive(int index) const
+{
+  return Directive(this, index);
+}
 
 struct Stream {
   struct Space {};
@@ -465,290 +767,6 @@ DCEStream &operator<<(DCEStream &dst, const Token &tok)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Type-safe identifier management.
- * \{ */
-
-/* Has quite a performance hit in debug. Enable if needed. */
-// #define DEBUG_ID_STRING
-
-/* Simple integer identifier with a debug string view.
- * Allow type safety and function overload. */
-template<typename Trait, typename T = int> class ID {
-#ifdef DEBUG_ID_STRING
- public:
-  std::string_view str;
-#endif
- private:
-  T id_;
-
- public:
-  ID() = delete;
-
-  explicit ID(T i) : id_(i) {}
-
-  static ID invalid()
-  {
-    return ID(-1);
-  }
-
-  explicit operator T() const
-  {
-    return id_;
-  }
-
-  BLI_STRUCT_EQUALITY_OPERATORS_1(ID, id_)
-
-  uint64_t hash() const
-  {
-    return id_;
-  }
-};
-
-/**
- * Boiler plate class exposing lexer structure using typed IDs.
- */
-struct AtomicLexerWithIDs {
- protected:
-  AtomicLexer lex_;
-
- public:
-  AtomicLexerWithIDs(StringRef str)
-  {
-    lex_.lexical_analysis(str);
-  }
-
-  struct TokenTrait {};
-  struct LineTrait {};
-  struct DirectiveTrait {};
-  struct AtomTrait {};
-
-  using LineID = ID<LineTrait>;
-  using DirectiveID = ID<DirectiveTrait>;
-  /* Typesafe Atom. */
-  using AtomID = ID<AtomTrait, TokenAtom>;
-
-  enum DirectiveType : char {
-    Define = TokenType::Define,
-    Undef = TokenType::Undef,
-    Line = TokenType::Line,
-    If = TokenType::If,
-    Ifdef = TokenType::Ifdef,
-    Ifndef = TokenType::Ifndef,
-    Elif = TokenType::Elif,
-    Else = TokenType::Else,
-    Endif = TokenType::Endif,
-    Pragma = TokenType::Pragma,
-    /* Any other unhandled directives (warnings / errors / pragma etc...). */
-    Other = TokenType::Word,
-  };
-
-  /* Cached keyword identifier. */
-  AtomID defined_atom = get_atom("defined");
-  AtomID va_args_atom = get_atom("__VA_ARGS__");
-
-  /**
-   * Validity check.
-   */
-  bool is_valid(LineID line)
-  {
-    return int(line) >= 0 && int(line) < lex_.line_offsets.size();
-  }
-  bool is_valid(DirectiveID dir)
-  {
-    return int(dir) >= 0 && int(dir) < lex_.directive_lines.size();
-  }
-
-  /**
-   * Check if item is the last of its kind.
-   */
-  bool is_last(DirectiveID dir)
-  {
-    return (lex_.directive_lines.size() - 1) == int(dir);
-  }
-  bool is_last(LineID line)
-  {
-    return (lex_.line_offsets.size() - 1) == int(line);
-  }
-
-  /**
-   * Creation. Creating an invalid token is undefined behavior.
-   */
-  LineID make_line(int index)
-  {
-    LineID line(index);
-#ifdef DEBUG_ID_STRING
-    line.str = str(line);
-#endif
-    BLI_assert(is_valid(line));
-    return line;
-  }
-  DirectiveID make_directive(int index)
-  {
-    DirectiveID dir(index);
-#ifdef DEBUG_ID_STRING
-    dir.str = str(dir);
-#endif
-    BLI_assert(is_valid(dir));
-    return dir;
-  }
-
-  /**
-   * Convert ID to string.
-   */
-  StringRef str(DirectiveID dir)
-  {
-    LineID start = get_start(dir);
-    LineID end = get_end(dir);
-    Token tok_start = lex_[int(get_start(start))];
-    Token tok_end = lex_[int(get_end(end))];
-    return lex_.substr(tok_start, tok_end);
-  }
-  StringRef str(LineID line)
-  {
-    Token start = get_start(line);
-    Token end = get_end(line);
-    return lex_.substr(start, end);
-  }
-
-  StringRef str_with_whitespace(DirectiveID dir)
-  {
-    LineID start = get_start(dir);
-    LineID end = get_end(dir);
-    Token tok_start = lex_[int(get_start(start))];
-    Token tok_end = lex_[int(get_true_end(end))];
-    return lex_.substr(tok_start, tok_end);
-  }
-
-  /* Return valid value if hash is a known string. Is full hash lookup + hashing. */
-  AtomID get_atom(StringRef str)
-  {
-    return AtomID(lex_.hash(str));
-  }
-
-  /**
-   * Return next token. Result in undefined behavior if id is last.
-   */
-  LineID next(LineID line)
-  {
-    return make_line(int(line) + 1);
-  }
-  DirectiveID next(DirectiveID directive)
-  {
-    return make_directive(int(directive) + 1);
-  }
-
-  /**
-   * Return previous token. Result in undefined behavior if id is first.
-   */
-  LineID prev(LineID line)
-  {
-    return make_line(int(line) - 1);
-  }
-  DirectiveID prev(DirectiveID directive)
-  {
-    return make_directive(int(directive) - 1);
-  }
-
-  /**
-   * Return the start element.
-   */
-  Token get_start(LineID line)
-  {
-    return lex_[lex_.line_offsets[int(line)].start()];
-  }
-  LineID get_start(DirectiveID dir)
-  {
-    return make_line(lex_.directive_lines[int(dir)]);
-  }
-
-  /**
-   * Return the end element.
-   * NOTE: Return the token before \n or \n if line is empty.
-   */
-  Token get_end(LineID line)
-  {
-    blender::IndexRange range = lex_.line_offsets[int(line)];
-    return lex_[range.size() > 1 ? range.last(1) : range.last()];
-  }
-  LineID get_end(DirectiveID dir)
-  {
-    /* Could be precomputed if becoming a bottleneck. */
-    LineID line = get_start(dir);
-    while (get_end(line) == Backslash) {
-      line = next(line);
-    }
-    return line;
-  }
-
-  /* NOTE: Return the end of line character '\n'. */
-  Token get_true_end(LineID line)
-  {
-    return lex_[lex_.line_offsets[int(line)].last()];
-  }
-
-  /**
-   * Get the corresponding type enum.
-   */
-  DirectiveType get_type(DirectiveID dir)
-  {
-    return DirectiveType(get_identifier(dir).type());
-  }
-
-  /* Return token defining the directive type (e.g. define, undef, if ...). */
-  Token get_identifier(DirectiveID dir)
-  {
-    LineID line = get_start(dir);
-    Token hash_tok = get_start(line);
-    BLI_assert(hash_tok == Hash);
-    Token dir_tok = hash_tok.next();
-    return dir_tok;
-  }
-
-  /* Returns the type of conditional. */
-  DirectiveType increment_to_next_conditional(DirectiveID &dir)
-  {
-    dir = next(dir);
-    while (is_valid(dir)) {
-      DirectiveType type = get_type(dir);
-      if (ELEM(type, If, Ifdef, Ifndef, Else, Elif, Endif)) {
-        return type;
-      }
-      dir = next(dir);
-    }
-    /* Missing matching #endif. */
-    // TODO exception?
-    BLI_assert_unreachable();
-    return Other;
-  }
-
-  /* Returns the hash token. */
-  DirectiveID find_next_matching_conditional(DirectiveID dir)
-  {
-    int stack = 1;
-    while (is_valid(dir)) {
-      DirectiveType type = increment_to_next_conditional(dir);
-      if (ELEM(type, If, Ifdef, Ifndef)) {
-        stack++;
-      }
-      else if (ELEM(type, Endif)) {
-        stack--;
-      }
-
-      if (stack == 0) {
-        return dir; /* Endif. */
-      }
-      if (stack == 1 && ELEM(type, Else, Elif)) {
-        return dir;
-      }
-    }
-    BLI_assert_unreachable();
-    return DirectiveID::invalid();
-  }
-};
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Preprocessor.
  * \{ */
 
@@ -805,13 +823,13 @@ struct Preprocessor : AtomicLexerWithIDs {
   using StreamPtr = StreamPool::Ptr;
 
   struct Macro {
-    DirectiveID id;
+    Directive id;
     StreamPtr definition;
-    Vector<AtomID> params;
+    Vector<TokenAtom> params;
     bool is_function = false;
     bool contains_concat = false;
 
-    Macro(DirectiveID id) : id(id) {}
+    Macro(Directive id) : id(id) {}
 
     bool is_empty() const
     {
@@ -821,15 +839,15 @@ struct Preprocessor : AtomicLexerWithIDs {
 
   /* When evaluating a condition directive inside this stack, disregard the directive and jump to
    * the matching #endif. */
-  Vector<DirectiveID, 8> jump_stack;
+  Vector<Directive, 8> jump_stack;
   /* Own stack to avoid memory allocation during recursive expansion parsing. */
   StreamPool stream_pool = {lex_};
   /* Set of visited macros during recursion (blue painting stack). Using a vector for speed. */
-  Vector<DirectiveID> visited_macros;
+  Vector<Directive> visited_macros;
 
   /* Maps containing currently active macros. Map their keyword to their definition. */
-  Map<AtomID, DirectiveID> defines;
-  /* Cached parsed data for each Macro. Allow lazy parsing. Indexed by DirectiveID. */
+  Map<TokenAtom, Directive> defines;
+  /* Cached parsed data for each Macro. Allow lazy parsing. Indexed by Directive. */
   Vector<std::unique_ptr<Macro>> parsed_macro;
   /* Cache allowing fast conservative rejection of tokens not matching any declared macro. */
   struct MacroBucketCache {
@@ -856,16 +874,16 @@ struct Preprocessor : AtomicLexerWithIDs {
     static constexpr TokenAtom overflow_atom = 0x7F;
 
     /* Check if the bucket associated with the atom was marked as occupied. */
-    bool is_occupied(AtomID atom)
+    bool is_occupied(TokenAtom atom)
     {
-      auto [bin, bit] = bucket_lookup(TokenAtom(atom));
+      auto [bin, bit] = bucket_lookup(atom);
       return ((enabled_macro_buckets[bin] >> bit) & 1) != 0;
     }
 
     /* Mark the bucket associated with the atom as occupied. */
-    void set_occupied(AtomID atom)
+    void set_occupied(TokenAtom atom)
     {
-      auto [bin, bit] = bucket_lookup(TokenAtom(atom));
+      auto [bin, bit] = bucket_lookup(atom);
       enabled_macro_buckets[bin] |= 1ull << bit;
     }
 
@@ -904,10 +922,10 @@ struct Preprocessor : AtomicLexerWithIDs {
    */
 
   /* Next preprocessor directive to evaluate. Might be overwritten by conditional evaluation. */
-  DirectiveID next_directive = DirectiveID::invalid();
+  Directive next_directive = Directive::invalid();
   /* End of the last evaluated directive. Might be overwritten by conditional evaluation.
    * Used to resume token expansion after this line. */
-  LineID last_directive_end = LineID::invalid();
+  Line last_directive_end = Line::invalid();
 
  public:
   Preprocessor(const std::string_view str)
@@ -930,27 +948,27 @@ struct Preprocessor : AtomicLexerWithIDs {
       return;
     }
 
-    last_directive_end = make_line(0);
-    next_directive = make_directive(0);
+    last_directive_end = lex_.line(0);
+    next_directive = lex_.directive(0);
     /* Expand until the first directive. */
-    if (make_line(0) != get_start(next_directive)) {
-      expand_macros_in_range(make_line(0), prev(get_start(next_directive)));
+    if (lex_.line(0) != next_directive.first()) {
+      expand_macros_in_range(lex_.line(0), next_directive.first().prev());
     }
 
-    while (!is_last(next_directive)) {
-      DirectiveID id = next_directive;
+    while (!next_directive.is_last()) {
+      Directive id = next_directive;
       /* The next directive might be overwritten by evaluate_directive. Increment before call. */
-      next_directive = next(id);
+      next_directive = id.next();
       evaluate_directive(id);
 
-      expand_macros_in_range(next(last_directive_end), prev(get_start(next_directive)));
+      expand_macros_in_range(last_directive_end.next(), next_directive.first().prev());
     }
     /* Evaluate last directive without calling next and creating an invalid ID. */
     evaluate_directive(next_directive);
 
-    if (!is_last(last_directive_end)) {
-      LineID last_line = make_line(lex_.line_offsets.size() - 1);
-      expand_macros_in_range(next(last_directive_end), last_line);
+    if (!last_directive_end.is_last()) {
+      Line last_line = lex_.line(lex_.line_offsets.size() - 1);
+      expand_macros_in_range(last_directive_end.next(), last_line);
     }
   }
 
@@ -975,38 +993,38 @@ struct Preprocessor : AtomicLexerWithIDs {
   }
 
  private:
-  void evaluate_directive(DirectiveID dir)
+  void evaluate_directive(Directive dir)
   {
-    DirectiveType dir_type = get_type(dir);
+    DirectiveType dir_type = dir.type();
 
     /* Note: gets overwritten by conditional processing. */
-    last_directive_end = get_end(dir);
+    last_directive_end = dir.last();
 
     switch (dir_type) {
-      case Define:
+      case DirectiveType::Define:
         define_macro(dir);
         break;
-      case Undef:
+      case DirectiveType::Undef:
         undefine_macro(dir);
         break;
-      case If:
-      case Ifdef:
-      case Ifndef:
-      case Elif:
-      case Else:
+      case DirectiveType::If:
+      case DirectiveType::Ifdef:
+      case DirectiveType::Ifndef:
+      case DirectiveType::Elif:
+      case DirectiveType::Else:
         process_conditional(dir, dir_type);
         break;
-      case Line:
-        erase_lines(get_start(dir), get_end(dir));
+      case DirectiveType::Line:
+        erase_lines(dir.first(), dir.last());
         break;
-      case Endif:
-        erase_lines(get_start(dir), get_end(dir));
+      case DirectiveType::Endif:
+        erase_lines(dir.first(), dir.last());
         break;
-      case Pragma:
+      case DirectiveType::Pragma:
         process_pragma(dir);
         ATTR_FALLTHROUGH;
-      case Other:
-        out_stream << str_with_whitespace(dir);
+      case DirectiveType::Other:
+        out_stream << dir.str_with_whitespace();
         break;
     }
   }
@@ -1020,9 +1038,9 @@ struct Preprocessor : AtomicLexerWithIDs {
   TokenAtom off_atom = lex_.hash("off");
   TokenAtom on_atom = lex_.hash("on");
 
-  BLI_NOINLINE void process_pragma(DirectiveID dir)
+  BLI_NOINLINE void process_pragma(Directive dir)
   {
-    Token tok = get_identifier(dir).next();
+    Token tok = dir.identifier().next();
     if (tok.atom() == blender_atom) {
       tok = tok.next();
       if (tok.atom() == dce_atom) {
@@ -1047,9 +1065,9 @@ struct Preprocessor : AtomicLexerWithIDs {
   /**
    * Parse macro parameters and advance the token cursor.
    */
-  BLI_NOINLINE Vector<AtomID> parse_macro_params(Token &tok)
+  BLI_NOINLINE Vector<TokenAtom> parse_macro_params(Token &tok)
   {
-    Vector<AtomID> macro_parameters;
+    Vector<TokenAtom> macro_parameters;
     while (true) {
       /* Continue to the next name. */
       tok = tok.next();
@@ -1061,7 +1079,7 @@ struct Preprocessor : AtomicLexerWithIDs {
       if (tok == ParClose) {
         break;
       }
-      macro_parameters.append(tok.str() == "..." ? va_args_atom : AtomID(tok.atom()));
+      macro_parameters.append(tok.str() == "..." ? va_args_atom : tok.atom());
       /* Continue to the next separator. */
       tok = tok.next();
       if (tok == Backslash && tok.next() == NewLine) {
@@ -1110,19 +1128,19 @@ struct Preprocessor : AtomicLexerWithIDs {
     return definition;
   }
 
-  BLI_NOINLINE void define_macro(DirectiveID dir)
+  BLI_NOINLINE void define_macro(Directive dir)
   {
-    const Token name = get_identifier(dir).next();
+    const Token name = dir.identifier().next();
     BLI_assert(name == Word);
-    defines.add_overwrite(AtomID(name.atom()), dir);
-    macro_buckets.set_occupied(AtomID(name.atom()));
-    erase_lines(get_start(dir), get_end(dir));
+    defines.add_overwrite(name.atom(), dir);
+    macro_buckets.set_occupied(name.atom());
+    erase_lines(dir.first(), dir.last());
   }
 
-  BLI_NOINLINE Macro &get_macro(DirectiveID dir)
+  BLI_NOINLINE Macro &get_macro(Directive dir)
   {
     if (parsed_macro[int(dir)] == nullptr) {
-      const Token name = get_identifier(dir).next();
+      const Token name = dir.identifier().next();
       const Token after_name = name.next();
       Token cursor = after_name;
 
@@ -1138,63 +1156,63 @@ struct Preprocessor : AtomicLexerWithIDs {
     return *parsed_macro[int(dir)];
   }
 
-  void undefine_macro(DirectiveID dir)
+  void undefine_macro(Directive dir)
   {
-    const Token name = get_identifier(dir).next();
+    const Token name = dir.identifier().next();
     BLI_assert(name == Word);
-    defines.remove(AtomID(name.atom()));
-    erase_lines(get_start(dir), get_end(dir));
+    defines.remove(name.atom());
+    erase_lines(dir.first(), dir.last());
   }
 
   /**
    * Condition directives.
    */
 
-  BLI_NOINLINE void process_conditional(const DirectiveID dir, const DirectiveType dir_type)
+  BLI_NOINLINE void process_conditional(const Directive dir, const DirectiveType dir_type)
   {
     /* If this is part of an already evaluated statement. */
     if (!jump_stack.is_empty() && jump_stack.last() == dir) {
       jump_stack.pop_last();
       /* Find matching endif. */
-      DirectiveID endif = find_next_matching_conditional(dir);
-      while (get_type(endif) != Endif) {
+      Directive endif = find_next_matching_conditional(dir);
+      while (endif.type() != DirectiveType::Endif) {
         endif = find_next_matching_conditional(endif);
       }
-      if (is_last(endif)) {
+      if (endif.is_last()) {
         /* Erase everything this and the last directive. */
-        LineID last_before_endif = prev(get_start(endif));
-        erase_lines(get_start(dir), last_before_endif);
+        Line last_before_endif = endif.first().prev();
+        erase_lines(dir.first(), last_before_endif);
         next_directive = endif;
         /* Don't expand inside this section. */
         last_directive_end = last_before_endif;
       }
       else {
         /* Erase everything between this directive and the #endif (inclusive). */
-        LineID endif_end = get_end(endif);
-        erase_lines(get_start(dir), endif_end);
+        Line endif_end = endif.last();
+        erase_lines(dir.first(), endif_end);
         /* Evaluate after the endif. */
-        next_directive = next(endif);
+        next_directive = endif.next();
         /* Don't expand inside this section. */
         last_directive_end = endif_end;
       }
       return;
     }
 
-    const LineID dir_line_start = get_start(dir);
-    const LineID dir_line_end = get_end(dir);
-    const Token dir_tok = get_identifier(dir);
+    const Line dir_line_start = dir.first();
+    const Line dir_line_end = dir.last();
+    const Token dir_tok = dir.identifier();
     /* Evaluate condition. */
     const Token cond_start = dir_tok.next();
-    const Token cond_end = get_end(dir_line_end);
+    const Token cond_end = dir_line_end.last();
     const bool condition_result = evaluate_condition(dir_type, cond_start, cond_end);
 
     /* Find matching endif or else. */
-    const DirectiveID next_condition = find_next_matching_conditional(dir);
+    const Directive next_condition = find_next_matching_conditional(dir);
 
     if (condition_result) {
       /* If is followed by else statement. */
-      DirectiveType next_dir_type = get_type(next_condition);
-      if (ELEM(next_dir_type, Elif, Else)) {
+      DirectiveType next_dir_type = next_condition.type();
+      if (ELEM(next_dir_type, DirectiveType::Elif, DirectiveType::Else)) {
         /* Record a jump statement at the next #else statement to jump & erase to the #endif. */
         jump_stack.append(next_condition);
       }
@@ -1203,7 +1221,7 @@ struct Preprocessor : AtomicLexerWithIDs {
       erase_lines(dir_line_start, dir_line_end);
     }
     else {
-      LineID last_before_next_cond = prev(get_start(next_condition));
+      Line last_before_next_cond = next_condition.first().prev();
       /* Erase everything until next condition (this directive included). */
       erase_lines(dir_line_start, last_before_next_cond);
       /* Jump to next condition. */
@@ -1216,14 +1234,14 @@ struct Preprocessor : AtomicLexerWithIDs {
   bool evaluate_condition(const DirectiveType dir_type, Token start, Token end)
   {
     switch (dir_type) {
-      case Else:
+      case DirectiveType::Else:
         return true;
-      case Ifdef:
-        return defines.contains(AtomID(start.atom()));
-      case Ifndef:
-        return !defines.contains(AtomID(start.atom()));
-      case If:
-      case Elif:
+      case DirectiveType::Ifdef:
+        return defines.contains(start.atom());
+      case DirectiveType::Ifndef:
+        return !defines.contains(start.atom());
+      case DirectiveType::If:
+      case DirectiveType::Elif:
         return evaluate_expression(start, end);
       default:
         BLI_assert_unreachable();
@@ -1265,10 +1283,10 @@ struct Preprocessor : AtomicLexerWithIDs {
    * Macro Expansion.
    */
 
-  BLI_NOINLINE void expand_macros_in_range(const LineID start_line, const LineID end_line)
+  BLI_NOINLINE void expand_macros_in_range(const Line start_line, const Line end_line)
   {
-    int start = int(get_start(start_line));
-    int end = int(get_true_end(end_line));
+    int start = int(start_line.first());
+    int end = int(end_line.end());
     if (start > end) {
       return;
     }
@@ -1283,14 +1301,13 @@ struct Preprocessor : AtomicLexerWithIDs {
 
     for (const auto *it = candidates.begin(); it != candidates.end();) {
       const Token tok = lex_[*it];
-      const DirectiveID macro_id = defines.lookup_default(AtomID(tok.atom()),
-                                                          DirectiveID::invalid());
+      const Directive macro_id = defines.lookup_default(tok.atom(), Directive::invalid());
       /* Emit tokens between the last emitted token and this one. */
       if (int(after_last_emitted) < *it) {
         out_stream << TokenRange<Token>{after_last_emitted, tok.prev()};
       }
 
-      if (macro_id == DirectiveID::invalid()) {
+      if (macro_id == Directive::invalid()) {
         out_stream << tok;
         after_last_emitted = tok.next();
         ++it;
@@ -1325,13 +1342,13 @@ struct Preprocessor : AtomicLexerWithIDs {
     for (int i : blender::IndexRange::from_begin_end(start, end)) {
       /* Branchless insertion. Faster than. */
       expand_candidates_[candidates_count] = i;
-      candidates_count += macro_buckets.is_occupied(AtomID(lex_.atoms_[i]));
+      candidates_count += macro_buckets.is_occupied(lex_.atoms_[i]);
     }
     expand_candidates_.resize(candidates_count);
     return expand_candidates_;
   }
 
-  BLI_NOINLINE Token expand_and_replace(const Token tok, const DirectiveID macro_id)
+  BLI_NOINLINE Token expand_and_replace(const Token tok, const Directive macro_id)
   {
     auto [replacement, end] = expand_macro(tok, get_macro(macro_id));
     out_stream << *replacement;
@@ -1347,8 +1364,8 @@ struct Preprocessor : AtomicLexerWithIDs {
       if (tok == Word) {
         /* Try to match the token pointed at by cursor with a defined macro. If that happen advance
          * the cursor to the end of the macro (in case of functional macro). */
-        DirectiveID macro_id = defines.lookup_default(AtomID(tok.atom()), DirectiveID::invalid());
-        if (macro_id != DirectiveID::invalid()) {
+        Directive macro_id = defines.lookup_default(tok.atom(), Directive::invalid());
+        if (macro_id != Directive::invalid()) {
           auto [replacement, end] = expand_macro(tok, get_macro(macro_id));
           *result << *replacement;
           tok = end;
@@ -1371,11 +1388,11 @@ struct Preprocessor : AtomicLexerWithIDs {
    * \arg tok : Opening parenthesis token of the argument list.
    */
   template<typename IToken>
-  BLI_NOINLINE Vector<TokenRange<IToken>> parse_macro_args(const Vector<AtomID> &params,
+  BLI_NOINLINE Vector<TokenRange<IToken>> parse_macro_args(const Vector<TokenAtom> &params,
                                                            IToken &tok)
   {
     Vector<TokenRange<IToken>> args;
-    for (const AtomID param_atom : params) {
+    for (const TokenAtom param_atom : params) {
       IToken param_start = tok;
       IToken param_end = get_end_of_parameter(param_start);
 
@@ -1421,7 +1438,7 @@ struct Preprocessor : AtomicLexerWithIDs {
       }
       if (def_tok.type() == Word && !macro_args.is_empty()) {
         /* Lookup macro arguments. */
-        int arg_id = macro.params.first_index_of_try(AtomID(def_tok.atom()));
+        int arg_id = macro.params.first_index_of_try(def_tok.atom());
         if (arg_id != -1) {
           const TokenRange<IToken> &macro_value = macro_args[arg_id];
 
@@ -1517,15 +1534,15 @@ struct Preprocessor : AtomicLexerWithIDs {
     Token tok = start;
     while (true) {
       BLI_assert(tok.is_valid());
-      AtomID tok_atom = tok == Word ? AtomID(tok.atom()) : AtomID::invalid();
+      TokenAtom tok_atom = tok == Word ? tok.atom() : TokenAtom(0);
 
-      DirectiveID macro_id = defines.lookup_default(AtomID(tok.atom()), DirectiveID::invalid());
+      Directive macro_id = defines.lookup_default(tok.atom(), Directive::invalid());
 
-      if (tok_atom == AtomID::invalid()) {
+      if (tok_atom == TokenAtom(0)) {
         /* Non word. */
         *result << lex_[int(tok)];
       }
-      else if (macro_id != DirectiveID::invalid()) {
+      else if (macro_id != Directive::invalid()) {
         Macro &macro = get_macro(macro_id);
         auto [replacement, macro_end] = expand_macro(Token(lex_[int(tok)]), macro);
         *result << *replacement;
@@ -1542,7 +1559,7 @@ struct Preprocessor : AtomicLexerWithIDs {
         else {
           BLI_assert(tok == Word);
         }
-        if (defines.contains(AtomID(tok.atom()))) {
+        if (defines.contains(tok.atom())) {
           *result << Stream::True{};
         }
         else {
@@ -1570,12 +1587,12 @@ struct Preprocessor : AtomicLexerWithIDs {
    * Utilities.
    */
 
-  void erase_lines(LineID start, LineID end)
+  void erase_lines(Line start, Line end)
   {
     if (int(end) > int(start)) {
       out_stream << new_lines(start, end);
     }
-    out_stream << get_true_end(end).str_with_whitespace();
+    out_stream << end.end().str_with_whitespace();
   }
 
   /* Buffer of newlines since the StringRef must stay valid until result string is built.
@@ -1584,7 +1601,7 @@ struct Preprocessor : AtomicLexerWithIDs {
   std::string new_lines_buf = std::string(lex_.line_offsets.size(), '\n');
 
   /* Return a string with the amount of newline character between line_start and line_end. */
-  StringRef new_lines(LineID line_start, LineID line_end)
+  StringRef new_lines(Line line_start, Line line_end)
   {
     return StringRef(new_lines_buf).substr(0, int(line_end) - int(line_start));
   }
