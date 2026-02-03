@@ -1,2 +1,3 @@
 Referenced by issue #76428, GHOST/Wayland Support
 Referenced by issue #144742, Vulkan: Window resize is wobbly
+Referenced by issue #153796, Wayland: Fullscreen startup files start in the wrong position with the wrong size on dual monitor setups.
