@@ -12,12 +12,10 @@ SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
 SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
 
+#include "draw_intersect_lib.glsl"
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
 #include "draw_view_lib.glsl"
-#ifdef DRW_VIEW_CULLING_INFO
-#  include "draw_intersect_lib.glsl"
-#endif
 #include "eevee_nodetree_closures_lib.glsl"
 #include "eevee_ray_trace_screen_lib.glsl"
 #include "eevee_renderpass_lib.glsl"
