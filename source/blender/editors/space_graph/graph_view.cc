@@ -78,24 +78,23 @@ void get_graph_keyframe_extents(bAnimContext *ac,
   if (ymax) {
     *ymax = -999999999.0f;
   }
-
-  bool singleControlPointSelected = false;
+  float xmax_without_handles = -999999999.0f;
+  float ymax_without_handles = -999999999.0f;
+  float xmin_without_handles = 999999999.0f;
+  float ymin_without_handles = 999999999.0f;
 
   /* Check if any channels to set range with. */
   if (anim_data.first) {
     bool foundBounds = false;
-    int numberOfCurvesToFrame = 0;
     /* Go through channels, finding max extents. */
     for (bAnimListElem &ale : anim_data) {
       FCurve *fcu = static_cast<FCurve *>(ale.key_data);
       rctf bounds;
+      rctf bounds_without_handles;
       float unitFac, offset;
 
       /* Get range. */
       if (BKE_fcurve_calc_bounds(fcu, do_sel_only, include_handles, nullptr, &bounds)) {
-
-        ++numberOfCurvesToFrame;
-        singleControlPointSelected = (numberOfCurvesToFrame == 1) && (bounds.ymax == bounds.ymin) && (bounds.xmax == bounds.xmin);
 
         short mapping_flag = ANIM_get_normalization_flags(ac->sl);
 
@@ -109,6 +108,48 @@ void get_graph_keyframe_extents(bAnimContext *ac,
         bounds.ymax += offset;
         bounds.ymin *= unitFac;
         bounds.ymax *= unitFac;
+
+        if (include_handles) {
+          BKE_fcurve_calc_bounds(fcu, do_sel_only, false, nullptr, &bounds_without_handles);
+
+          /* Apply NLA scaling. */
+          bounds_without_handles.xmin = ANIM_nla_tweakedit_remap(
+              &ale, bounds_without_handles.xmin, NLATIME_CONVERT_MAP);
+          bounds_without_handles.xmax = ANIM_nla_tweakedit_remap(
+              &ale, bounds_without_handles.xmax, NLATIME_CONVERT_MAP);
+
+          bounds_without_handles.ymin += offset;
+          bounds_without_handles.ymax += offset;
+          bounds_without_handles.ymin *= unitFac;
+          bounds_without_handles.ymax *= unitFac;
+
+          if (bounds_without_handles.xmin < xmin_without_handles) {
+            xmin_without_handles = bounds_without_handles.xmin;
+          }
+          if (bounds_without_handles.xmax > xmax_without_handles) {
+            xmax_without_handles = bounds_without_handles.xmax;
+          }
+          if (bounds_without_handles.ymin < ymin_without_handles) {
+            ymin_without_handles = bounds_without_handles.ymin;
+          }
+          if (bounds_without_handles.ymax > ymax_without_handles) {
+            ymax_without_handles = bounds_without_handles.ymax;
+          }
+        }
+        else {
+          if (bounds.xmin < xmin_without_handles) {
+            xmin_without_handles = bounds.xmin;
+          }
+          if (bounds.xmax > xmax_without_handles) {
+            xmax_without_handles = bounds.xmax;
+          }
+          if (bounds.ymin < ymin_without_handles) {
+            ymin_without_handles = bounds.ymin;
+          }
+          if (bounds.ymax > ymax_without_handles) {
+            ymax_without_handles = bounds.ymax;
+          }
+        }
 
         /* Try to set cur using these values, if they're more extreme than previously set values.
          */
@@ -129,22 +170,38 @@ void get_graph_keyframe_extents(bAnimContext *ac,
       }
     }
 
+    /* If max/min are equal (without handles) it means only one controlpoint is selected, in that
+     * situation don't zoom in too much to prevent tedious zooming out.
+     */
+    bool is_single_control_point = xmax_without_handles == xmin_without_handles &&
+                                   ymax_without_handles == ymin_without_handles;
+
     /* Ensure that the extents are not too extreme that view implodes. */
     if (foundBounds) {
-      if ((xmin && xmax) && (fabsf(*xmax - *xmin) < 0.001f)) {
-        *xmin -= 0.0005f;
-        *xmax += 0.0005f;
+      if (xmin && xmax) {
+        if (fabsf(*xmax - *xmin) < 0.001f) {
+          if (is_single_control_point) {
+            *xmin -= 0.05f;
+            *xmax += 0.05f;
+          }
+          else {
+            *xmin -= 0.0005f;
+            *xmax += 0.0005f;
+          }
+        }
       }
-      if (singleControlPointSelected) {
-        /* In the case of a single selected control point, don't zoom in
-           too close to prevent tedious zooming out. */
-        *ymin -= 0.05f;
-        *ymax += 0.05f;
-      } else if ((ymin && ymax) && (fabsf(*ymax - *ymin) < 0.001f)) {
-        *ymin -= 0.0005f;
-        *ymax += 0.0005f;
+      if (ymin && ymax) {
+        if (fabsf(*ymax - *ymin) < 0.001f) {
+          if (is_single_control_point) {
+            *ymin -= 0.05f;
+            *ymax += 0.05f;
+          }
+          else {
+            *ymin -= 0.0005f;
+            *ymax += 0.0005f;
+          }
+        }
       }
-
     }
     else {
       if (xmin) {
