@@ -71,6 +71,7 @@
  *   These indices are also used to maintain correct indices for hook modifiers and vertex parents.
  */
 
+#include "BKE_attribute_math.hh"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -1357,6 +1358,67 @@ static void bmesh_block_copy_to_mesh_attributes(const Span<BMeshToMeshLayerInfo>
   }
 }
 
+class AttrSingleValueChecker {
+  Vector<bke::Attribute *, 8> attrs_;
+  Array<GSpan, 8> spans_;
+  Array<std::atomic<bool>, 8> can_be_single_;
+
+ public:
+  AttrSingleValueChecker(bke::AttributeStorage &storage,
+                         const Span<BMeshToMeshLayerInfo> copy_info,
+                         const void *first_block,
+                         const bke::AttrDomain domain,
+                         const Set<StringRef> skip_names)
+  {
+    bmesh_block_copy_to_mesh_attributes(copy_info, 0, first_block);
+    for (bke::Attribute &attr : storage) {
+      if (attr.domain() != domain) {
+        continue;
+      }
+      if (skip_names.contains(attr.name())) {
+        continue;
+      }
+      attrs_.append(&attr);
+    }
+    spans_.reinitialize(attrs_.size());
+    for (const int attr_i : attrs_.index_range()) {
+      BLI_assert(attrs_[attr_i]->storage_type() == bke::AttrStorageType::Array);
+      const auto &data = std::get<bke::Attribute::ArrayData>(attrs_[attr_i]->data());
+      const CPPType &type = bke::attribute_type_to_cpp_type(attrs_[attr_i]->data_type());
+      spans_[attr_i] = GSpan(type, data.data, data.size);
+    }
+    can_be_single_.reinitialize(attrs_.size());
+    std::fill(can_be_single_.begin(), can_be_single_.end(), true);
+  }
+
+  void check_range(const IndexRange range)
+  {
+    for (const int attr_i : attrs_.index_range()) {
+      if (!can_be_single_[attr_i].load(std::memory_order_relaxed)) {
+        continue;
+      }
+      bke::attribute_math::to_static_type(attrs_[attr_i]->data_type(), [&]<typename T>() {
+        const Span<T> data = spans_[attr_i].typed<T>();
+        if (std::any_of(
+                range.begin(), range.end(), [&](const int i) { return data[i] != data.first(); }))
+        {
+          can_be_single_[attr_i].store(false, std::memory_order_relaxed);
+        }
+      });
+    }
+  }
+
+  void optimize_storage()
+  {
+    for (const int attr_i : attrs_.index_range()) {
+      if (can_be_single_[attr_i]) {
+        const GPointer value(spans_[attr_i].type(), spans_[attr_i][0]);
+        attrs_[attr_i]->assign_data(bke::Attribute::SingleData::from_value(value));
+      }
+    }
+  }
+};
+
 static void bm_to_mesh_verts(const BMesh &bm,
                              const Span<const BMVert *> bm_verts,
                              Mesh &mesh,
@@ -1366,6 +1428,12 @@ static void bm_to_mesh_verts(const BMesh &bm,
   const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
       bm.vdata, bke::AttrDomain::Point, mesh);
   MutableSpan<float3> dst_vert_positions = mesh.vert_positions_for_write();
+
+  AttrSingleValueChecker single_checker(mesh.attribute_storage.wrap(),
+                                        info,
+                                        bm_verts[0]->head.data,
+                                        bke::AttrDomain::Point,
+                                        {"position"});
 
   std::atomic<bool> any_loose_vert = false;
   threading::parallel_for(dst_vert_positions.index_range(), 1024, [&](const IndexRange range) {
@@ -1389,7 +1457,10 @@ static void bm_to_mesh_verts(const BMesh &bm,
         hide_vert[vert_i] = BM_elem_flag_test(bm_verts[vert_i], BM_ELEM_HIDDEN);
       }
     }
+    single_checker.check_range(range);
   });
+
+  single_checker.optimize_storage();
 
   if (!any_loose_vert) {
     mesh.tag_loose_verts_none();
@@ -1407,6 +1478,12 @@ static void bm_to_mesh_edges(const BMesh &bm,
   const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
       bm.edata, bke::AttrDomain::Edge, mesh);
   MutableSpan<int2> dst_edges = mesh.edges_for_write();
+
+  AttrSingleValueChecker single_checker(mesh.attribute_storage.wrap(),
+                                        info,
+                                        bm_edges[0]->head.data,
+                                        bke::AttrDomain::Edge,
+                                        {".edge_verts"});
 
   std::atomic<bool> any_loose_edge = false;
   threading::parallel_for(dst_edges.index_range(), 512, [&](const IndexRange range) {
@@ -1440,7 +1517,10 @@ static void bm_to_mesh_edges(const BMesh &bm,
         uv_seams[edge_i] = BM_elem_flag_test(bm_edges[edge_i], BM_ELEM_SEAM);
       }
     }
+    single_checker.check_range(range);
   });
+
+  single_checker.optimize_storage();
 
   if (!any_loose_edge) {
     mesh.tag_loose_edges_none();
@@ -1459,6 +1539,13 @@ static void bm_to_mesh_faces(const BMesh &bm,
   BKE_mesh_face_offsets_ensure_alloc(&mesh);
   const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
       bm.pdata, bke::AttrDomain::Face, mesh);
+
+  AttrSingleValueChecker single_checker(mesh.attribute_storage.wrap(),
+                                        info,
+                                        bm_faces[0]->head.data,
+                                        bke::AttrDomain::Face,
+                                        Set<StringRef>());
+
   MutableSpan<int> dst_face_offsets = mesh.face_offsets_for_write();
   threading::parallel_for(bm_faces.index_range(), 1024, [&](const IndexRange range) {
     for (const int face_i : range) {
@@ -1491,7 +1578,10 @@ static void bm_to_mesh_faces(const BMesh &bm,
         uv_select_face[face_i] = BM_elem_flag_test(bm_faces[face_i], BM_ELEM_SELECT_UV);
       }
     }
+    single_checker.check_range(range);
   });
+
+  single_checker.optimize_storage();
 }
 
 static void add_bm_cd_to_mesh(const BMesh &bm,
@@ -1533,6 +1623,12 @@ static void bm_to_mesh_loops(const BMesh &bm,
   MutableSpan<int> dst_corner_verts = mesh.corner_verts_for_write();
   MutableSpan<int> dst_corner_edges = mesh.corner_edges_for_write();
 
+  AttrSingleValueChecker single_checker(mesh.attribute_storage.wrap(),
+                                        info,
+                                        bm_loops[0]->head.data,
+                                        bke::AttrDomain::Corner,
+                                        {".corner_vert", ".corner_edge"});
+
   const bool need_uv_select = !uv_select_vert.is_empty() && !uv_select_edge.is_empty();
   threading::parallel_for(dst_corner_verts.index_range(), 1024, [&](const IndexRange range) {
     for (const int loop_i : range) {
@@ -1549,7 +1645,11 @@ static void bm_to_mesh_loops(const BMesh &bm,
         uv_select_edge[loop_i] = BM_elem_flag_test(&src_loop, BM_ELEM_SELECT_UV_EDGE);
       }
     }
+
+    single_checker.check_range(range);
   });
+
+  single_checker.optimize_storage();
 }
 
 void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParams *params)
