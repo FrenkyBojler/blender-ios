@@ -447,6 +447,11 @@ class AttributeIter {
   StringRefNull name;
   AttrDomain domain;
   AttrType data_type;
+  /**
+   * If the attribute is stored with a specific storage type, this is set (it's not set, for
+   * example, when an attribute is stored as a vertex group).
+   */
+  std::optional<AttrStorageType> storage_type;
   bool is_builtin = false;
   mutable const AttributeAccessor *accessor = nullptr;
 
@@ -533,6 +538,7 @@ struct AttributeAccessorFunctions {
               AttrDomain domain,
               AttrType data_type,
               const AttributeInit &initializer);
+  bool (*assign_data)(void *owner, StringRef attribute_id, const AttributeInit &initializer);
 };
 
 /**
@@ -829,6 +835,12 @@ class MutableAttributeAccessor : public AttributeAccessor {
     return this->add(attribute_id, domain, data_type, initializer);
   }
 
+  bool assign_data(const StringRef attribute_id, const AttributeInit &initializer)
+  {
+    BLI_assert(this->contains(attribute_id));
+    return fn_->assign_data(owner_, attribute_id, initializer);
+  }
+
   /**
    * Find an attribute with the given id, domain and data type. If it does not exist, create a new
    * attribute. If the attribute does not exist and can't be created (e.g. because it already
@@ -938,6 +950,8 @@ struct AttributeTransferData {
 /**
  * Retrieve attribute arrays and writers for attributes that should be transferred between
  * data-blocks of the same type.
+ * \note Attributes stored as single values are immediately added to the result attributes and are
+ * not included as array references in the return value.
  */
 Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     const AttributeAccessor src_attributes,
