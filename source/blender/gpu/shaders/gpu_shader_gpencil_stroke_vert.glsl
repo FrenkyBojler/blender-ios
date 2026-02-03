@@ -74,15 +74,10 @@ VertOut vertex_main(GreasePencilStrokeData vert_in)
   vert_out.gpu_position = ModelViewProjectionMatrix * float4(vert_in.position, 1.0f);
   vert_out.final_color = vert_in.stroke_color;
 
-  if (gpencil_stroke_data.keep_size) {
-    vert_out.final_thickness = vert_in.stroke_thickness;
-  }
-  else {
-    float size = (ProjectionMatrix[3][3] == 0.0f) ?
-                     (vert_in.stroke_thickness * thickness_scale / vert_out.gpu_position.z) :
-                     (vert_in.stroke_thickness * thickness_scale);
-    vert_out.final_thickness = max(size * gpencil_stroke_data.objscale, 1.0f);
-  }
+  float size = (ProjectionMatrix[3][3] == 0.0f) ?
+                   (vert_in.stroke_thickness * thickness_scale / vert_out.gpu_position.z) :
+                   (vert_in.stroke_thickness * thickness_scale);
+  vert_out.final_thickness = max(size * gpencil_stroke_data.objscale, 1.0f);
   return vert_out;
 }
 
