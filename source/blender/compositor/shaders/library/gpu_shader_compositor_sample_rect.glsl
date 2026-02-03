@@ -6,8 +6,7 @@
 
 enum Sampler : int { Nearest, Bilinear, Box, Bspline, Anisotropic };
 
-template<enum Sampler sampler>
-static inline float weight(float x) {}
+template<enum Sampler sampler> static inline float weight(float x) {}
 
 /* Sample orthogonal rectangle of size wh centered on uv.
  * Generic version works for any cubic filter (todo: fix for filters with negative weights)
@@ -90,13 +89,13 @@ float4 _sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uv, con
   return sum / (div * divx);
 }
 
-template<>
-float weight<Sampler::Bspline>(float x)
+template<> float weight<Sampler::Bspline>(float x)
 {
   return x < 1 ? (0.5 * x - 1) * x * x + 4.0 / 6 : ((-1 / 6.0 * x + 1) * x - 2) * x + 4.0 / 3;
 }
-template
-float4 _sample_rect<Sampler::Bspline>(const sampler2D &source, const float2 &uv, const float2 &wh);
+template float4 _sample_rect<Sampler::Bspline>(const sampler2D &source,
+                                               const float2 &uv,
+                                               const float2 &wh);
 
 #if 0 /* potential other samplers */
 

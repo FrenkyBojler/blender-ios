@@ -87,7 +87,7 @@ enum class Sampler {
 };
 
 /** Emulation of BSL/GLSL object for sampling images.
- * This object is subject to change! 
+ * This object is subject to change!
  * The stride/step can be used to sample from cropped rectangles out of
  * a larger buffer, to do transpose or mirroring, or to pull the image
  * out of one with a different number of components.

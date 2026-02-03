@@ -617,9 +617,7 @@ BLI_INLINE float4 _sample_rect(const sampler2D &source, const float2 &uv, const 
 
 /* specialized as wh is ignored and it reads exactly one pixel */
 template<>
-float4 _sample_rect<Sampler::Nearest>(const sampler2D &source,
-                                      const float2 &uv,
-                                      const float2 &)
+float4 _sample_rect<Sampler::Nearest>(const sampler2D &source, const float2 &uv, const float2 &)
 {
   const int x = wrap_coord(uv.x, source.width, source.wrap_x);
   const int y = wrap_coord(uv.y, source.height, source.wrap_y);
@@ -631,9 +629,7 @@ float4 _sample_rect<Sampler::Nearest>(const sampler2D &source,
 
 /* specialized as wh is ignored and it reads exactly four pixels */
 template<>
-float4 _sample_rect<Sampler::Bilinear>(const sampler2D &source,
-                                       const float2 &uv,
-                                       const float2 &)
+float4 _sample_rect<Sampler::Bilinear>(const sampler2D &source, const float2 &uv, const float2 &)
 {
   const float x = uv.x - 0.5f; /* convert to pixel-center coordinates*/
   const int x1 = wrap_coord(x, source.width, source.wrap_x);
@@ -648,22 +644,28 @@ float4 _sample_rect<Sampler::Bilinear>(const sampler2D &source,
   const float *row3 = source.row(y1) + x2 * source.step;
   const float *row4 = source.row(y2) + x2 * source.step;
 
-  static const float zeros[4] = { 0.0f };
+  static const float zeros[4] = {0.0f};
   if (x1 < 0) {
-    if (x2 < 0) return float4(0.0f);
+    if (x2 < 0)
+      return float4(0.0f);
     row1 = row2 = zeros;
     if (y1 < 0) {
-      if (y2 < 0) return float4(0.0f);
+      if (y2 < 0)
+        return float4(0.0f);
       row3 = zeros;
-    } else if (y2 < 0) {
+    }
+    else if (y2 < 0) {
       row4 = zeros;
     }
-  } else if (x2 < 0) {
+  }
+  else if (x2 < 0) {
     row3 = row4 = zeros;
     if (y1 < 0) {
-      if (y2 < 0) return float4(0.0f);
+      if (y2 < 0)
+        return float4(0.0f);
       row1 = zeros;
-    } else if (y2 < 0) {
+    }
+    else if (y2 < 0) {
       row2 = zeros;
     }
   }
@@ -779,9 +781,9 @@ static void read_callback(void *userdata, int u, int v, float result[4])
 }
 
 BLI_INLINE float4 sample_anisotropic(const sampler2D &source,
-                                 const float2 &uv,
-                                 const float2 &dPdx,
-                                 const float2 &dPdy)
+                                     const float2 &uv,
+                                     const float2 &dPdx,
+                                     const float2 &dPdy)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   float2 scale = 1.0f / float2(float(source.width), float(source.height));
@@ -812,10 +814,10 @@ float4 sample_area(Sampler sampler,
   BLI_assert(source.components == 4);
   switch (sampler) {
     case Sampler::Nearest:
-      return _sample_rect<Sampler::Nearest>(source, uv, dPdx); // wh is ignored
+      return _sample_rect<Sampler::Nearest>(source, uv, dPdx);  // wh is ignored
     case Sampler::Bilinear:
-      return _sample_rect<Sampler::Bilinear>(source, uv, dPdx); // wh is ignored
-    default: /* case Sampler::Box */
+      return _sample_rect<Sampler::Bilinear>(source, uv, dPdx);  // wh is ignored
+    default:                                                     /* case Sampler::Box */
       return _sample_rect<Sampler::Box>(source, uv, hypot(dPdx, dPdy));
     case Sampler::Bspline:
       return _sample_rect<Sampler::Bspline>(source, uv, hypot(dPdx, dPdy));
