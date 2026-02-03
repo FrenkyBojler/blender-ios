@@ -364,9 +364,15 @@ bool DenoiserGPU::denoise_filter_guiding_flip_y(const DenoiseContext &context)
   return true;
 }
 
-bool DenoiserGPU::denoise_filter_guiding_set_fake_albedo(const DenoiseContext &context)
+bool DenoiserGPU::denoise_filter_guiding_set_fake_albedo(DenoiseContext &context)
 {
   const BufferParams &buffer_params = context.buffer_params;
+
+  if (context.use_guiding_passes && !context.guiding_params.device_pointer) {
+    context.guiding_buffer.alloc_to_device(buffer_params.width * buffer_params.height *
+                                           context.guiding_params.pass_stride);
+    context.guiding_params.device_pointer = context.guiding_buffer.device_pointer;
+  }
 
   const int work_size = buffer_params.width * buffer_params.height;
 
