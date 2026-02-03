@@ -1399,8 +1399,8 @@ class AttrSingleValueChecker {
       }
       bke::attribute_math::to_static_type(attrs_[attr_i]->data_type(), [&]<typename T>() {
         const Span<T> data = spans_[attr_i].typed<T>();
-        if (std::any_of(
-                range.begin(), range.end(), [&](const int i) { return data[i] != data.first(); }))
+        const T &first = data.first();
+        if (std::any_of(range.begin(), range.end(), [&](const int i) { return data[i] != first; }))
         {
           can_be_single_[attr_i].store(false, std::memory_order_relaxed);
         }
