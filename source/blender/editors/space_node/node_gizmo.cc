@@ -89,6 +89,7 @@ static bool node_gizmo_is_set_visible(const bContext *C)
   return false;
 }
 
+// todo (habib): move to NOD_compositor_gizmos
 static const float2 GIZMO_NODE_DEFAULT_DIMS{64.0f, 64.0f};
 static float2 node_gizmo_safe_calc_dims(const ImBuf *ibuf, const float2 &fallback_dims)
 {
