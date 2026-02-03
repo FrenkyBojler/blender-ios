@@ -489,13 +489,11 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
         const bool round_cap = start_cap == GP_STROKE_CAP_TYPE_ROUND ||
                                end_cap == GP_STROKE_CAP_TYPE_ROUND;
 
-        const Array<int> shape(1, i_curve);
-
         shape_fn(positions,
                  positions_left,
                  positions_right,
                  points_by_curve,
-                 shape.as_span(),
+                 {i_curve},
                  cyclic,
                  types,
                  stroke_color,
