@@ -244,12 +244,12 @@
 #define OBJECT_ID_TEX_SLOT 12
 #define PREPASS_NORMAL_TEX_SLOT 13
 /* Currently only used by ray-tracing, but might become used by forward too. */
-#define PLANAR_PROBE_DEPTH_TEX_SLOT 13
-#define PLANAR_PROBE_RADIANCE_TEX_SLOT 14
+#define PLANAR_PROBE_DEPTH_TEX_SLOT 14
+#define PLANAR_PROBE_RADIANCE_TEX_SLOT 15
 
-#define GBUF_CLOSURE_TEX_SLOT 15
-#define GBUF_NORMAL_TEX_SLOT 16
-#define GBUF_HEADER_TEX_SLOT 17
+#define GBUF_CLOSURE_TEX_SLOT 16
+#define GBUF_NORMAL_TEX_SLOT 17
+#define GBUF_HEADER_TEX_SLOT 18
 
 /* Images. */
 #define RBUFS_COLOR_SLOT 0
