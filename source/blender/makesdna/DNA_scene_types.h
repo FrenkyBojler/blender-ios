@@ -687,6 +687,12 @@ enum eCompositorDenoiseQaulity {
   SCE_COMPOSITOR_DENOISE_FAST = 2,
 };
 
+/** #RenderData::save_mode */
+enum eRenderOutputMode {
+  R_SAVE_MODE_DEFAULT = 0,
+  R_SAVE_MODE_DISABLED = 1,
+};
+
 /** #RenderData::time_jump_unit */
 enum {
   SCE_TIME_JUMP_FRAME = 0,

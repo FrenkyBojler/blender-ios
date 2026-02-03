@@ -40,12 +40,8 @@ namespace blender::compositor {
 FileOutput::FileOutput(const std::string &path,
                        const ImageFormatData &format,
                        int2 size,
-                       bool save_as_render,
-                       bool use_file_extension)
-    : path_(path),
-      format_(format),
-      save_as_render_(save_as_render),
-      use_file_extension_(use_file_extension)
+                       bool save_as_render)
+    : path_(path), format_(format), save_as_render_(save_as_render)
 {
   render_result_ = MEM_new<RenderResult>("Temporary Render Result For File Output");
 
@@ -160,12 +156,10 @@ void FileOutput::save(Scene *scene)
 FileOutput &RenderContext::get_file_output(std::string path,
                                            ImageFormatData format,
                                            int2 size,
-                                           bool save_as_render,
-                                           bool use_file_extension)
+                                           bool save_as_render)
 {
-  return *file_outputs_.lookup_or_add_cb(path, [&]() {
-    return std::make_unique<FileOutput>(path, format, size, save_as_render, use_file_extension);
-  });
+  return *file_outputs_.lookup_or_add_cb(
+      path, [&]() { return std::make_unique<FileOutput>(path, format, size, save_as_render); });
 }
 
 void RenderContext::save_file_outputs(Scene *scene)

@@ -105,7 +105,6 @@ static void node_init(const bContext *C, PointerRNA *node_pointer)
   NodeCompositorFileOutput *data = MEM_new<NodeCompositorFileOutput>(__func__);
   node->storage = data;
   data->save_as_render = true;
-  data->use_file_extension = true;
   data->file_name = BLI_strdup("file_name");
 
   BKE_image_format_init(&data->format);
@@ -160,7 +159,6 @@ static void node_register_operators()
 static Vector<bke::path_templates::Error> compute_image_path(const StringRefNull directory,
                                                              const StringRefNull file_name,
                                                              const StringRefNull file_name_suffix,
-                                                             const bool use_file_extension,
                                                              const char *view,
                                                              const int frame_number,
                                                              const ImageFormatData &format,
@@ -191,7 +189,7 @@ static Vector<bke::path_templates::Error> compute_image_path(const StringRefNull
                                       &template_variables,
                                       frame_number,
                                       &format,
-                                      use_file_extension,
+                                      scene.r.scemode & R_EXTENSION,
                                       is_animation_render,
                                       BKE_scene_multiview_view_suffix_get(&scene.r, view));
 }
@@ -216,11 +214,6 @@ static void format_layout(ui::Layout *layout,
            std::nullopt,
            ICON_NONE);
   const bool save_as_render = RNA_boolean_get(node_or_item_pointer, "save_as_render");
-  col.prop(node_or_item_pointer,
-           "use_file_extension",
-           ui::ITEM_R_SPLIT_EMPTY_NAME,
-           std::nullopt,
-           ICON_NONE);
   uiTemplateImageSettings(layout, context, format_pointer, save_as_render);
 
   if (!save_as_render) {
@@ -243,7 +236,6 @@ static void output_path_layout(ui::Layout &layout,
                                const StringRefNull directory,
                                const StringRefNull file_name,
                                const StringRefNull file_name_suffix,
-                               const bool use_file_extension,
                                const char *view,
                                const ImageFormatData &format,
                                const Scene &scene,
@@ -254,7 +246,6 @@ static void output_path_layout(ui::Layout &layout,
   const Vector<bke::path_templates::Error> path_errors = compute_image_path(directory,
                                                                             file_name,
                                                                             file_name_suffix,
-                                                                            use_file_extension,
                                                                             view,
                                                                             scene.r.cfra,
                                                                             format,
@@ -282,7 +273,6 @@ static void output_paths_layout(ui::Layout &layout,
   const NodeCompositorFileOutput &storage = node_storage(node);
   const StringRefNull directory = storage.directory;
   const std::string file_name = storage.file_name ? storage.file_name : "";
-  const bool use_file_extension = storage.use_file_extension;
   const Scene &scene = *CTX_data_scene(context);
 
   if (bool(scene.r.scemode & R_MULTIVIEW) && format.views_format == R_IMF_VIEWS_MULTIVIEW) {
@@ -291,27 +281,12 @@ static void output_paths_layout(ui::Layout &layout,
         continue;
       }
 
-      output_path_layout(layout,
-                         directory,
-                         file_name,
-                         file_name_suffix,
-                         use_file_extension,
-                         view.name,
-                         format,
-                         scene,
-                         node);
+      output_path_layout(
+          layout, directory, file_name, file_name_suffix, view.name, format, scene, node);
     }
   }
   else {
-    output_path_layout(layout,
-                       directory,
-                       file_name,
-                       file_name_suffix,
-                       use_file_extension,
-                       "",
-                       format,
-                       scene,
-                       node);
+    output_path_layout(layout, directory, file_name, file_name_suffix, "", format, scene, node);
   }
 }
 
@@ -490,7 +465,6 @@ class FileOutputOperation : public NodeOperation {
       const bool save_as_render = item.override_node_format ?
                                       item.save_as_render :
                                       node_storage(this->node()).save_as_render;
-      const bool use_file_extension = node_storage(this->node()).use_file_extension;
       const bool is_exr = format.imtype == R_IMF_IMTYPE_OPENEXR;
       const int views_count = BKE_scene_multiview_num_views_get(
           &this->context().get_render_data());
@@ -508,7 +482,7 @@ class FileOutputOperation : public NodeOperation {
 
       const int2 size = result.domain().data_size;
       FileOutput &file_output = this->context().render_context()->get_file_output(
-          image_path, format, size, save_as_render, use_file_extension);
+          image_path, format, size, save_as_render);
 
       this->add_view_for_result(file_output, result, context().get_view_name().data());
 
@@ -538,9 +512,8 @@ class FileOutputOperation : public NodeOperation {
     }
 
     const int2 size = result.domain().data_size;
-    const bool use_file_extension = node_storage(this->node()).use_file_extension;
     FileOutput &file_output = this->context().render_context()->get_file_output(
-        image_path, format, size, true, use_file_extension);
+        image_path, format, size, true);
 
     /* The EXR stores all views in the same file, so we add the actual render view. Otherwise, we
      * add a default unnamed view. */
@@ -577,9 +550,8 @@ class FileOutputOperation : public NodeOperation {
       return;
     }
 
-    const bool use_file_extension = node_storage(this->node()).use_file_extension;
     FileOutput &file_output = this->context().render_context()->get_file_output(
-        image_path, format, size, true, use_file_extension);
+        image_path, format, size, true);
 
     /* If we are saving views in separate files, we needn't store the view in the channel names, so
      * we add an unnamed view. */
@@ -813,13 +785,10 @@ class FileOutputOperation : public NodeOperation {
                                                     const char *view,
                                                     char *r_image_path)
   {
-    const NodeCompositorFileOutput &storage = node_storage(this->node());
-
     const Vector<bke::path_templates::Error> path_errors = compute_image_path(
         this->get_directory(),
         this->get_file_name(),
         file_name_suffix,
-        storage.use_file_extension,
         view,
         this->context().get_frame_number(),
         format,

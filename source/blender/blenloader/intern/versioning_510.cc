@@ -510,6 +510,7 @@ static void do_version_render_layers_node_albedo_normal_swap(bNode &node)
   }
 }
 
+void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 /* Some nodes no longer have storage but their storage is still allocated at write time for
  * forward compatibility. This only happens during writes from 4.5, so we need to free this
  * storage again when loading any file from 4.5. But before this versioning was done, it was
@@ -599,27 +600,6 @@ static void convert_brush_flags_to_type(Brush &brush)
   }
   else {
     brush.stroke_method = BRUSH_STROKE_DOTS;
-  }
-}
-
-/* Saving file extension is now a property of the the File Output node. So inherit this
- * setting from the active scene to restore the old behavior.
- * Note: One limitation is that node groups containing file outputs that are not part of any
- * scene are not affected by versioning. */
-static void do_version_file_output_use_file_extension_recursive(bNodeTree &node_tree,
-                                                                const Scene &scene)
-{
-  for (bNode &node : node_tree.nodes) {
-    if (node.type_legacy == CMP_NODE_OUTPUT_FILE) {
-      NodeCompositorFileOutput *data = static_cast<NodeCompositorFileOutput *>(node.storage);
-      data->use_file_extension = (scene.r.scemode & R_EXTENSION) != 0;
-    }
-    else if (node.type_legacy == NODE_GROUP) {
-      bNodeTree *ngroup = id_cast<bNodeTree *>(node.id);
-      if (ngroup) {
-        do_version_file_output_use_file_extension_recursive(*ngroup, scene);
-      }
-    }
   }
 }
 
