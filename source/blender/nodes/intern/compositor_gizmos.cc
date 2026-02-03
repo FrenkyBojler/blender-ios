@@ -33,7 +33,8 @@
 
 namespace blender::nodes::gizmos {
 
-constexpr float2 GIZMO_NODE_DEFAULT_DIMS{64.0f, 64.0f};
+// todo(habib): use constexpr?
+static float2 GIZMO_NODE_DEFAULT_DIMS{64.0f, 64.0f};
 
 struct NodeBBoxWidgetGroup {
   wmGizmo *border;
