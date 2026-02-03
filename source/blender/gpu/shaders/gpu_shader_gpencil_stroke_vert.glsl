@@ -68,7 +68,7 @@ struct VertOut {
 
 VertOut vertex_main(GreasePencilStrokeData vert_in)
 {
-  float thickness_scale = gpencil_stroke_data.pixfactor / gpencil_stroke_data.pixsize;
+  float thickness_scale = 1 / gpencil_stroke_data.pixsize;
 
   VertOut vert_out;
   vert_out.gpu_position = ModelViewProjectionMatrix * float4(vert_in.position, 1.0f);
