@@ -565,7 +565,7 @@ void PathTrace::set_denoiser_params(const DenoiseParams &params)
       need_to_recreate_denoiser = true;
     }
   }
-  else if (effective_denoise_params.use) {
+  else {
     /* if there is no denoiser and param.use is true, then we need to create it. */
     need_to_recreate_denoiser = true;
   }

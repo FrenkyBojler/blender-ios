@@ -286,6 +286,7 @@ class CYCLES_RENDER_PT_sampling_viewport_denoise(CyclesButtonsPanel, Panel):
 
         if effective_preview_denoiser == 'DLSS':
             col.prop(cscene, "preview_denoising_dlss_quality", text="Mode")
+            col.active = sub.active
             return
 
         col.prop(cscene, "preview_denoising_input_passes", text="Passes")

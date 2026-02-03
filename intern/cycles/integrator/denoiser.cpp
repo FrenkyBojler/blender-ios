@@ -79,18 +79,6 @@ static Device *find_best_device(Device *device,
   return best_device;
 }
 
-bool use_dlss_denoiser(Device *denoiser_device, const DenoiseParams &params)
-{
-#ifdef WITH_DLSS
-  return (params.type == DENOISER_DLSS &&
-          DLSSDenoiser::is_device_supported(denoiser_device->info));
-#else
-  (void)denoiser_device;
-  (void)params;
-  return false;
-#endif
-}
-
 bool use_optix_denoiser(Device *denoiser_device, const DenoiseParams &params)
 {
 #ifdef WITH_OPTIX
@@ -108,6 +96,18 @@ bool use_gpu_oidn_denoiser(Device *denoiser_device, const DenoiseParams &params)
 #ifdef WITH_OPENIMAGEDENOISE
   return (params.type == DENOISER_OPENIMAGEDENOISE && params.use_gpu &&
           OIDNDenoiserGPU::is_device_supported(denoiser_device->info));
+#else
+  (void)denoiser_device;
+  (void)params;
+  return false;
+#endif
+}
+
+bool use_dlss_denoiser(Device *denoiser_device, const DenoiseParams &params)
+{
+#ifdef WITH_DLSS
+  return (params.type == DENOISER_DLSS &&
+          DLSSDenoiser::is_device_supported(denoiser_device->info));
 #else
   (void)denoiser_device;
   (void)params;
@@ -144,20 +144,11 @@ DenoiseParams get_effective_denoise_params(Device *denoiser_device,
   const bool is_cpu_denoiser_device = single_denoiser_device->info.type == DEVICE_CPU;
   if (is_cpu_denoiser_device == false) {
     if (use_optix_denoiser(single_denoiser_device, effective_denoise_params) ||
-        use_gpu_oidn_denoiser(single_denoiser_device, effective_denoise_params))
+        use_gpu_oidn_denoiser(single_denoiser_device, effective_denoise_params) ||
+        use_dlss_denoiser(single_denoiser_device, effective_denoise_params))
     {
       /* Denoising parameters are correct and there is no need to fall back to CPU OIDN. */
       return effective_denoise_params;
-    }
-
-    if (effective_denoise_params.type == DENOISER_DLSS) {
-#ifdef WITH_DLSS
-      if (DLSSDenoiser::is_device_supported(single_denoiser_device->info)) {
-        return effective_denoise_params;
-      }
-#endif
-      /* Default to disabling denoising when DLSS is selected, but not available. */
-      effective_denoise_params.use = false;
     }
   }
 
@@ -178,18 +169,9 @@ unique_ptr<Denoiser> Denoiser::create(Device *denoiser_device,
   Device *single_denoiser_device;
   const DenoiseParams effective_denoiser_params = get_effective_denoise_params(
       denoiser_device, cpu_fallback_device, params, interop_device, single_denoiser_device);
-  if (!effective_denoiser_params.use) {
-    return nullptr;
-  }
 
   const bool is_cpu_denoiser_device = single_denoiser_device->info.type == DEVICE_CPU;
   if (is_cpu_denoiser_device == false) {
-#ifdef WITH_DLSS
-    if (use_dlss_denoiser(single_denoiser_device, effective_denoiser_params)) {
-      return make_unique<DLSSDenoiser>(single_denoiser_device, effective_denoiser_params);
-    }
-#endif
-
 #ifdef WITH_OPTIX
     if (use_optix_denoiser(single_denoiser_device, effective_denoiser_params)) {
       return make_unique<OptiXDenoiser>(single_denoiser_device, effective_denoiser_params);
@@ -202,6 +184,12 @@ unique_ptr<Denoiser> Denoiser::create(Device *denoiser_device,
       return make_unique<OIDNDenoiserGPU>(single_denoiser_device, effective_denoiser_params);
     }
 #endif
+
+#ifdef WITH_DLSS
+    if (use_dlss_denoiser(single_denoiser_device, effective_denoiser_params)) {
+      return make_unique<DLSSDenoiser>(single_denoiser_device, effective_denoiser_params);
+    }
+#endif
   }
 
   if (!openimagedenoise_supported()) {
@@ -212,6 +200,26 @@ unique_ptr<Denoiser> Denoiser::create(Device *denoiser_device,
   return make_unique<OIDNDenoiser>(is_cpu_denoiser_device ? single_denoiser_device :
                                                             cpu_fallback_device,
                                    effective_denoiser_params);
+}
+
+bool Denoiser::is_device_supported(DenoiserType type, const DeviceInfo &denoise_device_info)
+{
+  switch (type) {
+#ifdef WITH_OPTIX
+    case DENOISER_OPTIX:
+      return OptiXDenoiser::is_device_supported(denoise_device_info);
+#endif
+#ifdef WITH_OPENIMAGEDENOISE
+    case DENOISER_OPENIMAGEDENOISE:
+      return OIDNDenoiserGPU::is_device_supported(denoise_device_info);
+#endif
+#ifdef WITH_DLSS
+    case DENOISER_DLSS:
+      return DLSSDenoiser::is_device_supported(denoise_device_info);
+#endif
+    default:
+      return false;
+  }
 }
 
 DenoiserType Denoiser::automatic_viewport_denoiser_type(const DeviceInfo &denoise_device_info)

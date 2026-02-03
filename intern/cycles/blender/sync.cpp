@@ -1154,7 +1154,10 @@ DenoiseParams BlenderSync::get_denoise_params(blender::Scene &b_scene,
     }
 
     if (denoising.type == DENOISER_DLSS) {
-      input_passes = DENOISER_INPUT_RGB_ALBEDO_NORMAL;
+      /* Disable denoising when DLSS is not supported. */
+      if (!Denoiser::is_device_supported(denoising.type, denoise_device_info)) {
+        denoising.use = false;
+      }
 
       denoising.start_sample = 0;
       denoising.temporally_stable = true;
@@ -1186,6 +1189,8 @@ DenoiseParams BlenderSync::get_denoise_params(blender::Scene &b_scene,
           denoising.upscale_factor = 3.0f;
           break;
       }
+
+      input_passes = DENOISER_INPUT_RGB_ALBEDO_NORMAL;
     }
   }
 
