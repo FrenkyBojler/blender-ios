@@ -1178,7 +1178,7 @@ static void drw_callbacks_pre_scene(DRWContext &draw_ctx)
   GPU_matrix_projection_set(rv3d->winmat);
   GPU_matrix_set(rv3d->viewmat);
 
-  if (draw_ctx.evil_C && !(draw_ctx.v3d->flag & V3D_XR_SESSION_SURFACE)) {
+  if (draw_ctx.evil_C && draw_ctx.mode != DRWContext::VIEWPORT_XR) {
     draw::command::StateSet::set();
     DRW_submission_start();
     ED_region_draw_cb_draw(draw_ctx.evil_C, draw_ctx.region, REGION_DRAW_PRE_VIEW);
@@ -1329,13 +1329,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
   /* State has been reset at the end `draw_ctx.engines_draw_scene()`. */
   DRW_submission_start();
 
-#ifdef WITH_XR_OPENXR
-  const bool is_xr_surface = draw_ctx.v3d->flag & V3D_XR_SESSION_SURFACE;
-#else
-  constexpr bool is_xr_surface = false;
-#endif
-
-  if (is_xr_surface) {
+  if (draw_ctx.mode == DRWContext::VIEWPORT_XR) {
     drw_callbacks_post_scene_xr_surface(draw_ctx);
   }
   else {
