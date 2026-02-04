@@ -143,7 +143,8 @@ static float calculate_grid_step_fractions(const int base,
  *
  * \param line_distance value distance between lines.
  * \param view_bounds the value bounds visible in the region. x has to be lower than y.
- * \param start_value the value on which the first line should be drawn.
+ * \param r_start_value the value on which the first line should be drawn.
+ * \param r_steps how many lines should be drawn.
  *
  * \returns an unsigned integer indicating how many lines can be drawn.
  */
