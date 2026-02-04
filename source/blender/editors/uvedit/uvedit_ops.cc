@@ -64,7 +64,7 @@
 
 #include "uvedit_intern.hh"
 
-using namespace blender;
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name State Testing
@@ -114,14 +114,14 @@ bool ED_object_get_active_image(Object *ob,
 
   if (node && is_image_texture_node(node)) {
     if (r_ima) {
-      *r_ima = (Image *)node->id;
+      *r_ima = id_cast<Image *>(node->id);
     }
     if (r_iuser) {
       if (node->type_legacy == SH_NODE_TEX_IMAGE) {
-        *r_iuser = &((NodeTexImage *)node->storage)->iuser;
+        *r_iuser = &(static_cast<NodeTexImage *>(node->storage))->iuser;
       }
       else if (node->type_legacy == SH_NODE_TEX_ENVIRONMENT) {
-        *r_iuser = &((NodeTexEnvironment *)node->storage)->iuser;
+        *r_iuser = &(static_cast<NodeTexEnvironment *>(node->storage))->iuser;
       }
       else {
         *r_iuser = nullptr;
@@ -378,7 +378,7 @@ static wmOperatorStatus uv_move_on_axis_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
@@ -786,7 +786,7 @@ static wmOperatorStatus uv_arrange_islands_exec(bContext *C, wmOperator *op)
     }
     if (uvedit_uv_islands_arrange(scene, em->bm, axis, align, order, margin, position)) {
       uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
@@ -918,7 +918,7 @@ static void uv_weld(bContext *C)
 
     if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
@@ -977,7 +977,7 @@ static void uv_align(bContext *C, eUVWeldAlign tool, UVAlignPositionMode positio
 
     if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
@@ -1079,11 +1079,11 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
-  bool *changed = MEM_calloc_arrayN<bool>(objects.size(), __func__);
+  bool *changed = MEM_new_array_zeroed<bool>(objects.size(), __func__);
 
   /* Maximum index of an objects[i]'s UVs in UV_arr.
    * It helps find which UV in *uv_map_arr belongs to which object. */
-  uint *ob_uv_map_max_idx = MEM_calloc_arrayN<uint>(objects.size(), __func__);
+  uint *ob_uv_map_max_idx = MEM_new_array_zeroed<uint>(objects.size(), __func__);
 
   /* Calculate max possible number of kdtree nodes. */
   int uv_maxlen = 0;
@@ -1097,7 +1097,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     uv_maxlen += em->bm->totloop;
   }
 
-  blender::KDTree_2d *tree = blender::kdtree_2d_new(uv_maxlen);
+  KDTree_2d *tree = kdtree_2d_new(uv_maxlen);
 
   Vector<int> duplicates;
   Vector<float *> uv_map_arr;
@@ -1108,7 +1108,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     Object *obedit = objects[ob_index];
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
-      blender::kdtree_2d_insert(tree, uv_map_count, luv);
+      kdtree_2d_insert(tree, uv_map_count, luv);
       duplicates.append(-1);
       uv_map_arr.append(luv);
       uv_map_count++;
@@ -1117,13 +1117,12 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     ob_uv_map_max_idx[ob_index] = uv_map_count - 1;
   }
 
-  blender::kdtree_2d_balance(tree);
-  int found_duplicates = blender::kdtree_2d_calc_duplicates_fast(
-      tree, threshold, false, duplicates.data());
+  kdtree_2d_balance(tree);
+  int found_duplicates = kdtree_2d_calc_duplicates_fast(tree, threshold, false, duplicates.data());
 
   if (found_duplicates > 0) {
     /* Calculate average uv for duplicates. */
-    int *uv_duplicate_count = MEM_calloc_arrayN<int>(uv_map_count, __func__);
+    int *uv_duplicate_count = MEM_new_array_zeroed<int>(uv_map_count, __func__);
     for (int i = 0; i < uv_map_count; i++) {
       if (duplicates[i] == -1) { /* If doesn't reference another */
         uv_duplicate_count[i]++; /* self */
@@ -1145,7 +1144,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
 
       mul_v2_fl(uv_map_arr[i], 1.0f / float(uv_duplicate_count[i]));
     }
-    MEM_freeN(uv_duplicate_count);
+    MEM_delete(uv_duplicate_count);
 
     /* Update duplicated uvs. */
     uint ob_index = 0;
@@ -1169,15 +1168,15 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
       if (changed[ob_index]) {
         Object *obedit = objects[ob_index];
         uvedit_live_unwrap_update(sima, scene, obedit);
-        DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+        DEG_id_tag_update(obedit->data, 0);
         WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
       }
     }
   }
 
-  blender::kdtree_2d_free(tree);
-  MEM_freeN(changed);
-  MEM_freeN(ob_uv_map_max_idx);
+  kdtree_2d_free(tree);
+  MEM_delete(changed);
+  MEM_delete(ob_uv_map_max_idx);
 
   return OPERATOR_FINISHED;
 }
@@ -1199,7 +1198,7 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
     uv_maxlen += em->bm->totloop;
   }
 
-  blender::KDTree_2d *tree = blender::kdtree_2d_new(uv_maxlen);
+  KDTree_2d *tree = kdtree_2d_new(uv_maxlen);
 
   Vector<float *> uv_map_arr;
 
@@ -1207,20 +1206,20 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
 
   /* Add visible non-selected uvs to tree */
   ED_uvedit_foreach_uv_multi(scene, objects, true, false, [&](float luv[2]) {
-    blender::kdtree_2d_insert(tree, uv_map_count, luv);
+    kdtree_2d_insert(tree, uv_map_count, luv);
     uv_map_arr.append(luv);
     uv_map_count++;
   });
 
-  blender::kdtree_2d_balance(tree);
+  kdtree_2d_balance(tree);
 
   /* For each selected uv, find duplicate non selected uv. */
   for (Object *obedit : objects) {
     bool changed = false;
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
-      blender::KDTreeNearest_2d nearest;
-      const int i = blender::kdtree_2d_find_nearest(tree, luv, &nearest);
+      KDTreeNearest_2d nearest;
+      const int i = kdtree_2d_find_nearest(tree, luv, &nearest);
 
       if (i != -1 && nearest.dist < threshold) {
         copy_v2_v2(luv, uv_map_arr[i]);
@@ -1230,12 +1229,12 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
 
     if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
 
-  blender::kdtree_2d_free(tree);
+  kdtree_2d_free(tree);
 
   return OPERATOR_FINISHED;
 }
@@ -1342,7 +1341,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C,
     }
     if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
@@ -1663,7 +1662,7 @@ static wmOperatorStatus uv_snap_selection_exec(bContext *C, wmOperator *op)
     if (changed) {
       changed_multi = true;
       uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
@@ -1716,7 +1715,7 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
 
   for (Object *obedit : objects) {
-    Mesh &mesh = *static_cast<Mesh *>(obedit->data);
+    Mesh &mesh = *id_cast<Mesh *>(obedit->data);
     BMEditMesh *em = mesh.runtime->edit_mesh.get();
 
     bool changed = false;
@@ -1754,7 +1753,7 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SYNC_TO_EVAL);
+      DEG_id_tag_update(obedit->data, ID_RECALC_SYNC_TO_EVAL);
     }
   }
 
@@ -1931,7 +1930,7 @@ static bool uv_mesh_hide_sync_select(const ToolSettings *ts, Object *ob, BMEditM
   }
 
   if (changed) {
-    Mesh *mesh = static_cast<Mesh *>(ob->data);
+    Mesh *mesh = id_cast<Mesh *>(ob->data);
     EDBMUpdate_Params params = {0};
     params.calc_looptris = true;
     params.calc_normals = false;
@@ -2069,7 +2068,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
 
     BM_select_history_validate(em->bm);
 
-    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SELECT);
+    DEG_id_tag_update(ob->data, ID_RECALC_SELECT);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
   }
 
@@ -2128,7 +2127,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
     /* call the mesh function if we are in mesh sync sel */
     if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
       if (EDBM_mesh_reveal(em, select)) {
-        Mesh *mesh = static_cast<Mesh *>(ob->data);
+        Mesh *mesh = id_cast<Mesh *>(ob->data);
         EDBMUpdate_Params params = {0};
         params.calc_looptris = true;
         params.calc_normals = false;
@@ -2217,7 +2216,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
     /* re-select tagged faces */
     BM_mesh_elem_hflag_enable_test(em->bm, BM_FACE, BM_ELEM_SELECT, true, false, BM_ELEM_TAG);
 
-    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SELECT);
+    DEG_id_tag_update(ob->data, ID_RECALC_SELECT);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
   }
 
@@ -2279,7 +2278,7 @@ static wmOperatorStatus uv_set_2d_cursor_invoke(bContext *C, wmOperator *op, con
     }
   }
 
-  blender::ui::view2d_region_to_view(
+  ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
   RNA_float_set_array(op->ptr, "location", location);
 
@@ -2329,7 +2328,7 @@ static wmOperatorStatus uv_seams_from_islands_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
 
   for (Object *ob : objects) {
-    Mesh *mesh = (Mesh *)ob->data;
+    Mesh *mesh = id_cast<Mesh *>(ob->data);
     BMEditMesh *em = mesh->runtime->edit_mesh.get();
     BMesh *bm = em->bm;
     BMIter iter;
@@ -2433,7 +2432,7 @@ static wmOperatorStatus uv_mark_seam_exec(bContext *C, wmOperator *op)
   bool changed = false;
 
   for (Object *ob : objects) {
-    Mesh *mesh = (Mesh *)ob->data;
+    Mesh *mesh = id_cast<Mesh *>(ob->data);
     BMEditMesh *em = mesh->runtime->edit_mesh.get();
     BMesh *bm = em->bm;
 
@@ -2473,10 +2472,10 @@ static wmOperatorStatus uv_mark_seam_invoke(bContext *C, wmOperator *op, const w
     return uv_mark_seam_exec(C, op);
   }
 
-  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(C, IFACE_("Edges"), ICON_NONE);
-  blender::ui::Layout &layout = *popup_menu_layout(pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Edges"), ICON_NONE);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
-  layout.operator_context_set(blender::wm::OpCallContext::ExecDefault);
+  layout.operator_context_set(wm::OpCallContext::ExecDefault);
   PointerRNA op_ptr = layout.op(
       op->type->idname, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Mark Seam"), ICON_NONE);
   RNA_boolean_set(&op_ptr, "clear", false);
@@ -2660,7 +2659,7 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
     }
 
     if (changed) {
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
@@ -2729,6 +2728,8 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_select_less);
   WM_operatortype_append(UV_OT_select_overlap);
   WM_operatortype_append(UV_OT_select_mode);
+  WM_operatortype_append(UV_OT_select_tile);
+
   WM_operatortype_append(UV_OT_custom_region_set);
 
   WM_operatortype_append(UV_OT_snap_cursor);
@@ -2793,3 +2794,5 @@ void ED_keymap_uvedit(wmKeyConfig *keyconf)
 }
 
 /** \} */
+
+}  // namespace blender

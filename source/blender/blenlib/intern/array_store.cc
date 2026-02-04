@@ -104,7 +104,11 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
+struct BArrayState;
 struct BChunkList;
+struct BChunkRef;
 
 /* -------------------------------------------------------------------- */
 /** \name Defines
@@ -310,7 +314,7 @@ struct BArrayStore {
   /**
    * #BArrayState may be in any order (logic should never depend on state order).
    */
-  ListBase states;
+  ListBaseT<BArrayState> states;
 };
 
 /**
@@ -332,7 +336,7 @@ struct BArrayState {
 
 struct BChunkList {
   /** List of #BChunkRef's. */
-  ListBase chunk_refs;
+  ListBaseT<BChunkRef> chunk_refs;
   /** Result of `BLI_listbase_count(chunks)`, store for reuse. */
   uint chunk_refs_len;
   /** Size of all chunks (expanded). */
@@ -397,7 +401,7 @@ static BChunk *bchunk_new(BArrayMemory *bs_mem, const uchar *data, const size_t 
 
 static BChunk *bchunk_new_copydata(BArrayMemory *bs_mem, const uchar *data, const size_t data_len)
 {
-  uchar *data_copy = MEM_malloc_arrayN<uchar>(data_len, __func__);
+  uchar *data_copy = MEM_new_array_uninitialized<uchar>(data_len, __func__);
   memcpy(data_copy, data, data_len);
   return bchunk_new(bs_mem, data_copy, data_len);
 }
@@ -406,7 +410,7 @@ static void bchunk_decref(BArrayMemory *bs_mem, BChunk *chunk)
 {
   BLI_assert(chunk->users > 0);
   if (chunk->users == 1) {
-    MEM_freeN(chunk->data);
+    MEM_delete(chunk->data);
     BLI_mempool_free(bs_mem->chunk, chunk);
   }
   else {
@@ -485,11 +489,11 @@ static void bchunk_list_decref(BArrayMemory *bs_mem, BChunkList *chunk_list)
 static size_t bchunk_list_data_check(const BChunkList *chunk_list, const uchar *data)
 {
   size_t offset = 0;
-  LISTBASE_FOREACH (BChunkRef *, cref, &chunk_list->chunk_refs) {
-    if (memcmp(&data[offset], cref->link->data, cref->link->data_len) != 0) {
+  for (BChunkRef &cref : chunk_list->chunk_refs) {
+    if (memcmp(&data[offset], cref.link->data, cref.link->data_len) != 0) {
       return false;
     }
-    offset += cref->link->data_len;
+    offset += cref.link->data_len;
   }
   return true;
 }
@@ -522,7 +526,7 @@ static void bchunk_list_ensure_min_size_last(const BArrayInfo *info,
         chunk_list->chunk_refs.last = cref->prev;
         chunk_list->chunk_refs_len -= 1;
 
-        uchar *data_merge = MEM_malloc_arrayN<uchar>(data_merge_len, __func__);
+        uchar *data_merge = MEM_new_array_uninitialized<uchar>(data_merge_len, __func__);
         memcpy(data_merge, chunk_prev->data, chunk_prev->data_len);
         memcpy(&data_merge[chunk_prev->data_len], chunk_curr->data, chunk_curr->data_len);
 
@@ -544,8 +548,8 @@ static void bchunk_list_ensure_min_size_last(const BArrayInfo *info,
         /* Merge and split. */
         const size_t data_prev_len = split;
         const size_t data_curr_len = data_merge_len - split;
-        uchar *data_prev = MEM_malloc_arrayN<uchar>(data_prev_len, __func__);
-        uchar *data_curr = MEM_malloc_arrayN<uchar>(data_curr_len, __func__);
+        uchar *data_prev = MEM_new_array_uninitialized<uchar>(data_prev_len, __func__);
+        uchar *data_curr = MEM_new_array_uninitialized<uchar>(data_curr_len, __func__);
 
         if (data_prev_len <= chunk_prev->data_len) {
           const size_t data_curr_shrink_len = chunk_prev->data_len - data_prev_len;
@@ -668,13 +672,13 @@ static void bchunk_list_append_data(const BArrayInfo *info,
       /* Re-allocate for single user. */
       if (cref->link->users == 1) {
         uchar *data_merge = static_cast<uchar *>(
-            MEM_reallocN((void *)cref->link->data, data_merge_len));
+            MEM_realloc_uninitialized((void *)cref->link->data, data_merge_len));
         memcpy(&data_merge[chunk_prev->data_len], data, data_len);
         cref->link->data = data_merge;
         cref->link->data_len = data_merge_len;
       }
       else {
-        uchar *data_merge = MEM_malloc_arrayN<uchar>(data_merge_len, __func__);
+        uchar *data_merge = MEM_new_array_uninitialized<uchar>(data_merge_len, __func__);
         memcpy(data_merge, chunk_prev->data, chunk_prev->data_len);
         memcpy(&data_merge[chunk_prev->data_len], data, data_len);
         cref->link = bchunk_new(bs_mem, data_merge, data_merge_len);
@@ -823,7 +827,7 @@ static void bchunk_list_fill_from_array(const BArrayInfo *info,
  *
  * \note While different algorithms can be investigated,
  * these values are a kind of "intermediate" hash,
- * the the per-element hashes are accumulated into a unique value for each "chunk".
+ * the per-element hashes are accumulated into a unique value for each "chunk".
  *
  * For this reason, favor speed over high-quality hashes for each element.
  * (although the hashes are not *low* quality either).
@@ -839,20 +843,25 @@ static void bchunk_list_fill_from_array(const BArrayInfo *info,
  *
  * \{ */
 
-static inline uint32_t rotl32(uint32_t n, unsigned int c)
+static inline uint32_t rotl32(uint32_t n, uint c)
 {
   /* NOTE: can be replaced with `std::rotl` with C++ 20. */
   /* NOTE: Expected to optimize to a single bit-roll on x64. */
-  constexpr unsigned int mask = (8 * sizeof(n) - 1);
+  constexpr uint mask = (8 * sizeof(n) - 1);
   c &= mask;
   return (n << c) | (n >> ((-c) & mask));
 }
 
 #define HASH_INIT (5381)
 
-#define HASH_VALUE_IMPL_MUL(h, value) \
+/**
+ * The DJB2 algorithm was originally used for bytes, so it's kept
+ * although the rotating method from #HASH_VALUE_IMPL_ADD may be
+ * acceptable in this case too.
+ */
+#define HASH_VALUE_IMPL_ADD_BYTES(h, value) \
   { \
-    h = hash_key(int32_t((h << 5) + h) * (value)); \
+    h = hash_key(int32_t((h << 5) + h) + (value)); \
   } \
   ((void)0)
 
@@ -872,7 +881,7 @@ template<typename T> BLI_INLINE void hash_value_generic(hash_key &h, const T &va
                 std::is_same<T, UInt96_Data>() || std::is_same<T, UInt128_Data>());
 
   if constexpr (std::is_same_v<T, uint8_t>) {
-    HASH_VALUE_IMPL_MUL(h, int8_t(value));
+    HASH_VALUE_IMPL_ADD_BYTES(h, int8_t(value));
   }
   else if constexpr (std::is_same_v<T, uint16_t>) {
     HASH_VALUE_IMPL_ADD(h, value);
@@ -1137,7 +1146,7 @@ static const BChunkRef *table_lookup(const BArrayInfo *info,
                                      const hash_key *table_hash_array)
 {
   const hash_key key = table_hash_array[((offset - i_table_start) / info->chunk_stride)];
-  const uint key_index = uint(key % (hash_key)table_len);
+  const uint key_index = uint(key % hash_key(table_len));
   const BTableRef *tref = table[key_index];
   if (tref != nullptr) {
     const size_t size_left = data_len - offset;
@@ -1311,7 +1320,7 @@ static BChunkList *bchunk_list_from_data_merge(const BArrayInfo *info,
 
     if (full_match) {
       if (chunk_list_reference->total_expanded_size == data_len_original) {
-        return (BChunkList *)chunk_list_reference;
+        return const_cast<BChunkList *>(chunk_list_reference);
       }
     }
   }
@@ -1458,7 +1467,8 @@ static BChunkList *bchunk_list_from_data_merge(const BArrayInfo *info,
 #ifdef USE_HASH_TABLE_ACCUMULATE
     size_t i_table_start = i_prev;
     const size_t table_hash_array_len = (data_len - i_prev) / info->chunk_stride;
-    hash_key *table_hash_array = MEM_malloc_arrayN<hash_key>(table_hash_array_len, __func__);
+    hash_key *table_hash_array = MEM_new_array_uninitialized<hash_key>(table_hash_array_len,
+                                                                       __func__);
     hash_array_from_data(info, &data[i_prev], data_len - i_prev, table_hash_array);
 
     hash_accum(table_hash_array, table_hash_array_len, info->accum_steps);
@@ -1471,19 +1481,19 @@ static BChunkList *bchunk_list_from_data_merge(const BArrayInfo *info,
     const uint chunk_list_reference_remaining_len = (chunk_list_reference->chunk_refs_len -
                                                      chunk_list_reference_skip_len) +
                                                     1;
-    BTableRef *table_ref_stack = MEM_malloc_arrayN<BTableRef>(chunk_list_reference_remaining_len,
-                                                              __func__);
+    BTableRef *table_ref_stack = MEM_new_array_uninitialized<BTableRef>(
+        chunk_list_reference_remaining_len, __func__);
     uint table_ref_stack_n = 0;
 
     const size_t table_len = chunk_list_reference_remaining_len * BCHUNK_HASH_TABLE_MUL;
-    BTableRef **table = MEM_calloc_arrayN<BTableRef *>(table_len, __func__);
+    BTableRef **table = MEM_new_array_zeroed<BTableRef *>(table_len, __func__);
 
     /* Table_make - inline
      * include one matching chunk, to allow for repeating values. */
     {
 #ifdef USE_HASH_TABLE_ACCUMULATE
       const size_t hash_store_len = info->accum_read_ahead_len;
-      hash_key *hash_store = MEM_malloc_arrayN<hash_key>(hash_store_len, __func__);
+      hash_key *hash_store = MEM_new_array_uninitialized<hash_key>(hash_store_len, __func__);
 #endif
 
       const BChunkRef *cref;
@@ -1522,7 +1532,7 @@ static BChunkList *bchunk_list_from_data_merge(const BArrayInfo *info,
                                           hash_store_len
 #endif
         );
-        const uint key_index = uint(key % (hash_key)table_len);
+        const uint key_index = uint(key % hash_key(table_len));
         BTableRef *tref_prev = table[key_index];
         BLI_assert(table_ref_stack_n < chunk_list_reference_remaining_len);
 #ifdef USE_HASH_TABLE_DEDUPLICATE
@@ -1566,7 +1576,7 @@ static BChunkList *bchunk_list_from_data_merge(const BArrayInfo *info,
       BLI_assert(table_ref_stack_n <= chunk_list_reference_remaining_len);
 
 #ifdef USE_HASH_TABLE_ACCUMULATE
-      MEM_freeN(hash_store);
+      MEM_delete(hash_store);
 #endif
     }
     /* Done making the table. */
@@ -1622,10 +1632,10 @@ static BChunkList *bchunk_list_from_data_merge(const BArrayInfo *info,
     }
 
 #ifdef USE_HASH_TABLE_ACCUMULATE
-    MEM_freeN(table_hash_array);
+    MEM_delete(table_hash_array);
 #endif
-    MEM_freeN(table);
-    MEM_freeN(table_ref_stack);
+    MEM_delete(table);
+    MEM_delete(table_ref_stack);
 
     /* End Table Lookup
      * ---------------- */
@@ -1709,7 +1719,7 @@ BArrayStore *BLI_array_store_create(uint stride, uint chunk_count)
   BLI_assert(stride > 0 && chunk_count > 0);
   BLI_assert(stride % uint(hash_size) == 0); /* Stride must be a multiple of `hash_size`. */
 
-  BArrayStore *bs = MEM_callocN<BArrayStore>(__func__);
+  BArrayStore *bs = MEM_new_zeroed<BArrayStore>(__func__);
 
   bs->info.chunk_stride = stride;
 
@@ -1771,7 +1781,7 @@ static void array_store_free_data(BArrayStore *bs)
     BLI_mempool_iternew(bs->memory.chunk, &iter);
     while ((chunk = static_cast<BChunk *>(BLI_mempool_iterstep(&iter)))) {
       BLI_assert(chunk->users > 0);
-      MEM_freeN(chunk->data);
+      MEM_delete(chunk->data);
     }
   }
 
@@ -1780,7 +1790,7 @@ static void array_store_free_data(BArrayStore *bs)
        state = state_next)
   {
     state_next = state->next;
-    MEM_freeN(state);
+    MEM_delete(state);
   }
 }
 
@@ -1792,7 +1802,7 @@ void BLI_array_store_destroy(BArrayStore *bs)
   BLI_mempool_destroy(bs->memory.chunk_ref);
   BLI_mempool_destroy(bs->memory.chunk);
 
-  MEM_freeN(bs);
+  MEM_delete(bs);
 }
 
 void BLI_array_store_clear(BArrayStore *bs)
@@ -1815,8 +1825,8 @@ void BLI_array_store_clear(BArrayStore *bs)
 size_t BLI_array_store_calc_size_expanded_get(const BArrayStore *bs)
 {
   size_t size_accum = 0;
-  LISTBASE_FOREACH (const BArrayState *, state, &bs->states) {
-    size_accum += state->chunk_list->total_expanded_size;
+  for (const BArrayState &state : bs->states) {
+    size_accum += state.chunk_list->total_expanded_size;
   }
   return size_accum;
 }
@@ -1858,19 +1868,20 @@ BArrayState *BLI_array_store_state_add(BArrayStore *bs,
   if (state_reference) {
     chunk_list = bchunk_list_from_data_merge(&bs->info,
                                              &bs->memory,
-                                             (const uchar *)data,
+                                             static_cast<const uchar *>(data),
                                              data_len,
                                              /* Re-use reference chunks. */
                                              state_reference->chunk_list);
   }
   else {
     chunk_list = bchunk_list_new(&bs->memory, data_len);
-    bchunk_list_fill_from_array(&bs->info, &bs->memory, chunk_list, (const uchar *)data, data_len);
+    bchunk_list_fill_from_array(
+        &bs->info, &bs->memory, chunk_list, static_cast<const uchar *>(data), data_len);
   }
 
   chunk_list->users += 1;
 
-  BArrayState *state = MEM_callocN<BArrayState>(__func__);
+  BArrayState *state = MEM_new_zeroed<BArrayState>(__func__);
   state->chunk_list = chunk_list;
 
   BLI_addtail(&bs->states, state);
@@ -1881,7 +1892,7 @@ BArrayState *BLI_array_store_state_add(BArrayStore *bs,
     void *data_test = BLI_array_store_state_data_get_alloc(state, &data_test_len);
     BLI_assert(data_test_len == data_len);
     BLI_assert(memcmp(data_test, data, data_len) == 0);
-    MEM_freeN(data_test);
+    MEM_delete(data_test);
   }
 #endif
 
@@ -1897,7 +1908,7 @@ void BLI_array_store_state_remove(BArrayStore *bs, BArrayState *state)
   bchunk_list_decref(&bs->memory, state->chunk_list);
   BLI_remlink(&bs->states, state);
 
-  MEM_freeN(state);
+  MEM_delete(state);
 }
 
 size_t BLI_array_store_state_size_get(const BArrayState *state)
@@ -1909,23 +1920,23 @@ void BLI_array_store_state_data_get(const BArrayState *state, void *data)
 {
 #ifdef USE_PARANOID_CHECKS
   size_t data_test_len = 0;
-  LISTBASE_FOREACH (BChunkRef *, cref, &state->chunk_list->chunk_refs) {
-    data_test_len += cref->link->data_len;
+  for (BChunkRef &cref : state->chunk_list->chunk_refs) {
+    data_test_len += cref.link->data_len;
   }
   BLI_assert(data_test_len == state->chunk_list->total_expanded_size);
 #endif
 
-  uchar *data_step = (uchar *)data;
-  LISTBASE_FOREACH (BChunkRef *, cref, &state->chunk_list->chunk_refs) {
-    BLI_assert(cref->link->users > 0);
-    memcpy(data_step, cref->link->data, cref->link->data_len);
-    data_step += cref->link->data_len;
+  uchar *data_step = static_cast<uchar *>(data);
+  for (BChunkRef &cref : state->chunk_list->chunk_refs) {
+    BLI_assert(cref.link->users > 0);
+    memcpy(data_step, cref.link->data, cref.link->data_len);
+    data_step += cref.link->data_len;
   }
 }
 
 void *BLI_array_store_state_data_get_alloc(const BArrayState *state, size_t *r_data_len)
 {
-  void *data = MEM_mallocN(state->chunk_list->total_expanded_size, __func__);
+  void *data = MEM_new_uninitialized(state->chunk_list->total_expanded_size, __func__);
   BLI_array_store_state_data_get(state, data);
   *r_data_len = state->chunk_list->total_expanded_size;
   return data;
@@ -1941,8 +1952,8 @@ void *BLI_array_store_state_data_get_alloc(const BArrayState *state, size_t *r_d
 static size_t bchunk_list_size(const BChunkList *chunk_list)
 {
   size_t total_expanded_size = 0;
-  LISTBASE_FOREACH (BChunkRef *, cref, &chunk_list->chunk_refs) {
-    total_expanded_size += cref->link->data_len;
+  for (BChunkRef &cref : chunk_list->chunk_refs) {
+    total_expanded_size += cref.link->data_len;
   }
   return total_expanded_size;
 }
@@ -1954,8 +1965,8 @@ bool BLI_array_store_is_valid(BArrayStore *bs)
   /* Check Length
    * ------------ */
 
-  LISTBASE_FOREACH (BArrayState *, state, &bs->states) {
-    BChunkList *chunk_list = state->chunk_list;
+  for (BArrayState &state : bs->states) {
+    BChunkList *chunk_list = state.chunk_list;
     if (!(bchunk_list_size(chunk_list) == chunk_list->total_expanded_size)) {
       return false;
     }
@@ -1967,8 +1978,8 @@ bool BLI_array_store_is_valid(BArrayStore *bs)
 #ifdef USE_MERGE_CHUNKS
     /* Ensure we merge all chunks that could be merged. */
     if (chunk_list->total_expanded_size > bs->info.chunk_byte_size_min) {
-      LISTBASE_FOREACH (BChunkRef *, cref, &chunk_list->chunk_refs) {
-        if (cref->link->data_len < bs->info.chunk_byte_size_min) {
+      for (BChunkRef &cref : chunk_list->chunk_refs) {
+        if (cref.link->data_len < bs->info.chunk_byte_size_min) {
           return false;
         }
       }
@@ -1991,12 +2002,12 @@ bool BLI_array_store_is_valid(BArrayStore *bs)
    * ---------------------------------- */
   {
     /* Count chunk_list's. */
-    blender::Map<BChunkList *, int> chunk_list_map;
-    blender::Map<BChunk *, int> chunk_map;
+    Map<BChunkList *, int> chunk_list_map;
+    Map<BChunk *, int> chunk_map;
 
     int totrefs = 0;
-    LISTBASE_FOREACH (BArrayState *, state, &bs->states) {
-      chunk_list_map.lookup_or_add(state->chunk_list, 0)++;
+    for (BArrayState &state : bs->states) {
+      chunk_list_map.lookup_or_add(state.chunk_list, 0)++;
     }
     for (const auto &item : chunk_list_map.items()) {
       const BChunkList *chunk_list = item.key;
@@ -2013,8 +2024,8 @@ bool BLI_array_store_is_valid(BArrayStore *bs)
 
     /* Count chunk's. */
     for (const BChunkList *chunk_list : chunk_list_map.keys()) {
-      LISTBASE_FOREACH (const BChunkRef *, cref, &chunk_list->chunk_refs) {
-        chunk_map.lookup_or_add(cref->link, 0)++;
+      for (const BChunkRef &cref : chunk_list->chunk_refs) {
+        chunk_map.lookup_or_add(cref.link, 0)++;
         totrefs += 1;
       }
     }
@@ -2043,3 +2054,5 @@ user_finally:
 }
 
 /** \} */
+
+}  // namespace blender

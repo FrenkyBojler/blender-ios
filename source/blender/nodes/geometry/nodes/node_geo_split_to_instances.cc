@@ -335,6 +335,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   dst_geometry.name = src_geometry.name;
+  dst_geometry.copy_bundle_from(src_geometry);
 
   geometry::debug_randomize_instance_order(dst_instances);
 
@@ -354,7 +355,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeSplitToInstances", GEO_NODE_SPLIT_TO_INSTANCES);
   ntype.ui_name = "Split to Instances";
   ntype.ui_description = "Create separate geometries containing the elements from the same group";
@@ -363,7 +364,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
