@@ -1,3 +1,4 @@
 Referenced by issue #153445, ASAN failures in majority of nightly sanitizer tests due to OCIO
 Referenced by issue #153651, Switch to C++20 broke Linux sanitizer builds in CI/CD tests
 Referenced by pull request #153789, Fix #153651: Memory leak when running sanitizer tests
+Referenced by commit cc28df955aea8676e6a081be44e408f264a74b12, Fix #153651: Memory leak when running sanitizer tests
