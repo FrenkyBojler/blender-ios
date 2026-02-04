@@ -1600,6 +1600,10 @@ class IMAGE_PT_gizmo_display(Panel):
         colsub = col.column()
         colsub.prop(view, "show_gizmo_navigate", text="Navigate")
 
+        if view.ui_mode == 'VIEW' or view.ui_mode == 'MASK':
+            colsub = col.column()
+            colsub.prop(view, "show_gizmo_active_node")
+
 
 class IMAGE_PT_overlay(Panel):
     bl_space_type = 'IMAGE_EDITOR'

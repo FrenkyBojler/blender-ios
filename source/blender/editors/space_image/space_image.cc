@@ -537,7 +537,15 @@ static void IMAGE_GGT_navigate(wmGizmoGroupType *gzgt)
 
 static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  // todo(habib): handle visibility
+  const SpaceImage *sima = CTX_wm_space_image(C);
+  if (!sima || !ELEM(sima->mode, SI_MODE_VIEW, SI_MODE_MASK)) {
+    return false;
+  }
+
+  if (sima->gizmo_flag & SI_GIZMO_HIDE_ACTIVE_NODE) {
+    return false;
+  }
+
   const SpaceNode *snode = nodes::gizmos::find_node_editor(C);
   if (snode == nullptr || snode->edittree == nullptr) {
     return false;
