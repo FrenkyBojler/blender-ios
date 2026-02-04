@@ -888,6 +888,8 @@ def main():
 
     args, remaining = parser.parse_known_args(argv)
 
+    bpy.context.preferences.filepaths.file_preview_type = 'NONE'
+
     unittest.main(argv=remaining)
 
 

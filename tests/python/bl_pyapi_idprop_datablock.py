@@ -94,6 +94,7 @@ def get_scene(lib_name, sce_name):
 
 
 def init():
+    bpy.context.preferences.filepaths.file_preview_type = 'NONE'
     bpy.utils.register_class(TestClass)
     bpy.types.Object.prop_array = bpy.props.CollectionProperty(
         name="prop_array",
@@ -109,6 +110,7 @@ def finalize():
 
 def make_lib():
     bpy.ops.wm.read_factory_settings()
+    bpy.context.preferences.filepaths.file_preview_type = 'NONE'
 
     # datablock pointer to the Camera object
     bpy.data.objects["Cube"].prop = bpy.data.objects['Camera']
@@ -156,6 +158,7 @@ def check_lib():
 def check_lib_linking():
     # open startup file
     bpy.ops.wm.read_factory_settings()
+    bpy.context.preferences.filepaths.file_preview_type = 'NONE'
 
     # link scene to the startup file
     with bpy.data.libraries.load(lib_path, link=True) as (data_from, data_to):
@@ -218,6 +221,8 @@ def check_scene_copying():
 # count users
 def test_users_counting():
     bpy.ops.wm.read_factory_settings()
+    bpy.context.preferences.filepaths.file_preview_type = 'NONE'
+
     Light_us = bpy.data.objects["Light"].data.users
     n = 1000
     for i in range(0, n):

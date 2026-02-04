@@ -465,6 +465,8 @@ def main():
     assert args.slice_range > 0
     assert 0 <= args.slice_index < args.slice_range
 
+    bpy.context.preferences.filepaths.file_preview_type = 'NONE'
+
     for Test in TESTS:
         Test(args).run_all_tests()
 
