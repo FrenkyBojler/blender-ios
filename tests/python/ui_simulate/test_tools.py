@@ -44,7 +44,7 @@ def sculpt_mode_toolbar():
 
     yield e.shift.space()
     yield e.six()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.primitive_c_add")
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.primitive_cone_add")
 
     yield e.shift.space()
     yield e.seven()
