@@ -96,7 +96,7 @@ static Object *make_prim_init(bContext *C,
 
 static BMesh *make_prim_init_sculpt()
 {
-  const BMAllocTemplate allocsize{.totvert = 0, .totedge = 0, .totface = 0, .totloop = 0};
+  const BMAllocTemplate allocsize{.totvert = 0, .totedge = 0, .totloop = 0, .totface = 0};
 
   BMeshCreateParams bm_create_params{};
   bm_create_params.use_toolflags = true;
@@ -123,10 +123,7 @@ static void init_facesets(Mesh *object_mesh, Mesh *primitive_mesh)
       primitive_attributes.lookup_or_add_for_write_span<int>(".sculpt_face_set",
                                                              bke::AttrDomain::Face);
 
-  for (const int i : primitive_face_sets.span.index_range()) {
-    primitive_face_sets.span[i] = 1;
-  }
-
+  primitive_face_sets.span.fill(object_mesh->face_sets_color_default);
   primitive_face_sets.finish();
 }
 

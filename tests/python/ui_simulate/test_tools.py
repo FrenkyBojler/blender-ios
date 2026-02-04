@@ -19,7 +19,7 @@ def sculpt_mode_toolbar():
     yield e.ctrl.tab().s()              # Sculpt via pie menu.
 
     area = ui.get_window_area_by_type(window, 'VIEW_3D')
-    position = (area.x + int(area.width * 0.05), area.y + area.height // 2)
+    position = (area.x + int(area.width * 0.02), area.y + area.height // 2)
     e.cursor_position_set(*position, move=True)     # Move mouse over the toolbar
 
     yield e.shift.space()
@@ -37,6 +37,26 @@ def sculpt_mode_toolbar():
     yield e.shift.space()
     yield e.four()
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin_brush.draw_face_sets")
+
+    yield e.shift.space()
+    yield e.five()
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.primitive_cube_add")
+
+    yield e.shift.space()
+    yield e.six()
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.primitive_c_add")
+
+    yield e.shift.space()
+    yield e.seven()
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.primitive_cylinder_add")
+
+    yield e.shift.space()
+    yield e.eight()
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.primitive_uv_sphere_add")
+
+    yield e.shift.space()
+    yield e.nine()
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.primitive_ico_sphere_add")
 
     yield e.shift.space()
     yield e.b()
