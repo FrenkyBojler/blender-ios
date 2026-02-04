@@ -303,23 +303,6 @@ using PositionToString =
     void (*)(const Scene *scene, float value, float step, char *r_str, uint str_maxncpy);
 
 /**
- * Returns the largest label width in the given data range in pixels.
- */
-static float get_max_label_width(PositionToString to_string,
-                                 const Scene *scene,
-                                 const float2 data_bounds)
-{
-  const int font_id = BLF_set_default();
-  char text[32];
-  to_string(scene, data_bounds.x, 0, text, sizeof(text));
-  const float left_text_width = BLF_width(font_id, text, strlen(text));
-  to_string(scene, data_bounds.y, 0, text, sizeof(text));
-  const float right_text_width = BLF_width(font_id, text, strlen(text));
-  const float max_text_width = max_ff(left_text_width, right_text_width);
-  return max_text_width;
-}
-
-/**
  * \param distance is the distance between lines in the data unit of the v2d (frame or value).
  */
 static void draw_horizontal_scale_indicators(const ARegion *region,
@@ -472,6 +455,27 @@ static void frame_to_string(const Scene * /*user_data*/,
 }
 
 /**
+ * Returns the width of a label in the given data bounds in pixels.
+ */
+static float get_label_width(PositionToString to_string,
+                             const Scene *scene,
+                             const float2 data_bounds)
+{
+  const int font_id = BLF_set_default();
+  char text[32];
+  /* Using abs to remove the influence of the - on the width. The padding added should make up for
+   * that.  */
+  to_string(scene, abs(data_bounds.x), 0, text, sizeof(text));
+  const float left_text_width = BLF_width(font_id, text, strlen(text));
+  to_string(scene, abs(data_bounds.y), 0, text, sizeof(text));
+  const float right_text_width = BLF_width(font_id, text, strlen(text));
+  const float max_text_width = max_ff(left_text_width, right_text_width);
+
+  constexpr int text_padding = 6;
+  return max_text_width + text_padding;
+}
+
+/**
  * Calculate the minimum distance between lines. This depends also on the label that is drawn on
  * the lines since they shouldn't overlap.
  */
@@ -487,9 +491,8 @@ static float get_min_line_distance_x(const View2D *v2d,
   else {
     to_string = frame_to_string;
   }
-  constexpr int text_padding = 6;
-  const float max_text_width = get_max_label_width(to_string, scene, view_range) + text_padding;
-  return max_ff(MIN_MAJOR_LINE_DISTANCE, max_text_width);
+  const float label_width = get_label_width(to_string, scene, view_range);
+  return max_ff(MIN_MAJOR_LINE_DISTANCE, label_width);
 }
 
 /* Grid Resolution API
