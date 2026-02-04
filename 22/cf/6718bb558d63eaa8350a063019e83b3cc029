@@ -1,1 +1,2 @@
 Referenced by pull request #153881, Fix #153876: Crash dropping into the VSE with uninitialized Editing
+Referenced by commit bb6d9c9e5bd9cfa808e86d7bfc6ebb76db834bf7, Fix #153876: Crash dropping into the VSE with uninitialized Editing
