@@ -26,7 +26,7 @@
 namespace blender::image_engine {
 
 struct ShaderParameters {
-  ImageDrawFlags flags = IMAGE_DRAW_FLAG_DEFAULT;
+  eImageDrawFlags flags = IMAGE_DRAW_FLAG_DEFAULT;
   float4 shuffle;
   float2 far_near;
   bool use_premul_alpha = false;
