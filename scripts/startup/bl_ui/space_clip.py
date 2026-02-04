@@ -1243,7 +1243,7 @@ class CLIP_PT_footage(Panel):
         sc = context.space_data
 
         if not sc.clip:
-            layout.label(text="No movie clip selected", icon='INFO')
+            layout.label(text="No active movie clip", icon='INFO')
         else:
             col = layout.column()
             col.template_movieclip(sc, "clip", compact=True)
