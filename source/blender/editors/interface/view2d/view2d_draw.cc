@@ -144,10 +144,10 @@ static float calculate_grid_step_fractions(const int base,
  *
  * \returns the value on which to draw the first line.
  */
-static float get_start_value(const float line_distance, const float2 view_bounds)
+static float get_start_value(const float line_distance, const float lower_view_bound)
 {
   BLI_assert(line_distance > 0);
-  return ceilf(view_bounds.x / line_distance) * line_distance;
+  return ceilf(lower_view_bound / line_distance) * line_distance;
 }
 
 /**
@@ -184,16 +184,19 @@ static void draw_parallel_lines(const float line_distance,
                                 const uchar color[3],
                                 const char direction)
 {
-  const float2 view_bounds = {rect->xmin, rect->xmax};
-  const float start_value = get_start_value(line_distance, view_bounds);
+  float start_value;
   uint steps, steps_max;
 
   if (direction == 'v') {
+    const float2 view_bounds = {rect->xmin, rect->xmax};
+    start_value = get_start_value(line_distance, view_bounds.x);
     steps = get_parallel_lines_draw_steps(line_distance, view_bounds, start_value);
     steps_max = BLI_rcti_size_x(rect_mask);
   }
   else {
     BLI_assert(direction == 'h');
+    const float2 view_bounds = {rect->ymin, rect->ymax};
+    start_value = get_start_value(line_distance, view_bounds.x);
     steps = get_parallel_lines_draw_steps(line_distance, view_bounds, start_value);
     steps_max = BLI_rcti_size_y(rect_mask);
   }
@@ -333,7 +336,7 @@ static void draw_horizontal_scale_indicators(const ARegion *region,
 
   const float2 view_bounds = {view2d_region_to_view_x(v2d, rect->xmin),
                               view2d_region_to_view_x(v2d, rect->xmax)};
-  const float start_value = get_start_value(distance, view_bounds);
+  const float start_value = get_start_value(distance, view_bounds.x);
   const uint steps = get_parallel_lines_draw_steps(distance, view_bounds, start_value);
   const uint steps_max = BLI_rcti_size_x(&v2d->mask) + 1;
   if (UNLIKELY(steps >= steps_max)) {
@@ -377,7 +380,7 @@ static void draw_vertical_scale_indicators(const ARegion *region,
 
   const float2 view_bounds = {view2d_region_to_view_y(v2d, rect->ymin),
                               view2d_region_to_view_y(v2d, rect->ymax)};
-  const float start = get_start_value(distance, view_bounds);
+  const float start = get_start_value(distance, view_bounds.x);
   const uint steps = get_parallel_lines_draw_steps(distance, view_bounds, start);
   const uint steps_max = BLI_rcti_size_y(&v2d->mask) + 1;
   if (UNLIKELY(steps >= steps_max)) {
