@@ -826,6 +826,9 @@ int ED_area_max_regionsize(const ScrArea *area, const ARegion *scale_region, con
 
 const char *ED_area_region_search_filter_get(const ScrArea *area, const ARegion *region)
 {
+  if (region->regiontype == RGN_TYPE_UI) {
+    return region->runtime->search_filter.c_str();
+  }
   if (area->spacetype == SPACE_PROPERTIES) {
     SpaceProperties *sbuts = static_cast<SpaceProperties *>(area->spacedata.first);
     if (region->regiontype == RGN_TYPE_WINDOW) {
@@ -3266,6 +3269,8 @@ static int panel_draw_width_from_max_width_get(const ARegion *region,
              max_width;
 }
 
+void side_region_property_search(const bContext *C, ARegion *region);
+
 void ED_region_panels_layout_ex(const bContext *C,
                                 ARegion *region,
                                 ListBaseT<PanelType> *paneltypes,
@@ -3273,6 +3278,10 @@ void ED_region_panels_layout_ex(const bContext *C,
                                 const char *contexts[],
                                 const char *category_override)
 {
+  if (region->regiontype == RGN_TYPE_UI && region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE) {
+    side_region_property_search(C, region);
+  }
+
   /* collect panels to draw */
   WorkSpace *workspace = CTX_wm_workspace(C);
   LinkNode *panel_types_stack = nullptr;
@@ -3326,7 +3335,28 @@ void ED_region_panels_layout_ex(const bContext *C,
   const int max_panel_width = round_fl_to_int(BLI_rctf_size_x(&v2d->cur)) - margin_x;
   /* Works out to 10 * UI_UNIT_X or 20 * UI_UNIT_X. */
   const int em = (region->runtime->type->prefsizex) ? 10 : 20;
+  if (region->regiontype == RGN_TYPE_UI) {
+    ui::Block *search_block = block_begin(C, region, "INTERNAL", ui::EmbossType::Emboss);
+    const uiStyle *style = ui::style_get_dpi();
 
+    ui::Layout &layout = ui::block_layout(search_block,
+                                          ui::LayoutDirection::Vertical,
+                                          ui::LayoutType::Header,
+                                          0,
+                                          0,
+                                          max_panel_width,
+                                          em,
+                                          5,
+                                          style);
+    PointerRNA ptr = RNA_pointer_create_discrete(
+        id_cast<ID *>(CTX_wm_screen(C)), RNA_Region, region);
+    layout.prop(&ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
+    ui::block_layout_resolve(search_block);
+    block_end(C, search_block);
+    block_flag_enable(search_block, ui::BLOCK_CLIP_EVENTS);
+    block_translate(search_block, 0, region->v2d.cur.ymax - region->v2d.tot.ymax);
+    region->runtime->search_block = search_block;
+  }
   /* create panels */
   ui::panels_begin(C, region);
 
@@ -3405,6 +3435,14 @@ void ED_region_panels_layout_ex(const bContext *C,
   /* align panels and return size */
   int x, y;
   ui::panels_end(C, region, &x, &y);
+  if (category && region->runtime->search_filter != "") {
+    for (Panel &panel : region->panels) {
+      if (ui::panel_is_active(&panel) && ui::panel_matches_search_filter(&panel)) {
+        region->runtime->categories_search_match.add(category);
+        break;
+      }
+    }
+  }
 
   /* before setting the view */
   if (region_layout_based) {
@@ -3594,8 +3632,13 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   const bool has_category_tabs = ui::panel_category_tabs_is_visible(region);
   const short min_draw_size = has_category_tabs ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
                                                   std::min(region->runtime->type->prefsizex, 20);
+
   if (region->winx >= (min_draw_size * UI_SCALE_FAC / aspect)) {
     ui::panels_draw(C, region);
+  }
+  /* Draw region search on top of panels. */
+  if (region->runtime->search_block) {
+    ui::block_draw(C, region->runtime->search_block);
   }
 
   /* restore view matrix */
@@ -3740,6 +3783,66 @@ static bool panel_property_search(const bContext *C,
 
   return false;
 }
+bool side_region_search_for_context(const bContext *C, ARegion *region, StringRef category)
+{
+  std::string ctx = std::string(".") + CTX_data_mode_string(C);
+  const char *contexts[3] = {CTX_data_mode_string(C), ctx.c_str(), nullptr};
+  return ED_region_property_search(
+      C, region, &region->runtime->type->paneltypes, contexts, category.data());
+}
+
+static void side_region_search_all_categories(const bContext *C, ARegion *region_original)
+{
+  /* Use local copies of the area and duplicate the region as a mainly-paranoid protection
+   * against changing any of the space / region data while running the search. */
+  ScrArea *area_original = CTX_wm_area(C);
+  ScrArea area_copy = dna::shallow_copy(*area_original);
+  ARegion *region_copy = BKE_area_region_copy(area_copy.type, region_original);
+  BLI_duplicatelist(&region_copy->panels_category_active,
+                    &region_original->panels_category_active);
+  /* Set the region visible field. Otherwise some layout code thinks we're drawing in a popup.
+   * This likely isn't necessary, but it's nice to emulate a "real" region where possible. */
+  region_copy->runtime->visible = true;
+
+  region_copy->runtime->search_filter = region_original->runtime->search_filter;
+
+  CTX_wm_area_set(const_cast<bContext *>(C), &area_copy);
+  CTX_wm_region_set(const_cast<bContext *>(C), region_copy);
+  region_original->runtime->categories_search_match.clear();
+
+  WorkSpace *workspace = CTX_wm_workspace(C);
+  LinkNode *panel_types_stack = nullptr;
+  for (PanelType &pt : region_original->runtime->type->paneltypes.items_reversed()) {
+    if (panel_add_check(C, workspace, nullptr, nullptr, &pt)) {
+      BLI_linklist_prepend_alloca(&panel_types_stack, &pt);
+    }
+  }
+  bool use_categories = true;
+  StringRef category = region_panels_collect_categories(
+      region_original, panel_types_stack, &use_categories);
+
+  for (PanelCategoryDyn &pc_dyn : region_original->runtime->panels_category) {
+    /* Handle search for the current tab in the normal layout pass. */
+    /* Actually do the search and store the result in the bitmap. */
+    if (category == pc_dyn.idname) {
+      continue;
+    }
+    const bool found = side_region_search_for_context(C, region_copy, pc_dyn.idname);
+    if (found) {
+      region_original->runtime->categories_search_match.add(pc_dyn.idname);
+    }
+    ui::blocklist_free(C, region_copy);
+  }
+  BKE_area_region_free(area_copy.type, region_copy);
+  MEM_delete(region_copy);
+  CTX_wm_area_set(const_cast<bContext *>(C), area_original);
+  CTX_wm_region_set(const_cast<bContext *>(C), region_original);
+}
+
+void side_region_property_search(const bContext *C, ARegion *region)
+{
+  side_region_search_all_categories(C, region);
+}
 
 bool ED_region_property_search(const bContext *C,
                                ARegion *region,
@@ -3759,8 +3862,8 @@ bool ED_region_property_search(const bContext *C,
     }
   }
 
-  const char *category = nullptr;
-  bool use_categories = (category_override == nullptr) &&
+  const char *category = category_override;
+  bool use_categories = (category != nullptr) &&
                         BKE_regiontype_uses_categories(region->runtime->type);
   if (use_categories) {
     category = region_panels_collect_categories(region, panel_types_stack, &use_categories);

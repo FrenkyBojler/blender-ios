@@ -1439,6 +1439,7 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
   uchar theme_col_tab_text_sel[3];
   float theme_col_tab_active[4];
   float theme_col_tab_inactive[4];
+  float theme_col_tab_no_search_match[4];
   float theme_col_tab_outline[4];
   float theme_col_tab_outline_sel[4];
 
@@ -1448,9 +1449,10 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
   theme::get_color_4ubv(TH_TAB_BACK, theme_col_tab_bg);
   theme::get_color_4fv(TH_TAB_ACTIVE, theme_col_tab_active);
   theme::get_color_4fv(TH_TAB_INACTIVE, theme_col_tab_inactive);
+  theme::get_color_4fv(TH_TAB_INACTIVE, theme_col_tab_no_search_match);
   theme::get_color_4fv(TH_TAB_OUTLINE, theme_col_tab_outline);
   theme::get_color_4fv(TH_TAB_OUTLINE_ACTIVE, theme_col_tab_outline_sel);
-
+  theme_col_tab_no_search_match[3] /= 4.0f;
   is_alpha = (region->overlap && (theme_col_back[3] != 255));
 
   BLF_enable(fontid, BLF_ROTATION);
@@ -1572,11 +1574,13 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
       box_rect.xmax = rct->xmax;
       box_rect.ymin = rct->ymin;
       box_rect.ymax = rct->ymax;
-
-      draw_roundbox_4fv(&box_rect,
-                        true,
-                        tab_curve_radius,
-                        is_active ? theme_col_tab_active : theme_col_tab_inactive);
+      const float *color = is_active ? theme_col_tab_active : theme_col_tab_inactive;
+      if (!region->runtime->search_filter.empty() &&
+          !region->runtime->categories_search_match.contains_as(pc_dyn.idname))
+      {
+        color = theme_col_tab_no_search_match;
+      }
+      draw_roundbox_4fv(&box_rect, true, tab_curve_radius, color);
       draw_roundbox_4fv(&box_rect,
                         false,
                         tab_curve_radius,
@@ -1820,6 +1824,9 @@ static bool uiAlignPanelStep(ARegion *region, const float factor, const bool dra
 
   /* Y offset. */
   int y = 0;
+  if (region->runtime->search_block) {
+    y = -20;
+  }
   for (PanelSort &ps : panel_sort) {
     const bool show_background = panel_should_show_background(region, ps.panel->type);
 

@@ -9490,8 +9490,11 @@ void button_update_view_for_active(const bContext *C, const Block *block)
   if (data->searchbox) {
     return;
   }
-
-  but_ensure_in_view(C, active_but->active->region, active_but);
+  if ((block->flag & BLOCK_CLIP_EVENTS) == 0) {
+    /* Blocks with BLOCK_CLIP_EVENTS are overlapping their region, so scrolling
+     * that region to ensure it is in view can't work and causes issues. #97530 */
+    but_ensure_in_view(C, active_but->active->region, active_but);
+  }
 }
 
 /** \} */

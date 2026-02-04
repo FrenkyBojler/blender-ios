@@ -14,6 +14,7 @@
 #include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
@@ -565,6 +566,10 @@ struct ARegionRuntime {
 
   /** Dummy panel used in popups so they can support layout panels. */
   Panel *popup_block_panel = nullptr;
+
+  std::string search_filter;
+  Set<std::string> categories_search_match;
+  ui::Block *search_block = nullptr;
 };
 
 }  // namespace bke
