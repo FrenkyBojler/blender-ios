@@ -2320,7 +2320,8 @@ static void UV_OT_cursor_set(wmOperatorType *ot)
 static bool uv_seam_from_islands(Mesh *mesh,
                                  Scene *scene,
                                  const bool mark_seams,
-                                 const bool mark_sharp)
+                                 const bool mark_sharp,
+                                 const bool selected_boundaries)
 {
   BMEditMesh *em = mesh->runtime->edit_mesh.get();
   BMesh *bm = em->bm;
@@ -2343,7 +2344,7 @@ static bool uv_seam_from_islands(Mesh *mesh,
       if (l_iter == l_iter->radial_next) {
         continue;
       }
-      if (!uvedit_edge_select_test(scene, em->bm, l_iter, offsets)) {
+      if (selected_boundaries && !uvedit_edge_select_test(scene, bm, l_iter, offsets)) {
         continue;
       }
 
@@ -2385,7 +2386,7 @@ static wmOperatorStatus uv_seams_from_islands_exec(bContext *C, wmOperator *op)
 
     Mesh *mesh = id_cast<Mesh *>(ob->data);
 
-    bool changed = uv_seam_from_islands(mesh, scene, mark_seams, mark_sharp);
+    bool changed = uv_seam_from_islands(mesh, scene, mark_seams, mark_sharp, true);
     if (changed) {
       changed_multi = true;
       DEG_id_tag_update(&mesh->id, 0);
@@ -2779,7 +2780,7 @@ static bool uvedit_straighten_island(Object *ob, Scene *scene)
 
   BM_uv_element_map_free(selection_map);
 
-  uv_seam_from_islands((Mesh *)ob->data, scene, true, false);
+  uv_seam_from_islands(id_cast<Mesh *>(ob->data), scene, true, false, false);
   UnwrapOptions options{};
   options.topology_from_uvs = false;
   options.only_selected_faces = false;
