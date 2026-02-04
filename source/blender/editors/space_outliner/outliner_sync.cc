@@ -465,29 +465,26 @@ static bool outliner_sync_selection_to_outliner(const Scene *scene,
                                                 SpaceOutliner *space_outliner,
                                                 ListBaseT<TreeElement> *tree,
                                                 SyncSelectActiveData *active_data,
-                                                const SyncSelectTypes *sync_types)
+                                                const SyncSelectTypes *sync_types,
+                                                bool &is_active_changed)
 {
-  bool is_active_changed = false;
   for (TreeElement &te : *tree) {
     TreeStoreElem *tselem = TREESTORE(&te);
     const bool is_active_old = (tselem->flag & TSE_ACTIVE) != 0;
 
     if ((tselem->type == TSE_SOME_ID) && te.idcode == ID_OB) {
       if (sync_types->object) {
-        outliner_select_sync_from_object(
-            scene, view_layer, active_data->object, &te, tselem);
+        outliner_select_sync_from_object(scene, view_layer, active_data->object, &te, tselem);
       }
     }
     else if (tselem->type == TSE_EBONE) {
       if (sync_types->edit_bone) {
-        outliner_select_sync_from_edit_bone(
-            active_data->edit_bone, &te, tselem);
+        outliner_select_sync_from_edit_bone(active_data->edit_bone, &te, tselem);
       }
     }
     else if (tselem->type == TSE_POSE_CHANNEL) {
       if (sync_types->pose_bone) {
-        outliner_select_sync_from_pose_bone(
-            active_data->pose_channel, &te, tselem);
+        outliner_select_sync_from_pose_bone(active_data->pose_channel, &te, tselem);
       }
     }
     else if (tselem->type == TSE_STRIP) {
@@ -501,8 +498,13 @@ static bool outliner_sync_selection_to_outliner(const Scene *scene,
     const bool is_active_new = (tselem->flag & TSE_ACTIVE) != 0;
     is_active_changed |= is_active_new && !is_active_old;
     /* Sync subtree elements */
-    is_active_changed |= outliner_sync_selection_to_outliner(
-        scene, view_layer, space_outliner, &te.subtree, active_data, sync_types);
+    outliner_sync_selection_to_outliner(scene,
+                                        view_layer,
+                                        space_outliner,
+                                        &te.subtree,
+                                        active_data,
+                                        sync_types,
+                                        is_active_changed);
   }
   return is_active_changed;
 }
@@ -535,12 +537,13 @@ bool outliner_sync_selection(const bContext *C,
     SyncSelectActiveData active_data;
     get_sync_select_active_data(C, &active_data);
 
-    is_active_changed = outliner_sync_selection_to_outliner(tvc.scene,
-                                                            tvc.view_layer,
-                                                            space_outliner,
-                                                            &space_outliner->tree,
-                                                            &active_data,
-                                                            &sync_types);
+    outliner_sync_selection_to_outliner(tvc.scene,
+                                        tvc.view_layer,
+                                        space_outliner,
+                                        &space_outliner->tree,
+                                        &active_data,
+                                        &sync_types,
+                                        is_active_changed);
 
     /* Keep any un-synced data in the dirty flag. */
     if (sync_types.object) {
