@@ -63,4 +63,22 @@ bool show_glare(const SpaceNode &snode);
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Corner Pin
+ * \{ */
+struct NodeCornerPinWidgetGroup {
+  wmGizmo *gizmos[4];
+
+  struct {
+    float2 dims;
+    float2 offset;
+  } state;
+};
+
+void WIDGETGROUP_node_corner_pin_setup(const bContext *C, wmGizmoGroup *gzgroup);
+void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+bool show_corner_pin(const SpaceNode &snode);
+
+/** \} */
+
 }  // namespace blender::nodes::gizmos

@@ -667,6 +667,66 @@ static void IMAGE_GGT_compositor_glare(wmGizmoGroupType *gzgt)
   gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_glare_refresh;
 }
 
+static bool WIDGETGROUP_node_corner_pin_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+{
+  const SpaceImage *sima = CTX_wm_space_image(C);
+
+  if (!sima || !ELEM(sima->mode, SI_MODE_VIEW, SI_MODE_MASK)) {
+    return false;
+  }
+
+  if (sima->gizmo_flag & SI_GIZMO_HIDE_ACTIVE_NODE) {
+    return false;
+  }
+
+  if (sima->image && !ELEM(sima->image->type, IMA_TYPE_COMPOSITE)) {
+    return false;
+  }
+
+  const SpaceNode *snode = nodes::gizmos::find_node_editor(C);
+  if (snode == nullptr || snode->edittree == nullptr) {
+    return false;
+  }
+
+  return nodes::gizmos::show_corner_pin(*snode);
+}
+
+static void WIDGETGROUP_node_corner_pin_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
+{
+  using namespace nodes::gizmos;
+
+  ARegion *region = CTX_wm_region(C);
+  SpaceImage *sima = CTX_wm_space_image(C);
+
+  NodeCornerPinWidgetGroup *cpin_group = static_cast<NodeCornerPinWidgetGroup *>(
+      gzgroup->customdata);
+
+  const float2 offset = float2{-sima->xof, -sima->yof} * sima->zoom;
+
+  for (wmGizmo &gz : gzgroup->gizmos) {
+    nodes::gizmos::node_gizmo_calc_matrix_space_with_image_dims(region,
+                                                                sima->zoom,
+                                                                offset,
+                                                                cpin_group->state.dims,
+                                                                cpin_group->state.offset,
+                                                                gz.matrix_space);
+  }
+}
+
+static void IMAGE_GGT_compositor_corner_pin(wmGizmoGroupType *gzgt)
+{
+  gzgt->name = "Glare Node Widget";
+  gzgt->idname = "IMAGE_GGT_compositor_corner_pin";
+
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+
+  gzgt->poll = WIDGETGROUP_node_corner_pin_poll;
+  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_corner_pin_setup;
+  gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
+  gzgt->draw_prepare = WIDGETGROUP_node_corner_pin_draw_prepare;
+  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_corner_pin_refresh;
+}
+
 static void image_widgets()
 {
   const wmGizmoMapType_Params params{SPACE_IMAGE, RGN_TYPE_WINDOW};
@@ -682,6 +742,7 @@ static void image_widgets()
   WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_box_mask);
   WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_crop);
   WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_glare);
+  WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_corner_pin);
 }
 
 /************************** main region ***************************/
@@ -974,6 +1035,7 @@ static void image_main_region_listener(const wmRegionListenerParams *params)
       break;
     case NC_NODE:
       // todo(habib): use ND_NODE_GIZMO maybe?
+      // todo(habib): Gizmo dragging when there is no viewer image is werid
       if (ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
         WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
         ED_region_tag_redraw(region);

@@ -621,4 +621,79 @@ bool show_glare(const SpaceNode &snode)
   return true;
 }
 
+void WIDGETGROUP_node_corner_pin_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+{
+  NodeCornerPinWidgetGroup *cpin_group = MEM_new_uninitialized<NodeCornerPinWidgetGroup>(__func__);
+  const wmGizmoType *gzt_move_3d = WM_gizmotype_find("GIZMO_GT_move_3d", false);
+
+  for (int i = 0; i < 4; i++) {
+    cpin_group->gizmos[i] = WM_gizmo_new_ptr(gzt_move_3d, gzgroup, nullptr);
+    wmGizmo *gz = cpin_group->gizmos[i];
+
+    RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_MOVE_STYLE_CROSS_2D);
+
+    gz->scale_basis = 0.05f / 75.0;
+  }
+
+  gzgroup->customdata = cpin_group;
+}
+
+void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+{
+  Main *bmain = CTX_data_main(C);
+  NodeCornerPinWidgetGroup *cpin_group = static_cast<NodeCornerPinWidgetGroup *>(
+      gzgroup->customdata);
+
+  void *lock;
+  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+
+  if (UNLIKELY(ibuf == nullptr)) {
+    for (int i = 0; i < 4; i++) {
+      wmGizmo *gz = cpin_group->gizmos[i];
+      WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
+    }
+    BKE_image_release_ibuf(ima, ibuf, lock);
+    return;
+  }
+
+  cpin_group->state.dims = node_gizmo_safe_calc_dims(ibuf, GIZMO_NODE_DEFAULT_DIMS);
+  cpin_group->state.offset = ibuf->flags & IB_has_display_window ? float2(ibuf->display_offset) :
+                                                                   float2(0.0f);
+
+  SpaceNode *snode = find_node_editor(C);
+  BLI_assert(snode != nullptr);
+
+  bNode *node = bke::node_get_active(*snode->edittree);
+
+  /* need to set property here for undo. TODO: would prefer to do this in _init. */
+  int i = 0;
+  for (bNodeSocket *sock = static_cast<bNodeSocket *>(node->inputs.first); sock && i < 4;
+       sock = sock->next)
+  {
+    if (sock->type == SOCK_VECTOR) {
+      wmGizmo *gz = cpin_group->gizmos[i++];
+
+      PointerRNA sockptr = RNA_pointer_create_discrete(
+          id_cast<ID *>(snode->edittree), RNA_NodeSocket, sock);
+      WM_gizmo_target_property_def_rna(gz, "offset", &sockptr, "default_value", -1);
+
+      WM_gizmo_set_flag(gz, WM_GIZMO_DRAW_MODAL, true);
+    }
+  }
+
+  BKE_image_release_ibuf(ima, ibuf, lock);
+}
+
+bool show_corner_pin(const SpaceNode &snode)
+{
+  bNode *node = bke::node_get_active(*snode.edittree);
+
+  if (node && node->is_type("CompositorNodeCornerPin")) {
+    return true;
+  }
+
+  return false;
+}
+
 }  // namespace blender::nodes::gizmos
