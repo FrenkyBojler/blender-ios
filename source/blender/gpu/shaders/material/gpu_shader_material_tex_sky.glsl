@@ -53,6 +53,7 @@ float3 xyY_to_xyz(float x, float y, float Y)
   return float3(X, Y, Z);
 }
 
+[[node]]
 void node_tex_sky_preetham(float3 co,
                            float4 config_Y03,
                            float config_Y4,
@@ -65,7 +66,7 @@ void node_tex_sky_preetham(float3 co,
                            float3 xyz_to_r,
                            float3 xyz_to_g,
                            float3 xyz_to_b,
-                           out float4 color)
+                           float4 &color)
 {
   /* convert vector to spherical coordinates */
   float3 spherical = sky_spherical_coordinates(co);
@@ -108,6 +109,7 @@ float sky_radiance_hosekwilkie(
           config47[3] * zenith);
 }
 
+[[node]]
 void node_tex_sky_hosekwilkie(float3 co,
                               float4 config_x03,
                               float4 config_x47,
@@ -121,7 +123,7 @@ void node_tex_sky_hosekwilkie(float3 co,
                               float3 xyz_to_r,
                               float3 xyz_to_g,
                               float3 xyz_to_b,
-                              out float4 color)
+                              float4 &color)
 {
   /* convert vector to spherical coordinates */
   float3 spherical = sky_spherical_coordinates(co);
@@ -148,6 +150,7 @@ void node_tex_sky_hosekwilkie(float3 co,
   color = float4(dot(xyz_to_r, xyz), dot(xyz_to_g, xyz), dot(xyz_to_b, xyz), 1);
 }
 
+[[node]]
 void node_tex_sky_nishita(float3 co,
                           float sky_type,
                           float sun_rotation,
@@ -156,7 +159,7 @@ void node_tex_sky_nishita(float3 co,
                           float3 xyz_to_b,
                           sampler2DArray ima,
                           float layer,
-                          out float4 color)
+                          float4 &color)
 {
   float3 spherical = sky_spherical_coordinates(co);
   float3 xyz;
@@ -165,21 +168,10 @@ void node_tex_sky_nishita(float3 co,
   float fade = 1.0f;
   float y;
 
-  if (sky_type == 0.0f && co.z < -0.4f) {
-    /* Black ground if Single Scattering model */
-    color = float4(0.0f, 0.0f, 0.0f, 1.0f);
-    return;
-  }
-  if (sky_type == 0.0f && co.z < 0.0f) {
-    /* Ground fade */
-    fade = pow(1.0f + co.z * 2.5f, 3.0f);
-    y = 0.508f;
-  }
-  else {
-    /* Undo the non-linear transformation from the sky LUT. */
-    float dir_elevation_abs = (dir_elevation < 0.0f) ? -dir_elevation : dir_elevation;
-    y = sqrt(dir_elevation_abs / M_PI_2) * sign(dir_elevation) * 0.5f + 0.5f;
-  }
+  /* Undo the non-linear transformation from the sky LUT. */
+  float dir_elevation_abs = (dir_elevation < 0.0f) ? -dir_elevation : dir_elevation;
+  y = sqrt(dir_elevation_abs / M_PI_2) * sign(dir_elevation) * 0.5f + 0.5f;
+
   /* Look up color in the precomputed map and convert to RGB. */
   xyz = fade * texture(ima, float3(x, y, layer)).rgb;
   color = float4(dot(xyz_to_r, xyz), dot(xyz_to_g, xyz), dot(xyz_to_b, xyz), 1.0f);

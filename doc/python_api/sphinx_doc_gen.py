@@ -57,7 +57,7 @@ except ImportError:
     print(__doc__)
     sys.exit()
 
-import rna_info  # Blender module.
+import _rna_info as rna_info  # Blender module.
 
 
 def rna_info_BuildRNAInfo_cache():
@@ -304,6 +304,7 @@ else:
         "gpu.platform",
         "gpu.capabilities",
         "gpu_extras",
+        "idprop",
         "idprop.types",
         "mathutils",
         "mathutils.bvhtree",
@@ -416,6 +417,8 @@ INFO_DOCS = (
      "Topics which may not be required for typical usage."),
     ("change_log.rst",
      "List of changes since last Blender release"),
+    ("info_contributing.rst",
+     "Guide for contributing to Blender's Python API documentation."),
 )
 # Referenced indirectly.
 INFO_DOCS_OTHER = (
@@ -1130,14 +1133,16 @@ def pymodule2sphinx(basepath, module_name, module, title, module_all_extra):
 
 
 def pyclass2sphinx(fw, module_name, type_name, value, write_class_examples):
+    # NOTE: for `.. class::` identifiers, the type name alone is enough
+    # because the module has already been set via `.. module::`.
     if value.__doc__:
         if value.__doc__.startswith(".. class::"):
             fw(value.__doc__)
         else:
-            fw(".. class:: {:s}.{:s}\n\n".format(module_name, type_name))
+            fw(".. class:: {:s}\n\n".format(type_name))
             write_indented_lines("   ", fw, value.__doc__, True)
     else:
-        fw(".. class:: {:s}.{:s}\n\n".format(module_name, type_name))
+        fw(".. class:: {:s}\n\n".format(type_name))
     fw("\n")
 
     if write_class_examples:
@@ -1183,7 +1188,6 @@ context_type_map = {
     "active_object": [("Object", False)],
     "active_operator": [("Operator", False)],
     "active_pose_bone": [("PoseBone", False)],
-    "active_sequence_strip": [("Strip", False)],
     "active_strip": [("Strip", False)],
     "active_editable_fcurve": [("FCurve", False)],
     "active_nla_strip": [("NlaStrip", False)],
@@ -1245,7 +1249,6 @@ context_type_map = {
     "selected_editable_fcurves": [("FCurve", True)],
     "selected_editable_keyframes": [("Keyframe", True)],
     "selected_editable_objects": [("Object", True)],
-    "selected_editable_sequences": [("Strip", True)],
     "selected_editable_strips": [("Strip", True)],
     "selected_files": [("FileSelectEntry", True)],
     "selected_ids": [("ID", True)],
@@ -1255,13 +1258,13 @@ context_type_map = {
     "selected_objects": [("Object", True)],
     "selected_pose_bones": [("PoseBone", True)],
     "selected_pose_bones_from_active_object": [("PoseBone", True)],
-    "selected_sequences": [("Strip", True)],
     "selected_strips": [("Strip", True)],
     "selected_visible_actions": [("Action", True)],
     "selected_visible_fcurves": [("FCurve", True)],
-    "sequences": [("Strip", True)],
     "sequencer_scene": [("Scene", False)],
     "strips": [("Strip", True)],
+    "strip": [("Strip", False)],
+    "strip_modifier": [("StripModifier", False)],
     "soft_body": [("SoftBodyModifier", False)],
     "speaker": [("Speaker", False)],
     "texture": [("Texture", False)],
@@ -1981,7 +1984,9 @@ def pyrna2sphinx(basepath):
                 else:
                     operator_description = op.description
 
-                fw("   {:s}\n\n".format(operator_description))
+                # Set `strip` to false as `operator_description` must never be indented.
+                write_indented_lines("   ", fw, operator_description, strip=False)
+                fw("\n")
                 for prop in op.args:
                     write_param("   ", fw, prop)
 
@@ -2076,7 +2081,7 @@ def write_rst_index(basepath):
         "freestyle",
         "gpu",
         "gpu_extras",
-        "idprop.types",
+        "idprop",
         "imbuf",
         "mathutils",
     )
@@ -2412,6 +2417,7 @@ def write_rst_importable_modules(basepath):
         "bpy.app.icons": "Application Icons",
         "bpy.app.timers": "Application Timers",
         "bpy.props": "Property Definitions",
+        "idprop": "ID Properties Module",
         "idprop.types": "ID Property Access",
         "mathutils": "Math Types & Utilities",
         "mathutils.geometry": "Geometry Utilities",

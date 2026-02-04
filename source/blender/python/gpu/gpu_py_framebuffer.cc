@@ -29,6 +29,8 @@
 #include "gpu_py_framebuffer.hh" /* own include */
 #include "gpu_py_texture.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name gpu::FrameBuffer Common Utilities
  * \{ */
@@ -50,7 +52,7 @@ static int pygpu_framebuffer_valid_check(BPyGPUFrameBuffer *bpygpu_fb)
   } \
   ((void)0)
 
-static void pygpu_framebuffer_free_if_possible(blender::gpu::FrameBuffer *fb)
+static void pygpu_framebuffer_free_if_possible(gpu::FrameBuffer *fb)
 {
   if (GPU_is_init()) {
     GPU_framebuffer_free(fb);
@@ -78,7 +80,7 @@ static void pygpu_framebuffer_free_safe(BPyGPUFrameBuffer *self)
 /* Keep less than or equal to #FRAMEBUFFER_STACK_DEPTH */
 #define GPU_PY_FRAMEBUFFER_STACK_LEN 16
 
-static bool pygpu_framebuffer_stack_push_and_bind_or_error(blender::gpu::FrameBuffer *fb)
+static bool pygpu_framebuffer_stack_push_and_bind_or_error(gpu::FrameBuffer *fb)
 {
   if (GPU_framebuffer_stack_level_get() >= GPU_PY_FRAMEBUFFER_STACK_LEN) {
     PyErr_SetString(
@@ -91,7 +93,7 @@ static bool pygpu_framebuffer_stack_push_and_bind_or_error(blender::gpu::FrameBu
   return true;
 }
 
-static bool pygpu_framebuffer_stack_pop_and_restore_or_error(blender::gpu::FrameBuffer *fb)
+static bool pygpu_framebuffer_stack_pop_and_restore_or_error(gpu::FrameBuffer *fb)
 {
   if (GPU_framebuffer_stack_level_get() == 0) {
     PyErr_SetString(PyExc_RuntimeError, "Minimum framebuffer stack depth reached");
@@ -103,7 +105,7 @@ static bool pygpu_framebuffer_stack_pop_and_restore_or_error(blender::gpu::Frame
     return false;
   }
 
-  blender::gpu::FrameBuffer *fb_prev = GPU_framebuffer_pop();
+  gpu::FrameBuffer *fb_prev = GPU_framebuffer_pop();
   GPU_framebuffer_bind(fb_prev);
   return true;
 }
@@ -180,8 +182,12 @@ static PyObject *pygpu_framebuffer_stack_context_exit(PyFrameBufferStackContext 
 #endif
 
 static PyMethodDef pygpu_framebuffer_stack_context__tp_methods[] = {
-    {"__enter__", (PyCFunction)pygpu_framebuffer_stack_context_enter, METH_NOARGS},
-    {"__exit__", (PyCFunction)pygpu_framebuffer_stack_context_exit, METH_VARARGS},
+    {"__enter__",
+     reinterpret_cast<PyCFunction>(pygpu_framebuffer_stack_context_enter),
+     METH_NOARGS},
+    {"__exit__",
+     reinterpret_cast<PyCFunction>(pygpu_framebuffer_stack_context_exit),
+     METH_VARARGS},
     {nullptr},
 };
 
@@ -198,7 +204,7 @@ static PyTypeObject FramebufferStackContext_Type = {
     /*tp_name*/ "GPUFrameBufferStackContext",
     /*tp_basicsize*/ sizeof(PyFrameBufferStackContext),
     /*tp_itemsize*/ 0,
-    /*tp_dealloc*/ (destructor)pygpu_framebuffer_stack_context__tp_dealloc,
+    /*tp_dealloc*/ reinterpret_cast<destructor>(pygpu_framebuffer_stack_context__tp_dealloc),
     /*tp_vectorcall_offset*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
@@ -248,7 +254,7 @@ static PyTypeObject FramebufferStackContext_Type = {
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_framebuffer_bind_doc,
-    ".. function:: bind()\n"
+    ".. method:: bind()\n"
     "\n"
     "   Context manager to ensure balanced bind calls, even in the case of an error.\n");
 static PyObject *pygpu_framebuffer_bind(BPyGPUFrameBuffer *self)
@@ -258,7 +264,7 @@ static PyObject *pygpu_framebuffer_bind(BPyGPUFrameBuffer *self)
   ret->py_fb = self;
   ret->level = -1;
   Py_INCREF(self);
-  return (PyObject *)ret;
+  return reinterpret_cast<PyObject *>(ret);
 }
 
 /** \} */
@@ -343,11 +349,10 @@ static PyObject *pygpu_framebuffer__tp_new(PyTypeObject * /*self*/, PyObject *ar
   PyObject *color_attachements = nullptr;
   static const char *_keywords[] = {"depth_slot", "color_slots", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O"  /* `depth_slot` */
       "O"  /* `color_slots` */
-      ":gpu::FrameBuffer.__new__",
+      ":GPUFrameBuffer.__new__",
       _keywords,
       nullptr,
   };
@@ -398,7 +403,7 @@ static PyObject *pygpu_framebuffer__tp_new(PyTypeObject * /*self*/, PyObject *ar
     }
   }
 
-  blender::gpu::FrameBuffer *fb_python = GPU_framebuffer_create("fb_python");
+  gpu::FrameBuffer *fb_python = GPU_framebuffer_create("fb_python");
   GPU_framebuffer_config_array(fb_python, config, color_attachements_len + 1);
 
   return BPyGPUFrameBuffer_CreatePyObject(fb_python, false);
@@ -442,7 +447,6 @@ static PyObject *pygpu_framebuffer_clear(BPyGPUFrameBuffer *self, PyObject *args
 
   static const char *_keywords[] = {"color", "depth", "stencil", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O"  /* `color` */
       "O"  /* `depth` */
@@ -491,7 +495,7 @@ static PyObject *pygpu_framebuffer_clear(BPyGPUFrameBuffer *self, PyObject *args
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_framebuffer_viewport_set_doc,
-    ".. function:: viewport_set(x, y, xsize, ysize)\n"
+    ".. method:: viewport_set(x, y, xsize, ysize)\n"
     "\n"
     "   Set the viewport for this framebuffer object.\n"
     "   Note: The viewport state is not saved upon framebuffer rebind.\n"
@@ -500,9 +504,7 @@ PyDoc_STRVAR(
     "   :type x, y: int\n"
     "   :arg xsize, ysize: width and height of the viewport_set.\n"
     "   :type xsize, ysize: int\n");
-static PyObject *pygpu_framebuffer_viewport_set(BPyGPUFrameBuffer *self,
-                                                PyObject *args,
-                                                void * /*type*/)
+static PyObject *pygpu_framebuffer_viewport_set(BPyGPUFrameBuffer *self, PyObject *args)
 {
   int x, y, xsize, ysize;
   if (!PyArg_ParseTuple(args, "iiii:viewport_set", &x, &y, &xsize, &ysize)) {
@@ -516,10 +518,10 @@ static PyObject *pygpu_framebuffer_viewport_set(BPyGPUFrameBuffer *self,
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_framebuffer_viewport_get_doc,
-    ".. function:: viewport_get()\n"
+    ".. method:: viewport_get()\n"
     "\n"
     "   Returns position and dimension to current viewport.\n");
-static PyObject *pygpu_framebuffer_viewport_get(BPyGPUFrameBuffer *self, void * /*type*/)
+static PyObject *pygpu_framebuffer_viewport_get(BPyGPUFrameBuffer *self)
 {
   PYGPU_FRAMEBUFFER_CHECK_OBJ(self);
   int viewport[4];
@@ -537,7 +539,7 @@ static PyObject *pygpu_framebuffer_viewport_get(BPyGPUFrameBuffer *self, void * 
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_framebuffer_read_color_doc,
-    ".. function:: read_color(x, y, xsize, ysize, channels, slot, format, *, data=data)\n"
+    ".. method:: read_color(x, y, xsize, ysize, channels, slot, format, *, data=None)\n"
     "\n"
     "   Read a block of pixels from the frame buffer.\n"
     "\n"
@@ -565,13 +567,12 @@ static PyObject *pygpu_framebuffer_read_color(BPyGPUFrameBuffer *self,
   int x, y, w, h, channels;
   uint slot;
   PyC_StringEnum pygpu_dataformat = {bpygpu_dataformat_items,
-                                     int(blender::gpu::TextureFormat::UNORM_8_8_8_8)};
+                                     int(gpu::TextureFormat::UNORM_8_8_8_8)};
   BPyGPUBuffer *py_buffer = nullptr;
 
   static const char *_keywords[] = {
       "x", "y", "xsize", "ysize", "channels", "slot", "format", "data", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `x` */
       "i"  /* `y` */
       "i"  /* `xsize` */
@@ -616,6 +617,13 @@ static PyObject *pygpu_framebuffer_read_color(BPyGPUFrameBuffer *self,
     return nullptr;
   }
 
+  int2 extent = GPU_framebuffer_extent_get(self->fb);
+  if (x < 0 || w < 0 || x + w > extent.x || y < 0 || h < 0 || y + h > extent.y) {
+    PyErr_SetString(PyExc_ValueError,
+                    "Trying to read color outside the extent of the framebuffer");
+    return nullptr;
+  }
+
   if (py_buffer) {
     if (pygpu_dataformat.value_found != py_buffer->format) {
       PyErr_SetString(PyExc_AttributeError,
@@ -651,13 +659,13 @@ static PyObject *pygpu_framebuffer_read_color(BPyGPUFrameBuffer *self,
                              eGPUDataFormat(pygpu_dataformat.value_found),
                              py_buffer->buf.as_void);
 
-  return (PyObject *)py_buffer;
+  return reinterpret_cast<PyObject *>(py_buffer);
 }
 
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_framebuffer_read_depth_doc,
-    ".. function:: read_depth(x, y, xsize, ysize, *, data=data)\n"
+    ".. method:: read_depth(x, y, xsize, ysize, *, data=None)\n"
     "\n"
     "   Read a pixel depth block from the frame buffer.\n"
     "\n"
@@ -679,7 +687,6 @@ static PyObject *pygpu_framebuffer_read_depth(BPyGPUFrameBuffer *self,
 
   static const char *_keywords[] = {"x", "y", "xsize", "ysize", "data", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `x` */
       "i"  /* `y` */
       "i"  /* `xsize` */
@@ -693,6 +700,13 @@ static PyObject *pygpu_framebuffer_read_depth(BPyGPUFrameBuffer *self,
   if (!_PyArg_ParseTupleAndKeywordsFast(
           args, kwds, &_parser, &x, &y, &w, &h, &BPyGPU_BufferType, &py_buffer))
   {
+    return nullptr;
+  }
+
+  int2 extent = GPU_framebuffer_extent_get(self->fb);
+  if (x < 0 || w < 0 || x + w > extent.x || y < 0 || h < 0 || y + h > extent.y) {
+    PyErr_SetString(PyExc_ValueError,
+                    "Trying to read depth outside the extent of the framebuffer");
     return nullptr;
   }
 
@@ -719,7 +733,7 @@ static PyObject *pygpu_framebuffer_read_depth(BPyGPUFrameBuffer *self,
 
   GPU_framebuffer_read_depth(self->fb, x, y, w, h, GPU_DATA_FLOAT, py_buffer->buf.as_void);
 
-  return (PyObject *)py_buffer;
+  return reinterpret_cast<PyObject *>(py_buffer);
 }
 
 #ifdef BPYGPU_USE_GPUOBJ_FREE_METHOD
@@ -741,13 +755,13 @@ static PyObject *pygpu_framebuffer_free(BPyGPUFrameBuffer *self)
 static void BPyGPUFrameBuffer__tp_dealloc(BPyGPUFrameBuffer *self)
 {
   pygpu_framebuffer_free_safe(self);
-  Py_TYPE(self)->tp_free((PyObject *)self);
+  Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
 }
 
 static PyGetSetDef pygpu_framebuffer__tp_getseters[] = {
     {"is_bound",
-     (getter)pygpu_framebuffer_is_bound,
-     (setter) nullptr,
+     reinterpret_cast<getter>(pygpu_framebuffer_is_bound),
+     static_cast<setter>(nullptr),
      pygpu_framebuffer_is_bound_doc,
      nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
@@ -764,25 +778,28 @@ static PyGetSetDef pygpu_framebuffer__tp_getseters[] = {
 #endif
 
 static PyMethodDef pygpu_framebuffer__tp_methods[] = {
-    {"bind", (PyCFunction)pygpu_framebuffer_bind, METH_NOARGS, pygpu_framebuffer_bind_doc},
+    {"bind",
+     reinterpret_cast<PyCFunction>(pygpu_framebuffer_bind),
+     METH_NOARGS,
+     pygpu_framebuffer_bind_doc},
     {"clear",
-     (PyCFunction)pygpu_framebuffer_clear,
+     reinterpret_cast<PyCFunction>(pygpu_framebuffer_clear),
      METH_VARARGS | METH_KEYWORDS,
      pygpu_framebuffer_clear_doc},
     {"viewport_set",
-     (PyCFunction)pygpu_framebuffer_viewport_set,
-     METH_NOARGS,
+     reinterpret_cast<PyCFunction>(pygpu_framebuffer_viewport_set),
+     METH_VARARGS,
      pygpu_framebuffer_viewport_set_doc},
     {"viewport_get",
-     (PyCFunction)pygpu_framebuffer_viewport_get,
+     reinterpret_cast<PyCFunction>(pygpu_framebuffer_viewport_get),
      METH_NOARGS,
      pygpu_framebuffer_viewport_get_doc},
     {"read_color",
-     (PyCFunction)pygpu_framebuffer_read_color,
+     reinterpret_cast<PyCFunction>(pygpu_framebuffer_read_color),
      METH_VARARGS | METH_KEYWORDS,
      pygpu_framebuffer_read_color_doc},
     {"read_depth",
-     (PyCFunction)pygpu_framebuffer_read_depth,
+     reinterpret_cast<PyCFunction>(pygpu_framebuffer_read_depth),
      METH_VARARGS | METH_KEYWORDS,
      pygpu_framebuffer_read_depth_doc},
 #ifdef BPYGPU_USE_GPUOBJ_FREE_METHOD
@@ -804,7 +821,7 @@ static PyMethodDef pygpu_framebuffer__tp_methods[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_framebuffer__tp_doc,
-    ".. class:: gpu::FrameBuffer(*, depth_slot=None, color_slots=None)\n"
+    ".. class:: GPUFrameBuffer(*, depth_slot=None, color_slots=None)\n"
     "\n"
     "   This object gives access to framebuffer functionalities.\n"
     "   When a 'layer' is specified in a argument, a single layer of a 3D or array "
@@ -823,10 +840,10 @@ PyDoc_STRVAR(
     "None\n");
 PyTypeObject BPyGPUFrameBuffer_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
-    /*tp_name*/ "gpu::FrameBuffer",
+    /*tp_name*/ "GPUFrameBuffer",
     /*tp_basicsize*/ sizeof(BPyGPUFrameBuffer),
     /*tp_itemsize*/ 0,
-    /*tp_dealloc*/ (destructor)BPyGPUFrameBuffer__tp_dealloc,
+    /*tp_dealloc*/ reinterpret_cast<destructor>(BPyGPUFrameBuffer__tp_dealloc),
     /*tp_vectorcall_offset*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
@@ -879,7 +896,7 @@ PyTypeObject BPyGPUFrameBuffer_Type = {
 /** \name Public API
  * \{ */
 
-PyObject *BPyGPUFrameBuffer_CreatePyObject(blender::gpu::FrameBuffer *fb, bool shared_reference)
+PyObject *BPyGPUFrameBuffer_CreatePyObject(gpu::FrameBuffer *fb, bool shared_reference)
 {
   BPyGPUFrameBuffer *self;
 
@@ -888,10 +905,11 @@ PyObject *BPyGPUFrameBuffer_CreatePyObject(blender::gpu::FrameBuffer *fb, bool s
     void **ref = GPU_framebuffer_py_reference_get(fb);
     if (ref) {
       /* Retrieve BPyGPUFrameBuffer reference. */
-      self = (BPyGPUFrameBuffer *)POINTER_OFFSET(ref, -offsetof(BPyGPUFrameBuffer, fb));
+      self = reinterpret_cast<BPyGPUFrameBuffer *> POINTER_OFFSET(
+          ref, -offsetof(BPyGPUFrameBuffer, fb));
       BLI_assert(self->fb == fb);
       Py_INCREF(self);
-      return (PyObject *)self;
+      return reinterpret_cast<PyObject *>(self);
     }
   }
 #else
@@ -905,12 +923,14 @@ PyObject *BPyGPUFrameBuffer_CreatePyObject(blender::gpu::FrameBuffer *fb, bool s
   self->shared_reference = shared_reference;
 
   BLI_assert(GPU_framebuffer_py_reference_get(fb) == nullptr);
-  GPU_framebuffer_py_reference_set(fb, (void **)&self->fb);
+  GPU_framebuffer_py_reference_set(fb, reinterpret_cast<void **>(&self->fb));
 #endif
 
-  return (PyObject *)self;
+  return reinterpret_cast<PyObject *>(self);
 }
 
 /** \} */
 
 #undef PYGPU_FRAMEBUFFER_CHECK_OBJ
+
+}  // namespace blender
