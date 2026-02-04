@@ -158,14 +158,15 @@ static void get_parallel_lines_draw_steps(const float line_distance,
     return;
   }
 
+  BLI_assert(line_distance > 0);
   *r_start_value = ceilf(view_bounds.x / line_distance) * line_distance;
 
-  if (view_bounds.x >= *r_start_value || view_bounds.y <= *r_start_value) {
-    *r_steps = 0;
-    return;
+  if (view_bounds.x <= *r_start_value && view_bounds.y >= *r_start_value) {
+    *r_steps = std::max(0.0f, floorf((view_bounds.y - *r_start_value) / line_distance)) + 1;
   }
-
-  *r_steps = std::max(0.0f, floorf((view_bounds.y - *r_start_value) / line_distance)) + 1;
+  else {
+    *r_steps = 0;
+  }
 }
 
 /**
