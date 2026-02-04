@@ -1,3 +1,4 @@
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by issue #153862, Error traces on shutdown (Win32 Error# (5): Access is denied.)
 Referenced by pull request #153895, Fix #153862: Windows GHOST_ContextWGL error on shutdown
+Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
