@@ -525,7 +525,7 @@ static int passtype_from_name(const char *name)
   int len = BLI_str_partition(name, delim, &sep, &suf);
 
 #define CHECK_PASS(NAME) \
-  if (STREQLEN(name, RE_PASSNAME_##NAME, len)) { \
+  if (STRCASEEQLEN(name, RE_PASSNAME_##NAME, len)) { \
     return SCE_PASS_##NAME; \
   } \
   ((void)0)
@@ -556,6 +556,14 @@ static int passtype_from_name(const char *name)
   CHECK_PASS(SUBSURFACE_COLOR);
 
 #undef CHECK_PASS
+
+  /* Handle custom pass names. */
+  if (STRCASEEQLEN(name, "rgba", len) || STRCASEEQLEN(name, "rgb", len) ||
+      STRCASEEQLEN(name, "color", len))
+  {
+    return SCE_PASS_COMBINED; /* Treat as Combined to give it highest priority */
+  }
+
   return 0;
 }
 
