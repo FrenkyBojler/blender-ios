@@ -554,6 +554,7 @@ static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType *
   return nodes::gizmos::box_mask_show(*snode);
 }
 
+// todo(habib): use one common function for SpaceNode and one for SpaceImage
 static void WIDGETGROUP_bbox_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   ARegion *region = CTX_wm_region(C);
@@ -567,7 +568,7 @@ static void WIDGETGROUP_bbox_draw_prepare(const bContext *C, wmGizmoGroup *gzgro
 
 static void IMAGE_GGT_compositor_box_mask(wmGizmoGroupType *gzgt)
 {
-  gzgt->name = "Backdrop Box Mask Widget";
+  gzgt->name = "Box Mask Node Widget";
   gzgt->idname = "IMAGE_GGT_compositor_box_mask";
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
@@ -577,6 +578,40 @@ static void IMAGE_GGT_compositor_box_mask(wmGizmoGroupType *gzgt)
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
   gzgt->draw_prepare = WIDGETGROUP_bbox_draw_prepare;
   gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_mask_refresh;
+}
+
+static bool WIDGETGROUP_node_crop_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+{
+  const SpaceImage *sima = CTX_wm_space_image(C);
+
+  if (!sima || !ELEM(sima->mode, SI_MODE_VIEW, SI_MODE_MASK)) {
+    return false;
+  }
+
+  if (sima->gizmo_flag & SI_GIZMO_HIDE_ACTIVE_NODE) {
+    return false;
+  }
+
+  const SpaceNode *snode = nodes::gizmos::find_node_editor(C);
+  if (snode == nullptr || snode->edittree == nullptr) {
+    return false;
+  }
+
+  return nodes::gizmos::crop_show(*snode);
+}
+
+static void IMAGE_GGT_compositor_crop(wmGizmoGroupType *gzgt)
+{
+  gzgt->name = "Crop Node Widget";
+  gzgt->idname = "IMAGE_GGT_compositor_crop";
+
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+
+  gzgt->poll = WIDGETGROUP_node_crop_poll;
+  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_crop_setup;
+  gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
+  gzgt->draw_prepare = WIDGETGROUP_bbox_draw_prepare;
+  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_crop_refresh;
 }
 
 static void image_widgets()
@@ -592,6 +627,7 @@ static void image_widgets()
   WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_navigate);
 
   WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_box_mask);
+  WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_crop);
 }
 
 /************************** main region ***************************/

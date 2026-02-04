@@ -154,32 +154,6 @@ static bool node_gizmo_is_set_visible(const bContext *C)
   return false;
 }
 
-bool WIDGETGROUP_node_box_mask_image_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
-{
-  // todo(habib): handle visibility
-  const SpaceNode *snode = nodes::gizmos::find_node_editor(C);
-  if (snode == nullptr || snode->edittree == nullptr) {
-    return false;
-  }
-
-  bNode *node = bke::node_get_active(*snode->edittree);
-  if (node == nullptr) {
-    return false;
-  }
-
-  if (node && node->is_type("CompositorNodeBoxMask")) {
-    snode->edittree->ensure_topology_cache();
-    for (bNodeSocket &input : node->inputs) {
-      if (STR_ELEM(input.name, "Position", "Size", "Rotation") && input.is_directly_linked()) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  return false;
-}
-
 bool box_mask_show(const SpaceNode &snode)
 {
   bNodeTree *node_tree = snode.edittree;
@@ -331,11 +305,9 @@ void WIDGETGROUP_node_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
 
   const SpaceNode *snode = find_node_editor(C);
-  if (snode == nullptr) {
-    // BLI_assert();
-    printf("snode is nullptr\n");
-    return;
-  }
+  BLI_assert(snode != nullptr);
+  BLI_assert(snode != nullptr);
+
   bNode *node = bke::node_get_active(*snode->edittree);
 
   mask_group->update_data.context = const_cast<bContext *>(C);
@@ -353,6 +325,208 @@ void WIDGETGROUP_node_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   WM_gizmo_target_property_def_func(gz, "matrix", &params);
 
   BKE_image_release_ibuf(ima, ibuf, lock);
+}
+
+static void node_input_to_rect(const bNode *node,
+                               const float2 &dims,
+                               const float2 offset,
+                               rctf *r_rect)
+{
+
+  const bNodeSocket *x_input = bke::node_find_socket(*node, SOCK_IN, "X");
+  PointerRNA x_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(x_input));
+  const float xmin = float(RNA_int_get(&x_input_rna_pointer, "default_value"));
+
+  const bNodeSocket *y_input = bke::node_find_socket(*node, SOCK_IN, "Y");
+  PointerRNA y_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(y_input));
+  const float ymin = float(RNA_int_get(&y_input_rna_pointer, "default_value"));
+
+  const bNodeSocket *width_input = bke::node_find_socket(*node, SOCK_IN, "Width");
+  PointerRNA width_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(width_input));
+  const float width = float(RNA_int_get(&width_input_rna_pointer, "default_value"));
+
+  const bNodeSocket *height_input = bke::node_find_socket(*node, SOCK_IN, "Height");
+  PointerRNA height_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(height_input));
+  const float height = float(RNA_int_get(&height_input_rna_pointer, "default_value"));
+
+  r_rect->xmin = (xmin + offset.x) / dims.x;
+  r_rect->xmax = (xmin + width + offset.x) / dims.x;
+  r_rect->ymin = (ymin + offset.y) / dims.y;
+  r_rect->ymax = (ymin + height + offset.y) / dims.y;
+}
+
+static void node_input_from_rect(bNode *node,
+                                 const rctf *rect,
+                                 const float2 &dims,
+                                 const float2 &offset)
+{
+  bNodeSocket *x_input = bke::node_find_socket(*node, SOCK_IN, "X");
+  PointerRNA x_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(x_input));
+
+  bNodeSocket *y_input = bke::node_find_socket(*node, SOCK_IN, "Y");
+  PointerRNA y_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(y_input));
+
+  bNodeSocket *width_input = bke::node_find_socket(*node, SOCK_IN, "Width");
+  PointerRNA width_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(width_input));
+
+  bNodeSocket *height_input = bke::node_find_socket(*node, SOCK_IN, "Height");
+  PointerRNA height_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(height_input));
+
+  const float xmin = rect->xmin * dims.x - offset.x;
+  const float width = rect->xmax * dims.x - offset.x - xmin;
+  const float ymin = rect->ymin * dims.y - offset.y;
+  const float height = rect->ymax * dims.y - offset.y - ymin;
+
+  RNA_int_set(&x_input_rna_pointer, "default_value", math::round(xmin));
+  RNA_int_set(&y_input_rna_pointer, "default_value", math::round(ymin));
+  RNA_int_set(&width_input_rna_pointer, "default_value", math::round(width));
+  RNA_int_set(&height_input_rna_pointer, "default_value", math::round(height));
+}
+
+static void gizmo_node_crop_prop_matrix_get(const wmGizmo *gz,
+                                            wmGizmoProperty *gz_prop,
+                                            void *value_p)
+{
+  float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
+  BLI_assert(gz_prop->type->array_length == 16);
+  NodeBBoxWidgetGroup *crop_group = static_cast<NodeBBoxWidgetGroup *>(
+      gz->parent_gzgroup->customdata);
+  const float2 dims = crop_group->state.dims;
+  const float2 offset = crop_group->state.offset;
+  const bNode *node = static_cast<const bNode *>(gz_prop->custom_func.user_data);
+
+  rctf rct;
+  node_input_to_rect(node, dims, offset, &rct);
+
+  matrix[0][0] = fabsf(BLI_rctf_size_x(&rct));
+  matrix[1][1] = fabsf(BLI_rctf_size_y(&rct));
+  matrix[3][0] = (BLI_rctf_cent_x(&rct) - 0.5f) * dims[0];
+  matrix[3][1] = (BLI_rctf_cent_y(&rct) - 0.5f) * dims[1];
+}
+
+static void gizmo_node_crop_prop_matrix_set(const wmGizmo *gz,
+                                            wmGizmoProperty *gz_prop,
+                                            const void *value_p)
+{
+  const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
+  BLI_assert(gz_prop->type->array_length == 16);
+  NodeBBoxWidgetGroup *crop_group = static_cast<NodeBBoxWidgetGroup *>(
+      gz->parent_gzgroup->customdata);
+  const float2 dims = crop_group->state.dims;
+  const float2 offset = crop_group->state.offset;
+  bNode *node = static_cast<bNode *>(gz_prop->custom_func.user_data);
+
+  rctf rct;
+  node_input_to_rect(node, dims, offset, &rct);
+  BLI_rctf_resize(&rct, fabsf(matrix[0][0]), fabsf(matrix[1][1]));
+  BLI_rctf_recenter(&rct, ((matrix[3][0]) / dims[0]) + 0.5f, ((matrix[3][1]) / dims[1]) + 0.5f);
+  rctf rct_isect{};
+  rct_isect.xmin = offset.x / dims.x;
+  rct_isect.xmax = offset.x / dims.x + 1;
+  rct_isect.ymin = offset.y;
+  rct_isect.ymax = offset.y / dims.y + 1;
+  BLI_rctf_isect(&rct_isect, &rct, &rct);
+  node_input_from_rect(node, &rct, dims, offset);
+  gizmo_node_bbox_update(crop_group);
+}
+
+void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+{
+  Main *bmain = CTX_data_main(C);
+  const SpaceNode *snode = find_node_editor(C);
+  BLI_assert(snode != nullptr);
+
+  NodeBBoxWidgetGroup *crop_group = static_cast<NodeBBoxWidgetGroup *>(gzgroup->customdata);
+  wmGizmo *gz = crop_group->border;
+
+  void *lock;
+  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+
+  if (UNLIKELY(ibuf == nullptr)) {
+    WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
+    BKE_image_release_ibuf(ima, ibuf, lock);
+    return;
+  }
+
+  crop_group->state.dims = node_gizmo_safe_calc_dims(ibuf, GIZMO_NODE_DEFAULT_DIMS);
+  crop_group->state.offset = ibuf->flags & IB_has_display_window ? float2(ibuf->display_offset) :
+                                                                   float2(0.0f);
+
+  RNA_float_set_array(gz->ptr, "dimensions", crop_group->state.dims);
+  WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
+
+  bNode *node = bke::node_get_active(*snode->edittree);
+
+  crop_group->update_data.context = const_cast<bContext *>(C);
+  bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Alpha Crop");
+  crop_group->update_data.ptr = RNA_pointer_create_discrete(
+      reinterpret_cast<ID *>(snode->edittree), RNA_NodeSocket, source_input);
+  crop_group->update_data.prop = RNA_struct_find_property(&crop_group->update_data.ptr, "enabled");
+  BLI_assert(crop_group->update_data.prop != nullptr);
+
+  wmGizmoPropertyFnParams params{};
+  params.value_get_fn = gizmo_node_crop_prop_matrix_get;
+  params.value_set_fn = gizmo_node_crop_prop_matrix_set;
+  params.range_get_fn = nullptr;
+  params.user_data = node;
+  WM_gizmo_target_property_def_func(gz, "matrix", &params);
+
+  BKE_image_release_ibuf(ima, ibuf, lock);
+}
+
+bool crop_show(const SpaceNode &snode)
+{
+  bNodeTree *node_tree = snode.edittree;
+  BLI_assert(node_tree);
+
+  bNode *node = bke::node_get_active(*snode.edittree);
+
+  if (!node || !node->is_type("CompositorNodeCrop")) {
+    return false;
+  }
+
+  snode.edittree->ensure_topology_cache();
+  for (bNodeSocket &input : node->inputs) {
+    if (!STREQ(input.name, "Image") && input.is_directly_linked()) {
+      /* Note: the Image input could be connected to a single value input, in which case the
+       * gizmo has no effect. */
+      return false;
+    }
+    else if (STREQ(input.name, "Alpha Crop") && !input.is_directly_linked()) {
+      PointerRNA input_rna_pointer = RNA_pointer_create_discrete(nullptr, RNA_NodeSocket, &input);
+      if (RNA_boolean_get(&input_rna_pointer, "default_value")) {
+        /* If Alpha Crop is not set, the image size changes depending on the input parameters,
+         * so we can't usefully edit the crop in this case. */
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+void WIDGETGROUP_node_crop_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+{
+  NodeBBoxWidgetGroup *crop_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
+  crop_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
+
+  RNA_enum_set(crop_group->border->ptr,
+               "transform",
+               ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE | ED_GIZMO_CAGE_XFORM_FLAG_SCALE);
+
+  gzgroup->customdata = crop_group;
+  gzgroup->customdata_free = [](void *customdata) {
+    MEM_delete(static_cast<NodeBBoxWidgetGroup *>(customdata));
+  };
 }
 
 }  // namespace blender::nodes::gizmos
