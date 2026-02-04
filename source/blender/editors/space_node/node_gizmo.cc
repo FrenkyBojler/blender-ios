@@ -266,118 +266,6 @@ static void gizmo_node_bbox_update(NodeBBoxWidgetGroup *bbox_group)
       bbox_group->update_data.context, &bbox_group->update_data.ptr, bbox_group->update_data.prop);
 }
 
-// static void node_input_to_rect(const bNode *node,
-//                                const float2 &dims,
-//                                const float2 offset,
-//                                rctf *r_rect)
-// {
-
-//   const bNodeSocket *x_input = bke::node_find_socket(*node, SOCK_IN, "X");
-//   PointerRNA x_input_rna_pointer = RNA_pointer_create_discrete(
-//       nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(x_input));
-//   const float xmin = float(RNA_int_get(&x_input_rna_pointer, "default_value"));
-
-//   const bNodeSocket *y_input = bke::node_find_socket(*node, SOCK_IN, "Y");
-//   PointerRNA y_input_rna_pointer = RNA_pointer_create_discrete(
-//       nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(y_input));
-//   const float ymin = float(RNA_int_get(&y_input_rna_pointer, "default_value"));
-
-//   const bNodeSocket *width_input = bke::node_find_socket(*node, SOCK_IN, "Width");
-//   PointerRNA width_input_rna_pointer = RNA_pointer_create_discrete(
-//       nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(width_input));
-//   const float width = float(RNA_int_get(&width_input_rna_pointer, "default_value"));
-
-//   const bNodeSocket *height_input = bke::node_find_socket(*node, SOCK_IN, "Height");
-//   PointerRNA height_input_rna_pointer = RNA_pointer_create_discrete(
-//       nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(height_input));
-//   const float height = float(RNA_int_get(&height_input_rna_pointer, "default_value"));
-
-//   r_rect->xmin = (xmin + offset.x) / dims.x;
-//   r_rect->xmax = (xmin + width + offset.x) / dims.x;
-//   r_rect->ymin = (ymin + offset.y) / dims.y;
-//   r_rect->ymax = (ymin + height + offset.y) / dims.y;
-// }
-
-// static void node_input_from_rect(bNode *node,
-//                                  const rctf *rect,
-//                                  const float2 &dims,
-//                                  const float2 &offset)
-// {
-//   bNodeSocket *x_input = bke::node_find_socket(*node, SOCK_IN, "X");
-//   PointerRNA x_input_rna_pointer = RNA_pointer_create_discrete(
-//       nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(x_input));
-
-//   bNodeSocket *y_input = bke::node_find_socket(*node, SOCK_IN, "Y");
-//   PointerRNA y_input_rna_pointer = RNA_pointer_create_discrete(
-//       nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(y_input));
-
-//   bNodeSocket *width_input = bke::node_find_socket(*node, SOCK_IN, "Width");
-//   PointerRNA width_input_rna_pointer = RNA_pointer_create_discrete(
-//       nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(width_input));
-
-//   bNodeSocket *height_input = bke::node_find_socket(*node, SOCK_IN, "Height");
-//   PointerRNA height_input_rna_pointer = RNA_pointer_create_discrete(
-//       nullptr, RNA_NodeSocket, const_cast<bNodeSocket *>(height_input));
-
-//   const float xmin = rect->xmin * dims.x - offset.x;
-//   const float width = rect->xmax * dims.x - offset.x - xmin;
-//   const float ymin = rect->ymin * dims.y - offset.y;
-//   const float height = rect->ymax * dims.y - offset.y - ymin;
-
-//   RNA_int_set(&x_input_rna_pointer, "default_value", math::round(xmin));
-//   RNA_int_set(&y_input_rna_pointer, "default_value", math::round(ymin));
-//   RNA_int_set(&width_input_rna_pointer, "default_value", math::round(width));
-//   RNA_int_set(&height_input_rna_pointer, "default_value", math::round(height));
-// }
-
-// /* scale callbacks */
-// static void gizmo_node_crop_prop_matrix_get(const wmGizmo *gz,
-//                                             wmGizmoProperty *gz_prop,
-//                                             void *value_p)
-// {
-//   float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
-//   BLI_assert(gz_prop->type->array_length == 16);
-//   NodeBBoxWidgetGroup *crop_group = static_cast<NodeBBoxWidgetGroup *>(
-//       gz->parent_gzgroup->customdata);
-//   const float2 dims = crop_group->state.dims;
-//   const float2 offset = crop_group->state.offset;
-//   const bNode *node = static_cast<const bNode *>(gz_prop->custom_func.user_data);
-
-//   rctf rct;
-//   node_input_to_rect(node, dims, offset, &rct);
-
-//   matrix[0][0] = fabsf(BLI_rctf_size_x(&rct));
-//   matrix[1][1] = fabsf(BLI_rctf_size_y(&rct));
-//   matrix[3][0] = (BLI_rctf_cent_x(&rct) - 0.5f) * dims[0];
-//   matrix[3][1] = (BLI_rctf_cent_y(&rct) - 0.5f) * dims[1];
-// }
-
-// static void gizmo_node_crop_prop_matrix_set(const wmGizmo *gz,
-//                                             wmGizmoProperty *gz_prop,
-//                                             const void *value_p)
-// {
-//   const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
-//   BLI_assert(gz_prop->type->array_length == 16);
-//   NodeBBoxWidgetGroup *crop_group = static_cast<NodeBBoxWidgetGroup *>(
-//       gz->parent_gzgroup->customdata);
-//   const float2 dims = crop_group->state.dims;
-//   const float2 offset = crop_group->state.offset;
-//   bNode *node = static_cast<bNode *>(gz_prop->custom_func.user_data);
-
-//   rctf rct;
-//   node_input_to_rect(node, dims, offset, &rct);
-//   BLI_rctf_resize(&rct, fabsf(matrix[0][0]), fabsf(matrix[1][1]));
-//   BLI_rctf_recenter(&rct, ((matrix[3][0]) / dims[0]) + 0.5f, ((matrix[3][1]) / dims[1]) + 0.5f);
-//   rctf rct_isect{};
-//   rct_isect.xmin = offset.x / dims.x;
-//   rct_isect.xmax = offset.x / dims.x + 1;
-//   rct_isect.ymin = offset.y;
-//   rct_isect.ymax = offset.y / dims.y + 1;
-//   BLI_rctf_isect(&rct_isect, &rct, &rct);
-//   node_input_from_rect(node, &rct, dims, offset);
-//   gizmo_node_bbox_update(crop_group);
-// }
-
 static bool WIDGETGROUP_node_crop_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -399,7 +287,7 @@ static void WIDGETGROUP_node_crop_draw_prepare(const bContext *C, wmGizmoGroup *
   SpaceNode *snode = CTX_wm_space_node(C);
 
   nodes::gizmos::node_gizmo_calc_matrix_space(
-      region, snode->zoom, {snode->xof, snode->yof}, gz->matrix_space);
+      region, snode->zoom, {-snode->xof, -snode->yof}, gz->matrix_space);
 }
 
 void NODE_GGT_backdrop_crop(wmGizmoGroupType *gzgt)
