@@ -1343,10 +1343,10 @@ static void replace_action_on_id(ID *id,
     return;
   }
   const bool success = animrig::assign_action(&new_action, {*id, *adt});
-  DEG_id_tag_update(id, ID_RECALC_ALL);
   if (!success) {
     r_failures.append(id);
   }
+  DEG_id_tag_update(id, ID_RECALC_ALL);
 };
 
 
