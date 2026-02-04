@@ -134,32 +134,39 @@ static float calculate_grid_step_fractions(const int base,
  ************************************/
 
 /**
- * Calculate the amount of lines to draw and the starting position in view space (frame or value).
+ * \param line_distance value distance between lines.
+ * \param view_bounds the value bounds visible in the region.
+ *
+ * \returns the value on which to draw the first line.
+ */
+static float get_start_value(const float line_distance, const float2 view_bounds)
+{
+  BLI_assert(line_distance > 0);
+  return ceilf(view_bounds.x / line_distance) * line_distance;
+}
+
+/**
+ * Calculate the amount of lines to draw given the starting value and the view bounds.
  *
  * \param line_distance value distance between lines.
  * \param view_bounds the value bounds visible in the region. x has to be lower than y.
+ * \param start_value the value on which the first line should be drawn.
+ *
+ * \returns an unsigned integer indicating how many lines can be drawn.
  */
-static void get_parallel_lines_draw_steps(const float line_distance,
+static uint get_parallel_lines_draw_steps(const float line_distance,
                                           const float2 view_bounds,
-                                          float *r_first,
-                                          uint *r_steps)
+                                          const float start_value)
 {
   if (view_bounds.x >= view_bounds.y) {
-    *r_first = 0;
-    *r_steps = 0;
-    return;
+    return 0;
   }
 
-  BLI_assert(line_distance > 0);
-
-  *r_first = ceilf(view_bounds.x / line_distance) * line_distance;
-
-  if (view_bounds.x <= *r_first && view_bounds.y >= *r_first) {
-    *r_steps = std::max(0.0f, floorf((view_bounds.y - *r_first) / line_distance)) + 1;
+  if (view_bounds.x >= start_value || view_bounds.y <= start_value) {
+    return 0;
   }
-  else {
-    *r_steps = 0;
-  }
+
+  return std::max(0.0f, floorf((view_bounds.y - start_value) / line_distance)) + 1;
 }
 
 /**
@@ -172,16 +179,17 @@ static void draw_parallel_lines(const float line_distance,
                                 const uchar color[3],
                                 const char direction)
 {
-  float first;
+  const float2 view_bounds = {rect->xmin, rect->xmax};
+  const float start_value = get_start_value(line_distance, view_bounds);
   uint steps, steps_max;
 
   if (direction == 'v') {
-    get_parallel_lines_draw_steps(line_distance, {rect->xmin, rect->xmax}, &first, &steps);
+    steps = get_parallel_lines_draw_steps(line_distance, view_bounds, start_value);
     steps_max = BLI_rcti_size_x(rect_mask);
   }
   else {
     BLI_assert(direction == 'h');
-    get_parallel_lines_draw_steps(line_distance, {rect->ymin, rect->ymax}, &first, &steps);
+    steps = get_parallel_lines_draw_steps(line_distance, view_bounds, start_value);
     steps_max = BLI_rcti_size_y(rect_mask);
   }
 
@@ -216,14 +224,14 @@ static void draw_parallel_lines(const float line_distance,
 
   if (direction == 'v') {
     for (uint i = 0; i < steps; i++) {
-      const float xpos = first + i * line_distance;
+      const float xpos = start_value + i * line_distance;
       immVertex2f(pos, xpos, rect->ymin);
       immVertex2f(pos, xpos, rect->ymax);
     }
   }
   else {
     for (uint i = 0; i < steps; i++) {
-      const float ypos = first + i * line_distance;
+      const float ypos = start_value + i * line_distance;
       immVertex2f(pos, rect->xmin, ypos);
       immVertex2f(pos, rect->xmax, ypos);
     }
@@ -315,18 +323,13 @@ static void draw_horizontal_scale_indicators(const ARegion *region,
     return;
   }
 
-  float start;
-  uint steps;
-  {
-    get_parallel_lines_draw_steps(
-        distance,
-        {view2d_region_to_view_x(v2d, rect->xmin), view2d_region_to_view_x(v2d, rect->xmax)},
-        &start,
-        &steps);
-    const uint steps_max = BLI_rcti_size_x(&v2d->mask) + 1;
-    if (UNLIKELY(steps >= steps_max)) {
-      return;
-    }
+  const float2 view_bounds = {view2d_region_to_view_x(v2d, rect->xmin),
+                              view2d_region_to_view_x(v2d, rect->xmax)};
+  const float start_value = get_start_value(distance, view_bounds);
+  const uint steps = get_parallel_lines_draw_steps(distance, view_bounds, start_value);
+  const uint steps_max = BLI_rcti_size_x(&v2d->mask) + 1;
+  if (UNLIKELY(steps >= steps_max)) {
+    return;
   }
 
   GPU_matrix_push_projection();
@@ -347,15 +350,15 @@ static void draw_horizontal_scale_indicators(const ARegion *region,
   int draw_frequency;
   {
     const float max_text_width = get_max_label_width(
-        to_string, to_string_data, {start, start + steps * distance});
+        to_string, to_string_data, {start_value, start_value + steps * distance});
     const float max_label_count = (BLI_rcti_size_x(&v2d->mask) + 1) / (max_text_width + 6.0f);
     draw_frequency = ceil(float(steps) / max_label_count);
   }
 
   if (draw_frequency != 0) {
-    const int start_index = abs(int(start / distance)) % draw_frequency;
+    const int start_index = abs(int(start_value / distance)) % draw_frequency;
     for (uint i = start_index; i < steps; i += draw_frequency) {
-      const float xpos_view = start + i * distance;
+      const float xpos_view = start_value + i * distance;
       const float xpos_region = view2d_view_to_region_x(v2d, xpos_view);
       to_string(to_string_data, xpos_view, distance, text, sizeof(text));
       const float text_width = BLF_width(font_id, text, strlen(text));
@@ -384,14 +387,12 @@ static void draw_vertical_scale_indicators(const ARegion *region,
     return;
   }
 
-  float start;
+  const float2 view_bounds = {view2d_region_to_view_y(v2d, rect->ymin),
+                              view2d_region_to_view_y(v2d, rect->ymax)};
+  const float start = get_start_value(distance, view_bounds);
   uint steps;
   {
-    get_parallel_lines_draw_steps(
-        distance,
-        {view2d_region_to_view_y(v2d, rect->ymin), view2d_region_to_view_y(v2d, rect->ymax)},
-        &start,
-        &steps);
+    steps = get_parallel_lines_draw_steps(distance, view_bounds, start);
     const uint steps_max = BLI_rcti_size_y(&v2d->mask) + 1;
     if (UNLIKELY(steps >= steps_max)) {
       return;
