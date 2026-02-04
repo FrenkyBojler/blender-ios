@@ -32,11 +32,13 @@
 
 #include "GEO_merge_curves.hh"
 
+namespace blender {
+
 extern "C" {
 #include "curve_fit_nd.h"
 }
 
-namespace blender::ed::greasepencil {
+namespace ed::greasepencil {
 
 int64_t ramer_douglas_peucker_simplify(
     const IndexRange range,
@@ -109,7 +111,7 @@ Array<float2> polyline_fit_curve(Span<float2> points,
                                            points.size(),
                                            2,
                                            error_threshold,
-                                           CURVE_FIT_CALC_HIGH_QUALIY,
+                                           CURVE_FIT_CALC_HIGH_QUALITY,
                                            indicies_ptr,
                                            indices.size(),
                                            &cubic_array,
@@ -184,7 +186,7 @@ int curve_merge_by_distance(const IndexRange points,
   /* We use a KDTree_1d here, because we can only merge neighboring points in the curves. */
   KDTree_1d *tree = kdtree_1d_new(selection.size());
   /* The selection is an IndexMask of the points just in this curve. */
-  selection.foreach_index_optimized<int64_t>([&](const int64_t i, const int64_t pos) {
+  selection.foreach_index([&](const int64_t i, const int64_t pos) {
     kdtree_1d_insert(tree, pos, &distances[i - points.first()]);
   });
   kdtree_1d_balance(tree);
@@ -207,12 +209,12 @@ int curve_merge_by_distance(const IndexRange points,
   return duplicate_count;
 }
 
-blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry &src_curves,
-                                                      const float merge_distance,
-                                                      const IndexMask &selection,
-                                                      const bke::AttributeFilter &attribute_filter)
+bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry &src_curves,
+                                             const float merge_distance,
+                                             const IndexMask &selection,
+                                             const bke::AttributeFilter &attribute_filter)
 {
-  /* NOTE: The code here is an adapted version of #blender::geometry::point_merge_by_distance. */
+  /* NOTE: The code here is an adapted version of #geometry::point_merge_by_distance. */
 
   const int src_point_size = src_curves.points_num();
   if (src_point_size == 0) {
@@ -311,8 +313,7 @@ blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry 
     }
 
     bke::GAttributeReader src_attribute = iter.get();
-    bke::attribute_math::convert_to_static_type(src_attribute.varray.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    bke::attribute_math::to_static_type(src_attribute.varray.type(), [&]<typename T>() {
       if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
         bke::SpanAttributeWriter<T> dst_attribute =
             dst_attributes.lookup_or_add_for_write_only_span<T>(iter.name, bke::AttrDomain::Point);
@@ -1194,4 +1195,5 @@ CurveSegmentsData find_curve_segments(const bke::CurvesGeometry &curves,
   return result;
 }
 
-}  // namespace blender::ed::greasepencil
+}  // namespace ed::greasepencil
+}  // namespace blender

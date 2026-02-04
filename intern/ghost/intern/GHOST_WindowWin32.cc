@@ -133,8 +133,8 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
     const char *title = "Blender - Unsupported Graphics Card Configuration";
     const char *text = "";
 #if defined(WIN32)
-    if (strncmp(BLI_getenv("PROCESSOR_IDENTIFIER"), "ARM", 3) == 0 &&
-        strstr(BLI_getenv("PROCESSOR_IDENTIFIER"), "Qualcomm") != NULL)
+    if (strncmp(blender::BLI_getenv("PROCESSOR_IDENTIFIER"), "ARM", 3) == 0 &&
+        strstr(blender::BLI_getenv("PROCESSOR_IDENTIFIER"), "Qualcomm") != NULL)
     {
       text =
           "A driver with support for OpenGL 4.3 or higher is required.\n\n"
@@ -639,6 +639,7 @@ GHOST_Context *GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
             false,
             h_wnd_,
             h_DC_,
+            false, /* owns_window_handle */
             WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
             4,
             minor,

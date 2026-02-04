@@ -51,7 +51,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySampleIndex *data = MEM_new_for_free<NodeGeometrySampleIndex>(__func__);
+  NodeGeometrySampleIndex *data = MEM_new<NodeGeometrySampleIndex>(__func__);
   data->data_type = CD_PROP_FLOAT;
   data->domain = int8_t(AttrDomain::Point);
   data->clamp = 0;
@@ -114,7 +114,7 @@ void copy_with_clamped_indices(const VArray<T> &src,
 {
   const int last_index = src.index_range().last();
   devirtualize_varray2(src, indices, [&](const auto src, const auto indices) {
-    mask.foreach_index(GrainSize(4096), [&](const int i) {
+    mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int i) {
       const int index = indices[i];
       dst[i] = src[std::clamp(index, 0, last_index)];
     });
@@ -184,8 +184,7 @@ class SampleIndexFunction : public mf::MultiFunction {
     }
 
     if (clamp_) {
-      bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
-        using T = decltype(dummy);
+      bke::attribute_math::to_static_type(type, [&]<typename T>() {
         copy_with_clamped_indices(src_data_->typed<T>(), indices, mask, dst.typed<T>());
       });
     }
@@ -258,7 +257,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSampleIndex", GEO_NODE_SAMPLE_INDEX);
   ntype.ui_name = "Sample Index";
@@ -267,12 +266,12 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometrySampleIndex", node_free_standard_storage, node_copy_standard_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

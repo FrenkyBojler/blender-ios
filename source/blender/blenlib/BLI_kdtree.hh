@@ -21,17 +21,21 @@
 
 namespace blender {
 
-#define KD_STACK_INIT 100     /* initial size for array (on the stack) */
-#define KD_NEAR_ALLOC_INC 100 /* alloc increment for collecting nearest */
-#define KD_FOUND_ALLOC_INC 50 /* alloc increment for collecting nearest */
+namespace detail {
 
-#define KD_NODE_UNSET ((uint) - 1)
+constexpr int kd_stack_init = 100;     /* initial size for array (on the stack) */
+constexpr int kd_near_alloc_inc = 100; /* alloc increment for collecting nearest */
+constexpr int kd_found_alloc_inc = 50; /* alloc increment for collecting nearest */
+
+constexpr uint kd_node_unset = (uint(-1));
 
 /**
  * When set we know all values are unbalanced,
  * otherwise clear them when re-balancing: see #62210.
  */
-#define KD_NODE_ROOT_IS_INIT ((uint) - 2)
+constexpr uint kd_node_root_is_init = (uint(-2));
+
+}  // namespace detail
 
 /**
  * Creates or free a kdtree
@@ -41,10 +45,11 @@ template<typename CoordT> inline KDTree<CoordT> *kdtree_new(uint nodes_len_capac
 {
   KDTree<CoordT> *tree;
 
-  tree = MEM_callocN<KDTree<CoordT>>("KDTree");
-  tree->nodes = MEM_malloc_arrayN<KDTreeNode<CoordT>>(nodes_len_capacity, "KDTreeNode<>");
+  tree = MEM_new_zeroed<KDTree<CoordT>>("KDTree");
+  tree->nodes = MEM_new_array_uninitialized<KDTreeNode<CoordT>>(nodes_len_capacity,
+                                                                "KDTreeNode<>");
   tree->nodes_len = 0;
-  tree->root = KD_NODE_ROOT_IS_INIT;
+  tree->root = detail::kd_node_root_is_init;
   tree->max_node_index = -1;
 
 #ifndef NDEBUG
@@ -58,8 +63,8 @@ template<typename CoordT> inline KDTree<CoordT> *kdtree_new(uint nodes_len_capac
 template<typename CoordT> inline void kdtree_free(KDTree<CoordT> *tree)
 {
   if (tree) {
-    MEM_freeN(tree->nodes);
-    MEM_freeN(tree);
+    MEM_delete(tree->nodes);
+    MEM_delete(tree);
   }
 }
 
@@ -78,7 +83,7 @@ inline void kdtree_insert(KDTree<CoordT> *tree, int index, const CoordT &co)
   /* NOTE: array isn't calloc'd,
    * need to initialize all struct members */
 
-  node->left = node->right = KD_NODE_UNSET;
+  node->left = node->right = detail::kd_node_unset;
   node->co = co;
   node->index = index;
   node->d = 0;
@@ -99,7 +104,7 @@ static uint kdtree_balance(KDTreeNode<CoordT> *nodes, uint nodes_len, uint axis,
   uint left, right, median, i, j;
 
   if (nodes_len <= 0) {
-    return KD_NODE_UNSET;
+    return detail::kd_node_unset;
   }
   if (nodes_len == 1) {
     return 0 + ofs;
@@ -156,10 +161,10 @@ static uint kdtree_balance(KDTreeNode<CoordT> *nodes, uint nodes_len, uint axis,
 
 template<typename CoordT> inline void kdtree_balance(KDTree<CoordT> *tree)
 {
-  if (tree->root != KD_NODE_ROOT_IS_INIT) {
+  if (tree->root != detail::kd_node_root_is_init) {
     for (uint i = 0; i < tree->nodes_len; i++) {
-      tree->nodes[i].left = KD_NODE_UNSET;
-      tree->nodes[i].right = KD_NODE_UNSET;
+      tree->nodes[i].left = detail::kd_node_unset;
+      tree->nodes[i].right = detail::kd_node_unset;
     }
   }
 
@@ -175,14 +180,14 @@ namespace detail {
 template<typename CoordT>
 static uint *realloc_nodes(uint *stack, uint *stack_len_capacity, const bool is_alloc)
 {
-  uint *stack_new = MEM_malloc_arrayN<uint>(*stack_len_capacity + KD_NEAR_ALLOC_INC,
-                                            "KDTree.treestack");
+  uint *stack_new = MEM_new_array_uninitialized<uint>(
+      *stack_len_capacity + detail::kd_near_alloc_inc, "KDTree.treestack");
   memcpy(stack_new, stack, *stack_len_capacity * sizeof(uint));
-  // memset(stack_new + *stack_len_capacity, 0, sizeof(uint) * KD_NEAR_ALLOC_INC);
+  // memset(stack_new + *stack_len_capacity, 0, sizeof(uint) * detail::kd_near_alloc_inc);
   if (is_alloc) {
-    MEM_freeN(stack);
+    MEM_delete(stack);
   }
-  *stack_len_capacity += KD_NEAR_ALLOC_INC;
+  *stack_len_capacity += detail::kd_near_alloc_inc;
   return stack_new;
 }
 
@@ -198,7 +203,7 @@ inline int kdtree_find_nearest(const KDTree<CoordT> *tree,
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
   const KDTreeNode<CoordT> *root, *min_node;
-  uint *stack, stack_default[KD_STACK_INIT];
+  uint *stack, stack_default[detail::kd_stack_init];
   typename KDTree<CoordT>::ValueType min_dist, cur_dist;
   uint stack_len_capacity, cur = 0;
 
@@ -206,30 +211,30 @@ inline int kdtree_find_nearest(const KDTree<CoordT> *tree,
   BLI_assert(tree->is_balanced == true);
 #endif
 
-  if (UNLIKELY(tree->root == KD_NODE_UNSET)) {
+  if (UNLIKELY(tree->root == detail::kd_node_unset)) {
     return -1;
   }
 
   stack = stack_default;
-  stack_len_capacity = KD_STACK_INIT;
+  stack_len_capacity = detail::kd_stack_init;
 
   root = &nodes[tree->root];
   min_node = root;
   min_dist = math::distance_squared(root->co, co);
 
   if (co[root->d] < root->co[root->d]) {
-    if (root->right != KD_NODE_UNSET) {
+    if (root->right != detail::kd_node_unset) {
       stack[cur++] = root->right;
     }
-    if (root->left != KD_NODE_UNSET) {
+    if (root->left != detail::kd_node_unset) {
       stack[cur++] = root->left;
     }
   }
   else {
-    if (root->left != KD_NODE_UNSET) {
+    if (root->left != detail::kd_node_unset) {
       stack[cur++] = root->left;
     }
-    if (root->right != KD_NODE_UNSET) {
+    if (root->right != detail::kd_node_unset) {
       stack[cur++] = root->right;
     }
   }
@@ -248,11 +253,11 @@ inline int kdtree_find_nearest(const KDTree<CoordT> *tree,
           min_dist = cur_dist;
           min_node = node;
         }
-        if (node->left != KD_NODE_UNSET) {
+        if (node->left != detail::kd_node_unset) {
           stack[cur++] = node->left;
         }
       }
-      if (node->right != KD_NODE_UNSET) {
+      if (node->right != detail::kd_node_unset) {
         stack[cur++] = node->right;
       }
     }
@@ -265,11 +270,11 @@ inline int kdtree_find_nearest(const KDTree<CoordT> *tree,
           min_dist = cur_dist;
           min_node = node;
         }
-        if (node->right != KD_NODE_UNSET) {
+        if (node->right != detail::kd_node_unset) {
           stack[cur++] = node->right;
         }
       }
-      if (node->left != KD_NODE_UNSET) {
+      if (node->left != detail::kd_node_unset) {
         stack[cur++] = node->left;
       }
     }
@@ -285,7 +290,7 @@ inline int kdtree_find_nearest(const KDTree<CoordT> *tree,
   }
 
   if (stack != stack_default) {
-    MEM_freeN(stack);
+    MEM_delete(stack);
   }
 
   return min_node->index;
@@ -311,7 +316,7 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
   const KDTreeNode<CoordT> *nodes = tree->nodes;
   const KDTreeNode<CoordT> *min_node = nullptr;
 
-  uint *stack, stack_default[KD_STACK_INIT];
+  uint *stack, stack_default[detail::kd_stack_init];
   typename KDTree<CoordT>::ValueType min_dist = FLT_MAX, cur_dist;
   uint stack_len_capacity, cur = 0;
 
@@ -319,7 +324,7 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
   BLI_assert(tree->is_balanced == true);
 #endif
 
-  if (UNLIKELY(tree->root == KD_NODE_UNSET)) {
+  if (UNLIKELY(tree->root == detail::kd_node_unset)) {
     return -1;
   }
 
@@ -362,11 +367,11 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
           break;
         }
 
-        if (node->left != KD_NODE_UNSET) {
+        if (node->left != detail::kd_node_unset) {
           stack[cur++] = node->left;
         }
       }
-      if (node->right != KD_NODE_UNSET) {
+      if (node->right != detail::kd_node_unset) {
         stack[cur++] = node->right;
       }
     }
@@ -378,11 +383,11 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
           break;
         }
 
-        if (node->right != KD_NODE_UNSET) {
+        if (node->right != detail::kd_node_unset) {
           stack[cur++] = node->right;
         }
       }
-      if (node->left != KD_NODE_UNSET) {
+      if (node->left != detail::kd_node_unset) {
         stack[cur++] = node->left;
       }
     }
@@ -392,7 +397,7 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
   }
 
   if (stack != stack_default) {
-    MEM_freeN(stack);
+    MEM_delete(stack);
   }
 
   if (min_node) {
@@ -455,7 +460,7 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
   const KDTreeNode<CoordT> *root;
-  uint *stack, stack_default[KD_STACK_INIT];
+  uint *stack, stack_default[detail::kd_stack_init];
   typename KDTree<CoordT>::ValueType cur_dist;
   uint stack_len_capacity, cur = 0;
   uint i, nearest_len = 0;
@@ -464,7 +469,7 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(
   BLI_assert(tree->is_balanced == true);
 #endif
 
-  if (UNLIKELY((tree->root == KD_NODE_UNSET) || nearest_len_capacity == 0)) {
+  if (UNLIKELY((tree->root == detail::kd_node_unset) || nearest_len_capacity == 0)) {
     return 0;
   }
 
@@ -485,18 +490,18 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(
       r_nearest, &nearest_len, nearest_len_capacity, root->index, cur_dist, root->co);
 
   if (co[root->d] < root->co[root->d]) {
-    if (root->right != KD_NODE_UNSET) {
+    if (root->right != detail::kd_node_unset) {
       stack[cur++] = root->right;
     }
-    if (root->left != KD_NODE_UNSET) {
+    if (root->left != detail::kd_node_unset) {
       stack[cur++] = root->left;
     }
   }
   else {
-    if (root->left != KD_NODE_UNSET) {
+    if (root->left != detail::kd_node_unset) {
       stack[cur++] = root->left;
     }
-    if (root->right != KD_NODE_UNSET) {
+    if (root->right != detail::kd_node_unset) {
       stack[cur++] = root->right;
     }
   }
@@ -517,11 +522,11 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(
               r_nearest, &nearest_len, nearest_len_capacity, node->index, cur_dist, node->co);
         }
 
-        if (node->left != KD_NODE_UNSET) {
+        if (node->left != detail::kd_node_unset) {
           stack[cur++] = node->left;
         }
       }
-      if (node->right != KD_NODE_UNSET) {
+      if (node->right != detail::kd_node_unset) {
         stack[cur++] = node->right;
       }
     }
@@ -535,11 +540,11 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(
               r_nearest, &nearest_len, nearest_len_capacity, node->index, cur_dist, node->co);
         }
 
-        if (node->right != KD_NODE_UNSET) {
+        if (node->right != detail::kd_node_unset) {
           stack[cur++] = node->right;
         }
       }
-      if (node->left != KD_NODE_UNSET) {
+      if (node->left != detail::kd_node_unset) {
         stack[cur++] = node->left;
       }
     }
@@ -553,10 +558,10 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(
   }
 
   if (stack != stack_default) {
-    MEM_freeN(stack);
+    MEM_delete(stack);
   }
 
-  return (int)nearest_len;
+  return int(nearest_len);
 }
 
 template<typename CoordT>
@@ -596,10 +601,10 @@ static void nearest_add_in_range(KDTreeNearest<CoordT> **r_nearest,
   KDTreeNearest<CoordT> *to;
 
   if (UNLIKELY(nearest_index >= *nearest_len_capacity)) {
-    *r_nearest = static_cast<KDTreeNearest<CoordT> *>(
-        MEM_reallocN_id(*r_nearest,
-                        (*nearest_len_capacity += KD_FOUND_ALLOC_INC) * sizeof(KDTreeNode<CoordT>),
-                        __func__));
+    *r_nearest = static_cast<KDTreeNearest<CoordT> *>(MEM_realloc_uninitialized_id(
+        *r_nearest,
+        (*nearest_len_capacity += detail::kd_found_alloc_inc) * sizeof(KDTreeNode<CoordT>),
+        __func__));
   }
 
   to = (*r_nearest) + nearest_index;
@@ -628,7 +633,7 @@ inline int kdtree_range_search_with_len_squared_cb(
     const void *user_data)
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
-  uint *stack, stack_default[KD_STACK_INIT];
+  uint *stack, stack_default[detail::kd_stack_init];
   KDTreeNearest<CoordT> *nearest = nullptr;
   const typename KDTree<CoordT>::ValueType range_sq = range * range;
   typename KDTree<CoordT>::ValueType dist_sq;
@@ -639,7 +644,7 @@ inline int kdtree_range_search_with_len_squared_cb(
   BLI_assert(tree->is_balanced == true);
 #endif
 
-  if (UNLIKELY(tree->root == KD_NODE_UNSET)) {
+  if (UNLIKELY(tree->root == detail::kd_node_unset)) {
     return 0;
   }
 
@@ -659,12 +664,12 @@ inline int kdtree_range_search_with_len_squared_cb(
     const KDTreeNode<CoordT> *node = &nodes[stack[cur]];
 
     if (co[node->d] + range < node->co[node->d]) {
-      if (node->left != KD_NODE_UNSET) {
+      if (node->left != detail::kd_node_unset) {
         stack[cur++] = node->left;
       }
     }
     else if (co[node->d] - range > node->co[node->d]) {
-      if (node->right != KD_NODE_UNSET) {
+      if (node->right != detail::kd_node_unset) {
         stack[cur++] = node->right;
       }
     }
@@ -675,10 +680,10 @@ inline int kdtree_range_search_with_len_squared_cb(
             &nearest, nearest_len++, &nearest_len_capacity, node->index, dist_sq, node->co);
       }
 
-      if (node->left != KD_NODE_UNSET) {
+      if (node->left != detail::kd_node_unset) {
         stack[cur++] = node->left;
       }
-      if (node->right != KD_NODE_UNSET) {
+      if (node->right != detail::kd_node_unset) {
         stack[cur++] = node->right;
       }
     }
@@ -689,7 +694,7 @@ inline int kdtree_range_search_with_len_squared_cb(
   }
 
   if (stack != stack_default) {
-    MEM_freeN(stack);
+    MEM_delete(stack);
   }
 
   if (nearest_len) {
@@ -698,7 +703,7 @@ inline int kdtree_range_search_with_len_squared_cb(
 
   *r_nearest = nearest;
 
-  return (int)nearest_len;
+  return int(nearest_len);
 }
 
 template<typename CoordT>
@@ -732,7 +737,7 @@ inline void kdtree_range_search_cb(const KDTree<CoordT> *tree,
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
 
-  uint *stack, stack_default[KD_STACK_INIT];
+  uint *stack, stack_default[detail::kd_stack_init];
   typename KDTree<CoordT>::ValueType range_sq = range * range, dist_sq;
   uint stack_len_capacity, cur = 0;
 
@@ -740,7 +745,7 @@ inline void kdtree_range_search_cb(const KDTree<CoordT> *tree,
   BLI_assert(tree->is_balanced == true);
 #endif
 
-  if (UNLIKELY(tree->root == KD_NODE_UNSET)) {
+  if (UNLIKELY(tree->root == detail::kd_node_unset)) {
     return;
   }
 
@@ -753,12 +758,12 @@ inline void kdtree_range_search_cb(const KDTree<CoordT> *tree,
     const KDTreeNode<CoordT> *node = &nodes[stack[cur]];
 
     if (co[node->d] + range < node->co[node->d]) {
-      if (node->left != KD_NODE_UNSET) {
+      if (node->left != detail::kd_node_unset) {
         stack[cur++] = node->left;
       }
     }
     else if (co[node->d] - range > node->co[node->d]) {
-      if (node->right != KD_NODE_UNSET) {
+      if (node->right != detail::kd_node_unset) {
         stack[cur++] = node->right;
       }
     }
@@ -766,14 +771,14 @@ inline void kdtree_range_search_cb(const KDTree<CoordT> *tree,
       dist_sq = math::distance_squared(node->co, co);
       if (dist_sq <= range_sq) {
         if (search_cb(user_data, node->index, node->co, dist_sq) == false) {
-          goto finally;
+          break;
         }
       }
 
-      if (node->left != KD_NODE_UNSET) {
+      if (node->left != detail::kd_node_unset) {
         stack[cur++] = node->left;
       }
-      if (node->right != KD_NODE_UNSET) {
+      if (node->right != detail::kd_node_unset) {
         stack[cur++] = node->right;
       }
     }
@@ -783,9 +788,8 @@ inline void kdtree_range_search_cb(const KDTree<CoordT> *tree,
     }
   }
 
-finally:
   if (stack != stack_default) {
-    MEM_freeN(stack);
+    MEM_delete(stack);
   }
 }
 
@@ -795,12 +799,12 @@ namespace detail {
  * Use when we want to loop over nodes ordered by index.
  * Requires indices to be aligned with nodes.
  */
-template<typename CoordT> static blender::Vector<int> kdtree_order(const KDTree<CoordT> *tree)
+template<typename CoordT> static Vector<int> kdtree_order(const KDTree<CoordT> *tree)
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
-  blender::Vector<int> order(tree->max_node_index + 1, -1);
+  Vector<int> order(tree->max_node_index + 1, -1);
   for (uint i = 0; i < tree->nodes_len; i++) {
-    order[nodes[i].index] = (int)i;
+    order[nodes[i].index] = int(i);
   }
   return order;
 }
@@ -827,26 +831,26 @@ static void deduplicate_recursive(const DeDuplicateParams<CoordT> *p, uint i)
 {
   const KDTreeNode<CoordT> *node = &p->nodes[i];
   if (p->search_co[node->d] + p->range <= node->co[node->d]) {
-    if (node->left != KD_NODE_UNSET) {
+    if (node->left != detail::kd_node_unset) {
       deduplicate_recursive(p, node->left);
     }
   }
   else if (p->search_co[node->d] - p->range >= node->co[node->d]) {
-    if (node->right != KD_NODE_UNSET) {
+    if (node->right != detail::kd_node_unset) {
       deduplicate_recursive(p, node->right);
     }
   }
   else {
     if ((p->search != node->index) && (p->duplicates[node->index] == -1)) {
       if (math::distance_squared(node->co, p->search_co) <= p->range_sq) {
-        p->duplicates[node->index] = (int)p->search;
+        p->duplicates[node->index] = int(p->search);
         *p->duplicates_found += 1;
       }
     }
-    if (node->left != KD_NODE_UNSET) {
+    if (node->left != detail::kd_node_unset) {
       deduplicate_recursive(p, node->left);
     }
-    if (node->right != KD_NODE_UNSET) {
+    if (node->right != detail::kd_node_unset) {
       deduplicate_recursive(p, node->right);
     }
   }
@@ -888,7 +892,7 @@ inline int kdtree_calc_duplicates_fast(const KDTree<CoordT> *tree,
   p.duplicates_found = &found;
 
   if (use_index_order) {
-    blender::Vector<int> order = detail::kdtree_order<CoordT>(tree);
+    Vector<int> order = detail::kdtree_order<CoordT>(tree);
     for (int i = 0; i < tree->max_node_index + 1; i++) {
       const int node_index = order[i];
       if (node_index == -1) {
@@ -981,13 +985,13 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
                                      void *user_data)
 {
   BLI_assert(tree->is_balanced);
-  if (UNLIKELY(tree->root == KD_NODE_UNSET)) {
+  if (UNLIKELY(tree->root == detail::kd_node_unset)) {
     return 0;
   }
 
   /* Use `index_to_node_index` so coordinates are looked up in order first to last. */
   const uint nodes_len = tree->nodes_len;
-  blender::Array<int> index_to_node_index(tree->max_node_index + 1);
+  Array<int> index_to_node_index(tree->max_node_index + 1);
   for (uint i = 0; i < nodes_len; i++) {
     index_to_node_index[tree->nodes[i].index] = int(i);
   }
@@ -996,8 +1000,7 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
 
   /* First pass, handle merging into self-index (if any exist). */
   if (has_self_index) {
-    blender::Array<typename KDTree<CoordT>::ValueType> duplicates_dist_sq(tree->max_node_index +
-                                                                          1);
+    Array<typename KDTree<CoordT>::ValueType> duplicates_dist_sq(tree->max_node_index + 1);
     for (uint i = 0; i < nodes_len; i++) {
       const int node_index = tree->nodes[i].index;
       if (node_index != duplicates[node_index]) {
@@ -1037,7 +1040,7 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
   /* Second pass, de-duplicate clusters that weren't handled in the first pass. */
 
   /* Could be inline, declare here to avoid re-allocation. */
-  blender::Vector<int> cluster;
+  Vector<int> cluster;
   for (uint i = 0; i < nodes_len; i++) {
     const int node_index = tree->nodes[i].index;
     if (duplicates[node_index] != -1) {
@@ -1148,7 +1151,8 @@ static int kdtree_node_cmp_deduplicate(const void *n0_p, const void *n1_p)
     /* Two nodes share identical `co`
      * Both are still valid.
      * Cast away `const` and tag one of them as invalid. */
-    ((KDTreeNode<CoordT> *)n1)->d = KDTree<CoordT>::DimsNum;
+    (static_cast<KDTreeNode<CoordT> *>(const_cast<KDTreeNode<CoordT> *>(n1)))->d =
+        KDTree<CoordT>::DimsNum;
   }
 
   /* Keep sorting until each unique value has one and only one valid node. */
@@ -1169,7 +1173,7 @@ template<typename CoordT> inline int kdtree_deduplicate(KDTree<CoordT> *tree)
   tree->is_balanced = false;
 #endif
   qsort(tree->nodes,
-        (size_t)tree->nodes_len,
+        size_t(tree->nodes_len),
         sizeof(*tree->nodes),
         detail::kdtree_node_cmp_deduplicate<CoordT>);
   uint j = 0;
@@ -1182,20 +1186,10 @@ template<typename CoordT> inline int kdtree_deduplicate(KDTree<CoordT> *tree)
     }
   }
   tree->nodes_len = j;
-  return (int)tree->nodes_len;
+  return int(tree->nodes_len);
 }
 
 /** \} */
-
-#undef KD_STACK_INIT
-#undef KD_NEAR_ALLOC_INC
-#undef KD_FOUND_ALLOC_INC
-#undef KD_NODE_UNSET
-#undef KD_NODE_ROOT_IS_INIT
-
-}  //  namespace blender
-
-namespace blender {
 
 constexpr inline auto kdtree_1d_new = kdtree_new<float1>;
 constexpr inline auto kdtree_2d_new = kdtree_new<float2>;
