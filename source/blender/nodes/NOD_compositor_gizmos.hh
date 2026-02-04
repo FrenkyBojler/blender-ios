@@ -13,21 +13,6 @@ struct wmGizmoGroupType;
 
 namespace blender::nodes::gizmos {
 
-SpaceNode *find_active_node_editor(const bContext *C);
-
-void node_gizmo_calc_matrix_space(const ARegion *region,
-                                  const float zoom,
-                                  const float2 offset,
-                                  float matrix_space[4][4]);
-void node_gizmo_calc_matrix_space_with_image_dims(const ARegion *region,
-                                                  const float zoom,
-                                                  const float2 space_offset,
-                                                  const float2 &image_dims,
-                                                  const float2 &image_offset,
-                                                  float matrix_space[4][4]);
-bool node_gizmo_is_set_visible(const SpaceNode &snode);
-bool image_gizmo_is_set_visible(const SpaceImage &sima);
-
 /* -------------------------------------------------------------------- */
 /** \name Box Mask
  * \{ */
@@ -49,6 +34,9 @@ bool WIDGETGROUP_node_box_mask_poll_space_node(const bContext *C, wmGizmoGroupTy
 bool crop_show(const SpaceNode &snode);
 void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgroup);
 void WIDGETGROUP_node_crop_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup);
+bool WIDGETGROUP_node_crop_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/);
+void WIDGETGROUP_node_crop_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
+bool WIDGETGROUP_node_crop_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/);
 
 /** \} */
 
@@ -56,37 +44,26 @@ void WIDGETGROUP_node_crop_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup);
 /** \name Glare
  * \{ */
 
-struct NodeGlareWidgetGroup {
-  wmGizmo *gizmo;
-
-  struct {
-    float2 dims;
-    float2 offset;
-  } state;
-};
-
 void WIDGETGROUP_node_glare_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup);
 void WIDGETGROUP_node_glare_refresh(const bContext *C, wmGizmoGroup *gzgroup);
-bool show_glare(const SpaceNode &snode);
+bool WIDGETGROUP_node_glare_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/);
+void WIDGETGROUP_node_glare_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup);
+bool WIDGETGROUP_node_glare_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/);
+void WIDGETGROUP_node_glare_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Corner Pin
  * \{ */
-struct NodeCornerPinWidgetGroup {
-  wmGizmo *gizmos[4];
-
-  struct {
-    float2 dims;
-    float2 offset;
-  } state;
-};
 
 void WIDGETGROUP_node_corner_pin_setup(const bContext *C, wmGizmoGroup *gzgroup);
 void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup);
 bool WIDGETGROUP_node_corner_pin_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt);
-bool show_corner_pin(const SpaceNode &snode);
+bool WIDGETGROUP_node_corner_pin_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/);
+void WIDGETGROUP_node_corner_pin_draw_prepare_space_image(const bContext *C,
+                                                          wmGizmoGroup *gzgroup);
+void WIDGETGROUP_node_corner_pin_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
 
 /** \} */
 
@@ -95,6 +72,10 @@ bool show_corner_pin(const SpaceNode &snode);
  * \{ */
 
 void WIDGETGROUP_node_ellipse_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup);
+bool WIDGETGROUP_node_ellipse_mask_poll_space_image(const bContext *C,
+                                                    wmGizmoGroupType * /*gzgt*/);
+bool WIDGETGROUP_node_ellipse_mask_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/);
+
 bool show_ellipse_mask(const SpaceNode &snode);
 
 /** \} */
@@ -105,7 +86,18 @@ bool show_ellipse_mask(const SpaceNode &snode);
 
 void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgroup);
 void WIDGETGROUP_node_split_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup);
-bool show_split(const SpaceNode &snode);
+bool WIDGETGROUP_node_split_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/);
+bool WIDGETGROUP_node_split_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Backdrop Gizmo
+ * \{ */
+
+bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/);
+void WIDGETGROUP_node_transform_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+void WIDGETGROUP_node_transform_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup);
 
 /** \} */
 

@@ -549,25 +549,6 @@ static void IMAGE_GGT_compositor_box_mask(wmGizmoGroupType *gzgt)
   gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_mask_refresh;
 }
 
-static bool WIDGETGROUP_node_crop_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
-{
-  const SpaceImage *sima = CTX_wm_space_image(C);
-  if (sima == nullptr) {
-    return false;
-  }
-
-  if (!nodes::gizmos::image_gizmo_is_set_visible(*sima)) {
-    return false;
-  }
-
-  const SpaceNode *snode = nodes::gizmos::find_active_node_editor(C);
-  if (snode == nullptr || snode->edittree == nullptr) {
-    return false;
-  }
-
-  return nodes::gizmos::crop_show(*snode);
-}
-
 static void IMAGE_GGT_compositor_crop(wmGizmoGroupType *gzgt)
 {
   gzgt->name = "Crop Node Widget";
@@ -575,49 +556,11 @@ static void IMAGE_GGT_compositor_crop(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = WIDGETGROUP_node_crop_poll;
+  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_crop_poll_space_image;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_crop_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
   gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_image;
   gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_crop_refresh;
-}
-
-static bool WIDGETGROUP_node_glare_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
-{
-  const SpaceImage *sima = CTX_wm_space_image(C);
-  if (sima == nullptr) {
-    return false;
-  }
-
-  if (!nodes::gizmos::image_gizmo_is_set_visible(*sima)) {
-    return false;
-  }
-
-  const SpaceNode *snode = nodes::gizmos::find_active_node_editor(C);
-  if (snode == nullptr || snode->edittree == nullptr) {
-    return false;
-  }
-
-  return nodes::gizmos::show_glare(*snode);
-}
-
-static void WIDGETGROUP_node_glare_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
-{
-  using namespace nodes::gizmos;
-
-  NodeGlareWidgetGroup *glare_group = static_cast<NodeGlareWidgetGroup *>(gzgroup->customdata);
-  ARegion *region = CTX_wm_region(C);
-  wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
-
-  SpaceImage *sima = CTX_wm_space_image(C);
-  const float2 offset = float2{-sima->xof, -sima->yof} * sima->zoom;
-
-  nodes::gizmos::node_gizmo_calc_matrix_space_with_image_dims(region,
-                                                              sima->zoom,
-                                                              offset,
-                                                              glare_group->state.dims,
-                                                              glare_group->state.offset,
-                                                              gz->matrix_space);
 }
 
 static void IMAGE_GGT_compositor_glare(wmGizmoGroupType *gzgt)
@@ -627,33 +570,11 @@ static void IMAGE_GGT_compositor_glare(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = WIDGETGROUP_node_glare_poll;
+  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_glare_poll_space_image;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_glare_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = WIDGETGROUP_node_glare_draw_prepare;
+  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_node_glare_draw_prepare_space_image;
   gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_glare_refresh;
-}
-
-static void WIDGETGROUP_node_corner_pin_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
-{
-  using namespace nodes::gizmos;
-
-  ARegion *region = CTX_wm_region(C);
-  SpaceImage *sima = CTX_wm_space_image(C);
-
-  NodeCornerPinWidgetGroup *cpin_group = static_cast<NodeCornerPinWidgetGroup *>(
-      gzgroup->customdata);
-
-  const float2 offset = float2{-sima->xof, -sima->yof} * sima->zoom;
-
-  for (wmGizmo &gz : gzgroup->gizmos) {
-    nodes::gizmos::node_gizmo_calc_matrix_space_with_image_dims(region,
-                                                                sima->zoom,
-                                                                offset,
-                                                                cpin_group->state.dims,
-                                                                cpin_group->state.offset,
-                                                                gz.matrix_space);
-  }
 }
 
 static void IMAGE_GGT_compositor_corner_pin(wmGizmoGroupType *gzgt)
@@ -666,27 +587,8 @@ static void IMAGE_GGT_compositor_corner_pin(wmGizmoGroupType *gzgt)
   gzgt->poll = nodes::gizmos::WIDGETGROUP_node_corner_pin_poll_space_image;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_corner_pin_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = WIDGETGROUP_node_corner_pin_draw_prepare;
+  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_node_corner_pin_draw_prepare_space_image;
   gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_corner_pin_refresh;
-}
-
-static bool WIDGETGROUP_node_ellipse_mask_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
-{
-  const SpaceImage *sima = CTX_wm_space_image(C);
-  if (sima == nullptr) {
-    return false;
-  }
-
-  if (!nodes::gizmos::image_gizmo_is_set_visible(*sima)) {
-    return false;
-  }
-
-  const SpaceNode *snode = nodes::gizmos::find_active_node_editor(C);
-  if (snode == nullptr || snode->edittree == nullptr) {
-    return false;
-  }
-
-  return nodes::gizmos::show_ellipse_mask(*snode);
 }
 
 static void IMAGE_GGT_compositor_ellipse_mask(wmGizmoGroupType *gzgt)
@@ -696,30 +598,11 @@ static void IMAGE_GGT_compositor_ellipse_mask(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = WIDGETGROUP_node_ellipse_mask_poll;
+  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_ellipse_mask_poll_space_image;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_ellipse_mask_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
   gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_image;
   gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_mask_refresh;
-}
-
-static bool WIDGETGROUP_node_split_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
-{
-  const SpaceImage *sima = CTX_wm_space_image(C);
-  if (sima == nullptr) {
-    return false;
-  }
-
-  if (!nodes::gizmos::image_gizmo_is_set_visible(*sima)) {
-    return false;
-  }
-
-  const SpaceNode *snode = nodes::gizmos::find_active_node_editor(C);
-  if (snode == nullptr || snode->edittree == nullptr) {
-    return false;
-  }
-
-  return nodes::gizmos::show_split(*snode);
 }
 
 static void IMAGE_GGT_compositor_split(wmGizmoGroupType *gzgt)
@@ -729,7 +612,7 @@ static void IMAGE_GGT_compositor_split(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = WIDGETGROUP_node_split_poll;
+  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_split_poll_space_image;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_split_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
   gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_image;
