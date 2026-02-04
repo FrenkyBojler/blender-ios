@@ -62,11 +62,7 @@ class RENDER_PT_format(RenderOutputButtonsPanel, Panel):
     _preset_class = None
 
     def draw_header_preset(self, _context):
-        layout = self.layout
-        row = layout.row(align=True)
-        row.operator('render.swap_dimensions', text="", icon='RENDER_SWAP_DIMENSIONS', emboss=False)
-
-        RENDER_PT_format_presets.draw_panel_header(row)
+        RENDER_PT_format_presets.draw_panel_header(self.layout)
 
     @staticmethod
     def _draw_framerate_label(*args):
