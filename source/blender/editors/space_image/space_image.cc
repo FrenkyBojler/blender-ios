@@ -760,6 +760,39 @@ static void IMAGE_GGT_compositor_ellipse_mask(wmGizmoGroupType *gzgt)
   gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_mask_refresh;
 }
 
+static bool WIDGETGROUP_node_split_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+{
+  const SpaceImage *sima = CTX_wm_space_image(C);
+  if (!sima || !ELEM(sima->mode, SI_MODE_VIEW, SI_MODE_MASK)) {
+    return false;
+  }
+
+  if (sima->gizmo_flag & SI_GIZMO_HIDE_ACTIVE_NODE) {
+    return false;
+  }
+
+  const SpaceNode *snode = nodes::gizmos::find_node_editor(C);
+  if (snode == nullptr || snode->edittree == nullptr) {
+    return false;
+  }
+
+  return nodes::gizmos::show_split(*snode);
+}
+
+static void IMAGE_GGT_compositor_split(wmGizmoGroupType *gzgt)
+{
+  gzgt->name = "Ellipse Mask Node Widget";
+  gzgt->idname = "IMAGE_GGT_compositor_split";
+
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+
+  gzgt->poll = WIDGETGROUP_node_split_poll;
+  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_split_setup;
+  gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
+  gzgt->draw_prepare = WIDGETGROUP_bbox_draw_prepare;
+  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_split_refresh;
+}
+
 static void image_widgets()
 {
   const wmGizmoMapType_Params params{SPACE_IMAGE, RGN_TYPE_WINDOW};
@@ -777,6 +810,7 @@ static void image_widgets()
   WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_glare);
   WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_corner_pin);
   WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_ellipse_mask);
+  WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_split);
 }
 
 /************************** main region ***************************/

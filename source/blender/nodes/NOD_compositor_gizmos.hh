@@ -92,4 +92,14 @@ bool show_ellipse_mask(const SpaceNode &snode);
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Split
+ * \{ */
+
+void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+void WIDGETGROUP_node_split_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup);
+bool show_split(const SpaceNode &snode);
+
+/** \} */
+
 }  // namespace blender::nodes::gizmos
