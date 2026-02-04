@@ -252,6 +252,7 @@ void Instance::begin_sync()
     pass.shader_set(ShaderCache::get().depth_pass_merge.get());
     pass.bind_texture("depth_buf", &this->depth_tx);
     pass.bind_image("depth_pass_img", &this->depth_pass_img);
+    pass.push_constant("stroke_order3d", &this->is_stroke_order_3d);
     pass.push_constant("gp_model_matrix", &this->object_bound_mat);
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
