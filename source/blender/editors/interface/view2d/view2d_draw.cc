@@ -84,19 +84,22 @@ static int get_divisor(const int distance)
  * \param base: Defines how the step is calculated.
  * The returned step is either a full fraction or a multiple of that number.
  */
-static int calculate_grid_step(const int base, const float pixel_width, const float view_width)
+static int calculate_grid_step(const int base,
+                               const float pixel_width,
+                               const float view_width,
+                               const float min_distance)
 {
   if (IS_EQF(view_width, 0.0f) || base == 0) {
     return 1;
   }
   const float pixels_per_view_unit = pixel_width / view_width;
   int distance = base;
-  if (pixels_per_view_unit * distance > MIN_MAJOR_LINE_DISTANCE) {
+  if (pixels_per_view_unit * distance > min_distance) {
     /* Shrink the distance. */
     while (distance > 1) {
       const int divisor = get_divisor(distance);
       const int result = (distance / divisor);
-      if (pixels_per_view_unit * result < MIN_MAJOR_LINE_DISTANCE) {
+      if (pixels_per_view_unit * result < min_distance) {
         /* If the distance would fall below the threshold, stop dividing. */
         break;
       }
@@ -107,7 +110,7 @@ static int calculate_grid_step(const int base, const float pixel_width, const fl
     /* Grow the distance, doubling every time. Break just before hitting an integer overflow. This
      * creates a drawing issue after hitting the limit where the numbers will overlap but that is
      * better than an endless loop. See #150543. */
-    while (pixels_per_view_unit * distance < MIN_MAJOR_LINE_DISTANCE && distance < (1 << 30)) {
+    while (pixels_per_view_unit * distance < min_distance && distance < (1 << 30)) {
       distance *= 2;
     }
   }
@@ -118,15 +121,17 @@ static int calculate_grid_step(const int base, const float pixel_width, const fl
 /* Mostly the same as `calculate_grid_step, except in can divide into the 0-1 range. */
 static float calculate_grid_step_fractions(const int base,
                                            const float pixel_width,
-                                           const float view_width)
+                                           const float view_width,
+                                           const float min_distance)
 {
-  float distance = calculate_grid_step(base, pixel_width, view_width);
+  float distance = calculate_grid_step(base, pixel_width, view_width, min_distance);
   if (distance > 1) {
     return distance;
   }
 
   /* Using `calculate_grid_step` to break down subframe_range simulating a larger view. */
-  distance = calculate_grid_step(subframe_range, pixel_width, view_width * subframe_range);
+  distance = calculate_grid_step(
+      subframe_range, pixel_width, view_width * subframe_range, min_distance);
   return distance / subframe_range;
 }
 
@@ -489,13 +494,13 @@ float view2d_grid_resolution_x__frames_or_seconds(const View2D *v2d, const Scene
 {
   const int fps = round_db_to_int(scene->frames_per_second());
   return calculate_grid_step_fractions(
-      fps, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
+      fps, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur), MIN_MAJOR_LINE_DISTANCE);
 }
 
 float view2d_grid_resolution_y__values(const View2D *v2d, const int base)
 {
   return calculate_grid_step_fractions(
-      base, BLI_rcti_size_y(&v2d->mask) + 1, BLI_rctf_size_y(&v2d->cur));
+      base, BLI_rcti_size_y(&v2d->mask) + 1, BLI_rctf_size_y(&v2d->cur), MIN_MAJOR_LINE_DISTANCE);
 }
 
 /* Line Drawing API
@@ -510,12 +515,16 @@ void view2d_draw_lines_x(const View2D *v2d,
   float major_line_distance;
   /* Fractions are only drawn when not showing a timecode. See `view2d_draw_scale_x`. */
   if (show_fractions && !display_seconds) {
-    major_line_distance = calculate_grid_step_fractions(
-        base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
+    major_line_distance = calculate_grid_step_fractions(base,
+                                                        BLI_rcti_size_x(&v2d->mask) + 1,
+                                                        BLI_rctf_size_x(&v2d->cur),
+                                                        MIN_MAJOR_LINE_DISTANCE);
   }
   else {
-    major_line_distance = calculate_grid_step(
-        base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
+    major_line_distance = calculate_grid_step(base,
+                                              BLI_rcti_size_x(&v2d->mask) + 1,
+                                              BLI_rctf_size_x(&v2d->cur),
+                                              MIN_MAJOR_LINE_DISTANCE);
   }
   /* The extra check for minor line drawing here is so minor lines are *not* drawn
    * below a distance of 1. */
@@ -536,12 +545,16 @@ void view2d_draw_lines_y(const View2D *v2d, const bool show_fractions, const int
 {
   float major_line_distance;
   if (show_fractions) {
-    major_line_distance = calculate_grid_step_fractions(
-        base, BLI_rcti_size_y(&v2d->mask) + 1, BLI_rctf_size_y(&v2d->cur));
+    major_line_distance = calculate_grid_step_fractions(base,
+                                                        BLI_rcti_size_y(&v2d->mask) + 1,
+                                                        BLI_rctf_size_y(&v2d->cur),
+                                                        MIN_MAJOR_LINE_DISTANCE);
   }
   else {
-    major_line_distance = calculate_grid_step(
-        base, BLI_rcti_size_y(&v2d->mask) + 1, BLI_rctf_size_y(&v2d->cur));
+    major_line_distance = calculate_grid_step(base,
+                                              BLI_rcti_size_y(&v2d->mask) + 1,
+                                              BLI_rctf_size_y(&v2d->cur),
+                                              MIN_MAJOR_LINE_DISTANCE);
   }
   view2d_draw_lines(v2d, major_line_distance, true, 'h');
 }
@@ -553,7 +566,7 @@ void view2d_draw_scale_y(
     const ARegion *region, const View2D *v2d, const rcti *rect, const int colorid, const int base)
 {
   const float step = calculate_grid_step_fractions(
-      base, BLI_rcti_size_y(&v2d->mask) + 1, BLI_rctf_size_y(&v2d->cur));
+      base, BLI_rcti_size_y(&v2d->mask) + 1, BLI_rctf_size_y(&v2d->cur), MIN_MAJOR_LINE_DISTANCE);
   draw_vertical_scale_indicators(region, v2d, step, 0.0f, rect, frame_to_string, nullptr, colorid);
 }
 
@@ -570,11 +583,16 @@ void view2d_draw_scale_x(const ARegion *region,
   /* The timecode string does not change on fractions of a frame so it makes no sense to display
    * that. */
   if (show_fractions && !display_seconds) {
-    step = calculate_grid_step_fractions(
-        base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
+    step = calculate_grid_step_fractions(base,
+                                         BLI_rcti_size_x(&v2d->mask) + 1,
+                                         BLI_rctf_size_x(&v2d->cur),
+                                         MIN_MAJOR_LINE_DISTANCE);
   }
   else {
-    step = calculate_grid_step(base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
+    step = calculate_grid_step(base,
+                               BLI_rcti_size_x(&v2d->mask) + 1,
+                               BLI_rctf_size_x(&v2d->cur),
+                               MIN_MAJOR_LINE_DISTANCE);
   }
   if (display_seconds) {
     draw_horizontal_scale_indicators(
