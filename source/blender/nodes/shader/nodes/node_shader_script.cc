@@ -31,7 +31,7 @@ static void node_shader_buts_script(ui::Layout &layout, bContext * /*C*/, Pointe
       row.prop(ptr, "script", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
     }
     else {
-      row.prop(ptr, "filepath", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+      row.prop(ptr, "filepath", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE, "File Path");
     }
     row.op("node.shader_script_update", "", ICON_FILE_REFRESH);
   }

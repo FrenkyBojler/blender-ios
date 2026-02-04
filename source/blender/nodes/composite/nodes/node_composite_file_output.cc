@@ -196,8 +196,8 @@ static Vector<bke::path_templates::Error> compute_image_path(const StringRefNull
 
 static void node_draw_buttons(ui::Layout &layout, bContext * /*context*/, PointerRNA *node_pointer)
 {
-  layout.prop(node_pointer, "directory", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  layout.prop(node_pointer, "file_name", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(node_pointer, "directory", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE, "Directory");
+  layout.prop(node_pointer, "file_name", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE, "File Name");
 }
 
 static void format_layout(ui::Layout *layout,
