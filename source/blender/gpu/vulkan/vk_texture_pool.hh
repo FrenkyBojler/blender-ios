@@ -24,6 +24,8 @@ class VKTexturePool : public TexturePool {
   struct Segment {
     VkDeviceSize offset;
     VkDeviceSize size;
+
+    bool operator==(const Segment &) const = default;
   };
 
   /* Struct to manage a memory allocation. This region of memory can be segmented
@@ -67,12 +69,65 @@ class VKTexturePool : public TexturePool {
     }
   };
 
+  // /* VkImage handles are cached and correspond to a bound segment of an
+  //  * underlying allocation. This means we have more image handles than
+  //  * actual textures in use, as different handles can aliase and overlap.
+  //  * The segment list in AllocationHandle esnures no two handles are
+  //  * acquired while aliasing; this cache is just there to avoid constant
+  //  * handle creation and binding, which is cheap until it's not. */
+  struct ImageHandle {
+    /* Hashable data. */
+    VmaAllocation allocation;
+    Segment allocation_segment;
+    VkFormat format;
+    VkImageCreateFlags flags;
+    VkImageUsageFlags usage;
+    VkExtent3D extent;
+
+    /* Handle payload. */
+    VkImage image = VK_NULL_HANDLE;
+
+    /* Counter to track the number of unused cycles before deallocation in `pool_`. */
+    int unused_cycles_count = 0;
+
+    uint64_t hash() const
+    {
+      uint64_t hash = get_default_hash(allocation);
+      hash = hash * 33 ^ uint64_t(allocation_segment.offset);
+      hash = hash * 33 ^ uint64_t(allocation_segment.size);
+      hash = hash * 33 ^ uint64_t(format);
+      hash = hash * 33 ^ uint64_t(flags);
+      hash = hash * 33 ^ uint64_t(usage);
+      hash = hash * 33 ^ uint64_t(extent.width);
+      hash = hash * 33 ^ uint64_t(extent.height);
+      return hash;
+    }
+
+    bool operator==(const ImageHandle &o) const
+    {
+      return std::tie(allocation,
+                      allocation_segment,
+                      format,
+                      flags,
+                      usage,
+                      extent.width,
+                      extent.height) == std::tie(o.allocation,
+                                                 o.allocation_segment,
+                                                 o.format,
+                                                 o.flags,
+                                                 o.usage,
+                                                 o.extent.width,
+                                                 o.extent.height);
+    }
+  };
+
   /* Struct to store an acquired texture. The texture image has a backing allocation,
    * and is bound to a segment of this allocation. */
   struct TextureHandle {
+    /* Handle payload. */
     VKTexture *texture = nullptr;
     AllocationHandle allocation_handle = {};
-    Segment segment = {};
+    Segment allocation_segment = {};
 
     /* Counter to track texture acquire/retain mismatches in `acquire_`.  */
     int users_count = 1;
@@ -83,7 +138,7 @@ class VKTexturePool : public TexturePool {
 
     VkDeviceSize allocation_local_offset() const
     {
-      return segment.offset - allocation_handle.allocation_info.offset;
+      return allocation_segment.offset - allocation_handle.allocation_info.offset;
     }
 
     /* We use the pointer as hash/comparator, as a TextureHandle cannot be acquired twice.
@@ -99,8 +154,11 @@ class VKTexturePool : public TexturePool {
     }
   };
 
-  /* Stores of allocated memory and textures bound to said memory. */
+  /* Allocated memory chunks, to parts of which textures are bound. */
   Set<AllocationHandle> allocations_;
+  /* Image handles bound to allocated memory, currently unused. */
+  Set<ImageHandle> free_;
+  /* Texture handles bound to allocated memory, current in use. */
   Set<TextureHandle> acquired_;
 
   /* Debug storage to log memory usage. Log is only output
