@@ -852,6 +852,9 @@ static bool bmw_EdgeloopWalker_delimit_mark_check(BMVert *v,
                                                   BMLoop *l,
                                                   const BMWDelimitFlag delimit)
 {
+  if (delimit & BMW_FLAG_TEST_HIDDEN && BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
+    return false;
+  }
   /* When starting on a mark, stop when the next edge does not have the mark.
    * Otherwise, stop when any edge connected to the next vert has the mark. */
   if (delimit & BMW_DELIMIT_EDGE_MARK_SEAM) {
@@ -1116,8 +1119,11 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
         }
       } while (++i != i_opposite);
     }
+    else {
+      l = nullptr;
+    }
 
-    if (bmw_EdgeloopWalker_delimit_mark_check(v, e, l, walker->delimit)) {
+    if (l && bmw_EdgeloopWalker_delimit_mark_check(v, e, l, walker->delimit)) {
       l = nullptr;
     }
 
@@ -1142,7 +1148,7 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
 
     vert_edge_tot = BM_vert_edge_count_nonwire(v);
 
-    /* Check if any delimits should stop the step. */
+    /* Check if any corner delimits should stop the step. */
     bool has_corner_delimit = false;
     if ((walker->delimit & BMW_DELIMIT_EDGE_LOOP_INNER_CORNERS) != 0) {
       if (vert_edge_tot > 3) {
