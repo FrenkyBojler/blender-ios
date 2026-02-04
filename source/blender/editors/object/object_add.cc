@@ -783,7 +783,9 @@ static std::optional<Bounds<float3>> lattice_add_to_selected_collect_targets_and
     r_targets.append(base.object);
     const Object *object_eval = DEG_get_evaluated(depsgraph, base.object);
     if (object_eval && DEG_object_transform_is_evaluated(*object_eval)) {
-      if (std::optional<Bounds<float3>> object_bounds = BKE_object_boundbox_get(object_eval)) {
+      if (std::optional<Bounds<float3>> object_bounds = BKE_object_evaluated_geometry_bounds(
+              object_eval))
+      {
         const float (*object_to_world_matrix)[4] = object_eval->object_to_world().ptr();
         /* Generate all 8 corners of the bounding box. */
         std::array<float3, 8> corners = bounds::corners(*object_bounds);
@@ -3515,11 +3517,11 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
   Mesh *mesh_copied = BKE_mesh_copy_for_eval(mesh_eval);
   const Span<float3> normals = mesh_copied->vert_normals();
 
-  std::string normals_attribute_id = BKE_attribute_calc_unique_name(
+  std::string normals_attribute_name = BKE_attribute_calc_unique_name(
       AttributeOwner::from_id(&mesh_copied->id), "vertex_normal_for_conversion");
 
   mesh_copied->attributes_for_write().add(
-      normals_attribute_id,
+      normals_attribute_name,
       bke::AttrDomain::Point,
       bke::AttrType::Float3,
       bke::AttributeInitVArray(VArray<float3>::from_span(normals)));
@@ -3530,13 +3532,13 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
 
   MutableSpan<float3> curve_positions = curves_edges.positions_for_write();
   const VArraySpan<float3> point_normals = *curves_edges.attributes().lookup<float3>(
-      normals_attribute_id);
+      normals_attribute_name);
   threading::parallel_for(curve_positions.index_range(), 8192, [&](const IndexRange range) {
     for (const int point_i : range) {
       curve_positions[point_i] += offset * point_normals[point_i];
     }
   });
-  curves_edges.attributes_for_write().remove(normals_attribute_id);
+  curves_edges.attributes_for_write().remove(normals_attribute_name);
 
   BKE_defgroup_copy_list(&grease_pencil.vertex_group_names, &mesh_copied->vertex_group_names);
   grease_pencil.vertex_group_active_index = mesh_copied->vertex_group_active_index;
