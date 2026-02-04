@@ -37,11 +37,13 @@
 
 #include "ED_asset_shelf.hh"
 #include "ED_buttons.hh"
+#include "ED_image.hh"
 #include "ED_screen.hh"
 #include "ED_screen_types.hh"
 #include "ED_space_api.hh"
 #include "ED_time_scrub_ui.hh"
 #include "ED_userpref.hh"
+#include "ED_view3d.hh"
 
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
@@ -3821,12 +3823,19 @@ static bool panel_property_search(const bContext *C,
 
   return false;
 }
+
 bool side_region_search_for_context(const bContext *C, ARegion *region, StringRef category)
 {
   std::string ctx = std::string(".") + CTX_data_mode_string(C);
-  const char *contexts[3] = {CTX_data_mode_string(C), ctx.c_str(), nullptr};
+  std::array<const char *, 4> contexts = {nullptr};
+  if (CTX_wm_space_image(C)) {
+    contexts = ED_image_buttons_contexts(C);
+  }
+  else if (CTX_wm_view3d(C)) {
+    contexts = ED_view3d_buttons_contexts(C);
+  }
   return ED_region_property_search(
-      C, region, &region->runtime->type->paneltypes, contexts, category.data());
+      C, region, &region->runtime->type->paneltypes, contexts.data(), category.data());
 }
 
 static void side_region_search_all_categories(const bContext *C, ARegion *region_original)
