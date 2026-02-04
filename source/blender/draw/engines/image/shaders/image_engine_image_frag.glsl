@@ -13,11 +13,13 @@ void main()
   if (!is_repeated &&
       (any(lessThan(coordinates, float2(0.0))) || any(greaterThan(coordinates, float2(1.0)))))
   {
-    gpu_discard_fragment();
+    out_color = float4(0.0f);
+    gl_FragDepth = Z_DEPTH_BORDER;
     return;
   }
 
   const float4 image_color = texture(image_tx, coordinates);
   out_color = image_engine_apply_parameters(
       image_color, draw_flags, is_image_premultiplied, shuffle, FAR_DISTANCE, NEAR_DISTANCE);
+  gl_FragDepth = Z_DEPTH_IMAGE;
 }

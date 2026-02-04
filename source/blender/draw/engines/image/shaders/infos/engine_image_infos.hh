@@ -58,6 +58,7 @@ PUSH_CONSTANT(float2, far_near_distances)
 PUSH_CONSTANT(int, draw_flags)
 PUSH_CONSTANT(bool, is_image_premultiplied)
 ADDITIONAL_INFO(gpu_fullscreen)
+DEPTH_WRITE(DepthWrite::ANY)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(image_engine_image_shader)

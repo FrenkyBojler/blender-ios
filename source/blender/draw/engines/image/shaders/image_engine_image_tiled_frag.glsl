@@ -13,11 +13,13 @@ void main()
   const float2 coordinates = transform_point(image_matrix, float3(screen_uv, 0.0f)).xy();
   float3 tiled_coordinates = float3(coordinates, 0.0f);
   if (!tiled_image_lookup(tiled_coordinates, image_tile_array, image_tile_data)) {
-    gpu_discard_fragment();
+    out_color = float4(0.0f);
+    gl_FragDepth = Z_DEPTH_BORDER;
     return;
   }
 
   const float4 image_color = texture(image_tile_array, tiled_coordinates);
   out_color = image_engine_apply_parameters(
       image_color, draw_flags, is_image_premultiplied, shuffle, FAR_DISTANCE, NEAR_DISTANCE);
+  gl_FragDepth = Z_DEPTH_IMAGE;
 }

@@ -6,8 +6,6 @@
  * \ingroup draw_engine
  */
 
-#include "draw_view_data.hh"
-
 #include "image_drawing_mode_image_space.hh"
 #include "image_instance.hh"
 #include "image_shader.hh"
@@ -20,7 +18,7 @@ void ImageSpaceDrawingMode::image_sync(blender::Image *image, ImageUser *iuser) 
 {
   PassSimple &pass = instance_.state.image_ps;
   pass.init();
-  pass.state_set(DRW_STATE_WRITE_COLOR);
+  pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS);
   pass.shader_set(image->source == IMA_SRC_TILED ? ShaderModule::module_get().image_tiled.get() :
                                                    ShaderModule::module_get().image.get());
   pass.push_constant("image_matrix", math::invert(float4x4(instance_.state.ss_to_texture)));
@@ -57,8 +55,6 @@ void ImageSpaceDrawingMode::image_sync(blender::Image *image, ImageUser *iuser) 
 
 void ImageSpaceDrawingMode::draw_viewport() const
 {
-  GPU_framebuffer_clear_color_depth(
-      DRW_context_get()->viewport_framebuffer_list_get()->default_fb, float4(0.0), 1.0f);
   instance_.manager->submit(instance_.state.image_ps, instance_.state.view);
 }
 

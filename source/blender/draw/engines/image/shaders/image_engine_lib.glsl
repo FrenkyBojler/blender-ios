@@ -4,6 +4,9 @@
 
 #pragma once
 
+#define Z_DEPTH_BORDER 1.0f
+#define Z_DEPTH_IMAGE 0.75f
+
 /* Keep in sync with image_engine.c */
 #define IMAGE_DRAW_FLAG_SHOW_ALPHA (1 << 0)
 #define IMAGE_DRAW_FLAG_APPLY_ALPHA (1 << 1)
