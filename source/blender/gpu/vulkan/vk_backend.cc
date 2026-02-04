@@ -152,10 +152,10 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   if (features.features.geometryShader == VK_FALSE) {
     missing_capabilities.append("geometry shaders");
   }
+#endif
   if (features.features.vertexPipelineStoresAndAtomics == VK_FALSE) {
     missing_capabilities.append("vertex pipeline stores and atomics");
   }
-#endif
   if (features.features.multiViewport == VK_FALSE) {
     missing_capabilities.append("multi viewport");
   }
@@ -665,10 +665,10 @@ Texture *VKBackend::texture_alloc(const char *name)
 TexturePool *VKBackend::texturepool_alloc()
 {
   if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
-    CLOG_INFO(&LOG, "Using texture pool \"TexturePoolImpl\".");
+    CLOG_TRACE(&LOG, "Using texture pool \"TexturePoolImpl\".");
     return new TexturePoolImpl();
   }
-  CLOG_INFO(&LOG, "Using texture pool \"VKTexturePool\".");
+  CLOG_TRACE(&LOG, "Using texture pool \"VKTexturePool\".");
   return new VKTexturePool();
 }
 
