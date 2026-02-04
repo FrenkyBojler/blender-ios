@@ -13,7 +13,7 @@ struct wmGizmoGroupType;
 
 namespace blender::nodes::gizmos {
 
-SpaceNode *find_node_editor(const bContext *C);
+SpaceNode *find_active_node_editor(const bContext *C);
 
 void node_gizmo_calc_matrix_space(const ARegion *region,
                                   const float zoom,
@@ -25,6 +25,8 @@ void node_gizmo_calc_matrix_space_with_image_dims(const ARegion *region,
                                                   const float2 &image_dims,
                                                   const float2 &image_offset,
                                                   float matrix_space[4][4]);
+bool node_gizmo_is_set_visible(const SpaceNode &snode);
+bool image_gizmo_is_set_visible(const SpaceImage &sima);
 
 /* -------------------------------------------------------------------- */
 /** \name Box Mask
@@ -33,6 +35,10 @@ void node_gizmo_calc_matrix_space_with_image_dims(const ARegion *region,
 bool box_mask_show(const SpaceNode &snode);
 void WIDGETGROUP_node_box_mask_setup(const bContext *C, wmGizmoGroup *gzgroup);
 void WIDGETGROUP_node_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+void WIDGETGROUP_bbox_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
+void WIDGETGROUP_bbox_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup);
+bool WIDGETGROUP_node_box_mask_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/);
+bool WIDGETGROUP_node_box_mask_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/);
 
 /** \} */
 
@@ -79,6 +85,7 @@ struct NodeCornerPinWidgetGroup {
 
 void WIDGETGROUP_node_corner_pin_setup(const bContext *C, wmGizmoGroup *gzgroup);
 void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+bool WIDGETGROUP_node_corner_pin_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt);
 bool show_corner_pin(const SpaceNode &snode);
 
 /** \} */

@@ -51,9 +51,8 @@ struct NodeBBoxWidgetGroup {
   } update_data;
 };
 
-SpaceNode *find_node_editor(const bContext *C)
+SpaceNode *find_active_node_editor(const bContext *C)
 {
-  // printf("find_node_editor\n");
   wmWindowManager *window_manager = CTX_wm_manager(C);
 
   for (wmWindow &window : window_manager->windows) {
@@ -67,19 +66,7 @@ SpaceNode *find_node_editor(const bContext *C)
       if (snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
         bNodeTreePath *path = static_cast<bNodeTreePath *>(snode->treepath.last);
         if (snode->nodetree->active_viewer_key == path->parent_key) {
-          // printf("found\n");
-          // printf("\tsnode: %p\n", snode);
-          // printf("\tpath: %s\n", path->display_name);
-          // printf("\tactive viewer key: %i\n", snode->nodetree->active_viewer_key);
-          // printf("\tpath parent key: %i\n", path->parent_key);
           return snode;
-        }
-        else {
-          // printf("not found\n");
-          // printf("\tsnode: %p\n", snode);
-          // printf("\tpath: %s\n", path->display_name);
-          // printf("\tactive viewer key: %i\n", snode->nodetree->active_viewer_key);
-          // printf("\tpath parent key: %i\n", path->parent_key);
         }
       }
     }
@@ -127,6 +114,68 @@ void node_gizmo_calc_matrix_space(const ARegion *region,
   matrix_space[3][1] = (region->winy / 2) - offset.y;
 }
 
+bool node_gizmo_is_set_visible(const SpaceNode &snode)
+{
+  if ((snode.flag & SNODE_BACKDRAW) == 0) {
+    return false;
+  }
+
+  if (!snode.edittree || snode.edittree->type != NTREE_COMPOSIT) {
+    return false;
+  }
+
+  if (!(snode.gizmo_flag & (SNODE_GIZMO_HIDE | SNODE_GIZMO_HIDE_ACTIVE_NODE))) {
+    return true;
+  }
+
+  return false;
+}
+
+bool image_gizmo_is_set_visible(const SpaceImage &sima)
+{
+  if (!ELEM(sima.mode, SI_MODE_VIEW, SI_MODE_MASK)) {
+    return false;
+  }
+
+  if (sima.gizmo_flag & SI_GIZMO_HIDE_ACTIVE_NODE) {
+    return false;
+  }
+
+  return true;
+}
+
+bool WIDGETGROUP_node_box_mask_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+{
+  const SpaceImage *sima = CTX_wm_space_image(C);
+  if (sima == nullptr) {
+    return false;
+  }
+
+  if (!nodes::gizmos::image_gizmo_is_set_visible(*sima)) {
+    return false;
+  }
+
+  const SpaceNode *snode = nodes::gizmos::find_active_node_editor(C);
+  if (snode == nullptr || snode->edittree == nullptr) {
+    return false;
+  }
+
+  return nodes::gizmos::box_mask_show(*snode);
+}
+
+bool WIDGETGROUP_node_box_mask_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+{
+  SpaceNode *snode = CTX_wm_space_node(C);
+  if (snode == nullptr) {
+    return false;
+  }
+  if (!nodes::gizmos::node_gizmo_is_set_visible(*snode)) {
+    return false;
+  }
+
+  return nodes::gizmos::box_mask_show(*snode);
+}
+
 void WIDGETGROUP_node_box_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   NodeBBoxWidgetGroup *mask_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
@@ -148,7 +197,7 @@ void WIDGETGROUP_node_box_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgro
   };
 }
 
-static bool node_gizmo_is_set_visible(const bContext *C)
+static bool space_node_gizmo_is_set_visible(const bContext *C)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
@@ -193,7 +242,7 @@ bool box_mask_show(const SpaceNode &snode)
   return false;
 }
 
-void WIDGETGROUP_bbox_node_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
+void WIDGETGROUP_bbox_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
 {
   ARegion *region = CTX_wm_region(C);
   wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
@@ -202,6 +251,17 @@ void WIDGETGROUP_bbox_node_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup
 
   node_gizmo_calc_matrix_space(
       region, snode->zoom, float2{-snode->xof, -snode->yof}, gz->matrix_space);
+}
+
+void WIDGETGROUP_bbox_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup)
+{
+  ARegion *region = CTX_wm_region(C);
+  wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
+
+  SpaceImage *sima = CTX_wm_space_image(C);
+  const float2 offset = float2{sima->xof, sima->yof} * sima->zoom;
+
+  nodes::gizmos::node_gizmo_calc_matrix_space(region, sima->zoom, offset, gz->matrix_space);
 }
 
 static void gizmo_node_box_mask_prop_matrix_get(const wmGizmo *gz,
@@ -320,7 +380,7 @@ void WIDGETGROUP_node_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   RNA_float_set_array(gz->ptr, "dimensions", mask_group->state.dims);
   WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
 
-  const SpaceNode *snode = find_node_editor(C);
+  const SpaceNode *snode = find_active_node_editor(C);
   BLI_assert(snode != nullptr);
   BLI_assert(snode != nullptr);
 
@@ -457,7 +517,7 @@ static void gizmo_node_crop_prop_matrix_set(const wmGizmo *gz,
 void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
-  const SpaceNode *snode = find_node_editor(C);
+  const SpaceNode *snode = find_active_node_editor(C);
   BLI_assert(snode != nullptr);
 
   NodeBBoxWidgetGroup *crop_group = static_cast<NodeBBoxWidgetGroup *>(gzgroup->customdata);
@@ -579,7 +639,7 @@ void WIDGETGROUP_node_glare_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   glare_group->state.offset = ibuf->flags & IB_has_display_window ? float2(ibuf->display_offset) :
                                                                     float2(0.0f);
 
-  SpaceNode *snode = find_node_editor(C);
+  SpaceNode *snode = find_active_node_editor(C);
   BLI_assert(snode != nullptr);
 
   bNode *node = bke::node_get_active(*snode->edittree);
@@ -619,6 +679,25 @@ bool show_glare(const SpaceNode &snode)
     }
   }
   return true;
+}
+
+bool WIDGETGROUP_node_corner_pin_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt)
+{
+  const SpaceImage *sima = CTX_wm_space_image(C);
+  if (sima == nullptr) {
+    return false;
+  }
+
+  if (!nodes::gizmos::image_gizmo_is_set_visible(*sima)) {
+    return false;
+  }
+
+  const SpaceNode *snode = nodes::gizmos::find_active_node_editor(C);
+  if (snode == nullptr || snode->edittree == nullptr) {
+    return false;
+  }
+
+  return nodes::gizmos::show_corner_pin(*snode);
 }
 
 void WIDGETGROUP_node_corner_pin_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
@@ -661,7 +740,7 @@ void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgrou
   cpin_group->state.offset = ibuf->flags & IB_has_display_window ? float2(ibuf->display_offset) :
                                                                    float2(0.0f);
 
-  SpaceNode *snode = find_node_editor(C);
+  SpaceNode *snode = find_active_node_editor(C);
   BLI_assert(snode != nullptr);
 
   bNode *node = bke::node_get_active(*snode->edittree);
@@ -821,7 +900,7 @@ void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   RNA_float_set_array(gz->ptr, "dimensions", split_group->state.dims);
   WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
 
-  SpaceNode *snode = find_node_editor(C);
+  SpaceNode *snode = find_active_node_editor(C);
   BLI_assert(snode != nullptr);
 
   bNode *node = bke::node_get_active(*snode->edittree);

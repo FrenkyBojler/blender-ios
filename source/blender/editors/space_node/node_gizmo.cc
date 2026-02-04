@@ -43,54 +43,6 @@ namespace blender::ed::space_node {
 /** \name Local Utilities
  * \{ */
 
-static void node_gizmo_calc_matrix_space(const SpaceNode *snode,
-                                         const ARegion *region,
-                                         float matrix_space[4][4])
-{
-  unit_m4(matrix_space);
-  mul_v3_fl(matrix_space[0], snode->zoom);
-  mul_v3_fl(matrix_space[1], snode->zoom);
-  matrix_space[3][0] = (region->winx / 2) + snode->xof;
-  matrix_space[3][1] = (region->winy / 2) + snode->yof;
-}
-
-static void node_gizmo_calc_matrix_space_with_image_dims(const SpaceNode *snode,
-                                                         const ARegion *region,
-                                                         const float2 &image_dims,
-                                                         const float2 &image_offset,
-                                                         float matrix_space[4][4])
-{
-  unit_m4(matrix_space);
-  mul_v3_fl(matrix_space[0], snode->zoom * image_dims.x);
-  mul_v3_fl(matrix_space[1], snode->zoom * image_dims.y);
-  matrix_space[3][0] = ((region->winx / 2) + snode->xof) -
-                       ((image_dims.x / 2.0f - image_offset.x) * snode->zoom);
-  matrix_space[3][1] = ((region->winy / 2) + snode->yof) -
-                       ((image_dims.y / 2.0f - image_offset.y) * snode->zoom);
-}
-
-// static bool node_gizmo_is_set_visible(const bContext *C)
-// {
-//   SpaceNode *snode = CTX_wm_space_node(C);
-//   if (snode == nullptr) {
-//     return false;
-//   }
-
-//   if ((snode->flag & SNODE_BACKDRAW) == 0) {
-//     return false;
-//   }
-
-//   if (!snode->edittree || snode->edittree->type != NTREE_COMPOSIT) {
-//     return false;
-//   }
-
-//   if (!(snode->gizmo_flag & (SNODE_GIZMO_HIDE | SNODE_GIZMO_HIDE_ACTIVE_NODE))) {
-//     return true;
-//   }
-
-//   return false;
-// }
-
 // todo (habib): move to NOD_compositor_gizmos
 static const float2 GIZMO_NODE_DEFAULT_DIMS{64.0f, 64.0f};
 static float2 node_gizmo_safe_calc_dims(const ImBuf *ibuf, const float2 &fallback_dims)
@@ -135,30 +87,13 @@ static void gizmo_node_backdrop_prop_matrix_set(const wmGizmo * /*gz*/,
   snode->yof = matrix[3][1];
 }
 
-static bool node_gizmo_is_set_visible(const SpaceNode &snode)
-{
-  if ((snode.flag & SNODE_BACKDRAW) == 0) {
-    return false;
-  }
-
-  if (!snode.edittree || snode.edittree->type != NTREE_COMPOSIT) {
-    return false;
-  }
-
-  if (!(snode.gizmo_flag & (SNODE_GIZMO_HIDE | SNODE_GIZMO_HIDE_ACTIVE_NODE))) {
-    return true;
-  }
-
-  return false;
-}
-
 static bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
     return false;
   }
-  if (!node_gizmo_is_set_visible(*snode)) {
+  if (!nodes::gizmos::node_gizmo_is_set_visible(*snode)) {
     return false;
   }
 
@@ -260,19 +195,13 @@ struct NodeBBoxWidgetGroup {
   } update_data;
 };
 
-static void gizmo_node_bbox_update(NodeBBoxWidgetGroup *bbox_group)
-{
-  RNA_property_update(
-      bbox_group->update_data.context, &bbox_group->update_data.ptr, bbox_group->update_data.prop);
-}
-
 static bool WIDGETGROUP_node_crop_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
     return false;
   }
-  if (!node_gizmo_is_set_visible(*snode)) {
+  if (!nodes::gizmos::node_gizmo_is_set_visible(*snode)) {
     return false;
   }
 
@@ -310,182 +239,6 @@ void NODE_GGT_backdrop_crop(wmGizmoGroupType *gzgt)
 /** \name Box Mask
  * \{ */
 
-static void gizmo_node_box_mask_prop_matrix_get(const wmGizmo *gz,
-                                                wmGizmoProperty *gz_prop,
-                                                void *value_p)
-{
-  float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
-  BLI_assert(gz_prop->type->array_length == 16);
-  NodeBBoxWidgetGroup *mask_group = static_cast<NodeBBoxWidgetGroup *>(
-      gz->parent_gzgroup->customdata);
-  const float2 dims = mask_group->state.dims;
-  const float2 offset = mask_group->state.offset;
-  const bNode *node = static_cast<const bNode *>(gz_prop->custom_func.user_data);
-  const float aspect = dims.x / dims.y;
-
-  float loc[3], rot[3][3], size[3];
-  mat4_to_loc_rot_size(loc, rot, size, matrix);
-
-  const bNodeSocket *rotation_input = bke::node_find_socket(*node, SOCK_IN, "Rotation");
-  const float rotation = rotation_input->default_value_typed<bNodeSocketValueFloat>()->value;
-  axis_angle_to_mat3_single(rot, 'Z', rotation);
-
-  const bNodeSocket *position_input = bke::node_find_socket(*node, SOCK_IN, "Position");
-  const float2 position = position_input->default_value_typed<bNodeSocketValueVector>()->value;
-  loc[0] = (position.x - 0.5) * dims.x + offset.x;
-  loc[1] = (position.y - 0.5) * dims.y + offset.y;
-  loc[2] = 0;
-
-  const bNodeSocket *size_input = bke::node_find_socket(*node, SOCK_IN, "Size");
-  const float2 size_value = size_input->default_value_typed<bNodeSocketValueVector>()->value;
-  size[0] = size_value.x;
-  size[1] = size_value.y * aspect;
-  size[2] = 1;
-
-  loc_rot_size_to_mat4(matrix, loc, rot, size);
-}
-
-static void gizmo_node_box_mask_prop_matrix_set(const wmGizmo *gz,
-                                                wmGizmoProperty *gz_prop,
-                                                const void *value_p)
-{
-  const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
-  BLI_assert(gz_prop->type->array_length == 16);
-  NodeBBoxWidgetGroup *mask_group = static_cast<NodeBBoxWidgetGroup *>(
-      gz->parent_gzgroup->customdata);
-  const float2 dims = mask_group->state.dims;
-  const float2 offset = mask_group->state.offset;
-  bNode *node = static_cast<bNode *>(gz_prop->custom_func.user_data);
-
-  bNodeSocket *position_input = bke::node_find_socket(*node, SOCK_IN, "Position");
-  const float2 position = position_input->default_value_typed<bNodeSocketValueVector>()->value;
-
-  bNodeSocket *size_input = bke::node_find_socket(*node, SOCK_IN, "Size");
-  const float2 size_value = size_input->default_value_typed<bNodeSocketValueVector>()->value;
-
-  const float aspect = dims.x / dims.y;
-  rctf rct;
-  rct.xmin = position.x - size_value.x / 2;
-  rct.xmax = position.x + size_value.x / 2;
-  rct.ymin = position.y - size_value.y / 2;
-  rct.ymax = position.y + size_value.y / 2;
-
-  float loc[3];
-  float rot[3][3];
-  float size[3];
-  mat4_to_loc_rot_size(loc, rot, size, matrix);
-
-  float eul[3];
-
-  /* Rotation can't be extracted from matrix when the gizmo width or height is zero. */
-  if (size[0] != 0 and size[1] != 0) {
-    mat4_to_eul(eul, matrix);
-    bNodeSocket *rotation_input = bke::node_find_socket(*node, SOCK_IN, "Rotation");
-    rotation_input->default_value_typed<bNodeSocketValueFloat>()->value = eul[2];
-  }
-
-  BLI_rctf_resize(&rct, fabsf(size[0]), fabsf(size[1]) / aspect);
-  BLI_rctf_recenter(
-      &rct, ((loc[0] - offset.x) / dims.x) + 0.5, ((loc[1] - offset.y) / dims.y) + 0.5);
-
-  size_input->default_value_typed<bNodeSocketValueVector>()->value[0] = size[0];
-  size_input->default_value_typed<bNodeSocketValueVector>()->value[1] = size[1] / aspect;
-  position_input->default_value_typed<bNodeSocketValueVector>()->value[0] = rct.xmin + size[0] / 2;
-  position_input->default_value_typed<bNodeSocketValueVector>()->value[1] = rct.ymin +
-                                                                            size[1] / aspect / 2;
-
-  gizmo_node_bbox_update(mask_group);
-}
-
-// static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
-// {
-//   if (!node_gizmo_is_set_visible(C)) {
-//     return false;
-//   }
-
-//   SpaceNode *snode = CTX_wm_space_node(C);
-//   bNode *node = bke::node_get_active(*snode->edittree);
-
-//   if (node && node->is_type("CompositorNodeBoxMask")) {
-//     snode->edittree->ensure_topology_cache();
-//     for (bNodeSocket &input : node->inputs) {
-//       if (STR_ELEM(input.name, "Position", "Size", "Rotation") && input.is_directly_linked()) {
-//         return false;
-//       }
-//     }
-//     return true;
-//   }
-
-//   return false;
-// }
-
-// void WIDGETGROUP_node_box_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
-// {
-//   NodeBBoxWidgetGroup *mask_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
-//   mask_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
-
-//   RNA_enum_set(mask_group->border->ptr,
-//                "transform",
-//                ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE | ED_GIZMO_CAGE_XFORM_FLAG_ROTATE |
-//                    ED_GIZMO_CAGE_XFORM_FLAG_SCALE);
-
-//   RNA_enum_set(mask_group->border->ptr,
-//                "draw_options",
-//                ED_GIZMO_CAGE_DRAW_FLAG_XFORM_CENTER_HANDLE |
-//                    ED_GIZMO_CAGE_DRAW_FLAG_CORNER_HANDLES);
-
-//   gzgroup->customdata = mask_group;
-//   gzgroup->customdata_free = [](void *customdata) {
-//     MEM_delete(static_cast<NodeBBoxWidgetGroup *>(customdata));
-//   };
-// }
-
-static void WIDGETGROUP_bbox_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
-{
-  ARegion *region = CTX_wm_region(C);
-  wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
-
-  SpaceNode *snode = CTX_wm_space_node(C);
-
-  node_gizmo_calc_matrix_space(snode, region, gz->matrix_space);
-}
-
-static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
-{
-  SpaceNode *snode = CTX_wm_space_node(C);
-  if (snode == nullptr) {
-    return false;
-  }
-  if (!node_gizmo_is_set_visible(*snode)) {
-    return false;
-  }
-
-  bNode *node = bke::node_get_active(*snode->edittree);
-
-  if (node && node->is_type("CompositorNodeBoxMask")) {
-    snode->edittree->ensure_topology_cache();
-    for (bNodeSocket &input : node->inputs) {
-      if (STR_ELEM(input.name, "Position", "Size", "Rotation") && input.is_directly_linked()) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  return false;
-}
-
-static void WIDGETGROUP_bbox_image_prepare(const bContext *C, wmGizmoGroup *gzgroup)
-{
-  ARegion *region = CTX_wm_region(C);
-  wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
-
-  SpaceImage *sima = CTX_wm_space_image(C);
-  const float2 offset = float2{sima->xof, sima->yof} * sima->zoom;
-
-  nodes::gizmos::node_gizmo_calc_matrix_space(region, sima->zoom, offset, gz->matrix_space);
-}
-
 void NODE_GGT_backdrop_box_mask(wmGizmoGroupType *gzgt)
 {
   gzgt->name = "Backdrop Box Mask Widget";
@@ -493,10 +246,10 @@ void NODE_GGT_backdrop_box_mask(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = WIDGETGROUP_node_box_mask_poll;
+  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_box_mask_poll_space_node;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_box_mask_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = WIDGETGROUP_bbox_draw_prepare;
+  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_node;
   gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_mask_refresh;
 }
 
@@ -512,7 +265,7 @@ static bool WIDGETGROUP_node_ellipse_mask_poll(const bContext *C, wmGizmoGroupTy
   if (snode == nullptr) {
     return false;
   }
-  if (!node_gizmo_is_set_visible(*snode)) {
+  if (!nodes::gizmos::node_gizmo_is_set_visible(*snode)) {
     return false;
   }
 
@@ -529,7 +282,7 @@ void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt)
   gzgt->poll = WIDGETGROUP_node_ellipse_mask_poll;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_ellipse_mask_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = WIDGETGROUP_bbox_draw_prepare;
+  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_node;
   gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_mask_refresh;
 }
 
@@ -545,7 +298,7 @@ static bool WIDGETGROUP_node_glare_poll(const bContext *C, wmGizmoGroupType * /*
   if (snode == nullptr) {
     return false;
   }
-  if (!node_gizmo_is_set_visible(*snode)) {
+  if (!nodes::gizmos::node_gizmo_is_set_visible(*snode)) {
     return false;
   }
 
@@ -562,8 +315,12 @@ static void WIDGETGROUP_node_glare_draw_prepare(const bContext *C, wmGizmoGroup 
 
   SpaceNode *snode = CTX_wm_space_node(C);
 
-  node_gizmo_calc_matrix_space_with_image_dims(
-      snode, region, glare_group->state.dims, glare_group->state.offset, gz->matrix_space);
+  nodes::gizmos::node_gizmo_calc_matrix_space_with_image_dims(region,
+                                                              snode->zoom,
+                                                              {-snode->xof, -snode->yof},
+                                                              glare_group->state.dims,
+                                                              glare_group->state.offset,
+                                                              gz->matrix_space);
 }
 
 void NODE_GGT_backdrop_glare(wmGizmoGroupType *gzgt)
@@ -592,7 +349,7 @@ static bool WIDGETGROUP_node_corner_pin_poll(const bContext *C, wmGizmoGroupType
   if (snode == nullptr) {
     return false;
   }
-  if (!node_gizmo_is_set_visible(*snode)) {
+  if (!nodes::gizmos::node_gizmo_is_set_visible(*snode)) {
     return false;
   }
 
@@ -610,8 +367,12 @@ static void WIDGETGROUP_node_corner_pin_draw_prepare(const bContext *C, wmGizmoG
   SpaceNode *snode = CTX_wm_space_node(C);
 
   float matrix_space[4][4];
-  node_gizmo_calc_matrix_space_with_image_dims(
-      snode, region, cpin_group->state.dims, cpin_group->state.offset, matrix_space);
+  nodes::gizmos::node_gizmo_calc_matrix_space_with_image_dims(region,
+                                                              snode->zoom,
+                                                              {-snode->xof, -snode->yof},
+                                                              cpin_group->state.dims,
+                                                              cpin_group->state.offset,
+                                                              matrix_space);
 
   for (int i = 0; i < 4; i++) {
     wmGizmo *gz = cpin_group->gizmos[i];
@@ -645,7 +406,7 @@ static bool WIDGETGROUP_node_split_poll(const bContext *C, wmGizmoGroupType * /*
   if (snode == nullptr) {
     return false;
   }
-  if (!node_gizmo_is_set_visible(*snode)) {
+  if (!nodes::gizmos::node_gizmo_is_set_visible(*snode)) {
     return false;
   }
 
@@ -662,7 +423,7 @@ void NODE_GGT_backdrop_split(wmGizmoGroupType *gzgt)
   gzgt->poll = WIDGETGROUP_node_split_poll;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_split_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = WIDGETGROUP_bbox_draw_prepare;
+  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_node;
   gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_split_refresh;
 }
 
