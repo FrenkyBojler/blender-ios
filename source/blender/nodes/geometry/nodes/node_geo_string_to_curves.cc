@@ -346,7 +346,7 @@ static std::optional<TextLayout> get_text_layout(GeoNodeExecParams &params)
     }
   }
 
-    if (params.anonymous_attribute_output_is_required("Word")) {
+  if (params.anonymous_attribute_output_is_required("Word")) {
     layout.word_numbers.reinitialize(layout.positions.size());
     for (const int i : layout.positions.index_range()) {
       CharTrans &ct = chartransdata[i];
