@@ -432,6 +432,27 @@ void dynamic_override_rule_remove_for_id(DynamicOverride &dynamic_override, ID &
   }
 }
 
+static IDProperty *idproperty_from_rna_property(PointerRNA &ptr,
+                                                PropertyRNA &prop,
+                                                StringRef rna_path)
+{
+  const bool is_array = RNA_property_array_check(&prop);
+  const PropertyType prop_type = RNA_property_type(&prop);
+
+  if (is_array) {
+    const int64_t len = RNA_property_array_length(&ptr, &prop);
+    switch (prop_type) {
+      case PROP_FLOAT: {
+        float *values = MEM_new_array<float>(size_t(len), __func__);
+        RNA_property_float_get_array(&ptr, &prop, values);
+        return idprop::create(rna_path, {values, len}, IDP_FLAG_STATIC_TYPE).release();
+      }
+    }
+  }
+  /* Dummy */
+  return idprop::create(rna_path, 1.0f, IDP_FLAG_STATIC_TYPE).release();
+}
+
 DynamicOverrideRuleProperty *dynamic_override_rule_rna_property_add(DynamicOverrideRule &rule,
                                                                     RNAPath &rna_path)
 {
@@ -458,13 +479,10 @@ DynamicOverrideRuleProperty *dynamic_override_rule_rna_property_add(DynamicOverr
   }
   rule_property->sub_item_index = rna_path.index.value_or(-1);
 
-  /* TODO: define matching IDP type, store orig value. Most likely want some smart wrapper - or use
-   * existing rna/idp logic if possible, as we already have the RNA property info?. */
-  /* Dummy idp for now! */
-  rule_property->orig_value =
-      idprop::create(RNA_property_identifier(prop), 1.0f, IDP_FLAG_STATIC_TYPE).release();
-  rule_property->new_value =
-      idprop::create(RNA_property_identifier(prop), 1.0f, IDP_FLAG_STATIC_TYPE).release();
+  rule_property->orig_value = idproperty_from_rna_property(ptr, *prop, rna_path.path);
+  rule_property->new_value = rule_property->orig_value ?
+                                 IDP_CopyProperty(rule_property->orig_value) :
+                                 nullptr;
 
   BLI_addtail(&rule_iddata.properties, rule_property);
 
