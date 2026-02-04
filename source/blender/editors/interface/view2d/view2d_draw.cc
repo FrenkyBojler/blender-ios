@@ -309,14 +309,16 @@ static void draw_horizontal_scale_indicators(const ARegion *region,
     return;
   }
 
-  const float2 view_bounds = {view2d_region_to_view_x(v2d, rect->xmin),
-                              view2d_region_to_view_x(v2d, rect->xmax)};
   float start_value;
   uint steps;
-  get_parallel_lines_draw_steps(distance, view_bounds, &start_value, &steps);
-  const uint steps_max = BLI_rcti_size_x(&v2d->mask) + 1;
-  if (UNLIKELY(steps >= steps_max)) {
-    return;
+  {
+    const float2 view_bounds = {view2d_region_to_view_x(v2d, rect->xmin),
+                                view2d_region_to_view_x(v2d, rect->xmax)};
+    get_parallel_lines_draw_steps(distance, view_bounds, &start_value, &steps);
+    const uint steps_max = BLI_rcti_size_x(&v2d->mask) + 1;
+    if (UNLIKELY(steps >= steps_max)) {
+      return;
+    }
   }
 
   GPU_matrix_push_projection();
@@ -354,14 +356,16 @@ static void draw_vertical_scale_indicators(const ARegion *region,
     return;
   }
 
-  const float2 view_bounds = {view2d_region_to_view_y(v2d, rect->ymin),
-                              view2d_region_to_view_y(v2d, rect->ymax)};
   float start;
   uint steps;
-  get_parallel_lines_draw_steps(distance, view_bounds, &start, &steps);
-  const uint steps_max = BLI_rcti_size_y(&v2d->mask) + 1;
-  if (UNLIKELY(steps >= steps_max)) {
-    return;
+  {
+    const float2 view_bounds = {view2d_region_to_view_y(v2d, rect->ymin),
+                                view2d_region_to_view_y(v2d, rect->ymax)};
+    get_parallel_lines_draw_steps(distance, view_bounds, &start, &steps);
+    const uint steps_max = BLI_rcti_size_y(&v2d->mask) + 1;
+    if (UNLIKELY(steps >= steps_max)) {
+      return;
+    }
   }
 
   GPU_matrix_push_projection();
