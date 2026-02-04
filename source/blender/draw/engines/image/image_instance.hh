@@ -74,10 +74,12 @@ class Instance : public DrawEngine {
   {
     if (this->state.image->source != IMA_SRC_TILED) {
       void *lock;
-      void **lock_ptr = this->state.image->source == IMA_SRC_VIEWER ? &lock : nullptr;
+      const bool is_viewer = this->state.image->source == IMA_SRC_VIEWER;
       ImBuf *buffer = BKE_image_acquire_ibuf(
-          this->state.image, space_->get_image_user(), lock_ptr);
-      BLI_SCOPED_DEFER([&]() { BKE_image_release_ibuf(this->state.image, buffer, lock); });
+          this->state.image, space_->get_image_user(), is_viewer ? &lock : nullptr);
+      BLI_SCOPED_DEFER([&]() {
+        BKE_image_release_ibuf(this->state.image, buffer, is_viewer ? lock : nullptr);
+      });
 
       /* Buffer does not exist or image will not fit in a GPU texture, use screen space drawing. */
       if (!buffer || (!buffer->float_buffer.data && !buffer->byte_buffer.data) ||
