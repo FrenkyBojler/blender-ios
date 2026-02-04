@@ -2,16 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "draw_skinning_infos.hh"
+#include "draw_skinning_lib.glsl"
 
 COMPUTE_SHADER_CREATE_INFO(draw_skinning_normals_accumulate)
-
-void add_newell_cross_v3_v3v3(inout float3 n, float3 v_prev, float3 v_curr)
-{
-  n[0] += (v_prev[1] - v_curr[1]) * (v_prev[2] + v_curr[2]);
-  n[1] += (v_prev[2] - v_curr[2]) * (v_prev[0] + v_curr[0]);
-  n[2] += (v_prev[0] - v_curr[0]) * (v_prev[1] + v_curr[1]);
-}
 
 void main()
 {
@@ -45,7 +38,6 @@ void main()
       uint corner_vert = corner_verts_buf[corner_idx];
       float3 v_j = skinned_pos_buf[corner_idx].xyz;
 
-      /* Check if this is our vertex */
       if (corner_vert == vertex_index) {
         curr_idx = j;
         v_curr = v_j;

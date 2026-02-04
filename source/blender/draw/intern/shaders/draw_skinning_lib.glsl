@@ -2,9 +2,19 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
+#include "draw_skinning_infos.hh"
+
+void add_newell_cross_v3_v3v3(inout float3 n, float3 v_prev, float3 v_curr)
+{
+  n[0] += (v_prev[1] - v_curr[1]) * (v_prev[2] + v_curr[2]);
+  n[1] += (v_prev[2] - v_curr[2]) * (v_prev[0] + v_curr[0]);
+  n[2] += (v_prev[0] - v_curr[0]) * (v_prev[1] + v_curr[1]);
+}
+
 /* THIS ISN'T USED FOR NOW! WILL BE USED UNTIL SKINNING PRODUCES ACCURATE RESULTS!
  * THEN WE CAN USE THIS AS AN EXTRA LOW QUALITY MODE FOR PERFORMANCE */
-
 float2 unpack_weights_from_uint(uint x)
 {
   const float inv65535 = 1.0f / 65535.0f;

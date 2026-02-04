@@ -10,7 +10,6 @@
 #  pragma once
 #endif
 
-
 #define SKINNING_AABB_LOCAL_SIZE 32
 
 #define SKINNING_LOCAL_SIZE 64

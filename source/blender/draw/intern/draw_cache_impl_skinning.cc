@@ -126,8 +126,8 @@ void draw_free_skinning_runtime_cache(const Object &ob)
  * \{ */
 
 static void draw_skinning_pack_mesh_data(Object *armature_ob,
-                                           DRWSkinningCache *cache,
-                                           MeshRenderData &mr)
+                                         DRWSkinningCache *cache,
+                                         MeshRenderData &mr)
 {
   const int verts_num = mr.mesh->verts_num;
   if (verts_num == 0) {
@@ -1010,8 +1010,8 @@ static void draw_create_skinning(Object &ob,
         // TODO (Ayoub Zouad): needs better evaluation for if topo/new modifiers added
         // TODO (Ayoub Zouad): we need to handle multimodifiers
         int unique_count = draw_get_segment_count(amd->object);
-        if (flag_changed || skincache->total_segments != unique_count) {
 
+        if (flag_changed || skincache->total_segments != unique_count) {
           draw_skinning_cache_free(*skincache);
           draw_skinning_setup_buffers(amd->object, skincache, mr, amd);
           draw_skinning_setup_normal_buffers(skincache, mr);

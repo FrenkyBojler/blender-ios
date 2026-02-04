@@ -2611,11 +2611,12 @@ static void sculpt_update_object(Depsgraph *depsgraph,
 
     if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
       const Mesh *me_eval_deform = BKE_object_get_mesh_deform_eval(ob_eval);
-      /* check for nullptr due to GPU Skinning returning nothing*/
+      /* sanity check due to GPU Skinning */
       if (me_eval_deform != nullptr) {
         /* If the fully evaluated mesh has the same topology as the deform-only version, use it.
-        * This matters because crazyspace evaluation is very restrictive and excludes even modifiers
-        * that simply recompute vertex weights (which can even include Geometry Nodes). */
+         * This matters because crazyspace evaluation is very restrictive and excludes even
+         * modifiers that simply recompute vertex weights (which can even include Geometry Nodes).
+         */
         if (me_eval_deform->faces_num == mesh_eval->faces_num &&
             me_eval_deform->corners_num == mesh_eval->corners_num &&
             me_eval_deform->verts_num == mesh_eval->verts_num)

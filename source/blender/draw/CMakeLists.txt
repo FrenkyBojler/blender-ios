@@ -664,6 +664,7 @@ set(GLSL_SRC
   intern/shaders/draw_view_reconstruction_lib.glsl
   intern/shaders/draw_visibility_comp.glsl
   intern/shaders/draw_skinning_linear.glsl
+  intern/shaders/draw_skinning_lib.glsl
   intern/shaders/draw_skinning_aabb.glsl
   intern/shaders/draw_skinning_normals_accumulate.glsl
   intern/shaders/draw_skinning_normals_finalize.glsl

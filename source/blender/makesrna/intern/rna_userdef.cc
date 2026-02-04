@@ -6191,10 +6191,11 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "gpuskin_influences");
   RNA_def_property_range(prop, 1, 128);
   RNA_def_property_ui_range(prop, 4, 32, 2, 2);
-  RNA_def_property_ui_text(prop,
-                           "Max influences",
-                           "Max amount of influences per vertex to evaluate for..."
-                           " 4 fastest, 8 gives quality and speed, 32 overkill might help very large rigs");
+  RNA_def_property_ui_text(
+      prop,
+      "Max influences",
+      "Max amount of influences per vertex to evaluate for..."
+      " 4 fastest, 8 gives quality and speed, 32 overkill might help very large rigs");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, 0, "rna_UserDef_deformation_update");
 
