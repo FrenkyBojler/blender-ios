@@ -415,7 +415,7 @@ void GPU_framebuffer_viewport_reset(gpu::FrameBuffer *gpu_fb)
 
 void GPU_framebuffer_clear(gpu::FrameBuffer *gpu_fb,
                            GPUFrameBufferBits buffers,
-                           const float clear_col[4],
+                           const double4 clear_col,
                            float clear_depth,
                            uint clear_stencil)
 {
@@ -425,18 +425,18 @@ void GPU_framebuffer_clear(gpu::FrameBuffer *gpu_fb,
   gpu_fb->clear(buffers, clear_col, clear_depth, clear_stencil);
 }
 
-void GPU_framebuffer_clear_color(gpu::FrameBuffer *fb, const float clear_col[4])
+void GPU_framebuffer_clear_color(gpu::FrameBuffer *fb, const double4 clear_col)
 {
   GPU_framebuffer_clear(fb, GPU_COLOR_BIT, clear_col, 0.0f, 0x00);
 }
 
 void GPU_framebuffer_clear_depth(gpu::FrameBuffer *fb, float clear_depth)
 {
-  GPU_framebuffer_clear(fb, GPU_DEPTH_BIT, nullptr, clear_depth, 0x00);
+  GPU_framebuffer_clear(fb, GPU_DEPTH_BIT, double4{}, clear_depth, 0x00);
 }
 
 void GPU_framebuffer_clear_color_depth(gpu::FrameBuffer *fb,
-                                       const float clear_col[4],
+                                       const double4 clear_col,
                                        float clear_depth)
 {
   GPU_framebuffer_clear(fb, GPU_COLOR_BIT | GPU_DEPTH_BIT, clear_col, clear_depth, 0x00);
@@ -444,18 +444,19 @@ void GPU_framebuffer_clear_color_depth(gpu::FrameBuffer *fb,
 
 void GPU_framebuffer_clear_stencil(gpu::FrameBuffer *fb, uint clear_stencil)
 {
-  GPU_framebuffer_clear(fb, GPU_STENCIL_BIT, nullptr, 0.0f, clear_stencil);
+  GPU_framebuffer_clear(fb, GPU_STENCIL_BIT, double4{}, 0.0f, clear_stencil);
 }
 
 void GPU_framebuffer_clear_depth_stencil(gpu::FrameBuffer *fb,
                                          float clear_depth,
                                          uint clear_stencil)
 {
-  GPU_framebuffer_clear(fb, GPU_DEPTH_BIT | GPU_STENCIL_BIT, nullptr, clear_depth, clear_stencil);
+  GPU_framebuffer_clear(
+      fb, GPU_DEPTH_BIT | GPU_STENCIL_BIT, double4{}, clear_depth, clear_stencil);
 }
 
 void GPU_framebuffer_clear_color_depth_stencil(gpu::FrameBuffer *fb,
-                                               const float clear_col[4],
+                                               const double4 clear_col,
                                                float clear_depth,
                                                uint clear_stencil)
 {
@@ -463,7 +464,7 @@ void GPU_framebuffer_clear_color_depth_stencil(gpu::FrameBuffer *fb,
       fb, GPU_COLOR_BIT | GPU_DEPTH_BIT | GPU_STENCIL_BIT, clear_col, clear_depth, clear_stencil);
 }
 
-void GPU_framebuffer_multi_clear(gpu::FrameBuffer *fb, const float (*clear_colors)[4])
+void GPU_framebuffer_multi_clear(gpu::FrameBuffer *fb, Span<double4> clear_colors)
 {
   BLI_assert_msg(fb->get_use_explicit_loadstore() == false,
                  "Using GPU_framebuffer_clear_* functions in conjunction with custom load-store "
@@ -476,7 +477,7 @@ void GPU_clear_color(float red, float green, float blue, float alpha)
   BLI_assert_msg(Context::get()->active_fb->get_use_explicit_loadstore() == false,
                  "Using GPU_framebuffer_clear_* functions in conjunction with custom load-store "
                  "state via GPU_framebuffer_bind_ex is invalid.");
-  float clear_col[4] = {red, green, blue, alpha};
+  double4 clear_col = {red, green, blue, alpha};
   Context::get()->active_fb->clear(GPU_COLOR_BIT, clear_col, 0.0f, 0x0);
 }
 
@@ -485,8 +486,7 @@ void GPU_clear_depth(float depth)
   BLI_assert_msg(Context::get()->active_fb->get_use_explicit_loadstore() == false,
                  "Using GPU_framebuffer_clear_* functions in conjunction with custom load-store "
                  "state via GPU_framebuffer_bind_ex is invalid.");
-  float clear_col[4] = {0};
-  Context::get()->active_fb->clear(GPU_DEPTH_BIT, clear_col, depth, 0x0);
+  Context::get()->active_fb->clear(GPU_DEPTH_BIT, double4{}, depth, 0x0);
 }
 
 void GPU_framebuffer_read_depth(
@@ -720,14 +720,12 @@ GPUOffScreen *GPU_offscreen_create(int width,
   }
 
   if (clear) {
-    float const clear_color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    float clear_depth = 0.0f;
     GPU_framebuffer_bind(fb);
     if (with_depth_buffer) {
-      GPU_framebuffer_clear_color_depth(fb, clear_color, clear_depth);
+      GPU_framebuffer_clear_color_depth(fb, {0, 0, 0, 0}, 0);
     }
     else {
-      GPU_framebuffer_clear_color(fb, clear_color);
+      GPU_framebuffer_clear_color(fb, {0, 0, 0, 0});
     }
   }
 

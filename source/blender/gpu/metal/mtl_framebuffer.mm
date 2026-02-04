@@ -358,7 +358,7 @@ void MTLFrameBuffer::clear(GPUFrameBufferBits buffers,
   }
 }
 
-void MTLFrameBuffer::clear_multi(const float (*clear_cols)[4])
+void MTLFrameBuffer::clear_multi(const Span<double4> clear_cols)
 {
   /* If we had no previous clear pending, reset clear state. */
   if (!has_pending_clear_) {
@@ -388,9 +388,7 @@ void MTLFrameBuffer::clear_multi(const float (*clear_cols)[4])
   }
 }
 
-void MTLFrameBuffer::clear_attachment(GPUAttachmentType type,
-                                      eGPUDataFormat data_format,
-                                      const void *clear_value)
+void MTLFrameBuffer::clear_attachment(GPUAttachmentType type, const double4 clear_value)
 {
   BLI_assert(MTLContext::get() == context_);
   BLI_assert(context_->active_fb == this);

@@ -135,9 +135,7 @@ class MTLFrameBuffer : public FrameBuffer {
              float clear_depth,
              uint clear_stencil) override;
   void clear_multi(const float (*clear_cols)[4]) override;
-  void clear_attachment(GPUAttachmentType type,
-                        eGPUDataFormat data_format,
-                        const void *clear_value) override;
+  void clear_attachment(GPUAttachmentType type, const double4 clear_value) override;
 
   void attachment_set_loadstore_op(GPUAttachmentType type, GPULoadStore ls) override;
 

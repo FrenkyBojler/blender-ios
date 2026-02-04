@@ -33,7 +33,7 @@ static void test_framebuffer_clear_color_single_attachment()
   GPU_framebuffer_bind(framebuffer);
 
   const float4 clear_color(0.1f, 0.2f, 0.5f, 1.0f);
-  GPU_framebuffer_clear_color(framebuffer, clear_color);
+  GPU_framebuffer_clear_color(framebuffer, double4(clear_color));
   GPU_finish();
 
   float4 *read_data = static_cast<float4 *>(GPU_texture_read(texture, GPU_DATA_FLOAT, 0));
@@ -63,7 +63,7 @@ static void test_framebuffer_clear_color_multiple_attachments()
   GPU_framebuffer_bind(framebuffer);
 
   const float4 clear_color(0.1f, 0.2f, 0.5f, 1.0f);
-  GPU_framebuffer_clear_color(framebuffer, clear_color);
+  GPU_framebuffer_clear_color(framebuffer, double4(clear_color));
   GPU_finish();
 
   float4 *read_data1 = static_cast<float4 *>(GPU_texture_read(texture1, GPU_DATA_FLOAT, 0));
@@ -103,20 +103,20 @@ static void test_framebuffer_clear_multiple_color_multiple_attachments()
       {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(texture1), GPU_ATTACHMENT_TEXTURE(texture2)});
   GPU_framebuffer_bind(framebuffer);
 
-  const float4 clear_color[2] = {float4(0.1f, 0.2f, 0.5f, 1.0f), float4(0.5f, 0.2f, 0.1f, 1.0f)};
-  GPU_framebuffer_multi_clear(
-      framebuffer, static_cast<const float (*)[4]>(static_cast<const void *>(clear_color)));
+  const std::array<double4, 2> clear_color = {double4(0.1f, 0.2f, 0.5f, 1.0f),
+                                              double4(0.5f, 0.2f, 0.1f, 1.0f)};
+  GPU_framebuffer_multi_clear(framebuffer, clear_color);
   GPU_finish();
 
   float4 *read_data1 = static_cast<float4 *>(GPU_texture_read(texture1, GPU_DATA_FLOAT, 0));
   for (float4 pixel_color : Span<float4>(read_data1, size.x * size.y)) {
-    EXPECT_EQ(clear_color[0], pixel_color);
+    EXPECT_EQ(float4(clear_color[0]), pixel_color);
   }
   MEM_delete(read_data1);
 
   float4 *read_data2 = static_cast<float4 *>(GPU_texture_read(texture2, GPU_DATA_FLOAT, 0));
   for (float4 pixel_color : Span<float4>(read_data2, size.x * size.y)) {
-    EXPECT_EQ(clear_color[1], pixel_color);
+    EXPECT_EQ(float4(clear_color[1]), pixel_color);
   }
   MEM_delete(read_data2);
 
@@ -169,14 +169,14 @@ static void test_framebuffer_scissor_test()
   const float4 color1(0.0f);
   const float4 color2(0.5f);
   const float4 color3(1.0f);
-  GPU_framebuffer_clear_color(framebuffer, color1);
+  GPU_framebuffer_clear_color(framebuffer, double4(color1));
 
   GPU_scissor_test(true);
   GPU_scissor(0, 0, 1, 2);
-  GPU_framebuffer_clear_color(framebuffer, color2);
+  GPU_framebuffer_clear_color(framebuffer, double4(color2));
 
   GPU_scissor(0, 0, 2, 1);
-  GPU_framebuffer_clear_color(framebuffer, color3);
+  GPU_framebuffer_clear_color(framebuffer, double4(color3));
   GPU_scissor_test(false);
   GPU_finish();
 
@@ -204,7 +204,7 @@ static void test_framebuffer_cube()
   gpu::Texture *tex = GPU_texture_create_cube(
       "tex", SIZE, 1, TextureFormat::SFLOAT_32_32_32_32, usage, nullptr);
 
-  const float4 clear_colors[6] = {
+  const double4 clear_colors[6] = {
       {0.5f, 0.0f, 0.0f, 1.0f},
       {1.0f, 0.0f, 0.0f, 1.0f},
       {0.0f, 0.5f, 0.0f, 1.0f},
@@ -228,7 +228,7 @@ static void test_framebuffer_cube()
   for (int side : IndexRange(6)) {
     for (int pixel_index : IndexRange(SIZE * SIZE)) {
       int index = pixel_index + (SIZE * SIZE) * side;
-      EXPECT_EQ(clear_colors[side], data[index]);
+      EXPECT_EQ(float4(clear_colors[side]), data[index]);
     }
   }
   MEM_delete(data);
@@ -277,8 +277,7 @@ static void test_framebuffer_multi_viewport()
   }
   GPU_framebuffer_multi_viewports_set(framebuffer, viewport_rects);
 
-  const float4 clear_color(0.0f);
-  GPU_framebuffer_clear_color(framebuffer, clear_color);
+  GPU_framebuffer_clear_color(framebuffer, double4(0));
 
   ShaderCreateInfo create_info("gpu_framebuffer_layer_viewport_test");
   create_info.vertex_source("gpu_framebuffer_layer_viewport_test.glsl");
@@ -344,8 +343,7 @@ static void test_framebuffer_subpass_input()
       {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(texture_a), GPU_ATTACHMENT_TEXTURE(texture_b)});
   GPU_framebuffer_bind(framebuffer);
 
-  const float4 clear_color(0.0f);
-  GPU_framebuffer_clear_color(framebuffer, clear_color);
+  GPU_framebuffer_clear_color(framebuffer, {0, 0, 0, 0});
 
   ShaderCreateInfo create_info_write("gpu_framebuffer_subpass_input_test");
   create_info_write.define("WRITE");
@@ -422,7 +420,7 @@ static void test_framebuffer_subpass_input_clearops()
       __func__, UNPACK2(size), 1, TextureFormat::SINT_32, usage, nullptr);
 
   const int invalid_data = 0xDEADBEEF;
-  texture_a->clear(GPU_DATA_INT, &invalid_data);
+  texture_a->clear(double4(invalid_data));
 
   gpu::FrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(

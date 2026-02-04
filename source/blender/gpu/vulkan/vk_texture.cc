@@ -115,22 +115,12 @@ void VKTexture::copy_to(Texture *tex)
   copy_to(*dst, to_vk_image_aspect_flag_bits(device_format_));
 }
 
-void VKTexture::clear(eGPUDataFormat format, const void *data)
+void VKTexture::clear(const double4 data)
 {
-  if (format == GPU_DATA_UINT_24_8_DEPRECATED) {
-    float clear_depth = 0.0f;
-    convert_host_to_device(&clear_depth,
-                           data,
-                           1,
-                           format,
-                           TextureFormat::SFLOAT_32_DEPTH_UINT_8,
-                           TextureFormat::SFLOAT_32_DEPTH_UINT_8);
-    clear_depth_stencil(GPU_DEPTH_BIT | GPU_STENCIL_BIT, clear_depth, 0u, std::nullopt);
-    return;
-  }
+  eGPUDataFormat data_format = to_texture_data_format(format_);
 
   render_graph::VKClearColorImageNode::CreateInfo clear_color_image = {};
-  clear_color_image.vk_clear_color_value = to_vk_clear_color_value(format, data);
+  clear_color_image.vk_clear_color_value = to_vk_clear_color_value(data_format, data);
   clear_color_image.vk_image = vk_image_handle();
   clear_color_image.vk_image_subresource_range.aspectMask = to_vk_image_aspect_flag_bits(
       device_format_);
