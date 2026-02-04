@@ -632,8 +632,6 @@ class NODE_MT_node_color_context_menu(Menu):
         layout = self.layout
 
         layout.operator("node.node_copy_color", text="Copy to Selected")
-        layout.separator()
-        layout.popover("NODE_PT_node_color_presets", icon='PRESET')
 
 
 class NODE_MT_context_menu_show_hide_menu(Menu):
@@ -809,6 +807,11 @@ class NODE_PT_active_node_generic(Panel):
         sub.active = node.use_custom_color
         sub.prop(node, "color", text="")
         sub.menu("NODE_MT_node_color_context_menu", text="", icon='DOWNARROW_HLT')
+        sub.popover(
+            panel="NODE_PT_node_color_presets",
+            icon='PRESET',
+            text="",
+        )
 
         col.prop(node, "show_options")
         col.prop(node, "mute")
