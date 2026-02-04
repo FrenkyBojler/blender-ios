@@ -460,7 +460,7 @@ struct SyncSelectActiveData {
 };
 
 /** Sync select and active flags from active view layer, bones, and sequences to the outliner. */
-static bool outliner_sync_selection_to_outliner(const Scene *scene,
+static void outliner_sync_selection_to_outliner(const Scene *scene,
                                                 ViewLayer *view_layer,
                                                 SpaceOutliner *space_outliner,
                                                 ListBaseT<TreeElement> *tree,
@@ -506,7 +506,6 @@ static bool outliner_sync_selection_to_outliner(const Scene *scene,
                                         sync_types,
                                         is_active_changed);
   }
-  return is_active_changed;
 }
 
 /* Get active data from context */
