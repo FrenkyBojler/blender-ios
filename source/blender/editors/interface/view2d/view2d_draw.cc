@@ -440,13 +440,13 @@ static void frame_to_string(const Scene * /*user_data*/,
                             char *r_str,
                             const uint str_maxncpy)
 {
-  if (step >= 1.0f * UI_SCALE_FAC) {
+  if (step >= 1.0f) {
     BLI_snprintf_utf8(r_str, str_maxncpy, "%d", int(frame));
   }
-  else if (step >= 0.5f * UI_SCALE_FAC) {
+  else if (step >= 0.5f) {
     BLI_snprintf_utf8(r_str, str_maxncpy, "%.1f", frame);
   }
-  else if (step >= 0.01f * UI_SCALE_FAC) {
+  else if (step >= 0.01f) {
     BLI_snprintf_utf8(r_str, str_maxncpy, "%.2f", frame);
   }
   else {
@@ -599,6 +599,7 @@ void view2d_draw_scale_x(const ARegion *region,
     step = calculate_grid_step(
         base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur), min_line_distance);
   }
+
   if (display_seconds) {
     draw_horizontal_scale_indicators(
         region, v2d, step, rect, frame_to_time_string, scene, colorid);
