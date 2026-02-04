@@ -5,8 +5,8 @@
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
-#include "BKE_pbvh_api.hh"
-#include "BKE_pbvh_pixels.hh"
+#include "BKE_paint_bvh.hh"
+#include "BKE_paint_bvh_pixels.hh"
 
 #include "DNA_image_types.h"
 #include "DNA_object_types.h"
@@ -14,9 +14,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
-#include "BLI_task.h"
 
-#include "BKE_global.hh"
 #include "BKE_image_wrappers.hh"
 #include "BKE_paint.hh"
 
@@ -24,7 +22,9 @@
 #include "pbvh_pixels_copy.hh"
 #include "pbvh_uv_islands.hh"
 
-namespace blender::bke::pbvh::pixels {
+namespace blender {
+
+namespace bke::pbvh::pixels {
 
 /**
  * Calculate the delta of two neighbor UV coordinates in the given image buffer.
@@ -130,12 +130,8 @@ struct UVPrimitiveLookup {
 
     uint64_t uv_island_index = 0;
     for (uv_islands::UVIsland &uv_island : uv_islands.islands) {
-      for (VectorList<uv_islands::UVPrimitive>::UsedVector &uv_primitives :
-           uv_island.uv_primitives)
-      {
-        for (uv_islands::UVPrimitive &uv_primitive : uv_primitives) {
-          lookup[uv_primitive.primitive_i].append_as(Entry(&uv_primitive, uv_island_index));
-        }
+      for (uv_islands::UVPrimitive &uv_primitive : uv_island.uv_primitives) {
+        lookup[uv_primitive.primitive_i].append_as(Entry(&uv_primitive, uv_island_index));
       }
       uv_island_index++;
     }
@@ -151,8 +147,8 @@ static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
 {
   NodeData *node_data = static_cast<NodeData *>(node.pixels_);
 
-  LISTBASE_FOREACH (ImageTile *, tile, &image.tiles) {
-    image::ImageTileWrapper image_tile(tile);
+  for (ImageTile &tile : image.tiles) {
+    image::ImageTileWrapper image_tile(&tile);
     image_user.tile = image_tile.get_tile_number();
     ImBuf *image_buffer = BKE_image_acquire_ibuf(&image, &image_user, nullptr);
     if (image_buffer == nullptr) {
@@ -217,13 +213,13 @@ static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
 
 static bool should_pixels_be_updated(const Node &node)
 {
-  if ((node.flag_ & (PBVH_Leaf | PBVH_TexLeaf)) == 0) {
+  if ((node.flag_ & (Node::Leaf | Node::TexLeaf)) == 0) {
     return false;
   }
   if (node.children_offset_ != 0) {
     return false;
   }
-  if ((node.flag_ & PBVH_RebuildPixels) != 0) {
+  if ((node.flag_ & Node::RebuildPixels) != 0) {
     return true;
   }
   NodeData *node_data = static_cast<NodeData *>(node.pixels_);
@@ -277,7 +273,7 @@ static bool find_nodes_to_update(Tree &pbvh, Vector<MeshNode *> &r_nodes_to_upda
       continue;
     }
     r_nodes_to_update.append(&node);
-    node.flag_ = static_cast<PBVHNodeFlags>(node.flag_ | PBVH_RebuildPixels);
+    node.flag_ = (node.flag_ | Node::RebuildPixels);
 
     if (node.pixels_ == nullptr) {
       NodeData *node_data = MEM_new<NodeData>(__func__);
@@ -295,15 +291,15 @@ static bool find_nodes_to_update(Tree &pbvh, Vector<MeshNode *> &r_nodes_to_upda
 static void apply_watertight_check(Tree &pbvh, Image &image, ImageUser &image_user)
 {
   ImageUser watertight = image_user;
-  LISTBASE_FOREACH (ImageTile *, tile_data, &image.tiles) {
-    image::ImageTileWrapper image_tile(tile_data);
+  for (ImageTile &tile_data : image.tiles) {
+    image::ImageTileWrapper image_tile(&tile_data);
     watertight.tile = image_tile.get_tile_number();
     ImBuf *image_buffer = BKE_image_acquire_ibuf(&image, &watertight, nullptr);
     if (image_buffer == nullptr) {
       continue;
     }
     for (Node &node : pbvh.nodes<MeshNode>()) {
-      if ((node.flag_ & PBVH_Leaf) == 0) {
+      if ((node.flag_ & Node::Leaf) == 0) {
         continue;
       }
       NodeData *node_data = static_cast<NodeData *>(node.pixels_);
@@ -321,7 +317,7 @@ static void apply_watertight_check(Tree &pbvh, Image &image, ImageUser &image_us
           }
           if (image_buffer->byte_buffer.data) {
             uint8_t *dest = &image_buffer->byte_buffer.data[pixel_offset * 4];
-            copy_v4_uchar(dest, 255);
+            dest[0] = dest[1] = dest[2] = dest[3] = 255;
           }
           pixel_offset += 1;
         }
@@ -343,9 +339,8 @@ static bool update_pixels(const Depsgraph &depsgraph,
     return false;
   }
 
-  const Mesh &mesh = *static_cast<const Mesh *>(object.data);
-  const StringRef active_uv_name = CustomData_get_active_layer_name(&mesh.corner_data,
-                                                                    CD_PROP_FLOAT2);
+  const Mesh &mesh = *id_cast<const Mesh *>(object.data);
+  const StringRef active_uv_name = mesh.active_uv_map_name();
   if (active_uv_name.is_empty()) {
     return false;
   }
@@ -362,8 +357,8 @@ static bool update_pixels(const Depsgraph &depsgraph,
 
   uv_islands::UVIslandsMask uv_masks;
   ImageUser tile_user = image_user;
-  LISTBASE_FOREACH (ImageTile *, tile_data, &image.tiles) {
-    image::ImageTileWrapper image_tile(tile_data);
+  for (ImageTile &tile_data : image.tiles) {
+    image::ImageTileWrapper image_tile(&tile_data);
     tile_user.tile = image_tile.get_tile_number();
     ImBuf *tile_buffer = BKE_image_acquire_ibuf(&image, &tile_user, nullptr);
     if (tile_buffer == nullptr) {
@@ -403,13 +398,13 @@ static bool update_pixels(const Depsgraph &depsgraph,
 
   /* Clear the UpdatePixels flag. */
   for (Node *node : nodes_to_update) {
-    node->flag_ = static_cast<PBVHNodeFlags>(node->flag_ & ~PBVH_RebuildPixels);
+    node->flag_ &= ~Node::RebuildPixels;
   }
 
-  /* Add PBVH_TexLeaf flag */
+  /* Add Node::TexLeaf flag */
   for (Node &node : pbvh.nodes<MeshNode>()) {
-    if (node.flag_ & PBVH_Leaf) {
-      node.flag_ = (PBVHNodeFlags)(int(node.flag_) | int(PBVH_TexLeaf));
+    if (node.flag_ & Node::Leaf) {
+      node.flag_ |= Node::TexLeaf;
     }
   }
 
@@ -421,7 +416,7 @@ static bool update_pixels(const Depsgraph &depsgraph,
     int num_pixels = 0;
     for (int n = 0; n < pbvh->totnode; n++) {
       Node *node = &pbvh->nodes[n];
-      if ((node->flag & PBVH_Leaf) == 0) {
+      if ((node->flag & Node::Leaf) == 0) {
         continue;
       }
       NodeData *node_data = static_cast<NodeData *>(node->pixels.node_data);
@@ -462,8 +457,8 @@ void mark_image_dirty(Node &node, Image &image, ImageUser &image_user)
   NodeData *node_data = static_cast<NodeData *>(node.pixels_);
   if (node_data->flags.dirty) {
     ImageUser local_image_user = image_user;
-    LISTBASE_FOREACH (ImageTile *, tile, &image.tiles) {
-      image::ImageTileWrapper image_tile(tile);
+    for (ImageTile &tile : image.tiles) {
+      image::ImageTileWrapper image_tile(&tile);
       local_image_user.tile = image_tile.get_tile_number();
       ImBuf *image_buffer = BKE_image_acquire_ibuf(&image, &local_image_user, nullptr);
       if (image_buffer == nullptr) {
@@ -483,9 +478,9 @@ void collect_dirty_tiles(Node &node, Vector<image::TileNumber> &r_dirty_tiles)
   node_data->collect_dirty_tiles(r_dirty_tiles);
 }
 
-}  // namespace blender::bke::pbvh::pixels
+}  // namespace bke::pbvh::pixels
 
-namespace blender::bke::pbvh {
+namespace bke::pbvh {
 
 void build_pixels(const Depsgraph &depsgraph, Object &object, Image &image, ImageUser &image_user)
 {
@@ -512,4 +507,5 @@ void pixels_free(Tree *pbvh)
   pbvh->pixels_ = nullptr;
 }
 
-}  // namespace blender::bke::pbvh
+}  // namespace bke::pbvh
+}  // namespace blender

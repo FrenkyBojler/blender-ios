@@ -13,9 +13,11 @@
 #include <Alembic/AbcGeom/OPolyMesh.h>
 #include <Alembic/AbcGeom/OSubD.h>
 
+namespace blender {
+
 struct ModifierData;
 
-namespace blender::io::alembic {
+namespace io::alembic {
 
 /* Writer for Alembic geometry. Does not assume the object is a mesh object. */
 class ABCGenericMeshWriter : public ABCAbstractWriter {
@@ -39,13 +41,13 @@ class ABCGenericMeshWriter : public ABCAbstractWriter {
  public:
   explicit ABCGenericMeshWriter(const ABCWriterConstructorArgs &args);
 
-  virtual void create_alembic_objects(const HierarchyContext *context) override;
-  virtual Alembic::Abc::OObject get_alembic_object() const override;
+  void create_alembic_objects(const HierarchyContext *context) override;
+  Alembic::Abc::OObject get_alembic_object() const override;
   Alembic::Abc::OCompoundProperty abc_prop_for_custom_props() override;
 
  protected:
-  virtual bool is_supported(const HierarchyContext *context) const override;
-  virtual void do_write(HierarchyContext &context) override;
+  bool is_supported(const HierarchyContext *context) const override;
+  void do_write(HierarchyContext &context) override;
 
   virtual Mesh *get_export_mesh(Object *object_eval, bool &r_needsfree) = 0;
   virtual void free_export_mesh(Mesh *mesh);
@@ -70,7 +72,8 @@ class ABCMeshWriter : public ABCGenericMeshWriter {
   ABCMeshWriter(const ABCWriterConstructorArgs &args);
 
  protected:
-  virtual Mesh *get_export_mesh(Object *object_eval, bool &r_needsfree) override;
+  Mesh *get_export_mesh(Object *object_eval, bool &r_needsfree) override;
 };
 
-}  // namespace blender::io::alembic
+}  // namespace io::alembic
+}  // namespace blender

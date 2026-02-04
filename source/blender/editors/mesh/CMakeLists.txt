@@ -5,17 +5,7 @@
 set(INC
   ../include
   ../uvedit
-  ../../blenkernel
-  ../../blentranslation
-  ../../bmesh
-  ../../draw
-  ../../functions
-  ../../geometry
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../render
-  ../../windowmanager
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -40,7 +30,6 @@ set(SRC
   editmesh_knife.cc
   editmesh_knife_project.cc
   editmesh_loopcut.cc
-  editmesh_mask_extract.cc
   editmesh_path.cc
   editmesh_polybuild.cc
   editmesh_preselect_edgering.cc
@@ -54,6 +43,7 @@ set(SRC
   editmesh_undo.cc
   editmesh_utils.cc
   mesh_data.cc
+  mesh_join.cc
   mesh_mirror.cc
   mesh_ops.cc
   meshtools.cc
@@ -63,14 +53,21 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenfont
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::draw
+  PRIVATE bf::functions
+  PRIVATE bf::geometry
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  bf_windowmanager
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_FREESTYLE)

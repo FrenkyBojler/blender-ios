@@ -17,9 +17,9 @@
 #include "BLI_array.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "DNA_customdata_types.h"
-
 #include "bmesh.hh"
+
+namespace blender {
 
 struct BMLoop;
 struct BMPartialUpdate;
@@ -49,11 +49,11 @@ struct BMEditMesh {
    *
    * \see #Mesh::corner_tris() as the documentation gives useful hints that apply to this data too.
    */
-  blender::Array<std::array<BMLoop *, 3>> looptris;
+  Array<std::array<BMLoop *, 3>> looptris;
 
   /** Selection mode (#SCE_SELECT_VERTEX, #SCE_SELECT_EDGE & #SCE_SELECT_FACE). */
   short selectmode;
-  /** The active material (assigned to newly created faces). */
+  /** The active material (zero-based, assigned to newly created faces). */
   short mat_nr;
 
   /** Temp variables for x-mirror editing (-1 when the layer does not exist). */
@@ -95,21 +95,27 @@ BMEditMesh *BKE_editmesh_copy(BMEditMesh *em);
  * don't add NULL data check here. caller must do that
  */
 BMEditMesh *BKE_editmesh_from_object(Object *ob);
+
 /**
- * \note Does not free the #BMEditMesh  itself.
+ * Return whether the evaluated mesh is a "descendant" of the original mesh: whether it is a
+ * version of the original mesh propagated during evaluation. This will be false if the mesh was
+ * taken from an different object during evaluation, with the object info node for example.
+ */
+bool BKE_editmesh_eval_orig_map_available(const Mesh &mesh_eval, const Mesh *mesh_orig);
+
+/**
+ * \note Does not free the #BMEditMesh itself.
  */
 void BKE_editmesh_free_data(BMEditMesh *em);
 
-blender::Array<blender::float3> BKE_editmesh_vert_coords_alloc(Depsgraph *depsgraph,
-                                                               BMEditMesh *em,
-                                                               Scene *scene,
-                                                               Object *ob);
-blender::Array<blender::float3> BKE_editmesh_vert_coords_alloc_orco(BMEditMesh *em);
-blender::Span<blender::float3> BKE_editmesh_vert_coords_when_deformed(
-    Depsgraph *depsgraph,
-    BMEditMesh *em,
-    Scene *scene,
-    Object *obedit,
-    blender::Array<blender::float3> &r_alloc);
+Array<float3> BKE_editmesh_vert_coords_alloc(Depsgraph *depsgraph,
+                                             BMEditMesh *em,
+                                             Scene *scene,
+                                             Object *ob);
+Array<float3> BKE_editmesh_vert_coords_alloc_orco(BMEditMesh *em);
+Span<float3> BKE_editmesh_vert_coords_when_deformed(
+    Depsgraph *depsgraph, BMEditMesh *em, Scene *scene, Object *obedit, Array<float3> &r_alloc);
 
 void BKE_editmesh_lnorspace_update(BMEditMesh *em);
+
+}  // namespace blender

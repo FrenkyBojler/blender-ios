@@ -63,7 +63,7 @@ def draw_ui_list(
     :type menu_class_name: str
 
     :returns: The right side column.
-    :rtype: :class:`UILayout`.
+    :rtype: :class:`UILayout`
 
     Additional keyword arguments are passed to :class:`UIList.template_list`.
     """
@@ -87,7 +87,7 @@ def draw_ui_list(
         **kwargs,
     )
 
-    col = row.column()
+    col = row.column(align=True)
 
     if insertion_operators:
         _draw_add_remove_buttons(
@@ -96,7 +96,7 @@ def draw_ui_list(
             active_index_path=active_index_path,
             list_length=len(list_to_draw),
         )
-        layout.separator()
+        col.separator()
 
     if menu_class_name:
         col.menu(menu_class_name, icon='DOWNARROW_HLT', text="")
@@ -126,9 +126,9 @@ def _draw_add_remove_buttons(
     props.list_path = list_path
     props.active_index_path = active_index_path
 
-    row = layout.row()
-    row.enabled = list_length > 0
-    props = row.operator(UILIST_OT_entry_remove.bl_idname, text="", icon='REMOVE')
+    col = layout.column(align=True)
+    col.enabled = list_length > 0
+    props = col.operator(UILIST_OT_entry_remove.bl_idname, text="", icon='REMOVE')
     props.list_path = list_path
     props.active_index_path = active_index_path
 
@@ -141,8 +141,6 @@ def _draw_move_buttons(
     list_length,
 ):
     """Draw the up/down arrows to move elements in the list."""
-    col = layout.column()
-    col.enabled = list_length > 1
     props = layout.operator(UILIST_OT_entry_move.bl_idname, text="", icon='TRIA_UP')
     props.direction = 'UP'
     props.list_path = list_path

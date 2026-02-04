@@ -7,6 +7,8 @@
  * \ingroup wm
  */
 
+namespace blender {
+
 struct Brush;
 struct IDProperty;
 struct Main;
@@ -34,7 +36,9 @@ struct wmWindow;
  */
 #define WM_TOOLSYSTEM_SPACE_MASK_MODE_FROM_SPACE ((1 << SPACE_IMAGE) | (1 << SPACE_SEQ))
 
-/* Values that define a category of active tool. */
+/**
+ * Values that define a category of active tool.
+ */
 struct bToolKey {
   int space_type;
   int mode;
@@ -155,3 +159,5 @@ bool WM_toolsystem_refresh_screen_area(WorkSpace *workspace,
                                        ScrArea *area);
 void WM_toolsystem_refresh_screen_window(wmWindow *win);
 void WM_toolsystem_refresh_screen_all(Main *bmain);
+
+}  // namespace blender

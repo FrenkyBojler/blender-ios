@@ -11,11 +11,17 @@
 #include "intern/node/deg_node.hh"
 #include "intern/node/deg_node_operation.hh"
 
+#include "BLI_map.hh"
+
+#include <memory>
+
+namespace blender {
+
 struct ID;
 struct PointerRNA;
 struct PropertyRNA;
 
-namespace blender::deg {
+namespace deg {
 
 struct Depsgraph;
 struct Node;
@@ -67,7 +73,7 @@ class RNANodeQuery {
   DepsgraphBuilder *builder_;
 
   /* Indexed by an ID, returns RNANodeQueryIDData associated with that ID. */
-  Map<const ID *, unique_ptr<RNANodeQueryIDData>> id_data_map_;
+  Map<const ID *, std::unique_ptr<RNANodeQueryIDData>> id_data_map_;
 
   /* Construct identifier of the node which corresponds given configuration
    * of RNA property. */
@@ -94,4 +100,5 @@ class RNANodeQuery {
 
 bool rna_prop_affects_parameters_node(const PointerRNA *ptr, const PropertyRNA *prop);
 
-}  // namespace blender::deg
+}  // namespace deg
+}  // namespace blender

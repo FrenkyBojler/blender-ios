@@ -31,13 +31,15 @@
 
 #include "DNA_ID_enums.h"
 
+namespace blender {
+
 struct bUserAssetLibrary;
 struct AssetWeakReference;
 struct ID;
 struct Main;
 struct ReportList;
 
-namespace blender::bke {
+namespace bke {
 
 /** Get datablock from weak reference, loading the blend file as needed. */
 ID *asset_edit_id_from_weak_reference(Main &global_main,
@@ -60,7 +62,18 @@ std::optional<std::string> asset_edit_id_save_as(Main &global_main,
                                                  ReportList &reports);
 
 bool asset_edit_id_save(Main &global_main, const ID &id, ReportList &reports);
-bool asset_edit_id_revert(Main &global_main, ID &id, ReportList &reports);
+/**
+ * Relink the asset from the library. This causes the ID to be re-allocated, so its address
+ * changes. Even in case of failure to reload the asset, \a id will be deleted.
+ * \return the new address of the reloaded \a id.
+ */
+ID *asset_edit_id_revert(Main &global_main, ID &id, ReportList &reports);
 bool asset_edit_id_delete(Main &global_main, ID &id, ReportList &reports);
 
-}  // namespace blender::bke
+/** Find a local copy of the asset. */
+ID *asset_edit_id_find_local(Main &global_main, ID &id);
+/** Ensure a local copy of the asset exists. */
+ID *asset_edit_id_ensure_local(Main &global_main, ID &id);
+
+}  // namespace bke
+}  // namespace blender

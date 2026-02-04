@@ -2,13 +2,16 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include "BLI_array.hh"
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_span.hh"
-#include "BLI_generic_virtual_array.hh"
 #include "BLI_math_axis_angle.hh"
 #include "BLI_math_color.hh"
 #include "BLI_math_quaternion.hh"
@@ -18,41 +21,35 @@
 
 #include "BKE_attribute.hh"
 
-namespace blender::bke::attribute_math {
+namespace blender {
+
+class GVArray;
+
+namespace bke::attribute_math {
 
 /**
  * Utility function that simplifies calling a templated function based on a run-time data type.
  */
-template<typename Func>
-inline void convert_to_static_type(const CPPType &cpp_type, const Func &func)
+template<typename Fn> inline void to_static_type(const CPPType &cpp_type, Fn &&fn)
 {
-  cpp_type.to_static_type_tag<float,
-                              float2,
-                              float3,
-                              int,
-                              int2,
-                              bool,
-                              int8_t,
-                              ColorGeometry4f,
-                              ColorGeometry4b,
-                              math::Quaternion,
-                              float4x4>([&](auto type_tag) {
-    using T = typename decltype(type_tag)::type;
-    if constexpr (std::is_same_v<T, void>) {
-      /* It's expected that the given cpp type is one of the supported ones. */
-      BLI_assert_unreachable();
-    }
-    else {
-      func(T());
-    }
-  });
+  cpp_type.to_static_type<float,
+                          float2,
+                          float3,
+                          int,
+                          int2,
+                          bool,
+                          int8_t,
+                          short2,
+                          ColorGeometry4f,
+                          ColorGeometry4b,
+                          math::Quaternion,
+                          float4x4>([&]<typename T>() { fn.template operator()<T>(); });
 }
 
-template<typename Func>
-inline void convert_to_static_type(const eCustomDataType data_type, const Func &func)
+template<typename Fn> inline void to_static_type(const bke::AttrType data_type, Fn &&fn)
 {
-  const CPPType &cpp_type = *bke::custom_data_type_to_cpp_type(data_type);
-  convert_to_static_type(cpp_type, func);
+  const CPPType &cpp_type = bke::attribute_type_to_cpp_type(data_type);
+  to_static_type(cpp_type, std::forward<Fn>(fn));
 }
 
 /* -------------------------------------------------------------------- */
@@ -76,6 +73,11 @@ template<> inline int8_t mix2(const float factor, const int8_t &a, const int8_t 
 template<> inline int mix2(const float factor, const int &a, const int &b)
 {
   return int(std::round((1.0f - factor) * a + factor * b));
+}
+
+template<> inline short2 mix2(const float factor, const short2 &a, const short2 &b)
+{
+  return math::interpolate(a, b, factor);
 }
 
 template<> inline int2 mix2(const float factor, const int2 &a, const int2 &b)
@@ -134,6 +136,12 @@ template<> inline bool mix3(const float3 &weights, const bool &v0, const bool &v
 template<> inline int mix3(const float3 &weights, const int &v0, const int &v1, const int &v2)
 {
   return int(std::round(weights.x * v0 + weights.y * v1 + weights.z * v2));
+}
+
+template<>
+inline short2 mix3(const float3 &weights, const short2 &v0, const short2 &v1, const short2 &v2)
+{
+  return short2(weights.x * float2(v0) + weights.y * float2(v1) + weights.z * float2(v2));
 }
 
 template<> inline int2 mix3(const float3 &weights, const int2 &v0, const int2 &v1, const int2 &v2)
@@ -212,6 +220,14 @@ template<>
 inline int mix4(const float4 &weights, const int &v0, const int &v1, const int &v2, const int &v3)
 {
   return int(std::round(weights.x * v0 + weights.y * v1 + weights.z * v2 + weights.w * v3));
+}
+
+template<>
+inline short2 mix4(
+    const float4 &weights, const short2 &v0, const short2 &v1, const short2 &v2, const short2 &v3)
+{
+  return short2(weights.x * float2(v0) + weights.y * float2(v1) + weights.z * float2(v2) +
+                weights.w * float2(v3));
 }
 
 template<>
@@ -305,7 +321,7 @@ template<typename T> class SimpleMixer {
       : buffer_(buffer), default_value_(default_value), total_weights_(buffer.size(), 0.0f)
   {
     BLI_STATIC_ASSERT(std::is_trivial_v<T>, "");
-    mask.foreach_index([&](const int64_t i) { buffer_[i] = default_value_; });
+    index_mask::masked_fill(buffer_, default_value_, mask);
   }
 
   /**
@@ -353,7 +369,7 @@ template<typename T> class SimpleMixer {
  * mixers in order to be simpler to use. This mixing method has a few benefits:
  *  - An "average" for selections is relatively meaningless.
  *  - Predictable selection propagation is very super important.
- *  - It's generally  easier to remove an element from a selection that is slightly too large than
+ *  - It's generally easier to remove an element from a selection that is slightly too large than
  *    the opposite.
  */
 class BooleanPropagationMixer {
@@ -374,7 +390,7 @@ class BooleanPropagationMixer {
    */
   BooleanPropagationMixer(MutableSpan<bool> buffer, const IndexMask &mask) : buffer_(buffer)
   {
-    mask.foreach_index([&](const int64_t i) { buffer_[i] = false; });
+    index_mask::masked_fill(buffer_, false, mask);
   }
 
   /**
@@ -435,7 +451,7 @@ class SimpleMixerWithAccumulationType {
                                   T default_value = {})
       : buffer_(buffer), default_value_(default_value), accumulation_buffer_(buffer.size())
   {
-    mask.foreach_index([&](const int64_t index) { buffer_[index] = default_value_; });
+    index_mask::masked_fill(buffer_, default_value_, mask);
   }
 
   void set(const int64_t index, const T &value, const float weight = 1.0f)
@@ -575,6 +591,17 @@ template<> struct DefaultMixerStruct<int> {
    * uses double instead of float so that it is accurate for all 32 bit integers. */
   using type = SimpleMixerWithAccumulationType<int, double, int_to_double, double_to_int>;
 };
+template<> struct DefaultMixerStruct<short2> {
+  static float2 int_to_float(const short2 &value)
+  {
+    return float2(value);
+  }
+  static short2 float_to_int(const float2 &value)
+  {
+    return short2(math::round(value));
+  }
+  using type = SimpleMixerWithAccumulationType<short2, float2, int_to_float, float_to_int>;
+};
 template<> struct DefaultMixerStruct<int2> {
   static double2 int_to_double(const int2 &value)
   {
@@ -669,6 +696,13 @@ void gather_to_groups(OffsetIndices<int> dst_offsets,
                       GSpan src,
                       GMutableSpan dst);
 
+void gather_ranges_to_groups(Span<IndexRange> src_ranges,
+                             OffsetIndices<int> dst_offsets,
+                             GSpan src,
+                             GMutableSpan dst);
+
 /** \} */
 
-}  // namespace blender::bke::attribute_math
+}  // namespace bke::attribute_math
+
+}  // namespace blender

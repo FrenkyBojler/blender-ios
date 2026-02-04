@@ -12,23 +12,23 @@
 #include <cctype>
 #include <cfloat>
 #include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <optional>
 
+#include "DNA_ID.h"
 #include "MEM_guardedalloc.h"
 
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_defaults.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -45,6 +45,7 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_library.hh"
 #include "BKE_mball.hh"
 #include "BKE_mball_tessellate.hh"
 #include "BKE_object.hh"
@@ -54,15 +55,12 @@
 
 #include "BLO_read_write.hh"
 
-using blender::Span;
+namespace blender {
 
 static void metaball_init_data(ID *id)
 {
-  MetaBall *metaball = (MetaBall *)id;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(metaball, id));
-
-  MEMCPY_STRUCT_AFTER(metaball, DNA_struct_default_get(MetaBall), id);
+  MetaBall *metaball = id_cast<MetaBall *>(id);
+  INIT_DEFAULT_STRUCT_AFTER(metaball, id);
 }
 
 static void metaball_copy_data(Main * /*bmain*/,
@@ -71,12 +69,12 @@ static void metaball_copy_data(Main * /*bmain*/,
                                const ID *id_src,
                                const int /*flag*/)
 {
-  MetaBall *metaball_dst = (MetaBall *)id_dst;
-  const MetaBall *metaball_src = (const MetaBall *)id_src;
+  MetaBall *metaball_dst = id_cast<MetaBall *>(id_dst);
+  const MetaBall *metaball_src = id_cast<const MetaBall *>(id_src);
 
   BLI_duplicatelist(&metaball_dst->elems, &metaball_src->elems);
 
-  metaball_dst->mat = static_cast<Material **>(MEM_dupallocN(metaball_src->mat));
+  metaball_dst->mat = MEM_dupalloc(metaball_src->mat);
 
   metaball_dst->editelems = nullptr;
   metaball_dst->lastelem = nullptr;
@@ -84,9 +82,9 @@ static void metaball_copy_data(Main * /*bmain*/,
 
 static void metaball_free_data(ID *id)
 {
-  MetaBall *metaball = (MetaBall *)id;
+  MetaBall *metaball = id_cast<MetaBall *>(id);
 
-  MEM_SAFE_FREE(metaball->mat);
+  MEM_SAFE_DELETE(metaball->mat);
 
   BLI_freelistN(&metaball->elems);
 }
@@ -94,20 +92,14 @@ static void metaball_free_data(ID *id)
 static void metaball_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   MetaBall *metaball = reinterpret_cast<MetaBall *>(id);
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
-
   for (int i = 0; i < metaball->totcol; i++) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, metaball->mat[i], IDWALK_CB_USER);
-  }
-
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, metaball->ipo, IDWALK_CB_USER);
   }
 }
 
 static void metaball_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
-  MetaBall *mb = (MetaBall *)id;
+  MetaBall *mb = id_cast<MetaBall *>(id);
 
   /* Clean up, important in undo case to reduce false detection of changed datablocks. */
   mb->editelems = nullptr;
@@ -116,22 +108,22 @@ static void metaball_blend_write(BlendWriter *writer, ID *id, const void *id_add
   mb->lastelem = nullptr;
 
   /* write LibData */
-  BLO_write_id_struct(writer, MetaBall, id_address, &mb->id);
+  writer->write_id_struct(id_address, mb);
   BKE_id_blend_write(writer, &mb->id);
 
   /* direct data */
   BLO_write_pointer_array(writer, mb->totcol, mb->mat);
 
-  LISTBASE_FOREACH (MetaElem *, ml, &mb->elems) {
-    BLO_write_struct(writer, MetaElem, ml);
+  for (MetaElem &ml : mb->elems) {
+    writer->write_struct(&ml);
   }
 }
 
 static void metaball_blend_read_data(BlendDataReader *reader, ID *id)
 {
-  MetaBall *mb = (MetaBall *)id;
+  MetaBall *mb = id_cast<MetaBall *>(id);
 
-  BLO_read_pointer_array(reader, mb->totcol, (void **)&mb->mat);
+  BLO_read_pointer_array(reader, mb->totcol, reinterpret_cast<void **>(&mb->mat));
 
   BLO_read_struct_list(reader, MetaElem, &(mb->elems));
 
@@ -143,7 +135,7 @@ static void metaball_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_MB = {
-    /*id_code*/ ID_MB,
+    /*id_code*/ MetaBall::id_type,
     /*id_filter*/ FILTER_ID_MB,
     /*dependencies_id_types*/ FILTER_ID_MA,
     /*main_listbase_index*/ INDEX_ID_MB,
@@ -161,6 +153,7 @@ IDTypeInfo IDType_ID_MB = {
     /*foreach_id*/ metaball_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ metaball_blend_write,
@@ -176,13 +169,13 @@ IDTypeInfo IDType_ID_MB = {
 
 MetaBall *BKE_mball_add(Main *bmain, const char *name)
 {
-  MetaBall *mb = static_cast<MetaBall *>(BKE_id_new(bmain, ID_MB, name));
+  MetaBall *mb = BKE_id_new<MetaBall>(bmain, name);
   return mb;
 }
 
 MetaElem *BKE_mball_element_add(MetaBall *mb, const int type)
 {
-  MetaElem *ml = MEM_cnew<MetaElem>(__func__);
+  MetaElem *ml = MEM_new<MetaElem>(__func__);
 
   unit_qt(ml->quat);
 
@@ -225,6 +218,35 @@ MetaElem *BKE_mball_element_add(MetaBall *mb, const int type)
   BLI_addtail(&mb->elems, ml);
 
   return ml;
+}
+
+float2 BKE_mball_element_display_radius_calc_with_stiffness(const MetaElem *ml)
+{
+  float2 radius_stiffness = {
+      /* Display radius. */
+      ml->rad,
+      /* Display stiffness. */
+      ml->rad * atanf(ml->s) * float(2.0 / math::numbers::pi),
+  };
+
+  if (ml->type == MB_CUBE) {
+    /* Without this additional size, the cube can't be selected in solid mode.
+     * Use the minimum size so this doesn't become too large because of one large axis.
+     * See: #136396. */
+    const float offset = min_fff(ml->expx, ml->expy, ml->expz) * M_SQRT2;
+    radius_stiffness[0] += offset;
+    radius_stiffness[1] += offset;
+  }
+  return radius_stiffness;
+}
+float BKE_mball_element_display_radius_calc(const MetaElem *ml)
+{
+  float radius = ml->rad;
+  if (ml->type == MB_CUBE) {
+    const float offset = min_fff(ml->expx, ml->expy, ml->expz) * M_SQRT2;
+    radius += offset;
+  }
+  return radius;
 }
 
 bool BKE_mball_is_basis(const Object *ob)
@@ -273,8 +295,8 @@ bool BKE_mball_is_basis_for(const Object *ob1, const Object *ob2)
 
 bool BKE_mball_is_any_selected(const MetaBall *mb)
 {
-  LISTBASE_FOREACH (const MetaElem *, ml, mb->editelems) {
-    if (ml->flag & SELECT) {
+  for (const MetaElem &ml : *mb->editelems) {
+    if (ml.flag & SELECT) {
       return true;
     }
   }
@@ -285,7 +307,7 @@ bool BKE_mball_is_any_selected_multi(const Span<Base *> bases)
 {
   for (Base *base : bases) {
     Object *obedit = base->object;
-    MetaBall *mb = (MetaBall *)obedit->data;
+    MetaBall *mb = id_cast<MetaBall *>(obedit->data);
     if (BKE_mball_is_any_selected(mb)) {
       return true;
     }
@@ -295,8 +317,8 @@ bool BKE_mball_is_any_selected_multi(const Span<Base *> bases)
 
 bool BKE_mball_is_any_unselected(const MetaBall *mb)
 {
-  LISTBASE_FOREACH (const MetaElem *, ml, mb->editelems) {
-    if ((ml->flag & SELECT) == 0) {
+  for (const MetaElem &ml : *mb->editelems) {
+    if ((ml.flag & SELECT) == 0) {
       return true;
     }
   }
@@ -334,7 +356,7 @@ void BKE_mball_properties_copy(Main *bmain, MetaBall *metaball_src)
   for (Object *ob_src = static_cast<Object *>(bmain->objects.first);
        ob_src != nullptr && ID_IS_EDITABLE(ob_src);)
   {
-    if (ob_src->data != metaball_src) {
+    if (ob_src->data != id_cast<const ID *>(metaball_src)) {
       ob_src = static_cast<Object *>(ob_src->id.next);
       continue;
     }
@@ -359,7 +381,7 @@ void BKE_mball_properties_copy(Main *bmain, MetaBall *metaball_src)
       if (ob_iter->id.name[2] != obactive_name[0]) {
         break;
       }
-      if (ob_iter->type != OB_MBALL || ob_iter->data == metaball_src) {
+      if (ob_iter->type != OB_MBALL || ob_iter->data == id_cast<const ID *>(metaball_src)) {
         continue;
       }
       BLI_string_split_name_number(ob_iter->id.name + 2, '.', ob_name, &ob_nr);
@@ -367,7 +389,7 @@ void BKE_mball_properties_copy(Main *bmain, MetaBall *metaball_src)
         break;
       }
 
-      mball_data_properties_copy(static_cast<MetaBall *>(ob_iter->data), metaball_src);
+      mball_data_properties_copy(id_cast<MetaBall *>(ob_iter->data), metaball_src);
     }
 
     for (ob_iter = static_cast<Object *>(ob_src->id.next); ob_iter != nullptr;
@@ -376,7 +398,7 @@ void BKE_mball_properties_copy(Main *bmain, MetaBall *metaball_src)
       if (ob_iter->id.name[2] != obactive_name[0] || !ID_IS_EDITABLE(ob_iter)) {
         break;
       }
-      if (ob_iter->type != OB_MBALL || ob_iter->data == metaball_src) {
+      if (ob_iter->type != OB_MBALL || ob_iter->data == id_cast<const ID *>(metaball_src)) {
         continue;
       }
       BLI_string_split_name_number(ob_iter->id.name + 2, '.', ob_name, &ob_nr);
@@ -384,7 +406,7 @@ void BKE_mball_properties_copy(Main *bmain, MetaBall *metaball_src)
         break;
       }
 
-      mball_data_properties_copy(static_cast<MetaBall *>(ob_iter->data), metaball_src);
+      mball_data_properties_copy(id_cast<MetaBall *>(ob_iter->data), metaball_src);
     }
 
     ob_src = ob_iter;
@@ -399,11 +421,11 @@ Object *BKE_mball_basis_find(Scene *scene, Object *object)
 
   BLI_string_split_name_number(object->id.name + 2, '.', basisname, &basisnr);
 
-  LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-      Object *ob = base->object;
-      if ((ob->type == OB_MBALL) && !(base->flag & BASE_FROM_DUPLI)) {
+  for (ViewLayer &view_layer : scene->view_layers) {
+    BKE_view_layer_synced_ensure(scene, &view_layer);
+    for (Base &base : *BKE_view_layer_object_bases_get(&view_layer)) {
+      Object *ob = base.object;
+      if ((ob->type == OB_MBALL) && !(base.flag & BASE_FROM_DUPLI)) {
         if (ob != bob) {
           BLI_string_split_name_number(ob->id.name + 2, '.', obname, &obnr);
 
@@ -432,15 +454,15 @@ bool BKE_mball_minmax_ex(
 
   INIT_MINMAX(min, max);
 
-  LISTBASE_FOREACH (const MetaElem *, ml, &mb->elems) {
-    if ((ml->flag & flag) == flag) {
-      const float scale_mb = (ml->rad * 0.5f) * scale;
+  for (const MetaElem &ml : mb->elems) {
+    if ((ml.flag & flag) == flag) {
+      const float scale_mb = (ml.rad * 0.5f) * scale;
 
       if (obmat) {
-        mul_v3_m4v3(centroid, obmat, &ml->x);
+        mul_v3_m4v3(centroid, obmat, &ml.x);
       }
       else {
-        copy_v3_v3(centroid, &ml->x);
+        copy_v3_v3(centroid, &ml.x);
       }
 
       /* TODO(@ideasman42): non circle shapes cubes etc, probably nobody notices. */
@@ -460,8 +482,8 @@ bool BKE_mball_minmax(const MetaBall *mb, float min[3], float max[3])
 {
   INIT_MINMAX(min, max);
 
-  LISTBASE_FOREACH (const MetaElem *, ml, &mb->elems) {
-    minmax_v3v3_v3(min, max, &ml->x);
+  for (const MetaElem &ml : mb->elems) {
+    minmax_v3v3_v3(min, max, &ml.x);
   }
 
   return (BLI_listbase_is_empty(&mb->elems) == false);
@@ -473,8 +495,8 @@ bool BKE_mball_center_median(const MetaBall *mb, float r_cent[3])
 
   zero_v3(r_cent);
 
-  LISTBASE_FOREACH (const MetaElem *, ml, &mb->elems) {
-    add_v3_v3(r_cent, &ml->x);
+  for (const MetaElem &ml : mb->elems) {
+    add_v3_v3(r_cent, &ml.x);
     total++;
   }
 
@@ -505,19 +527,19 @@ void BKE_mball_transform(MetaBall *mb, const float mat[4][4], const bool do_prop
 
   mat4_to_quat(quat, mat);
 
-  LISTBASE_FOREACH (MetaElem *, ml, &mb->elems) {
-    mul_m4_v3(mat, &ml->x);
-    mul_qt_qtqt(ml->quat, quat, ml->quat);
+  for (MetaElem &ml : mb->elems) {
+    mul_m4_v3(mat, &ml.x);
+    mul_qt_qtqt(ml.quat, quat, ml.quat);
 
     if (do_props) {
-      ml->rad *= scale;
+      ml.rad *= scale;
       /* hrmf, probably elems shouldn't be
        * treating scale differently - campbell */
-      if (!MB_TYPE_SIZE_SQUARED(ml->type)) {
-        mul_v3_fl(&ml->expx, scale);
+      if (!MB_TYPE_SIZE_SQUARED(ml.type)) {
+        mul_v3_fl(&ml.expx, scale);
       }
       else {
-        mul_v3_fl(&ml->expx, scale_sqrt);
+        mul_v3_fl(&ml.expx, scale_sqrt);
       }
     }
   }
@@ -525,16 +547,16 @@ void BKE_mball_transform(MetaBall *mb, const float mat[4][4], const bool do_prop
 
 void BKE_mball_translate(MetaBall *mb, const float offset[3])
 {
-  LISTBASE_FOREACH (MetaElem *, ml, &mb->elems) {
-    add_v3_v3(&ml->x, offset);
+  for (MetaElem &ml : mb->elems) {
+    add_v3_v3(&ml.x, offset);
   }
 }
 
 int BKE_mball_select_count(const MetaBall *mb)
 {
   int sel = 0;
-  LISTBASE_FOREACH (const MetaElem *, ml, mb->editelems) {
-    if (ml->flag & SELECT) {
+  for (const MetaElem &ml : *mb->editelems) {
+    if (ml.flag & SELECT) {
       sel++;
     }
   }
@@ -546,7 +568,7 @@ int BKE_mball_select_count_multi(const Span<Base *> bases)
   int sel = 0;
   for (Base *base : bases) {
     Object *obedit = base->object;
-    const MetaBall *mb = (MetaBall *)obedit->data;
+    const MetaBall *mb = id_cast<MetaBall *>(obedit->data);
     sel += BKE_mball_select_count(mb);
   }
   return sel;
@@ -555,9 +577,9 @@ int BKE_mball_select_count_multi(const Span<Base *> bases)
 bool BKE_mball_select_all(MetaBall *mb)
 {
   bool changed = false;
-  LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
-    if ((ml->flag & SELECT) == 0) {
-      ml->flag |= SELECT;
+  for (MetaElem &ml : *mb->editelems) {
+    if ((ml.flag & SELECT) == 0) {
+      ml.flag |= SELECT;
       changed = true;
     }
   }
@@ -569,7 +591,7 @@ bool BKE_mball_select_all_multi_ex(const Span<Base *> bases)
   bool changed_multi = false;
   for (Base *base : bases) {
     Object *obedit = base->object;
-    MetaBall *mb = static_cast<MetaBall *>(obedit->data);
+    MetaBall *mb = id_cast<MetaBall *>(obedit->data);
     changed_multi |= BKE_mball_select_all(mb);
   }
   return changed_multi;
@@ -578,9 +600,9 @@ bool BKE_mball_select_all_multi_ex(const Span<Base *> bases)
 bool BKE_mball_deselect_all(MetaBall *mb)
 {
   bool changed = false;
-  LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
-    if ((ml->flag & SELECT) != 0) {
-      ml->flag &= ~SELECT;
+  for (MetaElem &ml : *mb->editelems) {
+    if ((ml.flag & SELECT) != 0) {
+      ml.flag &= ~SELECT;
       changed = true;
     }
   }
@@ -592,7 +614,7 @@ bool BKE_mball_deselect_all_multi_ex(const Span<Base *> bases)
   bool changed_multi = false;
   for (Base *base : bases) {
     Object *obedit = base->object;
-    MetaBall *mb = static_cast<MetaBall *>(obedit->data);
+    MetaBall *mb = id_cast<MetaBall *>(obedit->data);
     changed_multi |= BKE_mball_deselect_all(mb);
     DEG_id_tag_update(&mb->id, ID_RECALC_SELECT);
   }
@@ -602,8 +624,8 @@ bool BKE_mball_deselect_all_multi_ex(const Span<Base *> bases)
 bool BKE_mball_select_swap(MetaBall *mb)
 {
   bool changed = false;
-  LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
-    ml->flag ^= SELECT;
+  for (MetaElem &ml : *mb->editelems) {
+    ml.flag ^= SELECT;
     changed = true;
   }
   return changed;
@@ -614,7 +636,7 @@ bool BKE_mball_select_swap_multi_ex(const Span<Base *> bases)
   bool changed_multi = false;
   for (Base *base : bases) {
     Object *obedit = base->object;
-    MetaBall *mb = (MetaBall *)obedit->data;
+    MetaBall *mb = id_cast<MetaBall *>(obedit->data);
     changed_multi |= BKE_mball_select_swap(mb);
   }
   return changed_multi;
@@ -624,7 +646,6 @@ bool BKE_mball_select_swap_multi_ex(const Span<Base *> bases)
 
 void BKE_mball_data_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
-  using namespace blender;
   using namespace blender::bke;
   BLI_assert(ob->type == OB_MBALL);
 
@@ -640,15 +661,15 @@ void BKE_mball_data_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
     return;
   }
 
-  const MetaBall *mball = static_cast<MetaBall *>(ob->data);
-  mesh->mat = static_cast<Material **>(MEM_dupallocN(mball->mat));
+  const MetaBall *mball = id_cast<MetaBall *>(ob->data);
+  mesh->mat = MEM_dupalloc(mball->mat);
   mesh->totcol = mball->totcol;
 
   if (ob->parent && ob->parent->type == OB_LATTICE && ob->partype == PARSKEL) {
     BKE_lattice_deform_coords(
         ob->parent,
         ob,
-        reinterpret_cast<float(*)[3]>(mesh->vert_positions_for_write().data()),
+        reinterpret_cast<float (*)[3]>(mesh->vert_positions_for_write().data()),
         mesh->verts_num,
         0,
         nullptr,
@@ -658,3 +679,5 @@ void BKE_mball_data_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
 
   ob->runtime->geometry_set_eval = new GeometrySet(GeometrySet::from_mesh(mesh));
 };
+
+}  // namespace blender

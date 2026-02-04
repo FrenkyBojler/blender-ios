@@ -26,7 +26,7 @@ ccl_device_inline
 #endif
     uint
     BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
-                                ccl_private const Ray *ray,
+                                const ccl_private Ray *ray,
                                 Intersection *isect_array,
                                 const uint max_hits,
                                 const uint visibility)
@@ -132,11 +132,9 @@ ccl_device_inline
                                             kernel_data_fetch(prim_object, prim_addr) :
                                             object;
                 const int prim = kernel_data_fetch(prim_index, prim_addr);
-                if (intersection_skip_self(ray->self, prim_object, prim)) {
-                  continue;
-                }
-                int object_flag = kernel_data_fetch(object_flag, prim_object);
-                if ((object_flag & SD_OBJECT_HAS_VOLUME) == 0) {
+                if (bvh_volume_anyhit_triangle_filter<false>(
+                        kg, prim_object, prim, ray->self, visibility))
+                {
                   continue;
                 }
                 hit = triangle_intersect(kg,
@@ -171,11 +169,9 @@ ccl_device_inline
                                             kernel_data_fetch(prim_object, prim_addr) :
                                             object;
                 const int prim = kernel_data_fetch(prim_index, prim_addr);
-                if (intersection_skip_self(ray->self, prim_object, prim)) {
-                  continue;
-                }
-                int object_flag = kernel_data_fetch(object_flag, prim_object);
-                if ((object_flag & SD_OBJECT_HAS_VOLUME) == 0) {
+                if (bvh_volume_anyhit_triangle_filter<false>(
+                        kg, prim_object, prim, ray->self, visibility))
+                {
                   continue;
                 }
                 hit = motion_triangle_intersect(kg,
@@ -210,7 +206,7 @@ ccl_device_inline
         else {
           /* instance push */
           object = kernel_data_fetch(prim_object, -prim_addr - 1);
-          int object_flag = kernel_data_fetch(object_flag, object);
+          const uint object_flag = kernel_data_fetch(object_flag, object);
           if (object_flag & SD_OBJECT_HAS_VOLUME) {
 #if BVH_FEATURE(BVH_MOTION)
             bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir);
@@ -252,7 +248,7 @@ ccl_device_inline
 }
 
 ccl_device_inline uint BVH_FUNCTION_NAME(KernelGlobals kg,
-                                         ccl_private const Ray *ray,
+                                         const ccl_private Ray *ray,
                                          Intersection *isect_array,
                                          const uint max_hits,
                                          const uint visibility)

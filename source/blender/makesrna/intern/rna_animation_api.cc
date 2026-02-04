@@ -6,14 +6,11 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "DNA_anim_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "rna_internal.hh" /* own include */
@@ -28,11 +25,13 @@
 #  include "ANIM_keyingsets.hh"
 #  include "ED_keyframing.hh"
 
+namespace blender {
+
 static void rna_KeyingSet_context_refresh(KeyingSet *ks, bContext *C, ReportList *reports)
 {
-  using namespace blender::animrig;
+  using namespace animrig;
   /* TODO: enable access to providing a list of overrides (dsources)? */
-  const ModifyKeyReturn error = ANIM_validate_keyingset(C, nullptr, ks);
+  const ModifyKeyReturn error = validate_keyingset(C, nullptr, ks);
 
   if (error == ModifyKeyReturn::SUCCESS) {
     return;
@@ -68,7 +67,11 @@ void rna_id_animdata_fix_paths_rename_all(ID *id,
   BKE_animdata_fix_paths_rename_all_ex(bmain, id, prefix, oldName, newName, 0, 0, true);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void RNA_api_keyingset(StructRNA *srna)
 {
@@ -114,5 +117,7 @@ void RNA_api_animdata(StructRNA *srna)
       "string paths, it's needed to keep them valid after properties has been renamed");
   RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_SELF_ID);
 }
+
+}  // namespace blender
 
 #endif

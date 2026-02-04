@@ -19,7 +19,10 @@ class BlenderAnimation():
     @staticmethod
     def anim(gltf, anim_idx):
         """Create actions/tracks for one animation."""
-        # Caches the action for each object (keyed by object name)
+        # Caches the action/slot for each object, keyed by:
+        #   - anim_idx
+        #   - obj_name
+        #   - target_id_type
         gltf.action_cache = {}
         # Things we need to stash when we're done.
         gltf.needs_stash = []
@@ -44,6 +47,9 @@ class BlenderAnimation():
                     BlenderPointerAnim.anim(gltf, anim_idx, light, light_idx, 'LIGHT')
 
             for mat_idx, mat in enumerate(gltf.data.materials if gltf.data.materials else []):
+                if len(mat.blender_material) == 0:
+                    # The animated material is not used in Blender, so do not animate it
+                    continue
                 if len(mat.animations) != 0:
                     BlenderPointerAnim.anim(gltf, anim_idx, mat, mat_idx, 'MATERIAL')
                 if mat.normal_texture is not None and len(mat.normal_texture.animations) != 0:
@@ -80,16 +86,26 @@ class BlenderAnimation():
 
                 if mat.extensions is not None:
                     texs = [
-                        mat.extensions["KHR_materials_volume"].get("thicknessTexture") if "KHR_materials_volume" in mat.extensions else None,
-                        mat.extensions["KHR_materials_transmission"].get("transmissionTexture") if "KHR_materials_transmission" in mat.extensions else None,
-                        mat.extensions["KHR_materials_specular"].get("specularTexture") if "KHR_materials_specular" in mat.extensions else None,
-                        mat.extensions["KHR_materials_specular"].get("specularColorTexture") if "KHR_materials_specular" in mat.extensions else None,
-                        mat.extensions["KHR_materials_sheen"].get("sheenColorTexture") if "KHR_materials_sheen" in mat.extensions else None,
-                        mat.extensions["KHR_materials_sheen"].get("sheenRoughnessTexture") if "KHR_materials_sheen" in mat.extensions else None,
-                        mat.extensions["KHR_materials_clearcoat"].get("clearcoatTexture") if "KHR_materials_clearcoat" in mat.extensions else None,
-                        mat.extensions["KHR_materials_clearcoat"].get("clearcoatRoughnessTexture") if "KHR_materials_clearcoat" in mat.extensions else None,
-                        mat.extensions["KHR_materials_clearcoat"].get("clearcoatNormalTexture") if "KHR_materials_clearcoat" in mat.extensions else None,
-                        mat.extensions["KHR_materials_anisotropy"].get("anisotropyTexture") if "KHR_materials_anisotropy" in mat.extensions else None,
+                        mat.extensions["KHR_materials_volume"].get(
+                            "thicknessTexture") if "KHR_materials_volume" in mat.extensions else None,
+                        mat.extensions["KHR_materials_transmission"].get(
+                            "transmissionTexture") if "KHR_materials_transmission" in mat.extensions else None,
+                        mat.extensions["KHR_materials_specular"].get(
+                            "specularTexture") if "KHR_materials_specular" in mat.extensions else None,
+                        mat.extensions["KHR_materials_specular"].get(
+                            "specularColorTexture") if "KHR_materials_specular" in mat.extensions else None,
+                        mat.extensions["KHR_materials_sheen"].get(
+                            "sheenColorTexture") if "KHR_materials_sheen" in mat.extensions else None,
+                        mat.extensions["KHR_materials_sheen"].get(
+                            "sheenRoughnessTexture") if "KHR_materials_sheen" in mat.extensions else None,
+                        mat.extensions["KHR_materials_clearcoat"].get(
+                            "clearcoatTexture") if "KHR_materials_clearcoat" in mat.extensions else None,
+                        mat.extensions["KHR_materials_clearcoat"].get(
+                            "clearcoatRoughnessTexture") if "KHR_materials_clearcoat" in mat.extensions else None,
+                        mat.extensions["KHR_materials_clearcoat"].get(
+                            "clearcoatNormalTexture") if "KHR_materials_clearcoat" in mat.extensions else None,
+                        mat.extensions["KHR_materials_anisotropy"].get(
+                            "anisotropyTexture") if "KHR_materials_anisotropy" in mat.extensions else None,
                     ]
 
                     for tex in [t for t in texs if t is not None]:
@@ -118,8 +134,8 @@ class BlenderAnimation():
 
         # Push all actions onto NLA tracks with this animation's name
         track_name = gltf.data.animations[anim_idx].track_name
-        for (obj, action) in gltf.needs_stash:
-            simulate_stash(obj, track_name, action)
+        for (obj, action, slot) in gltf.needs_stash:
+            simulate_stash(obj, track_name, action, slot)
 
         import_user_extensions('gather_import_animation_after_hook', gltf, anim_idx, track_name)
 
@@ -157,5 +173,8 @@ class BlenderAnimation():
                     restore_animation_on_object(light['blender_object_data'], animation_name)
 
             for mat in gltf.data.materials if gltf.data.materials else []:
+                if len(mat.blender_material) == 0:
+                    # The animated material is not used in Blender, so do not animate it
+                    continue
                 restore_animation_on_object(mat.blender_nodetree, animation_name)
                 restore_animation_on_object(mat.blender_mat, animation_name)

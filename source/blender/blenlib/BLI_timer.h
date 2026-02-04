@@ -6,13 +6,11 @@
 
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 /** \file
  * \ingroup bli
  */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * \return A value of:
@@ -45,6 +43,4 @@ void BLI_timer_free(void);
  * is properly configured for the new file. */
 void BLI_timer_on_file_load(void);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

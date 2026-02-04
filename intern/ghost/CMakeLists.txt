@@ -4,7 +4,7 @@
 
 set(INC
   PUBLIC .
-  ../../source/blender/imbuf
+  ../guardedalloc
 )
 
 set(INC_SYS
@@ -12,16 +12,13 @@ set(INC_SYS
 
 set(SRC
   intern/GHOST_Buttons.cc
-  intern/GHOST_C-api.cc
   intern/GHOST_CallbackEventConsumer.cc
   intern/GHOST_Context.cc
   intern/GHOST_ContextNone.cc
-  intern/GHOST_DisplayManager.cc
   intern/GHOST_EventManager.cc
   intern/GHOST_ISystem.cc
   intern/GHOST_ISystemPaths.cc
   intern/GHOST_ModifierKeys.cc
-  intern/GHOST_Path-api.cc
   intern/GHOST_PathUtils.cc
   intern/GHOST_Rect.cc
   intern/GHOST_System.cc
@@ -29,7 +26,7 @@ set(SRC
   intern/GHOST_Window.cc
   intern/GHOST_WindowManager.cc
 
-  GHOST_C-api.h
+  GHOST_CallbackEventConsumer.hh
   GHOST_IContext.hh
   GHOST_IEvent.hh
   GHOST_IEventConsumer.hh
@@ -37,16 +34,13 @@ set(SRC
   GHOST_ISystemPaths.hh
   GHOST_ITimerTask.hh
   GHOST_IWindow.hh
-  GHOST_Path-api.hh
   GHOST_Rect.hh
-  GHOST_Types.h
+  GHOST_Types.hh
 
   intern/GHOST_Buttons.hh
-  intern/GHOST_CallbackEventConsumer.hh
   intern/GHOST_Context.hh
   intern/GHOST_ContextNone.hh
   intern/GHOST_Debug.hh
-  intern/GHOST_DisplayManager.hh
   intern/GHOST_Event.hh
   intern/GHOST_EventButton.hh
   intern/GHOST_EventCursor.hh
@@ -72,6 +66,8 @@ set(SRC
 set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::dna
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
 )
 
@@ -80,38 +76,21 @@ if(WITH_INPUT_IME)
 endif()
 
 if(WITH_OPENGL_BACKEND)
-  list(APPEND INC_SYS
-    ${Epoxy_INCLUDE_DIRS}
-  )
   list(APPEND LIB
-    ${Epoxy_LIBRARIES}
+    PRIVATE bf::dependencies::epoxy
   )
   add_definitions(-DWITH_OPENGL_BACKEND)
 endif()
 
 if(WITH_VULKAN_BACKEND)
-  if(WITH_VULKAN_MOLTENVK)
-    list(APPEND INC_SYS
-      PUBLIC ${MOLTENVK_INCLUDE_DIRS}
-    )
-
-    list(APPEND LIB
-      ${MOLTENVK_LIBRARIES}
-    )
-  endif()
-
   list(APPEND SRC
     intern/GHOST_ContextVK.cc
 
     intern/GHOST_ContextVK.hh
   )
-
-  list(APPEND INC_SYS
-    PUBLIC ${VULKAN_INCLUDE_DIRS}
-  )
-
   list(APPEND LIB
-    ${VULKAN_LIBRARIES}
+    PUBLIC bf::dependencies::optional::vulkan
+    PRIVATE bf::extern::vulkan_memory_allocator
   )
 
   add_definitions(-DWITH_VULKAN_BACKEND)
@@ -136,16 +115,20 @@ if(WITH_INPUT_NDOF)
     intern/GHOST_NDOFManager.hh
   )
 
-  list(APPEND INC_SYS
-    ${NDOF_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${NDOF_LIBRARIES}
-  )
+  # Only some platforms define this.
+  if(DEFINED NDOF_INCLUDE_DIRS)
+    list(APPEND INC_SYS
+      ${NDOF_INCLUDE_DIRS}
+    )
+  endif()
+  if(DEFINED NDOF_LIBRARIES)
+    list(APPEND LIB
+      ${NDOF_LIBRARIES}
+    )
+  endif()
 endif()
 
 list(APPEND SRC
-  intern/GHOST_DisplayManagerNULL.hh
   intern/GHOST_SystemHeadless.hh
   intern/GHOST_WindowNULL.hh
 )
@@ -155,39 +138,26 @@ if(WITH_HEADLESS)
 elseif(WITH_GHOST_SDL)
   list(APPEND SRC
     intern/GHOST_ContextSDL.cc
-    intern/GHOST_DisplayManagerSDL.cc
     intern/GHOST_SystemSDL.cc
     intern/GHOST_WindowSDL.cc
 
     intern/GHOST_ContextSDL.hh
-    intern/GHOST_DisplayManagerSDL.hh
     intern/GHOST_SystemSDL.hh
     intern/GHOST_WindowSDL.hh
   )
   add_definitions(-DWITH_GHOST_SDL)
 
-  list(APPEND INC_SYS
-    ${SDL_INCLUDE_DIR}
-  )
   list(APPEND LIB
-    ${SDL_LIBRARY}
+    bf::dependencies::optional::sdl
   )
 elseif(APPLE AND NOT WITH_GHOST_X11)
   list(APPEND SRC
-    intern/GHOST_DisplayManagerCocoa.mm
     intern/GHOST_SystemCocoa.mm
     intern/GHOST_WindowCocoa.mm
 
-    intern/GHOST_DisplayManagerCocoa.hh
     intern/GHOST_SystemCocoa.hh
     intern/GHOST_WindowCocoa.hh
     intern/GHOST_WindowViewCocoa.hh
-  )
-
-  list(APPEND SRC
-    intern/GHOST_ContextCGL.mm
-
-    intern/GHOST_ContextCGL.hh
   )
 
   if(WITH_INPUT_NDOF)
@@ -210,15 +180,11 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
     )
 
     list(APPEND SRC
-      intern/GHOST_DisplayManagerX11.cc
       intern/GHOST_SystemX11.cc
-      intern/GHOST_TaskbarX11.cc
       intern/GHOST_WindowX11.cc
 
-      intern/GHOST_DisplayManagerX11.hh
       intern/GHOST_IconX11.hh
       intern/GHOST_SystemX11.hh
-      intern/GHOST_TaskbarX11.hh
       intern/GHOST_WindowX11.hh
     )
 
@@ -252,16 +218,6 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
       add_definitions(-DWITH_XF86KEYSYM)
       list(APPEND INC_SYS
         ${X11_XF86keysym_INCLUDE_PATH}
-      )
-    endif()
-
-    if(WITH_X11_XF86VMODE)
-      add_definitions(-DWITH_X11_XF86VMODE)
-      list(APPEND INC_SYS
-        ${X11_Xxf86vm_INCLUDE_PATH}
-      )
-      list(APPEND LIB
-        ${X11_Xxf86vmode_LIB}
       )
     endif()
 
@@ -315,15 +271,13 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
       )
     endif()
 
-    if(WITH_GHOST_WAYLAND_LIBDECOR)
-      list(APPEND INC_SYS
-        ${libdecor_INCLUDE_DIRS}
+    if(WITH_GHOST_CSD)
+      list(APPEND SRC
+        intern/GHOST_WindowWaylandCSD.cc
+
+        intern/GHOST_WindowWaylandCSD.hh
       )
-      if(NOT WITH_GHOST_WAYLAND_DYNLOAD)
-        list(APPEND LIB
-          ${libdecor_LIBRARIES}
-        )
-      endif()
+      add_definitions(-DWITH_GHOST_CSD)
     endif()
 
     include(CheckSymbolExists)
@@ -337,14 +291,6 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
     check_symbol_exists(poll "poll.h" HAVE_POLL)
     if(HAVE_POLL)
       add_definitions(-DHAVE_POLL)
-    endif()
-
-    if(WITH_GHOST_WAYLAND_LIBDECOR)
-      # See code-comment for `USE_LIBDECOR_CONFIG_COPY_WORKAROUND`.
-      check_symbol_exists(malloc_usable_size "malloc.h" HAVE_MALLOC_USABLE_SIZE)
-      if(HAVE_MALLOC_USABLE_SIZE)
-        add_definitions(-DHAVE_MALLOC_USABLE_SIZE)
-      endif()
     endif()
 
     list(APPEND SRC
@@ -393,7 +339,6 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
       ${INC_DST}
     )
 
-    # Used when: LIBDECOR is not needed.
     # `xdg-shell`.
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/stable/xdg-shell/xdg-shell.xml"
@@ -402,8 +347,6 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml"
     )
-    # End LIBDECOR alternative.
-
     # `xdg-output`.
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/unstable/xdg-output/xdg-output-unstable-v1.xml"
@@ -416,7 +359,7 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/staging/fractional-scale/fractional-scale-v1.xml"
     )
-    # Viewport (only required when fractional scale is in use).
+    # Viewporter (only required when fractional scale is in use).
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/stable/viewporter/viewporter.xml"
     )
@@ -445,6 +388,10 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
         "${WAYLAND_PROTOCOLS_DIR}/unstable/text-input/text-input-unstable-v3.xml"
       )
     endif()
+    # Desktop compositor controlled cursor rendering.
+    generate_protocol_bindings(
+      "${WAYLAND_PROTOCOLS_DIR}/staging/cursor-shape/cursor-shape-v1.xml"
+    )
 
     unset(INC_DST)
 
@@ -480,7 +427,6 @@ elseif(WIN32)
 
   list(APPEND SRC
     intern/GHOST_ContextD3D.cc
-    intern/GHOST_DisplayManagerWin32.cc
     intern/GHOST_DropTargetWin32.cc
     intern/GHOST_SystemWin32.cc
     intern/GHOST_TrackpadWin32.cc
@@ -488,7 +434,6 @@ elseif(WIN32)
     intern/GHOST_Wintab.cc
 
     intern/GHOST_ContextD3D.hh
-    intern/GHOST_DisplayManagerWin32.hh
     intern/GHOST_DropTargetWin32.hh
     intern/GHOST_SystemWin32.hh
     intern/GHOST_TaskbarWin32.hh
@@ -526,6 +471,16 @@ if(UNIX AND NOT APPLE)
       intern/GHOST_ContextEGL.cc
 
       intern/GHOST_ContextEGL.hh
+    )
+  endif()
+endif()
+
+if(APPLE)
+  if(WITH_METAL_BACKEND)
+    list(APPEND SRC
+      intern/GHOST_ContextMTL.mm
+
+      intern/GHOST_ContextMTL.hh
     )
   endif()
 endif()
@@ -570,6 +525,7 @@ if(WITH_XR_OPENXR)
     intern/GHOST_XrSwapchain.cc
 
     GHOST_IXrContext.hh
+    GHOST_Xr-api.hh
     intern/GHOST_IXrGraphicsBinding.hh
     intern/GHOST_XrAction.hh
     intern/GHOST_XrContext.hh
@@ -583,19 +539,50 @@ if(WITH_XR_OPENXR)
     # Header only library.
     ../../extern/tinygltf/tiny_gltf.h
   )
+  if(APPLE)
+    list(APPEND SRC
+      intern/GHOST_XrGraphicsBindingMetal.mm
+
+      intern/GHOST_XrGraphicsBindingMetal.hh
+    )
+  endif()
+
+  if(WIN32)
+    list(APPEND SRC
+      intern/GHOST_XrGraphicsBindingD3D.cc
+
+      intern/GHOST_XrGraphicsBindingD3D.hh
+    )
+  endif()
+
   list(APPEND INC_SYS
     ../../extern/json/include
     ../../extern/tinygltf
   )
   list(APPEND INC_SYS
-    ${EIGEN3_INCLUDE_DIRS}
     ${XR_OPENXR_SDK_INCLUDE_DIR}
   )
   list(APPEND LIB
     ${XR_OPENXR_SDK_LIBRARIES}
+    PRIVATE bf::dependencies::eigen
   )
 
-  set(XR_PLATFORM_DEFINES -DXR_USE_GRAPHICS_API_OPENGL)
+  set(XR_PLATFORM_DEFINES
+  )
+  if(WITH_OPENGL_BACKEND)
+    list(APPEND XR_PLATFORM_DEFINES -DXR_USE_GRAPHICS_API_OPENGL)
+  endif()
+  if(WITH_VULKAN_BACKEND)
+    list(APPEND XR_PLATFORM_DEFINES -DXR_USE_GRAPHICS_API_VULKAN)
+    list(APPEND SRC
+      intern/GHOST_XrGraphicsBindingVulkan.cc
+
+      intern/GHOST_XrGraphicsBindingVulkan.hh
+    )
+  endif()
+  if(WITH_METAL_BACKEND)
+    list(APPEND XR_PLATFORM_DEFINES -DXR_USE_GRAPHICS_API_METAL)
+  endif()
 
   # Add compiler defines as required by the OpenXR specification.
   if(WIN32)

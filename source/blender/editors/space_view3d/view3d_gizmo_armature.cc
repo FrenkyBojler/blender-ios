@@ -13,6 +13,7 @@
 #include "BKE_action.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_object.hh"
 
 #include "DNA_armature_types.h"
@@ -30,6 +31,8 @@
 
 #include "view3d_intern.hh" /* own include */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Armature Spline Gizmo
  * \{ */
@@ -37,7 +40,7 @@
 /*
  * TODO(@ideasman42): Current conversion is a approximation (usable not correct),
  * we'll need to take the next/previous bones into account to get the tangent directions.
- * First last matrices from 'BKE_pchan_bbone_spline_setup' are close but also not quite accurate
+ * First last matrices from #BKE_pchan_bbone_spline_setup are close but also not quite accurate
  * since they're not at either end-points on the curve.
  *
  * Likely we'll need a function especially to get the first/last orientations.
@@ -116,11 +119,13 @@ static bool WIDGETGROUP_armature_spline_poll(const bContext *C, wmGizmoGroupType
   if (base && BASE_SELECTABLE(v3d, base)) {
     Object *ob = BKE_object_pose_armature_get(base->object);
     if (ob) {
-      const bArmature *arm = static_cast<const bArmature *>(ob->data);
-      if (arm->drawtype == ARM_B_BONE) {
+      const bArmature *arm = id_cast<const bArmature *>(ob->data);
+      if (arm->drawtype == ARM_DRAW_TYPE_B_BONE) {
         bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
         if (pchan && pchan->bone->segments > 1) {
-          return true;
+          if (BKE_id_is_editable(CTX_data_main(C), &arm->id)) {
+            return true;
+          }
         }
       }
     }
@@ -138,8 +143,7 @@ static void WIDGETGROUP_armature_spline_setup(const bContext *C, wmGizmoGroup *g
 
   const wmGizmoType *gzt_move = WM_gizmotype_find("GIZMO_GT_move_3d", true);
 
-  BoneSplineWidgetGroup *bspline_group = static_cast<BoneSplineWidgetGroup *>(
-      MEM_callocN(sizeof(BoneSplineWidgetGroup), __func__));
+  BoneSplineWidgetGroup *bspline_group = MEM_new_zeroed<BoneSplineWidgetGroup>(__func__);
   gzgroup->customdata = bspline_group;
 
   /* Handles */
@@ -152,8 +156,8 @@ static void WIDGETGROUP_armature_spline_setup(const bContext *C, wmGizmoGroup *g
                  ED_GIZMO_MOVE_DRAW_FLAG_FILL | ED_GIZMO_MOVE_DRAW_FLAG_ALIGN_VIEW);
     WM_gizmo_set_flag(gz, WM_GIZMO_DRAW_VALUE, true);
 
-    UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
-    UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+    ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
+    ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
 
     gz->scale_basis = 0.06f;
 
@@ -212,3 +216,5 @@ void VIEW3D_GGT_armature_spline(wmGizmoGroupType *gzgt)
 }
 
 /** \} */
+
+}  // namespace blender

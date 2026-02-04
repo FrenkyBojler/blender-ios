@@ -8,9 +8,7 @@
  * \ingroup bke
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 struct BoidSettings;
 struct BoidState;
@@ -20,7 +18,7 @@ struct ParticleSettings;
 struct ParticleSimulationData;
 struct RNG;
 
-typedef struct BoidBrainData {
+struct BoidBrainData {
   struct ParticleSimulationData *sim;
   struct ParticleSettings *part;
   float timestep, cfra, dfra;
@@ -33,7 +31,7 @@ typedef struct BoidBrainData {
   float goal_priority;
 
   struct RNG *rng;
-} BoidBrainData;
+};
 
 void boids_precalc_rules(struct ParticleSettings *part, float cfra);
 /**
@@ -52,6 +50,4 @@ void boid_free_settings(struct BoidSettings *boids);
 struct BoidSettings *boid_copy_settings(const struct BoidSettings *boids);
 struct BoidState *boid_get_current_state(struct BoidSettings *boids);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

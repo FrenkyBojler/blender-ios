@@ -11,8 +11,6 @@
  * \see mesh_tessellate.cc for the #Mesh equivalent of this file.
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_heap.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -23,7 +21,7 @@
 
 #include "bmesh.hh"
 
-using blender::MutableSpan;
+namespace blender {
 
 /**
  * On systems with 32+ cores,
@@ -99,7 +97,7 @@ BLI_INLINE void bmesh_calc_tessellation_for_face_impl(std::array<BMLoop *, 3> *l
       BMLoop **l_arr;
 
       float axis_mat[3][3];
-      float(*projverts)[2];
+      float (*projverts)[2];
       uint(*tris)[3];
 
       const int tris_len = efa->len - 2;
@@ -111,7 +109,7 @@ BLI_INLINE void bmesh_calc_tessellation_for_face_impl(std::array<BMLoop *, 3> *l
 
       tris = static_cast<uint(*)[3]>(BLI_memarena_alloc(pf_arena, sizeof(*tris) * tris_len));
       l_arr = static_cast<BMLoop **>(BLI_memarena_alloc(pf_arena, sizeof(*l_arr) * efa->len));
-      projverts = static_cast<float(*)[2]>(
+      projverts = static_cast<float (*)[2]>(
           BLI_memarena_alloc(pf_arena, sizeof(*projverts) * efa->len));
 
       axis_dominant_v3_to_m3_negate(axis_mat, efa->no);
@@ -208,7 +206,7 @@ static void bmesh_calc_tessellation_for_face_fn(void *__restrict userdata,
 {
   TessellationUserTLS *tls_data = static_cast<TessellationUserTLS *>(tls->userdata_chunk);
   std::array<BMLoop *, 3> *looptris = static_cast<std::array<BMLoop *, 3> *>(userdata);
-  BMFace *f = (BMFace *)mp_f;
+  BMFace *f = reinterpret_cast<BMFace *>(mp_f);
   BMLoop *l = BM_FACE_FIRST_LOOP(f);
   const int offset = BM_elem_index_get(l) - (BM_elem_index_get(f) * 2);
   bmesh_calc_tessellation_for_face(looptris + offset, f, &tls_data->pf_arena);
@@ -220,7 +218,7 @@ static void bmesh_calc_tessellation_for_face_with_normals_fn(void *__restrict us
 {
   TessellationUserTLS *tls_data = static_cast<TessellationUserTLS *>(tls->userdata_chunk);
   std::array<BMLoop *, 3> *looptris = static_cast<std::array<BMLoop *, 3> *>(userdata);
-  BMFace *f = (BMFace *)mp_f;
+  BMFace *f = reinterpret_cast<BMFace *>(mp_f);
   BMLoop *l = BM_FACE_FIRST_LOOP(f);
   const int offset = BM_elem_index_get(l) - (BM_elem_index_get(f) * 2);
   bmesh_calc_tessellation_for_face_with_normal(looptris + offset, f, &tls_data->pf_arena);
@@ -280,7 +278,7 @@ void BM_mesh_calc_tessellation(BMesh *bm, MutableSpan<std::array<BMLoop *, 3>> l
  * \{ */
 
 struct PartialTessellationUserData {
-  BMFace **faces;
+  BMFace *const *faces;
   MutableSpan<std::array<BMLoop *, 3>> looptris;
 };
 
@@ -328,8 +326,8 @@ static void bm_mesh_calc_tessellation_with_partial__multi_threaded(
     const BMPartialUpdate *bmpinfo,
     const BMeshCalcTessellation_Params *params)
 {
-  const int faces_len = bmpinfo->faces_len;
-  BMFace **faces = bmpinfo->faces;
+  const int faces_len = bmpinfo->faces.size();
+  BMFace *const *faces = bmpinfo->faces.data();
 
   PartialTessellationUserData data{};
   data.faces = faces;
@@ -357,8 +355,8 @@ static void bm_mesh_calc_tessellation_with_partial__single_threaded(
     const BMPartialUpdate *bmpinfo,
     const BMeshCalcTessellation_Params *params)
 {
-  const int faces_len = bmpinfo->faces_len;
-  BMFace **faces = bmpinfo->faces;
+  const int faces_len = bmpinfo->faces.size();
+  BMFace *const *faces = bmpinfo->faces.data();
 
   MemArena *pf_arena = nullptr;
 
@@ -391,13 +389,13 @@ void BM_mesh_calc_tessellation_with_partial_ex(BMesh *bm,
 {
   BLI_assert(bmpinfo->params.do_tessellate);
   /* While harmless, exit early if there is nothing to do (avoids ensuring the index). */
-  if (UNLIKELY(bmpinfo->faces_len == 0)) {
+  if (UNLIKELY(bmpinfo->faces.is_empty())) {
     return;
   }
 
   BM_mesh_elem_index_ensure(bm, BM_LOOP | BM_FACE);
 
-  if (bmpinfo->faces_len < BM_FACE_TESSELLATE_THREADED_LIMIT) {
+  if (bmpinfo->faces.size() < BM_FACE_TESSELLATE_THREADED_LIMIT) {
     bm_mesh_calc_tessellation_with_partial__single_threaded(looptris, bmpinfo, params);
   }
   else {
@@ -494,14 +492,14 @@ static int bmesh_calc_tessellation_for_face_beauty(std::array<BMLoop *, 3> *loop
       BMLoop **l_arr;
 
       float axis_mat[3][3];
-      float(*projverts)[2];
+      float (*projverts)[2];
       uint(*tris)[3];
 
       const int tris_len = efa->len - 2;
 
       tris = static_cast<uint(*)[3]>(BLI_memarena_alloc(pf_arena, sizeof(*tris) * tris_len));
       l_arr = static_cast<BMLoop **>(BLI_memarena_alloc(pf_arena, sizeof(*l_arr) * efa->len));
-      projverts = static_cast<float(*)[2]>(
+      projverts = static_cast<float (*)[2]>(
           BLI_memarena_alloc(pf_arena, sizeof(*projverts) * efa->len));
 
       axis_dominant_v3_to_m3_negate(axis_mat, efa->no);
@@ -564,3 +562,5 @@ void BM_mesh_calc_tessellation_beauty(BMesh *bm, MutableSpan<std::array<BMLoop *
 }
 
 /** \} */
+
+}  // namespace blender

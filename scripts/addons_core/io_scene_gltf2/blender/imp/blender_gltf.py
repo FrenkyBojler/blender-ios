@@ -5,7 +5,10 @@
 import bpy
 from mathutils import Vector, Quaternion, Matrix
 from ...io.imp.user_extensions import import_user_extensions
+from ..com.gltf2_blender_utils import find_unused_name
 from .scene import BlenderScene
+from .material import BlenderMaterial
+from .image import BlenderImage
 
 
 class BlenderGlTF():
@@ -43,6 +46,20 @@ class BlenderGlTF():
         BlenderGlTF.set_convert_functions(gltf)
         BlenderGlTF.pre_compute(gltf)
         BlenderScene.create(gltf)
+
+        # If needed, create not used materials
+        if gltf.import_settings['import_unused_materials']:
+            for mat_idx in [i for i in range(len(gltf.data.materials)) if len(
+                    gltf.data.materials[i].blender_material) == 0]:
+                BlenderMaterial.create(gltf, mat_idx, None)
+                # Force material users (fake user)
+                bpy.data.materials[gltf.data.materials[mat_idx].blender_material[None]].use_fake_user = True
+
+            # If needed, create not used images
+            for img_idx in [i for i in range(len(gltf.data.images)) if gltf.data.images[i].blender_image_name is None]:
+                BlenderImage.create(gltf, img_idx)
+                # Force image users (fake user)
+                bpy.data.images[gltf.data.images[img_idx].blender_image_name].use_fake_user = True
 
     @staticmethod
     def set_convert_functions(gltf):
@@ -116,27 +133,20 @@ class BlenderGlTF():
         gltf.animation_object = False
 
         # Blender material
-        if gltf.data.materials:
-            for material in gltf.data.materials:
-                material.blender_material = {}
+        for material in gltf.data.materials if gltf.data.materials is not None else []:
+            material.blender_material = {}
 
         # images
-        if gltf.data.images is not None:
-            for img in gltf.data.images:
-                img.blender_image_name = None
+        for img in gltf.data.images if gltf.data.images is not None else []:
+            img.blender_image_name = None
 
-        if gltf.data.nodes is None:
-            # Something is wrong in file, there is no nodes
-            return
-
-        for node in gltf.data.nodes:
+        for node in gltf.data.nodes if gltf.data.nodes is not None else []:
             # Weight animation management
             node.weight_animation = False
 
         # Meshes initialization
-        if gltf.data.meshes:
-            for mesh in gltf.data.meshes:
-                mesh.blender_name = {}  # caches Blender mesh name
+        for mesh in gltf.data.meshes if gltf.data.meshes is not None else []:
+            mesh.blender_name = {}  # caches Blender mesh name
 
         if gltf.data.extensions_used is not None and "KHR_animation_pointer" in gltf.data.extensions_used:
             # Meshes initialization
@@ -186,16 +196,26 @@ class BlenderGlTF():
                         tex.extensions["KHR_texture_transform"]["animations"] = {}
 
                 texs_ext = [
-                    mat.extensions["KHR_materials_volume"].get("thicknessTexture") if mat.extensions and "KHR_materials_volume" in mat.extensions else None,
-                    mat.extensions["KHR_materials_transmission"].get("transmissionTexture") if mat.extensions and "KHR_materials_transmission" in mat.extensions else None,
-                    mat.extensions["KHR_materials_specular"].get("specularTexture") if mat.extensions and "KHR_materials_specular" in mat.extensions else None,
-                    mat.extensions["KHR_materials_specular"].get("specularColorTexture") if mat.extensions and "KHR_materials_specular" in mat.extensions else None,
-                    mat.extensions["KHR_materials_sheen"].get("sheenColorTexture") if mat.extensions and "KHR_materials_sheen" in mat.extensions else None,
-                    mat.extensions["KHR_materials_sheen"].get("sheenRoughnessTexture") if mat.extensions and "KHR_materials_sheen" in mat.extensions else None,
-                    mat.extensions["KHR_materials_clearcoat"].get("clearcoatTexture") if mat.extensions and "KHR_materials_clearcoat" in mat.extensions else None,
-                    mat.extensions["KHR_materials_clearcoat"].get("clearcoatRoughnessTexture") if mat.extensions and "KHR_materials_clearcoat" in mat.extensions else None,
-                    mat.extensions["KHR_materials_clearcoat"].get("clearcoatNormalTexture") if mat.extensions and "KHR_materials_clearcoat" in mat.extensions else None,
-                    mat.extensions["KHR_materials_anisotropy"].get("anisotropyTexture") if mat.extensions and "KHR_materials_anisotropy" in mat.extensions else None,
+                    mat.extensions["KHR_materials_volume"].get(
+                        "thicknessTexture") if mat.extensions and "KHR_materials_volume" in mat.extensions else None,
+                    mat.extensions["KHR_materials_transmission"].get(
+                        "transmissionTexture") if mat.extensions and "KHR_materials_transmission" in mat.extensions else None,
+                    mat.extensions["KHR_materials_specular"].get(
+                        "specularTexture") if mat.extensions and "KHR_materials_specular" in mat.extensions else None,
+                    mat.extensions["KHR_materials_specular"].get(
+                        "specularColorTexture") if mat.extensions and "KHR_materials_specular" in mat.extensions else None,
+                    mat.extensions["KHR_materials_sheen"].get(
+                        "sheenColorTexture") if mat.extensions and "KHR_materials_sheen" in mat.extensions else None,
+                    mat.extensions["KHR_materials_sheen"].get(
+                        "sheenRoughnessTexture") if mat.extensions and "KHR_materials_sheen" in mat.extensions else None,
+                    mat.extensions["KHR_materials_clearcoat"].get(
+                        "clearcoatTexture") if mat.extensions and "KHR_materials_clearcoat" in mat.extensions else None,
+                    mat.extensions["KHR_materials_clearcoat"].get(
+                        "clearcoatRoughnessTexture") if mat.extensions and "KHR_materials_clearcoat" in mat.extensions else None,
+                    mat.extensions["KHR_materials_clearcoat"].get(
+                        "clearcoatNormalTexture") if mat.extensions and "KHR_materials_clearcoat" in mat.extensions else None,
+                    mat.extensions["KHR_materials_anisotropy"].get(
+                        "anisotropyTexture") if mat.extensions and "KHR_materials_anisotropy" in mat.extensions else None,
                 ]
 
                 for tex in [t for t in texs_ext if t is not None]:
@@ -211,7 +231,7 @@ class BlenderGlTF():
 
         # Dispatch animation
         if gltf.data.animations:
-            for node in gltf.data.nodes:
+            for node in gltf.data.nodes if gltf.data.nodes is not None else []:
                 node.animations = {}
 
             track_names = set()
@@ -220,7 +240,7 @@ class BlenderGlTF():
                 # for its NLA tracks.
                 desired_name = anim.name or "Anim_%d" % anim_idx
                 # TRS animations & Pointer will be created as separate tracks
-                anim.track_name = BlenderGlTF.find_unused_name(track_names, desired_name)
+                anim.track_name = find_unused_name(track_names, desired_name)
                 track_names.add(anim.track_name)
 
                 for channel_idx, channel in enumerate(anim.channels):
@@ -240,7 +260,7 @@ class BlenderGlTF():
         # For KHR_animation_pointer, weight on meshes
         # We broadcast mesh weight animations to corresponding nodes
         if gltf.data.extensions_used is not None and "KHR_animation_pointer" in gltf.data.extensions_used:
-            for node in gltf.data.nodes:
+            for node in gltf.data.nodes if gltf.data.nodes is not None else []:
                 if node.mesh is not None and gltf.data.meshes[node.mesh].weight_animation_on_mesh is not None:
                     anim_idx, channel_idx = gltf.data.meshes[node.mesh].weight_animation_on_mesh
                     if anim_idx not in node.animations.keys():
@@ -288,7 +308,7 @@ class BlenderGlTF():
                     if shapekey_name is None:
                         shapekey_name = "target_" + str(sk)
 
-                    shapekey_name = BlenderGlTF.find_unused_name(used_names, shapekey_name)
+                    shapekey_name = find_unused_name(used_names, shapekey_name)
                     used_names.add(shapekey_name)
 
                     mesh.shapekey_names.append(shapekey_name)
@@ -312,7 +332,7 @@ class BlenderGlTF():
 
         pointer_tab = channel.target.extensions["KHR_animation_pointer"]["pointer"].split("/")
 
-        ### Nodes and Meshes
+        # Nodes and Meshes
         if len(pointer_tab) >= 4 and pointer_tab[1] == "nodes" and pointer_tab[3] in [
                 "translation", "rotation", "scale", "weights"]:
             if anim_idx not in gltf.data.nodes[int(pointer_tab[2])].animations.keys():
@@ -581,28 +601,6 @@ class BlenderGlTF():
                                 ].extensions["KHR_materials_anisotropy"]["animations"][anim_idx].append(channel_idx)
 
     @staticmethod
-    def find_unused_name(haystack, desired_name):
-        """Finds a name not in haystack and <= 63 UTF-8 bytes.
-        (the limit on the size of a Blender name.)
-        If a is taken, tries a.001, then a.002, etc.
-        """
-        stem = desired_name[:63]
-        suffix = ''
-        cntr = 1
-        while True:
-            name = stem + suffix
-
-            if len(name.encode('utf-8')) > 63:
-                stem = stem[:-1]
-                continue
-
-            if name not in haystack:
-                return name
-
-            suffix = '.%03d' % cntr
-            cntr += 1
-
-    @staticmethod
     def manage_material_variants(gltf):
         if not (gltf.data.extensions is not None and 'KHR_materials_variants' in gltf.data.extensions.keys()):
             gltf.KHR_materials_variants = False
@@ -620,5 +618,6 @@ class BlenderGlTF():
 
         for idx_variant, variant in enumerate(gltf.data.extensions['KHR_materials_variants']['variants']):
             var = bpy.data.scenes[0].gltf2_KHR_materials_variants_variants.add()
-            var.name = variant['name']
+            # Make sure variant idx is set before name, as name setter uses variant_idx
             var.variant_idx = idx_variant
+            var.name = variant['name']

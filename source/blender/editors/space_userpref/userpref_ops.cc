@@ -26,6 +26,7 @@
 #include "BKE_global.hh"
 #include "BKE_main.hh"
 #include "BKE_preferences.h"
+#include "BKE_screen.hh"
 
 #include "BKE_report.hh"
 
@@ -37,23 +38,30 @@
 #include "RNA_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ED_asset.hh"
+#include "ED_screen.hh"
 #include "ED_userpref.hh"
 
 #include "MEM_guardedalloc.h"
+
+#include "userpref_intern.hh"
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Reset Default Theme Operator
  * \{ */
 
-static int preferences_reset_default_theme_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus preferences_reset_default_theme_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  UI_theme_init_default();
-  UI_style_init_default();
+  ui::theme::init_default();
+  ui::style_init_default();
   WM_reinit_gizmomap_all(bmain);
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
   U.runtime.is_dirty = true;
@@ -80,10 +88,9 @@ static void PREFERENCES_OT_reset_default_theme(wmOperatorType *ot)
 /** \name Add Auto-Execution Path Operator
  * \{ */
 
-static int preferences_autoexec_add_exec(bContext * /*C*/, wmOperator * /*op*/)
+static wmOperatorStatus preferences_autoexec_add_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
-  bPathCompare *path_cmp = static_cast<bPathCompare *>(
-      MEM_callocN(sizeof(bPathCompare), "bPathCompare"));
+  bPathCompare *path_cmp = MEM_new<bPathCompare>("bPathCompare");
   BLI_addtail(&U.autoexec_paths, path_cmp);
   U.runtime.is_dirty = true;
   return OPERATOR_FINISHED;
@@ -106,7 +113,7 @@ static void PREFERENCES_OT_autoexec_path_add(wmOperatorType *ot)
 /** \name Remove Auto-Execution Path Operator
  * \{ */
 
-static int preferences_autoexec_remove_exec(bContext * /*C*/, wmOperator *op)
+static wmOperatorStatus preferences_autoexec_remove_exec(bContext * /*C*/, wmOperator *op)
 {
   const int index = RNA_int_get(op->ptr, "index");
   bPathCompare *path_cmp = static_cast<bPathCompare *>(BLI_findlink(&U.autoexec_paths, index));
@@ -136,7 +143,7 @@ static void PREFERENCES_OT_autoexec_path_remove(wmOperatorType *ot)
 /** \name Add Asset Library Operator
  * \{ */
 
-static int preferences_asset_library_add_exec(bContext * /*C*/, wmOperator *op)
+static wmOperatorStatus preferences_asset_library_add_exec(bContext *C, wmOperator *op)
 {
   char *path = RNA_string_get_alloc(op->ptr, "directory", nullptr, 0, nullptr);
   char dirname[FILE_MAXFILE];
@@ -152,14 +159,15 @@ static int preferences_asset_library_add_exec(bContext * /*C*/, wmOperator *op)
 
   /* There's no dedicated notifier for the Preferences. */
   WM_main_add_notifier(NC_WINDOW, nullptr);
+  ed::asset::list::clear_all_library(C);
 
-  MEM_freeN(path);
+  MEM_delete(path);
   return OPERATOR_FINISHED;
 }
 
-static int preferences_asset_library_add_invoke(bContext *C,
-                                                wmOperator *op,
-                                                const wmEvent * /*event*/)
+static wmOperatorStatus preferences_asset_library_add_invoke(bContext *C,
+                                                             wmOperator *op,
+                                                             const wmEvent * /*event*/)
 {
   if (!RNA_struct_property_is_set(op->ptr, "directory")) {
     WM_event_add_fileselect(C, op);
@@ -204,7 +212,7 @@ static bool preferences_asset_library_remove_poll(bContext *C)
   return true;
 }
 
-static int preferences_asset_library_remove_exec(bContext * /*C*/, wmOperator *op)
+static wmOperatorStatus preferences_asset_library_remove_exec(bContext *C, wmOperator *op)
 {
   const int index = RNA_int_get(op->ptr, "index");
   bUserAssetLibrary *library = static_cast<bUserAssetLibrary *>(
@@ -219,6 +227,7 @@ static int preferences_asset_library_remove_exec(bContext * /*C*/, wmOperator *o
   CLAMP(U.active_asset_library, 0, count_remaining - 1);
   U.runtime.is_dirty = true;
 
+  ed::asset::list::clear_all_library(C);
   /* Trigger refresh for the Asset Browser. */
   WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
 
@@ -266,7 +275,7 @@ static const char *preferences_extension_repo_default_name_from_type(
   return "";
 }
 
-static int preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
 {
   const bUserExtensionRepoAddType repo_type = bUserExtensionRepoAddType(
       RNA_enum_get(op->ptr, "type"));
@@ -312,7 +321,7 @@ static int preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
     if (name[0] == '\0') {
       switch (repo_type) {
         case bUserExtensionRepoAddType::Remote: {
-          BKE_preferences_extension_remote_to_name(remote_url, name);
+          BKE_preferences_remote_to_name(remote_url, name);
           break;
         }
         case bUserExtensionRepoAddType::Local: {
@@ -335,7 +344,7 @@ static int preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
    * Otherwise URL's have their '.' removed, making for quite unreadable module names. */
   char module_buf[FILE_MAX];
   {
-    STRNCPY(module_buf, module);
+    STRNCPY_UTF8(module_buf, module);
     int i;
     for (i = 0; module_buf[i]; i++) {
       if (ELEM(module_buf[i], '.', '-', '/', '\\')) {
@@ -360,7 +369,7 @@ static int preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
   }
 
   if (repo_type == bUserExtensionRepoAddType::Remote) {
-    STRNCPY(new_repo->remote_url, remote_url);
+    STRNCPY_UTF8(new_repo->remote_url, remote_url);
     new_repo->flag |= USER_EXTENSION_REPO_FLAG_USE_REMOTE_URL;
 
     if (use_access_token) {
@@ -376,7 +385,8 @@ static int preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
   U.runtime.is_dirty = true;
 
   {
-    PointerRNA new_repo_ptr = RNA_pointer_create(nullptr, &RNA_UserExtensionRepo, new_repo);
+    PointerRNA new_repo_ptr = RNA_pointer_create_discrete(
+        nullptr, RNA_UserExtensionRepo, new_repo);
     PointerRNA *pointers[] = {&new_repo_ptr};
 
     BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
@@ -387,7 +397,7 @@ static int preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   /* Mainly useful when adding a repository from a popup since it's not as obvious
-   * the repository was added compared to the repository popover.  */
+   * the repository was added compared to the repository popover. */
   BKE_reportf(op->reports,
               RPT_INFO,
               "Added %s \"%s\"",
@@ -397,7 +407,9 @@ static int preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int preferences_extension_repo_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus preferences_extension_repo_add_invoke(bContext *C,
+                                                              wmOperator *op,
+                                                              const wmEvent *event)
 {
   const bUserExtensionRepoAddType repo_type = bUserExtensionRepoAddType(
       RNA_enum_get(op->ptr, "type"));
@@ -418,46 +430,46 @@ static int preferences_extension_repo_add_invoke(bContext *C, wmOperator *op, co
 static void preferences_extension_repo_add_ui(bContext * /*C*/, wmOperator *op)
 {
 
-  uiLayout *layout = op->layout;
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  ui::Layout &layout = *op->layout;
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
   PointerRNA *ptr = op->ptr;
   const bUserExtensionRepoAddType repo_type = bUserExtensionRepoAddType(RNA_enum_get(ptr, "type"));
 
   switch (repo_type) {
     case bUserExtensionRepoAddType::Remote: {
-      uiItemR(layout, op->ptr, "remote_url", UI_ITEM_R_IMMEDIATE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "use_sync_on_startup", UI_ITEM_NONE, nullptr, ICON_NONE);
+      layout.prop(op->ptr, "remote_url", ui::ITEM_R_IMMEDIATE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "use_sync_on_startup", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-      uiItemS_ex(layout, 0.2f, LayoutSeparatorType::Line);
+      layout.separator(0.2f, ui::LayoutSeparatorType::Line);
 
       const bool use_access_token = RNA_boolean_get(ptr, "use_access_token");
       const int token_icon = (use_access_token && RNA_string_length(op->ptr, "access_token")) ?
                                  ICON_LOCKED :
                                  ICON_UNLOCKED;
 
-      uiLayout *row = uiLayoutRowWithHeading(layout, true, IFACE_("Authentication"));
-      uiItemR(row, op->ptr, "use_access_token", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiLayout *col = uiLayoutRow(layout, false);
-      uiLayoutSetActive(col, use_access_token);
+      ui::Layout &row = layout.row(true, IFACE_("Authentication"));
+      row.prop(op->ptr, "use_access_token", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      ui::Layout &col = layout.row(false);
+      col.active_set(use_access_token);
       /* Use "immediate" flag to refresh the icon. */
-      uiItemR(col, op->ptr, "access_token", UI_ITEM_R_IMMEDIATE, nullptr, token_icon);
+      col.prop(op->ptr, "access_token", ui::ITEM_R_IMMEDIATE, std::nullopt, token_icon);
 
-      uiItemS_ex(layout, 0.2f, LayoutSeparatorType::Line);
+      layout.separator(0.2f, ui::LayoutSeparatorType::Line);
 
       break;
     }
     case bUserExtensionRepoAddType::Local: {
-      uiItemR(layout, op->ptr, "name", UI_ITEM_R_IMMEDIATE, nullptr, ICON_NONE);
+      layout.prop(op->ptr, "name", ui::ITEM_R_IMMEDIATE, std::nullopt, ICON_NONE);
       break;
     }
   }
 
-  uiItemR(layout, op->ptr, "use_custom_directory", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiLayout *col = uiLayoutRow(layout, false);
-  uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_custom_directory"));
-  uiItemR(col, op->ptr, "custom_directory", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(op->ptr, "use_custom_directory", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  ui::Layout &col = layout.row(false);
+  col.active_set(RNA_boolean_get(ptr, "use_custom_directory"));
+  col.prop(op->ptr, "custom_directory", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)
@@ -477,7 +489,7 @@ static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)
        "REMOTE",
        ICON_INTERNET,
        "Add Remote Repository",
-       "Add a repository referencing an remote repository "
+       "Add a repository referencing a remote repository "
        "with support for listing and updating extensions"},
       {int(bUserExtensionRepoAddType::Local),
        "LOCAL",
@@ -498,7 +510,7 @@ static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)
    * setting the repositories URL (optionally the custom-directory). */
 
   /* Copy the RNA values are copied into the operator to avoid repetition. */
-  StructRNA *type_ref = &RNA_UserExtensionRepo;
+  StructRNA *type_ref = RNA_UserExtensionRepo;
 
   { /* Name. */
     const char *prop_id = "name";
@@ -602,9 +614,9 @@ static bool preferences_extension_repo_remove_poll(bContext *C)
   return true;
 }
 
-static int preferences_extension_repo_remove_invoke(bContext *C,
-                                                    wmOperator *op,
-                                                    const wmEvent * /*event*/)
+static wmOperatorStatus preferences_extension_repo_remove_invoke(bContext *C,
+                                                                 wmOperator *op,
+                                                                 const wmEvent * /*event*/)
 {
   const int index = RNA_int_get(op->ptr, "index");
   bool remove_files = RNA_boolean_get(op->ptr, "remove_files");
@@ -653,10 +665,10 @@ static int preferences_extension_repo_remove_invoke(bContext *C,
                                             IFACE_("Remove Repository");
 
   return WM_operator_confirm_ex(
-      C, op, nullptr, message.c_str(), confirm_text, ALERT_ICON_WARNING, true);
+      C, op, nullptr, message.c_str(), confirm_text, ui::AlertIcon::Warning, true);
 }
 
-static int preferences_extension_repo_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus preferences_extension_repo_remove_exec(bContext *C, wmOperator *op)
 {
   const int index = RNA_int_get(op->ptr, "index");
   bool remove_files = RNA_boolean_get(op->ptr, "remove_files");
@@ -710,7 +722,7 @@ static int preferences_extension_repo_remove_exec(bContext *C, wmOperator *op)
        * If it's not empty there will be a warning that the directory couldn't be removed.
        * The user will have to do this manually which is good since unknown files
        * could be user data. */
-      BKE_callback_exec_string(bmain, BKE_CB_EVT_EXTENSION_REPOS_FILES_CLEAR, dirpath);
+      BKE_callback_exec_string(bmain, dirpath, BKE_CB_EVT_EXTENSION_REPOS_FILES_CLEAR);
 
       if (BLI_delete(dirpath, true, recursive) != 0) {
         BKE_reportf(op->reports,
@@ -774,11 +786,14 @@ static void PREFERENCES_OT_extension_repo_remove(wmOperatorType *ot)
 /** \name Drop Extension Operator
  * \{ */
 
-static int preferences_extension_url_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus preferences_extension_url_drop_invoke(bContext *C,
+                                                              wmOperator *op,
+                                                              const wmEvent *event)
 {
-  char *url = RNA_string_get_alloc(op->ptr, "url", nullptr, 0, nullptr);
-  const bool url_is_file = STRPREFIX(url, "file://");
-  const bool url_is_online = STRPREFIX(url, "http://") || STRPREFIX(url, "https://");
+  std::string url = RNA_string_get(op->ptr, "url");
+  const bool url_is_file = STRPREFIX(url.c_str(), "file://");
+  const bool url_is_online = STRPREFIX(url.c_str(), "http://") ||
+                             STRPREFIX(url.c_str(), "https://");
   const bool url_is_remote = url_is_file | url_is_online;
 
   /* NOTE: searching for hard-coded add-on name isn't great.
@@ -793,14 +808,13 @@ static int preferences_extension_url_drop_invoke(bContext *C, wmOperator *op, co
   }
 
   wmOperatorType *ot = WM_operatortype_find(idname_external, true);
-  int retval;
+  wmOperatorStatus retval;
   if (ot) {
-    PointerRNA props_ptr;
-    WM_operator_properties_create_ptr(&props_ptr, ot);
+    PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
     if (use_url) {
-      RNA_string_set(&props_ptr, "url", url);
+      RNA_string_set(&props_ptr, "url", url.c_str());
     }
-    WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &props_ptr, event);
+    WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, event);
     WM_operator_properties_free(&props_ptr);
     retval = OPERATOR_FINISHED;
   }
@@ -808,7 +822,6 @@ static int preferences_extension_url_drop_invoke(bContext *C, wmOperator *op, co
     BKE_reportf(op->reports, RPT_ERROR, "Extension operator not found \"%s\"", idname_external);
     retval = OPERATOR_CANCELLED;
   }
-  MEM_freeN(url);
   return retval;
 }
 
@@ -819,7 +832,7 @@ static void PREFERENCES_OT_extension_url_drop(wmOperatorType *ot)
   ot->description = "Handle dropping an extension URL";
   ot->idname = "PREFERENCES_OT_extension_url_drop";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = preferences_extension_url_drop_invoke;
 
   RNA_def_string(ot->srna, "url", nullptr, 0, "URL", "Location of the extension to install");
@@ -866,7 +879,7 @@ static bool associate_blend(bool do_register, bool all_users, char **r_error_msg
 }
 #endif
 
-static int associate_blend_exec(bContext * /*C*/, wmOperator *op)
+static wmOperatorStatus associate_blend_exec(bContext * /*C*/, wmOperator *op)
 {
 #ifdef __APPLE__
   UNUSED_VARS(op);
@@ -893,7 +906,7 @@ static int associate_blend_exec(bContext * /*C*/, wmOperator *op)
     BKE_report(
         op->reports, RPT_ERROR, error_msg ? error_msg : "Unable to register file association");
     if (error_msg) {
-      MEM_freeN(error_msg);
+      MEM_delete(error_msg);
     }
     return OPERATOR_CANCELLED;
   }
@@ -910,12 +923,12 @@ static void PREFERENCES_OT_associate_blend(wmOperatorType *ot)
   ot->description = "Use this installation for .blend files and to display thumbnails";
   ot->idname = "PREFERENCES_OT_associate_blend";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = associate_blend_exec;
   ot->poll = associate_blend_poll;
 }
 
-static int unassociate_blend_exec(bContext * /*C*/, wmOperator *op)
+static wmOperatorStatus unassociate_blend_exec(bContext * /*C*/, wmOperator *op)
 {
 #ifdef __APPLE__
   UNUSED_VARS(op);
@@ -941,7 +954,7 @@ static int unassociate_blend_exec(bContext * /*C*/, wmOperator *op)
     BKE_report(
         op->reports, RPT_ERROR, error_msg ? error_msg : "Unable to unregister file association");
     if (error_msg) {
-      MEM_freeN(error_msg);
+      MEM_delete(error_msg);
     }
     return OPERATOR_CANCELLED;
   }
@@ -958,7 +971,7 @@ static void PREFERENCES_OT_unassociate_blend(wmOperatorType *ot)
   ot->description = "Remove this installation's associations with .blend files";
   ot->idname = "PREFERENCES_OT_unassociate_blend";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = unassociate_blend_exec;
   ot->poll = associate_blend_poll;
 }
@@ -984,7 +997,7 @@ static bool drop_extension_url_poll(bContext * /*C*/, wmDrag *drag, const wmEven
 
   /* Only URL formatted text. */
   const char *cstr = str.c_str();
-  if (BKE_preferences_extension_repo_remote_scheme_end(cstr) == 0) {
+  if (BKE_preferences_remote_scheme_end(cstr) == 0) {
     return false;
   }
 
@@ -1062,7 +1075,7 @@ static void drop_extension_path_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *
 
 static void ED_dropbox_drop_extension()
 {
-  ListBase *lb = WM_dropboxmap_find("Window", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("Window", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_dropbox_add(lb,
                  "PREFERENCES_OT_extension_url_drop",
                  drop_extension_url_poll,
@@ -1076,6 +1089,52 @@ static void ED_dropbox_drop_extension()
                  nullptr,
                  nullptr);
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Start / Clear Search Filter Operators
+ *
+ * \note Almost a duplicate of the file browser operator #FILE_OT_start_filter.
+ * \{ */
+
+static wmOperatorStatus preferences_start_filter_exec(bContext *C, wmOperator * /*op*/)
+{
+  SpaceUserPref *space = CTX_wm_space_userpref(C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_UI);
+  ui::textbutton_activate_rna(C, region, space, "search_filter");
+  return OPERATOR_FINISHED;
+}
+
+void PREFERENCES_OT_start_filter(wmOperatorType *ot)
+{
+  ot->name = "Filter";
+  ot->description = "Start entering filter text";
+  ot->idname = "PREFERENCES_OT_start_filter";
+  ot->exec = preferences_start_filter_exec;
+  ot->poll = ED_operator_preferences_active;
+}
+
+static wmOperatorStatus preferences_clear_filter_exec(bContext *C, wmOperator * /*op*/)
+{
+  SpaceUserPref *space = CTX_wm_space_userpref(C);
+  space->runtime->search_string[0] = '\0';
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *main_region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  ED_region_search_filter_update(area, main_region);
+  ED_area_tag_redraw(area);
+  return OPERATOR_FINISHED;
+}
+
+void PREFERENCES_OT_clear_filter(wmOperatorType *ot)
+{
+  ot->name = "Clear Filter";
+  ot->description = "Clear the search filter";
+  ot->idname = "PREFERENCES_OT_clear_filter";
+  ot->exec = preferences_clear_filter_exec;
+  ot->poll = ED_operator_preferences_active;
+}
+
+/** \} */
 
 void ED_operatortypes_userpref()
 {
@@ -1094,5 +1153,10 @@ void ED_operatortypes_userpref()
   WM_operatortype_append(PREFERENCES_OT_associate_blend);
   WM_operatortype_append(PREFERENCES_OT_unassociate_blend);
 
+  WM_operatortype_append(PREFERENCES_OT_start_filter);
+  WM_operatortype_append(PREFERENCES_OT_clear_filter);
+
   ED_dropbox_drop_extension();
 }
+
+}  // namespace blender

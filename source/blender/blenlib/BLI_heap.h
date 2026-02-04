@@ -9,16 +9,15 @@
  * \brief A min-heap / priority queue ADT
  */
 
+#include <stdbool.h>
+#include <stddef.h>
+
 #include "BLI_compiler_attrs.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 struct Heap;
 struct HeapNode;
-typedef struct Heap Heap;
-typedef struct HeapNode HeapNode;
 
 typedef void (*HeapFreeFP)(void *ptr);
 
@@ -77,6 +76,4 @@ void *BLI_heap_node_ptr(const HeapNode *heap) ATTR_WARN_UNUSED_RESULT ATTR_NONNU
  */
 bool BLI_heap_is_valid(const Heap *heap);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

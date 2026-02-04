@@ -10,9 +10,7 @@
 
 #include "DNA_curveprofile_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 struct BlendDataReader;
 struct BlendWriter;
@@ -157,6 +155,4 @@ void BKE_curveprofile_blend_write(struct BlendWriter *writer, const struct Curve
  */
 void BKE_curveprofile_blend_read(struct BlendDataReader *reader, struct CurveProfile *profile);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

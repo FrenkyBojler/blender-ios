@@ -8,12 +8,16 @@
 
 #pragma once
 
+#include <Python.h>
+
 #include "../generic/py_capi_utils.hh"
+
+namespace blender {
 
 extern struct PyC_StringEnumItems bpygpu_primtype_items[];
 extern struct PyC_StringEnumItems bpygpu_dataformat_items[];
 
-bool bpygpu_is_init_or_error(void);
+[[nodiscard]] bool bpygpu_is_init_or_error();
 
 #define BPYGPU_IS_INIT_OR_ERROR_OBJ \
   if (UNLIKELY(!bpygpu_is_init_or_error())) { \
@@ -25,3 +29,5 @@ bool bpygpu_is_init_or_error(void);
     return -1; \
   } \
   ((void)0)
+
+}  // namespace blender

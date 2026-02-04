@@ -11,7 +11,6 @@
  */
 
 #include <algorithm>
-#include <memory>
 
 #include "oiio/openimageio_support.hh"
 
@@ -22,9 +21,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
-#ifdef __BIG_ENDIAN__
-#  include "BLI_endian_switch.h"
-#endif
+namespace blender {
 
 OIIO_NAMESPACE_USING
 using namespace blender::imbuf;
@@ -44,17 +41,17 @@ void imb_init_dds()
   }
 }
 
-bool imb_is_a_dds(const uchar *buf, size_t size)
+bool imb_is_a_dds(const uchar *mem, size_t size)
 {
-  return imb_oiio_check(buf, size, "dds");
+  return imb_oiio_check(mem, size, "dds");
 }
 
-ImBuf *imb_load_dds(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+ImBuf *imb_load_dds(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
 {
   ImageSpec config, spec;
   ReadContext ctx{mem, size, "dds", IMB_FTYPE_DDS, flags};
 
-  ImBuf *ibuf = imb_oiio_read(ctx, config, colorspace, spec);
+  ImBuf *ibuf = imb_oiio_read(ctx, config, r_colorspace, spec);
 
   /* Load compressed DDS information if available. */
   if (ibuf && (flags & IB_test) == 0) {
@@ -308,12 +305,10 @@ static void LoadDXTCImage(ImBuf *ibuf, Filesystem::IOMemReader &mem_reader)
    * we've made it this far. */
   uint32_t flags = 0;
   mem_reader.pread(&flags, sizeof(uint32_t), 8);
+  /* NOTE: this is endianness-sensitive. */
+  /* `ibuf->dds_data.nummipmaps` is always expected to be little-endian. */
   mem_reader.pread(&ibuf->dds_data.nummipmaps, sizeof(uint32_t), 28);
   mem_reader.pread(&ibuf->dds_data.fourcc, sizeof(uint32_t), 84);
-
-#ifdef __BIG_ENDIAN__
-  BLI_endian_switch_uint32(&ibuf->dds_data.nummipmaps);
-#endif
 
   const uint32_t DDSD_MIPMAPCOUNT = 0x00020000U;
   if ((flags & DDSD_MIPMAPCOUNT) == 0) {
@@ -328,7 +323,7 @@ static void LoadDXTCImage(ImBuf *ibuf, Filesystem::IOMemReader &mem_reader)
     }
 
     ibuf->dds_data.size = mem_reader.size() - dds_header_size;
-    ibuf->dds_data.data = (uchar *)malloc(ibuf->dds_data.size);
+    ibuf->dds_data.data = static_cast<uchar *>(malloc(ibuf->dds_data.size));
     mem_reader.pread(ibuf->dds_data.data, ibuf->dds_data.size, dds_header_size);
     ibuf->dds_data.ownership = IB_TAKE_OWNERSHIP;
 
@@ -336,3 +331,5 @@ static void LoadDXTCImage(ImBuf *ibuf, Filesystem::IOMemReader &mem_reader)
     FlipDXTCImage(ibuf);
   }
 }
+
+}  // namespace blender

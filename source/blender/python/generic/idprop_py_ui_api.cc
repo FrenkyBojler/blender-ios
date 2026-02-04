@@ -8,6 +8,8 @@
 
 #include <Python.h>
 
+#include "python_compat.hh" /* IWYU pragma: keep. */
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_string.h"
@@ -29,7 +31,7 @@
 #endif
 #include "py_capi_rna.hh"
 
-#include "python_utildefines.hh"
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name UI Data Update
@@ -140,7 +142,7 @@ static IDPropertyUIDataEnumItem *idprop_enum_items_from_py(PyObject *seq_fast, i
   PyObject **seq_fast_items = PySequence_Fast_ITEMS(seq_fast);
   int i;
 
-  items = MEM_cnew_array<IDPropertyUIDataEnumItem>(seq_len, __func__);
+  items = MEM_new_array<IDPropertyUIDataEnumItem>(seq_len, __func__);
   r_items_num = seq_len;
 
   for (i = 0; i < seq_len; i++) {
@@ -153,7 +155,7 @@ static IDPropertyUIDataEnumItem *idprop_enum_items_from_py(PyObject *seq_fast, i
       items[i].identifier = nullptr;
     }
     else {
-      MEM_freeN(items);
+      MEM_delete(items);
       PyErr_SetString(PyExc_TypeError,
                       "expected a tuple containing "
                       "(identifier, name, description) and optionally an "
@@ -180,12 +182,12 @@ static bool idprop_ui_data_update_int_default(IDProperty *idprop,
     }
 
     Py_ssize_t len = PySequence_Size(default_value);
-    int *new_default_array = (int *)MEM_malloc_arrayN(len, sizeof(int), __func__);
+    int *new_default_array = MEM_new_array_uninitialized<int>(size_t(len), __func__);
     if (PyC_AsArray(
             new_default_array, sizeof(int), default_value, len, &PyLong_Type, "ui_data_update") ==
         -1)
     {
-      MEM_freeN(new_default_array);
+      MEM_delete(new_default_array);
       return false;
     }
 
@@ -195,7 +197,7 @@ static bool idprop_ui_data_update_int_default(IDProperty *idprop,
   else {
     const int value = PyC_Long_AsI32(default_value);
     if ((value == -1) && PyErr_Occurred()) {
-      PyErr_SetString(PyExc_ValueError, "Error converting \"default\" argument to integer");
+      PyErr_SetString(PyExc_ValueError, "Cannot convert \"default\" argument to integer");
       return false;
     }
 
@@ -234,7 +236,7 @@ static bool idprop_ui_data_update_int(IDProperty *idprop, PyObject *args, PyObje
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwargs,
                                    "|$iiiiiOOzz:update",
-                                   (char **)kwlist,
+                                   const_cast<char **>(kwlist),
                                    &min,
                                    &max,
                                    &soft_min,
@@ -249,7 +251,7 @@ static bool idprop_ui_data_update_int(IDProperty *idprop, PyObject *args, PyObje
   }
 
   /* Write to a temporary copy of the UI data in case some part of the parsing fails. */
-  IDPropertyUIDataInt *ui_data_orig = (IDPropertyUIDataInt *)idprop->ui_data;
+  IDPropertyUIDataInt *ui_data_orig = reinterpret_cast<IDPropertyUIDataInt *>(idprop->ui_data);
   IDPropertyUIDataInt ui_data = *ui_data_orig;
 
   if (!idprop_ui_data_update_base(&ui_data.base, rna_subtype, description)) {
@@ -299,20 +301,26 @@ static bool idprop_ui_data_update_int(IDProperty *idprop, PyObject *args, PyObje
     int idprop_items_num = 0;
     IDPropertyUIDataEnumItem *idprop_items = idprop_enum_items_from_py(items_fast,
                                                                        idprop_items_num);
-    if (!idprop_items) {
-      Py_DECREF(items_fast);
-      return false;
-    }
-    if (!IDP_EnumItemsValidate(idprop_items, idprop_items_num, [](const char *msg) {
-          PyErr_SetString(PyExc_ValueError, msg);
-        }))
-    {
-      Py_DECREF(items_fast);
-      return false;
-    }
+    /* If `idprop_items` is null, an exception will have been raised.
+     * If validate fails, and exception will be raised. */
+    const bool has_error = (idprop_items == nullptr) ||
+                           !IDP_EnumItemsValidate(
+                               idprop_items, idprop_items_num, [](const char *msg) {
+                                 PyErr_SetString(PyExc_ValueError, msg);
+                               });
     Py_DECREF(items_fast);
-    ui_data.enum_items = idprop_items;
-    ui_data.enum_items_num = idprop_items_num;
+    if (idprop_items != nullptr) {
+      /* Assign the data even in the case of an error since it's not practical to free
+       * the partially constructed enum. */
+      ui_data.enum_items = idprop_items;
+      ui_data.enum_items_num = idprop_items_num;
+    }
+
+    if (has_error) {
+      IDP_ui_data_free_unique_contents(
+          &ui_data.base, IDP_ui_data_type(idprop), &ui_data_orig->base);
+      return false;
+    }
   }
   else {
     ui_data.enum_items = nullptr;
@@ -340,7 +348,7 @@ static bool idprop_ui_data_update_bool_default(IDProperty *idprop,
     }
 
     Py_ssize_t len = PySequence_Size(default_value);
-    int8_t *new_default_array = (int8_t *)MEM_malloc_arrayN(len, sizeof(int8_t), __func__);
+    int8_t *new_default_array = MEM_new_array_uninitialized<int8_t>(size_t(len), __func__);
     if (PyC_AsArray(new_default_array,
                     sizeof(int8_t),
                     default_value,
@@ -348,7 +356,7 @@ static bool idprop_ui_data_update_bool_default(IDProperty *idprop,
                     &PyBool_Type,
                     "ui_data_update") == -1)
     {
-      MEM_freeN(new_default_array);
+      MEM_delete(new_default_array);
       return false;
     }
 
@@ -358,7 +366,7 @@ static bool idprop_ui_data_update_bool_default(IDProperty *idprop,
   else {
     const int value = PyC_Long_AsBool(default_value);
     if ((value == -1) && PyErr_Occurred()) {
-      PyErr_SetString(PyExc_ValueError, "Error converting \"default\" argument to integer");
+      PyErr_SetString(PyExc_ValueError, "Cannot convert \"default\" argument to integer");
       return false;
     }
 
@@ -384,7 +392,7 @@ static bool idprop_ui_data_update_bool(IDProperty *idprop, PyObject *args, PyObj
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwargs,
                                    "|$Ozz:update",
-                                   (char **)kwlist,
+                                   const_cast<char **>(kwlist),
                                    &default_value,
                                    &rna_subtype,
                                    &description))
@@ -393,7 +401,7 @@ static bool idprop_ui_data_update_bool(IDProperty *idprop, PyObject *args, PyObj
   }
 
   /* Write to a temporary copy of the UI data in case some part of the parsing fails. */
-  IDPropertyUIDataBool *ui_data_orig = (IDPropertyUIDataBool *)idprop->ui_data;
+  IDPropertyUIDataBool *ui_data_orig = reinterpret_cast<IDPropertyUIDataBool *>(idprop->ui_data);
   IDPropertyUIDataBool ui_data = *ui_data_orig;
 
   if (!idprop_ui_data_update_base(&ui_data.base, rna_subtype, description)) {
@@ -430,7 +438,7 @@ static bool idprop_ui_data_update_float_default(IDProperty *idprop,
     }
 
     Py_ssize_t len = PySequence_Size(default_value);
-    double *new_default_array = (double *)MEM_malloc_arrayN(len, sizeof(double), __func__);
+    double *new_default_array = MEM_new_array_uninitialized<double>(size_t(len), __func__);
     if (PyC_AsArray(new_default_array,
                     sizeof(double),
                     default_value,
@@ -438,7 +446,7 @@ static bool idprop_ui_data_update_float_default(IDProperty *idprop,
                     &PyFloat_Type,
                     "ui_data_update") == -1)
     {
-      MEM_freeN(new_default_array);
+      MEM_delete(new_default_array);
       return false;
     }
 
@@ -448,7 +456,7 @@ static bool idprop_ui_data_update_float_default(IDProperty *idprop,
   else {
     const double value = PyFloat_AsDouble(default_value);
     if ((value == -1.0) && PyErr_Occurred()) {
-      PyErr_SetString(PyExc_ValueError, "Error converting \"default\" argument to double");
+      PyErr_SetString(PyExc_ValueError, "Cannot convert \"default\" argument to double");
       return false;
     }
 
@@ -485,7 +493,7 @@ static bool idprop_ui_data_update_float(IDProperty *idprop, PyObject *args, PyOb
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwargs,
                                    "|$dddddiOzz:update",
-                                   (char **)kwlist,
+                                   const_cast<char **>(kwlist),
                                    &min,
                                    &max,
                                    &soft_min,
@@ -500,7 +508,7 @@ static bool idprop_ui_data_update_float(IDProperty *idprop, PyObject *args, PyOb
   }
 
   /* Write to a temporary copy of the UI data in case some part of the parsing fails. */
-  IDPropertyUIDataFloat *ui_data_orig = (IDPropertyUIDataFloat *)idprop->ui_data;
+  IDPropertyUIDataFloat *ui_data_orig = reinterpret_cast<IDPropertyUIDataFloat *>(idprop->ui_data);
   IDPropertyUIDataFloat ui_data = *ui_data_orig;
 
   if (!idprop_ui_data_update_base(&ui_data.base, rna_subtype, description)) {
@@ -561,7 +569,7 @@ static bool idprop_ui_data_update_string(IDProperty *idprop, PyObject *args, PyO
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwargs,
                                    "|$zzz:update",
-                                   (char **)kwlist,
+                                   const_cast<char **>(kwlist),
                                    &default_value,
                                    &rna_subtype,
                                    &description))
@@ -570,7 +578,8 @@ static bool idprop_ui_data_update_string(IDProperty *idprop, PyObject *args, PyO
   }
 
   /* Write to a temporary copy of the UI data in case some part of the parsing fails. */
-  IDPropertyUIDataString *ui_data_orig = (IDPropertyUIDataString *)idprop->ui_data;
+  IDPropertyUIDataString *ui_data_orig = reinterpret_cast<IDPropertyUIDataString *>(
+      idprop->ui_data);
   IDPropertyUIDataString ui_data = *ui_data_orig;
 
   if (!idprop_ui_data_update_base(&ui_data.base, rna_subtype, description)) {
@@ -597,14 +606,19 @@ static bool idprop_ui_data_update_id(IDProperty *idprop, PyObject *args, PyObjec
   const char *description = nullptr;
   const char *id_type = nullptr;
   const char *kwlist[] = {"subtype", "description", "id_type", nullptr};
-  if (!PyArg_ParseTupleAndKeywords(
-          args, kwargs, "|$zzz:update", (char **)kwlist, &rna_subtype, &description, &id_type))
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwargs,
+                                   "|$zzz:update",
+                                   const_cast<char **>(kwlist),
+                                   &rna_subtype,
+                                   &description,
+                                   &id_type))
   {
     return false;
   }
 
   /* Write to a temporary copy of the UI data in case some part of the parsing fails. */
-  IDPropertyUIDataID *ui_data_orig = (IDPropertyUIDataID *)idprop->ui_data;
+  IDPropertyUIDataID *ui_data_orig = reinterpret_cast<IDPropertyUIDataID *>(idprop->ui_data);
   IDPropertyUIDataID ui_data = *ui_data_orig;
 
   if (!idprop_ui_data_update_base(&ui_data.base, rna_subtype, description)) {
@@ -632,7 +646,7 @@ static bool idprop_ui_data_update_id(IDProperty *idprop, PyObject *args, PyObjec
 PyDoc_STRVAR(
     /* Wrap. */
     BPy_IDPropertyUIManager_update_doc,
-    ".. method:: update( "
+    ".. method:: update(*, "
     "subtype=None, "
     "min=None, "
     "max=None, "
@@ -647,7 +661,7 @@ PyDoc_STRVAR(
     "\n"
     "   Update the RNA information of the IDProperty used for interaction and\n"
     "   display in the user interface. The required types for many of the keyword\n"
-    "   arguments depend on the type of the property.\n ");
+    "   arguments depend on the type of the property.\n");
 static PyObject *BPy_IDPropertyUIManager_update(BPy_IDPropertyUIManager *self,
                                                 PyObject *args,
                                                 PyObject *kwargs)
@@ -703,7 +717,7 @@ static PyObject *BPy_IDPropertyUIManager_update(BPy_IDPropertyUIManager *self,
 
 static void idprop_ui_data_to_dict_int(IDProperty *property, PyObject *dict)
 {
-  IDPropertyUIDataInt *ui_data = (IDPropertyUIDataInt *)property->ui_data;
+  IDPropertyUIDataInt *ui_data = reinterpret_cast<IDPropertyUIDataInt *>(property->ui_data);
   PyObject *item;
 
   PyDict_SetItemString(dict, "min", item = PyLong_FromLong(ui_data->min));
@@ -753,7 +767,7 @@ static void idprop_ui_data_to_dict_int(IDProperty *property, PyObject *dict)
 
 static void idprop_ui_data_to_dict_bool(IDProperty *property, PyObject *dict)
 {
-  IDPropertyUIDataBool *ui_data = (IDPropertyUIDataBool *)property->ui_data;
+  IDPropertyUIDataBool *ui_data = reinterpret_cast<IDPropertyUIDataBool *>(property->ui_data);
   PyObject *item;
 
   if ((property->type == IDP_ARRAY) && ui_data->default_array) {
@@ -772,7 +786,7 @@ static void idprop_ui_data_to_dict_bool(IDProperty *property, PyObject *dict)
 
 static void idprop_ui_data_to_dict_float(IDProperty *property, PyObject *dict)
 {
-  IDPropertyUIDataFloat *ui_data = (IDPropertyUIDataFloat *)property->ui_data;
+  IDPropertyUIDataFloat *ui_data = reinterpret_cast<IDPropertyUIDataFloat *>(property->ui_data);
   PyObject *item;
 
   PyDict_SetItemString(dict, "min", item = PyFloat_FromDouble(ui_data->min));
@@ -803,7 +817,7 @@ static void idprop_ui_data_to_dict_float(IDProperty *property, PyObject *dict)
 
 static void idprop_ui_data_to_dict_string(IDProperty *property, PyObject *dict)
 {
-  IDPropertyUIDataString *ui_data = (IDPropertyUIDataString *)property->ui_data;
+  IDPropertyUIDataString *ui_data = reinterpret_cast<IDPropertyUIDataString *>(property->ui_data);
   PyObject *item;
 
   const char *default_value = (ui_data->default_value == nullptr) ? "" : ui_data->default_value;
@@ -821,7 +835,7 @@ static void idprop_ui_data_to_dict_id(IDProperty *property, PyObject *dict)
     /* While UI exposed custom properties do not allow the 'all ID types' `0` value, in
      * py-defined IDProperties it is accepted. So force defining a valid id_type value when this
      * function is called. */
-    ID *id = IDP_Id(property);
+    ID *id = IDP_ID_get(property);
     id_type_value = id ? GS(id->name) : ID_OB;
   }
 
@@ -948,12 +962,18 @@ static PyObject *BPy_IDPropertyUIManager_update_from(BPy_IDPropertyUIManager *se
     return nullptr;
   }
 
+  IDProperty *src_prop = ui_manager_src->property;
+  if ((property->type != src_prop->type) || property->subtype != src_prop->subtype) {
+    PyErr_SetString(PyExc_TypeError, "Properties type does not match.");
+    return nullptr;
+  }
+
   if (property->ui_data != nullptr) {
     IDP_ui_data_free(property);
   }
 
   if (ui_manager_src->property && ui_manager_src->property->ui_data) {
-    property->ui_data = IDP_ui_data_copy(ui_manager_src->property);
+    property->ui_data = IDP_ui_data_copy(src_prop);
   }
 
   Py_RETURN_NONE;
@@ -965,33 +985,42 @@ static PyObject *BPy_IDPropertyUIManager_update_from(BPy_IDPropertyUIManager *se
 /** \name UI Data Manager Definition
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef BPy_IDPropertyUIManager_methods[] = {
     {"update",
-     (PyCFunction)BPy_IDPropertyUIManager_update,
+     reinterpret_cast<PyCFunction>(BPy_IDPropertyUIManager_update),
      METH_VARARGS | METH_KEYWORDS,
      BPy_IDPropertyUIManager_update_doc},
     {"as_dict",
-     (PyCFunction)BPy_IDIDPropertyUIManager_as_dict,
+     reinterpret_cast<PyCFunction>(BPy_IDIDPropertyUIManager_as_dict),
      METH_NOARGS,
      BPy_IDPropertyUIManager_as_dict_doc},
     {"clear",
-     (PyCFunction)BPy_IDPropertyUIManager_clear,
+     reinterpret_cast<PyCFunction>(BPy_IDPropertyUIManager_clear),
      METH_NOARGS,
      BPy_IDPropertyUIManager_clear_doc},
     {"update_from",
-     (PyCFunction)BPy_IDPropertyUIManager_update_from,
+     reinterpret_cast<PyCFunction>(BPy_IDPropertyUIManager_update_from),
      METH_VARARGS,
      BPy_IDPropertyUIManager_update_from_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static PyObject *BPy_IDPropertyUIManager_repr(BPy_IDPropertyUIManager *self)
@@ -1002,7 +1031,7 @@ static PyObject *BPy_IDPropertyUIManager_repr(BPy_IDPropertyUIManager *self)
 
 static Py_hash_t BPy_IDPropertyUIManager_hash(BPy_IDPropertyUIManager *self)
 {
-  return _Py_HashPointer(self->property);
+  return Py_HashPointer(self->property);
 }
 
 PyTypeObject BPy_IDPropertyUIManager_Type = {
@@ -1016,11 +1045,11 @@ PyTypeObject BPy_IDPropertyUIManager_Type = {
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
     /*tp_as_async*/ nullptr,
-    /*tp_repr*/ (reprfunc)BPy_IDPropertyUIManager_repr,
+    /*tp_repr*/ reinterpret_cast<reprfunc>(BPy_IDPropertyUIManager_repr),
     /*tp_as_number*/ nullptr,
     /*tp_as_sequence*/ nullptr,
     /*tp_as_mapping*/ nullptr,
-    /*tp_hash*/ (hashfunc)BPy_IDPropertyUIManager_hash,
+    /*tp_hash*/ reinterpret_cast<hashfunc>(BPy_IDPropertyUIManager_hash),
     /*tp_call*/ nullptr,
     /*tp_str*/ nullptr,
     /*tp_getattro*/ nullptr,
@@ -1064,3 +1093,5 @@ void IDPropertyUIData_Init_Types()
 }
 
 /** \} */
+
+}  // namespace blender

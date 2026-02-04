@@ -35,9 +35,7 @@
 #include "BLI_function_ref.hh"
 #include "BLI_index_range.hh"
 #include "BLI_lazy_threading.hh"
-#include "BLI_span.hh"
 #include "BLI_task_size_hints.hh"
-#include "BLI_utildefines.h"
 
 namespace blender {
 
@@ -50,9 +48,7 @@ struct GrainSize {
   explicit constexpr GrainSize(const int64_t grain_size) : value(grain_size) {}
 };
 
-}  // namespace blender
-
-namespace blender::threading {
+namespace threading {
 
 template<typename Range, typename Function>
 inline void parallel_for_each(Range &&range, const Function &function)
@@ -192,6 +188,30 @@ inline Value parallel_reduce_aligned(const IndexRange range,
       reduction);
 }
 
+template<typename Value, typename Function, typename Reduction>
+inline Value parallel_deterministic_reduce(IndexRange range,
+                                           int64_t grain_size,
+                                           const Value &identity,
+                                           const Function &function,
+                                           const Reduction &reduction)
+{
+#ifdef WITH_TBB
+  if (range.size() >= grain_size) {
+    lazy_threading::send_hint();
+    return tbb::parallel_deterministic_reduce(
+        tbb::blocked_range<int64_t>(range.first(), range.one_after_last(), grain_size),
+        identity,
+        [&](const tbb::blocked_range<int64_t> &subrange, const Value &ident) {
+          return function(IndexRange(subrange.begin(), subrange.size()), ident);
+        },
+        reduction);
+  }
+#else
+  UNUSED_VARS(grain_size, reduction);
+#endif
+  return function(range, identity);
+}
+
 /**
  * Execute all of the provided functions. The functions might be executed in parallel or in serial
  * or some combination of both.
@@ -223,13 +243,13 @@ inline void parallel_invoke(const bool use_threading, Functions &&...functions)
 }
 
 /** See #BLI_task_isolate for a description of what isolating a task means. */
-template<typename Function> inline void isolate_task(const Function &function)
+template<typename Function> inline auto isolate_task(const Function &function)
 {
 #ifdef WITH_TBB
   lazy_threading::ReceiverIsolation isolation;
-  tbb::this_task_arena::isolate(function);
+  return tbb::this_task_arena::isolate(function);
 #else
-  function();
+  return function();
 #endif
 }
 
@@ -255,4 +275,5 @@ inline void memory_bandwidth_bound_task(const int64_t approximate_bytes_touched,
   detail::memory_bandwidth_bound_task_impl(function);
 }
 
-}  // namespace blender::threading
+}  // namespace threading
+}  // namespace blender

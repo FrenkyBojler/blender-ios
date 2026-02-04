@@ -10,19 +10,21 @@
 
 #include "ANIM_action.hh"
 
+namespace blender {
+
 struct ID;
 struct NlaStrip;
 
-namespace blender::animrig::nla {
+namespace animrig::nla {
 
 /**
  * Assign the Action to this NLA strip.
  *
  * Similar to animrig::assign_action(), this tries to find a suitable slot.
  *
- * \see blender::animrig::assign_action
+ * \see animrig::assign_action
  *
- * \returns whether a slot was automatically assigned.
+ * \returns whether the assignment was ok.
  */
 bool assign_action(NlaStrip &strip, Action &action, ID &animated_id);
 
@@ -44,4 +46,5 @@ ActionSlotAssignmentResult assign_action_slot_handle(NlaStrip &strip,
                                                      slot_handle_t slot_handle,
                                                      ID &animated_id);
 
-}  // namespace blender::animrig::nla
+}  // namespace animrig::nla
+}  // namespace blender

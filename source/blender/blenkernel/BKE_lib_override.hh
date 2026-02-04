@@ -23,7 +23,12 @@
  *    of IDs in a given Main data-base.
  */
 
+#include "BLI_enum_flags.hh"
+#include "BLI_map.hh"
+
 #include <optional>
+
+namespace blender {
 
 struct BlendFileReadReport;
 struct Collection;
@@ -39,6 +44,12 @@ struct PropertyRNA;
 struct ReportList;
 struct Scene;
 struct ViewLayer;
+
+namespace bke::liboverride {
+
+bool is_auto_resync_enabled();
+
+}  // namespace bke::liboverride
 
 /**
  * Initialize empty overriding of \a reference_id by \a local_id.
@@ -225,13 +236,36 @@ bool BKE_lib_override_library_proxy_convert(Main *bmain,
  */
 void BKE_lib_override_library_main_proxy_convert(Main *bmain, BlendFileReadReport *reports);
 
+enum LibOverride_HierarchyRoot_ValidateOptions {
+  /** Only fix cases where a non-isolated liboverride has a null hierarchy root pointer. Ignore
+   * cases where the root pointer is valid, but is not a suitable root.
+   *
+   * Typically used during readfile process, before resyncing liboverrides, as in that case keeping
+   * existing hierarchy root info, even if no more fully valid, is necessary for an optimal resync
+   * reconstruction when linked reference data hierarchy has been modified.
+   */
+  ONLY_PROCESS_NULL_ROOT_POINTERS = 1 << 0,
+  /** Do report nullptr hierarchy roots as errors.
+   *
+   * This is typically only done at readfile time, where this is a fairly bad error.
+   *
+   * When called after some operations like ID deletion etc., getting a nullptr here is typically
+   * expected, and so does not need to be reported.
+   */
+  REPORT_NULL_ROOT_POINTERS = 1 << 16,
+};
+ENUM_OPERATORS(LibOverride_HierarchyRoot_ValidateOptions);
+
 /**
  * Find and set the 'hierarchy root' ID pointer of all library overrides in given `bmain`.
  *
  * NOTE: Cannot be called from `do_versions_after_linking` as this code needs a single complete
  * Main database, not a split-by-libraries one.
  */
-void BKE_lib_override_library_main_hierarchy_root_ensure(Main *bmain);
+void BKE_lib_override_library_main_hierarchy_root_ensure(
+    Main *bmain,
+    LibOverride_HierarchyRoot_ValidateOptions options = {},
+    ReportList *reports = nullptr);
 
 /**
  * Advanced 'smart' function to resync, re-create fully functional overrides up-to-date with linked
@@ -268,13 +302,18 @@ bool BKE_lib_override_library_resync(Main *bmain,
  * Then it will handle the resync of necessary IDs (through calls to
  * #BKE_lib_override_library_resync).
  *
+ * \param new_to_old_libraries_map: If not null, a mapping between new and old libraries. Only
+ * useful when they are not the same, e.g. when relocating a library or ID.
+ *
  * \param view_layer: the active view layer to search instantiated collections in, can be NULL (in
- *                    which case \a scene's master collection children hierarchy is used instead).
+ * which case \a scene's master collection children hierarchy is used instead).
  */
-void BKE_lib_override_library_main_resync(Main *bmain,
-                                          Scene *scene,
-                                          ViewLayer *view_layer,
-                                          BlendFileReadReport *reports);
+void BKE_lib_override_library_main_resync(
+    Main *bmain,
+    const Map<Library *, Library *> *new_to_old_libraries_map,
+    Scene *scene,
+    ViewLayer *view_layer,
+    BlendFileReadReport *reports);
 
 /**
  * Advanced 'smart' function to delete library overrides (including their existing override
@@ -544,29 +583,4 @@ bool BKE_lib_override_library_id_is_user_deletable(Main *bmain, ID *id);
  */
 void BKE_lib_override_debug_print(IDOverrideLibrary *liboverride, const char *intro_txt);
 
-/* Storage (.blend file writing) part. */
-
-/* For now, we just use a temp main list. */
-using OverrideLibraryStorage = Main;
-
-/**
- * Initialize an override storage.
- */
-OverrideLibraryStorage *BKE_lib_override_library_operations_store_init();
-/**
- * Generate suitable 'write' data (this only affects differential override operations).
- *
- * Note that \a local ID is no more modified by this call,
- * all extra data are stored in its temp \a storage_id copy.
- */
-ID *BKE_lib_override_library_operations_store_start(Main *bmain,
-                                                    OverrideLibraryStorage *liboverride_storage,
-                                                    ID *local);
-/**
- * Restore given ID modified by #BKE_lib_override_library_operations_store_start, to its
- * original state.
- */
-void BKE_lib_override_library_operations_store_end(OverrideLibraryStorage *liboverride_storage,
-                                                   ID *local);
-void BKE_lib_override_library_operations_store_finalize(
-    OverrideLibraryStorage *liboverride_storage);
+}  // namespace blender

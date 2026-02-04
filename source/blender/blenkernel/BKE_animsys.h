@@ -8,13 +8,15 @@
  * \ingroup bke
  */
 
+#include "DNA_listBase.h"
+
 #include "BLI_bit_vector.hh"
 #include "BLI_span.hh"
 #include "BLI_sys_types.h" /* for bool */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <string>
+
+namespace blender {
 
 struct AnimData;
 struct BlendDataReader;
@@ -25,17 +27,17 @@ struct ID;
 struct KS_Path;
 struct KeyingSet;
 struct LibraryForeachIDData;
-struct ListBase;
 struct Main;
 struct NlaKeyframingContext;
 struct PathResolvedRNA;
 struct PointerRNA;
 struct PropertyRNA;
+struct TimeMarker;
 struct bAction;
 struct bActionGroup;
 
 /** Container for data required to do FCurve and Driver evaluation. */
-typedef struct AnimationEvalContext {
+struct AnimationEvalContext {
   /* For drivers, so that they have access to the dependency graph and the current view layer. See
    * #77086. */
   struct Depsgraph *depsgraph;
@@ -44,7 +46,7 @@ typedef struct AnimationEvalContext {
    * example when evaluating NLA strips. This means that, even though the current time is stored in
    * the dependency graph, we need an explicit evaluation time. */
   float eval_time;
-} AnimationEvalContext;
+};
 
 AnimationEvalContext BKE_animsys_eval_context_construct(struct Depsgraph *depsgraph,
                                                         float eval_time) ATTR_WARN_UNUSED_RESULT;
@@ -58,8 +60,11 @@ AnimationEvalContext BKE_animsys_eval_context_construct_at(
  * Used to create a new 'custom' KeyingSet for the user,
  * that will be automatically added to the stack.
  */
-struct KeyingSet *BKE_keyingset_add(
-    struct ListBase *list, const char idname[], const char name[], short flag, short keyingflag);
+struct KeyingSet *BKE_keyingset_add(ListBaseT<KeyingSet> *list,
+                                    const char idname[],
+                                    const char name[],
+                                    short flag,
+                                    short keyingflag);
 
 /**
  * Add a path to a KeyingSet. Nothing is returned for now.
@@ -84,24 +89,27 @@ struct KS_Path *BKE_keyingset_find_path(struct KeyingSet *ks,
                                         int array_index,
                                         int group_mode);
 
-/* Copy all KeyingSets in the given list */
-void BKE_keyingsets_copy(struct ListBase *newlist, const struct ListBase *list);
+/** Copy all KeyingSets in the given list. */
+void BKE_keyingsets_copy(ListBaseT<KeyingSet> *newlist, const ListBaseT<KeyingSet> *list);
 
-/** Process the ID pointers inside a scene's keyingsets, in see `BKE_lib_query.hh` for details. */
+/**
+ * Process the ID pointers inside a scene's keying-sets, in.
+ * see `BKE_lib_query.hh` for details.
+ */
 void BKE_keyingsets_foreach_id(struct LibraryForeachIDData *data,
-                               const struct ListBase *keyingsets);
+                               const ListBaseT<KeyingSet> *keyingsets);
 
-/* Free the given Keying Set path */
+/** Free the given Keying Set path. */
 void BKE_keyingset_free_path(struct KeyingSet *ks, struct KS_Path *ksp);
 
-/* Free data for KeyingSet but not set itself */
+/** Free data for KeyingSet but not set itself. */
 void BKE_keyingset_free_paths(struct KeyingSet *ks);
 
-/* Free all the KeyingSets in the given list */
-void BKE_keyingsets_free(struct ListBase *list);
+/** Free all the KeyingSets in the given list. */
+void BKE_keyingsets_free(ListBaseT<KeyingSet> *list);
 
-void BKE_keyingsets_blend_write(struct BlendWriter *writer, struct ListBase *list);
-void BKE_keyingsets_blend_read_data(struct BlendDataReader *reader, struct ListBase *list);
+void BKE_keyingsets_blend_write(struct BlendWriter *writer, ListBaseT<KeyingSet> *list);
+void BKE_keyingsets_blend_read_data(struct BlendDataReader *reader, ListBaseT<KeyingSet> *list);
 
 /* ************************************* */
 /* Path Fixing API */
@@ -135,6 +143,7 @@ char *BKE_animsys_fix_rna_path_rename(struct ID *owner_id,
  */
 void BKE_action_fix_paths_rename(struct ID *owner_id,
                                  struct bAction *act,
+                                 int32_t /*slot_handle_t*/ slot_handle,
                                  const char *prefix,
                                  const char *oldName,
                                  const char *newName,
@@ -187,30 +196,62 @@ void BKE_animdata_fix_paths_rename_all(struct ID *ref_id,
  */
 bool BKE_animdata_fix_paths_remove(struct ID *id, const char *prefix);
 
-/* -------------------------------------- */
-
-typedef struct AnimationBasePathChange {
-  struct AnimationBasePathChange *next, *prev;
-  const char *src_basepath;
-  const char *dst_basepath;
-} AnimationBasePathChange;
+/**
+ * Remove drivers that have an RNA path starting with `prefix`.
+ *
+ * \return true if any driver was removed.
+ */
+bool BKE_animdata_driver_path_remove(struct ID *id, const char *prefix);
 
 /**
- * Move animation data from source to destination if its paths are based on `basepaths`.
+ * Remove all drivers from the given struct.
  *
- * Transfer the animation data from `srcID` to `dstID` where the `srcID` animation data
- * is based off `basepath`, creating new #AnimData and associated data as necessary.
+ * \param type: needs to be a struct owned by the given ID.
+ * \param data: the actual struct data, needs to be the data for the StructRNA.
  *
- * \param basepaths: A list of #AnimationBasePathChange.
+ * \return true if any driver was removed.
  */
-void BKE_animdata_transfer_by_basepath(struct Main *bmain,
-                                       struct ID *srcID,
-                                       struct ID *dstID,
-                                       struct ListBase *basepaths);
+bool BKE_animdata_drivers_remove_for_rna_struct(struct ID &owner_id,
+                                                struct StructRNA &type,
+                                                void *data);
+
+/* -------------------------------------- */
+
+struct AnimationBasePathChange {
+  std::string src_basepath;
+  std::string dst_basepath;
+};
+
+/**
+ * Copy any animation data under the base paths from the #src_id animation data to the #dst_id
+ * animation data. Animation data in #dst_id is created if necessary. If #dst_id has an assigned
+ * action it may be modified or an empty action is assigned if none exists. F-Curves are copied to
+ * the action assigned to #dst_id and drivers are copied to the animation data.
+ *
+ * \param basepaths: List of base path pairs to transfer.
+ */
+void BKE_animdata_copy_by_basepath(Main &bmain,
+                                   const ID &src_id,
+                                   ID &dst_id,
+                                   Span<AnimationBasePathChange> basepaths);
+
+/**
+ * Move any animation data under the base paths from the #src_id animation data to the #dst_id
+ * animation data. Animation data in #dst_id is created if necessary. If #dst_id has an assigned
+ * action it may be modified or an empty action is assigned if none exists. F-Curves are removed
+ * from the action assigned to #src_id and added to the action assigned to #dst_id. Drivers are
+ * removed from the animation data in #src_id and moved to animation data in #dst_id.
+ *
+ * \param basepaths: List of base path pairs to transfer.
+ */
+void BKE_animdata_move_by_basepath(Main &bmain,
+                                   ID &src_id,
+                                   ID &dst_id,
+                                   Span<AnimationBasePathChange> basepaths);
 
 /* ------------ NLA Keyframing --------------- */
 
-typedef struct NlaKeyframingContext NlaKeyframingContext;
+struct NlaKeyframingContext;
 
 /**
  * Prepare data necessary to compute correct keyframe values for NLA strips
@@ -222,7 +263,7 @@ typedef struct NlaKeyframingContext NlaKeyframingContext;
  * \return Keyframing context, or NULL if not necessary.
  */
 struct NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
-    struct ListBase *cache,
+    ListBaseT<NlaKeyframingContext> *cache,
     struct PointerRNA *ptr,
     struct AnimData *adt,
     const struct AnimationEvalContext *anim_eval_context);
@@ -244,16 +285,16 @@ struct NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
 void BKE_animsys_nla_remap_keyframe_values(struct NlaKeyframingContext *context,
                                            struct PointerRNA *prop_ptr,
                                            struct PropertyRNA *prop,
-                                           const blender::MutableSpan<float> values,
+                                           const MutableSpan<float> values,
                                            int index,
                                            const struct AnimationEvalContext *anim_eval_context,
                                            bool *r_force_all,
-                                           blender::BitVector<> &r_values_mask);
+                                           BitVector<> &r_values_mask);
 
 /**
  * Free all cached contexts from the list.
  */
-void BKE_animsys_free_nla_keyframing_context_cache(struct ListBase *cache);
+void BKE_animsys_free_nla_keyframing_context_cache(ListBaseT<NlaKeyframingContext> *cache);
 
 /* ************************************* */
 /* Evaluation API */
@@ -262,11 +303,11 @@ void BKE_animsys_free_nla_keyframing_context_cache(struct ListBase *cache);
 /* In general, these ones should be called to do all animation evaluation */
 
 /* Flags for recalc parameter, indicating which part to recalculate. */
-typedef enum eAnimData_Recalc {
+enum eAnimData_Recalc {
   ADT_RECALC_DRIVERS = (1 << 0),
   ADT_RECALC_ANIM = (1 << 1),
   ADT_RECALC_ALL = (ADT_RECALC_DRIVERS | ADT_RECALC_ANIM),
-} eAnimData_Recalc;
+};
 
 bool BKE_animsys_rna_path_resolve(struct PointerRNA *ptr,
                                   const char *rna_path,
@@ -275,8 +316,14 @@ bool BKE_animsys_rna_path_resolve(struct PointerRNA *ptr,
 bool BKE_animsys_read_from_rna_path(struct PathResolvedRNA *anim_rna, float *r_value);
 /**
  * Write the given value to a setting using RNA, and return success.
+ *
+ * \param force_write: When false, this function will only call the RNA setter when `value` is
+ * different from the property's current value. When true, this function will skip that check and
+ * always call the RNA setter.
  */
-bool BKE_animsys_write_to_rna_path(struct PathResolvedRNA *anim_rna, float value);
+bool BKE_animsys_write_to_rna_path(struct PathResolvedRNA *anim_rna,
+                                   float value,
+                                   bool force_write = false);
 
 /**
  * Evaluation loop for evaluation animation data
@@ -313,8 +360,6 @@ void BKE_animsys_evaluate_all_animation(struct Main *main,
 
 /**
  * Evaluate Action (F-Curve Bag).
- *
- * Note that this is only used for either legacy Actions or for evaluation of the NLA.
  */
 void animsys_evaluate_action(struct PointerRNA *ptr,
                              struct bAction *act,
@@ -322,14 +367,16 @@ void animsys_evaluate_action(struct PointerRNA *ptr,
                              const struct AnimationEvalContext *anim_eval_context,
                              bool flush_to_original);
 
-/* Evaluate action, and blend the result into the current values (instead of overwriting fully). */
+/**
+ * Evaluate action, and blend the result into the current values (instead of overwriting fully).
+ */
 void animsys_blend_in_action(struct PointerRNA *ptr,
                              struct bAction *act,
                              int32_t action_slot_handle,
                              const AnimationEvalContext *anim_eval_context,
                              float blend_factor);
 
-/* Evaluate Action Group */
+/** Evaluate Action Group. */
 void animsys_evaluate_action_group(struct PointerRNA *ptr,
                                    struct bAction *act,
                                    struct bActionGroup *agrp,
@@ -339,9 +386,8 @@ void animsys_evaluate_action_group(struct PointerRNA *ptr,
 
 /* ------------ Evaluation API --------------- */
 
-struct Depsgraph;
-
 void BKE_animsys_eval_animdata(struct Depsgraph *depsgraph, struct ID *id);
+void BKE_animsys_eval_driver_unshare(Depsgraph *depsgraph, ID *id);
 void BKE_animsys_eval_driver(struct Depsgraph *depsgraph,
                              struct ID *id,
                              int driver_index,
@@ -351,6 +397,18 @@ void BKE_animsys_update_driver_array(struct ID *id);
 
 /* ************************************* */
 
-#ifdef __cplusplus
-}
-#endif
+void BKE_time_markers_blend_write(BlendWriter *writer, ListBaseT<TimeMarker> &markers);
+void BKE_time_markers_blend_read(BlendDataReader *reader, ListBaseT<TimeMarker> &markers);
+
+/**
+ * Copy a list of time markers.
+ *
+ * Note: this is meant to be called in the context of duplicating an ID.
+ *
+ * \param flag: ID copy flags. Corresponds to the `flag` parameter of `BKE_id_copy_ex()`.
+ */
+void BKE_copy_time_markers(ListBaseT<TimeMarker> &markers_dst,
+                           const ListBaseT<TimeMarker> &markers_src,
+                           int flag);
+
+}  // namespace blender

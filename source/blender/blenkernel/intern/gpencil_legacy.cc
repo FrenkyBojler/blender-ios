@@ -8,7 +8,6 @@
 
 #include <cmath>
 #include <cstddef>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <optional>
@@ -17,47 +16,52 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
 
-#include "IMB_interp.hh"
-
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
+#include "DNA_scene_types.h"
 
+#include "DNA_brush_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
+#include "BKE_brush.hh"
 #include "BKE_collection.hh"
 #include "BKE_colortools.hh"
 #include "BKE_deform.hh"
-#include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
-#include "BKE_gpencil_update_cache_legacy.h"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_idtype.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_paint.hh"
 
-#include "BLI_math_color.h"
+#include "DEG_depsgraph.hh"
 
-#include "DEG_depsgraph_query.hh"
+#include "BLI_math_color.h"
+#include "BLI_string_utf8.h"
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"bke.gpencil"};
+#include "IMB_colormanagement.hh"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"geom.gpencil"};
 
 static void greasepencil_copy_data(Main * /*bmain*/,
                                    std::optional<Library *> /*owner_library*/,
@@ -65,23 +69,23 @@ static void greasepencil_copy_data(Main * /*bmain*/,
                                    const ID *id_src,
                                    const int /*flag*/)
 {
-  bGPdata *gpd_dst = (bGPdata *)id_dst;
-  const bGPdata *gpd_src = (const bGPdata *)id_src;
+  bGPdata *gpd_dst = id_cast<bGPdata *>(id_dst);
+  const bGPdata *gpd_src = id_cast<const bGPdata *>(id_src);
 
   /* duplicate material array */
   if (gpd_src->mat) {
-    gpd_dst->mat = static_cast<Material **>(MEM_dupallocN(gpd_src->mat));
+    gpd_dst->mat = MEM_dupalloc(gpd_src->mat);
   }
 
   BKE_defgroup_copy_list(&gpd_dst->vertex_group_names, &gpd_src->vertex_group_names);
 
   /* copy layers */
   BLI_listbase_clear(&gpd_dst->layers);
-  LISTBASE_FOREACH (bGPDlayer *, gpl_src, &gpd_src->layers) {
+  for (bGPDlayer &gpl_src : gpd_src->layers) {
     /* make a copy of source layer and its data */
 
     /* TODO: here too could add unused flags... */
-    bGPDlayer *gpl_dst = BKE_gpencil_layer_duplicate(gpl_src, true, true);
+    bGPDlayer *gpl_dst = BKE_gpencil_layer_duplicate(&gpl_src, true, true);
 
     /* Apply local layer transform to all frames. Calc the active frame is not enough
      * because onion skin can use more frames. This is more slow but required here. */
@@ -95,10 +99,10 @@ static void greasepencil_copy_data(Main * /*bmain*/,
         bGPDframe *init_gpf = static_cast<bGPDframe *>((do_onion) ? gpl_dst->frames.first :
                                                                     gpl_dst->actframe);
         for (bGPDframe *gpf = init_gpf; gpf; gpf = gpf->next) {
-          LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
+          for (bGPDstroke &gps : gpf->strokes) {
             bGPDspoint *pt;
             int i;
-            for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+            for (i = 0, pt = gps.points; i < gps.totpoints; i++, pt++) {
               mul_m4_v3(gpl_dst->layer_mat, &pt->x);
             }
           }
@@ -118,25 +122,25 @@ static void greasepencil_free_data(ID *id)
 {
   /* Really not ideal, but for now will do... In theory custom behaviors like not freeing cache
    * should be handled through specific API, and not be part of the generic one. */
-  BKE_gpencil_free_data((bGPdata *)id, true);
+  BKE_gpencil_free_data(id_cast<bGPdata *>(id), true);
 }
 
 static void greasepencil_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  bGPdata *gpencil = (bGPdata *)id;
+  bGPdata *gpencil = id_cast<bGPdata *>(id);
   /* materials */
   for (int i = 0; i < gpencil->totcol; i++) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, gpencil->mat[i], IDWALK_CB_USER);
   }
 
-  LISTBASE_FOREACH (bGPDlayer *, gplayer, &gpencil->layers) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, gplayer->parent, IDWALK_CB_NOP);
+  for (bGPDlayer &gplayer : gpencil->layers) {
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, gplayer.parent, IDWALK_CB_NOP);
   }
 }
 
 static void greasepencil_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
-  bGPdata *gpd = (bGPdata *)id;
+  bGPdata *gpd = id_cast<bGPdata *>(id);
 
   /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
   /* XXX not sure why the whole run-time data is not cleared in reading code,
@@ -144,11 +148,9 @@ static void greasepencil_blend_write(BlendWriter *writer, ID *id, const void *id
   gpd->runtime.sbuffer = nullptr;
   gpd->runtime.sbuffer_used = 0;
   gpd->runtime.sbuffer_size = 0;
-  gpd->runtime.tot_cp_points = 0;
-  gpd->runtime.update_cache = nullptr;
 
   /* write gpd data block to file */
-  BLO_write_id_struct(writer, bGPdata, id_address, &gpd->id);
+  writer->write_id_struct(id_address, gpd);
   BKE_id_blend_write(writer, &gpd->id);
 
   BKE_defbase_blend_write(writer, &gpd->vertex_group_names);
@@ -156,24 +158,23 @@ static void greasepencil_blend_write(BlendWriter *writer, ID *id, const void *id
   BLO_write_pointer_array(writer, gpd->totcol, gpd->mat);
 
   /* write grease-pencil layers to file */
-  BLO_write_struct_list(writer, bGPDlayer, &gpd->layers);
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+  writer->write_struct_list(&gpd->layers);
+  for (bGPDlayer &gpl : gpd->layers) {
     /* Write mask list. */
-    BLO_write_struct_list(writer, bGPDlayer_Mask, &gpl->mask_layers);
+    writer->write_struct_list(&gpl.mask_layers);
     /* write this layer's frames to file */
-    BLO_write_struct_list(writer, bGPDframe, &gpl->frames);
-    LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
+    writer->write_struct_list(&gpl.frames);
+    for (bGPDframe &gpf : gpl.frames) {
       /* write strokes */
-      BLO_write_struct_list(writer, bGPDstroke, &gpf->strokes);
-      LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-        BLO_write_struct_array(writer, bGPDspoint, gps->totpoints, gps->points);
-        BLO_write_struct_array(writer, bGPDtriangle, gps->tot_triangles, gps->triangles);
-        BKE_defvert_blend_write(writer, gps->totpoints, gps->dvert);
-        if (gps->editcurve != nullptr) {
-          bGPDcurve *gpc = gps->editcurve;
-          BLO_write_struct(writer, bGPDcurve, gpc);
-          BLO_write_struct_array(
-              writer, bGPDcurve_point, gpc->tot_curve_points, gpc->curve_points);
+      writer->write_struct_list(&gpf.strokes);
+      for (bGPDstroke &gps : gpf.strokes) {
+        writer->write_struct_array(gps.totpoints, gps.points);
+        writer->write_struct_array(gps.tot_triangles, gps.triangles);
+        BKE_defvert_blend_write(writer, gps.totpoints, gps.dvert);
+        if (gps.editcurve != nullptr) {
+          bGPDcurve *gpc = gps.editcurve;
+          writer->write_struct(gpc);
+          writer->write_struct_array(gpc->tot_curve_points, gpc->curve_points);
         }
       }
     }
@@ -200,59 +201,57 @@ void BKE_gpencil_blend_read_data(BlendDataReader *reader, bGPdata *gpd)
   gpd->runtime.sbuffer = nullptr;
   gpd->runtime.sbuffer_used = 0;
   gpd->runtime.sbuffer_size = 0;
-  gpd->runtime.tot_cp_points = 0;
-  gpd->runtime.update_cache = nullptr;
 
   /* Relink palettes (old palettes deprecated, only to convert old files). */
   BLO_read_struct_list(reader, bGPDpalette, &gpd->palettes);
   if (gpd->palettes.first != nullptr) {
-    LISTBASE_FOREACH (bGPDpalette *, palette, &gpd->palettes) {
-      BLO_read_struct_list(reader, PaletteColor, &palette->colors);
+    for (bGPDpalette &palette : gpd->palettes) {
+      BLO_read_struct_list(reader, PaletteColor, &palette.colors);
     }
   }
 
   BLO_read_struct_list(reader, bDeformGroup, &gpd->vertex_group_names);
 
   /* Materials. */
-  BLO_read_pointer_array(reader, gpd->totcol, (void **)&gpd->mat);
+  BLO_read_pointer_array(reader, gpd->totcol, reinterpret_cast<void **>(&gpd->mat));
 
   /* Relink layers. */
   BLO_read_struct_list(reader, bGPDlayer, &gpd->layers);
 
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+  for (bGPDlayer &gpl : gpd->layers) {
     /* Relink frames. */
-    BLO_read_struct_list(reader, bGPDframe, &gpl->frames);
+    BLO_read_struct_list(reader, bGPDframe, &gpl.frames);
 
-    BLO_read_struct(reader, bGPDframe, &gpl->actframe);
+    BLO_read_struct(reader, bGPDframe, &gpl.actframe);
 
-    gpl->runtime.icon_id = 0;
+    gpl.runtime.icon_id = 0;
 
     /* Relink masks. */
-    BLO_read_struct_list(reader, bGPDlayer_Mask, &gpl->mask_layers);
+    BLO_read_struct_list(reader, bGPDlayer_Mask, &gpl.mask_layers);
 
-    LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
+    for (bGPDframe &gpf : gpl.frames) {
       /* Relink strokes (and their points). */
-      BLO_read_struct_list(reader, bGPDstroke, &gpf->strokes);
+      BLO_read_struct_list(reader, bGPDstroke, &gpf.strokes);
 
-      LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
+      for (bGPDstroke &gps : gpf.strokes) {
         /* Relink stroke points array. */
-        BLO_read_struct_array(reader, bGPDspoint, gps->totpoints, &gps->points);
+        BLO_read_struct_array(reader, bGPDspoint, gps.totpoints, &gps.points);
         /* Relink geometry. */
-        BLO_read_struct_array(reader, bGPDtriangle, gps->tot_triangles, &gps->triangles);
+        BLO_read_struct_array(reader, bGPDtriangle, gps.tot_triangles, &gps.triangles);
 
         /* Relink stroke edit curve. */
-        BLO_read_struct(reader, bGPDcurve, &gps->editcurve);
-        if (gps->editcurve != nullptr) {
+        BLO_read_struct(reader, bGPDcurve, &gps.editcurve);
+        if (gps.editcurve != nullptr) {
           /* Relink curve point array. */
-          bGPDcurve *gpc = gps->editcurve;
+          bGPDcurve *gpc = gps.editcurve;
           BLO_read_struct_array(
-              reader, bGPDcurve_point, gpc->tot_curve_points, &gps->editcurve->curve_points);
+              reader, bGPDcurve_point, gpc->tot_curve_points, &gps.editcurve->curve_points);
         }
 
         /* Relink weight data. */
-        if (gps->dvert) {
-          BLO_read_struct_array(reader, MDeformVert, gps->totpoints, &gps->dvert);
-          BKE_defvert_blend_read(reader, gps->totpoints, gps->dvert);
+        if (gps.dvert) {
+          BLO_read_struct_array(reader, MDeformVert, gps.totpoints, &gps.dvert);
+          BKE_defvert_blend_read(reader, gps.totpoints, gps.dvert);
         }
       }
     }
@@ -261,18 +260,18 @@ void BKE_gpencil_blend_read_data(BlendDataReader *reader, bGPdata *gpd)
 
 static void greasepencil_blend_read_data(BlendDataReader *reader, ID *id)
 {
-  bGPdata *gpd = (bGPdata *)id;
+  bGPdata *gpd = id_cast<bGPdata *>(id);
   BKE_gpencil_blend_read_data(reader, gpd);
 }
 
 IDTypeInfo IDType_ID_GD_LEGACY = {
-    /*id_code*/ ID_GD_LEGACY,
+    /*id_code*/ bGPdata::id_type,
     /*id_filter*/ FILTER_ID_GD_LEGACY,
     /*dependencies_id_types*/ FILTER_ID_MA,
     /*main_listbase_index*/ INDEX_ID_GD_LEGACY,
     /*struct_size*/ sizeof(bGPdata),
-    /*name*/ "GPencil",
-    /*name_plural*/ N_("grease_pencils"),
+    /*name*/ "Annotation",
+    /*name_plural*/ N_("annotations"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_GPENCIL,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -284,6 +283,7 @@ IDTypeInfo IDType_ID_GD_LEGACY = {
     /*foreach_id*/ greasepencil_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ greasepencil_blend_write,
@@ -296,27 +296,6 @@ IDTypeInfo IDType_ID_GD_LEGACY = {
 };
 
 /* ************************************************** */
-/* Draw Engine */
-
-void (*BKE_gpencil_batch_cache_dirty_tag_cb)(bGPdata *gpd) = nullptr;
-void (*BKE_gpencil_batch_cache_free_cb)(bGPdata *gpd) = nullptr;
-
-void BKE_gpencil_batch_cache_dirty_tag(bGPdata *gpd)
-{
-  if (gpd) {
-    DEG_id_tag_update(&gpd->id, ID_RECALC_GEOMETRY);
-    BKE_gpencil_batch_cache_dirty_tag_cb(gpd);
-  }
-}
-
-void BKE_gpencil_batch_cache_free(bGPdata *gpd)
-{
-  if (gpd) {
-    BKE_gpencil_batch_cache_free_cb(gpd);
-  }
-}
-
-/* ************************************************** */
 /* Memory Management */
 
 void BKE_gpencil_free_point_weights(MDeformVert *dvert)
@@ -324,7 +303,7 @@ void BKE_gpencil_free_point_weights(MDeformVert *dvert)
   if (dvert == nullptr) {
     return;
   }
-  MEM_SAFE_FREE(dvert->dw);
+  MEM_SAFE_DELETE(dvert->dw);
 }
 
 void BKE_gpencil_free_stroke_weights(bGPDstroke *gps)
@@ -352,8 +331,8 @@ void BKE_gpencil_free_stroke_editcurve(bGPDstroke *gps)
   if (editcurve == nullptr) {
     return;
   }
-  MEM_freeN(editcurve->curve_points);
-  MEM_freeN(editcurve);
+  MEM_delete(editcurve->curve_points);
+  MEM_delete(editcurve);
   gps->editcurve = nullptr;
 }
 
@@ -364,20 +343,20 @@ void BKE_gpencil_free_stroke(bGPDstroke *gps)
   }
   /* free stroke memory arrays, then stroke itself */
   if (gps->points) {
-    MEM_freeN(gps->points);
+    MEM_delete(gps->points);
   }
   if (gps->dvert) {
     BKE_gpencil_free_stroke_weights(gps);
-    MEM_freeN(gps->dvert);
+    MEM_delete(gps->dvert);
   }
   if (gps->triangles) {
-    MEM_freeN(gps->triangles);
+    MEM_delete(gps->triangles);
   }
   if (gps->editcurve != nullptr) {
     BKE_gpencil_free_stroke_editcurve(gps);
   }
 
-  MEM_freeN(gps);
+  MEM_delete(gps);
 }
 
 bool BKE_gpencil_free_strokes(bGPDframe *gpf)
@@ -385,8 +364,8 @@ bool BKE_gpencil_free_strokes(bGPDframe *gpf)
   bool changed = (BLI_listbase_is_empty(&gpf->strokes) == false);
 
   /* free strokes */
-  LISTBASE_FOREACH_MUTABLE (bGPDstroke *, gps, &gpf->strokes) {
-    BKE_gpencil_free_stroke(gps);
+  for (bGPDstroke &gps : gpf->strokes.items_mutable()) {
+    BKE_gpencil_free_stroke(&gps);
   }
   BLI_listbase_clear(&gpf->strokes);
 
@@ -424,7 +403,7 @@ void BKE_gpencil_free_layer_masks(bGPDlayer *gpl)
     BLI_freelinkN(&gpl->mask_layers, mask);
   }
 }
-void BKE_gpencil_free_layers(ListBase *list)
+void BKE_gpencil_free_layers(ListBaseT<bGPDlayer> *list)
 {
   bGPDlayer *gpl_next;
 
@@ -447,34 +426,25 @@ void BKE_gpencil_free_layers(ListBase *list)
   }
 }
 
-/* Free all of the gp-palettes and colors. */
-void BKE_gpencil_free_legacy_palette_data(ListBase *list)
+void BKE_gpencil_free_legacy_palette_data(ListBaseT<bGPDpalette> *list)
 {
-  LISTBASE_FOREACH_MUTABLE (bGPDpalette *, palette, list) {
-    BLI_freelistN(&palette->colors);
-    MEM_freeN(palette);
+  for (bGPDpalette &palette : list->items_mutable()) {
+    BLI_freelistN(&palette.colors);
+    MEM_delete(&palette);
   }
   BLI_listbase_clear(list);
 }
 
-void BKE_gpencil_free_data(bGPdata *gpd, bool free_all)
+void BKE_gpencil_free_data(bGPdata *gpd, bool /*free_all*/)
 {
   /* free layers */
   BKE_gpencil_free_layers(&gpd->layers);
   BKE_gpencil_free_legacy_palette_data(&gpd->palettes);
 
   /* materials */
-  MEM_SAFE_FREE(gpd->mat);
+  MEM_SAFE_DELETE(gpd->mat);
 
   BLI_freelistN(&gpd->vertex_group_names);
-
-  BKE_gpencil_free_update_cache(gpd);
-
-  /* free all data */
-  if (free_all) {
-    /* clear cache */
-    BKE_gpencil_batch_cache_free(gpd);
-  }
 }
 
 void BKE_gpencil_tag(bGPdata *gpd)
@@ -496,7 +466,7 @@ bGPDframe *BKE_gpencil_frame_addnew(bGPDlayer *gpl, int cframe)
   }
 
   /* allocate memory for this frame */
-  gpf = static_cast<bGPDframe *>(MEM_callocN(sizeof(bGPDframe), "bGPDframe"));
+  gpf = MEM_new<bGPDframe>("bGPDframe");
   gpf->framenum = cframe;
 
   /* find appropriate place to add frame */
@@ -523,7 +493,7 @@ bGPDframe *BKE_gpencil_frame_addnew(bGPDlayer *gpl, int cframe)
         &LOG, "Frame (%d) existed already for this layer_active. Using existing frame", cframe);
 
     /* free the newly created one, and use the old one instead */
-    MEM_freeN(gpf);
+    MEM_delete(gpf);
 
     /* return existing frame instead... */
     BLI_assert(gf != nullptr);
@@ -557,20 +527,20 @@ bGPDframe *BKE_gpencil_frame_addcopy(bGPDlayer *gpl, int cframe)
   new_frame = BKE_gpencil_frame_duplicate(gpl->actframe, true);
 
   /* Find frame to insert it before */
-  LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
-    if (gpf->framenum > cframe) {
+  for (bGPDframe &gpf : gpl->frames) {
+    if (gpf.framenum > cframe) {
       /* Add it here */
-      BLI_insertlinkbefore(&gpl->frames, gpf, new_frame);
+      BLI_insertlinkbefore(&gpl->frames, &gpf, new_frame);
 
       found = true;
       break;
     }
-    if (gpf->framenum == cframe) {
+    if (gpf.framenum == cframe) {
       /* This only happens when we're editing with frame-lock on.
        * - Delete the new frame and don't do anything else here.
        */
       BKE_gpencil_free_strokes(new_frame);
-      MEM_freeN(new_frame);
+      MEM_delete(new_frame);
       new_frame = nullptr;
 
       found = true;
@@ -606,7 +576,7 @@ bGPDlayer *BKE_gpencil_layer_addnew(bGPdata *gpd,
   }
 
   /* allocate memory for frame and add to end of list */
-  gpl = static_cast<bGPDlayer *>(MEM_callocN(sizeof(bGPDlayer), "bGPDlayer"));
+  gpl = MEM_new<bGPDlayer>("bGPDlayer");
 
   gpl_active = BKE_gpencil_layer_active_get(gpd);
 
@@ -724,73 +694,6 @@ bGPdata *BKE_gpencil_data_addnew(Main *bmain, const char name[])
 }
 
 /* ************************************************** */
-/* Primitive Creation */
-/* Utilities for easier bulk-creation of geometry */
-
-bGPDstroke *BKE_gpencil_stroke_new(int mat_idx, int totpoints, short thickness)
-{
-  /* allocate memory for a new stroke */
-  bGPDstroke *gps = static_cast<bGPDstroke *>(MEM_callocN(sizeof(bGPDstroke), "gp_stroke"));
-
-  gps->thickness = thickness;
-  gps->fill_opacity_fac = 1.0f;
-  gps->hardness = 1.0f;
-  copy_v2_fl(gps->aspect_ratio, 1.0f);
-
-  gps->uv_scale = 1.0f;
-
-  gps->inittime = 0;
-
-  gps->flag = GP_STROKE_3DSPACE;
-
-  gps->totpoints = totpoints;
-  if (gps->totpoints > 0) {
-    gps->points = static_cast<bGPDspoint *>(
-        MEM_callocN(sizeof(bGPDspoint) * gps->totpoints, "gp_stroke_points"));
-  }
-  else {
-    gps->points = nullptr;
-  }
-
-  /* initialize triangle memory to dummy data */
-  gps->triangles = nullptr;
-  gps->tot_triangles = 0;
-
-  gps->mat_nr = mat_idx;
-
-  gps->dvert = nullptr;
-  gps->editcurve = nullptr;
-
-  return gps;
-}
-
-bGPDstroke *BKE_gpencil_stroke_add(
-    bGPDframe *gpf, int mat_idx, int totpoints, short thickness, const bool insert_at_head)
-{
-  bGPDstroke *gps = BKE_gpencil_stroke_new(mat_idx, totpoints, thickness);
-
-  /* Add to frame. */
-  if ((gps != nullptr) && (gpf != nullptr)) {
-    if (!insert_at_head) {
-      BLI_addtail(&gpf->strokes, gps);
-    }
-    else {
-      BLI_addhead(&gpf->strokes, gps);
-    }
-  }
-
-  return gps;
-}
-
-bGPDcurve *BKE_gpencil_stroke_editcurve_new(const int tot_curve_points)
-{
-  bGPDcurve *new_gp_curve = (bGPDcurve *)MEM_callocN(sizeof(bGPDcurve), __func__);
-  new_gp_curve->tot_curve_points = tot_curve_points;
-  new_gp_curve->curve_points = (bGPDcurve_point *)MEM_callocN(
-      sizeof(bGPDcurve_point) * tot_curve_points, __func__);
-
-  return new_gp_curve;
-}
 
 /* ************************************************** */
 /* Data Duplication */
@@ -811,15 +714,15 @@ bGPDstroke *BKE_gpencil_stroke_duplicate(bGPDstroke *gps_src,
 {
   bGPDstroke *gps_dst = nullptr;
 
-  gps_dst = static_cast<bGPDstroke *>(MEM_dupallocN(gps_src));
+  gps_dst = MEM_dupalloc(gps_src);
   gps_dst->prev = gps_dst->next = nullptr;
-  gps_dst->triangles = static_cast<bGPDtriangle *>(MEM_dupallocN(gps_src->triangles));
+  gps_dst->triangles = MEM_dupalloc(gps_src->triangles);
 
   if (dup_points) {
-    gps_dst->points = static_cast<bGPDspoint *>(MEM_dupallocN(gps_src->points));
+    gps_dst->points = MEM_dupalloc(gps_src->points);
 
     if (gps_src->dvert != nullptr) {
-      gps_dst->dvert = static_cast<MDeformVert *>(MEM_dupallocN(gps_src->dvert));
+      gps_dst->dvert = MEM_dupalloc(gps_src->dvert);
       BKE_gpencil_stroke_weights_duplicate(gps_src, gps_dst);
     }
     else {
@@ -848,15 +751,15 @@ bGPDframe *BKE_gpencil_frame_duplicate(const bGPDframe *gpf_src, const bool dup_
   }
 
   /* make a copy of the source frame */
-  gpf_dst = static_cast<bGPDframe *>(MEM_dupallocN(gpf_src));
+  gpf_dst = MEM_dupalloc(gpf_src);
   gpf_dst->prev = gpf_dst->next = nullptr;
 
   /* Copy strokes. */
   BLI_listbase_clear(&gpf_dst->strokes);
   if (dup_strokes) {
-    LISTBASE_FOREACH (bGPDstroke *, gps_src, &gpf_src->strokes) {
+    for (bGPDstroke &gps_src : gpf_src->strokes) {
       /* make copy of source stroke */
-      gps_dst = BKE_gpencil_stroke_duplicate(gps_src, true, true);
+      gps_dst = BKE_gpencil_stroke_duplicate(&gps_src, true, true);
       BLI_addtail(&gpf_dst->strokes, gps_dst);
     }
   }
@@ -878,22 +781,19 @@ bGPDlayer *BKE_gpencil_layer_duplicate(const bGPDlayer *gpl_src,
   }
 
   /* make a copy of source layer */
-  gpl_dst = static_cast<bGPDlayer *>(MEM_dupallocN(gpl_src));
+  gpl_dst = MEM_dupalloc(gpl_src);
   gpl_dst->prev = gpl_dst->next = nullptr;
-
-  /* Copy masks. */
-  BKE_gpencil_layer_mask_copy(gpl_src, gpl_dst);
 
   /* copy frames */
   BLI_listbase_clear(&gpl_dst->frames);
   if (dup_frames) {
-    LISTBASE_FOREACH (bGPDframe *, gpf_src, &gpl_src->frames) {
+    for (bGPDframe &gpf_src : gpl_src->frames) {
       /* make a copy of source frame */
-      gpf_dst = BKE_gpencil_frame_duplicate(gpf_src, dup_strokes);
+      gpf_dst = BKE_gpencil_frame_duplicate(&gpf_src, dup_strokes);
       BLI_addtail(&gpl_dst->frames, gpf_dst);
 
       /* if source frame was the current layer's 'active' frame, reassign that too */
-      if (gpf_src == gpl_dst->actframe) {
+      if (&gpf_src == gpl_dst->actframe) {
         gpl_dst->actframe = gpf_dst;
       }
     }
@@ -918,11 +818,11 @@ bGPdata *BKE_gpencil_data_duplicate(Main *bmain, const bGPdata *gpd_src, bool in
 
   if (internal_copy) {
     /* make a straight copy for undo buffers used during stroke drawing */
-    gpd_dst = static_cast<bGPdata *>(MEM_dupallocN(gpd_src));
+    gpd_dst = MEM_dupalloc(gpd_src);
   }
   else {
     BLI_assert(bmain != nullptr);
-    gpd_dst = (bGPdata *)BKE_id_copy(bmain, &gpd_src->id);
+    gpd_dst = id_cast<bGPdata *>(BKE_id_copy(bmain, &gpd_src->id));
   }
 
   /* Copy internal data (layers, etc.) */
@@ -956,9 +856,9 @@ bGPDframe *BKE_gpencil_layer_frame_find(bGPDlayer *gpl, int cframe)
   /* Search in reverse order, since this is often used for playback/adding,
    * where it's less likely that we're interested in the earlier frames
    */
-  LISTBASE_FOREACH_BACKWARD (bGPDframe *, gpf, &gpl->frames) {
-    if (gpf->framenum == cframe) {
-      return gpf;
+  for (bGPDframe &gpf : gpl->frames.items_reversed()) {
+    if (gpf.framenum == cframe) {
+      return &gpf;
     }
   }
 
@@ -1060,8 +960,8 @@ bGPDframe *BKE_gpencil_layer_frame_get(bGPDlayer *gpl, int cframe, eGP_GetFrame_
   }
   else if (gpl->frames.first) {
     /* check which of the ends to start checking from */
-    const int first = ((bGPDframe *)(gpl->frames.first))->framenum;
-    const int last = ((bGPDframe *)(gpl->frames.last))->framenum;
+    const int first = (static_cast<bGPDframe *>(gpl->frames.first))->framenum;
+    const int last = (static_cast<bGPDframe *>(gpl->frames.last))->framenum;
 
     if (abs(cframe - first) > abs(cframe - last)) {
       /* find gp-frame which is less than or equal to cframe */
@@ -1159,87 +1059,6 @@ bGPDlayer *BKE_gpencil_layer_named_get(bGPdata *gpd, const char *name)
   return static_cast<bGPDlayer *>(BLI_findstring(&gpd->layers, name, offsetof(bGPDlayer, info)));
 }
 
-void BKE_gpencil_layer_mask_remove(bGPDlayer *gpl, bGPDlayer_Mask *mask)
-{
-  BLI_freelinkN(&gpl->mask_layers, mask);
-  gpl->act_mask--;
-  CLAMP_MIN(gpl->act_mask, 0);
-}
-
-void BKE_gpencil_layer_mask_remove_ref(bGPdata *gpd, const char *name)
-{
-  bGPDlayer_Mask *mask_next;
-
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    for (bGPDlayer_Mask *mask = static_cast<bGPDlayer_Mask *>(gpl->mask_layers.first); mask;
-         mask = mask_next)
-    {
-      mask_next = mask->next;
-      if (STREQ(mask->name, name)) {
-        BKE_gpencil_layer_mask_remove(gpl, mask);
-      }
-    }
-  }
-}
-
-static int gpencil_cb_sort_masks(const void *arg1, const void *arg2)
-{
-  /* sort is inverted as layer list. */
-  const bGPDlayer_Mask *mask1 = static_cast<const bGPDlayer_Mask *>(arg1);
-  const bGPDlayer_Mask *mask2 = static_cast<const bGPDlayer_Mask *>(arg2);
-  int val = 0;
-
-  if (mask1->sort_index < mask2->sort_index) {
-    val = 1;
-  }
-  else if (mask1->sort_index > mask2->sort_index) {
-    val = -1;
-  }
-
-  return val;
-}
-
-void BKE_gpencil_layer_mask_sort(bGPdata *gpd, bGPDlayer *gpl)
-{
-  /* Update sort index. */
-  LISTBASE_FOREACH (bGPDlayer_Mask *, mask, &gpl->mask_layers) {
-    bGPDlayer *gpl_mask = BKE_gpencil_layer_named_get(gpd, mask->name);
-    if (gpl_mask != nullptr) {
-      mask->sort_index = BLI_findindex(&gpd->layers, gpl_mask);
-    }
-    else {
-      mask->sort_index = 0;
-    }
-  }
-  BLI_listbase_sort(&gpl->mask_layers, gpencil_cb_sort_masks);
-}
-
-void BKE_gpencil_layer_mask_sort_all(bGPdata *gpd)
-{
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    BKE_gpencil_layer_mask_sort(gpd, gpl);
-  }
-}
-
-void BKE_gpencil_layer_mask_copy(const bGPDlayer *gpl_src, bGPDlayer *gpl_dst)
-{
-  BLI_listbase_clear(&gpl_dst->mask_layers);
-  LISTBASE_FOREACH (bGPDlayer_Mask *, mask_src, &gpl_src->mask_layers) {
-    bGPDlayer_Mask *mask_dst = static_cast<bGPDlayer_Mask *>(MEM_dupallocN(mask_src));
-    mask_dst->prev = mask_dst->next = nullptr;
-    BLI_addtail(&gpl_dst->mask_layers, mask_dst);
-  }
-}
-
-void BKE_gpencil_layer_mask_cleanup(bGPdata *gpd, bGPDlayer *gpl)
-{
-  LISTBASE_FOREACH_MUTABLE (bGPDlayer_Mask *, mask, &gpl->mask_layers) {
-    if (BKE_gpencil_layer_named_get(gpd, mask->name) == nullptr) {
-      BKE_gpencil_layer_mask_remove(gpl, mask);
-    }
-  }
-}
-
 static int gpencil_cb_cmp_frame(void *thunk, const void *a, const void *b)
 {
   const bGPDframe *frame_a = static_cast<const bGPDframe *>(a);
@@ -1252,7 +1071,7 @@ static int gpencil_cb_cmp_frame(void *thunk, const void *a, const void *b)
     return 1;
   }
   if (thunk != nullptr) {
-    *((bool *)thunk) = true;
+    *(static_cast<bool *>(thunk)) = true;
   }
   /* Sort selected last. */
   if ((frame_a->flag & GP_FRAME_SELECT) && ((frame_b->flag & GP_FRAME_SELECT) == 0)) {
@@ -1274,9 +1093,9 @@ bGPDlayer *BKE_gpencil_layer_active_get(bGPdata *gpd)
   }
 
   /* loop over layers until found (assume only one active) */
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    if (gpl->flag & GP_LAYER_ACTIVE) {
-      return gpl;
+  for (bGPDlayer &gpl : gpd->layers) {
+    if (gpl.flag & GP_LAYER_ACTIVE) {
+      return &gpl;
     }
   }
 
@@ -1292,10 +1111,10 @@ void BKE_gpencil_layer_active_set(bGPdata *gpd, bGPDlayer *active)
   }
 
   /* loop over layers deactivating all */
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    gpl->flag &= ~GP_LAYER_ACTIVE;
+  for (bGPDlayer &gpl : gpd->layers) {
+    gpl.flag &= ~GP_LAYER_ACTIVE;
     if (gpd->flag & GP_DATA_AUTOLOCK_LAYERS) {
-      gpl->flag |= GP_LAYER_LOCKED;
+      gpl.flag |= GP_LAYER_LOCKED;
     }
   }
 
@@ -1303,36 +1122,6 @@ void BKE_gpencil_layer_active_set(bGPdata *gpd, bGPDlayer *active)
   active->flag |= GP_LAYER_ACTIVE;
   if (gpd->flag & GP_DATA_AUTOLOCK_LAYERS) {
     active->flag &= ~GP_LAYER_LOCKED;
-  }
-}
-
-void BKE_gpencil_layer_autolock_set(bGPdata *gpd, const bool unlock)
-{
-  BLI_assert(gpd != nullptr);
-
-  if (gpd->flag & GP_DATA_AUTOLOCK_LAYERS) {
-    bGPDlayer *layer_active = BKE_gpencil_layer_active_get(gpd);
-
-    /* Lock all other layers */
-    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-      /* unlock active layer */
-      if (gpl == layer_active) {
-        gpl->flag &= ~GP_LAYER_LOCKED;
-      }
-      else {
-        gpl->flag |= GP_LAYER_LOCKED;
-      }
-    }
-  }
-  else {
-    /* If disable is better unlock all layers by default or it looks there is
-     * a problem in the UI because the user expects all layers will be unlocked
-     */
-    if (unlock) {
-      LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-        gpl->flag &= ~GP_LAYER_LOCKED;
-      }
-    }
   }
 }
 
@@ -1348,9 +1137,6 @@ void BKE_gpencil_layer_delete(bGPdata *gpd, bGPDlayer *gpl)
 
   /* Free Masks. */
   BKE_gpencil_free_layer_masks(gpl);
-
-  /* Remove any reference to that layer in masking lists. */
-  BKE_gpencil_layer_mask_remove_ref(gpd, gpl->info);
 
   /* free icon providing preview of icon color */
   BKE_icon_delete(gpl->runtime.icon_id);
@@ -1370,55 +1156,8 @@ void BKE_gpencil_brush_material_set(Brush *brush, Material *ma)
       id_us_plus(&ma->id);
     }
     brush->gpencil_settings->material = ma;
+    BKE_brush_tag_unsaved_changes(brush);
   }
-}
-
-void BKE_gpencil_frame_range_selected(bGPDlayer *gpl, int *r_initframe, int *r_endframe)
-{
-  *r_initframe = gpl->actframe->framenum;
-  *r_endframe = gpl->actframe->framenum;
-
-  LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
-    if (gpf->flag & GP_FRAME_SELECT) {
-      if (gpf->framenum < *r_initframe) {
-        *r_initframe = gpf->framenum;
-      }
-      if (gpf->framenum > *r_endframe) {
-        *r_endframe = gpf->framenum;
-      }
-    }
-  }
-}
-
-float BKE_gpencil_multiframe_falloff_calc(
-    bGPDframe *gpf, int actnum, int f_init, int f_end, CurveMapping *cur_falloff)
-{
-  float fnum = 0.5f; /* default mid curve */
-  float value;
-
-  /* check curve is available */
-  if (cur_falloff == nullptr) {
-    return 1.0f;
-  }
-
-  /* frames to the right of the active frame */
-  if (gpf->framenum < actnum) {
-    fnum = float(gpf->framenum - f_init) / (actnum - f_init);
-    fnum *= 0.5f;
-    value = BKE_curvemapping_evaluateF(cur_falloff, 0, fnum);
-  }
-  /* frames to the left of the active frame */
-  else if (gpf->framenum > actnum) {
-    fnum = float(gpf->framenum - actnum) / (f_end - actnum);
-    fnum *= 0.5f;
-    value = BKE_curvemapping_evaluateF(cur_falloff, 0, fnum + 0.5f);
-  }
-  else {
-    /* Center of the curve. */
-    value = BKE_curvemapping_evaluateF(cur_falloff, 0, 0.5f);
-  }
-
-  return value;
 }
 
 void BKE_gpencil_palette_ensure(Main *bmain, Scene *scene)
@@ -1462,7 +1201,8 @@ void BKE_gpencil_palette_ensure(Main *bmain, Scene *scene)
     /* Create Colors. */
     for (int i = 0; i < ARRAY_SIZE(hexcol); i++) {
       PaletteColor *palcol = BKE_palette_color_add(palette);
-      hex_to_rgb(hexcol[i], palcol->rgb, palcol->rgb + 1, palcol->rgb + 2);
+      hex_to_rgb(hexcol[i], palcol->color, palcol->color + 1, palcol->color + 2);
+      IMB_colormanagement_srgb_to_scene_linear_v3(palcol->color, palcol->color);
     }
   }
 
@@ -1470,477 +1210,7 @@ void BKE_gpencil_palette_ensure(Main *bmain, Scene *scene)
   BKE_paint_palette_set(&ts->gp_paint->paint, palette);
   BKE_paint_palette_set(&ts->gp_vertexpaint->paint, palette);
 }
-/**
- * Helper to check if a layers is used as mask
- * \param view_layer: Actual view layer.
- * \param gpd: Grease pencil data-block.
- * \param gpl_mask: Actual Layer.
- * \return True if the layer is used as mask.
- */
-static bool gpencil_is_layer_mask(ViewLayer *view_layer, bGPdata *gpd, bGPDlayer *gpl_mask)
-{
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    if ((gpl->viewlayername[0] != '\0') && !STREQ(view_layer->name, gpl->viewlayername)) {
-      continue;
-    }
-
-    /* Skip if masks are disabled for this view layer. */
-    if (gpl->flag & GP_LAYER_DISABLE_MASKS_IN_VIEWLAYER) {
-      continue;
-    }
-
-    LISTBASE_FOREACH (bGPDlayer_Mask *, mask, &gpl->mask_layers) {
-      if (STREQ(gpl_mask->info, mask->name)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-/* -------------------------------------------------------------------- */
-/** \name Advanced Iterator
- *
- * Iterate over all visible stroke of all visible layers inside a gpObject.
- * Also take into account onion-skinning.
- * \{ */
-
-void BKE_gpencil_visible_stroke_advanced_iter(ViewLayer *view_layer,
-                                              Object *ob,
-                                              gpIterCb layer_cb,
-                                              gpIterCb stroke_cb,
-                                              void *thunk,
-                                              bool do_onion,
-                                              int cfra)
-{
-  bGPdata *gpd = (bGPdata *)ob->data;
-  const bool is_multiedit = (GPENCIL_MULTIEDIT_SESSIONS_ON(gpd) && !GPENCIL_PLAY_ON(gpd));
-  const bool is_onion = do_onion && ((gpd->flag & GP_DATA_STROKE_WEIGHTMODE) == 0);
-  const bool is_drawing = (gpd->runtime.sbuffer_used > 0);
-
-  /* Onion skinning. */
-  const bool onion_mode_abs = (gpd->onion_mode == GP_ONION_MODE_ABSOLUTE);
-  const bool onion_mode_sel = (gpd->onion_mode == GP_ONION_MODE_SELECTED);
-  const bool onion_loop = (gpd->onion_flag & GP_ONION_LOOP) != 0;
-  const short onion_keytype = gpd->onion_keytype;
-
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    /* Reset by layer. */
-    bool is_before_first = false;
-
-    bGPDframe *act_gpf = gpl->actframe;
-    bGPDframe *sta_gpf = act_gpf;
-    bGPDframe *end_gpf = act_gpf ? act_gpf->next : nullptr;
-    float prev_opacity = gpl->opacity;
-
-    if (gpl->flag & GP_LAYER_HIDE) {
-      continue;
-    }
-
-    /* If scale to 0 the layer must be invisible. */
-    if (is_zero_v3(gpl->scale)) {
-      continue;
-    }
-
-    /* Hide the layer if it's defined a view layer filter. This is used to
-     * generate renders, putting only selected GP layers for each View Layer.
-     * This is used only in final render and never in Viewport. */
-    if ((view_layer != nullptr) && (gpl->viewlayername[0] != '\0') &&
-        !STREQ(view_layer->name, gpl->viewlayername))
-    {
-      /* Do not skip masks when rendering the view-layer so that it can still be used to clip
-       * other layers. Instead set their opacity to zero. */
-      if (gpencil_is_layer_mask(view_layer, gpd, gpl)) {
-        gpl->opacity = 0.0f;
-      }
-      else {
-        continue;
-      }
-    }
-
-    if (is_multiedit) {
-      sta_gpf = end_gpf = nullptr;
-      /* Check the whole range and tag the editable frames. */
-      LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
-        if (act_gpf != nullptr && (gpf == act_gpf || (gpf->flag & GP_FRAME_SELECT))) {
-          gpf->runtime.onion_id = 0;
-          if (do_onion) {
-            if (gpf->framenum < act_gpf->framenum) {
-              gpf->runtime.onion_id = -1;
-            }
-            else {
-              gpf->runtime.onion_id = 1;
-            }
-          }
-
-          if (sta_gpf == nullptr) {
-            sta_gpf = gpf;
-          }
-          end_gpf = gpf->next;
-        }
-        else {
-          gpf->runtime.onion_id = INT_MAX;
-        }
-      }
-    }
-    else if (is_onion && (gpl->onion_flag & GP_LAYER_ONIONSKIN)) {
-      /* Special cases when cframe is before first frame. */
-      bGPDframe *gpf_first = static_cast<bGPDframe *>(gpl->frames.first);
-      if ((gpf_first != nullptr) && (act_gpf != nullptr) &&
-          (gpf_first->framenum > act_gpf->framenum))
-      {
-        is_before_first = true;
-      }
-      if ((gpf_first != nullptr) && (act_gpf == nullptr)) {
-        act_gpf = gpf_first;
-        is_before_first = true;
-      }
-
-      if (act_gpf) {
-        bGPDframe *last_gpf = static_cast<bGPDframe *>(gpl->frames.last);
-
-        int frame_len = 0;
-        LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
-          gpf->runtime.frameid = frame_len++;
-        }
-
-        LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
-          bool is_wrong_keytype = (onion_keytype > -1) && (gpf->key_type != onion_keytype);
-          bool is_in_range;
-          int delta = (onion_mode_abs) ? (gpf->framenum - cfra) :
-                                         (gpf->runtime.frameid - act_gpf->runtime.frameid);
-
-          if (is_before_first) {
-            delta++;
-          }
-
-          if (onion_mode_sel) {
-            is_in_range = (gpf->flag & GP_FRAME_SELECT) != 0;
-          }
-          else {
-            is_in_range = (-delta <= gpd->gstep) && (delta <= gpd->gstep_next);
-
-            if (onion_loop && !is_in_range) {
-              /* We wrap the value using the last frame and 0 as reference. */
-              /* FIXME: This might not be good for animations not starting at 0. */
-              int shift = (onion_mode_abs) ? last_gpf->framenum : last_gpf->runtime.frameid;
-              delta += (delta < 0) ? (shift + 1) : -(shift + 1);
-              /* Test again with wrapped value. */
-              is_in_range = (-delta <= gpd->gstep) && (delta <= gpd->gstep_next);
-            }
-          }
-          /* Mask frames that have wrong keytype of are not in range. */
-          gpf->runtime.onion_id = (is_wrong_keytype || !is_in_range) ? INT_MAX : delta;
-        }
-        /* Active frame is always shown. */
-        if (!is_before_first || is_drawing) {
-          act_gpf->runtime.onion_id = 0;
-        }
-      }
-
-      sta_gpf = static_cast<bGPDframe *>(gpl->frames.first);
-      end_gpf = nullptr;
-    }
-    else {
-      /* Bypass multiedit/onion skinning. */
-      end_gpf = sta_gpf = nullptr;
-    }
-
-    if (sta_gpf == nullptr && act_gpf == nullptr) {
-      if (layer_cb) {
-        layer_cb(gpl, act_gpf, nullptr, thunk);
-      }
-      gpl->opacity = prev_opacity;
-      continue;
-    }
-
-    /* Draw multiedit/onion skinning first */
-    for (bGPDframe *gpf = sta_gpf; gpf && gpf != end_gpf; gpf = gpf->next) {
-      if ((gpf->runtime.onion_id == INT_MAX || gpf == act_gpf) && (!is_before_first)) {
-        continue;
-      }
-
-      /* Only do once for frame before first. */
-      if (is_before_first && gpf == act_gpf) {
-        is_before_first = false;
-      }
-
-      if (layer_cb) {
-        layer_cb(gpl, gpf, nullptr, thunk);
-      }
-
-      if (stroke_cb) {
-        LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-          if (gps->totpoints == 0) {
-            continue;
-          }
-          stroke_cb(gpl, gpf, gps, thunk);
-        }
-      }
-    }
-    /* Draw Active frame on top. */
-    /* Use evaluated frame (with modifiers for active stroke)/ */
-    act_gpf = gpl->actframe;
-    if (act_gpf) {
-      act_gpf->runtime.onion_id = 0;
-      if (layer_cb) {
-        layer_cb(gpl, act_gpf, nullptr, thunk);
-      }
-
-      /* If layer solo mode and Paint mode, only keyframes with data are displayed. */
-      if (GPENCIL_PAINT_MODE(gpd) && (gpl->flag & GP_LAYER_SOLO_MODE) &&
-          (act_gpf->framenum != cfra))
-      {
-        gpl->opacity = prev_opacity;
-        continue;
-      }
-      if (stroke_cb) {
-        LISTBASE_FOREACH (bGPDstroke *, gps, &act_gpf->strokes) {
-          if (gps->totpoints == 0) {
-            continue;
-          }
-          stroke_cb(gpl, act_gpf, gps, thunk);
-        }
-      }
-    }
-
-    /* Restore the opacity in case it was overwritten (used to hide masks in render). */
-    gpl->opacity = prev_opacity;
-  }
-}
-
-void BKE_gpencil_frame_original_pointers_update(const bGPDframe *gpf_orig,
-                                                const bGPDframe *gpf_eval)
-{
-  bGPDstroke *gps_eval = static_cast<bGPDstroke *>(gpf_eval->strokes.first);
-  LISTBASE_FOREACH (bGPDstroke *, gps_orig, &gpf_orig->strokes) {
-
-    /* Assign original stroke pointer. */
-    if (gps_eval != nullptr) {
-      gps_eval->runtime.gps_orig = gps_orig;
-
-      /* Assign original point pointer. */
-      for (int i = 0; i < gps_orig->totpoints; i++) {
-        if (i > gps_eval->totpoints - 1) {
-          break;
-        }
-        bGPDspoint *pt_orig = &gps_orig->points[i];
-        bGPDspoint *pt_eval = &gps_eval->points[i];
-        pt_orig->runtime.pt_orig = nullptr;
-        pt_orig->runtime.idx_orig = i;
-        pt_eval->runtime.pt_orig = pt_orig;
-        pt_eval->runtime.idx_orig = i;
-      }
-      /* Increase pointer. */
-      gps_eval = gps_eval->next;
-    }
-  }
-}
-
-void BKE_gpencil_layer_original_pointers_update(const bGPDlayer *gpl_orig,
-                                                const bGPDlayer *gpl_eval)
-{
-  bGPDframe *gpf_eval = static_cast<bGPDframe *>(gpl_eval->frames.first);
-  LISTBASE_FOREACH (bGPDframe *, gpf_orig, &gpl_orig->frames) {
-    if (gpf_eval != nullptr) {
-      /* Update frame reference pointers. */
-      gpf_eval->runtime.gpf_orig = (bGPDframe *)gpf_orig;
-      BKE_gpencil_frame_original_pointers_update(gpf_orig, gpf_eval);
-      gpf_eval = gpf_eval->next;
-    }
-  }
-}
-
-void BKE_gpencil_data_update_orig_pointers(const bGPdata *gpd_orig, const bGPdata *gpd_eval)
-{
-  /* Assign pointers to the original stroke and points to the evaluated data. This must
-   * be done before applying any modifier because at this moment the structure is equals,
-   * so we can assume the layer index is the same in both data-blocks.
-   * This data will be used by operators. */
-
-  bGPDlayer *gpl_eval = static_cast<bGPDlayer *>(gpd_eval->layers.first);
-  LISTBASE_FOREACH (bGPDlayer *, gpl_orig, &gpd_orig->layers) {
-    if (gpl_eval != nullptr) {
-      /* Update layer reference pointers. */
-      gpl_eval->runtime.gpl_orig = gpl_orig;
-      BKE_gpencil_layer_original_pointers_update(gpl_orig, gpl_eval);
-      gpl_eval = gpl_eval->next;
-    }
-  }
-}
-
-void BKE_gpencil_update_orig_pointers(const Object *ob_orig, const Object *ob_eval)
-{
-  BKE_gpencil_data_update_orig_pointers((bGPdata *)ob_orig->data, (bGPdata *)ob_eval->data);
-}
-
-void BKE_gpencil_layer_transform_matrix_get(const Depsgraph *depsgraph,
-                                            Object *obact,
-                                            bGPDlayer *gpl,
-                                            float diff_mat[4][4])
-{
-  Object *ob_eval = depsgraph != nullptr ? DEG_get_evaluated_object(depsgraph, obact) : obact;
-  Object *obparent = gpl->parent;
-  Object *obparent_eval = depsgraph != nullptr ? DEG_get_evaluated_object(depsgraph, obparent) :
-                                                 obparent;
-
-  /* if not layer parented, try with object parented */
-  if (obparent_eval == nullptr) {
-    if ((ob_eval != nullptr) && (ob_eval->type == OB_GPENCIL_LEGACY)) {
-      copy_m4_m4(diff_mat, ob_eval->object_to_world().ptr());
-      mul_m4_m4m4(diff_mat, diff_mat, gpl->layer_mat);
-      return;
-    }
-    /* not gpencil object */
-    unit_m4(diff_mat);
-    return;
-  }
-
-  if (ELEM(gpl->partype, PAROBJECT, PARSKEL)) {
-    mul_m4_m4m4(diff_mat, obparent_eval->object_to_world().ptr(), gpl->inverse);
-    add_v3_v3(diff_mat[3], ob_eval->object_to_world().location());
-    mul_m4_m4m4(diff_mat, diff_mat, gpl->layer_mat);
-    return;
-  }
-  if (gpl->partype == PARBONE) {
-    bPoseChannel *pchan = BKE_pose_channel_find_name(obparent_eval->pose, gpl->parsubstr);
-    if (pchan) {
-      float tmp_mat[4][4];
-      mul_m4_m4m4(tmp_mat, obparent_eval->object_to_world().ptr(), pchan->pose_mat);
-      mul_m4_m4m4(diff_mat, tmp_mat, gpl->inverse);
-      add_v3_v3(diff_mat[3], ob_eval->object_to_world().location());
-    }
-    else {
-      /* if bone not found use object (armature) */
-      mul_m4_m4m4(diff_mat, obparent_eval->object_to_world().ptr(), gpl->inverse);
-      add_v3_v3(diff_mat[3], ob_eval->object_to_world().location());
-    }
-    mul_m4_m4m4(diff_mat, diff_mat, gpl->layer_mat);
-    return;
-  }
-
-  unit_m4(diff_mat); /* not defined type */
-}
-
-void BKE_gpencil_update_layer_transforms(const Depsgraph *depsgraph, Object *ob)
-{
-  if (ob->type != OB_GPENCIL_LEGACY) {
-    return;
-  }
-
-  bGPdata *gpd = (bGPdata *)ob->data;
-  float cur_mat[4][4];
-
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    bool changed = false;
-    unit_m4(cur_mat);
-
-    /* Skip non-visible layers. */
-    if (gpl->flag & GP_LAYER_HIDE || is_zero_v3(gpl->scale)) {
-      continue;
-    }
-
-    /* Skip empty layers. */
-    if (BLI_listbase_is_empty(&gpl->frames)) {
-      continue;
-    }
-
-    /* Determine frame range to transform. */
-    bGPDframe *gpf_start = nullptr;
-    bGPDframe *gpf_end = nullptr;
-
-    /* If onion skinning is activated, consider all frames. */
-    if (gpl->onion_flag & GP_LAYER_ONIONSKIN) {
-      gpf_start = static_cast<bGPDframe *>(gpl->frames.first);
-    }
-    /* Otherwise, consider only active frame. */
-    else {
-      /* Skip layer if it has no active frame to transform. */
-      if (gpl->actframe == nullptr) {
-        continue;
-      }
-      gpf_start = gpl->actframe;
-      gpf_end = gpl->actframe->next;
-    }
-
-    if (gpl->parent != nullptr) {
-      Object *ob_parent = DEG_get_evaluated_object(depsgraph, gpl->parent);
-      /* calculate new matrix */
-      if (ELEM(gpl->partype, PAROBJECT, PARSKEL)) {
-        mul_m4_m4m4(cur_mat, ob->world_to_object().ptr(), ob_parent->object_to_world().ptr());
-      }
-      else if (gpl->partype == PARBONE) {
-        bPoseChannel *pchan = BKE_pose_channel_find_name(ob_parent->pose, gpl->parsubstr);
-        if (pchan != nullptr) {
-          mul_m4_series(cur_mat,
-                        ob->world_to_object().ptr(),
-                        ob_parent->object_to_world().ptr(),
-                        pchan->pose_mat);
-        }
-        else {
-          unit_m4(cur_mat);
-        }
-      }
-      changed = !equals_m4m4(gpl->inverse, cur_mat);
-    }
-
-    /* Calc local layer transform. Early out if we have non-animated zero transforms. */
-    bool transformed = (!is_zero_v3(gpl->location) || !is_zero_v3(gpl->rotation) ||
-                        !is_one_v3(gpl->scale));
-    float tmp_mat[4][4];
-    loc_eul_size_to_mat4(tmp_mat, gpl->location, gpl->rotation, gpl->scale);
-    transformed |= !equals_m4m4(gpl->layer_mat, tmp_mat);
-    if (transformed) {
-      copy_m4_m4(gpl->layer_mat, tmp_mat);
-    }
-
-    /* Continue if no transformations are applied to this layer. */
-    if (!changed && !transformed) {
-      continue;
-    }
-
-    /* Iterate over frame range. */
-    for (bGPDframe *gpf = gpf_start; gpf != nullptr && gpf != gpf_end; gpf = gpf->next) {
-      /* Skip frames without a valid onion skinning id (NOTE: active frame has one). */
-      if (gpf->runtime.onion_id == INT_MAX) {
-        continue;
-      }
-
-      /* Apply transformations only if needed. */
-      if (changed || transformed) {
-        LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-          bGPDspoint *pt;
-          int i;
-          for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-            if (changed) {
-              mul_m4_v3(gpl->inverse, &pt->x);
-              mul_m4_v3(cur_mat, &pt->x);
-            }
-
-            if (transformed) {
-              mul_m4_v3(gpl->layer_mat, &pt->x);
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-int BKE_gpencil_material_find_index_by_name_prefix(Object *ob, const char *name_prefix)
-{
-  const int name_prefix_len = strlen(name_prefix);
-  for (int i = 0; i < ob->totcol; i++) {
-    Material *ma = BKE_object_material_get(ob, i + 1);
-    if ((ma != nullptr) && (ma->gp_style != nullptr) &&
-        STREQLEN(ma->id.name + 2, name_prefix, name_prefix_len))
-    {
-      return i;
-    }
-  }
-
-  return -1;
-}
 
 /** \} */
+
+}  // namespace blender

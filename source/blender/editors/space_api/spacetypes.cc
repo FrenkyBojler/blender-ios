@@ -10,10 +10,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
-
-#include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
+
+#include "BLI_listbase.h"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -44,6 +43,7 @@
 #include "ED_object.hh"
 #include "ED_paint.hh"
 #include "ED_physics.hh"
+#include "ED_pointcloud.hh"
 #include "ED_render.hh"
 #include "ED_scene.hh"
 #include "ED_screen.hh"
@@ -57,6 +57,8 @@
 #include "ED_uvedit.hh"
 
 #include "io_ops.hh"
+
+namespace blender {
 
 void ED_spacetypes_init()
 {
@@ -77,7 +79,7 @@ void ED_spacetypes_init()
   ED_spacetype_nla();
   ED_spacetype_script();
   ED_spacetype_text();
-  ED_spacetype_sequencer();
+  vse::ED_spacetype_sequencer();
   ED_spacetype_console();
   ED_spacetype_userpref();
   ED_spacetype_clip();
@@ -98,7 +100,7 @@ void ED_spacetypes_init()
   object::operatortypes_object();
   ED_operatortypes_lattice();
   ED_operatortypes_mesh();
-  ED_operatortypes_geometry();
+  geometry::operatortypes_geometry();
   sculpt_paint::operatortypes_sculpt();
   ED_operatortypes_sculpt_curves();
   ED_operatortypes_uvedit();
@@ -106,6 +108,7 @@ void ED_spacetypes_init()
   ED_operatortypes_physics();
   ED_operatortypes_curve();
   curves::operatortypes_curves();
+  pointcloud::operatortypes_pointcloud();
   ED_operatortypes_armature();
   ED_operatortypes_marker();
   ED_operatortypes_metaball();
@@ -115,12 +118,12 @@ void ED_spacetypes_init()
   ED_operatortypes_io();
   ED_operatortypes_edutils();
 
-  ED_operatortypes_view2d();
-  ED_operatortypes_ui();
+  ui::ED_operatortypes_view2d();
+  ui::operatortypes_ui();
 
   ED_screen_user_menu_register();
 
-  ED_uilisttypes_ui();
+  ui::uilisttypes_ui();
 
   /* Gizmo types. */
   ED_gizmotypes_button_2d();
@@ -163,14 +166,15 @@ void ED_spacemacros_init()
   ED_operatormacros_clip();
   ED_operatormacros_curve();
   curves::operatormacros_curves();
+  pointcloud::operatormacros_pointcloud();
   ED_operatormacros_mask();
-  ED_operatormacros_sequencer();
+  vse::ED_operatormacros_sequencer();
   ED_operatormacros_paint();
   ED_operatormacros_grease_pencil();
   ED_operatormacros_nla();
 
   /* Register dropboxes (can use macros). */
-  ED_dropboxes_ui();
+  ui::dropboxes_ui();
   for (const std::unique_ptr<SpaceType> &type : BKE_spacetypes_list()) {
     if (type->dropboxes) {
       type->dropboxes();
@@ -192,6 +196,7 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
   ED_keymap_uvedit(keyconf);
   ED_keymap_curve(keyconf);
   curves::keymap_curves(keyconf);
+  pointcloud::keymap_pointcloud(keyconf);
   ED_keymap_armature(keyconf);
   ED_keymap_physics(keyconf);
   ED_keymap_metaball(keyconf);
@@ -200,18 +205,18 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
   ED_keymap_marker(keyconf);
   sculpt_paint::keymap_sculpt(keyconf);
 
-  ED_keymap_view2d(keyconf);
-  ED_keymap_ui(keyconf);
+  ui::ED_keymap_view2d(keyconf);
+  ui::keymap_ui(keyconf);
 
-  ED_keymap_transform(keyconf);
+  transform::keymap_transform(keyconf);
 
   for (const std::unique_ptr<SpaceType> &type : BKE_spacetypes_list()) {
     if (type->keymap) {
       type->keymap(keyconf);
     }
-    LISTBASE_FOREACH (ARegionType *, region_type, &type->regiontypes) {
-      if (region_type->keymap) {
-        region_type->keymap(keyconf);
+    for (ARegionType &region_type : type->regiontypes) {
+      if (region_type.keymap) {
+        region_type.keymap(keyconf);
       }
     }
   }
@@ -233,7 +238,7 @@ void *ED_region_draw_cb_activate(ARegionType *art,
                                  void *customdata,
                                  int type)
 {
-  RegionDrawCB *rdc = MEM_cnew<RegionDrawCB>(__func__);
+  RegionDrawCB *rdc = MEM_new_zeroed<RegionDrawCB>(__func__);
 
   BLI_addtail(&art->drawcalls, rdc);
   rdc->draw = draw;
@@ -245,10 +250,10 @@ void *ED_region_draw_cb_activate(ARegionType *art,
 
 bool ED_region_draw_cb_exit(ARegionType *art, void *handle)
 {
-  LISTBASE_FOREACH (RegionDrawCB *, rdc, &art->drawcalls) {
-    if (rdc == (RegionDrawCB *)handle) {
-      BLI_remlink(&art->drawcalls, rdc);
-      MEM_freeN(rdc);
+  for (RegionDrawCB &rdc : art->drawcalls) {
+    if (&rdc == static_cast<RegionDrawCB *>(handle)) {
+      BLI_remlink(&art->drawcalls, &rdc);
+      MEM_delete(&rdc);
       return true;
     }
   }
@@ -257,19 +262,16 @@ bool ED_region_draw_cb_exit(ARegionType *art, void *handle)
 
 static void ed_region_draw_cb_draw(const bContext *C, ARegion *region, ARegionType *art, int type)
 {
-  LISTBASE_FOREACH_MUTABLE (RegionDrawCB *, rdc, &art->drawcalls) {
-    if (rdc->type == type) {
-      rdc->draw(C, region, rdc->customdata);
-
-      /* This is needed until we get rid of BGL which can change the states we are tracking. */
-      GPU_bgl_end();
+  for (RegionDrawCB &rdc : art->drawcalls.items_mutable()) {
+    if (rdc.type == type) {
+      rdc.draw(C, region, rdc.customdata);
     }
   }
 }
 
 void ED_region_draw_cb_draw(const bContext *C, ARegion *region, int type)
 {
-  ed_region_draw_cb_draw(C, region, region->type, type);
+  ed_region_draw_cb_draw(C, region, region->runtime->type, type);
 }
 
 void ED_region_surface_draw_cb_draw(ARegionType *art, int type)
@@ -279,13 +281,15 @@ void ED_region_surface_draw_cb_draw(ARegionType *art, int type)
 
 void ED_region_draw_cb_remove_by_type(ARegionType *art, void *draw_fn, void (*free)(void *))
 {
-  LISTBASE_FOREACH_MUTABLE (RegionDrawCB *, rdc, &art->drawcalls) {
-    if (rdc->draw == draw_fn) {
+  for (RegionDrawCB &rdc : art->drawcalls.items_mutable()) {
+    if (rdc.draw == draw_fn) {
       if (free) {
-        free(rdc->customdata);
+        free(rdc.customdata);
       }
-      BLI_remlink(&art->drawcalls, rdc);
-      MEM_freeN(rdc);
+      BLI_remlink(&art->drawcalls, &rdc);
+      MEM_delete(&rdc);
     }
   }
 }
+
+}  // namespace blender

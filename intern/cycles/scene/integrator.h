@@ -2,8 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __INTEGRATOR_H__
-#define __INTEGRATOR_H__
+#pragma once
 
 #include "kernel/types.h"
 
@@ -42,6 +41,7 @@ class Integrator : public Node {
   NODE_SOCKET_API(float, ao_distance)
   NODE_SOCKET_API(float, ao_additive_factor)
 
+  NODE_SOCKET_API(bool, volume_ray_marching)
   NODE_SOCKET_API(int, volume_max_steps)
   NODE_SOCKET_API(float, volume_step_rate)
 
@@ -80,7 +80,10 @@ class Integrator : public Node {
   static const int MAX_SAMPLES = (1 << 24);
 
   NODE_SOCKET_API(int, aa_samples)
-  NODE_SOCKET_API(int, start_sample)
+
+  NODE_SOCKET_API(bool, use_sample_subset)
+  NODE_SOCKET_API(int, sample_subset_offset)
+  NODE_SOCKET_API(int, sample_subset_length)
 
   NODE_SOCKET_API(bool, use_light_tree)
   NODE_SOCKET_API(float, light_sampling_threshold)
@@ -111,21 +114,24 @@ class Integrator : public Node {
     UPDATE_NONE = 0u,
   };
 
+  bool shadow_catcher_needs_recalc_ = true;
+
   Integrator();
-  ~Integrator();
+  ~Integrator() override;
 
   void device_update(Device *device, DeviceScene *dscene, Scene *scene);
   void device_free(Device *device, DeviceScene *dscene, bool force_free = false);
 
-  void tag_update(Scene *scene, uint32_t flag);
+  void tag_update(Scene *scene, const uint32_t flag);
 
   uint get_kernel_features() const;
 
   AdaptiveSampling get_adaptive_sampling() const;
   DenoiseParams get_denoise_params() const;
   GuidingParams get_guiding_params(const Device *device) const;
+
+  bool is_modified() const;
+  void clear_modified();
 };
 
 CCL_NAMESPACE_END
-
-#endif /* __INTEGRATOR_H__ */

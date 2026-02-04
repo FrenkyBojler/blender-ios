@@ -7,16 +7,14 @@
  * \ingroup bke
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 struct Depsgraph;
 struct Object;
 struct Scene;
 struct SoftBody;
 
-typedef struct BodyPoint {
+struct BodyPoint {
   float origS[3], origE[3], origT[3], pos[3], vec[3], force[3];
   float goal;
   float prevpos[3], prevvec[3], prevdx[3], prevdv[3]; /* used for Heun integration */
@@ -29,7 +27,7 @@ typedef struct BodyPoint {
   // char octantflag;
   float mass;
   float springweight;
-} BodyPoint;
+};
 
 /**
  * Allocates and initializes general main data.
@@ -40,6 +38,11 @@ extern struct SoftBody *sbNew(void);
  * Frees internal data and soft-body itself.
  */
 extern void sbFree(struct Object *ob);
+
+/*
+ * Copy soft-body data.
+ */
+extern SoftBody *sbCopy(struct SoftBody *sb, int flag);
 
 /**
  * Frees simulation data to reset simulation.
@@ -82,6 +85,4 @@ extern void sbSetInterruptCallBack(int (*f)(void));
  */
 extern void SB_estimate_transform(Object *ob, float lloc[3], float lrot[3][3], float lscale[3][3]);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

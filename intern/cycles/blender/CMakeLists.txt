@@ -4,17 +4,12 @@
 
 set(INC
   ..
-  ../../mikktspace
   ../../../source/blender/makesrna
-  ../../../source/blender/blenkernel
-  ../../../source/blender/gpu
-  ../../../source/blender/render
-  ${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
-  ${Epoxy_INCLUDE_DIRS}
-  ${PYTHON_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -37,7 +32,6 @@ set(SRC
   session.cpp
   shader.cpp
   sync.cpp
-  texture.cpp
   viewport.cpp
   volume.cpp
 
@@ -52,15 +46,22 @@ set(SRC
   output_driver.h
   sync.h
   session.h
-  texture.h
   util.h
   viewport.h
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
+  PRIVATE bf::depsgraph
   PRIVATE bf::blenlib
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
+  PRIVATE bf::geometry
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::clog
+  PRIVATE bf::nodes
+  PRIVATE bf::render
   cycles_bvh
   cycles_device
   cycles_graph
@@ -70,19 +71,11 @@ set(LIB
   cycles_subd
   cycles_util
 
-  bf_intern_mikktspace
-
-  ${Epoxy_LIBRARIES}
-  ${PYTHON_LINKFLAGS}
-  ${PYTHON_LIBRARIES}
+  bf::dependencies::epoxy
+  bf::dependencies::optional::python
+  bf::dependencies::optional::openimagedenoise
+  bf::dependencies::optional::openvdb
 )
-
-if(WITH_CYCLES_LOGGING)
-  list(APPEND LIB
-    ${GLOG_LIBRARIES}
-    ${GFLAGS_LIBRARIES}
-  )
-endif()
 
 set(ADDON_FILES
   addon/__init__.py
@@ -110,36 +103,6 @@ endif()
 
 if(WITH_TBB)
   add_definitions(-DWITH_TBB)
-endif()
-
-if(WITH_OPENVDB)
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-  list(APPEND INC
-    ../../openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${OPENVDB_LIBRARIES}
-  )
-endif()
-
-if(WITH_ALEMBIC)
-  add_definitions(-DWITH_ALEMBIC)
-  list(APPEND INC_SYS
-    ${ALEMBIC_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${ALEMBIC_LIBRARIES}
-  )
-endif()
-
-if(WITH_OPENIMAGEDENOISE)
-  add_definitions(-DWITH_OPENIMAGEDENOISE)
-  list(APPEND INC_SYS
-    ${OPENIMAGEDENOISE_INCLUDE_DIRS}
-  )
 endif()
 
 if(WITH_CYCLES_OSL)

@@ -18,9 +18,12 @@
 #include <optional>
 #include <string>
 
+#include "DNA_listBase.h"
+
 #include "RNA_types.hh"
 
-struct ListBase;
+namespace blender {
+
 struct IDProperty;
 
 /**
@@ -64,6 +67,8 @@ struct RNAPath {
    */
   std::optional<std::string> key = std::nullopt;
   std::optional<int> index = std::nullopt;
+
+  int64_t hash() const;
 };
 
 /**
@@ -221,7 +226,9 @@ struct PropertyElemRNA {
  * \return True if there was no error while resolving the path
  * \note Assumes all pointers provided are valid
  */
-bool RNA_path_resolve_elements(PointerRNA *ptr, const char *path, ListBase *r_elements);
+bool RNA_path_resolve_elements(PointerRNA *ptr,
+                               const char *path,
+                               ListBaseT<PropertyElemRNA> *r_elements);
 
 /**
  * Find the path from the structure referenced by the pointer to the runtime RNA-defined
@@ -259,7 +266,7 @@ std::string RNA_path_from_ptr_to_property_index(const PointerRNA *ptr,
                                                 int index);
 /**
  * \param index_dim: The dimension to show, 0 disables. 1 for 1d array, 2 for 2d. etc.
- * \param index: The *flattened* index to use when \a `index_dim > 0`,
+ * \param index: The *flattened* index to use when \a index_dim > 0,
  * this is expanded when used with multi-dimensional arrays.
  */
 std::optional<std::string> RNA_path_from_ID_to_property_index(const PointerRNA *ptr,
@@ -315,3 +322,5 @@ std::optional<std::string> RNA_path_struct_property_py(PointerRNA *ptr,
  *   some_prop[10]
  */
 std::string RNA_path_property_py(const PointerRNA *ptr, PropertyRNA *prop, int index);
+
+}  // namespace blender

@@ -6,23 +6,15 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 
-#include "BLI_math_matrix.h"
-#include "BLI_utildefines.h"
-
 #include "RNA_define.hh"
-
-#include "DNA_object_types.h"
 
 /* #include "BLI_sys_types.h" */
 
 #include "rna_internal.hh" /* own include */
-
-using namespace blender;
 
 #ifdef RNA_RUNTIME
 
@@ -35,9 +27,16 @@ using namespace blender;
 #  include "DNA_anim_types.h"
 
 #  include "BLI_ghash.h"
+#  include "BLI_math_matrix.h"
 
 #  include "ANIM_action.hh"
 #  include "ANIM_pose.hh"
+
+#  include "DEG_depsgraph.hh"
+
+#  include "WM_api.hh"
+
+namespace blender {
 
 static float rna_PoseBone_do_envelope(bPoseChannel *chan, const float vec[3])
 {
@@ -92,10 +91,10 @@ static void rna_PoseBone_bbone_segment_matrix(
   }
 
   if (rest) {
-    copy_m4_m4((float(*)[4])mat_ret, pchan->runtime.bbone_rest_mats[index].mat);
+    copy_m4_m4(reinterpret_cast<float (*)[4]>(mat_ret), pchan->runtime.bbone_rest_mats[index].mat);
   }
   else {
-    copy_m4_m4((float(*)[4])mat_ret, pchan->runtime.bbone_pose_mats[index].mat);
+    copy_m4_m4(reinterpret_cast<float (*)[4]>(mat_ret), pchan->runtime.bbone_pose_mats[index].mat);
   }
 }
 
@@ -127,13 +126,10 @@ static void rna_Pose_apply_pose_from_action(ID *pose_owner,
                                             const float evaluation_time)
 {
   BLI_assert(GS(pose_owner->name) == ID_OB);
-  Object *pose_owner_ob = (Object *)pose_owner;
-
-  const animrig::slot_handle_t slot_handle = animrig::first_slot_handle(*action);
+  Object *pose_owner_ob = id_cast<Object *>(pose_owner);
 
   AnimationEvalContext anim_eval_context = {CTX_data_depsgraph_pointer(C), evaluation_time};
-  animrig::pose_apply_action_selected_bones(
-      pose_owner_ob, action, slot_handle, &anim_eval_context);
+  animrig::pose_apply_action({pose_owner_ob}, action->wrap(), &anim_eval_context, 1.0);
 
   /* Do NOT tag with ID_RECALC_ANIMATION, as that would overwrite the just-applied pose. */
   DEG_id_tag_update(pose_owner, ID_RECALC_GEOMETRY);
@@ -147,13 +143,10 @@ static void rna_Pose_blend_pose_from_action(ID *pose_owner,
                                             const float evaluation_time)
 {
   BLI_assert(GS(pose_owner->name) == ID_OB);
-  Object *pose_owner_ob = (Object *)pose_owner;
-
-  animrig::slot_handle_t slot_handle = animrig::first_slot_handle(*action);
+  Object *pose_owner_ob = id_cast<Object *>(pose_owner);
 
   AnimationEvalContext anim_eval_context = {CTX_data_depsgraph_pointer(C), evaluation_time};
-  animrig::pose_apply_action_blend(
-      pose_owner_ob, action, slot_handle, &anim_eval_context, blend_factor);
+  animrig::pose_apply_action({pose_owner_ob}, action->wrap(), &anim_eval_context, blend_factor);
 
   /* Do NOT tag with ID_RECALC_ANIMATION, as that would overwrite the just-applied pose. */
   DEG_id_tag_update(pose_owner, ID_RECALC_GEOMETRY);
@@ -163,15 +156,19 @@ static void rna_Pose_blend_pose_from_action(ID *pose_owner,
 static void rna_Pose_backup_create(ID *pose_owner, bAction *action)
 {
   BLI_assert(GS(pose_owner->name) == ID_OB);
-  Object *pose_owner_ob = (Object *)pose_owner;
-
+  if (!action || action->wrap().slot_array_num == 0) {
+    /* A pose asset without slots has no data, this usually doesn't happen but can happen by
+     * tagging an empty action as a pose asset. */
+    return;
+  }
+  Object *pose_owner_ob = id_cast<Object *>(pose_owner);
   BKE_pose_backup_create_on_object(pose_owner_ob, action);
 }
 
 static bool rna_Pose_backup_restore(ID *pose_owner, bContext *C)
 {
   BLI_assert(GS(pose_owner->name) == ID_OB);
-  Object *pose_owner_ob = (Object *)pose_owner;
+  Object *pose_owner_ob = id_cast<Object *>(pose_owner);
 
   const bool success = BKE_pose_backup_restore_on_object(pose_owner_ob);
   if (!success) {
@@ -188,12 +185,16 @@ static bool rna_Pose_backup_restore(ID *pose_owner, bContext *C)
 static void rna_Pose_backup_clear(ID *pose_owner)
 {
   BLI_assert(GS(pose_owner->name) == ID_OB);
-  Object *pose_owner_ob = (Object *)pose_owner;
+  Object *pose_owner_ob = id_cast<Object *>(pose_owner);
 
   BKE_pose_backup_clear(pose_owner_ob);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void RNA_api_pose(StructRNA *srna)
 {
@@ -250,7 +251,7 @@ void RNA_api_pose(StructRNA *srna)
       func,
       "Create a backup of the current pose. Only those bones that are animated in the Action are "
       "backed up. The object owns the backup, and each object can have only one backup at a time. "
-      "When you no longer need it, it must be freed use `backup_clear()`.");
+      "When you no longer need it, it must be freed use ``backup_clear()``.");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_NO_SELF);
   parm = RNA_def_pointer(func,
                          "action",
@@ -265,19 +266,19 @@ void RNA_api_pose(StructRNA *srna)
   RNA_def_function_ui_description(
       func,
       "Restore the previously made pose backup. "
-      "This can be called multiple times. See `Pose.backup_create()` for more info.");
+      "This can be called multiple times. See ``Pose.backup_create()`` for more info.");
   /* return value */
   parm = RNA_def_boolean(
       func,
       "success",
       false,
       "",
-      "`True` when the backup was restored, `False` if there was no backup to restore");
+      "``True`` when the backup was restored, ``False`` if there was no backup to restore");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "backup_clear", "rna_Pose_backup_clear");
   RNA_def_function_ui_description(
-      func, "Free a previously made pose backup. See `Pose.backup_create()` for more info.");
+      func, "Free a previously made pose backup. See ``Pose.backup_create()`` for more info.");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_NO_SELF);
 }
 
@@ -366,5 +367,7 @@ void RNA_api_pose_channel(StructRNA *srna)
   parm = RNA_def_boolean(
       func, "offsets", false, "", "Apply roll and curve offsets from bone properties");
 }
+
+}  // namespace blender
 
 #endif

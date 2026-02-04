@@ -16,19 +16,25 @@
 
 #include "DNA_anim_types.h"
 
-#include "ANIM_keyframing.hh"
+namespace blender {
 
 struct AnimData;
 struct FCurve;
 
-namespace blender::animrig {
+namespace animrig {
 
-/* All the information needed to look up or create an FCurve. */
+/**
+ * All the information needed to look up or create an FCurve.
+ *
+ * The `std::optional<>` fields are only used for creation. The mandatory fields
+ * are used for both creation and lookup.
+ */
 struct FCurveDescriptor {
   StringRefNull rna_path;
   int array_index;
+  std::optional<PropertyType> prop_type;
   std::optional<PropertySubType> prop_subtype;
-  std::optional<blender::StringRefNull> channel_group;
+  std::optional<StringRefNull> channel_group;
 };
 
 /* This is used to pass in the settings for a keyframe into a function. */
@@ -51,8 +57,8 @@ KeyframeSettings get_keyframe_settings(bool from_userprefs);
  *
  * If no matching fcurve is found, returns nullptr.
  */
-const FCurve *fcurve_find(Span<const FCurve *> fcurves, FCurveDescriptor fcurve_descriptor);
-FCurve *fcurve_find(Span<FCurve *> fcurves, FCurveDescriptor fcurve_descriptor);
+const FCurve *fcurve_find(Span<const FCurve *> fcurves, const FCurveDescriptor &fcurve_descriptor);
+FCurve *fcurve_find(Span<FCurve *> fcurves, const FCurveDescriptor &fcurve_descriptor);
 
 /**
  * Create an fcurve for a specific channel, pre-set-up with default flags and
@@ -61,7 +67,12 @@ FCurve *fcurve_find(Span<FCurve *> fcurves, FCurveDescriptor fcurve_descriptor);
  * If the channel's property subtype is provided, the fcurve will also be set to
  * the correct color mode based on user preferences.
  */
-FCurve *create_fcurve_for_channel(FCurveDescriptor fcurve_descriptor);
+FCurve *create_fcurve_for_channel(const FCurveDescriptor &fcurve_descriptor);
+
+/**
+ * Determine the F-Curve flags suitable for animating an RNA property of the given type.
+ */
+eFCurve_Flags fcurve_flags_for_property_type(PropertyType prop_type);
 
 /** Initialize the given BezTriple with default values. */
 void initialize_bezt(BezTriple *beztr,
@@ -149,7 +160,7 @@ enum class BakeCurveRemove {
  * \param range: start and end frame to bake. Is inclusive on both ends.
  * \param remove_existing: choice which keys to remove in relation to the given range.
  */
-void bake_fcurve(FCurve *fcu, blender::int2 range, float step, BakeCurveRemove remove_existing);
+void bake_fcurve(FCurve *fcu, int2 range, float step, BakeCurveRemove remove_existing);
 
 /**
  * Fill the space between selected keyframes with keyframes on full frames.
@@ -157,4 +168,14 @@ void bake_fcurve(FCurve *fcu, blender::int2 range, float step, BakeCurveRemove r
  */
 void bake_fcurve_segments(FCurve *fcu);
 
-}  // namespace blender::animrig
+/**
+ * Checks if some F-Curve has a keyframe for a given frame.
+ * \note Used for the buttons to check for keyframes.
+ *
+ * \param frame: The frame on which to check for a keyframe. A binary search with a threshold is
+ * used to find the key, so the float doesn't need to match exactly.
+ */
+bool fcurve_frame_has_keyframe(const FCurve *fcu, float frame);
+
+}  // namespace animrig
+}  // namespace blender

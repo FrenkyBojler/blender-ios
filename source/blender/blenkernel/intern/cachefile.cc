@@ -16,9 +16,9 @@
 #include "BLI_fileops.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -27,6 +27,7 @@
 #include "BKE_cachefile.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
 
@@ -43,16 +44,16 @@
 #endif
 
 #ifdef WITH_USD
-#  include "usd.hh"
+#  include "usd_api_modifier.hh"
 #endif
+
+namespace blender {
 
 static void cachefile_handle_free(CacheFile *cache_file);
 
 static void cache_file_init_data(ID *id)
 {
-  CacheFile *cache_file = (CacheFile *)id;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(cache_file, id));
+  CacheFile *cache_file = id_cast<CacheFile *>(id);
 
   cache_file->scale = 1.0f;
   cache_file->velocity_unit = CACHEFILE_VELOCITY_UNIT_SECOND;
@@ -65,8 +66,8 @@ static void cache_file_copy_data(Main * /*bmain*/,
                                  const ID *id_src,
                                  const int /*flag*/)
 {
-  CacheFile *cache_file_dst = (CacheFile *)id_dst;
-  const CacheFile *cache_file_src = (const CacheFile *)id_src;
+  CacheFile *cache_file_dst = id_cast<CacheFile *>(id_dst);
+  const CacheFile *cache_file_src = id_cast<const CacheFile *>(id_src);
 
   cache_file_dst->handle = nullptr;
   cache_file_dst->handle_readers = nullptr;
@@ -76,7 +77,7 @@ static void cache_file_copy_data(Main * /*bmain*/,
 
 static void cache_file_free_data(ID *id)
 {
-  CacheFile *cache_file = (CacheFile *)id;
+  CacheFile *cache_file = id_cast<CacheFile *>(id);
   cachefile_handle_free(cache_file);
   BLI_freelistN(&cache_file->object_paths);
   BLI_freelistN(&cache_file->layers);
@@ -84,14 +85,14 @@ static void cache_file_free_data(ID *id)
 
 static void cache_file_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
-  CacheFile *cache_file = (CacheFile *)id;
+  CacheFile *cache_file = id_cast<CacheFile *>(id);
   BKE_bpath_foreach_path_fixed_process(
       bpath_data, cache_file->filepath, sizeof(cache_file->filepath));
 }
 
 static void cache_file_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
-  CacheFile *cache_file = (CacheFile *)id;
+  CacheFile *cache_file = id_cast<CacheFile *>(id);
 
   /* Clean up, important in undo case to reduce false detection of changed datablocks. */
   BLI_listbase_clear(&cache_file->object_paths);
@@ -99,18 +100,18 @@ static void cache_file_blend_write(BlendWriter *writer, ID *id, const void *id_a
   memset(cache_file->handle_filepath, 0, sizeof(cache_file->handle_filepath));
   cache_file->handle_readers = nullptr;
 
-  BLO_write_id_struct(writer, CacheFile, id_address, &cache_file->id);
+  writer->write_id_struct(id_address, cache_file);
   BKE_id_blend_write(writer, &cache_file->id);
 
   /* write layers */
-  LISTBASE_FOREACH (CacheFileLayer *, layer, &cache_file->layers) {
-    BLO_write_struct(writer, CacheFileLayer, layer);
+  for (CacheFileLayer &layer : cache_file->layers) {
+    writer->write_struct(&layer);
   }
 }
 
 static void cache_file_blend_read_data(BlendDataReader *reader, ID *id)
 {
-  CacheFile *cache_file = (CacheFile *)id;
+  CacheFile *cache_file = id_cast<CacheFile *>(id);
   BLI_listbase_clear(&cache_file->object_paths);
   cache_file->handle = nullptr;
   cache_file->handle_filepath[0] = '\0';
@@ -121,7 +122,7 @@ static void cache_file_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_CF = {
-    /*id_code*/ ID_CF,
+    /*id_code*/ CacheFile::id_type,
     /*id_filter*/ FILTER_ID_CF,
     /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_CF,
@@ -139,6 +140,7 @@ IDTypeInfo IDType_ID_CF = {
     /*foreach_id*/ nullptr,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ cache_file_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ cache_file_blend_write,
@@ -150,18 +152,10 @@ IDTypeInfo IDType_ID_CF = {
     /*lib_override_apply_post*/ nullptr,
 };
 
+#if defined(WITH_ALEMBIC) || defined(WITH_USD)
 /* TODO: make this per cache file to avoid global locks. */
-static SpinLock spin;
-
-void BKE_cachefiles_init()
-{
-  BLI_spin_init(&spin);
-}
-
-void BKE_cachefiles_exit()
-{
-  BLI_spin_end(&spin);
-}
+static Mutex cache_mutex;
+#endif
 
 void BKE_cachefile_reader_open(CacheFile *cache_file,
                                CacheReader **reader,
@@ -187,7 +181,7 @@ void BKE_cachefile_reader_open(CacheFile *cache_file,
     case CACHEFILE_TYPE_USD:
 #  ifdef WITH_USD
       /* Open USD cache reader. */
-      *reader = blender::io::usd::CacheReader_open_usd_object(
+      *reader = io::usd::CacheReader_open_usd_object(
           cache_file->handle, *reader, object, object_path);
 #  endif
       break;
@@ -196,19 +190,18 @@ void BKE_cachefile_reader_open(CacheFile *cache_file,
   }
 
   /* Multiple modifiers and constraints can call this function concurrently. */
-  BLI_spin_lock(&spin);
+  std::lock_guard lock(cache_mutex);
   if (*reader) {
     /* Register in set so we can free it when the cache file changes. */
     if (cache_file->handle_readers == nullptr) {
-      cache_file->handle_readers = BLI_gset_ptr_new("CacheFile.handle_readers");
+      cache_file->handle_readers = MEM_new<CacheFileHandleReaderSet>("CacheFile.handle_readers");
     }
-    BLI_gset_reinsert(cache_file->handle_readers, reader, nullptr);
+    cache_file->handle_readers->add(reader);
   }
   else if (cache_file->handle_readers) {
     /* Remove in case CacheReader_open_alembic_object free the existing reader. */
-    BLI_gset_remove(cache_file->handle_readers, reader, nullptr);
+    cache_file->handle_readers->remove(reader);
   }
-  BLI_spin_unlock(&spin);
 #else
   UNUSED_VARS(cache_file, reader, object, object_path);
 #endif
@@ -219,7 +212,7 @@ void BKE_cachefile_reader_free(CacheFile *cache_file, CacheReader **reader)
 #if defined(WITH_ALEMBIC) || defined(WITH_USD)
   /* Multiple modifiers and constraints can call this function concurrently, and
    * cachefile_handle_free() can also be called at the same time. */
-  BLI_spin_lock(&spin);
+  std::lock_guard lock(cache_mutex);
   if (*reader != nullptr) {
     if (cache_file) {
       BLI_assert(cache_file->id.tag & ID_TAG_COPIED_ON_EVAL);
@@ -232,7 +225,7 @@ void BKE_cachefile_reader_free(CacheFile *cache_file, CacheReader **reader)
           break;
         case CACHEFILE_TYPE_USD:
 #  ifdef WITH_USD
-          blender::io::usd::USD_CacheReader_free(*reader);
+          io::usd::USD_CacheReader_free(*reader);
 #  endif
           break;
         case CACHE_FILE_TYPE_INVALID:
@@ -243,10 +236,9 @@ void BKE_cachefile_reader_free(CacheFile *cache_file, CacheReader **reader)
     *reader = nullptr;
 
     if (cache_file && cache_file->handle_readers) {
-      BLI_gset_remove(cache_file->handle_readers, reader, nullptr);
+      cache_file->handle_readers->remove(reader);
     }
   }
-  BLI_spin_unlock(&spin);
 #else
   UNUSED_VARS(cache_file, reader);
 #endif
@@ -258,35 +250,34 @@ static void cachefile_handle_free(CacheFile *cache_file)
 
   /* Free readers in all modifiers and constraints that use the handle, before
    * we free the handle itself. */
-  BLI_spin_lock(&spin);
-  if (cache_file->handle_readers) {
-    GSetIterator gs_iter;
-    GSET_ITER (gs_iter, cache_file->handle_readers) {
-      CacheReader **reader = static_cast<CacheReader **>(BLI_gsetIterator_getKey(&gs_iter));
-      if (*reader != nullptr) {
-        switch (cache_file->type) {
-          case CACHEFILE_TYPE_ALEMBIC:
+  {
+    std::lock_guard lock(cache_mutex);
+    if (cache_file->handle_readers) {
+      for (CacheReader **reader : *cache_file->handle_readers) {
+        if (*reader != nullptr) {
+          switch (cache_file->type) {
+            case CACHEFILE_TYPE_ALEMBIC:
 #  ifdef WITH_ALEMBIC
-            ABC_CacheReader_free(*reader);
+              ABC_CacheReader_free(*reader);
 #  endif
-            break;
-          case CACHEFILE_TYPE_USD:
+              break;
+            case CACHEFILE_TYPE_USD:
 #  ifdef WITH_USD
-            blender::io::usd::USD_CacheReader_free(*reader);
+              io::usd::USD_CacheReader_free(*reader);
 #  endif
-            break;
-          case CACHE_FILE_TYPE_INVALID:
-            break;
+              break;
+            case CACHE_FILE_TYPE_INVALID:
+              break;
+          }
+
+          *reader = nullptr;
         }
-
-        *reader = nullptr;
       }
-    }
 
-    BLI_gset_free(cache_file->handle_readers, nullptr);
-    cache_file->handle_readers = nullptr;
+      MEM_delete(cache_file->handle_readers);
+      cache_file->handle_readers = nullptr;
+    }
   }
-  BLI_spin_unlock(&spin);
 
   /* Free handle. */
   if (cache_file->handle) {
@@ -299,7 +290,7 @@ static void cachefile_handle_free(CacheFile *cache_file)
         break;
       case CACHEFILE_TYPE_USD:
 #  ifdef WITH_USD
-        blender::io::usd::USD_free_handle(cache_file->handle);
+        io::usd::USD_free_handle(cache_file->handle);
 #  endif
         break;
       case CACHE_FILE_TYPE_INVALID:
@@ -317,7 +308,7 @@ static void cachefile_handle_free(CacheFile *cache_file)
 
 void *BKE_cachefile_add(Main *bmain, const char *name)
 {
-  CacheFile *cache_file = static_cast<CacheFile *>(BKE_id_new(bmain, ID_CF, name));
+  CacheFile *cache_file = BKE_id_new<CacheFile>(bmain, name);
 
   return cache_file;
 }
@@ -325,7 +316,7 @@ void *BKE_cachefile_add(Main *bmain, const char *name)
 void BKE_cachefile_reload(Depsgraph *depsgraph, CacheFile *cache_file)
 {
   /* To force reload, free the handle and tag depsgraph to load it again. */
-  CacheFile *cache_file_eval = (CacheFile *)DEG_get_evaluated_id(depsgraph, &cache_file->id);
+  CacheFile *cache_file_eval = DEG_get_evaluated(depsgraph, cache_file);
   if (cache_file_eval) {
     cachefile_handle_free(cache_file_eval);
   }
@@ -352,7 +343,7 @@ void BKE_cachefile_eval(Main *bmain, Depsgraph *depsgraph, CacheFile *cache_file
   BLI_freelistN(&cache_file->object_paths);
 
 #ifdef WITH_ALEMBIC
-  if (BLI_path_extension_check_glob(filepath, "*abc")) {
+  if (BLI_path_extension_check_glob(filepath, "*.abc")) {
     cache_file->type = CACHEFILE_TYPE_ALEMBIC;
     cache_file->handle = ABC_create_handle(
         bmain,
@@ -365,15 +356,14 @@ void BKE_cachefile_eval(Main *bmain, Depsgraph *depsgraph, CacheFile *cache_file
 #ifdef WITH_USD
   if (BLI_path_extension_check_glob(filepath, "*.usd;*.usda;*.usdc;*.usdz")) {
     cache_file->type = CACHEFILE_TYPE_USD;
-    cache_file->handle = blender::io::usd::USD_create_handle(
-        bmain, filepath, &cache_file->object_paths);
+    cache_file->handle = io::usd::USD_create_handle(bmain, filepath, &cache_file->object_paths);
     STRNCPY(cache_file->handle_filepath, filepath);
   }
 #endif
 
   if (DEG_is_active(depsgraph)) {
     /* Flush object paths back to original data-block for UI. */
-    CacheFile *cache_file_orig = (CacheFile *)DEG_get_original_id(&cache_file->id);
+    CacheFile *cache_file_orig = DEG_get_original(cache_file);
     BLI_freelistN(&cache_file_orig->object_paths);
     BLI_duplicatelist(&cache_file_orig->object_paths, &cache_file->object_paths);
   }
@@ -415,31 +405,24 @@ double BKE_cachefile_time_offset(const CacheFile *cache_file, const double time,
   return cache_file->is_sequence ? frame : frame / fps - time_offset;
 }
 
-bool BKE_cache_file_uses_render_procedural(const CacheFile *cache_file, Scene *scene)
+double BKE_cachefile_frame_offset(const CacheFile *cache_file, const double time)
 {
-  RenderEngineType *render_engine_type = RE_engines_find(scene->r.engine);
-
-  if (cache_file->type != CACHEFILE_TYPE_ALEMBIC ||
-      !RE_engine_supports_alembic_procedural(render_engine_type, scene))
-  {
-    return false;
-  }
-
-  return cache_file->use_render_procedural;
+  const double time_offset = double(cache_file->frame_offset);
+  const double frame = cache_file->override_frame ? double(cache_file->frame) : time;
+  return cache_file->is_sequence ? frame : frame - time_offset;
 }
 
 CacheFileLayer *BKE_cachefile_add_layer(CacheFile *cache_file, const char filepath[1024])
 {
-  LISTBASE_FOREACH (CacheFileLayer *, layer, &cache_file->layers) {
-    if (STREQ(layer->filepath, filepath)) {
+  for (CacheFileLayer &layer : cache_file->layers) {
+    if (STREQ(layer.filepath, filepath)) {
       return nullptr;
     }
   }
 
   const int num_layers = BLI_listbase_count(&cache_file->layers);
 
-  CacheFileLayer *layer = static_cast<CacheFileLayer *>(
-      MEM_callocN(sizeof(CacheFileLayer), "CacheFileLayer"));
+  CacheFileLayer *layer = MEM_new<CacheFileLayer>("CacheFileLayer");
   STRNCPY(layer->filepath, filepath);
 
   BLI_addtail(&cache_file->layers, layer);
@@ -459,5 +442,7 @@ void BKE_cachefile_remove_layer(CacheFile *cache_file, CacheFileLayer *layer)
 {
   cache_file->active_layer = 0;
   BLI_remlink(&cache_file->layers, layer);
-  MEM_freeN(layer);
+  MEM_delete(layer);
 }
+
+}  // namespace blender

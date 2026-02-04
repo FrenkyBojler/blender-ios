@@ -6,8 +6,7 @@
  * \ingroup edmesh
  */
 
-#include "MEM_guardedalloc.h"
-
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
 #include "BKE_context.hh"
@@ -30,13 +29,13 @@
 
 #include "mesh_intern.hh" /* own include */
 
-using blender::Vector;
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Screw Operator
  * \{ */
 
-static int edbm_screw_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_screw_exec(bContext *C, wmOperator *op)
 {
   BMEdge *eed;
   BMVert *eve, *v1, *v2;
@@ -148,7 +147,7 @@ static int edbm_screw_exec(bContext *C, wmOperator *op)
     params.calc_looptris = true;
     params.calc_normals = false;
     params.is_destructive = true;
-    EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+    EDBM_update(id_cast<Mesh *>(obedit->data), &params);
   }
 
   if (failed_axis_len == objects.size() - objects_empty_len) {
@@ -162,7 +161,7 @@ static int edbm_screw_exec(bContext *C, wmOperator *op)
 }
 
 /* get center and axis, in global coords */
-static int edbm_screw_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus edbm_screw_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   Scene *scene = CTX_data_scene(C);
   RegionView3D *rv3d = ED_view3d_context_rv3d(C);
@@ -190,7 +189,7 @@ void MESH_OT_screw(wmOperatorType *ot)
       "Extrude selected vertices in screw-shaped rotation around the cursor in indicated viewport";
   ot->idname = "MESH_OT_screw";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edbm_screw_invoke;
   ot->exec = edbm_screw_exec;
   ot->poll = ED_operator_editmesh;
@@ -217,3 +216,5 @@ void MESH_OT_screw(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

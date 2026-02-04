@@ -2,23 +2,20 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include <optional>
-
-#include "scene/attribute.h"
 #include "scene/pointcloud.h"
+#include "scene/attribute.h"
 #include "scene/scene.h"
+
+#include "util/hash.h"
 
 #include "blender/attribute_convert.h"
 #include "blender/sync.h"
 #include "blender/util.h"
 
-#include "util/color.h"
-#include "util/foreach.h"
-#include "util/hash.h"
+#include "DNA_pointcloud_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
-#include "BKE_pointcloud.hh"
 
 CCL_NAMESPACE_BEGIN
 
@@ -41,21 +38,22 @@ static void attr_create_motion_from_velocity(PointCloud *pointcloud,
   }
 
   /* Only export previous and next frame, we don't have any in between data. */
-  float motion_times[2] = {-1.0f, 1.0f};
+  const float motion_times[2] = {-1.0f, 1.0f};
   for (int step = 0; step < 2; step++) {
     const float relative_time = motion_times[step] * 0.5f * motion_scale;
     float4 *mP = attr_mP->data_float4() + step * num_points;
 
     for (int i = 0; i < num_points; i++) {
-      float3 Pi = P[i] + make_float3(b_attribute[i][0], b_attribute[i][1], b_attribute[i][2]) *
-                             relative_time;
-      mP[i] = make_float4(Pi.x, Pi.y, Pi.z, radius[i]);
+      const float3 Pi = P[i] +
+                        make_float3(b_attribute[i][0], b_attribute[i][1], b_attribute[i][2]) *
+                            relative_time;
+      mP[i] = make_float4(Pi, radius[i]);
     }
   }
 }
 
 static void copy_attributes(PointCloud *pointcloud,
-                            const ::PointCloud &b_pointcloud,
+                            const blender::PointCloud &b_pointcloud,
                             const bool need_motion,
                             const float motion_scale)
 {
@@ -79,8 +77,7 @@ static void copy_attributes(PointCloud *pointcloud,
     }
 
     const blender::bke::GAttributeReader b_attr = iter.get();
-    blender::bke::attribute_math::convert_to_static_type(b_attr.varray.type(), [&](auto dummy) {
-      using BlenderT = decltype(dummy);
+    blender::bke::attribute_math::to_static_type(b_attr.varray.type(), [&]<typename BlenderT>() {
       using Converter = typename ccl::AttributeConverter<BlenderT>;
       using CyclesT = typename Converter::CyclesT;
       if constexpr (!std::is_void_v<CyclesT>) {
@@ -98,7 +95,7 @@ static void copy_attributes(PointCloud *pointcloud,
 
 static void export_pointcloud(Scene *scene,
                               PointCloud *pointcloud,
-                              const ::PointCloud &b_pointcloud,
+                              const blender::PointCloud &b_pointcloud,
                               const bool need_motion,
                               const float motion_scale)
 {
@@ -137,8 +134,8 @@ static void export_pointcloud(Scene *scene,
 }
 
 static void export_pointcloud_motion(PointCloud *pointcloud,
-                                     const ::PointCloud &b_pointcloud,
-                                     int motion_step)
+                                     const blender::PointCloud &b_pointcloud,
+                                     const int motion_step)
 {
   /* Find or add attribute. */
   Attribute *attr_mP = pointcloud->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
@@ -164,7 +161,7 @@ static void export_pointcloud_motion(PointCloud *pointcloud,
   for (int i = 0; i < std::min<int>(num_points, b_positions.size()); i++) {
     const float3 P = make_float3(b_positions[i][0], b_positions[i][1], b_positions[i][2]);
     const float radius = b_radius.is_empty() ? 0.01f : b_radius[i];
-    mP[i] = make_float4(P.x, P.y, P.z, radius);
+    mP[i] = make_float4(P, radius);
     have_motion = have_motion || (P != pointcloud_points[i]);
   }
 
@@ -188,7 +185,7 @@ static void export_pointcloud_motion(PointCloud *pointcloud,
 
 void BlenderSync::sync_pointcloud(PointCloud *pointcloud, BObjectInfo &b_ob_info)
 {
-  size_t old_numpoints = pointcloud->num_points();
+  const size_t old_numpoints = pointcloud->num_points();
 
   array<Node *> used_shaders = pointcloud->get_used_shaders();
 
@@ -196,34 +193,27 @@ void BlenderSync::sync_pointcloud(PointCloud *pointcloud, BObjectInfo &b_ob_info
   new_pointcloud.set_used_shaders(used_shaders);
 
   /* TODO: add option to filter out points in the view layer. */
-  BL::PointCloud b_pointcloud(b_ob_info.object_data);
+  const blender::PointCloud *b_pointcloud = blender::id_cast<blender::PointCloud *>(
+      b_ob_info.object_data);
   /* Motion blur attribute is relative to seconds, we need it relative to frames. */
   const bool need_motion = object_need_motion_attribute(b_ob_info, scene);
-  const float motion_scale = (need_motion) ?
-                                 scene->motion_shutter_time() /
-                                     (b_scene.render().fps() / b_scene.render().fps_base()) :
-                                 0.0f;
-  export_pointcloud(scene,
-                    &new_pointcloud,
-                    *static_cast<const ::PointCloud *>(b_pointcloud.ptr.data),
-                    need_motion,
-                    motion_scale);
+  const float motion_scale = (need_motion) ? scene->motion_shutter_time() /
+                                                 (b_scene->r.frs_sec / b_scene->r.frs_sec_base) :
+                                             0.0f;
+  export_pointcloud(scene, &new_pointcloud, *b_pointcloud, need_motion, motion_scale);
+
+  pointcloud->clear_non_sockets();
 
   /* Update original sockets. */
   for (const SocketType &socket : new_pointcloud.type->inputs) {
     /* Those sockets are updated in sync_object, so do not modify them. */
-    if (socket.name == "use_motion_blur" || socket.name == "motion_steps" ||
-        socket.name == "used_shaders")
-    {
+    if (socket.name == "use_motion_blur" || socket.name == "used_shaders") {
       continue;
     }
     pointcloud->set_value(socket, new_pointcloud, socket);
   }
 
-  pointcloud->attributes.clear();
-  foreach (Attribute &attr, new_pointcloud.attributes.attributes) {
-    pointcloud->attributes.attributes.push_back(std::move(attr));
-  }
+  pointcloud->attributes.update(std::move(new_pointcloud.attributes));
 
   /* Tag update. */
   const bool rebuild = (pointcloud && old_numpoints != pointcloud->num_points());
@@ -232,7 +222,7 @@ void BlenderSync::sync_pointcloud(PointCloud *pointcloud, BObjectInfo &b_ob_info
 
 void BlenderSync::sync_pointcloud_motion(PointCloud *pointcloud,
                                          BObjectInfo &b_ob_info,
-                                         int motion_step)
+                                         const int motion_step)
 {
   /* Skip if nothing exported. */
   if (pointcloud->num_points() == 0) {
@@ -240,11 +230,11 @@ void BlenderSync::sync_pointcloud_motion(PointCloud *pointcloud,
   }
 
   /* Export deformed coordinates. */
-  if (ccl::BKE_object_is_deform_modified(b_ob_info, b_scene, preview)) {
+  if (ccl::BKE_object_is_deform_modified(b_ob_info, *b_scene, preview)) {
     /* PointCloud object. */
-    BL::PointCloud b_pointcloud(b_ob_info.object_data);
-    export_pointcloud_motion(
-        pointcloud, *static_cast<const ::PointCloud *>(b_pointcloud.ptr.data), motion_step);
+    const blender::PointCloud *b_pointcloud = blender::id_cast<blender::PointCloud *>(
+        b_ob_info.object_data);
+    export_pointcloud_motion(pointcloud, *b_pointcloud, motion_step);
   }
   else {
     /* No deformation on this frame, copy coordinates if other frames did have it. */

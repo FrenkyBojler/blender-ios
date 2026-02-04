@@ -10,9 +10,11 @@
 
 #include "testing/testing.h"
 
+namespace blender {
+
 using namespace blender::bke;
 
-namespace blender::geometry::tests {
+namespace geometry::tests {
 
 static bke::CurvesGeometry create_test_curves(Span<int> offsets, Span<bool> cyclic)
 {
@@ -49,8 +51,8 @@ TEST(merge_curves, NoConnections)
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 4);
-  EXPECT_EQ_ARRAY(Span({0, 3, 6, 9, 12}).data(), dst_curves.offsets().data(), 5);
-  EXPECT_EQ_ARRAY(Span({false, true, true, false}).data(), cyclic.data(), 4);
+  EXPECT_EQ_SPAN(Span({0, 3, 6, 9, 12}), dst_curves.offsets());
+  EXPECT_EQ_SPAN(Span({false, true, true, false}), cyclic);
 }
 
 TEST(merge_curves, ConnectSingleCurve)
@@ -68,9 +70,9 @@ TEST(merge_curves, ConnectSingleCurve)
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 3);
-  EXPECT_EQ_ARRAY(Span({0, 3, 6, 12}).data(), dst_curves.offsets().data(), 4);
-  EXPECT_EQ_ARRAY(Span({false, true, false}).data(), cyclic.data(), 3);
-  EXPECT_EQ_ARRAY(Span({0, 1, 2, 6, 7, 8, 9, 10, 11, 3, 4, 5}).data(), dst_indices.data(), 12);
+  EXPECT_EQ_SPAN(Span({0, 3, 6, 12}), dst_curves.offsets());
+  EXPECT_EQ_SPAN(Span({false, true, false}), cyclic);
+  EXPECT_EQ_SPAN(Span({0, 1, 2, 6, 7, 8, 9, 10, 11, 3, 4, 5}), dst_indices);
 }
 
 TEST(merge_curves, ReverseCurves)
@@ -88,9 +90,9 @@ TEST(merge_curves, ReverseCurves)
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 4);
-  EXPECT_EQ_ARRAY(Span({0, 3, 6, 9, 12}).data(), dst_curves.offsets().data(), 5);
-  EXPECT_EQ_ARRAY(Span({false, true, true, false}).data(), cyclic.data(), 3);
-  EXPECT_EQ_ARRAY(Span({0, 1, 2, 5, 4, 3, 6, 7, 8, 11, 10, 9}).data(), dst_indices.data(), 12);
+  EXPECT_EQ_SPAN(Span({0, 3, 6, 9, 12}), dst_curves.offsets());
+  EXPECT_EQ_SPAN(Span({false, true, true, false}), cyclic);
+  EXPECT_EQ_SPAN(Span({0, 1, 2, 5, 4, 3, 6, 7, 8, 11, 10, 9}), dst_indices);
 }
 
 TEST(merge_curves, ConnectAndReverseCurves)
@@ -108,9 +110,9 @@ TEST(merge_curves, ConnectAndReverseCurves)
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 2);
-  EXPECT_EQ_ARRAY(Span({0, 9, 12}).data(), dst_curves.offsets().data(), 3);
-  EXPECT_EQ_ARRAY(Span({false, true}).data(), cyclic.data(), 2);
-  EXPECT_EQ_ARRAY(Span({3, 4, 5, 2, 1, 0, 9, 10, 11, 8, 7, 6}).data(), dst_indices.data(), 12);
+  EXPECT_EQ_SPAN(Span({0, 9, 12}), dst_curves.offsets());
+  EXPECT_EQ_SPAN(Span({false, true}), cyclic);
+  EXPECT_EQ_SPAN(Span({3, 4, 5, 2, 1, 0, 9, 10, 11, 8, 7, 6}), dst_indices);
 }
 
 TEST(merge_curves, CyclicConnection)
@@ -128,9 +130,9 @@ TEST(merge_curves, CyclicConnection)
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 3);
-  EXPECT_EQ_ARRAY(Span({0, 3, 9, 12}).data(), dst_curves.offsets().data(), 4);
-  EXPECT_EQ_ARRAY(Span({false, true, true}).data(), cyclic.data(), 3);
-  EXPECT_EQ_ARRAY(Span({0, 1, 2, 3, 4, 5, 9, 10, 11, 6, 7, 8}).data(), dst_indices.data(), 12);
+  EXPECT_EQ_SPAN(Span({0, 3, 9, 12}), dst_curves.offsets());
+  EXPECT_EQ_SPAN(Span({false, true, true}), cyclic);
+  EXPECT_EQ_SPAN(Span({0, 1, 2, 3, 4, 5, 9, 10, 11, 6, 7, 8}), dst_indices);
 }
 
 TEST(merge_curves, SelfConnectCurve)
@@ -148,9 +150,9 @@ TEST(merge_curves, SelfConnectCurve)
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 4);
-  EXPECT_EQ_ARRAY(Span({0, 3, 6, 9, 12}).data(), dst_curves.offsets().data(), 5);
-  EXPECT_EQ_ARRAY(Span({false, true, true, false}).data(), cyclic.data(), 4);
-  EXPECT_EQ_ARRAY(Span({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}).data(), dst_indices.data(), 12);
+  EXPECT_EQ_SPAN(Span({0, 3, 6, 9, 12}), dst_curves.offsets());
+  EXPECT_EQ_SPAN(Span({false, true, true, false}), cyclic);
+  EXPECT_EQ_SPAN(Span({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}), dst_indices);
 }
 
 TEST(merge_curves, MergeAll)
@@ -168,9 +170,9 @@ TEST(merge_curves, MergeAll)
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 1);
-  EXPECT_EQ_ARRAY(Span({0, 12}).data(), dst_curves.offsets().data(), 2);
-  EXPECT_EQ_ARRAY(Span({true}).data(), cyclic.data(), 1);
-  EXPECT_EQ_ARRAY(Span({0, 1, 2, 6, 7, 8, 9, 10, 11, 3, 4, 5}).data(), dst_indices.data(), 12);
+  EXPECT_EQ_SPAN(Span({0, 12}), dst_curves.offsets());
+  EXPECT_EQ_SPAN(Span({true}), cyclic);
+  EXPECT_EQ_SPAN(Span({0, 1, 2, 6, 7, 8, 9, 10, 11, 3, 4, 5}), dst_indices);
 }
 
 TEST(merge_curves, Branching)
@@ -189,9 +191,10 @@ TEST(merge_curves, Branching)
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 3);
-  EXPECT_EQ_ARRAY(Span({0, 6, 9, 12}).data(), dst_curves.offsets().data(), 4);
-  EXPECT_EQ_ARRAY(Span({false, false, false}).data(), cyclic.data(), 3);
-  EXPECT_EQ_ARRAY(Span({0, 1, 2, 6, 7, 8, 3, 4, 5, 9, 10, 11}).data(), dst_indices.data(), 12);
+  EXPECT_EQ_SPAN(Span({0, 6, 9, 12}), dst_curves.offsets());
+  EXPECT_EQ_SPAN(Span({false, false, false}), cyclic);
+  EXPECT_EQ_SPAN(Span({0, 1, 2, 6, 7, 8, 3, 4, 5, 9, 10, 11}), dst_indices);
 }
 
-}  // namespace blender::geometry::tests
+}  // namespace geometry::tests
+}  // namespace blender

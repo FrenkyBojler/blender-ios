@@ -16,10 +16,10 @@
 #include "DNA_object_types.h"
 
 #include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
 #include "BLI_math_base.h"
-#include "BLI_string_utf8.h"
 
 #include <optional>
 
@@ -50,17 +50,20 @@ class AnimationEvaluationTest : public testing::Test {
 
     /* To make id_can_have_animdata() and friends work, the `id_types` array needs to be set up. */
     BKE_idtype_init();
+
+    RNA_init();
   }
 
   static void TearDownTestSuite()
   {
     CLG_exit();
+    RNA_exit();
   }
 
   void SetUp() override
   {
     bmain = BKE_main_new();
-    action = static_cast<Action *>(BKE_id_new(bmain, ID_AC, "ACÄnimåtië"));
+    action = BKE_id_new<Action>(bmain, "ACÄnimåtië");
 
     cube = BKE_object_add_only_object(bmain, OB_EMPTY, "Küüübus");
 
@@ -72,7 +75,7 @@ class AnimationEvaluationTest : public testing::Test {
     /* Make it easier to predict test values. */
     settings.interpolation = BEZT_IPO_LIN;
 
-    cube_rna_ptr = RNA_pointer_create(&cube->id, &RNA_Object, &cube->id);
+    cube_rna_ptr = RNA_pointer_create_discrete(&cube->id, RNA_Object, &cube->id);
   }
 
   void TearDown() override
@@ -118,8 +121,8 @@ class AnimationEvaluationTest : public testing::Test {
              << std::endl
              << "    " << rna_path << "[" << array_index
              << "] evaluation did not produce the expected result:" << std::endl
-             << "      evaluted to: " << testing::PrintToString(eval_value) << std::endl
-             << "      expected   : " << testing::PrintToString(expect_value) << std::endl;
+             << "      evaluated to: " << testing::PrintToString(eval_value) << std::endl
+             << "      expected    : " << testing::PrintToString(expect_value) << std::endl;
     }
 
     return testing::AssertionSuccess();
@@ -137,7 +140,7 @@ class AnimationEvaluationTest : public testing::Test {
              << std::endl
              << "    " << rna_path << "[" << array_index
              << "] evaluation should NOT produce a value:" << std::endl
-             << "      evaluted to: " << testing::PrintToString(*eval_value) << std::endl;
+             << "      evaluated to: " << testing::PrintToString(*eval_value) << std::endl;
     }
 
     return testing::AssertionSuccess();

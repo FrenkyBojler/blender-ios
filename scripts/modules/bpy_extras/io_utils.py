@@ -9,6 +9,7 @@ __all__ = (
     "axis_conversion",
     "axis_conversion_ensure",
     "create_derived_objects",
+    "poll_file_object_drop",
     "unpack_list",
     "unpack_face_list",
     "path_reference",
@@ -63,7 +64,7 @@ class ExportHelper:
         if not self.filepath:
             blend_filepath = context.blend_data.filepath
             if not blend_filepath:
-                blend_filepath = data_("untitled")
+                blend_filepath = data_("Untitled")
             else:
                 blend_filepath = os.path.splitext(blend_filepath)[0]
 
@@ -120,7 +121,11 @@ class ImportHelper:
                 confirm_text = iface_(self.bl_label, i18n_contexts.operator_default)
 
             return context.window_manager.invoke_props_dialog(
-                self, confirm_text=confirm_text, title=title, translate=False)
+                self,
+                confirm_text=confirm_text,
+                title=title,
+                translate=False,
+            )
 
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
@@ -134,11 +139,17 @@ def orientation_helper(axis_forward='Y', axis_up='Z'):
     A decorator for import/export classes, generating properties needed by the axis conversion system and IO helpers,
     with specified default values (axes).
     """
+
     def wrapper(cls):
-        # Without that, we may end up adding those fields to some **parent** class' __annotations__ property
-        # (like the ImportHelper or ExportHelper ones)! See #58772.
-        if "__annotations__" not in cls.__dict__:
-            setattr(cls, "__annotations__", {})
+        # Python 3.14+ (PEP 649): This workaround is no longer needed because annotations
+        # are lazily evaluated. Accessing `cls.__annotations__` always returns a dict
+        # specific to that class (never the parent's), so adding items is safe.
+        import sys
+        if sys.version_info < (3, 14):
+            # Without this, we may end up adding those fields to some **parent** class'
+            # `__annotations__` property (like the ImportHelper or ExportHelper ones)! See #58772.
+            if "__annotations__" not in cls.__dict__:
+                setattr(cls, "__annotations__", {})
 
         def _update_axis_forward(self, _context):
             if self.axis_forward[-1] == self.axis_up[-1]:
@@ -297,8 +308,9 @@ _axis_convert_num = {'X': 0, 'Y': 1, 'Z': 2, '-X': 3, '-Y': 4, '-Z': 5}
 
 def axis_conversion(from_forward='Y', from_up='Z', to_forward='Y', to_up='Z'):
     """
-    Each argument us an axis in ['X', 'Y', 'Z', '-X', '-Y', '-Z']
+    Each argument is an axis in ['X', 'Y', 'Z', '-X', '-Y', '-Z']
     where the first 2 are a source and the second 2 are the target.
+    :rtype: :class:`mathutils.Matrix`
     """
     from mathutils import Matrix
     from functools import reduce
@@ -307,15 +319,17 @@ def axis_conversion(from_forward='Y', from_up='Z', to_forward='Y', to_up='Z'):
         return Matrix().to_3x3()
 
     if from_forward[-1] == from_up[-1] or to_forward[-1] == to_up[-1]:
-        raise Exception("Invalid axis arguments passed, "
-                        "can't use up/forward on the same axis")
+        raise Exception("Invalid axis arguments passed, cannot use up/forward on the same axis")
 
-    value = reduce(int.__or__, (_axis_convert_num[a] << (i * 3)
-                                for i, a in enumerate((from_forward,
-                                                       from_up,
-                                                       to_forward,
-                                                       to_up,
-                                                       ))))
+    value = reduce(
+        int.__or__,
+        (_axis_convert_num[a] << (i * 3) for i, a in enumerate((
+            from_forward,
+            from_up,
+            to_forward,
+            to_up,
+        )))
+    )
 
     for i, axis_lut in enumerate(_axis_convert_lut):
         if value in axis_lut:
@@ -331,11 +345,11 @@ def axis_conversion_ensure(operator, forward_attr, up_attr):
     :arg operator: the operator to access axis attributes from.
     :type operator: :class:`bpy.types.Operator`
     :arg forward_attr: attribute storing the forward axis
-    :type forward_attr: string
+    :type forward_attr: str
     :arg up_attr: attribute storing the up axis
-    :type up_attr: string
+    :type up_attr: str
     :return: True if the value was modified.
-    :rtype: boolean
+    :rtype: bool
     """
     def validate(axis_forward, axis_up):
         if axis_forward[-1] == axis_up[-1]:
@@ -362,10 +376,10 @@ def create_derived_objects(depsgraph, objects):
     :arg depsgraph: The evaluated depsgraph.
     :type depsgraph: :class:`bpy.types.Depsgraph`
     :arg objects: A sequencer of objects.
-    :type objects: sequence of :class:`bpy.types.Object`
-    :return: A dictionary where each key is an object from `objects`,
-       values are lists of (:class:`bpy.types.Object`, :class:`mathutils.Matrix`) tuples representing instances.
-    :rtype: dict
+    :type objects: Sequence[:class:`bpy.types.Object`]
+    :return: A dictionary where each key is an object from ``objects``,
+       values are lists of (object, matrix) tuples representing instances.
+    :rtype: dict[:class:`bpy.types.Object`, list[tuple[:class:`bpy.types.Object`, :class:`mathutils.Matrix`]]]
     """
     result = {}
     for ob in objects:
@@ -436,14 +450,14 @@ path_reference_mode = EnumProperty(
     items=(
         ('AUTO', "Auto", "Use relative paths with subdirectories only"),
         ('ABSOLUTE', "Absolute", "Always write absolute paths"),
-        ('RELATIVE', "Relative", "Always write relative paths "
-         "(where possible)"),
+        ('RELATIVE', "Relative", "Write relative paths where possible"),
         ('MATCH', "Match", "Match absolute/relative "
          "setting with input path"),
-        ('STRIP', "Strip Path", "Filename only"),
+        ('STRIP', "Strip", "Filename only"),
         ('COPY', "Copy", "Copy the file to the destination path "
          "(or subdirectory)"),
     ),
+    translation_context=i18n_contexts.editor_filebrowser,
     default='AUTO',
 )
 
@@ -463,25 +477,25 @@ def path_reference(
 
     :arg filepath: the file path to return,
        supporting blenders relative '//' prefix.
-    :type filepath: string
+    :type filepath: str
     :arg base_src: the directory the *filepath* is relative too
        (normally the blend file).
-    :type base_src: string
+    :type base_src: str
     :arg base_dst: the directory the *filepath* will be referenced from
        (normally the export path).
-    :type base_dst: string
+    :type base_dst: str
     :arg mode: the method used get the path in
        ['AUTO', 'ABSOLUTE', 'RELATIVE', 'MATCH', 'STRIP', 'COPY']
-    :type mode: string
+    :type mode: str
     :arg copy_subdir: the subdirectory of *base_dst* to use when mode='COPY'.
-    :type copy_subdir: string
+    :type copy_subdir: str
     :arg copy_set: collect from/to pairs when mode='COPY',
        pass to *path_reference_copy* when exporting is done.
-    :type copy_set: set
+    :type copy_set: set[tuple[str, str]]
     :arg library: The library this path is relative to.
-    :type library: :class:`bpy.types.Library` or None
+    :type library: :class:`bpy.types.Library` | None
     :return: the new filepath.
-    :rtype: string
+    :rtype: str
     """
     import os
     is_relative = filepath.startswith("//")
@@ -493,9 +507,10 @@ def path_reference(
     elif mode == 'MATCH':
         mode = 'RELATIVE' if is_relative else 'ABSOLUTE'
     elif mode == 'AUTO':
-        mode = ('RELATIVE'
-                if bpy.path.is_subdir(filepath_abs, base_dst)
-                else 'ABSOLUTE')
+        mode = (
+            'RELATIVE' if bpy.path.is_subdir(filepath_abs, base_dst) else
+            'ABSOLUTE'
+        )
     elif mode == 'COPY':
         subdir_abs = os.path.normpath(base_dst)
         if copy_subdir:
@@ -528,9 +543,9 @@ def path_reference_copy(copy_set, report=print):
     Execute copying files of path_reference
 
     :arg copy_set: set of (from, to) pairs to copy.
-    :type copy_set: set
+    :type copy_set: set[tuple[str, str]]
     :arg report: function used for reporting warnings, takes a string argument.
-    :type report: function
+    :type report: Callable[[str], None]
     """
     if not copy_set:
         return
@@ -564,12 +579,13 @@ def unique_name(key, name, name_dict, name_max=-1, clean_func=None, sep="."):
     Helper function for storing unique names which may have special characters
     stripped and restricted to a maximum length.
 
-    :arg key: unique item this name belongs to, name_dict[key] will be reused
+    :arg key: Unique item this name belongs to, name_dict[key] will be reused
        when available.
        This can be the object, mesh, material, etc instance itself.
-    :type key: any hashable object associated with the *name*.
+       Any hashable object associated with the *name*.
+    :type key: Any
     :arg name: The name used to create a unique value in *name_dict*.
-    :type name: string
+    :type name: str
     :arg name_dict: This is used to cache namespace to ensure no collisions
        occur, this should be an empty dict initially and only modified by this
        function.
@@ -578,7 +594,7 @@ def unique_name(key, name, name_dict, name_max=-1, clean_func=None, sep="."):
     :type clean_func: function
     :arg sep: Separator to use when between the name and a number when a
        duplicate name is found.
-    :type sep: string
+    :type sep: str
     """
     name_new = name_dict.get(key)
     if name_new is None:

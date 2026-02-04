@@ -14,9 +14,13 @@
 
 #include "DNA_scene_types.h"
 
+namespace blender {
+
 struct bContext;
 struct wmGizmo;
+namespace ed::transform {
 struct SnapObjectContext;
+}
 
 /* initialize gizmos */
 void ED_gizmotypes_arrow_3d();
@@ -117,9 +121,11 @@ enum {
 
 /* draw_options */
 enum {
+  ED_GIZMO_CAGE_DRAW_FLAG_NOP = 0,
   /** Draw a central handle (instead of having the entire area selectable)
    * Needed for large rectangles that we don't want to swallow all events. */
   ED_GIZMO_CAGE_DRAW_FLAG_XFORM_CENTER_HANDLE = (1 << 0),
+  ED_GIZMO_CAGE_DRAW_FLAG_CORNER_HANDLES = (1 << 1),
 };
 
 /** #wmGizmo.highlight_part */
@@ -236,7 +242,7 @@ enum {
 
 /* `snap3d_gizmo.cc` */
 
-SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(Scene *scene, wmGizmo *gz);
+ed::transform::SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(Scene *scene, wmGizmo *gz);
 
 void ED_gizmotypes_snap_3d_flag_set(wmGizmo *gz, int flag);
 
@@ -248,3 +254,5 @@ void ED_gizmotypes_snap_3d_data_get(const bContext *C,
                                     float r_nor[3],
                                     int r_elem_index[3],
                                     eSnapMode *r_snap_elem);
+
+}  // namespace blender

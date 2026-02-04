@@ -11,12 +11,12 @@
 
 #include <Python.h>
 
-#include "BLI_utildefines.h"
-
 #include "GPU_capabilities.hh"
 
 #include "gpu_py.hh"
 #include "gpu_py_capabilities.hh" /* own include */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Functions
@@ -247,14 +247,14 @@ PyDoc_STRVAR(
     "   Get supported extensions in the current context.\n"
     "\n"
     "   :return: Extensions.\n"
-    "   :rtype: tuple of string\n");
+    "   :rtype: tuple[str]\n");
 static PyObject *pygpu_extensions_get(PyObject * /*self*/)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
 
   int extensions_len = GPU_extensions_len();
   PyObject *ret = PyTuple_New(extensions_len);
-  PyObject **ob_items = ((PyTupleObject *)ret)->ob_item;
+  PyObject **ob_items = (reinterpret_cast<PyTupleObject *>(ret))->ob_item;
   for (int i = 0; i < extensions_len; i++) {
     ob_items[i] = PyUnicode_FromString(GPU_extension_get(i));
   }
@@ -385,92 +385,107 @@ static PyObject *pygpu_max_work_group_size_get(PyObject * /*self*/, PyObject *ar
 /** \name Module
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef pygpu_capabilities__tp_methods[] = {
     {"max_texture_size_get",
-     (PyCFunction)pygpu_max_texture_size_get,
+     reinterpret_cast<PyCFunction>(pygpu_max_texture_size_get),
      METH_NOARGS,
      pygpu_max_texture_size_get_doc},
     {"max_texture_layers_get",
-     (PyCFunction)pygpu_max_texture_layers_get,
+     reinterpret_cast<PyCFunction>(pygpu_max_texture_layers_get),
      METH_NOARGS,
      pygpu_max_texture_layers_get_doc},
     {"max_textures_get",
-     (PyCFunction)pygpu_max_textures_get,
+     reinterpret_cast<PyCFunction>(pygpu_max_textures_get),
      METH_NOARGS,
      pygpu_max_textures_get_doc},
     {"max_textures_vert_get",
-     (PyCFunction)pygpu_max_textures_vert_get,
+     reinterpret_cast<PyCFunction>(pygpu_max_textures_vert_get),
      METH_NOARGS,
      pygpu_max_textures_vert_get_doc},
     {"max_textures_geom_get",
-     (PyCFunction)pygpu_max_textures_geom_get,
+     reinterpret_cast<PyCFunction>(pygpu_max_textures_geom_get),
      METH_NOARGS,
      pygpu_max_textures_geom_get_doc},
     {"max_textures_frag_get",
-     (PyCFunction)pygpu_max_textures_frag_get,
+     reinterpret_cast<PyCFunction>(pygpu_max_textures_frag_get),
      METH_NOARGS,
      pygpu_max_textures_frag_get_doc},
-    {"max_images_get", (PyCFunction)pygpu_max_images_get, METH_NOARGS, pygpu_max_images_get_doc},
+    {"max_images_get",
+     reinterpret_cast<PyCFunction>(pygpu_max_images_get),
+     METH_NOARGS,
+     pygpu_max_images_get_doc},
     {"max_uniforms_vert_get",
-     (PyCFunction)pygpu_max_uniforms_vert_get,
+     reinterpret_cast<PyCFunction>(pygpu_max_uniforms_vert_get),
      METH_NOARGS,
      pygpu_max_uniforms_vert_get_doc},
     {"max_uniforms_frag_get",
-     (PyCFunction)pygpu_max_uniforms_frag_get,
+     reinterpret_cast<PyCFunction>(pygpu_max_uniforms_frag_get),
      METH_NOARGS,
      pygpu_max_uniforms_frag_get_doc},
     {"max_batch_indices_get",
-     (PyCFunction)pygpu_max_batch_indices_get,
+     reinterpret_cast<PyCFunction>(pygpu_max_batch_indices_get),
      METH_NOARGS,
      pygpu_max_batch_indices_get_doc},
     {"max_batch_vertices_get",
-     (PyCFunction)pygpu_max_batch_vertices_get,
+     reinterpret_cast<PyCFunction>(pygpu_max_batch_vertices_get),
      METH_NOARGS,
      pygpu_max_batch_vertices_get_doc},
     {"max_vertex_attribs_get",
-     (PyCFunction)pygpu_max_vertex_attribs_get,
+     reinterpret_cast<PyCFunction>(pygpu_max_vertex_attribs_get),
      METH_NOARGS,
      pygpu_max_vertex_attribs_get_doc},
     {"max_varying_floats_get",
-     (PyCFunction)pygpu_max_varying_floats_get,
+     reinterpret_cast<PyCFunction>(pygpu_max_varying_floats_get),
      METH_NOARGS,
      pygpu_max_varying_floats_get_doc},
-    {"extensions_get", (PyCFunction)pygpu_extensions_get, METH_NOARGS, pygpu_extensions_get_doc},
+    {"extensions_get",
+     reinterpret_cast<PyCFunction>(pygpu_extensions_get),
+     METH_NOARGS,
+     pygpu_extensions_get_doc},
 
     {"compute_shader_support_get",
-     (PyCFunction)pygpu_compute_shader_support_get,
+     reinterpret_cast<PyCFunction>(pygpu_compute_shader_support_get),
      METH_NOARGS,
      pygpu_compute_shader_support_get_doc},
     {"shader_image_load_store_support_get",
-     (PyCFunction)pygpu_shader_image_load_store_support_get,
+     reinterpret_cast<PyCFunction>(pygpu_shader_image_load_store_support_get),
      METH_NOARGS,
      pygpu_shader_image_load_store_support_get_doc},
     {"hdr_support_get",
-     (PyCFunction)pygpu_hdr_support_get,
+     reinterpret_cast<PyCFunction>(pygpu_hdr_support_get),
      METH_NOARGS,
      pygpu_hdr_support_get_doc},
     {
         "max_work_group_count_get",
-        (PyCFunction)pygpu_max_work_group_count_get,
+        static_cast<PyCFunction>(pygpu_max_work_group_count_get),
         METH_VARARGS,
         pygpu_max_work_group_count_get_doc,
     },
     {
         "max_work_group_size_get",
-        (PyCFunction)pygpu_max_work_group_size_get,
+        static_cast<PyCFunction>(pygpu_max_work_group_size_get),
         METH_VARARGS,
         pygpu_max_work_group_size_get_doc,
     },
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyDoc_STRVAR(
@@ -499,3 +514,5 @@ PyObject *bpygpu_capabilities_init()
 }
 
 /** \} */
+
+}  // namespace blender

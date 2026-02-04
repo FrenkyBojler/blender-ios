@@ -8,9 +8,9 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "BLI_sys_types.h"
+
+namespace blender {
 
 struct GHash;
 struct MemArena;
@@ -98,6 +98,4 @@ void DNA_alias_maps(enum eDNA_RenameDir version_dir,
 const char *DNA_struct_rename_legacy_hack_alias_from_static(const char *name);
 const char *DNA_struct_rename_legacy_hack_static_from_alias(const char *name);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

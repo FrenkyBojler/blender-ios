@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include "BLI_math_bits.h"
+#include "BLI_sys_types.h"
 #include "testing/testing.h"
-#include <iostream>
+
+namespace blender {
 
 TEST(math_bits, BitscanReverseClearUint)
 {
@@ -80,3 +82,5 @@ TEST(math_bits, PopCount)
     EXPECT_EQ(count, 64);
   }
 }
+
+}  // namespace blender

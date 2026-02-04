@@ -10,16 +10,19 @@
 
 #include "tree_element.hh"
 
+namespace blender {
+
+struct bPoseChannel;
 struct Object;
 
-namespace blender::ed::outliner {
+namespace ed::outliner {
 
 class TreeElementPoseBase final : public AbstractTreeElement {
   Object &object_;
 
  public:
   TreeElementPoseBase(TreeElement &legacy_te, Object &object);
-  void expand(SpaceOutliner &) const override;
+  void expand(SpaceOutliner & /*soops*/) const override;
 };
 
 class TreeElementPoseChannel final : public AbstractTreeElement {
@@ -31,4 +34,5 @@ class TreeElementPoseChannel final : public AbstractTreeElement {
   TreeElementPoseChannel(TreeElement &legacy_te, Object &object, bPoseChannel &pchan);
 };
 
-}  // namespace blender::ed::outliner
+}  // namespace ed::outliner
+}  // namespace blender

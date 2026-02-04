@@ -8,8 +8,10 @@
 
 #pragma once
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_image_partial_update.hh"
+
+namespace blender {
 
 struct PartialImageUpdater {
   PartialUpdateUser *user;
@@ -62,3 +64,5 @@ struct PartialImageUpdater {
     }
   }
 };
+
+}  // namespace blender

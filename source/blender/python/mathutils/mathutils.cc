@@ -15,11 +15,12 @@
 #include "BLI_utildefines.h"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_utildefines.hh"
 
 #ifndef MATH_STANDALONE
 #  include "BLI_dynstr.h"
 #endif
+
+namespace blender {
 
 PyDoc_STRVAR(
     /* Wrap. */
@@ -38,6 +39,7 @@ PyDoc_STRVAR(
     "- :class:`Matrix`,\n"
     "- :class:`Quaternion`,\n"
     "- :class:`Vector`,\n");
+
 static int mathutils_array_parse_fast(float *array,
                                       int size,
                                       PyObject *value_fast,
@@ -85,10 +87,10 @@ Py_hash_t mathutils_array_hash(const float *array, size_t array_len)
     }
     x = (x ^ y) * mult;
     /* the cast might truncate len; that doesn't change hash stability */
-    mult += (Py_hash_t)(82520UL + len + len);
+    mult += Py_hash_t(82520UL + len + len);
   }
   x += 97531UL;
-  if (x == (Py_uhash_t)-1) {
+  if (x == Py_uhash_t(-1)) {
     x = -2;
   }
   return x;
@@ -104,7 +106,7 @@ int mathutils_array_parse(
 
 #if 1 /* approx 6x speedup for mathutils types */
 
-  if ((num = VectorObject_Check(value) ? ((VectorObject *)value)->vec_num : 0) ||
+  if ((num = VectorObject_Check(value) ? (reinterpret_cast<VectorObject *>(value))->vec_num : 0) ||
       (num = EulerObject_Check(value) ? 3 : 0) || (num = QuaternionObject_Check(value) ? 4 : 0) ||
       (num = ColorObject_Check(value) ? 3 : 0))
   {
@@ -135,7 +137,7 @@ int mathutils_array_parse(
       return -1;
     }
 
-    memcpy(array, ((const BaseMathObject *)value)->data, num * sizeof(float));
+    memcpy(array, (reinterpret_cast<const BaseMathObject *>(value))->data, num * sizeof(float));
   }
   else
 #endif
@@ -199,7 +201,7 @@ int mathutils_array_parse_alloc(float **array,
 
 #if 1 /* approx 6x speedup for mathutils types */
 
-  if ((num = VectorObject_Check(value) ? ((VectorObject *)value)->vec_num : 0) ||
+  if ((num = VectorObject_Check(value) ? (reinterpret_cast<VectorObject *>(value))->vec_num : 0) ||
       (num = EulerObject_Check(value) ? 3 : 0) || (num = QuaternionObject_Check(value) ? 4 : 0) ||
       (num = ColorObject_Check(value) ? 3 : 0))
   {
@@ -217,7 +219,7 @@ int mathutils_array_parse_alloc(float **array,
     }
 
     *array = static_cast<float *>(PyMem_Malloc(num * sizeof(float)));
-    memcpy(*array, ((const BaseMathObject *)value)->data, num * sizeof(float));
+    memcpy(*array, (reinterpret_cast<const BaseMathObject *>(value))->data, num * sizeof(float));
     return num;
   }
 
@@ -372,7 +374,7 @@ int mathutils_array_parse_alloc_vi(int **array,
 
 bool mathutils_array_parse_alloc_viseq(PyObject *value,
                                        const char *error_prefix,
-                                       blender::Array<blender::Vector<int>> &r_data)
+                                       Array<Vector<int>> &r_data)
 {
   PyObject *value_fast;
   if (!(value_fast = PySequence_Fast(value, error_prefix))) {
@@ -394,7 +396,7 @@ bool mathutils_array_parse_alloc_viseq(PyObject *value,
         return false;
       }
       r_data[i].resize(subseq_len);
-      blender::MutableSpan<int> group = r_data[i];
+      MutableSpan<int> group = r_data[i];
       if (mathutils_int_array_parse(group.data(), group.size(), subseq, error_prefix) == -1) {
         Py_DECREF(value_fast);
         return false;
@@ -413,7 +415,9 @@ int mathutils_any_to_rotmat(float rmat[3][3], PyObject *value, const char *error
       return -1;
     }
 
-    eulO_to_mat3(rmat, ((const EulerObject *)value)->eul, ((const EulerObject *)value)->order);
+    eulO_to_mat3(rmat,
+                 (reinterpret_cast<const EulerObject *>(value))->eul,
+                 (reinterpret_cast<const EulerObject *>(value))->order);
     return 0;
   }
   if (QuaternionObject_Check(value)) {
@@ -422,7 +426,7 @@ int mathutils_any_to_rotmat(float rmat[3][3], PyObject *value, const char *error
     }
 
     float tquat[4];
-    normalize_qt_qt(tquat, ((const QuaternionObject *)value)->quat);
+    normalize_qt_qt(tquat, (reinterpret_cast<const QuaternionObject *>(value))->quat);
     quat_to_mat3(rmat, tquat);
     return 0;
   }
@@ -430,13 +434,15 @@ int mathutils_any_to_rotmat(float rmat[3][3], PyObject *value, const char *error
     if (BaseMath_ReadCallback((BaseMathObject *)value) == -1) {
       return -1;
     }
-    if (((MatrixObject *)value)->row_num < 3 || ((MatrixObject *)value)->col_num < 3) {
+    if ((reinterpret_cast<MatrixObject *>(value))->row_num < 3 ||
+        (reinterpret_cast<MatrixObject *>(value))->col_num < 3)
+    {
       PyErr_Format(
           PyExc_ValueError, "%.200s: matrix must have minimum 3x3 dimensions", error_prefix);
       return -1;
     }
 
-    matrix_as_3x3(rmat, (MatrixObject *)value);
+    matrix_as_3x3(rmat, reinterpret_cast<MatrixObject *>(value));
     normalize_m3(rmat);
     return 0;
   }
@@ -472,8 +478,8 @@ int EXPP_FloatsAreEqual(float af, float bf, int maxDiff)
 {
   /* solid, fast routine across all platforms
    * with constant time behavior */
-  const int ai = *(const int *)(&af);
-  const int bi = *(const int *)(&bf);
+  const int ai = *reinterpret_cast<const int *>(&af);
+  const int bi = *reinterpret_cast<const int *>(&bf);
   const int test = SIGNMASK(ai ^ bi);
   int diff, v1, v2;
 
@@ -613,38 +619,84 @@ void _BaseMathObject_RaiseNotFrozenExc(const BaseMathObject *self)
       PyExc_TypeError, "%s is not frozen (mutable), call freeze first", Py_TYPE(self)->tp_name);
 }
 
+int _BaseMathObject_ResizeOkOrRaiseExc(BaseMathObject *self, const char *error_prefix)
+{
+  if (UNLIKELY(self->flag & BASE_MATH_FLAG_IS_FROZEN)) {
+    PyErr_Format(PyExc_ValueError, "%s: cannot resize frozen data", error_prefix);
+    return -1;
+  }
+  if (UNLIKELY(self->flag & BASE_MATH_FLAG_IS_WRAP)) {
+    PyErr_Format(PyExc_ValueError, "%s: cannot resize wrapped data", error_prefix);
+    return -1;
+  }
+  if (UNLIKELY(self->flag & BASE_MATH_FLAG_HAS_BUFFER_VIEW)) {
+    PyErr_Format(PyExc_BufferError,
+                 "%s: cannot resize data while exported to buffer protocol",
+                 error_prefix);
+    return -1;
+  }
+  if (UNLIKELY(self->cb_user)) {
+    PyErr_Format(PyExc_ValueError, "%s: cannot resize owned data", error_prefix);
+    return -1;
+  }
+  return 0;
+}
+
+int _BaseMathObject_RaiseBufferViewExc(BaseMathObject *self, Py_buffer *view, int flags)
+{
+  if (UNLIKELY(view == nullptr)) {
+    PyErr_SetString(PyExc_BufferError, "null view in get-buffer is obsolete");
+    return -1;
+  }
+  if (UNLIKELY(self->flag & BASE_MATH_FLAG_HAS_BUFFER_VIEW)) {
+    PyErr_SetString(PyExc_BufferError,
+                    "Data is already exported via buffer protocol, "
+                    "multiple simultaneous exports are not allowed.");
+    return -1;
+  }
+  if (flags & PyBUF_WRITABLE) {
+    if (UNLIKELY(BaseMath_WriteCallback(self) == -1)) {
+      return -1;
+    }
+    if (UNLIKELY(self->flag & BASE_MATH_FLAG_IS_FROZEN)) {
+      PyErr_SetString(PyExc_BufferError, "Data is frozen, cannot get a writable buffer");
+      return -1;
+    }
+  }
+  return 0;
+}
+
 /* #BaseMathObject generic functions for all mathutils types. */
 
 char BaseMathObject_owner_doc[] = "The item this is wrapping or None  (read-only).";
 PyObject *BaseMathObject_owner_get(BaseMathObject *self, void * /*closure*/)
 {
   PyObject *ret = self->cb_user ? self->cb_user : Py_None;
-  return Py_INCREF_RET(ret);
+  return Py_NewRef(ret);
 }
 
 char BaseMathObject_is_wrapped_doc[] =
-    "True when this object wraps external data (read-only).\n\n:type: boolean";
+    "True when this object wraps external data (read-only).\n\n:type: bool";
 PyObject *BaseMathObject_is_wrapped_get(BaseMathObject *self, void * /*closure*/)
 {
   return PyBool_FromLong((self->flag & BASE_MATH_FLAG_IS_WRAP) != 0);
 }
 
 char BaseMathObject_is_frozen_doc[] =
-    "True when this object has been frozen (read-only).\n\n:type: boolean";
+    "True when this object has been frozen (read-only).\n\n:type: bool";
 PyObject *BaseMathObject_is_frozen_get(BaseMathObject *self, void * /*closure*/)
 {
   return PyBool_FromLong((self->flag & BASE_MATH_FLAG_IS_FROZEN) != 0);
 }
 
-char BaseMathObject_is_valid_doc[] =
-    "True when the owner of this data is valid.\n\n:type: boolean";
+char BaseMathObject_is_valid_doc[] = "True when the owner of this data is valid.\n\n:type: bool";
 PyObject *BaseMathObject_is_valid_get(BaseMathObject *self, void * /*closure*/)
 {
   return PyBool_FromLong(BaseMath_CheckCallback(self) == 0);
 }
 
 char BaseMathObject_freeze_doc[] =
-    ".. function:: freeze()\n"
+    ".. method:: freeze()\n"
     "\n"
     "   Make this object immutable.\n"
     "\n"
@@ -658,9 +710,14 @@ PyObject *BaseMathObject_freeze(BaseMathObject *self)
     return nullptr;
   }
 
+  if (self->flag & BASE_MATH_FLAG_HAS_BUFFER_VIEW) {
+    PyErr_SetString(PyExc_BufferError, "Cannot freeze data while exported to buffer protocol");
+    return nullptr;
+  }
+
   self->flag |= BASE_MATH_FLAG_IS_FROZEN;
 
-  return Py_INCREF_RET((PyObject *)self);
+  return Py_NewRef(self);
 }
 
 int BaseMathObject_traverse(BaseMathObject *self, visitproc visit, void *arg)
@@ -680,8 +737,8 @@ int BaseMathObject_clear(BaseMathObject *self)
 static bool BaseMathObject_is_tracked(BaseMathObject *self)
 {
   PyObject *cb_user = self->cb_user;
-  self->cb_user = (PyObject *)uintptr_t(-1);
-  bool is_tracked = PyObject_GC_IsTracked((PyObject *)self);
+  self->cb_user = reinterpret_cast<PyObject *>(uintptr_t(-1));
+  bool is_tracked = PyObject_GC_IsTracked(reinterpret_cast<PyObject *>(self));
   self->cb_user = cb_user;
   return is_tracked;
 }
@@ -700,7 +757,7 @@ void BaseMathObject_dealloc(BaseMathObject *self)
     BaseMathObject_clear(self);
   }
   else if (!BaseMathObject_CheckExact(self)) {
-    /* Sub-classed types get an extra track (in Pythons internal `subtype_dealloc` function). */
+    /* Subclassed types get an extra track (in Pythons internal `subtype_dealloc` function). */
     BLI_assert(BaseMathObject_is_tracked(self) == true);
     PyObject_GC_UnTrack(self);
     BLI_assert(BaseMathObject_is_tracked(self) == false);
@@ -754,6 +811,8 @@ static PyModuleDef M_Mathutils_module_def = {
     /*m_free*/ nullptr,
 };
 
+}  // namespace blender
+
 /* submodules only */
 #include "mathutils_geometry.hh"
 #include "mathutils_interpolate.hh"
@@ -762,6 +821,8 @@ static PyModuleDef M_Mathutils_module_def = {
 #  include "mathutils_kdtree.hh"
 #  include "mathutils_noise.hh"
 #endif
+
+namespace blender {
 
 PyMODINIT_FUNC PyInit_mathutils()
 {
@@ -802,26 +863,26 @@ PyMODINIT_FUNC PyInit_mathutils()
   /* XXX, python doesn't do imports with this usefully yet
    * 'from mathutils.geometry import PolyFill'
    * ...fails without this. */
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   PyModule_AddObject(mod, "interpolate", (submodule = PyInit_mathutils_interpolate()));
   /* XXX, python doesn't do imports with this usefully yet
    * 'from mathutils.geometry import PolyFill'
    * ...fails without this. */
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
 #ifndef MATH_STANDALONE
   /* Noise submodule */
   PyModule_AddObject(mod, "noise", (submodule = PyInit_mathutils_noise()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   /* BVHTree submodule */
   PyModule_AddObject(mod, "bvhtree", (submodule = PyInit_mathutils_bvhtree()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   /* KDTree_3d submodule */
   PyModule_AddObject(mod, "kdtree", (submodule = PyInit_mathutils_kdtree()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 #endif
 
   mathutils_matrix_row_cb_index = Mathutils_RegisterCallback(&mathutils_matrix_row_cb);
@@ -831,3 +892,5 @@ PyMODINIT_FUNC PyInit_mathutils()
 
   return mod;
 }
+
+}  // namespace blender

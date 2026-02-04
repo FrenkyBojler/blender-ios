@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bli
+ */
+
 #pragma once
 
 #include <numeric>
@@ -9,6 +13,7 @@
 #include "BLI_generic_span.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_index_mask.hh"
+#include "BLI_math_base.h"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
 #include "BLI_virtual_array.hh"
@@ -64,6 +69,29 @@ inline void copy(const Span<T> src,
   BLI_assert(src.size() == dst.size());
   selection.foreach_index_optimized<int64_t>(GrainSize(grain_size),
                                              [&](const int64_t i) { dst[i] = src[i]; });
+}
+
+template<typename T> T compute_sum(const Span<T> data)
+{
+  /* Explicitly splitting work into chunks for a couple of reasons:
+   * - Improve numerical stability. While there are even more stable algorithms (e.g. Kahan
+   *   summation), they also add more complexity to the hot code path. So far, this simple approach
+   *   seems to solve the common issues people run into.
+   * - Support computing the sum using multiple threads.
+   * - Ensure deterministic results even with floating point numbers.
+   */
+  constexpr int64_t chunk_size = 1024;
+  const int64_t chunks_num = divide_ceil_ul(data.size(), chunk_size);
+  Array<T> partial_sums(chunks_num);
+  threading::parallel_for(partial_sums.index_range(), 1, [&](const IndexRange range) {
+    for (const int64_t i : range) {
+      const int64_t start = i * chunk_size;
+      const Span<T> chunk = data.slice_safe(start, chunk_size);
+      const T partial_sum = std::accumulate(chunk.begin(), chunk.end(), T());
+      partial_sums[i] = partial_sum;
+    }
+  });
+  return std::accumulate(partial_sums.begin(), partial_sums.end(), T());
 }
 
 /**
@@ -127,7 +155,7 @@ inline void gather(const VArray<T> &src,
 /**
  * Fill the destination span by gathering indexed values from the `src` array.
  */
-template<typename T, typename IndexT>
+template<typename T>
 inline void gather(const Span<T> src,
                    const IndexMask &indices,
                    MutableSpan<T> dst,
@@ -261,6 +289,9 @@ inline BooleanMix booleans_mix_calc(const VArray<bool> &varray)
   return booleans_mix_calc(varray, varray.index_range());
 }
 
+/** Check if the value exists in the array. */
+bool contains(const VArray<bool> &varray, const IndexMask &indices_to_check, bool value);
+
 /**
  * Finds all the index ranges for which consecutive values in \a span equal \a value.
  */
@@ -298,6 +329,7 @@ template<typename T> inline void fill_index_range(MutableSpan<T> span, const T s
 template<typename T>
 bool indexed_data_equal(const Span<T> all_values, const Span<int> indices, const Span<T> values)
 {
+  BLI_assert(indices.size() == values.size());
   for (const int i : indices.index_range()) {
     if (all_values[indices[i]] != values[i]) {
       return false;
@@ -307,5 +339,64 @@ bool indexed_data_equal(const Span<T> all_values, const Span<int> indices, const
 }
 
 bool indices_are_range(Span<int> indices, IndexRange range);
+
+/**
+ * Returns the index of the (first) maximum element in the virtual array or std::nullopt if the
+ * array is empty.
+ */
+template<typename T>
+inline std::optional<int64_t> max_element_index(const VArray<T> &array,
+                                                const int64_t grain_size = 8192)
+{
+  if (!array || array.is_empty()) {
+    return std::nullopt;
+  }
+  if (array.is_single()) {
+    return 0;
+  }
+  if (array.is_span()) {
+    const Span<T> span = array.get_internal_span();
+    const T *max_it = threading::parallel_reduce(
+        span.index_range(),
+        grain_size,
+        span.begin(),
+        [&](const IndexRange range, const T *init_max) {
+          const Span<T> sub_span = span.slice(range);
+          const T *max_elem = std::max_element(sub_span.begin(), sub_span.end());
+          if (*max_elem < *init_max) {
+            return init_max;
+          }
+          return max_elem;
+        },
+        [&](const T *a, const T *b) {
+          if (*a < *b) {
+            return a;
+          }
+          return b;
+        });
+    return std::distance(span.begin(), max_it);
+  }
+  return threading::parallel_reduce(
+      array.index_range(),
+      grain_size,
+      0,
+      [&](const IndexRange range, const int64_t init_i) {
+        int64_t max_index = init_i;
+        T max_elem = array[max_index];
+        for (const int i : range) {
+          if (max_elem < array[i]) {
+            max_index = i;
+            max_elem = array[i];
+          }
+        }
+        return max_index;
+      },
+      [&](const int64_t index_a, const int64_t index_b) {
+        if (array[index_a] < array[index_b]) {
+          return index_b;
+        }
+        return index_a;
+      });
+}
 
 }  // namespace blender::array_utils

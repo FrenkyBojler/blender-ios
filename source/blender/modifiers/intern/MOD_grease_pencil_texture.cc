@@ -9,9 +9,9 @@
 #include "BKE_attribute.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_base.hh"
+#include "BLI_math_matrix.hh"
 #include "BLI_span.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 
 #include "BKE_curves.hh"
@@ -25,7 +25,7 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLT_translation.hh"
@@ -44,10 +44,7 @@ namespace blender {
 static void init_data(ModifierData *md)
 {
   auto *tmd = reinterpret_cast<GreasePencilTextureModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(tmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(tmd, DNA_struct_default_get(GreasePencilTextureModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(tmd, modifier);
   modifier::greasepencil::init_influence_data(&tmd->influence, false);
 }
 
@@ -91,9 +88,10 @@ static void write_stroke_transforms(bke::greasepencil::Drawing &drawing,
   bke::SpanAttributeWriter<float> rotations = attributes.lookup_or_add_for_write_span<float>(
       "rotation", bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> u_scales = attributes.lookup_or_add_for_write_span<float>(
-      "u_scale",
-      bke::AttrDomain::Curve,
-      bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, curves.curves_num())));
+      "u_scale", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f));
+  if (!u_translations || !rotations || !u_scales) {
+    return;
+  }
 
   curves.ensure_evaluated_lengths();
 
@@ -129,7 +127,6 @@ static void get_legacy_stroke_matrix(const Span<float3> positions,
                                      float3x4 &stroke_to_layer,
                                      float4x3 &layer_to_stroke)
 {
-  using namespace blender;
   using namespace blender::math;
 
   if (positions.size() < 2) {
@@ -298,46 +295,44 @@ static void modify_geometry_set(ModifierData *md,
 
 static void panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
   const auto &tmd = *static_cast<GreasePencilTextureModifierData *>(ptr->data);
   const auto mode = GreasePencilTextureModifierMode(tmd.mode);
-  uiLayout *col;
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (ELEM(mode, MOD_GREASE_PENCIL_TEXTURE_STROKE, MOD_GREASE_PENCIL_TEXTURE_STROKE_AND_FILL)) {
-    col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "fit_method", UI_ITEM_NONE, IFACE_("Stroke Fit Method"), ICON_NONE);
-    uiItemR(col, ptr, "uv_offset", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "alignment_rotation", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "uv_scale", UI_ITEM_NONE, IFACE_("Scale"), ICON_NONE);
+    ui::Layout &col = layout.column(false);
+    col.prop(ptr, "fit_method", UI_ITEM_NONE, IFACE_("Stroke Fit Method"), ICON_NONE);
+    col.prop(ptr, "uv_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "alignment_rotation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "uv_scale", UI_ITEM_NONE, IFACE_("Scale"), ICON_NONE);
   }
 
   if (mode == MOD_GREASE_PENCIL_TEXTURE_STROKE_AND_FILL) {
-    uiItemS(layout);
+    layout.separator();
   }
 
   if (ELEM(mode, MOD_GREASE_PENCIL_TEXTURE_FILL, MOD_GREASE_PENCIL_TEXTURE_STROKE_AND_FILL)) {
-    col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "fill_rotation", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "fill_offset", UI_ITEM_NONE, IFACE_("Offset"), ICON_NONE);
-    uiItemR(col, ptr, "fill_scale", UI_ITEM_NONE, IFACE_("Scale"), ICON_NONE);
+    ui::Layout &col = layout.column(false);
+    col.prop(ptr, "fill_rotation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "fill_offset", UI_ITEM_NONE, IFACE_("Offset"), ICON_NONE);
+    col.prop(ptr, "fill_scale", UI_ITEM_NONE, IFACE_("Scale"), ICON_NONE);
   }
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", "Influence"))
+  if (ui::Layout *influence_panel = layout.panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
-    modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
-    modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
-    modifier::greasepencil::draw_vertex_group_settings(C, influence_panel, ptr);
+    modifier::greasepencil::draw_layer_filter_settings(C, *influence_panel, ptr);
+    modifier::greasepencil::draw_material_filter_settings(C, *influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -349,7 +344,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const auto *tmd = reinterpret_cast<const GreasePencilTextureModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilTextureModifierData, tmd);
+  writer->write_struct(tmd);
   modifier::greasepencil::write_influence_data(writer, &tmd->influence);
 }
 
@@ -359,8 +354,6 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 
   modifier::greasepencil::read_influence_data(reader, &tmd->influence);
 }
-
-}  // namespace blender
 
 ModifierTypeInfo modifierType_GreasePencilTexture = {
     /*idname*/ "GreasePencilTexture",
@@ -373,26 +366,28 @@ ModifierTypeInfo modifierType_GreasePencilTexture = {
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,
     /*icon*/ ICON_MOD_UVPROJECT,
 
-    /*copy_data*/ blender::copy_data,
+    /*copy_data*/ copy_data,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
     /*deform_verts_EM*/ nullptr,
     /*deform_matrices_EM*/ nullptr,
     /*modify_mesh*/ nullptr,
-    /*modify_geometry_set*/ blender::modify_geometry_set,
+    /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ blender::init_data,
+    /*init_data*/ init_data,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ blender::free_data,
+    /*free_data*/ free_data,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,
     /*depends_on_normals*/ nullptr,
-    /*foreach_ID_link*/ blender::foreach_ID_link,
+    /*foreach_ID_link*/ foreach_ID_link,
     /*foreach_tex_link*/ nullptr,
     /*free_runtime_data*/ nullptr,
-    /*panel_register*/ blender::panel_register,
-    /*blend_write*/ blender::blend_write,
-    /*blend_read*/ blender::blend_read,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ blend_write,
+    /*blend_read*/ blend_read,
 };
+
+}  // namespace blender

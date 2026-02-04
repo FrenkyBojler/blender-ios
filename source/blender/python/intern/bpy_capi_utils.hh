@@ -10,12 +10,10 @@
 
 #include <Python.h>
 
-#if PY_VERSION_HEX < 0x030b0000
-#  error "Python 3.11 or greater is required, you'll need to update your Python."
-#endif
+namespace blender {
 
-#ifdef __cplusplus
-extern "C" {
+#if PY_VERSION_HEX < 0x030d0000
+#  error "Python 3.13 or greater is required, you'll need to update your Python."
 #endif
 
 struct bContext;
@@ -47,7 +45,7 @@ bool BPy_errors_to_report_ex(struct ReportList *reports,
  */
 bool BPy_errors_to_report(struct ReportList *reports);
 
-struct bContext *BPY_context_get(void);
+struct bContext *BPY_context_get();
 
 extern void bpy_context_set(struct bContext *C, PyGILState_STATE *gilstate);
 /**
@@ -55,6 +53,4 @@ extern void bpy_context_set(struct bContext *C, PyGILState_STATE *gilstate);
  */
 extern void bpy_context_clear(struct bContext *C, const PyGILState_STATE *gilstate);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

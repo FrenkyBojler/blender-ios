@@ -123,6 +123,11 @@ class VExportTree:
 
     def construct(self, blender_scene):
         bpy.context.window.scene = blender_scene
+
+        # Make sure the active object is in object mode
+        if bpy.context.active_object and bpy.context.active_object.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+
         depsgraph = bpy.context.evaluated_depsgraph_get()
 
         # Gather parent/children information once, as calling bobj.children is
@@ -139,14 +144,26 @@ class VExportTree:
             for blender_object in [obj.original for obj in scene_eval.objects if obj.parent is None]:
                 self.recursive_node_traverse(blender_object, None, None, Matrix.Identity(4), False, blender_children)
         else:
-            self.recursive_node_traverse(
-                blender_scene.collection,
-                None,
-                None,
-                Matrix.Identity(4),
-                False,
-                blender_children,
-                is_collection=True)
+            if self.export_settings['gltf_collection']:
+                # Collection exporter
+                self.recursive_node_traverse(
+                    bpy.data.collections[self.export_settings['gltf_collection']],
+                    None,
+                    None,
+                    Matrix.Identity(4),
+                    False,
+                    blender_children,
+                    is_collection=True)
+            else:
+                # Scene / classic export
+                self.recursive_node_traverse(
+                    blender_scene.collection,
+                    None,
+                    None,
+                    Matrix.Identity(4),
+                    False,
+                    blender_children,
+                    is_collection=True)
 
     def recursive_node_traverse(
             self,
@@ -507,14 +524,20 @@ class VExportTree:
         else:
             return self.nodes[uuid].all_bones
 
-    def get_root_bones_uuid(self, uuid):  # For armature only
+    def get_root_bones_uuid(self, uuid, cache=True):  # For armature only
         if not hasattr(self.nodes[uuid], "root_bones_uuid"):
             if self.nodes[uuid].blender_type == VExportNode.ARMATURE:
                 all_armature_children = self.nodes[uuid].children
-                self.nodes[uuid].root_bones_uuid = [
+                root_bones_uuid = [
                     c for c in all_armature_children if self.nodes[c].blender_type == VExportNode.BONE]
-                # Not really needed to return, we are just baking it before export really starts
-                return self.nodes[uuid].root_bones_uuid
+                if self.export_settings['gltf_def_bones'] is True:
+                    root_bones_uuid = [
+                        c for c in root_bones_uuid if self.nodes[c].use_deform is True]
+                if cache:
+                    self.nodes[uuid].root_bones_uuid = root_bones_uuid
+                # in case of caching (first call), we return the value even if not needed
+                # (because we call the function only to cache the value)
+                return root_bones_uuid
             else:
                 self.nodes[uuid].root_bones_uuid = []
                 return []
@@ -587,9 +610,21 @@ class VExportTree:
             # Need to modify tree
             if self.nodes[uuid].parent_uuid is not None:
                 self.nodes[self.nodes[uuid].parent_uuid].children.remove(uuid)
+
+                # If this object is an armature that will be deleted, we need to delete the parent
+                # As the node will not be really deleted, even if not exported
+                if self.nodes[uuid].blender_type == VExportNode.ARMATURE and self.export_settings['gltf_armature_object_remove'] is True:
+                    self.nodes[uuid].parent_uuid = None
             else:
                 # Remove from root
                 self.roots.remove(uuid)
+
+            # If the node is a bone, we need to remove it from armature bones list
+            if self.nodes[uuid].blender_type == VExportNode.BONE:
+                armature_uuid = self.nodes[uuid].armature
+                bone_name = self.nodes[uuid].blender_bone.name
+                if bone_name in self.nodes[armature_uuid].bones:
+                    del self.nodes[armature_uuid].bones[bone_name]
         else:
             new_parent_kept_uuid = uuid
 
@@ -752,15 +787,25 @@ class VExportTree:
                 bpy.context.view_layer.objects.active = armature
                 bpy.ops.object.mode_set(mode="EDIT")
 
-                for bone in armature.data.edit_bones:
-                    if len(bone.children) == 0:
-                        self.nodes[self.nodes[obj_uuid].bones[bone.name]
-                                   ].matrix_world_tail = armature.matrix_world @ Matrix.Translation(bone.tail) @ self.axis_basis_change
+                for (bone_name, bone_uuid) in self.nodes[obj_uuid].bones.items():
+                    bone = armature.data.edit_bones[bone_name]
+
+                    # Leaf bones only
+                    if len([c for c in self.nodes[bone_uuid].children if self.nodes[c].blender_type == VExportNode.BONE]) != 0:
+                        continue  # Not a leaf bone
+
+                    self.nodes[bone_uuid].matrix_world_tail = armature.matrix_world @ Matrix.Translation(
+                        bone.tail) @ self.axis_basis_change
 
                 bpy.ops.object.mode_set(mode="OBJECT")
 
         for bone_uuid in [n for n in self.nodes if self.nodes[n].blender_type == VExportNode.BONE
                           and len(self.nodes[n].children) == 0]:
+
+            # If we are exporting only deform bones, we need to check if this bone is a def bone
+            if self.export_settings['gltf_def_bones'] is True \
+                    and self.nodes[bone_uuid].use_deform is False:
+                continue
 
             bone_node = self.nodes[bone_uuid]
 
@@ -872,7 +917,7 @@ class VExportTree:
         if bpy.context.preferences.addons['io_scene_gltf2'].preferences.KHR_materials_variants_ui is False:
             return
         objects = [self.nodes[o].blender_object for o in self.get_all_node_of_type(VExportNode.OBJECT) if self.nodes[o].blender_object.type == "MESH"
-                   and self.nodes[o].blender_object.data.get('gltf2_variant_default_materials') is not None]
+                   and self.nodes[o].blender_object.data.gltf2_variant_default_materials is not None]
         for obj in objects:
             # loop on material slots ( primitives )
             for mat_slot_idx, s in enumerate(obj.material_slots):
@@ -885,7 +930,7 @@ class VExportTree:
             # If not found, keep current material as default
 
     def break_bone_hierarchy(self):
-        # Can be usefull when matrix is not decomposable
+        # Can be useful when matrix is not decomposable
         for arma in self.get_all_node_of_type(VExportNode.ARMATURE):
             bones = self.get_all_bones(arma)
             for bone in bones:
@@ -893,9 +938,11 @@ class VExportTree:
                     self.nodes[self.nodes[bone].parent_uuid].children.remove(bone)
                     self.nodes[bone].parent_uuid = arma
                     self.nodes[arma].children.append(bone)
+                    self.nodes[arma].children_type[bone] = VExportNode.CHILDREN_REAL
+                    self.nodes[bone].parent_bone_uuid = None
 
     def break_obj_hierarchy(self):
-        # Can be usefull when matrix is not decomposable
+        # Can be useful when matrix is not decomposable
         # TODO: if we get real collection one day, we probably need to adapt this code
         for obj in self.get_all_objects():
             if self.nodes[obj].armature is not None and self.nodes[obj].parent_uuid == self.nodes[obj].armature:
@@ -907,10 +954,11 @@ class VExportTree:
 
     def check_if_we_can_remove_armature(self):
         # If user requested to remove armature, we need to check if it is possible
-        # If is impossible to remove it if armature has multiple root bones. (glTF validator error)
+        # It is impossible to remove it if armature has multiple root bones. (glTF validator error)
         # Currently, we manage it at export level, not at each armature level
         for arma_uuid in [n for n in self.nodes.keys() if self.nodes[n].blender_type == VExportNode.ARMATURE]:
-            if len(self.get_root_bones_uuid(arma_uuid)) > 1:
+            # Do not cache bones here, as we will filter them later, so the cache will be wrong
+            if len(self.get_root_bones_uuid(arma_uuid, cache=False)) > 1:
                 # We can't remove armature
                 self.export_settings['gltf_armature_object_remove'] = False
                 self.export_settings['log'].warning(

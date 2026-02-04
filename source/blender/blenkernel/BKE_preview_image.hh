@@ -2,26 +2,32 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include <array>
 #include <memory>
 #include <optional>
 
-#include "BLI_sys_types.h"
-
 #include "DNA_ID_enums.h"
+
+namespace blender {
 
 struct BlendDataReader;
 struct BlendWriter;
-struct GPUTexture;
+namespace gpu {
+class Texture;
+}
 struct ID;
 struct ImBuf;
 struct PreviewImage;
 
 enum ThumbSource : int8_t;
 
-namespace blender::bke {
+namespace bke {
 
 struct PreviewDeferredLoadingData;
 
@@ -30,7 +36,7 @@ struct PreviewImageRuntime {
   int icon_id = 0;
   int16_t tag = 0;
 
-  std::array<GPUTexture *, NUM_ICON_SIZES> gputexture = {};
+  std::array<gpu::Texture *, NUM_ICON_SIZES> gputexture = {};
 
   /** Used to store data to defer the loading of the preview. If empty, loading is not deferred. */
   std::unique_ptr<PreviewDeferredLoadingData> deferred_loading_data;
@@ -39,15 +45,10 @@ struct PreviewImageRuntime {
   ~PreviewImageRuntime();
 };
 
-}  // namespace blender::bke
+}  // namespace bke
 
 void BKE_preview_images_init();
 void BKE_preview_images_free();
-
-/**
- * Free the preview image for use in list.
- */
-void BKE_previewimg_freefunc(void *link);
 
 /**
  * Free the preview image.
@@ -116,10 +117,15 @@ std::optional<int> BKE_previewimg_deferred_thumb_source_get(const PreviewImage *
  * Create an #ImBuf holding a copy of the preview image buffer in \a prv.
  * \note The returned image buffer has to be freed (#IMB_freeImBuf()).
  */
-ImBuf *BKE_previewimg_to_imbuf(PreviewImage *prv, int size);
+ImBuf *BKE_previewimg_to_imbuf(const PreviewImage *prv, int size);
 
 void BKE_previewimg_finish(PreviewImage *prv, int size);
 bool BKE_previewimg_is_finished(const PreviewImage *prv, int size);
+/**
+ * Deferred preview images may fail to load, e.g. because the image couldn't be found on disk.
+ * \return true of a deferred preview image could not be loaded.
+ */
+bool BKE_previewimg_is_invalid(const PreviewImage *prv);
 
 PreviewImage *BKE_previewimg_cached_get(const char *name);
 
@@ -144,3 +150,5 @@ void BKE_previewimg_deferred_release(PreviewImage *prv);
 
 void BKE_previewimg_blend_write(BlendWriter *writer, const PreviewImage *prv);
 void BKE_previewimg_blend_read(BlendDataReader *reader, PreviewImage *prv);
+
+}  // namespace blender

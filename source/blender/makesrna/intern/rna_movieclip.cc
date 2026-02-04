@@ -6,27 +6,21 @@
  * \ingroup RNA
  */
 
-#include <climits>
 #include <cstdlib>
-
-#include "MEM_guardedalloc.h"
 
 #include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
 
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "rna_internal.hh"
 
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
 
 #include "WM_types.hh"
 
-#include "IMB_imbuf.hh"
-#include "IMB_imbuf_types.hh"
-#include "IMB_metadata.hh"
+#include "MOV_enums.hh"
+#include "MOV_read.hh"
 
 #ifdef RNA_RUNTIME
 
@@ -37,18 +31,22 @@
 #  include "DNA_screen_types.h"
 #  include "DNA_space_types.h"
 
+#  include "BKE_scene.hh"
+
 #  include "SEQ_relations.hh"
+
+namespace blender {
 
 static void rna_MovieClip_reload_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  MovieClip *clip = (MovieClip *)ptr->owner_id;
+  MovieClip *clip = id_cast<MovieClip *>(ptr->owner_id);
 
   DEG_id_tag_update(&clip->id, ID_RECALC_SOURCE);
 }
 
 static void rna_MovieClip_size_get(PointerRNA *ptr, int *values)
 {
-  MovieClip *clip = (MovieClip *)ptr->owner_id;
+  MovieClip *clip = id_cast<MovieClip *>(ptr->owner_id);
 
   values[0] = clip->lastsize[0];
   values[1] = clip->lastsize[1];
@@ -56,15 +54,15 @@ static void rna_MovieClip_size_get(PointerRNA *ptr, int *values)
 
 static float rna_MovieClip_fps_get(PointerRNA *ptr)
 {
-  MovieClip *clip = (MovieClip *)ptr->owner_id;
+  MovieClip *clip = id_cast<MovieClip *>(ptr->owner_id);
   return BKE_movieclip_get_fps(clip);
 }
 
 static void rna_MovieClip_use_proxy_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
-  MovieClip *clip = (MovieClip *)ptr->owner_id;
+  MovieClip *clip = id_cast<MovieClip *>(ptr->owner_id);
   BKE_movieclip_clear_cache(clip);
-  SEQ_relations_invalidate_movieclip_strips(bmain, clip);
+  seq::relations_invalidate_movieclip_strips(bmain, clip);
 }
 
 static void rna_MovieClipUser_proxy_render_settings_update(Main *bmain,
@@ -72,28 +70,28 @@ static void rna_MovieClipUser_proxy_render_settings_update(Main *bmain,
                                                            PointerRNA *ptr)
 {
   ID *id = ptr->owner_id;
-  MovieClipUser *user = (MovieClipUser *)ptr->data;
+  MovieClipUser *user = static_cast<MovieClipUser *>(ptr->data);
 
   /* when changing render settings of space clip user
    * clear cache for clip, so all the memory is available
    * for new render settings
    */
   if (GS(id->name) == ID_SCR) {
-    bScreen *screen = (bScreen *)id;
+    bScreen *screen = id_cast<bScreen *>(id);
     ScrArea *area;
     SpaceLink *sl;
 
     for (area = static_cast<ScrArea *>(screen->areabase.first); area; area = area->next) {
       for (sl = static_cast<SpaceLink *>(area->spacedata.first); sl; sl = sl->next) {
         if (sl->spacetype == SPACE_CLIP) {
-          SpaceClip *sc = (SpaceClip *)sl;
+          SpaceClip *sc = reinterpret_cast<SpaceClip *>(sl);
 
           if (&sc->user == user) {
             MovieClip *clip = ED_space_clip_get_clip(sc);
 
             if (clip && (clip->flag & MCLIP_USE_PROXY)) {
               BKE_movieclip_clear_cache(clip);
-              SEQ_relations_invalidate_movieclip_strips(bmain, clip);
+              seq::relations_invalidate_movieclip_strips(bmain, clip);
             }
 
             break;
@@ -110,12 +108,12 @@ static PointerRNA rna_MovieClip_metadata_get(MovieClip *clip)
     return PointerRNA_NULL;
   }
 
-  IDProperty *metadata = IMB_anim_load_metadata(clip->anim);
+  IDProperty *metadata = MOV_load_metadata(clip->anim);
   if (metadata == nullptr) {
     return PointerRNA_NULL;
   }
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_IDPropertyWrapPtr, metadata);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_IDPropertyWrapPtr, metadata);
   return ptr;
 }
 
@@ -135,7 +133,11 @@ static std::optional<std::string> rna_MovieClipUser_path(const PointerRNA *ptr)
   return "";
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_movieclip_proxy(BlenderRNA *brna)
 {
@@ -240,6 +242,7 @@ static void rna_def_movieclip_proxy(BlenderRNA *brna)
   /* directory */
   prop = RNA_def_property(srna, "directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "dir");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Directory", "Location to store the proxy files");
   RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, "rna_MovieClip_reload_update");
@@ -323,6 +326,7 @@ static void rna_def_movieclip(BlenderRNA *brna)
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "filepath");
   RNA_def_property_ui_text(prop, "File Path", "Filename of the movie or sequence file");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, "rna_MovieClip_reload_update");
 
   prop = RNA_def_property(srna, "tracking", PROP_POINTER, PROP_NONE);
@@ -346,7 +350,7 @@ static void rna_def_movieclip(BlenderRNA *brna)
                             0,
                             0,
                             "Size",
-                            "Width and height in pixels, zero when image data can't be loaded",
+                            "Width and height in pixels, zero when image data cannot be loaded",
                             0,
                             0);
   RNA_def_property_int_funcs(prop, "rna_MovieClip_size_get", nullptr, nullptr);
@@ -357,6 +361,7 @@ static void rna_def_movieclip(BlenderRNA *brna)
   RNA_def_property_array(prop, 2);
   RNA_def_property_range(prop, 0.1f, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.1f, 5000.0f, 1, 2);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Display Aspect", "Display Aspect for this clip, does not affect rendering");
   RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, nullptr);
@@ -377,14 +382,14 @@ static void rna_def_movieclip(BlenderRNA *brna)
       "Create proxy images in a custom directory (default is movie location)");
   RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, "rna_MovieClip_reload_update");
 
-  /* grease pencil */
-  prop = RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);
+  /* annotations */
+  prop = RNA_def_property(srna, "annotation", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "gpd");
-  RNA_def_property_struct_type(prop, "GreasePencil");
+  RNA_def_property_struct_type(prop, "Annotation");
   RNA_def_property_pointer_funcs(
       prop, nullptr, nullptr, nullptr, "rna_GPencil_datablocks_annotations_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
-  RNA_def_property_ui_text(prop, "Grease Pencil", "Grease pencil data for this movie clip");
+  RNA_def_property_ui_text(prop, "Annotation", "Annotation data for this movie clip");
   RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, nullptr);
 
   /* start_frame */
@@ -444,5 +449,7 @@ void RNA_def_movieclip(BlenderRNA *brna)
   rna_def_movieclipUser(brna);
   rna_def_movieClipScopes(brna);
 }
+
+}  // namespace blender
 
 #endif

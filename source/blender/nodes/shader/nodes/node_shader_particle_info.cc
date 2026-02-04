@@ -4,7 +4,9 @@
 
 #include "node_shader_util.hh"
 
-namespace blender::nodes::node_shader_particle_info_cc {
+namespace blender {
+
+namespace nodes::node_shader_particle_info_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -36,24 +38,32 @@ NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
   /* NOTE: This node isn't supported by MaterialX. */
-  return get_output_default(socket_out_->name, NodeItem::Type::Any);
+  return get_output_default(socket_out_->identifier, NodeItem::Type::Any);
 }
 #endif
 NODE_SHADER_MATERIALX_END
 
-}  // namespace blender::nodes::node_shader_particle_info_cc
+}  // namespace nodes::node_shader_particle_info_cc
 
 /* node type definition */
 void register_node_type_sh_particle_info()
 {
-  namespace file_ns = blender::nodes::node_shader_particle_info_cc;
+  namespace file_ns = nodes::node_shader_particle_info_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_PARTICLE_INFO, "Particle Info", NODE_CLASS_INPUT);
+  sh_node_type_base(&ntype, "ShaderNodeParticleInfo", SH_NODE_PARTICLE_INFO);
+  ntype.ui_name = "Particle Info";
+  ntype.ui_description =
+      "Retrieve the data of the particle that spawned the object instance, for example to give "
+      "variation to multiple instances of an object";
+  ntype.enum_name_legacy = "PARTICLE_INFO";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::gpu_shader_particle_info;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  bke::node_register_type(ntype);
 }
+
+}  // namespace blender

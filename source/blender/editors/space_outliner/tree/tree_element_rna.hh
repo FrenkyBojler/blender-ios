@@ -14,9 +14,11 @@
 
 #include "tree_element.hh"
 
+namespace blender {
+
 struct PointerRNA;
 
-namespace blender::ed::outliner {
+namespace ed::outliner {
 
 /**
  * Base class for common behavior of RNA tree elements.
@@ -28,7 +30,7 @@ class TreeElementRNACommon : public AbstractTreeElement {
 
  public:
   TreeElementRNACommon(TreeElement &legacy_te, PointerRNA &rna_ptr);
-  bool expand_poll(const SpaceOutliner &) const override;
+  bool expand_poll(const SpaceOutliner & /*soops*/) const override;
 
   const PointerRNA &get_pointer_rna() const;
   /**
@@ -70,4 +72,5 @@ class TreeElementRNAArrayElement : public TreeElementRNACommon {
   PropertyRNA *get_property_rna() const override;
 };
 
-}  // namespace blender::ed::outliner
+}  // namespace ed::outliner
+}  // namespace blender

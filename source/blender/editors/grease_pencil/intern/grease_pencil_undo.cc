@@ -6,7 +6,6 @@
  * \ingroup edgrease_pencil
  */
 
-#include "BLI_string.h"
 #include "BLI_task.hh"
 
 #include "BKE_context.hh"
@@ -32,12 +31,11 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include <iostream>
-#include <ostream>
+namespace blender {
 
-static CLG_LogRef LOG = {"ed.undo.greasepencil"};
+static CLG_LogRef LOG = {"undo.greasepencil"};
 
-namespace blender::ed::greasepencil::undo {
+namespace ed::greasepencil::undo {
 
 /* -------------------------------------------------------------------- */
 /** \name Implements ED Undo System
@@ -73,7 +71,6 @@ class StepDrawingGeometryBase {
   /* Data from #GreasePencilDrawingBase that needs to be saved in undo steps. */
   uint32_t flag_;
 
- protected:
   /**
    * Ensures that the drawing from the given array at the current index exists,
    * and has the proposer type.
@@ -147,9 +144,7 @@ class StepDrawingGeometry : public StepDrawingGeometryBase {
 
     /* TODO: Check if there is a way to tell if both stored and current geometry are still the
      * same, to avoid recomputing the caches all the time for all drawings? */
-    drawing_geometry.runtime->triangles_cache.tag_dirty();
-    drawing_geometry.runtime->curve_plane_normals_cache.tag_dirty();
-    drawing_geometry.runtime->curve_texture_matrices.tag_dirty();
+    drawing_geometry.wrap().tag_topology_changed();
   }
 };
 
@@ -203,9 +198,8 @@ class StepObject {
   int layers_num_ = 0;
   bke::greasepencil::LayerGroup root_group_;
   std::string active_node_name_;
-  CustomData layers_data_ = {};
+  bke::AttributeStorage layer_attributes_;
 
- private:
   void encode_drawings(const GreasePencil &grease_pencil, StepEncodeStatus &encode_status)
   {
     const Span<const GreasePencilDrawingBase *> drawings = grease_pencil.drawings();
@@ -260,9 +254,7 @@ class StepObject {
   void encode_layers(const GreasePencil &grease_pencil, StepEncodeStatus & /*encode_status*/)
   {
     layers_num_ = int(grease_pencil.layers().size());
-
-    CustomData_init_from(
-        &grease_pencil.layers_data, &layers_data_, eCustomDataMask(CD_MASK_ALL), layers_num_);
+    layer_attributes_ = grease_pencil.attribute_storage.wrap();
 
     if (grease_pencil.active_node != nullptr) {
       active_node_name_ = grease_pencil.get_active_node()->name();
@@ -276,6 +268,7 @@ class StepObject {
     if (grease_pencil.root_group_ptr) {
       MEM_delete(&grease_pencil.root_group());
     }
+    grease_pencil.set_active_node(nullptr);
 
     grease_pencil.root_group_ptr = MEM_new<bke::greasepencil::LayerGroup>(__func__, root_group_);
     BLI_assert(layers_num_ == grease_pencil.layers().size());
@@ -288,20 +281,15 @@ class StepObject {
       }
     }
 
-    CustomData_free(&grease_pencil.layers_data, layers_num_);
-    CustomData_init_from(
-        &layers_data_, &grease_pencil.layers_data, eCustomDataMask(CD_MASK_ALL), layers_num_);
+    grease_pencil.attribute_storage.wrap() = layer_attributes_;
   }
 
  public:
-  ~StepObject()
-  {
-    CustomData_free(&layers_data_, layers_num_);
-  }
+  ~StepObject() = default;
 
   void encode(Object *ob, StepEncodeStatus &encode_status)
   {
-    const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+    const GreasePencil &grease_pencil = *id_cast<GreasePencil *>(ob->data);
     this->obedit_ref.ptr = ob;
 
     this->encode_drawings(grease_pencil, encode_status);
@@ -310,7 +298,7 @@ class StepObject {
 
   void decode(StepDecodeStatus &decode_status) const
   {
-    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(this->obedit_ref.ptr->data);
+    GreasePencil &grease_pencil = *id_cast<GreasePencil *>(this->obedit_ref.ptr->data);
 
     this->decode_drawings(grease_pencil, decode_status);
     this->decode_layers(grease_pencil, decode_status);
@@ -413,7 +401,7 @@ static void foreach_ID_ref(UndoStep *us_p,
 
 /** \} */
 
-}  // namespace blender::ed::greasepencil::undo
+}  // namespace ed::greasepencil::undo
 
 void ED_undosys_type_grease_pencil(UndoType *ut)
 {
@@ -431,3 +419,5 @@ void ED_undosys_type_grease_pencil(UndoType *ut)
 
   ut->step_size = sizeof(greasepencil::undo::GreasePencilUndoStep);
 }
+
+}  // namespace blender

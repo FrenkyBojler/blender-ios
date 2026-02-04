@@ -6,8 +6,6 @@
  * \ingroup stl
  */
 
-#include <iostream>
-
 #include "BKE_mesh.hh"
 
 #include "BLI_array_utils.hh"
@@ -18,7 +16,13 @@
 #include "stl_data.hh"
 #include "stl_import_mesh.hh"
 
-namespace blender::io::stl {
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"io.stl"};
+
+namespace io::stl {
 
 STLMeshHelper::STLMeshHelper(int tris_num, bool use_custom_normals)
     : use_custom_normals_(use_custom_normals)
@@ -56,12 +60,10 @@ bool STLMeshHelper::add_triangle(const PackedTriangle &data)
 Mesh *STLMeshHelper::to_mesh()
 {
   if (degenerate_tris_num_ > 0) {
-    std::cout << "STL Importer: " << degenerate_tris_num_ << " degenerate triangles were removed"
-              << std::endl;
+    CLOG_WARN(&LOG, "Removed %d degenerate triangles during import", degenerate_tris_num_);
   }
   if (duplicate_tris_num_ > 0) {
-    std::cout << "STL Importer: " << duplicate_tris_num_ << " duplicate triangles were removed"
-              << std::endl;
+    CLOG_WARN(&LOG, "Removed %d duplicate triangles during import", duplicate_tris_num_);
   }
 
   Mesh *mesh = BKE_mesh_new_nomain(verts_.size(), 0, tris_.size(), tris_.size() * 3);
@@ -75,10 +77,11 @@ Mesh *STLMeshHelper::to_mesh()
   bke::mesh_calc_edges(*mesh, false, false);
 
   if (use_custom_normals_ && loop_normals_.size() == mesh->corners_num) {
-    BKE_mesh_set_custom_normals(mesh, reinterpret_cast<float(*)[3]>(loop_normals_.data()));
+    bke::mesh_set_custom_normals(*mesh, loop_normals_);
   }
 
   return mesh;
 }
 
-}  // namespace blender::io::stl
+}  // namespace io::stl
+}  // namespace blender

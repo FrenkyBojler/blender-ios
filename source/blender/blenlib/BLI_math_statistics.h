@@ -8,12 +8,10 @@
  * \ingroup bli
  */
 
-#include "BLI_compiler_attrs.h"
 #include "BLI_math_inline.h"
+#include "BLI_sys_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 #ifdef BLI_MATH_GCC_WARN_PRAGMA
 #  pragma GCC diagnostic push
@@ -62,6 +60,4 @@ void BLI_covariance_m3_v3n(const float (*cos_v3)[3],
 
 /** \} */
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

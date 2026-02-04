@@ -8,16 +8,20 @@
  * \ingroup bke
  */
 
-#include "BLI_string_ref.hh"
+#include <optional>
+#include <string>
+
 #include "BLI_struct_equality_utils.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_ID_enums.h"
 
+namespace blender {
+
 struct ID;
 struct NodesModifierDataBlock;
 
-namespace blender::bke::bake {
+namespace bke::bake {
 
 /**
  * Unique weak reference to a data block within a #Main. It's used when caching/baking data-block
@@ -53,4 +57,5 @@ struct BakeDataBlockID {
  */
 struct BakeMaterialsList : public Vector<std::optional<BakeDataBlockID>> {};
 
-}  // namespace blender::bke::bake
+}  // namespace bke::bake
+}  // namespace blender

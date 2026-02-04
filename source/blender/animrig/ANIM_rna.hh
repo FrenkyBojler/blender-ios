@@ -13,7 +13,14 @@
 #include "DNA_action_types.h"
 #include "RNA_types.hh"
 
-namespace blender::animrig {
+#include "RNA_path.hh"
+
+namespace blender {
+
+struct PointerRNA;
+struct PropertyRNA;
+
+namespace animrig {
 
 /** Get the values of the given property. Casts non-float properties to float. */
 Vector<float> get_rna_values(PointerRNA *ptr, PropertyRNA *prop);
@@ -21,4 +28,11 @@ Vector<float> get_rna_values(PointerRNA *ptr, PropertyRNA *prop);
 /** Get the rna path for the given rotation mode. */
 StringRef get_rotation_mode_path(eRotationModes rotation_mode);
 
-}  // namespace blender::animrig
+/**
+ * Returns a Vector of ID properties on the given pointer that can be animated. Not all pointer
+ * types are supported. Unsupported pointer types will return an empty vector.
+ */
+Vector<RNAPath> get_keyable_id_property_paths(const PointerRNA &ptr);
+
+}  // namespace animrig
+}  // namespace blender

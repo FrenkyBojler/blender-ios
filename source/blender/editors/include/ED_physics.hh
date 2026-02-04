@@ -8,8 +8,11 @@
 
 #pragma once
 
+namespace blender {
+
 struct bContext;
 struct Depsgraph;
+struct Main;
 struct Object;
 struct ReportList;
 struct Scene;
@@ -42,3 +45,5 @@ void ED_rigidbody_constraint_remove(Main *bmain, Scene *scene, Object *ob);
 /* operators */
 void ED_operatortypes_physics();
 void ED_keymap_physics(wmKeyConfig *keyconf);
+
+}  // namespace blender

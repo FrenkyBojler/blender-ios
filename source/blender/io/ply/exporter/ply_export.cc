@@ -6,8 +6,6 @@
  * \ingroup ply
  */
 
-#include <cstdio>
-
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_report.hh"
@@ -25,11 +23,17 @@
 #include "ply_file_buffer_ascii.hh"
 #include "ply_file_buffer_binary.hh"
 
-namespace blender::io::ply {
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"io.ply"};
+
+namespace io::ply {
 
 void exporter_main(bContext *C, const PLYExportParams &export_params)
 {
-  std::unique_ptr<blender::io::ply::PlyData> plyData = std::make_unique<PlyData>();
+  std::unique_ptr<io::ply::PlyData> plyData = std::make_unique<PlyData>();
 
   Depsgraph *depsgraph = nullptr;
   bool needs_free = false;
@@ -75,7 +79,7 @@ void exporter_main(bContext *C, const PLYExportParams &export_params)
     }
   }
   catch (const std::system_error &ex) {
-    fprintf(stderr, "%s\n", ex.what());
+    CLOG_ERROR(&LOG, "[%s] %s", ex.code().category().name(), ex.what());
     BKE_reportf(export_params.reports,
                 RPT_ERROR,
                 "PLY Export: Cannot open file '%s'",
@@ -83,14 +87,15 @@ void exporter_main(bContext *C, const PLYExportParams &export_params)
     return;
   }
 
-  write_header(*buffer.get(), *plyData.get(), export_params);
+  write_header(*buffer, *plyData, export_params);
 
-  write_vertices(*buffer.get(), *plyData.get());
+  write_vertices(*buffer, *plyData);
 
-  write_faces(*buffer.get(), *plyData.get());
+  write_faces(*buffer, *plyData);
 
-  write_edges(*buffer.get(), *plyData.get());
+  write_edges(*buffer, *plyData);
 
   buffer->close_file();
 }
-}  // namespace blender::io::ply
+}  // namespace io::ply
+}  // namespace blender

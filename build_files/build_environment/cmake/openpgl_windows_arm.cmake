@@ -17,6 +17,7 @@ set(OPENPGL_EXTRA_ARGS
   -DCMAKE_C_FLAGS_INIT="--target=arm64-pc-windows-msvc"
   -DCMAKE_CXX_FLAGS_INIT="--target=arm64-pc-windows-msvc"
   -DCMAKE_SHARED_LINKER_FLAGS=-L"${LIBDIR}/../../VS1564R/Release/llvm/lib"
+  -DCMAKE_CXX_STANDARD=17
 )
 
 if(TBB_STATIC_LIBRARY)
@@ -38,10 +39,13 @@ file(TO_CMAKE_PATH $ENV{VCToolsInstallDir} OPENPGL_VCTOOLSINSTALLDIR_PATH)
 cmake_path(GET OPENPGL_VCTOOLSINSTALLDIR_PATH PARENT_PATH OPENPGL_VCTOOLSDIR_PATH)
 file(GLOB OPENPGL_INSTALLED_VCTOOLS RELATIVE ${OPENPGL_VCTOOLSDIR_PATH} ${OPENPGL_VCTOOLSDIR_PATH}/${OPENPGL_VCTOOLS_REQUIRED_VERSION}*)
 
-# Check that at least one the installed tool versions
+# Check that at least one of the installed tool versions
 # (there may be different subversions) is present.
 if(NOT OPENPGL_INSTALLED_VCTOOLS)
-  message(FATAL_ERROR "When building for Windows ARM64 platforms, OpenPGL requires VC Tools ${OPENPGL_VCTOOLS_REQUIRED_VERSION} to be installed alongside the current version.")
+  message(FATAL_ERROR
+    "When building for Windows ARM64 platforms, "
+    "OpenPGL requires VC Tools ${OPENPGL_VCTOOLS_REQUIRED_VERSION} "
+    "to be installed alongside the current version.")
 endif()
 
 # Get the last item in the list (latest, when list is sorted)
@@ -50,8 +54,8 @@ list(GET OPENPGL_INSTALLED_VCTOOLS -1 OPENPGL_VCTOOLS_VERSION)
 
 # Configure our in file and temporarily store it in the build dir
 # (with modified extension so nothing else picks it up)
-# This feels icky, but boost does something similar, and we haven't called
-# `ExternalProject_Add` yet, so the OpenPGL dir does not yet exist.
+# This feels icky, but we haven't called `ExternalProject_Add` yet,
+# so the OpenPGL dir does not yet exist.
 configure_file(
   ${PATCH_DIR}/openpgl_Directory.Build.Props.in
   ${BUILD_DIR}/openpgl_Directory.Build.Props_temp

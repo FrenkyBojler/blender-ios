@@ -11,7 +11,6 @@
 
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_texture_types.h"
 
 #include "BLI_math_rotation.h"
 
@@ -26,6 +25,8 @@
 
 #include "WM_api.hh"
 #include "WM_types.hh"
+
+namespace blender {
 
 const EnumPropertyItem rna_enum_ramp_blend_items[] = {
     {MA_RAMP_BLEND, "MIX", 0, "Mix", ""},
@@ -55,23 +56,33 @@ const EnumPropertyItem rna_enum_ramp_blend_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+}
+
 #ifdef RNA_RUNTIME
 
 #  include "MEM_guardedalloc.h"
 
 #  include "DNA_gpencil_legacy_types.h"
+#  include "DNA_meshdata_types.h"
 #  include "DNA_node_types.h"
 #  include "DNA_object_types.h"
 #  include "DNA_screen_types.h"
 #  include "DNA_space_types.h"
 
+#  include "BLI_string_utf8.h"
+
+#  include "BKE_attribute.h"
 #  include "BKE_attribute.hh"
 #  include "BKE_colorband.hh"
 #  include "BKE_context.hh"
+#  include "BKE_editmesh.hh"
 #  include "BKE_gpencil_legacy.h"
 #  include "BKE_grease_pencil.hh"
+#  include "BKE_lib_id.hh"
 #  include "BKE_main.hh"
-#  include "BKE_material.h"
+#  include "BKE_material.hh"
+#  include "BKE_mesh.hh"
+#  include "BKE_mesh_types.hh"
 #  include "BKE_node.hh"
 #  include "BKE_paint.hh"
 #  include "BKE_scene.hh"
@@ -86,9 +97,11 @@ const EnumPropertyItem rna_enum_ramp_blend_items[] = {
 #  include "ED_node.hh"
 #  include "ED_screen.hh"
 
+namespace blender {
+
 static void rna_Material_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  Material *ma = (Material *)ptr->owner_id;
+  Material *ma = id_cast<Material *>(ptr->owner_id);
 
   DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
   WM_main_add_notifier(NC_MATERIAL | ND_SHADING, ma);
@@ -96,26 +109,22 @@ static void rna_Material_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA 
 
 static void rna_Material_update_previews(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  Material *ma = (Material *)ptr->owner_id;
+  Material *ma = id_cast<Material *>(ptr->owner_id);
 
   WM_main_add_notifier(NC_MATERIAL | ND_SHADING_PREVIEW, ma);
 }
 
 static void rna_MaterialGpencil_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  Material *ma = (Material *)ptr->owner_id;
+  Material *ma = id_cast<Material *>(ptr->owner_id);
   rna_Material_update(bmain, scene, ptr);
 
   /* Need set all caches as dirty. */
   for (Object *ob = static_cast<Object *>(bmain->objects.first); ob;
        ob = static_cast<Object *>(ob->id.next))
   {
-    if (ob->type == OB_GPENCIL_LEGACY) {
-      bGPdata *gpd = (bGPdata *)ob->data;
-      DEG_id_tag_update(&gpd->id, ID_RECALC_GEOMETRY);
-    }
     if (ob->type == OB_GREASE_PENCIL) {
-      GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+      GreasePencil &grease_pencil = *id_cast<GreasePencil *>(ob->data);
       DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
     }
   }
@@ -125,7 +134,7 @@ static void rna_MaterialGpencil_update(Main *bmain, Scene *scene, PointerRNA *pt
 
 static void rna_MaterialLineArt_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  Material *ma = (Material *)ptr->owner_id;
+  Material *ma = id_cast<Material *>(ptr->owner_id);
   /* Need to tag geometry for line art modifier updates. */
   DEG_id_tag_update(&ma->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, ma);
@@ -138,7 +147,7 @@ static std::optional<std::string> rna_MaterialLineArt_path(const PointerRNA * /*
 
 static void rna_Material_draw_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  Material *ma = (Material *)ptr->owner_id;
+  Material *ma = id_cast<Material *>(ptr->owner_id);
 
   DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
   WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, ma);
@@ -146,21 +155,32 @@ static void rna_Material_draw_update(Main * /*bmain*/, Scene * /*scene*/, Pointe
 
 static void rna_Material_texpaint_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  Material *ma = (Material *)ptr->data;
-  rna_iterator_array_begin(
-      iter, (void *)ma->texpaintslot, sizeof(TexPaintSlot), ma->tot_slots, 0, nullptr);
+  Material *ma = static_cast<Material *>(ptr->data);
+  rna_iterator_array_begin(iter,
+                           ptr,
+                           static_cast<void *>(ma->texpaintslot),
+                           sizeof(TexPaintSlot),
+                           ma->tot_slots,
+                           0,
+                           nullptr);
 }
 
 static void rna_Material_active_paint_texture_index_update(bContext *C, PointerRNA *ptr)
 {
   Main *bmain = CTX_data_main(C);
-  Material *ma = (Material *)ptr->owner_id;
+  Material *ma = id_cast<Material *>(ptr->owner_id);
 
-  if (ma->use_nodes && ma->nodetree) {
-    bNode *node = BKE_texpaint_slot_material_find_node(ma, ma->paint_active_slot);
+  if (ma->nodetree) {
+    std::pair<bNodeTree *, bNode *> found = BKE_texpaint_slot_material_find_node(
+        ma, ma->paint_active_slot);
 
-    if (node) {
-      blender::bke::node_set_active(ma->nodetree, node);
+    if (found.second) {
+      BLI_assert(found.first != nullptr);
+      bke::node_set_active(*found.first, *found.second);
+      /* Tag nodetree for viewport update (if node is found in a nested group). */
+      if (ma->nodetree != found.first) {
+        DEG_id_tag_update(&found.first->id, ID_RECALC_SYNC_TO_EVAL);
+      }
     }
   }
 
@@ -172,14 +192,22 @@ static void rna_Material_active_paint_texture_index_update(bContext *C, PointerR
     }
 
     /* For compatibility reasons with vertex paint we activate the color attribute. */
-    if (slot->attribute_name) {
+    if (const char *name = slot->attribute_name) {
       Object *ob = CTX_data_active_object(C);
       if (ob != nullptr && ob->type == OB_MESH) {
-        Mesh *mesh = static_cast<Mesh *>(ob->data);
-        const CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh->id,
-                                                                    slot->attribute_name);
-        if (layer != nullptr) {
-          BKE_id_attributes_active_color_set(&mesh->id, layer->name);
+        Mesh *mesh = id_cast<Mesh *>(ob->data);
+        if (mesh->runtime->edit_mesh) {
+          if (const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm,
+                                                                  name))
+          {
+            BKE_id_attributes_active_color_set(&mesh->id, name);
+          }
+        }
+        else {
+          const bke::AttributeAccessor attributes = mesh->attributes();
+          if (bke::mesh::is_color_attribute(attributes.lookup_meta_data(name))) {
+            BKE_id_attributes_active_color_set(&mesh->id, name);
+          }
         }
         DEG_id_tag_update(&ob->id, 0);
         WM_main_add_notifier(NC_GEOM | ND_DATA, &ob->id);
@@ -193,7 +221,7 @@ static void rna_Material_active_paint_texture_index_update(bContext *C, PointerR
 
 static int rna_Material_blend_method_get(PointerRNA *ptr)
 {
-  Material *material = (Material *)ptr->owner_id;
+  Material *material = id_cast<Material *>(ptr->owner_id);
   switch (material->surface_render_method) {
     case MA_SURFACE_METHOD_DEFERRED:
       return MA_BM_HASHED;
@@ -205,7 +233,7 @@ static int rna_Material_blend_method_get(PointerRNA *ptr)
 
 static void rna_Material_blend_method_set(PointerRNA *ptr, int new_blend_method)
 {
-  Material *material = (Material *)ptr->owner_id;
+  Material *material = id_cast<Material *>(ptr->owner_id);
   switch (new_blend_method) {
     case MA_BM_SOLID:
     case MA_BM_CLIP:
@@ -220,7 +248,7 @@ static void rna_Material_blend_method_set(PointerRNA *ptr, int new_blend_method)
 
 static void rna_Material_render_method_set(PointerRNA *ptr, int new_render_method)
 {
-  Material *material = (Material *)ptr->owner_id;
+  Material *material = id_cast<Material *>(ptr->owner_id);
   material->surface_render_method = new_render_method;
 
   /* Still sets the legacy property for forward compatibility. */
@@ -235,24 +263,24 @@ static void rna_Material_render_method_set(PointerRNA *ptr, int new_render_metho
 }
 static void rna_Material_transparent_shadow_set(PointerRNA *ptr, bool new_value)
 {
-  Material *material = (Material *)ptr->owner_id;
+  Material *material = id_cast<Material *>(ptr->owner_id);
   SET_FLAG_FROM_TEST(material->blend_flag, new_value, MA_BL_TRANSPARENT_SHADOW);
   /* Still sets the legacy property for forward compatibility. */
   material->blend_shadow = new_value ? MA_BS_HASHED : MA_BS_SOLID;
 }
 
-static void rna_Material_use_nodes_update(bContext *C, PointerRNA *ptr)
+static bool rna_Material_use_nodes_get(PointerRNA * /*ptr*/)
 {
-  Material *ma = (Material *)ptr->data;
-  Main *bmain = CTX_data_main(C);
+  /* #use_nodes is deprecated. All materials now use nodes. */
+  return true;
+}
 
-  if (ma->use_nodes && ma->nodetree == nullptr) {
-    ED_node_shader_default(C, &ma->id);
-  }
-
-  DEG_id_tag_update(&ma->id, ID_RECALC_SYNC_TO_EVAL);
-  DEG_relations_tag_update(bmain);
-  rna_Material_draw_update(bmain, CTX_data_scene(C), ptr);
+static void rna_Material_use_nodes_set(PointerRNA * /*ptr*/, bool /*new_value*/)
+{
+  /* #use_nodes is deprecated. Setting the property has no effect.
+   * Note: Users will get a warning through the RNA deprecation warning, so no need to log a
+   * warning here. */
+  return;
 }
 
 MTex *rna_mtex_texture_slots_add(ID *self_id, bContext *C, ReportList *reports)
@@ -304,8 +332,8 @@ void rna_mtex_texture_slots_clear(ID *self_id, bContext *C, ReportList *reports,
   }
 
   if (mtex_ar[index]) {
-    id_us_min((ID *)mtex_ar[index]->tex);
-    MEM_freeN(mtex_ar[index]);
+    id_us_min(id_cast<ID *>(mtex_ar[index]->tex));
+    MEM_delete(mtex_ar[index]);
     mtex_ar[index] = nullptr;
     DEG_id_tag_update(self_id, 0);
   }
@@ -316,7 +344,7 @@ void rna_mtex_texture_slots_clear(ID *self_id, bContext *C, ReportList *reports,
 
 static void rna_TexPaintSlot_uv_layer_get(PointerRNA *ptr, char *value)
 {
-  TexPaintSlot *data = (TexPaintSlot *)(ptr->data);
+  TexPaintSlot *data = static_cast<TexPaintSlot *>(ptr->data);
 
   if (data->uvname != nullptr) {
     strcpy(value, data->uvname);
@@ -328,22 +356,22 @@ static void rna_TexPaintSlot_uv_layer_get(PointerRNA *ptr, char *value)
 
 static int rna_TexPaintSlot_uv_layer_length(PointerRNA *ptr)
 {
-  TexPaintSlot *data = (TexPaintSlot *)(ptr->data);
+  TexPaintSlot *data = static_cast<TexPaintSlot *>(ptr->data);
   return data->uvname == nullptr ? 0 : strlen(data->uvname);
 }
 
 static void rna_TexPaintSlot_uv_layer_set(PointerRNA *ptr, const char *value)
 {
-  TexPaintSlot *data = (TexPaintSlot *)(ptr->data);
+  TexPaintSlot *data = static_cast<TexPaintSlot *>(ptr->data);
 
   if (data->uvname != nullptr) {
-    BLI_strncpy_utf8(data->uvname, value, 64);
+    BLI_strncpy_utf8(data->uvname, value, MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX);
   }
 }
 
 static void rna_TexPaintSlot_name_get(PointerRNA *ptr, char *value)
 {
-  TexPaintSlot *data = (TexPaintSlot *)(ptr->data);
+  TexPaintSlot *data = static_cast<TexPaintSlot *>(ptr->data);
 
   if (data->ima != nullptr) {
     strcpy(value, data->ima->id.name + 2);
@@ -360,7 +388,7 @@ static void rna_TexPaintSlot_name_get(PointerRNA *ptr, char *value)
 
 static int rna_TexPaintSlot_name_length(PointerRNA *ptr)
 {
-  TexPaintSlot *data = (TexPaintSlot *)(ptr->data);
+  TexPaintSlot *data = static_cast<TexPaintSlot *>(ptr->data);
   if (data->ima != nullptr) {
     return strlen(data->ima->id.name) - 2;
   }
@@ -373,7 +401,7 @@ static int rna_TexPaintSlot_name_length(PointerRNA *ptr)
 
 static int rna_TexPaintSlot_icon_get(PointerRNA *ptr)
 {
-  TexPaintSlot *data = (TexPaintSlot *)(ptr->data);
+  TexPaintSlot *data = static_cast<TexPaintSlot *>(ptr->data);
   if (data->ima != nullptr) {
     return ICON_IMAGE;
   }
@@ -386,7 +414,7 @@ static int rna_TexPaintSlot_icon_get(PointerRNA *ptr)
 
 static bool rna_is_grease_pencil_get(PointerRNA *ptr)
 {
-  Material *ma = (Material *)ptr->data;
+  Material *ma = static_cast<Material *>(ptr->data);
   if (ma->gp_style != nullptr) {
     return true;
   }
@@ -407,7 +435,7 @@ static bool rna_GpencilColorData_is_stroke_visible_get(PointerRNA *ptr)
 
 static bool rna_GpencilColorData_is_fill_visible_get(PointerRNA *ptr)
 {
-  MaterialGPencilStyle *pcolor = (MaterialGPencilStyle *)ptr->data;
+  MaterialGPencilStyle *pcolor = static_cast<MaterialGPencilStyle *>(ptr->data);
   return ((pcolor->fill_rgba[3] > GPENCIL_ALPHA_OPACITY_THRESH) || (pcolor->fill_style > 0));
 }
 
@@ -419,21 +447,25 @@ static void rna_GpencilColorData_stroke_image_set(PointerRNA *ptr,
   ID *id = static_cast<ID *>(value.data);
 
   id_us_plus(id);
-  pcolor->sima = (Image *)id;
+  pcolor->sima = id_cast<Image *>(id);
 }
 
 static void rna_GpencilColorData_fill_image_set(PointerRNA *ptr,
                                                 PointerRNA value,
                                                 ReportList * /*reports*/)
 {
-  MaterialGPencilStyle *pcolor = (MaterialGPencilStyle *)ptr->data;
+  MaterialGPencilStyle *pcolor = static_cast<MaterialGPencilStyle *>(ptr->data);
   ID *id = static_cast<ID *>(value.data);
 
   id_us_plus(id);
-  pcolor->ima = (Image *)id;
+  pcolor->ima = id_cast<Image *>(id);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_material_display(StructRNA *srna)
 {
@@ -446,7 +478,7 @@ static void rna_def_material_display(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Diffuse Color", "Diffuse color of the material");
   /* See #82514 for details, for now re-define defaults here. Keep in sync with
    * #DNA_material_defaults.h */
-  static float diffuse_color_default[4] = {0.8f, 0.8f, 0.8f, 1.0f};
+  static const float diffuse_color_default[4] = {0.8f, 0.8f, 0.8f, 1.0f};
   RNA_def_property_float_array_default(prop, diffuse_color_default);
   RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
@@ -499,7 +531,7 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
   PropertyRNA *prop;
 
   /* mode type styles */
-  static EnumPropertyItem gpcolordata_mode_types_items[] = {
+  static const EnumPropertyItem gpcolordata_mode_types_items[] = {
       {GP_MATERIAL_MODE_LINE, "LINE", 0, "Line", "Draw strokes using a continuous line"},
       {GP_MATERIAL_MODE_DOT, "DOTS", 0, "Dots", "Draw strokes using separated dots"},
       {GP_MATERIAL_MODE_SQUARE, "BOX", 0, "Squares", "Draw strokes using separated squares"},
@@ -507,14 +539,14 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
   };
 
   /* stroke styles */
-  static EnumPropertyItem stroke_style_items[] = {
+  static const EnumPropertyItem stroke_style_items[] = {
       {GP_MATERIAL_STROKE_STYLE_SOLID, "SOLID", 0, "Solid", "Draw strokes with solid color"},
       {GP_MATERIAL_STROKE_STYLE_TEXTURE, "TEXTURE", 0, "Texture", "Draw strokes using texture"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   /* fill styles */
-  static EnumPropertyItem fill_style_items[] = {
+  static const EnumPropertyItem fill_style_items[] = {
       {GP_MATERIAL_FILL_STYLE_SOLID, "SOLID", 0, "Solid", "Fill area with solid color"},
       {GP_MATERIAL_FILL_STYLE_GRADIENT,
        "GRADIENT",
@@ -525,13 +557,13 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem fill_gradient_items[] = {
+  static const EnumPropertyItem fill_gradient_items[] = {
       {GP_MATERIAL_GRADIENT_LINEAR, "LINEAR", 0, "Linear", "Fill area with gradient color"},
       {GP_MATERIAL_GRADIENT_RADIAL, "RADIAL", 0, "Radial", "Fill area with radial gradient"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem alignment_draw_items[] = {
+  static const EnumPropertyItem alignment_draw_items[] = {
       {GP_MATERIAL_FOLLOW_PATH,
        "PATH",
        0,
@@ -670,11 +702,15 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", GP_MATERIAL_STROKE_SHOW);
   RNA_def_property_ui_text(prop, "Show Stroke", "Show stroke lines of this material");
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
+  RNA_def_property_deprecated(
+      prop, "Unused but kept for compatibility with older versions of Blender.", 510, 600);
 
   prop = RNA_def_property(srna, "show_fill", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", GP_MATERIAL_FILL_SHOW);
   RNA_def_property_ui_text(prop, "Show Fill", "Show stroke fills of this material");
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
+  RNA_def_property_deprecated(
+      prop, "Unused but kept for compatibility with older versions of Blender.", 510, 600);
 
   /* Mode to align Dots and Boxes to drawing path and object rotation */
   prop = RNA_def_property(srna, "alignment_mode", PROP_ENUM, PROP_NONE);
@@ -784,13 +820,11 @@ static void rna_def_material_lineart(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_material_mask_bits", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_default(prop, false);
-  RNA_def_property_boolean_sdna(prop, nullptr, "material_mask_bits", 1);
-  RNA_def_property_array(prop, 8);
+  RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "material_mask_bits", 1 << 0, 8);
   RNA_def_property_ui_text(prop, "Mask", "");
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialLineArt_update");
 
   prop = RNA_def_property(srna, "mat_occlusion", PROP_INT, PROP_NONE);
-  RNA_def_property_int_default(prop, 1);
   RNA_def_property_ui_range(prop, 0.0f, 5.0f, 1.0f, 1);
   RNA_def_property_ui_text(
       prop,
@@ -832,7 +866,7 @@ void RNA_def_material(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem prop_eevee_volume_isect_method_items[] = {
+  static const EnumPropertyItem prop_eevee_volume_isect_method_items[] = {
       {MA_VOLUME_ISECT_FAST,
        "FAST",
        0,
@@ -849,7 +883,7 @@ void RNA_def_material(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem prop_eevee_thickness_method_items[] = {
+  static const EnumPropertyItem prop_eevee_thickness_method_items[] = {
       {MA_THICKNESS_SPHERE,
        "SPHERE",
        0,
@@ -865,7 +899,7 @@ void RNA_def_material(BlenderRNA *brna)
   };
 
 #  if 1 /* Delete this section once we remove old eevee. */
-  static EnumPropertyItem prop_eevee_blend_items[] = {
+  static const EnumPropertyItem prop_eevee_blend_items[] = {
       {MA_BM_SOLID, "OPAQUE", 0, "Opaque", "Render surface without transparency"},
       {MA_BM_CLIP,
        "CLIP",
@@ -884,25 +918,9 @@ void RNA_def_material(BlenderRNA *brna)
        "Render polygon transparent, depending on alpha channel of the texture"},
       {0, nullptr, 0, nullptr, nullptr},
   };
-
-  static EnumPropertyItem prop_eevee_blend_shadow_items[] = {
-      {MA_BS_NONE, "NONE", 0, "None", "Material will cast no shadow"},
-      {MA_BS_SOLID, "OPAQUE", 0, "Opaque", "Material will cast shadows without transparency"},
-      {MA_BS_CLIP,
-       "CLIP",
-       0,
-       "Alpha Clip",
-       "Use the alpha threshold to clip the visibility (binary visibility)"},
-      {MA_BS_HASHED,
-       "HASHED",
-       0,
-       "Alpha Hashed",
-       "Use noise to dither the binary visibility and use filtering to reduce the noise"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
 #  endif
 
-  static EnumPropertyItem prop_eevee_surface_render_method_items[] = {
+  static const EnumPropertyItem prop_eevee_surface_render_method_items[] = {
       {MA_SURFACE_METHOD_DEFERRED,
        "DITHERED",
        0,
@@ -918,7 +936,7 @@ void RNA_def_material(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem prop_displacement_method_items[] = {
+  static const EnumPropertyItem prop_displacement_method_items[] = {
       {MA_DISPLACEMENT_BUMP,
        "BUMP",
        0,
@@ -969,12 +987,6 @@ void RNA_def_material(BlenderRNA *brna)
   RNA_def_property_enum_funcs(
       prop, "rna_Material_blend_method_get", "rna_Material_blend_method_set", nullptr);
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MATERIAL);
-  RNA_def_property_update(prop, 0, "rna_Material_draw_update");
-
-  prop = RNA_def_property(srna, "shadow_method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "blend_shadow");
-  RNA_def_property_enum_items(prop, prop_eevee_blend_shadow_items);
-  RNA_def_property_ui_text(prop, "Shadow Mode", "Shadow mapping method");
   RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
   prop = RNA_def_property(srna, "alpha_threshold", PROP_FLOAT, PROP_FACTOR);
@@ -1135,9 +1147,13 @@ void RNA_def_material(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_nodes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_nodes", 1);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Use Nodes", "Use shader nodes to render the material");
-  RNA_def_property_update(prop, 0, "rna_Material_use_nodes_update");
+  RNA_def_property_boolean_funcs(prop, "rna_Material_use_nodes_get", "rna_Material_use_nodes_set");
+  RNA_def_property_deprecated(prop,
+                              "Unused but kept for compatibility reasons. Setting the property "
+                              "has no effect, and getting it always returns True.",
+                              500,
+                              600);
 
   /* common */
   rna_def_animdata_common(srna);
@@ -1149,13 +1165,13 @@ void RNA_def_material(BlenderRNA *brna)
   prop = RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "gp_style");
   RNA_def_property_ui_text(
-      prop, "Grease Pencil Settings", "Grease pencil color settings for material");
+      prop, "Grease Pencil Settings", "Grease Pencil color settings for material");
 
   prop = RNA_def_property(srna, "is_grease_pencil", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop, "rna_is_grease_pencil_get", nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
-      prop, "Is Grease Pencil", "True if this material has grease pencil data");
+      prop, "Is Grease Pencil", "True if this material has Grease Pencil data");
 
   /* line art */
   prop = RNA_def_property(srna, "lineart", PROP_POINTER, PROP_NONE);
@@ -1237,7 +1253,7 @@ void rna_def_mtex_common(BlenderRNA *brna,
 
   prop = RNA_def_property(srna, "active_texture", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Texture");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   if (activeeditable) {
     RNA_def_property_editable_func(prop, activeeditable);
   }
@@ -1274,7 +1290,8 @@ static void rna_def_tex_slot(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Icon", "Paint slot icon");
 
   prop = RNA_def_property(srna, "uv_layer", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_maxlength(prop, 64); /* else it uses the pointer size! */
+  RNA_def_property_string_maxlength(
+      prop, MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX); /* Else it uses the pointer size! */
   RNA_def_property_string_sdna(prop, nullptr, "uvname");
   RNA_def_property_string_funcs(prop,
                                 "rna_TexPaintSlot_uv_layer_get",
@@ -1338,5 +1355,7 @@ void rna_def_texpaint_slots(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_ui_text(prop, "Clone Paint Texture Index", "Index of clone texture paint slot");
   RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING_LINKS, nullptr);
 }
+
+}  // namespace blender
 
 #endif

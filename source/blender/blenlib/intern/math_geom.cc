@@ -6,6 +6,8 @@
  * \ingroup bli
  */
 
+#include <algorithm>
+
 #include "BLI_array.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_base.hh"
@@ -17,7 +19,9 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
+
+namespace blender {
 
 /********************************** Polygons *********************************/
 
@@ -1044,9 +1048,14 @@ void closest_on_tri_to_point_v3(
   /* Check if P in edge region of AB, if so return projection of P onto AB */
   vc = d1 * d4 - d3 * d2;
   if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f) {
-    v = d1 / (d1 - d3);
-    /* barycentric coordinates (1-v,v,0) */
-    madd_v3_v3v3fl(r, v1, ab, v);
+    const float ab_squared = d1 - d3;
+    if (ab_squared == 0.0f) {
+      copy_v3_v3(r, v1);
+    }
+    else {
+      /* barycentric coordinates (1-v,v,0) */
+      madd_v3_v3v3fl(r, v1, ab, d1 / ab_squared);
+    }
     return;
   }
   /* Check if P in vertex region outside C */
@@ -1061,19 +1070,29 @@ void closest_on_tri_to_point_v3(
   /* Check if P in edge region of AC, if so return projection of P onto AC */
   vb = d5 * d2 - d1 * d6;
   if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f) {
-    w = d2 / (d2 - d6);
-    /* barycentric coordinates (1-w,0,w) */
-    madd_v3_v3v3fl(r, v1, ac, w);
+    const float ac_squared = d2 - d6;
+    if (ac_squared == 0.0f) {
+      copy_v3_v3(r, v1);
+    }
+    else {
+      /* barycentric coordinates (1-w,0,w) */
+      madd_v3_v3v3fl(r, v1, ac, d2 / ac_squared);
+    }
     return;
   }
   /* Check if P in edge region of BC, if so return projection of P onto BC */
   va = d3 * d6 - d5 * d4;
   if (va <= 0.0f && (d4 - d3) >= 0.0f && (d5 - d6) >= 0.0f) {
-    w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-    /* barycentric coordinates (0,1-w,w) */
-    sub_v3_v3v3(r, v3, v2);
-    mul_v3_fl(r, w);
-    add_v3_v3(r, v2);
+    const float bc_squared = (d4 - d3) + (d5 - d6);
+    if (bc_squared == 0.0f) {
+      copy_v3_v3(r, v2);
+    }
+    else {
+      /* barycentric coordinates (0,1-w,w) */
+      sub_v3_v3v3(r, v3, v2);
+      mul_v3_fl(r, (d4 - d3) / bc_squared);
+      add_v3_v3(r, v2);
+    }
     return;
   }
 
@@ -2311,7 +2330,7 @@ bool isect_tri_tri_v3_ex(const float tri_a[3][3],
   double isect_dir[3];
   cross_v3_v3v3_db(isect_dir, plane_a, plane_b);
   for (int i = 0; i < 2; i++) {
-    const float(*tri)[3] = i == 0 ? tri_a : tri_b;
+    const float (*tri)[3] = i == 0 ? tri_a : tri_b;
     /* Rearrange the triangle so that the vertex that is alone on one side
      * of the plane is located at index 1. */
     int tri_i[3];
@@ -3118,13 +3137,8 @@ bool isect_ray_aabb_v3(const IsectRayAABB_Precalc *data,
     return false;
   }
 
-  if (tymin > tmin) {
-    tmin = tymin;
-  }
-
-  if (tymax < tmax) {
-    tmax = tymax;
-  }
+  tmin = std::max(tymin, tmin);
+  tmax = std::min(tymax, tmax);
 
   const float tzmin = (bbox[data->sign[2]][2] - data->ray_origin[2]) * data->ray_inv_dir[2];
   const float tzmax = (bbox[1 - data->sign[2]][2] - data->ray_origin[2]) * data->ray_inv_dir[2];
@@ -3133,9 +3147,7 @@ bool isect_ray_aabb_v3(const IsectRayAABB_Precalc *data,
     return false;
   }
 
-  if (tzmin > tmin) {
-    tmin = tzmin;
-  }
+  tmin = std::max(tzmin, tmin);
 
   /* NOTE(jwilkins): tmax does not need to be updated since we don't use it
    * keeping this here for future reference. */
@@ -3372,11 +3384,13 @@ static bool point_in_slice(const float p[3],
 
   closest_to_line_v3(cp, v1, l1, l2);
   sub_v3_v3v3(q, cp, v1);
+  const float q_squared = dot_v3v3(q, q);
+  if (math::is_zero(q_squared)) {
+    return false;
+  }
 
   sub_v3_v3v3(rp, p, v1);
-  h = dot_v3v3(q, rp) / dot_v3v3(q, q);
-  /* NOTE: when 'h' is nan/-nan, this check returns false
-   * without explicit check - covering the degenerate case */
+  h = dot_v3v3(q, rp) / q_squared;
   return (h >= 0.0f && h <= 1.0f);
 }
 
@@ -3966,11 +3980,11 @@ int interp_sparse_array(float *array, const int list_size, const float skipval)
   float valid_last = skipval;
   int valid_ofs = 0;
 
-  blender::Array<float> array_up(list_size);
-  blender::Array<float> array_down(list_size);
+  Array<float> array_up(list_size);
+  Array<float> array_down(list_size);
 
-  blender::Array<int> ofs_tot_up(list_size);
-  blender::Array<int> ofs_tot_down(list_size);
+  Array<int> ofs_tot_up(list_size);
+  Array<int> ofs_tot_down(list_size);
 
   for (i = 0; i < list_size; i++) {
     if (array[i] == skipval) {
@@ -5038,7 +5052,7 @@ void accumulate_vertex_normals_tri_v3(float n1[3],
 
     for (i = 0; i < nverts; i++) {
       const float *cur_edge = vdiffs[i];
-      const float fac = blender::math::safe_acos_approx(-dot_v3v3(cur_edge, prev_edge));
+      const float fac = math::safe_acos_approx(-dot_v3v3(cur_edge, prev_edge));
 
       /* accumulate */
       madd_v3_v3fl(vn[i], f_no, fac);
@@ -5085,7 +5099,7 @@ void accumulate_vertex_normals_v3(float n1[3],
 
     for (i = 0; i < nverts; i++) {
       const float *cur_edge = vdiffs[i];
-      const float fac = blender::math::safe_acos_approx(-dot_v3v3(cur_edge, prev_edge));
+      const float fac = math::safe_acos_approx(-dot_v3v3(cur_edge, prev_edge));
 
       /* accumulate */
       madd_v3_v3fl(vn[i], f_no, fac);
@@ -5117,7 +5131,7 @@ void accumulate_vertex_normals_poly_v3(float **vertnos,
 
       /* calculate angle between the two poly edges incident on
        * this vertex */
-      const float fac = blender::math::safe_acos_approx(-dot_v3v3(cur_edge, prev_edge));
+      const float fac = math::safe_acos_approx(-dot_v3v3(cur_edge, prev_edge));
 
       /* accumulate */
       madd_v3_v3fl(vertnos[i], polyno, fac);
@@ -5361,7 +5375,11 @@ bool is_quad_convex_v3(const float v1[3], const float v2[3], const float v3[3], 
 
     cross_v3_v3v3(plane, v13, v24);
 
-    if (len_squared_v3(plane) < FLT_EPSILON) {
+    /* Ignore planes that are small or (near) zero area,
+     * scale the threshold down as the length of the cross product is also squared.
+     * With this value quads with edges smaller than 1e-05 may be detected as too small. */
+    const float eps_sq = square_f(1e-8f);
+    if (len_squared_v3(plane) < eps_sq) {
       return false;
     }
   }
@@ -5545,3 +5563,5 @@ float geodesic_distance_propagate_across_triangle(
    * point found that connects to v0 across the triangle. */
   return min_ff(dist1 + len_v3(v10), dist2 + len_v3v3(v0, v2));
 }
+
+}  // namespace blender

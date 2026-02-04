@@ -14,7 +14,9 @@
 #include "NOD_multi_function.hh"
 #include "NOD_value_elem_eval.hh"
 
-namespace blender::nodes::node_shader_sepcomb_xyz_cc::sep {
+namespace blender {
+
+namespace nodes::node_shader_sepcomb_xyz_cc::sep {
 
 static void sh_node_sepxyz_declare(NodeDeclarationBuilder &b)
 {
@@ -123,21 +125,27 @@ NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
   NodeItem vector = get_input_value("Vector", NodeItem::Type::Vector3);
-  int index = STREQ(socket_out_->name, "X") ? 0 : STREQ(socket_out_->name, "Y") ? 1 : 2;
+  int index = STREQ(socket_out_->identifier, "X") ? 0 :
+              STREQ(socket_out_->identifier, "Y") ? 1 :
+                                                    2;
   return vector[index];
 }
 #endif
 NODE_SHADER_MATERIALX_END
 
-}  // namespace blender::nodes::node_shader_sepcomb_xyz_cc::sep
+}  // namespace nodes::node_shader_sepcomb_xyz_cc::sep
 
 void register_node_type_sh_sepxyz()
 {
-  namespace file_ns = blender::nodes::node_shader_sepcomb_xyz_cc::sep;
+  namespace file_ns = nodes::node_shader_sepcomb_xyz_cc::sep;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_SEPXYZ, "Separate XYZ", NODE_CLASS_CONVERTER);
+  common_node_type_base(&ntype, "ShaderNodeSeparateXYZ", SH_NODE_SEPXYZ);
+  ntype.ui_name = "Separate XYZ";
+  ntype.ui_description = "Split a vector into its X, Y, and Z components";
+  ntype.enum_name_legacy = "SEPXYZ";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::sh_node_sepxyz_declare;
   ntype.gpu_fn = file_ns::gpu_shader_sepxyz;
   ntype.build_multi_function = file_ns::sh_node_sepxyz_build_multi_function;
@@ -146,10 +154,10 @@ void register_node_type_sh_sepxyz()
   ntype.eval_inverse_elem = file_ns::sh_node_sepxyz_eval_inverse_elem;
   ntype.eval_inverse = file_ns::sh_node_sepxyz_eval_inverse;
 
-  blender::bke::node_register_type(&ntype);
+  bke::node_register_type(ntype);
 }
 
-namespace blender::nodes::node_shader_sepcomb_xyz_cc::comb {
+namespace nodes::node_shader_sepcomb_xyz_cc::comb {
 
 static void sh_node_combxyz_declare(NodeDeclarationBuilder &b)
 {
@@ -217,15 +225,19 @@ NODE_SHADER_MATERIALX_BEGIN
 #endif
 NODE_SHADER_MATERIALX_END
 
-}  // namespace blender::nodes::node_shader_sepcomb_xyz_cc::comb
+}  // namespace nodes::node_shader_sepcomb_xyz_cc::comb
 
 void register_node_type_sh_combxyz()
 {
-  namespace file_ns = blender::nodes::node_shader_sepcomb_xyz_cc::comb;
+  namespace file_ns = nodes::node_shader_sepcomb_xyz_cc::comb;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_COMBXYZ, "Combine XYZ", NODE_CLASS_CONVERTER);
+  common_node_type_base(&ntype, "ShaderNodeCombineXYZ", SH_NODE_COMBXYZ);
+  ntype.ui_name = "Combine XYZ";
+  ntype.ui_description = "Create a vector from X, Y, and Z components";
+  ntype.enum_name_legacy = "COMBXYZ";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::sh_node_combxyz_declare;
   ntype.gpu_fn = file_ns::gpu_shader_combxyz;
   ntype.build_multi_function = file_ns::sh_node_combxyz_build_multi_function;
@@ -234,5 +246,7 @@ void register_node_type_sh_combxyz()
   ntype.eval_inverse_elem = file_ns::sh_node_combxyz_eval_inverse_elem;
   ntype.eval_inverse = file_ns::sh_node_combxyz_eval_inverse;
 
-  blender::bke::node_register_type(&ntype);
+  bke::node_register_type(ntype);
 }
+
+}  // namespace blender

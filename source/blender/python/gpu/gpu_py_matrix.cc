@@ -20,14 +20,14 @@
 
 #include "../mathutils/mathutils.hh"
 
-#include "../generic/py_capi_utils.hh"
-
 #define USE_GPU_PY_MATRIX_API
 #include "GPU_matrix.hh"
 #undef USE_GPU_PY_MATRIX_API
 
 #include "gpu_py.hh"
 #include "gpu_py_matrix.hh" /* own include */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Helper Functions
@@ -170,19 +170,28 @@ enum {
 static PyObject *pygpu_matrix_stack_context_enter(BPyGPU_MatrixStackContext *self);
 static PyObject *pygpu_matrix_stack_context_exit(BPyGPU_MatrixStackContext *self, PyObject *args);
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef pygpu_matrix_stack_context__tp_methods[] = {
-    {"__enter__", (PyCFunction)pygpu_matrix_stack_context_enter, METH_NOARGS},
-    {"__exit__", (PyCFunction)pygpu_matrix_stack_context_exit, METH_VARARGS},
+    {"__enter__", reinterpret_cast<PyCFunction>(pygpu_matrix_stack_context_enter), METH_NOARGS},
+    {"__exit__", reinterpret_cast<PyCFunction>(pygpu_matrix_stack_context_exit), METH_VARARGS},
     {nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static PyTypeObject PyGPUMatrixStackContext_Type = {
@@ -309,7 +318,7 @@ static PyObject *pygpu_matrix_push_pop_impl(int type)
                                                 &PyGPUMatrixStackContext_Type);
   ret->type = type;
   ret->level = -1;
-  return (PyObject *)ret;
+  return reinterpret_cast<PyObject *>(ret);
 }
 
 PyDoc_STRVAR(
@@ -370,8 +379,8 @@ PyDoc_STRVAR(
     "\n"
     "   Scale the current stack matrix.\n"
     "\n"
-    "   :arg scale: Scale the current stack matrix.\n"
-    "   :type scale: sequence of 2 or 3 floats\n");
+    "   :arg scale: Scale the current stack matrix with 2 or 3 floats.\n"
+    "   :type scale: Sequence[float]\n");
 static PyObject *pygpu_matrix_scale(PyObject * /*self*/, PyObject *value)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
@@ -417,10 +426,10 @@ PyDoc_STRVAR(
     pygpu_matrix_translate_doc,
     ".. function:: translate(offset)\n"
     "\n"
-    "   Scale the current stack matrix.\n"
+    "   Translate the current stack matrix.\n"
     "\n"
-    "   :arg offset: Translate the current stack matrix.\n"
-    "   :type offset: sequence of 2 or 3 floats\n");
+    "   :arg offset: Translate the current stack matrix with 2 or 3 floats.\n"
+    "   :type offset: Sequence[float]\n");
 static PyObject *pygpu_matrix_translate(PyObject * /*self*/, PyObject *value)
 {
   float offset[3];
@@ -581,43 +590,54 @@ static PyObject *pygpu_matrix_get_normal_matrix(PyObject * /*self*/)
 /** \name Module
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef pygpu_matrix__tp_methods[] = {
     /* Manage Stack */
-    {"push", (PyCFunction)pygpu_matrix_push, METH_NOARGS, pygpu_matrix_push_doc},
-    {"pop", (PyCFunction)pygpu_matrix_pop, METH_NOARGS, pygpu_matrix_pop_doc},
+    {"push", reinterpret_cast<PyCFunction>(pygpu_matrix_push), METH_NOARGS, pygpu_matrix_push_doc},
+    {"pop", reinterpret_cast<PyCFunction>(pygpu_matrix_pop), METH_NOARGS, pygpu_matrix_pop_doc},
 
     {"push_projection",
-     (PyCFunction)pygpu_matrix_push_projection,
+     reinterpret_cast<PyCFunction>(pygpu_matrix_push_projection),
      METH_NOARGS,
      pygpu_matrix_push_projection_doc},
     {"pop_projection",
-     (PyCFunction)pygpu_matrix_pop_projection,
+     reinterpret_cast<PyCFunction>(pygpu_matrix_pop_projection),
      METH_NOARGS,
      pygpu_matrix_pop_projection_doc},
 
     /* Stack (Context Manager) */
-    {"push_pop", (PyCFunction)pygpu_matrix_push_pop, METH_NOARGS, pygpu_matrix_push_pop_doc},
+    {"push_pop",
+     reinterpret_cast<PyCFunction>(pygpu_matrix_push_pop),
+     METH_NOARGS,
+     pygpu_matrix_push_pop_doc},
     {"push_pop_projection",
-     (PyCFunction)pygpu_matrix_push_pop_projection,
+     reinterpret_cast<PyCFunction>(pygpu_matrix_push_pop_projection),
      METH_NOARGS,
      pygpu_matrix_push_pop_projection_doc},
 
     /* Manipulate State */
     {"multiply_matrix",
-     (PyCFunction)pygpu_matrix_multiply_matrix,
+     static_cast<PyCFunction>(pygpu_matrix_multiply_matrix),
      METH_O,
      pygpu_matrix_multiply_matrix_doc},
-    {"scale", (PyCFunction)pygpu_matrix_scale, METH_O, pygpu_matrix_scale_doc},
+    {"scale", static_cast<PyCFunction>(pygpu_matrix_scale), METH_O, pygpu_matrix_scale_doc},
     {"scale_uniform",
-     (PyCFunction)pygpu_matrix_scale_uniform,
+     static_cast<PyCFunction>(pygpu_matrix_scale_uniform),
      METH_O,
      pygpu_matrix_scale_uniform_doc},
-    {"translate", (PyCFunction)pygpu_matrix_translate, METH_O, pygpu_matrix_translate_doc},
+    {"translate",
+     static_cast<PyCFunction>(pygpu_matrix_translate),
+     METH_O,
+     pygpu_matrix_translate_doc},
 
 /* TODO */
 #if 0
@@ -627,36 +647,46 @@ static PyMethodDef pygpu_matrix__tp_methods[] = {
 #endif
 
     /* Write State */
-    {"reset", (PyCFunction)pygpu_matrix_reset, METH_NOARGS, pygpu_matrix_reset_doc},
+    {"reset",
+     reinterpret_cast<PyCFunction>(pygpu_matrix_reset),
+     METH_NOARGS,
+     pygpu_matrix_reset_doc},
     {"load_identity",
-     (PyCFunction)pygpu_matrix_load_identity,
+     reinterpret_cast<PyCFunction>(pygpu_matrix_load_identity),
      METH_NOARGS,
      pygpu_matrix_load_identity_doc},
-    {"load_matrix", (PyCFunction)pygpu_matrix_load_matrix, METH_O, pygpu_matrix_load_matrix_doc},
+    {"load_matrix",
+     static_cast<PyCFunction>(pygpu_matrix_load_matrix),
+     METH_O,
+     pygpu_matrix_load_matrix_doc},
     {"load_projection_matrix",
-     (PyCFunction)pygpu_matrix_load_projection_matrix,
+     static_cast<PyCFunction>(pygpu_matrix_load_projection_matrix),
      METH_O,
      pygpu_matrix_load_projection_matrix_doc},
 
     /* Read State */
     {"get_projection_matrix",
-     (PyCFunction)pygpu_matrix_get_projection_matrix,
+     reinterpret_cast<PyCFunction>(pygpu_matrix_get_projection_matrix),
      METH_NOARGS,
      pygpu_matrix_get_projection_matrix_doc},
     {"get_model_view_matrix",
-     (PyCFunction)pygpu_matrix_get_model_view_matrix,
+     reinterpret_cast<PyCFunction>(pygpu_matrix_get_model_view_matrix),
      METH_NOARGS,
      pygpu_matrix_get_model_view_matrix_doc},
     {"get_normal_matrix",
-     (PyCFunction)pygpu_matrix_get_normal_matrix,
+     reinterpret_cast<PyCFunction>(pygpu_matrix_get_normal_matrix),
      METH_NOARGS,
      pygpu_matrix_get_normal_matrix_doc},
 
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyDoc_STRVAR(
@@ -689,3 +719,5 @@ PyObject *bpygpu_matrix_init()
 }
 
 /** \} */
+
+}  // namespace blender

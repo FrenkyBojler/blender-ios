@@ -12,10 +12,6 @@
 
 #include "../../../../python/generic/py_capi_utils.hh"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -33,10 +29,10 @@ PyDoc_STRVAR(
     "\n"
     "   Builds a BlenderTextureShader object.\n"
     "\n"
-    "   :arg texture: A line style texture slot or a shader node tree to define\n"
-    "       a set of textures.\n"
-    "   :type texture: :class:`bpy.types.LineStyleTextureSlot` or\n"
-    "       :class:`bpy.types.ShaderNodeTree`\n"
+    "   :arg texture: A line style texture slot or a shader node tree to define "
+    "a set of textures.\n"
+    "   :type texture: :class:`bpy.types.LineStyleTextureSlot` | "
+    ":class:`bpy.types.ShaderNodeTree`\n"
     "\n"
     ".. method:: shade(stroke)\n"
     "\n"
@@ -45,26 +41,25 @@ PyDoc_STRVAR(
     "\n"
     "   :arg stroke: A Stroke object.\n"
     "   :type stroke: :class:`freestyle.types.Stroke`\n");
-
 static int BlenderTextureShader___init__(BPy_BlenderTextureShader *self,
                                          PyObject *args,
                                          PyObject *kwds)
 {
   static const char *kwlist[] = {"texture", nullptr};
   PyObject *obj;
-  MTex *_mtex;
-  bNodeTree *_nodetree;
+  blender::MTex *_mtex;
+  blender::bNodeTree *_nodetree;
 
   if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", (char **)kwlist, &obj)) {
     return -1;
   }
-  _mtex = (MTex *)PyC_RNA_AsPointer(obj, "LineStyleTextureSlot");
+  _mtex = (blender::MTex *)blender::PyC_RNA_AsPointer(obj, "LineStyleTextureSlot");
   if (_mtex) {
     self->py_ss.ss = new StrokeShaders::BlenderTextureShader(_mtex);
     return 0;
   }
   PyErr_Clear();
-  _nodetree = (bNodeTree *)PyC_RNA_AsPointer(obj, "ShaderNodeTree");
+  _nodetree = (blender::bNodeTree *)blender::PyC_RNA_AsPointer(obj, "ShaderNodeTree");
   if (_nodetree) {
     self->py_ss.ss = new StrokeShaders::BlenderTextureShader(_nodetree);
     return 0;
@@ -120,7 +115,3 @@ PyTypeObject BlenderTextureShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

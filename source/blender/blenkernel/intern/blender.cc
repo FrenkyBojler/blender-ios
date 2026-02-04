@@ -12,37 +12,48 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "DNA_windowmanager_types.h"
+
 #include "MEM_guardedalloc.h"
+
+#include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_imbuf.hh"
 #include "IMB_moviecache.hh"
 
+#include "MOV_util.hh"
+
 #include "BKE_addon.h"
+#include "BKE_appdir.hh"
 #include "BKE_asset.hh"
 #include "BKE_blender.hh"           /* own include */
 #include "BKE_blender_user_menu.hh" /* own include */
 #include "BKE_blender_version.h"    /* own include */
 #include "BKE_brush.hh"
-#include "BKE_cachefile.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
-#include "BKE_report.hh"
 #include "BKE_screen.hh"
 #include "BKE_studiolight.h"
-#include "BKE_writeffmpeg.hh"
 
 #include "DEG_depsgraph.hh"
 
 #include "RE_texture.h"
 
 #include "BLF_api.hh"
+
+#include "SEQ_utils.hh"
+
+#include "CLG_log.h"
+
+namespace blender {
 
 Global G;
 UserDef U;
@@ -67,7 +78,6 @@ void BKE_blender_free()
   BKE_spacetypes_free(); /* after free main, it uses space callbacks */
 
   IMB_exit();
-  BKE_cachefiles_exit();
   DEG_free_node_types();
 
   BKE_brush_system_exit();
@@ -76,11 +86,10 @@ void BKE_blender_free()
   BKE_callback_global_finalize();
 
   IMB_moviecache_destruct();
-#ifdef WITH_FFMPEG
-  BKE_ffmpeg_exit();
-#endif
+  seq::fontmap_clear();
+  MOV_exit();
 
-  blender::bke::node_system_exit();
+  bke::node_system_exit();
 }
 
 /** \} */
@@ -120,20 +129,20 @@ static void blender_version_init()
 
   const char *version_suffix = BKE_blender_version_is_lts() ? " LTS" : "";
 
-  SNPRINTF(blender_version_string,
-           "%d.%01d.%d%s%s",
-           BLENDER_VERSION / 100,
-           BLENDER_VERSION % 100,
-           BLENDER_VERSION_PATCH,
-           version_suffix,
-           version_cycle);
+  SNPRINTF_UTF8(blender_version_string,
+                "%d.%01d.%d%s%s",
+                BLENDER_VERSION / 100,
+                BLENDER_VERSION % 100,
+                BLENDER_VERSION_PATCH,
+                version_suffix,
+                version_cycle);
 
-  SNPRINTF(blender_version_string_compact,
-           "%d.%01d.%d%s",
-           BLENDER_VERSION / 100,
-           BLENDER_VERSION % 100,
-           BLENDER_VERSION_PATCH,
-           version_cycle_compact);
+  SNPRINTF_UTF8(blender_version_string_compact,
+                "%d.%01d.%d%s",
+                BLENDER_VERSION / 100,
+                BLENDER_VERSION % 100,
+                BLENDER_VERSION_PATCH,
+                version_cycle_compact);
 }
 
 const char *BKE_blender_version_string()
@@ -154,15 +163,15 @@ void BKE_blender_version_blendfile_string_from_values(char *str_buff,
   const short file_version_major = file_version / 100;
   const short file_version_minor = file_version % 100;
   if (file_subversion >= 0) {
-    BLI_snprintf(str_buff,
-                 str_buff_maxncpy,
-                 "%d.%d (sub %d)",
-                 file_version_major,
-                 file_version_minor,
-                 file_subversion);
+    BLI_snprintf_utf8(str_buff,
+                      str_buff_maxncpy,
+                      "%d.%d (sub %d)",
+                      file_version_major,
+                      file_version_minor,
+                      file_subversion);
   }
   else {
-    BLI_snprintf(str_buff, str_buff_maxncpy, "%d.%d", file_version_major, file_version_minor);
+    BLI_snprintf_utf8(str_buff, str_buff_maxncpy, "%d.%d", file_version_major, file_version_minor);
   }
 }
 
@@ -194,6 +203,7 @@ void BKE_blender_globals_init()
   BKE_blender_globals_main_replace(BKE_main_new());
 
   STRNCPY(G.filepath_last_image, "//");
+  G.filepath_last_blend[0] = '\0';
 
 #ifndef WITH_PYTHON_SECURITY /* default */
   G.f |= G_FLAG_SCRIPT_AUTOEXEC;
@@ -201,7 +211,9 @@ void BKE_blender_globals_init()
   G.f &= ~G_FLAG_SCRIPT_AUTOEXEC;
 #endif
 
-  G.log.level = 1;
+  G.log.level = CLG_LEVEL_WARN;
+
+  G.profile_gpu = false;
 }
 
 void BKE_blender_globals_clear()
@@ -234,6 +246,20 @@ Main *BKE_blender_globals_main_swap(Main *new_gmain)
   return old_gmain;
 }
 
+void BKE_blender_globals_crash_path_get(char filepath[FILE_MAX])
+{
+  /* Might be called after WM/Main exit, so needs to be careful about nullptr-checking before
+   * de-referencing. */
+
+  if (!(G_MAIN && G_MAIN->filepath[0])) {
+    BLI_path_join(filepath, FILE_MAX, BKE_tempdir_base(), "blender.crash.txt");
+  }
+  else {
+    BLI_path_join(filepath, FILE_MAX, BKE_tempdir_base(), BLI_path_basename(G_MAIN->filepath));
+    BLI_path_extension_replace(filepath, FILE_MAX, ".crash.txt");
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -252,7 +278,7 @@ static void keymap_item_free(wmKeyMapItem *kmi)
 
 void BKE_blender_userdef_data_swap(UserDef *userdef_a, UserDef *userdef_b)
 {
-  blender::dna::shallow_swap(*userdef_a, *userdef_b);
+  dna::shallow_swap(*userdef_a, *userdef_b);
 }
 
 void BKE_blender_userdef_data_set(UserDef *userdef)
@@ -264,7 +290,7 @@ void BKE_blender_userdef_data_set(UserDef *userdef)
 void BKE_blender_userdef_data_set_and_free(UserDef *userdef)
 {
   BKE_blender_userdef_data_set(userdef);
-  MEM_freeN(userdef);
+  MEM_delete(userdef);
 }
 
 static void userdef_free_keymaps(UserDef *userdef)
@@ -273,25 +299,25 @@ static void userdef_free_keymaps(UserDef *userdef)
        km = km_next)
   {
     km_next = km->next;
-    LISTBASE_FOREACH (wmKeyMapDiffItem *, kmdi, &km->diff_items) {
-      if (kmdi->add_item) {
-        keymap_item_free(kmdi->add_item);
-        MEM_freeN(kmdi->add_item);
+    for (wmKeyMapDiffItem &kmdi : km->diff_items) {
+      if (kmdi.add_item) {
+        keymap_item_free(kmdi.add_item);
+        MEM_delete(kmdi.add_item);
       }
-      if (kmdi->remove_item) {
-        keymap_item_free(kmdi->remove_item);
-        MEM_freeN(kmdi->remove_item);
+      if (kmdi.remove_item) {
+        keymap_item_free(kmdi.remove_item);
+        MEM_delete(kmdi.remove_item);
       }
     }
 
-    LISTBASE_FOREACH (wmKeyMapItem *, kmi, &km->items) {
-      keymap_item_free(kmi);
+    for (wmKeyMapItem &kmi : km->items) {
+      keymap_item_free(&kmi);
     }
 
     BLI_freelistN(&km->diff_items);
     BLI_freelistN(&km->items);
 
-    MEM_freeN(km);
+    MEM_delete(km);
   }
   BLI_listbase_clear(&userdef->user_keymaps);
 }
@@ -305,7 +331,7 @@ static void userdef_free_keyconfig_prefs(UserDef *userdef)
   {
     kpt_next = kpt->next;
     IDP_FreeProperty(kpt->prop);
-    MEM_freeN(kpt);
+    MEM_delete(kpt);
   }
   BLI_listbase_clear(&userdef->user_keyconfig_prefs);
 }
@@ -317,7 +343,7 @@ static void userdef_free_user_menus(UserDef *userdef)
   {
     um_next = um->next;
     BKE_blender_user_menu_item_free_list(&um->items);
-    MEM_freeN(um);
+    MEM_delete(um);
   }
 }
 
@@ -345,8 +371,8 @@ void BKE_blender_userdef_data_free(UserDef *userdef, bool clear_fonts)
   userdef_free_addons(userdef);
 
   if (clear_fonts) {
-    LISTBASE_FOREACH (uiFont *, font, &userdef->uifonts) {
-      BLF_unload_id(font->blf_id);
+    for (uiFont &font : userdef->uifonts) {
+      BLF_unload_id(font.blf_id);
     }
     BLF_default_set(-1);
   }
@@ -355,16 +381,15 @@ void BKE_blender_userdef_data_free(UserDef *userdef, bool clear_fonts)
   BLI_freelistN(&userdef->script_directories);
   BLI_freelistN(&userdef->asset_libraries);
 
-  LISTBASE_FOREACH_MUTABLE (bUserExtensionRepo *, repo_ref, &userdef->extension_repos) {
-    MEM_SAFE_FREE(repo_ref->access_token);
-    MEM_freeN(repo_ref);
+  for (bUserExtensionRepo &repo_ref : userdef->extension_repos.items_mutable()) {
+    MEM_SAFE_DELETE(repo_ref.access_token);
+    MEM_delete(&repo_ref);
   }
   BLI_listbase_clear(&userdef->extension_repos);
 
-  LISTBASE_FOREACH_MUTABLE (bUserAssetShelfSettings *, settings, &userdef->asset_shelves_settings)
-  {
-    BKE_asset_catalog_path_list_free(settings->enabled_catalog_paths);
-    MEM_freeN(settings);
+  for (bUserAssetShelfSettings &settings : userdef->asset_shelves_settings.items_mutable()) {
+    BKE_asset_catalog_path_list_free(settings.enabled_catalog_paths);
+    MEM_delete(&settings);
   }
   BLI_listbase_clear(&userdef->asset_shelves_settings);
 
@@ -445,7 +470,7 @@ void BKE_blender_userdef_app_template_data_set(UserDef *userdef)
 void BKE_blender_userdef_app_template_data_set_and_free(UserDef *userdef)
 {
   BKE_blender_userdef_app_template_data_set(userdef);
-  MEM_freeN(userdef);
+  MEM_delete(userdef);
 }
 
 /** \} */
@@ -453,7 +478,7 @@ void BKE_blender_userdef_app_template_data_set_and_free(UserDef *userdef)
 /* -------------------------------------------------------------------- */
 /** \name Blender's AtExit
  *
- * \note Don't use MEM_mallocN so functions can be registered at any time.
+ * \note Don't use MEM_new_uninitialized so functions can be registered at any time.
  * \{ */
 
 static struct AtExitData {
@@ -503,3 +528,5 @@ void BKE_blender_atexit()
 }
 
 /** \} */
+
+}  // namespace blender
