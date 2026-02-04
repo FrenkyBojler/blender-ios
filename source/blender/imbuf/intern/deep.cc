@@ -7,6 +7,7 @@
  */
 
 #include "BLI_math_base.hh"
+#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
 #include "IMB_imbuf.hh"
@@ -308,6 +309,83 @@ void IMB_deep_finalize(ImBuf *ibuf, bool sort_by_depth)
              sample_count * channels_per_sample * sizeof(float));
     }
   }
+}
+
+ImBuf *flatten_deep_to_float(const ImBuf *deep_ibuf)
+{
+  if (!(deep_ibuf->flags & IB_deep_data)) {
+    return nullptr;
+  }
+
+  const ImBufDeepBuffer &deep = deep_ibuf->deep_buffer;
+  const int width = deep_ibuf->x;
+  const int height = deep_ibuf->y;
+
+  if (deep.sample_counts.is_empty() || deep.channels_per_sample == 0) {
+    return nullptr;
+  }
+
+  /* Allocate output ImBuf with float buffer. */
+  ImBuf *result = IMB_allocImBuf(width, height, 32, IB_float_data);
+  if (!result) {
+    return nullptr;
+  }
+
+  /* Copy metadata. */
+  result->ftype = deep_ibuf->ftype;
+  result->flags = deep_ibuf->flags & ~IB_deep_data; /* Remove deep flag. */
+  result->float_buffer.colorspace = deep_ibuf->float_buffer.colorspace;
+
+  /* Flatten deep pixels using front-to-back compositing. */
+  threading::parallel_for(IndexRange(height), 64, [&](IndexRange y_range) {
+    for (const int64_t y : y_range) {
+      for (int x = 0; x < width; x++) {
+        const int pixel_idx = y * width + x;
+        float *out_pixel = result->float_buffer.data + pixel_idx * 4;
+
+        /* Initialize output to transparent black. */
+        out_pixel[0] = 0.0f;
+        out_pixel[1] = 0.0f;
+        out_pixel[2] = 0.0f;
+        out_pixel[3] = 0.0f;
+
+        const int sample_start = deep.sample_offsets[pixel_idx];
+        const int num_samples = deep.sample_counts[pixel_idx];
+
+        if (num_samples == 0) {
+          continue; /* No samples, leave as transparent. */
+        }
+
+        /* Composite samples front-to-back (nearest to farthest). */
+        for (int s = 0; s < num_samples; s++) {
+          const int sample_idx = sample_start + s;
+          const float *sample_channels = deep.channel_data.data() +
+                                         sample_idx * deep.channels_per_sample;
+
+          /* Assume RGBA layout for now (could be extended to handle other layouts). */
+          const float src_r = (deep.channels_per_sample > 0) ? sample_channels[0] : 0.0f;
+          const float src_g = (deep.channels_per_sample > 1) ? sample_channels[1] : 0.0f;
+          const float src_b = (deep.channels_per_sample > 2) ? sample_channels[2] : 0.0f;
+          const float src_a = (deep.channels_per_sample > 3) ? sample_channels[3] : 1.0f;
+
+          /* Front-to-back "over" operation (assumes premultiplied alpha). */
+          const float one_minus_dst_a = 1.0f - out_pixel[3];
+          out_pixel[0] += src_r * one_minus_dst_a;
+          out_pixel[1] += src_g * one_minus_dst_a;
+          out_pixel[2] += src_b * one_minus_dst_a;
+          out_pixel[3] += src_a * one_minus_dst_a;
+
+          /* Early out if fully opaque. */
+          if (out_pixel[3] >= 0.9999f) {
+            out_pixel[3] = 1.0f;
+            break;
+          }
+        }
+      }
+    }
+  });
+
+  return result;
 }
 
 }  // namespace blender
