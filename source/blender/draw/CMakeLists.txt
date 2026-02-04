@@ -228,7 +228,6 @@ set(SRC
   engines/image/image_drawing_mode_image_space.hh
   engines/image/image_drawing_mode_screen_space.hh
   engines/image/image_engine.h
-  engines/image/image_enums.hh
   engines/image/image_instance.hh
   engines/image/image_partial_updater.hh
   engines/image/image_private.hh
@@ -843,6 +842,8 @@ set(GLSL_SRC
   engines/image/shaders/image_engine_image_frag.glsl
   engines/image/shaders/image_engine_image_tiled_frag.glsl
   engines/image/shaders/image_engine_lib.glsl
+
+  engines/image/image_shader_shared.hh
 
   # This test doesn't depend on gpu_shader_test, so it's always included.
   intern/shaders/draw_curves_test.glsl

@@ -4,14 +4,10 @@
 
 #pragma once
 
+#include "image_shader_shared.hh"
+
 #define Z_DEPTH_BORDER 1.0f
 #define Z_DEPTH_IMAGE 0.75f
-
-/* Keep in sync with image_engine.c */
-#define IMAGE_DRAW_FLAG_SHOW_ALPHA (1 << 0)
-#define IMAGE_DRAW_FLAG_APPLY_ALPHA (1 << 1)
-#define IMAGE_DRAW_FLAG_SHUFFLING (1 << 2)
-#define IMAGE_DRAW_FLAG_DEPTH (1 << 3)
 
 #define FAR_DISTANCE far_near_distances.x
 #define NEAR_DISTANCE far_near_distances.y
