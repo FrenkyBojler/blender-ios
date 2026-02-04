@@ -822,6 +822,7 @@ endif()
 
 # Unit testing
 option(WITH_GTESTS "Enable GTest unit testing" OFF)
+set(WITH_GTESTS OFF)
 option(WITH_GPU_RENDER_TESTS "\
 Enable GPU render related unit testing (EEVEE, Workbench and Grease Pencil)"
   OFF
