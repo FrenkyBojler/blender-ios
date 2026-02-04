@@ -253,7 +253,7 @@ void VIEW2D_GGT_navigate_impl(wmGizmoGroupType *gzgt, const char *idname)
   gzgt->poll = WIDGETGROUP_navigate_poll;
   gzgt->setup = WIDGETGROUP_navigate_setup;
   gzgt->draw_prepare = WIDGETGROUP_navigate_draw_prepare;
-  gzgt->draw_group = ED_gizmo_button2d_group_background;
+  gzgt->draw_background = ED_gizmo_button2d_group_background;
 }
 
 /** \} */

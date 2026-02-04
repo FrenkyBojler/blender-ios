@@ -443,7 +443,7 @@ struct wmGizmoGroupType {
   /** Refresh data for drawing, called before each redraw. */
   wmGizmoGroupFnDrawPrepare draw_prepare;
   /** Optionally draw the background of the group itself. */
-  wmGizmoGroupFnDrawGroup draw_group;
+  wmGizmoGroupFnDrawBackground draw_background;
   /** Initialize data for before invoke. */
   wmGizmoGroupFnInvokePrepare invoke_prepare;
 

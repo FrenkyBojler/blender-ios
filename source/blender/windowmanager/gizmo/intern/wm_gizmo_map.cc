@@ -436,8 +436,8 @@ static void gizmomap_prepare_drawing(wmGizmoMap *gzmap,
       gizmo_prepare_drawing(gzmap, &gz, C, draw_gizmos, drawstep);
     }
 
-    if (gzgroup.type->draw_group) {
-      gzgroup.type->draw_group(C, &gzgroup);
+    if (gzgroup.type->draw_background) {
+      gzgroup.type->draw_background(C, &gzgroup);
     }
   }
 
