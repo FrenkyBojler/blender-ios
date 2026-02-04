@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-24 08:35+0000\n"
+"POT-Creation-Date: 2026-02-02 14:51+0000\n"
 "PO-Revision-Date: 2025-07-23 15:08+0000\n"
 "Last-Translator: Bartosz <gang65@poczta.onet.pl>\n"
 "Language-Team: Ukrainian <https://translate.blender.org/projects/blender-ui/ui/uk/>\n"
@@ -10734,6 +10734,14 @@ msgid "Amplitude of the noise - the amount that it modifies the underlying curve
 msgstr "Амплітуда шуму - рівень зміни ним основної кривої"
 
 
+msgid "Filter Width"
+msgstr "Ширина фільтра"
+
+
+msgid "Sigma"
+msgstr "Сигма"
+
+
 msgid "Stepped Interpolation F-Modifier"
 msgstr "Ф-модифікатор покрокової інтерполяції"
 
@@ -13118,6 +13126,22 @@ msgid "Bundle"
 msgstr "Пакет"
 
 
+msgid "Font"
+msgstr "Шрифт"
+
+
+msgid "Text"
+msgstr "Текст"
+
+
+msgid "Mask"
+msgstr "Маска"
+
+
+msgid "Sound"
+msgstr "Звук"
+
+
 msgid "Freestyle Line Set"
 msgstr "Набір ліній Freestyle"
 
@@ -15464,20 +15488,12 @@ msgid "Space daubs according to surface orientation instead of screen space"
 msgstr "Відстань між мазками визначається орієнтацією поверхні, а не за екранним простором"
 
 
-msgid "Airbrush"
-msgstr "Розбризкувач фарби"
-
-
 msgid "Affect Alpha"
 msgstr "Задіяти Альфа"
 
 
 msgid "When this is disabled, lock alpha while painting"
 msgstr "Коли вимкнено, блокувати альфа при малюванні"
-
-
-msgid "Anchored"
-msgstr "Закріплено"
 
 
 msgid "Mesh Boundary Auto-Masking"
@@ -15778,14 +15794,6 @@ msgstr "Вжити перекриття текстур"
 
 msgid "Show texture in viewport"
 msgstr "Показати текстуру у вікні перегляду"
-
-
-msgid "Restore Mesh"
-msgstr "Відновити сіть"
-
-
-msgid "Allow a single dot to be carefully positioned"
-msgstr "Дозволити ретельно позиціювати одну точку"
 
 
 msgid "Spacing Distance"
@@ -16784,10 +16792,6 @@ msgid "Curve deforming text object"
 msgstr "Текстовий об'єкт, що деформується за кривою"
 
 
-msgid "Font"
-msgstr "Шрифт"
-
-
 msgid "Font Bold"
 msgstr "Жирний шрифт"
 
@@ -16818,10 +16822,6 @@ msgstr "Зсув Y"
 
 msgid "Vertical offset from the object origin"
 msgstr "Вертикальне зміщення від опорної точки об'єкта"
-
-
-msgid "Textbox Overflow"
-msgstr "Переповнення Текстполя"
 
 
 msgid "Overflow"
@@ -16878,10 +16878,6 @@ msgstr "Відстань між рядками тексту"
 
 msgid "Spacing between words"
 msgstr "Відстань між словами"
-
-
-msgid "Textboxes"
-msgstr "Текстполя"
 
 
 msgid "Underline Thickness"
@@ -21428,10 +21424,6 @@ msgstr "Висота"
 
 msgid "Playback pitch of the sound"
 msgstr "Висота відтворення звуку"
-
-
-msgid "Sound"
-msgstr "Звук"
 
 
 msgid "Sound data-block used by this speaker"
@@ -26334,10 +26326,6 @@ msgid "Disable stencil and overlap self intersections with alpha materials"
 msgstr "Вимкнути трафарет та перекриття самоперетинів з альфа матеріалів"
 
 
-msgid "Mask"
-msgstr "Маска"
-
-
 msgid "Material slot in an object"
 msgstr "Гніздо матеріалу об'єкта"
 
@@ -26354,8 +26342,160 @@ msgid "Material slot name"
 msgstr "Назва гнізда матеріалу"
 
 
+msgid "Math"
+msgstr "Математика"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Metaball"
+msgstr "Метакуля"
+
+
+msgid "Show/Hide"
+msgstr "Показати/приховати"
+
+
+msgid "Sample"
+msgstr "Вибірка"
+
+
+msgid "Names"
+msgstr "Назви"
+
+
+msgid "Primitives"
+msgstr "Примітиви"
+
+
+msgid "Bone Roll"
+msgstr "Прокручення Кістки"
+
+
+msgid "Clean Up"
+msgstr "Вичищення"
+
+
+msgid "Pivot Point"
+msgstr "Точка Опертя"
+
+
+msgid "Snap"
+msgstr "Підхоп"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Спад Пропорційного Редагування"
+
+
+msgid "Mask Edit"
+msgstr "Редагування Маски"
+
+
+msgid "Automasking"
+msgstr "Автомаскування"
+
+
+msgid "Face Sets Edit"
+msgstr "Редагування Наборів Граней"
+
+
+msgid "Vertex Group Locks"
+msgstr "Блокування Груп Вершин"
+
+
+msgid "Mirror"
+msgstr "Дзеркалення"
+
+
+msgid "UV Mapping"
+msgstr "Розкладання UV"
+
+
+msgid "Local View"
+msgstr "Огляд Локально"
+
+
+msgid "Viewpoint"
+msgstr "Точка зору"
+
+
+msgid "Navigation"
+msgstr "Навігація"
+
+
 msgid "Align View"
 msgstr "Вирівняти Огляд"
+
+
+msgid "Align View to Active"
+msgstr "Вирівняти Огляд за Активним"
+
+
+msgid "View Regions"
+msgstr "Регіони Огляду"
+
+
+msgid "Select More/Less"
+msgstr "Вибрати більше/менше"
+
+
+msgid "Layout"
+msgstr "Розстановка"
+
+
+msgid "Select Similar"
+msgstr "Вибрати подібні"
+
+
+msgid "Select All by Trait"
+msgstr "Вибрати все за рисою"
+
+
+msgid "Select Linked"
+msgstr "Виділити пов'язане"
+
+
+msgid "Select Loops"
+msgstr "Виділити петлі"
+
+
+msgid "Assign Material"
+msgstr "Призначити Матеріал"
+
+
+msgid "Keying"
+msgstr "Ключування"
+
+
+msgid "Tracking"
+msgstr "Стеження"
+
+
+msgid "Utilities"
+msgstr "Утиліти"
+
+
+msgid "Light"
+msgstr "Слабко"
+
+
+msgid "Light Probe"
+msgstr "Проба Освітлення"
+
+
+msgid "Add Image"
+msgstr "Додати Зображення"
+
+
+msgid "Relations"
+msgstr "Зв'язки"
+
+
+msgid "Rigid Body"
+msgstr "Тверде тіло"
 
 
 msgid "Apply"
@@ -26368,18 +26508,6 @@ msgstr "Стеження"
 
 msgid "Quick Effects"
 msgstr "Швидкі ефекти"
-
-
-msgid "Navigation"
-msgstr "Навігація"
-
-
-msgid "Show/Hide"
-msgstr "Показати/приховати"
-
-
-msgid "Clean Up"
-msgstr "Вичищення"
 
 
 msgid "Asset"
@@ -26402,18 +26530,6 @@ msgid "Hooks"
 msgstr "Гачки"
 
 
-msgid "Vertex Group Locks"
-msgstr "Блокування Груп Вершин"
-
-
-msgid "Viewpoint"
-msgstr "Точка зору"
-
-
-msgid "Local View"
-msgstr "Огляд Локально"
-
-
 msgid "Sculpt Set Pivot"
 msgstr "Ліплення Задати Опертя"
 
@@ -26434,10 +26550,6 @@ msgid "Propagate"
 msgstr "Поширити"
 
 
-msgid "Names"
-msgstr "Назви"
-
-
 msgid "Toggle Bone Options"
 msgstr "Перемкнути параметри кісток"
 
@@ -26448,10 +26560,6 @@ msgstr "Увімкнути параметри кісток"
 
 msgid "Disable Bone Options"
 msgstr "Відключити параметри кісток"
-
-
-msgid "Layout"
-msgstr "Розстановка"
 
 
 msgid "Mesh Select Mode"
@@ -26470,28 +26578,12 @@ msgid "Set Face Strength"
 msgstr "Задати Силу Грані"
 
 
+msgid "Import"
+msgstr "Імпортувати"
+
+
 msgid "Merge"
 msgstr "Об'єднання"
-
-
-msgid "Keying"
-msgstr "Ключування"
-
-
-msgid "Tracking"
-msgstr "Стеження"
-
-
-msgid "Utilities"
-msgstr "Утиліти"
-
-
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "UV Mapping"
-msgstr "Розкладання UV"
 
 
 msgid "Special Characters"
@@ -26500,114 +26592,6 @@ msgstr "Спеціальні символи"
 
 msgid "Kerning"
 msgstr "Кернінг"
-
-
-msgid "Snap"
-msgstr "Підхоп"
-
-
-msgid "Mirror"
-msgstr "Дзеркалення"
-
-
-msgid "Text"
-msgstr "Текст"
-
-
-msgid "Metaball"
-msgstr "Метакуля"
-
-
-msgid "Bone Roll"
-msgstr "Прокручення Кістки"
-
-
-msgid "Pivot Point"
-msgstr "Точка Опертя"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Спад Пропорційного Редагування"
-
-
-msgid "Mask Edit"
-msgstr "Редагування Маски"
-
-
-msgid "Automasking"
-msgstr "Автомаскування"
-
-
-msgid "Face Sets Edit"
-msgstr "Редагування Наборів Граней"
-
-
-msgid "Sample"
-msgstr "Вибірка"
-
-
-msgid "Primitives"
-msgstr "Примітиви"
-
-
-msgid "Select More/Less"
-msgstr "Вибрати більше/менше"
-
-
-msgid "Select Similar"
-msgstr "Вибрати подібні"
-
-
-msgid "Select All by Trait"
-msgstr "Вибрати все за рисою"
-
-
-msgid "Select Linked"
-msgstr "Виділити пов'язане"
-
-
-msgid "Select Loops"
-msgstr "Виділити петлі"
-
-
-msgid "Import"
-msgstr "Імпортувати"
-
-
-msgid "Assign Material"
-msgstr "Призначити Матеріал"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Light"
-msgstr "Слабко"
-
-
-msgid "Light Probe"
-msgstr "Проба Освітлення"
-
-
-msgid "View Regions"
-msgstr "Регіони Огляду"
-
-
-msgid "Add Image"
-msgstr "Додати Зображення"
-
-
-msgid "Relations"
-msgstr "Зв'язки"
-
-
-msgid "Rigid Body"
-msgstr "Тверде тіло"
-
-
-msgid "Align View to Active"
-msgstr "Вирівняти Огляд за Активним"
 
 
 msgid "Basic"
@@ -26675,8 +26659,8 @@ msgid "Console"
 msgstr "Консоль"
 
 
-msgid "Languages..."
-msgstr "Мови..."
+msgid "Languages"
+msgstr "Мова"
 
 
 msgid "Add Attribute"
@@ -34380,12 +34364,16 @@ msgid "Bake"
 msgstr "Запікання"
 
 
-msgid "Collection Info"
-msgstr "Інфо Колекції"
+msgid "The transformation of the vector and geometry outputs"
+msgstr "Трансформація виводів вектора та геометрії"
 
 
 msgid "Original"
 msgstr "Оригінал"
+
+
+msgid "Collection Info"
+msgstr "Інфо Колекції"
 
 
 msgid "Output the geometry relative to the collection offset"
@@ -34464,6 +34452,10 @@ msgid "Join Geometry"
 msgstr "Сполучення Геометрії"
 
 
+msgid "Single"
+msgstr "Один"
+
+
 msgid "Fill Type"
 msgstr "Тип заповнення"
 
@@ -34486,10 +34478,6 @@ msgstr "Сфера UV"
 
 msgid "Object Info"
 msgstr "Інформація об'єкта"
-
-
-msgid "The transformation of the vector and geometry outputs"
-msgstr "Трансформація виводів вектора та геометрії"
 
 
 msgid "Output the geometry relative to the input object transform, and the location, rotation and scale relative to the world origin"
@@ -35789,10 +35777,6 @@ msgid "Value to Normal"
 msgstr "Значення в нормаль"
 
 
-msgid "Single"
-msgstr "Один"
-
-
 msgid "Node Inputs"
 msgstr "Вводи вузлів"
 
@@ -35969,10 +35953,6 @@ msgid "Boolean value socket of a node"
 msgstr "Вузловий роз'єм логічного типу"
 
 
-msgid "Default Value"
-msgstr "Стандартне значення"
-
-
 msgid "Collection Node Socket"
 msgstr "Роз'єм Колекції для Вузла"
 
@@ -36059,6 +36039,10 @@ msgstr "Віртуальний роз'єм"
 
 msgid "Virtual socket of a node"
 msgstr "Віртуальний вузловий роз'єм"
+
+
+msgid "Default Value"
+msgstr "Стандартне значення"
 
 
 msgid "Hide the socket input value even when the socket is not connected"
@@ -37587,11 +37571,6 @@ msgstr "Вилучити властивість"
 
 msgid "Generate system information, saved into a text file"
 msgstr "Згенерувати системну інформацію, збережену у текстовий файл"
-
-
-msgctxt "Operator"
-msgid "Save System Info"
-msgstr "Зберегти системну інформацію"
 
 
 msgctxt "Operator"
@@ -42048,10 +42027,6 @@ msgid "Other"
 msgstr "Інше"
 
 
-msgid "Other geometry types, like curve, metaball, etc. (converted to meshes)"
-msgstr "Інші види геометрії, такі як криві, метакулі тощо. (конвертовані у сіті)"
-
-
 msgid "Method used to reference paths"
 msgstr "Метод посилання на шляхи"
 
@@ -43489,14 +43464,6 @@ msgid "Place the cursor on the midpoint of selected keyframes"
 msgstr "Встановити курсор посередині між вибраними ключовими кадрами"
 
 
-msgid "Filter Width"
-msgstr "Ширина фільтра"
-
-
-msgid "Sigma"
-msgstr "Сигма"
-
-
 msgctxt "Operator"
 msgid "Clear Ghost Curves"
 msgstr "Зчистити криві-привиди"
@@ -43733,12 +43700,22 @@ msgid "Draw a new stroke in the active Grease Pencil object"
 msgstr "Рисувати новий штрих в активному об'єкті Нарисного Олівця"
 
 
-msgid "Action taken when a paint stroke is made"
-msgstr "Дія, що виконується при завершенні штриха"
-
-
 msgid "Apply brush normally"
 msgstr "Застосувати пензель стандартно"
+
+
+msgctxt "Operator"
+msgid "Erase"
+msgstr "Витерти"
+
+
+msgctxt "Operator"
+msgid "Mask"
+msgstr "Маска"
+
+
+msgid "Action taken when a paint stroke is made"
+msgstr "Дія, що виконується при завершенні штриха"
 
 
 msgctxt "Operator"
@@ -43748,15 +43725,6 @@ msgstr "Інвертування"
 
 msgid "Invert action of brush for duration of stroke"
 msgstr "Інвертувати дію пензля при виконанні штриха"
-
-
-msgid "Switch brush to smooth mode for duration of stroke"
-msgstr "Перемкнути пензель у режим згладжування для продовження штриха"
-
-
-msgctxt "Operator"
-msgid "Erase"
-msgstr "Витерти"
 
 
 msgid "Set as default rounded"
@@ -44896,20 +44864,12 @@ msgid "Update Scene FPS"
 msgstr "Оновити Частоту кадрів за секунду для Сцени"
 
 
-msgid "Set the scene framerate to that of the BVH file (note that this nullifies the 'Scale FPS' option, as the scale will be 1:1)"
-msgstr "Установити частоту кадрів сцени відповідно до частоти у файлі BVH (зауважте, що це нівелює значення опції 'Масштаб FPS', ніби масштаб є 1:1)"
-
-
 msgid "Loop the animation playback"
 msgstr "Зациклити показ анімації"
 
 
 msgid "Scale FPS"
 msgstr "Масштабувати ЧК"
-
-
-msgid "Scale the framerate from the BVH to the current scenes, otherwise each BVH frame maps directly to a Blender frame"
-msgstr "Масштабувати частоту кадрів з BVH за поточною сценою, інакше кадри BVH відповідатимуть кадрам Blender"
 
 
 msgid "Animation Offset"
@@ -46239,14 +46199,6 @@ msgid "Remove from the selection"
 msgstr "Вилучити з вибраного"
 
 
-msgid "Select Ring"
-msgstr "Вибрати кільце"
-
-
-msgid "Select ring"
-msgstr "Вибрати кільце"
-
-
 msgid "Toggle Select"
 msgstr "Перемкнути стан вибору"
 
@@ -46690,19 +46642,6 @@ msgstr "Різати лише на передньому плані"
 
 msgid "X-Ray"
 msgstr "Просвічення"
-
-
-msgctxt "Operator"
-msgid "Multi Select Loops"
-msgstr "Мультивибір петель"
-
-
-msgid "Select a loop of connected edges by connection type"
-msgstr "Вибрати петлю зі сполучених ребер за типом з'єднання"
-
-
-msgid "Ring"
-msgstr "Кільце"
 
 
 msgctxt "Operator"
@@ -48176,10 +48115,6 @@ msgstr "Очистити Криві"
 
 msgid "After baking curves, remove redundant keys"
 msgstr "Після запікання кривих вилучити зайві ключі"
-
-
-msgid "Clear Constraints"
-msgstr "Зчистити примуси"
 
 
 msgid "Clear Parents"
@@ -52018,16 +51953,8 @@ msgid "New ID"
 msgstr "Новий Ідентифікатор"
 
 
-msgid "New ID to remap all selected IDs' users to"
-msgstr "Новий Ідентифікатор для перерозкладання ідентифікаторів всіх вибраних користувачів"
-
-
 msgid "Old ID"
 msgstr "Старий Ідентифікатор"
-
-
-msgid "Old ID to replace"
-msgstr "Старий Ідентифікатор для його заміни"
 
 
 msgid "Extend selection for activation"
@@ -55415,10 +55342,6 @@ msgid "Project the geometry onto a plane defined by a line"
 msgstr "Проєктувати геометрію на площину, визначену лінією"
 
 
-msgid "Sample the vertex color of the active vertex"
-msgstr "Відібрати колір вершин з активної вершини"
-
-
 msgctxt "Operator"
 msgid "Sample Detail Size"
 msgstr "Вибірка розміру деталі"
@@ -55611,6 +55534,14 @@ msgstr "Дозволити перекриття"
 
 msgid "Replace Selection"
 msgstr "Замінити вибір"
+
+
+msgid "Ignore Selection"
+msgstr "Ігнорувати Вибрання"
+
+
+msgid "The type of split operation to perform on strips"
+msgstr "Тип операції розділення для здійснення на смужках"
 
 
 msgctxt "Operator"
@@ -56232,16 +56163,8 @@ msgid "Frame where selected strips will be split"
 msgstr "Кадр, де вибрані смужки будуть розділятися"
 
 
-msgid "Ignore Selection"
-msgstr "Ігнорувати Вибрання"
-
-
 msgid "The side that remains selected after splitting"
 msgstr "Сторона, що залишається вибраною після розділяння"
-
-
-msgid "The type of split operation to perform on strips"
-msgstr "Тип операції розділення для здійснення на смужках"
 
 
 msgid "Split at position of the cursor instead of current frame"
@@ -60424,10 +60347,6 @@ msgid "Create a new main window with its own workspace and scene selection"
 msgstr "Створити нове головне вікно з його власним робпростором та вибранням сцени"
 
 
-msgid "Sample Count"
-msgstr "Рахунок Вибірок"
-
-
 msgctxt "Operator"
 msgid "Toggle VR Session"
 msgstr "Перемкнути Сесію ВР"
@@ -60956,10 +60875,6 @@ msgid "Panel containing UI elements"
 msgstr "Панель, що містить елементи Інтерфейсу Користувача"
 
 
-msgid "VR"
-msgstr "ВР"
-
-
 msgid "Active Tool"
 msgstr "Активний Засіб"
 
@@ -61038,6 +60953,10 @@ msgstr "Багато Кадр"
 
 msgid "Auto-Masking"
 msgstr "Авто-Маскування"
+
+
+msgid "VR"
+msgstr "ВР"
 
 
 msgid "Chain Scaling"
@@ -61412,11 +61331,6 @@ msgid "Grab"
 msgstr "Захоп"
 
 
-msgctxt "Operator"
-msgid "Mask"
-msgstr "Маска"
-
-
 msgid "Tiling"
 msgstr "Плиткування"
 
@@ -61765,16 +61679,6 @@ msgstr "Програвання"
 
 msgid "Rename Active Item"
 msgstr "Перейменувати Активний Елемент"
-
-
-msgid ""
-"\n"
-"    Popover panel for adding extra options that don't fit in the tool settings header\n"
-"    "
-msgstr ""
-"\n"
-"    Випливна панель для додавання параметрів, які не помістились у заголовку параметрів інструмента\n"
-"    "
 
 
 msgid "Extra Options"
@@ -64191,10 +64095,6 @@ msgid "Orbit Around Selection"
 msgstr "Обліт Навколо Вибрання"
 
 
-msgid "Use selection as the pivot point"
-msgstr "Використати вибране, як опорну точку"
-
-
 msgid "Zoom to Mouse Position"
 msgstr "Зум до Позиції Миші"
 
@@ -65987,6 +65887,10 @@ msgid "Show the Mist render pass"
 msgstr "Показ проходу рендера Імла"
 
 
+msgid "Sample Count"
+msgstr "Рахунок Вибірок"
+
+
 msgid "Maximum number of bounces the background light will contribute to the render"
 msgstr "Максимальна кількість відскоків освітлення від фону, що буде брати участь у рендері"
 
@@ -66065,10 +65969,6 @@ msgstr "Індекс активної мови у сукупності мов"
 
 msgid "Whether these settings have already been auto-set or not"
 msgstr "Чи були значення цих параметрів встановлені автоматично"
-
-
-msgid "Languages"
-msgstr "Мова"
 
 
 msgid "POT File Path"
@@ -70327,6 +70227,14 @@ msgid "Filter based on key bindings"
 msgstr "Фільтрувати на основі прив'язки до ключів"
 
 
+msgid "Tab Search Results"
+msgstr "Результати Пошуку по Вкладках"
+
+
+msgid "Whether or not each visible tab has a search result"
+msgstr "Чи має кожна видима вкладка результат пошуку"
+
+
 msgid "Properties Space"
 msgstr "Простір властивостей"
 
@@ -70421,14 +70329,6 @@ msgstr "Змінити вкладки лише тоді, коли цей ред�
 
 msgid "Strip Modifiers"
 msgstr "Модифікатори смужок"
-
-
-msgid "Tab Search Results"
-msgstr "Результати Пошуку по Вкладках"
-
-
-msgid "Whether or not each visible tab has a search result"
-msgstr "Чи має кожна видима вкладка результат пошуку"
 
 
 msgid "Pin ID"
@@ -71191,10 +71091,6 @@ msgid "String value in geometry attribute"
 msgstr "Рядкове значення в атрибуті геометрії"
 
 
-msgid "Sequence strip in the sequence editor"
-msgstr "Смужка послідовності у редакторі відеоряду"
-
-
 msgid "Blend Opacity"
 msgstr "Непрозорість змішання"
 
@@ -71205,10 +71101,6 @@ msgstr "Відсоток впливу кольорів смужки на інш�
 
 msgid "Method for controlling how the strip combines with other strips"
 msgstr "Метод керування поєднанням смужки з іншими смужками"
-
-
-msgid "Y position of the sequence strip"
-msgstr "Позиція Y у смужки послідовності"
 
 
 msgid "Effect Fader Position"
@@ -71249,10 +71141,6 @@ msgstr "Заблокувати смужку, щоб її не можна бул�
 
 msgid "Modifiers affecting this strip"
 msgstr "Модифікатори, що впливають на цю смужку"
-
-
-msgid "Disable strip so that it cannot be viewed in the output"
-msgstr "Вимкнути смужку, щоб її не було видно при виводі"
 
 
 msgid "Left Handle Selected"
@@ -71627,6 +71515,10 @@ msgid "Sequence strip to group other strips as a single sequence strip"
 msgstr "Смужка послідовності для групування інших смужок в одну смужку послідовності"
 
 
+msgid "Playback volume of the sound"
+msgstr "Гучність відтворення звуку"
+
+
 msgid "Sequence strip to load a video from the clip editor"
 msgstr "Смужка відеоряду для завантаження відео з редактора кліпів"
 
@@ -71685,10 +71577,6 @@ msgstr "Вжити 3D камери Сцени як увід"
 
 msgid "Use the Scene's Sequencer timeline as input"
 msgstr "Вжити часолінію Секвенсера сцени як увід"
-
-
-msgid "Playback volume of the sound"
-msgstr "Гучність відтворення звуку"
 
 
 msgid "Sequence strip defining a sound to be played over a period of time"
@@ -72133,22 +72021,6 @@ msgstr "Текстове поле"
 
 msgid "Text bounding box for layout"
 msgstr "Габаритна коробка тексту для розстановки"
-
-
-msgid "Textbox Height"
-msgstr "Висота текстового поля"
-
-
-msgid "Textbox Width"
-msgstr "Ширина текстового поля"
-
-
-msgid "Textbox X Offset"
-msgstr "Зсув текстового поля по X"
-
-
-msgid "Textbox Y Offset"
-msgstr "Зсув текстового поля по Y"
 
 
 msgid "Text Character Format"
@@ -73315,16 +73187,16 @@ msgid "Theme settings for the Blender Preferences"
 msgstr "Устави теми для Уподобань Blender'а"
 
 
+msgid "Search Match"
+msgstr "Пошук Відповідностей"
+
+
 msgid "Theme Properties"
 msgstr "Тема властивостей"
 
 
 msgid "Theme settings for the Properties"
 msgstr "Параметри теми для властивостей"
-
-
-msgid "Search Match"
-msgstr "Пошук Відповідностей"
 
 
 msgid "Selected Text"
@@ -78511,20 +78383,8 @@ msgid "Default Fade"
 msgstr "Стандартне Зникання"
 
 
-msgid "Strip Offset Start"
-msgstr "Зсув Смужки Старт"
-
-
-msgid "Hold Offset Start"
-msgstr "Тримати Зсув Старт"
-
-
 msgid "Effect Fader"
 msgstr "Зникач Ефекту"
-
-
-msgid "Original Frame Range"
-msgstr "Оригінальний Діапазон Кадрів"
 
 
 msgid "Unpack"
@@ -78960,11 +78820,6 @@ msgstr "Після Поточного Кадру"
 msgctxt "Operator"
 msgid "Extrapolation Mode"
 msgstr "Режим Екстраполяції"
-
-
-msgctxt "Operator"
-msgid "Move..."
-msgstr "Переміщення..."
 
 
 msgctxt "Operator"
@@ -79479,11 +79334,6 @@ msgstr "Перейменування..."
 
 
 msgctxt "Operator"
-msgid "Track Ordering..."
-msgstr "Порядок Відстеження..."
-
-
-msgctxt "Operator"
 msgid "Stop Tweaking Strip Actions"
 msgstr "Зупинити Підправлення Дій Смужок"
 
@@ -79723,16 +79573,6 @@ msgstr "Стрибок на Наступну Смужку (Центр)"
 
 
 msgctxt "Operator"
-msgid "Movie"
-msgstr "Фільм"
-
-
-msgctxt "Operator"
-msgid "Image/Sequence"
-msgstr "Зображення/Послідовність"
-
-
-msgctxt "Operator"
 msgid "Fade"
 msgstr "Зникання"
 
@@ -79837,11 +79677,6 @@ msgstr "Правий Сусід"
 msgctxt "Operator"
 msgid "Both Sides"
 msgstr "Обидві Сторони"
-
-
-msgctxt "Operator"
-msgid "Side of Frame..."
-msgstr "Сторона Кадру..."
 
 
 msgid "Handle"
@@ -80698,6 +80533,16 @@ msgstr "Пов'язані Плоскі Грані"
 
 
 msgctxt "Operator"
+msgid "Edge Loops"
+msgstr "Петлі Ребер"
+
+
+msgctxt "Operator"
+msgid "Edge Rings"
+msgstr "Кільця Ребер"
+
+
+msgctxt "Operator"
 msgid "Sharp Edges"
 msgstr "Гострі Ребра"
 
@@ -80810,11 +80655,6 @@ msgstr "Хмара Точок"
 msgctxt "Operator"
 msgid "Speaker"
 msgstr "Гучномовець"
-
-
-msgctxt "Operator"
-msgid "Make Local..."
-msgstr "Зробити Локальним..."
 
 
 msgctxt "Operator"
@@ -81164,11 +81004,6 @@ msgstr "Зчистити Шляхи Руху"
 
 
 msgctxt "Operator"
-msgid "Sort Elements..."
-msgstr "Сортувати Елементи..."
-
-
-msgctxt "Operator"
 msgid "Extrude Vertices"
 msgstr "Видавити Вершини"
 
@@ -81289,11 +81124,6 @@ msgstr "Плоскі Грані"
 
 
 msgctxt "Operator"
-msgid "Edge Loops"
-msgstr "Петлі Ребер"
-
-
-msgctxt "Operator"
 msgid "Bones"
 msgstr "Кістки"
 
@@ -81411,11 +81241,6 @@ msgstr "Не Розгортне"
 
 
 msgctxt "Operator"
-msgid "Edge Rings"
-msgstr "Кільця Ребер"
-
-
-msgctxt "Operator"
 msgid "Previous Block"
 msgstr "Попередній Блок"
 
@@ -81443,16 +81268,6 @@ msgstr "Нема Колекцій у Примірник"
 msgctxt "Operator"
 msgid "Collection Instance"
 msgstr "Примірник Колекції"
-
-
-msgctxt "Operator"
-msgid "Reference"
-msgstr "Орієнтир"
-
-
-msgctxt "Operator"
-msgid "Background"
-msgstr "Фон"
 
 
 msgctxt "Operator"
@@ -82134,16 +81949,8 @@ msgid "No action to delete keyframes from for ID = %s"
 msgstr "Немає дії, з якої слід видалити ключові кадри для ID = %s"
 
 
-msgid "Not deleting keyframe for locked F-Curve '%s' for %s '%s'"
-msgstr "Ключовий кадр, який не вилучається, для заблокованої Ф-кривої '%s' для %s '%s'"
-
-
 msgid "Could not clear keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
 msgstr "Неможливо зчистити ключовий кадр з властивості, неправильний RNA-шлях для даного ID (ID = %s, шлях = %s)"
-
-
-msgid "Not clearing all keyframes from locked F-Curve '%s' for %s '%s'"
-msgstr "Не зчищати всі ключкадри із заблокованої Ф-Кривої '%s' для %s '%s'"
 
 
 msgid "Skipping path in keying set, as it has no ID (KS = '%s', path = '%s[%d]')"
@@ -82463,6 +82270,18 @@ msgid "ParticleSettings"
 msgstr "ПараметриЧастинок"
 
 
+msgid "Object was not yet evaluated"
+msgstr "Об'єкт ще не було обчислено"
+
+
+msgid "Mesh has no UV data"
+msgstr "Сіть не має даних UV"
+
+
+msgid "Mesh has no VCol data"
+msgstr "Сіть не має даних про колір вершин"
+
+
 msgid "%i frames found!"
 msgstr "%i кадрів знайдено!"
 
@@ -82568,10 +82387,6 @@ msgid "ID %s uses shapekey %s, but its 'from' pointer is invalid (%p), fixing...
 msgstr "Ідентифікатор %s використовує ключ форми %s, але його вказівник 'із' є недійсним (%p), виправлення..."
 
 
-msgid "insufficient content"
-msgstr "недостатній вміст"
-
-
 msgid "unknown error reading file"
 msgstr "невідома помилка читання файлу"
 
@@ -82606,10 +82421,6 @@ msgstr "Неможливо відкрити файл blend <пам'ять>"
 
 msgid "Failed to read blend file '%s': %s"
 msgstr "Не вдалось прочитати blend-файл '%s': %s"
-
-
-msgid "Unable to read '%s': %s"
-msgstr "Неможливо прочитати '%s': %s"
 
 
 msgid "Unrecognized file format '%s'"
@@ -83295,16 +83106,6 @@ msgstr "Лише клавіатурні швидкі клавіші можуть
 
 
 msgctxt "Operator"
-msgid "Change Shortcut"
-msgstr "Змінити швидку клавішу"
-
-
-msgctxt "Operator"
-msgid "Assign Shortcut"
-msgstr "Призначити Скорочення"
-
-
-msgctxt "Operator"
 msgid "Open File Externally"
 msgstr "Відкрити файл зовні"
 
@@ -83928,10 +83729,6 @@ msgid "Yesterday"
 msgstr "Учора"
 
 
-msgid "Modified"
-msgstr "Змінено"
-
-
 msgid "Anim Player"
 msgstr "Програвач анімації"
 
@@ -84065,10 +83862,6 @@ msgid "You have to select a string of connected vertices too"
 msgstr "Слід ще вибрати рядок з'єднаних вершин"
 
 
-msgid "Compiled without GMP, using fast solver"
-msgstr "Скомпільовано без GMP, використовується швидкий рішач"
-
-
 msgid "No intersections found"
 msgstr "Перетинів не знайдено"
 
@@ -84083,6 +83876,10 @@ msgstr "Слід вибрати грані"
 
 msgid "No other selected objects have wire or boundary edges to use for projection"
 msgstr "Немає інших вибраних об'єктів, що мають дротяні або рубіжні ребра для використання для проектування"
+
+
+msgid "Select Ring"
+msgstr "Вибрати кільце"
 
 
 msgid "Loop cut does not work well on deformed edit mesh display"
@@ -85392,24 +85189,8 @@ msgid "Removed amount of editors: %d"
 msgstr "Кількість вилучених редакторів: %d"
 
 
-msgid "expected a view3d region"
-msgstr "потрібна область 3D-вигляду"
-
-
-msgid "expected a timeline/animation area to be active"
-msgstr "потрібна активна область шкали часу/анімації"
-
-
 msgid "Context missing active object"
 msgstr "Немає активного об'єкта у контексті"
-
-
-msgid "expected a view3d region & editmesh"
-msgstr "очікується регіон 3D огляду та режим редагування сіті"
-
-
-msgid "expected a view3d region & editcurve"
-msgstr "потрібна область 3D-вигляду та крива, що редагується"
 
 
 msgid "Toggling regions in the Top-bar is not allowed"
@@ -85517,22 +85298,6 @@ msgid "Missing%s%s%s%s detected!"
 msgstr "Виявлено відсутність %s%s%s%s!"
 
 
-msgid "Palette created"
-msgstr "Палітру створено"
-
-
-msgid "Sample color for %s"
-msgstr "Вибірка кольору для %s"
-
-
-msgid "Brush. Use Left Click to sample for palette instead"
-msgstr "Пензель. Використовуйте лівий клацок миші для вибірки для палітри натомість"
-
-
-msgid "Palette. Use Left Click to sample more colors"
-msgstr "Палітра. Використовуйте лівий клацок миші, щоб вибрати більше кольорів"
-
-
 msgid "The modifier used does not support deformed locations"
 msgstr "Використаний модифікатор не підтримує деформованих розміщень"
 
@@ -85583,6 +85348,22 @@ msgstr "Об'єкт має від'ємний масштаб, ліплення м
 
 msgid "Dynamic Topology found: %s, disabled"
 msgstr "Знайдена Динамічна топологія: %s, вимкнено"
+
+
+msgid "Palette created"
+msgstr "Палітру створено"
+
+
+msgid "Sample color for %s"
+msgstr "Вибірка кольору для %s"
+
+
+msgid "Brush. Use Left Click to sample for palette instead"
+msgstr "Пензель. Використовуйте лівий клацок миші для вибірки для палітри натомість"
+
+
+msgid "Palette. Use Left Click to sample more colors"
+msgstr "Палітра. Використовуйте лівий клацок миші, щоб вибрати більше кольорів"
 
 
 msgid "Compiled without sound support"
@@ -85891,10 +85672,6 @@ msgstr "Картинки"
 
 msgid "Videos"
 msgstr "Відео"
-
-
-msgid "Movies"
-msgstr "Фільми"
 
 
 msgid "Cursor X"
@@ -86322,10 +86099,6 @@ msgid "Cannot swap selected strips as they will not be able to fit in their new 
 msgstr "Неможливо обміняти вибрані смужки, бо вони не помістяться на нових місцях"
 
 
-msgid "Action '%s' does not specify what data-blocks it can be used on (try setting the 'ID Root Type' setting from the data-blocks editor for this action to avoid future problems)"
-msgstr "Для дії '%s' не визначені блоки даних, з якими воно може використовуватися (спробуйте встановити тип кореневого ID 'ID Root Type' у редакторі блоків даних для цієї дії, щоб уникнути проблем у майбутньому)"
-
-
 msgid "Could not add action '%s' as it cannot be used relative to ID-blocks of type '%s'"
 msgstr "Неможливо додати дію '%s' бо вона не може бути застосована до ID-блоків типу '%s'"
 
@@ -86364,6 +86137,10 @@ msgstr "Немає активної дії для проштовху вниз"
 
 msgid "Select an existing NLA Track or an empty action line first"
 msgstr "Спочатку виберіть наявну доріжку НЛА або порожній рядок дії"
+
+
+msgid "No data to paste"
+msgstr "Нема даних для вставлення"
 
 
 msgid "Subtype"
@@ -86456,10 +86233,6 @@ msgstr "Немає активного елемента для переймену
 
 msgid "No selected data-blocks to copy"
 msgstr "Нема вибраних блоків даних для копіювання"
-
-
-msgid "No data to paste"
-msgstr "Нема даних для вставлення"
 
 
 msgid "Operation requires an active keying set"
@@ -87916,18 +87689,6 @@ msgid "uv_on_emitter() requires a modifier from an evaluated object"
 msgstr "uv_on_emitter() вимагає модифікатор з обчисленого об'єкта"
 
 
-msgid "Mesh has no UV data"
-msgstr "Сіть не має даних UV"
-
-
-msgid "Object was not yet evaluated"
-msgstr "Об'єкт ще не було обчислено"
-
-
-msgid "Mesh has no VCol data"
-msgstr "Сіть не має даних про колір вершин"
-
-
 msgid "Constraint '%s' not found in pose bone '%s'"
 msgstr "Примус '%s' не знайдено у позової кістки '%s'"
 
@@ -88867,6 +88628,10 @@ msgid "Don't Save"
 msgstr "Не Зберігати"
 
 
+msgid "Modified"
+msgstr "Змінено"
+
+
 msgid "Reload file with execution of Python scripts enabled"
 msgstr "Перезавантаження фалу з увімкненим виконанням скриптів Python"
 
@@ -89006,18 +88771,6 @@ msgstr "Властивість має бути цілою або дійсною"
 
 msgid "Property must be a none, distance, factor, percentage, angle, or pixel"
 msgstr "Властивість має бути безтиповою, відстанню, множником, процентом, кутом або пікселем"
-
-
-msgid "Registering operator class: '%s', invalid bl_idname '%s', at position %d"
-msgstr "Реєстрація класу оператора: '%s', неправильне bl_idname '%s', у позиції %d"
-
-
-msgid "Registering operator class: '%s', invalid bl_idname '%s', is too long, maximum length is %d"
-msgstr "Реєстрація класу оператора: '%s', неправильне bl_idname '%s', занадто довге, найбільша довжина - %d"
-
-
-msgid "Registering operator class: '%s', invalid bl_idname '%s', must contain 1 '.' character"
-msgstr "Реєстрація класу оператора: '%s', неправильне bl_idname '%s', має містити один символ '.'"
 
 
 msgid "Cannot read %s '%s': %s"

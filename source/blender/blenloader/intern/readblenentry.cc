@@ -33,6 +33,8 @@
 
 #include "BLI_sys_types.h" /* Needed for `intptr_t`. */
 
+namespace blender {
+
 #ifdef WIN32
 #  include "BLI_winstuff.h"
 #endif
@@ -52,7 +54,7 @@ void BLO_datablock_info_linklist_free(LinkNode *datablock_infos)
   BLI_linklist_free(datablock_infos, [](void *link) {
     BLODataBlockInfo *datablock_info = static_cast<BLODataBlockInfo *>(link);
     BLO_datablock_info_free(datablock_info);
-    MEM_freeN(datablock_info);
+    MEM_delete(datablock_info);
   });
 }
 
@@ -60,7 +62,7 @@ BlendHandle *BLO_blendhandle_from_file(const char *filepath, BlendFileReadReport
 {
   BlendHandle *bh;
 
-  bh = (BlendHandle *)blo_filedata_from_file(filepath, reports);
+  bh = reinterpret_cast<BlendHandle *>(blo_filedata_from_file(filepath, reports));
 
   return bh;
 }
@@ -71,15 +73,15 @@ BlendHandle *BLO_blendhandle_from_memory(const void *mem,
 {
   BlendHandle *bh;
 
-  bh = (BlendHandle *)blo_filedata_from_memory(mem, memsize, reports);
+  bh = reinterpret_cast<BlendHandle *>(blo_filedata_from_memory(mem, memsize, reports));
 
   return bh;
 }
 
-blender::int3 BLO_blendhandle_get_version(const BlendHandle *bh)
+int3 BLO_blendhandle_get_version(const BlendHandle *bh)
 {
   const FileData *fd = reinterpret_cast<const FileData *>(bh);
-  return blender::int3(fd->fileversion / 100, fd->fileversion % 100, fd->filesubversion);
+  return int3(fd->fileversion / 100, fd->fileversion % 100, fd->filesubversion);
 }
 
 /* Return `false` if the block should be skipped because it is either an invalid block, or it does
@@ -115,7 +117,7 @@ LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh,
                                               const bool use_assets_only,
                                               int *r_tot_names)
 {
-  FileData *fd = (FileData *)bh;
+  FileData *fd = reinterpret_cast<FileData *>(bh);
   LinkNode *names = nullptr;
   BHead *bhead;
   int tot = 0;
@@ -148,7 +150,7 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
                                              const bool use_assets_only,
                                              int *r_tot_info_items)
 {
-  FileData *fd = (FileData *)bh;
+  FileData *fd = reinterpret_cast<FileData *>(bh);
   LinkNode *infos = nullptr;
   BHead *bhead;
   int tot = 0;
@@ -172,7 +174,7 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
       }
 
       const char *name = idname + 2;
-      BLODataBlockInfo *info = MEM_mallocN<BLODataBlockInfo>(__func__);
+      BLODataBlockInfo *info = MEM_new_uninitialized<BLODataBlockInfo>(__func__);
 
       /* Lastly, read asset data from the following blocks. */
       if (asset_meta_data) {
@@ -255,7 +257,7 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
                                                  int ofblocktype,
                                                  const char *name)
 {
-  FileData *fd = (FileData *)bh;
+  FileData *fd = reinterpret_cast<FileData *>(bh);
   bool looking = false;
   const int sdna_preview_image = DNA_struct_find_with_alias(fd->filesdna, "PreviewImage");
 
@@ -269,10 +271,10 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
           break;
         }
 
-        PreviewImage *result = static_cast<PreviewImage *>(MEM_dupallocN(preview_from_file));
-        result->runtime = MEM_new<blender::bke::PreviewImageRuntime>(__func__);
+        PreviewImage *result = MEM_dupalloc(preview_from_file);
+        result->runtime = MEM_new<bke::PreviewImageRuntime>(__func__);
         bhead = blo_blendhandle_read_preview_rects(fd, bhead, result, preview_from_file);
-        MEM_freeN(preview_from_file);
+        MEM_delete(preview_from_file);
         return result;
       }
     }
@@ -294,8 +296,8 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
 
 LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh)
 {
-  FileData *fd = (FileData *)bh;
-  blender::Set<const char *> gathered;
+  FileData *fd = reinterpret_cast<FileData *>(bh);
+  Set<const char *> gathered;
   LinkNode *names = nullptr;
   BHead *bhead;
 
@@ -319,7 +321,7 @@ LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh)
 
 void BLO_blendhandle_close(BlendHandle *bh)
 {
-  FileData *fd = (FileData *)bh;
+  FileData *fd = reinterpret_cast<FileData *>(bh);
 
   blo_filedata_free(fd);
 }
@@ -435,7 +437,7 @@ void BLO_blendfiledata_free(BlendFileData *bfd)
   }
 
   if (bfd->user) {
-    MEM_freeN(bfd->user);
+    MEM_delete(bfd->user);
   }
 
   MEM_delete(bfd);
@@ -447,3 +449,5 @@ void BLO_read_do_version_after_setup(Main *new_bmain,
 {
   do_versions_after_setup(new_bmain, lapp_context, reports);
 }
+
+}  // namespace blender

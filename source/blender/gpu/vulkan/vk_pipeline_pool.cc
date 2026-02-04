@@ -5,6 +5,9 @@
 /** \file
  * \ingroup gpu
  */
+
+#include <sstream>
+
 #include "BKE_appdir.hh"
 #include "BKE_blender_version.h"
 
@@ -18,12 +21,14 @@
 #include "vk_graphics_pipeline.hh"
 #include "vk_pipeline_pool.hh"
 
+namespace blender {
+
 #ifdef WITH_BUILDINFO
 extern "C" char build_hash[];
 #endif
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-namespace blender::gpu {
+namespace gpu {
 
 void VKPipelinePool::init()
 {
@@ -140,9 +145,8 @@ static VkPipeline create_graphics_pipeline_no_libs(const VKGraphicsInfo &graphic
                                                    StringRefNull name)
 {
   VKDevice &device = VKBackend::get().device;
-  const VKExtensions &extensions = device.extensions_get();
   VKGraphicsPipelineCreateInfoBuilder builder;
-  builder.build_full(graphics_info, extensions, vk_pipeline_base);
+  builder.build_full(device, graphics_info, vk_pipeline_base);
 
   /* Build pipeline. */
   VkPipeline pipeline = VK_NULL_HANDLE;
@@ -239,6 +243,243 @@ VkPipeline VKPipelineMap<VKGraphicsInfo>::create(const VKGraphicsInfo &graphics_
   }
 }
 
+std::string VKGraphicsInfo::pipeline_info_source() const
+{
+  std::stringstream result;
+  result << "info.pipeline_state()\n";
+  result << "  .primitive(";
+  switch (vertex_in.vk_topology) {
+    case VK_PRIMITIVE_TOPOLOGY_POINT_LIST:
+      result << "GPU_PRIM_POINTS";
+      break;
+    case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
+      result << "GPU_PRIM_LINES";
+      break;
+    case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
+      result << "GPU_PRIM_LINE_STRIP";
+      break;
+    case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST:
+      result << "GPU_PRIM_TRIS";
+      break;
+    case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP:
+      result << "GPU_PRIM_TRI_STRIP";
+      break;
+    case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN:
+      result << "GPU_PRIM_TRI_FAN";
+      break;
+    case VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY:
+      result << "GPU_PRIM_LINES_ADJ";
+      break;
+    case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY:
+      result << "GPU_PRIM_TRIS_ADJ";
+      break;
+    default:
+      BLI_assert_unreachable();
+  };
+  result << ")\n";
+  result << "  .state(";
+  /* Write mask */
+  Vector<std::string> write_masks;
+  if (fragment_out.state.write_mask & GPU_WRITE_COLOR) {
+    if ((fragment_out.state.write_mask & GPU_WRITE_COLOR) == GPU_WRITE_COLOR) {
+      write_masks.append("GPU_WRITE_COLOR");
+    }
+    else {
+      if (fragment_out.state.write_mask & GPU_WRITE_RED) {
+        write_masks.append("GPU_WRITE_RED");
+      }
+      if (fragment_out.state.write_mask & GPU_WRITE_GREEN) {
+        write_masks.append("GPU_WRITE_GREEN");
+      }
+      if (fragment_out.state.write_mask & GPU_WRITE_BLUE) {
+        write_masks.append("GPU_WRITE_BLUE");
+      }
+      if (fragment_out.state.write_mask & GPU_WRITE_ALPHA) {
+        write_masks.append("GPU_WRITE_ALPHA");
+      }
+    }
+  }
+  if (fragment_out.state.write_mask & GPU_WRITE_DEPTH) {
+    write_masks.append("GPU_WRITE_DEPTH");
+  }
+  if (fragment_out.state.write_mask & GPU_WRITE_STENCIL) {
+    write_masks.append("GPU_WRITE_STENCIL");
+  }
+  if (write_masks.is_empty()) {
+    write_masks.append("GPU_WRITE_NONE");
+  }
+  for (const std::string &write_mask : write_masks) {
+    result << write_mask;
+    if (&write_mask != &write_masks.last()) {
+      result << " | ";
+    }
+  }
+  /* Blending mode */
+  result << ",\n         ";
+  switch (fragment_out.state.blend) {
+    case GPU_BLEND_NONE:
+      result << "GPU_BLEND_NONE";
+      break;
+    case GPU_BLEND_ALPHA:
+      result << "GPU_BLEND_ALPHA";
+      break;
+    case GPU_BLEND_ALPHA_PREMULT:
+      result << "GPU_BLEND_ALPHA_PREMULT";
+      break;
+    case GPU_BLEND_ADDITIVE:
+      result << "GPU_BLEND_ADDITIVE";
+      break;
+    case GPU_BLEND_ADDITIVE_PREMULT:
+      result << "GPU_BLEND_ADDITIVE_PREMULT";
+      break;
+    case GPU_BLEND_MULTIPLY:
+      result << "GPU_BLEND_MULTIPLY";
+      break;
+    case GPU_BLEND_SUBTRACT:
+      result << "GPU_BLEND_SUBTRACT";
+      break;
+    case GPU_BLEND_INVERT:
+      result << "GPU_BLEND_INVERT";
+      break;
+    case GPU_BLEND_MIN:
+      result << "GPU_BLEND_MIN";
+      break;
+    case GPU_BLEND_MAX:
+      result << "GPU_BLEND_MAX";
+      break;
+    case GPU_BLEND_OIT:
+      result << "GPU_BLEND_OIT";
+      break;
+    case GPU_BLEND_BACKGROUND:
+      result << "GPU_BLEND_BACKGROUND";
+      break;
+    case GPU_BLEND_CUSTOM:
+      result << "GPU_BLEND_CUSTOM";
+      break;
+    case GPU_BLEND_ALPHA_UNDER_PREMUL:
+      result << "GPU_BLEND_ALPHA_UNDER_PREMUL";
+      break;
+    case GPU_BLEND_OVERLAY_MASK_FROM_ALPHA:
+      result << "GPU_BLEND_OVERLAY_MASK_FROM_ALPHA";
+      break;
+    case GPU_BLEND_TRANSPARENCY:
+      result << "GPU_BLEND_TRANSPARENCY";
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+  /* Culling test */
+  result << ",\n         ";
+  switch (shaders.state.culling_test) {
+    case GPU_CULL_NONE:
+      result << "GPU_CULL_NONE";
+      break;
+    case GPU_CULL_FRONT:
+      result << "GPU_CULL_FRONT";
+      break;
+    case GPU_CULL_BACK:
+      result << "GPU_CULL_BACK";
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+  /* Depth test */
+  result << ",\n         ";
+  switch (shaders.state.depth_test) {
+    case GPU_DEPTH_NONE:
+      result << "GPU_DEPTH_NONE";
+      break;
+    case GPU_DEPTH_LESS:
+      result << "GPU_DEPTH_LESS";
+      break;
+    case GPU_DEPTH_LESS_EQUAL:
+      result << "GPU_DEPTH_LESS_EQUAL";
+      break;
+    case GPU_DEPTH_EQUAL:
+      result << "GPU_DEPTH_EQUAL";
+      break;
+    case GPU_DEPTH_GREATER:
+      result << "GPU_DEPTH_GREATER";
+      break;
+    case GPU_DEPTH_GREATER_EQUAL:
+      result << "GPU_DEPTH_GREATER_EQUAL";
+      break;
+    case GPU_DEPTH_ALWAYS:
+      result << "GPU_DEPTH_ALWAYS";
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+  /* Stencil test */
+  result << ",\n         ";
+  switch (shaders.state.stencil_test) {
+    case GPU_STENCIL_NONE:
+      result << "GPU_STENCIL_NONE";
+      break;
+    case GPU_STENCIL_ALWAYS:
+      result << "GPU_STENCIL_ALWAYS";
+      break;
+    case GPU_STENCIL_EQUAL:
+      result << "GPU_STENCIL_EQUAL";
+      break;
+    case GPU_STENCIL_NEQUAL:
+      result << "GPU_STENCIL_NEQUAL";
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+  /* Stencil operation */
+  result << ",\n         ";
+  switch (shaders.state.stencil_op) {
+    case GPU_STENCIL_OP_NONE:
+      result << "GPU_STENCIL_OP_NONE";
+      break;
+    case GPU_STENCIL_OP_REPLACE:
+      result << "GPU_STENCIL_OP_REPLACE";
+      break;
+    case GPU_STENCIL_OP_COUNT_DEPTH_PASS:
+      result << "GPU_STENCIL_OP_COUNT_DEPTH_PASS";
+      break;
+    case GPU_STENCIL_OP_COUNT_DEPTH_FAIL:
+      result << "GPU_STENCIL_OP_COUNT_DEPTH_FAIL";
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+  /* Provoking vertex */
+  result << ",\n         ";
+  switch (shaders.state.provoking_vert) {
+    case GPU_VERTEX_FIRST:
+      result << "GPU_VERTEX_FIRST";
+      break;
+    case GPU_VERTEX_LAST:
+      result << "GPU_VERTEX_LAST";
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+  result << ")\n";
+  /* viewports */
+  result << "  .viewports(" << shaders.viewport_count << ")\n";
+  /* Depth format */
+  if (fragment_out.depth_attachment_format != VK_FORMAT_UNDEFINED) {
+    result << "  .depth_format(gpu::TextureTargetFormat::"
+           << to_gpu_format_string(fragment_out.depth_attachment_format) << ")\n";
+  }
+  /* Stencil format */
+  if (fragment_out.stencil_attachment_format != VK_FORMAT_UNDEFINED) {
+    result << "  .stencil_format(gpu::TextureTargetFormat::"
+           << to_gpu_format_string(fragment_out.stencil_attachment_format) << ")\n";
+  }
+  /* Color formats */
+  for (const VkFormat format : fragment_out.color_attachment_formats) {
+    result << "  .color_format(gpu::TextureTargetFormat::" << to_gpu_format_string(format)
+           << ")\n";
+  }
+  result << ";";
+  return result.str();
+}
+
 /* \} */
 
 /* -------------------------------------------------------------------- */
@@ -262,7 +503,7 @@ VkPipeline VKPipelineMap<VKGraphicsInfo::VertexIn>::create(
 {
   VKDevice &device = VKBackend::get().device;
   VKGraphicsPipelineCreateInfoBuilder builder;
-  builder.build_vertex_input_lib(vertex_input_info, vk_pipeline_base);
+  builder.build_vertex_input_lib(device, vertex_input_info, vk_pipeline_base);
 
   /* Build pipeline. */
   VkPipeline pipeline = VK_NULL_HANDLE;
@@ -300,8 +541,9 @@ VkPipeline VKPipelineMap<VKGraphicsInfo::Shaders>::create(
     StringRefNull name)
 {
   VKDevice &device = VKBackend::get().device;
+  const VKExtensions &extensions = device.extensions_get();
   VKGraphicsPipelineCreateInfoBuilder builder;
-  builder.build_shaders_lib(shaders_info, vk_pipeline_base);
+  builder.build_shaders_lib(shaders_info, extensions, vk_pipeline_base);
 
   /* Build pipeline. */
   VkPipeline pipeline = VK_NULL_HANDLE;
@@ -366,7 +608,7 @@ void VKPipelinePool::discard(VKDiscardPool &discard_pool, VkPipelineLayout vk_pi
   graphics_.discard(discard_pool, vk_pipeline_layout);
   compute_.discard(discard_pool, vk_pipeline_layout);
   shaders_libs_.discard(discard_pool, vk_pipeline_layout);
-  /* vertex_input_libs_ and fragment_output_libs_ are NOT dependend on vk_pipeline_layout. */
+  /* vertex_input_libs_ and fragment_output_libs_ are NOT dependent on vk_pipeline_layout. */
 }
 
 void VKPipelinePool::free_data()
@@ -448,19 +690,19 @@ void VKPipelinePool::read_from_disk()
   fstream file(cache_file, std::ios::binary | std::ios::in | std::ios::ate);
   std::streamsize data_size = file.tellg();
   file.seekg(0, std::ios::beg);
-  void *buffer = MEM_mallocN(data_size, __func__);
-  file.read(reinterpret_cast<char *>(buffer), data_size);
+  Vector<char> buffer(data_size);
+  file.read(buffer.data(), data_size);
   file.close();
 
   /* Validate the prefix header. */
   VKPipelineCachePrefixHeader prefix;
-  VKPipelineCachePrefixHeader &read_prefix = *static_cast<VKPipelineCachePrefixHeader *>(buffer);
+  VKPipelineCachePrefixHeader &read_prefix = *reinterpret_cast<VKPipelineCachePrefixHeader *>(
+      buffer.data());
   prefix.data_size = read_prefix.data_size;
   if (memcmp(&read_prefix, &prefix, sizeof(VKPipelineCachePrefixHeader)) != 0) {
     /* Headers are different, most likely the cache will not work and potentially crash the driver.
      * [https://medium.com/@zeuxcg/creating-a-robust-pipeline-cache-with-vulkan-961d09416cda]
      */
-    MEM_freeN(buffer);
     CLOG_INFO(&LOG,
               "Pipeline cache on disk [%s] is ignored as it was written by a different driver or "
               "Blender version. Cache will be overwritten when exiting.",
@@ -473,10 +715,9 @@ void VKPipelinePool::read_from_disk()
   VkPipelineCacheCreateInfo create_info = {};
   create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
   create_info.initialDataSize = read_prefix.data_size;
-  create_info.pInitialData = static_cast<uint8_t *>(buffer) + sizeof(VKPipelineCachePrefixHeader);
+  create_info.pInitialData = buffer.data() + sizeof(VKPipelineCachePrefixHeader);
   VkPipelineCache vk_pipeline_cache = VK_NULL_HANDLE;
   vkCreatePipelineCache(device.vk_handle(), &create_info, nullptr, &vk_pipeline_cache);
-  MEM_freeN(buffer);
 
   vkMergePipelineCaches(device.vk_handle(), vk_pipeline_cache_static_, 1, &vk_pipeline_cache);
   vkDestroyPipelineCache(device.vk_handle(), vk_pipeline_cache, nullptr);
@@ -495,8 +736,8 @@ void VKPipelinePool::write_to_disk()
   VKDevice &device = VKBackend::get().device;
   size_t data_size;
   vkGetPipelineCacheData(device.vk_handle(), vk_pipeline_cache_static_, &data_size, nullptr);
-  void *buffer = MEM_mallocN(data_size, __func__);
-  vkGetPipelineCacheData(device.vk_handle(), vk_pipeline_cache_static_, &data_size, buffer);
+  Vector<char> buffer(data_size);
+  vkGetPipelineCacheData(device.vk_handle(), vk_pipeline_cache_static_, &data_size, buffer.data());
 
   std::string cache_file = pipeline_cache_filepath_get();
   CLOG_INFO(&LOG, "Writing static pipeline cache to disk [%s].", cache_file.c_str());
@@ -506,12 +747,11 @@ void VKPipelinePool::write_to_disk()
   VKPipelineCachePrefixHeader header;
   header.data_size = data_size;
   file.write(reinterpret_cast<char *>(&header), sizeof(VKPipelineCachePrefixHeader));
-  file.write(static_cast<char *>(buffer), data_size);
-
-  MEM_freeN(buffer);
+  file.write(buffer.data(), data_size);
 #endif
 }
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender
