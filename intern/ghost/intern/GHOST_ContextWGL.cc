@@ -64,8 +64,8 @@ GHOST_ContextWGL::GHOST_ContextWGL(const GHOST_ContextParams &context_params,
     }
     if (offscreen_window_handle_ == nullptr) {
       offscreen_window_handle_ = &s_sharedOffscreenWindowHandles.emplace_back();
-      offscreen_window_handle_->used = true;
     }
+    offscreen_window_handle_->used = true;
     h_wnd_ = offscreen_window_handle_->h_wnd;
     h_DC_ = offscreen_window_handle_->h_DC;
   }
