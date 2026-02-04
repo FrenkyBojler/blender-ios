@@ -311,6 +311,7 @@ enum {
 #define UI_TOOLBAR_WIDTH UI_TOOLBAR_MARGIN + UI_TOOLBAR_COLUMN
 
 #define UI_PANEL_CATEGORY_MARGIN_WIDTH (U.widget_unit * 1.0f)
+#define UI_PANEL_SEARCH_BLOCK_MARGIN_HEIGHT (1.25 * UI_UNIT_Y)
 
 /* Minimum width for a panel showing only category tabs. */
 #define UI_PANEL_CATEGORY_MIN_WIDTH 26.0f

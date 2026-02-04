@@ -1825,7 +1825,7 @@ static bool uiAlignPanelStep(ARegion *region, const float factor, const bool dra
   /* Y offset. */
   int y = 0;
   if (region->runtime->search_block) {
-    y = -20;
+    y = -UI_PANEL_SEARCH_BLOCK_MARGIN_HEIGHT;
   }
   for (PanelSort &ps : panel_sort) {
     const bool show_background = panel_should_show_background(region, ps.panel->type);

@@ -3335,28 +3335,6 @@ void ED_region_panels_layout_ex(const bContext *C,
   const int max_panel_width = round_fl_to_int(BLI_rctf_size_x(&v2d->cur)) - margin_x;
   /* Works out to 10 * UI_UNIT_X or 20 * UI_UNIT_X. */
   const int em = (region->runtime->type->prefsizex) ? 10 : 20;
-  if (region->regiontype == RGN_TYPE_UI) {
-    ui::Block *search_block = block_begin(C, region, "INTERNAL", ui::EmbossType::Emboss);
-    const uiStyle *style = ui::style_get_dpi();
-
-    ui::Layout &layout = ui::block_layout(search_block,
-                                          ui::LayoutDirection::Vertical,
-                                          ui::LayoutType::Header,
-                                          0,
-                                          0,
-                                          max_panel_width,
-                                          em,
-                                          5,
-                                          style);
-    PointerRNA ptr = RNA_pointer_create_discrete(
-        id_cast<ID *>(CTX_wm_screen(C)), RNA_Region, region);
-    layout.prop(&ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
-    ui::block_layout_resolve(search_block);
-    block_end(C, search_block);
-    block_flag_enable(search_block, ui::BLOCK_CLIP_EVENTS);
-    block_translate(search_block, 0, region->v2d.cur.ymax - region->v2d.tot.ymax);
-    region->runtime->search_block = search_block;
-  }
   /* create panels */
   ui::panels_begin(C, region);
 
@@ -3537,6 +3515,11 @@ void ED_region_draw_overflow_indication(const ScrArea *area,
       width -= (2 * UI_PANEL_MARGIN_X);
     }
   }
+  if (region->regiontype == RGN_TYPE_UI) {
+    const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                         (BLI_rcti_size_y(&region->v2d.mask) + 1);
+    height -= UI_PANEL_SEARCH_BLOCK_MARGIN_HEIGHT / aspect;
+  }
 
   rctf rect{};
   float transparent[4];
@@ -3605,6 +3588,62 @@ void ED_region_panels_layout(const bContext *C, ARegion *region)
                              nullptr,
                              nullptr);
 }
+void side_panel_draw_search(const bContext *C, ARegion *region)
+{
+  if (region->regiontype != RGN_TYPE_UI) {
+    return;
+  }
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  if (region->overlap) {
+    float color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    immUniformColor4fv(color);
+  }
+  else {
+    immUniformThemeColor(TH_BACK);
+  }
+  const float categories_width = ui::panel_category_tabs_is_visible(region) ?
+                                     UI_PANEL_CATEGORY_MARGIN_WIDTH :
+                                     0.0f;
+  immRectf(pos,
+           region->v2d.cur.xmin,
+           region->v2d.cur.ymax - UI_PANEL_SEARCH_BLOCK_MARGIN_HEIGHT,
+           region->v2d.cur.xmax,
+           region->v2d.cur.ymax);
+  immUnbindProgram();
+
+  const uiStyle *style = ui::style_get_dpi();
+
+  ui::Block *block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
+  const int em = (region->runtime->type->prefsizex) ? 10 : 20;
+
+  ui::Layout &layout = ui::block_layout(
+      block,
+      ui::LayoutDirection::Vertical,
+      ui::LayoutType::Header,
+      0,
+      0,
+      round_fl_to_int(BLI_rctf_size_x(&region->v2d.cur) - categories_width),
+      em,
+      5,
+      style);
+
+  PointerRNA ptr = RNA_pointer_create_discrete(
+      id_cast<ID *>(CTX_wm_screen(C)), RNA_Region, region);
+
+  layout.prop(&ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
+
+  ui::block_layout_resolve(block);
+
+  /* Make sure the events are consumed from the search and don't reach other UI blocks since this
+   * is drawn on top of animation-channels. */
+  block_flag_enable(block, ui::BLOCK_CLIP_EVENTS);
+  block_bounds_set_normal(block, 0);
+  block_end(C, block);
+  block_translate(block, 0, region->v2d.cur.ymax - region->v2d.tot.ymax);
+  block_draw(C, block);
+  region->runtime->search_block = block;
+}
 
 void ED_region_panels_draw(const bContext *C, ARegion *region)
 {
@@ -3632,14 +3671,11 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   const bool has_category_tabs = ui::panel_category_tabs_is_visible(region);
   const short min_draw_size = has_category_tabs ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
                                                   std::min(region->runtime->type->prefsizex, 20);
-
   if (region->winx >= (min_draw_size * UI_SCALE_FAC / aspect)) {
     ui::panels_draw(C, region);
   }
   /* Draw region search on top of panels. */
-  if (region->runtime->search_block) {
-    ui::block_draw(C, region->runtime->search_block);
-  }
+  side_panel_draw_search(C, region);
 
   /* restore view matrix */
   ui::view2d_view_restore(C);
