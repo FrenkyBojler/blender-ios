@@ -139,19 +139,7 @@ static float calculate_grid_step_fractions(const int base,
  ************************************/
 
 /**
- * \param line_distance value distance between lines.
- * \param view_bounds the value bounds visible in the region.
- *
- * \returns the value on which to draw the first line.
- */
-static float get_start_value(const float line_distance, const float lower_view_bound)
-{
-  BLI_assert(line_distance > 0);
-  return ceilf(lower_view_bound / line_distance) * line_distance;
-}
-
-/**
- * Calculate the amount of lines to draw given the starting value and the view bounds.
+ * Calculate the amount of lines to draw and the starting position in view space (frame or value).
  *
  * \param line_distance value distance between lines.
  * \param view_bounds the value bounds visible in the region. x has to be lower than y.
@@ -159,19 +147,25 @@ static float get_start_value(const float line_distance, const float lower_view_b
  *
  * \returns an unsigned integer indicating how many lines can be drawn.
  */
-static uint get_parallel_lines_draw_steps(const float line_distance,
+static void get_parallel_lines_draw_steps(const float line_distance,
                                           const float2 view_bounds,
-                                          const float start_value)
+                                          float *r_start_value,
+                                          uint *r_steps)
 {
   if (view_bounds.x >= view_bounds.y) {
-    return 0;
+    r_start_value = 0;
+    *r_steps = 0;
+    return;
   }
 
-  if (view_bounds.x >= start_value || view_bounds.y <= start_value) {
-    return 0;
+  *r_start_value = ceilf(view_bounds.x / line_distance) * line_distance;
+
+  if (view_bounds.x >= *r_start_value || view_bounds.y <= *r_start_value) {
+    *r_steps = 0;
+    return;
   }
 
-  return std::max(0.0f, floorf((view_bounds.y - start_value) / line_distance)) + 1;
+  *r_steps = std::max(0.0f, floorf((view_bounds.y - *r_start_value) / line_distance)) + 1;
 }
 
 /**
@@ -189,15 +183,13 @@ static void draw_parallel_lines(const float line_distance,
 
   if (direction == 'v') {
     const float2 view_bounds = {rect->xmin, rect->xmax};
-    start_value = get_start_value(line_distance, view_bounds.x);
-    steps = get_parallel_lines_draw_steps(line_distance, view_bounds, start_value);
+    get_parallel_lines_draw_steps(line_distance, view_bounds, &start_value, &steps);
     steps_max = BLI_rcti_size_x(rect_mask);
   }
   else {
     BLI_assert(direction == 'h');
     const float2 view_bounds = {rect->ymin, rect->ymax};
-    start_value = get_start_value(line_distance, view_bounds.x);
-    steps = get_parallel_lines_draw_steps(line_distance, view_bounds, start_value);
+    get_parallel_lines_draw_steps(line_distance, view_bounds, &start_value, &steps);
     steps_max = BLI_rcti_size_y(rect_mask);
   }
 
@@ -319,8 +311,9 @@ static void draw_horizontal_scale_indicators(const ARegion *region,
 
   const float2 view_bounds = {view2d_region_to_view_x(v2d, rect->xmin),
                               view2d_region_to_view_x(v2d, rect->xmax)};
-  const float start_value = get_start_value(distance, view_bounds.x);
-  const uint steps = get_parallel_lines_draw_steps(distance, view_bounds, start_value);
+  float start_value;
+  uint steps;
+  get_parallel_lines_draw_steps(distance, view_bounds, &start_value, &steps);
   const uint steps_max = BLI_rcti_size_x(&v2d->mask) + 1;
   if (UNLIKELY(steps >= steps_max)) {
     return;
@@ -363,8 +356,9 @@ static void draw_vertical_scale_indicators(const ARegion *region,
 
   const float2 view_bounds = {view2d_region_to_view_y(v2d, rect->ymin),
                               view2d_region_to_view_y(v2d, rect->ymax)};
-  const float start = get_start_value(distance, view_bounds.x);
-  const uint steps = get_parallel_lines_draw_steps(distance, view_bounds, start);
+  float start;
+  uint steps;
+  get_parallel_lines_draw_steps(distance, view_bounds, &start, &steps);
   const uint steps_max = BLI_rcti_size_y(&v2d->mask) + 1;
   if (UNLIKELY(steps >= steps_max)) {
     return;
