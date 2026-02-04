@@ -257,32 +257,33 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   /* Query memory requirements. */
   VkImage image = VK_NULL_HANDLE;
   VkMemoryRequirements2 memory_requirements = {.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
-  if (device.extensions_get().maintenance4) {
-    /* If `VK_KHR_maintenance4` is available, we create requirements from
-     * VkImageCreateInfo, and delay creating a VkImage handle. */
-    VkDeviceImageMemoryRequirements requirements_info = {
-        .sType = VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS,
-        .pNext = nullptr,
-        .pCreateInfo = &create_info,
-        .planeAspect = VK_IMAGE_ASPECT_NONE,
-    };
-    vkGetDeviceImageMemoryRequirements(
-        device.vk_handle(), &requirements_info, &memory_requirements);
-  }
-  else {
-    /* If `VK_KHR_maintenance4` is not available, we'll have to create an image handle
-     * either way. If a matching handle is already cached, we'll discard it. */
-    VkResult result = vkCreateImage(device.vk_handle(), &create_info, nullptr, &image);
-    UNUSED_VARS(result);
-    BLI_assert(result == VK_SUCCESS);
+  /* TODO(not_nark): vkGetDeviceImageMemoryRequirements appears not loaded. */
+  // if (device.extensions_get().maintenance4) {
+  //   /* If `VK_KHR_maintenance4` is available, we create requirements from
+  //    * VkImageCreateInfo, and delay creating a VkImage handle. */
+  //   VkDeviceImageMemoryRequirements requirements_info = {
+  //       .sType = VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS,
+  //       .pNext = nullptr,
+  //       .pCreateInfo = &create_info,
+  //       .planeAspect = VK_IMAGE_ASPECT_NONE,
+  //   };
+  //   vkGetDeviceImageMemoryRequirements(
+  //       device.vk_handle(), &requirements_info, &memory_requirements);
+  // }
+  // else {
+  /* If `VK_KHR_maintenance4` is not available, we'll have to create an image handle
+   * either way. If a matching handle is already cached, we'll discard it. */
+  VkResult result = vkCreateImage(device.vk_handle(), &create_info, nullptr, &image);
+  UNUSED_VARS(result);
+  BLI_assert(result == VK_SUCCESS);
 
-    VkImageMemoryRequirementsInfo2 requirements_info = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
-        .pNext = nullptr,
-        .image = image,
-    };
-    vkGetImageMemoryRequirements2(device.vk_handle(), &requirements_info, &memory_requirements);
-  }
+  VkImageMemoryRequirementsInfo2 requirements_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
+      .pNext = nullptr,
+      .image = image,
+  };
+  vkGetImageMemoryRequirements2(device.vk_handle(), &requirements_info, &memory_requirements);
+  // }
 
   /* Create texture object with no backing allocation, wrapped in `TextureHandle`. */
   TextureHandle texture_handle;
