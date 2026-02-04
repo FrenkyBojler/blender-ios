@@ -546,7 +546,7 @@ static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType *
   return nodes::gizmos::box_mask_show(*snode);
 }
 
-void WIDGETGROUP_bbox_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
+static void WIDGETGROUP_bbox_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   ARegion *region = CTX_wm_region(C);
   wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
@@ -875,7 +875,12 @@ static void image_main_region_listener(const wmRegionListenerParams *params)
       }
       break;
     case NC_NODE:
-      WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
+      // todo(habib): use ND_NODE_GIZMO maybe?
+      if (ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
+        WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
+        ED_region_tag_redraw(region);
+      }
+      break;
     case NC_SCREEN:
       if (ELEM(wmn->data, ND_LAYER)) {
         ED_region_tag_redraw(region);
