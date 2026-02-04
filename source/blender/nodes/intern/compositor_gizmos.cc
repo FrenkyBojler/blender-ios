@@ -696,4 +696,42 @@ bool show_corner_pin(const SpaceNode &snode)
   return false;
 }
 
+void WIDGETGROUP_node_ellipse_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+{
+  NodeBBoxWidgetGroup *mask_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
+  mask_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
+
+  RNA_enum_set(mask_group->border->ptr,
+               "transform",
+               ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE | ED_GIZMO_CAGE_XFORM_FLAG_ROTATE |
+                   ED_GIZMO_CAGE_XFORM_FLAG_SCALE);
+  RNA_enum_set(mask_group->border->ptr, "draw_style", ED_GIZMO_CAGE2D_STYLE_CIRCLE);
+  RNA_enum_set(mask_group->border->ptr,
+               "draw_options",
+               ED_GIZMO_CAGE_DRAW_FLAG_XFORM_CENTER_HANDLE |
+                   ED_GIZMO_CAGE_DRAW_FLAG_CORNER_HANDLES);
+
+  gzgroup->customdata = mask_group;
+  gzgroup->customdata_free = [](void *customdata) {
+    MEM_delete(static_cast<NodeBBoxWidgetGroup *>(customdata));
+  };
+}
+
+bool show_ellipse_mask(const SpaceNode &snode)
+{
+  bNode *node = bke::node_get_active(*snode.edittree);
+
+  if (node && node->is_type("CompositorNodeEllipseMask")) {
+    snode.edittree->ensure_topology_cache();
+    for (bNodeSocket &input : node->inputs) {
+      if (STR_ELEM(input.name, "Position", "Size", "Rotation") && input.is_directly_linked()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
 }  // namespace blender::nodes::gizmos

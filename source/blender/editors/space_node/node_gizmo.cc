@@ -562,49 +562,6 @@ static void WIDGETGROUP_bbox_draw_prepare(const bContext *C, wmGizmoGroup *gzgro
   node_gizmo_calc_matrix_space(snode, region, gz->matrix_space);
 }
 
-static void WIDGETGROUP_node_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
-{
-  Main *bmain = CTX_data_main(C);
-  NodeBBoxWidgetGroup *mask_group = static_cast<NodeBBoxWidgetGroup *>(gzgroup->customdata);
-  wmGizmo *gz = mask_group->border;
-
-  void *lock;
-  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Render Result");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
-
-  if (UNLIKELY(ibuf == nullptr)) {
-    WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
-    BKE_image_release_ibuf(ima, ibuf, lock);
-    return;
-  }
-
-  mask_group->state.dims = node_gizmo_safe_calc_dims(ibuf, GIZMO_NODE_DEFAULT_DIMS);
-  mask_group->state.offset = ibuf->flags & IB_has_display_window ? float2(ibuf->display_offset) :
-                                                                   float2(0.0f);
-
-  RNA_float_set_array(gz->ptr, "dimensions", mask_group->state.dims);
-  WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
-
-  SpaceNode *snode = CTX_wm_space_node(C);
-  bNode *node = bke::node_get_active(*snode->edittree);
-
-  mask_group->update_data.context = const_cast<bContext *>(C);
-  bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Mask");
-  mask_group->update_data.ptr = RNA_pointer_create_discrete(
-      reinterpret_cast<ID *>(snode->edittree), RNA_NodeSocket, source_input);
-  mask_group->update_data.prop = RNA_struct_find_property(&mask_group->update_data.ptr, "enabled");
-  BLI_assert(mask_group->update_data.prop != nullptr);
-
-  wmGizmoPropertyFnParams params{};
-  params.value_get_fn = gizmo_node_box_mask_prop_matrix_get;
-  params.value_set_fn = gizmo_node_box_mask_prop_matrix_set;
-  params.range_get_fn = nullptr;
-  params.user_data = node;
-  WM_gizmo_target_property_def_func(gz, "matrix", &params);
-
-  BKE_image_release_ibuf(ima, ibuf, lock);
-}
-
 static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -671,40 +628,7 @@ static bool WIDGETGROUP_node_ellipse_mask_poll(const bContext *C, wmGizmoGroupTy
     return false;
   }
 
-  bNode *node = bke::node_get_active(*snode->edittree);
-
-  if (node && node->is_type("CompositorNodeEllipseMask")) {
-    snode->edittree->ensure_topology_cache();
-    for (bNodeSocket &input : node->inputs) {
-      if (STR_ELEM(input.name, "Position", "Size", "Rotation") && input.is_directly_linked()) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  return false;
-}
-
-static void WIDGETGROUP_node_ellipse_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
-{
-  NodeBBoxWidgetGroup *mask_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
-  mask_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
-
-  RNA_enum_set(mask_group->border->ptr,
-               "transform",
-               ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE | ED_GIZMO_CAGE_XFORM_FLAG_ROTATE |
-                   ED_GIZMO_CAGE_XFORM_FLAG_SCALE);
-  RNA_enum_set(mask_group->border->ptr, "draw_style", ED_GIZMO_CAGE2D_STYLE_CIRCLE);
-  RNA_enum_set(mask_group->border->ptr,
-               "draw_options",
-               ED_GIZMO_CAGE_DRAW_FLAG_XFORM_CENTER_HANDLE |
-                   ED_GIZMO_CAGE_DRAW_FLAG_CORNER_HANDLES);
-
-  gzgroup->customdata = mask_group;
-  gzgroup->customdata_free = [](void *customdata) {
-    MEM_delete(static_cast<NodeBBoxWidgetGroup *>(customdata));
-  };
+  return nodes::gizmos::show_ellipse_mask(*snode);
 }
 
 void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt)
@@ -715,10 +639,10 @@ void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt)
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
   gzgt->poll = WIDGETGROUP_node_ellipse_mask_poll;
-  gzgt->setup = WIDGETGROUP_node_ellipse_mask_setup;
+  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_ellipse_mask_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
   gzgt->draw_prepare = WIDGETGROUP_bbox_draw_prepare;
-  gzgt->refresh = WIDGETGROUP_node_mask_refresh;
+  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_mask_refresh;
 }
 
 /** \} */

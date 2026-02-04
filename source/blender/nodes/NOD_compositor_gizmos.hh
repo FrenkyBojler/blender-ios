@@ -2,7 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-// todo(habib): doxygen doc
+/** \file
+ * \ingroup nodes
+ */
 
 struct bContext;
 struct wmGizmoGroup;
@@ -78,6 +80,15 @@ struct NodeCornerPinWidgetGroup {
 void WIDGETGROUP_node_corner_pin_setup(const bContext *C, wmGizmoGroup *gzgroup);
 void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup);
 bool show_corner_pin(const SpaceNode &snode);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Ellipse Mask
+ * \{ */
+
+void WIDGETGROUP_node_ellipse_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup);
+bool show_ellipse_mask(const SpaceNode &snode);
 
 /** \} */
 
