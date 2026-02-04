@@ -1349,7 +1349,6 @@ static void replace_action_on_id(ID *id,
   DEG_id_tag_update(id, ID_RECALC_ALL);
 };
 
-
 static bool replace_action_common_poll(bContext *C)
 {
   Object *active_object = CTX_data_active_object(C);
