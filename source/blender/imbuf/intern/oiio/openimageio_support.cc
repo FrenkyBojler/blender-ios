@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "openimageio_support.hh"
-#include <OpenImageIO/deepdata.h>
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/imagebufalgo.h>
 
@@ -181,7 +180,6 @@ static void set_file_colorspace(ImFileColorSpace &r_colorspace,
 static ImBuf *get_oiio_ibuf(ImageInput *in, const ReadContext &ctx, ImFileColorSpace &r_colorspace)
 {
   const ImageSpec &spec = in->spec();
-
   const int width = spec.width;
   const int height = spec.height;
   const bool has_alpha = spec.alpha_channel != -1;
