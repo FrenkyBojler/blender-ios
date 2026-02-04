@@ -49,7 +49,7 @@ class TestAnnotationStrokes(unittest.TestCase):
         """Test that new strokes have correct default values"""
         stroke = self.frame.strokes.new()
 
-        # Based on rna_GPencil_stroke_new implementation.
+        # Based on rna_annotation_stroke_new implementation.
         # Note: thickness is not exposed in RNA, so we check display_mode instead.
         self.assertEqual(stroke.display_mode, '3DSPACE')
 
