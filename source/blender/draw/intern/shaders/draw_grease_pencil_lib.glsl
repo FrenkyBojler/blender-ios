@@ -299,7 +299,8 @@ float4 dot_segment(float2 xy, float4 ss1, float4 ss2, bool is_squares, float4 vi
   float sin_theta = sqrt(1 - cos_theta * cos_theta);
   float tan_half_theta = (1.0 - cos_theta) / sin_theta;
 
-  if (ss1.z < 0 || ss1.z < 0) {
+  /* Discard segments that are behind the camera. */
+  if (ss1.z < 0 || ss2.z < 0) {
     return discard_ndc();
   }
 
@@ -341,7 +342,10 @@ float4 dot_segment(float2 xy, float4 ss1, float4 ss2, bool is_squares, float4 vi
 
   float2 ssp = ss1.xy + local.x * local_x + local.y * local_y;
 
-  float t = local.x / l;
+  /* TODO. */
+  // float t = local.x / l;
+
+  float t = 0.5f;
   return screen_space_to_ndc(float4(ssp, mix(ss1.z, ss2.z, t), 0.0), viewport_res.xy);
 }
 
