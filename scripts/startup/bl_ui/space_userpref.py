@@ -743,10 +743,9 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
             layout.label(text="A restart of Blender is required", icon='INFO')
 
         if system.gpu_backend == 'VULKAN':
-            col = layout.column()
-            col.label(text="Current Vulkan backend limitations:", icon='INFO')
-            col.label(text="\u2022 Low performance in VR", icon='BLANK1')
             if sys.platform == "win32" and gpu.platform.device_type_get() == 'QUALCOMM':
+                col = layout.column()
+                col.label(text="Current Vulkan backend limitations:", icon='INFO')
                 col.label(text="\u2022 Windows on ARM requires driver 31.0.112.0 or higher", icon='BLANK1')
 
 
@@ -1794,8 +1793,9 @@ class USERPREF_UL_asset_libraries(UIList):
         asset_library = item
 
         row = layout.row(align=True)
-        row.prop(asset_library, "enabled", text="")
         row.prop(asset_library, "name", text="", emboss=False)
+        row.prop(asset_library, "enabled", text="", emboss=False,
+                 icon='CHECKBOX_HLT' if asset_library.enabled else 'CHECKBOX_DEHLT')
 
 
 class USERPREF_UL_extension_repos(UIList):
