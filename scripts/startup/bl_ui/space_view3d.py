@@ -6067,7 +6067,12 @@ class VIEW3D_MT_shading_ex_pie(Menu):
         pie.prop_enum(view.shading, "type", value='SOLID')
 
         # Note this duplicates "view3d.toggle_xray" logic, so we can see the active item: #58661.
-        if context.pose_object:
+        obj = context.active_object
+        object_mode = 'OBJECT' if obj is None else obj.mode
+        if (
+            (object_mode == 'POSE') or
+            (object_mode == 'WEIGHT_PAINT' and context.pose_object is not None)
+        ):
             pie.prop(view.overlay, "show_xray_bone", icon='XRAY')
         else:
             xray_active = (
