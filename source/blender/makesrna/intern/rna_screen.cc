@@ -436,7 +436,7 @@ static int rna_Region_search_filter_editable(const PointerRNA *ptr, const char *
 {
   ARegion *region = static_cast<ARegion *>(ptr->data);
 
-  if (region->regiontype != RGN_TYPE_UI) {
+  if (!BKE_regiontype_uses_panel_categories_search(region->runtime->type)) {
     *r_info = N_("Only for side-panels");
     return 0;
   }

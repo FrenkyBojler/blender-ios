@@ -1824,7 +1824,7 @@ static bool uiAlignPanelStep(ARegion *region, const float factor, const bool dra
 
   /* Y offset. */
   int y = 0;
-  if (region->runtime->search_block) {
+  if (BKE_regiontype_uses_panel_categories_search(region->runtime->type)) {
     y = -UI_PANEL_SEARCH_BLOCK_MARGIN_HEIGHT;
   }
   for (PanelSort &ps : panel_sort) {

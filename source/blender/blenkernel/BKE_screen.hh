@@ -231,6 +231,11 @@ enum class ARegionTypeFlag {
    * region.
    */
   UsePanelCategoryTabs = (1 << 1),
+  /**
+   * Use panel categories region search, adds a button on top of the region which allows
+   * searching.
+   */
+  UsePanelCategoriesSearch = (1 << 2),
 };
 ENUM_OPERATORS(ARegionTypeFlag)
 
@@ -771,6 +776,7 @@ void BKE_spacetypes_free();
 
 bool BKE_regiontype_uses_categories(const ARegionType *region_type);
 bool BKE_regiontype_uses_category_tabs(const ARegionType *region_type);
+bool BKE_regiontype_uses_panel_categories_search(const ARegionType *region_type);
 
 /* Space-data. */
 

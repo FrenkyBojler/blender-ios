@@ -826,7 +826,7 @@ int ED_area_max_regionsize(const ScrArea *area, const ARegion *scale_region, con
 
 const char *ED_area_region_search_filter_get(const ScrArea *area, const ARegion *region)
 {
-  if (region->regiontype == RGN_TYPE_UI) {
+  if (BKE_regiontype_uses_panel_categories_search(region->runtime->type)) {
     return region->runtime->search_filter.c_str();
   }
   if (area->spacetype == SPACE_PROPERTIES) {
@@ -3278,7 +3278,9 @@ void ED_region_panels_layout_ex(const bContext *C,
                                 const char *contexts[],
                                 const char *category_override)
 {
-  if (region->regiontype == RGN_TYPE_UI && region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE) {
+  if (BKE_regiontype_uses_panel_categories_search(region->runtime->type) &&
+      region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE)
+  {
     side_region_property_search(C, region);
   }
 
@@ -3515,7 +3517,7 @@ void ED_region_draw_overflow_indication(const ScrArea *area,
       width -= (2 * UI_PANEL_MARGIN_X);
     }
   }
-  if (region->regiontype == RGN_TYPE_UI) {
+  if (BKE_regiontype_uses_panel_categories_search(region->runtime->type)) {
     const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                          (BLI_rcti_size_y(&region->v2d.mask) + 1);
     height -= UI_PANEL_SEARCH_BLOCK_MARGIN_HEIGHT / aspect;
@@ -3588,9 +3590,9 @@ void ED_region_panels_layout(const bContext *C, ARegion *region)
                              nullptr,
                              nullptr);
 }
-void side_panel_draw_search(const bContext *C, ARegion *region)
+void side_panel_draw_search_block(const bContext *C, ARegion *region)
 {
-  if (region->regiontype != RGN_TYPE_UI) {
+  if (!BKE_regiontype_uses_panel_categories_search(region->runtime->type)) {
     return;
   }
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
@@ -3675,7 +3677,7 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
     ui::panels_draw(C, region);
   }
   /* Draw region search on top of panels. */
-  side_panel_draw_search(C, region);
+  side_panel_draw_search_block(C, region);
 
   /* restore view matrix */
   ui::view2d_view_restore(C);

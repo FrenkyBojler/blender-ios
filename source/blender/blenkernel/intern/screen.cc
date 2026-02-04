@@ -386,6 +386,11 @@ bool BKE_regiontype_uses_category_tabs(const ARegionType *region_type)
   return bool(region_type->flag & ARegionTypeFlag::UsePanelCategoryTabs);
 }
 
+bool BKE_regiontype_uses_panel_categories_search(const ARegionType *region_type)
+{
+  return bool(region_type->flag & ARegionTypeFlag::UsePanelCategoriesSearch);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
