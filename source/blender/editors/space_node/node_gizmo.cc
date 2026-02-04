@@ -727,15 +727,6 @@ void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt)
 /** \name Glare
  * \{ */
 
-struct NodeGlareWidgetGroup {
-  wmGizmo *gizmo;
-
-  struct {
-    float2 dims;
-    float2 offset;
-  } state;
-};
-
 static bool WIDGETGROUP_node_glare_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -746,46 +737,13 @@ static bool WIDGETGROUP_node_glare_poll(const bContext *C, wmGizmoGroupType * /*
     return false;
   }
 
-  bNode *node = bke::node_get_active(*snode->edittree);
-
-  if (!node || !node->is_type("CompositorNodeGlare")) {
-    return false;
-  }
-
-  bNodeSocket &type_socket = *bke::node_find_socket(*node, SOCK_IN, "Type");
-  snode->edittree->ensure_topology_cache();
-  if (type_socket.is_directly_linked()) {
-    return false;
-  }
-
-  if (type_socket.default_value_typed<bNodeSocketValueMenu>()->value != CMP_NODE_GLARE_SUN_BEAMS) {
-    return false;
-  }
-
-  for (bNodeSocket &input : node->inputs) {
-    if (STR_ELEM(input.name, "Sun Position") && input.is_directly_linked()) {
-      return false;
-    }
-  }
-  return true;
-}
-
-static void WIDGETGROUP_node_glare_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
-{
-  NodeGlareWidgetGroup *glare_group = MEM_new_uninitialized<NodeGlareWidgetGroup>(__func__);
-
-  glare_group->gizmo = WM_gizmo_new("GIZMO_GT_move_3d", gzgroup, nullptr);
-  wmGizmo *gz = glare_group->gizmo;
-
-  RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_MOVE_STYLE_CROSS_2D);
-
-  gz->scale_basis = 0.05f / 75.0f;
-
-  gzgroup->customdata = glare_group;
+  return nodes::gizmos::show_glare(*snode);
 }
 
 static void WIDGETGROUP_node_glare_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
+  using namespace nodes::gizmos;
+
   NodeGlareWidgetGroup *glare_group = static_cast<NodeGlareWidgetGroup *>(gzgroup->customdata);
   ARegion *region = CTX_wm_region(C);
   wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
@@ -796,40 +754,6 @@ static void WIDGETGROUP_node_glare_draw_prepare(const bContext *C, wmGizmoGroup 
       snode, region, glare_group->state.dims, glare_group->state.offset, gz->matrix_space);
 }
 
-static void WIDGETGROUP_node_glare_refresh(const bContext *C, wmGizmoGroup *gzgroup)
-{
-  Main *bmain = CTX_data_main(C);
-  NodeGlareWidgetGroup *glare_group = static_cast<NodeGlareWidgetGroup *>(gzgroup->customdata);
-  wmGizmo *gz = glare_group->gizmo;
-
-  void *lock;
-  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
-
-  if (UNLIKELY(ibuf == nullptr)) {
-    WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
-    BKE_image_release_ibuf(ima, ibuf, lock);
-    return;
-  }
-
-  glare_group->state.dims = node_gizmo_safe_calc_dims(ibuf, GIZMO_NODE_DEFAULT_DIMS);
-  glare_group->state.offset = ibuf->flags & IB_has_display_window ? float2(ibuf->display_offset) :
-                                                                    float2(0.0f);
-
-  SpaceNode *snode = CTX_wm_space_node(C);
-  bNode *node = bke::node_get_active(*snode->edittree);
-
-  /* Need to set property here for undo. TODO: would prefer to do this in _init. */
-  bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Sun Position");
-  PointerRNA socket_pointer = RNA_pointer_create_discrete(
-      reinterpret_cast<ID *>(snode->edittree), RNA_NodeSocket, source_input);
-  WM_gizmo_target_property_def_rna(gz, "offset", &socket_pointer, "default_value", -1);
-
-  WM_gizmo_set_flag(gz, WM_GIZMO_DRAW_MODAL, true);
-
-  BKE_image_release_ibuf(ima, ibuf, lock);
-}
-
 void NODE_GGT_backdrop_glare(wmGizmoGroupType *gzgt)
 {
   gzgt->name = "Glare Widget";
@@ -838,10 +762,10 @@ void NODE_GGT_backdrop_glare(wmGizmoGroupType *gzgt)
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
   gzgt->poll = WIDGETGROUP_node_glare_poll;
-  gzgt->setup = WIDGETGROUP_node_glare_setup;
+  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_glare_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
   gzgt->draw_prepare = WIDGETGROUP_node_glare_draw_prepare;
-  gzgt->refresh = WIDGETGROUP_node_glare_refresh;
+  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_glare_refresh;
 }
 
 /** \} */

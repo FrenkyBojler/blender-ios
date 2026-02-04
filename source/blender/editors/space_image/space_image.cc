@@ -614,6 +614,59 @@ static void IMAGE_GGT_compositor_crop(wmGizmoGroupType *gzgt)
   gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_crop_refresh;
 }
 
+static bool WIDGETGROUP_node_glare_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+{
+  const SpaceImage *sima = CTX_wm_space_image(C);
+
+  if (!sima || !ELEM(sima->mode, SI_MODE_VIEW, SI_MODE_MASK)) {
+    return false;
+  }
+
+  if (sima->gizmo_flag & SI_GIZMO_HIDE_ACTIVE_NODE) {
+    return false;
+  }
+
+  const SpaceNode *snode = nodes::gizmos::find_node_editor(C);
+  if (snode == nullptr || snode->edittree == nullptr) {
+    return false;
+  }
+
+  return nodes::gizmos::show_glare(*snode);
+}
+
+static void WIDGETGROUP_node_glare_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
+{
+  using namespace nodes::gizmos;
+
+  NodeGlareWidgetGroup *glare_group = static_cast<NodeGlareWidgetGroup *>(gzgroup->customdata);
+  ARegion *region = CTX_wm_region(C);
+  wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
+
+  SpaceImage *sima = CTX_wm_space_image(C);
+  const float2 offset = float2{-sima->xof, -sima->yof} * sima->zoom;
+
+  nodes::gizmos::node_gizmo_calc_matrix_space_with_image_dims(region,
+                                                              sima->zoom,
+                                                              offset,
+                                                              glare_group->state.dims,
+                                                              glare_group->state.offset,
+                                                              gz->matrix_space);
+}
+
+static void IMAGE_GGT_compositor_glare(wmGizmoGroupType *gzgt)
+{
+  gzgt->name = "Glare Node Widget";
+  gzgt->idname = "IMAGE_GGT_compositor_glare";
+
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+
+  gzgt->poll = WIDGETGROUP_node_glare_poll;
+  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_glare_setup;
+  gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
+  gzgt->draw_prepare = WIDGETGROUP_node_glare_draw_prepare;
+  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_glare_refresh;
+}
+
 static void image_widgets()
 {
   const wmGizmoMapType_Params params{SPACE_IMAGE, RGN_TYPE_WINDOW};
@@ -628,6 +681,7 @@ static void image_widgets()
 
   WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_box_mask);
   WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_crop);
+  WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_glare);
 }
 
 /************************** main region ***************************/
