@@ -62,6 +62,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(image_engine_image_shader)
 ADDITIONAL_INFO(image_engine_image_shared)
+PUSH_CONSTANT(bool, is_repeated)
 SAMPLER(0, sampler2D, image_tx)
 FRAGMENT_SOURCE("image_engine_image_frag.glsl")
 DO_STATIC_COMPILATION()

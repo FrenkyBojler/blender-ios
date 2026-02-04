@@ -10,7 +10,9 @@
 void main()
 {
   const float2 coordinates = transform_point(image_matrix, float3(screen_uv, 0.0f)).xy();
-  if (any(lessThan(coordinates, float2(0.0))) || any(greaterThan(coordinates, float2(1.0)))) {
+  if (!is_repeated &&
+      (any(lessThan(coordinates, float2(0.0))) || any(greaterThan(coordinates, float2(1.0)))))
+  {
     gpu_discard_fragment();
     return;
   }

@@ -29,22 +29,29 @@ void ImageSpaceDrawingMode::image_sync(blender::Image *image, ImageUser *iuser) 
   pass.push_constant("draw_flags", int32_t(instance_.state.sh_params.flags));
   pass.push_constant("is_image_premultiplied", instance_.state.sh_params.use_premul_alpha);
 
-  const GPUSamplerState sampler = GPUSamplerState::default_sampler();
-  if (image->source == IMA_SRC_VIEWER) {
-    pass.bind_texture("image_tx", BKE_image_get_gpu_viewer_texture(image, iuser), sampler);
-    pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
-    return;
+  /* The shader will discard fragments that are outside of the image if repeating is disabled, so
+   * we just always have repeat mode enabled. */
+  const GPUSamplerState sampler = {.filtering = GPU_SAMPLER_FILTERING_DEFAULT,
+                                   .extend_x = GPU_SAMPLER_EXTEND_MODE_REPEAT,
+                                   .extend_yz = GPU_SAMPLER_EXTEND_MODE_REPEAT};
+  switch (image->source) {
+    case IMA_SRC_VIEWER: {
+      pass.push_constant("is_repeated", instance_.state.flags.do_tile_drawing);
+      pass.bind_texture("image_tx", BKE_image_get_gpu_viewer_texture(image, iuser), sampler);
+      break;
+    }
+    case IMA_SRC_TILED: {
+      ImageGPUTextures gpu_tiles_textures = BKE_image_get_gpu_material_texture(image, iuser, true);
+      pass.bind_texture("image_tile_array", *gpu_tiles_textures.texture, sampler);
+      pass.bind_texture("image_tile_data", *gpu_tiles_textures.tile_mapping, sampler);
+      break;
+    }
+    default: {
+      pass.push_constant("is_repeated", instance_.state.flags.do_tile_drawing);
+      pass.bind_texture("image_tx", BKE_image_get_gpu_texture(image, iuser), sampler);
+      break;
+    }
   }
-
-  if (image->source != IMA_SRC_TILED) {
-    pass.bind_texture("image_tx", BKE_image_get_gpu_texture(image, iuser), sampler);
-    pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
-    return;
-  }
-
-  ImageGPUTextures gpu_tiles_textures = BKE_image_get_gpu_material_texture(image, iuser, true);
-  pass.bind_texture("image_tile_array", *gpu_tiles_textures.texture, sampler);
-  pass.bind_texture("image_tile_data", *gpu_tiles_textures.tile_mapping, sampler);
   pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 

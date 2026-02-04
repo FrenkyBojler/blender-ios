@@ -17,7 +17,7 @@ void main()
     return;
   }
 
-  float4 tex_color = texture(image_tile_array, tiled_coordinates);
+  const float4 image_color = texture(image_tile_array, tiled_coordinates);
   out_color = image_engine_apply_parameters(
-      tex_color, draw_flags, is_image_premultiplied, shuffle, FAR_DISTANCE, NEAR_DISTANCE);
+      image_color, draw_flags, is_image_premultiplied, shuffle, FAR_DISTANCE, NEAR_DISTANCE);
 }
