@@ -6655,9 +6655,6 @@ OutputAOVNode::OutputAOVNode() : ShaderNode(get_node_type())
 void OutputAOVNode::simplify_settings(Scene *scene)
 {
   offset = scene->film->get_aov_offset(scene, name.string(), is_color);
-  if (offset == -1) {
-    offset = scene->film->get_aov_offset(scene, name.string(), is_color);
-  }
 
   if (offset == -1 || is_color) {
     input("Value")->disconnect();
@@ -6845,6 +6842,7 @@ NODE_DEFINE(VectorMathNode)
   type_enum.insert("normalize", NODE_VECTOR_MATH_NORMALIZE);
 
   type_enum.insert("snap", NODE_VECTOR_MATH_SNAP);
+  type_enum.insert("round", NODE_VECTOR_MATH_ROUND);
   type_enum.insert("floor", NODE_VECTOR_MATH_FLOOR);
   type_enum.insert("ceil", NODE_VECTOR_MATH_CEIL);
   type_enum.insert("modulo", NODE_VECTOR_MATH_MODULO);
@@ -7589,6 +7587,11 @@ NODE_DEFINE(NormalMapNode)
   space_enum.insert("blender_world", NODE_NORMAL_MAP_BLENDER_WORLD);
   SOCKET_ENUM(space, "Space", space_enum, NODE_NORMAL_MAP_TANGENT);
 
+  static NodeEnum convention_enum;
+  convention_enum.insert("opengl", 0);
+  convention_enum.insert("directx", 1);
+  SOCKET_ENUM(convention, "Convention", convention_enum, NODE_NORMAL_MAP_CONVENTION_OPENGL);
+
   SOCKET_STRING(attribute, "Attribute", ustring());
 
   SOCKET_IN_FLOAT(strength, "Strength", 1.0f);
@@ -7649,7 +7652,7 @@ void NormalMapNode::compile(SVMCompiler &compiler)
                                            compiler.stack_assign(normal_out),
                                            space),
                     attr,
-                    attr_sign);
+                    attr_sign | (convention == 1 ? NODE_NORMAL_MAP_CONVENTION_DIRECTX : 0));
 }
 
 void NormalMapNode::compile(OSLCompiler &compiler)
@@ -7669,6 +7672,7 @@ void NormalMapNode::compile(OSLCompiler &compiler)
   }
 
   compiler.parameter(this, "space");
+  compiler.parameter(this, "convention");
   compiler.add(this, "node_normal_map");
 }
 
@@ -8004,6 +8008,58 @@ void VectorDisplacementNode::compile(OSLCompiler &compiler)
 
   compiler.parameter(this, "space");
   compiler.add(this, "node_vector_displacement");
+}
+
+/* Raycast */
+
+NODE_DEFINE(RaycastNode)
+{
+  NodeType *type = NodeType::add("raycast", create, NodeType::SHADER);
+
+  SOCKET_IN_POINT(position, "Position", zero_float3(), SocketType::LINK_POSITION);
+  SOCKET_IN_NORMAL(direction, "Direction", zero_float3(), SocketType::LINK_NORMAL);
+  SOCKET_IN_FLOAT(length, "Length", 1.0f);
+
+  SOCKET_OUT_FLOAT(is_hit, "Is Hit");
+  SOCKET_OUT_FLOAT(is_self_hit, "Self Hit");
+  SOCKET_OUT_FLOAT(hit_distance, "Hit Distance");
+  SOCKET_OUT_POINT(hit_position, "Hit Position");
+  SOCKET_OUT_NORMAL(hit_position, "Hit Normal");
+
+  SOCKET_BOOLEAN(only_local, "Only Local", false);
+
+  return type;
+}
+
+RaycastNode::RaycastNode() : ShaderNode(get_node_type()) {}
+
+void RaycastNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *position_in = input("Position");
+  ShaderInput *direction_in = input("Direction");
+  ShaderInput *length_in = input("Length");
+  ShaderOutput *is_hit_out = output("Is Hit");
+  ShaderOutput *is_self_hit_out = output("Self Hit");
+  ShaderOutput *hit_distance_out = output("Hit Distance");
+  ShaderOutput *hit_position_out = output("Hit Position");
+  ShaderOutput *hit_normal_out = output("Hit Normal");
+
+  compiler.add_node(NODE_RAYCAST,
+                    compiler.encode_uchar4(compiler.stack_assign(position_in),
+                                           compiler.stack_assign(direction_in),
+                                           compiler.stack_assign(length_in),
+                                           compiler.stack_assign(is_hit_out)),
+                    compiler.encode_uchar4(compiler.stack_assign(is_self_hit_out),
+                                           compiler.stack_assign(hit_distance_out),
+                                           compiler.stack_assign(hit_position_out),
+                                           compiler.stack_assign(hit_normal_out)),
+                    only_local);
+}
+
+void RaycastNode::compile(OSLCompiler &compiler)
+{
+  compiler.parameter(this, "only_local");
+  compiler.add(this, "node_raycast");
 }
 
 CCL_NAMESPACE_END

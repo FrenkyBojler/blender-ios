@@ -35,6 +35,7 @@
 
 #include "BKE_blender.hh"
 #include "BKE_blendfile.hh"
+#include "BKE_callbacks.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_icons.hh"
@@ -67,7 +68,7 @@
 #  include "BPY_extern_run.hh"
 #endif
 
-#include "GHOST_C-api.h"
+#include "GHOST_ISystem.hh"
 
 #include "RNA_define.hh"
 
@@ -321,11 +322,12 @@ void WM_init(bContext *C, int argc, const char **argv)
 #endif
 
   if (!G.background) {
+    GHOST_ISystem *ghost_system = GHOST_ISystem::getSystem();
     if (wm_start_with_console) {
-      GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateShow);
+      ghost_system->setConsoleWindowState(GHOST_kConsoleWindowStateShow);
     }
     else {
-      GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateHideForNonConsoleLaunch);
+      ghost_system->setConsoleWindowState(GHOST_kConsoleWindowStateHideForNonConsoleLaunch);
     }
   }
 
@@ -417,7 +419,7 @@ static void wm_init_scripts_extensions_once(bContext *C)
 static void free_openrecent()
 {
   for (RecentFile &recent : G.recent_files) {
-    MEM_freeN(recent.filepath);
+    MEM_delete(recent.filepath);
   }
 
   BLI_freelistN(&(G.recent_files));
@@ -456,6 +458,11 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
    * if automated scripts happen to write changes to the preferences for example.
    * Saving #BLENDER_QUIT_FILE is also not likely to be desired either. */
   BLI_assert(G.background ? (do_user_exit_actions == false) : true);
+
+  if (C) {
+    /* Run `exit_pre` Python handlers. */
+    BKE_callback_exec_boolean(CTX_data_main(C), do_user_exit_actions, BKE_CB_EVT_EXIT_PRE);
+  }
 
   /* First wrap up running stuff, we assume only the active WM is running. */
   /* Modal handlers are on window level freed, others too? */
@@ -573,7 +580,6 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   BKE_tracking_clipboard_free();
   BKE_mask_clipboard_free();
   BKE_vfont_clipboard_free();
-  ED_node_clipboard_free();
   ed::greasepencil::clipboard_free();
   UV_clipboard_free();
   wm_clipboard_free();

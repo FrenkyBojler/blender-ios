@@ -14,6 +14,7 @@ set(SRC
   aligned_malloc.cpp
   colorspace.cpp
   debug.cpp
+  guarded_allocator.cpp
   ies.cpp
   image_metadata.cpp
   log.cpp
@@ -54,7 +55,6 @@ set(SRC_HEADERS
   defines.h
   deque.h
   disjoint_set.h
-  guarded_allocator.cpp
   guarded_allocator.h
   guiding.h
   half.h
@@ -93,6 +93,7 @@ set(SRC_HEADERS
   projection.h
   projection_inverse.h
   queue.h
+  random_access_iterator_mixin.h
   rect.h
   set.h
   simd.h
