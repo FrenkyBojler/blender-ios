@@ -2834,7 +2834,7 @@ class _defs_image_uv_sculpt:
         def draw_cursor(context, tool, xy):
             from gpu_extras.presets import draw_circle_2d
             uv_sculpt = context.scene.tool_settings.uv_sculpt
-            radius = uv_sculpt.size
+            radius = uv_sculpt.size / 2
             draw_circle_2d(xy, (1.0,) * 4, radius)
 
         return dict(
@@ -2862,7 +2862,7 @@ class _defs_image_uv_sculpt:
         def draw_cursor(context, tool, xy):
             from gpu_extras.presets import draw_circle_2d
             uv_sculpt = context.scene.tool_settings.uv_sculpt
-            radius = uv_sculpt.size
+            radius = uv_sculpt.size / 2
             draw_circle_2d(xy, (1.0,) * 4, radius)
 
         return dict(
@@ -2887,7 +2887,7 @@ class _defs_image_uv_sculpt:
         def draw_cursor(context, tool, xy):
             from gpu_extras.presets import draw_circle_2d
             uv_sculpt = context.scene.tool_settings.uv_sculpt
-            radius = uv_sculpt.size
+            radius = uv_sculpt.size / 2
             draw_circle_2d(xy, (1.0,) * 4, radius)
 
         return dict(
@@ -3186,6 +3186,13 @@ class _defs_sequencer_generic:
             props = tool.operator_properties("sequencer.split")
             row = layout.row()
             row.prop(props, "type", expand=True)
+
+            layout.separator()
+
+            props = tool.operator_properties("sequencer.box_blade")
+            layout.prop(props, "remove_gaps", expand=True)
+            layout.prop(props, "ignore_selection", expand=True)
+            layout.prop(props, "ignore_connections", expand=True)
         return dict(
             idname="builtin.blade",
             label="Blade",

@@ -110,16 +110,17 @@ GeometryInfoLog::GeometryInfoLog(const bke::GeometrySet &geometry_set)
    * attributes with the same name but different domains or data types on separate components. */
   Set<StringRef> names;
 
-  geometry_set.attribute_foreach(
-      all_component_types,
-      true,
-      [&](const StringRef attribute_id,
-          const bke::AttributeMetaData &meta_data,
-          const bke::GeometryComponent & /*component*/) {
-        if (!bke::attribute_name_is_anonymous(attribute_id) && names.add(attribute_id)) {
-          this->attributes.append({attribute_id, meta_data.domain, meta_data.data_type});
-        }
-      });
+  geometry_set.attribute_foreach(all_component_types,
+                                 true,
+                                 [&](const StringRef name,
+                                     const bke::AttributeMetaData &meta_data,
+                                     const bke::GeometryComponent & /*component*/) {
+                                   if (!bke::attribute_name_is_anonymous(name) && names.add(name))
+                                   {
+                                     this->attributes.append(
+                                         {name, meta_data.domain, meta_data.data_type});
+                                   }
+                                 });
 
   for (const bke::GeometryComponent *component : geometry_set.get_components()) {
     this->component_types.append(component->type());
@@ -993,10 +994,10 @@ const ViewerNodeLog *GeoNodesLog::find_viewer_node_log_for_path(const ViewerPath
   }
   const Object *object = parsed_path->object;
   NodesModifierData *nmd = nullptr;
-  LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
-    if (md->persistent_uid == parsed_path->modifier_uid) {
-      if (md->type == eModifierType_Nodes) {
-        nmd = reinterpret_cast<NodesModifierData *>(md);
+  for (ModifierData &md : object->modifiers) {
+    if (md.persistent_uid == parsed_path->modifier_uid) {
+      if (md.type == eModifierType_Nodes) {
+        nmd = reinterpret_cast<NodesModifierData *>(&md);
       }
     }
   }
@@ -1009,7 +1010,10 @@ const ViewerNodeLog *GeoNodesLog::find_viewer_node_log_for_path(const ViewerPath
   nodes::geo_eval_log::GeoNodesLog *root_log = nmd->runtime->eval_log.get();
 
   bke::ComputeContextCache compute_context_cache;
-  const ComputeContext *compute_context = &compute_context_cache.for_modifier(nullptr, *nmd);
+  const ComputeContext *object_context = &compute_context_cache.for_data_block(
+      nullptr, parsed_path->object->id);
+  const ComputeContext *compute_context = &compute_context_cache.for_modifier(object_context,
+                                                                              *nmd);
   for (const ViewerPathElem *elem : parsed_path->node_path) {
     compute_context = ed::viewer_path::compute_context_for_viewer_path_elem(
         *elem, compute_context_cache, compute_context);

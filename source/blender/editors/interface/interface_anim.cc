@@ -108,8 +108,8 @@ void button_anim_flag(Button *but, const AnimationEvalContext *anim_eval_context
    * non-existent here. Note that this is mostly to play nice with stashed Actions, and doesn't
    * fully look at all the track & strip flags. */
   if (adt) {
-    LISTBASE_FOREACH (NlaTrack *, nla_track, &adt->nla_tracks) {
-      if (!(nla_track->flag & NLATRACK_MUTED)) {
+    for (NlaTrack &nla_track : adt->nla_tracks) {
+      if (!(nla_track.flag & NLATRACK_MUTED)) {
         /* Found a non-muted track, so this NLA is not purely for stashing Actions. */
         return;
       }
@@ -353,17 +353,15 @@ void button_anim_decorate_cb(bContext *C, void *arg_but, void * /*arg_dummy*/)
   wm->op_undo_depth++;
 
   if (but_anim->flag & BUT_ANIMATED_KEY) {
-    PointerRNA props_ptr;
     wmOperatorType *ot = WM_operatortype_find("ANIM_OT_keyframe_delete_button", false);
-    WM_operator_properties_create_ptr(&props_ptr, ot);
+    PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
     RNA_boolean_set(&props_ptr, "all", but_anim->rnaindex == -1);
     WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
   }
   else {
-    PointerRNA props_ptr;
     wmOperatorType *ot = WM_operatortype_find("ANIM_OT_keyframe_insert_button", false);
-    WM_operator_properties_create_ptr(&props_ptr, ot);
+    PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
     RNA_boolean_set(&props_ptr, "all", but_anim->rnaindex == -1);
     WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);

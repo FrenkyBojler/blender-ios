@@ -416,8 +416,8 @@ static PopupBlockHandle *ui_popup_menu_create_impl(
 
   if (!but) {
     /* no button to start from, means we are a popup */
-    pup->mx = window->eventstate->xy[0];
-    pup->my = window->eventstate->xy[1];
+    pup->mx = window->runtime->eventstate->xy[0];
+    pup->my = window->runtime->eventstate->xy[1];
     pup->popup = true;
   }
   PopupBlockHandle *handle = popup_block_create(
@@ -426,7 +426,7 @@ static PopupBlockHandle *ui_popup_menu_create_impl(
   if (!but) {
     handle->popup = true;
 
-    popup_handlers_add(C, &window->modalhandlers, handle, 0);
+    popup_handlers_add(C, &window->runtime->modalhandlers, handle, 0);
     WM_event_add_mousemove(window);
   }
 
@@ -503,8 +503,8 @@ void popup_menu_end(bContext *C, PopupMenu *pup)
   wmWindow *window = CTX_wm_window(C);
 
   pup->popup = true;
-  pup->mx = window->eventstate->xy[0];
-  pup->my = window->eventstate->xy[1];
+  pup->mx = window->runtime->eventstate->xy[0];
+  pup->my = window->runtime->eventstate->xy[1];
 
   Button *but = nullptr;
   ARegion *butregion = nullptr;
@@ -517,7 +517,7 @@ void popup_menu_end(bContext *C, PopupMenu *pup)
       C, butregion, but, nullptr, block_func_POPUP, pup, nullptr, false);
   menu->popup = true;
 
-  popup_handlers_add(C, &window->modalhandlers, menu, 0);
+  popup_handlers_add(C, &window->runtime->modalhandlers, menu, 0);
   WM_event_add_mousemove(window);
 
   MEM_delete(pup);
@@ -558,17 +558,17 @@ void popup_menu_reports(bContext *C, ReportList *reports)
 
   BKE_reports_lock(reports);
 
-  LISTBASE_FOREACH (Report *, report, &reports->list) {
+  for (Report &report : reports->list) {
     int icon;
     const char *msg, *msg_next;
 
-    if (report->type < reports->printlevel) {
+    if (report.type < reports->printlevel) {
       continue;
     }
 
     if (pup == nullptr) {
       char title[UI_MAX_DRAW_STR];
-      SNPRINTF_UTF8(title, "%s: %s", RPT_("Report"), report->typestr);
+      SNPRINTF_UTF8(title, "%s: %s", RPT_("Report"), report.typestr);
       /* popup_menu stuff does just what we need (but pass meaningful block name) */
       pup = popup_menu_begin_ex(C, title, __func__, ICON_NONE);
       layout = popup_menu_layout(pup);
@@ -578,8 +578,8 @@ void popup_menu_reports(bContext *C, ReportList *reports)
     }
 
     /* split each newline into a label */
-    msg = report->message;
-    icon = icon_from_report_type(report->type);
+    msg = report.message;
+    icon = icon_from_report_type(report.type);
     do {
       char buf[UI_MAX_DRAW_STR];
       msg_next = strchr(msg, '\n');
@@ -680,7 +680,7 @@ void popup_block_invoke_ex(
   WorkspaceStatus status(C);
   status.item(" ", ICON_NONE);
 
-  popup_handlers_add(C, &window->modalhandlers, handle, 0);
+  popup_handlers_add(C, &window->runtime->modalhandlers, handle, 0);
   block_active_only_flagged_buttons(
       C, handle->region, static_cast<Block *>(handle->region->runtime->uiblocks.first));
   WM_event_add_mousemove(window);
@@ -715,7 +715,7 @@ void popup_block_ex(bContext *C,
   WorkspaceStatus status(C);
   status.item(" ", ICON_NONE);
 
-  popup_handlers_add(C, &window->modalhandlers, handle, 0);
+  popup_handlers_add(C, &window->runtime->modalhandlers, handle, 0);
   block_active_only_flagged_buttons(
       C, handle->region, static_cast<Block *>(handle->region->runtime->uiblocks.first));
   WM_event_add_mousemove(window);
@@ -723,7 +723,7 @@ void popup_block_ex(bContext *C,
 
 static void popup_block_template_close_cb(bContext *C, void *arg1, void * /*arg2*/)
 {
-  Block *block = (Block *)arg1;
+  Block *block = static_cast<Block *>(arg1);
 
   PopupBlockHandle *handle = block->handle;
   if (handle == nullptr) {
@@ -861,7 +861,7 @@ void uiPupBlockOperator(bContext *C,
   handle->cancel_func = confirm_cancel_operator;
   handle->opcontext = opcontext;
 
-  popup_handlers_add(C, &window->modalhandlers, handle, 0);
+  popup_handlers_add(C, &window->runtime->modalhandlers, handle, 0);
   WM_event_add_mousemove(C);
 }
 #endif
@@ -873,13 +873,13 @@ void popup_block_close(bContext *C, wmWindow *win, Block *block)
     if (win) {
       const bScreen *screen = WM_window_get_active_screen(win);
 
-      popup_handlers_remove(&win->modalhandlers, block->handle);
+      popup_handlers_remove(&win->runtime->modalhandlers, block->handle);
       popup_block_free(C, block->handle);
 
       /* In the case we have nested popups,
        * closing one may need to redraw another, see: #48874 */
-      LISTBASE_FOREACH (ARegion *, region, &screen->regionbase) {
-        ED_region_tag_refresh_ui(region);
+      for (ARegion &region : screen->regionbase) {
+        ED_region_tag_refresh_ui(&region);
       }
     }
   }
@@ -889,9 +889,9 @@ void popup_block_close(bContext *C, wmWindow *win, Block *block)
 
 bool popup_block_name_exists(const bScreen *screen, const StringRef name)
 {
-  LISTBASE_FOREACH (const ARegion *, region, &screen->regionbase) {
-    LISTBASE_FOREACH (const Block *, block, &region->runtime->uiblocks) {
-      if (block->name == name) {
+  for (const ARegion &region : screen->regionbase) {
+    for (const Block &block : region.runtime->uiblocks) {
+      if (block.name == name) {
         return true;
       }
     }

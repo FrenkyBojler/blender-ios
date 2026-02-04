@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'dba3692987cb')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-02 11:29+0000\n"
+"POT-Creation-Date: 2026-02-02 14:51+0000\n"
 "PO-Revision-Date: 2025-11-19 06:24+0000\n"
 "Last-Translator: \"M. Amin Taheri\" <amintaheri2001@gmail.com>\n"
 "Language-Team: Persian <https://translate.blender.org/projects/blender-ui/ui/fa/>\n"
@@ -2381,6 +2381,18 @@ msgid "Top"
 msgstr "ﻻ﻿ﺎﺑ"
 
 
+msgid "Font"
+msgstr "ﺖﻧﻮﻓ"
+
+
+msgid "Text"
+msgstr "ﻦﺘﻣ"
+
+
+msgid "Sound"
+msgstr "ﺍﺪﺻ"
+
+
 msgid "Visibility"
 msgstr "ﺪﯾﺩ"
 
@@ -2654,10 +2666,6 @@ msgid "Text on Curve"
 msgstr "ﯽﻨﺤﻨﻣ ﯼﻭﺭ ﺮﺑ ﻦﺘﻣ"
 
 
-msgid "Font"
-msgstr "ﺖﻧﻮﻓ"
-
-
 msgid "X Offset"
 msgstr "X ﺖﺴﻓﺍ"
 
@@ -2921,10 +2929,6 @@ msgid "Mute"
 msgstr "ﺵﻮﻣ‌ﺎﺧ"
 
 
-msgid "Sound"
-msgstr "ﺍﺪﺻ"
-
-
 msgid "Memory"
 msgstr "ﻪﻈﻓﺎﺣ"
 
@@ -3074,28 +3078,12 @@ msgid "Mix"
 msgstr "ﻁﻮﻠﺨﻣ"
 
 
-msgid "Apply"
-msgstr "ﻝﺎﻤﻋﺍ"
-
-
-msgid "Convert"
-msgstr "ﻞﯾﺪﺒﺗ"
-
-
-msgid "Layout"
-msgstr "ﺡﺮﻃ"
-
-
-msgid "Tracking"
-msgstr "ﯽﺑﺎﯾﺩﺭ"
-
-
 msgid "Math"
 msgstr "ﯽﺿﺎﯾﺭ"
 
 
-msgid "Text"
-msgstr "ﻦﺘﻣ"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Pivot Point"
@@ -3106,12 +3094,12 @@ msgid "Mirror"
 msgstr "ﻪﻨﯾﺁ"
 
 
-msgid "Import"
-msgstr "ﻥﺩﺮﮐ ﺩﺭﺍﻭ"
+msgid "Layout"
+msgstr "ﺡﺮﻃ"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Tracking"
+msgstr "ﯽﺑﺎﯾﺩﺭ"
 
 
 msgid "Add Image"
@@ -3120,6 +3108,18 @@ msgstr "ﺮﯾﻮﺼﺗ ﻥﺩﺮﮐ‌ﻪﻓﺎﺿﺍ"
 
 msgid "Relations"
 msgstr "ﻂﺑﺍﻭﺭ"
+
+
+msgid "Apply"
+msgstr "ﻝﺎﻤﻋﺍ"
+
+
+msgid "Convert"
+msgstr "ﻞﯾﺪﺒﺗ"
+
+
+msgid "Import"
+msgstr "ﻥﺩﺮﮐ ﺩﺭﺍﻭ"
 
 
 msgid "Key"
@@ -3487,6 +3487,10 @@ msgid "Mirror"
 msgstr "ﺏﺎﺗﺯﺎﺑ"
 
 
+msgid "Single"
+msgstr "ﯽﮑﺗ"
+
+
 msgid "Fill Type"
 msgstr "ﻥﺩﺮﮐ ﺮﭘ ﻉﻮﻧ"
 
@@ -3565,10 +3569,6 @@ msgstr "ﻩﺮﮔ ﯽﺟﻭﺮﺧ"
 
 msgid "Value to Normal"
 msgstr "ﯼﺩﺎﻋ ﺖﻟﺎﺣ ﻪﺑ ﺭﺍﺪﻘﻣ"
-
-
-msgid "Single"
-msgstr "ﯽﮑﺗ"
 
 
 msgid "Linked"
@@ -3930,10 +3930,6 @@ msgstr "ﯽﯾﺎﻤﻨﮑﭼﻮﮐ"
 
 msgid "Feather"
 msgstr "ﺮﭘ"
-
-
-msgid "Select ring"
-msgstr "ﻪﻘﻠﺣ ﺏﺎﺨﺘﻧﺍ"
 
 
 msgid "Select Bigger"

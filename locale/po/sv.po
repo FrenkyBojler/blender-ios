@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'dba3692987cb')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-02 11:29+0000\n"
+"POT-Creation-Date: 2026-02-02 14:51+0000\n"
 "PO-Revision-Date: 2025-11-18 20:05+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -5211,6 +5211,22 @@ msgid "Collection"
 msgstr "Samling"
 
 
+msgid "Font"
+msgstr "Typsnitt"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Mask"
+msgstr "Mask"
+
+
+msgid "Sound"
+msgstr "Ljud"
+
+
 msgid "Exclusive"
 msgstr "Exklusiv"
 
@@ -6003,10 +6019,6 @@ msgid "Affect Alpha"
 msgstr "Påverka alfa"
 
 
-msgid "Anchored"
-msgstr "Förankrad"
-
-
 msgid "Use custom curve"
 msgstr "Använd anpassad kurva"
 
@@ -6257,10 +6269,6 @@ msgid "Text on Curve"
 msgstr "Text på kurva"
 
 
-msgid "Font"
-msgstr "Typsnitt"
-
-
 msgid "X Offset"
 msgstr "X-förskjutning"
 
@@ -6287,10 +6295,6 @@ msgstr "Textstorlek"
 
 msgid "Small Caps"
 msgstr "Kapitäler"
-
-
-msgid "Textboxes"
-msgstr "Textrutor"
 
 
 msgid "Fast Editing"
@@ -7348,10 +7352,6 @@ msgstr "Cachning"
 msgctxt "Sound"
 msgid "Mute"
 msgstr "Tyst"
-
-
-msgid "Sound"
-msgstr "Ljud"
 
 
 msgid "Minimum Volume"
@@ -9331,88 +9331,20 @@ msgid "Use Material Mask"
 msgstr "Använd materialmask"
 
 
-msgid "Mask"
-msgstr "Mask"
-
-
-msgid "Apply"
-msgstr "Applicera"
-
-
-msgid "Track"
-msgstr "Spår"
-
-
-msgid "Quick Effects"
-msgstr "Snabbeffekter"
-
-
-msgid "Show/Hide"
-msgstr "Visa/dölj"
-
-
-msgid "Clean Up"
-msgstr "Städa upp"
-
-
-msgid "Asset"
-msgstr "Tillgång"
-
-
-msgid "Convert"
-msgstr "Konvertera"
-
-
-msgid "Link/Transfer Data"
-msgstr "Länka/överför data"
-
-
-msgid "Propagate"
-msgstr "Propagera"
-
-
-msgid "Names"
-msgstr "Namn"
-
-
-msgid "Layout"
-msgstr "Layout"
-
-
-msgid "Adjust"
-msgstr "Justera"
-
-
-msgid "Merge"
-msgstr "Sammanfoga"
-
-
-msgid "Utilities"
-msgstr "Verktyg"
-
-
 msgid "Math"
 msgstr "Matematik"
 
 
-msgid "Special Characters"
-msgstr "Specialtecken"
-
-
-msgid "Text"
-msgstr "Text"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Metaball"
 msgstr "Metaboll"
 
 
-msgid "Pivot Point"
-msgstr "Fast punkt"
-
-
-msgid "Snap"
-msgstr "Snäpp"
+msgid "Show/Hide"
+msgstr "Visa/dölj"
 
 
 msgid "Read"
@@ -9423,8 +9355,24 @@ msgid "Write"
 msgstr "Skriv"
 
 
+msgid "Names"
+msgstr "Namn"
+
+
 msgid "Primitives"
 msgstr "Primitiver"
+
+
+msgid "Clean Up"
+msgstr "Städa upp"
+
+
+msgid "Pivot Point"
+msgstr "Fast punkt"
+
+
+msgid "Snap"
+msgstr "Snäpp"
 
 
 msgid "Mirror"
@@ -9455,24 +9403,20 @@ msgid "Select More/Less"
 msgstr "Markera mera/mindre"
 
 
-msgid "Instances"
-msgstr "Instanser"
+msgid "Layout"
+msgstr "Layout"
 
 
-msgid "Import"
-msgstr "Importera"
-
-
-msgid "Deprecated"
-msgstr "Föråldrad"
+msgid "Adjust"
+msgstr "Justera"
 
 
 msgid "Assign Material"
 msgstr "Tilldela material"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Utilities"
+msgstr "Verktyg"
 
 
 msgid "Light"
@@ -9493,6 +9437,54 @@ msgstr "Relationer"
 
 msgid "Rigid Body"
 msgstr "Rigid kropp"
+
+
+msgid "Apply"
+msgstr "Applicera"
+
+
+msgid "Track"
+msgstr "Spår"
+
+
+msgid "Quick Effects"
+msgstr "Snabbeffekter"
+
+
+msgid "Asset"
+msgstr "Tillgång"
+
+
+msgid "Convert"
+msgstr "Konvertera"
+
+
+msgid "Link/Transfer Data"
+msgstr "Länka/överför data"
+
+
+msgid "Propagate"
+msgstr "Propagera"
+
+
+msgid "Instances"
+msgstr "Instanser"
+
+
+msgid "Import"
+msgstr "Importera"
+
+
+msgid "Merge"
+msgstr "Sammanfoga"
+
+
+msgid "Deprecated"
+msgstr "Föråldrad"
+
+
+msgid "Special Characters"
+msgstr "Specialtecken"
 
 
 msgid "Animals"
@@ -9528,8 +9520,8 @@ msgid "Console"
 msgstr "Konsol"
 
 
-msgid "Languages..."
-msgstr "Språk..."
+msgid "Languages"
+msgstr "Språk"
 
 
 msgid "Add Attribute"
@@ -9704,34 +9696,6 @@ msgstr "Återställ"
 
 msgid "Help"
 msgstr "Hjälp"
-
-
-msgid ""
-"\n"
-"    UI button context menu definition. Scripts can append/prepend this to\n"
-"    add own operators to the context menu. They must check context though, so\n"
-"    their items only draw in a valid context and for the correct buttons.\n"
-"    "
-msgstr ""
-"\n"
-"    Definition av kontextmeny för UI-knapp. Skript kan lägga till/förbereda detta för att\n"
-"    lägga till egna operatörer i snabbmenyn. De måste dock kontrollera sammanhanget,\n"
-"    så att deras objekt bara ritas i ett giltigt sammanhang och för rätt knappar.\n"
-"    "
-
-
-msgid ""
-"\n"
-"    UI List item context menu definition. Scripts can append/prepend this to\n"
-"    add own operators to the context menu. They must check context though, so\n"
-"    their items only draw in a valid context and for the correct UI list.\n"
-"    "
-msgstr ""
-"\n"
-"    UI Definition av kontextmeny för listobjekt. Skript kan lägga till/förbereda detta för att\n"
-"    lägga till egna operatörer i snabbmenyn. De måste dock kontrollera sammanhanget,\n"
-"    så att deras objekt bara ritas i en giltig kontext och för rätt UI-lista.\n"
-"    "
 
 
 msgid "Add-ons Settings"
@@ -11163,6 +11127,10 @@ msgid "Retrieve values from a field on a different domain besides the domain fro
 msgstr "Hämta värden från ett fält på en annan domän förutom domänen från kontexten"
 
 
+msgid "Create a list of values"
+msgstr "Skapa en lista över värden"
+
+
 msgid "Fill Curve"
 msgstr "Fyll kurva"
 
@@ -11264,10 +11232,6 @@ msgstr "Sammanfoga geometri"
 
 msgid "Merge separately generated geometries into a single one"
 msgstr "Slå ihop separat genererade geometrier till en och samma"
-
-
-msgid "Create a list of values"
-msgstr "Skapa en lista över värden"
 
 
 msgid "Retrieve a value from a list"
@@ -11536,54 +11500,6 @@ msgstr "64-bitars heltal"
 
 msgid "Unknown"
 msgstr "Okänt"
-
-
-msgid "Align text to the center"
-msgstr "Justera text till mitten"
-
-
-msgid "Align text to the left and the right"
-msgstr "Justera text till vänster och höger"
-
-
-msgid "Align text to the left and the right, with equal character spacing"
-msgstr "Justera text till vänster och höger, med jämnt avstånd mellan tecken"
-
-
-msgid "Let the text use more space than the specified height"
-msgstr "Låt texten använda mer utrymme än den angivna höjden"
-
-
-msgid "Scale To Fit"
-msgstr "Skala för att passa"
-
-
-msgid "Scale the text size to fit inside the width and height"
-msgstr "Skala texten så att den passar inom bredden och höjden"
-
-
-msgid "Top Left"
-msgstr "Topp vänster"
-
-
-msgid "Top Center"
-msgstr "Topp mitten"
-
-
-msgid "Top Right"
-msgstr "Topp höger"
-
-
-msgid "Bottom Left"
-msgstr "Botten vänster"
-
-
-msgid "Bottom Center"
-msgstr "Botten mitten"
-
-
-msgid "Bottom Right"
-msgstr "Botten höger"
 
 
 msgid "Selection"
@@ -13071,10 +12987,6 @@ msgid "Uninstall"
 msgstr "Avinstallera"
 
 
-msgid "Upgrade all the extensions to their latest version for all the remote repositories"
-msgstr "Uppgradera alla tillägg till den senaste versionen för alla fjärrförråd"
-
-
 msgctxt "Operator"
 msgid "Install Available Updates"
 msgstr "Installera tillgängliga uppdateringar"
@@ -13223,11 +13135,6 @@ msgstr "Nytt objekt"
 
 
 msgctxt "Operator"
-msgid "Remove Item"
-msgstr "Ta bort objekt"
-
-
-msgctxt "Operator"
 msgid "Add Attribute"
 msgstr "Lägg till attribut"
 
@@ -13238,8 +13145,8 @@ msgstr "Importera bildsekvens"
 
 
 msgctxt "Operator"
-msgid "Texture Setup"
-msgstr "Texturkonfiguration"
+msgid "Add Texture Setup"
+msgstr "Lägg till texturinställning"
 
 
 msgctxt "Operator"
@@ -13698,11 +13605,6 @@ msgstr "Internanvändning (redigera data_path för en egenskap)"
 
 msgid "Generate system information, saved into a text file"
 msgstr "Generera systeminformation, sparat till en textfil"
-
-
-msgctxt "Operator"
-msgid "Save System Info"
-msgstr "Spara systeminfo"
 
 
 msgctxt "Operator"
@@ -15693,15 +15595,6 @@ msgid "Name of color attribute"
 msgstr "Namn på färgattribut"
 
 
-msgctxt "Operator"
-msgid "Run Node Group"
-msgstr "Kör nodgrupp"
-
-
-msgid "Execute a node group on geometry"
-msgstr "Kör en nodgrupp på geometri"
-
-
 msgid "Arrow"
 msgstr "Pil"
 
@@ -15767,6 +15660,16 @@ msgstr "Ta bort aktiva nyckelbilder från alla lager"
 
 
 msgctxt "Operator"
+msgid "Erase"
+msgstr "Radera"
+
+
+msgctxt "Operator"
+msgid "Mask"
+msgstr "Maskera"
+
+
+msgctxt "Operator"
 msgid "Regular"
 msgstr "Vanlig"
 
@@ -15774,11 +15677,6 @@ msgstr "Vanlig"
 msgctxt "Operator"
 msgid "Invert"
 msgstr "Invertera"
-
-
-msgctxt "Operator"
-msgid "Erase"
-msgstr "Radera"
 
 
 msgid "Rounded"
@@ -16992,10 +16890,6 @@ msgid "Show just angle measurements"
 msgstr "Visa endast vinkelmått"
 
 
-msgid "Ring"
-msgstr "Ring"
-
-
 msgid "Merge selected vertices"
 msgstr "Sammanfoga markerade vertexar"
 
@@ -17572,6 +17466,11 @@ msgstr "Flytta objekt"
 
 msgid "Move direction"
 msgstr "Flytta riktning"
+
+
+msgctxt "Operator"
+msgid "Remove Item"
+msgstr "Ta bort objekt"
 
 
 msgctxt "Operator"
@@ -21385,10 +21284,6 @@ msgid "Palette Color"
 msgstr "Palettfärg"
 
 
-msgid "VR"
-msgstr "VR"
-
-
 msgid "Active Tool"
 msgstr "Aktivt verktyg"
 
@@ -21415,6 +21310,10 @@ msgstr "Mätning"
 
 msgid "Stroke Placement"
 msgstr "Streckplacering"
+
+
+msgid "VR"
+msgstr "VR"
 
 
 msgid "Import Settings"
@@ -21597,11 +21496,6 @@ msgstr "Suddig"
 msgctxt "Operator"
 msgid "Clone"
 msgstr "Klona"
-
-
-msgctxt "Operator"
-msgid "Mask"
-msgstr "Maskera"
 
 
 msgid "Texture Mask"
@@ -23024,10 +22918,6 @@ msgid "Chinese (Traditional) - 繁體中文"
 msgstr "Kinesiska (traditionell) - 繁體中文"
 
 
-msgid "Croatian - Hrvatski"
-msgstr "Kroatiska - Hrvatski"
-
-
 msgid "Czech - Čeština"
 msgstr "Tjeckiska - Čeština"
 
@@ -23072,10 +22962,6 @@ msgid "Greek - Ελληνικά"
 msgstr "Grekiska - Ελληνικά"
 
 
-msgid "Hausa - Hausa"
-msgstr "Hausa - Hausa"
-
-
 msgid "Hebrew - תירִבְעִ"
 msgstr "Hebreiska - תירִבְעִ"
 
@@ -23100,10 +22986,6 @@ msgid "Japanese - 日本語"
 msgstr "Japanska - 日本語"
 
 
-msgid "Khmer - ខ្មែរ"
-msgstr "Khmer - ខ្មែរ"
-
-
 msgid "Korean - 한국어"
 msgstr "Koreanska - 한국어"
 
@@ -23118,10 +23000,6 @@ msgstr "Litauiska - Lietuviškai"
 
 msgid "Malayalam - മലയാളം"
 msgstr "Malayalam - മലയാളം"
-
-
-msgid "Nepali - नेपाली"
-msgstr "Nepali - नेपाली"
 
 
 msgid "Persian - ﯽﺳﺭﺎﻓ"
@@ -23441,6 +23319,11 @@ msgstr "Osignerad"
 
 
 msgctxt "Unit"
+msgid "Mass"
+msgstr "Massa"
+
+
+msgctxt "Unit"
 msgid "Angle"
 msgstr "Vinkel"
 
@@ -23547,11 +23430,6 @@ msgstr "Område"
 msgctxt "Unit"
 msgid "Volume"
 msgstr "Volym"
-
-
-msgctxt "Unit"
-msgid "Mass"
-msgstr "Massa"
 
 
 msgctxt "Unit"
@@ -23727,10 +23605,6 @@ msgstr "ISO-kod (t.ex. \"sv_SE\")"
 
 msgid "Active Language"
 msgstr "Aktivt språk"
-
-
-msgid "Languages"
-msgstr "Språk"
 
 
 msgid "Collection Name"
@@ -24790,16 +24664,16 @@ msgid "Theme settings for the Blender Preferences"
 msgstr "Tema-inställningar för Blender-inställningarna"
 
 
+msgid "Search Match"
+msgstr "Sökträff"
+
+
 msgid "Theme Properties"
 msgstr "Temaegenskaper"
 
 
 msgid "Theme settings for the Properties"
 msgstr "Temainställningar för egenskaperna"
-
-
-msgid "Search Match"
-msgstr "Sökträff"
 
 
 msgid "Preview Background"
@@ -25547,6 +25421,16 @@ msgstr "Öka segment"
 
 
 msgctxt "WindowManager"
+msgid "Snap"
+msgstr "Snäpp"
+
+
+msgctxt "WindowManager"
+msgid "Precision"
+msgstr "Precision"
+
+
+msgctxt "WindowManager"
 msgid "Lock Angle"
 msgstr "Lås vinkel"
 
@@ -25584,11 +25468,6 @@ msgstr "Hoppa"
 msgctxt "WindowManager"
 msgid "Jump (Off)"
 msgstr "Hoppa (av)"
-
-
-msgctxt "WindowManager"
-msgid "Precision"
-msgstr "Precision"
 
 
 msgctxt "WindowManager"
@@ -25757,11 +25636,6 @@ msgstr "Flytta"
 
 
 msgctxt "WindowManager"
-msgid "Snap"
-msgstr "Snäpp"
-
-
-msgctxt "WindowManager"
 msgid "In"
 msgstr "I"
 
@@ -25847,10 +25721,6 @@ msgstr "Föråldrat tillägg"
 msgctxt "Operator"
 msgid "Add Repository..."
 msgstr "Lägg till förråd..."
-
-
-msgid "Unlocked {:d} repos(s)"
-msgstr "Upplåsta {:d} förråd"
 
 
 msgid "Upgrade all the extensions to their latest version for the active repository"
@@ -26246,11 +26116,6 @@ msgstr "Bildsekvens"
 
 
 msgctxt "Operator"
-msgid "Add Texture Setup"
-msgstr "Lägg till texturinställning"
-
-
-msgctxt "Operator"
 msgid "Do Not Replace Links"
 msgstr "Ersätt inte länkar"
 
@@ -26264,12 +26129,12 @@ msgid "Use Geometry Nodes"
 msgstr "Använd geometrinoder"
 
 
-msgid "Node {} deleted"
-msgstr "Noden {} togs bort"
-
-
 msgid "{} does not exist"
 msgstr "{} finns inte"
+
+
+msgid "Node {} deleted"
+msgstr "Noden {} togs bort"
 
 
 msgid "Deleted {} nodes"
@@ -27809,11 +27674,6 @@ msgstr "Efter aktuell bildruta"
 msgctxt "Operator"
 msgid "Extrapolation Mode"
 msgstr "Extrapoleringsläge"
-
-
-msgctxt "Operator"
-msgid "Move..."
-msgstr "Flytta..."
 
 
 msgctxt "Operator"
@@ -29406,11 +29266,6 @@ msgstr "Högtalare"
 
 
 msgctxt "Operator"
-msgid "Make Local..."
-msgstr "Gör lokal..."
-
-
-msgctxt "Operator"
 msgid "Change Shape"
 msgstr "Ändra form"
 
@@ -29652,16 +29507,6 @@ msgstr "Nästa block"
 msgctxt "Operator"
 msgid "Armature"
 msgstr "Armatur"
-
-
-msgctxt "Operator"
-msgid "Reference"
-msgstr "Referens"
-
-
-msgctxt "Operator"
-msgid "Background"
-msgstr "Bakgrund"
 
 
 msgctxt "Operator"
@@ -30533,10 +30378,6 @@ msgid "worlds"
 msgstr "världar"
 
 
-msgid "insufficient content"
-msgstr "otillräckligt innehåll"
-
-
 msgid "unknown error reading file"
 msgstr "okänt fel vid läsning av fil"
 
@@ -30559,10 +30400,6 @@ msgstr "Går inte att öppna blend <memory>"
 
 msgid "Blend file '%s' created by a Big Endian version of Blender, support for these files has been removed in Blender 5.0, use an older version of Blender to open and convert it."
 msgstr "Blend-filen '%s' skapades av en Big Endian-version av Blender, stöd för dessa filer kommer att tas bort i Blender 5.0. Använd en äldre version av Blender för att öppna och konvertera den."
-
-
-msgid "Unable to read '%s': %s"
-msgstr "Det går inte att läsa '%s': %s"
 
 
 msgid "Unable to open '%s': %s"
@@ -30603,10 +30440,6 @@ msgstr "Skapa"
 
 msgid "CombinedAction"
 msgstr "CombinedAction"
-
-
-msgid "Active action is not layered"
-msgstr "Aktiv åtgärd är inte uppdelad i lager"
 
 
 msgid "<invalid>"
@@ -30785,11 +30618,6 @@ msgstr "%s: %s"
 
 
 msgctxt "Operator"
-msgid "Change Shortcut"
-msgstr "Ändra genväg"
-
-
-msgctxt "Operator"
 msgid "Open File Externally"
 msgstr "Öppna fil externt"
 
@@ -30855,10 +30683,6 @@ msgid "%d items"
 msgstr "%d objekt"
 
 
-msgid "Color Space: "
-msgstr "Färgrymd: "
-
-
 msgid "Red:"
 msgstr "Röd:"
 
@@ -30877,6 +30701,10 @@ msgstr "Värde:"
 
 msgid "Alpha:"
 msgstr "Alfa:"
+
+
+msgid "Color Space: "
+msgstr "Färgrymd: "
 
 
 msgid "RGB values"
@@ -30907,12 +30735,12 @@ msgid "No results found"
 msgstr "Inga resultat hittades"
 
 
-msgid "Internal error!"
-msgstr "Internt fel!"
-
-
 msgid "Python: {}"
 msgstr "Python: {}"
+
+
+msgid "Internal error!"
+msgstr "Internt fel!"
 
 
 msgid "Python: {}.{}"
@@ -31225,10 +31053,6 @@ msgstr "Idag"
 
 msgid "Yesterday"
 msgstr "Igår"
-
-
-msgid "Modified"
-msgstr "Ändrad"
 
 
 msgid "Stop animation playback"
@@ -31709,16 +31533,16 @@ msgid "Missing%s%s%s%s detected!"
 msgstr "Saknade%s%s%s%s upptäckta!"
 
 
+msgid "Unknown boolean error"
+msgstr "Okänt booleanskt fel"
+
+
 msgid "Palette created"
 msgstr "Palett skapad"
 
 
 msgid "Brush. Use Left Click to sample for palette instead"
 msgstr "Pensel. Använd vänsterklick för palettprov istället"
-
-
-msgid "Unknown boolean error"
-msgstr "Okänt booleanskt fel"
 
 
 msgid "Delete selected keyframes?"
@@ -31845,10 +31669,6 @@ msgid "No items"
 msgstr "Inga objekt"
 
 
-msgid "Link target"
-msgstr "Länka mål"
-
-
 msgid "This file is offline"
 msgstr "Den här filen är offline"
 
@@ -31859,14 +31679,6 @@ msgstr "Denna fil är skrivskyddad"
 
 msgid "This is a restricted system file"
 msgstr "Detta är en begränsad systemfil"
-
-
-msgid "seconds"
-msgstr "sekunder"
-
-
-msgid "bytes"
-msgstr "byte"
 
 
 msgid "Delete selected files?"
@@ -31935,10 +31747,6 @@ msgstr "Videor"
 
 msgid "OneDrive"
 msgstr "OneDrive"
-
-
-msgid "Movies"
-msgstr "Filmer"
 
 
 msgid "Interpolation:"
@@ -32330,6 +32138,10 @@ msgstr "Klass"
 
 msgid "(Geometry)"
 msgstr "(Geometri)"
+
+
+msgid "bytes"
+msgstr "byte"
 
 
 msgid "Delete active text file?"
@@ -33207,12 +33019,16 @@ msgid "YCbCr Key Channel"
 msgstr "YCbCr-nyckelkanal"
 
 
+msgid "Midtones"
+msgstr "Mellantoner"
+
+
 msgid "Limit Strength"
 msgstr "Begränsa styrka"
 
 
-msgid "Midtones"
-msgstr "Mellantoner"
+msgid "Cb"
+msgstr "Cb"
 
 
 msgid "Convert from display to scene linear instead. Not all view transforms can be inverted exactly, and the result may not match the original scene linear image"
@@ -33257,10 +33073,6 @@ msgstr "Eccentricitet"
 
 msgid "Offset Y"
 msgstr "Y-förskjutning"
-
-
-msgid "Cb"
-msgstr "Cb"
 
 
 msgid "Bitwise %s"
@@ -33563,6 +33375,14 @@ msgid "Limit Surface"
 msgstr "Begränsa yta"
 
 
+msgid "Bottom Left"
+msgstr "Botten vänster"
+
+
+msgid "Top Right"
+msgstr "Topp höger"
+
+
 msgid "Manage"
 msgstr "Hantera"
 
@@ -33811,6 +33631,10 @@ msgstr "Spara som..."
 
 msgid "Don't Save"
 msgstr "Spara inte"
+
+
+msgid "Modified"
+msgstr "Ändrad"
 
 
 msgid "unable to open the file"
@@ -34407,26 +34231,6 @@ msgstr "filer"
 
 msgid "microphone"
 msgstr "mikrofon"
-
-
-msgid "Estonian - Eesti keel"
-msgstr "Estniska - Eesti keel"
-
-
-msgid "Amharic - አማርኛ"
-msgstr "Amhariska - አማርኛ"
-
-
-msgid "Uzbek (Latin) - Oʻzbek"
-msgstr "Uzbekiska (latin) - Oʻzbek"
-
-
-msgid "Uzbek (Cyrillic) - Ўзбек"
-msgstr "Uzbekisk (kyrilliska) - Ўзбек"
-
-
-msgid "Kazakh - Қазақша"
-msgstr "Kazakiska - Қазақша"
 
 
 msgid "Add & Subtract"

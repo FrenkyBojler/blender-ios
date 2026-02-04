@@ -80,7 +80,7 @@ class AssetDragController : public ui::AbstractViewItemDragController {
 
   std::optional<eWM_DragDataType> get_drag_type() const override;
   void *create_drag_data() const override;
-  void on_drag_start(bContext &C) override;
+  void on_drag_start(bContext &C, ui::AbstractViewItem &item) override;
 };
 
 AssetView::AssetView(const AssetLibraryReference &library_ref, const AssetShelf &shelf)
@@ -147,8 +147,8 @@ void AssetView::build_items()
 bool AssetView::begin_filtering(const bContext &C) const
 {
   const ScrArea *area = CTX_wm_area(&C);
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (ui::textbutton_activate_rna(&C, region, &shelf_, "search_filter")) {
+  for (ARegion &region : area->regionbase) {
+    if (ui::textbutton_activate_rna(&C, &region, &shelf_, "search_filter")) {
       return true;
     }
   }
@@ -199,7 +199,7 @@ void AssetViewItem::disable_asset_drag()
 
 /**
  * Needs freeing with #WM_operator_properties_free() (will be done by button if passed to that) and
- * #MEM_freeN().
+ * #MEM_delete().
  */
 static std::optional<wmOperatorCallParams> create_asset_operator_params(
     const StringRefNull op_name, const asset_system::AssetRepresentation &asset)
@@ -212,8 +212,7 @@ static std::optional<wmOperatorCallParams> create_asset_operator_params(
     return {};
   }
 
-  PointerRNA *op_props = MEM_new<PointerRNA>(__func__);
-  WM_operator_properties_create_ptr(op_props, ot);
+  PointerRNA *op_props = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
   asset::operator_asset_reference_props_set(asset, *op_props);
   return wmOperatorCallParams{ot, op_props, wm::OpCallContext::InvokeRegionWin};
 }
@@ -223,7 +222,7 @@ void AssetViewItem::build_grid_tile(const bContext & /*C*/, ui::Layout &layout) 
   const AssetView &asset_view = reinterpret_cast<const AssetView &>(this->get_view());
   const AssetShelfType &shelf_type = *asset_view.shelf_.type;
 
-  PointerRNA asset_ptr = RNA_pointer_create_discrete(nullptr, &RNA_AssetRepresentation, &asset_);
+  PointerRNA asset_ptr = RNA_pointer_create_discrete(nullptr, RNA_AssetRepresentation, &asset_);
   button_context_ptr_set(
       layout.block(), reinterpret_cast<ui::Button *>(view_item_but_), "asset", &asset_ptr);
 
@@ -392,7 +391,7 @@ std::optional<eWM_DragDataType> AssetDragController::get_drag_type() const
   return asset_.is_local_id() ? WM_DRAG_ID : WM_DRAG_ASSET;
 }
 
-void AssetDragController::on_drag_start(bContext &C)
+void AssetDragController::on_drag_start(bContext &C, ui::AbstractViewItem &item)
 {
   const AssetView &asset_view = this->get_view<AssetView>();
   const AssetShelfType &shelf_type = *asset_view.shelf_.type;
@@ -403,6 +402,14 @@ void AssetDragController::on_drag_start(bContext &C)
     WM_operator_name_call_ptr(&C, drag_op->optype, drag_op->opcontext, drag_op->opptr, nullptr);
     WM_operator_properties_free(drag_op->opptr);
     MEM_delete(drag_op->opptr);
+
+    /* Display as active so it's clear which item is being operated on. #activate() would trigger
+     * the activation operator. We really don't want this for poses, since dragging shouldn't fully
+     * apply a pose, but trigger interactive pose blending instead.
+     *
+     * Messing with the active state could cause problems, in that case a separate highlighting
+     * feature might make sense (so e.g. dragged from assets get an outline). */
+    item.set_state_active();
   }
 }
 

@@ -134,7 +134,10 @@ static Block *block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *ar
   }
 
   block_layout_resolve(block);
-  block_direction_set(block, UI_DIR_DOWN | UI_DIR_CENTER_X);
+  const int direction = pup->panel_type->popup_draw_direction == PopupAttachDirection::Horizontal ?
+                            UI_DIR_LEFT :
+                            UI_DIR_DOWN | UI_DIR_CENTER_X;
+  block_direction_set(block, direction);
 
   const int block_margin = U.widget_unit / 2;
 
@@ -166,7 +169,7 @@ static Block *block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *ar
     if (!slideout) {
       ARegion *region = CTX_wm_region(C);
 
-      if (region && region->panels.first) {
+      if (region && region->panels.first && (direction & UI_DIR_DOWN)) {
         /* For regions with panels, prefer to open to top so we can
          * see the values of the buttons below changing. */
         block_direction_set(block, UI_DIR_UP | UI_DIR_CENTER_X);
@@ -245,7 +248,7 @@ static void block_free_func_POPOVER(void *arg_pup)
   Popover *pup = static_cast<Popover *>(arg_pup);
   if (pup->keymap != nullptr) {
     wmWindow *window = pup->window;
-    WM_event_remove_keymap_handler(&window->modalhandlers, pup->keymap);
+    WM_event_remove_keymap_handler(&window->runtime->modalhandlers, pup->keymap);
   }
   MEM_delete(pup);
 }
@@ -277,7 +280,7 @@ PopupBlockHandle *popover_panel_create(bContext *C,
 #ifdef USE_UI_POPOVER_ONCE
   {
     /* Ideally this would be passed in. */
-    const wmEvent *event = window->eventstate;
+    const wmEvent *event = window->runtime->eventstate;
     pup->is_once = (event->type == LEFTMOUSE) && (event->val == KM_PRESS);
   }
 #endif
@@ -289,7 +292,7 @@ PopupBlockHandle *popover_panel_create(bContext *C,
   /* Add handlers. If attached to a button, the button will already
    * add a modal handler and pass on events. */
   if (!but) {
-    popup_handlers_add(C, &window->modalhandlers, handle, 0);
+    popup_handlers_add(C, &window->runtime->modalhandlers, handle, 0);
     WM_event_add_mousemove(window);
     handle->popup = true;
   }
@@ -329,8 +332,8 @@ wmOperatorStatus popover_panel_invoke(bContext *C,
   else {
     Popover *pup = popover_begin(C, U.widget_unit * pt->ui_units_x, false);
     layout = popover_layout(pup);
-    blender::ui::UI_paneltype_draw(C, pt, layout);
-    blender::ui::popover_end(C, pup, nullptr);
+    ui::UI_paneltype_draw(C, pt, layout);
+    ui::popover_end(C, pup, nullptr);
     block = pup->block;
   }
 
@@ -393,7 +396,8 @@ void popover_end(bContext *C, Popover *pup, wmKeyMap *keymap)
     /* Add so we get keymaps shown in the buttons. */
     block_flag_enable(pup->block, BLOCK_SHOW_SHORTCUT_ALWAYS);
     pup->keymap = keymap;
-    pup->keymap_handler = WM_event_add_keymap_handler_priority(&window->modalhandlers, keymap, 0);
+    pup->keymap_handler = WM_event_add_keymap_handler_priority(
+        &window->runtime->modalhandlers, keymap, 0);
     WM_event_set_keymap_handler_post_callback(pup->keymap_handler, popover_keymap_fn, pup);
   }
 
@@ -409,14 +413,14 @@ void popover_end(bContext *C, Popover *pup, wmKeyMap *keymap)
                                                 false);
 
   /* Add handlers. */
-  popup_handlers_add(C, &window->modalhandlers, handle, 0);
+  popup_handlers_add(C, &window->runtime->modalhandlers, handle, 0);
   WM_event_add_mousemove(window);
   handle->popup = true;
 
   /* Re-add so it gets priority. */
   if (keymap) {
-    BLI_remlink(&window->modalhandlers, pup->keymap_handler);
-    BLI_addhead(&window->modalhandlers, pup->keymap_handler);
+    BLI_remlink(&window->runtime->modalhandlers, pup->keymap_handler);
+    BLI_addhead(&window->runtime->modalhandlers, pup->keymap_handler);
   }
 
   pup->window = window;

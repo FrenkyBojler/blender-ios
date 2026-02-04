@@ -4,13 +4,27 @@
 
 #include <cstring>
 
+/* For #close function. */
+#ifndef WIN32
+#  include <unistd.h>
+#else
+#  include <io.h>
+#endif
+
 #include "BLI_fileops.h"
 #include "BLI_filereader.h"
 
 #include "BLO_core_file_reader.hh"
 
+namespace blender {
+
 FileReader *BLO_file_reader_uncompressed_from_descriptor(int filedes)
 {
+  if (FileReader *mmap_reader = BLI_filereader_new_mmap(filedes)) {
+    /* The mapped memory is still valid even when the file is closed. */
+    close(filedes);
+    return BLO_file_reader_uncompressed(mmap_reader);
+  }
   return BLO_file_reader_uncompressed(BLI_filereader_new_file(filedes));
 }
 
@@ -47,3 +61,5 @@ FileReader *BLO_file_reader_uncompressed(FileReader *rawfile)
   rawfile->close(rawfile);
   return nullptr;
 }
+
+}  // namespace blender

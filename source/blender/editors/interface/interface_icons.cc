@@ -57,9 +57,11 @@
 
 #include <fmt/format.h>
 
+namespace blender {
+
 static CLG_LogRef LOG = {"ui.icon"};
 
-namespace blender::ui {
+namespace ui {
 
 struct IconImage {
   int w;
@@ -140,19 +142,19 @@ static const IconType icontypes[] = {
 static DrawInfo *def_internal_icon(
     ImBuf *bbuf, int icon_id, int xofs, int yofs, int size, int type, int theme_color)
 {
-  Icon *new_icon = MEM_callocN<Icon>(__func__);
+  Icon *new_icon = MEM_new_zeroed<Icon>(__func__);
 
   new_icon->obj = nullptr; /* icon is not for library object */
   new_icon->id_type = 0;
 
-  DrawInfo *di = MEM_callocN<DrawInfo>(__func__);
+  DrawInfo *di = MEM_new_zeroed<DrawInfo>(__func__);
   di->type = type;
 
   if (type == ICON_TYPE_SVG_MONO) {
     di->data.texture.theme_color = theme_color;
   }
   else if (type == ICON_TYPE_BUFFER) {
-    IconImage *iimg = MEM_callocN<IconImage>(__func__);
+    IconImage *iimg = MEM_new_zeroed<IconImage>(__func__);
     iimg->w = size;
     iimg->h = size;
 
@@ -160,7 +162,7 @@ static DrawInfo *def_internal_icon(
     if (bbuf) {
       int y, imgsize;
 
-      iimg->rect = MEM_malloc_arrayN<uint8_t>(size * size * sizeof(uint), __func__);
+      iimg->rect = MEM_new_array_uninitialized<uint8_t>(size * size * sizeof(uint), __func__);
 
       /* Here we store the rect in the icon - same as before */
       if (size == bbuf->x && size == bbuf->y && xofs == 0 && yofs == 0) {
@@ -189,12 +191,12 @@ static DrawInfo *def_internal_icon(
 
 static void def_internal_vicon(int icon_id, VectorDrawFunc drawFunc)
 {
-  Icon *new_icon = MEM_callocN<Icon>("texicon");
+  Icon *new_icon = MEM_new_zeroed<Icon>("texicon");
 
   new_icon->obj = nullptr; /* icon is not for library object */
   new_icon->id_type = 0;
 
-  DrawInfo *di = MEM_callocN<DrawInfo>("drawinfo");
+  DrawInfo *di = MEM_new_zeroed<DrawInfo>("drawinfo");
   di->type = ICON_TYPE_VECTOR;
   di->data.vector.func = drawFunc;
 
@@ -220,7 +222,7 @@ static void vicon_rgb_text_draw(
 {
   const int font_id = BLF_default();
   const size_t len = strlen(str);
-  BLF_size(font_id, float(h - 3 * UI_SCALE_FAC));
+  BLF_size(font_id, (h - 3 * UI_SCALE_FAC));
   float width, height;
   BLF_width_and_height(font_id, str, len, &width, &height);
   const float pos_x = x + (w - width) / 2.0f;
@@ -269,10 +271,10 @@ static void vicon_keytype_draw_wrapper(const float x,
 {
   /* Initialize dummy theme state for Action Editor - where these colors are defined
    * (since we're doing this off-screen, free from any particular space_id). */
-  bThemeState theme_state;
+  theme::bThemeState theme_state;
 
-  Theme_Store(&theme_state);
-  UI_SetTheme(SPACE_ACTION, RGN_TYPE_WINDOW);
+  theme::theme_store(&theme_state);
+  theme::theme_set(SPACE_ACTION, RGN_TYPE_WINDOW);
 
   /* The "x" and "y" given are the bottom-left coordinates of the icon,
    * while the #draw_keyframe_shape() function needs the midpoint for the keyframe. */
@@ -317,7 +319,7 @@ static void vicon_keytype_draw_wrapper(const float x,
   GPU_program_point_size(false);
   immUnbindProgram();
 
-  Theme_Restore(&theme_state);
+  theme::theme_restore(&theme_state);
 }
 
 static void vicon_keytype_keyframe_draw(
@@ -403,19 +405,19 @@ static void icon_node_socket_draw(
   };
 
   float color_inner[4];
-  blender::ed::space_node::std_node_socket_colors_get(socket_type, color_inner);
+  ed::space_node::std_node_socket_colors_get(socket_type, color_inner);
 
   float color_outer[4] = {0};
-  GetThemeColorType4fv(TH_WIRE, SPACE_NODE, color_outer);
+  theme::get_color_type_4fv(TH_WIRE, SPACE_NODE, color_outer);
   color_outer[3] = 1.0f;
 
-  blender::ed::space_node::node_draw_nodesocket(
+  ed::space_node::node_draw_nodesocket(
       &rect, color_inner, color_outer, U.pixelsize, SOCK_DISPLAY_SHAPE_CIRCLE, 1.0f);
 }
 
 static void vicon_colorset_draw(int index, int x, int y, int w, int h, float /*alpha*/)
 {
-  bTheme *btheme = GetTheme();
+  bTheme *btheme = theme::theme_get();
   const ThemeWireColor *cs = &btheme->tarm[index];
 
   /* Draw three bands of color: One per color
@@ -479,7 +481,7 @@ DEF_ICON_VECTOR_COLORSET_DRAW_NTH(20, 19)
 static void vicon_strip_color_draw(
     short color_tag, float x, float y, float w, float /*h*/, float /*alpha*/)
 {
-  bTheme *btheme = GetTheme();
+  bTheme *btheme = theme::theme_get();
   const ThemeStripColor *strip_color = &btheme->strip_color[color_tag];
 
   const float aspect = float(ICON_DEFAULT_WIDTH) / w;
@@ -551,7 +553,7 @@ static void vicon_strip_color_draw_library_data_override_noneditable(
 static void vicon_layergroup_color_draw(
     short color_tag, float x, float y, float w, float /*h*/, float /*alpha*/)
 {
-  bTheme *btheme = GetTheme();
+  bTheme *btheme = theme::theme_get();
   const ThemeCollectionColor *layergroup_color = &btheme->collection_color[color_tag];
 
   const float aspect = float(ICON_DEFAULT_WIDTH) / w;
@@ -605,6 +607,11 @@ DEF_ICON_NODE_SOCKET_DRAW(geometry, eNodeSocketDatatype::SOCK_GEOMETRY)
 DEF_ICON_NODE_SOCKET_DRAW(collection, eNodeSocketDatatype::SOCK_COLLECTION)
 DEF_ICON_NODE_SOCKET_DRAW(texture, eNodeSocketDatatype::SOCK_TEXTURE)
 DEF_ICON_NODE_SOCKET_DRAW(material, eNodeSocketDatatype::SOCK_MATERIAL)
+DEF_ICON_NODE_SOCKET_DRAW(font, eNodeSocketDatatype::SOCK_FONT)
+DEF_ICON_NODE_SOCKET_DRAW(scene, eNodeSocketDatatype::SOCK_SCENE)
+DEF_ICON_NODE_SOCKET_DRAW(text, eNodeSocketDatatype::SOCK_TEXT_ID)
+DEF_ICON_NODE_SOCKET_DRAW(mask, eNodeSocketDatatype::SOCK_MASK)
+DEF_ICON_NODE_SOCKET_DRAW(sound, eNodeSocketDatatype::SOCK_SOUND)
 DEF_ICON_NODE_SOCKET_DRAW(rotation, eNodeSocketDatatype::SOCK_ROTATION)
 DEF_ICON_NODE_SOCKET_DRAW(menu, eNodeSocketDatatype::SOCK_MENU)
 DEF_ICON_NODE_SOCKET_DRAW(matrix, eNodeSocketDatatype::SOCK_MATRIX)
@@ -617,7 +624,7 @@ DEF_ICON_NODE_SOCKET_DRAW(closure, eNodeSocketDatatype::SOCK_CLOSURE)
  */
 static void vicon_gplayer_color_draw(Icon *icon, int x, int y, int w, int h)
 {
-  bGPDlayer *gpl = (bGPDlayer *)icon->obj;
+  bGPDlayer *gpl = static_cast<bGPDlayer *>(icon->obj);
 
   /* Just draw a colored rect - Like for vicon_colorset_draw() */
   /* TODO: Make this have rounded corners, and maybe be a bit smaller.
@@ -998,6 +1005,11 @@ static void init_internal_icons()
   def_internal_vicon(ICON_NODE_SOCKET_MATRIX, icon_node_socket_draw_matrix);
   def_internal_vicon(ICON_NODE_SOCKET_BUNDLE, icon_node_socket_draw_bundle);
   def_internal_vicon(ICON_NODE_SOCKET_CLOSURE, icon_node_socket_draw_closure);
+  def_internal_vicon(ICON_NODE_SOCKET_FONT, icon_node_socket_draw_font);
+  def_internal_vicon(ICON_NODE_SOCKET_SCENE, icon_node_socket_draw_scene);
+  def_internal_vicon(ICON_NODE_SOCKET_TEXT, icon_node_socket_draw_text);
+  def_internal_vicon(ICON_NODE_SOCKET_MASK, icon_node_socket_draw_mask);
+  def_internal_vicon(ICON_NODE_SOCKET_SOUND, icon_node_socket_draw_sound);
 }
 
 #else
@@ -1021,9 +1033,9 @@ void icons_free_drawinfo(void *drawinfo)
   if (di->type == ICON_TYPE_BUFFER) {
     if (di->data.buffer.image) {
       if (di->data.buffer.image->rect) {
-        MEM_freeN(di->data.buffer.image->rect);
+        MEM_delete(di->data.buffer.image->rect);
       }
-      MEM_freeN(di->data.buffer.image);
+      MEM_delete(di->data.buffer.image);
     }
   }
   else if (di->type == ICON_TYPE_GEOM) {
@@ -1032,7 +1044,7 @@ void icons_free_drawinfo(void *drawinfo)
     }
   }
 
-  MEM_freeN(di);
+  MEM_delete(di);
 }
 
 /**
@@ -1042,7 +1054,7 @@ static DrawInfo *icon_create_drawinfo(Icon *icon)
 {
   const int icon_data_type = icon->obj_type;
 
-  DrawInfo *di = MEM_callocN<DrawInfo>("di_icon");
+  DrawInfo *di = MEM_new_zeroed<DrawInfo>("di_icon");
 
   if (ELEM(icon_data_type, ICON_DATA_ID, ICON_DATA_PREVIEW)) {
     di->type = ICON_TYPE_PREVIEW;
@@ -1085,7 +1097,7 @@ bool icon_get_theme_color(int icon_id, uchar color[4])
   }
 
   DrawInfo *di = icon_ensure_drawinfo(icon);
-  return GetIconThemeColor4ubv(di->data.texture.theme_color, color);
+  return theme::get_icon_color_4ubv(di->data.texture.theme_color, color);
 }
 
 void icons_init()
@@ -1125,7 +1137,7 @@ static void icon_create_rect(PreviewImage *prv_img, enum eIconSizes size)
     if (!ED_preview_use_image_size(prv_img, size)) {
       prv_img->w[size] = render_size;
       prv_img->h[size] = render_size;
-      prv_img->rect[size] = MEM_calloc_arrayN<uint>(render_size * render_size, "prv_rect");
+      prv_img->rect[size] = MEM_new_array_zeroed<uint>(render_size * render_size, "prv_rect");
     }
   }
 }
@@ -1135,7 +1147,7 @@ static void ui_id_preview_image_render_size(
 
 static void ui_studiolight_icon_job_exec(void *customdata, wmJobWorkerStatus * /*worker_status*/)
 {
-  Icon **tmp = (Icon **)customdata;
+  Icon **tmp = static_cast<Icon **>(customdata);
   Icon *icon = *tmp;
   DrawInfo *di = icon_ensure_drawinfo(icon);
   StudioLight *sl = static_cast<StudioLight *>(icon->obj);
@@ -1176,7 +1188,7 @@ static void ui_studiolight_free_function(StudioLight *sl, void *data)
 
 static void ui_studiolight_icon_job_end(void *customdata)
 {
-  Icon **tmp = (Icon **)customdata;
+  Icon **tmp = static_cast<Icon **>(customdata);
   Icon *icon = *tmp;
   StudioLight *sl = static_cast<StudioLight *>(icon->obj);
   BKE_studiolight_set_free_function(sl, &ui_studiolight_free_function, nullptr);
@@ -1220,12 +1232,12 @@ void icon_ensure_deferred(const bContext *C, const int icon_id, const bool big)
           wmWindowManager *wm = CTX_wm_manager(C);
           StudioLight *sl = static_cast<StudioLight *>(icon->obj);
           BKE_studiolight_set_free_function(sl, &ui_studiolight_free_function, wm);
-          IconImage *img = MEM_callocN<IconImage>(__func__);
+          IconImage *img = MEM_new_zeroed<IconImage>(__func__);
 
           img->w = STUDIOLIGHT_ICON_SIZE;
           img->h = STUDIOLIGHT_ICON_SIZE;
           const size_t size = STUDIOLIGHT_ICON_SIZE * STUDIOLIGHT_ICON_SIZE * sizeof(uint);
-          img->rect = MEM_malloc_arrayN<uint8_t>(size, __func__);
+          img->rect = MEM_new_array_uninitialized<uint8_t>(size, __func__);
           memset(img->rect, 0, size);
           di->data.buffer.image = img;
 
@@ -1235,9 +1247,9 @@ void icon_ensure_deferred(const bContext *C, const int icon_id, const bool big)
                                       "Generating StudioLight icon...",
                                       eWM_JobFlag(0),
                                       WM_JOB_TYPE_STUDIOLIGHT);
-          Icon **tmp = MEM_callocN<Icon *>(__func__);
+          Icon **tmp = MEM_new_zeroed<Icon *>(__func__);
           *tmp = icon;
-          WM_jobs_customdata_set(wm_job, tmp, MEM_freeN);
+          WM_jobs_customdata_set(wm_job, tmp, MEM_delete_void);
           WM_jobs_timer(wm_job, 0.01, 0, NC_WINDOW);
           WM_jobs_callbacks(
               wm_job, ui_studiolight_icon_job_exec, nullptr, nullptr, ui_studiolight_icon_job_end);
@@ -1324,15 +1336,16 @@ PreviewImage *icon_to_preview(int icon_id)
     return nullptr;
   }
 
-  DrawInfo *di = (DrawInfo *)icon->drawinfo;
+  DrawInfo *di = static_cast<DrawInfo *>(icon->drawinfo);
 
   if (di == nullptr) {
     return nullptr;
   }
 
   if (di->type == ICON_TYPE_PREVIEW) {
-    const PreviewImage *prv = (icon->id_type != 0) ? BKE_previewimg_id_ensure((ID *)icon->obj) :
-                                                     static_cast<const PreviewImage *>(icon->obj);
+    const PreviewImage *prv = (icon->id_type != 0) ?
+                                  BKE_previewimg_id_ensure(static_cast<ID *>(icon->obj)) :
+                                  static_cast<const PreviewImage *>(icon->obj);
 
     if (prv) {
       return BKE_previewimg_copy(prv);
@@ -1454,7 +1467,7 @@ static void svg_replace_color_attributes(std::string &svg,
                                          const size_t start,
                                          const size_t end)
 {
-  bTheme *btheme = GetTheme();
+  bTheme *btheme = theme::theme_get();
 
   uchar white[] = {255, 255, 255, 255};
   uchar black[] = {0, 0, 0, 255};
@@ -1531,10 +1544,10 @@ static void svg_replace_color_attributes(std::string &svg,
     }
     else if (item.colorid != TH_UNDEFINED) {
       if (item.spacetype != SPACE_TYPE_ANY) {
-        GetThemeColorType4ubv(item.colorid, item.spacetype, color);
+        theme::get_color_type_4ubv(item.colorid, item.spacetype, color);
       }
       else {
-        GetThemeColor4ubv(item.colorid, color);
+        theme::get_color_4ubv(item.colorid, color);
       }
     }
     else {
@@ -1631,7 +1644,7 @@ static void icon_draw_size(float x,
     return;
   }
 
-  bTheme *btheme = GetTheme();
+  bTheme *btheme = theme::theme_get();
   const float fdraw_size = float(draw_size);
 
   Icon *icon = BKE_icon_get(icon_id);
@@ -1721,13 +1734,13 @@ static void icon_draw_size(float x,
 
     float color[4];
     if (icon_id == ICON_NOT_FOUND) {
-      GetThemeColor4fv(TH_ERROR, color);
+      theme::get_color_4fv(TH_ERROR, color);
     }
     else if (mono_rgba) {
       rgba_uchar_to_float(color, mono_rgba);
     }
     else {
-      GetThemeColor4fv(TH_TEXT, color);
+      theme::get_color_4fv(TH_TEXT, color);
     }
 
     color[3] *= alpha;
@@ -1760,7 +1773,7 @@ static void icon_draw_size(float x,
         copy_v4_v4_uchar(text_color, text_overlay->color);
       }
       else {
-        GetThemeColor4ubv(TH_TEXT, text_color);
+        theme::get_color_4ubv(TH_TEXT, text_color);
       }
       const bool is_light = srgb_to_grayscale_byte(text_color) > 96;
       const float zoom_factor = w / UI_ICON_SIZE;
@@ -1794,8 +1807,9 @@ static void icon_draw_size(float x,
     icon_draw_rect(x, y, w, h, iimg->w, iimg->h, iimg->rect, alpha, desaturate);
   }
   else if (di->type == ICON_TYPE_PREVIEW) {
-    PreviewImage *pi = (icon->id_type != 0) ? BKE_previewimg_id_ensure((ID *)icon->obj) :
-                                              static_cast<PreviewImage *>(icon->obj);
+    PreviewImage *pi = (icon->id_type != 0) ?
+                           BKE_previewimg_id_ensure(static_cast<ID *>(icon->obj)) :
+                           static_cast<PreviewImage *>(icon->obj);
 
     if (pi) {
       /* no create icon on this level in code */
@@ -1862,9 +1876,9 @@ void icon_render_id(
 
   /* For objects, first try if a preview can created via the object data. */
   if (GS(id->name) == ID_OB) {
-    Object *ob = (Object *)id;
+    Object *ob = id_cast<Object *>(id);
     if (ED_preview_id_is_supported(static_cast<const ID *>(ob->data))) {
-      id_to_render = static_cast<ID *>(ob->data);
+      id_to_render = ob->data;
     }
   }
 
@@ -1916,10 +1930,10 @@ int id_icon_get(const bContext *C, ID *id, const bool big)
       iconid = ui_id_screen_get_icon(C, id);
       break;
     case ID_OB:
-      iconid = icon_from_object_type((Object *)id);
+      iconid = icon_from_object_type(id_cast<Object *>(id));
       break;
     case ID_GR:
-      iconid = icon_color_from_collection((Collection *)id);
+      iconid = icon_color_from_collection(id_cast<Collection *>(id));
       break;
     default:
       break;
@@ -1969,16 +1983,16 @@ int icon_from_rnaptr(const bContext *C, PointerRNA *ptr, int rnaicon, const bool
   if (RNA_struct_is_ID(ptr->type)) {
     id = ptr->owner_id;
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_MaterialSlot)) {
+  else if (RNA_struct_is_a(ptr->type, RNA_MaterialSlot)) {
     id = static_cast<ID *>(RNA_pointer_get(ptr, "material").data);
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_TextureSlot)) {
+  else if (RNA_struct_is_a(ptr->type, RNA_TextureSlot)) {
     id = static_cast<ID *>(RNA_pointer_get(ptr, "texture").data);
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_FileBrowserFSMenuEntry)) {
+  else if (RNA_struct_is_a(ptr->type, RNA_FileBrowserFSMenuEntry)) {
     return RNA_int_get(ptr, "icon");
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_DynamicPaintSurface)) {
+  else if (RNA_struct_is_a(ptr->type, RNA_DynamicPaintSurface)) {
     const DynamicPaintSurface *surface = static_cast<const DynamicPaintSurface *>(ptr->data);
 
     if (surface->format == MOD_DPAINT_SURFACE_F_PTEX) {
@@ -1991,7 +2005,7 @@ int icon_from_rnaptr(const bContext *C, PointerRNA *ptr, int rnaicon, const bool
       return ICON_FILE_IMAGE;
     }
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_StudioLight)) {
+  else if (RNA_struct_is_a(ptr->type, RNA_StudioLight)) {
     StudioLight *sl = static_cast<StudioLight *>(ptr->data);
     switch (sl->flag & STUDIOLIGHT_FLAG_ORIENTATIONS) {
       case STUDIOLIGHT_TYPE_STUDIO:
@@ -2016,7 +2030,7 @@ int icon_from_rnaptr(const bContext *C, PointerRNA *ptr, int rnaicon, const bool
 
 int icon_from_idcode(const int idcode)
 {
-  switch ((ID_Type)idcode) {
+  switch (ID_Type(idcode)) {
     case ID_AC:
       return ICON_ACTION;
     case ID_AR:
@@ -2101,7 +2115,7 @@ int icon_from_idcode(const int idcode)
 
 int icon_from_object_mode(const int mode)
 {
-  switch ((eObjectMode)mode) {
+  switch (eObjectMode(mode)) {
     case OB_MODE_OBJECT:
       return ICON_OBJECT_DATAMODE;
     case OB_MODE_EDIT:
@@ -2321,4 +2335,5 @@ ImBuf *icon_alert_imbuf_get(AlertIcon icon, float size)
 #endif
 }
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender
