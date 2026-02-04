@@ -1,2 +1,3 @@
 Referenced by commit 9d5225a58203ef9f2fd30e71cbd1dd20eedba09c, Fix #152045: Crash when selecting UV islands while in edge selection mode
 Referenced by issue #153492, Slow UV Box Selection in Edge Island Mode
+Referenced by commit 11633ceea7a6605db7b379e2c0c4a5d813ae3c58, Fix #153492: Slow UV island box selection
