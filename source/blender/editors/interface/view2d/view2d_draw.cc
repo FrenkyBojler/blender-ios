@@ -513,7 +513,7 @@ void view2d_draw_lines_x(const View2D *v2d,
                          const Scene *scene,
                          const bool display_seconds,
                          const bool show_fractions,
-                         const bool draw_minor_lines,
+                         bool draw_minor_lines,
                          const int base)
 {
   const float min_line_distance = get_min_line_distance_x(v2d, scene, display_seconds);
@@ -526,10 +526,11 @@ void view2d_draw_lines_x(const View2D *v2d,
   else {
     major_line_distance = calculate_grid_step(
         base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur), min_line_distance);
+    draw_minor_lines = draw_minor_lines && (major_line_distance > 1);
   }
   /* The extra check for minor line drawing here is so minor lines are *not* drawn
    * below a distance of 1. */
-  view2d_draw_lines(v2d, major_line_distance, draw_minor_lines && (major_line_distance > 1), 'v');
+  view2d_draw_lines(v2d, major_line_distance, draw_minor_lines, 'v');
 }
 
 void view2d_draw_lines_x_frames(const View2D *v2d,
