@@ -1147,7 +1147,6 @@ void NODE_GGT_backdrop_split(wmGizmoGroupType *gzgt)
   gzgt->refresh = WIDGETGROUP_node_split_refresh;
 }
 
-
 /* -------------------------------------------------------------------- */
 /** \name Minimap Gizmo
  * \{ */
@@ -1161,7 +1160,8 @@ static bool WIDGETGROUP_node_minimap_poll(const bContext *C, wmGizmoGroupType * 
   SpaceNode *snode = CTX_wm_space_node(C);
 
   if (snode && !(snode->gizmo_flag & SNODE_GIZMO_HIDE) &&
-      snode->gizmo_flag & SNODE_GIZMO_SHOW_MINIMAP && snode->edittree) {
+      snode->gizmo_flag & SNODE_GIZMO_SHOW_MINIMAP && snode->edittree)
+  {
     return true;
   }
 

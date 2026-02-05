@@ -568,11 +568,9 @@ static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 
   /* backdrop */
   snode->zoom = 1.0f;
-  snode->gizmo_flag = SNODE_GIZMO_SHOW_MINIMAP | 
-                      SNODE_GIZMO_MINIMAP_USE_NODE_COLORS | 
-                      SNODE_GIZMO_MINIMAP_USE_FRAME_COLORS | 
-                      SNODE_GIZMO_MINIMAP_SHOW_NODES_IN_FRAME | 
-                      SNODE_GIZMO_MINIMAP_MOVE_TO_TOP;
+  snode->gizmo_flag = SNODE_GIZMO_SHOW_MINIMAP | SNODE_GIZMO_MINIMAP_USE_NODE_COLORS |
+                      SNODE_GIZMO_MINIMAP_USE_FRAME_COLORS |
+                      SNODE_GIZMO_MINIMAP_SHOW_NODES_IN_FRAME | SNODE_GIZMO_MINIMAP_MOVE_TO_TOP;
   snode->minimap_aspect_ratio = 1.5f;
   snode->minimap_scale = 1.0f;
 

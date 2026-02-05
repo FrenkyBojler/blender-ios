@@ -6,22 +6,15 @@
  * \ingroup spnode
  */
 
-
-#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
-#include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
 
 #include "BKE_context.hh"
 #include "BKE_node.hh"
-#include "BKE_node_runtime.hh"
-#include "BKE_node_legacy_types.hh"
-#include "BKE_node_tree_zones.hh"
 #include "BKE_screen.hh"
 
-#include "DNA_userdef_types.h"
 #include "DNA_screen_types.h"
 
 #include "GPU_batch.hh"
@@ -41,7 +34,6 @@
 #include "UI_interface_c.hh"
 #include "UI_resources.hh"
 
-
 #include "node_intern.hh" /* own include */
 
 namespace blender::ed::space_node {
@@ -52,7 +44,7 @@ struct NodeGizmoMinimap {
 
 /* -------------------------------------------------------------------- */
 
-static void gizmo_minimap_draw(const bContext *C, wmGizmo *gz)
+static void gizmo_minimap_draw(const bContext * /*C*/, wmGizmo * /*gz*/)
 {
   /* pass */
 }
@@ -60,19 +52,17 @@ static void gizmo_minimap_draw(const bContext *C, wmGizmo *gz)
 static int gizmo_minimap_test_select(bContext *C, wmGizmo * /*gz*/, const int mval[2])
 {
   const float mval_fl[2] = {
-    static_cast<float>(mval[0]),
-    static_cast<float>(mval[1]),
+      static_cast<float>(mval[0]),
+      static_cast<float>(mval[1]),
   };
   SpaceNode *snode = CTX_wm_space_node(C);
-  
+
   ARegion *region = CTX_wm_region(C);
   View2D v2d = region->v2d;
-
 
   float minimap_overlay_scale = snode->minimap_scale;
   float minimap_size = 150.0f * minimap_overlay_scale * UI_SCALE_FAC;
   float padding = 10.0f * UI_SCALE_FAC;
-  
 
   float minimap_aspect_ratio = snode->minimap_aspect_ratio;
 
@@ -123,10 +113,7 @@ static wmOperatorStatus gizmo_minimap_modal(bContext *C,
 
   ARegion *region = CTX_wm_region(C);
 
-  float mval[2] = {
-    static_cast<float>(event->mval[0]),
-    static_cast<float>(event->mval[1])
-  };
+  float mval[2] = {static_cast<float>(event->mval[0]), static_cast<float>(event->mval[1])};
   float mval_last[2];
   RNA_float_get_array(gz->ptr, "drag_last_pos", mval_last);
   RNA_float_set_array(gz->ptr, "drag_last_pos", mval);
@@ -153,17 +140,13 @@ static wmOperatorStatus gizmo_minimap_modal(bContext *C,
 
 static wmOperatorStatus gizmo_minimap_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
 {
-  float mval[2] = {
-    static_cast<float>(event->mval[0]),
-    static_cast<float>(event->mval[1])
-  };
+  float mval[2] = {static_cast<float>(event->mval[0]), static_cast<float>(event->mval[1])};
   RNA_float_set_array(gz->ptr, "drag_start_pos", mval);
   RNA_float_set_array(gz->ptr, "drag_last_pos", mval);
 
   ARegion *region = CTX_wm_region(C);
   View2D v2d = region->v2d;
   SpaceNode *snode = CTX_wm_space_node(C);
-
 
   if ((snode->gizmo_flag & SNODE_GIZMO_HIDE) && !(snode->gizmo_flag & SNODE_GIZMO_SHOW_MINIMAP)) {
     return OPERATOR_CANCELLED;
