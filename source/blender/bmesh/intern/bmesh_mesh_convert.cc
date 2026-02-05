@@ -1366,7 +1366,7 @@ class AttrSingleValueChecker {
  public:
   AttrSingleValueChecker(bke::AttributeStorage &storage,
                          const bke::AttrDomain domain,
-                         const Set<StringRef> skip_names)
+                         const Set<StringRef> &skip_names)
   {
     for (bke::Attribute &attr : storage) {
       if (attr.domain() != domain) {
