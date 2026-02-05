@@ -1,2 +1,3 @@
 Referenced by issue #153878, Crash when renaming nodes
 Referenced by pull request #153879, Fix #153878: Crash when renaming nodes
+Referenced by commit db88319ce2b021cea7cc88c348d9094d1dac0ee9, Fix #153878: Crash when renaming nodes
