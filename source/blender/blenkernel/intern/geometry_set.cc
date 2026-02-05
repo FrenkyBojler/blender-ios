@@ -21,6 +21,8 @@
 #include "BKE_subdiv_modifier.hh"
 #include "BKE_volume.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
+
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
 
@@ -117,16 +119,7 @@ GeometryComponent &GeometrySet::get_component_for_write(GeometryComponent::Type 
     /* If the component did not exist before, create a new one. */
     component_ptr = GeometryComponent::create(component_type);
   }
-  else if (component_ptr->is_mutable()) {
-    /* If the referenced component is already mutable, return it directly. */
-    component_ptr->tag_ensured_mutable();
-  }
-  else {
-    /* If the referenced component is shared, make a copy. The copy is not shared and is
-     * therefore mutable. */
-    component_ptr = component_ptr->copy();
-  }
-  return const_cast<GeometryComponent &>(*component_ptr);
+  return component_ptr.ensure_mutable_inplace();
 }
 
 GeometryComponent *GeometrySet::get_component_ptr(GeometryComponent::Type type)
@@ -404,7 +397,10 @@ bool GeometrySet::has_realized_data() const
 {
   for (const GeometryComponentPtr &component_ptr : components_) {
     if (component_ptr) {
-      if (component_ptr->type() != GeometryComponent::Type::Instance) {
+      if (!ELEM(component_ptr->type(),
+                GeometryComponent::Type::Instance,
+                GeometryComponent::Type::Edit))
+      {
         return true;
       }
     }
@@ -701,21 +697,35 @@ bool attribute_is_builtin_on_component_type(const GeometryComponent::Type type,
   return false;
 }
 
+void GeometrySet::GatheredAttributes::add(const StringRef name, const AttributeDomainAndType &kind)
+{
+  const int index = this->names.index_of_or_add(name);
+  if (index >= this->kinds.size()) {
+    this->kinds.append(AttributeDomainAndType{kind.domain, kind.data_type});
+  }
+  else {
+    this->kinds[index].domain = bke::attribute_domain_highest_priority(
+        {this->kinds[index].domain, kind.domain});
+    this->kinds[index].data_type = bke::attribute_data_type_highest_complexity(
+        {this->kinds[index].data_type, kind.data_type});
+  }
+}
+
 void GeometrySet::gather_attributes_for_propagation(
     const Span<GeometryComponent::Type> component_types,
     const GeometryComponent::Type dst_component_type,
     bool include_instances,
     const AttributeFilter &attribute_filter,
-    Map<StringRef, AttributeDomainAndType> &r_attributes) const
+    GatheredAttributes &r_attributes) const
 {
   this->attribute_foreach(
       component_types,
       include_instances,
-      [&](const StringRef attribute_id,
+      [&](const StringRef name,
           const AttributeMetaData &meta_data,
           const GeometryComponent &component) {
-        if (component.attributes()->is_builtin(attribute_id)) {
-          if (!attribute_is_builtin_on_component_type(dst_component_type, attribute_id)) {
+        if (component.attributes()->is_builtin(name)) {
+          if (!attribute_is_builtin_on_component_type(dst_component_type, name)) {
             /* Don't propagate built-in attributes that are not built-in on the destination
              * component. */
             return;
@@ -725,7 +735,7 @@ void GeometrySet::gather_attributes_for_propagation(
           /* Propagating string attributes is not supported yet. */
           return;
         }
-        if (attribute_filter.allow_skip(attribute_id)) {
+        if (attribute_filter.allow_skip(name)) {
           return;
         }
 
@@ -735,17 +745,7 @@ void GeometrySet::gather_attributes_for_propagation(
           domain = AttrDomain::Point;
         }
 
-        auto add_info = [&](AttributeDomainAndType *attribute_kind) {
-          attribute_kind->domain = domain;
-          attribute_kind->data_type = meta_data.data_type;
-        };
-        auto modify_info = [&](AttributeDomainAndType *attribute_kind) {
-          attribute_kind->domain = bke::attribute_domain_highest_priority(
-              {attribute_kind->domain, domain});
-          attribute_kind->data_type = bke::attribute_data_type_highest_complexity(
-              {attribute_kind->data_type, meta_data.data_type});
-        };
-        r_attributes.add_or_modify(attribute_id, add_info, modify_info);
+        r_attributes.add(name, AttributeDomainAndType{domain, meta_data.data_type});
       });
 }
 
@@ -781,6 +781,52 @@ Vector<GeometryComponent::Type> GeometrySet::gather_component_types(const bool i
   Vector<GeometryComponent::Type> types;
   gather_component_types_recursive(*this, include_instances, ignore_empty, types);
   return types;
+}
+
+bool GeometrySet::has_bundle() const
+{
+  return bundle_;
+}
+
+const nodes::Bundle *GeometrySet::bundle() const
+{
+  return bundle_.get();
+}
+
+const nodes::BundlePtr &GeometrySet::bundle_ptr() const
+{
+  return bundle_;
+}
+
+nodes::BundlePtr &GeometrySet::bundle_ptr()
+{
+  return bundle_;
+}
+
+nodes::Bundle &GeometrySet::bundle_for_write()
+{
+  if (!bundle_) {
+    bundle_ = nodes::Bundle::create();
+  }
+  return bundle_.ensure_mutable_inplace();
+}
+
+void GeometrySet::copy_bundle_from(const GeometrySet &other)
+{
+  bundle_ = other.bundle_;
+}
+
+void GeometrySet::merge_bundle_from(const GeometrySet &other)
+{
+  if (!other.has_bundle()) {
+    return;
+  }
+  if (bundle_) {
+    this->bundle_for_write().merge(*other.bundle());
+  }
+  else {
+    this->copy_bundle_from(other);
+  }
 }
 
 bool object_has_geometry_set_instances(const Object &object)

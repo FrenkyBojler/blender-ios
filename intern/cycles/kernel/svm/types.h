@@ -223,6 +223,7 @@ enum NodeVectorMathType {
   NODE_VECTOR_MATH_MULTIPLY_ADD,
   NODE_VECTOR_MATH_POWER,
   NODE_VECTOR_MATH_SIGN,
+  NODE_VECTOR_MATH_ROUND,
 };
 
 enum NodeClampType {
@@ -310,7 +311,12 @@ enum NodeWaveProfile {
   NODE_WAVE_PROFILE_TRI,
 };
 
-enum NodeSkyType { NODE_SKY_NISHITA };
+enum NodeSkyType {
+  NODE_SKY_PREETHAM,
+  NODE_SKY_HOSEK,
+  NODE_SKY_SINGLE_SCATTERING,
+  NODE_SKY_MULTIPLE_SCATTERING
+};
 
 enum NodeGradientType {
   NODE_BLEND_LINEAR,
@@ -349,6 +355,11 @@ enum NodeNormalMapSpace {
   NODE_NORMAL_MAP_WORLD,
   NODE_NORMAL_MAP_BLENDER_OBJECT,
   NODE_NORMAL_MAP_BLENDER_WORLD,
+};
+
+enum NodeNormalMapConvention {
+  NODE_NORMAL_MAP_CONVENTION_OPENGL = 0,
+  NODE_NORMAL_MAP_CONVENTION_DIRECTX = (1U << 31),
 };
 
 enum NodeImageProjection {

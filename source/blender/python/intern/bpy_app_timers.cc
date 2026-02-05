@@ -14,7 +14,10 @@
 
 #include "bpy_app_timers.hh"
 
+#include "../generic/py_capi_utils.hh"
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
+
+namespace blender {
 
 static double handle_returned_value(PyObject *function, PyObject *ret)
 {
@@ -90,7 +93,6 @@ static PyObject *bpy_app_timers_register(PyObject * /*self*/, PyObject *args, Py
 
   static const char *_keywords[] = {"function", "first_interval", "persistent", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O"  /* `function` */
       "|$" /* Optional keyword only arguments. */
       "d"  /* `first_interval` */
@@ -128,7 +130,7 @@ PyDoc_STRVAR(
 static PyObject *bpy_app_timers_unregister(PyObject * /*self*/, PyObject *function)
 {
   if (!BLI_timer_unregister(intptr_t(function))) {
-    PyErr_SetString(PyExc_ValueError, "Error: function is not registered");
+    PyErr_SetString(PyExc_ValueError, "function is not registered");
     return nullptr;
   }
   Py_RETURN_NONE;
@@ -163,12 +165,15 @@ static PyObject *bpy_app_timers_is_registered(PyObject * /*self*/, PyObject *fun
 
 static PyMethodDef M_AppTimers_methods[] = {
     {"register",
-     (PyCFunction)bpy_app_timers_register,
+     reinterpret_cast<PyCFunction>(bpy_app_timers_register),
      METH_VARARGS | METH_KEYWORDS,
      bpy_app_timers_register_doc},
-    {"unregister", (PyCFunction)bpy_app_timers_unregister, METH_O, bpy_app_timers_unregister_doc},
+    {"unregister",
+     static_cast<PyCFunction>(bpy_app_timers_unregister),
+     METH_O,
+     bpy_app_timers_unregister_doc},
     {"is_registered",
-     (PyCFunction)bpy_app_timers_is_registered,
+     static_cast<PyCFunction>(bpy_app_timers_is_registered),
      METH_O,
      bpy_app_timers_is_registered_doc},
     {nullptr, nullptr, 0, nullptr},
@@ -198,6 +203,8 @@ PyObject *BPY_app_timers_module()
 {
   PyObject *sys_modules = PyImport_GetModuleDict();
   PyObject *mod = PyModule_Create(&M_AppTimers_module_def);
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(mod), mod);
+  PyC_Module_AddToSysModules(sys_modules, mod);
   return mod;
 }
+
+}  // namespace blender

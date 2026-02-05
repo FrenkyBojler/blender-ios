@@ -45,6 +45,7 @@ set(SRC
   nodes/node_fn_match_string.cc
   nodes/node_fn_matrix_determinant.cc
   nodes/node_fn_matrix_multiply.cc
+  nodes/node_fn_matrix_svd.cc
   nodes/node_fn_project_point.cc
   nodes/node_fn_quaternion_to_rotation.cc
   nodes/node_fn_random_value.cc
@@ -60,6 +61,7 @@ set(SRC
   nodes/node_fn_separate_transform.cc
   nodes/node_fn_slice_string.cc
   nodes/node_fn_string_length.cc
+  nodes/node_fn_string_to_value.cc
   nodes/node_fn_transform_direction.cc
   nodes/node_fn_transform_point.cc
   nodes/node_fn_transpose_matrix.cc
@@ -82,7 +84,7 @@ set(LIB
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
-  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::extern::fast_float
 )
 
 add_node_discovery(

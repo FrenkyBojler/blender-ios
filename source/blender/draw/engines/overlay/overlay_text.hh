@@ -8,8 +8,10 @@
 
 #pragma once
 
-#include "BKE_vfont.hh"
+#include "BLI_math_color.h"
 #include "BLI_math_matrix.hh"
+
+#include "BKE_vfont.hh"
 
 #include "overlay_base.hh"
 
@@ -64,7 +66,7 @@ class Text : Overlay {
         auto &sub = ps_.sub("text_selection");
         sub.state_set(default_state, state.clipping_plane_count);
         sub.shader_set(res.shaders->uniform_color.get());
-        UI_GetThemeColor4fv(TH_WIDGET_TEXT_SELECTION, color);
+        ui::theme::get_color_4fv(TH_WIDGET_TEXT_SELECTION, color);
         srgb_to_linearrgb_v4(color, color);
         sub.push_constant("ucolor", color);
         selection_ps_ = &sub;
@@ -77,7 +79,7 @@ class Text : Overlay {
                           DRW_STATE_DEPTH_GREATER_EQUAL,
                       state.clipping_plane_count);
         sub.shader_set(res.shaders->uniform_color.get());
-        UI_GetThemeColor4fv(TH_WIDGET_TEXT_HIGHLIGHT, color);
+        ui::theme::get_color_4fv(TH_WIDGET_TEXT_HIGHLIGHT, color);
         srgb_to_linearrgb_v4(color, color);
         sub.push_constant("ucolor", color);
         selection_highlight_ps_ = &sub;
@@ -89,7 +91,7 @@ class Text : Overlay {
         sub.state_set(default_state, state.clipping_plane_count);
         sub.shader_set(res.shaders->uniform_color.get());
         sub.state_set(default_state, state.clipping_plane_count);
-        UI_GetThemeColor4fv(TH_WIDGET_TEXT_CURSOR, color);
+        ui::theme::get_color_4fv(TH_WIDGET_TEXT_CURSOR, color);
         srgb_to_linearrgb_v4(color, color);
         sub.push_constant("ucolor", color);
         cursor_ps_ = &sub;

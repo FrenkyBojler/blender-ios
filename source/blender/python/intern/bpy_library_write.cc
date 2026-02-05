@@ -32,6 +32,8 @@
 #include "../generic/py_capi_utils.hh"
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
+namespace blender {
+
 using namespace blender::bke::blendfile;
 
 PyDoc_STRVAR(
@@ -89,7 +91,6 @@ static PyObject *bpy_lib_write(BPy_PropertyRNA *self, PyObject *args, PyObject *
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `filepath` */
       "O!" /* `datablocks` */
       "|$" /* Optional keyword only arguments. */
@@ -129,7 +130,7 @@ static PyObject *bpy_lib_write(BPy_PropertyRNA *self, PyObject *args, PyObject *
 
   BLI_path_abs(filepath_abs, BKE_main_blendfile_path_from_global());
 
-  PartialWriteContext partial_write_ctx{bmain_src->filepath};
+  PartialWriteContext partial_write_ctx{*bmain_src};
   const PartialWriteContext::IDAddOptions add_options{
       (PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES |
        PartialWriteContext::IDAddOperations(
@@ -159,7 +160,7 @@ static PyObject *bpy_lib_write(BPy_PropertyRNA *self, PyObject *args, PyObject *
   /* write blend */
   ReportList reports;
 
-  BKE_reports_init(&reports, RPT_STORE);
+  BKE_reports_init(&reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
   bool success = partial_write_ctx.write(
       filepath_abs, write_flags, path_remap.value_found, reports);
 
@@ -193,7 +194,7 @@ static PyObject *bpy_lib_write(BPy_PropertyRNA *self, PyObject *args, PyObject *
 
 PyMethodDef BPY_library_write_method_def = {
     "write",
-    (PyCFunction)bpy_lib_write,
+    reinterpret_cast<PyCFunction>(bpy_lib_write),
     METH_VARARGS | METH_KEYWORDS,
     bpy_lib_write_doc,
 };
@@ -205,3 +206,5 @@ PyMethodDef BPY_library_write_method_def = {
 #    pragma GCC diagnostic pop
 #  endif
 #endif
+
+}  // namespace blender

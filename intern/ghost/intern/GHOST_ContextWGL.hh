@@ -28,6 +28,7 @@ class GHOST_ContextWGL : public GHOST_Context {
                    bool alphaBackground,
                    HWND hWnd,
                    HDC hDC,
+                   bool own_window_handle,
                    int contextProfileMask,
                    int contextMajorVersion,
                    int contextMinorVersion,
@@ -39,11 +40,17 @@ class GHOST_ContextWGL : public GHOST_Context {
    */
   ~GHOST_ContextWGL() override;
 
+  /** \copydoc #GHOST_IContext::swapBuffersAcquire */
+  GHOST_TSuccess swapBufferAcquire() override
+  {
+    return GHOST_kSuccess;
+  }
+
   /**
    * Swaps front and back buffers of a window.
    * \return A boolean success indicator.
    */
-  GHOST_TSuccess swapBuffers() override;
+  GHOST_TSuccess swapBufferRelease() override;
 
   /**
    * Activates the drawing context of this window.
@@ -90,6 +97,7 @@ class GHOST_ContextWGL : public GHOST_Context {
 
   HWND h_wnd_;
   HDC h_DC_;
+  bool own_window_handle_;
 
   const int context_profile_mask_;
   const int context_major_version_;

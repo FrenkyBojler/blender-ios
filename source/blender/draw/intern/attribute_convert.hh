@@ -6,19 +6,24 @@
  * \ingroup gpu
  */
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_generic_span.hh"
+#include "BLI_math_color.h"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 
 #include "GPU_vertex_format.hh"
 
-namespace blender::gpu {
+#include "IMB_colormanagement.hh"
+
+namespace blender {
+
+namespace gpu {
 class VertBuf;
 }
 
-namespace blender::bke {
+namespace bke {
 enum class AttrType : int16_t;
 }
 
@@ -29,7 +34,7 @@ enum class AttrType : int16_t;
  */
 constexpr int COMPONENT_LEN_SCALAR = 3;
 
-namespace blender::draw {
+namespace draw {
 
 /**
  * Utility to convert from the type used in the attributes to the types for GPU vertex buffers.
@@ -116,9 +121,13 @@ template<> struct AttributeConverter<ColorGeometry4b> {
   static constexpr GPUVertFetchMode gpu_fetch_mode = GPU_FETCH_INT_TO_FLOAT_UNIT;
   static VBOType convert(const ColorGeometry4b &value)
   {
-    return {unit_float_to_ushort_clamp(BLI_color_from_srgb_table[value.r]),
-            unit_float_to_ushort_clamp(BLI_color_from_srgb_table[value.g]),
-            unit_float_to_ushort_clamp(BLI_color_from_srgb_table[value.b]),
+    float3 rgb = {BLI_color_from_srgb_table[value.r],
+                  BLI_color_from_srgb_table[value.g],
+                  BLI_color_from_srgb_table[value.b]};
+    IMB_colormanagement_rec709_to_scene_linear(rgb, rgb);
+    return {unit_float_to_ushort_clamp(rgb[0]),
+            unit_float_to_ushort_clamp(rgb[1]),
+            unit_float_to_ushort_clamp(rgb[2]),
             ushort(value.a * 257)};
   }
 };
@@ -147,4 +156,5 @@ GPUVertFormat init_format_for_attribute(bke::AttrType data_type, StringRef vbo_n
 
 void vertbuf_data_extract_direct(GSpan attribute, gpu::VertBuf &vbo);
 
-}  // namespace blender::draw
+}  // namespace draw
+}  // namespace blender

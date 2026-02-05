@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_bounds_types.hh"
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_string_ref.hh"
@@ -13,6 +13,8 @@
 
 #include <cstdint>
 #include <optional>
+
+namespace blender {
 
 #pragma once
 
@@ -24,12 +26,12 @@ struct Scene;
 struct Object;
 struct Material;
 struct RegionView3D;
-namespace blender::bke::greasepencil {
+namespace bke::greasepencil {
 class Layer;
 class Drawing;
-}  // namespace blender::bke::greasepencil
+}  // namespace bke::greasepencil
 
-namespace blender::io::grease_pencil {
+namespace io::grease_pencil {
 
 class GreasePencilImporter {
  protected:
@@ -42,7 +44,7 @@ class GreasePencilImporter {
   GreasePencilImporter(const IOContext &context, const ImportParams &params);
 
   Object *create_object(StringRefNull name);
-  int32_t create_material(StringRefNull name, bool stroke, bool fill);
+  int32_t create_material(StringRefNull name);
 };
 
 class GreasePencilExporter {
@@ -58,9 +60,9 @@ class GreasePencilExporter {
 
   /* Camera projection matrix, only available with an active camera. */
   std::optional<float4x4> camera_persmat_;
-  blender::Bounds<float2> camera_rect_;
+  Bounds<float2> camera_rect_;
   float2 camera_fac_;
-  blender::Bounds<float2> screen_rect_;
+  Bounds<float2> screen_rect_;
 
  public:
   GreasePencilExporter(const IOContext &context, const ExportParams &params);
@@ -113,4 +115,6 @@ class GreasePencilExporter {
       int frame_number);
 };
 
-}  // namespace blender::io::grease_pencil
+}  // namespace io::grease_pencil
+
+}  // namespace blender

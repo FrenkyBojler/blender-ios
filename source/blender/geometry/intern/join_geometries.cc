@@ -15,10 +15,10 @@ using bke::AttributeDomainAndType;
 using bke::GeometryComponent;
 using bke::GeometrySet;
 
-static Map<StringRef, AttributeDomainAndType> get_final_attribute_info(
+static GeometrySet::GatheredAttributes get_final_attribute_info(
     const Span<const GeometryComponent *> components, const Span<StringRef> ignored_attributes)
 {
-  Map<StringRef, AttributeDomainAndType> info;
+  GeometrySet::GatheredAttributes info;
 
   for (const GeometryComponent *component : components) {
     component->attributes()->foreach_attribute([&](const bke::AttributeIter &iter) {
@@ -28,17 +28,7 @@ static Map<StringRef, AttributeDomainAndType> get_final_attribute_info(
       if (iter.data_type == bke::AttrType::String) {
         return;
       }
-      info.add_or_modify(
-          iter.name,
-          [&](AttributeDomainAndType *meta_data_final) {
-            *meta_data_final = {iter.domain, iter.data_type};
-          },
-          [&](AttributeDomainAndType *meta_data_final) {
-            meta_data_final->data_type = bke::attribute_data_type_highest_complexity(
-                {meta_data_final->data_type, iter.data_type});
-            meta_data_final->domain = bke::attribute_domain_highest_priority(
-                {meta_data_final->domain, iter.domain});
-          });
+      info.add(iter.name, AttributeDomainAndType{iter.domain, iter.data_type});
     });
   }
 
@@ -46,7 +36,7 @@ static Map<StringRef, AttributeDomainAndType> get_final_attribute_info(
 }
 
 static void fill_new_attribute(const Span<const GeometryComponent *> src_components,
-                               const StringRef attribute_id,
+                               const StringRef name,
                                const bke::AttrType data_type,
                                const bke::AttrDomain domain,
                                GMutableSpan dst_span)
@@ -60,7 +50,7 @@ static void fill_new_attribute(const Span<const GeometryComponent *> src_compone
       continue;
     }
     GVArray read_attribute = *component->attributes()->lookup_or_default(
-        attribute_id, domain, data_type, nullptr);
+        name, domain, data_type, nullptr);
 
     GVArraySpan src_span{read_attribute};
     const void *src_buffer = src_span.data();
@@ -75,21 +65,21 @@ void join_attributes(const Span<const GeometryComponent *> src_components,
                      GeometryComponent &result,
                      const Span<StringRef> ignored_attributes)
 {
-  const Map<StringRef, AttributeDomainAndType> info = get_final_attribute_info(src_components,
-                                                                               ignored_attributes);
+  const GeometrySet::GatheredAttributes info = get_final_attribute_info(src_components,
+                                                                        ignored_attributes);
 
-  for (const MapItem<StringRef, AttributeDomainAndType> item : info.items()) {
-    const StringRef attribute_id = item.key;
-    const AttributeDomainAndType &meta_data = item.value;
+  for (const int i : info.names.index_range()) {
+    const StringRef name = info.names[i];
+    const AttributeDomainAndType &meta_data = info.kinds[i];
 
     bke::GSpanAttributeWriter write_attribute =
         result.attributes_for_write()->lookup_or_add_for_write_only_span(
-            attribute_id, meta_data.domain, meta_data.data_type);
+            name, meta_data.domain, meta_data.data_type);
     if (!write_attribute) {
       continue;
     }
     fill_new_attribute(
-        src_components, attribute_id, meta_data.data_type, meta_data.domain, write_attribute.span);
+        src_components, name, meta_data.data_type, meta_data.domain, write_attribute.span);
     write_attribute.finish();
   }
 }
@@ -198,8 +188,8 @@ static void join_component_type(const bke::GeometryComponent::Type component_typ
   options.keep_original_ids = true;
   options.realize_instance_attributes = false;
   options.attribute_filter = attribute_filter;
-  GeometrySet joined_components = realize_instances(
-      GeometrySet::from_instances(instances.release()), options);
+  GeometrySet joined_components =
+      realize_instances(GeometrySet::from_instances(instances.release()), options).geometry;
   result.add(joined_components.get_component_for_write(component_type));
 }
 
@@ -211,6 +201,9 @@ GeometrySet join_geometries(
 {
   GeometrySet result;
   result.name = geometries.is_empty() ? "" : geometries[0].name;
+  for (const GeometrySet &geometry_set : geometries) {
+    result.merge_bundle_from(geometry_set);
+  }
   static const Array<GeometryComponent::Type> supported_types(
       {GeometryComponent::Type::Mesh,
        GeometryComponent::Type::PointCloud,

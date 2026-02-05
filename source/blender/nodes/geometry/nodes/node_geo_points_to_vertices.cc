@@ -45,7 +45,7 @@ static void geometry_set_points_to_vertices(GeometrySet &geometry_set,
   selection_evaluator.evaluate();
   const IndexMask selection = selection_evaluator.get_evaluated_as_mask(0);
 
-  Map<StringRef, AttributeDomainAndType> attributes;
+  bke::GeometrySet::GatheredAttributes attributes;
   geometry_set.gather_attributes_for_propagation({GeometryComponent::Type::PointCloud},
                                                  GeometryComponent::Type::Mesh,
                                                  false,
@@ -56,7 +56,7 @@ static void geometry_set_points_to_vertices(GeometrySet &geometry_set,
   if (selection.size() == points->totpoint) {
     /* Create a mesh without positions so the attribute can be shared. */
     mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
-    CustomData_free_layer_named(&mesh->vert_data, "position");
+    mesh->attribute_storage.wrap().remove("position");
     mesh->verts_num = selection.size();
   }
   else {
@@ -66,18 +66,28 @@ static void geometry_set_points_to_vertices(GeometrySet &geometry_set,
   const AttributeAccessor src_attributes = points->attributes();
   MutableAttributeAccessor dst_attributes = mesh->attributes_for_write();
 
-  for (MapItem<StringRef, AttributeDomainAndType> entry : attributes.items()) {
-    const StringRef id = entry.key;
-    const bke::AttrType data_type = entry.value.data_type;
-    const GAttributeReader src = src_attributes.lookup(id);
-    if (selection.size() == points->totpoint && src.sharing_info && src.varray.is_span()) {
+  for (const int i : attributes.names.index_range()) {
+    const StringRef src_name = attributes.names[i];
+    const StringRef dst_name = src_name == ".selection" ? ".select_vert" : src_name;
+    const bke::AttrType data_type = attributes.kinds[i].data_type;
+    const GAttributeReader src = src_attributes.lookup(src_name);
+    if (src.varray.is_single()) {
+      const CPPType &cpp_type = src.varray.type();
+      BUFFER_FOR_CPP_TYPE_VALUE(cpp_type, value);
+      src.varray.get_internal_single(value);
+      dst_attributes.add(dst_name,
+                         AttrDomain::Point,
+                         data_type,
+                         bke::AttributeInitValue(GPointer(cpp_type, value)));
+    }
+    else if (selection.size() == points->totpoint && src.sharing_info && src.varray.is_span()) {
       const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
                                           *src.sharing_info);
-      dst_attributes.add(id, AttrDomain::Point, data_type, init);
+      dst_attributes.add(dst_name, AttrDomain::Point, data_type, init);
     }
     else {
       GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
-          id, AttrDomain::Point, data_type);
+          dst_name, AttrDomain::Point, data_type);
       array_utils::gather(src.varray, selection, dst.span);
       dst.finish();
     }
@@ -105,7 +115,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodePointsToVertices", GEO_NODE_POINTS_TO_VERTICES);
   ntype.ui_name = "Points to Vertices";
@@ -114,7 +124,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -15,6 +15,8 @@
 
 #include "BKE_context.hh"
 
+#include "ED_sequencer.hh"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -24,10 +26,10 @@
 #include "SEQ_modifier.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_select.hh"
-#include "SEQ_sequencer.hh"
 #include "SEQ_sound.hh"
 
-/* Own include. */
+#include "UI_interface_c.hh"
+
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
@@ -63,7 +65,7 @@ static const EnumPropertyItem *filter_modifiers_by_sequence_type_itemf(bContext 
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
   if (strip) {
-    if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM)) {
+    if (ELEM(strip->type, STRIP_TYPE_SOUND)) {
       return rna_enum_strip_sound_modifier_type_items;
     }
   }
@@ -115,7 +117,7 @@ static wmOperatorStatus strip_modifier_remove_exec(bContext *C, wmOperator *op)
   BLI_remlink(&strip->modifiers, smd);
   seq::modifier_free(smd);
 
-  if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM)) {
+  if (ELEM(strip->type, STRIP_TYPE_SOUND)) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS | ID_RECALC_AUDIO);
   }
   else {
@@ -187,7 +189,7 @@ static wmOperatorStatus strip_modifier_move_exec(bContext *C, wmOperator *op)
     }
   }
 
-  if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM)) {
+  if (ELEM(strip->type, STRIP_TYPE_SOUND)) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS | ID_RECALC_AUDIO);
   }
   else {
@@ -249,13 +251,13 @@ static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  int isSound = ELEM(active_strip->type, STRIP_TYPE_SOUND_RAM);
+  int isSound = ELEM(active_strip->type, STRIP_TYPE_SOUND);
 
   VectorSet<Strip *> selected = selected_strips_from_context(C);
   selected.remove(active_strip);
 
   for (Strip *strip_iter : selected) {
-    int strip_iter_is_sound = ELEM(strip_iter->type, STRIP_TYPE_SOUND_RAM);
+    int strip_iter_is_sound = ELEM(strip_iter->type, STRIP_TYPE_SOUND);
     /* If original is sound, only copy to "sound" strips
      * If original is not sound, only copy to "not sound" strips
      */
@@ -277,13 +279,13 @@ static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
       }
     }
 
-    LISTBASE_FOREACH (StripModifierData *, smd, &active_strip->modifiers) {
-      StripModifierData *smd_new = seq::modifier_copy(*strip_iter, smd);
+    for (StripModifierData &smd : active_strip->modifiers) {
+      StripModifierData *smd_new = seq::modifier_copy(*strip_iter, &smd);
       seq::modifier_persistent_uid_init(*strip_iter, *smd_new);
     }
   }
 
-  if (ELEM(active_strip->type, STRIP_TYPE_SOUND_RAM)) {
+  if (ELEM(active_strip->type, STRIP_TYPE_SOUND)) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS | ID_RECALC_AUDIO);
   }
   else {
@@ -344,7 +346,8 @@ static wmOperatorStatus strip_modifier_equalizer_redefine_exec(bContext *C, wmOp
     return OPERATOR_CANCELLED;
   }
 
-  seq::sound_equalizermodifier_set_graphs((SoundEqualizerModifierData *)smd, number);
+  seq::sound_equalizermodifier_set_graphs(reinterpret_cast<SoundEqualizerModifierData *>(smd),
+                                          number);
 
   seq::relations_invalidate_cache(scene, strip);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
@@ -382,6 +385,122 @@ void SEQUENCER_OT_strip_modifier_equalizer_redefine(wmOperatorType *ot)
   prop = RNA_def_string(
       ot->srna, "name", "Name", MAX_NAME, "Name", "Name of modifier to redefine");
   RNA_def_property_flag(prop, PROP_HIDDEN);
+}
+
+/** \} */
+
+/* ------------------------------------------------------------------- */
+/** \name Move to Index Modifier Operator
+ * \{ */
+
+static wmOperatorStatus modifier_move_to_index_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Strip *strip = seq::select_active_get(scene);
+
+  char name[MAX_NAME];
+  RNA_string_get(op->ptr, "modifier", name);
+  const int index = RNA_int_get(op->ptr, "index");
+
+  StripModifierData *smd = seq::modifier_find_by_name(strip, name);
+  if (!smd) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (!seq::modifier_move_to_index(strip, smd, index)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (ELEM(strip->type, STRIP_TYPE_SOUND)) {
+    DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS | ID_RECALC_AUDIO);
+  }
+  else {
+    seq::relations_invalidate_cache(scene, strip);
+  }
+
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus modifier_move_to_index_invoke(bContext *C,
+                                                      wmOperator *op,
+                                                      const wmEvent * /*event*/)
+{
+  BLI_assert(RNA_struct_property_is_set(op->ptr, "modifier"));
+  return modifier_move_to_index_exec(C, op);
+}
+
+void SEQUENCER_OT_strip_modifier_move_to_index(wmOperatorType *ot)
+{
+  PropertyRNA *prop;
+
+  ot->name = "Move Active Strip Modifier to Index";
+  ot->description =
+      "Change the strip modifier's index in the stack so it evaluates after the set number of "
+      "others";
+  ot->idname = "SEQUENCER_OT_strip_modifier_move_to_index";
+
+  ot->invoke = modifier_move_to_index_invoke;
+  ot->exec = modifier_move_to_index_exec;
+  ot->poll = sequencer_strip_editable_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+
+  prop = RNA_def_string(
+      ot->srna, "modifier", nullptr, MAX_NAME, "Modifier", "Name of the modifier to edit");
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+  RNA_def_int(
+      ot->srna, "index", 0, 0, INT_MAX, "Index", "The index to move the modifier to", 0, INT_MAX);
+}
+
+/** \} */
+
+/* ------------------------------------------------------------------- */
+/** \name Set Active Modifier Operator
+ * \{ */
+
+static wmOperatorStatus modifier_set_active_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Strip *strip = seq::select_active_get(scene);
+
+  char name[MAX_NAME];
+  RNA_string_get(op->ptr, "modifier", name);
+
+  StripModifierData *smd = seq::modifier_find_by_name(strip, name);
+  /* If there is no modifier set for this operator, clear the active modifier field. */
+  seq::modifier_set_active(strip, smd);
+
+  WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus modifier_set_active_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent * /*event*/)
+{
+  BLI_assert(RNA_struct_property_is_set(op->ptr, "modifier"));
+  return modifier_set_active_exec(C, op);
+}
+
+void SEQUENCER_OT_strip_modifier_set_active(wmOperatorType *ot)
+{
+  ot->name = "Set Active Strip Modifier";
+  ot->description = "Activate the strip modifier to use as the context";
+  ot->idname = "SEQUENCER_OT_strip_modifier_set_active";
+
+  ot->invoke = modifier_set_active_invoke;
+  ot->exec = modifier_set_active_exec;
+  ot->poll = sequencer_strip_editable_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+
+  ot->prop = RNA_def_string(
+      ot->srna, "modifier", nullptr, MAX_NAME, "Modifier", "Name of the strip modifier to edit");
+  RNA_def_property_flag(ot->prop, PROP_HIDDEN);
 }
 
 /** \} */

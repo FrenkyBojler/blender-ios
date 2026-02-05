@@ -7,6 +7,7 @@
  */
 
 #include "BLI_path_utils.hh"
+#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "CLG_log.h"
@@ -20,7 +21,6 @@
 #include <mutex>
 
 #ifdef WITH_FFMPEG
-
 #  include "BLI_string.h"
 
 extern "C" {
@@ -30,6 +30,11 @@ extern "C" {
 #  include <libavformat/avformat.h>
 #  include <libavutil/log.h>
 }
+#endif
+
+namespace blender {
+
+#ifdef WITH_FFMPEG
 
 static CLG_LogRef LOG = {"video.ffmpeg"};
 
@@ -543,6 +548,12 @@ bool MOV_codec_supports_crf(AVCodecID av_codec_id)
               AV_CODEC_ID_AV1);
 }
 
+int MOV_thread_count()
+{
+  /* ffmpeg does not recommend thread counts above 16. */
+  return std::min(BLI_system_thread_count(), 16);
+}
+
 #endif /* WITH_FFMPEG */
 
 bool MOV_is_movie_file(const char *filepath)
@@ -640,3 +651,5 @@ bool MOV_codec_supports_crf(IMB_Ffmpeg_Codec_ID codec_id)
   return false;
 #endif
 }
+
+}  // namespace blender

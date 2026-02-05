@@ -334,6 +334,11 @@ ccl_device_noinline void svm_node_normal_map(KernelGlobals kg,
   float3 color = stack_load_float3(stack, color_offset);
   color = 2.0f * make_float3(color.x - 0.5f, color.y - 0.5f, color.z - 0.5f);
 
+  const bool invert_green = (node.w & NODE_NORMAL_MAP_CONVENTION_DIRECTX) != 0;
+  if (invert_green) {
+    color.y = -color.y;
+  }
+
   const bool is_backfacing = (sd->flag & SD_BACKFACING) != 0;
   float3 N;
   float strength = stack_load_float(stack, strength_offset);
@@ -349,7 +354,8 @@ ccl_device_noinline void svm_node_normal_map(KernelGlobals kg,
 
     /* first try to get tangent attribute */
     const AttributeDescriptor attr = find_attribute(kg, sd, node.z);
-    const AttributeDescriptor attr_sign = find_attribute(kg, sd, node.w);
+    const AttributeDescriptor attr_sign = find_attribute(
+        kg, sd, node.w & ~NODE_NORMAL_MAP_CONVENTION_DIRECTX);
 
     if (attr.offset == ATTR_STD_NOT_FOUND || attr_sign.offset == ATTR_STD_NOT_FOUND) {
       /* Fall back to unperturbed normal. */
@@ -430,7 +436,7 @@ ccl_device_noinline void svm_node_normal_map(KernelGlobals kg,
     }
   }
 
-  /* Use simple linear linear interpolation if we can't do it in tangent space. */
+  /* Use simple linear interpolation if we can't do it in tangent space. */
   if (linear_interpolate_strength && strength != 1.0f) {
     strength = max(strength, 0.0f);
     N = safe_normalize(sd->N + (N - sd->N) * strength);

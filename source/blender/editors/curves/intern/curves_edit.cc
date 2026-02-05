@@ -187,6 +187,9 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
 
   /* Transfer curve and point attributes. */
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.storage_type == bke::AttrStorageType::Single) {
+      return;
+    }
     bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
     if (!attribute) {
       return;
@@ -274,6 +277,9 @@ void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask)
   curves.resize(points_by_curve.total_size(), curves.curves_num());
 
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.storage_type == bke::AttrStorageType::Single) {
+      return;
+    }
     bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
     switch (iter.domain) {
       case bke::AttrDomain::Point:
@@ -380,7 +386,9 @@ static bke::CurvesGeometry copy_data_to_geometry(const bke::CurvesGeometry &src_
   bke::CurvesGeometry dst_curves(offsets.last(), dst_to_src_curve.size());
   BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &src_curves.vertex_group_names);
 
-  array_utils::copy(offsets, dst_curves.offsets_for_write());
+  if (!dst_curves.is_empty()) {
+    array_utils::copy(offsets, dst_curves.offsets_for_write());
+  }
   dst_curves.cyclic_for_write().copy_from(cyclic);
 
   const bke::AttributeAccessor src_attributes = src_curves.attributes();
@@ -396,7 +404,7 @@ static bke::CurvesGeometry copy_data_to_geometry(const bke::CurvesGeometry &src_
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
            src_attributes,
            dst_attributes,
-           ATTR_DOMAIN_MASK_POINT,
+           {bke::AttrDomain::Point},
            bke::attribute_filter_from_skip_ref(
                ed::curves::get_curves_selection_attribute_names(src_curves))))
   {

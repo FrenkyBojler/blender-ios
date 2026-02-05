@@ -21,13 +21,15 @@
 /* For #Map. */
 #include "BKE_attribute.hh"
 
+namespace blender {
+
 struct Curves;
 struct Curve;
 struct Mesh;
 struct PointCloud;
 struct Volume;
 struct GreasePencil;
-namespace blender::bke {
+namespace bke {
 struct AttributeDomainAndType;
 class AttributeAccessor;
 struct AttributeMetaData;
@@ -38,9 +40,13 @@ class GreasePencilEditHints;
 class MutableAttributeAccessor;
 enum class AttrDomain : int8_t;
 struct GizmoEditHints;
-}  // namespace blender::bke
+}  // namespace bke
+namespace nodes {
+class Bundle;
+using BundlePtr = ImplicitSharingPtr<Bundle>;
+}  // namespace nodes
 
-namespace blender::bke {
+namespace bke {
 
 #define GEO_COMPONENT_TYPE_ENUM_SIZE 7
 
@@ -146,6 +152,7 @@ struct GeometrySet {
  private:
   /* Indexed by #GeometryComponent::Type. */
   std::array<GeometryComponentPtr, GEO_COMPONENT_TYPE_ENUM_SIZE> components_;
+  nodes::BundlePtr bundle_;
 
  public:
   /**
@@ -248,20 +255,24 @@ struct GeometrySet {
    */
   void ensure_no_shared_components();
 
-  using AttributeForeachCallback = FunctionRef<void(StringRef attribute_id,
-                                                    const AttributeMetaData &meta_data,
-                                                    const GeometryComponent &component)>;
+  using AttributeForeachCallback = FunctionRef<void(
+      StringRef name, const AttributeMetaData &meta_data, const GeometryComponent &component)>;
 
   void attribute_foreach(Span<GeometryComponent::Type> component_types,
                          bool include_instances,
                          AttributeForeachCallback callback) const;
 
-  void gather_attributes_for_propagation(
-      Span<GeometryComponent::Type> component_types,
-      GeometryComponent::Type dst_component_type,
-      bool include_instances,
-      const AttributeFilter &attribute_filter,
-      Map<StringRef, AttributeDomainAndType> &r_attributes) const;
+  struct GatheredAttributes {
+    VectorSet<StringRef, 16> names;
+    Vector<AttributeDomainAndType, 16> kinds;
+    void add(const StringRef name, const AttributeDomainAndType &kind);
+  };
+
+  void gather_attributes_for_propagation(Span<GeometryComponent::Type> component_types,
+                                         GeometryComponent::Type dst_component_type,
+                                         bool include_instances,
+                                         const AttributeFilter &attribute_filter,
+                                         GatheredAttributes &r_attributes) const;
 
   Vector<GeometryComponent::Type> gather_component_types(bool include_instances,
                                                          bool ignore_empty) const;
@@ -437,16 +448,26 @@ struct GeometrySet {
   void replace_grease_pencil(GreasePencil *grease_pencil,
                              GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
 
+  bool has_bundle() const;
+  const nodes::Bundle *bundle() const;
+  const nodes::BundlePtr &bundle_ptr() const;
+  nodes::BundlePtr &bundle_ptr();
+  nodes::Bundle &bundle_for_write();
+
+  void copy_bundle_from(const GeometrySet &other);
+  void merge_bundle_from(const GeometrySet &other);
+
   friend bool operator==(const GeometrySet &a, const GeometrySet &b)
   {
     /* This compares only the component pointers, not the actual geometry data. */
-    return Span(a.components_) == Span(b.components_) && a.name == b.name;
+    return Span(a.components_) == Span(b.components_) && a.name == b.name &&
+           a.bundle_ == b.bundle_;
   }
 
   uint64_t hash() const
   {
     /* This should have the same data that's also taken into account in #operator==. */
-    return get_default_hash(Span(components_), this->name);
+    return get_default_hash(Span(components_), this->name, this->bundle_.get());
   }
 
   void count_memory(MemoryCounter &memory) const;
@@ -803,4 +824,5 @@ class GreasePencilComponent : public GeometryComponent {
 
 bool attribute_is_builtin_on_component_type(const GeometryComponent::Type type, StringRef name);
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender
