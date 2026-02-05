@@ -38,6 +38,7 @@ class AssetRepresentation;
 namespace ui {
 struct Layout;
 struct Block;
+enum class PopupAttachDirection : int8_t;
 }  // namespace ui
 
 struct ARegion;
@@ -414,7 +415,7 @@ struct PanelType {
   /** Sub panels. */
   PanelType *parent;
   ListBaseT<LinkData> children;
-
+  ui::PopupAttachDirection popup_draw_direction;
   /** RNA integration. */
   ExtensionRNA rna_ext;
 };
@@ -487,6 +488,13 @@ struct Panel_Runtime {
 
   /** Information about nested layout panels generated in layout code. */
   LayoutPanels layout_panels;
+
+  /**
+   * Runtime storage reference which saves the open-close-state for layout panels created with
+   * `layout.panel(...)` in popups. This precedes #Panel::layout_panel_states when storing layout
+   * panel state.
+   */
+  ListBaseT<LayoutPanelState> *popup_layout_panel_states = nullptr;
 };
 
 namespace bke {

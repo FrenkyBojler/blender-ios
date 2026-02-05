@@ -23,11 +23,9 @@
 #include "vk_texture.hh"
 #include "vk_vertex_attribute_object.hh"
 
-#include "GHOST_C-api.h"
-
 namespace blender::gpu {
 
-VKContext::VKContext(void *ghost_window, void *ghost_context)
+VKContext::VKContext(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context)
 {
   ghost_window_ = ghost_window;
   ghost_context_ = ghost_context;
@@ -61,8 +59,7 @@ void VKContext::sync_backbuffer()
 {
   if (ghost_window_) {
     GHOST_VulkanSwapChainData swap_chain_data = {};
-    GHOST_GetVulkanSwapChainFormat(static_cast<GHOST_WindowHandle>(ghost_window_),
-                                   &swap_chain_data);
+    ghost_window_->getVulkanSwapChainFormat(&swap_chain_data);
 
     const bool reset_framebuffer = swap_chain_format_.format !=
                                        swap_chain_data.surface_format.format ||
@@ -153,7 +150,9 @@ void VKContext::end_frame()
 
 void VKContext::flush()
 {
-  flush_render_graph(RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+  /* Submit when flushing to avoid out-of-memory errors and TDRs when more and more commands are
+   * added in background mode without ever submitting work to the GPU. */
+  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
 }
 
 TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
@@ -590,6 +589,9 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
       }
       break;
     }
+
+    case GHOST_kVulkanXRModeRenderGraph:
+      break;
   }
 }
 
@@ -597,7 +599,7 @@ void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData 
 {
   switch (openxr_data.data_transfer_mode) {
     case GHOST_kVulkanXRModeCPU:
-      MEM_freeN(openxr_data.cpu.image_data);
+      MEM_delete_void(openxr_data.cpu.image_data);
       openxr_data.cpu.image_data = nullptr;
       break;
 
@@ -616,6 +618,9 @@ void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData 
         openxr_data.gpu.image_handle = 0;
       }
 #endif
+      break;
+
+    case GHOST_kVulkanXRModeRenderGraph:
       break;
   }
 }
