@@ -154,7 +154,7 @@ void draw_mask_input_type_settings(const bContext *C, ui::Layout &layout, Pointe
 
   if (input_mask_type == STRIP_MASK_INPUT_STRIP) {
     PointerRNA sequences_object = RNA_pointer_create_discrete(
-        &sequencer_scene->id, &RNA_SequenceEditor, ed);
+        &sequencer_scene->id, RNA_SequenceEditor, ed);
     col.prop_search(
         ptr, "input_mask_strip", &sequences_object, "strips_all", IFACE_("Mask"), ICON_NONE);
   }
@@ -209,7 +209,7 @@ PanelType *modifier_panel_register(ARegionType *region_type,
                                    const eStripModifierType type,
                                    PanelDrawFn draw)
 {
-  PanelType *panel_type = MEM_callocN<PanelType>(__func__);
+  PanelType *panel_type = MEM_new_zeroed<PanelType>(__func__);
 
   modifier_type_panel_id(type, panel_type->idname);
   STRNCPY_UTF8(panel_type->label, "");
@@ -355,13 +355,12 @@ StripModifierData *modifier_new(Strip *strip, const char *name, int type)
   StripModifierData *smd;
   const StripModifierTypeInfo *smti = modifier_type_info_get(type);
 
-  smd = static_cast<StripModifierData *>(MEM_callocN(smti->struct_size, "sequence modifier"));
+  smd = static_cast<StripModifierData *>(MEM_new_zeroed(smti->struct_size, "sequence modifier"));
 
   smd->type = type;
   smd->flag |= STRIP_MODIFIER_FLAG_EXPANDED;
   smd->ui_expand_flag |= UI_PANEL_DATA_EXPAND_ROOT;
-  smd->runtime = static_cast<StripModifierDataRuntime *>(
-      MEM_callocN(sizeof(StripModifierDataRuntime), "sequence modifier runtime"));
+  smd->runtime = MEM_new<StripModifierDataRuntime>(__func__);
 
   if (!name || !name[0]) {
     STRNCPY_UTF8(smd->name, CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, smti->name));
@@ -420,10 +419,10 @@ void modifier_free(StripModifierData *smd)
   }
 
   if (smd->runtime) {
-    MEM_freeN(smd->runtime);
+    MEM_delete(smd->runtime);
   }
 
-  MEM_freeN(smd);
+  MEM_delete(smd);
 }
 
 void modifier_unique_name(Strip *strip, StripModifierData *smd)
@@ -514,9 +513,8 @@ void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame)
 StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src)
 {
   const StripModifierTypeInfo *smti = modifier_type_info_get(mod_src->type);
-  StripModifierData *mod_new = static_cast<StripModifierData *>(MEM_dupallocN(mod_src));
-  mod_new->runtime = static_cast<StripModifierDataRuntime *>(
-      MEM_callocN(sizeof(StripModifierDataRuntime), "sequence modifier runtime"));
+  StripModifierData *mod_new = MEM_dupalloc(mod_src);
+  mod_new->runtime = MEM_new<StripModifierDataRuntime>(__func__);
 
   if (smti && smti->copy_data) {
     smti->copy_data(mod_new, mod_src);
@@ -642,6 +640,7 @@ void modifier_blend_read_data(BlendDataReader *reader, ListBaseT<StripModifierDa
     if (smti && smti->blend_read) {
       smti->blend_read(reader, &smd);
     }
+    smd.runtime = MEM_new<StripModifierDataRuntime>(__func__);
   }
 }
 

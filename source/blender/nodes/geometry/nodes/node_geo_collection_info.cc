@@ -47,7 +47,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCollectionInfo *data = MEM_new_for_free<NodeGeometryCollectionInfo>(__func__);
+  NodeGeometryCollectionInfo *data = MEM_new<NodeGeometryCollectionInfo>(__func__);
   data->transform_space = GEO_NODE_TRANSFORM_SPACE_ORIGINAL;
   node->storage = data;
 }
@@ -133,11 +133,9 @@ static void node_geo_exec(GeoNodeExecParams params)
       entries.append({handle, &(child_object->id.name[2]), transform});
     }
 
-    std::sort(entries.begin(),
-              entries.end(),
-              [](const InstanceListEntry &a, const InstanceListEntry &b) {
-                return BLI_strcasecmp_natural(a.name, b.name) < 0;
-              });
+    std::ranges::sort(entries, [](const InstanceListEntry &a, const InstanceListEntry &b) {
+      return BLI_strcasecmp_natural(a.name, b.name) < 0;
+    });
     for (const InstanceListEntry &entry : entries) {
       instances->add_instance(entry.handle, entry.transform);
     }

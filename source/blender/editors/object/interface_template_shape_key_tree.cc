@@ -78,8 +78,8 @@ class ShapeKeyDragController : public ui::AbstractViewItemDragController {
     }();
 
     /* Allocate one extra element, to use it as null-delimiter. */
-    KeyBlock **selected_keys_ = MEM_calloc_arrayN<KeyBlock *>(selected_count + 1,
-                                                              "Selected Key Blocks");
+    KeyBlock **selected_keys_ = MEM_new_array_zeroed<KeyBlock *>(selected_count + 1,
+                                                                 "Selected Key Blocks");
 
     selected_count = 0;
 
@@ -158,33 +158,36 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
     Key *key = BKE_key_from_object(ob);
     const KeyBlock **drag_shapekey = static_cast<const KeyBlock **>(drag_info.drag_data.poin);
 
+    const int first_drag_index = BLI_findindex(&key->block, drag_shapekey[0]);
+    int drop_index = BLI_findindex(&key->block, &drop_kb_);
+    switch (drag_info.drop_location) {
+      case ui::DropLocation::Into:
+        BLI_assert_unreachable();
+        break;
+      case ui::DropLocation::Before:
+        if (drop_index == 0) {
+          return false;
+        }
+        drop_index -= int(first_drag_index < drop_index);
+        break;
+      case ui::DropLocation::After:
+        drop_index += int(first_drag_index > drop_index);
+        break;
+    }
+
     for (int8_t i = 0; drag_shapekey[i] != nullptr; i++) {
       const int drag_index = BLI_findindex(&key->block, drag_shapekey[i]);
-      int drop_index = BLI_findindex(&key->block, &drop_kb_);
-
       if (drag_index == -1) {
         continue;
       }
-
-      switch (drag_info.drop_location) {
-        case ui::DropLocation::Into:
-          BLI_assert_unreachable();
-          break;
-        case ui::DropLocation::Before:
-          if (drop_index == 0) {
-            return false;
-          }
-          drop_index -= int(drag_index < drop_index);
-          break;
-        case ui::DropLocation::After:
-          drop_index += int(drag_index > drop_index) + i;
-          break;
+      if (i > 0) {
+        /* Place subsequent items directly after the previously moved item. */
+        drop_index += int(drag_index > drop_index);
       }
-
       BKE_keyblock_move(ob, drag_index, drop_index);
     }
 
-    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(ob->data, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
     ED_undo_push(C, "Drop Active Shape Key");
 
@@ -212,7 +215,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     ui::Layout &sub = row.row(true);
     sub.use_property_decorate_set(false);
     PointerRNA shapekey_ptr = RNA_pointer_create_discrete(
-        &shape_key_.key->id, &RNA_ShapeKey, shape_key_.kb);
+        &shape_key_.key->id, RNA_ShapeKey, shape_key_.kb);
 
     if (shape_key_.key->type == KEY_NORMAL) {
       sub.prop(&shapekey_ptr, "frame", ui::ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
@@ -238,7 +241,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
   void on_activate(bContext &C) override
   {
     PointerRNA object_ptr = RNA_pointer_create_discrete(
-        &shape_key_.object->id, &RNA_Object, shape_key_.object);
+        &shape_key_.object->id, RNA_Object, shape_key_.object);
     PropertyRNA *prop = RNA_struct_find_property(&object_ptr, "active_shape_key_index");
     RNA_property_int_set(&object_ptr, prop, shape_key_.index);
     RNA_property_update(&C, &object_ptr, prop);
@@ -265,7 +268,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
   bool rename(const bContext &C, StringRefNull new_name) override
   {
     PointerRNA shapekey_ptr = RNA_pointer_create_discrete(
-        &shape_key_.key->id, &RNA_ShapeKey, shape_key_.kb);
+        &shape_key_.key->id, RNA_ShapeKey, shape_key_.kb);
     RNA_string_set(&shapekey_ptr, "name", new_name.c_str());
     ED_undo_push(const_cast<bContext *>(&C), "Rename shape key");
     return true;

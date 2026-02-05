@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 
 #include "BKE_node_socket_value.hh"
 #include "BLI_cpp_type.hh"
@@ -35,6 +36,11 @@ void BundleSignature::set_auto_structure_types()
 bool Bundle::is_valid_key(const StringRef key)
 {
   if (key.is_empty()) {
+    return false;
+  }
+  if (key != key.trim()) {
+    /* Keys must not have leading or trailing white-space. This simplifies potentially using these
+     * keys in expressions later on (or even just have a comma separated list of keys). */
     return false;
   }
   return key.find_first_of(Bundle::forbidden_key_chars) == StringRef::not_found;
@@ -140,8 +146,27 @@ void Bundle::add_path_new(StringRef path, const BundleItemValue &value)
   this->add_path_override(path, value);
 }
 
+Bundle &Bundle::ensure_nested_bundle(const StringRef path)
+{
+  BundlePtr *bundle_ptr = this->lookup_path_for_write_ptr<BundlePtr>(path);
+  if (bundle_ptr && *bundle_ptr) {
+    return bundle_ptr->ensure_mutable_inplace();
+  }
+  BundlePtr new_bundle = Bundle::create();
+  Bundle &new_bundle_ref = new_bundle.ensure_mutable_inplace();
+  this->add_path_override(path, std::move(new_bundle));
+  return new_bundle_ref;
+}
+
 const BundleItemValue *Bundle::lookup(const StringRef key) const
 {
+  BLI_assert(is_valid_key(key));
+  return items_.lookup_ptr_as(key);
+}
+
+BundleItemValue *Bundle::lookup(const StringRef key)
+{
+  BLI_assert(is_valid_key(key));
   return items_.lookup_ptr_as(key);
 }
 
@@ -168,6 +193,49 @@ const BundleItemValue *Bundle::lookup_path(const StringRef path) const
   BLI_assert(is_valid_path(path));
   const Vector<StringRef> path_elems = *split_path(path);
   return this->lookup_path(path_elems);
+}
+
+BundleItemValue *Bundle::lookup_path_for_write(Span<StringRef> path)
+{
+  BLI_assert(!path.is_empty());
+  const StringRef first_elem = path[0];
+  BundleItemValue *item = this->lookup(first_elem);
+  if (!item) {
+    return nullptr;
+  }
+  if (path.size() == 1) {
+    return item;
+  }
+  BundlePtr *child_bundle_ptr = item->as_pointer<BundlePtr>();
+  if (!child_bundle_ptr) {
+    return nullptr;
+  }
+  if (!*child_bundle_ptr) {
+    return nullptr;
+  }
+  Bundle &child_bundle = child_bundle_ptr->ensure_mutable_inplace();
+  return child_bundle.lookup_path_for_write(path.drop_front(1));
+}
+
+BundleItemValue *Bundle::lookup_path_for_write(StringRef path)
+{
+  BLI_assert(is_valid_path(path));
+  const Vector<StringRef> path_elems = *split_path(path);
+  return this->lookup_path_for_write(path_elems);
+}
+
+void Bundle::merge(const Bundle &other)
+{
+  for (const auto &item : other.items_.items()) {
+    this->add(item.key, item.value);
+  }
+}
+
+void Bundle::merge_override(const Bundle &other)
+{
+  for (const auto &item : other.items_.items()) {
+    this->add_override(item.key, item.value);
+  }
 }
 
 void Bundle::ensure_owns_direct_data()
@@ -255,6 +323,20 @@ void Bundle::delete_self()
   MEM_delete(this);
 }
 
+void Bundle::clear()
+{
+  items_.clear();
+}
+
+void Bundle::count_memory(MemoryCounter &memory) const
+{
+  for (const auto &item : items_.items()) {
+    if (const auto *socket_value = std::get_if<BundleItemSocketValue>(&item.value.value)) {
+      socket_value->value.count_memory(memory);
+    }
+  }
+}
+
 NodeSocketInterfaceStructureType get_structure_type_for_bundle_signature(
     const bNodeSocket &socket,
     const NodeSocketInterfaceStructureType stored_structure_type,
@@ -267,6 +349,13 @@ NodeSocketInterfaceStructureType get_structure_type_for_bundle_signature(
     return NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
   }
   return NodeSocketInterfaceStructureType(socket.runtime->inferred_structure_type);
+}
+
+void BundleSignature::add(std::string key, const eNodeSocketDatatype socket_type)
+{
+  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(socket_type);
+  BLI_assert(stype);
+  items.add({std::move(key), stype});
 }
 
 BundleSignature BundleSignature::from_combine_bundle_node(const bNode &node,

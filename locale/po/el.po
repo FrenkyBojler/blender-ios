@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'12e628ea43f8')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-12 15:09+0000\n"
+"POT-Creation-Date: 2026-02-02 14:51+0000\n"
 "PO-Revision-Date: 2025-07-23 15:19+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -527,10 +527,6 @@ msgid "Snap"
 msgstr "Προσκόλληση"
 
 
-msgid "Import"
-msgstr "Εισαγωγή"
-
-
 msgid "Mirror"
 msgstr "Καθρέφτισμα"
 
@@ -557,6 +553,10 @@ msgstr "Ανίχνευση"
 
 msgid "Make Single User"
 msgstr "Ορισμός Ενός Χρήστη"
+
+
+msgid "Import"
+msgstr "Εισαγωγή"
 
 
 msgid "Merge"
@@ -758,10 +758,6 @@ msgstr "Replace Image"
 msgctxt "Operator"
 msgid "Fill"
 msgstr "Συμπλήρωμα"
-
-
-msgid "Ring"
-msgstr "Ring"
 
 
 msgid "Merge selected vertices"
