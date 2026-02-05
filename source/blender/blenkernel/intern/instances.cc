@@ -165,7 +165,7 @@ uint64_t InstanceReference::hash() const
 
 Instances::Instances() = default;
 
-Instances::Instances(const int size) : references_(size), instances_num_(size)
+Instances::Instances(const int size) : instances_num_(size)
 {
   attributes_.resize(AttrDomain::Instance, size);
 }
