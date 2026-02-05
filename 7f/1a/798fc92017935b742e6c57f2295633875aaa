@@ -1,3 +1,4 @@
 Referenced by issue #123317, GPv3: Drawing slow down when drawing a very long stroke
 Referenced by issue #153807, Grease Pencil 5.1 - Drawing primitives can produce wrong colors
 Referenced by pull request #153771, Grease Pencil: Export fills with holes
+Referenced by commit bdcae29683f0ef6699e6e85c19636b70ca3c2e5e, Grease Pencil: Export fills with holes
