@@ -104,7 +104,7 @@ void TreeViewItemContainer::sort_alpha()
             children_.end(),
             [](const std::unique_ptr<AbstractTreeViewItem> &a,
                const std::unique_ptr<AbstractTreeViewItem> &b) {
-              return a.get()->debug_name() < b.get()->debug_name();
+              return a.get()->label() < b.get()->label();
             });
 
   for (std::unique_ptr<AbstractTreeViewItem> &item : children_) {
@@ -835,6 +835,11 @@ void AbstractTreeViewItem::on_filter()
       item.set_collapsed(false);
     });
   }
+}
+
+std::string AbstractTreeViewItem::label() const
+{
+  return label_;
 }
 
 /* ---------------------------------------------------------------------- */
