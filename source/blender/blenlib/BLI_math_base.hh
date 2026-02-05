@@ -10,7 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <numbers>
+#include <numbers>  // IWYU pragma: export
 #include <type_traits>
 
 #include "BLI_utildefines.h"
