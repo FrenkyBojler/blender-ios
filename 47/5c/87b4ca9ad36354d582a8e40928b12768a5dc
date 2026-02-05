@@ -1,1 +1,2 @@
 Referenced by pull request #153946, Fix #153945: Grease Pencil attributes left uninitialized when drawing
+Referenced by commit d852d85e1067eeba59dd002b70d292f104fa3828, Fix #153945: Grease Pencil attributes left uninitialized when drawing
