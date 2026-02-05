@@ -278,7 +278,7 @@ void USDBasisCurvesReader::read_curve_sample(Curves *curves_id, const pxr::UsdTi
 
   if (curve_type == CURVE_TYPE_NURBS) {
     const int8_t curve_order = type == pxr::UsdGeomTokens->cubic ? 4 : 2;
-    curves.attributes_for_write().add<int>(
+    curves.attributes_for_write().add<int8_t>(
         "nurbs_order", bke::AttrDomain::Curve, bke::AttributeInitValue(curve_order));
   }
 
