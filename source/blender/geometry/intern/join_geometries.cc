@@ -82,7 +82,7 @@ static bool try_join_single_value_attribute(const Span<const GeometryComponent *
   }
   const bool all_equal = threading::parallel_reduce(
       src_components.index_range().drop_front(1),
-      8,
+      64,
       true,
       [&](const IndexRange range, bool value) {
         if (!value) {
