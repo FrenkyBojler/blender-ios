@@ -4861,7 +4861,16 @@ static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx,
 
     if (snode->gizmo_flag & SNODE_GIZMO_MINIMAP_USE_NODE_COLORS) {
       int color_id = node_get_colorid(tree_draw_ctx, node);
-      ui::theme::get_color_3fv(color_id, node_color);
+      
+      if (node_undefined_or_unsupported(ntree, node)) {
+        ui::theme::get_color_shade_4fv(TH_REDALERT, -40, node_color);
+      }
+      else if (node.flag & NODE_CUSTOM_COLOR) {
+        rgba_float_args_set(node_color, node.color[0], node.color[1], node.color[2], 1.0f);
+      } 
+      else {
+        ui::theme::get_color_3fv(color_id, node_color);
+      }
     }
 
     rctf node_rect;
