@@ -767,6 +767,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     node_inlining
     pointcloud
     principled_bsdf
+    raycast
     shader
     shadow
     shadow_catcher
@@ -1450,8 +1451,12 @@ if(WITH_UI_TESTS)
   # list explicitly so changes bisecting/updated are sure to re-run CMake.
   set(_ui_tests
     test_sculpt.asset_shelf_brush_selection
-    test_sculpt.mask_expand_and_invert
     test_sculpt.face_set_expand
+    test_sculpt.face_set_gestures
+    test_sculpt.hide_gestures
+    test_sculpt.mask_expand_and_invert
+    test_sculpt.mask_gestures
+    test_sculpt.trim_gestures
     test_tools.sculpt_mode_toolbar
     test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix
