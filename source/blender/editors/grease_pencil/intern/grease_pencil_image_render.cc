@@ -293,8 +293,6 @@ static gpu::UniformBuf *create_shader_ubo(const RegionView3D &rv3d,
   return GPU_uniformbuf_create_ex(sizeof(GPencilStrokeData), &data, __func__);
 }
 
-constexpr const float min_stroke_thickness = 0.05f;
-
 static void draw_grease_pencil_stroke(const float4x4 &transform,
                                       const RegionView3D &rv3d,
                                       const int2 &win_size,
@@ -338,7 +336,7 @@ static void draw_grease_pencil_stroke(const float4x4 &transform,
     const float thickness = 2.0f * radii[point_i] * radius_scale;
 
     immAttr4fv(attr_color, colors[point_i]);
-    immAttr1f(attr_thickness, std::max(thickness, min_stroke_thickness));
+    immAttr1f(attr_thickness, std::max(thickness, 0.0f));
     immVertex3fv(attr_pos, math::transform_point(transform, positions[point_i]));
   };
 
