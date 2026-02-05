@@ -49,41 +49,33 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  auto *collections = new ImplicitSharedValue<Vector<Collection *>>();
+  Vector<Collection *> child_collections;
   if (recursive) {
     Set<Collection *> visited;
-    collection_children_recursive(collection, collections->data, visited);
+    collection_children_recursive(collection, child_collections, visited);
   }
   else {
     for (CollectionChild &child : collection->children) {
-      collections->data.append(child.collection);
+      child_collections.append(child.collection);
     }
   }
 
-  std::sort(collections->data.begin(),
-            collections->data.end(),
-            [](const Collection *a, const Collection *b) {
-              return BLI_strcasecmp_natural(BKE_id_name(a->id), BKE_id_name(b->id)) < 0;
-            });
-  List::ArrayData collections_array_data = {collections->data.data(),
-                                            ImplicitSharingPtr<>(collections)};
+  std::ranges::sort(child_collections, [](const Collection *a, const Collection *b) {
+    return BLI_strcasecmp_natural(BKE_id_name(a->id), BKE_id_name(b->id)) < 0;
+  });
 
-  params.set_output("Collections",
-                    List::create(CPPType::get<Collection *>(),
-                                 std::move(collections_array_data),
-                                 collections->data.size()));
+  Vector<Object *> child_objects;
+  Vector<Collection *> obj_collections;
+  obj_collections.append(collection);
+  if (recursive) {
+    obj_collections.extend(child_collections);
+  }
+
+  params.set_output("Collections", List::from_container(std::move(child_collections)));
 
   if (!params.output_is_required("Objects")) {
     params.set_default_remaining_outputs();
     return;
-  }
-
-  auto *objects = new ImplicitSharedValue<Vector<Object *>>();
-
-  Vector<Collection *> obj_collections;
-  obj_collections.append(collection);
-  if (recursive) {
-    obj_collections.extend(collections->data);
   }
 
   Set<const Object *> obj_visited;
@@ -91,20 +83,16 @@ static void node_geo_exec(GeoNodeExecParams params)
     for (CollectionObject &cob : col->gobject) {
       Object *obj_original = (Object *)DEG_get_original(cob.ob);
       if (obj_visited.add(obj_original)) {
-        objects->data.append(obj_original);
+        child_objects.append(obj_original);
       }
     }
   }
 
-  std::sort(objects->data.begin(), objects->data.end(), [](const Object *a, const Object *b) {
+  std::ranges::sort(child_objects, [](const Object *a, const Object *b) {
     return BLI_strcasecmp_natural(BKE_id_name(a->id), BKE_id_name(b->id)) < 0;
   });
 
-  List::ArrayData objects_array_data = {objects->data.data(), ImplicitSharingPtr<>(objects)};
-
-  params.set_output(
-      "Objects",
-      List::create(CPPType::get<Object *>(), std::move(objects_array_data), objects->data.size()));
+  params.set_output("Objects", List::from_container(std::move(child_objects)));
 }
 
 static void node_register()
