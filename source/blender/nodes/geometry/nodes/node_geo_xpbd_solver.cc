@@ -66,51 +66,59 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   const float delta_time = std::max(0.0f, params.get_input<float>("Delta Time"));
   Bundle &world = world_ptr.ensure_mutable_inplace();
-  // Bundle &solver_data = world.ensure_nested_bundle(solver_path);
 
-  Vector<XPBDGeometryBundle> geometry_bundles;
+  Vector<std::string> geometry_paths = gather_bundle_paths_by_type(world,
+                                                                   XPBDGeometryBundle::name);
 
-  float3 gravity{};
-  nested_bundle_foreach(world, [&](HandleNestedBundleParams &p) {
-    if (p.type == XPBDGeometryBundle::name) {
-      BundleParseErrors errors;
-      if (std::optional<XPBDGeometryBundle> geometry_bundle = XPBDGeometryBundle::parse(p.bundle,
-                                                                                        errors))
-      {
-        geometry_bundle->self_path = Bundle::combine_path(p.path);
-        geometry_bundles.append(std::move(*geometry_bundle));
+  Vector<GeometrySet> geometries(geometry_paths.size());
+  for (const int i : geometry_paths.index_range()) {
+    const StringRef geometry_path = geometry_paths[i];
+    if (GeometrySet *geometry = world.lookup_path_for_write_ptr<GeometrySet>(geometry_path +
+                                                                             "/geometry"))
+    {
+      geometries[i] = std::move(*geometry);
+    }
+  }
+
+  for (const int geometry_i : geometry_paths.index_range()) {
+    GeometrySet &geometry = geometries[geometry_i];
+    for (bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh,
+                                              bke::GeometryComponent::Type::PointCloud,
+                                              bke::GeometryComponent::Type::Curve})
+    {
+      if (!geometry.has(type)) {
+        continue;
       }
+      bke::GeometryComponent &component = geometry.get_component_for_write(type);
+      bke::MutableAttributeAccessor attributes = *component.attributes_for_write();
+      bke::SpanAttributeWriter<float3> positions_attr =
+          attributes.lookup_or_add_for_write_span<float3>("position", AttrDomain::Point);
+      bke::SpanAttributeWriter<float3> velocities_attr =
+          attributes.lookup_or_add_for_write_span<float3>("velocity", AttrDomain::Point);
+      MutableSpan<float3> positions = positions_attr.span;
+      MutableSpan<float3> velocities = velocities_attr.span;
+      const VArraySpan<float3> external_forces = *attributes.lookup_or_default<float3>(
+          "external_force", AttrDomain::Point, float3(0, 0, 0));
+      const VArraySpan<float> masses = *attributes.lookup_or_default<float>(
+          "mass", AttrDomain::Point, 1);
+      threading::parallel_for(positions.index_range(), 256, [&](const IndexRange range) {
+        for (const int i : range) {
+          const float3 external_force = external_forces[i];
+          const float mass = masses[i];
+          const float3 acceleration = math::safe_divide(external_force, mass);
+          velocities[i] += acceleration * delta_time;
+          positions[i] += velocities[i] * delta_time;
+        }
+      });
+      velocities_attr.finish();
+      positions_attr.finish();
     }
-    if (p.type == GravityBundle::name) {
-      BundleParseErrors errors;
-      if (std::optional<GravityBundle> gravity_bundle = GravityBundle::parse(p.bundle, errors)) {
-        gravity += gravity_bundle->gravity;
-      }
-    }
-  });
+  }
 
-  for (XPBDGeometryBundle &geometry_bundle : geometry_bundles) {
-    if (!geometry_bundle.geometry.has_curves()) {
-      continue;
-    }
-    Curves &curves_id = *geometry_bundle.geometry.get_curves_for_write();
-    bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-    bke::SpanAttributeWriter<float3> velocities =
-        curves.attributes_for_write().lookup_or_add_for_write_span<float3>("velocity",
-                                                                           AttrDomain::Point);
-    bke::SpanAttributeWriter<float3> positions =
-        curves.attributes_for_write().lookup_or_add_for_write_span<float3>("position",
-                                                                           AttrDomain::Point);
-
-    for (const int i : curves.points_range()) {
-      velocities.span[i] += gravity * delta_time;
-      positions.span[i] += velocities.span[i] * delta_time;
-    }
-    curves.tag_positions_changed();
-    velocities.finish();
-    positions.finish();
-    world.add_path_override(geometry_bundle.self_path + "/geometry",
-                            std::move(geometry_bundle.geometry));
+  for (const int i : geometry_paths.index_range()) {
+    const StringRef geometry_path = geometry_paths[i];
+    GeometrySet &geometry = geometries[i];
+    world.add_path_override(geometry_path + "/geometry", std::move(geometry));
   }
 
   params.set_output("World", std::move(world_ptr));

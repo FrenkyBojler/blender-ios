@@ -149,6 +149,7 @@ enum class BundlePathsGatherFilterResult {
 };
 Vector<std::string> gather_bundle_paths(
     const Bundle &bundle, FunctionRef<BundlePathsGatherFilterResult(const Bundle &bundle)> fn);
+Vector<std::string> gather_bundle_paths_by_type(const Bundle &bundle, const StringRef type_filter);
 
 template<typename T>
 inline std::optional<T> BundleItemValue::as_socket_value(

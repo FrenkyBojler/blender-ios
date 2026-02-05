@@ -484,4 +484,18 @@ Vector<std::string> gather_bundle_paths(
   return paths;
 }
 
+Vector<std::string> gather_bundle_paths_by_type(const Bundle &bundle, const StringRef type_filter)
+{
+  return gather_bundle_paths(bundle, [&](const Bundle &child) {
+    if (const std::optional<StringRef> child_type = child.type()) {
+      if (type_filter.is_empty()) {
+        return BundlePathsGatherFilterResult::Take;
+      }
+      return *child_type == type_filter ? BundlePathsGatherFilterResult::Take :
+                                          BundlePathsGatherFilterResult::None;
+    }
+    return BundlePathsGatherFilterResult::Recurse;
+  });
+}
+
 }  // namespace blender::nodes

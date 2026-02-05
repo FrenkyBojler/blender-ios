@@ -21,16 +21,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Vector<std::string> paths;
   if (bundle) {
-    paths = gather_bundle_paths(*bundle, [&](const Bundle &child) {
-      if (const std::optional<StringRef> child_type = child.type()) {
-        if (type_filter.empty()) {
-          return BundlePathsGatherFilterResult::Take;
-        }
-        return *child_type == type_filter ? BundlePathsGatherFilterResult::Take :
-                                            BundlePathsGatherFilterResult::None;
-      }
-      return BundlePathsGatherFilterResult::Recurse;
-    });
+    paths = gather_bundle_paths_by_type(*bundle, type_filter);
   }
 
   params.set_output("Paths", List::from_container(std::move(paths)));
