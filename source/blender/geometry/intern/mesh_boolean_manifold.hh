@@ -13,7 +13,6 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             Span<Array<short>> material_remaps,
                             BooleanOpParameters op_params,
                             Vector<int> *r_intersecting_edges,
-                            BooleanError *r_error,
-                            int *r_non_manifold_mesh_index);
+                            BooleanError *r_error);
 
 }

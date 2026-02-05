@@ -563,31 +563,29 @@ static void apply_trim(gesture::GestureData &gesture_data)
   op_params.no_self_intersections = true;
   op_params.watertight = false;
   op_params.no_nested_components = true;
-  geometry::boolean::BooleanError error = geometry::boolean::BooleanError::NoError;
-  int non_manifold_mesh_index = -1;
+  geometry::boolean::BooleanError error;
   Mesh *result = geometry::boolean::mesh_boolean({&sculpt_mesh, &trim_mesh},
                                                  {float4x4::identity(), float4x4::identity()},
                                                  {Array<short>(), Array<short>()},
                                                  op_params,
                                                  trim_operation->solver_mode,
                                                  nullptr,
-                                                 &error,
-                                                 &non_manifold_mesh_index);
-  if (error == geometry::boolean::BooleanError::NonManifold) {
+                                                 &error);
+  if (error.type == geometry::boolean::BooleanErrorType::NonManifold) {
     BKE_report(trim_operation->reports, RPT_ERROR, "Solver requires a manifold mesh");
     return;
   }
-  if (error == geometry::boolean::BooleanError::ResultTooBig) {
+  if (error.type == geometry::boolean::BooleanErrorType::ResultTooBig) {
     BKE_report(
         trim_operation->reports, RPT_ERROR, "Boolean result is too big for solver to handle");
     return;
   }
-  if (error == geometry::boolean::BooleanError::SolverNotAvailable) {
+  if (error.type == geometry::boolean::BooleanErrorType::SolverNotAvailable) {
     BKE_report(
         trim_operation->reports, RPT_ERROR, "Boolean solver not available (compiled without it)");
     return;
   }
-  if (error == geometry::boolean::BooleanError::UnknownError) {
+  if (error.type == geometry::boolean::BooleanErrorType::UnknownError) {
     BKE_report(trim_operation->reports, RPT_ERROR, "Unknown boolean error");
     return;
   }

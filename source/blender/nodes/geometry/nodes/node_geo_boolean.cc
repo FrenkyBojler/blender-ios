@@ -199,8 +199,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   op_params.no_self_intersections = !use_self;
   op_params.watertight = !hole_tolerant;
   op_params.no_nested_components = true; /* TODO: make this configurable. */
-  geometry::boolean::BooleanError error = geometry::boolean::BooleanError::NoError;
-  int non_manifold_mesh_index = -1;
+  geometry::boolean::BooleanError error;
   Mesh *result = geometry::boolean::mesh_boolean(
       meshes,
       transforms,
@@ -208,20 +207,19 @@ static void node_geo_exec(GeoNodeExecParams params)
       op_params,
       solver,
       attribute_outputs.intersecting_edges_id ? &intersecting_edges : nullptr,
-      &error,
-      &non_manifold_mesh_index);
-  if (error == geometry::boolean::BooleanError::NonManifold) {
+      &error);
+  if (error.type == geometry::boolean::BooleanErrorType::NonManifold) {
     params.error_message_add(NodeWarningType::Error, TIP_("An input was not manifold"));
   }
-  else if (error == geometry::boolean::BooleanError::ResultTooBig) {
+  else if (error.type == geometry::boolean::BooleanErrorType::ResultTooBig) {
     params.error_message_add(NodeWarningType::Error,
                              TIP_("Boolean result is too big for solver to handle"));
   }
-  else if (error == geometry::boolean::BooleanError::SolverNotAvailable) {
+  else if (error.type == geometry::boolean::BooleanErrorType::SolverNotAvailable) {
     params.error_message_add(NodeWarningType::Error,
                              TIP_("Boolean solver not available (compiled without it)"));
   }
-  else if (error == geometry::boolean::BooleanError::UnknownError) {
+  else if (error.type == geometry::boolean::BooleanErrorType::UnknownError) {
     params.error_message_add(NodeWarningType::Error, TIP_("Unknown Boolean error"));
   }
   if (!result) {

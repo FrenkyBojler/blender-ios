@@ -1213,8 +1213,7 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
                    BooleanOpParameters op_params,
                    Solver solver,
                    Vector<int> *r_intersecting_edges,
-                   BooleanError *r_error,
-                   int *r_non_manifold_mesh_index)
+                   BooleanError *r_error)
 {
   Mesh *ans = nullptr;
 #ifdef BENCHMARK_TIME
@@ -1222,7 +1221,7 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
 #endif
   switch (solver) {
     case Solver::Float:
-      *r_error = BooleanError::NoError;
+      r_error->type = BooleanErrorType::NoError;
       ans = mesh_boolean_float(meshes,
                                transforms,
                                material_remaps,
@@ -1231,7 +1230,7 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
       break;
     case Solver::MeshArr:
 #ifdef WITH_GMP
-      *r_error = BooleanError::NoError;
+      r_error->type = BooleanErrorType::NoError;
       ans = mesh_boolean_mesh_arr(meshes,
                                   transforms,
                                   material_remaps,
@@ -1240,15 +1239,15 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
                                   operation_to_mesh_arr_mode(op_params.boolean_mode),
                                   r_intersecting_edges);
 #else
-      *r_error = BooleanError::SolverNotAvailable;
+      r_error->type = BooleanErrorType::SolverNotAvailable;
 #endif
       break;
     case Solver::Manifold:
 #ifdef WITH_MANIFOLD
       ans = mesh_boolean_manifold(
-          meshes, transforms, material_remaps, op_params, r_intersecting_edges, r_error, r_non_manifold_mesh_index);
+          meshes, transforms, material_remaps, op_params, r_intersecting_edges, r_error);
 #else
-      *r_error = BooleanError::SolverNotAvailable;
+      r_error->type = BooleanErrorType::SolverNotAvailable;
 #endif
       break;
     default:

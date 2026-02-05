@@ -1493,13 +1493,13 @@ static MeshGL mesh_trim_manifold(Manifold &manifold0,
   MeshGL meshgl = man_result.GetMeshGL();
   if (man_result.Status() != Manifold::Error::NoError) {
     if (man_result.Status() == Manifold::Error::ResultTooLarge) {
-      *r_error = BooleanError::ResultTooBig;
+      r_error->type = BooleanErrorType::ResultTooBig;
     }
     else if (man_result.Status() == Manifold::Error::NotManifold) {
-      *r_error = BooleanError::NonManifold;
+      r_error->type = BooleanErrorType::NonManifold;
     }
     else {
-      *r_error = BooleanError::UnknownError;
+      r_error->type = BooleanErrorType::UnknownError;
     }
     return meshgl;
   }
@@ -1711,14 +1711,13 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             const Span<Array<short>> material_remaps,
                             const BooleanOpParameters op_params,
                             Vector<int> *r_intersecting_edges,
-                            BooleanError *r_error,
-                            int *r_non_manifold_mesh_index)
+                            BooleanError *r_error)
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "\nMESH_BOOLEAN_MANIFOLD with " << meshes.size() << " args\n";
   }
-  *r_error = BooleanError::NoError;
+  r_error->type = BooleanErrorType::NoError;
   try {
 #  ifdef DEBUG_TIME
     timeit::ScopedTimer timer("MANIFOLD BOOLEAN");
@@ -1754,23 +1753,21 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
 #  endif
         meshgl_result = mesh_trim_manifold(
             manifolds[0], normal, origin_offset, mesh_offsets, r_error);
-        if (*r_error != BooleanError::NoError) {
+        if (r_error->type != BooleanErrorType::NoError) {
           return nullptr;
         }
       }
       else {
         for (int i = 0; i < manifolds.size(); i++) {
           if (manifolds[i].Status() == Manifold::Error::NotManifold) {
-            *r_non_manifold_mesh_index = i;
+            r_error->type = BooleanErrorType::NonManifold;
+            r_error->non_manifold_mesh_index = i;
             break;
           }
         }
 
-        if (*r_non_manifold_mesh_index != -1) {
-          *r_error = BooleanError::NonManifold;
-        }
-        else {
-          *r_error = BooleanError::UnknownError;
+        if (r_error->non_manifold_mesh_index == -1) {
+          r_error->type = BooleanErrorType::UnknownError;
         }
         return nullptr;
       }
@@ -1788,10 +1785,10 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       /* Have to wait until after converting to MeshGL to check status. */
       if (man_result.Status() != Manifold::Error::NoError) {
         if (man_result.Status() == Manifold::Error::ResultTooLarge) {
-          *r_error = BooleanError::ResultTooBig;
+          r_error->type = BooleanErrorType::ResultTooBig;
         }
         else {
-          *r_error = BooleanError::UnknownError;
+          r_error->type = BooleanErrorType::UnknownError;
         }
         if (dbg_level > 0) {
           std::cout << "manifold boolean returned with error status\n";
@@ -1819,7 +1816,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
   catch (...) {
     std::cout << "mesh_boolean_manifold: unknown exception\n";
   }
-  *r_error = BooleanError::UnknownError;
+  r_error->type = BooleanErrorType::UnknownError;
   return nullptr;
 }
 
