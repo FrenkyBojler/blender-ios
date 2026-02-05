@@ -13,6 +13,49 @@
 
 namespace blender::gpu {
 
+/* Hashable containing key information to identify a VkImage handle bound to
+ * a specific segment of an allocation.. */
+struct VKImageInfo {
+  VkFormat format;
+  VkImageCreateFlags flags;
+  VkImageUsageFlags usage;
+  uint32_t width;
+  uint32_t height;
+  VmaAllocation allocation;
+  VkDeviceSize allocation_offset;
+  VkDeviceSize allocation_size;
+
+  uint64_t hash() const
+  {
+    return get_default_hash(format, flags, usage, allocation, allocation_offset, allocation_size);
+  }  
+
+  bool operator==(const VKImageInfo &) const = default;
+};
+
+/* Map to existing VkImage handles bound to a specific segment of an allocation. */
+class VKImageCache {
+  struct VKImageHandle {
+    VkImage image;
+
+    /* Counter to track the number of unused cycles before deallocation in `pool_`. */
+    int unused_cycles_count = 0;
+  };
+
+  Map<VKImageInfo, VKImageHandle> cache_;
+
+ public:
+  ~VKImageCache()
+  {
+    reset(true);
+  }
+
+  /* Get an existing or create and bind a new VkImage handle. */
+  VkImage get_or_create(VKImageInfo &&info);
+
+  void reset(bool force_reset = true);
+};
+
 class VKTexturePool : public TexturePool {
   /* Performed allocation size, current is 64mb. */
   static constexpr VkDeviceSize allocation_size = 1 << 26;
@@ -69,12 +112,6 @@ class VKTexturePool : public TexturePool {
     }
   };
 
-  // /* VkImage handles are cached and correspond to a bound segment of an
-  //  * underlying allocation. This means we have more image handles than
-  //  * actual textures in use, as different handles can aliase and overlap.
-  //  * The segment list in AllocationHandle esnures no two handles are
-  //  * acquired while aliasing; this cache is just there to avoid constant
-  //  * handle creation and binding, which is cheap until it's not. */
   struct ImageHandle {
     /* Hashable data. */
     VmaAllocation allocation;

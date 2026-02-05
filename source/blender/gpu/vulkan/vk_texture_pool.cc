@@ -7,7 +7,7 @@
  */
 
 #include "GPU_capabilities.hh"
-#include "GPU_debug.hh"
+// #include "GPU_debug.hh"
 
 #include "vk_backend.hh"
 #include "vk_texture.hh"
@@ -22,6 +22,57 @@
 namespace blender::gpu {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
+
+VkImage VKImageCache::get_or_create(VKImageInfo &&info)
+{
+  /* If a bound VkImage handle exists in the map, reset its counter
+   * and return it. */
+  VKImageHandle *ptr = cache_.lookup_ptr(info);
+  if (ptr) {
+    ptr->unused_cycles_count = 0;
+    return ptr->image;
+  }
+
+  VKDevice &device = VKBackend::get().device;
+  const uint32_t queue_family_indices[1] = {device.queue_family_get()};
+  
+  VkResult result;
+  UNUSED_VARS(result);
+
+  /* Otherwise, assemble VkImageCreateInfo and create a new image. */
+  VkImage image;
+  VkImageCreateInfo create_info = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = info.flags,
+    .imageType = VK_IMAGE_TYPE_2D,
+    .format = info.format,
+    .extent = VkExtent3D(info.width, info.height, 1),
+    .mipLevels = 1,
+    .arrayLayers = 1,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .tiling = VK_IMAGE_TILING_OPTIMAL,
+    .usage = info.usage,
+    .queueFamilyIndexCount = 1,
+    .pQueueFamilyIndices = queue_family_indices,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+  };
+  result = vkCreateImage(device.vk_handle(), &create_info, nullptr, &image);
+  BLI_assert(result == VK_SUCCESS);
+
+  result = vmaBindImageMemory2(device.mem_allocator_get(),
+                               info.allocation,
+                               /* (info.) */ // pass in local offs
+                               info.allocation_offset,
+                               image,
+                               nullptr);
+  BLI_assert(result == VK_SUCCESS);
+
+  /* TODO(not_mark): pass in name */
+  device.resources.add_aliased_image(image, false, "uhh");
+
+  return image;
+}
 
 std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
     VkMemoryRequirements requirements)
@@ -171,29 +222,6 @@ void VKTexturePool::TextureHandle::alloc(int2 extent,
   if ((texture->format_flag_ & (GPU_FORMAT_DEPTH_STENCIL | GPU_FORMAT_INTEGER)) == 0) {
     texture->sampler_state.filtering = GPU_SAMPLER_FILTERING_LINEAR;
   }
-
-  // /* Create a VkImage object. */
-  // VkImageCreateInfo create_info = {};
-  // create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-  // create_info.flags = to_vk_image_create(GPU_TEXTURE_2D, to_format_flag(format), usage);
-  // create_info.usage = to_vk_image_usage(usage, to_format_flag(format), false);
-  // create_info.format = to_vk_format(format);
-  // create_info.arrayLayers = 1;
-  // create_info.mipLevels = 1;
-  // create_info.imageType = VK_IMAGE_TYPE_2D;
-  // create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  // create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-  // create_info.samples = VK_SAMPLE_COUNT_1_BIT;
-  // create_info.extent.width = static_cast<uint32_t>(extent.x);
-  // create_info.extent.height = static_cast<uint32_t>(extent.y);
-  // create_info.extent.depth = 1u;
-
-  // VkResult result = vkCreateImage(
-  //     device.vk_handle(), &create_info, nullptr, &(texture->vk_image_));
-
-  /* WATCH(not_mark): will remove asserts when pool is a bit more mature. */
-  // UNUSED_VARS(result);
-  // BLI_assert(result == VK_SUCCESS);
 }
 
 void VKTexturePool::TextureHandle::free()
@@ -224,7 +252,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
                                         eGPUTextureUsage usage,
                                         const char *name)
 {
-  GPU_debug_group_begin("VKTexturePool::acquire_texture");
+  // GPU_debug_group_begin("VKTexturePool::acquire_texture");
 
   VKDevice &device = VKBackend::get().device;
 
@@ -257,7 +285,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   /* Query memory requirements. */
   VkImage image = VK_NULL_HANDLE;
   VkMemoryRequirements2 memory_requirements = {.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
-  /* TODO(not_nark): vkGetDeviceImageMemoryRequirements appears not loaded. */
+  /* TODO(not_nark): vkGetDeviceImageMemoryRequirements appears not loaded on some platforms. */
   // if (device.extensions_get().maintenance4) {
   //   /* If `VK_KHR_maintenance4` is available, we create requirements from
   //    * VkImageCreateInfo, and delay creating a VkImage handle. */
@@ -383,15 +411,13 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
 
   acquired_.add(texture_handle);
 
-  GPU_debug_group_end();
+  // GPU_debug_group_end();
 
   return wrap(texture_handle.texture);
 }
 
 void VKTexturePool::release_texture(Texture *tex)
 {
-  VKDevice &device = VKBackend::get().device;
-
   BLI_assert_msg(acquired_.contains({unwrap(tex)}),
                  "Unacquired texture passed to VKTexturePool::offset_users_count()");
   TextureHandle texture_handle = acquired_.lookup_key({unwrap(tex)});
