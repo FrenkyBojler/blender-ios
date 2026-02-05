@@ -1821,8 +1821,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
     }
     case AXES: {
       if (space == WORLD) {
-        unit_m3(base_mat);
-        mul_m3_m3m3(base_mat, imat, base_mat);
+        copy_m3_m3(base_mat, imat);
         copy_v3_fl3(roll_vector, 0.0f, 0.0f, 1.0f);
         mul_m3_v3(imat, roll_vector);
       }
