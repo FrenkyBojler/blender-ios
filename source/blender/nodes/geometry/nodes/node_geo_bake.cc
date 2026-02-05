@@ -41,7 +41,9 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_bake_cc {
+namespace blender {
+
+namespace nodes::node_geo_bake_cc {
 
 namespace bake = bke::bake;
 
@@ -68,7 +70,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string identifier = BakeItemsAccessor::socket_identifier_for_item(item);
     auto &input_decl = b.add_input(socket_type, name, identifier)
                            .socket_name_ptr(
-                               &ntree->id, BakeItemsAccessor::item_srna, &item, "name");
+                               &ntree->id, *BakeItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
     if (socket_type_supports_fields(socket_type)) {
       input_decl.supports_field();
@@ -94,20 +96,20 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryBake *data = MEM_callocN<NodeGeometryBake>(__func__);
+  NodeGeometryBake *data = MEM_new<NodeGeometryBake>(__func__);
   node->storage = data;
 }
 
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<BakeItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_delete(reinterpret_cast<NodeGeometryBake *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryBake &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_dupallocN<NodeGeometryBake>(__func__, src_storage);
+  auto *dst_storage = MEM_new<NodeGeometryBake>(__func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<BakeItemsAccessor>(*src_node, *dst_node);
@@ -546,7 +548,7 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeBake", GEO_NODE_BAKE);
   ntype.ui_name = "Bake";
   ntype.ui_description = "Cache the incoming data so that it can be used without recomputation";
@@ -563,14 +565,14 @@ static void node_register()
   ntype.internally_linked_input = node_internally_linked_input;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
-  blender::bke::node_type_storage(ntype, "NodeGeometryBake", node_free_storage, node_copy_storage);
-  blender::bke::node_register_type(ntype);
+  bke::node_type_storage(ntype, "NodeGeometryBake", node_free_storage, node_copy_storage);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_bake_cc
+}  // namespace nodes::node_geo_bake_cc
 
-namespace blender::nodes {
+namespace nodes {
 
 bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext &r_ctx)
 {
@@ -605,7 +607,7 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
   }
 
   r_ctx.bake_rna = RNA_pointer_create_discrete(
-      const_cast<ID *>(&r_ctx.object->id), &RNA_NodesModifierBake, (void *)r_ctx.bake);
+      const_cast<ID *>(&r_ctx.object->id), RNA_NodesModifierBake, (void *)r_ctx.bake);
   if (r_ctx.nmd->runtime->cache) {
     const bke::bake::ModifierCache &cache = *r_ctx.nmd->runtime->cache;
     std::lock_guard lock{cache.mutex};
@@ -827,7 +829,7 @@ static void draw_bake_data_block_list_item(uiList * /*ui_list*/,
 void draw_data_blocks(const bContext *C, ui::Layout &layout, PointerRNA &bake_rna)
 {
   static const uiListType *data_block_list = []() {
-    uiListType *list = MEM_callocN<uiListType>(__func__);
+    uiListType *list = MEM_new_zeroed<uiListType>(__func__);
     STRNCPY_UTF8(list->idname, "DATA_UL_nodes_modifier_data_blocks");
     list->draw_item = draw_bake_data_block_list_item;
     WM_uilisttype_add(list);
@@ -835,7 +837,7 @@ void draw_data_blocks(const bContext *C, ui::Layout &layout, PointerRNA &bake_rn
   }();
 
   PointerRNA data_blocks_ptr = RNA_pointer_create_discrete(
-      bake_rna.owner_id, &RNA_NodesModifierBakeDataBlocks, bake_rna.data);
+      bake_rna.owner_id, RNA_NodesModifierBakeDataBlocks, bake_rna.data);
 
   if (ui::Layout *panel = layout.panel(
           C, "data_block_references", true, IFACE_("Data-Block References")))
@@ -852,7 +854,6 @@ void draw_data_blocks(const bContext *C, ui::Layout &layout, PointerRNA &bake_rn
                       3,
                       5,
                       UILST_LAYOUT_DEFAULT,
-                      0,
                       ui::TEMPLATE_LIST_FLAG_NONE);
   }
 }
@@ -860,12 +861,12 @@ void draw_data_blocks(const bContext *C, ui::Layout &layout, PointerRNA &bake_rn
 std::unique_ptr<LazyFunction> get_bake_lazy_function(
     const bNode &node, GeometryNodesLazyFunctionGraphInfo &lf_graph_info)
 {
-  namespace file_ns = blender::nodes::node_geo_bake_cc;
+  namespace file_ns = nodes::node_geo_bake_cc;
   BLI_assert(node.type_legacy == GEO_NODE_BAKE);
   return std::make_unique<file_ns::LazyFunctionForBakeNode>(node, lf_graph_info);
 }
 
-StructRNA *BakeItemsAccessor::item_srna = &RNA_NodeGeometryBakeItem;
+StructRNA **BakeItemsAccessor::item_srna = &RNA_NodeGeometryBakeItem;
 
 void BakeItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -877,4 +878,6 @@ void BakeItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &ite
   BLO_read_string(reader, &item.name);
 }
 
-};  // namespace blender::nodes
+};  // namespace nodes
+
+}  // namespace blender

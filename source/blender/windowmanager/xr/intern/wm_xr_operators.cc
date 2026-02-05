@@ -37,14 +37,13 @@
 #include "ED_transform_snap_object_context.hh"
 #include "ED_view3d.hh"
 
-#include "GHOST_Types.h"
+#include "GHOST_Types.hh"
 
 #include "GPU_immediate.hh"
 #include "GPU_state.hh"
 
 #include "GPU_batch_presets.hh"
 #include "GPU_matrix.hh"
-#include "GPU_xr_defines.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -56,6 +55,8 @@
 
 #include "wm_xr_intern.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Operator Conditions
  * \{ */
@@ -65,20 +66,6 @@ static bool wm_xr_operator_sessionactive(bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   return WM_xr_session_is_ready(&wm->xr);
-}
-
-static bool wm_xr_operator_test_event(const wmOperator *op, const wmEvent *event)
-{
-  if (event->type != EVT_XR_ACTION) {
-    return false;
-  }
-
-  BLI_assert(event->custom == EVT_DATA_XR);
-  BLI_assert(event->customdata);
-
-  wmXrActionData *actiondata = static_cast<wmXrActionData *>(event->customdata);
-  return (actiondata->ot == op->type &&
-          IDP_EqualsProperties(actiondata->op_properties, op->properties));
 }
 
 /** \} */
@@ -96,13 +83,13 @@ static void wm_xr_session_update_screen(Main *bmain, const wmXrData *xr_data)
   for (bScreen *screen = static_cast<bScreen *>(bmain->screens.first); screen;
        screen = static_cast<bScreen *>(screen->id.next))
   {
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      LISTBASE_FOREACH (SpaceLink *, slink, &area->spacedata) {
-        if (slink->spacetype == SPACE_VIEW3D) {
-          View3D *v3d = (View3D *)slink;
+    for (ScrArea &area : screen->areabase) {
+      for (SpaceLink &slink : area.spacedata) {
+        if (slink.spacetype == SPACE_VIEW3D) {
+          View3D *v3d = (View3D *)&slink;
 
           if (v3d->flag & V3D_XR_SESSION_MIRROR) {
-            ED_view3d_xr_mirror_update(area, v3d, session_exists);
+            ED_view3d_xr_mirror_update(&area, v3d, session_exists);
           }
 
           if (session_exists) {
@@ -186,13 +173,13 @@ static void wm_xr_grab_init(wmOperator *op)
 {
   BLI_assert(op->customdata == nullptr);
 
-  op->customdata = MEM_callocN<XrGrabData>(__func__);
+  op->customdata = MEM_new_zeroed<XrGrabData>(__func__);
 }
 
 static void wm_xr_grab_uninit(wmOperator *op)
 {
   XrGrabData *data = static_cast<XrGrabData *>(op->customdata);
-  MEM_SAFE_FREE(data);
+  MEM_SAFE_DELETE(data);
   op->customdata = nullptr;
 }
 
@@ -416,10 +403,6 @@ static wmOperatorStatus wm_xr_navigation_grab_invoke(bContext *C,
                                                      wmOperator *op,
                                                      const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
 
   wm_xr_grab_init(op);
@@ -547,10 +530,6 @@ static wmOperatorStatus wm_xr_navigation_grab_modal(bContext *C,
                                                     wmOperator *op,
                                                     const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
   XrGrabData *data = static_cast<XrGrabData *>(op->customdata);
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -660,7 +639,7 @@ static void wm_xr_fly_init(wmOperator *op, const wmXrData *xr)
 {
   BLI_assert(op->customdata == nullptr);
 
-  XrFlyData *data = MEM_callocN<XrFlyData>(__func__);
+  XrFlyData *data = MEM_new_zeroed<XrFlyData>(__func__);
   op->customdata = data;
 
   WM_xr_session_state_viewer_pose_rotation_get(xr, data->viewer_rot);
@@ -670,7 +649,7 @@ static void wm_xr_fly_init(wmOperator *op, const wmXrData *xr)
 static void wm_xr_fly_uninit(wmOperator *op)
 {
   XrFlyData *data = static_cast<XrFlyData *>(op->customdata);
-  MEM_SAFE_FREE(data);
+  MEM_SAFE_DELETE(data);
   op->customdata = nullptr;
 }
 
@@ -780,12 +759,8 @@ static void wm_xr_basenav_rotation_calc(const wmXrData *xr,
 
 static wmOperatorStatus wm_xr_navigation_fly_invoke(bContext *C,
                                                     wmOperator *op,
-                                                    const wmEvent *event)
+                                                    const wmEvent * /*event*/)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   wmWindowManager *wm = CTX_wm_manager(C);
 
   wm_xr_fly_init(op, &wm->xr);
@@ -809,10 +784,6 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   if (event->val == KM_RELEASE) {
     wm_xr_fly_uninit(op);
     return OPERATOR_FINISHED;
@@ -833,7 +804,7 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
   data->time_prev = time_now;
 
   swap_hands = xr->runtime->session_state.swap_hands;
-  mode = (eXrFlyMode)RNA_enum_get(op->ptr, swap_hands ? "alt_mode" : "mode");
+  mode = eXrFlyMode(RNA_enum_get(op->ptr, swap_hands ? "alt_mode" : "mode"));
   turn = ELEM(mode, XR_FLY_TURNLEFT, XR_FLY_TURNRIGHT);
   snap_turn = U.xr_navigation.flag & USER_XR_NAV_SNAP_TURN;
   invert_rotation = U.xr_navigation.flag & USER_XR_NAV_INVERT_ROTATION;
@@ -1159,6 +1130,8 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
  * Casts a ray from an XR controller's pose and teleports to any hit geometry.
  * \{ */
 
+static constexpr int g_xr_teleportation_arc_num_control_points = 24;
+
 enum XrTeleportRayResult : uint8_t {
   XR_TELEPORT_RAY_MISS,
   XR_TELEPORT_RAY_HIT,
@@ -1167,11 +1140,11 @@ enum XrTeleportRayResult : uint8_t {
 
 struct XrTeleportData {
   XrTeleportRayResult ray_result;
-  blender::Array<blender::float3> arc_points;
+  Array<float3> arc_points;
   int endpoint_idx;
 
-  blender::float3 init_location;
-  blender::float3 init_direction;
+  float3 init_location;
+  float3 init_direction;
   float teleportation_scale;
 
   float ray_color[4];
@@ -1191,7 +1164,7 @@ static void wm_xr_navigation_teleport_draw_destination(const XrTeleportData *dat
 
   if (data->ray_result == XR_TELEPORT_RAY_MISS) {
     /* Draw a simple sphere. */
-    blender::gpu::Batch *sphere_batch = GPU_batch_preset_sphere(2);
+    gpu::Batch *sphere_batch = GPU_batch_preset_sphere(2);
     GPU_batch_program_set_builtin(sphere_batch, GPU_SHADER_3D_UNIFORM_COLOR);
     GPU_batch_uniform_4fv(sphere_batch, "color", data->ray_color);
 
@@ -1202,7 +1175,7 @@ static void wm_xr_navigation_teleport_draw_destination(const XrTeleportData *dat
   else {
     /* Draw a destination ring. */
     uint pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+        immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32_32);
 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor4fv(data->ray_color);
@@ -1232,8 +1205,6 @@ static void wm_xr_navigation_teleport_draw_destination(const XrTeleportData *dat
 
 static void wm_xr_navigation_teleport_draw_ray(const XrTeleportData *data)
 {
-  using namespace blender;
-
   /* Compute the Catmull-Rom spline, first get a span of the used arc control points. */
   const int num_control_points = data->endpoint_idx + 1;
   const Span<float3> arc_control_points = data->arc_points.as_span().take_front(
@@ -1332,10 +1303,8 @@ static void wm_xr_navigation_teleport_data_update(wmOperator *op,
                                                   XrTeleportData *data,
                                                   const wmXrActionData *actiondata)
 {
-  using namespace blender;
-
-  data->arc_points = blender::Array<blender::float3>(XR_TELEPORTATION_ARC_CONTROL_POINTS);
-  data->endpoint_idx = XR_TELEPORTATION_ARC_CONTROL_POINTS - 1;
+  data->arc_points = Array<float3>(g_xr_teleportation_arc_num_control_points);
+  data->endpoint_idx = g_xr_teleportation_arc_num_control_points - 1;
 
   const math::Quaternion controller_quat(actiondata->controller_rot);
   data->init_direction = transform_point(controller_quat, {0.0f, 0.0f, -1.0f});
@@ -1349,8 +1318,7 @@ static void wm_xr_navigation_teleport_data_update(wmOperator *op,
   data->teleportation_scale = nav_scale;
 }
 
-static void wm_xr_navigation_teleport_raycast(Scene *scene,
-                                              Depsgraph *depsgraph,
+static void wm_xr_navigation_teleport_raycast(Depsgraph *depsgraph,
                                               const float origin[3],
                                               const float direction[3],
                                               float *ray_dist,
@@ -1362,32 +1330,29 @@ static void wm_xr_navigation_teleport_raycast(Scene *scene,
                                               float r_obmat[4][4])
 {
   /* Uses same raycast method as Scene.ray_cast(). */
-  blender::ed::transform::SnapObjectContext *sctx =
-      blender::ed::transform::snap_object_context_create(scene, 0);
+  ed::transform::SnapObjectContext *sctx = ed::transform::snap_object_context_create();
 
-  blender::ed::transform::SnapObjectParams params{};
+  ed::transform::SnapObjectParams params{};
   params.snap_target_select = (selectable_only ? SCE_SNAP_TARGET_ONLY_SELECTABLE :
                                                  SCE_SNAP_TARGET_ALL);
-  blender::ed::transform::snap_object_project_ray_ex(sctx,
-                                                     depsgraph,
-                                                     nullptr,
-                                                     &params,
-                                                     origin,
-                                                     direction,
-                                                     ray_dist,
-                                                     r_location,
-                                                     r_normal,
-                                                     r_index,
-                                                     r_ob,
-                                                     r_obmat);
+  ed::transform::snap_object_project_ray_ex(sctx,
+                                            depsgraph,
+                                            nullptr,
+                                            &params,
+                                            origin,
+                                            direction,
+                                            ray_dist,
+                                            r_location,
+                                            r_normal,
+                                            r_index,
+                                            r_ob,
+                                            r_obmat);
 
-  blender::ed::transform::snap_object_context_destroy(sctx);
+  ed::transform::snap_object_context_destroy(sctx);
 }
 
 static void wm_xr_navigation_teleport_generate_arc(wmOperator *op, XrTeleportData *data)
 {
-  using namespace blender;
-
   const float gravity = 9.81f;
   const float time_step = RNA_float_get(op->ptr, "range");
   const float velocity = RNA_float_get(op->ptr, "force");
@@ -1395,7 +1360,7 @@ static void wm_xr_navigation_teleport_generate_arc(wmOperator *op, XrTeleportDat
   data->arc_points[0] = data->init_location;
   const float3 direction = data->init_direction;
 
-  for (int i = 1; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; ++i) {
+  for (int i = 1; i < g_xr_teleportation_arc_num_control_points; ++i) {
     const float t = i * time_step;
 
     const float3 velocity_offset = direction * (velocity * t);
@@ -1407,11 +1372,9 @@ static void wm_xr_navigation_teleport_generate_arc(wmOperator *op, XrTeleportDat
   }
 }
 
-static bool wm_xr_navigation_teleport_is_wall_hit(blender::float3 &hit_normal)
+static bool wm_xr_navigation_teleport_is_wall_hit(float3 &hit_normal)
 {
   /* Check if the hit surface is a wall. */
-  using namespace blender;
-
   const float3 up_vector = {0.0f, 0.0f, 1.0f};
   const float min_ground_dot = M_SQRT3 / 2.0f; /* Cosine of 30 degrees. */
 
@@ -1422,13 +1385,10 @@ static bool wm_xr_navigation_teleport_is_wall_hit(blender::float3 &hit_normal)
   return false;
 }
 
-static bool wm_xr_navigation_teleport_arc_clip_to_ground(blender::Array<blender::float3> &points,
-                                                         int &end_point_idx)
+static bool wm_xr_navigation_teleport_arc_clip_to_ground(Array<float3> &points, int &end_point_idx)
 {
   /* Truncate the arc to the ground plane (Z=0). */
-  using namespace blender;
-
-  for (int i = 1; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; ++i) {
+  for (int i = 1; i < g_xr_teleportation_arc_num_control_points; ++i) {
     const float3 &startpoint = points[i - 1];
     const float3 &endpoint = points[i];
 
@@ -1454,19 +1414,17 @@ static XrTeleportRayResult wm_xr_navigation_teleport_arc_scene_intersect(bContex
                                                                          wmOperator *op,
                                                                          XrTeleportData *data)
 {
-  using namespace blender;
-
   const bool selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
 
-  /* Raycast along the pre-computed arc to find the first collision point with a scene object. */
-  for (int i = 1; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; ++i) {
+  /* Ray-cast along the pre-computed arc to find the first collision point with a scene object. */
+  for (int i = 1; i < g_xr_teleportation_arc_num_control_points; ++i) {
     const float3 segment_start = data->arc_points[i - 1];
     const float3 segment_end = data->arc_points[i];
 
     const float3 segment_direction = math::normalize(segment_end - segment_start);
     const float segment_length = math::distance(segment_start, segment_end);
 
-    /* Extend the ray in both directions to avoid raycast precision issues when raycasting
+    /* Extend the ray in both directions to avoid ray-cast precision issues when ray-casting
      * close to surfaces or with short segment lengths. */
     const float ray_precision_margin = segment_length * 0.25f;
     float3 segment_origin = segment_start;
@@ -1479,8 +1437,7 @@ static XrTeleportRayResult wm_xr_navigation_teleport_arc_scene_intersect(bContex
     float3 hit_location;
     float3 hit_normal;
     const Object *ob = nullptr;
-    wm_xr_navigation_teleport_raycast(CTX_data_scene(C),
-                                      CTX_data_ensure_evaluated_depsgraph(C),
+    wm_xr_navigation_teleport_raycast(CTX_data_ensure_evaluated_depsgraph(C),
                                       segment_origin,
                                       segment_direction,
                                       &segment_ray_length,
@@ -1516,15 +1473,13 @@ static XrTeleportRayResult wm_xr_navigation_teleport_arc_scene_intersect(bContex
   }
 
   /* Complete miss. */
-  data->endpoint_idx = XR_TELEPORTATION_ARC_CONTROL_POINTS - 1;
+  data->endpoint_idx = g_xr_teleportation_arc_num_control_points - 1;
   return XR_TELEPORT_RAY_MISS;
 }
 
-static blender::float3 wm_xr_navigation_teleport_get_nav_destination(const wmXrData *xr,
-                                                                     XrTeleportData *data)
+static float3 wm_xr_navigation_teleport_get_nav_destination(const wmXrData *xr,
+                                                            XrTeleportData *data)
 {
-  using namespace blender;
-
   float nav_scale;
   WM_xr_session_state_nav_scale_get(xr, &nav_scale);
 
@@ -1547,7 +1502,7 @@ static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
                                                           wmOperator *op,
                                                           const wmXrData *xr,
                                                           XrTeleportData *data,
-                                                          blender::float3 &r_nav_destination)
+                                                          float3 &r_nav_destination)
 {
   /* Generate the initial parabolic arc. */
   wm_xr_navigation_teleport_generate_arc(op, data);
@@ -1565,10 +1520,6 @@ static wmOperatorStatus wm_xr_navigation_teleport_invoke(bContext *C,
                                                          wmOperator *op,
                                                          const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   wm_xr_navigation_teleport_init(op);
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
@@ -1595,10 +1546,6 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
                                                         wmOperator *op,
                                                         const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
 
   wmXrData *xr = &CTX_wm_manager(C)->xr;
@@ -1607,7 +1554,7 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
   wm_xr_navigation_teleport_data_update(op, xr, data, actiondata);
 
   /* Teleport using an arc, computing both the final destination and the visual curve. */
-  blender::float3 nav_destination = {};
+  float3 nav_destination = {};
   data->ray_result = wm_xr_navigation_teleport_main(C, op, xr, data, nav_destination);
 
   /* Update ray color. */
@@ -1842,12 +1789,8 @@ static void WM_OT_xr_navigation_reset(wmOperatorType *ot)
 
 static wmOperatorStatus wm_xr_navigation_swap_hands_invoke(bContext *C,
                                                            wmOperator *op,
-                                                           const wmEvent *event)
+                                                           const wmEvent * /*event*/)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   WM_event_add_modal_handler(C, op);
 
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -1864,13 +1807,9 @@ static wmOperatorStatus wm_xr_navigation_swap_hands_exec(bContext * /*C*/, wmOpe
 }
 
 static wmOperatorStatus wm_xr_navigation_swap_hands_modal(bContext *C,
-                                                          wmOperator *op,
+                                                          wmOperator * /*op*/,
                                                           const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr = &wm->xr;
 
@@ -1917,3 +1856,5 @@ void wm_xr_operatortypes_register()
 }
 
 /** \} */
+
+}  // namespace blender
