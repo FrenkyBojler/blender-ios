@@ -106,9 +106,6 @@ class VKTexturePool : public TexturePool {
     {
       return allocation == o.allocation;
     }
-
-    AllocationHandle() = default;
-    AllocationHandle(VmaAllocation allocation) : allocation(allocation) {}
   };
 
   /* Struct to store an acquired texture. The texture image has a backing allocation,
@@ -137,14 +134,11 @@ class VKTexturePool : public TexturePool {
     {
       return texture == o.texture;
     }
-
-    TextureHandle() = default;
-    TextureHandle(VKTexture *texture) : texture(texture) {}
   };
 
   /* Cache of VkImage handles to avoid repeated memory binding. */
   VKImageCache image_cache_;
-  /* Allocated memory chunks on which images are bound. */
+  /* Allocated memory on which images are bound. */
   Set<AllocationHandle> allocations_;
   /* Texture handles currently in use. */
   Set<TextureHandle> acquired_;

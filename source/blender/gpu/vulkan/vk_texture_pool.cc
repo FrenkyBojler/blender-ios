@@ -8,8 +8,6 @@
 
 #include "GPU_capabilities.hh"
 
-#include <tuple>
-
 #include "vk_backend.hh"
 #include "vk_texture.hh"
 #include "vk_texture_pool.hh"
@@ -337,7 +335,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   TextureHandle texture_handle;
   texture_handle.alloc(extent, format, usage, name_str.c_str());
 
-  /* Use filled VkImageCreateInfo to define memory requirements. */
+  /* Fill VkImageCreateInfo to obtain VkMemoryRequirements. */
   VkImageCreateInfo create_info = {
       .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
       .pNext = nullptr,
@@ -406,11 +404,11 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
 
 void VKTexturePool::release_texture(Texture *texture)
 {
-  BLI_assert_msg(acquired_.contains(unwrap(texture)),
+  BLI_assert_msg(acquired_.contains({unwrap(texture)}),
                  "Unacquired texture passed to VKTexturePool::offset_users_count()");
 
-  TextureHandle texture_handle = acquired_.lookup_key(unwrap(texture));
-  AllocationHandle allocation_handle = allocations_.lookup_key(texture_handle.allocation);
+  TextureHandle texture_handle = acquired_.lookup_key({unwrap(texture)});
+  AllocationHandle allocation_handle = allocations_.lookup_key({texture_handle.allocation});
 
   if (G.debug & G_DEBUG_GPU) {
     current_usage_data_.acquired_segment_size -= texture_handle.segment.size;
@@ -427,9 +425,9 @@ void VKTexturePool::release_texture(Texture *texture)
 
 void VKTexturePool::offset_users_count(Texture *tex, int offset)
 {
-  BLI_assert_msg(acquired_.contains(unwrap(tex)),
+  BLI_assert_msg(acquired_.contains({unwrap(tex)}),
                  "Unacquired texture passed to VKTexturePool::offset_users_count()");
-  TextureHandle texture_handle = acquired_.lookup_key(unwrap(tex));
+  TextureHandle texture_handle = acquired_.lookup_key({unwrap(tex)});
   texture_handle.users_count += offset;
   acquired_.add_overwrite(texture_handle);
 }
