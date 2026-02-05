@@ -9,6 +9,8 @@
 #include "GPU_capabilities.hh"
 // #include "GPU_debug.hh"
 
+#include <tuple>
+
 #include "vk_backend.hh"
 #include "vk_texture.hh"
 #include "vk_texture_pool.hh"
@@ -19,12 +21,46 @@
 
 #include "CLG_log.h"
 
-namespace blender::gpu {
+namespace blender {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-VkImage VKImageCache::get_or_create(VKImageInfo &&info)
+namespace detail {
+/* Pass non-hardcoded arguments of VkImageCreateInfo into tuple of lvalues. */
+/* TODO(not_mark): add keep in sync warning. */
+constexpr auto tie(const VkImageCreateInfo &info)
 {
+  return std::tie(info.format, info.flags, info.usage, info.extent.width, info.extent.height);
+}
+}  // namespace detail
+
+/* Implements DefaultHash over non-hardcoded arguments of VkImageCreateInfo. */
+/* TODO(not_mark): add keep in sync warning. */
+template<> struct DefaultHash<VkImageCreateInfo> {
+  constexpr uint64_t operator()(const VkImageCreateInfo &value) const
+  {
+    const auto &[_1, _2, _3, _4, _5] = detail::tie(value);
+    return get_default_hash(_1, _2, _3, _4, _5);
+  }
+};
+
+namespace gpu {
+
+uint64_t VKImageInfo::hash() const
+{
+  return get_default_hash(create_info, allocation, allocation_local_segment);
+}
+
+bool VKImageInfo::operator==(const VKImageInfo &o) const
+{
+  return detail::tie(create_info) == detail::tie(o.create_info) && allocation == o.allocation &&
+         allocation_local_segment == o.allocation_local_segment;
+}
+
+VkImage VKImageCache::get_or_create(const VKImageInfo &info)
+{
+  VKDevice &device = VKBackend::get().device;
+
   /* If a bound VkImage handle exists in the map, reset its counter
    * and return it. */
   VKImageHandle *ptr = cache_.lookup_ptr(info);
@@ -33,40 +69,21 @@ VkImage VKImageCache::get_or_create(VKImageInfo &&info)
     return ptr->image;
   }
 
-  VKDevice &device = VKBackend::get().device;
-  const uint32_t queue_family_indices[1] = {device.queue_family_get()};
-  
-  VkResult result;
-  UNUSED_VARS(result);
-
   /* Otherwise, assemble VkImageCreateInfo and create a new image. */
   VkImage image;
-  VkImageCreateInfo create_info = {
-    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-    .pNext = nullptr,
-    .flags = info.flags,
-    .imageType = VK_IMAGE_TYPE_2D,
-    .format = info.format,
-    .extent = VkExtent3D(info.width, info.height, 1),
-    .mipLevels = 1,
-    .arrayLayers = 1,
-    .samples = VK_SAMPLE_COUNT_1_BIT,
-    .tiling = VK_IMAGE_TILING_OPTIMAL,
-    .usage = info.usage,
-    .queueFamilyIndexCount = 1,
-    .pQueueFamilyIndices = queue_family_indices,
-    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
-  };
-  result = vkCreateImage(device.vk_handle(), &create_info, nullptr, &image);
-  BLI_assert(result == VK_SUCCESS);
+  VkResult create_result = vkCreateImage(device.vk_handle(), &info.create_info, nullptr, &image);
+  UNUSED_VARS(create_result);
+  BLI_assert(create_result == VK_SUCCESS);
 
-  result = vmaBindImageMemory2(device.mem_allocator_get(),
-                               info.allocation,
-                               /* (info.) */ // pass in local offs
-                               info.allocation_offset,
-                               image,
-                               nullptr);
-  BLI_assert(result == VK_SUCCESS);
+  /* Then, bindd to the provided allocation */
+  VmaAllocator allocator = device.mem_allocator_get();
+  VkResult bind_result = vmaBindImageMemory2(
+      allocator, info.allocation, info.allocation_local_segment.offset, image, nullptr);
+  UNUSED_VARS(bind_result);
+  BLI_assert(bind_result == VK_SUCCESS);
+
+  /* Insert handle into cache. */
+  cache_.add_new(info, {.image = image});
 
   /* TODO(not_mark): pass in name */
   device.resources.add_aliased_image(image, false, "uhh");
@@ -74,10 +91,30 @@ VkImage VKImageCache::get_or_create(VKImageInfo &&info)
   return image;
 }
 
-std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
+void VKImageCache::reset(bool force_reset)
+{
+  /* Track VKImageInfo keys corresponding to VkImages that need to be deleted. */
+  Vector<VKImageInfo> unused_images;
+
+  /* Iterate cache; add keys of images hitting `unused_cycles_count` to `unused_images`.  */
+  for (decltype(cache_)::MutableItem item : cache_.items()) {
+    item.value.unused_cycles_count++;
+    if (force_reset == true || item.value.unused_cycles_count >= max_unused_cycles_) {
+      unused_images.append(item.key);
+    }
+  }
+
+  /* Remove unused images from cache, and forward VkImage handles to discard pool.  */
+  for (const VKImageInfo &key : unused_images) {
+    VKImageHandle handle = cache_.pop(key);
+    VKDiscardPool::discard_pool_get().discard_image(handle.image, VK_NULL_HANDLE);
+  }
+}
+
+std::optional<VKDeviceSegment> VKTexturePool::AllocationHandle::acquire(
     VkMemoryRequirements requirements)
 {
-  /* `memoryType` uses 0 as special value to indicate no memory type restrictions.
+  /* `memoryType` uses 0 as special value to indicate no memory type restrictions.n
    * If there are restrictions, we check as a mask against `memoryTypeBits`. */
   uint32_t memory_type_bit = 1u << allocation_info.memoryType;
   if (allocation_info.memoryType != 0 && !bool(requirements.memoryTypeBits & memory_type_bit)) {
@@ -86,26 +123,27 @@ std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
 
   /* Find the first compatible segment. If a segment is found, we keep the iterator
    * to modify the existing segment in the list, as it may be shrunk or split. */
-  auto found_segment = std::find_if(segments.begin(), segments.end(), [&](const Segment &segment) {
-    VkDeviceSize aligned_offset = ceil_to_multiple_ul(segment.offset, requirements.alignment);
-    VkDeviceSize remaining_size = segment.size - (aligned_offset - segment.offset);
-    return
-        /* Check: the aligned offset does not lie past the segment's end. */
-        aligned_offset < segment.offset + segment.size &&
-        /* Check: the segment's remaining size is large enough. */
-        remaining_size >= requirements.size;
-  });
+  auto found_segment = std::find_if(
+      segments.begin(), segments.end(), [&](const VKDeviceSegment &segment) {
+        VkDeviceSize aligned_offset = ceil_to_multiple_ul(segment.offset, requirements.alignment);
+        VkDeviceSize remaining_size = segment.size - (aligned_offset - segment.offset);
+        return
+            /* Check: the aligned offset does not lie past the segment's end. */
+            aligned_offset < segment.offset + segment.size &&
+            /* Check: the segment's remaining size is large enough. */
+            remaining_size >= requirements.size;
+      });
   if (found_segment == segments.end()) {
     return {};
   }
 
   /* The return segment is split from the found segment, starting at the aligned offset. This
    * implies there are now segments before/after it. */
-  Segment segment = {ceil_to_multiple_ul(found_segment->offset, requirements.alignment),
-                     requirements.size};
-  Segment segment_prev = {found_segment->offset, segment.offset - found_segment->offset};
-  Segment segment_next = {segment.offset + segment.size,
-                          found_segment->size - segment.size - segment_prev.size};
+  VKDeviceSegment segment = {ceil_to_multiple_ul(found_segment->offset, requirements.alignment),
+                             requirements.size};
+  VKDeviceSegment segment_prev = {found_segment->offset, segment.offset - found_segment->offset};
+  VKDeviceSegment segment_next = {segment.offset + segment.size,
+                                  found_segment->size - segment.size - segment_prev.size};
 
   /* Depending on the segments before/after, we shrink/split/remove the stored segment. */
   if (segment_prev.size > 0 && segment_next.size > 0) {
@@ -125,12 +163,13 @@ std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
   return segment;
 }
 
-void VKTexturePool::AllocationHandle::release(Segment segment)
+void VKTexturePool::AllocationHandle::release(VKDeviceSegment segment)
 {
   /* Find the segments directly before/after the released segment, if they exist. */
-  auto segment_next = std::find_if(segments.begin(), segments.end(), [segment](Segment next) {
-    return segment.offset < next.offset;
-  });
+  auto segment_next = std::find_if(
+      segments.begin(), segments.end(), [segment](VKDeviceSegment next) {
+        return segment.offset < next.offset;
+      });
   auto segment_prev = segment_next;
   if (segment_prev != segments.begin()) {
     --segment_prev;
@@ -285,68 +324,65 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   /* Query memory requirements. */
   VkImage image = VK_NULL_HANDLE;
   VkMemoryRequirements2 memory_requirements = {.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
-  /* TODO(not_nark): vkGetDeviceImageMemoryRequirements appears not loaded on some platforms. */
-  // if (device.extensions_get().maintenance4) {
-  //   /* If `VK_KHR_maintenance4` is available, we create requirements from
-  //    * VkImageCreateInfo, and delay creating a VkImage handle. */
-  //   VkDeviceImageMemoryRequirements requirements_info = {
-  //       .sType = VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS,
-  //       .pNext = nullptr,
-  //       .pCreateInfo = &create_info,
-  //       .planeAspect = VK_IMAGE_ASPECT_NONE,
-  //   };
-  //   vkGetDeviceImageMemoryRequirements(
-  //       device.vk_handle(), &requirements_info, &memory_requirements);
-  // }
-  // else {
-  /* If `VK_KHR_maintenance4` is not available, we'll have to create an image handle
-   * either way. If a matching handle is already cached, we'll discard it. */
-  VkResult result = vkCreateImage(device.vk_handle(), &create_info, nullptr, &image);
-  UNUSED_VARS(result);
-  BLI_assert(result == VK_SUCCESS);
+  if (device.extensions_get().maintenance4) {
+    /* If `VK_KHR_maintenance4` is available, we create requirements from
+     * VkImageCreateInfo, and delay creating a VkImage handle. */
+    VkDeviceImageMemoryRequirements requirements_info = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS,
+        .pNext = nullptr,
+        .pCreateInfo = &create_info,
+        .planeAspect = VK_IMAGE_ASPECT_NONE,
+    };
+    device.functions.vkGetDeviceImageMemoryRequirements(
+        device.vk_handle(), &requirements_info, &memory_requirements);
+  }
+  else {
+    /* If `VK_KHR_maintenance4` is not available, we'll have to create an image handle
+     * either way. If a matching handle is already cached, we'll discard it. */
+    VkResult result = vkCreateImage(device.vk_handle(), &create_info, nullptr, &image);
+    UNUSED_VARS(result);
+    BLI_assert(result == VK_SUCCESS);
 
-  VkImageMemoryRequirementsInfo2 requirements_info = {
-      .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
-      .pNext = nullptr,
-      .image = image,
-  };
-  vkGetImageMemoryRequirements2(device.vk_handle(), &requirements_info, &memory_requirements);
-  // }
+    VkImageMemoryRequirementsInfo2 requirements_info = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
+        .pNext = nullptr,
+        .image = image,
+    };
+    vkGetImageMemoryRequirements2(device.vk_handle(), &requirements_info, &memory_requirements);
+  }
 
   /* Create texture object with no backing allocation, wrapped in `TextureHandle`. */
   TextureHandle texture_handle;
   texture_handle.alloc(extent, format, usage, name_str.c_str());
 
-  /* TODO(not_mark): remove */
-  // /* Query the requirements for this specific image. */
-  // VkMemoryRequirements memory_requirements;
-  // vkGetImageMemoryRequirements(
-  //     device.vk_handle(), texture_handle.texture->vk_image_, &memory_requirements);
-
   /* Find a compatible segment of allocated memory. */
   for (AllocationHandle handle : allocations_) {
-    std::optional<Segment> segment_opt = handle.acquire(memory_requirements.memoryRequirements);
+    std::optional<VKDeviceSegment> segment_opt = handle.acquire(
+        memory_requirements.memoryRequirements);
     if (segment_opt) {
-      texture_handle.allocation_handle = handle;
-      texture_handle.allocation_segment = segment_opt.value();
+      texture_handle.allocation = handle.allocation;
+      texture_handle.local_segment = segment_opt.value();
+      texture_handle.local_segment.offset -= handle.allocation_info.offset;
       allocations_.add_overwrite(handle);
       break;
     }
   }
 
   /* If no compatible region was found, allocate new memory. */
-  if (texture_handle.allocation_handle.allocation == VK_NULL_HANDLE) {
+  if (texture_handle.allocation == VK_NULL_HANDLE) {
     VkMemoryRequirements allocation_requirements = memory_requirements.memoryRequirements;
     allocation_requirements.size = std::max(allocation_size, allocation_requirements.size);
 
     AllocationHandle handle;
     handle.alloc(allocation_requirements);
 
-    std::optional<Segment> segment_opt = handle.acquire(memory_requirements.memoryRequirements);
+    std::optional<VKDeviceSegment> segment_opt = handle.acquire(
+        memory_requirements.memoryRequirements);
     if (segment_opt) {
       allocations_.add(handle);
-      texture_handle.allocation_handle = handle;
-      texture_handle.allocation_segment = segment_opt.value();
+      texture_handle.allocation = handle.allocation;
+      texture_handle.local_segment = segment_opt.value();
+      texture_handle.local_segment.offset -= handle.allocation_info.offset;
     }
     else {
       BLI_assert_unreachable();
@@ -354,8 +390,8 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   }
 
   /* Next, find an existing VkImage handle, bound to this segment of the allocation. */
-  ImageHandle image_handle = {.allocation = texture_handle.allocation_handle.allocation,
-                              .allocation_segment = texture_handle.allocation_segment,
+  ImageHandle image_handle = {.allocation = texture_handle.allocation,
+                              .local_segment = texture_handle.local_segment,
                               .format = create_info.format,
                               .flags = create_info.flags,
                               .usage = create_info.usage,
@@ -382,8 +418,8 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
 
     /* Bind VkImage to allocation and set as backing image for texture. */
     VkResult result = vmaBindImageMemory2(device.mem_allocator_get(),
-                                          texture_handle.allocation_handle.allocation,
-                                          texture_handle.allocation_local_offset(),
+                                          texture_handle.allocation,
+                                          texture_handle.local_segment.offset,
                                           image_handle.image,
                                           nullptr);
 
@@ -404,7 +440,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
 
   if (G.debug & G_DEBUG_GPU) {
     /* Accumulate usage data for debug log. */
-    current_usage_data_.acquired_segment_size += texture_handle.allocation_segment.size;
+    current_usage_data_.acquired_segment_size += texture_handle.local_segment.size;
     current_usage_data_.acquired_segment_size_max = std::max(
         current_usage_data_.acquired_segment_size_max, current_usage_data_.acquired_segment_size);
   }
@@ -423,12 +459,14 @@ void VKTexturePool::release_texture(Texture *tex)
   TextureHandle texture_handle = acquired_.lookup_key({unwrap(tex)});
 
   if (G.debug & G_DEBUG_GPU) {
-    current_usage_data_.acquired_segment_size -= texture_handle.allocation_segment.size;
+    current_usage_data_.acquired_segment_size -= texture_handle.local_segment.size;
   }
 
   /* Move allocation back to `pool_`. */
-  AllocationHandle page_handle = allocations_.lookup_key(texture_handle.allocation_handle);
-  page_handle.release(texture_handle.allocation_segment);
+  AllocationHandle page_handle = allocations_.lookup_key(
+      AllocationHandle{.allocation = texture_handle.allocation});
+  texture_handle.local_segment.offset += page_handle.allocation_info.offset;
+  page_handle.release(texture_handle.local_segment);
   page_handle.unused_cycles_count = 0;
   allocations_.add_overwrite(page_handle);
 
@@ -481,7 +519,7 @@ void VKTexturePool::reset(bool force_free)
     previous_usage_data_ = current_usage_data_;
     current_usage_data_ = {};
     for (const TextureHandle &tex : acquired_) {
-      current_usage_data_.acquired_segment_size += tex.allocation_segment.size;
+      current_usage_data_.acquired_segment_size += tex.local_segment.size;
     }
   }
 }
@@ -503,4 +541,5 @@ void VKTexturePool::log_usage_data()
              current_usage_data_.allocation_count);
 }
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender
