@@ -24,6 +24,7 @@
 
 #  include "BLI_listbase.h"
 #  include "BLI_math_base.h"
+#  include "BLI_memory_utils.hh"
 #  include "BLI_string.h"
 #  include "BLI_string_utf8.h"
 #  include "BLI_string_utils.hh"
@@ -309,9 +310,7 @@ static void rna_annotation_stroke_point_add(bGPDstroke *stroke,
 
   /* Copy existing points using assignment (void* cast to avoid -Wclass-memaccess). */
   if (old_points && old_count > 0) {
-    void *dst = stroke->points;
-    const void *src = old_points;
-    memmove(dst, src, sizeof(bGPDspoint) * old_count);
+    uninitialized_move_n(old_points, old_count, stroke->points);
   }
 
   for (int i = old_count; i < new_count; i++) {
@@ -359,16 +358,12 @@ static void rna_annotation_stroke_point_remove(bGPDstroke *stroke,
 
   /* Copy points before removed index. */
   if (index > 0) {
-    void *dst = stroke->points;
-    const void *src = old_points;
-    memmove(dst, src, sizeof(bGPDspoint) * index);
+    uninitialized_move_n(old_points, index, stroke->points);
   }
 
   /* Copy points after removed index. */
   if (index < new_count) {
-    void *dst = &stroke->points[index];
-    const void *src = &old_points[index + 1];
-    memmove(dst, src, sizeof(bGPDspoint) * (new_count - index));
+    uninitialized_move_n(&old_points[index + 1], new_count - index, &stroke->points[index]);
   }
 
   MEM_delete(old_points);
