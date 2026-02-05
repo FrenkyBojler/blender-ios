@@ -2985,6 +2985,68 @@ static void UI_OT_drop_material(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Start / Clear Region Search Filter Operators
+ *
+ * \{ */
+
+static wmOperatorStatus region_start_filter_exec(bContext *C, wmOperator * /*op*/)
+{
+  SpaceUserPref *space = CTX_wm_space_userpref(C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
+  ui::textbutton_activate_rna(C, region, region, "search_filter");
+  return OPERATOR_FINISHED;
+}
+
+bool region_start_filter_poll(blender::bContext *C)
+{
+  ARegion *region = CTX_wm_region(C);
+  return region && BKE_regiontype_uses_panel_categories_search(region->runtime->type);
+}
+
+void UI_OT_region_start_filter(wmOperatorType *ot)
+{
+  ot->name = "Filter";
+  ot->description = "Start entering filter text";
+  ot->idname = "UI_OT_region_start_filter";
+  ot->exec = region_start_filter_exec;
+  ot->poll = region_start_filter_poll;
+}
+
+static wmOperatorStatus region_clear_filter_exec(bContext *C, wmOperator * /*op*/)
+{
+  ARegion *region = CTX_wm_region(C);
+  region->runtime->search_filter.clear();
+  region->runtime->categories_search_match.clear();
+  ED_region_search_filter_update(CTX_wm_area(C), region);
+  ED_region_tag_redraw(region);
+  return OPERATOR_FINISHED;
+}
+
+bool reion_clear_filter_poll(blender::bContext *C)
+{
+  if (!region_start_filter_poll(C)) {
+    return false;
+  }
+  ARegion *region = CTX_wm_region(C);
+  if (region->runtime->search_filter.empty() || region->runtime->search_filter == "") {
+    return false;
+  }
+  return true;
+}
+
+void UI_OT_region_clear_filter(wmOperatorType *ot)
+{
+  ot->name = "Clear Filter";
+  ot->description = "Clear the search filter";
+  ot->idname = "UI_OT_region_clear_filter";
+  ot->exec = region_clear_filter_exec;
+  ot->poll = reion_clear_filter_poll;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Operator & Keymap Registration
  * \{ */
 
@@ -3034,6 +3096,9 @@ void operatortypes_ui()
   WM_operatortype_append(UI_OT_eyedropper_driver);
   WM_operatortype_append(UI_OT_eyedropper_bone);
   WM_operatortype_append(UI_OT_eyedropper_grease_pencil_color);
+
+  WM_operatortype_append(UI_OT_region_start_filter);
+  WM_operatortype_append(UI_OT_region_clear_filter);
 }
 
 void keymap_ui(wmKeyConfig *keyconf)

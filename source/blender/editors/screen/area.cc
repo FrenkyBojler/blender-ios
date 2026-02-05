@@ -854,8 +854,9 @@ void ED_region_search_filter_update(const ScrArea *area, ARegion *region)
 
   const char *search_filter = ED_area_region_search_filter_get(area, region);
   SET_FLAG_FROM_TEST(region->flag,
-                     region->regiontype == RGN_TYPE_WINDOW && search_filter &&
-                         search_filter[0] != '\0',
+                     (BKE_regiontype_uses_panel_categories_search(region->runtime->type) ||
+                      region->regiontype == RGN_TYPE_WINDOW) &&
+                         search_filter && search_filter[0] != '\0',
                      RGN_FLAG_SEARCH_FILTER_ACTIVE);
 }
 

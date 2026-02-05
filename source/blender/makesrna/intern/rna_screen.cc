@@ -446,13 +446,7 @@ static int rna_Region_search_filter_editable(const PointerRNA *ptr, const char *
 static void rna_Region_search_filter_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   ARegion *region = static_cast<ARegion *>(ptr->data);
-
-  region->flag |= RGN_FLAG_SEARCH_FILTER_UPDATE;
-  StringRef search_filter = region->runtime->search_filter;
-  SET_FLAG_FROM_TEST(region->flag,
-                     region->regiontype == RGN_TYPE_UI && !search_filter.is_empty() &&
-                         search_filter[0] != '\0',
-                     RGN_FLAG_SEARCH_FILTER_ACTIVE);
+  ED_region_search_filter_update(nullptr, region);
 }
 
 }  // namespace blender
