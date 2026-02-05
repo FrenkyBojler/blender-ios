@@ -65,6 +65,8 @@
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
 
+#include "BLT_translation.hh"
+
 #include "NOD_texture.h"
 
 #include "DEG_depsgraph.hh"
@@ -872,7 +874,7 @@ bool stroke_is_dyntopo(const Object &object, const Brush &brush)
   return ((pbvh.type() == bke::pbvh::Type::BMesh) && (!ss.cache || (!ss.cache->alt_smooth)) &&
           /* Requires mesh restore, which doesn't work with
            * dynamic-topology. */
-          !(brush.flag & BRUSH_ANCHORED) && !(brush.flag & BRUSH_DRAG_DOT) &&
+          !(ELEM(brush.stroke_method, BRUSH_STROKE_ANCHORED, BRUSH_STROKE_DRAG_DOT)) &&
           bke::brush::supports_dyntopo(brush));
 }
 
@@ -2595,7 +2597,7 @@ static void update_sculpt_normal(const Depsgraph &depsgraph,
   const bool update_normal = !(brush.flag & BRUSH_ORIGINAL_NORMAL) &&
                              !(brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_GRAB) &&
                              !(brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_THUMB &&
-                               !(brush.flag & BRUSH_ANCHORED)) &&
+                               !(brush.stroke_method == BRUSH_STROKE_ANCHORED)) &&
                              !(brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_ELASTIC_DEFORM) &&
                              !(brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SNAKE_HOOK &&
                                cache.normal_weight > 0.0f);
@@ -4031,7 +4033,9 @@ static float brush_dynamic_size_get(const Brush &brush,
  * generally used to create grab deformations. */
 static bool need_delta_from_anchored_origin(const Brush &brush)
 {
-  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SMEAR && (brush.flag & BRUSH_ANCHORED)) {
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SMEAR &&
+      (brush.stroke_method == BRUSH_STROKE_ANCHORED))
+  {
     return true;
   }
 
@@ -4141,7 +4145,7 @@ static void brush_delta_update(const Depsgraph &depsgraph,
       add_v3_v3(cache->grab_delta, delta);
     }
     else if (need_delta_for_tip_orientation(brush)) {
-      if (brush.flag & BRUSH_ANCHORED) {
+      if (brush.stroke_method == BRUSH_STROKE_ANCHORED) {
         float orig[3];
         mul_v3_m4v3(orig, ob.object_to_world().ptr(), cache->orig_grab_location);
         sub_v3_v3v3(cache->grab_delta, grab_location, orig);
@@ -5031,7 +5035,7 @@ static void restore_from_undo_step_if_necessary(const Depsgraph &depsgraph,
   }
 
   /* Restore the mesh before continuing with anchored stroke. */
-  if (brush->flag & BRUSH_ANCHORED || brush->flag & BRUSH_DRAG_DOT) {
+  if (ELEM(brush->stroke_method, BRUSH_STROKE_ANCHORED, BRUSH_STROKE_DRAG_DOT)) {
 
     undo::restore_from_undo_step(depsgraph, sd, ob);
 
@@ -5545,6 +5549,20 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
   cache->invert = stroke_mode == BrushStrokeMode::Invert;
   cache->alt_smooth = brush_switch_mode == BrushSwitchMode::Smooth;
   cache->alt_mask = brush_switch_mode == BrushSwitchMode::Mask;
+
+  /* Alt-Smooth. */
+  if (cache->alt_smooth) {
+    smooth_brush_toggle_on(bmain_, this->paint, cache);
+    /* Refresh the brush pointer in case we switched brush in the toggle function. */
+    brush = BKE_paint_brush(this->paint);
+  }
+  /* Alt-Mask. */
+  if (cache->alt_mask) {
+    mask_brush_toggle_on(bmain_, this->paint, cache);
+    /* Refresh brush pointer after switching. */
+    brush = BKE_paint_brush(this->paint);
+  }
+
   cache->normal_weight = brush->normal_weight;
 
   /* Interpret invert as following normal, for grab brushes. */
@@ -5562,19 +5580,6 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
   }
   else {
     paint_runtime->draw_inverted = false;
-  }
-
-  /* Alt-Smooth. */
-  if (cache->alt_smooth) {
-    smooth_brush_toggle_on(bmain_, this->paint, cache);
-    /* Refresh the brush pointer in case we switched brush in the toggle function. */
-    brush = BKE_paint_brush(this->paint);
-  }
-  /* Alt-Mask. */
-  if (cache->alt_mask) {
-    mask_brush_toggle_on(bmain_, this->paint, cache);
-    /* Refresh brush pointer after switching. */
-    brush = BKE_paint_brush(this->paint);
   }
 
   cache->mouse = cache->initial_mouse;
@@ -5615,7 +5620,7 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
   cache->accum = true;
 
   /* Make copies of the mesh vertex locations and normals for some brushes. */
-  if (brush->flag & BRUSH_ANCHORED) {
+  if (brush->stroke_method == BRUSH_STROKE_ANCHORED) {
     cache->accum = false;
   }
 
@@ -5710,7 +5715,7 @@ void SculptPaintStroke::stroke_cache_update(PointerRNA *ptr)
   Brush &brush = *BKE_paint_brush(&paint);
 
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(cache) ||
-      !((brush.flag & BRUSH_ANCHORED) ||
+      !((brush.stroke_method == BRUSH_STROKE_ANCHORED) ||
         (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SNAKE_HOOK) ||
         (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_ROTATE) ||
         cloth::is_cloth_deform_brush(brush)))
@@ -5773,7 +5778,7 @@ void SculptPaintStroke::stroke_cache_update(PointerRNA *ptr)
 
   cache.radius_squared = cache.radius * cache.radius;
 
-  if (brush.flag & BRUSH_ANCHORED) {
+  if (brush.stroke_method == BRUSH_STROKE_ANCHORED) {
     /* True location has been calculated as part of the stroke system already here. */
     if (brush.flag & BRUSH_EDGE_TO_EDGE) {
       RNA_float_get_array(ptr, "location", cache.location);
@@ -5955,6 +5960,11 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   if (brush_type_is_mask(brush.sculpt_brush_type)) {
     MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
     BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_pointer(C), CTX_data_main(C), &ob, mmd);
+
+    ed::sculpt_paint::mask_overlay_check(*C, *op);
+  }
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW_FACE_SETS) {
+    ed::sculpt_paint::face_set_overlay_check(*C, *op);
   }
   if (!brush_type_is_attribute_only(brush.sculpt_brush_type) &&
       report_if_shape_key_is_locked(ob, op->reports))
@@ -5989,8 +5999,11 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   OPERATOR_RETVAL_CHECK(retval);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
-    MEM_delete(stroke);
-    stroke->free(C, op);
+    SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op->customdata);
+    if (stroke) {
+      MEM_delete(stroke);
+      stroke->free(C, op);
+    }
     return retval;
   }
   /* Add modal handler. */
@@ -6039,6 +6052,7 @@ static wmOperatorStatus brush_stroke_modal(bContext *C, wmOperator *op, const wm
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);
+    op->customdata = nullptr;
   }
 
   return retval;
@@ -8180,6 +8194,50 @@ void filter_above_plane_factors(const Span<float3> positions,
   for (const int i : positions.index_range()) {
     if (plane_point_side_v3(plane, positions[i]) > 0.0f) {
       factors[i] = 0.0f;
+    }
+  }
+}
+
+void mask_overlay_check(bContext &C, wmOperator &op)
+{
+  View3D *v3d = CTX_wm_view3d(&C);
+  if (!v3d) {
+    return;
+  }
+
+  if (v3d->flag2 & V3D_HIDE_OVERLAYS) {
+    BKE_report(op.reports, RPT_WARNING, RPT_("Viewport overlays are disabled"));
+  }
+  else {
+    if (!(v3d->overlay.flag & V3D_OVERLAY_SCULPT_SHOW_MASK)) {
+      v3d->overlay.flag |= V3D_OVERLAY_SCULPT_SHOW_MASK;
+      WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    }
+
+    if (v3d->overlay.sculpt_mode_mask_opacity == 0.0f) {
+      BKE_report(op.reports, RPT_WARNING, RPT_("Mask overlay opacity is currently set to 0"));
+    }
+  }
+}
+
+void face_set_overlay_check(bContext &C, wmOperator &op)
+{
+  View3D *v3d = CTX_wm_view3d(&C);
+  if (!v3d) {
+    return;
+  }
+
+  if (v3d->flag2 & V3D_HIDE_OVERLAYS) {
+    BKE_report(op.reports, RPT_WARNING, RPT_("Viewport overlays are disabled"));
+  }
+  else {
+    if (!(v3d->overlay.flag & V3D_OVERLAY_SCULPT_SHOW_FACE_SETS)) {
+      v3d->overlay.flag |= V3D_OVERLAY_SCULPT_SHOW_FACE_SETS;
+      WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    }
+
+    if (v3d->overlay.sculpt_mode_face_sets_opacity == 0.0f) {
+      BKE_report(op.reports, RPT_WARNING, RPT_("Face Sets overlay opacity is currently set to 0"));
     }
   }
 }

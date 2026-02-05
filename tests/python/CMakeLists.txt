@@ -716,6 +716,13 @@ if(TEST_SRC_DIR_EXISTS)
     --
     --testdir "${TEST_SRC_DIR}/node_group"
   )
+
+  add_blender_test(
+    bl_node_link_drag
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_link_drag.py
+    --
+    --testdir "${TEST_SRC_DIR}/node_group"
+  )
 endif()
 
 # ------------------------------------------------------------------------------
@@ -760,6 +767,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     node_inlining
     pointcloud
     principled_bsdf
+    raycast
     shader
     shadow
     shadow_catcher
@@ -820,7 +828,6 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
 
   # Cycles
   if(WITH_CYCLES)
-    set(_cycles_blocklist "")
     set(_cycles_all_test_devices CPU CUDA OPTIX HIP HIP-RT METAL METAL-RT ONEAPI ONEAPI-RT)
     set(_cycles_osl_test_devices CPU OPTIX)
     foreach(_cycles_device ${CYCLES_TEST_DEVICES})
@@ -1332,7 +1339,7 @@ if(TEST_SRC_DIR_EXISTS)
     blend_modes_byte
     blend_modes_float
   )
-  set(video_output_tests)
+  set(video_output_tests "")
 
   if(WITH_LIBMV)
     list(APPEND render_tests effects)
@@ -1383,6 +1390,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_sculpt_mask
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mask_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/sculpting"
+  )
+
+  add_blender_test(
+    bl_sculpt_face_set
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/face_set_test.py
     --
     --testdir "${TEST_SRC_DIR}/sculpting"
   )
@@ -1456,8 +1470,12 @@ if(WITH_UI_TESTS)
   # list explicitly so changes bisecting/updated are sure to re-run CMake.
   set(_ui_tests
     test_sculpt.asset_shelf_brush_selection
-    test_sculpt.mask_expand_and_invert
     test_sculpt.face_set_expand
+    test_sculpt.face_set_gestures
+    test_sculpt.hide_gestures
+    test_sculpt.mask_expand_and_invert
+    test_sculpt.mask_gestures
+    test_sculpt.trim_gestures
     test_tools.sculpt_mode_toolbar
     test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix
