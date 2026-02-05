@@ -737,13 +737,6 @@ void SEQUENCER_OT_snap(wmOperatorType *ot)
               INT_MIN,
               INT_MAX);
 
-  RNA_def_boolean(
-      ot->srna,
-      "keep_offset",
-      true,
-      "Keep Offset",
-      "Whether the selection should be snapped as a whole or by each individual strip");
-
   PropertyRNA *prop;
   prop = RNA_def_enum(
       ot->srna,
@@ -753,6 +746,13 @@ void SEQUENCER_OT_snap(wmOperatorType *ot)
       "Snap Side",
       "Which side of the playhead strips should snap to when no handles are selected");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  RNA_def_boolean(
+      ot->srna,
+      "keep_offset",
+      true,
+      "Keep Offset",
+      "Whether the selection should be snapped as a whole or by each individual strip");
 }
 
 /** \} */
