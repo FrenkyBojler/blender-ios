@@ -12,6 +12,7 @@
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "DNA_listBase.h"
 #include "DNA_node_types.h"
@@ -23,14 +24,13 @@
 
 #include "IMB_imbuf_types.hh"
 
-#include "NOD_compositor_gizmos.hh" /* Own include. */
-
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "NOD_compositor_gizmos.hh" /* Own include. */
 namespace blender::nodes::gizmos {
 
 /* -------------------------------------------------------------------- */
@@ -50,7 +50,7 @@ static float2 node_gizmo_safe_calc_dims(const ImBuf *ibuf, const float2 &fallbac
   return fallback_dims;
 }
 
-SpaceNode *find_active_node_editor(const bContext *C)
+static SpaceNode *find_active_node_editor(const bContext *C)
 {
   wmWindowManager *window_manager = CTX_wm_manager(C);
 
@@ -74,12 +74,12 @@ SpaceNode *find_active_node_editor(const bContext *C)
   return nullptr;
 }
 
-void node_gizmo_calc_matrix_space_with_image_dims(const ARegion *region,
-                                                  const float zoom,
-                                                  const float2 space_offset,
-                                                  const float2 &image_dims,
-                                                  const float2 &image_offset,
-                                                  float matrix_space[4][4])
+static void node_gizmo_calc_matrix_space_with_image_dims(const ARegion *region,
+                                                         const float zoom,
+                                                         const float2 space_offset,
+                                                         const float2 &image_dims,
+                                                         const float2 &image_offset,
+                                                         float matrix_space[4][4])
 {
   unit_m4(matrix_space);
   mul_v3_fl(matrix_space[0], zoom * image_dims.x);
@@ -90,10 +90,10 @@ void node_gizmo_calc_matrix_space_with_image_dims(const ARegion *region,
                        ((image_dims.y / 2.0f - image_offset.y) * zoom);
 }
 
-void node_gizmo_calc_matrix_space(const ARegion *region,
-                                  const float zoom,
-                                  const float2 offset,
-                                  float matrix_space[4][4])
+static void node_gizmo_calc_matrix_space(const ARegion *region,
+                                         const float zoom,
+                                         const float2 offset,
+                                         float matrix_space[4][4])
 {
   unit_m4(matrix_space);
   mul_v3_fl(matrix_space[0], zoom);
@@ -102,7 +102,7 @@ void node_gizmo_calc_matrix_space(const ARegion *region,
   matrix_space[3][1] = (region->winy / 2) - offset.y;
 }
 
-bool node_gizmo_is_set_visible(const SpaceNode &snode)
+static bool node_gizmo_is_set_visible(const SpaceNode &snode)
 {
   if ((snode.flag & SNODE_BACKDRAW) == 0) {
     return false;
@@ -119,7 +119,7 @@ bool node_gizmo_is_set_visible(const SpaceNode &snode)
   return false;
 }
 
-bool image_gizmo_is_set_visible(const SpaceImage &sima)
+static bool image_gizmo_is_set_visible(const SpaceImage &sima)
 {
   if (!ELEM(sima.mode, SI_MODE_VIEW, SI_MODE_MASK)) {
     return false;
@@ -149,6 +149,29 @@ struct NodeBBoxWidgetGroup {
   } update_data;
 };
 
+static bool show_box_mask_gizmo(const SpaceNode &snode)
+{
+  bNodeTree *node_tree = snode.edittree;
+  BLI_assert(node_tree);
+
+  bNode *node = bke::node_get_active(*node_tree);
+  if (node == nullptr) {
+    return false;
+  }
+
+  if (node && node->is_type("CompositorNodeBoxMask")) {
+    node_tree->ensure_topology_cache();
+    for (bNodeSocket &input : node->inputs) {
+      if (STR_ELEM(input.name, "Position", "Size", "Rotation") && input.is_directly_linked()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
 bool WIDGETGROUP_node_box_mask_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   const SpaceImage *sima = CTX_wm_space_image(C);
@@ -165,7 +188,7 @@ bool WIDGETGROUP_node_box_mask_poll_space_image(const bContext *C, wmGizmoGroupT
     return false;
   }
 
-  return box_mask_show(*snode);
+  return show_box_mask_gizmo(*snode);
 }
 
 bool WIDGETGROUP_node_box_mask_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
@@ -178,7 +201,7 @@ bool WIDGETGROUP_node_box_mask_poll_space_node(const bContext *C, wmGizmoGroupTy
     return false;
   }
 
-  return box_mask_show(*snode);
+  return show_box_mask_gizmo(*snode);
 }
 
 void WIDGETGROUP_node_box_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
@@ -200,29 +223,6 @@ void WIDGETGROUP_node_box_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgro
   gzgroup->customdata_free = [](void *customdata) {
     MEM_delete(static_cast<NodeBBoxWidgetGroup *>(customdata));
   };
-}
-
-bool box_mask_show(const SpaceNode &snode)
-{
-  bNodeTree *node_tree = snode.edittree;
-  BLI_assert(node_tree);
-
-  bNode *node = bke::node_get_active(*node_tree);
-  if (node == nullptr) {
-    return false;
-  }
-
-  if (node && node->is_type("CompositorNodeBoxMask")) {
-    node_tree->ensure_topology_cache();
-    for (bNodeSocket &input : node->inputs) {
-      if (STR_ELEM(input.name, "Position", "Size", "Rotation") && input.is_directly_linked()) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  return false;
 }
 
 void WIDGETGROUP_bbox_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
@@ -497,6 +497,37 @@ static void gizmo_node_crop_prop_matrix_set(const wmGizmo *gz,
   gizmo_node_bbox_update(crop_group);
 }
 
+static bool show_crop_gizmo(const SpaceNode &snode)
+{
+  bNodeTree *node_tree = snode.edittree;
+  BLI_assert(node_tree);
+
+  bNode *node = bke::node_get_active(*node_tree);
+
+  if (!node || !node->is_type("CompositorNodeCrop")) {
+    return false;
+  }
+
+  node_tree->ensure_topology_cache();
+  for (bNodeSocket &input : node->inputs) {
+    if (!STREQ(input.name, "Image") && input.is_directly_linked()) {
+      /* Note: the Image input could be connected to a single value input, in which case the
+       * gizmo has no effect. */
+      return false;
+    }
+    else if (STREQ(input.name, "Alpha Crop") && !input.is_directly_linked()) {
+      PointerRNA input_rna_pointer = RNA_pointer_create_discrete(nullptr, RNA_NodeSocket, &input);
+      if (RNA_boolean_get(&input_rna_pointer, "default_value")) {
+        /* If Alpha Crop is not set, the image size changes depending on the input parameters,
+         * so we can't usefully edit the crop in this case. */
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 bool WIDGETGROUP_node_crop_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -507,7 +538,7 @@ bool WIDGETGROUP_node_crop_poll_space_node(const bContext *C, wmGizmoGroupType *
     return false;
   }
 
-  return crop_show(*snode);
+  return show_crop_gizmo(*snode);
 }
 
 bool WIDGETGROUP_node_crop_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
@@ -526,7 +557,7 @@ bool WIDGETGROUP_node_crop_poll_space_image(const bContext *C, wmGizmoGroupType 
     return false;
   }
 
-  return crop_show(*snode);
+  return show_crop_gizmo(*snode);
 }
 
 void WIDGETGROUP_node_crop_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
@@ -584,37 +615,6 @@ void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   BKE_image_release_ibuf(ima, ibuf, lock);
 }
 
-bool crop_show(const SpaceNode &snode)
-{
-  bNodeTree *node_tree = snode.edittree;
-  BLI_assert(node_tree);
-
-  bNode *node = bke::node_get_active(*snode.edittree);
-
-  if (!node || !node->is_type("CompositorNodeCrop")) {
-    return false;
-  }
-
-  snode.edittree->ensure_topology_cache();
-  for (bNodeSocket &input : node->inputs) {
-    if (!STREQ(input.name, "Image") && input.is_directly_linked()) {
-      /* Note: the Image input could be connected to a single value input, in which case the
-       * gizmo has no effect. */
-      return false;
-    }
-    else if (STREQ(input.name, "Alpha Crop") && !input.is_directly_linked()) {
-      PointerRNA input_rna_pointer = RNA_pointer_create_discrete(nullptr, RNA_NodeSocket, &input);
-      if (RNA_boolean_get(&input_rna_pointer, "default_value")) {
-        /* If Alpha Crop is not set, the image size changes depending on the input parameters,
-         * so we can't usefully edit the crop in this case. */
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
 void WIDGETGROUP_node_crop_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   NodeBBoxWidgetGroup *crop_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
@@ -639,16 +639,19 @@ struct NodeGlareWidgetGroup {
   } state;
 };
 
-bool show_glare(const SpaceNode &snode)
+static bool show_glare_gizmo(const SpaceNode &snode)
 {
-  bNode *node = bke::node_get_active(*snode.edittree);
+  bNodeTree *node_tree = snode.edittree;
+  BLI_assert(node_tree != nullptr);
+
+  bNode *node = bke::node_get_active(*node_tree);
 
   if (!node || !node->is_type("CompositorNodeGlare")) {
     return false;
   }
 
   bNodeSocket &type_socket = *bke::node_find_socket(*node, SOCK_IN, "Type");
-  snode.edittree->ensure_topology_cache();
+  node_tree->ensure_topology_cache();
   if (type_socket.is_directly_linked()) {
     return false;
   }
@@ -681,7 +684,7 @@ bool WIDGETGROUP_node_glare_poll_space_image(const bContext *C, wmGizmoGroupType
     return false;
   }
 
-  return show_glare(*snode);
+  return show_glare_gizmo(*snode);
 }
 
 void WIDGETGROUP_node_glare_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup)
@@ -712,7 +715,7 @@ bool WIDGETGROUP_node_glare_poll_space_node(const bContext *C, wmGizmoGroupType 
     return false;
   }
 
-  return show_glare(*snode);
+  return show_glare_gizmo(*snode);
 }
 
 void WIDGETGROUP_node_glare_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
@@ -791,7 +794,7 @@ struct NodeCornerPinWidgetGroup {
   } state;
 };
 
-bool show_corner_pin(const SpaceNode &snode)
+static bool show_corner_pin(const SpaceNode &snode)
 {
   bNode *node = bke::node_get_active(*snode.edittree);
 
@@ -941,6 +944,23 @@ void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgrou
   BKE_image_release_ibuf(ima, ibuf, lock);
 }
 
+static bool show_ellipse_mask_gizmo(const SpaceNode &snode)
+{
+  bNode *node = bke::node_get_active(*snode.edittree);
+
+  if (node && node->is_type("CompositorNodeEllipseMask")) {
+    snode.edittree->ensure_topology_cache();
+    for (bNodeSocket &input : node->inputs) {
+      if (STR_ELEM(input.name, "Position", "Size", "Rotation") && input.is_directly_linked()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
 bool WIDGETGROUP_node_ellipse_mask_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   const SpaceImage *sima = CTX_wm_space_image(C);
@@ -957,7 +977,7 @@ bool WIDGETGROUP_node_ellipse_mask_poll_space_image(const bContext *C, wmGizmoGr
     return false;
   }
 
-  return show_ellipse_mask(*snode);
+  return show_ellipse_mask_gizmo(*snode);
 }
 
 bool WIDGETGROUP_node_ellipse_mask_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
@@ -970,7 +990,7 @@ bool WIDGETGROUP_node_ellipse_mask_poll_space_node(const bContext *C, wmGizmoGro
     return false;
   }
 
-  return show_ellipse_mask(*snode);
+  return show_ellipse_mask_gizmo(*snode);
 }
 
 void WIDGETGROUP_node_ellipse_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
@@ -992,23 +1012,6 @@ void WIDGETGROUP_node_ellipse_mask_setup(const bContext * /*C*/, wmGizmoGroup *g
   gzgroup->customdata_free = [](void *customdata) {
     MEM_delete(static_cast<NodeBBoxWidgetGroup *>(customdata));
   };
-}
-
-bool show_ellipse_mask(const SpaceNode &snode)
-{
-  bNode *node = bke::node_get_active(*snode.edittree);
-
-  if (node && node->is_type("CompositorNodeEllipseMask")) {
-    snode.edittree->ensure_topology_cache();
-    for (bNodeSocket &input : node->inputs) {
-      if (STR_ELEM(input.name, "Position", "Size", "Rotation") && input.is_directly_linked()) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  return false;
 }
 
 static void gizmo_node_split_prop_matrix_get(const wmGizmo *gz,
@@ -1074,7 +1077,7 @@ static void gizmo_node_split_prop_matrix_set(const wmGizmo *gz,
   gizmo_node_bbox_update(split_group);
 }
 
-bool show_split(const SpaceNode &snode)
+static bool show_split(const SpaceNode &snode)
 {
   bNode *node = bke::node_get_active(*snode.edittree);
 
