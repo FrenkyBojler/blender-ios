@@ -1191,7 +1191,7 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
       } while (true);
     }
 
-    if (bmw_EdgeloopWalker_delimit_mark_check(walker, v, e, l)) {
+    if (l && bmw_EdgeloopWalker_delimit_mark_check(walker, v, e, l)) {
       l = nullptr;
     }
 
