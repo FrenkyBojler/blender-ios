@@ -3249,7 +3249,7 @@ static void rna_def_userdef_theme_space_userpref(BlenderRNA *brna)
       "Unused but kept for compatibility reasons. Setting the property has no effect, and getting "
       "it always returns a black color. This theme preference has been moved to "
       "#ThemeUserInterface.panel_header_search_match.",
-      501,
+      520,
       600);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Search Match", "");
@@ -3692,7 +3692,7 @@ static void rna_def_userdef_theme_space_buts(BlenderRNA *brna)
       "Unused but kept for compatibility reasons. Setting the property has no effect, and getting "
       "it always returns a black color. This theme preference has been moved to "
       "#ThemeUserInterface.panel_header_search_match.",
-      501,
+      520,
       600);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Search Match", "");
