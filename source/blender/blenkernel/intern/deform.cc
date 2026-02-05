@@ -1804,7 +1804,6 @@ MDeformVert mix_deform_verts(const Span<MDeformVert> src,
     return dst_dvert;
   }
 
-  dw_buffer.clear_and_keep_capacity();
   BLI_assert(!indices.is_empty());
   const float src_num_inv = math::rcp(float(indices.size()));
   for (const int i : indices.index_range()) {
@@ -1816,9 +1815,12 @@ MDeformVert mix_deform_verts(const Span<MDeformVert> src,
     }
   }
 
+  /* Sort within the existing buffer to allow reusing its memory across vertices.
+   * Note that this invalidates the indices, so the container is cleared right after. */
   std::sort(const_cast<MDeformWeight *>(dw_buffer.begin()),
             const_cast<MDeformWeight *>(dw_buffer.end()),
             [](const auto &a, const auto &b) { return a.def_nr < b.def_nr; });
+  dw_buffer.clear_and_keep_capacity();
 
   dst_dvert.dw = MEM_new_array_uninitialized<MDeformWeight>(dw_buffer.size(), __func__);
   dst_dvert.totweight = dw_buffer.size();
