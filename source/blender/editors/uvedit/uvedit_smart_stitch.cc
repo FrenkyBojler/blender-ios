@@ -602,7 +602,6 @@ static void state_delete(StitchState *state)
       BLI_ghash_free(state->edge_hash, nullptr, nullptr);
     }
     MEM_delete(state);
-    MEM_delete(state);
   }
 }
 
@@ -2201,8 +2200,7 @@ static StitchStateInit *stitch_extract_rna_selection(wmOperator *op,
 
   /* Retrieve list of selected UVs, one list contains all selected UVs
    * for all objects. */
-  ssc->objs_selection_count = static_cast<int *>(
-      MEM_mallocN(sizeof(int *) * objects.size(), "objects_selection_count"));
+  ssc->objs_selection_count = MEM_new_array_zeroed<int>(objects.size(), "objects_selection_count");
   RNA_int_get_array(op->ptr, "objects_selection_count", ssc->objs_selection_count);
 
   int total_selected = 0;
@@ -2210,7 +2208,7 @@ static StitchStateInit *stitch_extract_rna_selection(wmOperator *op,
     total_selected += ssc->objs_selection_count[ob_index];
   }
 
-  selected_uvs_arr = MEM_calloc_arrayN<UvElementID>(total_selected, "selected_uvs_arr");
+  selected_uvs_arr = MEM_new_array_zeroed<UvElementID>(total_selected, "selected_uvs_arr");
   int sel_idx = 0;
   RNA_BEGIN (op->ptr, itemptr, "selection") {
     BLI_assert(sel_idx < total_selected);
@@ -2222,9 +2220,8 @@ static StitchStateInit *stitch_extract_rna_selection(wmOperator *op,
 
   RNA_collection_clear(op->ptr, "selection");
 
-  state_init = MEM_callocN<StitchStateInit>("UV_init_selected");
+  state_init = MEM_new_zeroed<StitchStateInit>("UV_init_selected");
   state_init->to_select = selected_uvs_arr;
-  MEM_SAFE_FREE(selected_uvs_arr);
   return state_init;
 }
 
@@ -2251,9 +2248,8 @@ static StitchStateContainer *stitch_operator_settings_init(bContext *C, wmOperat
     return nullptr;
   }
 
-  StitchStateContainer *ssc = MEM_new_zeroed<StitchStateContainer>("stitch collection");
+  StitchStateContainer *ssc = MEM_new<StitchStateContainer>("stitch collection");
   ToolSettings *ts = scene->toolsettings;
-
 
   op->customdata = ssc;
   ssc->use_limit = RNA_boolean_get(op->ptr, "use_limit");
@@ -2288,10 +2284,6 @@ static StitchStateContainer *stitch_operator_settings_init(bContext *C, wmOperat
       }
     }
   }
-  int *objs_selection_count = nullptr;
-  UvElementID *selected_uvs_arr = nullptr;
-  StitchStateInit *state_init = nullptr;
-
 
   if (RNA_struct_property_is_set(op->ptr, "selection") &&
       RNA_struct_property_is_set(op->ptr, "objects_selection_count"))
@@ -2322,8 +2314,8 @@ int stitch_init_all(bContext *C,
     return 0;
   }
 
-  ssc->objects = MEM_calloc_arrayN<Object *>(objects.size(), "Object *ssc->objects");
-  ssc->states = MEM_calloc_arrayN<StitchState *>(objects.size(), "StitchState");
+  ssc->objects = MEM_new_array_zeroed<Object *>(objects.size(), "Object *ssc->objects");
+  ssc->states = MEM_new_array_zeroed<StitchState *>(objects.size(), "StitchState");
   ssc->objects_len = 0;
 
   for (uint ob_index = 0; ob_index < objects.size(); ob_index++) {
@@ -2346,8 +2338,10 @@ int stitch_init_all(bContext *C,
     }
   }
 
-  MEM_SAFE_FREE(ssc->objs_selection_count);
-  MEM_SAFE_FREE(ssc->state_init);
+  MEM_delete(ssc->objs_selection_count);
+  ssc->objs_selection_count = nullptr;
+  MEM_delete(ssc->state_init);
+  ssc->state_init = nullptr;
 
   ssc->active_object_index %= ssc->objects_len;
 
@@ -2367,7 +2361,7 @@ int stitch_init_all(bContext *C,
 
   stitch_update_header(ssc, C);
 
-  if (draw_preview) {
+  if (draw_preview && region) {
     ssc->draw_handle = ED_region_draw_cb_activate(
         region->runtime->type, stitch_draw, ssc, REGION_DRAW_POST_VIEW);
   }

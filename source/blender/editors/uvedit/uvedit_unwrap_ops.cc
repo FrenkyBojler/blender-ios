@@ -2186,7 +2186,7 @@ void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit, wmWindow *win_mod
     }
   }
   else {
-    geometry::uv_parametrizer_lscm_begin(handle, true, options.use_abf);
+    geometry::uv_parametrizer_lscm_begin(handle, true, options.use_abf, options.original_bounds);
   }
 
   /* Create or increase size of g_live_unwrap.handles array */
@@ -2768,7 +2768,8 @@ static void uvedit_unwrap(const Scene *scene,
         handle, &options->slim, options->original_bounds, r_count_changed, r_count_failed);
   }
   else {
-    geometry::uv_parametrizer_lscm_begin(handle, false, options->use_abf);
+    geometry::uv_parametrizer_lscm_begin(
+        handle, false, options->use_abf, options->original_bounds);
     geometry::uv_parametrizer_lscm_solve(handle, r_count_changed, r_count_failed);
     geometry::uv_parametrizer_lscm_end(handle);
   }
@@ -2928,6 +2929,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
     ssc->ignore_seam_boundary = true;
     if (!stitch_init_all(C, ssc, STITCH_VERT, false)) {
       BKE_report(op->reports, RPT_ERROR, "Could not initialize stitching");
+      MEM_delete(ssc);
       return OPERATOR_CANCELLED;
     }
 
