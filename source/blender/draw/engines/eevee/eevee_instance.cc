@@ -20,6 +20,7 @@
 
 #include "DEG_depsgraph_query.hh"
 
+#include "DNA_camera_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_modifier_types.h"
 
@@ -84,6 +85,7 @@ void Instance::init()
     }
 
     if (camera) {
+      const blender::Camera *cam = id_cast<const blender::Camera *>(camera->data);
       if (scene->r.mode & R_BORDER) {
         rctf viewborder;
         /* TODO(fclem) Might be better to get it from DRW. */
@@ -99,6 +101,11 @@ void Instance::init()
         rect.ymin = max(rect.ymin, 0);
         rect.xmax = min(rect.xmax, size.x);
         rect.ymax = min(rect.ymax, size.y);
+      }
+      else if ((cam->flag & CAM_SHOWPASSEPARTOUT) && cam->passepartalpha == 1.0f) {
+        rctf camborder;
+        ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &camborder);
+        BLI_rcti_rctf_copy(&rect, &camborder);
       }
     }
     else if (v3d->flag2 & V3D_RENDER_BORDER) {
