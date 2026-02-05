@@ -62,7 +62,6 @@ static PyObject *pygpu_batch__tp_new(PyTypeObject * /*type*/, PyObject *args, Py
 
   static const char *_keywords[] = {"type", "buf", "elem", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O&" /* `type` */
       "O!" /* `buf` */
@@ -219,7 +218,8 @@ static PyObject *pygpu_batch_program_set(BPyGPUBatch *self, BPyGPUShader *py_sha
       break;
     }
   }
-  if (i != -1) {
+  if (i == -1) {
+    /* No references set in the loop, so add it here. */
     PyList_Append(self->references, reinterpret_cast<PyObject *>(py_shader));
   }
 #endif
@@ -292,7 +292,7 @@ PyDoc_STRVAR(
     "\n"
     "   :arg shader: Shader that performs the drawing operations.\n"
     "      If ``None`` is passed, the last shader set to this batch will run.\n"
-    "   :type program: :class:`gpu.types.GPUShader`\n");
+    "   :type shader: :class:`gpu.types.GPUShader`\n");
 static PyObject *pygpu_batch_draw(BPyGPUBatch *self, PyObject *args)
 {
   static bool deprecation_warning_issued = false;
@@ -415,7 +415,6 @@ static PyObject *pygpu_batch_draw_instanced(BPyGPUBatch *self, PyObject *args, P
 
   static const char *_keywords[] = {"program", "instance_start", "instance_count", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O!" /* `program` */
       "|$" /* Optional keyword only arguments. */
       "i"  /* `instance_start` */
@@ -460,7 +459,6 @@ static PyObject *pygpu_batch_draw_range(BPyGPUBatch *self, PyObject *args, PyObj
 
   static const char *_keywords[] = {"program", "elem_start", "elem_count", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O!" /* `program` */
       "|$" /* Optional keyword only arguments. */
       "i"  /* `elem_start` */

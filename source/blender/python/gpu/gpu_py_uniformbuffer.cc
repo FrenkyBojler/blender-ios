@@ -70,7 +70,6 @@ static PyObject *pygpu_uniformbuffer__tp_new(PyTypeObject * /*self*/,
 
   static const char *_keywords[] = {"data", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O" /* `data` */
       ":GPUUniformBuf.__new__",
       _keywords,
@@ -132,7 +131,7 @@ static PyObject *pygpu_uniformbuffer_update(BPyGPUUniformBuf *self, PyObject *ob
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_uniformbuffer_free_doc,
-    ".. method::free()\n"
+    ".. method:: free()\n"
     "\n"
     "   Free the uniform buffer object.\n"
     "   The uniform buffer object will no longer be accessible.\n");

@@ -366,6 +366,21 @@ struct BevelParams {
   int profile_type;
   /** Bevel vertices only or edges. */
   int affect_type;
+  /**
+   * Vertex bevel with odd segment count requires special UV handling.
+   *
+   * Vertex bevel has no edges with `is_bev == true`, so #frep_for_center_poly would
+   * skip all edges and fail to find a representative face for UV interpolation.
+   * This only matters for odd segments which create a center polygon.
+   *
+   * When true:
+   * - #contig_ldata_around_vert detects seams at vertices (not just edges).
+   * - #frep_for_center_poly considers all adjacent faces.
+   *
+   * \note This is simply a convenience to avoid inline checks for:
+   * `(bp.affect_type == BEVEL_AFFECT_VERTICES) && (bp.seg % 2 == 1)`
+   */
+  bool affect_vertices_odd;
   /** Number of segments in beveled edge profile. */
   int seg;
   /** User profile setting. */
@@ -1031,6 +1046,37 @@ static bool contig_ldata_across_edge(BMesh *bm, BMEdge *e, BMFace *f1, BMFace *f
   return true;
 }
 
+/* Are all loop layers that have math (e.g., UVs)
+ * contiguous for all faces around vertex \a v?
+ */
+static bool contig_ldata_around_vert(BMesh *bm, BMVert *v)
+{
+  if (bm->ldata.totlayer == 0) {
+    return true;
+  }
+
+  BMIter iter;
+  BMLoop *l_first = nullptr;
+  BMLoop *l;
+
+  BM_ITER_ELEM (l, &iter, v, BM_LOOPS_OF_VERT) {
+    if (l_first == nullptr) {
+      l_first = l;
+      continue;
+    }
+    /* Check all math layers (UVs, etc). */
+    for (int i = 0; i < bm->ldata.totlayer; i++) {
+      if (CustomData_layer_has_math(&bm->ldata, i)) {
+        if (!contig_ldata_across_loops(bm, l_first, l, i)) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 /**
  * In array face_component of total `totface` elements, swap values c1 and c2
  * wherever they occur.
@@ -1100,8 +1146,8 @@ static void math_layer_info_init(BevelParams *bp, BMesh *bm)
 
   /* Use an array as a stack. Stack size can't exceed total faces if keep track of what is in
    * stack. */
-  BMFace **stack = MEM_malloc_arrayN<BMFace *>(totface, __func__);
-  bool *in_stack = MEM_malloc_arrayN<bool>(totface, __func__);
+  BMFace **stack = MEM_new_array_uninitialized<BMFace *>(totface, __func__);
+  bool *in_stack = MEM_new_array_uninitialized<bool>(totface, __func__);
 
   /* Set all component ids by DFS from faces with unassigned components. */
   for (f = 0; f < totface; f++) {
@@ -1152,8 +1198,8 @@ static void math_layer_info_init(BevelParams *bp, BMesh *bm)
       }
     }
   }
-  MEM_freeN(stack);
-  MEM_freeN(in_stack);
+  MEM_delete(stack);
+  MEM_delete(in_stack);
   /* We can usually get more pleasing result if components 0 and 1
    * are the topmost and bottom-most (in z-coordinate) components,
    * so adjust component indices to make that so. */
@@ -2902,6 +2948,12 @@ static void build_boundary_vertex_only(BevelParams *bp, BevVert *bv, bool constr
 
   if (construct) {
     set_bound_vert_seams(bv, bp->mark_seam, bp->mark_sharp);
+    /* Also check for seams at the vertex itself. */
+    if (bp->affect_vertices_odd) {
+      if (!bv->any_seam && !contig_ldata_around_vert(bp->bm, bv->v)) {
+        bv->any_seam = true;
+      }
+    }
     if (vm->count == 2) {
       vm->mesh_kind = M_NONE;
     }
@@ -3489,8 +3541,8 @@ static void print_adjust_stats(BoundVert *vstart)
  * But keep it here for a while in case performance issues demand that it be used sometimes. */
 static bool adjust_the_cycle_or_chain_fast(BoundVert *vstart, int np, bool iscycle)
 {
-  float *g = MEM_malloc_arrayN<float>(np, "beveladjust");
-  float *g_prod = MEM_malloc_arrayN<float>(np, "beveladjust");
+  float *g = MEM_new_array_uninitialized<float>(np, "beveladjust");
+  float *g_prod = MEM_new_array_uninitialized<float>(np, "beveladjust");
 
   BoundVert *v = vstart;
   float spec_sum = 0.0f;
@@ -3519,14 +3571,14 @@ static bool adjust_the_cycle_or_chain_fast(BoundVert *vstart, int np, bool iscyc
     gprod *= g[0];
     if (fabs(gprod - 1.0f) > BEVEL_EPSILON) {
       /* Fast cycle calc only works if total product is 1. */
-      MEM_freeN(g);
-      MEM_freeN(g_prod);
+      MEM_delete(g);
+      MEM_delete(g_prod);
       return false;
     }
   }
   if (gprod_sum == 0.0f) {
-    MEM_freeN(g);
-    MEM_freeN(g_prod);
+    MEM_delete(g);
+    MEM_delete(g_prod);
     return false;
   }
   float p = spec_sum / gprod_sum;
@@ -3552,8 +3604,8 @@ static bool adjust_the_cycle_or_chain_fast(BoundVert *vstart, int np, bool iscyc
     v = v->adjchain;
   } while (v && v != vstart);
 
-  MEM_freeN(g);
-  MEM_freeN(g_prod);
+  MEM_delete(g);
+  MEM_delete(g_prod);
   return true;
 }
 #endif
@@ -5029,12 +5081,15 @@ static bool is_bad_uv_poly(BevVert *bv, BMFace *frep)
  * If there are math-having custom loop layers, like UV, then
  * don't include faces that would result in zero-area UV polygons
  * if chosen as the rep.
+ *
+ * For vertex bevel with odd segments, consider all adjacent faces
+ * (vertex bevel has no beveled edges).
  */
 static BMFace *frep_for_center_poly(BevelParams *bp, BevVert *bv)
 {
   int fcount = 0;
   BMFace *any_bmf = nullptr;
-  bool consider_all_faces = bv->selcount == 1;
+  bool consider_all_faces = bv->selcount == 1 || bp->affect_vertices_odd;
   /* Make an array that can hold maximum possible number of choices. */
   BMFace **fchoices = BLI_array_alloca(fchoices, bv->edgecount);
   /* For each choice, need to remember the unsnapped BoundVerts. */
@@ -5188,8 +5243,8 @@ static VMesh *square_out_adj_vmesh(BevelParams *bp, BevVert *bv)
   float ns2inv = 1.0f / float(ns2);
   VMesh *vm = new_adj_vmesh(bp->mem_arena, n_bndv, ns, bv->vmesh->boundstart);
   int clstride = 3 * (ns2 + 1);
-  float *centerline = MEM_malloc_arrayN<float>(clstride * n_bndv, "bevel");
-  bool *cset = MEM_calloc_arrayN<bool>(n_bndv, "bevel");
+  float *centerline = MEM_new_array_uninitialized<float>(clstride * n_bndv, "bevel");
+  bool *cset = MEM_new_array_zeroed<bool>(n_bndv, "bevel");
 
   /* Find on_edge, place on bndv[i]'s elast where offset line would meet,
    * taking min-distance-to bv->v with position where next sector's offset line would meet. */
@@ -5399,8 +5454,8 @@ static VMesh *square_out_adj_vmesh(BevelParams *bp, BevVert *bv)
 
   vmesh_copy_equiv_verts(vm);
 
-  MEM_freeN(centerline);
-  MEM_freeN(cset);
+  MEM_delete(centerline);
+  MEM_delete(cset);
   return vm;
 }
 
@@ -7892,6 +7947,7 @@ void BM_mesh_bevel(BMesh *bm,
   bp.profile = profile;
   bp.pro_super_r = -logf(2.0) / logf(sqrtf(profile)); /* Convert to superellipse exponent. */
   bp.affect_type = affect_type;
+  bp.affect_vertices_odd = (affect_type == BEVEL_AFFECT_VERTICES) && (bp.seg % 2 == 1);
   bp.use_weights = use_weights;
   bp.bweight_offset_vert = bweight_offset_vert;
   bp.bweight_offset_edge = bweight_offset_edge;

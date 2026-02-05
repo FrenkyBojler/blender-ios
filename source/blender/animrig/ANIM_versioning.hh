@@ -29,13 +29,6 @@ namespace animrig::versioning {
  * This will return false for both Animato and pre-Animato actions. It is used
  * during file read and versioning to determine how forward-compatible and
  * legacy data should be handled.
- *
- * NOTE: this is semi-duplicated from `Action::is_action_layered()`, but with
- * tweaks to also recognize ultra-legacy (pre-Animato) data. Because this needs access to
- * deprecated DNA fields, which is ok here in the versioning code, the other "is this legacy or
- * layered?" functions do not check for pre-Animato data.
- *
- * \see Action::is_action_layered()
  */
 bool action_is_layered(const bAction &dna_action);
 
@@ -79,6 +72,16 @@ void tag_action_user_for_slotted_actions_conversion(ID &animated_id);
  * This only visits IDs tagged by #tag_action_users_for_slotted_actions_conversion.
  */
 void convert_legacy_action_assignments(Main &bmain, ReportList *reports);
+
+/**
+ * Reconstruct channel pointers.
+ * Assumes that the groups referred to by the FCurves are already in act->groups.
+ * Reorders the main channel list to match group order.
+ *
+ * Only used in versioning code since this only works with legacy actions which
+ * no longer exist in new files.
+ */
+void action_groups_reconstruct(bAction *act);
 
 }  // namespace animrig::versioning
 }  // namespace blender

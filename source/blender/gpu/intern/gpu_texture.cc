@@ -27,11 +27,8 @@ namespace gpu {
 
 Texture::Texture(const char *name)
 {
-  if (name) {
-    STRNCPY(name_, name);
-  }
-  else {
-    name_[0] = '\0';
+  if ((G.debug & G_DEBUG_GPU) && name) {
+    name_ = name;
   }
 
   for (int i = 0; i < ARRAY_SIZE(fb_); i++) {
@@ -484,6 +481,15 @@ gpu::Texture *GPU_texture_create_view(const char *name,
                   layer_len,
                   cube_as_array,
                   use_stencil);
+
+  /* On integer textures, disable filtering by default, as this is not guaranteed to be
+   * consistently supported across backends. */
+  if (GPU_texture_has_integer_format(view)) {
+    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_LINEAR, false);
+    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_MIPMAP, false);
+    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_ANISOTROPIC, false);
+  }
+
   return view;
 }
 

@@ -208,6 +208,7 @@ PyDoc_STRVAR(
     "filepath, "
     "*, "
     "link=False, "
+    "pack=False, "
     "relative=False, "
     "set_fake=False, "
     "recursive=False, "
@@ -298,7 +299,6 @@ static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *k
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `filepath` */
       /* Optional keyword only arguments. */
       "|$"

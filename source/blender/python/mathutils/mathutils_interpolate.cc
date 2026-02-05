@@ -32,8 +32,8 @@ PyDoc_STRVAR(
     "\n"
     "   :arg veclist: Sequence of 3D positions.\n"
     "   :type veclist: Sequence[Sequence[float]]\n"
-    "   :arg pt: 2D or 3D position."
-    "   :type pt: Sequence[float]"
+    "   :arg pt: 2D or 3D position.\n"
+    "   :type pt: Sequence[float]\n"
     "   :return: list of per-vector weights.\n"
     "   :rtype: list[float]\n");
 static PyObject *M_Interpolate_poly_3d_calc(PyObject * /*self*/, PyObject *args)
@@ -61,7 +61,7 @@ static PyObject *M_Interpolate_poly_3d_calc(PyObject * /*self*/, PyObject *args)
   }
 
   if (len) {
-    float *weights = MEM_malloc_arrayN<float>(size_t(len), __func__);
+    float *weights = MEM_new_array_uninitialized<float>(size_t(len), __func__);
 
     interp_weights_poly_v3(weights, vecs, len, fp);
 
@@ -70,7 +70,7 @@ static PyObject *M_Interpolate_poly_3d_calc(PyObject * /*self*/, PyObject *args)
       PyList_SET_ITEM(ret, i, PyFloat_FromDouble(weights[i]));
     }
 
-    MEM_freeN(weights);
+    MEM_delete(weights);
 
     PyMem_Free(vecs);
   }
