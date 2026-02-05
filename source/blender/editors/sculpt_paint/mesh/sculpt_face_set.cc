@@ -411,6 +411,8 @@ static wmOperatorStatus create_op_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
+
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   if (pbvh.type() == bke::pbvh::Type::BMesh) {
     /* Dyntopo not supported. */
@@ -708,6 +710,8 @@ static wmOperatorStatus init_op_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
+
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
@@ -996,7 +1000,7 @@ static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
   }
 
   const VisibilityMode mode = VisibilityMode(RNA_enum_get(op->ptr, "mode"));
-  const int active_face_set = active_face_set_get(object);
+  const int active_face_set = RNA_int_get(op->ptr, "active_face_set");
 
   undo::push_begin(scene, object, op);
 
@@ -1103,6 +1107,9 @@ static wmOperatorStatus change_visibility_invoke(bContext *C, wmOperator *op, co
   vert_random_access_ensure(ob);
   cursor_geometry_info_update(C, &cgi, mval_fl, false);
 
+  const int active_face_set = active_face_set_get(ob);
+  RNA_int_set(op->ptr, "active_face_set", active_face_set);
+
   return change_visibility_exec(C, op);
 }
 
@@ -1137,6 +1144,10 @@ void SCULPT_OT_face_set_change_visibility(wmOperatorType *ot)
       {0, nullptr, 0, nullptr, nullptr},
   };
   RNA_def_enum(ot->srna, "mode", modes, int(VisibilityMode::Toggle), "Mode", "");
+
+  PropertyRNA *prop = RNA_def_int(
+      ot->srna, "active_face_set", 0, 0, INT_MAX, "Active Face Set", "", 0, INT_MAX);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 static wmOperatorStatus randomize_colors_exec(bContext *C, wmOperator * /*op*/)
@@ -1529,6 +1540,10 @@ static wmOperatorStatus edit_op_exec(bContext *C, wmOperator *op)
   const EditMode mode = EditMode(RNA_enum_get(op->ptr, "mode"));
   const bool modify_hidden = RNA_boolean_get(op->ptr, "modify_hidden");
 
+  if (ELEM(mode, EditMode::Grow, EditMode::Shrink)) {
+    ed::sculpt_paint::face_set_overlay_check(*C, *op);
+  }
+
   switch (mode) {
     case EditMode::DeleteGeometry:
       edit_modify_geometry(C, ob, active_face_set, modify_hidden, op);
@@ -1827,6 +1842,7 @@ static wmOperatorStatus gesture_box_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*gesture_data, *op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
@@ -1849,6 +1865,7 @@ static wmOperatorStatus gesture_lasso_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*gesture_data, *op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
@@ -1871,6 +1888,7 @@ static wmOperatorStatus gesture_line_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*gesture_data, *op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
@@ -1893,6 +1911,7 @@ static wmOperatorStatus gesture_polyline_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*gesture_data, *op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
