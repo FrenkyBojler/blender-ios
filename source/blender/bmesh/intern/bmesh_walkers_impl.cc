@@ -847,17 +847,19 @@ static bool bm_edge_is_single(BMEdge *e)
           (BM_edge_is_boundary(e->l->next->e) || BM_edge_is_boundary(e->l->prev->e)));
 }
 
-static bool bmw_EdgeloopWalker_delimit_mark_check(BMVert *v,
+static bool bmw_EdgeloopWalker_delimit_mark_check(BMWalker *walker,
+                                                  BMVert *v,
                                                   BMEdge *e,
-                                                  BMLoop *l,
-                                                  const BMWDelimitFlag delimit)
+                                                  BMLoop *l)
 {
-  if (delimit & BMW_FLAG_TEST_HIDDEN && BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
+  if ((walker->flag & BMW_FLAG_TEST_HIDDEN && BM_elem_flag_test(e, BM_ELEM_HIDDEN)) ||
+      BM_edge_is_wire(e))
+  {
     return false;
   }
   /* When starting on a mark, stop when the next edge does not have the mark.
    * Otherwise, stop when any edge connected to the next vert has the mark. */
-  if (delimit & BMW_DELIMIT_EDGE_MARK_SEAM) {
+  if (walker->delimit & BMW_DELIMIT_EDGE_MARK_SEAM) {
     if (BM_elem_flag_test(e, BM_ELEM_SEAM)) {
       if (!BM_elem_flag_test(l->e, BM_ELEM_SEAM)) {
         return true;
@@ -873,7 +875,7 @@ static bool bmw_EdgeloopWalker_delimit_mark_check(BMVert *v,
       }
     }
   }
-  if (delimit & BMW_DELIMIT_EDGE_MARK_SHARP) {
+  if (walker->delimit & BMW_DELIMIT_EDGE_MARK_SHARP) {
     if (!BM_elem_flag_test(e, BM_ELEM_SMOOTH)) {
       if (BM_elem_flag_test(l->e, BM_ELEM_SMOOTH)) {
         return true;
@@ -1123,7 +1125,7 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
       l = nullptr;
     }
 
-    if (l && bmw_EdgeloopWalker_delimit_mark_check(v, e, l, walker->delimit)) {
+    if (l && bmw_EdgeloopWalker_delimit_mark_check(walker, v, e, l)) {
       l = nullptr;
     }
 
@@ -1180,7 +1182,7 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
       } while (true);
     }
 
-    if (bmw_EdgeloopWalker_delimit_mark_check(v, e, l, walker->delimit)) {
+    if (bmw_EdgeloopWalker_delimit_mark_check(walker, v, e, l)) {
       l = nullptr;
     }
 
