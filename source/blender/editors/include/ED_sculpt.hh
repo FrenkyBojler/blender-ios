@@ -70,6 +70,7 @@ void register_type(UndoType *ut);
  */
 void geometry_begin(const Scene &scene, Object &ob, const wmOperator *op);
 void geometry_begin_ex(const Scene &scene, Object &ob, const char *name);
+void geometry_begin_ex(Object &ob, const char *name);
 void geometry_end(Object &ob);
 
 /**

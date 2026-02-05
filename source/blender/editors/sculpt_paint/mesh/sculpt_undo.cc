@@ -2300,6 +2300,24 @@ void geometry_begin(const Scene &scene, Object &ob, const wmOperator *op)
   geometry_begin_ex(scene, ob, op->type->name);
 }
 
+void geometry_begin_ex(Object &ob, const char *name)
+{
+  UndoStack *ustack = ED_undo_stack_get();
+
+  /* If possible, we need to tag the object and its geometry data as 'changed in the future' in
+   * the previous undo step if it's a memfile one. */
+  ED_undosys_stack_memfile_id_changed_tag(ustack, &ob.id);
+  ED_undosys_stack_memfile_id_changed_tag(ustack, ob.data);
+
+  /* Special case, we never read from this. */
+  bContext *C = nullptr;
+
+  SculptUndoStep *us = reinterpret_cast<SculptUndoStep *>(
+      BKE_undosys_step_push_init_with_type(ustack, C, name, BKE_UNDOSYS_TYPE_SCULPT));
+  save_common_data(ob, us);
+  geometry_push(ob);
+}
+
 void geometry_begin_ex(const Scene & /*scene*/, Object &ob, const char *name)
 {
   UndoStack *ustack = ED_undo_stack_get();
@@ -2317,6 +2335,7 @@ void geometry_begin_ex(const Scene & /*scene*/, Object &ob, const char *name)
   save_common_data(ob, us);
   geometry_push(ob);
 }
+
 
 static size_t calculate_node_geometry_allocated_size(const NodeGeometry &node_geometry)
 {

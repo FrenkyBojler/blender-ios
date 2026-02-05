@@ -24,6 +24,7 @@
 namespace blender {
 
 struct NodesModifierRuntime;
+struct MultiresModifierRuntime;
 namespace bke {
 struct BVHTreeFromMesh;
 }
@@ -1239,6 +1240,7 @@ struct MultiresModifierData {
   short uv_smooth = SUBSURF_UV_SMOOTH_PRESERVE_BOUNDARIES;
   short boundary_smooth = SUBSURF_BOUNDARY_SMOOTH_ALL;
   char _pad2[2] = {};
+  MultiresModifierRuntime *runtime = nullptr;
 };
 
 /** DEPRECATED: only used for versioning. */

@@ -40,6 +40,9 @@
 
 #include "DEG_depsgraph_query.hh"
 
+#include "MOD_multires.hh"
+
+#include "ED_sculpt.hh"
 #include "MOD_ui_common.hh"
 
 namespace blender {
@@ -49,6 +52,12 @@ struct MultiresRuntimeData {
   bke::subdiv::Subdiv *subdiv;
 };
 
+static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)
+{
+  MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
+  mmd->runtime = MEM_new<MultiresModifierRuntime>(__func__);
+}
+
 static void init_data(ModifierData *md)
 {
   MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
@@ -56,11 +65,20 @@ static void init_data(ModifierData *md)
 
   /* Open subdivision panels by default. */
   md->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT | UI_SUBPANEL_DATA_EXPAND_1;
+  mmd->runtime = MEM_new<MultiresModifierRuntime>(__func__);
 }
 
 static void copy_data(const ModifierData *md_src, ModifierData *md_dst, const int flag)
 {
   BKE_modifier_copydata_generic(md_src, md_dst, flag);
+
+  const MultiresModifierData *mmd_src = reinterpret_cast<const MultiresModifierData *>(md_src);
+  MultiresModifierData *mmd_dst = reinterpret_cast<MultiresModifierData *>(md_dst);
+
+  mmd_dst->runtime = MEM_new<blender::MultiresModifierRuntime>(__func__);
+  if (mmd_src->runtime) {
+    mmd_dst->runtime->previous_level = mmd_src->runtime->previous_level;
+  }
 }
 
 static void free_runtime_data(void *runtime_data_v)
@@ -78,6 +96,7 @@ static void free_runtime_data(void *runtime_data_v)
 static void free_data(ModifierData *md)
 {
   MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
+  MEM_SAFE_DELETE(mmd->runtime);
   free_runtime_data(mmd->modifier.runtime);
 }
 
@@ -89,6 +108,12 @@ static MultiresRuntimeData *multires_ensure_runtime(MultiresModifierData *mmd)
     mmd->modifier.runtime = runtime_data;
   }
   return runtime_data;
+}
+
+void BKE_multires_change_sculpt_level(MultiresModifierData *mmd, const int lvl)
+{
+  mmd->runtime->previous_level = mmd->sculptlvl;
+  mmd->sculptlvl = lvl;
 }
 
 /* Main goal of this function is to give usable subdivision surface descriptor
@@ -130,6 +155,7 @@ static Mesh *multires_as_mesh(const MultiresModifierData *mmd,
   }
   bke::subdiv::displacement_attach_from_multires(subdiv, mesh, mmd);
   result = bke::subdiv::subdiv_to_mesh(subdiv, &mesh_settings, mesh);
+
   return result;
 }
 
@@ -181,15 +207,18 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   BKE_modifier_set_error(ctx->object, md, "Disabled, built without OpenSubdiv");
   return result;
 #endif
+  printf("Modify mesh...\n");
   MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
   bke::subdiv::Settings subdiv_settings;
   BKE_multires_subdiv_settings_init(&subdiv_settings, mmd);
   if (subdiv_settings.level == 0) {
+    printf("Early return... level 0\n");
     return result;
   }
   MultiresRuntimeData *runtime_data = multires_ensure_runtime(mmd);
   bke::subdiv::Subdiv *subdiv = subdiv_descriptor_ensure(mmd, &subdiv_settings, mesh);
   if (subdiv == nullptr) {
+    printf("Early return... null subdiv\n");
     /* Happens on bad topology, also on empty input mesh. */
     return result;
   }
@@ -219,6 +248,18 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
       sculpt_session->multires_modifier = mmd;
     }
     // bke::subdiv::stats_print(&subdiv->stats);
+    if (mmd->flags & eMultiresModifierFlag_UseAutomaticConformBase &&
+        mmd->runtime->previous_level && mmd->sculptlvl == 0) {
+      /* TODO: This doesn't work because if sculptlvl is 0, this is never called... */
+      printf("Conforming base...\n");
+
+      ed::sculpt_paint::undo::geometry_begin_ex(*ctx->object, "Conform Base (Automatic)");
+      multiresModifier_base_apply(ctx->depsgraph, ctx->object, mmd, ApplyBaseMode::Base);
+      ed::sculpt_paint::undo::geometry_end(*ctx->object);
+    }
+    else {
+      printf("%d, %d\n", mmd->runtime->previous_level.has_value(), mmd->sculptlvl);
+    }
   }
   else {
     if (use_clnors) {
@@ -242,6 +283,9 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
       bke::subdiv::free(subdiv);
     }
   }
+
+  mmd->runtime->previous_level.reset();
+
   return result;
 }
 
@@ -479,7 +523,7 @@ ModifierTypeInfo modifierType_Multires = {
     /*free_runtime_data*/ free_runtime_data,
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
-    /*blend_read*/ nullptr,
+    /*blend_read*/ blend_read,
     /*foreach_cache*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
 };
