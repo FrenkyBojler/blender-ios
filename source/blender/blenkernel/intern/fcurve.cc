@@ -1312,6 +1312,9 @@ void sort_time_fcurve(FCurve &fcu)
         /* Swap if one is after the other (and indicate that order has changed). */
         if (bezt->vec[1][0] > (bezt + 1)->vec[1][0]) {
           std::swap(*bezt, *(bezt + 1));
+          if (a == fcu.active_keyframe_index) {
+            fcu.active_keyframe_index++;
+          }
           ok = true;
         }
       }
