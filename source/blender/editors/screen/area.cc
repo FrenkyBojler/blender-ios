@@ -1392,6 +1392,13 @@ static void region_azones_add(const bScreen *screen, ScrArea *area, ARegion *reg
     return;
   }
 
+  /* Quad View center resizing zone. */
+  if (region->alignment == RGN_ALIGN_QSPLIT &&
+      region->runtime->quadview_index == bke::ARegionQuadviewIndex::BottomLeft)
+  {
+    quadview_azone_init(area, region);
+  }
+
   region_azones_add_edge(area, region, RGN_ALIGN_ENUM_FROM_MASK(region->alignment), is_fullscreen);
 
   /* For a split region also continue the azone edge from the next region if this region is aligned
@@ -2259,12 +2266,6 @@ void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area)
 
     /* Some AZones use View2D data which is only updated in region init, so call that first! */
     region_azones_add(screen, area, &region);
-
-    if (region.alignment == RGN_ALIGN_QSPLIT &&
-        region.runtime->quadview_index == bke::ARegionQuadviewIndex::BottomLeft)
-    {
-      quadview_azone_init(area, &region);
-    }
   }
 
   /* Avoid re-initializing tools while resizing areas & regions. */
@@ -3262,7 +3263,7 @@ static int panel_draw_width_from_max_width_get(const ARegion *region,
 {
   /* With a background, we want some extra padding. */
   return ui::panel_should_show_background(region, panel_type) ?
-             max_width - UI_PANEL_MARGIN_X * 2.0f :
+             max_width - round_fl_to_int(UI_PANEL_MARGIN_X * 2.0f) :
              max_width;
 }
 
@@ -3323,7 +3324,7 @@ void ED_region_panels_layout_ex(const bContext *C,
     margin_x = category_tabs_width;
   }
 
-  const int max_panel_width = BLI_rctf_size_x(&v2d->cur) - margin_x;
+  const int max_panel_width = round_fl_to_int(BLI_rctf_size_x(&v2d->cur)) - margin_x;
   /* Works out to 10 * UI_UNIT_X or 20 * UI_UNIT_X. */
   const int em = (region->runtime->type->prefsizex) ? 10 : 20;
 
