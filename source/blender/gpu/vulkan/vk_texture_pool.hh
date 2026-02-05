@@ -147,12 +147,13 @@ class VKTexturePool : public TexturePool {
    * if values have changed since the last `::reset()`. */
   struct LogUsageData {
     int64_t allocation_count = 0;
+    int64_t image_cache_size = 0;
     VkDeviceSize acquired_segment_size = 0;
     VkDeviceSize acquired_segment_size_max = 0;
 
     bool operator==(const LogUsageData &o) const
     {
-      return allocation_count == o.allocation_count &&
+      return allocation_count == o.allocation_count && image_cache_size == o.image_cache_size &&
              acquired_segment_size == o.acquired_segment_size &&
              acquired_segment_size_max == o.acquired_segment_size_max;
     }

@@ -124,7 +124,8 @@ VkImage VKImageCache::get_or_create(const VKImageInfo &info)
   cache_.add_new(info, {.image = image});
 
   /* TODO(not_mark): pass in name */
-  device.resources.add_aliased_image(image, false, "uhh");
+  device.resources.add_image(image, false, "uhhh");
+  // device.resources.add_aliased_image(image, false, "uhh");
 
   return image;
 }
@@ -465,9 +466,11 @@ void VKTexturePool::reset(bool force_free)
     allocations_.remove(handle);
   }
 
+  /* Log debug usage data if it differs from the last `::reset()`. */
   if (G.debug & G_DEBUG_GPU) {
-    /* Log debug usage data if it differs from the last `::reset()`. */
     current_usage_data_.allocation_count = allocations_.size();
+    current_usage_data_.image_cache_size = image_cache_.size();
+
     if (!(previous_usage_data_ == current_usage_data_)) {
       log_usage_data();
     }
@@ -490,13 +493,13 @@ void VKTexturePool::log_usage_data()
   float ratio = static_cast<float>(current_usage_data_.acquired_segment_size_max) /
                 static_cast<float>(total_allocation_size);
 
-  CLOG_INFO(&LOG,
-            "VKTexturePool uses %zu/%zu mb (%.1f%% of %li allocations) (%zu VkImages)",
-            current_usage_data_.acquired_segment_size_max >> 20,
-            total_allocation_size >> 20,
-            ratio * 100.0f,
-            current_usage_data_.allocation_count,
-            image_cache_.size());
+  CLOG_TRACE(&LOG,
+             "VKTexturePool uses %zu/%zu mb (%.1f%% of %li allocations) (%li VkImages)",
+             current_usage_data_.acquired_segment_size_max >> 20,
+             total_allocation_size >> 20,
+             ratio * 100.0f,
+             current_usage_data_.allocation_count,
+             current_usage_data_.image_cache_size);
 }
 
 }  // namespace gpu
