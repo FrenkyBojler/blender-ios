@@ -857,9 +857,9 @@ static bool bmw_EdgeloopWalker_delimit_mark_check(BMWalker *walker,
   if (walker->delimit & BMW_DELIMIT_EDGE_MARK_SEAM) {
     if (BM_elem_flag_test(e, BM_ELEM_SEAM)) {
       if (!BM_elem_flag_test(l->e, BM_ELEM_SEAM) &&
-          !(walker->flag & BMW_FLAG_TEST_HIDDEN &&
-            BM_elem_flag_test(l->e, BM_ELEM_HIDDEN)) &&
-          !BM_edge_is_wire(l->e)) {
+          !(walker->flag & BMW_FLAG_TEST_HIDDEN && BM_elem_flag_test(l->e, BM_ELEM_HIDDEN)) &&
+          !BM_edge_is_wire(l->e))
+      {
         return true;
       }
     }
@@ -880,9 +880,9 @@ static bool bmw_EdgeloopWalker_delimit_mark_check(BMWalker *walker,
   if (walker->delimit & BMW_DELIMIT_EDGE_MARK_SHARP) {
     if (!BM_elem_flag_test(e, BM_ELEM_SMOOTH)) {
       if (BM_elem_flag_test(l->e, BM_ELEM_SMOOTH) &&
-          !(walker->flag & BMW_FLAG_TEST_HIDDEN &&
-            BM_elem_flag_test(l->e, BM_ELEM_HIDDEN)) &&
-          !BM_edge_is_wire(l->e)) {
+          !(walker->flag & BMW_FLAG_TEST_HIDDEN && BM_elem_flag_test(l->e, BM_ELEM_HIDDEN)) &&
+          !BM_edge_is_wire(l->e))
+      {
         return true;
       }
     }
