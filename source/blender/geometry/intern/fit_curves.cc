@@ -262,7 +262,8 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
       old_by_new_map,
       dst_curves.attributes_for_write());
 
-  /* Free all the data from the C-API. */
+  /* Free all the data from the C-API
+   * Note: This data is allocated inside the library and has to be freed with `free`. */
   for (MutableSpan<float3> cubic_array : cubic_array_per_curve) {
     free(cubic_array.data());
   }

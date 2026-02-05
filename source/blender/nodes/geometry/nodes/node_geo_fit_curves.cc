@@ -42,9 +42,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("The error distance that the resulting points are allowed to be within");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -105,7 +105,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       params.node().custom1);
 
   const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Curves");
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const Curves *curves_id = geometry_set.get_curves()) {
       const bke::CurvesGeometry &src_curves = curves_id->geometry.wrap();
       if (!src_curves.has_curve_with_type(CURVE_TYPE_POLY)) {
@@ -125,7 +125,6 @@ static void node_geo_exec(GeoNodeExecParams params)
       bke::curves_copy_parameters(*curves_id, *dst_curves_id);
       geometry_set.replace_curves(dst_curves_id);
     }
-    geometry_set.keep_only_during_modify({GeometryComponent::Type::Curve});
   });
 
   params.set_output("Curves", std::move(geometry_set));

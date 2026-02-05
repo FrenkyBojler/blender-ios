@@ -1358,7 +1358,7 @@ enum NodeGeometryTransformMode {
   GEO_NODE_TRANSFORM_MODE_MATRIX = 1,
 };
 
-typedef enum GeometryNodeFitCurvesMode {
+enum GeometryNodeFitCurvesMode {
   GEO_NODE_CURVE_FIT_REFIT = 0,
   GEO_NODE_CURVE_FIT_SPLIT = 1,
 };
