@@ -123,7 +123,6 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_depth_pass_merge)
 DO_STATIC_COMPILATION()
-EARLY_FRAGMENT_TEST(true)
 PUSH_CONSTANT(float4x4, gp_model_matrix)
 PUSH_CONSTANT(bool, stroke_order3d)
 SAMPLER(0, sampler2DDepth, depth_buf)

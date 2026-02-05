@@ -249,6 +249,7 @@ void Instance::begin_sync()
   {
     PassSimple &pass = this->merge_depth_pass_ps;
     pass.init();
+    pass.state_set(DRW_STATE_WRITE_COLOR);
     pass.shader_set(ShaderCache::get().depth_pass_merge.get());
     pass.bind_texture("depth_buf", &this->depth_tx);
     pass.bind_image("depth_pass_img", &this->depth_pass_img);
@@ -858,8 +859,7 @@ void Instance::draw_object(View &view, tObject *ob)
     manager->submit(this->merge_depth_ps, view);
   }
 
-  const bool depth_pass_exists = DRW_viewport_pass_texture_exists(RE_PASSNAME_DEPTH);
-  if (depth_pass_exists) {
+  if (DRW_viewport_pass_texture_exists(RE_PASSNAME_DEPTH)) {
     manager->submit(this->merge_depth_pass_ps, view);
   }
 
