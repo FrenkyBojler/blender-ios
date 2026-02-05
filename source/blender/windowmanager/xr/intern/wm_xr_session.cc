@@ -437,11 +437,9 @@ bContext *WM_xr_session_context_ensure(const wmWindowManager *wm, wmXrRuntimeDat
 {
   /* XR session root window. Also sets the context scene. */
   wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, runtime_data);
-  BLI_assert(xr_win);
   CTX_wm_window_set(runtime_data->b_context, xr_win);
 
   /* Unique offscreen XR area. */
-  BLI_assert(runtime_data->offscreen_area);
   CTX_wm_area_set(runtime_data->b_context, runtime_data->offscreen_area);
 
   /* Region for XR operator execution and modal handling. */
@@ -1328,17 +1326,15 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
                                            state);
     }
 
-    wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
-    BLI_assert(xr_win);
-
     WM_xr_session_context_ensure(wm, xr->runtime);
 
-    /* Set XR area View3D object type flags for operators. */
+    /* Set XR offscreen area View3D object type flags for operators. */
     bContext *xr_context = xr->runtime->b_context;
     View3D *v3d = static_cast<View3D *>(CTX_wm_area(xr_context)->spacedata.first);
     v3d->object_type_exclude_viewport = settings->object_type_exclude_viewport;
     v3d->object_type_exclude_select = settings->object_type_exclude_select;
 
+    wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
     wm_xr_session_events_dispatch(xr, ghost_xr_context, active_action_set, state, xr_win);
   }
 }
