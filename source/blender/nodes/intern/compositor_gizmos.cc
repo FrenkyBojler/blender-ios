@@ -33,7 +33,10 @@
 
 namespace blender::nodes::gizmos {
 
-// todo(habib): use constexpr?
+/* -------------------------------------------------------------------- */
+/** \name Local Utilities
+ * \{ */
+
 static float2 GIZMO_NODE_DEFAULT_DIMS{64.0f, 64.0f};
 
 static float2 node_gizmo_safe_calc_dims(const ImBuf *ibuf, const float2 &fallback_dims)
@@ -128,6 +131,8 @@ bool image_gizmo_is_set_visible(const SpaceImage &sima)
 
   return true;
 }
+
+/** \} */
 
 struct NodeBBoxWidgetGroup {
   wmGizmo *border;

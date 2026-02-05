@@ -929,7 +929,6 @@ static void image_main_region_listener(const wmRegionListenerParams *params)
       break;
     case NC_NODE:
       // todo(habib): use ND_NODE_GIZMO maybe?
-      // todo(habib): Gizmo dragging when there is no viewer image is werid
       if (ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
         WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
         ED_region_tag_redraw(region);
