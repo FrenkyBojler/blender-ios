@@ -2232,8 +2232,8 @@ static void wm_handler_op_context_get_if_valid(bContext *C,
 
 #ifdef WITH_XR_OPENXR
     /* Special case for XR operators, which are executed in an XR-specific offscreen area. */
-    bContext *xr_C = WM_xr_session_context_get(&CTX_wm_manager(C)->xr);
-    ScrArea *xr_offscreen_area = CTX_wm_area(xr_C);
+    bContext *xr_context = WM_xr_session_context_get(&CTX_wm_manager(C)->xr);
+    ScrArea *xr_offscreen_area = CTX_wm_area(xr_context);
     if (handler->context.area == xr_offscreen_area) {
       area = xr_offscreen_area;
     }
@@ -4026,10 +4026,10 @@ static bool wm_event_xr_handler_matches_actiondata(const wmEventHandler_Op *op_h
 
 static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent *event)
 {
-  bContext *xr_C = WM_xr_session_context_ensure(wm, wm->xr.runtime);
+  bContext *xr_context = WM_xr_session_context_ensure(wm, wm->xr.runtime);
 
-  ScrArea *xr_area = CTX_wm_area(xr_C);
-  ARegion *xr_region = CTX_wm_region(xr_C);
+  ScrArea *xr_area = CTX_wm_area(xr_context);
+  ARegion *xr_region = CTX_wm_region(xr_context);
 
   BLI_assert(xr_area && xr_area->spacetype == SPACE_VIEW3D && xr_area->spacedata.first);
 
@@ -4058,7 +4058,7 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
       /* Only execute operator handler matching the XR action data carried by the event. */
       if (wm_event_xr_handler_matches_actiondata(op_handler, actiondata)) {
         action = wm_handler_operator_call(
-            xr_C, modalhandlers, &handler_base, event, nullptr, nullptr);
+            xr_context, modalhandlers, &handler_base, event, nullptr, nullptr);
       }
 
       if (action & WM_HANDLER_BREAK) {
@@ -4067,7 +4067,7 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
     }
   }
 
-  wm_event_handler_return_value_check(xr_C, event, action);
+  wm_event_handler_return_value_check(xr_context, event, action);
 
   if ((action & WM_HANDLER_BREAK) == 0) {
     if (actiondata->ot->modal && event->val == KM_RELEASE) {
@@ -4080,7 +4080,7 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
       if (actiondata->ot->invoke) {
         /* Invoke operator, either executing operator or transferring responsibility to window
          * modal handlers. */
-        wm_operator_invoke(xr_C,
+        wm_operator_invoke(xr_context,
                            actiondata->ot,
                            event,
                            actiondata->op_properties ? &properties : nullptr,
@@ -4092,7 +4092,7 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
         /* Execute operator. */
         wmOperator *op = wm_operator_create(
             wm, actiondata->ot, actiondata->op_properties ? &properties : nullptr, nullptr);
-        if ((WM_operator_call(xr_C, op) & OPERATOR_HANDLED) == 0) {
+        if ((WM_operator_call(xr_context, op) & OPERATOR_HANDLED) == 0) {
           WM_operator_free(op);
         }
       }

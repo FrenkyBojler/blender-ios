@@ -220,10 +220,10 @@ wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
                                                     const wmXrRuntimeData *runtime_data)
 {
   /* Try to obtain the XR root window (the window the XR session was started in). */
-  wmWindow *xr_root_window = CTX_wm_window(runtime_data->b_context);
-  if (xr_root_window && BLI_findindex(&wm->windows, xr_root_window) != -1) {
+  wmWindow *xr_win = CTX_wm_window(runtime_data->b_context);
+  if (xr_win && BLI_findindex(&wm->windows, xr_win) != -1) {
     /* Root XR window is still valid, use it. */
-    return xr_root_window;
+    return xr_win;
   }
   /* Otherwise, fall back. */
   return static_cast<wmWindow *>(wm->windows.first);
@@ -240,11 +240,11 @@ static void wm_xr_session_scene_and_depsgraph_get(const wmWindowManager *wm,
                                                   Scene **r_scene,
                                                   Depsgraph **r_depsgraph)
 {
-  const wmWindow *root_win = wm_xr_session_root_window_or_fallback_get(wm, wm->xr.runtime);
+  const wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, wm->xr.runtime);
 
   /* Follow the scene & view layer shown in the root 3D View. */
-  Scene *scene = WM_window_get_active_scene(root_win);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(root_win);
+  Scene *scene = WM_window_get_active_scene(xr_win);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(xr_win);
 
   WM_xr_session_context_ensure(wm, wm->xr.runtime);
 
@@ -1287,7 +1287,7 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
   }
 
   XrSessionSettings *settings = &xr->session_settings;
-  GHOST_IXrContext *xr_context = xr->runtime->ghost_context;
+  GHOST_IXrContext *ghost_xr_context = xr->runtime->ghost_context;
   wmXrSessionState *state = &xr->runtime->session_state;
 
   if (state->is_navigation_dirty) {
@@ -1312,7 +1312,7 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
   }
   wmXrActionSet *active_action_set = state->active_action_set;
 
-  const bool synced = GHOST_XrSyncActions(xr_context,
+  const bool synced = GHOST_XrSyncActions(ghost_xr_context,
                                           active_action_set ? active_action_set->name : nullptr);
   if (!synced) {
     return;
@@ -1324,22 +1324,22 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
       wm_xr_session_controller_data_update(settings,
                                            active_action_set->controller_grip_action,
                                            active_action_set->controller_aim_action,
-                                           xr_context,
+                                           ghost_xr_context,
                                            state);
     }
 
-    wmWindow *win = wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
-    BLI_assert(win);
+    wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
+    BLI_assert(xr_win);
 
     WM_xr_session_context_ensure(wm, xr->runtime);
 
     /* Set XR area View3D object type flags for operators. */
-    bContext *xr_C = xr->runtime->b_context;
-    View3D *v3d = static_cast<View3D *>(CTX_wm_area(xr_C)->spacedata.first);
+    bContext *xr_context = xr->runtime->b_context;
+    View3D *v3d = static_cast<View3D *>(CTX_wm_area(xr_context)->spacedata.first);
     v3d->object_type_exclude_viewport = settings->object_type_exclude_viewport;
     v3d->object_type_exclude_select = settings->object_type_exclude_select;
 
-    wm_xr_session_events_dispatch(xr, xr_context, active_action_set, state, win);
+    wm_xr_session_events_dispatch(xr, ghost_xr_context, active_action_set, state, xr_win);
   }
 }
 
