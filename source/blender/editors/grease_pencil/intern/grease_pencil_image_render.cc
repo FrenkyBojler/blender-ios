@@ -335,7 +335,7 @@ static void draw_grease_pencil_stroke(const float4x4 &transform,
                                           indices.size() + cyclic_add + 2);
 
   auto draw_point = [&](const int point_i) {
-    const float thickness = 4.0f * radii[point_i] * radius_scale;
+    const float thickness = 2.0f * radii[point_i] * radius_scale;
 
     immAttr4fv(attr_color, colors[point_i]);
     immAttr1f(attr_thickness, std::max(thickness, min_stroke_thickness));
