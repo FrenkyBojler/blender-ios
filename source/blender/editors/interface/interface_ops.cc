@@ -2998,13 +2998,13 @@ static wmOperatorStatus region_start_filter_exec(bContext *C, wmOperator * /*op*
   return OPERATOR_FINISHED;
 }
 
-bool region_start_filter_poll(blender::bContext *C)
+static bool region_start_filter_poll(blender::bContext *C)
 {
   ARegion *region = CTX_wm_region(C);
   return region && BKE_regiontype_uses_panel_categories_search(region->runtime->type);
 }
 
-void UI_OT_region_start_filter(wmOperatorType *ot)
+static void UI_OT_region_start_filter(wmOperatorType *ot)
 {
   ot->name = "Filter";
   ot->description = "Start entering filter text";
@@ -3023,7 +3023,7 @@ static wmOperatorStatus region_clear_filter_exec(bContext *C, wmOperator * /*op*
   return OPERATOR_FINISHED;
 }
 
-bool reion_clear_filter_poll(blender::bContext *C)
+static bool reion_clear_filter_poll(blender::bContext *C)
 {
   if (!region_start_filter_poll(C)) {
     return false;
@@ -3035,7 +3035,7 @@ bool reion_clear_filter_poll(blender::bContext *C)
   return true;
 }
 
-void UI_OT_region_clear_filter(wmOperatorType *ot)
+static void UI_OT_region_clear_filter(wmOperatorType *ot)
 {
   ot->name = "Clear Filter";
   ot->description = "Clear the search filter";
