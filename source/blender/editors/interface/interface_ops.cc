@@ -2991,8 +2991,6 @@ static void UI_OT_drop_material(wmOperatorType *ot)
 
 static wmOperatorStatus region_start_filter_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceUserPref *space = CTX_wm_space_userpref(C);
-  ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
   ui::textbutton_activate_rna(C, region, region, "search_filter");
   return OPERATOR_FINISHED;
@@ -3029,7 +3027,7 @@ static bool reion_clear_filter_poll(blender::bContext *C)
     return false;
   }
   ARegion *region = CTX_wm_region(C);
-  if (region->runtime->search_filter.empty() || region->runtime->search_filter == "") {
+  if (region->runtime->search_filter == "") {
     return false;
   }
   return true;

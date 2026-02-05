@@ -3276,7 +3276,8 @@ static int panel_draw_width_from_max_width_get(const ARegion *region,
 
 void side_region_property_search(const bContext *C, ARegion *region);
 
-void side_region_search_move_next_category_with_result(const bContext * /*C*/, ARegion *region)
+static void side_region_search_move_next_category_with_result(const bContext * /*C*/,
+                                                              ARegion *region)
 {
   if (!BKE_regiontype_uses_panel_categories_search(region->runtime->type)) {
     return;
@@ -3284,7 +3285,7 @@ void side_region_search_move_next_category_with_result(const bContext * /*C*/, A
   if (!bool(region->flag & RGN_FLAG_SEARCH_FILTER_UPDATE)) {
     return;
   }
-  if (region->runtime->search_filter.empty() || region->runtime->search_filter == "") {
+  if (region->runtime->search_filter == "") {
     return;
   }
   if (region->runtime->categories_search_match.contains(region->runtime->category)) {
@@ -3322,11 +3323,8 @@ void ED_region_panels_layout_ex(const bContext *C,
                                 const char *contexts[],
                                 const char *category_override)
 {
-  if (BKE_regiontype_uses_panel_categories_search(region->runtime->type) &&
-      region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE)
-  {
-    side_region_property_search(C, region);
-  }
+
+  side_region_property_search(C, region);
 
   /* collect panels to draw */
   WorkSpace *workspace = CTX_wm_workspace(C);
@@ -3637,7 +3635,8 @@ void ED_region_panels_layout(const bContext *C, ARegion *region)
                              nullptr,
                              nullptr);
 }
-void side_panel_draw_search_block(const bContext *C, ARegion *region)
+
+static void side_panel_draw_search_block(const bContext *C, ARegion *region)
 {
   if (!BKE_regiontype_uses_panel_categories_search(region->runtime->type)) {
     return;
@@ -3868,9 +3867,8 @@ static bool panel_property_search(const bContext *C,
   return false;
 }
 
-bool side_region_search_for_context(const bContext *C, ARegion *region, StringRef category)
+static bool side_region_search_for_context(const bContext *C, ARegion *region, StringRef category)
 {
-  std::string ctx = std::string(".") + CTX_data_mode_string(C);
   std::array<const char *, 4> contexts = {nullptr};
   if (CTX_wm_space_image(C)) {
     contexts = ED_image_buttons_contexts(C);
@@ -3932,6 +3930,11 @@ static void side_region_search_all_categories(const bContext *C, ARegion *region
 
 void side_region_property_search(const bContext *C, ARegion *region)
 {
+  if (!(BKE_regiontype_uses_panel_categories_search(region->runtime->type) &&
+        region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE))
+  {
+    return;
+  }
   side_region_search_all_categories(C, region);
 }
 

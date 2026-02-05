@@ -734,8 +734,8 @@ static void rna_def_region(BlenderRNA *brna)
       "empty at initialization, before any drawing took place)");
 
   prop = RNA_def_property(srna, "search_filter", PROP_STRING, PROP_NONE);
-  /* The search filter is stored in the property editor's runtime which
-   * is only defined in an internal header, so use the getter / setter here. */
+  /* The search filter is stored in the region's runtime as #std::string, so use the getter /
+   * setter here. */
   RNA_def_property_string_funcs(prop,
                                 "rna_Region_search_filter_get",
                                 "rna_Region_search_filter_length",
@@ -743,7 +743,7 @@ static void rna_def_region(BlenderRNA *brna)
   RNA_def_property_editable_func(prop, "rna_Region_search_filter_editable");
   RNA_def_property_ui_text(prop, "Display Filter", "Live search filtering string");
   RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, "rna_Region_search_filter_update");
+  RNA_def_property_update(prop, 0, "rna_Region_search_filter_update");
 
   rna_def_region_api(srna);
 }
