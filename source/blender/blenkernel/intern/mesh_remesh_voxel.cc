@@ -94,8 +94,8 @@ static Mesh *remesh_quadriflow(const Mesh *input_mesh,
 
   if (qrd.out_totfaces == 0) {
     /* Meshing failed */
-    MEM_freeN(qrd.out_faces);
-    MEM_freeN(qrd.out_verts);
+    MEM_delete(qrd.out_faces);
+    MEM_delete(qrd.out_verts);
     return nullptr;
   }
 
@@ -120,8 +120,8 @@ static Mesh *remesh_quadriflow(const Mesh *input_mesh,
 
   mesh_calc_edges(*mesh, false, false);
 
-  MEM_freeN(qrd.out_faces);
-  MEM_freeN(qrd.out_verts);
+  MEM_delete(qrd.out_faces);
+  MEM_delete(qrd.out_verts);
 
   return mesh;
 }
@@ -201,6 +201,10 @@ static Mesh *remesh_voxel_volume_to_mesh(const openvdb::FloatGrid::Ptr level_set
   openvdb::tools::volumeToMesh<openvdb::FloatGrid>(
       *level_set_grid, vertices, tris, quads, isovalue, adaptivity, relax_disoriented_triangles);
 
+  if (vertices.size() == 0 || quads.size() + tris.size() == 0) {
+    return nullptr;
+  }
+
   Mesh *mesh = BKE_mesh_new_nomain(
       vertices.size(), 0, quads.size() + tris.size(), quads.size() * 4 + tris.size() * 3);
   MutableSpan<float3> vert_positions = mesh->vert_positions_for_write();
@@ -261,7 +265,9 @@ Mesh *BKE_mesh_remesh_voxel(const Mesh *mesh,
   }
   openvdb::FloatGrid::Ptr level_set = remesh_voxel_level_set_create(mesh, transform);
   Mesh *result = remesh_voxel_volume_to_mesh(level_set, isovalue, adaptivity, false);
-  BKE_mesh_copy_parameters(result, mesh);
+  if (result != nullptr) {
+    BKE_mesh_copy_parameters(result, mesh);
+  }
   return result;
 #else
   UNUSED_VARS(mesh, voxel_size, adaptivity, isovalue, object, modifier_data);
@@ -289,7 +295,9 @@ Mesh *BKE_mesh_remesh_voxel(const Mesh *mesh,
   }
   openvdb::FloatGrid::Ptr level_set = remesh_voxel_level_set_create(mesh, transform);
   Mesh *result = remesh_voxel_volume_to_mesh(level_set, isovalue, adaptivity, false);
-  BKE_mesh_copy_parameters(result, mesh);
+  if (result != nullptr) {
+    BKE_mesh_copy_parameters(result, mesh);
+  }
   return result;
 #else
   UNUSED_VARS(mesh, voxel_size, adaptivity, isovalue, reports);
@@ -500,6 +508,8 @@ static void gather_attributes(const Span<StringRef> ids,
 
 void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
 {
+  MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
+
   /* Gather attributes to transfer for each domain. This makes it possible to skip
    * building index maps and even the main BVH tree if there are no attributes. */
   const AttributeAccessor src_attributes = src.attributes();
@@ -510,6 +520,16 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
   src_attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (ELEM(iter.name, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
       return;
+    }
+    if (iter.storage_type == bke::AttrStorageType::Single) {
+      const GVArray src_attr = *iter.get();
+      const CommonVArrayInfo info = src_attr.common_info();
+      if (info.type == CommonVArrayInfo::Type::Single) {
+        const bke::AttributeInitValue init(GPointer(src_attr.type(), info.data));
+        if (dst_attributes.add(iter.name, iter.domain, iter.data_type, init)) {
+          return;
+        }
+      }
     }
     switch (iter.domain) {
       case AttrDomain::Point:
@@ -556,8 +576,6 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
   const Span<float3> dst_positions = dst.vert_positions();
   const OffsetIndices dst_faces = dst.faces();
   const Span<int> dst_corner_verts = dst.corner_verts();
-
-  MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
 
   if (!point_ids.is_empty() || !corner_ids.is_empty()) {
     Array<int> vert_nearest_tris(dst_positions.size());
