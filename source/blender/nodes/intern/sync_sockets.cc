@@ -346,6 +346,65 @@ void sync_sockets_evaluate_closure(SpaceNode &snode,
   BKE_ntree_update_tag_node_property(snode.edittree, &evaluate_closure_node);
 }
 
+void sync_sockets_closure_to_list(SpaceNode &snode,
+                                  bNode &closure_to_list_node,
+                                  ReportList *reports,
+                                  const bNodeSocket *src_closure_socket)
+{
+  const ClosureSyncState sync_state = get_sync_state_evaluate_closure(
+      snode, closure_to_list_node, src_closure_socket);
+  switch (sync_state.state) {
+    case NodeSyncState::Synced:
+      return;
+    case NodeSyncState::NoSyncSource:
+      BKE_report(reports, RPT_INFO, "No closure signature found");
+      return;
+    case NodeSyncState::ConflictingSyncSources:
+      BKE_report(reports, RPT_INFO, "Found conflicting closure signatures");
+      return;
+    case NodeSyncState::CanBeSynced:
+      break;
+  }
+
+  auto &storage = *static_cast<GeometryNodeClosureToList *>(closure_to_list_node.storage);
+
+  Map<std::string, int> old_input_identifiers;
+  Map<std::string, int> old_output_identifiers;
+  for (const int i : IndexRange(storage.items_num)) {
+    const GeometryNodeClosureToListItem &item = storage.items[i];
+    old_input_identifiers.add_new(StringRef(item.name), item.identifier);
+  }
+  for (const int i : IndexRange(storage.output_items.items_num)) {
+    const NodeEvaluateClosureOutputItem &item = storage.output_items.items[i];
+    old_output_identifiers.add_new(StringRef(item.name), item.identifier);
+  }
+
+  nodes::socket_items::clear<nodes::EvaluateClosureInputItemsAccessor>(closure_to_list_node);
+  nodes::socket_items::clear<nodes::EvaluateClosureOutputItemsAccessor>(closure_to_list_node);
+
+  for (const nodes::ClosureSignature::Item &item : sync_state.source_signature->inputs) {
+    NodeEvaluateClosureInputItem &new_item =
+        *nodes::socket_items::add_item_with_socket_type_and_name<
+            nodes::EvaluateClosureInputItemsAccessor>(
+            *snode.edittree, closure_to_list_node, item.type->type, item.key.c_str());
+    new_item.structure_type = int(item.structure_type);
+    if (const std::optional<int> old_identifier = old_input_identifiers.lookup_try(item.key)) {
+      new_item.identifier = *old_identifier;
+    }
+  }
+  for (const nodes::ClosureSignature::Item &item : sync_state.source_signature->outputs) {
+    NodeEvaluateClosureOutputItem &new_item =
+        *nodes::socket_items::add_item_with_socket_type_and_name<
+            nodes::EvaluateClosureOutputItemsAccessor>(
+            *snode.edittree, closure_to_list_node, item.type->type, item.key.c_str());
+    new_item.structure_type = int(item.structure_type);
+    if (const std::optional<int> old_identifier = old_output_identifiers.lookup_try(item.key)) {
+      new_item.identifier = *old_identifier;
+    }
+  }
+  BKE_ntree_update_tag_node_property(snode.edittree, &closure_to_list_node);
+}
+
 void sync_sockets_closure(SpaceNode &snode,
                           bNode &closure_input_node,
                           bNode &closure_output_node,
