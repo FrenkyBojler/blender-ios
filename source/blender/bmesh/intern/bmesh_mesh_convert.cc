@@ -71,6 +71,8 @@
  *   These indices are also used to maintain correct indices for hook modifiers and vertex parents.
  */
 
+#include <algorithm>
+
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -1385,9 +1387,13 @@ class AttrSingleValueChecker {
       spans_[attr_i] = GSpan(type, data.data, data.size);
     }
     can_be_single_.reinitialize(attrs_.size());
-    std::fill(can_be_single_.begin(), can_be_single_.end(), true);
+    std::ranges::fill(can_be_single_, true);
   }
 
+  /**
+   * \note Before calling this function, the attribute values for the first element must be set.
+   * That's particularly important if this is called from a thread.
+   */
   void check_range(const IndexRange range)
   {
     for (const int attr_i : attrs_.index_range()) {
