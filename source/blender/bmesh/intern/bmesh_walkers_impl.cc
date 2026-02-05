@@ -852,16 +852,14 @@ static bool bmw_EdgeloopWalker_delimit_mark_check(BMWalker *walker,
                                                   BMEdge *e,
                                                   BMLoop *l)
 {
-  if ((walker->flag & BMW_FLAG_TEST_HIDDEN && BM_elem_flag_test(e, BM_ELEM_HIDDEN)) ||
-      BM_edge_is_wire(e))
-  {
-    return false;
-  }
   /* When starting on a mark, stop when the next edge does not have the mark.
    * Otherwise, stop when any edge connected to the next vert has the mark. */
   if (walker->delimit & BMW_DELIMIT_EDGE_MARK_SEAM) {
     if (BM_elem_flag_test(e, BM_ELEM_SEAM)) {
-      if (!BM_elem_flag_test(l->e, BM_ELEM_SEAM)) {
+      if (!BM_elem_flag_test(l->e, BM_ELEM_SEAM) &&
+          !(walker->flag & BMW_FLAG_TEST_HIDDEN &&
+            BM_elem_flag_test(l->e, BM_ELEM_HIDDEN)) &&
+          !BM_edge_is_wire(l->e)) {
         return true;
       }
     }
@@ -869,7 +867,11 @@ static bool bmw_EdgeloopWalker_delimit_mark_check(BMWalker *walker,
       BMIter eiter;
       BMEdge *e_connected;
       BM_ITER_ELEM (e_connected, &eiter, v, BM_EDGES_OF_VERT) {
-        if (BM_elem_flag_test(e_connected, BM_ELEM_SEAM)) {
+        if (BM_elem_flag_test(e_connected, BM_ELEM_SEAM) &&
+            !(walker->flag & BMW_FLAG_TEST_HIDDEN &&
+              BM_elem_flag_test(e_connected, BM_ELEM_HIDDEN)) &&
+            !BM_edge_is_wire(e_connected))
+        {
           return true;
         }
       }
@@ -877,7 +879,10 @@ static bool bmw_EdgeloopWalker_delimit_mark_check(BMWalker *walker,
   }
   if (walker->delimit & BMW_DELIMIT_EDGE_MARK_SHARP) {
     if (!BM_elem_flag_test(e, BM_ELEM_SMOOTH)) {
-      if (BM_elem_flag_test(l->e, BM_ELEM_SMOOTH)) {
+      if (BM_elem_flag_test(l->e, BM_ELEM_SMOOTH) &&
+          !(walker->flag & BMW_FLAG_TEST_HIDDEN &&
+            BM_elem_flag_test(l->e, BM_ELEM_HIDDEN)) &&
+          !BM_edge_is_wire(l->e)) {
         return true;
       }
     }
@@ -885,7 +890,11 @@ static bool bmw_EdgeloopWalker_delimit_mark_check(BMWalker *walker,
       BMIter eiter;
       BMEdge *e_connected;
       BM_ITER_ELEM (e_connected, &eiter, v, BM_EDGES_OF_VERT) {
-        if (!BM_elem_flag_test(e_connected, BM_ELEM_SMOOTH)) {
+        if (!BM_elem_flag_test(e_connected, BM_ELEM_SMOOTH) &&
+            !(walker->flag & BMW_FLAG_TEST_HIDDEN &&
+              BM_elem_flag_test(e_connected, BM_ELEM_HIDDEN)) &&
+            !BM_edge_is_wire(e_connected))
+        {
           return true;
         }
       }
