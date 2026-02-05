@@ -3448,13 +3448,20 @@ struct NodeSimulationItem {
   char *name = nullptr;
   /** #eNodeSocketDatatype. */
   short socket_type = 0;
+  /** The number of dimensions in the vector socket if the socket type is vector, otherwise unused. */
+  char vector_socket_dimensions = 0;
+  char _pad1[1] = {};
   /** #AttrDomain. */
   short attribute_domain = 0;
+  char _pad2[2] = {};
+  /** #PropertySubType. For now only used for the socket UI (units), not evaluation. */
+  int socket_subtype = 0;
   /**
    * Generates unique identifier for sockets which stays the same even when the item order or
    * names change.
    */
   int identifier = 0;
+  int _pad[2] = {};
 };
 
 struct NodeGeometrySimulationInput {

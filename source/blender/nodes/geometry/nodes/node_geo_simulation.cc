@@ -178,7 +178,15 @@ static void draw_simulation_state(const bContext *C,
           panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           if (socket_type_supports_attributes(socket_type)) {
+          const eNodeSocketDatatype socket_type = eNodeSocketDatatype(active_item.socket_type);
+          if (socket_type_supports_fields(socket_type)) {
             panel->prop(item_ptr, "attribute_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          }
+          if (ELEM(socket_type, SOCK_VECTOR, SOCK_FLOAT, SOCK_INT)) {
+            panel->prop(item_ptr, "socket_subtype", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          }
+          if (socket_type == SOCK_VECTOR) {
+            panel->prop(item_ptr, "vector_socket_dimensions", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           }
         });
   }
@@ -409,14 +417,45 @@ static void node_declare(NodeDeclarationBuilder &b)
     }
     const StringRef name = item.name;
     const std::string identifier = SimulationItemsAccessor::socket_identifier_for_item(item);
-    auto &input_decl = b.add_input(socket_type, name, identifier)
-                           .socket_name_ptr(
-                               &node_tree->id, *SimulationItemsAccessor::item_srna, &item, "name");
-    auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
+    BaseSocketDeclarationBuilder *input_decl = nullptr;
+    BaseSocketDeclarationBuilder *output_decl = nullptr;
+    if (socket_type == SOCK_VECTOR) {
+      int dimensions = int(item.vector_socket_dimensions);
+      if (!ELEM(dimensions, 2, 3, 4)) {
+        dimensions = 3;
+      }
+      input_decl = &b.add_input<decl::Vector>(name, identifier)
+                        .dimensions(dimensions)
+                        .subtype(PropertySubType(item.socket_subtype));
+      output_decl = &b.add_output<decl::Vector>(name, identifier)
+                         .dimensions(dimensions)
+                         .subtype(PropertySubType(item.socket_subtype))
+                         .align_with_previous();
+    }
+    else if (socket_type == SOCK_FLOAT) {
+      input_decl = &b.add_input<decl::Float>(name, identifier)
+                        .subtype(PropertySubType(item.socket_subtype));
+      output_decl = &b.add_output<decl::Float>(name, identifier)
+                         .subtype(PropertySubType(item.socket_subtype))
+                         .align_with_previous();
+    }
+    else if (socket_type == SOCK_INT) {
+      input_decl = &b.add_input<decl::Int>(name, identifier)
+                        .subtype(PropertySubType(item.socket_subtype));
+      output_decl = &b.add_output<decl::Int>(name, identifier)
+                         .subtype(PropertySubType(item.socket_subtype))
+                         .align_with_previous();
+    }
+    else {
+      input_decl = &b.add_input(socket_type, name, identifier);
+      output_decl = &b.add_output(socket_type, name, identifier).align_with_previous();
+    }
+    input_decl->socket_name_ptr(
+        &node_tree->id, *SimulationItemsAccessor::item_srna, &item, "name");
     if (socket_type_supports_attributes(socket_type)) {
       /* If it's below a geometry input it may be a field evaluated on that geometry. */
-      input_decl.supports_field().structure_type(StructureType::Dynamic);
-      output_decl.dependent_field({input_decl.index()});
+      input_decl->supports_field().structure_type(StructureType::Dynamic);
+      output_decl->dependent_field({input_decl->index()});
     }
   }
   b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
@@ -745,14 +784,45 @@ static void node_declare(NodeDeclarationBuilder &b)
     }
     const StringRef name = item.name;
     const std::string identifier = SimulationItemsAccessor::socket_identifier_for_item(item);
-    auto &input_decl = b.add_input(socket_type, name, identifier)
-                           .socket_name_ptr(
-                               &tree->id, *SimulationItemsAccessor::item_srna, &item, "name");
-    auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
+    BaseSocketDeclarationBuilder *input_decl = nullptr;
+    BaseSocketDeclarationBuilder *output_decl = nullptr;
+    if (socket_type == SOCK_VECTOR) {
+      int dimensions = int(item.vector_socket_dimensions);
+      if (!ELEM(dimensions, 2, 3, 4)) {
+        dimensions = 3;
+      }
+      input_decl = &b.add_input<decl::Vector>(name, identifier)
+                        .dimensions(dimensions)
+                        .subtype(PropertySubType(item.socket_subtype));
+      output_decl = &b.add_output<decl::Vector>(name, identifier)
+                         .dimensions(dimensions)
+                         .subtype(PropertySubType(item.socket_subtype))
+                         .align_with_previous();
+    }
+    else if (socket_type == SOCK_FLOAT) {
+      input_decl = &b.add_input<decl::Float>(name, identifier)
+                        .subtype(PropertySubType(item.socket_subtype));
+      output_decl = &b.add_output<decl::Float>(name, identifier)
+                         .subtype(PropertySubType(item.socket_subtype))
+                         .align_with_previous();
+    }
+    else if (socket_type == SOCK_INT) {
+      input_decl = &b.add_input<decl::Int>(name, identifier)
+                        .subtype(PropertySubType(item.socket_subtype));
+      output_decl = &b.add_output<decl::Int>(name, identifier)
+                         .subtype(PropertySubType(item.socket_subtype))
+                         .align_with_previous();
+    }
+    else {
+      input_decl = &b.add_input(socket_type, name, identifier);
+      output_decl = &b.add_output(socket_type, name, identifier).align_with_previous();
+    }
+    input_decl->socket_name_ptr(
+        &tree->id, *SimulationItemsAccessor::item_srna, &item, "name");
     if (socket_type_supports_attributes(socket_type)) {
       /* If it's below a geometry input it may be a field evaluated on that geometry. */
-      input_decl.supports_field().structure_type(StructureType::Dynamic);
-      output_decl.dependent_field({input_decl.index()});
+      input_decl->supports_field().structure_type(StructureType::Dynamic);
+      output_decl->dependent_field({input_decl->index()});
     }
   }
   b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
@@ -770,6 +840,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   data->items = MEM_new_array<NodeSimulationItem>(1, __func__);
   data->items[0].name = BLI_strdup(DATA_("Geometry"));
   data->items[0].socket_type = SOCK_GEOMETRY;
+  data->items[0].socket_subtype = 0;
   data->items[0].identifier = data->next_identifier++;
   data->items_num = 1;
 

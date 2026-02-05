@@ -21,6 +21,7 @@ struct SimulationItemsAccessor : public socket_items::SocketItemsAccessorDefault
   static constexpr StringRefNull node_idname = "GeometryNodeSimulationOutput";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
+  static constexpr bool has_vector_dimensions = true;
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_simulation_zone_item_add";
     static constexpr StringRefNull remove_item = "NODE_OT_simulation_zone_item_remove";
@@ -83,11 +84,19 @@ struct SimulationItemsAccessor : public socket_items::SocketItemsAccessorDefault
   static void init_with_socket_type_and_name(bNode &node,
                                              NodeSimulationItem &item,
                                              const eNodeSocketDatatype socket_type,
-                                             const char *name)
+                                             const char *name,
+                                             std::optional<int> dimensions = std::nullopt)
   {
     auto *storage = static_cast<NodeGeometrySimulationOutput *>(node.storage);
     item.socket_type = socket_type;
+    if (socket_type == SOCK_VECTOR) {
+      item.vector_socket_dimensions = dimensions.value_or(3);
+    }
+    else {
+      item.vector_socket_dimensions = 0;
+    }
     item.identifier = storage->next_identifier++;
+    item.socket_subtype = 0;
     socket_items::set_item_name_and_make_unique<SimulationItemsAccessor>(node, item, name);
   }
 
