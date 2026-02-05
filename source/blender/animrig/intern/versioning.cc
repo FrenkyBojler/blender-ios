@@ -74,7 +74,9 @@ void convert_legacy_animato_actions(Main &bmain)
 void convert_legacy_animato_action(bAction &dna_action)
 {
   Action &action = dna_action.wrap();
-  BLI_assert(action.is_action_legacy());
+  /* Check that this is a legacy action.
+   * Cannot use `!action_is_layered` because that would be false on empty actions. */
+  BLI_assert(action.layer_array_num == 0 && action.slot_array_num == 0);
 
   /* Store this ahead of time, because adding the slot sets the action's idroot
    * to 0. We also set the action's idroot to 0 manually, just to be defensive
@@ -98,9 +100,10 @@ void convert_legacy_animato_action(bAction &dna_action)
   Channelbag &bag = strip.data<StripKeyframeData>(action).channelbag_for_slot_ensure(slot);
   const int fcu_count = BLI_listbase_count(&action.curves);
   const int group_count = BLI_listbase_count(&action.groups);
-  bag.fcurve_array = MEM_calloc_arrayN<FCurve *>(fcu_count, "Action versioning - fcurves");
+  bag.fcurve_array = MEM_new_array_zeroed<FCurve *>(fcu_count, "Action versioning - fcurves");
   bag.fcurve_array_num = fcu_count;
-  bag.group_array = MEM_calloc_arrayN<bActionGroup *>(group_count, "Action versioning - groups");
+  bag.group_array = MEM_new_array_zeroed<bActionGroup *>(group_count,
+                                                         "Action versioning - groups");
   bag.group_array_num = group_count;
 
   int fcurve_index = 0;
@@ -230,7 +233,7 @@ void convert_legacy_action_assignments(Main &bmain, ReportList *reports)
     }
 
     PointerRNA slot_to_assign_ptr = RNA_pointer_create_discrete(
-        &action.id, &RNA_ActionSlot, slot_to_assign);
+        &action.id, RNA_ActionSlot, slot_to_assign);
     RNA_property_pointer_set(
         &action_slot_owner_ptr, &action_slot_prop, slot_to_assign_ptr, reports);
     RNA_property_update_main(&bmain, nullptr, &action_slot_owner_ptr, &action_slot_prop);
@@ -261,6 +264,40 @@ void convert_legacy_action_assignments(Main &bmain, ReportList *reports)
     }
   }
   FOREACH_MAIN_ID_END;
+}
+
+void action_groups_reconstruct(bAction *act)
+{
+  if (!act) {
+    return;
+  }
+  /* Check that this is a legacy action.
+   * Cannot use `!action_is_layered` because that would be false on empty actions. */
+  BLI_assert(act->layer_array_num == 0 && act->slot_array_num == 0);
+  /* Clear out all group channels. Channels that are actually in use are
+   * reconstructed below; this step is necessary to clear out unused groups. */
+  for (bActionGroup &group : act->groups) {
+    BLI_listbase_clear(&group.channels);
+  }
+  /* Sort the channels into the group lists, destroying the act->curves list. */
+  ListBaseT<FCurve> ungrouped = {nullptr, nullptr};
+  for (FCurve &fcurve : act->curves.items_mutable()) {
+    if (fcurve.grp) {
+      BLI_assert(BLI_findindex(&act->groups, fcurve.grp) >= 0);
+      BLI_addtail(&fcurve.grp->channels, &fcurve);
+    }
+    else {
+      BLI_addtail(&ungrouped, &fcurve);
+    }
+  }
+  /* Recombine into the main list. */
+  BLI_listbase_clear(&act->curves);
+  for (bActionGroup &group : act->groups) {
+    /* Copy the list header to preserve the pointers in the group. */
+    ListBase tmp = group.channels;
+    BLI_movelisttolist(&act->curves, &tmp);
+  }
+  BLI_movelisttolist(&act->curves, &ungrouped);
 }
 
 }  // namespace blender::animrig::versioning

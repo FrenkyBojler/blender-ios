@@ -58,35 +58,16 @@ using slot_handle_t = int32_t;
 /* Allocate a new bAction with the given name */
 bAction *BKE_action_add(Main *bmain, const char name[]);
 
-/* Action API ----------------- */
-
-/**
- * Remove all fcurves from the action.
- *
- * \note This function only supports legacy Actions.
- */
-void BKE_action_fcurves_clear(bAction *act);
-
 /* Action Groups API ----------------- */
 
 /**
- * Get the active action-group for an Action.
- *
- * \note This function supports both legacy and layered Actions.
- */
-bActionGroup *get_active_actiongroup(bAction *act) ATTR_WARN_UNUSED_RESULT;
-
-/**
- * Make the given Action-Group the active one.
- *
- * \note This function supports both legacy and layered Actions.
- */
-void set_active_action_group(bAction *act, bActionGroup *agrp, short select);
-
-/**
  * Sync colors used for action/bone group with theme settings.
+ * This has to be called when the color theme index on the group changes so the actual color can be
+ * copied from the theme.
+ *
+ * \note Only meaningful on objects since for bones the group color is defined by the bone color.
  */
-void action_group_colors_sync(bActionGroup *grp, const bActionGroup *ref_grp);
+void action_group_colors_sync(bActionGroup *grp);
 
 /**
  * Set colors used on this action group.
@@ -102,52 +83,6 @@ void action_group_colors_set(bActionGroup *grp, const BoneColor *color);
  * Note that if `pchan->bone` is `nullptr`, this function silently does nothing.
  */
 void action_group_colors_set_from_posebone(bActionGroup *grp, const bPoseChannel *pchan);
-
-/**
- * Add a new action group with the given name to the action>
- *
- * \note This function ONLY works on legacy Actions, not on layered Actions.
- */
-bActionGroup *action_groups_add_new(bAction *act, const char name[]);
-
-/**
- * Add given channel into (active) group
- * - assumes that channel is not linked to anything anymore
- * - always adds at the end of the group
- *
- * \note This function ONLY works on legacy Actions, not on layered Actions.
- */
-void action_groups_add_channel(bAction *act, bActionGroup *agrp, FCurve *fcurve);
-
-/**
- * Remove the given channel from all groups.
- *
- * \note This function ONLY works on legacy Actions, not on layered Actions.
- */
-void action_groups_remove_channel(bAction *act, FCurve *fcu);
-
-/**
- * Reconstruct channel pointers.
- * Assumes that the groups referred to by the FCurves are already in act->groups.
- * Reorders the main channel list to match group order.
- *
- * \note This function ONLY works on legacy Actions, not on layered Actions.
- */
-void BKE_action_groups_reconstruct(bAction *act);
-
-/**
- * Find a group with the given name.
- *
- * \note This function supports only legacy Actions.
- */
-bActionGroup *BKE_action_group_find_name(bAction *act, const char name[]);
-
-/**
- * Clear all 'temp' flags on all groups.
- *
- * \note This function supports both legacy and layered Actions.
- */
-void action_groups_clear_tempflags(bAction *act);
 
 /* Pose API ----------------- */
 

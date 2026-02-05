@@ -4,13 +4,16 @@
 
 #include "render_task_delegate.hh"
 
-#include <epoxy/gl.h>
-
-#include "GPU_context.hh"
+#ifdef WITH_OPENGL_BACKEND
+#  include "GPU_context.hh"
+#  include <epoxy/gl.h>
+#endif
 
 #include <pxr/imaging/hd/renderBuffer.h>
 #include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hdx/renderTask.h>
+
+#include "BLI_utildefines.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -269,7 +272,7 @@ void GPURenderTaskDelegate::read_aov(pxr::TfToken const &aov_key, void *data)
   int w = GPU_texture_width(tex), h = GPU_texture_height(tex);
   void *tex_data = GPU_texture_read(tex, GPU_DATA_FLOAT, 0);
   memcpy(data, tex_data, sizeof(float) * w * h * c);
-  MEM_freeN(tex_data);
+  MEM_delete_void(tex_data);
 }
 
 void GPURenderTaskDelegate::bind()
@@ -284,21 +287,27 @@ void GPURenderTaskDelegate::bind()
   float clear_color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
   GPU_framebuffer_clear_color_depth(framebuffer_, clear_color, 1.0f);
 
+#ifdef WITH_OPENGL_BACKEND
   /* Workaround missing/buggy VAOs in hgiGL and hdSt. For OpenGL compatibility
    * profile this is not a problem, but for core profile it is. */
   if (VAO_ == 0 && GPU_backend_get_type() == GPU_BACKEND_OPENGL) {
     glGenVertexArrays(1, &VAO_);
     glBindVertexArray(VAO_);
   }
+#else
+  UNUSED_VARS(VAO_);
+#endif
   CLOG_DEBUG(LOG_HYDRA_RENDER, "bind");
 }
 
 void GPURenderTaskDelegate::unbind()
 {
+#ifdef WITH_OPENGL_BACKEND
   if (VAO_) {
     glDeleteVertexArrays(1, &VAO_);
     VAO_ = 0;
   }
+#endif
   if (framebuffer_) {
     GPU_framebuffer_free(framebuffer_);
     framebuffer_ = nullptr;

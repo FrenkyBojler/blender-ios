@@ -142,7 +142,6 @@ static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, 
 
   static const char *_keywords[] = {"size", "layers", "is_cubemap", "format", "data", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O"  /* `size` */
       "|$" /* Optional keyword only arguments. */
       "i"  /* `layers` */
@@ -464,7 +463,6 @@ static PyObject *pygpu_texture_mipmap_mode(BPyGPUTexture *self, PyObject *args, 
   bool use_filter = true;
   static const char *_keywords[] = {"use_mipmap", "use_filter"};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "b"  /* `use_mipmap` */
       "b"  /* `use_filter` */
@@ -531,7 +529,6 @@ static PyObject *pygpu_texture_clear(BPyGPUTexture *self, PyObject *args, PyObje
 
   static const char *_keywords[] = {"format", "value", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "$"  /* Keyword only arguments. */
       "O&" /* `format` */
       "O"  /* `value` */
@@ -764,7 +761,7 @@ PyDoc_STRVAR(
     "   :arg layers: Number of layers in texture array or number of cubemaps in cubemap array\n"
     "   :type layers: int\n"
     "   :arg is_cubemap: Indicates the creation of a cubemap texture.\n"
-    "   :type is_cubemap: int\n"
+    "   :type is_cubemap: bool\n"
     "   :arg format: Internal data format inside GPU memory. Possible values are:\n"
     "      ``RGBA8UI``,\n"
     "      ``RGBA8I``,\n"

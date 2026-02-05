@@ -450,7 +450,7 @@ PyDoc_STRVAR(
     "   List of varyings between shader stages.\n"
     "\n"
     "   :arg name: Name of the interface block.\n"
-    "   :type value: str\n");
+    "   :type name: str\n");
 PyTypeObject BPyGPUStageInterfaceInfo_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "GPUStageInterfaceInfo",
@@ -612,7 +612,6 @@ static PyObject *pygpu_shader_info_fragment_out(BPyGPUShaderCreateInfo *self,
 
   static const char *_keywords[] = {"slot", "type", "name", "blend", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `slot` */
       "O&" /* `type` */
       "s"  /* `name` */
@@ -674,7 +673,7 @@ PyDoc_STRVAR(
     "are greater than the depth value in the output buffer.\n"
     "      :LESS: enables depth write in a fragment shader for depth values that"
     "are less than the depth value in the output buffer.\n"
-    "   :type blend: str\n");
+    "   :type value: str\n");
 static PyObject *pygpu_shader_info_depth_write(BPyGPUShaderCreateInfo *self, PyObject *args)
 {
   PyC_StringEnum depth_write = {pygpu_depth_write_items, int(DepthWrite::UNCHANGED)};
@@ -764,7 +763,6 @@ static PyObject *pygpu_shader_info_image(BPyGPUShaderCreateInfo *self,
 
   static const char *_keywords[] = {"slot", "format", "type", "name", "qualifiers", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `slot` */
       "O&" /* `format` */
       "O&" /* `type` */
@@ -974,7 +972,6 @@ static PyObject *pygpu_shader_info_push_constant(BPyGPUShaderCreateInfo *self,
 
   static const char *_keywords[] = {"type", "name", "size", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `type` */
       "s"  /* `name` */
       "|"  /* Optional arguments. */

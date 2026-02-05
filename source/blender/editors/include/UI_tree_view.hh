@@ -105,6 +105,7 @@ class TreeViewItemContainer {
  protected:
   void foreach_item_recursive(ItemIterFn iter_fn, IterOptions options = IterOptions::None) const;
   void foreach_parent(ItemIterFn iter_fn) const;
+  void sort_alpha();
   /* Sort tree item list in reverse order. */
   void foreach_sort_invert(SortOrder order);
 };
@@ -145,7 +146,13 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   /* `char[UI_MAX_NAME_STR]` wrapped in shared pointer, to keep a stable pointer over
    * reconstruction that can be passed to buttons. */
   std::shared_ptr<char[]> search_string_{new char[256 /*UI_MAX_NAME_STR*/]{}};
-
+  /**
+   * When true, sort elements alphabatically.
+   */
+  std::shared_ptr<char> sort_alpha_ = std::make_shared<char>(0);
+  /**
+   * Invert sort order.
+   */
   std::shared_ptr<SortOrder> sort_order_ = std::make_shared<SortOrder>(SortOrder::None);
 
   friend class AbstractTreeViewItem;

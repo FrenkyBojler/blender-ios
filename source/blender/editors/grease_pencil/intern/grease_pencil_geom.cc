@@ -111,7 +111,7 @@ Array<float2> polyline_fit_curve(Span<float2> points,
                                            points.size(),
                                            2,
                                            error_threshold,
-                                           CURVE_FIT_CALC_HIGH_QUALIY,
+                                           CURVE_FIT_CALC_HIGH_QUALITY,
                                            indicies_ptr,
                                            indices.size(),
                                            &cubic_array,
@@ -311,10 +311,16 @@ bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry &src_curv
     if (iter.domain != bke::AttrDomain::Point) {
       return;
     }
-
     bke::GAttributeReader src_attribute = iter.get();
-    bke::attribute_math::convert_to_static_type(src_attribute.varray.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    const CommonVArrayInfo info = src_attribute.varray.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const bke::AttributeInitValue init(GPointer(src_attribute.varray.type(), info.data));
+      if (dst_attributes.add(iter.name, iter.domain, iter.data_type, init)) {
+        return;
+      }
+    }
+
+    bke::attribute_math::to_static_type(src_attribute.varray.type(), [&]<typename T>() {
       if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
         bke::SpanAttributeWriter<T> dst_attribute =
             dst_attributes.lookup_or_add_for_write_only_span<T>(iter.name, bke::AttrDomain::Point);
