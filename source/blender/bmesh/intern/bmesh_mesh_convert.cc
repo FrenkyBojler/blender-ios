@@ -1409,6 +1409,9 @@ class AttrSingleValueChecker {
   void optimize_storage()
   {
     for (const int attr_i : attrs_.index_range()) {
+      if (spans_[attr_i].is_empty()) {
+        continue;
+      }
       if (can_be_single_[attr_i]) {
         const GPointer value(spans_[attr_i].type(), spans_[attr_i][0]);
         attrs_[attr_i]->assign_data(bke::Attribute::SingleData::from_value(value));
