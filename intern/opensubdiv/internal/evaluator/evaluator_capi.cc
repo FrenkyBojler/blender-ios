@@ -6,10 +6,10 @@
 
 #include "opensubdiv_evaluator_capi.hh"
 
-#ifdef __APPLE__
-#  include <opensubdiv/osd/glslPatchShaderSource.h>
+#ifdef WITH_METAL_BACKEND
 #  include <opensubdiv/osd/mtlPatchShaderSource.h>
-#else
+#endif
+#if defined(WITH_VULKAN_BACKEND) || defined(WITH_OPENGL_BACKEND)
 #  include <opensubdiv/osd/glslPatchShaderSource.h>
 #endif
 
@@ -45,16 +45,25 @@ const char *openSubdiv_getGLSLPatchBasisSource()
         "#define OsdPatchParam_host_shared_ OsdPatchParam\n"
         "#define OsdPatchArray_host_shared_ OsdPatchArray\n"
         "#define OsdPatchCoord_host_shared_ OsdPatchCoord\n";
-#ifdef __APPLE__
-    if (blender::GPU_backend_get_type() == blender::GPU_BACKEND_METAL) {
-      patch_basis_source += OpenSubdiv::Osd::MTLPatchShaderSource::GetPatchBasisShaderSource();
-    }
-    else {
-      patch_basis_source += OpenSubdiv::Osd::GLSLPatchShaderSource::GetPatchBasisShaderSource();
-    }
-#else
-    patch_basis_source += OpenSubdiv::Osd::GLSLPatchShaderSource::GetPatchBasisShaderSource();
+
+    switch (blender::GPU_backend_get_type()) {
+#ifdef WITH_METAL_BACKEND
+      case blender::GPU_BACKEND_METAL:
+        patch_basis_source += OpenSubdiv::Osd::MTLPatchShaderSource::GetPatchBasisShaderSource();
+        break;
 #endif
+
+#if defined(WITH_OPENGL_BACKEND) || defined(WITH_VULKAN_BACKEND)
+      case blender::GPU_BACKEND_OPENGL:
+      case blender::GPU_BACKEND_VULKAN:
+        patch_basis_source += OpenSubdiv::Osd::GLSLPatchShaderSource::GetPatchBasisShaderSource();
+        break;
+#endif
+
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
   }
   return patch_basis_source.c_str();
 }
