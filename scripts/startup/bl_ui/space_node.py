@@ -270,25 +270,21 @@ class NODE_PT_gizmo_display(Panel):
             colsub = col.column()
             colsub.active = snode.node_tree is not None and col.active
             colsub.prop(snode, "show_gizmo_active_node", text="Active Node")
+        
+        col.separator()
+        col = col.column(align=True)
+        col.active = snode.show_minimap
 
-        split = col.split()
-        row = split.row()
-        row.prop(snode, "show_minimap", text="Show Minimap")
-        if not snode.show_minimap:
-            row.label(icon="DISCLOSURE_TRI_RIGHT")
-        else:
-            row.label(icon="DISCLOSURE_TRI_DOWN")
-            
-            split = col.split()
-            row = split.column()
-            row.separator()
-            row.use_property_split = True
-            row.prop(snode, "minimap_aspect_ratio")
-            row.prop(snode, "minimap_scale")
-            row.prop(snode, "use_node_colors")
-            row.prop(snode, "use_frame_colors")
-            row.prop(snode, "show_nodes_in_frame")
-            row.prop(snode, "minimap_top")
+        col.prop(snode, "show_minimap", text="Toggle Minimap")
+        col.prop(snode, "minimap_scale", text="Scale")
+        col.prop(snode, "minimap_aspect_ratio", text="Aspect ratio")
+        col.separator()
+        col.prop(snode, "use_node_colors")
+        col.separator()
+        col.prop(snode, "use_frame_colors")
+        col.prop(snode, "show_nodes_in_frame")
+        col.separator()
+        col.prop(snode, "minimap_top", text="Top placement")
 
 
 class NODE_MT_editor_menus(Menu):

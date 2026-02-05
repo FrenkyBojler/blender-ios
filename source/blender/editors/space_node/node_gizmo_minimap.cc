@@ -52,55 +52,10 @@ struct NodeGizmoMinimap {
 
 /* -------------------------------------------------------------------- */
 
-/* Duplicate from node_draw.cc. TODO: Maybe there is a better way to share code with  */
-static int node_get_colorid(const bNode &node)
+static void gizmo_minimap_draw(const bContext *C, wmGizmo *gz)
 {
-  const int nclass = (node.typeinfo->ui_class == nullptr) ? node.typeinfo->nclass :
-                                                            node.typeinfo->ui_class(&node);
-  switch (nclass) {
-    case NODE_CLASS_INPUT:
-      return TH_NODE_INPUT;
-    case NODE_CLASS_OUTPUT: 
-      return TH_NODE_OUTPUT;
-    case NODE_CLASS_CONVERTER:
-      return TH_NODE_CONVERTER;
-    case NODE_CLASS_OP_COLOR:
-      return TH_NODE_COLOR;
-    case NODE_CLASS_OP_VECTOR:
-      return TH_NODE_VECTOR;
-    case NODE_CLASS_OP_FILTER:
-      return TH_NODE_FILTER;
-    case NODE_CLASS_GROUP:
-      return TH_NODE_GROUP;
-    case NODE_CLASS_INTERFACE:
-      return TH_NODE_INTERFACE;
-    case NODE_CLASS_MATTE:
-      return TH_NODE_MATTE;
-    case NODE_CLASS_DISTORT:
-      return TH_NODE_DISTORT;
-    case NODE_CLASS_TEXTURE:
-      return TH_NODE_TEXTURE;
-    case NODE_CLASS_SHADER:
-      return TH_NODE_SHADER;
-    case NODE_CLASS_SCRIPT:
-      return TH_NODE_SCRIPT;
-    case NODE_CLASS_GEOMETRY:
-      return TH_NODE_GEOMETRY;
-    case NODE_CLASS_ATTRIBUTE:
-      return TH_NODE_ATTRIBUTE;
-    case NODE_CLASS_LAYOUT:
-      return node.is_frame() ? TH_NODE_FRAME : TH_NODE;
-    default:
-      return TH_NODE;
-  }
+  /* pass */
 }
-
-// For now make this for now
-static bool is_minimap_draw_top(const SpaceNode *snode)
-{
- return snode->gizmo_flag & SNODE_GIZMO_MINIMAP_MOVE_TO_TOP; 
-}
-
 
 static int gizmo_minimap_test_select(bContext *C, wmGizmo * /*gz*/, const int mval[2])
 {
@@ -133,7 +88,7 @@ static int gizmo_minimap_test_select(bContext *C, wmGizmo * /*gz*/, const int mv
   float viewport_width = BLI_rcti_size_x(&v2d.mask);
   float tile_height = viewport_height - BLI_rcti_size_y(rect_visible);
   float padding_top = padding;
-  if (is_minimap_draw_top(snode)) {
+  if (snode->gizmo_flag & SNODE_GIZMO_MINIMAP_MOVE_TO_TOP) {
     viewport_width = BLI_rcti_size_x(rect_visible);
     tile_height = 0;
     padding_top = viewport_height - minimap_height - padding;
@@ -216,7 +171,7 @@ static wmOperatorStatus gizmo_minimap_invoke(bContext *C, wmGizmo *gz, const wmE
   const rcti *rect_visible = ED_region_visible_rect(region);
   const float viewport_height = BLI_rcti_size_y(&v2d.mask);
   float tile_height = 0;
-  if (!is_minimap_draw_top(snode)) {
+  if (!(snode->gizmo_flag & SNODE_GIZMO_MINIMAP_MOVE_TO_TOP)) {
     tile_height = viewport_height - BLI_rcti_size_y(rect_visible);
   }
 
@@ -265,6 +220,7 @@ void NODE_GT_minimap(wmGizmoType *gzt)
   gzt->idname = "NODE_GT_minimap";
 
   /* api callbacks */
+  gzt->draw = gizmo_minimap_draw;
   gzt->test_select = gizmo_minimap_test_select;
   gzt->cursor_get = gizmo_minimap_cursor_get;
 

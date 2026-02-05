@@ -180,6 +180,13 @@ struct TreeDrawContext {
   }
 };
 
+struct MinimapDraw {
+  rctf space;       
+  rctf rect;        
+  float scale;       
+  float offset_x, offset_y;
+};
+
 float grid_size_get()
 {
   return NODE_GRID_STEP_SIZE;
@@ -3807,10 +3814,11 @@ static void frame_node_draw_label(const bNode &node, const SpaceNode &snode)
 
 static void frame_node_draw_background(const ARegion &region,
                                        const SpaceNode &snode,
-                                       const bNode &node)
+                                       const bNode &node, 
+                                       const MinimapDraw *minimap_data = nullptr)
 {
   /* Skip if out of view. */
-  if (BLI_rctf_isect(&node.runtime->draw_bounds, &region.v2d.cur, nullptr) == false) {
+  if (BLI_rctf_isect(&node.runtime->draw_bounds, &region.v2d.cur, nullptr) == false && minimap_data == nullptr) {
     return;
   }
 
@@ -3823,9 +3831,25 @@ static void frame_node_draw_background(const ARegion &region,
   node_frame_get_color(node, color);
   color[3] = alpha;
 
-  node_draw_shadow(snode, node, BASIS_RAD, alpha);
-
-  const rctf &rct = node.runtime->draw_bounds;
+  rctf rct = node.runtime->draw_bounds;
+  /* Node frame when used in minimap. */
+  if (minimap_data != nullptr) {
+    float pos[2], size[2];
+    pos[0] = (node.runtime->draw_bounds.xmin - minimap_data->space.xmin) * minimap_data->scale + minimap_data->rect.xmin +
+              minimap_data->offset_x;
+    pos[1] = (node.runtime->draw_bounds.ymin - minimap_data->space.ymin) * minimap_data->scale + minimap_data->rect.ymin +
+              minimap_data->offset_y;
+    size[0] = BLI_rctf_size_x(&node.runtime->draw_bounds) * minimap_data->scale;
+    size[1] = BLI_rctf_size_y(&node.runtime->draw_bounds) * minimap_data->scale;
+    if (!(snode.gizmo_flag & SNODE_GIZMO_MINIMAP_USE_FRAME_COLORS)) {
+      ui::theme::get_color_shade_alpha_4fv(TH_NODE_FRAME, 10, 0, temp_theme_color);
+      copy_v4_v4(color, temp_theme_color);
+      color[3] = alpha;
+    }
+    BLI_rctf_init(&rct, pos[0], pos[0] + size[0], pos[1], pos[1] + size[1]);
+  } else {
+    node_draw_shadow(snode, node, BASIS_RAD, alpha);
+  }
   draw_roundbox_corner_set(ui::CNR_ALL);
   ui::draw_roundbox_4fv(&rct, true, BASIS_RAD, color);
 }
@@ -4227,8 +4251,8 @@ void find_bounds_by_zone_recursive(const SpaceNode &snode,
 
 static void node_draw_zones_and_frames(const ARegion &region,
                                        const SpaceNode &snode,
-                                       const bNodeTree &ntree)
-{
+                                       const bNodeTree &ntree,
+                                       const MinimapDraw *minimap_data = nullptr) {
   const bNodeTreeZones *zones = ntree.zones();
   if (!zones) {
     /* Try use backup zones. */
@@ -4273,6 +4297,17 @@ static void node_draw_zones_and_frames(const ARegion &region,
         true,
         {});
   }
+
+  /* Coordinate transformation minimap. */
+  auto project_pos = [&](float3 p) {
+    if (minimap_data) {
+      p.x = (p.x - minimap_data->space.xmin) * minimap_data->scale + minimap_data->rect.xmin +
+            minimap_data->offset_x;
+      p.y = (p.y - minimap_data->space.ymin) * minimap_data->scale + minimap_data->rect.ymin +
+            minimap_data->offset_y;
+    }
+    return p;
+  };
 
   const View2D &v2d = region.v2d;
   float scale;
@@ -4339,16 +4374,16 @@ static void node_draw_zones_and_frames(const ARegion &region,
 
       immBegin(GPU_PRIM_TRI_FAN, fillet_boundary_positions.size() + 1);
       for (const float3 &p : fillet_boundary_positions) {
-        immVertex3fv(pos, p);
+        immVertex3fv(pos, project_pos(p));
       }
-      immVertex3fv(pos, fillet_boundary_positions[0]);
+      immVertex3fv(pos, project_pos(fillet_boundary_positions[0]));
       immEnd();
 
       immUnbindProgram();
     }
     if (const bNode *const *node_p = std::get_if<const bNode *>(&zone_or_node)) {
       const bNode &node = **node_p;
-      frame_node_draw_background(region, snode, node);
+      frame_node_draw_background(region, snode, node, minimap_data);
     }
   }
 
@@ -4378,16 +4413,20 @@ static void node_draw_zones_and_frames(const ARegion &region,
       immUniformThemeColorAlpha(theme_id, 1.0f);
       immBegin(GPU_PRIM_LINE_STRIP, fillet_boundary_positions.size() + 1);
       for (const float3 &p : fillet_boundary_positions) {
-        immVertex3fv(pos, p);
+        immVertex3fv(pos, project_pos(p));
       }
-      immVertex3fv(pos, fillet_boundary_positions[0]);
+      immVertex3fv(pos, project_pos(fillet_boundary_positions[0]));
       immEnd();
 
       immUnbindProgram();
     }
+
     if (const bNode *const *node_p = std::get_if<const bNode *>(&zone_or_node)) {
-      const bNode &node = **node_p;
-      frame_node_draw_outline(region, snode, node);
+      if(minimap_data == nullptr) {
+        /* Prevent draw node frame select outline for minimap */
+        const bNode &node = **node_p;
+        frame_node_draw_outline(region, snode, node);
+      }
     }
   }
 
@@ -4707,22 +4746,23 @@ static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx,
   float viewport[4];
   GPU_viewport_size_get_f(viewport);
 
-  float minimap_overlay_scale = snode->minimap_scale;
-  float minimap_size = 150.0f * minimap_overlay_scale * UI_SCALE_FAC;
-  float minimap_border_radius = BASIS_RAD +  0.5f;
-  float padding = 10.0f * UI_SCALE_FAC;
-  float inner_padding = 10.0f * UI_SCALE_FAC;
+  const float minimap_overlay_scale = snode->minimap_scale;
 
-  float min[2], max[2];
-  INIT_MINMAX2(min, max);
-
-  for (bNode &node : node_tree->nodes) {
-    float pos_min[2] = {node.runtime->draw_bounds.xmin, node.runtime->draw_bounds.ymin};
-    float pos_max[2] = {node.runtime->draw_bounds.xmax, node.runtime->draw_bounds.ymax};
-    minmax_v2v2_v2(min, max, pos_min);
-    minmax_v2v2_v2(min, max, pos_max);
+  const float minimap_size = 150.0f * minimap_overlay_scale * UI_SCALE_FAC;
+  const float minimap_border_radius = BASIS_RAD +  0.5f;
+  const float padding = 10.0f * UI_SCALE_FAC;
+  const float inner_padding = 10.0f * UI_SCALE_FAC;
+  
+  const float minimap_aspect_ratio = snode->minimap_aspect_ratio;
+  float minimap_width = minimap_size * minimap_aspect_ratio;
+  float minimap_height = minimap_size;
+  if (minimap_aspect_ratio > 1) {
+    minimap_width = minimap_size;
+    minimap_height = minimap_size / minimap_aspect_ratio;
   }
 
+  const float minimap_width_without_padding = minimap_width - inner_padding * 2;
+  const float minimap_height_without_padding = minimap_height - inner_padding * 2;
 
   const rcti *rect_visible = ED_region_visible_rect(&region);
   const float viewport_height = BLI_rcti_size_y(&v2d.mask);
@@ -4730,13 +4770,14 @@ static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx,
   float tile_height = viewport_height - BLI_rcti_size_y(rect_visible);
   float top_padding = padding;
 
-  float minimap_aspect_ratio = snode->minimap_aspect_ratio;
-
-  float minimap_width = minimap_size * minimap_aspect_ratio;
-  float minimap_height = minimap_size;
-  if (minimap_aspect_ratio > 1) {
-    minimap_width = minimap_size;
-    minimap_height = minimap_size / minimap_aspect_ratio;
+  /* Get the overall area, size of the minimap. */
+  float min[2], max[2];
+  INIT_MINMAX2(min, max);
+  for (bNode &node : node_tree->nodes) {
+    float pos_min[2] = {node.runtime->draw_bounds.xmin, node.runtime->draw_bounds.ymin};
+    float pos_max[2] = {node.runtime->draw_bounds.xmax, node.runtime->draw_bounds.ymax};
+    minmax_v2v2_v2(min, max, pos_min);
+    minmax_v2v2_v2(min, max, pos_max);
   }
 
   if (snode->gizmo_flag & SNODE_GIZMO_MINIMAP_MOVE_TO_TOP) {
@@ -4745,20 +4786,11 @@ static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx,
     top_padding = viewport_height - minimap_height - padding;
   }
 
-  float minimap_width_without_padding = minimap_width - inner_padding * 2;
-  float minimap_height_without_padding = minimap_height - inner_padding * 2;
   rctf minimap_space;
   BLI_rctf_init(&minimap_space, min[0], max[0], min[1], max[1]);
-  float minimap_space_width = BLI_rctf_size_x(&minimap_space);
-  float minimap_space_height = BLI_rctf_size_y(&minimap_space);
-  float minimap_scale = min_ff(minimap_width_without_padding / minimap_space_width,
-                              minimap_height_without_padding / minimap_space_height);
-
-  float offset_x = (minimap_width_without_padding - minimap_space_width * minimap_scale) * 0.5f +
-                  inner_padding;
-  float offset_y = (minimap_height_without_padding - minimap_space_height * minimap_scale) * 0.5f +
-                  inner_padding;
-
+  const float minimap_space_width = BLI_rctf_size_x(&minimap_space);
+  const float minimap_space_height = BLI_rctf_size_y(&minimap_space);
+  
   rctf minimap_rect;
   BLI_rctf_init(&minimap_rect,
                 viewport_width - padding - minimap_width,
@@ -4766,8 +4798,16 @@ static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx,
                 top_padding + tile_height,
                 top_padding + minimap_height + tile_height);
   
-  rctf minimap_rect_back;
-  BLI_rctf_init(&minimap_rect_back, minimap_rect.xmin, minimap_rect.xmax, minimap_rect.ymin , minimap_rect.ymax);
+  /* Initialize the minimap data. */
+  MinimapDraw minimap_data;
+  minimap_data.space = minimap_space;
+  minimap_data.rect = minimap_rect;
+  minimap_data.scale = min_ff(minimap_width_without_padding / minimap_space_width,
+                              minimap_height_without_padding / minimap_space_height);
+  minimap_data.offset_x = (minimap_width_without_padding - minimap_space_width * minimap_data.scale) * 0.5f +
+                           inner_padding;
+  minimap_data.offset_y = (minimap_height_without_padding - minimap_space_height * minimap_data.scale) * 0.5f +
+                           inner_padding;
 
   /* Draw Backdrop. */
   float backdrop_color[4];
@@ -4775,7 +4815,7 @@ static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx,
   ui::theme::get_color_shade_alpha_4fv(TH_BACK, 20, 0, backdrop_color_outline);
   ui::theme::get_color_shade_alpha_4fv(TH_BACK, -7, -10, backdrop_color);
   ui::draw_roundbox_corner_set(ui::CNR_ALL);
-  ui::draw_roundbox_4fv_ex(&minimap_rect_back,
+  ui::draw_roundbox_4fv_ex(&minimap_rect,
                           backdrop_color,
                           nullptr,
                           1.0f,
@@ -4784,10 +4824,9 @@ static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx,
                           minimap_border_radius);
   GPU_blend(GPU_BLEND_NONE);
 
-  /* Draw nodes. */
-  float node_border_radius = 3.0f;
+  /* Colors. */
+  const float node_border_radius = 3.0f;
   float node_color[4];
-  float node_color_frame[4];
   float node_color_outline_selected[4];
   float node_color_outline_active[4];
   float node_color_outline_group_input_output[4];
@@ -4796,96 +4835,14 @@ static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx,
   ui::theme::get_color_shade_alpha_4fv(TH_BACK, 30, 0, node_color_outline_group_input_output);
   ui::theme::get_color_shade_alpha_4fv(TH_SELECT, 0, 0, node_color_outline_selected);
   ui::theme::get_color_shade_alpha_4fv(TH_ACTIVE, 0, 0, node_color_outline_active);
-  ui::theme::get_color_shade_alpha_4fv(TH_BACK, 10, 0, node_color_frame);
 
-
-  /* Draw node frames. */
-  for (bNode &node : node_tree->nodes) {
-    if (!(node.type_legacy == NODE_FRAME)) {
-        continue;
-    }
-    float pos[2], size[2];
-    pos[0] = (node.runtime->draw_bounds.xmin - minimap_space.xmin) * minimap_scale + minimap_rect.xmin +
-              offset_x;
-    pos[1] = (node.runtime->draw_bounds.ymin - minimap_space.ymin) * minimap_scale + minimap_rect.ymin +
-              offset_y;
-    size[0] = BLI_rctf_size_x(&node.runtime->draw_bounds) * minimap_scale;
-    size[1] = BLI_rctf_size_y(&node.runtime->draw_bounds) * minimap_scale;
-
-    if (snode->gizmo_flag & SNODE_GIZMO_MINIMAP_USE_FRAME_COLORS) {
-      const float alpha = node_color_frame[3];
-      if (node.flag & NODE_CUSTOM_COLOR) {
-        rgba_float_args_set(
-            node_color_frame, node.color[0], node.color[1], node.color[2], alpha);
-      }
-      else {
-        ui::theme::get_color_shade_alpha_4fv(TH_BACK, 10, 0, node_color_frame);
-      }
-    }
-
-    rctf node_rect;
-    BLI_rctf_init(&node_rect, pos[0], pos[0] + size[0], pos[1], pos[1] + size[1]);
-    ui::draw_roundbox_4fv(&node_rect, true, node_border_radius, node_color_frame);
-  }
-
-  /* Draw zones. */
-  const bke::bNodeTreeZones *zones = node_tree->zones();
-  const int zones_num = zones ? zones->zones.size() : 0;
-
-  Array<Vector<float2>> bounds_by_zone(zones_num);
-
-  for (const int zone_i : IndexRange(zones_num)) {
-    const bke::bNodeTreeZone &zone = *zones->zones[zone_i];
-
-    find_bounds_by_zone_recursive(*snode, zone, zones->zones, bounds_by_zone);
-    const Span<float2> boundary_positions = bounds_by_zone[zone_i];
-    const int boundary_positions_num = boundary_positions.size();
-    if (boundary_positions_num < 3) {
-      /* Can happen when drawing zone errors. */
-      continue;
-    }
-
-    const blender::Bounds<float2> bounding_box = *blender::bounds::min_max(boundary_positions);
-    const float bounding_box_width = bounding_box.max.x - bounding_box.min.x;
-    const float bounding_box_height= bounding_box.max.y - bounding_box.min.y;
-
-
-    float pos[2], size[2];
-    pos[0] = (bounding_box.min.x - minimap_space.xmin) * minimap_scale + minimap_rect.xmin +
-              offset_x;
-    pos[1] = (bounding_box.min.y - minimap_space.ymin) * minimap_scale + minimap_rect.ymin +
-              offset_y;
-    size[0] = bounding_box_width * minimap_scale;
-    size[1] = bounding_box_height * minimap_scale;
-    
-    const auto get_theme_id = [&](const int zone_i) {
-    const bNode *node = zones->zones[zone_i]->output_node();
-    if (!node) {
-      return TH_REDALERT;
-    }
-    return ThemeColorID(bke::zone_type_by_node_type(node->type_legacy)->theme_id);
-    };
-
-    ui::theme::get_color_shade_alpha_4fv(get_theme_id(zone_i), 10, 0, node_color_frame);
-    
-    rctf node_rect;
-    BLI_rctf_init(&node_rect, pos[0], pos[0] + size[0], pos[1], pos[1] + size[1]);
-    ui::draw_roundbox_4fv(&node_rect, true, node_border_radius, node_color_frame);
-  }
+  /* Draw node frames and zones. */
+  node_draw_zones_and_frames(region, *snode, *node_tree, &minimap_data);
 
   /* Draw nodes. */
   for (bNode &node : node_tree->nodes) {
-    /* Skip zone nodes */
-    if (ELEM(node.type_legacy, 
-            GEO_NODE_SIMULATION_INPUT,
-            GEO_NODE_SIMULATION_OUTPUT,
-            GEO_NODE_REPEAT_INPUT,
-            GEO_NODE_REPEAT_OUTPUT,
-            GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
-            GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT,
-            NODE_CLOSURE_INPUT,
-            NODE_CLOSURE_OUTPUT,
-            NODE_FRAME)) {
+    /* Skip frame. */
+    if (node.type_legacy == NODE_FRAME) {
       continue;
     }
 
@@ -4895,12 +4852,12 @@ static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx,
 
     float pos[2], size[2];
 
-    pos[0] = (node.runtime->draw_bounds.xmin - minimap_space.xmin) * minimap_scale + minimap_rect.xmin +
-              offset_x;
-    pos[1] = (node.runtime->draw_bounds.ymin - minimap_space.ymin) * minimap_scale + minimap_rect.ymin +
-              offset_y;
-    size[0] = BLI_rctf_size_x(&node.runtime->draw_bounds) * minimap_scale;
-    size[1] = BLI_rctf_size_y(&node.runtime->draw_bounds) * minimap_scale;
+    pos[0] = (node.runtime->draw_bounds.xmin - minimap_space.xmin) * minimap_data.scale + minimap_rect.xmin +
+              minimap_data.offset_x;
+    pos[1] = (node.runtime->draw_bounds.ymin - minimap_space.ymin) * minimap_data.scale + minimap_rect.ymin +
+              minimap_data.offset_y;
+    size[0] = BLI_rctf_size_x(&node.runtime->draw_bounds) * minimap_data.scale;
+    size[1] = BLI_rctf_size_y(&node.runtime->draw_bounds) * minimap_data.scale;
 
     if (snode->gizmo_flag & SNODE_GIZMO_MINIMAP_USE_NODE_COLORS) {
       int color_id = node_get_colorid(tree_draw_ctx, node);
@@ -4927,7 +4884,29 @@ static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx,
                               3.0f,
                               node_border_radius);
     }
-    else if (ELEM(node.type_legacy, NODE_GROUP_INPUT, NODE_GROUP_OUTPUT)) {
+    else if (const bke::bNodeZoneType *zone_type = bke::zone_type_by_node_type(node.type_legacy)) {
+        ui::theme::get_color_4fv(zone_type->theme_id, node_color_outline_group_input_output);
+        node_color_outline_group_input_output[3] = 1.0f;
+        ui::draw_roundbox_4fv_ex(&node_rect,
+                                 node_color,
+                                 nullptr,
+                                 1.0f,
+                                 node_color_outline_group_input_output,
+                                 3.0f,
+                                 node_border_radius);
+    }
+    else if (ELEM(node.type_legacy, 
+                  NODE_GROUP_INPUT, 
+                  NODE_GROUP_OUTPUT)) {
+        ui::theme::get_color_shade_alpha_4fv(TH_BACK, 30, 0, node_color_outline_group_input_output);
+        if (ELEM(node.type_legacy, NODE_GROUP_INPUT)) {
+          node_color_outline_group_input_output[1] += 0.3f;
+        } else {
+          node_color_outline_group_input_output[0] += 0.3f;
+        }
+        node_color_outline_group_input_output[3] = 0.8f;
+      
+
       ui::draw_roundbox_4fv_ex(&node_rect,
                               node_color,
                               nullptr,
@@ -4944,10 +4923,10 @@ static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx,
 
   /* Draw view-rect. */
   float pos[2], size[2];
-  pos[0] = (v2d.cur.xmin - minimap_space.xmin) * minimap_scale + minimap_rect.xmin + offset_x;
-  pos[1] = (v2d.cur.ymin - minimap_space.ymin) * minimap_scale + minimap_rect.ymin + offset_y;
-  size[0] = BLI_rctf_size_x(&v2d.cur) * minimap_scale;
-  size[1] = BLI_rctf_size_y(&v2d.cur) * minimap_scale;
+  pos[0] = (v2d.cur.xmin - minimap_space.xmin) * minimap_data.scale + minimap_rect.xmin + minimap_data.offset_x;
+  pos[1] = (v2d.cur.ymin - minimap_space.ymin) * minimap_data.scale + minimap_rect.ymin + minimap_data.offset_y;
+  size[0] = BLI_rctf_size_x(&v2d.cur) * minimap_data.scale;
+  size[1] = BLI_rctf_size_y(&v2d.cur) * minimap_data.scale;
   rctf viewport_rect;
   BLI_rctf_init(&viewport_rect,
                 clamp_f(pos[0], minimap_rect.xmin, minimap_rect.xmax),
@@ -4977,7 +4956,7 @@ static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx,
                           minimap_outer_rect_offset,
                           minimap_border_radius + minimap_outer_rect_offset);
 
-  ui::draw_roundbox_4fv(&minimap_rect_back, false, minimap_border_radius, backdrop_color_outline);
+  ui::draw_roundbox_4fv(&minimap_rect, false, minimap_border_radius, backdrop_color_outline);
 }
 
 
@@ -5189,7 +5168,7 @@ void node_draw_space(const bContext &C, ARegion &region)
   }
 
   /* Minimap. */
-  if (ntree != nullptr && !(snode.gizmo_flag & SNODE_GIZMO_HIDE) && (snode.gizmo_flag & SNODE_GIZMO_SHOW_MINIMAP)) {
+  if (ntree && !(snode.gizmo_flag & SNODE_GIZMO_HIDE) && (snode.gizmo_flag & SNODE_GIZMO_SHOW_MINIMAP)) {
     draw_node_minimap(C, tree_draw_ctx, region);
   }
 
