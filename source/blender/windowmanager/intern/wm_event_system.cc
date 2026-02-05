@@ -2230,6 +2230,15 @@ static void wm_handler_op_context_get_if_valid(bContext *C,
       }
     }
 
+#ifdef WITH_XR_OPENXR
+    /* Special case for XR operators, which are executed in an XR-specific offscreen area. */
+    bContext *xr_C = WM_xr_session_context_get(&CTX_wm_manager(C)->xr);
+    ScrArea *xr_offscreen_area = CTX_wm_area(xr_C);
+    if (handler->context.area == xr_offscreen_area) {
+      area = xr_offscreen_area;
+    }
+#endif
+
     if (area == nullptr) {
       /* When changing screen layouts with running modal handlers (like render display), this
        * is not an error to print. */
