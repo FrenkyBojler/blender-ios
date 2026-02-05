@@ -57,6 +57,7 @@
 #include "IMB_metadata.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_c.hh"
 #include "UI_interface_icons.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -3273,6 +3274,45 @@ static int panel_draw_width_from_max_width_get(const ARegion *region,
 
 void side_region_property_search(const bContext *C, ARegion *region);
 
+void side_region_search_move_next_category_with_result(const bContext * /*C*/, ARegion *region)
+{
+  if (!BKE_regiontype_uses_panel_categories_search(region->runtime->type)) {
+    return;
+  }
+  if (!bool(region->flag & RGN_FLAG_SEARCH_FILTER_UPDATE)) {
+    return;
+  }
+  if (region->runtime->search_filter.empty() || region->runtime->search_filter == "") {
+    return;
+  }
+  if (region->runtime->categories_search_match.contains(region->runtime->category)) {
+    return;
+  }
+  const char *next_active = nullptr;
+  const char *first_active = nullptr;
+  bool found_active = false;
+  for (PanelCategoryDyn &pc_dyn : region->runtime->panels_category) {
+    found_active = found_active || STREQ(pc_dyn.idname, region->runtime->category);
+    const bool has_match = region->runtime->categories_search_match.contains(pc_dyn.idname);
+    if (has_match && !first_active) {
+      first_active = pc_dyn.idname;
+    }
+    if (has_match && found_active) {
+      next_active = pc_dyn.idname;
+      break;
+    }
+  }
+
+  if (next_active) {
+    ui::panel_category_active_set(region, next_active);
+    ui::panel_category_show_tab(region, next_active);
+  }
+  else if (first_active) {
+    ui::panel_category_active_set(region, first_active);
+    ui::panel_category_show_tab(region, first_active);
+  }
+}
+
 void ED_region_panels_layout_ex(const bContext *C,
                                 ARegion *region,
                                 ListBaseT<PanelType> *paneltypes,
@@ -3339,6 +3379,7 @@ void ED_region_panels_layout_ex(const bContext *C,
   const int max_panel_width = round_fl_to_int(BLI_rctf_size_x(&v2d->cur)) - margin_x;
   /* Works out to 10 * UI_UNIT_X or 20 * UI_UNIT_X. */
   const int em = (region->runtime->type->prefsizex) ? 10 : 20;
+
   /* create panels */
   ui::panels_begin(C, region);
 
@@ -3417,6 +3458,7 @@ void ED_region_panels_layout_ex(const bContext *C,
   /* align panels and return size */
   int x, y;
   ui::panels_end(C, region, &x, &y);
+
   if (category && region->runtime->search_filter != "") {
     for (Panel &panel : region->panels) {
       if (ui::panel_is_active(&panel) && ui::panel_matches_search_filter(&panel)) {
@@ -3472,6 +3514,7 @@ void ED_region_panels_layout_ex(const bContext *C,
   if (use_categories) {
     region->runtime->category = category;
   }
+  side_region_search_move_next_category_with_result(C, region);
 }
 
 void ED_region_draw_overflow_indication(const ScrArea *area,
@@ -3680,7 +3723,6 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   }
   /* Draw region search on top of panels. */
   side_panel_draw_search_block(C, region);
-
   /* restore view matrix */
   ui::view2d_view_restore(C);
 

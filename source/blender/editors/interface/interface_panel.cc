@@ -1650,18 +1650,12 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
 
 /** \} */
 
-static int ui_panel_category_show_active_tab(ARegion *region, const int mval[2])
+void panel_category_show_tab(ARegion *region, StringRef category)
 {
-  if (!ED_region_panel_category_gutter_isect_xy(region, mval)) {
-    return WM_UI_HANDLER_CONTINUE;
-  }
-
-  BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
-
   const View2D *v2d = &region->v2d;
   for (PanelCategoryDyn &pc_dyn : region->runtime->panels_category) {
-    const bool is_active = STREQ(pc_dyn.idname, region->runtime->category);
-    if (!is_active) {
+    const bool found = STREQ(pc_dyn.idname, category.data());
+    if (!found) {
       continue;
     }
     const rcti *rct = &pc_dyn.rect;
@@ -1675,6 +1669,15 @@ static int ui_panel_category_show_active_tab(ARegion *region, const int mval[2])
     break;
   }
   ED_region_tag_redraw(region);
+}
+
+static int ui_panel_category_show_active_tab(ARegion *region, const int mval[2])
+{
+  if (!ED_region_panel_category_gutter_isect_xy(region, mval)) {
+    return WM_UI_HANDLER_CONTINUE;
+  }
+  BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
+  panel_category_show_tab(region, region->runtime->category);
   return WM_UI_HANDLER_BREAK;
 }
 /* -------------------------------------------------------------------- */
