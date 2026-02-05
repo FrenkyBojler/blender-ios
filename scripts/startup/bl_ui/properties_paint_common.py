@@ -792,7 +792,8 @@ def brush_settings(layout, context, brush, popover=False):
         sculpt_brush_type = brush.sculpt_brush_type
 
         # normal_radius_factor
-        layout.prop(brush, "normal_radius_factor", slider=True)
+        if capabilities.has_normal_radius:
+            layout.prop(brush, "normal_radius_factor", slider=True)
 
         if capabilities.has_tilt:
             layout.prop(brush, "tilt_strength_factor", slider=True)
