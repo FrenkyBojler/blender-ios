@@ -71,7 +71,6 @@
  *   These indices are also used to maintain correct indices for hook modifiers and vertex parents.
  */
 
-#include "BKE_attribute_math.hh"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -93,6 +92,7 @@
 #include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_attribute_legacy_convert.hh"
+#include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
