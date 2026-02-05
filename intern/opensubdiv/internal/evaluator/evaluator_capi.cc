@@ -46,24 +46,12 @@ const char *openSubdiv_getGLSLPatchBasisSource()
         "#define OsdPatchArray_host_shared_ OsdPatchArray\n"
         "#define OsdPatchCoord_host_shared_ OsdPatchCoord\n";
 
-    switch (blender::GPU_backend_get_type()) {
 #ifdef WITH_METAL_BACKEND
-      case blender::GPU_BACKEND_METAL:
-        patch_basis_source += OpenSubdiv::Osd::MTLPatchShaderSource::GetPatchBasisShaderSource();
-        break;
+    patch_basis_source += OpenSubdiv::Osd::MTLPatchShaderSource::GetPatchBasisShaderSource();
 #endif
-
 #if defined(WITH_OPENGL_BACKEND) || defined(WITH_VULKAN_BACKEND)
-      case blender::GPU_BACKEND_OPENGL:
-      case blender::GPU_BACKEND_VULKAN:
-        patch_basis_source += OpenSubdiv::Osd::GLSLPatchShaderSource::GetPatchBasisShaderSource();
-        break;
+    patch_basis_source += OpenSubdiv::Osd::GLSLPatchShaderSource::GetPatchBasisShaderSource();
 #endif
-
-      default:
-        BLI_assert_unreachable();
-        break;
-    }
   }
   return patch_basis_source.c_str();
 }
