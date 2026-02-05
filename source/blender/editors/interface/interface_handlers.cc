@@ -10982,6 +10982,9 @@ static int ui_handle_menu_event(bContext *C,
             }
             break;
           }
+          else if (!block_is_menu(block)) {
+            break;
+          }
           ATTR_FALLTHROUGH;
         }
         case WHEELUPMOUSE:
@@ -10998,6 +11001,9 @@ static int ui_handle_menu_event(bContext *C,
               }
               WM_event_add_mousemove(CTX_wm_window(C));
             }
+            break;
+          }
+          else if (!block_is_menu(block)) {
             break;
           }
           ATTR_FALLTHROUGH;
@@ -11286,7 +11292,8 @@ static int ui_handle_menu_event(bContext *C,
                 else {
                   ui_handle_button_activate_by_type(C, region, but_iter.get());
                 }
-                return WM_UI_HANDLER_BREAK;
+                retval = WM_UI_HANDLER_BREAK;
+                break;
               }
             }
           }
