@@ -89,11 +89,11 @@ static int calculate_grid_step(const int base,
                                const float view_width,
                                const float min_distance)
 {
-  if (IS_EQF(view_width, 0.0f) || base == 0) {
+  if (IS_EQF(view_width, 0.0f)) {
     return 1;
   }
   const float pixels_per_view_unit = pixel_width / view_width;
-  int distance = base;
+  int distance = max_ii(base, 1);
   if (pixels_per_view_unit * distance > min_distance) {
     /* Shrink the distance. */
     while (distance > 1) {
