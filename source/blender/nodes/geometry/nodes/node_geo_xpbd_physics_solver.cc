@@ -1130,7 +1130,7 @@ static SolverDebugFnStorage get_debug_solver_function(XPBDDebugRecorder &debug_r
           state(other.state),
           world_bundles(other.world_bundles),
           all_keys(other.all_keys),
-          geometries([=]() { return gather_world_geometries(world_bundles); })
+          geometries([=, this]() { return gather_world_geometries(world_bundles); })
     {
     }
   };

@@ -128,6 +128,8 @@ class Bundle : public ImplicitSharingMixin {
 
   void count_memory(MemoryCounter &memory) const;
 
+  Vector<std::string> gather_paths(FunctionRef<bool(const Bundle &bundle)> fn) const;
+
   /** Create the combined path by inserting '/' between each element. */
   static std::string combine_path(const Span<StringRef> path);
 
@@ -139,6 +141,14 @@ class Bundle : public ImplicitSharingMixin {
   static bool is_valid_path(const StringRef path);
   static std::optional<Vector<StringRef>> split_path(const StringRef path);
 };
+
+enum class BundlePathsGatherFilterResult {
+  None,
+  Recurse,
+  Take,
+};
+Vector<std::string> gather_bundle_paths(
+    const Bundle &bundle, FunctionRef<BundlePathsGatherFilterResult(const Bundle &bundle)> fn);
 
 template<typename T>
 inline std::optional<T> BundleItemValue::as_socket_value(

@@ -436,4 +436,52 @@ std::optional<BundleSignature> LinkedBundleSignatures::get_merged_signature() co
   return signature;
 }
 
+static void gather_bundle_paths_recursive(
+    const Bundle &bundle,
+    Vector<StringRef> &path,
+    const FunctionRef<BundlePathsGatherFilterResult(const Bundle &bundle)> fn,
+    Vector<std::string> &r_paths)
+{
+  const BundlePathsGatherFilterResult filter_result = fn(bundle);
+  switch (filter_result) {
+    case BundlePathsGatherFilterResult::None: {
+      return;
+    }
+    case BundlePathsGatherFilterResult::Recurse: {
+      for (const auto &item : bundle.items()) {
+        if (const BundlePtr *child_bundle_ptr = item.value.as_pointer<BundlePtr>()) {
+          if (*child_bundle_ptr) {
+            path.append(item.key);
+            gather_bundle_paths_recursive(**child_bundle_ptr, path, fn, r_paths);
+            path.pop_last();
+          }
+        }
+      }
+      break;
+    }
+    case BundlePathsGatherFilterResult::Take: {
+      r_paths.append(Bundle::combine_path(path));
+      break;
+    }
+  }
+}
+
+Vector<std::string> gather_bundle_paths(
+    const Bundle &bundle,
+    const FunctionRef<BundlePathsGatherFilterResult(const Bundle &bundle)> fn)
+{
+  Vector<std::string> paths;
+  Vector<StringRef> path;
+  for (const auto &item : bundle.items()) {
+    if (const BundlePtr *child_bundle_ptr = item.value.as_pointer<BundlePtr>()) {
+      if (*child_bundle_ptr) {
+        path.append(item.key);
+        gather_bundle_paths_recursive(**child_bundle_ptr, path, fn, paths);
+        path.pop_last();
+      }
+    }
+  }
+  return paths;
+}
+
 }  // namespace blender::nodes
