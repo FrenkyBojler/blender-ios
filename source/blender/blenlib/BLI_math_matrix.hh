@@ -267,7 +267,7 @@ template<typename MatT> [[nodiscard]] MatT orthogonalize(const MatT &mat, const 
 
 /**
  * Construct a transformation that is pivoted around the given origin point. So for instance,
- * from_origin_transform<MatT>(from_rotation(std::numbers * 0.5), float2(0.0f, 2.0f))
+ * from_origin_transform<MatT>(from_rotation(std::numbers::pi * 0.5), float2(0.0f, 2.0f))
  * will construct a transformation representing a 90 degree rotation around the point (0, 2).
  */
 template<typename MatT, typename VectorT>
