@@ -4017,14 +4017,12 @@ static bool wm_event_xr_handler_matches_actiondata(const wmEventHandler_Op *op_h
 
 static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent *event)
 {
-  bContext *xr_C = WM_xr_session_context_get(&wm->xr);
+  bContext *xr_C = WM_xr_session_context_ensure(wm, wm->xr.runtime);
+
   ScrArea *xr_area = CTX_wm_area(xr_C);
   ARegion *xr_region = CTX_wm_region(xr_C);
 
-  if (!xr_area) {
-    return;
-  }
-  BLI_assert(xr_area->spacetype == SPACE_VIEW3D && xr_area->spacedata.first);
+  BLI_assert(xr_area && xr_area->spacetype == SPACE_VIEW3D && xr_area->spacedata.first);
 
   /* For operators using GPU-based selection. */
   BLI_assert(WM_region_use_viewport(xr_area, xr_region));

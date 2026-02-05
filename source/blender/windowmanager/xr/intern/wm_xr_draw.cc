@@ -171,10 +171,12 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   GPU_clear_depth(1.0f);
 
   /* Draws the view into the surface_data->viewport's frame-buffers. */
+  /* XR context is ensured on each draw in #wm_xr_session_surface_draw. */
+  bContext *xr_C = WM_xr_session_context_get(xr_data);
   ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
                                   draw_data->scene,
                                   &settings->shading,
-                                  WM_xr_session_context_get(xr_data),
+                                  xr_C,
                                   eDrawType(settings->shading.type),
                                   settings->object_type_exclude_viewport,
                                   settings->object_type_exclude_select,

@@ -246,8 +246,7 @@ static void wm_xr_session_scene_and_depsgraph_get(const wmWindowManager *wm,
   Scene *scene = WM_window_get_active_scene(root_win);
   ViewLayer *view_layer = WM_window_get_active_view_layer(root_win);
 
-  /* Ensure the XR-specific context stays in sync. */
-  CTX_data_scene_set(wm->xr.runtime->b_context, scene);
+  WM_xr_session_context_ensure(wm, wm->xr.runtime);
 
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
   BLI_assert(scene && view_layer && depsgraph);
@@ -432,6 +431,25 @@ void wm_xr_session_state_update(const XrSessionSettings *settings,
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr)
 {
   return xr->runtime ? &xr->runtime->session_state : nullptr;
+}
+
+bContext *WM_xr_session_context_ensure(const wmWindowManager *wm, wmXrRuntimeData *runtime_data)
+{
+  /* XR session root window. Also sets the context scene. */
+  wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, runtime_data);
+  BLI_assert(xr_win);
+  CTX_wm_window_set(runtime_data->b_context, xr_win);
+
+  /* Unique offscreen XR area. */
+  BLI_assert(runtime_data->offscreen_area);
+  CTX_wm_area_set(runtime_data->b_context, runtime_data->offscreen_area);
+
+  /* Region for XR operator execution and modal handling. */
+  ARegion *xr_region = BKE_area_find_region_type(runtime_data->offscreen_area, RGN_TYPE_WINDOW);
+  CTX_wm_region_set(runtime_data->b_context, xr_region);
+
+  /* Return for convenience. */
+  return runtime_data->b_context;
 }
 
 bContext *WM_xr_session_context_get(const wmXrData *xr)
@@ -1302,8 +1320,6 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
 
   /* Only update controller data and dispatch events for active action set. */
   if (active_action_set) {
-    wmWindow *win = wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
-
     if (active_action_set->controller_grip_action && active_action_set->controller_aim_action) {
       wm_xr_session_controller_data_update(settings,
                                            active_action_set->controller_grip_action,
@@ -1312,25 +1328,18 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
                                            state);
     }
 
-    if (win) {
-      /* Ensure an XR area exists for events. */
-      bContext *xr_C = WM_xr_session_context_get(xr);
-      if (!CTX_wm_area(xr_C)) {
-        ScrArea *xr_area = ED_area_offscreen_create(win, SPACE_VIEW3D);
-        CTX_wm_area_set(xr_C, xr_area);
+    wmWindow *win = wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
+    BLI_assert(win);
 
-        /* Find a valid region for XR operator execution and modal handling. */
-        ARegion *xr_region = BKE_area_find_region_type(xr_area, RGN_TYPE_WINDOW);
-        CTX_wm_region_set(xr_C, xr_region);
-      }
+    WM_xr_session_context_ensure(wm, xr->runtime);
 
-      /* Set XR area object type flags for operators. */
-      View3D *v3d = static_cast<View3D *>(CTX_wm_area(xr_C)->spacedata.first);
-      v3d->object_type_exclude_viewport = settings->object_type_exclude_viewport;
-      v3d->object_type_exclude_select = settings->object_type_exclude_select;
+    /* Set XR area View3D object type flags for operators. */
+    bContext *xr_C = xr->runtime->b_context;
+    View3D *v3d = static_cast<View3D *>(CTX_wm_area(xr_C)->spacedata.first);
+    v3d->object_type_exclude_viewport = settings->object_type_exclude_viewport;
+    v3d->object_type_exclude_select = settings->object_type_exclude_select;
 
-      wm_xr_session_events_dispatch(xr, xr_context, active_action_set, state, win);
-    }
+    wm_xr_session_events_dispatch(xr, xr_context, active_action_set, state, win);
   }
 }
 
@@ -1418,6 +1427,7 @@ static void wm_xr_session_surface_draw(bContext *C)
    * writing for example. */
   // BLI_assert(DEG_is_fully_evaluated(depsgraph));
   wm_xr_session_draw_data_populate(&wm->xr, scene, depsgraph, &draw_data);
+  WM_xr_session_context_ensure(wm, wm->xr.runtime);
 
   GHOST_XrSessionDrawViews(wm->xr.runtime->ghost_context, &draw_data);
 

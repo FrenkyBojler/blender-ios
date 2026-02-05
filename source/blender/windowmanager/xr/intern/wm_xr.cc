@@ -137,12 +137,13 @@ bool wm_xr_init(bContext *C)
       /* Create a minimal XR-specific context. */
       wm->xr.runtime->b_context = CTX_create();
 
-      /* Main and WM pointers. */
+      /* Base Main and WM pointers. */
       CTX_wm_manager_set(wm->xr.runtime->b_context, CTX_wm_manager(C));
       CTX_data_main_set(wm->xr.runtime->b_context, CTX_data_main(C));
-      /* XR root-window and current scene. */
-      CTX_wm_window_set(wm->xr.runtime->b_context, CTX_wm_window(C));
-      CTX_data_scene_set(wm->xr.runtime->b_context, CTX_data_scene(C));
+
+      /* Create the XR offscreen area (independent of any bScreen). */
+      wm->xr.runtime->offscreen_area = ED_area_offscreen_create(CTX_wm_window(C), SPACE_VIEW3D);
+      WM_xr_session_context_ensure(wm, wm->xr.runtime);
     }
   }
   BLI_assert(wm->xr.runtime && wm->xr.runtime->ghost_context && wm->xr.runtime->b_context);
@@ -208,16 +209,13 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
     GHOST_XrContextDestroy(ghost_context);
   }
 
-  ScrArea *xr_area = CTX_wm_area((*runtime)->b_context);
+  ScrArea *xr_offscreen_area = (*runtime)->offscreen_area;
+  BLI_assert(xr_offscreen_area);
 
-  if (xr_area) {
-    wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
-    wmWindow *win = wm_xr_session_root_window_or_fallback_get(wm, (*runtime));
-
-    WM_event_remove_handlers_by_area(&win->runtime->handlers, xr_area);
-    ED_area_offscreen_free(wm, win, xr_area);
-    CTX_wm_area_set((*runtime)->b_context, nullptr);
-  }
+  wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
+  wmWindow *win = wm_xr_session_root_window_or_fallback_get(wm, (*runtime));
+  WM_event_remove_handlers_by_area(&win->runtime->handlers, xr_offscreen_area);
+  ED_area_offscreen_free(wm, win, xr_offscreen_area);
 
   CTX_free((*runtime)->b_context);
 
