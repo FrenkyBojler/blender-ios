@@ -215,7 +215,7 @@ class BaseGenerator:
         self.scene = context.scene
         self.view_layer = context.view_layer
         self.layer_collection = context.layer_collection
-        self.collection = self.layer_collection.collection
+        self.collection = context.collection
         self.metarig = metarig
 
         # List of all rig instances
