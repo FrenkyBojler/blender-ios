@@ -141,12 +141,13 @@ class GridReadKey : public GenericKey {
     return get_default_hash(this->file_path, this->grid_name, this->simplify_level);
   }
 
-  friend bool operator==(const GridReadKey &a, const GridReadKey &b) = default;
-
   bool equal_to(const GenericKey &other) const override
   {
     if (const auto *other_typed = dynamic_cast<const GridReadKey *>(&other)) {
-      return *this == *other_typed;
+      const GridReadKey &a = *this;
+      const GridReadKey &b = *other_typed;
+      return a.file_path == b.file_path && a.grid_name == b.grid_name &&
+             a.simplify_level == b.simplify_level;
     }
     return false;
   }
