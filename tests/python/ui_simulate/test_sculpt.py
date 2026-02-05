@@ -316,25 +316,15 @@ def trim_gestures():
 
 def primitive_tool_add():
     import bpy
-
     e, t, window = ui.test_window()
 
-    # In the default properties area, set it to the tool tab to force access of all
-    # tool properties when a tool is activated.
-    properties_area = ui.get_window_area_by_type(window, 'PROPERTIES')
-    properties_area.spaces[0].context = 'TOOL'
+    yield e.ctrl.tab().s()                                                # Sculpt via pie menu.
 
-    yield e.ctrl.tab().s()                                     # Sculpt via pie menu.
+    yield from ui.call_menu(e, "Sculpt -> Add Primitive -> Add Cube")     # Select add cube tool
 
     area = ui.get_window_area_by_type(window, 'VIEW_3D')
-    position = (area.x + int(area.width * 0.02), area.y + area.height // 2)
-    yield e.cursor_position_set(*position, move=True)          # Move mouse over the toolbar
-
-    yield e.shift.space()
-    yield e.five()                                             # Select add cube tool
-
     position = (area.x + area.width // 2, area.y + area.height // 2)
-    yield e.cursor_position_set(*position, move=True)          # Move mouse to center
+    yield e.cursor_position_set(*position, move=True)                     # Move mouse to center
 
     e.leftmouse.press()
     yield
@@ -356,4 +346,4 @@ def primitive_tool_add():
 
     mesh = bpy.context.object.data
     num_faces = mesh.attributes.domain_size('FACE')
-    t.assertEqual(num_faces, 12)                               # There should be 6 + 6 faces
+    t.assertEqual(num_faces, 12)                                          # There should be 6 + 6 faces

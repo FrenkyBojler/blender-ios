@@ -19,7 +19,7 @@ def sculpt_mode_toolbar():
     yield e.ctrl.tab().s()              # Sculpt via pie menu.
 
     area = ui.get_window_area_by_type(window, 'VIEW_3D')
-    position = (area.x + int(area.width * 0.02), area.y + area.height // 2)
+    position = (area.x + int(area.width * 0.05), area.y + area.height // 2)
     e.cursor_position_set(*position, move=True)     # Move mouse over the toolbar
 
     yield e.shift.space()
