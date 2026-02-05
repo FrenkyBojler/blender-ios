@@ -548,10 +548,6 @@ ImBuf *IMB_thumb_read(const char *file_or_lib_path, ThumbSize size)
 
 void IMB_thumb_delete(const char *file_or_lib_path, ThumbSize size)
 {
-  if (skip_thumbnails_for_filepath(file_or_lib_path)) {
-    return;
-  }
-
   char thumb[FILE_MAX];
   char uri[URI_MAX];
 
