@@ -5,6 +5,8 @@
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_instances.hh"
 
+#include "BLI_math_matrix.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_input_instance_bounds_cc {
@@ -38,6 +40,7 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
   {
     const Span<int> handles = instances.reference_handles();
     const Span<bke::InstanceReference> references = instances.references();
+    const Span<float4x4> transforms = instances.transforms();
 
     IndexMaskMemory memory;
     IndexMask reference_mask(references.size());
@@ -86,11 +89,10 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
         exec_mode::grain_size(128));
 
     Array<float3> output_bounds(mask.min_array_size());
-    mask.foreach_index(
-        [&](const int instance_index) {
-          output_bounds[instance_index] = reference_bounds[handles[instance_index]];
-        },
-        exec_mode::grain_size(4096));
+    mask.foreach_index(GrainSize(4096), [&](const int instance_index) {
+      const float4x4 &transform = transforms[instance_index];
+      output_bounds[instance_index] = math::transform_point(transform, reference_bounds[handles[instance_index]]);
+    });
 
     return VArray<float3>::from_container(std::move(output_bounds));
   }
