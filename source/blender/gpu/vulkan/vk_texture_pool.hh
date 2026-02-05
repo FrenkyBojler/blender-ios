@@ -13,7 +13,7 @@
 
 namespace blender::gpu {
 
-/* VkDeviceSize tuple to describe memory segments. */
+/* Hashable VkDeviceSize pair to describe memory segments. */
 struct VKDeviceSegment {
   VkDeviceSize offset;
   VkDeviceSize size;
@@ -26,16 +26,15 @@ struct VKDeviceSegment {
 struct VKImageInfo {
   VkImageCreateInfo create_info;
   VmaAllocation allocation;
-  VKDeviceSegment allocation_local_segment;
+  VKDeviceSegment segment;
 
   uint64_t hash() const;
   bool operator==(const VKImageInfo &) const;
 };
 
-/* Map to existing VkImage handles already bound to a segment of a VmaAllocation.
- * Unused handles are cleared out after `max_unused_cycles_`. */
+/* Map to existing VkImage handles, bound to an allocation segment. */
 class VKImageCache {
-  /* Unused images are eventually passed to the discard pool,
+  /* Unused images handles are eventually passed to discard pool,
    * on the assumption they will find reuse in less time. */
   static constexpr int max_unused_cycles_ = 8;
 
@@ -53,6 +52,11 @@ class VKImageCache {
   /* Remove unused images from the cache, and send them to discard pool.
    * If `force_free` is true, remove all unused images in the cache. */
   void reset(bool force_reset = false);
+
+  uint64_t size() const
+  {
+    return cache_.size();
+  }
 };
 
 class VKTexturePool : public TexturePool {
@@ -63,7 +67,7 @@ class VKTexturePool : public TexturePool {
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;
 
-  /* Struct to manage a memory allocation. This region of memory can be segmented
+  /* Struct to manage a VmaAllocation. The allocation is segmented
    * for binding to multiple supported resources at a time. */
   struct AllocationHandle {
     VmaAllocation allocation = VK_NULL_HANDLE;
@@ -113,12 +117,12 @@ class VKTexturePool : public TexturePool {
     /* Handle payload. */
     VKTexture *texture = nullptr;
     VmaAllocation allocation = VK_NULL_HANDLE;
-    VKDeviceSegment local_segment = {};
+    VKDeviceSegment segment = {};
 
     /* Counter to track texture acquire/retain mismatches in `acquire_`.  */
     int users_count = 1;
 
-    /* Create or destroy the VKTexture+VkImage and handle internals. */
+    /* Create/destroy the VKTexture internal . */
     void alloc(int2 extent, TextureFormat format, eGPUTextureUsage usage, const char *name);
     void free();
 
@@ -139,7 +143,7 @@ class VKTexturePool : public TexturePool {
   };
 
   /* Cache of VkImage handles to avoid repeated memory binding. */
-  VKImageCache vk_image_cache_;
+  VKImageCache image_cache_;
   /* Allocated memory chunks on which images are bound. */
   Set<AllocationHandle> allocations_;
   /* Texture handles currently in use. */
