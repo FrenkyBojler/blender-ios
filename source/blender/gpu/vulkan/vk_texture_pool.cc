@@ -8,7 +8,6 @@
 
 #include "vk_texture_pool.hh"
 #include "vk_backend.hh"
-#include "vk_texture.hh"
 
 #include "fmt/format.h"
 
@@ -154,7 +153,7 @@ void VKImageCache::reset(bool force_reset)
 std::optional<VKDeviceSegment> VKTexturePool::AllocationHandle::acquire(
     VkMemoryRequirements requirements)
 {
-  /* `memoryType` uses 0 as special value to indicate no memory type restrictions.n
+  /* `memoryType` uses 0 as special value to indicate no memory type restrictions.
    * If there are restrictions, we check as a mask against `memoryTypeBits`. */
   uint32_t memory_type_bit = 1u << allocation_info.memoryType;
   if (allocation_info.memoryType != 0 && !bool(requirements.memoryTypeBits & memory_type_bit)) {
@@ -298,25 +297,25 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   /* Allocate VKTexture return object, encapsulated in TextureHandle so we can
    * later release to the right allocation in `release_texture`. */
   TextureHandle texture_handle;
-  VKTexture &texture = *(texture_handle.texture = new VKTexture(name));
-  texture.w_ = extent.x;
-  texture.h_ = extent.y;
-  texture.d_ = 0;
-  texture.format_ = format;
-  texture.format_flag_ = to_format_flag(format);
-  texture.type_ = GPU_TEXTURE_2D;
-  texture.gpu_image_usage_flags_ = usage;
+  VKTexture *texture = texture_handle.texture = new VKTexture(name);
+  texture->w_ = extent.x;
+  texture->h_ = extent.y;
+  texture->d_ = 0;
+  texture->format_ = format;
+  texture->format_flag_ = to_format_flag(format);
+  texture->type_ = GPU_TEXTURE_2D;
+  texture->gpu_image_usage_flags_ = usage;
   /* R16G16F16 formats are typically not supported (<1%). */
-  texture.device_format_ = format;
-  if (texture.device_format_ == TextureFormat::SFLOAT_16_16_16) {
-    texture.device_format_ = TextureFormat::SFLOAT_16_16_16_16;
+  texture->device_format_ = format;
+  if (texture->device_format_ == TextureFormat::SFLOAT_16_16_16) {
+    texture->device_format_ = TextureFormat::SFLOAT_16_16_16_16;
   }
-  if (texture.device_format_ == TextureFormat::SFLOAT_32_32_32) {
-    texture.device_format_ = TextureFormat::SFLOAT_32_32_32_32;
+  if (texture->device_format_ == TextureFormat::SFLOAT_32_32_32) {
+    texture->device_format_ = TextureFormat::SFLOAT_32_32_32_32;
   }
   /* Mirrors behavior in gpu::Texture::init_2d(...). */
-  if ((texture.format_flag_ & (GPU_FORMAT_DEPTH_STENCIL | GPU_FORMAT_INTEGER)) == 0) {
-    texture.sampler_state.filtering = GPU_SAMPLER_FILTERING_LINEAR;
+  if ((texture->format_flag_ & (GPU_FORMAT_DEPTH_STENCIL | GPU_FORMAT_INTEGER)) == 0) {
+    texture->sampler_state.filtering = GPU_SAMPLER_FILTERING_LINEAR;
   }
 
   /* Fill VkImageCreateInfo to obtain VkMemoryRequirements. */
@@ -372,8 +371,8 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
       .allocation = texture_handle.allocation,
       .segment = texture_handle.segment,
   };
-  texture_handle.texture->vk_image_ = image_cache_.get_or_create(image_cache_info);
-  debug::object_label(texture_handle.texture->vk_image_, texture_handle.texture->name_);
+  texture->vk_image_ = image_cache_.get_or_create(image_cache_info);
+  debug::object_label(texture->vk_image_, texture->name_);
 
   if (G.debug & G_DEBUG_GPU) {
     /* Accumulate usage data for debug log. */
@@ -383,7 +382,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   }
 
   acquired_.add(texture_handle);
-  return wrap(texture_handle.texture);
+  return wrap(texture);
 }  // namespace gpu
 
 void VKTexturePool::release_texture(Texture *texture)

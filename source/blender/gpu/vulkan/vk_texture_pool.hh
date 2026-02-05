@@ -9,6 +9,9 @@
 #pragma once
 
 #include "gpu_texture_pool_private.hh"
+
+#include "vk_texture.hh"
+
 #include <list>
 
 namespace blender::gpu {
