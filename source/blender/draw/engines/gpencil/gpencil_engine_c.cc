@@ -736,8 +736,7 @@ void Instance::acquire_resources()
     this->gpencil_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(grease_pencil_pass));
   }
 
-  const bool depth_pass_exists = DRW_viewport_pass_texture_exists(RE_PASSNAME_DEPTH);
-  if (depth_pass_exists) {
+  if (DRW_viewport_pass_texture_exists(RE_PASSNAME_DEPTH)) {
     draw::TextureFromPool &depth_pass = DRW_viewport_pass_texture_get(RE_PASSNAME_DEPTH);
     this->depth_pass_img = depth_pass.gpu_texture();
   }

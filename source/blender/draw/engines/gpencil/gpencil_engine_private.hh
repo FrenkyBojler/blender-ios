@@ -150,6 +150,7 @@ struct Instance final : public DrawEngine {
   Texture smaa_area_tx = {"smaa_area_tx"};
   Texture smaa_search_tx = {"smaa_search_tx"};
 
+  /* Stores the viewport compositor depth pass if needed. */
   gpu::Texture *depth_pass_img = nullptr;
 
   /* Temp Textures (shared with other engines). */
