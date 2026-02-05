@@ -1803,8 +1803,7 @@ bool supports_normal_radius(const Brush &brush)
 {
   /* TODO: This setting is closely tied to #supports_sculpt_plane, they should be merged in some
    * way. Update after initial commit to avoid confusing PRs. */
-  return !ELEM(brush.sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_POSE);
+  return !ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_POSE);
 }
 bool supports_hardness(const Brush &brush)
 {
