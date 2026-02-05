@@ -141,7 +141,7 @@ class GridReadKey : public GenericKey {
     return get_default_hash(this->file_path, this->grid_name, this->simplify_level);
   }
 
-  BLI_STRUCT_EQUALITY_OPERATORS_3(GridReadKey, file_path, grid_name, simplify_level)
+  friend bool operator==(const GridReadKey &a, const GridReadKey &b) = default;
 
   bool equal_to(const GenericKey &other) const override
   {
