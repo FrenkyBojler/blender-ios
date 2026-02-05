@@ -528,12 +528,39 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
         if needs_codec and ffmpeg.codec == 'NONE':
             return
 
+        image_settings = context.scene.render.image_settings
+
+        if image_settings.color_management == 'OVERRIDE':
+            display_settings = image_settings.display_settings
+            view_settings = image_settings.view_settings
+        else:
+            display_settings = context.scene.display_settings
+            view_settings = context.scene.view_settings
+
+        # HDR compatibility
+        if view_settings.is_hdr and (not needs_codec or ffmpeg.codec not in {'H265', 'AV1'}):
+            layout.label(text="HDR needs H.265 or AV1", icon='ERROR')
+
         # Color depth. List of codecs needs to be in sync with
         # `IMB_ffmpeg_valid_bit_depths` in source code.
         use_bpp = needs_codec and ffmpeg.codec in {'H264', 'H265', 'AV1', 'PRORES', 'FFV1'}
         if use_bpp:
-            image_settings = context.scene.render.image_settings
             layout.prop(image_settings, "color_depth", expand=True)
+
+        # HDR compatibility
+        if view_settings.is_hdr and image_settings.color_depth not in {'10', '12'}:
+            layout.label(text="HDR needs 10 or 12 bits", icon='ERROR')
+
+        # Color space
+        split = layout.split(factor=0.4)
+        col = split.column()
+        col.alignment = 'RIGHT'
+        col.label(text="Color Space")
+
+        col = split.column()
+        row = col.row()
+        row.enabled = False
+        row.prop(display_settings, "display_device", text="")
 
         if ffmpeg.codec == 'DNXHD':
             layout.prop(ffmpeg, "use_lossless_output")
@@ -551,6 +578,8 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
         }
         if use_crf:
             layout.prop(ffmpeg, "constant_rate_factor")
+            if (ffmpeg.constant_rate_factor == 'CUSTOM'):
+                layout.prop(ffmpeg, "custom_constant_rate_factor")
 
         use_encoding_speed = needs_codec and ffmpeg.codec not in {'DNXHD', 'FFV1', 'HUFFYUV', 'PNG', 'PRORES', 'QTRLE'}
         use_bitrate = needs_codec and ffmpeg.codec not in {'FFV1', 'HUFFYUV', 'PNG', 'PRORES', 'QTRLE'}
@@ -617,7 +646,8 @@ class RENDER_PT_encoding_audio(RenderOutputButtonsPanel, Panel):
         if ffmpeg.audio_codec != 'NONE':
             layout.prop(ffmpeg, "audio_channels")
             layout.prop(ffmpeg, "audio_mixrate", text="Sample Rate")
-            layout.prop(ffmpeg, "audio_bitrate")
+            if ffmpeg.audio_codec not in {'FLAC', 'PCM'}:
+                layout.prop(ffmpeg, "audio_bitrate")
             layout.prop(ffmpeg, "audio_volume", slider=True)
 
 

@@ -121,20 +121,20 @@ class SculptSelectionFieldInput final : public bke::GeometryFieldInput {
       case GeometryComponent::Type::Mesh: {
         const VArraySpan<float> attribute = *attributes.lookup<float>(".sculpt_mask", domain);
         if (attribute.is_empty()) {
-          return GVArray::ForSingle(*type_, mask.min_array_size(), true_value(data_type));
+          return GVArray::from_single(*type_, mask.min_array_size(), true_value(data_type));
         }
         switch (data_type) {
           case bke::AttrType::Bool: {
             Array<bool> selection(mask.min_array_size());
             mask.foreach_index_optimized<int>(
                 GrainSize(4096), [&](const int i) { selection[i] = attribute[i] < 1.0f; });
-            return VArray<bool>::ForContainer(std::move(selection));
+            return VArray<bool>::from_container(std::move(selection));
           }
           case bke::AttrType::Float: {
             Array<float> selection(mask.min_array_size());
             mask.foreach_index_optimized<int>(
                 GrainSize(4096), [&](const int i) { selection[i] = 1.0f - attribute[i]; });
-            return VArray<float>::ForContainer(std::move(selection));
+            return VArray<float>::from_container(std::move(selection));
           }
           default: {
             BLI_assert_unreachable();
@@ -181,7 +181,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeToolSelection", GEO_NODE_TOOL_SELECTION);
   ntype.ui_name = "Selection";
   ntype.ui_description = "User selection of the edited geometry, for tool execution";
@@ -190,7 +190,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.gather_link_search_ops = search_link_ops_for_tool_node;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

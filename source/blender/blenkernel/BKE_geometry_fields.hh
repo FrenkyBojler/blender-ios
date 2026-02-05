@@ -15,10 +15,12 @@
 
 #include "FN_field.hh"
 
+namespace blender {
+
 struct Mesh;
 struct PointCloud;
 
-namespace blender::bke {
+namespace bke {
 
 class CurvesGeometry;
 class GeometryFieldInput;
@@ -286,20 +288,20 @@ class AttributeFieldInput : public GeometryFieldInput {
                                                      Category::NamedAttribute;
   }
 
-  static fn::GField Create(std::string name,
-                           const CPPType &type,
-                           std::optional<std::string> socket_inspection_name = std::nullopt)
+  static fn::GField from(std::string name,
+                         const CPPType &type,
+                         std::optional<std::string> socket_inspection_name = std::nullopt)
   {
     auto field_input = std::make_shared<AttributeFieldInput>(
         std::move(name), type, std::move(socket_inspection_name));
     return fn::GField(field_input);
   }
   template<typename T>
-  static fn::Field<T> Create(std::string name,
-                             std::optional<std::string> socket_inspection_name = std::nullopt)
+  static fn::Field<T> from(std::string name,
+                           std::optional<std::string> socket_inspection_name = std::nullopt)
   {
     return fn::Field<T>(
-        Create(std::move(name), CPPType::get<T>(), std::move(socket_inspection_name)));
+        from(std::move(name), CPPType::get<T>(), std::move(socket_inspection_name)));
   }
 
   StringRefNull attribute_name() const
@@ -328,7 +330,7 @@ class AttributeExistsFieldInput final : public bke::GeometryFieldInput {
     category_ = Category::Generated;
   }
 
-  static fn::Field<bool> Create(std::string name)
+  static fn::Field<bool> from(std::string name)
   {
     const CPPType &type = CPPType::get<bool>();
     auto field_input = std::make_shared<AttributeExistsFieldInput>(std::move(name), type);
@@ -458,48 +460,48 @@ class EvaluateOnDomainInput final : public bke::GeometryFieldInput {
 
 bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
                                     const fn::FieldContext &field_context,
-                                    Span<StringRef> attribute_ids,
+                                    Span<StringRef> names,
                                     AttrDomain domain,
                                     const fn::Field<bool> &selection,
                                     Span<fn::GField> fields);
 
 inline bool try_capture_field_on_geometry(MutableAttributeAccessor attributes,
                                           const fn::FieldContext &field_context,
-                                          const StringRef attribute_id,
+                                          const StringRef name,
                                           AttrDomain domain,
                                           const fn::Field<bool> &selection,
                                           const fn::GField &field)
 {
   return try_capture_fields_on_geometry(
-      attributes, field_context, {attribute_id}, domain, selection, {field});
+      attributes, field_context, {name}, domain, selection, {field});
 }
 
 bool try_capture_fields_on_geometry(GeometryComponent &component,
-                                    Span<StringRef> attribute_ids,
+                                    Span<StringRef> names,
                                     AttrDomain domain,
                                     Span<fn::GField> fields);
 
 inline bool try_capture_field_on_geometry(GeometryComponent &component,
-                                          const StringRef attribute_id,
+                                          const StringRef name,
                                           AttrDomain domain,
                                           const fn::GField &field)
 {
-  return try_capture_fields_on_geometry(component, {attribute_id}, domain, {field});
+  return try_capture_fields_on_geometry(component, {name}, domain, {field});
 }
 
 bool try_capture_fields_on_geometry(GeometryComponent &component,
-                                    Span<StringRef> attribute_ids,
+                                    Span<StringRef> names,
                                     AttrDomain domain,
                                     const fn::Field<bool> &selection,
                                     Span<fn::GField> fields);
 
 inline bool try_capture_field_on_geometry(GeometryComponent &component,
-                                          const StringRef attribute_id,
+                                          const StringRef name,
                                           AttrDomain domain,
                                           const fn::Field<bool> &selection,
                                           const fn::GField &field)
 {
-  return try_capture_fields_on_geometry(component, {attribute_id}, domain, selection, {field});
+  return try_capture_fields_on_geometry(component, {name}, domain, selection, {field});
 }
 
 /**
@@ -509,4 +511,5 @@ inline bool try_capture_field_on_geometry(GeometryComponent &component,
 std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &component,
                                                   const fn::GField &field);
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender

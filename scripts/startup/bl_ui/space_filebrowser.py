@@ -211,7 +211,6 @@ class FILEBROWSER_UL_dir(UIList):
         # space = context.space_data
 
         row = layout.row(align=True)
-        row.enabled = direntry.is_valid
         # Non-editable entries would show grayed-out, which is bad in this specific case, so switch to mere label.
         if direntry.is_property_readonly("name"):
             row.label(text=direntry.name, icon_value=icon)
@@ -303,12 +302,14 @@ class FILEBROWSER_PT_bookmarks_favorites(FileBrowserPanel, Panel):
             row.template_list(
                 "FILEBROWSER_UL_dir", "bookmarks", space, "bookmarks",
                 space, "bookmarks_active", item_dyntip_propname="path",
-                rows=(2 if num_rows < 2 else 4), maxrows=10,
+                rows=(3 if num_rows < 2 else 5), maxrows=10,
             )
 
             col = row.column(align=True)
             col.operator("file.bookmark_add", icon='ADD', text="")
             col.operator("file.bookmark_delete", icon='REMOVE', text="")
+
+            col.separator()
             col.menu("FILEBROWSER_MT_bookmarks_context_menu", icon='DOWNARROW_HLT', text="")
 
             if num_rows > 1:
@@ -783,7 +784,7 @@ class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
 
         row = layout.row(align=True)
         row.prop(wm, "asset_path_dummy", text="Source", icon='CURRENT_FILE' if is_local_asset else 'NONE')
-        row.operator("asset.open_containing_blend_file", text="", icon='TOOL_SETTINGS')
+        row.operator("asset.open_containing_blend_file", text="", icon='FILE_BLEND')
 
         metadata = asset.metadata
         self.metadata_prop(layout, metadata, "description")
@@ -860,7 +861,7 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
         st = context.space_data
         params = st.params
 
-        layout.operator("asset.library_refresh")
+        layout.operator("asset.library_refresh", icon='FILE_REFRESH')
 
         layout.separator()
 
@@ -871,7 +872,7 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
 
         layout.separator()
 
-        layout.operator("asset.open_containing_blend_file")
+        layout.operator("asset.open_containing_blend_file", icon='FILE_BLEND')
 
         layout.separator()
 

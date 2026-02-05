@@ -41,6 +41,7 @@ class Integrator : public Node {
   NODE_SOCKET_API(float, ao_distance)
   NODE_SOCKET_API(float, ao_additive_factor)
 
+  NODE_SOCKET_API(bool, volume_ray_marching)
   NODE_SOCKET_API(int, volume_max_steps)
   NODE_SOCKET_API(float, volume_step_rate)
 
@@ -113,6 +114,8 @@ class Integrator : public Node {
     UPDATE_NONE = 0u,
   };
 
+  bool shadow_catcher_needs_recalc_ = true;
+
   Integrator();
   ~Integrator() override;
 
@@ -126,6 +129,9 @@ class Integrator : public Node {
   AdaptiveSampling get_adaptive_sampling() const;
   DenoiseParams get_denoise_params() const;
   GuidingParams get_guiding_params(const Device *device) const;
+
+  bool is_modified() const;
+  void clear_modified();
 };
 
 CCL_NAMESPACE_END

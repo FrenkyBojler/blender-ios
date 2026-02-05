@@ -6,6 +6,7 @@
  * \ingroup fbx
  */
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_deform.hh"
 #include "BKE_key.hh"
@@ -20,6 +21,7 @@
 #include "BLI_listbase.h"
 #include "BLI_ordered_edge.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 #include "BLI_vector_set.hh"
 
@@ -182,6 +184,7 @@ static void import_edges(const ufbx_mesh *fmesh,
 }
 
 static void import_uvs(const ufbx_mesh *fmesh,
+                       Mesh *mesh,
                        bke::MutableAttributeAccessor &attributes,
                        AttributeOwner attr_owner)
 {
@@ -196,6 +199,8 @@ static void import_uvs(const ufbx_mesh *fmesh,
       uvs.span[i] = float2(uv.x, uv.y);
     }
     uvs.finish();
+    mesh->uv_maps_active_set(attr_name);
+    mesh->uv_maps_default_set(attr_name);
   }
 }
 
@@ -361,6 +366,10 @@ static bool import_blend_shapes(Main &bmain,
       KeyBlock *kb = BKE_keyblock_add(mesh_key, fchan->target_shape->name.data);
       kb->curval = fchan->weight;
       BKE_keyblock_convert_from_mesh(mesh, mesh_key, kb);
+      if (!kb->data) {
+        /* Nothing to do. This can happen if the mesh has no vertices. */
+        continue;
+      }
       float3 *kb_data = static_cast<float3 *>(kb->data);
       for (int i = 0; i < fchan->target_shape->num_offsets; i++) {
         int idx = fchan->target_shape->offset_vertices[i];
@@ -431,7 +440,7 @@ static void import_blend_shape_full_weights(const FbxElementMapping &mapping,
         }
       }
 
-      STRNCPY(kb->vgroup, kb->name);
+      STRNCPY_UTF8(kb->vgroup, kb->name);
     }
   }
 }
@@ -461,7 +470,7 @@ void import_meshes(Main &bmain,
     import_face_material_indices(fmesh, attributes);
     import_face_smoothing(fmesh, attributes);
     import_edges(fmesh, mesh, attributes);
-    import_uvs(fmesh, attributes, attr_owner);
+    import_uvs(fmesh, mesh, attributes, attr_owner);
     if (params.vertex_colors != eFBXVertexColorMode::None) {
       import_colors(fmesh, mesh, attributes, attr_owner, params.vertex_colors);
     }
@@ -474,13 +483,21 @@ void import_meshes(Main &bmain,
     }
     import_skin_vertex_groups(mapping, fmesh, mesh);
 
+    /* Add vertex groups to the object. */
+    VectorSet<std::string> bone_set = get_skin_bone_name_set(mapping, fmesh);
+    for (const std::string &name : bone_set) {
+      bDeformGroup *defgroup = MEM_new<bDeformGroup>("bDeformGroup");
+      StringRef(name).copy_utf8_truncated(defgroup->name);
+      BLI_addtail(&mesh->vertex_group_names, defgroup);
+    }
+
     /* Validate if needed. */
     if (params.validate_meshes) {
       bool verbose_validate = false;
 #ifndef NDEBUG
       verbose_validate = true;
 #endif
-      BKE_mesh_validate(mesh, verbose_validate, false);
+      bke::mesh_validate(*mesh, verbose_validate);
     }
 
     if (has_custom_normals) {
@@ -519,8 +536,16 @@ void import_meshes(Main &bmain,
 
     /* Create objects that use this mesh. */
     for (const ufbx_node *node : fmesh->instances) {
-      Object *obj = BKE_object_add_only_object(&bmain, OB_MESH, get_fbx_name(node->name));
-      obj->data = mesh_main;
+      std::string name;
+      if (node->is_geometry_transform_helper) {
+        /* Name geometry transform adjustment helpers with parent name and _GeomAdjust suffix. */
+        name = get_fbx_name(node->parent->name) + std::string("_GeomAdjust");
+      }
+      else {
+        name = get_fbx_name(node->name);
+      }
+      Object *obj = BKE_object_add_only_object(&bmain, OB_MESH, name.c_str());
+      obj->data = id_cast<ID *>(mesh_main);
       if (!node->visible) {
         obj->visibility_flag |= OB_HIDE_VIEWPORT;
       }
@@ -533,12 +558,6 @@ void import_meshes(Main &bmain,
 
       /* Skinned mesh. */
       if (fmesh->skin_deformers.count > 0) {
-        /* Add vertex groups to the object. */
-        VectorSet<std::string> bone_set = get_skin_bone_name_set(mapping, fmesh);
-        for (const std::string &name : bone_set) {
-          BKE_object_defgroup_add_name(obj, name.c_str());
-        }
-
         /* Add armature modifiers for each skin deformer. */
         for (const ufbx_skin_deformer *skin : fmesh->skin_deformers) {
           if (!is_skin_deformer_usable(fmesh, skin)) {
@@ -557,7 +576,7 @@ void import_meshes(Main &bmain,
           /* Add armature modifier. */
           if (arm_obj != nullptr) {
             ModifierData *md = BKE_modifier_new(eModifierType_Armature);
-            STRNCPY(md->name, BKE_id_name(arm_obj->id));
+            STRNCPY_UTF8(md->name, BKE_id_name(arm_obj->id));
             BLI_addtail(&obj->modifiers, md);
             BKE_modifiers_persistent_uid_init(*obj, *md);
             ArmatureModifierData *ad = reinterpret_cast<ArmatureModifierData *>(md);

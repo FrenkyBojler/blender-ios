@@ -215,9 +215,10 @@ static bool update_vector_handle_types(bke::CurvesGeometry &curves,
   return true;
 }
 
-bool update_handle_types_for_transform(bke::CurvesGeometry &curves,
+bool update_handle_types_for_transform(const eTfmMode mode,
                                        const std::array<IndexMask, 3> &selection_per_attribute,
-                                       const IndexMask &bezier_points)
+                                       const IndexMask &bezier_points,
+                                       bke::CurvesGeometry &curves)
 {
   IndexMaskMemory memory;
 
@@ -233,13 +234,28 @@ bool update_handle_types_for_transform(bke::CurvesGeometry &curves,
 
   bool changed = false;
 
-  changed |= update_auto_handle_types(
-      curves, auto_left, auto_right, selected_left, selected_right, "handle_type_left", memory);
-  changed |= update_auto_handle_types(
-      curves, auto_right, auto_left, selected_right, selected_left, "handle_type_right", memory);
+  if (ELEM(mode, TFM_ROTATION, TFM_RESIZE) && selection_per_attribute[0].size() == 1 &&
+      selected_left.is_empty() && selected_right.is_empty())
+  {
+    const int64_t selected_point = selection_per_attribute[0].first();
+    if (auto_left.contains(selected_point)) {
+      curves.handle_types_left_for_write()[selected_point] = BEZIER_HANDLE_ALIGN;
+      changed = true;
+    }
+    if (auto_right.contains(selected_point)) {
+      curves.handle_types_right_for_write()[selected_point] = BEZIER_HANDLE_ALIGN;
+      changed = true;
+    }
+  }
+  else {
+    changed |= update_auto_handle_types(
+        curves, auto_left, auto_right, selected_left, selected_right, "handle_type_left", memory);
+    changed |= update_auto_handle_types(
+        curves, auto_right, auto_left, selected_right, selected_left, "handle_type_right", memory);
 
-  changed |= update_vector_handle_types(curves, selected_left, "handle_type_left");
-  changed |= update_vector_handle_types(curves, selected_right, "handle_type_right");
+    changed |= update_vector_handle_types(curves, selected_left, "handle_type_left");
+    changed |= update_vector_handle_types(curves, selected_right, "handle_type_right");
+  }
 
   if (changed) {
     curves.tag_topology_changed();
@@ -272,22 +288,19 @@ static void createTransCurvesVerts(bContext *C, TransInfo *t)
   const bool use_proportional_edit = (t->flag & T_PROP_EDIT_ALL) != 0;
   const bool use_connected_only = (t->flag & T_PROP_CONNECTED) != 0;
 
+  /* Evaluated depsgraph is necessary for taking into account deformation from modifiers. */
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+
   /* Count selected elements per object and create TransData structs. */
   for (const int i : trans_data_contrainers.index_range()) {
     TransDataContainer &tc = trans_data_contrainers[i];
-    Curves *curves_id = static_cast<Curves *>(tc.obedit->data);
+    Curves *curves_id = id_cast<Curves *>(tc.obedit->data);
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     CurvesTransformData *curves_transform_data = create_curves_transform_custom_data(
         tc.custom.type);
     Span<StringRef> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
         curves);
     std::array<IndexMask, 3> selection_per_attribute;
-
-    for (const int attribute_i : selection_attribute_names.index_range()) {
-      const StringRef &selection_name = selection_attribute_names[attribute_i];
-      selection_per_attribute[attribute_i] = ed::curves::retrieve_selected_points(
-          curves, selection_name, curves_transform_data->memory);
-    }
 
     bezier_curves[i] = bke::curves::indices_for_type(curves.curve_types(),
                                                      curves.curve_type_counts(),
@@ -298,9 +311,15 @@ static void createTransCurvesVerts(bContext *C, TransInfo *t)
     const IndexMask bezier_points = bke::curves::curve_to_point_selection(
         curves.points_by_curve(), bezier_curves[i], curves_transform_data->memory);
 
+    for (const int attribute_i : selection_attribute_names.index_range()) {
+      const StringRef &selection_name = selection_attribute_names[attribute_i];
+      selection_per_attribute[attribute_i] = ed::curves::retrieve_selected_points(
+          curves, selection_name, bezier_points, curves_transform_data->memory);
+    }
+
     /* Alter selection as in legacy curves bezt_select_to_transform_triple_flag(). */
     if (!bezier_points.is_empty()) {
-      update_handle_types_for_transform(curves, selection_per_attribute, bezier_points);
+      update_handle_types_for_transform(t->mode, selection_per_attribute, bezier_points, curves);
 
       index_mask::ExprBuilder builder;
       const index_mask::Expr &selected_bezier_points = builder.intersect(
@@ -334,7 +353,7 @@ static void createTransCurvesVerts(bContext *C, TransInfo *t)
     }
 
     if (tc.data_len > 0) {
-      tc.data = MEM_calloc_arrayN<TransData>(tc.data_len, __func__);
+      tc.data = MEM_new_array_zeroed<TransData>(tc.data_len, __func__);
       curves_transform_data->positions.reinitialize(tc.data_len);
     }
     else {
@@ -349,10 +368,10 @@ static void createTransCurvesVerts(bContext *C, TransInfo *t)
       continue;
     }
     Object *object = tc.obedit;
-    Curves *curves_id = static_cast<Curves *>(object->data);
+    Curves *curves_id = id_cast<Curves *>(object->data);
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     const bke::crazyspace::GeometryDeformation deformation =
-        bke::crazyspace::get_evaluated_curves_deformation(*CTX_data_depsgraph_pointer(C), *object);
+        bke::crazyspace::get_evaluated_curves_deformation(*depsgraph, *object);
 
     std::optional<MutableSpan<float>> value_attribute;
     bke::SpanAttributeWriter<float> attribute_writer;
@@ -361,7 +380,7 @@ static void createTransCurvesVerts(bContext *C, TransInfo *t)
       attribute_writer = attributes.lookup_or_add_for_write_span<float>(
           "radius",
           bke::AttrDomain::Point,
-          bke::AttributeInitVArray(VArray<float>::ForSingle(0.01f, curves.points_num())));
+          bke::AttributeInitVArray(VArray<float>::from_single(0.01f, curves.points_num())));
       value_attribute = attribute_writer.span;
     }
     else if (t->mode == TFM_TILT) {
@@ -392,9 +411,9 @@ static void createTransCurvesVerts(bContext *C, TransInfo *t)
   }
 }
 
-void calculate_aligned_handles(const TransCustomData &custom_data,
-                               bke::CurvesGeometry &curves,
-                               const int curve_index)
+void calculate_single_aligned_handles(const TransCustomData &custom_data,
+                                      bke::CurvesGeometry &curves,
+                                      const int curve_index)
 {
   if (ed::curves::get_curves_selection_attribute_names(curves).size() == 1) {
     return;
@@ -406,14 +425,16 @@ void calculate_aligned_handles(const TransCustomData &custom_data,
   MutableSpan<float3> handle_positions_left = curves.handle_positions_left_for_write();
   MutableSpan<float3> handle_positions_right = curves.handle_positions_right_for_write();
 
-  bke::curves::bezier::calculate_aligned_handles(transform_data.aligned_with_left[curve_index],
-                                                 positions,
-                                                 handle_positions_left,
-                                                 handle_positions_right);
-  bke::curves::bezier::calculate_aligned_handles(transform_data.aligned_with_right[curve_index],
-                                                 positions,
-                                                 handle_positions_right,
-                                                 handle_positions_left);
+  bke::curves::bezier::calculate_single_aligned_handles(
+      transform_data.aligned_with_left[curve_index],
+      positions,
+      handle_positions_left,
+      handle_positions_right);
+  bke::curves::bezier::calculate_single_aligned_handles(
+      transform_data.aligned_with_right[curve_index],
+      positions,
+      handle_positions_right,
+      handle_positions_left);
 }
 
 static void recalcData_curves(TransInfo *t)
@@ -424,7 +445,7 @@ static void recalcData_curves(TransInfo *t)
 
   const Span<TransDataContainer> trans_data_contrainers(t->data_container, t->data_container_len);
   for (const TransDataContainer &tc : trans_data_contrainers) {
-    Curves *curves_id = static_cast<Curves *>(tc.obedit->data);
+    Curves *curves_id = id_cast<Curves *>(tc.obedit->data);
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     if (t->mode == TFM_CURVE_SHRINKFATTEN) {
       curves.tag_radii_changed();
@@ -441,7 +462,7 @@ static void recalcData_curves(TransInfo *t)
       }
       curves.tag_positions_changed();
       curves.calculate_bezier_auto_handles();
-      calculate_aligned_handles(tc.custom.type, curves, 0);
+      calculate_single_aligned_handles(tc.custom.type, curves, 0);
     }
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
   }
@@ -525,7 +546,9 @@ void curve_populate_trans_data_structs(const TransInfo &t,
                                        void *extra)
 {
   const std::array<Span<float3>, 3> src_positions_per_selection_attr = {
-      curves.positions(), curves.handle_positions_left(), curves.handle_positions_right()};
+      curves.positions(),
+      curves.handle_positions_left().value_or(Span<float3>()),
+      curves.handle_positions_right().value_or(Span<float3>())};
   const View3D *v3d = static_cast<const View3D *>(t.view);
   const bool hide_handles = (v3d != nullptr) ? (v3d->overlay.handle_display == CURVE_HANDLE_NONE) :
                                                false;
@@ -575,7 +598,8 @@ void curve_populate_trans_data_structs(const TransInfo &t,
         return;
       }
       float3 center(0.0f);
-      selection.foreach_index([&](const int64_t point_i) { center += point_positions[point_i]; });
+      selection.foreach_index_optimized<int64_t>(
+          [&](const int64_t point_i) { center += point_positions[point_i]; });
       center /= selection.size();
       mean_center_point_per_curve[curve_i] = center;
     });
@@ -629,6 +653,9 @@ void curve_populate_trans_data_structs(const TransInfo &t,
             td.val = value;
             td.ival = *value;
           }
+          else {
+            td.val = nullptr;
+          }
 
           if (deformation.deform_mats.is_empty()) {
             copy_m3_m3(td.smtx, smtx_base.ptr());
@@ -642,7 +669,32 @@ void curve_populate_trans_data_structs(const TransInfo &t,
           }
         });
   }
+  if (points_to_transform_per_attr.size() > 1 && points_to_transform_per_attr.first().is_empty()) {
+    auto update_handle_center = [&](const int handle_selection_attr,
+                                    const int opposite_handle_selection_attr) {
+      const IndexMask &handles_to_transform = points_to_transform_per_attr[handle_selection_attr];
+      const IndexMask &opposite_handles_to_transform =
+          points_to_transform_per_attr[opposite_handle_selection_attr];
+
+      if (handles_to_transform.size() == 1 && opposite_handles_to_transform.size() <= 1) {
+        MutableSpan<TransData> tc_data = all_tc_data.slice(
+            position_offsets_in_td[handle_selection_attr]);
+        copy_v3_v3(tc_data[0].center, point_positions[handles_to_transform.first()]);
+      }
+    };
+    update_handle_center(1, 2);
+    update_handle_center(2, 1);
+  }
+
   if (use_connected_only) {
+    Array<int> curves_offsets_in_td_buffer(curves.curves_num() + 1, 0);
+    affected_curves.foreach_index(GrainSize(512), [&](const int64_t curve) {
+      curves_offsets_in_td_buffer[curve] =
+          points_to_transform_per_attr[0].slice_content(points_by_curve[curve]).size();
+    });
+    offset_indices::accumulate_counts_to_offsets(curves_offsets_in_td_buffer);
+    const OffsetIndices<int> curves_offsets_in_td(curves_offsets_in_td_buffer);
+
     Array<int> bezier_offsets_in_td(curves.curves_num() + 1, 0);
     offset_indices::copy_group_sizes(points_by_curve, bezier_curves, bezier_offsets_in_td);
     offset_indices::accumulate_counts_to_offsets(bezier_offsets_in_td);
@@ -655,14 +707,15 @@ void curve_populate_trans_data_structs(const TransInfo &t,
       for (const int curve_i : segment) {
         const int selection_attrs_num = curve_types[curve_i] == CURVE_TYPE_BEZIER ? 3 : 1;
         const IndexRange curve_points = points_by_curve[curve_i];
-        const int total_curve_points = selection_attrs_num * curve_points.size();
+        const IndexRange editable_curve_points = curves_offsets_in_td[curve_i];
+        const int total_curve_points = selection_attrs_num * editable_curve_points.size();
         map.reinitialize(total_curve_points);
         closest_distances.reinitialize(total_curve_points);
         closest_distances.fill(std::numeric_limits<float>::max());
         mapped_curve_positions.reinitialize(total_curve_points);
 
         fill_map(CurveType(curve_types[curve_i]),
-                 curve_points,
+                 editable_curve_points,
                  position_offsets_in_td,
                  bezier_offsets_in_td[curve_i],
                  map);

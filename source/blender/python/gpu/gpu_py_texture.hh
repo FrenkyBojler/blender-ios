@@ -12,7 +12,11 @@
 
 #include "BLI_compiler_attrs.h"
 
-struct GPUTexture;
+namespace blender {
+
+namespace gpu {
+class Texture;
+}
 
 extern PyTypeObject BPyGPUTexture_Type;
 
@@ -28,11 +32,13 @@ extern const struct PyC_StringEnumItems pygpu_textureformat_items[];
 
 struct BPyGPUTexture {
   PyObject_HEAD
-  GPUTexture *tex;
+  gpu::Texture *tex;
 };
 
 [[nodiscard]] int bpygpu_ParseTexture(PyObject *o, void *p);
 [[nodiscard]] PyObject *bpygpu_texture_init();
 
-[[nodiscard]] PyObject *BPyGPUTexture_CreatePyObject(GPUTexture *tex, bool shared_reference)
+[[nodiscard]] PyObject *BPyGPUTexture_CreatePyObject(gpu::Texture *tex, bool shared_reference)
     ATTR_NONNULL(1);
+
+}  // namespace blender

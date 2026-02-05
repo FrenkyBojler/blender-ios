@@ -28,7 +28,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     const eCustomDataType data_type = eCustomDataType(node->custom1);
     b.add_input(data_type, "Value")
         .supports_field()
-        .description("The values the mininum and maximum will be calculated from");
+        .description("The values the minimum and maximum will be calculated from");
   }
 
   b.add_input<decl::Int>("Group ID", "Group Index")
@@ -47,10 +47,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -176,8 +176,7 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
 
     GVArray g_outputs;
 
-    bke::attribute_math::convert_to_static_type(g_values.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    bke::attribute_math::to_static_type(g_values.type(), [&]<typename T>() {
       if constexpr (is_same_any_v<T, int, float, float3>) {
         const VArray<T> values = g_values.typed<T>();
 
@@ -187,7 +186,7 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
             for (const int i : values.index_range()) {
               result = math::min(result, values[i]);
             }
-            g_outputs = VArray<T>::ForSingle(result, domain_size);
+            g_outputs = VArray<T>::from_single(result, domain_size);
           }
           else {
             Map<int, T> results;
@@ -199,7 +198,7 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
             for (const int i : values.index_range()) {
               outputs[i] = results.lookup(group_indices[i]);
             }
-            g_outputs = VArray<T>::ForContainer(std::move(outputs));
+            g_outputs = VArray<T>::from_container(std::move(outputs));
           }
         }
         else {
@@ -208,7 +207,7 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
             for (const int i : values.index_range()) {
               result = math::max(result, values[i]);
             }
-            g_outputs = VArray<T>::ForSingle(result, domain_size);
+            g_outputs = VArray<T>::from_single(result, domain_size);
           }
           else {
             Map<int, T> results;
@@ -220,13 +219,19 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
             for (const int i : values.index_range()) {
               outputs[i] = results.lookup(group_indices[i]);
             }
-            g_outputs = VArray<T>::ForContainer(std::move(outputs));
+            g_outputs = VArray<T>::from_container(std::move(outputs));
           }
         }
       }
     });
 
     return attributes.adapt_domain(std::move(g_outputs), source_domain_, context.domain());
+  }
+
+  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const final
+  {
+    input_.node().for_each_field_input_recursive(fn);
+    group_index_.node().for_each_field_input_recursive(fn);
   }
 
   uint64_t hash() const override
@@ -272,9 +277,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static EnumPropertyItem items[] = {
-      {CD_PROP_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
-      {CD_PROP_INT32, "INT", 0, "Integer", "32-bit integer"},
-      {CD_PROP_FLOAT3, "FLOAT_VECTOR", 0, "Vector", "3D vector with floating-point values"},
+      {CD_PROP_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
+      {CD_PROP_INT32, "INT", ICON_NODE_SOCKET_INT, "Integer", "32-bit integer"},
+      {CD_PROP_FLOAT3,
+       "FLOAT_VECTOR",
+       ICON_NODE_SOCKET_VECTOR,
+       "Vector",
+       "3D vector with floating-point values"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -299,7 +308,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeFieldMinAndMax");
   ntype.ui_name = "Field Min & Max";
@@ -310,7 +319,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)

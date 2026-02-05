@@ -32,6 +32,7 @@
 #include "DNA_grease_pencil_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_linestyle_types.h"
@@ -84,7 +85,7 @@
 
 #include "anim_intern.hh"
 
-using namespace blender;
+namespace blender {
 
 /* *********************************************** */
 /* XXX constant defines to be moved elsewhere? */
@@ -109,7 +110,7 @@ static void acf_generic_root_color(bAnimContext * /*ac*/,
                                    float r_color[3])
 {
   /* darker blue for top-level widgets */
-  UI_GetThemeColor3fv(TH_DOPESHEET_CHANNELOB, r_color);
+  ui::theme::get_color_3fv(TH_DOPESHEET_CHANNELOB, r_color);
 }
 
 /* backdrop for top-level widgets (Scene and Object only) */
@@ -128,15 +129,15 @@ static void acf_generic_root_backdrop(bAnimContext *ac,
   acf->get_backdrop_color(ac, ale, color);
 
   /* rounded corners on LHS only - top only when expanded, but bottom too when collapsed */
-  UI_draw_roundbox_corner_set((expanded) ? UI_CNR_TOP_LEFT :
-                                           (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT));
+  ui::draw_roundbox_corner_set((expanded) ? ui::CNR_TOP_LEFT :
+                                            (ui::CNR_TOP_LEFT | ui::CNR_BOTTOM_LEFT));
 
   rctf box;
   box.xmin = offset;
   box.xmax = v2d->cur.xmax + EXTRA_SCROLL_PAD;
   box.ymin = yminc;
   box.ymax = ymaxc;
-  UI_draw_roundbox_3fv_alpha(&box, true, 8, color, 1.0f);
+  ui::draw_roundbox_3fv_alpha(&box, true, 8, color, 1.0f);
 }
 
 /* get backdrop color for data expanders under top-level Scene/Object */
@@ -145,7 +146,7 @@ static void acf_generic_dataexpand_color(bAnimContext * /*ac*/,
                                          float r_color[3])
 {
   /* lighter color than top-level widget */
-  UI_GetThemeColor3fv(TH_DOPESHEET_CHANNELSUBOB, r_color);
+  ui::theme::get_color_3fv(TH_DOPESHEET_CHANNELSUBOB, r_color);
 }
 
 /* backdrop for data expanders under top-level Scene/Object */
@@ -159,8 +160,7 @@ static void acf_generic_dataexpand_backdrop(bAnimContext *ac,
   short offset = (acf->get_offset) ? acf->get_offset(ac, ale) : 0;
   float color[3];
 
-  uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
 
   /* set backdrop drawing color */
   acf->get_backdrop_color(ac, ale, color);
@@ -189,7 +189,7 @@ static void acf_generic_channel_color(bAnimContext *ac, bAnimListElem *ale, floa
   /* FIXME: what happens when the indentation is 1 greater than what it should be
    * (due to grouping)? */
   const int colorOffset = 10 - 10 * indent;
-  UI_GetThemeColorShade3fv(TH_SHADE2, colorOffset, r_color);
+  ui::theme::get_color_shade_3fv(TH_CHANNEL, colorOffset, r_color);
 }
 
 /* backdrop for generic channels */
@@ -203,8 +203,7 @@ static void acf_generic_channel_backdrop(bAnimContext *ac,
   short offset = (acf->get_offset) ? acf->get_offset(ac, ale) : 0;
   float color[3];
 
-  uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
 
   /* set backdrop drawing color */
   acf->get_backdrop_color(ac, ale, color);
@@ -302,10 +301,7 @@ static short acf_generic_group_offset(bAnimContext *ac, bAnimListElem *ale)
       switch (ale->type) {
         case ANIMTYPE_FCURVE:
         case ANIMTYPE_GROUP: {
-          const bAction *action = reinterpret_cast<bAction *>(ale->fcurve_owner_id);
-          if (action->wrap().is_action_layered()) {
-            offset += short(0.35f * U.widget_unit);
-          }
+          offset += short(0.35f * U.widget_unit);
           break;
         }
 
@@ -419,10 +415,13 @@ static bool acf_generic_dataexpand_setting_valid(bAnimContext *ac,
 /* Animation Summary ----------------------------------- */
 
 /* get backdrop color for summary widget */
-static void acf_summary_color(bAnimContext * /*ac*/, bAnimListElem * /*ale*/, float r_color[3])
+static void acf_summary_color(bAnimContext *ac, bAnimListElem *ale, float r_color[3])
 {
-  /* reddish color - same as the 'action' line in NLA */
-  UI_GetThemeColor3fv(TH_ANIM_ACTIVE, r_color);
+  /* Only draw the summary line backdrop when it is expanded. If the entire dope sheet is
+   * just one line, there is no need for any distinction between lines, and the red-ish
+   * color is only going to be a distraction. */
+  const bool is_expanded = ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_EXPAND);
+  ui::theme::get_color_3fv(is_expanded ? TH_ANIM_ACTIVE : TH_HEADER, r_color);
 }
 
 /* backdrop for summary widget */
@@ -439,14 +438,14 @@ static void acf_summary_backdrop(bAnimContext *ac, bAnimListElem *ale, float ymi
    * - top and bottom
    * - special hack: make the top a bit higher, since we are first...
    */
-  UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT);
+  ui::draw_roundbox_corner_set(ui::CNR_TOP_LEFT | ui::CNR_BOTTOM_LEFT);
 
   rctf box;
   box.xmin = 0;
   box.xmax = v2d->cur.xmax + EXTRA_SCROLL_PAD;
   box.ymin = yminc - 2;
   box.ymax = ymaxc;
-  UI_draw_roundbox_3fv_alpha(&box, true, 8, color, 1.0f);
+  ui::draw_roundbox_3fv_alpha(&box, true, 8, color, 1.0f);
 }
 
 /* name for summary entries */
@@ -692,7 +691,7 @@ static void acf_object_name(bAnimListElem *ale, char *name)
 
   /* just copy the name... */
   if (ob && name) {
-    BLI_strncpy(name, ob->id.name + 2, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, ob->id.name + 2, ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -824,10 +823,10 @@ static bAnimChannelType ACF_OBJECT = {
 static void acf_group_color(bAnimContext * /*ac*/, bAnimListElem *ale, float r_color[3])
 {
   if (ale->flag & AGRP_ACTIVE) {
-    UI_GetThemeColor3fv(TH_GROUP_ACTIVE, r_color);
+    ui::theme::get_color_3fv(TH_GROUP_ACTIVE, r_color);
   }
   else {
-    UI_GetThemeColor3fv(TH_GROUP, r_color);
+    ui::theme::get_color_3fv(TH_GROUP, r_color);
   }
 }
 
@@ -844,14 +843,15 @@ static void acf_group_backdrop(bAnimContext *ac, bAnimListElem *ale, float yminc
   acf->get_backdrop_color(ac, ale, color);
 
   /* rounded corners on LHS only - top only when expanded, but bottom too when collapsed */
-  UI_draw_roundbox_corner_set(expanded ? UI_CNR_TOP_LEFT : (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT));
+  ui::draw_roundbox_corner_set(expanded ? ui::CNR_TOP_LEFT :
+                                          (ui::CNR_TOP_LEFT | ui::CNR_BOTTOM_LEFT));
 
   rctf box;
   box.xmin = offset;
   box.xmax = v2d->cur.xmax + EXTRA_SCROLL_PAD;
   box.ymin = yminc;
   box.ymax = ymaxc;
-  UI_draw_roundbox_3fv_alpha(&box, true, 8, color, 1.0f);
+  ui::draw_roundbox_3fv_alpha(&box, true, 8, color, 1.0f);
 }
 
 /* name for group entries */
@@ -861,14 +861,14 @@ static void acf_group_name(bAnimListElem *ale, char *name)
 
   /* just copy the name... */
   if (agrp && name) {
-    BLI_strncpy(name, agrp->name, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, agrp->name, ANIM_CHAN_NAME_SIZE);
   }
 }
 
 /* name property for group entries */
 static bool acf_group_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
-  *r_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, &RNA_ActionGroup, ale->data);
+  *r_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, RNA_ActionGroup, ale->data);
   *r_prop = RNA_struct_name_property(r_ptr->type);
 
   return (*r_prop != nullptr);
@@ -968,7 +968,7 @@ static bool get_actiongroup_color(const bActionGroup *agrp, uint8_t r_color[3])
     wire_color = &agrp->cs;
   }
   else {
-    const bTheme *btheme = UI_GetTheme();
+    const bTheme *btheme = ui::theme::theme_get();
     wire_color = &btheme->tarm[(color_index - 1)];
   }
 
@@ -1068,7 +1068,7 @@ static bool acf_fcurve_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, Property
    * as our "name" so that user can perform quick fixes
    */
   if (fcu->flag & FCURVE_DISABLED) {
-    *r_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, &RNA_FCurve, ale->data);
+    *r_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, RNA_FCurve, ale->data);
     *r_prop = RNA_struct_find_property(r_ptr, "data_path");
   }
   else {
@@ -1180,7 +1180,7 @@ static void acf_nla_controls_color(bAnimContext * /*ac*/,
                                    float r_color[3])
 {
   /* TODO: give this its own theme setting? */
-  UI_GetThemeColorShade3fv(TH_GROUP, 55, r_color);
+  ui::theme::get_color_shade_3fv(TH_GROUP, 55, r_color);
 }
 
 /* backdrop for nla controls expander widget */
@@ -1199,14 +1199,15 @@ static void acf_nla_controls_backdrop(bAnimContext *ac,
   acf->get_backdrop_color(ac, ale, color);
 
   /* rounded corners on LHS only - top only when expanded, but bottom too when collapsed */
-  UI_draw_roundbox_corner_set(expanded ? UI_CNR_TOP_LEFT : (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT));
+  ui::draw_roundbox_corner_set(expanded ? ui::CNR_TOP_LEFT :
+                                          (ui::CNR_TOP_LEFT | ui::CNR_BOTTOM_LEFT));
 
   rctf box;
   box.xmin = offset;
   box.xmax = v2d->cur.xmax + EXTRA_SCROLL_PAD;
   box.ymin = yminc;
   box.ymax = ymaxc;
-  UI_draw_roundbox_3fv_alpha(&box, true, 5, color, 1.0f);
+  ui::draw_roundbox_3fv_alpha(&box, true, 5, color, 1.0f);
 }
 
 /* name for nla controls expander entries */
@@ -1299,14 +1300,15 @@ static void acf_nla_curve_name(bAnimListElem *ale, char *name)
   PropertyRNA *prop;
 
   /* try to get RNA property that this shortened path (relative to the strip) refers to */
-  prop = RNA_struct_type_find_property(&RNA_NlaStrip, fcu->rna_path);
+  prop = RNA_struct_type_find_property(RNA_NlaStrip, fcu->rna_path);
   if (prop) {
     /* "name" of this strip displays the UI identifier + the name of the NlaStrip */
-    BLI_snprintf(name, 256, "%s (%s)", RNA_property_ui_name(prop), strip->name);
+    BLI_snprintf_utf8(
+        name, ANIM_CHAN_NAME_SIZE, "%s (%s)", RNA_property_ui_name(prop), strip->name);
   }
   else {
     /* unknown property... */
-    BLI_snprintf(name, 256, "%s[%d]", fcu->rna_path, fcu->array_index);
+    BLI_snprintf_utf8(name, ANIM_CHAN_NAME_SIZE, "%s[%d]", fcu->rna_path, fcu->array_index);
   }
 }
 
@@ -1423,7 +1425,7 @@ static void acf_action_slot_name(bAnimListElem *ale, char *r_name)
   if (!slot) {
     /* Trying to getting the slot's name without a slot is a bug. */
     BLI_assert_unreachable();
-    BLI_strncpy(r_name, "-nil-", ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(r_name, "-nil-", ANIM_CHAN_NAME_SIZE);
     return;
   }
 
@@ -1434,13 +1436,13 @@ static void acf_action_slot_name(bAnimListElem *ale, char *r_name)
   BLI_assert(num_users >= 0);
   switch (num_users) {
     case 0:
-      BLI_snprintf(r_name, ANIM_CHAN_NAME_SIZE, "%s (unassigned)", display_name);
+      BLI_snprintf_utf8(r_name, ANIM_CHAN_NAME_SIZE, "%s (unassigned)", display_name);
       break;
     case 1:
-      BLI_strncpy(r_name, display_name, ANIM_CHAN_NAME_SIZE);
+      BLI_strncpy_utf8(r_name, display_name, ANIM_CHAN_NAME_SIZE);
       break;
     default:
-      BLI_snprintf(r_name, ANIM_CHAN_NAME_SIZE, "%s (%d)", display_name, num_users);
+      BLI_snprintf_utf8(r_name, ANIM_CHAN_NAME_SIZE, "%s (%d)", display_name, num_users);
       break;
   }
 }
@@ -1449,7 +1451,7 @@ static bool acf_action_slot_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, Pro
   animrig::Slot *slot = static_cast<animrig::Slot *>(ale->data);
   BLI_assert(GS(ale->fcurve_owner_id->name) == ID_AC);
 
-  *r_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, &RNA_ActionSlot, slot);
+  *r_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, RNA_ActionSlot, slot);
   *r_prop = RNA_struct_find_property(r_ptr, "name_display");
 
   return (*r_prop != nullptr);
@@ -1463,7 +1465,7 @@ static int acf_action_slot_icon(bAnimListElem * /*ale*/)
 static int acf_action_slot_idtype_icon(bAnimListElem *ale)
 {
   animrig::Slot *slot = static_cast<animrig::Slot *>(ale->data);
-  return UI_icon_from_idcode(slot->idtype);
+  return ui::icon_from_idcode(slot->idtype);
 }
 
 static bool acf_action_slot_setting_valid(bAnimContext * /*ac*/,
@@ -3644,10 +3646,10 @@ static void acf_shapekey_name(bAnimListElem *ale, char *name)
   if (kb && name) {
     /* if the KeyBlock had a name, use it, otherwise use the index */
     if (kb->name[0]) {
-      BLI_strncpy(name, kb->name, ANIM_CHAN_NAME_SIZE);
+      BLI_strncpy_utf8(name, kb->name, ANIM_CHAN_NAME_SIZE);
     }
     else {
-      BLI_snprintf(name, ANIM_CHAN_NAME_SIZE, IFACE_("Key %d"), ale->index);
+      BLI_snprintf_utf8(name, ANIM_CHAN_NAME_SIZE, IFACE_("Key %d"), ale->index);
     }
   }
 }
@@ -3659,7 +3661,7 @@ static bool acf_shapekey_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, Proper
 
   /* if the KeyBlock had a name, use it, otherwise use the index */
   if (kb && kb->name[0]) {
-    *r_ptr = RNA_pointer_create_discrete(ale->id, &RNA_ShapeKey, kb);
+    *r_ptr = RNA_pointer_create_discrete(ale->id, RNA_ShapeKey, kb);
     *r_prop = RNA_struct_name_property(r_ptr->type);
 
     return (*r_prop != nullptr);
@@ -3782,7 +3784,7 @@ static void acf_gpl_name_legacy(bAnimListElem *ale, char *name)
   bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
 
   if (gpl && name) {
-    BLI_strncpy(name, gpl->info, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, gpl->info, ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -3790,7 +3792,7 @@ static void acf_gpl_name_legacy(bAnimListElem *ale, char *name)
 static bool acf_gpl_name_prop_legacy(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
   if (ale->data) {
-    *r_ptr = RNA_pointer_create_discrete(ale->id, &RNA_GPencilLayer, ale->data);
+    *r_ptr = RNA_pointer_create_discrete(ale->id, RNA_AnnotationLayer, ale->data);
     *r_prop = RNA_struct_name_property(r_ptr->type);
 
     return (*r_prop != nullptr);
@@ -3886,24 +3888,24 @@ static bAnimChannelType ACF_GPL_LEGACY = {
 
 /* Grease Pencil Animation functions ------------------------------------------- */
 
-namespace blender::ed::animation::greasepencil {
+namespace ed::animation::greasepencil {
 
 /* Get pointer to the setting */
 static void *data_block_setting_ptr(bAnimListElem *ale,
                                     eAnimChannel_Settings /*setting*/,
                                     short *r_type)
 {
-  GreasePencil *grease_pencil = (GreasePencil *)ale->data;
+  GreasePencil *grease_pencil = static_cast<GreasePencil *>(ale->data);
 
   return GET_ACF_FLAG_PTR(grease_pencil->flag, r_type);
 }
 static void datablock_color(bAnimContext *ac, bAnimListElem * /*ale*/, float r_color[3])
 {
   if (ac->datatype == ANIMCONT_GPENCIL) {
-    UI_GetThemeColorShade3fv(TH_DOPESHEET_CHANNELSUBOB, 20, r_color);
+    ui::theme::get_color_shade_3fv(TH_DOPESHEET_CHANNELSUBOB, 20, r_color);
   }
   else {
-    UI_GetThemeColor3fv(TH_DOPESHEET_CHANNELSUBOB, r_color);
+    ui::theme::get_color_3fv(TH_DOPESHEET_CHANNELSUBOB, r_color);
   }
 }
 
@@ -3946,7 +3948,7 @@ static void layer_name(bAnimListElem *ale, char *name)
   GreasePencilLayer *layer = static_cast<GreasePencilLayer *>(ale->data);
 
   if (layer && name) {
-    BLI_strncpy(name, layer->wrap().name().c_str(), ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, layer->wrap().name().c_str(), ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -3959,7 +3961,7 @@ static bool layer_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA *
     return false;
   }
 
-  *r_ptr = RNA_pointer_create_discrete(ale->id, &RNA_GreasePencilLayer, ale->data);
+  *r_ptr = RNA_pointer_create_discrete(ale->id, RNA_GreasePencilLayer, ale->data);
   *r_prop = RNA_struct_name_property(r_ptr->type);
 
   return (*r_prop != nullptr);
@@ -4040,7 +4042,7 @@ static int layer_group_icon(bAnimListElem *ale)
 
 static void layer_group_color(bAnimContext * /*ac*/, bAnimListElem * /*ale*/, float r_color[3])
 {
-  UI_GetThemeColor3fv(TH_GROUP, r_color);
+  ui::theme::get_color_3fv(TH_GROUP, r_color);
 }
 
 /* Name for grease pencil layer entries */
@@ -4049,7 +4051,7 @@ static void layer_group_name(bAnimListElem *ale, char *name)
   GreasePencilLayerTreeGroup *layer_group = static_cast<GreasePencilLayerTreeGroup *>(ale->data);
 
   if (layer_group && name) {
-    BLI_strncpy(name, layer_group->wrap().name().c_str(), ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, layer_group->wrap().name().c_str(), ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -4079,7 +4081,7 @@ static bool layer_group_setting_valid(bAnimContext * /*ac*/,
   }
 }
 
-}  // namespace blender::ed::animation::greasepencil
+}  // namespace ed::animation::greasepencil
 
 using namespace blender::ed::animation;
 
@@ -4152,7 +4154,7 @@ static bAnimChannelType ACF_GPLGROUP = {
 static void acf_mask_color(bAnimContext * /*ac*/, bAnimListElem * /*ale*/, float r_color[3])
 {
   /* these are ID-blocks, but not exactly standalone... */
-  UI_GetThemeColorShade3fv(TH_DOPESHEET_CHANNELSUBOB, 20, r_color);
+  ui::theme::get_color_shade_3fv(TH_DOPESHEET_CHANNELSUBOB, 20, r_color);
 }
 
 /* TODO: just get this from RNA? */
@@ -4236,7 +4238,7 @@ static void acf_masklay_name(bAnimListElem *ale, char *name)
   MaskLayer *masklay = static_cast<MaskLayer *>(ale->data);
 
   if (masklay && name) {
-    BLI_strncpy(name, masklay->name, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, masklay->name, ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -4244,7 +4246,7 @@ static void acf_masklay_name(bAnimListElem *ale, char *name)
 static bool acf_masklay_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
   if (ale->data) {
-    *r_ptr = RNA_pointer_create_discrete(ale->id, &RNA_MaskLayer, ale->data);
+    *r_ptr = RNA_pointer_create_discrete(ale->id, RNA_MaskLayer, ale->data);
     *r_prop = RNA_struct_name_property(r_ptr->type);
 
     return (*r_prop != nullptr);
@@ -4344,7 +4346,7 @@ static void acf_nlatrack_color(bAnimContext * /*ac*/, bAnimListElem *ale, float 
   }
 
   /* set color for nla track */
-  UI_GetThemeColorShade3fv(TH_NLA_TRACK, ((nonSolo == false) ? 20 : -20), r_color);
+  ui::theme::get_color_shade_3fv(TH_NLA_TRACK, ((nonSolo == false) ? 20 : -20), r_color);
 }
 
 /* name for nla track entries */
@@ -4353,7 +4355,7 @@ static void acf_nlatrack_name(bAnimListElem *ale, char *name)
   NlaTrack *nlt = static_cast<NlaTrack *>(ale->data);
 
   if (nlt && name) {
-    BLI_strncpy(name, nlt->name, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, nlt->name, ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -4361,7 +4363,7 @@ static void acf_nlatrack_name(bAnimListElem *ale, char *name)
 static bool acf_nlatrack_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
   if (ale->data) {
-    *r_ptr = RNA_pointer_create_discrete(ale->id, &RNA_NlaTrack, ale->data);
+    *r_ptr = RNA_pointer_create_discrete(ale->id, RNA_NlaTrack, ale->data);
     *r_prop = RNA_struct_name_property(r_ptr->type);
 
     return (*r_prop != nullptr);
@@ -4541,7 +4543,7 @@ static void acf_nlaaction_backdrop(bAnimContext *ac, bAnimListElem *ale, float y
    *   strips backgrounds but here we're doing track list backgrounds instead
    *   so we ignore that and use our own when needed
    */
-  nla_action_get_color(adt, (bAction *)ale->data, color);
+  nla_action_get_color(adt, static_cast<bAction *>(ale->data), color);
 
   if (adt && (adt->flag & ADT_NLA_EDIT_ON)) {
     color[3] = 1.0f;
@@ -4553,7 +4555,7 @@ static void acf_nlaaction_backdrop(bAnimContext *ac, bAnimListElem *ale, float y
   /* only on top left corner, to show that this track sits on top of the preceding ones
    * while still linking into the action line strip to the right
    */
-  UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT);
+  draw_roundbox_corner_set(ui::CNR_TOP_LEFT);
 
   /* draw slightly shifted up vertically to look like it has more separation from other tracks,
    * but we then need to slightly shorten it so that it doesn't look like it overlaps
@@ -4563,7 +4565,7 @@ static void acf_nlaaction_backdrop(bAnimContext *ac, bAnimListElem *ale, float y
   box.xmax = v2d->cur.xmax;
   box.ymin = yminc + NLATRACK_SKIP;
   box.ymax = ymaxc + NLATRACK_SKIP - 1;
-  UI_draw_roundbox_4fv(&box, true, 8, color);
+  ui::draw_roundbox_4fv(&box, true, 8, color);
 }
 
 /* name for nla action entries */
@@ -4574,10 +4576,10 @@ static void acf_nlaaction_name(bAnimListElem *ale, char *name)
   if (name) {
     if (act) {
       /* TODO: add special decoration when doing this in tweaking mode? */
-      BLI_strncpy(name, act->id.name + 2, ANIM_CHAN_NAME_SIZE);
+      BLI_strncpy_utf8(name, act->id.name + 2, ANIM_CHAN_NAME_SIZE);
     }
     else {
-      BLI_strncpy(name, IFACE_("<No Action>"), ANIM_CHAN_NAME_SIZE);
+      BLI_strncpy_utf8(name, IFACE_("<No Action>"), ANIM_CHAN_NAME_SIZE);
     }
   }
 }
@@ -4586,7 +4588,7 @@ static void acf_nlaaction_name(bAnimListElem *ale, char *name)
 static bool acf_nlaaction_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
   if (ale->data) {
-    *r_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, &RNA_Action, ale->data);
+    *r_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, RNA_Action, ale->data);
     *r_prop = RNA_struct_name_property(r_ptr->type);
 
     return (*r_prop != nullptr);
@@ -4776,7 +4778,7 @@ const bAnimChannelType *ANIM_channel_get_typeinfo(const bAnimListElem *ale)
 
 /* --------------------------- */
 
-static blender::StringRefNull setting_name(const eAnimChannel_Settings setting)
+static StringRefNull setting_name(const eAnimChannel_Settings setting)
 {
   switch (setting) {
     case ACHANNEL_SETTING_SELECT:
@@ -4828,13 +4830,13 @@ void ANIM_channel_debug_print_info(bAnimContext &ac, bAnimListElem *ale, short i
     acf->name(ale, name);
   }
   else {
-    STRNCPY(name, "<No name>");
+    STRNCPY_UTF8(name, "<No name>");
   }
 
   printf("ChanType: <%-25s> Name: \"%s\"\n       ", acf->channel_type_name, name);
 
   /* Print settings. */
-  blender::Vector<eAnimChannel_Settings> settings = {
+  Vector<eAnimChannel_Settings> settings = {
       ACHANNEL_SETTING_SELECT,
       ACHANNEL_SETTING_PROTECT,
       ACHANNEL_SETTING_MUTE,
@@ -4920,7 +4922,7 @@ short ANIM_channel_setting_get(bAnimContext *ac, bAnimListElem *ale, eAnimChanne
       switch (ptrsize) {
         case sizeof(int): /* integer pointer for setting */
         {
-          const int *val = (int *)ptr;
+          const int *val = static_cast<int *>(ptr);
 
           if (negflag) {
             return ((*val) & flag) == 0;
@@ -4929,7 +4931,7 @@ short ANIM_channel_setting_get(bAnimContext *ac, bAnimListElem *ale, eAnimChanne
         }
         case sizeof(short): /* short pointer for setting */
         {
-          const short *val = (short *)ptr;
+          const short *val = static_cast<short *>(ptr);
 
           if (negflag) {
             return ((*val) & flag) == 0;
@@ -4938,7 +4940,7 @@ short ANIM_channel_setting_get(bAnimContext *ac, bAnimListElem *ale, eAnimChanne
         }
         case sizeof(char): /* char pointer for setting */
         {
-          const char *val = (char *)ptr;
+          const char *val = static_cast<char *>(ptr);
 
           if (negflag) {
             return ((*val) & flag) == 0;
@@ -5005,19 +5007,19 @@ void ANIM_channel_setting_set(bAnimContext *ac,
       switch (ptrsize) {
         case sizeof(int): /* integer pointer for setting */
         {
-          int *val = (int *)ptr;
+          int *val = static_cast<int *>(ptr);
           ACF_SETTING_SET(*val, flag, mode);
           break;
         }
         case sizeof(short): /* short pointer for setting */
         {
-          short *val = (short *)ptr;
+          short *val = static_cast<short *>(ptr);
           ACF_SETTING_SET(*val, flag, mode);
           break;
         }
         case sizeof(char): /* char pointer for setting */
         {
-          char *val = (char *)ptr;
+          char *val = static_cast<char *>(ptr);
           ACF_SETTING_SET(*val, flag, mode);
           break;
         }
@@ -5035,7 +5037,7 @@ void ANIM_channel_setting_set(bAnimContext *ac,
 /* --------------------------- */
 
 /** Size of icons. */
-#define ICON_WIDTH (0.85f * U.widget_unit)
+#define ICON_WIDTH (0.8f * U.widget_unit)
 /** Width of sliders. */
 #define SLIDER_WIDTH (4 * U.widget_unit)
 /** Min-width of rename text-boxes. */
@@ -5090,9 +5092,6 @@ static bool achannel_is_part_of_disconnected_slot(const bAnimListElem *ale)
 
       const animrig::Action &action =
           reinterpret_cast<const bAction *>(ale->fcurve_owner_id)->wrap();
-      if (action.is_action_legacy()) {
-        return false;
-      }
 
       const animrig::Slot *slot = action.slot_for_handle(ale->slot_handle);
       if (slot == nullptr) {
@@ -5127,7 +5126,7 @@ static bool achannel_is_broken(const bAnimListElem *ale)
 
 float ANIM_UI_get_keyframe_scale_factor()
 {
-  bTheme *btheme = UI_GetTheme();
+  bTheme *btheme = ui::theme::theme_get();
   const float yscale_fac = btheme->space_action.keyframe_scale_fac;
 
   /* clamp to avoid problems with uninitialized values... */
@@ -5149,7 +5148,7 @@ float ANIM_UI_get_channel_skip()
 
 float ANIM_UI_get_first_channel_top(View2D *v2d)
 {
-  return UI_view2d_scale_get_y(v2d) * -UI_TIME_SCRUB_MARGIN_Y - ANIM_UI_get_channel_skip();
+  return ui::view2d_scale_get_y(v2d) * -UI_TIME_SCRUB_MARGIN_Y - ANIM_UI_get_channel_skip();
 }
 
 float ANIM_UI_get_channel_step()
@@ -5195,7 +5194,8 @@ void ANIM_channel_draw(
 
   /* calculate appropriate y-coordinates for icon buttons */
   y = (ymaxc - yminc) / 2 + yminc;
-  ymid = y - 0.5f * ICON_WIDTH;
+  ymid = yminc - 1;
+
   /* y-coordinates for text is only 4 down from middle */
   ytext = y - 0.2f * U.widget_unit;
 
@@ -5227,7 +5227,7 @@ void ANIM_channel_draw(
 
   /* step 3) draw icon ............................................... */
   if (acf->icon) {
-    UI_icon_draw(offset, ymid, acf->icon(ale));
+    ui::icon_draw(offset, ymid, acf->icon(ale));
     offset += ICON_WIDTH;
   }
 
@@ -5250,7 +5250,7 @@ void ANIM_channel_draw(
       if (ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE)) {
         FCurve *fcu = static_cast<FCurve *>(ale->data);
         uint pos = GPU_vertformat_attr_add(
-            immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+            immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
 
         immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -5295,10 +5295,10 @@ void ANIM_channel_draw(
     /* XXX: if active, highlight differently? */
 
     if (selected) {
-      UI_GetThemeColor4ubv(TH_TEXT_HI, col);
+      ui::theme::get_color_4ubv(TH_TEXT_HI, col);
     }
     else {
-      UI_GetThemeColor4ubv(TH_TEXT, col);
+      ui::theme::get_color_4ubv(TH_TEXT, col);
     }
 
     /* Gray out disconnected action slots and their children. */
@@ -5310,12 +5310,12 @@ void ANIM_channel_draw(
     acf->name(ale, name);
 
     offset += 3;
-    UI_fontstyle_draw_simple(fstyle, offset, ytext, name, col);
+    ui::fontstyle_draw_simple(fstyle, offset, ytext, name, col);
 
     /* draw red underline if channel is disabled */
     if (achannel_is_broken(ale)) {
       uint pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+          immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
 
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -5352,8 +5352,7 @@ void ANIM_channel_draw(
     short draw_sliders = 0;
     float ymin_ofs = 0.0f;
     float color[3];
-    uint pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -5484,7 +5483,7 @@ static void achannel_setting_widget_cb(bContext *C, void *ale_npoin, void *setti
   }
 
   /* When the button in the UI changes the setting, it does NOT call `ANIM_channel_setting_set()`,
-   * but actually manipulates the data directly via a pointer (see `ui_but_value_set()` in
+   * but actually manipulates the data directly via a pointer (see `button_value_set()` in
    * `source/blender/editors/interface/interface.cc`).
    *
    * As a result, `setting_post_update()` was not called yet and we need to call it here. */
@@ -5503,7 +5502,7 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
 {
   bAnimListElem *ale_setting = static_cast<bAnimListElem *>(ale_npoin);
   bAnimContext ac;
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
   const eAnimChannel_Settings setting = eAnimChannel_Settings(POINTER_AS_INT(setting_wrap));
   short on = 0;
@@ -5604,7 +5603,7 @@ static void achannel_setting_slider_cb(bContext *C, void *id_poin, void *fcu_poi
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   ToolSettings *ts = scene->toolsettings;
-  ListBase nla_cache = {nullptr, nullptr};
+  ListBaseT<NlaKeyframingContext> nla_cache = {nullptr, nullptr};
   PointerRNA ptr;
   PropertyRNA *prop;
   eInsertKeyFlags flag = INSERTKEY_NOFLAGS;
@@ -5624,24 +5623,24 @@ static void achannel_setting_slider_cb(bContext *C, void *id_poin, void *fcu_poi
   cfra = BKE_nla_tweakedit_remap(adt, float(scene->r.cfra), NLATIME_CONVERT_UNMAP);
 
   /* Get flags for keyframing. */
-  flag = blender::animrig::get_keyframing_flags(scene);
+  flag = animrig::get_keyframing_flags(scene);
 
   /* try to resolve the path stored in the F-Curve */
   if (RNA_path_resolve_property(&id_ptr, fcu->rna_path, &ptr, &prop)) {
     /* set the special 'replace' flag if on a keyframe */
-    if (blender::animrig::fcurve_frame_has_keyframe(fcu, cfra)) {
+    if (animrig::fcurve_frame_has_keyframe(fcu, cfra)) {
       flag |= INSERTKEY_REPLACE;
     }
 
     /* insert a keyframe for this F-Curve */
-    done = blender::animrig::insert_keyframe_direct(reports,
-                                                    ptr,
-                                                    prop,
-                                                    fcu,
-                                                    &anim_eval_context,
-                                                    eBezTriple_KeyframeType(ts->keyframe_type),
-                                                    nla_context,
-                                                    flag);
+    done = animrig::insert_keyframe_direct(reports,
+                                           ptr,
+                                           prop,
+                                           fcu,
+                                           &anim_eval_context,
+                                           eBezTriple_KeyframeType(ts->keyframe_type),
+                                           nla_context,
+                                           flag);
 
     if (done) {
       if (adt->action != nullptr) {
@@ -5711,15 +5710,15 @@ static void achannel_setting_slider_nla_curve_cb(bContext *C, void * /*id_poin*/
   cfra = float(scene->r.cfra);
 
   /* get flags for keyframing */
-  flag = blender::animrig::get_keyframing_flags(scene);
+  flag = animrig::get_keyframing_flags(scene);
 
   /* Get pointer and property from the slider -
    * this should all match up with the NlaStrip required. */
-  UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+  ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (fcu && prop) {
     /* set the special 'replace' flag if on a keyframe */
-    if (blender::animrig::fcurve_frame_has_keyframe(fcu, cfra)) {
+    if (animrig::fcurve_frame_has_keyframe(fcu, cfra)) {
       flag |= INSERTKEY_REPLACE;
     }
 
@@ -5727,14 +5726,14 @@ static void achannel_setting_slider_nla_curve_cb(bContext *C, void * /*id_poin*/
     Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
                                                                                       cfra);
-    done = blender::animrig::insert_keyframe_direct(reports,
-                                                    ptr,
-                                                    prop,
-                                                    fcu,
-                                                    &anim_eval_context,
-                                                    eBezTriple_KeyframeType(ts->keyframe_type),
-                                                    nullptr,
-                                                    flag);
+    done = animrig::insert_keyframe_direct(reports,
+                                           ptr,
+                                           prop,
+                                           fcu,
+                                           &anim_eval_context,
+                                           eBezTriple_KeyframeType(ts->keyframe_type),
+                                           nullptr,
+                                           flag);
 
     if (done) {
       WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
@@ -5746,7 +5745,7 @@ static void achannel_setting_slider_nla_curve_cb(bContext *C, void * /*id_poin*/
 static void draw_setting_widget(bAnimContext *ac,
                                 bAnimListElem *ale,
                                 const bAnimChannelType *acf,
-                                uiBlock *block,
+                                ui::Block *block,
                                 const int xpos,
                                 const int ypos,
                                 const eAnimChannel_Settings setting)
@@ -5865,32 +5864,31 @@ static void draw_setting_widget(bAnimContext *ac,
   }
 
   /* type of button */
-  short butType;
+  ui::ButtonType butType;
   if (usetoggle) {
     if (negflag) {
-      butType = UI_BTYPE_ICON_TOGGLE_N;
+      butType = ui::ButtonType::IconToggleN;
     }
     else {
-      butType = UI_BTYPE_ICON_TOGGLE;
+      butType = ui::ButtonType::IconToggle;
     }
   }
   else {
     if (negflag) {
-      butType = UI_BTYPE_TOGGLE_N;
+      butType = ui::ButtonType::ToggleN;
     }
     else {
-      butType = UI_BTYPE_TOGGLE;
+      butType = ui::ButtonType::Toggle;
     }
   }
 
   /* draw button for setting */
-  uiBut *but = nullptr;
+  ui::Button *but = nullptr;
   switch (ptrsize) {
     case sizeof(int): /* integer pointer for setting */
       but = uiDefIconButBitI(block,
                              butType,
                              flag,
-                             0,
                              icon,
                              xpos,
                              ypos,
@@ -5906,7 +5904,6 @@ static void draw_setting_widget(bAnimContext *ac,
       but = uiDefIconButBitS(block,
                              butType,
                              flag,
-                             0,
                              icon,
                              xpos,
                              ypos,
@@ -5922,7 +5919,6 @@ static void draw_setting_widget(bAnimContext *ac,
       but = uiDefIconButBitC(block,
                              butType,
                              flag,
-                             0,
                              icon,
                              xpos,
                              ypos,
@@ -5940,7 +5936,7 @@ static void draw_setting_widget(bAnimContext *ac,
 
   /* Set callback to send relevant notifiers and/or perform type-specific updates */
   {
-    uiButHandleNFunc button_callback;
+    ui::ButtonHandleNFunc button_callback;
     switch (setting) {
       /* Settings needing flushing up/down hierarchy. */
       case ACHANNEL_SETTING_VISIBLE: /* Graph Editor - "visibility" toggles. */
@@ -5964,7 +5960,7 @@ static void draw_setting_widget(bAnimContext *ac,
         button_callback = achannel_setting_widget_cb;
         break;
     }
-    UI_but_funcN_set(but, button_callback, MEM_dupallocN(ale), POINTER_FROM_INT(setting));
+    button_funcN_set(but, button_callback, MEM_dupalloc(ale), POINTER_FROM_INT(setting));
   }
 
   if ((ale->fcurve_owner_id != nullptr && !BKE_id_is_editable(ac->bmain, ale->fcurve_owner_id)) ||
@@ -5972,7 +5968,7 @@ static void draw_setting_widget(bAnimContext *ac,
        !BKE_id_is_editable(ac->bmain, ale->id)))
   {
     if (setting != ACHANNEL_SETTING_EXPAND) {
-      UI_but_disable(but, "Can't edit this property from a linked data-block");
+      button_disable(but, "Cannot edit this property from a linked data-block");
     }
   }
 
@@ -5983,7 +5979,7 @@ static void draw_setting_widget(bAnimContext *ac,
       if (ale->datatype == ALE_FCURVE) {
         const FCurve *fcu = static_cast<const FCurve *>(ale->key_data);
         if (BLI_listbase_is_empty(&fcu->modifiers)) {
-          UI_but_flag_enable(but, UI_BUT_INACTIVE);
+          button_flag_enable(but, ui::BUT_INACTIVE);
         }
       }
       break;
@@ -5994,7 +5990,7 @@ static void draw_setting_widget(bAnimContext *ac,
 }
 
 static void draw_grease_pencil_layer_widgets(bAnimListElem *ale,
-                                             uiBlock *block,
+                                             ui::Block *block,
                                              const rctf *rect,
                                              short &offset,
                                              const short channel_height,
@@ -6011,12 +6007,12 @@ static void draw_grease_pencil_layer_widgets(bAnimListElem *ale,
   offset += SLIDER_WIDTH;
 
   /* Create the RNA pointers. */
-  PointerRNA ptr = RNA_pointer_create_discrete(ale->id, &RNA_GreasePencilLayer, ale->data);
+  PointerRNA ptr = RNA_pointer_create_discrete(ale->id, RNA_GreasePencilLayer, ale->data);
   PointerRNA id_ptr = RNA_id_pointer_create(ale->id);
 
   /* Layer onion skinning switch. */
   offset -= ICON_WIDTH;
-  UI_block_emboss_set(block, blender::ui::EmbossType::None);
+  block_emboss_set(block, ui::EmbossType::None);
   PropertyRNA *onion_skinning_prop = RNA_struct_find_property(&ptr, "use_onion_skinning");
 
   const std::optional<std::string> onion_skinning_rna_path = RNA_path_from_ID_to_property(
@@ -6038,7 +6034,7 @@ static void draw_grease_pencil_layer_widgets(bAnimListElem *ale,
 
   /* Mask layer. */
   offset -= ICON_WIDTH;
-  UI_block_emboss_set(block, blender::ui::EmbossType::None);
+  block_emboss_set(block, ui::EmbossType::None);
   PropertyRNA *layer_mask_prop = RNA_struct_find_property(&ptr, "use_masks");
 
   const std::optional<std::string> layer_mask_rna_path = RNA_path_from_ID_to_property(
@@ -6059,7 +6055,7 @@ static void draw_grease_pencil_layer_widgets(bAnimListElem *ale,
   /* Layer opacity. */
   const short width = SLIDER_WIDTH * 0.6;
   offset -= width;
-  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+  block_emboss_set(block, ui::EmbossType::Emboss);
   PropertyRNA *opacity_prop = RNA_struct_find_property(&ptr, "opacity");
   const std::optional<std::string> opacity_rna_path = RNA_path_from_ID_to_property(&ptr,
                                                                                    opacity_prop);
@@ -6080,7 +6076,7 @@ static void draw_grease_pencil_layer_widgets(bAnimListElem *ale,
 void ANIM_channel_draw_widgets(const bContext *C,
                                bAnimContext *ac,
                                bAnimListElem *ale,
-                               uiBlock *block,
+                               ui::Block *block,
                                const rctf *rect,
                                size_t channel_index)
 {
@@ -6102,10 +6098,10 @@ void ANIM_channel_draw_widgets(const bContext *C,
   }
 
   /* calculate appropriate y-coordinates for icon buttons */
-  ymid = BLI_rctf_cent_y(rect) - 0.5f * ICON_WIDTH;
+  ymid = rect->ymin - 1;
 
   /* no button backdrop behind icons */
-  UI_block_emboss_set(block, blender::ui::EmbossType::None);
+  block_emboss_set(block, ui::EmbossType::None);
 
   /* step 1) draw expand widget ....................................... */
   if (acf->has_setting(ac, ale, ACHANNEL_SETTING_EXPAND)) {
@@ -6162,13 +6158,12 @@ void ANIM_channel_draw_widgets(const bContext *C,
     if (acf->name_prop(ale, &ptr, &prop)) {
       const short margin_x = 3 * round_fl_to_int(UI_SCALE_FAC);
       const short width = ac->region->winx - offset - (margin_x * 2);
-      uiBut *but;
+      ui::Button *but;
 
-      UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+      block_emboss_set(block, ui::EmbossType::Emboss);
 
       but = uiDefButR(block,
-                      UI_BTYPE_TEXT,
-                      1,
+                      ui::ButtonType::Text,
                       "",
                       offset + margin_x,
                       rect->ymin,
@@ -6182,14 +6177,14 @@ void ANIM_channel_draw_widgets(const bContext *C,
                       std::nullopt);
 
       /* copy what outliner does here, see outliner_buttons */
-      if (UI_but_active_only(C, ac->region, block, but) == false) {
+      if (button_active_only(C, ac->region, block, but) == false) {
         ac->ads->renameIndex = 0;
 
         /* send notifiers */
         WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_RENAME, nullptr);
       }
 
-      UI_block_emboss_set(block, blender::ui::EmbossType::None);
+      block_emboss_set(block, ui::EmbossType::None);
     }
     else {
       /* Cannot get property/cannot or rename for some reason, so clear rename index
@@ -6311,16 +6306,16 @@ void ANIM_channel_draw_widgets(const bContext *C,
       if ((ale->type == ANIMTYPE_NLAACTION) && (ale->adt && ale->adt->action) &&
           !(ale->adt->flag & ADT_NLA_EDIT_ON))
       {
-        uiBut *but;
+        ui::Button *but;
         PointerRNA *opptr_b;
 
-        UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+        block_emboss_set(block, ui::EmbossType::Emboss);
 
         offset -= UI_UNIT_X;
         but = uiDefIconButO(block,
-                            UI_BTYPE_BUT,
+                            ui::ButtonType::But,
                             "NLA_OT_action_pushdown",
-                            WM_OP_INVOKE_DEFAULT,
+                            wm::OpCallContext::InvokeDefault,
                             ICON_NLA_PUSHDOWN,
                             offset,
                             ymid,
@@ -6328,16 +6323,16 @@ void ANIM_channel_draw_widgets(const bContext *C,
                             UI_UNIT_X,
                             std::nullopt);
 
-        opptr_b = UI_but_operator_ptr_ensure(but);
+        opptr_b = button_operator_ptr_ensure(but);
         RNA_int_set(opptr_b, "track_index", channel_index);
 
-        UI_block_emboss_set(block, blender::ui::EmbossType::None);
+        block_emboss_set(block, ui::EmbossType::None);
       }
 
       /* Slot ID type indicator. */
       if (ale->type == ANIMTYPE_ACTION_SLOT) {
         offset -= ICON_WIDTH;
-        UI_icon_draw(offset, ymid, acf_action_slot_idtype_icon(ale));
+        ui::icon_draw(offset, ymid, acf_action_slot_idtype_icon(ale));
       }
     }
 
@@ -6368,7 +6363,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
       offset -= SLIDER_WIDTH;
 
       /* need backdrop behind sliders... */
-      UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+      block_emboss_set(block, ui::EmbossType::Emboss);
 
       if (ale->owner) { /* Slider using custom RNA Access ---------- */
         if (ale->type == ANIMTYPE_NLACURVE) {
@@ -6377,12 +6372,12 @@ void ANIM_channel_draw_widgets(const bContext *C,
           PropertyRNA *prop;
 
           /* create RNA pointers */
-          PointerRNA ptr = RNA_pointer_create_discrete(ale->id, &RNA_NlaStrip, strip);
+          PointerRNA ptr = RNA_pointer_create_discrete(ale->id, RNA_NlaStrip, strip);
           prop = RNA_struct_find_property(&ptr, fcu->rna_path);
 
           /* create property slider */
           if (prop) {
-            uiBut *but;
+            ui::Button *but;
 
             /* Create the slider button,
              * and assign relevant callback to ensure keyframes are inserted. */
@@ -6396,7 +6391,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
                                 rect->ymin,
                                 SLIDER_WIDTH,
                                 channel_height);
-            UI_but_func_set(but, achannel_setting_slider_nla_curve_cb, ale->id, ale->data);
+            button_func_set(but, achannel_setting_slider_nla_curve_cb, ale->id, ale->data);
           }
         }
       }
@@ -6429,13 +6424,13 @@ void ANIM_channel_draw_widgets(const bContext *C,
             bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
 
             /* Create the RNA pointers. */
-            ptr = RNA_pointer_create_discrete(ale->id, &RNA_GPencilLayer, ale->data);
+            ptr = RNA_pointer_create_discrete(ale->id, RNA_AnnotationLayer, ale->data);
             PointerRNA id_ptr = RNA_id_pointer_create(ale->id);
             int icon;
 
             /* Layer onion skinning switch. */
             offset -= ICON_WIDTH;
-            UI_block_emboss_set(block, blender::ui::EmbossType::None);
+            block_emboss_set(block, ui::EmbossType::None);
             prop = RNA_struct_find_property(&ptr, "use_annotation_onion_skinning");
             if (const std::optional<std::string> gp_rna_path = RNA_path_from_ID_to_property(&ptr,
                                                                                             prop))
@@ -6459,7 +6454,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
             /* Layer opacity. */
             const short width = SLIDER_WIDTH * 0.6;
             offset -= width;
-            UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+            block_emboss_set(block, ui::EmbossType::Emboss);
             prop = RNA_struct_find_property(&ptr, "annotation_opacity");
             if (const std::optional<std::string> gp_rna_path = RNA_path_from_ID_to_property(&ptr,
                                                                                             prop))
@@ -6490,7 +6485,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
 
           /* try to resolve the path */
           if (RNA_path_resolve_property(&id_ptr, rna_path->c_str(), &ptr, &prop)) {
-            uiBut *but;
+            ui::Button *but;
 
             /* Create the slider button,
              * and assign relevant callback to ensure keyframes are inserted. */
@@ -6508,10 +6503,10 @@ void ANIM_channel_draw_widgets(const bContext *C,
 
             /* assign keyframing function according to slider type */
             if (ale->type == ANIMTYPE_SHAPEKEY) {
-              UI_but_func_set(but, achannel_setting_slider_shapekey_cb, ale->id, ale->data);
+              button_func_set(but, achannel_setting_slider_shapekey_cb, ale->id, ale->data);
             }
             else {
-              UI_but_func_set(but, achannel_setting_slider_cb, ale->id, ale->data);
+              button_func_set(but, achannel_setting_slider_cb, ale->id, ale->data);
             }
           }
         }
@@ -6524,3 +6519,5 @@ void ANIM_channel_draw_widgets(const bContext *C,
 }
 
 /* *********************************************** */
+
+}  // namespace blender

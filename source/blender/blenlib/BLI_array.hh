@@ -7,13 +7,13 @@
 /** \file
  * \ingroup bli
  *
- * A `blender::Array<T>` is a container for a fixed size array the size of which is NOT known at
+ * A `Array<T>` is a container for a fixed size array the size of which is NOT known at
  * compile time.
  *
  * If the size is known at compile time, `std::array<T, N>` should be used instead.
  *
- * blender::Array should usually be used instead of blender::Vector whenever the number of elements
- * is known at construction time. Note however, that blender::Array will default construct all
+ * Array should usually be used instead of Vector whenever the number of elements
+ * is known at construction time. Note however, that Array will default construct all
  * elements when initialized with the size-constructor. For trivial types, this does nothing. In
  * all other cases, this adds overhead.
  *
@@ -21,7 +21,7 @@
  * better. It indicates that the size of the data structure is not expected to change. Furthermore,
  * you can be more certain that an array does not over-allocate.
  *
- * blender::Array supports small object optimization to improve performance when the size turns out
+ * Array supports small object optimization to improve performance when the size turns out
  * to be small at run-time.
  */
 
@@ -86,8 +86,10 @@ class Array {
   /**
    * Create a new array that contains copies of all values.
    */
-  template<typename U, BLI_ENABLE_IF((std::is_convertible_v<U, T>))>
-  Array(Span<U> values, Allocator allocator = {}) : Array(NoExceptConstructor(), allocator)
+  template<typename U>
+  Array(Span<U> values, Allocator allocator = {})
+    requires(std::is_convertible_v<U, T>)
+      : Array(NoExceptConstructor(), allocator)
   {
     const int64_t size = values.size();
     data_ = this->get_buffer_for_size(size);
@@ -98,8 +100,9 @@ class Array {
   /**
    * Create a new array that contains copies of all values.
    */
-  template<typename U, BLI_ENABLE_IF((std::is_convertible_v<U, T>))>
+  template<typename U>
   Array(const std::initializer_list<U> &values, Allocator allocator = {})
+    requires(std::is_convertible_v<U, T>)
       : Array(Span<U>(values), allocator)
   {
   }
@@ -133,7 +136,14 @@ class Array {
   {
     BLI_assert(size >= 0);
     data_ = this->get_buffer_for_size(size);
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
     uninitialized_fill_n(data_, size, value);
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic pop
+#endif
     size_ = size;
   }
 
@@ -163,10 +173,14 @@ class Array {
       : Array(NoExceptConstructor(), other.allocator_)
   {
     if (other.data_ == other.inline_buffer_) {
-      /* This comparison with #InlineBufferCapacity may look a bit useless, and indeed it is.
-       * However, it helps to quiet a wrong GCC `-Warray-bounds` warning. */
-      const int64_t relocate_num = (InlineBufferCapacity > 0) ? other.size_ : 0;
-      uninitialized_relocate_n(other.data_, relocate_num, data_);
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+      uninitialized_relocate_n(other.data_, other.size_, data_);
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic pop
+#endif
     }
     else {
       data_ = other.data_;
@@ -217,14 +231,16 @@ class Array {
     return MutableSpan<T>(data_, size_);
   }
 
-  template<typename U, BLI_ENABLE_IF((is_span_convertible_pointer_v<T, U>))>
+  template<typename U>
   operator Span<U>() const
+    requires(is_span_convertible_pointer_v<T, U>)
   {
     return Span<U>(data_, size_);
   }
 
-  template<typename U, BLI_ENABLE_IF((is_span_convertible_pointer_v<T, U>))>
+  template<typename U>
   operator MutableSpan<U>()
+    requires(is_span_convertible_pointer_v<T, U>)
   {
     return MutableSpan<U>(data_, size_);
   }
@@ -349,6 +365,16 @@ class Array {
   IndexRange index_range() const
   {
     return IndexRange(size_);
+  }
+
+  uint64_t hash() const
+  {
+    return this->as_span().hash();
+  }
+
+  static uint64_t hash_as(const Span<T> values)
+  {
+    return values.hash();
   }
 
   friend bool operator==(const Array &a, const Array &b)

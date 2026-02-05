@@ -173,9 +173,9 @@ ccl_device void flatten_closure_tree(KernelGlobals kg,
 
 #ifndef __KERNEL_GPU__
 
-template<ShaderType type>
+template<ShaderType type, typename ConstIntegratorGenericState>
 void osl_eval_nodes(const ThreadKernelGlobalsCPU *kg,
-                    const void *state,
+                    ConstIntegratorGenericState state,
                     ShaderData *sd,
                     uint32_t path_flag);
 
@@ -195,45 +195,42 @@ ccl_device_inline void osl_eval_nodes(KernelGlobals kg,
 #  ifdef __KERNEL_OPTIX__
   uint8_t closure_pool[1024];
   globals.closure_pool = closure_pool;
-  if (path_flag & PATH_RAY_SHADOW) {
+  if constexpr (std::is_same_v<ConstIntegratorGenericState, ConstIntegratorShadowState>) {
     globals.shade_index = -state - 1;
   }
   else {
     globals.shade_index = state + 1;
   }
 
-/* For surface shaders, we might have an automatic bump shader that needs to be executed before
- * the main shader to update globals.N. */
-#    if __cplusplus < 201703L
-  if (type == SHADER_TYPE_SURFACE)
-#    else
-  if constexpr (type == SHADER_TYPE_SURFACE)
-#    endif
-  {
-    if (sd->flag & SD_HAS_BUMP) {
+  /* For surface shaders, we might have an automatic bump shader that needs to be executed before
+   * the main shader to update globals.N. */
+  if constexpr (type == SHADER_TYPE_SURFACE) {
+    if (sd->flag & SD_HAS_BUMP_FROM_DISPLACEMENT) {
       /* Save state. */
       const float3 P = sd->P;
       const float dP = sd->dP;
       const packed_float3 dPdx = globals.dPdx;
       const packed_float3 dPdy = globals.dPdy;
 
-      /* Set state as if undisplaced. */
+      /* Set position state as if undisplaced. */
       if (sd->flag & SD_HAS_DISPLACEMENT) {
         const AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_POSITION_UNDISPLACED);
         kernel_assert(desc.offset != ATTR_STD_NOT_FOUND);
 
-        differential3 tmp_dP;
-        sd->P = primitive_surface_attribute<float3>(kg, sd, desc, &tmp_dP.dx, &tmp_dP.dy);
+        dual3 P = primitive_surface_attribute<float3>(kg, sd, desc, true, true);
 
-        object_position_transform(kg, sd, &sd->P);
-        object_dir_transform(kg, sd, &tmp_dP.dx);
-        object_dir_transform(kg, sd, &tmp_dP.dy);
+        object_position_transform(kg, sd, &P);
 
-        sd->dP = differential_make_compact(tmp_dP);
+        sd->P = P.val;
+        sd->dP = differential_make_compact(P);
 
         globals.P = sd->P;
-        globals.dPdx = tmp_dP.dx;
-        globals.dPdy = tmp_dP.dy;
+        globals.dPdx = P.dx;
+        globals.dPdy = P.dy;
+
+        /* Set normal as if undisplaced. */
+        primitive_normal_set_undisplaced(kg, sd, desc.offset);
+        globals.N = sd->N;
       }
 
       /* Execute bump shader. */
@@ -271,11 +268,7 @@ ccl_device_inline void osl_eval_nodes(KernelGlobals kg,
                         /* interactive_params_ptr */ (void *)nullptr);
 #  endif
 
-#  if __cplusplus < 201703L
-  if (type == SHADER_TYPE_DISPLACEMENT) {
-#  else
   if constexpr (type == SHADER_TYPE_DISPLACEMENT) {
-#  endif
     sd->P = globals.P;
   }
   else if (globals.Ci) {

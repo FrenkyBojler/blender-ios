@@ -42,6 +42,22 @@ ccl_device_inline float3 triangle_normal(KernelGlobals kg, ccl_private ShaderDat
   return normalize(cross(v1 - v0, v2 - v0));
 }
 
+/* Face normal of undisplaced triangle, from vertex positions stored as attribute. */
+ccl_device_inline float3 triangle_face_normal_undisplaced(KernelGlobals kg,
+                                                          ccl_private const ShaderData *sd,
+                                                          const int position_attr_offset)
+{
+  const uint3 tri_vindex = kernel_data_fetch(tri_vindex, sd->prim);
+  const float3 v0 = attribute_data_fetch<float3>(kg, position_attr_offset + tri_vindex.x);
+  const float3 v1 = attribute_data_fetch<float3>(kg, position_attr_offset + tri_vindex.y);
+  const float3 v2 = attribute_data_fetch<float3>(kg, position_attr_offset + tri_vindex.z);
+
+  if (object_negative_scale_applied(sd->object_flag)) {
+    return normalize(cross(v2 - v0, v1 - v0));
+  }
+  return normalize(cross(v1 - v0, v2 - v0));
+}
+
 /* Point and normal on triangle. */
 ccl_device_inline void triangle_point_normal(KernelGlobals kg,
                                              const int object,
@@ -62,7 +78,7 @@ ccl_device_inline void triangle_point_normal(KernelGlobals kg,
   const float w = 1.0f - u - v;
   *P = (w * v0 + u * v1 + v * v2);
   /* get object flags */
-  const int object_flag = kernel_data_fetch(object_flag, object);
+  const uint object_flag = kernel_data_fetch(object_flag, object);
   /* compute normal */
   if (object_negative_scale_applied(object_flag)) {
     *Ng = normalize(cross(v2 - v0, v1 - v0));
@@ -70,7 +86,7 @@ ccl_device_inline void triangle_point_normal(KernelGlobals kg,
   else {
     *Ng = normalize(cross(v1 - v0, v2 - v0));
   }
-  /* shader`*/
+  /* shader */
   *shader = kernel_data_fetch(tri_shader, prim);
 }
 
@@ -222,12 +238,13 @@ ccl_device_inline T triangle_attribute_dfdy(const ccl_private differential &du,
 /* Read attributes on various triangle elements, and compute the partial derivatives if requested.
  */
 template<typename T>
-ccl_device T triangle_attribute(KernelGlobals kg,
-                                const ccl_private ShaderData *sd,
-                                const AttributeDescriptor desc,
-                                ccl_private T *dfdx,
-                                ccl_private T *dfdy)
+ccl_device dual<T> triangle_attribute(KernelGlobals kg,
+                                      const ccl_private ShaderData *sd,
+                                      const AttributeDescriptor desc,
+                                      const bool dx = false,
+                                      const bool dy = false)
 {
+  dual<T> result;
   if (desc.element & (ATTR_ELEMENT_VERTEX | ATTR_ELEMENT_VERTEX_MOTION | ATTR_ELEMENT_CORNER |
                       ATTR_ELEMENT_CORNER_BYTE))
   {
@@ -256,29 +273,22 @@ ccl_device T triangle_attribute(KernelGlobals kg,
     }
 
 #ifdef __RAY_DIFFERENTIALS__
-    if (dfdx) {
-      *dfdx = triangle_attribute_dfdx(sd->du, sd->dv, f0, f1, f2);
+    if (dx) {
+      result.dx = triangle_attribute_dfdx(sd->du, sd->dv, f0, f1, f2);
     }
-    if (dfdy) {
-      *dfdy = triangle_attribute_dfdy(sd->du, sd->dv, f0, f1, f2);
+    if (dy) {
+      result.dy = triangle_attribute_dfdy(sd->du, sd->dv, f0, f1, f2);
     }
 #endif
 
-    return sd->u * f1 + sd->v * f2 + (1.0f - sd->u - sd->v) * f0;
+    result.val = sd->u * f1 + sd->v * f2 + (1.0f - sd->u - sd->v) * f0;
+    return result;
   }
-#ifdef __RAY_DIFFERENTIALS__
-  if (dfdx) {
-    *dfdx = make_zero<T>();
-  }
-  if (dfdy) {
-    *dfdy = make_zero<T>();
-  }
-#endif
 
   if (desc.element == ATTR_ELEMENT_FACE) {
-    return attribute_data_fetch<T>(kg, desc.offset + sd->prim);
+    return dual<T>(attribute_data_fetch<T>(kg, desc.offset + sd->prim));
   }
-  return make_zero<T>();
+  return make_zero<dual<T>>();
 }
 
 CCL_NAMESPACE_END

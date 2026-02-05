@@ -15,6 +15,8 @@
 #include "BLI_array.hh"
 #include "BLI_vector.hh"
 
+namespace blender {
+
 struct DynStr;
 
 extern char BaseMathObject_is_wrapped_doc[];
@@ -40,6 +42,14 @@ enum {
    * (typical use cases for tuple).
    */
   BASE_MATH_FLAG_IS_FROZEN = (1 << 1),
+  /**
+   * When set, prevents calling freeze() and resize() while using the buffer protocol.
+   *
+   * \note `memoryview` & `np.frombuffer` pass the `PyBUF_FORMAT | PyBUF_INDIRECT` flags,
+   * and the object can be mutated, so `PyBUF_WRITABLE` can't be handled.
+   * That's why it's always necessary to check for write access.
+   */
+  BASE_MATH_FLAG_HAS_BUFFER_VIEW = (1 << 2),
 };
 #define BASE_MATH_FLAG_DEFAULT 0
 
@@ -61,12 +71,16 @@ struct BaseMathObject {
   BASE_MATH_MEMBERS(data);
 };
 
+}  // namespace blender
+
 /* types */
 #include "mathutils_Color.hh"       // IWYU pragma: export
 #include "mathutils_Euler.hh"       // IWYU pragma: export
 #include "mathutils_Matrix.hh"      // IWYU pragma: export
 #include "mathutils_Quaternion.hh"  // IWYU pragma: export
 #include "mathutils_Vector.hh"      // IWYU pragma: export
+
+namespace blender {
 
 /* avoid checking all types */
 #define BaseMathObject_CheckExact(v) (Py_TYPE(v)->tp_dealloc == (destructor)BaseMathObject_dealloc)
@@ -118,6 +132,12 @@ struct Mathutils_Callback {
 [[nodiscard]] int _BaseMathObject_WriteCallback(BaseMathObject *self);
 [[nodiscard]] int _BaseMathObject_ReadIndexCallback(BaseMathObject *self, int index);
 [[nodiscard]] int _BaseMathObject_WriteIndexCallback(BaseMathObject *self, int index);
+/** To implement #BaseMath_Prepare_ForResize. */
+[[nodiscard]] int _BaseMathObject_ResizeOkOrRaiseExc(BaseMathObject *self,
+                                                     const char *error_prefix);
+[[nodiscard]] int _BaseMathObject_RaiseBufferViewExc(BaseMathObject *self,
+                                                     Py_buffer *view,
+                                                     int flags);
 
 void _BaseMathObject_RaiseFrozenExc(const BaseMathObject *self);
 void _BaseMathObject_RaiseNotFrozenExc(const BaseMathObject *self);
@@ -154,6 +174,21 @@ void _BaseMathObject_RaiseNotFrozenExc(const BaseMathObject *self);
   (UNLIKELY(((_self)->flag & BASE_MATH_FLAG_IS_FROZEN) == 0) ? \
        (_BaseMathObject_RaiseNotFrozenExc((BaseMathObject *)_self), -1) : \
        0)
+/**
+ * Helper to de-duplicate checks for in-place resizing.
+ * \return -1 and set an exception if the vector `_self` cannot be resized.
+ */
+#define BaseMathObject_Prepare_ForResize(_self, error_prefix) \
+  _BaseMathObject_ResizeOkOrRaiseExc((BaseMathObject *)_self, error_prefix)
+
+/**
+ * Ensure #BASE_MATH_FLAG_HAS_BUFFER_VIEW is supported.
+ * \param _view: The `view` argument forwarded from #PyBufferProcs::bf_getbuffer.
+ * \param _flags: The `flags` argument forwarded from #PyBufferProcs::bf_getbuffer.
+ * \return -1 and set an exception if the vector `_self` does not support buffer access.
+ */
+#define BaseMath_Prepare_ForBufferAccess(_self, _view, _flags) \
+  _BaseMathObject_RaiseBufferViewExc((BaseMathObject *)_self, _view, _flags)
 
 /* utility func */
 /**
@@ -195,7 +230,7 @@ void _BaseMathObject_RaiseNotFrozenExc(const BaseMathObject *self);
  */
 [[nodiscard]] bool mathutils_array_parse_alloc_viseq(PyObject *value,
                                                      const char *error_prefix,
-                                                     blender::Array<blender::Vector<int>> &r_data);
+                                                     Array<Vector<int>> &r_data);
 [[nodiscard]] int mathutils_any_to_rotmat(float rmat[3][3],
                                           PyObject *value,
                                           const char *error_prefix);
@@ -235,3 +270,5 @@ void _BaseMathObject_RaiseNotFrozenExc(const BaseMathObject *self);
 /* dynstr as python string utility functions, frees 'ds'! */
 [[nodiscard]] PyObject *mathutils_dynstr_to_py(struct DynStr *ds);
 #endif
+
+}  // namespace blender

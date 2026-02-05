@@ -17,8 +17,10 @@
 
 #include "GPU_capabilities.hh"
 
+namespace blender {
+
 using namespace blender::gpu::shader;
-namespace blender::gpu {
+namespace gpu {
 
 /* -------------------------------------------------------------------- */
 /** \name Binding assignment
@@ -202,7 +204,7 @@ static Type gpu_type_from_gl_type(int gl_type)
 GLShaderInterface::GLShaderInterface(GLuint program)
 {
   GLuint last_program;
-  glGetIntegerv(GL_CURRENT_PROGRAM, (GLint *)&last_program);
+  glGetIntegerv(GL_CURRENT_PROGRAM, reinterpret_cast<GLint *>(&last_program));
 
   /* Necessary to make #glUniform works. */
   glUseProgram(program);
@@ -254,7 +256,7 @@ GLShaderInterface::GLShaderInterface(GLuint program)
   /* Bit set to true if uniform comes from a uniform block. */
   BLI_bitmap *uniforms_from_blocks = BLI_BITMAP_NEW(active_uniform_len, __func__);
   /* Set uniforms from block for exclusion. */
-  GLint *ubo_uni_ids = MEM_malloc_arrayN<GLint>(max_ubo_uni_len, __func__);
+  GLint *ubo_uni_ids = MEM_new_array_uninitialized<GLint>(max_ubo_uni_len, __func__);
   for (int i = 0; i < ubo_len; i++) {
     GLint ubo_uni_len;
     glGetActiveUniformBlockiv(program, i, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, &ubo_uni_len);
@@ -263,15 +265,15 @@ GLShaderInterface::GLShaderInterface(GLuint program)
       BLI_BITMAP_ENABLE(uniforms_from_blocks, ubo_uni_ids[u]);
     }
   }
-  MEM_freeN(ubo_uni_ids);
+  MEM_delete(ubo_uni_ids);
 
   int input_tot_len = attr_len + ubo_len + uniform_len + ssbo_len;
-  inputs_ = MEM_calloc_arrayN<ShaderInput>(input_tot_len, __func__);
+  inputs_ = MEM_new_array_zeroed<ShaderInput>(input_tot_len, __func__);
 
   const uint32_t name_buffer_len = attr_len * max_attr_name_len + ubo_len * max_ubo_name_len +
                                    uniform_len * max_uniform_name_len +
                                    ssbo_len * max_ssbo_name_len;
-  name_buffer_ = (char *)MEM_mallocN(name_buffer_len, "name_buffer");
+  name_buffer_ = MEM_new_array_uninitialized<char>(name_buffer_len, "name_buffer");
   uint32_t name_buffer_offset = 0;
 
   /* Attributes */
@@ -370,11 +372,12 @@ GLShaderInterface::GLShaderInterface(GLuint program)
     builtin_blocks_[u] = (block != nullptr) ? block->binding : -1;
   }
 
-  MEM_freeN(uniforms_from_blocks);
+  MEM_delete(uniforms_from_blocks);
 
   /* Resize name buffer to save some memory. */
   if (name_buffer_offset < name_buffer_len) {
-    name_buffer_ = (char *)MEM_reallocN(name_buffer_, name_buffer_offset);
+    name_buffer_ = static_cast<char *>(
+        MEM_realloc_uninitialized(name_buffer_, name_buffer_offset));
   }
 
   // this->debug_print();
@@ -413,33 +416,18 @@ GLShaderInterface::GLShaderInterface(GLuint program, const shader::ShaderCreateI
     }
   }
 
-  size_t workaround_names_size = 0;
-  Vector<StringRefNull> workaround_uniform_names;
-  auto check_enabled_uniform = [&](const char *uniform_name) {
-    if (glGetUniformLocation(program, uniform_name) != -1) {
-      workaround_uniform_names.append(uniform_name);
-      workaround_names_size += StringRefNull(uniform_name).size() + 1;
-      uniform_len_++;
-    }
-  };
-
-  if (!GLContext::shader_draw_parameters_support) {
-    check_enabled_uniform("gpu_BaseInstance");
-  }
-
   BLI_assert_msg(ubo_len_ <= 16, "enabled_ubo_mask_ is uint16_t");
 
   int input_tot_len = attr_len_ + ubo_len_ + uniform_len_ + ssbo_len_ + constant_len_;
-  inputs_ = MEM_calloc_arrayN<ShaderInput>(input_tot_len, __func__);
+  inputs_ = MEM_new_array_zeroed<ShaderInput>(input_tot_len, __func__);
   ShaderInput *input = inputs_;
 
-  name_buffer_ = (char *)MEM_mallocN(info.interface_names_size_ + workaround_names_size,
-                                     "name_buffer");
+  name_buffer_ = MEM_new_array_uninitialized<char>(info.interface_names_size_, "name_buffer");
   uint32_t name_buffer_offset = 0;
 
   /* Necessary to make #glUniform works. TODO(fclem) Remove. */
   GLuint last_program;
-  glGetIntegerv(GL_CURRENT_PROGRAM, (GLint *)&last_program);
+  glGetIntegerv(GL_CURRENT_PROGRAM, reinterpret_cast<GLint *>(&last_program));
 
   glUseProgram(program);
 
@@ -508,14 +496,7 @@ GLShaderInterface::GLShaderInterface(GLuint program, const shader::ShaderCreateI
     input->binding = -1;
     input++;
   }
-
-  /* Compatibility uniforms. */
-  for (auto &name : workaround_uniform_names) {
-    copy_input_name(input, name, name_buffer_, name_buffer_offset);
-    input->location = glGetUniformLocation(program, name_buffer_ + input->name_offset);
-    input->binding = -1;
-    input++;
-  }
+  set_image_formats_from_info(info);
 
   /* SSBOs */
   for (const ShaderCreateInfo::Resource &res : all_resources) {
@@ -611,4 +592,5 @@ void GLShaderInterface::ref_remove(GLVaoCache *ref)
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

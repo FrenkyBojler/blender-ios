@@ -27,7 +27,7 @@ std::atomic<uint32_t> Manager::global_sync_counter_ = 1;
 
 Manager::~Manager()
 {
-  for (GPUTexture *texture : acquired_textures) {
+  for (gpu::Texture *texture : acquired_textures) {
     /* Decrease refcount and free if 0. */
     GPU_texture_free(texture);
   }
@@ -49,7 +49,7 @@ void Manager::begin_sync(Object *object_active)
 
   /* TODO: This means the reference is kept until further redraw or manager tear-down. Instead,
    * they should be released after each draw loop. But for now, mimics old DRW behavior. */
-  for (GPUTexture *texture : acquired_textures) {
+  for (gpu::Texture *texture : acquired_textures) {
     /* Decrease refcount and free if 0. */
     GPU_texture_free(texture);
   }
@@ -92,7 +92,7 @@ void Manager::sync_layer_attributes()
     id_list.append(id);
   }
 
-  std::sort(id_list.begin(), id_list.end());
+  std::ranges::sort(id_list);
 
   /* Look up the attributes. */
   int count = 0, size = layer_attributes_buf.end() - layer_attributes_buf.begin();
@@ -131,7 +131,7 @@ void Manager::end_sync()
 
   /* Dispatch compute to finalize the resources on GPU. Save a bit of CPU time. */
   uint thread_groups = divide_ceil_u(resource_len_, DRW_FINALIZE_GROUP_SIZE);
-  GPUShader *shader = DRW_shader_draw_resource_finalize_get();
+  gpu::Shader *shader = DRW_shader_draw_resource_finalize_get();
   GPU_shader_bind(shader);
   GPU_shader_uniform_1i(shader, "resource_len", resource_len_);
   GPU_storagebuf_bind(matrix_buf.current(), GPU_shader_get_ssbo_binding(shader, "matrix_buf"));
@@ -147,7 +147,7 @@ void Manager::end_sync()
 
 void Manager::debug_bind()
 {
-  GPUStorageBuf *gpu_buf = DebugDraw::get().gpu_draw_buf_get();
+  gpu::StorageBuf *gpu_buf = DebugDraw::get().gpu_draw_buf_get();
   if (gpu_buf == nullptr) {
     return;
   }
@@ -178,7 +178,7 @@ ResourceHandleRange Manager::unique_handle_for_sculpt(const ObjectRef &ref)
     return ref.sculpt_handle_;
   }
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(*ref.object);
-  const blender::Bounds<float3> bounds = bke::pbvh::bounds_get(pbvh);
+  const Bounds<float3> bounds = bke::pbvh::bounds_get(pbvh);
   const float3 center = math::midpoint(bounds.min, bounds.max);
   const float3 half_extent = bounds.max - center;
   /* WORKAROUND: Instead of breaking const correctness everywhere, we only break it for this. */
@@ -189,7 +189,7 @@ ResourceHandleRange Manager::unique_handle_for_sculpt(const ObjectRef &ref)
 
 void Manager::compute_visibility(View &view)
 {
-  bool freeze_culling = (USER_EXPERIMENTAL_TEST(&U, use_viewport_debug) && drw_get().v3d &&
+  bool freeze_culling = (USER_DEVELOPER_TOOL_TEST(&U, use_viewport_debug) && drw_get().v3d &&
                          (drw_get().v3d->debug_flag & V3D_DEBUG_FREEZE_CULLING) != 0);
 
   BLI_assert_msg(view.manager_fingerprint_ != this->fingerprint_get(),
@@ -384,7 +384,7 @@ Manager::SubmitDebugOutput Manager::submit_debug(PassSimple &pass, View &view)
   output.resource_id = {pass.draw_commands_buf_.resource_id_buf_.data(),
                         pass.draw_commands_buf_.resource_id_count_};
   /* There is no visibility data for PassSimple. */
-  output.visibility = {(uint *)view.get_visibility_buffer().data(), 0};
+  output.visibility = {static_cast<uint *>(view.get_visibility_buffer().data()), 0};
   return output;
 }
 
@@ -400,7 +400,7 @@ Manager::SubmitDebugOutput Manager::submit_debug(PassMain &pass, View &view)
   Manager::SubmitDebugOutput output;
   output.resource_id = {pass.draw_commands_buf_.resource_id_buf_.data(),
                         pass.draw_commands_buf_.resource_id_count_};
-  output.visibility = {(uint *)view.get_visibility_buffer().data(),
+  output.visibility = {static_cast<uint *>(view.get_visibility_buffer().data()),
                        divide_ceil_u(resource_len_, 32)};
   return output;
 }

@@ -15,7 +15,7 @@ from bpy.types import (
     UILayout,
     UIList,
 )
-from bl_ui_utils.layout import operator_context
+from _bl_ui_utils.layout import operator_context
 
 
 class VIEW3D_MT_pose_modify(Menu):
@@ -27,6 +27,7 @@ class VIEW3D_MT_pose_modify(Menu):
         layout.operator("poselib.asset_modify", text="Replace").mode = "REPLACE"
         layout.operator("poselib.asset_modify", text="Add Selected Bones").mode = "ADD"
         layout.operator("poselib.asset_modify", text="Remove Selected Bones").mode = "REMOVE"
+
 
 class PoseLibraryPanel:
     @classmethod
@@ -40,9 +41,10 @@ class PoseLibraryPanel:
 
 class VIEW3D_AST_pose_library(bpy.types.AssetShelf):
     bl_space_type = "VIEW_3D"
-    # We have own keymap items to add custom drag behavior (pose blending), disable the default
-    # asset dragging.
-    bl_options = {'NO_ASSET_DRAG'}
+    bl_activate_operator = "POSELIB_OT_apply_pose_asset"
+    bl_drag_operator = "POSELIB_OT_blend_pose_asset"
+    bl_default_preview_size = 64
+    filter_action = True
 
     @classmethod
     def poll(cls, context: Context) -> bool:
@@ -73,7 +75,7 @@ class VIEW3D_AST_pose_library(bpy.types.AssetShelf):
         layout.operator("poselib.asset_delete")
 
         layout.separator()
-        layout.operator("asset.open_containing_blend_file")
+        layout.operator("asset.open_containing_blend_file", icon='FILE_BLEND')
 
 
 def pose_library_asset_browser_context_menu(self: UIList, context: Context) -> None:
@@ -133,8 +135,6 @@ class DOPESHEET_PT_asset_panel(PoseLibraryPanel, Panel):
             row.operator("poselib.restore_previous_action", text="", icon='LOOP_BACK')
         col.operator("poselib.copy_as_asset", icon="COPYDOWN")
 
-        layout.operator("poselib.convert_old_poselib")
-
 
 def pose_library_list_item_asset_menu(self: UIList, context: Context) -> None:
     layout = self.layout
@@ -158,7 +158,7 @@ class ASSETBROWSER_MT_asset(Menu):
         layout.operator("poselib.create_pose_asset")
 
 
-# Messagebus subscription to monitor asset library changes.
+# MessageBus subscription to monitor asset library changes.
 _msgbus_owner = object()
 
 

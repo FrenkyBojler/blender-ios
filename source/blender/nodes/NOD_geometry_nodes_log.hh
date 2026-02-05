@@ -30,7 +30,9 @@
 
 #include <chrono>
 
+#include "BLI_cache_mutex.hh"
 #include "BLI_compute_context.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_generic_pointer.hh"
 #include "BLI_linear_allocator_chunked_list.hh"
@@ -38,22 +40,25 @@
 #include "BKE_compute_context_cache_fwd.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_node.hh"
+#include "BKE_node_socket_value.hh"
 #include "BKE_node_tree_zones.hh"
 #include "BKE_volume_grid_fwd.hh"
 
 #include "NOD_geometry_nodes_closure_location.hh"
+#include "NOD_geometry_nodes_list.hh"
 #include "NOD_geometry_nodes_warning.hh"
-#include "NOD_socket_interface_key.hh"
 
 #include "FN_field.hh"
 
 #include "DNA_node_types.h"
 
+namespace blender {
+
 struct SpaceNode;
 struct NodesModifierData;
 struct Report;
 
-namespace blender::nodes::geo_eval_log {
+namespace nodes::geo_eval_log {
 
 using fn::GField;
 
@@ -78,7 +83,7 @@ enum class NamedAttributeUsage {
   Write = 1 << 1,
   Remove = 1 << 2,
 };
-ENUM_OPERATORS(NamedAttributeUsage, NamedAttributeUsage::Remove);
+ENUM_OPERATORS(NamedAttributeUsage);
 
 /**
  * Values of different types are logged differently. This is necessary because some types are so
@@ -133,6 +138,11 @@ struct GeometryAttributeInfo {
   std::optional<bke::AttrType> data_type;
 };
 
+struct VolumeGridInfo {
+  std::string name;
+  VolumeGridType grid_type;
+};
+
 /**
  * Geometries are not logged entirely, because that would result in a lot of time and memory
  * overhead. Instead, only the data needed for UI features is logged.
@@ -166,10 +176,7 @@ class GeometryInfoLog : public ValueLog {
     int gizmo_transforms_num = 0;
   };
   struct VolumeInfo {
-    int grids_num;
-  };
-  struct GridInfo {
-    bool is_empty;
+    Vector<VolumeGridInfo> grids;
   };
 
   std::optional<MeshInfo> mesh_info;
@@ -179,17 +186,22 @@ class GeometryInfoLog : public ValueLog {
   std::optional<InstancesInfo> instances_info;
   std::optional<EditDataInfo> edit_data_info;
   std::optional<VolumeInfo> volume_info;
-  std::optional<GridInfo> grid_info;
 
   GeometryInfoLog(const bke::GeometrySet &geometry_set);
-  GeometryInfoLog(const bke::GVolumeGrid &grid);
+};
+
+class GridInfoLog : public ValueLog {
+ public:
+  bool is_empty = false;
+
+  GridInfoLog(const bke::GVolumeGrid &grid);
 };
 
 class BundleValueLog : public ValueLog {
  public:
   struct Item {
-    SocketInterfaceKey key;
-    const bke::bNodeSocketType *type;
+    std::string key;
+    std::variant<const bke::bNodeSocketType *, StringRefNull> type;
   };
 
   Vector<Item> items;
@@ -200,7 +212,7 @@ class BundleValueLog : public ValueLog {
 class ClosureValueLog : public ValueLog {
  public:
   struct Item {
-    SocketInterfaceKey key;
+    std::string key;
     const bke::bNodeSocketType *type;
   };
 
@@ -225,13 +237,37 @@ class ClosureValueLog : public ValueLog {
                   std::shared_ptr<ClosureEvalLog> eval_log);
 };
 
+class ListInfoLog : public ValueLog {
+ public:
+  int64_t size;
+
+  ListInfoLog(const List *list);
+};
+
 /**
- * Data logged by a viewer node when it is executed. In this case, we do want to log the entire
- * geometry.
+ * Data logged by a viewer node when it is executed.
  */
 class ViewerNodeLog {
+  mutable CacheMutex main_geometry_cache_mutex_;
+  mutable std::optional<bke::GeometrySet> main_geometry_cache_;
+
  public:
-  bke::GeometrySet geometry;
+  struct Item {
+    int identifier;
+    std::string name;
+    bke::SocketValueVariant value;
+  };
+
+  struct ItemIdentifierGetter {
+    int operator()(const Item &item) const
+    {
+      return item.identifier;
+    }
+  };
+
+  CustomIDVectorSet<Item, ItemIdentifierGetter> items;
+
+  const bke::GeometrySet *main_geometry() const;
 };
 
 using Clock = std::chrono::steady_clock;
@@ -301,7 +337,6 @@ class GeoTreeLogger {
   ~GeoTreeLogger();
 
   void log_value(const bNode &node, const bNodeSocket &socket, GPointer value);
-  void log_viewer_node(const bNode &viewer_node, bke::GeometrySet geometry);
 };
 
 /**
@@ -475,4 +510,6 @@ class GeoNodesLog {
   static const ViewerNodeLog *find_viewer_node_log_for_path(const ViewerPath &viewer_path);
 };
 
-}  // namespace blender::nodes::geo_eval_log
+}  // namespace nodes::geo_eval_log
+
+}  // namespace blender

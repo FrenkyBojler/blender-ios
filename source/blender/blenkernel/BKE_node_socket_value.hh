@@ -12,6 +12,9 @@
 
 #include "BLI_any.hh"
 #include "BLI_generic_pointer.hh"
+#include "BLI_memory_counter_fwd.hh"
+
+#include "BKE_node_socket_value_fwd.hh"
 
 namespace blender::bke {
 
@@ -56,6 +59,8 @@ class SocketValueVariant {
      * Indicates that there is a `GVolumeGrid` stored.
      */
     Grid,
+    /** Indicates that there is a `ListPtr` stored. */
+    List,
   };
 
   /**
@@ -89,13 +94,12 @@ class SocketValueVariant {
 
   /**
    * Create a variant based on the given value. This works for primitive types. For more complex
-   * types use #set explicity. Alternatively, one can use the #From or #ConstructIn utilities.
+   * types use #set explicitly. Alternatively, one can use the #From or #ConstructIn utilities.
    */
-  template<typename T,
-           /* The enable-if is necessary to avoid overridding the copy/moveconstructors. */
-           BLI_ENABLE_IF((std::is_trivial_v<std::decay_t<T>> ||
-                          is_same_any_v<std::decay_t<T>, std::string>))>
+  template<typename T>
   explicit SocketValueVariant(T &&value)
+      /* Required to avoid overriding the copy/move-constructors. */
+    requires(std::is_trivial_v<std::decay_t<T>> || is_same_any_v<std::decay_t<T>, std::string>)
   {
     this->set(std::forward<T>(value));
   }
@@ -139,6 +143,11 @@ class SocketValueVariant {
   bool is_context_dependent_field() const;
 
   /**
+   * If true, the value is stored as a #GField.
+   */
+  bool is_field() const;
+
+  /**
    * The stored value is a volume grid.
    */
   bool is_volume_grid() const;
@@ -149,8 +158,13 @@ class SocketValueVariant {
   bool is_single() const;
 
   /**
+   * The stored value is a list.
+   */
+  bool is_list() const;
+
+  /**
    * Convert the stored value into a single value. For simple value access, this is not necessary,
-   * because #get` does the conversion implicitly. However, it is necessary if one wants to use
+   * because #get does the conversion implicitly. However, it is necessary if one wants to use
    * #get_single_ptr. Context-dependent fields or grids will just result in a fallback value.
    *
    * The caller has to make sure that the stored value is a single value, field or grid.
@@ -171,6 +185,10 @@ class SocketValueVariant {
    */
   const void *get_single_ptr_raw() const;
 
+  /** Also see GeomtrySet::ensure_owns_direct_data. */
+  void ensure_owns_direct_data();
+  bool owns_direct_data() const;
+
   /**
    * Replace the stored value with the given single value.
    */
@@ -181,6 +199,8 @@ class SocketValueVariant {
    * caller is responsible to construct the value in the returned memory before it is used.
    */
   void *allocate_single(eNodeSocketDatatype socket_type);
+
+  void count_memory(MemoryCounter &memory) const;
 
   friend std::ostream &operator<<(std::ostream &stream, const SocketValueVariant &value_variant);
 
@@ -209,6 +229,7 @@ template<typename T> inline SocketValueVariant SocketValueVariant::From(T &&valu
 
 template<typename T> inline void SocketValueVariant::set(T &&value)
 {
+  static_assert(!is_same_any_v<std::decay_t<T>, SocketValueVariant, bke::SocketValueVariant *>);
   this->store_impl<std::decay_t<T>>(std::forward<T>(value));
 }
 

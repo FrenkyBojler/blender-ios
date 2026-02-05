@@ -121,7 +121,11 @@ class ImportHelper:
                 confirm_text = iface_(self.bl_label, i18n_contexts.operator_default)
 
             return context.window_manager.invoke_props_dialog(
-                self, confirm_text=confirm_text, title=title, translate=False)
+                self,
+                confirm_text=confirm_text,
+                title=title,
+                translate=False,
+            )
 
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
@@ -135,11 +139,17 @@ def orientation_helper(axis_forward='Y', axis_up='Z'):
     A decorator for import/export classes, generating properties needed by the axis conversion system and IO helpers,
     with specified default values (axes).
     """
+
     def wrapper(cls):
-        # Without that, we may end up adding those fields to some **parent** class' __annotations__ property
-        # (like the ImportHelper or ExportHelper ones)! See #58772.
-        if "__annotations__" not in cls.__dict__:
-            setattr(cls, "__annotations__", {})
+        # Python 3.14+ (PEP 649): This workaround is no longer needed because annotations
+        # are lazily evaluated. Accessing `cls.__annotations__` always returns a dict
+        # specific to that class (never the parent's), so adding items is safe.
+        import sys
+        if sys.version_info < (3, 14):
+            # Without this, we may end up adding those fields to some **parent** class'
+            # `__annotations__` property (like the ImportHelper or ExportHelper ones)! See #58772.
+            if "__annotations__" not in cls.__dict__:
+                setattr(cls, "__annotations__", {})
 
         def _update_axis_forward(self, _context):
             if self.axis_forward[-1] == self.axis_up[-1]:
@@ -298,8 +308,9 @@ _axis_convert_num = {'X': 0, 'Y': 1, 'Z': 2, '-X': 3, '-Y': 4, '-Z': 5}
 
 def axis_conversion(from_forward='Y', from_up='Z', to_forward='Y', to_up='Z'):
     """
-    Each argument us an axis in ['X', 'Y', 'Z', '-X', '-Y', '-Z']
+    Each argument is an axis in ['X', 'Y', 'Z', '-X', '-Y', '-Z']
     where the first 2 are a source and the second 2 are the target.
+    :rtype: :class:`mathutils.Matrix`
     """
     from mathutils import Matrix
     from functools import reduce
@@ -308,15 +319,17 @@ def axis_conversion(from_forward='Y', from_up='Z', to_forward='Y', to_up='Z'):
         return Matrix().to_3x3()
 
     if from_forward[-1] == from_up[-1] or to_forward[-1] == to_up[-1]:
-        raise Exception("Invalid axis arguments passed, "
-                        "can't use up/forward on the same axis")
+        raise Exception("Invalid axis arguments passed, cannot use up/forward on the same axis")
 
-    value = reduce(int.__or__, (_axis_convert_num[a] << (i * 3)
-                                for i, a in enumerate((from_forward,
-                                                       from_up,
-                                                       to_forward,
-                                                       to_up,
-                                                       ))))
+    value = reduce(
+        int.__or__,
+        (_axis_convert_num[a] << (i * 3) for i, a in enumerate((
+            from_forward,
+            from_up,
+            to_forward,
+            to_up,
+        )))
+    )
 
     for i, axis_lut in enumerate(_axis_convert_lut):
         if value in axis_lut:
@@ -494,9 +507,10 @@ def path_reference(
     elif mode == 'MATCH':
         mode = 'RELATIVE' if is_relative else 'ABSOLUTE'
     elif mode == 'AUTO':
-        mode = ('RELATIVE'
-                if bpy.path.is_subdir(filepath_abs, base_dst)
-                else 'ABSOLUTE')
+        mode = (
+            'RELATIVE' if bpy.path.is_subdir(filepath_abs, base_dst) else
+            'ABSOLUTE'
+        )
     elif mode == 'COPY':
         subdir_abs = os.path.normpath(base_dst)
         if copy_subdir:

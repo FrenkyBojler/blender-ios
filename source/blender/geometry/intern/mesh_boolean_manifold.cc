@@ -35,6 +35,7 @@
 
 #  include "GEO_realize_instances.hh"
 
+#  include "mesh_boolean_intern.hh"
 #  include "mesh_boolean_manifold.hh"
 
 #  include "manifold/manifold.h"
@@ -206,44 +207,6 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
 }
 
 /**
- * Holds cumulative offsets for the given elements of a number
- * of concatenated Meshes. The sizes are one greater than the
- * number of meshes, so that the last value of each gives the
- * total number of elements.
- */
-struct MeshOffsets {
-  Array<int> vert_start;
-  Array<int> face_start;
-  Array<int> edge_start;
-  Array<int> corner_start;
-  OffsetIndices<int> vert_offsets;
-  OffsetIndices<int> face_offsets;
-  OffsetIndices<int> edge_offsets;
-  OffsetIndices<int> corner_offsets;
-
-  MeshOffsets(Span<const Mesh *> meshes);
-};
-
-MeshOffsets::MeshOffsets(Span<const Mesh *> meshes)
-{
-  const int meshes_num = meshes.size();
-  this->vert_start.reinitialize(meshes_num + 1);
-  this->face_start.reinitialize(meshes_num + 1);
-  this->edge_start.reinitialize(meshes_num + 1);
-  this->corner_start.reinitialize(meshes_num + 1);
-  for (int i = 0; i <= meshes_num; i++) {
-    this->vert_start[i] = (i == 0) ? 0 : this->vert_start[i - 1] + meshes[i - 1]->verts_num;
-    this->face_start[i] = (i == 0) ? 0 : this->face_start[i - 1] + meshes[i - 1]->faces_num;
-    this->edge_start[i] = (i == 0) ? 0 : this->edge_start[i - 1] + meshes[i - 1]->edges_num;
-    this->corner_start[i] = (i == 0) ? 0 : this->corner_start[i - 1] + meshes[i - 1]->corners_num;
-  }
-  this->vert_offsets = OffsetIndices<int>(this->vert_start);
-  this->face_offsets = OffsetIndices<int>(this->face_start);
-  this->edge_offsets = OffsetIndices<int>(this->edge_start);
-  this->corner_offsets = OffsetIndices<int>(this->corner_start);
-}
-
-/**
  * Create and return the Manifold library's internal #Manifold class instance
  * to represent the subset \a joined_mesh which came from the input
  * mesh with index \a mesh_index.  We can tell which elements are in the
@@ -283,7 +246,7 @@ static void get_manifold(Manifold &manifold,
   meshgl.vertProperties.resize(size_t(mesh.verts_num) * props_num);
   array_utils::copy(mesh.vert_positions(), MutableSpan(meshgl.vertProperties).cast<float3>());
 
-  /* Using separate a OriginalID for each input face will prevent coplanar
+  /* Using separate a OriginalID for each input face will prevent co-planar
    * faces from being merged.  We need this until the fix introduced in
    * Manifold at version 3.1.0. */
   constexpr bool use_runids = false;
@@ -355,7 +318,7 @@ static void get_manifolds(MutableSpan<Manifold> manifolds,
   }
   const int meshes_num = manifolds.size();
 
-  /* Transforming the original input meshes is a simple way to reuse the Mesh::corner_tris() cache
+  /* Transforming the original input meshes is a simple way to reuse the #Mesh::corner_tris() cache
    * for un-transformed meshes. This should reduce memory usage and help to avoid unnecessary cache
    * re-computations. */
   Array<const Mesh *> transformed_meshes(meshes_num);
@@ -452,10 +415,17 @@ class OutToInMaps {
   const MeshAssembly *mesh_assembly_;
   const Mesh *joined_mesh_;
   const Mesh *output_mesh_;
+  const MeshOffsets *mesh_offsets_;
 
  public:
-  OutToInMaps(const MeshAssembly *mesh_assembly, const Mesh *joined_mesh, const Mesh *output_mesh)
-      : mesh_assembly_(mesh_assembly), joined_mesh_(joined_mesh), output_mesh_(output_mesh)
+  OutToInMaps(const MeshAssembly *mesh_assembly,
+              const Mesh *joined_mesh,
+              const Mesh *output_mesh,
+              const MeshOffsets *mesh_offsets)
+      : mesh_assembly_(mesh_assembly),
+        joined_mesh_(joined_mesh),
+        output_mesh_(output_mesh),
+        mesh_offsets_(mesh_offsets)
   {
   }
 
@@ -637,6 +607,7 @@ Span<int> OutToInMaps::ensure_edge_map()
   for (const int out_face_index : IndexRange(output_mesh_->faces_num)) {
     const int in_face_index = face_map[out_face_index];
     const IndexRange in_face = in_faces[in_face_index];
+    const IndexRange in_face_vert_range = vertex_range_for_face(in_face_index, *mesh_offsets_);
     if (dbg_level > 0) {
       std::cout << "process out_face = " << out_face_index << ", in_face = " << in_face_index
                 << "\n";
@@ -689,8 +660,8 @@ Span<int> OutToInMaps::ensure_edge_map()
         }
         edge_rep = in_e;
       }
-      else if (vert_map[out_e_v[1]] == -1) {
-        /* Here the "ends at" vertex of the output edge is a new vertex.
+      else if (!in_face_vert_range.contains(vert_map[out_e_v[1]])) {
+        /* Here the "ends at" vertex of the output edge is a new vertex or in a different mesh.
          * Does the edge at least go in the same direction as in_e?
          */
         if (same_dir(out_positions[out_e_v[0]],
@@ -872,7 +843,7 @@ static OutFace make_out_face(const MeshGL &mgl, int tri_index, int orig_face)
  * "group edge" index:  linearized indices of edges in the
  * triangles in the group.
  * A SharedEdge has two such indices, with the assertion that
- * they are the have the same vertices (but in opposite order).
+ * they have the same vertices (but in opposite order).
  */
 struct SharedEdge {
   /* First shared edge ("group edge" indexing). */
@@ -1212,8 +1183,8 @@ static void merge_out_faces(Vector<OutFace> &faces)
   }
 }
 
-/** Return true if the ponts p0, p1, p2 are approximately in a straight line. */
-static inline const bool approx_in_line(const float3 &p0, const float3 &p1, const float3 &p2)
+/** Return true if the points p0, p1, p2 are approximately in a straight line. */
+static inline bool approx_in_line(const float3 &p0, const float3 &p1, const float3 &p2)
 {
   float cos_ang = math::dot(math::normalize(p1 - p0), math::normalize(p2 - p1));
   return math::abs(cos_ang - 1.0) < 1e-4;
@@ -1227,14 +1198,14 @@ static inline const bool approx_in_line(const float3 &p0, const float3 &p1, cons
  * and then being dissolved by merge_out_faces.
  * TODO: don't do this if the vertex was original.
  * (To do that we need the mapping from input to output verts to be passed as an argument,
- * and at th moment, we don't do that mapping yet -- and would have to redo itif we end up
+ * and at th moment, we don't do that mapping yet -- and would have to redo it if we end up
  * dissolving vert.)
  */
 static void dissolve_valence2_verts(MeshAssembly &ma)
 {
   const int vnum = ma.output_verts_num;
   Array<bool> dissolve(vnum, false);
-  /* We'll rememeber up to two vertex neighbors for each vertex. */
+  /* We'll remember up to two vertex neighbors for each vertex. */
   Array<std::pair<int, int>> neighbors(ma.output_verts_num, std::pair<int, int>(-1, -1));
   /* First, tentatively set dissolve based on neighbors. Alignment will be checked later. */
   for (const int f : ma.new_faces.index_range()) {
@@ -1253,11 +1224,31 @@ static void dissolve_valence2_verts(MeshAssembly &ma)
         dissolve[v] = fsize <= 3 ? false : true;
       }
       else {
-        /* Some previous face had v. Disable dissolve unless if neighbors are the same, reversed.
+        /* Some previous face had v. Disable dissolve unless if neighbors are the same, reversed,
+         * or if this face is a triangle.
          */
-        if (!(vprev == v_nbrs.second && vnext == v_nbrs.first)) {
+        if (fsize == 3 || !(vprev == v_nbrs.second && vnext == v_nbrs.first)) {
           dissolve[v] = false;
         }
+      }
+    }
+  }
+  /* We can't dissolve so many verts in a face that it leaves less than a triangle.
+   * This should be rare, since the above logic will prevent dissolving a vert from a triangle,
+   * but it is possible that two or more verts are to be dissolved from a quad or ngon.
+   * Do a pass to remove the possibility of dissolving anything from such faces. */
+  for (const int f : ma.new_faces.index_range()) {
+    const OutFace &face = ma.new_faces[f];
+    const int fsize = face.verts.size();
+    int num_dissolved = 0;
+    for (const int i : IndexRange(fsize)) {
+      if (dissolve[face.verts[i]]) {
+        num_dissolved++;
+      }
+    }
+    if (fsize - num_dissolved < 3) {
+      for (const int i : IndexRange(fsize)) {
+        dissolve[face.verts[i]] = false;
       }
     }
   }
@@ -1290,11 +1281,10 @@ static void dissolve_valence2_verts(MeshAssembly &ma)
     return;
   }
 
-  /* We need to compress out the disssolved vertices out of ma.vertpos,
+  /* We need to compress out the dissolved vertices out of `ma.vertpos`,
    * remap all the faces to account for that compression,
    * and rebuild any faces containing those compressed verts.
-   * The compressing part is a bit like #mesh_copy_selection.
-   */
+   * The compressing part is a bit like #mesh_copy_selection. */
   IndexMaskMemory memory;
   IndexMask keep = IndexMask::from_bools_inverse(
       dissolve.index_range(), dissolve.as_span(), memory);
@@ -1303,7 +1293,7 @@ static void dissolve_valence2_verts(MeshAssembly &ma)
   ma.old_to_new_vert_map.fill(-1);
   index_mask::build_reverse_map<int>(keep, ma.old_to_new_vert_map);
 
-  /* Compress vertpos in place. Is there a parallel way to do this? */
+  /* Compress `vertpos` in place. Is there a parallel way to do this? */
   float *vpos_data = ma.vertpos.data();
   BLI_assert(ma.vertpos_stride == 3);
   for (const int old_v : IndexRange(vnum)) {
@@ -1328,17 +1318,7 @@ static void dissolve_valence2_verts(MeshAssembly &ma)
         }
       }
       if (i_to < face.verts.size()) {
-        if (i_to < 3) {
-          /* Should be very rare. Means we dissolved two or more vertices from
-           * a degenerate ngon. Since its too late to really undo that, just make
-           * a valid triangle with undeleted verts. */
-          if (i_to == 0) {
-            face.verts[i_to++] = 0;
-          }
-          while (i_to < 3) {
-            face.verts[i_to++] = face.verts[0];
-          }
-        }
+        BLI_assert(i_to >= 3);
         face.verts.resize(i_to);
       }
     }
@@ -1428,195 +1408,6 @@ static MeshAssembly assemble_mesh_from_meshgl(MeshGL &mgl, const MeshOffsets &me
   return ma;
 }
 
-static void copy_attribute_using_map(const GSpan src,
-                                     const Span<int> out_to_in_map,
-                                     GMutableSpan dst)
-{
-  const CPPType &type = dst.type();
-  const int grain_size = 20000;
-  threading::parallel_for(out_to_in_map.index_range(), grain_size, [&](const IndexRange range) {
-    for (const int out_elem : range) {
-      const int in_elem = out_to_in_map[out_elem];
-      if (in_elem != -1) {
-        type.copy_assign(src[in_elem], dst[out_elem]);
-      }
-    }
-  });
-}
-
-static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_attrs,
-                                          bke::AttributeAccessor &input_attrs,
-                                          Mesh *output_mesh,
-                                          const Mesh *input_mesh,
-                                          const Span<int> out_to_in_corner_map,
-                                          const Span<int> out_to_in_face_map)
-{
-#  ifdef DEBUG_TIME
-  timeit::ScopedTimer timer("interpolate corner attributes");
-#  endif
-  /* Make parallel arrays of things needed access and write all corner attributes to interpolate.
-   */
-  Vector<bke::GSpanAttributeWriter> writers;
-  Vector<bke::GAttributeReader> readers;
-  Vector<GVArraySpan> srcs;
-  Vector<GMutableSpan> dsts;
-  /* For each index of `srcs` and `dsts`, we need to know if it is a "normal"-like attribute. */
-  Vector<bool> is_normal_attribute;
-  input_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.domain != bke::AttrDomain::Corner || ELEM(iter.name, ".corner_vert", ".corner_edge"))
-    {
-      return;
-    }
-    const bke::GAttributeReader reader = input_attrs.lookup_or_default(
-        iter.name, iter.domain, iter.data_type);
-    if (!reader) {
-      return;
-    }
-    writers.append(
-        output_attrs.lookup_or_add_for_write_span(iter.name, iter.domain, iter.data_type));
-    readers.append(input_attrs.lookup_or_default(iter.name, iter.domain, iter.data_type));
-    srcs.append(*readers.last());
-    dsts.append(writers.last().span);
-    is_normal_attribute.append(iter.name == "custom_normal");
-  });
-  /* Loop per source face, as there is an expensive weight calculation that needs to be done per
-   * face. */
-  const OffsetIndices<int> output_faces = output_mesh->faces();
-  const OffsetIndices<int> input_faces = input_mesh->faces();
-  const Span<int> input_corner_verts = input_mesh->corner_verts();
-  const Span<float3> input_vert_positions = input_mesh->vert_positions();
-  const Span<int> output_corner_verts = output_mesh->corner_verts();
-  const Span<float3> output_vert_positions = output_mesh->vert_positions();
-  const int grain_size = 256;
-  threading::parallel_for(
-      out_to_in_face_map.index_range(), grain_size, [&](const IndexRange range) {
-        Vector<float, 20> weights;
-        Vector<float2, 20> cos_2d;
-        float3x3 axis_mat;
-        for (const int out_face_index : range) {
-          /* Are there any corners needing interpolation in this face?
-           * The corners needing interpolation are those whose out_to_in_corner_map entry is -1.
-           */
-          IndexRange out_face = output_faces[out_face_index];
-          if (!std::any_of(out_face.begin(), out_face.end(), [&](int c) {
-                return out_to_in_corner_map[c] == -1;
-              }))
-          {
-            /* We copied the attributes using the corner map before calling this function. */
-            continue;
-          }
-          /* At least one output corner did not map to an input corner. */
-
-          /* First get coordinates of input face projected onto 2d, and make sure that
-           * weights has the right size. */
-          const int in_face_index = out_to_in_face_map[out_face_index];
-          const IndexRange in_face = input_faces[in_face_index];
-          const Span<int> in_face_verts = input_corner_verts.slice(in_face);
-          const int in_face_size = in_face.size();
-          const Span<int> out_face_verts = output_corner_verts.slice(out_face);
-          weights.resize(in_face_size);
-          cos_2d.resize(in_face_size);
-          float(*cos_2d_p)[2] = reinterpret_cast<float(*)[2]>(cos_2d.data());
-          const float3 axis_dominant = bke::mesh::face_normal_calc(input_vert_positions,
-                                                                   in_face_verts);
-          axis_dominant_v3_to_m3(axis_mat.ptr(), axis_dominant);
-          /* We also need to know if the output face has a flipped normal compared
-           * to the corresponding input face (used if we have custom normals).
-           */
-          const float3 out_face_normal = bke::mesh::face_normal_calc(output_vert_positions,
-                                                                     out_face_verts);
-          const bool face_is_flipped = math::dot(axis_dominant, out_face_normal) < 0.0;
-          for (const int i : in_face_verts.index_range()) {
-            const float3 &co = input_vert_positions[in_face_verts[i]];
-            cos_2d[i] = (axis_mat * co).xy();
-          }
-          /* Now the loop to actually interpolate attributes of the new-vertex corners of the
-           * output face. */
-          for (const int out_c : out_face) {
-            const int in_c = out_to_in_corner_map[out_c];
-            if (in_c != -1) {
-              continue;
-            }
-            const int out_v = output_corner_verts[out_c];
-            float2 co;
-            mul_v2_m3v3(co, axis_mat.ptr(), output_vert_positions[out_v]);
-            interp_weights_poly_v2(weights.data(), cos_2d_p, in_face_size, co);
-
-            for (const int attr_index : dsts.index_range()) {
-              const GSpan src = srcs[attr_index];
-              GMutableSpan dst = dsts[attr_index];
-              const bool need_flip = face_is_flipped && is_normal_attribute[attr_index];
-              const CPPType &type = dst.type();
-              bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
-                using T = decltype(dummy);
-                const Span<T> src_typed = src.typed<T>();
-                MutableSpan<T> dst_typed = dst.typed<T>();
-                bke::attribute_math::DefaultMixer<T> mixer{MutableSpan(&dst_typed[out_c], 1)};
-                for (const int i : in_face.index_range()) {
-                  mixer.mix_in(0, src_typed[in_face[i]], weights[i]);
-                }
-                mixer.finalize();
-                if (need_flip) {
-                  /* The joined mesh has converted custom normals to float3. */
-                  if (type.is<float3>()) {
-                    dst.typed<float3>()[out_c] = -dst.typed<float3>()[out_c];
-                  }
-                }
-              });
-            }
-          }
-        }
-      });
-  for (bke::GSpanAttributeWriter &writer : writers) {
-    writer.finish();
-  }
-}
-
-/**
- * What mesh_id corresponds to a given face_id, assuming that the face_id
- * is in one of the ranges of mesh_offsets.face_offsets.
- */
-static inline int mesh_id_for_face(int face_id, const MeshOffsets &mesh_offsets)
-{
-  for (const int mesh_id : mesh_offsets.face_offsets.index_range()) {
-    if (mesh_offsets.face_offsets[mesh_id].contains(face_id)) {
-      return mesh_id;
-    }
-  }
-  return -1;
-}
-
-/**
- * The \a dst span should be the material_index property of the result.
- * Rather than using the attribute from the joined mesh, we want to take
- * the original face and map it using \a material_remaps.
- */
-static void set_material_from_map(const Span<int> out_to_in_map,
-                                  const Span<Array<short>> material_remaps,
-                                  const Span<const Mesh *> meshes,
-                                  const MeshOffsets &mesh_offsets,
-                                  const MutableSpan<int> dst)
-{
-  BLI_assert(material_remaps.size() > 0);
-  Vector<VArraySpan<int>> material_varrays;
-  for (const int i : meshes.index_range()) {
-    bke::AttributeAccessor input_attrs = meshes[i]->attributes();
-    material_varrays.append(
-        *input_attrs.lookup_or_default<int>("material_index", bke::AttrDomain::Face, 0));
-  }
-  threading::parallel_for(out_to_in_map.index_range(), 8192, [&](const IndexRange range) {
-    for (const int out_f : range) {
-      const int in_f = out_to_in_map[out_f];
-      const int mesh_id = mesh_id_for_face(in_f, mesh_offsets);
-      const int in_f_local = in_f - mesh_offsets.face_start[mesh_id];
-      const int orig = material_varrays[mesh_id][in_f_local];
-      const Array<short> &map = material_remaps[mesh_id];
-      dst[out_f] = (orig >= 0 && orig < map.size()) ? map[orig] : orig;
-      ;
-    }
-  });
-}
-
 /**
  * Find the edges that are the result of intersecting one mesh with another,
  * and add their indices to \a r_intersecting_edges.
@@ -1661,7 +1452,10 @@ static void get_intersecting_edges(Vector<int> *r_intersecting_edges,
  * the plane's normal, and *r_origin_offset to be the vector that goes
  * from the origin to the plane in the normal direction.
  */
-static bool is_plane(const Mesh *mesh, float3 *r_normal, float *r_origin_offset)
+static bool is_plane(const Mesh *mesh,
+                     const float4x4 &transform,
+                     float3 *r_normal,
+                     float *r_origin_offset)
 {
   if (mesh->faces_num != 1 && mesh->verts_num != 4) {
     return false;
@@ -1670,7 +1464,7 @@ static bool is_plane(const Mesh *mesh, float3 *r_normal, float *r_origin_offset)
   const Span<float3> positions = mesh->vert_positions();
   const Span<int> f_corners = mesh->corner_verts().slice(mesh->faces()[0]);
   for (int i = 0; i < 4; i++) {
-    vpos[i] = positions[f_corners[i]];
+    mul_v3_m4v3(vpos[i], transform.ptr(), positions[f_corners[i]]);
   }
   float3 norm1 = math::normal_tri(vpos[0], vpos[1], vpos[2]);
   float3 norm2 = math::normal_tri(vpos[0], vpos[2], vpos[3]);
@@ -1686,24 +1480,41 @@ static bool is_plane(const Mesh *mesh, float3 *r_normal, float *r_origin_offset)
  * Handle special case of one manifold mesh, which has been converted to
  * \a manifold 0, and one plane, which has normalized normal \a normal
  * and distance from origin \a origin_offset.
+ * If there is an error, set *r_error appropriately.
  */
 static MeshGL mesh_trim_manifold(Manifold &manifold0,
                                  float3 normal,
                                  float origin_offset,
-                                 const MeshOffsets &mesh_offsets)
+                                 const MeshOffsets &mesh_offsets,
+                                 BooleanError *r_error)
 {
   Manifold man_result = manifold0.TrimByPlane(manifold::vec3(normal[0], normal[1], normal[2]),
                                               double(origin_offset));
   MeshGL meshgl = man_result.GetMeshGL();
+  if (man_result.Status() != Manifold::Error::NoError) {
+    if (man_result.Status() == Manifold::Error::ResultTooLarge) {
+      *r_error = BooleanError::ResultTooBig;
+    }
+    else if (man_result.Status() == Manifold::Error::NotManifold) {
+      *r_error = BooleanError::NonManifold;
+    }
+    else {
+      *r_error = BooleanError::UnknownError;
+    }
+    return meshgl;
+  }
   /* This meshgl_result has a non-standard (but non-zero) original ID for the
-   * plane faces, and faceIDs that make no sense for them. Fix this. */
-  BLI_assert(meshgl.runOriginalID.size() == 2 && meshgl.runOriginalID[1] > 0);
-  meshgl.runOriginalID[1] = 1;
-  BLI_assert(meshgl.runIndex.size() == 3);
-  int plane_face_start = meshgl.runIndex[1] / 3;
-  int plane_face_end = meshgl.runIndex[2] / 3;
-  for (int i = plane_face_start; i < plane_face_end; i++) {
-    meshgl.faceID[i] = mesh_offsets.face_offsets[1][0];
+   * plane faces, and faceIDs that make no sense for them. Fix this.
+   * But only do this if the result is not empty. */
+  if (meshgl.vertProperties.size() > 0) {
+    BLI_assert(meshgl.runOriginalID.size() == 2 && meshgl.runOriginalID[1] > 0);
+    meshgl.runOriginalID[1] = 1;
+    BLI_assert(meshgl.runIndex.size() == 3);
+    int plane_face_start = meshgl.runIndex[1] / 3;
+    int plane_face_end = meshgl.runIndex[2] / 3;
+    for (int i = plane_face_start; i < plane_face_end; i++) {
+      meshgl.faceID[i] = mesh_offsets.face_offsets[1][0];
+    }
   }
   return meshgl;
 }
@@ -1773,13 +1584,6 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
     });
   }
 
-  {
-#  ifdef DEBUG_TIME
-    timeit::ScopedTimer timer_e("calculating edges");
-#  endif
-    bke::mesh_calc_edges(*mesh, false, false);
-  }
-
   /* Set the vertex positions, using implicit sharing to avoid copying any data. */
   {
 #  ifdef DEBUG_TIME
@@ -1794,7 +1598,16 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
     sharing_info->remove_user_and_delete_if_last();
   }
 
-  OutToInMaps out_to_in(&ma, joined_mesh, mesh);
+  {
+#  ifdef DEBUG_TIME
+    timeit::ScopedTimer timer_e("calculating edges");
+#  endif
+    bke::mesh_calc_edges(*mesh, false, false);
+  }
+
+  BLI_assert(bke::mesh_is_valid(*mesh));
+
+  OutToInMaps out_to_in(&ma, joined_mesh, mesh, &mesh_offsets);
 
   {
 #  ifdef DEBUG_TIME
@@ -1811,69 +1624,75 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
      */
     bke::AttributeAccessor join_attrs = joined_mesh->attributes();
 
-    bool need_corner_interpolation = false;
-
     join_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
-      if (ELEM(iter.name, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
+      if (iter.domain == bke::AttrDomain::Corner) {
+        /* Handled separately below. */
         return;
       }
-      Span<int> out_to_in_map;
-      bool do_copy = true;
-      bool do_material_remap = false;
+      if (ELEM(iter.name,
+               "position",
+               ".edge_verts",
+               ".corner_vert",
+               ".corner_edge",
+               "material_index"))
+      {
+        return;
+      }
+      const GVArray src = *iter.get();
+      const CommonVArrayInfo info = src.common_info();
+      if (info.type == CommonVArrayInfo::Type::Single) {
+        const bke::AttributeInitValue init(GPointer(src.type(), info.data));
+        output_attrs.add(iter.name, bke::AttrDomain::Point, iter.data_type, init);
+        return;
+      }
+      const GVArraySpan src_span = src;
+      bke::GSpanAttributeWriter dst = output_attrs.lookup_or_add_for_write_only_span(
+          iter.name, iter.domain, iter.data_type);
       switch (iter.domain) {
         case bke::AttrDomain::Point: {
-          out_to_in_map = out_to_in.ensure_vertex_map();
+          copy_attribute_using_map(src_span, out_to_in.ensure_vertex_map(), dst.span);
           break;
         }
         case bke::AttrDomain::Face: {
-          out_to_in_map = out_to_in.ensure_face_map();
-          /* If #material_remaps is non-empty, we need to use that map to set the
-           * face "material_index" property instead of taking it from the joined mesh.
-           * This should only happen if the user wants something other than the default
-           * "transfer the materials" mode, which has already happened in the joined mesh.
-           */
-          do_material_remap = material_remaps.size() > 0 && iter.name == "material_index";
+          copy_attribute_using_map(src_span, out_to_in.ensure_face_map(), dst.span);
           break;
         }
         case bke::AttrDomain::Edge: {
-          out_to_in_map = out_to_in.ensure_edge_map();
-          break;
-        }
-        case bke::AttrDomain::Corner: {
-          out_to_in_map = out_to_in.ensure_corner_map();
-          need_corner_interpolation = true;
+          copy_attribute_using_map(src_span, out_to_in.ensure_edge_map(), dst.span);
           break;
         }
         default: {
           BLI_assert_unreachable();
-          do_copy = false;
           break;
         }
       }
-      if (do_copy) {
-        if (dbg_level > 0) {
-          std::cout << "copy_attribute_using_map, name = " << iter.name << "\n";
-        }
-        bke::GSpanAttributeWriter dst = output_attrs.lookup_or_add_for_write_span(
-            iter.name, iter.domain, iter.data_type);
-        if (do_material_remap) {
-          set_material_from_map(
-              out_to_in_map, material_remaps, meshes, mesh_offsets, dst.span.typed<int>());
-        }
-        else {
-          copy_attribute_using_map(GVArraySpan(*iter.get()), out_to_in_map, dst.span);
-        }
-        dst.finish();
-      }
+      dst.finish();
     });
-    if (need_corner_interpolation) {
-      interpolate_corner_attributes(output_attrs,
-                                    join_attrs,
-                                    mesh,
-                                    joined_mesh,
-                                    out_to_in.ensure_corner_map(),
-                                    out_to_in.ensure_face_map());
+
+    if (join_attrs.contains("material_index")) {
+      /* If #material_remaps is non-empty, we need to use that map to set the
+       * face "material_index" property instead of taking it from the joined mesh.
+       * This should only happen if the user wants something other than the default
+       * "transfer the materials" mode, which has already happened in the joined mesh. */
+      bke::SpanAttributeWriter dst = output_attrs.lookup_or_add_for_write_only_span<int>(
+          "material_index", bke::AttrDomain::Face);
+      if (material_remaps.is_empty()) {
+        const VArraySpan src = *join_attrs.lookup<int>("material_index");
+        copy_attribute_using_map(src, out_to_in.ensure_face_map(), dst.span);
+      }
+      else {
+        set_material_from_map(
+            out_to_in.ensure_face_map(), material_remaps, meshes, mesh_offsets, dst.span);
+      }
     }
+
+    interpolate_corner_attributes(output_attrs,
+                                  join_attrs,
+                                  mesh,
+                                  joined_mesh,
+                                  out_to_in.ensure_corner_map(),
+                                  out_to_in.ensure_face_map());
+
     if (r_intersecting_edges != nullptr) {
       get_intersecting_edges(r_intersecting_edges, mesh, out_to_in, mesh_offsets);
     }
@@ -1882,31 +1701,9 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
   mesh->tag_loose_verts_none();
   mesh->tag_overlapping_none();
 
+  BLI_assert(bke::mesh_is_valid(*mesh));
+
   return mesh;
-}
-
-static bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> meshes,
-                                                    const Span<float4x4> transforms)
-{
-#  ifdef DEBUG_TIME
-  timeit::ScopedTimer jtimer(__func__);
-#  endif
-  bke::Instances instances;
-  instances.resize(meshes.size());
-  instances.transforms_for_write().copy_from(transforms);
-  MutableSpan<int> handles = instances.reference_handles_for_write();
-
-  Map<const Mesh *, int> handle_by_mesh;
-  for (const int i : meshes.index_range()) {
-    handles[i] = handle_by_mesh.lookup_or_add_cb(meshes[i], [&]() {
-      bke::GeometrySet geometry = bke::GeometrySet::from_mesh(
-          const_cast<Mesh *>(meshes[i]), bke::GeometryOwnershipType::ReadOnly);
-      return instances.add_new_reference(std::move(geometry));
-    });
-  }
-  return geometry::realize_instances(
-      bke::GeometrySet::from_instances(&instances, bke::GeometryOwnershipType::Editable),
-      geometry::RealizeInstancesOptions());
 }
 
 Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
@@ -1949,15 +1746,27 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       float origin_offset;
       if (meshes_num == 2 && op == Operation::Difference &&
           manifolds[0].Status() == Manifold::Error::NoError &&
-          is_plane(meshes[1], &normal, &origin_offset))
+          is_plane(meshes[1], transforms[1], &normal, &origin_offset))
       {
 #  ifdef DEBUG_TIME
         timeit::ScopedTimer timer_trim("DOING BOOLEAN SLICE, GETTING MESH_GL RESULT");
 #  endif
-        meshgl_result = mesh_trim_manifold(manifolds[0], normal, origin_offset, mesh_offsets);
+        meshgl_result = mesh_trim_manifold(
+            manifolds[0], normal, origin_offset, mesh_offsets, r_error);
+        if (*r_error != BooleanError::NoError) {
+          return nullptr;
+        }
       }
       else {
-        *r_error = BooleanError::NonManifold;
+        if (std::any_of(manifolds.begin(), manifolds.end(), [](const Manifold &m) {
+              return m.Status() == Manifold::Error::NotManifold;
+            }))
+        {
+          *r_error = BooleanError::NonManifold;
+        }
+        else {
+          *r_error = BooleanError::UnknownError;
+        }
         return nullptr;
       }
     }
@@ -2010,4 +1819,5 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
 }
 
 }  // namespace blender::geometry::boolean
+
 #endif  // WITH_MANIFOLD

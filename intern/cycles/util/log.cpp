@@ -14,32 +14,30 @@
 
 CCL_NAMESPACE_BEGIN
 
-LogLevel LOG_LEVEL = INFO_IMPORTANT;
+LogLevel LOG_LEVEL = LOG_LEVEL_INFO_IMPORTANT;
 static LogFunction LOG_FUNCTION;
 static double LOG_START_TIME = time_dt();
 
 const char *log_level_to_string(const LogLevel level)
 {
   switch (level) {
-    case FATAL:
-    case DFATAL:
+    case LOG_LEVEL_FATAL:
+    case LOG_LEVEL_DFATAL:
       return "FATAL";
-    case ERROR:
-    case DERROR:
+    case LOG_LEVEL_ERROR:
+    case LOG_LEVEL_DERROR:
       return "ERROR";
-    case WARNING:
-    case DWARNING:
+    case LOG_LEVEL_WARNING:
+    case LOG_LEVEL_DWARNING:
       return "WARNING";
-    case INFO_IMPORTANT:
-    case INFO:
+    case LOG_LEVEL_INFO_IMPORTANT:
+    case LOG_LEVEL_INFO:
       return "INFO";
-    case WORK:
-      return "WORK";
-    case STATS:
-      return "STATS";
-    case DEBUG:
+    case LOG_LEVEL_DEBUG:
       return "DEBUG";
-    case UNKNOWN:
+    case LOG_LEVEL_TRACE:
+      return "TRACE";
+    case LOG_LEVEL_UNKNOWN:
       return "UNKNOWN";
   }
 
@@ -51,27 +49,24 @@ LogLevel log_string_to_level(const string &str)
   const std::string str_lower = string_to_lower(str);
 
   if (str_lower == "fatal") {
-    return FATAL;
+    return LOG_LEVEL_FATAL;
   }
   if (str_lower == "error") {
-    return ERROR;
+    return LOG_LEVEL_ERROR;
   }
   if (str_lower == "warning") {
-    return WARNING;
+    return LOG_LEVEL_WARNING;
   }
   if (str_lower == "info") {
-    return INFO;
-  }
-  if (str_lower == "work") {
-    return WORK;
-  }
-  if (str_lower == "stats") {
-    return STATS;
+    return LOG_LEVEL_INFO;
   }
   if (str_lower == "debug") {
-    return DEBUG;
+    return LOG_LEVEL_DEBUG;
   }
-  return UNKNOWN;
+  if (str_lower == "trace") {
+    return LOG_LEVEL_TRACE;
+  }
+  return LOG_LEVEL_UNKNOWN;
 }
 
 void log_init(const LogFunction func)
@@ -88,8 +83,8 @@ void log_level_set(const LogLevel level)
 void log_level_set(const std::string &level)
 {
   const LogLevel new_level = log_string_to_level(level);
-  if (new_level == UNKNOWN) {
-    LOG(ERROR) << "Unknown log level specified: " << level;
+  if (new_level == LOG_LEVEL_UNKNOWN) {
+    LOG_ERROR << "Unknown log level specified: " << level;
     return;
   }
   LOG_LEVEL = new_level;
@@ -97,7 +92,7 @@ void log_level_set(const std::string &level)
 
 static void log_default(const LogLevel level, const std::string &time_str, const char *msg)
 {
-  if (level >= INFO) {
+  if (level >= LOG_LEVEL_INFO) {
     printf("%s | %s\n", time_str.c_str(), msg);
   }
   else {
@@ -128,7 +123,7 @@ void _log_message(const LogLevel level, const char *file_line, const char *func,
     log_default(level, time_str, line.c_str());
   }
 
-  if (level == FATAL || level == DFATAL) {
+  if (level == LOG_LEVEL_FATAL || level == LOG_LEVEL_DFATAL) {
     abort();
   }
 }
@@ -142,6 +137,12 @@ std::ostream &operator<<(std::ostream &os, const int2 &value)
 std::ostream &operator<<(std::ostream &os, const float3 &value)
 {
   os << "(" << value.x << ", " << value.y << ", " << value.z << ")";
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const float4 &value)
+{
+  os << "(" << value.x << ", " << value.y << ", " << value.z << ", " << value.w << ")";
   return os;
 }
 

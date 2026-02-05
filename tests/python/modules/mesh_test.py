@@ -248,8 +248,8 @@ class MeshTest(ABC):
         bpy.context.view_layer.objects.active = self.test_object
 
         # Duplicate test object.
-        bpy.ops.object.mode_set(mode="OBJECT")
-        bpy.ops.object.select_all(action="DESELECT")
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.select_all(action='DESELECT')
         bpy.context.view_layer.objects.active = self.test_object
 
         self.test_object.select_set(True)
@@ -261,7 +261,7 @@ class MeshTest(ABC):
     # the expected object. That's because the test object has the modifier/node tree that
     # is being tested.
     def activate_test_object(self):
-        bpy.ops.object.select_all(action="DESELECT")
+        bpy.ops.object.select_all(action='DESELECT')
         self.test_object.select_set(True)
         bpy.context.view_layer.objects.active = self.test_object
 
@@ -949,3 +949,31 @@ class RunTest:
 
         success = test.run_test()
         return success
+
+    @staticmethod
+    def argparse_create():
+        import argparse
+
+        parser = argparse.ArgumentParser(
+            description='Mesh comparison test runner.\nBy default, runs all constructed tests.')
+        parser.add_argument('--run-test', dest='name', help='A specific test to run.')
+
+        return parser
+
+    def main(self):
+        import sys
+        parser = RunTest.argparse_create()
+
+        if '--' in sys.argv:
+            argv = sys.argv[sys.argv.index("--") + 1:]
+        else:
+            argv = []
+
+        args = parser.parse_args(argv)
+
+        if args.name:
+            self.do_compare = False
+            self.run_test(args.name)
+        else:
+            self.do_compare = True
+            self.run_all_tests()

@@ -14,19 +14,22 @@
 #include "BLI_task.h"
 
 #include "vk_device.hh"
+#include "vk_to_string.hh"
 
 #include "CLG_log.h"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-namespace blender::gpu {
+namespace gpu {
 
 /* -------------------------------------------------------------------- */
 /** \name Render graph
  * \{ */
 
 struct VKRenderGraphWait {
-  blender::Mutex is_submitted_mutex;
+  Mutex is_submitted_mutex;
   std::condition_variable_any is_submitted_condition;
   bool is_submitted;
 };
@@ -45,6 +48,7 @@ struct VKRenderGraphSubmitTask {
 TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_graph,
                                             VKDiscardPool &context_discard_pool,
                                             bool submit_to_device,
+                                            bool wait_for_submission,
                                             bool wait_for_completion,
                                             VkPipelineStageFlags wait_dst_stage_mask,
                                             VkSemaphore wait_semaphore,
@@ -55,8 +59,18 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
     render_graph->reset();
     BLI_thread_queue_push(
         unused_render_graphs_, render_graph, BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL);
-    return 0;
+    return timeline_value_;
   }
+
+  /* Syncing input flags. */
+  /* When we wait for completion/submission we must submit to device. */
+  submit_to_device |= wait_for_completion;
+  submit_to_device |= wait_for_submission;
+  /* We need to wait for submission when a signal semaphore is present, otherwise the semaphore
+   * could be in an invalid state it is being waited for, but not have been submitted. */
+  wait_for_submission |= signal_semaphore != VK_NULL_HANDLE;
+  /* We don't need to wait for submission when waiting for completion. */
+  wait_for_submission &= !wait_for_completion;
 
   VKRenderGraphSubmitTask *submit_task = MEM_new<VKRenderGraphSubmitTask>(__func__);
   submit_task->render_graph = render_graph;
@@ -67,9 +81,6 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
   submit_task->signal_fence = signal_fence;
   submit_task->wait_for_submission = nullptr;
 
-  /* We need to wait for submission as otherwise the signal semaphore can still not be in an
-   * initial state. */
-  const bool wait_for_submission = signal_semaphore != VK_NULL_HANDLE && !wait_for_completion;
   VKRenderGraphWait wait_condition{};
   if (wait_for_submission) {
     submit_task->wait_for_submission = &wait_condition;
@@ -86,7 +97,7 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
   submit_task = nullptr;
 
   if (wait_for_submission) {
-    std::unique_lock<blender::Mutex> lock(wait_condition.is_submitted_mutex);
+    std::unique_lock<Mutex> lock(wait_condition.is_submitted_mutex);
     wait_condition.is_submitted_condition.wait(lock, [&] { return wait_condition.is_submitted; });
   }
 
@@ -103,7 +114,11 @@ void VKDevice::wait_for_timeline(TimelineValue timeline)
   }
   VkSemaphoreWaitInfo vk_semaphore_wait_info = {
       VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO, nullptr, 0, 1, &vk_timeline_semaphore_, &timeline};
-  vkWaitSemaphores(vk_device_, &vk_semaphore_wait_info, UINT64_MAX);
+  VkResult wait_result = vkWaitSemaphores(vk_device_, &vk_semaphore_wait_info, UINT64_MAX);
+  if (wait_result != VK_SUCCESS) {
+    CLOG_ERROR(
+        &LOG, "Vulkan: failed to wait for synchronization timeline [%s]", to_string(wait_result));
+  }
 }
 
 void VKDevice::wait_queue_idle()
@@ -149,6 +164,8 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
   Vector<VkSubmitInfo> submit_infos;
   submit_infos.reserve(2);
   std::optional<render_graph::VKCommandBufferWrapper> command_buffer;
+  uint64_t previous_gc_timeline = 0;
+  uint64_t num_nodes = 0;
 
   CLOG_TRACE(&LOG, "Submission runner initialized");
   while (!BLI_task_pool_current_canceled(pool)) {
@@ -156,6 +173,10 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
         BLI_thread_queue_pop_timeout(device->submitted_render_graphs_, 1));
     if (submit_task == nullptr) {
       continue;
+    }
+    uint64_t current_timeline = device->submission_finished_timeline_get();
+    if (assign_if_different(previous_gc_timeline, current_timeline)) {
+      device->orphaned_data.destroy_discarded_resources(*device, current_timeline);
     }
 
     /* End current command buffer when we need to wait for a semaphore. In this case all previous
@@ -170,7 +191,6 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
     if (!command_buffer.has_value()) {
       /* Check for completed command buffers that can be reused. */
       if (command_buffers_unused.is_empty()) {
-        uint64_t current_timeline = device->submission_finished_timeline_get();
         command_buffers_in_use.remove_old(current_timeline,
                                           [&](VkCommandBuffer vk_command_buffer) {
                                             command_buffers_unused.append(vk_command_buffer);
@@ -205,6 +225,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
       command_builder.build_nodes(render_graph, *command_buffer, node_handles);
     }
     command_builder.record_commands(render_graph, *command_buffer, node_handles);
+    num_nodes += node_handles.size();
 
     if (submit_task->submit_to_device) {
       /* Create submit infos for previous command buffers. */
@@ -250,6 +271,13 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
                                      signal_semaphores};
       submit_infos.append(vk_submit_info);
 
+      CLOG_TRACE(&LOG,
+                 "Submitting %u render graph nodes in %u command buffers using %u submit infos.",
+                 uint32_t(num_nodes),
+                 uint32_t(unsubmitted_command_buffers.size()),
+                 uint32_t(submit_infos.size()));
+      num_nodes = 0;
+
       {
         std::scoped_lock lock_queue(*device->queue_mutex_);
         vkQueueSubmit(device->vk_queue_,
@@ -258,8 +286,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
                       submit_task->signal_fence);
       }
       if (submit_task->wait_for_submission != nullptr) {
-        std::unique_lock<blender::Mutex> lock(
-            submit_task->wait_for_submission->is_submitted_mutex);
+        std::unique_lock<Mutex> lock(submit_task->wait_for_submission->is_submitted_mutex);
         submit_task->wait_for_submission->is_submitted = true;
         submit_task->wait_for_submission->is_submitted_condition.notify_one();
       }
@@ -280,7 +307,10 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
   CLOG_TRACE(&LOG, "Submission runner is being canceled");
 
   /* Clear command buffers and pool */
-  vkDeviceWaitIdle(device->vk_device_);
+  {
+    std::scoped_lock lock(*device->queue_mutex_);
+    vkDeviceWaitIdle(device->vk_device_);
+  }
   command_buffers_in_use.remove_old(UINT64_MAX, [&](VkCommandBuffer vk_command_buffer) {
     command_buffers_unused.append(vk_command_buffer);
   });
@@ -296,7 +326,6 @@ void VKDevice::init_submission_pool()
 {
   CLOG_TRACE(&LOG, "Create submission pool");
   submission_pool_ = BLI_task_pool_create_background_serial(this, TASK_PRIORITY_HIGH);
-  BLI_task_pool_push(submission_pool_, VKDevice::submission_runner, nullptr, false, nullptr);
   submitted_render_graphs_ = BLI_thread_queue_init();
   unused_render_graphs_ = BLI_thread_queue_init();
 
@@ -305,6 +334,8 @@ void VKDevice::init_submission_pool()
   VkSemaphoreCreateInfo vk_semaphore_create_info = {
       VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, &vk_semaphore_type_create_info, 0};
   vkCreateSemaphore(vk_device_, &vk_semaphore_create_info, nullptr, &vk_timeline_semaphore_);
+
+  BLI_task_pool_push(submission_pool_, VKDevice::submission_runner, nullptr, false, nullptr);
 }
 
 void VKDevice::deinit_submission_pool()
@@ -333,4 +364,5 @@ void VKDevice::deinit_submission_pool()
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

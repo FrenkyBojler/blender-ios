@@ -8,7 +8,8 @@ namespace blender::nodes::node_geo_separate_components_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry")
+      .description("Geometry to split into separate components");
   b.add_output<decl::Geometry>("Mesh").propagate_all();
   b.add_output<decl::Geometry>("Curve").propagate_all();
   b.add_output<decl::Geometry>("Grease Pencil").propagate_all();
@@ -37,6 +38,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   pointclouds.name = name;
   volumes.name = name;
   instances.name = name;
+
+  meshes.copy_bundle_from(geometry_set);
+  curves.copy_bundle_from(geometry_set);
+  grease_pencil.copy_bundle_from(geometry_set);
+  pointclouds.copy_bundle_from(geometry_set);
+  volumes.copy_bundle_from(geometry_set);
+  instances.copy_bundle_from(geometry_set);
 
   if (geometry_set.has<MeshComponent>()) {
     meshes.add(*geometry_set.get_component<MeshComponent>());
@@ -67,7 +75,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSeparateComponents", GEO_NODE_SEPARATE_COMPONENTS);
   ntype.ui_name = "Separate Components";
@@ -77,7 +85,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

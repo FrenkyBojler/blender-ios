@@ -24,7 +24,7 @@ Blender Convenience Targets
    * ccache:        Use ccache for faster rebuilds.
 
    Note: when passing in multiple targets their order is not important.
-   For example, fo a fast build you can run 'make lite ccache ninja'.
+   For example, for a fast build you can run 'make lite ccache ninja'.
    Note: passing the argument 'BUILD_DIR=path' when calling make will override the default build dir.
    Note: passing the argument 'BUILD_CMAKE_ARGS=args' lets you add cmake arguments.
 
@@ -84,7 +84,7 @@ Documentation Checking
      See: https://developer.blender.org/docs/features/code_layout/
 
 Spell Checkers
-   This runs the spell checker from the developer tools repositor.
+   This runs the spell checker from the developer tools repository.
 
    * check_spelling_c:       Check for spelling errors (C/C++ only),
    * check_spelling_py:      Check for spelling errors (Python only).
@@ -99,7 +99,7 @@ Spell Checkers
    Example:
       make check_spelling_c CHECK_SPELLING_CACHE=../spelling_cache.data
 
-   Note: additonal arguments can be passed in via: 'CHECK_SPELLING_EXTRA_ARGS'.
+   Note: additional arguments can be passed in via: 'CHECK_SPELLING_EXTRA_ARGS'.
    See the output of './tools/check_source/check_spelling.py --help' for details.
 
 Utilities
@@ -133,7 +133,7 @@ Utilities
 
    * license:
      Create a combined file with all the license information relative to the libraries and other
-     code depedencies.
+     code dependencies.
 
 Environment Variables
 
@@ -241,7 +241,7 @@ endif
 
 # Allow to use alternative binary (pypy3, etc)
 ifndef PYTHON
-	# If not overriden, first try using Python from LIBDIR.
+	# If not overridden, first try using Python from LIBDIR.
 	PYTHON:=$(LIBDIR)/python/bin/python$(PY_LIB_VERSION)
 	ifeq (, $(wildcard $(PYTHON)))
 		# If not available, use system python3 or python command.
@@ -276,48 +276,48 @@ endif
 # `make bpy release` first loads `release` configuration, then `bpy`.
 # This is important as `bpy` will turn off some settings enabled by release.
 
-ifneq "$(findstring bpy, $(MAKECMDGOALS))" ""
+ifneq "$(filter bpy, $(MAKECMDGOALS))" ""
 	BUILD_DIR:=$(BUILD_DIR)_bpy
 	CMAKE_CONFIG_ARGS:=-C"$(BLENDER_DIR)/build_files/cmake/config/bpy_module.cmake" $(CMAKE_CONFIG_ARGS)
 	BLENDER_IS_PYTHON_MODULE:=1
 endif
-ifneq "$(findstring debug, $(MAKECMDGOALS))" ""
+ifneq "$(filter debug, $(MAKECMDGOALS))" ""
 	BUILD_DIR:=$(BUILD_DIR)_debug
 	BUILD_TYPE:=Debug
 endif
-ifneq "$(findstring full, $(MAKECMDGOALS))" ""
+ifneq "$(filter full, $(MAKECMDGOALS))" ""
 	BUILD_DIR:=$(BUILD_DIR)_full
 	CMAKE_CONFIG_ARGS:=-C"$(BLENDER_DIR)/build_files/cmake/config/blender_full.cmake" $(CMAKE_CONFIG_ARGS)
 endif
-ifneq "$(findstring lite, $(MAKECMDGOALS))" ""
+ifneq "$(filter lite, $(MAKECMDGOALS))" ""
 	BUILD_DIR:=$(BUILD_DIR)_lite
 	CMAKE_CONFIG_ARGS:=-C"$(BLENDER_DIR)/build_files/cmake/config/blender_lite.cmake" $(CMAKE_CONFIG_ARGS)
 endif
-ifneq "$(findstring release, $(MAKECMDGOALS))" ""
+ifneq "$(filter release, $(MAKECMDGOALS))" ""
 	BUILD_DIR:=$(BUILD_DIR)_release
 	CMAKE_CONFIG_ARGS:=-C"$(BLENDER_DIR)/build_files/cmake/config/blender_release.cmake" $(CMAKE_CONFIG_ARGS)
 endif
-ifneq "$(findstring cycles, $(MAKECMDGOALS))" ""
+ifneq "$(filter cycles, $(MAKECMDGOALS))" ""
 	BUILD_DIR:=$(BUILD_DIR)_cycles
 	CMAKE_CONFIG_ARGS:=-C"$(BLENDER_DIR)/build_files/cmake/config/cycles_standalone.cmake" $(CMAKE_CONFIG_ARGS)
 endif
-ifneq "$(findstring headless, $(MAKECMDGOALS))" ""
+ifneq "$(filter headless, $(MAKECMDGOALS))" ""
 	BUILD_DIR:=$(BUILD_DIR)_headless
 	CMAKE_CONFIG_ARGS:=-C"$(BLENDER_DIR)/build_files/cmake/config/blender_headless.cmake" $(CMAKE_CONFIG_ARGS)
 endif
 
-ifneq "$(findstring developer, $(MAKECMDGOALS))" ""
+ifneq "$(filter developer, $(MAKECMDGOALS))" ""
 	CMAKE_CONFIG_ARGS:=-C"$(BLENDER_DIR)/build_files/cmake/config/blender_developer.cmake" $(CMAKE_CONFIG_ARGS)
 endif
 
-ifneq "$(findstring ccache, $(MAKECMDGOALS))" ""
+ifneq "$(filter ccache, $(MAKECMDGOALS))" ""
 	CMAKE_CONFIG_ARGS:=-DWITH_COMPILER_CCACHE=YES $(CMAKE_CONFIG_ARGS)
 endif
 
 # -----------------------------------------------------------------------------
 # build tool
 
-ifneq "$(findstring ninja, $(MAKECMDGOALS))" ""
+ifneq "$(filter ninja, $(MAKECMDGOALS))" ""
 	CMAKE_CONFIG_ARGS:=$(CMAKE_CONFIG_ARGS) -G Ninja
 	BUILD_COMMAND:=ninja
 	DEPS_BUILD_COMMAND:=ninja
@@ -399,7 +399,7 @@ all: .FORCE
 #	# 	$(CMAKE_CONFIG); \
 #	# fi
 
-#	# do this always incase of failed initial build, could be smarter here...
+#	# do this always in case of failed initial build, could be smarter here...
 	@$(CMAKE_CONFIG)
 
 	@echo
@@ -428,7 +428,7 @@ ccache: all
 # -----------------------------------------------------------------------------
 # Build dependencies
 DEPS_TARGET = install
-ifneq "$(findstring clean, $(MAKECMDGOALS))" ""
+ifneq "$(filter clean, $(MAKECMDGOALS))" ""
 	DEPS_TARGET = clean
 endif
 
@@ -564,7 +564,9 @@ check_spelling_cmake: .FORCE
 	    $(CHECK_SPELLING_EXTRA_ARGS) \
 	    "$(BLENDER_DIR)/build_files/" \
 	    "$(BLENDER_DIR)/intern/" \
-	    "$(BLENDER_DIR)/source/"
+	    "$(BLENDER_DIR)/source/" \
+	    "$(BLENDER_DIR)/CMakeLists.txt" \
+	    "$(BLENDER_DIR)/tests/CMakeLists.txt"
 
 check_descriptions: .FORCE
 	@$(BLENDER_BIN) --background --factory-startup --python \
@@ -651,7 +653,9 @@ help_features: .FORCE
 	@$(PYTHON) "$(BLENDER_DIR)/build_files/cmake/cmake_print_build_options.py" $(BLENDER_DIR)"/CMakeLists.txt"
 
 clean: .FORCE
-	$(BUILD_COMMAND) -C "$(BUILD_DIR)" clean
+	@if [ -d "$(BUILD_DIR)" ] ; then \
+		$(BUILD_COMMAND) -C "$(BUILD_DIR)" clean ; \
+	fi
 
 .PHONY: all
 

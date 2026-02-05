@@ -25,17 +25,22 @@
 
 #include "DNA_customdata_types.h"
 
+namespace blender {
+
 struct BMEditMesh;
 struct BVHTree;
 struct Mesh;
 class ShrinkwrapBoundaryData;
 struct SubdivCCG;
 struct SubsurfRuntimeData;
-namespace blender::bke {
+namespace bke {
 struct EditMeshData;
-}  // namespace blender::bke
-namespace blender::bke::bake {
+}  // namespace bke
+namespace bke::bake {
 struct BakeMaterialsList;
+}
+namespace draw {
+struct MeshBatchCache;
 }
 
 /** #MeshRuntime.wrapper_type */
@@ -48,7 +53,7 @@ enum eMeshWrapperType {
   ME_WRAPPER_TYPE_SUBD = 2,
 };
 
-namespace blender::bke {
+namespace bke {
 
 /**
  * The complexity requirement of attribute domains needed to process normals.
@@ -80,7 +85,7 @@ struct LooseGeomCache {
    * A bitmap set to true for each "loose" element.
    * Allocated only if there is at least one loose element.
    */
-  blender::BitVector<> is_loose_bits;
+  BitVector<> is_loose_bits;
   /**
    * The number of loose elements. If zero, the #is_loose_bits shouldn't be accessed.
    * If less than zero, the cache has been accessed in an invalid way
@@ -188,7 +193,7 @@ struct MeshRuntime {
    * Data used to efficiently draw the mesh in the viewport, especially useful when
    * the same mesh is used in many objects or instances. See `draw_cache_impl_mesh.cc`.
    */
-  void *batch_cache = nullptr;
+  draw::MeshBatchCache *batch_cache = nullptr;
 
   /** Cache for derived triangulation of the mesh, accessed with #Mesh::corner_tris(). */
   TrianglesCache corner_tris_cache;
@@ -242,8 +247,8 @@ struct MeshRuntime {
 
   /**
    * Settings for lazily evaluating the subdivision on the CPU if needed. These are
-   * set in the modifier when GPU subdivision can be performed, and owned by the by
-   * the modifier in the object.
+   * set in the modifier when GPU subdivision can be performed,
+   * and owned by the modifier in the object.
    */
   SubsurfRuntimeData *subsurf_runtime_data = nullptr;
 
@@ -298,4 +303,5 @@ struct MeshRuntime {
   ~MeshRuntime();
 };
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender

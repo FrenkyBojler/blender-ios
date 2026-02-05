@@ -50,31 +50,31 @@ class ShaderCache {
 
   ShaderCache();
 
-  GPUShader *prepass_get(eGeometryType geometry_type,
-                         ePipelineType pipeline_type,
-                         eLightingType lighting_type,
-                         eShaderType shader_type,
-                         bool clip)
+  gpu::Shader *prepass_get(eGeometryType geometry_type,
+                           ePipelineType pipeline_type,
+                           eLightingType lighting_type,
+                           eShaderType shader_type,
+                           bool clip)
   {
     return prepass_[int(geometry_type)][int(pipeline_type)][int(lighting_type)][int(shader_type)]
                    [clip]
                        .get();
   }
 
-  GPUShader *resolve_get(eLightingType lighting_type,
-                         bool cavity = false,
-                         bool curvature = false,
-                         bool shadow = false)
+  gpu::Shader *resolve_get(eLightingType lighting_type,
+                           bool cavity = false,
+                           bool curvature = false,
+                           bool shadow = false)
   {
     return resolve_[int(lighting_type)][cavity][curvature][shadow].get();
   }
 
-  GPUShader *shadow_get(bool depth_pass, bool manifold, bool cap = false)
+  gpu::Shader *shadow_get(bool depth_pass, bool manifold, bool cap = false)
   {
     return shadow_[depth_pass][manifold][cap].get();
   }
 
-  GPUShader *volume_get(bool smoke, int interpolation, bool coba, bool slice)
+  gpu::Shader *volume_get(bool smoke, int interpolation, bool coba, bool slice)
   {
     return volume_[smoke][interpolation][coba][slice].get();
   }
@@ -114,8 +114,8 @@ struct Material {
   Material() = default;
   Material(float3 color) : base_color(color), packed_data(Material::pack_data(0.0f, 0.4f, 1.0f)) {}
 
-  Material(::Object &ob, bool random = false);
-  Material(::Material &mat)
+  Material(blender::Object &ob, bool random = false);
+  Material(blender::Material &mat)
       : base_color(&mat.r), packed_data(Material::pack_data(mat.metallic, mat.roughness, mat.a))
   {
   }
@@ -181,6 +181,8 @@ struct SceneState {
   /* When r == -1.0 the shader uses the vertex color */
   Material material_attribute_color = Material(float3(-1.0f));
 
+  bool show_paint_bvh_debug = false;
+
   void init(const DRWContext *context, bool scene_updated, Object *camera_ob = nullptr);
 };
 
@@ -193,7 +195,7 @@ struct MaterialTexture {
 
   MaterialTexture() = default;
   MaterialTexture(Object *ob, int material_index);
-  MaterialTexture(::Image *image, ImageUser *user = nullptr);
+  MaterialTexture(blender::Image *image, ImageUser *user = nullptr);
 };
 
 struct SceneResources;
@@ -278,7 +280,22 @@ struct SceneResources {
 
 class MeshPass : public PassMain {
  private:
-  using TextureSubPassKey = std::pair<GPUTexture *, eGeometryType>;
+  struct TextureSubPassKey {
+    gpu::Texture *texture;
+    GPUSamplerState sampler_state;
+    eGeometryType geom_type;
+
+    uint64_t hash() const
+    {
+      return get_default_hash(texture, sampler_state.as_uint(), geom_type);
+    }
+
+    bool operator==(TextureSubPassKey const &rhs) const
+    {
+      return this->texture == rhs.texture && this->sampler_state == rhs.sampler_state &&
+             this->geom_type == rhs.geom_type;
+    }
+  };
 
   Map<TextureSubPassKey, PassMain::Sub *> texture_subpass_map_;
 
@@ -317,7 +334,7 @@ class OpaquePass {
   TextureFromPool gbuffer_material_tx = {"gbuffer_material_tx"};
 
   Texture shadow_depth_stencil_tx = {"shadow_depth_stencil_tx"};
-  GPUTexture *deferred_ps_stencil_tx = nullptr;
+  gpu::Texture *deferred_ps_stencil_tx = nullptr;
 
   MeshPass gbuffer_ps_ = {"Opaque.Gbuffer"};
   MeshPass gbuffer_in_front_ps_ = {"Opaque.GbufferInFront"};
@@ -383,7 +400,7 @@ class ShadowPass {
     VisibilityBuf fail_visibility_buf_ = {};
 
    public:
-    ShadowView() : View("ShadowPass.View"){};
+    ShadowView() : View("ShadowPass.View") {};
 
     void setup(View &view, float3 light_direction, bool force_fail_method);
     bool debug_object_culling(Object *ob);
@@ -426,7 +443,7 @@ class ShadowPass {
   void draw(Manager &manager,
             View &view,
             SceneResources &resources,
-            GPUTexture &depth_stencil_tx,
+            gpu::Texture &depth_stencil_tx,
             /* Needed when there are opaque "In Front" objects in the scene */
             bool force_fail_method);
 
@@ -441,9 +458,10 @@ class VolumePass {
 
   Texture dummy_shadow_tx_ = {"Volume.Dummy Shadow Tx"};
   Texture dummy_volume_tx_ = {"Volume.Dummy Volume Tx"};
+  Texture dummy_flag_tx_ = {"Volume.Dummy Flag Tx"};
   Texture dummy_coba_tx_ = {"Volume.Dummy Coba Tx"};
 
-  GPUTexture *stencil_tx_ = nullptr;
+  gpu::Texture *stencil_tx_ = nullptr;
 
  public:
   void sync(SceneResources &resources);
@@ -514,6 +532,7 @@ class DofPass {
 
   PassSimple down_ps_ = {"Workbench.DoF.DownSample"};
   PassSimple down2_ps_ = {"Workbench.DoF.DownSample2"};
+  PassSimple down3_ps_ = {"Workbench.DoF.DownSample3"};
   PassSimple blur_ps_ = {"Workbench.DoF.Blur"};
   PassSimple blur2_ps_ = {"Workbench.DoF.Blur2"};
   PassSimple resolve_ps_ = {"Workbench.DoF.Resolve"};
@@ -585,7 +604,7 @@ class AntiAliasingPass {
       SceneResources &resources,
       /** Passed directly since we may need to copy back the results from the first sample,
        * and resources.depth_in_front_tx is only valid when mesh passes have to draw to it. */
-      GPUTexture *depth_in_front_tx);
+      gpu::Texture *depth_in_front_tx);
 };
 
 }  // namespace blender::workbench

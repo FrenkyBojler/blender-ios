@@ -14,6 +14,7 @@
 #include "BLI_listbase.h"
 #include "BLI_set.hh"
 #include "BLI_string.h"
+#include "camera_delegate.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -36,8 +37,11 @@ bool HydraSceneDelegate::ShadingSettings::operator==(const ShadingSettings &othe
 
 HydraSceneDelegate::HydraSceneDelegate(pxr::HdRenderIndex *parent_index,
                                        pxr::SdfPath const &delegate_id,
+                                       CameraDelegate *camera_delegate,
                                        const bool use_materialx)
-    : HdSceneDelegate(parent_index, delegate_id), use_materialx(use_materialx)
+    : HdSceneDelegate(parent_index, delegate_id),
+      use_materialx(use_materialx),
+      camera_delegate_(camera_delegate)
 {
   instancer_data_ = std::make_unique<InstancerData>(this, instancer_prim_id());
   world_data_ = std::make_unique<WorldData>(this, world_prim_id());
@@ -393,6 +397,10 @@ void HydraSceneDelegate::check_updates()
         }
         break;
       }
+      case ID_CA: {
+        camera_delegate_->update(id);
+        break;
+      }
       case ID_WO: {
         if (shading_settings.use_scene_world && id->recalc & ID_RECALC_SHADING) {
           do_update_world = true;
@@ -440,19 +448,19 @@ void HydraSceneDelegate::update_collection()
   instancer_data_->pre_update();
 
   auto update_psys = [this, &available_objects](Object *object) {
-    LISTBASE_FOREACH (ParticleSystem *, psys, &object->particlesystem) {
-      if (psys_in_edit_mode(depsgraph, psys)) {
+    for (ParticleSystem &psys : object->particlesystem) {
+      if (psys_in_edit_mode(depsgraph, &psys)) {
         continue;
       }
-      if (HairData::is_supported(psys) && HairData::is_visible(this, object, psys)) {
-        pxr::SdfPath id = hair_prim_id(object, psys);
+      if (HairData::is_supported(&psys) && HairData::is_visible(this, object, &psys)) {
+        pxr::SdfPath id = hair_prim_id(object, &psys);
         HairData *h_data = hair_data(id);
         if (h_data) {
           h_data->update();
         }
         else {
           h_data = dynamic_cast<HairData *>(
-              objects_.lookup_or_add(id, std::make_unique<HairData>(this, object, id, psys))
+              objects_.lookup_or_add(id, std::make_unique<HairData>(this, object, id, &psys))
                   .get());
           h_data->init();
           h_data->insert();

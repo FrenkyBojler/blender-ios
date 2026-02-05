@@ -6,7 +6,6 @@
 
 #include "device/device.h"
 
-#include "scene/colorspace.h"
 #include "scene/scene.h"
 #include "scene/shader_graph.h"
 #include "scene/shader_nodes.h"
@@ -148,7 +147,7 @@ class ShaderGraphBuilder {
 };
 
 /* A ScopedMockLog object intercepts log messages issued during its lifespan,
- * to test if the approriate logs are output. */
+ * to test if the appropriate logs are output. */
 class ScopedMockLog {
  public:
   ScopedMockLog()
@@ -177,7 +176,7 @@ class ScopedMockLog {
         return;
       }
     }
-    LOG(FATAL) << "Message \"" << pattern << "\" not found";
+    LOG_FATAL << "Message \"" << pattern << "\" not found";
   }
 
   /* Check messages do not contain this pattern. */
@@ -185,7 +184,7 @@ class ScopedMockLog {
   {
     for (const string &msg : messages) {
       if (msg.find(pattern) == string::npos) {
-        LOG(FATAL) << "Invalid message \"" << pattern << "\" found";
+        LOG_FATAL << "Invalid message \"" << pattern << "\" found";
         return;
       }
     }
@@ -228,14 +227,14 @@ class RenderGraph : public testing::Test {
     /* Initialize logging after the creation of the essential resources. This way the logging
      * mock sink does not warn about uninteresting messages which happens prior to the setup of
      * the actual mock sinks. */
-    log_level_set(DEBUG);
+    log_level_set(LOG_LEVEL_TRACE);
   }
 
   void TearDown() override
   {
     /* Effectively disable logging, so that the next test suit starts in an environment which is
      * not logging by default. */
-    log_level_set(FATAL);
+    log_level_set(LOG_LEVEL_FATAL);
 
     scene.reset();
     device_cpu.reset();

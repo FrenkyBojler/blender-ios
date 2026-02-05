@@ -14,7 +14,7 @@
  * - `v2` = `vec2` = vector 2.
  * - `v3` = `vec3` = vector 3.
  * - `v4` = `vec4` = vector 4.
- * - `vn` = `vec4q = vector N dimensions, *passed as an arg, after the vector*..
+ * - `vn` = `vec4q` = vector N dimensions, *passed as an arg, after the vector*..
  * - `qt` = `quat` = quaternion.
  * - `dq` = `dquat` = dual quaternion.
  * - `m2` = `mat2` = matrix 2x2.
@@ -65,6 +65,8 @@ static const int NAN_INT = 0x7FC00000;
 #  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Wredundant-decls"
 #endif
+
+namespace blender {
 
 /******************************* Float ******************************/
 
@@ -369,3 +371,5 @@ float ceil_power_of_10(float f);
 #  define BLI_ASSERT_ZERO_M4(m) (void)(m)
 #  define BLI_ASSERT_UNIT_M3(m) (void)(m)
 #endif
+
+}  // namespace blender

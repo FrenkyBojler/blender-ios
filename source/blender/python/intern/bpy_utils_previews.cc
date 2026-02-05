@@ -26,7 +26,9 @@
 
 #include "BKE_preview_image.hh"
 
-#define STR_SOURCE_TYPES "'IMAGE', 'MOVIE', 'BLEND', 'FONT'"
+namespace blender {
+
+#define STR_SOURCE_TYPES "'IMAGE', 'MOVIE', 'BLEND', 'FONT', 'OBJECT_IO'"
 
 PyDoc_STRVAR(
     /* Wrap. */
@@ -39,9 +41,9 @@ PyDoc_STRVAR(
     "   :type name: str\n"
     "   :return: The Preview matching given name, or a new empty one.\n"
     "   :rtype: :class:`bpy.types.ImagePreview`\n"
-    /* This is only true when accessed via 'bpy.utils.previews.ImagePreviewCollection.load',
+    /* This is only true when accessed via `bpy.utils.previews.ImagePreviewCollection.load`,
      * however this is the public API, allow this minor difference to the internal version here. */
-    "   :raises KeyError: if ``name`` already exists.");
+    "   :raises KeyError: if ``name`` already exists.\n");
 static PyObject *bpy_utils_previews_new(PyObject * /*self*/, PyObject *args)
 {
   char *name;
@@ -52,7 +54,7 @@ static PyObject *bpy_utils_previews_new(PyObject * /*self*/, PyObject *args)
   }
 
   prv = BKE_previewimg_cached_ensure(name);
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImagePreview, prv);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_ImagePreview, prv);
 
   return pyrna_struct_CreatePyObject(&ptr);
 }
@@ -78,11 +80,12 @@ PyDoc_STRVAR(
     "   :rtype: :class:`bpy.types.ImagePreview`\n"
     /* This is only true when accessed via 'bpy.utils.previews.ImagePreviewCollection.load',
      * however this is the public API, allow this minor difference to the internal version here. */
-    "   :raises KeyError: if ``name`` already exists.");
+    "   :raises KeyError: if ``name`` already exists.\n");
 static PyObject *bpy_utils_previews_load(PyObject * /*self*/, PyObject *args)
 {
   char *name;
   PyC_UnicodeAsBytesAndSize_Data filepath_data = {nullptr};
+  /* Be sure to keep these in sync with #STR_SOURCE_TYPES. */
   const PyC_StringEnumItems path_type_items[] = {
       {THB_SOURCE_IMAGE, "IMAGE"},
       {THB_SOURCE_MOVIE, "MOVIE"},
@@ -120,7 +123,7 @@ static PyObject *bpy_utils_previews_load(PyObject * /*self*/, PyObject *args)
 
   Py_XDECREF(filepath_data.value_coerce);
 
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImagePreview, prv);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_ImagePreview, prv);
   return pyrna_struct_CreatePyObject(&ptr);
 }
 
@@ -159,10 +162,16 @@ static PyObject *bpy_utils_previews_release(PyObject * /*self*/, PyObject *args)
 
 static PyMethodDef bpy_utils_previews_methods[] = {
     /* Can't use METH_KEYWORDS alone, see http://bugs.python.org/issue11587 */
-    {"new", (PyCFunction)bpy_utils_previews_new, METH_VARARGS, bpy_utils_previews_new_doc},
-    {"load", (PyCFunction)bpy_utils_previews_load, METH_VARARGS, bpy_utils_previews_load_doc},
+    {"new",
+     static_cast<PyCFunction>(bpy_utils_previews_new),
+     METH_VARARGS,
+     bpy_utils_previews_new_doc},
+    {"load",
+     static_cast<PyCFunction>(bpy_utils_previews_load),
+     METH_VARARGS,
+     bpy_utils_previews_load_doc},
     {"release",
-     (PyCFunction)bpy_utils_previews_release,
+     static_cast<PyCFunction>(bpy_utils_previews_release),
      METH_VARARGS,
      bpy_utils_previews_release_doc},
     {nullptr, nullptr, 0, nullptr},
@@ -180,7 +189,7 @@ PyDoc_STRVAR(
     /* Wrap. */
     bpy_utils_previews_doc,
     "This object contains basic static methods to handle cached (non-ID) previews in Blender\n"
-    "(low-level API, not exposed to final users).");
+    "(low-level API, not exposed to final users).\n");
 static PyModuleDef bpy_utils_previews_module = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "bpy._utils_previews",
@@ -201,3 +210,5 @@ PyObject *BPY_utils_previews_module()
 
   return submodule;
 }
+
+}  // namespace blender

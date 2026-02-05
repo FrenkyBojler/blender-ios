@@ -18,6 +18,8 @@
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "node_geometry_util.hh"
 
 #include <fmt/format.h>
@@ -33,10 +35,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_default_layout();
   const bNode *node = b.node_or_null();
 
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry")
+      .description("Geometry to store a new attribute with the given name on");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::String>("Name").is_attribute_name().hide_label();
+  b.add_input<decl::String>("Name").is_attribute_name().optional_label();
 
   if (node != nullptr) {
     const NodeGeometryStoreNamedAttribute &storage = node_storage(*node);
@@ -45,17 +48,17 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryStoreNamedAttribute *data = MEM_callocN<NodeGeometryStoreNamedAttribute>(__func__);
+  NodeGeometryStoreNamedAttribute *data = MEM_new<NodeGeometryStoreNamedAttribute>(__func__);
   data->data_type = CD_PROP_FLOAT;
   data->domain = int8_t(AttrDomain::Point);
   node->storage = data;
@@ -97,7 +100,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   if (bke::attribute_name_is_anonymous(name)) {
     params.error_message_add(NodeWarningType::Info,
-                             TIP_("Anonymous attributes can't be created here"));
+                             TIP_("Anonymous attributes cannot be created here"));
     params.set_output("Geometry", std::move(geometry_set));
     return;
   }
@@ -144,7 +147,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
   else {
-    geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+    geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
       for (const GeometryComponent::Type type : {GeometryComponent::Type::Mesh,
                                                  GeometryComponent::Type::PointCloud,
                                                  GeometryComponent::Type::Curve,
@@ -156,6 +159,7 @@ static void node_geo_exec(GeoNodeExecParams params)
             if (component.type() == GeometryComponent::Type::Mesh) {
               Mesh &mesh = *geometry_set.get_mesh_for_write();
               bke::mesh_ensure_default_color_attribute_on_add(mesh, name, domain, data_type);
+              bke::mesh_ensure_default_uv_attribute_on_add(mesh, name, domain, data_type);
             }
           }
           else if (component.attribute_domain_size(domain) != 0) {
@@ -210,7 +214,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeStoreNamedAttribute", GEO_NODE_STORE_NAMED_ATTRIBUTE);
   ntype.ui_name = "Store Named Attribute";
@@ -218,17 +222,17 @@ static void node_register()
       "Store the result of a field on a geometry as an attribute with the specified name";
   ntype.enum_name_legacy = "STORE_NAMED_ATTRIBUTE";
   ntype.nclass = NODE_CLASS_ATTRIBUTE;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometryStoreNamedAttribute",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
-  blender::bke::node_type_size(ntype, 140, 100, 700);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryStoreNamedAttribute",
+                         node_free_standard_storage,
+                         node_copy_standard_storage);
+  bke::node_type_size(ntype, 140, 100, 700);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

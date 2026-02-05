@@ -6,12 +6,13 @@
  * \ingroup edmesh
  */
 
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -43,10 +44,7 @@
 
 #include "mesh_intern.hh" /* own include */
 
-using blender::Array;
-using blender::float3;
-using blender::Span;
-using blender::Vector;
+namespace blender {
 
 #define SUBD_SMOOTH_MAX 4.0f
 #define SUBD_CUTS_MAX 500
@@ -109,7 +107,7 @@ static void edgering_select(RingSelOpData *lcd)
       Object *ob_iter = base->object;
       BMEditMesh *em = BKE_editmesh_from_object(ob_iter);
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
-      DEG_id_tag_update(static_cast<ID *>(ob_iter->data), ID_RECALC_SELECT);
+      DEG_id_tag_update(ob_iter->data, ID_RECALC_SELECT);
       WM_main_add_notifier(NC_GEOM | ND_SELECT, ob_iter->data);
     }
   }
@@ -125,7 +123,8 @@ static void edgering_select(RingSelOpData *lcd)
            BMW_MASK_NOP,
            BMW_MASK_NOP,
            BMW_FLAG_TEST_HIDDEN,
-           BMW_NIL_LAY);
+           BMW_NIL_LAY,
+           BMW_DELIMIT_NONE);
 
   for (eed = static_cast<BMEdge *>(BMW_begin(&walker, eed_start)); eed;
        eed = static_cast<BMEdge *>(BMW_step(&walker)))
@@ -207,7 +206,7 @@ static void ringsel_finish(bContext *C, wmOperator *op)
       params.calc_looptris = true;
       params.calc_normals = false;
       params.is_destructive = true;
-      EDBM_update(static_cast<Mesh *>(lcd->ob->data), &params);
+      EDBM_update(id_cast<Mesh *>(lcd->ob->data), &params);
 
       if (is_single) {
         /* de-select endpoints */
@@ -245,9 +244,12 @@ static void ringsel_finish(bContext *C, wmOperator *op)
       }
 
       EDBM_selectmode_flush(lcd->em);
-      DEG_id_tag_update(static_cast<ID *>(lcd->ob->data), ID_RECALC_SELECT);
+
+      DEG_id_tag_update(lcd->ob->data, ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, lcd->ob->data);
     }
+
+    EDBM_uvselect_clear(em);
   }
 }
 
@@ -469,10 +471,10 @@ static wmOperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent 
       outputNumInput(&lcd->num, str_rep, scene->unit);
     }
     else {
-      BLI_snprintf(str_rep, NUM_STR_REP_LEN, "%d", int(lcd->cuts));
-      BLI_snprintf(str_rep + NUM_STR_REP_LEN, NUM_STR_REP_LEN, "%.2f", lcd->smoothness);
+      BLI_snprintf_utf8(str_rep, NUM_STR_REP_LEN, "%d", int(lcd->cuts));
+      BLI_snprintf_utf8(str_rep + NUM_STR_REP_LEN, NUM_STR_REP_LEN, "%.2f", lcd->smoothness);
     }
-    SNPRINTF(buf, IFACE_("Cuts: %s, Smoothness: %s"), str_rep, str_rep + NUM_STR_REP_LEN);
+    SNPRINTF_UTF8(buf, IFACE_("Cuts: %s, Smoothness: %s"), str_rep, str_rep + NUM_STR_REP_LEN);
     ED_area_status_text(CTX_wm_area(C), buf);
 
     WorkspaceStatus status(C);
@@ -704,10 +706,10 @@ static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent
       outputNumInput(&lcd->num, str_rep, sce->unit);
     }
     else {
-      BLI_snprintf(str_rep, NUM_STR_REP_LEN, "%d", int(lcd->cuts));
-      BLI_snprintf(str_rep + NUM_STR_REP_LEN, NUM_STR_REP_LEN, "%.2f", smoothness);
+      BLI_snprintf_utf8(str_rep, NUM_STR_REP_LEN, "%d", int(lcd->cuts));
+      BLI_snprintf_utf8(str_rep + NUM_STR_REP_LEN, NUM_STR_REP_LEN, "%.2f", smoothness);
     }
-    SNPRINTF(buf, IFACE_("Cuts: %s, Smoothness: %s"), str_rep, str_rep + NUM_STR_REP_LEN);
+    SNPRINTF_UTF8(buf, IFACE_("Cuts: %s, Smoothness: %s"), str_rep, str_rep + NUM_STR_REP_LEN);
     ED_area_status_text(CTX_wm_area(C), buf);
   }
 
@@ -795,3 +797,5 @@ void MESH_OT_loopcut(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 #endif
 }
+
+}  // namespace blender

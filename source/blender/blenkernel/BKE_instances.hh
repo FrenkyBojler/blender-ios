@@ -33,15 +33,18 @@
 
 #include "BKE_attribute_filter.hh"
 #include "BKE_attribute_storage.hh"
+#include "BKE_geometry_set.hh"
+
+namespace blender {
 
 struct Object;
 struct Collection;
-namespace blender::bke {
+namespace bke {
 class AttributeAccessor;
 class MutableAttributeAccessor;
-}  // namespace blender::bke
+}  // namespace bke
 
-namespace blender::bke {
+namespace bke {
 
 struct GeometrySet;
 struct AttributeAccessorFunctions;
@@ -126,11 +129,9 @@ class Instances {
    */
   mutable SharedCache<Array<int>> reference_user_counts_;
 
-  /* These almost unique ids are generated based on the `id` attribute, which might not contain
-   * unique ids at all. They are *almost* unique, because under certain very unlikely
-   * circumstances, they are not unique. Code using these ids should not crash when they are not
-   * unique but can generally expect them to be unique. */
-  mutable SharedCache<Array<int>> almost_unique_ids_cache_;
+  /* These unique ids are generated based on the `id` attribute, which might not contain
+   * unique ids at all. */
+  mutable SharedCache<Array<int>> unique_ids_cache_;
 
  public:
   Instances();
@@ -168,6 +169,8 @@ class Instances {
   void add_instance(int instance_handle, const float4x4 &transform);
 
   Span<InstanceReference> references() const;
+  MutableSpan<InstanceReference> references_for_write();
+
   void remove_unused_references();
 
   /**
@@ -197,9 +200,10 @@ class Instances {
    */
   void remove(const IndexMask &mask, const AttributeFilter &attribute_filter);
   /**
-   * Get an id for every instance. These can be used e.g. motion blur.
+   * Get an id for every instance. These can be used e.g. motion blur. This is based on the "id"
+   * attribute but makes sure that the ids are actually unique.
    */
-  Span<int> almost_unique_ids() const;
+  Span<int> unique_ids() const;
 
   /**
    * Get cached user counts for every reference.
@@ -223,7 +227,7 @@ class Instances {
   void tag_reference_handles_changed()
   {
     reference_user_counts_.tag_dirty();
-    almost_unique_ids_cache_.tag_dirty();
+    unique_ids_cache_.tag_dirty();
   }
 };
 
@@ -284,13 +288,13 @@ inline InstanceReference::Type InstanceReference::type() const
 inline Object &InstanceReference::object() const
 {
   BLI_assert(type_ == Type::Object);
-  return *(Object *)data_;
+  return *static_cast<Object *>(data_);
 }
 
 inline Collection &InstanceReference::collection() const
 {
   BLI_assert(type_ == Type::Collection);
-  return *(Collection *)data_;
+  return *static_cast<Collection *>(data_);
 }
 
 inline GeometrySet &InstanceReference::geometry_set()
@@ -317,4 +321,5 @@ inline const AttributeStorage &Instances::attribute_storage() const
 
 /** \} */
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender

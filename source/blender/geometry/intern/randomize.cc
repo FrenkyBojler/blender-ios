@@ -86,25 +86,26 @@ static void reorder_attribute_domain(bke::AttributeStorage &data,
                                      const bke::AttrDomain domain,
                                      const Span<int> new_by_old_map)
 {
-  data.foreach([&](bke::Attribute &attr) {
+  for (bke::Attribute &attr : data) {
     if (attr.domain() != domain) {
-      return;
+      continue;
     }
     const CPPType &type = bke::attribute_type_to_cpp_type(attr.data_type());
     switch (attr.storage_type()) {
       case bke::AttrStorageType::Array: {
         const auto &data = std::get<bke::Attribute::ArrayData>(attr.data());
-        auto new_data = bke::Attribute::ArrayData::ForConstructed(type, new_by_old_map.size());
+        auto new_data = bke::Attribute::ArrayData::from_constructed(type, new_by_old_map.size());
         bke::attribute_math::gather(GSpan(type, data.data, data.size),
                                     new_by_old_map,
                                     GMutableSpan(type, new_data.data, new_data.size));
         attr.assign_data(std::move(new_data));
+        break;
       }
       case bke::AttrStorageType::Single: {
-        return;
+        break;
       }
     }
-  });
+  }
 }
 
 void debug_randomize_vert_order(Mesh *mesh)
@@ -117,6 +118,7 @@ void debug_randomize_vert_order(Mesh *mesh)
   const Array<int> new_by_old_map = get_permutation(mesh->verts_num, seed);
 
   reorder_customdata(mesh->vert_data, new_by_old_map);
+  reorder_attribute_domain(mesh->attribute_storage.wrap(), bke::AttrDomain::Point, new_by_old_map);
 
   for (int &v : mesh->edges_for_write().cast<int>()) {
     v = new_by_old_map[v];
@@ -138,6 +140,7 @@ void debug_randomize_edge_order(Mesh *mesh)
   const Array<int> new_by_old_map = get_permutation(mesh->edges_num, seed);
 
   reorder_customdata(mesh->edge_data, new_by_old_map);
+  reorder_attribute_domain(mesh->attribute_storage.wrap(), bke::AttrDomain::Edge, new_by_old_map);
 
   for (int &e : mesh->corner_edges_for_write()) {
     e = new_by_old_map[e];
@@ -185,16 +188,16 @@ static void reorder_attribute_groups(bke::AttributeStorage &storage,
                                      const Span<int> new_by_old_map)
 {
   const int groups_num = new_by_old_map.size();
-  storage.foreach([&](bke::Attribute &attr) {
+  for (bke::Attribute &attr : storage) {
     if (attr.domain() != domain) {
-      return;
+      continue;
     }
     const CPPType &type = bke::attribute_type_to_cpp_type(attr.data_type());
     switch (attr.storage_type()) {
       case bke::AttrStorageType::Array: {
         const auto &data = std::get<bke::Attribute::ArrayData>(attr.data());
 
-        auto new_data = bke::Attribute::ArrayData::ForUninitialized(type, new_by_old_map.size());
+        auto new_data = bke::Attribute::ArrayData::from_uninitialized(type, new_by_old_map.size());
         threading::parallel_for(IndexRange(groups_num), 1024, [&](const IndexRange range) {
           for (const int old_i : range) {
             const int new_i = new_by_old_map[old_i];
@@ -208,12 +211,13 @@ static void reorder_attribute_groups(bke::AttributeStorage &storage,
         });
 
         attr.assign_data(std::move(new_data));
+        break;
       }
       case bke::AttrStorageType::Single: {
-        return;
+        break;
       }
     }
-  });
+  }
 }
 
 void debug_randomize_face_order(Mesh *mesh)
@@ -227,12 +231,18 @@ void debug_randomize_face_order(Mesh *mesh)
   const Array<int> old_by_new_map = invert_permutation(new_by_old_map);
 
   reorder_customdata(mesh->face_data, new_by_old_map);
+  reorder_attribute_domain(mesh->attribute_storage.wrap(), bke::AttrDomain::Face, new_by_old_map);
 
   const OffsetIndices old_faces = mesh->faces();
   Array<int> new_face_offsets = make_new_offset_indices(old_faces, old_by_new_map);
   const OffsetIndices<int> new_faces = new_face_offsets.as_span();
 
   reorder_customdata_groups(mesh->corner_data, old_faces, new_faces, new_by_old_map);
+  reorder_attribute_groups(mesh->attribute_storage.wrap(),
+                           bke::AttrDomain::Corner,
+                           old_faces,
+                           new_faces,
+                           new_by_old_map);
 
   mesh->face_offsets_for_write().copy_from(new_face_offsets);
 

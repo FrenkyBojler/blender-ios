@@ -19,6 +19,8 @@
 #include "DNA_object_enums.h"
 #include "DNA_userdef_enums.h"
 
+namespace blender {
+
 enum class PaintMode : int8_t;
 struct Brush;
 struct ImBuf;
@@ -94,7 +96,7 @@ void BKE_brush_jitter_pos(const Paint &paint,
                           const Brush &brush,
                           const float pos[2],
                           float jitterpos[2]);
-void BKE_brush_randomize_texture_coords(UnifiedPaintSettings *ups, bool mask);
+void BKE_brush_randomize_texture_coords(Paint *paint, bool mask);
 
 /* Brush curve. */
 
@@ -103,14 +105,18 @@ void BKE_brush_randomize_texture_coords(UnifiedPaintSettings *ups, bool mask);
  */
 void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset);
 
+namespace bke::brush {
+void common_pressure_curves_init(Brush &brush);
+}
+
 /**
  * Combine the brush strength based on the distances and brush settings with the existing factors.
  */
 void BKE_brush_calc_curve_factors(eBrushCurvePreset preset,
                                   const CurveMapping *cumap,
-                                  blender::Span<float> distances,
+                                  Span<float> distances,
                                   float brush_radius,
-                                  blender::MutableSpan<float> factors);
+                                  MutableSpan<float> factors);
 /**
  * Uses the brush curve control to find a strength value between 0 and 1.
  */
@@ -185,11 +191,16 @@ std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(cons
 const float *BKE_brush_secondary_color_get(const Paint *paint, const Brush *brush);
 void BKE_brush_color_set(Paint *paint, Brush *brush, const float color[3]);
 
+void BKE_brush_color_sync_legacy(Brush *brush);
+void BKE_brush_color_sync_legacy(UnifiedPaintSettings *ups);
+
 int BKE_brush_size_get(const Paint *paint, const Brush *brush);
 void BKE_brush_size_set(Paint *paint, Brush *brush, int size);
+float BKE_brush_radius_get(const Paint *paint, const Brush *brush);
 
+float BKE_brush_unprojected_size_get(const Paint *paint, const Brush *brush);
+void BKE_brush_unprojected_size_set(Paint *paint, Brush *brush, float unprojected_size);
 float BKE_brush_unprojected_radius_get(const Paint *paint, const Brush *brush);
-void BKE_brush_unprojected_radius_set(Paint *paint, Brush *brush, float unprojected_radius);
 
 float BKE_brush_alpha_get(const Paint *paint, const Brush *brush);
 void BKE_brush_alpha_set(Paint *paint, Brush *brush, float alpha);
@@ -206,16 +217,16 @@ bool BKE_brush_use_size_pressure(const Brush *brush);
 /**
  * Scale unprojected radius to reflect a change in the brush's 2D size.
  */
-void BKE_brush_scale_unprojected_radius(float *unprojected_radius,
-                                        int new_brush_size,
-                                        int old_brush_size);
+void BKE_brush_scale_unprojected_size(float *unprojected_size,
+                                      int new_brush_size,
+                                      int old_brush_size);
 
 /**
  * Scale brush size to reflect a change in the brush's unprojected radius.
  */
 void BKE_brush_scale_size(int *r_brush_size,
-                          float new_unprojected_radius,
-                          float old_unprojected_radius);
+                          float new_unprojected_size,
+                          float old_unprojected_size);
 
 /* Returns true if a brush requires a cube
  * (often presented to the user as a square) tip inside a specific paint mode.
@@ -231,7 +242,7 @@ void BKE_brush_debug_print_state(Brush *br);
  * via BrushCapabilities inside rna_brush.cc.
  * \{ */
 
-namespace blender::bke::brush {
+namespace bke::brush {
 bool supports_dyntopo(const Brush &brush);
 bool supports_accumulate(const Brush &brush);
 bool supports_topology_rake(const Brush &brush);
@@ -252,9 +263,14 @@ bool supports_secondary_cursor_color(const Brush &brush);
 bool supports_smooth_stroke(const Brush &brush);
 bool supports_space_attenuation(const Brush &brush);
 bool supports_strength_pressure(const Brush &brush);
+bool supports_size_pressure(const Brush &brush);
+bool supports_auto_smooth_pressure(const Brush &brush);
+bool supports_hardness_pressure(const Brush &brush);
 bool supports_inverted_direction(const Brush &brush);
 bool supports_gravity(const Brush &brush);
 bool supports_tilt(const Brush &brush);
-}  // namespace blender::bke::brush
+}  // namespace bke::brush
 
 /** \} */
+
+}  // namespace blender
