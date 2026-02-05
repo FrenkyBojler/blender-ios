@@ -12,20 +12,17 @@
 #include <list>
 
 namespace blender::gpu {
-/* Simple memory region description. */
+
+/* VkDeviceSize tuple to describe memory segments. */
 struct VKDeviceSegment {
   VkDeviceSize offset;
   VkDeviceSize size;
 
-  uint64_t hash() const
-  {
-    return get_default_hash(offset, size);
-  }
+  uint64_t hash() const;
   bool operator==(const VKDeviceSegment &) const = default;
 };
 
-/* Hashable containing key information to identify or create a VkImage handle and
- * bind it to a specific segment of an allocation.. */
+/* Hashable containing key information to identify or create a VkImage in VKImageCache. */
 struct VKImageInfo {
   VkImageCreateInfo create_info;
   VmaAllocation allocation;
@@ -35,9 +32,11 @@ struct VKImageInfo {
   bool operator==(const VKImageInfo &) const;
 };
 
-/* Map to existing VkImage handles bound to a specific segment of an allocation.
- * Unused handles are cleared out after some cycles. */
+/* Map to existing VkImage handles already bound to a segment of a VmaAllocation.
+ * Unused handles are cleared out after `max_unused_cycles_`. */
 class VKImageCache {
+  /* Unused images are eventually passed to the discard pool,
+   * on the assumption they will find reuse in less time. */
   static constexpr int max_unused_cycles_ = 8;
 
   struct VKImageHandle {
@@ -48,15 +47,12 @@ class VKImageCache {
   Map<VKImageInfo, VKImageHandle> cache_;
 
  public:
-  ~VKImageCache()
-  {
-    reset(true);
-  }
-
   /* Get an existing or create and bind a new VkImage handle. */
   VkImage get_or_create(const VKImageInfo &info);
 
-  void reset(bool force_reset = true);
+  /* Remove unused images from the cache, and send them to discard pool.
+   * If `force_free` is true, remove all unused images in the cache. */
+  void reset(bool force_reset = false);
 };
 
 class VKTexturePool : public TexturePool {
@@ -73,13 +69,13 @@ class VKTexturePool : public TexturePool {
     VmaAllocation allocation = VK_NULL_HANDLE;
     VmaAllocationInfo allocation_info = {};
 
-    /* Counter to track the number of unused cycles before deallocation in `pool_`. */
+    /* Counter to track the number of unused cycles before deallocation. */
     int unused_cycles_count = 0;
 
     /* Linked list of unused segments of the allocation. */
     std::list<VKDeviceSegment> segments;
 
-    /* Allocate/deallocate the handle internals. */
+    /* Allocate/deallocate the handle backing memory. */
     void alloc(VkMemoryRequirements memory_requirements);
     void free();
 
@@ -106,48 +102,9 @@ class VKTexturePool : public TexturePool {
     {
       return allocation == o.allocation;
     }
-  };
 
-  struct ImageHandle {
-    /* Hashable data. */
-    VmaAllocation allocation;
-    VKDeviceSegment local_segment;
-    VkFormat format;
-    VkImageCreateFlags flags;
-    VkImageUsageFlags usage;
-    VkExtent3D extent;
-
-    /* Handle payload. */
-    VkImage image = VK_NULL_HANDLE;
-
-    /* Counter to track the number of unused cycles before deallocation in `pool_`. */
-    int unused_cycles_count = 0;
-
-    uint64_t hash() const
-    {
-      uint64_t hash = get_default_hash(allocation);
-      hash = hash * 33 ^ uint64_t(local_segment.offset);
-      hash = hash * 33 ^ uint64_t(local_segment.size);
-      hash = hash * 33 ^ uint64_t(format);
-      hash = hash * 33 ^ uint64_t(flags);
-      hash = hash * 33 ^ uint64_t(usage);
-      hash = hash * 33 ^ uint64_t(extent.width);
-      hash = hash * 33 ^ uint64_t(extent.height);
-      return hash;
-    }
-
-    bool operator==(const ImageHandle &o) const
-    {
-      return std::tie(
-                 allocation, local_segment, format, flags, usage, extent.width, extent.height) ==
-             std::tie(o.allocation,
-                      o.local_segment,
-                      o.format,
-                      o.flags,
-                      o.usage,
-                      o.extent.width,
-                      o.extent.height);
-    }
+    AllocationHandle() = default;
+    AllocationHandle(VmaAllocation allocation) : allocation(allocation) {}
   };
 
   /* Struct to store an acquired texture. The texture image has a backing allocation,
@@ -176,13 +133,16 @@ class VKTexturePool : public TexturePool {
     {
       return texture == o.texture;
     }
+
+    TextureHandle() = default;
+    TextureHandle(VKTexture *texture) : texture(texture) {}
   };
 
-  /* Allocated memory chunks, to parts of which textures are bound. */
+  /* Cache of VkImage handles to avoid repeated memory binding. */
+  VKImageCache vk_image_cache_;
+  /* Allocated memory chunks on which images are bound. */
   Set<AllocationHandle> allocations_;
-  /* Image handles bound to allocated memory, currently unused. */
-  Set<ImageHandle> free_;
-  /* Texture handles bound to allocated memory, current in use. */
+  /* Texture handles currently in use. */
   Set<TextureHandle> acquired_;
 
   /* Debug storage to log memory usage. Log is only output
