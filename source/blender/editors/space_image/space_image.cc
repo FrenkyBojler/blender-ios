@@ -343,6 +343,9 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
             BKE_image_partial_update_mark_full_update(sima->image);
           }
           ED_area_tag_redraw(area);
+          // todo(habib): send ND_NODE_GIZMO notifier
+          const ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+          WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
           break;
       }
       break;
