@@ -1164,7 +1164,7 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
   if (*tree_view.sort_alpha_) {
     tree_view.sort_alpha();
   }
-    tree_view.sort();
+  tree_view.sort();
 
   {
     /* Setup search string to filter out elements with matching characters. */
