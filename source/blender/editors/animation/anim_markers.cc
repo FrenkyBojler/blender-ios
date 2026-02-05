@@ -1524,16 +1524,21 @@ static wmOperatorStatus ed_marker_select_exec(bContext *C, wmOperator *op)
   int mval[2];
   mval[0] = RNA_int_get(op->ptr, "mouse_x");
   mval[1] = RNA_int_get(op->ptr, "mouse_y");
-  bool deselect_all = true;
-
-  ed_marker_select(C, mval, extend, deselect_all, camera, wait_to_deselect_others);
-
   /* Only return finished if a marker was actually clicked so that 'markers_select_leftright' can
    * also run with the same default key binding. */
   const View2D *v2d = ui::view2d_fromcontext(C);
   ListBaseT<TimeMarker> *markers = ED_context_get_markers(C);
+  const bool is_over_marker = region_position_is_over_marker(v2d, markers, mval[0]);
+  if (camera && !is_over_marker) {
+    /* Activating a camera can only work if the marker is clicked. Exit early if not on a marker to
+     * let the MARKER_OT_select_leftright operator work. */
+    return OPERATOR_PASS_THROUGH;
+  }
 
-  if (!region_position_is_over_marker(v2d, markers, mval[0])) {
+  const bool deselect_all = true;
+  ed_marker_select(C, mval, extend, deselect_all, camera, wait_to_deselect_others);
+
+  if (!is_over_marker) {
     /* Empty space, deselect markers and let other operators run. */
     deselect_markers(markers);
     WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
