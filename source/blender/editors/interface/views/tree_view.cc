@@ -837,7 +837,7 @@ void AbstractTreeViewItem::on_filter()
   }
 }
 
-std::string AbstractTreeViewItem::label() const
+StringRefNull AbstractTreeViewItem::label() const
 {
   return label_;
 }
