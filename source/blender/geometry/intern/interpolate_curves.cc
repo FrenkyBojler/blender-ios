@@ -234,9 +234,6 @@ void sample_curve_padded(const bke::CurvesGeometry &curves,
 static bool interpolate_attribute_to_curves(const StringRef name,
                                             const std::array<int, CURVE_TYPES_NUM> &type_counts)
 {
-  if (bke::attribute_name_is_anonymous(name)) {
-    return true;
-  }
   /* Bezier handles and types are interpolated manually. */
   if (ELEM(name, "handle_type_left", "handle_type_right", "handle_left", "handle_right")) {
     return false;
@@ -361,9 +358,6 @@ static AttributesForInterpolation gather_curve_attributes_to_interpolate(
       return;
     }
     if (iter.data_type == bke::AttrType::String) {
-      return;
-    }
-    if (bke::attribute_name_is_anonymous(iter.name)) {
       return;
     }
     /* Interpolation tool always outputs poly curves. */

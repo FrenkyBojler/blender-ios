@@ -69,9 +69,6 @@ static fn::Field<int> get_count_input_from_length(const fn::Field<float> &length
 static bool interpolate_attribute_to_curves(const StringRef name,
                                             const std::array<int, CURVE_TYPES_NUM> &type_counts)
 {
-  if (bke::attribute_name_is_anonymous(name)) {
-    return true;
-  }
   if (ELEM(name, "handle_type_left", "handle_type_right", "handle_left", "handle_right")) {
     return type_counts[CURVE_TYPE_BEZIER] != 0;
   }
