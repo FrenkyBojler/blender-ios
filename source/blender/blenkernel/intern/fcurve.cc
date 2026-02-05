@@ -1315,6 +1315,9 @@ void sort_time_fcurve(FCurve &fcu)
           if (a == fcu.active_keyframe_index) {
             fcu.active_keyframe_index++;
           }
+          else if (a + 1 == fcu.active_keyframe_index) {
+            fcu.active_keyframe_index--;
+          }
           ok = true;
         }
       }
