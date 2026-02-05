@@ -32,8 +32,8 @@ using TokenAtom = uint16_t;
 struct Token {
 #ifdef LEXIT_DEBUG
   std::string_view debug_str_;
-  TokenType debug_type_;
-  TokenAtom debug_atom_;
+  const TokenType *debug_type_;
+  const TokenAtom *debug_atom_;
 #endif
   const TokenBuffer *buf_;
   int32_t index_;
@@ -56,7 +56,7 @@ struct Token {
   }
 
   const TokenType &type() const;
-  TokenAtom atom() const;
+  const TokenAtom &atom() const;
 
   std::string_view str() const;
   std::string_view str_with_whitespace() const;
@@ -281,8 +281,8 @@ inline Token::Token(const TokenBuffer *buf, int32_t index) : buf_(buf)
   index_ = (index < 0 || index > buf_->size_) ? buf_->size_ : index;
 #ifdef LEXIT_DEBUG
   debug_str_ = str_with_whitespace();
-  debug_type_ = type();
-  debug_atom_ = atom();
+  debug_type_ = &type();
+  debug_atom_ = &atom();
 #endif
 }
 
@@ -300,7 +300,7 @@ inline TokenType &TokenMut::type()
   return buf_->types_[index_];
 }
 
-inline TokenAtom Token::atom() const
+inline const TokenAtom &Token::atom() const
 {
   return buf_->atoms_[index_];
 }

@@ -27,6 +27,74 @@ template<typename IToken> struct TokenRange {
   IToken begin, end;
 };
 
+struct IdentifierMap {
+  struct alignas(4) Identifier {
+    uint16_t next;
+    uint16_t size;
+    char data[0];
+
+    explicit operator StringRef()
+    {
+      return {data, size};
+    }
+  };
+  Vector<Identifier> identifier_buffer;
+  /* Note: Must be power of two size. */
+  std::array<uint16_t, 16384> hash_table;
+
+  IdentifierMap()
+  {
+    /* Set invalid values for all the table. */
+    std::memset(hash_table.data(), 0xFFu, sizeof(uint16_t) * hash_table.size());
+  }
+
+  void reserve(int token_count)
+  {
+    identifier_buffer.reserve(sizeof(Identifier) * token_count);
+  }
+
+  BLI_INLINE_METHOD uint16_t lookup_or_add(uint16_t hash, StringRef str)
+  {
+    hash &= (hash_table.size() - 1);
+    uint16_t index = hash_table[hash];
+    Identifier *id = nullptr;
+    for (;;) {
+      if (index == 0xFFFFu) {
+        break;
+      }
+      id = &identifier_buffer[index];
+      if (StringRef(*id) == str) {
+        /* Cache hit. */
+        return index;
+      }
+      index = id->next;
+    }
+    /* Cache miss. Add new. */
+    uint16_t new_index = identifier_buffer.size();
+    if (id) {
+      /* Update previous element in the list. */
+      id->next = new_index;
+    }
+    else {
+      /* Update entry in table. */
+      hash_table[hash] = new_index;
+    }
+
+    {
+      /* Fast malloc replacement. */
+      int str_as_id_size = ((str.size() + (sizeof(Identifier) - 1)) / sizeof(Identifier));
+      identifier_buffer.reserve(new_index + 1 + str_as_id_size);
+      Identifier &id = *identifier_buffer.end();
+      identifier_buffer.increase_size_by_unchecked(1 + str_as_id_size);
+      /* Construct new identifier. */
+      id.next = 0xFFFFu;
+      id.size = str.size();
+      std::memcpy(id.data, str.data(), str.size());
+    }
+    return new_index;
+  }
+};
+
 /* -------------------------------------------------------------------- */
 /** \name Parser / Lexer classes.
  * \{ */
@@ -111,19 +179,20 @@ struct AtomicLexer : lexit::TokenBuffer {
   /* Chosen to be easily masked. */
   constexpr static TokenAtom long_atom_range_start = 0x8000;
 
+  constexpr BLI_INLINE uint16_t smol_hash(std::string_view s)
+  {
+    uint32_t hash = 5381;
+    hash = ((hash << 5) + hash) + s.size();
+    hash = ((hash << 5) + hash) + static_cast<uint8_t>(s[0]);
+    hash = ((hash << 5) + hash) + static_cast<uint8_t>(s[s.size() / 2]);
+    hash = ((hash << 5) + hash) + static_cast<uint8_t>(s.back());
+    return static_cast<uint16_t>(hash);
+  }
+
   BLI_INLINE_METHOD TokenAtom hash(StringRef tok_str)
   {
-    switch (tok_str.size()) {
-      case 1:
-        /* Reserve [0-127] range for single char token. */
-        return tok_str[0];
-      case 2:
-        /* Reserve [128-16511] range for double char token. tok_str[1] cannot be 0. */
-        return tok_str[0] + tok_str[1] * uint16_t(128);
-      default:
-        /* Long identifier slow path. Do full hash */
-        return atomization_map_.lookup_or_add_cb(tok_str, [this]() { return this->next_hash(); });
-    }
+    uint16_t hash = smol_hash(tok_str);
+    return table.lookup_or_add(hash, tok_str);
   }
 
   TokenPastingBuffer pasting_buf;
@@ -147,41 +216,8 @@ struct AtomicLexer : lexit::TokenBuffer {
     lex_pass();
   }
 
-  constexpr BLI_INLINE char perfect_hash(std::string_view s)
-  {
-    return s.size() * 3 + (s[0] - s.back());
-  }
-
-  BLI_INLINE TokenType type_lookup(std::string_view s)
-  {
-    switch (perfect_hash(s)) {
-      case perfect_hash("if"):
-        return (s == "if") ? If : Word;
-      case perfect_hash("elif"):
-        return (s == "elif") ? Elif : Word;
-      case perfect_hash("else"):
-        return (s == "else") ? Else : Word;
-      case perfect_hash("line"):
-        return (s == "line") ? TokenType::Line : Word;
-      case perfect_hash("endif"):
-        return (s == "endif") ? Endif : Word;
-      case perfect_hash("ifdef"):
-        return (s == "ifdef") ? Ifdef : Word;
-      case perfect_hash("undef"):
-        return (s == "undef") ? Undef : Word;
-      case perfect_hash("define"):
-        return (s == "define") ? Define : Word;
-      case perfect_hash("ifndef"):
-        return (s == "ifndef") ? Ifndef : Word;
-      case perfect_hash("pragma"):
-        return (s == "pragma") ? Pragma : Word;
-      default:
-        return Word;
-    }
-  }
-
   /** Map string hashes to atom value. */
-  Map<StringRef, TokenAtom> atomization_map_;
+  // Map<StringRef, TokenAtom> atomization_map_;
   /* Reserve top range for longer token. */
   uint16_t atom_hash_counter_ = long_atom_range_start;
 
@@ -195,6 +231,7 @@ struct AtomicLexer : lexit::TokenBuffer {
   /* Backing buffer for line_offsets. */
   Vector<int> line_offsets_buf_;
 
+  IdentifierMap table;
   /**
    * All-in-one lexing pass.
    * - Keywords identification.
@@ -203,21 +240,56 @@ struct AtomicLexer : lexit::TokenBuffer {
    */
   BLI_NOINLINE void lex_pass()
   {
+    table.reserve(size());
     /* From checking our statistics. This heuristic should be enough for 99% of our cases. */
-    atomization_map_.reserve(size() / 17);
+    // atomization_map_.reserve(size() / 17);
     /* From checking our statistics. This heuristic should be enough for 100% of our cases. */
     line_offsets_buf_.reserve(size() / 7);
     directive_lines.reserve(line_offsets_buf_.size() / 2);
 
     std::memset(atoms_.get(), 0, size() * sizeof(TokenAtom));
 
+    /* Reserve token identifiers. */
+    hash(" "); /* Reserved 0 atom (invalid).  */
+
+    Vector<TokenType, 64> id_to_tok;
+    id_to_tok.resize(64);
+    id_to_tok.fill(Word);
+
+    /* Warm identifier table to have high frequency words at the start of the table and buckets. */
+    id_to_tok[hash("line")] = TokenType::Line;
+    hash("r"); /* Warmup. */
+    id_to_tok[hash("define")] = Define;
+    hash("float");  /* Warmup. */
+    hash("return"); /* Warmup. */
+    hash("a");      /* Warmup. */
+    id_to_tok[hash("endif")] = Endif;
+    id_to_tok[hash("ifdef")] = Ifdef;
+    hash("int");    /* Warmup. */
+    hash("x");      /* Warmup. */
+    hash("float3"); /* Warmup. */
+    hash("uint");   /* Warmup. */
+    hash("y");      /* Warmup. */
+    hash("float4"); /* Warmup. */
+    hash("b");      /* Warmup. */
+    hash("coord");  /* Warmup. */
+    id_to_tok[hash("if")] = If;
+    id_to_tok[hash("elif")] = Elif;
+    id_to_tok[hash("else")] = Else;
+    id_to_tok[hash("undef")] = Undef;
+    id_to_tok[hash("ifndef")] = Ifndef;
+    id_to_tok[hash("pragma")] = Pragma;
+    hash("float2");
+    hash("void");
+
     line_offsets_buf_.append(0);
     for (auto tok : *this) {
       switch (tok.type()) {
         case Word: {
-          tok.type() = type_lookup(tok.str());
-          if (tok.type() == Word) {
-            atoms_[int(tok)] = hash(tok.str());
+          tok.atom() = hash(tok.str());
+          tok.type() = id_to_tok[std::min(TokenAtom(64 - 1), tok.atom())];
+          if (tok.type() != Word) {
+            tok.atom() = 0;
           }
           break;
         }
@@ -228,7 +300,8 @@ struct AtomicLexer : lexit::TokenBuffer {
         case '#': {
           int line_start = line_offsets_buf_.last();
           /* Directive can only start with a hash token (+ optional space).
-           * If there is more token before the hash token it cannot be a preprocessor directive. */
+           * If there is more token before the hash token it cannot be a preprocessor directive.
+           */
           if (int(tok) - line_start <= 1) {
             int line_index = line_offsets_buf_.size() - 1;
             if (directive_lines.is_empty() || directive_lines.last() != line_index) {
@@ -241,12 +314,14 @@ struct AtomicLexer : lexit::TokenBuffer {
           break;
       }
     }
+
     /* Finish last line. But only do so if it contains at least one character. */
     if (line_offsets_buf_.last() != size()) {
       line_offsets_buf_.append(size());
     }
 
     line_offsets = line_offsets_buf_.as_span();
+    // table.print_distribution_stats();
   }
 };
 
