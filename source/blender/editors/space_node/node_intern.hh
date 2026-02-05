@@ -313,10 +313,6 @@ void node_draw_space(const bContext &C, ARegion &region);
 
 void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, ui::Layout &layout);
 
-void find_bounds_by_zone_recursive(const SpaceNode &snode,
-                                   const blender::bke::bNodeTreeZone &zone,
-                                   const blender::Span<const blender::bke::bNodeTreeZone *> all_zones,
-                                   blender::MutableSpan<Vector<blender::float2>> r_bounds_by_zone);
 /**
  * Update node draw order nodes based on selection: unselected nodes first, then selected,
  * then the active node at the very end. Relative order is kept intact.

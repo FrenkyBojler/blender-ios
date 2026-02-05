@@ -4176,7 +4176,7 @@ static void add_rect_corner_positions(Vector<float2> &positions, const rctf &rec
   positions.append({rect.xmax, rect.ymax});
 }
 
-void find_bounds_by_zone_recursive(const SpaceNode &snode,
+static void find_bounds_by_zone_recursive(const SpaceNode &snode,
                                           const bNodeTreeZone &zone,
                                           const Span<const bNodeTreeZone *> all_zones,
                                           MutableSpan<Vector<float2>> r_bounds_by_zone)
