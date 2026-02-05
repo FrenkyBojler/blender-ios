@@ -292,17 +292,17 @@ static void rna_annotation_stroke_remove(bGPDframe *frame,
 }
 
 static void rna_annotation_stroke_point_add(bGPDstroke *stroke,
-                                            int count,
-                                            float pressure,
-                                            float strength)
+                                            const int count,
+                                            const float pressure,
+                                            const float strength)
 {
   /* Count is always >=1(RNA min set to 1). */
   if (count <= 0) {
     return;
   }
 
-  int old_count = stroke->totpoints;
-  int new_count = old_count + count;
+  const int old_count = stroke->totpoints;
+  const int new_count = old_count + count;
 
   bGPDspoint *old_points = stroke->points;
   stroke->points = MEM_new_array<bGPDspoint>(new_count, "gp_stroke_points");
@@ -333,7 +333,9 @@ static void rna_annotation_stroke_point_add(bGPDstroke *stroke,
   WM_main_add_notifier(NC_GPENCIL | ND_DATA, nullptr);
 }
 
-static void rna_annotation_stroke_point_remove(bGPDstroke *stroke, ReportList *reports, int index)
+static void rna_annotation_stroke_point_remove(bGPDstroke *stroke,
+                                               ReportList *reports,
+                                               const int index)
 {
   if (stroke->totpoints <= 0) {
     BKE_report(reports, RPT_ERROR, "Stroke has no points");
@@ -350,7 +352,7 @@ static void rna_annotation_stroke_point_remove(bGPDstroke *stroke, ReportList *r
     return;
   }
 
-  int new_count = stroke->totpoints - 1;
+  const int new_count = stroke->totpoints - 1;
 
   bGPDspoint *old_points = stroke->points;
   stroke->points = MEM_new_array<bGPDspoint>(new_count, "gp_stroke_points");
