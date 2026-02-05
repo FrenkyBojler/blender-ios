@@ -51,7 +51,7 @@ using AttributeRequest = std::variant<CustomRequest, GenericRequest>;
 struct ViewportRequest {
   Vector<AttributeRequest> attributes;
   bool use_coarse_grids;
-  friend bool operator==(const ViewportRequest &a, const ViewportRequest &b);
+  friend bool operator==(const ViewportRequest &a, const ViewportRequest &b) = default;
   uint64_t hash() const;
 };
 
