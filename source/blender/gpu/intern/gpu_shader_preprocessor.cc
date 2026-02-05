@@ -7,6 +7,7 @@
  */
 
 #include "BKE_global.hh"
+#include "BLI_bit_vector.hh"
 #include "BLI_struct_equality_utils.hh"
 
 #include "shader_tool/expression.hh"
@@ -51,6 +52,11 @@ struct IdentifierMap {
   void reserve(int token_count)
   {
     identifier_buffer.reserve(sizeof(Identifier) * token_count);
+  }
+
+  TokenAtom max_atom_value() const
+  {
+    return identifier_buffer.size();
   }
 
   BLI_INLINE_METHOD uint16_t lookup_or_add(uint16_t hash, StringRef str)
@@ -206,6 +212,11 @@ struct AtomicLexer : lexit::TokenBuffer {
      * to feed it the final stored string to avoid referencing freed memory. */
     tok.atom() = hash(tok.str());
     return tok;
+  }
+
+  TokenAtom max_atom_value() const
+  {
+    return table.max_atom_value();
   }
 
  protected:
@@ -929,73 +940,8 @@ struct Preprocessor {
   Map<TokenAtom, Directive> defines;
   /* Cached parsed data for each Macro. Allow lazy parsing. Indexed by Directive. */
   Vector<std::unique_ptr<Macro>> parsed_macro;
-  /* Cache allowing fast conservative rejection of tokens not matching any declared macro. */
-  struct MacroBucketCache {
-    /**
-     * Cached buckets of enabled macros atoms.
-     * Each bit represent a bucket (of variable size).                                Bucket Size
-     * Bits 0-62:    Single char identifiers           (atom < 128)                        1 atom
-     * Bits 64-127:  Double char identifiers           (atom < long_atom_range_start)    128 atoms
-     * Bits 128-511: Long identifiers                  (atom >= long_atom_range_start)     8 atoms
-     * Bits 63:      Long identifiers over cache limit (atom > 35840)                  29695 atoms
-     *
-     * This atom distribution is based on our source code statistics.
-     * It is rare to have double char identifiers and even more rare to have macros defined for
-     * them. It is also unlikely to have more than 3072 unique identifiers inside a compilation
-     * unit. Our upper-bound is around 2500.
-     *
-     * When a macro is defined, the bucket the identifier belongs to is set occupied.
-     *
-     * This table is made to fit one cache line.
-     */
-    alignas(64) uint64_t enabled_macro_buckets[8] = {0};
-
-    /* Set the overflow atom to an invalid atom value for an identifier (DEL). */
-    static constexpr TokenAtom overflow_atom = 0x7F;
-
-    /* Check if the bucket associated with the atom was marked as occupied. */
-    bool is_occupied(TokenAtom atom)
-    {
-      auto [bin, bit] = bucket_lookup(atom);
-      return ((enabled_macro_buckets[bin] >> bit) & 1) != 0;
-    }
-
-    /* Mark the bucket associated with the atom as occupied. */
-    void set_occupied(TokenAtom atom)
-    {
-      auto [bin, bit] = bucket_lookup(atom);
-      enabled_macro_buckets[bin] |= 1ull << bit;
-    }
-
-   private:
-    struct BucketResult {
-      uint8_t bin;
-      uint8_t bit;
-    };
-
-    BucketResult bucket_lookup(TokenAtom atom)
-    {
-      /* Exceed the cache limit. */
-      const bool overflow = (atom >= AtomicLexer::long_atom_range_start + 6 * 64 * 8);
-      /* Set overflow to a reserved value. */
-      atom = overflow ? overflow_atom : atom;
-      /* Two char identifier. Almost never used. Use second bitmask */
-      const bool short_identifier = (atom >= 128);
-      /* Long identifier. Use last 6 bitmasks. */
-      const bool long_identifier = (atom >= AtomicLexer::long_atom_range_start);
-      /* One char identifier use first bitmask. */
-      uint8_t bin = 0;
-      /* Two char identifier. Almost never used. Use second bitmask */
-      bin += short_identifier;
-      /* Long identifier bitmask start at 2.*/
-      bin += long_identifier;
-      /* Long identifier bitmask. Each bitmask covers 64 * 8 values. */
-      bin += (atom / (64u * 8u)) & (7u * long_identifier);
-      /* One char identifier use low 6 bits. */
-      uint8_t bit = (atom >> (long_identifier * 3)) & 63u;
-      return {bin, bit};
-    }
-  } macro_buckets;
+  /* Allows fast checking of tokens not matching any declared macro. One bit per TokenAtom. */
+  bits::BitVector<> enabled_macros;
 
   /**
    * State Tracking.
@@ -1019,6 +965,7 @@ struct Preprocessor {
                     lex_.hash("thread"),
                     lex_.hash("device"),
                     lex_.hash("layout")),
+        enabled_macros(lex_.max_atom_value()),
         defined_atom(lex_.hash("defined")),
         va_args_atom(lex_.hash("__VA_ARGS__"))
   {
@@ -1225,7 +1172,7 @@ struct Preprocessor {
     const Token name = dir.identifier().next();
     BLI_assert(name == Word);
     defines.add_overwrite(name.atom(), dir);
-    macro_buckets.set_occupied(name.atom());
+    enabled_macros[name.atom()].set(true);
     erase_lines(dir.first(), dir.last());
   }
 
@@ -1252,6 +1199,7 @@ struct Preprocessor {
   {
     const Token name = dir.identifier().next();
     BLI_assert(name == Word);
+    enabled_macros[name.atom()].set(false);
     defines.remove(name.atom());
     erase_lines(dir.first(), dir.last());
   }
@@ -1393,7 +1341,7 @@ struct Preprocessor {
 
     for (const auto *it = candidates.begin(); it != candidates.end();) {
       const Token tok = lex_[*it];
-      const Directive macro_id = defines.lookup_default(tok.atom(), Directive::invalid());
+      const Directive macro_id = defines.lookup(tok.atom());
       /* Emit tokens between the last emitted token and this one. */
       if (int(after_last_emitted) < *it) {
         out_stream_ << TokenRange<Token>{after_last_emitted, tok.prev()};
@@ -1434,7 +1382,7 @@ struct Preprocessor {
     for (int i : blender::IndexRange::from_begin_end(start, end)) {
       /* Branchless insertion. Faster than. */
       expand_candidates_[candidates_count] = i;
-      candidates_count += macro_buckets.is_occupied(lex_.atoms_[i]);
+      candidates_count += enabled_macros[lex_.atoms_[i]];
     }
     expand_candidates_.resize(candidates_count);
     return expand_candidates_;
