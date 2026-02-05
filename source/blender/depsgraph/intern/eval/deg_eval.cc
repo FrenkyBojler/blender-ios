@@ -63,7 +63,8 @@ enum class EvaluationStage {
    * involved. */
   COPY_ON_EVAL,
 
-  /* Evaluate actual ID nodes visibility based on the current state of animation and drivers. */
+  /* Evaluate actual ID nodes visibility based on the current state of animation, drivers and
+   * dynamic overrides. */
   DYNAMIC_VISIBILITY,
 
   /* Threaded evaluation of all possible operations. */
