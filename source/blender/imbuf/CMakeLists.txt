@@ -23,6 +23,7 @@ set(SRC
   intern/deep.cc
   intern/filetype.cc
   intern/filter.cc
+  intern/format_avif.cc
   intern/format_bmp.cc
   intern/format_dds.cc
   intern/format_hdr.cc
