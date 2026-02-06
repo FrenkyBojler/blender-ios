@@ -1887,6 +1887,9 @@ enum eSnapMode {
 };
 ENUM_OPERATORS(eSnapMode)
 
+/**
+ * \note The exact value here is used in an enum, any changes require versioning.
+ */
 #define SCE_SNAP_TO_VERTEX (SCE_SNAP_TO_POINT | SCE_SNAP_TO_EDGE_ENDPOINT)
 
 /**
