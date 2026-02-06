@@ -109,8 +109,7 @@ static Mesh *mesh_subsurf_calc(const Mesh *mesh,
                                const Field<float> &edge_crease_field,
                                const int boundary_smooth,
                                const int uv_smooth,
-                               const bool use_limit_surface,
-                               bool &r_failed)
+                               const bool use_limit_surface)
 {
   const bke::MeshFieldContext point_context{*mesh, AttrDomain::Point};
   FieldEvaluator point_evaluator(point_context, mesh->verts_num);
@@ -158,9 +157,6 @@ static Mesh *mesh_subsurf_calc(const Mesh *mesh,
   }
 
   Mesh *result = bke::subdiv::subdiv_to_mesh(subdiv, &mesh_settings, mesh);
-  if (result == nullptr) {
-    r_failed = true;
-  }
   bke::subdiv::free(subdiv);
 
   if (use_creases && result) {
@@ -218,8 +214,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const Mesh *mesh = geometry_set.get_mesh()) {
-      bool mesh_failed = false;
-
       Mesh *new_mesh = mesh_subsurf_calc(mesh,
                                          level,
                                          quality,
@@ -227,12 +221,11 @@ static void node_geo_exec(GeoNodeExecParams params)
                                          edge_crease,
                                          boundary_smooth,
                                          uv_smooth,
-                                         use_limit_surface,
-                                         mesh_failed);
+                                         use_limit_surface);
       if (new_mesh != nullptr) {
         geometry_set.replace_mesh(new_mesh);
       }
-      if (mesh_failed) {
+      else {
         any_subdiv_failed.store(true, std::memory_order_relaxed);
       }
     }
