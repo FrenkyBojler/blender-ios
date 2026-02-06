@@ -25,6 +25,10 @@ void multires_reshape_apply_base_update_mesh_coords(MultiresReshapeContext *resh
 {
   Mesh *base_mesh = reshape_context->base_mesh;
   MutableSpan<float3> base_positions = base_mesh->vert_positions_for_write();
+  float3 *basis_data = nullptr;
+  if (reshape_context->basis_shape_key) {
+    basis_data = (float3 *)reshape_context->basis_shape_key->data;
+  }
   /* Update the context in case the vertices were duplicated. */
   reshape_context->base_positions = base_positions;
 
@@ -46,6 +50,9 @@ void multires_reshape_apply_base_update_mesh_coords(MultiresReshapeContext *resh
     const float3 D = math::transform_direction(tangent_matrix, grid_element.displacement);
 
     base_positions[corner_verts[loop_index]] = P + D;
+    if (basis_data) {
+      basis_data[corner_verts[loop_index]] = P + D;
+    }
   }
 }
 
@@ -64,18 +71,10 @@ static float v3_dist_from_plane(const float3 &v, const float3 &center, const flo
 void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape_context)
 {
   Mesh *base_mesh = reshape_context->base_mesh;
-  MutableSpan<float3> base_positions;
-  KeyBlock *basis_shape_key = reshape_context->basis_shape_key;
-  if (basis_shape_key) {
-    float3 *basis_shape_key_data = (float3 *)basis_shape_key->data;
-    float3 *mesh_data = base_mesh->vert_positions_for_write().data();
-    for (int i = 0; i < basis_shape_key->totelem; i++) {
-      basis_shape_key_data[i] = mesh_data[i];
-    }
-    base_positions = MutableSpan<float3>(basis_shape_key_data, basis_shape_key->totelem);
-  }
-  else {
-    base_positions = base_mesh->vert_positions_for_write();
+  MutableSpan<float3> base_positions = base_mesh->vert_positions_for_write();
+  float3 *basis_data = nullptr;
+  if (reshape_context->basis_shape_key) {
+    basis_data = (float3 *)reshape_context->basis_shape_key->data;
   }
   /* Update the context in case the vertices were duplicated. */
   reshape_context->base_positions = base_positions;
@@ -139,11 +138,9 @@ void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape
     const float dist = v3_dist_from_plane(base_positions[i], center, avg_no);
     const float3 push = avg_no * dist;
     base_positions[i] += push;
-  }
-
-  if (basis_shape_key) {
-    /*maintaining the sync between Basis Shape Key positions and Mesh positions*/
-    base_mesh->vert_positions_for_write().copy_from(base_positions);
+    if (basis_data) {
+      basis_data[i] += push;
+    }
   }
 
   /* Vertices were moved around, need to update normals after all the vertices are updated
