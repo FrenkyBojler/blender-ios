@@ -81,7 +81,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   Set<const Object *> obj_visited;
   for (Collection *col : obj_collections) {
     for (CollectionObject &cob : col->gobject) {
-      Object *obj_original = (Object *)DEG_get_original(cob.ob);
+      Object *obj_original = DEG_get_original(cob.ob);
       if (obj_visited.add(obj_original)) {
         child_objects.append(obj_original);
       }
@@ -102,7 +102,7 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeCollectionChildren");
   ntype.ui_name = "Collection Children";
   ntype.ui_description =
-      "Retrieve children collection and object lists from a collection with name-base order";
+      "Retrieve a collection's object and collection children, in a name-based order";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
