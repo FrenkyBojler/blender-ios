@@ -10,3 +10,4 @@ Referenced by issue #126818, The --cycles-device command line option does nothin
 Referenced by issue #126792, Extensions - fail to install extension from cli
 Referenced by issue #126566, Crashes, when using Smoke and cycles (AMD HIP)
 Referenced by issue #126485, '_pad3': is not a member of 'wmWindowManager'
+Referenced by issue #153734, materials properties preview tab not working
