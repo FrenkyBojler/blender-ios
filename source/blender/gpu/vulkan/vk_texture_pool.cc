@@ -6,11 +6,8 @@
  * \ingroup gpu
  */
 
-#include "GPU_capabilities.hh"
-
-#include "vk_backend.hh"
-#include "vk_texture.hh"
 #include "vk_texture_pool.hh"
+#include "vk_backend.hh"
 
 #include "fmt/format.h"
 
@@ -18,11 +15,142 @@
 
 #include "CLG_log.h"
 
-namespace blender::gpu {
+namespace blender {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
+namespace detail {
+/* Wrap non-hardcoded arguments of VkImageCreateInfo as tuple of lvalues.
+ * Keep in sync with `VKTexturePool::acquire_texture()`. */
+constexpr auto tie(const VkImageCreateInfo &info)
+{
+  return std::tie(info.format, info.flags, info.usage, info.extent.width, info.extent.height);
+}
+}  // namespace detail
+
+/* DefaultHash implementation over non-hardcoded arguments of VkImageCreateInfo.
+ * Keep in sync with `VKTexturePool::acquire_texture()`. */
+template<> struct DefaultHash<VkImageCreateInfo> {
+  constexpr uint64_t operator()(const VkImageCreateInfo &value) const
+  {
+    const auto &[_1, _2, _3, _4, _5] = detail::tie(value);
+    return get_default_hash(_1, _2, _3, _4, _5);
+  }
+};
+
+namespace gpu {
+
+uint64_t VKDeviceSegment::hash() const
+{
+  return get_default_hash(offset, size);
+}
+
+uint64_t VKImageInfo::hash() const
+{
+  return get_default_hash(create_info, allocation, segment);
+}
+
+bool VKImageInfo::operator==(const VKImageInfo &o) const
+{
+  return std::tuple_cat(detail::tie(create_info), std::tie(allocation, segment)) ==
+         std::tuple_cat(detail::tie(o.create_info), std::tie(o.allocation, o.segment));
+}
+
+/* Query memory requirements from VkImageCreateInfo. If VK_KHR_MAINTENANCE4 is supported,
+ * we avoid instantiating a VkImage handle. Otherwise, the image handle is destroyed as a
+ * matching handle is provided by VKImageCache. */
+inline VkMemoryRequirements get_image_memory_requirements(const VkImageCreateInfo &image_info)
+{
+  VKDevice &device = VKBackend::get().device;
+  VkMemoryRequirements2 reqs_out = {.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
+
+  if (device.extensions_get().maintenance4) {
+    VkDeviceImageMemoryRequirements reqs_info = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS,
+        .pNext = nullptr,
+        .pCreateInfo = &image_info,
+        .planeAspect = VK_IMAGE_ASPECT_NONE,
+    };
+    device.functions.vkGetDeviceImageMemoryRequirements(device.vk_handle(), &reqs_info, &reqs_out);
+  }
+  else {
+    VkImage image;
+    VkResult result = vkCreateImage(device.vk_handle(), &image_info, nullptr, &image);
+    UNUSED_VARS(result);
+    BLI_assert(result == VK_SUCCESS);
+
+    VkImageMemoryRequirementsInfo2 reqs_info = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
+        .pNext = nullptr,
+        .image = image,
+    };
+    vkGetImageMemoryRequirements2(device.vk_handle(), &reqs_info, &reqs_out);
+    vkDestroyImage(device.vk_handle(), image, nullptr);
+  }
+
+  return reqs_out.memoryRequirements;
+}
+
+VkImage VKImageCache::get_or_create(const VKImageInfo &info)
+{
+  /* If a bound VkImage handle exists in the map, reset its counter and return it. */
+  VKImageHandle *image_handle = cache_.lookup_ptr(info);
+  if (image_handle) {
+    image_handle->unused_cycles_count = 0;
+    return image_handle->image;
+  }
+
+  VKDevice &device = VKBackend::get().device;
+
+  /* Otherwise, assemble VkImageCreateInfo and create a new image. */
+  VkImage image;
+  VkResult create_result = vkCreateImage(device.vk_handle(), &info.create_info, nullptr, &image);
+  UNUSED_VARS(create_result);
+  BLI_assert(create_result == VK_SUCCESS);
+
+  /* Then, bind to the provided allocation */
+  VkResult bind_result = vmaBindImageMemory2(
+      device.mem_allocator_get(), info.allocation, info.segment.offset, image, nullptr);
+  UNUSED_VARS(bind_result);
+  BLI_assert(bind_result == VK_SUCCESS);
+
+  /* Insert handle into cache. */
+  cache_.add_new(info, {.image = image});
+
+  /* Generate debug label name, if one is needed in the rendergraph. */
+  std::string name_str;
+  if (G.debug & G_DEBUG_GPU) {
+    name_str = fmt::format("VkImageFromPool_{}", cache_.size());
+  }
+
+  /* Register VkImage as resource for synchronization. */
+  device.resources.add_image(image, false, name_str.c_str());
+
+  return image;
+}
+
+void VKImageCache::reset(bool force_reset)
+{
+  /* Iterate cache; add keys of images hitting `unused_cycles_count` to `unused_images`.  */
+  Vector<VKImageInfo> unused_keys;
+  for (decltype(cache_)::MutableItem item : cache_.items()) {
+    if (force_reset == true || item.value.unused_cycles_count >= max_unused_cycles_) {
+      unused_keys.append(item.key);
+    }
+    else {
+      item.value.unused_cycles_count++;
+    }
+  }
+
+  /* Remove unused images from cache, and forward VkImage handles to discard pool.  */
+  VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
+  for (const VKImageInfo &key : unused_keys) {
+    VKImageHandle handle = cache_.pop(key);
+    discard_pool.discard_image(handle.image, VK_NULL_HANDLE);
+  }
+}
+
+std::optional<VKDeviceSegment> VKTexturePool::AllocationHandle::acquire(
     VkMemoryRequirements requirements)
 {
   /* `memoryType` uses 0 as special value to indicate no memory type restrictions.
@@ -382,4 +510,5 @@ void VKTexturePool::log_usage_data()
              static_cast<unsigned long>(current_usage_data_.allocation_count));
 }
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

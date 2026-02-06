@@ -9,9 +9,57 @@
 #pragma once
 
 #include "gpu_texture_pool_private.hh"
+
+#include "vk_texture.hh"
+
 #include <list>
 
 namespace blender::gpu {
+
+/* Hashable struct describing a segment of allocated memory.. */
+struct VKDeviceSegment {
+  VkDeviceSize offset;
+  VkDeviceSize size;
+
+  uint64_t hash() const;
+  bool operator==(const VKDeviceSegment &) const = default;
+};
+
+/* Hashable struct containing key information to identify or create a VkImage handle. */
+struct VKImageInfo {
+  VkImageCreateInfo create_info;
+  VmaAllocation allocation;
+  VKDeviceSegment segment;
+
+  uint64_t hash() const;
+  bool operator==(const VKImageInfo &) const;
+};
+
+/* Map to VkImage handles bound to segments of specific allocations. */
+class VKImageCache {
+  /* Unused VkImages are eventually passed to discard pool, unless they are reused. */
+  static constexpr int max_unused_cycles_ = 8;
+
+  struct VKImageHandle {
+    VkImage image;
+    int unused_cycles_count = 0;
+  };
+
+  Map<VKImageInfo, VKImageHandle> cache_;
+
+ public:
+  /* Given key information identifying a particular VkImage, get or create it. */
+  VkImage get_or_create(const VKImageInfo &info);
+
+  /* Remove unused images  and send them to the discard pool.
+   * If `force_free` is true, removes all images in the cache. */
+  void reset(bool force_reset = false);
+
+  uint64_t size() const
+  {
+    return cache_.size();
+  }
+};
 
 class VKTexturePool : public TexturePool {
   /* Performed allocation size, current is 64mb. */
