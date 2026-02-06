@@ -542,7 +542,7 @@ static void IMAGE_GGT_compositor_box_mask(wmGizmoGroupType *gzgt)
   gzgt->name = "Box Mask Node Widget";
   gzgt->idname = "IMAGE_GGT_compositor_box_mask";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
 
   gzgt->poll = nodes::gizmos::WIDGETGROUP_node_box_mask_poll_space_image;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_box_mask_setup;
@@ -556,7 +556,7 @@ static void IMAGE_GGT_compositor_crop(wmGizmoGroupType *gzgt)
   gzgt->name = "Crop Node Widget";
   gzgt->idname = "IMAGE_GGT_compositor_crop";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
 
   gzgt->poll = nodes::gizmos::WIDGETGROUP_node_crop_poll_space_image;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_crop_setup;
@@ -570,7 +570,7 @@ static void IMAGE_GGT_compositor_glare(wmGizmoGroupType *gzgt)
   gzgt->name = "Glare Node Widget";
   gzgt->idname = "IMAGE_GGT_compositor_glare";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
 
   gzgt->poll = nodes::gizmos::WIDGETGROUP_node_glare_poll_space_image;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_glare_setup;
@@ -584,7 +584,7 @@ static void IMAGE_GGT_compositor_corner_pin(wmGizmoGroupType *gzgt)
   gzgt->name = "Glare Node Widget";
   gzgt->idname = "IMAGE_GGT_compositor_corner_pin";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
 
   gzgt->poll = nodes::gizmos::WIDGETGROUP_node_corner_pin_poll_space_image;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_corner_pin_setup;
@@ -598,7 +598,7 @@ static void IMAGE_GGT_compositor_ellipse_mask(wmGizmoGroupType *gzgt)
   gzgt->name = "Ellipse Mask Node Widget";
   gzgt->idname = "IMAGE_GGT_compositor_ellipse_mask";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
 
   gzgt->poll = nodes::gizmos::WIDGETGROUP_node_ellipse_mask_poll_space_image;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_ellipse_mask_setup;
@@ -612,7 +612,7 @@ static void IMAGE_GGT_compositor_split(wmGizmoGroupType *gzgt)
   gzgt->name = "Ellipse Mask Node Widget";
   gzgt->idname = "IMAGE_GGT_compositor_split";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
 
   gzgt->poll = nodes::gizmos::WIDGETGROUP_node_split_poll_space_image;
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_split_setup;
@@ -930,7 +930,6 @@ static void image_main_region_listener(const wmRegionListenerParams *params)
       }
       break;
     case NC_NODE:
-      // todo(habib): fix gizmo disappearing when panning or zooming using navigate gizmo
       if (ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
         WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
         ED_region_tag_redraw(region);
