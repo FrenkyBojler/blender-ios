@@ -1521,7 +1521,6 @@ static void rna_def_attribute_string(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "StringAttributeValue", nullptr);
   RNA_def_struct_ui_text(srna, "String Attribute Value", "String value in geometry attribute");
   prop = RNA_def_property(srna, "value", PROP_STRING, PROP_BYTESTRING);
-  RNA_def_property_string_sdna(prop, nullptr, "s");
   RNA_def_property_string_funcs(prop,
                                 "rna_StringAttributeValue_s_get",
                                 "rna_StringAttributeValue_s_length",

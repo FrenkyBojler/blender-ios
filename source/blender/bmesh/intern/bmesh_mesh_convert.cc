@@ -203,7 +203,6 @@ struct MeshToBMeshLayerInfo {
   const void *mesh_data;
   /** The size of every custom data element. */
   size_t mesh_stride;
-  // TODO: Store copy function here
 };
 
 /**
@@ -269,9 +268,10 @@ static void mesh_attributes_copy_to_bmesh_block(CustomData &data,
   CustomData_bmesh_alloc_block(&data, &header.data);
   for (const MeshToBMeshLayerInfo &info : copy_info) {
     if (info.mesh_data) {
-      CustomData_data_copy_value(info.type,
-                                 POINTER_OFFSET(info.mesh_data, info.mesh_stride * mesh_index),
-                                 POINTER_OFFSET(header.data, info.bmesh_offset));
+      CustomData_data_copy_value_mesh_to_bmesh(
+          info.type,
+          POINTER_OFFSET(info.mesh_data, info.mesh_stride * mesh_index),
+          POINTER_OFFSET(header.data, info.bmesh_offset));
     }
     else {
       CustomData_data_set_default_value(info.type, POINTER_OFFSET(header.data, info.bmesh_offset));
@@ -1355,9 +1355,10 @@ static void bmesh_block_copy_to_mesh_attributes(const Span<BMeshToMeshLayerInfo>
                                                 const void *block)
 {
   for (const BMeshToMeshLayerInfo &info : copy_info) {
-    CustomData_data_copy_value(info.type,
-                               POINTER_OFFSET(block, info.bmesh_offset),
-                               POINTER_OFFSET(info.mesh_data, info.elem_size * mesh_index));
+    CustomData_data_copy_value_bmesh_to_mesh(
+        info.type,
+        POINTER_OFFSET(block, info.bmesh_offset),
+        POINTER_OFFSET(info.mesh_data, info.elem_size * mesh_index));
   }
 }
 

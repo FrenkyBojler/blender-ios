@@ -26,8 +26,6 @@
 #include "spreadsheet_data_source_geometry.hh"
 #include "spreadsheet_layout.hh"
 
-#include "DNA_meshdata_types.h"
-
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 

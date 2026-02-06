@@ -520,10 +520,6 @@ void mesh_calc_edges(Mesh &mesh,
         attr.assign_data(std::move(dst_data));
         break;
       }
-      case AttrStorageType::StringOffsets: {
-        /* Unsupported for now. */
-        break;
-      }
     }
   }
 

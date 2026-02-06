@@ -44,9 +44,8 @@ enum class AttrStorageType : int8_t {
   Array = 0,
   /** A single value for the whole attribute. */
   Single = 1,
-  /** #Attribute::StringOffsets. */
-  StringOffsets = 2,
 };
+constexpr int8_t ATTR_STORAGE_TYPE_STRING_OFFSETS = 3;
 
 enum class AttrType : int16_t {
   Bool = 0,

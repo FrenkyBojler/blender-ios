@@ -141,6 +141,13 @@ bool CustomData_bmesh_has_free(const CustomData *data);
 void CustomData_data_copy_value(eCustomDataType type, const void *source, void *dest);
 void CustomData_data_set_default_value(eCustomDataType type, void *elem);
 
+void CustomData_data_copy_value_bmesh_to_mesh(eCustomDataType type,
+                                              const void *source,
+                                              void *dest);
+void CustomData_data_copy_value_mesh_to_bmesh(eCustomDataType type,
+                                              const void *source,
+                                              void *dest);
+
 /**
  * Mixes the "value" (e.g. `uv_map` UV or `mloopcol` colors) from one block into
  * another, while not overwriting anything else (e.g. flags).
