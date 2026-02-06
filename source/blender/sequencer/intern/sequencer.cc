@@ -212,8 +212,7 @@ static void seq_strip_free_ex(Scene *scene,
     if (strip->runtime->scene_sound &&
         ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SCENE, STRIP_TYPE_META))
     {
-      BKE_sound_remove_sound(strip->runtime->last_parent_sound_scene,
-                             strip->runtime->scene_sound);
+      BKE_sound_remove_sound(strip->runtime->last_parent_sound_scene, strip->runtime->scene_sound);
       strip->runtime->scene_sound.reset();
     }
   }

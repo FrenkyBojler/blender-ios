@@ -902,7 +902,6 @@ AUD_Sequence BKE_strip_get_parent_sound_scene(Strip *strip, Scene *scene)
   Strip *parent_strip = blender::seq::lookup_meta_by_strip(scene->ed, strip);
 
   if (parent_strip != nullptr) {
-    /* Add a new meta_scene_sound when there is none. */
     if (parent_strip->runtime->meta_scene_sound == nullptr) {
       aud::Specs specs;
       specs.channels = aud::CHANNELS_STEREO;
@@ -924,14 +923,12 @@ AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
     return nullptr;
   }
 
-  Editing *ed = scene->ed;
-
   int startframe = strip->left_handle();
   int endframe = strip->right_handle(scene);
   int frameskip = strip->startofs + strip->anim_startofs;
 
   const double fps = scene->frames_per_second();
-  const Strip *parent_strip = blender::seq::lookup_meta_by_strip(ed, strip);
+  const Strip *parent_strip = blender::seq::lookup_meta_by_strip(scene->ed, strip);
   AUD_Sequence parent_sound_scene = BKE_strip_get_parent_sound_scene(strip, scene);
   AUD_Sound add_handle = BKE_get_sound_hanlde(strip);
   double offset_time = 0.0f;
