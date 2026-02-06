@@ -25,6 +25,8 @@ enum class FitMethod {
  * \param src_curves: The input curves.
  * \param curve_selection: A selection of curves to fit. The selected curves will be replaced by
  * the fitted bézier curves and the unselected curves are copied to the output geometry.
+ * \param attributes: A set of point attribute data spans. The attribute data is treated as
+ * additional dimensions of the curve fitting. Can only be of a floating-point type.
  * \param thresholds: A error threshold (fit distance) for each input curve. The fitted curve
  * should be within this distance.
  * \param corners: Boolean value for each input point. When this is true, the point is treated as a
@@ -32,6 +34,14 @@ enum class FitMethod {
  * will be "free", resulting in a sharp corner.
  * \param method: The fitting algorithm to use. See #FitMethod.
  */
+bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
+    const bke::CurvesGeometry &src_curves,
+    const IndexMask &curve_selection,
+    const Span<GMutableSpan> attributes,
+    const VArray<float> &thresholds,
+    const VArray<bool> &corners,
+    FitMethod method,
+    const bke::AttributeFilter &attribute_filter);
 bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_curves,
                                               const IndexMask &curve_selection,
                                               const VArray<float> &thresholds,

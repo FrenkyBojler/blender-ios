@@ -19,12 +19,40 @@ extern "C" {
 
 namespace geometry {
 
-bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_curves,
-                                              const IndexMask &curve_selection,
-                                              const VArray<float> &thresholds,
-                                              const VArray<bool> &corners,
-                                              const FitMethod method,
-                                              const bke::AttributeFilter &attribute_filter)
+static std::optional<int> attr_type_dimensions(const bke::AttrType type)
+{
+  switch (type) {
+    case bke::AttrType::Float:
+      return 1;
+    case bke::AttrType::Float2:
+      return 2;
+    case bke::AttrType::Float3:
+      return 3;
+    case bke::AttrType::ColorFloat:
+      return 4;
+    case bke::AttrType::Bool:
+    case bke::AttrType::Int8:
+    case bke::AttrType::Int16_2D:
+    case bke::AttrType::Int32:
+    case bke::AttrType::Int32_2D:
+    case bke::AttrType::Float4x4:
+    case bke::AttrType::ColorByte:
+    case bke::AttrType::Quaternion:
+    case bke::AttrType::String:
+      return {};
+    default:
+      return {};
+  }
+}
+
+bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
+    const bke::CurvesGeometry &src_curves,
+    const IndexMask &curve_selection,
+    const Span<GMutableSpan> attributes,
+    const VArray<float> &thresholds,
+    const VArray<bool> &corners,
+    const FitMethod method,
+    const bke::AttributeFilter &attribute_filter)
 {
   if (curve_selection.is_empty()) {
     return src_curves;
@@ -33,9 +61,54 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   BLI_assert(thresholds.size() == src_curves.curves_num());
   BLI_assert(corners.size() == src_curves.points_num());
 
+  /* Add one for the positions attribute and one for the final offset. */
+  Array<int> num_dimensions_per_attribute(attributes.size() + 1 + 1);
+  num_dimensions_per_attribute[0] = 3;
+  for (const int i : attributes.index_range()) {
+    const GSpan attribute = attributes[i];
+    BLI_assert(attribute.size() == src_curves.points_num());
+
+    const bke::AttrType type = bke::cpp_type_to_attribute_type(attribute.type());
+    const std::optional<int> dimensions = attr_type_dimensions(type);
+    BLI_assert_msg(dimensions.has_value(), "Unexpected attribute type!");
+    if (!dimensions.has_value()) {
+      /* Fall back to source curves. */
+      return src_curves;
+    }
+    num_dimensions_per_attribute[i + 1] = dimensions.value();
+  }
   const OffsetIndices src_points_by_curve = src_curves.offsets();
   const Span<float3> src_positions = src_curves.positions();
   const VArray<bool> src_cyclic = src_curves.cyclic();
+
+  const OffsetIndices dimensions_by_attribute = offset_indices::accumulate_counts_to_offsets(
+      num_dimensions_per_attribute.as_mutable_span());
+  const int total_dimensions = dimensions_by_attribute.total_size();
+  Array<float> attribute_data(total_dimensions * src_curves.points_num());
+
+  auto write_interleaved_attribute_data = [&](const GSpan src_attribute,
+                                              const IndexRange dimensions) {
+    curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
+      threading::parallel_for(src_points_by_curve[curve_i], 8192, [&](const IndexRange range) {
+        for (const int point_i : range) {
+          const Span<float> values(static_cast<const float *>(src_attribute[point_i]),
+                                   dimensions.size());
+          for (const int dim_i : dimensions.index_range()) {
+            const int dim = dimensions[dim_i];
+            const int index = point_i * total_dimensions + dim;
+            attribute_data[index] = values[dim_i];
+          }
+        }
+      });
+    });
+  };
+
+  write_interleaved_attribute_data(src_positions, dimensions_by_attribute[0]);
+  for (const int i : attributes.index_range()) {
+    const GSpan attribute = attributes[i];
+    const IndexRange dimensions = dimensions_by_attribute[i + 1];
+    write_interleaved_attribute_data(attribute, dimensions);
+  }
 
   bke::CurvesGeometry dst_curves = bke::curves::copy_only_curve_domain(src_curves);
   BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &src_curves.vertex_group_names);
@@ -50,7 +123,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   MutableSpan<int8_t> dst_curve_types = dst_curves.curve_types_for_write();
 
   /* NOTE: These spans own the data from the curve fit C-API. */
-  Array<MutableSpan<float3>> cubic_array_per_curve(curve_selection.size());
+  Array<MutableSpan<float>> cubic_array_per_curve(curve_selection.size());
   Array<MutableSpan<int>> corner_indices_per_curve(curve_selection.size());
   Array<MutableSpan<int>> original_indices_per_curve(curve_selection.size());
 
@@ -62,7 +135,8 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
       dst_curve_types[curve_i] = CURVE_TYPE_POLY;
       return;
     }
-    const Span<float3> curve_positions = src_positions.slice(points);
+    const Span<float> curve_attribute_data = attribute_data.as_span().slice(
+        points.start() * total_dimensions, points.size() * total_dimensions);
     const bool is_cyclic = src_cyclic[curve_i];
     const float epsilon = thresholds[curve_i];
 
@@ -84,9 +158,9 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
     uint32_t corner_index_array_size = 0;
     int error = 1;
     if (method == FitMethod::Split) {
-      error = curve_fit_cubic_to_points_fl(curve_positions.cast<float>().data(),
+      error = curve_fit_cubic_to_points_fl(curve_attribute_data.data(),
                                            points.size(),
-                                           3,
+                                           total_dimensions,
                                            epsilon,
                                            flag,
                                            src_corners_ptr,
@@ -98,9 +172,9 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
                                            &corner_index_array_size);
     }
     else if (method == FitMethod::Refit) {
-      error = curve_fit_cubic_to_points_refit_fl(curve_positions.cast<float>().data(),
+      error = curve_fit_cubic_to_points_refit_fl(curve_attribute_data.data(),
                                                  points.size(),
-                                                 3,
+                                                 total_dimensions,
                                                  epsilon,
                                                  flag,
                                                  src_corners_ptr,
@@ -129,8 +203,8 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
     dst_curve_sizes[curve_i] = dst_points_num;
     dst_curve_types[curve_i] = CURVE_TYPE_BEZIER;
 
-    cubic_array_per_curve[pos] = MutableSpan<float3>(reinterpret_cast<float3 *>(cubic_array),
-                                                     dst_points_num * 3);
+    cubic_array_per_curve[pos] = MutableSpan<float>(reinterpret_cast<float *>(cubic_array),
+                                                    dst_points_num * 3 * total_dimensions);
     corner_indices_per_curve[pos] = MutableSpan<int>(reinterpret_cast<int *>(corner_index_array),
                                                      corner_index_array_size);
     original_indices_per_curve[pos] = MutableSpan<int>(reinterpret_cast<int *>(orig_index_map),
@@ -216,16 +290,18 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
       return;
     }
 
-    const Span<float3> cubic_array = cubic_array_per_curve[pos];
-    BLI_assert(dst_points.size() * 3 == cubic_array.size());
+    /* Only extract the position attribute from the cubic array. Discard the other attribute
+     * dimensions. */
+    const Span<float> cubic_array = cubic_array_per_curve[pos];
+    BLI_assert(dst_points.size() * 3 * total_dimensions == cubic_array.size());
     MutableSpan<float3> left_handles = dst_handles_left.slice(dst_points);
     MutableSpan<float3> right_handles = dst_handles_right.slice(dst_points);
     threading::parallel_for(dst_points.index_range(), 8192, [&](const IndexRange range) {
       for (const int i : range) {
         const int index = i * 3;
-        positions[i] = cubic_array[index + 1];
-        left_handles[i] = cubic_array[index];
-        right_handles[i] = cubic_array[index + 2];
+        positions[i] = &cubic_array[(index + 1) * total_dimensions];
+        left_handles[i] = &cubic_array[index * total_dimensions];
+        right_handles[i] = &cubic_array[(index + 2) * total_dimensions];
       }
     });
 
@@ -257,7 +333,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
 
   /* Free all the data from the C-API
    * Note: This data is allocated inside the library and has to be freed with `free`. */
-  for (MutableSpan<float3> cubic_array : cubic_array_per_curve) {
+  for (MutableSpan<float> cubic_array : cubic_array_per_curve) {
     free(cubic_array.data());
   }
   for (MutableSpan<int> corner_indices : corner_indices_per_curve) {
@@ -268,6 +344,17 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   }
 
   return dst_curves;
+}
+
+bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_curves,
+                                              const IndexMask &curve_selection,
+                                              const VArray<float> &thresholds,
+                                              const VArray<bool> &corners,
+                                              const FitMethod method,
+                                              const bke::AttributeFilter &attribute_filter)
+{
+  return fit_poly_curve_attributes_to_bezier_curves(
+      src_curves, curve_selection, {}, thresholds, corners, method, attribute_filter);
 }
 
 }  // namespace geometry
