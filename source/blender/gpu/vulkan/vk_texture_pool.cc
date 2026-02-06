@@ -124,9 +124,17 @@ VkImage VKImageCache::get_or_create(const VKImageInfo &info)
   }
 
   /* Register VkImage as resource for synchronization. */
-  device.resources.add_image(image, false, name_str.c_str());
+  device.resources.add_aliased_image(image, false, name_str.c_str());
 
   return image;
+}
+
+void VKImageCache::reset_unused_cycles_count(const VKImageInfo &info)
+{
+  VKImageHandle *image_handle = cache_.lookup_ptr(info);
+  BLI_assert_msg(image_handle,
+                 "Uninitialized VkImage passed to VKImageCache::reset_unused_cycles_count()");
+  image_handle->unused_cycles_count = 0;
 }
 
 void VKImageCache::reset(bool force_reset)
@@ -296,10 +304,8 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
     name_str = name ? name : fmt::format("TexFromPool_{}", acquired_.size());
   }
 
-  /* Allocate VKTexture return object, encapsulated in TextureHandle so we can
-   * later release to the right allocation in `release_texture`. */
-  TextureHandle texture_handle;
-  VKTexture *texture = texture_handle.texture = new VKTexture(name);
+  /* Initialize VKTexture return object. */
+  VKTexture *texture = new VKTexture(name);
   texture->w_ = extent.x;
   texture->h_ = extent.y;
   texture->d_ = 0;
@@ -337,12 +343,15 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   };
   VkMemoryRequirements requirements = get_image_memory_requirements(create_info);
 
+  /* Info object describing the VkImage and its backing allocation. */
+  VKImageInfo image_info = {.create_info = create_info};
+
   /* Find a compatible segment of allocated memory. */
   for (AllocationHandle allocation_handle : allocations_) {
     std::optional<VKDeviceSegment> segment_opt = allocation_handle.acquire(requirements);
     if (segment_opt) {
-      texture_handle.allocation = allocation_handle.allocation;
-      texture_handle.segment = segment_opt.value();
+      image_info.allocation = allocation_handle.allocation;
+      image_info.segment = segment_opt.value();
       allocation_handle.unused_cycles_count = 0;
       allocations_.add_overwrite(allocation_handle);
       break;
@@ -350,7 +359,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   }
 
   /* If no compatible region was found, allocate new memory. */
-  if (texture_handle.allocation == VK_NULL_HANDLE) {
+  if (image_info.allocation == VK_NULL_HANDLE) {
     requirements.size = std::max(allocation_size, requirements.size);
 
     AllocationHandle handle;
@@ -358,8 +367,8 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
 
     std::optional<VKDeviceSegment> segment_opt = handle.acquire(requirements);
     if (segment_opt) {
-      texture_handle.allocation = handle.allocation;
-      texture_handle.segment = segment_opt.value();
+      image_info.allocation = handle.allocation;
+      image_info.segment = segment_opt.value();
       allocations_.add(handle);
     }
     else {
@@ -368,22 +377,19 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   }
 
   /* Get or create a VkImage handle through VKImageCache and assign it to the texture. */
-  VKImageInfo image_cache_info = {
-      .create_info = create_info,
-      .allocation = texture_handle.allocation,
-      .segment = texture_handle.segment,
-  };
-  texture->vk_image_ = image_cache_.get_or_create(image_cache_info);
+  texture->vk_image_ = image_cache_.get_or_create(image_info);
   debug::object_label(texture->vk_image_, texture->name_);
 
   if (G.debug & G_DEBUG_GPU) {
     /* Accumulate usage data for debug log. */
-    current_usage_data_.acquired_segment_size += texture_handle.segment.size;
+    current_usage_data_.acquired_segment_size += image_info.segment.size;
     current_usage_data_.acquired_segment_size_max = std::max(
         current_usage_data_.acquired_segment_size_max, current_usage_data_.acquired_segment_size);
   }
 
-  acquired_.add(texture_handle);
+  /* Track acquired texture and its backing image. */
+  acquired_.add(TextureHandle{.texture = texture, .image_info = image_info});
+
   return wrap(texture);
 }
 
@@ -393,14 +399,15 @@ void VKTexturePool::release_texture(Texture *tex)
                  "Unacquired texture passed to VKTexturePool::offset_users_count()");
 
   TextureHandle texture_handle = acquired_.lookup_key({unwrap(tex)});
-  AllocationHandle allocation_handle = allocations_.lookup_key({texture_handle.allocation});
+  VKImageInfo image_info = texture_handle.image_info;
+  AllocationHandle allocation_handle = allocations_.lookup_key({image_info.allocation});
 
   if (G.debug & G_DEBUG_GPU) {
-    current_usage_data_.acquired_segment_size -= texture_handle.segment.size;
+    current_usage_data_.acquired_segment_size -= image_info.segment.size;
   }
 
   /* Release acquired segment back to allocation. */
-  allocation_handle.release(texture_handle.segment);
+  allocation_handle.release(image_info.segment);
   allocations_.add_overwrite(allocation_handle);
 
   /* Delete texture and remove it from the acquired set.
@@ -420,15 +427,17 @@ void VKTexturePool::offset_users_count(Texture *tex, int offset)
 
 void VKTexturePool::reset(bool force_free)
 {
-#ifndef NDEBUG
-  /* Iterate acquired textures, and ensure the internal counter equals 0; otherwise
-   * this indicates a missing `::retain()` or `::release()`. */
+  /* Iterate acquired textures. */
   for (const TextureHandle &tex : acquired_) {
+    /* Reset the texture's backing image's unused cycles counter in the VKImageCache.  */
+    image_cache_.reset_unused_cycles_count(tex.image_info);
+
+    /* Ensure the internal user counter equals 0; otherwise this indicates
+     * a missing `::retain()` or `::release()`. */
     BLI_assert_msg(tex.users_count == 0,
                    "Missing texture release/retain. Likely TextureFromPool::release(), "
                    "TextureFromPool::retain() or TexturePool::release_texture().");
   }
-#endif
 
   /* Iterate allocations; gather handles hitting `unused_cycles_count`. */
   Vector<AllocationHandle> unused_allocations;
@@ -465,7 +474,7 @@ void VKTexturePool::reset(bool force_free)
     previous_usage_data_ = current_usage_data_;
     current_usage_data_ = {};
     for (const TextureHandle &tex : acquired_) {
-      current_usage_data_.acquired_segment_size += tex.segment.size;
+      current_usage_data_.acquired_segment_size += tex.image_info.segment.size;
     }
   }
 }

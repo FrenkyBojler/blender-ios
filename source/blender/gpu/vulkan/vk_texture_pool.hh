@@ -55,6 +55,9 @@ class VKImageCache {
    * If `force_free` is true, removes all images in the cache. */
   void reset(bool force_reset = false);
 
+  /* Reset VKImageHandle internal counter. */
+  void reset_unused_cycles_count(const VKImageInfo &info);
+
   uint64_t size() const
   {
     return cache_.size();
@@ -110,12 +113,11 @@ class VKTexturePool : public TexturePool {
     }
   };
 
-  /* Struct to store an acquired texture. The texture image has a backing allocation,
-   * and is bound to a segment of this allocation. */
+  /* Struct to manage an acquired texture. The texture has a backing image in
+   * the VKimageCache, which is bound to a segment of an allocation. */
   struct TextureHandle {
     VKTexture *texture = nullptr;
-    VmaAllocation allocation = VK_NULL_HANDLE;
-    VKDeviceSegment segment = {};
+    VKImageInfo image_info;
 
     /* Counter to track texture acquire/retain mismatches in `acquire_`.  */
     int users_count = 1;
