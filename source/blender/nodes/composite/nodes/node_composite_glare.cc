@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup cmpnodes
- */
-
 #include <array>
 #include <cmath>
 #include <complex>
@@ -19,7 +15,6 @@
 #endif
 
 #include "BLI_array.hh"
-#include "BLI_assert.h"
 #include "BLI_fftw.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_angle_types.hh"
@@ -29,6 +24,8 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_noise.hh"
 #include "BLI_task.hh"
+
+#include "BKE_node_runtime.hh"
 
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
@@ -87,7 +84,7 @@ static const EnumPropertyItem kernel_data_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
@@ -245,10 +242,10 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .compositor_realization_mode(CompositorInputRealizationMode::Transforms);
 }
 
-static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
+static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, but kept for forward compatibility. */
-  NodeGlare *ndg = MEM_callocN<NodeGlare>(__func__);
+  NodeGlare *ndg = MEM_new<NodeGlare>(__func__);
   node->storage = ndg;
 }
 
@@ -258,7 +255,7 @@ class SocketSearchOp {
   void operator()(LinkSearchOpParams &params)
   {
     bNode &node = params.add_node("CompositorNodeGlare");
-    bNodeSocket &type_socket = *blender::bke::node_find_socket(node, SOCK_IN, "Type");
+    bNodeSocket &type_socket = *bke::node_find_socket(node, SOCK_IN, "Type");
     type_socket.default_value_typed<bNodeSocketValueMenu>()->value = this->type;
     params.update_and_connect_available_socket(node, "Image");
   }
@@ -542,23 +539,25 @@ class GlareOperation : public NodeOperation {
 
   float get_threshold()
   {
-    return math::max(0.0f, this->get_input("Highlights Threshold").get_single_value_default(1.0f));
+    return math::max(0.0f,
+                     this->get_input("Highlights Threshold").get_single_value_default<float>());
   }
 
   float get_highlights_smoothness()
   {
     return math::max(0.0f,
-                     this->get_input("Highlights Smoothness").get_single_value_default(0.1f));
+                     this->get_input("Highlights Smoothness").get_single_value_default<float>());
   }
 
   bool get_clamp_highlights()
   {
-    return this->get_input("Clamp Highlights").get_single_value_default(false);
+    return this->get_input("Clamp Highlights").get_single_value_default<bool>();
   }
 
   float get_max_highlights()
   {
-    return math::max(0.0f, this->get_input("Maximum Highlights").get_single_value_default(0.0f));
+    return math::max(0.0f,
+                     this->get_input("Maximum Highlights").get_single_value_default<float>());
   }
 
   /* Writes the given input highlights by upsampling it using bilinear interpolation to match the
@@ -1103,7 +1102,7 @@ class GlareOperation : public NodeOperation {
 
   bool get_diagonal_star()
   {
-    return this->get_input("Diagonal Star").get_single_value_default(true);
+    return this->get_input("Diagonal Star").get_single_value_default<bool>();
   }
 
   /* --------------
@@ -1382,12 +1381,12 @@ class GlareOperation : public NodeOperation {
 
   int get_number_of_streaks()
   {
-    return math::clamp(this->get_input("Streaks").get_single_value_default(4), 1, 16);
+    return math::clamp(this->get_input("Streaks").get_single_value_default<int>(), 1, 16);
   }
 
   float get_streaks_angle()
   {
-    return this->get_input("Streaks Angle").get_single_value_default(0.0f);
+    return this->get_input("Streaks Angle").get_single_value_default<float>();
   }
 
   /* ------------
@@ -1549,11 +1548,14 @@ class GlareOperation : public NodeOperation {
                              highlights,
                              small_ghost_result,
                              float2(get_small_ghost_radius()),
-                             R_FILTER_GAUSS);
+                             math::FilterKernel::Gauss);
 
     Result big_ghost_result = context().create_result(ResultType::Color);
-    symmetric_separable_blur(
-        context(), highlights, big_ghost_result, float2(get_big_ghost_radius()), R_FILTER_GAUSS);
+    symmetric_separable_blur(context(),
+                             highlights,
+                             big_ghost_result,
+                             float2(get_big_ghost_radius()),
+                             math::FilterKernel::Gauss);
 
     Result base_ghost_result = context().create_result(ResultType::Color);
     if (this->context().use_gpu()) {
@@ -2216,7 +2218,7 @@ class GlareOperation : public NodeOperation {
     if (this->context().use_gpu()) {
       GPU_texture_update(fog_glow_result, GPU_DATA_FLOAT, output);
       /* CPU writes to the output directly, so no need to free it. */
-      MEM_freeN(output);
+      MEM_delete(output);
     }
 
     fftwf_destroy_plan(forward_plan);
@@ -2411,7 +2413,7 @@ class GlareOperation : public NodeOperation {
 
   float get_jitter_factor()
   {
-    return math::clamp(this->get_input("Jitter").get_single_value_default(0.0f), 0.0f, 1.0f);
+    return math::clamp(this->get_input("Jitter").get_single_value_default<float>(), 0.0f, 1.0f);
   }
 
   /* ----------
@@ -2526,10 +2528,8 @@ class GlareOperation : public NodeOperation {
 
   KernelDataType get_kernel_data_type()
   {
-    const Result &input = this->get_input("Kernel Data Type");
-    const MenuValue default_menu_value = MenuValue(KernelDataType::Float);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<KernelDataType>(menu_value.value);
+    return KernelDataType(
+        this->get_input("Kernel Data Type").get_single_value_default<MenuValue>().value);
   }
 
   /* ----------
@@ -2714,51 +2714,48 @@ class GlareOperation : public NodeOperation {
 
   CMPNodeGlareType get_type()
   {
-    const Result &input = this->get_input("Type");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_GLARE_STREAKS);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<CMPNodeGlareType>(menu_value.value);
+    return CMPNodeGlareType(this->get_input("Type").get_single_value_default<MenuValue>().value);
   }
 
   float get_strength()
   {
-    return math::max(0.0f, this->get_input("Strength").get_single_value_default(1.0f));
+    return math::max(0.0f, this->get_input("Strength").get_single_value_default<float>());
   }
 
   float get_saturation()
   {
-    return math::max(0.0f, this->get_input("Saturation").get_single_value_default(1.0f));
+    return math::max(0.0f, this->get_input("Saturation").get_single_value_default<float>());
   }
 
   float3 get_tint()
   {
-    return float4(this->get_input("Tint").get_single_value_default(Color(1.0f))).xyz();
+    return float4(this->get_input("Tint").get_single_value_default<Color>()).xyz();
   }
 
   float get_size()
   {
-    return math::clamp(this->get_input("Size").get_single_value_default(0.5f), 0.0f, 1.0f);
+    return math::clamp(this->get_input("Size").get_single_value_default<float>(), 0.0f, 1.0f);
   }
 
   int get_number_of_iterations()
   {
-    return math::clamp(this->get_input("Iterations").get_single_value_default(3), 2, 5);
+    return math::clamp(this->get_input("Iterations").get_single_value_default<int>(), 2, 5);
   }
 
   float get_fade()
   {
-    return math::clamp(this->get_input("Fade").get_single_value_default(0.9f), 0.75f, 1.0f);
+    return math::clamp(this->get_input("Fade").get_single_value_default<float>(), 0.75f, 1.0f);
   }
 
   float get_color_modulation()
   {
     return math::clamp(
-        this->get_input("Color Modulation").get_single_value_default(0.25f), 0.0f, 1.0f);
+        this->get_input("Color Modulation").get_single_value_default<float>(), 0.0f, 1.0f);
   }
 
   float2 get_sun_position()
   {
-    return this->get_input("Sun Position").get_single_value_default(float2(0.5f));
+    return this->get_input("Sun Position").get_single_value_default<float2>();
   }
 
   /* As a performance optimization, the operation can compute the glare on a fraction of the input
@@ -2787,38 +2784,34 @@ class GlareOperation : public NodeOperation {
 
   CMPNodeGlareQuality get_quality()
   {
-    const Result &input = this->get_input("Quality");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_GLARE_QUALITY_MEDIUM);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<CMPNodeGlareQuality>(menu_value.value);
+    return CMPNodeGlareQuality(
+        this->get_input("Quality").get_single_value_default<MenuValue>().value);
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new GlareOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_glare_cc
-
-static void register_node_type_cmp_glare()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_composite_glare_cc;
-
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeGlare", CMP_NODE_GLARE);
   ntype.ui_name = "Glare";
   ntype.ui_description = "Add lens flares, fog and glows around bright parts of the image";
   ntype.enum_name_legacy = "GLARE";
   ntype.nclass = NODE_CLASS_OP_FILTER;
-  ntype.declare = file_ns::cmp_node_glare_declare;
-  ntype.initfunc = file_ns::node_composit_init_glare;
-  ntype.gather_link_search_ops = file_ns::gather_link_searches;
-  blender::bke::node_type_storage(
+  ntype.declare = node_declare;
+  ntype.initfunc = node_init;
+  ntype.gather_link_search_ops = gather_link_searches;
+  bke::node_type_storage(
       ntype, "NodeGlare", node_free_standard_storage, node_copy_standard_storage);
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.get_compositor_operation = get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_glare)
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_composite_glare_cc

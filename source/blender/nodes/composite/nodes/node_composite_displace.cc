@@ -26,7 +26,7 @@
 
 namespace blender::nodes::node_composite_displace_cc {
 
-static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
@@ -60,10 +60,10 @@ static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
       .optional_label();
 }
 
-static void cmp_node_init_displace(bNodeTree * /*ntree*/, bNode *node)
+static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, kept for forward compatibility. */
-  NodeDisplaceData *data = MEM_callocN<NodeDisplaceData>(__func__);
+  NodeDisplaceData *data = MEM_new<NodeDisplaceData>(__func__);
   node->storage = data;
 }
 
@@ -270,10 +270,8 @@ class DisplaceOperation : public NodeOperation {
 
   Interpolation get_interpolation()
   {
-    const Result &input = this->get_input("Interpolation");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_INTERPOLATION_BILINEAR);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPNodeInterpolation interpolation = static_cast<CMPNodeInterpolation>(menu_value.value);
+    const CMPNodeInterpolation interpolation = static_cast<CMPNodeInterpolation>(
+        this->get_input("Interpolation").get_single_value_default<MenuValue>().value);
     switch (interpolation) {
       case CMP_NODE_INTERPOLATION_NEAREST:
         return Interpolation::Nearest;
@@ -290,10 +288,8 @@ class DisplaceOperation : public NodeOperation {
 
   Extension get_extension_mode_x()
   {
-    const Result &input = this->get_input("Extension X");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPExtensionMode extension_x = static_cast<CMPExtensionMode>(menu_value.value);
+    const CMPExtensionMode extension_x = static_cast<CMPExtensionMode>(
+        this->get_input("Extension X").get_single_value_default<MenuValue>().value);
     switch (extension_x) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
         return Extension::Clip;
@@ -308,10 +304,8 @@ class DisplaceOperation : public NodeOperation {
 
   Extension get_extension_mode_y()
   {
-    const Result &input = this->get_input("Extension Y");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPExtensionMode extension_y = static_cast<CMPExtensionMode>(menu_value.value);
+    const CMPExtensionMode extension_y = static_cast<CMPExtensionMode>(
+        this->get_input("Extension Y").get_single_value_default<MenuValue>().value);
     switch (extension_y) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
         return Extension::Clip;
@@ -325,30 +319,28 @@ class DisplaceOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new DisplaceOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_displace_cc
-
-static void register_node_type_cmp_displace()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_composite_displace_cc;
-
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeDisplace", CMP_NODE_DISPLACE);
   ntype.ui_name = "Displace";
   ntype.ui_description = "Displace pixel position using an offset vector";
   ntype.enum_name_legacy = "DISPLACE";
   ntype.nclass = NODE_CLASS_DISTORT;
-  ntype.declare = file_ns::cmp_node_displace_declare;
-  ntype.initfunc = file_ns::cmp_node_init_displace;
-  blender::bke::node_type_storage(
+  ntype.declare = node_declare;
+  ntype.initfunc = node_init;
+  bke::node_type_storage(
       ntype, "NodeDisplaceData", node_free_standard_storage, node_copy_standard_storage);
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.get_compositor_operation = get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_displace)
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_composite_displace_cc

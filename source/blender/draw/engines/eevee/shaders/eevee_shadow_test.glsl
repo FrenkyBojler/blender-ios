@@ -7,6 +7,10 @@
  * Comment out for correct compilation error line. */
 #line 9
 
+#include "infos/gpu_shader_test_infos.hh"
+
+COMPUTE_SHADER_CREATE_INFO(gpu_shader_test)
+
 #include "eevee_shadow_lib.glsl"
 
 #include "gpu_shader_math_vector_lib.glsl"
@@ -15,7 +19,7 @@
 
 #define TEST(a, b) if (true)
 
-void set_clipmap_data(inout LightData light,
+void set_clipmap_data(LightData &light,
                       int clipmap_lod_min,
                       int clipmap_lod_max,
                       float clipmap_origin_x,
@@ -28,7 +32,7 @@ void set_clipmap_data(inout LightData light,
   light.sun() = sun_data;
 }
 
-void set_clipmap_base_offset(inout LightData light, int2 clipmap_base_offset)
+void set_clipmap_base_offset(LightData &light, int2 clipmap_base_offset)
 {
   LightSunData sun_data = light.sun();
   sun_data.clipmap_base_offset_pos = clipmap_base_offset;

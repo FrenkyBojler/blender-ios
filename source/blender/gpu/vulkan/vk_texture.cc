@@ -43,76 +43,6 @@ static VkImageAspectFlags to_vk_image_aspect_single_bit(const VkImageAspectFlags
   return format;
 }
 
-static VkImageUsageFlags to_vk_image_usage(const eGPUTextureUsage usage,
-                                           const GPUTextureFormatFlag format_flag,
-                                           bool use_image_host_copy)
-{
-  const VKDevice &device = VKBackend::get().device;
-  const VKExtensions &extensions = device.extensions_get();
-
-  VkImageUsageFlags result = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                             VK_IMAGE_USAGE_SAMPLED_BIT;
-  if (usage & GPU_TEXTURE_USAGE_SHADER_READ) {
-    result |= VK_IMAGE_USAGE_STORAGE_BIT;
-  }
-  if (usage & GPU_TEXTURE_USAGE_SHADER_WRITE) {
-    result |= VK_IMAGE_USAGE_STORAGE_BIT;
-  }
-  if (usage & GPU_TEXTURE_USAGE_ATTACHMENT) {
-    if (format_flag & GPU_FORMAT_COMPRESSED) {
-      /* These formats aren't supported as an attachment. When using GPU_TEXTURE_USAGE_DEFAULT they
-       * are still being evaluated to be attachable. So we need to skip them. */
-    }
-    else {
-      if (format_flag & (GPU_FORMAT_DEPTH | GPU_FORMAT_STENCIL)) {
-        result |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-      }
-      else {
-        result |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-        if (extensions.dynamic_rendering_local_read) {
-          result |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-        }
-      }
-    }
-  }
-  if (usage & GPU_TEXTURE_USAGE_HOST_READ) {
-    result |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-  }
-  if (use_image_host_copy) {
-    result |= VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT;
-  }
-
-  /* Disable some usages based on the given format flag to support more devices. */
-  if (format_flag & GPU_FORMAT_SRGB) {
-    /* NVIDIA devices don't create SRGB textures when it storage bit is set. */
-    result &= ~VK_IMAGE_USAGE_STORAGE_BIT;
-  }
-  if (format_flag & (GPU_FORMAT_DEPTH | GPU_FORMAT_STENCIL)) {
-    /* NVIDIA devices don't create depth textures when it storage bit is set. */
-    result &= ~VK_IMAGE_USAGE_STORAGE_BIT;
-  }
-
-  return result;
-}
-
-static VkImageCreateFlags to_vk_image_create(const GPUTextureType texture_type,
-                                             const GPUTextureFormatFlag format_flag,
-                                             const eGPUTextureUsage usage)
-{
-  VkImageCreateFlags result = 0;
-
-  if (ELEM(texture_type, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY)) {
-    result |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-  }
-
-  /* sRGB textures needs to be mutable as they can be used as non-sRGB frame-buffer attachments. */
-  if (usage & GPU_TEXTURE_USAGE_ATTACHMENT && format_flag & GPU_FORMAT_SRGB) {
-    result |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
-  }
-
-  return result;
-}
-
 VKTexture::~VKTexture()
 {
   if (vk_image_ != VK_NULL_HANDLE && allocation_ != VK_NULL_HANDLE) {
@@ -417,7 +347,7 @@ void *VKTexture::read(int mip, eGPUDataFormat format)
   size_t sample_len = mip_size[0] * mip_size[1] * mip_size[2] * layers.size();
   size_t host_memory_size = sample_len * to_bytesize(format_, format);
 
-  void *data = MEM_mallocN(host_memory_size, __func__);
+  void *data = MEM_new_uninitialized(host_memory_size, __func__);
   int region[6] = {0, 0, 0, mip_size[0], mip_size[1], mip_size[2]};
   read_sub(mip, format, region, layers, data);
   return data;
@@ -820,10 +750,10 @@ bool VKTexture::allocate()
   if (result != VK_SUCCESS) {
     return false;
   }
-  debug::object_label(vk_image_, name_);
+  debug::object_label(vk_image_, name_.c_str());
 
   const bool use_subresource_tracking = image_info.arrayLayers > 1 || image_info.mipLevels > 1;
-  device.resources.add_image(vk_image_, use_subresource_tracking, name_);
+  device.resources.add_image(vk_image_, use_subresource_tracking, name_.c_str());
 
   return result == VK_SUCCESS;
 }

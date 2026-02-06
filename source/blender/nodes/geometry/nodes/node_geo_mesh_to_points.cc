@@ -49,7 +49,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryMeshToPoints *data = MEM_callocN<NodeGeometryMeshToPoints>(__func__);
+  NodeGeometryMeshToPoints *data = MEM_new<NodeGeometryMeshToPoints>(__func__);
   data->mode = GEO_NODE_MESH_TO_POINTS_VERTICES;
   node->storage = data;
 }
@@ -104,10 +104,18 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
   }
 
   MutableAttributeAccessor dst_attributes = pointcloud->attributes_for_write();
-  SpanAttributeWriter radius = dst_attributes.lookup_or_add_for_write_only_span<float>(
-      "radius", AttrDomain::Point);
-  array_utils::gather(evaluator.get_evaluated(1), selection, radius.span);
-  radius.finish();
+  {
+    const VArray<float> radii = evaluator.get_evaluated<float>(1);
+    if (const std::optional<float> radius = radii.get_if_single()) {
+      dst_attributes.add<float>("radius", AttrDomain::Point, bke::AttributeInitValue(*radius));
+    }
+    else {
+      SpanAttributeWriter attr = dst_attributes.lookup_or_add_for_write_only_span<float>(
+          "radius", AttrDomain::Point);
+      array_utils::gather(radii, selection, attr.span);
+      attr.finish();
+    }
+  }
 
   bke::GeometrySet::GatheredAttributes attributes;
   geometry_set.gather_attributes_for_propagation({GeometryComponent::Type::Mesh},
@@ -129,7 +137,14 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
     }
 
     const StringRef dst_name = src_name == ".select_vert" ? ".selection" : src_name;
-    if (share_arrays && src.domain == domain && src.sharing_info && src.varray.is_span()) {
+    if (src.varray.is_single()) {
+      const CPPType &type = src.varray.type();
+      BUFFER_FOR_CPP_TYPE_VALUE(type, value);
+      src.varray.get_internal_single(value);
+      dst_attributes.add(
+          dst_name, domain, data_type, bke::AttributeInitValue(GPointer(type, value)));
+    }
+    else if (share_arrays && src.domain == domain && src.sharing_info && src.varray.is_span()) {
       const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
                                           *src.sharing_info);
       dst_attributes.add(dst_name, AttrDomain::Point, data_type, init);
@@ -162,7 +177,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<float> positive_radius(FieldOperation::from(max_zero_fn, {std::move(radius)}), 0);
 
   const NodeGeometryMeshToPoints &storage = node_storage(params.node());
-  const GeometryNodeMeshToPointsMode mode = (GeometryNodeMeshToPointsMode)storage.mode;
+  const GeometryNodeMeshToPointsMode mode = GeometryNodeMeshToPointsMode(storage.mode);
 
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Points");
 
@@ -245,7 +260,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeMeshToPoints", GEO_NODE_MESH_TO_POINTS);
   ntype.ui_name = "Mesh to Points";
@@ -256,9 +271,9 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryMeshToPoints", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -8,10 +8,9 @@
 
 #pragma once
 
-#ifndef USE_GPU_SHADER_CREATE_INFO
+#include "GPU_shader_shared_utils.hh"
 
-#  include "GPU_shader_shared_utils.hh"
-
+#ifndef GPU_SHADER
 struct TestOutputRawData;
 #endif
 
@@ -20,7 +19,7 @@ struct TestOutputRawData;
  * required in the common use-case where a float3 and an int/float are paired together for optimal
  * data transfer. */
 
-enum GPUKeyframeShapes : uint32_t {
+enum [[host_shared]] GPUKeyframeShapes : uint32_t {
   GPU_KEYFRAME_SHAPE_DIAMOND = (1u << 0u),
   GPU_KEYFRAME_SHAPE_CIRCLE = (1u << 1u),
   GPU_KEYFRAME_SHAPE_CLIPPED_VERTICAL = (1u << 2u),
@@ -81,13 +80,10 @@ struct [[host_shared]] GPencilStrokeData {
   float2 viewport;
   float pixsize;
   float objscale;
-  float pixfactor;
-  int xraymode;
   int caps_start;
   int caps_end;
-  bool32_t keep_size;
   bool32_t fill_stroke;
-  float2 _pad;
+  float _pad;
 };
 
 struct [[host_shared]] GPUClipPlanes {
@@ -109,7 +105,7 @@ struct [[host_shared]] MultiIconCallData {
 
 #define GPU_SEQ_STRIP_DRAW_DATA_LEN 256
 
-enum GPUSeqFlags : uint32_t {
+enum [[host_shared]] GPUSeqFlags : uint32_t {
   GPU_SEQ_FLAG_BACKGROUND = (1u << 0u),
   GPU_SEQ_FLAG_SINGLE_IMAGE = (1u << 1u),
   GPU_SEQ_FLAG_COLOR_BAND = (1u << 2u),
@@ -162,8 +158,9 @@ struct [[host_shared]] SeqStripDrawData {
   float _pad0;
   float _pad1;
 };
-BLI_STATIC_ASSERT(sizeof(SeqStripDrawData) * GPU_SEQ_STRIP_DRAW_DATA_LEN <= 16384,
-                  "SeqStripDrawData UBO must not exceed minspec UBO size (16384)")
+/* clang-format off */ /* Keep one line. Avoid issues with shader error line. */
+BLI_STATIC_ASSERT(sizeof(SeqStripDrawData) * GPU_SEQ_STRIP_DRAW_DATA_LEN <= 16384, "SeqStripDrawData UBO must not exceed minspec UBO size (16384)")
+/* clang-format on */
 
 /* VSE per-thumbnail data for timeline rendering. */
 struct [[host_shared]] SeqStripThumbData {
@@ -184,8 +181,9 @@ struct [[host_shared]] SeqStripThumbData {
   float v2;
   float4 tint_color;
 };
-BLI_STATIC_ASSERT(sizeof(SeqStripThumbData) * GPU_SEQ_STRIP_DRAW_DATA_LEN <= 16384,
-                  "SeqStripThumbData UBO must not exceed minspec UBO size (16384)")
+/* clang-format off */ /* Keep one line. Avoid issues with shader error line. */
+BLI_STATIC_ASSERT(sizeof(SeqStripThumbData) * GPU_SEQ_STRIP_DRAW_DATA_LEN <= 16384, "SeqStripThumbData UBO must not exceed minspec UBO size (16384)")
+/* clang-format on */
 
 /* VSE global data for timeline rendering. */
 struct [[host_shared]] SeqContextDrawData {
@@ -209,12 +207,12 @@ struct [[host_shared]] GreasePencilStrokeData {
   float4 stroke_color;
 };
 
-enum TestStatus : uint32_t {
+enum [[host_shared]] TestStatus : uint32_t {
   TEST_STATUS_NONE = 0u,
   TEST_STATUS_PASSED = 1u,
   TEST_STATUS_FAILED = 2u,
 };
-enum TestType : uint32_t {
+enum [[host_shared]] TestType : uint32_t {
   TEST_TYPE_BOOL = 0u,
   TEST_TYPE_UINT = 1u,
   TEST_TYPE_INT = 2u,
@@ -240,7 +238,7 @@ enum TestType : uint32_t {
 };
 
 /** \note Contains arrays of scalar. To be use only with SSBOs to avoid padding issues. */
-struct [[host_shared, unchecked]] TestOutputRawData {
+struct [[host_shared]] TestOutputRawData {
   uint data[16];
 };
 
