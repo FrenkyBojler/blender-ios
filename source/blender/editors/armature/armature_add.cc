@@ -1798,6 +1798,13 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   float3x3 bone_orient_mat = float3x3::zero();
   float3 roll_vector;
 
+  /* Apply user pref only for view aligned if the property wasn’t set.*/
+  if (!RNA_property_is_set(op->ptr, RNA_struct_find_property(op->ptr, "align")) &&
+      (U.flag & USER_ADD_VIEWALIGNED))
+  {
+    RNA_enum_set(op->ptr, "align", VIEW_3D);
+  }
+
   const int align = RNA_enum_get(op->ptr, "align");
   const int space = RNA_enum_get(op->ptr, "space");
 
