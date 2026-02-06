@@ -458,6 +458,8 @@ void VKTexturePool::reset(bool force_free)
   if (G.debug & G_DEBUG_GPU) {
     /* Log debug usage data if it differs from the last `::reset()`. */
     current_usage_data_.allocation_count = allocations_.size();
+    current_usage_data_.image_cache_size = image_cache_.size();
+
     if (!(previous_usage_data_ == current_usage_data_)) {
       log_usage_data();
     }
@@ -481,11 +483,12 @@ void VKTexturePool::log_usage_data()
                 static_cast<float>(total_allocation_size);
 
   CLOG_TRACE(&LOG,
-             "VKTexturePool uses %lu/%lu mb (%.1f%% of %lu allocations)",
+             "VKTexturePool uses %lu/%lu mb (%.1f%% of %lu allocations) (%lu VkImages)",
              static_cast<unsigned long>(current_usage_data_.acquired_segment_size_max >> 20),
              static_cast<unsigned long>(total_allocation_size >> 20),
              ratio * 100.0f,
-             static_cast<unsigned long>(current_usage_data_.allocation_count));
+             static_cast<unsigned long>(current_usage_data_.allocation_count),
+             static_cast<unsigned long>(current_usage_data_.image_cache_size));
 }
 
 }  // namespace gpu

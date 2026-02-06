@@ -149,7 +149,7 @@ class VKTexturePool : public TexturePool {
 
     bool operator==(const LogUsageData &o) const
     {
-      return allocation_count == o.allocation_count &&
+      return allocation_count == o.allocation_count && image_cache_size == o.image_cache_size &&
              acquired_segment_size == o.acquired_segment_size &&
              acquired_segment_size_max == o.acquired_segment_size_max;
     }
