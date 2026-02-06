@@ -67,6 +67,8 @@ enum class NodeType {
   PARAMETERS,
   /* Animation Component */
   ANIMATION,
+  /* Dynamic Override Component. */
+  DYNAMIC_OVERRIDE,
   /* Transform Component (Parenting/Constraints) */
   TRANSFORM,
   /* Geometry Component (#Mesh, #Curves, etc.) */

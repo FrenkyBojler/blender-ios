@@ -160,6 +160,10 @@ void IDNode::tag_update(Depsgraph *graph, eUpdateSource source)
     if (comp_node->type == NodeType::ANIMATION && source == DEG_UPDATE_SOURCE_RELATIONS) {
       continue;
     }
+    /* Same reasoning for Dynamic Override relations. */
+    if (comp_node->type == NodeType::DYNAMIC_OVERRIDE && source == DEG_UPDATE_SOURCE_RELATIONS) {
+      continue;
+    }
     comp_node->tag_update(graph, source);
   }
 }

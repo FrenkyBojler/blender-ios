@@ -49,6 +49,8 @@ const char *nodeTypeAsString(NodeType type)
       return "PARAMETERS";
     case NodeType::ANIMATION:
       return "ANIMATION";
+    case NodeType::DYNAMIC_OVERRIDE:
+      return "DYNAMIC_OVERRIDE";
     case NodeType::TRANSFORM:
       return "TRANSFORM";
     case NodeType::GEOMETRY:
@@ -160,6 +162,7 @@ eDepsSceneComponentType nodeTypeToSceneComponent(NodeType type)
     case NodeType::CACHE:
     case NodeType::NTREE_OUTPUT:
     case NodeType::NTREE_GEOMETRY_PREPROCESS:
+    case NodeType::DYNAMIC_OVERRIDE:
       return DEG_SCENE_COMP_PARAMETERS;
 
     case NodeType::VISIBILITY:
@@ -238,6 +241,7 @@ eDepsObjectComponentType nodeTypeToObjectComponent(NodeType type)
     case NodeType::NTREE_GEOMETRY_PREPROCESS:
     case NodeType::UNDEFINED:
     case NodeType::NUM_TYPES:
+    case NodeType::DYNAMIC_OVERRIDE:
       return DEG_OB_COMP_PARAMETERS;
 
     case NodeType::VISIBILITY:

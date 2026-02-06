@@ -150,6 +150,9 @@ void depsgraph_tag_to_component_opcode(const ID *id,
     case ID_RECALC_ANIMATION:
       *component_type = NodeType::ANIMATION;
       break;
+    case ID_RECALC_DYNAMIC_OVERRIDE:
+      *component_type = NodeType::DYNAMIC_OVERRIDE;
+      break;
     case ID_RECALC_PSYS_REDO:
     case ID_RECALC_PSYS_RESET:
     case ID_RECALC_PSYS_CHILD:
@@ -220,7 +223,6 @@ void depsgraph_tag_to_component_opcode(const ID *id,
       *operation_code = OperationCode::HIERARCHY;
       break;
 
-    case ID_RECALC_PROVISION_27:
     case ID_RECALC_PROVISION_28:
     case ID_RECALC_PROVISION_29:
     case ID_RECALC_PROVISION_30:
@@ -280,6 +282,8 @@ void depsgraph_tag_component(Depsgraph *graph,
       id_node->is_cow_explicitly_tagged = true;
       depsgraph_id_tag_copy_on_write(graph, id_node, update_source);
     }
+    /* TODO: Would Dynamic Override components need same special handling as Animation ones?
+     * NodeType::DYNAMIC_OVERRIDE. */
     return;
   }
   if (operation_code == OperationCode::OPERATION) {
@@ -430,9 +434,8 @@ const char *update_source_as_string(eUpdateSource source)
 
 int deg_recalc_flags_for_legacy_zero()
 {
-  const uint ID_RECALC_PROVISION_ALL = (ID_RECALC_PROVISION_27 | ID_RECALC_PROVISION_28 |
-                                        ID_RECALC_PROVISION_29 | ID_RECALC_PROVISION_30 |
-                                        ID_RECALC_PROVISION_31);
+  const uint ID_RECALC_PROVISION_ALL = (ID_RECALC_PROVISION_28 | ID_RECALC_PROVISION_29 |
+                                        ID_RECALC_PROVISION_30 | ID_RECALC_PROVISION_31);
   return ID_RECALC_ALL & ~(ID_RECALC_PSYS_ALL | ID_RECALC_ANIMATION | ID_RECALC_FRAME_CHANGE |
                            ID_RECALC_SOURCE | ID_RECALC_EDITORS | ID_RECALC_PROVISION_ALL);
 }
@@ -469,6 +472,9 @@ void deg_graph_node_tag_zero(Main *bmain,
 
   for (ComponentNode *comp_node : id_node->components.values()) {
     if (comp_node->type == NodeType::ANIMATION) {
+      continue;
+    }
+    if (comp_node->type == NodeType::DYNAMIC_OVERRIDE) {
       continue;
     }
     if (comp_node->type == NodeType::COPY_ON_EVAL) {
@@ -814,7 +820,6 @@ const char *DEG_update_tag_as_string(IDRecalcFlag flag)
     case ID_RECALC_HIERARCHY:
       return "ID_RECALC_HIERARCHY";
 
-    case ID_RECALC_PROVISION_27:
     case ID_RECALC_PROVISION_28:
     case ID_RECALC_PROVISION_29:
     case ID_RECALC_PROVISION_30:
