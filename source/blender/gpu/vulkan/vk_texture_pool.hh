@@ -144,6 +144,7 @@ class VKTexturePool : public TexturePool {
    * if values have changed since the last `::reset()`. */
   struct LogUsageData {
     int64_t allocation_count = 0;
+    int64_t image_cache_size = 0;
     VkDeviceSize acquired_segment_size = 0;
     VkDeviceSize acquired_segment_size_max = 0;
 
