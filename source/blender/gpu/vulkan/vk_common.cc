@@ -614,26 +614,26 @@ VkClearColorValue to_vk_clear_color_value(const eGPUDataFormat format, const dou
     case GPU_DATA_UBYTE:
     case GPU_DATA_10_11_11_REV:
     case GPU_DATA_2_10_10_10_REV: {
-      result.float32[0] = data[0];
-      result.float32[1] = data[1];
-      result.float32[2] = data[2];
-      result.float32[3] = data[3];
+      result.float32[0] = float(data[0]);
+      result.float32[1] = float(data[1]);
+      result.float32[2] = float(data[2]);
+      result.float32[3] = float(data[3]);
       break;
     }
 
     case GPU_DATA_INT: {
-      result.int32[0] = data[0];
-      result.int32[1] = data[1];
-      result.int32[2] = data[2];
-      result.int32[3] = data[3];
+      result.int32[0] = int32_t(data[0]);
+      result.int32[1] = int32_t(data[1]);
+      result.int32[2] = int32_t(data[2]);
+      result.int32[3] = int32_t(data[3]);
       break;
     }
 
     case GPU_DATA_UINT: {
-      result.uint32[0] = data[0];
-      result.uint32[1] = data[1];
-      result.uint32[2] = data[2];
-      result.uint32[3] = data[3];
+      result.uint32[0] = uint32_t(data[0]);
+      result.uint32[1] = uint32_t(data[1]);
+      result.uint32[2] = uint32_t(data[2]);
+      result.uint32[3] = uint32_t(data[3]);
       break;
     }
     case GPU_DATA_UINT_24_8_DEPRECATED: {
