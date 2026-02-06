@@ -865,6 +865,7 @@ enum {
   /** All gizmos. */
   SNODE_GIZMO_HIDE = (1 << 0),
   SNODE_GIZMO_HIDE_ACTIVE_NODE = (1 << 1),
+  SNODE_GIZMO_HIDE_NAVIGATE = (1 << 2),
 };
 
 /** #SpaceNode.texfrom */

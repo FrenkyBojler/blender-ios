@@ -1149,4 +1149,15 @@ void NODE_GGT_backdrop_split(wmGizmoGroupType *gzgt)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Navigate
+ * \{ */
+
+void NODE_GGT_navigate(wmGizmoGroupType *gzgt)
+{
+  blender::ui::VIEW2D_GGT_navigate_impl(gzgt, "NODE_GGT_navigate");
+}
+
+/** \} */
+
 }  // namespace blender::ed::space_node

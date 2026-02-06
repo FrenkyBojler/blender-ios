@@ -236,6 +236,13 @@ class NODE_HT_header(Header):
             sub.active = snode.show_gizmo and row.active
             sub.popover(panel="NODE_PT_gizmo_display", text="")
 
+        # Navigate
+        row = layout.row(align=True)
+        row.prop(snode, "show_gizmo", icon='GIZMO', text="")
+        sub = row.row(align=True)
+        sub.active = snode.show_gizmo
+        sub.popover(panel="NODE_PT_gizmo_display", text="")
+
         # Snap
         row = layout.row(align=True)
         row.prop(tool_settings, "use_snap_node", text="")
@@ -248,7 +255,6 @@ class NODE_HT_header(Header):
         row.active = snode.node_tree is not None
         sub.active = overlay.show_overlays and row.active
         sub.popover(panel="NODE_PT_overlay", text="")
-
 
 class NODE_PT_gizmo_display(Panel):
     bl_space_type = 'NODE_EDITOR'
@@ -269,6 +275,9 @@ class NODE_PT_gizmo_display(Panel):
         col.separator()
 
         col.active = snode.show_gizmo
+        colsub = col.column()
+        colsub.prop(snode, "show_gizmo_navigate", text="Navigate")
+
         colsub = col.column()
         colsub.active = snode.node_tree is not None and col.active
         colsub.prop(snode, "show_gizmo_active_node", text="Active Node")

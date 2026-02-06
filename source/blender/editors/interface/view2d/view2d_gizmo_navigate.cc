@@ -113,7 +113,7 @@ static NavigateGizmoInfo *navigate_params_from_space_type(short space_type)
     case SPACE_CLIP:
       return g_navigate_params_for_space_clip;
     default:
-      /* Used for sequencer. */
+      /* Used for sequencer and node editors. */
       return g_navigate_params_for_view2d;
   }
 }
@@ -149,6 +149,11 @@ static bool WIDGETGROUP_navigate_poll(const bContext *C, wmGizmoGroupType * /*gz
       }
       break;
     }
+    case SPACE_NODE: {
+      const SpaceNode *snode = static_cast<const SpaceNode *>(area->spacedata.first);
+      if (snode->gizmo_flag & (SNODE_GIZMO_HIDE | SNODE_GIZMO_HIDE_NAVIGATE))
+        return false;
+    } break;
   }
   return true;
 }

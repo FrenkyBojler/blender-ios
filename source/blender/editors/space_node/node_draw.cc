@@ -4847,13 +4847,22 @@ void node_draw_space(const bContext &C, ARegion &region)
 
         wmOrtho2_pixelspace(region.winx, region.winy);
 
-        WM_gizmomap_draw(region.runtime->gizmo_map, &C, WM_GIZMOMAP_DRAWSTEP_2D);
-
         GPU_matrix_pop();
         GPU_matrix_projection_set(original_proj);
       }
 
       draw_nodetree(C, region, *ntree, path->parent_key);
+
+      {
+        float original_proj[4][4];
+        GPU_matrix_projection_get(original_proj);
+
+        GPU_matrix_push();
+        GPU_matrix_identity_set();
+        WM_gizmomap_draw(region.runtime->gizmo_map, &C, WM_GIZMOMAP_DRAWSTEP_2D);
+        GPU_matrix_pop();
+        GPU_matrix_projection_set(original_proj);
+      }
     }
 
     /* Temporary links. */
