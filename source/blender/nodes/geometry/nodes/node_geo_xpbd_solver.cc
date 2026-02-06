@@ -83,6 +83,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const Vector<std::string> geometry_bundle_paths = gather_bundle_paths_by_type(
       world, XPBDGeometryBundle::name);
+  const Vector<std::string> pin_positions_bundle_paths = gather_bundle_paths_by_type(
+      world, PinnedPositionXPBDConstraintBundle::name);
 
   Vector<GeometrySet> geometry_sets(geometry_bundle_paths.size());
   for (const int i : geometry_bundle_paths.index_range()) {
