@@ -23,9 +23,11 @@
 #include "UI_abstract_view.hh"
 #include "UI_resources.hh"
 
+namespace blender {
+
 struct bContext;
 
-namespace blender::ui {
+namespace ui {
 
 class AbstractTreeView;
 class AbstractTreeViewItem;
@@ -97,6 +99,7 @@ class TreeViewItemContainer {
  protected:
   void foreach_item_recursive(ItemIterFn iter_fn, IterOptions options = IterOptions::None) const;
   void foreach_parent(ItemIterFn iter_fn) const;
+  void sort_alpha();
 };
 
 ENUM_OPERATORS(TreeViewItemContainer::IterOptions);
@@ -135,6 +138,11 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   /* `char[UI_MAX_NAME_STR]` wrapped in shared pointer, to keep a stable pointer over
    * reconstruction that can be passed to buttons. */
   std::shared_ptr<char[]> search_string_{new char[256 /*UI_MAX_NAME_STR*/]{}};
+
+  /**
+   * When true, sort elements alphabatically.
+   */
+  std::shared_ptr<char> sort_alpha_ = std::make_shared<char>(0);
 
   friend class AbstractTreeViewItem;
   friend class TreeViewBuilder;
@@ -464,4 +472,5 @@ template<class ViewType> ViewType &TreeViewItemDropTarget::get_view() const
   return dynamic_cast<ViewType &>(view_item_.get_tree_view());
 }
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender

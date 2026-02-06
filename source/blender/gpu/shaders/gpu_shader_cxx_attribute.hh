@@ -106,6 +106,9 @@
  * Required for structs defining storage and uniform buffer layout. */
 #define host_shared
 
+/** Make function callable thought the node-tree code-generating system. */
+#define node maybe_unused
+
 /* Make the branch condition evaluate at compile time. */
 #define static_branch likely
 /* Unroll the loop at compile time. */

@@ -1453,8 +1453,7 @@ static void mix_src_indices(const GSpan src_attr,
                             const GroupedSpan<int> dst_to_src,
                             GMutableSpan dst_attr)
 {
-  bke::attribute_math::convert_to_static_type(src_attr.type(), [&](auto dummy) {
-    using T = decltype(dummy);
+  bke::attribute_math::to_static_type(src_attr.type(), [&]<typename T>() {
     const Span<T> src = src_attr.typed<T>();
     MutableSpan<T> dst = dst_attr.typed<T>();
     threading::parallel_for(dst.index_range(), 2048, [&](const IndexRange range) {
@@ -1487,10 +1486,18 @@ static void mix_attributes(const bke::AttributeAccessor src_attributes,
     if (skip_names.contains(iter.name)) {
       return;
     }
-    const GVArraySpan src_attr = *iter.get();
+    const GVArray src_attr = *iter.get();
+    const CommonVArrayInfo info = src_attr.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const bke::AttributeInitValue init(GPointer(src_attr.type(), info.data));
+      if (dst_attributes.add(iter.name, iter.domain, iter.data_type, init)) {
+        return;
+      }
+    }
+    const GVArraySpan src_span = src_attr;
     bke::GSpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, iter.domain, iter.data_type);
-    mix_src_indices(src_attr, dst_to_src, dst_attr.span);
+    mix_src_indices(src_span, dst_to_src, dst_attr.span);
     dst_attr.finish();
   });
 }
@@ -1515,8 +1522,8 @@ static void mix_vertex_groups(const Mesh &mesh_src,
 static Set<StringRef> get_vertex_group_names(const Mesh &mesh)
 {
   Set<StringRef> names;
-  LISTBASE_FOREACH (bDeformGroup *, group, &mesh.vertex_group_names) {
-    names.add(group->name);
+  for (bDeformGroup &group : mesh.vertex_group_names) {
+    names.add(group.name);
   }
   return names;
 }
@@ -1744,6 +1751,13 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
       return;
     }
     const GVArray src_attr = *iter.get();
+    const CommonVArrayInfo info = src_attr.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const bke::AttributeInitValue init(GPointer(src_attr.type(), info.data));
+      if (dst_attributes.add(iter.name, iter.domain, iter.data_type, init)) {
+        return;
+      }
+    }
     const CPPType &type = src_attr.type();
     bke::GSpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, iter.domain, iter.data_type);
