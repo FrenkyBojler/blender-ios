@@ -12,6 +12,8 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "CLG_log.h"
+
 #include "GPU_capabilities.hh"
 #include "GPU_texture.hh"
 
@@ -24,6 +26,8 @@
 namespace blender {
 
 namespace gpu {
+
+static CLG_LogRef LOG = {"gpu.framebuffer"};
 
 /* -------------------------------------------------------------------- */
 /** \name Constructor / Destructor
@@ -413,6 +417,35 @@ void GPU_framebuffer_viewport_reset(gpu::FrameBuffer *gpu_fb)
 
 /* ---------- Frame-buffer Operations ----------- */
 
+/* Check for any loss of data when casting. */
+static void check_clear_color(const Texture *tex, double4 clear_value, int attachment)
+{
+  GPUTextureFormatFlag flag = tex->format_flag_get();
+
+  if ((flag & GPU_FORMAT_INTEGER) && (flag & GPU_FORMAT_SIGNED)) {
+    int4 data = int4(clear_value);
+    if (double4(data) != clear_value) {
+      CLOG_WARN(&LOG,
+                "Lossy conversion when clearing integer attachment %d: "
+                "(%f, %f, %f, %f) > (%d, %d, %d, %d)",
+                attachment,
+                UNPACK4(clear_value),
+                UNPACK4(data));
+    }
+  }
+  else if ((flag & GPU_FORMAT_INTEGER) && !(flag & GPU_FORMAT_SIGNED)) {
+    uint4 data = uint4(clear_value);
+    if (double4(data) != clear_value) {
+      CLOG_WARN(&LOG,
+                "Lossy conversion when clearing unsigned integer attachment %d: "
+                "(%f, %f, %f, %f) > (%u, %u, %u, %u)",
+                attachment,
+                UNPACK4(clear_value),
+                UNPACK4(data));
+    }
+  }
+}
+
 void GPU_framebuffer_clear(gpu::FrameBuffer *gpu_fb,
                            GPUFrameBufferBits buffers,
                            const double4 clear_col,
@@ -422,6 +455,16 @@ void GPU_framebuffer_clear(gpu::FrameBuffer *gpu_fb,
   BLI_assert_msg(gpu_fb->get_use_explicit_loadstore() == false,
                  "Using GPU_framebuffer_clear_* functions in conjunction with custom load-store "
                  "state via GPU_framebuffer_bind_ex is invalid.");
+
+  if ((G.debug & G_DEBUG_GPU) && (buffers & GPU_COLOR_BIT)) {
+    for (int i = 0; i < GPU_FB_MAX_COLOR_ATTACHMENT; i++) {
+      Texture *tex = gpu_fb->color_tex(i);
+      if (tex != nullptr) {
+        check_clear_color(tex, clear_col, i);
+      }
+    }
+  }
+
   gpu_fb->clear(buffers, clear_col, clear_depth, clear_stencil);
 }
 
@@ -469,6 +512,16 @@ void GPU_framebuffer_multi_clear(gpu::FrameBuffer *fb, Span<double4> clear_color
   BLI_assert_msg(fb->get_use_explicit_loadstore() == false,
                  "Using GPU_framebuffer_clear_* functions in conjunction with custom load-store "
                  "state via GPU_framebuffer_bind_ex is invalid.");
+
+  if (G.debug & G_DEBUG_GPU) {
+    for (int i = 0; i < GPU_FB_MAX_COLOR_ATTACHMENT; i++) {
+      Texture *tex = fb->color_tex(i);
+      if (tex != nullptr) {
+        check_clear_color(tex, clear_colors[i], i);
+      }
+    }
+  }
+
   fb->clear_multi(clear_colors);
 }
 
