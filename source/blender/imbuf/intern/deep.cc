@@ -314,7 +314,7 @@ void IMB_deep_finalize(ImBuf *ibuf, bool sort_by_depth)
   }
 }
 
-ImBuf *flatten_deep_to_float(const ImBuf *deep_ibuf)
+ImBuf *flatten_deep_to_float(const ImBuf *deep_ibuf, const DeepFlattenOptions *options)
 {
   if (!(deep_ibuf->flags & IB_deep_data)) {
     return nullptr;
@@ -328,6 +328,12 @@ ImBuf *flatten_deep_to_float(const ImBuf *deep_ibuf)
     return nullptr;
   }
 
+  /* Set default options if none provided */
+  DeepFlattenOptions default_opts;
+  if (!options) {
+    options = &default_opts;
+  }
+
   /* Allocate output ImBuf with float buffer. */
   ImBuf *result = IMB_allocImBuf(width, height, 32, IB_float_data);
   if (!result) {
@@ -339,7 +345,7 @@ ImBuf *flatten_deep_to_float(const ImBuf *deep_ibuf)
   result->flags = deep_ibuf->flags & ~IB_deep_data; /* Remove deep flag. */
   result->float_buffer.colorspace = deep_ibuf->float_buffer.colorspace;
 
-  /* Flatten deep pixels using front-to-back compositing. */
+  /* Flatten deep pixels. */
   threading::parallel_for(IndexRange(height), 64, [&](IndexRange y_range) {
     for (const int64_t y : y_range) {
       for (int x = 0; x < width; x++) {
@@ -359,31 +365,91 @@ ImBuf *flatten_deep_to_float(const ImBuf *deep_ibuf)
           continue; /* No samples, leave as transparent. */
         }
 
-        /* Composite samples front-to-back (nearest to farthest). */
-        for (int s = 0; s < num_samples; s++) {
+        /* Limit number of samples to process. */
+        const int samples_to_process = std::min(num_samples, options->max_samples);
+
+        /* Track sample count for averaging mode. */
+        int valid_samples = 0;
+
+        /* Composite samples. */
+        for (int s = 0; s < samples_to_process; s++) {
           const int sample_idx = sample_start + s;
+
+          /* Depth range filtering. */
+          const float depth = deep.depths[sample_idx];
+          if (depth < options->depth_min || depth > options->depth_max) {
+            continue;
+          }
+
           const float *sample_channels = deep.channel_data.data() +
                                          sample_idx * deep.channels_per_sample;
 
-          /* Assume RGBA layout for now (could be extended to handle other layouts). */
+          /* Extract RGBA channels. */
           const float src_r = (deep.channels_per_sample > 0) ? sample_channels[0] : 0.0f;
           const float src_g = (deep.channels_per_sample > 1) ? sample_channels[1] : 0.0f;
           const float src_b = (deep.channels_per_sample > 2) ? sample_channels[2] : 0.0f;
           const float src_a = (deep.channels_per_sample > 3) ? sample_channels[3] : 1.0f;
 
-          /* Front-to-back "over" operation (assumes premultiplied alpha). */
-          const float one_minus_dst_a = 1.0f - out_pixel[3];
-          out_pixel[0] += src_r * one_minus_dst_a;
-          out_pixel[1] += src_g * one_minus_dst_a;
-          out_pixel[2] += src_b * one_minus_dst_a;
-          out_pixel[3] += src_a * one_minus_dst_a;
+          valid_samples++;
 
-          /* Early out if fully opaque. */
-          if (out_pixel[3] >= 0.9999f) {
-            out_pixel[3] = 1.0f;
-            break;
+          /* Apply compositing mode. */
+          switch (options->mode) {
+            case DEEP_FLATTEN_COMPOSITE: {
+              /* Front-to-back "over" operation (assumes premultiplied alpha). */
+              const float one_minus_dst_a = 1.0f - out_pixel[3];
+              out_pixel[0] += src_r * one_minus_dst_a;
+              out_pixel[1] += src_g * one_minus_dst_a;
+              out_pixel[2] += src_b * one_minus_dst_a;
+              out_pixel[3] += src_a * one_minus_dst_a;
+
+              /* Early out if fully opaque. */
+              if (out_pixel[3] >= options->alpha_threshold) {
+                out_pixel[3] = 1.0f;
+                goto pixel_done; /* Break out of both loops */
+              }
+              break;
+            }
+
+            case DEEP_FLATTEN_NEAREST: {
+              /* Use first valid sample only. */
+              out_pixel[0] = src_r;
+              out_pixel[1] = src_g;
+              out_pixel[2] = src_b;
+              out_pixel[3] = src_a;
+              goto pixel_done; /* Done after first sample */
+            }
+
+            case DEEP_FLATTEN_FARTHEST: {
+              /* Keep overwriting (last valid sample wins). */
+              out_pixel[0] = src_r;
+              out_pixel[1] = src_g;
+              out_pixel[2] = src_b;
+              out_pixel[3] = src_a;
+              break;
+            }
+
+            case DEEP_FLATTEN_AVERAGE:
+            case DEEP_FLATTEN_SUM: {
+              /* Accumulate values. */
+              out_pixel[0] += src_r;
+              out_pixel[1] += src_g;
+              out_pixel[2] += src_b;
+              out_pixel[3] += src_a;
+              break;
+            }
           }
         }
+
+        /* Finalize based on mode. */
+        if (options->mode == DEEP_FLATTEN_AVERAGE && valid_samples > 0) {
+          const float inv_samples = 1.0f / valid_samples;
+          out_pixel[0] *= inv_samples;
+          out_pixel[1] *= inv_samples;
+          out_pixel[2] *= inv_samples;
+          out_pixel[3] *= inv_samples;
+        }
+
+      pixel_done:;
       }
     }
   });

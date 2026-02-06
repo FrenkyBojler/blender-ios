@@ -355,7 +355,25 @@ void IMB_color_to_bw(ImBuf *ibuf);
 void IMB_saturation(ImBuf *ibuf, float sat);
 
 /** Flatten a deep image to a regular float image using front-to-back compositing. */
-ImBuf *flatten_deep_to_float(const ImBuf *deep_ibuf);
+
+enum DeepFlattenMode {
+  DEEP_FLATTEN_COMPOSITE,  // Standard front-to-back over
+  DEEP_FLATTEN_NEAREST,    // Only the nearest sample
+  DEEP_FLATTEN_FARTHEST,   // Only the farthest sample
+  DEEP_FLATTEN_AVERAGE,    // Average all samples
+  DEEP_FLATTEN_SUM,        // Additive (for volumes/fire)
+};
+
+struct DeepFlattenOptions {
+  DeepFlattenMode mode = DEEP_FLATTEN_COMPOSITE;
+  float depth_min = -FLT_MAX;
+  float depth_max = FLT_MAX;
+  int max_samples = INT_MAX;
+  float alpha_threshold = 0.9999f;
+  bool premultiply = true;
+};
+
+ImBuf *flatten_deep_to_float(const ImBuf *deep_ibuf, const DeepFlattenOptions *options = nullptr);
 
 /**
  * Get the number of samples for a specific pixel in a deep image.
