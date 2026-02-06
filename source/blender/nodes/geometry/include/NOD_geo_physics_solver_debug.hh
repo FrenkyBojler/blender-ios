@@ -141,12 +141,16 @@ class XPBDDebugRecorder {
         ConstraintIterationBundle &iter_bundle =
             bundles_item.value.substeps.last().constraint_iterations.last();
         bke::Instances *instances = iter_bundle.stages.get_instances_for_write();
-        if (!instances) {
-          instances = new bke::Instances();
+        if (instances) {
+          instances->resize(instances->instances_num() + 1);
+        }
+        else {
+          instances = new bke::Instances(1);
           iter_bundle.stages.replace_instances(instances);
         }
         const int handle = instances->add_new_reference({geometry});
-        instances->add_instance(handle, float4x4::identity());
+        instances->reference_handles_for_write().last() = handle;
+        instances->transforms_for_write().last() = float4x4::identity();
       }
     }
   }
