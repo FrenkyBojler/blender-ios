@@ -22,6 +22,8 @@
 
 #include "NOD_geo_viewer.hh"
 #include "NOD_geometry_exec.hh"
+#include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_multi_function.hh"
@@ -1330,7 +1332,8 @@ class LazyFunctionForIndexSwitchSocketUsage : public lf::LazyFunction {
 };
 
 /**
- * Takes a field as input and extracts the set of anonymous attribute names that it references.
+ * Takes a socket value as input and extracts the set of anonymous attribute names that it
+ * references.
  */
 class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
  public:
@@ -1338,7 +1341,7 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
   {
     debug_name_ = "Extract References";
     inputs_.append_as("Use", CPPType::get<bool>());
-    inputs_.append_as("Field", CPPType::get<SocketValueVariant>(), lf::ValueUsage::Maybe);
+    inputs_.append_as("Value", CPPType::get<SocketValueVariant>(), lf::ValueUsage::Maybe);
     outputs_.append_as("References", CPPType::get<GeometryNodesReferenceSet>());
   }
 
@@ -1357,22 +1360,65 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
     }
 
     GeometryNodesReferenceSet references;
-    if (value_variant->is_context_dependent_field()) {
-      const GField &field = value_variant->get<GField>();
-      field.node().for_each_field_input_recursive([&](const FieldInput &field_input) {
-        if (const auto *attr_field_input = dynamic_cast<const AttributeFieldInput *>(&field_input))
-        {
-          const StringRef name = attr_field_input->attribute_name();
-          if (bke::attribute_name_is_anonymous(name)) {
-            if (!references.names) {
-              references.names = std::make_shared<Set<std::string>>();
-            }
-            references.names->add_as(name);
-          }
-        }
-      });
-    }
+    this->gather__socket_value(*value_variant, references);
     params.set_output(0, std::move(references));
+  }
+
+  void gather__socket_value(const SocketValueVariant &value_variant,
+                            GeometryNodesReferenceSet &r_references) const
+  {
+    if (value_variant.is_context_dependent_field()) {
+      const GField &field = value_variant.get<GField>();
+      this->gather__field(field, r_references);
+    }
+    if (value_variant.is_single()) {
+      const GPointer value = value_variant.get_single_ptr();
+      if (value.is_type<BundlePtr>()) {
+        const BundlePtr &bundle = *value.get<BundlePtr>();
+        this->gather__bundle(bundle, r_references);
+      }
+      if (value.is_type<ClosurePtr>()) {
+        const ClosurePtr &closure = *value.get<ClosurePtr>();
+        this->gather__closure(closure, r_references);
+      }
+    }
+  }
+
+  void gather__field(const GField &field, GeometryNodesReferenceSet &r_references) const
+  {
+    field.node().for_each_field_input_recursive([&](const FieldInput &field_input) {
+      if (const auto *attr_field_input = dynamic_cast<const AttributeFieldInput *>(&field_input)) {
+        const StringRef name = attr_field_input->attribute_name();
+        if (bke::attribute_name_is_anonymous(name)) {
+          if (!r_references.names) {
+            r_references.names = std::make_shared<Set<std::string>>();
+          }
+          r_references.names->add_as(name);
+        }
+      }
+    });
+  }
+
+  void gather__bundle(const BundlePtr &bundle, GeometryNodesReferenceSet &r_references) const
+  {
+    if (!bundle) {
+      return;
+    }
+    for (const auto &[name, value] : bundle->items()) {
+      if (const auto *socket_value = std::get_if<BundleItemSocketValue>(&value.value)) {
+        this->gather__socket_value(socket_value->value, r_references);
+      }
+    }
+  }
+
+  void gather__closure(const ClosurePtr &closure, GeometryNodesReferenceSet &r_references) const
+  {
+    if (!closure) {
+      return;
+    }
+    for (const bke::SocketValueVariant *value : closure->captured_values()) {
+      this->gather__socket_value(*value, r_references);
+    }
   }
 };
 
@@ -1998,10 +2044,9 @@ struct GeometryNodesLazyFunctionBuilder {
     /* Build nested zones first. */
     Array<int> zone_build_order(tree_zones_->zones.size());
     array_utils::fill_index_range<int>(zone_build_order);
-    std::sort(
-        zone_build_order.begin(), zone_build_order.end(), [&](const int zone_a, const int zone_b) {
-          return tree_zones_->zones[zone_a]->depth > tree_zones_->zones[zone_b]->depth;
-        });
+    std::ranges::sort(zone_build_order, [&](const int zone_a, const int zone_b) {
+      return tree_zones_->zones[zone_a]->depth > tree_zones_->zones[zone_b]->depth;
+    });
     return zone_build_order;
   }
 
@@ -2606,7 +2651,7 @@ struct GeometryNodesLazyFunctionBuilder {
       zone_by_output.add(zone->output_node(), zone);
     }
     /* Insert nodes from right to left so that usage sockets can be build in the same pass. */
-    std::sort(nodes_to_insert.begin(), nodes_to_insert.end(), [](const bNode *a, const bNode *b) {
+    std::ranges::sort(nodes_to_insert, [](const bNode *a, const bNode *b) {
       return a->runtime->toposort_right_to_left_index < b->runtime->toposort_right_to_left_index;
     });
 
@@ -2687,7 +2732,7 @@ struct GeometryNodesLazyFunctionBuilder {
     }
 
     Vector<lf::OutputSocket *, 16> key = lf_reference_set_sockets;
-    std::sort(key.begin(), key.end());
+    std::ranges::sort(key);
     return cache.lookup_or_add_cb(key, [&]() {
       const auto &lazy_function = LazyFunctionForJoinReferenceSets::get_cached(
           lf_reference_set_sockets.size(), scope_);
@@ -3922,7 +3967,7 @@ struct GeometryNodesLazyFunctionBuilder {
 
     /* Sort usages to produce a deterministic key for the same set of sockets. */
     Vector<lf::OutputSocket *> usages_sorted(usages);
-    std::sort(usages_sorted.begin(), usages_sorted.end());
+    std::ranges::sort(usages_sorted);
     return graph_params.socket_usages_combination_cache.lookup_or_add_cb(
         std::move(usages_sorted), [&]() {
           auto &logical_or_fn = scope_.construct<LazyFunctionForLogicalOr>(usages.size());

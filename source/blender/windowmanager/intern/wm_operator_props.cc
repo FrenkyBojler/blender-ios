@@ -30,6 +30,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+namespace blender {
+
 void WM_operator_properties_confirm_or_exec(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -111,8 +113,7 @@ void WM_operator_properties_filesel(wmOperatorType *ot,
   }
 
   if (flag & WM_FILESEL_FILES) {
-    prop = RNA_def_collection_runtime(
-        ot->srna, "files", &RNA_OperatorFileListElement, "Files", "");
+    prop = RNA_def_collection_runtime(ot->srna, "files", RNA_OperatorFileListElement, "Files", "");
     RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE | PROP_SKIP_PRESET);
   }
 
@@ -409,9 +410,8 @@ void WM_operator_properties_border_to_rctf(wmOperator *op, rctf *r_rect)
   BLI_rctf_rcti_copy(r_rect, &rect_i);
 }
 
-blender::Bounds<blender::int2> WM_operator_properties_border_to_bounds(wmOperator *op)
+Bounds<int2> WM_operator_properties_border_to_bounds(wmOperator *op)
 {
-  using namespace blender;
   return Bounds<int2>({RNA_int_get(op->ptr, "xmin"), RNA_int_get(op->ptr, "ymin")},
                       {RNA_int_get(op->ptr, "xmax"), RNA_int_get(op->ptr, "ymax")});
 }
@@ -538,7 +538,7 @@ void WM_operator_properties_gesture_box_zoom(wmOperatorType *ot)
 void WM_operator_properties_gesture_lasso(wmOperatorType *ot)
 {
   PropertyRNA *prop;
-  prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
+  prop = RNA_def_collection_runtime(ot->srna, "path", RNA_OperatorMousePath, "Path", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_boolean(ot->srna,
                          "use_smooth_stroke",
@@ -569,7 +569,7 @@ void WM_operator_properties_gesture_lasso(wmOperatorType *ot)
 void WM_operator_properties_gesture_polyline(wmOperatorType *ot)
 {
   PropertyRNA *prop;
-  prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
+  prop = RNA_def_collection_runtime(ot->srna, "path", RNA_OperatorMousePath, "Path", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
@@ -701,3 +701,5 @@ bool WM_operator_properties_checker_interval_test(const CheckerIntervalParams *o
   return ((op_params->skip == 0) ||
           ((op_params->offset + depth) % (op_params->skip + op_params->nth) >= op_params->skip));
 }
+
+}  // namespace blender

@@ -23,7 +23,9 @@
 
 #include "node_function_util.hh"
 
-namespace blender::nodes::node_fn_format_string_cc {
+namespace blender {
+
+namespace nodes::node_fn_format_string_cc {
 
 NODE_STORAGE_FUNCS(NodeFunctionFormatString)
 
@@ -51,7 +53,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     const StringRef name = item.name;
     const std::string identifier = FormatStringItemsAccessor::socket_identifier_for_item(item);
     b.add_input(socket_type, name, identifier)
-        .socket_name_ptr(&ntree->id, FormatStringItemsAccessor::item_srna, &item, "name");
+        .socket_name_ptr(&ntree->id, *FormatStringItemsAccessor::item_srna, &item, "name");
   }
 
   b.add_input<decl::Extend>("", "__extend__");
@@ -59,14 +61,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeFunctionFormatString *data = MEM_callocN<NodeFunctionFormatString>(__func__);
+  NodeFunctionFormatString *data = MEM_new<NodeFunctionFormatString>(__func__);
   node->storage = data;
 }
 
 static void node_copy_storage(bNodeTree * /*tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeFunctionFormatString &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_dupallocN<NodeFunctionFormatString>(__func__, src_storage);
+  auto *dst_storage = MEM_new<NodeFunctionFormatString>(__func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<FormatStringItemsAccessor>(*src_node, *dst_node);
@@ -75,7 +77,7 @@ static void node_copy_storage(bNodeTree * /*tree*/, bNode *dst_node, const bNode
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<FormatStringItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_delete(static_cast<NodeFunctionFormatString *>(node->storage));
 }
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
@@ -772,15 +774,14 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   fn_node_type_base(&ntype, "FunctionNodeFormatString");
   ntype.ui_name = "Format String";
   ntype.ui_description =
       "Insert values into a string using a Python and path template compatible formatting syntax";
   ntype.nclass = NODE_CLASS_CONVERTER;
-  blender::bke::node_type_storage(
-      ntype, "NodeFunctionFormatString", node_free_storage, node_copy_storage);
+  bke::node_type_storage(ntype, "NodeFunctionFormatString", node_free_storage, node_copy_storage);
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
   ntype.initfunc = node_init;
@@ -789,15 +790,15 @@ static void node_register()
   ntype.register_operators = node_operators;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_fn_format_string_cc
+}  // namespace nodes::node_fn_format_string_cc
 
-namespace blender::nodes {
+namespace nodes {
 
-StructRNA *FormatStringItemsAccessor::item_srna = &RNA_NodeFunctionFormatStringItem;
+StructRNA **FormatStringItemsAccessor::item_srna = &RNA_NodeFunctionFormatStringItem;
 
 void FormatStringItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -867,4 +868,5 @@ std::string FormatStringItemsAccessor::validate_name(const StringRef name)
   return result;
 }
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender

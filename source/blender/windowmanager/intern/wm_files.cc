@@ -53,6 +53,7 @@
 #include "BLO_core_file_reader.hh"
 #include "BLO_readfile.hh"
 
+#include "BLT_lang.hh"
 #include "BLT_translation.hh"
 
 #include "BLF_api.hh"
@@ -85,6 +86,7 @@
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_node.hh"
+#include "BKE_node_tree_update.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -117,8 +119,8 @@
 
 #include "NOD_composite.hh"
 
-#include "GHOST_C-api.h"
-#include "GHOST_Path-api.hh"
+#include "GHOST_ISystemPaths.hh"
+#include "GHOST_IWindow.hh"
 
 #include "GPU_context.hh"
 
@@ -151,6 +153,8 @@
 #include "wm_window.hh"
 
 #include "CLG_log.h"
+
+namespace blender {
 
 static RecentFile *wm_file_history_find(const char *filepath);
 static void wm_history_file_free(RecentFile *recent);
@@ -215,10 +219,9 @@ static BlendFileReadWMSetupData *wm_file_read_setup_wm_init(bContext *C,
                                                             Main *bmain,
                                                             const bool is_read_homefile)
 {
-  using namespace blender;
   BLI_assert(BLI_listbase_count_at_most(&bmain->wm, 2) <= 1);
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-  BlendFileReadWMSetupData *wm_setup_data = MEM_callocN<BlendFileReadWMSetupData>(__func__);
+  BlendFileReadWMSetupData *wm_setup_data = MEM_new_zeroed<BlendFileReadWMSetupData>(__func__);
   wm_setup_data->is_read_homefile = is_read_homefile;
   /* This info is not always known yet when this function is called. */
   wm_setup_data->is_factory_startup = false;
@@ -233,11 +236,11 @@ static BlendFileReadWMSetupData *wm_file_read_setup_wm_init(bContext *C,
   WM_jobs_kill_all(wm);
 
   wmWindow *active_win = CTX_wm_window(C);
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    CTX_wm_window_set(C, win); /* Needed by operator close callbacks. */
-    WM_event_remove_handlers(C, &win->runtime->handlers);
-    WM_event_remove_handlers(C, &win->runtime->modalhandlers);
-    ED_screen_exit(C, win, WM_window_get_active_screen(win));
+  for (wmWindow &win : wm->windows) {
+    CTX_wm_window_set(C, &win); /* Needed by operator close callbacks. */
+    WM_event_remove_handlers(C, &win.runtime->handlers);
+    WM_event_remove_handlers(C, &win.runtime->modalhandlers);
+    ED_screen_exit(C, &win, WM_window_get_active_screen(&win));
   }
   /* Reset active window. */
   CTX_wm_window_set(C, active_win);
@@ -293,7 +296,8 @@ static void wm_file_read_setup_wm_substitute_old_window(wmWindowManager *oldwm,
   /* File loading in background mode still calls this. */
   if (!G.background) {
     /* Pointer back. */
-    GHOST_SetWindowUserData(static_cast<GHOST_WindowHandle>(win->runtime->ghostwin), win);
+    GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
+    ghost_window->setUserData(win);
   }
 
   oldwin->runtime->ghostwin = nullptr;
@@ -342,16 +346,16 @@ static void wm_file_read_setup_wm_keep_old(const bContext *C,
    * file, so the WM needs to be updated to use these. */
   bScreen *screen = CTX_wm_screen(C);
   if (screen != nullptr) {
-    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+    for (wmWindow &win : wm->windows) {
       WorkSpace *workspace;
 
       WorkSpaceLayout *layout_ref = BKE_workspace_layout_find_global(bmain, screen, &workspace);
-      BKE_workspace_active_set(win->workspace_hook, workspace);
-      win->scene = CTX_data_scene(C);
+      BKE_workspace_active_set(win.workspace_hook, workspace);
+      win.scene = CTX_data_scene(C);
 
       /* All windows get active screen from file. */
       if (screen->winid == 0) {
-        WM_window_set_active_screen(win, workspace, screen);
+        WM_window_set_active_screen(&win, workspace, screen);
       }
       else {
 #if 0
@@ -360,13 +364,13 @@ static void wm_file_read_setup_wm_keep_old(const bContext *C,
         WorkSpaceLayout *layout_ref = WM_window_get_active_layout(win);
 #endif
         WorkSpaceLayout *layout_new = ED_workspace_layout_duplicate(
-            bmain, workspace, layout_ref, win);
+            bmain, workspace, layout_ref, &win);
 
-        WM_window_set_active_layout(win, workspace, layout_new);
+        WM_window_set_active_layout(&win, workspace, layout_new);
       }
 
-      bScreen *win_screen = WM_window_get_active_screen(win);
-      win_screen->winid = win->winid;
+      bScreen *win_screen = WM_window_get_active_screen(&win);
+      win_screen->winid = win.winid;
     }
   }
 }
@@ -399,12 +403,12 @@ static void wm_file_read_setup_wm_use_new(bContext *C,
   wm_window_clear_drawable(old_wm);
 
   bool has_match = false;
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    LISTBASE_FOREACH (wmWindow *, old_win, &old_wm->windows) {
-      if (old_win->winid == win->winid) {
+  for (wmWindow &win : wm->windows) {
+    for (wmWindow &old_win : old_wm->windows) {
+      if (old_win.winid == win.winid) {
         has_match = true;
 
-        wm_file_read_setup_wm_substitute_old_window(old_wm, wm, old_win, win);
+        wm_file_read_setup_wm_substitute_old_window(old_wm, wm, &old_win, &win);
       }
     }
   }
@@ -423,7 +427,7 @@ static void wm_file_read_setup_wm_use_new(bContext *C,
    * will crash. See: #100703. */
   BKE_libblock_free_data(&old_wm->id, false);
   BKE_libblock_free_data_py(&old_wm->id);
-  MEM_freeN(old_wm);
+  MEM_delete(old_wm);
 }
 
 /**
@@ -478,11 +482,11 @@ static void wm_file_read_setup_wm_finalize(bContext *C,
 
   /* UI Updates. */
   /* Flag local View3D's to check and exit if they are empty. */
-  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-        if (sl->spacetype == SPACE_VIEW3D) {
-          View3D *v3d = reinterpret_cast<View3D *>(sl);
+  for (bScreen &screen : bmain->screens) {
+    for (ScrArea &area : screen.areabase) {
+      for (SpaceLink &sl : area.spacedata) {
+        if (sl.spacetype == SPACE_VIEW3D) {
+          View3D *v3d = reinterpret_cast<View3D *>(&sl);
           if (v3d->localvd) {
             v3d->localvd->runtime.flag |= V3D_RUNTIME_LOCAL_MAYBE_EMPTY;
           }
@@ -519,7 +523,7 @@ static void wm_init_userdef(Main *bmain)
   BKE_addon_remove_safe(&U.addons, "cycles");
 #endif
 
-  blender::ui::init_userdef();
+  ui::init_userdef();
 
   /* Needed so loading a file from the command line respects user-pref #26156. */
   SET_FLAG_FROM_TEST(G.fileflags, U.flag & USER_FILENOUI, G_FILE_NO_UI);
@@ -537,7 +541,7 @@ static void wm_init_userdef(Main *bmain)
 
   const int64_t cache_limit = int64_t(U.memcachelimit) * 1024 * 1024;
   MEM_CacheLimiter_set_maximum(cache_limit);
-  blender::memory_cache::set_approximate_size_limit(cache_limit);
+  memory_cache::set_approximate_size_limit(cache_limit);
 
   BKE_sound_init(bmain);
 
@@ -546,6 +550,10 @@ static void wm_init_userdef(Main *bmain)
 
   /* Update input device preference. */
   WM_init_input_devices();
+
+#ifdef WITH_GHOST_CSD
+  WM_window_csd_params_update();
+#endif
 
   BLO_sanitize_experimental_features_userpref_blend(&U);
 
@@ -624,16 +632,16 @@ void wm_file_read_report(Main *bmain, wmWindow *win)
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   ReportList *reports = &wm->runtime->reports;
   bool found = false;
-  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    if (scene->r.engine[0] &&
-        BLI_findstring(&R_engines, scene->r.engine, offsetof(RenderEngineType, idname)) == nullptr)
+  for (Scene &scene : bmain->scenes) {
+    if (scene.r.engine[0] &&
+        BLI_findstring(&R_engines, scene.r.engine, offsetof(RenderEngineType, idname)) == nullptr)
     {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "Engine '%s' not available for scene '%s' (an add-on may need to be installed "
                   "or enabled)",
-                  scene->r.engine,
-                  scene->id.name + 2);
+                  scene.r.engine,
+                  scene.id.name + 2);
       found = true;
     }
   }
@@ -659,7 +667,7 @@ static void wm_file_read_pre(bool use_data, bool /*use_userdef*/)
 
   /* Always do this as both startup and preferences may have loaded in many font's
    * at a different zoom level to the file being loaded. */
-  blender::ui::view2d_zoom_cache_reset();
+  ui::view2d_zoom_cache_reset();
 
   ED_preview_restart_queue_free();
 }
@@ -762,9 +770,9 @@ static void wm_file_read_post(bContext *C,
 
   if (is_factory_startup && BLT_translate_new_dataname()) {
     /* Translate workspace names. */
-    LISTBASE_FOREACH_MUTABLE (WorkSpace *, workspace, &bmain->workspaces) {
+    for (WorkSpace &workspace : bmain->workspaces.items_mutable()) {
       BKE_libblock_rename(
-          *bmain, workspace->id, CTX_DATA_(BLT_I18NCONTEXT_ID_WORKSPACE, workspace->id.name + 2));
+          *bmain, workspace.id, CTX_DATA_(BLT_I18NCONTEXT_ID_WORKSPACE, workspace.id.name + 2));
     }
   }
 
@@ -775,7 +783,7 @@ static void wm_file_read_post(bContext *C,
     /* Load-post must run before evaluating drivers & depsgraph, see: #109720.
      * On failure, the caller handles #BKE_CB_EVT_LOAD_POST_FAIL. */
     if (params->success) {
-      BKE_callback_exec_string(bmain, BKE_CB_EVT_LOAD_POST, filepath);
+      BKE_callback_exec_string(bmain, filepath, BKE_CB_EVT_LOAD_POST);
     }
 
     if (is_factory_startup) {
@@ -799,12 +807,10 @@ static void wm_file_read_post(bContext *C,
      * Cycles. So we need to update compositor node trees after reading the file when add-ons are
      * now loaded. */
     if (is_startup_file) {
-      FOREACH_NODETREE_BEGIN (bmain, node_tree, owner_id) {
-        if (node_tree->type == NTREE_COMPOSIT) {
-          ntreeCompositUpdateRLayers(node_tree);
-        }
+      for (Scene &scene : bmain->scenes) {
+        BKE_ntree_update_tag_id_changed(bmain, &scene.id);
       }
-      FOREACH_NODETREE_END;
+      BKE_ntree_update(*bmain);
     }
 
 #if 1
@@ -855,7 +861,7 @@ static void wm_read_callback_pre_wrapper(bContext *C, const char *filepath)
 {
   /* NOTE: either #BKE_CB_EVT_LOAD_POST or #BKE_CB_EVT_LOAD_POST_FAIL must run.
    * Runs at the end of this function, don't return beforehand. */
-  BKE_callback_exec_string(CTX_data_main(C), BKE_CB_EVT_LOAD_PRE, filepath);
+  BKE_callback_exec_string(CTX_data_main(C), filepath, BKE_CB_EVT_LOAD_PRE);
 }
 
 static void wm_read_callback_post_wrapper(bContext *C, const char *filepath, const bool success)
@@ -872,7 +878,7 @@ static void wm_read_callback_post_wrapper(bContext *C, const char *filepath, con
 
   /* On success: #BKE_CB_EVT_LOAD_POST runs from #wm_file_read_post. */
   if (success == false) {
-    BKE_callback_exec_string(bmain, BKE_CB_EVT_LOAD_POST_FAIL, filepath);
+    BKE_callback_exec_string(bmain, filepath, BKE_CB_EVT_LOAD_POST_FAIL);
   }
 
   /* This function should leave the window null when the function entered. */
@@ -1002,7 +1008,7 @@ static void file_read_reports_finalize(BlendFileReadReport *bf_reports)
                 RPT_ERROR,
                 "%d sequence strips were not read because they were in a channel larger than %d",
                 bf_reports->count.sequence_strips_skipped,
-                blender::seq::MAX_CHANNELS);
+                seq::MAX_CHANNELS);
   }
 
   BLI_linklist_free(bf_reports->resynced_lib_overrides_libraries, nullptr);
@@ -1514,9 +1520,9 @@ void wm_homefile_read_ex(bContext *C,
   if (use_userdef) {
     /* Clear keymaps because the current default keymap may have been initialized
      * from user preferences, which have been reset. */
-    LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
-      if (wm->runtime->defaultconf) {
-        wm->runtime->defaultconf->flag &= ~KEYCONF_INIT_DEFAULT;
+    for (wmWindowManager &wm : bmain->wm) {
+      if (wm.runtime->defaultconf) {
+        wm.runtime->defaultconf->flag &= ~KEYCONF_INIT_DEFAULT;
       }
     }
   }
@@ -1545,7 +1551,7 @@ void wm_homefile_read_ex(bContext *C,
     }
     else {
       params_file_read_post.is_alloc = true;
-      *r_params_file_read_post = MEM_mallocN<wmFileReadPost_Params>(__func__);
+      *r_params_file_read_post = MEM_new_uninitialized<wmFileReadPost_Params>(__func__);
       **r_params_file_read_post = params_file_read_post;
 
       /* Match #wm_file_read_post which leaves the window cleared too. */
@@ -1571,7 +1577,7 @@ void wm_homefile_read_post(bContext *C, const wmFileReadPost_Params *params_file
   }
 
   if (params_file_read_post->is_alloc) {
-    MEM_freeN(params_file_read_post);
+    MEM_delete(params_file_read_post);
   }
 }
 
@@ -1603,7 +1609,7 @@ void wm_history_file_read()
     const char *line = static_cast<const char *>(l->link);
     /* Don't check if files exist, causes slow startup for remote/external drives. */
     if (line[0]) {
-      RecentFile *recent = MEM_mallocN<RecentFile>("RecentFile");
+      RecentFile *recent = MEM_new_uninitialized<RecentFile>("RecentFile");
       BLI_addtail(&(G.recent_files), recent);
       recent->filepath = BLI_strdup(line);
       num++;
@@ -1615,7 +1621,7 @@ void wm_history_file_read()
 
 static RecentFile *wm_history_file_new(const char *filepath)
 {
-  RecentFile *recent = MEM_mallocN<RecentFile>("RecentFile");
+  RecentFile *recent = MEM_new_uninitialized<RecentFile>("RecentFile");
   recent->filepath = BLI_strdup(filepath);
   return recent;
 }
@@ -1623,14 +1629,14 @@ static RecentFile *wm_history_file_new(const char *filepath)
 static void wm_history_file_free(RecentFile *recent)
 {
   BLI_assert(BLI_findindex(&G.recent_files, recent) != -1);
-  MEM_freeN(recent->filepath);
+  MEM_delete(recent->filepath);
   BLI_freelinkN(&G.recent_files, recent);
 }
 
 static void wm_history_files_free()
 {
-  LISTBASE_FOREACH_MUTABLE (RecentFile *, recent, &G.recent_files) {
-    wm_history_file_free(recent);
+  for (RecentFile &recent : G.recent_files.items_mutable()) {
+    wm_history_file_free(&recent);
   }
 }
 
@@ -1660,8 +1666,8 @@ static void wm_history_file_write()
 
   fp = BLI_fopen(filepath, "w");
   if (fp) {
-    LISTBASE_FOREACH (RecentFile *, recent, &G.recent_files) {
-      fprintf(fp, "%s\n", recent->filepath);
+    for (RecentFile &recent : G.recent_files) {
+      fprintf(fp, "%s\n", recent.filepath);
     }
     fclose(fp);
   }
@@ -1707,7 +1713,8 @@ static void wm_history_file_update()
     wm_history_file_write();
 
     /* Also update most recent files on system. */
-    GHOST_addToSystemRecentFiles(blendfile_path);
+    const GHOST_ISystemPaths *ghost_system_paths = GHOST_ISystemPaths::get();
+    ghost_system_paths->addToSystemRecentFiles(blendfile_path);
   }
 }
 
@@ -1755,11 +1762,12 @@ static uint8_t *blend_file_thumb_fast_downscale(const uint8_t *src_rect,
    * this isn't a concern. */
 
   BLI_assert(dst_size[0] <= src_size[0] && dst_size[1] <= src_size[1]);
-  uint8_t *dst_rect = MEM_malloc_arrayN<uint8_t>(size_t(4 * dst_size[0] * dst_size[1]), __func__);
+  uint8_t *dst_rect = MEM_new_array_uninitialized<uint8_t>(size_t(4 * dst_size[0] * dst_size[1]),
+                                                           __func__);
 
   /* A row, the width of the destination to accumulate pixel values into
    * before writing into the image. */
-  uint32_t *accum_row = MEM_calloc_arrayN<uint32_t>(size_t(dst_size[0] * 4), __func__);
+  uint32_t *accum_row = MEM_new_array_zeroed<uint32_t>(size_t(dst_size[0] * 4), __func__);
 
 #  ifndef NDEBUG
   /* Assert that samples are calculated correctly. */
@@ -1820,14 +1828,14 @@ static uint8_t *blend_file_thumb_fast_downscale(const uint8_t *src_rect,
   BLI_assert(src_px == src_rect + (sizeof(uint8_t[4]) * src_size[0] * src_size[1]));
   BLI_assert(sample_count_all == size_t(src_size[0]) * size_t(src_size[1]));
 
-  MEM_freeN(accum_row);
+  MEM_delete(accum_row);
   return dst_rect;
 }
 #endif /* USE_THUMBNAIL_FAST_DOWNSCALE */
 
-static blender::int2 blend_file_thumb_clamp_size(const int size[2], const int limit)
+static int2 blend_file_thumb_clamp_size(const int size[2], const int limit)
 {
-  blender::int2 result;
+  int2 result;
   if (size[0] > size[1]) {
     result.x = limit;
     result.y = max_ii(1, int((float(size[1]) / float(size[0])) * limit));
@@ -1863,19 +1871,19 @@ static ImBuf *blend_file_thumb_from_screenshot(bContext *C, BlendThumbnail **r_t
   ImBuf *ibuf = nullptr;
 
   if (uint8_t *buffer = WM_window_pixels_read_from_frontbuffer(wm, win, win_size)) {
-    const blender::int2 thumb_size_2x = blend_file_thumb_clamp_size(win_size, BLEN_THUMB_SIZE * 2);
-    const blender::int2 thumb_size = blend_file_thumb_clamp_size(win_size, BLEN_THUMB_SIZE);
+    const int2 thumb_size_2x = blend_file_thumb_clamp_size(win_size, BLEN_THUMB_SIZE * 2);
+    const int2 thumb_size = blend_file_thumb_clamp_size(win_size, BLEN_THUMB_SIZE);
 
 #ifdef USE_THUMBNAIL_FAST_DOWNSCALE
     if ((thumb_size_2x[0] <= win_size[0]) && (thumb_size_2x[1] <= win_size[1])) {
       uint8_t *rect_2x = blend_file_thumb_fast_downscale(buffer, win_size, thumb_size_2x);
       uint8_t *rect = blend_file_thumb_fast_downscale(rect_2x, thumb_size_2x, thumb_size);
 
-      MEM_freeN(buffer);
+      MEM_delete(buffer);
       ibuf = IMB_allocFromBufferOwn(rect_2x, nullptr, thumb_size_2x.x, thumb_size_2x.y, 24);
 
       BlendThumbnail *thumb = BKE_main_thumbnail_from_buffer(nullptr, rect, thumb_size);
-      MEM_freeN(rect);
+      MEM_delete(rect);
       *r_thumb = thumb;
     }
     else
@@ -1988,6 +1996,7 @@ static ImBuf *blend_file_thumb_from_camera(const bContext *C,
                                           true,
                                           nullptr,
                                           nullptr,
+                                          true,
                                           err_out);
   }
 
@@ -2072,15 +2081,13 @@ static bool wm_file_write_check_with_report_on_failure(Main *bmain,
     return false;
   }
 
-  if (bmain->is_asset_edit_file &&
-      blender::StringRef(filepath).endswith(BLENDER_ASSET_FILE_SUFFIX))
-  {
+  if (bmain->is_asset_edit_file && StringRef(filepath).endswith(BLENDER_ASSET_FILE_SUFFIX)) {
     BKE_report(reports, RPT_ERROR, "Cannot overwrite files that are managed by the asset system");
     return false;
   }
 
-  LISTBASE_FOREACH (Library *, li, &bmain->libraries) {
-    if (BLI_path_cmp(li->runtime->filepath_abs, filepath) == 0) {
+  for (Library &li : bmain->libraries) {
+    if (BLI_path_cmp(li.runtime->filepath_abs, filepath) == 0) {
       BKE_reportf(reports, RPT_ERROR, "Cannot overwrite used library '%.240s'", filepath);
       return false;
     }
@@ -2116,7 +2123,7 @@ static bool wm_file_write(bContext *C,
 
   /* NOTE: either #BKE_CB_EVT_SAVE_POST or #BKE_CB_EVT_SAVE_POST_FAIL must run.
    * Runs at the end of this function, don't return beforehand. */
-  BKE_callback_exec_string(bmain, BKE_CB_EVT_SAVE_PRE, filepath);
+  BKE_callback_exec_string(bmain, filepath, BKE_CB_EVT_SAVE_PRE);
 
   /* Check if file write permission is OK. */
   if (const int st_mode = BLI_exists(filepath)) {
@@ -2139,12 +2146,12 @@ static bool wm_file_write(bContext *C,
     }
 
     if (!ok) {
-      BKE_callback_exec_string(bmain, BKE_CB_EVT_SAVE_POST_FAIL, filepath);
+      BKE_callback_exec_string(bmain, filepath, BKE_CB_EVT_SAVE_POST_FAIL);
       return false;
     }
   }
 
-  blender::ed::asset::pre_save_assets(bmain);
+  ed::asset::pre_save_assets(bmain);
 
   /* Enforce full override check/generation on file save. */
   BKE_lib_override_library_main_operations_create(bmain, true, nullptr);
@@ -2235,18 +2242,24 @@ static bool wm_file_write(bContext *C,
     /* Run this function after because the file can't be written before the blend is. */
     if (ibuf_thumb) {
       IMB_thumb_delete(filepath, THB_FAIL); /* Without this a failed thumb overrides. */
-      ibuf_thumb = IMB_thumb_create(filepath, THB_LARGE, THB_SOURCE_BLEND, ibuf_thumb);
+      /* `IMB_thumb_create()` may return nullptr, `ibuf_thumb` may then leak that buffers' memory.
+       */
+      ImBuf *saved_ibuf_thumb = IMB_thumb_create(
+          filepath, THB_LARGE, THB_SOURCE_BLEND, ibuf_thumb);
+      if (saved_ibuf_thumb) {
+        ibuf_thumb = saved_ibuf_thumb;
+      }
     }
   }
 
   BKE_callback_exec_string(
-      bmain, success ? BKE_CB_EVT_SAVE_POST : BKE_CB_EVT_SAVE_POST_FAIL, filepath);
+      bmain, filepath, success ? BKE_CB_EVT_SAVE_POST : BKE_CB_EVT_SAVE_POST_FAIL);
 
   if (ibuf_thumb) {
     IMB_freeImBuf(ibuf_thumb);
   }
   if (thumb && thumb != main_thumb) {
-    MEM_freeN(thumb);
+    MEM_delete(thumb);
   }
 
   WM_cursor_wait(false);
@@ -2368,10 +2381,10 @@ void wm_autosave_timer(Main *bmain, wmWindowManager *wm, wmTimer * /*wt*/)
 
   /* If a modal operator is running, don't autosave because we might not be in
    * a valid state to save. But try again in 10ms. */
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    LISTBASE_FOREACH (wmEventHandler *, handler_base, &win->runtime->modalhandlers) {
-      if (handler_base->type == WM_HANDLER_TYPE_OP) {
-        wmEventHandler_Op *handler = (wmEventHandler_Op *)handler_base;
+  for (wmWindow &win : wm->windows) {
+    for (wmEventHandler &handler_base : win.runtime->modalhandlers) {
+      if (handler_base.type == WM_HANDLER_TYPE_OP) {
+        wmEventHandler_Op *handler = reinterpret_cast<wmEventHandler_Op *>(&handler_base);
         if (handler->op) {
           wm_autosave_timer_begin_ex(wm, 0.01);
           return;
@@ -2493,8 +2506,8 @@ static wmOperatorStatus wm_homefile_write_exec(bContext *C, wmOperator *op)
 
   /* NOTE: either #BKE_CB_EVT_SAVE_POST or #BKE_CB_EVT_SAVE_POST_FAIL must run.
    * Runs at the end of this function, don't return beforehand. */
-  BKE_callback_exec_string(bmain, BKE_CB_EVT_SAVE_PRE, "");
-  blender::ed::asset::pre_save_assets(bmain);
+  BKE_callback_exec_string(bmain, "", BKE_CB_EVT_SAVE_PRE);
+  ed::asset::pre_save_assets(bmain);
 
   /* Check current window and close it if temp. */
   if (win && WM_window_is_temp_screen(win)) {
@@ -2524,7 +2537,7 @@ static wmOperatorStatus wm_homefile_write_exec(bContext *C, wmOperator *op)
   const bool success = BLO_write_file(
       bmain, filepath, fileflags, &blend_write_params, op->reports);
 
-  BKE_callback_exec_string(bmain, success ? BKE_CB_EVT_SAVE_POST : BKE_CB_EVT_SAVE_POST_FAIL, "");
+  BKE_callback_exec_string(bmain, "", success ? BKE_CB_EVT_SAVE_POST : BKE_CB_EVT_SAVE_POST_FAIL);
 
   if (success) {
     BKE_report(op->reports, RPT_INFO, "Startup file saved");
@@ -2544,7 +2557,7 @@ static wmOperatorStatus wm_homefile_write_invoke(bContext *C,
                                   IFACE_("Overwrite Startup File"),
                                   IFACE_("Blender will start next time as it is now."),
                                   IFACE_("Overwrite"),
-                                  blender::ui::AlertIcon::Question,
+                                  ui::AlertIcon::Question,
                                   false);
   }
 
@@ -2559,7 +2572,7 @@ static wmOperatorStatus wm_homefile_write_invoke(bContext *C,
                                 IFACE_("Overwrite Template Startup File"),
                                 message.c_str(),
                                 IFACE_("Overwrite"),
-                                blender::ui::AlertIcon::Question,
+                                ui::AlertIcon::Question,
                                 false);
 }
 
@@ -2664,8 +2677,8 @@ static void wm_userpref_update_when_changed(bContext *C,
                                             UserDef *userdef_prev,
                                             UserDef *userdef_curr)
 {
-  PointerRNA ptr_a = RNA_pointer_create_discrete(nullptr, &RNA_Preferences, userdef_prev);
-  PointerRNA ptr_b = RNA_pointer_create_discrete(nullptr, &RNA_Preferences, userdef_curr);
+  PointerRNA ptr_a = RNA_pointer_create_discrete(nullptr, RNA_Preferences, userdef_prev);
+  PointerRNA ptr_b = RNA_pointer_create_discrete(nullptr, RNA_Preferences, userdef_curr);
   const bool is_dirty = userdef_curr->runtime.is_dirty;
 
   rna_struct_update_when_changed(C, bmain, &ptr_a, &ptr_b);
@@ -2687,7 +2700,7 @@ static wmOperatorStatus wm_userpref_read_exec(bContext *C, wmOperator *op)
 
   BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_PRE);
 
-  UserDef U_backup = blender::dna::shallow_copy(U);
+  UserDef U_backup = dna::shallow_copy(U);
 
   wmHomeFileRead_Params read_homefile_params{};
   read_homefile_params.use_data = use_data;
@@ -2719,13 +2732,26 @@ static wmOperatorStatus wm_userpref_read_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus wm_userpref_revert_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent * /*event*/)
+{
+  return WM_operator_confirm_ex(C,
+                                op,
+                                IFACE_("Revert to Saved Preferences"),
+                                IFACE_("Reload preferences from the last saved state"),
+                                IFACE_("Revert"),
+                                blender::ui::AlertIcon::Warning,
+                                false);
+}
+
 void WM_OT_read_userpref(wmOperatorType *ot)
 {
   ot->name = "Load Preferences";
   ot->idname = "WM_OT_read_userpref";
   ot->description = "Load last saved preferences";
 
-  ot->invoke = WM_operator_confirm;
+  ot->invoke = wm_userpref_revert_invoke;
   ot->exec = wm_userpref_read_exec;
 }
 
@@ -2754,7 +2780,7 @@ static wmOperatorStatus wm_userpref_read_invoke(bContext *C,
       title.c_str(),
       IFACE_("To make changes to Preferences permanent, use \"Save Preferences\""),
       IFACE_("Load"),
-      blender::ui::AlertIcon::Warning,
+      ui::AlertIcon::Warning,
       false);
 }
 
@@ -2819,7 +2845,7 @@ static wmOperatorStatus wm_homefile_read_exec(bContext *C, wmOperator *op)
   bool use_userdef = false;
   char filepath_buf[FILE_MAX];
   const char *filepath = nullptr;
-  UserDef U_backup = blender::dna::shallow_copy(U);
+  UserDef U_backup = dna::shallow_copy(U);
 
   if (!use_factory_settings) {
     PropertyRNA *prop = RNA_struct_find_property(op->ptr, "filepath");
@@ -2904,6 +2930,7 @@ static wmOperatorStatus wm_homefile_read_exec(bContext *C, wmOperator *op)
   }
 
   if (use_userdef) {
+    BLT_lang_set(nullptr);
     BKE_callback_exec_null(CTX_data_main(C), BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
   }
 
@@ -2918,8 +2945,8 @@ static void wm_homefile_read_after_dialog_callback(bContext *C, void *user_data)
 {
   WM_operator_name_call_with_properties(C,
                                         "WM_OT_read_homefile",
-                                        blender::wm::OpCallContext::ExecDefault,
-                                        (IDProperty *)user_data,
+                                        wm::OpCallContext::ExecDefault,
+                                        static_cast<IDProperty *>(user_data),
                                         nullptr);
 }
 
@@ -3023,7 +3050,7 @@ static wmOperatorStatus wm_read_factory_settings_invoke(bContext *C,
                        "Warning: Your file is unsaved! Proceeding will abandon your changes.") :
                 IFACE_("To make changes to Preferences permanent, use \"Save Preferences\"."),
       IFACE_("Load"),
-      blender::ui::AlertIcon::Warning,
+      ui::AlertIcon::Warning,
       false);
 }
 
@@ -3125,8 +3152,8 @@ static void wm_open_mainfile_after_dialog_callback(bContext *C, void *user_data)
 {
   WM_operator_name_call_with_properties(C,
                                         "WM_OT_open_mainfile",
-                                        blender::wm::OpCallContext::InvokeDefault,
-                                        (IDProperty *)user_data,
+                                        wm::OpCallContext::InvokeDefault,
+                                        static_cast<IDProperty *>(user_data),
                                         nullptr);
 }
 
@@ -3277,7 +3304,7 @@ BLI_STATIC_ASSERT(sizeof(FileRuntime) <= sizeof(void *), "Struct must not exceed
 
 static bool wm_open_mainfile_check(bContext * /*C*/, wmOperator *op)
 {
-  FileRuntime *file_info = (FileRuntime *)&op->customdata;
+  FileRuntime *file_info = reinterpret_cast<FileRuntime *>(&op->customdata);
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_scripts");
   bool is_untrusted = false;
   char filepath[FILE_MAX];
@@ -3286,7 +3313,7 @@ static bool wm_open_mainfile_check(bContext * /*C*/, wmOperator *op)
   RNA_string_get(op->ptr, "filepath", filepath);
 
   /* Get the directory. */
-  lslash = (char *)BLI_path_slash_rfind(filepath);
+  lslash = const_cast<char *>(BLI_path_slash_rfind(filepath));
   if (lslash) {
     *(lslash + 1) = '\0';
   }
@@ -3307,13 +3334,13 @@ static bool wm_open_mainfile_check(bContext * /*C*/, wmOperator *op)
 
 static void wm_open_mainfile_ui(bContext * /*C*/, wmOperator *op)
 {
-  FileRuntime *file_info = (FileRuntime *)&op->customdata;
-  blender::ui::Layout &layout = *op->layout;
+  FileRuntime *file_info = reinterpret_cast<FileRuntime *>(&op->customdata);
+  ui::Layout &layout = *op->layout;
   const char *autoexec_text;
 
   layout.prop(op->ptr, "load_ui", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  blender::ui::Layout &col = layout.column(false);
+  ui::Layout &col = layout.column(false);
   if (file_info->is_untrusted) {
     autoexec_text = IFACE_("Trusted Source [Untrusted Path]");
     col.active_set(false);
@@ -3390,7 +3417,7 @@ static wmOperatorStatus wm_revert_mainfile_invoke(bContext *C,
                                 IFACE_("Revert to the Saved File"),
                                 message.c_str(),
                                 IFACE_("Revert"),
-                                blender::ui::AlertIcon::Warning,
+                                ui::AlertIcon::Warning,
                                 false);
 }
 
@@ -3477,8 +3504,8 @@ static void wm_recover_last_session_after_dialog_callback(bContext *C, void *use
 {
   WM_operator_name_call_with_properties(C,
                                         "WM_OT_recover_last_session",
-                                        blender::wm::OpCallContext::ExecDefault,
-                                        (IDProperty *)user_data,
+                                        wm::OpCallContext::ExecDefault,
+                                        static_cast<IDProperty *>(user_data),
                                         nullptr);
 }
 
@@ -3636,9 +3663,7 @@ static void save_set_filepath(bContext *C, wmOperator *op)
      * Replace `.asset.blend` extension with just `.blend`.
      * Asset system files must not be overridden (except by the asset system),
      * there are further checks to prevent this entirely. */
-    if (bmain->is_asset_edit_file &&
-        blender::StringRef(filepath).endswith(BLENDER_ASSET_FILE_SUFFIX))
-    {
+    if (bmain->is_asset_edit_file && StringRef(filepath).endswith(BLENDER_ASSET_FILE_SUFFIX)) {
       filepath[strlen(filepath) - strlen(BLENDER_ASSET_FILE_SUFFIX)] = '\0';
       BLI_path_extension_ensure(filepath, FILE_MAX, ".blend");
     }
@@ -3983,9 +4008,9 @@ static wmOperatorStatus wm_clear_recent_files_exec(bContext * /*C*/, wmOperator 
     wm_history_files_free();
   }
   else if (include == CLEAR_RECENT_MISSING) {
-    LISTBASE_FOREACH_MUTABLE (RecentFile *, recent, &G.recent_files) {
-      if (!BLI_exists(recent->filepath)) {
-        wm_history_file_free(recent);
+    for (RecentFile &recent : G.recent_files.items_mutable()) {
+      if (!BLI_exists(recent.filepath)) {
+        wm_history_file_free(&recent);
       }
     }
   }
@@ -3997,12 +4022,12 @@ static wmOperatorStatus wm_clear_recent_files_exec(bContext * /*C*/, wmOperator 
 
 static void wm_clear_recent_files_ui(bContext * /*C*/, wmOperator *op)
 {
-  blender::ui::Layout &layout = *op->layout;
+  ui::Layout &layout = *op->layout;
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
   layout.separator();
-  layout.prop(op->ptr, "remove", blender::ui::ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "remove", ui::ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
   layout.separator();
 }
 
@@ -4033,13 +4058,13 @@ void WM_OT_clear_recent_files(wmOperatorType *ot)
 static void wm_block_autorun_warning_ignore(bContext *C, void *arg_block, void * /*arg*/)
 {
   wmWindow *win = CTX_wm_window(C);
-  popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
+  popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
 
   /* Free the data as it's no longer needed. */
   wm_test_autorun_revert_action_set(nullptr, nullptr);
 }
 
-static void wm_block_autorun_warning_reload_with_scripts(bContext *C, blender::ui::Block *block)
+static void wm_block_autorun_warning_reload_with_scripts(bContext *C, ui::Block *block)
 {
   wmWindow *win = CTX_wm_window(C);
 
@@ -4048,7 +4073,7 @@ static void wm_block_autorun_warning_reload_with_scripts(bContext *C, blender::u
   /* Save user preferences for permanent execution. */
   if ((U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0) {
     WM_operator_name_call(
-        C, "WM_OT_save_userpref", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
+        C, "WM_OT_save_userpref", wm::OpCallContext::ExecDefault, nullptr, nullptr);
   }
 
   /* Load file again with scripts enabled.
@@ -4056,7 +4081,7 @@ static void wm_block_autorun_warning_reload_with_scripts(bContext *C, blender::u
   wm_test_autorun_revert_action_exec(C);
 }
 
-static void wm_block_autorun_warning_enable_scripts(bContext *C, blender::ui::Block *block)
+static void wm_block_autorun_warning_enable_scripts(bContext *C, ui::Block *block)
 {
   wmWindow *win = CTX_wm_window(C);
   Main *bmain = CTX_data_main(C);
@@ -4066,30 +4091,26 @@ static void wm_block_autorun_warning_enable_scripts(bContext *C, blender::ui::Bl
   /* Save user preferences for permanent execution. */
   if ((U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0) {
     WM_operator_name_call(
-        C, "WM_OT_save_userpref", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
+        C, "WM_OT_save_userpref", wm::OpCallContext::ExecDefault, nullptr, nullptr);
   }
 
   /* Force a full refresh, but without reloading the file. */
-  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    BKE_scene_free_depsgraph_hash(scene);
+  for (Scene &scene : bmain->scenes) {
+    BKE_scene_free_depsgraph_hash(&scene);
   }
 }
 
 /* Build the auto-run warning dialog UI. */
-static blender::ui::Block *block_create_autorun_warning(bContext *C,
-                                                        ARegion *region,
-                                                        void * /*arg1*/)
+static ui::Block *block_create_autorun_warning(bContext *C, ARegion *region, void * /*arg1*/)
 {
   const char *blendfile_path = BKE_main_blendfile_path_from_global();
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  blender::ui::Block *block = block_begin(
-      C, region, "autorun_warning_popup", blender::ui::EmbossType::Emboss);
-  block_flag_enable(block,
-                    blender::ui::BLOCK_KEEP_OPEN | blender::ui::BLOCK_LOOP |
-                        blender::ui::BLOCK_NO_WIN_CLIP | blender::ui::BLOCK_NUMSELECT);
-  block_theme_style_set(block, blender::ui::BLOCK_THEME_STYLE_POPUP);
-  block_emboss_set(block, blender::ui::EmbossType::Emboss);
+  ui::Block *block = block_begin(C, region, "autorun_warning_popup", ui::EmbossType::Emboss);
+  block_flag_enable(
+      block, ui::BLOCK_KEEP_OPEN | ui::BLOCK_LOOP | ui::BLOCK_NO_WIN_CLIP | ui::BLOCK_NUMSELECT);
+  block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
+  block_emboss_set(block, ui::EmbossType::Emboss);
 
   const char *title = RPT_(
       "For security reasons, automatic execution of Python scripts "
@@ -4098,8 +4119,8 @@ static blender::ui::Block *block_create_autorun_warning(bContext *C,
   const char *checkbox_text = RPT_("Permanently allow execution of scripts");
 
   /* Measure strings to find the longest. */
-  const uiStyle *style = blender::ui::style_get_dpi();
-  blender::ui::fontstyle_set(&style->widget);
+  const uiStyle *style = ui::style_get_dpi();
+  ui::fontstyle_set(&style->widget);
   int text_width = int(BLF_width(style->widget.uifont_id, title, BLF_DRAW_STR_DUMMY_MAX));
   text_width = std::max(text_width,
                         int(BLF_width(style->widget.uifont_id, message, BLF_DRAW_STR_DUMMY_MAX)));
@@ -4111,25 +4132,25 @@ static blender::ui::Block *block_create_autorun_warning(bContext *C,
   const int dialog_width = std::max(int(400.0f * UI_SCALE_FAC),
                                     text_width + int(style->columnspace * 2.5));
   const short icon_size = 40 * UI_SCALE_FAC;
-  blender::ui::Layout &layout = *uiItemsAlertBox(
-      block, style, dialog_width + icon_size, blender::ui::AlertIcon::Error, icon_size);
+  ui::Layout &layout = *uiItemsAlertBox(
+      block, style, dialog_width + icon_size, ui::AlertIcon::Error, icon_size);
 
   /* Title and explanation text. */
-  blender::ui::Layout &col = layout.column(true);
+  ui::Layout &col = layout.column(true);
   uiItemL_ex(&col, title, ICON_NONE, true, false);
   uiItemL_ex(&col, G.autoexec_fail, ICON_NONE, false, true);
   col.label(message, ICON_NONE);
 
   layout.separator();
 
-  PointerRNA pref_ptr = RNA_pointer_create_discrete(nullptr, &RNA_PreferencesFilePaths, &U);
+  PointerRNA pref_ptr = RNA_pointer_create_discrete(nullptr, RNA_PreferencesFilePaths, &U);
   layout.prop(&pref_ptr, "use_scripts_auto_execute", UI_ITEM_NONE, checkbox_text, ICON_NONE);
 
   layout.separator(2.0f);
 
   /* Buttons. */
-  blender::ui::Button *but;
-  blender::ui::Layout &split = layout.split(0.0f, true);
+  ui::Button *but;
+  ui::Layout &split = layout.split(0.0f, true);
   split.scale_y_set(1.2f);
 
   /* Empty space. */
@@ -4141,7 +4162,7 @@ static blender::ui::Block *block_create_autorun_warning(bContext *C,
    * Otherwise just enable scripts and reset the depsgraphs. */
   if ((blendfile_path[0] != '\0') && wm->file_saved) {
     but = uiDefIconTextBut(block,
-                           blender::ui::ButtonType::But,
+                           ui::ButtonType::But,
                            ICON_NONE,
                            IFACE_("Allow Execution"),
                            0,
@@ -4155,7 +4176,7 @@ static blender::ui::Block *block_create_autorun_warning(bContext *C,
   }
   else {
     but = uiDefIconTextBut(block,
-                           blender::ui::ButtonType::But,
+                           ui::ButtonType::But,
                            ICON_NONE,
                            IFACE_("Allow Execution"),
                            0,
@@ -4167,11 +4188,11 @@ static blender::ui::Block *block_create_autorun_warning(bContext *C,
     button_func_set(but,
                     [block](bContext &C) { wm_block_autorun_warning_enable_scripts(&C, block); });
   }
-  button_drawflag_disable(but, blender::ui::BUT_TEXT_LEFT);
+  button_drawflag_disable(but, ui::BUT_TEXT_LEFT);
 
   split.column(false);
   but = uiDefIconTextBut(block,
-                         blender::ui::ButtonType::But,
+                         ui::ButtonType::But,
                          ICON_NONE,
                          IFACE_("Ignore"),
                          0,
@@ -4181,8 +4202,8 @@ static blender::ui::Block *block_create_autorun_warning(bContext *C,
                          nullptr,
                          TIP_("Continue using file without Python scripts"));
   button_func_set(but, wm_block_autorun_warning_ignore, block, nullptr);
-  button_drawflag_disable(but, blender::ui::BUT_TEXT_LEFT);
-  button_flag_enable(but, blender::ui::BUT_ACTIVE_DEFAULT);
+  button_drawflag_disable(but, ui::BUT_TEXT_LEFT);
+  button_flag_enable(but, ui::BUT_ACTIVE_DEFAULT);
 
   block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
 
@@ -4229,7 +4250,7 @@ void wm_test_autorun_revert_action_exec(bContext *C)
     wm_test_autorun_revert_action_set(ot, ptr);
   }
 
-  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecDefault, ptr, nullptr);
   wm_test_autorun_revert_action_set(nullptr, nullptr);
 }
 
@@ -4259,7 +4280,7 @@ void wm_test_autorun_warning(bContext *C)
 
     wmWindow *prevwin = CTX_wm_window(C);
     CTX_wm_window_set(C, win);
-    blender::ui::popup_block_invoke(C, block_create_autorun_warning, nullptr, nullptr);
+    ui::popup_block_invoke(C, block_create_autorun_warning, nullptr, nullptr);
     CTX_wm_window_set(C, prevwin);
   }
 }
@@ -4287,7 +4308,7 @@ void wm_test_foreign_file_warning(bContext *C)
     alert(C,
           RPT_("Unable to Load File"),
           RPT_("The file is not a valid Blender file."),
-          blender::ui::AlertIcon::Error,
+          ui::AlertIcon::Error,
           false);
 
     CTX_wm_window_set(C, prevwin);
@@ -4302,21 +4323,21 @@ void wm_test_foreign_file_warning(bContext *C)
 
 static void free_post_file_close_action(void *arg)
 {
-  wmGenericCallback *action = (wmGenericCallback *)arg;
+  wmGenericCallback *action = static_cast<wmGenericCallback *>(arg);
   WM_generic_callback_free(action);
 }
 
 static void wm_free_operator_properties_callback(void *user_data)
 {
-  IDProperty *properties = (IDProperty *)user_data;
+  IDProperty *properties = static_cast<IDProperty *>(user_data);
   IDP_FreeProperty(properties);
 }
 
 static const char *save_file_overwrite_dialog_name = "save_file_overwrite_popup";
 
-static void file_overwrite_detailed_info_show(blender::ui::Layout &parent_layout, Main *bmain)
+static void file_overwrite_detailed_info_show(ui::Layout &parent_layout, Main *bmain)
 {
-  blender::ui::Layout &layout = parent_layout.column(true);
+  ui::Layout &layout = parent_layout.column(true);
   /* Trick to make both lines of text below close enough to look like they are part of a same
    * block. */
   layout.scale_y_set(0.70f);
@@ -4374,24 +4395,15 @@ static void file_overwrite_detailed_info_show(blender::ui::Layout &parent_layout
 static void save_file_overwrite_cancel(bContext *C, void *arg_block, void * /*arg_data*/)
 {
   wmWindow *win = CTX_wm_window(C);
-  popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
+  popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
 }
 
-static void save_file_overwrite_cancel_button(blender::ui::Block *block,
-                                              wmGenericCallback *post_action)
+static void save_file_overwrite_cancel_button(ui::Block *block, wmGenericCallback *post_action)
 {
-  blender::ui::Button *but = uiDefIconTextBut(block,
-                                              blender::ui::ButtonType::But,
-                                              ICON_NONE,
-                                              IFACE_("Cancel"),
-                                              0,
-                                              0,
-                                              0,
-                                              UI_UNIT_Y,
-                                              nullptr,
-                                              "");
+  ui::Button *but = uiDefIconTextBut(
+      block, ui::ButtonType::But, ICON_NONE, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, "");
   button_func_set(but, save_file_overwrite_cancel, block, post_action);
-  button_drawflag_disable(but, blender::ui::BUT_TEXT_LEFT);
+  button_drawflag_disable(but, ui::BUT_TEXT_LEFT);
 }
 
 static void save_file_overwrite_confirm(bContext *C, void *arg_block, void *arg_data)
@@ -4405,82 +4417,66 @@ static void save_file_overwrite_confirm(bContext *C, void *arg_block, void *arg_
 
   /* Needs to be done after stealing the callback data above, otherwise it would cause a
    * use-after-free. */
-  popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
+  popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
 
   PointerRNA operator_propptr = {};
   PointerRNA *operator_propptr_p = &operator_propptr;
   IDProperty *operator_idproperties = static_cast<IDProperty *>(callback->user_data);
   WM_operator_properties_alloc(&operator_propptr_p, &operator_idproperties, "WM_OT_save_mainfile");
 
-  WM_operator_name_call(C,
-                        "WM_OT_save_mainfile",
-                        blender::wm::OpCallContext::ExecDefault,
-                        operator_propptr_p,
-                        nullptr);
+  WM_operator_name_call(
+      C, "WM_OT_save_mainfile", wm::OpCallContext::ExecDefault, operator_propptr_p, nullptr);
 
   WM_generic_callback_free(callback);
 }
 
-static void save_file_overwrite_confirm_button(blender::ui::Block *block,
-                                               wmGenericCallback *post_action)
+static void save_file_overwrite_confirm_button(ui::Block *block, wmGenericCallback *post_action)
 {
-  blender::ui::Button *but = uiDefIconTextBut(block,
-                                              blender::ui::ButtonType::But,
-                                              ICON_NONE,
-                                              IFACE_("Overwrite"),
-                                              0,
-                                              0,
-                                              0,
-                                              UI_UNIT_Y,
-                                              nullptr,
-                                              "");
+  ui::Button *but = uiDefIconTextBut(
+      block, ui::ButtonType::But, ICON_NONE, IFACE_("Overwrite"), 0, 0, 0, UI_UNIT_Y, nullptr, "");
   button_func_set(but, save_file_overwrite_confirm, block, post_action);
-  button_drawflag_disable(but, blender::ui::BUT_TEXT_LEFT);
-  button_flag_enable(but, blender::ui::BUT_REDALERT);
+  button_drawflag_disable(but, ui::BUT_TEXT_LEFT);
+  button_flag_enable(but, ui::BUT_REDALERT);
 }
 
 static void save_file_overwrite_saveas(bContext *C, void *arg_block, void * /*arg_data*/)
 {
   wmWindow *win = CTX_wm_window(C);
-  popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
+  popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
 
   WM_operator_name_call(
-      C, "WM_OT_save_as_mainfile", blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+      C, "WM_OT_save_as_mainfile", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
 }
 
-static void save_file_overwrite_saveas_button(blender::ui::Block *block,
-                                              wmGenericCallback *post_action)
+static void save_file_overwrite_saveas_button(ui::Block *block, wmGenericCallback *post_action)
 {
-  blender::ui::Button *but = uiDefIconTextBut(block,
-                                              blender::ui::ButtonType::But,
-                                              ICON_NONE,
-                                              IFACE_("Save As..."),
-                                              0,
-                                              0,
-                                              0,
-                                              UI_UNIT_Y,
-                                              nullptr,
-                                              "");
+  ui::Button *but = uiDefIconTextBut(block,
+                                     ui::ButtonType::But,
+                                     ICON_NONE,
+                                     IFACE_("Save As..."),
+                                     0,
+                                     0,
+                                     0,
+                                     UI_UNIT_Y,
+                                     nullptr,
+                                     "");
   button_func_set(but, save_file_overwrite_saveas, block, post_action);
-  button_drawflag_disable(but, blender::ui::BUT_TEXT_LEFT);
-  button_flag_enable(but, blender::ui::BUT_ACTIVE_DEFAULT);
+  button_drawflag_disable(but, ui::BUT_TEXT_LEFT);
+  button_flag_enable(but, ui::BUT_ACTIVE_DEFAULT);
 }
 
-static blender::ui::Block *block_create_save_file_overwrite_dialog(bContext *C,
-                                                                   ARegion *region,
-                                                                   void *arg1)
+static ui::Block *block_create_save_file_overwrite_dialog(bContext *C, ARegion *region, void *arg1)
 {
   wmGenericCallback *post_action = static_cast<wmGenericCallback *>(arg1);
   Main *bmain = CTX_data_main(C);
 
-  blender::ui::Block *block = block_begin(
-      C, region, save_file_overwrite_dialog_name, blender::ui::EmbossType::Emboss);
-  block_flag_enable(block,
-                    blender::ui::BLOCK_KEEP_OPEN | blender::ui::BLOCK_LOOP |
-                        blender::ui::BLOCK_NO_WIN_CLIP | blender::ui::BLOCK_NUMSELECT);
-  block_theme_style_set(block, blender::ui::BLOCK_THEME_STYLE_POPUP);
+  ui::Block *block = block_begin(
+      C, region, save_file_overwrite_dialog_name, ui::EmbossType::Emboss);
+  block_flag_enable(
+      block, ui::BLOCK_KEEP_OPEN | ui::BLOCK_LOOP | ui::BLOCK_NO_WIN_CLIP | ui::BLOCK_NUMSELECT);
+  block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
 
-  blender::ui::Layout &layout = *uiItemsAlertBox(block, 44, blender::ui::AlertIcon::Warning);
+  ui::Layout &layout = *uiItemsAlertBox(block, 44, ui::AlertIcon::Warning);
 
   /* Title. */
   if (bmain->has_forward_compatibility_issues) {
@@ -4538,7 +4534,7 @@ static blender::ui::Block *block_create_save_file_overwrite_dialog(bContext *C,
 
   /* Buttons. */
 
-  blender::ui::Layout &split = layout.split(0.3f, true);
+  ui::Layout &split = layout.split(0.3f, true);
   split.scale_y_set(1.2f);
 
   split.column(false);
@@ -4548,7 +4544,7 @@ static blender::ui::Block *block_create_save_file_overwrite_dialog(bContext *C,
     save_file_overwrite_confirm_button(block, post_action);
   }
 
-  blender::ui::Layout &split_right = split.split(0.1f, true);
+  ui::Layout &split_right = split.split(0.1f, true);
 
   split_right.column(false);
   /* Empty space. */
@@ -4565,13 +4561,13 @@ static blender::ui::Block *block_create_save_file_overwrite_dialog(bContext *C,
 
 void wm_save_file_overwrite_dialog(bContext *C, wmOperator *op)
 {
-  if (!blender::ui::popup_block_name_exists(CTX_wm_screen(C), save_file_overwrite_dialog_name)) {
-    wmGenericCallback *callback = MEM_callocN<wmGenericCallback>(__func__);
+  if (!ui::popup_block_name_exists(CTX_wm_screen(C), save_file_overwrite_dialog_name)) {
+    wmGenericCallback *callback = MEM_new<wmGenericCallback>(__func__);
     callback->exec = nullptr;
     callback->user_data = IDP_CopyProperty(op->properties);
     callback->free_user_data = wm_free_operator_properties_callback;
 
-    blender::ui::popup_block_invoke(
+    ui::popup_block_invoke(
         C, block_create_save_file_overwrite_dialog, callback, free_post_file_close_action);
   }
 }
@@ -4587,18 +4583,19 @@ static char save_images_when_file_is_closed = true;
 static void wm_block_file_close_cancel(bContext *C, void *arg_block, void * /*arg_data*/)
 {
   wmWindow *win = CTX_wm_window(C);
-  popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
+  popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
 }
 
 static void wm_block_file_close_discard(bContext *C, void *arg_block, void *arg_data)
 {
-  wmGenericCallback *callback = WM_generic_callback_steal((wmGenericCallback *)arg_data);
+  wmGenericCallback *callback = WM_generic_callback_steal(
+      static_cast<wmGenericCallback *>(arg_data));
 
   /* Close the popup before executing the callback. Otherwise
    * the popup might be closed by the callback, which will lead
    * to a crash. */
   wmWindow *win = CTX_wm_window(C);
-  popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
+  popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
 
   callback->exec(C, callback->user_data);
   WM_generic_callback_free(callback);
@@ -4608,11 +4605,12 @@ static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_dat
 {
   const Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-  wmGenericCallback *callback = WM_generic_callback_steal((wmGenericCallback *)arg_data);
+  wmGenericCallback *callback = WM_generic_callback_steal(
+      static_cast<wmGenericCallback *>(arg_data));
   bool execute_callback = true;
 
   wmWindow *win = CTX_wm_window(C);
-  popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
+  popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
 
   int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
   if (modified_images_count > 0 && save_images_when_file_is_closed) {
@@ -4637,16 +4635,13 @@ static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_dat
        *
        * This is the same situation as what happens when the file has never been saved before
        * (outer `else` statement, below). */
-      WM_operator_name_call(C,
-                            "WM_OT_save_as_mainfile",
-                            blender::wm::OpCallContext::InvokeDefault,
-                            nullptr,
-                            nullptr);
+      WM_operator_name_call(
+          C, "WM_OT_save_as_mainfile", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
       execute_callback = false;
     }
     else {
       const wmOperatorStatus status = WM_operator_name_call(
-          C, "WM_OT_save_mainfile", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
+          C, "WM_OT_save_mainfile", wm::OpCallContext::ExecDefault, nullptr, nullptr);
       if (status & OPERATOR_CANCELLED) {
         execute_callback = false;
       }
@@ -4654,7 +4649,7 @@ static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_dat
   }
   else {
     WM_operator_name_call(
-        C, "WM_OT_save_mainfile", blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+        C, "WM_OT_save_mainfile", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
     execute_callback = false;
   }
 
@@ -4664,47 +4659,37 @@ static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_dat
   WM_generic_callback_free(callback);
 }
 
-static void wm_block_file_close_cancel_button(blender::ui::Block *block,
-                                              wmGenericCallback *post_action)
+static void wm_block_file_close_cancel_button(ui::Block *block, wmGenericCallback *post_action)
 {
-  blender::ui::Button *but = uiDefIconTextBut(block,
-                                              blender::ui::ButtonType::But,
-                                              ICON_NONE,
-                                              IFACE_("Cancel"),
-                                              0,
-                                              0,
-                                              0,
-                                              UI_UNIT_Y,
-                                              nullptr,
-                                              "");
+  ui::Button *but = uiDefIconTextBut(
+      block, ui::ButtonType::But, ICON_NONE, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, "");
   button_func_set(but, wm_block_file_close_cancel, block, post_action);
-  button_drawflag_disable(but, blender::ui::BUT_TEXT_LEFT);
+  button_drawflag_disable(but, ui::BUT_TEXT_LEFT);
 }
 
-static void wm_block_file_close_discard_button(blender::ui::Block *block,
-                                               wmGenericCallback *post_action)
+static void wm_block_file_close_discard_button(ui::Block *block, wmGenericCallback *post_action)
 {
-  blender::ui::Button *but = uiDefIconTextBut(block,
-                                              blender::ui::ButtonType::But,
-                                              ICON_NONE,
-                                              IFACE_("Don't Save"),
-                                              0,
-                                              0,
-                                              0,
-                                              UI_UNIT_Y,
-                                              nullptr,
-                                              "");
+  ui::Button *but = uiDefIconTextBut(block,
+                                     ui::ButtonType::But,
+                                     ICON_NONE,
+                                     IFACE_("Don't Save"),
+                                     0,
+                                     0,
+                                     0,
+                                     UI_UNIT_Y,
+                                     nullptr,
+                                     "");
   button_func_set(but, wm_block_file_close_discard, block, post_action);
-  button_drawflag_disable(but, blender::ui::BUT_TEXT_LEFT);
+  button_drawflag_disable(but, ui::BUT_TEXT_LEFT);
 }
 
-static void wm_block_file_close_save_button(blender::ui::Block *block,
+static void wm_block_file_close_save_button(ui::Block *block,
                                             wmGenericCallback *post_action,
                                             const bool needs_overwrite_confirm)
 {
-  blender::ui::Button *but = uiDefIconTextBut(
+  ui::Button *but = uiDefIconTextBut(
       block,
-      blender::ui::ButtonType::But,
+      ui::ButtonType::But,
       ICON_NONE,
       /* Forward compatibility issues force using 'save as' operator instead of 'save' one. */
       needs_overwrite_confirm ? IFACE_("Save As...") : IFACE_("Save"),
@@ -4715,8 +4700,8 @@ static void wm_block_file_close_save_button(blender::ui::Block *block,
       nullptr,
       "");
   button_func_set(but, wm_block_file_close_save, block, post_action);
-  button_drawflag_disable(but, blender::ui::BUT_TEXT_LEFT);
-  button_flag_enable(but, blender::ui::BUT_ACTIVE_DEFAULT);
+  button_drawflag_disable(but, ui::BUT_TEXT_LEFT);
+  button_flag_enable(but, ui::BUT_ACTIVE_DEFAULT);
 }
 
 static const char *close_file_dialog_name = "file_close_popup";
@@ -4724,16 +4709,13 @@ static const char *close_file_dialog_name = "file_close_popup";
 static void save_catalogs_when_file_is_closed_set_fn(bContext * /*C*/, void *arg1, void * /*arg2*/)
 {
   char *save_catalogs_when_file_is_closed = static_cast<char *>(arg1);
-  blender::ed::asset::catalogs_set_save_catalogs_when_file_is_saved(
-      *save_catalogs_when_file_is_closed != 0);
+  ed::asset::catalogs_set_save_catalogs_when_file_is_saved(*save_catalogs_when_file_is_closed !=
+                                                           0);
 }
 
-static blender::ui::Block *block_create__close_file_dialog(bContext *C,
-                                                           ARegion *region,
-                                                           void *arg1)
+static ui::Block *block_create__close_file_dialog(bContext *C, ARegion *region, void *arg1)
 {
-  using namespace blender;
-  wmGenericCallback *post_action = (wmGenericCallback *)arg1;
+  wmGenericCallback *post_action = static_cast<wmGenericCallback *>(arg1);
   Main *bmain = CTX_data_main(C);
 
   ui::Block *block = block_begin(C, region, close_file_dialog_name, ui::EmbossType::Emboss);
@@ -4771,7 +4753,7 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
   BKE_reports_init(&reports, RPT_STORE);
   uint modified_images_count = ED_image_save_all_modified_info(bmain, &reports);
 
-  LISTBASE_FOREACH (Report *, report, &reports.list) {
+  for (Report &report : reports.list) {
     ui::Layout &row = layout.column(false);
     row.scale_y_set(0.6f);
     row.separator();
@@ -4779,7 +4761,7 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
     /* Error messages created in ED_image_save_all_modified_info() can be long,
      * but are made to separate into two parts at first colon between text and paths.
      */
-    char *message = BLI_strdupn(report->message, report->len);
+    char *message = BLI_strdupn(report.message, report.len);
     char *path_info = strstr(message, ": ");
     if (path_info) {
       /* Terminate message string at colon. */
@@ -4791,7 +4773,7 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
     if (path_info) {
       uiItemL_ex(&row, path_info, ICON_NONE, false, true);
     }
-    MEM_freeN(message);
+    MEM_delete(message);
   }
 
   /* Used to determine if extra separators are needed. */
@@ -4805,18 +4787,17 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
     if (!has_extra_checkboxes) {
       layout.separator();
     }
-    uiDefButBitC(block,
-                 blender::ui::ButtonType::Checkbox,
-                 1,
-                 message,
-                 0,
-                 0,
-                 0,
-                 UI_UNIT_Y,
-                 &save_images_when_file_is_closed,
-                 0,
-                 0,
-                 "");
+    uiDefButC(block,
+              ui::ButtonType::Checkbox,
+              message,
+              0,
+              0,
+              0,
+              UI_UNIT_Y,
+              &save_images_when_file_is_closed,
+              0,
+              0,
+              "");
     has_extra_checkboxes = true;
   }
 
@@ -4829,18 +4810,18 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
     if (!has_extra_checkboxes) {
       layout.separator();
     }
-    blender::ui::Button *but = uiDefButBitC(block,
-                                            blender::ui::ButtonType::Checkbox,
-                                            1,
-                                            "Save modified asset catalogs",
-                                            0,
-                                            0,
-                                            0,
-                                            UI_UNIT_Y,
-                                            &save_catalogs_when_file_is_closed,
-                                            0,
-                                            0,
-                                            "");
+    ui::Button *but = uiDefButBitC(block,
+                                   ui::ButtonType::Checkbox,
+                                   1,
+                                   "Save modified asset catalogs",
+                                   0,
+                                   0,
+                                   0,
+                                   UI_UNIT_Y,
+                                   &save_catalogs_when_file_is_closed,
+                                   0,
+                                   0,
+                                   "");
     button_func_set(but,
                     save_catalogs_when_file_is_closed_set_fn,
                     &save_catalogs_when_file_is_closed,
@@ -4901,8 +4882,10 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
 
 void wm_close_file_dialog(bContext *C, wmGenericCallback *post_action)
 {
-  if (!blender::ui::popup_block_name_exists(CTX_wm_screen(C), close_file_dialog_name)) {
-    blender::ui::popup_block_invoke(
+  if (!ui::popup_block_name_exists(CTX_wm_screen(C), close_file_dialog_name)) {
+    save_images_when_file_is_closed = true;
+
+    ui::popup_block_invoke(
         C, block_create__close_file_dialog, post_action, free_post_file_close_action);
   }
   else {
@@ -4917,7 +4900,7 @@ bool wm_operator_close_file_dialog_if_needed(bContext *C,
   if (U.uiflag & USER_SAVE_PROMPT &&
       wm_file_or_session_data_has_unsaved_changes(CTX_data_main(C), CTX_wm_manager(C)))
   {
-    wmGenericCallback *callback = MEM_callocN<wmGenericCallback>(__func__);
+    wmGenericCallback *callback = MEM_new<wmGenericCallback>(__func__);
     callback->exec = post_action_fn;
     callback->user_data = IDP_CopyProperty(op->properties);
     callback->free_user_data = wm_free_operator_properties_callback;
@@ -4929,3 +4912,5 @@ bool wm_operator_close_file_dialog_if_needed(bContext *C,
 }
 
 /** \} */
+
+}  // namespace blender

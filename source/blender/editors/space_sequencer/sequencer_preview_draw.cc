@@ -306,7 +306,7 @@ static void sequencer_stop_running_jobs(const bContext *C, Scene *scene)
 
 static void sequencer_preview_clear()
 {
-  blender::ui::theme::frame_buffer_clear(TH_SEQ_PREVIEW);
+  ui::theme::frame_buffer_clear(TH_SEQ_PREVIEW);
 }
 
 /* Semantic utility to get a rectangle with positions that correspond to a full frame drawn in the
@@ -1018,17 +1018,19 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
       CTX_data_sequencer_scene(C), strip);
 
   /* Origin. */
+  GPU_program_point_size(true);
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_OUTLINE_AA);
   immUniform1f("outlineWidth", 1.5f);
   immUniformColor3f(1.0f, 1.0f, 1.0f);
   immUniform4f("outlineColor", 0.0f, 0.0f, 0.0f, 1.0f);
-  immUniform1f("size", 15.0f * U.pixelsize);
+  immUniform1f("size", 7.0f * U.pixelsize);
   immBegin(GPU_PRIM_POINTS, 1);
   immVertex2f(pos, origin[0], origin[1]);
   immEnd();
   immUnbindProgram();
+  GPU_program_point_size(false);
 
   /* Outline. */
   const Array<float2> strip_image_quad = seq::image_transform_final_quad_get(
@@ -1062,7 +1064,7 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
 static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
 {
   const TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  const TextVarsRuntime *text = data->runtime;
+  const seq::TextVarsRuntime *text = data->runtime;
   const Scene *scene = CTX_data_sequencer_scene(C);
 
   if (data->selection_start_offset == -1 || strip_text_selection_range_get(data).is_empty()) {
@@ -1130,7 +1132,7 @@ static float2 coords_region_view_align(const View2D *v2d, const float2 coords)
 static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint pos)
 {
   const TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  const TextVarsRuntime *text = data->runtime;
+  const seq::TextVarsRuntime *text = data->runtime;
   const Scene *scene = CTX_data_sequencer_scene(C);
 
   const float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
@@ -1371,7 +1373,7 @@ static void preview_draw_all_image_overlays(const bContext *C,
     return;
   }
 
-  ListBase *channels = seq::channels_displayed_get(&editing);
+  ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(&editing);
   VectorSet strips = seq::query_rendered_strips(
       scene, channels, editing.current_strips(), timeline_frame, 0);
   Strip *active_seq = seq::select_active_get(scene);
@@ -1759,7 +1761,9 @@ static void sequencer_preview_draw_overlays(const bContext *C,
   }
 
   /* FPS counter. */
-  if ((U.uiflag & USER_SHOW_FPS) && ED_screen_animation_no_scrub(&wm)) {
+  if ((U.uiflag & USER_SHOW_FPS) && (space_sequencer.flag & SEQ_SHOW_OVERLAY) &&
+      (CTX_wm_screen(C)->state != SCREENFULL) && ED_screen_animation_no_scrub(&wm))
+  {
     const rcti *rect = ED_region_visible_rect(&region);
     int xoffset = rect->xmin + U.widget_unit;
     int yoffset = rect->ymax;

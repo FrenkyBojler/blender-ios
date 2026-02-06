@@ -13,6 +13,7 @@
 #include "BLI_string.h"
 
 #include "NOD_geometry.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_srna.hh"
@@ -40,10 +41,12 @@
 
 #include "UI_resources.hh"
 
-namespace lf = blender::fn::lazy_function;
-namespace geo_log = blender::nodes::geo_eval_log;
+namespace blender {
 
-namespace blender::nodes {
+namespace lf = fn::lazy_function;
+namespace geo_log = nodes::geo_eval_log;
+
+namespace nodes {
 
 bool socket_type_has_attribute_toggle(const eNodeSocketDatatype type)
 {
@@ -334,9 +337,10 @@ static Vector<OutputAttributeToStore> compute_attributes_to_store(
             component_type,
             domain,
             output_info.name,
-            GMutableSpan{type,
-                         MEM_mallocN_aligned(type.size * domain_size, type.alignment, __func__),
-                         domain_size}};
+            GMutableSpan{
+                type,
+                MEM_new_uninitialized_aligned(type.size * domain_size, type.alignment, __func__),
+                domain_size}};
         fn::GField field = validator.validate_field_if_necessary(output_info.field);
         field_evaluator.add_with_destination(std::move(field), store.data);
         attributes_to_store.append(store);
@@ -385,7 +389,7 @@ static void store_computed_output_attributes(
 
     /* We were unable to reuse the data, so it must be destructed and freed. */
     store.data.type().destruct_n(store.data.data(), store.data.size());
-    MEM_freeN(store.data.data());
+    MEM_delete_void(store.data.data());
   }
 }
 
@@ -534,6 +538,12 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
     }
   }
 
+  if (output_geometry.has_bundle()) {
+    /* Ensure that the bundle data is properly owned by the geometry. Do not call this in the
+     * geometry itself because it may just be referenced during modifier evaluation and an
+     * unnecessary copy can be avoided. See #GeometryOwnershipType::Editable. */
+    output_geometry.bundle_for_write().ensure_owns_direct_data();
+  }
   return output_geometry;
 }
 
@@ -575,4 +585,5 @@ Vector<InferenceValue> get_geometry_nodes_input_inference_values(const bNodeTree
   return inference_values;
 }
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender
