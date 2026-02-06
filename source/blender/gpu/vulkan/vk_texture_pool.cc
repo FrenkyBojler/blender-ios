@@ -281,7 +281,7 @@ VKTexturePool::~VKTexturePool()
 {
   image_cache_.reset(true);
   for (TextureHandle handle : acquired_) {
-    release_texture(handle.texture);
+    delete handle.texture;
   }
   for (AllocationHandle handle : allocations_) {
     handle.free();
