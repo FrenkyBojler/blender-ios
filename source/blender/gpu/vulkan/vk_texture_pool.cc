@@ -162,7 +162,7 @@ std::optional<VKDeviceSegment> VKTexturePool::AllocationHandle::acquire(
 
   /* Find the first compatible segment. If a segment is found, we keep the iterator
    * to modify the existing segment in the list, as it may be shrunk or split. */
-  auto found_segment = std::find_if(segments.begin(), segments.end(), [&](const Segment &segment) {
+  auto found_segment = std::ranges::find_if(segments, [&](const VKDeviceSegment &segment) {
     VkDeviceSize aligned_offset = ceil_to_multiple_ul(segment.offset, requirements.alignment);
     VkDeviceSize remaining_size = segment.size - (aligned_offset - segment.offset);
     return
@@ -177,11 +177,12 @@ std::optional<VKDeviceSegment> VKTexturePool::AllocationHandle::acquire(
 
   /* The return segment is split from the found segment, starting at the aligned offset. This
    * implies there are now segments before/after it. */
-  Segment segment = {ceil_to_multiple_ul(found_segment->offset, requirements.alignment),
-                     requirements.size};
-  Segment segment_prev = {found_segment->offset, segment.offset - found_segment->offset};
-  Segment segment_next = {segment.offset + segment.size,
-                          found_segment->size - segment.size - segment_prev.size};
+  VkDeviceSize aligned_offset = ceil_to_multiple_ul(found_segment->offset, requirements.alignment);
+  VKDeviceSegment segment = {.offset = aligned_offset, .size = requirements.size};
+  VKDeviceSegment segment_prev = {.offset = found_segment->offset,
+                                  .size = segment.offset - found_segment->offset};
+  VKDeviceSegment segment_next = {.offset = segment.offset + segment.size,
+                                  .size = found_segment->size - segment.size - segment_prev.size};
 
   /* Depending on the segments before/after, we shrink/split/remove the stored segment. */
   if (segment_prev.size > 0 && segment_next.size > 0) {
@@ -198,15 +199,21 @@ std::optional<VKDeviceSegment> VKTexturePool::AllocationHandle::acquire(
     segments.erase(found_segment);
   }
 
+  /* Remove allocation offset from the segment. `vmaBindImageMemory()` expects
+   * an offset that is local to the allocation.*/
+  segment.offset -= allocation_info.offset;
+
   return segment;
 }
 
-void VKTexturePool::AllocationHandle::release(Segment segment)
+void VKTexturePool::AllocationHandle::release(VKDeviceSegment segment)
 {
+  /* Re-add allocation offset to the segment, undoing removal in `AllocationHandle::acquire`. */
+  segment.offset += allocation_info.offset;
+
   /* Find the segments directly before/after the released segment, if they exist. */
-  auto segment_next = std::find_if(segments.begin(), segments.end(), [segment](Segment next) {
-    return segment.offset < next.offset;
-  });
+  auto segment_next = std::ranges::find_if(
+      segments, [segment](VKDeviceSegment next) { return segment.offset < next.offset; });
   auto segment_prev = segment_next;
   if (segment_prev != segments.begin()) {
     --segment_prev;
@@ -240,10 +247,12 @@ void VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements memory_requirem
 {
   VKDevice &device = VKBackend::get().device;
 
-  VmaAllocationCreateInfo create_info = {};
-  create_info.priority = 1.0f;
-  create_info.memoryTypeBits = memory_requirements.memoryTypeBits;
-  create_info.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+  VmaAllocationCreateInfo create_info = {
+      .flags = VMA_ALLOCATION_CREATE_CAN_ALIAS_BIT,
+      .preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+      .memoryTypeBits = requirements.memoryTypeBits,
+      .priority = 1.0f,
+  };
 
   VkResult result = vmaAllocateMemory(device.mem_allocator_get(),
                                       &memory_requirements,
@@ -256,7 +265,7 @@ void VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements memory_requirem
   BLI_assert(result == VK_SUCCESS);
 
   /* Start with a single segment, sized to the full range of the allocation. */
-  segments = {{allocation_info.offset, allocation_info.size}};
+  segments = {{.offset = allocation_info.offset, .size = allocation_info.size}};
 }
 
 void VKTexturePool::AllocationHandle::free()

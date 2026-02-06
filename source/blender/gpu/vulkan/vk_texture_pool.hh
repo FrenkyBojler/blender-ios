@@ -69,13 +69,8 @@ class VKTexturePool : public TexturePool {
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;
 
-  struct Segment {
-    VkDeviceSize offset;
-    VkDeviceSize size;
-  };
-
-  /* Struct to manage a memory allocation. This region of memory can be segmented
-   * for binding to multiple supported resources at a time. */
+  /* Struct to manage a VmaAllocation. The allocation is segmented
+   * for binding to multiple images at a time, and allows aliasing. */
   struct AllocationHandle {
     VmaAllocation allocation = VK_NULL_HANDLE;
     VmaAllocationInfo allocation_info = {};
@@ -84,17 +79,17 @@ class VKTexturePool : public TexturePool {
     int unused_cycles_count = 0;
 
     /* Linked list of unused segments of the allocation. */
-    std::list<Segment> segments;
+    std::list<VKDeviceSegment> segments;
 
     /* Allocate/deallocate the handle internals. */
     void alloc(VkMemoryRequirements memory_requirements);
     void free();
 
     /* Extract a segment of the allocation for binding, if compatible. */
-    std::optional<Segment> acquire(VkMemoryRequirements memory_requirements);
+    std::optional<VKDeviceSegment> acquire(VkMemoryRequirements memory_requirements);
 
     /* Return a segment to the allocation for reuse. */
-    void release(Segment segment);
+    void release(VKDeviceSegment segment);
 
     /* Check if no part of the allocation is acuired. */
     bool is_unused() const
@@ -119,8 +114,8 @@ class VKTexturePool : public TexturePool {
    * and is bound to a segment of this allocation. */
   struct TextureHandle {
     VKTexture *texture = nullptr;
-    AllocationHandle allocation_handle = {};
-    Segment segment = {};
+    VmaAllocation allocation = VK_NULL_HANDLE;
+    VKDeviceSegment segment = {};
 
     /* Counter to track texture acquire/retain mismatches in `acquire_`.  */
     int users_count = 1;
@@ -147,8 +142,11 @@ class VKTexturePool : public TexturePool {
     }
   };
 
-  /* Stores of allocated memory and textures bound to said memory. */
+  /* Cache of VkImage handles to avoid repeated memory binding. */
+  VKImageCache image_cache_;
+  /* Allocated memory on which images are bound. */
   Set<AllocationHandle> allocations_;
+  /* Texture handles currently in use. */
   Set<TextureHandle> acquired_;
 
   /* Debug storage to log memory usage. Log is only output
