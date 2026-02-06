@@ -1,3 +1,4 @@
 Referenced by issue #106963, Blender not recognizing crc32c library in add-on
 Referenced by issue #104000, python site-packages are not recognized after install (bug on linux / workes fine on Windows)
 Referenced by pull request #149382, Fix #107137: Bundled modules can be overridden by the user-site-directory
+Referenced by commit 9d302ccb0a55fca3c91a7d43d3fea28fe68e1367, Fix #107137: Bundled modules can be overridden by the user-site-directory
