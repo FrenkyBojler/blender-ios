@@ -23,7 +23,7 @@ namespace blender::seq {
 
 static void echomodifier_init_data(StripModifierData *smd)
 {
-  EchoModifierData *emd = (EchoModifierData *)smd;
+  EchoModifierData *emd = reinterpret_cast<EchoModifierData *>(smd);
 
   emd->delay = 1.0f;
   emd->feedback = 0.5f;
@@ -32,12 +32,12 @@ static void echomodifier_init_data(StripModifierData *smd)
 
 static void echomodifier_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
-  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  ui::Layout &layout = *panel->layout;
+  PointerRNA *ptr = ui::panel_custom_data_get(panel);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  uiLayout &col = layout->column(false);
+  ui::Layout &col = layout.column(false);
 
   col.prop(ptr, "delay", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(ptr, "feedback", UI_ITEM_NONE, std::nullopt, ICON_NONE);
