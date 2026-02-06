@@ -3701,7 +3701,6 @@ class VIEW3D_MT_sculpt(Menu):
 
         layout.separator()
 
-        # Add Primitive
         layout.menu("VIEW3D_MT_add_object", text="Add Primitive")
 
         layout.separator()

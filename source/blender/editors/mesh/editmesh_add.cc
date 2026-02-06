@@ -9,33 +9,31 @@
 #include "BLI_math_matrix.h"
 #include "BLI_sys_types.h"
 
-#include "DNA_mesh_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_main.hh"
 #include "BKE_mesh.h"
-#include "BKE_object_types.hh"
-#include "BKE_paint.hh"
+
+#include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
+
 #include "DEG_depsgraph.hh"
-#include "ED_geometry.hh"
+
+#include "ED_mesh.hh"
+#include "ED_object.hh"
+#include "ED_screen.hh"
+#include "ED_sculpt.hh"
+
+#include "GEO_join_geometries.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
-
-#include "ED_mesh.hh"
-#include "ED_object.hh"
-#include "ED_screen.hh"
-#include "ED_sculpt.hh"
-#include "GEO_join_geometries.hh"
 
 #include "mesh_intern.hh" /* own include */
 
