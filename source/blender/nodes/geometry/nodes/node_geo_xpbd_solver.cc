@@ -6,6 +6,7 @@
 #include "DNA_mesh_types.h"
 
 #include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_parse.hh"
@@ -80,39 +81,57 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  for (const int geometry_i : geometry_paths.index_range()) {
-    GeometrySet &geometry = geometries[geometry_i];
+  Vector<bke::MutableAttributeAccessor> attribute_accessors;
+  for (GeometrySet &geometry : geometries) {
     for (bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh,
                                               bke::GeometryComponent::Type::PointCloud,
-                                              bke::GeometryComponent::Type::Curve})
+                                              bke::GeometryComponent::Type::Curve,
+                                              bke::GeometryComponent::Type::Instance})
     {
       if (!geometry.has(type)) {
         continue;
       }
       bke::GeometryComponent &component = geometry.get_component_for_write(type);
-      bke::MutableAttributeAccessor attributes = *component.attributes_for_write();
-      bke::SpanAttributeWriter<float3> positions_attr =
-          attributes.lookup_or_add_for_write_span<float3>("position", AttrDomain::Point);
-      bke::SpanAttributeWriter<float3> velocities_attr =
-          attributes.lookup_or_add_for_write_span<float3>("velocity", AttrDomain::Point);
-      MutableSpan<float3> positions = positions_attr.span;
-      MutableSpan<float3> velocities = velocities_attr.span;
-      const VArraySpan<float3> external_forces = *attributes.lookup_or_default<float3>(
-          "external_force", AttrDomain::Point, float3(0, 0, 0));
-      const VArraySpan<float> masses = *attributes.lookup_or_default<float>(
-          "mass", AttrDomain::Point, 1);
-      threading::parallel_for(positions.index_range(), 256, [&](const IndexRange range) {
-        for (const int i : range) {
-          const float3 external_force = external_forces[i];
-          const float mass = masses[i];
-          const float3 acceleration = math::safe_divide(external_force, mass);
-          velocities[i] += acceleration * delta_time;
-          positions[i] += velocities[i] * delta_time;
-        }
-      });
-      velocities_attr.finish();
-      positions_attr.finish();
+      attribute_accessors.append(*component.attributes_for_write());
     }
+    if (geometry.has_grease_pencil()) {
+      using namespace blender::bke::greasepencil;
+      GreasePencil &grease_pencil = *geometry.get_grease_pencil_for_write();
+      for (const int layer_i : grease_pencil.layers().index_range()) {
+        Layer &layer = grease_pencil.layer(layer_i);
+        Drawing *drawing = grease_pencil.get_eval_drawing(layer);
+        if (!drawing) {
+          continue;
+        }
+        bke::CurvesGeometry &curves = drawing->strokes_for_write();
+        attribute_accessors.append(curves.attributes_for_write());
+      }
+    }
+  }
+
+  for (const int accessor_i : attribute_accessors.index_range()) {
+    bke::MutableAttributeAccessor &attributes = attribute_accessors[accessor_i];
+    bke::SpanAttributeWriter<float3> positions_attr =
+        attributes.lookup_or_add_for_write_span<float3>("position", AttrDomain::Point);
+    bke::SpanAttributeWriter<float3> velocities_attr =
+        attributes.lookup_or_add_for_write_span<float3>("velocity", AttrDomain::Point);
+    MutableSpan<float3> positions = positions_attr.span;
+    MutableSpan<float3> velocities = velocities_attr.span;
+    const VArraySpan<float3> external_forces = *attributes.lookup_or_default<float3>(
+        "external_force", AttrDomain::Point, float3(0, 0, 0));
+    const VArraySpan<float> masses = *attributes.lookup_or_default<float>(
+        "mass", AttrDomain::Point, 1);
+    threading::parallel_for(positions.index_range(), 256, [&](const IndexRange range) {
+      for (const int i : range) {
+        const float3 external_force = external_forces[i];
+        const float mass = masses[i];
+        const float3 acceleration = math::safe_divide(external_force, mass);
+        velocities[i] += acceleration * delta_time;
+        positions[i] += velocities[i] * delta_time;
+      }
+    });
+    velocities_attr.finish();
+    positions_attr.finish();
   }
 
   for (const int i : geometry_paths.index_range()) {
