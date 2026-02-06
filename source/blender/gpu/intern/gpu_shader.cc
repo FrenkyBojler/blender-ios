@@ -137,7 +137,8 @@ static void standard_defines(Vector<StringRefNull> &sources)
   /* Version and specialization constants needs to be first.
    * Exact values will be added by implementation. */
   sources.append("version");
-  sources.append("/* specialization_constants */");
+  /* Specialization constants will be inserted here. */
+  sources.append("\n");
   /* Define to identify code usage in shading language. */
   sources.append("#define GPU_SHADER\n");
   /* some useful defines to detect GPU type */
@@ -262,11 +263,17 @@ gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateInfo *_info
         {"gpu_shader_python_typedef_lib.glsl", {}, "\n" + info.typedef_source_generated});
   }
   else {
-    /* Add emtpy source to avoid warning and importing the placeholder file. */
+    /* Add empty source to avoid warning and importing the placeholder file. */
     info.generated_sources.append({"gpu_shader_python_typedef_lib.glsl", {}, "\n"});
   }
 
+#ifdef __APPLE__
+  /* See usage for more info. */
+  info.define("WITH_MATRIX_EQ_OPERATORS");
+#endif
+
   info.builtins_ |= BuiltinBits::NO_BUFFER_TYPE_LINTING;
+  info.builtins_ |= BuiltinBits::NO_PREPROCESSOR;
 
   auto preprocess_source = [&](const std::string &input_src) {
     std::string processed_str;
@@ -825,6 +832,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
   for (const shader::ShaderCreateInfo::FragOut &frag_out : info.fragment_outputs_) {
     shader->fragment_output_bits |= 1u << frag_out.index;
   }
+
+  shader->skip_preprocessor = bool(specialized_info.builtins_ & BuiltinBits::NO_PREPROCESSOR);
 
   std::string defines = shader->defines_declare(info);
   std::string resources = shader->resources_declare(info);

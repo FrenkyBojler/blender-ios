@@ -111,6 +111,7 @@ struct StripDrawContext {
   bool missing_media;
   bool is_connected;
   bool is_muted;
+  bool has_retiming;
 };
 
 struct TimelineDrawContext {
@@ -204,7 +205,8 @@ VectorSet<Strip *> all_strips_from_context(bContext *C);
 /* Externals. */
 
 extern const EnumPropertyItem sequencer_prop_effect_types[];
-extern const EnumPropertyItem prop_side_types[];
+extern const EnumPropertyItem prop_snap_side_types[];
+extern const EnumPropertyItem prop_split_side_types[];
 
 /* Operators. */
 
@@ -260,7 +262,10 @@ void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot);
 
 /* `sequencer_select.cc` */
 
-void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect);
+/**
+ *  Returns box bounds of strip in view-space.
+ */
+rctf strip_bounds_get(const Scene *scene, const Strip *strip);
 Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int lr, int sel);
 void recurs_sel_strip(Strip *strip_meta);
 
@@ -367,32 +372,36 @@ void SEQUENCER_OT_retiming_freeze_frame_add(wmOperatorType *ot);
 void SEQUENCER_OT_retiming_transition_add(wmOperatorType *ot);
 void SEQUENCER_OT_retiming_key_delete(wmOperatorType *ot);
 void SEQUENCER_OT_retiming_segment_speed_set(wmOperatorType *ot);
+SeqRetimingKey *retiming_mouseover_key_get(const Scene *scene,
+                                           const View2D *v2d,
+                                           const int mval[2],
+                                           Strip **r_strip);
+bool is_mouse_over_retiming_keys_box(const Scene *scene,
+                                     const Strip *strip,
+                                     const View2D *v2d,
+                                     const SpaceSeq *sseq,
+                                     int mouse_co_region[2]);
+SeqRetimingKey *try_to_realize_fake_keys(const Scene *scene,
+                                         const View2D *v2d,
+                                         Strip *strip,
+                                         const int mval[2]);
 wmOperatorStatus sequencer_retiming_key_select_exec(bContext *C,
                                                     wmOperator *op,
                                                     SeqRetimingKey *key,
                                                     const Strip *key_owner);
 /* Select a key and all following keys. */
-wmOperatorStatus sequencer_retiming_select_linked_time(bContext *C,
-                                                       wmOperator *op,
-                                                       SeqRetimingKey *key,
-                                                       const Strip *key_owner);
 wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op);
 wmOperatorStatus sequencer_retiming_select_all_exec(bContext *C, wmOperator *op);
 wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op);
 
 /* `sequencer_retiming_draw.cc` */
-void sequencer_retiming_draw_continuity(const TimelineDrawContext &ctx,
-                                        const StripDrawContext &strip_ctx);
+void sequencer_retiming_draw_segments(const TimelineDrawContext &ctx,
+                                      const StripDrawContext &strip_ctx);
 void sequencer_retiming_keys_draw(const TimelineDrawContext &ctx, Span<StripDrawContext> strips);
-void sequencer_retiming_speed_draw(const TimelineDrawContext &ctx,
-                                   const StripDrawContext &strip_ctx);
-void realize_fake_keys(const Scene *scene, Strip *strip);
-SeqRetimingKey *try_to_realize_fake_keys(const bContext *C, Strip *strip, const int mval[2]);
-SeqRetimingKey *retiming_mouseover_key_get(const bContext *C, const int mval[2], Strip **r_strip);
-int left_fake_key_frame_get(const Scene *scene, const Strip *strip);
-int right_fake_key_frame_get(const Scene *scene, const Strip *strip);
-bool retiming_keys_can_be_displayed(const SpaceSeq *sseq);
-rctf strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Strip *strip);
+void sequencer_retiming_speed_labels_draw(const TimelineDrawContext &ctx,
+                                          const StripDrawContext &strip_ctx);
+rcti strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Strip *strip);
+bool retiming_overlay_enabled(const SpaceSeq *sseq);
 
 /* `sequencer_text_edit.cc` */
 bool sequencer_text_editing_active_poll(bContext *C);
