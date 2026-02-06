@@ -35,10 +35,7 @@ def dopesheet_filter(layout, context):
     row = layout.row(align=True)
     if is_action_editor:
         row.prop(dopesheet, "show_only_slot_of_active_object", text="")
-    else:
-        # Only Show Selected has no effect in the action editor.
-        row.prop(dopesheet, "show_only_selected", text="")
-
+    row.prop(dopesheet, "show_only_selected", text="")
     row.prop(dopesheet, "show_hidden", text="")
 
     if is_nla:
@@ -645,6 +642,7 @@ class DOPESHEET_MT_action(Menu):
         layout.operator("anim.merge_animation")
         layout.operator("anim.separate_slots")
         layout.operator("anim.replace_action")
+        layout.operator("anim.replace_action_new")
 
         layout.separator()
         layout.operator("anim.slot_channels_move_to_new_action")
