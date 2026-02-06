@@ -583,7 +583,7 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
   Editing *ed = seq::editing_get(scene);
   const ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
   const bool keep_offset = RNA_boolean_get(op->ptr, "keep_offset");
-  const int cur_frame = RNA_int_get(op->ptr, "frame");
+  const int snap_frame = RNA_int_get(op->ptr, "frame");
   const int snap_side = RNA_enum_get(op->ptr, "side");
 
   VectorSet<Strip *> selected = seq::query_selected_strips(ed->current_strips());
@@ -592,6 +592,14 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
   if (selected.is_empty()) {
     return OPERATOR_CANCELLED;
   }
+
+  /* This lambda is used for snapping strips whose handles are not selected. NOTE that the behavior
+   * feels more natural when a cursor on the right side of the playhead means that the whole strip
+   * ends up on the right, and left side -> whole strip on the left. This code ensures that. */
+  auto delta_from_snap_side_get = [&](Strip *strip) {
+    return (snap_side == seq::SIDE_RIGHT) ? snap_frame - strip->left_handle() :
+                                            snap_frame - strip->right_handle(scene);
+  };
 
   std::optional<int> group_delta;
   if (keep_offset) {
@@ -609,10 +617,10 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
     const bool right_sel = strip->flag & SEQ_RIGHTSEL;
 
     if (left_sel) {
-      group_delta = cur_frame - strip->left_handle();
+      group_delta = snap_frame - strip->left_handle();
     }
     if (right_sel) {
-      const int right_delta = cur_frame - strip->right_handle(scene);
+      const int right_delta = snap_frame - strip->right_handle(scene);
       if (!group_delta.has_value() || math::abs(right_delta) < group_delta) {
         group_delta = right_delta;
       }
@@ -621,14 +629,7 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
     /* No handles selected: choose either left or right of active
      * strip based on mouse position relative to playhead. */
     if (!group_delta.has_value()) {
-      /* NOTE: Behavior feels more natural when "right side of playhead" means that the whole strip
-       * ends up on the right, "left side" -> whole strip on the left. This code ensures that. */
-      if (snap_side == seq::SIDE_RIGHT) {
-        group_delta = cur_frame - strip->left_handle();
-      }
-      else if (snap_side == seq::SIDE_LEFT) {
-        group_delta = cur_frame - strip->right_handle(scene);
-      }
+      group_delta = delta_from_snap_side_get(strip);
     }
   }
 
@@ -641,16 +642,16 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
 
     if (left_sel) {
       strip->left_handle_set(scene,
-                             group_delta ? (strip->left_handle() + *group_delta) : cur_frame);
+                             group_delta ? (strip->left_handle() + *group_delta) : snap_frame);
     }
     if (right_sel) {
       strip->right_handle_set(
-          scene, group_delta ? (strip->right_handle(scene) + *group_delta) : cur_frame);
+          scene, group_delta ? (strip->right_handle(scene) + *group_delta) : snap_frame);
     }
 
     if (!left_sel && !right_sel) {
       seq::transform_translate_strip(
-          scene, strip, group_delta ? *group_delta : (cur_frame - strip->left_handle()));
+          scene, strip, group_delta ? *group_delta : delta_from_snap_side_get(strip));
     }
     seq::relations_invalidate_cache(scene, strip);
   }
@@ -671,13 +672,13 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
       if (strip->input1 && (strip->input1->flag & SEQ_SELECT)) {
         if (!either_handle_selected) {
           seq::offset_animdata(
-              scene, strip, group_delta ? *group_delta : (cur_frame - strip->left_handle()));
+              scene, strip, group_delta ? *group_delta : (snap_frame - strip->left_handle()));
         }
       }
       else if (strip->input2 && (strip->input2->flag & SEQ_SELECT)) {
         if (!either_handle_selected) {
           seq::offset_animdata(
-              scene, strip, group_delta ? *group_delta : (cur_frame - strip->left_handle()));
+              scene, strip, group_delta ? *group_delta : (snap_frame - strip->left_handle()));
         }
       }
     }
