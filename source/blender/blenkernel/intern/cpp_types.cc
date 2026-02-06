@@ -17,8 +17,6 @@
 #include "NOD_geometry_nodes_values.hh"
 #include "NOD_menu_value.hh"
 
-#include "DNA_meshdata_types.h"
-
 namespace blender {
 
 struct Tex;
