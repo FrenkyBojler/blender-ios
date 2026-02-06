@@ -385,7 +385,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
 
   acquired_.add(texture_handle);
   return wrap(texture);
-}  // namespace gpu
+}
 
 void VKTexturePool::release_texture(Texture *tex)
 {
