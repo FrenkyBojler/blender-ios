@@ -1795,10 +1795,10 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
 
   char name[MAXBONENAME];
 
-  int align = RNA_enum_get(op->ptr, "align");
-  int space = RNA_enum_get(op->ptr, "space");
+  const int align = RNA_enum_get(op->ptr, "align");
+  const int space = RNA_enum_get(op->ptr, "space");
 
-  float base_mat[3][3]; /* Initial bone orientation matrix. */
+  float bone_orient_mat[3][3]; /* Initial bone orientation matrix. */
 
   switch (align) {
     case CURSOR_3D: {
@@ -1815,26 +1815,26 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
         eul_to_mat3(cursor_mat, cursor->rotation_euler);
       }
 
-      mul_m3_m3m3(base_mat, imat, cursor_mat);
-      copy_v3_v3(roll_vector, base_mat[2]);
+      mul_m3_m3m3(bone_orient_mat, imat, cursor_mat);
+      copy_v3_v3(roll_vector, bone_orient_mat[2]);
       break;
     }
     case AXES: {
       if (space == WORLD) {
-        copy_m3_m3(base_mat, imat);
+        copy_m3_m3(bone_orient_mat, imat);
         copy_v3_fl3(roll_vector, 0.0f, 0.0f, 1.0f);
         mul_m3_v3(imat, roll_vector);
       }
       else { /* Object Space.  Assumes Z is Up.*/
-        base_mat[0][0] = 1.0f;
-        base_mat[0][1] = 0.0f;
-        base_mat[0][2] = 0.0f;
-        base_mat[1][0] = 0.0f;
-        base_mat[1][1] = 0.0f;
-        base_mat[1][2] = -1.0f;
-        base_mat[2][0] = 0.0f;
-        base_mat[2][1] = 1.0f;
-        base_mat[2][2] = 0.0f;
+        bone_orient_mat[0][0] = 1.0f;
+        bone_orient_mat[0][1] = 0.0f;
+        bone_orient_mat[0][2] = 0.0f;
+        bone_orient_mat[1][0] = 0.0f;
+        bone_orient_mat[1][1] = 0.0f;
+        bone_orient_mat[1][2] = -1.0f;
+        bone_orient_mat[2][0] = 0.0f;
+        bone_orient_mat[2][1] = 1.0f;
+        bone_orient_mat[2][2] = 0.0f;
       }
       break;
     }
@@ -1842,23 +1842,23 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
     case UP: {
       if (space == WORLD) {
         /* Construct a matrix that points Y up, Z Forward and X left-right. */
-        base_mat[0][0] = 1.0f;
-        base_mat[0][1] = 0.0f;
-        base_mat[0][2] = 0.0f;
-        base_mat[1][0] = 0.0f;
-        base_mat[1][1] = 0.0f;
-        base_mat[1][2] = 1.0f;
-        base_mat[2][0] = 0.0f;
-        base_mat[2][1] = -1.0f;
-        base_mat[2][2] = 0.0f;
+        bone_orient_mat[0][0] = 1.0f;
+        bone_orient_mat[0][1] = 0.0f;
+        bone_orient_mat[0][2] = 0.0f;
+        bone_orient_mat[1][0] = 0.0f;
+        bone_orient_mat[1][1] = 0.0f;
+        bone_orient_mat[1][2] = 1.0f;
+        bone_orient_mat[2][0] = 0.0f;
+        bone_orient_mat[2][1] = -1.0f;
+        bone_orient_mat[2][2] = 0.0f;
 
-        mul_m3_m3m3(base_mat, imat, base_mat);
+        mul_m3_m3m3(bone_orient_mat, imat, bone_orient_mat);
 
         /* Set roll reference for ED_armature_ebone_roll_to_vector. */
-        copy_v3_v3(roll_vector, base_mat[2]);
+        copy_v3_v3(roll_vector, bone_orient_mat[2]);
       }
       else { /* Object Space. */
-        unit_m3(base_mat);
+        unit_m3(bone_orient_mat);
       }
 
       break;
@@ -1911,13 +1911,13 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   copy_v3_v3(bone->head, curs);
 
   float tail_vector[3] = {0.0f, 0.0f, 1.0f};
-  mul_m3_v3(base_mat, tail_vector);
+  mul_m3_v3(bone_orient_mat, tail_vector);
   mul_v3_fl(tail_vector, length);
   add_v3_v3v3(bone->tail, bone->head, tail_vector);
 
   if ((align == CURSOR_3D) || (space == WORLD)) {
     /* These need to deal with Bone Roll. */
-    copy_v3_v3(tail_vector, base_mat[1]);
+    copy_v3_v3(tail_vector, bone_orient_mat[1]);
     normalize_v3(tail_vector);
     mul_v3_fl(tail_vector, length);
     add_v3_v3v3(bone->tail, bone->head, tail_vector);
