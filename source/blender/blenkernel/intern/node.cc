@@ -2210,6 +2210,11 @@ IDProperty *node_create_inputs_asset_metadata(const bNodeTree &node_tree)
       case SOCK_BUNDLE:
       case SOCK_CLOSURE:
       case SOCK_CUSTOM:
+      case SOCK_FONT:
+      case SOCK_SCENE:
+      case SOCK_TEXT_ID:
+      case SOCK_MASK:
+      case SOCK_SOUND:
         break;
     }
     IDP_AddToGroup(inputs.get(), input.release());

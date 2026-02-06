@@ -3489,7 +3489,7 @@ static wmOperatorStatus geometry_nodes_input_attribute_toggle_exec(bContext *C, 
   char input_name[MAX_NAME];
   RNA_string_get(op->ptr, "input_name", input_name);
 
-  PointerRNA modifier_ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, nmd);
+  PointerRNA modifier_ptr = RNA_pointer_create_discrete(&ob->id, RNA_Modifier, nmd);
   PointerRNA properties_ptr = RNA_pointer_get(&modifier_ptr, "properties");
   PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
   PointerRNA input_ptr = RNA_pointer_get(&inputs_ptr, input_name);

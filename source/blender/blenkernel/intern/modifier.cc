@@ -1137,8 +1137,8 @@ void BKE_modifier_blend_write(BlendWriter *writer,
       continue;
     }
 
-    if (md->system_properties) {
-      IDP_BlendWrite(writer, md->system_properties);
+    if (md.system_properties) {
+      IDP_BlendWrite(writer, md.system_properties);
     }
 
     /* If the blend_write callback is defined, it should handle the whole writing process. */

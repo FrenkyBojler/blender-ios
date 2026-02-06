@@ -10,7 +10,6 @@
 
 #include <fmt/format.h>
 
-#include "BKE_node_enum.hh"
 #include "DNA_node_types.h"
 
 #include "BLI_color.hh"
@@ -26,6 +25,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_node.hh"
+#include "BKE_node_enum.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
@@ -1470,7 +1470,7 @@ static bke::bNodeSocketType *make_socket_type_object()
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
-    RNA_def_pointer_runtime(&srna, "value", &RNA_Object, socket.name, socket.description);
+    RNA_def_pointer_runtime(&srna, "value", RNA_Object, socket.name, socket.description);
     make_common_value_props(srna, socket, r_generated);
   };
   return socktype;
@@ -1516,7 +1516,7 @@ static bke::bNodeSocketType *make_socket_type_collection()
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
-    RNA_def_pointer_runtime(&srna, "value", &RNA_Collection, socket.name, socket.description);
+    RNA_def_pointer_runtime(&srna, "value", RNA_Collection, socket.name, socket.description);
     make_common_value_props(srna, socket, r_generated);
   };
   return socktype;
@@ -1540,7 +1540,7 @@ static bke::bNodeSocketType *make_socket_type_texture()
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
-    RNA_def_pointer_runtime(&srna, "value", &RNA_Texture, socket.name, socket.description);
+    RNA_def_pointer_runtime(&srna, "value", RNA_Texture, socket.name, socket.description);
     make_common_value_props(srna, socket, r_generated);
   };
   return socktype;
@@ -1565,7 +1565,7 @@ static bke::bNodeSocketType *make_socket_type_image()
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
-    RNA_def_pointer_runtime(&srna, "value", &RNA_Image, socket.name, socket.description);
+    RNA_def_pointer_runtime(&srna, "value", RNA_Image, socket.name, socket.description);
     make_common_value_props(srna, socket, r_generated);
   };
 
@@ -1591,7 +1591,7 @@ static bke::bNodeSocketType *make_socket_type_material()
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
-    RNA_def_pointer_runtime(&srna, "value", &RNA_Material, socket.name, socket.description);
+    RNA_def_pointer_runtime(&srna, "value", RNA_Material, socket.name, socket.description);
     make_common_value_props(srna, socket, r_generated);
   };
   return socktype;

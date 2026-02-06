@@ -1837,7 +1837,7 @@ static void modifyGeometry(ModifierData *md,
   bke::DataBlockComputeContext data_block_compute_context{nullptr, ctx->object->id};
   bke::ModifierComputeContext modifier_compute_context{&data_block_compute_context, *nmd};
 
-  PointerRNA md_ptr = RNA_pointer_create_discrete(&ctx->object->id, &RNA_NodesModifier, md);
+  PointerRNA md_ptr = RNA_pointer_create_discrete(&ctx->object->id, RNA_NodesModifier, md);
   PointerRNA properties_ptr = RNA_pointer_get(&md_ptr, "properties");
 
   geometry_set = nodes::execute_geometry_nodes_on_geometry(
@@ -1912,7 +1912,7 @@ void NodesModifierUsageInferenceCache::ensure(const Object &object, const NodesM
   tree.ensure_topology_cache();
 
   PointerRNA nmd_ptr = RNA_pointer_create_discrete(
-      const_cast<ID *>(&object.id), &RNA_NodesModifier, const_cast<NodesModifierData *>(&nmd));
+      const_cast<ID *>(&object.id), RNA_NodesModifier, const_cast<NodesModifierData *>(&nmd));
   PointerRNA properties_ptr = RNA_pointer_get(&nmd_ptr, "properties");
 
   ResourceScope scope;

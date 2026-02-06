@@ -56,20 +56,20 @@ const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute_or_lay
 static const ModifierData *find_modifier_data_from_system_property(const PointerRNA *ptr)
 {
   for (const AncestorPointerRNA &ancestor : ptr->ancestors) {
-    if (RNA_struct_is_a(ancestor.type, &RNA_Modifier)) {
+    if (RNA_struct_is_a(ancestor.type, RNA_Modifier)) {
       return static_cast<const ModifierData *>(ancestor.data);
     }
   }
   const Object *object = id_cast<const Object *>(ptr->owner_id);
-  LISTBASE_FOREACH (const ModifierData *, md, &object->modifiers) {
+  for (const ModifierData &md : object->modifiers) {
     bool found = false;
-    IDP_foreach_property(md->system_properties, 0, [&](IDProperty *id_prop) {
+    IDP_foreach_property(md.system_properties, 0, [&](IDProperty *id_prop) {
       if (id_prop == ptr->data) {
         found = true;
       }
     });
     if (found) {
-      return md;
+      return &md;
     }
   }
   return nullptr;
@@ -99,7 +99,8 @@ static StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
   const StringRefNull srna_identifier = r_generated.scope.allocator().copy_string(
       socket.identifier);
 
-  StructRNA *srna = RNA_def_struct_ptr(&BLENDER_RNA, srna_identifier.c_str(), &RNA_PropertyGroup);
+  StructRNA *srna = RNA_def_struct_ptr(
+      &RNA_blender_rna_get(), srna_identifier.c_str(), RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.structs.append(srna);
   RNA_def_struct_path_func_runtime(srna, rna_NodesModifierPropertyInput_path);
@@ -113,7 +114,7 @@ static StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
 static StructRNA *create_inputs_srna(const bNodeTree &tree, GeneratedTreeSrnaData &r_generated)
 {
   StructRNA *srna = RNA_def_struct_ptr(
-      &BLENDER_RNA, "GeometryNodesInterfaceInputs", &RNA_PropertyGroup);
+      &RNA_blender_rna_get(), "GeometryNodesInterfaceInputs", RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.structs.append(srna);
 
@@ -142,12 +143,12 @@ static std::optional<std::string> rna_NodesModifierPropertyOutput_path(const Poi
 static StructRNA *create_outputs_srna(const bNodeTree &tree, GeneratedTreeSrnaData &r_generated)
 {
   StructRNA *srna = RNA_def_struct_ptr(
-      &BLENDER_RNA, "GeometryNodesInterfaceOutputs", &RNA_PropertyGroup);
+      &RNA_blender_rna_get(), "GeometryNodesInterfaceOutputs", RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.structs.append(srna);
 
   StructRNA *output_srna = RNA_def_struct_ptr(
-      &BLENDER_RNA, "GeometryNodesInterfaceOutputAttribute", &RNA_PropertyGroup);
+      &RNA_blender_rna_get(), "GeometryNodesInterfaceOutputAttribute", RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(output_srna));
   RNA_def_string(output_srna, "attribute_name", nullptr, 0, "Attribute Name", "");
   RNA_def_struct_path_func_runtime(output_srna, rna_NodesModifierPropertyOutput_path);
@@ -163,7 +164,7 @@ static StructRNA *create_outputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDa
 static StructRNA *create_panels_srna(const bNodeTree &tree, GeneratedTreeSrnaData &r_generated)
 {
   StructRNA *srna = RNA_def_struct_ptr(
-      &BLENDER_RNA, "GeometryNodesInterfacePanels", &RNA_PropertyGroup);
+      &RNA_blender_rna_get(), "GeometryNodesInterfacePanels", RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.structs.append(srna);
 
@@ -192,7 +193,7 @@ StructRNA *get_geometry_nodes_interface_srna_for_modifier(const bNodeTree &tree,
 {
   tree.ensure_interface_cache();
   StructRNA *srna = RNA_def_struct_ptr(
-      &BLENDER_RNA, "GeometryNodesModifierInterface", &RNA_NodesModifierProperties);
+      &RNA_blender_rna_get(), "GeometryNodesModifierInterface", RNA_NodesModifierProperties);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.structs.append(srna);
 

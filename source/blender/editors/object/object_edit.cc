@@ -1963,7 +1963,7 @@ static wmOperatorStatus shade_auto_smooth_exec(bContext *C, wmOperator *op)
       }
 
       PointerRNA nmd_ptr = RNA_pointer_create_discrete(
-          &object->id, &RNA_NodesModifier, smooth_by_angle_nmd);
+          &object->id, RNA_NodesModifier, smooth_by_angle_nmd);
       PointerRNA properties_ptr = RNA_pointer_get(&nmd_ptr, "properties");
 
       RNA_float_set(&properties_ptr, angle_identifier.c_str(), angle);

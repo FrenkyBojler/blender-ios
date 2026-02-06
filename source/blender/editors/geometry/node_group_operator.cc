@@ -1209,12 +1209,12 @@ static const EnumPropertyItem *enum_input_items_fn(bContext * /*C*/,
 
   int totitem = 0;
   EnumPropertyItem *items = nullptr;
-  LISTBASE_FOREACH (IDProperty *, item_idprop, &items_idprop->data.group) {
+  for (IDProperty &item_idprop : items_idprop->data.group) {
     EnumPropertyItem item;
-    item.identifier = item_idprop->name;
-    item.name = try_get_string(*item_idprop, "name").value_or("").c_str();
-    item.description = try_get_string(*item_idprop, "description").value_or("").c_str();
-    item.value = std::stoi(item_idprop->name);
+    item.identifier = item_idprop.name;
+    item.name = try_get_string(item_idprop, "name").value_or("").c_str();
+    item.description = try_get_string(item_idprop, "description").value_or("").c_str();
+    item.value = std::stoi(item_idprop.name);
     RNA_enum_item_add(&items, &totitem, &item);
   }
 
@@ -1271,7 +1271,8 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
   if (!type) {
     return nullptr;
   }
-  StructRNA *srna = RNA_def_struct_ptr(&BLENDER_RNA, identifier.c_str(), &RNA_PropertyGroup);
+  StructRNA *srna = RNA_def_struct_ptr(
+      &RNA_blender_rna_get(), identifier.c_str(), RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.append(srna);
   // RNA_def_struct_path_func_runtime(srna, rna_NodesModifierPropertyInput_path);
@@ -1279,7 +1280,8 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
   const StringRefNull description = try_get_string(input_idprop, "description").value_or("");
   RNA_def_struct_ui_text(srna, name.c_str(), description.c_str());
 
-  StructRNA *input_srna = RNA_def_struct_ptr(&BLENDER_RNA, identifier.c_str(), &RNA_PropertyGroup);
+  StructRNA *input_srna = RNA_def_struct_ptr(
+      &RNA_blender_rna_get(), identifier.c_str(), RNA_PropertyGroup);
 
   switch (eNodeSocketDatatype(*type)) {
     case SOCK_FLOAT: {
@@ -1415,21 +1417,21 @@ static StructRNA *create_inputs_srna(const IDProperty &input_props,
                                      Vector<StructRNA *> &r_generated)
 {
   StructRNA *srna = RNA_def_struct_ptr(
-      &BLENDER_RNA, "GeometryNodesInterfaceInputs", &RNA_PropertyGroup);
+      &RNA_blender_rna_get(), "GeometryNodesInterfaceInputs", RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.append(srna);
 
-  LISTBASE_FOREACH (IDProperty *, input_idprop, &input_props.data.group) {
-    if (input_idprop->type != IDP_GROUP) {
+  for (IDProperty &input_idprop : input_props.data.group) {
+    if (input_idprop.type != IDP_GROUP) {
       continue;
     }
-    StructRNA *input_srna = get_input_socket_struct_rna(*input_idprop, r_generated);
+    StructRNA *input_srna = get_input_socket_struct_rna(input_idprop, r_generated);
     if (!input_srna) {
       continue;
     }
     BLI_assert(!RNA_struct_in_public_namespace(srna));
     RNA_def_pointer_runtime(srna,
-                            input_idprop->name,
+                            input_idprop.name,
                             input_srna,
                             RNA_struct_ui_name(input_srna),
                             RNA_struct_ui_description(input_srna));
@@ -1661,7 +1663,7 @@ void register_node_group_operators(const bContext &C)
       for (StructRNA *srna : type_data.generated_structs) {
         /* Avoids warning when freeing the #StructRNA. */
         RNA_struct_py_type_set(srna, nullptr);
-        RNA_struct_free(&BLENDER_RNA, srna);
+        RNA_struct_free(&RNA_blender_rna_get(), srna);
       }
 
       WM_operatortype_remove_ptr(ot);

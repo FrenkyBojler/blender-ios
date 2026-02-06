@@ -201,7 +201,7 @@ struct ModifierData {
 
   char *error = nullptr;
 
-  struct IDProperty *system_properties;
+  struct IDProperty *system_properties = nullptr;
 
   /** Runtime field which contains runtime data which is specific to a modifier type. */
   void *runtime = nullptr;

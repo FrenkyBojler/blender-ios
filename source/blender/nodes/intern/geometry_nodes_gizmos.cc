@@ -386,7 +386,7 @@ static void foreach_active_gizmo_exposed_to_modifier(
 
   tree.ensure_interface_cache();
   PointerRNA nmd_ptr = RNA_pointer_create_discrete(
-      const_cast<ID *>(&object.id), &RNA_NodesModifier, const_cast<NodesModifierData *>(&nmd));
+      const_cast<ID *>(&object.id), RNA_NodesModifier, const_cast<NodesModifierData *>(&nmd));
   PointerRNA properties_ptr = RNA_pointer_get(&nmd_ptr, "properties");
 
   ResourceScope scope;

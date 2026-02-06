@@ -1957,7 +1957,7 @@ static PointerRNA rna_NodesModifierProperties_get(PointerRNA *ptr)
   if (!nmd->node_group) {
     return PointerRNA_NULL;
   }
-  return RNA_pointer_create_discrete(ptr->owner_id, &RNA_NodesModifierProperties, nmd);
+  return RNA_pointer_create_discrete(ptr->owner_id, RNA_NodesModifierProperties, nmd);
 }
 
 static nodes::geo_eval_log::GeoTreeLog *get_nodes_modifier_log(const Object &object,
