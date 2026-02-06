@@ -1,6 +1,3 @@
-/* SPDX-FileCopyrightText: 2026 Blender Authors
- *
- * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup nodes
@@ -17,8 +14,9 @@ namespace blender::nodes::gizmos {
 /** \name Common BBox Gizmos
  * \{ */
 
-void WIDGETGROUP_bbox_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
 void WIDGETGROUP_bbox_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+void WIDGETGROUP_bbox_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
+void WIDGETGROUP_bbox_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup);
 
 /** \} */
 
@@ -27,6 +25,7 @@ void WIDGETGROUP_bbox_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup);
  * \{ */
 
 void WIDGETGROUP_node_box_mask_setup(const bContext *C, wmGizmoGroup *gzgroup);
+bool WIDGETGROUP_node_box_mask_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt);
 bool WIDGETGROUP_node_box_mask_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
 
 /** \} */
@@ -39,6 +38,7 @@ void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgroup);
 void WIDGETGROUP_node_crop_setup(const bContext *C, wmGizmoGroup *gzgroup);
 bool WIDGETGROUP_node_crop_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
 void WIDGETGROUP_node_crop_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
+bool WIDGETGROUP_node_crop_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt);
 
 /** \} */
 
@@ -48,6 +48,8 @@ void WIDGETGROUP_node_crop_draw_prepare_space_node(const bContext *C, wmGizmoGro
 
 void WIDGETGROUP_node_glare_setup(const bContext *C, wmGizmoGroup *gzgroup);
 void WIDGETGROUP_node_glare_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+bool WIDGETGROUP_node_glare_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt);
+void WIDGETGROUP_node_glare_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup);
 bool WIDGETGROUP_node_glare_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
 void WIDGETGROUP_node_glare_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
 
@@ -59,7 +61,10 @@ void WIDGETGROUP_node_glare_draw_prepare_space_node(const bContext *C, wmGizmoGr
 
 void WIDGETGROUP_node_corner_pin_setup(const bContext *C, wmGizmoGroup *gzgroup);
 void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+bool WIDGETGROUP_node_corner_pin_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt);
 bool WIDGETGROUP_node_corner_pin_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
+void WIDGETGROUP_node_corner_pin_draw_prepare_space_image(const bContext *C,
+                                                          wmGizmoGroup *gzgroup);
 void WIDGETGROUP_node_corner_pin_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
 
 /** \} */
@@ -69,6 +74,7 @@ void WIDGETGROUP_node_corner_pin_draw_prepare_space_node(const bContext *C, wmGi
  * \{ */
 
 void WIDGETGROUP_node_ellipse_mask_setup(const bContext *C, wmGizmoGroup *gzgroup);
+bool WIDGETGROUP_node_ellipse_mask_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt);
 bool WIDGETGROUP_node_ellipse_mask_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
 /** \} */
 
@@ -79,6 +85,7 @@ bool WIDGETGROUP_node_ellipse_mask_poll_space_node(const bContext *C, wmGizmoGro
 void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgroup);
 void WIDGETGROUP_node_split_setup(const bContext *C, wmGizmoGroup *gzgroup);
 bool WIDGETGROUP_node_split_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
+bool WIDGETGROUP_node_split_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt);
 
 /** \} */
 
