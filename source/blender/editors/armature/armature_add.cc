@@ -1805,20 +1805,13 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
       Scene *scene = CTX_data_scene(C);
       const View3DCursor &cursor = scene->cursor;
 
-      float cursor_mat[3][3];
+      const float3x3 cursor_mat = cursor.matrix<float3x3>();
 
-      /* Convert cursor rotation to a 3×3 matrix. */
-      if (cursor.rotation_mode == ROT_MODE_QUAT) {
-        quat_to_mat3(cursor_mat, cursor.rotation_quaternion);
-      }
-      else {
-        eul_to_mat3(cursor_mat, cursor.rotation_euler);
-      }
-
-      mul_m3_m3m3(bone_orient_mat, imat, cursor_mat);
+      mul_m3_m3m3(bone_orient_mat, imat, cursor_mat.ptr());
       copy_v3_v3(roll_vector, bone_orient_mat[2]);
       break;
     }
+
     case AXES: {
       if (space == WORLD) {
         copy_m3_m3(bone_orient_mat, imat);
