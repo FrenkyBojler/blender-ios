@@ -906,6 +906,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       if (scene.toolsettings) {
         const short snap_geom_old = SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE |
                                     SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR;
+        static_assert(snap_geom_old == 63);
         if (scene.toolsettings->snap_mode_tools == snap_geom_old) {
           scene.toolsettings->snap_mode_tools = SCE_SNAP_TO_GEOM;
         }
