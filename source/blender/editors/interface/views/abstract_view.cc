@@ -85,9 +85,9 @@ void AbstractView::change_state_delayed()
   bool has_active = false;
   foreach_view_item([&has_active](AbstractViewItem &item) {
     if (item.should_be_active().value_or(false)) {
-      //BLI_assert_msg(
-      //    !has_active,
-      //    "Only one view item should ever return true for its `should_be_active()` method");
+      // BLI_assert_msg(
+      //     !has_active,
+      //     "Only one view item should ever return true for its `should_be_active()` method");
       has_active = true;
     }
   });

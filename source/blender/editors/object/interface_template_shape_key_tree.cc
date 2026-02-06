@@ -221,7 +221,7 @@ class ShapeKeyGroupDropTarget : public ui::TreeViewItemDropTarget {
       case ui::DropLocation::Into:
         return fmt::format(fmt::runtime(TIP_("Move {} into {}")), drag_name, drop_name);
       default:
-        //BLI_assert_unreachable();
+        // BLI_assert_unreachable();
         break;
     }
 
@@ -244,13 +244,13 @@ class ShapeKeyGroupDropTarget : public ui::TreeViewItemDropTarget {
         case ui::DropLocation::Into:
           BLI_remlink(&key->block, drag_shapekey[i]);
           BLI_addtail(&group_->children, drag_shapekey[i]);
-          //BLI_assert_unreachable();
+          // BLI_assert_unreachable();
           break;
         default:
           break;
       }
 
-      //BKE_keyblock_move(ob, drag_index, drop_index);
+      // BKE_keyblock_move(ob, drag_index, drop_index);
     }
 
     DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
@@ -377,10 +377,12 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
 };
 
 class ShapeKeyGroupItem : public ui::AbstractTreeViewItem {
-  private:
-    KeyBlockGroup *group_;
-  public:
-  ShapeKeyGroupItem(KeyBlockGroup *group){
+ private:
+  KeyBlockGroup *group_;
+
+ public:
+  ShapeKeyGroupItem(KeyBlockGroup *group)
+  {
     group_ = group;
   }
 
@@ -397,7 +399,7 @@ class ShapeKeyGroupItem : public ui::AbstractTreeViewItem {
     SET_FLAG_FROM_TEST(group_->flag, !collapsed, KEY_GROUP_EXPANDED);
     return true;
   }
-  
+
   void build_row(ui::Layout &row) override
   {
     uiItemL_ex(&row, group_->name, ICON_GROUP, false, false);
@@ -417,16 +419,14 @@ void ShapeKeyTreeView::build_tree()
   }
   int index = 1;
   for (KeyBlockGroup &group : key->groups) {
-    auto &item = this->add_tree_item<ShapeKeyGroupItem>(&
-      group);
-    
+    auto &item = this->add_tree_item<ShapeKeyGroupItem>(&group);
+
     if (!BLI_listbase_is_empty(&group.children)) {
       for (KeyBlock &kb : group.children) {
         item.add_tree_item<ShapeKeyItem>(&object_, key, &kb, index);
         index++;
       }
     }
-    
   }
 
   for (const auto [index, kb] : key->block.enumerate()) {

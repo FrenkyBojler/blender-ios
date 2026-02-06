@@ -225,7 +225,7 @@ void operatortypes_object()
   link_to_collection_menu_register();
 
   WM_operatortype_append(OBJECT_OT_shape_key_add);
-    WM_operatortype_append(OBJECT_OT_shape_key_group_add);
+  WM_operatortype_append(OBJECT_OT_shape_key_group_add);
   WM_operatortype_append(OBJECT_OT_shape_key_copy);
   WM_operatortype_append(OBJECT_OT_shape_key_remove);
   WM_operatortype_append(OBJECT_OT_shape_key_clear);
