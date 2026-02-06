@@ -1781,7 +1781,7 @@ void ARMATURE_OT_extrude(wmOperatorType *ot)
 
 /* Op makes a new bone and returns it with its tip selected. */
 
-enum BoneAlign { UP = 0, AXES = 1, CURSOR_3D = 2 };
+enum BoneAlign { UP = 0, AXES = 1, CURSOR_3D = 2, VIEW_3D = 3 };
 enum BoneSpace { OBJECT = 0, WORLD = 1 };
 
 static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
@@ -1802,6 +1802,16 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   const int space = RNA_enum_get(op->ptr, "space");
 
   switch (align) {
+    case VIEW_3D: {
+      RegionView3D *rv3d = CTX_wm_region_view3d(C);
+      float3x3 view_mat;
+      copy_m3_m4(view_mat.ptr(), rv3d->viewinv);
+
+      mul_m3_m3m3(bone_orient_mat.ptr(), imat.ptr(), view_mat.ptr());
+      copy_v3_v3(roll_vector, bone_orient_mat[2]);
+      break;
+    }
+
     case CURSOR_3D: {
       Scene *scene = CTX_data_scene(C);
       const View3DCursor &cursor = scene->cursor;
@@ -1900,14 +1910,15 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   mul_v3_fl(tail_vector, length);
   add_v3_v3v3(bone->tail, bone->head, tail_vector);
 
-  if ((align == CURSOR_3D) || (space == WORLD)) {
-    /* These need to deal with Bone Roll. */
+  const bool needs_bone_roll = (ELEM(align, CURSOR_3D, VIEW_3D) || space == WORLD);
+
+  if (needs_bone_roll) {
     copy_v3_v3(tail_vector, bone_orient_mat[1]);
     normalize_v3(tail_vector);
     mul_v3_fl(tail_vector, length);
     add_v3_v3v3(bone->tail, bone->head, tail_vector);
 
-    /* Compute bone roll so its local Z aligns with cursor Z axis. */
+    /* Compute bone roll so its local Z aligns with desired Z axis. */
     bone->roll = ED_armature_ebone_roll_to_vector(bone, roll_vector, false);
   }
 
@@ -1983,6 +1994,7 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
        0,
        "3D Cursor",
        "Align new bone to match the axes of the 3D cursor"},
+      {VIEW_3D, "3D_VIEW", 0, "Viewport", "Align new bone to match the axes of the 3D viewport"},
       {0, nullptr, 0, nullptr, nullptr}};
 
   RNA_def_enum(ot->srna, "align", align_items, UP, "Align", "Initial orientation of the new bone");
