@@ -100,12 +100,11 @@ void TreeViewItemContainer::foreach_parent(ItemIterFn iter_fn) const
 
 void TreeViewItemContainer::sort_alpha()
 {
-  std::sort(children_.begin(),
-            children_.end(),
-            [](const std::unique_ptr<AbstractTreeViewItem> &a,
-               const std::unique_ptr<AbstractTreeViewItem> &b) {
-              return a.get()->label() < b.get()->label();
-            });
+  std::ranges::sort(children_,
+                    [](const std::unique_ptr<AbstractTreeViewItem> &a,
+                       const std::unique_ptr<AbstractTreeViewItem> &b) {
+                      return a.get()->label() < b.get()->label();
+                    });
 
   for (std::unique_ptr<AbstractTreeViewItem> &item : children_) {
     item.get()->sort_alpha();
