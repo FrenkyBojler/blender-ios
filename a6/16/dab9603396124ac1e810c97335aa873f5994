@@ -1,3 +1,4 @@
 Referenced by pull request #153914, Cleanup: Cycles: Remove unused function declaration
 Referenced by commit 7ba4733fe60757fd410027438d3ec7fe031e284a, Cleanup: Cycles: Remove unused function declaration
 Referenced by pull request #154005, Fix: Cycles race condition in node type registration
+Referenced by commit 832f16d27bcc8beec76d5b27981b3bb6e15f8f66, Fix: Cycles race condition in node type registration
