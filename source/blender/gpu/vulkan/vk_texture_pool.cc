@@ -394,21 +394,22 @@ void VKTexturePool::release_texture(Texture *tex)
 {
   BLI_assert_msg(acquired_.contains({unwrap(tex)}),
                  "Unacquired texture passed to VKTexturePool::offset_users_count()");
+
   TextureHandle texture_handle = acquired_.lookup_key({unwrap(tex)});
+  AllocationHandle allocation_handle = allocations_.lookup_key({texture_handle.allocation});
 
   if (G.debug & G_DEBUG_GPU) {
     current_usage_data_.acquired_segment_size -= texture_handle.segment.size;
   }
 
-  /* Move allocation back to `pool_`. */
-  AllocationHandle page_handle = allocations_.lookup_key(texture_handle.allocation_handle);
-  page_handle.release(texture_handle.segment);
-  page_handle.unused_cycles_count = 0;
-  allocations_.add_overwrite(page_handle);
+  /* Release acquired segment back to allocation. */
+  allocation_handle.release(texture_handle.segment);
+  allocations_.add_overwrite(allocation_handle);
 
-  /* Clear out acquired texture object. */
+  /* Delete texture and remove it from the acquired set.
+   * VKTexture destructor is skipped as VKTexture::allocation_ is VK_NULL_HANDLE. */
   acquired_.remove(texture_handle);
-  texture_handle.free();
+  delete texture_handle.texture;
 }
 
 void VKTexturePool::offset_users_count(Texture *tex, int offset)
