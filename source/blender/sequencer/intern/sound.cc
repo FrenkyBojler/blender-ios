@@ -107,7 +107,6 @@ void sound_update_bounds_all(Scene *scene)
 
   if (ed) {
     for (Strip &strip : ed->seqbase) {
-      /* Recursion is still needed so the strips inside the meta get moved. */
       if (strip.type == STRIP_TYPE_META) {
         sound_update_bounds(scene, &strip);
         strip_update_sound_bounds_recursive(scene, &strip);

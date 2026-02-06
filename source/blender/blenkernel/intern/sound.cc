@@ -951,7 +951,7 @@ AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
   {
     BKE_sound_remove_sound(strip->runtime->last_parent_sound_scene, strip->runtime->scene_sound);
   }
-  /* Store last sequence so it can be removed in the next run. */
+  /* Store last parent sequence so it can be removed. */
   strip->runtime->last_parent_sound_scene = parent_sound_scene;
 
   int parent_start = 0;
@@ -963,13 +963,13 @@ AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
   if (offset_time >= 0.0f) {
     return AUD_SequenceEntry(
         parent_sound_scene->add(add_handle,
-                                (startframe + parent_start) / fps + offset_time,
-                                (endframe + parent_start) / fps,
+                                (startframe - parent_start) / fps + offset_time,
+                                (endframe - parent_start) / fps,
                                 0.0f));
   }
   return AUD_SequenceEntry(parent_sound_scene->add(add_handle,
-                                                   (startframe + parent_start) / fps,
-                                                   (endframe + parent_start) / fps,
+                                                   (startframe - parent_start) / fps,
+                                                   (endframe - parent_start) / fps,
                                                    -offset_time));
 }
 
