@@ -771,6 +771,15 @@ struct UserDef_FileSpaceData {
   int flag = FILE_HIDE_DOT;                  /* FileSelectParams.flag */
   int _pad0 = {};
   uint64_t filter_id = FILTER_ID_ALL; /* FileSelectParams.filter_id */
+
+  char bookmarks_index = 0;
+  char bookmarks_expand = 1;
+  char system_index = 3;
+  char system_expand = 1;
+  char volumes_index = 2;
+  char volumes_expand = 1;
+  char recent_index = 1;
+  char recent_expand = 1;
 };
 
 struct UserDef_TempWinBounds {

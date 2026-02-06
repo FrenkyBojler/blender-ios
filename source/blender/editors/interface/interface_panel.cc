@@ -691,6 +691,27 @@ Panel *panel_begin(
       panel->runtime_flag |= PANEL_WAS_CLOSED;
     }
 
+    /* Initialize File Browser bookmark panels from preferences. */
+    if (region->regiontype == RGN_TYPE_TOOLS && STRPREFIX(pt->idname, "FILEBROWSER_PT_bookmarks_"))
+    {
+      if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_volumes")) {
+        panel->sortorder = U.file_space_data.volumes_index;
+        SET_FLAG_FROM_TEST(panel->flag, !U.file_space_data.volumes_expand, PNL_CLOSED);
+      }
+      else if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_system")) {
+        panel->sortorder = U.file_space_data.system_index;
+        SET_FLAG_FROM_TEST(panel->flag, !U.file_space_data.system_expand, PNL_CLOSED);
+      }
+      else if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_recents")) {
+        panel->sortorder = U.file_space_data.recent_index;
+        SET_FLAG_FROM_TEST(panel->flag, !U.file_space_data.recent_expand, PNL_CLOSED);
+      }
+      else if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_favorites")) {
+        panel->sortorder = U.file_space_data.bookmarks_index;
+        SET_FLAG_FROM_TEST(panel->flag, !U.file_space_data.bookmarks_expand, PNL_CLOSED);
+      }
+    }
+
     panel->ofsx = 0;
     panel->ofsy = 0;
     panel->sizex = 0;
@@ -720,7 +741,9 @@ Panel *panel_begin(
     }
   }
 
-  if (newpanel) {
+  if (newpanel && !(region->regiontype == RGN_TYPE_TOOLS &&
+                    STRPREFIX(pt->idname, "FILEBROWSER_PT_bookmarks_")))
+  {
     panel->sortorder = (panel_last) ? panel_last->sortorder + 1 : 0;
 
     for (Panel &panel_next : *lb) {

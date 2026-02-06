@@ -691,6 +691,46 @@ static void file_tools_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
+static void file_tools_region_exit(wmWindowManager * /*wm*/, ARegion *region)
+{
+  /* Collect all bookmark panels */
+  Vector<Panel *> bookmark_panels;
+  for (Panel &panel : region->panels) {
+    if (panel.type && STRPREFIX(panel.type->idname, "FILEBROWSER_PT_bookmarks_")) {
+      bookmark_panels.append(&panel);
+    }
+  }
+
+  /* Sort by vertical position. */
+  std::stable_sort(bookmark_panels.begin(),
+                   bookmark_panels.end(),
+                   [](const Panel *a, const Panel *b) { return a->ofsy > b->ofsy; });
+
+  for (int i = 0; i < bookmark_panels.size(); i++) {
+    Panel *panel = bookmark_panels[i];
+    const bool is_open = !(panel->flag & PNL_CLOSED);
+
+    if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_volumes")) {
+      U.file_space_data.volumes_index = i;
+      U.file_space_data.volumes_expand = is_open;
+    }
+    else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_system")) {
+      U.file_space_data.system_index = i;
+      U.file_space_data.system_expand = is_open;
+    }
+    else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_recents")) {
+      U.file_space_data.recent_index = i;
+      U.file_space_data.recent_expand = is_open;
+    }
+    else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_favorites")) {
+      U.file_space_data.bookmarks_index = i;
+      U.file_space_data.bookmarks_expand = is_open;
+    }
+  }
+
+  U.runtime.is_dirty = true;
+}
+
 static void file_tools_region_draw(const bContext *C, ARegion *region)
 {
   ED_region_panels(C, region);
@@ -1027,6 +1067,7 @@ void ED_spacetype_file()
   art->keymapflag = ED_KEYMAP_UI;
   art->listener = file_tools_region_listener;
   art->init = file_tools_region_init;
+  art->exit = file_tools_region_exit;
   art->draw = file_tools_region_draw;
   BLI_addhead(&st->regiontypes, art);
   file_tools_region_panels_register(art);
