@@ -1686,7 +1686,7 @@ static bool scene_has_compositor_output(Scene *scene)
     return true;
   }
 
-  return bke::compositor::node_tree_has_file_output(*scene->compositing_node_group);
+  return bke::compositor::node_tree_has_linked_file_output(scene->compositing_node_group);
 }
 
 /* Identify if the compositor can run on the GPU. Currently, this only checks if the compositor is
