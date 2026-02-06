@@ -1791,16 +1791,15 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
 
   float3x3 obmat;
   copy_m3_m4(obmat.ptr(), obedit->object_to_world().ptr());
+
   float3x3 imat;
   invert_m3_m3(imat.ptr(), obmat.ptr());
 
-  char name[MAXBONENAME];
+  float3x3 bone_orient_mat = float3x3::zero();
+  float3 roll_vector;
 
   const int align = RNA_enum_get(op->ptr, "align");
   const int space = RNA_enum_get(op->ptr, "space");
-
-  float3x3 bone_orient_mat = float3x3::zero();
-  float3 roll_vector;
 
   switch (align) {
     case CURSOR_3D: {
@@ -1848,7 +1847,9 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
     }
   }
 
+  char name[MAXBONENAME];
   RNA_string_get(op->ptr, "name", name);
+
   float3 curs;
   copy_v3_v3(curs, CTX_data_scene(C)->cursor.location);
 
