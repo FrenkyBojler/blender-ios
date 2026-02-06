@@ -243,7 +243,7 @@ void VKTexturePool::AllocationHandle::release(VKDeviceSegment segment)
   }
 }
 
-void VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements memory_requirements)
+void VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements requirements)
 {
   VKDevice &device = VKBackend::get().device;
 
@@ -254,11 +254,8 @@ void VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements memory_requirem
       .priority = 1.0f,
   };
 
-  VkResult result = vmaAllocateMemory(device.mem_allocator_get(),
-                                      &memory_requirements,
-                                      &create_info,
-                                      &allocation,
-                                      &allocation_info);
+  VkResult result = vmaAllocateMemory(
+      device.mem_allocator_get(), &requirements, &create_info, &allocation, &allocation_info);
 
   /* WATCH(not_mark): will remove asserts when pool is a bit more mature. */
   UNUSED_VARS(result);
