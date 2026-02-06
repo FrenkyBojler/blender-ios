@@ -1539,8 +1539,8 @@ static wmOperatorStatus ed_marker_select_exec(bContext *C, wmOperator *op)
   const wmOperatorStatus result = ed_marker_select(
       C, mval, extend, deselect_all, camera, wait_to_deselect_others);
 
-  if (!is_over_marker) {
-    /* Empty space, deselect markers and let other operators run. */
+  if (!is_over_marker && !extend) {
+    /* Empty space and not holding shift, deselect markers and let other operators run. */
     deselect_markers(markers);
     WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
   }
