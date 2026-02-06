@@ -203,9 +203,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
   if (!use_limit_surface && level >= 11) {
-    params.error_message_add(
-        NodeWarningType::Error,
-        TIP_("Subdivision levels above 10 in uniform mode are too heavy for CPU evaluation"));
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("Subdivision result mesh is too large for uniform subdivision"));
     params.set_default_remaining_outputs();
     return;
   }
