@@ -126,7 +126,7 @@ enum class UpdateType {
   FaceSet,
 };
 
-static constexpr int face_set_none = 0;
+static constexpr int face_set_none_id = 0;
 
 }  // namespace ed::sculpt_paint
 
@@ -261,7 +261,7 @@ struct StrokeCache {
   SculptRakeData rake_data;
 
   /* The face set being painted. */
-  int paint_face_set = face_set_none;
+  int paint_face_set = face_set_none_id;
 
   /**
    * Symmetry index between 0 and 7 bit combo.
