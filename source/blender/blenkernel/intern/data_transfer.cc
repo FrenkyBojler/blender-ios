@@ -743,7 +743,7 @@ static bool data_transfer_layersmapping_cdlayers(Vector<CustomDataTransferLayerM
     }
   });
   if (src_names.is_empty()) {
-    /* Can happen for colors, since we go over both CD_PROP_COLOR and CD_PROP_BYTE_COLOR here. */
+    /* Can happen for colors, since we go over both CD_PROP_COLOR and CD_PROP_BYTE_COLOR. */
     return true;
   }
 
