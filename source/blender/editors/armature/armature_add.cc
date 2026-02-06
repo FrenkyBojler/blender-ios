@@ -1788,17 +1788,19 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
 {
   Object *obedit = CTX_data_edit_object(C);
   EditBone *bone;
-  float obmat[3][3], curs[3], imat[3][3], roll_vector[3];
 
-  copy_m3_m4(obmat, obedit->object_to_world().ptr());
-  invert_m3_m3(imat, obmat);
+  float3x3 obmat;
+  copy_m3_m4(obmat.ptr(), obedit->object_to_world().ptr());
+  float3x3 imat;
+  invert_m3_m3(imat.ptr(), obmat.ptr());
 
   char name[MAXBONENAME];
 
   const int align = RNA_enum_get(op->ptr, "align");
   const int space = RNA_enum_get(op->ptr, "space");
 
-  float bone_orient_mat[3][3] = {0}; /* Initial bone orientation matrix. */
+  float3x3 bone_orient_mat = float3x3::zero();
+  float3 roll_vector;
 
   switch (align) {
     case CURSOR_3D: {
@@ -1807,16 +1809,16 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
 
       const float3x3 cursor_mat = cursor.matrix<float3x3>();
 
-      mul_m3_m3m3(bone_orient_mat, imat, cursor_mat.ptr());
+      mul_m3_m3m3(bone_orient_mat.ptr(), imat.ptr(), cursor_mat.ptr());
       copy_v3_v3(roll_vector, bone_orient_mat[2]);
       break;
     }
 
     case AXES: {
       if (space == WORLD) {
-        copy_m3_m3(bone_orient_mat, imat);
+        copy_m3_m3(bone_orient_mat.ptr(), imat.ptr());
         copy_v3_fl3(roll_vector, 0.0f, 0.0f, 1.0f);
-        mul_m3_v3(imat, roll_vector);
+        mul_m3_v3(imat.ptr(), roll_vector);
       }
       else { /* Object Space.  Assumes Z is Up.*/
         bone_orient_mat[0][0] = 1.0f;
@@ -1833,13 +1835,13 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
         bone_orient_mat[1][2] = 1.0f;
         bone_orient_mat[2][1] = -1.0f;
 
-        mul_m3_m3m3(bone_orient_mat, imat, bone_orient_mat);
+        mul_m3_m3m3(bone_orient_mat.ptr(), imat.ptr(), bone_orient_mat.ptr());
 
         /* Set roll reference for ED_armature_ebone_roll_to_vector. */
         copy_v3_v3(roll_vector, bone_orient_mat[2]);
       }
       else { /* Object Space. */
-        unit_m3(bone_orient_mat);
+        unit_m3(bone_orient_mat.ptr());
       }
 
       break;
@@ -1847,11 +1849,12 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   }
 
   RNA_string_get(op->ptr, "name", name);
-
+  float3 curs;
   copy_v3_v3(curs, CTX_data_scene(C)->cursor.location);
 
   /* Get inverse point for head and orientation for tail. */
   invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
+
   mul_m4_v3(obedit->world_to_object().ptr(), curs);
 
   ED_armature_edit_deselect_all(obedit);
@@ -1892,7 +1895,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   copy_v3_v3(bone->head, curs);
 
   float tail_vector[3] = {0.0f, 0.0f, 1.0f};
-  mul_m3_v3(bone_orient_mat, tail_vector);
+  mul_m3_v3(bone_orient_mat.ptr(), tail_vector);
   mul_v3_fl(tail_vector, length);
   add_v3_v3v3(bone->tail, bone->head, tail_vector);
 
