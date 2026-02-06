@@ -120,15 +120,6 @@ class VKTexturePool : public TexturePool {
     /* Counter to track texture acquire/retain mismatches in `acquire_`.  */
     int users_count = 1;
 
-    /* Create or destroy the VKTexture+VkImage and handle internals. */
-    void alloc(int2 extent, TextureFormat format, eGPUTextureUsage usage, const char *name);
-    void free();
-
-    VkDeviceSize allocation_local_offset() const
-    {
-      return segment.offset - allocation_handle.allocation_info.offset;
-    }
-
     /* We use the pointer as hash/comparator, as a TextureHandle cannot be acquired twice.
      * This means we can find the handle without knowing other internals */
     uint64_t hash() const
