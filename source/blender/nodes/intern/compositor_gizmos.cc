@@ -829,7 +829,7 @@ void WIDGETGROUP_node_corner_pin_draw_prepare_space_node(const bContext *C, wmGi
   float matrix_space[4][4];
   node_gizmo_calc_matrix_space_with_image_dims(region,
                                                snode->zoom,
-                                               {-snode->xof, -snode->yof},
+                                               {snode->xof, snode->yof},
                                                cpin_group->state.dims,
                                                cpin_group->state.offset,
                                                matrix_space);
