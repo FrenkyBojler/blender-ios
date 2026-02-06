@@ -649,6 +649,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "NOD_geo_closure.hh"
 #  include "NOD_geo_field_to_grid.hh"
 #  include "NOD_geo_field_to_list.hh"
+#  include "NOD_geo_fit_curves.hh"
 #  include "NOD_geo_foreach_geometry_element.hh"
 #  include "NOD_geo_index_switch.hh"
 #  include "NOD_geo_menu_switch.hh"
@@ -686,6 +687,7 @@ using nodes::EvaluateClosureOutputItemsAccessor;
 using nodes::FieldToGridItemsAccessor;
 using nodes::FieldToListItemsAccessor;
 using nodes::FileOutputItemsAccessor;
+using nodes::FitCurvesItemsAccessor;
 using nodes::ForeachGeometryElementGenerationItemsAccessor;
 using nodes::ForeachGeometryElementInputItemsAccessor;
 using nodes::ForeachGeometryElementMainItemsAccessor;
@@ -3884,6 +3886,18 @@ static const EnumPropertyItem *rna_NodeGeometryCaptureAttributeItem_data_type_it
                 CD_PROP_QUATERNION,
                 CD_PROP_FLOAT4X4);
   });
+}
+
+static const EnumPropertyItem *rna_NodeFitCurvesItem_data_type_itemf(bContext * /*C*/,
+                                                                     PointerRNA * /*ptr*/,
+                                                                     PropertyRNA * /*prop*/,
+                                                                     bool *r_free)
+{
+  *r_free = true;
+  return itemf_function_check(
+      rna_enum_node_socket_data_type_items, [](const EnumPropertyItem *item) {
+        return ELEM(item->value, CD_PROP_FLOAT, CD_PROP_FLOAT3, CD_PROP_COLOR);
+      });
 }
 
 /* ******** Node Socket Types ******** */
@@ -8569,6 +8583,93 @@ static void def_geo_menu_switch(BlenderRNA *brna, StructRNA *srna)
                            "exists for backward compatibility.");
 }
 
+static void rna_def_geo_fit_curves_item(BlenderRNA *brna)
+{
+  PropertyRNA *prop;
+
+  StructRNA *srna = RNA_def_struct(brna, "GeometryNodeFitCurvesItem", nullptr);
+  RNA_def_struct_ui_text(srna, "Field Item", "");
+  RNA_def_struct_sdna(srna, "GeometryNodeFitCurvesItem");
+
+  rna_def_node_item_array_socket_item_common(srna, "FitCurvesItemsAccessor", false);
+  prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_node_socket_data_type_items);
+  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_NodeFitCurvesItem_data_type_itemf");
+  RNA_def_property_ui_text(prop, "Data Type", "");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<FitCurvesItemsAccessor>");
+
+  prop = RNA_def_property(srna, "identifier", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+}
+
+static void rna_def_geo_fit_curves_items(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "GeometryNodeFitCurvesItems", nullptr);
+  RNA_def_struct_ui_text(srna, "Items", "Collection of field items");
+  RNA_def_struct_sdna(srna, "bNode");
+
+  rna_def_node_item_array_new_with_socket_and_name(
+      srna, "GeometryNodeFitCurvesItem", "FitCurvesItemsAccessor");
+  rna_def_node_item_array_common_functions(
+      srna, "GeometryNodeFitCurvesItem", "FitCurvesItemsAccessor");
+}
+
+static void def_geo_fit_curves(BlenderRNA *brna, StructRNA *srna)
+{
+  PropertyRNA *prop;
+  static EnumPropertyItem rna_enum_node_geometry_fit_curves_mode_items[] = {
+      {GEO_NODE_CURVE_FIT_SPLIT,
+       "SPLIT",
+       0,
+       "Split",
+       "Uses a least squares solver to find the control points (faster, but less accurate)"},
+      {GEO_NODE_CURVE_FIT_REFIT,
+       "REFIT",
+       0,
+       "Refit",
+       "Iteratively removes knots with the least error starting with a dense curve (slower, "
+       "more "
+       "accurate fit)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  rna_def_geo_fit_curves_item(brna);
+  rna_def_geo_fit_curves_items(brna);
+
+  RNA_def_struct_sdna_from(srna, "GeometryNodeFitCurves", "storage");
+
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_node_geometry_fit_curves_mode_items);
+  RNA_def_property_ui_text(prop, "Mode", "Curve fitting mode");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  prop = RNA_def_property(srna, "field_items", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "items", "items_num");
+  RNA_def_property_struct_type(prop, "GeometryNodeFitCurvesItem");
+  RNA_def_property_ui_text(prop, "Items", "");
+  RNA_def_property_srna(prop, "GeometryNodeFitCurvesItems");
+
+  prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "active_index");
+  RNA_def_property_ui_text(prop, "Active Item Index", "Index of the active item");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "active_item", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "RepeatItem");
+  RNA_def_property_pointer_funcs(prop,
+                                 "rna_Node_ItemArray_active_get<FitCurvesItemsAccessor>",
+                                 "rna_Node_ItemArray_active_set<FitCurvesItemsAccessor>",
+                                 nullptr,
+                                 nullptr);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NO_DEG_UPDATE);
+  RNA_def_property_ui_text(prop, "Active Item Index", "Index of the active item");
+  RNA_def_property_update(prop, NC_NODE, nullptr);
+}
+
 static void rna_def_shader_node(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -10118,7 +10219,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeFieldVariance");
   define("GeometryNode", "GeometryNodeFillCurve");
   define("GeometryNode", "GeometryNodeFilletCurve");
-  define("GeometryNode", "GeometryNodeFitCurves");
+  define("GeometryNode", "GeometryNodeFitCurves", def_geo_fit_curves);
   define("GeometryNode", "GeometryNodeFlipFaces");
   define("GeometryNode", "GeometryNodeForeachGeometryElementInput", def_geo_foreach_geometry_element_input);
   define("GeometryNode", "GeometryNodeForeachGeometryElementOutput", def_geo_foreach_geometry_element_output);
