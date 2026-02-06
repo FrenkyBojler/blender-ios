@@ -128,7 +128,8 @@ void ShadingView::render()
 
   GPU_framebuffer_bind(combined_fb_);
   /* Alpha stores transmittance. So start at 1. */
-  GPU_framebuffer_clear_color_depth(combined_fb_, {0, 0, 0, 1}, inst_.film.depth.clear_value);
+  GPU_framebuffer_clear_color_depth(
+      combined_fb_, {0.0, 0.0, 0.0, 1.0}, inst_.film.depth.clear_value);
   inst_.pipelines.background.clear(render_view_);
 
   /* TODO(fclem): Move it after the first prepass (and hiz update) once pipeline is stabilized. */
@@ -400,7 +401,8 @@ void CaptureView::render_probes()
 
       GPU_framebuffer_bind(combined_fb_);
       /* Alpha stores transmittance. So start at 1. */
-      GPU_framebuffer_clear_color_depth(combined_fb_, {0, 0, 0, 1}, inst_.film.depth.clear_value);
+      GPU_framebuffer_clear_color_depth(
+          combined_fb_, {0.0, 0.0, 0.0, 1.0}, inst_.film.depth.clear_value);
       inst_.pipelines.probe.render(view, prepass_fb, combined_fb_, gbuffer_fb_, extent);
     }
 

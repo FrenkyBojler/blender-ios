@@ -775,10 +775,10 @@ GPUOffScreen *GPU_offscreen_create(int width,
   if (clear) {
     GPU_framebuffer_bind(fb);
     if (with_depth_buffer) {
-      GPU_framebuffer_clear_color_depth(fb, {0, 0, 0, 0}, 0);
+      GPU_framebuffer_clear_color_depth(fb, {0.0, 0.0, 0.0, 0.0}, 0.0f);
     }
     else {
-      GPU_framebuffer_clear_color(fb, {0, 0, 0, 0});
+      GPU_framebuffer_clear_color(fb, {0.0, 0.0, 0.0, 0.0});
     }
   }
 

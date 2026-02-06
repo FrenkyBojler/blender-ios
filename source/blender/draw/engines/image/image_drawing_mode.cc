@@ -390,7 +390,7 @@ void ScreenSpaceDrawingMode::draw_viewport() const
   instance_.manager->submit(instance_.state.depth_ps, instance_.state.view);
 
   GPU_framebuffer_bind(instance_.state.color_fb);
-  GPU_framebuffer_clear_color(instance_.state.color_fb, double4(0));
+  GPU_framebuffer_clear_color(instance_.state.color_fb, double4(0.0));
   instance_.manager->submit(instance_.state.image_ps, instance_.state.view);
 }
 

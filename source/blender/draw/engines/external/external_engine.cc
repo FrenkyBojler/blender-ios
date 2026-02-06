@@ -409,7 +409,7 @@ class Instance : public DrawEngine {
       /* This is to keep compatibility with external engine. */
       /* TODO(fclem): remove it eventually. */
       GPU_framebuffer_bind(dfbl->default_fb);
-      GPU_framebuffer_clear_color(dfbl->default_fb, {0, 0, 0, 0});
+      GPU_framebuffer_clear_color(dfbl->default_fb, {0.0, 0.0, 0.0, 0.0});
 
       DRW_submission_start();
       draw_scene_do(manager, view);

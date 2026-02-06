@@ -130,7 +130,7 @@ static void render_init_buffers(const DRWContext *draw_ctx,
     /* To avoid unpredictable result, clear buffers that have not be initialized. */
     GPU_framebuffer_bind(inst.render_fb);
     if (do_clear_col) {
-      GPU_framebuffer_clear_color(inst.render_fb, {0, 0, 0, 0});
+      GPU_framebuffer_clear_color(inst.render_fb, {0.0, 0.0, 0.0, 0.0});
     }
     if (do_clear_z) {
       GPU_framebuffer_clear_depth(inst.render_fb, 1.0f);

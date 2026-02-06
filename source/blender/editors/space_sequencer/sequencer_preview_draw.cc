@@ -1267,7 +1267,7 @@ static void preview_draw_color_render_begin(ARegion &region)
   gpu::FrameBuffer *render_fb = GPU_viewport_framebuffer_render_get(viewport);
   GPU_framebuffer_bind(render_fb);
 
-  GPU_framebuffer_clear_color(render_fb, double4(0));
+  GPU_framebuffer_clear_color(render_fb, double4(0.0));
 }
 
 /* Configure current GPU state to draw on the overlay frame-buffer of the viewport. */

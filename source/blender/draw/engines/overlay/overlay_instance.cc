@@ -817,7 +817,7 @@ void Instance::draw_v2d(Manager &manager, View &view)
   regular.mesh_uvs.draw_on_render(resources.render_fb, manager, view);
 
   GPU_framebuffer_bind(resources.overlay_output_color_only_fb);
-  GPU_framebuffer_clear_color(resources.overlay_output_color_only_fb, double4(0));
+  GPU_framebuffer_clear_color(resources.overlay_output_color_only_fb, double4(0.0));
 
   background.draw_output(resources.overlay_output_color_only_fb, manager, view);
   grid.draw_line(resources.overlay_output_fb, manager, view);

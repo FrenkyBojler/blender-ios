@@ -277,7 +277,7 @@ static void test_framebuffer_multi_viewport()
   }
   GPU_framebuffer_multi_viewports_set(framebuffer, viewport_rects);
 
-  GPU_framebuffer_clear_color(framebuffer, double4(0));
+  GPU_framebuffer_clear_color(framebuffer, double4(0.0));
 
   ShaderCreateInfo create_info("gpu_framebuffer_layer_viewport_test");
   create_info.vertex_source("gpu_framebuffer_layer_viewport_test.glsl");
@@ -343,7 +343,7 @@ static void test_framebuffer_subpass_input()
       {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(texture_a), GPU_ATTACHMENT_TEXTURE(texture_b)});
   GPU_framebuffer_bind(framebuffer);
 
-  GPU_framebuffer_clear_color(framebuffer, {0, 0, 0, 0});
+  GPU_framebuffer_clear_color(framebuffer, {0.0, 0.0, 0.0, 0.0});
 
   ShaderCreateInfo create_info_write("gpu_framebuffer_subpass_input_test");
   create_info_write.define("WRITE");

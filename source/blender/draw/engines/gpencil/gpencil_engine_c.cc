@@ -769,7 +769,8 @@ void Instance::draw_mask(View &view, tObject *ob, tLayer *layer)
 
     if (!cleared) {
       cleared = true;
-      GPU_framebuffer_clear_color_depth(this->mask_fb, {1, 1, 1, 1}, ob->is_drawmode3d ? 1 : 0);
+      GPU_framebuffer_clear_color_depth(
+          this->mask_fb, {1.0, 1.0, 1.0, 1.0}, ob->is_drawmode3d ? 1.0f : 0.0f);
     }
 
     tLayer *mask_layer = grease_pencil_layer_cache_get(ob, i, true);
