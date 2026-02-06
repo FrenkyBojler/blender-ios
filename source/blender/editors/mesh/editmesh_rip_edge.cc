@@ -205,7 +205,10 @@ static wmOperatorStatus edbm_rip_edge_invoke(bContext *C, wmOperator *op, const 
   ED_view3d_win_to_ray(region, mval_fl, ray_start, ray_dir);
   normalize_v3(ray_dir);
 
-  RNA_float_set_array(op->ptr, "location", ray_start);
+  float3 ray_start_proj;
+  project_plane_normalized_v3_v3v3(ray_start_proj, ray_start, ray_dir);
+
+  RNA_float_set_array(op->ptr, "location", ray_start_proj);
   RNA_float_set_array(op->ptr, "direction", ray_dir);
 
   return edbm_rip_edge_exec(C, op);
