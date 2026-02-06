@@ -693,21 +693,21 @@ static void file_tools_region_init(wmWindowManager *wm, ARegion *region)
 
 static void file_tools_region_exit(wmWindowManager * /*wm*/, ARegion *region)
 {
-  /* Collect all bookmark panels */
-  Vector<Panel *> bookmark_panels;
+  /* Collect all file browser tool panels */
+  Vector<Panel *> panels;
   for (Panel &panel : region->panels) {
-    if (panel.type && STRPREFIX(panel.type->idname, "FILEBROWSER_PT_bookmarks_")) {
-      bookmark_panels.append(&panel);
+    if (panel.type && STRPREFIX(panel.type->idname, "FILEBROWSER_PT_")) {
+      panels.append(&panel);
     }
   }
 
-  /* Sort by vertical position. */
-  std::stable_sort(bookmark_panels.begin(),
-                   bookmark_panels.end(),
-                   [](const Panel *a, const Panel *b) { return a->ofsy > b->ofsy; });
+  /* Sort by sortorder. */
+  std::stable_sort(panels.begin(), panels.end(), [](const Panel *a, const Panel *b) {
+    return a->sortorder < b->sortorder;
+  });
 
-  for (int i = 0; i < bookmark_panels.size(); i++) {
-    Panel *panel = bookmark_panels[i];
+  for (int i = 0; i < panels.size(); i++) {
+    Panel *panel = panels[i];
     const bool is_open = !(panel->flag & PNL_CLOSED);
 
     if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_volumes")) {
@@ -725,6 +725,10 @@ static void file_tools_region_exit(wmWindowManager * /*wm*/, ARegion *region)
     else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_favorites")) {
       U.file_space_data.bookmarks_index = i;
       U.file_space_data.bookmarks_expand = is_open;
+    }
+    else if (STREQ(panel->type->idname, "FILEBROWSER_PT_advanced_filter")) {
+      U.file_space_data.advanced_filter_index = i;
+      U.file_space_data.advanced_filter_expand = is_open;
     }
   }
 
