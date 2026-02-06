@@ -909,10 +909,6 @@ AUD_Sequence BKE_strip_get_parent_sound_scene(Strip *strip, Scene *scene)
       specs.rate = aud::RATE_48000;
       parent_strip->runtime->meta_scene_sound = AUD_Sequence(
           new aud::Sequence(specs, scene->frames_per_second(), scene->audio.flag & AUDIO_MUTE));
-      parent_strip->runtime->meta_scene_sound->setSpeedOfSound(scene->audio.speed_of_sound);
-      parent_strip->runtime->meta_scene_sound->setDopplerFactor(scene->audio.doppler_factor);
-      parent_strip->runtime->meta_scene_sound->setDistanceModel(
-          aud::DistanceModel(scene->audio.distance_model));
     }
     return parent_strip->runtime->meta_scene_sound;
   }
