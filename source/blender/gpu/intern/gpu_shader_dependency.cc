@@ -25,13 +25,17 @@
 #include "gpu_material_library.hh"
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_dependency_private.hh"
+#include "gpu_shader_metadata_private.hh"
 
 #ifdef WITH_OPENSUBDIV
 #  include "opensubdiv_capi_type.hh"
 #  include "opensubdiv_evaluator_capi.hh"
 #endif
 
-#include "../glsl_preprocess/glsl_preprocess.hh"
+#include "../shader_tool/metadata.hh"
+#include "../shader_tool/processor.hh"
+
+namespace blender {
 
 extern "C" {
 #define SHADER_SOURCE(filename_underscore, filename, filepath) \
@@ -48,7 +52,71 @@ extern "C" {
 
 static CLG_LogRef LOG = {"shader.dependencies"};
 
-namespace blender::gpu {
+namespace gpu::shader {
+
+static bool g_shader_use_printf = false;
+
+shader::BuiltinBits convert_builtin_bit(shader::metadata::Builtin builtin)
+{
+  using namespace blender::gpu::shader;
+  using namespace blender::gpu::shader::metadata;
+  switch (builtin) {
+    case Builtin::FragCoord:
+      return BuiltinBits::FRAG_COORD;
+    case Builtin::FragStencilRef:
+      return BuiltinBits::STENCIL_REF;
+    case Builtin::FrontFacing:
+      return BuiltinBits::FRONT_FACING;
+    case Builtin::GlobalInvocationID:
+      return BuiltinBits::GLOBAL_INVOCATION_ID;
+    case Builtin::InstanceIndex:
+    case Builtin::BaseInstance:
+    case Builtin::InstanceID:
+      return BuiltinBits::INSTANCE_ID;
+    case Builtin::LocalInvocationID:
+      return BuiltinBits::LOCAL_INVOCATION_ID;
+    case Builtin::LocalInvocationIndex:
+      return BuiltinBits::LOCAL_INVOCATION_INDEX;
+    case Builtin::NumWorkGroup:
+      return BuiltinBits::NUM_WORK_GROUP;
+    case Builtin::PointCoord:
+      return BuiltinBits::POINT_COORD;
+    case Builtin::PointSize:
+      return BuiltinBits::POINT_SIZE;
+    case Builtin::PrimitiveID:
+      return BuiltinBits::PRIMITIVE_ID;
+    case Builtin::VertexID:
+      return BuiltinBits::VERTEX_ID;
+    case Builtin::WorkGroupID:
+      return BuiltinBits::WORK_GROUP_ID;
+    case Builtin::WorkGroupSize:
+      return BuiltinBits::WORK_GROUP_SIZE;
+    case Builtin::ClipDistance:
+      return BuiltinBits::CLIP_DISTANCES;
+    case Builtin::drw_debug:
+#ifndef NDEBUG
+      return BuiltinBits::USE_DEBUG_DRAW;
+#else
+      return BuiltinBits::NONE;
+#endif
+    case Builtin::assert:
+    case Builtin::printf:
+#if GPU_SHADER_PRINTF_ENABLE
+      g_shader_use_printf = true;
+      return BuiltinBits::USE_PRINTF;
+#else
+      return BuiltinBits::NONE;
+#endif
+    case Builtin::runtime_generated:
+      return BuiltinBits::RUNTIME_GENERATED;
+  }
+  BLI_assert_unreachable();
+  return BuiltinBits::NONE;
+}
+
+}  // namespace gpu::shader
+
+namespace gpu {
 
 using GPUPrintFormatMap = Map<uint32_t, shader::PrintfFormat>;
 using GPUSourceDictionary = Map<StringRef, GPUSource *>;
@@ -66,64 +134,11 @@ struct GPUSource {
   /* True if this file content is supposed to be generated at runtime. */
   bool generated = false;
 
+  Vector<shader::ShaderCreateInfo::SharedVariable, 0> shared_variables;
+
   /* NOTE: The next few functions are needed to keep isolation of the preprocessor.
    * Eventually, this should be revisited and the preprocessor should output
    * GPU structures. */
-
-  shader::BuiltinBits convert_builtin_bit(shader::metadata::Builtin builtin)
-  {
-    using namespace blender::gpu::shader;
-    using namespace blender::gpu::shader::metadata;
-    switch (builtin) {
-      case Builtin::FragCoord:
-        return BuiltinBits::FRAG_COORD;
-      case Builtin::FragStencilRef:
-        return BuiltinBits::STENCIL_REF;
-      case Builtin::FrontFacing:
-        return BuiltinBits::FRONT_FACING;
-      case Builtin::GlobalInvocationID:
-        return BuiltinBits::GLOBAL_INVOCATION_ID;
-      case Builtin::InstanceIndex:
-      case Builtin::BaseInstance:
-      case Builtin::InstanceID:
-        return BuiltinBits::INSTANCE_ID;
-      case Builtin::LocalInvocationID:
-        return BuiltinBits::LOCAL_INVOCATION_ID;
-      case Builtin::LocalInvocationIndex:
-        return BuiltinBits::LOCAL_INVOCATION_INDEX;
-      case Builtin::NumWorkGroup:
-        return BuiltinBits::NUM_WORK_GROUP;
-      case Builtin::PointCoord:
-        return BuiltinBits::POINT_COORD;
-      case Builtin::PointSize:
-        return BuiltinBits::POINT_SIZE;
-      case Builtin::PrimitiveID:
-        return BuiltinBits::PRIMITIVE_ID;
-      case Builtin::VertexID:
-        return BuiltinBits::VERTEX_ID;
-      case Builtin::WorkGroupID:
-        return BuiltinBits::WORK_GROUP_ID;
-      case Builtin::WorkGroupSize:
-        return BuiltinBits::WORK_GROUP_SIZE;
-      case Builtin::drw_debug:
-#ifndef NDEBUG
-        return BuiltinBits::USE_DEBUG_DRAW;
-#else
-        return BuiltinBits::NONE;
-#endif
-      case Builtin::assert:
-      case Builtin::printf:
-#if GPU_SHADER_PRINTF_ENABLE
-        return BuiltinBits::USE_PRINTF;
-#else
-        return BuiltinBits::NONE;
-#endif
-      case Builtin::runtime_generated:
-        return BuiltinBits::RUNTIME_GENERATED;
-    }
-    BLI_assert_unreachable();
-    return BuiltinBits::NONE;
-  }
 
   GPUFunctionQual convert_qualifier(shader::metadata::Qualifier qualifier)
   {
@@ -180,17 +195,25 @@ struct GPUSource {
       std::function<void(GPUSource &, GPUFunctionDictionary *, GPUPrintFormatMap *)> metadata_fn)
       : fullpath(path), filename(file), source(datatoc)
   {
+    BLI_assert_msg(source.find("//") == std::string::npos &&
+                       source.find("/*") == std::string::npos,
+                   "Input source should have no comments.");
     metadata_fn(*this, g_functions, g_formats);
   };
 
   void add_builtin(shader::metadata::Builtin builtin)
   {
-    builtins |= convert_builtin_bit(builtin);
+    builtins |= shader::convert_builtin_bit(builtin);
   }
 
   void add_dependency(StringRef line)
   {
     dependencies_names.append(line);
+  }
+
+  void add_shared_variable(const shader::Type type, const StringRefNull name)
+  {
+    shared_variables.append({type, name});
   }
 
   void add_printf_format(uint32_t format_hash, std::string format, GPUPrintFormatMap *format_map)
@@ -219,13 +242,18 @@ struct GPUSource {
 
       shader::PrintfFormat::Block::ArgumentType type =
           shader::PrintfFormat::Block::ArgumentType::NONE;
-      int64_t start = 0, end = 0;
-      while ((end = format.find_first_of('%', start + 1)) != -1) {
-        /* Add the previous block without the newly found % character. */
-        fmt.format_blocks.append({type, format.substr(start, end - start)});
+      int64_t start = 0, end = 0, cursor = -1;
+      while ((end = format.find_first_of('%', cursor + 1)) != -1) {
+        if (end - start > 0) {
+          /* Add the previous block without the newly found % character. */
+          fmt.format_blocks.append({type, format.substr(start, end - start)});
+        }
         /* Format type of the next block. */
         /* TODO(fclem): This doesn't support advance formats like `%3.2f`. */
         switch (format[end + 1]) {
+          case 's':
+            type = shader::PrintfFormat::Block::ArgumentType::STRING;
+            break;
           case 'x':
           case 'u':
             type = shader::PrintfFormat::Block::ArgumentType::UINT;
@@ -242,6 +270,7 @@ struct GPUSource {
         }
         /* Start of the next block. */
         start = end;
+        cursor = end;
       }
       fmt.format_blocks.append({type, format.substr(start, format.size() - start)});
 
@@ -339,6 +368,8 @@ struct GPUSource {
         return 1;
       }
       dependencies.append_non_duplicates(dependency_source);
+
+      this->shared_variables.extend(dependency_source->shared_variables);
     }
     dependencies_names.clear();
     return 0;
@@ -461,7 +492,7 @@ namespace shader {
 
 }  // namespace shader
 
-}  // namespace blender::gpu
+}  // namespace gpu
 
 using namespace blender::gpu;
 
@@ -469,6 +500,11 @@ static GPUPrintFormatMap *g_formats = nullptr;
 static GPUSourceDictionary *g_sources = nullptr;
 static GPUFunctionDictionary *g_functions = nullptr;
 static bool force_printf_injection = false;
+
+#ifdef WITH_OPENSUBDIV
+/* Using a global string to avoid dealing with memory allocation/ownership. */
+static std::string osd_patch_basis;
+#endif
 
 void gpu_shader_dependency_init()
 {
@@ -483,7 +519,7 @@ void gpu_shader_dependency_init()
                                    datatoc_##filename_underscore, \
                                    g_functions, \
                                    g_formats, \
-                                   blender::gpu::shader::metadata_##filename_underscore));
+                                   gpu::shader::metadata_##filename_underscore));
 
 #include "glsl_compositor_source_list.h"
 #include "glsl_draw_source_list.h"
@@ -494,12 +530,19 @@ void gpu_shader_dependency_init()
 #endif
 #undef SHADER_SOURCE
 #ifdef WITH_OPENSUBDIV
-  const blender::StringRefNull patch_basis_source = openSubdiv_getGLSLPatchBasisSource();
+  osd_patch_basis = openSubdiv_getGLSLPatchBasisSource();
+  osd_patch_basis = shader::SourceProcessor(
+                        osd_patch_basis, "osd_patch_basis.glsl", gpu::shader::Language::GLSL)
+                        .remove_comments();
+  auto source_ptr_opt = g_sources->pop_try("osd_patch_basis.glsl");
+  if (source_ptr_opt) {
+    delete source_ptr_opt.value();
+  }
   g_sources->add_new(
       "osd_patch_basis.glsl",
       new GPUSource("osd_patch_basis.glsl",
                     "osd_patch_basis.glsl",
-                    patch_basis_source.c_str(),
+                    (osd_patch_basis).c_str(),
                     g_functions,
                     g_formats,
                     [](GPUSource &, GPUFunctionDictionary *, GPUPrintFormatMap *) {}));
@@ -551,8 +594,7 @@ GPUFunction *gpu_material_library_get_function(const char *name)
   return function;
 }
 
-void gpu_material_library_use_function(blender::Set<blender::StringRefNull> &used_libraries,
-                                       const char *name)
+void gpu_material_library_use_function(Set<StringRefNull> &used_libraries, const char *name)
 {
   GPUFunction *function = g_functions->lookup_default(name, nullptr);
   BLI_assert_msg(function != nullptr, "Requested function not in the function library");
@@ -560,7 +602,7 @@ void gpu_material_library_use_function(blender::Set<blender::StringRefNull> &use
   used_libraries.add(source->filename.c_str());
 }
 
-namespace blender::gpu::shader {
+namespace gpu::shader {
 
 bool gpu_shader_dependency_force_gpu_print_injection()
 {
@@ -571,7 +613,7 @@ bool gpu_shader_dependency_force_gpu_print_injection()
 
 bool gpu_shader_dependency_has_printf()
 {
-  return (g_formats != nullptr) && !g_formats->is_empty();
+  return (g_formats != nullptr) && g_shader_use_printf;
 }
 
 const PrintfFormat &gpu_shader_dependency_get_printf_format(uint32_t format_hash)
@@ -592,6 +634,22 @@ BuiltinBits gpu_shader_dependency_get_builtins(const StringRefNull shader_source
   }
   GPUSource *source = g_sources->lookup(shader_source_name);
   return source->builtins_get();
+}
+
+Span<ShaderCreateInfo::SharedVariable> gpu_shader_dependency_get_shared_variables(
+    const StringRefNull shader_source_name)
+{
+  if (shader_source_name.is_empty()) {
+    return {};
+  }
+  if (g_sources->contains(shader_source_name) == false) {
+    std::cerr << "Error: Could not find \"" << shader_source_name
+              << "\" in the list of registered source.\n";
+    BLI_assert(0);
+    return {};
+  }
+  GPUSource *source = g_sources->lookup(shader_source_name);
+  return source->shared_variables;
 }
 
 Vector<StringRefNull> gpu_shader_dependency_get_resolved_source(
@@ -634,4 +692,5 @@ StringRefNull gpu_shader_dependency_get_filename_from_source_string(const String
   return "";
 }
 
-}  // namespace blender::gpu::shader
+}  // namespace gpu::shader
+}  // namespace blender

@@ -40,7 +40,9 @@
 
 #include "../generic/py_capi_utils.hh"
 
-using blender::bke::GeometrySet;
+namespace blender {
+
+using bke::GeometrySet;
 
 extern PyTypeObject bpy_geometry_set_Type;
 
@@ -98,7 +100,6 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
                                                                      PyObject *args,
                                                                      PyObject *kwds)
 {
-  using namespace blender;
   static const char *kwlist[] = {"evaluated_object", nullptr};
   PyObject *py_evaluated_object;
   if (!PyArg_ParseTupleAndKeywords(
@@ -144,18 +145,18 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
     PyErr_SetString(PyExc_TypeError, "Object is not owned by a depsgraph");
     return nullptr;
   }
-  Scene *scene = DEG_get_input_scene(depsgraph);
 
   GeometrySet geometry;
   if (is_instance_collection) {
-    bke::Instances *instances = new bke::Instances();
-    instances->add_new_reference(bke::InstanceReference{*evaluated_object->instance_collection});
-    instances->add_instance(0, float4x4::identity());
+    bke::Instances *instances = new bke::Instances(1);
+    const int handle = instances->add_new_reference(
+        bke::InstanceReference{*evaluated_object->instance_collection});
+    instances->reference_handles_for_write().first() = handle;
+    instances->transforms_for_write().first() = float4x4::identity();
     geometry.replace_instances(instances);
   }
   else {
-    bke::Instances instances = object_duplilist_legacy_instances(
-        *depsgraph, *scene, *evaluated_object);
+    bke::Instances instances = object_duplilist_legacy_instances(*depsgraph, *evaluated_object);
     geometry = bke::object_get_evaluated_geometry_set(*evaluated_object, false);
     if (instances.instances_num() > 0) {
       geometry.replace_instances(new bke::Instances(std::move(instances)));
@@ -188,7 +189,6 @@ PyDoc_STRVAR(
     "   :rtype: bpy.types.PointCloud\n");
 static PyObject *BPy_GeometrySet_get_instances_pointcloud(BPy_GeometrySet *self)
 {
-  using namespace blender;
   const bke::Instances *instances = self->geometry.get_instances();
   if (!instances) {
     Py_RETURN_NONE;
@@ -220,7 +220,6 @@ PyDoc_STRVAR(
     "   :rtype: list[None | bpy.types.Object | bpy.types.Collection | bpy.types.GeometrySet]\n");
 static PyObject *BPy_GeometrySet_get_instance_references(BPy_GeometrySet *self)
 {
-  using namespace blender;
   const bke::Instances *instances = self->geometry.get_instances();
   if (!instances) {
     return PyList_New(0);
@@ -491,3 +490,5 @@ PyObject *BPyInit_geometry_set_type()
   }
   return reinterpret_cast<PyObject *>(&bpy_geometry_set_Type);
 }
+
+}  // namespace blender

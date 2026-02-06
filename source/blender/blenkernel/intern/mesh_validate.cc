@@ -7,7 +7,6 @@
  */
 
 #include <algorithm>
-#include <climits>
 #include <fmt/format.h>
 
 #include "BKE_attribute_legacy_convert.hh"
@@ -20,6 +19,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_index_ranges_builder.hh"
+#include "BLI_listbase.h"
 #include "BLI_ordered_edge.hh"
 
 #include "BKE_attribute.hh"
@@ -28,9 +28,11 @@
 
 #include "DEG_depsgraph.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"geom.mesh"};
 
-namespace blender::bke {
+namespace bke {
 
 /* Helper class to collect error messages in parallel. */
 class ErrorMessages {
@@ -43,7 +45,7 @@ class ErrorMessages {
   ErrorMessages(const bool verbose) : verbose_(verbose) {}
   ~ErrorMessages()
   {
-    std::sort(messages.begin(), messages.end());
+    std::ranges::sort(messages);
     for (const std::string &message : messages) {
       CLOG_ERROR(&LOG, "%s", message.c_str());
     }
@@ -309,12 +311,30 @@ static IndexMask find_duplicate_faces(const Mesh &mesh,
   const OffsetIndices<int> faces(mesh.face_offsets(), offset_indices::NoSortCheck());
   const Span<int> corner_verts = mesh.corner_verts();
 
-  Array<int> sorted_corner_verts(mesh.corners_num);
+  Array<int> ordered_corner_verts(mesh.corners_num);
   mask.foreach_index(GrainSize(1024), [&](const int face_i) {
     const IndexRange face = faces[face_i];
-    MutableSpan<int> sorted_face_verts = sorted_corner_verts.as_mutable_span().slice(face);
-    sorted_face_verts.copy_from(corner_verts.slice(face));
-    std::sort(sorted_face_verts.begin(), sorted_face_verts.end());
+    MutableSpan<int> ordered_face_verts = ordered_corner_verts.as_mutable_span().slice(face);
+    /* Order by the smallest index, then the smallest adjacent index this ensures:
+     * - Faces are only considered duplicates when they share vertices & edges.
+     * - Faces winding in opposite directions are considered duplicates.
+     * See: #150842. */
+    Span<int> face_verts = corner_verts.slice(face);
+    const int face_verts_num = face_verts.size();
+    int i_min = 0;
+    for (int i = 1; i < face_verts_num; i += 1) {
+      if (face_verts[i] < face_verts[i_min]) {
+        i_min = i;
+      }
+    }
+    /* Allow modulo after subtraction within the `face_verts_num` range. */
+    const int i_min_for_modulo = i_min + face_verts_num;
+    const int i_min_prev = (i_min_for_modulo - 1) % face_verts_num;
+    const int i_min_next = (i_min_for_modulo + 1) % face_verts_num;
+    const int sign = face_verts[i_min_next] < face_verts[i_min_prev] ? 1 : -1;
+    for (int i = 0; i < face_verts_num; i += 1) {
+      ordered_face_verts[i] = face_verts[(i_min_for_modulo + (i * sign)) % face_verts_num];
+    }
   });
 
   using FaceMap = VectorSet<Span<int>,
@@ -331,7 +351,7 @@ static IndexMask find_duplicate_faces(const Mesh &mesh,
   ErrorMessages errors(verbose);
   mask.foreach_index([&](int face_i) {
     const IndexRange face = faces[face_i];
-    const Span<int> face_verts = sorted_corner_verts.as_span().slice(face);
+    const Span<int> face_verts = ordered_corner_verts.as_span().slice(face);
     if (!face_hash.add(face_verts)) {
       errors.add("Face {} is a duplicate of {}", face_i, face_hash.index_of(face_verts));
       duplicate_faces[face_i].set();
@@ -350,25 +370,54 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
   const OffsetIndices new_faces = offset_indices::gather_selected_offsets(
       old_faces, valid_faces, new_face_offsets);
 
-  for (CustomDataLayer &layer : MutableSpan(mesh.face_data.layers, mesh.face_data.totlayer)) {
-    const eCustomDataType cd_type = eCustomDataType(layer.type);
-    if (CD_TYPE_AS_MASK(cd_type) & CD_MASK_PROP_ALL) {
-      const CPPType &type = *bke::custom_data_type_to_cpp_type(cd_type);
-      const GSpan src(type, layer.data, mesh.faces_num);
-
-      void *dst_data = MEM_malloc_arrayN(valid_faces_num, type.size, __func__);
-      GMutableSpan dst(type, dst_data, valid_faces_num);
-
-      array_utils::gather(src, valid_faces, dst);
-
-      layer.sharing_info->remove_user_and_delete_if_last();
-      layer.data = dst_data;
-      layer.sharing_info = implicit_sharing::info_for_mem_free(dst_data);
+  for (bke::Attribute &attr : mesh.attribute_storage.wrap()) {
+    const CPPType &type = attribute_type_to_cpp_type(attr.data_type());
+    switch (attr.domain()) {
+      case AttrDomain::Face: {
+        switch (attr.storage_type()) {
+          case AttrStorageType::Array: {
+            const auto &src_data = std::get<Attribute::ArrayData>(attr.data());
+            auto dst_data = Attribute::ArrayData::from_uninitialized(type, valid_faces_num);
+            array_utils::gather(GSpan(type, src_data.data, mesh.faces_num),
+                                valid_faces,
+                                GMutableSpan(type, dst_data.data, valid_faces_num));
+            attr.assign_data(std::move(dst_data));
+            break;
+          }
+          case AttrStorageType::Single:
+            break;
+        }
+        break;
+      }
+      case AttrDomain::Corner: {
+        switch (attr.storage_type()) {
+          case AttrStorageType::Array: {
+            const auto &src_data = std::get<Attribute::ArrayData>(attr.data());
+            auto dst_data = Attribute::ArrayData::from_uninitialized(type, new_faces.total_size());
+            bke::attribute_math::gather_group_to_group(
+                old_faces,
+                new_faces,
+                valid_faces,
+                GSpan(type, src_data.data, mesh.corners_num),
+                GMutableSpan(type, dst_data.data, new_faces.total_size()));
+            attr.assign_data(std::move(dst_data));
+            break;
+          }
+          case AttrStorageType::Single:
+            break;
+        }
+        break;
+      }
+      default:
+        break;
     }
-    else if (cd_type == CD_ORIGINDEX) {
+  }
+
+  for (CustomDataLayer &layer : MutableSpan(mesh.face_data.layers, mesh.face_data.totlayer)) {
+    if (layer.type == CD_ORIGINDEX) {
       const Span src(static_cast<const int *>(layer.data), mesh.edges_num);
 
-      int *dst_data = MEM_malloc_arrayN<int>(valid_faces_num, __func__);
+      int *dst_data = MEM_new_array_uninitialized<int>(valid_faces_num, __func__);
       MutableSpan dst(dst_data, valid_faces_num);
 
       array_utils::gather(src, valid_faces, dst);
@@ -381,30 +430,17 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
 
   for (CustomDataLayer &layer : MutableSpan(mesh.corner_data.layers, mesh.corner_data.totlayer)) {
     const eCustomDataType cd_type = eCustomDataType(layer.type);
-    if (CD_TYPE_AS_MASK(cd_type) & CD_MASK_PROP_ALL) {
-      const CPPType &type = *bke::custom_data_type_to_cpp_type(cd_type);
-      const GSpan src(type, layer.data, mesh.corners_num);
-
-      void *dst_data = MEM_malloc_arrayN(new_faces.total_size(), type.size, __func__);
-      GMutableSpan dst(type, dst_data, new_faces.total_size());
-
-      bke::attribute_math::gather_group_to_group(old_faces, new_faces, valid_faces, src, dst);
-
-      layer.sharing_info->remove_user_and_delete_if_last();
-      layer.data = dst_data;
-      layer.sharing_info = implicit_sharing::info_for_mem_free(dst_data);
-    }
-    else if (ELEM(cd_type,
-                  CD_NORMAL,
-                  CD_ORIGINDEX,
-                  CD_MDISPS,
-                  CD_GRID_PAINT_MASK,
-                  CD_ORIGSPACE_MLOOP))
+    if (ELEM(layer.type,
+             CD_NORMAL,
+             CD_ORIGINDEX,
+             CD_MDISPS,
+             CD_GRID_PAINT_MASK,
+             CD_ORIGSPACE_MLOOP))
     {
       const size_t elem_size = CustomData_sizeof(cd_type);
       const void *src = layer.data;
 
-      void *dst = MEM_malloc_arrayN(new_faces.total_size(), elem_size, __func__);
+      void *dst = MEM_new_array_uninitialized(new_faces.total_size(), elem_size, __func__);
 
       valid_faces.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
         CustomData_copy_elements(cd_type,
@@ -432,25 +468,32 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
 static void remove_invalid_edges(Mesh &mesh, const IndexMask &valid_edges)
 {
   const int valid_edges_num = valid_edges.size();
-  for (CustomDataLayer &layer : MutableSpan(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
-    const eCustomDataType cd_type = eCustomDataType(layer.type);
-    if (CD_TYPE_AS_MASK(cd_type) & CD_MASK_PROP_ALL) {
-      const CPPType &type = *bke::custom_data_type_to_cpp_type(cd_type);
-      const GSpan src(type, layer.data, mesh.edges_num);
 
-      void *dst_data = MEM_malloc_arrayN(valid_edges_num, type.size, __func__);
-      GMutableSpan dst(type, dst_data, valid_edges_num);
-
-      array_utils::gather(src, valid_edges, dst);
-
-      layer.sharing_info->remove_user_and_delete_if_last();
-      layer.data = dst_data;
-      layer.sharing_info = implicit_sharing::info_for_mem_free(dst_data);
+  for (bke::Attribute &attr : mesh.attribute_storage.wrap()) {
+    if (attr.domain() != AttrDomain::Edge) {
+      continue;
     }
-    else if (cd_type == CD_ORIGINDEX) {
+    const CPPType &type = attribute_type_to_cpp_type(attr.data_type());
+    switch (attr.storage_type()) {
+      case AttrStorageType::Array: {
+        const auto &src_data = std::get<Attribute::ArrayData>(attr.data());
+        auto dst_data = Attribute::ArrayData::from_uninitialized(type, valid_edges_num);
+        array_utils::gather(GSpan(type, src_data.data, mesh.edges_num),
+                            valid_edges,
+                            GMutableSpan(type, dst_data.data, valid_edges_num));
+        attr.assign_data(std::move(dst_data));
+        break;
+      }
+      case AttrStorageType::Single:
+        break;
+    }
+  }
+
+  for (CustomDataLayer &layer : MutableSpan(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
+    if (layer.type == CD_ORIGINDEX) {
       const Span src(static_cast<const int *>(layer.data), mesh.edges_num);
 
-      int *dst_data = MEM_malloc_arrayN<int>(valid_edges_num, __func__);
+      int *dst_data = MEM_new_array_uninitialized<int>(valid_edges_num, __func__);
       MutableSpan dst(dst_data, valid_edges_num);
 
       array_utils::gather(src, valid_edges, dst);
@@ -461,8 +504,6 @@ static void remove_invalid_edges(Mesh &mesh, const IndexMask &valid_edges)
     }
   }
 
-  mesh.edges_num = valid_edges.size();
-
   Array<int> all_edges_to_valid_edges(mesh.edges_num);
   index_mask::build_reverse_map(valid_edges, all_edges_to_valid_edges.as_mutable_span());
   MutableSpan<int> corner_edges = mesh.corner_edges_for_write();
@@ -471,6 +512,8 @@ static void remove_invalid_edges(Mesh &mesh, const IndexMask &valid_edges)
       corner_edges[i] = all_edges_to_valid_edges[corner_edges[i]];
     }
   });
+
+  mesh.edges_num = valid_edges.size();
 
   mesh.tag_topology_changed();
 }
@@ -481,6 +524,7 @@ static bool validate_vertex_groups(const Mesh &mesh, const bool verbose, Mesh *m
   if (dverts.is_empty()) {
     return true;
   }
+  const int vertex_groups_num = BLI_listbase_count(&mesh.vertex_group_names);
   Mutex mutex;
   Vector<std::pair<int, Vector<std::string, 0>>> all_errors;
   Vector<std::pair<int, Vector<MDeformWeight, 0>>> replacements;
@@ -493,7 +537,7 @@ static bool validate_vertex_groups(const Mesh &mesh, const bool verbose, Mesh *m
       Vector<MDeformWeight, 64> fixed_weights;
       for (const MDeformWeight &dw : Span(dvert.dw, dvert.totweight)) {
         const uint def_nr = dw.def_nr;
-        if (dw.def_nr > INT_MAX) {
+        if (dw.def_nr >= vertex_groups_num) {
           invalid = true;
           if (verbose) {
             std::lock_guard lock(mutex);
@@ -550,7 +594,7 @@ static bool validate_vertex_groups(const Mesh &mesh, const bool verbose, Mesh *m
   if (mesh_mut) {
     MutableSpan<MDeformVert> dverts = mesh_mut->deform_verts_for_write();
     for (auto &[vert, weights] : replacements) {
-      MEM_freeN(dverts[vert].dw);
+      MEM_delete(dverts[vert].dw);
       dverts[vert].totweight = weights.size();
       dverts[vert].dw = weights.release().data;
     }
@@ -643,7 +687,7 @@ static bool validate_selection_history(const Mesh &mesh, const bool verbose, Mes
     });
   }
   if (mesh_mut) {
-    MEM_SAFE_FREE(mesh_mut->mselect);
+    MEM_SAFE_DELETE(mesh_mut->mselect);
   }
 
   return false;
@@ -906,4 +950,11 @@ bool mesh_validate_material_indices(Mesh &mesh)
   return validate_material_indices(mesh, false, false, &mesh);
 }
 
-}  // namespace blender::bke
+IndexMask mesh_find_faces_duplicate_verts(const Mesh &mesh, IndexMaskMemory &memory)
+{
+  const IndexMask valid_faces(mesh.faces().size());
+  return find_faces_duplicate_verts(mesh, valid_faces, memory, false);
+}
+
+}  // namespace bke
+}  // namespace blender

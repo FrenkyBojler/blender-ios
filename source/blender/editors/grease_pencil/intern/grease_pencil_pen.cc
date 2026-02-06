@@ -38,7 +38,9 @@
 
 #include "UI_resources.hh"
 
-namespace blender::ed::greasepencil {
+namespace blender {
+
+namespace ed::greasepencil {
 
 class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
  public:
@@ -105,19 +107,24 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
     info.drawing.opacities_for_write().last() = 1.0f;
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
-    bke::SpanAttributeWriter<float> aspect_ratios = attributes.lookup_or_add_for_write_span<float>(
-        "aspect_ratio",
-        bke::AttrDomain::Curve,
-        bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
-    aspect_ratios.span.last() = 1.0f;
-    aspect_ratios.finish();
+    if (bke::SpanAttributeWriter aspect_ratios = attributes.lookup_for_write_span<float>(
+            "aspect_ratio"))
+    {
+      aspect_ratios.span.last() = 1.0f;
+      aspect_ratios.finish();
+    }
 
-    bke::SpanAttributeWriter<float> u_scales = attributes.lookup_or_add_for_write_span<float>(
-        "u_scale",
-        bke::AttrDomain::Curve,
-        bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
-    u_scales.span.last() = 1.0f;
-    u_scales.finish();
+    if (bke::SpanAttributeWriter u_scales = attributes.lookup_for_write_span<float>("u_scale")) {
+      u_scales.span.last() = 1.0f;
+      u_scales.finish();
+    }
+
+    if (bke::SpanAttributeWriter fill_opacities = attributes.lookup_for_write_span<float>(
+            "fill_opacity"))
+    {
+      fill_opacities.span.last() = 1.0f;
+      fill_opacities.finish();
+    }
   }
 
   bool can_create_new_curve(wmOperator *op) const
@@ -179,7 +186,7 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
       return OPERATOR_CANCELLED;
     }
 
-    GreasePencil *grease_pencil = static_cast<GreasePencil *>(this->vc.obact->data);
+    GreasePencil *grease_pencil = id_cast<GreasePencil *>(this->vc.obact->data);
     this->grease_pencil = grease_pencil;
     View3D *view3d = CTX_wm_view3d(C);
 
@@ -309,15 +316,17 @@ static void GREASE_PENCIL_OT_pen(wmOperatorType *ot)
   curves::pen_tool::pen_tool_common_props(ot);
 }
 
-}  // namespace blender::ed::greasepencil
+}  // namespace ed::greasepencil
 
 void ED_operatortypes_grease_pencil_pen()
 {
-  WM_operatortype_append(blender::ed::greasepencil::GREASE_PENCIL_OT_pen);
+  WM_operatortype_append(ed::greasepencil::GREASE_PENCIL_OT_pen);
 }
 
 void ED_grease_pencil_pentool_modal_keymap(wmKeyConfig *keyconf)
 {
-  wmKeyMap *keymap = blender::ed::curves::pen_tool::ensure_keymap(keyconf);
+  wmKeyMap *keymap = ed::curves::pen_tool::ensure_keymap(keyconf);
   WM_modalkeymap_assign(keymap, "GREASE_PENCIL_OT_pen");
 }
+
+}  // namespace blender

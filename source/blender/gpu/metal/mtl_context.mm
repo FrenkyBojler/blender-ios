@@ -35,7 +35,6 @@
 #include <fstream>
 #include <string>
 
-using namespace blender;
 using namespace blender::gpu;
 
 /* Fire off a single dispatch per encoder. Can make debugging view clearer for texture resources
@@ -78,9 +77,9 @@ int64_t MTLContext::frame_latency[MTL_FRAME_AVERAGE_COUNT] = {0};
 /** \name GHOST Context interaction.
  * \{ */
 
-void MTLContext::set_ghost_context(GHOST_ContextHandle ghostCtxHandle)
+void MTLContext::set_ghost_context(GHOST_IContext *ghostCtxHandle)
 {
-  GHOST_Context *ghost_ctx = reinterpret_cast<GHOST_Context *>(ghostCtxHandle);
+  GHOST_Context *ghost_ctx = static_cast<GHOST_Context *>(ghostCtxHandle);
   BLI_assert(ghost_ctx != nullptr);
 
   /* Release old MTLTexture handle */
@@ -168,10 +167,10 @@ void MTLContext::set_ghost_context(GHOST_ContextHandle ghostCtxHandle)
   }
 }
 
-void MTLContext::set_ghost_window(GHOST_WindowHandle ghostWinHandle)
+void MTLContext::set_ghost_window(GHOST_IWindow *ghostWinHandle)
 {
-  GHOST_Window *ghostWin = reinterpret_cast<GHOST_Window *>(ghostWinHandle);
-  this->set_ghost_context((GHOST_ContextHandle)(ghostWin ? ghostWin->getContext() : nullptr));
+  GHOST_Window *ghostWin = static_cast<GHOST_Window *>(ghostWinHandle);
+  this->set_ghost_context(ghostWin ? ghostWin->getContext() : nullptr);
 }
 
 /** \} */
@@ -181,7 +180,7 @@ void MTLContext::set_ghost_window(GHOST_WindowHandle ghostWinHandle)
  * \{ */
 
 /* Placeholder functions */
-MTLContext::MTLContext(void *ghost_window, void *ghost_context)
+MTLContext::MTLContext(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context)
     : memory_manager(*this), main_command_buffer(*this)
 {
   /* Init debug. */
@@ -413,10 +412,10 @@ void MTLContext::activate()
 
   /* Re-apply ghost window/context for resizing */
   if (ghost_window_) {
-    this->set_ghost_window((GHOST_WindowHandle)ghost_window_);
+    this->set_ghost_window(ghost_window_);
   }
   else if (ghost_context_) {
-    this->set_ghost_context((GHOST_ContextHandle)ghost_context_);
+    this->set_ghost_context(ghost_context_);
   }
 
   /* Reset UBO bind state. */
@@ -736,7 +735,7 @@ template<typename CommandEncoderT>
 static void bind_sampler_argument_buffer(
     CommandEncoderT enc,
     MTLSamplerArray &sampler_array,
-    blender::Map<MTLSamplerArray, gpu::MTLBuffer *> &sampler_buffers_cache,
+    Map<MTLSamplerArray, gpu::MTLBuffer *> &sampler_buffers_cache,
     MTLShaderInterface &shader_interface,
     id<MTLFunction> mtl_function,
     MTLBindingCache<CommandEncoderT> &bindings)
@@ -991,18 +990,10 @@ void MTLContext::pipeline_state_init()
   this->pipeline_state.cull_mode = GPU_CULL_NONE;
   this->pipeline_state.front_face = GPU_COUNTERCLOCKWISE;
 
-  /* DATA and IMAGE access state. */
-  this->pipeline_state.unpack_row_length = 0;
-
   /* Depth State. */
   this->pipeline_state.depth_stencil_state.depth_write_enable = false;
   this->pipeline_state.depth_stencil_state.depth_test_enabled = false;
   this->pipeline_state.depth_stencil_state.depth_function = MTLCompareFunctionAlways;
-  this->pipeline_state.depth_stencil_state.depth_bias = 0.0;
-  this->pipeline_state.depth_stencil_state.depth_slope_scale = 0.0;
-  this->pipeline_state.depth_stencil_state.depth_bias_enabled_for_points = false;
-  this->pipeline_state.depth_stencil_state.depth_bias_enabled_for_lines = false;
-  this->pipeline_state.depth_stencil_state.depth_bias_enabled_for_tris = false;
 
   /* Stencil State. */
   this->pipeline_state.depth_stencil_state.stencil_test_enabled = false;
@@ -1172,6 +1163,12 @@ bool MTLContext::ensure_render_pipeline_state(MTLPrimitiveType mtl_prim_type)
   if (rec == nil) {
     MTL_LOG_ERROR("ensure_render_pipeline_state called while render pass is not active.");
     return false;
+  }
+
+  /* Support legacy point size state. */
+  MTLStateManager &state_manager = *static_cast<MTLStateManager *>(this->state_manager);
+  if (mtl_prim_type == MTLPrimitiveTypePoint && state_manager.mutable_state.point_size < 0) {
+    GPU_shader_uniform_1f(shader, "size", -state_manager.mutable_state.point_size);
   }
 
   /* Bind Render Pipeline State. */
@@ -1350,7 +1347,7 @@ bool MTLContext::ensure_render_pipeline_state(MTLPrimitiveType mtl_prim_type)
 }
 
 /* Encode latest depth-stencil state. */
-void MTLContext::ensure_depth_stencil_state(MTLPrimitiveType prim_type)
+void MTLContext::ensure_depth_stencil_state()
 {
   /* Check if we need to update state. */
   if (!(this->pipeline_state.dirty_flags & MTL_PIPELINE_STATE_DEPTHSTENCIL_FLAG)) {
@@ -1461,23 +1458,7 @@ void MTLContext::ensure_depth_stencil_state(MTLPrimitiveType prim_type)
     }
 
     if (hasDepthTarget) {
-      bool doBias = false;
-      switch (prim_type) {
-        case MTLPrimitiveTypeTriangle:
-        case MTLPrimitiveTypeTriangleStrip:
-          doBias = this->pipeline_state.depth_stencil_state.depth_bias_enabled_for_tris;
-          break;
-        case MTLPrimitiveTypeLine:
-        case MTLPrimitiveTypeLineStrip:
-          doBias = this->pipeline_state.depth_stencil_state.depth_bias_enabled_for_lines;
-          break;
-        case MTLPrimitiveTypePoint:
-          doBias = this->pipeline_state.depth_stencil_state.depth_bias_enabled_for_points;
-          break;
-      }
-      [rec setDepthBias:(doBias) ? this->pipeline_state.depth_stencil_state.depth_bias : 0
-             slopeScale:(doBias) ? this->pipeline_state.depth_stencil_state.depth_slope_scale : 0
-                  clamp:0];
+      [rec setDepthBias:0 slopeScale:0 clamp:0];
     }
   }
 }
