@@ -67,27 +67,27 @@ def sculpt_mode_toolbar():
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.box_hide")
 
     yield e.shift.space()
-    yield e.shift.two()
+    yield e.shift.seven()
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.box_face_set")
 
     yield e.shift.space()
-    yield e.shift.six()
+    yield e.ctrl.one()
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.box_trim")
 
     yield e.shift.space()
-    yield e.shift.zero()
+    yield e.ctrl.five()
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.line_project")
 
     yield e.shift.space()
-    yield e.ctrl.one()
+    yield e.ctrl.six()
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.mesh_filter")
 
     yield e.shift.space()
-    yield e.ctrl.two()
+    yield e.ctrl.seven()
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.cloth_filter")
 
     yield e.shift.space()
-    yield e.ctrl.three()
+    yield e.ctrl.eight()
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.color_filter")
 
     yield e.shift.space()
@@ -95,19 +95,19 @@ def sculpt_mode_toolbar():
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.face_set_edit")
 
     yield e.shift.space()
-    yield e.ctrl.four()
+    yield e.ctrl.nine()
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.mask_by_color")
 
     yield e.shift.space()
-    yield e.ctrl.five()
+    yield e.ctrl.zero()
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.move")
 
     yield e.shift.space()
-    yield e.ctrl.six()
+    yield e.alt.one()
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.rotate")
 
     yield e.shift.space()
-    yield e.ctrl.seven()
+    yield e.alt.two()
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.scale")
 
     yield e.shift.space()
