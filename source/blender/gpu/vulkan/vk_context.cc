@@ -495,9 +495,9 @@ void VKContext::swap_buffer_draw_handler(const GHOST_VulkanSwapChainData &swap_c
                      swap_chain_data.present_semaphore,
                      swap_chain_data.submission_fence);
   /* Discard/remove not owning swapchain handlers.
-   * During a regular swapchain update, NVIDIA can use the same image sequential and ignore the
-   * first update. Placing these images in the discard pool results in incorrect state, best to
-   * remove them directly. */
+   * During a regular swapchain update, NVIDIA can use the same image multiple times in a row.
+   * Placing these images in the discard pool results in incorrect state, best to remove them
+   * directly. */
   if (wait_for_submission) {
     device.resources.remove_image(swap_chain_data.image);
   }
