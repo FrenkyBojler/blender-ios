@@ -433,11 +433,11 @@ void VKTexturePool::reset(bool force_free)
   }
 #endif
 
-  /* Reverse iterate unused allocations, to make sure we only reorder known good handles. */
+  /* Iterate allocations; gather handles hitting `unused_cycles_count`. */
+  Vector<AllocationHandle> unused_allocations;
   for (AllocationHandle handle : allocations_) {
     if (handle.is_unused() && (handle.unused_cycles_count >= max_unused_cycles_ || force_free)) {
-      handle.free();
-      allocations_.remove(handle);
+      unused_allocations.append(handle);
     }
     else {
       handle.unused_cycles_count++;
@@ -445,6 +445,16 @@ void VKTexturePool::reset(bool force_free)
     }
   }
 
+  /* Remove unused images. */
+  image_cache_.reset();
+
+  /* Remove unused allocations. */
+  for (AllocationHandle handle : unused_allocations) {
+    handle.free();
+    allocations_.remove(handle);
+  }
+
+  /* Log debug usage data if it differs from the last `::reset()`. */
   if (G.debug & G_DEBUG_GPU) {
     /* Log debug usage data if it differs from the last `::reset()`. */
     current_usage_data_.allocation_count = allocations_.size();
