@@ -75,7 +75,7 @@ class BundleType {
 
   uint64_t hash() const;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_1(BundleType, type);
+  friend bool operator==(const BundleType &a, const BundleType &b) = default;
 };
 
 class FlatBundleTypeBuilder {

@@ -127,7 +127,7 @@ struct SimPointsKey {
   std::string path;
   bke::GeometryComponent::Type type;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(SimPointsKey, path, type)
+  friend bool operator==(const SimPointsKey &a, const SimPointsKey &b) = default;
 
   uint64_t hash() const
   {
@@ -163,7 +163,7 @@ struct SimConstraintsKey {
   /* Points this set of constraints is applied to. */
   SimPointsKey points_key;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(SimConstraintsKey, path, points_key)
+  friend bool operator==(const SimConstraintsKey &a, const SimConstraintsKey &b) = default;
 
   uint64_t hash() const
   {
@@ -314,7 +314,7 @@ struct ExternalColliderKey {
     return get_default_hash(this->path, this->ids);
   }
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(ExternalColliderKey, path, ids)
+  friend bool operator==(const ExternalColliderKey &a, const ExternalColliderKey &b) = default;
 };
 
 struct ExternalColliderState {
@@ -647,7 +647,7 @@ struct FieldEvaluatorKey {
   AttrDomain domain;
   Field<bool> selection;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_3(FieldEvaluatorKey, component, domain, selection)
+  friend bool operator==(const FieldEvaluatorKey &a, const FieldEvaluatorKey &b) = default;
 
   uint64_t hash() const
   {
