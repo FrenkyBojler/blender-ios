@@ -37,6 +37,14 @@ struct AttributeSingle {
   const ImplicitSharingInfoHandle *sharing_info = nullptr;
 };
 
+struct AttributeStringOffsets {
+  char *all_strings;
+  const ImplicitSharingInfoHandle *data_sharing_info;
+  int *offsets;
+  int size;
+  const ImplicitSharingInfoHandle *offsets_sharing_info;
+};
+
 /** DNA data for bke::Attribute. */
 struct Attribute {
   const char *name = nullptr;

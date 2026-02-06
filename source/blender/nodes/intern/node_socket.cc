@@ -537,7 +537,8 @@ bool socket_type_supports_fields(const eNodeSocketDatatype socket_type)
               SOCK_INT,
               SOCK_ROTATION,
               SOCK_MENU,
-              SOCK_MATRIX);
+              SOCK_MATRIX,
+              SOCK_STRING);
 }
 
 bool socket_type_supports_grids(const eNodeSocketDatatype socket_type)

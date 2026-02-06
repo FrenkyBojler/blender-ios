@@ -60,7 +60,16 @@ class Attribute {
     static SingleData from_value(const GPointer &value);
     static SingleData from_default_value(const CPPType &type);
   };
-  using DataVariant = std::variant<ArrayData, SingleData>;
+  struct StringOffsets {
+    char *all_strings;
+    ImplicitSharingPtr<> data_sharing_info;
+    int *offsets;
+    int64_t size;
+    ImplicitSharingPtr<> offsets_sharing_info;
+    static StringOffsets from_strings(Span<std::string> span);
+    // GroupedSpan<int> offsets() const;
+  };
+  using DataVariant = std::variant<ArrayData, SingleData, StringOffsets>;
   friend AttributeStorage;
 
  private:

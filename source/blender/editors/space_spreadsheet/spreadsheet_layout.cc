@@ -300,30 +300,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                        std::nullopt);
       return;
     }
-    if (type.is<MStringProperty>()) {
-      MStringProperty *prop = MEM_new_zeroed<MStringProperty>(__func__);
-      *prop = *value_ptr.get<MStringProperty>();
-      ui::Button *but = uiDefIconTextBut(params.block,
-                                         ui::ButtonType::Label,
-                                         ICON_NONE,
-                                         StringRef(prop->s, prop->s_len),
-                                         params.xmin + CELL_PADDING_X,
-                                         params.ymin,
-                                         params.width - 2.0f * CELL_PADDING_X,
-                                         params.height,
-                                         nullptr,
-                                         std::nullopt);
-
-      button_func_tooltip_set(
-          but,
-          [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
-            const MStringProperty &prop = *static_cast<MStringProperty *>(argN);
-            return std::string(StringRef(prop.s, prop.s_len));
-          },
-          prop,
-          MEM_delete_void);
-      return;
-    }
     if (type.is<nodes::BundleItemValue>()) {
       const nodes::BundleItemValue &value = *value_ptr.get<nodes::BundleItemValue>();
       if (const nodes::BundleItemSocketValue *socket_value =
@@ -743,22 +719,11 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
                  });
     }
     case SPREADSHEET_VALUE_TYPE_STRING: {
-      if (data_.type().is<std::string>()) {
-        return estimate_max_column_width<std::string>(get_min_width(SPREADSHEET_WIDTH_UNIT),
-                                                      fontid,
-                                                      max_sample_size,
-                                                      data_.typed<std::string>(),
-                                                      [](const StringRef value) { return value; });
-      }
-      if (data_.type().is<MStringProperty>()) {
-        return estimate_max_column_width<MStringProperty>(
-            get_min_width(SPREADSHEET_WIDTH_UNIT),
-            fontid,
-            max_sample_size,
-            data_.typed<MStringProperty>(),
-            [](const MStringProperty &value) { return StringRef(value.s, value.s_len); });
-      }
-      break;
+      return estimate_max_column_width<std::string>(get_min_width(SPREADSHEET_WIDTH_UNIT),
+                                                    fontid,
+                                                    max_sample_size,
+                                                    data_.typed<std::string>(),
+                                                    [](const StringRef value) { return value; });
     }
     case SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM: {
       return 12 * SPREADSHEET_WIDTH_UNIT;

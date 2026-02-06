@@ -41,7 +41,6 @@ BLI_CPP_TYPE_MAKE(Text *, CPPTypeFlags::BasicType)
 BLI_CPP_TYPE_MAKE(Mask *, CPPTypeFlags::BasicType)
 BLI_CPP_TYPE_MAKE(bSound *, CPPTypeFlags::BasicType)
 
-BLI_CPP_TYPE_MAKE(MStringProperty, CPPTypeFlags::None);
 BLI_CPP_TYPE_MAKE(nodes::MenuValue, CPPTypeFlags::Hashable | CPPTypeFlags::EqualityComparable);
 BLI_CPP_TYPE_MAKE(nodes::BundlePtr, CPPTypeFlags::EqualityComparable);
 BLI_CPP_TYPE_MAKE(nodes::ClosurePtr, CPPTypeFlags::EqualityComparable);
@@ -73,7 +72,6 @@ void BKE_cpp_types_init()
   BLI_CPP_TYPE_REGISTER(Mask *);
   BLI_CPP_TYPE_REGISTER(bSound *);
 
-  BLI_CPP_TYPE_REGISTER(MStringProperty);
   BLI_CPP_TYPE_REGISTER(nodes::MenuValue);
   BLI_CPP_TYPE_REGISTER(nodes::BundlePtr);
   BLI_CPP_TYPE_REGISTER(nodes::ClosurePtr);

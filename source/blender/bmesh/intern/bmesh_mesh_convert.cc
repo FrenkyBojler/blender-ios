@@ -203,6 +203,7 @@ struct MeshToBMeshLayerInfo {
   const void *mesh_data;
   /** The size of every custom data element. */
   size_t mesh_stride;
+  // TODO: Store copy function here
 };
 
 /**

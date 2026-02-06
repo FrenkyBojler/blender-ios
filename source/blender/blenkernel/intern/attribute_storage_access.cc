@@ -27,6 +27,15 @@ GAttributeReader attribute_to_reader(const Attribute &attribute,
                               domain,
                               data.sharing_info.get()};
     }
+    case AttrStorageType::StringOffsets:
+      const auto &data = std::get<Attribute::StringOffsets>(attribute.data());
+      const OffsetIndices offsets(Span(data.offsets, data.size + 1));
+      const GroupedSpan<char> strings(offsets, Span(data.all_strings, offsets.total_size()));
+      VArray<std::string> values = VArray<std::string>::from_func(
+          offsets.size(), [strings](const int64_t i) {
+            return std::string(strings[i].begin(), strings[i].end());
+          });
+      return GAttributeReader{std::move(values), domain, nullptr};
   }
   BLI_assert_unreachable();
   return {};
@@ -61,6 +70,21 @@ GAttributeWriter attribute_to_writer(void *owner,
       const auto &data = std::get<Attribute::SingleData>(attribute.data());
       const GPointer value(cpp_type, data.value);
       attribute.assign_data(Attribute::ArrayData::from_value(value, domain_size));
+      return attribute_to_writer(owner, changed_tags, domain_size, attribute);
+    }
+    case AttrStorageType::StringOffsets: {
+      const auto &data = std::get<Attribute::StringOffsets>(attribute.data());
+      const OffsetIndices offsets(Span(data.offsets, data.size + 1));
+      const GroupedSpan<char> strings(offsets, Span(data.all_strings, offsets.total_size()));
+      VArray<std::string> values = VArray<std::string>::from_func(
+          offsets.size(), [strings](const int64_t i) {
+            return std::string(strings[i].begin(), strings[i].end());
+          });
+      Attribute::ArrayData array_data = Attribute::ArrayData::from_uninitialized(
+          CPPType::get<std::string>(), offsets.size());
+      values.materialize_to_uninitialized(
+          MutableSpan(static_cast<std::string *>(array_data.data), array_data.size));
+      attribute.assign_data(std::move(array_data));
       return attribute_to_writer(owner, changed_tags, domain_size, attribute);
     }
   }
@@ -159,6 +183,15 @@ GVArray get_varray_attribute(const AttributeStorage &storage,
       const auto &data = std::get<bke::Attribute::SingleData>(attr->data());
       return GVArray::from_single(cpp_type, domain_size, data.value);
     }
+    case AttrStorageType::StringOffsets:
+      const auto &data = std::get<Attribute::StringOffsets>(attr->data());
+      const OffsetIndices offsets(Span(data.offsets, data.size + 1));
+      const GroupedSpan<char> strings(offsets, Span(data.all_strings, offsets.total_size()));
+      VArray<std::string> values = VArray<std::string>::from_func(
+          offsets.size(), [strings](const int64_t i) {
+            return std::string(strings[i].begin(), strings[i].end());
+          });
+      return values;
   }
   return return_default();
 }

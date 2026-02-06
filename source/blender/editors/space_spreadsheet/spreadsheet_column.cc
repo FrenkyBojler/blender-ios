@@ -58,7 +58,7 @@ eSpreadsheetColumnValueType cpp_type_to_column_type(const CPPType &type)
   if (type.is<ColorGeometry4f>()) {
     return SPREADSHEET_VALUE_TYPE_COLOR;
   }
-  if (type.is<std::string>() || type.is<MStringProperty>()) {
+  if (type.is<std::string>()) {
     return SPREADSHEET_VALUE_TYPE_STRING;
   }
   if (type.is<bke::InstanceReference>()) {

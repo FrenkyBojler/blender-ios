@@ -44,6 +44,8 @@ enum class AttrStorageType : int8_t {
   Array = 0,
   /** A single value for the whole attribute. */
   Single = 1,
+  /** #Attribute::StringOffsets. */
+  StringOffsets = 2,
 };
 
 enum class AttrType : int16_t {

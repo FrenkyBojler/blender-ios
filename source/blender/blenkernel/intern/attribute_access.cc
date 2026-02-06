@@ -61,7 +61,7 @@ const CPPType &attribute_type_to_cpp_type(const AttrType type)
     case AttrType::Quaternion:
       return CPPType::get<math::Quaternion>();
     case AttrType::String:
-      return CPPType::get<MStringProperty>();
+      return CPPType::get<std::string>();
   }
   BLI_assert_unreachable();
   return CPPType::get<bool>();
@@ -105,7 +105,7 @@ AttrType cpp_type_to_attribute_type(const CPPType &type)
   if (type.is<short2>()) {
     return AttrType::Int16_2D;
   }
-  if (type.is<MStringProperty>()) {
+  if (type.is<std::string>()) {
     return AttrType::String;
   }
   BLI_assert_unreachable();
@@ -140,7 +140,7 @@ const CPPType *custom_data_type_to_cpp_type(const eCustomDataType type)
     case CD_PROP_INT16_2D:
       return &CPPType::get<short2>();
     case CD_PROP_STRING:
-      return &CPPType::get<MStringProperty>();
+      return &CPPType::get<std::string>();
     default:
       return nullptr;
   }
@@ -184,7 +184,7 @@ eCustomDataType cpp_type_to_custom_data_type(const CPPType &type)
   if (type.is<short2>()) {
     return CD_PROP_INT16_2D;
   }
-  if (type.is<MStringProperty>()) {
+  if (type.is<std::string>()) {
     return CD_PROP_STRING;
   }
   BLI_assert_unreachable();
