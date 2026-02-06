@@ -16,6 +16,7 @@
 
 #include <optional>
 #include <string>
+#include <functional>
 
 #include "DNA_windowmanager_types.h"
 
