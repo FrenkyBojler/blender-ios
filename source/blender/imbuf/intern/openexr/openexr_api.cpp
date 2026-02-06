@@ -2256,6 +2256,9 @@ static ImBuf *imb_load_openexr_deep(IMemStream &membuf,
     return nullptr;
   }
 
+  // Initialize the optional deep buffer
+  ibuf->deep_buffer.emplace();
+
   /* Set metadata */
   ibuf->flags |= IB_deep_data;
   ibuf->ftype = IMB_FTYPE_OPENEXR;
@@ -2272,7 +2275,7 @@ static ImBuf *imb_load_openexr_deep(IMemStream &membuf,
     /* Create appropriate deep input based on file type */
     if (header.type() == DEEPSCANLINE) {
       DeepScanLineInputPart deep_in(file, 0);
-      if (!imb_read_deep_scanlines(deep_in, ibuf->deep_buffer, width, height)) {
+      if (!imb_read_deep_scanlines(deep_in, *ibuf->deep_buffer, width, height)) {
         IMB_freeImBuf(ibuf);
         return nullptr;
       }

@@ -16,6 +16,8 @@
 #include "BLI_vector.hh"
 #include "IMB_imbuf_enums.h"
 
+#include <optional>
+
 namespace blender {
 
 struct ColormanageCache;
@@ -284,8 +286,8 @@ struct ImBuf {
    */
   ImBufFloatBuffer float_buffer;
 
-  /** Deep image pixel buffer (for OpenEXR deep images via OpenImageIO) */
-  ImBufDeepBuffer deep_buffer;
+  /** Optional Deep image pixel buffer. */
+  std::optional<ImBufDeepBuffer> deep_buffer;
 
   /** Image buffer on the GPU. */
   ImBufGPU gpu;
