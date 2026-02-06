@@ -480,11 +480,11 @@ void GLFrameBuffer::clear_attachment(GPUAttachmentType type, const double4 clear
     float4 data = float4(clear_value);
     glClearBufferfv(GL_COLOR, slot, &data.x);
   }
-  else if (flag & GPU_FORMAT_SIGNED) {
+  else if (flag & GPU_FORMAT_INTEGER && flag & GPU_FORMAT_SIGNED) {
     int4 data = int4(clear_value);
     glClearBufferiv(GL_COLOR, slot, &data.x);
   }
-  else if (flag & GPU_FORMAT_INTEGER) {
+  else if (flag & GPU_FORMAT_INTEGER && !(flag & GPU_FORMAT_SIGNED)) {
     uint4 data = uint4(clear_value);
     glClearBufferuiv(GL_COLOR, slot, &data.x);
   }
