@@ -1798,12 +1798,12 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   const int align = RNA_enum_get(op->ptr, "align");
   const int space = RNA_enum_get(op->ptr, "space");
 
-  float bone_orient_mat[3][3]; /* Initial bone orientation matrix. */
+  float bone_orient_mat[3][3] = {0}; /* Initial bone orientation matrix. */
 
   switch (align) {
     case CURSOR_3D: {
       Scene *scene = CTX_data_scene(C);
-      const View3DCursor *cursor = &scene->cursor;
+      const View3DCursor &cursor = scene->cursor;
 
       float cursor_mat[3][3];
 
@@ -1827,14 +1827,8 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
       }
       else { /* Object Space.  Assumes Z is Up.*/
         bone_orient_mat[0][0] = 1.0f;
-        bone_orient_mat[0][1] = 0.0f;
-        bone_orient_mat[0][2] = 0.0f;
-        bone_orient_mat[1][0] = 0.0f;
-        bone_orient_mat[1][1] = 0.0f;
         bone_orient_mat[1][2] = -1.0f;
-        bone_orient_mat[2][0] = 0.0f;
         bone_orient_mat[2][1] = 1.0f;
-        bone_orient_mat[2][2] = 0.0f;
       }
       break;
     }
@@ -1843,14 +1837,8 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
       if (space == WORLD) {
         /* Construct a matrix that points Y up, Z Forward and X left-right. */
         bone_orient_mat[0][0] = 1.0f;
-        bone_orient_mat[0][1] = 0.0f;
-        bone_orient_mat[0][2] = 0.0f;
-        bone_orient_mat[1][0] = 0.0f;
-        bone_orient_mat[1][1] = 0.0f;
         bone_orient_mat[1][2] = 1.0f;
-        bone_orient_mat[2][0] = 0.0f;
         bone_orient_mat[2][1] = -1.0f;
-        bone_orient_mat[2][2] = 0.0f;
 
         mul_m3_m3m3(bone_orient_mat, imat, bone_orient_mat);
 
