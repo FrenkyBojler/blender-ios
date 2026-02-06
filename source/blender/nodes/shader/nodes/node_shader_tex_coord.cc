@@ -37,6 +37,7 @@ static int node_shader_gpu_tex_coord(GPUMaterial *mat,
                                      GPUNodeStack *out)
 {
   Object *ob = (Object *)node->id;
+  const bool from_instancer = node->custom1;
 
   /* Use special matrix to let the shader branch to using the render object's matrix. */
   float dummy_matrix[4][4];
@@ -44,10 +45,36 @@ static int node_shader_gpu_tex_coord(GPUMaterial *mat,
   GPUNodeLink *inv_obmat = (ob != nullptr) ? GPU_uniform(&ob->world_to_object()[0][0]) :
                                              GPU_uniform(&dummy_matrix[0][0]);
 
-  /* Optimization: don't request orco if not needed. */
-  float4 zero(0.0f);
-  GPUNodeLink *orco = out[0].hasoutput ? GPU_attribute(mat, CD_ORCO, "") : GPU_constant(zero);
-  GPUNodeLink *mtface = GPU_attribute(mat, CD_AUTO_FROM_NAME, "");
+  GPUNodeLink *orco;
+  GPUNodeLink *mtface;
+
+  if (from_instancer) {
+    /* Get texture coordinates from the instancer/parent object. */
+    float orco_hash = 0.0f;
+    float uv_hash = 0.0f;
+
+    /* Optimization: don't request orco if not needed. */
+    float4 zero(0.0f);
+    if (out[0].hasoutput) {
+      GPUNodeLink *orco_attr = GPU_uniform_attribute(
+          mat, "orco", true, reinterpret_cast<uint32_t *>(&orco_hash));
+      GPU_link(mat, "node_attribute_uniform", orco_attr, GPU_constant(&orco_hash), &orco);
+    }
+    else {
+      orco = GPU_constant(zero);
+    }
+
+    GPUNodeLink *uv_attr = GPU_uniform_attribute(
+        mat, "UVMap", true, reinterpret_cast<uint32_t *>(&uv_hash));
+    GPU_link(mat, "node_attribute_uniform", uv_attr, GPU_constant(&uv_hash), &mtface);
+  }
+  else {
+    /* Get texture coordinates from the instance object (default behavior). */
+    /* Optimization: don't request orco if not needed. */
+    float4 zero(0.0f);
+    orco = out[0].hasoutput ? GPU_attribute(mat, CD_ORCO, "") : GPU_constant(zero);
+    mtface = GPU_attribute(mat, CD_AUTO_FROM_NAME, "");
+  }
 
   GPU_stack_link(mat, node, "node_tex_coord", in, out, inv_obmat, orco, mtface);
 
