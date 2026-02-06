@@ -1808,11 +1808,11 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
       float cursor_mat[3][3];
 
       /* Convert cursor rotation to a 3×3 matrix. */
-      if (cursor->rotation_mode == ROT_MODE_QUAT) {
-        quat_to_mat3(cursor_mat, cursor->rotation_quaternion);
+      if (cursor.rotation_mode == ROT_MODE_QUAT) {
+        quat_to_mat3(cursor_mat, cursor.rotation_quaternion);
       }
       else {
-        eul_to_mat3(cursor_mat, cursor->rotation_euler);
+        eul_to_mat3(cursor_mat, cursor.rotation_euler);
       }
 
       mul_m3_m3m3(bone_orient_mat, imat, cursor_mat);
