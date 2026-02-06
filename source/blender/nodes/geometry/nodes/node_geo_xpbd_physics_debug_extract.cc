@@ -128,6 +128,17 @@ static void gather_substeps_for_stage(const DebugBundle &debug_bundle,
                                       const physics_solver_debug::Stage stage,
                                       bke::Instances &result)
 {
+  const int old_instances_num = result.instances_num();
+  int new_instances_num = 0;
+  substeps_mask.foreach_index([&](const int /*substep*/) { ++new_instances_num; });
+
+  result.resize(old_instances_num + new_instances_num);
+  MutableSpan<int> handles = result.reference_handles_for_write().slice(old_instances_num,
+                                                                        new_instances_num);
+  MutableSpan<float4x4> transforms = result.transforms_for_write().slice(old_instances_num,
+                                                                         new_instances_num);
+
+  int instance_i = 0;
   substeps_mask.foreach_index([&](const int substep) {
     const SubstepBundle &substep_bundle = debug_bundle.substeps[substep];
     const GeometrySet *geometry = nullptr;
@@ -144,8 +155,10 @@ static void gather_substeps_for_stage(const DebugBundle &debug_bundle,
 
     if (geometry) {
       const int handle = result.add_new_reference({*geometry});
-      result.add_instance(handle, float4x4::identity());
+      handles[instance_i] = handle;
+      transforms[instance_i] = float4x4::identity();
     }
+    ++instance_i;
   });
 }
 
@@ -157,6 +170,38 @@ static void gather_substeps_for_constraints(const DebugBundle &debug_bundle,
                                             const IterationMaskFn iteration_mask_fn,
                                             bke::Instances &result)
 {
+  const int old_instances_num = result.instances_num();
+  int new_instances_num = 0;
+  substeps_mask.foreach_index([&](const int substep) {
+    const SubstepBundle &substep_bundle = debug_bundle.substeps[substep];
+    const IndexMask iteration_mask = iteration_mask_fn(
+        substep_bundle.constraint_iterations.index_range());
+
+    iteration_mask.foreach_index([&](const int iteration) {
+      const ConstraintIterationBundle &iter_bundle =
+          substep_bundle.constraint_iterations[iteration];
+      /* Filter by constraint name, stored as the instanced geometries' name. */
+      if (const bke::Instances *instances = iter_bundle.stages.get_instances()) {
+        const Span<bke::InstanceReference> references = instances->references();
+        const Span<int> handles = instances->reference_handles();
+        for (const int i : handles.index_range()) {
+          const int handle = handles[i];
+          const GeometrySet &geometry = references[handle].geometry_set();
+          if (StringRef(geometry.name).startswith(constraint_debug_name)) {
+            ++new_instances_num;
+          }
+        }
+      }
+    });
+  });
+
+  result.resize(old_instances_num + new_instances_num);
+  MutableSpan<int> result_handles = result.reference_handles_for_write().slice(old_instances_num,
+                                                                               new_instances_num);
+  MutableSpan<float4x4> result_transforms = result.transforms_for_write().slice(old_instances_num,
+                                                                                new_instances_num);
+
+  int instance_i = 0;
   substeps_mask.foreach_index([&](const int substep) {
     const SubstepBundle &substep_bundle = debug_bundle.substeps[substep];
     const IndexMask iteration_mask = iteration_mask_fn(
@@ -175,7 +220,9 @@ static void gather_substeps_for_constraints(const DebugBundle &debug_bundle,
           if (StringRef(geometry.name).startswith(constraint_debug_name)) {
             /* Copy geometry instance. */
             const int new_handle = result.add_new_reference({geometry});
-            result.add_instance(new_handle, float4x4::identity());
+            result_handles[instance_i] = new_handle;
+            result_transforms[instance_i] = float4x4::identity();
+            ++instance_i;
           }
         }
       }

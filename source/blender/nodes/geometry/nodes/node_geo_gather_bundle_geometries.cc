@@ -38,10 +38,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   Vector<GeometrySet> geometry_sets;
   gather_geometry_sets_recursive(*bundle, geometry_sets);
 
-  bke::Instances *instances = new bke::Instances();
-  for (GeometrySet &geometry_set : geometry_sets) {
-    const int handle = instances->add_reference(std::move(geometry_set));
-    instances->add_instance(handle, float4x4::identity());
+  bke::Instances *instances = new bke::Instances(geometry_sets.size());
+  instances->transforms_for_write().fill(float4x4::identity());
+  MutableSpan<int> handles = instances->reference_handles_for_write();
+  for (const int geometry_i : geometry_sets.index_range()) {
+    GeometrySet &geometry_set = geometry_sets[geometry_i];
+    handles[geometry_i] = instances->add_reference(std::move(geometry_set));
   }
 
   GeometrySet output = GeometrySet::from_instances(instances);

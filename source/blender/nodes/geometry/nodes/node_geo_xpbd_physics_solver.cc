@@ -1130,7 +1130,7 @@ static SolverDebugFnStorage get_debug_solver_function(XPBDDebugRecorder &debug_r
           state(other.state),
           world_bundles(other.world_bundles),
           all_keys(other.all_keys),
-          geometries([=]() { return gather_world_geometries(world_bundles); })
+          geometries([this]() { return gather_world_geometries(world_bundles); })
     {
     }
   };
@@ -1151,13 +1151,32 @@ static SolverDebugFnStorage get_debug_solver_function(XPBDDebugRecorder &debug_r
     }
 
     MutableSpan<GeometrySet> geometries = params.geometries.local();
+    /* Count new instances. */
+    const int old_instances_num = instances->instances_num();
+    int new_instances_num = 0;
+    for (const int geometry_i : geometries.index_range()) {
+      const XPBDGeometryBundle &bundle = params.world_bundles.geometries[geometry_i];
+      foreach_key(bundle, [&](const SimPointsKey &key) {
+        if (affected_keys.contains(key)) {
+          ++new_instances_num;
+        }
+      });
+    }
+
+    instances->resize(old_instances_num + new_instances_num);
+    MutableSpan<int> new_handles = instances->reference_handles_for_write().slice(
+        old_instances_num, new_instances_num);
+    MutableSpan<float4x4> new_transforms = instances->transforms_for_write().slice(
+        old_instances_num, new_instances_num);
+    int instance_i = old_instances_num;
     for (const int geometry_i : geometries.index_range()) {
       const XPBDGeometryBundle &bundle = params.world_bundles.geometries[geometry_i];
       foreach_key(bundle, [&](const SimPointsKey &key) {
         if (affected_keys.contains(key)) {
           apply_simulation(bundle, geometries[geometry_i], params.state);
-          const int handle = instances->add_new_reference({geometries[geometry_i]});
-          instances->add_instance(handle, float4x4::identity());
+          new_handles[instance_i] = instances->add_new_reference({geometries[geometry_i]});
+          new_transforms[instance_i] = float4x4::identity();
+          ++instance_i;
         }
       });
     }
