@@ -232,6 +232,7 @@ class Context : public compositor::Context {
     if (image_buffer->x != size.x || image_buffer->y != size.y) {
       IMB_free_byte_pixels(image_buffer);
       IMB_free_float_pixels(image_buffer);
+      IMB_free_gpu_textures(image_buffer);
       image_buffer->x = size.x;
       image_buffer->y = size.y;
       IMB_alloc_float_pixels(image_buffer, 4, false);
@@ -250,6 +251,8 @@ class Context : public compositor::Context {
       IMB_rectfill(image_buffer, viewer_result.get_single_value<compositor::Color>());
     }
     else if (this->use_gpu()) {
+      IMB_assign_gpu_texture(image_buffer, viewer_result);
+      GPU_texture_ref(viewer_result);
       GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
       float *output_buffer = static_cast<float *>(
           GPU_texture_read(viewer_result, GPU_DATA_FLOAT, 0));
