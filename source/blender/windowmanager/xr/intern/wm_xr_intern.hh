@@ -121,9 +121,6 @@ struct wmXrSurfaceData {
 };
 
 struct wmXrDrawData {
-  struct Scene *scene;
-  struct Depsgraph *depsgraph;
-
   wmXrData *xr_data;
   wmXrSurfaceData *surface_data;
 

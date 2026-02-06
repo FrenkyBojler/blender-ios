@@ -200,20 +200,16 @@ static void wm_xr_session_base_pose_calc(const Scene *scene,
 }
 
 static void wm_xr_session_draw_data_populate(wmXrData *xr_data,
-                                             Scene *scene,
-                                             Depsgraph *depsgraph,
                                              wmXrDrawData *r_draw_data)
 {
   const XrSessionSettings *settings = &xr_data->session_settings;
 
   memset(r_draw_data, 0, sizeof(*r_draw_data));
-  r_draw_data->scene = scene;
-  r_draw_data->depsgraph = depsgraph;
   r_draw_data->xr_data = xr_data;
   r_draw_data->surface_data = static_cast<wmXrSurfaceData *>(g_xr_surface->customdata);
 
-  wm_xr_session_base_pose_calc(
-      r_draw_data->scene, settings, &r_draw_data->base_pose, &r_draw_data->base_scale);
+  Scene *scene = CTX_data_scene(WM_xr_session_context_get(xr_data));
+  wm_xr_session_base_pose_calc(scene, settings, &r_draw_data->base_pose, &r_draw_data->base_scale);
 }
 
 wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
@@ -227,31 +223,6 @@ wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
   }
   /* Otherwise, fall back. */
   return static_cast<wmWindow *>(wm->windows.first);
-}
-
-/**
- * Get the scene and depsgraph shown in the VR session's root window (the window the session was
- * started from) if still available. If it's not available, use some fallback window.
- *
- * It's important that the VR session follows some existing window, otherwise it would need to have
- * its own depsgraph, which is an expense we should avoid.
- */
-static void wm_xr_session_scene_and_depsgraph_get(const wmWindowManager *wm,
-                                                  Scene **r_scene,
-                                                  Depsgraph **r_depsgraph)
-{
-  const wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, wm->xr.runtime);
-
-  /* Follow the scene & view layer shown in the root 3D View. */
-  Scene *scene = WM_window_get_active_scene(xr_win);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(xr_win);
-
-  WM_xr_session_context_ensure(wm, wm->xr.runtime);
-
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
-  BLI_assert(scene && view_layer && depsgraph);
-  *r_scene = scene;
-  *r_depsgraph = depsgraph;
 }
 
 enum wmXrSessionStateEvent {
@@ -345,7 +316,8 @@ static void wm_xr_session_state_update_navigation_scale(wmXrSessionState *state,
                                                         const XrSessionSettings *settings)
 {
   /* Set the navigation scale from the scene unit scale and VR view scale. */
-  const float scene_scale = draw_data->scene->unit.scale_length;
+  const bContext *xr_context = WM_xr_session_context_get(draw_data->xr_data);
+  const float scene_scale = CTX_data_scene(xr_context)->unit.scale_length;
   const float new_nav_scale = scene_scale * settings->view_scale;
 
   BLI_assert(state->nav_scale != 0 && new_nav_scale != 0);
@@ -1416,14 +1388,8 @@ static void wm_xr_session_surface_draw(bContext *C)
     return;
   }
 
-  Scene *scene;
-  Depsgraph *depsgraph;
-  wm_xr_session_scene_and_depsgraph_get(wm, &scene, &depsgraph);
-  /* Might fail when force-redrawing windows with #WM_redraw_windows(), which is done on file
-   * writing for example. */
-  // BLI_assert(DEG_is_fully_evaluated(depsgraph));
-  wm_xr_session_draw_data_populate(&wm->xr, scene, depsgraph, &draw_data);
   WM_xr_session_context_ensure(wm, wm->xr.runtime);
+  wm_xr_session_draw_data_populate(&wm->xr, &draw_data);
 
   GHOST_XrSessionDrawViews(wm->xr.runtime->ghost_context, &draw_data);
 
@@ -1441,10 +1407,8 @@ static void wm_xr_session_do_depsgraph(bContext *C)
     return;
   }
 
-  Scene *scene;
-  Depsgraph *depsgraph;
-  wm_xr_session_scene_and_depsgraph_get(wm, &scene, &depsgraph);
-  BKE_scene_graph_evaluated_ensure(depsgraph, CTX_data_main(C));
+  bContext *xr_context = WM_xr_session_context_ensure(wm, wm->xr.runtime);
+  CTX_data_ensure_evaluated_depsgraph(xr_context);
 }
 
 bool wm_xr_session_surface_offscreen_ensure(wmXrSurfaceData *surface_data,
