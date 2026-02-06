@@ -1536,17 +1536,15 @@ static wmOperatorStatus ed_marker_select_exec(bContext *C, wmOperator *op)
   }
 
   const bool deselect_all = true;
-  ed_marker_select(C, mval, extend, deselect_all, camera, wait_to_deselect_others);
+  const wmOperatorStatus result = ed_marker_select(
+      C, mval, extend, deselect_all, camera, wait_to_deselect_others);
 
   if (!is_over_marker) {
     /* Empty space, deselect markers and let other operators run. */
     deselect_markers(markers);
     WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
-    return OPERATOR_PASS_THROUGH;
   }
-  else {
-    return OPERATOR_FINISHED;
-  }
+  return result | OPERATOR_PASS_THROUGH;
 }
 
 static void MARKER_OT_select(wmOperatorType *ot)
