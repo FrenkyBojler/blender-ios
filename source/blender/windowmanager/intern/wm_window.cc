@@ -2182,7 +2182,7 @@ void wm_window_events_process(const bContext *C)
     g_system->dispatchEvents();
   }
 
-  wm_jobs_finished(C);
+  wm_jobs_handle_finished(C);
 
   /* When there is no event, sleep 5 milliseconds not to use too much CPU when idle. */
   const int sleep_us_default = 5000;

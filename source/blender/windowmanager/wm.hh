@@ -98,7 +98,7 @@ void wm_jobs_timer(wmWindowManager *wm, wmTimer *wt);
 /**
  * Handle jobs that are ready and finished.
  */
-void wm_jobs_finished(const bContext *C);
+void wm_jobs_handle_finished(const bContext *C);
 /**
  * Kill job entirely, also removes timer itself.
  */

@@ -698,6 +698,23 @@ void wm_jobs_timer_end(wmWindowManager *wm, wmTimer *wt)
   }
 }
 
+static void wm_job_update(wmWindowManager *wm, wmJob &job)
+{
+  if (job.update) {
+    job.update(job.run_customdata);
+  }
+
+  if (job.note) {
+    WM_event_add_notifier_ex(wm, job.win, job.note, nullptr);
+  }
+
+  if (job.flag & WM_JOB_PROGRESS) {
+    WM_event_add_notifier_ex(wm, job.win, NC_WM | ND_JOB, nullptr);
+  }
+
+  job.worker_status.do_update = false;
+}
+
 void wm_jobs_timer(wmWindowManager *wm, wmTimer *wt)
 {
   wmJob *wm_job = static_cast<wmJob *>(BLI_findptr(&wm->runtime->jobs, wt, offsetof(wmJob, wt)));
@@ -713,17 +730,7 @@ void wm_jobs_timer(wmWindowManager *wm, wmTimer *wt)
       }
 
       if (wm_job->worker_status.do_update) {
-        if (wm_job->update) {
-          wm_job->update(wm_job->run_customdata);
-        }
-        if (wm_job->note) {
-          WM_event_add_notifier_ex(wm, wm_job->win, wm_job->note, nullptr);
-        }
-
-        if (wm_job->flag & WM_JOB_PROGRESS) {
-          WM_event_add_notifier_ex(wm, wm_job->win, NC_WM | ND_JOB, nullptr);
-        }
-        wm_job->worker_status.do_update = false;
+        wm_job_update(wm, *wm_job);
       }
     }
     else if (wm_job->suspended) {
@@ -740,7 +747,7 @@ void wm_jobs_timer(wmWindowManager *wm, wmTimer *wt)
   wm_jobs_update_progress_bars(wm);
 }
 
-void wm_jobs_finished(const bContext *C)
+void wm_jobs_handle_finished(const bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   for (wmJob &job : wm->runtime->jobs.items_reversed_mutable()) {
@@ -756,18 +763,7 @@ void wm_jobs_finished(const bContext *C)
       continue;
     }
 
-    if (job.update) {
-      job.update(job.run_customdata);
-    }
-
-    if (job.note) {
-      WM_event_add_notifier_ex(wm, job.win, job.note, nullptr);
-    }
-
-    if (job.flag & WM_JOB_PROGRESS) {
-      WM_event_add_notifier_ex(wm, job.win, NC_WM | ND_JOB, nullptr);
-    }
-
+    wm_job_update(wm, job);
     wm_job_end(wm, &job);
 
     /* Free owned data. */
@@ -804,10 +800,10 @@ void wm_jobs_finished(const bContext *C)
       /* Remove wm_job. */
       wm_job_free(wm, &job);
     }
-
-    /* Update progress bars in windows. */
-    wm_jobs_update_progress_bars(wm);
   }
+
+  /* Update progress bars in windows. */
+  wm_jobs_update_progress_bars(wm);
 }
 
 bool WM_jobs_has_running(const wmWindowManager *wm)
