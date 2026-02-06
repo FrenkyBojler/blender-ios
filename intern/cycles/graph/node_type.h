@@ -137,7 +137,7 @@ struct NodeType {
 
  private:
   static unordered_map<ustring, NodeType> &types();
-  static thread_mutex types_mutex;
+  static thread_mutex types_mutex_;
 };
 
 /* Node Definition Macros
