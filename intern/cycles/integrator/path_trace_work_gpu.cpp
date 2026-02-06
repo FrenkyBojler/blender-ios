@@ -18,6 +18,9 @@
 #include "kernel/device/gpu/block_sizes.h"
 #include "kernel/types.h"
 
+int INDIRECT_MODE = 0;
+int DEBUG_GRID = 0;
+
 CCL_NAMESPACE_BEGIN
 
 static size_t estimate_single_state_size(const uint kernel_features)
@@ -99,11 +102,20 @@ PathTraceWorkGPU::PathTraceWorkGPU(Device *device,
       num_queued_paths_(device, "num_queued_paths", MEM_READ_WRITE),
       work_tiles_(device, "work_tiles", MEM_READ_WRITE),
       display_rgba_half_(device, "display buffer half", MEM_READ_WRITE),
+      kernel_scheduling_state_(device, "kernel_scheduling_state", MEM_READ_WRITE),
       max_num_paths_(0),
       min_num_active_main_paths_(0),
+      max_num_camera_paths_(0),
       max_active_main_path_index_(0)
 {
   memset(&integrator_state_gpu_, 0, sizeof(integrator_state_gpu_));
+
+  if (auto str = getenv("INDIRECT_MODE")) {
+    INDIRECT_MODE = atoi(str);
+  }
+  if (auto str = getenv("DEBUG_GRID")) {
+    DEBUG_GRID = atoi(str);
+  }
 }
 
 void PathTraceWorkGPU::alloc_integrator_soa()
@@ -240,6 +252,16 @@ void PathTraceWorkGPU::alloc_integrator_queue()
     /* TODO: this could be skip if we had a function to just allocate on device. */
     queued_paths_.zero_to_device();
   }
+
+  /* Allocate scheduling state buffer for indirect dispatch. */
+  if (kernel_scheduling_state_.size() == 0) {
+    kernel_scheduling_state_.alloc(1);
+    kernel_scheduling_state_.zero_to_device();
+
+    kernel_scheduling_state_.data()->scheduling_status = KERNEL_SCHEDULING_GPU;
+
+    integrator_state_gpu_.scheduling_state = (KernelSchedulingState*)kernel_scheduling_state_.device_pointer;
+  }
 }
 
 void PathTraceWorkGPU::alloc_integrator_sorting()
@@ -374,6 +396,57 @@ void PathTraceWorkGPU::render_samples(RenderStatistics &statistics,
     /* Stop if no more work remaining. */
     if (finished) {
       break;
+    }
+
+    /* Set relevant scheduler state for the GPU. */
+    bool work_tile_scheduler_has_work = (work_tile_scheduler_.next_work_index_ < work_tile_scheduler_.total_work_size_);
+    int next_tile_work_size = work_tile_scheduler_.get_next_tile_work_size();
+    kernel_scheduling_state_.data()->work_tile_scheduler_has_work = work_tile_scheduler_has_work ? 1 : 0;
+    kernel_scheduling_state_.data()->next_tile_work_size = next_tile_work_size;
+    kernel_scheduling_state_.data()->max_num_camera_paths = max_num_camera_paths_;
+    kernel_scheduling_state_.data()->max_num_paths = max_num_paths_;
+    kernel_scheduling_state_.data()->min_num_active_main_paths = min_num_active_main_paths_;
+    kernel_scheduling_state_.data()->max_active_main_path_index = max_active_main_path_index_;
+
+    if (INDIRECT_MODE) {
+      /* If we're able to speculatively dispatch, keep doing so for as long as possible to minimize synchronize() overheads. */
+      KernelSchedulingStatus& status = kernel_scheduling_state_.data()->scheduling_status;
+  keep_going:
+      if (status == KERNEL_SCHEDULING_GPU) {
+        do {
+          speculative_dispatch();
+
+          /* Yield if too much work is already in flight. This avoids a pile-up of tailing dispatches that will end up being zeroed out anyway. */
+          /* MPJ TODO: Investigate better alternatives for yielding. */
+          while (queue_->command_buffers_in_flight() > 2 && (status == KERNEL_SCHEDULING_GPU)) {
+            std::this_thread::yield();
+          }
+        }while (status == KERNEL_SCHEDULING_GPU);
+
+        if (auto str = getenv("FORCE_SYNC_AFTER_LOOP")) {
+          if (atoi(str)) {
+            queue_->synchronize();
+          }
+        }
+
+        /* By this point the GPU has finished all of the speculatively dispatched work that it can, so no need to synchronize() here. */
+      }
+      if (status != KERNEL_SCHEDULING_GPU) {
+        if (DEBUG_GRID && status == KERNEL_SCHEDULING_AWAIT_CPU_SHADOW_COMPACTION) printf("KERNEL_SCHEDULING_AWAIT_CPU_SHADOW_COMPACTION\n");
+        if (DEBUG_GRID && status == KERNEL_SCHEDULING_AWAIT_CPU_MAIN_COMPACTION) printf("KERNEL_SCHEDULING_AWAIT_CPU_MAIN_COMPACTION\n");
+        if (DEBUG_GRID && status == KERNEL_SCHEDULING_QUEUES_DEPLETED) printf("KERNEL_SCHEDULING_QUEUES_DEPLETED\n");
+
+        if (status == KERNEL_SCHEDULING_AWAIT_CPU_SHADOW_COMPACTION) {
+          /* We just need the CPU to do the shadow path compaction here, not the full enqueue_path_iteration(). 
+          * MPJ TODO: Move this onto GPU
+          */
+          status = KERNEL_SCHEDULING_GPU;
+          compact_shadow_paths();
+          goto keep_going;
+        }
+        status = KERNEL_SCHEDULING_GPU;
+        continue;
+      }
     }
 
     /* Enqueue on of the path iteration kernels. */
@@ -809,7 +882,7 @@ bool PathTraceWorkGPU::enqueue_work_tiles(bool &finished)
 
   vector<KernelWorkTile> work_tiles;
 
-  int max_num_camera_paths = max_num_paths_;
+  max_num_camera_paths_ = max_num_paths_;
   int num_predicted_splits = 0;
 
   if (has_shadow_catcher()) {
@@ -827,8 +900,8 @@ bool PathTraceWorkGPU::enqueue_work_tiles(bool &finished)
 
     const int num_available_paths = max_num_paths_ - num_active_paths;
     const int num_new_paths = num_available_paths / 2;
-    max_num_camera_paths = max(num_active_paths,
-                               num_active_paths + num_new_paths - num_scheduled_possible_split);
+    max_num_camera_paths_ = max(num_active_paths,
+                                num_active_paths + num_new_paths - num_scheduled_possible_split);
     num_predicted_splits += num_scheduled_possible_split + num_new_paths;
   }
 
@@ -837,9 +910,9 @@ bool PathTraceWorkGPU::enqueue_work_tiles(bool &finished)
   int num_paths = num_active_paths;
   if (num_paths == 0 || num_paths < min_num_active_main_paths_) {
     /* Get work tiles until the maximum number of path is reached. */
-    while (num_paths < max_num_camera_paths) {
+    while (num_paths < max_num_camera_paths_) {
       KernelWorkTile work_tile;
-      if (work_tile_scheduler_.get_work(&work_tile, max_num_camera_paths - num_paths)) {
+      if (work_tile_scheduler_.get_work(&work_tile, max_num_camera_paths_ - num_paths)) {
         work_tiles.push_back(work_tile);
         num_paths += work_tile.w * work_tile.h * work_tile.num_samples;
       }
@@ -859,6 +932,8 @@ bool PathTraceWorkGPU::enqueue_work_tiles(bool &finished)
   if (work_tiles.empty()) {
     return false;
   }
+
+  if (DEBUG_GRID) printf("Got %d work tiles...\n", (int)work_tiles.size());
 
   /* Compact state array when number of paths becomes small relative to the
    * known maximum path index, which makes computing active index arrays slow. */
@@ -1297,6 +1372,119 @@ bool PathTraceWorkGPU::kernel_is_shadow_path(DeviceKernel kernel)
   return (kernel == DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW ||
           kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW ||
           kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_NEE);
+}
+
+void PathTraceWorkGPU::prepare_grid()
+{
+  /* MPJ TODO: Incorporate num_queued_paths into scheduler state (currently in grid_size_buffer) */
+  device_ptr d_num_queued_paths = num_queued_paths_.device_pointer;
+
+  const DeviceKernelArguments prepare_args(&d_num_queued_paths);
+  queue_->enqueue(DEVICE_KERNEL_INTEGRATOR_PREPARE_GRID_SIZE, DEVICE_KERNEL_INTEGRATOR_NUM, prepare_args);
+}
+
+void PathTraceWorkGPU::speculative_dispatch()
+{
+  /* Submit the PREPARE_GRID_SIZE kernel to schedule / populate the grid sizes for the next main state. */
+  prepare_grid();
+
+  if (DEBUG_GRID >= 2) { 
+    /* Sync back the value of "next_kernel" written by prepare_grid() to check that it matches the host logic. */
+    queue_->synchronize();
+    if (kernel_scheduling_state_.data()->next_kernel != get_most_queued_kernel()) {
+      printf("GPU next kernel mismatch: %s\n", device_kernel_as_string(DeviceKernel(kernel_scheduling_state_.data()->next_kernel)));
+    }
+
+    /* Also show the work_size and any preceding "glue" kernel dispatches. */
+    int next_kernel = -1;
+    int next_work_size = 0;
+    bool multiple = false;
+    for (int i = 0; i < DEVICE_KERNEL_INTEGRATOR_NUM; i++) {
+      if (int work_size = kernel_scheduling_state_.data()->kernel_grid_size[i].w) {
+        if (next_work_size) { multiple = true; }
+        next_kernel = i;
+        next_work_size = work_size;
+      }
+    }
+    if (multiple) {
+      printf(" ...prepare_grid_size: ??? (multiple candidates)\n");
+    }
+    else if (!next_work_size) {
+      printf(" ...prepare_grid_size: ???\n");
+    }
+    else {
+      printf(" ...prepare_grid_size: %s (%d paths)  ---", device_kernel_as_string(DeviceKernel(next_kernel)), next_work_size);
+      for (int i = DEVICE_KERNEL_INTEGRATOR_NUM; i < DEVICE_KERNEL_NUM; i++) {
+        if (int work_size = kernel_scheduling_state_.data()->kernel_grid_size[i].w) {
+          printf("  %s(%d)", device_kernel_as_string(DeviceKernel(i)), work_size);
+        }
+      }
+      printf("\n");
+    }
+  }
+
+  int dummy = 0;
+  device_ptr d_queued_paths = queued_paths_.device_pointer;
+  device_ptr d_num_queued_paths = num_queued_paths_.device_pointer;
+  int d_queued_kernel_dummy = DEVICE_KERNEL_NUM;
+  
+  /* Speculatively enqueue any index sorting work. */
+  {
+    const DeviceKernelArguments args(&dummy, &dummy, &dummy, &d_queued_paths, &d_queued_kernel_dummy);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SORT_BUCKET_PASS, DEVICE_KERNEL_INTEGRATOR_SORT_BUCKET_PASS, kernel_scheduling_state_.device_pointer, args);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SORT_WRITE_PASS, DEVICE_KERNEL_INTEGRATOR_SORT_WRITE_PASS, kernel_scheduling_state_.device_pointer, args);
+  }
+  
+  /* Speculatively enqueue any "queued paths array" work. */
+  {
+    const DeviceKernelArguments args(&dummy, &d_queued_paths, &d_num_queued_paths, &d_queued_kernel_dummy);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_QUEUED_PATHS_ARRAY, DEVICE_KERNEL_INTEGRATOR_QUEUED_PATHS_ARRAY, kernel_scheduling_state_.device_pointer, args);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_QUEUED_SHADOW_PATHS_ARRAY, DEVICE_KERNEL_INTEGRATOR_QUEUED_SHADOW_PATHS_ARRAY, kernel_scheduling_state_.device_pointer, args);
+  }
+
+  /* Speculatively enqueue the main states which don't take render buffers. */
+  {
+    const DeviceKernelArguments args(&d_queued_paths, &dummy);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW, DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW, kernel_scheduling_state_.device_pointer, args);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_INTERSECT_SUBSURFACE, DEVICE_KERNEL_INTEGRATOR_INTERSECT_SUBSURFACE, kernel_scheduling_state_.device_pointer, args);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK, DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK, kernel_scheduling_state_.device_pointer, args);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_INTERSECT_DEDICATED_LIGHT, DEVICE_KERNEL_INTEGRATOR_INTERSECT_DEDICATED_LIGHT, kernel_scheduling_state_.device_pointer, args);
+  }
+
+  /* Speculatively enqueue the main states which do take render buffers. */
+  {
+    const DeviceKernelArguments args(&d_queued_paths, &buffers_->buffer.device_pointer, &dummy);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST, DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST, kernel_scheduling_state_.device_pointer, args);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND, DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND, kernel_scheduling_state_.device_pointer, args);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT, DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT, kernel_scheduling_state_.device_pointer, args);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW, DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW, kernel_scheduling_state_.device_pointer, args);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE, kernel_scheduling_state_.device_pointer, args);
+    if (device_scene_->data.kernel_features & KERNEL_FEATURE_NODE_RAYTRACE) {
+      queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE, kernel_scheduling_state_.device_pointer, args);
+    }
+    if (device_scene_->data.kernel_features & KERNEL_FEATURE_MNEE) {
+      queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE, kernel_scheduling_state_.device_pointer, args);
+    }
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME, DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME, kernel_scheduling_state_.device_pointer, args);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT, DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT, kernel_scheduling_state_.device_pointer, args);
+  }
+
+  /* Immediately flush the work to the GPU, rather than waiting for an explicit synchronize() call. */
+  queue_->flush_to_gpu();
+
+  if (auto str = getenv("FORCE_SYNC")) {
+    if (atoi(str)) {
+      queue_->synchronize();
+    }
+  }
+}
+
+void PathTraceWorkGPU::enqueue_indirect(DeviceKernel kernel, DeviceKernel dispatch_kernel, const DeviceKernelArguments &args)
+{
+  prepare_grid();
+  
+  /* Then dispatch the kernel indirectly using the prepared grid size */
+  queue_->enqueue_indirect(kernel, dispatch_kernel, kernel_scheduling_state_.device_pointer, args);
 }
 
 int PathTraceWorkGPU::kernel_max_active_main_path_index(DeviceKernel kernel)

@@ -106,6 +106,14 @@ class PathTraceWorkGPU : public PathTraceWork {
   void enqueue_adaptive_sampling_filter_x();
   void enqueue_adaptive_sampling_filter_y();
 
+  /* Launch kernel which prepares grid sizes for indirect dispatch. */
+  void prepare_grid();
+
+  void speculative_dispatch();
+
+  /* Enqueue kernel with indirect dispatch. */
+  void enqueue_indirect(DeviceKernel kernel, DeviceKernel dispatch_kernel, const DeviceKernelArguments &args);
+
   bool has_shadow_catcher() const;
 
   /* Count how many currently scheduled paths can still split. */
@@ -153,6 +161,9 @@ class PathTraceWorkGPU : public PathTraceWork {
    * available. Is allocated on-demand. */
   device_vector<half4> display_rgba_half_;
 
+  /* Buffer for grid sizes used in indirect dispatch. */
+  device_vector<KernelSchedulingState> kernel_scheduling_state_;
+
   unique_ptr<DeviceGraphicsInterop> device_graphics_interop_;
 
   /* Cached result of device->should_use_graphics_interop(). */
@@ -168,6 +179,9 @@ class PathTraceWorkGPU : public PathTraceWork {
   /* Minimum number of paths which keeps the device bust. If the actual number of paths falls below
    * this value more work will be scheduled. */
   int min_num_active_main_paths_;
+
+  /* Maximum camera paths accounting for shadow catcher splits (cached from enqueue_work_tiles). */
+  int max_num_camera_paths_;
 
   /* Maximum path index, effective number of paths used may be smaller than
    * the size of the integrator_state_ buffer so can avoid iterating over the

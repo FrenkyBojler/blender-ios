@@ -82,21 +82,8 @@ void WorkTileScheduler::reset_scheduler_state()
   total_work_size_ = total_tiles_num_ * num_tiles_per_sample_range_;
 }
 
-bool WorkTileScheduler::get_work(KernelWorkTile *work_tile_, const int max_work_size)
+void WorkTileScheduler::peek_work(KernelWorkTile *work_tile_, const int work_index) const
 {
-  /* Note that the `max_work_size` can be higher than the `max_num_path_states_`: this is because
-   * the path trace work can decide to use smaller tile sizes and greedily schedule multiple tiles,
-   * improving overall device occupancy.
-   * So the `max_num_path_states_` is a "scheduling unit", and the `max_work_size` is a "scheduling
-   * limit". */
-
-  DCHECK_NE(max_num_path_states_, 0);
-
-  const int work_index = next_work_index_++;
-  if (work_index >= total_work_size_) {
-    return false;
-  }
-
   const int sample_range_index = work_index % num_tiles_per_sample_range_;
   const int start_sample = sample_range_index * tile_size_.num_samples;
   const int tile_index = work_index / num_tiles_per_sample_range_;
@@ -119,6 +106,38 @@ bool WorkTileScheduler::get_work(KernelWorkTile *work_tile_, const int max_work_
 
   work_tile.x += image_full_offset_px_.x;
   work_tile.y += image_full_offset_px_.y;
+
+  *work_tile_ = work_tile;
+}
+
+int WorkTileScheduler::get_next_tile_work_size() const
+{
+  if (next_work_index_ >= total_work_size_) {
+    return 0;
+  }
+
+  KernelWorkTile work_tile;
+  peek_work(&work_tile, next_work_index_);
+  return work_tile.w * work_tile.h * work_tile.num_samples;
+}
+
+bool WorkTileScheduler::get_work(KernelWorkTile *work_tile_, const int max_work_size)
+{
+  /* Note that the `max_work_size` can be higher than the `max_num_path_states_`: this is because
+   * the path trace work can decide to use smaller tile sizes and greedily schedule multiple tiles,
+   * improving overall device occupancy.
+   * So the `max_num_path_states_` is a "scheduling unit", and the `max_work_size` is a "scheduling
+   * limit". */
+
+  DCHECK_NE(max_num_path_states_, 0);
+
+  const int work_index = next_work_index_++;
+  if (work_index >= total_work_size_) {
+    return false;
+  }
+
+  KernelWorkTile work_tile;
+  peek_work(&work_tile, work_index);
 
   const int tile_work_size = work_tile.w * work_tile.h * work_tile.num_samples;
 

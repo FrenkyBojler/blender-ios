@@ -33,13 +33,32 @@ class MetalDeviceQueue : public DeviceQueue {
   int num_sort_partitions(int max_num_paths, uint max_scene_shaders) const override;
   bool supports_local_atomic_sort() const override;
 
+  int command_buffers_in_flight() override { return command_buffers_in_flight_; }
+
   void init_execution() override;
 
   bool enqueue(DeviceKernel kernel,
                const int work_size,
                const DeviceKernelArguments &args) override;
 
+  bool enqueue_indirect(DeviceKernel kernel,
+                       DeviceKernel dispatch_kernel,
+                       device_ptr grid_size_buffer,
+                       const DeviceKernelArguments &args) override;
+
+ private:
+  bool enqueue_impl(DeviceKernel kernel,
+                   const int work_size,
+                   const DeviceKernelArguments &args,
+                   device_ptr grid_size_buffer = 0,
+                   size_t grid_size_offset = 0);
+
+ public:
+
   bool synchronize() override;
+  void flush_to_gpu() override;
+
+  int synchronize_count = 0;
 
   void zero_to_device(device_memory &mem) override;
   void copy_to_device(device_memory &mem) override;
@@ -80,6 +99,9 @@ class MetalDeviceQueue : public DeviceQueue {
   uint64_t shared_event_id_;
   uint64_t command_buffers_submitted_ = 0;
   uint64_t command_buffers_completed_ = 0;
+  std::atomic<int> command_buffers_in_flight_ = 0;
+  std::mutex command_buffers_mutex_;
+  std::vector<id<MTLCommandBuffer>> command_buffers_;
   Stats &stats_;
 
   void close_compute_encoder();

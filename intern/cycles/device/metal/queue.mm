@@ -229,6 +229,7 @@ MetalDeviceQueue::~MetalDeviceQueue()
 
   if (num_dispatches) {
     printf("\nMetal %sdispatch stats:\n", num_pathtracing_dispatches ? "path-tracing " : "");
+    printf("synchronize_count = %d\n", synchronize_count);
     auto header = string_printf("%-40s %16s %12s %12s %9s %9s",
                                 "Kernel name",
                                 "Total threads",
@@ -389,6 +390,25 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
                                const int work_size,
                                const DeviceKernelArguments &args)
 {
+  return enqueue_impl(kernel, work_size, args);
+}
+
+bool MetalDeviceQueue::enqueue_indirect(DeviceKernel kernel,
+                                        DeviceKernel dispatch_kernel,
+                                        device_ptr grid_size_buffer,
+                                        const DeviceKernelArguments &args)
+{
+  size_t grid_size_offset = kernel * 4 * sizeof(int);
+  return enqueue_impl(dispatch_kernel, 0, args, grid_size_buffer, grid_size_offset);
+}
+
+
+bool MetalDeviceQueue::enqueue_impl(DeviceKernel kernel,
+                                    const int work_size,
+                                    const DeviceKernelArguments &args,
+                                    device_ptr grid_size_buffer,
+                                    size_t grid_size_offset)
+{
   @autoreleasepool {
     update_capture(kernel);
 
@@ -527,6 +547,10 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
         break;
       }
 
+      case DEVICE_KERNEL_INTEGRATOR_PREPARE_GRID_SIZE:
+        shared_mem_bytes = (int)round_up((DEVICE_KERNEL_INTEGRATOR_NUM + 2) * sizeof(int), 16);
+        break;
+
       default:
         break;
     }
@@ -536,10 +560,27 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
       [mtlComputeCommandEncoder setThreadgroupMemoryLength:shared_mem_bytes atIndex:0];
     }
 
-    MTLSize size_threads_per_dispatch = MTLSizeMake(work_size, 1, 1);
     MTLSize size_threads_per_threadgroup = MTLSizeMake(num_threads_per_block, 1, 1);
-    [mtlComputeCommandEncoder dispatchThreads:size_threads_per_dispatch
-                        threadsPerThreadgroup:size_threads_per_threadgroup];
+    
+    if (grid_size_buffer != 0) {
+      /* Indirect dispatch using grid size buffer */
+      MetalDevice::MetalMem *grid_size_mmem = (MetalDevice::MetalMem *)grid_size_buffer;
+      
+      if (!grid_size_mmem || !grid_size_mmem->mtlBuffer) {
+        metal_device_->set_error("Invalid grid size buffer for indirect dispatch");
+        return false;
+      }
+
+      [mtlComputeCommandEncoder dispatchThreadgroupsWithIndirectBuffer:grid_size_mmem->mtlBuffer
+                                                   indirectBufferOffset:grid_size_offset
+                                                  threadsPerThreadgroup:size_threads_per_threadgroup];
+    }
+    else {
+      /* Direct dispatch using work_size */
+      MTLSize size_threads_per_dispatch = MTLSizeMake(work_size, 1, 1);
+      [mtlComputeCommandEncoder dispatchThreads:size_threads_per_dispatch
+                          threadsPerThreadgroup:size_threads_per_threadgroup];
+    }
 
     [mtlCommandBuffer_ addCompletedHandler:^(id<MTLCommandBuffer> command_buffer) {
       /* Enhanced command buffer errors */
@@ -567,8 +608,11 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
       /* Force a sync we've enabled step-by-step verbose tracing or if we're capturing. */
       synchronize();
 
+      MetalDevice::MetalMem *grid_size_mmem = (MetalDevice::MetalMem *)grid_size_buffer;
+      bool did_work = work_size || ((int*)grid_size_mmem->mtlBuffer.contents)[kernel * 4 + 3];
+
       /* Show queue counters and dispatch timing. */
-      if (verbose_tracing_) {
+      if (verbose_tracing_ && did_work) {
         if (kernel == DEVICE_KERNEL_INTEGRATOR_RESET) {
           printf(
               "_____________________________________.____________________.______________._________"
@@ -626,6 +670,39 @@ void MetalDeviceQueue::flush_timing_stats()
   command_encoder_labels_.clear();
 }
 
+void MetalDeviceQueue::flush_to_gpu()
+{
+  @autoreleasepool {
+    close_compute_encoder();
+    close_blit_encoder();
+
+    if (mtlCommandBuffer_) {
+      [mtlCommandBuffer_ addCompletedHandler:^(id<MTLCommandBuffer> command_buffer) {
+        command_buffers_in_flight_ -= 1;
+        command_buffers_mutex_.lock();
+        for (int i=0; i<command_buffers_.size(); i++) {
+          if (command_buffers_[i] == command_buffer) {
+            command_buffers_.erase(command_buffers_.begin() + i);
+            break;
+          }
+        }
+        command_buffers_mutex_.unlock();
+
+        temp_buffer_pool_.process_command_buffer_completion(command_buffer);
+        [command_buffer release];
+      }];
+
+      command_buffers_in_flight_ += 1;
+      command_buffers_mutex_.lock();
+      command_buffers_.push_back(mtlCommandBuffer_);
+      command_buffers_mutex_.unlock();
+
+      [mtlCommandBuffer_ commit];
+      mtlCommandBuffer_ = nil;
+    }
+  }
+}
+
 bool MetalDeviceQueue::synchronize()
 {
   @autoreleasepool {
@@ -633,33 +710,17 @@ bool MetalDeviceQueue::synchronize()
       return false;
     }
 
-    close_compute_encoder();
-    close_blit_encoder();
+    flush_to_gpu();
 
-    if (mtlCommandBuffer_) {
-      scoped_timer timer;
-
-      uint64_t shared_event_id_ = this->shared_event_id_++;
-
-      __block dispatch_semaphore_t block_sema = wait_semaphore_;
-      [shared_event_ notifyListener:shared_event_listener_
-                            atValue:shared_event_id_
-                              block:^(id<MTLSharedEvent> /*sharedEvent*/, uint64_t /*value*/) {
-                                dispatch_semaphore_signal(block_sema);
-                              }];
-
-      [mtlCommandBuffer_ encodeSignalEvent:shared_event_ value:shared_event_id_];
-      [mtlCommandBuffer_ commit];
-      dispatch_semaphore_wait(wait_semaphore_, DISPATCH_TIME_FOREVER);
-
-      [mtlCommandBuffer_ release];
-
-      metal_device_->flush_delayed_free_list();
-
-      mtlCommandBuffer_ = nil;
-      flush_timing_stats();
+    /* MPJ TODO: Investigate better alternatives for yielding, or just go back to the previous approach. */
+    while(command_buffers_in_flight_ > 0) {
+      std::this_thread::yield();
     }
+    synchronize_count += 1;
 
+    metal_device_->flush_delayed_free_list();
+
+    flush_timing_stats();
     debug_synchronize();
 
     return !(metal_device_->have_error());
@@ -755,23 +816,10 @@ void MetalDeviceQueue::prepare_resources(DeviceKernel /*kernel*/)
 
 id<MTLComputeCommandEncoder> MetalDeviceQueue::get_compute_encoder(DeviceKernel kernel)
 {
-  bool concurrent = int(kernel) < int(DEVICE_KERNEL_INTEGRATOR_NUM);
-
-  if (profiling_enabled_) {
-    /* Close the current encoder to ensure we're able to capture per-encoder timing data. */
-    close_compute_encoder();
-  }
-
   if (mtlComputeEncoder_) {
-    if (mtlComputeEncoder_.dispatchType == concurrent ? MTLDispatchTypeConcurrent :
-                                                        MTLDispatchTypeSerial)
-    {
-      /* declare usage of MTLBuffers etc */
-      prepare_resources(kernel);
-
-      return mtlComputeEncoder_;
-    }
-    close_compute_encoder();
+    /* declare usage of MTLBuffers etc */
+    prepare_resources(kernel);
+    return mtlComputeEncoder_;
   }
 
   close_blit_encoder();
@@ -790,14 +838,15 @@ id<MTLComputeCommandEncoder> MetalDeviceQueue::get_compute_encoder(DeviceKernel 
     [desc.sampleBufferAttachments[0] setStartOfEncoderSampleIndex:current_encoder_idx_];
     [desc.sampleBufferAttachments[0] setEndOfEncoderSampleIndex:current_encoder_idx_ + 1];
 
-    [desc setDispatchType:concurrent ? MTLDispatchTypeConcurrent : MTLDispatchTypeSerial];
+    [desc setDispatchType:MTLDispatchTypeSerial];
+
+    command_encoder_labels_.push_back({kernel, 1, current_encoder_idx_});
 
     mtlComputeEncoder_ = [mtlCommandBuffer_ computeCommandEncoderWithDescriptor:desc];
   }
   else {
     mtlComputeEncoder_ = [mtlCommandBuffer_
-        computeCommandEncoderWithDispatchType:concurrent ? MTLDispatchTypeConcurrent :
-                                                           MTLDispatchTypeSerial];
+        computeCommandEncoderWithDispatchType:MTLDispatchTypeSerial];
   }
 
   [mtlComputeEncoder_ retain];

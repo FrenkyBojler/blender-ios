@@ -140,6 +140,29 @@ class DeviceQueue {
                        const int work_size,
                        const DeviceKernelArguments &args) = 0;
 
+  /* Enqueue kernel execution with indirect dispatch.
+   *
+   * Execute dispatch_kernel, with work size determined by the grid_size_buffer offset by kernel * 3 * sizeof(int).
+   * The buffer should contain 3 integers (x, y, z dimensions) for each kernel type.
+   * Return false if there was an error executing this or a previous kernel. */
+  virtual bool enqueue_indirect(DeviceKernel /*kernel*/,
+                                DeviceKernel /*dispatch_kernel*/,
+                               device_ptr /*grid_size_buffer*/,
+                               const DeviceKernelArguments &/*args*/)
+  {
+    LOG_ERROR << "Indirect dispatch not supported on this device";
+    return false;
+  }
+
+  virtual void flush_to_gpu()
+  {
+  }
+
+  virtual int command_buffers_in_flight()
+  {
+    return 0;
+  }
+
   /* Wait unit all enqueued kernels have finished execution.
    * Return false if there was an error executing any of the enqueued kernels. */
   virtual bool synchronize() = 0;

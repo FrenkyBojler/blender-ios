@@ -148,8 +148,8 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
-    const int state = (path_index_array) ? path_index_array[global_index] : global_index;
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST)) {
+    const int state = ccl_gpu_kernel_state_index(global_index, DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST);
     ccl_gpu_kernel_call(integrator_intersect_closest(nullptr, state, render_buffer));
   }
 }
@@ -162,9 +162,238 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
-    const int state = (path_index_array) ? path_index_array[global_index] : global_index;
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW)) {
+    const int state = ccl_gpu_kernel_state_index(global_index, DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW);
     ccl_gpu_kernel_call(integrator_intersect_shadow(nullptr, state));
+  }
+}
+ccl_gpu_kernel_postfix
+
+ccl_device_inline bool kernel_creates_shadow_paths(int _kernel)
+{
+  return (_kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE ||
+          _kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE ||
+          _kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE ||
+          _kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME ||
+          _kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT);
+}
+
+ccl_device_inline bool kernel_creates_ao_paths(int _kernel, uint kernel_features)
+{
+  return (kernel_features & KERNEL_FEATURE_AO) &&
+         (_kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE ||
+          _kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE ||
+          _kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE);
+}
+
+ccl_device_inline bool kernel_uses_sorting(int _kernel)
+{
+  return (_kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE ||
+          _kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE ||
+          _kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE);
+}
+
+ccl_device_inline bool kernel_is_shadow_path(int _kernel)
+{
+  return (_kernel == DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW ||
+          _kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW);
+}
+
+#define kernel_scheduling_state kernel_integrator_state.scheduling_state
+
+#define kernel_max_active_main_path_index(_kernel) \
+  (kernel_is_shadow_path(_kernel) ?  \
+    kernel_integrator_state.next_shadow_path_index[0] : \
+    kernel_scheduling_state->max_active_main_path_index) \
+
+ccl_device_inline void setup_grid(ccl_global KernelSchedulingState *scheduling_state, int _kernel, int work_size, int threads_per_threadgroup = 64, int use_index_buffer = 0)
+{
+  /* Convert from threads to threadgroups for dispatchThreadgroupsWithIndirectBuffer.
+   * Assuming 64 threads per threadgroup (M3+ default). */
+
+  int threadgroups = (work_size + threads_per_threadgroup - 1) / threads_per_threadgroup;
+  scheduling_state->kernel_grid_size[_kernel] = make_int4(threadgroups, 1, 1, use_index_buffer ? work_size : -work_size);
+}
+
+ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
+    ccl_gpu_kernel_signature(integrator_prepare_grid_size,
+                             /* MPJ TODO: Incorporate num_queued_paths into KernelSchedulingState
+                              * This will need the various indexing kernels to switch over too.
+                              */
+                             ccl_global int *num_queued_paths)
+{
+  // Zero grid sizes first - ensures early-out produces no-op indirect dispatches
+  int index = ccl_gpu_global_id_x();
+  if (index < DEVICE_KERNEL_NUM) {
+    kernel_scheduling_state->kernel_grid_size[index] = make_int4(0, 1, 1, 0);
+  }
+  ccl_gpu_syncthreads();
+
+  ccl_global KernelSchedulingStatus &scheduling_status = kernel_scheduling_state->scheduling_status;
+  if (scheduling_status != KERNEL_SCHEDULING_GPU) {
+    return;
+  }
+
+  const int max_num_paths = kernel_scheduling_state->max_num_paths;
+  const int min_num_active_main_paths = kernel_scheduling_state->min_num_active_main_paths;
+  const int work_tile_scheduler_has_work = kernel_scheduling_state->work_tile_scheduler_has_work;
+  const int next_tile_work_size = kernel_scheduling_state->next_tile_work_size;
+  ccl_global int &num_paths_limit = kernel_scheduling_state->num_paths_limit;
+
+  ccl_gpu_shared int *num_queued = (ccl_gpu_shared int *)threadgroup_array;
+  ccl_gpu_shared int &next_kernel = num_queued[DEVICE_KERNEL_INTEGRATOR_NUM];
+  ccl_gpu_shared int &use_index_buffer = num_queued[DEVICE_KERNEL_INTEGRATOR_NUM+1];
+
+  if (index < DEVICE_KERNEL_INTEGRATOR_NUM) {
+    int queued_count = kernel_integrator_state.queue_counter->num_queued[index];
+    num_queued[index] = queued_count;
+  }
+
+  ccl_gpu_syncthreads();
+
+  // ------------------------------------------------------------
+  // Main scheduling logic (only runs on thread 0)
+  // ------------------------------------------------------------
+
+  if (index == 0) {
+    use_index_buffer = 1;
+    next_kernel = DEVICE_KERNEL_NUM;
+
+    int sort_work_size = 0;
+    int queued_shadow_paths_work_size = 0;
+    int queued_paths_work_size = 0;
+
+    int num_active_main_paths = 0;
+    int max_num_queued = 0;
+    for (int i = 0; i < DEVICE_KERNEL_INTEGRATOR_NUM; i++) {
+      if (num_queued[i] > max_num_queued) {
+        next_kernel = i;
+        max_num_queued = num_queued[i];
+      }
+      if (!kernel_is_shadow_path(i)) {
+        num_active_main_paths += num_queued[i];
+      }
+    }
+
+    int num_paths = num_active_main_paths;
+    if (next_kernel == DEVICE_KERNEL_NUM) {
+      scheduling_status = KERNEL_SCHEDULING_QUEUES_DEPLETED;
+    }
+    else if (num_paths < min_num_active_main_paths) {
+      /* Use cached value from enqueue_work_tiles (safe to use cached value: CPU schedules new camera paths). */
+      const int max_num_camera_paths = kernel_scheduling_state->max_num_camera_paths;
+      if (num_paths < max_num_camera_paths) {
+        const int max_work_size = max_num_camera_paths - num_paths;
+        // MPJ TODO: Why can't we just replace `bool work_tile_scheduler_has_work` with `int next_tile_work_size`?
+        if (!max_work_size || next_tile_work_size <= max_work_size) {
+          if (work_tile_scheduler_has_work) {
+            if (next_kernel == DEVICE_KERNEL_NUM || next_kernel == DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST) {
+              scheduling_status = KERNEL_SCHEDULING_AWAIT_CPU_MAIN_COMPACTION;
+              next_kernel = DEVICE_KERNEL_NUM;
+            }
+          }
+        }
+      }
+    }
+   
+    if (next_kernel != DEVICE_KERNEL_NUM) {
+      num_paths_limit = INT_MAX;
+      if (kernel_creates_shadow_paths(next_kernel)) {
+        // Derived from compact_shadow_paths()
+        {
+          const int num_active_paths =
+              num_queued[DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW] +
+              num_queued[DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW];
+
+          /* Early out if there is nothing that needs to be compacted. */
+          if (num_active_paths == 0) {
+            kernel_integrator_state.next_shadow_path_index[0] = 0;
+          }
+          else {
+            /* Compact if we can reduce the space used by half. Not always since
+            * compaction has a cost. */
+            const float max_overhead_factor = 2.0f;
+            const int min_compact_paths = 32;
+            const int num_total_paths = kernel_integrator_state.next_shadow_path_index[0];
+            if (num_total_paths < num_active_paths * max_overhead_factor ||
+                num_total_paths < min_compact_paths)
+            {
+              /* No compaction. */
+            }
+            else {
+              /* Compact. */
+              scheduling_status = KERNEL_SCHEDULING_AWAIT_CPU_SHADOW_COMPACTION;
+            }
+          }
+        }
+
+        if (scheduling_status == KERNEL_SCHEDULING_GPU) {
+          // Flush outstanding shadow paths if we don't have enough space for new shadow paths
+          const int available_shadow_paths = max_num_paths -
+                                            kernel_integrator_state.next_shadow_path_index[0];
+          if (available_shadow_paths < max_num_queued) {
+            if (num_queued[DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW]) {
+              next_kernel = DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW;
+            }
+            else if (num_queued[DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW]) {
+              next_kernel = DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW;
+            }
+          }
+          else if (kernel_creates_ao_paths(next_kernel, context.launch_params_metal.data.kernel_features)) {
+            /* AO kernel creates two shadow paths, so limit number of states to schedule. */
+            num_paths_limit = available_shadow_paths / 2;
+          }
+        }
+      }
+
+      /* Stash the next kernel in global memory. */
+      kernel_scheduling_state->next_kernel = next_kernel;
+
+      if (scheduling_status != KERNEL_SCHEDULING_GPU) {
+        /* Avoid queueing more work. */
+        next_kernel = DEVICE_KERNEL_NUM;
+      }
+      else {
+        num_queued[next_kernel] = min(num_paths_limit, num_queued[next_kernel]);
+
+        /* This replaces the following host-side code:
+         *
+         *   queue_->zero_to_device(num_queued_paths_);
+         */
+        *num_queued_paths = 0;
+
+        // Determine sorting & indexing kernel work sizes
+        const int max_path_index = kernel_max_active_main_path_index(next_kernel);
+        if (kernel_uses_sorting(next_kernel)) {
+          int sort_partition_divisor = (int)kernel_integrator_state.sort_partition_divisor;
+          int num_sort_partitions = max_num_paths / sort_partition_divisor;
+          sort_work_size = GPU_PARALLEL_SORT_BLOCK_SIZE * num_sort_partitions;
+        }
+        else if (num_queued[next_kernel] < max_path_index) {
+          if (kernel_is_shadow_path(next_kernel)) {
+            queued_shadow_paths_work_size = max_path_index;
+          }
+          else {
+            queued_paths_work_size = max_path_index;
+          }
+        }
+        else {
+          use_index_buffer = 0;
+        }
+      }
+    }
+  
+    setup_grid(kernel_scheduling_state, DEVICE_KERNEL_INTEGRATOR_SORT_BUCKET_PASS, sort_work_size, GPU_PARALLEL_SORT_BLOCK_SIZE);
+    setup_grid(kernel_scheduling_state, DEVICE_KERNEL_INTEGRATOR_SORT_WRITE_PASS, sort_work_size, GPU_PARALLEL_SORT_BLOCK_SIZE);
+    setup_grid(kernel_scheduling_state, DEVICE_KERNEL_INTEGRATOR_QUEUED_SHADOW_PATHS_ARRAY, queued_shadow_paths_work_size);
+    setup_grid(kernel_scheduling_state, DEVICE_KERNEL_INTEGRATOR_QUEUED_PATHS_ARRAY, queued_paths_work_size);
+  }
+
+  ccl_gpu_syncthreads();
+
+  if (index < DEVICE_KERNEL_INTEGRATOR_NUM) {
+    int next_work_size = (index == next_kernel) ? num_queued[index] : 0;
+    setup_grid(kernel_scheduling_state, index, next_work_size, 64, use_index_buffer);
   }
 }
 ccl_gpu_kernel_postfix
@@ -176,8 +405,8 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
-    const int state = (path_index_array) ? path_index_array[global_index] : global_index;
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_INTERSECT_SUBSURFACE)) {
+    const int state = ccl_gpu_kernel_state_index(global_index, DEVICE_KERNEL_INTEGRATOR_INTERSECT_SUBSURFACE);
     ccl_gpu_kernel_call(integrator_intersect_subsurface(nullptr, state));
   }
 }
@@ -191,8 +420,8 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 #  ifdef __VOLUME__
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
-    const int state = (path_index_array) ? path_index_array[global_index] : global_index;
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK)) {
+    const int state = ccl_gpu_kernel_state_index(global_index, DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK);
     ccl_gpu_kernel_call(integrator_intersect_volume_stack(nullptr, state));
   }
 #  endif
@@ -206,8 +435,8 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
-    const int state = (path_index_array) ? path_index_array[global_index] : global_index;
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_INTERSECT_DEDICATED_LIGHT)) {
+    const int state = ccl_gpu_kernel_state_index(global_index, DEVICE_KERNEL_INTEGRATOR_INTERSECT_DEDICATED_LIGHT);
     ccl_gpu_kernel_call(integrator_intersect_dedicated_light(nullptr, state));
   }
 }
@@ -227,8 +456,8 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
-    const int state = (path_index_array) ? path_index_array[global_index] : global_index;
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND)) {
+    const int state = ccl_gpu_kernel_state_index(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND);
     ccl_gpu_kernel_call(integrator_shade_background(nullptr, state, render_buffer));
   }
 }
@@ -242,7 +471,7 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_NEE)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
     ccl_gpu_kernel_call(integrator_shade_light_nee(nullptr, state, render_buffer));
   }
@@ -257,7 +486,7 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_FORWARD)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
     ccl_gpu_kernel_call(integrator_shade_light_forward(nullptr, state, render_buffer));
   }
@@ -272,8 +501,8 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
-    const int state = (path_index_array) ? path_index_array[global_index] : global_index;
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW)) {
+    const int state = ccl_gpu_kernel_state_index(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW);
     ccl_gpu_kernel_call(integrator_shade_shadow(nullptr, state, render_buffer));
   }
 }
@@ -287,8 +516,8 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
-    const int state = (path_index_array) ? path_index_array[global_index] : global_index;
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE)) {
+    const int state = ccl_gpu_kernel_state_index(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE);
     ccl_gpu_kernel_call(integrator_shade_surface(nullptr, state, render_buffer));
   }
 }
@@ -314,8 +543,8 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
-    const int state = (path_index_array) ? path_index_array[global_index] : global_index;
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE)) {
+    const int state = ccl_gpu_kernel_state_index(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE);
 
 #  if defined(__KERNEL_METAL_APPLE__) && defined(__KERNEL_METALRT__)
     KernelGlobals kg = nullptr;
@@ -338,8 +567,8 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
-    const int state = (path_index_array) ? path_index_array[global_index] : global_index;
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE)) {
+    const int state = ccl_gpu_kernel_state_index(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE);
     ccl_gpu_kernel_call(integrator_shade_surface_mnee(nullptr, state, render_buffer));
   }
 }
@@ -359,8 +588,8 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
-    const int state = (path_index_array) ? path_index_array[global_index] : global_index;
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME)) {
+    const int state = ccl_gpu_kernel_state_index(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME);
     ccl_gpu_kernel_call(integrator_shade_volume(nullptr, state, render_buffer));
   }
 }
@@ -389,8 +618,8 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
-    const int state = (path_index_array) ? path_index_array[global_index] : global_index;
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT)) {
+    const int state = ccl_gpu_kernel_state_index(global_index, DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT);
     ccl_gpu_kernel_call(integrator_shade_dedicated_light(nullptr, state, render_buffer));
   }
 }
@@ -403,9 +632,15 @@ ccl_gpu_kernel_threads(GPU_PARALLEL_ACTIVE_INDEX_DEFAULT_BLOCK_SIZE)
                              ccl_global int *num_indices,
                              const int kernel_index)
 {
+#ifdef __KERNEL_METAL__
+  const int kernel_index = (this->kernel_index == DEVICE_KERNEL_NUM) ? kernel_scheduling_state->next_kernel : this->kernel_index;
+#endif
+
   ccl_gpu_kernel_lambda(INTEGRATOR_STATE(state, path, queued_kernel) == kernel_index,
                         int kernel_index);
   ccl_gpu_kernel_lambda_pass.kernel_index = kernel_index;
+
+  const int num_states = kernel_max_active_main_path_index(kernel_index);
 
   gpu_parallel_active_index_array(num_states, indices, num_indices, ccl_gpu_kernel_lambda_pass);
 }
@@ -418,9 +653,15 @@ ccl_gpu_kernel_threads(GPU_PARALLEL_ACTIVE_INDEX_DEFAULT_BLOCK_SIZE)
                              ccl_global int *num_indices,
                              const int kernel_index)
 {
+#ifdef __KERNEL_METAL__
+  const int kernel_index = (this->kernel_index == DEVICE_KERNEL_NUM) ? kernel_scheduling_state->next_kernel : this->kernel_index;
+#endif
+
   ccl_gpu_kernel_lambda(INTEGRATOR_STATE(state, shadow_path, queued_kernel) == kernel_index,
                         int kernel_index);
   ccl_gpu_kernel_lambda_pass.kernel_index = kernel_index;
+
+  const int num_states = kernel_max_active_main_path_index(kernel_index);
 
   gpu_parallel_active_index_array(num_states, indices, num_indices, ccl_gpu_kernel_lambda_pass);
 }
@@ -523,7 +764,10 @@ ccl_gpu_kernel_threads(GPU_PARALLEL_SORT_BLOCK_SIZE)
                                     kernel_integrator_state.sort_partition_key_offsets;
 
 #  ifdef __KERNEL_METAL__
-  int max_shaders = context.launch_params_metal.data.max_shaders;
+  const int kernel_index = (this->kernel_index == DEVICE_KERNEL_NUM) ? kernel_scheduling_state->next_kernel : this->kernel_index;
+  const int max_shaders = context.launch_params_metal.data.max_shaders;
+  const int partition_size = (int)kernel_integrator_state.sort_partition_divisor;
+  const int num_states = kernel_max_active_main_path_index(kernel_index);
 #  endif
 
 #  ifdef __KERNEL_ONEAPI__
@@ -584,7 +828,11 @@ ccl_gpu_kernel_threads(GPU_PARALLEL_SORT_BLOCK_SIZE)
                                     kernel_integrator_state.sort_partition_key_offsets;
 
 #  ifdef __KERNEL_METAL__
-  int max_shaders = context.launch_params_metal.data.max_shaders;
+  const int kernel_index = (this->kernel_index == DEVICE_KERNEL_NUM) ? kernel_scheduling_state->next_kernel : this->kernel_index;
+  const int max_shaders = context.launch_params_metal.data.max_shaders;
+  const int partition_size = (int)kernel_integrator_state.sort_partition_divisor;
+  const int num_states = kernel_max_active_main_path_index(kernel_index);
+  const int num_states_limit = this->num_states_limit ? this->num_states_limit : kernel_scheduling_state->num_paths_limit;
 #  endif
 
 #  ifdef __KERNEL_ONEAPI__
@@ -642,7 +890,7 @@ ccl_gpu_kernel_threads(GPU_PARALLEL_SORTED_INDEX_DEFAULT_BLOCK_SIZE)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_COMPACT_STATES)) {
     const int from_state = active_terminated_states[active_states_offset + global_index];
     const int to_state = active_terminated_states[terminated_states_offset + global_index];
 
@@ -676,7 +924,7 @@ ccl_gpu_kernel_threads(GPU_PARALLEL_SORTED_INDEX_DEFAULT_BLOCK_SIZE)
 {
   const int global_index = ccl_gpu_global_id_x();
 
-  if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
+  if (ccl_gpu_kernel_within_bounds(global_index, DEVICE_KERNEL_INTEGRATOR_COMPACT_SHADOW_STATES)) {
     const int from_state = active_terminated_states[active_states_offset + global_index];
     const int to_state = active_terminated_states[terminated_states_offset + global_index];
 

@@ -184,7 +184,8 @@ void kernel_gpu_##name::run(thread MetalKernelContext& context, \
 
 #define ccl_gpu_kernel_postfix
 #define ccl_gpu_kernel_call(x) context.x
-#define ccl_gpu_kernel_within_bounds(i,n) true
+#define ccl_gpu_kernel_within_bounds(i, _kernel) (work_size ? ((i) < (work_size)) : ((i) < abs(kernel_integrator_state.scheduling_state->kernel_grid_size[_kernel].w)))
+#define ccl_gpu_kernel_state_index(i, _kernel) (((work_size && path_index_array) || (kernel_integrator_state.scheduling_state->kernel_grid_size[_kernel].w > 0)) ? (path_index_array[(i)]) : (i))
 
 /* define a function object where "func" is the lambda body, and additional parameters are used to specify captured state. */
 #define ccl_gpu_kernel_lambda(func, ...) \

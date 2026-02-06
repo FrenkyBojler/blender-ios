@@ -197,6 +197,9 @@ struct IntegratorStateGPU {
   /* Count number of queued kernels. */
   ccl_global IntegratorQueueCounter *queue_counter;
 
+  /* Scheduling state for speculative dispatch (including grid size array for all kernels). */
+  ccl_global KernelSchedulingState *scheduling_state;
+
   /* Count number of kernels queued for specific shaders. */
   ccl_global int *sort_key_counter[DEVICE_KERNEL_INTEGRATOR_NUM];
 

@@ -44,7 +44,10 @@ class WorkTileScheduler {
    * Optionally pass max_work_size to do nothing if there is no tile small enough. */
   bool get_work(KernelWorkTile *work_tile, const int max_work_size = 0);
 
- protected:
+  int get_next_tile_work_size() const;
+  void peek_work(KernelWorkTile *work_tile_, const int work_index) const;
+
+ //protected:
   void reset_scheduler_state();
 
   /* Used to indicate if there is accelerated ray tracing. */

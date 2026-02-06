@@ -1669,6 +1669,7 @@ enum DeviceKernel : int {
   DEVICE_KERNEL_INTEGRATOR_TERMINATED_SHADOW_PATHS_ARRAY,
   DEVICE_KERNEL_INTEGRATOR_COMPACT_SHADOW_PATHS_ARRAY,
   DEVICE_KERNEL_INTEGRATOR_COMPACT_SHADOW_STATES,
+  DEVICE_KERNEL_INTEGRATOR_PREPARE_GRID_SIZE,
   DEVICE_KERNEL_INTEGRATOR_RESET,
   DEVICE_KERNEL_INTEGRATOR_SHADOW_CATCHER_COUNT_POSSIBLE_SPLITS,
 
@@ -1719,6 +1720,27 @@ enum DeviceKernel : int {
 
 enum {
   DEVICE_KERNEL_INTEGRATOR_NUM = DEVICE_KERNEL_INTEGRATOR_MEGAKERNEL + 1,
+};
+
+enum KernelSchedulingStatus : int {
+  KERNEL_SCHEDULING_GPU,
+  KERNEL_SCHEDULING_AWAIT_CPU_SHADOW_COMPACTION,
+  KERNEL_SCHEDULING_AWAIT_CPU_MAIN_COMPACTION,
+  KERNEL_SCHEDULING_QUEUES_DEPLETED
+};
+
+struct KernelSchedulingState
+{
+  int4 kernel_grid_size[DEVICE_KERNEL_NUM];
+  int max_num_paths;
+  int min_num_active_main_paths;
+  int max_active_main_path_index;
+  int max_num_camera_paths;
+  int work_tile_scheduler_has_work;
+  int next_tile_work_size;
+  KernelSchedulingStatus scheduling_status;
+  int num_paths_limit;
+  int next_kernel;
 };
 
 CCL_NAMESPACE_END

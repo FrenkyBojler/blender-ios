@@ -103,6 +103,8 @@ const char *device_kernel_as_string(DeviceKernel kernel)
       return "integrator_compact_shadow_paths_array";
     case DEVICE_KERNEL_INTEGRATOR_COMPACT_SHADOW_STATES:
       return "integrator_compact_shadow_states";
+    case DEVICE_KERNEL_INTEGRATOR_PREPARE_GRID_SIZE:
+      return "integrator_prepare_grid_size";
     case DEVICE_KERNEL_INTEGRATOR_RESET:
       return "integrator_reset";
     case DEVICE_KERNEL_INTEGRATOR_SHADOW_CATCHER_COUNT_POSSIBLE_SPLITS:
