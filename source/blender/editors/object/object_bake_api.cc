@@ -462,7 +462,8 @@ static bool is_noncolor_pass(eScenePassType pass_type)
               SCE_PASS_VECTOR,
               SCE_PASS_INDEXOB,
               SCE_PASS_UV,
-              SCE_PASS_INDEXMA);
+              SCE_PASS_INDEXMA,
+              SCE_PASS_ROUGHNESS);
 }
 
 /* if all is good tag image and return true */

@@ -1710,6 +1710,7 @@ url_manual_mapping = (
     ("bpy.types.view3doverlay.normals_length*", "editors/3dview/display/overlays.html#bpy-types-view3doverlay-normals-length"),
     ("bpy.types.view3doverlay.show_xray_bone*", "editors/3dview/display/overlays.html#bpy-types-view3doverlay-show-xray-bone"),
     ("bpy.types.view3dshading.use_compositor*", "editors/3dview/display/shading.html#bpy-types-view3dshading-use-compositor"),
+    ("bpy.types.viewlayer.use_pass_roughness*", "render/layers/passes.html#bpy-types-viewlayer-use-pass-roughness"),
     ("bpy.types.volumedisplay.wireframe_type*", "modeling/volumes/properties.html#bpy-types-volumedisplay-wireframe-type"),
     ("bpy.types.walknavigation.teleport_time*", "editors/preferences/navigation.html#bpy-types-walknavigation-teleport-time"),
     ("bpy.types.windowmanager.extension_type*", "editors/preferences/extensions.html#bpy-types-windowmanager-extension-type"),

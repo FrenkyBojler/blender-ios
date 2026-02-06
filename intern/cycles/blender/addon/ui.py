@@ -1020,6 +1020,7 @@ class CYCLES_RENDER_PT_passes_data(CyclesButtonsPanel, Panel):
         col.prop(view_layer, "use_pass_mist")
         col.prop(view_layer, "use_pass_position")
         col.prop(view_layer, "use_pass_normal")
+        col.prop(view_layer, "use_pass_roughness")
         sub = col.column()
         sub.active = not rd.use_motion_blur
         sub.prop(view_layer, "use_pass_vector")
