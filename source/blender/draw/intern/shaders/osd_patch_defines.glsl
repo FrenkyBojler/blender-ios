@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include "gpu_shader_compat.hh"
+
 /* Ensure the basis code has access to proper backend specification define: it is not guaranteed
  * that the code provided by OpenSubdiv specifies it. For example, it doesn't for GLSL but it
  * does for Metal. Additionally, for Metal OpenSubdiv defines OSD_PATCH_BASIS_METAL as 1, so do
