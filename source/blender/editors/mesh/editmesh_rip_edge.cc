@@ -206,6 +206,9 @@ static wmOperatorStatus edbm_rip_edge_invoke(bContext *C, wmOperator *op, const 
   normalize_v3(ray_dir);
 
   float3 ray_start_proj;
+  /* Project ray_start onto a plane defined by the ray direction to avoid precision
+   * issues especially for orthographic views where the far-clipping is used to calculate
+   * the ray_start. */
   project_plane_normalized_v3_v3v3(ray_start_proj, ray_start, ray_dir);
 
   RNA_float_set_array(op->ptr, "location", ray_start_proj);
