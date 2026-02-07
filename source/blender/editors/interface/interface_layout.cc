@@ -89,9 +89,6 @@ struct LayoutRoot {
   int emw, emh;
   int padding;
 
-  MenuHandleFunc handlefunc;
-  void *argv;
-
   const uiStyle *style;
   Block *block;
   Layout *layout;
@@ -3096,7 +3093,8 @@ void Layout::popover(const bContext *C,
 void Layout::popover(const bContext *C,
                      const StringRef panel_type,
                      std::optional<StringRef> name_opt,
-                     int icon)
+                     int icon,
+                     PopupAttachDirection direction)
 {
   PanelType *pt = WM_paneltype_find(panel_type, true);
   if (pt == nullptr) {
@@ -3104,6 +3102,7 @@ void Layout::popover(const bContext *C,
                      std::string(panel_type).c_str());
     return;
   }
+  pt->popup_draw_direction = direction;
   this->popover(C, pt, name_opt, icon);
 }
 
@@ -5403,12 +5402,8 @@ void Layout::resolve()
   }
 }
 
-static int2 ui_layout_end(Block *block, Layout *layout)
+static int2 ui_layout_end(Layout *layout)
 {
-  if (layout->root()->handlefunc) {
-    block_func_handle_set(block, layout->root()->handlefunc, layout->root()->argv);
-  }
-
   LayoutInternal::layout_estimate(layout);
   LayoutInternal::layout_resolve(layout);
   return layout->offset();
@@ -5629,12 +5624,6 @@ void Layout::operator_context_set(wm::OpCallContext opcontext)
   root_->opcontext = opcontext;
 }
 
-void uiLayoutSetFunc(Layout *layout, MenuHandleFunc handlefunc, void *argv)
-{
-  layout->root()->handlefunc = handlefunc;
-  layout->root()->argv = argv;
-}
-
 void block_layout_set_current(Block *block, Layout *layout)
 {
   block->curlayout = layout;
@@ -5659,7 +5648,7 @@ int2 block_layout_resolve(Block *block)
     ui_layout_add_padding_button(&root);
 
     /* nullptr in advance so we don't interfere when adding button */
-    block_size = ui_layout_end(block, root.layout);
+    block_size = ui_layout_end(root.layout);
     ui_layout_free(root.layout);
     MEM_delete(&root);
   }
