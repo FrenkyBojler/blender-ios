@@ -13,6 +13,9 @@ namespace blender::nodes::node_geo_input_instance_bounds_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.add_input<decl::Bool>("Local Space")
+    .default_value(true)
+    .description(""); // TODO: Add desc
   b.add_input<decl::Bool>("Use Radius")
       .default_value(true)
       .description(
@@ -24,12 +27,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 class InstanceBoundsField final : public bke::InstancesFieldInput {
  private:
+  bool local_space_;
   bool use_radius_;
-  bool return_max_;
+  bool return_max_;  
 
  public:
-  InstanceBoundsField(bool use_radius, bool return_max)
+  InstanceBoundsField(bool local_space, bool use_radius, bool return_max)
       : bke::InstancesFieldInput(CPPType::get<float3>(), return_max ? "Max" : "Min"),
+        local_space_(local_space),
         use_radius_(use_radius),
         return_max_(return_max)
   {
@@ -90,9 +95,14 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 
     Array<float3> output_bounds(mask.min_array_size());
     mask.foreach_index(GrainSize(4096), [&](const int instance_index) {
-      const float4x4 &transform = transforms[instance_index];
-      output_bounds[instance_index] = math::transform_point(
-          transform, reference_bounds[handles[instance_index]]);
+      const float3 bound_point = reference_bounds[handles[instance_index]];
+      if (local_space_) {
+        output_bounds[instance_index] = bound_point;
+      }
+      else {
+        const float4x4 &transform = transforms[instance_index];
+        output_bounds[instance_index] = math::transform_point(transform, bound_point);
+      }
     });
 
     return VArray<float3>::from_container(std::move(output_bounds));
@@ -100,13 +110,14 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 
   uint64_t hash() const override
   {
-    return get_default_hash(use_radius_, return_max_);
+    return get_default_hash(local_space_, use_radius_, return_max_);
   }
 
   bool is_equal_to(const fn::FieldNode &other) const override
   {
     if (const auto *other_field = dynamic_cast<const InstanceBoundsField *>(&other)) {
-      return use_radius_ == other_field->use_radius_ && return_max_ == other_field->return_max_;
+      return local_space_ == other_field->local_space_ && use_radius_ == other_field->use_radius_ &&
+             return_max_ == other_field->return_max_;
     }
     return false;
   }
@@ -115,9 +126,10 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bool use_radius = params.extract_input<bool>("Use Radius");
+  const bool local_space = params.extract_input<bool>("Local Space");
   params.set_output("Min",
-                    Field<float3>(std::make_shared<InstanceBoundsField>(use_radius, false)));
-  params.set_output("Max", Field<float3>(std::make_shared<InstanceBoundsField>(use_radius, true)));
+                    Field<float3>(std::make_shared<InstanceBoundsField>(local_space, use_radius, false)));
+  params.set_output("Max", Field<float3>(std::make_shared<InstanceBoundsField>(local_space, use_radius, true)));
 }
 
 static void node_register()
