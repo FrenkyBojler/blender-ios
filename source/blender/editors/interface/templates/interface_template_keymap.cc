@@ -85,16 +85,16 @@ void uiTemplateKeymapItemProperties(Layout *layout, PointerRNA *ptr)
 
   if (propptr.data) {
     Block *block = layout->block();
-    const int i = layout->block()->buttons.size();
+    const int old_but_count = layout->block()->buttons.size();
 
     WM_operator_properties_sanitize(&propptr, false);
     template_keymap_item_properties(*layout, nullptr, &propptr);
-    if (i < 0) {
+    if (old_but_count < 0) {
       return;
     }
     /* attach callbacks to compensate for missing properties update,
      * we don't know which keymap (item) is being modified there */
-    for (Button &but : block->buttons_as_refs() | std::views::drop(i)) {
+    for (Button &but : block->buttons_as_refs() | std::views::drop(old_but_count)) {
       /* operator buttons may store props for use (file selector, #36492) */
       if (but.rnaprop) {
         button_func_set(&but, keymap_item_modified, ptr->data, nullptr);
