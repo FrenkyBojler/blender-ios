@@ -343,27 +343,6 @@ void pointcloud_resize(PointCloud &pointcloud, const int size)
   }
 }
 
-void pointcloud_add_points(PointCloud *pointcloud, int count)
-{
-  if (count == 0) {
-    return;
-  }
-
-  const int old_totpoint = pointcloud->totpoint;
-  pointcloud->totpoint += count;
-  bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
-
-  if (old_totpoint == 0) {
-    /* If there were no points before, ensure the position attribute exists. */
-    attributes.add<float3>("position", bke::AttrDomain::Point, bke::AttributeInitConstruct());
-  }
-
-  pointcloud->attribute_storage.wrap().resize(bke::AttrDomain::Point, pointcloud->totpoint);
-
-  bke::fill_attribute_range_default(
-      attributes, bke::AttrDomain::Point, {}, IndexRange(old_totpoint, count));
-}
-
 /* Dependency Graph */
 
 PointCloud *BKE_pointcloud_copy_for_eval(const PointCloud *pointcloud_src)
