@@ -356,11 +356,8 @@ struct Glyph {
   FontBLF *font = nullptr;
   GlyphCacheBLF *gc = nullptr;
   GlyphBLF *g = nullptr;
-  /* Differs from GlyphBLF bounds in that each is from common origin
-   * and includes the contextual positional offsets. In ft_pix. */
-  rcti bounds = {};
-  /* Index into the UTF-8 version of the original unshaped string. */
-  size_t index_utf8 = 0;
+  rcti bounds = {};      /* String-relative shaped bounds in ft_pix. */
+  size_t index_utf8 = 0; /* Maps back original UTF-8 string byte offsets. */
   rcti integer_bounds() const
   {
     rcti r;
@@ -457,7 +454,6 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
       segment_font->flags |= BLF_MONOSPACED;
     }
     ft_pix pen_x = this->width; /* Continue from previous segment. */
-    int max_width = 0;
     int max_height = this->height;
     int cwidth = std::max(gc->fixed_width, 1);
     uint glyph_count;
@@ -493,6 +489,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
                                ft_pix_from_int(cwidth) * BLI_wcwidth_safe(codepoint) :
                                glyph_pos[i].x_advance);
       if (g->box_xmin == g->box_xmax) {
+        /* Can happen with some spacing characters. */
         g->box_xmax = g->box_xmin + advance;
       }
 
@@ -505,7 +502,6 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
       this->glyphs.append({segment_font, segment_gc, g, bounds, str8_offset});
       str8_offset += BLI_str_utf8_from_unicode_len(codepoint);
       pen_x += advance;
-      max_width = pen_x;
       max_height = std::max(g->box_ymax - g->box_ymin, max_height);
     }
     this->width = pen_x; /* Update total width. */
