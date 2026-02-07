@@ -391,24 +391,26 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
   hb_script_t last_script = HB_SCRIPT_UNKNOWN;
   hb_buffer_t *hb_buf = hb_buffer_create();
   /* Include space for null terminator. */
-  size_t char_count = BLI_strnlen_utf8(str, len) + 1;
-  std::u32string str32(char_count, 0);
+  size_t char_count = BLI_strnlen_utf8(str, len);
+  std::u32string str32(char_count + 1, 0);
   /* Convert entire input string into array of 32-bit code points. */
-  BLI_str_utf8_as_utf32(str32.data(), str, char_count);
-  /* Harfbuzz gets the entire string but we process it by segment,
-   * portions with the same language, direction, style, etc. */
+  BLI_str_utf8_as_utf32(str32.data(), str, char_count + 1);
 #if 0
   printf("\n%s\n", str);
 #endif
+
+  /* Process text by script segments. Harfbuzz requires text to be
+   * shaped in runs of the same script, direction, and font. We break
+   * on script changes, ignoring Common/Inherited which can merge. */
   while ((segment_start + segment_len) < char_count) {
     segment_start += segment_len;
     segment_len = 0;
     size_t i;
-    for (i = segment_start; i < char_count && str32[i]; i++) {
+    for (i = segment_start; i < char_count; i++) {
       script = hb_unicode_script(hb_unicode_funcs_get_default(), str32[i]);
       if (script != last_script && script != HB_SCRIPT_INHERITED && script != HB_SCRIPT_COMMON) {
         last_script = script;
-        if (i > 0) {
+        if (i > segment_start) {
           break;
         }
       }
@@ -448,7 +450,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
     if (set_mono) {
       segment_font->flags |= BLF_MONOSPACED;
     }
-    int pen_x = this->width;
+    int pen_x = this->width; /* Continue from previous segment. */
     int max_width = 0;
     int max_height = this->height;
     int cwidth = std::max(gc->fixed_width, 1);
@@ -469,9 +471,8 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
     printf("%s\n", diag_str);
     MEM_freeN(diag_str);
 #endif
-    GlyphCacheBLF *segment_gc = (!gc || segment_font != font) ?
-                                    blf_glyph_cache_acquire(segment_font) :
-                                    gc;
+    const bool need_release = (!gc || segment_font != font);
+    GlyphCacheBLF *segment_gc = need_release ? blf_glyph_cache_acquire(segment_font) : gc;
     size_t str8_offset = 0;
     for (i = 0; i < glyph_count; i++) {
       uint32_t glyph_id = hb_glyph_info[i].codepoint;
@@ -498,12 +499,12 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
       max_width = pen_x;
       max_height = std::max(g->box_ymax - g->box_ymin, max_height);
     }
-    this->width = max_width;
+    this->width = max_width; /* Update total width. */
     this->height = max_height;
     if (set_mono) {
       segment_font->flags &= ~BLF_MONOSPACED;
     }
-    if (!gc || segment_font != font) {
+    if (need_release) {
       blf_glyph_cache_release(segment_font);
     }
   }
