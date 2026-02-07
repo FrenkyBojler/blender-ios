@@ -127,6 +127,16 @@ if(WITH_IMAGE_WEBP)
   )
 endif()
 
+if(WITH_IMAGE_KTX)
+  list(APPEND SRC
+    intern/format_ktx.cc
+  )
+  list(APPEND LIB
+    PRIVATE bf::dependencies::optional::ktx
+    PRIVATE ktx_read
+  )
+endif()
+
 if(WIN32)
   list(APPEND INC
     ../../../intern/utfconv

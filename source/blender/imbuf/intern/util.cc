@@ -79,6 +79,10 @@ const char *imb_ext_image[] = {
     /* #IMB_FTYPE_WEBP */
     ".webp",
 #endif
+#ifdef WITH_IMAGE_KTX
+    /* #IMB_FTYPE_KTX */
+    ".ktx2",
+#endif
     nullptr,
 };
 

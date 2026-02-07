@@ -1,0 +1,11 @@
+Project: KTX-Software - Khronos KTX 1/2 library and tools
+URL: https://github.com/KhronosGroup/KTX-Software
+License: SPDX:Apache-2.0 (see LICENSE.md, LICENSES/*.txt)
+Copyright: The Khronos Group Inc. and contributors
+Upstream version: v4.4.2 (tag)
+Upstream source: https://github.com/KhronosGroup/KTX-Software/releases/tag/v4.4.2
+Local modifications:
+* Make Bash optional on Windows and generate lib/version.h via CMake when Bash
+  is unavailable (extern/ktx/CMakeLists.txt, extern/ktx/cmake/version.cmake).
+* Build and use the `ktx_read` library for Blender's native KTX2 import
+  (see Blender-side integration in source/blender/imbuf/intern/format_ktx.cc).

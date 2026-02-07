@@ -444,8 +444,10 @@ endif()
 
 if(UNIX AND NOT APPLE)
   option(WITH_SYSTEM_FREETYPE "Use the freetype library provided by the operating system" OFF)
+  option(WITH_SYSTEM_EIGEN3 "Use the systems Eigen3 library" OFF)
 else()
   set(WITH_SYSTEM_FREETYPE OFF)
+  set(WITH_SYSTEM_EIGEN3 OFF)
 endif()
 
 if((NOT WITH_PYTHON_MODULE) AND (
@@ -474,6 +476,7 @@ option(WITH_IMAGE_OPENEXR "Enable OpenEXR Support (http://www.openexr.com)" ON)
 option(WITH_IMAGE_OPENJPEG "Enable OpenJpeg Support (http://www.openjpeg.org)" ON)
 option(WITH_IMAGE_CINEON "Enable CINEON and DPX Image Support" ON)
 option(WITH_IMAGE_WEBP "Enable WebP Image Support" ON)
+option(WITH_IMAGE_KTX "Enable KTX2 Image Support" ON)
 
 # Audio/Video format support
 option(WITH_CODEC_FFMPEG "Enable FFMPeg Support (http://ffmpeg.org)" ON)
@@ -1625,6 +1628,9 @@ if(WITH_IMAGE_OPENJPEG)
   endif()
 endif()
 
+if(NOT WITH_SYSTEM_EIGEN3)
+  set(EIGEN3_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extern/Eigen3)
+endif()
 if (WITH_COMPILER_ASAN AND NOT WITH_COMPILER_ASAN_EXTERN)
   # See also:
   # - `EIGEN_MALLOC_ALREADY_ALIGNED` definition and usages in

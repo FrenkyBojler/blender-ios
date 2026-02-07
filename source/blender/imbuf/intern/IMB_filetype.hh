@@ -265,6 +265,18 @@ bool imb_savewebp(ImBuf *ibuf, const char *filepath, int flags);
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Format: KTX2 (#IMB_FTYPE_KTX)
+ * \{ */
+
+bool imb_is_a_ktx(const unsigned char *mem, size_t size);
+ImBuf *imb_load_ktx(const unsigned char *mem,
+                    size_t size,
+                    int flags,
+                    ImFileColorSpace &r_colorspace);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Format: DDS (#IMB_FTYPE_DDS)
  * \{ */
 

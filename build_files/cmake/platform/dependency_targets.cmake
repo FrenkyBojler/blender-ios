@@ -210,6 +210,16 @@ if(WITH_IMAGE_WEBP)
 endif()
 
 # -----------------------------------------------------------------------------
+# Configure KTX
+
+add_library(bf_deps_optional_ktx INTERFACE)
+add_library(bf::dependencies::optional::ktx ALIAS bf_deps_optional_ktx)
+
+if(WITH_IMAGE_KTX)
+  target_compile_definitions(bf_deps_optional_ktx INTERFACE WITH_IMAGE_KTX)
+endif()
+
+# -----------------------------------------------------------------------------
 # Configure OpenJPEG
 
 add_library(bf_deps_optional_openjpeg INTERFACE)
