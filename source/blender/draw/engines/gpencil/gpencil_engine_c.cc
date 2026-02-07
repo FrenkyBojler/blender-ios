@@ -406,7 +406,7 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
         "cyclic", bke::AttrDomain::Curve, false);
 
     IndexMaskMemory memory;
-    const IndexMask visible_shapes = ed::greasepencil::retrieve_visible_shapes(
+    const IndexMask visible_strokes = ed::greasepencil::retrieve_visible_strokes(
         *ob, info.drawing, memory);
     const IndexMask visible_fills = ed::greasepencil::retrieve_visible_fills(
         *ob, info.drawing, memory);

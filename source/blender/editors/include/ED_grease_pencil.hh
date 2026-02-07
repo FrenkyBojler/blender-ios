@@ -410,9 +410,6 @@ IndexMask retrieve_visible_strokes(Object &grease_pencil_object,
 IndexMask retrieve_visible_points(Object &object,
                                   const bke::greasepencil::Drawing &drawing,
                                   IndexMaskMemory &memory);
-IndexMask retrieve_visible_shapes(Object &object,
-                                  const bke::greasepencil::Drawing &drawing,
-                                  IndexMaskMemory &memory);
 
 /* Note that this the fills that are visible, not the stroke that are also fills. */
 IndexMask retrieve_visible_fills(Object &object,

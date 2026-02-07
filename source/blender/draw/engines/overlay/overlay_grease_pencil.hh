@@ -355,7 +355,7 @@ class GreasePencil : Overlay {
           "fill_id", bke::AttrDomain::Curve, 0);
 
       IndexMaskMemory memory;
-      const IndexMask visible_shapes = ed::greasepencil::retrieve_visible_shapes(
+      const IndexMask visible_strokes = ed::greasepencil::retrieve_visible_strokes(
           *ob, info.drawing, memory);
       const std::optional<GroupedSpan<int>> fills = info.drawing.fills();
 

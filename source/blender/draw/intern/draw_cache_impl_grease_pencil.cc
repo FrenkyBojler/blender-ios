@@ -1217,23 +1217,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       /* Cyclic strokes have one extra vertex. */
       total_verts_num += (is_cyclic ? 1 : 0);
       num_points += points.size();
-    };
-
-    total_triangles_num += sum_group_sizes(triangles.offsets, visible_shapes);
-
-    /* Calculate the vertex offsets for all the visible curves. */
-    if (!shapes) {
-      visible_shapes.foreach_index([&](const int curve_i) { add_curve(curve_i); });
-    }
-    else {
-      visible_shapes.foreach_index([&](const int shape_index) {
-        const Span<int> shape = (*shapes)[shape_index];
-        for (const int pos : shape.index_range()) {
-          const int curve_i = shape[pos];
-          add_curve(curve_i);
-        }
-      });
-    }
+    });
 
     total_triangles_num += (num_points + num_cyclic) * 2;
 
@@ -1314,9 +1298,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     const Span<float4x2> texture_matrices = info.drawing.texture_matrices();
     const Span<int> verts_start_offsets = verts_start_offsets_per_visible_drawing[drawing_i];
     IndexMaskMemory memory;
-    const IndexMask visible_shapes = ed::greasepencil::retrieve_visible_shapes(
+    const IndexMask visible_strokes = ed::greasepencil::retrieve_visible_strokes(
         object, info.drawing, memory);
-    const std::optional<GroupedSpan<int>> shapes = info.drawing.shapes();
 
     curves.ensure_evaluated_lengths();
 
