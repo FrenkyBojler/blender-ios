@@ -1,2 +1,3 @@
 Referenced by issue #154036, Crash Toggling Boolean Attribute on mesh created by Node Tools
 Referenced by issue #154046, Select linked all in edit mode crash.
+Referenced by issue #154049, Blender Crashes When Adjusting “Triangles to Quads” Redo Panel Settings with All Faces Selected on a Specific Mesh
