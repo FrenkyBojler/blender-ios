@@ -943,7 +943,7 @@ static void blf_font_boundbox_ex(FontBLF *font,
 
   ShapingData text(font, gc, str, str_len);
 
-	r_box->xmin = 0;
+  r_box->xmin = 0;
   r_box->xmax = ft_pix_to_int(text.width);
   r_box->ymin = ft_pix_to_int(pen_y);
   r_box->ymax = ft_pix_to_int(pen_y + text.height);
