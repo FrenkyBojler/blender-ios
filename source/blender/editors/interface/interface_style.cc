@@ -29,13 +29,15 @@
 
 #include "interface_intern.hh"
 
+namespace blender {
+
 #ifdef WIN32
 #  include "BLI_math_base.h" /* M_PI */
 #endif
 
 static CLG_LogRef LOG = {"ui.font"};
 
-namespace blender::ui {
+namespace ui {
 
 static void fontstyle_set_ex(const uiFontStyle *fs, const float dpi_fac);
 
@@ -60,7 +62,7 @@ static void fontstyle_set_ex(const uiFontStyle *fs, const float dpi_fac);
 
 static uiStyle *ui_style_new(ListBaseT<uiStyle> *styles, const char *name, short uifont_id)
 {
-  uiStyle *style = MEM_callocN<uiStyle>(__func__);
+  uiStyle *style = MEM_new_zeroed<uiStyle>(__func__);
 
   BLI_addtail(styles, style);
   STRNCPY_UTF8(style->name, name);
@@ -486,7 +488,7 @@ void style_init()
 
   /* default builtin */
   if (font_first == nullptr) {
-    font_first = MEM_callocN<uiFont>(__func__);
+    font_first = MEM_new_zeroed<uiFont>(__func__);
     BLI_addtail(&U.uifonts, font_first);
   }
 
@@ -607,4 +609,5 @@ void fontstyle_set(const uiFontStyle *fs)
   fontstyle_set_ex(fs, UI_SCALE_FAC);
 }
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender

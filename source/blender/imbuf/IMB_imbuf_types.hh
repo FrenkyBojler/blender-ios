@@ -15,17 +15,19 @@
 
 #include "IMB_imbuf_enums.h"
 
+namespace blender {
+
 struct ColormanageCache;
 struct ExrHandle;
-namespace blender::gpu {
+namespace gpu {
 class Texture;
 }
 struct IDProperty;
 
-namespace blender::ocio {
+namespace ocio {
 class ColorSpace;
 }
-using ColorSpace = blender::ocio::ColorSpace;
+using ColorSpace = ocio::ColorSpace;
 
 #define IMB_FILEPATH_SIZE 1024
 
@@ -72,6 +74,9 @@ using ColorSpace = blender::ocio::ColorSpace;
 #define TIF_COMPRESS_DEFLATE (1 << 6)
 #define TIF_COMPRESS_LZW (1 << 5)
 #define TIF_COMPRESS_PACKBITS (1 << 4)
+
+#define AVIF_10BIT (1 << 8)
+#define AVIF_12BIT (1 << 9)
 
 struct ImbFormatOptions {
   short flag = 0;
@@ -133,7 +138,7 @@ enum ImBufOwnership {
   IB_DO_NOT_TAKE_OWNERSHIP = 0,
 
   /**
-   * The ImBuf takes ownership of the buffer data, and will use MEM_freeN() to free this memory
+   * The ImBuf takes ownership of the buffer data, and will use MEM_delete() to free this memory
    * when the ImBuf needs to free the data.
    */
   IB_TAKE_OWNERSHIP = 1,
@@ -183,7 +188,7 @@ struct ImBufGPU {
    * TODO(@sergey): This should become a list of textures, to support having high-res ImBuf on GPU
    * without hitting hardware limitations.
    */
-  blender::gpu::Texture *texture = nullptr;
+  gpu::Texture *texture = nullptr;
 };
 
 /** \} */
@@ -364,3 +369,5 @@ enum {
 };
 
 /** \} */
+
+}  // namespace blender

@@ -87,7 +87,8 @@ static VectorSet<Strip *> query_snap_sources_preview(const Scene *scene)
 
 static int cmp_fn(const void *a, const void *b)
 {
-  return round_fl_to_int((*(float2 *)a)[0] - (*(float2 *)b)[0]);
+  return round_fl_to_int((*static_cast<float2 *>(const_cast<void *>(a)))[0] -
+                         (*static_cast<float2 *>(const_cast<void *>(b)))[0]);
 }
 
 static void points_build_sources_timeline_strips(const Scene *scene,
@@ -124,7 +125,7 @@ static void points_build_sources_timeline_retiming(
     const Map<SeqRetimingKey *, Strip *> &retiming_selection)
 {
   for (auto item : retiming_selection.items()) {
-    const int key_frame = seq::retiming_key_timeline_frame_get(scene, item.value, item.key);
+    const int key_frame = seq::retiming_key_frame_get(scene, item.value, item.key);
     snap_data->source_snap_points.append(float2(key_frame));
   }
 
@@ -204,7 +205,7 @@ static VectorSet<Strip *> query_snap_targets_timeline(Scene *scene,
                                                       const Span<Strip *> snap_sources,
                                                       const bool exclude_selected)
 {
-  Editing *ed = seq::editing_get(scene);
+  Editing *ed = seq::editing_ensure(scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
   const short snap_flag = seq::tool_settings_snap_flag_get(scene);
@@ -271,7 +272,7 @@ static Map<SeqRetimingKey *, Strip *> visible_retiming_keys_get(const Scene *sce
 
   for (Strip *strip : snap_strip_targets) {
     for (SeqRetimingKey &key : seq::retiming_keys_get(strip)) {
-      const int key_frame = seq::retiming_key_timeline_frame_get(scene, strip, &key);
+      const int key_frame = seq::retiming_key_frame_get(scene, strip, &key);
       if (strip->intersects_frame(scene, key_frame)) {
         visible_keys.add(&key, strip);
       }
@@ -299,7 +300,7 @@ static void points_build_targets_timeline(const Scene *scene,
   if (snap_mode & SEQ_SNAP_TO_FRAME_RANGE) {
     snap_data->target_snap_points.append(float2(PSFRA));
     snap_data->target_snap_points.append(float2(PEFRA + 1));
-    /* Also snap to metastrip display range if we are in a metastrip. */
+    /* Also snap to meta-strip display range if we are in a meta-strip. */
     MetaStack *ms = seq::meta_stack_active_get(seq::editing_get(scene));
     if (ms != nullptr) {
       snap_data->target_snap_points.append(float2(ms->disp_range[0]));
@@ -332,7 +333,7 @@ static void points_build_targets_timeline(const Scene *scene,
   Map retiming_key_targets = visible_retiming_keys_get(scene, strip_targets);
   if (snap_mode & SEQ_SNAP_TO_RETIMING) {
     for (auto item : retiming_key_targets.items()) {
-      const int key_frame = seq::retiming_key_timeline_frame_get(scene, item.value, item.key);
+      const int key_frame = seq::retiming_key_frame_get(scene, item.value, item.key);
       snap_data->target_snap_points.append(float2(key_frame));
     }
   }
@@ -390,17 +391,17 @@ static void points_build_3x3_grid(const Scene *scene, TransSeqSnapData *snap_dat
   }
 
   /* Middle top, bottom and center of the image. */
-  const float2 tm = blender::math::interpolate(strip_image_quad[0], strip_image_quad[3], 0.5f);
-  const float2 bm = blender::math::interpolate(strip_image_quad[1], strip_image_quad[2], 0.5f);
-  const float2 mm = blender::math::interpolate(bm, tm, 0.5f);
+  const float2 tm = math::interpolate(strip_image_quad[0], strip_image_quad[3], 0.5f);
+  const float2 bm = math::interpolate(strip_image_quad[1], strip_image_quad[2], 0.5f);
+  const float2 mm = math::interpolate(bm, tm, 0.5f);
   snap_data->target_snap_points.append(tm);
   snap_data->target_snap_points.append(mm);
   snap_data->target_snap_points.append(bm);
   /* Left and right. */
   snap_data->target_snap_points.append(
-      blender::math::interpolate(strip_image_quad[2], strip_image_quad[3], 0.5f));
+      math::interpolate(strip_image_quad[2], strip_image_quad[3], 0.5f));
   snap_data->target_snap_points.append(
-      blender::math::interpolate(strip_image_quad[0], strip_image_quad[1], 0.5f));
+      math::interpolate(strip_image_quad[0], strip_image_quad[1], 0.5f));
 }
 
 static void points_build_targets_preview_origin(const Scene *scene,
@@ -570,7 +571,7 @@ static bool snap_calc_preview_origin(TransInfo *t, const TransSeqSnapData *snap_
       /* First update snaps in x direction, then y direction. */
       const float2 transformed_point(snap_source_point.x + t->values[0],
                                      snap_source_point.y + t->values[1]);
-      const float dist = blender::math::distance(snap_target_point, transformed_point);
+      const float dist = math::distance(snap_target_point, transformed_point);
       if (dist > best_dist) {
         continue;
       }

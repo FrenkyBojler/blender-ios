@@ -48,9 +48,11 @@
 
 #include "WM_api.hh"
 
-using blender::nodes::NodeDeclaration;
+namespace blender {
 
-namespace blender::ed::space_node {
+using nodes::NodeDeclaration;
+
+namespace ed::space_node {
 
 /************************* Node Socket Manipulation **************************/
 
@@ -81,7 +83,7 @@ static void node_link_item_init(NodeLinkItem &item)
 static bool node_link_item_compare(bNode *node, NodeLinkItem *item)
 {
   if (node->is_group()) {
-    return (node->id == (ID *)item->ngroup);
+    return (node->id == id_cast<ID *>(item->ngroup));
   }
   return true;
 }
@@ -89,7 +91,7 @@ static bool node_link_item_compare(bNode *node, NodeLinkItem *item)
 static void node_link_item_apply(bNodeTree *ntree, bNode *node, NodeLinkItem *item)
 {
   if (node->is_group()) {
-    node->id = (ID *)item->ngroup;
+    node->id = id_cast<ID *>(item->ngroup);
     BKE_ntree_update_tag_node_property(ntree, node);
   }
   else {
@@ -158,7 +160,7 @@ static void node_remove_linked(Main *bmain, bNodeTree *ntree, bNode *rem_node)
   }
 
   /* remove nodes */
-  for (node = (bNode *)ntree->nodes.first; node; node = next) {
+  for (node = static_cast<bNode *>(ntree->nodes.first); node; node = next) {
     next = node->next;
 
     if (node->flag & NODE_TEST) {
@@ -218,7 +220,9 @@ static void node_socket_add_replace(const bContext *C,
   }
 
   /* find existing node that we can use */
-  for (node_from = (bNode *)ntree->nodes.first; node_from; node_from = node_from->next) {
+  for (node_from = static_cast<bNode *>(ntree->nodes.first); node_from;
+       node_from = node_from->next)
+  {
     if (node_from->type_legacy == type) {
       break;
     }
@@ -244,7 +248,8 @@ static void node_socket_add_replace(const bContext *C,
       node_from->location[1] = node_prev->location[1];
     }
     else {
-      sock_from_tmp = (bNodeSocket *)BLI_findlink(&node_from->outputs, item->socket_index);
+      sock_from_tmp = static_cast<bNodeSocket *>(
+          BLI_findlink(&node_from->outputs, item->socket_index));
       bke::node_position_relative(*node_from, *node_to, sock_from_tmp, *sock_to);
     }
 
@@ -255,7 +260,8 @@ static void node_socket_add_replace(const bContext *C,
   bke::node_set_active(*ntree, *node_from);
 
   /* add link */
-  sock_from_tmp = (bNodeSocket *)BLI_findlink(&node_from->outputs, item->socket_index);
+  sock_from_tmp = static_cast<bNodeSocket *>(
+      BLI_findlink(&node_from->outputs, item->socket_index));
   bke::node_add_link(*ntree, *node_from, *sock_from_tmp, *node_to, *sock_to);
   sock_to->flag &= ~SOCK_COLLAPSED;
 
@@ -363,11 +369,10 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
     }
   }
   else if (arg->node_type->declare != nullptr) {
-    using namespace blender;
     using namespace blender::nodes;
 
     r_node_decl.emplace(NodeDeclaration());
-    blender::nodes::build_node_declaration(*arg->node_type, *r_node_decl, nullptr, nullptr);
+    nodes::build_node_declaration(*arg->node_type, *r_node_decl, nullptr, nullptr);
     Span<SocketDeclaration *> socket_decls = (in_out == SOCK_IN) ? r_node_decl->inputs :
                                                                    r_node_decl->outputs;
     int index = 0;
@@ -405,7 +410,7 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
 
 static void ui_node_link(bContext *C, void *arg_p, void *event_p)
 {
-  NodeLinkArg *arg = (NodeLinkArg *)arg_p;
+  NodeLinkArg *arg = static_cast<NodeLinkArg *>(arg_p);
   Main *bmain = arg->bmain;
   bNode *node_to = arg->node;
   bNodeSocket *sock_to = arg->sock;
@@ -459,8 +464,8 @@ static int ui_compatible_sockets(int typeA, int typeB)
 
 static int ui_node_item_name_compare(const void *a, const void *b)
 {
-  const bke::bNodeType *type_a = *(const bke::bNodeType **)a;
-  const bke::bNodeType *type_b = *(const bke::bNodeType **)b;
+  const bke::bNodeType *type_a = *static_cast<const bke::bNodeType **>(const_cast<void *>(a));
+  const bke::bNodeType *type_b = *static_cast<const bke::bNodeType **>(const_cast<void *>(b));
   return BLI_strcasecmp_natural(type_a->ui_name.c_str(), type_b->ui_name.c_str());
 }
 
@@ -491,7 +496,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
   /* generate array of node types sorted by UI name */
   Vector<bke::bNodeType *> sorted_ntypes;
 
-  for (blender::bke::bNodeType *ntype : blender::bke::node_types_get()) {
+  for (bke::bNodeType *ntype : bke::node_types_get()) {
     const char *disabled_hint;
     if (!(ntype->poll && ntype->poll(ntype, ntree, &disabled_hint))) {
       continue;
@@ -523,7 +528,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 
     arg->node_type = ntype;
 
-    std::optional<blender::nodes::NodeDeclaration> node_decl;
+    std::optional<nodes::NodeDeclaration> node_decl;
     Vector<NodeLinkItem> items = ui_node_link_items(arg, SOCK_OUT, node_decl);
 
     for (const NodeLinkItem &item : items) {
@@ -584,7 +589,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
                              nullptr,
                              TIP_("Add node to input"));
 
-      argN = (NodeLinkArg *)MEM_dupallocN(arg);
+      argN = MEM_dupalloc(arg);
       argN->item = item;
       button_funcN_set(but, ui_node_link, argN, nullptr);
     }
@@ -593,7 +598,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 
 static void node_menu_column_foreach_cb(void *calldata, int nclass, const StringRefNull name)
 {
-  NodeLinkArg *arg = (NodeLinkArg *)calldata;
+  NodeLinkArg *arg = static_cast<NodeLinkArg *>(calldata);
 
   if (!ELEM(nclass, NODE_CLASS_GROUP, NODE_CLASS_LAYOUT)) {
     ui_node_menu_column(arg, nclass, name.c_str());
@@ -605,9 +610,9 @@ static void ui_template_node_link_menu(bContext *C, ui::Layout *layout, void *bu
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ui::Block *block = layout->block();
-  ui::Button *but = (ui::Button *)but_p;
+  ui::Button *but = static_cast<ui::Button *>(but_p);
   ui::Layout *split, *column;
-  NodeLinkArg *arg = (NodeLinkArg *)but->func_argN;
+  NodeLinkArg *arg = static_cast<NodeLinkArg *>(but->func_argN);
   bNodeSocket *sock = arg->sock;
   bke::bNodeTreeType *ntreetype = arg->ntree->typeinfo;
 
@@ -641,7 +646,7 @@ static void ui_template_node_link_menu(bContext *C, ui::Layout *layout, void *bu
                    0.0,
                    0.0,
                    TIP_("Remove nodes connected to the input"));
-    button_funcN_set(but, ui_node_link, MEM_dupallocN(arg), POINTER_FROM_INT(UI_NODE_LINK_REMOVE));
+    button_funcN_set(but, ui_node_link, MEM_dupalloc(arg), POINTER_FROM_INT(UI_NODE_LINK_REMOVE));
 
     but = uiDefBut(block,
                    ui::ButtonType::But,
@@ -655,34 +660,34 @@ static void ui_template_node_link_menu(bContext *C, ui::Layout *layout, void *bu
                    0.0,
                    TIP_("Disconnect nodes connected to the input"));
     button_funcN_set(
-        but, ui_node_link, MEM_dupallocN(arg), POINTER_FROM_INT(UI_NODE_LINK_DISCONNECT));
+        but, ui_node_link, MEM_dupalloc(arg), POINTER_FROM_INT(UI_NODE_LINK_DISCONNECT));
   }
 
   ui_node_menu_column(arg, NODE_CLASS_GROUP, N_("Group"));
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
 
 void uiTemplateNodeLink(
-    blender::ui::Layout *layout, bContext *C, bNodeTree *ntree, bNode *node, bNodeSocket *input)
+    ui::Layout *layout, bContext *C, bNodeTree *ntree, bNode *node, bNodeSocket *input)
 {
   using namespace blender::ed::space_node;
 
-  blender::ui::Block *block = layout->block();
+  ui::Block *block = layout->block();
   NodeLinkArg *arg;
-  blender::ui::Button *but;
+  ui::Button *but;
   float socket_col[4];
 
-  arg = MEM_callocN<NodeLinkArg>("NodeLinkArg");
+  arg = MEM_new_zeroed<NodeLinkArg>("NodeLinkArg");
   arg->ntree = ntree;
   arg->node = node;
   arg->sock = input;
   node_link_item_init(arg->item);
 
-  PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree->id, &RNA_Node, node);
+  PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree->id, RNA_Node, node);
   node_socket_color_get(*C, *ntree, node_ptr, *input, socket_col);
 
-  blender::ui::block_layout_set_current(block, layout);
+  ui::block_layout_set_current(block, layout);
 
   if (input->link || input->type == SOCK_SHADER || (input->flag & SOCK_HIDE_VALUE)) {
     char name[UI_MAX_NAME_STR];
@@ -697,16 +702,16 @@ void uiTemplateNodeLink(
 
   button_type_set_menu_from_pulldown(but);
   button_node_link_set(but, input, socket_col);
-  button_drawflag_enable(but, blender::ui::BUT_ICON_LEFT);
+  button_drawflag_enable(but, ui::BUT_ICON_LEFT);
 
-  but->poin = (char *)but;
+  but->poin = reinterpret_cast<char *>(but);
   but->func_argN = arg;
-  but->func_argN_free_fn = MEM_freeN;
-  but->func_argN_copy_fn = MEM_dupallocN;
+  but->func_argN_free_fn = MEM_delete_void;
+  but->func_argN_copy_fn = MEM_dupalloc_void;
 
   if (input->link && input->link->fromnode) {
     if (input->link->fromnode->flag & NODE_ACTIVE_TEXTURE) {
-      but->flag |= blender::ui::BUT_NODE_ACTIVE;
+      but->flag |= ui::BUT_NODE_ACTIVE;
     }
   }
 
@@ -715,7 +720,7 @@ void uiTemplateNodeLink(
   }
 }
 
-namespace blender::ed::space_node {
+namespace ed::space_node {
 
 /**************************** Node Tree Layout *******************************/
 
@@ -745,7 +750,7 @@ static void ui_node_draw_recursive(ui::Layout &layout,
     panel_layout.header->use_property_split_set(false);
     panel_layout.header->use_property_decorate_set(false);
     PointerRNA toggle_ptr = RNA_pointer_create_discrete(
-        &ntree.id, &RNA_NodeSocket, &node.socket_by_decl(*panel_toggle_decl));
+        &ntree.id, RNA_NodeSocket, &node.socket_by_decl(*panel_toggle_decl));
     panel_layout.header->prop(&toggle_ptr,
                               "default_value",
                               UI_ITEM_NONE,
@@ -772,8 +777,8 @@ static void ui_node_draw_recursive(ui::Layout &layout,
             ntree,
             node,
             socket,
-            RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node),
-            RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, &socket)};
+            RNA_pointer_create_discrete(&ntree.id, RNA_Node, &node),
+            RNA_pointer_create_discrete(&ntree.id, RNA_NodeSocket, &socket)};
         (*socket_decl->custom_draw_fn)(params);
       }
       else if (socket_decl->in_out == SOCK_IN) {
@@ -786,7 +791,7 @@ static void ui_node_draw_recursive(ui::Layout &layout,
       ui_node_draw_recursive(*panel_layout.body, C, ntree, node, *sub_panel_decl, depth + 1);
     }
     else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl)) {
-      PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
+      PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, RNA_Node, &node);
       layout_decl->draw(*panel_layout.body, &C, &nodeptr);
     }
   }
@@ -795,7 +800,7 @@ static void ui_node_draw_recursive(ui::Layout &layout,
 static void ui_node_draw_node(
     ui::Layout &layout, bContext &C, bNodeTree &ntree, bNode &node, int depth)
 {
-  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
+  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, RNA_Node, &node);
 
   /* Draw top-level node buttons. */
   if (node.typeinfo->draw_buttons) {
@@ -821,8 +826,8 @@ static void ui_node_draw_node(
               ntree,
               node,
               socket,
-              RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node),
-              RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, &socket)};
+              RNA_pointer_create_discrete(&ntree.id, RNA_Node, &node),
+              RNA_pointer_create_discrete(&ntree.id, RNA_NodeSocket, &socket)};
           (*socket_decl->custom_draw_fn)(params);
         }
         else if (socket_decl->in_out == SOCK_IN) {
@@ -832,7 +837,7 @@ static void ui_node_draw_node(
       else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl))
       {
         if (!layout_decl->is_default) {
-          PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
+          PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, RNA_Node, &node);
           layout_decl->draw(layout, &C, &nodeptr);
         }
       }
@@ -872,8 +877,8 @@ static void ui_node_draw_input(ui::Layout &layout,
   }
 
   /* socket RNA pointer */
-  PointerRNA inputptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, &input);
-  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
+  PointerRNA inputptr = RNA_pointer_create_discrete(&ntree.id, RNA_NodeSocket, &input);
+  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, RNA_Node, &node);
 
   row = &layout.row(true);
 
@@ -970,7 +975,7 @@ static void ui_node_draw_input(ui::Layout &layout,
           }
           break;
         case SOCK_STRING: {
-          const bNodeTree *node_tree = (const bNodeTree *)nodeptr.owner_id;
+          const bNodeTree *node_tree = id_cast<const bNodeTree *>(nodeptr.owner_id);
           SpaceNode *snode = CTX_wm_space_node(&C);
           if (node_tree->type == NTREE_GEOMETRY && snode != nullptr) {
             /* Only add the attribute search in the node editor, in other places there is not
@@ -1004,10 +1009,10 @@ static void ui_node_draw_input(ui::Layout &layout,
   node.flag &= ~NODE_TEST;
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
 
 void uiTemplateNodeView(
-    blender::ui::Layout *layout, bContext *C, bNodeTree *ntree, bNode *node, bNodeSocket *input)
+    ui::Layout *layout, bContext *C, bNodeTree *ntree, bNode *node, bNodeSocket *input)
 {
   using namespace blender::ed::space_node;
 
@@ -1028,3 +1033,5 @@ void uiTemplateNodeView(
     ui_node_draw_node(*layout, *C, *ntree, *node, 0);
   }
 }
+
+}  // namespace blender

@@ -24,6 +24,13 @@ set(LIB
 
 )
 
+function(cuda_get_version out_version)
+  execute_process(COMMAND ${CUDA_NVCC_EXECUTABLE} "--version" OUTPUT_VARIABLE NVCC_OUT)
+  string(REGEX REPLACE ".*release ([0-9]+)\\.([0-9]+).*" "\\1" CUDA_VERSION_MAJOR "${NVCC_OUT}")
+  string(REGEX REPLACE ".*release ([0-9]+)\\.([0-9]+).*" "\\2" CUDA_VERSION_MINOR "${NVCC_OUT}")
+  set(${out_version} "${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}" PARENT_SCOPE)
+endfunction()
+
 function(cuda_add_common_flags cuda_version arch in_flags out_flags)
   set(flags ${in_flags})
 
@@ -69,10 +76,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
   set(CUDA_BITS 64)
 
   # CUDA version
-  execute_process(COMMAND ${CUDA_NVCC_EXECUTABLE} "--version" OUTPUT_VARIABLE NVCC_OUT)
-  string(REGEX REPLACE ".*release ([0-9]+)\\.([0-9]+).*" "\\1" CUDA_VERSION_MAJOR "${NVCC_OUT}")
-  string(REGEX REPLACE ".*release ([0-9]+)\\.([0-9]+).*" "\\2" CUDA_VERSION_MINOR "${NVCC_OUT}")
-  set(CUDA_VERSION "${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}")
+  cuda_get_version(CUDA_VERSION)
 
   # warn for other versions
   if((CUDA_VERSION STREQUAL "101") OR
@@ -90,7 +94,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
     ${SRC_KERNEL_DEVICE_CUDA_HEADERS}
     $<TARGET_PROPERTY:cycles_kernel,INTERFACE_SOURCES>
   )
-  set(cuda_cubins)
+  set(cuda_cubins "")
 
   macro(CYCLES_CUDA_KERNEL_ADD arch prev_arch name flags sources experimental)
     if(${arch} MATCHES "compute_.*")
@@ -116,6 +120,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
       -D CCL_NAMESPACE_BEGIN=
       -D CCL_NAMESPACE_END=
       -D NVCC
+      -D _ALLOW_COMPILER_AND_STL_VERSION_MISMATCH
       -m ${CUDA_BITS}
       -I ${CMAKE_CURRENT_SOURCE_DIR}/../../..
       -o ${CMAKE_CURRENT_BINARY_DIR}/${cuda_file})
@@ -150,8 +155,6 @@ if(WITH_CYCLES_CUDA_BINARIES)
     unset(_cuda_nvcc_args)
     delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${cuda_file_compressed}" ${CYCLES_INSTALL_PATH}/lib)
     list(APPEND cuda_cubins ${cuda_file_compressed})
-
-    unset(cuda_debug_flags)
   endmacro()
 
   set(prev_arch "none")

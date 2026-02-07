@@ -135,12 +135,12 @@ void USDCurvesReader::create_object(Main *bmain)
   Curves *curve = BKE_curves_add(bmain, name_.c_str());
 
   object_ = BKE_object_add_only_object(bmain, OB_CURVES, name_.c_str());
-  object_->data = curve;
+  object_->data = id_cast<ID *>(curve);
 }
 
 void USDCurvesReader::read_object_data(Main *bmain, pxr::UsdTimeCode time)
 {
-  Curves *cu = (Curves *)object_->data;
+  Curves *cu = id_cast<Curves *>(object_->data);
   this->read_curve_sample(cu, time);
 
   if (this->is_animated()) {
@@ -272,12 +272,14 @@ void USDBasisCurvesReader::read_curve_sample(Curves *curves_id, const pxr::UsdTi
   curves.fill_curve_types(curve_type);
 
   if (is_cyclic) {
-    curves.cyclic_for_write().fill(true);
+    curves.attributes_for_write().add<bool>(
+        "cyclic", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
   }
 
   if (curve_type == CURVE_TYPE_NURBS) {
     const int8_t curve_order = type == pxr::UsdGeomTokens->cubic ? 4 : 2;
-    curves.nurbs_orders_for_write().fill(curve_order);
+    curves.attributes_for_write().add<int8_t>(
+        "nurbs_order", bke::AttrDomain::Curve, bke::AttributeInitValue(curve_order));
   }
 
   MutableSpan<float3> positions = curves.positions_for_write();

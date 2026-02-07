@@ -21,6 +21,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 /* de-duplicate as we pack */
 #define USE_MERGE
 /* use strip-free */
@@ -218,8 +220,8 @@ static int vertex_sort(const void *p1, const void *p2, void *vs_ctx_p)
   const BoxVert *v1, *v2;
   float a1, a2;
 
-  v1 = &vs_ctx->vertarray[*((const uint *)p1)];
-  v2 = &vs_ctx->vertarray[*((const uint *)p2)];
+  v1 = &vs_ctx->vertarray[*(static_cast<const uint *>(p1))];
+  v2 = &vs_ctx->vertarray[*(static_cast<const uint *>(p2))];
 
 #ifdef USE_FREE_STRIP
   /* push free verts to the end so we can strip */
@@ -280,8 +282,8 @@ void BLI_box_pack_2d(
   }
 
   /* Add verts to the boxes, these are only used internally. */
-  vert = MEM_malloc_arrayN<BoxVert>(4 * size_t(len), "BoxPack Verts");
-  vertex_pack_indices = MEM_malloc_arrayN<uint>(3 * size_t(len), "BoxPack Indices");
+  vert = MEM_new_array_uninitialized<BoxVert>(4 * size_t(len), "BoxPack Verts");
+  vertex_pack_indices = MEM_new_array_uninitialized<uint>(3 * size_t(len), "BoxPack Indices");
 
   vs_ctx.vertarray = vert;
 
@@ -642,8 +644,8 @@ void BLI_box_pack_2d(
     box = boxarray + box_index;
     box->v[0] = box->v[1] = box->v[2] = box->v[3] = nullptr;
   }
-  MEM_freeN(vertex_pack_indices);
-  MEM_freeN(vs_ctx.vertarray);
+  MEM_delete(vertex_pack_indices);
+  MEM_delete(vs_ctx.vertarray);
 }
 
 void BLI_box_pack_2d_fixedarea(ListBaseT<FixedSizeBoxPack> *boxes,
@@ -652,7 +654,7 @@ void BLI_box_pack_2d_fixedarea(ListBaseT<FixedSizeBoxPack> *boxes,
                                ListBaseT<FixedSizeBoxPack> *packed)
 {
   ListBaseT<FixedSizeBoxPack> spaces = {nullptr};
-  FixedSizeBoxPack *full_rect = MEM_callocN<FixedSizeBoxPack>(__func__);
+  FixedSizeBoxPack *full_rect = MEM_new_zeroed<FixedSizeBoxPack>(__func__);
   full_rect->w = width;
   full_rect->h = height;
 
@@ -680,7 +682,7 @@ void BLI_box_pack_2d_fixedarea(ListBaseT<FixedSizeBoxPack> *boxes,
       if (box.w == space.w && box.h == space.h) {
         /* Box exactly fills space, so just remove the space. */
         BLI_remlink(&spaces, &space);
-        MEM_freeN(&space);
+        MEM_delete(&space);
       }
       else if (box.w == space.w) {
         /* Box fills the entire width, so we can just contract the box
@@ -714,7 +716,7 @@ void BLI_box_pack_2d_fixedarea(ListBaseT<FixedSizeBoxPack> *boxes,
 
         /* Perform split. This space becomes the larger space,
          * while the new smaller space is inserted _before_ it. */
-        FixedSizeBoxPack *new_space = MEM_callocN<FixedSizeBoxPack>(__func__);
+        FixedSizeBoxPack *new_space = MEM_new_zeroed<FixedSizeBoxPack>(__func__);
         if (area_hsplit_large > area_vsplit_large) {
           new_space->x = space.x + box.w;
           new_space->y = space.y;
@@ -742,3 +744,5 @@ void BLI_box_pack_2d_fixedarea(ListBaseT<FixedSizeBoxPack> *boxes,
 
   BLI_freelistN(&spaces);
 }
+
+}  // namespace blender

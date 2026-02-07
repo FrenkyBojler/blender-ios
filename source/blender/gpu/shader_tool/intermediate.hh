@@ -40,11 +40,8 @@
 
 namespace blender::gpu::shader::parser {
 
-/* Structure holding an intermediate form of the source code.
- * It is made for fast traversal and mutation of source code. */
-struct IntermediateForm {
- private:
-  TokenStream data_;
+struct MutableString {
+  std::string str_;
 
   struct Mutation {
     /* Range of the original string to replace. */
@@ -55,6 +52,8 @@ struct IntermediateForm {
     Mutation(IndexRange src_range, std::string replacement)
         : src_range(src_range), replacement(replacement)
     {
+      assert(src_range.size >= 0);
+      assert(src_range.start >= 0);
     }
 
     /* Define operator in order to sort the mutation by starting position.
@@ -66,34 +65,35 @@ struct IntermediateForm {
   };
   std::vector<Mutation> mutations_;
 
-  report_callback &report_error;
+  MutableString(const std::string_view input) : str_(input) {}
 
- public:
-  IntermediateForm(const std::string &input, report_callback &report_error)
-      : report_error(report_error)
-  {
-    data_.str = input;
-    parse(report_error);
-  }
-
-  /* Main access operator. Returns the root scope (aka global scope). */
-  Scope operator()() const
-  {
-    if (data_.scope_types.empty()) {
-      return Scope::invalid();
-    }
-    return Scope::from_position(&data_, 0);
-  }
+  /* Disable copy construction and assignment. */
+  MutableString(const MutableString &other) = delete;
+  MutableString &operator=(const MutableString &other) = delete;
+  /* Explicitly enable default construction, move construction and move assignment. */
+  MutableString(MutableString &&other) = default;
+  MutableString &operator=(MutableString &&other) = default;
 
   /* Access internal string without applying pending mutations. */
   std::string substr_range_inclusive(size_t start, size_t end)
   {
-    return data_.str.substr(start, end - start + 1);
+    return str_.substr(start, end - start + 1);
   }
   /* Access internal string without applying pending mutations. */
   std::string substr_range_inclusive(Token start, Token end)
   {
     return substr_range_inclusive(start.str_index_start(), end.str_index_last());
+  }
+
+  /* Access internal string without applying pending mutations. */
+  std::string_view substr_range_inclusive_view(size_t start, size_t end)
+  {
+    return std::string_view(str_).substr(start, end - start + 1);
+  }
+  /* Access internal string without applying pending mutations. */
+  std::string_view substr_range_inclusive_view(Token start, Token end)
+  {
+    return substr_range_inclusive_view(start.str_index_start(), end.str_index_last());
   }
 
   /* Replace everything from `from` to `to` (inclusive).
@@ -125,9 +125,15 @@ struct IntermediateForm {
   /* Replace everything from `from` to `to` (inclusive). */
   void replace(size_t from, size_t to, const std::string &replacement)
   {
+#ifndef NDEBUG
     bool success = replace_try(from, to, replacement);
     assert(success);
     (void)success;
+#else
+    /* No check in release. */
+    IndexRange range = IndexRange(from, to + 1 - from);
+    mutations_.emplace_back(range, replacement);
+#endif
   }
   /* Replace everything from `from` to `to` (inclusive). */
   void replace(Token from,
@@ -170,7 +176,7 @@ struct IntermediateForm {
   void erase(size_t from, size_t to)
   {
     IndexRange range = IndexRange(from, to + 1 - from);
-    std::string content = data_.str.substr(range.start, range.size);
+    std::string content = str_.substr(range.start, range.size);
     size_t lines = std::count(content.begin(), content.end(), '\n');
     size_t spaces = content.find_last_of("\n");
     if (spaces != std::string::npos) {
@@ -248,45 +254,22 @@ struct IntermediateForm {
   void insert_directive(Token at, const std::string directive)
   {
     insert_after(at, "\n" + directive + "\n");
-    std::string content = at.str_with_whitespace();
+    std::string_view content = at.str_view_with_whitespace();
     size_t lines = std::count(content.begin(), content.end(), '\n');
     insert_line_number(at, at.line_number() + lines);
-    size_t line_break = data_.str.find_last_of("\n", at.str_index_last() + 1);
+    size_t line_break = str_.find_last_of("\n", at.str_index_last() + 1);
     size_t spaces = at.str_index_last() - line_break;
     insert_after(at, std::string(spaces, ' '));
   }
 
-  /* Return true if any mutation was applied. */
-  bool only_apply_mutations();
-
-  /* Apply pending mutation and parse the resulting string.
-   * Return true if any mutation was applied. */
-  bool apply_mutations()
-  {
-    bool applied = only_apply_mutations();
-    if (applied) {
-      this->parse(report_error);
-    }
-    return applied;
-  }
-
-  /* Apply mutations if any and get resulting string. */
-  const std::string &result_get()
-  {
-    only_apply_mutations();
-    return data_.str;
-  }
+  /* Return true if any mutation was applied.
+   * Update lexer string view if needed. */
+  bool apply_mutations(LexerBase &lexer, const bool all_mutation_ordered = false);
 
   /* Get internal string. Does not apply pending mutation. */
   const std::string &str()
   {
-    return data_.str;
-  }
-
-  /* For testing. */
-  const TokenStream &data_get()
-  {
-    return data_;
+    return str_;
   }
 
   /* For testing. */
@@ -299,45 +282,81 @@ struct IntermediateForm {
       out += " - ";
       out += std::to_string(mut.src_range.size);
       out += " \"";
-      out += data_.str.substr(mut.src_range.start, mut.src_range.size);
+      out += str_.substr(mut.src_range.start, mut.src_range.size);
       out += "\" by \"";
       out += mut.replacement;
       out += "\"\n";
     }
     return out;
   }
+};
 
- private:
-  TimeIt::Duration tokenize_time;
-  TimeIt::Duration parse_scope_time;
+/* Structure holding an intermediate form of the source code.
+ * It is made for fast traversal and mutation of source code. */
+template<typename LexerClass, typename ParserClass> struct IntermediateForm : MutableString {
+ protected:
+  LexerClass lex_;
+  ParserClass parser_;
+
+  report_callback &report_error;
+
+ public:
+  IntermediateForm(const std::string_view input, report_callback &report_error)
+      : MutableString(input), parser_(lex_), report_error(report_error)
+  {
+    parse(report_error);
+  }
+
+  /* Main access operator. Returns the root scope (aka global scope). */
+  Scope operator()() const
+  {
+    if (parser_.scope_types.empty()) {
+      return Scope::invalid();
+    }
+    return Scope::from_position(parser_, 0);
+  }
+
+  /* Return true if any mutation was applied. */
+  bool only_apply_mutations(const bool all_mutation_ordered = false)
+  {
+    return static_cast<MutableString *>(this)->apply_mutations(lex_, all_mutation_ordered);
+  }
+
+  /* Apply pending mutation and parse the resulting string.
+   * Return true if any mutation was applied. */
+  bool apply_mutations(const bool all_mutation_ordered = false)
+  {
+    bool applied = only_apply_mutations(all_mutation_ordered);
+    if (applied) {
+      parse(report_error);
+    }
+    return applied;
+  }
+
+  /* Apply mutations if any and get resulting string. */
+  const std::string &result_get(const bool all_mutation_ordered = false)
+  {
+    only_apply_mutations(all_mutation_ordered);
+    return str_;
+  }
+
+  /* For testing. */
+  const ParserBase &data_get()
+  {
+    return parser_;
+  }
 
   void parse(report_callback &report_error)
   {
-    {
-      TimeIt time_it(parse_scope_time);
-      data_.tokenize();
-    }
-    {
-      TimeIt time_it(tokenize_time);
-      data_.parse_scopes(report_error);
-    }
-  }
-
- public:
-  void print_stats()
-  {
-    std::cout << "Tokenize time: " << tokenize_time.count() << " µs" << std::endl;
-    std::cout << "Parser time:   " << parse_scope_time.count() << " µs" << std::endl;
-    std::cout << "String len: " << std::to_string(data_.str.size()) << std::endl;
-    std::cout << "Token len:  " << std::to_string(data_.token_types.size()) << std::endl;
-    std::cout << "Scope len:  " << std::to_string(data_.scope_types.size()) << std::endl;
+    lex_.lexical_analysis(str_);
+    parser_.semantic_analysis(report_error);
   }
 
   void debug_print()
   {
-    std::cout << "Input: \n" << data_.str << " \nEnd of Input\n" << std::endl;
-    std::cout << "Token Types: \"" << data_.token_types << "\"" << std::endl;
-    std::cout << "Scope Types: \"" << data_.scope_types << "\"" << std::endl;
+    std::cout << "Input: \n" << str_ << " \nEnd of Input\n" << std::endl;
+    std::cout << "Token Types: \"" << lex_.token_types_str << "\"" << std::endl;
+    std::cout << "Scope Types: \"" << parser_.scope_types_str << "\"" << std::endl;
   }
 };
 

@@ -7,6 +7,7 @@
  */
 
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 #include <sstream>
 
 #include "CLG_log.h"
@@ -25,11 +26,11 @@
 
 #include "BLI_math_matrix_types.hh"
 
-#include "GHOST_C-api.h"
+namespace blender {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-namespace blender::gpu {
+namespace gpu {
 
 void VKExtensions::log() const
 {
@@ -131,11 +132,11 @@ void VKDevice::deinit()
   is_initialized_ = false;
 }
 
-void VKDevice::init(void *ghost_context)
+void VKDevice::init(GHOST_IContext *ghost_context)
 {
   BLI_assert(!is_initialized());
   GHOST_VulkanHandles handles = {};
-  GHOST_GetVulkanHandles((GHOST_ContextHandle)ghost_context, &handles);
+  ghost_context->getVulkanHandles(handles);
   vk_instance_ = handles.instance;
   vk_physical_device_ = handles.physical_device;
   vk_device_ = handles.device;
@@ -557,41 +558,7 @@ void VKDevice::memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb) co
 /** \name Debugging/statistics
  * \{ */
 
-void VKDevice::debug_print(std::ostream &os, const VKDiscardPool &discard_pool)
-{
-  if (discard_pool.images_.is_empty() && discard_pool.buffers_.is_empty() &&
-      discard_pool.image_views_.is_empty() && discard_pool.buffer_views_.is_empty() &&
-      discard_pool.shader_modules_.is_empty() && discard_pool.pipeline_layouts_.is_empty() &&
-      discard_pool.descriptor_pools_.is_empty())
-  {
-    return;
-  }
-  os << "  Discardable resources: ";
-  if (!discard_pool.images_.is_empty()) {
-    os << "VkImage=" << discard_pool.images_.size() << " ";
-  }
-  if (!discard_pool.image_views_.is_empty()) {
-    os << "VkImageView=" << discard_pool.image_views_.size() << " ";
-  }
-  if (!discard_pool.buffers_.is_empty()) {
-    os << "VkBuffer=" << discard_pool.buffers_.size() << " ";
-  }
-  if (!discard_pool.buffer_views_.is_empty()) {
-    os << "VkBufferViews=" << discard_pool.buffer_views_.size() << " ";
-  }
-  if (!discard_pool.shader_modules_.is_empty()) {
-    os << "VkShaderModule=" << discard_pool.shader_modules_.size() << " ";
-  }
-  if (!discard_pool.pipeline_layouts_.is_empty()) {
-    os << "VkPipelineLayout=" << discard_pool.pipeline_layouts_.size() << " ";
-  }
-  if (!discard_pool.descriptor_pools_.is_empty()) {
-    os << "VkDescriptorPool=" << discard_pool.descriptor_pools_.size();
-  }
-  os << "\n";
-}
-
-void VKDevice::debug_print()
+void VKDevice::debug_print() const
 {
   BLI_assert_msg(BLI_thread_is_main(),
                  "VKDevice::debug_print can only be called from the main thread.");
@@ -614,14 +581,14 @@ void VKDevice::debug_print()
     os << " Rendering_depth: " << thread_data->rendering_depth << "\n";
   }
   os << "Discard pool\n";
-  debug_print(os, orphaned_data);
+  os << orphaned_data << "\n";
   os << "Discard pool (render)\n";
-  debug_print(os, orphaned_data_render);
+  os << orphaned_data_render << "\n";
   os << "\n";
 
   for (const std::reference_wrapper<VKContext> &context : contexts_) {
     os << " VKContext \n";
-    debug_print(os, context.get().discard_pool);
+    os << context.get().discard_pool << "\n";
   }
 
   int total_mem_kb;
@@ -632,4 +599,5 @@ void VKDevice::debug_print()
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

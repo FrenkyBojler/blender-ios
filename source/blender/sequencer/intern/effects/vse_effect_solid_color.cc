@@ -17,10 +17,18 @@ namespace blender::seq {
 
 static void init_solid_color(Strip *strip)
 {
-  MEM_SAFE_FREE(strip->effectdata);
-  SolidColorVars *data = MEM_new_for_free<SolidColorVars>("solidcolor");
+  SolidColorVars *data = MEM_new<SolidColorVars>("solidcolor");
   strip->effectdata = data;
   data->col[0] = data->col[1] = data->col[2] = 0.5;
+}
+
+static void free_solid_color(Strip *strip, const bool /*do_id_user*/)
+{
+  if (strip->effectdata) {
+    SolidColorVars *data = static_cast<SolidColorVars *>(strip->effectdata);
+    MEM_delete(data);
+    strip->effectdata = nullptr;
+  }
 }
 
 static int num_inputs_color()
@@ -41,10 +49,9 @@ static ImBuf *do_solid_color(const RenderData *context,
                              ImBuf *ibuf1,
                              ImBuf *ibuf2)
 {
-  using namespace blender;
   ImBuf *out = prepare_effect_imbufs(context, ibuf1, ibuf2);
 
-  SolidColorVars *cv = (SolidColorVars *)strip->effectdata;
+  SolidColorVars *cv = static_cast<SolidColorVars *>(strip->effectdata);
 
   threading::parallel_for(IndexRange(out->y), 64, [&](const IndexRange y_range) {
     if (out->byte_buffer.data) {
@@ -86,6 +93,7 @@ void solid_color_effect_get_handle(EffectHandle &rval)
 {
   rval.init = init_solid_color;
   rval.num_inputs = num_inputs_color;
+  rval.free = free_solid_color;
   rval.early_out = early_out_color;
   rval.execute = do_solid_color;
 }

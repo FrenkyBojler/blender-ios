@@ -13,6 +13,8 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
 
+namespace blender {
+
 struct Depsgraph;
 struct ImBuf;
 struct LinkNode;
@@ -22,7 +24,7 @@ struct Scene;
 struct SeqTimelineChannel;
 struct Strip;
 
-namespace blender::seq {
+namespace seq {
 
 /* Mutable state while rendering one sequencer frame. */
 struct SeqRenderState {
@@ -65,4 +67,13 @@ void seq_imbuf_assign_spaces(const Scene *scene, ImBuf *ibuf);
 
 StripScreenQuad get_strip_screen_quad(const RenderData *context, const Strip *strip);
 
-}  // namespace blender::seq
+void convert_multilayer_ibuf(ImBuf *ibuf);
+bool seq_image_strip_is_multiview_render(const Scene *scene,
+                                         const Strip *strip,
+                                         int totfiles,
+                                         const char *filepath,
+                                         char *r_prefix,
+                                         const char *r_ext);
+
+}  // namespace seq
+}  // namespace blender

@@ -80,7 +80,7 @@ static void createTransCurveVerts(bContext * /*C*/, TransInfo *t)
                                                           NURB_HANDLE_TEST_KNOT_OR_EACH;
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    Curve *cu = static_cast<Curve *>(tc->obedit->data);
+    Curve *cu = id_cast<Curve *>(tc->obedit->data);
     BLI_assert(cu->editnurb != nullptr);
     BezTriple *bezt;
     BPoint *bp;
@@ -152,7 +152,7 @@ static void createTransCurveVerts(bContext * /*C*/, TransInfo *t)
       tc->data_len = countsel;
       data_len_pt = countsel_pt;
     }
-    tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransObData(Curve EditMode)");
+    tc->data = MEM_new_array_zeroed<TransData>(tc->data_len, "TransObData(Curve EditMode)");
 
     t->data_len_all += tc->data_len;
     data_len_all_pt += data_len_pt;
@@ -166,7 +166,7 @@ static void createTransCurveVerts(bContext * /*C*/, TransInfo *t)
       continue;
     }
 
-    Curve *cu = static_cast<Curve *>(tc->obedit->data);
+    Curve *cu = id_cast<Curve *>(tc->obedit->data);
     BezTriple *bezt;
     BPoint *bp;
     int a;
@@ -408,11 +408,11 @@ static void recalcData_curve(TransInfo *t)
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    Curve *cu = static_cast<Curve *>(tc->obedit->data);
+    Curve *cu = id_cast<Curve *>(tc->obedit->data);
     ListBaseT<Nurb> *nurbs = BKE_curve_editNurbs_get(cu);
     Nurb *nu = static_cast<Nurb *>(nurbs->first);
 
-    DEG_id_tag_update(static_cast<ID *>(tc->obedit->data), ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(tc->obedit->data, ID_RECALC_GEOMETRY);
 
     if (t->state == TRANS_CANCEL) {
       while (nu) {

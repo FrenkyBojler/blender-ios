@@ -36,6 +36,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+namespace blender {
+
 /** We only need this locally. */
 static CLG_LogRef LOG = {"undo.mball"};
 
@@ -57,7 +59,7 @@ static void freeMetaElemlist(ListBaseT<MetaElem> *lb)
   }
 
   while (MetaElem *ml = static_cast<MetaElem *>(BLI_pophead(lb))) {
-    MEM_freeN(ml);
+    MEM_delete(ml);
   }
 }
 
@@ -71,7 +73,7 @@ static void undomball_to_editmball(UndoMBall *umb, MetaBall *mb)
   for (MetaElem *ml_undo = static_cast<MetaElem *>(umb->editelems.first); ml_undo;
        ml_undo = ml_undo->next, index += 1)
   {
-    MetaElem *ml_edit = static_cast<MetaElem *>(MEM_dupallocN(ml_undo));
+    MetaElem *ml_edit = MEM_dupalloc(ml_undo);
     BLI_addtail(mb->editelems, ml_edit);
     if (index == umb->lastelem_index) {
       mb->lastelem = ml_edit;
@@ -91,7 +93,7 @@ static void *editmball_from_undomball(UndoMBall *umb, MetaBall *mb)
   for (MetaElem *ml_edit = static_cast<MetaElem *>(mb->editelems->first); ml_edit;
        ml_edit = ml_edit->next, index += 1)
   {
-    MetaElem *ml_undo = static_cast<MetaElem *>(MEM_dupallocN(ml_edit));
+    MetaElem *ml_undo = MEM_dupalloc(ml_edit);
     BLI_addtail(&umb->editelems, ml_undo);
     if (ml_edit == mb->lastelem) {
       umb->lastelem_index = index;
@@ -115,7 +117,7 @@ static Object *editmball_object_from_context(bContext *C)
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   if (obedit && obedit->type == OB_MBALL) {
-    MetaBall *mb = static_cast<MetaBall *>(obedit->data);
+    MetaBall *mb = id_cast<MetaBall *>(obedit->data);
     if (mb->editelems != nullptr) {
       return obedit;
     }
@@ -151,16 +153,16 @@ static bool mball_undosys_poll(bContext *C)
 
 static bool mball_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 {
-  MBallUndoStep *us = (MBallUndoStep *)us_p;
+  MBallUndoStep *us = reinterpret_cast<MBallUndoStep *>(us_p);
 
   /* Important not to use the 3D view when getting objects because all objects
    * outside of this list will be moved out of edit-mode when reading back undo steps. */
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  blender::Vector<Object *> objects = ED_undo_editmode_objects_from_view_layer(scene, view_layer);
+  Vector<Object *> objects = ED_undo_editmode_objects_from_view_layer(scene, view_layer);
 
   us->scene_ref.ptr = scene;
-  us->elems = MEM_calloc_arrayN<MBallUndoStep_Elem>(objects.size(), __func__);
+  us->elems = MEM_new_array_zeroed<MBallUndoStep_Elem>(objects.size(), __func__);
   us->elems_len = objects.size();
 
   for (uint i = 0; i < objects.size(); i++) {
@@ -168,7 +170,7 @@ static bool mball_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
     MBallUndoStep_Elem *elem = &us->elems[i];
 
     elem->obedit_ref.ptr = ob;
-    MetaBall *mb = static_cast<MetaBall *>(ob->data);
+    MetaBall *mb = id_cast<MetaBall *>(ob->data);
     editmball_from_undomball(&elem->data, mb);
     mb->needs_flush_to_id = 1;
     us->step.data_size += elem->data.undo_size;
@@ -182,7 +184,7 @@ static bool mball_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 static void mball_undosys_step_decode(
     bContext *C, Main *bmain, UndoStep *us_p, const eUndoStepDir /*dir*/, bool /*is_final*/)
 {
-  MBallUndoStep *us = (MBallUndoStep *)us_p;
+  MBallUndoStep *us = reinterpret_cast<MBallUndoStep *>(us_p);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -195,7 +197,7 @@ static void mball_undosys_step_decode(
   for (uint i = 0; i < us->elems_len; i++) {
     MBallUndoStep_Elem *elem = &us->elems[i];
     Object *obedit = elem->obedit_ref.ptr;
-    MetaBall *mb = static_cast<MetaBall *>(obedit->data);
+    MetaBall *mb = id_cast<MetaBall *>(obedit->data);
     if (mb->editelems == nullptr) {
       /* Should never fail, may not crash but can give odd behavior. */
       CLOG_ERROR(&LOG,
@@ -223,25 +225,25 @@ static void mball_undosys_step_decode(
 
 static void mball_undosys_step_free(UndoStep *us_p)
 {
-  MBallUndoStep *us = (MBallUndoStep *)us_p;
+  MBallUndoStep *us = reinterpret_cast<MBallUndoStep *>(us_p);
 
   for (uint i = 0; i < us->elems_len; i++) {
     MBallUndoStep_Elem *elem = &us->elems[i];
     undomball_free_data(&elem->data);
   }
-  MEM_freeN(us->elems);
+  MEM_delete(us->elems);
 }
 
 static void mball_undosys_foreach_ID_ref(UndoStep *us_p,
                                          UndoTypeForEachIDRefFn foreach_ID_ref_fn,
                                          void *user_data)
 {
-  MBallUndoStep *us = (MBallUndoStep *)us_p;
+  MBallUndoStep *us = reinterpret_cast<MBallUndoStep *>(us_p);
 
-  foreach_ID_ref_fn(user_data, ((UndoRefID *)&us->scene_ref));
+  foreach_ID_ref_fn(user_data, (reinterpret_cast<UndoRefID *>(&us->scene_ref)));
   for (uint i = 0; i < us->elems_len; i++) {
     MBallUndoStep_Elem *elem = &us->elems[i];
-    foreach_ID_ref_fn(user_data, ((UndoRefID *)&elem->obedit_ref));
+    foreach_ID_ref_fn(user_data, (reinterpret_cast<UndoRefID *>(&elem->obedit_ref)));
   }
 }
 
@@ -261,3 +263,5 @@ void ED_mball_undosys_type(UndoType *ut)
 }
 
 /** \} */
+
+}  // namespace blender

@@ -73,7 +73,7 @@ static std::optional<eCustomDataType> node_type_from_other_socket(const bNodeSoc
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  const blender::bke::bNodeType &node_type = params.node_type();
+  const bke::bNodeType &node_type = params.node_type();
   const NodeDeclaration &declaration = *params.node_type().static_declaration;
   search_link_ops_for_declarations(params, declaration.inputs);
 
@@ -185,7 +185,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
       if (data.size() != 0) {
         if (sort_required) {
-          std::sort(data.begin(), data.end());
+          std::ranges::sort(data);
           median = median_of_sorted_span(data);
 
           min = data.first();
@@ -193,7 +193,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           range = max - min;
         }
         if (sum_required || variance_required) {
-          sum = blender::array_utils::compute_sum<float>(data);
+          sum = array_utils::compute_sum<float>(data);
           mean = sum / data.size();
 
           if (variance_required) {
@@ -277,9 +277,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 
       if (data.size() != 0) {
         if (sort_required) {
-          std::sort(data_x.begin(), data_x.end());
-          std::sort(data_y.begin(), data_y.end());
-          std::sort(data_z.begin(), data_z.end());
+          std::ranges::sort(data_x);
+          std::ranges::sort(data_y);
+          std::ranges::sort(data_z);
 
           const float x_median = median_of_sorted_span(data_x);
           const float y_median = median_of_sorted_span(data_y);
@@ -291,7 +291,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           range = max - min;
         }
         if (sum_required || variance_required) {
-          sum = blender::array_utils::compute_sum(data.as_span());
+          sum = array_utils::compute_sum(data.as_span());
           mean = sum / data.size();
 
           if (variance_required) {
@@ -356,7 +356,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeAttributeStatistic", GEO_NODE_ATTRIBUTE_STATISTIC);
   ntype.ui_name = "Attribute Statistic";
   ntype.ui_description =
@@ -368,7 +368,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

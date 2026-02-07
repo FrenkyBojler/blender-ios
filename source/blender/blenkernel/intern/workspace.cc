@@ -40,20 +40,22 @@
 
 #include "BLO_read_write.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 
 static void workspace_init_data(ID *id)
 {
-  WorkSpace *workspace = (WorkSpace *)id;
+  WorkSpace *workspace = id_cast<WorkSpace *>(id);
 
-  workspace->runtime = MEM_new<blender::bke::WorkSpaceRuntime>(__func__);
+  workspace->runtime = MEM_new<bke::WorkSpaceRuntime>(__func__);
 
   BKE_asset_library_reference_init_default(&workspace->asset_library_ref);
 }
 
 static void workspace_free_data(ID *id)
 {
-  WorkSpace *workspace = (WorkSpace *)id;
+  WorkSpace *workspace = id_cast<WorkSpace *>(id);
 
   BKE_workspace_relations_free(&workspace->hook_layout_relations);
 
@@ -77,10 +79,10 @@ static void workspace_copy_data(
   BLI_assert(!owner_library || owner_library == nullptr);
   UNUSED_VARS_NDEBUG(owner_library);
 
-  WorkSpace *workspace_dst = blender::id_cast<WorkSpace *>(id_dst);
-  const WorkSpace *workspace_src = blender::id_cast<const WorkSpace *>(id_src);
+  WorkSpace *workspace_dst = id_cast<WorkSpace *>(id_dst);
+  const WorkSpace *workspace_src = id_cast<const WorkSpace *>(id_src);
 
-  workspace_dst->runtime = MEM_new<blender::bke::WorkSpaceRuntime>(__func__);
+  workspace_dst->runtime = MEM_new<bke::WorkSpaceRuntime>(__func__);
   BKE_asset_library_reference_init_default(&workspace_dst->asset_library_ref);
 
   workspace_dst->flags = workspace_src->flags;
@@ -115,7 +117,7 @@ static void workspace_copy_data(
 
 static void workspace_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  WorkSpace *workspace = (WorkSpace *)id;
+  WorkSpace *workspace = id_cast<WorkSpace *>(id);
 
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, workspace->pin_scene, IDWALK_CB_DIRECT_WEAK_LINK);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, workspace->sequencer_scene, IDWALK_CB_DIRECT_WEAK_LINK);
@@ -129,14 +131,14 @@ static void workspace_foreach_id(ID *id, LibraryForeachIDData *data)
 
 static void workspace_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
-  WorkSpace *workspace = (WorkSpace *)id;
+  WorkSpace *workspace = id_cast<WorkSpace *>(id);
 
-  BLO_write_id_struct(writer, WorkSpace, id_address, &workspace->id);
+  writer->write_id_struct(id_address, workspace);
   BKE_id_blend_write(writer, &workspace->id);
-  BLO_write_struct_list(writer, WorkSpaceLayout, &workspace->layouts);
-  BLO_write_struct_list(writer, WorkSpaceDataRelation, &workspace->hook_layout_relations);
-  BLO_write_struct_list(writer, wmOwnerID, &workspace->owner_ids);
-  BLO_write_struct_list(writer, bToolRef, &workspace->tools);
+  writer->write_struct_list(&workspace->layouts);
+  writer->write_struct_list(&workspace->hook_layout_relations);
+  writer->write_struct_list(&workspace->owner_ids);
+  writer->write_struct_list(&workspace->tools);
   for (bToolRef &tref : workspace->tools) {
     if (tref.properties) {
       IDP_BlendWrite(writer, tref.properties);
@@ -148,7 +150,7 @@ static void workspace_blend_write(BlendWriter *writer, ID *id, const void *id_ad
 
 static void workspace_blend_read_data(BlendDataReader *reader, ID *id)
 {
-  WorkSpace *workspace = (WorkSpace *)id;
+  WorkSpace *workspace = id_cast<WorkSpace *>(id);
 
   BLO_read_struct_list(reader, WorkSpaceLayout, &workspace->layouts);
   BLO_read_struct_list(reader, WorkSpaceDataRelation, &workspace->hook_layout_relations);
@@ -171,7 +173,7 @@ static void workspace_blend_read_data(BlendDataReader *reader, ID *id)
     IDP_BlendDataRead(reader, &tref.properties);
   }
 
-  workspace->runtime = MEM_new<blender::bke::WorkSpaceRuntime>(__func__);
+  workspace->runtime = MEM_new<bke::WorkSpaceRuntime>(__func__);
 
   /* Do not keep the scene reference when appending a workspace. Setting a scene for a workspace is
    * a convenience feature, but the workspace should never truly depend on scene data. */
@@ -288,7 +290,7 @@ static void workspace_relation_add(ListBaseT<WorkSpaceDataRelation> *relation_li
                                    const int parentid,
                                    void *data)
 {
-  WorkSpaceDataRelation *relation = MEM_new_for_free<WorkSpaceDataRelation>(__func__);
+  WorkSpaceDataRelation *relation = MEM_new<WorkSpaceDataRelation>(__func__);
   relation->parent = parent;
   relation->parentid = parentid;
   relation->value = data;
@@ -299,7 +301,7 @@ static void workspace_relation_remove(ListBaseT<WorkSpaceDataRelation> *relation
                                       WorkSpaceDataRelation *relation)
 {
   BLI_remlink(relation_list, relation);
-  MEM_freeN(relation);
+  MEM_delete(relation);
 }
 
 static void workspace_relation_ensure_updated(ListBaseT<WorkSpaceDataRelation> *relation_list,
@@ -386,7 +388,7 @@ void BKE_workspace_remove(Main *bmain, WorkSpace *workspace)
 
 WorkSpaceInstanceHook *BKE_workspace_instance_hook_create(const Main *bmain, const int winid)
 {
-  WorkSpaceInstanceHook *hook = MEM_new_for_free<WorkSpaceInstanceHook>(__func__);
+  WorkSpaceInstanceHook *hook = MEM_new<WorkSpaceInstanceHook>(__func__);
 
   /* set an active screen-layout for each possible window/workspace combination */
   for (WorkSpace *workspace = static_cast<WorkSpace *>(bmain->workspaces.first); workspace;
@@ -422,7 +424,7 @@ void BKE_workspace_instance_hook_free(const Main *bmain, WorkSpaceInstanceHook *
     }
   }
 
-  MEM_freeN(hook);
+  MEM_delete(hook);
 }
 
 WorkSpaceLayout *BKE_workspace_layout_add(Main *bmain,
@@ -430,7 +432,7 @@ WorkSpaceLayout *BKE_workspace_layout_add(Main *bmain,
                                           bScreen &screen,
                                           const char *name)
 {
-  WorkSpaceLayout *layout = MEM_new_for_free<WorkSpaceLayout>(__func__);
+  WorkSpaceLayout *layout = MEM_new<WorkSpaceLayout>(__func__);
 
   BLI_assert(!bmain || !workspaces_is_screen_used(bmain, &screen));
 #ifdef NDEBUG
@@ -452,7 +454,7 @@ WorkSpaceLayout *BKE_workspace_layout_add_from_layout(Main *bmain,
   bScreen *screen_src = BKE_workspace_layout_screen_get(&layout_src);
   const char *name = BKE_workspace_layout_name_get(&layout_src);
 
-  /* In case the current layout's screen is a 'full screen' one, find the 'full' area, and its its
+  /* In case the current layout's screen is a 'full screen' one, find the 'full' area, and its
    * 'restore screen' as source, instead of the temporary full-screen one. */
   if (BKE_screen_is_fullscreen_area(screen_src)) {
     for (ScrArea &area_old : screen_src->areabase) {
@@ -465,7 +467,7 @@ WorkSpaceLayout *BKE_workspace_layout_add_from_layout(Main *bmain,
     }
   }
 
-  bScreen *screen_dst = blender::id_cast<bScreen *>(
+  bScreen *screen_dst = id_cast<bScreen *>(
       BKE_id_copy_ex(bmain, &screen_src->id, nullptr, id_copy_flags));
 
   return BKE_workspace_layout_add(bmain, workspace_dst, *screen_dst, name);
@@ -574,13 +576,13 @@ WorkSpaceLayout *BKE_workspace_layout_iter_circular(const WorkSpace *workspace,
 void BKE_workspace_tool_remove(WorkSpace *workspace, bToolRef *tref)
 {
   if (tref->runtime) {
-    MEM_freeN(tref->runtime);
+    MEM_delete(tref->runtime);
   }
   if (tref->properties) {
     IDP_FreeProperty(tref->properties);
   }
   BLI_remlink(&workspace->tools, tref);
-  MEM_freeN(tref);
+  MEM_delete(tref);
 }
 
 void BKE_workspace_tool_id_replace_table(WorkSpace *workspace,
@@ -728,3 +730,5 @@ void BKE_workspace_status_clear(WorkSpace *workspace)
 }
 
 /** \} */
+
+}  // namespace blender

@@ -2853,7 +2853,7 @@ class _defs_image_uv_sculpt:
         def draw_cursor(context, tool, xy):
             from gpu_extras.presets import draw_circle_2d
             uv_sculpt = context.scene.tool_settings.uv_sculpt
-            radius = uv_sculpt.size
+            radius = uv_sculpt.size / 2
             draw_circle_2d(xy, (1.0,) * 4, radius)
 
         return dict(
@@ -2881,7 +2881,7 @@ class _defs_image_uv_sculpt:
         def draw_cursor(context, tool, xy):
             from gpu_extras.presets import draw_circle_2d
             uv_sculpt = context.scene.tool_settings.uv_sculpt
-            radius = uv_sculpt.size
+            radius = uv_sculpt.size / 2
             draw_circle_2d(xy, (1.0,) * 4, radius)
 
         return dict(
@@ -2906,7 +2906,7 @@ class _defs_image_uv_sculpt:
         def draw_cursor(context, tool, xy):
             from gpu_extras.presets import draw_circle_2d
             uv_sculpt = context.scene.tool_settings.uv_sculpt
-            radius = uv_sculpt.size
+            radius = uv_sculpt.size / 2
             draw_circle_2d(xy, (1.0,) * 4, radius)
 
         return dict(
@@ -3592,8 +3592,8 @@ class NODE_PT_tools_active(ToolSelectPanelHelper, Panel):
         (
             _defs_node_select.select,
             _defs_node_select.box,
-            _defs_node_select.lasso,
             _defs_node_select.circle,
+            _defs_node_select.lasso,
         ),
     )
 
@@ -4107,8 +4107,8 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
             (
                 _defs_sequencer_select.select_preview,
                 _defs_sequencer_select.box_preview,
-                _defs_sequencer_select.lasso_preview,
                 _defs_sequencer_select.circle_preview,
+                _defs_sequencer_select.lasso_preview,
             ),
             _defs_sequencer_generic.cursor,
             None,
@@ -4123,8 +4123,8 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
         'SEQUENCER': [
             (
                 _defs_sequencer_select.box_timeline,
-                _defs_sequencer_select.lasso_timeline,
                 _defs_sequencer_select.circle_timeline,
+                _defs_sequencer_select.lasso_timeline,
             ),
             _defs_sequencer_generic.blade,
             _defs_sequencer_generic.slip

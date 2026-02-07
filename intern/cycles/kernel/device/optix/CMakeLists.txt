@@ -16,7 +16,7 @@ set(SRC_KERNEL_DEVICE_OPTIX
 )
 
 if(WITH_CYCLES_OSL)
-  math(EXPR OSL_LIBRARY_VERSION_CODE "${OSL_LIBRARY_VERSION_MAJOR} * 10000 + ${OSL_LIBRARY_VERSION_MINOR} * 100 + ${OSL_LIBRARY_VERSION_PATCH}")
+  math(EXPR OSL_LIBRARY_VERSION_CODE "${OSL_VERSION_MAJOR} * 10000 + ${OSL_VERSION_MINOR} * 100 + ${OSL_VERSION_PATCH}")
 
   set(SRC_KERNEL_DEVICE_OPTIX
     ${SRC_KERNEL_DEVICE_OPTIX}
@@ -37,6 +37,9 @@ set(LIB
 )
 
 if(WITH_CYCLES_CUDA_BINARIES AND WITH_CYCLES_DEVICE_OPTIX)
+  # CUDA version
+  cuda_get_version(CUDA_VERSION)
+
   macro(cycles_optix_kernel_add name input flags)
     set(output "${CMAKE_CURRENT_BINARY_DIR}/${name}.ptx")
     set(output_compressed "${output}.zst")

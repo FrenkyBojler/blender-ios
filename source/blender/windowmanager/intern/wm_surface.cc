@@ -21,6 +21,8 @@
 
 #include "wm_surface.hh"
 
+namespace blender {
+
 static ListBaseT<wmSurface> global_surface_list = {nullptr, nullptr};
 static wmSurface *g_drawable = nullptr;
 
@@ -106,7 +108,7 @@ void wm_surface_remove(wmSurface *surface)
   wm_surface_make_drawable(surface);
   surface->free_data(surface);
   wm_surface_clear_drawable();
-  MEM_freeN(surface);
+  MEM_delete(surface);
 }
 
 void wm_surfaces_free()
@@ -117,3 +119,5 @@ void wm_surfaces_free()
 
   BLI_assert(BLI_listbase_is_empty(&global_surface_list));
 }
+
+}  // namespace blender

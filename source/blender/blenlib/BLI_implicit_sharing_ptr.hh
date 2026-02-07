@@ -12,7 +12,6 @@
 #include <utility>
 
 #include "BLI_implicit_sharing.hh"
-#include "BLI_struct_equality_utils.hh"
 
 namespace blender {
 
@@ -141,7 +140,7 @@ template<typename T = ImplicitSharingInfo, bool IsStrong = true> class ImplicitS
     return get_default_hash(data);
   }
 
-  BLI_STRUCT_EQUALITY_OPERATORS_1(ImplicitSharingPtr, data_)
+  friend bool operator==(const ImplicitSharingPtr &a, const ImplicitSharingPtr &b) = default;
 
   friend bool operator==(const T *a, const ImplicitSharingPtr &b)
   {
@@ -183,7 +182,7 @@ using WeakImplicitSharingPtr = ImplicitSharingPtr<ImplicitSharingInfo, false>;
 
 /**
  * Utility struct to allow used #ImplicitSharingPtr when it's necessary to type-erase the backing
- * storage for user-exposed data. For example, #blender::Vector, or #std::vector might be used to
+ * storage for user-exposed data. For example, #Vector, or #std::vector might be used to
  * store an implicitly shared array that is only accessed with #Span or #MutableSpan.
  *
  * This class handles RAII for the sharing info and the exposed data pointer.

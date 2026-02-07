@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'edd300f2e755')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-29 09:32+0000\n"
+"POT-Creation-Date: 2026-02-02 14:51+0000\n"
 "PO-Revision-Date: 2025-12-23 20:36+0000\n"
 "Last-Translator: \"Adriel Y.\" <mixnblend@users.noreply.translate.blender.org>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -10079,6 +10079,10 @@ msgid "Roughness"
 msgstr "Kekasaran"
 
 
+msgid "Sigma"
+msgstr "Sigma"
+
+
 msgid "Step Size"
 msgstr "Ukuran Langkah"
 
@@ -12302,10 +12306,6 @@ msgid "Accumulate"
 msgstr "Akumulasi"
 
 
-msgid "Airbrush"
-msgstr "Kuasudara"
-
-
 msgid "Affect only vertices that share face sets with the active vertex"
 msgstr "Hanya mempengaruhi titik-titik sudut yang membagikan set-set wajah dengan titik sudut aktif"
 
@@ -12658,10 +12658,6 @@ msgstr "Huruf Tebal Miring"
 
 msgid "Font Italic"
 msgstr "Font Italic"
-
-
-msgid "Textboxes"
-msgstr "Tekstur"
 
 
 msgid "Surface UV Map"
@@ -15695,12 +15691,56 @@ msgid "Use Material Mask"
 msgstr "Gunakan Masker Bahan"
 
 
-msgid "Assign Material"
-msgstr "Tugaskan Bahan"
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Metaball"
 msgstr "Metabola"
+
+
+msgid "Sample"
+msgstr "Sampel"
+
+
+msgid "Names"
+msgstr "Nama"
+
+
+msgid "Snap"
+msgstr "Jepret"
+
+
+msgid "Mirror"
+msgstr "Cermin"
+
+
+msgid "Navigation"
+msgstr "Navigasi"
+
+
+msgid "Layout"
+msgstr "Tata Letak"
+
+
+msgid "Select Linked"
+msgstr "Seleksi yang Terhubung"
+
+
+msgid "Assign Material"
+msgstr "Tugaskan Bahan"
+
+
+msgid "Tracking"
+msgstr "Pelacakan"
+
+
+msgid "Utilities"
+msgstr "Utilitas"
 
 
 msgid "Light"
@@ -15731,38 +15771,6 @@ msgid "Hooks"
 msgstr "Kait"
 
 
-msgid "Layout"
-msgstr "Tata Letak"
-
-
-msgid "Tracking"
-msgstr "Pelacakan"
-
-
-msgid "Names"
-msgstr "Nama"
-
-
-msgid "Utilities"
-msgstr "Utilitas"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Merge"
-msgstr "Menggabungkan"
-
-
-msgid "Sample"
-msgstr "Sampel"
-
-
-msgid "Snap"
-msgstr "Jepret"
-
-
 msgid "Gizmo"
 msgstr "Gizmo"
 
@@ -15775,20 +15783,8 @@ msgid "Import"
 msgstr "Impor"
 
 
-msgid "Mirror"
-msgstr "Cermin"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Navigation"
-msgstr "Navigasi"
-
-
-msgid "Select Linked"
-msgstr "Seleksi yang Terhubung"
+msgid "Merge"
+msgstr "Menggabungkan"
 
 
 msgid "Animals"
@@ -18518,6 +18514,10 @@ msgid "Is Viewport"
 msgstr "Adalah Jendela Tampilan"
 
 
+msgid "Single"
+msgstr "Tunggal"
+
+
 msgid "Active Item"
 msgstr "Item Aktif"
 
@@ -18901,10 +18901,6 @@ msgstr "Tekstur"
 
 msgid "Node Output"
 msgstr "Keluaran Node"
-
-
-msgid "Single"
-msgstr "Tunggal"
 
 
 msgid "Node Instance Hash"
@@ -20693,10 +20689,6 @@ msgid "Add copied F-Modifiers to the selected F-Curves"
 msgstr "Tambah Pengubah-F yang tersalin ke Kurva-F yang terpilih"
 
 
-msgid "Sigma"
-msgstr "Sigma"
-
-
 msgctxt "Operator"
 msgid "Clear Ghost Curves"
 msgstr "Hapus"
@@ -20725,12 +20717,22 @@ msgid "Target Frame"
 msgstr "Frame Target"
 
 
-msgid "Action taken when a paint stroke is made"
-msgstr "Aksi diambil saat garis luar cat dibuat"
-
-
 msgid "Apply brush normally"
 msgstr "Terapkan kuas biasanya"
+
+
+msgctxt "Operator"
+msgid "Erase"
+msgstr "Hapus"
+
+
+msgctxt "Operator"
+msgid "Mask"
+msgstr "Masker"
+
+
+msgid "Action taken when a paint stroke is made"
+msgstr "Aksi diambil saat garis luar cat dibuat"
 
 
 msgctxt "Operator"
@@ -20740,15 +20742,6 @@ msgstr "Balikkan"
 
 msgid "Invert action of brush for duration of stroke"
 msgstr "Balikkan aksi kuas untuk durasi garis luar"
-
-
-msgid "Switch brush to smooth mode for duration of stroke"
-msgstr "Gantikan kuas ke mode halus untuk durasi garis luar"
-
-
-msgctxt "Operator"
-msgid "Erase"
-msgstr "Hapus"
 
 
 msgid "Flat"
@@ -21429,10 +21422,6 @@ msgid "Remove from the selection"
 msgstr "Menghapus dari seleksi"
 
 
-msgid "Select ring"
-msgstr "Seleksi"
-
-
 msgid "Toggle Select"
 msgstr "Hapus"
 
@@ -21518,11 +21507,6 @@ msgstr "Perpotongan Sendiri"
 
 msgid "Cut new topology"
 msgstr "Potong topologi baru"
-
-
-msgctxt "Operator"
-msgid "Multi Select Loops"
-msgstr "Warna Standar"
 
 
 msgctxt "Operator"
@@ -25874,11 +25858,6 @@ msgstr "Ambil"
 msgctxt "Operator"
 msgid "Brush"
 msgstr "Kuas"
-
-
-msgctxt "Operator"
-msgid "Mask"
-msgstr "Masker"
 
 
 msgid "Type 1"
@@ -33244,12 +33223,12 @@ msgid "Exposure for motion blur as a factor of FPS"
 msgstr "Pencahayaan untuk buram gerakan sebagai faktor FPS"
 
 
-msgid "Absolute Frame"
-msgstr "Bingkai Absolut"
-
-
 msgid "Val"
 msgstr "Val"
+
+
+msgid "Absolute Frame"
+msgstr "Bingkai Absolut"
 
 
 msgid "Instance Count"

@@ -594,7 +594,7 @@ class PassSortable : public PassMain {
   void sort()
   {
     if (sorted_ == false) {
-      std::sort(headers_.begin(), headers_.end(), [&](Header &a, Header &b) {
+      std::ranges::sort(headers_, [&](Header &a, Header &b) {
         BLI_assert(a.type == Type::SubPass && b.type == Type::SubPass);
         float a_val = sorting_values_[a.index];
         float b_val = sorting_values_[b.index];
@@ -1638,5 +1638,4 @@ inline void PassBase<T>::specialize_constant(gpu::Shader *shader,
 /** \} */
 
 }  // namespace detail
-
 }  // namespace blender::draw

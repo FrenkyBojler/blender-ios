@@ -60,7 +60,7 @@
 
 #include "armature_intern.hh"
 
-using blender::Vector;
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Edit Armature Join
@@ -100,15 +100,16 @@ static void joined_armature_fix_links_constraints(Main *bmain,
       BKE_constraint_targets_flush(&con, &targets, false);
     }
 
-    /* action constraint? (pose constraints only) */
-    if (con.type == CONSTRAINT_TYPE_ACTION) {
+    /* If it's an action constraint on the source object that's being joined,
+     * also remap the channels in the action. (Pose constraints only.) */
+    if (con.type == CONSTRAINT_TYPE_ACTION && ob == srcArm) {
       bActionConstraint *data = static_cast<bActionConstraint *>(con.data);
 
       if (data->act) {
         BKE_action_fix_paths_rename(&tarArm->id,
                                     data->act,
                                     data->action_slot_handle,
-                                    "pose.bones[",
+                                    "pose.bones",
                                     pchan->name,
                                     curbone->name,
                                     0,
@@ -265,7 +266,7 @@ static BoneCollection *join_armature_remap_collection(
     const bArmature *src_arm,
     const int src_index,
     bArmature *dest_arm,
-    blender::Map<std::string, BoneCollection *> &bone_collection_by_name)
+    Map<std::string, BoneCollection *> &bone_collection_by_name)
 {
   using namespace blender::animrig;
   const BoneCollection *bcoll = src_arm->collection_array[src_index];
@@ -313,7 +314,7 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   Object *ob_active = CTX_data_active_object(C);
-  bArmature *arm = static_cast<bArmature *>((ob_active) ? ob_active->data : nullptr);
+  bArmature *arm = id_cast<bArmature *>((ob_active) ? ob_active->data : nullptr);
   bPose *pose, *opose;
   bPoseChannel *pchan, *pchann;
   EditBone *curbone;
@@ -345,13 +346,13 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
   /* Check that there are no shared Armatures, as the code below assumes that
    * each to-be-joined Armature is unique. */
   {
-    blender::Set<const bArmature *> seen_armatures;
+    Set<const bArmature *> seen_armatures;
     CTX_DATA_BEGIN (C, const Object *, ob_iter, selected_editable_objects) {
       if (ob_iter->type != OB_ARMATURE) {
         continue;
       }
 
-      const bArmature *armature = static_cast<bArmature *>(ob_iter->data);
+      const bArmature *armature = id_cast<bArmature *>(ob_iter->data);
       if (seen_armatures.add(armature)) {
         /* Armature pointer was added to the set, which means it wasn't seen before. */
         continue;
@@ -372,14 +373,14 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
 
   /* Index bone collections by name.  This is also used later to keep track
    * of collections added from other armatures. */
-  blender::Map<std::string, BoneCollection *> bone_collection_by_name;
+  Map<std::string, BoneCollection *> bone_collection_by_name;
   for (BoneCollection *bcoll : arm->collections_span()) {
     bone_collection_by_name.add(bcoll->name, bcoll);
   }
 
   /* Used to track how bone collections should be remapped after merging
    * other armatures. */
-  blender::Map<BoneCollection *, BoneCollection *> bone_collection_remap;
+  Map<BoneCollection *, BoneCollection *> bone_collection_remap;
 
   /* Get edit-bones of active armature to add edit-bones to */
   ED_armature_to_edit(arm);
@@ -390,7 +391,7 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
 
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if ((ob_iter->type == OB_ARMATURE) && (ob_iter != ob_active)) {
-      bArmature *curarm = static_cast<bArmature *>(ob_iter->data);
+      bArmature *curarm = id_cast<bArmature *>(ob_iter->data);
 
       /* we assume that each armature datablock is only used in a single place */
       BLI_assert(ob_active->data != ob_iter->data);
@@ -489,7 +490,7 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
       BKE_fcurves_main_cb(bmain, [&](ID *id, FCurve *fcu) {
         joined_armature_fix_animdata_cb(bmain, id, fcu, ob_iter, ob_active, names_map);
       });
-      BLI_ghash_free(names_map, MEM_freeN, nullptr);
+      BLI_ghash_free(names_map, MEM_delete_void, nullptr);
 
       /* Only copy over animdata now, after all the remapping has been done,
        * so that we don't have to worry about ambiguities re which armature
@@ -519,7 +520,7 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
       }
 
       /* Free the old object data */
-      blender::ed::object::base_free_and_unlink(bmain, scene, ob_iter);
+      ed::object::base_free_and_unlink(bmain, scene, ob_iter);
     }
   }
   CTX_DATA_END;
@@ -645,7 +646,7 @@ static void separated_armature_fix_links(Main *bmain, Object *origArm, Object *n
  */
 static void separate_armature_bones(Main *bmain, Object *ob, const bool is_select)
 {
-  bArmature *arm = static_cast<bArmature *>(ob->data);
+  bArmature *arm = id_cast<bArmature *>(ob->data);
   bPoseChannel *pchan, *pchann;
   EditBone *curbone;
 
@@ -658,7 +659,7 @@ static void separate_armature_bones(Main *bmain, Object *ob, const bool is_selec
     curbone = ED_armature_ebone_find_name(arm->edbo, pchan->name);
 
     /* check if bone needs to be removed */
-    if (is_select == blender::animrig::bone_is_selected(arm, curbone)) {
+    if (is_select == animrig::bone_is_selected(arm, curbone)) {
 
       /* Clear the bone->parent var of any bone that had this as its parent. */
       for (EditBone &ebo : *arm->edbo) {
@@ -695,8 +696,8 @@ static void separate_armature_bones(Main *bmain, Object *ob, const bool is_selec
 
   /* Exit edit-mode (recalculates pose-channels too). */
   ED_armature_edit_deselect_all(ob);
-  ED_armature_from_edit(bmain, static_cast<bArmature *>(ob->data));
-  ED_armature_edit_free(static_cast<bArmature *>(ob->data));
+  ED_armature_from_edit(bmain, id_cast<bArmature *>(ob->data));
+  ED_armature_edit_free(id_cast<bArmature *>(ob->data));
 }
 
 /* separate selected bones into their armature */
@@ -717,11 +718,11 @@ static wmOperatorStatus separate_armature_exec(bContext *C, wmOperator *op)
     Object *ob_old = base_old->object;
 
     {
-      bArmature *arm_old = static_cast<bArmature *>(ob_old->data);
+      bArmature *arm_old = id_cast<bArmature *>(ob_old->data);
       bool has_selected_bone = false;
       bool has_selected_any = false;
       for (EditBone &ebone : *arm_old->edbo) {
-        if (blender::animrig::bone_is_visible(arm_old, &ebone)) {
+        if (animrig::bone_is_visible(arm_old, &ebone)) {
           if (ebone.flag & BONE_SELECTED) {
             has_selected_bone = true;
             break;
@@ -753,15 +754,15 @@ static wmOperatorStatus separate_armature_exec(bContext *C, wmOperator *op)
     /* 1) store starting settings and exit edit-mode */
     ob_old->mode &= ~OB_MODE_POSE;
 
-    ED_armature_from_edit(bmain, static_cast<bArmature *>(ob_old->data));
-    ED_armature_edit_free(static_cast<bArmature *>(ob_old->data));
+    ED_armature_from_edit(bmain, id_cast<bArmature *>(ob_old->data));
+    ED_armature_edit_free(id_cast<bArmature *>(ob_old->data));
 
     /* 2) duplicate base */
 
     /* Only duplicate linked armature but take into account
      * user preferences for duplicating actions. */
     short dupflag = USER_DUP_ARM | (U.dupflag & USER_DUP_ACT);
-    Base *base_new = blender::ed::object::add_duplicate(
+    Base *base_new = ed::object::add_duplicate(
         bmain, scene, view_layer, base_old, eDupli_ID_Flags(dupflag));
     Object *ob_new = base_new->object;
 
@@ -778,7 +779,7 @@ static wmOperatorStatus separate_armature_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(&ob_new->id, ID_RECALC_GEOMETRY); /* this is the separated one */
 
     /* 5) restore original conditions */
-    ED_armature_to_edit(static_cast<bArmature *>(ob_old->data));
+    ED_armature_to_edit(id_cast<bArmature *>(ob_old->data));
 
     /* parents tips remain selected when connected children are removed. */
     ED_armature_edit_deselect_all(ob_old);
@@ -898,7 +899,7 @@ static const EnumPropertyItem prop_editarm_make_parent_types[] = {
 static wmOperatorStatus armature_parent_set_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_edit_object(C);
-  bArmature *arm = static_cast<bArmature *>(ob->data);
+  bArmature *arm = id_cast<bArmature *>(ob->data);
   EditBone *actbone = CTX_data_active_bone(C);
   EditBone *actmirb = nullptr;
   short val = RNA_enum_get(op->ptr, "type");
@@ -994,7 +995,7 @@ static wmOperatorStatus armature_parent_set_invoke(bContext *C,
   bool enable_connect = false;
   {
     Object *ob = CTX_data_edit_object(C);
-    bArmature *arm = static_cast<bArmature *>(ob->data);
+    bArmature *arm = id_cast<bArmature *>(ob->data);
     EditBone *actbone = arm->act_edbone;
     for (EditBone &ebone : *arm->edbo) {
       if (!EBONE_EDITABLE(&ebone) || !(ebone.flag & BONE_SELECTED)) {
@@ -1015,16 +1016,16 @@ static wmOperatorStatus armature_parent_set_invoke(bContext *C,
     }
   }
 
-  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
+  ui::PopupMenu *pup = ui::popup_menu_begin(
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Parent"), ICON_NONE);
-  blender::ui::Layout &layout = *popup_menu_layout(pup);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
-  blender::ui::Layout &row_offset = layout.row(false);
+  ui::Layout &row_offset = layout.row(false);
   row_offset.enabled_set(enable_offset);
   PointerRNA op_ptr = row_offset.op("ARMATURE_OT_parent_set", IFACE_("Keep Offset"), ICON_NONE);
   RNA_enum_set(&op_ptr, "type", ARM_PAR_OFFSET);
 
-  blender::ui::Layout &row_connect = layout.row(false);
+  ui::Layout &row_connect = layout.row(false);
   row_connect.enabled_set(enable_connect);
   op_ptr = row_connect.op("ARMATURE_OT_parent_set", IFACE_("Connected"), ICON_NONE);
   RNA_enum_set(&op_ptr, "type", ARM_PAR_CONNECT);
@@ -1086,7 +1087,7 @@ static wmOperatorStatus armature_parent_clear_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *ob : objects) {
-    bArmature *arm = static_cast<bArmature *>(ob->data);
+    bArmature *arm = id_cast<bArmature *>(ob->data);
     bool changed = false;
 
     for (EditBone &ebone : *arm->edbo) {
@@ -1118,7 +1119,7 @@ static wmOperatorStatus armature_parent_clear_invoke(bContext *C,
   bool enable_clear = false;
   {
     Object *ob = CTX_data_edit_object(C);
-    bArmature *arm = static_cast<bArmature *>(ob->data);
+    bArmature *arm = id_cast<bArmature *>(ob->data);
     for (EditBone &ebone : *arm->edbo) {
       if (!EBONE_EDITABLE(&ebone) || !(ebone.flag & BONE_SELECTED)) {
         continue;
@@ -1135,16 +1136,16 @@ static wmOperatorStatus armature_parent_clear_invoke(bContext *C,
     }
   }
 
-  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
+  ui::PopupMenu *pup = ui::popup_menu_begin(
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Parent"), ICON_NONE);
-  blender::ui::Layout &layout = *popup_menu_layout(pup);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
-  blender::ui::Layout &row_clear = layout.row(false);
+  ui::Layout &row_clear = layout.row(false);
   row_clear.enabled_set(enable_clear);
   PointerRNA op_ptr = row_clear.op("ARMATURE_OT_parent_clear", IFACE_("Clear Parent"), ICON_NONE);
   RNA_enum_set(&op_ptr, "type", ARM_PAR_CLEAR);
 
-  blender::ui::Layout &row_disconnect = layout.row(false);
+  ui::Layout &row_disconnect = layout.row(false);
   row_disconnect.enabled_set(enable_disconnect);
   op_ptr = row_disconnect.op("ARMATURE_OT_parent_clear", IFACE_("Disconnect Bone"), ICON_NONE);
   RNA_enum_set(&op_ptr, "type", ARM_PAR_CLEAR_DISCONNECT);
@@ -1179,3 +1180,5 @@ void ARMATURE_OT_parent_clear(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

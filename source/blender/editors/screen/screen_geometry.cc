@@ -27,6 +27,8 @@
 
 #include "screen_intern.hh"
 
+namespace blender {
+
 int screen_geom_area_height(const ScrArea *area)
 {
   return area->v2->vec.y - area->v1->vec.y + 1;
@@ -38,7 +40,7 @@ int screen_geom_area_width(const ScrArea *area)
 
 ScrVert *screen_geom_vertex_add_ex(ScrAreaMap *area_map, short x, short y)
 {
-  ScrVert *sv = MEM_new_for_free<ScrVert>("addscrvert");
+  ScrVert *sv = MEM_new<ScrVert>("addscrvert");
   sv->vec.x = x;
   sv->vec.y = y;
 
@@ -52,7 +54,7 @@ ScrVert *screen_geom_vertex_add(bScreen *screen, short x, short y)
 
 ScrEdge *screen_geom_edge_add_ex(ScrAreaMap *area_map, ScrVert *v1, ScrVert *v2)
 {
-  ScrEdge *se = MEM_new_for_free<ScrEdge>("addscredge");
+  ScrEdge *se = MEM_new<ScrEdge>("addscredge");
 
   BKE_screen_sort_scrvert(&v1, &v2);
   se->v1 = v1;
@@ -405,3 +407,5 @@ void screen_geom_select_connected_edge(const wmWindow *win, ScrEdge *edge)
     }
   }
 }
+
+}  // namespace blender

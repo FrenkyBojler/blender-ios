@@ -53,6 +53,8 @@
 #include "WM_types.hh"
 #include "wm_event_types.hh"
 
+namespace blender {
+
 /* Don't use translation strings in versioning!
  * These depend on the preferences already being read.
  * If this is important we can set the translations as part of versioning preferences,
@@ -417,6 +419,14 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_action.anim_interpolation_linear);
   }
 
+  if (!USER_VERSION_ATLEAST(501, 19)) {
+    FROM_DEFAULT_V4_UCHAR(space_preferences.match);
+  }
+
+  if (!USER_VERSION_ATLEAST(501, 26)) {
+    FROM_DEFAULT_V4_UCHAR(space_view3d.grid_major);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
@@ -518,19 +528,19 @@ static bool keymap_item_update_tweak_event(wmKeyMapItem *kmi, void * /*user_data
 }
 
 static void keymap_update_brushes_handle_add_item(
-    const blender::StringRef asset_prefix,
-    const blender::StringRef tool_property,
-    const blender::Map<blender::StringRef, blender::StringRefNull> &tool_tool_map,
-    const blender::Map<blender::StringRef, blender::StringRef> &tool_asset_map,
-    const blender::Map<int, blender::StringRef> &id_asset_map,
+    const StringRef asset_prefix,
+    const StringRef tool_property,
+    const Map<StringRef, StringRefNull> &tool_tool_map,
+    const Map<StringRef, StringRef> &tool_asset_map,
+    const Map<int, StringRef> &id_asset_map,
     wmKeyMapItem *kmi)
 {
-  std::optional<blender::StringRef> asset_id = {};
-  std::optional<blender::StringRefNull> tool_id = {};
+  std::optional<StringRef> asset_id = {};
+  std::optional<StringRefNull> tool_id = {};
   if (STREQ(kmi->idname, "WM_OT_tool_set_by_id")) {
     IDProperty *idprop = IDP_GetPropertyFromGroup(kmi->properties, "name");
     if (idprop && (idprop->type == IDP_STRING)) {
-      const blender::StringRef prop_val = IDP_string_get(idprop);
+      const StringRef prop_val = IDP_string_get(idprop);
       if (!prop_val.startswith("builtin_brush.")) {
         return;
       }
@@ -557,25 +567,23 @@ static void keymap_update_brushes_handle_add_item(
 
     WM_keymap_item_properties_reset(kmi, nullptr);
     STRNCPY(kmi->idname, "BRUSH_OT_asset_activate");
-    IDP_AddToGroup(
-        kmi->properties,
-        blender::bke::idprop::create("asset_library_type", ASSET_LIBRARY_ESSENTIALS).release());
     IDP_AddToGroup(kmi->properties,
-                   blender::bke::idprop::create("relative_asset_identifier", full_path).release());
+                   bke::idprop::create("asset_library_type", ASSET_LIBRARY_ESSENTIALS).release());
+    IDP_AddToGroup(kmi->properties,
+                   bke::idprop::create("relative_asset_identifier", full_path).release());
   }
   else if (tool_id) {
     WM_keymap_item_properties_reset(kmi, nullptr);
-    IDP_AddToGroup(kmi->properties, blender::bke::idprop::create("name", *tool_id).release());
+    IDP_AddToGroup(kmi->properties, bke::idprop::create("name", *tool_id).release());
   }
 }
 
-static void keymap_update_brushes_handle_remove_item(
-    const blender::StringRef asset_prefix,
-    const blender::StringRef tool_property,
-    const blender::Map<int, blender::StringRef> &id_asset_map,
-    wmKeyMapItem *kmi)
+static void keymap_update_brushes_handle_remove_item(const StringRef asset_prefix,
+                                                     const StringRef tool_property,
+                                                     const Map<int, StringRef> &id_asset_map,
+                                                     wmKeyMapItem *kmi)
 {
-  std::optional<blender::StringRef> asset_id = {};
+  std::optional<StringRef> asset_id = {};
   /* Only the paint.brush_select operator is stored in the default keymap & applicable to be
    * updated if the user removed it in a previous version. */
   if (STREQ(kmi->idname, "PAINT_OT_brush_select")) {
@@ -593,21 +601,19 @@ static void keymap_update_brushes_handle_remove_item(
 
     WM_keymap_item_properties_reset(kmi, nullptr);
     STRNCPY(kmi->idname, "BRUSH_OT_asset_activate");
-    IDP_AddToGroup(
-        kmi->properties,
-        blender::bke::idprop::create("asset_library_type", ASSET_LIBRARY_ESSENTIALS).release());
     IDP_AddToGroup(kmi->properties,
-                   blender::bke::idprop::create("relative_asset_identifier", full_path).release());
+                   bke::idprop::create("asset_library_type", ASSET_LIBRARY_ESSENTIALS).release());
+    IDP_AddToGroup(kmi->properties,
+                   bke::idprop::create("relative_asset_identifier", full_path).release());
   }
 }
 
-static void keymap_update_brushes(
-    wmKeyMap *keymap,
-    const blender::StringRef asset_prefix,
-    const blender::StringRef tool_property,
-    const blender::Map<blender::StringRef, blender::StringRefNull> &tool_tool_map,
-    const blender::Map<blender::StringRef, blender::StringRef> &tool_asset_map,
-    const blender::Map<int, blender::StringRef> &id_asset_map)
+static void keymap_update_brushes(wmKeyMap *keymap,
+                                  const StringRef asset_prefix,
+                                  const StringRef tool_property,
+                                  const Map<StringRef, StringRefNull> &tool_tool_map,
+                                  const Map<StringRef, StringRef> &tool_asset_map,
+                                  const Map<int, StringRef> &id_asset_map)
 {
   for (wmKeyMapDiffItem &kmid : keymap->diff_items) {
     if (kmid.add_item) {
@@ -623,12 +629,11 @@ static void keymap_update_brushes(
 
 static void keymap_update_mesh_sculpt_brushes(wmKeyMap *keymap)
 {
-  constexpr blender::StringRef asset_prefix =
-      "brushes/essentials_brushes-mesh_sculpt.blend/Brush/";
-  constexpr blender::StringRef tool_property = "sculpt_tool";
+  constexpr StringRef asset_prefix = "brushes/essentials_brushes-mesh_sculpt.blend/Brush/";
+  constexpr StringRef tool_property = "sculpt_tool";
 
   const auto tool_asset_map = []() {
-    blender::Map<blender::StringRef, blender::StringRef> map;
+    Map<StringRef, StringRef> map;
     map.add_new("builtin_brush.Draw Sharp", "Draw Sharp");
     map.add_new("builtin_brush.Clay", "Clay");
     map.add_new("builtin_brush.Clay Strips", "Clay Strips");
@@ -662,7 +667,7 @@ static void keymap_update_mesh_sculpt_brushes(wmKeyMap *keymap)
   }();
 
   const auto tool_tool_map = []() {
-    blender::Map<blender::StringRef, blender::StringRefNull> map;
+    Map<StringRef, StringRefNull> map;
     map.add_new("builtin_brush.Draw", "builtin.brush");
     map.add_new("builtin_brush.Paint", "builtin_brush.paint");
     map.add_new("builtin_brush.Mask", "builtin_brush.mask");
@@ -671,7 +676,7 @@ static void keymap_update_mesh_sculpt_brushes(wmKeyMap *keymap)
   }();
 
   const auto id_asset_map = []() {
-    blender::Map<int, blender::StringRef> map;
+    Map<int, StringRef> map;
     map.add_new(SCULPT_BRUSH_TYPE_DRAW, "Draw");
     map.add_new(SCULPT_BRUSH_TYPE_DRAW_SHARP, "Draw Sharp");
     map.add_new(SCULPT_BRUSH_TYPE_CLAY, "Clay");
@@ -713,12 +718,11 @@ static void keymap_update_mesh_sculpt_brushes(wmKeyMap *keymap)
 
 static void keymap_update_mesh_vertex_paint_brushes(wmKeyMap *keymap)
 {
-  constexpr blender::StringRef asset_prefix =
-      "brushes/essentials_brushes-mesh_vertex.blend/Brush/";
-  constexpr blender::StringRef tool_property = "vertex_tool";
+  constexpr StringRef asset_prefix = "brushes/essentials_brushes-mesh_vertex.blend/Brush/";
+  constexpr StringRef tool_property = "vertex_tool";
 
   const auto tool_tool_map = []() {
-    blender::Map<blender::StringRef, blender::StringRefNull> map;
+    Map<StringRef, StringRefNull> map;
     map.add_new("builtin_brush.Draw", "builtin.brush");
     map.add_new("builtin_brush.Blur", "builtin_brush.blur");
     map.add_new("builtin_brush.Average", "builtin_brush.average");
@@ -727,7 +731,7 @@ static void keymap_update_mesh_vertex_paint_brushes(wmKeyMap *keymap)
   }();
 
   const auto id_asset_map = []() {
-    blender::Map<int, blender::StringRef> map;
+    Map<int, StringRef> map;
     map.add_new(VPAINT_BRUSH_TYPE_DRAW, "Paint Hard");
     map.add_new(VPAINT_BRUSH_TYPE_BLUR, "Blur");
     map.add_new(VPAINT_BRUSH_TYPE_AVERAGE, "Average");
@@ -740,12 +744,11 @@ static void keymap_update_mesh_vertex_paint_brushes(wmKeyMap *keymap)
 
 static void keymap_update_mesh_weight_paint_brushes(wmKeyMap *keymap)
 {
-  constexpr blender::StringRef asset_prefix =
-      "brushes/essentials_brushes-mesh_weight.blend/Brush/";
-  constexpr blender::StringRef tool_property = "weight_tool";
+  constexpr StringRef asset_prefix = "brushes/essentials_brushes-mesh_weight.blend/Brush/";
+  constexpr StringRef tool_property = "weight_tool";
 
   const auto tool_tool_map = []() {
-    blender::Map<blender::StringRef, blender::StringRefNull> map;
+    Map<StringRef, StringRefNull> map;
     map.add_new("builtin_brush.Draw", "builtin.brush");
     map.add_new("builtin_brush.Blur", "builtin_brush.blur");
     map.add_new("builtin_brush.Average", "builtin_brush.average");
@@ -754,7 +757,7 @@ static void keymap_update_mesh_weight_paint_brushes(wmKeyMap *keymap)
   }();
 
   const auto asset_id_map = []() {
-    blender::Map<int, blender::StringRef> map;
+    Map<int, StringRef> map;
     map.add_new(WPAINT_BRUSH_TYPE_DRAW, "Paint");
     map.add_new(WPAINT_BRUSH_TYPE_BLUR, "Blur");
     map.add_new(WPAINT_BRUSH_TYPE_AVERAGE, "Average");
@@ -767,12 +770,11 @@ static void keymap_update_mesh_weight_paint_brushes(wmKeyMap *keymap)
 
 static void keymap_update_mesh_texture_paint_brushes(wmKeyMap *keymap)
 {
-  constexpr blender::StringRef asset_prefix =
-      "brushes/essentials_brushes-mesh_texture.blend/Brush/";
-  constexpr blender::StringRef tool_property = "image_tool";
+  constexpr StringRef asset_prefix = "brushes/essentials_brushes-mesh_texture.blend/Brush/";
+  constexpr StringRef tool_property = "image_tool";
 
   const auto tool_tool_map = []() {
-    blender::Map<blender::StringRef, blender::StringRefNull> map;
+    Map<StringRef, StringRefNull> map;
     map.add_new("builtin_brush.Draw", "builtin.brush");
     map.add_new("builtin_brush.Soften", "builtin_brush.soften");
     map.add_new("builtin_brush.Smear", "builtin_brush.smear");
@@ -783,7 +785,7 @@ static void keymap_update_mesh_texture_paint_brushes(wmKeyMap *keymap)
   }();
 
   const auto id_asset_map = []() {
-    blender::Map<int, blender::StringRef> map;
+    Map<int, StringRef> map;
     map.add_new(IMAGE_PAINT_BRUSH_TYPE_DRAW, "Paint Hard");
     map.add_new(IMAGE_PAINT_BRUSH_TYPE_SOFTEN, "Blur");
     map.add_new(IMAGE_PAINT_BRUSH_TYPE_SMEAR, "Smear");
@@ -1410,7 +1412,7 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(306, 5)) {
     if (userdef->pythondir_legacy[0]) {
-      bUserScriptDirectory *script_dir = MEM_new_for_free<bUserScriptDirectory>(
+      bUserScriptDirectory *script_dir = MEM_new<bUserScriptDirectory>(
           "Versioning user script path");
 
       STRNCPY(script_dir->dir_path, userdef->pythondir_legacy);
@@ -1603,7 +1605,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(405, 10)) {
-    static const blender::Map<std::string, std::string> keymap_renames = {
+    static const Map<std::string, std::string> keymap_renames = {
         {"SequencerCommon", "Video Sequence Editor"},
         {"SequencerPreview", "Preview"},
 
@@ -1738,6 +1740,17 @@ void blo_do_versions_userdef(UserDef *userdef)
         userdef, "NODE_AST_compositor", "Utilities");
   }
 
+  if (!USER_VERSION_ATLEAST(501, 17)) {
+    userdef->flag |= USER_HIDE_DOT_DATABLOCK;
+  }
+
+  if (!USER_VERSION_ATLEAST(501, 24)) {
+    /* Increase the base XR vignette value to match the previous default after logic refactor. */
+    if (userdef->xr_navigation.vignette_intensity == 60) {
+      userdef->xr_navigation.vignette_intensity = 70;
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
@@ -1771,3 +1784,5 @@ void BLO_sanitize_experimental_features_userpref_blend(UserDef *userdef)
 }
 
 #undef USER_LMOUSESELECT
+
+}  // namespace blender

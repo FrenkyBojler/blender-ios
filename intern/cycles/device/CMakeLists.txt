@@ -6,7 +6,8 @@ set(INC
   ..
 )
 
-set(INC_SYS )
+set(INC_SYS
+)
 
 if(WITH_CYCLES_DEVICE_OPTIX OR WITH_CYCLES_DEVICE_CUDA)
   if(NOT WITH_CUDA_DYNLOAD)
@@ -174,9 +175,6 @@ if(WITH_CYCLES_DEVICE_METAL)
 endif()
 
 if(WITH_CYCLES_DEVICE_ONEAPI)
-  if(WITH_CYCLES_ONEAPI_HOST_TASK_EXECUTION)
-    add_definitions(-DWITH_ONEAPI_SYCL_HOST_TASK)
-  endif()
   if(WITH_CYCLES_ONEAPI_BINARIES)
     set(cycles_kernel_oneapi_lib_suffix "_aot")
   else()
@@ -234,7 +232,7 @@ endif()
 
 if(WITH_CYCLES_OSL)
   list(APPEND LIB
-    ${OSL_LIBRARIES}
+    bf::dependencies::optional::osl
   )
 endif()
 

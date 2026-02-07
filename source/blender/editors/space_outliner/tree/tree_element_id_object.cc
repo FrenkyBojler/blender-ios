@@ -18,9 +18,11 @@
 
 #include "tree_element_id_object.hh"
 
+namespace blender {
+
 struct bConstraint;
 
-namespace blender::ed::outliner {
+namespace ed::outliner {
 
 TreeElementIDObject::TreeElementIDObject(TreeElement &legacy_te, Object &object)
     : TreeElementID(legacy_te, object.id), object_(object)
@@ -30,7 +32,7 @@ TreeElementIDObject::TreeElementIDObject(TreeElement &legacy_te, Object &object)
 void TreeElementIDObject::expand(SpaceOutliner & /*space_outliner*/) const
 {
   /* tuck pointer back in object, to construct hierarchy */
-  object_.id.newid = (ID *)(&legacy_te_);
+  object_.id.newid = reinterpret_cast<ID *>(&legacy_te_);
 
   expand_animation_data(object_.adt);
   expand_pose();
@@ -46,8 +48,7 @@ void TreeElementIDObject::expand(SpaceOutliner & /*space_outliner*/) const
 
 void TreeElementIDObject::expand_data() const
 {
-  add_element(
-      &legacy_te_.subtree, static_cast<ID *>(object_.data), nullptr, &legacy_te_, TSE_SOME_ID, 0);
+  add_element(&legacy_te_.subtree, object_.data, nullptr, &legacy_te_, TSE_SOME_ID, 0);
 }
 
 void TreeElementIDObject::expand_pose() const
@@ -132,4 +133,5 @@ void TreeElementIDObject::expand_duplicated_group() const
   }
 }
 
-}  // namespace blender::ed::outliner
+}  // namespace ed::outliner
+}  // namespace blender

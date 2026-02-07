@@ -45,6 +45,8 @@
 #include "clip_intern.hh"
 #include "tracking_ops_intern.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Add Marker Operator
  * \{ */
@@ -263,7 +265,7 @@ static wmOperatorStatus delete_track_invoke(bContext *C, wmOperator *op, const w
                                   IFACE_("Delete selected tracks?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  blender::ui::AlertIcon::None,
+                                  ui::AlertIcon::None,
                                   false);
   }
   return delete_track_exec(C, op);
@@ -344,7 +346,7 @@ static wmOperatorStatus delete_marker_invoke(bContext *C,
                                   IFACE_("Delete marker for current frame from selected tracks?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  blender::ui::AlertIcon::None,
+                                  ui::AlertIcon::None,
                                   false);
   }
   return delete_marker_exec(C, op);
@@ -415,7 +417,7 @@ static SlideMarkerData *create_slide_marker_data(SpaceClip *sc,
                                                  int width,
                                                  int height)
 {
-  SlideMarkerData *data = MEM_callocN<SlideMarkerData>("slide marker data");
+  SlideMarkerData *data = MEM_new_zeroed<SlideMarkerData>("slide marker data");
   int framenr = ED_space_clip_get_clip_frame_number(sc);
 
   marker = BKE_tracking_marker_ensure(track, framenr);
@@ -665,16 +667,16 @@ static void apply_mouse_slide(bContext *C, SlideMarkerData *data)
 static void free_slide_data(SlideMarkerData *data)
 {
   if (data->old_markers != nullptr) {
-    MEM_freeN(data->old_markers);
+    MEM_delete(data->old_markers);
   }
-  MEM_freeN(data);
+  MEM_delete(data);
 }
 
 static wmOperatorStatus slide_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
 
-  SlideMarkerData *data = (SlideMarkerData *)op->customdata;
+  SlideMarkerData *data = static_cast<SlideMarkerData *>(op->customdata);
   float dx, dy, mdelta[2];
 
   switch (event->type) {
@@ -1243,7 +1245,7 @@ static wmOperatorStatus join_tracks_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  blender::Set<MovieTrackingPlaneTrack *> point_tracks;
+  Set<MovieTrackingPlaneTrack *> point_tracks;
 
   for (MovieTrackingTrack &track : tracking_object->tracks.items_mutable()) {
     if (TRACK_VIEW_SELECTED(sc, &track) && &track != active_track) {
@@ -1365,7 +1367,7 @@ static wmOperatorStatus average_tracks_exec(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 
   /* Free memory. */
-  MEM_freeN(source_tracks);
+  MEM_delete(source_tracks);
 
   return OPERATOR_FINISHED;
 }
@@ -1597,7 +1599,7 @@ static bool is_track_clean(MovieTrackingTrack *track, int frames, int del)
   int markersnr = track->markersnr;
 
   if (del) {
-    new_markers = MEM_new_array_for_free<MovieTrackingMarker>(markersnr, "track cleaned markers");
+    new_markers = MEM_new_array<MovieTrackingMarker>(markersnr, "track cleaned markers");
   }
 
   for (int a = 0; a < markersnr; a++) {
@@ -1681,14 +1683,14 @@ static bool is_track_clean(MovieTrackingTrack *track, int frames, int del)
   }
 
   if (del) {
-    MEM_freeN(track->markers);
+    MEM_delete(track->markers);
 
     if (count) {
       track->markers = new_markers;
     }
     else {
       track->markers = nullptr;
-      MEM_freeN(new_markers);
+      MEM_delete(new_markers);
     }
 
     track->markersnr = count;
@@ -2232,3 +2234,5 @@ void CLIP_OT_update_image_from_plane_marker(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

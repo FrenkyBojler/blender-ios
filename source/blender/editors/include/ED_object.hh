@@ -21,6 +21,8 @@
 #include "DNA_object_enums.h"
 #include "DNA_userdef_enums.h"
 
+namespace blender {
+
 struct Base;
 struct Depsgraph;
 struct EnumPropertyItem;
@@ -44,11 +46,11 @@ struct wmOperator;
 struct wmOperatorType;
 enum eReportType : uint16_t;
 
-namespace blender::ui {
+namespace ui {
 struct Layout;
-}  // namespace blender::ui
+}  // namespace ui
 
-namespace blender::ed::object {
+namespace ed::object {
 
 struct XFormObjectData;
 
@@ -272,7 +274,7 @@ Base *add_duplicate(
     Main *bmain, Scene *scene, ViewLayer *view_layer, Base *base, eDupli_ID_Flags dupflag);
 
 void parent_set(Object *ob, Object *parent, int type, const char *substr);
-std::string drop_named_material_tooltip(bContext *C, const char *name, const int mval[2]);
+std::string drop_named_material_tooltip(bContext *C, StringRef name, const int mval[2]);
 std::string drop_geometry_nodes_tooltip(bContext *C, PointerRNA *properties, const int mval[2]);
 
 /** Bit-flags for enter/exit edit-mode. */
@@ -622,4 +624,5 @@ void ui_template_modifier_asset_menu_items(ui::Layout &layout,
                                            StringRef catalog_path,
                                            bool skip_essentials);
 
-}  // namespace blender::ed::object
+}  // namespace ed::object
+}  // namespace blender
