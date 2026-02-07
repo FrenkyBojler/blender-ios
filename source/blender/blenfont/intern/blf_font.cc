@@ -428,15 +428,18 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
       hb_buffer_set_language(hb_buf, hb_language_from_string(BLT_lang_get(), -1));
     }
     /* Is the current font ideal for this script? */
+    segment_font = font;
     if (!ELEM(script, HB_SCRIPT_COMMON, HB_SCRIPT_INHERITED, HB_SCRIPT_UNKNOWN, HB_SCRIPT_LATIN)) {
       segment_font = blf_font_script_ensure(font, str32[segment_start]);
     }
-    if (!segment_font->hb_font && blf_ensure_face(segment_font)) {
-      segment_font->hb_font = hb_ft_font_create_referenced(segment_font->face);
-      hb_ot_font_set_funcs(segment_font->hb_font);
-    }
-    else {
-      segment_font = font;
+    if (!segment_font->hb_font) {
+      if (blf_ensure_face(segment_font)) {
+        segment_font->hb_font = hb_ft_font_create_referenced(segment_font->face);
+        hb_ot_font_set_funcs(segment_font->hb_font);
+      }
+      else {
+        segment_font = font;
+      }
     }
 
     hb_font_set_scale(
