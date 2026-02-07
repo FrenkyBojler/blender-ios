@@ -1476,6 +1476,8 @@ static void node_widgets()
   /* Create the widget-map for the area here. */
   wmGizmoMapType_Params params{SPACE_NODE, RGN_TYPE_WINDOW};
   wmGizmoMapType *gzmap_type = WM_gizmomaptype_ensure(&params);
+  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_navigate);
+
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_transform);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_crop);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_glare);
@@ -1483,7 +1485,6 @@ static void node_widgets()
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_box_mask);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_ellipse_mask);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_split);
-  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_navigate);
 }
 
 static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
