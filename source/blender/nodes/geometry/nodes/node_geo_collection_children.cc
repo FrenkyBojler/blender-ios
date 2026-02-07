@@ -18,6 +18,14 @@
 
 namespace blender::nodes::node_geo_collection_children_cc {
 
+static void node_declare(NodeDeclarationBuilder &b)
+{
+  b.add_input<decl::Collection>("Collection").optional_label();
+  b.add_input<decl::Bool>("Recursive").description("Recursively retrieve collections and objects");
+  b.add_output<decl::Collection>("Collections").structure_type(StructureType::List);
+  b.add_output<decl::Object>("Objects").structure_type(StructureType::List);
+}
+
 static void collection_children_recursive(Collection *collection,
                                           Vector<Collection *> &collections,
                                           Set<Collection *> &visited)
@@ -29,14 +37,6 @@ static void collection_children_recursive(Collection *collection,
       collection_children_recursive(cc, collections, visited);
     }
   }
-}
-
-static void node_declare(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Collection>("Collection").optional_label();
-  b.add_input<decl::Bool>("Recursive").description("Recursively retrieve collections and objects");
-  b.add_output<decl::Collection>("Collections").structure_type(StructureType::List);
-  b.add_output<decl::Object>("Objects").structure_type(StructureType::List);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
