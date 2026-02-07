@@ -2080,7 +2080,10 @@ PROFILE_FUNCTION static void store_constraint_attributes(
     MutableSpan<GeometrySet> applied_geometries)
 {
   for (const SimPointsKey &points_key : state.sim_points.keys()) {
-    const int geometry_bundle_i = world_bundles.geometries.index_of_as(points_key.path);
+    const int geometry_bundle_i = world_bundles.geometries.index_of_try_as(points_key.path);
+    if (geometry_bundle_i < 0) {
+      continue;
+    }
     GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     if (!applied_geometry.has(points_key.type)) {
       continue;
