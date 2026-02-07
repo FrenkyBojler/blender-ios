@@ -2235,6 +2235,15 @@ static bool imb_read_deep_scanlines(Imf::DeepScanLineInputPart &deep_in,
   deep_in.setFrameBuffer(frame_buffer);
   deep_in.readPixels(dw.min.y, dw.max.y);
 
+  /* Compute depth statistics */
+  deep_buffer.depth_min = FLT_MAX;
+  deep_buffer.depth_max = -FLT_MAX;
+
+  for (float depth : deep_buffer.depths) {
+    deep_buffer.depth_min = std::min(deep_buffer.depth_min, depth);
+    deep_buffer.depth_max = std::max(deep_buffer.depth_max, depth);
+  }
+
   return true;
 }
 

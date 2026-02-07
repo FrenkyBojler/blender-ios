@@ -118,6 +118,10 @@ struct ImBufDeepBuffer {
 
   /** Channel names (e.g., "R", "G", "B", "A") */
   blender::Vector<std::string> channel_names;
+
+  /* Depth statistics. */
+  float depth_min = FLT_MAX;
+  float depth_max = -FLT_MAX;
 };
 
 /* -------------------------------------------------------------------- */
