@@ -821,7 +821,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
             menu_parent->drawstr = scope.allocator().copy_string(but->drawstr);
             menu_parent->parent = current_menu.self_as_parent;
 
-            for (Button &sub_but : sub_block->buttons_as_refs()) {
+            for (Button &sub_but : sub_block->buttons()) {
               menu_items_from_ui_create_item_from_button(
                   data, scope, mt, &sub_but, wm_context, menu_parent, ignored_operator_idnames);
             }

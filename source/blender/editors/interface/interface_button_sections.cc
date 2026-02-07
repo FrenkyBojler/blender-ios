@@ -75,7 +75,7 @@ static Vector<rcti> button_section_bounds_calc(const ARegion *region, const bool
         continue;
       }
 
-      for (const Button &but : block.buttons_as_refs()) {
+      for (const Button &but : block.buttons()) {
         if (but.type == ButtonType::SeprSpacer) {
           /* Start a new section. */
           if (has_section_content) {

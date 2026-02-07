@@ -313,7 +313,7 @@ static Button *ui_but_find(const ARegion *region,
                            const void *find_custom_data)
 {
   for (Block &block : region->runtime->uiblocks) {
-    for (Button &but : block.buttons_as_refs() | std::views::reverse) {
+    for (Button &but : block.buttons() | std::views::reverse) {
       if (find_poll && find_poll(&but, find_custom_data) == false) {
         continue;
       }
@@ -340,7 +340,7 @@ Button *button_find_mouse_over_ex(const ARegion *region,
     float mx = xy[0], my = xy[1];
     window_to_block_fl(region, &block, &mx, &my);
 
-    for (Button &but : block.buttons_as_refs() | std::views::reverse) {
+    for (Button &but : block.buttons() | std::views::reverse) {
       if (find_poll && find_poll(&but, find_custom_data) == false) {
         continue;
       }
@@ -392,7 +392,7 @@ Button *button_find_rect_over(const ARegion *region, const rcti *rect_px)
     rctf rect_block;
     window_to_block_rctf(region, &block, &rect_block, &rect_px_fl);
 
-    for (Button &but : block.buttons_as_refs() | std::views::reverse) {
+    for (Button &but : block.buttons() | std::views::reverse) {
       if (button_is_interactive(&but, labeledit)) {
         /* No pie menu support. */
         BLI_assert(but.pie_dir == UI_RADIAL_NONE);
@@ -422,7 +422,7 @@ Button *list_find_mouse_over_ex(const ARegion *region, const int xy[2])
   for (Block &block : region->runtime->uiblocks) {
     float mx = xy[0], my = xy[1];
     window_to_block_fl(region, &block, &mx, &my);
-    for (Button &but : block.buttons_as_refs() | std::views::reverse) {
+    for (Button &but : block.buttons() | std::views::reverse) {
       if (but.type == ButtonType::ListBox && button_contains_pt(&but, mx, my)) {
         return &but;
       }
@@ -539,8 +539,8 @@ Button *view_item_find_search_highlight(const ARegion *region)
 
 Button *button_prev(Button *but)
 {
-  for (Button &button : but->block->buttons_as_refs() |
-                            std::views::take(but->block->but_index(but)) | std::views::reverse)
+  for (Button &button :
+       but->block->buttons() | std::views::take(but->block->but_index(but)) | std::views::reverse)
   {
     if (button_is_editable(&button)) {
       return &button;
@@ -551,9 +551,7 @@ Button *button_prev(Button *but)
 
 Button *button_next(Button *but)
 {
-  for (Button &button :
-       but->block->buttons_as_refs() | std::views::drop(but->block->but_index(but) + 1))
-  {
+  for (Button &button : but->block->buttons() | std::views::drop(but->block->but_index(but) + 1)) {
     if (button_is_editable(&button)) {
       return &button;
     }
@@ -563,7 +561,7 @@ Button *button_next(Button *but)
 
 Button *button_first(Block *block)
 {
-  for (Button &but : block->buttons_as_refs()) {
+  for (Button &but : block->buttons()) {
     if (button_is_editable(&but)) {
       return &but;
     }
@@ -573,7 +571,7 @@ Button *button_first(Block *block)
 
 Button *button_last(Block *block)
 {
-  for (Button &but : block->buttons_as_refs() | std::views::reverse) {
+  for (Button &but : block->buttons() | std::views::reverse) {
     if (button_is_editable(&but)) {
       return &but;
     }
@@ -648,7 +646,7 @@ size_t button_tip_len_only_first_line(const Button *but)
 
 Button *block_active_but_get(const Block *block)
 {
-  for (Button &but : block->buttons_as_refs()) {
+  for (Button &but : block->buttons()) {
     if (but.active) {
       return &but;
     }
@@ -684,9 +682,7 @@ static const Button *ui_but_next_non_separator(const Button *but)
   if (!but) {
     return nullptr;
   }
-  for (Button &button :
-       but->block->buttons_as_refs() | std::views::drop(but->block->but_index(but) + 1))
-  {
+  for (Button &button : but->block->buttons() | std::views::drop(but->block->but_index(but) + 1)) {
     if (!ELEM(button.type, ButtonType::Sepr, ButtonType::SeprLine)) {
       return &button;
     }
@@ -724,7 +720,7 @@ bool block_can_add_separator(const Block *block)
 
 bool block_has_active_default_button(const Block *block)
 {
-  for (const Button &but : block->buttons_as_refs()) {
+  for (const Button &but : block->buttons()) {
     if ((but.flag & BUT_ACTIVE_DEFAULT) && ((but.flag & UI_HIDDEN) == 0)) {
       return true;
     }
@@ -784,7 +780,7 @@ Button *region_find_active_but(ARegion *region)
 Button *region_find_first_but_test_flag(ARegion *region, int flag_include, int flag_exclude)
 {
   for (Block &block : region->runtime->uiblocks) {
-    for (Button &but : block.buttons_as_refs()) {
+    for (Button &but : block.buttons()) {
       if (((but.flag & flag_include) == flag_include) && ((but.flag & flag_exclude) == 0)) {
         return &but;
       }

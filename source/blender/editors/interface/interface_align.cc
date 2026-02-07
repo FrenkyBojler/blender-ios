@@ -364,7 +364,7 @@ void block_align_calc(Block *block, const ARegion *region)
   int n = 0;
   /* First loop: Initialize ButAlign data for each button and clear their align flag.
    * Tabs get some special treatment here, they get aligned to region border. */
-  for (Button &but : block->buttons_as_refs()) {
+  for (Button &but : block->buttons()) {
     /* special case: tabs need to be aligned to a region border, drawflag tells which one */
     if (but.type == ButtonType::Tab) {
       block_align_but_to_region(&but, region);

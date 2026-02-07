@@ -264,7 +264,7 @@ void AbstractTreeView::get_hierarchy_lines(const ARegion &region,
 
 static ButtonViewItem *find_first_view_item_but(const Block &block, const AbstractTreeView &view)
 {
-  for (Button &but : block.buttons_as_refs()) {
+  for (Button &but : block.buttons()) {
     if (but.type != ButtonType::ViewItem) {
       continue;
     }

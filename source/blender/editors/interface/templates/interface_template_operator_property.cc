@@ -175,7 +175,7 @@ static AutoPropButsReturn template_operator_property_buts_draw_single(
 
   const bool is_popup = (block->flag & BLOCK_KEEP_OPEN) != 0;
 
-  for (Button &but : block->buttons_as_refs()) {
+  for (Button &but : block->buttons()) {
     /* no undo for buttons for operator redo panels */
     if (!(layout_flags & TEMPLATE_OP_PROPS_ALLOW_UNDO_PUSH)) {
       button_flag_disable(&but, BUT_UNDO);

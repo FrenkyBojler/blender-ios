@@ -92,7 +92,7 @@ void ViewLink::views_bounds_calc(const Block &block)
     views_bounds.add(link.view.get(), minmax);
   }
 
-  for (Button &but : block.buttons_as_refs()) {
+  for (Button &but : block.buttons()) {
     if (but.type != ButtonType::ViewItem) {
       continue;
     }
@@ -350,7 +350,7 @@ ButtonViewItem *block_view_find_matching_view_item_but_in_old_block(
     return nullptr;
   }
 
-  for (Button &old_but : old_block->buttons_as_refs()) {
+  for (Button &old_but : old_block->buttons()) {
     if (old_but.type != ButtonType::ViewItem) {
       continue;
     }

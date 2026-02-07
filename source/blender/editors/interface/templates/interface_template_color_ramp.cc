@@ -357,7 +357,7 @@ static void colorband_buttons_layout(Layout &layout,
     }
 
     /* Some special (rather awkward) treatment to update UI state on certain property changes. */
-    for (Button &but : block->buttons_as_refs() | std::views::reverse) {
+    for (Button &but : block->buttons() | std::views::reverse) {
       if (but.rnapoin.data != ptr.data) {
         continue;
       }

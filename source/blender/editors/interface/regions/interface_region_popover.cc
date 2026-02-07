@@ -210,7 +210,7 @@ static Block *block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *ar
     if (!handle->refresh) {
       const Button *but = nullptr;
       const Button *but_first = nullptr;
-      for (const Button &but_iter : block->buttons_as_refs()) {
+      for (const Button &but_iter : block->buttons()) {
         if ((but_first == nullptr) && button_is_editable(&but_iter)) {
           but_first = &but_iter;
         }

@@ -202,7 +202,7 @@ static AbstractViewItem *find_item_from_rename_button(const Button &rename_but)
   /* A minimal sanity check, can't do much more here. */
   BLI_assert(rename_but.type == ButtonType::Text && rename_but.poin);
 
-  for (Button &but : rename_but.block->buttons_as_refs()) {
+  for (Button &but : rename_but.block->buttons()) {
     if (but.type != ButtonType::ViewItem) {
       continue;
     }

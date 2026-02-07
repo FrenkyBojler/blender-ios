@@ -94,7 +94,7 @@ void uiTemplateKeymapItemProperties(Layout *layout, PointerRNA *ptr)
     }
     /* attach callbacks to compensate for missing properties update,
      * we don't know which keymap (item) is being modified there */
-    for (Button &but : block->buttons_as_refs() | std::views::drop(old_but_count)) {
+    for (Button &but : block->buttons() | std::views::drop(old_but_count)) {
       /* operator buttons may store props for use (file selector, #36492) */
       if (but.rnaprop) {
         button_func_set(&but, keymap_item_modified, ptr->data, nullptr);

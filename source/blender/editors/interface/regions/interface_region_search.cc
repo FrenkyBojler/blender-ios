@@ -371,7 +371,7 @@ static ARegion *wm_searchbox_tooltip_init(
   *r_exit_on_event = true;
 
   for (Block &block : region->runtime->uiblocks) {
-    for (Button &but : block.buttons_as_refs()) {
+    for (Button &but : block.buttons()) {
       if (but.type != ButtonType::SearchMenu) {
         continue;
       }

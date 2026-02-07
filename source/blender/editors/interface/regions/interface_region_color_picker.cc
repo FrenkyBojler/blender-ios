@@ -246,7 +246,7 @@ static void ui_update_color_picker_buts_rgba(Block *block,
   ui_color_picker_update_from_rgb_linear(
       cpicker, block->is_color_gamma_picker, is_editing_sliders, rgba_scene_linear);
 
-  for (Button &bt : block->buttons_as_refs()) {
+  for (Button &bt : block->buttons()) {
     if (bt.custom_data != cpicker) {
       continue;
     }
@@ -462,7 +462,7 @@ static void ui_colorpicker_hide_reveal(Block *block)
                                                               ePickerSpace(g_color_picker_space);
 
   /* tag buttons */
-  for (Button &bt : block->buttons_as_refs()) {
+  for (Button &bt : block->buttons()) {
     if ((bt.func == ui_colorpicker_rgba_update_cb) && (bt.type == ButtonType::NumSlider) &&
         (bt.rnaindex != 3))
     {
@@ -1102,7 +1102,7 @@ static int ui_colorpicker_wheel_cb(const bContext * /*C*/, Block *block, const w
   }
 
   if (add != 0.0f) {
-    for (Button &but : block->buttons_as_refs()) {
+    for (Button &but : block->buttons()) {
       if (but.type == ButtonType::HsvCube && but.active == nullptr) {
         ColorPicker *cpicker = static_cast<ColorPicker *>(but.custom_data);
         float *hsv_perceptual = cpicker->hsv_perceptual;

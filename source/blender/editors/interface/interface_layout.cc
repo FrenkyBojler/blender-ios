@@ -610,7 +610,7 @@ static void ui_layer_but_cb(bContext *C, void *arg_but, void *arg_index)
 
     RNA_property_update(C, ptr, prop);
 
-    for (Button &cbut : but->block->buttons_as_refs()) {
+    for (Button &cbut : but->block->buttons()) {
       button_update(&cbut);
     }
   }
@@ -1033,7 +1033,7 @@ static void ui_item_enum_expand_tabs(Layout *layout,
   BLI_assert(start_size != block->buttons_ptrs.size());
 
   if (expand_as == EnumTabExpand::Default) {
-    for (Button &tab : block->buttons_as_refs() | std::views::drop(start_size)) {
+    for (Button &tab : block->buttons() | std::views::drop(start_size)) {
       button_drawflag_enable(&tab, button_align_opposite_to_area_align_get(CTX_wm_region(C)));
       if (icon_only) {
         button_drawflag_enable(&tab, BUT_HAS_QUICK_TOOLTIP);
@@ -1292,7 +1292,7 @@ void context_active_but_prop_get_filebrowser(const bContext *C,
   }
 
   for (Block &block : region->runtime->uiblocks) {
-    for (Button &but : block.buttons_as_refs()) {
+    for (Button &but : block.buttons()) {
       if (but.rnapoin.data) {
         if (RNA_property_type(but.rnaprop) == PROP_STRING) {
           prevbut = &but;

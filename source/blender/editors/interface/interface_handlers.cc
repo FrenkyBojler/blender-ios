@@ -1264,7 +1264,7 @@ static void ui_apply_but_ROW(bContext *C, Block *block, Button *but, HandleButto
   ui_apply_but_func(C, but);
 
   /* states of other row buttons */
-  for (Button &bt : block->buttons_as_refs()) {
+  for (Button &bt : block->buttons()) {
     if (&bt != but && bt.poin == but->poin && ELEM(bt.type, ButtonType::Row, ButtonType::ListRow))
     {
       button_update_edited(&bt);
@@ -1455,7 +1455,7 @@ static ButtonMultiState *ui_multibut_lookup(HandleButtonData *data, const Button
 
 static void ui_multibut_restore(bContext *C, HandleButtonData *data, Block *block)
 {
-  for (Button &but : block->buttons_as_refs()) {
+  for (Button &but : block->buttons()) {
     if (but.flag & BUT_DRAG_MULTI) {
       ButtonMultiState *mbut_state = ui_multibut_lookup(data, &but);
       if (mbut_state) {
@@ -1520,7 +1520,7 @@ static bool ui_multibut_states_tag(Button *but_active,
   data->multi_data.has_mbuts = false;
 
   /* follow ui_but_find_mouse_over_ex logic */
-  for (Button &but : but_active->block->buttons_as_refs()) {
+  for (Button &but : but_active->block->buttons()) {
     bool drag_prev = false;
     bool drag_curr = false;
 
@@ -1562,7 +1562,7 @@ static void ui_multibut_states_create(Button *but_active, HandleButtonData *data
 
   data->multi_data.bs_mbuts = butstore_create(but_active->block);
 
-  for (Button &but : but_active->block->buttons_as_refs()) {
+  for (Button &but : but_active->block->buttons()) {
     if (but.flag & BUT_DRAG_MULTI) {
       ui_multibut_add(data, &but);
     }
@@ -1590,7 +1590,7 @@ static void ui_multibut_states_apply(bContext *C, HandleButtonData *data, Block 
   BLI_assert(data->multi_data.init == HandleButtonMulti::INIT_ENABLE);
   BLI_assert(data->multi_data.skip == false);
 
-  for (Button &but : block->buttons_as_refs()) {
+  for (Button &but : block->buttons()) {
     if (!(but.flag & BUT_DRAG_MULTI)) {
       continue;
     }
@@ -1718,7 +1718,7 @@ static bool ui_drag_toggle_set_xy_xy(
     window_to_block_fl(region, &block, &xy_a_block[0], &xy_a_block[1]);
     window_to_block_fl(region, &block, &xy_b_block[0], &xy_b_block[1]);
 
-    for (Button &but : block.buttons_as_refs()) {
+    for (Button &but : block.buttons()) {
       /* NOTE: ctrl is always true here because (at least for now)
        * we always want to consider text control in this case, even when not embossed. */
 
@@ -3717,7 +3717,7 @@ static void ui_textedit_next_but(Block *block, Button *actbut, HandleButtonData 
     return;
   }
 
-  for (Button &but : block->buttons_as_refs() | std::views::drop(block->but_index(actbut) + 1)) {
+  for (Button &but : block->buttons() | std::views::drop(block->but_index(actbut) + 1)) {
     if (button_is_editable_as_text(&but)) {
       if (!(but.flag & (BUT_DISABLED | UI_HIDDEN))) {
         data->postbut = &but;
@@ -3726,7 +3726,7 @@ static void ui_textedit_next_but(Block *block, Button *actbut, HandleButtonData 
       }
     }
   }
-  for (Button &but : block->buttons_as_refs()) {
+  for (Button &but : block->buttons()) {
     if (&but == actbut) {
       break;
     }
@@ -3754,7 +3754,7 @@ static void ui_textedit_prev_but(Block *block, Button *actbut, HandleButtonData 
   }
 
   for (Button &but :
-       block->buttons_as_refs() | std::views::take(block->but_index(actbut)) | std::views::reverse)
+       block->buttons() | std::views::take(block->but_index(actbut)) | std::views::reverse)
   {
     if (button_is_editable_as_text(&but)) {
       if (!(but.flag & (BUT_DISABLED | UI_HIDDEN))) {
@@ -3764,7 +3764,7 @@ static void ui_textedit_prev_but(Block *block, Button *actbut, HandleButtonData 
       }
     }
   }
-  for (Button &but : block->buttons_as_refs() | std::views::reverse) {
+  for (Button &but : block->buttons() | std::views::reverse) {
     if (&but == actbut) {
       break;
     }
@@ -9089,7 +9089,7 @@ static void button_activate_exit(
 
 #ifdef USE_DRAG_MULTINUM
   if (data->multi_data.has_mbuts) {
-    for (Button &bt : block->buttons_as_refs()) {
+    for (Button &bt : block->buttons()) {
       if (bt.flag & BUT_DRAG_MULTI) {
         bt.flag &= ~BUT_DRAG_MULTI;
 
@@ -9145,7 +9145,7 @@ static void button_activate_exit(
 
   /* Disable tool-tips until mouse-move + last active flag. */
   for (Block &block_iter : data->region->runtime->uiblocks) {
-    for (Button &bt : block_iter.buttons_as_refs()) {
+    for (Button &bt : block_iter.buttons()) {
       bt.flag &= ~BUT_LAST_ACTIVE;
     }
 
@@ -9250,7 +9250,7 @@ static Button *ui_context_button_active(const ARegion *region,
 
     /* find active button */
     for (Block &block : region->runtime->uiblocks) {
-      for (Button &but : block.buttons_as_refs()) {
+      for (Button &but : block.buttons()) {
         if (but.flag & BUT_ACTIVE_OVERRIDE) {
           active_but_override = &but;
         }
@@ -9438,7 +9438,7 @@ void context_update_anim_flag(const bContext *C)
     Button *activebut = nullptr;
 
     for (Block &block : region->runtime->uiblocks) {
-      for (Button &but : block.buttons_as_refs()) {
+      for (Button &but : block.buttons()) {
         button_anim_flag(&but, &anim_eval_context);
         button_override_flag(CTX_data_main(C), &but);
         if (button_is_decorator(&but)) {
@@ -9498,7 +9498,7 @@ void button_update_view_for_active(const bContext *C, const Block *block)
 static Button *ui_but_find_open_event(ARegion *region, const wmEvent *event)
 {
   for (Block &block : region->runtime->uiblocks) {
-    for (Button &but : block.buttons_as_refs()) {
+    for (Button &but : block.buttons()) {
       if (&but == event->customdata) {
         return &but;
       }
@@ -9685,7 +9685,7 @@ static void foreach_semi_modal_but_as_active(bContext *C,
    * every actually a use-case for multiple semi-active buttons at the same time. */
 
   for (Block &block : region->runtime->uiblocks) {
-    for (Button &but : block.buttons_as_refs()) {
+    for (Button &but : block.buttons()) {
       if ((but.flag2 & BUT2_FORCE_SEMI_MODAL_ACTIVE) || but.semi_modal_state) {
         with_but_active_as_semi_modal(C, region, &but, [&]() { fn(&but); });
       }
@@ -10231,7 +10231,7 @@ static int ui_handle_viewlist_items_hover(const wmEvent *event, ARegion *region)
   }
 
   for (Block &block : region->runtime->uiblocks) {
-    for (Button &but : block.buttons_as_refs()) {
+    for (Button &but : block.buttons()) {
       if (&but == highlight_row_but) {
         continue;
       }
@@ -10533,7 +10533,7 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
   if (dy < 0.0f) {
     /* Stop at top item, extra 0.5 UI_UNIT_Y makes it snap nicer. */
     float ymax = -FLT_MAX;
-    for (Button &bt : block->buttons_as_refs()) {
+    for (Button &bt : block->buttons()) {
       ymax = max_ff(ymax, bt.rect.ymax);
     }
     if (ymax + dy - UI_UNIT_Y * 0.5f < block->rect.ymax - scroll_pad) {
@@ -10543,7 +10543,7 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
   else {
     /* Stop at bottom item, extra 0.5 UI_UNIT_Y makes it snap nicer. */
     float ymin = FLT_MAX;
-    for (Button &bt : block->buttons_as_refs()) {
+    for (Button &bt : block->buttons()) {
       ymin = min_ff(ymin, bt.rect.ymin);
     }
     if (ymin + dy + UI_UNIT_Y * 0.5f > block->rect.ymin + scroll_pad) {
@@ -10557,7 +10557,7 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
   layout_panel_popup_scroll_apply(block->panel, dy);
 
   /* apply scroll offset */
-  for (Button &bt : block->buttons_as_refs()) {
+  for (Button &bt : block->buttons()) {
     bt.rect.ymin += dy;
     bt.rect.ymax += dy;
   }
@@ -11163,7 +11163,7 @@ static int ui_handle_menu_event(bContext *C,
             }
 
             count = 0;
-            for (Button &but : block->buttons_as_refs()) {
+            for (Button &but : block->buttons()) {
               bool doit = false;
 
               if (!ELEM(but.type,
@@ -11269,7 +11269,7 @@ static int ui_handle_menu_event(bContext *C,
             }
 
             /* Accelerator keys that allow "pressing" a menu entry by pressing a single key. */
-            for (Button &but_iter : block->buttons_as_refs()) {
+            for (Button &but_iter : block->buttons()) {
               if (!(but_iter.flag & BUT_DISABLED) && but_iter.menu_key == event->type) {
                 if (ELEM(but_iter.type,
                          ButtonType::But,
@@ -11574,7 +11574,7 @@ static int ui_but_pie_menu_apply(bContext *C,
 static Button *block_pie_dir_activate(Block *block, const wmEvent *event, RadialDirection dir)
 {
   if ((block->flag & BLOCK_NUMSELECT) && event->val == KM_PRESS) {
-    for (Button &but : block->buttons_as_refs()) {
+    for (Button &but : block->buttons()) {
       if (but.pie_dir == dir && !ELEM(but.type, ButtonType::Sepr, ButtonType::SeprLine)) {
         return &but;
       }
@@ -11660,7 +11660,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
             block->pie_data.flags |= PIE_ANIMATION_FINISHED;
           }
 
-          for (Button &but : block->buttons_as_refs()) {
+          for (Button &but : block->buttons()) {
             if (but.pie_dir != UI_RADIAL_NONE) {
               float vec[2];
               float center[2];
@@ -11820,7 +11820,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
         case EVT_YKEY:
         case EVT_ZKEY: {
           if (ELEM(event->val, KM_PRESS, KM_DBL_CLICK) && ((event->modifier & ~KM_ALT) == 0)) {
-            for (Button &but : block->buttons_as_refs()) {
+            for (Button &but : block->buttons()) {
               if (but.menu_key == event->type) {
                 ui_but_pie_button_activate(C, &but, menu);
               }
@@ -12444,7 +12444,7 @@ bool textbutton_activate_rna(const bContext *C,
   Button *but_text = nullptr;
 
   for (Block &block : region->runtime->uiblocks) {
-    for (Button &but : block.buttons_as_refs()) {
+    for (Button &but : block.buttons()) {
       if (but.type == ButtonType::Text) {
         if (but.rnaprop && but.rnapoin.data == rna_poin_data) {
           if (STREQ(RNA_property_identifier(but.rnaprop), rna_prop_id)) {
@@ -12479,7 +12479,7 @@ bool textbutton_activate_but(const bContext *C, Button *actbut)
   Button *but_text = nullptr;
 
   for (Block &block : region->runtime->uiblocks) {
-    for (Button &but : block.buttons_as_refs()) {
+    for (Button &but : block.buttons()) {
       if (&but == actbut && but.type == ButtonType::Text) {
         block_text = &block;
         but_text = &but;
@@ -12508,7 +12508,7 @@ bool textbutton_activate_but(const bContext *C, Button *actbut)
 void UI_region_free_active_but_all(bContext *C, ARegion *region)
 {
   for (Block &block : region->runtime->uiblocks) {
-    for (Button &but : block.buttons_as_refs()) {
+    for (Button &but : block.buttons()) {
       if (but.active == nullptr) {
         continue;
       }
@@ -12590,7 +12590,7 @@ static BlockInteraction_Handle *block_interaction_begin(bContext *C,
   BlockInteraction_Handle *interaction = MEM_new_zeroed<BlockInteraction_Handle>(__func__);
 
   int unique_retval_ids_len = 0;
-  for (const Button &but : block->buttons_as_refs()) {
+  for (const Button &but : block->buttons()) {
     if (but.active || (but.flag & BUT_DRAG_MULTI)) {
       unique_retval_ids_len++;
     }
@@ -12598,7 +12598,7 @@ static BlockInteraction_Handle *block_interaction_begin(bContext *C,
 
   int *unique_retval_ids = MEM_new_array_uninitialized<int>(unique_retval_ids_len, __func__);
   unique_retval_ids_len = 0;
-  for (const Button &but : block->buttons_as_refs()) {
+  for (const Button &but : block->buttons()) {
     if (but.active || (but.flag & BUT_DRAG_MULTI)) {
       unique_retval_ids[unique_retval_ids_len++] = but.retval;
     }

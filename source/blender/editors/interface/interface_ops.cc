@@ -2136,7 +2136,7 @@ static wmOperatorStatus editsource_exec(bContext *C, wmOperator *op)
     for (Block &block_base : region->runtime->uiblocks) {
       Block *block_pair[2] = {&block_base, block_base.oldblock};
       for (Block *block : Span(block_pair, block_pair[1] ? 2 : 1)) {
-        for (Button &but : block->buttons_as_refs()) {
+        for (Button &but : block->buttons()) {
           valid_buttons_in_region.add(&but);
         }
       }
