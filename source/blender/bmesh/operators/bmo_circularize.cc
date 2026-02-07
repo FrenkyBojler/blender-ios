@@ -38,7 +38,10 @@ struct LoopData {
 };
 
 /* Detects whether an edge should be considered a valid boundary
- * edge for circularization. */
+ * edge for circularization.
+ * Valid boundary edges are edges that are selected, not hidden
+ * and are not interior. They lie on the boundary between a selected
+ * face and an unselected face and do not lie on the mirror plane. */
 static bool is_valid_boundary_edge(BMEdge *e,
                                    const bool check_x,
                                    const bool check_y,
