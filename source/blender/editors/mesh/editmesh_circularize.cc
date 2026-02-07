@@ -10,8 +10,9 @@
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
 #include "BLI_listbase.h"
-#include "BLI_math_numbers.hh"
 #include "BLT_translation.hh"
+
+#include <numbers>
 
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
@@ -153,12 +154,12 @@ void MESH_OT_circularize(wmOperatorType *ot)
   prop = RNA_def_float(ot->srna,
                        "angle",
                        0.0f,
-                       -math::numbers::pi * 2.0f,
-                       math::numbers::pi * 2.0f,
+                       -std::numbers::pi * 2.0f,
+                       std::numbers::pi * 2.0f,
                        "Rotation",
                        "Rotate the circle",
-                       -math::numbers::pi * 2.0f,
-                       math::numbers::pi * 2.0f);
+                       -std::numbers::pi * 2.0f,
+                       std::numbers::pi * 2.0f);
   RNA_def_property_subtype(prop, PROP_ANGLE);
   RNA_def_boolean(
       ot->srna, "use_custom_radius", false, "Use Custom Radius", "Enable custom radius");

@@ -7,10 +7,11 @@
  */
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
-#include "BLI_math_numbers.hh"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
 #include "BLI_vector.hh"
+
+#include <numbers>
 
 #include "bmesh.hh"
 #include "intern/bmesh_operators_private.hh" /* own include */
@@ -372,12 +373,12 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
                                        const bool is_closed,
                                        const float rotation_angle)
 {
-  float total_angle = 2.0f * math::numbers::pi;
+  float total_angle = 2.0f * std::numbers::pi;
   int divisions = verts.size();
   float vec[2];
 
   if (!is_closed && divisions > 1) {
-    total_angle = math::numbers::pi;
+    total_angle = std::numbers::pi;
     divisions = verts.size() - 1;
   }
 
@@ -426,7 +427,7 @@ static bool project_on_mesh(
   sub_v3_v3v3(vec, center_pos, v->co);
   const float angle = angle_v3v3(vec, normal);
   if (std::abs(angle) < CIRCULARIZE_EPSILON ||
-      std::abs(math::numbers::pi - angle) < CIRCULARIZE_EPSILON)
+      std::abs(std::numbers::pi - angle) < CIRCULARIZE_EPSILON)
   {
     copy_v3_v3(r_pos, v->co);
     return true;
