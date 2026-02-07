@@ -256,6 +256,7 @@ std::optional<OperatorTypeData> OperatorTypeData::from_asset(
   type_data.ensure_hash();
   return type_data;
 }
+
 static std::optional<StringRefNull> custom_idname_for_group(const bNodeTree &group)
 {
   const char *idname = group.geometry_node_asset_traits->node_tool_idname;
