@@ -2221,8 +2221,8 @@ class _defs_grease_pencil_paint:
             gp_settings = brush.gpencil_settings
             row = layout.row()
             row.use_property_split = False
-            row.prop(gp_settings, "use_keep_caps_eraser")
             row.prop(gp_settings, "use_active_layer_only")
+            row.prop(gp_settings, "use_keep_caps_eraser")
 
         return dict(
             idname="builtin.carver",

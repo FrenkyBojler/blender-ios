@@ -269,7 +269,7 @@ static wmOperatorStatus stroke_carver_execute(const bContext *C, const Span<int2
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus grease_pencil_stroke_carver(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_stroke_carver_exec(bContext *C, wmOperator *op)
 {
   const Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
 
@@ -292,7 +292,7 @@ void GREASE_PENCIL_OT_stroke_carver(wmOperatorType *ot)
 
   ot->invoke = WM_gesture_lasso_invoke;
   ot->modal = WM_gesture_lasso_modal;
-  ot->exec = grease_pencil_stroke_carver;
+  ot->exec = grease_pencil_stroke_carver_exec;
   ot->poll = grease_pencil_painting_poll;
   ot->cancel = WM_gesture_lasso_cancel;
 
