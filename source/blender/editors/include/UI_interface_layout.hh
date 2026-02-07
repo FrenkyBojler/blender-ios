@@ -101,6 +101,14 @@ enum class NodeAssetMenuOperatorType : int8_t {
   Swap,
 };
 
+/**
+ * Panel popup draw direction.
+ */
+enum class PopupAttachDirection : int8_t {
+  Vertical = 0,
+  Horizontal = 1,
+};
+
 enum class EnumTabExpand {
   Default = 0,
   Row,
@@ -554,7 +562,8 @@ struct Layout : public Item, NonCopyable, NonMovable {
   void popover(const bContext *C,
                StringRef panel_type,
                std::optional<StringRef> name_opt,
-               int icon);
+               int icon,
+               PopupAttachDirection direction = PopupAttachDirection::Vertical);
   void popover_group(
       bContext *C, int space_id, int region_id, const char *context, const char *category);
 
@@ -886,8 +895,6 @@ ENUM_OPERATORS(eUI_Item_Flag)
  * \note Must not be run after #block_layout_resolve.
  */
 bool block_apply_search_filter(Block *block, const char *search_filter);
-
-void uiLayoutSetFunc(Layout *layout, MenuHandleFunc handlefunc, void *argv);
 
 /**
  * Set tooltip function for all buttons in the layout.

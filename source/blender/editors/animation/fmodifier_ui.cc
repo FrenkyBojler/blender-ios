@@ -381,8 +381,8 @@ static void generator_panel_draw(const bContext *C, Panel *panel)
 
       char xval[32];
 
-      /* The first value gets a "Coefficient" label. */
-      STRNCPY_UTF8(xval, N_("Coefficient"));
+      /* The first value gets the mathematical "Constant" label. */
+      STRNCPY_UTF8(xval, N_("Constant"));
 
       for (int i = 0; i < data->arraysize; i++) {
         col.prop(ptr, prop, i, 0, UI_ITEM_NONE, IFACE_(xval), ICON_NONE);
@@ -864,6 +864,43 @@ static void panel_register_stepped(ARegionType *region_type,
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Smooth Modifier
+ * \{ */
+
+static void smooth_panel_draw(const bContext *C, Panel *panel)
+{
+  ui::Layout &layout = *panel->layout;
+
+  PointerRNA *ptr = fmodifier_get_pointers(C, panel, nullptr);
+
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+
+  ui::Layout &col = layout.column(false);
+  col.prop(ptr, "sigma", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "filter_width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  fmodifier_influence_draw(layout, ptr);
+}
+
+static void panel_register_smooth(ARegionType *region_type,
+                                  const char *id_prefix,
+                                  PanelTypePollFn poll_fn)
+{
+  PanelType *panel_type = fmodifier_panel_register(
+      region_type, FMODIFIER_TYPE_SMOOTH, smooth_panel_draw, poll_fn, id_prefix);
+  fmodifier_subpanel_register(region_type,
+                              "frame_range",
+                              "",
+                              fmodifier_frame_range_header_draw,
+                              fmodifier_frame_range_draw,
+                              poll_fn,
+                              panel_type);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Panel Creation
  * \{ */
 
@@ -919,6 +956,7 @@ void ANIM_modifier_panels_register_graph_and_NLA(ARegionType *region_type,
   panel_register_envelope(region_type, modifier_panel_prefix, poll_function);
   panel_register_limits(region_type, modifier_panel_prefix, poll_function);
   panel_register_stepped(region_type, modifier_panel_prefix, poll_function);
+  panel_register_smooth(region_type, modifier_panel_prefix, poll_function);
 }
 
 void ANIM_modifier_panels_register_graph_only(ARegionType *region_type,

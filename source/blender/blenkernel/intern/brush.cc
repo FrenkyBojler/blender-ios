@@ -812,14 +812,11 @@ void BKE_brush_debug_print_state(Brush *br)
   BR_TEST(size, d);
 
   /* br->flag */
-  BR_TEST_FLAG(BRUSH_AIRBRUSH);
   BR_TEST_FLAG(BRUSH_ALPHA_PRESSURE);
   BR_TEST_FLAG(BRUSH_SIZE_PRESSURE);
   BR_TEST_FLAG(BRUSH_JITTER_PRESSURE);
   BR_TEST_FLAG(BRUSH_SPACING_PRESSURE);
-  BR_TEST_FLAG(BRUSH_ANCHORED);
   BR_TEST_FLAG(BRUSH_DIR_IN);
-  BR_TEST_FLAG(BRUSH_SPACE);
   BR_TEST_FLAG(BRUSH_SMOOTH_STROKE);
   BR_TEST_FLAG(BRUSH_PERSISTENT);
   BR_TEST_FLAG(BRUSH_ACCUMULATE);
@@ -830,7 +827,6 @@ void BKE_brush_debug_print_state(Brush *br)
   BR_TEST_FLAG(BRUSH_ADAPTIVE_SPACE);
   BR_TEST_FLAG(BRUSH_LOCK_SIZE);
   BR_TEST_FLAG(BRUSH_EDGE_TO_EDGE);
-  BR_TEST_FLAG(BRUSH_DRAG_DOT);
   BR_TEST_FLAG(BRUSH_INVERSE_SMOOTH_PRESSURE);
   BR_TEST_FLAG(BRUSH_PLANE_TRIM);
   BR_TEST_FLAG(BRUSH_FRONTFACE);
@@ -1803,6 +1799,16 @@ bool supports_auto_smooth(const Brush &brush)
   return !ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_MASK, SCULPT_BRUSH_TYPE_SMOOTH) &&
          !is_paint_tool(brush);
 }
+bool supports_normal_radius(const Brush &brush)
+{
+  /* TODO: This setting is closely tied to #supports_sculpt_plane, they should be merged in some
+   * way. Update after initial commit to avoid confusing PRs. */
+  return !ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_POSE);
+}
+bool supports_hardness(const Brush &brush)
+{
+  return brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_POSE;
+}
 bool supports_height(const Brush &brush)
 {
   return brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_LAYER;
@@ -1817,7 +1823,7 @@ bool supports_plane_depth(const Brush &brush)
 }
 bool supports_jitter(const Brush &brush)
 {
-  return !(brush.flag & BRUSH_ANCHORED) && !(brush.flag & BRUSH_DRAG_DOT) &&
+  return !(ELEM(brush.stroke_method, BRUSH_STROKE_ANCHORED, BRUSH_STROKE_DRAG_DOT)) &&
          !ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_GRAB,
                SCULPT_BRUSH_TYPE_ROTATE,
@@ -1866,10 +1872,11 @@ bool supports_sculpt_plane(const Brush &brush)
 {
   /* TODO: Should the face set brush be here...? */
   return !ELEM(brush.sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_INFLATE,
                SCULPT_BRUSH_TYPE_MASK,
+               SCULPT_BRUSH_TYPE_SMOOTH,
+               SCULPT_BRUSH_TYPE_INFLATE,
                SCULPT_BRUSH_TYPE_PINCH,
-               SCULPT_BRUSH_TYPE_SMOOTH);
+               SCULPT_BRUSH_TYPE_POSE);
 }
 bool supports_color(const Brush &brush)
 {
@@ -1892,8 +1899,11 @@ bool supports_secondary_cursor_color(const Brush &brush)
 }
 bool supports_smooth_stroke(const Brush &brush)
 {
-  return !(brush.flag & BRUSH_ANCHORED) && !(brush.flag & BRUSH_DRAG_DOT) &&
-         !(brush.flag & BRUSH_LINE) && !(brush.flag & BRUSH_CURVE) &&
+  return !(ELEM(brush.stroke_method,
+                BRUSH_STROKE_ANCHORED,
+                BRUSH_STROKE_DRAG_DOT,
+                BRUSH_STROKE_LINE,
+                BRUSH_STROKE_CURVE)) &&
          !ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_GRAB,
                SCULPT_BRUSH_TYPE_ROTATE,
@@ -1902,7 +1912,7 @@ bool supports_smooth_stroke(const Brush &brush)
 }
 bool supports_space_attenuation(const Brush &brush)
 {
-  return brush.flag & (BRUSH_SPACE | BRUSH_LINE | BRUSH_CURVE) &&
+  return ELEM(brush.stroke_method, BRUSH_STROKE_SPACE, BRUSH_STROKE_LINE, BRUSH_STROKE_CURVE) &&
          !ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_GRAB,
                SCULPT_BRUSH_TYPE_ROTATE,
