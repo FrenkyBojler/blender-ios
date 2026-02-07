@@ -274,42 +274,42 @@ void region_to_window(
 
 int Block::but_index(const Button *but) const
 {
-  BLI_assert(!buttons.is_empty() && but);
+  BLI_assert(!this->buttons_ptrs.is_empty() && but);
   auto index = std::distance(
-      buttons.begin(),
-      std::find_if(buttons.begin(), buttons.end(), [but](const std::unique_ptr<Button> &test) {
+      this->buttons_ptrs.begin(),
+      std::ranges::find_if(this->buttons_ptrs, [but](const std::unique_ptr<Button> &test) {
         return test.get() == but;
       }));
-  BLI_assert(index != std::distance(buttons.begin(), buttons.end()));
+  BLI_assert(index != std::distance(this->buttons_ptrs.begin(), this->buttons_ptrs.end()));
   return index;
 }
 
 Button *Block::next_but(const Button *but) const
 {
   const int idx = this->but_index(but) + 1;
-  return idx < this->buttons.size() ? this->buttons[idx].get() : nullptr;
+  return idx < this->buttons_ptrs.size() ? this->buttons_ptrs[idx].get() : nullptr;
 }
 
 Button *Block::prev_but(const Button *but) const
 {
   const int idx = this->but_index(but) - 1;
-  return idx >= 0 ? this->buttons[idx].get() : nullptr;
+  return idx >= 0 ? this->buttons_ptrs[idx].get() : nullptr;
 }
 
 void Block::remove_but(const Button *but)
 {
   int64_t target_index = this->but_index(but);
-  this->buttons.remove(target_index);
+  this->buttons_ptrs.remove(target_index);
 }
 
 Button *Block::first_but() const
 {
-  return !this->buttons.is_empty() ? this->buttons.first().get() : nullptr;
+  return !this->buttons_ptrs.is_empty() ? this->buttons_ptrs.first().get() : nullptr;
 }
 
 Button *Block::last_but() const
 {
-  return !this->buttons.is_empty() ? this->buttons.last().get() : nullptr;
+  return !this->buttons_ptrs.is_empty() ? this->buttons_ptrs.last().get() : nullptr;
 }
 
 static void ui_update_flexible_spacing(const ARegion *region, Block *block)
@@ -326,7 +326,7 @@ static void ui_update_flexible_spacing(const ARegion *region, Block *block)
   }
 
   rcti rect;
-  button_to_pixelrect(&rect, region, block, block->buttons.last().get());
+  button_to_pixelrect(&rect, region, block, block->buttons_ptrs.last().get());
   const float buttons_width = std::ceil(float(rect.xmax) + 8.0f * UI_SCALE_FAC);
   const float region_width = float(region->winx);
 
@@ -417,7 +417,7 @@ static bool ui_but_is_row_alignment_group(const Button *left, const Button *righ
 
 static void block_bounds_calc_text(Block *block, float offset)
 {
-  if (block->buttons.is_empty()) {
+  if (block->buttons_ptrs.is_empty()) {
     return;
   }
   const uiStyle *style = style_get();
@@ -425,9 +425,9 @@ static void block_bounds_calc_text(Block *block, float offset)
   int i = 0, j, x1addval = offset;
 
   fontstyle_set(&style->widget);
-  std::unique_ptr<Button> *end = block->buttons.end();
+  std::unique_ptr<Button> *end = block->buttons_ptrs.end();
 
-  std::unique_ptr<Button> *init_col_bt = block->buttons.begin();
+  std::unique_ptr<Button> *init_col_bt = block->buttons_ptrs.begin();
   for (std::unique_ptr<Button> *bt = init_col_bt; bt < end; bt++) {
     if (!ELEM((*bt)->type, ButtonType::Sepr, ButtonType::SeprLine, ButtonType::SeprSpacer)) {
       j = BLF_width(style->widget.uifont_id, (*bt)->drawstr.c_str(), (*bt)->drawstr.size());
@@ -490,7 +490,7 @@ static void block_bounds_calc_text(Block *block, float offset)
 
 void block_bounds_calc(Block *block)
 {
-  if (block->buttons.is_empty()) {
+  if (block->buttons_ptrs.is_empty()) {
     if (block->panel) {
       block->rect.xmin = 0.0;
       block->rect.xmax = block->panel->sizex;
@@ -1084,25 +1084,26 @@ static bool ui_but_update_from_old_block(Block *block,
   Button *oldbut = ui_but_find_old(oldblock, but, matched_old_buttons);
   UNUSED_VARS(but_old_p);
 #else
-  BLI_assert(!but_old_idx->has_value() || oldblock->buttons.index_range().contains(**but_old_idx));
+  BLI_assert(!but_old_idx->has_value() ||
+             oldblock->buttons_ptrs.index_range().contains(**but_old_idx));
 
   /* As long as old and new buttons are aligned, avoid loop-in-loop (calling #ui_but_find_old). */
   std::unique_ptr<Button> *oldbut_uptr;
   if (LIKELY(but_old_idx->has_value() &&
              /* Ignore previously matched buttons. */
-             !matched_old_buttons.contains(oldblock->buttons[**but_old_idx].get()) &&
-             ui_but_equals_old(but, oldblock->buttons[**but_old_idx].get())))
+             !matched_old_buttons.contains(oldblock->buttons_ptrs[**but_old_idx].get()) &&
+             ui_but_equals_old(but, oldblock->buttons_ptrs[**but_old_idx].get())))
   {
-    oldbut_uptr = &oldblock->buttons[**but_old_idx];
+    oldbut_uptr = &oldblock->buttons_ptrs[**but_old_idx];
   }
   else {
     /* Fall back to block search. */
     *but_old_idx = ui_but_find_old_idx(oldblock, but, matched_old_buttons);
-    oldbut_uptr = but_old_idx->has_value() ? &oldblock->buttons[**but_old_idx] : nullptr;
+    oldbut_uptr = but_old_idx->has_value() ? &oldblock->buttons_ptrs[**but_old_idx] : nullptr;
   }
   /* Increase for next iteration. */
   *but_old_idx = (but_old_idx->has_value() &&
-                  (but_old_idx->value() + 1 < oldblock->buttons.size())) ?
+                  (but_old_idx->value() + 1 < oldblock->buttons_ptrs.size())) ?
                      std::optional{but_old_idx->value() + 1} :
                      std::nullopt;
 #endif
@@ -1970,11 +1971,11 @@ void block_update_from_old(const bContext *C, Block *block)
     butstore_update(block);
   }
 
-  std::optional<int64_t> but_old_idx = block->oldblock->buttons.is_empty() ? std::nullopt :
-                                                                             std::optional{0};
+  std::optional<int64_t> but_old_idx = block->oldblock->buttons_ptrs.is_empty() ? std::nullopt :
+                                                                                  std::optional{0};
   Set<const Button *> matched_old_buttons;
-  matched_old_buttons.reserve(block->oldblock->buttons.size());
-  for (std::unique_ptr<Button> &but : block->buttons) {
+  matched_old_buttons.reserve(block->oldblock->buttons_ptrs.size());
+  for (std::unique_ptr<Button> &but : block->buttons_ptrs) {
     if (ui_but_update_from_old_block(block, matched_old_buttons, &but, &but_old_idx)) {
       button_update(but.get());
 
@@ -1987,7 +1988,7 @@ void block_update_from_old(const bContext *C, Block *block)
   for (Button &but : block->oldblock->buttons_as_refs()) {
     ui_but_free(C, &but);
   }
-  block->oldblock->buttons.clear_and_shrink();
+  block->oldblock->buttons_ptrs.clear_and_shrink();
 
   block->auto_open = block->oldblock->auto_open;
   block->auto_open_last = block->oldblock->auto_open_last;
@@ -3755,7 +3756,7 @@ void block_free(const bContext *C, Block *block)
   for (Button &but : block->buttons_as_refs()) {
     ui_but_free(C, &but);
   }
-  block->buttons.clear();
+  block->buttons_ptrs.clear();
 
   if (block->unit) {
     MEM_delete(block->unit);
@@ -3908,7 +3909,7 @@ Block *block_begin(const bContext *C,
 
   /* Prevent reallocations on redraw, most of the time blocks layout will be the same. */
   if (block->oldblock) {
-    block->buttons.reserve(block->oldblock->buttons.size());
+    block->buttons_ptrs.reserve(block->oldblock->buttons_ptrs.size());
   }
 
   /* Set window matrix and aspect for region and OpenGL state. */
@@ -4323,8 +4324,8 @@ static Button *ui_def_but(Block *block,
     }
   }
 
-  block->buttons.append(ui_but_new(but_and_ptr_type.but_type));
-  Button *but = block->buttons.last().get();
+  block->buttons_ptrs.append(ui_but_new(but_and_ptr_type.but_type));
+  Button *but = block->buttons_ptrs.last().get();
 
   but->pointype = but_and_ptr_type.pointer_type & BUT_POIN_TYPES;
   but->bit = flag_is_set(but_and_ptr_type.pointer_type, ButPointerType::Bit);

@@ -359,7 +359,7 @@ void block_align_calc(Block *block, const ARegion *region)
 
   const int sides_to_ui_but_align_flags[4] = SIDE_TO_BUT_ALIGN;
 
-  Vector<ButAlign, 256> butal_array(block->buttons.size());
+  Vector<ButAlign, 256> butal_array(block->buttons_ptrs.size());
 
   int n = 0;
   /* First loop: Initialize ButAlign data for each button and clear their align flag.

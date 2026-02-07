@@ -640,15 +640,15 @@ Button *button_find_select_in_enum(Button *but, int direction)
   Button *but_found = nullptr;
   BLI_assert(ELEM(direction, -1, 1));
 
-  while (i > 0 && ui_but_find_select_in_enum__cmp(block->buttons[i - 1].get(), but)) {
+  while (i > 0 && ui_but_find_select_in_enum__cmp(block->buttons_ptrs[i - 1].get(), but)) {
     i--;
   }
 
-  while (i < block->buttons.size() &&
-         ui_but_find_select_in_enum__cmp(block->buttons[i].get(), but))
+  while (i < block->buttons_ptrs.size() &&
+         ui_but_find_select_in_enum__cmp(block->buttons_ptrs[i].get(), but))
   {
-    if (block->buttons[i]->flag & UI_SELECT) {
-      but_found = block->buttons[i].get();
+    if (block->buttons_ptrs[i]->flag & UI_SELECT) {
+      but_found = block->buttons_ptrs[i].get();
       if (direction == 1) {
         break;
       }

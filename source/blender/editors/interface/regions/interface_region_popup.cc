@@ -96,7 +96,7 @@ static void ui_popup_block_position(wmWindow *window,
 
   /* Compute block size in window space, based on buttons contained in it. */
   if (block->rect.xmin == 0.0f && block->rect.xmax == 0.0f) {
-    if (!block->buttons.is_empty()) {
+    if (!block->buttons_ptrs.is_empty()) {
       BLI_rctf_init_minmax(&block->rect);
 
       for (Button &bt : block->buttons_as_refs()) {
@@ -521,7 +521,7 @@ void popup_block_scrolltest(Block *block)
     bt.flag &= ~UI_SCROLLED;
   }
 
-  if (block->buttons.size() < 2) {
+  if (block->buttons_ptrs.size() < 2) {
     return;
   }
 

@@ -691,20 +691,21 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
 
       block_end(C, block);
 
-      for (const int i : block->buttons.index_range()) {
-        const std::unique_ptr<Button> &but = block->buttons[i];
+      for (const int i : block->buttons_ptrs.index_range()) {
+        const std::unique_ptr<Button> &but = block->buttons_ptrs[i];
         MenuType *mt_from_but = nullptr;
         /* Support menu titles with dynamic from initial labels
          * (used by edit-mesh context menu). */
         if (but->type == ButtonType::Label) {
 
           /* Check if the label is the title. */
-          const std::unique_ptr<Button> *but_test = block->buttons.begin() + i - 1;
-          while (but_test >= block->buttons.begin() && (*but_test)->type == ButtonType::Sepr) {
+          const std::unique_ptr<Button> *but_test = block->buttons_ptrs.begin() + i - 1;
+          while (but_test >= block->buttons_ptrs.begin() && (*but_test)->type == ButtonType::Sepr)
+          {
             but_test--;
           }
 
-          if (but_test < block->buttons.begin()) {
+          if (but_test < block->buttons_ptrs.begin()) {
             menu_display_name_map.add(mt, scope.allocator().copy_string(but->drawstr).c_str());
           }
         }

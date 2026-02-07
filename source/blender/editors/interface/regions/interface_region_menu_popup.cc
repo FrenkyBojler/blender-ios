@@ -815,10 +815,10 @@ void popup_block_template_confirm_op(Layout *layout,
     const Button *but_ref = block->last_but();
     *r_ptr = row.op(ot, confirm_text, icon, row.operator_context(), UI_ITEM_NONE);
 
-    if (block->buttons.is_empty() || but_ref == block->buttons.last().get()) {
+    if (block->buttons_ptrs.is_empty() || but_ref == block->buttons_ptrs.last().get()) {
       return nullptr;
     }
-    return block->buttons.last().get();
+    return block->buttons_ptrs.last().get();
   };
 
   auto cancel_fn = [&row, &cancel_text, &show_cancel]() -> Button * {

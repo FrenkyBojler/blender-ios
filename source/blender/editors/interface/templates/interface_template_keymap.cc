@@ -85,7 +85,7 @@ void uiTemplateKeymapItemProperties(Layout *layout, PointerRNA *ptr)
 
   if (propptr.data) {
     Block *block = layout->block();
-    const int old_but_count = layout->block()->buttons.size();
+    const int old_but_count = layout->block()->buttons_ptrs.size();
 
     WM_operator_properties_sanitize(&propptr, false);
     template_keymap_item_properties(*layout, nullptr, &propptr);

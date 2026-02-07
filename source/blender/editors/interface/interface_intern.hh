@@ -615,7 +615,7 @@ struct ViewLink;
 struct Block {
   Block *next = nullptr, *prev = nullptr;
 
-  Vector<std::unique_ptr<Button>> buttons;
+  Vector<std::unique_ptr<Button>> buttons_ptrs;
   Panel *panel = nullptr;
   Block *oldblock = nullptr;
 
@@ -744,12 +744,12 @@ struct Block {
     return *button;
   }
 
-  /** A view of #Block::buttons which allows range-based for loops as #Buttons references. */
+  /** A view of #Block::buttons_ptrs which allows range-based for loops as #Buttons references. */
   std::ranges::transform_view<std::ranges::ref_view<const Vector<std::unique_ptr<Button>>>,
                               Button &(*)(const std::unique_ptr<Button> &)>
   buttons_as_refs() const
   {
-    return this->buttons | std::views::transform(button_ptr_dereference);
+    return this->buttons_ptrs | std::views::transform(button_ptr_dereference);
   }
 };
 
