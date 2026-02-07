@@ -73,7 +73,7 @@ struct FModifierTypeInfo {
   void (*copy_data)(FModifier *fcm, const FModifier *src);
   /**
    * Set settings for data that will be used for FCuModifier.data
-   * (memory already allocated using #MEM_callocN). */
+   * (memory already allocated using #MEM_new_zeroed). */
   void (*new_data)(void *mdata);
   /** Verifies that the modifier settings are valid */
   void (*verify_data)(FModifier *fcm);
@@ -347,26 +347,6 @@ int BKE_fcurve_bezt_binarysearch_index(const BezTriple array[],
                                        int arraylen,
                                        bool *r_replace);
 
-/* `fcurve_cache.cc` */
-
-/**
- * Cached f-curve look-ups, use when this needs to be done many times.
- */
-FCurvePathCache *BKE_fcurve_pathcache_create(Span<FCurve *> fcurves);
-void BKE_fcurve_pathcache_destroy(FCurvePathCache *fcache);
-FCurve *BKE_fcurve_pathcache_find(const FCurvePathCache *fcache,
-                                  const char rna_path[],
-                                  int array_index);
-/**
- * Fill in an array of F-Curve, leave NULL when not found.
- *
- * \return The number of F-Curves found.
- */
-int BKE_fcurve_pathcache_find_array(const FCurvePathCache *fcache,
-                                    const char *rna_path,
-                                    FCurve **fcurve_result,
-                                    int fcurve_result_len);
-
 /**
  * Calculate the x range of the given F-Curve's data.
  * \return true if a range has been found.
@@ -619,9 +599,19 @@ void BKE_fcurve_correct_bezpart(const float v1[2], float v2[2], float v3[2], con
 
 /* -------- Evaluation -------- */
 
-/* evaluate fcurve */
+/**
+ * Evaluate a non-driver F-Curve.
+ */
 float evaluate_fcurve(const FCurve *fcu, float evaltime);
+/**
+ * Evaluate the F-Curve; if this is a driver, that aspect is ignored and only its F-Curve is
+ * evaluated.
+ */
 float evaluate_fcurve_only_curve(const FCurve *fcu, float evaltime);
+/**
+ * Evaluate a non-driver F-Curve, without applying its modifiers.
+ */
+float evaluate_fcurve_unmodified(const FCurve *fcu, float evaltime);
 float evaluate_fcurve_driver(PathResolvedRNA *anim_rna,
                              FCurve *fcu,
                              ChannelDriver *driver_orig,

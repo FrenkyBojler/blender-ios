@@ -309,7 +309,6 @@ set(LIB
   PRIVATE bf::render
   PRIVATE bf::windowmanager
   PRIVATE bf::intern::atomic
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::dependencies::optional::opensubdiv
 )
 
@@ -340,6 +339,7 @@ set(GLSL_SRC
   engines/eevee/shaders/infos/eevee_material_infos.hh
   engines/eevee/shaders/infos/eevee_motion_blur_infos.hh
   engines/eevee/shaders/infos/eevee_nodetree_infos.hh
+  engines/eevee/shaders/infos/eevee_raycast_infos.hh
   engines/eevee/shaders/infos/eevee_sampling_infos.hh
   engines/eevee/shaders/infos/eevee_shadow_infos.hh
   engines/eevee/shaders/infos/eevee_shadow_pipeline_infos.hh
@@ -448,9 +448,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_filter_lib.glsl
   engines/eevee/shaders/eevee_forward_lib.glsl
   engines/eevee/shaders/eevee_fullscreen_vert.glsl
-  engines/eevee/shaders/eevee_gbuffer_closure_test.glsl
   engines/eevee/shaders/eevee_gbuffer_lib.glsl
-  engines/eevee/shaders/eevee_gbuffer_normal_test.glsl
   engines/eevee/shaders/eevee_gbuffer_read_lib.glsl
   engines/eevee/shaders/eevee_gbuffer_write_lib.glsl
   engines/eevee/shaders/eevee_geom_curves_vert.glsl
@@ -466,7 +464,6 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_horizon_scan_eval_lib.glsl
   engines/eevee/shaders/eevee_horizon_scan_comp.glsl
   engines/eevee/shaders/eevee_horizon_scan_lib.glsl
-  engines/eevee/shaders/eevee_horizon_scan_test.glsl
   engines/eevee/shaders/eevee_horizon_setup_comp.glsl
   engines/eevee/shaders/eevee_light_culling_debug_frag.glsl
   engines/eevee/shaders/eevee_light_culling_select_comp.glsl
@@ -501,7 +498,6 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_nodetree_vert_lib.glsl
   engines/eevee/shaders/eevee_occupancy_convert_frag.glsl
   engines/eevee/shaders/eevee_occupancy_lib.glsl
-  engines/eevee/shaders/eevee_occupancy_test.glsl
   engines/eevee/shaders/eevee_octahedron_lib.glsl
   engines/eevee/shaders/eevee_ray_denoise_bilateral_comp.glsl
   engines/eevee/shaders/eevee_ray_denoise_spatial_comp.glsl
@@ -544,7 +540,6 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_shadow_tag_usage_surfels_comp.glsl
   engines/eevee/shaders/eevee_shadow_tag_usage_vert.glsl
   engines/eevee/shaders/eevee_shadow_tag_usage_volume_comp.glsl
-  engines/eevee/shaders/eevee_shadow_test.glsl
   engines/eevee/shaders/eevee_shadow_tilemap_amend_comp.glsl
   engines/eevee/shaders/eevee_shadow_tilemap_bounds_comp.glsl
   engines/eevee/shaders/eevee_shadow_tilemap_finalize_comp.glsl
@@ -647,6 +642,7 @@ set(GLSL_SRC
   engines/workbench/workbench_defines.hh
   engines/workbench/workbench_shader_shared.hh
 
+  intern/shaders/osd_patch_defines.glsl
   intern/shaders/osd_patch_basis.glsl
   intern/shaders/subdiv_custom_data_interp_comp.glsl
   intern/shaders/subdiv_ibo_lines_comp.glsl
@@ -668,7 +664,6 @@ set(GLSL_SRC
   intern/shaders/draw_curves_interpolation_comp.glsl
   intern/shaders/draw_curves_length_intercept_comp.glsl
   intern/shaders/draw_curves_lib.glsl
-  intern/shaders/draw_curves_test.glsl
   intern/shaders/draw_curves_topology_comp.glsl
   intern/shaders/draw_shape_lib.glsl
   intern/shaders/draw_command_generate_comp.glsl
@@ -844,15 +839,25 @@ set(GLSL_SRC
   engines/image/shaders/image_engine_color_vert.glsl
   engines/image/shaders/image_engine_depth_frag.glsl
   engines/image/shaders/image_engine_depth_vert.glsl
+
+  # This test doesn't depend on gpu_shader_test, so it's always included.
+  intern/shaders/draw_curves_test.glsl
 )
 
-function(make_include_list
-  include_list
-  )
-  foreach(path ${_inc_list})
-    message(WARNING ${path})
-  endforeach()
-endfunction()
+# These tests depend on gpu_shader_test, so they're only included when WITH_GPU_BACKEND_TESTS is enabled.
+set(GLSL_SRC_TEST
+  engines/eevee/shaders/eevee_gbuffer_closure_test.glsl
+  engines/eevee/shaders/eevee_gbuffer_normal_test.glsl
+  engines/eevee/shaders/eevee_horizon_scan_test.glsl
+  engines/eevee/shaders/eevee_occupancy_test.glsl
+  engines/eevee/shaders/eevee_shadow_test.glsl
+)
+
+if(WITH_GTESTS)
+  if(WITH_GPU_BACKEND_TESTS)
+    list(APPEND GLSL_SRC ${GLSL_SRC_TEST})
+  endif()
+endif()
 
 set(GLSL_INC
   ../gpu
@@ -884,9 +889,7 @@ set(GLSL_INC
   intern/shaders
 )
 
-make_include_list(GLSL_INC)
-
-set(GLSL_C)
+set(GLSL_C "")
 foreach(GLSL_FILE ${GLSL_SRC})
   glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
@@ -922,9 +925,6 @@ list(APPEND SRC ${glsl_infos_list_file})
 list(APPEND INC ${CMAKE_CURRENT_BINARY_DIR})
 
 target_include_directories(bf_draw_shaders PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-
-list(APPEND INC
-)
 
 if(WITH_DRAW_DEBUG)
   list(APPEND SRC

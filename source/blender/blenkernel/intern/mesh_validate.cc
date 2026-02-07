@@ -45,7 +45,7 @@ class ErrorMessages {
   ErrorMessages(const bool verbose) : verbose_(verbose) {}
   ~ErrorMessages()
   {
-    std::sort(messages.begin(), messages.end());
+    std::ranges::sort(messages);
     for (const std::string &message : messages) {
       CLOG_ERROR(&LOG, "%s", message.c_str());
     }
@@ -370,7 +370,7 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
   const OffsetIndices new_faces = offset_indices::gather_selected_offsets(
       old_faces, valid_faces, new_face_offsets);
 
-  mesh.attribute_storage.wrap().foreach([&](bke::Attribute &attr) {
+  for (bke::Attribute &attr : mesh.attribute_storage.wrap()) {
     const CPPType &type = attribute_type_to_cpp_type(attr.data_type());
     switch (attr.domain()) {
       case AttrDomain::Face: {
@@ -411,13 +411,13 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
       default:
         break;
     }
-  });
+  }
 
   for (CustomDataLayer &layer : MutableSpan(mesh.face_data.layers, mesh.face_data.totlayer)) {
     if (layer.type == CD_ORIGINDEX) {
       const Span src(static_cast<const int *>(layer.data), mesh.edges_num);
 
-      int *dst_data = MEM_malloc_arrayN<int>(valid_faces_num, __func__);
+      int *dst_data = MEM_new_array_uninitialized<int>(valid_faces_num, __func__);
       MutableSpan dst(dst_data, valid_faces_num);
 
       array_utils::gather(src, valid_faces, dst);
@@ -429,7 +429,7 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
   }
 
   for (CustomDataLayer &layer : MutableSpan(mesh.corner_data.layers, mesh.corner_data.totlayer)) {
-    const eCustomDataType cd_type = eCustomDataType();
+    const eCustomDataType cd_type = eCustomDataType(layer.type);
     if (ELEM(layer.type,
              CD_NORMAL,
              CD_ORIGINDEX,
@@ -440,7 +440,7 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
       const size_t elem_size = CustomData_sizeof(cd_type);
       const void *src = layer.data;
 
-      void *dst = MEM_malloc_arrayN(new_faces.total_size(), elem_size, __func__);
+      void *dst = MEM_new_array_uninitialized(new_faces.total_size(), elem_size, __func__);
 
       valid_faces.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
         CustomData_copy_elements(cd_type,
@@ -469,16 +469,16 @@ static void remove_invalid_edges(Mesh &mesh, const IndexMask &valid_edges)
 {
   const int valid_edges_num = valid_edges.size();
 
-  mesh.attribute_storage.wrap().foreach([&](bke::Attribute &attr) {
+  for (bke::Attribute &attr : mesh.attribute_storage.wrap()) {
     if (attr.domain() != AttrDomain::Edge) {
-      return;
+      continue;
     }
     const CPPType &type = attribute_type_to_cpp_type(attr.data_type());
     switch (attr.storage_type()) {
       case AttrStorageType::Array: {
         const auto &src_data = std::get<Attribute::ArrayData>(attr.data());
         auto dst_data = Attribute::ArrayData::from_uninitialized(type, valid_edges_num);
-        array_utils::gather(GSpan(type, src_data.data, mesh.faces_num),
+        array_utils::gather(GSpan(type, src_data.data, mesh.edges_num),
                             valid_edges,
                             GMutableSpan(type, dst_data.data, valid_edges_num));
         attr.assign_data(std::move(dst_data));
@@ -487,13 +487,13 @@ static void remove_invalid_edges(Mesh &mesh, const IndexMask &valid_edges)
       case AttrStorageType::Single:
         break;
     }
-  });
+  }
 
   for (CustomDataLayer &layer : MutableSpan(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
     if (layer.type == CD_ORIGINDEX) {
       const Span src(static_cast<const int *>(layer.data), mesh.edges_num);
 
-      int *dst_data = MEM_malloc_arrayN<int>(valid_edges_num, __func__);
+      int *dst_data = MEM_new_array_uninitialized<int>(valid_edges_num, __func__);
       MutableSpan dst(dst_data, valid_edges_num);
 
       array_utils::gather(src, valid_edges, dst);
@@ -594,7 +594,7 @@ static bool validate_vertex_groups(const Mesh &mesh, const bool verbose, Mesh *m
   if (mesh_mut) {
     MutableSpan<MDeformVert> dverts = mesh_mut->deform_verts_for_write();
     for (auto &[vert, weights] : replacements) {
-      MEM_freeN(dverts[vert].dw);
+      MEM_delete(dverts[vert].dw);
       dverts[vert].totweight = weights.size();
       dverts[vert].dw = weights.release().data;
     }
@@ -687,7 +687,7 @@ static bool validate_selection_history(const Mesh &mesh, const bool verbose, Mes
     });
   }
   if (mesh_mut) {
-    MEM_SAFE_FREE(mesh_mut->mselect);
+    MEM_SAFE_DELETE(mesh_mut->mselect);
   }
 
   return false;

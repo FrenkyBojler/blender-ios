@@ -171,7 +171,7 @@ static void attribute_legacy_convert_customdata_to_storage(
 
   for (const auto &[domain, custom_data] : domains.items()) {
     Vector layers_vector = layers_to_keep.pop_default(domain, {});
-    MEM_SAFE_FREE(custom_data.data.layers);
+    MEM_SAFE_DELETE(custom_data.data.layers);
     custom_data.data.totlayer = 0;
     custom_data.data.maxlayer = 0;
     if (layers_vector.is_empty()) {
@@ -304,22 +304,22 @@ LegacyMeshInterpolator::LegacyMeshInterpolator(const Mesh &src, Mesh &dst, const
   AttributeStorage &dst_attributes = dst.attribute_storage.wrap();
   const int src_domain_size = get_domain_size(src, domain);
   const int dst_domain_size = get_domain_size(dst, domain);
-  src_attributes.foreach([&](const Attribute &src_attr) {
+  for (const Attribute &src_attr : src_attributes) {
     if (src_attr.domain() != domain) {
-      return;
+      continue;
     }
     Attribute *dst_attr = dst_attributes.lookup(src_attr.name());
     if (!dst_attr) {
-      return;
+      continue;
     }
     if (dst_attr->domain() != domain) {
-      return;
+      continue;
     }
     if (dst_attr->data_type() != src_attr.data_type()) {
-      return;
+      continue;
     }
     if (dst_attr->storage_type() != AttrStorageType::Array) {
-      return;
+      continue;
     }
     const CPPType &cpp_type = attribute_type_to_cpp_type(src_attr.data_type());
     switch (src_attr.storage_type()) {
@@ -336,11 +336,14 @@ LegacyMeshInterpolator::LegacyMeshInterpolator(const Mesh &src, Mesh &dst, const
     }
     auto &value = std::get<Attribute::ArrayData>(dst_attr->data_for_write());
     attrs_dst_.append({cpp_type, value.data, dst_domain_size});
-  });
+  }
 }
 
 void LegacyMeshInterpolator::copy(const int src_index, const int dst_index, const int count) const
 {
+  if (count == 0) {
+    return;
+  }
   CustomData_copy_data(&cd_src_, &cd_dst_, src_index, dst_index, count);
   for (const int i : attrs_src_.index_range()) {
     const GVArray &src = attrs_src_[i];
@@ -360,13 +363,12 @@ void LegacyMeshInterpolator::mix(Span<int> src_indices,
                     src_indices.size(),
                     dst_index);
   for (const int attr_index : attrs_src_.index_range()) {
-    attribute_math::convert_to_static_type(attrs_src_[attr_index].type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    attribute_math::to_static_type(attrs_src_[attr_index].type(), [&]<typename T>() {
       const VArray src = attrs_src_[attr_index].typed<T>();
       MutableSpan dst = attrs_dst_[attr_index].typed<T>();
       attribute_math::DefaultMixer<T> mixer(dst.slice(dst_index, 1));
       for (const int i : src_indices.index_range()) {
-        mixer.mix_in(0, src[i], weights ? (*weights)[i] : 1.0f);
+        mixer.mix_in(0, src[src_indices[i]], weights ? (*weights)[i] : 1.0f);
       }
       mixer.finalize();
     });

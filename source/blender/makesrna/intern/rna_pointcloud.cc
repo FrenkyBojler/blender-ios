@@ -125,6 +125,11 @@ static void rna_PointCloud_update_data(Main * /*bmain*/, Scene * /*scene*/, Poin
   }
 }
 
+static void rna_PointCloud_resize(PointCloud *pointcloud, const int size)
+{
+  pointcloud_resize(*pointcloud, size);
+}
+
 }  // namespace blender
 
 #else
@@ -182,8 +187,8 @@ static void rna_def_pointcloud(BlenderRNA *brna)
                                     nullptr,
                                     nullptr);
   RNA_def_property_ui_text(prop, "Points", "");
-  func = RNA_def_function(srna, "add", "pointcloud_add_points");
-  parm = RNA_def_int(func, "count", 0, 0, INT_MAX, "Count", "Number of points to add", 0, INT_MAX);
+  func = RNA_def_function(srna, "resize", "rna_PointCloud_resize");
+  parm = RNA_def_int(func, "size", 0, 0, INT_MAX, "Size", "New number of points", 0, INT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   /* materials */
