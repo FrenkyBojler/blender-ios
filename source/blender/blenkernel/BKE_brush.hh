@@ -105,6 +105,10 @@ void BKE_brush_randomize_texture_coords(Paint *paint, bool mask);
  */
 void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset);
 
+namespace bke::brush {
+void common_pressure_curves_init(Brush &brush);
+}
+
 /**
  * Combine the brush strength based on the distances and brush settings with the existing factors.
  */
@@ -243,6 +247,8 @@ bool supports_dyntopo(const Brush &brush);
 bool supports_accumulate(const Brush &brush);
 bool supports_topology_rake(const Brush &brush);
 bool supports_auto_smooth(const Brush &brush);
+bool supports_normal_radius(const Brush &brush);
+bool supports_hardness(const Brush &brush);
 bool supports_height(const Brush &brush);
 bool supports_plane_height(const Brush &brush);
 bool supports_plane_depth(const Brush &brush);

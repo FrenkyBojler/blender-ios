@@ -371,12 +371,14 @@ struct Glyph {
     return r;
   }
 };
+
 struct ShapingData {
   blender::Vector<Glyph> glyphs = {};
   ft_pix width = 0;
   ft_pix height = 0;
   ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len);
 };
+
 ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len)
 {
   if (!str || !str[0] || !len) {
@@ -509,6 +511,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
     hb_buffer_destroy(hb_buf);
   }
 }
+
 bool blf_font_otf_feature_supported(FontBLF *font, const char tag[4])
 {
   if (!font) {
@@ -525,6 +528,7 @@ bool blf_font_otf_feature_supported(FontBLF *font, const char tag[4])
   return (hb_ot_layout_language_find_feature(
       hb_face, HB_OT_TAG_GPOS, 0, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX, tag_value, nullptr));
 }
+
 void blf_font_otf_feature_set(FontBLF *font, const char tag[4], int value)
 {
   if (!font) {
@@ -606,6 +610,7 @@ int blf_font_draw_mono(FontBLF *font,
   }
 
   blf_batch_draw_end();
+
   blf_glyph_cache_release(font);
   return columns;
 }
@@ -915,7 +920,6 @@ size_t blf_font_width_to_rstrlen(
   if (r_width) {
     *r_width = w;
   }
-
   return len;
 }
 
@@ -939,7 +943,7 @@ static void blf_font_boundbox_ex(FontBLF *font,
 
   ShapingData text(font, gc, str, str_len);
 
-  r_box->xmin = 0;
+	r_box->xmin = 0;
   r_box->xmax = ft_pix_to_int(text.width);
   r_box->ymin = ft_pix_to_int(pen_y);
   r_box->ymax = ft_pix_to_int(pen_y + text.height);
@@ -965,6 +969,7 @@ void blf_font_width_and_height(FontBLF *font,
                                ResultBLF *r_info)
 {
   rcti box;
+
   if (font->flags & BLF_WORD_WRAP) {
     blf_font_boundbox__wrap(font, str, str_len, &box, r_info);
   }
@@ -974,6 +979,7 @@ void blf_font_width_and_height(FontBLF *font,
 
   const float xa = (font->flags & BLF_ASPECT) ? font->aspect[0] : 1.0f;
   const float ya = (font->flags & BLF_ASPECT) ? font->aspect[1] : 1.0f;
+
   *r_width = (float(BLI_rcti_size_x(&box)) * xa);
   *r_height = (float(BLI_rcti_size_y(&box)) * ya);
 }
@@ -981,6 +987,7 @@ void blf_font_width_and_height(FontBLF *font,
 float blf_font_width(FontBLF *font, const char *str, const size_t str_len, ResultBLF *r_info)
 {
   rcti box;
+
   if (font->flags & BLF_WORD_WRAP) {
     blf_font_boundbox__wrap(font, str, str_len, &box, r_info);
   }
@@ -995,6 +1002,7 @@ float blf_font_width(FontBLF *font, const char *str, const size_t str_len, Resul
 float blf_font_height(FontBLF *font, const char *str, const size_t str_len, ResultBLF *r_info)
 {
   rcti box;
+
   if (font->flags & BLF_WORD_WRAP) {
     blf_font_boundbox__wrap(font, str, str_len, &box, r_info);
   }
@@ -1043,6 +1051,7 @@ void blf_font_boundbox_foreach_glyph(FontBLF *font,
   }
 
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+
   ShapingData text(font, gc, str, str_len);
   for (const Glyph &glyph : text.glyphs) {
     if (glyph.g->advance_x <= 0) {
@@ -1063,6 +1072,9 @@ size_t blf_str_offset_from_cursor_position(FontBLF *font,
                                            size_t str_len,
                                            int location_x)
 {
+  /* Do not early exit if location_x <= 0, as this can result in an incorrect
+   * offset for RTL text. Instead of offset of character responsible for first
+   * glyph you'd get offset of first character, which could be the last glyph. */
   if (!str || !str[0] || !str_len) {
     return 0;
   }
@@ -1078,6 +1090,24 @@ size_t blf_str_offset_from_cursor_position(FontBLF *font,
   }
 
   return text.glyphs.is_empty() ? 0 : text.glyphs.last().index_utf8 + 1;
+}
+
+struct StrOffsetToGlyphBounds_Data {
+  size_t str_offset;
+  rcti bounds;
+};
+
+static bool blf_str_offset_foreach_glyph(const char * /*str*/,
+                                         const size_t str_step_ofs,
+                                         const rcti *bounds,
+                                         void *user_data)
+{
+  StrOffsetToGlyphBounds_Data *data = static_cast<StrOffsetToGlyphBounds_Data *>(user_data);
+  if (data->str_offset == str_step_ofs) {
+    data->bounds = *bounds;
+    return false;
+  }
+  return true;
 }
 
 void blf_str_offset_to_glyph_bounds(FontBLF *font,
@@ -1869,7 +1899,7 @@ bool blf_ensure_face(FontBLF *font)
                 font->filepath,
                 int(err));
       }
-      MEM_freeN(mfile);
+      MEM_delete(mfile);
     }
   }
 
@@ -2044,10 +2074,10 @@ void blf_font_free(FontBLF *font)
     font->face = nullptr;
   }
   if (font->filepath) {
-    MEM_freeN(font->filepath);
+    MEM_delete(font->filepath);
   }
   if (font->mem_name) {
-    MEM_freeN(font->mem_name);
+    MEM_delete(font->mem_name);
   }
 
   MEM_delete(font);

@@ -61,6 +61,12 @@ const EnumPropertyItem rna_enum_exr_codec_items[] = {
      0,
      "DWAB (lossy)",
      "JPEG-like lossy compression on 256 row image blocks"},
+    {R_IMF_EXR_CODEC_HTJ2K,
+     "HTJ2K",
+     0,
+     "HTJ2K",
+     "Lossless compression based on high throughput JPEG 2000 encoding. It produces smaller "
+     "files, but it is new and not widely supported by other software yet."},
     {R_IMF_EXR_CODEC_ZIPS,
      "ZIPS",
      0,
@@ -346,6 +352,9 @@ static const EnumPropertyItem rna_enum_media_type_image_items[] = {
 #  define R_IMF_ENUM_WEBP
 #endif
 
+#define R_IMF_ENUM_AVIF \
+  {R_IMF_IMTYPE_AVIF, "AVIF", 0, "AVIF (.avif)", "Output image in AVIF format"},
+
 #ifdef WITH_FFMPEG
 #  define R_IMF_ENUM_FFMPEG {R_IMF_IMTYPE_FFMPEG, "FFMPEG", ICON_FILE_MOVIE, "FFmpeg Video", ""},
 #else
@@ -354,6 +363,7 @@ static const EnumPropertyItem rna_enum_media_type_image_items[] = {
 
 #define IMAGE_TYPE_ITEMS_IMAGE \
   /* DDS save not supported yet R_IMF_ENUM_DDS */ \
+  R_IMF_ENUM_AVIF \
   R_IMF_ENUM_JPEG \
   R_IMF_ENUM_EXR \
   R_IMF_ENUM_PNG \
@@ -917,7 +927,7 @@ static void rna_all_grease_pencil_update(bContext *C, PointerRNA * /*ptr*/)
 static void rna_Scene_objects_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Scene *scene = static_cast<Scene *>(ptr->data);
-  iter->internal.custom = MEM_callocN<BLI_Iterator>(__func__);
+  iter->internal.custom = MEM_new_zeroed<BLI_Iterator>(__func__);
 
   BKE_scene_objects_iterator_begin(static_cast<BLI_Iterator *>(iter->internal.custom),
                                    static_cast<void *>(scene));
@@ -933,7 +943,7 @@ static void rna_Scene_objects_next(CollectionPropertyIterator *iter)
 static void rna_Scene_objects_end(CollectionPropertyIterator *iter)
 {
   BKE_scene_objects_iterator_end(static_cast<BLI_Iterator *>(iter->internal.custom));
-  MEM_freeN(iter->internal.custom);
+  MEM_delete_void(iter->internal.custom);
 }
 
 static PointerRNA rna_Scene_objects_get(CollectionPropertyIterator *iter)
@@ -1170,7 +1180,7 @@ static PointerRNA rna_Scene_active_keying_set_get(PointerRNA *ptr)
 {
   Scene *scene = static_cast<Scene *>(ptr->data);
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_KeyingSet, animrig::scene_get_active_keyingset(scene));
+      *ptr, RNA_KeyingSet, animrig::scene_get_active_keyingset(scene));
 }
 
 static void rna_Scene_active_keying_set_set(PointerRNA *ptr,
@@ -1745,7 +1755,7 @@ static PointerRNA rna_RenderSettings_active_view_get(PointerRNA *ptr)
   RenderData *rd = static_cast<RenderData *>(ptr->data);
   SceneRenderView *srv = static_cast<SceneRenderView *>(BLI_findlink(&rd->views, rd->actview));
 
-  return RNA_pointer_create_with_parent(*ptr, &RNA_SceneRenderView, srv);
+  return RNA_pointer_create_with_parent(*ptr, RNA_SceneRenderView, srv);
 }
 
 static void rna_RenderSettings_active_view_set(PointerRNA *ptr,
@@ -1973,14 +1983,14 @@ void rna_ViewLayer_pass_update(Main *bmain, Scene *activescene, PointerRNA *ptr)
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
 
   ViewLayer *view_layer = nullptr;
-  if (ptr->type == &RNA_ViewLayer) {
+  if (ptr->type == RNA_ViewLayer) {
     view_layer = static_cast<ViewLayer *>(ptr->data);
   }
-  else if (ptr->type == &RNA_AOV) {
+  else if (ptr->type == RNA_AOV) {
     ViewLayerAOV *aov = static_cast<ViewLayerAOV *>(ptr->data);
     view_layer = BKE_view_layer_find_with_aov(scene, aov);
   }
-  else if (ptr->type == &RNA_Lightgroup) {
+  else if (ptr->type == RNA_Lightgroup) {
     ViewLayerLightgroup *lightgroup = static_cast<ViewLayerLightgroup *>(ptr->data);
     view_layer = BKE_view_layer_find_with_lightgroup(scene, lightgroup);
   }
@@ -2433,7 +2443,7 @@ static std::optional<std::string> rna_View3DCursor_path(const PointerRNA * /*ptr
 
 static TimeMarker *rna_TimeLine_add(Scene *scene, const char name[], int frame)
 {
-  TimeMarker *marker = MEM_new_for_free<TimeMarker>("TimeMarker");
+  TimeMarker *marker = MEM_new<TimeMarker>("TimeMarker");
   marker->flag = SELECT;
   marker->frame = frame;
   STRNCPY_UTF8(marker->name, name);
@@ -2457,7 +2467,7 @@ static void rna_TimeLine_remove(Scene *scene, ReportList *reports, PointerRNA *m
     return;
   }
 
-  MEM_freeN(marker);
+  MEM_delete(marker);
   marker_ptr->invalidate();
 
   WM_main_add_notifier(NC_SCENE | ND_MARKERS, nullptr);
@@ -2552,7 +2562,7 @@ static void rna_SceneCamera_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
   Object *camera = scene->camera;
 
-  seq::cache_cleanup(scene, seq::CacheCleanup::FinalAndIntra);
+  seq::cache_cleanup(scene, seq::CacheCleanup::SourceImage | seq::CacheCleanup::FinalAndIntra);
 
   if (camera && (camera->type == OB_CAMERA)) {
     DEG_id_tag_update(&camera->id, ID_RECALC_GEOMETRY);
@@ -2627,7 +2637,7 @@ PointerRNA rna_FreestyleSettings_active_lineset_get(PointerRNA *ptr)
 {
   FreestyleConfig *config = static_cast<FreestyleConfig *>(ptr->data);
   FreestyleLineSet *lineset = BKE_freestyle_lineset_get_active(config);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_FreestyleLineSet, lineset);
+  return RNA_pointer_create_with_parent(*ptr, RNA_FreestyleLineSet, lineset);
 }
 
 void rna_FreestyleSettings_active_lineset_index_range(
@@ -2864,7 +2874,7 @@ static PointerRNA rna_TransformOrientationSlot_get(PointerRNA *ptr)
   else {
     orientation = BKE_scene_transform_orientation_find(scene, orient_slot->index_custom);
   }
-  return RNA_pointer_create_with_parent(*ptr, &RNA_TransformOrientation, orientation);
+  return RNA_pointer_create_with_parent(*ptr, RNA_TransformOrientation, orientation);
 }
 
 static const EnumPropertyItem *rna_TransformOrientation_impl_itemf(Scene *scene,
@@ -4392,7 +4402,10 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "snap_to_hold_offset", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_mode", SEQ_SNAP_TO_STRIP_HOLD);
-  RNA_def_property_ui_text(prop, "Hold Offset", "Snap to strip hold offsets");
+  RNA_def_property_ui_text(prop,
+                           "Holds",
+                           "Snap to underlying strip content start and end in cases where the "
+                           "strip length extends beyond this range, producing holds");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
   prop = RNA_def_property(srna, "snap_to_markers", PROP_BOOLEAN, PROP_NONE);
@@ -8255,6 +8268,24 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
                            "much noise and slow convergence at the cost of accuracy. "
                            "Used by light-probes.");
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "direct_light_intensity", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "Direct Light Strength", "Scale the contribution of direct lighting");
+  RNA_def_property_range(prop, 0, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 3.0f, 1, 3);
+  RNA_def_property_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "indirect_light_intensity", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "Indirect Light Strength", "Scale the contribution of indirect lighting");
+  RNA_def_property_range(prop, 0, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 3.0f, 1, 3);
+  RNA_def_property_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 

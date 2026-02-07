@@ -11,9 +11,10 @@
 #include "DNA_vec_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 
-#include "GHOST_C-api.h"
+#include "GHOST_IWindow.hh"
 
 #include "GPU_immediate.hh"
 #include "GPU_state.hh"
@@ -279,16 +280,22 @@ void WM_window_csd_draw_titlebar(const wmWindow *win)
   BLI_assert(WM_window_is_csd(win));
   const int2 win_size = WM_window_native_pixel_size(win);
   const GHOST_CSD_Layout *csd_layout = WM_window_csd_layout_get();
-  const uint16_t dpi = GHOST_GetDPIHint(static_cast<GHOST_WindowHandle>(win->runtime->ghostwin));
+  GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
+  const uint16_t dpi = ghost_window->getDPIHint();
   const char win_state = GHOST_TWindowState(win->windowstate);
-  char *title = GHOST_GetTitle(static_cast<GHOST_WindowHandle>(win->runtime->ghostwin));
+  const std::string window_title = ghost_window->getTitle();
+  const char *title = window_title.c_str();
   const bool is_active = (win->active != 0);
 
-  uchar border_color[3];
-  ui::theme::get_color_3ubv(TH_HEADER, border_color);
+  uchar border_color[3], text_color[3];
 
-  uchar text_color[3];
-  ui::theme::get_color_3ubv(TH_TEXT_HI, text_color);
+  /* NOTE(@ideasman42): avoid theme functions as #blender::ui::theme::theme_set
+   * won't have run after loading factory settings, see: #152138.
+   * Access the theme directly as this will probably be replaced by something else,
+   * it's better other parts of Blender don't unintentionally rely on the theme being set here. */
+  const bTheme &theme = *static_cast<const bTheme *>(U.themes.first);
+  copy_v3_v3_uchar(border_color, theme.space_view3d.header);
+  copy_v3_v3_uchar(text_color, theme.space_view3d.text_hi);
 
   const uiStyle *style = ui::style_get_dpi();
   const uiFontStyle &fstyle = style->paneltitle;
@@ -308,9 +315,6 @@ void WM_window_csd_draw_titlebar(const wmWindow *win)
                                  border_color,
                                  text_color,
                                  alpha);
-  if (title) {
-    free(title);
-  }
 }
 
 /** \} */

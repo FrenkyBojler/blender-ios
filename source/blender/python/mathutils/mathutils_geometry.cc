@@ -1340,7 +1340,7 @@ static PyObject *M_Geometry_interpolate_bezier(PyObject * /*self*/, PyObject *ar
     return nullptr;
   }
 
-  coord_array = MEM_calloc_arrayN<float>(size_t(dims) * size_t(resolu), error_prefix);
+  coord_array = MEM_new_array_zeroed<float>(size_t(dims) * size_t(resolu), error_prefix);
   for (i = 0; i < dims; i++) {
     BKE_curve_forward_diff_bezier(
         UNPACK4_EX(, data, [i]), coord_array + i, resolu - 1, sizeof(float) * dims);
@@ -1351,7 +1351,7 @@ static PyObject *M_Geometry_interpolate_bezier(PyObject * /*self*/, PyObject *ar
   for (i = 0; i < resolu; i++, fp = fp + dims) {
     PyList_SET_ITEM(list, i, Vector_CreatePyObject(fp, dims, nullptr));
   }
-  MEM_freeN(coord_array);
+  MEM_delete(coord_array);
   return list;
 }
 
@@ -1402,14 +1402,14 @@ static PyObject *M_Geometry_tessellate_polygon(PyObject * /*self*/, PyObject *po
 
     len_polypoints = PySequence_Size(polyLine);
     if (len_polypoints > 0) { /* don't bother adding edges as polylines */
-      dl = MEM_callocN<DispList>("poly disp");
+      dl = MEM_new_zeroed<DispList>("poly disp");
       BLI_addtail(&dispbase, dl);
       dl->nr = len_polypoints;
       dl->type = DL_POLY;
       dl->parts = 1; /* no faces, 1 edge loop */
       dl->col = 0;   /* no material */
-      dl->verts = fp = MEM_malloc_arrayN<float>(3 * size_t(len_polypoints), "dl verts");
-      dl->index = MEM_calloc_arrayN<int>(3 * size_t(len_polypoints), "dl index");
+      dl->verts = fp = MEM_new_array_uninitialized<float>(3 * size_t(len_polypoints), "dl verts");
+      dl->index = MEM_new_array_zeroed<int>(3 * size_t(len_polypoints), "dl index");
 
       for (int index = 0; index < len_polypoints; index++, fp += 3) {
         polyVec = PySequence_GetItem(polyLine, index);
@@ -1440,7 +1440,12 @@ static PyObject *M_Geometry_tessellate_polygon(PyObject * /*self*/, PyObject *po
   if (totpoints) {
     /* now make the list to return */
     float down_vec[3] = {0, 0, -1};
-    BKE_displist_fill(&dispbase, &dispbase, is_2d ? down_vec : nullptr, false);
+    BKE_displist_fill(&dispbase,
+                      &dispbase,
+                      is_2d ? down_vec : nullptr,
+                      false,
+                      CU_FILL_SOLVER_SWEEP_LINE,
+                      CU_FILL_RULE_EVEN_ODD);
 
     /* The faces are stored in a new DisplayList
      * that's added to the head of the #ListBase. */
@@ -1483,12 +1488,12 @@ static int boxPack_FromPyObject(PyObject *value, BoxPack **r_boxarray)
 
   len = PyList_GET_SIZE(value);
 
-  boxarray = MEM_malloc_arrayN<BoxPack>(size_t(len), __func__);
+  boxarray = MEM_new_array_uninitialized<BoxPack>(size_t(len), __func__);
 
   for (i = 0; i < len; i++) {
     list_item = PyList_GET_ITEM(value, i);
     if (!PyList_Check(list_item) || PyList_GET_SIZE(list_item) < 4) {
-      MEM_freeN(boxarray);
+      MEM_delete(boxarray);
       PyErr_SetString(PyExc_TypeError, "can only pack a list of [x, y, w, h]");
       return -1;
     }
@@ -1504,7 +1509,7 @@ static int boxPack_FromPyObject(PyObject *value, BoxPack **r_boxarray)
 
     /* accounts for error case too and overwrites with own error */
     if (box->w < 0.0f || box->h < 0.0f) {
-      MEM_freeN(boxarray);
+      MEM_delete(boxarray);
       PyErr_SetString(PyExc_TypeError,
                       "error parsing width and height values from list: "
                       "[x, y, w, h], not numbers or below zero");
@@ -1570,7 +1575,7 @@ static PyObject *M_Geometry_box_pack_2d(PyObject * /*self*/, PyObject *boxlist)
     BLI_box_pack_2d(boxarray, len, sort_boxes, &tot_width, &tot_height);
 
     boxPack_ToPyObject(boxlist, boxarray);
-    MEM_freeN(boxarray);
+    MEM_delete(boxarray);
   }
 
   ret = PyTuple_New(2);
@@ -1640,7 +1645,7 @@ static PyObject *M_Geometry_convex_hull_2d(PyObject * /*self*/, PyObject *pointl
     int *index_map;
     Py_ssize_t len_ret, i;
 
-    index_map = MEM_malloc_arrayN<int>(size_t(len), __func__);
+    index_map = MEM_new_array_uninitialized<int>(size_t(len), __func__);
 
     /* Non Python function */
     len_ret = BLI_convexhull_2d({reinterpret_cast<float2 *>(points), len}, index_map);
@@ -1650,7 +1655,7 @@ static PyObject *M_Geometry_convex_hull_2d(PyObject * /*self*/, PyObject *pointl
       PyList_SET_ITEM(ret, i, PyLong_FromLong(index_map[i]));
     }
 
-    MEM_freeN(index_map);
+    MEM_delete(index_map);
 
     PyMem_Free(points);
   }
@@ -1665,14 +1670,14 @@ static PyObject *M_Geometry_convex_hull_2d(PyObject * /*self*/, PyObject *pointl
  * to fill values, with start_table and len_table giving the start index
  * and length of the toplevel_len sub-lists.
  */
-static PyObject *list_of_lists_from_arrays(const Span<Vector<int>> data)
+template<typename T> static PyObject *list_of_lists_from_arrays(const Span<Vector<T>> data)
 {
   if (data.is_empty()) {
     return PyList_New(0);
   }
   PyObject *ret = PyList_New(data.size());
   for (const int i : data.index_range()) {
-    const Span<int> group = data[i];
+    const Span<T> group = data[i];
     PyObject *sublist = PyList_New(group.size());
     for (const int j : group.index_range()) {
       PyList_SET_ITEM(sublist, j, PyLong_FromLong(group[j]));
@@ -1821,16 +1826,16 @@ static PyObject *M_Geometry_delaunay_2d_cdt(PyObject * /*self*/, PyObject *args)
   }
   PyTuple_SET_ITEM(ret_value, 1, out_edges);
 
-  out_faces = list_of_lists_from_arrays(res.face);
+  out_faces = list_of_lists_from_arrays(res.face.as_span());
   PyTuple_SET_ITEM(ret_value, 2, out_faces);
 
-  out_orig_verts = list_of_lists_from_arrays(res.vert_orig);
+  out_orig_verts = list_of_lists_from_arrays(res.vert_orig.as_span());
   PyTuple_SET_ITEM(ret_value, 3, out_orig_verts);
 
-  out_orig_edges = list_of_lists_from_arrays(res.edge_orig);
+  out_orig_edges = list_of_lists_from_arrays(res.edge_orig.as_span());
   PyTuple_SET_ITEM(ret_value, 4, out_orig_edges);
 
-  out_orig_faces = list_of_lists_from_arrays(res.face_orig);
+  out_orig_faces = list_of_lists_from_arrays(res.face_orig.as_span());
   PyTuple_SET_ITEM(ret_value, 5, out_orig_faces);
 
   return ret_value;

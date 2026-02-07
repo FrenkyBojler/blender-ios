@@ -1861,7 +1861,7 @@ static void prepare_linehits_for_cut(KnifeTool_OpData *kcd)
     return;
   }
 
-  std::sort(kcd->linehits.begin(), kcd->linehits.end(), linehit_compare);
+  std::ranges::sort(kcd->linehits, linehit_compare);
 
   /* Remove any edge hits that are preceded or followed
    * by a vertex hit that is very near. Mark such edge hits using
@@ -3043,7 +3043,7 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 
   kcd->linehits = std::move(linehits);
 
-  MEM_freeN(results);
+  MEM_delete(results);
 }
 
 /** \} */
