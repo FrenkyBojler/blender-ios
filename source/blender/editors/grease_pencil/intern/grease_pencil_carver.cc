@@ -20,10 +20,13 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_material_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "WM_api.hh"
 
-namespace blender::ed::greasepencil {
+namespace blender {
+
+namespace ed::greasepencil {
 
 /**
  * Apply the stroke carver to a drawing.
@@ -147,18 +150,18 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
   drawing_temp.strokes_for_write() = std::move(input_curves);
   drawing_temp.tag_topology_changed();
 
-  const std::optional<GroupedSpan<int>> shapes = drawing_temp.shapes();
-  const int num_shapes = shapes.has_value() ? shapes->size() : drawing_temp.strokes().curves_num();
+  const std::optional<GroupedSpan<int>> fills = drawing_temp.fills();
+  const int num_fills = fills.has_value() ? fills->size() : drawing_temp.strokes().curves_num();
 
-  const IndexRange shape_mask = IndexRange(num_shapes);
-  const IndexRange clipping_shapes = IndexRange::from_single(num_shapes - 1);
+  const IndexRange fill_mask = IndexRange(num_fills);
+  const IndexRange clipping_fills = IndexRange::from_single(num_fills - 1);
 
   bke::CurvesGeometry carved_strokes = carver::curve_boolean(op_params,
                                                              drawing_temp.strokes(),
-                                                             shapes,
+                                                             fills,
                                                              normal_planes,
-                                                             shape_mask,
-                                                             clipping_shapes,
+                                                             fill_mask,
+                                                             clipping_fills,
                                                              layer_to_world,
                                                              region,
                                                              keep_caps);
@@ -185,7 +188,7 @@ static wmOperatorStatus stroke_carver_execute(const bContext *C, const Span<int2
   Object *obact = CTX_data_active_object(C);
   Object *ob_eval = DEG_get_evaluated(depsgraph, obact);
 
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(obact->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(obact->data);
 
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
@@ -277,11 +280,11 @@ static wmOperatorStatus grease_pencil_stroke_carver(bContext *C, wmOperator *op)
   return stroke_carver_execute(C, mcoords);
 }
 
-}  // namespace blender::ed::greasepencil
+}  // namespace ed::greasepencil
 
 void GREASE_PENCIL_OT_stroke_carver(wmOperatorType *ot)
 {
-  using namespace blender::ed::greasepencil;
+  using namespace ed::greasepencil;
 
   ot->name = "Grease Pencil Carver";
   ot->idname = "GREASE_PENCIL_OT_stroke_carver";
@@ -297,3 +300,5 @@ void GREASE_PENCIL_OT_stroke_carver(wmOperatorType *ot)
 
   WM_operator_properties_gesture_lasso(ot);
 }
+
+}  // namespace blender

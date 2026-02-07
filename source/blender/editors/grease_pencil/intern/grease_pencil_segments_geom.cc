@@ -2560,8 +2560,7 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
            src_attributes, dst_attributes, {bke::AttrDomain::Point}, {}))
   {
-    bke::attribute_math::convert_to_static_type(attribute.dst.span.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    bke::attribute_math::to_static_type(attribute.dst.span.type(), [&]<typename T>() {
       auto src_attr = attribute.src.typed<T>();
       auto dst_attr = attribute.dst.span.typed<T>();
 
@@ -2605,8 +2604,7 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
 
     if (iter.name != ".positions_2d") {
       GMutableSpan attribute_data = dst.span;
-      bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
-        using T = decltype(dummy);
+      bke::attribute_math::to_static_type(attribute_data.type(), [&]<typename T>() {
         MutableSpan<T> span_data = attribute_data.typed<T>();
 
         for (const InterpolatePoint &interpolate_point : clipping_point_to_interpolate) {
