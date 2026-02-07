@@ -14,6 +14,7 @@
 #include "DNA_screen_types.h"
 
 #include "UI_interface.hh"
+#include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
@@ -31,6 +32,19 @@ const EnumPropertyItem rna_enum_icon_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const EnumPropertyItem popup_draw_direction_items[] = {
+    {int(ui::PopupAttachDirection::Vertical),
+     "VERTICAL",
+     0,
+     "Vertical",
+     "Draw popup panel above or below the button"},
+    {int(ui::PopupAttachDirection::Horizontal),
+     "HORIZONTAL",
+     0,
+     "Horizontal",
+     "Draw popup panel to the side of the button"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 }  // namespace blender
 
 #ifdef RNA_RUNTIME
@@ -562,7 +576,8 @@ static void rna_uiItemPopoverPanel(Layout *layout,
                                    const char *text_ctxt,
                                    bool translate,
                                    int icon,
-                                   int icon_value)
+                                   int icon_value,
+                                   int direction = int(ui::PopupAttachDirection::Vertical))
 {
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
@@ -572,7 +587,7 @@ static void rna_uiItemPopoverPanel(Layout *layout,
     icon = icon_value;
   }
 
-  layout->popover(C, panel_type, text, icon);
+  layout->popover(C, panel_type, text, icon, ui::PopupAttachDirection(direction));
 }
 
 static void rna_uiItemPopoverPanelFromGroup(Layout *layout,
@@ -646,6 +661,12 @@ static void rna_uiTemplateID(Layout *layout,
       name, text_ctxt, nullptr, prop, translate);
 
   template_id(layout, C, ptr, propname, newop, openop, unlinkop, filter, live_icon, text);
+}
+
+static void rna_ui_template_ID_session_uid(
+    Layout *layout, bContext *C, PointerRNA *ptr, const char *propname, int idcode)
+{
+  template_ID_session_uid(*layout, C, ptr, propname, idcode);
 }
 
 static void rna_uiTemplateAnyID(Layout *layout,
@@ -1025,7 +1046,7 @@ static const char *rna_ui_get_enum_name(bContext *C,
       name = items[index].name;
     }
     if (free) {
-      MEM_freeN(items);
+      MEM_delete(items);
     }
   }
 
@@ -1058,7 +1079,7 @@ static const char *rna_ui_get_enum_description(bContext *C,
       desc = items[index].description;
     }
     if (free) {
-      MEM_freeN(items);
+      MEM_delete(items);
     }
   }
 
@@ -1091,7 +1112,7 @@ static int rna_ui_get_enum_icon(bContext *C,
       icon = items[index].icon;
     }
     if (free) {
-      MEM_freeN(items);
+      MEM_delete(items);
     }
   }
 
@@ -1686,6 +1707,13 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_property(func, "icon_value", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
+  parm = RNA_def_enum(
+      func,
+      "direction",
+      popup_draw_direction_items,
+      0,
+      "Popup Direction",
+      "The direction in which the popup panel is drawn relative to button position");
 
   func = RNA_def_function(srna, "popover_group", "rna_uiItemPopoverPanelFromGroup");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
@@ -1778,6 +1806,15 @@ void RNA_api_ui_layout(StructRNA *srna)
                "Optionally limit the items which can be selected");
   RNA_def_boolean(func, "live_icon", false, "", "Show preview instead of fixed icon");
   api_ui_item_common_text(func);
+
+  func = RNA_def_function(srna, "template_ID_session_uid", "rna_ui_template_ID_session_uid");
+  RNA_def_function_ui_description(func,
+                                  "Template ID search menu button for session_uid Int properties");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  api_ui_item_rna_common(func);
+  parm = RNA_def_enum(func, "id_type", rna_enum_id_type_items, 0, "", "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 
   func = RNA_def_function(srna, "template_ID_preview", "template_id_preview");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);

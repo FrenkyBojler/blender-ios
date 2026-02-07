@@ -124,7 +124,7 @@ static int pygpu_texture_valid_check(BPyGPUTexture *bpygpu_tex)
  * \{ */
 
 #define BPYGPU_TEXTURE_EXTEND_MODE_ARG_DOC \
-  "   :arg extend_mode: the specified extent mode.\n" \
+  "   :param extend_mode: the specified extent mode.\n" \
   "   :type extend_mode: Literal['EXTEND', 'REPEAT', 'MIRRORED_REPEAT', 'CLAMP_TO_BORDER']\n";
 
 static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, PyObject *kwds)
@@ -142,7 +142,6 @@ static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, 
 
   static const char *_keywords[] = {"size", "layers", "is_cubemap", "format", "data", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O"  /* `size` */
       "|$" /* Optional keyword only arguments. */
       "i"  /* `layers` */
@@ -427,7 +426,7 @@ PyDoc_STRVAR(
     "\n"
     "   Set texture filter usage.\n"
     "\n"
-    "   :arg use_filter: If set to true, the texture will use linear interpolation between "
+    "   :param use_filter: If set to true, the texture will use linear interpolation between "
     "neighboring texels.\n"
     "   :type use_filter: bool\n");
 static PyObject *pygpu_texture_filter_mode(BPyGPUTexture *self, PyObject *value)
@@ -450,10 +449,10 @@ PyDoc_STRVAR(
     "\n"
     "   Set texture filter and mip-map usage.\n"
     "\n"
-    "   :arg use_mipmap: If set to true, the texture will use mip-mapping as anti-aliasing "
+    "   :param use_mipmap: If set to true, the texture will use mip-mapping as anti-aliasing "
     "method.\n"
     "   :type use_mipmap: bool\n"
-    "   :arg use_filter: If set to true, the texture will use linear interpolation between "
+    "   :param use_filter: If set to true, the texture will use linear interpolation between "
     "neighboring texels.\n"
     "   :type use_filter: bool\n");
 static PyObject *pygpu_texture_mipmap_mode(BPyGPUTexture *self, PyObject *args, PyObject *kwds)
@@ -464,7 +463,6 @@ static PyObject *pygpu_texture_mipmap_mode(BPyGPUTexture *self, PyObject *args, 
   bool use_filter = true;
   static const char *_keywords[] = {"use_mipmap", "use_filter"};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "b"  /* `use_mipmap` */
       "b"  /* `use_filter` */
@@ -488,7 +486,7 @@ PyDoc_STRVAR(
     "\n"
     "   Set anisotropic filter usage. This only has effect if mipmapping is enabled.\n"
     "\n"
-    "   :arg use_anisotropic: If set to true, the texture will use anisotropic filtering.\n"
+    "   :param use_anisotropic: If set to true, the texture will use anisotropic filtering.\n"
     "   :type use_anisotropic: bool\n");
 static PyObject *pygpu_texture_anisotropic_filter(BPyGPUTexture *self, PyObject *value)
 {
@@ -510,12 +508,12 @@ PyDoc_STRVAR(
     "\n"
     "   Fill texture with specific value.\n"
     "\n"
-    "   :arg format: The format that describes the content of a single item.\n"
+    "   :param format: The format that describes the content of a single item.\n"
     "      Possible values are ``FLOAT``, ``INT``, ``UINT``, ``UBYTE``, ``UINT_24_8`` & "
     "``10_11_11_REV``.\n"
     "      ``UINT_24_8`` is deprecated, use ``FLOAT`` instead.\n"
     "   :type format: str\n"
-    "   :arg value: Sequence each representing the value to fill. Sizes 1..4 are supported.\n"
+    "   :param value: Sequence each representing the value to fill. Sizes 1..4 are supported.\n"
     "   :type value: Sequence[float]\n");
 static PyObject *pygpu_texture_clear(BPyGPUTexture *self, PyObject *args, PyObject *kwds)
 {
@@ -531,7 +529,6 @@ static PyObject *pygpu_texture_clear(BPyGPUTexture *self, PyObject *args, PyObje
 
   static const char *_keywords[] = {"format", "value", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "$"  /* Keyword only arguments. */
       "O&" /* `format` */
       "O"  /* `value` */
@@ -759,13 +756,13 @@ PyDoc_STRVAR(
     "\n"
     "   This object gives access to GPU textures.\n"
     "\n"
-    "   :arg size: Dimensions of the texture 1D, 2D, 3D or cubemap.\n"
+    "   :param size: Dimensions of the texture 1D, 2D, 3D or cubemap.\n"
     "   :type size: int | Sequence[int]\n"
-    "   :arg layers: Number of layers in texture array or number of cubemaps in cubemap array\n"
+    "   :param layers: Number of layers in texture array or number of cubemaps in cubemap array\n"
     "   :type layers: int\n"
-    "   :arg is_cubemap: Indicates the creation of a cubemap texture.\n"
+    "   :param is_cubemap: Indicates the creation of a cubemap texture.\n"
     "   :type is_cubemap: bool\n"
-    "   :arg format: Internal data format inside GPU memory. Possible values are:\n"
+    "   :param format: Internal data format inside GPU memory. Possible values are:\n"
     "      ``RGBA8UI``,\n"
     "      ``RGBA8I``,\n"
     "      ``RGBA8``,\n"
@@ -811,7 +808,7 @@ PyDoc_STRVAR(
     "      ``DEPTH_COMPONENT24``, (deprecated, use ``DEPTH_COMPONENT32F``),\n"
     "      ``DEPTH_COMPONENT16``.\n"
     "   :type format: str\n"
-    "   :arg data: Buffer object to fill the texture.\n"
+    "   :param data: Buffer object to fill the texture.\n"
     "   :type data: :class:`gpu.types.Buffer`\n");
 PyTypeObject BPyGPUTexture_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
@@ -882,7 +879,7 @@ PyDoc_STRVAR(
     "   Note: Colors read from the texture will be in scene linear color space and have "
     "premultiplied or straight alpha matching the image alpha mode.\n"
     "\n"
-    "   :arg image: The Image data-block.\n"
+    "   :param image: The Image data-block.\n"
     "   :type image: :class:`bpy.types.Image`\n"
     "   :return: The GPUTexture used by the image.\n"
     "   :rtype: :class:`gpu.types.GPUTexture`\n");

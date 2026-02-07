@@ -1628,8 +1628,10 @@ void draw_nodespace_back_pix(const bContext &C,
   if (ibuf) {
     /* somehow the offset has to be calculated inverse */
     wmOrtho2_region_pixelspace(&region);
-    const float offset_x = snode.xof + ima->runtime->backdrop_offset[0] * snode.zoom;
-    const float offset_y = snode.yof + ima->runtime->backdrop_offset[1] * snode.zoom;
+    const float2 offset = ibuf->flags & IB_has_display_window ? float2(ibuf->display_offset) :
+                                                                float2(0.0f);
+    const float offset_x = snode.xof + offset.x * snode.zoom;
+    const float offset_y = snode.yof + offset.y * snode.zoom;
     const float x = (region.winx - snode.zoom * ibuf->x) / 2 + offset_x;
     const float y = (region.winy - snode.zoom * ibuf->y) / 2 + offset_y;
 
@@ -1637,7 +1639,6 @@ void draw_nodespace_back_pix(const bContext &C,
      */
     if (snode.edittree) {
       bNode *node = static_cast<bNode *>(snode.edittree->nodes.first);
-      const rctf *viewer_border = &snode.nodetree->viewer_border;
       while (node) {
         if (node->flag & NODE_SELECT) {
           if (node->typeinfo->draw_backdrop) {
@@ -1645,26 +1646,6 @@ void draw_nodespace_back_pix(const bContext &C,
           }
         }
         node = node->next;
-      }
-
-      if ((snode.nodetree->flag & NTREE_VIEWER_BORDER) &&
-          viewer_border->xmin < viewer_border->xmax && viewer_border->ymin < viewer_border->ymax)
-      {
-        rcti pixel_border;
-        BLI_rcti_init(&pixel_border,
-                      x + snode.zoom * viewer_border->xmin * ibuf->x,
-                      x + snode.zoom * viewer_border->xmax * ibuf->x,
-                      y + snode.zoom * viewer_border->ymin * ibuf->y,
-                      y + snode.zoom * viewer_border->ymax * ibuf->y);
-
-        uint pos = GPU_vertformat_attr_add(
-            immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
-        immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-        immUniformThemeColor(TH_ACTIVE);
-
-        immDrawBorderCorners(pos, &pixel_border, 1.0f, 1.0f);
-
-        immUnbindProgram();
       }
     }
   }
@@ -2185,10 +2166,18 @@ static bool node_link_is_field_link(const SpaceNode &snode, const bNodeLink &lin
   if (tree.type != NTREE_GEOMETRY) {
     return false;
   }
-  if (link.fromsock && link.fromsock->may_be_field()) {
-    return true;
+  if (!link.fromsock) {
+    return false;
   }
-  return false;
+  if (!nodes::socket_type_supports_fields(eNodeSocketDatatype(link.fromsock->type))) {
+    /* Normally, StructureType::Dynamic would result in dashed links. We override that for socket
+     * types we know currently can't be used as fields. */
+    return false;
+  }
+  if (!link.fromsock->may_be_field()) {
+    return false;
+  }
+  return true;
 }
 
 static bool node_link_is_gizmo_link(const SpaceNode &snode, const bNodeLink &link)

@@ -299,19 +299,19 @@ char pyrna_struct_keyframe_insert_doc[] =
     "   Insert a keyframe on the property given, adding fcurves and animation data when "
     "necessary.\n"
     "\n"
-    "   :arg data_path: path to the property to key, analogous to the fcurve's data path.\n"
+    "   :param data_path: path to the property to key, analogous to the fcurve's data path.\n"
     "   :type data_path: str\n"
-    "   :arg index: array index of the property to key.\n"
+    "   :param index: array index of the property to key.\n"
     "      Defaults to -1 which will key all indices or a single channel if the property is not "
     "an array.\n"
     "   :type index: int\n"
-    "   :arg frame: The frame on which the keyframe is inserted, defaulting to the current "
+    "   :param frame: The frame on which the keyframe is inserted, defaulting to the current "
     "frame.\n"
     "   :type frame: float\n"
-    "   :arg group: The name of the group the F-Curve should be added to if it doesn't exist "
+    "   :param group: The name of the group the F-Curve should be added to if it doesn't exist "
     "yet.\n"
     "   :type group: str\n"
-    "   :arg options: Optional set of flags:\n"
+    "   :param options: Optional set of flags:\n"
     "\n"
     "      - ``INSERTKEY_NEEDED`` Only insert keyframes where they're needed in the relevant "
     "F-Curves.\n"
@@ -321,7 +321,7 @@ char pyrna_struct_keyframe_insert_doc[] =
     "      - ``INSERTKEY_CYCLE_AWARE`` Take cyclic extrapolation into account "
     "(Cycle-Aware Keying option).\n"
     "   :type options: set[str]\n"
-    "   :arg keytype: Type of the key: 'KEYFRAME', 'BREAKDOWN', 'MOVING_HOLD', 'EXTREME', "
+    "   :param keytype: Type of the key: 'KEYFRAME', 'BREAKDOWN', 'MOVING_HOLD', 'EXTREME', "
     "'JITTER', or 'GENERATED'\n"
     "   :type keytype: str\n"
     "   :return: Success of keyframe insertion.\n"
@@ -430,7 +430,7 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
     result = success_count != 0;
   }
 
-  MEM_freeN(path_full);
+  MEM_delete(path_full);
 
   if (BPy_reports_to_error(&reports, PyExc_RuntimeError, false) == -1) {
     BKE_reports_free(&reports);
@@ -454,15 +454,17 @@ char pyrna_struct_keyframe_delete_doc[] =
     "\n"
     "   Remove a keyframe from this properties fcurve.\n"
     "\n"
-    "   :arg data_path: path to the property to remove a key, analogous to the fcurve's data "
+    "   :param data_path: path to the property to remove a key, analogous to the fcurve's data "
     "path.\n"
     "   :type data_path: str\n"
-    "   :arg index: array index of the property to remove a key. Defaults to -1 removing all "
-    "indices or a single channel if the property is not an array.\n"
+    "   :param index: array index of the property to remove a key. "
+    "Defaults to -1 removing all indices or a single channel "
+    "if the property is not an array.\n"
     "   :type index: int\n"
-    "   :arg frame: The frame on which the keyframe is deleted, defaulting to the current frame.\n"
+    "   :param frame: The frame on which the keyframe is deleted, "
+    "defaulting to the current frame.\n"
     "   :type frame: float\n"
-    "   :arg group: The name of the group the F-Curve should be added to if it doesn't exist "
+    "   :param group: The name of the group the F-Curve should be added to if it doesn't exist "
     "yet.\n"
     "   :type group: str\n"
     "   :return: Success of keyframe deletion.\n"
@@ -521,7 +523,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
       /* NOTE: This should be true, or else we wouldn't be able to get here. */
       BLI_assert(fcu != nullptr);
 
-      if (BKE_fcurve_is_protected(fcu)) {
+      if (BKE_fcurve_is_protected(*fcu)) {
         BKE_reportf(
             &reports,
             RPT_WARNING,
@@ -543,7 +545,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
         if (found) {
           /* delete the key at the index (will sanity check + do recalc afterwards) */
           BKE_fcurve_delete_key(fcu, i);
-          BKE_fcurve_handles_recalc(fcu);
+          BKE_fcurve_handles_recalc(*fcu);
           result = true;
         }
       }
@@ -561,7 +563,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
               0);
   }
 
-  MEM_freeN(path_full);
+  MEM_delete(path_full);
 
   if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1) {
     return nullptr;
@@ -575,10 +577,10 @@ char pyrna_struct_driver_add_doc[] =
     "\n"
     "   Adds driver(s) to the given property\n"
     "\n"
-    "   :arg path: path to the property to drive, analogous to the fcurve's data path.\n"
+    "   :param path: path to the property to drive, analogous to the fcurve's data path.\n"
     "   :type path: str\n"
-    "   :arg index: array index of the property drive. Defaults to -1 for all indices or a single "
-    "channel if the property is not an array.\n"
+    "   :param index: array index of the property drive. "
+    "Defaults to -1 for all indices or a single channel if the property is not an array.\n"
     "   :type index: int\n"
     "   :return: The driver added or a list of drivers when index is -1.\n"
     "   :rtype: :class:`bpy.types.FCurve` | list[:class:`bpy.types.FCurve`]\n";
@@ -642,7 +644,7 @@ PyObject *pyrna_struct_driver_add(BPy_StructRNA *self, PyObject *args)
     DEG_relations_tag_update(CTX_data_main(context));
   }
 
-  MEM_freeN(path_full);
+  MEM_delete(path_full);
 
   return ret;
 }
@@ -652,10 +654,10 @@ char pyrna_struct_driver_remove_doc[] =
     "\n"
     "   Remove driver(s) from the given property\n"
     "\n"
-    "   :arg path: path to the property to drive, analogous to the fcurve's data path.\n"
+    "   :param path: path to the property to drive, analogous to the fcurve's data path.\n"
     "   :type path: str\n"
-    "   :arg index: array index of the property drive. Defaults to -1 for all indices or a single "
-    "channel if the property is not an array.\n"
+    "   :param index: array index of the property drive. "
+    "Defaults to -1 for all indices or a single channel if the property is not an array.\n"
     "   :type index: int\n"
     "   :return: Success of driver removal.\n"
     "   :rtype: bool\n";
@@ -684,7 +686,7 @@ PyObject *pyrna_struct_driver_remove(BPy_StructRNA *self, PyObject *args)
   result = ANIM_remove_driver(self->ptr->owner_id, path_full, index);
 
   if (path != path_full) {
-    MEM_freeN(path_full);
+    MEM_delete(path_full);
   }
 
   if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1) {

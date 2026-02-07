@@ -617,7 +617,7 @@ Vector<StringRef> text_clip_multiline_middle(const uiFontStyle *fstyle,
  * - #block_func_set and button_func_set are callbacks run when a button is used,
  *   in case events, operators or RNA are not sufficient to handle the button.
  *
- * - #button_funcN_set will free the argument with MEM_freeN. */
+ * - #button_funcN_set will free the argument with MEM_delete_void. */
 
 struct SearchItems;
 
@@ -1615,8 +1615,8 @@ Button *uiDefBlockButN(Block *block,
                        short width,
                        short height,
                        std::optional<StringRef> tip,
-                       ButtonArgNFree func_argN_free_fn = MEM_freeN,
-                       ButtonArgNCopy func_argN_copy_fn = MEM_dupallocN);
+                       ButtonArgNFree func_argN_free_fn = MEM_delete_void,
+                       ButtonArgNCopy func_argN_copy_fn = MEM_dupalloc_void);
 
 /**
  * Block button containing icon.
@@ -1839,8 +1839,8 @@ void block_funcN_set(Block *block,
                      ButtonHandleNFunc funcN,
                      void *argN,
                      void *arg2,
-                     ButtonArgNFree func_argN_free_fn = MEM_freeN,
-                     ButtonArgNCopy func_argN_copy_fn = MEM_dupallocN);
+                     ButtonArgNFree func_argN_free_fn = MEM_delete_void,
+                     ButtonArgNCopy func_argN_copy_fn = MEM_dupalloc_void);
 
 void button_func_rename_set(Button *but, ButtonHandleRenameFunc func, void *arg1);
 void button_func_rename_full_set(Button *but,
@@ -1850,8 +1850,8 @@ void button_funcN_set(Button *but,
                       ButtonHandleNFunc funcN,
                       void *argN,
                       void *arg2,
-                      ButtonArgNFree func_argN_free_fn = MEM_freeN,
-                      ButtonArgNCopy func_argN_copy_fn = MEM_dupallocN);
+                      ButtonArgNFree func_argN_free_fn = MEM_delete_void,
+                      ButtonArgNCopy func_argN_copy_fn = MEM_dupalloc_void);
 
 void button_func_complete_set(Button *but, ButtonCompleteFunc func, void *arg);
 
@@ -2288,6 +2288,8 @@ void template_id(Layout *layout,
                  int filter = TEMPLATE_ID_FILTER_ALL,
                  bool live_icon = false,
                  std::optional<StringRef> text = std::nullopt);
+void template_ID_session_uid(
+    Layout &layout, bContext *C, PointerRNA *ptr, StringRefNull propname, short idcode);
 void template_id_browse(Layout *layout,
                         bContext *C,
                         PointerRNA *ptr,

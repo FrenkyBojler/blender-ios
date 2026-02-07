@@ -50,7 +50,7 @@ PyDoc_STRVAR(
     bpy_rna_region_as_string_doc,
     ".. method:: region_as_string(*, range=None)\n"
     "\n"
-    "   :arg range: The region of text to be returned, "
+    "   :param range: The region of text to be returned, "
     "defaulting to the selection when no range is passed.\n"
     "      Each int pair represents a line and column: "
     "((start_line, start_column), (end_line, end_column))\n"
@@ -69,7 +69,6 @@ static PyObject *bpy_rna_region_as_string(PyObject *self, PyObject *args, PyObje
 
   static const char *_keywords[] = {"range", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$"         /* Optional keyword only arguments. */
       "((ii)(ii))" /* `range` */
       ":region_as_string",
@@ -92,7 +91,7 @@ static PyObject *bpy_rna_region_as_string(PyObject *self, PyObject *args, PyObje
   }
   char *buf = txt_sel_to_buf(text, nullptr);
   PyObject *sel_text = PyUnicode_FromString(buf);
-  MEM_freeN(buf);
+  MEM_delete(buf);
   /* Return the selected text. */
   return sel_text;
 }
@@ -127,9 +126,9 @@ PyDoc_STRVAR(
     bpy_rna_region_from_string_doc,
     ".. method:: region_from_string(body, /, *, range=None)\n"
     "\n"
-    "   :arg body: The text to be inserted.\n"
+    "   :param body: The text to be inserted.\n"
     "   :type body: str\n"
-    "   :arg range: The region of text to be returned, "
+    "   :param range: The region of text to be returned, "
     "defaulting to the selection when no range is passed.\n"
     "      Each int pair represents a line and column: "
     "((start_line, start_column), (end_line, end_column))\n"
@@ -148,7 +147,6 @@ static PyObject *bpy_rna_region_from_string(PyObject *self, PyObject *args, PyOb
 
   static const char *_keywords[] = {"", "range", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s#"         /* `buf` (positional). */
       "|$"         /* Optional keyword only arguments. */
       "((ii)(ii))" /* `range` */

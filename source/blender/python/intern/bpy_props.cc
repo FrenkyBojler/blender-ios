@@ -54,31 +54,31 @@ namespace blender {
  * \{ */
 
 #define BPY_PROPDEF_OPTIONS_DOC \
-  "   :arg options: Enumerator in :ref:`rna_enum_property_flag_items`.\n" \
+  "   :param options: Enumerator in :ref:`rna_enum_property_flag_items`.\n" \
   "   :type options: set[str]\n"
 
 #define BPY_PROPDEF_OPTIONS_ENUM_DOC \
-  "   :arg options: Enumerator in :ref:`rna_enum_property_flag_enum_items`.\n" \
+  "   :param options: Enumerator in :ref:`rna_enum_property_flag_enum_items`.\n" \
   "   :type options: set[str]\n"
 
 #define BPY_PROPDEF_OPTIONS_OVERRIDE_DOC \
-  "   :arg override: Enumerator in :ref:`rna_enum_property_override_flag_items`.\n" \
+  "   :param override: Enumerator in :ref:`rna_enum_property_override_flag_items`.\n" \
   "   :type override: set[str]\n"
 
 #define BPY_PROPDEF_OPTIONS_OVERRIDE_COLLECTION_DOC \
-  "   :arg override: Enumerator in :ref:`rna_enum_property_override_flag_collection_items`.\n" \
+  "   :param override: Enumerator in :ref:`rna_enum_property_override_flag_collection_items`.\n" \
   "   :type override: set[str]\n"
 
 #define BPY_PROPDEF_SUBTYPE_STRING_DOC \
-  "   :arg subtype: Enumerator in :ref:`rna_enum_property_subtype_string_items`.\n" \
+  "   :param subtype: Enumerator in :ref:`rna_enum_property_subtype_string_items`.\n" \
   "   :type subtype: str\n"
 
 #define BPY_PROPDEF_SUBTYPE_NUMBER_DOC \
-  "   :arg subtype: Enumerator in :ref:`rna_enum_property_subtype_number_items`.\n" \
+  "   :param subtype: Enumerator in :ref:`rna_enum_property_subtype_number_items`.\n" \
   "   :type subtype: str\n"
 
 #define BPY_PROPDEF_SUBTYPE_NUMBER_ARRAY_DOC \
-  "   :arg subtype: Enumerator in :ref:`rna_enum_property_subtype_number_array_items`.\n" \
+  "   :param subtype: Enumerator in :ref:`rna_enum_property_subtype_number_array_items`.\n" \
   "   :type subtype: str\n"
 
 /** \} */
@@ -196,7 +196,7 @@ static BPyPropStore *bpy_prop_py_data_ensure(PropertyRNA *prop)
 {
   BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
   if (prop_store == nullptr) {
-    prop_store = MEM_callocN<BPyPropStore>(__func__);
+    prop_store = MEM_new_zeroed<BPyPropStore>(__func__);
     RNA_def_py_data(prop, prop_store);
     BLI_addtail(&g_bpy_prop_store_list, prop_store);
   }
@@ -2055,7 +2055,6 @@ static bool bpy_prop_string_visit_fn_call(
         nullptr,
     };
     static _PyArg_Parser _parser = {
-        PY_ARG_PARSER_HEAD_COMPAT()
         "s" /* `text` */
         "s" /* `info` */
         ":search",
@@ -2507,7 +2506,7 @@ static const EnumPropertyItem *enum_items_from_py(PyObject *seq_fast,
   /* blank value */
   *r_default_value = 0;
 
-  items = MEM_calloc_arrayN<EnumPropertyItem>(size_t(seq_len) + 1, "enum_items_from_py1");
+  items = MEM_new_array_zeroed<EnumPropertyItem>(size_t(seq_len) + 1, "enum_items_from_py1");
 
   for (i = 0; i < seq_len; i++) {
     EnumPropertyItem tmp = {0, "", 0, "", ""};
@@ -2571,7 +2570,7 @@ static const EnumPropertyItem *enum_items_from_py(PyObject *seq_fast,
       items[i].identifier = "";
     }
     else {
-      MEM_freeN(items);
+      MEM_delete(items);
       PyErr_SetString(PyExc_TypeError,
                       "EnumProperty(...): expected a tuple containing "
                       "(identifier, name, description) and optionally an "
@@ -2583,7 +2582,7 @@ static const EnumPropertyItem *enum_items_from_py(PyObject *seq_fast,
   if (is_enum_flag) {
     /* strict check that all set members were used */
     if (default_py && default_used != PySet_GET_SIZE(default_py)) {
-      MEM_freeN(items);
+      MEM_delete(items);
 
       PyErr_Format(PyExc_TypeError,
                    "EnumProperty(..., default={...}): set has %d unused member(s)",
@@ -2593,7 +2592,7 @@ static const EnumPropertyItem *enum_items_from_py(PyObject *seq_fast,
   }
   else {
     if (default_py && default_used == 0) {
-      MEM_freeN(items);
+      MEM_delete(items);
 
       if (default_str_cmp) {
         PyErr_Format(PyExc_TypeError,
@@ -2613,9 +2612,9 @@ static const EnumPropertyItem *enum_items_from_py(PyObject *seq_fast,
   /* This would all work perfectly _but_ the python strings may be freed immediately after use,
    * so we need to duplicate them, ugh. annoying because it works most of the time without this. */
   {
-    EnumPropertyItem *items_dup = MEM_mallocN((sizeof(EnumPropertyItem) * (seq_len + 1)) +
-                                                  (sizeof(char) * totbuf),
-                                              "enum_items_from_py2");
+    EnumPropertyItem *items_dup = MEM_new_uninitialized(
+        (sizeof(EnumPropertyItem) * (seq_len + 1)) + (sizeof(char) * totbuf),
+        "enum_items_from_py2");
     EnumPropertyItem *items_ptr = items_dup;
     char *buf = ((char *)items_dup) + (sizeof(EnumPropertyItem) * (seq_len + 1));
     memcpy(items_dup, items, sizeof(EnumPropertyItem) * (seq_len + 1));
@@ -2624,7 +2623,7 @@ static const EnumPropertyItem *enum_items_from_py(PyObject *seq_fast,
       buf += strswapbufcpy(buf, &items_ptr->name);
       buf += strswapbufcpy(buf, &items_ptr->description);
     }
-    MEM_freeN(items);
+    MEM_delete(items);
     items = items_dup;
   }
 /* end string duplication */
@@ -3348,40 +3347,40 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
  * \{ */
 
 #define BPY_PROPDEF_NAME_DOC \
-  "   :arg name: Name used in the user interface.\n" \
+  "   :param name: Name used in the user interface.\n" \
   "   :type name: str\n"
 
 #define BPY_PROPDEF_DESC_DOC \
-  "   :arg description: Text used for the tooltip and api documentation.\n" \
+  "   :param description: Text used for the tooltip and api documentation.\n" \
   "   :type description: str\n"
 
 #define BPY_PROPDEF_CTXT_DOC \
-  "   :arg translation_context: Text used as context to disambiguate translations.\n" \
+  "   :param translation_context: Text used as context to disambiguate translations.\n" \
   "   :type translation_context: str\n"
 
 #define BPY_PROPDEF_UNIT_DOC \
-  "   :arg unit: Enumerator in :ref:`rna_enum_property_unit_items`.\n" \
+  "   :param unit: Enumerator in :ref:`rna_enum_property_unit_items`.\n" \
   "   :type unit: str\n"
 
 #define BPY_PROPDEF_NUM_MIN_DOC_(ty) \
-  "   :arg min: Hard minimum, trying to assign a value below will silently assign this minimum " \
-  "instead.\n" \
+  "   :param min: Hard minimum, trying to assign a value below " \
+  "will silently assign this minimum instead.\n" \
   "   :type min: " ty "\n"
 
 #define BPY_PROPDEF_NUM_MAX_DOC_(ty) \
-  "   :arg max: Hard maximum, trying to assign a value above will silently assign this maximum " \
-  "instead.\n" \
+  "   :param max: Hard maximum, trying to assign a value above " \
+  "will silently assign this maximum instead.\n" \
   "   :type max: " ty "\n"
 
 #define BPY_PROPDEF_NUM_MINMAX_DOC(ty) BPY_PROPDEF_NUM_MIN_DOC_(ty) BPY_PROPDEF_NUM_MAX_DOC_(ty)
 
 #define BPY_PROPDEF_NUM_SOFT_MIN_DOC_(ty) \
-  "   :arg soft_min: Soft minimum (>= *min*), " \
+  "   :param soft_min: Soft minimum (>= *min*), " \
   "user won't be able to drag the widget below this value in the UI.\n" \
   "   :type soft_min: " ty "\n"
 
 #define BPY_PROPDEF_NUM_SOFT_MAX_DOC_(ty) \
-  "   :arg soft_max: Soft maximum (<= *max*), " \
+  "   :param soft_max: Soft maximum (<= *max*), " \
   "user won't be able to drag the widget above this value in the UI.\n" \
   "   :type soft_max: " ty "\n"
 
@@ -3389,35 +3388,35 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   BPY_PROPDEF_NUM_SOFT_MIN_DOC_(ty) BPY_PROPDEF_NUM_SOFT_MAX_DOC_(ty)
 
 #define BPY_PROPDEF_VECSIZE_DOC \
-  "   :arg size: Vector dimensions in [1, " STRINGIFY(PYRNA_STACK_ARRAY) "]. " \
+  "   :param size: Vector dimensions in [1, " STRINGIFY(PYRNA_STACK_ARRAY) "]. " \
 "An int sequence can be used to define multi-dimension arrays.\n" \
 "   :type size: int | Sequence[int]\n"
 
 #define BPY_PROPDEF_INT_STEP_DOC \
-  "   :arg step: Step of increment/decrement in UI, in [1, 100], defaults to 1 (WARNING: unused " \
-  "currently!).\n" \
+  "   :param step: Step of increment/decrement in UI, " \
+  "in [1, 100], defaults to 1 (WARNING: unused currently!).\n" \
   "   :type step: int\n"
 
 #define BPY_PROPDEF_FLOAT_STEP_DOC \
-  "   :arg step: Step of increment/decrement in UI, in [1, 100], defaults to 3 (WARNING: actual " \
-  "value is /100).\n" \
+  "   :param step: Step of increment/decrement in UI, " \
+  "in [1, 100], defaults to 3 (WARNING: actual value is /100).\n" \
   "   :type step: float\n"
 
 #define BPY_PROPDEF_FLOAT_PREC_DOC \
-  "   :arg precision: Maximum number of decimal digits to display, in [0, 6]. Fraction is " \
+  "   :param precision: Maximum number of decimal digits to display, in [0, 6]. Fraction is " \
   "automatically hidden for exact integer values of fields with unit 'NONE' or 'TIME' (frame " \
   "count) and step divisible by 100.\n" \
   "   :type precision: int\n"
 
 #define BPY_PROPDEF_UPDATE_DOC \
-  "   :arg update: Function to be called when this value is modified,\n" \
+  "   :param update: Function to be called when this value is modified,\n" \
   "      This function must take 2 values (self, context) and return None.\n" \
   "      *Warning* there are no safety checks to avoid infinite recursion.\n" \
   "   :type update: Callable[[:class:`bpy.types.bpy_struct`, :class:`bpy.types.Context`], " \
   "None]\n"
 
 #define BPY_PROPDEF_POLL_DOC \
-  "   :arg poll: Function that determines whether an item is valid for this property.\n" \
+  "   :param poll: Function that determines whether an item is valid for this property.\n" \
   "      The function must take 2 values (self, object) and return a boolean.\n" \
   "\n" \
   "      .. note:: The return value will be checked only when assigning an item from the UI, " \
@@ -3427,7 +3426,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "bool]\n"
 
 #define BPY_PROPDEF_GET_DOC(ty) \
-  "   :arg get: Function to be called when this value is 'read', and the default,\n" \
+  "   :param get: Function to be called when this value is 'read', and the default,\n" \
   "      system-defined storage is not used for this property.\n" \
   "      This function must take 1 value (self) and return the value of the property.\n" \
   "\n" \
@@ -3437,7 +3436,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "   :type get: Callable[[:class:`bpy.types.bpy_struct`], " ty "]\n"
 
 #define BPY_PROPDEF_SET_DOC(ty) \
-  "   :arg set: Function to be called when this value is 'written', and the default,\n" \
+  "   :param set: Function to be called when this value is 'written', and the default,\n" \
   "      system-defined storage is not used for this property.\n" \
   "      This function must take 2 values (self, value) and return None.\n" \
   "\n" \
@@ -3446,7 +3445,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "   :type set: Callable[[:class:`bpy.types.bpy_struct`, " ty "], None]\n"
 
 #define BPY_PROPDEF_GET_TRANSFORM_DOC(ty) \
-  "   :arg get_transform: Function to be called when this value is 'read',\n" \
+  "   :param get_transform: Function to be called when this value is 'read',\n" \
   "      if some additional processing must be performed on the stored value.\n" \
   "      This function must take three arguments (self, the stored value,\n" \
   "      and a boolean indicating if the property is currently set),\n" \
@@ -3458,7 +3457,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "   :type get_transform: Callable[[:class:`bpy.types.bpy_struct`, " ty ", bool], " ty "]\n"
 
 #define BPY_PROPDEF_SET_TRANSFORM_DOC(ty) \
-  "   :arg set_transform: Function to be called when this value is 'written',\n" \
+  "   :param set_transform: Function to be called when this value is 'written',\n" \
   "      if some additional processing must be performed on the given value before storing it.\n" \
   "      This function must take four arguments (self, the given value to store,\n" \
   "      the currently stored value ('raw' value, without any ``get_transform`` applied to " \
@@ -3473,7 +3472,8 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "Callable[[:class:`bpy.types.bpy_struct`, " ty ", " ty ", bool], " ty "]\n"
 
 #define BPY_PROPDEF_SEARCH_DOC \
-  "   :arg search: Function to be called to show candidates for this string (shown in the UI).\n" \
+  "   :param search: Function to be called to show candidates " \
+  "for this string (shown in the UI).\n" \
   "      This function must take 3 values (self, context, edit_text)\n" \
   "      and return a sequence, iterator or generator where each item must be:\n" \
   "\n" \
@@ -3483,7 +3483,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "   :type search: Callable[[:class:`bpy.types.bpy_struct`, :class:`bpy.types.Context`, str], " \
   "Iterable[str | tuple[str, str]]" \
   "]\n" \
-  "   :arg search_options: Set of strings in:\n" \
+  "   :param search_options: Set of strings in:\n" \
   "\n" \
   "      - 'SORT' sorts the resulting items.\n" \
   "      - 'SUGGESTION' lets the user enter values not found in search candidates.\n" \
@@ -3493,15 +3493,15 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "   :type search_options: set[str]\n"
 
 #define BPY_PROPDEF_POINTER_TYPE_DOC \
-  "   :arg type: A subclass of PropertyGroup or ID.\n" \
+  "   :param type: A subclass of PropertyGroup or ID.\n" \
   "   :type type: type[:class:`bpy.types.PropertyGroup` | :class:`bpy.types.ID`]\n"
 
 #define BPY_PROPDEF_COLLECTION_TYPE_DOC \
-  "   :arg type: A subclass of a property group.\n" \
+  "   :param type: A subclass of a property group.\n" \
   "   :type type: type[:class:`bpy.types.PropertyGroup`]\n"
 
 #define BPY_PROPDEF_TAGS_DOC \
-  "   :arg tags: Enumerator of tags that are defined by parent class.\n" \
+  "   :param tags: Enumerator of tags that are defined by parent class.\n" \
   "   :type tags: set[str]\n"
 
 #if 0
@@ -3607,7 +3607,6 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "|$" /* Optional, keyword only arguments. */
       "s"  /* `name` */
@@ -3722,7 +3721,7 @@ PyDoc_STRVAR(
     "\n"
     "   Returns a new vector boolean property definition.\n"
     "\n" BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC BPY_PROPDEF_CTXT_DOC
-    "   :arg default: sequence of booleans the length of *size*.\n"
+    "   :param default: sequence of booleans the length of *size*.\n"
     "   :type default: Sequence[bool]\n" BPY_PROPDEF_OPTIONS_DOC BPY_PROPDEF_OPTIONS_OVERRIDE_DOC
         BPY_PROPDEF_TAGS_DOC BPY_PROPDEF_SUBTYPE_NUMBER_ARRAY_DOC BPY_PROPDEF_VECSIZE_DOC
             BPY_PROPDEF_UPDATE_DOC BPY_PROPDEF_GET_DOC("Sequence[bool]")
@@ -3792,7 +3791,6 @@ static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "|$" /* Optional, keyword only arguments. */
       "s"  /* `name` */
@@ -3988,7 +3986,6 @@ static PyObject *BPy_IntProperty(PyObject *self, PyObject *args, PyObject *kw)
       "set",      "get_transform", "set_transform", nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "|$" /* Optional, keyword only arguments. */
       "s"  /* `name` */
@@ -4114,7 +4111,7 @@ PyDoc_STRVAR(
     "\n"
     "   Returns a new vector int property definition.\n"
     "\n" BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC BPY_PROPDEF_CTXT_DOC
-    "   :arg default: sequence of ints the length of *size*.\n"
+    "   :param default: sequence of ints the length of *size*.\n"
     "   :type default: Sequence[int]\n" BPY_PROPDEF_NUM_MINMAX_DOC("int")
         BPY_PROPDEF_NUM_SOFT_MINMAX_DOC("int")
             BPY_PROPDEF_INT_STEP_DOC BPY_PROPDEF_OPTIONS_DOC BPY_PROPDEF_OPTIONS_OVERRIDE_DOC
@@ -4178,7 +4175,6 @@ static PyObject *BPy_IntVectorProperty(PyObject *self, PyObject *args, PyObject 
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "|$" /* Optional, keyword only arguments. */
       "s"  /* `name` */
@@ -4395,7 +4391,6 @@ static PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
       "set_transform", nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "|$" /* Optional, keyword only arguments. */
       "s"  /* `name` */
@@ -4527,7 +4522,7 @@ PyDoc_STRVAR(
     "\n"
     "   Returns a new vector float property definition.\n"
     "\n" BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC BPY_PROPDEF_CTXT_DOC
-    "   :arg default: Sequence of floats the length of *size*.\n"
+    "   :param default: Sequence of floats the length of *size*.\n"
     "   :type default: Sequence[float]\n" BPY_PROPDEF_NUM_MINMAX_DOC(
         "float") BPY_PROPDEF_NUM_SOFT_MINMAX_DOC("float")
         BPY_PROPDEF_OPTIONS_DOC BPY_PROPDEF_OPTIONS_OVERRIDE_DOC BPY_PROPDEF_TAGS_DOC
@@ -4597,7 +4592,6 @@ static PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObjec
       "get_transform", "set_transform", nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "|$" /* Optional, keyword only arguments. */
       "s"  /* `name` */
@@ -4759,9 +4753,9 @@ PyDoc_STRVAR(
     "\n"
     "   Returns a new string property definition.\n"
     "\n" BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC BPY_PROPDEF_CTXT_DOC
-    "   :arg default: initializer string.\n"
+    "   :param default: initializer string.\n"
     "   :type default: str\n"
-    "   :arg maxlen: maximum length of the string.\n"
+    "   :param maxlen: maximum length of the string.\n"
     "   :type maxlen: int\n" BPY_PROPDEF_OPTIONS_DOC BPY_PROPDEF_OPTIONS_OVERRIDE_DOC
         BPY_PROPDEF_TAGS_DOC BPY_PROPDEF_SUBTYPE_STRING_DOC BPY_PROPDEF_UPDATE_DOC
             BPY_PROPDEF_GET_DOC("str") BPY_PROPDEF_SET_DOC("str")
@@ -4832,7 +4826,6 @@ static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "|$" /* Optional, keyword only arguments. */
       "s"  /* `name` */
@@ -4964,7 +4957,7 @@ PyDoc_STRVAR(
     "\n"
     "   Returns a new enumerator property definition.\n"
     "\n"
-    "   :arg items: sequence of enum items formatted:\n"
+    "   :param items: sequence of enum items formatted:\n"
     "      ``[(identifier, name, description, icon, number), ...]``.\n"
     "\n"
     "      The first three elements of the tuples are mandatory.\n"
@@ -5009,7 +5002,7 @@ PyDoc_STRVAR(
     "tuple[str, str, str, int, int] | "
     "None]"
     "]\n" BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC BPY_PROPDEF_CTXT_DOC
-    "   :arg default: The default value for this enum, a string from the identifiers used in "
+    "   :param default: The default value for this enum, a string from the identifiers used in "
     "*items*, or integer matching an item number.\n"
     "      If the *ENUM_FLAG* option is used this must be a set of such string identifiers "
     "instead.\n"
@@ -5077,7 +5070,6 @@ static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "O"  /* `items` */
       "|$" /* Optional, keyword only arguments. */
@@ -5221,7 +5213,7 @@ static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
      * otherwise if this is a generator it may free the strings before we copy them */
     Py_DECREF(items_fast);
 
-    MEM_freeN(eitems);
+    MEM_delete(eitems);
   }
 
   Py_RETURN_NONE;
@@ -5326,7 +5318,6 @@ PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "O"  /* `type` */
       "|$" /* Optional, keyword only arguments. */
@@ -5473,7 +5464,6 @@ PyObject *BPy_CollectionProperty(PyObject *self, PyObject *args, PyObject *kw)
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "O"  /* `type` */
       "|$" /* Optional, keyword only arguments. */
@@ -5554,9 +5544,9 @@ PyDoc_STRVAR(
     "\n"
     "   Removes a dynamically defined property.\n"
     "\n"
-    "   :arg cls: The class containing the property (must be a positional argument).\n"
+    "   :param cls: The class containing the property (must be a positional argument).\n"
     "   :type cls: type\n"
-    "   :arg attr: Property name (must be passed as a keyword).\n"
+    "   :param attr: Property name (must be passed as a keyword).\n"
     "   :type attr: str\n"
     "\n"
     "   .. note::\n"
@@ -5596,7 +5586,6 @@ static PyObject *BPy_RemoveProperty(PyObject *self, PyObject *args, PyObject *kw
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s" /* `attr` */
       ":RemoveProperty",
       _keywords,

@@ -37,7 +37,7 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->storage = MEM_new_for_free<NodeInputString>(__func__);
+  node->storage = MEM_new<NodeInputString>(__func__);
 }
 
 static void node_storage_free(bNode *node)
@@ -47,19 +47,19 @@ static void node_storage_free(bNode *node)
     return;
   }
   if (storage->string != nullptr) {
-    MEM_freeN(storage->string);
+    MEM_delete(storage->string);
   }
-  MEM_freeN(storage);
+  MEM_delete(storage);
 }
 
 static void node_storage_copy(bNodeTree * /*dst_ntree*/, bNode *dest_node, const bNode *src_node)
 {
   NodeInputString *source_storage = static_cast<NodeInputString *>(src_node->storage);
   NodeInputString *destination_storage = static_cast<NodeInputString *>(
-      MEM_dupallocN(source_storage));
+      MEM_dupalloc(source_storage));
 
   if (source_storage->string) {
-    destination_storage->string = static_cast<char *>(MEM_dupallocN(source_storage->string));
+    destination_storage->string = MEM_dupalloc(source_storage->string);
   }
   destination_storage->textbox_lines = source_storage->textbox_lines;
   dest_node->storage = destination_storage;

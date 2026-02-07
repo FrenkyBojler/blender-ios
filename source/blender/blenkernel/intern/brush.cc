@@ -103,7 +103,7 @@ static void brush_copy_data(Main * /*bmain*/,
   brush_dst->curve_jitter = BKE_curvemapping_copy(brush_src->curve_jitter);
 
   if (brush_src->gpencil_settings != nullptr) {
-    brush_dst->gpencil_settings = MEM_new_for_free<BrushGpencilSettings>(
+    brush_dst->gpencil_settings = MEM_new<BrushGpencilSettings>(
         __func__, dna::shallow_copy(*(brush_src->gpencil_settings)));
     brush_dst->gpencil_settings->curve_sensitivity = BKE_curvemapping_copy(
         brush_src->gpencil_settings->curve_sensitivity);
@@ -126,7 +126,7 @@ static void brush_copy_data(Main * /*bmain*/,
         brush_src->gpencil_settings->curve_rand_value);
   }
   if (brush_src->curves_sculpt_settings != nullptr) {
-    brush_dst->curves_sculpt_settings = MEM_new_for_free<BrushCurvesSculptSettings>(
+    brush_dst->curves_sculpt_settings = MEM_new<BrushCurvesSculptSettings>(
         __func__, *(brush_src->curves_sculpt_settings));
     brush_dst->curves_sculpt_settings->curve_parameter_falloff = BKE_curvemapping_copy(
         brush_src->curves_sculpt_settings->curve_parameter_falloff);
@@ -162,14 +162,14 @@ static void brush_free_data(ID *id)
     BKE_curvemapping_free(brush->gpencil_settings->curve_rand_saturation);
     BKE_curvemapping_free(brush->gpencil_settings->curve_rand_value);
 
-    MEM_SAFE_FREE(brush->gpencil_settings);
+    MEM_SAFE_DELETE(brush->gpencil_settings);
   }
   if (brush->curves_sculpt_settings != nullptr) {
     BKE_curvemapping_free(brush->curves_sculpt_settings->curve_parameter_falloff);
-    MEM_freeN(brush->curves_sculpt_settings);
+    MEM_delete(brush->curves_sculpt_settings);
   }
 
-  MEM_SAFE_FREE(brush->gradient);
+  MEM_SAFE_DELETE(brush->gradient);
 
   BKE_previewimg_free(&(brush->preview));
 }
@@ -242,7 +242,7 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 {
   Brush *brush = reinterpret_cast<Brush *>(id);
 
-  BLO_write_id_struct(writer, Brush, id_address, &brush->id);
+  writer->write_id_struct(id_address, brush);
   BKE_id_blend_write(writer, &brush->id);
 
   if (brush->curve_distance_falloff) {
@@ -645,7 +645,7 @@ Brush *BKE_brush_add(Main *bmain, const char *name, const eObjectMode ob_mode)
 void BKE_brush_init_gpencil_settings(Brush *brush)
 {
   if (brush->gpencil_settings == nullptr) {
-    brush->gpencil_settings = MEM_new_for_free<BrushGpencilSettings>("BrushGpencilSettings");
+    brush->gpencil_settings = MEM_new<BrushGpencilSettings>("BrushGpencilSettings");
   }
 
   brush->gpencil_settings->draw_smoothlvl = 1;
@@ -745,7 +745,7 @@ Brush *BKE_brush_duplicate(Main *bmain,
 void BKE_brush_init_curves_sculpt_settings(Brush *brush)
 {
   if (brush->curves_sculpt_settings == nullptr) {
-    brush->curves_sculpt_settings = MEM_new_for_free<BrushCurvesSculptSettings>(__func__);
+    brush->curves_sculpt_settings = MEM_new<BrushCurvesSculptSettings>(__func__);
   }
   BrushCurvesSculptSettings *settings = brush->curves_sculpt_settings;
   settings->flag = BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_RADIUS;
@@ -812,14 +812,11 @@ void BKE_brush_debug_print_state(Brush *br)
   BR_TEST(size, d);
 
   /* br->flag */
-  BR_TEST_FLAG(BRUSH_AIRBRUSH);
   BR_TEST_FLAG(BRUSH_ALPHA_PRESSURE);
   BR_TEST_FLAG(BRUSH_SIZE_PRESSURE);
   BR_TEST_FLAG(BRUSH_JITTER_PRESSURE);
   BR_TEST_FLAG(BRUSH_SPACING_PRESSURE);
-  BR_TEST_FLAG(BRUSH_ANCHORED);
   BR_TEST_FLAG(BRUSH_DIR_IN);
-  BR_TEST_FLAG(BRUSH_SPACE);
   BR_TEST_FLAG(BRUSH_SMOOTH_STROKE);
   BR_TEST_FLAG(BRUSH_PERSISTENT);
   BR_TEST_FLAG(BRUSH_ACCUMULATE);
@@ -830,7 +827,6 @@ void BKE_brush_debug_print_state(Brush *br)
   BR_TEST_FLAG(BRUSH_ADAPTIVE_SPACE);
   BR_TEST_FLAG(BRUSH_LOCK_SIZE);
   BR_TEST_FLAG(BRUSH_EDGE_TO_EDGE);
-  BR_TEST_FLAG(BRUSH_DRAG_DOT);
   BR_TEST_FLAG(BRUSH_INVERSE_SMOOTH_PRESSURE);
   BR_TEST_FLAG(BRUSH_PLANE_TRIM);
   BR_TEST_FLAG(BRUSH_FRONTFACE);
@@ -1683,13 +1679,14 @@ static bool brush_gen_texture(const Brush *br,
 
 ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool display_gradient)
 {
-  ImBuf *im = MEM_new_for_free<ImBuf>("radial control texture");
+  ImBuf *im = MEM_new<ImBuf>("radial control texture");
   int side = 512;
   int half = side / 2;
 
   BKE_curvemapping_init(br->curve_distance_falloff);
 
-  float *rect_float = MEM_calloc_arrayN<float>(size_t(side) * size_t(side), "radial control rect");
+  float *rect_float = MEM_new_array_zeroed<float>(size_t(side) * size_t(side),
+                                                  "radial control rect");
   IMB_assign_float_buffer(im, rect_float, IB_DO_NOT_TAKE_OWNERSHIP);
 
   im->x = im->y = side;
@@ -1802,6 +1799,16 @@ bool supports_auto_smooth(const Brush &brush)
   return !ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_MASK, SCULPT_BRUSH_TYPE_SMOOTH) &&
          !is_paint_tool(brush);
 }
+bool supports_normal_radius(const Brush &brush)
+{
+  /* TODO: This setting is closely tied to #supports_sculpt_plane, they should be merged in some
+   * way. Update after initial commit to avoid confusing PRs. */
+  return !ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_POSE);
+}
+bool supports_hardness(const Brush &brush)
+{
+  return brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_POSE;
+}
 bool supports_height(const Brush &brush)
 {
   return brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_LAYER;
@@ -1816,7 +1823,7 @@ bool supports_plane_depth(const Brush &brush)
 }
 bool supports_jitter(const Brush &brush)
 {
-  return !(brush.flag & BRUSH_ANCHORED) && !(brush.flag & BRUSH_DRAG_DOT) &&
+  return !(ELEM(brush.stroke_method, BRUSH_STROKE_ANCHORED, BRUSH_STROKE_DRAG_DOT)) &&
          !ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_GRAB,
                SCULPT_BRUSH_TYPE_ROTATE,
@@ -1865,10 +1872,11 @@ bool supports_sculpt_plane(const Brush &brush)
 {
   /* TODO: Should the face set brush be here...? */
   return !ELEM(brush.sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_INFLATE,
                SCULPT_BRUSH_TYPE_MASK,
+               SCULPT_BRUSH_TYPE_SMOOTH,
+               SCULPT_BRUSH_TYPE_INFLATE,
                SCULPT_BRUSH_TYPE_PINCH,
-               SCULPT_BRUSH_TYPE_SMOOTH);
+               SCULPT_BRUSH_TYPE_POSE);
 }
 bool supports_color(const Brush &brush)
 {
@@ -1891,8 +1899,11 @@ bool supports_secondary_cursor_color(const Brush &brush)
 }
 bool supports_smooth_stroke(const Brush &brush)
 {
-  return !(brush.flag & BRUSH_ANCHORED) && !(brush.flag & BRUSH_DRAG_DOT) &&
-         !(brush.flag & BRUSH_LINE) && !(brush.flag & BRUSH_CURVE) &&
+  return !(ELEM(brush.stroke_method,
+                BRUSH_STROKE_ANCHORED,
+                BRUSH_STROKE_DRAG_DOT,
+                BRUSH_STROKE_LINE,
+                BRUSH_STROKE_CURVE)) &&
          !ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_GRAB,
                SCULPT_BRUSH_TYPE_ROTATE,
@@ -1901,7 +1912,7 @@ bool supports_smooth_stroke(const Brush &brush)
 }
 bool supports_space_attenuation(const Brush &brush)
 {
-  return brush.flag & (BRUSH_SPACE | BRUSH_LINE | BRUSH_CURVE) &&
+  return ELEM(brush.stroke_method, BRUSH_STROKE_SPACE, BRUSH_STROKE_LINE, BRUSH_STROKE_CURVE) &&
          !ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_GRAB,
                SCULPT_BRUSH_TYPE_ROTATE,

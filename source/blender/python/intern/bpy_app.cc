@@ -715,7 +715,7 @@ PyDoc_STRVAR(
     "\n"
     "   Check whether a job of the given type is running.\n"
     "\n"
-    "   :arg job_type: job type in :ref:`rna_enum_wm_job_type_items`.\n"
+    "   :param job_type: job type in :ref:`rna_enum_wm_job_type_items`.\n"
     "   :type job_type: str\n"
     "   :return: Whether a job of the given type is currently running.\n"
     "   :rtype: bool\n");
@@ -727,7 +727,6 @@ static PyObject *bpy_app_is_job_running(PyObject * /*self*/, PyObject *args, PyO
 
   static const char *_keywords[] = {"job_type", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `job_type` */
       ":is_job_running",
       _keywords,
@@ -756,7 +755,7 @@ PyDoc_STRVAR(
     "\n"
     "   Return the help text as a string.\n"
     "\n"
-    "   :arg all: Return all arguments, "
+    "   :param all: Return all arguments, "
     "even those which aren't available for the current platform.\n"
     "   :type all: bool\n"
     "   :return: Help text.\n"
@@ -766,7 +765,6 @@ static PyObject *bpy_app_help_text(PyObject * /*self*/, PyObject *args, PyObject
   bool all = false;
   static const char *_keywords[] = {"all", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O&" /* `all` */
       ":help_text",
@@ -779,7 +777,7 @@ static PyObject *bpy_app_help_text(PyObject * /*self*/, PyObject *args, PyObject
 
   char *buf = BPY_python_app_help_text_fn(all);
   PyObject *result = PyUnicode_FromString(buf);
-  MEM_freeN(buf);
+  MEM_delete(buf);
   return result;
 }
 

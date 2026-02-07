@@ -1617,7 +1617,7 @@ static std::optional<std::string> ui_but_event_property_operator_string(const bC
           opnames_len = 0; /* Do nothing. */
         }
         if (free) {
-          MEM_freeN(item);
+          MEM_delete(item);
         }
       }
 
@@ -1774,10 +1774,10 @@ static PointerRNA *ui_but_extra_operator_icon_add_ptr(Button *but,
                                                       wm::OpCallContext opcontext,
                                                       int icon)
 {
-  auto *extra_op_icon = MEM_callocN<ButtonExtraOpIcon>(__func__);
+  auto *extra_op_icon = MEM_new_zeroed<ButtonExtraOpIcon>(__func__);
 
   extra_op_icon->icon = icon;
-  extra_op_icon->optype_params = MEM_callocN<wmOperatorCallParams>(__func__);
+  extra_op_icon->optype_params = MEM_new_zeroed<wmOperatorCallParams>(__func__);
   extra_op_icon->optype_params->optype = optype;
   extra_op_icon->optype_params->opptr = MEM_new<PointerRNA>(
       __func__, WM_operator_properties_create_ptr(extra_op_icon->optype_params->optype));
@@ -1794,8 +1794,8 @@ static void ui_but_extra_operator_icon_free(ButtonExtraOpIcon *extra_icon)
 {
   WM_operator_properties_free(extra_icon->optype_params->opptr);
   MEM_delete(extra_icon->optype_params->opptr);
-  MEM_freeN(extra_icon->optype_params);
-  MEM_freeN(extra_icon);
+  MEM_delete(extra_icon->optype_params);
+  MEM_delete(extra_icon);
 }
 
 void button_extra_operator_icons_free(Button *but)
@@ -2300,7 +2300,7 @@ void block_draw(const bContext *C, Block *block)
   BLF_batch_draw_begin();
   widgetbase_draw_cache_begin();
 
-  if (block_is_popup_any(block) && block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
+  if (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
     const int arrow_size = UI_MENU_SCROLL_MOUSE / block->aspect;
     const int ymax = rect.ymax - ((block->flag & BLOCK_CLIPTOP) ? arrow_size : 0.0f);
     const int ymin = rect.ymin + ((block->flag & BLOCK_CLIPBOTTOM) ? arrow_size : 0.0f);
@@ -2980,7 +2980,7 @@ void button_convert_to_unit_alt_name(Button *but, char *str, size_t str_maxncpy)
   BKE_unit_name_to_alt(
       str, str_maxncpy, orig_str, unit->system, RNA_SUBTYPE_UNIT_VALUE(unit_type));
 
-  MEM_freeN(orig_str);
+  MEM_delete(orig_str);
 }
 
 /**
@@ -3125,7 +3125,7 @@ void button_string_get_ex(Button *but,
       else {
         BLI_strncpy(str, buf, str_maxncpy);
       }
-      MEM_freeN(buf);
+      MEM_delete(buf);
     }
   }
   else if (but->rnaprop && but->type == ButtonType::TextBox) {
@@ -3280,7 +3280,7 @@ static bool ui_number_from_string_units(
   if (error) {
     ReportList *reports = CTX_wm_reports(C);
     BKE_reportf(reports, RPT_ERROR, "%s: %s", UI_NUMBER_EVAL_ERROR_PREFIX, error);
-    MEM_freeN(error);
+    MEM_delete(error);
   }
   return ok;
 }
@@ -3317,7 +3317,7 @@ static bool ui_number_from_string_factor(bContext *C, const char *str, double *r
   if (BLI_strn_endswith(str, "%", len)) {
     char *str_new = BLI_strdupn(str, len - 1);
     const bool success = ui_number_from_string(C, str_new, r_value);
-    MEM_freeN(str_new);
+    MEM_delete(str_new);
     *r_value /= 100.0;
     return success;
   }
@@ -3336,7 +3336,7 @@ static bool ui_number_from_string_percentage(bContext *C, const char *str, doubl
   if (BLI_strn_endswith(str, "%", len)) {
     char *str_new = BLI_strdupn(str, len - 1);
     const bool success = ui_number_from_string(C, str_new, r_value);
-    MEM_freeN(str_new);
+    MEM_delete(str_new);
     return success;
   }
   return ui_number_from_string(C, str, r_value);
@@ -3679,7 +3679,7 @@ static void ui_but_free_type_specific(Button *but)
   switch (but->type) {
     case ButtonType::SearchMenu: {
       ButtonSearch *search_but = static_cast<ButtonSearch *>(but);
-      MEM_SAFE_FREE(search_but->item_active_str);
+      MEM_SAFE_DELETE(search_but->item_active_str);
 
       if (search_but->arg_free_fn) {
         search_but->arg_free_fn(search_but->arg);
@@ -3713,11 +3713,11 @@ static void ui_but_free(const bContext *C, Button *but)
   }
 
   if (but->hold_argN) {
-    MEM_freeN(but->hold_argN);
+    MEM_delete_void(but->hold_argN);
   }
 
   if (but->placeholder) {
-    MEM_freeN(but->placeholder);
+    MEM_delete(but->placeholder);
   }
 
   ui_but_free_type_specific(but);
@@ -3760,7 +3760,7 @@ static void block_free_active_operator(Block *block)
     /* This assumes the operator instance owns the pointer. This is not
      * true for all operators by default, but it can be copied when needed. */
     MEM_delete(block->ui_operator->ptr);
-    MEM_freeN(block->ui_operator);
+    MEM_delete(block->ui_operator);
   }
 
   block->ui_operator_free = false;
@@ -3787,7 +3787,7 @@ void block_free(const bContext *C, Block *block)
   block->buttons.clear();
 
   if (block->unit) {
-    MEM_freeN(block->unit);
+    MEM_delete(block->unit);
   }
 
   if (block->func_argN) {
@@ -3921,7 +3921,7 @@ Block *block_begin(const bContext *C,
     STRNCPY_UTF8(block->display_device, scene->display_settings.display_device);
 
     /* Copy to avoid crash when scene gets deleted with UI still open. */
-    UnitSettings *unit = MEM_new_for_free<UnitSettings>(__func__);
+    UnitSettings *unit = MEM_new<UnitSettings>(__func__);
     memcpy(unit, &scene->unit, sizeof(scene->unit));
     block->unit = unit;
   }
@@ -3960,7 +3960,7 @@ Block *block_begin(const bContext *C, ARegion *region, std::string name, EmbossT
 void block_add_dynamic_listener(Block *block,
                                 void (*listener_func)(const wmRegionListenerParams *params))
 {
-  BlockDynamicListener *listener = MEM_mallocN<BlockDynamicListener>(__func__);
+  BlockDynamicListener *listener = MEM_new_uninitialized<BlockDynamicListener>(__func__);
   listener->listener_func = listener_func;
   BLI_addtail(&block->dynamic_listeners, listener);
 }
@@ -4748,7 +4748,7 @@ static void ui_def_but_rna__menu(bContext *C, Layout *layout, void *but_p)
                 return static_cast<const char *>(argN);
               },
               description_copy,
-              MEM_freeN);
+              MEM_delete_void);
         }
       }
     }
@@ -4757,7 +4757,7 @@ static void ui_def_but_rna__menu(bContext *C, Layout *layout, void *but_p)
   block_layout_set_current(block, layout);
 
   if (free) {
-    MEM_freeN(item_array);
+    MEM_delete(item_array);
   }
 }
 
@@ -4779,8 +4779,8 @@ void button_rna_menu_convert_to_panel_type(Button *but, const char *panel_type)
   //  BLI_assert((void *)but->poin == but);
   but->menu_create_func = ui_def_but_rna__panel_type;
   but->func_argN = BLI_strdup(panel_type);
-  but->func_argN_free_fn = MEM_freeN;
-  but->func_argN_copy_fn = MEM_dupallocN;
+  but->func_argN_free_fn = MEM_delete_void;
+  but->func_argN_copy_fn = MEM_dupalloc_void;
 }
 
 bool button_menu_draw_as_popover(const Button *but)
@@ -4813,8 +4813,8 @@ void button_rna_menu_convert_to_menu_type(Button *but, const char *menu_type)
   if (but->func_argN && but->func_argN_free_fn) {
     but->func_argN_free_fn(but->func_argN);
   }
-  but->func_argN_free_fn = MEM_freeN;
-  but->func_argN_copy_fn = MEM_dupallocN;
+  but->func_argN_free_fn = MEM_delete_void;
+  but->func_argN_copy_fn = MEM_dupalloc_void;
   but->func_argN = BLI_strdup(menu_type);
 }
 
@@ -4900,7 +4900,7 @@ static Button *ui_def_but_rna(Block *block,
     }
 
     if (free) {
-      MEM_freeN(item);
+      MEM_delete(item);
     }
   }
   else {
@@ -5191,10 +5191,10 @@ AutoComplete *autocomplete_begin(const char *startname, size_t maxncpy)
 {
   AutoComplete *autocpl;
 
-  autocpl = MEM_callocN<AutoComplete>(__func__);
+  autocpl = MEM_new_zeroed<AutoComplete>(__func__);
   autocpl->maxncpy = maxncpy;
   autocpl->matches = 0;
-  autocpl->truncate = MEM_calloc_arrayN<char>(maxncpy, __func__);
+  autocpl->truncate = MEM_new_array_zeroed<char>(maxncpy, __func__);
   autocpl->startname = startname;
 
   return autocpl;
@@ -5252,8 +5252,8 @@ int autocomplete_end(AutoComplete *autocpl, char *autoname)
     }
   }
 
-  MEM_freeN(autocpl->truncate);
-  MEM_freeN(autocpl);
+  MEM_delete(autocpl->truncate);
+  MEM_delete(autocpl);
   return match;
 }
 
@@ -6095,7 +6095,7 @@ bool button_is_color_gamma(Button &but)
 
 void button_placeholder_set(Button *but, const StringRef placeholder_text)
 {
-  MEM_SAFE_FREE(but->placeholder);
+  MEM_SAFE_DELETE(but->placeholder);
   if (placeholder_text.is_empty()) {
     but->placeholder = nullptr;
   }
@@ -6628,7 +6628,7 @@ static void operator_enum_search_update_fn(
     }
 
     if (do_free) {
-      MEM_freeN(all_items);
+      MEM_delete(all_items);
     }
   }
 }
