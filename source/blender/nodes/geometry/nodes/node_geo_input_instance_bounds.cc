@@ -123,8 +123,8 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const bool use_radius = params.extract_input<bool>("Use Radius");
   const bool local_space = params.extract_input<bool>("Local Space");
+  const bool use_radius = params.extract_input<bool>("Use Radius");
   params.set_output(
       "Min", Field<float3>(std::make_shared<InstanceBoundsField>(local_space, use_radius, false)));
   params.set_output(
