@@ -3103,8 +3103,9 @@ void Layout::popover(const bContext *C,
                      std::string(panel_type).c_str());
     return;
   }
-  pt->popup_draw_direction = direction;
   this->popover(C, pt, name_opt, icon);
+  static_cast<ButtonMenu *>(this->block()->buttons.last().get())->popup_attach_direction =
+      direction;
 }
 
 void Layout::popover_group(
