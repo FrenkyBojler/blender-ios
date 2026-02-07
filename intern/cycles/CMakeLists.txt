@@ -205,9 +205,6 @@ add_definitions(
 
 include_directories(
   SYSTEM
-  ${OPENIMAGEIO_INCLUDE_DIRS}
-  ${IMATH_INCLUDE_DIRS}
-  ${OPENEXR_INCLUDE_DIRS}
   ${PUGIXML_INCLUDE_DIR}
 )
 
@@ -224,10 +221,6 @@ endif()
 
 if(WITH_CYCLES_OSL)
   add_definitions(-DWITH_OSL)
-  include_directories(
-    SYSTEM
-    ${OSL_INCLUDE_DIR}
-  )
 endif()
 
 if(WITH_CYCLES_DEVICE_CUDA OR WITH_CYCLES_DEVICE_OPTIX)
@@ -418,22 +411,6 @@ if(WITH_CYCLES_HYDRA_RENDER_DELEGATE AND (NOT WITH_USD))
 endif()
 if(WITH_CYCLES_HYDRA_RENDER_DELEGATE AND (NOT WITH_BLENDER) AND (NOT WITH_CYCLES_STANDALONE))
   set(CYCLES_INSTALL_PATH ${CYCLES_INSTALL_PATH}/hdCycles/resources)
-endif()
-
-if(WITH_CYCLES_CUDA_BINARIES)
-  if(MSVC)
-    set(MAX_MSVC 1800)
-    if(${CUDA_VERSION} EQUAL "8.0")
-      set(MAX_MSVC 1900)
-    elseif(${CUDA_VERSION} EQUAL "9.0")
-      set(MAX_MSVC 1910)
-    elseif(${CUDA_VERSION} EQUAL "9.1")
-      set(MAX_MSVC 1911)
-    elseif(${CUDA_VERSION} VERSION_GREATER_EQUAL 10.0)
-      set(MAX_MSVC 1999)
-    endif()
-    unset(MAX_MSVC)
-  endif()
 endif()
 
 # Subdirectories

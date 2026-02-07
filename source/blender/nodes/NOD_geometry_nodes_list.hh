@@ -58,15 +58,11 @@ class List : public ImplicitSharingMixin {
   int64_t size_ = 0;
 
  public:
-  explicit List(const CPPType &type, DataVariant data, const int64_t size)
-      : cpp_type_(type), data_(std::move(data)), size_(size)
-  {
-  }
+  explicit List(const CPPType &type, DataVariant data, const int64_t size);
 
-  static ListPtr create(const CPPType &type, DataVariant data, const int64_t size)
-  {
-    return ListPtr(MEM_new<List>(__func__, type, std::move(data), size));
-  }
+  static ListPtr create(const CPPType &type, DataVariant data, const int64_t size);
+  template<typename ContainerT> static ListPtr from_container(ContainerT &&container);
+  static ListPtr from_garray(GArray<> array);
 
   DataVariant &data();
   const DataVariant &data() const;
@@ -93,6 +89,18 @@ class List : public ImplicitSharingMixin {
 
   void count_memory(MemoryCounter &memory) const;
 };
+
+template<typename ContainerT> inline ListPtr List::from_container(ContainerT &&container)
+{
+  using T = typename std::decay_t<ContainerT>::value_type;
+  static_assert(std::is_convertible_v<ContainerT, MutableSpan<T>>);
+  auto *sharable_data = new ImplicitSharedValue<std::decay_t<ContainerT>>(
+      std::forward<ContainerT>(container));
+  ArrayData array_data;
+  array_data.data = sharable_data->data.data();
+  array_data.sharing_info = ImplicitSharingPtr<>(sharable_data);
+  return List::create(CPPType::get<T>(), std::move(array_data), sharable_data->data.size());
+}
 
 inline List::DataVariant &List::data()
 {

@@ -97,6 +97,16 @@ if(DEFINED LIBDIR)
   set(CLANG_ROOT_DIR ${LIBDIR}/llvm)
   set(MaterialX_DIR ${LIBDIR}/materialx/lib/cmake/MaterialX)
   set(fmt_ROOT ${LIBDIR}/fmt)
+  set(OSL_ROOT ${LIBDIR}/osl)
+  set(OpenImageIO_ROOT ${LIBDIR}/openimageio)
+  set(OpenEXR_ROOT ${LIBDIR}/openexr)
+  # OpenEXR deps, used by the OpenEXR module scripts
+  set(Imath_ROOT ${LIBDIR}/imath)
+  set(openjph_ROOT ${LIBDIR}/openjph)
+  # OpenEXR deps end
+  set(absl_ROOT ${LIBDIR}/abseil)
+  set(Ceres_ROOT ${LIBDIR}/ceres)
+  set(Eigen3_ROOT ${LIBDIR}/eigen)
 endif()
 
 # Wrapper to prefer static libraries
@@ -165,21 +175,23 @@ endif()
 add_bundled_libraries(vulkan/lib)
 
 function(check_freetype_for_brotli)
-  if((DEFINED HAVE_BROTLI AND HAVE_BROTLI) AND
-     (DEFINED HAVE_BROTLI_INC AND ("${HAVE_BROTLI_INC}" STREQUAL "${FREETYPE_INCLUDE_DIRS}")))
-    # Pass, the includes didn't change, use the cached value.
-  else()
-    unset(HAVE_BROTLI CACHE)
-    include(CheckSymbolExists)
-    set(CMAKE_REQUIRED_INCLUDES ${FREETYPE_INCLUDE_DIRS})
-    check_symbol_exists(FT_CONFIG_OPTION_USE_BROTLI "freetype/config/ftconfig.h" HAVE_BROTLI)
-    unset(CMAKE_REQUIRED_INCLUDES)
-    if(NOT HAVE_BROTLI)
-      unset(HAVE_BROTLI CACHE)
-      message(FATAL_ERROR "Freetype needs to be compiled with brotli support!")
+  if((DEFINED HAVE_BROTLI) AND (DEFINED HAVE_BROTLI_INC))
+    if(HAVE_BROTLI AND ("${HAVE_BROTLI_INC}" STREQUAL "${FREETYPE_INCLUDE_DIRS}"))
+      # Pass, the includes didn't change, use the cached value.
+      return()
     endif()
-    set(HAVE_BROTLI_INC "${FREETYPE_INCLUDE_DIRS}" CACHE INTERNAL "")
   endif()
+
+  unset(HAVE_BROTLI CACHE)
+  include(CheckSymbolExists)
+  set(CMAKE_REQUIRED_INCLUDES ${FREETYPE_INCLUDE_DIRS})
+  check_symbol_exists(FT_CONFIG_OPTION_USE_BROTLI "freetype/config/ftconfig.h" HAVE_BROTLI)
+  unset(CMAKE_REQUIRED_INCLUDES)
+  if(NOT HAVE_BROTLI)
+    unset(HAVE_BROTLI CACHE)
+    message(FATAL_ERROR "Freetype needs to be compiled with brotli support!")
+  endif()
+  set(HAVE_BROTLI_INC "${FREETYPE_INCLUDE_DIRS}" CACHE INTERNAL "")
 endfunction()
 
 if(NOT WITH_SYSTEM_FREETYPE)
@@ -255,8 +267,17 @@ else()
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  find_package_wrapper(OpenEXR)  # our own module
-  set_and_warn_library_found("OpenEXR" OPENEXR_FOUND WITH_IMAGE_OPENEXR)
+  find_package_wrapper(OpenEXR)
+  set_and_warn_library_found("OpenEXR" OpenEXR_FOUND WITH_IMAGE_OPENEXR)
+endif()
+if(DEFINED OpenEXR_DIR)
+  mark_as_advanced(OpenEXR_DIR)
+endif()
+if(DEFINED Imath_DIR)
+  mark_as_advanced(Imath_DIR)
+endif()
+if(DEFINED openjph_DIR)
+  mark_as_advanced(openjph_DIR)
 endif()
 add_bundled_libraries(openexr/lib)
 add_bundled_libraries(imath/lib)
@@ -355,19 +376,11 @@ if(WITH_CYCLES AND WITH_CYCLES_OSL)
   endif()
   find_package_wrapper(OSL 1.13.4)
   set_and_warn_library_found("OSL" OSL_FOUND WITH_CYCLES_OSL)
-
-  if(OSL_FOUND)
-    if(${OSL_LIBRARY_VERSION_MAJOR} EQUAL "1" AND ${OSL_LIBRARY_VERSION_MINOR} LESS "6")
-      # Note: --whole-archive is needed to force loading of all symbols in liboslexec,
-      # otherwise LLVM is missing the osl_allocate_closure_component function
-      set(OSL_LIBRARIES
-        ${OSL_OSLCOMP_LIBRARY}
-        -Wl,--whole-archive ${OSL_OSLEXEC_LIBRARY}
-        -Wl,--no-whole-archive ${OSL_OSLQUERY_LIBRARY}
-      )
-    endif()
-  endif()
 endif()
+if(DEFINED OSL_DIR)
+  mark_as_advanced(OSL_DIR)
+endif()
+
 add_bundled_libraries(osl/lib)
 
 if(WITH_CYCLES AND DEFINED LIBDIR)
@@ -452,6 +465,9 @@ if(WITH_IMAGE_WEBP)
 endif()
 
 find_package_wrapper(OpenImageIO REQUIRED)
+if(DEFINED OpenImageIO_DIR)
+  mark_as_advanced(OpenImageIO_DIR)
+endif()
 add_bundled_libraries(openimageio/lib)
 
 if(WITH_OPENCOLORIO)
@@ -493,7 +509,7 @@ if(WITH_OPENSUBDIV)
   find_package(OpenSubdiv)
 
   set(OPENSUBDIV_LIBRARIES ${OPENSUBDIV_LIBRARIES})
-  set(OPENSUBDIV_LIBPATH)  # TODO, remove and reference the absolute path everywhere
+  set(OPENSUBDIV_LIBPATH "")  # TODO, remove and reference the absolute path everywhere
 
   set_and_warn_library_found("OpenSubdiv" OPENSUBDIV_FOUND WITH_OPENSUBDIV)
 endif()
@@ -646,12 +662,12 @@ if(WITH_SYSTEM_FREETYPE)
   set(BROTLI_LIBRARIES "")
 endif()
 
-if(WITH_SYSTEM_EIGEN3)
-  find_package_wrapper(Eigen3)
-  if(NOT EIGEN3_FOUND)
-    message(FATAL_ERROR "Failed finding system Eigen3 version!")
-  endif()
+find_package_wrapper(Eigen3 REQUIRED)
+
+if(WITH_LIBMV)
+  find_package_wrapper(Ceres REQUIRED)
 endif()
+add_bundled_libraries(ceres/lib)
 
 # Jack is intended to use the system library.
 if(WITH_JACK)
@@ -997,13 +1013,6 @@ unset(_IS_LINKER_DEFAULT)
 set(PLATFORM_SYMBOLS_MAP ${CMAKE_SOURCE_DIR}/source/creator/symbols_unix.map)
 set(PLATFORM_LINKFLAGS
   "${PLATFORM_LINKFLAGS} -Wl,--version-script='${PLATFORM_SYMBOLS_MAP}'"
-)
-
-# We do not ensure transitive dependencies of dynamic libraries are available at
-# link time, this allows that. The better solution would be to switch to cmake
-# configs but more work is needed for that.
-set(PLATFORM_LINKFLAGS
-  "${PLATFORM_LINKFLAGS} -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs"
 )
 
 # Don't use position independent executable for portable install since file

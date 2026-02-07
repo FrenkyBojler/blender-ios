@@ -724,7 +724,7 @@ static void do_smear_brush_task(const Depsgraph &depsgraph,
   scale_factors(factors, strength);
 
   float3 brush_delta;
-  if (brush.flag & BRUSH_ANCHORED) {
+  if (brush.stroke_method == BRUSH_STROKE_ANCHORED) {
     brush_delta = ss.cache->grab_delta_symm;
   }
   else {
@@ -933,20 +933,6 @@ void do_blur_brush(const Depsgraph &depsgraph,
 
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
     return;
-  }
-
-  BKE_curvemapping_init(brush.curve_distance_falloff);
-
-  float4x4 mat;
-
-  /* If the brush is round the tip does not need to be aligned to the surface, so this saves a
-   * whole iteration over the affected nodes. */
-  if (brush.tip_roundness < 1.0f) {
-    SCULPT_cube_tip_init(sd, ob, brush, mat.ptr());
-
-    if (is_zero_m4(mat.ptr())) {
-      return;
-    }
   }
 
   Mesh &mesh = *id_cast<Mesh *>(ob.data);

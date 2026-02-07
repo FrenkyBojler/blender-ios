@@ -1305,6 +1305,15 @@ wmWindow *WM_window_open(bContext *C,
     }
   }
 
+  if (win != nullptr) {
+    /* If reusing a window that is currently minimized we need to
+     * restore it now, before dealing with any resizing. #153569. */
+    GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
+    if (ghost_window->getState() == GHOST_kWindowStateMinimized) {
+      ghost_window->setState(GHOST_kWindowStateNormal);
+    }
+  }
+
   /* Add new window? */
   if (win == nullptr) {
     win = wm_window_new(bmain, wm, toplevel ? nullptr : win_prev, dialog);
@@ -2172,6 +2181,8 @@ void wm_window_events_process(const bContext *C)
   if (has_event) {
     g_system->dispatchEvents();
   }
+
+  wm_jobs_handle_finished(C);
 
   /* When there is no event, sleep 5 milliseconds not to use too much CPU when idle. */
   const int sleep_us_default = 5000;

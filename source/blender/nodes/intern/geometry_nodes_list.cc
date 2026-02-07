@@ -226,4 +226,24 @@ std::variant<GMutableSpan, GMutablePointer> List::values_for_write()
   return {};
 }
 
+List::List(const CPPType &type, DataVariant data, const int64_t size)
+    : cpp_type_(type), data_(std::move(data)), size_(size)
+{
+}
+
+ListPtr List::create(const CPPType &type, DataVariant data, const int64_t size)
+{
+  return ListPtr(MEM_new<List>(__func__, type, std::move(data), size));
+}
+
+ListPtr List::from_garray(GArray<> array)
+{
+  auto *sharable_data = new ImplicitSharedValue<GArray<>>(std::move(array));
+  ArrayData array_data;
+  array_data.data = sharable_data->data.data();
+  array_data.sharing_info = ImplicitSharingPtr<>(sharable_data);
+  return List::create(
+      sharable_data->data.type(), std::move(array_data), sharable_data->data.size());
+}
+
 }  // namespace blender::nodes
