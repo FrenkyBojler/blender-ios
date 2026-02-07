@@ -2142,6 +2142,14 @@ PROFILE_FUNCTION static void store_constraint_attributes(
   }
 }
 
+static std::string combine_self_path(const StringRef &self_path, const StringRef sub_path)
+{
+  if (self_path.is_empty()) {
+    return sub_path;
+  }
+  return Bundle::combine_path({self_path, sub_path});
+}
+
 static void store_world_bundle_overrides(const WorldBundles &world_bundles,
                                          const Span<GeometrySet> applied_geometries,
                                          const XPBDDebugRecorder &debug_recorder,
@@ -2150,7 +2158,8 @@ static void store_world_bundle_overrides(const WorldBundles &world_bundles,
   for (const int bundle_i : world_bundles.geometries.index_range()) {
     const XPBDGeometryBundle &bundle = world_bundles.geometries[bundle_i];
     GeometrySet applied_geometry = applied_geometries[bundle_i];
-    world_bundle.add_path_override(bundle.self_path + "/geometry", std::move(applied_geometry));
+    world_bundle.add_path_override(combine_self_path(bundle.self_path, "geometry"),
+                                   std::move(applied_geometry));
   }
 
   /* TODO Fields in bundles are currently lost when passing through the simulation zone output.
@@ -2158,14 +2167,14 @@ static void store_world_bundle_overrides(const WorldBundles &world_bundles,
   for (const EdgeLengthXPBDConstraintBundle &bundle : world_bundles.edge_length_constraints) {
     if (!bundle.lambda_attribute_name.empty()) {
       world_bundle.add_path_override(
-          bundle.self_path + "/lambda",
+          combine_self_path(bundle.self_path, "lambda"),
           bke::AttributeFieldInput::from<float>(bundle.lambda_attribute_name));
     }
   }
   for (const CurveSegmentXPBDConstraintBundle &bundle : world_bundles.curve_segment_constraints) {
     if (!bundle.lambda_attribute_name.empty()) {
       world_bundle.add_path_override(
-          bundle.self_path + "/lambda",
+          combine_self_path(bundle.self_path, "lambda"),
           bke::AttributeFieldInput::from<float>(bundle.lambda_attribute_name));
     }
   }
@@ -2174,13 +2183,13 @@ static void store_world_bundle_overrides(const WorldBundles &world_bundles,
   {
     if (!bundle.lambda_attribute_name.empty()) {
       world_bundle.add_path_override(
-          bundle.self_path + "/lambda",
+          combine_self_path(bundle.self_path, "lambda"),
           bke::AttributeFieldInput::from<float>(bundle.lambda_attribute_name));
     }
   }
 
   for (const auto &item : debug_recorder.steps().items()) {
-    world_bundle.add_path(item.key + "/debug_steps", item.value.store());
+    world_bundle.add_path(combine_self_path(item.key, "debug_steps"), item.value.store());
   }
 }
 
