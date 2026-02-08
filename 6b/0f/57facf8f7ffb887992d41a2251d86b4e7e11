@@ -1,1 +1,2 @@
 Referenced by issue #152633, Blender 5.0.1 struggles and crashes with high amount of objects that is high in tris count.
+Referenced by issue #154058, [Grease Pencil] - Fill with Surface Stroke Placement no longer ignores unselectable objects, possible regression
