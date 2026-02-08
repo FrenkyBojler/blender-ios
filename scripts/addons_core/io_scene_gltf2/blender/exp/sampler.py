@@ -10,7 +10,6 @@ from .cache import cached
 from .material.search_node_tree import previous_node, previous_socket, get_const_from_socket, NodeSocket
 
 
-# TODO: using inline node tree, we don't need to pass group_path_str
 @cached
 def gather_sampler(blender_shader_node: bpy.types.Node, group_path_str, export_settings):
     # reconstruct group_path from group_path_str

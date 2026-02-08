@@ -180,7 +180,6 @@ def __gather_sampler(blender_shader_sockets, export_settings):
     first_valid_shader_node = next(filter(lambda x: x is not None, shader_nodes))
 
     # group_path can't be a list, so transform it to str
-    # TODO: using inline node tree, we don't need to pass group_path_str anymore
 
     sep_item = "##~~gltf-sep~~##"
     sep_inside_item = "##~~gltf-inside-sep~~##"
