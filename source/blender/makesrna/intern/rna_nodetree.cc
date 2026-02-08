@@ -2321,7 +2321,7 @@ static void rna_GeometryNodeTree_tool_execution_mode_set(PointerRNA *ptr, int va
 {
   bNodeTree *ntree = ptr->data_as<bNodeTree>();
   if (!ntree->geometry_node_asset_traits) {
-    ntree->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
+    ntree->geometry_node_asset_traits = MEM_new<GeometryNodeAssetTraits>(__func__);
   }
   ntree->geometry_node_asset_traits->geometry_node_tool_execution_mode = value;
 }
