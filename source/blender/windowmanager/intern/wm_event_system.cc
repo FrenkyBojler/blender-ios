@@ -4043,7 +4043,7 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
   wmXrActionData *actiondata = static_cast<wmXrActionData *>(event->customdata);
 
   /* Only process XR operator handlers to prevent interferences with main window handlers.
-   * NOTE: This is a stripped-down XR specific version of #wm_handlers_do_intern. Changes made
+   * NOTE: This is a stripped-down XR-specific version of #wm_handlers_do_intern. Changes made
    *       in that function might also need to be reproduced here. */
   eHandlerActionFlag action = WM_HANDLER_CONTINUE;
   for (wmEventHandler &handler_base : *modalhandlers) {

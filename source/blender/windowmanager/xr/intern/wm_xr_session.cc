@@ -199,8 +199,7 @@ static void wm_xr_session_base_pose_calc(const Scene *scene,
   *r_base_scale = settings->base_scale;
 }
 
-static void wm_xr_session_draw_data_populate(wmXrData *xr_data,
-                                             wmXrDrawData *r_draw_data)
+static void wm_xr_session_draw_data_populate(wmXrData *xr_data, wmXrDrawData *r_draw_data)
 {
   const XrSessionSettings *settings = &xr_data->session_settings;
 
