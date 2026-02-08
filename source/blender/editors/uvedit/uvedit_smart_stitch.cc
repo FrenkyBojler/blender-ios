@@ -617,7 +617,7 @@ static void state_delete(StitchState *state)
       MEM_delete(state->island_is_stitchable);
     }
     if (state->orig_uv_coords) {
-      MEM_freeN(state->orig_uv_coords);
+      MEM_delete(state->orig_uv_coords);
     }
     if (state->element_map) {
       BM_uv_element_map_free(state->element_map);
@@ -2055,8 +2055,8 @@ static StitchState *stitch_init(bContext *C,
   }
 
   /* Store original UV coordinates */
-  state->orig_uv_coords = MEM_calloc_arrayN<blender::float2>(state->element_map->total_uvs,
-                                                             "orig_uv_coords");
+  state->orig_uv_coords = MEM_new_array_zeroed<blender::float2>(state->element_map->total_uvs,
+                                                                "orig_uv_coords");
   for (int i = 0; i < state->element_map->total_uvs; i++) {
     UvElement *element = &state->element_map->storage[i];
     float *luv = BM_ELEM_CD_GET_FLOAT_P(element->l, offsets.uv);
