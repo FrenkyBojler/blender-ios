@@ -896,19 +896,6 @@ struct StrOffsetToGlyphBounds_Data {
   rcti bounds;
 };
 
-static bool blf_str_offset_foreach_glyph(const char * /*str*/,
-                                         const size_t str_step_ofs,
-                                         const rcti *bounds,
-                                         void *user_data)
-{
-  StrOffsetToGlyphBounds_Data *data = static_cast<StrOffsetToGlyphBounds_Data *>(user_data);
-  if (data->str_offset == str_step_ofs) {
-    data->bounds = *bounds;
-    return false;
-  }
-  return true;
-}
-
 void blf_str_offset_to_glyph_bounds(FontBLF *font,
                                     const char *str,
                                     size_t str_offset,
