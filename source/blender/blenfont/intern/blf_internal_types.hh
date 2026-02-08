@@ -111,6 +111,22 @@ inline ft_pix ft_pix_from_float(float v)
 /** A value in the kerning cache that indicates it is not yet set. */
 #define KERNING_ENTRY_UNSET INT_MAX
 
+struct ShapedGlyph {
+  FontBLF *font = nullptr;
+  GlyphCacheBLF *gc = nullptr;
+  GlyphBLF *g = nullptr;
+  rcti bounds = {};      /* String-relative shaped bounds in ft_pix. */
+  size_t index_utf8 = 0; /* Maps back original UTF-8 string byte offsets. */
+  rcti integer_bounds() const;
+};
+
+struct ShapingData {
+  blender::Vector<ShapedGlyph> glyphs = {};
+  ft_pix width = 0;
+  ft_pix height = 0;
+  ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len);
+};
+
 struct BatchBLF {
   /** Can only batch glyph from the same font. */
   FontBLF *font;

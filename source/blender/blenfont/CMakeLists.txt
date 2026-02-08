@@ -18,6 +18,7 @@ set(SRC
   intern/blf_font_default.cc
   intern/blf_glyph.cc
   intern/blf_glyph_curves.cc
+  intern/blf_harfbuzz.cc
   intern/blf_thumbs.cc
   BLF_api.hh
   BLF_enums.hh
