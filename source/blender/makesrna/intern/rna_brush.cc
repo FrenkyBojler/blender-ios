@@ -449,6 +449,12 @@ static bool rna_BrushCapabilitiesSculpt_has_auto_smooth_get(PointerRNA *ptr)
   return bke::brush::supports_auto_smooth(*br);
 }
 
+static bool rna_BrushCapabilitiesSculpt_has_hardness_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return bke::brush::supports_hardness(*br);
+}
+
 static bool rna_BrushCapabilitiesSculpt_has_height_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
@@ -555,6 +561,12 @@ static bool rna_BrushCapabilitiesSculpt_has_auto_smooth_pressure_get(PointerRNA 
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
   return bke::brush::supports_auto_smooth_pressure(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_normal_radius_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return bke::brush::supports_normal_radius(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_hardness_pressure_get(PointerRNA *ptr)
@@ -1232,6 +1244,8 @@ static void rna_def_sculpt_capabilities(BlenderRNA *brna)
 
   SCULPT_BRUSH_CAPABILITY(has_accumulate, "Has Accumulate");
   SCULPT_BRUSH_CAPABILITY(has_auto_smooth, "Has Auto Smooth");
+  SCULPT_BRUSH_CAPABILITY(has_normal_radius, "Has Normal Raidus");
+  SCULPT_BRUSH_CAPABILITY(has_hardness, "Has Hardness");
   SCULPT_BRUSH_CAPABILITY(has_topology_rake, "Has Topology Rake");
   SCULPT_BRUSH_CAPABILITY(has_height, "Has Height");
   SCULPT_BRUSH_CAPABILITY(has_plane_depth, "Has Plane Depth");
@@ -1373,6 +1387,13 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   static const EnumPropertyItem rna_enum_gpencil_brush_caps_types_items[] = {
       {GP_STROKE_CAP_ROUND, "ROUND", ICON_GP_CAPS_ROUND, "Round", ""},
       {GP_STROKE_CAP_FLAT, "FLAT", ICON_GP_CAPS_FLAT, "Flat", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem rna_enum_gpencil_brush_stroke_type_items[] = {
+      {GP_BRUSH_USE_STROKE, "STROKE", ICON_NONE, "Stroke", ""},
+      {GP_BRUSH_USE_FILL, "FILL", ICON_NONE, "Fill", ""},
+      {GP_BRUSH_USE_FILL | GP_BRUSH_USE_STROKE, "BOTH", ICON_NONE, "Both", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1837,6 +1858,13 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag2", GP_BRUSH_USE_UV_RAND_PRESS);
   RNA_def_property_ui_icon(prop, ICON_STYLUS_PRESSURE, 0);
   RNA_def_property_ui_text(prop, "Use Pressure", "Use pressure to modulate randomness");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_BrushGpencilSettings_update");
+
+  prop = RNA_def_property(srna, "stroke_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag2");
+  RNA_def_property_enum_items(prop, rna_enum_gpencil_brush_stroke_type_items);
+  RNA_def_property_ui_text(prop, "Stroke Mode", "Mode to use when creating strokes");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_BrushGpencilSettings_update");
 
