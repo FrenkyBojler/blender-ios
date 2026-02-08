@@ -583,6 +583,23 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
     BKE_modifier_free_temporary_data(md);
   }
 
+  /* Add orco coordinates to final and deformed mesh if requested. */
+  if (final_datamask.vmask & CD_MASK_ORCO) {
+    if (geometry_set.get_mesh() != &mesh_input) {
+      /* No need in ORCO layer if the mesh was not deformed or modified: undeformed mesh in this
+       * case matches input mesh. */
+      add_orco_mesh(ob, nullptr, *geometry_set.get_mesh_for_write(), mesh_orco, CD_ORCO);
+    }
+    if (geometry_set.has<GeometryComponentEditData>()) {
+      auto &component = geometry_set.get_component_for_write<GeometryComponentEditData>();
+      if (component.mesh_edit_hints_ && component.mesh_edit_hints_->mesh_deform) {
+        MeshComponent &mesh_component = static_cast<MeshComponent &>(
+            component.mesh_edit_hints_->mesh_deform.ensure_mutable_inplace());
+        add_orco_mesh(ob, nullptr, *mesh_component.get_for_write(), nullptr, CD_ORCO);
+      }
+    }
+  }
+
   if (mesh_orco) {
     BKE_id_free(nullptr, mesh_orco);
   }
