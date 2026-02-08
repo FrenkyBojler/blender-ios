@@ -204,21 +204,19 @@ static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops, const bool che
   }
 }
 
+/* Computes the local coordinate system defining the 2D plane of the vertex loop. */
 static void calculate_plane_basis(
     const Vector<BMVert *> &loop, float r_center[3], float r_normal[3], float r_p[3], float r_q[3])
 {
   zero_v3(r_center);
   zero_v3(r_normal);
 
-  if (loop.is_empty()) {
-    return;
-  }
-
   for (BMVert *v : loop) {
     add_v3_v3(r_center, v->co);
   }
   mul_v3_fl(r_center, 1.0f / loop.size());
 
+  /* Compute a best fit plane normal for the loop using Newell's method. */
   for (const int i : loop.index_range()) {
     BMVert *curr = loop[i];
     BMVert *next = loop[(i + 1) % loop.size()];
@@ -228,10 +226,11 @@ static void calculate_plane_basis(
 
   float guess[3] = {1.0f, 0.0f, 0.0f};
 
+  /* If r_normal is parallel to (1,0,0) cross product would be zero.
+   * In that case, we switch the guess to the y axis to allow a valid
+   * perpendicular vector to be found. */
   if (std::abs(dot_v3v3(r_normal, guess)) > 0.99f) {
-    guess[0] = 0.0f;
-    guess[1] = 1.0f;
-    guess[2] = 0.0f;
+    copy_v3_fl3(guess, 0.0f, 1.0f, 0.0f);
   }
 
   cross_v3_v3v3(r_p, r_normal, guess);
