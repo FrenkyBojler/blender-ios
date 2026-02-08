@@ -154,6 +154,7 @@ struct TokenBuffer {
    * @param char_class_table  A lookup table mapping ASCII values (0-127) to an 8-bit CharClass.
    */
   void tokenize(const CharClass char_class_table[128]);
+  void tokenize_without_whitespace(const CharClass char_class_table[128]);
 
   /**
    * @brief Merge complex literals such as floats and strings.

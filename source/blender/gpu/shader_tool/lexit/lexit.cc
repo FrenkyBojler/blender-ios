@@ -54,7 +54,7 @@ void TokenBuffer::reserve(const uint32_t count)
  * encode the index of the source register for each of the 8 destination registers.
  * Every 0 bit (representing a discarded element) will be sourced from the 0th element.
  * This is to be used with table. */
-static const uint8_t shuffle_table_8[256][8] = {
+static const uint8_t shuffle_table_8[257][8] = {
     /* [0b00000000] = */ {0, 0, 0, 0, 0, 0, 0, 0},
     /* [0b00000001] = */ {0, 0, 0, 0, 0, 0, 0, 0},
     /* [0b00000010] = */ {1, 0, 0, 0, 0, 0, 0, 0},
@@ -484,6 +484,71 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
 
   size_ = cursor;
   whitespaces_collapsed_ = false;
+}
+
+TokenType get_stored_type(char char_value, CharClass char_class)
+{
+  return (char_class > CharClass::ClassToTypeThreshold) ? TokenType(char_class) :
+                                                          TokenType(char_value);
+}
+
+void TokenBuffer::tokenize_without_whitespace(const CharClass char_class_table[128])
+{
+  uint32_t offset = 0, cursor = 0, original_cursor = 0;
+
+  const uint8_t *str = (const uint8_t *)str_.data();
+
+  /* Scalar only implementation. */
+  CharClass last_type = CharClass::None;
+
+  {
+    CharClass prev = last_type;
+    /* Always emit first token. */
+    for (; offset < 1; offset += 1) {
+      const char c = str_[offset];
+      const CharClass curr = char_class_table[c];
+      /* It is faster to overwrite the previous value with the same value
+       * than having a condition. */
+      types_[cursor] = get_stored_type(c, curr);
+      offsets_[cursor] = offset;
+      original_offsets_[original_cursor] = offset;
+      /* Split if no class in common. */
+      cursor += 1;
+      original_cursor += 1;
+      prev = curr;
+    }
+    bool prev_not_whitespace = false;
+    for (; offset < str_.size(); offset += 1) {
+      const char c = str_[offset];
+      const CharClass curr = char_class_table[c];
+      /* It is faster to overwrite the previous value with the same value
+       * than having a condition. */
+      types_[cursor] = get_stored_type(c, curr);
+      offsets_[cursor] = offset;
+      original_offsets_[original_cursor] = offset;
+      const bool curr_not_whitespace = (curr != CharClass::WhiteSpace);
+      const bool emit = (uint8_t(curr) & uint8_t(prev) & uint8_t(CharClass::CanMerge)) == 0;
+      const bool emit_non_whitespace = emit && curr_not_whitespace;
+      const bool follow_non_whitespace = curr_not_whitespace && prev_not_whitespace;
+      const bool emit_whitespace = emit && !curr_not_whitespace;
+      const bool emit_orig_offset = emit_whitespace ||
+                                    (follow_non_whitespace && emit_non_whitespace);
+      prev_not_whitespace = curr_not_whitespace;
+      /* Split if no class in common. */
+      cursor += emit_non_whitespace;
+      original_cursor += emit_orig_offset;
+      prev = curr;
+    }
+  }
+
+  /* Set end of last token. */
+  offsets_[cursor] = str_.size();
+  original_offsets_[cursor] = str_.size();
+  /* Set end of file token. */
+  types_[cursor] = EndOfFile;
+
+  size_ = cursor;
+  whitespaces_collapsed_ = true;
 }
 
 static void lex_string(const TokenType *types, uint32_t &cursor)
