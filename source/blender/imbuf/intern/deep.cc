@@ -196,9 +196,9 @@ bool IMB_deep_append_pixel_samples(
   }
 
   /* Initialize deep buffer if needed */
-  if (!(ibuf->flags & IB_deep_data)) {
+  if (!ibuf->deep_buffer) {
     ibuf->flags |= IB_deep_data;
-    ibuf->deep_buffer.emplace();  // Create the ImBufDeepBuffer
+    ibuf->deep_buffer = MEM_new<ImBufDeepBuffer>("ImBufDeepBuffer_struct");
 
     const int pixel_count = ibuf->x * ibuf->y;
     ibuf->deep_buffer->sample_counts.reinitialize(pixel_count);

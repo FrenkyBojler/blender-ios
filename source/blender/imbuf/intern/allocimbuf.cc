@@ -205,6 +205,10 @@ void IMB_freeImBuf(ImBuf *ibuf)
     BLI_assert_msg(!(ibuf->filepath[0] == '/' && ibuf->filepath[1] == '/'),
                    "'.blend' relative \"//\" must not be used in ImBuf!");
 
+    if (ibuf->deep_buffer) {
+      MEM_delete(ibuf->deep_buffer);
+    }
+
     IMB_free_all_data(ibuf);
     IMB_free_gpu_textures(ibuf);
     IMB_metadata_free(ibuf->metadata);

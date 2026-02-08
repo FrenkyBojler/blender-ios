@@ -2092,9 +2092,7 @@ void IMB_exr_get_display_window(ExrHandle *handle,
 
 /* Read deep scanline EXR into ImBufDeepBuffer */
 static bool imb_read_deep_scanlines(Imf::DeepScanLineInputPart &deep_in,
-                                    ImBufDeepBuffer &deep_buffer,
-                                    int width,
-                                    int height)
+                                    ImBufDeepBuffer &deep_buffer)
 {
   const Header &header = deep_in.header();
   const ChannelList &channels = header.channels();
@@ -2248,12 +2246,8 @@ static bool imb_read_deep_scanlines(Imf::DeepScanLineInputPart &deep_in,
 }
 
 /* Load deep EXR image using OpenEXR's deep API */
-static ImBuf *imb_load_openexr_deep(IMemStream &membuf,
-                                    MultiPartInputFile &file,
-                                    int width,
-                                    int height,
-                                    int flags,
-                                    ImFileColorSpace &r_colorspace)
+static ImBuf *imb_load_openexr_deep(
+    MultiPartInputFile &file, int width, int height, int flags, ImFileColorSpace &r_colorspace)
 {
   using namespace Imf;
 
@@ -2266,7 +2260,7 @@ static ImBuf *imb_load_openexr_deep(IMemStream &membuf,
   }
 
   // Initialize the optional deep buffer
-  ibuf->deep_buffer.emplace();
+  ibuf->deep_buffer = MEM_new<ImBufDeepBuffer>("ImBufDeepBuffer_struct");
 
   /* Set metadata */
   ibuf->flags |= IB_deep_data;
@@ -2284,7 +2278,7 @@ static ImBuf *imb_load_openexr_deep(IMemStream &membuf,
     /* Create appropriate deep input based on file type */
     if (header.type() == DEEPSCANLINE) {
       DeepScanLineInputPart deep_in(file, 0);
-      if (!imb_read_deep_scanlines(deep_in, *ibuf->deep_buffer, width, height)) {
+      if (!imb_read_deep_scanlines(deep_in, *ibuf->deep_buffer)) {
         IMB_freeImBuf(ibuf);
         return nullptr;
       }
@@ -2348,7 +2342,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
     auto imagetype = file_header.type();
     const bool is_deep = imagetype == Imf::DEEPSCANLINE || imagetype == Imf::DEEPTILE;
     if (is_deep) {
-      return imb_load_openexr_deep(*membuf, *file, width, height, flags, r_colorspace);
+      return imb_load_openexr_deep(*file, width, height, flags, r_colorspace);
     }
 
     is_multi = imb_exr_is_multi(*file);
