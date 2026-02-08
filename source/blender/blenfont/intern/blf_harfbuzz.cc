@@ -8,9 +8,9 @@
  * Text shaping and glyph positioning using Harfbuzz.
  */
 
-#  include <harfbuzz/hb-ft.h>
-#  include <harfbuzz/hb-ot.h>
-#  include <harfbuzz/hb.h>
+#include <harfbuzz/hb-ft.h>
+#include <harfbuzz/hb-ot.h>
+#include <harfbuzz/hb.h>
 
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -38,6 +38,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
   if (!str || !str[0] || !len) {
     return;
   }
+
   size_t segment_start = 0;
   size_t segment_len = 0;
   FontBLF *segment_font = font;
@@ -51,6 +52,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
   /* Include space for null terminator. */
   size_t char_count = BLI_strnlen_utf8(str, len);
   std::u32string str32(char_count + 1, 0);
+
   /* Convert entire input string into array of 32-bit code points. */
   BLI_str_utf8_as_utf32(str32.data(), str, char_count + 1);
 
@@ -70,10 +72,12 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
         }
       }
     }
+
     segment_len = (i - segment_start);
     if (segment_len == 0) {
       break;
     }
+
     hb_buffer_clear_contents(hb_buf);
     hb_buffer_add_utf32(
         hb_buf, (uint32_t *)str32.data(), int(char_count), uint(segment_start), int(segment_len));
@@ -101,7 +105,9 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
 
     hb_font_set_scale(
         segment_font->hb_font, ft_pix_from_float(font->size), ft_pix_from_float(font->size));
+
     hb_buffer_set_cluster_level(hb_buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+
     hb_shape_full(segment_font->hb_font,
                   hb_buf,
                   font->features.data(),
@@ -114,14 +120,17 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
     if (set_mono) {
       segment_font->flags |= BLF_MONOSPACED;
     }
+
     ft_pix pen_x = this->width; /* Continue from previous segment. */
     int max_height = this->height;
     int cwidth = std::max(gc->fixed_width, 1);
     uint glyph_count;
     hb_glyph_info_t *hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
     hb_glyph_position_t *glyph_pos = hb_buffer_get_glyph_positions(hb_buf, nullptr);
+
     const bool need_release = (!gc || segment_font != font);
     GlyphCacheBLF *segment_gc = need_release ? blf_glyph_cache_acquire(segment_font) : gc;
+
     size_t str8_offset = 0;
     for (i = 0; i < glyph_count; i++) {
       uint32_t glyph_id = hb_glyph_info[i].codepoint;
@@ -151,11 +160,14 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
       pen_x += advance;
       max_height = std::max(g->box_ymax - g->box_ymin, max_height);
     }
+
     this->width = pen_x; /* Update total width. */
     this->height = max_height;
+
     if (set_mono) {
       segment_font->flags &= ~BLF_MONOSPACED;
     }
+
     if (need_release) {
       blf_glyph_cache_release(segment_font);
     }
@@ -170,14 +182,17 @@ bool blf_font_otf_feature_supported(FontBLF *font, const char tag[4])
   if (!font) {
     return false;
   }
+
   blf_ensure_face(font);
   hb_face_t *hb_face = hb_ft_face_create_cached(font->face);
+
   hb_tag_t tag_value = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
   if (hb_ot_layout_language_find_feature(
           hb_face, HB_OT_TAG_GSUB, 0, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX, tag_value, nullptr))
   {
     return true;
   }
+
   return (hb_ot_layout_language_find_feature(
       hb_face, HB_OT_TAG_GPOS, 0, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX, tag_value, nullptr));
 }
@@ -187,13 +202,16 @@ void blf_font_otf_feature_set(FontBLF *font, const char tag[4], int value)
   if (!font) {
     return;
   }
+
   hb_tag_t tag_value = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
+
   for (hb_feature_t &feature : font->features) {
     if (feature.tag == tag_value) {
       feature.value = hb_tag_t(value);
       return;
     }
   }
+
   font->features.append(
       {tag_value, hb_tag_t(value), HB_FEATURE_GLOBAL_START, HB_FEATURE_GLOBAL_END});
 }

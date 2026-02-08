@@ -358,12 +358,11 @@ static void blf_font_draw_ex(FontBLF *font,
   blf_batch_draw_begin(font);
 
   ShapingData text(font, gc, str, str_len);
+
   for (const ShapedGlyph &glyph : text.glyphs) {
-    blf_glyph_draw(glyph.font,
-                   glyph.gc,
-                   glyph.g,
-                   ft_pix_to_int_floor(glyph.bounds.xmin),
-                   ft_pix_to_int_floor(pen_y + glyph.bounds.ymin));
+    const int x = ft_pix_to_int_floor(glyph.bounds.xmin);
+    const int y = ft_pix_to_int_floor(pen_y + glyph.bounds.ymin);
+    blf_glyph_draw(glyph.font, glyph.gc, glyph.g, x, y);
   }
 
   blf_batch_draw_end();
@@ -396,12 +395,12 @@ int blf_font_draw_mono(FontBLF *font,
   blf_batch_draw_begin(font);
 
   ShapingData text(font, gc, str, str_len);
+
   for (const ShapedGlyph &glyph : text.glyphs) {
-    blf_glyph_draw(glyph.font,
-                   glyph.gc,
-                   glyph.g,
-                   ft_pix_to_int_floor(glyph.bounds.xmin),
-                   ft_pix_to_int_floor(glyph.bounds.ymin));
+    const int x = ft_pix_to_int_floor(glyph.bounds.xmin);
+    const int y = ft_pix_to_int_floor(glyph.bounds.ymin);
+    blf_glyph_draw(glyph.font, glyph.gc, glyph.g, x, y);
+
     const int col = UNLIKELY(glyph.g->c == '\t') ? (tab_columns - (columns % tab_columns)) :
                                                    BLI_wcwidth_safe(char32_t(glyph.g->c));
     columns += col;
@@ -636,9 +635,11 @@ static void blf_font_draw_buffer_ex(FontBLF *font,
   /* Another buffer specific call for color conversion. */
 
   ShapingData text(font, gc, str, str_len);
+
   for (const ShapedGlyph &glyph : text.glyphs) {
-    blf_glyph_draw_buffer(
-        buf_info, glyph.g, pen_x + glyph.bounds.xmin, pen_y_basis + glyph.bounds.ymin);
+    const int x = pen_x + glyph.bounds.xmin;
+    const int y = pen_y_basis + glyph.bounds.ymin;
+    blf_glyph_draw_buffer(buf_info, glyph.g, x, y);
   }
 
   if (r_info) {
@@ -676,10 +677,10 @@ size_t blf_font_width_to_strlen(
   size_t len = strlen(str);
   int w = ft_pix_to_int(text.width);
 
-  for (const ShapedGlyph &g : text.glyphs) {
-    if (g.bounds.xmax > ft_pix_from_int(width)) {
-      len = g.index_utf8;
-      w = ft_pix_to_int(g.bounds.xmax);
+  for (const ShapedGlyph &glyph : text.glyphs) {
+    if (glyph.bounds.xmax > ft_pix_from_int(width)) {
+      len = glyph.index_utf8;
+      w = ft_pix_to_int(glyph.bounds.xmax);
       break;
     }
   }
@@ -707,10 +708,10 @@ size_t blf_font_width_to_rstrlen(
   size_t len = strlen(str);
   int w = ft_pix_to_int(text.width);
 
-  for (const ShapedGlyph &g : text.glyphs) {
-    if (g.bounds.xmin > (text.width - ft_pix_from_int(width))) {
-      len = g.index_utf8;
-      w = ft_pix_to_int(text.width - g.bounds.xmax);
+  for (const ShapedGlyph &glyph : text.glyphs) {
+    if (glyph.bounds.xmin > (text.width - ft_pix_from_int(width))) {
+      len = glyph.index_utf8;
+      w = ft_pix_to_int(text.width - glyph.bounds.xmax);
       break;
     }
   }
@@ -777,7 +778,6 @@ void blf_font_width_and_height(FontBLF *font,
 
   const float xa = (font->flags & BLF_ASPECT) ? font->aspect[0] : 1.0f;
   const float ya = (font->flags & BLF_ASPECT) ? font->aspect[1] : 1.0f;
-
   *r_width = (float(BLI_rcti_size_x(&box)) * xa);
   *r_height = (float(BLI_rcti_size_y(&box)) * ya);
 }
@@ -851,13 +851,14 @@ void blf_font_boundbox_foreach_glyph(FontBLF *font,
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
 
   ShapingData text(font, gc, str, str_len);
+
   for (const ShapedGlyph &glyph : text.glyphs) {
     if (glyph.g->advance_x <= 0) {
       /* Ignore combining marks. */
       continue;
     }
     rcti bounds = glyph.integer_bounds();
-    if (user_fn(str, glyph.index_utf8, &bounds, user_data) == false) {
+    if (!user_fn(str, glyph.index_utf8, &bounds, user_data)) {
       break;
     }
   }
@@ -921,9 +922,10 @@ void blf_str_offset_to_glyph_bounds(FontBLF *font,
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
   ShapingData text(font, gc, str, strlen(str));
   blf_glyph_cache_release(font);
-  for (const ShapedGlyph &g : text.glyphs) {
-    if (g.index_utf8 >= str_offset) {
-      *r_glyph_bounds = g.integer_bounds();
+
+  for (const ShapedGlyph &glyph : text.glyphs) {
+    if (glyph.index_utf8 >= str_offset) {
+      *r_glyph_bounds = glyph.integer_bounds();
       return;
     }
   }
@@ -945,6 +947,7 @@ int blf_str_offset_to_cursor(FontBLF *font,
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
   ShapingData text(font, gc, str, str_len);
   blf_glyph_cache_release(font);
+
   int64_t index = 0;
   for (const ShapedGlyph &glyph : text.glyphs) {
     if (glyph.index_utf8 >= str_offset) {
@@ -1415,7 +1418,6 @@ static void blf_font_fill(FontBLF *font)
   font->pos[0] = 0;
   font->pos[1] = 0;
   font->angle = 0.0f;
-  font->hb_font = NULL;
 
   /* Use an easily identifiable bright color (yellow)
    * so its clear when #BLF_color calls are missing. */
@@ -1435,6 +1437,7 @@ static void blf_font_fill(FontBLF *font)
   font->char_width = 1.0f;
   font->char_spacing = 0.0f;
 
+  font->hb_font = NULL;
   font->tex_size_max = -1;
 
   font->buf_info.fbuf = nullptr;
@@ -1774,6 +1777,7 @@ static FontBLF *blf_font_new_impl(const char *filepath,
   blf_font_otf_feature_set(font, "case", 1); /* Case Sensitive Forms. */
   blf_font_otf_feature_set(font, "calt", 1); /* Contextual Alternates. */
   blf_font_otf_feature_set(font, "tnum", 1); /* Tabular Numbers. */
+
   blf_font_otf_feature_set(font, "dlig", 0); /* Discretionary Ligatures. */
   blf_font_otf_feature_set(font, "hlig", 0); /* Historical Ligatures. */
   blf_font_otf_feature_set(font, "zero", 0); /* Slashed Zero. */
