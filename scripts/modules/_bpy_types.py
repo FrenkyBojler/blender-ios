@@ -24,9 +24,9 @@ class Context(_StructRNA):
         """
         Returns the property from the path, raise an exception when not found.
 
-        :arg path: patch which this property resolves.
+        :param path: patch which this property resolves.
         :type path: str
-        :arg coerce: optional argument, when True, the property will be converted into its Python representation.
+        :param coerce: optional argument, when True, the property will be converted into its Python representation.
         :type coerce: bool
         """
         # This is a convenience wrapper around `_StructRNA.path_resolve` which doesn't support accessing
@@ -142,10 +142,12 @@ class Library(_types.ID):
             "fonts", "worlds",
         )
 
-        return tuple(id_block
-                     for attr in attr_links
-                     for id_block in getattr(bpy.data, attr)
-                     if id_block.library == self)
+        return tuple(
+            id_block
+            for attr in attr_links
+            for id_block in getattr(bpy.data, attr)
+            if id_block.library == self
+        )
 
 
 class Texture(_types.ID):
@@ -595,11 +597,11 @@ class EditBone(_StructRNA, _GenericBone, metaclass=_StructMetaPropGroup):
         Transform the bones head, tail, roll and envelope
         (when the matrix has a scale component).
 
-        :arg matrix: 3x3 or 4x4 transformation matrix.
+        :param matrix: 3x3 or 4x4 transformation matrix.
         :type matrix: :class:`mathutils.Matrix`
-        :arg scale: Scale the bone envelope by the matrix.
+        :param scale: Scale the bone envelope by the matrix.
         :type scale: bool
-        :arg roll:
+        :param roll:
 
            Correct the roll to point in the same relative
            direction to the head and tail.
@@ -682,13 +684,13 @@ class Mesh(_types.ID):
         Make a mesh from a list of vertices/edges/faces
         Until we have a nicer way to make geometry, use this.
 
-        :arg vertices:
+        :param vertices:
 
            float triplets each representing (X, Y, Z)
            eg: [(0.0, 1.0, 0.5), ...].
 
         :type vertices: Iterable[Sequence[float]]
-        :arg edges:
+        :param edges:
 
            int pairs, each pair contains two indices to the
            *vertices* argument. eg: [(1, 2), ...]
@@ -696,7 +698,7 @@ class Mesh(_types.ID):
            When an empty iterable is passed in, the edges are inferred from the polygons.
 
         :type edges: Iterable[Sequence[int]]
-        :arg faces:
+        :param faces:
 
            iterator of faces, each faces contains three or more indices to
            the *vertices* argument. eg: [(5, 6, 8, 9), (1, 2, 3), ...]
@@ -939,11 +941,11 @@ class Gizmo(_StructRNA):
         """
         Draw a shape created form :class:`Gizmo.draw_custom_shape`.
 
-        :arg shape: The cached shape to draw.
+        :param shape: The cached shape to draw.
         :type shape: Any
-        :arg matrix: 4x4 matrix, when not given :class:`Gizmo.matrix_world` is used.
+        :param matrix: 4x4 matrix, when not given :class:`Gizmo.matrix_world` is used.
         :type matrix: :class:`mathutils.Matrix`
-        :arg select_id: The selection id.
+        :param select_id: The selection id.
            Only use when drawing within :class:`Gizmo.draw_select`.
         :type select_id: int
         """
@@ -980,9 +982,9 @@ class Gizmo(_StructRNA):
         """
         Create a new shape that can be passed to :class:`Gizmo.draw_custom_shape`.
 
-        :arg type: The type of shape to create in (POINTS, LINES, TRIS, LINE_STRIP).
+        :param type: The type of shape to create in (POINTS, LINES, TRIS, LINE_STRIP).
         :type type: str
-        :arg verts: Sequence of 2D or 3D coordinates.
+        :param verts: Sequence of 2D or 3D coordinates.
         :type verts: Sequence[Sequence[float]]
         :return: The newly created shape (the return type make change).
         :rtype: Any
@@ -1061,7 +1063,7 @@ class Macro(_StructRNA):
         """
         Append an operator to a registered macro class.
 
-        :arg operator: Identifier of the operator. This does not have to be defined when this function is called.
+        :param operator: Identifier of the operator. This does not have to be defined when this function is called.
         :type operator: str
         :return: The operator macro for property access.
         :rtype: :class:`OperatorMacro`
@@ -1197,27 +1199,35 @@ class Header(_StructRNA, _GenericUI, metaclass=_RNAMeta):
 class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
     __slots__ = ()
 
-    def path_menu(self, searchpaths, operator, *,
-                  props_default=None, prop_filepath="filepath",
-                  filter_ext=None, filter_path=None, display_name=None,
-                  add_operator=None, add_operator_props=None):
+    def path_menu(
+        self, searchpaths, operator,
+        *,
+        props_default=None,
+        prop_filepath="filepath",
+        filter_ext=None,
+        filter_path=None,
+        display_name=None,
+        add_operator=None,
+        add_operator_props=None,
+        translate=True,
+    ):
         """
         Populate a menu from a list of paths.
 
-        :arg searchpaths: Paths to scan.
+        :param searchpaths: Paths to scan.
         :type searchpaths: Sequence[str]
-        :arg operator: The operator id to use with each file.
+        :param operator: The operator id to use with each file.
         :type operator: str
-        :arg prop_filepath: Optional operator filepath property (defaults to "filepath").
+        :param prop_filepath: Optional operator filepath property (defaults to "filepath").
         :type prop_filepath: str
-        :arg props_default: Properties to assign to each operator.
+        :param props_default: Properties to assign to each operator.
         :type props_default: dict[str, Any]
-        :arg filter_ext: Optional callback that takes the file extensions.
+        :param filter_ext: Optional callback that takes the file extensions.
 
            Returning false excludes the file from the list.
 
         :type filter_ext: Callable[[str], bool] | None
-        :arg display_name: Optional callback that takes the full path, returns the name to display.
+        :param display_name: Optional callback that takes the full path, returns the name to display.
         :type display_name: Callable[[str], str]
         """
 
@@ -1261,7 +1271,7 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
             name = display_name(filepath) if display_name else bpy.path.display_name(f)
             props = row.operator(
                 operator,
-                text=iface_(name),
+                text=(iface_(name) if translate else name),
                 translate=False,
             )
 
@@ -1370,14 +1380,16 @@ class NodeSocket(_StructRNA, metaclass=_RNAMetaPropGroup):
 
         .. note:: Takes ``O(len(nodetree.links))`` time.
         """
-        links = (link for link in self.id_data.links
-                 if self in (link.from_socket, link.to_socket))
-
+        links = (
+            link for link in self.id_data.links
+            if self in (link.from_socket, link.to_socket)
+        )
         if not self.is_output:
-            links = sorted(links,
-                           key=lambda link: link.multi_input_sort_id,
-                           reverse=True)
-
+            links = sorted(
+                links,
+                key=lambda link: link.multi_input_sort_id,
+                reverse=True,
+            )
         return tuple(links)
 
 
@@ -1396,9 +1408,6 @@ class CompositorNode(NodeInternal):
     @classmethod
     def poll(cls, ntree):
         return ntree.bl_idname == 'CompositorNodeTree'
-
-    def update(self):
-        self.tag_need_exec()
 
 
 class ShaderNode(NodeInternal):

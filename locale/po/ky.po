@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'ceca413bcbf8')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-06 08:44+0000\n"
+"POT-Creation-Date: 2026-02-02 14:51+0000\n"
 "PO-Revision-Date: 2025-07-23 15:20+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Kyrgyz <https://translate.blender.org/projects/blender-ui/ui/ky/>\n"
@@ -160,6 +160,58 @@ msgid "Description"
 msgstr "Баяндама"
 
 
+msgid "Actions"
+msgstr "Аракеттер"
+
+
+msgid "Armatures"
+msgstr "Скелеттер"
+
+
+msgid "Brushes"
+msgstr "Чачылар"
+
+
+msgid "Fonts"
+msgstr "Ариптер"
+
+
+msgid "Grease Pencil"
+msgstr "Эскиз карандашы"
+
+
+msgid "Images"
+msgstr "Сүрөттөр"
+
+
+msgid "Masks"
+msgstr "Маскалар"
+
+
+msgid "Scenes"
+msgstr "Сахналар"
+
+
+msgid "Sounds"
+msgstr "Үндөр"
+
+
+msgid "Speakers"
+msgstr "Үн булактары"
+
+
+msgid "Texts"
+msgstr "Тексттер"
+
+
+msgid "Textures"
+msgstr "Текстуралар"
+
+
+msgid "Worlds"
+msgstr "Дүйнөлөр"
+
+
 msgid "Data Type"
 msgstr "Маалыматтар түрү"
 
@@ -236,64 +288,16 @@ msgid "Weight"
 msgstr "Салмак"
 
 
-msgid "Actions"
-msgstr "Аракеттер"
-
-
-msgid "Armatures"
-msgstr "Скелеттер"
-
-
-msgid "Brushes"
-msgstr "Чачылар"
-
-
 msgid "Filename"
 msgstr "Файл аты"
-
-
-msgid "Grease Pencil"
-msgstr "Эскиз карандашы"
-
-
-msgid "Images"
-msgstr "Сүрөттөр"
-
-
-msgid "Masks"
-msgstr "Маскалар"
 
 
 msgid "Particles"
 msgstr "Бөлүкчөлөр"
 
 
-msgid "Scenes"
-msgstr "Сахналар"
-
-
-msgid "Sounds"
-msgstr "Үндөр"
-
-
-msgid "Speakers"
-msgstr "Үн булактары"
-
-
-msgid "Texts"
-msgstr "Тексттер"
-
-
-msgid "Textures"
-msgstr "Текстуралар"
-
-
 msgid "Window Managers"
 msgstr "Терезе менеджерлери"
-
-
-msgid "Worlds"
-msgstr "Дүйнөлөр"
 
 
 msgid "Speed"
@@ -748,6 +752,10 @@ msgid "Ogg"
 msgstr "Ogg"
 
 
+msgid "Sigma"
+msgstr "Сигма"
+
+
 msgid "Frame"
 msgstr "Кадр"
 
@@ -762,10 +770,6 @@ msgstr "Ок"
 
 msgid "Size"
 msgstr "Өлчөмү"
-
-
-msgid "Fonts"
-msgstr "Ариптер"
 
 
 msgid "Save"
@@ -826,6 +830,22 @@ msgstr "От"
 
 msgid "Normal"
 msgstr "Нормаль"
+
+
+msgid "Font"
+msgstr "Арип"
+
+
+msgid "Text"
+msgstr "Текст"
+
+
+msgid "Mask"
+msgstr "Маска"
+
+
+msgid "Sound"
+msgstr "Үн"
 
 
 msgid "Visibility"
@@ -935,10 +955,6 @@ msgstr "Жартысы"
 
 msgid "Text Curve"
 msgstr "Текст ийриси"
-
-
-msgid "Font"
-msgstr "Арип"
 
 
 msgid "Font Size"
@@ -1118,10 +1134,6 @@ msgid "Pitch"
 msgstr "Бийиктик"
 
 
-msgid "Sound"
-msgstr "Үн"
-
-
 msgid "Clouds"
 msgstr "Булуттар"
 
@@ -1282,32 +1294,24 @@ msgid "Mask Layers"
 msgstr "Маска каттары"
 
 
-msgid "Mask"
-msgstr "Маска"
-
-
-msgid "Import"
-msgstr "Импорттоо"
-
-
-msgid "Apply"
-msgstr "Колдонуу"
-
-
-msgid "Text"
-msgstr "Текст"
-
-
 msgid "UV"
 msgstr "UV"
+
+
+msgid "Mirror"
+msgstr "Чагылтуу"
 
 
 msgid "Tracking"
 msgstr "Трекинг"
 
 
-msgid "Mirror"
-msgstr "Чагылтуу"
+msgid "Apply"
+msgstr "Колдонуу"
+
+
+msgid "Import"
+msgstr "Импорттоо"
 
 
 msgctxt "MovieClip"
@@ -1327,8 +1331,8 @@ msgid "Console"
 msgstr "Консоль"
 
 
-msgid "Languages..."
-msgstr "Тилдер..."
+msgid "Languages"
+msgstr "Тилдер"
 
 
 msgid "Cache"
@@ -1920,10 +1924,6 @@ msgid "Eraser"
 msgstr "Өчүргүч"
 
 
-msgid "Sigma"
-msgstr "Сигма"
-
-
 msgid "Flat"
 msgstr "Жалпак"
 
@@ -2189,10 +2189,6 @@ msgstr "Түшүрүү"
 msgctxt "Operator"
 msgid "Render"
 msgstr "Визуалдаштыруу"
-
-
-msgid "Render active scene"
-msgstr "Активдүү сахнаны визуалдаштыруу"
 
 
 msgctxt "Curve"
@@ -2704,10 +2700,6 @@ msgid "Language ID"
 msgstr "Тил ID'си"
 
 
-msgid "Languages"
-msgstr "Тилдер"
-
-
 msgid "Sky"
 msgstr "Асман"
 
@@ -3135,18 +3127,9 @@ msgid "Face"
 msgstr "Каптал"
 
 
-msgid "Image*"
-msgstr "Сүрөт*"
-
-
 msgctxt "Operator"
 msgid "Sound"
 msgstr "Үн"
-
-
-msgctxt "Operator"
-msgid "Movie"
-msgstr "Тасма"
 
 
 msgctxt "Operator"
@@ -3567,6 +3550,10 @@ msgstr "Болот"
 
 msgid "Stone"
 msgstr "Таш"
+
+
+msgid "Render active scene"
+msgstr "Активдүү сахнаны визуалдаштыруу"
 
 
 msgid "X:"

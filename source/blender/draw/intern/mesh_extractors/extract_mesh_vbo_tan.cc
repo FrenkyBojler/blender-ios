@@ -30,13 +30,11 @@ static Array<Array<float4>> extract_tan_init_common(const MeshRenderData &mr,
 {
   GPU_vertformat_deinterleave(format);
 
-  const CustomData *cd_ldata = (mr.extract_type == MeshExtractType::BMesh) ? &mr.bm->ldata :
-                                                                             &mr.mesh->corner_data;
   VectorSet<std::string> tan_layers = cache.cd_used.tan;
   bool use_orco_tan = cache.cd_used.tan_orco;
 
-  const StringRef active_name = CustomData_get_active_layer_name(cd_ldata, CD_PROP_FLOAT2);
-  const StringRef default_name = CustomData_get_render_layer_name(cd_ldata, CD_PROP_FLOAT2);
+  const StringRef active_name = mr.mesh->active_uv_map_name();
+  const StringRef default_name = mr.mesh->default_uv_map_name();
 
   /* FIXME(#91838): This is to avoid a crash when orco tangent was requested but there are valid
    * uv layers. It would be better to fix the root cause. */
@@ -110,7 +108,7 @@ static Array<Array<float4>> extract_tan_init_common(const MeshRenderData &mr,
   }
 
   if (uv_names.is_empty()) {
-    GPU_vertformat_attr_add(format, "dummy", blender::gpu::VertAttrType::SFLOAT_32);
+    GPU_vertformat_attr_add(format, "dummy", gpu::VertAttrType::SFLOAT_32);
     return {};
   }
 
@@ -140,7 +138,7 @@ static Array<Array<float4>> extract_tan_init_common(const MeshRenderData &mr,
   }
 
   if (format->attr_len == 0) {
-    GPU_vertformat_attr_add(format, "dummy", blender::gpu::VertAttrType::SFLOAT_32);
+    GPU_vertformat_attr_add(format, "dummy", gpu::VertAttrType::SFLOAT_32);
   }
 
   return results;

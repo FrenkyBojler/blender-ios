@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "infos/eevee_common_infos.hh"
+#include "infos/eevee_uniform_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 
@@ -116,7 +116,7 @@ float3 volume_history_uvw_get(int3 froxel)
 {
   float4x4 wininv = uniform_buf.volumes.wininv_stable;
   float4x4 winmat = uniform_buf.volumes.winmat_stable;
-  /* We can't reproject by a simple matrix multiplication. We first need to remap to the view Z,
+  /* We can't re-project by a simple matrix multiplication. We first need to remap to the view Z,
    * then transform, then remap back to Volume range. */
   float3 uvw = (float3(froxel) + 0.5f) * uniform_buf.volumes.inv_tex_size;
   float3 ndc_P = drw_screen_to_ndc(uvw);

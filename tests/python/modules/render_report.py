@@ -8,6 +8,7 @@ a HTML report showing the differences, for regression testing.
 """
 
 import glob
+import fnmatch
 import os
 import sys
 import pathlib
@@ -16,12 +17,27 @@ import subprocess
 import time
 import multiprocessing
 
+from pathlib import Path
+
 from . import global_report
 from .colored_print import (print_message, use_message_colors)
 
 
-def blend_list(dirpath, blocklist):
+def blend_list(dirpath, blocklist, filter):
     import re
+
+    positive_patterns = []
+    negative_patterns = []
+
+    if filter:
+        if "-" in filter:
+            positive_filter, negative_filter = filter.split('-', maxsplit=1)
+        else:
+            positive_filter = filter
+            negative_filter = ""
+
+        positive_patterns = positive_filter.lower().split(":") if positive_filter else []
+        negative_patterns = negative_filter.lower().split(":") if negative_filter else []
 
     for root, dirs, files in os.walk(dirpath):
         for filename in files:
@@ -33,6 +49,24 @@ def blend_list(dirpath, blocklist):
                 if re.match(blocklist_entry, filename):
                     skip = True
                     break
+
+            if skip:
+                continue
+
+            name_for_filter = Path(filename).stem.lower()
+
+            if positive_patterns:
+                skip = True
+                for positive_pattern in positive_patterns:
+                    if fnmatch.fnmatch(name_for_filter, positive_pattern):
+                        skip = False
+                        break
+
+            if negative_patterns:
+                for negative_pattern in negative_patterns:
+                    if fnmatch.fnmatch(name_for_filter, negative_pattern):
+                        skip = True
+                        break
 
             if not skip:
                 filepath = os.path.join(root, filename)
@@ -174,6 +208,25 @@ def diff_output(test, oiiotool, fail_threshold, fail_percent, verbose, update):
     return test
 
 
+def get_gpu_device_vendor(blender):
+    command = [
+        blender,
+        "--background",
+        "--factory-startup",
+        "--python",
+        str(pathlib.Path(__file__).parent / "gpu_info.py")
+    ]
+    try:
+        completed_process = subprocess.run(command, stdout=subprocess.PIPE, universal_newlines=True)
+        for line in completed_process.stdout.splitlines():
+            if line.startswith("GPU_DEVICE_TYPE:"):
+                vendor = line.split(':')[1].upper()
+                return vendor
+    except Exception:
+        return None
+    return None
+
+
 class Report:
     __slots__ = (
         'title',
@@ -188,6 +241,7 @@ class Report:
         'fail_percent',
         'verbose',
         'update',
+        'filter',
         'failed_tests',
         'passed_tests',
         'compare_tests',
@@ -219,6 +273,7 @@ class Report:
         self.pixelated = False
         self.verbose = os.environ.get("BLENDER_VERBOSE") is not None
         self.update = os.getenv('BLENDER_TEST_UPDATE') is not None
+        self.filter = os.getenv('BLENDER_TEST_FILTER') or ""
 
         if os.environ.get("BLENDER_TEST_COLOR") is not None:
             use_message_colors()
@@ -556,7 +611,20 @@ class Report:
                 crash = True
 
             if verbose:
-                print(" ".join(command))
+                def quote_expr_args(cmd):
+                    quoted = []
+                    quote_next = False
+                    for arg in cmd:
+                        if quote_next:
+                            quoted.append('"{}"'.format(arg))  # wrap the expression in quotes
+                            quote_next = False
+                        else:
+                            quoted.append(arg)
+                            if arg == "--python-expr":
+                                quote_next = True
+                    return quoted
+                print(' '.join(quote_expr_args(command)))
+
             if (verbose or crash) and output:
                 print(output.decode("utf-8", 'ignore'))
 
@@ -616,12 +684,15 @@ class Report:
         pass
 
     def _run_all_tests(self, dirname, dirpath, blender, arguments_cb, batch, fail_silently):
+        if self.filter:
+            print_message(f"Note: Blender Test filter = {self.filter}", type='WARNING', status="RAW")
+
         passed_tests = []
         failed_tests = []
         silently_failed_tests = []
-        all_files = list(blend_list(dirpath, self.blocklist))
+        all_files = list(blend_list(dirpath, self.blocklist, self.filter))
         all_files.sort()
-        if not list(blend_list(dirpath, [])):
+        if not list(blend_list(dirpath, [], "")):
             print_message("No .blend files found in '{}'!".format(dirpath), 'FAILURE', 'FAILED')
             return False
 

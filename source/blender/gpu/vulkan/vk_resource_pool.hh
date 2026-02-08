@@ -128,7 +128,7 @@ class VKDiscardPool {
   {
     return mutex_;
   }
-  void destroy_discarded_resources(VKDevice &device, bool force = false);
+  void destroy_discarded_resources(VKDevice &device, TimelineValue current_timeline);
 
   /**
    * Returns the discard pool for the current thread.
@@ -137,6 +137,8 @@ class VKDiscardPool {
    * Otherwise a device discard pool is used.
    */
   static VKDiscardPool &discard_pool_get();
+
+  friend std::ostream &operator<<(std::ostream &os, const VKDiscardPool &discard_pool);
 };
 
 }  // namespace blender::gpu
