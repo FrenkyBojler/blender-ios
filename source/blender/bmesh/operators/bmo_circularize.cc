@@ -7,7 +7,7 @@
  */
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_set.hh"
 #include "BLI_vector.hh"
 
@@ -26,9 +26,9 @@ constexpr float CIRCULARIZE_EPSILON = 1e-6f;
 struct CircleVert {
   BMVert *v;
   /* Current postion on the plane. */
-  float co_2d[2];
+  float2 co_2d;
   /* Where it should move to on the circle. */
-  float target_2d[2];
+  float2 target_2d;
 };
 
 /* Stores the geometry loop and whether it forms a closed circle or open chain. */
@@ -239,6 +239,7 @@ static void calculate_plane_basis(
   cross_v3_v3v3(r_q, r_normal, r_p);
 }
 
+/* Projects 3D vertex coordinates onto a local 2D plane defined by the P and Q basis vectors. */
 static void project_loop_to_2d(const Vector<BMVert *> &loop,
                                const float center[3],
                                const float p[3],
@@ -253,25 +254,25 @@ static void project_loop_to_2d(const Vector<BMVert *> &loop,
 
     CircleVert cv;
     cv.v = v;
-    cv.co_2d[0] = dot_v3v3(vec, p);
-    cv.co_2d[1] = dot_v3v3(vec, q);
+    cv.co_2d.x = dot_v3v3(vec, p);
+    cv.co_2d.y = dot_v3v3(vec, q);
 
     r_2d_verts.append(cv);
   }
 }
 
 static void calculate_circle_best_fit(const Vector<CircleVert> &verts,
-                                      float r_center[2],
+                                      float2 &r_center,
                                       float *r_radius,
                                       const bool is_fixed)
 {
   /* If the center is locked, we skip the solver. The best fit for the fixed center
    * is simply the average radius. */
   if (is_fixed) {
-    zero_v2(r_center);
+    r_center = float2(0.0f);
     *r_radius = 0.0f;
     for (const CircleVert &cv : verts) {
-      *r_radius += len_v2(cv.co_2d);
+      *r_radius += math::length(cv.co_2d);
     }
     *r_radius /= verts.size();
     return;
@@ -290,8 +291,8 @@ static void calculate_circle_best_fit(const Vector<CircleVert> &verts,
     zero_v3(jacobian_transpose_residual);
 
     for (const CircleVert &cv : verts) {
-      const float dx = initial_x - cv.co_2d[0];
-      const float dy = initial_y - cv.co_2d[1];
+      const float dx = initial_x - cv.co_2d.x;
+      const float dy = initial_y - cv.co_2d.y;
       const float distance = sqrtf(dx * dx + dy * dy);
 
       const float j_row[3] = {dx / distance, dy / distance, -1.0f};
@@ -326,38 +327,34 @@ static void calculate_circle_best_fit(const Vector<CircleVert> &verts,
     }
   }
 
-  r_center[0] = initial_x;
-  r_center[1] = initial_y;
+  r_center.x = initial_x;
+  r_center.y = initial_y;
   *r_radius = initial_radius;
 }
 
 static void calculate_circle_inside_fit(const Vector<CircleVert> &verts,
-                                        float r_center[2],
+                                        float2 &r_center,
                                         float *r_radius,
                                         const bool is_fixed)
 {
   if (is_fixed) {
-    zero_v2(r_center);
+    r_center = float2(0.0f);
   }
   else {
-    float min_co[2], max_co[2];
-    copy_v2_v2(min_co, verts[0].co_2d);
-    copy_v2_v2(max_co, verts[0].co_2d);
+    float2 min_co = verts[0].co_2d;
+    float2 max_co = verts[0].co_2d;
 
     for (const CircleVert &cv : verts) {
-      min_co[0] = min_ff(min_co[0], cv.co_2d[0]);
-      min_co[1] = min_ff(min_co[1], cv.co_2d[1]);
-      max_co[0] = max_ff(max_co[0], cv.co_2d[0]);
-      max_co[1] = max_ff(max_co[1], cv.co_2d[1]);
+      min_co = math::min(min_co, cv.co_2d);
+      max_co = math::max(max_co, cv.co_2d);
     }
 
-    r_center[0] = (min_co[0] + max_co[0]) * 0.5f;
-    r_center[1] = (min_co[1] + max_co[1]) * 0.5f;
+    r_center = (min_co + max_co) * 0.5f;
   }
 
   *r_radius = FLT_MAX;
   for (const CircleVert &cv : verts) {
-    float dist = len_v2v2(r_center, cv.co_2d);
+    const float dist = math::distance(r_center, cv.co_2d);
     if (dist < *r_radius) {
       *r_radius = dist;
     }
@@ -365,7 +362,7 @@ static void calculate_circle_inside_fit(const Vector<CircleVert> &verts,
 }
 
 static void calculate_target_locations(Vector<CircleVert> &verts,
-                                       const float center[2],
+                                       const float2 &center,
                                        const float radius,
                                        const bool is_regular,
                                        const bool is_closed,
@@ -373,7 +370,6 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
 {
   float step = 0.0f;
   float start_angle = 0.0f;
-  float vec[2];
 
   if (is_regular) {
     float total_angle = 2.0f * std::numbers::pi;
@@ -387,15 +383,15 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
       total_angle = 0.0f;
       divisions = verts.size() - 1;
 
-      float vec_prev[2];
-      sub_v2_v2v2(vec_prev, verts[0].co_2d, center);
+      float2 vec_prev = verts[0].co_2d - center;
+      vec_prev = math::normalize(vec_prev);
 
       for (const int i : verts.index_range()) {
-        float vec_curr[2];
-        sub_v2_v2v2(vec_curr, verts[i].co_2d, center);
+        float2 vec_curr = verts[i].co_2d - center;
+        vec_curr = math::normalize(vec_curr);
 
-        total_angle += angle_v2v2(vec_prev, vec_curr);
-        copy_v2_v2(vec_prev, vec_curr);
+        total_angle += angle_normalized_v2v2(vec_prev, vec_curr);
+        vec_prev = vec_curr;
       }
     }
 
@@ -409,8 +405,8 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
      * the angular deviation for every vertex and averaging them to find the best
      * fit alignment. */
     for (const int i : verts.index_range()) {
-      sub_v2_v2v2(vec, verts[i].co_2d, center);
-      const float angle_diff = atan2f(vec[1], vec[0]) - (step * i);
+      float2 vec = verts[i].co_2d - center;
+      const float angle_diff = atan2f(vec.y, vec.x) - (step * i);
       sum_sin += sinf(angle_diff);
       sum_cos += cosf(angle_diff);
     }
@@ -424,12 +420,12 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
       angle = start_angle + step * i + rotation_angle;
     }
     else {
-      sub_v2_v2v2(vec, verts[i].co_2d, center);
-      angle = atan2f(vec[1], vec[0]) + rotation_angle;
+      float2 vec = verts[i].co_2d - center;
+      angle = atan2f(vec.y, vec.x) + rotation_angle;
     }
 
-    verts[i].target_2d[0] = center[0] + cosf(angle) * radius;
-    verts[i].target_2d[1] = center[1] + sinf(angle) * radius;
+    verts[i].target_2d.x = center.x + cosf(angle) * radius;
+    verts[i].target_2d.y = center.y + sinf(angle) * radius;
   }
 }
 
@@ -596,7 +592,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     Vector<CircleVert> circle_verts;
     project_loop_to_2d(loop, center_3d, p, q, circle_verts);
 
-    float circle_center_2d[2];
+    float2 circle_center_2d;
     float radius;
 
     if (fit_method == 1) {
@@ -617,8 +613,8 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       float final_pos[3];
       float offset_u[3], offset_v[3];
 
-      mul_v3_v3fl(offset_u, p, cv.target_2d[0]);
-      mul_v3_v3fl(offset_v, q, cv.target_2d[1]);
+      mul_v3_v3fl(offset_u, p, cv.target_2d.x);
+      mul_v3_v3fl(offset_v, q, cv.target_2d.y);
 
       add_v3_v3v3(final_pos, center_3d, offset_u);
       add_v3_v3(final_pos, offset_v);
