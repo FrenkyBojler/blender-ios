@@ -146,12 +146,8 @@ static bool walk_boundary_loop(BMesh * /*bm*/,
   if (!pre_loop.is_empty()) {
     std::reverse(pre_loop.begin(), pre_loop.end());
 
-    Vector<BMVert *> full_loop;
-    full_loop.reserve(pre_loop.size() + r_loop.size());
-    full_loop.extend(pre_loop);
-    full_loop.extend(r_loop);
-
-    r_loop = full_loop;
+    pre_loop.extend(r_loop);
+    r_loop = std::move(pre_loop);
   }
 
   return false;
