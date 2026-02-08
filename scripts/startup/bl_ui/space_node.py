@@ -610,9 +610,9 @@ class NODE_PT_geometry_node_tool_options(Panel):
         snode = context.space_data
         group = snode.node_tree
 
-        layout.prop(group, "tool_execution_mode", text="")
-        layout.prop(group, "use_wait_for_click")
+        layout.prop(group, "tool_execution_mode", text="Mode")
         layout.prop(group, "node_tool_idname", text="Identifier")
+        layout.prop(group, "use_wait_for_click")
         layout.template_node_operator_registration_errors(idname=group.node_tool_idname)
         if len(group.node_tool_idname) == 0:
             layout.label(icon='ERROR', text="Missing operator identifier")
