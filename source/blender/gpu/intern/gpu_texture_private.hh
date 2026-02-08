@@ -17,6 +17,19 @@
 
 namespace blender::gpu {
 
+inline bool is_half_float(TextureFormat format)
+{
+  switch (format) {
+    case TextureFormat::SFLOAT_16_16_16_16:
+    case TextureFormat::SFLOAT_16_16_16:
+    case TextureFormat::SFLOAT_16_16:
+    case TextureFormat::SFLOAT_16:
+      return true;
+    default:
+      return false;
+  }
+}
+
 enum GPUTextureFormatFlag {
   /* The format has a depth component and can be used as depth attachment. */
   GPU_FORMAT_DEPTH = (1 << 0),
@@ -68,12 +81,6 @@ enum GPUSamplerFormat {
 
 ENUM_OPERATORS(GPUSamplerFormat)
 
-#ifndef NDEBUG
-#  define DEBUG_NAME_LEN 64
-#else
-#  define DEBUG_NAME_LEN 8
-#endif
-
 /* Maximum number of image units. */
 #define GPU_MAX_IMAGE 8
 
@@ -119,8 +126,8 @@ class Texture {
   /** For error checking */
   int mip_min_ = 0, mip_max_ = 0;
 
-  /** For debugging */
-  char name_[DEBUG_NAME_LEN];
+  /** For debugging. */
+  std::string name_;
 
   /** Frame-buffer references to update on deletion. */
   GPUAttachmentType fb_attachment_[GPU_TEX_MAX_FBO_ATTACHED];
@@ -159,8 +166,12 @@ class Texture {
 
   void usage_set(eGPUTextureUsage usage_flags);
 
-  virtual void update_sub(
-      int mip, int offset[3], int extent[3], eGPUDataFormat format, const void *data) = 0;
+  virtual void update_sub(int mip,
+                          int offset[3],
+                          int extent[3],
+                          eGPUDataFormat format,
+                          const void *data,
+                          uint unpack_row_length = 0) = 0;
   virtual void update_sub(int offset[3],
                           int extent[3],
                           eGPUDataFormat format,
@@ -313,7 +324,7 @@ class Texture {
  protected:
   virtual bool init_internal() = 0;
   virtual bool init_internal(VertBuf *vbo) = 0;
-  virtual bool init_internal(blender::gpu::Texture *src,
+  virtual bool init_internal(gpu::Texture *src,
                              int mip_offset,
                              int layer_offset,
                              bool use_stencil) = 0;
@@ -347,8 +358,6 @@ static inline const PixelBuffer *unwrap(const GPUPixelBuffer *pixbuf)
 {
   return reinterpret_cast<const PixelBuffer *>(pixbuf);
 }
-
-#undef DEBUG_NAME_LEN
 
 inline size_t to_bytesize(TextureFormat format)
 {

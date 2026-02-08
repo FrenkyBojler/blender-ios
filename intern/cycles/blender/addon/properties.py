@@ -271,7 +271,7 @@ def enum_openimagedenoise_denoiser(self, context):
 
 
 def enum_optix_denoiser(self, context):
-    if not context or bool(context.preferences.addons[__package__].preferences.get_device_list('OPTIX')):
+    if not context or bool(context.preferences.addons[__package__].preferences.get_devices_for_type('OPTIX')):
         return [('OPTIX', "OptiX", n_(
             "Use the OptiX AI denoiser with GPU acceleration, only available on NVIDIA GPUs when configured in the system tab in the user preferences"), 2)]
     return []
@@ -1626,7 +1626,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
     use_hiprt: BoolProperty(
         name="HIP RT",
         description="HIP RT enables AMD hardware ray tracing on RDNA2 and above",
-        default=False,
+        default=True,
     )
 
     use_oneapirt: BoolProperty(
@@ -1823,8 +1823,8 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             elif device_type == 'HIP':
                 import sys
                 if sys.platform[:3] == "win":
-                    adrenalin_driver_version = "24.6.1"
-                    pro_driver_version = "24.Q2"
+                    adrenalin_driver_version = "24.9.1"
+                    pro_driver_version = "24.Q4"
                     col.label(
                         text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',
@@ -1834,17 +1834,29 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                     col.label(text=rpt_("or AMD Radeon Pro %s driver or newer") %
                               pro_driver_version, icon='BLANK1', translate=False)
                 elif sys.platform.startswith("linux"):
+                    rocm_version = "6.0"
                     driver_version = "23.40"
                     col.label(
                         text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',
                         translate=False)
-                    col.label(text=rpt_("and AMD driver version %s or newer") % driver_version, icon='BLANK1',
-                              translate=False)
+                    col.label(
+                        text=rpt_("and ROCm HIP Runtime %s or newer") %
+                        rocm_version, icon='BLANK1', translate=False)
+                    col.label(text=rpt_("or AMD driver version %s or newer") %
+                              driver_version, icon='BLANK1', translate=False)
             elif device_type == 'ONEAPI':
                 import sys
                 if sys.platform.startswith("win"):
-                    driver_version = "XX.X.101.8132"
+                    # NOTE(@sirgienko)
+                    # We need NEO driver version 35716 or higher, see oneapi/device_impl.cpp for more details.
+                    # The minimal version for Intel® Arc™ GPUs is driver 101.8331
+                    # The minimal version for Intel® Arc™ Pro GPUs is driver 101.8306
+                    # The previous driver version for Intel® Arc™ GPUs, before 101.8331, was driver 101.8250
+                    # and no intermediate versions were publicly available between 8250 and 8331 for Intel® Arc™ GPUs.
+                    # As a result, we can safely recommend users to use driver version 8306 or higher, without needing
+                    # to distinguish between Intel® Arc™ and Intel® Arc™ Pro users.
+                    driver_version = "XX.X.101.8306"
                     col.label(text=rpt_("Requires Intel GPU with Xe-HPG architecture"), icon='BLANK1', translate=False)
                     col.label(text=rpt_("and Windows driver version %s or newer") % driver_version,
                               icon='BLANK1', translate=False)

@@ -403,7 +403,7 @@ class InfoPropertyRNA:
             enum_descr_override=None,
     ):
         """
-        :arg enum_descr_override: Optionally override items for enum.
+        :param enum_descr_override: Optionally override items for enum.
            Otherwise expand the literal items.
         :type enum_descr_override: str | None
         """
@@ -463,10 +463,21 @@ class InfoPropertyRNA:
                     case "pointer":
                         pass
                     case "enum":
-                        # Empty enums typically only occur for enums which are dynamically generated.
-                        # In that case showing a default isn't helpful.
-                        if self.default_str:
-                            type_str += ", default {:s}".format(literal_fmt.format(self.default_str))
+                        if self.is_enum_flag:
+                            # Can't use `self.default_str`, because need to reformat each item with `literal_fmt`.
+                            if self.default:
+                                default_str = "{{{:s}}}".format(
+                                    ", ".join(literal_fmt.format(s) for s in sorted(self.default))
+                                )
+                            else:
+                                # Needed to account for an empty `{}` being a `dict`, not a `set`.
+                                default_str = "set()"
+                            type_str += ", default {:s}".format(default_str)
+                        else:
+                            # Empty enums typically only occur for enums which are dynamically generated.
+                            # In that case showing a default isn't helpful.
+                            if self.default:
+                                type_str += ", default {:s}".format(literal_fmt.format(self.default))
                     case _:
                         type_str += ", default {:s}".format(self.default_str)
 

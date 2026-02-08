@@ -31,6 +31,8 @@
 
 #include "imbuf_py_api.hh"
 
+namespace blender {
+
 struct BPyBLFImBufContext {
   PyObject_HEAD /* Required Python macro. */
   PyObject *py_imbuf;
@@ -46,14 +48,14 @@ PyDoc_STRVAR(
     "\n"
     "   Set the position for drawing text.\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg x: X axis position to draw the text.\n"
+    "   :param x: X axis position to draw the text.\n"
     "   :type x: float\n"
-    "   :arg y: Y axis position to draw the text.\n"
+    "   :param y: Y axis position to draw the text.\n"
     "   :type y: float\n"
-    "   :arg z: Z axis position to draw the text.\n"
+    "   :param z: Z axis position to draw the text.\n"
     "   :type z: float\n");
 static PyObject *py_blf_position(PyObject * /*self*/, PyObject *args)
 {
@@ -76,10 +78,10 @@ PyDoc_STRVAR(
     "\n"
     "   Set the size for drawing text.\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg size: Point size of the font.\n"
+    "   :param size: Point size of the font.\n"
     "   :type size: float\n");
 static PyObject *py_blf_size(PyObject * /*self*/, PyObject *args)
 {
@@ -102,10 +104,10 @@ PyDoc_STRVAR(
     "\n"
     "   Set the aspect for drawing text.\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg aspect: The aspect ratio for text drawing to use.\n"
+    "   :param aspect: The aspect ratio for text drawing to use.\n"
     "   :type aspect: float\n");
 static PyObject *py_blf_aspect(PyObject * /*self*/, PyObject *args)
 {
@@ -128,16 +130,16 @@ PyDoc_STRVAR(
     "\n"
     "   Set the color for drawing text.\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg r: red channel 0.0 - 1.0.\n"
+    "   :param r: red channel 0.0 - 1.0.\n"
     "   :type r: float\n"
-    "   :arg g: green channel 0.0 - 1.0.\n"
+    "   :param g: green channel 0.0 - 1.0.\n"
     "   :type g: float\n"
-    "   :arg b: blue channel 0.0 - 1.0.\n"
+    "   :param b: blue channel 0.0 - 1.0.\n"
     "   :type b: float\n"
-    "   :arg a: alpha channel 0.0 - 1.0.\n"
+    "   :param a: alpha channel 0.0 - 1.0.\n"
     "   :type a: float\n");
 static PyObject *py_blf_color(PyObject * /*self*/, PyObject *args)
 {
@@ -165,10 +167,10 @@ PyDoc_STRVAR(
     "\n"
     "   Draw text in the current context.\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg text: the text to draw.\n"
+    "   :param text: the text to draw.\n"
     "   :type text: str\n");
 static PyObject *py_blf_draw(PyObject * /*self*/, PyObject *args)
 {
@@ -192,10 +194,10 @@ PyDoc_STRVAR(
     "\n"
     "   Draw text into the buffer bound to the fontid.\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg text: the text to draw.\n"
+    "   :param text: the text to draw.\n"
     "   :type text: str\n");
 static PyObject *py_blf_draw_buffer(PyObject * /*self*/, PyObject *args)
 {
@@ -219,10 +221,10 @@ PyDoc_STRVAR(
     "\n"
     "   Return the width and height of the text.\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg text: the text to draw.\n"
+    "   :param text: the text to draw.\n"
     "   :type text: str\n"
     "   :return: the width and height of the text.\n"
     "   :rtype: tuple[float, float]\n");
@@ -251,16 +253,16 @@ PyDoc_STRVAR(
     "\n"
     "   Set the clipping, enable/disable using CLIPPING.\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg xmin: Clip the drawing area by these bounds.\n"
+    "   :param xmin: Clip the drawing area by these bounds.\n"
     "   :type xmin: float\n"
-    "   :arg ymin: Clip the drawing area by these bounds.\n"
+    "   :param ymin: Clip the drawing area by these bounds.\n"
     "   :type ymin: float\n"
-    "   :arg xmax: Clip the drawing area by these bounds.\n"
+    "   :param xmax: Clip the drawing area by these bounds.\n"
     "   :type xmax: float\n"
-    "   :arg ymax: Clip the drawing area by these bounds.\n"
+    "   :param ymax: Clip the drawing area by these bounds.\n"
     "   :type ymax: float\n");
 static PyObject *py_blf_clipping(PyObject * /*self*/, PyObject *args)
 {
@@ -283,10 +285,10 @@ PyDoc_STRVAR(
     "\n"
     "   Set the wrap width, enable/disable using WORD_WRAP.\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg wrap_width: The width (in pixels) to wrap words at.\n"
+    "   :param wrap_width: The width (in pixels) to wrap words at.\n"
     "   :type wrap_width: int\n");
 static PyObject *py_blf_word_wrap(PyObject * /*self*/, PyObject *args)
 {
@@ -309,10 +311,10 @@ PyDoc_STRVAR(
     "\n"
     "   Disable option.\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg option: One of ROTATION, CLIPPING, SHADOW or KERNING_DEFAULT.\n"
+    "   :param option: One of ROTATION, CLIPPING, SHADOW or KERNING_DEFAULT.\n"
     "   :type option: int\n");
 static PyObject *py_blf_disable(PyObject * /*self*/, PyObject *args)
 {
@@ -334,10 +336,10 @@ PyDoc_STRVAR(
     "\n"
     "   Enable option.\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg option: One of ROTATION, CLIPPING, SHADOW or KERNING_DEFAULT.\n"
+    "   :param option: One of ROTATION, CLIPPING, SHADOW or KERNING_DEFAULT.\n"
     "   :type option: int\n");
 static PyObject *py_blf_enable(PyObject * /*self*/, PyObject *args)
 {
@@ -359,10 +361,10 @@ PyDoc_STRVAR(
     "\n"
     "   Set the text rotation angle, enable/disable using ROTATION.\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg angle: The angle for text drawing to use.\n"
+    "   :param angle: The angle for text drawing to use.\n"
     "   :type angle: float\n");
 static PyObject *py_blf_rotation(PyObject * /*self*/, PyObject *args)
 {
@@ -385,18 +387,18 @@ PyDoc_STRVAR(
     "\n"
     "   Shadow options, enable/disable using SHADOW .\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg level: The blur level (0, 3, 5) or outline (6).\n"
+    "   :param level: The blur level (0, 3, 5) or outline (6).\n"
     "   :type level: int\n"
-    "   :arg r: Shadow color (red channel 0.0 - 1.0).\n"
+    "   :param r: Shadow color (red channel 0.0 - 1.0).\n"
     "   :type r: float\n"
-    "   :arg g: Shadow color (green channel 0.0 - 1.0).\n"
+    "   :param g: Shadow color (green channel 0.0 - 1.0).\n"
     "   :type g: float\n"
-    "   :arg b: Shadow color (blue channel 0.0 - 1.0).\n"
+    "   :param b: Shadow color (blue channel 0.0 - 1.0).\n"
     "   :type b: float\n"
-    "   :arg a: Shadow color (alpha channel 0.0 - 1.0).\n"
+    "   :param a: Shadow color (alpha channel 0.0 - 1.0).\n"
     "   :type a: float\n");
 static PyObject *py_blf_shadow(PyObject * /*self*/, PyObject *args)
 {
@@ -426,13 +428,13 @@ PyDoc_STRVAR(
     "\n"
     "   Set the offset for shadow text.\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg x: Vertical shadow offset value in pixels.\n"
-    "   :type x: float\n"
-    "   :arg y: Horizontal shadow offset value in pixels.\n"
-    "   :type y: float\n");
+    "   :param x: Horizontal shadow offset value in pixels.\n"
+    "   :type x: int\n"
+    "   :param y: Vertical shadow offset value in pixels.\n"
+    "   :type y: int\n");
 static PyObject *py_blf_shadow_offset(PyObject * /*self*/, PyObject *args)
 {
   int x, y, fontid;
@@ -453,7 +455,7 @@ PyDoc_STRVAR(
     "\n"
     "   Load a new font.\n"
     "\n"
-    "   :arg filepath: the filepath of the font.\n"
+    "   :param filepath: the filepath of the font.\n"
     "   :type filepath: str | bytes\n"
     "   :return: the new font's fontid or -1 if there was an error.\n"
     "   :rtype: int\n");
@@ -481,7 +483,7 @@ PyDoc_STRVAR(
     "\n"
     "   Unload an existing font.\n"
     "\n"
-    "   :arg filepath: the filepath of the font.\n"
+    "   :param filepath: the filepath of the font.\n"
     "   :type filepath: str | bytes\n");
 static PyObject *py_blf_unload(PyObject * /*self*/, PyObject *args)
 {
@@ -582,8 +584,8 @@ static int py_blf_bind_imbuf_clear(BPyBLFImBufContext *self)
 #endif
 
 static PyMethodDef py_blf_bind_imbuf_methods[] = {
-    {"__enter__", (PyCFunction)py_blf_bind_imbuf_enter, METH_NOARGS},
-    {"__exit__", (PyCFunction)py_blf_bind_imbuf_exit, METH_VARARGS},
+    {"__enter__", reinterpret_cast<PyCFunction>(py_blf_bind_imbuf_enter), METH_NOARGS},
+    {"__exit__", reinterpret_cast<PyCFunction>(py_blf_bind_imbuf_exit), METH_VARARGS},
     {nullptr},
 };
 
@@ -600,7 +602,7 @@ static PyTypeObject BPyBLFImBufContext_Type = {
     /*tp_name*/ "BLFImBufContext",
     /*tp_basicsize*/ sizeof(BPyBLFImBufContext),
     /*tp_itemsize*/ 0,
-    /*tp_dealloc*/ (destructor)py_blf_bind_imbuf_dealloc,
+    /*tp_dealloc*/ reinterpret_cast<destructor>(py_blf_bind_imbuf_dealloc),
     /*tp_vectorcall_offset*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
@@ -617,8 +619,8 @@ static PyTypeObject BPyBLFImBufContext_Type = {
     /*tp_as_buffer*/ nullptr,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     /*tp_doc*/ nullptr,
-    /*tp_traverse*/ (traverseproc)py_blf_bind_imbuf_traverse,
-    /*tp_clear*/ (inquiry)py_blf_bind_imbuf_clear,
+    /*tp_traverse*/ reinterpret_cast<traverseproc>(py_blf_bind_imbuf_traverse),
+    /*tp_clear*/ reinterpret_cast<inquiry>(py_blf_bind_imbuf_clear),
     /*tp_richcompare*/ nullptr,
     /*tp_weaklistoffset*/ 0,
     /*tp_iter*/ nullptr,
@@ -652,14 +654,14 @@ static PyTypeObject BPyBLFImBufContext_Type = {
 PyDoc_STRVAR(
     /* Wrap. */
     py_blf_bind_imbuf_doc,
-    ".. method:: bind_imbuf(fontid, image)\n"
+    ".. method:: bind_imbuf(fontid, imbuf)\n"
     "\n"
     "   Context manager to draw text into an image buffer instead of the GPU's context.\n"
     "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "   :param fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg imbuf: The image to draw into.\n"
+    "   :param imbuf: The image to draw into.\n"
     "   :type imbuf: :class:`imbuf.types.ImBuf`\n"
 
     "   :return: The BLF ImBuf context manager.\n"
@@ -678,11 +680,10 @@ static PyObject *py_blf_bind_imbuf(PyObject * /*self*/, PyObject *args, PyObject
   };
 
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
-      "i" /* `fontid` */
+      "i"  /* `fontid` */
       "O!" /* `image` */
-      "|" /* Optional arguments. */
-      "z" /* `display_name` */
+      "|"  /* Optional arguments. */
+      "z"  /* `display_name` */
       ":bind_imbuf",
       _keywords,
       nullptr,
@@ -705,7 +706,7 @@ static PyObject *py_blf_bind_imbuf(PyObject * /*self*/, PyObject *args, PyObject
 
   PyObject_GC_Track(ret);
 
-  return (PyObject *)ret;
+  return reinterpret_cast<PyObject *>(ret);
 }
 
 /** \} */
@@ -722,25 +723,34 @@ static PyObject *py_blf_bind_imbuf(PyObject * /*self*/, PyObject *args, PyObject
 
 /*----------------------------MODULE INIT-------------------------*/
 static PyMethodDef BLF_methods[] = {
-    {"aspect", (PyCFunction)py_blf_aspect, METH_VARARGS, py_blf_aspect_doc},
-    {"clipping", (PyCFunction)py_blf_clipping, METH_VARARGS, py_blf_clipping_doc},
-    {"word_wrap", (PyCFunction)py_blf_word_wrap, METH_VARARGS, py_blf_word_wrap_doc},
-    {"disable", (PyCFunction)py_blf_disable, METH_VARARGS, py_blf_disable_doc},
-    {"dimensions", (PyCFunction)py_blf_dimensions, METH_VARARGS, py_blf_dimensions_doc},
-    {"draw", (PyCFunction)py_blf_draw, METH_VARARGS, py_blf_draw_doc},
-    {"draw_buffer", (PyCFunction)py_blf_draw_buffer, METH_VARARGS, py_blf_draw_buffer_doc},
-    {"enable", (PyCFunction)py_blf_enable, METH_VARARGS, py_blf_enable_doc},
-    {"position", (PyCFunction)py_blf_position, METH_VARARGS, py_blf_position_doc},
-    {"rotation", (PyCFunction)py_blf_rotation, METH_VARARGS, py_blf_rotation_doc},
-    {"shadow", (PyCFunction)py_blf_shadow, METH_VARARGS, py_blf_shadow_doc},
-    {"shadow_offset", (PyCFunction)py_blf_shadow_offset, METH_VARARGS, py_blf_shadow_offset_doc},
-    {"size", (PyCFunction)py_blf_size, METH_VARARGS, py_blf_size_doc},
-    {"color", (PyCFunction)py_blf_color, METH_VARARGS, py_blf_color_doc},
-    {"load", (PyCFunction)py_blf_load, METH_VARARGS, py_blf_load_doc},
-    {"unload", (PyCFunction)py_blf_unload, METH_VARARGS, py_blf_unload_doc},
+    {"aspect", static_cast<PyCFunction>(py_blf_aspect), METH_VARARGS, py_blf_aspect_doc},
+    {"clipping", static_cast<PyCFunction>(py_blf_clipping), METH_VARARGS, py_blf_clipping_doc},
+    {"word_wrap", static_cast<PyCFunction>(py_blf_word_wrap), METH_VARARGS, py_blf_word_wrap_doc},
+    {"disable", static_cast<PyCFunction>(py_blf_disable), METH_VARARGS, py_blf_disable_doc},
+    {"dimensions",
+     static_cast<PyCFunction>(py_blf_dimensions),
+     METH_VARARGS,
+     py_blf_dimensions_doc},
+    {"draw", static_cast<PyCFunction>(py_blf_draw), METH_VARARGS, py_blf_draw_doc},
+    {"draw_buffer",
+     static_cast<PyCFunction>(py_blf_draw_buffer),
+     METH_VARARGS,
+     py_blf_draw_buffer_doc},
+    {"enable", static_cast<PyCFunction>(py_blf_enable), METH_VARARGS, py_blf_enable_doc},
+    {"position", static_cast<PyCFunction>(py_blf_position), METH_VARARGS, py_blf_position_doc},
+    {"rotation", static_cast<PyCFunction>(py_blf_rotation), METH_VARARGS, py_blf_rotation_doc},
+    {"shadow", static_cast<PyCFunction>(py_blf_shadow), METH_VARARGS, py_blf_shadow_doc},
+    {"shadow_offset",
+     static_cast<PyCFunction>(py_blf_shadow_offset),
+     METH_VARARGS,
+     py_blf_shadow_offset_doc},
+    {"size", static_cast<PyCFunction>(py_blf_size), METH_VARARGS, py_blf_size_doc},
+    {"color", static_cast<PyCFunction>(py_blf_color), METH_VARARGS, py_blf_color_doc},
+    {"load", static_cast<PyCFunction>(py_blf_load), METH_VARARGS, py_blf_load_doc},
+    {"unload", static_cast<PyCFunction>(py_blf_unload), METH_VARARGS, py_blf_unload_doc},
 
     {"bind_imbuf",
-     (PyCFunction)py_blf_bind_imbuf,
+     reinterpret_cast<PyCFunction>(py_blf_bind_imbuf),
      METH_VARARGS | METH_KEYWORDS,
      py_blf_bind_imbuf_doc},
 
@@ -785,3 +795,5 @@ PyObject *BPyInit_blf()
 
   return submodule;
 }
+
+}  // namespace blender
