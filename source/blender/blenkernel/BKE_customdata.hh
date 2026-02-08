@@ -229,14 +229,6 @@ bool CustomData_bmesh_merge_layout(const CustomData *source,
                                    char htype);
 
 /**
- * Remove layers that aren't stored in BMesh or are stored as flags on BMesh.
- * The `layers` array of the returned #CustomData must be freed, but may be null.
- * Used during conversion of #Mesh data to #BMesh storage format.
- */
-CustomData CustomData_shallow_copy_remove_non_bmesh_attributes(const CustomData *src,
-                                                               eCustomDataMask mask);
-
-/**
  * NULL's all members and resets the #CustomData.typemap.
  *
  * \warning Does not free or release any internal resources.
@@ -540,8 +532,6 @@ const char *CustomData_get_active_layer_name(const CustomData *data, eCustomData
  */
 const char *CustomData_get_render_layer_name(const CustomData *data, eCustomDataType type);
 
-bool CustomData_layer_is_anonymous(const CustomData *data, eCustomDataType type, int n);
-
 void CustomData_bmesh_set_n(
     CustomData *data, void *block, eCustomDataType type, int n, const void *source);
 
@@ -610,14 +600,6 @@ bool CustomData_verify_versions(CustomData *data, int index);
 /* BMesh specific custom-data stuff. */
 
 void CustomData_bmesh_init_pool(CustomData *data, int totelem, char htype);
-
-/**
- * Validate and fix data of \a layer,
- * if possible (needs relevant callback in layer's type to be defined).
- *
- * \return True if some errors were found.
- */
-bool CustomData_layer_validate(CustomDataLayer *layer, uint totitems, bool do_fixes);
 
 /* External file storage */
 

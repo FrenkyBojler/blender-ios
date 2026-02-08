@@ -390,7 +390,7 @@ static PyObject *pyrna_struct_get_nameprop_as_pyobject(
      * or not using a file-path sub-type when it should.. */
     BLI_assert(result != nullptr);
     if (name_ptr != fixedbuf) {
-      MEM_freeN(name_ptr);
+      MEM_delete(name_ptr);
     }
     return result;
   }
@@ -418,7 +418,9 @@ void BPY_id_release(ID *id)
 }
 
 #ifdef USE_PEDANTIC_WRITE
-static bool rna_disallow_writes = false;
+/* Thread local as e.g. Python handlers in the render thread should not be
+ * affected by Python UI drawing method in the main thread. */
+static thread_local bool rna_disallow_writes = false;
 
 static bool rna_id_write_error(PointerRNA *ptr, PyObject *key)
 {
@@ -1038,7 +1040,7 @@ static PyObject *pyrna_struct_str(BPy_StructRNA *self)
                                name,
                                self->ptr->data,
                                extra_info);
-    MEM_freeN(name);
+    MEM_delete(name);
     return ret;
   }
 
@@ -1155,7 +1157,7 @@ static PyObject *pyrna_prop_str(BPy_PropertyRNA *self)
                                  RNA_struct_identifier(self->ptr->type),
                                  RNA_property_identifier(self->prop),
                                  name);
-      MEM_freeN(name);
+      MEM_delete(name);
       return ret;
     }
   }
@@ -1315,7 +1317,7 @@ static const char *pyrna_enum_as_string(PointerRNA *ptr, PropertyRNA *prop)
   }
 
   if (free) {
-    MEM_freeN(item);
+    MEM_delete(item);
   }
 
   return result;
@@ -1341,7 +1343,7 @@ static int pyrna_string_to_enum(
                  error_prefix,
                  param,
                  enum_str);
-    MEM_freeN(enum_str);
+    MEM_delete(enum_str);
     return -1;
   }
 
@@ -1386,7 +1388,7 @@ static int pyrna_prop_to_enum_bitfield(
   }
 
   if (free) {
-    MEM_freeN(item);
+    MEM_delete(item);
   }
 
   return ret;
@@ -1452,7 +1454,7 @@ static PyObject *pyrna_enum_to_py(PointerRNA *ptr, PropertyRNA *prop, int val)
 #endif
 
         if (ptr_name) {
-          MEM_freeN(ptr_name);
+          MEM_delete(ptr_name);
         }
       }
 
@@ -1518,7 +1520,7 @@ PyObject *pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop)
       }
 #endif /* USE_STRING_COERCE */
       if (buf_fixed != buf) {
-        MEM_freeN(buf);
+        MEM_delete(buf);
       }
       break;
     }
@@ -2526,7 +2528,7 @@ static PyObject *pyrna_prop_collection_subscript_str(BPy_PropertyRNA *self, cons
         found = true;
       }
       if (name != name_ptr) {
-        MEM_freeN(name_ptr);
+        MEM_delete(name_ptr);
       }
       if (found) {
         result = pyrna_struct_CreatePyObject(&iter.ptr);
@@ -3768,7 +3770,6 @@ static PyObject *pyrna_struct_is_property_set(BPy_StructRNA *self, PyObject *arg
 
   static const char *_keywords[] = {"", "ghost", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s"  /* `name` (positional). */
       "|$" /* Optional keyword only arguments. */
       "O&" /* `ghost` */
@@ -4267,7 +4268,7 @@ static PyObject *pyrna_prop_as_bytes(BPy_PropertyRNA *self)
   ret = PyBytes_FromStringAndSize(buf, buf_len);
 
   if (buf_fixed != buf) {
-    MEM_freeN(buf);
+    MEM_delete(buf);
   }
 
   return ret;
@@ -5659,7 +5660,7 @@ static PyObject *pyrna_prop_collection_find(BPy_PropertyRNA *self, PyObject *key
       }
 
       if (name != name_ptr) {
-        MEM_freeN(name_ptr);
+        MEM_delete(name_ptr);
       }
     }
 
@@ -7046,8 +7047,8 @@ static PyObject *pyrna_func_vectorcall(PyObject *callable,
 
     BLI_dynstr_free(bad_args);
     BLI_dynstr_free(good_args);
-    MEM_freeN(bad_args_str);
-    MEM_freeN(good_args_str);
+    MEM_delete(bad_args_str);
+    MEM_delete(good_args_str);
 
     err = -1;
   }
@@ -8070,6 +8071,12 @@ static PyObject *pyrna_prop_collection_iter_next(PyObject *self)
   BPy_PropertyCollectionIterRNA *self_property = reinterpret_cast<BPy_PropertyCollectionIterRNA *>(
       self);
   if (self_property->iter->valid == false) {
+    /* Free collection iterator immediately before tp_dealloc, to break cycles the GC can not
+     * solve, between e.g. USE_PYRNA_STRUCT_REFERENCE and RNA_DepsgraphIterator.py_instance. */
+    if (self_property->iter.has_value()) {
+      RNA_property_collection_end(&self_property->iter.value());
+      self_property->iter.reset();
+    }
     PyErr_SetNone(PyExc_StopIteration);
     return nullptr;
   }
@@ -8245,9 +8252,9 @@ static void pyrna_subtype_set_rna(PyObject *newclass, StructRNA *srna)
   /* Add `staticmethod` and `classmethod` functions. */
   {
     const PointerRNA func_ptr = {nullptr, srna, nullptr};
-    const ListBaseT<FunctionRNA> *lb = RNA_struct_type_functions(srna);
-    for (const Link &link : lb->cast<Link>()) {
-      FunctionRNA *func = reinterpret_cast<FunctionRNA *>(const_cast<Link *>(&link));
+    Span<std::unique_ptr<FunctionRNA>> lb = RNA_struct_type_functions(srna);
+    for (const std::unique_ptr<FunctionRNA> &link : lb) {
+      FunctionRNA *func = link.get();
       const int flag = RNA_function_flag(func);
       if ((flag & FUNC_NO_SELF) &&         /* Is `staticmethod` or `classmethod`. */
           (flag & FUNC_REGISTER) == false) /* Is not for registration. */
@@ -9428,10 +9435,10 @@ static int bpy_class_validate_recursive(PointerRNA *dummy_ptr,
   }
 
   /* Verify callback functions. */
-  const ListBaseT<FunctionRNA> *lb_func = RNA_struct_type_functions(srna);
+  Span<std::unique_ptr<FunctionRNA>> lb_func = RNA_struct_type_functions(srna);
   i = 0;
-  for (const Link &link : lb_func->cast<Link>()) {
-    FunctionRNA *func = reinterpret_cast<FunctionRNA *>(const_cast<Link *>(&link));
+  for (const std::unique_ptr<FunctionRNA> &link : lb_func) {
+    FunctionRNA *func = link.get();
     const int flag = RNA_function_flag(func);
     if (!(flag & FUNC_REGISTER)) {
       continue;

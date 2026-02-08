@@ -92,10 +92,10 @@ static void screen_free_data(ID *id)
   BKE_previewimg_free(&screen->preview);
 
   /* Region and timer are freed by the window manager. */
-  /* Cannot use MEM_SAFE_FREE, as #wmTooltipState type is only defined in `WM_types.hh`, which is
+  /* Cannot use MEM_SAFE_DELETE, as #wmTooltipState type is only defined in `WM_types.hh`, which is
    * currently not included here. */
   if (screen->tool_tip) {
-    MEM_freeN(static_cast<void *>(screen->tool_tip));
+    MEM_delete_void(static_cast<void *>(screen->tool_tip));
     screen->tool_tip = nullptr;
   }
 }
@@ -200,7 +200,8 @@ static void screen_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   /* write LibData */
   /* in 2.50+ files, the file identifier for screens is patched, forward compatibility */
-  BLO_write_struct_at_address_with_filecode(writer, ID_SCRN, bScreen, id_address, screen);
+  writer->write_struct_at_address_by_id_with_filecode(
+      ID_SCRN, dna::sdna_struct_id_get<bScreen>(), id_address, screen);
   BKE_id_blend_write(writer, &screen->id);
 
   BKE_previewimg_blend_write(writer, screen->preview);
@@ -426,7 +427,7 @@ static void panel_list_copy(ListBaseT<Panel> *newlb, const ListBaseT<Panel> *lb)
     BLI_listbase_clear(&new_panel->layout_panel_states);
     new_panel->layout_panel_states_clock = old_panel.layout_panel_states_clock;
     for (LayoutPanelState &src_state : old_panel.layout_panel_states) {
-      LayoutPanelState *new_state = MEM_dupallocN<LayoutPanelState>(__func__, src_state);
+      LayoutPanelState *new_state = MEM_new<LayoutPanelState>(__func__, src_state);
       new_state->idname = BLI_strdup(src_state.idname);
       BLI_addtail(&new_panel->layout_panel_states, new_state);
     }
@@ -438,7 +439,7 @@ static void panel_list_copy(ListBaseT<Panel> *newlb, const ListBaseT<Panel> *lb)
 
 ARegion *BKE_area_region_copy(const SpaceType *st, const ARegion *region)
 {
-  ARegion *dst = static_cast<ARegion *>(MEM_dupallocN(region));
+  ARegion *dst = MEM_dupalloc(region);
 
   dst->runtime = MEM_new<bke::ARegionRuntime>(__func__);
   dst->runtime->type = region->runtime->type;
@@ -459,7 +460,7 @@ ARegion *BKE_area_region_copy(const SpaceType *st, const ARegion *region)
       dst->regiondata = nullptr;
     }
     else {
-      dst->regiondata = MEM_dupallocN(region->regiondata);
+      dst->regiondata = MEM_dupalloc_void(region->regiondata);
     }
   }
 
@@ -475,7 +476,7 @@ ARegion *BKE_area_region_copy(const SpaceType *st, const ARegion *region)
 
 ARegion *BKE_area_region_new()
 {
-  ARegion *region = MEM_new_for_free<ARegion>(__func__);
+  ARegion *region = MEM_new<ARegion>(__func__);
   region->runtime = MEM_new<bke::ARegionRuntime>(__func__);
   return region;
 }
@@ -628,7 +629,7 @@ LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
       return &state;
     }
   }
-  LayoutPanelState *state = MEM_new_for_free<LayoutPanelState>(__func__);
+  LayoutPanelState *state = MEM_new<LayoutPanelState>(__func__);
   state->idname = BLI_strdupn(idname.data(), idname.size());
   SET_FLAG_FROM_TEST(state->flag, !default_closed, LAYOUT_PANEL_STATE_FLAG_OPEN);
   state->last_used = logical_time;
@@ -638,7 +639,7 @@ LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
 
 Panel *BKE_panel_new(PanelType *panel_type)
 {
-  Panel *panel = MEM_new_for_free<Panel>(__func__);
+  Panel *panel = MEM_new<Panel>(__func__);
   panel->runtime = MEM_new<Panel_Runtime>(__func__);
   panel->type = panel_type;
   if (panel_type) {
@@ -649,14 +650,14 @@ Panel *BKE_panel_new(PanelType *panel_type)
 
 static void layout_panel_state_delete(LayoutPanelState *state)
 {
-  MEM_freeN(state->idname);
-  MEM_freeN(state);
+  MEM_delete(state->idname);
+  MEM_delete(state);
 }
 
 void BKE_panel_free(Panel *panel)
 {
-  MEM_SAFE_FREE(panel->activedata);
-  MEM_SAFE_FREE(panel->drawname);
+  MEM_SAFE_DELETE_VOID(panel->activedata);
+  MEM_SAFE_DELETE(panel->drawname);
 
   for (LayoutPanelState &state : panel->layout_panel_states.items_mutable()) {
     BLI_remlink(&panel->layout_panel_states, &state);
@@ -664,7 +665,7 @@ void BKE_panel_free(Panel *panel)
   }
 
   MEM_delete(panel->runtime);
-  MEM_freeN(panel);
+  MEM_delete(panel);
 }
 
 static void area_region_panels_free_recursive(Panel *panel)
@@ -713,7 +714,7 @@ void BKE_area_region_free(SpaceType *st, ARegion *region)
     if (uilst.properties) {
       IDP_FreeProperty(uilst.properties);
     }
-    MEM_SAFE_FREE(uilst.dyn_data);
+    MEM_SAFE_DELETE(uilst.dyn_data);
   }
 
   if (region->runtime->gizmo_map != nullptr) {
@@ -736,7 +737,7 @@ void BKE_screen_area_free(ScrArea *area)
     BKE_area_region_free(st, &region);
   }
 
-  MEM_SAFE_FREE(area->global);
+  MEM_SAFE_DELETE(area->global);
   BLI_freelistN(&area->regionbase);
 
   BKE_spacedata_freelist(&area->spacedata);
@@ -839,7 +840,7 @@ void BKE_screen_remove_double_scrverts(bScreen *screen)
   for (ScrVert &verg : screen->vertbase.items_mutable()) {
     if (verg.newv) {
       BLI_remlink(&screen->vertbase, &verg);
-      MEM_freeN(&verg);
+      MEM_delete(&verg);
     }
   }
 }
@@ -853,7 +854,7 @@ void BKE_screen_remove_double_scredges(bScreen *screen)
       ScrEdge *sn = se->next;
       if (verg.v1 == se->v1 && verg.v2 == se->v2) {
         BLI_remlink(&screen->edgebase, se);
-        MEM_freeN(se);
+        MEM_delete(se);
       }
       se = sn;
     }
@@ -897,7 +898,7 @@ void BKE_screen_remove_unused_scredges(bScreen *screen)
   for (ScrEdge &se : screen->edgebase.items_mutable()) {
     if (se.flag == 0) {
       BLI_remlink(&screen->edgebase, &se);
-      MEM_freeN(&se);
+      MEM_delete(&se);
     }
     else {
       se.flag = 0;
@@ -916,7 +917,7 @@ void BKE_screen_remove_unused_scrverts(bScreen *screen)
   for (ScrVert &sv : screen->vertbase.items_mutable()) {
     if (sv.flag == 0) {
       BLI_remlink(&screen->vertbase, &sv);
-      MEM_freeN(&sv);
+      MEM_delete(&sv);
     }
     else {
       sv.flag = 0;
@@ -1243,7 +1244,7 @@ static void write_region(BlendWriter *writer, ARegion *region, int spacetype)
 {
   ARegion region_copy = *region;
   region_copy.runtime = nullptr;
-  BLO_write_struct_at_address(writer, ARegion, region, &region_copy);
+  writer->write_struct_at_address(region, &region_copy);
 
   if (region->regiondata) {
     if (region->flag & RGN_FLAG_TEMP_REGIONDATA) {
@@ -1293,8 +1294,8 @@ static void write_panel_list(BlendWriter *writer, ListBaseT<Panel> *lb)
     Panel panel_copy = panel;
     panel_copy.runtime_flag = 0;
     panel_copy.runtime = nullptr;
-    BLO_write_struct_at_address(writer, Panel, &panel, &panel_copy);
-    BLO_write_struct_list(writer, LayoutPanelState, &panel.layout_panel_states);
+    writer->write_struct_at_address(&panel, &panel_copy);
+    writer->write_struct_list(&panel.layout_panel_states);
     for (LayoutPanelState &state : panel.layout_panel_states) {
       BLO_write_string(writer, state.idname);
     }
@@ -1339,8 +1340,8 @@ static void write_area(BlendWriter *writer, ScrArea *area)
 
 void BKE_screen_area_map_blend_write(BlendWriter *writer, ScrAreaMap *area_map)
 {
-  BLO_write_struct_list(writer, ScrVert, &area_map->vertbase);
-  BLO_write_struct_list(writer, ScrEdge, &area_map->edgebase);
+  writer->write_struct_list(&area_map->vertbase);
+  writer->write_struct_list(&area_map->edgebase);
   for (ScrArea &area : area_map->areabase) {
     area.butspacetype = area.spacetype; /* Just for compatibility, will be reset below. */
 
@@ -1363,11 +1364,9 @@ static void remove_least_recently_used_panel_states(Panel &panel, const int64_t 
   if (all_states.size() <= max_kept) {
     return;
   }
-  std::sort(all_states.begin(),
-            all_states.end(),
-            [](const LayoutPanelState *a, const LayoutPanelState *b) {
-              return a->last_used < b->last_used;
-            });
+  std::ranges::sort(all_states, [](const LayoutPanelState *a, const LayoutPanelState *b) {
+    return a->last_used < b->last_used;
+  });
   for (LayoutPanelState *state : all_states.as_span().drop_back(max_kept)) {
     BLI_remlink(&panel.layout_panel_states, state);
     layout_panel_state_delete(state);
@@ -1438,7 +1437,7 @@ static void direct_link_region(BlendDataReader *reader, ARegion *region, int spa
 
         if (region->regiondata == nullptr) {
           /* To avoid crashing on some old files. */
-          region->regiondata = MEM_new_for_free<RegionView3D>("region view3d");
+          region->regiondata = MEM_new<RegionView3D>("region view3d");
         }
 
         RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
@@ -1470,7 +1469,7 @@ void BKE_screen_view3d_do_versions_250(View3D *v3d, ListBaseT<ARegion> *regions)
     if (region.regiontype == RGN_TYPE_WINDOW && region.regiondata == nullptr) {
       RegionView3D *rv3d;
 
-      rv3d = MEM_new_for_free<RegionView3D>("region v3d patch");
+      rv3d = MEM_new<RegionView3D>("region v3d patch");
       rv3d->persp = char(v3d->persp);
       rv3d->view = char(v3d->view);
       rv3d->dist = v3d->dist;
@@ -1521,7 +1520,7 @@ static void direct_link_area(BlendDataReader *reader, ScrArea *area)
   /* accident can happen when read/save new file with older version */
   /* 2.50: we now always add spacedata for info */
   if (area->spacedata.first == nullptr) {
-    SpaceInfo *sinfo = MEM_new_for_free<SpaceInfo>("spaceinfo");
+    SpaceInfo *sinfo = MEM_new<SpaceInfo>("spaceinfo");
     area->spacetype = sinfo->spacetype = SPACE_INFO;
     BLI_addtail(&area->spacedata, sinfo);
   }

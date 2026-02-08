@@ -57,6 +57,11 @@ const EnumPropertyItem rna_enum_fmodifier_type_items[] = {
      0,
      "Stepped Interpolation",
      "Snap values to nearest grid step, e.g. for a stop-motion look"},
+    {FMODIFIER_TYPE_SMOOTH,
+     "SMOOTH",
+     0,
+     "Smooth (Gaussian)",
+     "Smooth curve using Gaussian smoothing"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -226,6 +231,8 @@ static StructRNA *rna_FModifierType_refine(PointerRNA *ptr)
       return RNA_FModifierLimits;
     case FMODIFIER_TYPE_STEPPED:
       return RNA_FModifierStepped;
+    case FMODIFIER_TYPE_SMOOTH:
+      return RNA_FModifierSmooth;
     default:
       return RNA_UnknownType;
   }
@@ -452,7 +459,7 @@ static void rna_DriverTarget_RnaPath_set(PointerRNA *ptr, const char *value)
   /* XXX in this case we need to be very careful,
    * as this will require some new dependencies to be added! */
   if (dtar->rna_path) {
-    MEM_freeN(dtar->rna_path);
+    MEM_delete(dtar->rna_path);
   }
 
   if (value[0]) {
@@ -636,7 +643,7 @@ static void rna_FCurve_RnaPath_set(PointerRNA *ptr, const char *value)
   FCurve *fcu = static_cast<FCurve *>(ptr->data);
 
   if (fcu->rna_path) {
-    MEM_freeN(fcu->rna_path);
+    MEM_delete(fcu->rna_path);
   }
 
   if (value[0]) {
@@ -738,9 +745,9 @@ static void rna_tag_animation_update(Main *bmain, ID *id)
 /* allow scripts to update curve after editing manually */
 static void rna_FCurve_update_data_ex(ID *id, FCurve *fcu, Main *bmain)
 {
-  sort_time_fcurve(fcu);
+  sort_time_fcurve(*fcu);
   BKE_fcurve_deduplicate_keys(fcu);
-  BKE_fcurve_handles_recalc(fcu);
+  BKE_fcurve_handles_recalc(*fcu);
 
   rna_tag_animation_update(bmain, id);
 }
@@ -872,7 +879,7 @@ static void rna_FModifier_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr
   FModifier *fcm = static_cast<FModifier *>(ptr->data);
 
   if (fcm->curve && fcm->type == FMODIFIER_TYPE_CYCLES) {
-    BKE_fcurve_handles_recalc(fcm->curve);
+    BKE_fcurve_handles_recalc(*fcm->curve);
   }
 
   rna_tag_animation_update(bmain, id);
@@ -1131,7 +1138,7 @@ static void rna_FKeyframe_points_remove(
   bezt_ptr->invalidate();
 
   if (!do_fast) {
-    BKE_fcurve_handles_recalc(fcu);
+    BKE_fcurve_handles_recalc(*fcu);
   }
 
   rna_tag_animation_update(bmain, id);
@@ -1139,14 +1146,16 @@ static void rna_FKeyframe_points_remove(
 
 static void rna_FKeyframe_points_clear(ID *id, FCurve *fcu, Main *bmain)
 {
-  BKE_fcurve_delete_keys_all(fcu);
+  if (fcu) {
+    BKE_fcurve_delete_keys_all(*fcu);
+  }
 
   rna_tag_animation_update(bmain, id);
 }
 
 static void rna_FKeyframe_points_sort(ID *id, FCurve *fcu, Main *bmain)
 {
-  sort_time_fcurve(fcu);
+  sort_time_fcurve(*fcu);
   rna_tag_animation_update(bmain, id);
 }
 
@@ -1158,7 +1167,7 @@ static void rna_FKeyframe_points_deduplicate(ID *id, FCurve *fcu, Main *bmain)
 
 static void rna_FKeyframe_points_handles_recalc(ID *id, FCurve *fcu, Main *bmain)
 {
-  BKE_fcurve_handles_recalc(fcu);
+  BKE_fcurve_handles_recalc(*fcu);
   rna_tag_animation_update(bmain, id);
 }
 
@@ -1186,8 +1195,8 @@ static FCM_EnvelopeData *rna_FModifierEnvelope_points_add(
     }
 
     /* realloc memory for extra point */
-    env->data = static_cast<FCM_EnvelopeData *>(
-        MEM_reallocN((void *)env->data, (env->totvert + 1) * sizeof(FCM_EnvelopeData)));
+    env->data = static_cast<FCM_EnvelopeData *>(MEM_realloc_uninitialized(
+        (void *)env->data, (env->totvert + 1) * sizeof(FCM_EnvelopeData)));
 
     /* move the points after the added point */
     if (i < env->totvert) {
@@ -1197,7 +1206,7 @@ static FCM_EnvelopeData *rna_FModifierEnvelope_points_add(
     env->totvert++;
   }
   else {
-    env->data = MEM_new_for_free<FCM_EnvelopeData>("FCM_EnvelopeData");
+    env->data = MEM_new<FCM_EnvelopeData>("FCM_EnvelopeData");
     env->totvert = 1;
     i = 0;
   }
@@ -1233,12 +1242,12 @@ static void rna_FModifierEnvelope_points_remove(
     /* realloc smaller array */
     env->totvert--;
     env->data = static_cast<FCM_EnvelopeData *>(
-        MEM_reallocN((void *)env->data, (env->totvert) * sizeof(FCM_EnvelopeData)));
+        MEM_realloc_uninitialized((void *)env->data, (env->totvert) * sizeof(FCM_EnvelopeData)));
   }
   else {
     /* just free array, since the only vert was deleted */
     if (env->data) {
-      MEM_freeN(env->data);
+      MEM_delete(env->data);
       env->data = nullptr;
     }
     env->totvert = 0;
@@ -1801,6 +1810,39 @@ static void rna_def_fmodifier_stepped(BlenderRNA *brna)
       prop, nullptr, "rna_FModifierStepped_frame_end_set", "rna_FModifierStepped_end_frame_range");
   RNA_def_property_ui_text(
       prop, "End Frame", "Frame that modifier's influence ends (if applicable)");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+}
+
+/* --------- */
+
+static void rna_def_fmodifier_smooth(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "FModifierSmooth", "FModifier");
+  RNA_def_struct_ui_text(srna, "Smooth F-Modifier", "Smooth curve using Gaussian smoothing");
+  RNA_def_struct_sdna_from(srna, "FMod_Smooth", "data");
+
+  prop = RNA_def_property(srna, "sigma", PROP_FLOAT, PROP_TIME);
+  RNA_def_property_float_sdna(prop, nullptr, "sigma");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_range(prop, 0.1, 100.0);
+  RNA_def_property_ui_range(prop, 0.1, 2.0, 0.05, 3);
+  RNA_def_property_ui_text(prop,
+                           "Sigma",
+                           "The shape of the Gaussian distribution in frames. Lower values will "
+                           "increase sharpness across the Filter Width.");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+
+  prop = RNA_def_property(srna, "filter_width", PROP_INT, PROP_TIME);
+  RNA_def_property_int_sdna(prop, nullptr, "filter_width");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_range(prop, 1, 32);
+  RNA_def_property_ui_text(prop,
+                           "Filter Width",
+                           "The number of frames to average around each keyframe. Higher values "
+                           "allow more smoothing, but will decrease performance.");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
 }
 
@@ -2779,6 +2821,7 @@ void RNA_def_fcurve(BlenderRNA *brna)
   rna_def_fmodifier_limits(brna);
   rna_def_fmodifier_noise(brna);
   rna_def_fmodifier_stepped(brna);
+  rna_def_fmodifier_smooth(brna);
 }
 
 }  // namespace blender

@@ -80,6 +80,16 @@ if(WITH_OPENSUBDIV)
     add_definitions(-D_USE_MATH_DEFINES)
   endif()
 
+  if(WITH_METAL_BACKEND)
+    add_definitions(-DWITH_METAL_BACKEND)
+  endif()
+  if(WITH_OPENGL_BACKEND)
+    add_definitions(-DWITH_OPENGL_BACKEND)
+  endif()
+  if(WITH_VULKAN_BACKEND)
+    add_definitions(-DWITH_VULKAN_BACKEND)
+  endif()
+
   set(GLSL_SRC
     internal/evaluator/shaders/osd_eval_stencils_comp.glsl
     internal/evaluator/shaders/osd_eval_patches_comp.glsl
@@ -92,7 +102,7 @@ if(WITH_OPENSUBDIV)
     internal/evaluator/shaders
   )
 
-  set(GLSL_C)
+  set(GLSL_C "")
   foreach(GLSL_FILE ${GLSL_SRC})
     glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
   endforeach()

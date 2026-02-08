@@ -14,6 +14,7 @@ set(SRC
   aligned_malloc.cpp
   colorspace.cpp
   debug.cpp
+  guarded_allocator.cpp
   ies.cpp
   image_metadata.cpp
   log.cpp
@@ -35,6 +36,7 @@ set(SRC
 )
 
 set(LIB
+  PUBLIC bf::dependencies::openimageio
   ${TBB_LIBRARIES}
   ${ZSTD_LIBRARIES}
 )
@@ -54,7 +56,6 @@ set(SRC_HEADERS
   defines.h
   deque.h
   disjoint_set.h
-  guarded_allocator.cpp
   guarded_allocator.h
   guiding.h
   half.h
@@ -119,6 +120,7 @@ set(SRC_HEADERS
   types_int3.h
   types_int4.h
   types_int8.h
+  types_normal.h
   types_spectrum.h
   types_rgbe.h
   types_uchar2.h
