@@ -25,10 +25,6 @@ void multires_reshape_apply_base_update_mesh_coords(MultiresReshapeContext *resh
 {
   Mesh *base_mesh = reshape_context->base_mesh;
   MutableSpan<float3> base_positions = base_mesh->vert_positions_for_write();
-  float3 *basis_data = nullptr;
-  if (reshape_context->basis_shape_key) {
-    basis_data = (float3 *)reshape_context->basis_shape_key->data;
-  }
   /* Update the context in case the vertices were duplicated. */
   reshape_context->base_positions = base_positions;
 
@@ -50,9 +46,6 @@ void multires_reshape_apply_base_update_mesh_coords(MultiresReshapeContext *resh
     const float3 D = math::transform_direction(tangent_matrix, grid_element.displacement);
 
     base_positions[corner_verts[loop_index]] = P + D;
-    if (basis_data) {
-      basis_data[corner_verts[loop_index]] = P + D;
-    }
   }
 }
 
@@ -72,10 +65,6 @@ void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape
 {
   Mesh *base_mesh = reshape_context->base_mesh;
   MutableSpan<float3> base_positions = base_mesh->vert_positions_for_write();
-  float3 *basis_data = nullptr;
-  if (reshape_context->basis_shape_key) {
-    basis_data = (float3 *)reshape_context->basis_shape_key->data;
-  }
   /* Update the context in case the vertices were duplicated. */
   reshape_context->base_positions = base_positions;
   const GroupedSpan<int> vert_to_face_map = base_mesh->vert_to_face_map();
@@ -138,15 +127,23 @@ void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape
     const float dist = v3_dist_from_plane(base_positions[i], center, avg_no);
     const float3 push = avg_no * dist;
     base_positions[i] += push;
-    if (basis_data) {
-      basis_data[i] += push;
-    }
   }
 
   /* Vertices were moved around, need to update normals after all the vertices are updated
    * Probably this is possible to do in the loop above, but this is rather tricky because
    * we don't know all needed vertices' coordinates there yet. */
   base_mesh->tag_positions_changed();
+}
+
+void multires_reshape_apply_base_update_shape_key(MultiresReshapeContext *reshape_context)
+{
+  Mesh *base_mesh = reshape_context->base_mesh;
+  MutableSpan<float3> base_positions = base_mesh->vert_positions_for_write();
+  if (reshape_context->basis_shape_key) {
+    MutableSpan<float3> basis_key_data((float3 *)reshape_context->basis_shape_key->data,
+                                       base_positions.size());
+    basis_key_data.copy_from(base_positions);
+  }
 }
 
 void multires_reshape_apply_base_refine_from_base(MultiresReshapeContext *reshape_context)

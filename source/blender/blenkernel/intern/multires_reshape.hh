@@ -375,6 +375,12 @@ void multires_reshape_apply_base_update_mesh_coords(MultiresReshapeContext *resh
 void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape_context);
 
 /**
+ *Updating Shape key coordinates after apply base so as to maintain sync between mesh and
+ *shape key.
+ */
+void multires_reshape_apply_base_update_shape_key(MultiresReshapeContext *reshape_context);
+
+/**
  * Refine subdivision surface to the new positions of the base mesh.
  */
 void multires_reshape_apply_base_refine_from_base(MultiresReshapeContext *reshape_context);
