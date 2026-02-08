@@ -376,47 +376,51 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
                                        const bool is_closed,
                                        const float rotation_angle)
 {
-  float total_angle = 2.0f * std::numbers::pi;
-  int divisions = verts.size();
+  float step = 0.0f;
+  float start_angle = 0.0f;
   float vec[2];
 
-  /* For open loops, we calculate the total angle obtained
-   * by traversing the chain of vertices.
-   * Unlike closed loops whose total angle is 2*Pi, we cannot
-   * assume Pi for an open loop because it might span any
-   * amount of the circle. */
-  if (!is_closed && divisions > 1) {
-    total_angle = 0.0f;
-    divisions = verts.size() - 1;
+  if (is_regular) {
+    float total_angle = 2.0f * std::numbers::pi;
+    int divisions = verts.size();
 
-    float vec_prev[2];
-    sub_v2_v2v2(vec_prev, verts[0].co_2d, center);
+    /* For open loops, we calculate the total angle obtained by traversing
+     * the chain of vertices. Unlike closed loops whose total angle is 2*Pi,
+     * we cannot assume Pi for an open loop because it might span any amount
+     * of the circle. */
+    if (!is_closed && divisions > 1) {
+      total_angle = 0.0f;
+      divisions = verts.size() - 1;
 
-    for (const int i : verts.index_range()) {
-      float vec_curr[2];
-      sub_v2_v2v2(vec_curr, verts[i].co_2d, center);
+      float vec_prev[2];
+      sub_v2_v2v2(vec_prev, verts[0].co_2d, center);
 
-      total_angle += angle_v2v2(vec_prev, vec_curr);
-      copy_v2_v2(vec_prev, vec_curr);
+      for (const int i : verts.index_range()) {
+        float vec_curr[2];
+        sub_v2_v2v2(vec_curr, verts[i].co_2d, center);
+
+        total_angle += angle_v2v2(vec_prev, vec_curr);
+        copy_v2_v2(vec_prev, vec_curr);
+      }
     }
-  }
 
-  const float step = total_angle / divisions;
-  float start_angle = 0.0f;
-  float sum_sin = 0.0f;
-  float sum_cos = 0.0f;
+    step = total_angle / divisions;
+    float sum_sin = 0.0f;
+    float sum_cos = 0.0f;
 
-  /* Using only one vertex as the basis for the start angle can skew the resulting
-   * rotation of the circle in an undesirable way.
-   * So instead, we calculate the circular mean of the rotation by measuring the angular
-   * deviation for every vertex and averaging them to find the best fit alignment. */
-  for (const int i : verts.index_range()) {
-    sub_v2_v2v2(vec, verts[i].co_2d, center);
-    const float angle_diff = atan2f(vec[1], vec[0]) - (step * i);
-    sum_sin += sinf(angle_diff);
-    sum_cos += cosf(angle_diff);
+    /* Using only one vertex as the basis for the start angle can skew
+     * the resulting rotation of the circle in an undesirable way.
+     * So instead, we calculate the circular mean of the rotation by measuring
+     * the angular deviation for every vertex and averaging them to find the best
+     * fit alignment. */
+    for (const int i : verts.index_range()) {
+      sub_v2_v2v2(vec, verts[i].co_2d, center);
+      const float angle_diff = atan2f(vec[1], vec[0]) - (step * i);
+      sum_sin += sinf(angle_diff);
+      sum_cos += cosf(angle_diff);
+    }
+    start_angle = atan2f(sum_sin, sum_cos);
   }
-  start_angle = atan2f(sum_sin, sum_cos);
 
   for (const int i : verts.index_range()) {
     float angle;
