@@ -839,11 +839,6 @@ static void mesh_build_data(Depsgraph &depsgraph,
       depsgraph, scene, ob, true, need_mapping, dataMask, true);
   const Mesh *mesh_eval = geometry_set.get_mesh();
 
-  BKE_object_eval_assign_data(&ob, &const_cast<ID &>(mesh_eval->id), false);
-  ob.runtime->geometry_set_eval = new GeometrySet(std::move(geometry_set));
-  ob.runtime->last_data_mask = dataMask;
-  ob.runtime->last_need_mapping = need_mapping;
-
   /* Make sure that drivers can target shapekey properties.
    * Note that this causes a potential inconsistency, as the shapekey may have a
    * different topology than the evaluated mesh. */
@@ -855,6 +850,11 @@ static void mesh_build_data(Depsgraph &depsgraph,
       }
     }
   }
+
+  BKE_object_eval_assign_data(&ob, &const_cast<ID &>(mesh_eval->id), false);
+  ob.runtime->geometry_set_eval = new GeometrySet(std::move(geometry_set));
+  ob.runtime->last_data_mask = dataMask;
+  ob.runtime->last_need_mapping = need_mapping;
 
   if ((ob.mode & OB_MODE_ALL_SCULPT) && ob.runtime->sculpt_session) {
     if (DEG_is_active(&depsgraph)) {
