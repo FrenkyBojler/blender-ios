@@ -252,10 +252,10 @@ static void project_loop_to_2d(const Vector<BMVert *> &loop,
     float vec[3];
     sub_v3_v3v3(vec, v->co, center);
 
-    CircleVert cv;
-    cv.v = v;
-    cv.co_2d.x = dot_v3v3(vec, p);
-    cv.co_2d.y = dot_v3v3(vec, q);
+    CircleVert cv{
+        .v = v,
+        .co_2d = {dot_v3v3(vec, p), dot_v3v3(vec, q)}
+    };
 
     r_2d_verts.append(cv);
   }
