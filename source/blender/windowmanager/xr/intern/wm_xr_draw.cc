@@ -178,9 +178,8 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   Scene *scene = CTX_data_scene(xr_context);
 
   /* The XR context depgraph is separately evaluted outside of drawing within the XR surface
-   * #do_depsgraph callback. As such, obtain the depsgraph directly without evaluating it.
-   * Equivalent to #CTX_data_despgraph_on_load. */
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, CTX_data_view_layer(xr_context));
+   * #do_depsgraph callback. Thus, obtain the depsgraph directly without evaluating it. */
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(xr_context);
 
   /* Draws the view into the surface_data->viewport's frame-buffers. */
   ED_view3d_draw_offscreen_simple(depsgraph,
