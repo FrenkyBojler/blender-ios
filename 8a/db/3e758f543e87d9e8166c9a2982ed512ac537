@@ -13,3 +13,4 @@ Referenced by pull request #148411, Fix #148254: Broken negative scale instances
 Referenced by commit 0ddf51daa5df9ae21359d9788f9d6cd4a39b350b, Fix #148254: Broken negative scale instances
 Referenced by pull request #149139, Fix #149095: Instanced GP objects rendered in wrong order
 Referenced by commit c6d7bbbea661add088d9a3286fd385318d1bd3ff, Fix #149095: Instanced GP objects rendered in wrong order
+Referenced by issue #154075, Instances of active sculpt object are invisible
