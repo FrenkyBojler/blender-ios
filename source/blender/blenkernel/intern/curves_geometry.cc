@@ -249,7 +249,15 @@ void CurvesGeometry::fill_curve_types(const CurveType type)
     this->attributes_for_write().remove("curve_type");
   }
   else {
-    this->curve_types_for_write().fill(type);
+    const GPointer value(CPPType::get<int8_t>(), &type);
+    Attribute::SingleData data = Attribute::SingleData::from_value(value);
+    if (Attribute *attr = this->attribute_storage.wrap().lookup("curve_type")) {
+      attr->assign_data(std::move(data));
+    }
+    else {
+      this->attribute_storage.wrap().add(
+          "curve_type", AttrDomain::Curve, AttrType::Int8, std::move(data));
+    }
   }
   this->runtime->type_counts.fill(0);
   this->runtime->type_counts[type] = this->curves_num();
@@ -280,8 +288,8 @@ std::array<int, CURVE_TYPES_NUM> calculate_type_counts(const VArray<int8_t> &typ
   CountsType counts;
   counts.fill(0);
 
-  if (types.is_single()) {
-    counts[types.get_internal_single()] = types.size();
+  if (const std::optional<int8_t> single = types.get_if_single()) {
+    counts[*single] = types.size();
     return counts;
   }
 
@@ -1683,6 +1691,9 @@ void CurvesGeometry::reverse_curves(const IndexMask &curves_to_reverse)
     if (iter.data_type == bke::AttrType::String) {
       return;
     }
+    if (iter.storage_type == bke::AttrStorageType::Single) {
+      return;
+    }
     if (bezier_handle_names.contains(iter.name)) {
       return;
     }
@@ -1939,10 +1950,15 @@ CurvesGeometry::BlendWriteData::BlendWriteData(ResourceScope &scope)
 {
 }
 
-void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_data)
+void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_data,
+                                         const bool use_5_0_compatibility)
 {
   CustomData_reset(&this->curve_data_legacy);
-  attribute_storage_blend_write_prepare(this->attribute_storage.wrap(), write_data.attribute_data);
+  attribute_storage_blend_write_prepare(
+      this->attribute_storage.wrap(),
+      use_5_0_compatibility,
+      [&](const AttrDomain domain) { return this->attributes().domain_size(domain); },
+      write_data.attribute_data);
   CustomData_blend_write_prepare(this->point_data,
                                  AttrDomain::Point,
                                  this->points_num(),

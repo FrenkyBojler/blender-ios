@@ -407,8 +407,8 @@ struct GHOST_InstanceVK {
       if (
 #ifndef __APPLE__
           !device_vk.features.features.geometryShader ||
-          !device_vk.features.features.vertexPipelineStoresAndAtomics ||
 #endif
+          !device_vk.features.features.vertexPipelineStoresAndAtomics ||
           !device_vk.features.features.multiViewport ||
           !device_vk.features.features.shaderClipDistance ||
           !device_vk.features.features.fragmentStoresAndAtomics ||
@@ -508,8 +508,8 @@ struct GHOST_InstanceVK {
     VkPhysicalDeviceFeatures device_features = {};
 #ifndef __APPLE__
     device_features.geometryShader = VK_TRUE;
-    device_features.vertexPipelineStoresAndAtomics = VK_TRUE;
 #endif
+    device_features.vertexPipelineStoresAndAtomics = VK_TRUE;
     device_features.multiViewport = VK_TRUE;
     device_features.shaderClipDistance = VK_TRUE;
     device_features.fragmentStoresAndAtomics = VK_TRUE;
@@ -1515,7 +1515,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     GHOST_InstanceVK &instance_vk = vulkan_instance.value();
     instance_vk.extensions.enable(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true);
 
-    /* Some XR platforms load functions without knowning if they were replaced by a core
+    /* Some XR platforms load functions without knowing if they were replaced by a core
      * function. Monado for example always uses the extension functions. Due to maintenance changes
      * drivers now only return the function pointer when the extension is enabled.
      *
