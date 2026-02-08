@@ -1142,8 +1142,8 @@ struct UserDef {
   short animation_flag = USER_ANIM_HIGH_QUALITY_DRAWING;
 
   /** Options for text rendering. */
-  short text_render = USER_TEXT_SLASHED_ZERO_UI | USER_TEXT_DISAMBIGUATION_INTER |
-                      USER_TEXT_OPEN_DIGITS_INTER | USER_TEXT_DISCRETIONARY_LIGATURES_UI;
+  short text_render = USER_TEXT_DISAMBIGUATION_INTER | USER_TEXT_OPEN_DIGITS_INTER |
+                      USER_TEXT_DISCRETIONARY_LIGATURES_UI;
   char _pad19[1];
 
   char navigation_mode = VIEW_NAVIGATION_WALK;
