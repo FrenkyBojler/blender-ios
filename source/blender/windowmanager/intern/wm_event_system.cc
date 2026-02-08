@@ -882,6 +882,10 @@ static eHandlerActionFlag wm_handler_ui_call(bContext *C,
                                              const wmEvent *event,
                                              const bool always_pass)
 {
+  if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+    printf("\n>>> wm_handler_ui_call() ENTERED\n");
+  }
+
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
   ARegion *region_popup = CTX_wm_region_popup(C);
@@ -923,6 +927,29 @@ static eHandlerActionFlag wm_handler_ui_call(bContext *C,
   if (handler->context.region_popup) {
     BLI_assert(screen_temp_region_exists(handler->context.region_popup));
     CTX_wm_region_popup_set(C, handler->context.region_popup);
+  }
+
+  // todo(habib): doc: nav gizmos more important than nodes buttons
+  // todo(habib): check for performance impacts
+  ARegion *region_check = handler->context.region ? handler->context.region : region;
+  if (region_check && region_check->runtime->gizmo_map) {
+    wmGizmoMap *gzmap = region_check->runtime->gizmo_map;
+    int part = -1;
+    wmGizmo *gz = wm_gizmomap_highlight_find(gzmap, C, event, &part);
+
+    if (gz != nullptr) {
+      const eWM_GizmoFlagMapDrawStep step = WM_gizmomap_drawstep_from_gizmo_group(
+          gz->parent_gzgroup);
+      const bool is_nav_gizmo = (step == WM_GIZMOMAP_DRAWSTEP_2D_NAV);
+
+      if (is_nav_gizmo) {
+        if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+          printf("### Found nav gizmo\n");  // todo(habib): remove
+        }
+        // todo(habib): cleanup necessary?
+        return WM_HANDLER_CONTINUE;
+      }
+    }
   }
 
   int retval = handler->handle_fn(C, event, handler->user_data);
@@ -3247,6 +3274,10 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
     return action;
   }
 
+  if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+    printf("\n>>> wm_handlers_do_gizmo_handler() ENTERED\n");
+  }
+
   /* Drag events use the previous click location to highlight the gizmos,
    * Get the highlight again in case the user dragged off the gizmo. */
   const bool is_event_drag = (event->val == KM_PRESS_DRAG);
@@ -3265,21 +3296,6 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
   if (gz && ISMOUSE(event->type) && event->val == KM_PRESS) {
     /* Remove any tooltips on mouse down. #83589 */
     WM_tooltip_clear(C, CTX_wm_window(C));
-  }
-
-  /* Needed so UI blocks over gizmos don't let events fall through to the gizmos,
-   * noticeable for the node editor - where dragging on a node should move it, see: #73212.
-   * note we still allow for starting the gizmo drag outside, then travel 'inside' the node. */
-  if (region->runtime->type->clip_gizmo_events_by_ui) {
-    if (ui::region_block_find_mouse_over(region, event->xy, true)) {
-      if (gz != nullptr && event->type != EVT_GIZMO_UPDATE) {
-        if (restore_highlight_unless_activated == false) {
-          WM_tooltip_clear(C, CTX_wm_window(C));
-          wm_gizmomap_highlight_set(gzmap, C, nullptr, 0);
-        }
-      }
-      return action;
-    }
   }
 
   struct PrevGizmoData {
@@ -3329,7 +3345,46 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
     }
   }
 
+  /* Navigation gizmos are checked before nodes. */
+  wmGizmo *gz_test = nullptr;
+  int part_test = -1;
+  bool is_nav_gizmo = false;
+
+  if (handle_highlight || handle_keymap) {
+    gz_test = wm_gizmomap_highlight_find(gzmap, C, event, &part_test);
+
+    if (gz_test != nullptr) {
+      const eWM_GizmoFlagMapDrawStep step = WM_gizmomap_drawstep_from_gizmo_group(
+          gz_test->parent_gzgroup);
+      is_nav_gizmo = (step == WM_GIZMOMAP_DRAWSTEP_2D_NAV);
+
+      if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+        printf("### Found gizmo: %s (group: %s, nav=%d)\n",
+               gz_test->type->idname,
+               gz_test->parent_gzgroup->type->idname,
+               is_nav_gizmo);
+      }
+    }
+  }
+
+  // todo(habib): update
+  /* Needed so UI blocks over gizmos don't let events fall through to the gizmos,
+   * noticeable for the node editor - where dragging on a node should move it, see: #73212.
+   * note we still allow for starting the gizmo drag outside, then travel 'inside' the node. */
+  if (region->runtime->type->clip_gizmo_events_by_ui && !is_nav_gizmo) {
+    if (ui::region_block_find_mouse_over(region, event->xy, true)) {
+      if (gz != nullptr && event->type != EVT_GIZMO_UPDATE) {
+        if (restore_highlight_unless_activated == false) {
+          WM_tooltip_clear(C, CTX_wm_window(C));
+          wm_gizmomap_highlight_set(gzmap, C, nullptr, 0);
+        }
+      }
+      return action;
+    }
+  }
+
   if (handle_highlight) {
+    // todo(habib): reuse same gizmo found above?
     int part = -1;
     gz = wm_gizmomap_highlight_find(gzmap, C, event, &part);
 
@@ -3491,6 +3546,9 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
 
       /* Handle all types here. */
       if (handler_base->type == WM_HANDLER_TYPE_KEYMAP) {
+        if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+          printf("\n>>> KEYMAP HANDLER running (after gizmo)\n");
+        }
         wmEventHandler_Keymap *handler = reinterpret_cast<wmEventHandler_Keymap *>(handler_base);
         wmEventHandler_KeymapResult km_result;
         WM_event_get_keymaps_from_handler(wm, win, handler, &km_result);
@@ -3499,6 +3557,9 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
         const bool event_is_timer = ISTIMER(event->type);
         for (int km_index = 0; km_index < km_result.keymaps_len; km_index++) {
           wmKeyMap *keymap = km_result.keymaps[km_index];
+          if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+            printf("  Keymap: %s\n", keymap->idname);
+          }
           action_iter |= wm_handlers_do_keymap_with_keymap_handler(
               C, event, handlers, handler, keymap, do_debug_handler);
           if (action_iter & WM_HANDLER_BREAK) {
@@ -3506,6 +3567,9 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
           }
         }
         action |= action_iter;
+        if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+          printf("### KEYMAP HANDLER returned action: %d\n", action);
+        }
 
         /* Clear the tool-tip whenever a key binding is handled, without this tool-tips
          * are kept when a modal operators starts (annoying but otherwise harmless). */
@@ -3581,9 +3645,15 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
         }
       }
       else if (handler_base->type == WM_HANDLER_TYPE_GIZMO) {
+        if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+          printf("\n>>> GIZMO HANDLER running (before keymap)\n");
+        }
         wmEventHandler_Gizmo *handler = reinterpret_cast<wmEventHandler_Gizmo *>(handler_base);
         action |= wm_handlers_do_gizmo_handler(
             C, wm, handler, event, always_pass, handlers, do_debug_handler);
+        if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+          printf("### GIZMO HANDLER returned action: %d\n", action);
+        }
       }
       else if (handler_base->type == WM_HANDLER_TYPE_OP) {
         wmEventHandler_Op *handler = reinterpret_cast<wmEventHandler_Op *>(handler_base);

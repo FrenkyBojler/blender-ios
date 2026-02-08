@@ -106,7 +106,7 @@ void WM_msgbus_clear_by_owner(wmMsgBus *mbus, void *owner)
 
 void WM_msg_dump(wmMsgBus *mbus, const char *info_str)
 {
-  printf(">>>> %s\n", info_str);
+  printf("###> %s\n", info_str);
   for (wmMsgSubscribeKey &key : mbus->messages) {
     const wmMsg *msg = wm_msg_subscribe_value_msg_cast(&key);
     const wmMsgTypeInfo *info = &wm_msg_types[msg->type];

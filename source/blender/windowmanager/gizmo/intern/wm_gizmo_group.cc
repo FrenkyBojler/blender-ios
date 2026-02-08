@@ -302,6 +302,8 @@ bool wm_gizmogroup_is_visible_in_drawstep(const wmGizmoGroup *gzgroup,
   switch (drawstep) {
     case WM_GIZMOMAP_DRAWSTEP_2D:
       return (gzgroup->type->flag & WM_GIZMOGROUPTYPE_3D) == 0;
+    case WM_GIZMOMAP_DRAWSTEP_2D_NAV:
+      return (gzgroup->type->flag & WM_GIZMGROUPTYPE_NAV) != 0;
     case WM_GIZMOMAP_DRAWSTEP_3D:
       return (gzgroup->type->flag & WM_GIZMOGROUPTYPE_3D);
     default:

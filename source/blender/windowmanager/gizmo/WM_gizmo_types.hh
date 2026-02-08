@@ -519,6 +519,8 @@ struct wmGizmoGroup {
  */
 enum eWM_GizmoFlagMapDrawStep {
   /** Draw 2D gizmo-groups (#WM_GIZMOGROUPTYPE_3D not set). */
+  // todo(habib): Rename
+  // todo(habib): Invert logic? Most cases it's navigation, exception is compositor gizmos
   WM_GIZMOMAP_DRAWSTEP_2D = 0,
   WM_GIZMOMAP_DRAWSTEP_2D_NAV,
 
