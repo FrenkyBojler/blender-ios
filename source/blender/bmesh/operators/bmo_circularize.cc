@@ -380,9 +380,25 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
   int divisions = verts.size();
   float vec[2];
 
+  /* For open loops, we calculate the total angle obtained
+   * by traversing the chain of vertices.
+   * Unlike closed loops whose total angle is 2*Pi, we cannot
+   * assume Pi for an open loop because it might span any
+   * amount of the circle. */
   if (!is_closed && divisions > 1) {
-    total_angle = std::numbers::pi;
+    total_angle = 0.0f;
     divisions = verts.size() - 1;
+
+    float vec_prev[2];
+    sub_v2_v2v2(vec_prev, verts[0].co_2d, center);
+
+    for (const int i : verts.index_range()) {
+      float vec_curr[2];
+      sub_v2_v2v2(vec_curr, verts[i].co_2d, center);
+
+      total_angle += angle_v2v2(vec_prev, vec_curr);
+      copy_v2_v2(vec_prev, vec_curr);
+    }
   }
 
   const float step = total_angle / divisions;
