@@ -4297,6 +4297,7 @@ static std::unique_ptr<Button> ui_but_new(const ButtonType type)
       ATTR_FALLTHROUGH;
     case ButtonType::Popover:
       but = std::make_unique<ButtonMenu>();
+      break;
     default:
       but = std::make_unique<Button>();
       break;
