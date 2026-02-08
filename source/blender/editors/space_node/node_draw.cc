@@ -4855,6 +4855,7 @@ void node_draw_space(const bContext &C, ARegion &region)
 
       draw_nodetree(C, region, *ntree, path->parent_key);
 
+      // todo(habib): move to common function
       {
         float original_proj[4][4];
         GPU_matrix_projection_get(original_proj);
