@@ -65,7 +65,7 @@ static int node_shader_gpu_tex_coord(GPUMaterial *mat,
     }
 
     GPUNodeLink *uv_attr = GPU_uniform_attribute(
-        mat, "UVMap", true, reinterpret_cast<uint32_t *>(&uv_hash));
+        mat, "", true, reinterpret_cast<uint32_t *>(&uv_hash));
     GPU_link(mat, "node_attribute_uniform", uv_attr, GPU_constant(&uv_hash), &mtface);
   }
   else {
