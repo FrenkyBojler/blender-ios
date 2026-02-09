@@ -66,20 +66,24 @@ struct DataKey {
   friend bool operator==(const DataKey &a, const DataKey &b) = default;
 };
 
-struct Geometries {
-  Vector<std::string> paths;
-  Vector<GeometrySet> geometry_sets;
-
-  VectorSet<DataKey> data_keys;
-  Vector<AttrDomain> domains;
-  Vector<bke::MutableAttributeAccessor> attribute_accessors;
-
+struct GeometryData {
+  bke::MutableAttributeAccessor attributes;
+  AttrDomain domain;
+  int size;
   /**
    * Inverse of the mass attribute + extra changes:
    * - For pinned positions this is set to 0.
    * - If there is no mass attribute, or it is <= 0, this is set to 1.
    */
-  Vector<Vector<float>> inverse_masses_;
+  Array<float> inv_masses;
+};
+
+struct Geometries {
+  Vector<std::string> paths;
+  Vector<GeometrySet> geometry_sets;
+
+  VectorSet<DataKey> data_keys;
+  Vector<GeometryData> data;
 };
 
 struct FieldEvaluatorKey {
@@ -137,6 +141,7 @@ struct ConstraintsInfo {
 class XpbdSolverStep {
  private:
   ResourceScope &scope_;
+  IndexMaskMemory memory_;
   Bundle &world_;
   const float total_delta_time_;
   const int substeps_;
@@ -212,10 +217,10 @@ class XpbdSolverStep {
         }
         bke::GeometryComponent &component = geometry.get_component_for_write(type);
         geometries_.data_keys.add_new({geo_bundle_i, type, std::nullopt});
-        geometries_.attribute_accessors.append(*component.attributes_for_write());
-        geometries_.domains.append(type == bke::GeometryComponent::Type::Instance ?
-                                       AttrDomain::Instance :
-                                       AttrDomain::Point);
+        GeometryData geo_data{*component.attributes_for_write()};
+        geo_data.domain = type == bke::GeometryComponent::Type::Instance ? AttrDomain::Instance :
+                                                                           AttrDomain::Point;
+        geometries_.data.append(std::move(geo_data));
       }
       if (geometry.has_grease_pencil()) {
         using namespace blender::bke::greasepencil;
@@ -227,54 +232,58 @@ class XpbdSolverStep {
             continue;
           }
           bke::CurvesGeometry &curves = drawing->strokes_for_write();
-          geometries_.attribute_accessors.append(curves.attributes_for_write());
           geometries_.data_keys.add_new(
               {geo_bundle_i, bke::GeometryComponent::Type::Curve, layer_i});
-          geometries_.domains.append(AttrDomain::Point);
+          GeometryData geo_data{curves.attributes_for_write()};
+          geo_data.domain = AttrDomain::Point;
+          geometries_.data.append(std::move(geo_data));
         }
       }
+    }
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      geo_data.size = geo_data.attributes.domain_size(geo_data.domain);
     }
   }
 
   void prepare_inverse_masses()
   {
-    geometries_.inverse_masses_.resize(geometries_.data_keys.size());
     for (const int data_key_i : geometries_.data_keys.index_range()) {
-      const AttrDomain domain = geometries_.domains[data_key_i];
-      const bke::AttributeAccessor &attributes = geometries_.attribute_accessors[data_key_i];
-      const int domain_size = attributes.domain_size(domain);
-      Vector<float> &inverse_masses = geometries_.inverse_masses_[data_key_i];
-      inverse_masses.resize(domain_size);
-      const bke::AttributeReader<float> masses_attr = attributes.lookup<float>("mass", domain);
-      const bke::AttributeReader<bool> pin_attr = attributes.lookup_or_default<bool>(
-          "sim_pinned", domain, false);
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      geo_data.inv_masses.reinitialize(geo_data.size);
+      MutableSpan<float> inv_masses = geo_data.inv_masses;
+
+      const bke::AttributeReader<float> masses_attr = geo_data.attributes.lookup<float>(
+          "mass", geo_data.domain);
+      const bke::AttributeReader<bool> pin_attr = geo_data.attributes.lookup_or_default<bool>(
+          "sim_pinned", geo_data.domain, false);
 
       if (masses_attr) {
-        threading::parallel_for(inverse_masses.index_range(), 2048, [&](const IndexRange range) {
+        threading::parallel_for(IndexRange(geo_data.size), 2048, [&](const IndexRange range) {
           for (const int i : range) {
             const float mass = masses_attr.varray[i];
             const bool pinned = pin_attr.varray[i];
             if (pinned) {
-              inverse_masses[i] = 0.0f;
+              inv_masses[i] = 0.0f;
             }
             else if (mass <= 0.0f) {
-              inverse_masses[i] = 1.0f;
+              inv_masses[i] = 1.0f;
             }
             else {
-              inverse_masses[i] = 1.0f / mass;
+              inv_masses[i] = 1.0f / mass;
             }
           }
         });
       }
       else {
-        threading::parallel_for(inverse_masses.index_range(), 2048, [&](const IndexRange range) {
+        threading::parallel_for(inv_masses.index_range(), 2048, [&](const IndexRange range) {
           for (const int i : range) {
             const bool pinned = pin_attr.varray[i];
             if (pinned) {
-              inverse_masses[i] = 0.0f;
+              inv_masses[i] = 0.0f;
             }
             else {
-              inverse_masses[i] = 1.0f;
+              inv_masses[i] = 1.0f;
             }
           }
         });
@@ -349,7 +358,7 @@ class XpbdSolverStep {
     FieldEvaluatorKey key{data_key_i, domain, selection ? *selection : get_constant_true_field()};
     return *field_evaluators_.lookup_or_add_cb(key, [&]() {
       const auto &field_context = this->make_geometry_field_context(data_key_i, domain);
-      const int domain_size = geometries_.attribute_accessors[data_key_i].domain_size(domain);
+      const int domain_size = geometries_.data[data_key_i].size;
       auto &evaluator = scope_.construct<fn::FieldEvaluator>(field_context, domain_size);
       if (selection) {
         evaluator.set_selection(*selection);
@@ -441,16 +450,16 @@ class XpbdSolverStep {
   void do_simulation()
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
-      bke::MutableAttributeAccessor &attributes = geometries_.attribute_accessors[data_key_i];
+      GeometryData &geo_data = geometries_.data[data_key_i];
       bke::SpanAttributeWriter<float3> positions_attr =
-          attributes.lookup_or_add_for_write_span<float3>("position", AttrDomain::Point);
+          geo_data.attributes.lookup_or_add_for_write_span<float3>("position", AttrDomain::Point);
       bke::SpanAttributeWriter<float3> velocities_attr =
-          attributes.lookup_or_add_for_write_span<float3>("velocity", AttrDomain::Point);
+          geo_data.attributes.lookup_or_add_for_write_span<float3>("velocity", AttrDomain::Point);
       MutableSpan<float3> positions = positions_attr.span;
       MutableSpan<float3> velocities = velocities_attr.span;
-      const VArraySpan<float3> external_forces = *attributes.lookup_or_default<float3>(
+      const VArraySpan<float3> external_forces = *geo_data.attributes.lookup_or_default<float3>(
           "external_force", AttrDomain::Point, float3(0, 0, 0));
-      const Span<float> inv_masses = geometries_.inverse_masses_[data_key_i];
+      const Span<float> inv_masses = geo_data.inv_masses;
       threading::parallel_for(positions.index_range(), 256, [&](const IndexRange range) {
         for (const int i : range) {
           const float3 external_force = external_forces[i];
