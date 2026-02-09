@@ -61,7 +61,7 @@ class Grid : Overlay {
     if (state.is_space_image()) {
       float3 tile_scale(grid_ubo_.clip_rect.x, grid_ubo_.clip_rect.y, 0.0f);
       const float4 color_back = math::interpolate(
-          res.theme.colors.background, res.theme.colors.grid, 0.33);
+          res.theme.colors.background, res.theme.colors.grid, 0.5f);
 
       auto &sub = grid_ps_.sub("grid_background");
       sub.shader_set(res.shaders->grid_background.get());
