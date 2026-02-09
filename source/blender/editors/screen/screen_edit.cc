@@ -2101,7 +2101,7 @@ bool ED_screen_stereo3d_required(const bScreen *screen, const Scene *scene)
         }
 
         sseq = static_cast<SpaceSeq *>(area.spacedata.first);
-        if (ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
+        if (ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW, SEQ_VIEW_SCOPES)) {
           return true;
         }
 

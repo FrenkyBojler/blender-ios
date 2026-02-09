@@ -438,6 +438,7 @@ enum eSpaceSeq_Displays {
   SEQ_VIEW_SEQUENCE = 1,
   SEQ_VIEW_PREVIEW = 2,
   SEQ_VIEW_SEQUENCE_PREVIEW = 3,
+  SEQ_VIEW_SCOPES = 4,
 };
 
 /** #SpaceSeq.render_size */

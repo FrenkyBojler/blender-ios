@@ -17,6 +17,7 @@
 
 #include "DNA_listBase.h"
 #include "DNA_sequence_types.h"
+#include "DNA_space_enums.h"
 
 #include "RNA_access.hh"
 
@@ -61,6 +62,13 @@ class StripsDrawBatch;
 struct SpaceSeq_Runtime : public NonCopyable {
   int rename_channel_index = 0;
   float timeline_clamp_custom_range = 0;
+  eSpaceSeq_RegionType last_scope_mainb = SEQ_DRAW_IMG_WAVEFORM;
+  char last_view = SEQ_VIEW_SEQUENCE;
+  bool preview_view_valid = false;
+  bool scopes_view_valid = false;
+  rctf preview_view_cur{};
+  rctf scopes_view_cur{};
+  bool tools_region_was_visible = false;
 
   SeqScopes scopes;
 

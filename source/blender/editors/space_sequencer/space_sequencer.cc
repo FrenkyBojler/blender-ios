@@ -62,6 +62,58 @@ static void sequencer_scopes_tag_refresh(ScrArea *area, const Scene *scene)
   seq::preview_cache_invalidate(const_cast<Scene *>(scene));
 }
 
+static bool sequencer_is_display_mode_a_scope(const SpaceSeq &sseq)
+{
+  return ELEM(sseq.mainb,
+              SEQ_DRAW_IMG_WAVEFORM,
+              SEQ_DRAW_IMG_RGBPARADE,
+              SEQ_DRAW_IMG_VECTORSCOPE,
+              SEQ_DRAW_IMG_HISTOGRAM);
+}
+
+static bool sequencer_is_image_preview_view(const char view)
+{
+  return ELEM(view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW);
+}
+
+static bool sequencer_is_scopes_view(const char view)
+{
+  return view == SEQ_VIEW_SCOPES;
+}
+
+static void sequencer_preview_region_view_store(const char view,
+                                                SpaceSeq_Runtime &runtime,
+                                                const View2D &v2d)
+{
+  if (sequencer_is_scopes_view(view)) {
+    runtime.scopes_view_cur = v2d.cur;
+    runtime.scopes_view_valid = true;
+  }
+  else if (sequencer_is_image_preview_view(view)) {
+    runtime.preview_view_cur = v2d.cur;
+    runtime.preview_view_valid = true;
+  }
+}
+
+static bool sequencer_preview_region_view_restore(const char view,
+                                                  SpaceSeq_Runtime &runtime,
+                                                  View2D &v2d)
+{
+  if (sequencer_is_scopes_view(view)) {
+    if (runtime.scopes_view_valid) {
+      v2d.cur = runtime.scopes_view_cur;
+      return true;
+    }
+  }
+  else if (sequencer_is_image_preview_view(view)) {
+    if (runtime.preview_view_valid) {
+      v2d.cur = runtime.preview_view_cur;
+      return true;
+    }
+  }
+  return false;
+}
+
 SpaceSeq_Runtime::~SpaceSeq_Runtime() = default;
 
 /* ******************** default callbacks for sequencer space ***************** */
@@ -211,10 +263,54 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
   SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
   ARegion *region_main = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
   ARegion *region_preview = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
+  ARegion *region_tools = BKE_area_find_region_type(area, RGN_TYPE_TOOLS);
   bool view_changed = false;
+  const short old_mainb = sseq->mainb;
+
+  if (region_preview && sseq->runtime->last_view != sseq->view) {
+    sequencer_preview_region_view_store(
+        sseq->runtime->last_view, *sseq->runtime, region_preview->v2d);
+    if (sequencer_preview_region_view_restore(sseq->view, *sseq->runtime, region_preview->v2d)) {
+      ED_region_tag_redraw(region_preview);
+    }
+
+    if (region_tools) {
+      if (sequencer_is_scopes_view(sseq->view)) {
+        if ((region_tools->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_HIDDEN_BY_USER)) == 0) {
+          region_tools->flag |= RGN_FLAG_HIDDEN;
+          sseq->runtime->tools_region_was_visible = true;
+          view_changed = true;
+        }
+      }
+      else if (sseq->runtime->tools_region_was_visible) {
+        region_tools->flag &= ~RGN_FLAG_HIDDEN;
+        sseq->runtime->tools_region_was_visible = false;
+        view_changed = true;
+      }
+    }
+
+    sseq->runtime->last_view = sseq->view;
+  }
+
+  if (sseq->view == SEQ_VIEW_SCOPES) {
+    if (sequencer_is_display_mode_a_scope(*sseq)) {
+      sseq->runtime->last_scope_mainb = eSpaceSeq_RegionType(sseq->mainb);
+    }
+    else {
+      sseq->mainb = sseq->runtime->last_scope_mainb;
+      if (!sequencer_is_display_mode_a_scope(*sseq)) {
+        sseq->mainb = SEQ_DRAW_IMG_WAVEFORM;
+      }
+    }
+  }
+  else if (sequencer_is_display_mode_a_scope(*sseq)) {
+    sseq->runtime->last_scope_mainb = eSpaceSeq_RegionType(sseq->mainb);
+    sseq->mainb = SEQ_DRAW_IMG_IMBUF;
+  }
 
   switch (sseq->view) {
     case SEQ_VIEW_PREVIEW:
+    case SEQ_VIEW_SCOPES:
       /* Reset scrolling when preview region just appears. */
       if (!(region_preview->v2d.flag & V2D_IS_INIT)) {
         region_preview->v2d.cur = region_preview->v2d.tot;
@@ -261,12 +357,16 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
     ED_area_init(const_cast<bContext *>(C), window, area);
     ED_area_tag_redraw(area);
   }
+  else if (sseq->mainb != old_mainb) {
+    ED_area_tag_redraw(area);
+  }
 }
 
 static SpaceLink *sequencer_duplicate(SpaceLink *sl)
 {
   SpaceSeq *sseqn = MEM_dupalloc(reinterpret_cast<SpaceSeq *>(sl));
   sseqn->runtime = MEM_new<SpaceSeq_Runtime>(__func__);
+  sseqn->runtime->last_view = sseqn->view;
 
   /* Clear or remove stuff from old. */
   // sseq->gpd = gpencil_data_duplicate(sseq->gpd, false);
@@ -799,7 +899,7 @@ static void sequencer_tools_region_draw(const bContext *C, ARegion *region)
 static bool sequencer_preview_region_poll(const RegionPollParams *params)
 {
   const SpaceSeq *sseq = static_cast<SpaceSeq *>(params->area->spacedata.first);
-  return ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW);
+  return ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW, SEQ_VIEW_SCOPES);
 }
 
 static void sequencer_preview_region_init(wmWindowManager *wm, ARegion *region)

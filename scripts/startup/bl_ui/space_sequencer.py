@@ -28,7 +28,7 @@ def _space_view_types(st):
     view_type = st.view_type
     return (
         view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'},
-        view_type == 'PREVIEW',
+        view_type in {'PREVIEW', 'SEQUENCER_PREVIEW', 'SCOPES'},
     )
 
 
@@ -106,7 +106,7 @@ class SEQUENCER_HT_header(Header):
             row = layout.row(align=True)
             row.prop(sequencer_tool_settings, "overlap_mode", text="")
 
-        if tool_settings:
+        if tool_settings and st.view_type != 'SCOPES':
             row = layout.row(align=True)
             row.prop(tool_settings, "use_snap_sequencer", text="")
             sub = row.row(align=True)
@@ -114,8 +114,13 @@ class SEQUENCER_HT_header(Header):
 
         layout.separator_spacer()
 
-        if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
-            layout.prop(st, "display_mode", text="", icon_only=True)
+        if st.view_type == 'SCOPES':
+            row = layout.row(align=True)
+            row.prop_enum(st, "display_mode", value='WAVEFORM', text="", icon='SEQ_LUMA_WAVEFORM')
+            row.prop_enum(st, "display_mode", value='RGB_PARADE', text="", icon='RENDERLAYERS')
+            row.prop_enum(st, "display_mode", value='VECTOR_SCOPE', text="", icon='SEQ_CHROMA_SCOPE')
+            row.prop_enum(st, "display_mode", value='HISTOGRAM', text="", icon='SEQ_HISTOGRAM')
+        elif st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             layout.prop(st, "preview_channels", text="", icon_only=True)
 
             # Gizmo toggle & popover.
@@ -129,11 +134,12 @@ class SEQUENCER_HT_header(Header):
                 text="",
             )
 
-        row = layout.row(align=True)
-        row.prop(st, "show_overlays", text="", icon='OVERLAY')
-        sub = row.row(align=True)
-        sub.popover(panel="SEQUENCER_PT_overlay", text="")
-        sub.active = st.show_overlays
+        if st.view_type != 'SCOPES':
+            row = layout.row(align=True)
+            row.prop(st, "show_overlays", text="", icon='OVERLAY')
+            sub = row.row(align=True)
+            sub.popover(panel="SEQUENCER_PT_overlay", text="")
+            sub.active = st.show_overlays
 
 
 class SEQUENCER_HT_playback_controls(Header):
@@ -414,11 +420,12 @@ class SEQUENCER_MT_view(Menu):
         layout = self.layout
 
         st = context.space_data
-        is_preview = st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}
+        is_preview = st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW', 'SCOPES'}
         is_sequencer_view = st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}
         is_sequencer_only = st.view_type == 'SEQUENCER'
+        is_image_preview = st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}
 
-        if st.view_type == 'PREVIEW':
+        if st.view_type in {'PREVIEW', 'SCOPES'}:
             # Specifying the REGION_PREVIEW context is needed in preview-only
             # mode, else the lookup for the shortcut will fail in
             # wm_keymap_item_find_props() (see #32595).
@@ -434,7 +441,7 @@ class SEQUENCER_MT_view(Menu):
         layout.prop(st, "show_region_footer", text="Playback Controls")
         layout.separator()
 
-        if is_preview:
+        if is_image_preview:
             layout.prop(st, "show_transform_preview", text="Preview During Transform")
         layout.separator()
 
@@ -444,7 +451,7 @@ class SEQUENCER_MT_view(Menu):
         layout.separator()
 
         layout.operator_context = 'INVOKE_REGION_WIN'
-        if st.view_type == 'PREVIEW':
+        if st.view_type in {'PREVIEW', 'SCOPES'}:
             # See above (#32595)
             layout.operator_context = 'INVOKE_REGION_PREVIEW'
         layout.operator("sequencer.view_selected", text="Frame Selected")
@@ -1541,7 +1548,7 @@ class SequencerButtonsPanel_Output:
     @staticmethod
     def has_preview(context):
         st = context.space_data
-        return (st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'})
+        return (st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW', 'SCOPES'})
 
     @classmethod
     def poll(cls, context):

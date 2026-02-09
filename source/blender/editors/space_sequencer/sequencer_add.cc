@@ -1151,7 +1151,7 @@ static IMB_Proxy_Size seq_get_proxy_size_flags(bContext *C)
       switch (sl.spacetype) {
         case SPACE_SEQ: {
           SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(&sl);
-          if (!ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
+          if (!ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW, SEQ_VIEW_SCOPES)) {
             continue;
           }
           proxy_sizes |= seq::rendersize_to_proxysize(

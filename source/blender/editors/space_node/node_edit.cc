@@ -274,7 +274,11 @@ static compositor::NodeGroupOutputTypes get_compositor_needed_outputs(const bCon
       }
       else if (space_link->spacetype == SPACE_SEQ) {
         const SpaceSeq *space_sequencer = reinterpret_cast<const SpaceSeq *>(space_link);
-        if (ELEM(space_sequencer->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
+        if (ELEM(space_sequencer->view,
+                 SEQ_VIEW_PREVIEW,
+                 SEQ_VIEW_SEQUENCE_PREVIEW,
+                 SEQ_VIEW_SCOPES))
+        {
           needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
         }
       }

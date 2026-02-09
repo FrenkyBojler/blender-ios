@@ -1623,7 +1623,7 @@ static void draw_registered_callbacks(const bContext *C, ARegion &region)
 static bool check_scope_needs_input_texture(const SpaceSeq &sseq)
 {
   return (sseq.mainb != SEQ_DRAW_IMG_HISTOGRAM) &&
-         ELEM(sseq.view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW);
+         ELEM(sseq.view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW, SEQ_VIEW_SCOPES);
 }
 
 /* Part of the sequencer preview region drawing which renders information overlays to the

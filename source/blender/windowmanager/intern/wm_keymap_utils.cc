@@ -211,6 +211,9 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
       case SEQ_VIEW_SEQUENCE_PREVIEW:
         km_id = "Video Sequence Editor";
         break;
+      case SEQ_VIEW_SCOPES:
+        km_id = "Preview";
+        break;
     }
   }
   else {

@@ -360,7 +360,10 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
         for (ScrArea &area : screen->areabase) {
           for (SpaceLink &sl : area.spacedata) {
             if (sl.spacetype == SPACE_SEQ) {
-              if ((reinterpret_cast<SpaceSeq *>(&sl))->view == SEQ_VIEW_PREVIEW) {
+              if (ELEM((reinterpret_cast<SpaceSeq *>(&sl))->view,
+                       SEQ_VIEW_PREVIEW,
+                       SEQ_VIEW_SCOPES))
+              {
                 continue;
               }
               ListBaseT<ARegion> *regionbase = (&sl == area.spacedata.first) ? &area.regionbase :
