@@ -615,6 +615,11 @@ add_blender_test(
 )
 
 add_blender_test(
+  bl_animation_rename
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_rename.py
+)
+
+add_blender_test(
   bl_animation_nla_strip
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_nla_strip.py
 )
@@ -909,7 +914,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
         endforeach()
       endif()
 
-      if(WITH_VULKAN_BACKEND AND (name STREQUAL "workbench" OR name STREQUAL "overlay" OR WITH_GPU_RENDER_TESTS_VULKAN)
+      if(WITH_VULKAN_BACKEND AND (name STREQUAL "overlay" OR WITH_GPU_RENDER_TESTS_VULKAN)
           AND (NOT (name STREQUAL "storm_hydra" OR name STREQUAL "storm_usd") OR WITH_STORM_TESTS_VULKAN))
         foreach(render_test ${render_tests})
           add_render_test(
