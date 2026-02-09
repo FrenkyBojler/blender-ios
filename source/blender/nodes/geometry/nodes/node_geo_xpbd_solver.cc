@@ -70,6 +70,9 @@ struct GeometryData {
   bke::MutableAttributeAccessor attributes;
   AttrDomain domain;
   int size;
+
+  IndexMask pinned_mask;
+
   /**
    * Inverse of the mass attribute + extra changes:
    * - For pinned positions this is set to 0.
@@ -115,28 +118,7 @@ template<typename T> struct StartStopPair {
   }
 };
 
-struct PinPositionConstraintInfo {
-  int pin_position_bundle_i;
-  int data_key_i;
-
-  struct {
-    fn::FieldEvaluator *evaluator = nullptr;
-    int position_i;
-    int compliance_terms_i;
-  } eval;
-
-  struct {
-    std::string lambda;
-  } attributes;
-
-  Vector<int> indices;
-  Vector<StartStopPair<float3>> animations;
-  std::string lambda_attribute_name;
-};
-
-struct ConstraintsInfo {
-  Vector<PinPositionConstraintInfo> pin_positions;
-};
+struct ConstraintsInfo {};
 
 class XpbdSolverStep {
  private:
@@ -172,6 +154,7 @@ class XpbdSolverStep {
   {
     this->prepare_substep_compliance_factor();
     this->gather_geometries_from_world();
+    this->prepare_pinned_masks();
     this->prepare_inverse_masses();
     this->gather_constraints_from_world();
     this->evaluate_constraint_fields();
@@ -246,6 +229,19 @@ class XpbdSolverStep {
     }
   }
 
+  void prepare_pinned_masks()
+  {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      const bke::AttributeReader<bool> pin_attr = geo_data.attributes.lookup<bool>(
+          "sim_pinned", geo_data.domain);
+      if (!pin_attr) {
+        continue;
+      }
+      geo_data.pinned_mask = IndexMask::from_bools(*pin_attr, memory_);
+    }
+  }
+
   void prepare_inverse_masses()
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
@@ -262,11 +258,7 @@ class XpbdSolverStep {
         threading::parallel_for(IndexRange(geo_data.size), 2048, [&](const IndexRange range) {
           for (const int i : range) {
             const float mass = masses_attr.varray[i];
-            const bool pinned = pin_attr.varray[i];
-            if (pinned) {
-              inv_masses[i] = 0.0f;
-            }
-            else if (mass <= 0.0f) {
+            if (mass <= 0.0f) {
               inv_masses[i] = 1.0f;
             }
             else {
@@ -276,80 +268,17 @@ class XpbdSolverStep {
         });
       }
       else {
-        threading::parallel_for(inv_masses.index_range(), 2048, [&](const IndexRange range) {
-          for (const int i : range) {
-            const bool pinned = pin_attr.varray[i];
-            if (pinned) {
-              inv_masses[i] = 0.0f;
-            }
-            else {
-              inv_masses[i] = 1.0f;
-            }
-          }
-        });
+        inv_masses.fill(1.0f);
       }
+
+      /* Pinned points have infinite mass, so their inverse mass is 0. */
+      geo_data.pinned_mask.foreach_index([&](const int i) { inv_masses[i] = 0.0f; });
     }
   }
 
-  void gather_constraints_from_world()
-  {
-    this->gather_constraints_from_world__pin_positions();
-  }
+  void gather_constraints_from_world() {}
 
-  void gather_constraints_from_world__pin_positions()
-  {
-    const Vector<std::string> paths = gather_bundle_paths_by_type(
-        world_, PinnedPositionXPBDConstraintBundle::name);
-    for (const int bundle_i : paths.index_range()) {
-      const StringRef path = paths[bundle_i];
-      const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
-      const std::optional<Field<float3>> position = bundle.lookup<Field<float3>>("position");
-      if (!position) {
-        continue;
-      }
-      const std::optional<Field<bool>> selection = bundle.lookup<Field<bool>>("selection");
-      const std::string filter = bundle.lookup<std::string>("filter").value_or("");
-
-      const Vector<int> data_keys = find_data_keys_for_filter(path, filter);
-      for (const int data_key_i : data_keys) {
-        PinPositionConstraintInfo info;
-        info.data_key_i = data_key_i;
-        info.pin_position_bundle_i = bundle_i;
-        info.eval.evaluator = &this->get_field_evaluator(data_key_i, AttrDomain::Point, selection);
-        info.eval.position_i = info.eval.evaluator->add(*position);
-        info.eval.compliance_terms_i = info.eval.evaluator->add(
-            this->get_compliance_term_field(bundle, "compliance"));
-        constraints_info_.pin_positions.append(std::move(info));
-      }
-    }
-  }
-
-  void prepare_constraints__pin_positions()
-  {
-    for (PinPositionConstraintInfo &info : constraints_info_.pin_positions) {
-      const IndexMask &mask = info.eval.evaluator->get_evaluated_selection_as_mask();
-      const VArray<float3> pin_positions = info.eval.evaluator->get_evaluated<float3>(
-          info.eval.position_i);
-      const VArray<float> compliance_terms = info.eval.evaluator->get_evaluated<float>(
-          info.eval.compliance_terms_i);
-
-      const int pin_positions_num = mask.size();
-      info.indices.resize(pin_positions_num);
-      info.animations.resize(pin_positions_num);
-
-      // const VArraySpan<float3> old_positions =
-      //     *geometries_.attribute_accessors[info.data_key_i].lookup<float3>(
-      //         "position", geometries_.domains[info.data_key_i]);
-
-      mask.to_indices(info.indices.as_mutable_span());
-      // for (const int i : IndexRange(pin_positions_num)) {
-      //   const int point_i = info.indices[i];
-      //   const float3 &old_position = old_positions[point_i];
-      //   const float3 &pin_position = pin_positions[i];
-      //   const float compliance_term = compliance_terms[i];
-      // }
-    }
-  }
+  void prepare_constraints() {}
 
   fn::FieldEvaluator &get_field_evaluator(const int data_key_i,
                                           const AttrDomain domain,
@@ -440,11 +369,6 @@ class XpbdSolverStep {
         },
         threading::individual_task_sizes(
             [&](const int i) { return evaluators[i]->evaluation_mask().size(); }));
-  }
-
-  void prepare_constraints()
-  {
-    this->prepare_constraints__pin_positions();
   }
 
   void do_simulation()
