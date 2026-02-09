@@ -5881,300 +5881,387 @@ int RNA_property_collection_raw_set(ReportList *reports,
   return rna_raw_access(reports, ptr, prop, propname, array, type, len, 1);
 }
 
-void update_idprops_from_srna(PointerRNA &ptr, IDProperty &idprops, const bool ensure)
+static void update_idprop_bool(PointerRNA &rna_ptr, PropertyRNA &rna_prop, IDProperty &idprop)
+{
+  BLI_assert(RNA_property_type(&rna_prop) == PROP_BOOLEAN);
+  const int rna_array_size = RNA_property_array_length(&rna_ptr, &rna_prop);
+  const auto fill_new = [&]() {
+    IDP_ClearProperty(&idprop);
+    if (rna_array_size > 1) {
+      idprop.type = IDP_ARRAY;
+      idprop.subtype = IDP_BOOLEAN;
+      idprop.data.pointer = MEM_new_array_uninitialized<bool>(rna_array_size,
+                                                              "update_idprop_bool");
+      idprop.len = rna_array_size;
+      idprop.totallen = rna_array_size;
+      RNA_property_boolean_get_default_array(
+          &rna_ptr, &rna_prop, static_cast<bool *>(idprop.data.pointer));
+    }
+    else {
+      idprop.type = IDP_BOOLEAN;
+      IDP_bool_set(&idprop, RNA_property_boolean_get_default(&rna_ptr, &rna_prop));
+    }
+  };
+  switch (eIDPropertyType(idprop.type)) {
+    case IDP_STRING:
+    case IDP_IDPARRAY:
+    case IDP_ID:
+    case IDP_GROUP: {
+      fill_new();
+      break;
+    }
+    case IDP_ARRAY: {
+      const int idprop_array_size = idprop.len;
+      switch (eIDPropertyType(idprop.subtype)) {
+        case IDP_IDPARRAY:
+        case IDP_ID:
+        case IDP_STRING:
+        case IDP_ARRAY:
+        case IDP_GROUP: {
+          BLI_assert_unreachable();
+          fill_new();
+          break;
+        }
+        case IDP_INT: {
+          const int *old_values = IDP_array_int_get(&idprop);
+          bool *new_values = MEM_new_array_zeroed<bool>(rna_array_size, __func__);
+          for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
+            new_values[i] = bool(old_values[i]);
+          }
+          IDP_ClearProperty(&idprop);
+          idprop.subtype = IDP_BOOLEAN;
+          idprop.len = rna_array_size;
+          idprop.totallen = rna_array_size;
+          idprop.data.pointer = new_values;
+          break;
+        }
+        case IDP_FLOAT: {
+          const float *old_values = IDP_array_float_get(&idprop);
+          bool *new_values = MEM_new_array_zeroed<bool>(rna_array_size, __func__);
+          for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
+            new_values[i] = bool(old_values[i]);
+          }
+          IDP_ClearProperty(&idprop);
+          idprop.subtype = IDP_BOOLEAN;
+          idprop.len = rna_array_size;
+          idprop.totallen = rna_array_size;
+          idprop.data.pointer = new_values;
+          break;
+        }
+        case IDP_DOUBLE: {
+          const double *old_values = IDP_array_double_get(&idprop);
+          bool *new_values = MEM_new_array_zeroed<bool>(rna_array_size, __func__);
+          for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
+            new_values[i] = bool(old_values[i]);
+          }
+          IDP_ClearProperty(&idprop);
+          idprop.subtype = IDP_BOOLEAN;
+          idprop.len = rna_array_size;
+          idprop.totallen = rna_array_size;
+          idprop.data.pointer = new_values;
+          break;
+        }
+        case IDP_BOOLEAN: {
+          /* No change. */
+          break;
+        }
+      }
+      break;
+    }
+    case IDP_INT: {
+      const int value = IDP_int_get(&idprop);
+      IDP_ClearProperty(&idprop);
+      idprop.type = IDP_BOOLEAN;
+      IDP_bool_set(&idprop, bool(value));
+      break;
+    }
+    case IDP_FLOAT: {
+      const float value = IDP_float_get(&idprop);
+      IDP_ClearProperty(&idprop);
+      idprop.type = IDP_BOOLEAN;
+      IDP_bool_set(&idprop, bool(value));
+      break;
+    }
+    case IDP_DOUBLE: {
+      const double value = IDP_double_get(&idprop);
+      IDP_ClearProperty(&idprop);
+      idprop.type = IDP_BOOLEAN;
+      IDP_bool_set(&idprop, bool(value));
+      break;
+    }
+    case IDP_BOOLEAN: {
+      /* No change. */
+      break;
+    }
+  }
+}
+
+static void update_idprop_int(PointerRNA &rna_ptr, PropertyRNA &rna_prop, IDProperty &idprop)
+{
+  BLI_assert(RNA_property_type(&rna_prop) == PROP_INT);
+  const int rna_array_size = RNA_property_array_length(&rna_ptr, &rna_prop);
+  const auto fill_new = [&]() {
+    IDP_ClearProperty(&idprop);
+    if (rna_array_size > 1) {
+      idprop.type = IDP_ARRAY;
+      idprop.subtype = PROP_INT;
+      idprop.data.pointer = MEM_new_array_uninitialized<int>(rna_array_size, "update_idprop_int");
+      idprop.len = rna_array_size;
+      idprop.totallen = rna_array_size;
+      RNA_property_int_get_default_array(
+          &rna_ptr, &rna_prop, static_cast<int *>(idprop.data.pointer));
+    }
+    else {
+      idprop.type = PROP_INT;
+      IDP_int_set(&idprop, RNA_property_int_get_default(&rna_ptr, &rna_prop));
+    }
+  };
+  switch (eIDPropertyType(idprop.type)) {
+    case IDP_STRING:
+    case IDP_IDPARRAY:
+    case IDP_ID:
+    case IDP_GROUP: {
+      fill_new();
+      break;
+    }
+    case IDP_ARRAY: {
+      const int idprop_array_size = idprop.len;
+      switch (eIDPropertyType(idprop.subtype)) {
+        case IDP_IDPARRAY:
+        case IDP_ID:
+        case IDP_STRING:
+        case IDP_ARRAY:
+        case IDP_GROUP: {
+          BLI_assert_unreachable();
+          fill_new();
+          break;
+        }
+        case IDP_INT: {
+          /* No change. */
+          break;
+        }
+        case IDP_FLOAT: {
+          const float *old_values = IDP_array_float_get(&idprop);
+          auto *new_values = MEM_new_array_zeroed<int>(rna_array_size, __func__);
+          for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
+            new_values[i] = bool(old_values[i]);
+          }
+          IDP_ClearProperty(&idprop);
+          idprop.subtype = PROP_INT;
+          idprop.len = rna_array_size;
+          idprop.totallen = rna_array_size;
+          idprop.data.pointer = new_values;
+          break;
+        }
+        case IDP_DOUBLE: {
+          const double *old_values = IDP_array_double_get(&idprop);
+          auto *new_values = MEM_new_array_zeroed<int>(rna_array_size, __func__);
+          for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
+            new_values[i] = bool(old_values[i]);
+          }
+          IDP_ClearProperty(&idprop);
+          idprop.subtype = PROP_INT;
+          idprop.len = rna_array_size;
+          idprop.totallen = rna_array_size;
+          idprop.data.pointer = new_values;
+          break;
+        }
+        case IDP_BOOLEAN: {
+          const int8_t *old_values = IDP_array_bool_get(&idprop);
+          auto *new_values = MEM_new_array_zeroed<int>(rna_array_size, __func__);
+          for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
+            new_values[i] = int(old_values[i]);
+          }
+          IDP_ClearProperty(&idprop);
+          idprop.subtype = PROP_INT;
+          idprop.len = rna_array_size;
+          idprop.totallen = rna_array_size;
+          idprop.data.pointer = new_values;
+          break;
+        }
+      }
+      break;
+    }
+    case IDP_INT: {
+      /* No change. */
+      break;
+    }
+    case IDP_FLOAT: {
+      const float value = IDP_float_get(&idprop);
+      IDP_ClearProperty(&idprop);
+      idprop.type = PROP_INT;
+      IDP_int_set(&idprop, bool(value));
+      break;
+    }
+    case IDP_DOUBLE: {
+      const double value = IDP_double_get(&idprop);
+      IDP_ClearProperty(&idprop);
+      idprop.type = PROP_INT;
+      IDP_int_set(&idprop, bool(value));
+      break;
+    }
+    case IDP_BOOLEAN: {
+      const bool value = IDP_bool_get(&idprop);
+      IDP_ClearProperty(&idprop);
+      idprop.type = PROP_INT;
+      IDP_int_set(&idprop, int(value));
+      break;
+    }
+  }
+}
+
+static void update_idprop_float(PointerRNA &rna_ptr, PropertyRNA &rna_prop, IDProperty &idprop)
+{
+  BLI_assert(RNA_property_type(&rna_prop) == PROP_FLOAT);
+  const int rna_array_size = RNA_property_array_length(&rna_ptr, &rna_prop);
+  const auto fill_new = [&]() {
+    IDP_ClearProperty(&idprop);
+    if (rna_array_size > 1) {
+      idprop.type = IDP_ARRAY;
+      idprop.subtype = IDP_FLOAT;
+      idprop.data.pointer = MEM_new_array_uninitialized<float>(rna_array_size,
+                                                               "update_idprop_float");
+      idprop.len = rna_array_size;
+      idprop.totallen = rna_array_size;
+      RNA_property_float_get_default_array(
+          &rna_ptr, &rna_prop, static_cast<float *>(idprop.data.pointer));
+    }
+    else {
+      idprop.type = IDP_FLOAT;
+      IDP_float_set(&idprop, RNA_property_float_get_default(&rna_ptr, &rna_prop));
+    }
+  };
+  switch (eIDPropertyType(idprop.type)) {
+    case IDP_STRING:
+    case IDP_IDPARRAY:
+    case IDP_ID:
+    case IDP_GROUP: {
+      fill_new();
+      break;
+    }
+    case IDP_ARRAY: {
+      const int idprop_array_size = idprop.len;
+      switch (eIDPropertyType(idprop.subtype)) {
+        case IDP_IDPARRAY:
+        case IDP_ID:
+        case IDP_STRING:
+        case IDP_ARRAY:
+        case IDP_GROUP: {
+          BLI_assert_unreachable();
+          fill_new();
+          break;
+        }
+        case IDP_INT: {
+          const int *old_values = IDP_array_int_get(&idprop);
+          auto *new_values = MEM_new_array_zeroed<float>(rna_array_size, __func__);
+          for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
+            new_values[i] = float(old_values[i]);
+          }
+          IDP_ClearProperty(&idprop);
+          idprop.subtype = IDP_FLOAT;
+          idprop.len = rna_array_size;
+          idprop.totallen = rna_array_size;
+          idprop.data.pointer = new_values;
+          break;
+        }
+        case IDP_FLOAT:
+        case IDP_DOUBLE: {
+          /* No change. */
+          break;
+        }
+        case IDP_BOOLEAN: {
+          const int8_t *old_values = IDP_array_bool_get(&idprop);
+          auto *new_values = MEM_new_array_zeroed<float>(rna_array_size, __func__);
+          for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
+            new_values[i] = float(old_values[i]);
+          }
+          IDP_ClearProperty(&idprop);
+          idprop.subtype = IDP_FLOAT;
+          idprop.len = rna_array_size;
+          idprop.totallen = rna_array_size;
+          idprop.data.pointer = new_values;
+          break;
+        }
+      }
+      break;
+    }
+    case IDP_INT: {
+      const int value = IDP_int_get(&idprop);
+      IDP_ClearProperty(&idprop);
+      idprop.type = IDP_BOOLEAN;
+      IDP_float_set(&idprop, float(value));
+      break;
+    }
+    case IDP_FLOAT:
+    case IDP_DOUBLE: {
+      /* No change. */
+      break;
+    }
+    case IDP_BOOLEAN: {
+      const bool value = IDP_bool_get(&idprop);
+      IDP_ClearProperty(&idprop);
+      idprop.type = IDP_BOOLEAN;
+      IDP_float_set(&idprop, float(value));
+      break;
+    }
+  }
+}
+
+void update_idprops_from_srna(PointerRNA &ptr, IDProperty &idprops)
 {
   StructRNA &srna = *ptr.type;
   for (PropertyRNA &rna_prop : *RNA_struct_type_properties(&srna)) {
-    IDProperty *idprop = IDP_GetPropertyFromGroup(&idprops, RNA_property_identifier(&rna_prop));
+    const StringRefNull identifier = RNA_property_identifier(&rna_prop);
+    IDProperty *idprop = IDP_GetPropertyFromGroup(&idprops, identifier.c_str());
     if (!idprop) {
-      if (!ensure) {
-        continue;
-      }
-      // TODO: CREATE IDPROP
+      /* Create an IDProperty of an arbitrary type, to be converte to the correct type next. */
+      idprop = bke::idprop::create_group(identifier).release();
+      IDP_AddToGroup(&idprops, idprop);
     }
-
-    const auto unset_unsupported = [&]() {
-      /* Reset RNA property to "unset". */
-      IDP_FreeFromGroup(&idprops, idprop);
-    };
 
     switch (RNA_property_type(&rna_prop)) {
       case PROP_BOOLEAN: {
-        const int rna_array_size = RNA_property_array_length(&ptr, &rna_prop);
-        switch (eIDPropertyType(idprop->type)) {
-          case IDP_STRING:
-          case IDP_IDPARRAY:
-          case IDP_ID:
-          case IDP_GROUP: {
-            unset_unsupported();
-            continue;
-          }
-          case IDP_ARRAY: {
-            const int idprop_array_size = idprop->len;
-            switch (eIDPropertyType(idprop->subtype)) {
-              case IDP_IDPARRAY:
-              case IDP_ID:
-              case IDP_STRING:
-              case IDP_ARRAY:
-              case IDP_GROUP: {
-                BLI_assert_unreachable();
-                unset_unsupported();
-                continue;
-              }
-              case IDP_INT: {
-                const int *old_values = IDP_array_int_get(idprop);
-                bool *new_values = MEM_new_array_zeroed<bool>(rna_array_size, __func__);
-                for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
-                  new_values[i] = bool(old_values[i]);
-                }
-                IDP_ClearProperty(idprop);
-                idprop->subtype = IDP_BOOLEAN;
-                idprop->len = rna_array_size;
-                idprop->totallen = rna_array_size;
-                idprop->data.pointer = new_values;
-                break;
-              }
-              case IDP_FLOAT: {
-                const float *old_values = IDP_array_float_get(idprop);
-                bool *new_values = MEM_new_array_zeroed<bool>(rna_array_size, __func__);
-                for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
-                  new_values[i] = bool(old_values[i]);
-                }
-                IDP_ClearProperty(idprop);
-                idprop->subtype = IDP_BOOLEAN;
-                idprop->len = rna_array_size;
-                idprop->totallen = rna_array_size;
-                idprop->data.pointer = new_values;
-                break;
-              }
-              case IDP_DOUBLE: {
-                const double *old_values = IDP_array_double_get(idprop);
-                bool *new_values = MEM_new_array_zeroed<bool>(rna_array_size, __func__);
-                for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
-                  new_values[i] = bool(old_values[i]);
-                }
-                IDP_ClearProperty(idprop);
-                idprop->subtype = IDP_BOOLEAN;
-                idprop->len = rna_array_size;
-                idprop->totallen = rna_array_size;
-                idprop->data.pointer = new_values;
-                break;
-              }
-              case IDP_BOOLEAN: {
-                /* No change. */
-                break;
-              }
-            }
-            break;
-          }
-          case IDP_INT: {
-            const int value = IDP_int_get(idprop);
-            IDP_ClearProperty(idprop);
-            idprop->type = IDP_BOOLEAN;
-            IDP_bool_set(idprop, bool(value));
-            break;
-          }
-          case IDP_FLOAT: {
-            const float value = IDP_float_get(idprop);
-            IDP_ClearProperty(idprop);
-            idprop->type = IDP_BOOLEAN;
-            IDP_bool_set(idprop, bool(value));
-            break;
-          }
-          case IDP_DOUBLE: {
-            const double value = IDP_double_get(idprop);
-            IDP_ClearProperty(idprop);
-            idprop->type = IDP_BOOLEAN;
-            IDP_bool_set(idprop, bool(value));
-            break;
-          }
-          case IDP_BOOLEAN: {
-            /* No change. */
-            break;
-          }
-        }
+        update_idprop_bool(ptr, rna_prop, *idprop);
         break;
       }
       case PROP_INT: {
-        const int rna_array_size = RNA_property_array_length(&ptr, &rna_prop);
-        switch (eIDPropertyType(idprop->type)) {
-          case IDP_STRING:
-          case IDP_IDPARRAY:
-          case IDP_ID:
-          case IDP_GROUP: {
-            unset_unsupported();
-            continue;
-          }
-          case IDP_ARRAY: {
-            const int idprop_array_size = idprop->len;
-            switch (eIDPropertyType(idprop->subtype)) {
-              case IDP_IDPARRAY:
-              case IDP_ID:
-              case IDP_STRING:
-              case IDP_ARRAY:
-              case IDP_GROUP: {
-                BLI_assert_unreachable();
-                unset_unsupported();
-                continue;
-              }
-              case IDP_INT: {
-                const int *old_values = IDP_array_int_get(idprop);
-                float *new_values = MEM_new_array_zeroed<float>(rna_array_size, __func__);
-                for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
-                  new_values[i] = float(old_values[i]);
-                }
-                IDP_ClearProperty(idprop);
-                idprop->subtype = IDP_FLOAT;
-                idprop->len = rna_array_size;
-                idprop->totallen = rna_array_size;
-                idprop->data.pointer = new_values;
-                break;
-              }
-              case IDP_FLOAT:
-              case IDP_DOUBLE: {
-                /* No change. */
-                break;
-              }
-              case IDP_BOOLEAN: {
-                const int8_t *old_values = IDP_array_bool_get(idprop);
-                float *new_values = MEM_new_array_zeroed<float>(rna_array_size, __func__);
-                for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
-                  new_values[i] = float(old_values[i]);
-                }
-                IDP_ClearProperty(idprop);
-                idprop->subtype = IDP_FLOAT;
-                idprop->len = rna_array_size;
-                idprop->totallen = rna_array_size;
-                idprop->data.pointer = new_values;
-                break;
-              }
-            }
-            break;
-          }
-          case IDP_INT: {
-            const int value = IDP_int_get(idprop);
-            IDP_ClearProperty(idprop);
-            idprop->type = IDP_FLOAT;
-            IDP_float_set(idprop, value);
-            break;
-          }
-          case IDP_FLOAT:
-          case IDP_DOUBLE: {
-            /* No change. */
-            break;
-          }
-          case IDP_BOOLEAN: {
-            const bool value = IDP_bool_get(idprop);
-            IDP_ClearProperty(idprop);
-            idprop->type = IDP_FLOAT;
-            IDP_float_set(idprop, float(value));
-            break;
-          }
-        }
+        update_idprop_int(ptr, rna_prop, *idprop);
         break;
       }
       case PROP_FLOAT: {
-        const int rna_array_size = RNA_property_array_length(&ptr, &rna_prop);
-        switch (eIDPropertyType(idprop->type)) {
-          case IDP_STRING:
-          case IDP_IDPARRAY:
-          case IDP_ID:
-          case IDP_GROUP: {
-            unset_unsupported();
-            continue;
-          }
-          case IDP_ARRAY: {
-            const int idprop_array_size = idprop->len;
-            switch (eIDPropertyType(idprop->subtype)) {
-              case IDP_IDPARRAY:
-              case IDP_ID:
-              case IDP_STRING:
-              case IDP_ARRAY:
-              case IDP_GROUP: {
-                BLI_assert_unreachable();
-                unset_unsupported();
-                continue;
-              }
-              case IDP_INT: {
-                const int *old_values = IDP_array_int_get(idprop);
-                float *new_values = MEM_new_array_zeroed<float>(rna_array_size, __func__);
-                for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
-                  new_values[i] = float(old_values[i]);
-                }
-                IDP_ClearProperty(idprop);
-                idprop->subtype = IDP_FLOAT;
-                idprop->len = rna_array_size;
-                idprop->totallen = rna_array_size;
-                idprop->data.pointer = new_values;
-                break;
-              }
-              case IDP_FLOAT:
-              case IDP_DOUBLE: {
-                /* No change. */
-                break;
-              }
-              case IDP_BOOLEAN: {
-                const int8_t *old_values = IDP_array_bool_get(idprop);
-                float *new_values = MEM_new_array_zeroed<float>(rna_array_size, __func__);
-                for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
-                  new_values[i] = float(old_values[i]);
-                }
-                IDP_ClearProperty(idprop);
-                idprop->subtype = IDP_FLOAT;
-                idprop->len = rna_array_size;
-                idprop->totallen = rna_array_size;
-                idprop->data.pointer = new_values;
-                break;
-              }
-            }
-            break;
-          }
-          case IDP_INT: {
-            const int value = IDP_int_get(idprop);
-            IDP_ClearProperty(idprop);
-            idprop->type = IDP_FLOAT;
-            IDP_float_set(idprop, value);
-            break;
-          }
-          case IDP_FLOAT:
-          case IDP_DOUBLE: {
-            /* No change. */
-            break;
-          }
-          case IDP_BOOLEAN: {
-            const bool value = IDP_bool_get(idprop);
-            IDP_ClearProperty(idprop);
-            idprop->type = IDP_FLOAT;
-            IDP_float_set(idprop, float(value));
-            break;
-          }
-        }
+        update_idprop_float(ptr, rna_prop, *idprop);
         break;
       }
       case PROP_STRING: {
         if (idprop->type != IDP_STRING) {
-          unset_unsupported();
-          continue;
+          IDP_ClearProperty(idprop);
+          idprop->type = IDP_STRING;
+          int len;
+          char *string = RNA_property_string_get_default_alloc(&ptr, &rna_prop, nullptr, 0, &len);
+          idprop->data.pointer = string;
+          idprop->len = len;
+          idprop->totallen = len;
         }
         break;
       }
       case PROP_ENUM: {
         if (idprop->type != IDP_INT) {
-          unset_unsupported();
-          continue;
+          IDP_ClearProperty(idprop);
+          idprop->type = IDP_INT;
+          idprop->data.val = RNA_property_enum_get_default(&ptr, &rna_prop);
         }
         break;
       }
       case PROP_POINTER: {
+        // TODO: HANDLE "ACTUAL" POINTERS THAT AREN"T JUST PROPERTY GROUPS
+        // I THINK THAT"S JUST IDs and IDP_ID?
         if (idprop->type != IDP_GROUP) {
           IDP_ClearProperty(idprop);
           idprop->type = IDP_GROUP;
           continue;
         }
         PointerRNA prop_ptr = RNA_property_pointer_get(&ptr, &rna_prop);
-        StructRNA &type = *RNA_property_pointer_type(&ptr, &rna_prop);
-        update_idprops_from_srna(
-            RNA_property_pointer_get(&ptr, &rna_prop), system_properties, true);
+        update_idprops_from_srna(prop_ptr, *idprop);
         break;
       }
       case PROP_COLLECTION: {
