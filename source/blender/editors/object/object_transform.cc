@@ -2925,7 +2925,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
 void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Interactive Light Track to Cursor";
+  ot->name = "Track to Cursor";
   ot->description =
       "Interactively point cameras and lights to a location. It can be used to point lights to "
       "object normals, specular reflections, or shadow targets";
