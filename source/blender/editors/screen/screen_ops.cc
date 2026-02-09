@@ -72,6 +72,7 @@
 #include "ED_screen_types.hh"
 #include "ED_sequencer.hh"
 #include "ED_space_graph.hh"
+#include "ED_undo.hh"
 #include "ED_view3d.hh"
 
 #include "RNA_access.hh"
@@ -6494,6 +6495,13 @@ static wmOperatorStatus screen_animation_play_exec(bContext *C, wmOperator *op)
 
   if (RNA_struct_property_is_set(op->ptr, "sync")) {
     sync = RNA_boolean_get(op->ptr, "sync");
+  }
+
+  if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+    /* Only pushing undo step when stopping playback so that there are no undo steps that seemingly
+     * do nothing. Creating an undo step is important though so that when undoing an action right
+     * after playback stop doesn't also change the current frame. See #144058. */
+    ED_undo_push_op(C, op);
   }
 
   return ED_screen_animation_play(C, sync, mode);
