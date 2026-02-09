@@ -928,6 +928,10 @@ void SkyTextureNode::simplify_settings(Scene * /* scene */)
 
   sun_elevation = new_sun_elevation;
   sun_rotation = new_sun_rotation;
+
+  if (is_modified()) {
+    handle.clear();
+  }
 }
 
 void SkyTextureNode::compile(SVMCompiler &compiler)
@@ -8028,7 +8032,7 @@ NODE_DEFINE(RaycastNode)
   SOCKET_OUT_FLOAT(is_self_hit, "Self Hit");
   SOCKET_OUT_FLOAT(hit_distance, "Hit Distance");
   SOCKET_OUT_POINT(hit_position, "Hit Position");
-  SOCKET_OUT_NORMAL(hit_position, "Hit Normal");
+  SOCKET_OUT_NORMAL(hit_normal, "Hit Normal");
 
   SOCKET_BOOLEAN(only_local, "Only Local", false);
 
