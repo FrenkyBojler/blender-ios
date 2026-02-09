@@ -967,6 +967,77 @@ static void check_property_socket_sync(const Object *ob,
   }
 }
 
+/**
+ * Boolean sockets are written as integer IDProperties for forward compatibility when saving
+ * (copy/paste also uses the non-undo writer). Rebuild the modifier properties if any stored
+ * property no longer matches the node group's expected socket type, so evaluation uses the
+ * correct static types again.
+ */
+static bool modifier_properties_need_resync(NodesModifierData &nmd)
+{
+  if (nmd.node_group == nullptr || nmd.settings.properties == nullptr) {
+    return false;
+  }
+
+  nmd.node_group->ensure_interface_cache();
+  const Span<const bNodeTreeInterfaceSocket *> inputs = nmd.node_group->interface_inputs();
+  const Span<nodes::StructureType> input_structure_types =
+      nmd.node_group->runtime->structure_type_interface->inputs;
+
+  for (const int i : inputs.index_range()) {
+    const bNodeTreeInterfaceSocket &socket = *inputs[i];
+    const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
+    const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+
+    /* The first socket is the special geometry input for the modifier object. */
+    if (i == 0 && type == SOCK_GEOMETRY) {
+      continue;
+    }
+
+    if (ELEM(input_structure_types[i], nodes::StructureType::Grid, nodes::StructureType::List)) {
+      continue;
+    }
+
+    IDProperty *property = IDP_GetPropertyFromGroup_null(nmd.settings.properties,
+                                                         socket.identifier);
+    if (property == nullptr) {
+      continue;
+    }
+
+    if (!nodes::id_property_type_matches_socket(socket, *property)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static void ensure_modifier_property_types(NodesModifierData &nmd_eval, NodesModifierData *nmd_orig)
+{
+  if (!modifier_properties_need_resync(nmd_eval)) {
+    return;
+  }
+
+  if (nmd_orig != nullptr) {
+    update_id_properties_from_node_group(nmd_orig);
+
+    if (nmd_orig != &nmd_eval) {
+      if (nmd_eval.settings.properties != nullptr) {
+        IDP_FreeProperty_ex(nmd_eval.settings.properties, false);
+      }
+      if (nmd_orig->settings.properties != nullptr) {
+        nmd_eval.settings.properties = IDP_CopyProperty(nmd_orig->settings.properties);
+      }
+      else {
+        nmd_eval.settings.properties = nullptr;
+      }
+    }
+  }
+  else {
+    update_id_properties_from_node_group(&nmd_eval);
+  }
+}
+
 class NodesModifierBakeDataBlockMap : public bake::BakeDataBlockMap {
   /** Protects access to `new_mappings` which may be added to from multiple threads. */
   Mutex mutex_;
@@ -1838,6 +1909,8 @@ static void modifyGeometry(ModifierData *md,
   }
 
   const bNodeTree &tree = *nmd->node_group;
+
+  ensure_modifier_property_types(*nmd, nmd_orig);
   check_property_socket_sync(ctx->object, nmd->settings.properties, md);
 
   tree.ensure_topology_cache();
