@@ -1074,7 +1074,7 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *key, IDProperty *group, PyOb
 
     IDP_AppendArray(group, new_prop);
     /* IDP_AppendArray does a shallow copy (memcpy), only free memory */
-    MEM_freeN(new_prop);
+    MEM_delete(new_prop);
 
     return true;
   }
@@ -1693,9 +1693,9 @@ PyDoc_STRVAR(
     "\n"
     "   :raises KeyError: When the item doesn't exist.\n"
     "\n"
-    "   :arg key: Name of item to remove.\n"
+    "   :param key: Name of item to remove.\n"
     "   :type key: str\n"
-    "   :arg default: Value to return when key isn't found, otherwise raise an exception.\n"
+    "   :param default: Value to return when key isn't found, otherwise raise an exception.\n"
     "   :type default: Any\n");
 static PyObject *BPy_IDGroup_pop(BPy_IDProperty *self, PyObject *args)
 {
@@ -1898,7 +1898,7 @@ PyDoc_STRVAR(
     "\n"
     "   Update key, values.\n"
     "\n"
-    "   :arg other: Updates the values in the group with this.\n"
+    "   :param other: Updates the values in the group with this.\n"
     /* TODO: replace `Any` with an alias for all types an ID property can use. */
     "   :type other: :class:`IDPropertyGroup` | dict[str, Any]\n");
 static PyObject *BPy_IDGroup_update(BPy_IDProperty *self, PyObject *value)
@@ -2371,10 +2371,10 @@ static int BPy_IDArray_ass_slice(BPy_IDArray *self, int begin, int end, PyObject
   alloc_len = size * elem_size;
 
   /* NOTE: we count on int/float being the same size here */
-  vec = MEM_mallocN(alloc_len, "array assignment");
+  vec = MEM_new_uninitialized(alloc_len, "array assignment");
 
   if (PyC_AsArray(vec, elem_size, seq, size, py_type, "slice assignment: ") == -1) {
-    MEM_freeN(vec);
+    MEM_delete_void(vec);
     return -1;
   }
 
@@ -2383,7 +2383,7 @@ static int BPy_IDArray_ass_slice(BPy_IDArray *self, int begin, int end, PyObject
       vec,
       alloc_len);
 
-  MEM_freeN(vec);
+  MEM_delete_void(vec);
   return 0;
 }
 
@@ -2499,7 +2499,7 @@ static int BPy_IDArray_getbuffer(BPy_IDArray *self, Py_buffer *view, int flags)
   view->itemsize = itemsize;
   view->format = const_cast<char *>(idp_format_from_array_type(prop->subtype));
 
-  Py_ssize_t *shape = MEM_mallocN<Py_ssize_t>(__func__);
+  Py_ssize_t *shape = MEM_new_uninitialized<Py_ssize_t>(__func__);
   shape[0] = prop->len;
   view->shape = shape;
 
@@ -2508,7 +2508,7 @@ static int BPy_IDArray_getbuffer(BPy_IDArray *self, Py_buffer *view, int flags)
 
 static void BPy_IDArray_releasebuffer(BPy_IDArray * /*self*/, Py_buffer *view)
 {
-  MEM_freeN(view->shape);
+  MEM_delete(view->shape);
 }
 
 static PyBufferProcs BPy_IDArray_Buffer = {
@@ -2693,7 +2693,11 @@ static PyMethodDef IDProp_methods[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     IDProp_module_doc,
-    "This module provides access id property types (currently mainly for docs).");
+    "This module provides access to ID property types, used for\n"
+    "custom properties on data-blocks, accessed via ``[\"key\"]`` syntax.\n"
+    "\n"
+    "- See :ref:`info_quickstart-custom_properties` for example usage.\n"
+    "- See :ref:`bpy_types-custom_properties` for types that support custom properties.\n");
 static PyModuleDef IDProp_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "idprop",
@@ -2716,7 +2720,7 @@ PyObject *BPyInit_idprop()
 
   /* idprop.types */
   PyModule_AddObject(mod, "types", (submodule = BPyInit_idprop_types()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   return mod;
 }

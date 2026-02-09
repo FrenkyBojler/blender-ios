@@ -523,9 +523,9 @@ PyDoc_STRVAR(
     "\n"
     "   Set context member logging options for this temporary override.\n"
     "\n"
-    "   :arg enable: Enable logging of context member access.\n"
+    "   :param enable: Enable logging of context member access.\n"
     "   :type enable: bool\n"
-    "   :arg hide_missing: When true, suppress logging access to members that\n"
+    "   :param hide_missing: When true, suppress logging access to members that\n"
     "      are not available in the current context.\n"
     "   :type hide_missing: bool\n");
 static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverride *self,
@@ -541,10 +541,9 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
-      "O&"  /* `enable` */
-      "|$"  /* Optional keyword only arguments. */
-      "O&"  /* `hide_missing` */
+      "O&" /* `enable` */
+      "|$" /* Optional keyword only arguments. */
+      "O&" /* `hide_missing` */
       ":logging_set",
       _keywords,
       nullptr,
@@ -661,7 +660,6 @@ static PyObject *bpy_context_temp_override_extract_known_args(const char *const 
     PyObject *key = PyUnicode_FromString(kwds_static[i]);
     PyObject *val;
 
-#if PY_VERSION_HEX >= 0x030d0000
     switch (PyDict_Pop(kwds, key, &val)) {
       case 1: {
         if (PyDict_SetItem(kwds_parse, key, val) == -1) {
@@ -677,16 +675,6 @@ static PyObject *bpy_context_temp_override_extract_known_args(const char *const 
         break;
       }
     }
-#else /* Remove when Python 3.12 support is dropped. */
-    PyObject *sentinel = Py_Ellipsis;
-    val = _PyDict_Pop(kwds, key, sentinel);
-    if (val != sentinel) {
-      if (PyDict_SetItem(kwds_parse, key, val) == -1) {
-        BLI_assert_unreachable();
-      }
-    }
-    Py_DECREF(val);
-#endif
 
     Py_DECREF(key);
   }
@@ -702,9 +690,9 @@ PyDoc_STRVAR(
     "\n"
     "   Context manager to temporarily override members in the context.\n"
     "\n"
-    "   :arg window: Window override or None.\n"
+    "   :param window: Window override or None.\n"
     "   :type window: :class:`bpy.types.Window`\n"
-    "   :arg screen: Screen override or None.\n"
+    "   :param screen: Screen override or None.\n"
     "\n"
     "      .. note:: Switching to or away from full-screen areas & temporary screens "
     "isn't supported. Passing in these screens will raise an exception, "
@@ -715,11 +703,11 @@ PyDoc_STRVAR(
     "and potentially the scene (when pinned).\n"
     "\n"
     "   :type screen: :class:`bpy.types.Screen`\n"
-    "   :arg area: Area override or None.\n"
+    "   :param area: Area override or None.\n"
     "   :type area: :class:`bpy.types.Area`\n"
-    "   :arg region: Region override or None.\n"
+    "   :param region: Region override or None.\n"
     "   :type region: :class:`bpy.types.Region`\n"
-    "   :arg keywords: Additional keywords override context members.\n"
+    "   :param keywords: Additional keywords override context members.\n"
     "   :return: The context manager.\n"
     "   :rtype: ContextTempOverride\n");
 static PyObject *bpy_context_temp_override(PyObject *self, PyObject *args, PyObject *kwds)
@@ -760,7 +748,6 @@ static PyObject *bpy_context_temp_override(PyObject *self, PyObject *args, PyObj
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional, keyword only arguments. */
       "O&" /* `window` */
       "O&" /* `screen` */

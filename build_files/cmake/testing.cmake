@@ -48,7 +48,7 @@ endfunction()
 
 macro(blender_src_gtest_ex)
   if(WITH_GTESTS)
-    set(options)
+    set(options "")
     set(oneValueArgs NAME)
     set(multiValueArgs SRC EXTRA_LIBS COMMAND_ARGS)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -197,7 +197,7 @@ function(blender_add_test_suite_lib
   library_deps
   )
 
-  # Sources which are common for all suits and do not need to yield their own
+  # Sources which are common for all suites and do not need to yield their own
   # test suite binaries when WITH_TESTS_SINGLE_BINARY is OFF.
   set(common_sources ${ARGN})
 
@@ -257,7 +257,7 @@ function(blender_add_test_executable_impl
   )
 
   set(oneValueArgs ADD_CTESTS DISCOVER_TESTS)
-  set(multiValueArgs)
+  set(multiValueArgs "")
   cmake_parse_arguments(ARGS "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
   unset(oneValueArgs)
   unset(multiValueArgs)
@@ -301,7 +301,7 @@ endfunction()
 # very large executable, blender_add_test_suite_lib() should be used instead.
 #
 # The function accepts an optional argument which denotes list of sources which
-# is to be compiled-in with the suit sources for each of the suites when the
+# is to be compiled-in with the suite sources for each of the suites when the
 # WITH_TESTS_SINGLE_BINARY configuration is set to OFF.
 function(blender_add_test_suite_executable
   name
@@ -311,8 +311,8 @@ function(blender_add_test_suite_executable
   library_deps
   )
 
-  # Sources which are common for all suits and do not need to yield their own
-  # test suit binaries when WITH_TESTS_SINGLE_BINARY is OFF.
+  # Sources which are common for all suites and do not need to yield their own
+  # test suite binaries when WITH_TESTS_SINGLE_BINARY is OFF.
   set(common_sources ${ARGN})
 
   if(WITH_TESTS_SINGLE_BINARY)
@@ -357,7 +357,7 @@ function(blender_add_test_suite_executable
         # perform search of _PyBaseObject_Type on startup.
         #
         # Work-around by telling the linker that the python libraries should not be stripped.
-        if(APPLE)
+        if(APPLE AND NOT WITH_PYTHON_MODULE)
           target_link_libraries("${_test_name}_test" PRIVATE "-Wl,-force_load,${PYTHON_LIBRARIES}")
         endif()
 

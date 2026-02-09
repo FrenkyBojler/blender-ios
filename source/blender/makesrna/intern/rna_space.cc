@@ -21,6 +21,7 @@
 #include "ED_asset.hh"
 #include "ED_buttons.hh"
 #include "ED_spreadsheet.hh"
+#include "ED_userpref.hh"
 
 #include "BLI_string.h"
 #include "BLI_sys_types.h"
@@ -72,6 +73,12 @@ const EnumPropertyItem rna_enum_geometry_component_type_items[] = {
      "Grease Pencil",
      "Grease Pencil component containing layers and curves data"},
     {0, nullptr, 0, nullptr, nullptr},
+};
+
+const EnumPropertyItem rna_enum_geometry_item_type_items[] = {
+    {SPREADSHEET_GEOMETRY_ITEM_TYPE_DOMAIN, "DOMAIN", ICON_NONE, "Domain", "Domain data"},
+    {SPREADSHEET_GEOMETRY_ITEM_TYPE_BUNDLE, "BUNDLE", ICON_NONE, "Bundle", "Bundle data"},
+    {},
 };
 
 const EnumPropertyItem rna_enum_space_type_items[] = {
@@ -2377,6 +2384,64 @@ static void rna_SpaceProperties_search_filter_update(Main * /*bmain*/,
   ED_region_search_filter_update(area, main_region);
 }
 
+/* Space Userpref */
+static int rna_SpaceUserPref_tab_search_results_getlength(const PointerRNA *ptr,
+                                                          int length[RNA_MAX_ARRAY_DIMENSION])
+{
+  SpaceUserPref *sprefs = static_cast<SpaceUserPref *>(ptr->data);
+  Vector<int> tabs = ED_userpref_tabs_list(sprefs);
+  length[0] = tabs.size();
+  return tabs.size();
+}
+static void rna_SpaceUserPref_tab_search_results_get(PointerRNA *ptr, bool *values)
+{
+  SpaceUserPref *sprefs = static_cast<SpaceUserPref *>(ptr->data);
+  Vector<int> tabs = ED_userpref_tabs_list(sprefs);
+  for (const int i : tabs.index_range()) {
+    values[i] = ED_userpref_tab_has_search_result(sprefs, i);
+  }
+}
+static void rna_SpaceUserPref_search_filter_get(PointerRNA *ptr, char *value)
+{
+  SpaceUserPref *sprefs = static_cast<SpaceUserPref *>(ptr->data);
+  const char *search_filter = ED_userpref_search_string_get(sprefs);
+  strcpy(value, search_filter);
+}
+static int rna_SpaceUserPref_search_filter_length(PointerRNA *ptr)
+{
+  SpaceUserPref *sprefs = static_cast<SpaceUserPref *>(ptr->data);
+  return ED_userpref_search_string_length(sprefs);
+}
+static void rna_SpaceUserPref_search_filter_set(PointerRNA *ptr, const char *value)
+{
+  SpaceUserPref *sprefs = static_cast<SpaceUserPref *>(ptr->data);
+  ED_userpref_search_string_set(sprefs, value);
+}
+static void rna_SpaceUserPref_search_filter_update(Main * /*bmain*/,
+                                                   Scene * /*scene*/,
+                                                   PointerRNA *ptr)
+{
+  ScrArea *area = rna_area_from_space(ptr);
+  /* Update the search filter flag for the main region with the panels. */
+  ARegion *main_region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  BLI_assert(main_region != nullptr);
+  ED_region_search_filter_update(area, main_region);
+}
+
+static int rna_SpaceUserPref_search_filter_editable(const PointerRNA * /*ptr*/,
+                                                    const char **r_info)
+{
+  if (U.space_data.section_active == USER_SECTION_EXTENSIONS) {
+    *r_info = N_("Use the search in Extensions.");
+    return 0;
+  }
+  if (U.space_data.section_active == USER_SECTION_ADDONS) {
+    *r_info = N_("Use the search in Add-ons.");
+    return 0;
+  }
+  return PROP_EDITABLE;
+}
+
 /* Space Console */
 static void rna_ConsoleLine_body_get(PointerRNA *ptr, char *value)
 {
@@ -2397,8 +2462,8 @@ static void rna_ConsoleLine_body_set(PointerRNA *ptr, const char *value)
 
   if ((len >= size_t(ci->len_alloc)) || (len * 2 < size_t(ci->len_alloc)))
   { /* allocate a new string */
-    MEM_freeN(ci->line);
-    ci->line = MEM_malloc_arrayN<char>(len + 1, "rna_consoleline");
+    MEM_delete(ci->line);
+    ci->line = MEM_new_array_uninitialized<char>(len + 1, "rna_consoleline");
     ci->len_alloc = int(len + 1);
   }
   memcpy(ci->line, value, len + 1);
@@ -2517,7 +2582,7 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
         eSpaceSeq_Proxy_RenderSize(sseq->render_size));
 
     /* Build proxy. */
-    seq::proxy_rebuild_context(pj->main, pj->scene, &strip, &processed_paths, true, pj->queue);
+    seq::proxy_build_start(pj->main, pj->scene, &strip, &processed_paths, true, pj->queue);
   }
 
   if (!WM_jobs_is_running(wm_job)) {
@@ -3850,7 +3915,7 @@ static IDFilterEnumPropertyItem rna_enum_space_file_id_filter_categories[] = {
     {FILTER_ID_AC, "category_animation", ICON_ANIM_DATA, "Animations", "Show animation data"},
     {FILTER_ID_OB | FILTER_ID_GR,
      "category_object",
-     ICON_OUTLINER_COLLECTION,
+     ICON_GROUP,
      "Objects & Collections",
      "Show objects and collections"},
     {FILTER_ID_AR | FILTER_ID_CU_LEGACY | FILTER_ID_LT | FILTER_ID_MB | FILTER_ID_ME |
@@ -5213,12 +5278,12 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "overlay.handle_display");
   RNA_def_property_enum_items(prop, rna_enum_curve_display_handle_items);
   RNA_def_property_ui_text(
-      prop, "Display Handles", "Limit the display of curve handles in edit mode");
+      prop, "Display Handles", "Limit the display of curve handles in Edit Mode");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "show_curve_normals", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "overlay.edit_flag", V3D_OVERLAY_EDIT_CU_NORMALS);
-  RNA_def_property_ui_text(prop, "Draw Normals", "Display 3D curve normals in editmode");
+  RNA_def_property_ui_text(prop, "Draw Normals", "Display 3D curve normals in Edit Mode");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "normals_length", PROP_FLOAT, PROP_FACTOR);
@@ -6408,6 +6473,26 @@ static void rna_def_space_sequencer_timeline_overlay(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Waveform Style", "How Waveforms are displayed");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
+  static const EnumPropertyItem thumbnail_style_items[] = {
+      {0, "NO_THUMBNAILS", 0, "None", "Do not show strip thumbnails"},
+      {SEQ_TIMELINE_STRIP_END_THUMBNAILS,
+       "STRIP_ENDS",
+       0,
+       "Strip Ends",
+       "Show thumbnails only at the beginning and end of the strip"},
+      {SEQ_TIMELINE_CONTINUOUS_THUMBNAILS,
+       "CONTINUOUS",
+       0,
+       "Continuous",
+       "Display thumbnails as a filmstrip"},
+      {0, nullptr, 0, nullptr, nullptr}};
+
+  prop = RNA_def_property(srna, "thumbnail_display_style", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "timeline_overlay.flag");
+  RNA_def_property_enum_items(prop, thumbnail_style_items);
+  RNA_def_property_ui_text(prop, "Thumbnail style", "How thumbnails are displayed");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
   prop = RNA_def_property(srna, "show_fcurves", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "timeline_overlay.flag", SEQ_TIMELINE_SHOW_FCURVES);
   RNA_def_property_ui_text(prop, "Show F-Curves", "Display strip opacity/volume curve");
@@ -6441,12 +6526,6 @@ static void rna_def_space_sequencer_timeline_overlay(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(
       prop, nullptr, "timeline_overlay.flag", SEQ_TIMELINE_SHOW_STRIP_OFFSETS);
   RNA_def_property_ui_text(prop, "Show Offsets", "Display strip in/out offsets");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
-
-  prop = RNA_def_property(srna, "show_thumbnails", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "timeline_overlay.flag", SEQ_TIMELINE_SHOW_THUMBNAILS);
-  RNA_def_property_ui_text(prop, "Show Thumbnails", "Show strip thumbnails");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
   prop = RNA_def_property(srna, "show_strip_tag_color", PROP_BOOLEAN, PROP_NONE);
@@ -7992,6 +8071,27 @@ static void rna_def_space_userpref(BlenderRNA *brna)
   RNA_def_property_string_sdna(prop, nullptr, "filter");
   RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
   RNA_def_property_ui_text(prop, "Filter", "Search term for filtering in the UI");
+
+  prop = RNA_def_property(srna, "tab_search_results", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_array(prop, 0); /* Dynamic length, see next line. */
+  RNA_def_property_flag(prop, PROP_DYNAMIC);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(prop, "rna_SpaceUserPref_tab_search_results_get", nullptr);
+  RNA_def_property_dynamic_array_funcs(prop, "rna_SpaceUserPref_tab_search_results_getlength");
+  RNA_def_property_ui_text(
+      prop, "Tab Search Results", "Whether or not each visible tab has a search result");
+  prop = RNA_def_property(srna, "search_filter", PROP_STRING, PROP_NONE);
+  /* The search filter is stored in the property editor's runtime which
+   * is only defined in an internal header, so use the getter / setter here. */
+  RNA_def_property_string_funcs(prop,
+                                "rna_SpaceUserPref_search_filter_get",
+                                "rna_SpaceUserPref_search_filter_length",
+                                "rna_SpaceUserPref_search_filter_set");
+  RNA_def_property_editable_func(prop, "rna_SpaceUserPref_search_filter_editable");
+  RNA_def_property_ui_text(prop, "Display Filter", "Live search filtering string");
+  RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_PROPERTIES, "rna_SpaceUserPref_search_filter_update");
 }
 
 static void rna_def_node_tree_path(BlenderRNA *brna)
@@ -8795,6 +8895,11 @@ static void rna_def_spreadsheet_table_id_geometry(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_attribute_domain_items);
   RNA_def_property_ui_text(prop, "Attribute Domain", "Attribute domain to display");
 
+  prop = RNA_def_property(srna, "geometry_item_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_enum_items(prop, rna_enum_geometry_item_type_items);
+  RNA_def_property_ui_text(prop, "Geometry Item Type", "Item Type");
+
   prop = RNA_def_property(srna, "viewer_path", PROP_POINTER, PROP_NONE);
   RNA_def_property_ui_text(prop, "Viewer Path", "Path to the data that is displayed");
 
@@ -9139,6 +9244,12 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Show Only Selected", "Only include rows that correspond to selected elements");
   RNA_def_property_ui_icon(prop, ICON_RESTRICT_SELECT_OFF, 0);
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
+
+  prop = RNA_def_property(srna, "geometry_item_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "geometry_id.geometry_item_type");
+  RNA_def_property_enum_items(prop, rna_enum_geometry_item_type_items);
+  RNA_def_property_ui_text(prop, "Geometry Item Type", "Item Type");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 
   prop = RNA_def_property(srna, "geometry_component_type", PROP_ENUM, PROP_NONE);

@@ -349,7 +349,6 @@ static PyObject *pygpu_framebuffer__tp_new(PyTypeObject * /*self*/, PyObject *ar
   PyObject *color_attachements = nullptr;
   static const char *_keywords[] = {"depth_slot", "color_slots", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O"  /* `depth_slot` */
       "O"  /* `color_slots` */
@@ -428,11 +427,11 @@ PyDoc_STRVAR(
     "   Fill color, depth and stencil textures with specific value.\n"
     "   Common values: color=(0.0, 0.0, 0.0, 1.0), depth=1.0, stencil=0.\n"
     "\n"
-    "   :arg color: Sequence of 3 or 4 floats representing ``(r, g, b, a)``.\n"
+    "   :param color: Sequence of 3 or 4 floats representing ``(r, g, b, a)``.\n"
     "   :type color: Sequence[float]\n"
-    "   :arg depth: depth value.\n"
+    "   :param depth: depth value.\n"
     "   :type depth: float\n"
-    "   :arg stencil: stencil value.\n"
+    "   :param stencil: stencil value.\n"
     "   :type stencil: int\n");
 static PyObject *pygpu_framebuffer_clear(BPyGPUFrameBuffer *self, PyObject *args, PyObject *kwds)
 {
@@ -448,7 +447,6 @@ static PyObject *pygpu_framebuffer_clear(BPyGPUFrameBuffer *self, PyObject *args
 
   static const char *_keywords[] = {"color", "depth", "stencil", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O"  /* `color` */
       "O"  /* `depth` */
@@ -502,9 +500,9 @@ PyDoc_STRVAR(
     "   Set the viewport for this framebuffer object.\n"
     "   Note: The viewport state is not saved upon framebuffer rebind.\n"
     "\n"
-    "   :arg x, y: lower left corner of the viewport_set rectangle, in pixels.\n"
+    "   :param x, y: lower left corner of the viewport_set rectangle, in pixels.\n"
     "   :type x, y: int\n"
-    "   :arg xsize, ysize: width and height of the viewport_set.\n"
+    "   :param xsize, ysize: width and height of the viewport_set.\n"
     "   :type xsize, ysize: int\n");
 static PyObject *pygpu_framebuffer_viewport_set(BPyGPUFrameBuffer *self, PyObject *args)
 {
@@ -545,19 +543,19 @@ PyDoc_STRVAR(
     "\n"
     "   Read a block of pixels from the frame buffer.\n"
     "\n"
-    "   :arg x, y: Lower left corner of a rectangular block of pixels.\n"
-    "   :arg xsize, ysize: Dimensions of the pixel rectangle.\n"
+    "   :param x, y: Lower left corner of a rectangular block of pixels.\n"
+    "   :param xsize, ysize: Dimensions of the pixel rectangle.\n"
     "   :type x, y, xsize, ysize: int\n"
-    "   :arg channels: Number of components to read.\n"
+    "   :param channels: Number of components to read.\n"
     "   :type channels: int\n"
-    "   :arg slot: The framebuffer slot to read data from.\n"
+    "   :param slot: The framebuffer slot to read data from.\n"
     "   :type slot: int\n"
-    "   :arg format: The format that describes the content of a single channel.\n"
+    "   :param format: The format that describes the content of a single channel.\n"
     "      Possible values are ``FLOAT``, ``INT``, ``UINT``, ``UBYTE``, ``UINT_24_8`` & "
     "``10_11_11_REV``.\n"
     "      ``UINT_24_8`` is deprecated, use ``FLOAT`` instead.\n"
     "   :type format: str\n"
-    "   :arg data: Optional Buffer object to fill with the pixels values.\n"
+    "   :param data: Optional Buffer object to fill with the pixels values.\n"
     "   :type data: :class:`gpu.types.Buffer`\n"
     "   :return: The Buffer with the read pixels.\n"
     "   :rtype: :class:`gpu.types.Buffer`\n");
@@ -575,7 +573,6 @@ static PyObject *pygpu_framebuffer_read_color(BPyGPUFrameBuffer *self,
   static const char *_keywords[] = {
       "x", "y", "xsize", "ysize", "channels", "slot", "format", "data", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `x` */
       "i"  /* `y` */
       "i"  /* `xsize` */
@@ -617,6 +614,13 @@ static PyObject *pygpu_framebuffer_read_color(BPyGPUFrameBuffer *self,
 
   if (slot >= BPYGPU_FB_MAX_COLOR_ATTACHMENT) {
     PyErr_SetString(PyExc_ValueError, "slot overflow");
+    return nullptr;
+  }
+
+  int2 extent = GPU_framebuffer_extent_get(self->fb);
+  if (x < 0 || w < 0 || x + w > extent.x || y < 0 || h < 0 || y + h > extent.y) {
+    PyErr_SetString(PyExc_ValueError,
+                    "Trying to read color outside the extent of the framebuffer");
     return nullptr;
   }
 
@@ -665,11 +669,11 @@ PyDoc_STRVAR(
     "\n"
     "   Read a pixel depth block from the frame buffer.\n"
     "\n"
-    "   :arg x, y: Lower left corner of a rectangular block of pixels.\n"
+    "   :param x, y: Lower left corner of a rectangular block of pixels.\n"
     "   :type x, y: int\n"
-    "   :arg xsize, ysize: Dimensions of the pixel rectangle.\n"
+    "   :param xsize, ysize: Dimensions of the pixel rectangle.\n"
     "   :type xsize, ysize: int\n"
-    "   :arg data: Optional Buffer object to fill with the pixels values.\n"
+    "   :param data: Optional Buffer object to fill with the pixels values.\n"
     "   :type data: :class:`gpu.types.Buffer`\n"
     "   :return: The Buffer with the read pixels.\n"
     "   :rtype: :class:`gpu.types.Buffer`\n");
@@ -683,7 +687,6 @@ static PyObject *pygpu_framebuffer_read_depth(BPyGPUFrameBuffer *self,
 
   static const char *_keywords[] = {"x", "y", "xsize", "ysize", "data", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `x` */
       "i"  /* `y` */
       "i"  /* `xsize` */
@@ -697,6 +700,13 @@ static PyObject *pygpu_framebuffer_read_depth(BPyGPUFrameBuffer *self,
   if (!_PyArg_ParseTupleAndKeywordsFast(
           args, kwds, &_parser, &x, &y, &w, &h, &BPyGPU_BufferType, &py_buffer))
   {
+    return nullptr;
+  }
+
+  int2 extent = GPU_framebuffer_extent_get(self->fb);
+  if (x < 0 || w < 0 || x + w > extent.x || y < 0 || h < 0 || y + h > extent.y) {
+    PyErr_SetString(PyExc_ValueError,
+                    "Trying to read depth outside the extent of the framebuffer");
     return nullptr;
   }
 
@@ -818,10 +828,10 @@ PyDoc_STRVAR(
     "texture is attached to the frame-buffer.\n"
     "   For cube map textures, layer is translated into a cube map face.\n"
     "\n"
-    "   :arg depth_slot: GPUTexture to attach or a ``dict`` containing keywords: "
+    "   :param depth_slot: GPUTexture to attach or a ``dict`` containing keywords: "
     "'texture', 'layer' and 'mip'.\n"
     "   :type depth_slot: :class:`gpu.types.GPUTexture` | dict[] | None\n"
-    "   :arg color_slots: Tuple where each item can be a GPUTexture or a ``dict`` "
+    "   :param color_slots: Tuple where each item can be a GPUTexture or a ``dict`` "
     "containing keywords: 'texture', 'layer' and 'mip'.\n"
     "   :type color_slots: :class:`gpu.types.GPUTexture` | "
     "dict[str, int | :class:`gpu.types.GPUTexture`] | "

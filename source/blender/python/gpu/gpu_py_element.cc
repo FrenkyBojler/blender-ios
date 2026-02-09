@@ -43,7 +43,6 @@ static PyObject *pygpu_IndexBuf__tp_new(PyTypeObject * /*type*/, PyObject *args,
 
   static const char *_keywords[] = {"type", "seq", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "$"  /* Keyword only arguments. */
       "O&" /* `type` */
       "O"  /* `seq` */
@@ -166,7 +165,7 @@ static PyObject *pygpu_IndexBuf__tp_new(PyTypeObject * /*type*/, PyObject *args,
   }
 
   if (ok == false) {
-    MEM_freeN(builder.data);
+    MEM_delete(builder.data);
     return nullptr;
   }
 
@@ -186,10 +185,10 @@ PyDoc_STRVAR(
     "\n"
     "   Contains an index buffer.\n"
     "\n"
-    "   :arg type: The primitive type this index buffer is composed of.\n"
+    "   :param type: The primitive type this index buffer is composed of.\n"
     "      Possible values are [``POINTS``, ``LINES``, ``TRIS``, ``LINES_ADJ``, ``TRIS_ADJ``].\n"
     "   :type type: str\n"
-    "   :arg seq: Indices this index buffer will contain.\n"
+    "   :param seq: Indices this index buffer will contain.\n"
     "      Whether a 1D or 2D sequence is required depends on the type.\n"
     "      Optionally the sequence can support the buffer protocol.\n"
     "   :type seq: Buffer | Sequence[int] | Sequence[Sequence[int]]\n");
