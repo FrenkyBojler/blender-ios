@@ -9,6 +9,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 
 #include "BLI_string_ref.hh"
@@ -50,7 +51,7 @@ class BlenderProjectData {
   std::string name_;
   std::string root_path_;
 
-  Vector<ProjectVariable> variables;
+  Vector<std::unique_ptr<ProjectVariable>> variables;
 
   /**
    * Set the project's name.

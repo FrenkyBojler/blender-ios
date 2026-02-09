@@ -41,17 +41,19 @@ using namespace bke;
 template<typename T>
 static void rna_iterator_array_begin(CollectionPropertyIterator *iter,
                                      PointerRNA *ptr,
-                                     Span<T *> items)
+                                     Span<std::unique_ptr<T>> items)
 {
-  rna_iterator_array_begin(iter, ptr, (void *)items.data(), sizeof(T *), items.size(), 0, nullptr);
+  rna_iterator_array_begin(
+      iter, ptr, (void *)items.data(), sizeof(std::unique_ptr<T>), items.size(), 0, nullptr);
 }
 
 template<typename T>
 static void rna_iterator_array_begin(CollectionPropertyIterator *iter,
                                      PointerRNA *ptr,
-                                     MutableSpan<T *> items)
+                                     MutableSpan<std::unique_ptr<T>> items)
 {
-  rna_iterator_array_begin(iter, ptr, (void *)items.data(), sizeof(T *), items.size(), 0, nullptr);
+  rna_iterator_array_begin(
+      iter, ptr, (void *)items.data(), sizeof(std::unique_ptr<T>), items.size(), 0, nullptr);
 }
 
 /* --------------------------------------------------------- */
@@ -199,7 +201,7 @@ static void rna_iterator_BlenderProjectData_variables_begin(CollectionPropertyIt
   rna_iterator_array_begin(iter,
                            ptr,
                            (void *)project_data->variables.begin(),
-                           sizeof(ProjectVariable),
+                           sizeof(std::unique_ptr<ProjectVariable>),
                            project_data->variables.size(),
                            0,
                            nullptr);
@@ -221,41 +223,45 @@ static ProjectVariable *rna_ProjectVariables_new(bke::BlenderProjectData *projec
     return nullptr;
   }
 
-  project_data->variables.append(ProjectVariable{
-      std::string(name),
-      bke::ProjectVarType(type),
-      0,
-      0.0,
-      std::string(),
-  });
+  project_data->variables.append(std::make_unique<ProjectVariable>());
+
+  ProjectVariable *new_var = project_data->variables.last().get();
+  new_var->name = std::string(name);
+  new_var->type = bke::ProjectVarType(type);
+  new_var->value_int = 0;
+  new_var->value_float = 0.0;
+  new_var->value_string = std::string();
 
   project_mark_dirty();
 
-  return &project_data->variables.last();
+  return new_var;
 }
 
 void rna_ProjectVariables_remove(bke::BlenderProjectData *project_data,
                                  ReportList *reports,
                                  PointerRNA *variable_ptr)
 {
-  const ProjectVariable *var = static_cast<ProjectVariable *>(variable_ptr->data);
+  // TODO: figure out how to make this actually work.
 
-  int index = -1;
-  for (int i = 0; i < project_data->variables.size(); i++) {
-    if (project_data->variables[i].name == var->name) {
-      index = i;
-      break;
-    }
-  }
+  // const std::unique_ptr<ProjectVariable> *var = static_cast<std::unique_ptr<ProjectVariable> *>(
+  //     variable_ptr->data);
 
-  if (index == -1) {
-    BKE_reportf(reports, RPT_ERROR, "Variable not found in project variables.");
-    return;
-  }
+  // int index = -1;
+  // for (int i = 0; i < project_data->variables.size(); i++) {
+  //   if (project_data->variables[i].get() == var->get()) {
+  //     index = i;
+  //     break;
+  //   }
+  // }
 
-  project_data->variables.remove(index);
+  // if (index == -1) {
+  //   BKE_reportf(reports, RPT_ERROR, "Variable not found in project variables.");
+  //   return;
+  // }
 
-  project_mark_dirty();
+  // project_data->variables.remove(index);
+
+  // project_mark_dirty();
 }
 
 /* --------------------------------------------------------- */
