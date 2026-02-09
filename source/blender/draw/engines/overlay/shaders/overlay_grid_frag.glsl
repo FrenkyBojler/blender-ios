@@ -79,7 +79,7 @@ void main()
 
   /* Alpha discard; discard by stipple pattern for low alpha, to account for overlays
    * incompatible with depth+blend, e.g. MeshEdit. */
-  {
+  if (drw_view_is_perspective()) {
     constexpr float dash_width = 4.0f; /* Width of dash pattern; increase to make lines longer. */
     constexpr float fade_start = 0.1f; /* Cutoff for dash fade; alpha above is fully drawn. */
     constexpr float fade_rcp = 1.0f / fade_start;
