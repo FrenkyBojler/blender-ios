@@ -4,6 +4,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 
 #include "GEO_fit_curves.hh"
 #include "GEO_randomize.hh"
@@ -38,8 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   const GeometryNodeFitCurves &storage = node_storage(*node);
 
   b.add_input<decl::Geometry>("Poly Curves", "Curves")
-      /* TODO: Should also support Grease Pencil. */
-      .supported_type(GeometryComponent::Type::Curve);
+      .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
   b.add_output<decl::Geometry>("Curves").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
   b.add_input<decl::Bool>("Corners").default_value(false).field_on_all().hide_value();
@@ -86,14 +86,14 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
   }
 }
 
-static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
-                                      const IndexMask &poly_curves,
-                                      const Field<bool> &selection_field,
-                                      const Field<bool> &corners_field,
-                                      const Field<float> &threshold_field,
-                                      const Span<fn::GField> attribute_fields,
-                                      const GeometryNodeFitCurvesMode mode,
-                                      const AttributeFilter &attribute_filter)
+static bke::CurvesGeometry fit_curves_geometry(const bke::CurvesGeometry &src_curves,
+                                               const IndexMask &poly_curves,
+                                               const Field<bool> &selection_field,
+                                               const Field<bool> &corners_field,
+                                               const Field<float> &threshold_field,
+                                               const Span<fn::GField> attribute_fields,
+                                               const GeometryNodeFitCurvesMode mode,
+                                               const AttributeFilter &attribute_filter)
 {
   const bke::CurvesFieldContext curve_field_context{src_curves, AttrDomain::Curve};
   fn::FieldEvaluator curve_evaluator{curve_field_context, &poly_curves};
@@ -144,6 +144,71 @@ static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
   return curves;
 }
 
+static Curves *fit_curves(const Curves &src_curves_id,
+                          const Field<bool> &selection_field,
+                          const Field<bool> &corners_field,
+                          const Field<float> &threshold_field,
+                          const Span<fn::GField> attribute_fields,
+                          const GeometryNodeFitCurvesMode mode,
+                          const NodeAttributeFilter attribute_filter)
+{
+  const bke::CurvesGeometry &src_curves = src_curves_id.geometry.wrap();
+
+  IndexMaskMemory memory;
+  const IndexMask poly_curves = src_curves.indices_for_curve_type(CURVE_TYPE_POLY, memory);
+  if (poly_curves.is_empty()) {
+    return nullptr;
+  }
+  bke::CurvesGeometry dst_curves = fit_curves_geometry(src_curves,
+                                                       poly_curves,
+                                                       selection_field,
+                                                       corners_field,
+                                                       threshold_field,
+                                                       attribute_fields,
+                                                       mode,
+                                                       attribute_filter);
+  Curves *dst_curves_id = bke::curves_new_nomain(std::move(dst_curves));
+  bke::curves_copy_parameters(src_curves_id, *dst_curves_id);
+  return dst_curves_id;
+}
+
+static bool fit_grease_pencil_curves(GreasePencil &grease_pencil,
+                                     const Field<bool> &selection_field,
+                                     const Field<bool> &corners_field,
+                                     const Field<float> &threshold_field,
+                                     const Span<fn::GField> attribute_fields,
+                                     const GeometryNodeFitCurvesMode mode,
+                                     const NodeAttributeFilter attribute_filter)
+{
+  using namespace bke::greasepencil;
+  bool has_poly_curves = false;
+  for (const int layer_index : grease_pencil.layers().index_range()) {
+    Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
+    if (drawing == nullptr) {
+      continue;
+    }
+
+    const bke::CurvesGeometry &src_curves = drawing->strokes();
+    IndexMaskMemory memory;
+    const IndexMask poly_curves = src_curves.indices_for_curve_type(CURVE_TYPE_POLY, memory);
+    if (poly_curves.is_empty()) {
+      continue;
+    }
+    bke::CurvesGeometry dst_curves = fit_curves_geometry(src_curves,
+                                                         poly_curves,
+                                                         selection_field,
+                                                         corners_field,
+                                                         threshold_field,
+                                                         attribute_fields,
+                                                         mode,
+                                                         attribute_filter);
+    drawing->strokes_for_write() = std::move(dst_curves);
+    drawing->tag_topology_changed();
+    has_poly_curves = true;
+  }
+  return has_poly_curves;
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curves");
@@ -164,25 +229,36 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
-    if (const Curves *curves_id = geometry_set.get_curves()) {
-      const bke::CurvesGeometry &src_curves = curves_id->geometry.wrap();
+    if (const Curves *src_curves_id = geometry_set.get_curves()) {
+      const bke::CurvesGeometry &src_curves = src_curves_id->geometry.wrap();
       if (!src_curves.has_curve_with_type(CURVE_TYPE_POLY)) {
         params.error_message_add(NodeWarningType::Warning, "Input curves have no poly curves");
         return;
       }
-      IndexMaskMemory memory;
-      const IndexMask poly_curves = src_curves.indices_for_curve_type(CURVE_TYPE_POLY, memory);
-      bke::CurvesGeometry dst_curves = fit_curves(src_curves,
-                                                  poly_curves,
-                                                  selection_field,
-                                                  corners_field,
-                                                  threshold_field,
-                                                  attribute_fields.as_span(),
-                                                  mode,
-                                                  attribute_filter);
-      Curves *dst_curves_id = bke::curves_new_nomain(std::move(dst_curves));
-      bke::curves_copy_parameters(*curves_id, *dst_curves_id);
-      geometry_set.replace_curves(dst_curves_id);
+      Curves *dst_curves_id = fit_curves(*src_curves_id,
+                                         selection_field,
+                                         corners_field,
+                                         threshold_field,
+                                         attribute_fields.as_span(),
+                                         mode,
+                                         attribute_filter);
+      if (dst_curves_id) {
+        geometry_set.replace_curves(dst_curves_id);
+      }
+    }
+    if (geometry_set.has_grease_pencil()) {
+      GreasePencil &grease_pencil = *geometry_set.get_grease_pencil_for_write();
+      const bool found_poly_curves_to_fit = fit_grease_pencil_curves(grease_pencil,
+                                                                     selection_field,
+                                                                     corners_field,
+                                                                     threshold_field,
+                                                                     attribute_fields.as_span(),
+                                                                     mode,
+                                                                     attribute_filter);
+      if (!found_poly_curves_to_fit) {
+        params.error_message_add(NodeWarningType::Warning, "Input curves have no poly curves");
+        return;
+      }
     }
   });
 
