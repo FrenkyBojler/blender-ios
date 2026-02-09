@@ -376,7 +376,6 @@ set(SRC
   BLI_string_utf8.h
   BLI_string_utf8_symbols.h
   BLI_string_utils.hh
-  BLI_struct_equality_utils.hh
   BLI_sub_frame.hh
   BLI_subprocess.hh
   BLI_sys_types.h
@@ -474,6 +473,11 @@ if(UNIX AND NOT APPLE)
   list(APPEND LIB
     bf_intern_libc_compat
   )
+endif()
+
+# needed for BLI_subprocess.cc when using the mold linker.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  list(APPEND LIB rt)
 endif()
 
 # no need to compile object files for inline headers.
