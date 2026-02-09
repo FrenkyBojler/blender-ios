@@ -3104,8 +3104,8 @@ void Layout::popover(const bContext *C,
     return;
   }
   this->popover(C, pt, name_opt, icon);
-  static_cast<ButtonMenu *>(this->block()->buttons.last().get())->popup_attach_direction =
-      direction;
+  ButtonMenu *popover_button = static_cast<ButtonMenu *>(this->block()->buttons.last().get());
+  popover_button->popup_attach_direction = direction;
 }
 
 void Layout::popover_group(
