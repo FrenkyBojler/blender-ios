@@ -2742,8 +2742,22 @@ static void ui_but_paste_curvemapping(bContext *C, Button *but)
 {
   if (but_copypaste_curve_alive && but->poin != nullptr) {
     button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
-    BKE_curvemapping_free_data(reinterpret_cast<CurveMapping *>(but->poin));
-    BKE_curvemapping_copy_data(reinterpret_cast<CurveMapping *>(but->poin), &but_copypaste_curve);
+
+    CurveMapping *dest = reinterpret_cast<CurveMapping *>(but->poin);
+
+    int source_channels = BKE_curvemapping_num_channels(&but_copypaste_curve);
+    int dest_channels = BKE_curvemapping_num_channels(dest);
+
+    if (source_channels == dest_channels) {
+      BKE_curvemapping_free_data(dest);
+      BKE_curvemapping_copy_data(dest, &but_copypaste_curve);
+    }
+    else {
+      BKE_curvemapping_free_data_single(dest, dest->cur);
+      BKE_curvemapping_copy_data_single(
+          dest, &but_copypaste_curve, dest->cur, but_copypaste_curve.cur, true);
+    }
+
     button_activate_state(C, but, BUTTON_STATE_EXIT);
   }
 }
@@ -5006,12 +5020,11 @@ static int ui_do_but_TEX(
       }
     }
     else if (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_CTRL)) {
-      if ((but->type == ButtonType::SearchMenu) && but->func_argN &&
-          (static_cast<ButtonSearch *>(but)->arg == but->func_argN))
-      {
-        /* Disable value cycling for search buttons with an allocated search data argument. This
-         * causes issues because the search data is moved to the "afterfuncs", but search updating
-         * requires it again. See #147539. */
+      if (but->type == ButtonType::SearchMenu) {
+        /* Disable value cycling for search buttons. This causes issues because the search data is
+         * moved to the "afterfuncs", but search updating requires it again or somethimes this
+         * event can be triguered twice in row without the button being refreshed. See #147539 and
+         * #152976. */
       }
       else {
         const int inc_value = (event->type == WHEELUPMOUSE) ? 1 : -1;
