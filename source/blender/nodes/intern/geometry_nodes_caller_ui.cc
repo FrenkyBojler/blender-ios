@@ -64,7 +64,7 @@ struct OperatorSearchData {
   /** Can store this data directly, because it's more persistent than for the modifier. */
   geo_log::GeoTreeLog *tree_log = nullptr;
   bNodeTree *tree = nullptr;
-  IDProperty *properties = nullptr;
+  wmOperator *op = nullptr;
 };
 
 struct SocketSearchData {
@@ -144,28 +144,27 @@ SearchInfo SocketSearchData::info(const bContext &C) const
     if (!object_and_modifier) {
       return {};
     }
-    const NodesModifierData &nmd = *object_and_modifier->nmd;
-    if (nmd.node_group == nullptr) {
+    const NodesModifierData *nmd = object_and_modifier->nmd;
+    if (nmd->node_group == nullptr) {
       return {};
     }
-    geo_log::GeoTreeLog *tree_log = get_root_tree_log(*object_and_modifier->object, nmd);
+    geo_log::GeoTreeLog *tree_log = get_root_tree_log(*object_and_modifier->object, *nmd);
     PointerRNA nmd_ptr = RNA_pointer_create_discrete(
         &const_cast<Object *>(object_and_modifier->object)->id,
         RNA_NodesModifier,
-        const_cast<NodesModifierData *>(&nmd));
+        const_cast<NodesModifierData *>(nmd));
     PointerRNA properties_ptr = RNA_pointer_get(&nmd_ptr, "properties");
     PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
     PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, this->socket_identifier);
-    return {tree_log, nmd.node_group, socket_props_ptr};
+    return {tree_log, nmd->node_group, socket_props_ptr};
   }
   if (const auto *operator_search_data = std::get_if<OperatorSearchData>(&this->search_data)) {
-    // PointerRNA properties_ptr = RNA_pointer_create_discrete(
-    //     nullptr,
-    //     operator_search_data->tree->runtime->geometry_nodes_operator_srna,
-    //     operator_search_data->properties);
-    // PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
-    // PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, this->socket_identifier);
-    // return {operator_search_data->tree_log, operator_search_data->tree, socket_props_ptr};
+    PointerRNA op_ptr = RNA_pointer_create_discrete(
+        &CTX_wm_manager(&C)->id, RNA_Operator, operator_search_data->op);
+    PointerRNA properties_ptr = RNA_pointer_get(&op_ptr, "properties");
+    PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
+    PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, this->socket_identifier);
+    return {operator_search_data->tree_log, operator_search_data->tree, socket_props_ptr};
   }
   return {};
 }
@@ -1061,19 +1060,13 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
   Main &bmain = *CTX_data_main(&C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(&bmain);
 
-  IDProperty *properties_idprops = IDP_GetPropertyFromGroup(op.properties, "properties");
-  if (!properties_idprops) {
-    properties_idprops = bke::idprop::create_group("properties", IDP_FLAG_STATIC_TYPE).release();
-    IDP_AddToGroup(op.properties, properties_idprops);
-  }
-
   DrawGroupInputsContext ctx{C, &tree, tree_log, op.ptr, &bmain_ptr};
   ctx.socket_search_data_fn = [&](const bNodeTreeInterfaceSocket &io_socket) -> SocketSearchData {
     SocketSearchData data{};
     OperatorSearchData &operator_search_data = data.search_data.emplace<OperatorSearchData>();
     operator_search_data.tree = &tree;
     operator_search_data.tree_log = tree_log;
-    operator_search_data.properties = properties_idprops;
+    operator_search_data.op = &op;
     STRNCPY_UTF8(data.socket_identifier, io_socket.identifier);
     data.is_output = io_socket.flag & NODE_INTERFACE_SOCKET_OUTPUT;
     return data;
