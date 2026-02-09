@@ -712,23 +712,23 @@ static void file_tools_region_exit(wmWindowManager * /*wm*/, ARegion *region)
 
     if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_volumes")) {
       U.file_space_data.volumes_index = i;
-      U.file_space_data.volumes_expand = is_open;
+      U.file_space_data.volumes_open = is_open;
     }
     else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_system")) {
       U.file_space_data.system_index = i;
-      U.file_space_data.system_expand = is_open;
+      U.file_space_data.system_open = is_open;
     }
     else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_recents")) {
       U.file_space_data.recent_index = i;
-      U.file_space_data.recent_expand = is_open;
+      U.file_space_data.recent_open = is_open;
     }
     else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_favorites")) {
       U.file_space_data.bookmarks_index = i;
-      U.file_space_data.bookmarks_expand = is_open;
+      U.file_space_data.bookmarks_open = is_open;
     }
     else if (STREQ(panel->type->idname, "FILEBROWSER_PT_advanced_filter")) {
       U.file_space_data.advanced_filter_index = i;
-      U.file_space_data.advanced_filter_expand = is_open;
+      U.file_space_data.advanced_filter_open = is_open;
     }
   }
 

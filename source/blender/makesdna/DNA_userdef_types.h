@@ -762,6 +762,7 @@ struct UserDef_SpaceData {
  * Storage for UI data that to keep it even after the window was closed. (Similar to
  * #UserDef_SpaceData.)
  */
+
 struct UserDef_FileSpaceData {
   int display_type = FILE_VERTICALDISPLAY; /* FileSelectParams.display */
   int thumbnail_size = 96;                 /* FileSelectParams.thumbnail_size */
@@ -773,18 +774,17 @@ struct UserDef_FileSpaceData {
   uint64_t filter_id = FILTER_ID_ALL; /* FileSelectParams.filter_id */
 
   char bookmarks_index = 0;
-  char recent_index = 1;
+  char bookmarks_open = 1;
+  char system_index = 1;
+  char system_open = 1;
   char volumes_index = 2;
-  char system_index = 3;
+  char volumes_open = 1;
+  char recent_index = 3;
+  char recent_open = 1;
   char advanced_filter_index = 4;
+  char advanced_filter_open = 1;
 
-  char bookmarks_expand = 1;
-  char recent_expand = 1;
-  char volumes_expand = 1;
-  char system_expand = 1;
-  char advanced_filter_expand = 1;
-
-  char _pad[6];
+  char _pad[6] = {};
 };
 
 struct UserDef_TempWinBounds {

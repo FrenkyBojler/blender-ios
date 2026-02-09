@@ -1746,9 +1746,27 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(501, 24)) {
     /* Increase the base XR vignette value to match the previous default after logic refactor. */
-    if (userdef->xr_navigation.vignette_intensity == 60) {
+    /* Can be either 50 or 60 due to an oversight in the original feature (dde9d21b91) where
+     * the DNA default was set 60, but the versioning_userdef set it to 50. */
+    if (userdef->xr_navigation.vignette_intensity == 50 ||
+        userdef->xr_navigation.vignette_intensity == 60)
+    {
       userdef->xr_navigation.vignette_intensity = 70;
     }
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 1)) {
+    userdef->file_space_data.bookmarks_index = 0;
+    userdef->file_space_data.bookmarks_index = 0;
+    userdef->file_space_data.system_index = 1;
+    userdef->file_space_data.volumes_index = 2;
+    userdef->file_space_data.recent_index = 3;
+    userdef->file_space_data.advanced_filter_index = 4;
+    userdef->file_space_data.bookmarks_open = 1;
+    userdef->file_space_data.system_open = 1;
+    userdef->file_space_data.volumes_open = 1;
+    userdef->file_space_data.recent_open = 1;
+    userdef->file_space_data.advanced_filter_open = 1;
   }
 
   /**
