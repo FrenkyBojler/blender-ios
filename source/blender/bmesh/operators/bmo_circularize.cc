@@ -86,14 +86,13 @@ static bool is_valid_boundary_edge(BMEdge *e,
  * 2. Open chains: walks in one direction until a dead end, then walks in the
  * opposite direction from the start edge and merges the results.
  */
-static bool walk_boundary_loop(BMesh * /*bm*/,
-                               BMEdge *start_edge,
-                               Set<BMEdge *> &visited,
-                               Vector<BMVert *> &r_loop,
-                               const bool check_x,
-                               const bool check_y,
-                               const bool check_z)
+static LoopData walk_boundary_loop(BMEdge *start_edge,
+                                   Set<BMEdge *> &visited,
+                                   const bool check_x,
+                                   const bool check_y,
+                                   const bool check_z)
 {
+  LoopData loop_data;
   /* Finds the next valid boundary edge that isn't visited. */
   auto get_next_edge = [&](BMVert *v, BMEdge *exclude_e) -> BMEdge * {
     BMIter eiter;
@@ -125,17 +124,18 @@ static bool walk_boundary_loop(BMesh * /*bm*/,
     }
   };
 
-  r_loop.append(start_edge->v1);
-  r_loop.append(start_edge->v2);
+  loop_data.verts.append(start_edge->v1);
+  loop_data.verts.append(start_edge->v2);
   visited.add(start_edge);
 
-  walk(start_edge->v2, start_edge, r_loop);
+  walk(start_edge->v2, start_edge, loop_data.verts);
 
   /* If the traversal forms a closed loop, the last vertex will match the first.
    * Remove the duplicate end vertex. */
-  if (r_loop.size() > 2 && r_loop.first() == r_loop.last()) {
-    r_loop.remove_last();
-    return true;
+  if (loop_data.verts.size() > 2 && loop_data.verts.first() == loop_data.verts.last()) {
+    loop_data.verts.remove_last();
+    loop_data.is_closed = true;
+    return loop_data;
   }
 
   /* If we are here, the loop is open.
@@ -146,11 +146,12 @@ static bool walk_boundary_loop(BMesh * /*bm*/,
   if (!pre_loop.is_empty()) {
     std::reverse(pre_loop.begin(), pre_loop.end());
 
-    pre_loop.extend(r_loop);
-    r_loop = std::move(pre_loop);
+    pre_loop.extend(loop_data.verts);
+    loop_data.verts = std::move(pre_loop);
   }
 
-  return false;
+  loop_data.is_closed = false;
+  return loop_data;
 }
 
 /* Collects all valid boundary edge loops from the current selection. */
@@ -195,9 +196,7 @@ static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops, const bool che
       continue;
     }
 
-    LoopData ld;
-    ld.is_closed = walk_boundary_loop(bm, edge, visited, ld.verts, check_x, check_y, check_z);
-
+    LoopData ld = walk_boundary_loop(edge, visited, check_x, check_y, check_z);
     if (ld.verts.size() >= 3) {
       r_loops.append(ld);
     }
@@ -252,10 +251,7 @@ static void project_loop_to_2d(const Vector<BMVert *> &loop,
     float vec[3];
     sub_v3_v3v3(vec, v->co, center);
 
-    CircleVert cv{
-        .v = v,
-        .co_2d = {dot_v3v3(vec, p), dot_v3v3(vec, q)}
-    };
+    CircleVert cv{.v = v, .co_2d = {dot_v3v3(vec, p), dot_v3v3(vec, q)}};
 
     r_2d_verts.append(cv);
   }
