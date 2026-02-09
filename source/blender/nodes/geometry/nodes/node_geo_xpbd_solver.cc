@@ -73,6 +73,13 @@ struct Geometries {
   VectorSet<DataKey> data_keys;
   Vector<AttrDomain> domains;
   Vector<bke::MutableAttributeAccessor> attribute_accessors;
+
+  /**
+   * Inverse of the mass attribute + extra changes:
+   * - For pinned positions this is set to 0.
+   * - If there is no mass attribute, or it is <= 0, this is set to 1.
+   */
+  Vector<Vector<float>> inverse_masses_;
 };
 
 struct FieldEvaluatorKey {
@@ -160,6 +167,7 @@ class XpbdSolverStep {
   {
     this->prepare_substep_compliance_factor();
     this->gather_geometries_from_world();
+    this->prepare_inverse_masses();
     this->gather_constraints_from_world();
     this->evaluate_constraint_fields();
     this->prepare_constraints();
@@ -224,6 +232,52 @@ class XpbdSolverStep {
               {geo_bundle_i, bke::GeometryComponent::Type::Curve, layer_i});
           geometries_.domains.append(AttrDomain::Point);
         }
+      }
+    }
+  }
+
+  void prepare_inverse_masses()
+  {
+    geometries_.inverse_masses_.resize(geometries_.data_keys.size());
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      const AttrDomain domain = geometries_.domains[data_key_i];
+      const bke::AttributeAccessor &attributes = geometries_.attribute_accessors[data_key_i];
+      const int domain_size = attributes.domain_size(domain);
+      Vector<float> &inverse_masses = geometries_.inverse_masses_[data_key_i];
+      inverse_masses.resize(domain_size);
+      const bke::AttributeReader<float> masses_attr = attributes.lookup<float>("mass", domain);
+      const bke::AttributeReader<bool> pin_attr = attributes.lookup_or_default<bool>(
+          "sim_pinned", domain, false);
+
+      if (masses_attr) {
+        threading::parallel_for(inverse_masses.index_range(), 2048, [&](const IndexRange range) {
+          for (const int i : range) {
+            const float mass = masses_attr.varray[i];
+            const bool pinned = pin_attr.varray[i];
+            if (pinned) {
+              inverse_masses[i] = 0.0f;
+            }
+            else if (mass <= 0.0f) {
+              inverse_masses[i] = 1.0f;
+            }
+            else {
+              inverse_masses[i] = 1.0f / mass;
+            }
+          }
+        });
+      }
+      else {
+        threading::parallel_for(inverse_masses.index_range(), 2048, [&](const IndexRange range) {
+          for (const int i : range) {
+            const bool pinned = pin_attr.varray[i];
+            if (pinned) {
+              inverse_masses[i] = 0.0f;
+            }
+            else {
+              inverse_masses[i] = 1.0f;
+            }
+          }
+        });
       }
     }
   }
@@ -396,13 +450,12 @@ class XpbdSolverStep {
       MutableSpan<float3> velocities = velocities_attr.span;
       const VArraySpan<float3> external_forces = *attributes.lookup_or_default<float3>(
           "external_force", AttrDomain::Point, float3(0, 0, 0));
-      const VArraySpan<float> masses = *attributes.lookup_or_default<float>(
-          "mass", AttrDomain::Point, 1);
+      const Span<float> inv_masses = geometries_.inverse_masses_[data_key_i];
       threading::parallel_for(positions.index_range(), 256, [&](const IndexRange range) {
         for (const int i : range) {
           const float3 external_force = external_forces[i];
-          const float mass = masses[i];
-          const float3 acceleration = math::safe_divide(external_force, mass);
+          const float inv_mass = inv_masses[i];
+          const float3 acceleration = external_force * inv_mass;
           velocities[i] += acceleration * total_delta_time_;
           positions[i] += velocities[i] * total_delta_time_;
         }
