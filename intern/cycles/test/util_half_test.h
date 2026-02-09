@@ -48,18 +48,19 @@ static const std::array<HalfTestVal, 13> test_values = {{{0.0f, 0x0000},
                                                          {-0.5f, 0xb800},
                                                          {-1.0f, 0xbc00},
                                                          /* Smallest positive normal (2^-14) */
-                                                         {6.103515625e-05f, 0x0400},
+                                                         {6.103515625e-5f, 0x0400},
                                                          /* Largest denormal (2^-14 - 2^-24) */
-                                                         {6.0975551605e-05f, 0x03FF},
+                                                         {6.0975551605e-5f, 0x03ff},
                                                          /* Smallest positive denormal (2^-24) */
-                                                         {5.9604644775e-08f, 0x0001}}};
+                                                         {5.9604644775e-8f, 0x0001}}};
 
 TEST(TEST_CATEGORY_NAME, float_to_half)
 {
   if (!validate_cpu_capabilities()) {
+    GTEST_SKIP();
     return;
   }
-  for (const auto &val : test_values) {
+  for (const HalfTestVal &val : test_values) {
     EXPECT_HALF_EQ(float_to_half(val.f), val.h);
     EXPECT_EQ(half_to_float(half(val.h)), val.f);
   }
@@ -68,6 +69,7 @@ TEST(TEST_CATEGORY_NAME, float_to_half)
 TEST(TEST_CATEGORY_NAME, float3_to_half3)
 {
   if (!validate_cpu_capabilities()) {
+    GTEST_SKIP();
     return;
   }
   for (size_t i = 0; i < test_values.size(); i++) {
@@ -93,6 +95,7 @@ TEST(TEST_CATEGORY_NAME, float3_to_half3)
 TEST(TEST_CATEGORY_NAME, float4_to_half4)
 {
   if (!validate_cpu_capabilities()) {
+    GTEST_SKIP();
     return;
   }
   for (size_t i = 0; i < test_values.size(); i += 4) {
@@ -122,9 +125,10 @@ TEST(TEST_CATEGORY_NAME, float4_to_half4)
 TEST(TEST_CATEGORY_NAME, fallback_float_to_half)
 {
   if (!validate_cpu_capabilities()) {
+    GTEST_SKIP();
     return;
   }
-  for (const auto &val : test_values) {
+  for (const HalfTestVal &val : test_values) {
     EXPECT_HALF_EQ(fallback_float_to_half(val.f), val.h);
     EXPECT_EQ(fallback_half_to_float(half(val.h)), val.f);
   }
@@ -133,6 +137,7 @@ TEST(TEST_CATEGORY_NAME, fallback_float_to_half)
 TEST(TEST_CATEGORY_NAME, fallback_float3_to_half3)
 {
   if (!validate_cpu_capabilities()) {
+    GTEST_SKIP();
     return;
   }
   for (size_t i = 0; i < test_values.size(); i++) {
@@ -158,6 +163,7 @@ TEST(TEST_CATEGORY_NAME, fallback_float3_to_half3)
 TEST(TEST_CATEGORY_NAME, fallback_float4_to_half4)
 {
   if (!validate_cpu_capabilities()) {
+    GTEST_SKIP();
     return;
   }
   for (size_t i = 0; i < test_values.size(); i += 4) {

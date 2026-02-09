@@ -217,7 +217,7 @@ bool system_cpu_support_avx2()
    * Some cases where it might be missing is Rosetta or virtual machines, so we
    * check for it just to be safe. */
   CPUCapabilities &caps = system_cpu_capabilities();
-  return caps.avx2 and caps.f16c;
+  return caps.avx2 && caps.f16c;
 }
 
 #else
