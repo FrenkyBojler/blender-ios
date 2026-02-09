@@ -1,1 +1,2 @@
 Referenced by commit 429dc0920cb000a88d3aa22cd0ae855ac1b9aad4, Fix #144362: Match string node crash after recent change
+Referenced by issue #154086, Unknown geometry node causes Blender to crash when opening file in 5.0+
