@@ -198,16 +198,15 @@ void main()
 
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vertex_out.pos, 1.0f));
 
-  /* Adjust z-component */
-  if (drw_view_is_perspective()) {
-    /* To minimize z-fighting, the grid is drawn N times with progressive alpha and z-bias,
-     * making it fade through geometry. The smaller the range below, the more it pops in. */
-    float z_factor = float(grid_iter * OVERLAY_GRID_STEPS_DRAW + line.level) /
-                     float(OVERLAY_GRID_ITER_LEN * OVERLAY_GRID_STEPS_DRAW);
-    gl_Position.z += mix(5e-4f, 1e-4f, z_factor);
-  }
-  else { /* orthographic */
-    /* Set z to far plane in orthographic, so it is behind all things. */
+  /* To minimize z-fighting, the grid is drawn N times with progressive alpha and z-bias,
+   * making it fade through geometry. The smaller the range below, the more it pops in.
+   * This also ensures emphasized levels draw over non-emphasized levels. */
+  float z_factor = float(grid_iter * OVERLAY_GRID_STEPS_DRAW + line.level) /
+                   float(OVERLAY_GRID_ITER_LEN * OVERLAY_GRID_STEPS_DRAW);
+  gl_Position.z += mix(5e-4f, 1e-4f, z_factor);
+
+  /* Set z to far plane in orthographic camera views, so it is behind all things. */
+  if (!drw_view_is_perspective() && !flag_test(grid_flag, GRID_SIMA)) {
     if (!flag_test(grid_flag, GRID_SIMA)) {
       gl_Position.z = 1.0f;
     }
