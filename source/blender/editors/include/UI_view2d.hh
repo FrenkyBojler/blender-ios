@@ -253,7 +253,7 @@ void view2d_draw_lines_x_frames(const View2D *v2d,
                                 bool show_fractions,
                                 bool draw_minor_lines);
 
-float view2d_grid_resolution_x(const View2D *v2d, const Scene *scene, const bool display_seconds);
+float view2d_grid_resolution_x(const View2D *v2d, const Scene *scene, bool display_seconds);
 float view2d_grid_resolution_y__values(const View2D *v2d, int base);
 
 /**

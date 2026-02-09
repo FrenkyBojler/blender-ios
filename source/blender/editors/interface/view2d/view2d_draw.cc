@@ -463,8 +463,9 @@ static float get_label_width(PositionToString to_string,
 {
   const int font_id = BLF_set_default();
   char text[32];
-  /* Using abs to remove the influence of the - on the width. The padding added should make up for
-   * that.  */
+  /* Using abs to remove the influence of the minus sign on the text width. The padding added
+   * should make up for that. This avoids flickering when scrolling horizontally around the 0
+   * point.  */
   to_string(scene, abs(data_bounds.x), 0, text, sizeof(text));
   const float left_text_width = BLF_width(font_id, text, strlen(text));
   to_string(scene, abs(data_bounds.y), 0, text, sizeof(text));
