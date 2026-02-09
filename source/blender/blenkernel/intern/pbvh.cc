@@ -922,11 +922,6 @@ static PositionSourceResult cache_source_get(const Object &object_orig, const Ob
   const Mesh &mesh_orig = *id_cast<const Mesh *>(object_orig.data);
   BLI_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
 
-  if (object_orig.mode & OB_MODE_SCULPT) {
-    if (const Mesh *mesh_eval = BKE_object_get_mesh_deform_eval(&object_eval)) {
-      return {PositionSource::EvalDeform, mesh_eval};
-    }
-  }
   if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
     if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
       if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
