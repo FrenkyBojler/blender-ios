@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'c1168d06bba2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-26 11:28+0000\n"
+"POT-Creation-Date: 2026-02-09 09:47+0000\n"
 "PO-Revision-Date: 2025-11-12 16:04+0000\n"
 "Last-Translator: blend-it <blend-it@users.noreply.translate.blender.org>\n"
 "Language-Team: Italian <https://translate.blender.org/projects/blender-ui/ui/it/>\n"
@@ -5360,6 +5360,18 @@ msgid "Threshold in screen space used for the simplify algorithm. Points within 
 msgstr "Soglia nello spazio schermo utilizzata per semplificare l'algoritmo. punti all'interno di questa soglia sono trattati come se fossero in linea retta."
 
 
+msgid "Stroke"
+msgstr "Tratto"
+
+
+msgid "Fill"
+msgstr "Riempi"
+
+
+msgid "Both"
+msgstr "Entrambi"
+
+
 msgid "Active Layer"
 msgstr "Livello Attivo"
 
@@ -5524,16 +5536,8 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "Definisce come il colore del vertice influenza i tratti"
 
 
-msgid "Stroke"
-msgstr "Tratto"
-
-
 msgid "Vertex Color affects to Stroke only"
 msgstr "Il Colore del Vertice influenza solo il Tratto"
-
-
-msgid "Fill"
-msgstr "Riempi"
 
 
 msgid "Vertex Color affects to Fill only"
@@ -11479,6 +11483,14 @@ msgid "Amplitude of the noise - the amount that it modifies the underlying curve
 msgstr "Ampiezza del rumore - l'ammontare con cui modifica la curva sottostante"
 
 
+msgid "Filter Width"
+msgstr "Larghezza Filtro"
+
+
+msgid "Sigma"
+msgstr "Sigma"
+
+
 msgid "Step Size"
 msgstr "Dimensione Passo"
 
@@ -15172,20 +15184,12 @@ msgid "Adaptive Spacing"
 msgstr "Spaziatura Adattiva"
 
 
-msgid "Airbrush"
-msgstr "Aerografo"
-
-
 msgid "Affect Alpha"
 msgstr "Influisci Alfa"
 
 
 msgid "When this is disabled, lock alpha while painting"
 msgstr "Quando è disabilitato, blocca l'alpha mentre si pittura"
-
-
-msgid "Anchored"
-msgstr "Ancorato"
 
 
 msgid "Mesh Boundary Auto-Masking"
@@ -15354,14 +15358,6 @@ msgstr "Abilita la sensibilità di pressione della tavoletta per l'intensità"
 
 msgid "Show texture in viewport"
 msgstr "Mostra la texture nel viewport"
-
-
-msgid "Restore Mesh"
-msgstr "Ripristina Mesh"
-
-
-msgid "Allow a single dot to be carefully positioned"
-msgstr "Consente un punto singolo per essere posizionato con cura"
 
 
 msgid "Spacing Distance"
@@ -16237,10 +16233,6 @@ msgstr "Distanza tra linee del testo"
 
 msgid "Spacing between words"
 msgstr "Spaziatura tra parole"
-
-
-msgid "Textboxes"
-msgstr "Caselle di Testo"
 
 
 msgid "Underline Thickness"
@@ -17985,10 +17977,6 @@ msgstr "Composizione Albero Nodi"
 
 msgid "Viewer Region"
 msgstr "Regione Spettatore"
-
-
-msgid "Use boundaries for viewer nodes and composite backdrop"
-msgstr "Utilizza i bordi per i nodi di visualizzazione e la composizione sullo sfondo"
 
 
 msgid "Node tree consisting of linked nodes used for geometries"
@@ -24590,32 +24578,28 @@ msgid "Sample"
 msgstr "Campione"
 
 
-msgid "Show/Hide"
-msgstr "Mostra/Nascondi"
-
-
-msgid "Clean Up"
-msgstr "Ripulisci"
-
-
-msgid "Instances"
-msgstr "Istanze"
+msgid "Primitives"
+msgstr "Primitive"
 
 
 msgid "Bone Roll"
 msgstr "Rollio Osso"
 
 
+msgid "Clean Up"
+msgstr "Ripulisci"
+
+
+msgid "Show/Hide"
+msgstr "Mostra/Nascondi"
+
+
 msgid "Names"
 msgstr "Nomi"
 
 
-msgid "Primitives"
-msgstr "Primitive"
-
-
-msgid "Import"
-msgstr "Importa"
+msgid "Special Characters"
+msgstr "Caratteri Speciali"
 
 
 msgid "Metaball"
@@ -24626,56 +24610,36 @@ msgid "Kerning"
 msgstr "Crenatura"
 
 
-msgid "Special Characters"
-msgstr "Caratteri Speciali"
-
-
-msgid "Utilities"
-msgstr "Utilità"
-
-
-msgid "Math"
-msgstr "Matematica"
+msgid "Toggle Bone Options"
+msgstr "Attiva/disattiva Opzioni Osso"
 
 
 msgid "Merge"
 msgstr "Unisci"
 
 
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Select by Face Strength"
-msgstr "Seleziona per Intensità delle Facce"
+msgid "Disable Bone Options"
+msgstr "Disabilita Opzioni Osso"
 
 
 msgid "Set Face Strength"
 msgstr "Imposta Intensità Faccia"
 
 
+msgid "Select by Face Strength"
+msgstr "Seleziona per Intensità delle Facce"
+
+
 msgid "Face Data"
 msgstr "Dati Faccia"
-
-
-msgid "Rigid Body"
-msgstr "Corpo Rigido"
-
-
-msgid "Enable Bone Options"
-msgstr "Abilita Opzioni Osso"
 
 
 msgid "Mesh Select Mode"
 msgstr "Modalità Selezione Mesh"
 
 
-msgid "Disable Bone Options"
-msgstr "Disabilita Opzioni Osso"
-
-
-msgid "Toggle Bone Options"
-msgstr "Attiva/disattiva Opzioni Osso"
+msgid "Enable Bone Options"
+msgstr "Abilita Opzioni Osso"
 
 
 msgid "Apply"
@@ -24686,40 +24650,64 @@ msgid "Bone Collections"
 msgstr "Raccolte di Ossa"
 
 
-msgid "Clear Transform"
-msgstr "Cancella Trasformazione"
+msgid "In-Betweens"
+msgstr "Intermedio"
 
 
 msgid "Propagate"
 msgstr "Propaga"
 
 
-msgid "In-Betweens"
-msgstr "Intermedio"
+msgid "Layout"
+msgstr "Layout"
 
 
-msgid "Random Mask"
-msgstr "Maschera Casuale"
-
-
-msgid "Vertex Group Locks"
-msgstr "Blocchi del Gruppo di Vertici"
+msgid "Clear Transform"
+msgstr "Cancella Trasformazione"
 
 
 msgid "Face Sets Init"
 msgstr "Init Sets di Facce"
 
 
+msgid "Random Mask"
+msgstr "Maschera Casuale"
+
+
+msgid "Adjust"
+msgstr "Regola"
+
+
+msgid "Keying"
+msgstr "Keying"
+
+
+msgid "Convert"
+msgstr "Converti"
+
+
+msgid "Tracking"
+msgstr "Tracciamento"
+
+
+msgid "Vertex Group Locks"
+msgstr "Blocchi del Gruppo di Vertici"
+
+
 msgid "Hooks"
 msgstr "Ganci"
+
+
+msgid "Utilities"
+msgstr "Utilità"
 
 
 msgid "Link/Transfer Data"
 msgstr "Collega/Trasferisci Dati"
 
 
-msgid "Convert"
-msgstr "Converti"
+msgid "Math"
+msgstr "Matematica"
 
 
 msgid "Make Single User"
@@ -24734,52 +24722,44 @@ msgid "Quick Effects"
 msgstr "Effetti Veloci"
 
 
+msgid "Light"
+msgstr "Luce"
+
+
 msgid "Track"
 msgstr "Traccia"
 
 
-msgid "Add Image"
-msgstr "Aggiungi Immagine"
-
-
-msgid "Relations"
-msgstr "Relazioni"
-
-
-msgid "Layout"
-msgstr "Layout"
+msgid "Rigid Body"
+msgstr "Corpo Rigido"
 
 
 msgid "Light Probe"
 msgstr "Sensore di Luce"
 
 
-msgid "Automasking"
-msgstr "Automascheramento"
+msgid "Relations"
+msgstr "Relazioni"
+
+
+msgid "Add Image"
+msgstr "Aggiungi Immagine"
 
 
 msgid "Assign Material"
 msgstr "Assegna Materiale"
 
 
-msgid "Adjust"
-msgstr "Regola"
-
-
-msgid "Light"
-msgstr "Luce"
-
-
-msgid "Keying"
-msgstr "Keying"
-
-
 msgid "Select More/Less"
 msgstr "Seleziona Più/Meno"
 
 
-msgid "Tracking"
-msgstr "Tracciamento"
+msgid "Select Loops"
+msgstr "Seleziona Anelli"
+
+
+msgid "Select Linked"
+msgstr "Seleziona Collegati"
 
 
 msgid "Select Similar"
@@ -24790,56 +24770,56 @@ msgid "Select All by Trait"
 msgstr "Seleziona Tutto per Caratteristica"
 
 
-msgid "Select Linked"
-msgstr "Seleziona Collegati"
-
-
-msgid "Select Loops"
-msgstr "Seleziona Anelli"
-
-
-msgid "Align View to Active"
-msgstr "Allinea Vista a Attivo"
+msgid "Align View"
+msgstr "Allinea Vista"
 
 
 msgid "View Regions"
 msgstr "Regione Vista"
 
 
-msgid "Navigation"
-msgstr "Navigazione"
-
-
-msgid "Align View"
-msgstr "Allinea Vista"
-
-
-msgid "Local View"
-msgstr "Vista Locale"
+msgid "Align View to Active"
+msgstr "Allinea Vista a Attivo"
 
 
 msgid "Viewpoint"
 msgstr "Punto di vista"
 
 
+msgid "Navigation"
+msgstr "Navigazione"
+
+
+msgid "Local View"
+msgstr "Vista Locale"
+
+
 msgid "UV Mapping"
 msgstr "Mappatura UV"
+
+
+msgid "Automasking"
+msgstr "Automascheramento"
 
 
 msgid "Snap"
 msgstr "Aggancia"
 
 
+msgid "Instances"
+msgstr "Istanze"
+
+
 msgid "Mirror"
 msgstr "Specchia"
 
 
+msgid "Import"
+msgstr "Importa"
+
+
 msgid "Face Sets Edit"
 msgstr "Modifica Sets di Facce"
-
-
-msgid "Pivot Point"
-msgstr "Punto di Perno"
 
 
 msgid "Mask Edit"
@@ -24848,6 +24828,14 @@ msgstr "Modifica Maschera"
 
 msgid "Proportional Editing Falloff"
 msgstr "Decadimento Modifica Proporzionale"
+
+
+msgid "Pivot Point"
+msgstr "Punto di Perno"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Keyframe Insert Pie"
@@ -32236,6 +32224,10 @@ msgid "Mix Shader"
 msgstr "Mescola Shader"
 
 
+msgid "OpenGL"
+msgstr "OpenCL"
+
+
 msgid "Space of the input normal"
 msgstr "Spazio della normale d'ingresso"
 
@@ -38141,10 +38133,6 @@ msgid "Side"
 msgstr "Lato"
 
 
-msgid "Both"
-msgstr "Entrambi"
-
-
 msgctxt "Operator"
 msgid "Euler Discontinuity Filter"
 msgstr "Filtro discontinuo di Eulero"
@@ -38195,14 +38183,6 @@ msgstr "Sostituisce i Modificatori-F esistenti, anzichè semplicemente aggiunger
 
 msgid "Place the cursor on the midpoint of selected keyframes"
 msgstr "Colloca il cursore al punto intermedio dei fotogrammi-chiave selezionati"
-
-
-msgid "Filter Width"
-msgstr "Larghezza Filtro"
-
-
-msgid "Sigma"
-msgstr "Sigma"
 
 
 msgctxt "Operator"
@@ -50312,16 +50292,16 @@ msgid "Compositor"
 msgstr "Compositore"
 
 
-msgid "SSAO Settings"
-msgstr "Impostazioni SSAO"
-
-
 msgid "Render Pass"
 msgstr "Passaggi Render"
 
 
 msgid "Cavity"
 msgstr "Cavità"
+
+
+msgid "SSAO Settings"
+msgstr "Impostazioni SSAO"
 
 
 msgid "Shadow Settings"
@@ -52926,10 +52906,6 @@ msgid "Limit the texture size to save graphics memory"
 msgstr "Limite dimensione Texture salvata in memoria grafica"
 
 
-msgid "OpenGL"
-msgstr "OpenCL"
-
-
 msgid "Metal"
 msgstr "Metallo"
 
@@ -55343,10 +55319,6 @@ msgid "Individual Origins"
 msgstr "Origini Individuali"
 
 
-msgid "Hold Offset"
-msgstr "Mantieni l'Offset"
-
-
 msgid "Markers"
 msgstr "Marcatori"
 
@@ -57063,10 +57035,6 @@ msgid "Pin Light"
 msgstr "Luce Puntiforme"
 
 
-msgid "Y position of the sequence strip"
-msgstr "Posizione Y dello spezzone sequenza"
-
-
 msgid "The length of the contents of this strip before the handles are applied"
 msgstr "Lunghezza del contenuto di questo spezzone prima che la maniglia sia applicata"
 
@@ -57624,22 +57592,6 @@ msgstr "Icona"
 
 msgid "Text Box"
 msgstr "Casella di Testo"
-
-
-msgid "Textbox Height"
-msgstr "Altezza Casella di Testo"
-
-
-msgid "Textbox Width"
-msgstr "Larghezza Casella di Testo"
-
-
-msgid "Textbox X Offset"
-msgstr "Offset X Casella di Testo"
-
-
-msgid "Textbox Y Offset"
-msgstr "Offset Y Casella di Testo"
 
 
 msgid "Text Character Format"
@@ -59253,10 +59205,6 @@ msgstr "Mostra Cursore 3D"
 
 msgid "Draw Normals"
 msgstr "Disegna Normali"
-
-
-msgid "Display 3D curve normals in editmode"
-msgstr "Mostra le normali delle curve 3D in modalità Modifica"
 
 
 msgid "Display Bevel Weights"
@@ -65001,10 +64949,6 @@ msgid "Delete envelope control point"
 msgstr "Cancella punto di controllo involucro"
 
 
-msgid "Coefficient"
-msgstr "Coefficiente"
-
-
 msgid "Remove animation from selected objects?"
 msgstr "Rimuovere l'animazione dagli oggetti selezionati?"
 
@@ -65402,10 +65346,6 @@ msgid "%d items"
 msgstr "%d elementi"
 
 
-msgid "Color Space: "
-msgstr "Spazio Colore: "
-
-
 msgid "Red:"
 msgstr "Rosso:"
 
@@ -65440,6 +65380,10 @@ msgstr "Trasparenza:"
 
 msgid "Hex"
 msgstr "Hex"
+
+
+msgid "Color Space: "
+msgstr "Spazio Colore: "
 
 
 msgid "Lightness"
@@ -65805,10 +65749,6 @@ msgstr "Riporta al valore predefinito"
 
 msgid "File Not Found"
 msgstr "File Non Trovato"
-
-
-msgid "Modified"
-msgstr "Modificato"
 
 
 msgid "Anim Player"
@@ -66746,18 +66686,6 @@ msgid "Missing%s%s%s%s detected!"
 msgstr "Rilevata mancanza di%s%s%s%s!"
 
 
-msgid "Sample color for %s"
-msgstr "Campione colore per %s"
-
-
-msgid "Brush. Use Left Click to sample for palette instead"
-msgstr "Pennello. Utilizza invece Click Sinistro per campionare per la tavolozza"
-
-
-msgid "Palette. Use Left Click to sample more colors"
-msgstr "Tavolozza. Utilizza Click Sinistro per campionare più colori"
-
-
 msgid "Mirror group is locked, aborting"
 msgstr "Il gruppo specchio è bloccato, comando annullato"
 
@@ -66800,6 +66728,18 @@ msgstr "L'oggetto ha una scala negativa, la scultura può avere esiti imprevedib
 
 msgid "Dynamic Topology found: %s, disabled"
 msgstr "Rilevata Topologia Dinamica: %s, disabilitato"
+
+
+msgid "Sample color for %s"
+msgstr "Campione colore per %s"
+
+
+msgid "Brush. Use Left Click to sample for palette instead"
+msgstr "Pennello. Utilizza invece Click Sinistro per campionare per la tavolozza"
+
+
+msgid "Palette. Use Left Click to sample more colors"
+msgstr "Tavolozza. Utilizza Click Sinistro per campionare più colori"
 
 
 msgid "Compiled without sound support"
@@ -69278,6 +69218,10 @@ msgstr "Salva Come..."
 
 msgid "Don't Save"
 msgstr "Non Salvare"
+
+
+msgid "Modified"
+msgstr "Modificato"
 
 
 msgid "Enable scripts"

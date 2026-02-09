@@ -411,7 +411,7 @@ static void scene_free_data(ID *id)
   BKE_image_format_free(&scene->r.im_format);
   BKE_image_format_free(&scene->r.bake.im_format);
 
-  BKE_previewimg_free(&scene->preview);
+  BKE_previewimg_id_free(&scene->id);
   BKE_curvemapping_free_data(&scene->r.mblur_shutter_curve);
 
   for (ViewLayer &view_layer : scene->view_layers.items_mutable()) {
@@ -2338,13 +2338,12 @@ Scene *BKE_scene_find_from_collection(const Main *bmain, const Collection *colle
   return nullptr;
 }
 
-Object *BKE_scene_camera_switch_find(Scene *scene)
+Object *BKE_scene_camera_switch_find(const Scene *scene, const int time)
 {
   if (scene->r.mode & R_NO_CAMERA_SWITCH) {
     return nullptr;
   }
 
-  const int ctime = int(BKE_scene_ctime_get(scene));
   int frame = -(MAXFRAME + 1);
   int min_frame = MAXFRAME + 1;
   Object *camera = nullptr;
@@ -2352,11 +2351,11 @@ Object *BKE_scene_camera_switch_find(Scene *scene)
 
   for (TimeMarker &m : scene->markers) {
     if (m.camera && (m.camera->visibility_flag & OB_HIDE_RENDER) == 0) {
-      if ((m.frame <= ctime) && (m.frame > frame)) {
+      if ((m.frame <= time) && (m.frame > frame)) {
         camera = m.camera;
         frame = m.frame;
 
-        if (frame == ctime) {
+        if (frame == time) {
           break;
         }
       }
@@ -2381,7 +2380,7 @@ Object *BKE_scene_camera_switch_find(Scene *scene)
 
 bool BKE_scene_camera_switch_update(Scene *scene)
 {
-  Object *camera = BKE_scene_camera_switch_find(scene);
+  Object *camera = BKE_scene_camera_switch_find(scene, int(BKE_scene_ctime_get(scene)));
   if (camera && (camera != scene->camera)) {
     scene->camera = camera;
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_PARAMETERS);
@@ -3388,7 +3387,7 @@ struct DepsgraphKey {
     return get_default_hash(this->view_layer);
   }
 
-  BLI_STRUCT_EQUALITY_OPERATORS_1(DepsgraphKey, view_layer)
+  friend bool operator==(const DepsgraphKey &a, const DepsgraphKey &b) = default;
 };
 
 static void depsgraph_key_value_free(void *value)

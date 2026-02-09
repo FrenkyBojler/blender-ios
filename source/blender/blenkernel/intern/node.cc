@@ -310,7 +310,7 @@ static void ntree_free_data(ID *id)
   }
 
   MEM_SAFE_DELETE(ntree->description);
-  BKE_previewimg_free(&ntree->preview);
+  BKE_previewimg_id_free(&ntree->id);
   MEM_delete(ntree->runtime);
 }
 
@@ -4065,6 +4065,10 @@ void node_socket_move_default_value(Main & /*bmain*/,
   }
   if (dst_node.is_reroute() || src_node.is_reroute()) {
     /* Reroute node can't have ownership of socket value directly. */
+    return;
+  }
+  if (src.typeinfo->base_cpp_type == nullptr || dst.typeinfo->base_cpp_type == nullptr) {
+    /* Not all socket types have a value type. */
     return;
   }
 
