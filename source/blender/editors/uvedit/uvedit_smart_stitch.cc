@@ -1849,6 +1849,10 @@ static StitchState *stitch_init(bContext *C,
   state->obedit = obedit;
   state->em = em;
 
+  if ((ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0) {
+    uvedit_select_prepare_custom_data(scene, em->bm);
+  }
+
   /* Workaround for sync-select & face-select mode which implies all selected faces are detached,
    * for stitch this isn't useful behavior, see #86924. */
   const int selectmode_orig = scene->toolsettings->selectmode;
