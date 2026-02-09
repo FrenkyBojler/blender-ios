@@ -724,6 +724,7 @@ void ED_spacetype_nla()
   /* regions: UI buttons */
   art = MEM_new_zeroed<ARegionType>("spacetype nla region");
   art->regionid = RGN_TYPE_UI;
+  art->flag = ARegionTypeFlag::ShowPanelCategoriesEvenSingle;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
   art->listener = nla_region_listener;

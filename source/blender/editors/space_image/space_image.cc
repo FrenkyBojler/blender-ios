@@ -1265,6 +1265,7 @@ void ED_spacetype_image()
   /* regions: list-view/buttons/scopes */
   art = MEM_new_zeroed<ARegionType>("spacetype image region");
   art->regionid = RGN_TYPE_UI;
+  art->flag = ARegionTypeFlag::ShowPanelCategoriesEvenSingle;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
   art->listener = image_buttons_region_listener;
