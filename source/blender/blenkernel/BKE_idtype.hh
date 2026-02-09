@@ -190,73 +190,81 @@ struct IDTypeInfo {
   /** Generic info flags about that data-block type. */
   uint32_t flags = 0;
 
+  /** Utils to define invalid pointers for all data & callbacks below. */
+  template<class T> static constexpr T InvalidPointer()
+  {
+    return reinterpret_cast<T>(UINTPTR_MAX);
+  }
+
   /**
    * Information and callbacks for assets, based on the type of asset.
    */
-  AssetTypeInfo *asset_type_info = reinterpret_cast<AssetTypeInfo *>(UINTPTR_MAX);
+  AssetTypeInfo *asset_type_info = InvalidPointer<AssetTypeInfo *>();
 
   /* ********** ID management callbacks ********** */
 
   /**
    * Initialize a new, empty calloc'ed data-block. May be NULL if there is nothing to do.
    */
-  IDTypeInitDataFunction init_data = reinterpret_cast<IDTypeInitDataFunction>(UINTPTR_MAX);
+  IDTypeInitDataFunction init_data = InvalidPointer<IDTypeInitDataFunction>();
 
   /**
    * Copy the given data-block's data from source to destination.
    * May be NULL if mere memory-copy of the ID struct itself is enough.
    */
-  IDTypeCopyDataFunction copy_data = reinterpret_cast<IDTypeCopyDataFunction>(UINTPTR_MAX);
+  IDTypeCopyDataFunction copy_data = InvalidPointer<IDTypeCopyDataFunction>();
 
   /**
    * Free the data of the data-block (NOT the ID itself). May be NULL if there is nothing to do.
    */
-  IDTypeFreeDataFunction free_data = reinterpret_cast<IDTypeFreeDataFunction>(UINTPTR_MAX);
+  IDTypeFreeDataFunction free_data = InvalidPointer<IDTypeFreeDataFunction>();
 
   /**
    * Make a linked data-block local. May be NULL if default behavior from
    * `BKE_lib_id_make_local_generic()` is enough.
    */
-  IDTypeMakeLocalFunction make_local = reinterpret_cast<IDTypeMakeLocalFunction>(UINTPTR_MAX);
+  IDTypeMakeLocalFunction make_local = InvalidPointer<IDTypeMakeLocalFunction>();
 
   /**
    * Called by `BKE_library_foreach_ID_link()` to apply a callback over all other ID usages (ID
    * pointers) of given data-block.
    */
-  IDTypeForeachIDFunction foreach_id = reinterpret_cast<IDTypeForeachIDFunction>(UINTPTR_MAX);
+  IDTypeForeachIDFunction foreach_id = InvalidPointer<IDTypeForeachIDFunction>();
 
   /**
    * Iterator over all cache pointers of given ID.
    */
-  IDTypeForeachCacheFunction foreach_cache = reinterpret_cast<IDTypeForeachCacheFunction>(UINTPTR_MAX);
+  IDTypeForeachCacheFunction foreach_cache = InvalidPointer<IDTypeForeachCacheFunction>();
 
   /**
    * Iterator over all file paths of given ID.
    */
-  IDTypeForeachPathFunction foreach_path = reinterpret_cast<IDTypeForeachPathFunction>(UINTPTR_MAX);
+  IDTypeForeachPathFunction foreach_path = InvalidPointer<IDTypeForeachPathFunction>();
 
   /**
    * Iterator to edit all scene linear RGB colors of given ID.
    * Alpha should not be premultiplied in the RGB values.
    */
-  IDTypeForeachColorFunction foreach_working_space_color = reinterpret_cast<IDTypeForeachColorFunction>(UINTPTR_MAX);
+  IDTypeForeachColorFunction foreach_working_space_color =
+      InvalidPointer<IDTypeForeachColorFunction>();
 
   /**
    * For embedded IDs, return the address of the pointer to their owner ID.
    */
-  IDTypeEmbeddedOwnerPointerGetFunction owner_pointer_get = reinterpret_cast<IDTypeEmbeddedOwnerPointerGetFunction>(UINTPTR_MAX);
+  IDTypeEmbeddedOwnerPointerGetFunction owner_pointer_get =
+      InvalidPointer<IDTypeEmbeddedOwnerPointerGetFunction>();
 
   /* ********** Callbacks for reading and writing .blend files. ********** */
 
   /**
    * Write all structs that should be saved in a .blend file.
    */
-  IDTypeBlendWriteFunction blend_write = reinterpret_cast<IDTypeBlendWriteFunction>(UINTPTR_MAX);
+  IDTypeBlendWriteFunction blend_write = InvalidPointer<IDTypeBlendWriteFunction>();
 
   /**
    * Update pointers for all structs directly owned by this data block.
    */
-  IDTypeBlendReadDataFunction blend_read_data = reinterpret_cast<IDTypeBlendReadDataFunction>(UINTPTR_MAX);
+  IDTypeBlendReadDataFunction blend_read_data = InvalidPointer<IDTypeBlendReadDataFunction>();
 
   /**
    * Used to do some validation and/or complex processing on the ID after it has been fully read
@@ -264,7 +272,8 @@ struct IDTypeInfo {
    *
    * Note that this is still called _before_ the `do_versions_after_linking` versioning code.
    */
-  IDTypeBlendReadAfterLiblinkFunction blend_read_after_liblink = reinterpret_cast<IDTypeBlendReadAfterLiblinkFunction>(UINTPTR_MAX);
+  IDTypeBlendReadAfterLiblinkFunction blend_read_after_liblink =
+      InvalidPointer<IDTypeBlendReadAfterLiblinkFunction>();
 
   /**
    * Allow an ID type to preserve some of its data across (memfile) undo steps.
@@ -275,14 +284,16 @@ struct IDTypeInfo {
    * its type with `IDTYPE_FLAGS_NO_MEMFILE_UNDO`, since that flag allows more aggressive
    * optimizations in readfile code for memfile undo.
    */
-  IDTypeBlendReadUndoPreserve blend_read_undo_preserve = reinterpret_cast<IDTypeBlendReadUndoPreserve>(UINTPTR_MAX);
+  IDTypeBlendReadUndoPreserve blend_read_undo_preserve =
+      InvalidPointer<IDTypeBlendReadUndoPreserve>();
 
   /**
    * Called after library override operations have been applied.
    *
    * \note Currently needed for some update operation on point caches.
    */
-  IDTypeLibOverrideApplyPost lib_override_apply_post = reinterpret_cast<IDTypeLibOverrideApplyPost>(UINTPTR_MAX);
+  IDTypeLibOverrideApplyPost lib_override_apply_post =
+      InvalidPointer<IDTypeLibOverrideApplyPost>();
 };
 
 /* ********** Declaration of each IDTypeInfo. ********** */
