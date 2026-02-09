@@ -17,19 +17,19 @@
 namespace blender::gpu {
 
 /* Hashable struct describing a segment of allocated memory.. */
-struct VKDeviceSegment {
+struct VKMemorySegment {
   VkDeviceSize offset;
   VkDeviceSize size;
 
   uint64_t hash() const;
-  bool operator==(const VKDeviceSegment &) const = default;
+  bool operator==(const VKMemorySegment &) const = default;
 };
 
 /* Hashable struct containing key information to identify or create a VkImage handle. */
 struct VKImageInfo {
   VkImageCreateInfo create_info;
   VmaAllocation allocation;
-  VKDeviceSegment segment;
+  VKMemorySegment segment;
 
   uint64_t hash() const;
   bool operator==(const VKImageInfo &) const;
@@ -41,7 +41,7 @@ class VKImageCache {
   static constexpr int max_unused_cycles_ = 8;
 
   struct VKImageHandle {
-    VkImage image;
+    VkImage image = VK_NULL_HANDLE;
     int unused_cycles_count = 0;
   };
 
@@ -82,17 +82,17 @@ class VKTexturePool : public TexturePool {
     int unused_cycles_count = 0;
 
     /* Linked list of unused segments of the allocation. */
-    std::list<VKDeviceSegment> segments;
+    std::list<VKMemorySegment> segments;
 
     /* Allocate/deallocate the handle internals. */
     void alloc(VkMemoryRequirements memory_requirements);
     void free();
 
     /* Extract a segment of the allocation for binding, if compatible. */
-    std::optional<VKDeviceSegment> acquire(VkMemoryRequirements memory_requirements);
+    std::optional<VKMemorySegment> acquire(VkMemoryRequirements memory_requirements);
 
     /* Return a segment to the allocation for reuse. */
-    void release(VKDeviceSegment segment);
+    void release(VKMemorySegment segment);
 
     /* Check if no part of the allocation is acuired. */
     bool is_unused() const
