@@ -1,1 +1,2 @@
 Referenced by pull request #154038, CMake: Disable vcpkg for msbuild based builds of Cycles
+Referenced by commit 0599d0dbbc917e9e78bc9f9c1cb59a96b3d8cb2e, CMake: Disable vcpkg for msbuild based builds of Cycles
