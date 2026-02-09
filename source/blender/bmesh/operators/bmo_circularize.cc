@@ -9,6 +9,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.hh"
 #include "BLI_set.hh"
+#include "BLI_span.hh"
 #include "BLI_vector.hh"
 
 #include <numbers>
@@ -206,7 +207,7 @@ static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops, const bool che
 
 /* Computes the local coordinate system defining the 2D plane of the vertex loop. */
 static void calculate_plane_basis(
-    const Vector<BMVert *> &loop, float3 &r_center, float3 &r_normal, float3 &r_p, float3 &r_q)
+    Span<BMVert *> loop, float3 &r_center, float3 &r_normal, float3 &r_p, float3 &r_q)
 {
   r_center = float3(0.0f);
   r_normal = float3(0.0f);
@@ -238,7 +239,7 @@ static void calculate_plane_basis(
 }
 
 /* Projects 3D vertex coordinates onto a local 2D plane defined by the P and Q basis vectors. */
-static void project_loop_to_2d(const Vector<BMVert *> &loop,
+static void project_loop_to_2d(Span<BMVert *> loop,
                                const float3 &center,
                                const float3 &p,
                                const float3 &q,
@@ -252,7 +253,7 @@ static void project_loop_to_2d(const Vector<BMVert *> &loop,
   }
 }
 
-static void calculate_circle_best_fit(const Vector<CircleVert> &verts,
+static void calculate_circle_best_fit(Span<CircleVert> verts,
                                       float2 &r_center,
                                       float *r_radius,
                                       const bool is_fixed)
@@ -323,7 +324,7 @@ static void calculate_circle_best_fit(const Vector<CircleVert> &verts,
   *r_radius = initial_radius;
 }
 
-static void calculate_circle_inside_fit(const Vector<CircleVert> &verts,
+static void calculate_circle_inside_fit(Span<CircleVert> verts,
                                         float2 &r_center,
                                         float *r_radius,
                                         const bool is_fixed)
@@ -352,7 +353,7 @@ static void calculate_circle_inside_fit(const Vector<CircleVert> &verts,
   }
 }
 
-static void calculate_target_locations(Vector<CircleVert> &verts,
+static void calculate_target_locations(MutableSpan<CircleVert> verts,
                                        const float2 &center,
                                        const float radius,
                                        const bool is_regular,
