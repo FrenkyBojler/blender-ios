@@ -38,7 +38,7 @@ class Test:
         return True
 
     @abc.abstractmethod
-    def run(self, env, device_id: str) -> dict:
+    def run(self, env, device_id: str, gpu_backend: str) -> dict:
         """
         Execute the test and report results.
         """

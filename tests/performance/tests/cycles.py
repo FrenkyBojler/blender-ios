@@ -82,7 +82,7 @@ class CyclesTest(api.Test):
     def use_device(self):
         return True
 
-    def run(self, env, device_id):
+    def run(self, env, device_id, gpu_backend):
         tokens = device_id.split('_')
         device_type = tokens[0]
         device_index = int(tokens[1]) if len(tokens) > 1 else 0

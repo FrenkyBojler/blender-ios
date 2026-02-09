@@ -121,12 +121,11 @@ else:
     import api
 
     class EeveeTest(api.Test):
-        def __init__(self, filepath, gpu_backend):
+        def __init__(self, filepath):
             self.filepath = filepath
-            self.gpu_backend = gpu_backend
 
         def name(self):
-            return f"{self.gpu_backend}-{self.filepath.stem}"
+            return self.filepath.stem
 
         def category(self):
             return "eevee"
@@ -134,9 +133,12 @@ else:
         def use_background(self):
             return False
 
-        def run(self, env, device_id):
+        def use_gpu_backend(self):
+            return True
+
+        def run(self, env, device_id, gpu_backend):
             args = {}
-            _, log = env.run_in_blender(_run, args, [self.filepath], foreground=True, gpu_backend=self.gpu_backend)
+            _, log = env.run_in_blender(_run, args, [self.filepath], foreground=True, gpu_backend=gpu_backend)
             for line in log:
                 if line.startswith(LOG_KEY):
                     result_str = line[len(LOG_KEY):]
@@ -147,7 +149,4 @@ else:
 
     def generate(env):
         filepaths = env.find_blend_files('eevee/*')
-        result = []
-        for gpu_backend in ['opengl', 'vulkan']:
-            result.extend([EeveeTest(filepath, gpu_backend) for (filepath) in filepaths])
-        return result
+        return [EeveeTest(filepath) for (filepath) in filepaths]

@@ -30,7 +30,7 @@ class TestEntry:
     device_type: str = 'CPU'
     device_id: str = 'CPU'
     device_name: str = 'Unknown CPU'
-    gpu_backend: std = 'default'
+    gpu_backend: str = 'default'
     status: str = 'queued'
     # Short, single-line error.
     error_msg: str = ''
@@ -95,13 +95,14 @@ class TestQueue:
 
             return [value for _, value in sorted(rows.items())]
 
-    def find(self, revision: str, test: str, category: str, device_id: str) -> dict:
+    def find(self, revision: str, test: str, category: str, device_id: str, gpu_backend: str) -> dict:
         for entry in self.entries:
             if (
                 entry.revision == revision and
                 entry.test == test and
                 entry.category == category and
-                entry.device_id == device_id
+                entry.device_id == device_id and
+                entry.gpu_backend == gpu_backend
             ):
                 return entry
 
@@ -136,7 +137,7 @@ class TestConfig:
         self.devices = []
         self._update_devices(env, getattr(config, 'devices', ['CPU']))
 
-        self.gpu_backends = getattr(config, 'gpu_backends', ['default']))
+        self.gpu_backends = getattr(config, 'gpu_backends', ['default'])
 
         self._update_queue(env)
 
@@ -252,7 +253,7 @@ class TestConfig:
             test_category = test.category()
 
             for gpu_backend in self.gpu_backends:
-                if test.use_gpu_backend() == False or test.gpu_backend() != gpu_backend:
+                if not (test.use_gpu_backend() or gpu_backend == 'default'):
                     continue;
 
                 for device in self.devices:
@@ -290,7 +291,7 @@ class TestConfig:
                             device_id=device.id,
                             device_name=device.name,
                             benchmark_type=self.benchmark_type,
-                            gpu_backend=self.gpu_backend,)
+                            gpu_backend=gpu_backend)
                     entries.append(entry)
 
         return entries
