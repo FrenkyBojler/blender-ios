@@ -778,8 +778,8 @@ void blf_font_width_and_height(FontBLF *font,
 
   const float xa = (font->flags & BLF_ASPECT) ? font->aspect[0] : 1.0f;
   const float ya = (font->flags & BLF_ASPECT) ? font->aspect[1] : 1.0f;
-  *r_width = (float(BLI_rcti_size_x(&box)) * xa);
-  *r_height = (float(BLI_rcti_size_y(&box)) * ya);
+  *r_width = (float(BLI_rcti_size_x(&box) + 1) * xa);
+  *r_height = (float(BLI_rcti_size_y(&box) + 1) * ya);
 }
 
 float blf_font_width(FontBLF *font, const char *str, const size_t str_len, ResultBLF *r_info)
@@ -794,7 +794,7 @@ float blf_font_width(FontBLF *font, const char *str, const size_t str_len, Resul
   }
 
   const float xa = (font->flags & BLF_ASPECT) ? font->aspect[0] : 1.0f;
-  return float(BLI_rcti_size_x(&box)) * xa;
+  return float(BLI_rcti_size_x(&box) + 1) * xa;
 }
 
 float blf_font_height(FontBLF *font, const char *str, const size_t str_len, ResultBLF *r_info)
@@ -809,7 +809,7 @@ float blf_font_height(FontBLF *font, const char *str, const size_t str_len, Resu
   }
 
   const float ya = (font->flags & BLF_ASPECT) ? font->aspect[1] : 1.0f;
-  return float(BLI_rcti_size_y(&box)) * ya;
+  return float(BLI_rcti_size_y(&box) + 1) * ya;
 }
 
 float blf_font_fixed_width(FontBLF *font)
@@ -1021,91 +1021,70 @@ static void blf_font_wrap_apply(FontBLF *font,
                                                  void *userdata),
                                 void *userdata)
 {
-  uint codepoint = 0;
-  uint codepoint_prev = 0;
-  ft_pix pen_x = 0;
-  ft_pix pen_y = 0;
-  size_t i = 0;
-  int lines = 0;
-  ft_pix pen_x_next = 0;
-
-  /* Size of characters not shown at the end of the wrapped line. */
-  size_t clip_bytes = 0;
+  /* Store wrapped start/ends in both bytes _and_ glyph indices. */
+  struct LineWrapInfo {
+    size_t start_byte;
+    size_t end_byte;
+    size_t start_glyph;
+    size_t end_glyph;
+  };
+  Vector<LineWrapInfo> wrap_lines;
 
   ft_pix line_height = blf_font_height_max_ft_pix(font);
-
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+  ShapingData text(font, gc, str, str_len);
 
-  struct WordWrapVars {
-    ft_pix wrap_width;
-    size_t start, last[2];
-  } wrap = {max_pixel_width != -1 ? ft_pix_from_int(max_pixel_width) : INT_MAX, 0, {0, 0}};
+  size_t line_start = 0;
+  ft_pix pen_x = 0;
+  size_t last_wrap_index = 0;
+  size_t clip_bytes = 0;
+  ft_pix wrap_width = (max_pixel_width != -1) ? ft_pix_from_int(max_pixel_width) : INT_MAX;
 
-  // printf("%s wrapping (%d, %d) `%s`:\n", __func__, str_len, strlen(str), str);
-  while ((i < str_len) && str[i]) {
+  for (size_t i = 0; i < size_t(text.glyphs.size()); i++) {
+    const ShapedGlyph &glyph = text.glyphs[i];
+    bool do_wrap = false;
+    ft_pix advance_x = glyph.g ? glyph.g->advance_x : 0;
+    ft_pix pen_x_next = pen_x + advance_x;
+    uint32_t codepoint = glyph.g ? glyph.g->c : 0;
+    uint32_t codepoint_prev = (i > 0 && text.glyphs[i - 1].g) ? text.glyphs[i - 1].g->c : 0;
 
-    /* Wrap variables. */
-    const size_t i_curr = i;
-    bool do_draw = false;
+    bool overflows = (pen_x_next >= wrap_width && pen_x != 0);
 
-    codepoint_prev = codepoint;
-    codepoint = BLI_str_utf8_as_unicode_step_safe(str, str_len, &i);
-    GlyphBLF *g = blf_glyph_ensure(font, gc, codepoint);
-    const ft_pix advance_x = g ? g->advance_x : 0;
-
-    /**
-     * Implementation Detail (UTF8).
-     *
-     * Take care with single byte offsets here,
-     * since this is UTF8 we can't be sure a single byte is a single character.
-     *
-     * This is _only_ done when we know for sure the character is ASCII (newline or a space).
-     */
-    pen_x_next = pen_x + advance_x;
-    /* Ensure at least one character in the wrapped line. */
-    const bool overflows = pen_x_next >= wrap.wrap_width && pen_x != 0;
-
-    if (UNLIKELY(overflows && (wrap.start != wrap.last[0]))) {
-      do_draw = true;
+    if (overflows && (line_start != last_wrap_index)) {
+      do_wrap = true;
     }
-    else if (UNLIKELY((int(mode) & int(BLFWrapMode::HardLimit)) && overflows && (advance_x != 0)))
-    {
-      wrap.last[0] = i_curr;
-      wrap.last[1] = i_curr;
-      do_draw = true;
+    else if ((int(mode) & int(BLFWrapMode::HardLimit)) && overflows && (advance_x != 0)) {
+      last_wrap_index = i;
+      do_wrap = true;
       clip_bytes = 0;
     }
-    else if (UNLIKELY(((i < str_len) && str[i]) == 0)) {
-      /* Need check here for trailing newline, else we draw it. */
-      wrap.last[0] = i + ((codepoint != '\n') ? 1 : 0);
-      wrap.last[1] = i;
-      do_draw = true;
+    else if (i + 1 == size_t(text.glyphs.size())) {
+      /* End of string. */
+      last_wrap_index = i + 1;
+      do_wrap = true;
       clip_bytes = 0;
     }
-    else if (UNLIKELY(codepoint == '\n')) {
-      wrap.last[0] = i_curr + 1;
-      wrap.last[1] = i;
-      do_draw = true;
+    else if (codepoint == '\n') {
+      last_wrap_index = i + 1;
+      do_wrap = true;
       clip_bytes = 1;
     }
-    else if (UNLIKELY(((int(mode) & int(BLFWrapMode::Minimal)) == int(BLFWrapMode::Minimal)) &&
-                      codepoint != ' ' && codepoint_prev == ' '))
+    else if (((int(mode) & int(BLFWrapMode::Minimal)) == int(BLFWrapMode::Minimal)) &&
+             codepoint != ' ' && codepoint_prev == ' ')
     {
-      wrap.last[0] = i_curr;
-      wrap.last[1] = i_curr;
+      last_wrap_index = i;
       clip_bytes = 1;
     }
-    else if (UNLIKELY(int(mode) & int(BLFWrapMode::Path))) {
+    else if (int(mode) & int(BLFWrapMode::Path)) {
       if (ELEM(codepoint, SEP, ' ', '?', '&', '=')) {
-        /* Break and leave at the end of line. */
-        wrap.last[0] = i;
-        wrap.last[1] = i;
+        /* Break and leave at the end of line(character included). */
+        last_wrap_index = i + 1;
         clip_bytes = 0;
       }
       else if (ELEM(codepoint, '-', '_', '.', '%')) {
-        /* Break and move to the next line. */
-        wrap.last[0] = i_curr;
-        wrap.last[1] = i_curr;
+        /* Break and move to the next line (character starts next line). */
+        last_wrap_index = i;
+        clip_bytes = 0;
         clip_bytes = 0;
       }
     }
@@ -1114,62 +1093,57 @@ static void blf_font_wrap_apply(FontBLF *font,
                       BLI_str_utf32_char_is_breaking_space(codepoint_prev)))
     {
       /* Optional break after space, removing it. */
-      wrap.last[0] = i_curr;
-      wrap.last[1] = i_curr;
+      last_wrap_index = i + 1;
       clip_bytes = BLI_str_utf8_from_unicode_len(codepoint_prev);
     }
     else if (UNLIKELY((int(mode) & int(BLFWrapMode::Typographical)) &&
                       BLI_str_utf32_char_is_optional_break_after(codepoint, codepoint_prev)))
     {
       /* Optional break after various characters, keeping it. */
-      wrap.last[0] = i;
-      wrap.last[1] = i;
+      last_wrap_index = i;
       clip_bytes = 0;
     }
     else if (UNLIKELY((int(mode) & int(BLFWrapMode::Typographical)) &&
                       BLI_str_utf32_char_is_optional_break_before(codepoint, codepoint_prev)))
     {
       /* Optional break before various characters. */
-      wrap.last[0] = i_curr;
-      wrap.last[1] = i_curr;
+      last_wrap_index = i + 1;
       clip_bytes = 0;
     }
 
-    if (UNLIKELY(do_draw)) {
-#if 0
-      printf("(%03d..%03d)  `%.*s`\n",
-             wrap.start,
-             wrap.last[0],
-             (wrap.last[0] - wrap.start) - 1,
-             &str[wrap.start]);
-#endif
-
-      callback(font,
-               gc,
-               &str[wrap.start],
-               std::min(wrap.last[0] - wrap.start - clip_bytes, str_len - wrap.start),
-               pen_y,
-               userdata);
-      wrap.start = wrap.last[0];
-      i = wrap.last[1];
+    if (do_wrap) {
+      size_t utf8_start = (line_start < size_t(text.glyphs.size())) ?
+                              text.glyphs[line_start].index_utf8 :
+                              0;
+      size_t utf8_end = (i < size_t(text.glyphs.size())) ? text.glyphs[i].index_utf8 : str_len;
+      if (utf8_end > utf8_start + clip_bytes) {
+        utf8_end -= clip_bytes;
+      }
+      wrap_lines.append({utf8_start, utf8_end, line_start, i});
+      line_start = i + 1;
       pen_x = 0;
-      pen_y -= line_height;
-      lines += 1;
       continue;
     }
 
     pen_x = pen_x_next;
   }
 
-  // printf("done! lines: %d, width, %d\n", lines, pen_x_next);
-
-  if (r_info) {
-    r_info->lines = lines;
-    /* Width of last line only (with wrapped lines). */
-    r_info->width = ft_pix_to_int(pen_x_next);
+  /* Callback for each wrapped line */
+  for (int line_idx = 0; line_idx < wrap_lines.size(); ++line_idx) {
+    const LineWrapInfo &line = wrap_lines[line_idx];
+    ft_pix pen_y = -line_height * line_idx;
+    callback(
+        font, gc, str + line.start_byte, line.end_byte - line.start_byte + 1, pen_y, userdata);
   }
 
   blf_glyph_cache_release(font);
+
+  if (r_info) {
+    r_info->lines = int(wrap_lines.size());
+    const auto &last_line = wrap_lines.last();
+    r_info->width = ft_pix_to_int(text.glyphs[last_line.end_glyph].bounds.xmax -
+                                  text.glyphs[last_line.start_glyph].bounds.xmin);
+  }
 }
 
 /** Utility for #blf_font_draw__wrap. */
