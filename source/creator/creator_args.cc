@@ -92,6 +92,7 @@ namespace blender {
  * so it's preferable that known arguments are documented.
  */
 struct BuildDefs {
+  bool apple;
   bool win32;
   bool with_cycles;
   bool with_ffmpeg;
@@ -100,6 +101,7 @@ struct BuildDefs {
   bool with_opencolorio;
   bool with_opengl_backend;
   bool with_renderdoc;
+  bool with_input_ndof;
   bool with_vulkan_backend;
   bool with_xr_openxr;
 };
@@ -116,6 +118,9 @@ static void build_defs_init(BuildDefs *build_defs, bool force_all)
 
   memset(build_defs, 0x0, sizeof(*build_defs));
 
+#  ifdef __APPLE__
+  build_defs->apple = true;
+#  endif
 #  ifdef WIN32
   build_defs->win32 = true;
 #  endif
@@ -139,6 +144,9 @@ static void build_defs_init(BuildDefs *build_defs, bool force_all)
 #  endif
 #  ifdef WITH_RENDERDOC
   build_defs->with_renderdoc = true;
+#  endif
+#  ifdef WITH_INPUT_NDOF
+  build_defs->with_input_ndof = true;
 #  endif
 #  ifdef WITH_VULKAN_BACKEND
   build_defs->with_vulkan_backend = true;
@@ -720,6 +728,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--python-console");
   BLI_args_print_arg_doc(ba, "--python-exit-code");
   BLI_args_print_arg_doc(ba, "--python-use-system-env");
+  BLI_args_print_arg_doc(ba, "--python-use-user-env");
   BLI_args_print_arg_doc(ba, "--addons");
 
   PRINT("\n");
@@ -895,6 +904,15 @@ static void print_help(bArgs *ba, bool all)
         "  $BLENDER_OCIO              Path to override the OpenColorIO configuration file.\n"
         "                             If not set, the 'OCIO' environment variable is used.\n");
   }
+
+  /* Non `BLENDER_` prefixed, conventions from 3rd party libraries or the operating system. */
+
+  if ((!defs.win32 && !defs.apple && defs.with_input_ndof) || all) {
+    PRINT(
+        "  $SPNAV_SOCKET              The socket path to connect to the 3D-mouse daemon "
+        "(Unix only).\n");
+  }
+
   if (defs.win32 || all) {
     PRINT("  $TEMP                      Store temporary files here (MS-Windows).\n");
   }
@@ -2714,15 +2732,29 @@ static int arg_handle_python_exit_code_set(int argc, const char **argv, void * /
 }
 
 static const char arg_handle_python_use_system_env_set_doc[] =
-    "\n\t"
-    "Allow Python to use system environment variables such as 'PYTHONPATH' and the user "
-    "site-packages directory.";
+    "\n"
+    "\tAllow Python to use system environment variables such as 'PYTHONPATH'.\n"
+    "\tThis also enables user environment, see: '--python-use-user-env'.";
 static int arg_handle_python_use_system_env_set(int /*argc*/,
                                                 const char ** /*argv*/,
                                                 void * /*data*/)
 {
 #  ifdef WITH_PYTHON
   BPY_python_use_system_env();
+#  endif
+  return 0;
+}
+
+static const char arg_handle_python_use_user_env_set_doc[] =
+    "\n"
+    "\tAllow Python to use users site-packages directory.\n"
+    "\tThis disables full isolation for the Python environment.";
+static int arg_handle_python_use_user_env_set(int /*argc*/,
+                                              const char ** /*argv*/,
+                                              void * /*data*/)
+{
+#  ifdef WITH_PYTHON
+  BPY_python_use_user_env();
 #  endif
   return 0;
 }
@@ -2906,6 +2938,8 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_pass_set(ba, ARG_PASS_ENVIRONMENT);
   BLI_args_add(
       ba, nullptr, "--python-use-system-env", CB(arg_handle_python_use_system_env_set), nullptr);
+  BLI_args_add(
+      ba, nullptr, "--python-use-user-env", CB(arg_handle_python_use_user_env_set), nullptr);
 
   /* Note that we could add used environment variables too. */
   BLI_args_add(
