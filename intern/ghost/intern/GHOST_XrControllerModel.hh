@@ -40,7 +40,10 @@ class GHOST_XrControllerModel {
  */
 class GHOST_XrControllerModelEXT : public GHOST_XrControllerModel {
  public:
-  GHOST_XrControllerModelEXT(XrInstance instance, XrSpace base_space);
+  // TODO: possibly merge ctors.
+  GHOST_XrControllerModelEXT(XrInstance instance,
+                             XrSpace base_space,
+                             const char *subaction_path_str);
   ~GHOST_XrControllerModelEXT() override;
 
   void load(XrSession session) override;
@@ -48,13 +51,29 @@ class GHOST_XrControllerModelEXT : public GHOST_XrControllerModel {
   void getData(GHOST_XrControllerModelData &r_data) override;
 
  private:
+  XrPath subaction_path_ = XR_NULL_PATH;
   XrSpace reference_space_;
+
+  std::vector<XrPath> toplevel_paths_;
 
   std::vector<XrRenderModelEXT> interaction_models_;
   std::vector<XrSpace> model_spaces_;
   std::vector<XrRenderModelPropertiesEXT> model_properties_;
 
-  void loadControllerModel(XrSession session);
+  /* Merged geometry data from all interaction models. */
+  std::vector<GHOST_XrControllerModelVertex> vertices_;
+  std::vector<uint32_t> indices_;
+  std::vector<GHOST_XrControllerModelComponent> components_;
+  std::vector<GHOST_XrControllerModelNode> nodes_;
+
+  /* Per-model tracking for updates. */
+  struct PerModelData {
+    std::vector<XrRenderModelAssetNodePropertiesEXT> node_properties;
+    std::vector<int32_t> node_state_indices; /* Maps XR node state index -> nodes_ index. */
+    int32_t node_offset;                     /* Offset into merged nodes_. */
+    int32_t component_offset;                /* Offset into merged components_. */
+  };
+  std::vector<PerModelData> per_model_data_;
 };
 
 /**

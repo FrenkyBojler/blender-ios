@@ -996,7 +996,7 @@ bool GHOST_XrSession::loadControllerModel(const char *subaction_path)
     GHOST_XrControllerModel *model;
 
     if (use_multivendor_extension) {
-      model = new GHOST_XrControllerModelEXT(instance, oxr_->reference_space);
+      model = new GHOST_XrControllerModelEXT(instance, oxr_->reference_space, subaction_path);
     }
     else {
       model = new GHOST_XrControllerModelMSFT(instance, subaction_path);

@@ -93,7 +93,7 @@ static void read_vertices(const tinygltf::Accessor &accessor,
   /* Copy the attribute value over from the glTF buffer into the appropriate vertex field. */
   const uint8_t *buffer_ptr = buffer.data.data() + buffer_view.byteOffset + accessor.byteOffset;
   for (size_t i = 0; i < accessor.count; i++, buffer_ptr += stride) {
-    memcpy(primitive.vertices[i].*field, buffer_ptr, stride);
+    memcpy(primitive.vertices[i].*field, buffer_ptr, packed_size); // TODO: was stride
   }
 }
 
@@ -282,6 +282,89 @@ static void calc_node_transforms(const tinygltf::Node &gltf_node,
                                           *(Eigen::Matrix4f *)r_local_transform;
 }
 
+static void load_node_ext(
+    const tinygltf::Model &gltf_model,
+    int gltf_node_id,
+    int32_t parent_idx,
+    const float parent_transform[4][4],
+    const std::string &parent_name,
+    const std::vector<XrRenderModelAssetNodePropertiesEXT> &node_properties,
+    std::vector<GHOST_XrControllerModelVertex> &vertices,
+    std::vector<uint32_t> &indices,
+    std::vector<GHOST_XrControllerModelComponent> &components,
+    std::vector<GHOST_XrControllerModelNode> &nodes,
+    std::vector<int32_t> &node_state_indices,
+    int32_t component_offset)
+{
+  const tinygltf::Node &gltf_node = gltf_model.nodes.at(gltf_node_id);
+  float world_transform[4][4];
+
+  GHOST_XrControllerModelNode &node = nodes.emplace_back();
+  const int32_t node_idx = int32_t(nodes.size() - 1);
+  node.parent_idx = parent_idx;
+  calc_node_transforms(gltf_node, parent_transform, node.local_transform, world_transform);
+
+  /* Match by uniqueName only (EXT difference from MSFT). */
+  for (size_t i = 0; i < node_properties.size(); ++i) {
+    if ((node_state_indices[i] < 0) && (gltf_node.name == node_properties[i].uniqueName)) {
+      node_state_indices[i] = node_idx;
+      break;
+    }
+  }
+
+  /* Load mesh data if present. */
+  if (gltf_node.mesh != -1) {
+    const tinygltf::Mesh &gltf_mesh = gltf_model.meshes.at(gltf_node.mesh);
+
+    GHOST_XrControllerModelComponent &component = components.emplace_back();
+    /* Store local index relative to this model's component offset. */
+    node.component_idx = int32_t(components.size() - 1 - component_offset);
+    memcpy(component.transform, world_transform, sizeof(component.transform));
+    component.vertex_offset = vertices.size();
+    component.index_offset = indices.size();
+
+    for (const tinygltf::Primitive &gltf_primitive : gltf_mesh.primitives) {
+      const GHOST_XrPrimitive primitive = read_primitive(gltf_model, gltf_primitive);
+
+      const size_t start_vertex = vertices.size();
+      size_t offset = start_vertex;
+      size_t count = primitive.vertices.size();
+      vertices.resize(offset + count);
+      memcpy(vertices.data() + offset,
+             primitive.vertices.data(),
+             count * sizeof(decltype(primitive.vertices)::value_type));
+
+      offset = indices.size();
+      count = primitive.indices.size();
+      indices.resize(offset + count);
+      for (size_t i = 0; i < count; i += 3) {
+        indices[offset + i + 0] = start_vertex + primitive.indices[i + 0];
+        indices[offset + i + 1] = start_vertex + primitive.indices[i + 2];
+        indices[offset + i + 2] = start_vertex + primitive.indices[i + 1];
+      }
+    }
+
+    component.vertex_count = vertices.size() - component.vertex_offset;
+    component.index_count = indices.size() - component.index_offset;
+  }
+
+  /* Recursively load children. */
+  for (const int child_node_id : gltf_node.children) {
+    load_node_ext(gltf_model,
+                  child_node_id,
+                  node_idx,
+                  world_transform,
+                  gltf_node.name,
+                  node_properties,
+                  vertices,
+                  indices,
+                  components,
+                  nodes,
+                  node_state_indices,
+                  component_offset);
+  }
+}
+
 static void load_node(const tinygltf::Model &gltf_model,
                       int gltf_node_id,
                       int32_t parent_idx,
@@ -385,6 +468,8 @@ static PFN_xrDestroyRenderModelAssetEXT g_xrDestroyRenderModelAssetEXT = nullptr
 static PFN_xrGetRenderModelAssetDataEXT g_xrGetRenderModelAssetDataEXT = nullptr;
 static PFN_xrGetRenderModelAssetPropertiesEXT g_xrGetRenderModelAssetPropertiesEXT = nullptr;
 static PFN_xrGetRenderModelStateEXT g_xrGetRenderModelStateEXT = nullptr;
+static PFN_xrGetRenderModelPoseTopLevelUserPathEXT g_xrGetRenderModelPoseTopLevelUserPathEXT =
+    nullptr;
 
 /* Microsoft Controller Model extension function pointers. */
 static PFN_xrGetControllerModelKeyMSFT g_xrGetControllerModelKeyMSFT = nullptr;
@@ -433,6 +518,9 @@ static void init_controller_model_extension_functions_multi_vendor(XrInstance in
   if (g_xrGetRenderModelStateEXT == nullptr) {
     INIT_EXTENSION_FUNCTION(xrGetRenderModelStateEXT);
   }
+  if (g_xrGetRenderModelPoseTopLevelUserPathEXT == nullptr) {
+    INIT_EXTENSION_FUNCTION(xrGetRenderModelPoseTopLevelUserPathEXT);
+  }
 }
 
 static void init_controller_model_extension_functions_microsoft(XrInstance instance)
@@ -467,20 +555,55 @@ static void init_controller_model_extension_functions_microsoft(XrInstance insta
  * \{ */
 
 GHOST_XrControllerModelEXT::GHOST_XrControllerModelEXT(XrInstance instance,
-                                                       XrSpace reference_space)
+                                                       XrSpace reference_space,
+                                                       const char *subaction_path_str)
 {
   init_controller_model_extension_functions_multi_vendor(instance);
   reference_space_ = reference_space;
+
+  CHECK_XR(xrStringToPath(instance, subaction_path_str, &subaction_path_),
+           (std::string("Failed to get user path \"") + subaction_path_str + "\".").data());
+
+  /* Build top level paths used for filtering. */
+  XrPath left_hand_path;
+  XrPath right_hand_path;
+
+  CHECK_XR(xrStringToPath(instance, "/user/hand/left", &left_hand_path),
+           "Failed to get left hand user path");
+  CHECK_XR(xrStringToPath(instance, "/user/hand/right", &right_hand_path),
+           "Failed to get right hand user path");
+
+  toplevel_paths_ = {left_hand_path, right_hand_path};
 }
 
 GHOST_XrControllerModelEXT::~GHOST_XrControllerModelEXT()
 {
-  // TODO: Wait/Clear a possible async loading task here
-  // TODO: Probably also cleanly destroy the RenderModelEXT handles here.
+  /* Wait for async loading if in progress. */
+  if (load_task_.valid()) {
+    load_task_.wait();
+  }
+
+  /* Destroy render model handles. */
+  for (XrRenderModelEXT render_model : interaction_models_) {
+    if (render_model != XR_NULL_HANDLE) {
+      g_xrDestroyRenderModelEXT(render_model);
+    }
+  }
+
+  /* Destroy model spaces. */
+  for (XrSpace model_space : model_spaces_) {
+    if (model_space != XR_NULL_HANDLE) {
+      xrDestroySpace(model_space);
+    }
+  }
 }
 
 void GHOST_XrControllerModelEXT::load(XrSession session)
 {
+  if (data_loaded_ || load_task_.valid()) {
+    return;
+  }
+
   /* Enumerate the render model IDs. */
   uint32_t num_models = 0;
   CHECK_XR(g_xrEnumerateInteractionRenderModelIdsEXT(session, nullptr, 0, &num_models, nullptr),
@@ -504,7 +627,7 @@ void GHOST_XrControllerModelEXT::load(XrSession session)
   std::vector<const char *> appSupportedGltfExtensions{"KHR_texture_basisu",
                                                        "KHR_materials_specular"};
 
-  /* Create render model handles. */
+  /* Create render model handles, filtering by subaction path. */
   for (XrRenderModelIdEXT id : interaction_model_ids) {
     XrRenderModelEXT render_model;
     XrRenderModelCreateInfoEXT render_model_create_info = {XR_TYPE_RENDER_MODEL_CREATE_INFO_EXT};
@@ -516,6 +639,24 @@ void GHOST_XrControllerModelEXT::load(XrSession session)
 
     CHECK_XR(g_xrCreateRenderModelEXT(session, &render_model_create_info, &render_model),
              "Failed to create interaction render model handle.");
+
+    // TODO: This is kind of abusing the API as we should instead load all model and choose which one to return on getData, but oh well.
+    /* Check if this model matches our target subaction path. */
+    XrInteractionRenderModelTopLevelUserPathGetInfoEXT path_info = {
+        XR_TYPE_INTERACTION_RENDER_MODEL_TOP_LEVEL_USER_PATH_GET_INFO_EXT};
+    path_info.next = nullptr;
+    path_info.topLevelUserPathCount = toplevel_paths_.size();
+    path_info.topLevelUserPaths = toplevel_paths_.data();
+
+    XrPath top_level_path = XR_NULL_PATH;
+    CHECK_XR(g_xrGetRenderModelPoseTopLevelUserPathEXT(render_model, &path_info, &top_level_path),
+             "Failed to get render model top level user path.");
+
+    if (top_level_path != subaction_path_) {
+      /* This model is for a different hand/user path, destroy it and skip. */
+      g_xrDestroyRenderModelEXT(render_model);
+      continue;
+    }
 
     interaction_models_.push_back(render_model);
   }
@@ -560,7 +701,28 @@ void GHOST_XrControllerModelEXT::load(XrSession session)
     CHECK_XR(g_xrGetRenderModelAssetDataEXT(asset, &asset_get_info, &asset_data),
              "Failed to obtain interaction render model glTF data buffer.");
 
-    // TODO: Parse glTF data.
+    /* Parse glTF using tinygltf. */
+    tinygltf::TinyGLTF gltf_loader;
+    tinygltf::Model gltf_model;
+    std::string err_msg;
+
+    /* Set custom image loader (workaround for TINYGLTF_NO_STB_IMAGE). */
+    auto load_img_func = [](tinygltf::Image *,
+                            const int,
+                            std::string *,
+                            std::string *,
+                            int,
+                            int,
+                            const uchar *,
+                            int,
+                            void *) -> bool { return true; };
+    gltf_loader.SetImageLoader(load_img_func, nullptr);
+
+    if (!gltf_loader.LoadBinaryFromMemory(
+            &gltf_model, &err_msg, nullptr, model_data.data(), model_data.size()))
+    {
+      throw GHOST_XrException(("Failed to load glTF controller model: " + err_msg).c_str());
+    }
 
     /* Get the unique names of the animatable nodes. */
     XrRenderModelAssetPropertiesGetInfoEXT asset_properties_get_info = {
@@ -578,28 +740,54 @@ void GHOST_XrControllerModelEXT::load(XrSession session)
     CHECK_XR(g_xrDestroyRenderModelAssetEXT(asset),
              "Failed to destroy interaction render model asset hanndle.");
 
-    /*
-    Save the list of nodes for rendering. The order of the array matters.
-    The application will store some sort of "reference" to a node for
-    each element, using the node name (in nodeProperties) to find it here.
-    This code is not shown because it will depend on how your
-    application represents glTF assets, so add your own here.
-    */
+    /* Setup per-model tracking. */
+    PerModelData per_model;
+    per_model.node_properties = std::move(node_properties);
+    per_model.node_offset = nodes_.size();
+    per_model.component_offset = components_.size();
+    per_model.node_state_indices.resize(per_model.node_properties.size(), -1);
 
-    for (int i = 0; i < asset_properties.nodePropertyCount; i++) {
-      printf("Node %d - %s", i, asset_properties.nodeProperties[i].uniqueName);
+    if (!gltf_model.scenes.empty()) {
+      const tinygltf::Scene &default_scene = gltf_model.scenes.at(
+          (gltf_model.defaultScene == -1) ? 0 : gltf_model.defaultScene);
+
+      float root_transform[4][4] = {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}};
+
+      for (const int node_id : default_scene.nodes) {
+        load_node_ext(gltf_model,
+                      node_id,
+                      -1, /* Root has no parent. */
+                      root_transform,
+                      "", /* Root has no parent name. */
+                      per_model.node_properties,
+                      vertices_,
+                      indices_,
+                      components_,
+                      nodes_,
+                      per_model.node_state_indices,
+                      per_model.component_offset);
+      }
     }
+
+    per_model_data_.push_back(std::move(per_model));
   }
+
+  data_loaded_ = true;
 }
 
 void GHOST_XrControllerModelEXT::updateComponents(XrSession /*session*/, XrTime display_time)
 {
+  if (!data_loaded_) {
+    return;
+  }
+
   for (size_t model_idx = 0; model_idx < interaction_models_.size(); ++model_idx) {
     XrRenderModelEXT render_model = interaction_models_[model_idx];
     const XrRenderModelPropertiesEXT &model_properties = model_properties_[model_idx];
     XrSpace model_space = model_spaces_[model_idx];
+    const PerModelData &per_model = per_model_data_[model_idx];
 
-    /* Locate the interaction model's space. */
+    /* Locate the model's space. */
     XrSpaceLocation model_location = {XR_TYPE_SPACE_LOCATION};
     CHECK_XR(xrLocateSpace(model_space, reference_space_, display_time, &model_location),
              "Failed to locate interaction render model space.");
@@ -612,41 +800,89 @@ void GHOST_XrControllerModelEXT::updateComponents(XrSession /*session*/, XrTime 
     if (!tracked_orientation || !tracked_position) {
       /* Only render if the model space is tracked, and if the session state is appropriate,
        * if applicable. (e.g. interaction models are only to be rendered when FOCUSED) */
-
-      // TODO: Flag this model as not-rendered-this-frame in your app-specific way here.
       continue;
     }
 
     XrRenderModelStateGetInfoEXT model_state_get_info = {XR_TYPE_RENDER_MODEL_STATE_GET_INFO_EXT};
     model_state_get_info.displayTime = display_time;
 
-    // In practice, you do not want to re-allocate this array of
-    // node state every frame, but it is clearer for illustration.
-    // We know the number of elements from the model properties,
-    // and we used the names from the asset handle to find and retain
-    // our app-specific references to those nodes in the model.
     std::vector<XrRenderModelNodeStateEXT> model_node_states(model_properties.animatableNodeCount);
 
     XrRenderModelStateEXT model_state = {XR_TYPE_RENDER_MODEL_STATE_EXT};
-
     model_state.nodeStateCount = (uint32_t)model_node_states.size();
     model_state.nodeStates = model_node_states.data();
     CHECK_XR(g_xrGetRenderModelStateEXT(render_model, &model_state_get_info, &model_state),
              "Failed to obtain interaction render model state.");
 
-    for (size_t i = 0; i < model_node_states.size(); ++i) {
-      /*
-      Use nodeStates[i].isVisible and nodeStates[i].nodePose to update the
-      node's visibility or pose.
-      nodeStates[i] refers to the node identified by name in nodeProperties[i]
-      */
+    /* Update node local transforms from runtime. */
+    for (size_t state_idx = 0; state_idx < model_node_states.size(); ++state_idx) {
+      const int32_t node_idx = per_model.node_state_indices[state_idx];
+      if (node_idx >= 0) {
+        const XrRenderModelNodeStateEXT &node_state = model_node_states[state_idx];
+        const XrPosef &pose = node_state.nodePose;
+
+        /* node_state_indices stores global indices into nodes_. */
+        GHOST_XrControllerModelNode &node = nodes_[node_idx];
+        Eigen::Matrix4f &m = *(Eigen::Matrix4f *)node.local_transform;
+        Eigen::Quaternionf q(
+            pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
+        m.setIdentity();
+        m.block<3, 3>(0, 0) = q.toRotationMatrix();
+        m.block<3, 1>(0, 3) = Eigen::Vector3f(pose.position.x, pose.position.y, pose.position.z);
+      }
     }
 
-    /* Your app now has the overall transform and all node transforms/status here. */
+    /* Calculate component world transforms. */
+    const int32_t node_start = per_model.node_offset;
+    const int32_t node_end = (model_idx + 1 < per_model_data_.size()) ?
+                                 per_model_data_[model_idx + 1].node_offset :
+                                 nodes_.size();
+
+    std::vector<Eigen::Matrix4f> world_transforms(node_end - node_start);
+
+    for (int32_t i = node_start; i < node_end; ++i) {
+      const GHOST_XrControllerModelNode &node = nodes_[i];
+      const int32_t local_idx = i - node_start;
+
+      if (node.parent_idx >= 0) {
+        const int32_t parent_local_idx = node.parent_idx - node_start;
+        world_transforms[local_idx] = world_transforms[parent_local_idx] *
+                                      *(Eigen::Matrix4f *)node.local_transform;
+      }
+      else {
+        world_transforms[local_idx] = *(Eigen::Matrix4f *)node.local_transform;
+      }
+
+      /* Update component transform if this node has one. */
+      if (node.component_idx >= 0) {
+        const int32_t comp_idx = per_model.component_offset + node.component_idx;
+        memcpy(components_[comp_idx].transform,
+               world_transforms[local_idx].data(),
+               sizeof(components_[comp_idx].transform));
+      }
+    }
   }
 }
 
-void GHOST_XrControllerModelEXT::getData(GHOST_XrControllerModelData &r_data) {}
+void GHOST_XrControllerModelEXT::getData(GHOST_XrControllerModelData &r_data)
+{
+  if (data_loaded_) {
+    r_data.count_vertices = uint32_t(vertices_.size());
+    r_data.vertices = vertices_.data();
+    r_data.count_indices = uint32_t(indices_.size());
+    r_data.indices = indices_.data();
+    r_data.count_components = uint32_t(components_.size());
+    r_data.components = components_.data();
+  }
+  else {
+    r_data.count_vertices = 0;
+    r_data.vertices = nullptr;
+    r_data.count_indices = 0;
+    r_data.indices = nullptr;
+    r_data.count_components = 0;
+    r_data.components = nullptr;
+  }
+}
 
 /** \} */
 
