@@ -6,3 +6,4 @@ Referenced by issue #152517, FBX import Blender 5.1 UV maps are not active
 Referenced by pull request #152527, Fix #152517: FBX import Blender 5.1 UV maps are not active
 Referenced by commit e83b5645badcd2f5d4ed5c477c219f4a74937407, Fix #152517: FBX import Blender 5.1 UV maps are not active
 Referenced by commit 29dcb8437351409973f7578f8524f039dcf9e828, Fix: Make sure added UV map is set active
+Referenced by pull request #154126, Fix #154020: Renaming a UV Map loses its active state
