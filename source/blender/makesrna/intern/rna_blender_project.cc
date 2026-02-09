@@ -87,6 +87,13 @@ static int rna_ProjectVariable_type_get(PointerRNA *ptr)
   return int(var->type);
 }
 
+static void rna_ProjectVariable_type_set(PointerRNA *ptr, int value)
+{
+  ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
+
+  var->type = ProjectVarType(value);
+}
+
 static void rna_ProjectVariable_name_get(PointerRNA *ptr, char *value)
 {
   const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
@@ -364,8 +371,8 @@ void rna_def_project_variable(BlenderRNA *brna)
   prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
   RNA_def_property_ui_text(prop, "Type", "The variable's data type");
   RNA_def_property_enum_items(prop, rna_enum_project_variable_type_items);
-  RNA_def_property_enum_funcs(prop, "rna_ProjectVariable_type_get", nullptr, nullptr);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_enum_funcs(
+      prop, "rna_ProjectVariable_type_get", "rna_ProjectVariable_type_set", nullptr);
   RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
 
   prop = RNA_def_property(srna, "value_int", PROP_INT, PROP_NONE);
