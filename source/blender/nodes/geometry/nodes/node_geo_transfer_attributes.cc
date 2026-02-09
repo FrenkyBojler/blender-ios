@@ -28,40 +28,57 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::String>("Name").optional_label();
 }
 
-static bool transfer_attribute(const bke::AttributeAccessor &src_attributes,
-                               const StringRef attribute_name,
-                               bke::MutableAttributeAccessor &dst_attributes)
+static bool name_matches_pattern(const StringRef name, const StringRef pattern)
 {
-  const std::optional<bke::AttributeMetaData> meta_data = src_attributes.lookup_meta_data(
-      attribute_name);
-  if (!meta_data) {
-    return false;
+  if (name == pattern) {
+    return true;
   }
-  const AttrDomain domain = meta_data->domain;
-  const int src_domain_size = src_attributes.domain_size(domain);
-  const int dst_domain_size = dst_attributes.domain_size(domain);
-  if (src_domain_size != dst_domain_size) {
-    return false;
+  // TODO: Support wildcards similar to Remove Attribute node.
+  if (pattern.endswith("*")) {
+    return name.startswith(pattern.drop_known_suffix("*"));
   }
-
-  const bke::GAttributeReader src_attribute = src_attributes.lookup(attribute_name);
-  if (!src_attribute) {
-    return false;
-  }
-
-  bke::GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span(
-      attribute_name, domain, meta_data->data_type);
-  if (!dst_attribute) {
-    return false;
-  }
-  array_utils::copy(src_attribute.varray, dst_attribute.span);
-  dst_attribute.finish();
-  return true;
+  return false;
 }
 
-static bool transfer_attribute_between_grease_pencil_layers(const GreasePencil &src_grease_pencil,
-                                                            GreasePencil &dst_grease_pencil,
-                                                            const StringRef attribute_name)
+static bool transfer_attributes(const bke::AttributeAccessor &src_attributes,
+                                const StringRef attribute_pattern,
+                                bke::MutableAttributeAccessor &dst_attributes)
+{
+  Vector<std::string> attribute_names;
+  src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (name_matches_pattern(iter.name, attribute_pattern)) {
+      attribute_names.append(iter.name);
+    }
+  });
+
+  bool propagated_attribute = false;
+  for (const StringRef attribute_name : attribute_names) {
+    const bke::AttributeMetaData meta_data = *src_attributes.lookup_meta_data(attribute_name);
+    const AttrDomain domain = meta_data.domain;
+    const int src_domain_size = src_attributes.domain_size(domain);
+    const int dst_domain_size = dst_attributes.domain_size(domain);
+    if (src_domain_size != dst_domain_size) {
+      continue;
+    }
+    const bke::GAttributeReader src_attribute = src_attributes.lookup(attribute_name);
+    if (!src_attribute) {
+      continue;
+    }
+    bke::GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span(
+        attribute_name, domain, meta_data.data_type);
+    if (!dst_attribute) {
+      continue;
+    }
+    array_utils::copy(src_attribute.varray, dst_attribute.span);
+    dst_attribute.finish();
+    propagated_attribute = true;
+  }
+  return propagated_attribute;
+}
+
+static bool transfer_attributes_between_grease_pencil_layers(const GreasePencil &src_grease_pencil,
+                                                             GreasePencil &dst_grease_pencil,
+                                                             const StringRef attribute_pattern)
 {
   using namespace blender::bke::greasepencil;
   const int src_layer_num = src_grease_pencil.layers().size();
@@ -85,14 +102,14 @@ static bool transfer_attribute_between_grease_pencil_layers(const GreasePencil &
     bke::CurvesGeometry &dst_curves = dst_drawing->strokes_for_write();
     const bke::AttributeAccessor src_attributes = src_curves.attributes();
     bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
-    transfer_attribute(src_attributes, attribute_name, dst_attributes);
+    transfer_attributes(src_attributes, attribute_pattern, dst_attributes);
   }
   return true;
 }
 
-static bool transfer_attribute_between_geometry_sets(GeometrySet &dst_geo,
-                                                     const GeometrySet &src_geo,
-                                                     const StringRef attribute_name)
+static bool transfer_attributes_between_geometry_sets(GeometrySet &dst_geo,
+                                                      const GeometrySet &src_geo,
+                                                      const StringRef attribute_pattern)
 {
   bool propagated_attribute = false;
 
@@ -112,7 +129,8 @@ static bool transfer_attribute_between_geometry_sets(GeometrySet &dst_geo,
     GeometryComponent &dst_component = dst_geo.get_component_for_write(type);
     const bke::AttributeAccessor src_attributes = *src_component.attributes();
     bke::MutableAttributeAccessor dst_attributes = *dst_component.attributes_for_write();
-    if (transfer_attribute(src_attributes, attribute_name, dst_attributes)) {
+
+    if (transfer_attributes(src_attributes, attribute_pattern, dst_attributes)) {
       propagated_attribute = true;
     }
   }
@@ -120,8 +138,8 @@ static bool transfer_attribute_between_geometry_sets(GeometrySet &dst_geo,
   if (src_geo.has_grease_pencil() && dst_geo.has_grease_pencil()) {
     const GreasePencil &src_grease_pencil = *src_geo.get_grease_pencil();
     GreasePencil &dst_grease_pencil = *dst_geo.get_grease_pencil_for_write();
-    if (transfer_attribute_between_grease_pencil_layers(
-            src_grease_pencil, dst_grease_pencil, attribute_name))
+    if (transfer_attributes_between_grease_pencil_layers(
+            src_grease_pencil, dst_grease_pencil, attribute_pattern))
     {
       propagated_attribute = true;
     }
@@ -134,10 +152,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet target_geo = params.extract_input<GeometrySet>("Target");
   GeometrySet source_geo = params.extract_input<GeometrySet>("Source");
-  const std::string attribute_name = params.extract_input<std::string>("Name");
+  const std::string attribute_pattern = params.extract_input<std::string>("Name");
   bool success = false;
-  if (!attribute_name.empty()) {
-    success = transfer_attribute_between_geometry_sets(target_geo, source_geo, attribute_name);
+  if (!attribute_pattern.empty()) {
+    success = transfer_attributes_between_geometry_sets(target_geo, source_geo, attribute_pattern);
   }
   params.set_output("Target", std::move(target_geo));
   params.set_output("Success", success);

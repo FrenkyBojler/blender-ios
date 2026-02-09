@@ -71,6 +71,7 @@ struct Geometries {
   Vector<GeometrySet> geometry_sets;
 
   VectorSet<DataKey> data_keys;
+  Vector<AttrDomain> domains;
   Vector<bke::MutableAttributeAccessor> attribute_accessors;
 };
 
@@ -112,6 +113,10 @@ struct PinPositionConstraintInfo {
     int position_i;
     int compliance_terms_i;
   } eval;
+
+  struct {
+    std::string lambda;
+  } attributes;
 
   Vector<int> indices;
   Vector<StartStopPair<float3>> animations;
@@ -200,6 +205,9 @@ class XpbdSolverStep {
         bke::GeometryComponent &component = geometry.get_component_for_write(type);
         geometries_.data_keys.add_new({geo_bundle_i, type, std::nullopt});
         geometries_.attribute_accessors.append(*component.attributes_for_write());
+        geometries_.domains.append(type == bke::GeometryComponent::Type::Instance ?
+                                       AttrDomain::Instance :
+                                       AttrDomain::Point);
       }
       if (geometry.has_grease_pencil()) {
         using namespace blender::bke::greasepencil;
@@ -214,6 +222,7 @@ class XpbdSolverStep {
           geometries_.attribute_accessors.append(curves.attributes_for_write());
           geometries_.data_keys.add_new(
               {geo_bundle_i, bke::GeometryComponent::Type::Curve, layer_i});
+          geometries_.domains.append(AttrDomain::Point);
         }
       }
     }
@@ -254,12 +263,28 @@ class XpbdSolverStep {
 
   void prepare_constraints__pin_positions()
   {
-    for (const PinPositionConstraintInfo &info : constraints_info_.pin_positions) {
+    for (PinPositionConstraintInfo &info : constraints_info_.pin_positions) {
       const IndexMask &mask = info.eval.evaluator->get_evaluated_selection_as_mask();
       const VArray<float3> pin_positions = info.eval.evaluator->get_evaluated<float3>(
           info.eval.position_i);
       const VArray<float> compliance_terms = info.eval.evaluator->get_evaluated<float>(
           info.eval.compliance_terms_i);
+
+      const int pin_positions_num = mask.size();
+      info.indices.resize(pin_positions_num);
+      info.animations.resize(pin_positions_num);
+
+      // const VArraySpan<float3> old_positions =
+      //     *geometries_.attribute_accessors[info.data_key_i].lookup<float3>(
+      //         "position", geometries_.domains[info.data_key_i]);
+
+      mask.to_indices(info.indices.as_mutable_span());
+      // for (const int i : IndexRange(pin_positions_num)) {
+      //   const int point_i = info.indices[i];
+      //   const float3 &old_position = old_positions[point_i];
+      //   const float3 &pin_position = pin_positions[i];
+      //   const float compliance_term = compliance_terms[i];
+      // }
     }
   }
 
