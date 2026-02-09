@@ -1838,13 +1838,22 @@ static void remove_unsupported_sockets(ListBaseT<bNodeSocket> *sockets,
 
 static void node_blend_read_data_storage(BlendDataReader *reader, bNodeTree *ntree, bNode *node)
 {
-  if (!node->storage) {
-    return;
-  }
-
   /* This may not always find the type for legacy nodes when the idname did not exist yet or it was
    * changed. Versioning code will update the nodes with unknown types. */
   const bNodeType *ntype = node_type_find(node->idname);
+
+  if (!node->storage) {
+    if (ntype && !ntype->storagename.empty()) {
+      /* Invalidate the type identifiers to prevent invalid access where storage data is expected
+       * (#154086). */
+      node->type_legacy = NODE_CUSTOM;
+      /* This type name is arbitrary, it just has to be unique enough to not match a future node
+       * idname. Includes the old type identifier for debugging purposes. */
+      const std::string old_idname = node->idname;
+      SNPRINTF_UTF8(node->idname, "Undefined[%s]", old_idname.c_str());
+    }
+    return;
+  }
 
   if (ntype && !ntype->storagename.empty()) {
     node->storage = BLO_read_struct_by_name_array(
@@ -2069,7 +2078,7 @@ static void ntree_blend_read_after_liblink(BlendLibReader *reader, ID *id)
   /* Set `node->typeinfo` pointers. This is done in lib linking, after the
    * first versioning that can change types still without functions that
    * update the `typeinfo` pointers. Versioning after lib linking needs
-   * these top be valid. */
+   * these to be valid. */
   node_tree_set_type(*ntree);
 
   /* For nodes with static socket layout, add/remove sockets as needed
