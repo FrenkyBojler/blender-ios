@@ -159,15 +159,16 @@ static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops, const bool che
 {
   /* If the selection has near zero extent along an axis, disable mirror plane filtering
    * for that axis so planar selections are not mistaken for symmetry boundaries. */
-  float min_co[3], max_co[3];
-  INIT_MINMAX(min_co, max_co);
+  float3 min_co = float3(FLT_MAX);
+  float3 max_co = float3(-FLT_MAX);
   bool has_selection = false;
 
   BMIter viter;
   BMVert *v;
   BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
     if (BM_elem_flag_test(v, BM_ELEM_SELECT) && !BM_elem_flag_test(v, BM_ELEM_HIDDEN)) {
-      minmax_v3v3_v3(min_co, max_co, v->co);
+      min_co = math::min(min_co, float3(v->co));
+      max_co = math::max(max_co, float3(v->co));
       has_selection = true;
     }
   }
@@ -179,9 +180,9 @@ static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops, const bool che
   /* These checks should only happen when there's a mirror modifier active on an
    * object. Otherwise a semi circle ends up being produced on vertices that lie
    * on axes X/Y/Z=0. */
-  const bool check_x = check_mirror && (max_co[0] - min_co[0]) > MIRROR_LIMIT;
-  const bool check_y = check_mirror && (max_co[1] - min_co[1]) > MIRROR_LIMIT;
-  const bool check_z = check_mirror && (max_co[2] - min_co[2]) > MIRROR_LIMIT;
+  const bool check_x = check_mirror && (max_co.x - min_co.x) > MIRROR_LIMIT;
+  const bool check_y = check_mirror && (max_co.y - min_co.y) > MIRROR_LIMIT;
+  const bool check_z = check_mirror && (max_co.z - min_co.z) > MIRROR_LIMIT;
 
   Set<BMEdge *> visited;
 
@@ -205,15 +206,15 @@ static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops, const bool che
 
 /* Computes the local coordinate system defining the 2D plane of the vertex loop. */
 static void calculate_plane_basis(
-    const Vector<BMVert *> &loop, float r_center[3], float r_normal[3], float r_p[3], float r_q[3])
+    const Vector<BMVert *> &loop, float3 &r_center, float3 &r_normal, float3 &r_p, float3 &r_q)
 {
-  zero_v3(r_center);
-  zero_v3(r_normal);
+  r_center = float3(0.0f);
+  r_normal = float3(0.0f);
 
   for (BMVert *v : loop) {
-    add_v3_v3(r_center, v->co);
+    r_center += float3(v->co);
   }
-  mul_v3_fl(r_center, 1.0f / loop.size());
+  r_center /= float(loop.size());
 
   /* Compute a best fit plane normal for the loop using Newell's method. */
   for (const int i : loop.index_range()) {
@@ -221,38 +222,32 @@ static void calculate_plane_basis(
     BMVert *next = loop[(i + 1) % loop.size()];
     add_newell_cross_v3_v3v3(r_normal, curr->co, next->co);
   }
-  normalize_v3(r_normal);
-
-  float guess[3] = {1.0f, 0.0f, 0.0f};
+  r_normal = math::normalize(r_normal);
+  float3 guess = float3(1.0f, 0.0f, 0.0f);
 
   /* If r_normal is parallel to (1,0,0) cross product would be zero.
    * In that case, we switch the guess to the y axis to allow a valid
    * perpendicular vector to be found. */
-  if (std::abs(dot_v3v3(r_normal, guess)) > 0.99f) {
-    copy_v3_fl3(guess, 0.0f, 1.0f, 0.0f);
+  if (std::abs(math::dot(r_normal, guess)) > 0.99f) {
+    guess = float3(0.0f, 1.0f, 0.0f);
   }
 
-  cross_v3_v3v3(r_p, r_normal, guess);
-  normalize_v3(r_p);
-
-  cross_v3_v3v3(r_q, r_normal, r_p);
+  r_p = math::cross(r_normal, guess);
+  r_p = math::normalize(r_p);
+  r_q = math::cross(r_normal, r_p);
 }
 
 /* Projects 3D vertex coordinates onto a local 2D plane defined by the P and Q basis vectors. */
 static void project_loop_to_2d(const Vector<BMVert *> &loop,
-                               const float center[3],
-                               const float p[3],
-                               const float q[3],
+                               const float3 &center,
+                               const float3 &p,
+                               const float3 &q,
                                Vector<CircleVert> &r_2d_verts)
 {
   r_2d_verts.reserve(loop.size());
-
   for (BMVert *v : loop) {
-    float vec[3];
-    sub_v3_v3v3(vec, v->co, center);
-
-    CircleVert cv{.v = v, .co_2d = {dot_v3v3(vec, p), dot_v3v3(vec, q)}};
-
+    float3 vec = float3(v->co) - center;
+    CircleVert cv{.v = v, .co_2d = {math::dot(vec, p), math::dot(vec, q)}};
     r_2d_verts.append(cv);
   }
 }
@@ -554,7 +549,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       continue;
     }
 
-    float center_3d[3], normal[3], p[3], q[3];
+    float3 center_3d, normal, p, q;
     calculate_plane_basis(loop, center_3d, normal, p, q);
 
     bool is_mirrored = false;
@@ -577,12 +572,9 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       BMVert *v_start = loop.first();
       BMVert *v_end = loop.last();
 
-      mid_v3_v3v3(center_3d, v_start->co, v_end->co);
-      sub_v3_v3v3(p, v_start->co, center_3d);
-      normalize_v3(p);
-
-      cross_v3_v3v3(q, normal, p);
-      normalize_v3(q);
+      center_3d = math::midpoint(float3(v_start->co), float3(v_end->co));
+      p = math::normalize(float3(v_start->co) - center_3d);
+      q = math::normalize(math::cross(normal, p));
     }
 
     Vector<CircleVert> circle_verts;
@@ -606,19 +598,12 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
         circle_verts, circle_center_2d, radius, regular, loop_data.is_closed, angle);
 
     for (const CircleVert &cv : circle_verts) {
-      float final_pos[3];
-      float offset_u[3], offset_v[3];
-
-      mul_v3_v3fl(offset_u, p, cv.target_2d.x);
-      mul_v3_v3fl(offset_v, q, cv.target_2d.y);
-
-      add_v3_v3v3(final_pos, center_3d, offset_u);
-      add_v3_v3(final_pos, offset_v);
+      float3 final_pos = center_3d + p * cv.target_2d.x + q * cv.target_2d.y;
 
       if (!flatten) {
         float projected_pos[3];
         if (project_on_mesh(bm, cv.v, final_pos, normal, projected_pos)) {
-          copy_v3_v3(final_pos, projected_pos);
+          final_pos = float3(projected_pos);
         }
       }
 
@@ -626,13 +611,13 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       if (lock_x || lock_y || lock_z) {
         const float *orig = cv.v->co;
         if (lock_x) {
-          final_pos[0] = orig[0];
+          final_pos.x = orig[0];
         }
         if (lock_y) {
-          final_pos[1] = orig[1];
+          final_pos.y = orig[1];
         }
         if (lock_z) {
-          final_pos[2] = orig[2];
+          final_pos.z = orig[2];
         }
       }
 
