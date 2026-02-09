@@ -97,14 +97,14 @@ Scope Token::attribute_after() const
   return Scope::invalid();
 }
 
-const std::array<CharClass, 128> LexerBase::default_char_class_table = [] {
+alignas(128) const std::array<CharClass, 128> LexerBase::default_char_class_table = [] {
   std::array<CharClass, 128> table;
   memcpy(table.data(), lexit::char_class_table, sizeof(lexit::char_class_table));
   return table;
 }();
 
 /* Same thing as default table but consider numbers as words to avoid second merging pass. */
-const std::array<CharClass, 128> LexerBase::bsl_char_class_table = [] {
+alignas(128) const std::array<CharClass, 128> LexerBase::bsl_char_class_table = [] {
   std::array<CharClass, 128> table;
   memcpy(table.data(), lexit::char_class_table, sizeof(lexit::char_class_table));
 

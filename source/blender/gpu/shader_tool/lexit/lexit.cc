@@ -54,7 +54,7 @@ void TokenBuffer::reserve(const uint32_t count)
  * encode the index of the source register for each of the 8 destination registers.
  * Every 0 bit (representing a discarded element) will be sourced from the 0th element.
  * This is to be used with table. */
-static const uint8_t shuffle_table_8[257][8] = {
+alignas(16) static const uint8_t shuffle_table_8[256][8] = {
     /* [0b00000000] = */ {0, 0, 0, 0, 0, 0, 0, 0},
     /* [0b00000001] = */ {0, 0, 0, 0, 0, 0, 0, 0},
     /* [0b00000010] = */ {1, 0, 0, 0, 0, 0, 0, 0},
@@ -313,83 +313,17 @@ static const uint8_t shuffle_table_8[257][8] = {
     /* [0b11111111] = */ {0, 1, 2, 3, 4, 5, 6, 7},
 };
 
-static inline uint8x16_t simd_transform16_ascii(const uint8x16x4_t table[2],
-                                                const uint8x16_t input)
-{
-  uint8x16_t result;
-
-#  if defined(USE_NEON)
-  /* Perform a 128 bytes table lookup of for 16 element.
-   * https://lemire.me/blog/2019/07/23/arbitrary-byte-to-byte-maps-using-arm-neon/
-   * Table lookup on NEON will return 0 on overflow.
-   * Leverage this using XOR to swap which range we are looking up and combine result using OR. */
-  const uint8x16_t t1 = table_lookup_8x16x4(table[0], input);
-  const uint8x16_t t2 = table_lookup_8x16x4(table[1], bit_xor(input, make8x16(0x40)));
-  result = bit_or(t1, t2);
-
-#  elif defined(USE_SSE4_2)
-  result = zero8x16();
-  uint8x16_t high_nibble_mask = make8x16(0xF0);
-  /* This replaces both vqtbl4q_u8 calls and the XOR/OR logic.
-   * It covers the full ASCII range (0-127). */
-  for (int i = 0; i < 8; ++i) {
-    /* Identify which bytes in 'input' fall in the current 16-byte range
-     * Range i=0 is 0-15 (0x00), i=1 is 16-31 (0x10), ..., i=7 is 112-127 (0x70) */
-    uint8x16_t range_match = equal(bit_and(input, high_nibble_mask), make8x16(i << 4));
-    /* Perform the shuffle. _mm_shuffle_epi8 only uses the low 4 bits of the index. */
-    uint8x16_t lookup = table_lookup_8x16(table[0][i], input);
-    /* Mask the lookup so we only keep values that were actually in this range. */
-    result = bit_or(result, bit_and(lookup, range_match));
-  }
-#  endif
-  return result;
-}
-
-/* emit_mask must contain 0xFF for each byte to emit and 0x00 for the rest.
- * Return the low and high bits in different variables. */
-static inline void get_shuffle_indices(uint8x16_t emit_mask, uint8_t &mask_lo, uint8_t &mask_hi)
-{
-#  if defined(USE_NEON)
-  const uint8x16_t mask_comp = make8x16(1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128);
-  uint8x16_t mask_vec = bit_and(emit_mask, mask_comp);
-  mask_lo = reduce_add(get_low_8x16(mask_vec));
-  mask_hi = reduce_add(get_high_8x16(mask_vec));
-
-#  elif defined(USE_SSE4_2)
-  uint16_t mask = get_mask(emit_mask);
-  mask_lo = uint8_t(mask);
-  mask_hi = uint8_t(mask >> 8);
-#  endif
-}
-
-void load_8x128_table(uint8x16x4_t map_v[2], const uint8_t *src)
-{
-#  if defined(USE_SSE4_2)
-  /* SSE cannot load these in 2 operations. */
-  for (int j = 0; j < 2; ++j) {
-    for (int i = 0; i < 4; ++i) {
-      map_v[j][i] = load8x16_unaligned(src + i * 16 + j * 64);
-    }
-  }
-#  elif defined(USE_NEON)
-  map_v[0] = load8x16x4_unaligned(src);
-  map_v[1] = load8x16x4_unaligned(src + 64);
-#  endif
-}
-
-void to_uint32x4x2(uint8x8_t data, uint32x4_t &out_low, uint32x4_t &out_hi)
-{
-#  if defined(USE_SSE4_2)
-  out_low = to_uint32x4(get_low_8x8(data));
-  out_hi = to_uint32x4(get_high_8x8(data));
-#  elif defined(USE_NEON)
-  /* The offsets are contained inside the 8 bit shuffle vector.
-   * We need to promote it to 32 bit before adding the base offset. */
-  const uint16x8_t data_uint16 = to_uint16x8(data);
-  out_low = to_uint32x4(get_low_16x8(data_uint16));
-  out_hi = to_uint32x4(get_high_16x8(data_uint16));
-#  endif
-}
+/* Popcount for a uint8_t. */
+alignas(16) static const uint8_t mask_popcount[256] = {
+    0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3,
+    4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4,
+    4, 5, 4, 5, 5, 6, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4,
+    5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5,
+    4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2,
+    3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5,
+    5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4,
+    5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 3, 4, 4, 5, 4, 5, 5, 6,
+    4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
 
 #endif
 
@@ -399,82 +333,78 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
 
   const uint8_t *str = (const uint8_t *)str_.data();
 
+  CharClass prev_value = CharClass::None;
+
 #if defined(USE_SSE4_2) || defined(USE_NEON)
-  uint8x16x4_t map_v[2];
-  load_8x128_table(map_v, (const uint8_t *)char_class_table);
+  using namespace lexit::simd;
 
-  const uint8x16_t mask_last = make8x16(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF);
-  const uint8x16_t to_type_threshold = make8x16(uint8_t(CharClass::ClassToTypeThreshold));
-  const uint8x16_t can_merge = make8x16(uint8_t(CharClass::CanMerge));
+  const u8x128_table char_to_class = u8x128_table::load((const uint8_t *)char_class_table);
 
-  uint8x16_t prev = make8x16(uint8_t(CharClass::None));
+  const u8x16 to_type_threshold{uint8_t(CharClass::ClassToTypeThreshold)};
+  const u8x16 can_merge{uint8_t(CharClass::CanMerge)};
 
   for (; offset + 16 <= str_.size(); offset += 16) {
     /* Load 16 chars. */
-    const uint8x16_t c = load8x16_unaligned(str + offset);
+    const u8x16 c = u8x16::load(str + offset);
     /* Lookup their class. */
-    const uint8x16_t curr = simd_transform16_ascii(map_v, c);
+    const u8x16 curr = char_to_class[c];
     /* (curr > ClassToTypeThreshold) ? curr : c */
-    const uint8x16_t type = byte_select(c, curr, greater_than(curr, to_type_threshold));
-    /* Add the last iteration end token at the end of the vector. */
-    prev = right_shift_by_one_element(byte_select(curr, prev, mask_last));
+    const u8x16 type = select(c, curr, curr > to_type_threshold);
+    /* Shift and add the last iteration end token at the start of the vector. */
+    const u8x16 prev = shift_lanes_right<1>(curr, uint8_t(prev_value));
     /* Equivalent to: `!bool(curr & prev & CanMerge)`. */
-    const uint8x16_t emit = equal(bit_and(bit_and(curr, prev), can_merge), zero8x16());
+    const u8x16 emit = is_zero(curr & prev & can_merge);
+    /* Make it 1 bit valid element flag. */
+    const uint16_t emit_mask = movemask(emit);
+    /* Store for next iteration. */
+    prev_value = CharClass(curr.last());
 
     /* Stream compaction of data based on the emit mask (0xFF == emit, 0x00 == skip).
      * Stores `data` compacted inside `data_out` starting from `data_out + cursor` and advance
      * `cursor` by the number of element compacted. */
     {
-      /* Make it 1 bit valid element flag. */
-      uint8_t mask_lo, mask_hi;
-      get_shuffle_indices(emit, mask_lo, mask_hi);
+      /* Lookup the shuffle vector in 2 halves. */
+      const uint8_t emit_mask_lo = emit_mask & 0xFFu;
+      const uint8_t emit_mask_hi = emit_mask >> 8;
+      const uint8_t mask_popcount_lo = mask_popcount[emit_mask_lo];
+      const uint8_t mask_popcount_hi = mask_popcount[emit_mask_hi];
 
-      auto emit_chunk = [&](uint8_t emit_bit_mask, uint8x8_t data, uint32_t base_offset) {
-        /* Lookup the shuffle vector. */
-        uint8x8_t shuffle = load8x8_unaligned(shuffle_table_8[emit_bit_mask]);
-        /* Move data to destination elements (compaction). */
-        uint8x8_t data_packed = table_lookup_8x8(data, shuffle);
-        /* Write 8 types in the stream. */
-        store8x8_unaligned((uint8_t *)types_.get() + cursor, data_packed);
+      /* TODO MSVC: compat. */
+      const unsigned __int128 v0 = *(uint64_t *)shuffle_table_8[emit_mask_lo];
+      const unsigned __int128 v1 = *(uint64_t *)shuffle_table_8[emit_mask_hi] |
+                                   uint64_t(0x0808080808080808);
+      /* Combine shuffle vectors to remove holes. */
+      alignas(16) const unsigned __int128 combined = v0 | (v1 << (mask_popcount_lo * 8));
 
-        /* The offsets are contained inside the 8 bit shuffle vector.
-         * We need to promote it to 32 bit before adding the base offset. */
-        uint32x4_t shuffle32_lo, shuffle32_hi;
-        to_uint32x4x2(shuffle, shuffle32_lo, shuffle32_hi);
-        const uint32x4_t offset_vec = make32x4(base_offset);
-        /* Write 8 offsets. */
-        store32x4_unaligned(offsets_.get() + cursor + 0, add(shuffle32_lo, offset_vec));
-        store32x4_unaligned(offsets_.get() + cursor + 4, add(shuffle32_hi, offset_vec));
-        cursor += count_bits_i(emit_bit_mask);
-      };
+      u8x16 shuffle = u8x16::load((const uint8_t *)&combined);
 
-      emit_chunk(mask_lo, get_low_8x16(type), offset + 0);
-      emit_chunk(mask_hi, get_high_8x16(type), offset + 8);
+      /* Move data to destination elements (compaction). */
+      u8x16 data_packed = u8x16_table(type).unsafe_shuffle(shuffle);
+      /* Write 16 types in the stream. */
+      data_packed.store_unaligned((uint8_t *)types_.get() + cursor);
+
+      /* The offsets are contained inside the 8 bit shuffle vector.
+       * We need to promote it to 32 bit before adding the base offset. */
+      u32x16 shuffle32x16 = u32x16(shuffle) + offset;
+      /* Write 16 offsets. */
+      shuffle32x16.store_unaligned(offsets_.get() + cursor);
+
+      cursor += mask_popcount_lo + mask_popcount_hi;
     }
-
-    prev = curr;
   }
   /* Finish tail using scalar loop. */
-  const CharClass last_type = CharClass(get_end_lane(prev));
-#else
-
-  /* Scalar only implementation. */
-  CharClass last_type = CharClass::None;
 #endif
 
-  {
-    CharClass prev = last_type;
-    for (; offset < str_.size(); offset += 1) {
-      const char c = str_[offset];
-      const CharClass curr = char_class_table[c];
-      /* It is faster to overwrite the previous value with the same value
-       * as having a condition. */
-      types_[cursor] = (curr > CharClass::ClassToTypeThreshold) ? TokenType(curr) : TokenType(c);
-      offsets_[cursor] = offset;
-      /* Split if no class in common. */
-      cursor += (uint8_t(curr) & uint8_t(prev) & uint8_t(CharClass::CanMerge)) == 0;
-      prev = curr;
-    }
+  for (; offset < str_.size(); offset += 1) {
+    const char c = str_[offset];
+    const CharClass curr = char_class_table[c];
+    /* It is faster to overwrite the previous value with the same value
+     * as having a condition. */
+    types_[cursor] = (curr > CharClass::ClassToTypeThreshold) ? TokenType(curr) : TokenType(c);
+    offsets_[cursor] = offset;
+    /* Split if no class in common. */
+    cursor += (uint8_t(curr) & uint8_t(prev_value) & uint8_t(CharClass::CanMerge)) == 0;
+    prev_value = curr;
   }
 
   /* Set end of last token. */
@@ -495,8 +425,6 @@ TokenType get_stored_type(char char_value, CharClass char_class)
 void TokenBuffer::tokenize_without_whitespace(const CharClass char_class_table[128])
 {
   uint32_t offset = 0, cursor = 0, original_cursor = 0;
-
-  const uint8_t *str = (const uint8_t *)str_.data();
 
   /* Scalar only implementation. */
   CharClass last_type = CharClass::None;

@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <cassert>
+
 #if defined(__ARM_NEON)
 #  define USE_NEON
 #  include <arm_neon.h>
@@ -20,308 +22,510 @@
 
 #if defined(USE_NEON) || defined(USE_SSE4_2)
 
-#  ifdef USE_SSE4_2
-using uint8x16_t = __m128i;
-using uint16x8_t = __m128i;
-using uint32x4_t = __m128i;
-using uint8x8_t = __m128i; /* Only carry data in the first 8 bytes. */
-using uint8x4_t = __m128i; /* Only carry data in the first 4 bytes. */
-using uint8x16x4_t = __m128i[4];
-#  endif
+namespace lexit::simd {
 
+/* Size must be power of 2. */
+template<int Size> struct u8_base {
 #  if defined(USE_NEON)
-/* NEON: Overflow returns 0.
- * SSSE3: Doesn't have an equivalent. */
-static inline uint8x16_t table_lookup_8x16x4(const uint8x16x4_t table, const uint8x16_t input)
-{
-  return vqtbl4q_u8(table, input);
-}
-#  endif
-
-/* NEON: Overflow returns 0.
- * SSSE3: Overflow will wrap around. */
-static inline uint8x16_t table_lookup_8x16(const uint8x16_t table, const uint8x16_t input)
-{
-#  if defined(USE_NEON)
-  return vqtbl1q_u8(table, input);
+  uint8x16_t lanes[Size];
 #  elif defined(USE_SSE4_2)
-  return _mm_shuffle_epi8(table, input);
+  __m128i lanes[Size];
 #  endif
-}
 
-static inline uint8x8_t table_lookup_8x8(const uint8x8_t table, const uint8x8_t input)
-{
+  u8_base() = default;
+
+  explicit u8_base(const uint8_t scalar)
+  {
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-  return vtbl1_u8(table, input);
+      lanes[i] = vdupq_n_u8(scalar);
 #  elif defined(USE_SSE4_2)
-  return _mm_shuffle_epi8(table, input);
+      lanes[i] = _mm_set1_epi8(scalar);
 #  endif
-}
+    }
+  }
 
-static inline uint8x16_t equal(const uint8x16_t a, const uint8x16_t b)
-{
+  static u8_base load_unaligned(const uint8_t *src)
+  {
+    u8_base result;
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-  return vceqq_u8(a, b);
+      result.lanes[i] = vld1q_u8(src + i * 16);
 #  elif defined(USE_SSE4_2)
-  return _mm_cmpeq_epi8(a, b);
+      result.lanes[i] = _mm_loadu_si128((const __m128i *)src + i * 16);
 #  endif
-}
+    }
+    return result;
+  }
 
-static inline uint8x16_t greater_than(const uint8x16_t a, const uint8x16_t b)
-{
+  static u8_base load(const uint8_t *src)
+  {
+    assert((intptr_t(src) & (16 * Size - 1)) == 0);
+    u8_base result;
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-  return vcgtq_u8(a, b);
+      result.lanes[i] = vld1q_u8(src + i * 16);
 #  elif defined(USE_SSE4_2)
-  return _mm_cmpgt_epi8(a, b);
+      result.lanes[i] = _mm_load_si128((const __m128i *)src + i * 16);
 #  endif
-}
+    }
+    return result;
+  }
 
+  void store_unaligned(uint8_t *dst) const
+  {
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-static inline uint8_t reduce_add(const uint8x8_t input)
-{
-  return vaddv_u8(input);
-}
-#  endif
-
-#  ifdef USE_SSE4_2
-/* Return the MSB of each element */
-static inline uint16_t get_mask(const uint8x16_t a)
-{
-  return _mm_movemask_epi8(a);
-}
-#  endif
-
-/* Note: SSE version is a NOOP since uint8x8_t is still 128bits. */
-static inline uint8x8_t get_low_8x16(const uint8x16_t a)
-{
-#  if defined(USE_NEON)
-  return vget_low_u8(a);
+      vst1q_u8(dst + i * 16, lanes[i]);
 #  elif defined(USE_SSE4_2)
-  return a;
+      _mm_storeu_si128(dst + i * 16, lanes[i]);
 #  endif
-}
+    }
+  }
 
-static inline uint8x8_t get_high_8x16(const uint8x16_t a)
-{
+  /* Get content of end lane */
+  uint8_t last() const
+  {
 #  if defined(USE_NEON)
-  return vget_high_u8(a);
+    return vgetq_lane_u8(lanes[Size - 1], 15);
 #  elif defined(USE_SSE4_2)
-  /* Right shift by 8 bytes. */
-  return _mm_srli_si128(a, 8);
+    return _mm_extract_epi8(lanes[Size - 1], 15);
 #  endif
-}
+  }
 
-static inline uint8_t get_end_lane(const uint8x16_t a)
-{
+  /* Get content of end lane */
+  uint8_t first() const
+  {
 #  if defined(USE_NEON)
-  return vgetq_lane_u8(a, 15);
+    return vgetq_lane_u8(lanes[0], 0);
 #  elif defined(USE_SSE4_2)
-  return _mm_extract_epi8(a, 15);
+    return _mm_extract_epi8(lanes[0], 0);
 #  endif
-}
+  }
 
+  /* --- Bitwise Operators --- */
+
+  friend u8_base operator^(u8_base a, u8_base b)
+  {
+    u8_base res;
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-static inline uint16x4_t get_low_16x8(const uint16x8_t a)
-{
-  return vget_low_u16(a);
-}
-static inline uint16x4_t get_high_16x8(const uint16x8_t a)
-{
-  return vget_high_u16(a);
-}
-
-static inline uint16x8_t to_uint16x8(const uint8x8_t a)
-{
-  return vmovl_u8(a);
-}
-static inline uint32x4_t to_uint32x4(const uint16x4_t a)
-{
-  return vmovl_u16(a);
-}
-
+      res.lanes[i] = veorq_u8(a.lanes[i], b.lanes[i]);
 #  elif defined(USE_SSE4_2)
-static inline uint8x4_t get_low_8x8(const uint8x8_t a)
-{
-  return a;
-}
-static inline uint8x4_t get_high_8x8(const uint8x8_t a)
-{
-  return _mm_srli_si128(a, 4);
-}
-
-static inline uint32x4_t to_uint32x4(const uint8x4_t a)
-{
-  return _mm_cvtepu8_epi32(a);
-}
+      res.lanes[i] = _mm_xor_si128(a.lanes[i], b.lanes[i]);
 #  endif
+    }
+    return res;
+  }
 
-static inline uint8x16_t bit_and(const uint8x16_t a, const uint8x16_t b)
-{
+  friend u8_base operator|(u8_base a, u8_base b)
+  {
+    u8_base res;
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-  return vandq_u8(a, b);
+      res.lanes[i] = vorrq_u8(a.lanes[i], b.lanes[i]);
 #  elif defined(USE_SSE4_2)
-  return _mm_and_si128(a, b);
+      res.lanes[i] = _mm_or_si128(a.lanes[i], b.lanes[i]);
 #  endif
-}
+    }
+    return res;
+  }
 
-static inline uint8x16_t bit_or(const uint8x16_t a, const uint8x16_t b)
-{
+  u8_base &operator|=(u8_base b)
+  {
+    *this = *this | b;
+    return *this;
+  }
+
+  friend u8_base operator&(u8_base a, u8_base b)
+  {
+    u8_base res;
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-  return vorrq_u8(a, b);
+      res.lanes[i] = vandq_u8(a.lanes[i], b.lanes[i]);
 #  elif defined(USE_SSE4_2)
-  return _mm_or_si128(a, b);
+      res.lanes[i] = _mm_and_si128(a.lanes[i], b.lanes[i]);
 #  endif
-}
+    }
+    return res;
+  }
 
-static inline uint8x16_t bit_xor(const uint8x16_t a, const uint8x16_t b)
-{
+  u8_base operator~() const
+  {
+    u8_base res;
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-  return veorq_u8(a, b);
+      res.lanes[i] = vmvnq_u8(lanes[i]);
 #  elif defined(USE_SSE4_2)
-  return _mm_xor_si128(a, b);
+      res.lanes[i] = _mm_xor_si128(lanes[i], _mm_set1_epi8(-1));
 #  endif
-}
+    }
+    return res;
+  }
 
-static inline uint32x4_t add(const uint32x4_t a, const uint32x4_t b)
-{
+  /* --- Arithmetic Operators --- */
+
+  friend u8_base operator+(u8_base a, u8_base b)
+  {
+    u8_base res;
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-  return vaddq_u32(a, b);
+      res.lanes[i] = vaddq_u8(a.lanes[i], b.lanes[i]);
 #  elif defined(USE_SSE4_2)
-  return _mm_add_epi32(a, b);
+      res.lanes[i] = _mm_add_epi8(a.lanes[i], b.lanes[i]);
 #  endif
-}
+    }
+    return res;
+  }
 
-/* Only valid if mask contains 0x00 or 0xFF. */
-static inline uint8x16_t byte_select(const uint8x16_t a, const uint8x16_t b, const uint8x16_t mask)
-{
+  friend u8_base operator-(u8_base a, u8_base b)
+  {
+    u8_base res;
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-  return vbslq_u8(mask, b, a);
+      res.lanes[i] = vsubq_u8(a.lanes[i], b.lanes[i]);
 #  elif defined(USE_SSE4_2)
-  return _mm_blendv_epi8(a, b, mask);
+      res.lanes[i] = _mm_sub_epi8(a.lanes[i], b.lanes[i]);
 #  endif
-}
+    }
+    return res;
+  }
 
-/* Shift all elements (bytes) by one element to the right with wrap-around. */
-static inline uint8x16_t right_shift_by_one_element(const uint8x16_t a)
-{
+  /* --- Comparison Operators --- */
+
+  /** WARNING: Signed comparison on SSE. Will not work for input greater than 127. */
+  friend u8_base operator>(u8_base a, u8_base b)
+  {
+    u8_base res;
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-  return vextq_u8(a, a, 15);
+      res.lanes[i] = vcgtq_u8(a.lanes[i], b.lanes[i]);
 #  elif defined(USE_SSE4_2)
-  return _mm_alignr_epi8(a, a, 15);
+      res.lanes[i] = _mm_cmpgt_epi8(a.lanes[i], b.lanes[i]);
 #  endif
-}
+    }
+    return res;
+  }
 
-static inline uint8x16_t zero8x16()
-{
+  /** WARNING: Signed comparison on SSE. Will not work for input greater than 127. */
+  friend u8_base operator<(u8_base a, u8_base b)
+  {
+    u8_base res;
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-  return vdupq_n_u8(0);
+      res.lanes[i] = vcltq_u8(a.lanes[i], b.lanes[i]);
 #  elif defined(USE_SSE4_2)
-  return _mm_setzero_si128();
+      res.lanes[i] = _mm_cmplt_epi8(a.lanes[i], b.lanes[i]);
 #  endif
-}
+    }
+    return res;
+  }
+};
 
-static inline uint8x16_t make8x16(const uint8_t a)
-{
+using u8x16 = u8_base<1>;
+using u8x32 = u8_base<2>;
+using u8x64 = u8_base<4>;
+
+struct u8x16_table {
+  u8x16 table;
+
+  u8x16_table() = default;
+  u8x16_table(u8x16 table) : table(table) {}
+
+  static u8x16_table load_unaligned(const uint8_t *src)
+  {
+    u8x16_table table;
+    table.table = u8x16::load_unaligned(src);
+    return table;
+  }
+
+  static u8x16_table load(const uint8_t *src)
+  {
+    u8x16_table table;
+    table.table = u8x16::load(src);
+    return table;
+  }
+
+  template<int Size> u8_base<Size> operator[](u8_base<Size> index) const
+  {
+    u8_base<Size> result;
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-  return vdupq_n_u8(a);
+      result.lanes[i] = vqtbl1q_u8(table.lanes[0], index.lanes[i]);
 #  elif defined(USE_SSE4_2)
-  return _mm_set1_epi8(a);
+      /* Make sure to mimic the NEON behavior and return 0 on overflow.
+       * _mm_shuffle_epi8 will only return zero if the MSB is high. */
+      __m128i out_of_range = _mm_cmpgt_epi8(index.lanes[i], _mm_set1_epi8(15));
+      __m128i safe_indices = _mm_or_si128(index.lanes[i], out_of_range);
+      result.lanes[i] = _mm_shuffle_epi8(table.lanes[0], safe_indices);
 #  endif
-}
+    }
+    return result;
+  }
 
-static inline uint32x4_t make32x4(const uint32_t a)
-{
+  /* Only valid if all indices are less than 16. */
+  template<int Size> u8_base<Size> unsafe_shuffle(u8_base<Size> index) const
+  {
+    u8_base<Size> result;
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-  return vdupq_n_u32(a);
+      result.lanes[i] = vqtbl1q_u8(table.lanes[0], index.lanes[i]);
 #  elif defined(USE_SSE4_2)
-  return _mm_set1_epi32(a);
+      result.lanes[i] = _mm_shuffle_epi8(table.lanes[0], safe_indices);
 #  endif
-}
+    }
+    return result;
+  }
+};
 
-static inline uint8x16_t make8x16(const uint8_t a0,
-                                  const uint8_t a1,
-                                  const uint8_t a2,
-                                  const uint8_t a3,
-                                  const uint8_t a4,
-                                  const uint8_t a5,
-                                  const uint8_t a6,
-                                  const uint8_t a7,
-                                  const uint8_t a8,
-                                  const uint8_t a9,
-                                  const uint8_t a10,
-                                  const uint8_t a11,
-                                  const uint8_t a12,
-                                  const uint8_t a13,
-                                  const uint8_t a14,
-                                  const uint8_t a15)
-{
-
+struct u8x64_table {
 #  if defined(USE_NEON)
-  return {a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15};
+  uint8x16x4_t table;
 #  elif defined(USE_SSE4_2)
-  return _mm_set_epi8(a15, a14, a13, a12, a11, a10, a9, a8, a7, a6, a5, a4, a3, a2, a1, a0);
+  u8x64_table table[4];
 #  endif
-}
 
-static inline uint8x16_t load8x16_unaligned(const uint8_t *a)
-{
+  static u8x64_table load_unaligned(const uint8_t *src)
+  {
+    u8x64_table table;
 #  if defined(USE_NEON)
-  return vld1q_u8(a);
+    table.table = vld1q_u8_x4(src);
 #  elif defined(USE_SSE4_2)
-  return _mm_loadu_si128((const __m128i *)a);
+#    pragma unroll
+    for (int i = 0; i < 4; ++i) {
+      table[i] = u8x16::load_unaligned(src + i * 16);
+    }
 #  endif
-}
+    return table;
+  }
 
-static inline uint8x16_t load8x16_aligned(const uint8_t *a)
-{
+  static u8x64_table load(const uint8_t *src)
+  {
+    assert((intptr_t(src) & 63) == 0);
+    u8x64_table table;
 #  if defined(USE_NEON)
-  return vld1q_u8(a);
+    table.table = vld1q_u8_x4(src);
 #  elif defined(USE_SSE4_2)
-  return _mm_load_si128((const __m128i *)a);
+#    pragma unroll
+    for (int i = 0; i < 4; ++i) {
+      table[i] = u8x16::load(src + i * 16);
+    }
 #  endif
-}
+    return table;
+  }
 
-static inline uint8x8_t load8x8_unaligned(const uint8_t *a)
-{
+  template<int Size> u8_base<Size> operator[](u8_base<Size> index) const
+  {
+    u8_base<Size> result;
+    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-  return vld1_u8(a);
+      result.lanes[i] = vqtbl4q_u8(table, index.lanes[i]);
 #  elif defined(USE_SSE4_2)
-  return _mm_loadu_si64((const __m128i *)a);
+      result.lanes[i] = tables[0][i];
+      result.lanes[i] |= tables[0][i ^ u8x64(0x10)];
+      result.lanes[i] |= tables[0][i ^ u8x64(0x20)];
+      result.lanes[i] |= tables[0][i ^ u8x64(0x30)];
 #  endif
-}
+    }
+    return result;
+  }
+};
 
-#  if defined(USE_NEON)
-static inline uint8x16x4_t load8x16x4_unaligned(const uint8_t *a)
-{
-  return vld1q_u8_x4(a);
-}
-#  endif
+struct u8x128_table {
+  u8x64_table tables[2];
 
-static inline void store8x8_unaligned(uint8_t *dst, const uint8x8_t src)
+  static u8x128_table load_unaligned(const uint8_t *src)
+  {
+    u8x128_table table;
+    for (int i = 0; i < 2; ++i) {
+      table.tables[i] = u8x64_table::load_unaligned(src + i * 64);
+    }
+    return table;
+  }
+
+  static u8x128_table load(const uint8_t *src)
+  {
+    u8x128_table table;
+    for (int i = 0; i < 2; ++i) {
+      table.tables[i] = u8x64_table::load(src + i * 64);
+    }
+    return table;
+  }
+
+  /* Perform a 128 bytes table lookup for each lane of the input vector.*/
+  template<int Size> u8_base<Size> operator[](u8_base<Size> index) const
+  {
+    /* https://lemire.me/blog/2019/07/23/arbitrary-byte-to-byte-maps-using-arm-neon/
+     * Table lookup on NEON will return 0 on overflow. Leverage this using XOR to swap which range
+     * we are looking up and combine result using OR.
+     * Note we make sure that SSE lookup have the same behavior Which is more costly
+     * (more than 3x the number of instructions) it is then preferable to avoid this path. */
+    return tables[0][index] | tables[1][index ^ u8_base<Size>(0x40)];
+  }
+};
+
+/* Select A if mask is 0, B otherwise.
+ * Mask is expected to be 0xFF or 0x00 for each component. */
+template<int Size>
+inline u8_base<Size> select(u8_base<Size> a, u8_base<Size> b, u8_base<Size> mask)
 {
+  u8_base<Size> result;
+  for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
-  vst1_u8(dst, src);
+    result.lanes[i] = vbslq_u8(mask.lanes[i], b.lanes[i], a.lanes[i]);
 #  elif defined(USE_SSE4_2)
-  return _mm_storeu_si64(dst, src);
+    result.lanes[i] = _mm_blendv_epi8(a.lanes[i], b.lanes[i], mask.lanes[i]);
 #  endif
+  }
+  return result;
 }
 
-static inline void store32x4_unaligned(uint32_t *dst, const uint32x4_t src)
+/* fill_value is the lanes to shift in. */
+template<int Shift, int Size>
+inline u8_base<Size> shift_lanes_right(u8_base<Size> a, uint8_t fill_value)
 {
+  u8_base<Size> result;
+  for (int i = Size - 1; i > 0; --i) {
 #  if defined(USE_NEON)
-  vst1q_u32(dst, src);
+    result.lanes[i] = vextq_u8(a.lanes[i], a.lanes[i - 1], 16 - Shift);
 #  elif defined(USE_SSE4_2)
-  return _mm_storeu_si128((__m128i *)dst, src);
+    result.lanes[i] = _mm_alignr_epi8(a.lanes[i - 1], a.lanes[i], 16 - Shift);
 #  endif
+  }
+  u8_base<1> fill{fill_value};
+#  if defined(USE_NEON)
+  result.lanes[0] = vextq_u8(fill.lanes[0], a.lanes[0], 16 - Shift);
+#  elif defined(USE_SSE4_2)
+  result.lanes[0] = _mm_alignr_epi8(a.lanes[0], fill.lanes[0], 16 - Shift);
+#  endif
+  return result;
 }
 
-static inline void store32x4_aligned(uint32_t *dst, const uint32x4_t src)
+template<int Size> inline u8_base<Size> is_zero(u8_base<Size> a)
 {
-#  if defined(USE_NEON)
-  vst1q_u32(dst, src);
-#  elif defined(USE_SSE4_2)
-  return _mm_store_si128((__m128i *)dst, src);
+#  if defined(USE_SSE4_2)
+  __m128i zero = _mm_setzero_si128();
 #  endif
+  u8_base<Size> result;
+  for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+    result.lanes[i] = vceqzq_u8(a.lanes[i]);
+#  elif defined(USE_SSE4_2)
+    result.lanes[i] = _mm_cmpeq_epi8(a.lanes[i], zero);
+#  endif
+  }
+  return result;
 }
+
+/* Create a bitmask from a u8x64 mask containing 0xFF or 0x00 inside each lane. */
+inline uint64_t movemask(u8x64 mask)
+{
+  uint64_t result;
+
+#  if defined(USE_NEON)
+  const uint8x16_t bits = {1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128};
+  /* Merge lanes with their neighbors (e.g. [1, 2, 4, 8, ...] > [3, 12, 48, ...]).
+   * This is equivalent to merging using | and >> operations.
+   * Doing it 3 time to collapse the 8 bits. */
+  uint8x16_t sum0 = vpaddq_u8(vandq_u8(mask.lanes[0], bits), vandq_u8(mask.lanes[1], bits));
+  uint8x16_t sum1 = vpaddq_u8(vandq_u8(mask.lanes[2], bits), vandq_u8(mask.lanes[3], bits));
+  sum0 = vpaddq_u8(sum0, sum1);
+  sum0 = vpaddq_u8(sum0, sum0);
+  result = vgetq_lane_u64(vreinterpretq_u64_u8(sum0), 0);
+#  elif defined(USE_SSE4_2)
+  result = _mm_movemask_epi8(mask.lanes[0]);
+  result = _mm_movemask_epi8(mask.lanes[1]) | (result << 16);
+  result = _mm_movemask_epi8(mask.lanes[2]) | (result << 16);
+  result = _mm_movemask_epi8(mask.lanes[3]) | (result << 16);
+#  endif
+  return result;
+}
+
+/* Create a bitmask from a u8x64 mask containing 0xFF or 0x00 inside each lane. */
+inline uint16_t movemask(u8x16 mask)
+{
+  uint16_t result;
+
+#  if defined(USE_NEON)
+  const uint8x16_t bits = {1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128};
+  uint8x16_t sum = vandq_u8(mask.lanes[0], bits);
+  /* Merge lanes with their neighbors (e.g. [1, 2, 4, 8, ...] > [3, 12, 48, ...]).
+   * This is equivalent to merging using | and >> operations.
+   * Doing it 3 time to collapse the 8 bits. */
+  sum = vpaddq_u8(sum, sum);
+  sum = vpaddq_u8(sum, sum);
+  sum = vpaddq_u8(sum, sum);
+  result = vgetq_lane_u64(vreinterpretq_u64_u8(sum), 0);
+#  elif defined(USE_SSE4_2)
+  result = _mm_movemask_epi8(mask.lanes[0]);
+#  endif
+  return result;
+}
+
+/* Size must be power of 2. */
+template<int Size> struct u32_base {
+#  if defined(USE_NEON)
+  uint32x4_t lanes[Size];
+#  elif defined(USE_SSE4_2)
+  __m128i lanes[Size];
+#  endif
+
+  u32_base() = default;
+
+  explicit u32_base(const u8_base<Size / 4> v)
+  {
+    for (int i = 0; i < Size / 4; ++i) {
+#  if defined(USE_NEON)
+      uint16x8_t tmp_lo = vmovl_u8(vget_low_u8(v.lanes[i]));
+      uint16x8_t tmp_hi = vmovl_u8(vget_high_u8(v.lanes[i]));
+      lanes[i * 4 + 0] = vmovl_u16(vget_low_u16(tmp_lo));
+      lanes[i * 4 + 1] = vmovl_u16(vget_high_u16(tmp_lo));
+      lanes[i * 4 + 2] = vmovl_u16(vget_low_u16(tmp_hi));
+      lanes[i * 4 + 3] = vmovl_u16(vget_high_u16(tmp_hi));
+#  elif defined(USE_SSE4_2)
+      lanes[i * 4 + 0] = _mm_cvtepu8_epi32(v.lanes[i]);
+      lanes[i * 4 + 1] = _mm_cvtepu8_epi32(_mm_srli_si128(v.lanes[i], 4));
+      lanes[i * 4 + 2] = _mm_cvtepu8_epi32(_mm_srli_si128(v.lanes[i], 8));
+      lanes[i * 4 + 3] = _mm_cvtepu8_epi32(_mm_srli_si128(v.lanes[i], 12));
+#  endif
+    }
+  }
+
+  void store_unaligned(uint32_t *dst) const
+  {
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      vst1q_u32(dst + i * 4, lanes[i]);
+#  elif defined(USE_SSE4_2)
+      _mm_storeu_si128(dst + i * 4, lanes[i]);
+#  endif
+    }
+  }
+
+  /* --- Arithmetic Operators --- */
+
+  friend u32_base operator+(u32_base a, uint32_t b)
+  {
+#  if defined(USE_NEON)
+    uint32x4_t tmp = vdupq_n_u32(b);
+#  elif defined(USE_SSE4_2)
+    __m128i tmp = _mm_set1_epi32(b);
+#  endif
+
+    u32_base res;
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      res.lanes[i] = vaddq_u32(a.lanes[i], tmp);
+#  elif defined(USE_SSE4_2)
+      res.lanes[i] = _mm_add_epi32(a.lanes[i], tmp);
+#  endif
+    }
+    return res;
+  }
+};
+
+using u32x16 = u32_base<4>;
+
+}  // namespace lexit::simd
 
 #endif
