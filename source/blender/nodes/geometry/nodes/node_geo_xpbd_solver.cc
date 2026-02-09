@@ -19,6 +19,23 @@ namespace blender::nodes::node_geo_xpbd_solver_cc {
 
 using namespace physics_bundles;
 
+namespace attribute_names {
+constexpr StringRefNull position = "position";
+constexpr StringRefNull velocity = "velocity";
+/** Force that is applied to each point. */
+constexpr StringRefNull external_force = "external_force";
+/** Mass of each point. */
+constexpr StringRefNull mass = "mass";
+/** True for pinned points. */
+constexpr StringRefNull sim_pin_position = "sim_pin_position";
+/** Begin and end pin position for the current time step. The position is interpolated. */
+constexpr StringRefNull sim_pin_position_begin = "sim_pin_position_begin";
+constexpr StringRefNull sim_pin_position_end = "sim_pin_position_end";
+/** Compliance of the pin position constraint. */
+constexpr StringRefNull sim_pin_position_compliance = "sim_pin_position_compliance";
+
+}  // namespace attribute_names
+
 static NestedBundleTypePtr make_world_type()
 {
   Vector<std::shared_ptr<const FlatBundleType>> types;
@@ -71,7 +88,9 @@ struct GeometryData {
   AttrDomain domain;
   int size;
 
-  IndexMask pinned_mask;
+  IndexMask pin_position_mask;
+  VArraySpan<float3> pin_position_begin;
+  VArraySpan<float3> pin_position_end;
 
   /**
    * Inverse of the mass attribute + extra changes:
@@ -154,7 +173,7 @@ class XpbdSolverStep {
   {
     this->prepare_substep_compliance_factor();
     this->gather_geometries_from_world();
-    this->prepare_pinned_masks();
+    this->prepare_pinned_positions();
     this->prepare_inverse_masses();
     this->gather_constraints_from_world();
     this->evaluate_constraint_fields();
@@ -229,16 +248,22 @@ class XpbdSolverStep {
     }
   }
 
-  void prepare_pinned_masks()
+  void prepare_pinned_positions()
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
       const bke::AttributeReader<bool> pin_attr = geo_data.attributes.lookup<bool>(
-          "sim_pinned", geo_data.domain);
-      if (!pin_attr) {
+          attribute_names::sim_pin_position, geo_data.domain);
+      const bke::AttributeReader<float3> begin_attr = geo_data.attributes.lookup<float3>(
+          attribute_names::sim_pin_position_begin, geo_data.domain);
+      const bke::AttributeReader<float3> end_attr = geo_data.attributes.lookup<float3>(
+          attribute_names::sim_pin_position_end, geo_data.domain);
+      if (!pin_attr || !begin_attr || !end_attr) {
         continue;
       }
-      geo_data.pinned_mask = IndexMask::from_bools(*pin_attr, memory_);
+      geo_data.pin_position_mask = IndexMask::from_bools(*pin_attr, memory_);
+      geo_data.pin_position_begin = begin_attr.varray;
+      geo_data.pin_position_end = end_attr.varray;
     }
   }
 
@@ -250,9 +275,9 @@ class XpbdSolverStep {
       MutableSpan<float> inv_masses = geo_data.inv_masses;
 
       const bke::AttributeReader<float> masses_attr = geo_data.attributes.lookup<float>(
-          "mass", geo_data.domain);
+          attribute_names::mass, geo_data.domain);
       const bke::AttributeReader<bool> pin_attr = geo_data.attributes.lookup_or_default<bool>(
-          "sim_pinned", geo_data.domain, false);
+          attribute_names::sim_pin_position, geo_data.domain, false);
 
       if (masses_attr) {
         threading::parallel_for(IndexRange(geo_data.size), 2048, [&](const IndexRange range) {
@@ -272,7 +297,7 @@ class XpbdSolverStep {
       }
 
       /* Pinned points have infinite mass, so their inverse mass is 0. */
-      geo_data.pinned_mask.foreach_index([&](const int i) { inv_masses[i] = 0.0f; });
+      geo_data.pin_position_mask.foreach_index([&](const int i) { inv_masses[i] = 0.0f; });
     }
   }
 
@@ -373,26 +398,36 @@ class XpbdSolverStep {
 
   void do_simulation()
   {
+    const float substep_factor = 1.0f;
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
       bke::SpanAttributeWriter<float3> positions_attr =
-          geo_data.attributes.lookup_or_add_for_write_span<float3>("position", AttrDomain::Point);
+          geo_data.attributes.lookup_or_add_for_write_span<float3>(attribute_names::position,
+                                                                   AttrDomain::Point);
       bke::SpanAttributeWriter<float3> velocities_attr =
-          geo_data.attributes.lookup_or_add_for_write_span<float3>("velocity", AttrDomain::Point);
+          geo_data.attributes.lookup_or_add_for_write_span<float3>(attribute_names::velocity,
+                                                                   AttrDomain::Point);
       MutableSpan<float3> positions = positions_attr.span;
       MutableSpan<float3> velocities = velocities_attr.span;
       const VArraySpan<float3> external_forces = *geo_data.attributes.lookup_or_default<float3>(
-          "external_force", AttrDomain::Point, float3(0, 0, 0));
+          attribute_names::external_force, AttrDomain::Point, float3(0, 0, 0));
       const Span<float> inv_masses = geo_data.inv_masses;
       threading::parallel_for(positions.index_range(), 256, [&](const IndexRange range) {
-        for (const int i : range) {
-          const float3 external_force = external_forces[i];
-          const float inv_mass = inv_masses[i];
+        for (const int point_i : range) {
+          const float3 external_force = external_forces[point_i];
+          const float inv_mass = inv_masses[point_i];
           const float3 acceleration = external_force * inv_mass;
-          velocities[i] += acceleration * total_delta_time_;
-          positions[i] += velocities[i] * total_delta_time_;
+          velocities[point_i] += acceleration * total_delta_time_;
+          positions[point_i] += velocities[point_i] * total_delta_time_;
         }
       });
+      geo_data.pin_position_mask.foreach_index([&](const int point_i) {
+        const float3 &begin_pos = geo_data.pin_position_begin[point_i];
+        const float3 &end_pos = geo_data.pin_position_end[point_i];
+        const float3 pin_pos = math::interpolate(begin_pos, end_pos, substep_factor);
+        positions[point_i] = pin_pos;
+      });
+
       velocities_attr.finish();
       positions_attr.finish();
     }
