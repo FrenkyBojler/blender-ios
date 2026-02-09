@@ -156,7 +156,11 @@ static LoopData walk_boundary_loop(BMEdge *start_edge,
 }
 
 /* Collects all valid boundary edge loops from the current selection. */
-static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops, const bool check_mirror)
+static void get_input_loops(BMesh *bm,
+                            Vector<LoopData> &r_loops,
+                            const bool check_x,
+                            const bool check_y,
+                            const bool check_z)
 {
   /* If the selection has near zero extent along an axis, disable mirror plane filtering
    * for that axis so planar selections are not mistaken for symmetry boundaries. */
@@ -177,13 +181,6 @@ static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops, const bool che
   if (!has_selection) {
     return;
   }
-
-  /* These checks should only happen when there's a mirror modifier active on an
-   * object. Otherwise a semi circle ends up being produced on vertices that lie
-   * on axes X/Y/Z=0. */
-  const bool check_x = check_mirror && (max_co.x - min_co.x) > MIRROR_LIMIT;
-  const bool check_y = check_mirror && (max_co.y - min_co.y) > MIRROR_LIMIT;
-  const bool check_z = check_mirror && (max_co.z - min_co.z) > MIRROR_LIMIT;
 
   Set<BMEdge *> visited;
 
@@ -534,14 +531,16 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
   const int fit_method = BMO_slot_int_get(op->slots_in, "fit_method");
   const bool flatten = BMO_slot_bool_get(op->slots_in, "flatten");
   const bool regular = BMO_slot_bool_get(op->slots_in, "regular");
-  const bool check_mirror = BMO_slot_bool_get(op->slots_in, "check_mirror");
+  const bool mirror_x = BMO_slot_bool_get(op->slots_in, "mirror_x");
+  const bool mirror_y = BMO_slot_bool_get(op->slots_in, "mirror_y");
+  const bool mirror_z = BMO_slot_bool_get(op->slots_in, "mirror_z");
 
   const bool lock_x = BMO_slot_bool_get(op->slots_in, "lock_x");
   const bool lock_y = BMO_slot_bool_get(op->slots_in, "lock_y");
   const bool lock_z = BMO_slot_bool_get(op->slots_in, "lock_z");
 
   Vector<LoopData> loops;
-  get_input_loops(bm, loops, check_mirror);
+  get_input_loops(bm, loops, mirror_x, mirror_y, mirror_z);
 
   for (LoopData &loop_data : loops) {
     const Vector<BMVert *> &loop = loop_data.verts;

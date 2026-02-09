@@ -64,34 +64,47 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    bool check_mirror = false;
+    bool mirror_x = false;
+    bool mirror_y = false;
+    bool mirror_z = false;
+
     for (ModifierData &md : obedit->modifiers) {
       if (md.type == eModifierType_Mirror && (md.mode & eModifierMode_Realtime)) {
         MirrorModifierData *mmd = reinterpret_cast<MirrorModifierData *>(&md);
-        /* We should only enable check_mirror when merge is on.
-         * It doesn't make sense to create a half circle when merge is off. */
+        /* Only consider the mirror axes when merging is enabled. */
         if (!(mmd->flag & MOD_MIR_NO_MERGE)) {
-          check_mirror = true;
+          if (mmd->flag & MOD_MIR_AXIS_X) {
+            mirror_x = true;
+          }
+          if (mmd->flag & MOD_MIR_AXIS_Y) {
+            mirror_y = true;
+          }
+          if (mmd->flag & MOD_MIR_AXIS_Z) {
+            mirror_z = true;
+          }
           break;
         }
       }
     }
 
-    BMO_op_callf(bm,
-                 BMO_FLAG_DEFAULTS,
-                 "circularize geom=%hvef factor=%f flatten=%b regular=%b fit_method=%i "
-                 "custom_radius=%f angle=%f lock_x=%b lock_y=%b lock_z=%b check_mirror=%b",
-                 BM_ELEM_SELECT,
-                 factor,
-                 flatten,
-                 regular,
-                 fit_method,
-                 custom_radius,
-                 angle,
-                 lock_x,
-                 lock_y,
-                 lock_z,
-                 check_mirror);
+    BMO_op_callf(
+        bm,
+        BMO_FLAG_DEFAULTS,
+        "circularize geom=%hvef factor=%f flatten=%b regular=%b fit_method=%i custom_radius=%f "
+        "angle=%f lock_x=%b lock_y=%b lock_z=%b mirror_x=%b mirror_y=%b mirror_z=%b",
+        BM_ELEM_SELECT,
+        factor,
+        flatten,
+        regular,
+        fit_method,
+        custom_radius,
+        angle,
+        lock_x,
+        lock_y,
+        lock_z,
+        mirror_x,
+        mirror_y,
+        mirror_z);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
