@@ -6,6 +6,7 @@
 #include "DNA_mesh_types.h"
 
 #include "BKE_curves.hh"
+#include "BKE_geometry_fields.hh"
 #include "BKE_grease_pencil.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
@@ -66,6 +67,138 @@ struct DataKey {
   friend bool operator==(const DataKey &a, const DataKey &b) = default;
 };
 
+struct Geometries {
+  Vector<std::string> paths;
+  Vector<GeometrySet> geometry_sets;
+
+  VectorSet<DataKey> data_keys;
+  Vector<bke::MutableAttributeAccessor> attribute_accessors;
+};
+
+struct FieldEvaluatorKey {
+  int data_key_i;
+  AttrDomain domain;
+  Field<bool> selection;
+
+  friend bool operator==(const FieldEvaluatorKey &a, const FieldEvaluatorKey &b) = default;
+
+  uint64_t hash() const
+  {
+    return get_default_hash(this->data_key_i, this->domain, this->selection ? this->selection : 0);
+  }
+};
+
+static const Field<bool> &get_constant_true_field()
+{
+  static const Field<bool> field = fn::make_constant_field<bool>(true);
+  return field;
+}
+
+/** Utility to gather many field evaluations to be able to do them all at once. */
+class FieldEvaluators {
+ private:
+  ResourceScope &scope_;
+  Map<FieldEvaluatorKey, fn::FieldEvaluator *> evaluators_;
+
+ public:
+  FieldEvaluators(ResourceScope &scope) : scope_(scope) {}
+
+  fn::FieldEvaluator &ensure(const int data_key_i,
+                             const bke::GeometryComponent &component,
+                             const AttrDomain domain,
+                             const std::optional<Field<bool>> selection)
+  {
+    FieldEvaluatorKey key{data_key_i, domain, selection ? *selection : get_constant_true_field()};
+    return *evaluators_.lookup_or_add_cb(key, [&]() {
+      auto &field_context = scope_.construct<bke::GeometryFieldContext>(component, domain);
+      const int domain_size = component.attribute_domain_size(domain);
+      auto &evaluator = scope_.construct<fn::FieldEvaluator>(field_context, domain_size);
+      if (selection) {
+        evaluator.set_selection(*selection);
+      }
+      return &evaluator;
+    });
+  }
+};
+
+template<typename T> struct StartStopPair {
+  T start;
+  T stop;
+
+  T interpolate(const float factor) const
+  {
+    return math::interpolate(start, stop, factor);
+  }
+};
+
+struct PinPositionConstraintInfo {
+  int pin_position_bundle_i;
+  int data_key_i;
+
+  struct {
+    const fn::FieldEvaluator *evaluator = nullptr;
+    int position_i;
+    int compliance_terms_i;
+  } eval;
+
+  Vector<int> indices;
+  Vector<StartStopPair<float3>> animations;
+  std::string lambda_attribute_name;
+};
+
+static Geometries gather_geometries(Bundle &world)
+{
+  Geometries geometries;
+
+  /* Gather geometry bundle paths. */
+  geometries.paths = gather_bundle_paths_by_type(world, XPBDGeometryBundle::name);
+
+  /* Move the geometry sets out of the bundles. They are put back in after the simulation. */
+  geometries.geometry_sets.reinitialize(geometries.paths.size());
+  for (const int i : geometries.paths.index_range()) {
+    const StringRef geometry_path = geometries.paths[i];
+    if (GeometrySet *geometry = world.lookup_path_for_write_ptr<GeometrySet>(geometry_path +
+                                                                             "/geometry"))
+    {
+      geometries.geometry_sets[i] = std::move(*geometry);
+    }
+  }
+
+  /* Gather individual components that should be simulated. There may be more than geometry sets
+   * because each geometry set could contain e.g. a mesh and curves. */
+  for (const int geo_bundle_i : geometries.paths.index_range()) {
+    GeometrySet &geometry = geometries.geometry_sets[geo_bundle_i];
+    for (bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh,
+                                              bke::GeometryComponent::Type::PointCloud,
+                                              bke::GeometryComponent::Type::Curve,
+                                              bke::GeometryComponent::Type::Instance})
+    {
+      if (!geometry.has(type)) {
+        continue;
+      }
+      bke::GeometryComponent &component = geometry.get_component_for_write(type);
+      geometries.data_keys.add_new({geo_bundle_i, type, std::nullopt});
+      geometries.attribute_accessors.append(*component.attributes_for_write());
+    }
+    if (geometry.has_grease_pencil()) {
+      using namespace blender::bke::greasepencil;
+      GreasePencil &grease_pencil = *geometry.get_grease_pencil_for_write();
+      for (const int layer_i : grease_pencil.layers().index_range()) {
+        Layer &layer = grease_pencil.layer(layer_i);
+        Drawing *drawing = grease_pencil.get_eval_drawing(layer);
+        if (!drawing) {
+          continue;
+        }
+        bke::CurvesGeometry &curves = drawing->strokes_for_write();
+        geometries.attribute_accessors.append(curves.attributes_for_write());
+        geometries.data_keys.add_new({geo_bundle_i, bke::GeometryComponent::Type::Curve, layer_i});
+      }
+    }
+  }
+
+  return geometries;
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   BundlePtr world_ptr = params.get_input<BundlePtr>("World");
@@ -81,55 +214,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float delta_time = std::max(0.0f, params.get_input<float>("Delta Time"));
   Bundle &world = world_ptr.ensure_mutable_inplace();
 
-  const Vector<std::string> geometry_bundle_paths = gather_bundle_paths_by_type(
-      world, XPBDGeometryBundle::name);
+  ResourceScope scope;
+  FieldEvaluators field_evaluators(scope);
+
+  Geometries geometries = gather_geometries(world);
+
   const Vector<std::string> pin_positions_bundle_paths = gather_bundle_paths_by_type(
       world, PinnedPositionXPBDConstraintBundle::name);
 
-  Vector<GeometrySet> geometry_sets(geometry_bundle_paths.size());
-  for (const int i : geometry_bundle_paths.index_range()) {
-    const StringRef geometry_path = geometry_bundle_paths[i];
-    if (GeometrySet *geometry = world.lookup_path_for_write_ptr<GeometrySet>(geometry_path +
-                                                                             "/geometry"))
-    {
-      geometry_sets[i] = std::move(*geometry);
-    }
-  }
-
-  VectorSet<DataKey> data_keys;
-  Vector<bke::MutableAttributeAccessor> attribute_accessors;
-  for (const int geo_bundle_i : geometry_bundle_paths.index_range()) {
-    GeometrySet &geometry = geometry_sets[geo_bundle_i];
-    for (bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh,
-                                              bke::GeometryComponent::Type::PointCloud,
-                                              bke::GeometryComponent::Type::Curve,
-                                              bke::GeometryComponent::Type::Instance})
-    {
-      if (!geometry.has(type)) {
-        continue;
-      }
-      bke::GeometryComponent &component = geometry.get_component_for_write(type);
-      data_keys.add_new({geo_bundle_i, type, std::nullopt});
-      attribute_accessors.append(*component.attributes_for_write());
-    }
-    if (geometry.has_grease_pencil()) {
-      using namespace blender::bke::greasepencil;
-      GreasePencil &grease_pencil = *geometry.get_grease_pencil_for_write();
-      for (const int layer_i : grease_pencil.layers().index_range()) {
-        Layer &layer = grease_pencil.layer(layer_i);
-        Drawing *drawing = grease_pencil.get_eval_drawing(layer);
-        if (!drawing) {
-          continue;
-        }
-        bke::CurvesGeometry &curves = drawing->strokes_for_write();
-        attribute_accessors.append(curves.attributes_for_write());
-        data_keys.add_new({geo_bundle_i, bke::GeometryComponent::Type::Curve, layer_i});
-      }
-    }
-  }
-
-  for (const int data_key_i : data_keys.index_range()) {
-    bke::MutableAttributeAccessor &attributes = attribute_accessors[data_key_i];
+  for (const int data_key_i : geometries.data_keys.index_range()) {
+    bke::MutableAttributeAccessor &attributes = geometries.attribute_accessors[data_key_i];
     bke::SpanAttributeWriter<float3> positions_attr =
         attributes.lookup_or_add_for_write_span<float3>("position", AttrDomain::Point);
     bke::SpanAttributeWriter<float3> velocities_attr =
@@ -153,9 +247,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     positions_attr.finish();
   }
 
-  for (const int geo_bundle_i : geometry_bundle_paths.index_range()) {
-    const StringRef geometry_path = geometry_bundle_paths[geo_bundle_i];
-    GeometrySet &geometry = geometry_sets[geo_bundle_i];
+  for (const int geo_bundle_i : geometries.paths.index_range()) {
+    const StringRef geometry_path = geometries.paths[geo_bundle_i];
+    GeometrySet &geometry = geometries.geometry_sets[geo_bundle_i];
     world.add_path_override(geometry_path + "/geometry", std::move(geometry));
   }
 
