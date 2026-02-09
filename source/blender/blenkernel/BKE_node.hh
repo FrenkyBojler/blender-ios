@@ -929,7 +929,7 @@ void node_tree_free_local_node(bNodeTree &ntree, bNode &node);
 void node_tree_update_all_new(Main &main);
 
 /** Update asset meta-data cache of data-block properties. */
-IDProperty *node_create_inputs_asset_metadata(const bNodeTree &node_tree);
+IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree);
 void node_update_asset_metadata(bNodeTree &node_tree);
 
 void node_tree_node_flag_set(bNodeTree &ntree, int flag, bool enable);

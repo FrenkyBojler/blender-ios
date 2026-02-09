@@ -35,7 +35,12 @@
 #include "FN_lazy_function_execute.hh"
 
 #include "DNA_collection_types.h"
+#include "DNA_mask_types.h"
 #include "DNA_material_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_sound_types.h"
+#include "DNA_text_types.h"
+#include "DNA_vfont_types.h"
 
 #include "RNA_access.hh"
 
@@ -239,6 +244,41 @@ static bke::SocketValueVariant init_socket_cpp_value(PointerRNA *input_props_ptr
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
         return load_data_block_input<Material>(*input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_FONT: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        return load_data_block_input<VFont>(*input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_SCENE: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        return load_data_block_input<Scene>(*input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_TEXT_ID: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        return load_data_block_input<Text>(*input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_MASK: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        return load_data_block_input<Mask>(*input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_SOUND: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        return load_data_block_input<bSound>(*input_props_ptr);
       }
       break;
     }

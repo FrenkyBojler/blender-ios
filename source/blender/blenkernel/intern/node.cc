@@ -2088,8 +2088,9 @@ static void ntree_blend_read_after_liblink(BlendLibReader *reader, ID *id)
   }
 }
 
-IDProperty *node_create_inputs_asset_metadata(const bNodeTree &node_tree)
+IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree)
 {
+  auto properties = idprop::create_group("properties");
   auto inputs = idprop::create_group("inputs");
   node_tree.ensure_interface_cache();
   for (const bNodeTreeInterfaceSocket *socket : node_tree.interface_inputs()) {
@@ -2219,7 +2220,24 @@ IDProperty *node_create_inputs_asset_metadata(const bNodeTree &node_tree)
     }
     IDP_AddToGroup(inputs.get(), input.release());
   }
-  return inputs.release();
+  IDP_AddToGroup(properties.get(), inputs.release());
+
+  auto panels = idprop::create_group("panels");
+  for (const bNodeTreeInterfaceItem *item : node_tree.interface_items()) {
+    if (item->item_type != NODE_INTERFACE_PANEL) {
+      continue;
+    }
+    const auto &panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
+    std::string open_identifier = fmt::format("open_{}", panel.identifier);
+    auto panel_props = idprop::create_group(open_identifier);
+    IDP_AddToGroup(
+        panels.get(),
+        idprop::create_bool(open_identifier, panel.flag & NODE_INTERFACE_PANEL_DEFAULT_CLOSED)
+            .release());
+  }
+  IDP_AddToGroup(properties.get(), panels.release());
+
+  return properties.release();
 }
 
 void node_update_asset_metadata(bNodeTree &node_tree)
@@ -2237,7 +2255,7 @@ void node_update_asset_metadata(bNodeTree &node_tree)
       IDP_FreeProperty(prop);
     }
   }
-  BKE_asset_metadata_idprop_ensure(asset_data, node_create_inputs_asset_metadata(node_tree));
+  BKE_asset_metadata_idprop_ensure(asset_data, node_create_asset_meta_data_properties(node_tree));
   BKE_asset_metadata_idprop_ensure(asset_data, outputs.release());
   if (node_tree.geometry_node_asset_traits) {
     auto property = idprop::create("geometry_node_asset_traits_flag",

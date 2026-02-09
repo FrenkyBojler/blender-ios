@@ -673,8 +673,11 @@ static void draw_interface_panel_as_panel(DrawGroupInputsContext &ctx,
   if (!interface_panel_has_socket(ctx, interface_panel)) {
     return;
   }
+  printf("draw_interface_panel_as_panel\n");
   PointerRNA panels_ptr = RNA_pointer_get(ctx.properties_ptr, "panels");
   const std::string panel_open_name = fmt::format("open_{}", interface_panel.identifier);
+  printf(
+      "%s: %d\n", panel_open_name.c_str(), RNA_boolean_get(&panels_ptr, panel_open_name.c_str()));
   ui::PanelLayout panel_layout;
   bool skip_first = false;
   /* Check if the panel should have a toggle in the header. */
