@@ -9017,8 +9017,9 @@ class TOPBAR_PT_grease_pencil_vertex_color(Panel):
 
         gp_settings = brush.gpencil_settings
         if brush.gpencil_brush_type in {'DRAW', 'FILL'}:
-            row = layout.row(align=True)
-            row.prop(gp_settings, "vertex_mode", text="Mode")
+            if ob.mode == 'VERTEX_GREASE_PENCIL':
+                row = layout.row(align=True)
+                row.prop(gp_settings, "vertex_mode", text="Mode")
             row = layout.row(align=True)
             row.prop(gp_settings, "vertex_color_factor", slider=True, text="Mix Factor")
 
