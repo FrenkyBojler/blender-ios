@@ -304,7 +304,7 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
       GPU_batch_uniform_4fv(model, "color", color);
 
       GPU_matrix_push();
-      GPU_matrix_mul(controller.grip_mat);
+      GPU_matrix_mul(controller.model_mat);
       for (uint component_idx = 0; component_idx < model_data.count_components; ++component_idx) {
         const GHOST_XrControllerModelComponent *component = &model_data.components[component_idx];
         GPU_matrix_push();

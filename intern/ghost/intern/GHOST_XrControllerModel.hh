@@ -61,4 +61,7 @@ class GHOST_XrControllerModel {
   /* Asynchronous data loading. */
   std::future<void> load_task_;
   std::atomic<bool> data_loaded_ = false;
+
+  /* Base pose for positioning the model (from render model space location). */
+  GHOST_XrPose base_pose_ = {false, {0, 0, 0}, {1, 0, 0, 0}};
 };

@@ -702,6 +702,20 @@ void GHOST_XrControllerModel::updateComponents(XrSession /*session*/, XrTime dis
       continue;
     }
 
+    /* Store the model's base pose (use first tracked model). */
+    if (model_idx == 0) {
+      const XrPosef &pose = model_location.pose;
+      base_pose_.is_active = true;
+      base_pose_.position[0] = pose.position.x;
+      base_pose_.position[1] = pose.position.y;
+      base_pose_.position[2] = pose.position.z;
+
+      base_pose_.orientation_quat[0] = pose.orientation.w;
+      base_pose_.orientation_quat[1] = pose.orientation.x;
+      base_pose_.orientation_quat[2] = pose.orientation.y;
+      base_pose_.orientation_quat[3] = pose.orientation.z;
+    }
+
     XrRenderModelStateGetInfoEXT model_state_get_info = {XR_TYPE_RENDER_MODEL_STATE_GET_INFO_EXT};
     model_state_get_info.displayTime = display_time;
 
@@ -772,6 +786,7 @@ void GHOST_XrControllerModel::getData(GHOST_XrControllerModelData &r_data)
     r_data.indices = indices_.data();
     r_data.count_components = uint32_t(components_.size());
     r_data.components = components_.data();
+    r_data.base_pose = base_pose_;
   }
   else {
     r_data.count_vertices = 0;
@@ -780,6 +795,7 @@ void GHOST_XrControllerModel::getData(GHOST_XrControllerModelData &r_data)
     r_data.indices = nullptr;
     r_data.count_components = 0;
     r_data.components = nullptr;
+    r_data.base_pose = {false, {0, 0, 0}, {1, 0, 0, 0}};
   }
 }
 

@@ -153,6 +153,8 @@ struct wmXrController {
   GHOST_XrPose aim_pose;
   float aim_mat[4][4];
   float aim_mat_base[4][4];
+  /** Model pose matrix (in world space, for render model positioning). */
+  float model_mat[4][4];
 
   /** Controller model. */
   gpu::Batch *model;

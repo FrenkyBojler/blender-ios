@@ -1252,6 +1252,7 @@ struct GHOST_XrControllerModelData {
   const uint32_t *indices;
   uint32_t count_components;
   const GHOST_XrControllerModelComponent *components;
+  GHOST_XrPose base_pose;
 };
 
 #endif /* WITH_XR_OPENXR */

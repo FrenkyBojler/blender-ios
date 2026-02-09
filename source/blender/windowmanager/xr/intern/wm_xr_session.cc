@@ -735,6 +735,26 @@ static void wm_xr_session_controller_data_update(const XrSessionSettings *settin
     else {
       GHOST_XrUpdateControllerModelComponents(xr_context, controller.subaction_path);
     }
+
+    /* Compute model_mat from the render model base pose. */
+    GHOST_XrControllerModelData model_data;
+    if (GHOST_XrGetControllerModelData(xr_context, controller.subaction_path, &model_data) &&
+        model_data.base_pose.is_active)
+    {
+      GHOST_XrPose dummy_pose;
+      float dummy_mat[4][4];
+      wm_xr_session_controller_pose_calc(&model_data.base_pose,
+                                         view_ofs,
+                                         base_mat,
+                                         nav_mat,
+                                         &dummy_pose,
+                                         controller.model_mat,
+                                         dummy_mat);
+    }
+    else {
+      /* Fallback to grip pose if model pose not available. */
+      copy_m4_m4(controller.model_mat, controller.grip_mat);
+    }
   }
 }
 
