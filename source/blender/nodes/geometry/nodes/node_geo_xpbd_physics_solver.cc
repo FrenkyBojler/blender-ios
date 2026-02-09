@@ -412,6 +412,16 @@ class XPBDState {
     }
   }
 
+  /* Several lambda arrays may be stored for the same key. */
+  void resize_constraint_lambdas(const SimConstraintsKey &key, const int sub_keys_num)
+  {
+    std::lock_guard<Mutex> lock(this->sim_constraints_mutex);
+    SimConstraintsData &data = this->sim_constraints.lookup_or_add(key, {});
+    if (data.lambdas.size() != sub_keys_num) {
+      data.lambdas.resize(sub_keys_num);
+    }
+  }
+
   template<typename T>
   MutableSpan<T> ensure_constraint_lambdas(const SimConstraintsKey &key,
                                            const int sub_key,
@@ -421,9 +431,7 @@ class XPBDState {
     const CPPType &cpp_type = CPPType::get<T>();
     SimConstraintsData &data = this->sim_constraints.lookup_or_add(key, {});
     BLI_assert(data.persistent_ids.is_empty() || data.persistent_ids.size() == constraints_num);
-    if (sub_key >= data.lambdas.size()) {
-      data.lambdas.resize(sub_key + 1);
-    }
+    BLI_assert(data.lambdas.index_range().contains(sub_key));
 
     GArray<> &lambdas = data.lambdas[sub_key];
     if (lambdas.data() == nullptr) {
@@ -438,6 +446,7 @@ class XPBDState {
   template<typename T>
   MutableSpan<T> ensure_constraint_lambdas(const SimConstraintsKey &key, const int constraints_num)
   {
+    resize_constraint_lambdas(key, 1);
     return ensure_constraint_lambdas<T>(key, 0, constraints_num);
   }
 
@@ -1955,6 +1964,7 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
     const SimPoints &sim_points = state.sim_points.lookup(item.key.points_key);
     const StaticPlaneContacts &plane_contacts = item.value;
     const int constraints_num = plane_contacts.indices.size();
+    state.resize_constraint_lambdas(item.key, 2);
 
     MutableSpan active_states = state.ensure_constraint_data<bool>(
         item.key, constraints_num, "is_active");
@@ -3455,6 +3465,8 @@ gather_curve_rod_stretch_and_shear_constraints(ThreadLocalStorage &tls,
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const SimConstraintsKey &constraints_key =
         world_info.constraints_keys[constraint_info.constraints_key_i];
+    state.resize_constraint_lambdas(constraints_key, 2);
+
     const int constraints_num = curves.points_num();
     MutableSpan lambdas_pos = state.ensure_constraint_lambdas<float3>(
         constraints_key, 0, constraints_num);
