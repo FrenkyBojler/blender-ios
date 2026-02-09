@@ -49,7 +49,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_TIME_ABSOLUTE);
 
   auto &panel = b.add_panel("Solver").default_closed(true);
-  panel.add_input<decl::String>("Path").default_value("solvers/xpbd");
   panel.add_input<decl::Int>("Substeps").default_value(10).min(1);
   panel.add_input<decl::Int>("Constraint Iterations").default_value(1).min(1);
 }
@@ -94,33 +93,6 @@ static const Field<bool> &get_constant_true_field()
   return field;
 }
 
-/** Utility to gather many field evaluations to be able to do them all at once. */
-class FieldEvaluators {
- private:
-  ResourceScope &scope_;
-  Map<FieldEvaluatorKey, fn::FieldEvaluator *> evaluators_;
-
- public:
-  FieldEvaluators(ResourceScope &scope) : scope_(scope) {}
-
-  fn::FieldEvaluator &ensure(const int data_key_i,
-                             const bke::GeometryComponent &component,
-                             const AttrDomain domain,
-                             const std::optional<Field<bool>> selection)
-  {
-    FieldEvaluatorKey key{data_key_i, domain, selection ? *selection : get_constant_true_field()};
-    return *evaluators_.lookup_or_add_cb(key, [&]() {
-      auto &field_context = scope_.construct<bke::GeometryFieldContext>(component, domain);
-      const int domain_size = component.attribute_domain_size(domain);
-      auto &evaluator = scope_.construct<fn::FieldEvaluator>(field_context, domain_size);
-      if (selection) {
-        evaluator.set_selection(*selection);
-      }
-      return &evaluator;
-    });
-  }
-};
-
 template<typename T> struct StartStopPair {
   T start;
   T stop;
@@ -136,7 +108,7 @@ struct PinPositionConstraintInfo {
   int data_key_i;
 
   struct {
-    const fn::FieldEvaluator *evaluator = nullptr;
+    fn::FieldEvaluator *evaluator = nullptr;
     int position_i;
     int compliance_terms_i;
   } eval;
@@ -154,27 +126,49 @@ class XpbdSolverStep {
  private:
   ResourceScope &scope_;
   Bundle &world_;
-  const float delta_time_;
-  FieldEvaluators field_evaluators_;
+  const float total_delta_time_;
+  const int substeps_;
+  const float sub_delta_time_;
+
+  float substep_compliance_factor_;
+  fn::Field<float> substep_compliance_factor_field_;
+
+  Map<FieldEvaluatorKey, fn::FieldEvaluator *> field_evaluators_;
 
   Geometries geometries_;
   ConstraintsInfo constraints_info_;
 
  public:
-  XpbdSolverStep(ResourceScope &scope, Bundle &world, const float delta_time)
-      : scope_(scope), world_(world), delta_time_(delta_time), field_evaluators_(scope_)
+  XpbdSolverStep(ResourceScope &scope,
+                 Bundle &world,
+                 const float total_delta_time,
+                 const int substeps)
+      : scope_(scope),
+        world_(world),
+        total_delta_time_(total_delta_time),
+        substeps_(substeps),
+        sub_delta_time_(total_delta_time / substeps_)
   {
   }
 
   void do_step()
   {
+    this->prepare_substep_compliance_factor();
     this->gather_geometries_from_world();
     this->gather_constraints_from_world();
+    this->evaluate_constraint_fields();
+    this->prepare_constraints();
     this->do_simulation();
     this->write_back_geometries_to_world();
   }
 
  private:
+  void prepare_substep_compliance_factor()
+  {
+    substep_compliance_factor_ = math::safe_rcp(pow2f(sub_delta_time_));
+    substep_compliance_factor_field_ = fn::make_constant_field(substep_compliance_factor_);
+  }
+
   void gather_geometries_from_world()
   {
     /* Gather geometry bundle paths. */
@@ -227,11 +221,142 @@ class XpbdSolverStep {
 
   void gather_constraints_from_world()
   {
-    const Vector<std::string> pin_positions_bundle_paths = gather_bundle_paths_by_type(
+    this->gather_constraints_from_world__pin_positions();
+  }
+
+  void gather_constraints_from_world__pin_positions()
+  {
+    const Vector<std::string> paths = gather_bundle_paths_by_type(
         world_, PinnedPositionXPBDConstraintBundle::name);
-    for (const int pin_position_bundle_i : pin_positions_bundle_paths.index_range()) {
-      const StringRef pin_positions_path = pin_positions_bundle_paths[pin_position_bundle_i];
+    for (const int bundle_i : paths.index_range()) {
+      const StringRef path = paths[bundle_i];
+      const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
+      const std::optional<Field<float3>> position = bundle.lookup<Field<float3>>("position");
+      if (!position) {
+        continue;
+      }
+      const std::optional<Field<bool>> selection = bundle.lookup<Field<bool>>("selection");
+      const std::string filter = bundle.lookup<std::string>("filter").value_or("");
+
+      const Vector<int> data_keys = find_data_keys_for_filter(path, filter);
+      for (const int data_key_i : data_keys) {
+        PinPositionConstraintInfo info;
+        info.data_key_i = data_key_i;
+        info.pin_position_bundle_i = bundle_i;
+        info.eval.evaluator = &this->get_field_evaluator(data_key_i, AttrDomain::Point, selection);
+        info.eval.position_i = info.eval.evaluator->add(*position);
+        info.eval.compliance_terms_i = info.eval.evaluator->add(
+            this->get_compliance_term_field(bundle, "compliance"));
+        constraints_info_.pin_positions.append(std::move(info));
+      }
     }
+  }
+
+  void prepare_constraints__pin_positions()
+  {
+    for (const PinPositionConstraintInfo &info : constraints_info_.pin_positions) {
+      const IndexMask &mask = info.eval.evaluator->get_evaluated_selection_as_mask();
+      const VArray<float3> pin_positions = info.eval.evaluator->get_evaluated<float3>(
+          info.eval.position_i);
+      const VArray<float> compliance_terms = info.eval.evaluator->get_evaluated<float>(
+          info.eval.compliance_terms_i);
+    }
+  }
+
+  fn::FieldEvaluator &get_field_evaluator(const int data_key_i,
+                                          const AttrDomain domain,
+                                          std::optional<Field<bool>> selection)
+  {
+    FieldEvaluatorKey key{data_key_i, domain, selection ? *selection : get_constant_true_field()};
+    return *field_evaluators_.lookup_or_add_cb(key, [&]() {
+      const auto &field_context = this->make_geometry_field_context(data_key_i, domain);
+      const int domain_size = geometries_.attribute_accessors[data_key_i].domain_size(domain);
+      auto &evaluator = scope_.construct<fn::FieldEvaluator>(field_context, domain_size);
+      if (selection) {
+        evaluator.set_selection(*selection);
+      }
+      return &evaluator;
+    });
+  }
+
+  Field<float> get_compliance_term_field(const Bundle &bundle, const StringRef field_name) const
+  {
+    const std::optional<Field<float>> compliance_term = bundle.lookup<Field<float>>(field_name);
+    if (!compliance_term) {
+      static auto zero_field = fn::make_constant_field(0.0f);
+      return zero_field;
+    }
+    return this->to_compliance_term_field(*compliance_term);
+  }
+
+  Field<float> to_compliance_term_field(const Field<float> &compliance_field) const
+  {
+    static auto prepare_compliance_term_fn = mf::build::SI2_SO<float, float, float>(
+        "Prepare Compliance Term", [](const float compliance, const float factor) {
+          return std::max(0.0f, compliance * factor);
+        });
+    return Field<float>(fn::FieldOperation::from(
+        prepare_compliance_term_fn, {compliance_field, substep_compliance_factor_field_}));
+  }
+
+  fn::FieldContext &make_geometry_field_context(const int data_key_i, const AttrDomain domain)
+  {
+    const DataKey &data_key = geometries_.data_keys[data_key_i];
+    const GeometrySet &geometry_set = geometries_.geometry_sets[data_key.geo_bundle_i];
+    switch (data_key.type) {
+      case bke::GeometryComponent::Type::Mesh:
+        return scope_.construct<bke::MeshFieldContext>(*geometry_set.get_mesh(), domain);
+      case bke::GeometryComponent::Type::PointCloud:
+        return scope_.construct<bke::PointCloudFieldContext>(*geometry_set.get_pointcloud());
+      case bke::GeometryComponent::Type::Instance:
+        return scope_.construct<bke::InstancesFieldContext>(*geometry_set.get_instances());
+      case bke::GeometryComponent::Type::Curve:
+        return scope_.construct<bke::CurvesFieldContext>(*geometry_set.get_curves(), domain);
+      case bke::GeometryComponent::Type::GreasePencil:
+        return scope_.construct<bke::GreasePencilLayerFieldContext>(
+            *geometry_set.get_grease_pencil(), domain, *data_key.layer_i);
+      case bke::GeometryComponent::Type::Volume:
+      case bke::GeometryComponent::Type::Edit:
+        break;
+    }
+    BLI_assert_unreachable();
+    return scope_.construct<fn::FieldContext>();
+  }
+
+  Vector<int> find_data_keys_for_filter(const StringRef self_path, const StringRef filter) const
+  {
+    Vector<int> data_keys;
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      const DataKey &data_key = geometries_.data_keys[data_key_i];
+      const StringRef geo_bundle_path = geometries_.paths[data_key.geo_bundle_i];
+      if (nested_bundle_path_is_selected(self_path, filter, geo_bundle_path)) {
+        data_keys.append(data_key_i);
+      }
+    }
+    return data_keys;
+  }
+
+  void evaluate_constraint_fields()
+  {
+    Vector<fn::FieldEvaluator *> evaluators;
+    for (fn::FieldEvaluator *evaluator : field_evaluators_.values()) {
+      evaluators.append(evaluator);
+    }
+    threading::parallel_for(
+        evaluators.index_range(),
+        1024,
+        [&](const IndexRange range) {
+          for (fn::FieldEvaluator *evaluator : evaluators.as_span().slice(range)) {
+            evaluator->evaluate();
+          }
+        },
+        threading::individual_task_sizes(
+            [&](const int i) { return evaluators[i]->evaluation_mask().size(); }));
+  }
+
+  void prepare_constraints()
+  {
+    this->prepare_constraints__pin_positions();
   }
 
   void do_simulation()
@@ -253,8 +378,8 @@ class XpbdSolverStep {
           const float3 external_force = external_forces[i];
           const float mass = masses[i];
           const float3 acceleration = math::safe_divide(external_force, mass);
-          velocities[i] += acceleration * delta_time_;
-          positions[i] += velocities[i] * delta_time_;
+          velocities[i] += acceleration * total_delta_time_;
+          positions[i] += velocities[i] * total_delta_time_;
         }
       });
       velocities_attr.finish();
@@ -279,8 +404,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
-  const std::string solver_path = params.get_input<std::string>("Path");
-  if (!Bundle::is_valid_path(solver_path)) {
+  const int substeps = params.get_input<int>("Substeps");
+  if (substeps <= 0) {
     params.set_output("World", std::move(world_ptr));
     return;
   }
@@ -288,7 +413,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   Bundle &world = world_ptr.ensure_mutable_inplace();
   ResourceScope scope;
 
-  XpbdSolverStep step(scope, world, delta_time);
+  XpbdSolverStep step(scope, world, delta_time, substeps);
   step.do_step();
 
   params.set_output("World", std::move(world_ptr));
