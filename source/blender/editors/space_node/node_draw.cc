@@ -4770,6 +4770,25 @@ static void draw_background_color()
   GPU_clear_color(color[0], color[1], color[2], 1.0);
 }
 
+static void draw_node_gizmos(const bContext &C,
+                             const ARegion &region,
+                             eWM_GizmoFlagMapDrawStep draw_step)
+{
+
+  float original_proj[4][4];
+  GPU_matrix_projection_get(original_proj);
+
+  GPU_matrix_push();
+  GPU_matrix_identity_set();
+
+  wmOrtho2_pixelspace(region.winx, region.winy);
+
+  WM_gizmomap_draw(region.runtime->gizmo_map, &C, draw_step);
+
+  GPU_matrix_pop();
+  GPU_matrix_projection_set(original_proj);
+}
+
 void node_draw_space(const bContext &C, ARegion &region)
 {
   wmWindow *win = CTX_wm_window(&C);
@@ -4838,38 +4857,9 @@ void node_draw_space(const bContext &C, ARegion &region)
       /* Backdrop. */
       draw_nodespace_back_pix(C, region, snode, path->parent_key);
 
-      {
-        float original_proj[4][4];
-        GPU_matrix_projection_get(original_proj);
-
-        GPU_matrix_push();
-        GPU_matrix_identity_set();
-
-        wmOrtho2_pixelspace(region.winx, region.winy);
-
-        WM_gizmomap_draw(region.runtime->gizmo_map, &C, WM_GIZMOMAP_DRAWSTEP_2D);
-
-        GPU_matrix_pop();
-        GPU_matrix_projection_set(original_proj);
-      }
-
+      draw_node_gizmos(C, region, WM_GIZMOMAP_DRAWSTEP_2D_TOOLS);
       draw_nodetree(C, region, *ntree, path->parent_key);
-
-      // todo(habib): move to common function
-      {
-        float original_proj[4][4];
-        GPU_matrix_projection_get(original_proj);
-
-        GPU_matrix_push();
-        GPU_matrix_identity_set();
-
-        wmOrtho2_pixelspace(region.winx, region.winy);
-
-        WM_gizmomap_draw(region.runtime->gizmo_map, &C, WM_GIZMOMAP_DRAWSTEP_2D_NAV);
-
-        GPU_matrix_pop();
-        GPU_matrix_projection_set(original_proj);
-      }
+      draw_node_gizmos(C, region, WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS);
     }
 
     /* Temporary links. */

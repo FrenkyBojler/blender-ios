@@ -783,7 +783,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
                         C);
   }
   if ((sima->gizmo_flag & SI_GIZMO_HIDE) == 0) {
-    WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
+    WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS);
   }
   draw_image_cache(C, region);
 }

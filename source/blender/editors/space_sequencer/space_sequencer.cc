@@ -389,7 +389,7 @@ static void SEQUENCER_GGT_gizmo2d_rotate(wmGizmoGroupType *gzgt)
   gzgt->idname = "SEQUENCER_GGT_gizmo2d_rotate";
 
   gzgt->flag |= (WM_GIZMOGROUPTYPE_TOOL_FALLBACK_KEYMAP |
-                 WM_GIZMOGROUPTYPE_DELAY_REFRESH_FOR_TWEAK);
+                 WM_GIZMOGROUPTYPE_DELAY_REFRESH_FOR_TWEAK | WM_GIZMOGROUPTYPE_TOOLS);
 
   gzgt->gzmap_params.spaceid = SPACE_SEQ;
   gzgt->gzmap_params.regionid = RGN_TYPE_PREVIEW;

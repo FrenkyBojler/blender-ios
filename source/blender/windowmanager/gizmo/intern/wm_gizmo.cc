@@ -725,10 +725,10 @@ bool WM_gizmo_group_is_modal(const wmGizmoGroup *gzgroup)
 bool WM_gizmo_context_check_drawstep(const bContext *C, eWM_GizmoFlagMapDrawStep step)
 {
   switch (step) {
-    case WM_GIZMOMAP_DRAWSTEP_2D_NAV: {
+    case WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS: {
       break;
     }
-    case WM_GIZMOMAP_DRAWSTEP_2D: {
+    case WM_GIZMOMAP_DRAWSTEP_2D_TOOLS: {
       break;
     }
     case WM_GIZMOMAP_DRAWSTEP_3D: {

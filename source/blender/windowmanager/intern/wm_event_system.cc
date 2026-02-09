@@ -929,8 +929,8 @@ static eHandlerActionFlag wm_handler_ui_call(bContext *C,
     CTX_wm_region_popup_set(C, handler->context.region_popup);
   }
 
-  // todo(habib): doc: nav gizmos more important than nodes buttons
-  // todo(habib): check for performance impacts
+  /* Check for navigation gizmos first in case other UI elements are present in the same region,
+   * e.g. buttons on nodes in node editors. */
   ARegion *region_check = handler->context.region ? handler->context.region : region;
   if (region_check && region_check->runtime->gizmo_map) {
     wmGizmoMap *gzmap = region_check->runtime->gizmo_map;
@@ -940,13 +940,13 @@ static eHandlerActionFlag wm_handler_ui_call(bContext *C,
     if (gz != nullptr) {
       const eWM_GizmoFlagMapDrawStep step = WM_gizmomap_drawstep_from_gizmo_group(
           gz->parent_gzgroup);
-      const bool is_nav_gizmo = (step == WM_GIZMOMAP_DRAWSTEP_2D_NAV);
-
-      if (is_nav_gizmo) {
+      if (step == WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS) {
         if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-          printf("### Found nav gizmo\n");  // todo(habib): remove
+          printf("found view control gizmo\n");
         }
-        // todo(habib): cleanup necessary?
+        CTX_wm_area_set(C, area);
+        CTX_wm_region_set(C, region);
+        CTX_wm_region_popup_set(C, region_popup);
         return WM_HANDLER_CONTINUE;
       }
     }
@@ -3348,7 +3348,7 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
   /* Navigation gizmos are checked before nodes. */
   wmGizmo *gz_test = nullptr;
   int part_test = -1;
-  bool is_nav_gizmo = false;
+  bool is_view_controls_gizmo = false;
 
   if (handle_highlight || handle_keymap) {
     gz_test = wm_gizmomap_highlight_find(gzmap, C, event, &part_test);
@@ -3356,22 +3356,17 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
     if (gz_test != nullptr) {
       const eWM_GizmoFlagMapDrawStep step = WM_gizmomap_drawstep_from_gizmo_group(
           gz_test->parent_gzgroup);
-      is_nav_gizmo = (step == WM_GIZMOMAP_DRAWSTEP_2D_NAV);
-
-      if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-        printf("### Found gizmo: %s (group: %s, nav=%d)\n",
-               gz_test->type->idname,
-               gz_test->parent_gzgroup->type->idname,
-               is_nav_gizmo);
-      }
+      is_view_controls_gizmo = (step == WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS);
+    }
+    if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+      printf("found view control gizmo\n");
     }
   }
 
-  // todo(habib): update
-  /* Needed so UI blocks over gizmos don't let events fall through to the gizmos,
+  /* Needed so UI blocks over gizmos don't let events fall through to tools gizmos,
    * noticeable for the node editor - where dragging on a node should move it, see: #73212.
    * note we still allow for starting the gizmo drag outside, then travel 'inside' the node. */
-  if (region->runtime->type->clip_gizmo_events_by_ui && !is_nav_gizmo) {
+  if (region->runtime->type->clip_gizmo_events_by_ui && !is_view_controls_gizmo) {
     if (ui::region_block_find_mouse_over(region, event->xy, true)) {
       if (gz != nullptr && event->type != EVT_GIZMO_UPDATE) {
         if (restore_highlight_unless_activated == false) {
@@ -3385,8 +3380,8 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
 
   if (handle_highlight) {
     // todo(habib): reuse same gizmo found above?
-    int part = -1;
-    gz = wm_gizmomap_highlight_find(gzmap, C, event, &part);
+    gz = gz_test;
+    int part = part_test;
 
     /* If no gizmos are/were active, don't clear tool-tips. */
     if (gz || prev.gz) {
@@ -3546,9 +3541,6 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
 
       /* Handle all types here. */
       if (handler_base->type == WM_HANDLER_TYPE_KEYMAP) {
-        if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-          printf("\n>>> KEYMAP HANDLER running (after gizmo)\n");
-        }
         wmEventHandler_Keymap *handler = reinterpret_cast<wmEventHandler_Keymap *>(handler_base);
         wmEventHandler_KeymapResult km_result;
         WM_event_get_keymaps_from_handler(wm, win, handler, &km_result);
@@ -3557,9 +3549,6 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
         const bool event_is_timer = ISTIMER(event->type);
         for (int km_index = 0; km_index < km_result.keymaps_len; km_index++) {
           wmKeyMap *keymap = km_result.keymaps[km_index];
-          if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-            printf("  Keymap: %s\n", keymap->idname);
-          }
           action_iter |= wm_handlers_do_keymap_with_keymap_handler(
               C, event, handlers, handler, keymap, do_debug_handler);
           if (action_iter & WM_HANDLER_BREAK) {
@@ -3567,9 +3556,6 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
           }
         }
         action |= action_iter;
-        if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-          printf("### KEYMAP HANDLER returned action: %d\n", action);
-        }
 
         /* Clear the tool-tip whenever a key binding is handled, without this tool-tips
          * are kept when a modal operators starts (annoying but otherwise harmless). */
@@ -3645,15 +3631,9 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
         }
       }
       else if (handler_base->type == WM_HANDLER_TYPE_GIZMO) {
-        if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-          printf("\n>>> GIZMO HANDLER running (before keymap)\n");
-        }
         wmEventHandler_Gizmo *handler = reinterpret_cast<wmEventHandler_Gizmo *>(handler_base);
         action |= wm_handlers_do_gizmo_handler(
             C, wm, handler, event, always_pass, handlers, do_debug_handler);
-        if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-          printf("### GIZMO HANDLER returned action: %d\n", action);
-        }
       }
       else if (handler_base->type == WM_HANDLER_TYPE_OP) {
         wmEventHandler_Op *handler = reinterpret_cast<wmEventHandler_Op *>(handler_base);

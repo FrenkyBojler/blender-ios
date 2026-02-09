@@ -1813,7 +1813,7 @@ static void draw_timeline_gizmos(const TimelineDrawContext &ctx)
     return;
   }
 
-  WM_gizmomap_draw(ctx.region->runtime->gizmo_map, ctx.C, WM_GIZMOMAP_DRAWSTEP_2D);
+  WM_gizmomap_draw(ctx.region->runtime->gizmo_map, ctx.C, WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS);
 }
 
 static void draw_timeline_pre_view_callbacks(const TimelineDrawContext &ctx)

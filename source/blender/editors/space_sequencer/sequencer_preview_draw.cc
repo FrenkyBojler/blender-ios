@@ -1757,7 +1757,8 @@ static void sequencer_preview_draw_overlays(const bContext *C,
 
   /* Gizmos. */
   if ((is_playing == false) && (space_sequencer.gizmo_flag & SEQ_GIZMO_HIDE) == 0) {
-    WM_gizmomap_draw(region.runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
+    WM_gizmomap_draw(region.runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS);
+    WM_gizmomap_draw(region.runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D_TOOLS);
   }
 
   /* FPS counter. */

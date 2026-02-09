@@ -307,12 +307,11 @@ eWM_GizmoFlagMapDrawStep WM_gizmomap_drawstep_from_gizmo_group(const wmGizmoGrou
   if (gzgroup->type->flag & WM_GIZMOGROUPTYPE_3D) {
     step = WM_GIZMOMAP_DRAWSTEP_3D;
   }
-  else if (gzgroup->type->flag & WM_GIZMGROUPTYPE_NAV) {
-    printf("### draw step: WM_GIZMOMAP_DRAWSTEP_2D_NAV\n");
-    step = WM_GIZMOMAP_DRAWSTEP_2D_NAV;
+  else if (gzgroup->type->flag & WM_GIZMOGROUPTYPE_TOOLS) {
+    step = WM_GIZMOMAP_DRAWSTEP_2D_TOOLS;
   }
-  else {
-    step = WM_GIZMOMAP_DRAWSTEP_2D;
+  else if (gzgroup->type->flag & WM_GIZMOGROUPTYPE_VIEW_CONTROLS) {
+    step = WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS;
   }
   return step;
 }
@@ -824,7 +823,8 @@ wmGizmo *wm_gizmomap_highlight_find(wmGizmoMap *gzmap,
           wm_gizmogroup_intersectable_gizmos_to_list(
               wm, &gzgroup, event->modifier, &visible_3d_gizmos);
         }
-        else if (ELEM(step, WM_GIZMOMAP_DRAWSTEP_2D, WM_GIZMOMAP_DRAWSTEP_2D_NAV)) {
+        else if (ELEM(step, WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS, WM_GIZMOMAP_DRAWSTEP_2D_TOOLS))
+        {
           if ((gz = wm_gizmogroup_find_intersected_gizmo(
                    wm, &gzgroup, C, event->modifier, mval, r_part)))
           {
@@ -844,8 +844,8 @@ wmGizmo *wm_gizmomap_highlight_find(wmGizmoMap *gzmap,
   }
 
   gzmap->update_flag[WM_GIZMOMAP_DRAWSTEP_3D] &= ~GIZMOMAP_IS_REFRESH_CALLBACK;
-  gzmap->update_flag[WM_GIZMOMAP_DRAWSTEP_2D] &= ~GIZMOMAP_IS_REFRESH_CALLBACK;
-  gzmap->update_flag[WM_GIZMOMAP_DRAWSTEP_2D_NAV] &= ~GIZMOMAP_IS_REFRESH_CALLBACK;
+  gzmap->update_flag[WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS] &= ~GIZMOMAP_IS_REFRESH_CALLBACK;
+  gzmap->update_flag[WM_GIZMOMAP_DRAWSTEP_2D_TOOLS] &= ~GIZMOMAP_IS_REFRESH_CALLBACK;
 
   return gz;
 }

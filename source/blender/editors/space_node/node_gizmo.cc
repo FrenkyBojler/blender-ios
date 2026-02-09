@@ -208,7 +208,7 @@ void NODE_GGT_backdrop_transform(wmGizmoGroupType *gzgt)
   gzgt->name = "Backdrop Transform Widget";
   gzgt->idname = "NODE_GGT_backdrop_transform";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_TOOLS;
 
   gzgt->poll = WIDGETGROUP_node_transform_poll;
   gzgt->setup = WIDGETGROUP_node_transform_setup;
@@ -462,7 +462,7 @@ void NODE_GGT_backdrop_crop(wmGizmoGroupType *gzgt)
   gzgt->name = "Backdrop Crop Widget";
   gzgt->idname = "NODE_GGT_backdrop_crop";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_TOOLS;
 
   gzgt->poll = WIDGETGROUP_node_crop_poll;
   gzgt->setup = WIDGETGROUP_node_crop_setup;
@@ -665,7 +665,7 @@ void NODE_GGT_backdrop_box_mask(wmGizmoGroupType *gzgt)
   gzgt->name = "Backdrop Box Mask Widget";
   gzgt->idname = "NODE_GGT_backdrop_box_mask";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_TOOLS;
 
   gzgt->poll = WIDGETGROUP_node_box_mask_poll;
   gzgt->setup = WIDGETGROUP_node_box_mask_setup;
@@ -728,7 +728,7 @@ void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt)
   gzgt->name = "Backdrop Ellipse Mask Widget";
   gzgt->idname = "NODE_GGT_backdrop_ellipse_mask";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_TOOLS;
 
   gzgt->poll = WIDGETGROUP_node_ellipse_mask_poll;
   gzgt->setup = WIDGETGROUP_node_ellipse_mask_setup;
@@ -848,7 +848,7 @@ void NODE_GGT_backdrop_glare(wmGizmoGroupType *gzgt)
   gzgt->name = "Glare Widget";
   gzgt->idname = "NODE_GGT_glare";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_TOOLS;
 
   gzgt->poll = WIDGETGROUP_node_glare_poll;
   gzgt->setup = WIDGETGROUP_node_glare_setup;
@@ -973,7 +973,7 @@ void NODE_GGT_backdrop_corner_pin(wmGizmoGroupType *gzgt)
   gzgt->name = "Corner Pin Widget";
   gzgt->idname = "NODE_GGT_backdrop_corner_pin";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_TOOLS;
 
   gzgt->poll = WIDGETGROUP_node_corner_pin_poll;
   gzgt->setup = WIDGETGROUP_node_corner_pin_setup;
@@ -1138,7 +1138,7 @@ void NODE_GGT_backdrop_split(wmGizmoGroupType *gzgt)
   gzgt->name = "Split Widget";
   gzgt->idname = "NODE_GGT_backdrop_split";
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_TOOLS;
 
   gzgt->poll = WIDGETGROUP_node_split_poll;
   gzgt->setup = WIDGETGROUP_node_split_setup;

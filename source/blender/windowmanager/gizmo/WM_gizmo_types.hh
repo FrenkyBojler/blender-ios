@@ -157,7 +157,10 @@ enum eWM_GizmoFlagGroupTypeFlag {
    */
   WM_GIZMOGROUPTYPE_VR_REDRAWS = (1 << 10),
 
-  WM_GIZMGROUPTYPE_NAV = (1 << 11),
+  // todo(habib): doc
+  // todo(habib): update all gizmos in Blender
+  WM_GIZMOGROUPTYPE_VIEW_CONTROLS = (1 << 11),
+  WM_GIZMOGROUPTYPE_TOOLS = (1 << 12),
 };
 
 ENUM_OPERATORS(eWM_GizmoFlagGroupTypeFlag);
@@ -519,10 +522,9 @@ struct wmGizmoGroup {
  */
 enum eWM_GizmoFlagMapDrawStep {
   /** Draw 2D gizmo-groups (#WM_GIZMOGROUPTYPE_3D not set). */
-  // todo(habib): Rename
-  // todo(habib): Invert logic? Most cases it's navigation, exception is compositor gizmos
-  WM_GIZMOMAP_DRAWSTEP_2D = 0,
-  WM_GIZMOMAP_DRAWSTEP_2D_NAV,
+  WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS = 0,
+  // todo(habib): doc
+  WM_GIZMOMAP_DRAWSTEP_2D_TOOLS,
 
   /** Draw 3D gizmo-groups (#WM_GIZMOGROUPTYPE_3D set). */
   WM_GIZMOMAP_DRAWSTEP_3D,
