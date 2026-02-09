@@ -6,6 +6,7 @@
  * \ingroup intern_slim
  */
 
+#include <cassert>
 #include "uv_initializer.h"
 
 #include <Eigen/SparseLU>

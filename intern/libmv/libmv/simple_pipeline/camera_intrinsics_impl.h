@@ -19,6 +19,7 @@
 // IN THE SOFTWARE.
 
 #include "libmv/threading/parallel_for.h"
+#include <cassert>
 
 namespace libmv {
 

@@ -7,6 +7,7 @@
  * \ingroup intern_slim
  */
 
+#include <cassert>
 #include "BLI_task.hh"
 
 #include "edge_lengths.h"

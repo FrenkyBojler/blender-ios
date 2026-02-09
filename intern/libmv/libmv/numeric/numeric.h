@@ -27,6 +27,7 @@
 
 #include <cassert>
 
+#include <cassert>
 #include <Eigen/Cholesky>
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
