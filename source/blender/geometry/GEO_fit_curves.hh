@@ -12,7 +12,7 @@ enum class FitMethod {
   /**
    * Iteratively removes knots/control points with the least error starting with a dense curve.
    */
-  Refit,
+  Refit = 0,
   /**
    * Uses a least squares solver to recursively find the control points.
    */

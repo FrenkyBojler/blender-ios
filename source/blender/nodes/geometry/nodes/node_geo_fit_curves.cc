@@ -215,11 +215,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const Field<bool> corners_field = params.extract_input<Field<bool>>("Corners");
   const Field<float> threshold_field = params.extract_input<Field<float>>("Error");
-  const GeometryNodeFitCurvesMode mode = static_cast<GeometryNodeFitCurvesMode>(
-      params.node().custom1);
   const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Curves");
 
   const GeometryNodeFitCurves &storage = node_storage(params.node());
+  const GeometryNodeFitCurvesMode mode = static_cast<GeometryNodeFitCurvesMode>(storage.mode);
   const Span<GeometryNodeFitCurvesItem> items(storage.items, storage.items_num);
 
   Vector<fn::GField> attribute_fields(items.size());
@@ -268,8 +267,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   GeometryNodeFitCurves *data = MEM_new<GeometryNodeFitCurves>(__func__);
+  data->mode = GEO_NODE_CURVE_FIT_SPLIT;
   node->storage = data;
-  node->custom1 = GEO_NODE_CURVE_FIT_SPLIT;
 }
 
 static void node_free_storage(bNode *node)
