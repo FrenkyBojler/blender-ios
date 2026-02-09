@@ -18,7 +18,7 @@
 namespace blender {
 
 /* Validate pixel coordinates and deep buffer */
-static bool deep_validate_pixel(const ImBuf *ibuf, int x, int y)
+static bool deep_validate_pixel(const ImBuf *ibuf, int x, int y, int part = 0)
 {
   if (!ibuf || !(ibuf->flags & IB_deep_data)) {
     return false;
@@ -28,7 +28,7 @@ static bool deep_validate_pixel(const ImBuf *ibuf, int x, int y)
     return false;
   }
 
-  const ImBufDeepBuffer &deep = *ibuf->deep_buffer;
+  const ImBufDeepBuffer &deep = ibuf->deep_buffer_views[part];
   if (deep.sample_counts.is_empty() || deep.depths.is_empty()) {
     return false;
   }
@@ -42,18 +42,18 @@ static inline int deep_pixel_index(const ImBuf *ibuf, int x, int y)
   return y * ibuf->x + x;
 }
 
-int IMB_deep_get_sample_count(const ImBuf *ibuf, int x, int y)
+int IMB_deep_get_sample_count(const ImBuf *ibuf, int x, int y, int part)
 {
   if (!deep_validate_pixel(ibuf, x, y)) {
     return 0;
   }
 
   const int pixel_idx = deep_pixel_index(ibuf, x, y);
-  return (*ibuf->deep_buffer).sample_counts[pixel_idx];
+  return (ibuf->deep_buffer_views[part]).sample_counts[pixel_idx];
 }
 
 int IMB_deep_read_pixel_samples(
-    const ImBuf *ibuf, int x, int y, float *r_depths, float *r_channels)
+    const ImBuf *ibuf, int x, int y, float *r_depths, float *r_channels, int part)
 {
   if (!deep_validate_pixel(ibuf, x, y)) {
     return 0;
@@ -63,7 +63,7 @@ int IMB_deep_read_pixel_samples(
     return 0;
   }
 
-  const ImBufDeepBuffer &deep = *ibuf->deep_buffer;
+  const ImBufDeepBuffer &deep = ibuf->deep_buffer_views[part];
   const int pixel_idx = deep_pixel_index(ibuf, x, y);
   const int sample_count = deep.sample_counts[pixel_idx];
 
@@ -86,8 +86,13 @@ int IMB_deep_read_pixel_samples(
   return sample_count;
 }
 
-bool IMB_deep_write_pixel_samples(
-    ImBuf *ibuf, int x, int y, const float *depths, const float *channels, int sample_count)
+bool IMB_deep_write_pixel_samples(ImBuf *ibuf,
+                                  int x,
+                                  int y,
+                                  const float *depths,
+                                  const float *channels,
+                                  int sample_count,
+                                  int part)
 {
   if (!deep_validate_pixel(ibuf, x, y)) {
     return false;
@@ -97,7 +102,7 @@ bool IMB_deep_write_pixel_samples(
     return false;
   }
 
-  ImBufDeepBuffer &deep = *ibuf->deep_buffer;
+  ImBufDeepBuffer &deep = ibuf->deep_buffer_views[part];
   const int pixel_idx = deep_pixel_index(ibuf, x, y);
 
   /* Check if we have space allocated for this pixel */
@@ -139,7 +144,7 @@ bool IMB_deep_write_pixel_samples(
 }
 
 int IMB_deep_get_pixel_samples_ptr(
-    const ImBuf *ibuf, int x, int y, const float **r_depths, const float **r_channels)
+    const ImBuf *ibuf, int x, int y, int part, const float **r_depths, const float **r_channels)
 {
   if (!deep_validate_pixel(ibuf, x, y)) {
     if (r_depths) {
@@ -151,7 +156,7 @@ int IMB_deep_get_pixel_samples_ptr(
     return 0;
   }
 
-  const ImBufDeepBuffer &deep = *ibuf->deep_buffer;
+  const ImBufDeepBuffer &deep = ibuf->deep_buffer_views[part];
   const int pixel_idx = deep_pixel_index(ibuf, x, y);
   const int sample_count = deep.sample_counts[pixel_idx];
 
@@ -179,8 +184,13 @@ int IMB_deep_get_pixel_samples_ptr(
   return sample_count;
 }
 
-bool IMB_deep_append_pixel_samples(
-    ImBuf *ibuf, int x, int y, const float *depths, const float *channels, int sample_count)
+bool IMB_deep_append_pixel_samples(ImBuf *ibuf,
+                                   int x,
+                                   int y,
+                                   int part,
+                                   const float *depths,
+                                   const float *channels,
+                                   int sample_count)
 {
   if (!ibuf) {
     return false;
@@ -196,17 +206,16 @@ bool IMB_deep_append_pixel_samples(
   }
 
   /* Initialize deep buffer if needed */
-  if (!ibuf->deep_buffer) {
+  if (ibuf->deep_buffer_views.size() < part + 1) {
     ibuf->flags |= IB_deep_data;
-    ibuf->deep_buffer = MEM_new<ImBufDeepBuffer>("ImBufDeepBuffer_struct");
-
+    ibuf->deep_buffer_views.resize(part + 1);
     const int pixel_count = ibuf->x * ibuf->y;
-    ibuf->deep_buffer->sample_counts.reinitialize(pixel_count);
-    ibuf->deep_buffer->sample_offsets.reinitialize(pixel_count + 1);
+    ibuf->deep_buffer_views[part].sample_counts.reinitialize(pixel_count);
+    ibuf->deep_buffer_views[part].sample_offsets.reinitialize(pixel_count + 1);
 
     /* Assume 4 channels (RGBA) if not set */
-    if (ibuf->deep_buffer->channels_per_sample == 0) {
-      ibuf->deep_buffer->channels_per_sample = 4;
+    if (ibuf->deep_buffer_views[part].channels_per_sample == 0) {
+      ibuf->deep_buffer_views[part].channels_per_sample = 4;
     }
   }
 
@@ -214,7 +223,7 @@ bool IMB_deep_append_pixel_samples(
     return true; /* Nothing to append */
   }
 
-  ImBufDeepBuffer &deep = *ibuf->deep_buffer;
+  ImBufDeepBuffer &deep = ibuf->deep_buffer_views[part];
   const int pixel_idx = deep_pixel_index(ibuf, x, y);
   const int channels_per_sample = deep.channels_per_sample;
 
@@ -242,13 +251,13 @@ bool IMB_deep_append_pixel_samples(
   return true;
 }
 
-void IMB_deep_finalize(ImBuf *ibuf, bool sort_by_depth)
+void IMB_deep_finalize(ImBuf *ibuf, int part, bool sort_by_depth)
 {
   if (!ibuf || !(ibuf->flags & IB_deep_data)) {
     return;
   }
 
-  ImBufDeepBuffer &deep = *ibuf->deep_buffer;
+  ImBufDeepBuffer &deep = ibuf->deep_buffer_views[part];
   const int pixel_count = ibuf->x * ibuf->y;
   const int channels_per_sample = deep.channels_per_sample;
 
@@ -314,13 +323,13 @@ void IMB_deep_finalize(ImBuf *ibuf, bool sort_by_depth)
   }
 }
 
-ImBuf *flatten_deep_to_float(const ImBuf *deep_ibuf, const DeepFlattenOptions *options)
+ImBuf *flatten_deep_to_float(const ImBuf *deep_ibuf, int part, const DeepFlattenOptions *options)
 {
   if (!(deep_ibuf->flags & IB_deep_data)) {
     return nullptr;
   }
 
-  const ImBufDeepBuffer &deep = *deep_ibuf->deep_buffer;
+  const ImBufDeepBuffer &deep = deep_ibuf->deep_buffer_views[part];
   const int width = deep_ibuf->x;
   const int height = deep_ibuf->y;
 

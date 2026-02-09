@@ -288,8 +288,7 @@ struct ImBuf {
    */
   ImBufFloatBuffer float_buffer;
 
-  /** Only allocated if flags contains IB_deep_data. */
-  ImBufDeepBuffer *deep_buffer = nullptr;
+  blender::Vector<ImBufDeepBuffer> deep_buffer_views;
 
   /** Image buffer on the GPU. */
   ImBufGPU gpu;

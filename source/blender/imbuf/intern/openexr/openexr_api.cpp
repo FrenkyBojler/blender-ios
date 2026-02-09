@@ -2259,9 +2259,6 @@ static ImBuf *imb_load_openexr_deep(
     return nullptr;
   }
 
-  // Initialize the optional deep buffer
-  ibuf->deep_buffer = MEM_new<ImBufDeepBuffer>("ImBufDeepBuffer_struct");
-
   /* Set metadata */
   ibuf->flags |= IB_deep_data;
   ibuf->ftype = IMB_FTYPE_OPENEXR;
@@ -2277,10 +2274,13 @@ static ImBuf *imb_load_openexr_deep(
   try {
     /* Create appropriate deep input based on file type */
     if (header.type() == DEEPSCANLINE) {
-      DeepScanLineInputPart deep_in(file, 0);
-      if (!imb_read_deep_scanlines(deep_in, *ibuf->deep_buffer)) {
-        IMB_freeImBuf(ibuf);
-        return nullptr;
+      ibuf->deep_buffer_views.resize(file.parts());
+      for (int part = 0; part < file.parts(); ++part) {
+        DeepScanLineInputPart deep_in(file, part);
+        if (!imb_read_deep_scanlines(deep_in, ibuf->deep_buffer_views[part])) {
+          IMB_freeImBuf(ibuf);
+          return nullptr;
+        }
       }
     }
     else {
@@ -2296,7 +2296,7 @@ static ImBuf *imb_load_openexr_deep(
   }
 
   /* Flatten deep image to float buffer for display */
-  ImBuf *flattened_ibuf = flatten_deep_to_float(ibuf);
+  ImBuf *flattened_ibuf = flatten_deep_to_float(ibuf, 0);
 
   /* Free the original deep ibuf since we now have a flattened version */
   IMB_freeImBuf(ibuf);

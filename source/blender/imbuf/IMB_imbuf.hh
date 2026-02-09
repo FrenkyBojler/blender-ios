@@ -373,13 +373,15 @@ struct DeepFlattenOptions {
   bool premultiply = true;
 };
 
-ImBuf *flatten_deep_to_float(const ImBuf *deep_ibuf, const DeepFlattenOptions *options = nullptr);
+ImBuf *flatten_deep_to_float(const ImBuf *deep_ibuf,
+                             int part,
+                             const DeepFlattenOptions *options = nullptr);
 
 /**
  * Get the number of samples for a specific pixel in a deep image.
  * Returns 0 if the image is not deep or if coordinates are out of bounds.
  */
-int IMB_deep_get_sample_count(const ImBuf *ibuf, int x, int y);
+int IMB_deep_get_sample_count(const ImBuf *ibuf, int part, int x, int y);
 
 /**
  * Read samples for a single pixel from a deep image.
@@ -402,7 +404,7 @@ int IMB_deep_get_sample_count(const ImBuf *ibuf, int x, int y);
  * \endcode
  */
 int IMB_deep_read_pixel_samples(
-    const ImBuf *ibuf, int x, int y, float *r_depths, float *r_channels);
+    const ImBuf *ibuf, int part, int x, int y, float *r_depths, float *r_channels);
 
 /**
  * Write samples for a single pixel to a deep image.
@@ -418,8 +420,13 @@ int IMB_deep_read_pixel_samples(
  * \note This replaces any existing samples for the pixel.
  * \note The deep buffer must be pre-allocated with sufficient space.
  */
-bool IMB_deep_write_pixel_samples(
-    ImBuf *ibuf, int x, int y, const float *depths, const float *channels, int sample_count);
+bool IMB_deep_write_pixel_samples(ImBuf *ibuf,
+                                  int part,
+                                  int x,
+                                  int y,
+                                  const float *depths,
+                                  const float *channels,
+                                  int sample_count);
 
 /**
  * Get direct pointer access to a pixel's samples in a deep image (read-only).
@@ -433,7 +440,7 @@ bool IMB_deep_write_pixel_samples(
  * \note Pointers become invalid if the deep buffer is modified.
  */
 int IMB_deep_get_pixel_samples_ptr(
-    const ImBuf *ibuf, int x, int y, const float **r_depths, const float **r_channels);
+    const ImBuf *ibuf, int part, int x, int y, const float **r_depths, const float **r_channels);
 
 /**
  * Append samples to a pixel in a deep image, growing the buffer as needed.
@@ -448,8 +455,13 @@ int IMB_deep_get_pixel_samples_ptr(
  * \note This is slower than pre-allocated writes but more flexible.
  * \note Call IMB_deep_finalize() after all pixels are written to optimize storage.
  */
-bool IMB_deep_append_pixel_samples(
-    ImBuf *ibuf, int x, int y, const float *depths, const float *channels, int sample_count);
+bool IMB_deep_append_pixel_samples(ImBuf *ibuf,
+                                   int part,
+                                   int x,
+                                   int y,
+                                   const float *depths,
+                                   const float *channels,
+                                   int sample_count);
 
 /**
  * Finalize a deep buffer after dynamic writes.
@@ -458,7 +470,7 @@ bool IMB_deep_append_pixel_samples(
  * \param ibuf: Deep image buffer to finalize.
  * \param sort_by_depth: If true, sorts samples by depth (front-to-back) for each pixel.
  */
-void IMB_deep_finalize(ImBuf *ibuf, bool sort_by_depth = true);
+void IMB_deep_finalize(ImBuf *ibuf, int part, bool sort_by_depth = true);
 
 /* Converting pixel buffers. */
 
