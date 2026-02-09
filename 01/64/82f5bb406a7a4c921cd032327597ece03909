@@ -1,1 +1,2 @@
 Referenced by pull request #154165, Fix: Leak in icon preview render when Blender quits while rendering
+Referenced by commit 48ecbc3e15699b4876604e341f0cc7abed18ad79, Fix: Leak in icon preview render when Blender quits while rendering
