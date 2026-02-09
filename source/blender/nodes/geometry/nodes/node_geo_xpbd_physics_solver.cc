@@ -429,7 +429,7 @@ class XPBDState {
     if (lambdas.data() == nullptr) {
       lambdas = GArray<>(cpp_type, constraints_num);
     }
-    else if (data.lambdas.size() != constraints_num) {
+    else if (lambdas.size() != constraints_num) {
       lambdas.reinitialize(constraints_num);
     }
     return lambdas.as_mutable_span().typed<T>();
