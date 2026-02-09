@@ -30,6 +30,7 @@ class TestEntry:
     device_type: str = 'CPU'
     device_id: str = 'CPU'
     device_name: str = 'Unknown CPU'
+    gpu_backend: std = 'default'
     status: str = 'queued'
     # Short, single-line error.
     error_msg: str = ''
@@ -135,6 +136,8 @@ class TestConfig:
         self.devices = []
         self._update_devices(env, getattr(config, 'devices', ['CPU']))
 
+        self.gpu_backends = getattr(config, 'gpu_backends', ['default']))
+
         self._update_queue(env)
 
     def revision_names(self) -> list:
@@ -152,6 +155,7 @@ class TestConfig:
         config_dir.mkdir(parents=True, exist_ok=True)
 
         default_config = """devices = ['CPU']\n"""
+        default_config += """gpu_backends = ['default']\n"""
         default_config += """tests = ['*']\n"""
         default_config += """categories = ['*']\n"""
         default_config += """builds = {\n"""
@@ -247,41 +251,47 @@ class TestConfig:
             test_name = test.name()
             test_category = test.category()
 
-            for device in self.devices:
-                if not (test.use_device() or device.type == "CPU"):
-                    continue
+            for gpu_backend in self.gpu_backends:
+                if test.use_gpu_backend() == False or test.gpu_backend() != gpu_backend:
+                    continue;
 
-                entry = self.queue.find(revision_name, test_name, test_category, device.id)
-                if entry:
-                    # Test if revision hash or executable changed.
-                    if entry.git_hash != git_hash or \
-                       entry.executable != executable or \
-                       entry.environment != environment or \
-                       entry.benchmark_type != self.benchmark_type or \
-                       entry.date != date:
-                        # Update existing entry.
-                        entry.git_hash = git_hash
-                        entry.environment = environment
-                        entry.executable = executable
-                        entry.benchmark_type = self.benchmark_type
-                        entry.date = date
-                        if entry.status in {'done', 'failed'}:
-                            entry.status = 'outdated'
-                else:
-                    # Add new entry if it did not exist yet.
-                    entry = TestEntry(
-                        revision=revision_name,
-                        git_hash=git_hash,
-                        executable=executable,
-                        environment=environment,
-                        date=date,
-                        test=test_name,
-                        category=test_category,
-                        device_type=device.type,
-                        device_id=device.id,
-                        device_name=device.name,
-                        benchmark_type=self.benchmark_type)
-                entries.append(entry)
+                for device in self.devices:
+                    if not (test.use_device() or device.type == "CPU"):
+                        continue
+
+                    entry = self.queue.find(revision_name, test_name, test_category, device.id, gpu_backend)
+                    if entry:
+                        # Test if revision hash or executable changed.
+                        if entry.git_hash != git_hash or \
+                           entry.executable != executable or \
+                           entry.environment != environment or \
+                           entry.benchmark_type != self.benchmark_type or \
+                           entry.date != date:
+                        
+                            # Update existing entry.
+                            entry.git_hash = git_hash
+                            entry.environment = environment
+                            entry.executable = executable
+                            entry.benchmark_type = self.benchmark_type
+                            entry.date = date
+                            if entry.status in {'done', 'failed'}:
+                                entry.status = 'outdated'
+                    else:
+                        # Add new entry if it did not exist yet.
+                        entry = TestEntry(
+                            revision=revision_name,
+                            git_hash=git_hash,
+                            executable=executable,
+                            environment=environment,
+                            date=date,
+                            test=test_name,
+                            category=test_category,
+                            device_type=device.type,
+                            device_id=device.id,
+                            device_name=device.name,
+                            benchmark_type=self.benchmark_type,
+                            gpu_backend=self.gpu_backend,)
+                    entries.append(entry)
 
         return entries
 

@@ -24,6 +24,12 @@ class Test:
         Test uses a specific CPU or GPU device.
         """
         return False
+    
+    def use_gpu_backend(self):
+        """
+        Test uses a specific GPU backend.
+        """
+        return False
 
     def use_background(self) -> bool:
         """
