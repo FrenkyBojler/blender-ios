@@ -92,9 +92,6 @@ static StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
   if (!stype) {
     return nullptr;
   }
-  // TODO: Why was this code using the socket type idname as part of the struct identifier?
-  // const StringRefNull srna_identifier = r_generated.scope.allocator().copy_string(
-  //     fmt::format("{}_{}", stype->idname, socket.identifier));
   // TODO: Does this actually need to copy the string?
   const StringRefNull srna_identifier = r_generated.scope.allocator().copy_string(
       socket.identifier);
