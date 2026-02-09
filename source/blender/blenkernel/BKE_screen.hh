@@ -231,7 +231,7 @@ enum class ARegionTypeFlag {
    */
   UsePanelCategoryTabs = (1 << 1),
 
-  /** When using panel categories, this shows categories even if there is only one active. */
+  /** When using panel categories, this shows categories tabs even if there is only one active. */
   ShowPanelCategoriesEvenSingle = (1 << 2),
 };
 ENUM_OPERATORS(ARegionTypeFlag)
