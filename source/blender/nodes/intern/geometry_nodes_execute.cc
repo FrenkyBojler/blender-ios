@@ -273,7 +273,13 @@ struct OutputAttributeToStore {
 static MultiValueMap<bke::AttrDomain, OutputAttributeInfo> find_output_attributes_to_store(
     const bNodeTree &tree, const PointerRNA &properties_ptr, Span<GMutablePointer> output_values)
 {
-  PointerRNA outputs_ptr = RNA_pointer_get(const_cast<PointerRNA *>(&properties_ptr), "outputs");
+  PropertyRNA *outputs_prop = RNA_struct_find_property(const_cast<PointerRNA *>(&properties_ptr),
+                                                       "outputs");
+  if (!outputs_prop) {
+    return {};
+  }
+  PointerRNA outputs_ptr = RNA_property_pointer_get(const_cast<PointerRNA *>(&properties_ptr),
+                                                    outputs_prop);
 
   const bNode &output_node = *tree.group_output_node();
   MultiValueMap<bke::AttrDomain, OutputAttributeInfo> outputs_by_domain;
@@ -568,7 +574,12 @@ Vector<InferenceValue> get_geometry_nodes_input_inference_values(const bNodeTree
       continue;
     }
     PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, io_input.identifier);
-    const auto input_type = GeometryNodesInputType(RNA_enum_get(&socket_props_ptr, "type"));
+    const auto input_type = [&]() {
+      if (PropertyRNA *prop = RNA_struct_find_property(&socket_props_ptr, "type")) {
+        return GeometryNodesInputType(RNA_property_enum_get(&socket_props_ptr, prop));
+      }
+      return GeometryNodesInputType::Fallback;
+    }();
     if (input_type != GeometryNodesInputType::Value) {
       continue;
     }

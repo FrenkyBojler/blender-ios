@@ -856,7 +856,11 @@ static void draw_property_for_output_socket(DrawGroupInputsContext &ctx,
   name_row.alignment_set(ui::LayoutAlign::Right);
   name_row.label(socket.name ? socket.name : "", ICON_NONE);
 
-  PointerRNA outputs_ptr = RNA_pointer_get(ctx.properties_ptr, "outputs");
+  PropertyRNA *prop = RNA_struct_find_property(ctx.properties_ptr, "outputs");
+  if (!prop) {
+    return;
+  }
+  PointerRNA outputs_ptr = RNA_property_pointer_get(ctx.properties_ptr, prop);
   PointerRNA output_socket_ptr = RNA_pointer_get(&outputs_ptr, socket.identifier);
 
   ui::Layout &row = split.row(true);

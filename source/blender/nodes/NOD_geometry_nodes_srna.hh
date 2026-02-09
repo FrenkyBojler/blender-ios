@@ -14,7 +14,7 @@ struct bNodeTree;
 namespace blender::nodes {
 
 /**
- * This is share across all socket types, even though some entries don't make sense for some types.
+ * Shared across all socket types, though some entries don't make sense for some types.
  */
 enum class GeometryNodesInputType {
   Fallback = 0,

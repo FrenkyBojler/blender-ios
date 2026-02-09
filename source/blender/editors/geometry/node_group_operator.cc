@@ -1281,13 +1281,10 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
   const StringRefNull description = try_get_string(input_idprop, "description").value_or("");
   RNA_def_struct_ui_text(srna, name.c_str(), description.c_str());
 
-  StructRNA *input_srna = RNA_def_struct_ptr(
-      &RNA_blender_rna_get(), identifier.c_str(), RNA_PropertyGroup);
-
   switch (eNodeSocketDatatype(*type)) {
     case SOCK_FLOAT: {
       PropertyRNA *prop = RNA_def_float(
-          input_srna,
+          srna,
           "value",
           try_get_float(input_idprop, "default_value").value_or(0.0f),
           -FLT_MAX,
@@ -1306,7 +1303,7 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
       std::optional<Span<float>> defaults = try_get_float_array(
           input_idprop, "default_value", dimensions);
       PropertyRNA *prop = RNA_def_float_array(
-          input_srna,
+          srna,
           "value",
           dimensions,
           defaults ? defaults->data() : nullptr,
@@ -1323,7 +1320,7 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
     }
     case SOCK_RGBA: {
       std::optional<Span<float>> defaults = try_get_float_array(input_idprop, "default_value", 4);
-      PropertyRNA *prop = RNA_def_float_color(input_srna,
+      PropertyRNA *prop = RNA_def_float_color(srna,
                                               "value",
                                               4,
                                               defaults ? defaults->data() : nullptr,
@@ -1338,7 +1335,7 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
       break;
     }
     case SOCK_BOOLEAN: {
-      RNA_def_boolean(input_srna,
+      RNA_def_boolean(srna,
                       "value",
                       try_get_bool(input_idprop, "default_value").value_or(false),
                       name.c_str(),
@@ -1350,7 +1347,7 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
       break;
     }
     case SOCK_INT: {
-      PropertyRNA *prop = RNA_def_int(input_srna,
+      PropertyRNA *prop = RNA_def_int(srna,
                                       "value",
                                       try_get_int(input_idprop, "default_value").value_or(0),
                                       INT_MIN,
@@ -1366,7 +1363,7 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
     }
     case SOCK_STRING: {
       PropertyRNA *prop = RNA_def_string(
-          input_srna,
+          srna,
           "value",
           try_get_string(input_idprop, "default_value").value_or("").c_str(),
           0,
@@ -1381,13 +1378,13 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
     case SOCK_COLLECTION:
     case SOCK_MATERIAL:
     case SOCK_OBJECT: {
-      RNA_def_string(input_srna, "value", nullptr, 0, name.c_str(), description.c_str());
+      RNA_def_string(srna, "value", nullptr, 0, name.c_str(), description.c_str());
       make_common_value_props(*srna);
       break;
     }
     case SOCK_ROTATION: {
       std::optional<Span<float>> defaults = try_get_float_array(input_idprop, "default_value", 3);
-      RNA_def_float_rotation(input_srna,
+      RNA_def_float_rotation(srna,
                              "value",
                              3,
                              defaults ? defaults->data() : nullptr,
@@ -1402,7 +1399,7 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
     }
     case SOCK_MENU: {
       PropertyRNA *prop = RNA_def_enum(
-          input_srna, "value", rna_enum_dummy_NULL_items, 0, name.c_str(), description.c_str());
+          srna, "value", rna_enum_dummy_NULL_items, 0, name.c_str(), description.c_str());
       RNA_def_enum_funcs(prop, enum_input_items_fn);
       make_common_value_props(*srna);
       break;
