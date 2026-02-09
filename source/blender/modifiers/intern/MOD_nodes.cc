@@ -317,6 +317,17 @@ static bool logging_enabled(const ModifierEvalContext *ctx)
   return true;
 }
 
+static void update_id_properties_from_node_group(NodesModifierData *nmd)
+{
+  if (nmd->node_group == nullptr) {
+    // TODO
+    return;
+  }
+  nodes::update_properties_from_node_tree(*nmd->node_group,
+                                          *nmd->node_group->runtime->geometry_nodes_modifier_srna,
+                                          *nmd->modifier.system_properties);
+}
+
 static void remove_outdated_bake_caches(NodesModifierData &nmd)
 {
   if (!nmd.runtime->cache) {
@@ -445,7 +456,7 @@ void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd)
     nmd->modifier.system_properties =
         bke::idprop::create_group("NodesModifierProperties").release();
   }
-  /* TODO: Update new properties according struct rna (while keeping old values). */
+  update_id_properties_from_node_group(nmd);
   update_bakes_from_node_group(*nmd);
   update_panels_from_node_group(*nmd);
   nmd->runtime->usage_cache.reset();

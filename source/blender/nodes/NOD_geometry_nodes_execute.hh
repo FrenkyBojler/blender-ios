@@ -55,10 +55,14 @@ bool socket_type_has_attribute_toggle(eNodeSocketDatatype type);
 bool input_has_attribute_toggle(const bNodeTree &node_tree, const int socket_index);
 
 bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
-                                                    const PointerRNA &properties_ptr,
+                                                    const IDProperty *properties,
                                                     const ComputeContext &base_compute_context,
                                                     GeoNodesCallData &call_data,
                                                     bke::GeometrySet input_geometry);
+
+void update_properties_from_node_tree(const bNodeTree &tree,
+                                      const StructRNA &properties_srna,
+                                      IDProperty &system_properties);
 
 /**
  * Get input values for the node tree for static value/usage inferencing. Inferencing does not
