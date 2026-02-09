@@ -349,7 +349,7 @@ Vector<GreasePencilExporter::ObjectInfo> GreasePencilExporter::retrieve_objects(
   }
 
   /* Sort list of objects from point of view. */
-  std::sort(objects.begin(), objects.end(), [](const ObjectInfo &info1, const ObjectInfo &info2) {
+  std::ranges::sort(objects, [](const ObjectInfo &info1, const ObjectInfo &info2) {
     return info1.depth < info2.depth;
   });
 
@@ -423,7 +423,7 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
   }
 
   /* Iterate over all the curves and render the strokes (if shown). For fills, make sure that they
-   * are rendered when the first curve of the fill is encountered and don't rerender the same fill
+   * are rendered when the first curve of the fill is encountered and don't re-render the same fill
    * multiple times. */
   for (const int i_curve : curves.curves_range()) {
     /* Will be `-1` if not a fill. */
