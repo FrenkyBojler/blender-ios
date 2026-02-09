@@ -52,6 +52,7 @@ class BlenderProjectData {
   std::string root_path_;
 
   Vector<std::unique_ptr<ProjectVariable>> variables;
+  int active_variable = 0;
 
   /**
    * Set the project's name.

@@ -240,6 +240,60 @@ class PROJECT_PT_main_unset(Panel, CenterAlignMixIn):
             row.operator("project.open_blend_in_project", icon='FILE_FOLDER')
 
 
+class PROJECT_UL_variables(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            col = layout.column()
+            col.prop(item, "name")
+
+            col = layout.column()
+            col.prop(item, "type")
+
+            col = layout.column()
+            col.alignment = 'RIGHT'
+            match item.type:
+                case 'INTEGER':
+                    col.prop(item, "value_int")
+                case 'FLOAT':
+                    col.prop(item, "value_float")
+                case 'STRING':
+                    col.prop(item, "value_string")
+                case 'FILEPATH':
+                    col.prop(item, "value_string")
+        # 'GRID' layout type should be as compact as possible (typically a single icon!).
+        elif self.layout_type in {'GRID'}:
+            # TODO
+            pass
+
+
+class PROJECT_PT_variables(Panel, CenterAlignMixIn):
+    bl_label = "Variables"
+    bl_space_type = 'PROJECT'
+    bl_region_type = 'WINDOW'
+    bl_category = "Variables"
+
+    @classmethod
+    def poll(cls, context):
+        return context.project and context.project.data
+
+    def draw_centered(self, context, layout):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            return
+
+        project = context.project
+
+        row = layout.row()
+
+        row.template_list(
+            listtype_name="PROJECT_UL_variables",
+            list_id="Variables",
+            dataptr=project.data,
+            propname="variables",
+            active_dataptr=project.data,
+            active_propname="active_variable",
+        )
+
+
 # -------------------------------------------------------------
 # Register
 
@@ -262,6 +316,8 @@ if bpy.context.preferences.experimental.use_blender_projects:
         PROJECT_PT_save_project,
         PROJECT_PT_main_unset,
         PROJECT_PT_main,
+        PROJECT_PT_variables,
+        PROJECT_UL_variables,
     )
 else:
     classes = ()

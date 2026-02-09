@@ -192,6 +192,29 @@ static int rna_BlenderProjectData_root_path_length(PointerRNA *ptr)
   return project_data->get_root_path().size();
 }
 
+static int rna_BlenderProjectData_active_variable_get(PointerRNA *ptr)
+{
+  const bke::BlenderProjectData *project_data = static_cast<bke::BlenderProjectData *>(ptr->data);
+
+  return project_data->active_variable;
+}
+
+static void rna_BlenderProjectData_active_variable_set(PointerRNA *ptr, int value)
+{
+  bke::BlenderProjectData *project_data = static_cast<bke::BlenderProjectData *>(ptr->data);
+
+  project_data->active_variable = value;
+}
+
+static void rna_BlenderProjectData_active_variable_range(
+    PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
+{
+  const bke::BlenderProjectData *project_data = static_cast<bke::BlenderProjectData *>(ptr->data);
+
+  *min = 0;
+  *max = project_data->variables.size() - 1;
+}
+
 static void rna_iterator_BlenderProjectData_variables_begin(CollectionPropertyIterator *iter,
                                                             PointerRNA *ptr)
 {
@@ -425,6 +448,14 @@ void rna_def_blender_project_data(BlenderRNA *brna)
                                 "rna_BlenderProjectData_root_path_length",
                                 nullptr);
   RNA_def_property_ui_text(prop, "Root Folder", "The path to the root folder of the project");
+
+  prop = RNA_def_property(srna, "active_variable", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop,
+                             "rna_BlenderProjectData_active_variable_get",
+                             "rna_BlenderProjectData_active_variable_set",
+                             "rna_BlenderProjectData_active_variable_range");
+  RNA_def_property_ui_text(
+      prop, "Active Project Variable", "Index of the currently active variable in the UI");
 
   /* Collection properties. */
   prop = RNA_def_property(srna, "variables", PROP_COLLECTION, PROP_NONE);
