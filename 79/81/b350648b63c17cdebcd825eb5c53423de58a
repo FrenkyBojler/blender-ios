@@ -1,3 +1,4 @@
 Referenced by issue #117422, Node versioning doesn't run
 Referenced by issue #109399, Blender LTS: Maintenance Task 3.6
 Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
+Referenced by issue #154086, Unknown geometry node causes Blender to crash when opening file in 5.0+
