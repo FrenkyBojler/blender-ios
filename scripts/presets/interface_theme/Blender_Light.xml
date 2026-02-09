@@ -653,7 +653,8 @@
     </dopesheet_editor>
     <image_editor>
       <ThemeImageEditor
-        grid="#353535ff"
+        grid="#00000033"
+        grid_major="#00000066"
         vertex="#000000"
         vertex_select="#ff8500"
         vertex_size="3"
