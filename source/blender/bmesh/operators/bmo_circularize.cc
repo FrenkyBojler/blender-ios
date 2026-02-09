@@ -26,7 +26,7 @@ constexpr float CIRCULARIZE_EPSILON = 1e-6f;
 /* Holds data for a vertex projected onto the local plane. */
 struct CircleVert {
   BMVert *v;
-  /* Current postion on the plane. */
+  /* Current position on the plane. */
   float2 co_2d;
   /* Where it should move to on the circle. */
   float2 target_2d;
