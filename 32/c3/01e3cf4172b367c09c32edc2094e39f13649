@@ -12,4 +12,4 @@ Referenced by issue #149965, Tangent problems in Blender 5.0
 Referenced by issue #150306, EEVEE recompiling shaders for every minor adjustment
 Referenced by issue #150373, Material Output inside nested groups no longer overrides main material output in 5.0
 Referenced by issue #152746, Copy Paste From Float Curve to RGB Curve Crashes Blender.
-Referenced by issue #151909, Regression: OSL getmessage("trace", "geom:uv", trace_uv); not working in Blender 5.0.1
+Referenced by issue #151909, OSL getmessage("trace", "geom:uv", trace_uv); not finding attribute
