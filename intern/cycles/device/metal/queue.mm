@@ -688,7 +688,6 @@ void MetalDeviceQueue::flush_to_gpu()
         }
         command_buffers_mutex_.unlock();
 
-        temp_buffer_pool_.process_command_buffer_completion(command_buffer);
         [command_buffer release];
       }];
 

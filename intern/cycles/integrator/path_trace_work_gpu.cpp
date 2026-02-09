@@ -1456,7 +1456,8 @@ void PathTraceWorkGPU::speculative_dispatch()
     const DeviceKernelArguments args(&d_queued_paths, &buffers_->buffer.device_pointer, &dummy);
     queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST, DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST, kernel_scheduling_state_.device_pointer, args);
     queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND, DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND, kernel_scheduling_state_.device_pointer, args);
-    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT, DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT, kernel_scheduling_state_.device_pointer, args);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_NEE, DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_NEE, kernel_scheduling_state_.device_pointer, args);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_FORWARD, DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_FORWARD, kernel_scheduling_state_.device_pointer, args);
     queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW, DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW, kernel_scheduling_state_.device_pointer, args);
     queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE, kernel_scheduling_state_.device_pointer, args);
     if (device_scene_->data.kernel_features & KERNEL_FEATURE_NODE_RAYTRACE) {
@@ -1466,6 +1467,7 @@ void PathTraceWorkGPU::speculative_dispatch()
       queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE, kernel_scheduling_state_.device_pointer, args);
     }
     queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME, DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME, kernel_scheduling_state_.device_pointer, args);
+    queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME_RAY_MARCHING, DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME_RAY_MARCHING, kernel_scheduling_state_.device_pointer, args);
     queue_->enqueue_indirect(DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT, DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT, kernel_scheduling_state_.device_pointer, args);
   }
 
