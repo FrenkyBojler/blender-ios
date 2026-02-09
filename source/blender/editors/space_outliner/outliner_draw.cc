@@ -847,7 +847,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
             STRNCPY_UTF8(ebone->name, oldname);
             ED_armature_bone_rename(bmain, arm, oldname, newname);
             WM_msg_publish_rna_prop(mbus, &arm->id, ebone, EditBone, name);
-            WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_RENAME, arm);
+            WM_event_add_notifier(C, NC_OBJECT | ND_ARMATURE_STRUCTURE, arm);
             WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, arm);
             DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
             undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Edit Bone");
@@ -871,7 +871,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           STRNCPY_UTF8(bone->name, oldname);
           ED_armature_bone_rename(bmain, arm, oldname, newname);
           WM_msg_publish_rna_prop(mbus, &arm->id, bone, Bone, name);
-          WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_RENAME, arm);
+          WM_event_add_notifier(C, NC_OBJECT | ND_ARMATURE_STRUCTURE, arm);
           WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, arm);
           DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Bone");
@@ -896,7 +896,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           STRNCPY_UTF8(pchan->name, oldname);
           ED_armature_bone_rename(bmain, id_cast<bArmature *>(ob->data), oldname, newname);
           WM_msg_publish_rna_prop(mbus, &arm->id, pchan->bone, Bone, name);
-          WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_RENAME, arm);
+          WM_event_add_notifier(C, NC_OBJECT | ND_ARMATURE_STRUCTURE, arm);
           WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, arm);
           DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
           DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
