@@ -376,5 +376,43 @@ TEST_F(PoseTest, apply_action_multiple_objects_single_slot)
   EXPECT_NEAR(arm_b_bone_b->loc[0], 5, 0.001);
 }
 
+TEST_F(PoseTest, apply_action_differing_rotation_mode)
+{
+  /* When the pose has a different rotation mode than the data it is being applied to, the system
+   * should convert the rotation. */
+  Slot &slot_a = pose_action->slot_add_for_id(obj_armature_a->id);
+
+  keyframe_data->keyframe_insert(
+      bmain, slot_a, {"pose.bones[\"BoneA\"].rotation_euler", 0}, {1, 3.14}, key_settings);
+  keyframe_data->keyframe_insert(
+      bmain, slot_a, {"pose.bones[\"BoneA\"].rotation_euler", 1}, {1, 1}, key_settings);
+  keyframe_data->keyframe_insert(
+      bmain, slot_a, {"pose.bones[\"BoneA\"].rotation_euler", 2}, {1, 0}, key_settings);
+
+  bPoseChannel *bone_a = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneA");
+  AnimationEvalContext eval_context = {nullptr, 1.0f};
+
+  /* First check that applying works if the rotation mode matches. */
+  bone_a->rotmode = ROT_MODE_XYZ;
+  animrig::pose_apply_action({obj_armature_a}, *pose_action, &eval_context, 1.0);
+  EXPECT_NEAR(bone_a->eul[0], 3.14, 0.001);
+  EXPECT_NEAR(bone_a->eul[1], 1, 0.001);
+  EXPECT_NEAR(bone_a->eul[2], 0, 0.001);
+
+  bone_a->rotmode = ROT_MODE_QUAT;
+  animrig::pose_apply_action({obj_armature_a}, *pose_action, &eval_context, 1.0);
+  EXPECT_NEAR(bone_a->quat[0], 3.14, 0.001);
+  EXPECT_NEAR(bone_a->quat[1], 1, 0.001);
+  EXPECT_NEAR(bone_a->quat[2], 0, 0.001);
+  EXPECT_NEAR(bone_a->quat[3], 0, 0.001);
+
+  bone_a->rotmode = ROT_MODE_AXISANGLE;
+  animrig::pose_apply_action({obj_armature_a}, *pose_action, &eval_context, 1.0);
+  EXPECT_NEAR(bone_a->rotAxis[0], 3.14, 0.001);
+  EXPECT_NEAR(bone_a->rotAxis[1], 1, 0.001);
+  EXPECT_NEAR(bone_a->rotAxis[2], 0, 0.001);
+  EXPECT_NEAR(bone_a->rotAngle, 0, 0.001);
+}
+
 }  // namespace animrig::tests
 }  // namespace blender

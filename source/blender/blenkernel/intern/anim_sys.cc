@@ -694,7 +694,7 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
                                      const float blend_factor)
 {
   /* Rotations are a special case since the rotation mode of the pose may not match with the
-   * current rotation mode of the bone. Also quaternions should be blended together. */
+   * current rotation mode of the bone. Also quaternions need to be handled together. */
   Map<StringRefNull, Vector<FCurve *>> rotation_fcurve_map;
   for (FCurve *fcurve : fcurves) {
     StringRefNull rna_path(fcurve->rna_path);
@@ -725,10 +725,13 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
         ptr_rotation_mode.has_value(),
         "We have an FCurve on a rotation property, the RNA data should have a rotation order.");
 
-    if (animrig::get_rotation_mode_from_path(rna_path) == ptr_rotation_mode.value()) {
+    const std::optional<eRotationModes> path_rotation_mode = animrig::get_rotation_mode_from_path(
+        rna_path);
+    BLI_assert(path_rotation_mode.has_value());
+    if (path_rotation_mode.value() == ptr_rotation_mode.value()) {
       /* Easy case, animation mode of pose and of blender data are matching. Data can just be
        * applied. */
-      if (rna_path.endswith("rotation_quaternion")) {
+      if (path_rotation_mode.value() == ROT_MODE_QUAT) {
         PathResolvedRNA anim_rna;
         /* The function `animsys_blend_fcurves_quaternion` deals with the array index of the
          * PathResolvedRNA. This is why we can just use the array_index of the first FCurve. */
