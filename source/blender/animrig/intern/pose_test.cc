@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_listbase.h"
+#include "BLI_math_matrix.h"
 #include "BLI_string.h"
 
 #include "BKE_action.hh"
@@ -399,19 +400,20 @@ TEST_F(PoseTest, apply_action_differing_rotation_mode)
   EXPECT_NEAR(bone_a->eul[1], 1, 0.001);
   EXPECT_NEAR(bone_a->eul[2], 0, 0.001);
 
+  BKE_pchan_calc_mat(bone_a);
+  float expected_matrix[4][4];
+  copy_m4_m4(expected_matrix, bone_a->chan_mat);
+
+  /* Check that other rotation modes work the same as applying euler directly. */
   bone_a->rotmode = ROT_MODE_QUAT;
   animrig::pose_apply_action({obj_armature_a}, *pose_action, &eval_context, 1.0);
-  EXPECT_NEAR(bone_a->quat[0], 3.14, 0.001);
-  EXPECT_NEAR(bone_a->quat[1], 1, 0.001);
-  EXPECT_NEAR(bone_a->quat[2], 0, 0.001);
-  EXPECT_NEAR(bone_a->quat[3], 0, 0.001);
+  BKE_pchan_calc_mat(bone_a);
+  EXPECT_NEAR_ARRAY_ND(expected_matrix, bone_a->chan_mat, 4, 4, 0.001);
 
   bone_a->rotmode = ROT_MODE_AXISANGLE;
   animrig::pose_apply_action({obj_armature_a}, *pose_action, &eval_context, 1.0);
-  EXPECT_NEAR(bone_a->rotAxis[0], 3.14, 0.001);
-  EXPECT_NEAR(bone_a->rotAxis[1], 1, 0.001);
-  EXPECT_NEAR(bone_a->rotAxis[2], 0, 0.001);
-  EXPECT_NEAR(bone_a->rotAngle, 0, 0.001);
+  BKE_pchan_calc_mat(bone_a);
+  EXPECT_NEAR_ARRAY_ND(expected_matrix, bone_a->chan_mat, 4, 4, 0.001);
 }
 
 }  // namespace animrig::tests
