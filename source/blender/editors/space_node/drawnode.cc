@@ -605,8 +605,8 @@ static void node_composit_buts_cryptomatte(ui::Layout &layout, bContext *C, Poin
 
   ui::Layout &row_2 = col_2.row(true);
   row_2.prop(ptr, "matte_id", DEFAULT_FLAGS, "", ICON_NONE);
-  template_crypto_picker(&row_2, ptr, "add", ICON_ADD);
-  template_crypto_picker(&row_2, ptr, "remove", ICON_REMOVE);
+  row_2.op("NODE_OT_cryptomatte_entry_add", "", ICON_ADD);
+  row_2.op("NODE_OT_cryptomatte_entry_remove", "", ICON_REMOVE);
 }
 
 /* only once called */

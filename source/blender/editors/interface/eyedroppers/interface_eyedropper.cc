@@ -57,6 +57,8 @@ wmKeyMap *eyedropper_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "UI_OT_eyedropper_depth");
   WM_modalkeymap_assign(keymap, "UI_OT_eyedropper_driver");
   WM_modalkeymap_assign(keymap, "UI_OT_eyedropper_grease_pencil_color");
+  WM_modalkeymap_assign(keymap, "NODE_OT_cryptomatte_entry_add");
+  WM_modalkeymap_assign(keymap, "NODE_OT_cryptomatte_entry_remove");
 
   return keymap;
 }
