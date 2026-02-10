@@ -19,32 +19,6 @@ extern "C" {
 
 namespace geometry {
 
-static std::optional<int> attr_type_dimensions(const bke::AttrType type)
-{
-  switch (type) {
-    case bke::AttrType::Float:
-      return 1;
-    case bke::AttrType::Float2:
-      return 2;
-    case bke::AttrType::Float3:
-      return 3;
-    case bke::AttrType::ColorFloat:
-      return 4;
-    case bke::AttrType::Bool:
-    case bke::AttrType::Int8:
-    case bke::AttrType::Int16_2D:
-    case bke::AttrType::Int32:
-    case bke::AttrType::Int32_2D:
-    case bke::AttrType::Float4x4:
-    case bke::AttrType::ColorByte:
-    case bke::AttrType::Quaternion:
-    case bke::AttrType::String:
-      return {};
-    default:
-      return {};
-  }
-}
-
 bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
     const bke::CurvesGeometry &src_curves,
     const IndexMask &curve_selection,
@@ -61,35 +35,40 @@ bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
   BLI_assert(thresholds.size() == src_curves.curves_num());
   BLI_assert(corners.size() == src_curves.points_num());
 
+#ifndef NDEBUG
+  for (const GSpan attribute : attributes) {
+    BLI_assert(attribute.size() == src_curves.points_num());
+    const bke::AttrType type = bke::cpp_type_to_attribute_type(attribute.type());
+    BLI_assert_msg(ELEM(type,
+                        bke::AttrType::Float,
+                        bke::AttrType::Float2,
+                        bke::AttrType::Float3,
+                        bke::AttrType::ColorFloat),
+                   "Unexpected attribute type!");
+  }
+#endif
+
+  const OffsetIndices src_points_by_curve = src_curves.offsets();
+  const Span<float3> src_positions = src_curves.positions();
+  const VArray<bool> src_cyclic = src_curves.cyclic();
+
   /* Add one for the positions attribute and one for the final offset. */
   Array<int> num_dimensions_per_attribute(attributes.size() + 1 + 1);
   num_dimensions_per_attribute[0] = 3;
   for (const int i : attributes.index_range()) {
     const GSpan attribute = attributes[i];
-    BLI_assert(attribute.size() == src_curves.points_num());
-
-    const bke::AttrType type = bke::cpp_type_to_attribute_type(attribute.type());
-    const std::optional<int> dimensions = attr_type_dimensions(type);
-    BLI_assert_msg(dimensions.has_value(), "Unexpected attribute type!");
-    if (!dimensions.has_value()) {
-      /* Fall back to source curves. */
-      return src_curves;
-    }
-    num_dimensions_per_attribute[i + 1] = dimensions.value();
+    /* Attributes are assumed to be some vector of floats. */
+    num_dimensions_per_attribute[i + 1] = attribute.type().size / sizeof(float);
   }
-  const OffsetIndices src_points_by_curve = src_curves.offsets();
-  const Span<float3> src_positions = src_curves.positions();
-  const VArray<bool> src_cyclic = src_curves.cyclic();
-
   const OffsetIndices dimensions_by_attribute = offset_indices::accumulate_counts_to_offsets(
       num_dimensions_per_attribute.as_mutable_span());
   const int stride = dimensions_by_attribute.total_size();
-  Array<float> attribute_data(stride * src_curves.points_num());
 
   /* The curve fitting library expects the data to be in an "array of structs" format rather than
    * "structs of arrays". Converts the layout below.
    * Note that the flat array uses a size thats larger than the selection to allow easy computation
    * of offset indices. This means that part of the array might be left uninitialized.*/
+  Array<float> attribute_data(stride * src_curves.points_num());
   auto write_interleaved_attribute_data = [&](const GSpan src_attribute,
                                               const IndexRange dimensions) {
     curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
