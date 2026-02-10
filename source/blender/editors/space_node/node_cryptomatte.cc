@@ -19,6 +19,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 
@@ -96,7 +97,7 @@ static void cryptomatte_draw_cb(const wmWindow * /*window*/, void *arg)
   const bTheme *btheme = ui::theme::theme_get();
   const uiWidgetColors *wcol = &btheme->tui.wcol_tooltip;
 
-  float col_fg[4], col_bg[4];
+  float4 col_fg, col_bg;
   rgba_uchar_to_float(col_fg, wcol->text);
   rgba_uchar_to_float(col_bg, wcol->inner);
 
@@ -117,7 +118,7 @@ static void cryptomatte_draw_cb(const wmWindow * /*window*/, void *arg)
 static bool cryptomatte_sample_view3d_fl(bContext *C,
                                          const char *prefix,
                                          const int mval[2],
-                                         float r_col[3])
+                                         float3 &r_col)
 {
   int material_slot = 0;
   Object *object = ED_view3d_give_material_slot_under_cursor(C, mval, &material_slot);
@@ -150,8 +151,8 @@ static bool cryptomatte_sample_view3d_fl(bContext *C,
 
 static bool cryptomatte_sample_renderlayer_fl(RenderLayer *render_layer,
                                               const char *prefix,
-                                              const float fpos[2],
-                                              float r_col[3])
+                                              const float2 &fpos,
+                                              float3 &r_col)
 {
   if (!render_layer) {
     return false;
@@ -185,7 +186,7 @@ static bool cryptomatte_sample_renderlayer_fl(RenderLayer *render_layer,
       const int x = int(fpos[0] * render_pass.rectx);
       const int y = int(fpos[1] * render_pass.recty);
       const int offset = 4 * (y * render_pass.rectx + x);
-      zero_v3(r_col);
+      r_col = float3(0.0f);
       r_col[0] = render_pass.ibuf->float_buffer.data[offset];
       return true;
     }
@@ -196,8 +197,8 @@ static bool cryptomatte_sample_renderlayer_fl(RenderLayer *render_layer,
 
 static bool cryptomatte_sample_render_fl(const bNode *node,
                                          const char *prefix,
-                                         const float fpos[2],
-                                         float r_col[3])
+                                         const float2 &fpos,
+                                         float3 &r_col)
 {
   bool success = false;
   Scene *scene = id_cast<Scene *>(node->id);
@@ -224,8 +225,8 @@ static bool cryptomatte_sample_image_fl(bContext *C,
                                         const bNode *node,
                                         NodeCryptomatte *crypto,
                                         const char *prefix,
-                                        const float fpos[2],
-                                        float r_col[3])
+                                        const float2 &fpos,
+                                        float3 &r_col)
 {
   bool success = false;
   Image *image = id_cast<Image *>(node->id);
@@ -253,7 +254,7 @@ static bool cryptomatte_sample_image_fl(bContext *C,
 static bool cryptomatte_sample_fl(bContext *C,
                                   CryptomattePicker *picker,
                                   const int event_xy[2],
-                                  float r_col[3])
+                                  float3 &r_col)
 {
   bNode *node = picker->node;
   NodeCryptomatte *crypto = node ? (static_cast<NodeCryptomatte *>(node->storage)) : nullptr;
@@ -296,7 +297,7 @@ static bool cryptomatte_sample_fl(bContext *C,
       event_xy_win[0] - region->winrct.xmin,
       event_xy_win[1] - region->winrct.ymin,
   };
-  float fpos[2] = {-1.0f, -1.0f};
+  float2 fpos = {-1.0f, -1.0f};
   switch (area->spacetype) {
     case SPACE_IMAGE: {
       SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
@@ -373,7 +374,7 @@ static void cryptomatte_pick_sample_text_update(bContext *C,
                                                 CryptomattePicker *picker,
                                                 const int event_xy[2])
 {
-  float col[3];
+  float3 col;
   picker->sample_text[0] = '\0';
 
   if (picker->session) {
@@ -389,7 +390,7 @@ static bool cryptomatte_pick_sample_and_apply(bContext *C,
                                               CryptomattePicker *picker,
                                               const int event_xy[2])
 {
-  float col[3];
+  float3 col;
   if (!cryptomatte_sample_fl(C, picker, event_xy, col)) {
     return false;
   }
