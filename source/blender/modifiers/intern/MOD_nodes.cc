@@ -323,9 +323,6 @@ static void update_id_properties_from_node_group(NodesModifierData *nmd)
     // TODO
     return;
   }
-  nodes::update_properties_from_node_tree(*nmd->node_group,
-                                          *nmd->node_group->runtime->geometry_nodes_modifier_srna,
-                                          *nmd->modifier.system_properties);
 }
 
 static void remove_outdated_bake_caches(NodesModifierData &nmd)
@@ -456,7 +453,9 @@ void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd)
     nmd->modifier.system_properties =
         bke::idprop::create_group("NodesModifierProperties").release();
   }
-  update_id_properties_from_node_group(nmd);
+  PointerRNA properties_ptr = RNA_pointer_create_discrete(
+      &object->id, RNA_NodesModifierProperties, nmd->modifier.system_properties);
+  RNA_sync_system_properties(properties_ptr, *nmd->modifier.system_properties);
   update_bakes_from_node_group(*nmd);
   update_panels_from_node_group(*nmd);
   nmd->runtime->usage_cache.reset();

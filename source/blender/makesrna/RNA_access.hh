@@ -677,6 +677,8 @@ int RNA_property_collection_raw_set(ReportList *reports,
 size_t RNA_raw_type_sizeof(RawPropertyType type);
 RawPropertyType RNA_property_raw_type(PropertyRNA *prop);
 
+void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops);
+
 /* to create ID property groups */
 void RNA_property_pointer_add(PointerRNA *ptr, PropertyRNA *prop);
 void RNA_property_pointer_remove(PointerRNA *ptr, PropertyRNA *prop);

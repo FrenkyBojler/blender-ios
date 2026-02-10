@@ -60,10 +60,6 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
                                                     GeoNodesCallData &call_data,
                                                     bke::GeometrySet input_geometry);
 
-void update_properties_from_node_tree(const bNodeTree &tree,
-                                      const StructRNA &properties_srna,
-                                      IDProperty &system_properties);
-
 /**
  * Get input values for the node tree for static value/usage inferencing. Inferencing does not
  * fully evaluate the node tree (would be way to slow), and does not support all socket types. So

@@ -6207,7 +6207,7 @@ static void update_idprop_float(PointerRNA &rna_ptr, PropertyRNA &rna_prop, IDPr
   }
 }
 
-void update_idprops_from_srna(PointerRNA &ptr, IDProperty &idprops)
+void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
 {
   StructRNA &srna = *ptr.type;
   for (PropertyRNA &rna_prop : *RNA_struct_type_properties(&srna)) {
@@ -6267,7 +6267,7 @@ void update_idprops_from_srna(PointerRNA &ptr, IDProperty &idprops)
             continue;
           }
           PointerRNA prop_ptr = RNA_property_pointer_get(&ptr, &rna_prop);
-          update_idprops_from_srna(prop_ptr, *idprop);
+          RNA_sync_system_properties(prop_ptr, *idprop);
         }
         break;
       }
