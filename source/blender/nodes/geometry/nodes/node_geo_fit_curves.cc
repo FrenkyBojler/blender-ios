@@ -31,8 +31,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_default_layout();
 
-  b.add_input<decl::Geometry>("Poly Curves", "Curves")
-      .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_input<decl::Geometry>("Curves").supported_type(
+      {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
   b.add_output<decl::Geometry>("Curves").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
   b.add_input<decl::Bool>("Corners").default_value(false).field_on_all().hide_value();
