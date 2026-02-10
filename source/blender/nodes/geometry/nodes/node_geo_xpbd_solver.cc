@@ -9,6 +9,7 @@
 #include "BKE_geometry_fields.hh"
 #include "BKE_grease_pencil.hh"
 
+#include "GEO_xpbd.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_parse.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
@@ -99,6 +100,13 @@ struct GeometryData {
   AttrDomain domain;
   int size;
 
+  bke::SpanAttributeWriter<float3> position_attr;
+  bke::SpanAttributeWriter<float3> velocity_attr;
+  bke::SpanAttributeWriter<math::Quaternion> rotation_attr;
+  bke::SpanAttributeWriter<float3> angular_velocity_attr;
+  VArraySpan<float3> external_force_attr;
+  VArraySpan<float3> external_torque_attr;
+
   IndexMask pin_position_mask;
   VArraySpan<float3> pin_position_begin;
   VArraySpan<float3> pin_position_end;
@@ -123,6 +131,8 @@ struct Geometries {
 
   VectorSet<DataKey> data_keys;
   Vector<GeometryData> data;
+
+  Vector<xpbd::GeometryRef> solver_refs;
 };
 
 struct FieldEvaluatorKey {
@@ -211,6 +221,7 @@ class XpbdSolverStep {
     this->prepare_inverse_inertias();
     this->gather_constraints_from_world();
     this->evaluate_constraint_fields();
+    this->prepare_solver_geometry_refs();
     this->prepare_constraints();
     this->do_simulation();
     this->write_back_geometries_to_world();
@@ -278,7 +289,20 @@ class XpbdSolverStep {
     }
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-      geo_data.size = geo_data.attributes.domain_size(geo_data.domain);
+      const AttrDomain domain = geo_data.domain;
+      geo_data.size = geo_data.attributes.domain_size(domain);
+      geo_data.position_attr = geo_data.attributes.lookup_or_add_for_write_span<float3>(
+          attribute_names::position, domain);
+      geo_data.velocity_attr = geo_data.attributes.lookup_or_add_for_write_span<float3>(
+          attribute_names::velocity, domain);
+      geo_data.rotation_attr = geo_data.attributes.lookup_or_add_for_write_span<math::Quaternion>(
+          attribute_names::rotation, domain);
+      geo_data.angular_velocity_attr = geo_data.attributes.lookup_or_add_for_write_span<float3>(
+          attribute_names::angular_velocity, domain);
+      geo_data.external_force_attr = *geo_data.attributes.lookup_or_default<float3>(
+          attribute_names::external_force, domain, float3(0, 0, 0));
+      geo_data.external_torque_attr = *geo_data.attributes.lookup_or_default<float3>(
+          attribute_names::external_torque, domain, float3(0, 0, 0));
     }
   }
 
@@ -480,49 +504,40 @@ class XpbdSolverStep {
             [&](const int i) { return evaluators[i]->evaluation_mask().size(); }));
   }
 
+  void prepare_solver_geometry_refs()
+  {
+    geometries_.solver_refs.reinitialize(geometries_.data.size());
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      xpbd::GeometryRef &geo_ref = geometries_.solver_refs[data_key_i];
+    }
+  }
+
   void do_simulation()
   {
     for (const int substep_i : IndexRange(substeps_)) {
       const SubstepInterval substep(substeps_, substep_i);
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
-        bke::SpanAttributeWriter<float3> position_attr =
-            geo_data.attributes.lookup_or_add_for_write_span<float3>(attribute_names::position,
-                                                                     geo_data.domain);
-        bke::SpanAttributeWriter<float3> velocity_attr =
-            geo_data.attributes.lookup_or_add_for_write_span<float3>(attribute_names::velocity,
-                                                                     geo_data.domain);
-        bke::SpanAttributeWriter<math::Quaternion> rotation_attr =
-            geo_data.attributes.lookup_or_add_for_write_span<math::Quaternion>(
-                attribute_names::rotation, geo_data.domain);
-        bke::SpanAttributeWriter<float3> angular_velocity_attr =
-            geo_data.attributes.lookup_or_add_for_write_span<float3>(
-                attribute_names::angular_velocity, geo_data.domain);
-        MutableSpan<float3> positions = position_attr.span;
-        MutableSpan<float3> velocities = velocity_attr.span;
-        MutableSpan<math::Quaternion> rotations = rotation_attr.span;
-        MutableSpan<float3> angular_velocities = angular_velocity_attr.span;
-        const VArraySpan<float3> external_forces = *geo_data.attributes.lookup_or_default<float3>(
-            attribute_names::external_force, geo_data.domain, float3(0, 0, 0));
-        const VArraySpan<float3> external_torques = *geo_data.attributes.lookup_or_default<float3>(
-            attribute_names::external_torque, geo_data.domain, float3(0, 0, 0));
-        const Span<float> inv_masses = geo_data.inv_masses;
-        const Span<float3> inv_inertias = geo_data.inv_inertias;
+        MutableSpan<float3> positions = geo_data.position_attr.span;
+        MutableSpan<float3> velocities = geo_data.velocity_attr.span;
+        MutableSpan<math::Quaternion> rotations = geo_data.rotation_attr.span;
+        MutableSpan<float3> angular_velocities = geo_data.angular_velocity_attr.span;
         threading::parallel_for(IndexRange(geo_data.size), 256, [&](const IndexRange range) {
           this->integrate_linear_velocities(sub_delta_time_,
                                             positions.slice(range),
                                             positions.slice(range),
                                             velocities.slice(range),
-                                            inv_masses.slice(range),
-                                            external_forces.slice(range));
+                                            geo_data.inv_masses.as_span().slice(range),
+                                            geo_data.external_force_attr.slice(range));
         });
         threading::parallel_for(IndexRange(geo_data.size), 256, [&](const IndexRange range) {
           this->integrate_angular_velocities(sub_delta_time_,
                                              rotations.slice(range),
                                              rotations.slice(range),
                                              angular_velocities.slice(range),
-                                             inv_inertias.slice(range),
-                                             external_torques.slice(range));
+                                             geo_data.inv_inertias.as_span().slice(range),
+                                             geo_data.external_torque_attr.slice(range));
         });
         geo_data.pin_position_mask.foreach_index([&](const int point_i) {
           const float3 &begin_pos = geo_data.pin_position_begin[point_i];
@@ -537,10 +552,18 @@ class XpbdSolverStep {
               begin_rot, end_rot, substep.end_factor);
           rotations[point_i] = pin_rot;
         });
-
-        velocity_attr.finish();
-        position_attr.finish();
       }
+    }
+  }
+
+  void finish_attribute_writers()
+  {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      geo_data.position_attr.finish();
+      geo_data.velocity_attr.finish();
+      geo_data.rotation_attr.finish();
+      geo_data.angular_velocity_attr.finish();
     }
   }
 
