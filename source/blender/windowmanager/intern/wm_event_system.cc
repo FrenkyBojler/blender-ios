@@ -3366,7 +3366,7 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
   }
 
   if (handle_highlight) {
-    // todo(habib): reuse same gizmo found above?
+    /* Reuse the same gizmo found above. */
     gz = gz_test;
     int part = part_test;
 
