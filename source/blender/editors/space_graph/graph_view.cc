@@ -587,6 +587,7 @@ static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator *o
   SpaceGraph *sipo = CTX_wm_space_graph(C);
   int bit_to_clear = 0;
   if (sipo->local_view_bits == 0) {
+    /* Find a bit and set local view for graph editor in current context */
     sipo->local_view_bits = free_localview_bit(CTX_data_main(C));
   }
   else {
@@ -601,21 +602,20 @@ static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator *o
     }
 
     if (sipo->local_view_bits == 0) {
-      if (fcu->local_view_bits & bit_to_clear) {
-        fcu->local_view_bits &= ~bit_to_clear;
-      }
+      fcu->local_view_bits &= ~bit_to_clear;
       continue;
     }
     else {
       if (ale.flag & FCURVE_SELECTED) {
+        /* Set bit for selected Fcurves to draw them in local view. */
         fcu->local_view_bits |= sipo->local_view_bits;
-        printf("Isolated FCurve: %d\n", ale.type);
       }
       else {
         fcu->local_view_bits &= ~sipo->local_view_bits;
       }
     }
   }
+
   graphkeys_viewall(C, false, true, 200);
   ANIM_animdata_freelist(&anim_data);
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
