@@ -2581,14 +2581,6 @@ static void sculpt_update_object(Depsgraph *depsgraph,
 
   pbvh::Tree &pbvh = object::pbvh_ensure(*depsgraph, *ob);
 
-  if (ss.shapekey_active != nullptr && ss.deform_cos.is_empty()) {
-    ss.deform_cos = Span(static_cast<const float3 *>(ss.shapekey_active->data),
-                         mesh_orig->verts_num);
-    if (!ss.deform_cos.is_empty()) {
-      BKE_pbvh_vert_coords_apply(pbvh, ss.deform_cos);
-    }
-  }
-
   if (ss.deform_modifiers_active) {
     /* Painting doesn't need crazyspace, use already evaluated mesh coordinates if possible. */
     bool used_me_eval = false;
@@ -2630,6 +2622,14 @@ static void sculpt_update_object(Depsgraph *depsgraph,
   }
   else {
     BKE_sculptsession_free_deformMats(&ss);
+  }
+
+  if (ss.shapekey_active != nullptr && ss.deform_cos.is_empty()) {
+    ss.deform_cos = Span(static_cast<const float3 *>(ss.shapekey_active->data),
+                         mesh_orig->verts_num);
+    if (!ss.deform_cos.is_empty()) {
+      BKE_pbvh_vert_coords_apply(pbvh, ss.deform_cos);
+    }
   }
 
   if (is_paint_tool) {
