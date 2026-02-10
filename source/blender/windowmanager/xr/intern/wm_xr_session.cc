@@ -406,6 +406,10 @@ wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr)
 
 bContext *WM_xr_session_context_ensure(const wmWindowManager *wm, wmXrRuntimeData *runtime_data)
 {
+  if (runtime_data == nullptr) {
+    return nullptr;
+  }
+
   /* XR session root window. Also sets the context scene. */
   wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, runtime_data);
   CTX_wm_window_set(runtime_data->b_context, xr_win);
