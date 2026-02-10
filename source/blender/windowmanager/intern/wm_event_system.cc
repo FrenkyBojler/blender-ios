@@ -2233,9 +2233,11 @@ static void wm_handler_op_context_get_if_valid(bContext *C,
 #ifdef WITH_XR_OPENXR
     /* Special case for XR operators, which are executed in an XR-specific offscreen area. */
     bContext *xr_context = WM_xr_session_context_get(&CTX_wm_manager(C)->xr);
-    ScrArea *xr_offscreen_area = CTX_wm_area(xr_context);
-    if (handler->context.area == xr_offscreen_area) {
-      area = xr_offscreen_area;
+    if (xr_context != nullptr) {
+      ScrArea *xr_offscreen_area = CTX_wm_area(xr_context);
+      if (handler->context.area == xr_offscreen_area) {
+        area = xr_offscreen_area;
+      }
     }
 #endif
 
