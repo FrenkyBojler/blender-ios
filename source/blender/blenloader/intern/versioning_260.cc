@@ -87,8 +87,6 @@
 
 #include "versioning_common.hh"
 
-#include "versioning_common.hh"
-
 namespace blender {
 
 /** Without empty statements, clang-format fails (tested with v12 & v15). */
