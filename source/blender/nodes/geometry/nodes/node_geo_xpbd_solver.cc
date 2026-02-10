@@ -10,6 +10,7 @@
 #include "BKE_grease_pencil.hh"
 
 #include "GEO_xpbd.hh"
+#include "GEO_xpbd_constraint_sets_common.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_parse.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
@@ -40,6 +41,7 @@ constexpr StringRefNull sim_pin_position_begin = "sim_pin_position_begin";
 constexpr StringRefNull sim_pin_position_end = "sim_pin_position_end";
 /** Compliance of the pin position constraint. */
 constexpr StringRefNull sim_pin_position_compliance = "sim_pin_position_compliance";
+constexpr StringRefNull sim_pin_position_lambda = "sim_pin_position_lambda";
 
 constexpr StringRefNull sim_pin_rotation = "sim_pin_rotation";
 constexpr StringRefNull sim_pin_rotation_begin = "sim_pin_rotation_begin";
@@ -108,12 +110,27 @@ struct GeometryData {
   VArraySpan<float3> external_torque_attr;
 
   IndexMask pin_position_mask;
+  Vector<int> pin_position_indices;
+  /** Indexed by point index. */
   VArraySpan<float3> pin_position_begin;
   VArraySpan<float3> pin_position_end;
+  bke::SpanAttributeWriter<float> pin_position_lambda_attr;
+  /** Indexed by pin index. */
+  Array<float> pin_position_compliance_terms;
+  Array<float> pin_position_lambdas;
+  /** The current target position, this is updated in each substep. Indexed by pin index.*/
+  Array<float3> pin_position_current;
 
   IndexMask pin_rotation_mask;
+  Vector<int> pin_rotation_indices;
+  /* Indexed by point index. */
   VArraySpan<math::Quaternion> pin_rotation_begin;
   VArraySpan<math::Quaternion> pin_rotation_end;
+  /* Indexed by pin index. */
+  Array<float> pin_rotation_compliance_terms;
+
+  Array<float3> prev_positions;
+  Array<math::Quaternion> prev_rotations;
 
   /**
    * Inverse of the mass attribute + extra changes:
@@ -121,7 +138,6 @@ struct GeometryData {
    * - If there is no mass attribute, or it is <= 0, this is set to 1.
    */
   Array<float> inv_masses;
-
   Array<float3> inv_inertias;
 };
 
@@ -131,8 +147,6 @@ struct Geometries {
 
   VectorSet<DataKey> data_keys;
   Vector<GeometryData> data;
-
-  Vector<xpbd::GeometryRef> solver_refs;
 };
 
 struct FieldEvaluatorKey {
@@ -179,14 +193,16 @@ struct SubstepInterval {
   }
 };
 
-struct ConstraintsInfo {};
+struct ConstraintsInfo {
+  Vector<xpbd::PinnedPositionConstraintSet *> pinned_positions;
+};
 
 class XpbdSolverStep {
  private:
   ResourceScope &scope_;
+  LinearAllocator<> &allocator_;
   IndexMaskMemory memory_;
   Bundle &world_;
-  const float total_delta_time_;
   const int substeps_;
   const float sub_delta_time_;
 
@@ -204,8 +220,8 @@ class XpbdSolverStep {
                  const float total_delta_time,
                  const int substeps)
       : scope_(scope),
+        allocator_(scope.allocator()),
         world_(world),
-        total_delta_time_(total_delta_time),
         substeps_(substeps),
         sub_delta_time_(total_delta_time / substeps_)
   {
@@ -221,7 +237,6 @@ class XpbdSolverStep {
     this->prepare_inverse_inertias();
     this->gather_constraints_from_world();
     this->evaluate_constraint_fields();
-    this->prepare_solver_geometry_refs();
     this->prepare_constraints();
     this->do_simulation();
     this->write_back_geometries_to_world();
@@ -320,8 +335,35 @@ class XpbdSolverStep {
         continue;
       }
       geo_data.pin_position_mask = IndexMask::from_bools(*pin_attr, memory_);
+      const int pin_num = geo_data.pin_position_mask.size();
+      geo_data.pin_position_indices = geo_data.pin_position_mask.to_indices<int>();
       geo_data.pin_position_begin = begin_attr.varray;
       geo_data.pin_position_end = end_attr.varray;
+      geo_data.pin_position_lambda_attr = geo_data.attributes.lookup_or_add_for_write_span<float>(
+          attribute_names::sim_pin_position_lambda,
+          geo_data.domain,
+          bke::AttributeInitValue(0.0f));
+
+      const VArray<float> compliance_attr = *geo_data.attributes.lookup_or_default<float>(
+          attribute_names::sim_pin_position_compliance, geo_data.domain, 0.0f);
+      geo_data.pin_position_compliance_terms.reinitialize(pin_num);
+      geo_data.pin_position_lambdas.reinitialize(pin_num);
+      for (const int i : geo_data.pin_position_indices.index_range()) {
+        const int point_i = geo_data.pin_position_indices[i];
+        geo_data.pin_position_compliance_terms[i] = std::max(compliance_attr[point_i], 0.0f) *
+                                                    substep_compliance_factor_;
+        geo_data.pin_position_lambdas[i] = geo_data.pin_position_lambda_attr.span[point_i];
+      }
+      /* This will be initialized every time a substep starts. */
+      geo_data.pin_position_current.reinitialize(pin_num);
+
+      constraints_info_.pinned_positions.append(
+          &scope_.construct<xpbd::PinnedPositionConstraintSet>(
+              data_key_i,
+              geo_data.pin_position_indices,
+              geo_data.pin_position_current,
+              geo_data.pin_position_compliance_terms,
+              geo_data.pin_position_lambdas));
     }
   }
 
@@ -341,8 +383,18 @@ class XpbdSolverStep {
         continue;
       }
       geo_data.pin_rotation_mask = IndexMask::from_bools(*pin_attr, memory_);
+      geo_data.pin_rotation_indices = geo_data.pin_rotation_mask.to_indices<int>();
       geo_data.pin_rotation_begin = begin_attr.varray;
       geo_data.pin_rotation_end = end_attr.varray;
+
+      const VArray<float> compliance_attr = *geo_data.attributes.lookup_or_default<float>(
+          attribute_names::sim_pin_rotation_compliance, geo_data.domain, 0.0f);
+      geo_data.pin_rotation_compliance_terms.reinitialize(geo_data.pin_rotation_mask.size());
+      for (const int i : geo_data.pin_rotation_indices.index_range()) {
+        const int point_i = geo_data.pin_rotation_indices[i];
+        geo_data.pin_rotation_compliance_terms[i] = std::max(compliance_attr[point_i], 0.0f) *
+                                                    substep_compliance_factor_;
+      }
     }
   }
 
@@ -504,53 +556,80 @@ class XpbdSolverStep {
             [&](const int i) { return evaluators[i]->evaluation_mask().size(); }));
   }
 
-  void prepare_solver_geometry_refs()
-  {
-    geometries_.solver_refs.reinitialize(geometries_.data.size());
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      GeometryData &geo_data = geometries_.data[data_key_i];
-      xpbd::GeometryRef &geo_ref = geometries_.solver_refs[data_key_i];
-    }
-  }
-
   void do_simulation()
   {
     for (const int substep_i : IndexRange(substeps_)) {
       const SubstepInterval substep(substeps_, substep_i);
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
-        MutableSpan<float3> positions = geo_data.position_attr.span;
-        MutableSpan<float3> velocities = geo_data.velocity_attr.span;
-        MutableSpan<math::Quaternion> rotations = geo_data.rotation_attr.span;
-        MutableSpan<float3> angular_velocities = geo_data.angular_velocity_attr.span;
+        geo_data.prev_positions = Array<float3>(geo_data.position_attr.span.as_span());
+        geo_data.prev_rotations = Array<math::Quaternion>(geo_data.rotation_attr.span.as_span());
+      }
+      for (const int data_key_i : geometries_.data_keys.index_range()) {
+        GeometryData &geo_data = geometries_.data[data_key_i];
+        for (const int i : geo_data.pin_position_indices.index_range()) {
+          const int point_i = geo_data.pin_position_indices[i];
+          const float3 &begin_pos = geo_data.pin_position_begin[point_i];
+          const float3 &end_pos = geo_data.pin_position_end[point_i];
+          const float3 pin_pos = math::interpolate(begin_pos, end_pos, substep.end_factor);
+          geo_data.pin_position_current[i] = pin_pos;
+        }
+      }
+
+      Vector<xpbd::GeometryRef> solver_geo_refs(geometries_.data_keys.size());
+      for (const int data_key_i : geometries_.data_keys.index_range()) {
+        GeometryData &geo_data = geometries_.data[data_key_i];
+        xpbd::GeometryRef &ref = solver_geo_refs[data_key_i];
+        ref.positions = geo_data.position_attr.span;
+        ref.velocities = geo_data.velocity_attr.span;
+        ref.prev_positions = geo_data.prev_positions;
+        ref.inverse_masses = geo_data.inv_masses;
+
+        ref.rotations = geo_data.rotation_attr.span;
+        ref.angular_velocities = geo_data.angular_velocity_attr.span;
+        ref.prev_rotations = geo_data.prev_rotations;
+
+        ref.inverse_inertias = geo_data.inv_inertias;
+        // TODO: need inertias?
+      }
+
+      for (const int data_key_i : geometries_.data_keys.index_range()) {
+        GeometryData &geo_data = geometries_.data[data_key_i];
         threading::parallel_for(IndexRange(geo_data.size), 256, [&](const IndexRange range) {
           this->integrate_linear_velocities(sub_delta_time_,
-                                            positions.slice(range),
-                                            positions.slice(range),
-                                            velocities.slice(range),
+                                            geo_data.prev_positions.as_span().slice(range),
+                                            geo_data.position_attr.span.slice(range),
+                                            geo_data.velocity_attr.span.slice(range),
                                             geo_data.inv_masses.as_span().slice(range),
                                             geo_data.external_force_attr.slice(range));
         });
         threading::parallel_for(IndexRange(geo_data.size), 256, [&](const IndexRange range) {
           this->integrate_angular_velocities(sub_delta_time_,
-                                             rotations.slice(range),
-                                             rotations.slice(range),
-                                             angular_velocities.slice(range),
+                                             geo_data.prev_rotations.as_span().slice(range),
+                                             geo_data.rotation_attr.span.slice(range),
+                                             geo_data.angular_velocity_attr.span.slice(range),
                                              geo_data.inv_inertias.as_span().slice(range),
                                              geo_data.external_torque_attr.slice(range));
         });
-        geo_data.pin_position_mask.foreach_index([&](const int point_i) {
-          const float3 &begin_pos = geo_data.pin_position_begin[point_i];
-          const float3 &end_pos = geo_data.pin_position_end[point_i];
-          const float3 pin_pos = math::interpolate(begin_pos, end_pos, substep.end_factor);
-          positions[point_i] = pin_pos;
-        });
-        geo_data.pin_rotation_mask.foreach_index([&](const int point_i) {
-          const math::Quaternion &begin_rot = geo_data.pin_rotation_begin[point_i];
-          const math::Quaternion &end_rot = geo_data.pin_rotation_end[point_i];
-          const math::Quaternion pin_rot = math::interpolate(
-              begin_rot, end_rot, substep.end_factor);
-          rotations[point_i] = pin_rot;
+      }
+
+      Vector<xpbd::ConstraintSet *> constraint_sets;
+      for (auto *constraint : constraints_info_.pinned_positions) {
+        constraint_sets.append(constraint);
+      }
+      xpbd::solve_gauss_seidel_one_at_a_time(solver_geo_refs, constraint_sets, std::nullopt);
+
+      for (const int data_key_i : geometries_.data_keys.index_range()) {
+        GeometryData &geo_data = geometries_.data[data_key_i];
+        threading::parallel_for(IndexRange(geo_data.size), 256, [&](const IndexRange range) {
+          this->update_linear_velocities(sub_delta_time_,
+                                         geo_data.prev_positions.as_span().slice(range),
+                                         geo_data.position_attr.span.slice(range),
+                                         geo_data.velocity_attr.span.slice(range));
+          this->update_angular_velocities(sub_delta_time_,
+                                          geo_data.prev_rotations.as_span().slice(range),
+                                          geo_data.rotation_attr.span.slice(range),
+                                          geo_data.angular_velocity_attr.span.slice(range));
         });
       }
     }
@@ -560,10 +639,18 @@ class XpbdSolverStep {
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
+
+      /* Write back pin position lambdas. */
+      for (const int i : geo_data.pin_position_indices.index_range()) {
+        const int point_i = geo_data.pin_position_indices[i];
+        geo_data.pin_position_lambda_attr.span[point_i] = geo_data.pin_position_lambdas[i];
+      }
+
       geo_data.position_attr.finish();
       geo_data.velocity_attr.finish();
       geo_data.rotation_attr.finish();
       geo_data.angular_velocity_attr.finish();
+      geo_data.pin_position_lambda_attr.finish();
     }
   }
 
@@ -606,6 +693,40 @@ class XpbdSolverStep {
       const math::Quaternion direction = old_rotation * math::Quaternion(0, angular_velocity);
       new_rotations[i] = math::normalize(
           math::Quaternion(float4(old_rotation) + delta_time * 0.5f * float4(direction)));
+    }
+  }
+
+  void update_linear_velocities(const float delta_time,
+                                const Span<float3> prev_positions,
+                                const Span<float3> new_positions,
+                                MutableSpan<float3> r_velocities)
+  {
+    const float inv_delta_time = math::safe_rcp(delta_time);
+    for (const int i : r_velocities.index_range()) {
+      const float3 &old_pos = prev_positions[i];
+      const float3 &new_pos = new_positions[i];
+      const float3 diff = new_pos - old_pos;
+      const float3 velocity = diff * inv_delta_time;
+      r_velocities[i] = velocity;
+    }
+  }
+
+  void update_angular_velocities(const float delta_time,
+                                 const Span<math::Quaternion> prev_rotations,
+                                 const Span<math::Quaternion> new_rotations,
+                                 MutableSpan<float3> r_angular_velocities)
+  {
+    const float inv_delta_time = math::safe_rcp(delta_time);
+    for (const int i : r_angular_velocities.index_range()) {
+      float3 diff =
+          (math::invert_normalized(prev_rotations[i]) * new_rotations[i]).imaginary_part();
+      for (const int j : IndexRange(3)) {
+        if (math::abs(diff[j]) < 1e-5f) {
+          diff[j] = 0.0f;
+        }
+      }
+      const float3 new_angular_velocity = 2.0f * diff * inv_delta_time;
+      r_angular_velocities[i] = new_angular_velocity;
     }
   }
 
