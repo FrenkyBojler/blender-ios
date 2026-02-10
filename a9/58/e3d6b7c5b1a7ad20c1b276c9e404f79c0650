@@ -12,3 +12,4 @@ Referenced by issue #154133, Can't preview UVs on curve objects converted to mes
 Referenced by commit 475a1e21983821b98c714313adfc559df9398ccc, Fix #154020: Renaming a UV Map loses its active state
 Referenced by pull request #154190, Fix #154189: Transfer Mesh Data UVs are not set active
 Referenced by pull request #154196, Fix #154133: UVs from Store Named Attributes node missing
+Referenced by commit c02e53ff487d39f614f09de13e76696dbeac4f98, Fix #154189: Transfer Mesh Data UVs are not set active
