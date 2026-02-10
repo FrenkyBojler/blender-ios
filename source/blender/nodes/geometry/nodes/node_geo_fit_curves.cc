@@ -227,11 +227,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     attribute_fields[i] = params.extract_input<fn::GField>(identifier);
   }
 
+  bool has_any_poly_curves = false;
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const Curves *src_curves_id = geometry_set.get_curves()) {
       const bke::CurvesGeometry &src_curves = src_curves_id->geometry.wrap();
       if (!src_curves.has_curve_with_type(CURVE_TYPE_POLY)) {
-        params.error_message_add(NodeWarningType::Warning, "Input curves have no poly curves");
         return;
       }
       Curves *dst_curves_id = fit_curves(*src_curves_id,
@@ -244,22 +244,26 @@ static void node_geo_exec(GeoNodeExecParams params)
       if (dst_curves_id) {
         geometry_set.replace_curves(dst_curves_id);
       }
+      has_any_poly_curves = true;
     }
     if (geometry_set.has_grease_pencil()) {
       GreasePencil &grease_pencil = *geometry_set.get_grease_pencil_for_write();
-      const bool found_poly_curves_to_fit = fit_grease_pencil_curves(grease_pencil,
-                                                                     selection_field,
-                                                                     corners_field,
-                                                                     threshold_field,
-                                                                     attribute_fields.as_span(),
-                                                                     mode,
-                                                                     attribute_filter);
-      if (!found_poly_curves_to_fit) {
-        params.error_message_add(NodeWarningType::Warning, "Input curves have no poly curves");
-        return;
+      if (fit_grease_pencil_curves(grease_pencil,
+                                   selection_field,
+                                   corners_field,
+                                   threshold_field,
+                                   attribute_fields.as_span(),
+                                   mode,
+                                   attribute_filter))
+      {
+        has_any_poly_curves = true;
       }
     }
   });
+
+  if (!has_any_poly_curves) {
+    params.error_message_add(NodeWarningType::Warning, "Input curves have no poly curves");
+  }
 
   params.set_output("Curves", std::move(geometry_set));
 }
