@@ -691,7 +691,8 @@ void calc_vert_factors(const Depsgraph &depsgraph,
     }
 
     if (automasking.settings.flags & BRUSH_AUTOMASKING_FACE_SETS) {
-      if (automasking.settings.initial_face_set == face_set_none_id && !face_set::vert_has_face_set(
+      if (automasking.settings.initial_face_set == face_set_none_id &&
+          !face_set::vert_has_face_set(
               vert_to_face_map, face_sets, vert, automasking.settings.initial_face_set))
       {
         factors[i] = 0.0f;
@@ -801,7 +802,8 @@ void calc_face_factors(const Depsgraph &depsgraph,
       }
 
       if (automasking.settings.flags & BRUSH_AUTOMASKING_FACE_SETS) {
-        if (automasking.settings.initial_face_set != face_set_none_id && !face_set::vert_has_face_set(
+        if (automasking.settings.initial_face_set != face_set_none_id &&
+            !face_set::vert_has_face_set(
                 vert_to_face_map, face_sets, vert, automasking.settings.initial_face_set))
         {
           factor = 0.0f;
@@ -1050,7 +1052,8 @@ void calc_vert_factors(const Depsgraph &depsgraph,
     }
 
     if (automasking.settings.flags & BRUSH_AUTOMASKING_FACE_SETS) {
-      if (automasking.settings.initial_face_set != face_set_none_id && !face_set::vert_has_face_set(
+      if (automasking.settings.initial_face_set != face_set_none_id &&
+          !face_set::vert_has_face_set(
               face_set_offset, *vert, automasking.settings.initial_face_set))
       {
         factors[i] = 0.0f;
