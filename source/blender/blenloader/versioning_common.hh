@@ -153,16 +153,14 @@ bNodeLink &version_node_add_link(
     bNodeTree &ntree, bNode &node_a, bNodeSocket &socket_a, bNode &node_b, bNodeSocket &socket_b);
 
 /**
- * Returns true if the node is of type \a type_legacy and has valid storage data.
- * Returns false If the node type does not match.
+ * Returns true if the node has valid storage data.
  * If the node does not have storage data then the node type is set to "Undefined" to prevent
  * further access and the function returns false.
  *
  * Storage can get lost when saving nodes in older versions and then loading such files may contain
  * nodes where storage is expected but does not exist (#154086).
  */
-bool version_node_is_type_with_storage_or_invalidate(bNode &node, int type_legacy);
-bool version_node_is_any_type_with_storage_or_invalidate(bNode &node, Span<int> types_legacy);
+bool version_node_ensure_storage_or_invalidate(bNode &node);
 
 /**
  * Adjust animation data for newly added node sockets.

@@ -374,23 +374,8 @@ bNodeLink &version_node_add_link(
   return *link;
 }
 
-bool version_node_is_type_with_storage_or_invalidate(bNode &node, const int type_legacy)
+bool version_node_ensure_storage_or_invalidate(bNode &node)
 {
-  return version_node_is_any_type_with_storage_or_invalidate(node, Span{type_legacy});
-}
-
-bool version_node_is_any_type_with_storage_or_invalidate(bNode &node, const Span<int> types_legacy)
-{
-  bool is_any_type = false;
-  for (const int type_legacy : types_legacy) {
-    if (node.type_legacy == type_legacy) {
-      is_any_type = true;
-    }
-  }
-  if (!is_any_type) {
-    return false;
-  }
-
   /* Accept node if storage is valid. */
   if (node.storage != nullptr) {
     return true;

@@ -819,12 +819,14 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
         if (ntree->type == NTREE_COMPOSIT) {
           for (bNode &node : ntree->nodes) {
-            if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_PLANETRACKDEFORM)) {
-              NodePlaneTrackDeformData *data = static_cast<NodePlaneTrackDeformData *>(
-                  node.storage);
-              data->flag = 0;
-              data->motion_blur_samples = 16;
-              data->motion_blur_shutter = 0.5f;
+            if (ELEM(node.type_legacy, CMP_NODE_PLANETRACKDEFORM)) {
+              if (version_node_ensure_storage_or_invalidate(node)) {
+                NodePlaneTrackDeformData *data = static_cast<NodePlaneTrackDeformData *>(
+                    node.storage);
+                data->flag = 0;
+                data->motion_blur_samples = 16;
+                data->motion_blur_shutter = 0.5f;
+              }
             }
           }
         }
@@ -1497,17 +1499,19 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
         if (ntree->type == NTREE_COMPOSIT) {
           bke::node_tree_set_type(*ntree);
           for (bNode &node : ntree->nodes) {
-            if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_GLARE)) {
-              NodeGlare *ndg = static_cast<NodeGlare *>(node.storage);
-              switch (ndg->type) {
-                case CMP_NODE_GLARE_STREAKS:
-                  ndg->streaks = ndg->angle;
-                  break;
-                case CMP_NODE_GLARE_SIMPLE_STAR:
-                  ndg->star_45 = ndg->angle != 0;
-                  break;
-                default:
-                  break;
+            if (node.type_legacy == CMP_NODE_GLARE) {
+              if (version_node_ensure_storage_or_invalidate(node)) {
+                NodeGlare *ndg = static_cast<NodeGlare *>(node.storage);
+                switch (ndg->type) {
+                  case CMP_NODE_GLARE_STREAKS:
+                    ndg->streaks = ndg->angle;
+                    break;
+                  case CMP_NODE_GLARE_SIMPLE_STAR:
+                    ndg->star_45 = ndg->angle != 0;
+                    break;
+                  default:
+                    break;
+                }
               }
             }
           }
