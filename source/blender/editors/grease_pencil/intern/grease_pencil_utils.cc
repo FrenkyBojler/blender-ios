@@ -406,9 +406,11 @@ float3 DrawingPlacement::place(const float2 co, const float depth) const
   float3 loc;
   ED_view3d_unproject_v3(region_, co.x, co.y, depth, loc);
 
-  float3 view_normal;
-  ED_view3d_win_to_vector(region_, co, view_normal);
-  loc -= view_normal * surface_offset_;
+  if (depth_ == DrawingPlacementDepth::Surface) {
+    float3 view_normal;
+    ED_view3d_win_to_vector(region_, co, view_normal);
+    loc -= view_normal * surface_offset_;
+  }
 
   return math::transform_point(world_space_to_layer_space_, loc);
 }
