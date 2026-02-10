@@ -97,9 +97,12 @@ static void cryptomatte_draw_cb(const wmWindow * /*window*/, void *arg)
   rgba_uchar_to_float(col_fg, wcol->text);
   rgba_uchar_to_float(col_bg, wcol->inner);
 
-  ui::fontstyle_draw_simple_backdrop(
-      fstyle, picker->cb_win_event_xy[0], picker->cb_win_event_xy[1] + U.widget_unit,
-      picker->sample_text, col_fg, col_bg);
+  ui::fontstyle_draw_simple_backdrop(fstyle,
+                                     picker->cb_win_event_xy[0],
+                                     picker->cb_win_event_xy[1] + U.widget_unit,
+                                     picker->sample_text,
+                                     col_fg,
+                                     col_bg);
 }
 
 /** \} */
@@ -109,9 +112,9 @@ static void cryptomatte_draw_cb(const wmWindow * /*window*/, void *arg)
  * \{ */
 
 static bool cryptomatte_sample_view3d_fl(bContext *C,
-                                          const char *prefix,
-                                          const int mval[2],
-                                          float r_col[3])
+                                         const char *prefix,
+                                         const int mval[2],
+                                         float r_col[3])
 {
   int material_slot = 0;
   Object *object = ED_view3d_give_material_slot_under_cursor(C, mval, &material_slot);
@@ -143,9 +146,9 @@ static bool cryptomatte_sample_view3d_fl(bContext *C,
 }
 
 static bool cryptomatte_sample_renderlayer_fl(RenderLayer *render_layer,
-                                               const char *prefix,
-                                               const float fpos[2],
-                                               float r_col[3])
+                                              const char *prefix,
+                                              const float fpos[2],
+                                              float r_col[3])
 {
   if (!render_layer) {
     return false;
@@ -189,9 +192,9 @@ static bool cryptomatte_sample_renderlayer_fl(RenderLayer *render_layer,
 }
 
 static bool cryptomatte_sample_render_fl(const bNode *node,
-                                          const char *prefix,
-                                          const float fpos[2],
-                                          float r_col[3])
+                                         const char *prefix,
+                                         const float fpos[2],
+                                         float r_col[3])
 {
   bool success = false;
   Scene *scene = id_cast<Scene *>(node->id);
@@ -215,11 +218,11 @@ static bool cryptomatte_sample_render_fl(const bNode *node,
 }
 
 static bool cryptomatte_sample_image_fl(bContext *C,
-                                         const bNode *node,
-                                         NodeCryptomatte *crypto,
-                                         const char *prefix,
-                                         const float fpos[2],
-                                         float r_col[3])
+                                        const bNode *node,
+                                        NodeCryptomatte *crypto,
+                                        const char *prefix,
+                                        const float fpos[2],
+                                        float r_col[3])
 {
   bool success = false;
   Image *image = id_cast<Image *>(node->id);
@@ -245,9 +248,9 @@ static bool cryptomatte_sample_image_fl(bContext *C,
 }
 
 static bool cryptomatte_sample_fl(bContext *C,
-                                   CryptomattePicker *picker,
-                                   const int event_xy[2],
-                                   float r_col[3])
+                                  CryptomattePicker *picker,
+                                  const int event_xy[2],
+                                  float r_col[3])
 {
   bNode *node = picker->node;
   NodeCryptomatte *crypto = node ? (static_cast<NodeCryptomatte *>(node->storage)) : nullptr;
@@ -364,8 +367,8 @@ static bool cryptomatte_sample_fl(bContext *C,
  * \{ */
 
 static void cryptomatte_pick_sample_text_update(bContext *C,
-                                                 CryptomattePicker *picker,
-                                                 const int event_xy[2])
+                                                CryptomattePicker *picker,
+                                                const int event_xy[2])
 {
   float col[3];
   picker->sample_text[0] = '\0';
@@ -414,8 +417,8 @@ static bool cryptomatte_pick_poll(bContext *C)
 }
 
 static wmOperatorStatus cryptomatte_pick_invoke(bContext *C,
-                                                 wmOperator *op,
-                                                 const wmEvent * /*event*/)
+                                                wmOperator *op,
+                                                const wmEvent * /*event*/)
 {
   PointerRNA ptr = CTX_data_pointer_get(C, "node");
   bNode *node = nullptr;
@@ -456,9 +459,7 @@ static wmOperatorStatus cryptomatte_pick_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus cryptomatte_pick_modal(bContext *C,
-                                                wmOperator *op,
-                                                const wmEvent *event)
+static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   CryptomattePicker *picker = static_cast<CryptomattePicker *>(op->customdata);
 
