@@ -358,25 +358,34 @@ inline ShuffleIndicesResult shuffle_indices_from_emit_mask(uint16_t emit_mask)
 
 template<bool with_whitespace>
 inline void TokenBuffer::tokenize_scalar(__restrict uint32_t &offset,
-                                         __restrict uint32_t &cursor,
-                                         __restrict uint32_t &cursor_no_whitespace,
-                                         __restrict CharClass &prev_value,
+                                         __restrict uint32_t &cursor_begin,
+                                         __restrict uint32_t &cursor_end,
+                                         __restrict CharClass &prev_char_class,
                                          __restrict bool &prev_non_whitespace,
                                          uint32_t end,
                                          const CharClass char_class_table[128])
 {
   for (; offset < end; offset += 1) {
     const char c = str_[offset];
-    const CharClass curr = char_class_table[c];
+    const CharClass curr_char_class = char_class_table[c];
+    const TokenType curr_tok = select(
+        c, char(curr_char_class), curr_char_class > CharClass::ClassToTypeThreshold);
     /* It is faster to overwrite the previous value with the same value
      * as having a condition. */
-    types_[cursor] = select(c, char(curr), curr > CharClass::ClassToTypeThreshold);
-    offsets_[cursor] = offset;
+    types_[cursor_begin] = curr_tok;
+    offsets_[cursor_begin] = offset;
     if constexpr (!with_whitespace) {
-      original_offsets_[cursor_no_whitespace] = offset;
+      original_offsets_[cursor_end] = offset;
     }
-    /* Split if no class in common. */
-    const bool emit = (uint8_t(curr) & uint8_t(prev_value) & uint8_t(CharClass::CanMerge)) == 0;
+    /**
+     * Split if no class in common.
+     * Example:
+     * str  : i n t   i 2   =   0 . 0 f ;   i 2 + + ;
+     * emit : 1 0 0 1 1 0 1 1 1 1 1 1 0 1 1 1 0 1 0 1
+     */
+    const bool emit = (uint8_t(curr_char_class) & uint8_t(prev_char_class) &
+                       uint8_t(CharClass::CanMerge)) == 0;
+    prev_char_class = curr_char_class;
 
     if constexpr (with_whitespace) {
 #ifdef LEXIT_DEBUG
@@ -387,53 +396,49 @@ inline void TokenBuffer::tokenize_scalar(__restrict uint32_t &offset,
             str_.data() + offsets_[cursor - 1], original_offsets_[cursor] - offsets_[cursor - 1]);
       }
 #endif
-      cursor += emit;
-      cursor_no_whitespace += emit;
+      cursor_begin += emit;
+      cursor_end += emit;
     }
     else {
-      /* Is current char not whitespace. */
-      const bool curr_not_whitespace = (curr != CharClass::WhiteSpace);
-      /* Emit the current char start if not whitespace. */
-      const bool emit_non_whitespace = emit && curr_not_whitespace;
-      /* Is the current char following. */
-      const bool follow_non_whitespace = emit_non_whitespace && prev_non_whitespace;
-      const bool emit_whitespace = emit && !curr_not_whitespace;
-      const bool emit_orig_offset = emit_whitespace || follow_non_whitespace;
+      /**
+       * These are the emit mask we want to achieve:
+       * str          : i n t   i 2   =   0 . 0 f ;   i 2 + + ;
+       * emit start   : 1 0 0 0 1 0 0 1 0 1 1 1 0 1 0 1 0 1 0 1
+       * emit end     : 0 0 0 1 0 0 1 0 1 0 1 1 0 1 1 0 0 1 0 1
+       */
+      /*              : 1 1 1 0 1 1 0 1 0 1 1 1 1 1 0 1 1 1 1 1  */
+      const bool curr_non_ws = (curr_char_class != CharClass::WhiteSpace);
+      /*              : 0 0 0 1 0 0 1 0 1 0 0 0 0 0 1 0 0 0 0 0  */
+      const bool emit_ws = emit && !curr_non_ws;
+      /*              : 1 0 0 0 1 0 0 1 0 1 1 1 0 1 0 1 0 1 0 1  */
+      const bool emit_start = emit && curr_non_ws;
+      /*              : 0 0 0 0 0 0 0 0 0 0 1 1 0 1 0 0 0 1 0 1  */
+      const bool follow_non_ws = emit_start && prev_non_whitespace;
+      /*              : 0 0 0 1 0 0 1 0 1 0 1 1 0 1 1 0 0 1 0 1  */
+      const bool emit_end = emit_ws || follow_non_ws;
+
+      prev_non_whitespace = curr_non_ws;
 
 #ifdef LEXIT_DEBUG
-      if (emit_non_whitespace) {
+      if (emit_start) {
         token_str_with_whitespace_debug_.emplace_back(str_.data() + offsets_[cursor - 1],
                                                       offsets_[cursor] - offsets_[cursor - 1]);
       }
-      if (emit_orig_offset) {
+      if (emit_end) {
         token_str_debug_.emplace_back(str_.data() + offsets_[cursor - 1],
-                                      original_offsets_[cursor_no_whitespace] -
-                                          offsets_[cursor - 1]);
+                                      original_offsets_[cursor_end] - offsets_[cursor - 1]);
       }
 #endif
-
-      cursor += emit_non_whitespace;
-      cursor_no_whitespace += emit_orig_offset;
-      prev_non_whitespace = curr_not_whitespace;
+      cursor_begin += emit_start;
+      cursor_end += emit_end;
     }
-    prev_value = curr;
   }
 }
 
-template void TokenBuffer::tokenize_scalar<true>(uint32_t &offset,
-                                                 uint32_t &cursor,
-                                                 uint32_t &cursor_no_whitespace,
-                                                 CharClass &prev_value,
-                                                 bool &prev_non_whitespace,
-                                                 uint32_t end,
-                                                 const CharClass char_class_table[128]);
-template void TokenBuffer::tokenize_scalar<false>(uint32_t &offset,
-                                                  uint32_t &cursor,
-                                                  uint32_t &cursor_no_whitespace,
-                                                  CharClass &prev_value,
-                                                  bool &prev_non_whitespace,
-                                                  uint32_t end,
-                                                  const CharClass char_class_table[128]);
+template void TokenBuffer::tokenize_scalar<true>(
+    uint32_t &, uint32_t &, uint32_t &, CharClass &, bool &, uint32_t, const CharClass[128]);
+template void TokenBuffer::tokenize_scalar<false>(
+    uint32_t &, uint32_t &, uint32_t &, CharClass &, bool &, uint32_t, const CharClass[128]);
 
 template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_class_table[128])
 {
@@ -442,6 +447,32 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
     types_[0] = EndOfFile;
     return;
   }
+
+  /**
+   * The goal of this function is to build the offset and type buffers describing the tokens.
+   * The type of the token is decided by the character class of its first character. This is a
+   * simple lookup from the `char_class_table` combined with a `select`. It is then merged with the
+   * preceding character if the classes are compatible (see `CharClass::CanMerge`).
+   *
+   * The offsets define the boundaries of the tokens.
+   * If whitespaces are treated as tokens, one offset is emitted for the begining of each token.
+   *
+   * str:      i n t   a = 0 ;   EndOfFile
+   * emit:     1 0 0 0 1 1 1 1 1 1
+   * offsets:  0       4   6 7 8 9
+   *
+   * If whitespaces are merged with preceding tokens, one offset is emitted for the begining of
+   * each token *and* at either the start of the next token or the start of the next whitespace.
+   *
+   * str:           i n t   a = 0 ;   EndOfFile
+   * emit start:    1 0 0 0 1 1 1 1 0 1
+   * emit end:      1 0 0 1 0 1 1 1 1 1
+   * offsets start: 0       4 5 6 7   9
+   * offsets end:   0     3   5 6 7 8 9
+   *                ^
+   *                Note that in order to match start and end indices, an extra 0 offset is
+   *                prepended to `offsets_end`.
+   */
 
   CharClass prev_value = CharClass::None;
   bool prev_non_whitespace;
@@ -457,14 +488,31 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
 
   uint32_t offset = 1, cursor = 1, cursor_no_whitespace = 1;
 
+  /**
+   * The case when `str` starts with whitespaces needs to be handled a bit differently.
+   *
+   * str:               i n t   a ;   EndOfFile
+   * emit start:    1 0 1 0 0 0 1 1 0 1
+   * emit end:      1 0 0 0 0 1 0 1 1 1
+   * offsets start: 0   2       6 7   9
+   * offsets end:   0 0       5   7 8 9
+   *                  ^
+   *                Note that in order to match start and end indices, an extra 0 offset is
+   *                prepended to `offsets_end`.
+   */
+  if (!with_whitespace && !prev_non_whitespace) {
+    original_offsets_[1] = 0;
+    cursor_no_whitespace++;
+  }
+
   /* Process until alignment to SIMD size is met. */
-  size_t bytes_to_align = (16 - (uintptr_t(str_.data() + 1) & 15)) & 15;
+  size_t index_at_align = ((16 - (uintptr_t(str_.data() + 1) & 15)) & 15) + 1;
   tokenize_scalar<with_whitespace>(offset,
                                    cursor,
                                    cursor_no_whitespace,
                                    prev_value,
                                    prev_non_whitespace,
-                                   str_.size() > bytes_to_align ? bytes_to_align : str_.size(),
+                                   str_.size() > index_at_align ? index_at_align : str_.size(),
                                    char_class_table);
 
 #if defined(USE_NEON) || defined(USE_SSE4_2)
@@ -535,8 +583,8 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
   whitespaces_collapsed_ = !with_whitespace;
 }
 
-template void TokenBuffer::tokenize<true>(const CharClass char_class_table[128]);
-template void TokenBuffer::tokenize<false>(const CharClass char_class_table[128]);
+template void TokenBuffer::tokenize<true>(const CharClass[128]);
+template void TokenBuffer::tokenize<false>(const CharClass[128]);
 
 static void lex_string(const TokenType *types, uint32_t &cursor)
 {

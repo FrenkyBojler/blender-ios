@@ -289,11 +289,11 @@ struct TokenBuffer {
 
  private:
   template<bool with_whitespace>
-  inline void tokenize_scalar(uint32_t &offset,
-                              uint32_t &cursor,
-                              uint32_t &cursor_no_whitespace,
-                              CharClass &prev_value,
-                              bool &prev_non_whitespace,
+  inline void tokenize_scalar(__restrict uint32_t &offset,
+                              __restrict uint32_t &cursor_begin,
+                              __restrict uint32_t &cursor_end,
+                              __restrict CharClass &prev_char_class,
+                              __restrict bool &prev_non_whitespace,
                               uint32_t end,
                               const CharClass char_class_table[128]);
 };
