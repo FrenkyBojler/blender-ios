@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <map>
+#include <numbers>
 
 #include "DNA_pointcloud_types.h"
 
@@ -30,7 +31,7 @@ namespace blender::nodes::node_geo_curve_intersection_cc {
 /* Epsilon values for curve intersections and bvh tree. */
 constexpr float curve_isect_eps = 0.001f;
 constexpr float curve_dot_eps = 0.000000001f;
-constexpr float pi_2_f = math::numbers::pi * 0.5f;
+constexpr float pi_2_f = std::numbers::pi * 0.5f;
 constexpr float pi_2_f_eps = pi_2_f - 0.0001f;
 
 enum class PairData {
