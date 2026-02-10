@@ -55,6 +55,7 @@
 #include "ANIM_action.hh"
 #include "ANIM_action_legacy.hh"
 #include "ANIM_evaluation.hh"
+#include "ANIM_rna.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -652,6 +653,39 @@ static void animsys_blend_fcurves_quaternion(PathResolvedRNA *anim_rna,
   RNA_property_float_set_array(&anim_rna->ptr, anim_rna->prop, blended_quat);
 }
 
+static float get_fcurve_blend_value(FCurve &fcu,
+                                    PathResolvedRNA &anim_rna,
+                                    const AnimationEvalContext *anim_eval_context,
+                                    const float blend_factor)
+{
+  const float fcurve_value = calculate_fcurve(&anim_rna, &fcu, anim_eval_context);
+
+  float current_value;
+  float value_to_write;
+  if (!BKE_animsys_read_from_rna_path(&anim_rna, &current_value)) {
+    /* Unable to read the current value for blending, so just apply the FCurve value instead. */
+    return fcurve_value;
+  }
+
+  value_to_write = (1 - blend_factor) * current_value + blend_factor * fcurve_value;
+
+  switch (RNA_property_type(anim_rna.prop)) {
+    case PROP_BOOLEAN: /* Without this, anything less than 1.0 is converted to 'False' by
+                        * ANIMSYS_FLOAT_AS_BOOL(). This is probably not desirable for blends,
+                        * where anything
+                        * above a 50% blend should act more like the FCurve than like the
+                        * current value. */
+    case PROP_INT:
+    case PROP_ENUM:
+      value_to_write = roundf(value_to_write);
+      break;
+      /* All other types are just handled as float, and value_to_write is already correct. */
+    default:
+      break;
+  }
+  return value_to_write;
+}
+
 /* LERP between current value (blend_factor=0.0) and the value from the FCurve (blend_factor=1.0)
  */
 static void animsys_blend_in_fcurves(PointerRNA *ptr,
@@ -659,23 +693,59 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
                                      const AnimationEvalContext *anim_eval_context,
                                      const float blend_factor)
 {
-  char *channel_to_skip = nullptr;
-  int num_channels_to_skip = 0;
-  for (int fcurve_index : fcurves.index_range()) {
-    FCurve *fcu = fcurves[fcurve_index];
+  /* Rotations are a special case since the rotation mode of the pose may not match with the
+   * current rotation mode of the bone. Also quaternions should be blended together. */
+  Map<StringRefNull, Vector<FCurve *>> rotation_fcurve_map;
+  for (FCurve *fcurve : fcurves) {
+    StringRefNull rna_path(fcurve->rna_path);
 
-    if (num_channels_to_skip) {
-      /* For skipping already-handled rotation channels. Rotation channels are handled per group,
-       * and not per individual channel. */
-      BLI_assert(channel_to_skip != nullptr);
-      if (STREQ(channel_to_skip, fcu->rna_path)) {
-        /* This is indeed the channel we want to skip. */
-        num_channels_to_skip--;
-        continue;
-      }
+    if (!is_fcurve_evaluatable(fcurve)) {
+      continue;
     }
 
+    if (!animrig::is_rotation_path(rna_path)) {
+      continue;
+    }
+
+    Vector<FCurve *> &rotation_fcurves = rotation_fcurve_map.lookup_or_add_default(rna_path);
+    rotation_fcurves.append(fcurve);
+  }
+
+  /* Apply rotation FCurves. */
+  for (const auto &[rna_path, rotation_fcurves] : rotation_fcurve_map.items()) {
+    if (rna_path.endswith("rotation_quaternion")) {
+      PathResolvedRNA anim_rna;
+      /* The function `animsys_blend_fcurves_quaternion` deals with the array index of the
+       * PathResolvedRNA. This is why we can just use the array_index of the first FCurve. */
+      if (!BKE_animsys_rna_path_resolve(
+              ptr, rna_path.data(), rotation_fcurves[0]->array_index, &anim_rna))
+      {
+        continue;
+      }
+      animsys_blend_fcurves_quaternion(
+          &anim_rna, rotation_fcurves, anim_eval_context, blend_factor);
+    }
+    else {
+      for (FCurve *fcurve : rotation_fcurves) {
+        PathResolvedRNA anim_rna;
+        if (!BKE_animsys_rna_path_resolve(ptr, fcurve->rna_path, fcurve->array_index, &anim_rna)) {
+          continue;
+        }
+
+        const float value_to_write = get_fcurve_blend_value(
+            *fcurve, anim_rna, anim_eval_context, blend_factor);
+        BKE_animsys_write_to_rna_path(&anim_rna, value_to_write);
+      }
+    }
+  }
+
+  /* Apply all FCurves that are *not* rotation related. */
+  for (FCurve *fcu : fcurves) {
     if (!is_fcurve_evaluatable(fcu)) {
+      continue;
+    }
+
+    if (rotation_fcurve_map.contains(StringRefNull(fcu->rna_path))) {
       continue;
     }
 
@@ -684,55 +754,10 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
       continue;
     }
 
-    if (STREQ(RNA_property_identifier(anim_rna.prop), "rotation_quaternion")) {
-      /* Construct a list of quaternion F-Curves so they can be treated as one unit. */
-      Vector<FCurve *> quat_fcurves = {fcu};
-      for (FCurve *quat_fcurve : fcurves.slice_safe(fcurve_index + 1, 3)) {
-        if (STREQ(quat_fcurve->rna_path, fcu->rna_path)) {
-          quat_fcurves.append(quat_fcurve);
-        }
-      }
-      animsys_blend_fcurves_quaternion(&anim_rna, quat_fcurves, anim_eval_context, blend_factor);
-
-      /* Skip the next up-to-three channels, because those have already been handled here. */
-      MEM_SAFE_DELETE(channel_to_skip);
-      channel_to_skip = BLI_strdup(fcu->rna_path);
-      num_channels_to_skip = quat_fcurves.size() - 1;
-      continue;
-    }
-    /* TODO(Sybren): do something similar as above for Euler and Axis/Angle representations. */
-
-    const float fcurve_value = calculate_fcurve(&anim_rna, fcu, anim_eval_context);
-
-    float current_value;
-    float value_to_write;
-    if (BKE_animsys_read_from_rna_path(&anim_rna, &current_value)) {
-      value_to_write = (1 - blend_factor) * current_value + blend_factor * fcurve_value;
-
-      switch (RNA_property_type(anim_rna.prop)) {
-        case PROP_BOOLEAN: /* Without this, anything less than 1.0 is converted to 'False' by
-                            * ANIMSYS_FLOAT_AS_BOOL(). This is probably not desirable for blends,
-                            * where anything
-                            * above a 50% blend should act more like the FCurve than like the
-                            * current value. */
-        case PROP_INT:
-        case PROP_ENUM:
-          value_to_write = roundf(value_to_write);
-          break;
-          /* All other types are just handled as float, and value_to_write is already correct. */
-        default:
-          break;
-      }
-    }
-    else {
-      /* Unable to read the current value for blending, so just apply the FCurve value instead. */
-      value_to_write = fcurve_value;
-    }
-
+    const float value_to_write = get_fcurve_blend_value(
+        *fcu, anim_rna, anim_eval_context, blend_factor);
     BKE_animsys_write_to_rna_path(&anim_rna, value_to_write);
   }
-
-  MEM_SAFE_DELETE(channel_to_skip);
 }
 
 /* ***************************************** */

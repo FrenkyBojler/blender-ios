@@ -28,6 +28,9 @@ Vector<float> get_rna_values(PointerRNA *ptr, PropertyRNA *prop);
 /** Get the rna path for the given rotation mode. */
 StringRef get_rotation_mode_path(eRotationModes rotation_mode);
 
+/** Returns true if the given rna path is for a rotation property. */
+bool is_rotation_path(const StringRefNull rna_path);
+
 /**
  * Returns a Vector of ID properties on the given pointer that can be animated. Not all pointer
  * types are supported. Unsupported pointer types will return an empty vector.

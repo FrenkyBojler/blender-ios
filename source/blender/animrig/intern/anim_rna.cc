@@ -91,6 +91,12 @@ StringRef get_rotation_mode_path(const eRotationModes rotation_mode)
   }
 }
 
+bool is_rotation_path(const StringRefNull rna_path)
+{
+  return rna_path.endswith("rotation_quaternion") || rna_path.endswith("rotation_euler") ||
+         rna_path.endswith("rotation_axis_angle");
+}
+
 static bool is_idproperty_keyable(const IDProperty *id_prop, PointerRNA *ptr, PropertyRNA *prop)
 {
   /* While you can cast the IDProperty* to a PropertyRNA* and pass it to the RNA_* functions, this
