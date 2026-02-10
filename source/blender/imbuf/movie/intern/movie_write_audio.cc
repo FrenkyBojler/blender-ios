@@ -9,8 +9,10 @@
 #ifdef _MSC_VER
 /* This needs to be included first to prevent ffmpegs headers adding defines for various math
  * constants leading to duplicate definitions. */
-#  define _USE_MATH_DEFINES
-#  include <cmath>
+#  ifndef _USE_MATH_DEFINES
+#    define _USE_MATH_DEFINES
+#    include <cmath>
+#  endif
 #endif
 
 #include "movie_util.hh"

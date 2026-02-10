@@ -9,7 +9,9 @@
  */
 
 #ifdef _MSC_VER
-#  define _USE_MATH_DEFINES
+#  ifndef _USE_MATH_DEFINES
+#    define _USE_MATH_DEFINES
+#  endif
 #endif
 
 #include <fmt/format.h>
