@@ -510,7 +510,8 @@ void VIEW3D_GGT_camera_view(wmGizmoGroupType *gzgt)
   gzgt->name = "Camera View Widgets";
   gzgt->idname = "VIEW3D_GGT_camera_view";
 
-  gzgt->flag = (WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_SCALE);
+  // todo(habib): verify in viewport
+  gzgt->flag = (WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_SCALE | WM_GIZMOGROUPTYPE_TOOLS);
 
   gzgt->poll = WIDGETGROUP_camera_view_poll;
   gzgt->setup = WIDGETGROUP_camera_view_setup;
