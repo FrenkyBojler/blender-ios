@@ -407,6 +407,7 @@ void BKE_camera_params_from_object(CameraParams *params, const Object *cam_ob)
   /* Ensure it's possible to compute a valid projection matrix. */
   params->lens = math::max(params->lens, 1e-9f);
   params->ortho_scale = math::max(params->ortho_scale, 1e-9f);
+  params->clip_end = math::max(params->clip_end, params->clip_start + 1e-3f);
 }
 
 void BKE_camera_params_from_view3d(CameraParams *params,
@@ -455,6 +456,7 @@ void BKE_camera_params_from_view3d(CameraParams *params,
   /* Ensure it's possible to compute a valid projection matrix. */
   params->lens = math::max(params->lens, 1e-9f);
   params->ortho_scale = math::max(params->ortho_scale, 1e-9f);
+  params->clip_end = math::max(params->clip_end, params->clip_start + 1e-3f);
 }
 
 void BKE_camera_params_compute_viewplane(
