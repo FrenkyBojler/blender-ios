@@ -319,7 +319,7 @@ static void transfer_active_uv_map_string(Mesh *mesh_dst, const Mesh *mesh_src)
   if (!mesh_dst->active_uv_map_name().is_empty()) {
     return;
   }
-  const StringRef name = mesh_src->active_uv_map_attribute;
+  const StringRef name = mesh_src->active_uv_map_name();
   const bke::AttributeAccessor attributes_src = mesh_src->attributes();
   const bke::AttributeAccessor attributes_dst = mesh_dst->attributes();
 
@@ -349,7 +349,7 @@ static void transfer_default_uv_map_string(Mesh *mesh_dst, const Mesh *mesh_src)
     return;
   }
 
-  const StringRef name = mesh_src->default_uv_map_attribute;
+  const StringRef name = mesh_src->default_uv_map_name();
   const bke::AttributeAccessor attributes_src = mesh_src->attributes();
   const bke::AttributeAccessor attributes_dst = mesh_dst->attributes();
 
