@@ -1175,19 +1175,57 @@ static bool gpencil_any_exists(Depsgraph *depsgraph)
 /** \name Callbacks
  * \{ */
 
+static void drw_callbacks_xr(DRWContext &draw_ctx, const int cb_type)
+{
+  /* XR-specific callbacks (controllers and custom draw functions). */
+  const View3D *v3d = draw_ctx.v3d;
+
+  if ((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) {
+    ARegionType *art = WM_xr_surface_controller_region_type_get();
+    if (art) {
+      ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, cb_type);
+    }
+  }
+  if ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
+    SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
+    if (st) {
+      ARegionType *art = BKE_regiontype_from_id(st, RGN_TYPE_XR);
+      if (art) {
+        ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, cb_type);
+      }
+    }
+  }
+}
+
 static void drw_callbacks_pre_scene(DRWContext &draw_ctx)
 {
-  RegionView3D *rv3d = draw_ctx.rv3d;
+  if (draw_ctx.evil_C == nullptr) {
+    return;
+  }
+
+  const RegionView3D *rv3d = draw_ctx.rv3d;
 
   GPU_matrix_projection_set(rv3d->winmat);
   GPU_matrix_set(rv3d->viewmat);
 
-  if (draw_ctx.evil_C && draw_ctx.mode != DRWContext::VIEWPORT_XR) {
-    draw::command::StateSet::set();
-    DRW_submission_start();
-    ED_region_draw_cb_draw(draw_ctx.evil_C, draw_ctx.region, REGION_DRAW_PRE_VIEW);
-    DRW_submission_end();
+  draw::command::StateSet::set();
+  DRW_submission_start();
+
+  if (draw_ctx.mode == DRWContext::VIEWPORT_XR) {
+    /* XR surface pre-view callbacks. */
+    drw_callbacks_xr(draw_ctx, REGION_DRAW_PRE_VIEW);
   }
+  else {
+    /* Regular View3D region pre-view callbacks. */
+    ED_region_draw_cb_draw(draw_ctx.evil_C, draw_ctx.region, REGION_DRAW_PRE_VIEW);
+
+    /* View3D XR session mirror pre-view callbacks. */
+    if ((draw_ctx.v3d->flag & V3D_XR_SESSION_MIRROR) != 0) {
+      drw_callbacks_xr(draw_ctx, REGION_DRAW_PRE_VIEW);
+    }
+  }
+
+  DRW_submission_end();
 
   /* State is reset later at the beginning of `draw_ctx.engines_draw_scene()`. */
 }
@@ -1223,25 +1261,10 @@ static void drw_callbacks_post_scene_view3d(DRWContext &draw_ctx)
 
   ED_region_draw_cb_draw(draw_ctx.evil_C, draw_ctx.region, REGION_DRAW_POST_VIEW);
 
-  /* Desktop window View3D XR session mirror view. */
+  /* View3D XR mirror view. */
 #ifdef WITH_XR_OPENXR
-  /* XR callbacks (controllers, custom draw functions) for session mirror. */
   if ((v3d->flag & V3D_XR_SESSION_MIRROR) != 0) {
-    if ((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) {
-      ARegionType *art = WM_xr_surface_controller_region_type_get();
-      if (art) {
-        ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
-      }
-    }
-    if ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
-      SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
-      if (st) {
-        ARegionType *art = BKE_regiontype_from_id(st, RGN_TYPE_XR);
-        if (art) {
-          ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
-        }
-      }
-    }
+    drw_callbacks_xr(draw_ctx, REGION_DRAW_POST_VIEW);
   }
 #endif
 
@@ -1299,28 +1322,13 @@ static void drw_callbacks_post_scene_xr_surface(DRWContext &draw_ctx)
   GPU_matrix_projection_set(rv3d->winmat);
   GPU_matrix_set(rv3d->viewmat);
 
-  /* XR callbacks (controllers, custom draw functions) for the session surface. */
   if (((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) ||
       ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0))
   {
     GPU_depth_test(GPU_DEPTH_NONE);
     GPU_apply_state();
 
-    if ((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) {
-      ARegionType *art = WM_xr_surface_controller_region_type_get();
-      if (art) {
-        ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
-      }
-    }
-    if ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
-      SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
-      if (st) {
-        ARegionType *art = BKE_regiontype_from_id(st, RGN_TYPE_XR);
-        if (art) {
-          ED_region_surface_draw_cb_draw(draw_ctx.evil_C, art, REGION_DRAW_POST_VIEW);
-        }
-      }
-    }
+    drw_callbacks_xr(draw_ctx, REGION_DRAW_POST_VIEW);
 
     draw::command::StateSet::set();
   }
@@ -1330,13 +1338,19 @@ static void drw_callbacks_post_scene_xr_surface(DRWContext &draw_ctx)
 
 static void drw_callbacks_post_scene(DRWContext &draw_ctx)
 {
+  if (draw_ctx.evil_C == nullptr) {
+    return;
+  }
+
   /* State has been reset at the end `draw_ctx.engines_draw_scene()`. */
   DRW_submission_start();
 
   if (draw_ctx.mode == DRWContext::VIEWPORT_XR) {
+    /* XR surface post-view callbacks. */
     drw_callbacks_post_scene_xr_surface(draw_ctx);
   }
   else {
+    /* Regular View3D post-view callbacks. */
     drw_callbacks_post_scene_view3d(draw_ctx);
   }
 
