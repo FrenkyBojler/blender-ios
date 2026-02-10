@@ -2,7 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_color.hh"
+#include "BLI_color_mix.hh"
 #include "BLI_math_color.hh"
+
+#include "DNA_brush_types.h"
 
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
@@ -37,6 +41,8 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
   const Brush &brush = *BKE_paint_brush(&paint);
   const bool invert = this->is_inverted(brush);
 
+  const IMB_BlendMode blend = IMB_BlendMode(brush.blend);
+
   const bool use_selection_masking = ED_grease_pencil_any_vertex_mask_selection(
       scene.toolsettings);
 
@@ -45,7 +51,7 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
 
   float color_linear[3];
   copy_v3_v3(color_linear, BKE_brush_color_get(&paint, &brush));
-  const ColorGeometry4f mix_color(color_linear[0], color_linear[1], color_linear[2], 1.0f);
+  const ColorPaint4f mix_color(color_linear[0], color_linear[1], color_linear[2], 1.0f);
 
   this->foreach_editable_drawing(C, GrainSize(1), [&](const GreasePencilStrokeParams &params) {
     IndexMaskMemory memory;
@@ -67,13 +73,20 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
         });
       }
       else {
-        /* Mix brush color into vertex colors by influence using alpha over. */
+        /* Mix brush color into vertex colors by influence. */
         point_selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
           const float influence = brush_point_influence(
               paint, brush, view_positions[point_i], extension_sample, params.multi_frame_falloff);
 
           ColorGeometry4f &color = vertex_colors[point_i];
-          color = math::interpolate(color, mix_color, influence);
+
+          using Color = ColorPaint4f;
+          using Traits = color::Traits<Color>;
+
+          const Color linearrgb_color = color::unpremultiply_alpha(color);
+
+          color = color::premultiply_alpha(color::BLI_mix_colors<Color, Traits>(
+              blend, linearrgb_color, mix_color, Traits::range * influence));
         });
       }
     }
@@ -105,7 +118,14 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
               paint, brush, curve_view_positions, extension_sample, params.multi_frame_falloff);
 
           ColorGeometry4f &color = fill_colors[curve_i];
-          color = math::interpolate(color, mix_color, influence);
+
+          using Color = ColorPaint4f;
+          using Traits = color::Traits<Color>;
+
+          const Color linearrgb_color = color::unpremultiply_alpha(color);
+
+          color = color::premultiply_alpha(color::BLI_mix_colors<Color, Traits>(
+              blend, linearrgb_color, mix_color, Traits::range * influence));
         });
       }
     }
