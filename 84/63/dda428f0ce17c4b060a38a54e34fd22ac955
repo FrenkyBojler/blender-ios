@@ -1,1 +1,2 @@
 Referenced by issue #152969, Compositor colour correction node has changed under specific situations
+Referenced by issue #151972, Vulkan + Vega: Mesh causes hang and crash, likely related to texture loading.
