@@ -83,8 +83,8 @@ bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
 
   const OffsetIndices dimensions_by_attribute = offset_indices::accumulate_counts_to_offsets(
       num_dimensions_per_attribute.as_mutable_span());
-  const int total_dimensions = dimensions_by_attribute.total_size();
-  Array<float> attribute_data(total_dimensions * src_curves.points_num());
+  const int stride = dimensions_by_attribute.total_size();
+  Array<float> attribute_data(stride * src_curves.points_num());
 
   /**
    * The curve fitting library expects the data to be in a flat array where all the values for each
@@ -106,7 +106,7 @@ bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
                                    dimensions.size());
           for (const int dim_i : dimensions.index_range()) {
             const int dim = dimensions[dim_i];
-            const int index = point_i * total_dimensions + dim;
+            const int index = point_i * stride + dim;
             attribute_data[index] = values[dim_i];
           }
         }
@@ -147,7 +147,7 @@ bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
       return;
     }
     const Span<float> curve_attribute_data = attribute_data.as_span().slice(
-        points.start() * total_dimensions, points.size() * total_dimensions);
+        points.start() * stride, points.size() * stride);
     const bool is_cyclic = src_cyclic[curve_i];
     const float epsilon = thresholds[curve_i];
 
@@ -171,7 +171,7 @@ bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
     if (method == FitMethod::Split) {
       error = curve_fit_cubic_to_points_fl(curve_attribute_data.data(),
                                            points.size(),
-                                           total_dimensions,
+                                           stride,
                                            epsilon,
                                            flag,
                                            src_corners_ptr,
@@ -185,7 +185,7 @@ bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
     else if (method == FitMethod::Refit) {
       error = curve_fit_cubic_to_points_refit_fl(curve_attribute_data.data(),
                                                  points.size(),
-                                                 total_dimensions,
+                                                 stride,
                                                  epsilon,
                                                  flag,
                                                  src_corners_ptr,
@@ -215,7 +215,7 @@ bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
     dst_curve_types[curve_i] = CURVE_TYPE_BEZIER;
 
     cubic_array_per_curve[pos] = MutableSpan<float>(reinterpret_cast<float *>(cubic_array),
-                                                    dst_points_num * 3 * total_dimensions);
+                                                    dst_points_num * 3 * stride);
     corner_indices_per_curve[pos] = MutableSpan<int>(reinterpret_cast<int *>(corner_index_array),
                                                      corner_index_array_size);
     original_indices_per_curve[pos] = MutableSpan<int>(reinterpret_cast<int *>(orig_index_map),
@@ -304,15 +304,15 @@ bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
     /* Only extract the position attribute from the cubic array. Discard the other attribute
      * dimensions. */
     const Span<float> cubic_array = cubic_array_per_curve[pos];
-    BLI_assert(dst_points.size() * 3 * total_dimensions == cubic_array.size());
+    BLI_assert(dst_points.size() * 3 * stride == cubic_array.size());
     MutableSpan<float3> left_handles = dst_handles_left.slice(dst_points);
     MutableSpan<float3> right_handles = dst_handles_right.slice(dst_points);
     threading::parallel_for(dst_points.index_range(), 8192, [&](const IndexRange range) {
       for (const int i : range) {
         const int index = i * 3;
-        positions[i] = &cubic_array[(index + 1) * total_dimensions];
-        left_handles[i] = &cubic_array[index * total_dimensions];
-        right_handles[i] = &cubic_array[(index + 2) * total_dimensions];
+        positions[i] = &cubic_array[(index + 1) * stride];
+        left_handles[i] = &cubic_array[index * stride];
+        right_handles[i] = &cubic_array[(index + 2) * stride];
       }
     });
 
