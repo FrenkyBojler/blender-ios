@@ -6,7 +6,6 @@
  * \ingroup edcurves
  */
 
-#include "BKE_global.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_listbase.h"
@@ -31,7 +30,9 @@
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_global.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_idprop_hash.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -174,7 +175,7 @@ void OperatorTypeData::ensure_hash()
         }
       },
       this->group_ref);
-  // TODO: Hash all of IDProperty junk
+  bke::idprop::hash(*this->asset_meta_data_properties, hash_state);
   static_assert(sizeof(this->hash) == sizeof(XXH128_hash_t));
   const XXH128_hash_t xxh3_hash = XXH3_128bits_digest(hash_state);
   this->hash[0] = xxh3_hash.low64;
