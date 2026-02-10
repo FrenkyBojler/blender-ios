@@ -1,3 +1,4 @@
 Referenced by issue #146244, Severe bug: Blender freezes on cancelling a Terminal invoked animation render.
 Referenced by issue #146642, Warnings about freeing memory after the leak detecter has run when cancelling a CLI render
 Referenced by pull request #154173, Fix #146642: Memory leak warnings when killing render with Ctrl + C
+Referenced by commit 05e2f09fa77304f67b46d954a2c93431d163859a, Fix #146642: Memory leak warnings when killing render with Ctrl + C
