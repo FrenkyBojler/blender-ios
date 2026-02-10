@@ -76,6 +76,10 @@ void Camera::init()
   float overscan = 0.0f;
   if ((inst_.scene->eevee.flag & SCE_EEVEE_OVERSCAN) && (inst_.drw_view || inst_.render)) {
     overscan = inst_.scene->eevee.overscan / 100.0f;
+    if (inst_.is_xr()) {
+      /* In XR we need to use the v3d winmat as-is. */
+      overscan = 0.0f;
+    }
   }
   overscan_changed_ = assign_if_different(overscan_, overscan);
   camera_changed_ = assign_if_different(last_camera_object_, inst_.camera_orig_object);
@@ -133,21 +137,28 @@ void Camera::sync()
     data.viewmat = inst_.drw_view->viewmat();
     data.viewinv = inst_.drw_view->viewinv();
 
-    CameraParams params = v3d_camera_params_get();
+    if (inst_.is_xr()) {
+      /* In XR we need to use the v3d winmat as-is. */
+      data.winmat = inst_.drw_view->winmat();
+      data.wininv = inst_.drw_view->wininv();
+    }
+    else {
+      CameraParams params = v3d_camera_params_get();
 
-    BKE_camera_params_compute_viewplane(&params, UNPACK2(display_extent), 1.0f, 1.0f);
+      BKE_camera_params_compute_viewplane(&params, UNPACK2(display_extent), 1.0f, 1.0f);
 
-    BLI_assert(BLI_rctf_size_x(&params.viewplane) > 0.0f);
-    BLI_assert(BLI_rctf_size_y(&params.viewplane) > 0.0f);
+      BLI_assert(BLI_rctf_size_x(&params.viewplane) > 0.0f);
+      BLI_assert(BLI_rctf_size_y(&params.viewplane) > 0.0f);
 
-    BKE_camera_params_crop_viewplane(&params.viewplane, UNPACK2(display_extent), &film_rect);
+      BKE_camera_params_crop_viewplane(&params.viewplane, UNPACK2(display_extent), &film_rect);
 
-    RE_GetWindowMatrixWithOverscan(params.is_ortho,
-                                   params.clip_start,
-                                   params.clip_end,
-                                   params.viewplane,
-                                   overscan_,
-                                   data.winmat.ptr());
+      RE_GetWindowMatrixWithOverscan(params.is_ortho,
+                                     params.clip_start,
+                                     params.clip_end,
+                                     params.viewplane,
+                                     overscan_,
+                                     data.winmat.ptr());
+    }
   }
   else if (inst_.render) {
     const Render *re = inst_.render->re;
