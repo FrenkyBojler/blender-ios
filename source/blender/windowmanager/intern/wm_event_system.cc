@@ -882,10 +882,6 @@ static eHandlerActionFlag wm_handler_ui_call(bContext *C,
                                              const wmEvent *event,
                                              const bool always_pass)
 {
-  if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-    printf("\n>>> wm_handler_ui_call() ENTERED\n");
-  }
-
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
   ARegion *region_popup = CTX_wm_region_popup(C);
@@ -941,12 +937,6 @@ static eHandlerActionFlag wm_handler_ui_call(bContext *C,
       const eWM_GizmoFlagMapDrawStep step = WM_gizmomap_drawstep_from_gizmo_group(
           gz->parent_gzgroup);
       if (step == WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS) {
-        if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-          printf("found view control gizmo\n");
-        }
-        CTX_wm_area_set(C, area);
-        CTX_wm_region_set(C, region);
-        CTX_wm_region_popup_set(C, region_popup);
         return WM_HANDLER_CONTINUE;
       }
     }
@@ -3357,9 +3347,6 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
       const eWM_GizmoFlagMapDrawStep step = WM_gizmomap_drawstep_from_gizmo_group(
           gz_test->parent_gzgroup);
       is_view_controls_gizmo = (step == WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS);
-    }
-    if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-      printf("found view control gizmo\n");
     }
   }
 
