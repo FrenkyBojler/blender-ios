@@ -14,9 +14,10 @@
 
 #include "DNA_userdef_types.h"
 
-#include "BLI_linklist.hh"
-#include "BLI_listbase.hh"
-#include "BLI_math_vector_c.hh"
+#include "BLI_linklist.h"
+#include "BLI_listbase.h"
+#include "BLI_rect.h"
+#include "BLI_math_vector.h"
 #include "BLI_rand.hh"
 #include "BLI_string.hh"
 #include "BLI_string_utf8.hh"
@@ -42,6 +43,8 @@
 #include "ED_space_api.hh"
 #include "ED_time_scrub_ui.hh"
 #include "ED_userpref.hh"
+#include "ED_view3d.hh"
+#include "ED_view3d_offscreen.hh"
 
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
@@ -49,6 +52,7 @@
 #include "GPU_matrix.hh"
 #include "GPU_platform.hh"
 #include "GPU_state.hh"
+#include "GPU_texture.hh"
 
 #include "BLF_api.hh"
 
@@ -4503,6 +4507,144 @@ bool ED_region_snap_size_apply(ARegion *region, int snap_flag)
     }
   }
   return changed;
+}
+
+void ED_region_panels_draw_offscreen(const bContext *C,
+                                                 ARegion *region,
+                                                 const rcti *panel_rect,
+                                                 GPUOffScreen *offscreen)
+{ 
+  GPU_offscreen_bind(offscreen, false);
+  gpu::FrameBuffer *framebuffer;
+  gpu::Texture *color_texture;
+  gpu::Texture *depth_texture;
+  GPU_offscreen_viewport_data_get(offscreen, &framebuffer, &color_texture, &depth_texture);
+  GPU_framebuffer_viewport_reset(framebuffer);
+  GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
+  GPU_scissor_test(true);
+  GPU_scissor(panel_rect->xmin, panel_rect->ymin, BLI_rcti_size_x(panel_rect) + 1, BLI_rcti_size_y(panel_rect) + 1);
+  
+  /* ED_region_panels_draw() may alter the existing matrix state. */
+  /* To prevent this we push all matrices to ensure state is preserved. */
+  GPU_matrix_push_projection();
+  GPU_matrix_push();
+  ED_region_panels_draw(C, region);
+  GPU_matrix_pop();
+  GPU_matrix_pop_projection();
+  
+  /* Restore previous framebuffer. */
+  GPU_scissor_test(false);
+  GPU_offscreen_unbind(offscreen, false);
+  GPU_texture_mipmap_mode(color_texture, false, false);
+}
+
+static void ED_region_panels_draw_to_world_quad(const RegionView3D *rv3d,
+                                            const float obmat[4][4],
+                                            const rcti *panel_rect,
+                                            GPUOffScreen *offscreen)
+{ 
+  GPU_color_mask(true, true, true, true);
+  GPU_blend(GPU_BLEND_ALPHA);
+  GPU_face_culling(GPU_CULL_NONE);
+  GPU_depth_test(GPU_DEPTH_NONE);
+  GPU_depth_mask(false);
+
+  gpu::FrameBuffer *framebuffer;
+  gpu::Texture *color_texture;
+  gpu::Texture *depth_texture;
+  GPU_offscreen_viewport_data_get(offscreen, &framebuffer, &color_texture, &depth_texture);
+
+  const int px_width = BLI_rcti_size_x(panel_rect) + 1;
+  const int px_height = BLI_rcti_size_y(panel_rect) + 1;
+  
+  GPU_matrix_push_projection();
+  GPU_matrix_projection_set(rv3d->winmat);
+  GPU_matrix_push();
+  GPU_matrix_set(rv3d->viewmat);
+  GPU_matrix_mul(obmat);
+
+  float q0[3] = {0.0f, 0.0f, 0.0f};
+  float q1[3] = {float(px_width), 0.0f, 0.0f};
+  float q2[3] = {float(px_width), float(px_height), 0.0f};
+  float q3[3] = {0.0f, float(px_height), 0.0f};
+
+  GPUVertFormat *fmt = immVertexFormat();
+  uint a_pos = GPU_vertformat_attr_add(fmt, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+  uint a_uv = GPU_vertformat_attr_add(fmt, "texCoord", gpu::VertAttrType::SFLOAT_32_32);
+  
+  immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
+  immBindTexture("image", color_texture);
+  immUniformColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+  
+  immBegin(GPU_PRIM_TRI_FAN, 4);
+  immAttr2f(a_uv, 0.0f, 0.0f);
+  immVertex3fv(a_pos, q0);
+  immAttr2f(a_uv, 1.0f, 0.0f);
+  immVertex3fv(a_pos, q1);
+  immAttr2f(a_uv, 1.0f, 1.0f);
+  immVertex3fv(a_pos, q2);
+  immAttr2f(a_uv, 0.0f, 1.0f);
+  immVertex3fv(a_pos, q3);
+  immEnd();
+  
+  immUnbindProgram();
+  GPU_matrix_pop();
+  GPU_matrix_pop_projection();
+}
+
+void ED_region_panels_draw_world_space(bContext *C,
+                                       ARegion *region,
+                                       RegionView3D *rv3d,
+                                       const float obmat[4][4])
+{
+  if (!C || !region || !rv3d) {
+    BLI_assert_msg(false, "ED_region_panels_draw_world_space requires a valid context and regions");
+    return;
+  }
+
+  /* Temporarily switch the context to the UI region. */
+  ARegion *prev_region = CTX_wm_region(C);
+  CTX_wm_region_set(C, region);
+
+  /* Force alignment to float */
+  short prev_alignment = region->alignment;
+  region->alignment = RGN_ALIGN_FLOAT;
+  ED_region_panels_layout(C, region);
+
+  rcti panel_rect = region->winrct;
+  ui::view2d_mask_from_win(&region->v2d, &panel_rect);
+
+  /* Stash current GPU state in case they are changed. */
+  GPUBlend prev_blend = GPU_blend_get();
+  GPUDepthTest prev_depth = GPU_depth_test_get();
+  bool prev_depth_mask = GPU_depth_mask_get();
+  GPUWriteMask prev_write = GPU_write_mask_get();
+
+  /* Generate offscreen framebuffer to draw to. */
+  gpu::FrameBuffer *current_framebuffer = GPU_framebuffer_active_get();
+  GPUOffScreen* offscreen = GPU_offscreen_create(
+      panel_rect.xmax + 1, panel_rect.ymax + 1, false, gpu::TextureFormat::UNORM_8_8_8_8, GPU_TEXTURE_USAGE_SHADER_READ, false, nullptr
+  );
+
+  if (offscreen) {
+    /* Pass 1: Draw panels to offscreen framebuffer. */
+    ED_region_panels_draw_offscreen(C, region, &panel_rect, offscreen);
+    GPU_framebuffer_bind(current_framebuffer);
+
+    /* Pass 2: Draw offscreen framebuffer to world quad. */
+    ED_region_panels_draw_to_world_quad(rv3d, obmat, &panel_rect, offscreen);
+    GPU_offscreen_free(offscreen);
+  }
+
+  /* Restore GPU State. */
+  GPU_blend(prev_blend);
+  GPU_depth_test(prev_depth);
+  GPU_depth_mask(prev_depth_mask);
+  GPU_write_mask(prev_write);
+
+  /* Restore original alignment and context. */
+  region->alignment = prev_alignment;
+  CTX_wm_region_set(C, prev_region);
 }
 
 }  // namespace blender
