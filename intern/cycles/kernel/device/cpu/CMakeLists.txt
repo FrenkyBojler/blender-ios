@@ -30,6 +30,8 @@ set(LIB
 
 )
 
+cycles_external_libraries_append(LIB)
+
 # -----------------------------------------------------------------------------
 # CPU module.
 
