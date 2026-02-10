@@ -3920,7 +3920,7 @@ struct GeometryNodeFitCurves {
 
   char _pad[3] = {};
   /** #GeometryNodeFitCurvesMode. */
-  int8_t mode = 0;
+  int8_t mode = GEO_NODE_CURVE_FIT_REFIT;
   int next_identifier = 0;
   GeometryNodeFitCurvesItem *items = nullptr;
   int items_num = 0;
