@@ -247,7 +247,11 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
       command_buffer->end_recording();
       unsubmitted_command_buffers.append(vk_command_buffer);
 
-      uint32_t wait_semaphore_len = submit_task->wait_semaphore == VK_NULL_HANDLE ? 0 : 1;
+      uint32_t wait_semaphore_len = submit_task->wait_semaphore == VK_NULL_HANDLE ? 1 : 2;
+      VkSemaphore wait_semaphores[2] = {device->vk_timeline_semaphore_,
+                                        submit_task->wait_semaphore};
+      uint64_t wait_semaphore_values[2] = {submit_task->timeline - 1, 0};
+
       uint32_t signal_semaphore_len = submit_task->signal_semaphore == VK_NULL_HANDLE ? 1 : 2;
       VkSemaphore signal_semaphores[2] = {device->vk_timeline_semaphore_,
                                           submit_task->signal_semaphore};
@@ -256,14 +260,14 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
       VkTimelineSemaphoreSubmitInfo vk_timeline_semaphore_submit_info = {
           VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
           nullptr,
-          0,
-          nullptr,
+          wait_semaphore_len,
+          wait_semaphore_values,
           signal_semaphore_len,
           signal_semaphore_values};
       VkSubmitInfo vk_submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO,
                                      &vk_timeline_semaphore_submit_info,
                                      wait_semaphore_len,
-                                     &submit_task->wait_semaphore,
+                                     wait_semaphores,
                                      &submit_task->wait_dst_stage_mask,
                                      1,
                                      &unsubmitted_command_buffers.last(),
