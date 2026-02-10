@@ -1524,8 +1524,6 @@ static wmOperatorStatus ed_marker_select_exec(bContext *C, wmOperator *op)
   int mval[2];
   mval[0] = RNA_int_get(op->ptr, "mouse_x");
   mval[1] = RNA_int_get(op->ptr, "mouse_y");
-  /* Only return finished if a marker was actually clicked so that 'markers_select_leftright' can
-   * also run with the same default key binding. */
   const View2D *v2d = ui::view2d_fromcontext(C);
   ListBaseT<TimeMarker> *markers = ED_context_get_markers(C);
   const bool is_over_marker = region_position_is_over_marker(v2d, markers, mval[0]);
@@ -1744,20 +1742,10 @@ static wmOperatorStatus ed_marker_select_leftright_exec(bContext *C, wmOperator 
   const eMarkers_LeftRightSelect_Mode mode = eMarkers_LeftRightSelect_Mode(
       RNA_enum_get(op->ptr, "mode"));
   const bool extend = RNA_boolean_get(op->ptr, "extend");
-
-  ListBaseT<TimeMarker> *markers = nullptr;
-  Scene *scene = nullptr;
-
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-
-  if (is_sequencer) {
-    markers = ED_sequencer_context_get_markers(C);
-    scene = CTX_data_sequencer_scene(C);
-  }
-  else {
-    markers = ED_context_get_markers(C);
-    scene = CTX_data_scene(C);
-  }
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
 
   if (!markers || !scene) {
     return OPERATOR_CANCELLED;
@@ -1768,7 +1756,6 @@ static wmOperatorStatus ed_marker_select_leftright_exec(bContext *C, wmOperator 
   }
 
   const float cfra = BKE_scene_frame_get(scene);
-
   for (TimeMarker &marker : *markers) {
     if ((mode == MARKERS_LRSEL_LEFT && marker.frame <= cfra) ||
         (mode == MARKERS_LRSEL_RIGHT && marker.frame >= cfra))
@@ -1793,10 +1780,10 @@ static wmOperatorStatus ed_marker_select_leftright_invoke(bContext *C,
                                                           const wmEvent *event)
 {
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  const View2D *v2d = ui::view2d_fromcontext(C);
   ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
                                                   ED_context_get_markers(C);
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  const View2D *v2d = ui::view2d_fromcontext(C);
 
   if (!markers || !v2d || !scene) {
     return OPERATOR_PASS_THROUGH;
