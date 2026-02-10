@@ -26,11 +26,14 @@ static void node_shader_buts_output_aov(ui::Layout &layout, bContext *C, Pointer
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  PointerRNA view_layer_rna_ptr = RNA_pointer_create_id_subdata(
-      scene->id, RNA_ViewLayer, view_layer);
 
   if (scene && view_layer) {
+    PointerRNA view_layer_rna_ptr = RNA_pointer_create_id_subdata(
+        scene->id, RNA_ViewLayer, view_layer);
     layout.prop_search(ptr, "aov_name", &view_layer_rna_ptr, "aovs", "", ICON_NONE);
+  }
+  else {
+    layout.prop(ptr, "aov_name", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
 }
 
