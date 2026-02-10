@@ -31,13 +31,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_default_layout();
 
-  const bNodeTree *tree = b.tree_or_null();
-  const bNode *node = b.node_or_null();
-  if (!node || !tree) {
-    return;
-  }
-  const GeometryNodeFitCurves &storage = node_storage(*node);
-
   b.add_input<decl::Geometry>("Poly Curves", "Curves")
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
   b.add_output<decl::Geometry>("Curves").propagate_all().align_with_previous();
@@ -49,6 +42,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_DISTANCE)
       .supports_field()
       .description("The error distance that the resulting points are allowed to be within");
+
+  const bNodeTree *tree = b.tree_or_null();
+  const bNode *node = b.node_or_null();
+  if (!node || !tree) {
+    return;
+  }
+  const GeometryNodeFitCurves &storage = node_storage(*node);
 
   PanelDeclarationBuilder &panel = b.add_panel("Extra Dimensions")
                                        .description(
@@ -267,7 +267,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   GeometryNodeFitCurves *data = MEM_new<GeometryNodeFitCurves>(__func__);
-  data->mode = GEO_NODE_CURVE_FIT_SPLIT;
   node->storage = data;
 }
 
@@ -320,7 +319,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeFitCurves");
   ntype.ui_name = "Fit Curves";
-  ntype.ui_description = "Fit the points of the input curves to bézier curves";
+  ntype.ui_description = "Fit the points of the input curves to Bézier curves";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
