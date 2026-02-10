@@ -44,7 +44,7 @@ void TokenBuffer::reserve(const uint32_t count)
   allocated_size_ = count + 1;
   realloc_aligned_array(types_, size_ + 1, allocated_size_);
   realloc_aligned_array(offsets_, size_ + 1, allocated_size_);
-  realloc_aligned_array(original_offsets_, size_ + 1, allocated_size_);
+  realloc_aligned_array(offsets_end_, size_ + 1, allocated_size_);
   realloc_aligned_array(atoms_, size_ + 1, allocated_size_);
 }
 
@@ -375,7 +375,7 @@ inline void TokenBuffer::tokenize_scalar(__restrict uint32_t &offset,
     types_[cursor_begin] = curr_tok;
     offsets_[cursor_begin] = offset;
     if constexpr (!with_whitespace) {
-      original_offsets_[cursor_end] = offset;
+      offsets_end_[cursor_end] = offset;
     }
     /**
      * Split if no class in common.
@@ -481,12 +481,12 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
     const CharClass curr = char_class_table[str_[0]];
     types_[0] = select(str_[0], char(curr), curr > CharClass::ClassToTypeThreshold);
     offsets_[0] = 0;
-    original_offsets_[0] = 0;
+    offsets_end_[0] = 0;
     prev_value = curr;
     prev_non_whitespace = curr != CharClass::WhiteSpace;
   }
 
-  uint32_t offset = 1, cursor = 1, cursor_no_whitespace = 1;
+  uint32_t offset = 1, cursor = 1, cursor_end = 1;
 
   /**
    * The case when `str` starts with whitespaces needs to be handled a bit differently.
@@ -501,15 +501,15 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
    *                prepended to `offsets_end`.
    */
   if (!with_whitespace && !prev_non_whitespace) {
-    original_offsets_[1] = 0;
-    cursor_no_whitespace++;
+    offsets_end_[1] = 0;
+    cursor_end++;
   }
 
   /* Process until alignment to SIMD size is met. */
   size_t index_at_align = ((16 - (uintptr_t(str_.data() + 1) & 15)) & 15) + 1;
   tokenize_scalar<with_whitespace>(offset,
                                    cursor,
-                                   cursor_no_whitespace,
+                                   cursor_end,
                                    prev_value,
                                    prev_non_whitespace,
                                    str_.size() > index_at_align ? index_at_align : str_.size(),
@@ -553,7 +553,7 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
       /* Write 16 offsets. */
       shuffle32x16.store_unaligned(offsets_.get() + cursor);
       if constexpr (with_whitespace) {
-        shuffle32x16.store_unaligned(original_offsets_.get() + cursor_no_whitespace);
+        shuffle32x16.store_unaligned(offsets_end_.get() + cursor_end);
       }
       cursor += popcount;
     }
@@ -561,13 +561,8 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
 #endif
 
   /* Finish tail using scalar loop. */
-  tokenize_scalar<with_whitespace>(offset,
-                                   cursor,
-                                   cursor_no_whitespace,
-                                   prev_value,
-                                   prev_non_whitespace,
-                                   str_.size(),
-                                   char_class_table);
+  tokenize_scalar<with_whitespace>(
+      offset, cursor, cursor_end, prev_value, prev_non_whitespace, str_.size(), char_class_table);
 
   if constexpr (!with_whitespace) {
     assert(cursor_no_whitespace == cursor - 1 || cursor_no_whitespace == cursor);
@@ -575,7 +570,7 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
 
   /* Set end of last token. */
   offsets_[cursor] = str_.size();
-  original_offsets_[cursor] = str_.size();
+  offsets_end_[cursor] = str_.size();
   /* Set end of file token. */
   types_[cursor] = EndOfFile;
 
@@ -709,7 +704,7 @@ void TokenBuffer::merge_whitespaces()
                                       offsets_.get(),
                                       types_.get(),
                                       offsets_.get(),
-                                      original_offsets_.get(),
+                                      offsets_end_.get(),
                                       size_,
                                       str_.size());
   whitespaces_collapsed_ = true;
@@ -721,7 +716,7 @@ void TokenBuffer::merge_spaces()
                              offsets_.get(),
                              types_.get(),
                              offsets_.get(),
-                             original_offsets_.get(),
+                             offsets_end_.get(),
                              size_,
                              str_.size());
   whitespaces_collapsed_ = true;

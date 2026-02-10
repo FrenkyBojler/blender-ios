@@ -123,7 +123,7 @@ struct TokenPastingBuffer : lexit::TokenBuffer {
     this->reserve(512);
     this->whitespaces_collapsed_ = true;
     this->offsets_[0] = 0;
-    this->original_offsets_[0] = 0;
+    this->offsets_end_[0] = 0;
   }
 
   /**

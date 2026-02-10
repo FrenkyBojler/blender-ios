@@ -103,7 +103,7 @@ struct TokenBuffer {
   /* Starting character index of each token. */
   std::unique_ptr<uint32_t[]> offsets_;
   /* Original character index of each next token before whitespace merging (optional). */
-  std::unique_ptr<uint32_t[]> original_offsets_;
+  std::unique_ptr<uint32_t[]> offsets_end_;
   /* Unique id for identifiers (Words). Externally set (optional). */
   std::unique_ptr<TokenAtom[]> atoms_;
   /* Number of tokens inside the buffer excluding the terminating EndOfFile token. */
@@ -199,7 +199,7 @@ struct TokenBuffer {
   {
     int start_char = offsets_[int(start)];
     int end_char = (whitespaces_collapsed_ && !with_trailing_whitespaces) ?
-                       original_offsets_[int(end) + 1] :
+                       offsets_end_[int(end) + 1] :
                        offsets_[int(end) + 1];
     return str_.substr(start_char, end_char - start_char);
   }
@@ -213,7 +213,7 @@ struct TokenBuffer {
     types_[size_] = type;
     atoms_[size_] = atom;
     offsets_[size_ + 1] = offsets_[size_] + str_size_with_witespaces;
-    original_offsets_[size_ + 1] = offsets_[size_] + str_size;
+    offsets_end_[size_ + 1] = offsets_[size_] + str_size;
     size_++;
   }
 
@@ -345,7 +345,7 @@ inline Token Token::prev(int i) const
 inline std::string_view Token::str() const
 {
   int start = buf_->offsets_[index_];
-  int end = buf_->whitespaces_collapsed_ ? buf_->original_offsets_[index_ + 1] :
+  int end = buf_->whitespaces_collapsed_ ? buf_->offsets_end_[index_ + 1] :
                                            buf_->offsets_[index_ + 1];
   return {buf_->str_.data() + start, size_t(end - start)};
 }
@@ -360,7 +360,7 @@ inline std::string_view Token::str_with_whitespace() const
 inline bool Token::followed_by_whitespace() const
 {
   assert(buf_->whitespaces_collapsed_ && is_valid());
-  return buf_->original_offsets_[index_ + 1] != buf_->offsets_[index_ + 1];
+  return buf_->offsets_end_[index_ + 1] != buf_->offsets_[index_ + 1];
 }
 
 inline std::ostream &operator<<(std::ostream &os, const Token &tok)
