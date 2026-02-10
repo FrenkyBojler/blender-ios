@@ -94,12 +94,12 @@ bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
                                               const IndexRange dimensions) {
     curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
       threading::parallel_for(src_points_by_curve[curve_i], 8192, [&](const IndexRange range) {
-        for (const int point_i : range) {
-          const Span<float> values(static_cast<const float *>(src_attribute[point_i]),
+        for (const int point : range) {
+          const Span<float> values(static_cast<const float *>(src_attribute[point]),
                                    dimensions.size());
           for (const int dim_i : dimensions.index_range()) {
             const int dim = dimensions[dim_i];
-            const int index = point_i * stride + dim;
+            const int index = point * stride + dim;
             attribute_data[index] = values[dim_i];
           }
         }
