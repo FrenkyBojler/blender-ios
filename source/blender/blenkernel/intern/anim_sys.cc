@@ -40,6 +40,7 @@
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
+#include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
@@ -50,6 +51,7 @@
 #include "BKE_material.hh"
 #include "BKE_nla.hh"
 #include "BKE_node.hh"
+#include "BKE_object.hh"
 #include "BKE_texture.h"
 
 #include "ANIM_action.hh"
@@ -758,7 +760,53 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
       }
     }
     else {
+      /* The rotation data is 0 initialized for reasonable defaults in case some indices have no
+       * FCurves associated with them. */
+      float4 rotation_data(0.0);
+      if (path_rotation_mode.value() == ROT_MODE_QUAT) {
+        /* Default W value for quaternions. */
+        rotation_data[0] = 1.0;
+      }
+
+      for (FCurve *fcurve : rotation_fcurves) {
+        BLI_assert_msg(fcurve->array_index >= 0 && fcurve->array_index < 4,
+                       "Rotation properties have at most 4 components.");
+        rotation_data[fcurve->array_index] = evaluate_fcurve(fcurve, anim_eval_context->eval_time);
+      }
+
       /* Convert the rotation from the pose to the mode that the blender data expects. */
+      float rotation_matrix[3][3];
+      switch (path_rotation_mode.value()) {
+        case ROT_MODE_QUAT: {
+          quat_to_mat3(rotation_matrix, rotation_data);
+          break;
+        }
+        case ROT_MODE_EUL: {
+          /* TODO: determine the rotation order for euler angles. This has to be stored at the
+           * point of pose creation. */
+          eulO_to_mat3(rotation_matrix, rotation_data, ROT_MODE_XYZ);
+          break;
+        }
+        case ROT_MODE_AXISANGLE: {
+          axis_angle_to_mat3(rotation_matrix, &rotation_data[1], rotation_data[0]);
+          break;
+        }
+        default: {
+          BLI_assert_unreachable();
+        }
+      }
+
+      /* Apply the rotation matrix to the blender data. */
+      if (resolved_ptr.type == RNA_PoseBone) {
+        BKE_pchan_mat3_to_rot(
+            static_cast<bPoseChannel *>(resolved_ptr.data), rotation_matrix, false);
+      }
+      else if (resolved_ptr.type == RNA_Object) {
+        BKE_object_mat3_to_rot(static_cast<Object *>(resolved_ptr.data), rotation_matrix, false);
+      }
+      else {
+        BLI_assert_unreachable();
+      }
     }
   }
 

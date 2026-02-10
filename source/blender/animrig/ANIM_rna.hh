@@ -30,6 +30,9 @@ StringRef get_rotation_mode_path(eRotationModes rotation_mode);
 /**
  * Returns the rotation mode of the given rna path or a nullopt if the `rna_path` is not for a
  * rotation property.
+ *
+ * \note that this returns ROT_MODE_EUL for any euler rotation mode since it cannot determine the
+ * rotation order.
  */
 std::optional<eRotationModes> get_rotation_mode_from_path(const StringRefNull rna_path);
 /**
