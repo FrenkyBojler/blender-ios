@@ -290,7 +290,7 @@ struct TokenBuffer {
                               __restrict uint32_t &cursor_begin,
                               __restrict uint32_t &cursor_end,
                               __restrict CharClass &prev_char_class,
-                              __restrict bool &prev_non_whitespace,
+                              __restrict bool &prev_whitespace,
                               uint32_t end,
                               const CharClass char_class_table[128]);
 };

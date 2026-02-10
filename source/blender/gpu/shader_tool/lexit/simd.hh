@@ -220,6 +220,24 @@ template<int Size> struct u8_base {
     }
     return res;
   }
+
+  friend u8_base operator==(u8_base a, uint8_t b)
+  {
+#  if defined(USE_NEON)
+    uint8x16_t ref = vdupq_n_u8(b);
+#  elif defined(USE_SSE4_2)
+    __m128i ref = _mm_set1_epi8(b);
+#  endif
+    u8_base res;
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      res.lanes[i] = vceqq_u8(a.lanes[i], ref);
+#  elif defined(USE_SSE4_2)
+      res.lanes[i] = _mm_cmpeq_epi8(a.lanes[i], ref);
+#  endif
+    }
+    return res;
+  }
 };
 
 using u8x16 = u8_base<1>;

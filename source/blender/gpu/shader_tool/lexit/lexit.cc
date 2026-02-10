@@ -361,19 +361,22 @@ inline void TokenBuffer::tokenize_scalar(__restrict uint32_t &offset,
                                          __restrict uint32_t &cursor_begin,
                                          __restrict uint32_t &cursor_end,
                                          __restrict CharClass &prev_char_class,
-                                         __restrict bool &prev_non_whitespace,
+                                         __restrict bool &prev_whitespace,
                                          uint32_t end,
                                          const CharClass char_class_table[128])
 {
   for (; offset < end; offset += 1) {
     const char c = str_[offset];
     const CharClass curr_char_class = char_class_table[c];
-    const TokenType curr_tok = select(
+    const TokenType curr_tok_type = select(
         c, char(curr_char_class), curr_char_class > CharClass::ClassToTypeThreshold);
     /* It is faster to overwrite the previous value with the same value
      * as having a condition. */
-    types_[cursor_begin] = curr_tok;
+    types_[cursor_begin] = curr_tok_type;
     offsets_[cursor_begin] = offset;
+    if constexpr (!with_whitespace) {
+      offsets_end_[cursor_end] = offset;
+    }
     /**
      * Split if no class in common.
      * Example:
@@ -384,46 +387,48 @@ inline void TokenBuffer::tokenize_scalar(__restrict uint32_t &offset,
                        uint8_t(CharClass::CanMerge)) == 0;
     prev_char_class = curr_char_class;
 
+    /**
+     * These are the emit mask we want to achieve:
+     * str          : i n t   i 2   =   0 . 0 f ;   i 2 + + ;
+     * emit start   : 1 0 0 0 1 0 0 1 0 1 1 1 0 1 0 1 0 1 0 1
+     * emit end     : 0 0 0 1 0 0 1 0 1 0 1 1 0 1 1 0 0 1 0 1
+     */
+    /*              : 1 1 1 0 1 1 0 1 0 1 1 1 1 1 0 1 1 1 1 1  */
+    const bool curr_ws = (curr_char_class == CharClass::WhiteSpace);
+    /*              : 0 0 0 1 0 0 1 0 1 0 0 0 0 0 1 0 0 0 0 0  */
+    const bool emit_ws = emit && curr_ws;
+    /*              : 1 0 0 0 1 0 0 1 0 1 1 1 0 1 0 1 0 1 0 1  */
+    const bool emit_start = emit && !curr_ws;
+    /*              : 0 0 0 0 0 0 0 0 0 0 1 1 0 1 0 0 0 1 0 1  */
+    const bool follow_non_ws = emit_start && !prev_whitespace;
+    /*              : 0 0 0 1 0 0 1 0 1 0 1 1 0 1 1 0 0 1 0 1  */
+    const bool emit_end = emit_ws || follow_non_ws;
+
+    prev_whitespace = curr_ws;
+
     if constexpr (with_whitespace) {
 #ifdef LEXIT_DEBUG
       if (emit) {
-        token_str_debug_.emplace_back(str_.data() + offsets_[cursor - 1],
-                                      offsets_[cursor] - offsets_[cursor - 1]);
-        token_str_with_whitespace_debug_.emplace_back(
-            str_.data() + offsets_[cursor - 1], original_offsets_[cursor] - offsets_[cursor - 1]);
+        int start = offsets_[cursor_begin - 1];
+        int end = offsets_[cursor_end];
+        token_str_debug_.emplace_back(str_.data() + end, start - end);
+        token_str_with_whitespace_debug_.emplace_back(str_.data() + end, start - end);
       }
 #endif
       cursor_begin += emit;
       cursor_end += emit;
     }
     else {
-      /**
-       * These are the emit mask we want to achieve:
-       * str          : i n t   i 2   =   0 . 0 f ;   i 2 + + ;
-       * emit start   : 1 0 0 0 1 0 0 1 0 1 1 1 0 1 0 1 0 1 0 1
-       * emit end     : 0 0 0 1 0 0 1 0 1 0 1 1 0 1 1 0 0 1 0 1
-       */
-      /*              : 1 1 1 0 1 1 0 1 0 1 1 1 1 1 0 1 1 1 1 1  */
-      const bool curr_non_ws = (curr_char_class != CharClass::WhiteSpace);
-      /*              : 0 0 0 1 0 0 1 0 1 0 0 0 0 0 1 0 0 0 0 0  */
-      const bool emit_ws = emit && !curr_non_ws;
-      /*              : 1 0 0 0 1 0 0 1 0 1 1 1 0 1 0 1 0 1 0 1  */
-      const bool emit_start = emit && curr_non_ws;
-      /*              : 0 0 0 0 0 0 0 0 0 0 1 1 0 1 0 0 0 1 0 1  */
-      const bool follow_non_ws = emit_start && prev_non_whitespace;
-      /*              : 0 0 0 1 0 0 1 0 1 0 1 1 0 1 1 0 0 1 0 1  */
-      const bool emit_end = emit_ws || follow_non_ws;
-
-      prev_non_whitespace = curr_non_ws;
-
 #ifdef LEXIT_DEBUG
       if (emit_start) {
-        token_str_with_whitespace_debug_.emplace_back(str_.data() + offsets_[cursor - 1],
-                                                      offsets_[cursor] - offsets_[cursor - 1]);
+        int start = offsets_[cursor_begin - 1];
+        int end = offsets_[cursor_begin];
+        token_str_with_whitespace_debug_.emplace_back(str_.data() + start, end - start);
       }
       if (emit_end) {
-        token_str_debug_.emplace_back(str_.data() + offsets_[cursor - 1],
-                                      original_offsets_[cursor_end] - offsets_[cursor - 1]);
+        int start = offsets_[cursor_end - 1];
+        int end = offsets_end_[cursor_end];
+        token_str_debug_.emplace_back(str_.data() + start, end - start);
       }
 #endif
       cursor_begin += emit_start;
@@ -472,7 +477,7 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
    */
 
   CharClass prev_value = CharClass::None;
-  bool prev_non_whitespace;
+  bool prev_whitespace;
   {
     /* First iteration needs to always emit start and end of the token. */
     const CharClass curr = char_class_table[str_[0]];
@@ -480,7 +485,7 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
     offsets_[0] = 0;
     offsets_end_[0] = 0;
     prev_value = curr;
-    prev_non_whitespace = curr != CharClass::WhiteSpace;
+    prev_whitespace = curr == CharClass::WhiteSpace;
   }
 
   uint32_t offset = 1, cursor = 1, cursor_end = 1;
@@ -497,7 +502,7 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
    *                Note that in order to match start and end indices, an extra 0 offset is
    *                prepended to `offsets_end`.
    */
-  if (!with_whitespace && !prev_non_whitespace) {
+  if (!with_whitespace && prev_whitespace) {
     offsets_end_[1] = 0;
     cursor_end++;
   }
@@ -508,7 +513,7 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
                                    cursor,
                                    cursor_end,
                                    prev_value,
-                                   prev_non_whitespace,
+                                   prev_whitespace,
                                    str_.size() > index_at_align ? index_at_align : str_.size(),
                                    char_class_table);
 
@@ -520,46 +525,88 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
   const u8x16 can_merge{uint8_t(CharClass::CanMerge)};
 
   for (; offset + 16 <= str_.size(); offset += 16) {
-    /* Load 16 chars. */
+#  ifdef LEXIT_DEBUG
+    const std::string_view char_simd{str_.data() + offset, size_t(16)};
+#  endif
     const u8x16 c = u8x16::load(str + offset);
-    /* Lookup their class. */
-    const u8x16 curr = char_to_class[c];
-    /* (curr > ClassToTypeThreshold) ? curr : c */
-    const u8x16 type = select(c, curr, curr > to_type_threshold);
+    const u8x16 curr_char_class = char_to_class[c];
     /* Shift and add the last iteration end token at the start of the vector. */
-    const u8x16 prev = shift_lanes_right<1>(curr, uint8_t(prev_value));
-    /* Equivalent to: `!bool(curr & prev & CanMerge)`. */
-    const u8x16 emit = is_zero(curr & prev & can_merge);
-    /* Make it 1 bit valid element flag. */
-    const uint16_t emit_mask = movemask(emit);
-    /* Store for next iteration. */
-    prev_value = CharClass(curr.last());
+    const u8x16 prev_char_class = shift_lanes_right<1>(curr_char_class, uint8_t(prev_value));
 
+    const u8x16 curr_tok_type = select(c, curr_char_class, curr_char_class > to_type_threshold);
+    const u8x16 emit = is_zero(curr_char_class & prev_char_class & can_merge);
+    /* Store for next iteration. */
+    prev_value = CharClass(curr_char_class.last());
+
+    const u8x16 curr_ws = (curr_char_class == uint8_t(CharClass::WhiteSpace));
+    const u8x16 curr_non_ws = ~curr_ws;
+    const u8x16 emit_ws = emit & curr_ws;
+    const u8x16 emit_start = emit & curr_non_ws;
+    const u8x16 prev_non_ws = shift_lanes_right<1>(curr_non_ws, prev_whitespace ? 0x0 : 0xFF);
+    const u8x16 follow_non_ws = emit_start & prev_non_ws;
+    const u8x16 emit_end = emit_ws | follow_non_ws;
+    /* Store for next iteration. */
+    prev_whitespace = !curr_non_ws.last();
+    uint16_t emit_end_mask = movemask(emit_end);
+    uint16_t emit_start_mask = movemask(emit_start);
+
+    if constexpr (with_whitespace) {
+      emit_start_mask = movemask(emit);
+    }
     /* Stream compaction of data based on the emit mask (0xFF == emit, 0x00 == skip).
      * Stores `data` compacted inside `data_out` starting from `data_out + cursor` and advance
      * `cursor` by the number of element compacted. */
     {
-      auto [shuffle, popcount] = shuffle_indices_from_emit_mask(emit_mask);
+      auto [shuffle, popcount] = shuffle_indices_from_emit_mask(emit_start_mask);
       /* Move data to destination elements (compaction). */
-      u8x16 data_packed = u8x16_table(type).unsafe_shuffle(shuffle);
+      const u8x16 data_packed = u8x16_table(curr_tok_type).unsafe_shuffle(shuffle);
       /* Write 16 types in the stream. */
       data_packed.store_unaligned((uint8_t *)types_.get() + cursor);
       /* The offsets are contained inside the 8 bit shuffle vector.
        * We need to promote it to 32 bit before adding the base offset. */
-      u32x16 shuffle32x16 = u32x16(shuffle) + offset;
+      const u32x16 shuffle32x16 = u32x16(shuffle) + offset;
       /* Write 16 offsets. */
       shuffle32x16.store_unaligned(offsets_.get() + cursor);
+#  ifdef LEXIT_DEBUG
+      for (int i = cursor; i < cursor + popcount; i++) {
+        int start = offsets_[i - 1];
+        int end = offsets_[i];
+        token_str_with_whitespace_debug_.emplace_back(str_.data() + start, end - start);
+      }
+#  endif
       cursor += popcount;
+    }
+    if constexpr (!with_whitespace) {
+      auto [shuffle, popcount] = shuffle_indices_from_emit_mask(emit_end_mask);
+      /* The offsets are contained inside the 8 bit shuffle vector.
+       * We need to promote it to 32 bit before adding the base offset. */
+      const u32x16 shuffle32x16 = u32x16(shuffle) + offset;
+      /* Write 16 offsets. */
+      shuffle32x16.store_unaligned(offsets_end_.get() + cursor_end);
+#  ifdef LEXIT_DEBUG
+      for (int i = cursor_end; i < cursor_end + popcount; i++) {
+        int start = offsets_[i - 1];
+        int end = offsets_end_[i];
+        token_str_debug_.emplace_back(str_.data() + start, end - start);
+      }
+#  endif
+      cursor_end += popcount;
+    }
+    if constexpr (!with_whitespace) {
+      assert(cursor_end - 1 == cursor || cursor_end == cursor);
     }
   }
 #endif
 
+  if constexpr (!with_whitespace) {
+    assert(cursor_end - 1 == cursor || cursor_end == cursor);
+  }
   /* Finish tail using scalar loop. */
   tokenize_scalar<with_whitespace>(
-      offset, cursor, cursor_end, prev_value, prev_non_whitespace, str_.size(), char_class_table);
+      offset, cursor, cursor_end, prev_value, prev_whitespace, str_.size(), char_class_table);
 
   if constexpr (!with_whitespace) {
-    assert(cursor_end == cursor - 1 || cursor_end == cursor);
+    assert(cursor_end - 1 == cursor || cursor_end == cursor);
   }
 
   /* Set end of last token. */
