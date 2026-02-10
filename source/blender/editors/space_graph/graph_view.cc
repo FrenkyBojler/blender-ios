@@ -23,6 +23,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
+#include "BKE_main.hh"
 #include "BKE_nla.hh"
 
 #include "UI_view2d.hh"
@@ -539,6 +540,100 @@ void GRAPH_OT_ghost_curves_clear(wmOperatorType *ot)
   ot->poll = ED_operator_graphedit_active;
 
   /* Flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static uint free_localview_bit(Main *bmain)
+{
+  ushort local_view_bits = 0;
+
+  /* Sometimes we lose a local-view: when an area is closed.
+   * Check all areas: which local-views are in use? */
+  for (bScreen &screen : bmain->screens) {
+    for (ScrArea &area : screen.areabase) {
+      SpaceLink *sl = static_cast<SpaceLink *>(area.spacedata.first);
+      for (; sl; sl = sl->next) {
+        if (sl->spacetype == SPACE_GRAPH) {
+          SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(sl);
+          local_view_bits |= sipo->local_view_bits;
+        }
+      }
+    }
+  }
+
+  for (int i = 0; i < 16; i++) {
+    if ((local_view_bits & (1 << i)) == 0) {
+      return (1 << i);
+    }
+  }
+
+  return 0;
+}
+
+static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator *op)
+{
+  bAnimContext ac;
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
+
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
+    return OPERATOR_CANCELLED;
+  }
+
+  const int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS | ANIMFILTER_NODUPLIS |
+                      ANIMFILTER_FCURVESONLY);
+  ANIM_animdata_filter(
+      &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
+
+  SpaceGraph *sipo = CTX_wm_space_graph(C);
+  int bit_to_clear = 0;
+  if (sipo->local_view_bits == 0) {
+    sipo->local_view_bits = free_localview_bit(CTX_data_main(C));
+  }
+  else {
+    bit_to_clear = sipo->local_view_bits;
+    sipo->local_view_bits = 0;
+  }
+
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
+    if (ale.type != ANIMTYPE_FCURVE) {
+      continue;
+    }
+
+    if (sipo->local_view_bits == 0) {
+      if (fcu->local_view_bits & bit_to_clear) {
+        fcu->local_view_bits &= ~bit_to_clear;
+      }
+      continue;
+    }
+    else {
+      if (ale.flag & FCURVE_SELECTED) {
+        fcu->local_view_bits |= sipo->local_view_bits;
+        printf("Isolated FCurve: %d\n", ale.type);
+      }
+      else {
+        fcu->local_view_bits &= ~sipo->local_view_bits;
+      }
+    }
+  }
+  graphkeys_viewall(C, false, true, 200);
+  ANIM_animdata_freelist(&anim_data);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  return OPERATOR_FINISHED;
+}
+
+void GRAPH_OT_isolate(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Isolate Curves";
+  ot->idname = "GRAPH_OT_isolate";
+  ot->description = "Isolate selected curves in Graph Editor view";
+
+  /* API callbacks. */
+  ot->exec = graphview_curves_isolate_exec;
+  ot->poll = ED_operator_graphedit_active;
+
+  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 

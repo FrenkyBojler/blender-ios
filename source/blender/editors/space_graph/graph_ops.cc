@@ -437,6 +437,7 @@ void graphedit_operatortypes()
 
   WM_operatortype_append(GRAPH_OT_hide);
   WM_operatortype_append(GRAPH_OT_reveal);
+  WM_operatortype_append(GRAPH_OT_isolate);
 
   /* keyframes */
   /* selection */
