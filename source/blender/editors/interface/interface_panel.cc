@@ -1442,11 +1442,13 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
   float theme_col_tab_no_search_match[4];
   float theme_col_tab_outline[4];
   float theme_col_tab_outline_sel[4];
+  float theme_col_tab_bg_fl[4];
 
   theme::get_color_4ubv(TH_BACK, theme_col_back);
   theme::get_color_3ubv(TH_TAB_TEXT, theme_col_tab_text);
   theme::get_color_3ubv(TH_TAB_TEXT_HI, theme_col_tab_text_sel);
   theme::get_color_4ubv(TH_TAB_BACK, theme_col_tab_bg);
+  theme::get_color_4fv(TH_TAB_BACK, theme_col_tab_bg_fl);
   theme::get_color_4fv(TH_TAB_ACTIVE, theme_col_tab_active);
   theme::get_color_4fv(TH_TAB_INACTIVE, theme_col_tab_inactive);
   theme::get_color_4fv(TH_TAB_INACTIVE, theme_col_tab_no_search_match);
@@ -1545,6 +1547,7 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
     const bool is_active = !too_narrow && STREQ(category_id, category_id_active);
 
     GPU_blend(GPU_BLEND_ALPHA);
+    float alpha = 1.0f;
 
 #ifdef USE_FLAT_INACTIVE
     /* Draw line between inactive tabs. */
@@ -1574,24 +1577,28 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
       box_rect.xmax = rct->xmax;
       box_rect.ymin = rct->ymin;
       box_rect.ymax = rct->ymax;
-      const float *color = is_active ? theme_col_tab_active : theme_col_tab_inactive;
       if (!region->runtime->search_filter.empty() &&
           !region->runtime->categories_search_match.contains_as(pc_dyn.idname))
       {
-        color = theme_col_tab_no_search_match;
+        /* Draw a box with the region tab background color to to draw alpha colors on it. */
+        draw_roundbox_3ub_alpha(&box_rect, true, tab_curve_radius, theme_col_tab_bg, 255);
+        alpha = 0.5f;
       }
-      draw_roundbox_4fv(&box_rect, true, tab_curve_radius, color);
-      draw_roundbox_4fv(&box_rect,
-                        false,
-                        tab_curve_radius,
-                        is_active ? theme_col_tab_outline_sel : theme_col_tab_outline);
+      float4 fill_color = is_active ? theme_col_tab_active : theme_col_tab_inactive;
+      fill_color[3] = alpha;
+      draw_roundbox_4fv(&box_rect, true, tab_curve_radius, fill_color);
+      float4 outline_color = is_active ? theme_col_tab_outline_sel : theme_col_tab_outline;
+      outline_color[3] = alpha;
+      draw_roundbox_4fv(&box_rect, false, tab_curve_radius, outline_color);
 
       /* Disguise the outline on one side to join the tab to the panel. */
       if (!region->overlap) {
         pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
         immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+        float4 color = is_active ? theme_col_tab_active : theme_col_tab_inactive;
+        color[3] = alpha;
 
-        immUniformColor4fv(is_active ? theme_col_tab_active : theme_col_tab_inactive);
+        immUniformColor4fv(color);
         immRectf(pos,
                  is_left ? rct->xmax - px : rct->xmin,
                  rct->ymin + px,
@@ -1613,7 +1620,8 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
                            rct->xmin + text_v_ofs - text_size_offset,
                  is_left ? rct->ymin + tab_v_pad_text : rct->ymax - tab_v_pad_text,
                  0.0f);
-    BLF_color3ubv(fontid, is_active ? theme_col_tab_text_sel : theme_col_tab_text);
+    BLF_color3ubv_alpha(
+        fontid, is_active ? theme_col_tab_text_sel : theme_col_tab_text, alpha * 255);
 
     if (fstyle->shadow) {
       BLF_enable(fontid, BLF_SHADOW);
