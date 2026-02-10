@@ -50,11 +50,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
   const GeometryNodeFitCurves &storage = node_storage(*node);
 
-  PanelDeclarationBuilder &panel = b.add_panel("Extra Dimensions")
-                                       .description(
-                                           "Evaluate these fields on the point domain and use "
-                                           "them as additional dimensions of the curve fitting.")
-                                       .default_closed(true);
+  PanelDeclarationBuilder &panel =
+      b.add_panel("Extra Dimensions")
+          .description(
+              "Evaluate these fields on the point domain and uses them together with the curve "
+              "positions to fit n-dimensional Bézier curves")
+          .default_closed(true);
   const Span<GeometryNodeFitCurvesItem> items(storage.items, storage.items_num);
   for (const int i : items.index_range()) {
     const GeometryNodeFitCurvesItem &item = items[i];
