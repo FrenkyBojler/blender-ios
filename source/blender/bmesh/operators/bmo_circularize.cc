@@ -5,6 +5,7 @@
 /** \file
  * \ingroup bmesh
  */
+#include "BLI_kdopbvh.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.hh"
@@ -418,8 +419,32 @@ static void calculate_target_locations(MutableSpan<CircleVert> verts,
   }
 }
 
-static bool project_on_mesh(
-    BMesh *bm, BMVert *v, const float center_pos[3], const float normal[3], float r_pos[3])
+struct NearestTriUserData {
+  Span<std::array<BMLoop *, 3>> looptris;
+};
+
+/* Callback for BLI_bvhtree_find_nearest. Finds the closest point on the given triangle. */
+static void nearest_tri_cb(void *userdata, int index, const float co[3], BVHTreeNearest *nearest)
+{
+  const NearestTriUserData *data = static_cast<const NearestTriUserData *>(userdata);
+  const std::array<BMLoop *, 3> &ltri = data->looptris[index];
+
+  float3 closest;
+  closest_on_tri_to_point_v3(closest, co, ltri[0]->v->co, ltri[1]->v->co, ltri[2]->v->co);
+  const float dist_sq = math::distance_squared(float3(co), closest);
+  if (dist_sq < nearest->dist_sq) {
+    nearest->dist_sq = dist_sq;
+    nearest->index = index;
+    copy_v3_v3(nearest->co, closest);
+  }
+}
+
+static bool project_on_mesh(BVHTree *bvh_tree,
+                            NearestTriUserData *bvh_data,
+                            BMVert *v,
+                            const float center_pos[3],
+                            const float normal[3],
+                            float r_pos[3])
 {
   if (equals_v3v3(v->co, center_pos)) {
     copy_v3_v3(r_pos, center_pos);
@@ -500,23 +525,15 @@ static bool project_on_mesh(
     return true;
   }
 
-  BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
-    if (f->len < 3 || BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
-      continue;
+  if (bvh_tree) {
+    BVHTreeNearest nearest;
+    nearest.dist_sq = FLT_MAX;
+    nearest.index = -1;
+    BLI_bvhtree_find_nearest(bvh_tree, center_pos, &nearest, nearest_tri_cb, bvh_data);
+    if (nearest.index != -1) {
+      copy_v3_v3(r_pos, nearest.co);
+      return true;
     }
-    BMLoop *l_start = f->l_first;
-    BMVert *v1 = l_start->v;
-    BMVert *v2 = l_start->next->v;
-    BMVert *v3 = l_start->next->next->v;
-    test_tri(v1, v2, v3);
-    if (f->len == 4) {
-      BMVert *v4 = l_start->prev->v;
-      test_tri(v1, v3, v4);
-    }
-  }
-
-  if (found) {
-    return true;
   }
 
   copy_v3_v3(r_pos, center_pos);
@@ -541,6 +558,27 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
 
   Vector<LoopData> loops;
   get_input_loops(bm, loops, mirror_x, mirror_y, mirror_z);
+
+  /* Builds a BVH tree when flatten is disabled. Without this we would have to iterate
+   * over every face in the mesh for every vertex which is too slow. */
+  Vector<std::array<BMLoop *, 3>> looptris;
+  BVHTree *bvh_tree = nullptr;
+  NearestTriUserData bvh_data = {};
+
+  if (!flatten) {
+    const int tot_tri = poly_to_tri_count(bm->totface, bm->totloop);
+    looptris.reinitialize(tot_tri);
+    BM_mesh_calc_tessellation(bm, looptris);
+
+    bvh_tree = BLI_bvhtree_new(tot_tri, 0.0f, 8, 8);
+    for (const int i : looptris.index_range()) {
+      const std::array<BMLoop *, 3> &ltri = looptris[i];
+      float3 cos[3] = {float3(ltri[0]->v->co), float3(ltri[1]->v->co), float3(ltri[2]->v->co)};
+      BLI_bvhtree_insert(bvh_tree, i, reinterpret_cast<float *>(cos), 3);
+    }
+    BLI_bvhtree_balance(bvh_tree);
+    bvh_data.looptris = looptris;
+  }
 
   for (LoopData &loop_data : loops) {
     const Vector<BMVert *> &loop = loop_data.verts;
@@ -602,7 +640,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
 
       if (!flatten) {
         float projected_pos[3];
-        if (project_on_mesh(bm, cv.v, final_pos, normal, projected_pos)) {
+        if (project_on_mesh(bvh_tree, &bvh_data, cv.v, final_pos, normal, projected_pos)) {
           final_pos = float3(projected_pos);
         }
       }
@@ -623,6 +661,11 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
 
       interp_v3_v3v3(cv.v->co, cv.v->co, final_pos, factor);
     }
+  }
+
+  /* There would be a memory leak if this isn't freed.  */
+  if (bvh_tree) {
+    BLI_bvhtree_free(bvh_tree);
   }
 }
 
