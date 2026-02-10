@@ -591,10 +591,10 @@ void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
   mesh.default_color_attribute = BLI_strdupn(id.data(), id.size());
 }
 
-void mesh_ensure_default_uv_attribute_on_add(Mesh &mesh,
-                                             const StringRef id,
-                                             AttrDomain domain,
-                                             bke::AttrType data_type)
+void mesh_ensure_uv_attributes_on_add(Mesh &mesh,
+                                      const StringRef id,
+                                      AttrDomain domain,
+                                      bke::AttrType data_type)
 {
   if (bke::attribute_name_is_anonymous(id)) {
     return;
@@ -602,10 +602,12 @@ void mesh_ensure_default_uv_attribute_on_add(Mesh &mesh,
   if (!mesh::is_uv_map({domain, data_type})) {
     return;
   }
-  if (!mesh.default_uv_map_name().is_empty()) {
-    return;
+  if (mesh.default_uv_map_name().is_empty()) {
+    mesh.uv_maps_default_set(id);
   }
-  mesh.uv_maps_default_set(id);
+  if (mesh.active_uv_map_name().is_empty()) {
+    mesh.uv_maps_active_set(id);
+  }
 }
 
 void mesh_ensure_required_data_layers(Mesh &mesh)
