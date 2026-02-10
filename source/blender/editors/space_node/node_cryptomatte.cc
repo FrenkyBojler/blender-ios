@@ -76,6 +76,9 @@ struct CryptomattePicker {
   int cb_win_event_xy[2] = {};
   void *draw_handle_sample_text = nullptr;
   char sample_text[MAX_NAME] = {};
+  bool accum_start = false;
+  float last_picked_hash = 0.0f;
+  int accum_tot = 0;
 };
 
 /* -------------------------------------------------------------------- */
@@ -382,6 +385,39 @@ static void cryptomatte_pick_sample_text_update(bContext *C,
   }
 }
 
+static bool cryptomatte_pick_sample_and_apply(bContext *C,
+                                              CryptomattePicker *picker,
+                                              const int event_xy[2])
+{
+  float col[3];
+  if (!cryptomatte_sample_fl(C, picker, event_xy, col)) {
+    return false;
+  }
+
+  if (col[0] == picker->last_picked_hash) {
+    return false;
+  }
+
+  bNode *node = picker->node;
+  NodeCryptomatte *crypto = static_cast<NodeCryptomatte *>(node->storage);
+
+  if (picker->is_add) {
+    copy_v3_fl(crypto->runtime.add, col[0]);
+    ntreeCompositCryptomatteSyncFromAdd(node);
+  }
+  else {
+    copy_v3_fl(crypto->runtime.remove, col[0]);
+    ntreeCompositCryptomatteSyncFromRemove(node);
+  }
+
+  BKE_ntree_update_tag_node_property(picker->ntree, node);
+  BKE_main_ensure_invariants(*CTX_data_main(C), picker->ntree->id);
+
+  picker->last_picked_hash = col[0];
+  picker->accum_tot++;
+  return true;
+}
+
 static void cryptomatte_pick_exit(bContext *C, wmOperator *op)
 {
   CryptomattePicker *picker = static_cast<CryptomattePicker *>(op->customdata);
@@ -469,35 +505,27 @@ static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, cons
         cryptomatte_pick_exit(C, op);
         return OPERATOR_CANCELLED;
 
-      case EYE_MODAL_SAMPLE_CONFIRM: {
-        float col[3];
-        if (cryptomatte_sample_fl(C, picker, event->xy, col)) {
-          bNode *node = picker->node;
-          NodeCryptomatte *crypto = static_cast<NodeCryptomatte *>(node->storage);
+      case EYE_MODAL_SAMPLE_BEGIN:
+        picker->accum_start = true;
+        cryptomatte_pick_sample_and_apply(C, picker, event->xy);
+        cryptomatte_pick_sample_text_update(C, picker, event->xy);
+        break;
 
-          if (picker->is_add) {
-            copy_v3_fl(crypto->runtime.add, col[0]);
-            ntreeCompositCryptomatteSyncFromAdd(node);
-          }
-          else {
-            copy_v3_fl(crypto->runtime.remove, col[0]);
-            ntreeCompositCryptomatteSyncFromRemove(node);
-          }
-
-          BKE_ntree_update_tag_node_property(picker->ntree, node);
-          BKE_main_ensure_invariants(*CTX_data_main(C), picker->ntree->id);
+      case EYE_MODAL_SAMPLE_CONFIRM:
+        if (picker->accum_tot == 0) {
+          cryptomatte_pick_sample_and_apply(C, picker, event->xy);
         }
-
         cryptomatte_pick_exit(C, op);
         return OPERATOR_FINISHED;
-      }
 
-      case EYE_MODAL_SAMPLE_BEGIN:
       case EYE_MODAL_SAMPLE_RESET:
         break;
     }
   }
   else if (ISMOUSE_MOTION(event->type)) {
+    if (picker->accum_start) {
+      cryptomatte_pick_sample_and_apply(C, picker, event->xy);
+    }
     cryptomatte_pick_sample_text_update(C, picker, event->xy);
   }
 
