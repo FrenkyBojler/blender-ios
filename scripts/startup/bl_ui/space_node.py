@@ -267,9 +267,6 @@ class NODE_PT_gizmo_display(Panel):
         snode = context.space_data
         is_compositor = snode.tree_type == 'CompositorNodeTree'
 
-        if not is_compositor:
-            return
-
         col = layout.column()
         col.label(text="Viewport Gizmos")
         col.separator()
@@ -278,9 +275,10 @@ class NODE_PT_gizmo_display(Panel):
         colsub = col.column()
         colsub.prop(snode, "show_gizmo_navigate", text="Navigate")
 
-        colsub = col.column()
-        colsub.active = snode.node_tree is not None and col.active
-        colsub.prop(snode, "show_gizmo_active_node", text="Active Node")
+        if is_compositor:
+            colsub = col.column()
+            colsub.active = snode.node_tree is not None and col.active
+            colsub.prop(snode, "show_gizmo_active_node", text="Active Node")
 
 
 class NODE_MT_editor_menus(Menu):
