@@ -5,6 +5,7 @@
 #include "lexit.hh"
 #include "simd.hh"
 
+#include <algorithm>
 #include <cassert>
 
 #if defined(__clang__) || defined(__GNUC__)
@@ -327,19 +328,149 @@ alignas(16) static const uint8_t mask_popcount[256] = {
 
 #endif
 
-void TokenBuffer::tokenize(const CharClass char_class_table[128])
+inline TokenType select(char char_value, char char_class, bool cond)
 {
-  uint32_t offset = 0, cursor = 0;
+  return TokenType((cond) ? char_class : char_value);
+}
 
-  const uint8_t *str = (const uint8_t *)str_.data();
+struct ShuffleIndicesResult {
+  simd::u8x16 indices;
+  int popcount;
+};
+
+inline ShuffleIndicesResult shuffle_indices_from_emit_mask(uint16_t emit_mask)
+{
+  const uint8_t emit_mask_lo = emit_mask & 0xFFu;
+  const uint8_t emit_mask_hi = emit_mask >> 8;
+  const uint8_t mask_popcount_lo = mask_popcount[emit_mask_lo];
+  const uint8_t mask_popcount_hi = mask_popcount[emit_mask_hi];
+  /* Lookup the shuffle vector in 2 halves. */
+  uint64_t v0 = *(uint64_t *)shuffle_table_8[emit_mask_lo];
+  uint64_t v1 = *(uint64_t *)shuffle_table_8[emit_mask_hi] | uint64_t(0x0808080808080808);
+  /* Combine the two halves into one contiguous index array.
+   * We don't care about values after the last valid index. */
+  alignas(16) uint8_t combined[16];
+  *(uint64_t *)combined = v0;
+  *(uint64_t *)(combined + mask_popcount_lo) = v1;
+
+  return {simd::u8x16::load((const uint8_t *)&combined), mask_popcount_lo + mask_popcount_hi};
+}
+
+template<bool with_whitespace>
+inline void TokenBuffer::tokenize_scalar(__restrict uint32_t &offset,
+                                         __restrict uint32_t &cursor,
+                                         __restrict uint32_t &cursor_no_whitespace,
+                                         __restrict CharClass &prev_value,
+                                         __restrict bool &prev_non_whitespace,
+                                         uint32_t end,
+                                         const CharClass char_class_table[128])
+{
+  for (; offset < end; offset += 1) {
+    const char c = str_[offset];
+    const CharClass curr = char_class_table[c];
+    /* It is faster to overwrite the previous value with the same value
+     * as having a condition. */
+    types_[cursor] = select(c, char(curr), curr > CharClass::ClassToTypeThreshold);
+    offsets_[cursor] = offset;
+    if constexpr (!with_whitespace) {
+      original_offsets_[cursor_no_whitespace] = offset;
+    }
+    /* Split if no class in common. */
+    const bool emit = (uint8_t(curr) & uint8_t(prev_value) & uint8_t(CharClass::CanMerge)) == 0;
+
+    if constexpr (with_whitespace) {
+#ifdef LEXIT_DEBUG
+      if (emit) {
+        token_str_debug_.emplace_back(str_.data() + offsets_[cursor - 1],
+                                      offsets_[cursor] - offsets_[cursor - 1]);
+        token_str_with_whitespace_debug_.emplace_back(
+            str_.data() + offsets_[cursor - 1], original_offsets_[cursor] - offsets_[cursor - 1]);
+      }
+#endif
+      cursor += emit;
+      cursor_no_whitespace += emit;
+    }
+    else {
+      /* Is current char not whitespace. */
+      const bool curr_not_whitespace = (curr != CharClass::WhiteSpace);
+      /* Emit the current char start if not whitespace. */
+      const bool emit_non_whitespace = emit && curr_not_whitespace;
+      /* Is the current char following. */
+      const bool follow_non_whitespace = emit_non_whitespace && prev_non_whitespace;
+      const bool emit_whitespace = emit && !curr_not_whitespace;
+      const bool emit_orig_offset = emit_whitespace || follow_non_whitespace;
+
+#ifdef LEXIT_DEBUG
+      if (emit_non_whitespace) {
+        token_str_with_whitespace_debug_.emplace_back(str_.data() + offsets_[cursor - 1],
+                                                      offsets_[cursor] - offsets_[cursor - 1]);
+      }
+      if (emit_orig_offset) {
+        token_str_debug_.emplace_back(str_.data() + offsets_[cursor - 1],
+                                      original_offsets_[cursor_no_whitespace] -
+                                          offsets_[cursor - 1]);
+      }
+#endif
+
+      cursor += emit_non_whitespace;
+      cursor_no_whitespace += emit_orig_offset;
+      prev_non_whitespace = curr_not_whitespace;
+    }
+    prev_value = curr;
+  }
+}
+
+template void TokenBuffer::tokenize_scalar<true>(uint32_t &offset,
+                                                 uint32_t &cursor,
+                                                 uint32_t &cursor_no_whitespace,
+                                                 CharClass &prev_value,
+                                                 bool &prev_non_whitespace,
+                                                 uint32_t end,
+                                                 const CharClass char_class_table[128]);
+template void TokenBuffer::tokenize_scalar<false>(uint32_t &offset,
+                                                  uint32_t &cursor,
+                                                  uint32_t &cursor_no_whitespace,
+                                                  CharClass &prev_value,
+                                                  bool &prev_non_whitespace,
+                                                  uint32_t end,
+                                                  const CharClass char_class_table[128]);
+
+template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_class_table[128])
+{
+  if (str_.size() == 0) {
+    size_ = 0;
+    types_[0] = EndOfFile;
+    return;
+  }
 
   CharClass prev_value = CharClass::None;
+  bool prev_non_whitespace;
+  {
+    /* First iteration needs to always emit start and end of the token. */
+    const CharClass curr = char_class_table[str_[0]];
+    types_[0] = select(str_[0], char(curr), curr > CharClass::ClassToTypeThreshold);
+    offsets_[0] = 0;
+    original_offsets_[0] = 0;
+    prev_value = curr;
+    prev_non_whitespace = curr != CharClass::WhiteSpace;
+  }
 
-#if defined(USE_SSE4_2) || defined(USE_NEON)
+  uint32_t offset = 1, cursor = 1, cursor_no_whitespace = 1;
+
+  /* Process until alignment to SIMD size is met. */
+  size_t bytes_to_align = (16 - (uintptr_t(str_.data() + 1) & 15)) & 15;
+  tokenize_scalar<with_whitespace>(offset,
+                                   cursor,
+                                   cursor_no_whitespace,
+                                   prev_value,
+                                   prev_non_whitespace,
+                                   str_.size() > bytes_to_align ? bytes_to_align : str_.size(),
+                                   char_class_table);
+
+#if defined(USE_NEON) || defined(USE_SSE4_2)
   using namespace lexit::simd;
-
+  const uint8_t *str = (const uint8_t *)str_.data();
   const u8x128_table char_to_class = u8x128_table::load((const uint8_t *)char_class_table);
-
   const u8x16 to_type_threshold{uint8_t(CharClass::ClassToTypeThreshold)};
   const u8x16 can_merge{uint8_t(CharClass::CanMerge)};
 
@@ -363,110 +494,35 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
      * Stores `data` compacted inside `data_out` starting from `data_out + cursor` and advance
      * `cursor` by the number of element compacted. */
     {
-      /* Lookup the shuffle vector in 2 halves. */
-      const uint8_t emit_mask_lo = emit_mask & 0xFFu;
-      const uint8_t emit_mask_hi = emit_mask >> 8;
-      const uint8_t mask_popcount_lo = mask_popcount[emit_mask_lo];
-      const uint8_t mask_popcount_hi = mask_popcount[emit_mask_hi];
-
-      /* TODO MSVC: compat. */
-      const unsigned __int128 v0 = *(uint64_t *)shuffle_table_8[emit_mask_lo];
-      const unsigned __int128 v1 = *(uint64_t *)shuffle_table_8[emit_mask_hi] |
-                                   uint64_t(0x0808080808080808);
-      /* Combine shuffle vectors to remove holes. */
-      alignas(16) const unsigned __int128 combined = v0 | (v1 << (mask_popcount_lo * 8));
-
-      u8x16 shuffle = u8x16::load((const uint8_t *)&combined);
-
+      auto [shuffle, popcount] = shuffle_indices_from_emit_mask(emit_mask);
       /* Move data to destination elements (compaction). */
       u8x16 data_packed = u8x16_table(type).unsafe_shuffle(shuffle);
       /* Write 16 types in the stream. */
       data_packed.store_unaligned((uint8_t *)types_.get() + cursor);
-
       /* The offsets are contained inside the 8 bit shuffle vector.
        * We need to promote it to 32 bit before adding the base offset. */
       u32x16 shuffle32x16 = u32x16(shuffle) + offset;
       /* Write 16 offsets. */
       shuffle32x16.store_unaligned(offsets_.get() + cursor);
-
-      cursor += mask_popcount_lo + mask_popcount_hi;
+      if constexpr (with_whitespace) {
+        shuffle32x16.store_unaligned(original_offsets_.get() + cursor_no_whitespace);
+      }
+      cursor += popcount;
     }
   }
-  /* Finish tail using scalar loop. */
 #endif
 
-  for (; offset < str_.size(); offset += 1) {
-    const char c = str_[offset];
-    const CharClass curr = char_class_table[c];
-    /* It is faster to overwrite the previous value with the same value
-     * as having a condition. */
-    types_[cursor] = (curr > CharClass::ClassToTypeThreshold) ? TokenType(curr) : TokenType(c);
-    offsets_[cursor] = offset;
-    /* Split if no class in common. */
-    cursor += (uint8_t(curr) & uint8_t(prev_value) & uint8_t(CharClass::CanMerge)) == 0;
-    prev_value = curr;
-  }
+  /* Finish tail using scalar loop. */
+  tokenize_scalar<with_whitespace>(offset,
+                                   cursor,
+                                   cursor_no_whitespace,
+                                   prev_value,
+                                   prev_non_whitespace,
+                                   str_.size(),
+                                   char_class_table);
 
-  /* Set end of last token. */
-  offsets_[cursor] = str_.size();
-  /* Set end of file token. */
-  types_[cursor] = EndOfFile;
-
-  size_ = cursor;
-  whitespaces_collapsed_ = false;
-}
-
-TokenType get_stored_type(char char_value, CharClass char_class)
-{
-  return (char_class > CharClass::ClassToTypeThreshold) ? TokenType(char_class) :
-                                                          TokenType(char_value);
-}
-
-void TokenBuffer::tokenize_without_whitespace(const CharClass char_class_table[128])
-{
-  uint32_t offset = 0, cursor = 0, original_cursor = 0;
-
-  /* Scalar only implementation. */
-  CharClass last_type = CharClass::None;
-
-  {
-    CharClass prev = last_type;
-    /* Always emit first token. */
-    for (; offset < 1; offset += 1) {
-      const char c = str_[offset];
-      const CharClass curr = char_class_table[c];
-      /* It is faster to overwrite the previous value with the same value
-       * than having a condition. */
-      types_[cursor] = get_stored_type(c, curr);
-      offsets_[cursor] = offset;
-      original_offsets_[original_cursor] = offset;
-      /* Split if no class in common. */
-      cursor += 1;
-      original_cursor += 1;
-      prev = curr;
-    }
-    bool prev_not_whitespace = false;
-    for (; offset < str_.size(); offset += 1) {
-      const char c = str_[offset];
-      const CharClass curr = char_class_table[c];
-      /* It is faster to overwrite the previous value with the same value
-       * than having a condition. */
-      types_[cursor] = get_stored_type(c, curr);
-      offsets_[cursor] = offset;
-      original_offsets_[original_cursor] = offset;
-      const bool curr_not_whitespace = (curr != CharClass::WhiteSpace);
-      const bool emit = (uint8_t(curr) & uint8_t(prev) & uint8_t(CharClass::CanMerge)) == 0;
-      const bool emit_non_whitespace = emit && curr_not_whitespace;
-      const bool follow_non_whitespace = curr_not_whitespace && prev_not_whitespace;
-      const bool emit_whitespace = emit && !curr_not_whitespace;
-      const bool emit_orig_offset = emit_whitespace ||
-                                    (follow_non_whitespace && emit_non_whitespace);
-      prev_not_whitespace = curr_not_whitespace;
-      /* Split if no class in common. */
-      cursor += emit_non_whitespace;
-      original_cursor += emit_orig_offset;
-      prev = curr;
-    }
+  if constexpr (!with_whitespace) {
+    assert(cursor_no_whitespace == cursor - 1 || cursor_no_whitespace == cursor);
   }
 
   /* Set end of last token. */
@@ -476,8 +532,11 @@ void TokenBuffer::tokenize_without_whitespace(const CharClass char_class_table[1
   types_[cursor] = EndOfFile;
 
   size_ = cursor;
-  whitespaces_collapsed_ = true;
+  whitespaces_collapsed_ = !with_whitespace;
 }
+
+template void TokenBuffer::tokenize<true>(const CharClass char_class_table[128]);
+template void TokenBuffer::tokenize<false>(const CharClass char_class_table[128]);
 
 static void lex_string(const TokenType *types, uint32_t &cursor)
 {

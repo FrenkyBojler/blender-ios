@@ -113,6 +113,11 @@ struct TokenBuffer {
   /* If whitespaces where not collapsed, offsets_ should be used instead of original_offsets_. */
   bool whitespaces_collapsed_ = false;
 
+#ifdef LEXIT_DEBUG
+  std::vector<std::string_view> token_str_debug_;
+  std::vector<std::string_view> token_str_with_whitespace_debug_;
+#endif
+
   TokenBuffer() = default;
 
   TokenBuffer(const std::string_view str, const CharClass char_class_table[128])
@@ -125,7 +130,16 @@ struct TokenBuffer {
     str_ = str;
     clear();
     reserve(str.size());
-    tokenize(char_class_table);
+    tokenize<true>(char_class_table);
+  }
+
+  void process_without_whitespace(const std::string_view str,
+                                  const CharClass char_class_table[128])
+  {
+    str_ = str;
+    clear();
+    reserve(str.size());
+    tokenize<false>(char_class_table);
   }
 
   /**
@@ -153,8 +167,7 @@ struct TokenBuffer {
    *
    * @param char_class_table  A lookup table mapping ASCII values (0-127) to an 8-bit CharClass.
    */
-  void tokenize(const CharClass char_class_table[128]);
-  void tokenize_without_whitespace(const CharClass char_class_table[128]);
+  template<bool with_whitespace> void tokenize(const CharClass char_class_table[128]);
 
   /**
    * @brief Merge complex literals such as floats and strings.
@@ -273,6 +286,16 @@ struct TokenBuffer {
   {
     return (*this)[size_ - 1];
   }
+
+ private:
+  template<bool with_whitespace>
+  inline void tokenize_scalar(uint32_t &offset,
+                              uint32_t &cursor,
+                              uint32_t &cursor_no_whitespace,
+                              CharClass &prev_value,
+                              bool &prev_non_whitespace,
+                              uint32_t end,
+                              const CharClass char_class_table[128]);
 };
 
 inline Token::Token(const TokenBuffer *buf, int32_t index) : buf_(buf)
