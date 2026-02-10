@@ -2028,8 +2028,7 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
   TreeNode *target_node = nullptr;
 
   if (add_new_layer) {
-    Layer &new_layer = grease_pencil.add_layer(target_layer_name);
-    target_node = &new_layer.as_node();
+    target_node = &grease_pencil.add_layer(target_layer_name).as_node();
 
     if (!target_group_name.empty()) {
       TreeNode *group_node = grease_pencil.find_node_by_name(target_group_name);
