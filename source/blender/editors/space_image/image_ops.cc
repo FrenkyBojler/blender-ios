@@ -244,7 +244,8 @@ static bool image_from_context_has_data_poll(bContext *C)
 
   void *lock;
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
-  const bool has_buffer = (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data));
+  const bool has_buffer = (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data ||
+                                    ibuf->gpu.texture));
   BKE_image_release_ibuf(ima, ibuf, lock);
   return has_buffer;
 }
@@ -1932,6 +1933,11 @@ static bool save_image_op(
     Main *bmain, Image *ima, ImageUser *iuser, wmOperator *op, const ImageSaveOptions *opts)
 {
   WM_cursor_wait(true);
+
+  void *lock;
+  ImBuf *image_buffer = BKE_image_acquire_ibuf(ima, iuser, &lock);
+  IMB_ensure_host_buffer(image_buffer);
+  BKE_image_release_ibuf(ima, image_buffer, lock);
 
   bool ok = BKE_image_save(op->reports, bmain, ima, iuser, opts);
 
@@ -3637,6 +3643,7 @@ bool ED_space_image_color_sample(
 
   void *lock;
   ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile);
+  IMB_ensure_host_buffer(ibuf);
   bool ret = false;
 
   if (ibuf == nullptr) {
@@ -3723,6 +3730,7 @@ static wmOperatorStatus image_sample_line_exec(bContext *C, wmOperator *op)
 
   void *lock;
   ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile);
+  IMB_ensure_host_buffer(ibuf);
   Histogram *hist = &sima->sample_line_hist;
 
   if (ibuf == nullptr) {

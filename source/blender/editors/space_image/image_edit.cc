@@ -170,7 +170,7 @@ ImBuf *ED_space_image_acquire_buffer(SpaceImage *sima, void **r_lock, int tile)
         return ibuf;
       }
 
-      if (ibuf->byte_buffer.data || ibuf->float_buffer.data) {
+      if (ibuf->byte_buffer.data || ibuf->float_buffer.data || ibuf->gpu.texture) {
         return ibuf;
       }
       BKE_image_release_ibuf(sima->image, ibuf, *r_lock);

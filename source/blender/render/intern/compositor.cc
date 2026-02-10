@@ -235,7 +235,6 @@ class Context : public compositor::Context {
       IMB_free_gpu_textures(image_buffer);
       image_buffer->x = size.x;
       image_buffer->y = size.y;
-      IMB_alloc_float_pixels(image_buffer, 4, false);
       image_buffer->userflags |= IB_DISPLAY_BUFFER_INVALID;
     }
 
@@ -247,16 +246,22 @@ class Context : public compositor::Context {
       copy_v2_v2_int(image_buffer->data_offset, viewer_result.domain().data_offset);
     }
 
+    if (viewer_result.is_single_value() || !this->use_gpu()) {
+      IMB_free_gpu_textures(image_buffer);
+      if (!image_buffer->float_buffer.data) {
+        IMB_alloc_float_pixels(image_buffer, 4, false);
+      }
+    }
+    else {
+      IMB_free_float_pixels(image_buffer);
+    }
+
     if (viewer_result.is_single_value()) {
       IMB_rectfill(image_buffer, viewer_result.get_single_value<compositor::Color>());
     }
     else if (this->use_gpu()) {
       IMB_assign_gpu_texture(image_buffer, viewer_result);
       GPU_texture_ref(viewer_result);
-      GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-      float *output_buffer = static_cast<float *>(
-          GPU_texture_read(viewer_result, GPU_DATA_FLOAT, 0));
-      IMB_assign_float_buffer(image_buffer, output_buffer, IB_TAKE_OWNERSHIP);
     }
     else {
       std::memcpy(image_buffer->float_buffer.data,

@@ -167,6 +167,7 @@ static void image_sample_apply(bContext *C, wmOperator *op, const wmEvent *event
 
   void *lock;
   ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile);
+  IMB_ensure_host_buffer(ibuf);
   ImageSampleInfo *info = static_cast<ImageSampleInfo *>(op->customdata);
   Scene *scene = CTX_data_scene(C);
   CurveMapping *curve_mapping = scene->view_settings.curve_mapping;

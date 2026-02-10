@@ -31,6 +31,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
+#include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "ED_asset_shelf.hh"
@@ -901,6 +902,7 @@ static void image_buttons_region_draw(const bContext *C, ARegion *region)
   /* only update scopes if scope category is active */
   if (category) {
     if (ibuf) {
+      IMB_ensure_host_buffer(ibuf);
       if (!sima->scopes.ok) {
         BKE_histogram_update_sample_line(
             &sima->sample_line_hist, ibuf, &scene->view_settings, &scene->display_settings);
