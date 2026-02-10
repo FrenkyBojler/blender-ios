@@ -1446,9 +1446,12 @@ static size_t animfilter_fcurves_span(bAnimContext *ac,
     if (skip_fcurve_selected_data(ac, fcu, animated_id, filter_mode)) {
       continue;
     }
-    SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(ac->sl);
-    if ((sipo->local_view_bits) && (fcu->local_view_bits & sipo->local_view_bits) == 0) {
-      continue;
+    if (ac->spacetype == SPACE_GRAPH) {
+
+      SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(ac->sl);
+      if ((sipo->local_view_bits) && (fcu->local_view_bits & sipo->local_view_bits) == 0) {
+        continue;
+      }
     }
 
     bAnimListElem *ale = make_new_animlistelem(
