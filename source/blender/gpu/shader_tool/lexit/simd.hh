@@ -83,6 +83,24 @@ template<int Size> struct u8_base {
     }
   }
 
+  void store(uint8_t *dst) const
+  {
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      vst1q_u8(dst + i * 16, lanes[i]);
+#  elif defined(USE_SSE4_2)
+      _mm_store_si128(dst + i * 16, lanes[i]);
+#  endif
+    }
+  }
+
+  u8_base<1> lane(int i) const
+  {
+    u8_base<1> result;
+    result.lanes[0] = lanes[i];
+    return result;
+  }
+
   /* Get content of end lane */
   uint8_t last() const
   {
@@ -300,7 +318,17 @@ struct u8x64_table {
 #  if defined(USE_NEON)
   uint8x16x4_t table;
 #  elif defined(USE_SSE4_2)
-  u8x64_table table[4];
+  u8x64 table;
+#  endif
+
+  u8x64_table() = default;
+#  if defined(USE_NEON)
+  u8x64_table(u8x64 table)
+      : table({table.lanes[0], table.lanes[1], table.lanes[2], table.lanes[3]})
+  {
+  }
+#  elif defined(USE_SSE4_2)
+  u8x64_table(u8x64 table) : table(table) {}
 #  endif
 
   static u8x64_table load_unaligned(const uint8_t *src)
@@ -405,9 +433,9 @@ inline u8_base<Size> shift_lanes_right(u8_base<Size> a, uint8_t fill_value)
   u8_base<Size> result;
   for (int i = Size - 1; i > 0; --i) {
 #  if defined(USE_NEON)
-    result.lanes[i] = vextq_u8(a.lanes[i], a.lanes[i - 1], 16 - Shift);
+    result.lanes[i] = vextq_u8(a.lanes[i - 1], a.lanes[i], 16 - Shift);
 #  elif defined(USE_SSE4_2)
-    result.lanes[i] = _mm_alignr_epi8(a.lanes[i - 1], a.lanes[i], 16 - Shift);
+    result.lanes[i] = _mm_alignr_epi8(a.lanes[i], a.lanes[i - 1], 16 - Shift);
 #  endif
   }
   u8_base<1> fill{fill_value};

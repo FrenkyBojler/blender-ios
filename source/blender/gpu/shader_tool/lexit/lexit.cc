@@ -333,12 +333,12 @@ inline TokenType select(char char_value, char char_class, bool cond)
   return TokenType((cond) ? char_class : char_value);
 }
 
-struct ShuffleIndicesResult {
-  simd::u8x16 indices;
+template<int Size> struct ShuffleIndicesResult {
+  simd::u8_base<Size> indices;
   int popcount;
 };
 
-inline ShuffleIndicesResult shuffle_indices_from_emit_mask(uint16_t emit_mask)
+inline ShuffleIndicesResult<1> shuffle_indices_from_emit_mask(uint16_t emit_mask)
 {
   const uint8_t emit_mask_lo = emit_mask & 0xFFu;
   const uint8_t emit_mask_hi = emit_mask >> 8;
@@ -354,6 +354,49 @@ inline ShuffleIndicesResult shuffle_indices_from_emit_mask(uint16_t emit_mask)
   *(uint64_t *)(combined + mask_popcount_lo) = v1;
 
   return {simd::u8x16::load((const uint8_t *)&combined), mask_popcount_lo + mask_popcount_hi};
+}
+
+inline ShuffleIndicesResult<4> shuffle_indices_from_emit_mask(uint64_t emit_mask)
+{
+  const uint8_t emit_mask_0 = (emit_mask >> 0) & 0xFFu;
+  const uint8_t emit_mask_1 = (emit_mask >> 8) & 0xFFu;
+  const uint8_t emit_mask_2 = (emit_mask >> 16) & 0xFFu;
+  const uint8_t emit_mask_3 = (emit_mask >> 24) & 0xFFu;
+  const uint8_t emit_mask_4 = (emit_mask >> 32) & 0xFFu;
+  const uint8_t emit_mask_5 = (emit_mask >> 40) & 0xFFu;
+  const uint8_t emit_mask_6 = (emit_mask >> 48) & 0xFFu;
+  const uint8_t emit_mask_7 = (emit_mask >> 56) & 0xFFu;
+  const uint8_t mask_popcount_0 = mask_popcount[emit_mask_0];
+  const uint8_t mask_popcount_1 = mask_popcount[emit_mask_1];
+  const uint8_t mask_popcount_2 = mask_popcount[emit_mask_2];
+  const uint8_t mask_popcount_3 = mask_popcount[emit_mask_3];
+  const uint8_t mask_popcount_4 = mask_popcount[emit_mask_4];
+  const uint8_t mask_popcount_5 = mask_popcount[emit_mask_5];
+  const uint8_t mask_popcount_6 = mask_popcount[emit_mask_6];
+  const uint8_t mask_popcount_7 = mask_popcount[emit_mask_7];
+  /* Lookup the shuffle vector in multiple part. */
+  uint64_t v0 = *(uint64_t *)shuffle_table_8[emit_mask_0];
+  uint64_t v1 = *(uint64_t *)shuffle_table_8[emit_mask_1] | uint64_t(0x0808080808080808);
+  uint64_t v2 = *(uint64_t *)shuffle_table_8[emit_mask_2] | uint64_t(0x1010101010101010);
+  uint64_t v3 = *(uint64_t *)shuffle_table_8[emit_mask_3] | uint64_t(0x1818181818181818);
+  uint64_t v4 = *(uint64_t *)shuffle_table_8[emit_mask_4] | uint64_t(0x2020202020202020);
+  uint64_t v5 = *(uint64_t *)shuffle_table_8[emit_mask_5] | uint64_t(0x2828282828282828);
+  uint64_t v6 = *(uint64_t *)shuffle_table_8[emit_mask_6] | uint64_t(0x3030303030303030);
+  uint64_t v7 = *(uint64_t *)shuffle_table_8[emit_mask_7] | uint64_t(0x3838383838383838);
+  /* Combine the parts into one contiguous index array.
+   * We don't care about values after the last valid index. */
+  alignas(64) uint8_t combined[64];
+  int popcount = 0;
+  *(uint64_t *)combined = v0, popcount += mask_popcount_0;
+  *(uint64_t *)(combined + popcount) = v1, popcount += mask_popcount_1;
+  *(uint64_t *)(combined + popcount) = v2, popcount += mask_popcount_2;
+  *(uint64_t *)(combined + popcount) = v3, popcount += mask_popcount_3;
+  *(uint64_t *)(combined + popcount) = v4, popcount += mask_popcount_4;
+  *(uint64_t *)(combined + popcount) = v5, popcount += mask_popcount_5;
+  *(uint64_t *)(combined + popcount) = v6, popcount += mask_popcount_6;
+  *(uint64_t *)(combined + popcount) = v7, popcount += mask_popcount_7;
+
+  return {simd::u8x64::load((const uint8_t *)&combined), popcount};
 }
 
 template<bool with_whitespace>
@@ -411,8 +454,8 @@ inline void TokenBuffer::tokenize_scalar(__restrict uint32_t &offset,
       if (emit) {
         int start = offsets_[cursor_begin - 1];
         int end = offsets_[cursor_end];
-        token_str_debug_.emplace_back(str_.data() + end, start - end);
-        token_str_with_whitespace_debug_.emplace_back(str_.data() + end, start - end);
+        token_str_debug_.emplace_back(str_.data() + start, end - start);
+        token_str_with_whitespace_debug_.emplace_back(str_.data() + start, end - start);
       }
 #endif
       cursor_begin += emit;
@@ -507,8 +550,11 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
     cursor_end++;
   }
 
+  int stride = 64;
+
   /* Process until alignment to SIMD size is met. */
-  size_t index_at_align = ((16 - (uintptr_t(str_.data() + 1) & 15)) & 15) + 1;
+  size_t index_at_align = ((stride - (uintptr_t(str_.data() + 1) & (stride - 1))) & (stride - 1)) +
+                          1;
   tokenize_scalar<with_whitespace>(offset,
                                    cursor,
                                    cursor_end,
@@ -521,35 +567,34 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
   using namespace lexit::simd;
   const uint8_t *str = (const uint8_t *)str_.data();
   const u8x128_table char_to_class = u8x128_table::load((const uint8_t *)char_class_table);
-  const u8x16 to_type_threshold{uint8_t(CharClass::ClassToTypeThreshold)};
-  const u8x16 can_merge{uint8_t(CharClass::CanMerge)};
 
-  for (; offset + 16 <= str_.size(); offset += 16) {
+  for (; offset + stride <= str_.size(); offset += stride) {
 #  ifdef LEXIT_DEBUG
-    const std::string_view char_simd{str_.data() + offset, size_t(16)};
+    const std::string_view char_simd{str_.data() + offset, size_t(stride)};
 #  endif
-    const u8x16 c = u8x16::load(str + offset);
-    const u8x16 curr_char_class = char_to_class[c];
+    const u8x64 c = u8x64::load(str + offset);
+    const u8x64 curr_char_class = char_to_class[c];
     /* Shift and add the last iteration end token at the start of the vector. */
-    const u8x16 prev_char_class = shift_lanes_right<1>(curr_char_class, uint8_t(prev_value));
+    const u8x64 prev_char_class = shift_lanes_right<1>(curr_char_class, uint8_t(prev_value));
 
-    const u8x16 curr_tok_type = select(c, curr_char_class, curr_char_class > to_type_threshold);
-    const u8x16 emit = is_zero(curr_char_class & prev_char_class & can_merge);
+    const u8x64 to_type_threshold{uint8_t(CharClass::ClassToTypeThreshold)};
+    const u8x64 can_merge{uint8_t(CharClass::CanMerge)};
+    const u8x64 curr_tok_type = select(c, curr_char_class, curr_char_class > to_type_threshold);
+    const u8x64 emit = is_zero(curr_char_class & prev_char_class & can_merge);
     /* Store for next iteration. */
     prev_value = CharClass(curr_char_class.last());
-
-    const u8x16 curr_ws = (curr_char_class == uint8_t(CharClass::WhiteSpace));
-    const u8x16 curr_non_ws = ~curr_ws;
-    const u8x16 emit_ws = emit & curr_ws;
-    const u8x16 emit_start = emit & curr_non_ws;
-    const u8x16 prev_non_ws = shift_lanes_right<1>(curr_non_ws, prev_whitespace ? 0x0 : 0xFF);
-    const u8x16 follow_non_ws = emit_start & prev_non_ws;
-    const u8x16 emit_end = emit_ws | follow_non_ws;
+    /* Start and end of token. See scalar version for documentation. */
+    const u8x64 curr_ws = (curr_char_class == uint8_t(CharClass::WhiteSpace));
+    const u8x64 curr_non_ws = ~curr_ws;
+    const u8x64 emit_ws = emit & curr_ws;
+    const u8x64 emit_start = emit & curr_non_ws;
+    const u8x64 prev_non_ws = shift_lanes_right<1>(curr_non_ws, prev_whitespace ? 0x0 : 0xFF);
+    const u8x64 follow_non_ws = emit_start & prev_non_ws;
+    const u8x64 emit_end = emit_ws | follow_non_ws;
     /* Store for next iteration. */
     prev_whitespace = !curr_non_ws.last();
-    uint16_t emit_end_mask = movemask(emit_end);
-    uint16_t emit_start_mask = movemask(emit_start);
-
+    uint64_t emit_end_mask = movemask(emit_end);
+    uint64_t emit_start_mask = movemask(emit_start);
     if constexpr (with_whitespace) {
       emit_start_mask = movemask(emit);
     }
@@ -559,14 +604,15 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
     {
       auto [shuffle, popcount] = shuffle_indices_from_emit_mask(emit_start_mask);
       /* Move data to destination elements (compaction). */
-      const u8x16 data_packed = u8x16_table(curr_tok_type).unsafe_shuffle(shuffle);
+      const u8x64 data_packed = u8x64_table(curr_tok_type)[shuffle];
       /* Write 16 types in the stream. */
       data_packed.store_unaligned((uint8_t *)types_.get() + cursor);
       /* The offsets are contained inside the 8 bit shuffle vector.
        * We need to promote it to 32 bit before adding the base offset. */
-      const u32x16 shuffle32x16 = u32x16(shuffle) + offset;
-      /* Write 16 offsets. */
-      shuffle32x16.store_unaligned(offsets_.get() + cursor);
+      (u32x16(shuffle.lane(0)) + offset).store_unaligned(offsets_.get() + (cursor + 0));
+      (u32x16(shuffle.lane(1)) + offset).store_unaligned(offsets_.get() + (cursor + 16));
+      (u32x16(shuffle.lane(2)) + offset).store_unaligned(offsets_.get() + (cursor + 32));
+      (u32x16(shuffle.lane(3)) + offset).store_unaligned(offsets_.get() + (cursor + 48));
 #  ifdef LEXIT_DEBUG
       for (int i = cursor; i < cursor + popcount; i++) {
         int start = offsets_[i - 1];
@@ -580,9 +626,10 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
       auto [shuffle, popcount] = shuffle_indices_from_emit_mask(emit_end_mask);
       /* The offsets are contained inside the 8 bit shuffle vector.
        * We need to promote it to 32 bit before adding the base offset. */
-      const u32x16 shuffle32x16 = u32x16(shuffle) + offset;
-      /* Write 16 offsets. */
-      shuffle32x16.store_unaligned(offsets_end_.get() + cursor_end);
+      (u32x16(shuffle.lane(0)) + offset).store_unaligned(offsets_end_.get() + (cursor_end + 0));
+      (u32x16(shuffle.lane(1)) + offset).store_unaligned(offsets_end_.get() + (cursor_end + 16));
+      (u32x16(shuffle.lane(2)) + offset).store_unaligned(offsets_end_.get() + (cursor_end + 32));
+      (u32x16(shuffle.lane(3)) + offset).store_unaligned(offsets_end_.get() + (cursor_end + 48));
 #  ifdef LEXIT_DEBUG
       for (int i = cursor_end; i < cursor_end + popcount; i++) {
         int start = offsets_[i - 1];
