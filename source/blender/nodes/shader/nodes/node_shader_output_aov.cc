@@ -7,6 +7,8 @@
 
 #include "BLI_hash.h"
 
+#include "RNA_prototypes.hh"
+
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
@@ -20,9 +22,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Value").default_value(0.0f).min(0.0f).max(1.0f);
 }
 
-static void node_shader_buts_output_aov(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_output_aov(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  layout.prop(ptr, "aov_name", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  PointerRNA view_layer_rna_ptr = RNA_pointer_create_id_subdata(
+      scene->id, RNA_ViewLayer, view_layer);
+
+  if (scene && view_layer) {
+    layout.prop_search(ptr, "aov_name", &view_layer_rna_ptr, "aovs", "", ICON_NONE);
+  }
 }
 
 static void node_shader_init_output_aov(bNodeTree * /*ntree*/, bNode *node)
