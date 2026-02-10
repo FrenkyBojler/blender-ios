@@ -374,9 +374,6 @@ inline void TokenBuffer::tokenize_scalar(__restrict uint32_t &offset,
      * as having a condition. */
     types_[cursor_begin] = curr_tok;
     offsets_[cursor_begin] = offset;
-    if constexpr (!with_whitespace) {
-      offsets_end_[cursor_end] = offset;
-    }
     /**
      * Split if no class in common.
      * Example:
@@ -552,9 +549,6 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
       u32x16 shuffle32x16 = u32x16(shuffle) + offset;
       /* Write 16 offsets. */
       shuffle32x16.store_unaligned(offsets_.get() + cursor);
-      if constexpr (with_whitespace) {
-        shuffle32x16.store_unaligned(offsets_end_.get() + cursor_end);
-      }
       cursor += popcount;
     }
   }
@@ -565,7 +559,7 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
       offset, cursor, cursor_end, prev_value, prev_non_whitespace, str_.size(), char_class_table);
 
   if constexpr (!with_whitespace) {
-    assert(cursor_no_whitespace == cursor - 1 || cursor_no_whitespace == cursor);
+    assert(cursor_end == cursor - 1 || cursor_end == cursor);
   }
 
   /* Set end of last token. */
@@ -573,9 +567,12 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
   offsets_end_[cursor] = str_.size();
   /* Set end of file token. */
   types_[cursor] = EndOfFile;
-
   size_ = cursor;
-  whitespaces_collapsed_ = !with_whitespace;
+
+  if constexpr (with_whitespace) {
+    /* Copy instead of setting it inside the loop. */
+    std::memcpy(offsets_end_.get(), offsets_.get(), size_ * sizeof(offsets_end_[0]));
+  }
 }
 
 template void TokenBuffer::tokenize<true>(const CharClass[128]);
@@ -707,7 +704,6 @@ void TokenBuffer::merge_whitespaces()
                                       offsets_end_.get(),
                                       size_,
                                       str_.size());
-  whitespaces_collapsed_ = true;
 }
 
 void TokenBuffer::merge_spaces()
@@ -719,7 +715,6 @@ void TokenBuffer::merge_spaces()
                              offsets_end_.get(),
                              size_,
                              str_.size());
-  whitespaces_collapsed_ = true;
 }
 
 }  // namespace lexit

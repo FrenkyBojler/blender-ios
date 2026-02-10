@@ -110,8 +110,6 @@ struct TokenBuffer {
   uint32_t size_ = 0;
   /* Number of tokens that can be contained. */
   uint32_t allocated_size_ = 0;
-  /* If whitespaces where not collapsed, offsets_ should be used instead of original_offsets_. */
-  bool whitespaces_collapsed_ = false;
 
 #ifdef LEXIT_DEBUG
   std::vector<std::string_view> token_str_debug_;
@@ -198,9 +196,8 @@ struct TokenBuffer {
                           const bool with_trailing_whitespaces = false) const
   {
     int start_char = offsets_[int(start)];
-    int end_char = (whitespaces_collapsed_ && !with_trailing_whitespaces) ?
-                       offsets_end_[int(end) + 1] :
-                       offsets_[int(end) + 1];
+    int end_char = (!with_trailing_whitespaces) ? offsets_end_[int(end) + 1] :
+                                                  offsets_[int(end) + 1];
     return str_.substr(start_char, end_char - start_char);
   }
 
@@ -345,8 +342,7 @@ inline Token Token::prev(int i) const
 inline std::string_view Token::str() const
 {
   int start = buf_->offsets_[index_];
-  int end = buf_->whitespaces_collapsed_ ? buf_->offsets_end_[index_ + 1] :
-                                           buf_->offsets_[index_ + 1];
+  int end = buf_->offsets_end_[index_ + 1];
   return {buf_->str_.data() + start, size_t(end - start)};
 }
 
@@ -359,7 +355,7 @@ inline std::string_view Token::str_with_whitespace() const
 
 inline bool Token::followed_by_whitespace() const
 {
-  assert(buf_->whitespaces_collapsed_ && is_valid());
+  assert(is_valid());
   return buf_->offsets_end_[index_ + 1] != buf_->offsets_[index_ + 1];
 }
 

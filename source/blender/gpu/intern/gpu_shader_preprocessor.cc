@@ -121,7 +121,6 @@ struct TokenPastingBuffer : lexit::TokenBuffer {
     pasted_tokens_str.append(std::make_unique<std::string>());
     pasted_tokens_str.last()->resize(1024 * 2);
     this->reserve(512);
-    this->whitespaces_collapsed_ = true;
     this->offsets_[0] = 0;
     this->offsets_end_[0] = 0;
   }
