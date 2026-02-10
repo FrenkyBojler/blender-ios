@@ -1442,13 +1442,11 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
   float theme_col_tab_no_search_match[4];
   float theme_col_tab_outline[4];
   float theme_col_tab_outline_sel[4];
-  float theme_col_tab_bg_fl[4];
 
   theme::get_color_4ubv(TH_BACK, theme_col_back);
   theme::get_color_3ubv(TH_TAB_TEXT, theme_col_tab_text);
   theme::get_color_3ubv(TH_TAB_TEXT_HI, theme_col_tab_text_sel);
   theme::get_color_4ubv(TH_TAB_BACK, theme_col_tab_bg);
-  theme::get_color_4fv(TH_TAB_BACK, theme_col_tab_bg_fl);
   theme::get_color_4fv(TH_TAB_ACTIVE, theme_col_tab_active);
   theme::get_color_4fv(TH_TAB_INACTIVE, theme_col_tab_inactive);
   theme::get_color_4fv(TH_TAB_INACTIVE, theme_col_tab_no_search_match);
