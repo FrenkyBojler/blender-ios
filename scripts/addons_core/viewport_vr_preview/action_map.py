@@ -114,28 +114,6 @@ def vr_create_actions(context: bpy.context):
     vr_actionset_active_update(context)
 
 
-def vr_load_actionmaps(session_state, filepath):
-    if not os.path.exists(filepath):
-        return False
-
-    spec = importlib.util.spec_from_file_location(os.path.basename(filepath), filepath)
-    file = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(file)
-
-    action_map_io.actionconfig_init_from_data(session_state, file.actionconfig_data, file.actionconfig_version)
-    test_actionconfig(file.actionconfig_data)
-
-    return True
-
-
-def vr_save_actionmaps(session_state, filepath, sort=False):
-    action_map_io.actionconfig_export_as_data(session_state, filepath, sort=sort)
-
-    print("Saved XR actionmaps: " + filepath)
-
-    return True
-
-
 def register():
     bpy.types.Scene.vr_actions_enable = bpy.props.BoolProperty(
         name="Use Controller Actions",
