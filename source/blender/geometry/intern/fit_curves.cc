@@ -125,11 +125,12 @@ bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
     const bool is_cyclic = src_cyclic[curve_i];
     const float epsilon = thresholds[curve_i];
 
-    IndexMaskMemory memory;
-    const IndexMask corner_mask =
-        IndexMask::from_bools(points, corners, memory).shift(-points.start(), memory);
-    Array<int> src_corners(corner_mask.size());
-    corner_mask.to_indices(src_corners.as_mutable_span());
+    Vector<int, 32> src_corners;
+    for (const int i : points.index_range()) {
+      if (corners[points[i]]) {
+        src_corners.append(i);
+      }
+    }
     const uint *src_corners_ptr = src_corners.is_empty() ?
                                       nullptr :
                                       reinterpret_cast<const uint *>(src_corners.data());
