@@ -570,7 +570,7 @@ static uint free_localview_bit(Main *bmain)
   return 0;
 }
 
-static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};

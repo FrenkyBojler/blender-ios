@@ -2046,6 +2046,8 @@ def km_graph_editor(params):
         ("graph.view_all", {"type": 'NDOF_BUTTON_FIT', "value": 'PRESS'}, None),
         ("graph.view_selected", {"type": 'NUMPAD_PERIOD', "value": 'PRESS'}, None),
         ("graph.view_frame", {"type": 'NUMPAD_0', "value": 'PRESS'}, None),
+        ("graph.isolate", {"type": 'SLASH', "value": 'PRESS'}, None),
+        ("graph.isolate", {"type": 'NUMPAD_SLASH', "value": 'PRESS'}, None),
         op_menu_pie("GRAPH_MT_view_pie", {"type": 'ACCENT_GRAVE', "value": 'PRESS'}),
         ("anim.channels_editable_toggle", {"type": 'TAB', "value": 'PRESS'}, None),
         ("transform.translate", {"type": 'G', "value": 'PRESS'}, None),
