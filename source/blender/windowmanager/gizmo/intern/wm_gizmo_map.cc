@@ -307,10 +307,10 @@ eWM_GizmoFlagMapDrawStep WM_gizmomap_drawstep_from_gizmo_group(const wmGizmoGrou
   if (gzgroup->type->flag & WM_GIZMOGROUPTYPE_3D) {
     step = WM_GIZMOMAP_DRAWSTEP_3D;
   }
-  else if (gzgroup->type->flag & WM_GIZMOGROUPTYPE_TOOLS) {
+  else if (gzgroup->type->flag & WM_GIZMOGROUPTYPE_2D_TOOL) {
     step = WM_GIZMOMAP_DRAWSTEP_2D_TOOLS;
   }
-  else if (gzgroup->type->flag & WM_GIZMOGROUPTYPE_VIEW_CONTROLS) {
+  else if (gzgroup->type->flag & WM_GIZMOGROUPTYPE_2D_VIEW_CONTROLS) {
     step = WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS;
   }
   return step;

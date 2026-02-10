@@ -157,10 +157,15 @@ enum eWM_GizmoFlagGroupTypeFlag {
    */
   WM_GIZMOGROUPTYPE_VR_REDRAWS = (1 << 10),
 
-  // todo(habib): doc
-  // todo(habib): update all gizmos in Blender
-  WM_GIZMOGROUPTYPE_VIEW_CONTROLS = (1 << 11),
-  WM_GIZMOGROUPTYPE_TOOLS = (1 << 12),
+  /**
+   * View controls include panning and zooming, which will be drawn on top of other 2D gizmos.
+   */
+  WM_GIZMOGROUPTYPE_2D_VIEW_CONTROLS = (1 << 11),
+
+  /**
+   * 2D tools include node gizmos that will be drawn underneath view control gizmos.
+   */
+  WM_GIZMOGROUPTYPE_2D_TOOL = (1 << 12),
 };
 
 ENUM_OPERATORS(eWM_GizmoFlagGroupTypeFlag);
@@ -521,9 +526,9 @@ struct wmGizmoGroup {
  * Pass a value of this enum to #WM_gizmomap_draw to tell it what to draw.
  */
 enum eWM_GizmoFlagMapDrawStep {
-  /** Draw 2D gizmo-groups (#WM_GIZMOGROUPTYPE_3D not set). */
+  /** Draw 2D view control gizmo-groups (#WM_GIZMOGROUPTYPE_3D not set). */
   WM_GIZMOMAP_DRAWSTEP_2D_VIEW_CONTROLS = 0,
-  // todo(habib): doc
+  /** Draw 2D tool gizmos (#WM_GIZMOGROUPTYPE_3D not set) */
   WM_GIZMOMAP_DRAWSTEP_2D_TOOLS,
 
   /** Draw 3D gizmo-groups (#WM_GIZMOGROUPTYPE_3D set). */
