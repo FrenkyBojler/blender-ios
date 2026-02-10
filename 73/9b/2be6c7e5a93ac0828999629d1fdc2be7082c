@@ -1,2 +1,3 @@
 Referenced by issue #151762, Regression: Auto Depth interaction incorrectly affected by new grid
 Referenced by issue #154080, Image editor missing border and background grid
+Referenced by issue #154216, 3D Viewport grid fades near geometry, making it hard to gauge depth
