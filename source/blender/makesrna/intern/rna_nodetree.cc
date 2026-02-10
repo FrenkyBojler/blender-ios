@@ -8629,8 +8629,7 @@ static void def_geo_fit_curves(BlenderRNA *brna, StructRNA *srna)
        "REFIT",
        0,
        "Refit",
-       "Iteratively removes knots with the least error starting with a dense curve (slower, "
-       "more "
+       "Iteratively removes knots with the least error starting with a dense curve (slower, more "
        "accurate fit)"},
       {0, nullptr, 0, nullptr, nullptr},
   };
