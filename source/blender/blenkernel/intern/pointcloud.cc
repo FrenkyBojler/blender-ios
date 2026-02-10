@@ -66,7 +66,7 @@ static void pointcloud_copy_data(Main * /*bmain*/,
 {
   PointCloud *pointcloud_dst = id_cast<PointCloud *>(id_dst);
   const PointCloud *pointcloud_src = id_cast<const PointCloud *>(id_src);
-  pointcloud_dst->mat = static_cast<Material **>(MEM_dupallocN(pointcloud_src->mat));
+  pointcloud_dst->mat = MEM_dupalloc(pointcloud_src->mat);
 
   new (&pointcloud_dst->attribute_storage.wrap())
       bke::AttributeStorage(pointcloud_src->attribute_storage.wrap());
@@ -90,7 +90,7 @@ static void pointcloud_free_data(ID *id)
   BKE_animdata_free(&pointcloud->id, false);
   BKE_pointcloud_batch_cache_free(pointcloud);
   pointcloud->attribute_storage.wrap().~AttributeStorage();
-  MEM_SAFE_FREE(pointcloud->mat);
+  MEM_SAFE_DELETE(pointcloud->mat);
   delete pointcloud->runtime;
 }
 
@@ -116,7 +116,11 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
 
   ResourceScope scope;
   bke::AttributeStorage::BlendWriteData attribute_data{scope};
-  attribute_storage_blend_write_prepare(pointcloud->attribute_storage.wrap(), attribute_data);
+  attribute_storage_blend_write_prepare(
+      pointcloud->attribute_storage.wrap(),
+      !BLO_write_is_undo(writer),
+      [&](const AttrDomain /*domain*/) { return pointcloud->totpoint; },
+      attribute_data);
 
   if (attribute_data.attributes.is_empty()) {
     pointcloud->attribute_storage.dna_attributes = nullptr;
@@ -130,7 +134,7 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   CustomData_reset(&pointcloud->pdata_legacy);
 
   /* Write LibData */
-  BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);
+  writer->write_id_struct(id_address, pointcloud);
   BKE_id_blend_write(writer, &pointcloud->id);
 
   /* Direct data */
@@ -154,34 +158,34 @@ static void pointcloud_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_PT = {
-    /*id_code*/ PointCloud::id_type,
-    /*id_filter*/ FILTER_ID_PT,
-    /*dependencies_id_types*/ FILTER_ID_MA,
-    /*main_listbase_index*/ INDEX_ID_PT,
-    /*struct_size*/ sizeof(PointCloud),
-    /*name*/ "PointCloud",
-    /*name_plural*/ N_("pointclouds"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_POINTCLOUD,
-    /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .id_code = PointCloud::id_type,
+    .id_filter = FILTER_ID_PT,
+    .dependencies_id_types = FILTER_ID_MA,
+    .main_listbase_index = INDEX_ID_PT,
+    .struct_size = sizeof(PointCloud),
+    .name = "PointCloud",
+    .name_plural = N_("pointclouds"),
+    .translation_context = BLT_I18NCONTEXT_ID_POINTCLOUD,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ pointcloud_init_data,
-    /*copy_data*/ pointcloud_copy_data,
-    /*free_data*/ pointcloud_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ pointcloud_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ pointcloud_foreach_working_space_color,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = pointcloud_init_data,
+    .copy_data = pointcloud_copy_data,
+    .free_data = pointcloud_free_data,
+    .make_local = nullptr,
+    .foreach_id = pointcloud_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = pointcloud_foreach_working_space_color,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ pointcloud_blend_write,
-    /*blend_read_data*/ pointcloud_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = pointcloud_blend_write,
+    .blend_read_data = pointcloud_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 Span<float3> PointCloud::positions() const
@@ -306,10 +310,37 @@ bool BKE_pointcloud_attribute_required(const PointCloud * /*pointcloud*/, const 
 void pointcloud_copy_parameters(const PointCloud &src, PointCloud &dst)
 {
   dst.flag = src.flag;
-  MEM_SAFE_FREE(dst.mat);
-  dst.mat = MEM_malloc_arrayN<Material *>(src.totcol, __func__);
+  MEM_SAFE_DELETE(dst.mat);
+  dst.mat = MEM_new_array_uninitialized<Material *>(src.totcol, __func__);
   dst.totcol = src.totcol;
   MutableSpan(dst.mat, dst.totcol).copy_from(Span(src.mat, src.totcol));
+}
+
+void pointcloud_resize(PointCloud &pointcloud, const int size)
+{
+  BLI_assert(size > 0);
+
+  const int old_totpoint = pointcloud.totpoint;
+
+  if (size == old_totpoint) {
+    return;
+  }
+
+  pointcloud.totpoint = size;
+
+  bke::MutableAttributeAccessor attributes = pointcloud.attributes_for_write();
+  if (old_totpoint == 0) {
+    /* If there were no points before, ensure the position attribute exists. */
+    attributes.add<float3>("position", bke::AttrDomain::Point, bke::AttributeInitConstruct());
+  }
+
+  pointcloud.attribute_storage.wrap().resize(bke::AttrDomain::Point, pointcloud.totpoint);
+
+  if (size > old_totpoint) {
+    /* Initialize new points. */
+    fill_attribute_range_default(
+        attributes, bke::AttrDomain::Point, {}, IndexRange(old_totpoint, size));
+  }
 }
 
 /* Dependency Graph */

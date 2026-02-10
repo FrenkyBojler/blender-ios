@@ -388,7 +388,7 @@ void BKE_object_empty_draw_type_set(Object *ob, int value);
 
 void BKE_object_minmax(Object *ob, float3 &r_min, float3 &r_max);
 bool BKE_object_minmax_dupli(
-    Depsgraph *depsgraph, Scene *scene, Object *ob, float3 &r_min, float3 &r_max, bool use_hidden);
+    Depsgraph *depsgraph, Object *ob, float3 &r_min, float3 &r_max, bool use_hidden);
 /**
  * Calculate visual bounds from an empty objects draw-type.
  *
@@ -412,6 +412,7 @@ bool BKE_object_parent_loop_check(const Object *parent, const Object *ob);
 
 void *BKE_object_tfm_backup(Object *ob);
 void BKE_object_tfm_restore(Object *ob, void *obtfm_pt);
+void BKE_object_tfm_free(void *obtfm_pt);
 
 struct ObjectTfmProtectedChannels {
   float loc[3], dloc[3];

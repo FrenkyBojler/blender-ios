@@ -70,7 +70,6 @@ static PyObject *pygpu_uniformbuffer__tp_new(PyTypeObject * /*self*/,
 
   static const char *_keywords[] = {"data", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O" /* `data` */
       ":GPUUniformBuf.__new__",
       _keywords,
@@ -176,7 +175,7 @@ PyDoc_STRVAR(
     "\n"
     "   This object gives access to off uniform buffers.\n"
     "\n"
-    "   :arg data: Data to fill the buffer.\n"
+    "   :param data: Data to fill the buffer.\n"
     "   :type data: object exposing buffer interface\n");
 PyTypeObject BPyGPUUniformBuf_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)

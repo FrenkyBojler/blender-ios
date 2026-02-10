@@ -44,7 +44,7 @@
 #endif
 
 #ifdef WITH_USD
-#  include "usd.hh"
+#  include "usd_api_modifier.hh"
 #endif
 
 namespace blender {
@@ -100,7 +100,7 @@ static void cache_file_blend_write(BlendWriter *writer, ID *id, const void *id_a
   memset(cache_file->handle_filepath, 0, sizeof(cache_file->handle_filepath));
   cache_file->handle_readers = nullptr;
 
-  BLO_write_id_struct(writer, CacheFile, id_address, &cache_file->id);
+  writer->write_id_struct(id_address, cache_file);
   BKE_id_blend_write(writer, &cache_file->id);
 
   /* write layers */
@@ -122,34 +122,34 @@ static void cache_file_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_CF = {
-    /*id_code*/ CacheFile::id_type,
-    /*id_filter*/ FILTER_ID_CF,
-    /*dependencies_id_types*/ 0,
-    /*main_listbase_index*/ INDEX_ID_CF,
-    /*struct_size*/ sizeof(CacheFile),
-    /*name*/ "CacheFile",
-    /*name_plural*/ N_("cache_files"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_CACHEFILE,
-    /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .id_code = CacheFile::id_type,
+    .id_filter = FILTER_ID_CF,
+    .dependencies_id_types = 0,
+    .main_listbase_index = INDEX_ID_CF,
+    .struct_size = sizeof(CacheFile),
+    .name = "CacheFile",
+    .name_plural = N_("cache_files"),
+    .translation_context = BLT_I18NCONTEXT_ID_CACHEFILE,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ cache_file_init_data,
-    /*copy_data*/ cache_file_copy_data,
-    /*free_data*/ cache_file_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ nullptr,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ cache_file_foreach_path,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = cache_file_init_data,
+    .copy_data = cache_file_copy_data,
+    .free_data = cache_file_free_data,
+    .make_local = nullptr,
+    .foreach_id = nullptr,
+    .foreach_cache = nullptr,
+    .foreach_path = cache_file_foreach_path,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ cache_file_blend_write,
-    /*blend_read_data*/ cache_file_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = cache_file_blend_write,
+    .blend_read_data = cache_file_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 #if defined(WITH_ALEMBIC) || defined(WITH_USD)
@@ -422,7 +422,7 @@ CacheFileLayer *BKE_cachefile_add_layer(CacheFile *cache_file, const char filepa
 
   const int num_layers = BLI_listbase_count(&cache_file->layers);
 
-  CacheFileLayer *layer = MEM_new_for_free<CacheFileLayer>("CacheFileLayer");
+  CacheFileLayer *layer = MEM_new<CacheFileLayer>("CacheFileLayer");
   STRNCPY(layer->filepath, filepath);
 
   BLI_addtail(&cache_file->layers, layer);
@@ -442,7 +442,7 @@ void BKE_cachefile_remove_layer(CacheFile *cache_file, CacheFileLayer *layer)
 {
   cache_file->active_layer = 0;
   BLI_remlink(&cache_file->layers, layer);
-  MEM_freeN(layer);
+  MEM_delete(layer);
 }
 
 }  // namespace blender

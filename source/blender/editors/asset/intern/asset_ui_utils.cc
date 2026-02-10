@@ -14,6 +14,7 @@
 #include "BKE_preferences.h"
 #include "BKE_preview_image.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 
 #include "BLT_translation.hh"
@@ -112,6 +113,31 @@ AssetLibraryReference get_asset_library_ref_from_opptr(PointerRNA &ptr)
   return asset::library_reference_from_enum_value(enum_value);
 }
 
+std::optional<AssetLibraryReference> get_user_library_ref_for_save(
+    const asset_system::AssetLibrary *preferred_library)
+{
+  std::optional<AssetLibraryReference> preferred_library_ref =
+      preferred_library ? preferred_library->library_reference() : std::nullopt;
+  BLI_assert(bool(preferred_library_ref));
+
+  if (preferred_library_ref &&
+      !ELEM(preferred_library_ref->type, ASSET_LIBRARY_ALL, ASSET_LIBRARY_ESSENTIALS))
+  {
+    return preferred_library_ref;
+  }
+
+  /* Fallback to the first enabled user library. */
+  for (const bUserAssetLibrary &asset_library : U.asset_libraries) {
+    if (asset_library.flag & ASSET_LIBRARY_DISABLED) {
+      continue;
+    }
+    return asset::user_library_to_library_ref(asset_library);
+  }
+
+  /* No enabled user asset library found. */
+  return {};
+}
+
 void visit_library_catalogs_catalog_for_search(
     const Main &bmain,
     const AssetLibraryReference lib,
@@ -130,8 +156,9 @@ void visit_library_catalogs_catalog_for_search(
     }
   }
 
-  const asset_system::AssetCatalogTree &full_tree = library->catalog_service().catalog_tree();
-  full_tree.foreach_item([&](const asset_system::AssetCatalogTreeItem &item) {
+  const std::shared_ptr<const asset_system::AssetCatalogTree> full_tree =
+      library->catalog_service().catalog_tree();
+  full_tree->foreach_item([&](const asset_system::AssetCatalogTreeItem &item) {
     visit_fn(StringPropertySearchVisitParams{item.catalog_path().str(), std::nullopt});
   });
 }

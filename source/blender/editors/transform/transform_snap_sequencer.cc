@@ -125,7 +125,7 @@ static void points_build_sources_timeline_retiming(
     const Map<SeqRetimingKey *, Strip *> &retiming_selection)
 {
   for (auto item : retiming_selection.items()) {
-    const int key_frame = seq::retiming_key_timeline_frame_get(scene, item.value, item.key);
+    const int key_frame = seq::retiming_key_frame_get(scene, item.value, item.key);
     snap_data->source_snap_points.append(float2(key_frame));
   }
 
@@ -205,7 +205,7 @@ static VectorSet<Strip *> query_snap_targets_timeline(Scene *scene,
                                                       const Span<Strip *> snap_sources,
                                                       const bool exclude_selected)
 {
-  Editing *ed = seq::editing_get(scene);
+  Editing *ed = seq::editing_ensure(scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
   const short snap_flag = seq::tool_settings_snap_flag_get(scene);
@@ -272,7 +272,7 @@ static Map<SeqRetimingKey *, Strip *> visible_retiming_keys_get(const Scene *sce
 
   for (Strip *strip : snap_strip_targets) {
     for (SeqRetimingKey &key : seq::retiming_keys_get(strip)) {
-      const int key_frame = seq::retiming_key_timeline_frame_get(scene, strip, &key);
+      const int key_frame = seq::retiming_key_frame_get(scene, strip, &key);
       if (strip->intersects_frame(scene, key_frame)) {
         visible_keys.add(&key, strip);
       }
@@ -300,7 +300,7 @@ static void points_build_targets_timeline(const Scene *scene,
   if (snap_mode & SEQ_SNAP_TO_FRAME_RANGE) {
     snap_data->target_snap_points.append(float2(PSFRA));
     snap_data->target_snap_points.append(float2(PEFRA + 1));
-    /* Also snap to metastrip display range if we are in a metastrip. */
+    /* Also snap to meta-strip display range if we are in a meta-strip. */
     MetaStack *ms = seq::meta_stack_active_get(seq::editing_get(scene));
     if (ms != nullptr) {
       snap_data->target_snap_points.append(float2(ms->disp_range[0]));
@@ -333,7 +333,7 @@ static void points_build_targets_timeline(const Scene *scene,
   Map retiming_key_targets = visible_retiming_keys_get(scene, strip_targets);
   if (snap_mode & SEQ_SNAP_TO_RETIMING) {
     for (auto item : retiming_key_targets.items()) {
-      const int key_frame = seq::retiming_key_timeline_frame_get(scene, item.value, item.key);
+      const int key_frame = seq::retiming_key_frame_get(scene, item.value, item.key);
       snap_data->target_snap_points.append(float2(key_frame));
     }
   }
