@@ -713,29 +713,49 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
 
   /* Apply rotation FCurves. */
   for (const auto &[rna_path, rotation_fcurves] : rotation_fcurve_map.items()) {
-    if (rna_path.endswith("rotation_quaternion")) {
-      PathResolvedRNA anim_rna;
-      /* The function `animsys_blend_fcurves_quaternion` deals with the array index of the
-       * PathResolvedRNA. This is why we can just use the array_index of the first FCurve. */
-      if (!BKE_animsys_rna_path_resolve(
-              ptr, rna_path.data(), rotation_fcurves[0]->array_index, &anim_rna))
-      {
-        continue;
-      }
-      animsys_blend_fcurves_quaternion(
-          &anim_rna, rotation_fcurves, anim_eval_context, blend_factor);
+    PointerRNA resolved_ptr;
+    PropertyRNA *resolved_prop;
+    if (!RNA_path_resolve_property(ptr, rna_path.data(), &resolved_ptr, &resolved_prop)) {
+      continue;
     }
-    else {
-      for (FCurve *fcurve : rotation_fcurves) {
+
+    std::optional<eRotationModes> ptr_rotation_mode = animrig::get_rotation_mode_from_rna_pointer(
+        resolved_ptr);
+    BLI_assert_msg(
+        ptr_rotation_mode.has_value(),
+        "We have an FCurve on a rotation property, the RNA data should have a rotation order.");
+
+    if (animrig::get_rotation_mode_from_path(rna_path) == ptr_rotation_mode.value()) {
+      /* Easy case, animation mode of pose and of blender data are matching. Data can just be
+       * applied. */
+      if (rna_path.endswith("rotation_quaternion")) {
         PathResolvedRNA anim_rna;
-        if (!BKE_animsys_rna_path_resolve(ptr, fcurve->rna_path, fcurve->array_index, &anim_rna)) {
+        /* The function `animsys_blend_fcurves_quaternion` deals with the array index of the
+         * PathResolvedRNA. This is why we can just use the array_index of the first FCurve. */
+        if (!BKE_animsys_rna_path_resolve(
+                ptr, rna_path.data(), rotation_fcurves[0]->array_index, &anim_rna))
+        {
           continue;
         }
-
-        const float value_to_write = get_fcurve_blend_value(
-            *fcurve, anim_rna, anim_eval_context, blend_factor);
-        BKE_animsys_write_to_rna_path(&anim_rna, value_to_write);
+        animsys_blend_fcurves_quaternion(
+            &anim_rna, rotation_fcurves, anim_eval_context, blend_factor);
       }
+      else {
+        for (FCurve *fcurve : rotation_fcurves) {
+          PathResolvedRNA anim_rna;
+          if (!BKE_animsys_rna_path_resolve(ptr, fcurve->rna_path, fcurve->array_index, &anim_rna))
+          {
+            continue;
+          }
+
+          const float value_to_write = get_fcurve_blend_value(
+              *fcurve, anim_rna, anim_eval_context, blend_factor);
+          BKE_animsys_write_to_rna_path(&anim_rna, value_to_write);
+        }
+      }
+    }
+    else {
+      /* Convert the rotation from the pose to the mode that the blender data expects. */
     }
   }
 

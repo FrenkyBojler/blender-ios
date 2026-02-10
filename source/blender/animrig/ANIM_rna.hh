@@ -27,8 +27,19 @@ Vector<float> get_rna_values(PointerRNA *ptr, PropertyRNA *prop);
 
 /** Get the rna path for the given rotation mode. */
 StringRef get_rotation_mode_path(eRotationModes rotation_mode);
+/**
+ * Returns the rotation mode of the given rna path or a nullopt if the `rna_path` is not for a
+ * rotation property.
+ */
+std::optional<eRotationModes> get_rotation_mode_from_path(const StringRefNull rna_path);
+/**
+ * Returns the rotation mode of the given rna pointer.
+ */
+std::optional<eRotationModes> get_rotation_mode_from_rna_pointer(const PointerRNA &ptr);
 
-/** Returns true if the given rna path is for a rotation property. */
+/**
+ * Returns true if the given rna path is for a rotation property.
+ */
 bool is_rotation_path(const StringRefNull rna_path);
 
 /**

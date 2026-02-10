@@ -91,6 +91,33 @@ StringRef get_rotation_mode_path(const eRotationModes rotation_mode)
   }
 }
 
+std::optional<eRotationModes> get_rotation_mode_from_path(const StringRefNull rna_path)
+{
+  if (rna_path.endswith("rotation_quaternion")) {
+    return ROT_MODE_QUAT;
+  }
+  else if (rna_path.endswith("rotation_euler")) {
+    return ROT_MODE_EUL;
+  }
+  else if (rna_path.endswith("rotation_axis_angle")) {
+    return ROT_MODE_AXISANGLE;
+  }
+  return std::nullopt;
+}
+
+std::optional<eRotationModes> get_rotation_mode_from_rna_pointer(const PointerRNA &ptr)
+{
+  if (ptr.type == RNA_PoseBone) {
+    bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr.data);
+    return eRotationModes(pchan->rotmode);
+  }
+  if (ptr.type == RNA_Object) {
+    Object *ob = static_cast<Object *>(ptr.data);
+    return eRotationModes(ob->rotmode);
+  }
+  return std::nullopt;
+}
+
 bool is_rotation_path(const StringRefNull rna_path)
 {
   return rna_path.endswith("rotation_quaternion") || rna_path.endswith("rotation_euler") ||
