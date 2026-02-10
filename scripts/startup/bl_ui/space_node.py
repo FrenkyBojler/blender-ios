@@ -256,6 +256,7 @@ class NODE_HT_header(Header):
         sub.active = overlay.show_overlays and row.active
         sub.popover(panel="NODE_PT_overlay", text="")
 
+
 class NODE_PT_gizmo_display(Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'HEADER'
