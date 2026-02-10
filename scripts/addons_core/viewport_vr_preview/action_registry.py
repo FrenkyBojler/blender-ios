@@ -11,7 +11,7 @@ from .action_profile import (
 from . import actions, profiles
 
 
-class ActionRegistry:
+class VRActionRegistry:
     def __init__(self):
         self.actions = {}
         self.profiles = {}
@@ -153,7 +153,7 @@ def _iter_profile_classes(module):
         yield value
 
 def build_default_registry():
-    registry = ActionRegistry()
+    registry = VRActionRegistry()
 
     # Search through the actions module for action classes.
     for module_info in sorted(

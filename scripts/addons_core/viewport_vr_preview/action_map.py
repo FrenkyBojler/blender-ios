@@ -16,8 +16,6 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 import importlib.util
 import os.path
 
-from .configs.old import test_actionconfig
-
 
 def vr_actionset_active_update(context):
     session_state = context.window_manager.xr_session_state
