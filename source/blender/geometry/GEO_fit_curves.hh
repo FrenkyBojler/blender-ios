@@ -16,7 +16,7 @@ enum class FitMethod {
   /**
    * Uses a least squares solver to recursively find the control points.
    */
-  Split
+  Split = 1,
 };
 
 /**
