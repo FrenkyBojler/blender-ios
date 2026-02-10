@@ -55,7 +55,7 @@ bool socket_type_has_attribute_toggle(eNodeSocketDatatype type);
 bool input_has_attribute_toggle(const bNodeTree &node_tree, const int socket_index);
 
 bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
-                                                    const IDProperty *properties,
+                                                    const PointerRNA &properties_ptr,
                                                     const ComputeContext &base_compute_context,
                                                     GeoNodesCallData &call_data,
                                                     bke::GeometrySet input_geometry);

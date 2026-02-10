@@ -317,14 +317,6 @@ static bool logging_enabled(const ModifierEvalContext *ctx)
   return true;
 }
 
-static void update_id_properties_from_node_group(NodesModifierData *nmd)
-{
-  if (nmd->node_group == nullptr) {
-    // TODO
-    return;
-  }
-}
-
 static void remove_outdated_bake_caches(NodesModifierData &nmd)
 {
   if (!nmd.runtime->cache) {
@@ -454,7 +446,7 @@ void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd)
         bke::idprop::create_group("NodesModifierProperties").release();
   }
   PointerRNA properties_ptr = RNA_pointer_create_discrete(
-      &object->id, RNA_NodesModifierProperties, nmd->modifier.system_properties);
+      &object->id, RNA_NodesModifierProperties, nmd);
   RNA_sync_system_properties(properties_ptr, *nmd->modifier.system_properties);
   update_bakes_from_node_group(*nmd);
   update_panels_from_node_group(*nmd);
