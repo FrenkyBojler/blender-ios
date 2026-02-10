@@ -5905,7 +5905,6 @@ static void ui_paneltype_draw_impl(bContext *C, PanelType *pt, Layout *layout, b
   /* Draw main panel. */
   if (show_header) {
     Layout *header = nullptr;
-
     if (support_layout_panel && !(pt->flag & PANEL_TYPE_NO_HEADER)) {
       layout->separator(0.1f);
       PanelLayout panel_layout = layout->panel(C, panel->type->idname, false);
