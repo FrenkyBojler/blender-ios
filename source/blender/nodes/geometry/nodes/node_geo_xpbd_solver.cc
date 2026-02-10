@@ -26,8 +26,11 @@ constexpr StringRefNull rotation = "rotation";
 constexpr StringRefNull angular_velocity = "angular_velocity";
 /** Force that is applied to each point. */
 constexpr StringRefNull external_force = "external_force";
+constexpr StringRefNull external_torque = "external_torque";
 /** Mass of each point. */
 constexpr StringRefNull mass = "mass";
+/* TODO: Should this be something like `rotational_inertia`? */
+constexpr StringRefNull inertia = "inertia";
 
 /** True for pinned points. */
 constexpr StringRefNull sim_pin_position = "sim_pin_position";
@@ -110,6 +113,8 @@ struct GeometryData {
    * - If there is no mass attribute, or it is <= 0, this is set to 1.
    */
   Array<float> inv_masses;
+
+  Array<float3> inv_inertias;
 };
 
 struct Geometries {
@@ -188,6 +193,7 @@ class XpbdSolverStep {
     this->prepare_pinned_positions();
     this->prepare_pinned_rotations();
     this->prepare_inverse_masses();
+    this->prepare_inverse_inertias();
     this->gather_constraints_from_world();
     this->evaluate_constraint_fields();
     this->prepare_constraints();
@@ -308,15 +314,13 @@ class XpbdSolverStep {
       geo_data.inv_masses.reinitialize(geo_data.size);
       MutableSpan<float> inv_masses = geo_data.inv_masses;
 
-      const bke::AttributeReader<float> masses_attr = geo_data.attributes.lookup<float>(
+      const bke::AttributeReader<float> mass_attr = geo_data.attributes.lookup<float>(
           attribute_names::mass, geo_data.domain);
-      const bke::AttributeReader<bool> pin_attr = geo_data.attributes.lookup_or_default<bool>(
-          attribute_names::sim_pin_position, geo_data.domain, false);
 
-      if (masses_attr) {
+      if (mass_attr) {
         threading::parallel_for(IndexRange(geo_data.size), 2048, [&](const IndexRange range) {
           for (const int i : range) {
-            const float mass = masses_attr.varray[i];
+            const float mass = mass_attr.varray[i];
             if (mass <= 0.0f) {
               inv_masses[i] = 1.0f;
             }
@@ -331,7 +335,38 @@ class XpbdSolverStep {
       }
 
       /* Pinned points have infinite mass, so their inverse mass is 0. */
-      geo_data.pin_position_mask.foreach_index([&](const int i) { inv_masses[i] = 0.0f; });
+      index_mask::masked_fill(inv_masses, 0.0f, geo_data.pin_position_mask);
+    }
+  }
+
+  void prepare_inverse_inertias()
+  {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      geo_data.inv_inertias.reinitialize(geo_data.size);
+      MutableSpan<float3> inv_inertias = geo_data.inv_inertias;
+
+      const bke::AttributeReader<float3> inertia_attr = geo_data.attributes.lookup<float3>(
+          attribute_names::inertia, geo_data.domain);
+
+      if (inertia_attr) {
+        threading::parallel_for(IndexRange(geo_data.size), 2048, [&](const IndexRange range) {
+          for (const int i : range) {
+            const float3 inertia = inertia_attr.varray[i];
+            if (math::is_zero(inertia)) {
+              inv_inertias[i] = float3(0.0f);
+            }
+            else {
+              inv_inertias[i] = math::safe_rcp(inertia);
+            }
+          }
+        });
+      }
+      else {
+        inv_inertias.fill(float3(1.0f));
+      }
+
+      index_mask::masked_fill(inv_inertias, float3(0.0f), geo_data.pin_rotation_mask);
     }
   }
 
@@ -437,31 +472,41 @@ class XpbdSolverStep {
       GeometryData &geo_data = geometries_.data[data_key_i];
       bke::SpanAttributeWriter<float3> position_attr =
           geo_data.attributes.lookup_or_add_for_write_span<float3>(attribute_names::position,
-                                                                   AttrDomain::Point);
+                                                                   geo_data.domain);
       bke::SpanAttributeWriter<float3> velocity_attr =
           geo_data.attributes.lookup_or_add_for_write_span<float3>(attribute_names::velocity,
-                                                                   AttrDomain::Point);
+                                                                   geo_data.domain);
       bke::SpanAttributeWriter<math::Quaternion> rotation_attr =
           geo_data.attributes.lookup_or_add_for_write_span<math::Quaternion>(
-              attribute_names::rotation, AttrDomain::Point);
+              attribute_names::rotation, geo_data.domain);
       bke::SpanAttributeWriter<float3> angular_velocity_attr =
           geo_data.attributes.lookup_or_add_for_write_span<float3>(
-              attribute_names::angular_velocity, AttrDomain::Point);
+              attribute_names::angular_velocity, geo_data.domain);
       MutableSpan<float3> positions = position_attr.span;
       MutableSpan<float3> velocities = velocity_attr.span;
       MutableSpan<math::Quaternion> rotations = rotation_attr.span;
       MutableSpan<float3> angular_velocities = angular_velocity_attr.span;
       const VArraySpan<float3> external_forces = *geo_data.attributes.lookup_or_default<float3>(
-          attribute_names::external_force, AttrDomain::Point, float3(0, 0, 0));
+          attribute_names::external_force, geo_data.domain, float3(0, 0, 0));
+      const VArraySpan<float3> external_torques = *geo_data.attributes.lookup_or_default<float3>(
+          attribute_names::external_torque, geo_data.domain, float3(0, 0, 0));
       const Span<float> inv_masses = geo_data.inv_masses;
-      threading::parallel_for(positions.index_range(), 256, [&](const IndexRange range) {
-        for (const int point_i : range) {
-          const float3 external_force = external_forces[point_i];
-          const float inv_mass = inv_masses[point_i];
-          const float3 acceleration = external_force * inv_mass;
-          velocities[point_i] += acceleration * total_delta_time_;
-          positions[point_i] += velocities[point_i] * total_delta_time_;
-        }
+      const Span<float3> inv_inertias = geo_data.inv_inertias;
+      threading::parallel_for(IndexRange(geo_data.size), 256, [&](const IndexRange range) {
+        this->integrate_linear_velocities(sub_delta_time_,
+                                          positions.slice(range),
+                                          positions.slice(range),
+                                          velocities.slice(range),
+                                          inv_masses.slice(range),
+                                          external_forces.slice(range));
+      });
+      threading::parallel_for(IndexRange(geo_data.size), 256, [&](const IndexRange range) {
+        this->integrate_angular_velocities(sub_delta_time_,
+                                           rotations.slice(range),
+                                           rotations.slice(range),
+                                           angular_velocities.slice(range),
+                                           inv_inertias.slice(range),
+                                           external_torques.slice(range));
       });
       geo_data.pin_position_mask.foreach_index([&](const int point_i) {
         const float3 &begin_pos = geo_data.pin_position_begin[point_i];
@@ -478,6 +523,48 @@ class XpbdSolverStep {
 
       velocity_attr.finish();
       position_attr.finish();
+    }
+  }
+
+  void integrate_linear_velocities(const float delta_time,
+                                   const Span<float3> old_positions,
+                                   MutableSpan<float3> new_positions,
+                                   MutableSpan<float3> velocities,
+                                   const Span<float> inv_masses,
+                                   const Span<float3> forces)
+  {
+    for (const int i : old_positions.index_range()) {
+      const float3 external_force = forces[i];
+      const float inv_mass = inv_masses[i];
+      const float3 &old_pos = old_positions[i];
+      const float3 acceleration = external_force * inv_mass;
+      const float3 new_velocity = velocities[i] + acceleration * delta_time;
+      velocities[i] = new_velocity;
+      new_positions[i] = old_pos + new_velocity * delta_time;
+    }
+  }
+
+  void integrate_angular_velocities(const float delta_time,
+                                    const Span<math::Quaternion> old_rotations,
+                                    MutableSpan<math::Quaternion> new_rotations,
+                                    MutableSpan<float3> angular_velocities,
+                                    const Span<float3> inv_inertias,
+                                    const Span<float3> torques)
+  {
+    for (const int i : old_rotations.index_range()) {
+      const float3 &external_torque = torques[i];
+      const float3 &inv_inertia = inv_inertias[i];
+      if (math::is_zero(inv_inertia)) {
+        continue;
+      }
+      float3 &angular_velocity = angular_velocities[i];
+      const float3 precession = math::cross(angular_velocity,
+                                            math::safe_divide(angular_velocity, inv_inertia));
+      angular_velocity += delta_time * (external_torque - precession) * inv_inertia;
+      const math::Quaternion &old_rotation = old_rotations[i];
+      const math::Quaternion direction = old_rotation * math::Quaternion(0, angular_velocity);
+      new_rotations[i] = math::normalize(
+          math::Quaternion(float4(old_rotation) + delta_time * 0.5f * float4(direction)));
     }
   }
 
