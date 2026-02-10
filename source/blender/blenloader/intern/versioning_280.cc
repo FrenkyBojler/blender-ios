@@ -813,15 +813,15 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
 
   FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
     for (bNode &node : node_tree->nodes) {
-      if (ELEM(node.type_legacy,
-               SH_NODE_CURVE_VEC,
-               SH_NODE_CURVE_RGB,
-               CMP_NODE_CURVE_VEC_DEPRECATED,
-               CMP_NODE_CURVE_RGB,
-               CMP_NODE_TIME,
-               CMP_NODE_HUECORRECT,
-               TEX_NODE_CURVE_RGB,
-               TEX_NODE_CURVE_TIME))
+      if (version_node_is_any_type_with_storage_or_invalidate(node,
+                                                              {SH_NODE_CURVE_VEC,
+                                                               SH_NODE_CURVE_RGB,
+                                                               CMP_NODE_CURVE_VEC_DEPRECATED,
+                                                               CMP_NODE_CURVE_RGB,
+                                                               CMP_NODE_TIME,
+                                                               CMP_NODE_HUECORRECT,
+                                                               TEX_NODE_CURVE_RGB,
+                                                               TEX_NODE_CURVE_TIME}))
       {
         callback(static_cast<CurveMapping *>(node.storage));
       }

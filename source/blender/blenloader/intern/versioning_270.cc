@@ -80,6 +80,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "versioning_common.hh"
+
 namespace blender {
 
 /* Make preferences read-only, use `versioning_userdef.cc`. */
@@ -817,7 +819,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
         if (ntree->type == NTREE_COMPOSIT) {
           for (bNode &node : ntree->nodes) {
-            if (ELEM(node.type_legacy, CMP_NODE_PLANETRACKDEFORM)) {
+            if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_PLANETRACKDEFORM)) {
               NodePlaneTrackDeformData *data = static_cast<NodePlaneTrackDeformData *>(
                   node.storage);
               data->flag = 0;
@@ -1495,7 +1497,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
         if (ntree->type == NTREE_COMPOSIT) {
           bke::node_tree_set_type(*ntree);
           for (bNode &node : ntree->nodes) {
-            if (node.type_legacy == CMP_NODE_GLARE) {
+            if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_GLARE)) {
               NodeGlare *ndg = static_cast<NodeGlare *>(node.storage);
               switch (ndg->type) {
                 case CMP_NODE_GLARE_STREAKS:

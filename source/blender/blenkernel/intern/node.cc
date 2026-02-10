@@ -1838,22 +1838,13 @@ static void remove_unsupported_sockets(ListBaseT<bNodeSocket> *sockets,
 
 static void node_blend_read_data_storage(BlendDataReader *reader, bNodeTree *ntree, bNode *node)
 {
+  if (!node->storage) {
+    return;
+  }
+
   /* This may not always find the type for legacy nodes when the idname did not exist yet or it was
    * changed. Versioning code will update the nodes with unknown types. */
   const bNodeType *ntype = node_type_find(node->idname);
-
-  if (!node->storage) {
-    if (ntype && !ntype->storagename.empty()) {
-      /* Invalidate the type identifiers to prevent invalid access where storage data is expected
-       * (#154086). */
-      node->type_legacy = NODE_CUSTOM;
-      /* This type name is arbitrary, it just has to be unique enough to not match a future node
-       * idname. Includes the old type identifier for debugging purposes. */
-      const std::string old_idname = node->idname;
-      SNPRINTF_UTF8(node->idname, "Undefined[%s]", old_idname.c_str());
-    }
-    return;
-  }
 
   if (ntype && !ntype->storagename.empty()) {
     node->storage = BLO_read_struct_by_name_array(
@@ -5188,6 +5179,13 @@ static bool can_read_node_type(const bNode &node)
   /* Can always read custom node types. */
   if (ELEM(node.type_legacy, NODE_CUSTOM, NODE_CUSTOM_GROUP)) {
     return true;
+  }
+  /* Nodes that require storage but don't have any storage data are invalid. */
+  if (node.storage == nullptr) {
+    const bNodeType *node_type = node_type_find(node.idname);
+    if (!node_type || node_type->storagename.empty()) {
+      return false;
+    }
   }
   if (node.type_legacy < NODE_LEGACY_TYPE_GENERATION_START) {
     /* Check known built-in types. */

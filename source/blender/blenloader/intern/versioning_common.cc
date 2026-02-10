@@ -374,6 +374,39 @@ bNodeLink &version_node_add_link(
   return *link;
 }
 
+bool version_node_is_type_with_storage_or_invalidate(bNode &node, const int type_legacy)
+{
+  return version_node_is_any_type_with_storage_or_invalidate(node, Span{type_legacy});
+}
+
+bool version_node_is_any_type_with_storage_or_invalidate(bNode &node, const Span<int> types_legacy)
+{
+  bool is_any_type = false;
+  for (const int type_legacy : types_legacy) {
+    if (node.type_legacy == type_legacy) {
+      is_any_type = true;
+    }
+  }
+  if (!is_any_type) {
+    return false;
+  }
+
+  /* Accept node if storage is valid. */
+  if (node.storage != nullptr) {
+    return true;
+  }
+
+  /* Invalidate the type identifiers to prevent invalid access where storage data is expected
+   * (#154086). */
+  node.type_legacy = NODE_CUSTOM;
+  /* This type name is arbitrary, it just has to be unique enough to not match a future node
+   * idname. Includes the old type identifier for debugging purposes. */
+  const std::string old_idname = node.idname;
+  SNPRINTF_UTF8(node.idname, "Undefined[%s]", old_idname.c_str());
+
+  return false;
+}
+
 bNodeSocket *version_node_add_socket_if_not_exist(bNodeTree *ntree,
                                                   bNode *node,
                                                   int in_out,

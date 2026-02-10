@@ -85,6 +85,8 @@
 
 #include "readfile.hh"
 
+#include "versioning_common.hh"
+
 namespace blender {
 
 /** Without empty statements, clang-format fails (tested with v12 & v15). */
@@ -107,32 +109,33 @@ static void do_versions_nodetree_image_default_alpha_output(bNodeTree *ntree)
 static void do_versions_nodetree_convert_angle(bNodeTree *ntree)
 {
   for (bNode &node : ntree->nodes) {
-    if (node.type_legacy == CMP_NODE_ROTATE) {
-      /* Convert degrees to radians. */
-      bNodeSocket *sock = static_cast<bNodeSocket *>(node.inputs.first)->next;
-      (static_cast<bNodeSocketValueFloat *>(sock->default_value))->value = DEG2RADF(
-          ((bNodeSocketValueFloat *)sock->default_value)->value);
-    }
-    else if (node.type_legacy == CMP_NODE_DBLUR) {
+    if (node.type_legacy == CMP_NODE_ROTATE))
+      {
+        /* Convert degrees to radians. */
+        bNodeSocket *sock = static_cast<bNodeSocket *>(node.inputs.first)->next;
+        (static_cast<bNodeSocketValueFloat *>(sock->default_value))->value = DEG2RADF(
+            ((bNodeSocketValueFloat *)sock->default_value)->value);
+      }
+    else if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_DBLUR)) {
       /* Convert degrees to radians. */
       NodeDBlurData *ndbd = static_cast<NodeDBlurData *>(node.storage);
       ndbd->angle = DEG2RADF(ndbd->angle);
       ndbd->spin = DEG2RADF(ndbd->spin);
     }
-    else if (node.type_legacy == CMP_NODE_DEFOCUS) {
+    else if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_DEFOCUS)) {
       /* Convert degrees to radians. */
       NodeDefocus *nqd = static_cast<NodeDefocus *>(node.storage);
       /* XXX DNA char to float conversion seems to map the char value
        * into the [0.0f, 1.0f] range. */
       nqd->rotation = DEG2RADF(nqd->rotation * 255.0f);
     }
-    else if (node.type_legacy == CMP_NODE_CHROMA_MATTE) {
+    else if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_CHROMA_MATTE)) {
       /* Convert degrees to radians. */
       NodeChroma *ndc = static_cast<NodeChroma *>(node.storage);
       ndc->t1 = DEG2RADF(ndc->t1);
       ndc->t2 = DEG2RADF(ndc->t2);
     }
-    else if (node.type_legacy == CMP_NODE_GLARE) {
+    else if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_GLARE)) {
       /* Convert degrees to radians. */
       NodeGlare *ndg = static_cast<NodeGlare *>(node.storage);
       /* XXX DNA char to float conversion seems to map the char value
@@ -142,7 +145,7 @@ static void do_versions_nodetree_convert_angle(bNodeTree *ntree)
     /* XXX TexMapping struct is used by other nodes too (at least node_composite_mapValue),
      *     but not the rot part...
      */
-    else if (node.type_legacy == SH_NODE_MAPPING) {
+    else if (version_node_is_type_with_storage_or_invalidate(node, SH_NODE_MAPPING)) {
       /* Convert degrees to radians. */
       TexMapping *tmap = static_cast<TexMapping *>(node.storage);
       tmap->rot[0] = DEG2RADF(tmap->rot[0]);
@@ -365,7 +368,7 @@ static bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
 static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNodeTree *ntree)
 {
   for (bNode &node : ntree->nodes) {
-    if (node.type_legacy == CMP_NODE_OUTPUT_FILE) {
+    if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_OUTPUT_FILE)) {
       /* previous CMP_NODE_OUTPUT_FILE nodes get converted to multi-file outputs */
       NodeImageFile *old_data = static_cast<NodeImageFile *>(node.storage);
       NodeCompositorFileOutput *nimf = MEM_new<NodeCompositorFileOutput>("node image multi file");
@@ -441,7 +444,9 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
         MEM_delete(old_data);
       }
     }
-    else if (node.type_legacy == CMP_NODE_OUTPUT_MULTI_FILE__DEPRECATED) {
+    else if (version_node_is_type_with_storage_or_invalidate(
+                 node, CMP_NODE_OUTPUT_MULTI_FILE__DEPRECATED))
+    {
       NodeCompositorFileOutput *nimf = static_cast<NodeCompositorFileOutput *>(node.storage);
 
       /* #CMP_NODE_OUTPUT_MULTI_FILE has been re-declared as #CMP_NODE_OUTPUT_FILE. */
@@ -1331,7 +1336,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_SHADER) {
         for (bNode &node : ntree->nodes) {
-          if (node.type_legacy == SH_NODE_MAPPING) {
+          if (version_node_is_type_with_storage_or_invalidate(node, SH_NODE_MAPPING)) {
             TexMapping *tex_mapping = static_cast<TexMapping *>(node.storage);
             tex_mapping->projx = PROJ_X;
             tex_mapping->projy = PROJ_Y;
@@ -1854,7 +1859,9 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_SHADER) {
         for (bNode &node : ntree->nodes) {
-          if (ELEM(node.type_legacy, SH_NODE_TEX_IMAGE, SH_NODE_TEX_ENVIRONMENT)) {
+          if (version_node_is_any_type_with_storage_or_invalidate(
+                  node, {SH_NODE_TEX_IMAGE, SH_NODE_TEX_ENVIRONMENT}))
+          {
             NodeTexImage *tex = static_cast<NodeTexImage *>(node.storage);
 
             tex->iuser.frames = 1;
@@ -1872,7 +1879,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
         if (ntree->type == NTREE_COMPOSIT) {
           for (bNode &node : ntree->nodes) {
-            if (node.type_legacy == CMP_NODE_DEFOCUS) {
+            if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_DEFOCUS)) {
               NodeDefocus *data = static_cast<NodeDefocus *>(node.storage);
               if (data->maxblur == 0.0f) {
                 data->maxblur = 16.0f;
@@ -1941,7 +1948,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
         for (bNode &node : ntree->nodes) {
-          if (node.type_legacy == CMP_NODE_KEYING) {
+          if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_KEYING)) {
             NodeKeyingData *data = static_cast<NodeKeyingData *>(node.storage);
 
             if (data->despill_balance == 0.0f) {
@@ -2786,7 +2793,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
         for (bNode &node : ntree->nodes) {
-          if (node.type_legacy == CMP_NODE_COLORBALANCE) {
+          if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_COLORBALANCE)) {
             NodeColorBalance *n = static_cast<NodeColorBalance *>(node.storage);
             if (node.custom1 == 0) {
               /* LGG mode stays the same, just init CDL settings */
@@ -2907,15 +2914,15 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
         if (ntree->type == NTREE_COMPOSIT) {
           for (bNode &node : ntree->nodes) {
-            if (node.type_legacy == CMP_NODE_BOKEHIMAGE) {
+            if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_BOKEHIMAGE)) {
               NodeBokehImage *n = static_cast<NodeBokehImage *>(node.storage);
               n->angle = DEG2RADF(n->angle);
             }
-            if (node.type_legacy == CMP_NODE_MASK_BOX) {
+            if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_MASK_BOX)) {
               NodeBoxMask *n = static_cast<NodeBoxMask *>(node.storage);
               n->rotation = DEG2RADF(n->rotation);
             }
-            if (node.type_legacy == CMP_NODE_MASK_ELLIPSE) {
+            if (version_node_is_type_with_storage_or_invalidate(node, CMP_NODE_MASK_ELLIPSE)) {
               NodeEllipseMask *n = static_cast<NodeEllipseMask *>(node.storage);
               n->rotation = DEG2RADF(n->rotation);
             }
