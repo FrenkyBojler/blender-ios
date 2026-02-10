@@ -48,6 +48,11 @@ constexpr StringRefNull sim_pin_rotation_begin = "sim_pin_rotation_begin";
 constexpr StringRefNull sim_pin_rotation_end = "sim_pin_rotation_end";
 constexpr StringRefNull sim_pin_rotation_compliance = "sim_pin_rotation_compliance";
 
+constexpr StringRefNull rest_length = "rest_length";
+constexpr StringRefNull rod_stretch_shear_compliance = "rod_stretch_shear_compliance";
+constexpr StringRefNull rod_stretch_shear_position_lambda = "rod_stretch_shear_position_lambda";
+constexpr StringRefNull rod_stretch_shear_rotation_lambda = "rod_stretch_shear_rotation_lambda";
+
 }  // namespace attribute_names
 
 static NestedBundleTypePtr make_world_type()
@@ -128,6 +133,9 @@ struct GeometryData {
   VArraySpan<math::Quaternion> pin_rotation_end;
   /* Indexed by pin index. */
   Array<float> pin_rotation_compliance_terms;
+
+  // TODO
+  VArraySpan<float> rest_lengths;
 
   Array<float3> prev_positions;
   Array<math::Quaternion> prev_rotations;
@@ -235,9 +243,8 @@ class XpbdSolverStep {
     this->prepare_pinned_rotations();
     this->prepare_inverse_masses();
     this->prepare_inverse_inertias();
-    this->gather_constraints_from_world();
+    this->prepare_cosserat_rod_constraints();
     this->evaluate_constraint_fields();
-    this->prepare_constraints();
     this->do_simulation();
     this->write_back_geometries_to_world();
   }
@@ -461,9 +468,13 @@ class XpbdSolverStep {
     }
   }
 
-  void gather_constraints_from_world() {}
-
-  void prepare_constraints() {}
+  void prepare_cosserat_rod_constraints()
+  {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      // TODO
+    }
+  }
 
   fn::FieldEvaluator &get_field_evaluator(const int data_key_i,
                                           const AttrDomain domain,
