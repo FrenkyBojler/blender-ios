@@ -113,9 +113,7 @@ void ED_preview_icon_render(
 void ED_preview_icon_job(
     const bContext *C, PreviewImage *prv_img, ID *id, enum eIconSizes icon_size, bool delay);
 
-void ED_preview_restart_queue_free();
-void ED_preview_restart_queue_add(ID *id, enum eIconSizes size);
-void ED_preview_restart_queue_work(const bContext *C);
+void ED_preview_restart_work(const bContext *C);
 
 void ED_preview_kill_jobs(wmWindowManager *wm, Main *bmain);
 void ED_preview_kill_jobs_for_id(wmWindowManager *wm, const ID *id);
