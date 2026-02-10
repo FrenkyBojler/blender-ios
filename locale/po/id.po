@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'c1168d06bba2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-26 11:28+0000\n"
+"POT-Creation-Date: 2026-02-09 09:47+0000\n"
 "PO-Revision-Date: 2025-12-23 20:36+0000\n"
 "Last-Translator: \"Adriel Y.\" <mixnblend@users.noreply.translate.blender.org>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -5516,6 +5516,14 @@ msgid "Factor of Simplify using adaptive algorithm"
 msgstr "Faktor Penyederhanaan menggunakan algoritma adaptif"
 
 
+msgid "Stroke"
+msgstr "Sapuan"
+
+
+msgid "Fill"
+msgstr "Isi"
+
+
 msgid "Active Layer"
 msgstr "Layer Aktif"
 
@@ -5668,16 +5676,8 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "Mendefinisikan bagaimana warna titik sudut mempengaruhi sapuan"
 
 
-msgid "Stroke"
-msgstr "Sapuan"
-
-
 msgid "Vertex Color affects to Stroke only"
 msgstr "Warna Titik Sudut hanya mempengaruhi Sapuan"
-
-
-msgid "Fill"
-msgstr "Isi"
 
 
 msgid "Vertex Color affects to Fill only"
@@ -10079,6 +10079,10 @@ msgid "Roughness"
 msgstr "Kekasaran"
 
 
+msgid "Sigma"
+msgstr "Sigma"
+
+
 msgid "Step Size"
 msgstr "Ukuran Langkah"
 
@@ -12302,10 +12306,6 @@ msgid "Accumulate"
 msgstr "Akumulasi"
 
 
-msgid "Airbrush"
-msgstr "Kuasudara"
-
-
 msgid "Affect only vertices that share face sets with the active vertex"
 msgstr "Hanya mempengaruhi titik-titik sudut yang membagikan set-set wajah dengan titik sudut aktif"
 
@@ -12658,10 +12658,6 @@ msgstr "Huruf Tebal Miring"
 
 msgid "Font Italic"
 msgstr "Font Italic"
-
-
-msgid "Textboxes"
-msgstr "Tekstur"
 
 
 msgid "Surface UV Map"
@@ -15699,24 +15695,32 @@ msgid "Sample"
 msgstr "Sampel"
 
 
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
-msgid "Instances"
-msgstr "Contoh-contoh"
-
-
 msgid "Names"
 msgstr "Nama"
 
 
-msgid "Import"
-msgstr "Impor"
-
-
 msgid "Metaball"
 msgstr "Metabola"
+
+
+msgid "Merge"
+msgstr "Menggabungkan"
+
+
+msgid "Apply"
+msgstr "Tetapkan"
+
+
+msgid "Layout"
+msgstr "Tata Letak"
+
+
+msgid "Tracking"
+msgstr "Pelacakan"
+
+
+msgid "Hooks"
+msgstr "Kait"
 
 
 msgid "Utilities"
@@ -15727,52 +15731,28 @@ msgid "Math"
 msgstr "Matematika"
 
 
-msgid "Merge"
-msgstr "Menggabungkan"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Apply"
-msgstr "Tetapkan"
-
-
-msgid "Hooks"
-msgstr "Kait"
-
-
 msgid "Asset"
 msgstr "Aset"
-
-
-msgid "Track"
-msgstr "Lacak"
-
-
-msgid "Add Image"
-msgstr "Tambah Gambar"
-
-
-msgid "Layout"
-msgstr "Tata Letak"
-
-
-msgid "Light Probe"
-msgstr "Probe Cahaya"
-
-
-msgid "Assign Material"
-msgstr "Tugaskan Bahan"
 
 
 msgid "Light"
 msgstr "Cahaya"
 
 
-msgid "Tracking"
-msgstr "Pelacakan"
+msgid "Track"
+msgstr "Lacak"
+
+
+msgid "Light Probe"
+msgstr "Probe Cahaya"
+
+
+msgid "Add Image"
+msgstr "Tambah Gambar"
+
+
+msgid "Assign Material"
+msgstr "Tugaskan Bahan"
 
 
 msgid "Select Linked"
@@ -15783,12 +15763,28 @@ msgid "Navigation"
 msgstr "Navigasi"
 
 
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
 msgid "Snap"
 msgstr "Jepret"
 
 
+msgid "Instances"
+msgstr "Contoh-contoh"
+
+
 msgid "Mirror"
 msgstr "Cermin"
+
+
+msgid "Import"
+msgstr "Impor"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Animals"
@@ -20691,10 +20687,6 @@ msgstr "Tempel Pengubah-F"
 
 msgid "Add copied F-Modifiers to the selected F-Curves"
 msgstr "Tambah Pengubah-F yang tersalin ke Kurva-F yang terpilih"
-
-
-msgid "Sigma"
-msgstr "Sigma"
 
 
 msgctxt "Operator"

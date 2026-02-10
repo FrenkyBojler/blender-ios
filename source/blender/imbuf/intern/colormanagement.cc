@@ -11,6 +11,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <string>
 
 #include "DNA_ID.h"
 #include "DNA_color_types.h"
@@ -634,14 +635,29 @@ void colormanagement_init()
       char configfile[FILE_MAX];
       BLI_path_join(configfile, sizeof(configfile), configdir->c_str(), BCM_CONFIG_FILE);
 
-      g_config = ocio::Config::create_from_file(configfile);
+      /* OpenColorIO has issues with "$" in paths, as it uses that for variable expansion
+       * and there appears to be no way to escape the symbol.
+       *
+       * Work aroud it by setting the environment variable, which may also be useful for
+       * plug-ins to inherit the Blender OCIO config. */
+      std::optional<std::string> old_ocio_env;
+      if (ocio_env) {
+        old_ocio_env = ocio_env;
+      }
+      BLI_setenv("OCIO", configfile);
+      g_config = ocio::Config::create_from_environment();
 
+      bool ok = false;
       if (g_config != nullptr) {
-        const bool ok = colormanage_load_config(*g_config);
+        ok = colormanage_load_config(*g_config);
         if (!ok) {
           CLOG_ERROR(&LOG, "Failed to load bundled config");
           colormanage_free_config();
         }
+      }
+
+      if (!ok) {
+        BLI_setenv("OCIO", old_ocio_env.has_value() ? old_ocio_env->c_str() : nullptr);
       }
     }
   }
@@ -1363,20 +1379,47 @@ const char *IMB_colormanagement_srgb_colorspace_name_get()
   return global_role_default_byte;
 }
 
+static Vector<char> imb_icc_profile_from_filepath(StringRef filepath)
+{
+  if (filepath.is_empty()) {
+    return {};
+  }
+  fstream f(filepath, std::ios::binary | std::ios::in | std::ios::ate);
+  if (!f.is_open()) {
+    return {};
+  }
+
+  const std::streamsize size = f.tellg();
+  if (size <= 0) {
+    return {};
+  }
+
+  Vector<char> icc_profile(size);
+  f.seekg(0, std::ios::beg);
+  if (!f.read(icc_profile.data(), icc_profile.size())) {
+    icc_profile.clear();
+  }
+  return icc_profile;
+}
+
 Vector<char> IMB_colormanagement_space_to_icc_profile(const ColorSpace *colorspace)
 {
-  /* ICC profiles shipped with Blender are named after the OpenColorIO interop ID. */
-  Vector<char> icc_profile;
+  /* First try icc_profile attribute from the config. */
+  Vector<char> icc_profile = imb_icc_profile_from_filepath(colorspace->icc_profile_path());
+  if (!icc_profile.is_empty()) {
+    return icc_profile;
+  }
 
+  /* Try ICC profiles shipped with Blender based on interop ID. */
   const StringRefNull interop_id = colorspace->interop_id();
   if (interop_id.is_empty()) {
-    return icc_profile;
+    return {};
   }
 
   const std::optional<std::string> dir = BKE_appdir_folder_id(BLENDER_DATAFILES,
                                                               "colormanagement");
   if (!dir.has_value()) {
-    return icc_profile;
+    return {};
   }
 
   char icc_filename[FILE_MAX];
@@ -1386,30 +1429,15 @@ Vector<char> IMB_colormanagement_space_to_icc_profile(const ColorSpace *colorspa
   char icc_filepath[FILE_MAX];
   BLI_path_join(icc_filepath, sizeof(icc_filepath), dir->c_str(), "icc", icc_filename);
 
-  fstream f(icc_filepath, std::ios::binary | std::ios::in | std::ios::ate);
-  if (!f.is_open()) {
+  icc_profile = imb_icc_profile_from_filepath(icc_filepath);
+  if (icc_profile.is_empty()) {
     /* If we can't find a scene referred filename, try display referred. */
-    StringRef icc_filepath_ref = icc_filepath;
+    const StringRef icc_filepath_ref = icc_filepath;
     if (icc_filepath_ref.endswith("_scene.icc")) {
-      std::string icc_filepath_display = icc_filepath_ref.drop_suffix(strlen("_scene.icc")) +
-                                         "_display.icc";
-      f.open(icc_filepath_display, std::ios::binary | std::ios::in | std::ios::ate);
+      const std::string icc_filepath_display = icc_filepath_ref.drop_suffix(strlen("_scene.icc")) +
+                                               "_display.icc";
+      icc_profile = imb_icc_profile_from_filepath(icc_filepath_display.c_str());
     }
-
-    if (!f.is_open()) {
-      return icc_profile;
-    }
-  }
-
-  std::streamsize size = f.tellg();
-  if (size <= 0) {
-    return icc_profile;
-  }
-  icc_profile.resize(size);
-
-  f.seekg(0, std::ios::beg);
-  if (!f.read(icc_profile.data(), icc_profile.size())) {
-    icc_profile.clear();
   }
 
   return icc_profile;
@@ -1485,7 +1513,7 @@ bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace,
     cicp[3] = CICP_RANGE_FULL;
     return true;
   }
-  if (interop_id == "g24_rec2020_display") {
+  if (interop_id == "blender:g24_rec2020_display") {
     /* There is no gamma 2.4 TRC, but BT.709 is close. */
     cicp[0] = CICP_PRI_REC2020;
     cicp[1] = CICP_TRC_BT709;
@@ -1543,7 +1571,7 @@ const ColorSpace *IMB_colormanagement_space_from_cicp(const int cicp[4],
     interop_id = "g22_rec709_display";
   }
   else if (cicp[0] == CICP_PRI_REC2020 && cicp[1] == CICP_TRC_BT709) {
-    interop_id = "g24_rec2020_display";
+    interop_id = "blender:g24_rec2020_display";
   }
   else if (cicp[0] == CICP_PRI_REC709 && cicp[1] == CICP_TRC_BT709) {
     if (output == ColorManagedFileOutput::Video) {
