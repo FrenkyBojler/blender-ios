@@ -6215,7 +6215,7 @@ void update_idprops_from_srna(PointerRNA &ptr, IDProperty &idprops)
     IDProperty *idprop = IDP_GetPropertyFromGroup(&idprops, identifier.c_str());
     if (!idprop) {
       /* Create an IDProperty of an arbitrary type, to be converte to the correct type next. */
-      idprop = bke::idprop::create_group(identifier).release();
+      idprop = bke::idprop::create_group(identifier, IDP_FLAG_STATIC_TYPE).release();
       IDP_AddToGroup(&idprops, idprop);
     }
 
@@ -6253,15 +6253,22 @@ void update_idprops_from_srna(PointerRNA &ptr, IDProperty &idprops)
         break;
       }
       case PROP_POINTER: {
-        // TODO: HANDLE "ACTUAL" POINTERS THAT AREN"T JUST PROPERTY GROUPS
-        // I THINK THAT"S JUST IDs and IDP_ID?
-        if (idprop->type != IDP_GROUP) {
-          IDP_ClearProperty(idprop);
-          idprop->type = IDP_GROUP;
-          continue;
+        StructRNA *prop_srna = RNA_property_pointer_type(&ptr, &rna_prop);
+        if (RNA_struct_is_ID(prop_srna)) {
+          if (idprop->type != IDP_ID) {
+            IDP_ClearProperty(idprop);
+            idprop->type = IDP_ID;
+          }
         }
-        PointerRNA prop_ptr = RNA_property_pointer_get(&ptr, &rna_prop);
-        update_idprops_from_srna(prop_ptr, *idprop);
+        else {
+          if (idprop->type != IDP_GROUP) {
+            IDP_ClearProperty(idprop);
+            idprop->type = IDP_GROUP;
+            continue;
+          }
+          PointerRNA prop_ptr = RNA_property_pointer_get(&ptr, &rna_prop);
+          update_idprops_from_srna(prop_ptr, *idprop);
+        }
         break;
       }
       case PROP_COLLECTION: {
