@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'c1168d06bba2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-26 11:28+0000\n"
+"POT-Creation-Date: 2026-02-09 09:47+0000\n"
 "PO-Revision-Date: 2025-07-23 15:31+0000\n"
 "Last-Translator: Balázs Füvesi <fuvesib@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -1228,6 +1228,10 @@ msgstr "Árnyalat"
 
 msgid "Saturation"
 msgstr "Telítettség"
+
+
+msgid "Both"
+msgstr "Mindkettő"
 
 
 msgid "Active Layer"
@@ -4199,10 +4203,6 @@ msgid "How powerful the effect of the brush is when applied"
 msgstr "Az ecset hatásának erőssége használat közben"
 
 
-msgid "Airbrush"
-msgstr "Festékszóró"
-
-
 msgid "Use this brush in texture paint mode"
 msgstr "A jelenlegi ecset használata textúra festő módban"
 
@@ -6577,16 +6577,12 @@ msgid "Use Material Mask"
 msgstr "Anyagmaszk használata"
 
 
-msgid "Show/Hide"
-msgstr "Mutat/Rejt"
-
-
 msgid "Clean Up"
 msgstr "Tisztítás"
 
 
-msgid "Import"
-msgstr "Importálás"
+msgid "Show/Hide"
+msgstr "Mutat/Rejt"
 
 
 msgid "Metaball"
@@ -6597,28 +6593,8 @@ msgid "Merge"
 msgstr "Összefésülés"
 
 
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Rigid Body"
-msgstr "Szilárd test"
-
-
 msgid "Apply"
 msgstr "Elfogadás"
-
-
-msgid "Track"
-msgstr "Nyom"
-
-
-msgid "Relations"
-msgstr "Kapcsolatok"
-
-
-msgid "Light"
-msgstr "Fényforrás"
 
 
 msgid "Keying"
@@ -6629,12 +6605,28 @@ msgid "Tracking"
 msgstr "Követés"
 
 
-msgid "Navigation"
-msgstr "Navigáció"
+msgid "Light"
+msgstr "Fényforrás"
+
+
+msgid "Track"
+msgstr "Nyom"
+
+
+msgid "Rigid Body"
+msgstr "Szilárd test"
+
+
+msgid "Relations"
+msgstr "Kapcsolatok"
 
 
 msgid "Align View"
 msgstr "Nézet igazítása"
+
+
+msgid "Navigation"
+msgstr "Navigáció"
 
 
 msgid "Local View"
@@ -6643,6 +6635,14 @@ msgstr "Helyi nézet"
 
 msgid "Mirror"
 msgstr "Tükrözés"
+
+
+msgid "Import"
+msgstr "Importálás"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgctxt "MovieClip"
@@ -10406,10 +10406,6 @@ msgstr "Alapértelmezett kitöltő szín"
 msgctxt "Operator"
 msgid "Decimate Keyframes"
 msgstr "Kulcs-képkockák tizedelése"
-
-
-msgid "Both"
-msgstr "Mindkettő"
 
 
 msgid "Jump to previous/next keyframe"

@@ -35,7 +35,7 @@ class NODE_MT_gn_color_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeGamma")
         self.node_operator(layout, "ShaderNodeValToRGB")
         self.node_operator(layout, "ShaderNodeRGBCurve")
-        self.color_mix_node(context, layout)
+        self.color_mix_node(context, layout, search_weight=-1.0)
         layout.separator()
         self.node_operator(layout, "FunctionNodeCombineColor")
         self.node_operator(layout, "FunctionNodeSeparateColor")
@@ -377,6 +377,8 @@ class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
             ],
         )
         self.node_operator(layout, "GeometryNodeBoneInfo")
+        if context.preferences.experimental.use_geometry_nodes_lists:
+            self.node_operator(layout, "GeometryNodeCollectionChildren")
         self.node_operator(layout, "GeometryNodeCollectionInfo")
         self.node_operator(layout, "GeometryNodeImageInfo")
         self.node_operator(layout, "GeometryNodeIsViewport")
@@ -962,6 +964,7 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
         del context
         layout = self.layout
         self.node_operator(layout, "GeometryNodeGridToMesh")
+        self.node_operator(layout, "GeometryNodeGridToPoints")
         self.node_operator(layout, "GeometryNodeVolumeToMesh")
         layout.separator()
         self.node_operator(layout, "GeometryNodeSDFGridBoolean")
@@ -973,7 +976,10 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSDFGridOffset")
         layout.separator()
         self.node_operator(layout, "GeometryNodeFieldToGrid")
+        self.node_operator(layout, "GeometryNodeGridClip")
         self.node_operator(layout, "GeometryNodeGridDilateAndErode")
+        self.node_operator(layout, "GeometryNodeGridMean")
+        self.node_operator(layout, "GeometryNodeGridMedian")
         self.node_operator(layout, "GeometryNodeGridPrune")
         self.node_operator(layout, "GeometryNodeGridVoxelize")
 
