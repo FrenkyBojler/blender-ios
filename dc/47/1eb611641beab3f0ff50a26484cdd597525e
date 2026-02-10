@@ -1,3 +1,4 @@
 Referenced by pull request #151883, Fix: Cycles: Particle hair viewport/render visibility swapped
 Referenced by commit c497aa1df3e07c2dfdc15d45d43c8b755ca196ad, Fix: Cycles: Particle hair viewport/render visibility swapped
 Referenced by issue #154205, Colour attribute does not transfer to hair properly in 5.1 on some objects
+Referenced by pull request #154212, Fix #154205: Cycles particle hair only copies first UV / VCol
