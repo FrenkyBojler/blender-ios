@@ -27,10 +27,10 @@ set(SRC_KERNEL_DEVICE_CPU_HEADERS
 )
 
 set(LIB
-
+  PRIVATE bf::dependencies::optional::embree
+  PRIVATE bf::dependencies::optional::openpgl
+  PRIVATE bf::dependencies::optional::tbb
 )
-
-cycles_external_libraries_append(LIB)
 
 # -----------------------------------------------------------------------------
 # CPU module.
