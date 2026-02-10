@@ -382,6 +382,7 @@ static void menu_items_from_all_operators(bContext *C, MenuSearch_Data *data)
       op_data.type = ot;
       op_data.opcontext = wm::OpCallContext::InvokeDefault;
       op_data.context = nullptr;
+      op_data.opptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
 
       char idname_as_py[OP_MAX_TYPENAME];
       char uiname[256];
@@ -398,7 +399,7 @@ static void menu_items_from_all_operators(bContext *C, MenuSearch_Data *data)
     }
   }
 
-  std::sort(operator_items.begin(), operator_items.end(), menu_item_sort_by_drawstr_full);
+  std::ranges::sort(operator_items, menu_item_sort_by_drawstr_full);
 
   data->items.extend(operator_items);
 }
@@ -514,7 +515,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
       /* Anything besides #SPACE_EMPTY is fine,
        * as this value is only included in the enum when set. */
       area_dummy.spacetype = SPACE_TOPBAR;
-      PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_Area, &area_dummy);
+      PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, RNA_Area, &area_dummy);
       prop_ui_type = RNA_struct_find_property(&ptr, "ui_type");
       RNA_property_enum_items(C,
                               &ptr,
@@ -532,7 +533,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
     for (ScrArea &area : screen->areabase) {
       ARegion *region = BKE_area_find_region_type(&area, RGN_TYPE_WINDOW);
       if (region != nullptr) {
-        PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_Area, &area);
+        PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, RNA_Area, &area);
         const int space_type_ui = RNA_property_enum_get(&ptr, prop_ui_type);
 
         const int space_type_ui_index = RNA_enum_from_value(space_type_ui_items, space_type_ui);
@@ -908,14 +909,14 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
   /* Finally sort menu items.
    *
    * NOTE: we might want to keep the in-menu order, for now sort all. */
-  std::sort(data->items.begin(), data->items.end(), menu_item_sort_by_drawstr_full);
+  std::ranges::sort(data->items, menu_item_sort_by_drawstr_full);
 
   if (include_all_areas) {
     CTX_wm_area_set(C, area_init);
     CTX_wm_region_set(C, region_init);
 
     if (space_type_ui_items_free) {
-      MEM_freeN(space_type_ui_items);
+      MEM_delete(space_type_ui_items);
     }
   }
 

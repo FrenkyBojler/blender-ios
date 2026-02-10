@@ -88,7 +88,7 @@ static void camera_copy_data(Main * /*bmain*/,
   }
 
   if (cam_src->custom_bytecode) {
-    cam_dst->custom_bytecode = static_cast<char *>(MEM_dupallocN(cam_src->custom_bytecode));
+    cam_dst->custom_bytecode = MEM_dupalloc(cam_src->custom_bytecode);
   }
 }
 
@@ -98,7 +98,7 @@ static void camera_free_data(ID *id)
   Camera *cam = id_cast<Camera *>(id);
   BLI_freelistN(&cam->bg_images);
   if (cam->custom_bytecode) {
-    MEM_freeN(cam->custom_bytecode);
+    MEM_delete(cam->custom_bytecode);
   }
 }
 
@@ -215,7 +215,7 @@ static void camera_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   }
 
   /* write LibData */
-  BLO_write_id_struct(writer, Camera, id_address, &cam->id);
+  writer->write_id_struct(id_address, cam);
   BKE_id_blend_write(writer, &cam->id);
 
   for (CameraBGImage &bgpic : cam->bg_images) {
@@ -250,34 +250,34 @@ static void camera_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_CA = {
-    /*id_code*/ Camera::id_type,
-    /*id_filter*/ FILTER_ID_CA,
-    /*dependencies_id_types*/ FILTER_ID_OB | FILTER_ID_IM,
-    /*main_listbase_index*/ INDEX_ID_CA,
-    /*struct_size*/ sizeof(Camera),
-    /*name*/ "Camera",
-    /*name_plural*/ N_("cameras"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_CAMERA,
-    /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .id_code = Camera::id_type,
+    .id_filter = FILTER_ID_CA,
+    .dependencies_id_types = FILTER_ID_OB | FILTER_ID_IM,
+    .main_listbase_index = INDEX_ID_CA,
+    .struct_size = sizeof(Camera),
+    .name = "Camera",
+    .name_plural = N_("cameras"),
+    .translation_context = BLT_I18NCONTEXT_ID_CAMERA,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ camera_init_data,
-    /*copy_data*/ camera_copy_data,
-    /*free_data*/ camera_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ camera_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ camera_foreach_path,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = camera_init_data,
+    .copy_data = camera_copy_data,
+    .free_data = camera_free_data,
+    .make_local = nullptr,
+    .foreach_id = camera_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = camera_foreach_path,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ camera_blend_write,
-    /*blend_read_data*/ camera_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = camera_blend_write,
+    .blend_read_data = camera_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 /** \} */
@@ -1240,7 +1240,7 @@ void BKE_camera_multiview_params(const RenderData *rd,
 
 CameraBGImage *BKE_camera_background_image_new(Camera *cam)
 {
-  CameraBGImage *bgpic = MEM_new_for_free<CameraBGImage>("Background Image");
+  CameraBGImage *bgpic = MEM_new<CameraBGImage>("Background Image");
 
   bgpic->scale = 1.0f;
   bgpic->alpha = 0.5f;
@@ -1255,7 +1255,7 @@ CameraBGImage *BKE_camera_background_image_new(Camera *cam)
 
 CameraBGImage *BKE_camera_background_image_copy(const CameraBGImage *bgpic_src, const int flag)
 {
-  CameraBGImage *bgpic_dst = static_cast<CameraBGImage *>(MEM_dupallocN(bgpic_src));
+  CameraBGImage *bgpic_dst = MEM_dupalloc(bgpic_src);
 
   bgpic_dst->next = bgpic_dst->prev = nullptr;
 
@@ -1275,7 +1275,7 @@ void BKE_camera_background_image_remove(Camera *cam, CameraBGImage *bgpic)
 {
   BLI_remlink(&cam->bg_images, bgpic);
 
-  MEM_freeN(bgpic);
+  MEM_delete(bgpic);
 }
 
 void BKE_camera_background_image_clear(Camera *cam)

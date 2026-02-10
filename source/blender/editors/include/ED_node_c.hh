@@ -34,10 +34,6 @@ struct bNodeSocketType;
 #define NODE_EDGE_PAN_DELAY 0.5f
 #define NODE_EDGE_PAN_ZOOM_INFLUENCE 0.5f
 
-/* `clipboard.cc` */
-
-void ED_node_clipboard_free();
-
 /* `space_node.cc` */
 
 void ED_node_cursor_location_get(const SpaceNode *snode, float value[2]);
@@ -86,13 +82,9 @@ void ED_node_set_active(
     Main *bmain, SpaceNode *snode, bNodeTree *ntree, bNode *node, bool *r_active_texture_changed);
 
 /**
- * \param scene_owner: is the owner of the job,
- * we don't use it for anything else currently so could also be a void pointer,
- * but for now keep it an 'Scene' for consistency.
- *
- * \note only call from spaces `refresh` callbacks, not direct! - use with care.
+ * Launch a compositor job for the scene of the given context.
  */
-void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_owner);
+void ED_node_compositor_job(const bContext *C);
 
 /* `node_ops.cc` */
 

@@ -87,7 +87,7 @@ void ED_file_path_button(bScreen *screen,
                  "File select parameters not set. The caller is expected to check this.");
 
   PointerRNA params_rna_ptr = RNA_pointer_create_discrete(
-      &screen->id, &RNA_FileSelectParams, params);
+      &screen->id, RNA_FileSelectParams, params);
 
   /* callbacks for operator check functions */
   block_func_set(block, file_draw_check_cb, nullptr, nullptr);
@@ -130,7 +130,7 @@ struct FileTooltipData {
 
 static FileTooltipData *file_tooltip_data_create(const SpaceFile *sfile, const FileDirEntry *file)
 {
-  FileTooltipData *data = MEM_mallocN<FileTooltipData>(__func__);
+  FileTooltipData *data = MEM_new_uninitialized<FileTooltipData>(__func__);
   data->sfile = sfile;
   data->file = file;
   return data;
@@ -170,23 +170,27 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
     }
 
     if (file->redirection_path) {
-      tooltip_text_field_add(tip,
-                             fmt::format("{}: {}", N_("Link target"), file->redirection_path),
-                             {},
-                             ui::TIP_STYLE_NORMAL,
-                             ui::TIP_LC_NORMAL);
+      tooltip_text_field_add(
+          tip,
+          fmt::format(fmt::runtime(TIP_("Link target: {}")), file->redirection_path),
+          {},
+          ui::TIP_STYLE_NORMAL,
+          ui::TIP_LC_NORMAL);
     }
     if (file->attributes & FILE_ATTR_OFFLINE) {
       tooltip_text_field_add(
-          tip, N_("This file is offline"), {}, ui::TIP_STYLE_NORMAL, ui::TIP_LC_ALERT);
+          tip, TIP_("This file is offline"), {}, ui::TIP_STYLE_NORMAL, ui::TIP_LC_ALERT);
     }
     if (file->attributes & FILE_ATTR_READONLY) {
       tooltip_text_field_add(
-          tip, N_("This file is read-only"), {}, ui::TIP_STYLE_NORMAL, ui::TIP_LC_ALERT);
+          tip, TIP_("This file is read-only"), {}, ui::TIP_STYLE_NORMAL, ui::TIP_LC_ALERT);
     }
     if (file->attributes & (FILE_ATTR_SYSTEM | FILE_ATTR_RESTRICTED)) {
-      tooltip_text_field_add(
-          tip, N_("This is a restricted system file"), {}, ui::TIP_STYLE_NORMAL, ui::TIP_LC_ALERT);
+      tooltip_text_field_add(tip,
+                             TIP_("This is a restricted system file"),
+                             {},
+                             ui::TIP_STYLE_NORMAL,
+                             ui::TIP_LC_ALERT);
     }
 
     if (file->typeflag & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
@@ -268,12 +272,12 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
         {
           tooltip_text_field_add(
               tip,
-              fmt::format("{} {} @ {} {}", value1, N_("Frames"), value2, N_("FPS")),
+              fmt::format(fmt::runtime(TIP_("{} Frames @ {} FPS")), value1, value2),
               {},
               ui::TIP_STYLE_NORMAL,
               ui::TIP_LC_NORMAL);
           tooltip_text_field_add(tip,
-                                 fmt::format("{} {}", value3, N_("seconds")),
+                                 fmt::format(fmt::runtime(TIP_("{} seconds")), value3),
                                  {},
                                  ui::TIP_STYLE_NORMAL,
                                  ui::TIP_LC_NORMAL);
@@ -320,14 +324,14 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
         BLI_str_format_uint64_grouped(size_full, file->size);
         tooltip_text_field_add(
             tip,
-            fmt::format("{}: {} ({} {})", N_("Size"), size, size_full, N_("bytes")),
+            fmt::format(fmt::runtime(TIP_("Size: {} ({} bytes)")), size, size_full),
             {},
             ui::TIP_STYLE_NORMAL,
             ui::TIP_LC_NORMAL);
       }
       else {
         tooltip_text_field_add(tip,
-                               fmt::format("{}: {}", N_("Size"), size),
+                               fmt::format(fmt::runtime(TIP_("Size: {}")), size),
                                {},
                                ui::TIP_STYLE_NORMAL,
                                ui::TIP_LC_NORMAL);
@@ -438,8 +442,10 @@ static void file_but_tooltip_func_set(const SpaceFile *sfile,
     button_func_tooltip_custom_set(but, file_draw_asset_tooltip_custom_func, file->asset, nullptr);
   }
   else {
-    button_func_tooltip_custom_set(
-        but, file_draw_tooltip_custom_func, file_tooltip_data_create(sfile, file), MEM_freeN);
+    button_func_tooltip_custom_set(but,
+                                   file_draw_tooltip_custom_func,
+                                   file_tooltip_data_create(sfile, file),
+                                   MEM_delete_void);
   }
 }
 
@@ -803,6 +809,9 @@ static void file_draw_special_image(const FileDirEntry *file,
   else if (file_type_icon == ICON_NETWORK_DRIVE) {
     icon_large = ICON_NETWORK_DRIVE_LARGE;
   }
+  else if (file_type_icon == ICON_INTERNET) {
+    icon_large = ICON_INTERNET;
+  }
   else if (file_type_icon == ICON_USB_DRIVE) {
     icon_large = ICON_USB_DRIVE_LARGE;
   }
@@ -858,6 +867,7 @@ static void file_draw_special_image(const FileDirEntry *file,
             ICON_EXTERNAL_DRIVE,
             ICON_NETWORK_DRIVE,
             ICON_USB_DRIVE,
+            ICON_INTERNET,
             ICON_DISC))
   {
     /* Small icon in the middle of large image, scaled to fit container and UI scale */
@@ -1771,6 +1781,11 @@ bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegio
   const bool is_asset_browser = ED_fileselect_is_asset_browser(sfile);
   const bool is_library_browser = !is_asset_browser &&
                                   filelist_islibrary(sfile->files, blendfile_path, nullptr);
+  /* Call this before drawing a hint, otherwise drawing will not be visible. */
+  const auto setup_view = [region]() {
+    ui::view2d_totRect_set(&region->v2d, region->winx, region->winy);
+    ui::view2d_view_ortho(&region->v2d);
+  };
 
   if (is_asset_browser) {
     FileAssetSelectParams *asset_params = ED_fileselect_get_asset_params(sfile);
@@ -1779,6 +1794,7 @@ bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegio
     if (!((asset_params->asset_library_ref.type == ASSET_LIBRARY_LOCAL) ||
           filelist_is_dir(sfile->files, asset_params->base_params.dir)))
     {
+      setup_view();
       file_draw_invalid_asset_library_hint(C, sfile, region, asset_params);
       return true;
     }
@@ -1814,6 +1830,7 @@ bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegio
       sfile->runtime->is_blendfile_status_set = true;
     }
     if (!sfile->runtime->is_blendfile_readable) {
+      setup_view();
       file_draw_invalid_library_hint(
           C, sfile, region, blendfile_path, &sfile->runtime->is_blendfile_readable_reports);
       return true;

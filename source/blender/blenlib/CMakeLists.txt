@@ -307,7 +307,6 @@ set(SRC
   BLI_math_matrix.hh
   BLI_math_matrix_types.hh
   BLI_math_mpq.hh
-  BLI_math_numbers.hh
   BLI_math_quaternion.hh
   BLI_math_quaternion_types.hh
   BLI_math_rotation.h
@@ -377,7 +376,6 @@ set(SRC
   BLI_string_utf8.h
   BLI_string_utf8_symbols.h
   BLI_string_utils.hh
-  BLI_struct_equality_utils.hh
   BLI_sub_frame.hh
   BLI_subprocess.hh
   BLI_sys_types.h
@@ -417,14 +415,13 @@ set(SRC
 
 set(LIB
   PUBLIC bf::dna
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::json
   PRIVATE bf::extern::xxhash
   bf_intern_eigen
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::wcwidth
   PRIVATE bf::intern::atomic
-  PRIVATE bf::extern::fmtlib
+  PUBLIC bf::dependencies::fmt
   PRIVATE bf::dependencies::eigen
   PUBLIC bf::dependencies::optional::tbb
   PRIVATE bf::dependencies::zlib
@@ -476,6 +473,11 @@ if(UNIX AND NOT APPLE)
   list(APPEND LIB
     bf_intern_libc_compat
   )
+endif()
+
+# needed for BLI_subprocess.cc when using the mold linker.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  list(APPEND LIB rt)
 endif()
 
 # no need to compile object files for inline headers.
@@ -567,7 +569,7 @@ if(WITH_GTESTS)
     tests/BLI_polyfill_2d_test.cc
     tests/BLI_pool_test.cc
     tests/BLI_random_access_iterator_mixin_test.cc
-    tests/BLI_ressource_strings.h
+    tests/BLI_resource_strings.h
     tests/BLI_serialize_test.cc
     tests/BLI_session_uid_test.cc
     tests/BLI_set_test.cc
