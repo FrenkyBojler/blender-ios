@@ -70,6 +70,8 @@ class Light : public Geometry {
                               const Scene *scene,
                               const Object *object) const = 0;
 
+  virtual bool is_traceable() const = 0;
+
   bool is_spot_light() const;
   bool is_point_light() const;
   bool is_area_light() const;
@@ -93,6 +95,10 @@ class PointLight : public Light {
   void copy_to_kernel(KernelLight *klight,
                       const Scene *scene,
                       const Object *object) const override;
+  bool is_traceable() const override
+  {
+    return radius > 0.0f;
+  };
 
   NODE_SOCKET_API(float, radius)
   NODE_SOCKET_API(bool, is_sphere)
@@ -121,6 +127,10 @@ class AreaLight : public Light {
   void copy_to_kernel(KernelLight *klight,
                       const Scene *scene,
                       const Object *object) const override;
+  bool is_traceable() const override
+  {
+    return sizeu * sizev > 0.0f;
+  };
 
   /* TODO(weizhen): I removed `size` become it's always set to 1 in `blender/light.cpp`, but will
    * external applications set it differently? */
@@ -142,6 +152,10 @@ class SunLight : public Light {
   void copy_to_kernel(KernelLight *klight,
                       const Scene *scene,
                       const Object *object) const override;
+  bool is_traceable() const override
+  {
+    return false;
+  };
 
   NODE_SOCKET_API(float, angle)
 };
@@ -156,6 +170,10 @@ class BackgroundLight : public Light {
   void copy_to_kernel(KernelLight *klight,
                       const Scene *scene,
                       const Object *object) const override;
+  bool is_traceable() const override
+  {
+    return false;
+  };
 
   NODE_SOCKET_API(int, map_resolution)
   NODE_SOCKET_API(float, average_radiance)
@@ -205,6 +223,8 @@ class LightManager {
    * and scene doesn't need MIS.
    */
   void test_enabled_lights(Scene *scene);
+  /* Count lights in the scene. */
+  void count_lights(KernelIntegrator *kintegrator, const Scene *scene);
 
   void device_update_lights(DeviceScene *dscene, Scene *scene);
   void device_update_distribution(Device *device,
