@@ -3264,10 +3264,6 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
     return action;
   }
 
-  if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-    printf("\n>>> wm_handlers_do_gizmo_handler() ENTERED\n");
-  }
-
   /* Drag events use the previous click location to highlight the gizmos,
    * Get the highlight again in case the user dragged off the gizmo. */
   const bool is_event_drag = (event->val == KM_PRESS_DRAG);
