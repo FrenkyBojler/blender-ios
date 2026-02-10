@@ -86,17 +86,10 @@ bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
   const int stride = dimensions_by_attribute.total_size();
   Array<float> attribute_data(stride * src_curves.points_num());
 
-  /**
-   * The curve fitting library expects the data to be in a flat array where all the values for each
-   * dimension for one point comes before the next point.
-   *
-   * [ dim 0 ][ dim 1 ][ dim 2 ][ dim ... ][ dim 0 ][ dim 1 ][ dim 2 ][ dim ... ] ...
-   * [              point 0               ][              point 1               ] ...
-   *
-   * The function below writes the data in this layout. Note that the flat array uses a size thats
-   * larger than the selection to allow easy computation of offset indices. This means that part of
-   * the array might be left uninitialized.
-   */
+  /* The curve fitting library expects the data to be in an "array of structs" format rather than
+   * "structs of arrays". Converts the layout below.
+   * Note that the flat array uses a size thats larger than the selection to allow easy computation
+   * of offset indices. This means that part of the array might be left uninitialized.*/
   auto write_interleaved_attribute_data = [&](const GSpan src_attribute,
                                               const IndexRange dimensions) {
     curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
@@ -114,7 +107,9 @@ bke::CurvesGeometry fit_poly_curve_attributes_to_bezier_curves(
     });
   };
 
+  /* The positions are always used when doing the curve fitting. */
   write_interleaved_attribute_data(src_positions, dimensions_by_attribute[0]);
+  /* Add all additional (optional) dimensions. */
   for (const int i : attributes.index_range()) {
     const GSpan attribute = attributes[i];
     const IndexRange dimensions = dimensions_by_attribute[i + 1];
