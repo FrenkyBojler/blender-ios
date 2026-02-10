@@ -40,6 +40,8 @@
 
 #include "gpu_py_offscreen.hh" /* own include */
 
+namespace blender {
+
 /* Define the free method to avoid breakage. */
 #define BPYGPU_USE_GPUOBJ_FREE_METHOD
 
@@ -48,10 +50,10 @@
  * \{ */
 
 static const PyC_StringEnumItems pygpu_framebuffer_color_texture_formats[] = {
-    {int(blender::gpu::TextureFormat::UNORM_8_8_8_8), "RGBA8"},
-    {int(blender::gpu::TextureFormat::UNORM_16_16_16_16), "RGBA16"},
-    {int(blender::gpu::TextureFormat::SFLOAT_16_16_16_16), "RGBA16F"},
-    {int(blender::gpu::TextureFormat::SFLOAT_32_32_32_32), "RGBA32F"},
+    {int(gpu::TextureFormat::UNORM_8_8_8_8), "RGBA8"},
+    {int(gpu::TextureFormat::UNORM_16_16_16_16), "RGBA16"},
+    {int(gpu::TextureFormat::SFLOAT_16_16_16_16), "RGBA16F"},
+    {int(gpu::TextureFormat::SFLOAT_32_32_32_32), "RGBA32F"},
     {0, nullptr},
 };
 
@@ -152,8 +154,8 @@ static PyObject *pygpu_offscreen_stack_context_exit(OffScreenStackContext *self,
 #endif
 
 static PyMethodDef pygpu_offscreen_stack_context__tp_methods[] = {
-    {"__enter__", (PyCFunction)pygpu_offscreen_stack_context_enter, METH_NOARGS},
-    {"__exit__", (PyCFunction)pygpu_offscreen_stack_context_exit, METH_VARARGS},
+    {"__enter__", reinterpret_cast<PyCFunction>(pygpu_offscreen_stack_context_enter), METH_NOARGS},
+    {"__exit__", reinterpret_cast<PyCFunction>(pygpu_offscreen_stack_context_exit), METH_VARARGS},
     {nullptr},
 };
 
@@ -170,7 +172,7 @@ static PyTypeObject PyGPUOffscreenStackContext_Type = {
     /*tp_name*/ "GPUFrameBufferStackContext",
     /*tp_basicsize*/ sizeof(OffScreenStackContext),
     /*tp_itemsize*/ 0,
-    /*tp_dealloc*/ (destructor)pygpu_offscreen_stack_context__tp_dealloc,
+    /*tp_dealloc*/ reinterpret_cast<destructor>(pygpu_offscreen_stack_context__tp_dealloc),
     /*tp_vectorcall_offset*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
@@ -220,7 +222,7 @@ static PyTypeObject PyGPUOffscreenStackContext_Type = {
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_offscreen_bind_doc,
-    ".. function:: bind()\n"
+    ".. method:: bind()\n"
     "\n"
     "   Context manager to ensure balanced bind calls, even in the case of an error.\n");
 static PyObject *pygpu_offscreen_bind(BPyGPUOffScreen *self)
@@ -235,7 +237,7 @@ static PyObject *pygpu_offscreen_bind(BPyGPUOffScreen *self)
   pygpu_offscreen_stack_context_enter(ret);
   ret->is_explicitly_bound = true;
 
-  return (PyObject *)ret;
+  return reinterpret_cast<PyObject *>(ret);
 }
 
 PyDoc_STRVAR(
@@ -245,7 +247,7 @@ PyDoc_STRVAR(
     "\n"
     "   Unbind the offscreen object.\n"
     "\n"
-    "   :arg restore: Restore the OpenGL state, can only be used when the state has been "
+    "   :param restore: Restore the OpenGL state, can only be used when the state has been "
     "saved before.\n"
     "   :type restore: bool\n");
 static PyObject *pygpu_offscreen_unbind(BPyGPUOffScreen *self, PyObject *args, PyObject *kwds)
@@ -256,7 +258,6 @@ static PyObject *pygpu_offscreen_unbind(BPyGPUOffScreen *self, PyObject *args, P
 
   static const char *_keywords[] = {"restore", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O&" /* `restore` */
       ":unbind",
@@ -285,12 +286,11 @@ static PyObject *pygpu_offscreen__tp_new(PyTypeObject * /*self*/, PyObject *args
   GPUOffScreen *ofs = nullptr;
   int width, height;
   PyC_StringEnum pygpu_textureformat = {pygpu_framebuffer_color_texture_formats,
-                                        int(blender::gpu::TextureFormat::UNORM_8_8_8_8)};
+                                        int(gpu::TextureFormat::UNORM_8_8_8_8)};
   char err_out[256];
 
   static const char *_keywords[] = {"width", "height", "format", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `width` */
       "i"  /* `height` */
       "|$" /* Optional keyword only arguments. */
@@ -309,7 +309,7 @@ static PyObject *pygpu_offscreen__tp_new(PyTypeObject * /*self*/, PyObject *args
     ofs = GPU_offscreen_create(width,
                                height,
                                true,
-                               blender::gpu::TextureFormat(pygpu_textureformat.value_found),
+                               gpu::TextureFormat(pygpu_textureformat.value_found),
                                GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ,
                                false,
                                err_out);
@@ -361,7 +361,7 @@ PyDoc_STRVAR(
 static PyObject *pygpu_offscreen_texture_color_get(BPyGPUOffScreen *self, void * /*type*/)
 {
   BPY_GPU_OFFSCREEN_CHECK_OBJ(self);
-  blender::gpu::Texture *texture = GPU_offscreen_color_texture(self->ofs);
+  gpu::Texture *texture = GPU_offscreen_color_texture(self->ofs);
   return BPyGPUTexture_CreatePyObject(texture, true);
 }
 
@@ -373,21 +373,21 @@ PyDoc_STRVAR(
     "\n"
     "   Draw the 3d viewport in the offscreen object.\n"
     "\n"
-    "   :arg scene: Scene to draw.\n"
+    "   :param scene: Scene to draw.\n"
     "   :type scene: :class:`bpy.types.Scene`\n"
-    "   :arg view_layer: View layer to draw.\n"
+    "   :param view_layer: View layer to draw.\n"
     "   :type view_layer: :class:`bpy.types.ViewLayer`\n"
-    "   :arg view3d: 3D View to get the drawing settings from.\n"
+    "   :param view3d: 3D View to get the drawing settings from.\n"
     "   :type view3d: :class:`bpy.types.SpaceView3D`\n"
-    "   :arg region: Region of the 3D View (required as temporary draw target).\n"
+    "   :param region: Region of the 3D View (required as temporary draw target).\n"
     "   :type region: :class:`bpy.types.Region`\n"
-    "   :arg view_matrix: View Matrix (e.g. ``camera.matrix_world.inverted()``).\n"
+    "   :param view_matrix: View Matrix (e.g. ``camera.matrix_world.inverted()``).\n"
     "   :type view_matrix: :class:`mathutils.Matrix`\n"
-    "   :arg projection_matrix: Projection Matrix (e.g. ``camera.calc_matrix_camera(...)``).\n"
+    "   :param projection_matrix: Projection Matrix (e.g. ``camera.calc_matrix_camera(...)``).\n"
     "   :type projection_matrix: :class:`mathutils.Matrix`\n"
-    "   :arg do_color_management: Color manage the output.\n"
+    "   :param do_color_management: Color manage the output.\n"
     "   :type do_color_management: bool\n"
-    "   :arg draw_background: Draw background.\n"
+    "   :param draw_background: Draw background.\n"
     "   :type draw_background: bool\n");
 static PyObject *pygpu_offscreen_draw_view3d(BPyGPUOffScreen *self, PyObject *args, PyObject *kwds)
 {
@@ -417,7 +417,6 @@ static PyObject *pygpu_offscreen_draw_view3d(BPyGPUOffScreen *self, PyObject *ar
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O"  /* `scene` */
       "O"  /* `view_layer` */
       "O"  /* `view3d` */
@@ -483,8 +482,8 @@ static PyObject *pygpu_offscreen_draw_view3d(BPyGPUOffScreen *self, PyObject *ar
                            region,
                            GPU_offscreen_width(self->ofs),
                            GPU_offscreen_height(self->ofs),
-                           (const float (*)[4])py_mat_view->matrix,
-                           (const float (*)[4])py_mat_projection->matrix,
+                           reinterpret_cast<const float (*)[4]>(py_mat_view->matrix),
+                           reinterpret_cast<const float (*)[4]>(py_mat_projection->matrix),
                            true,
                            draw_background,
                            "",
@@ -529,23 +528,23 @@ static void BPyGPUOffScreen__tp_dealloc(BPyGPUOffScreen *self)
   if (self->ofs) {
     GPU_offscreen_free(self->ofs);
   }
-  Py_TYPE(self)->tp_free((PyObject *)self);
+  Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
 }
 
 static PyGetSetDef pygpu_offscreen__tp_getseters[] = {
     {"texture_color",
-     (getter)pygpu_offscreen_texture_color_get,
-     (setter) nullptr,
+     reinterpret_cast<getter>(pygpu_offscreen_texture_color_get),
+     static_cast<setter>(nullptr),
      pygpu_offscreen_texture_color_doc,
      nullptr},
     {"width",
-     (getter)pygpu_offscreen_width_get,
-     (setter) nullptr,
+     reinterpret_cast<getter>(pygpu_offscreen_width_get),
+     static_cast<setter>(nullptr),
      pygpu_offscreen_width_doc,
      nullptr},
     {"height",
-     (getter)pygpu_offscreen_height_get,
-     (setter) nullptr,
+     reinterpret_cast<getter>(pygpu_offscreen_height_get),
+     static_cast<setter>(nullptr),
      pygpu_offscreen_height_doc,
      nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
@@ -562,17 +561,23 @@ static PyGetSetDef pygpu_offscreen__tp_getseters[] = {
 #endif
 
 static PyMethodDef pygpu_offscreen__tp_methods[] = {
-    {"bind", (PyCFunction)pygpu_offscreen_bind, METH_NOARGS, pygpu_offscreen_bind_doc},
+    {"bind",
+     reinterpret_cast<PyCFunction>(pygpu_offscreen_bind),
+     METH_NOARGS,
+     pygpu_offscreen_bind_doc},
     {"unbind",
-     (PyCFunction)pygpu_offscreen_unbind,
+     reinterpret_cast<PyCFunction>(pygpu_offscreen_unbind),
      METH_VARARGS | METH_KEYWORDS,
      pygpu_offscreen_unbind_doc},
     {"draw_view3d",
-     (PyCFunction)pygpu_offscreen_draw_view3d,
+     reinterpret_cast<PyCFunction>(pygpu_offscreen_draw_view3d),
      METH_VARARGS | METH_KEYWORDS,
      pygpu_offscreen_draw_view3d_doc},
 #ifdef BPYGPU_USE_GPUOBJ_FREE_METHOD
-    {"free", (PyCFunction)pygpu_offscreen_free, METH_NOARGS, pygpu_offscreen_free_doc},
+    {"free",
+     reinterpret_cast<PyCFunction>(pygpu_offscreen_free),
+     METH_NOARGS,
+     pygpu_offscreen_free_doc},
 #endif
     {nullptr, nullptr, 0, nullptr},
 };
@@ -592,11 +597,11 @@ PyDoc_STRVAR(
     "\n"
     "   This object gives access to off screen buffers.\n"
     "\n"
-    "   :arg width: Horizontal dimension of the buffer.\n"
+    "   :param width: Horizontal dimension of the buffer.\n"
     "   :type width: int\n"
-    "   :arg height: Vertical dimension of the buffer.\n"
+    "   :param height: Vertical dimension of the buffer.\n"
     "   :type height: int\n"
-    "   :arg format: Internal data format inside GPU memory for color attachment "
+    "   :param format: Internal data format inside GPU memory for color attachment "
     "texture. Possible values are:\n"
     "      ``RGBA8``,\n"
     "      ``RGBA16``,\n"
@@ -608,7 +613,7 @@ PyTypeObject BPyGPUOffScreen_Type = {
     /*tp_name*/ "GPUOffScreen",
     /*tp_basicsize*/ sizeof(BPyGPUOffScreen),
     /*tp_itemsize*/ 0,
-    /*tp_dealloc*/ (destructor)BPyGPUOffScreen__tp_dealloc,
+    /*tp_dealloc*/ reinterpret_cast<destructor>(BPyGPUOffScreen__tp_dealloc),
     /*tp_vectorcall_offset*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
@@ -669,9 +674,11 @@ PyObject *BPyGPUOffScreen_CreatePyObject(GPUOffScreen *ofs)
   self->ofs = ofs;
   self->viewport = nullptr;
 
-  return (PyObject *)self;
+  return reinterpret_cast<PyObject *>(self);
 }
 
 /** \} */
 
 #undef BPY_GPU_OFFSCREEN_CHECK_OBJ
+
+}  // namespace blender

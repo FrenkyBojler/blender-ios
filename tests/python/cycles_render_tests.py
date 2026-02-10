@@ -26,7 +26,8 @@ BLOCKLIST_ALL = [
     "camera_depth_of_field_jittered.blend",
     "shadow_resolution.blend",
     "shadow_min_pool_size.blend",
-    "shadow_resolution_scale.blend"
+    "shadow_resolution_scale.blend",
+    "shader_to_rgb_transparent.blend",
 ]
 
 # Blocklist for device + build configuration that does not support OSL at all.
@@ -62,6 +63,8 @@ BLOCKLIST_OSL_ALL = BLOCKLIST_OSL_LIMITED + [
     # Tests that need investigating into why they're failing:
     # Noise differences due to Principled BSDF mixing/layering used in some of these scenes
     'render_passes_.*.blend',
+    # OSL can not specify parameters when reading attribute, which we need for stochastic sampling
+    'volume_tricubic_interpolation.blend',
 ]
 
 BLOCKLIST_OPTIX = [
@@ -81,10 +84,11 @@ BLOCKLIST_OPTIX_OSL_LIMITED = [
 
 # Blocklist for SVM tests that fail when forced to run with OptiX OSL
 BLOCKLIST_OPTIX_OSL_ALL = BLOCKLIST_OPTIX_OSL_LIMITED + [
-    # OptiX OSL does support AO or Bevel
+    # OptiX OSL does support AO, Bevel or Raycast
     'ambient_occlusion.*.blend',
     'bake_bevel.blend',
     'bevel.blend',
+    'raycast.*.blend',
     'principled_bsdf_bevel_emission_137420.blend',
     # Dicing tests use wireframe node which doesn't appear to be supported with OptiX OSL
     'dicing_camera.blend',
@@ -118,7 +122,6 @@ if platform.system() == "Darwin":
 
 BLOCKLIST_GPU = [
     # Uninvestigated differences with GPU.
-    'image_log.blend',
     'glass_mix_40964.blend',
     'filter_glossy_refraction_45609.blend',
     'bevel_mblur.blend',
