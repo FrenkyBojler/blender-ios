@@ -47,11 +47,22 @@ struct ProjectVariable {
  */
 class BlenderProjectData {
  public:
+  BlenderProjectData() = default;
+  ~BlenderProjectData();
+
+  /* For now, disallow copying. */
+  BlenderProjectData(const BlenderProjectData &other) = delete;
+  BlenderProjectData &operator=(const BlenderProjectData &other) = delete;
+
+  /* But do allow moving. */
+  BlenderProjectData(BlenderProjectData &&other) = default;
+  BlenderProjectData &operator=(BlenderProjectData &&other) = default;
+
   /* The name and root path should never be empty. */
   std::string name_;
   std::string root_path_;
 
-  Vector<std::unique_ptr<ProjectVariable>> variables;
+  Vector<ProjectVariable *> variables;
   int active_variable = 0;
 
   /**
@@ -73,6 +84,9 @@ class BlenderProjectData {
 
   StringRefNull get_name() const;
   StringRefNull get_root_path() const;
+
+  ProjectVariable *new_variable();
+  bool remove_variable(ProjectVariable *var);
 };
 
 /**

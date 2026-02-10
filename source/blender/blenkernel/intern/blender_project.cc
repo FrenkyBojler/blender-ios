@@ -12,8 +12,6 @@
 
 #include "BLI_string_ref.hh"
 
-static blender::bke::BlenderProject global_blender_project_;
-
 namespace blender::bke {
 
 bool BlenderProjectData::set_name(StringRef name)
@@ -46,6 +44,33 @@ StringRefNull BlenderProjectData::get_root_path() const
   return StringRefNull(this->root_path_);
 }
 
+ProjectVariable *BlenderProjectData::new_variable()
+{
+  ProjectVariable *var = MEM_new<ProjectVariable>(__func__);
+  this->variables.append(var);
+  return var;
+}
+
+bool BlenderProjectData::remove_variable(ProjectVariable *var)
+{
+  const int index = this->variables.first_index_of_try(var);
+  if (index == -1) {
+    return false;
+  }
+
+  this->variables.remove(index);
+  MEM_delete(var);
+
+  return true;
+}
+
+BlenderProjectData::~BlenderProjectData()
+{
+  for (ProjectVariable *var : this->variables) {
+    MEM_delete(var);
+  }
+}
+
 bool BlenderProject::init(blender::StringRef name, blender::StringRef root_path)
 {
   if (name.is_empty() || root_path.is_empty()) {
@@ -75,5 +100,7 @@ void BlenderProject::clear()
 
 blender::bke::BlenderProject &BKE_blender_project()
 {
+  /* "Construct on first use" idiom. */
+  static blender::bke::BlenderProject global_blender_project_;
   return global_blender_project_;
 }
