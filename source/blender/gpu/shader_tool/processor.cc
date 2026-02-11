@@ -1321,35 +1321,33 @@ void SourceProcessor::lower_function_default_arguments(Parser &parser)
 /* Successive mutations can introduce a lot of unneeded line directives. */
 void SourceProcessor::cleanup_line_directives(Parser &parser)
 {
-  parser().foreach_match<true>("#A1\n", [&](vector<Token> toks) {
+  parser().foreach_match<true>("#A1", [&](vector<Token> toks) {
     if (toks[1].str() != "line") {
       return;
     }
     /* Workaround the foreach_match not matching overlapping patterns. */
     if (toks.back().next() == '#' && toks.back().next().next() == Word &&
-        toks.back().next().next().next() == Number &&
-        toks.back().next().next().next().next() == '\n')
+        toks.back().next().next().next() == Number)
     {
       parser.replace(toks[0].line_start(), toks[0].line_end() + 1, "");
     }
   });
   parser.apply_mutations();
 
-  parser().foreach_match<true>("#A1\n#A\n", [&](vector<Token> toks) {
+  parser().foreach_match<true>("#A1#A", [&](vector<Token> toks) {
     if (toks[1].str() != "line") {
       return;
     }
     /* Workaround the foreach_match not matching overlapping patterns. */
     if (toks.back().next() == '#' && toks.back().next().next() == Word &&
-        toks.back().next().next().next() == Number &&
-        toks.back().next().next().next().next() == '\n')
+        toks.back().next().next().next() == Number)
     {
       parser.replace(toks[0].line_start(), toks[0].line_end() + 1, "");
     }
   });
   parser.apply_mutations();
 
-  parser().foreach_match<true>("#A1\n", [&](vector<Token> toks) {
+  parser().foreach_match<true>("#A1", [&](vector<Token> toks) {
     if (toks[1].str() != "line") {
       return;
     }
