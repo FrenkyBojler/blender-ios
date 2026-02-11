@@ -5183,7 +5183,7 @@ static bool can_read_node_type(const bNode &node)
   /* Nodes that require storage but don't have any storage data are invalid. */
   if (node.storage == nullptr) {
     const bNodeType *node_type = node_type_find(node.idname);
-    if (!node_type || node_type->storagename.empty()) {
+    if (!node_type || !node_type->storagename.empty()) {
       return false;
     }
   }
