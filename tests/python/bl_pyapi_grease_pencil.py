@@ -83,6 +83,42 @@ class TestGreasePencilLayers(unittest.TestCase):
         self.assertEqual(round(self.gp.layers[1].tint_factor, 1), self.tint_factors[2])
         self.assertEqual(round(self.gp.layers[2].tint_factor, 1), self.tint_factors[0])
 
+    def test_grease_pencil_layer_mask_new(self):
+        layer = self.gp.layers[0]
+        
+        # Test creating mask with a name
+        mask = layer.mask_layers.new(name="TestMask")
+        self.assertIsNotNone(mask)
+        self.assertEqual(len(layer.mask_layers), 1)
+        
+        # Test creating mask with empty name (auto-generated)
+        mask2 = layer.mask_layers.new(name="")
+        self.assertIsNotNone(mask2)
+        self.assertEqual(len(layer.mask_layers), 2)
+        
+        # Test creating multiple masks
+        mask3 = layer.mask_layers.new(name="Mask_Color")
+        self.assertIsNotNone(mask3)
+        self.assertEqual(len(layer.mask_layers), 3)
+
+    def test_grease_pencil_layer_mask_remove(self):
+        layer = self.gp.layers[0]
+        
+        # Add masks
+        mask1 = layer.mask_layers.new(name="Mask1")
+        mask2 = layer.mask_layers.new(name="Mask2")
+        mask3 = layer.mask_layers.new(name="Mask3")
+        
+        self.assertEqual(len(layer.mask_layers), 3)
+        
+        # Remove middle mask
+        layer.mask_layers.remove(mask2)
+        self.assertEqual(len(layer.mask_layers), 2)
+        
+        # Remove remaining masks
+        layer.mask_layers.remove(mask1)
+        layer.mask_layers.remove(mask3)
+        self.assertEqual(len(layer.mask_layers), 0)
 
 class TestGreasePencilFrame(unittest.TestCase):
     def setUp(self):
