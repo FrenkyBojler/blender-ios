@@ -199,7 +199,7 @@ void main()
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vertex_out.pos, 1.0f));
 
   /* Adjust z-component. */
-  if (drw_view_is_perspective()) {
+  if (drw_view_is_perspective() || flag_test(grid_flag, GRID_SIMA)) {
     /* To minimize z-fighting, the grid is drawn N times with progressive z-bias, making it fade
      * through geometry. The slight negative z-offset makes the grid "ghost" over geometry on the
      * same plane, while the offset range determines how much fade-in there is. */
