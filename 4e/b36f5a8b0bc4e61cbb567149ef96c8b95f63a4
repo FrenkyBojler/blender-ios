@@ -1,1 +1,1 @@
-Referenced by issue #151972, Vulkan: Uninitialized variable in texture loader causes intermittent crash on Polaris/Vega
+Referenced by issue #151972, Vulkan: Uninitialized variable in texture loader causes intermittent timeout and crash on Polaris/Vega
