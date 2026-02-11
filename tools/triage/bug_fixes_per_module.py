@@ -262,7 +262,13 @@ def print_info(list_of_commits: list[CommitInfo], start_date: str, end_date: str
         print(f"{module}: {dict_of_modules_and_commits[module]}")
 
     if UNKNOWN in dict_of_modules_and_commits:
-        print(f"\n{UNKNOWN}: {dict_of_modules_and_commits[UNKNOWN]}")
+        unknown_commits = dict_of_modules_and_commits[UNKNOWN]
+        print(f"\n{UNKNOWN}: {unknown_commits}")
+        print("Here is a list of the commits with unknown modules.")
+        print("Go through each of the commit messages, find the bug reports they fixed, then update the module label.")
+        for commit in unknown_commits:
+            print(f"https://projects.blender.org/blender/blender/commit/{commit.hash}")
+
 
 # -----------------------------------------------------------------------------
 
