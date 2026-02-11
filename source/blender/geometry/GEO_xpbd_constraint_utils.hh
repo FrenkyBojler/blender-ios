@@ -230,14 +230,14 @@ inline int color_constraints(GetConstraintPointIdsFn &&get_constraint_point_ids_
   const int constraints_num = r_colors.size();
   MultiValueMap<PointID, int> constraints_by_point;
   for (const int constraint_i : IndexRange(constraints_num)) {
-    for (const PointID point_id : get_constraint_point_ids_fn(constraint_i)) {
+    for (const PointID &point_id : get_constraint_point_ids_fn(constraint_i)) {
       constraints_by_point.add(point_id, constraint_i);
     }
   }
   int colors_num = 0;
   for (const int constraint_i : IndexRange(constraints_num)) {
     Vector<int> used_colors;
-    for (const PointID point_id : get_constraint_point_ids_fn(constraint_i)) {
+    for (const PointID &point_id : get_constraint_point_ids_fn(constraint_i)) {
       for (const int other_constraint_i : constraints_by_point.lookup(point_id)) {
         if (other_constraint_i >= constraint_i) {
           continue;
