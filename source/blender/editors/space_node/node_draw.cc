@@ -4845,7 +4845,8 @@ void node_draw_space(const bContext &C, ARegion &region)
         wmOrtho2_region_pixelspace(&region);
 
         const bool show_render_region = (snode.overlay.flag & SN_OVERLAY_SHOW_OVERLAYS &&
-                                         snode.overlay.flag & SN_OVERLAY_SHOW_RENDER_REGION);
+                                         snode.overlay.flag & SN_OVERLAY_SHOW_RENDER_REGION &&
+                                         snode.flag & SNODE_BACKDRAW);
         if (show_render_region) {
           int render_size_x, render_size_y;
           BKE_render_resolution(&scene.r, true, &render_size_x, &render_size_y);

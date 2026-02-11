@@ -991,7 +991,7 @@ class NODE_PT_overlay(Panel):
             col.prop(overlay, "show_timing", text="Timings")
 
             subcol = col.column(align=True)
-            subcol.active = overlay.show_render_size
+            subcol.active = overlay.show_render_size and snode.show_backdrop
 
             row = subcol.row(align=True)
             row.prop(overlay, "show_render_size", text="Render Region")
