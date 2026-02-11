@@ -92,6 +92,10 @@ class CommitInfo():
             if report_information is None:
                 # It might be `None` if bug report has been deleted.
                 continue
+            
+            if isinstance(report_information, list):
+                # List type is the wrong format.
+                continue
 
             if "pull" in report_information['html_url']:
                 # Pull requests aren't bug reports. So skip processing it.
