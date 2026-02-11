@@ -70,6 +70,10 @@ class CommitInfo():
         command = ['git', 'show', '-s', '--format=%B', self.hash]
         command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
 
+        if "revert" in command_output.lower():
+            # If "revert" is the commit message, then it's probably a revert commit and didn't fix a issue.
+            return
+
         # Find every instance of #NUMBER. These are the report that the commit claims to fix.
         match = re.findall(r'#(\d+)', command_output)
         if match:
