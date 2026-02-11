@@ -163,28 +163,7 @@ static void get_input_loops(BMesh *bm,
                             const bool check_y,
                             const bool check_z)
 {
-  /* If the selection has near zero extent along an axis, disable mirror plane filtering
-   * for that axis so planar selections are not mistaken for symmetry boundaries. */
-  float3 min_co = float3(FLT_MAX);
-  float3 max_co = float3(-FLT_MAX);
-  bool has_selection = false;
-
-  BMIter viter;
-  BMVert *v;
-  BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
-    if (BM_elem_flag_test(v, BM_ELEM_SELECT) && !BM_elem_flag_test(v, BM_ELEM_HIDDEN)) {
-      min_co = math::min(min_co, float3(v->co));
-      max_co = math::max(max_co, float3(v->co));
-      has_selection = true;
-    }
-  }
-
-  if (!has_selection) {
-    return;
-  }
-
   Set<BMEdge *> visited;
-
   BMIter iter;
   BMEdge *edge;
 
