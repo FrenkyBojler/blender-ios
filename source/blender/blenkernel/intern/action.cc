@@ -234,7 +234,7 @@ static void action_free_data(ID *id)
 
   /* Free markers & preview. */
   BLI_freelistN(&action.markers);
-  BKE_previewimg_free(&action.preview);
+  BKE_previewimg_id_free(&action.id);
 
   BLI_assert(action.is_empty());
 }
@@ -738,38 +738,38 @@ static AssetTypeInfo AssetType_AC = {
 }  // namespace bke
 
 IDTypeInfo IDType_ID_AC = {
-    /*id_code*/ bAction::id_type,
-    /*id_filter*/ FILTER_ID_AC,
+    .id_code = bAction::id_type,
+    .id_filter = FILTER_ID_AC,
 
     /* This value will be set dynamically in `BKE_idtype_init()` to only include
      * animatable ID types (see `animrig::Slot::users()`). */
-    /*dependencies_id_types*/ FILTER_ID_ALL,
+    .dependencies_id_types = FILTER_ID_ALL,
 
-    /*main_listbase_index*/ INDEX_ID_AC,
-    /*struct_size*/ sizeof(bAction),
-    /*name*/ "Action",
-    /*name_plural*/ "actions",
-    /*translation_context*/ BLT_I18NCONTEXT_ID_ACTION,
-    /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA,
-    /*asset_type_info*/ &bke::AssetType_AC,
+    .main_listbase_index = INDEX_ID_AC,
+    .struct_size = sizeof(bAction),
+    .name = "Action",
+    .name_plural = "actions",
+    .translation_context = BLT_I18NCONTEXT_ID_ACTION,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .asset_type_info = &bke::AssetType_AC,
 
-    /*init_data*/ bke::action_init_data,
-    /*copy_data*/ bke::action_copy_data,
-    /*free_data*/ bke::action_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ bke::action_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = bke::action_init_data,
+    .copy_data = bke::action_copy_data,
+    .free_data = bke::action_free_data,
+    .make_local = nullptr,
+    .foreach_id = bke::action_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ bke::action_blend_write,
-    /*blend_read_data*/ bke::action_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = bke::action_blend_write,
+    .blend_read_data = bke::action_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 /* ***************** Library data level operations on action ************** */
@@ -1036,7 +1036,9 @@ void BKE_pose_copy_data_ex(bPose **dst,
 
   outPose->iksolver = src->iksolver;
   outPose->ikdata = nullptr;
-  outPose->ikparam = MEM_dupalloc_void(src->ikparam);
+  if (src->ikparam) {
+    outPose->ikparam = MEM_new<bItasc>(__func__, *src->ikparam);
+  }
   outPose->avs = src->avs;
 
   for (bPoseChannel &pchan : outPose->chanbase) {
@@ -1115,17 +1117,9 @@ void BKE_pose_itasc_init(bItasc *itasc)
 }
 void BKE_pose_ikparam_init(bPose *pose)
 {
-  bItasc *itasc;
-  switch (pose->iksolver) {
-    case IKSOLVER_ITASC:
-      itasc = MEM_new<bItasc>("itasc");
-      BKE_pose_itasc_init(itasc);
-      pose->ikparam = itasc;
-      break;
-    case IKSOLVER_STANDARD:
-    default:
-      pose->ikparam = nullptr;
-      break;
+  if (pose->iksolver == IKSOLVER_ITASC) {
+    pose->ikparam = MEM_new<bItasc>("itasc");
+    BKE_pose_itasc_init(pose->ikparam);
   }
 }
 
@@ -1392,7 +1386,7 @@ void BKE_pose_free_data_ex(bPose *pose, bool do_id_user)
 
   /* free IK solver param */
   if (pose->ikparam) {
-    MEM_delete(static_cast<bItasc *>(pose->ikparam));
+    MEM_delete(pose->ikparam);
   }
 }
 
@@ -1926,7 +1920,8 @@ void BKE_pose_blend_read_data(BlendDataReader *reader, ID *id_owner, bPose *pose
   if (pose->ikparam != nullptr) {
     const char *structname = BKE_pose_ikparam_get_name(pose);
     if (structname) {
-      pose->ikparam = BLO_read_struct_by_name_array(reader, structname, 1, pose->ikparam);
+      pose->ikparam = static_cast<bItasc *>(
+          BLO_read_struct_by_name_array(reader, structname, 1, pose->ikparam));
     }
     else {
       pose->ikparam = nullptr;

@@ -259,7 +259,7 @@ static void node_group_ungroup(bContext &C, bNodeTree &ntree, bNode &group_node)
   params.skip_hidden = false;
 
   const bNodeTree &ngroup = *reinterpret_cast<const bNodeTree *>(group_node.id);
-  const NodeTreeInterfaceMapping io_mapping = map_group_node_interface(params, group_node);
+  const NodeTreeInterfaceMapping io_mapping = map_group_node_interface(params, ntree, group_node);
 
   const NodeSetCopy copied_nodes = NodeSetCopy::from_predicate(
       bmain,
@@ -322,6 +322,8 @@ static wmOperatorStatus node_group_ungroup_exec(bContext *C, wmOperator * /*op*/
   if (nodes_to_ungroup.is_empty()) {
     return OPERATOR_CANCELLED;
   }
+
+  node_deselect_all(*snode->edittree);
   for (bNode *node : nodes_to_ungroup) {
     node_group_ungroup(*C, *snode->edittree, *node);
   }
@@ -598,6 +600,7 @@ static void node_group_make_insert_selected(const bContext &C,
       params, ntree, nodes, group);
 
   /* Copy nodes into the group. */
+  node_deselect_all(group);
   const NodeSetCopy copied_nodes = NodeSetCopy::from_nodes(bmain, ntree, nodes, group);
   /* Connect exposed sockets to group input/output nodes. */
   connect_copied_nodes_to_interface(C, copied_nodes, io_mapping);

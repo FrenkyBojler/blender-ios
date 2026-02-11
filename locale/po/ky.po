@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'c1168d06bba2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-26 11:28+0000\n"
+"POT-Creation-Date: 2026-02-09 09:47+0000\n"
 "PO-Revision-Date: 2025-07-23 15:20+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Kyrgyz <https://translate.blender.org/projects/blender-ui/ui/ky/>\n"
@@ -752,6 +752,10 @@ msgid "Ogg"
 msgstr "Ogg"
 
 
+msgid "Sigma"
+msgstr "Сигма"
+
+
 msgid "Frame"
 msgstr "Кадр"
 
@@ -1290,14 +1294,6 @@ msgid "Mask Layers"
 msgstr "Маска каттары"
 
 
-msgid "Import"
-msgstr "Импорттоо"
-
-
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Apply"
 msgstr "Колдонуу"
 
@@ -1308,6 +1304,14 @@ msgstr "Трекинг"
 
 msgid "Mirror"
 msgstr "Чагылтуу"
+
+
+msgid "Import"
+msgstr "Импорттоо"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgctxt "MovieClip"
@@ -1918,10 +1922,6 @@ msgstr "Текстти коюу"
 
 msgid "Eraser"
 msgstr "Өчүргүч"
-
-
-msgid "Sigma"
-msgstr "Сигма"
 
 
 msgid "Flat"

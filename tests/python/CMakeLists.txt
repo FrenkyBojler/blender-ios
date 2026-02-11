@@ -52,6 +52,7 @@ function(add_blender_test testname)
     ""
     "${TEST_BLENDER_EXE}"
     ${TEST_BLENDER_EXE_PARAMS}
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
     ${ARGN}
   )
 endfunction()
@@ -66,6 +67,7 @@ function(add_blender_test_allow_error testname)
     ""
     "${TEST_BLENDER_EXE}"
     ${EXE_PARAMS}
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
     ${ARGN}
   )
 endfunction()
@@ -125,6 +127,7 @@ if(WITH_UI_TESTS)
       -p 0 0 800 600
       --gpu-backend ${backend}
       "${EXE_PARAMS}"
+      "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
       "${ARGN}"
     )
   endfunction()
@@ -318,6 +321,11 @@ add_blender_test(
 add_blender_test(
   script_pyapi_grease_pencil
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_grease_pencil.py
+)
+
+add_blender_test(
+  script_pyapi_annotations
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_annotations.py
 )
 
 # ------------------------------------------------------------------------------
@@ -607,6 +615,11 @@ add_blender_test(
 )
 
 add_blender_test(
+  bl_animation_rename
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_rename.py
+)
+
+add_blender_test(
   bl_animation_nla_strip
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_nla_strip.py
 )
@@ -716,6 +729,13 @@ if(TEST_SRC_DIR_EXISTS)
     --
     --testdir "${TEST_SRC_DIR}/node_group"
   )
+
+  add_blender_test(
+    bl_node_link_drag
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_link_drag.py
+    --
+    --testdir "${TEST_SRC_DIR}/node_group"
+  )
 endif()
 
 # ------------------------------------------------------------------------------
@@ -760,6 +780,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     node_inlining
     pointcloud
     principled_bsdf
+    raycast
     shader
     shadow
     shadow_catcher
@@ -801,7 +822,6 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
 
   # Cycles
   if(WITH_CYCLES)
-    set(_cycles_blocklist "")
     set(_cycles_all_test_devices CPU CUDA OPTIX HIP HIP-RT METAL METAL-RT ONEAPI ONEAPI-RT)
     set(_cycles_osl_test_devices CPU OPTIX)
     foreach(_cycles_device ${CYCLES_TEST_DEVICES})
@@ -894,7 +914,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
         endforeach()
       endif()
 
-      if(WITH_VULKAN_BACKEND AND (name STREQUAL "workbench" OR name STREQUAL "overlay" OR WITH_GPU_RENDER_TESTS_VULKAN)
+      if(WITH_VULKAN_BACKEND AND (name STREQUAL "overlay" OR WITH_GPU_RENDER_TESTS_VULKAN)
           AND (NOT (name STREQUAL "storm_hydra" OR name STREQUAL "storm_usd") OR WITH_STORM_TESTS_VULKAN))
         foreach(render_test ${render_tests})
           add_render_test(
@@ -1313,7 +1333,7 @@ if(TEST_SRC_DIR_EXISTS)
     blend_modes_byte
     blend_modes_float
   )
-  set(video_output_tests)
+  set(video_output_tests "")
 
   if(WITH_LIBMV)
     list(APPEND render_tests effects)
@@ -1364,6 +1384,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_sculpt_mask
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mask_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/sculpting"
+  )
+
+  add_blender_test(
+    bl_sculpt_face_set
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/face_set_test.py
     --
     --testdir "${TEST_SRC_DIR}/sculpting"
   )
@@ -1437,8 +1464,12 @@ if(WITH_UI_TESTS)
   # list explicitly so changes bisecting/updated are sure to re-run CMake.
   set(_ui_tests
     test_sculpt.asset_shelf_brush_selection
-    test_sculpt.mask_expand_and_invert
     test_sculpt.face_set_expand
+    test_sculpt.face_set_gestures
+    test_sculpt.hide_gestures
+    test_sculpt.mask_expand_and_invert
+    test_sculpt.mask_gestures
+    test_sculpt.trim_gestures
     test_tools.sculpt_mode_toolbar
     test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix

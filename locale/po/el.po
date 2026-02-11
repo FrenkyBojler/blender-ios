@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'c1168d06bba2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-26 11:28+0000\n"
+"POT-Creation-Date: 2026-02-09 09:47+0000\n"
 "PO-Revision-Date: 2025-07-23 15:19+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -153,6 +153,10 @@ msgstr "Όλα"
 
 msgid "Fill"
 msgstr "Συμπλήρωμα"
+
+
+msgid "Both"
+msgstr "Both"
 
 
 msgid "Crop"
@@ -519,20 +523,12 @@ msgid "Keyboard"
 msgstr "Πληκτρολόγιο"
 
 
-msgid "Import"
-msgstr "Εισαγωγή"
-
-
 msgid "Metaball"
 msgstr "Μετα-σφαίρα"
 
 
 msgid "Merge"
 msgstr "Συγχώνευση"
-
-
-msgid "Rigid Body"
-msgstr "Rigid Body"
 
 
 msgid "Apply"
@@ -543,12 +539,16 @@ msgid "Make Single User"
 msgstr "Ορισμός Ενός Χρήστη"
 
 
+msgid "Light"
+msgstr "Φως"
+
+
 msgid "Track"
 msgstr "Ανίχνευση"
 
 
-msgid "Light"
-msgstr "Φως"
+msgid "Rigid Body"
+msgstr "Rigid Body"
 
 
 msgid "Select Linked"
@@ -561,6 +561,10 @@ msgstr "Προσκόλληση"
 
 msgid "Mirror"
 msgstr "Καθρέφτισμα"
+
+
+msgid "Import"
+msgstr "Εισαγωγή"
 
 
 msgid "Cache"
@@ -731,10 +735,6 @@ msgstr "Διατήρηση Αρχικού"
 
 msgid "Open"
 msgstr "Άνοιγμα"
-
-
-msgid "Both"
-msgstr "Both"
 
 
 msgid "Next Keyframe"
