@@ -296,13 +296,13 @@ static bke::SocketValueVariant init_socket_cpp_value(PointerRNA *input_props_ptr
 
 struct OutputAttributeInfo {
   fn::GField field;
-  StringRefNull name;
+  std::string name;
 };
 
 struct OutputAttributeToStore {
   bke::GeometryComponent::Type component_type;
   bke::AttrDomain domain;
-  StringRefNull name;
+  std::string name;
   GMutableSpan data;
 };
 
