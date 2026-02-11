@@ -383,12 +383,7 @@ bool version_node_ensure_storage_or_invalidate(bNode &node)
 
   /* Invalidate the type identifiers to prevent invalid access where storage data is expected
    * (#154086). */
-  node.type_legacy = NODE_CUSTOM;
-  /* This type name is arbitrary, it just has to be unique enough to not match a future node
-   * idname. Includes the old type identifier for debugging purposes. */
-  const std::string old_idname = node.idname;
-  SNPRINTF_UTF8(node.idname, "Undefined[%s]", old_idname.c_str());
-
+  bke::node_set_undefined_type(node);
   return false;
 }
 

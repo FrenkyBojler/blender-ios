@@ -5196,17 +5196,14 @@ static bool can_read_node_type(const bNode &node)
   return node_type_find(node.idname) != nullptr;
 }
 
-static void node_replace_undefined_types(bNode *node)
+void node_set_undefined_type(bNode &node)
 {
-  /* If the node type is built-in but unknown, the node cannot be read. */
-  if (!can_read_node_type(*node)) {
-    node->type_legacy = NODE_CUSTOM;
-    /* This type name is arbitrary, it just has to be unique enough to not match a future node
-     * idname. Includes the old type identifier for debugging purposes. */
-    const std::string old_idname = node->idname;
-    SNPRINTF_UTF8(node->idname, "Undefined[%s]", old_idname.c_str());
-    node->typeinfo = &NodeTypeUndefined;
-  }
+  node.type_legacy = NODE_CUSTOM;
+  /* This type name is arbitrary, it just has to be unique enough to not match a future node
+   * idname. Includes the old type identifier for debugging purposes. */
+  const std::string old_idname = node.idname;
+  SNPRINTF_UTF8(node.idname, "Undefined[%s]", old_idname.c_str());
+  node.typeinfo = &NodeTypeUndefined;
 }
 
 void node_tree_update_all_new(Main &main)
@@ -5220,7 +5217,10 @@ void node_tree_update_all_new(Main &main)
    * replaced in those late versioning steps. */
   FOREACH_NODETREE_BEGIN (&main, ntree, owner_id) {
     for (bNode *node : ntree->all_nodes()) {
-      node_replace_undefined_types(node);
+      /* If the node type is built-in but unknown, the node cannot be read. */
+      if (!can_read_node_type(*node)) {
+        node_set_undefined_type(*node);
+      }
     }
   }
   FOREACH_NODETREE_END;
