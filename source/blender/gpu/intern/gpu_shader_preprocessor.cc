@@ -554,7 +554,7 @@ class Directive {
 };
 
 /* Returns the type of conditional. */
-DirectiveType increment_to_next_conditional(Directive &dir)
+static DirectiveType increment_to_next_conditional(Directive &dir)
 {
   dir = dir.next();
   while (dir.is_valid()) {
@@ -577,7 +577,7 @@ DirectiveType increment_to_next_conditional(Directive &dir)
   return DirectiveType::Other;
 }
 
-Directive find_next_matching_conditional(Directive dir)
+static Directive find_next_matching_conditional(Directive dir)
 {
   int stack = 1;
   while (dir.is_valid()) {
@@ -830,7 +830,7 @@ struct Stream {
   }
 };
 
-DCEStream &operator<<(DCEStream &dst, const Stream &src)
+inline DCEStream &operator<<(DCEStream &dst, const Stream &src)
 {
   for (const auto tok : src.tokens) {
     dst.parse_token(tok);
@@ -842,14 +842,14 @@ DCEStream &operator<<(DCEStream &dst, const Stream &src)
   return dst;
 }
 
-DCEStream &operator<<(DCEStream &dst, const TokenRange<Token> &range)
+inline DCEStream &operator<<(DCEStream &dst, const TokenRange<Token> &range)
 {
   dst.parse_token_range(range.begin, range.end);
   dst << range.begin.buf_->substr(range.begin, range.end, true);
   return dst;
 }
 
-DCEStream &operator<<(DCEStream &dst, const Token &tok)
+inline DCEStream &operator<<(DCEStream &dst, const Token &tok)
 {
   dst.parse_token(tok);
   dst << tok.str_with_whitespace();
