@@ -225,7 +225,7 @@ class Grid : Overlay {
 
     /* Set `grid_flag_` dependent on view configuration. */
     if (rv3d->is_persp || rv3d->view == RV3D_VIEW_USER) {
-      /* Perspective; set selected axes and plane (floor = XY) bits. */
+      /* Perspective/orthographic; set selected axes and plane (floor = XY) bits. */
       axis_flag_ |= (show_axis_x ? AXIS_X : OVERLAY_GridBits(0));
       axis_flag_ |= (show_axis_y ? AXIS_Y : OVERLAY_GridBits(0));
       axis_flag_ |= (show_axis_z ? AXIS_Z : OVERLAY_GridBits(0));
@@ -243,28 +243,30 @@ class Grid : Overlay {
       }
     }
     else {
-      /* Orthographic; set selected axes and plane bits dependent on the specific view
+      /* Fixed plane orthographic: set axis/plane bits dependent on the view
        * (top, right, left, etc.) that is selected. */
       if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
-        axis_flag_ = (show_axis_y ? (AXIS_Y | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0)) |
-                     (show_axis_z ? (AXIS_Z | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
-        grid_flag_ = (show_ortho ? (PLANE_YZ | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
+        axis_flag_ = (show_axis_y ? AXIS_Y : OVERLAY_GridBits(0)) |
+                     (show_axis_z ? AXIS_Z : OVERLAY_GridBits(0));
+        grid_flag_ = (show_ortho ? PLANE_YZ : OVERLAY_GridBits(0));
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
-        axis_flag_ = (show_axis_x ? (AXIS_X | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0)) |
-                     (show_axis_y ? (AXIS_Y | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
-        grid_flag_ = (show_ortho ? (PLANE_XY | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
+        axis_flag_ = (show_axis_x ? AXIS_X : OVERLAY_GridBits(0)) |
+                     (show_axis_y ? AXIS_Y : OVERLAY_GridBits(0));
+        grid_flag_ = (show_ortho ? PLANE_XY : OVERLAY_GridBits(0));
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
-        axis_flag_ = (show_axis_x ? (AXIS_X | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0)) |
-                     (show_axis_z ? (AXIS_Z | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
-        grid_flag_ = (show_ortho ? (PLANE_XZ | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
+        axis_flag_ = (show_axis_x ? AXIS_X : OVERLAY_GridBits(0)) |
+                     (show_axis_z ? AXIS_Z : OVERLAY_GridBits(0));
+        grid_flag_ = (show_ortho ? PLANE_XZ : OVERLAY_GridBits(0));
       }
 
-      /* If any axes are set, set SHOW_AXES. If `grid` is toggled, set SHOW_GRID. */
-      axis_flag_ |= (axis_flag_ ? SHOW_AXES : OVERLAY_GridBits(0));
-      grid_flag_ |= (grid_flag_ ? SHOW_GRID : OVERLAY_GridBits(0));
-      
+      /* If any axes are set, set SHOW_AXES. If `grid` is toggled, set SHOW_GRID. 
+       * We also set `GRID_BEHIND_GEOMETRY` for fixed plane views, to place it on
+       * the far plane. */
+      axis_flag_ |= (axis_flag_ ? (SHOW_AXES | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
+      grid_flag_ |= (grid_flag_ ? (SHOW_GRID | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
+
       /* Axes are passed to the grid flag for correct occlusion. */
       if (grid_flag_) {
         grid_flag_ |= (show_axis_x ? AXIS_X : OVERLAY_GridBits(0));
