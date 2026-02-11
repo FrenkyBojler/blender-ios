@@ -213,27 +213,27 @@ class PinPositionConstraintSet : public TemplatedConstraintSet<PinPositionConstr
 };
 
 class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstraintSet> {
- private:
-  int geo_i_;
-  Span<int> indices_;
-  Span<math::Quaternion> pin_rotations_;
+  /** Indexed by constraint index. */
   Span<float> compliance_terms_;
   MutableSpan<float4> lambdas_;
 
  public:
+  /** Indexed by constraint index. */
+  Span<int> point_indices;
+  Span<math::Quaternion> pin_rotations;
+
   static constexpr StringRefNull debug_name = "Pin Rotation";
 
   PinRotationConstraintSet(const int geo_i,
-                           const Span<int> indices,
+                           const Span<int> point_indices,
                            const Span<math::Quaternion> pin_rotations,
                            const Span<float> compliance_terms,
                            MutableSpan<float4> lambdas)
-      : TemplatedConstraintSet<PinRotationConstraintSet>(indices.size(), {geo_i}),
-        geo_i_(geo_i),
-        indices_(indices),
-        pin_rotations_(pin_rotations),
+      : TemplatedConstraintSet<PinRotationConstraintSet>(point_indices.size(), {geo_i}),
         compliance_terms_(compliance_terms),
-        lambdas_(lambdas)
+        lambdas_(lambdas),
+        point_indices(point_indices),
+        pin_rotations(pin_rotations)
   {
   }
 
@@ -247,22 +247,23 @@ class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstr
                        const ConstraintSetParams &params,
                        const int constraint_i) const
   {
-    const int point_i = indices_[constraint_i];
+    const int geo_i = affected_geo_indices_[0];
+    const int point_i = point_indices[constraint_i];
     const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
-        params.rotation(geo_i_, point_i),
-        pin_rotations_[constraint_i],
-        params.inertia(geo_i_, point_i),
+        params.rotation(geo_i, point_i),
+        pin_rotations[constraint_i],
+        params.inertia(geo_i, point_i),
         float3(std::numeric_limits<float>::infinity()),
         math::Quaternion::identity(),
         compliance_terms_[constraint_i],
         lambdas_[constraint_i]);
     lambdas_[constraint_i] += result.delta_lambda;
-    updater.update_rotation(geo_i_, point_i, result.offset0);
+    updater.update_rotation(geo_i, point_i, result.offset0);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
   {
-    return unary_constraints_to_independent_masks(indices_, memory);
+    return unary_constraints_to_independent_masks(point_indices, memory);
   }
 
   bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
