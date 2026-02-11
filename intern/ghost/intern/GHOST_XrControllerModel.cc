@@ -259,14 +259,16 @@ static void calc_node_transforms(const tinygltf::Node &gltf_node,
                                  blender::float4x4 &r_local_transform,
                                  blender::float4x4 &r_world_transform)
 {
+  using namespace blender;
+
   /* A node may specify either a 4x4 matrix or TRS (Translation - Rotation - Scale) values, but not
    * both. */
   if (gltf_node.matrix.size() == 16) {
-    const std::vector<double> &dm = gltf_node.matrix;
-    r_local_transform = {{float(dm[0]), float(dm[1]), float(dm[2]), float(dm[3])},
-                         {float(dm[4]), float(dm[5]), float(dm[6]), float(dm[7])},
-                         {float(dm[8]), float(dm[9]), float(dm[10]), float(dm[11])},
-                         {float(dm[12]), float(dm[13]), float(dm[14]), float(dm[15])}};
+    const std::vector<double> mat = gltf_node.matrix;
+    r_local_transform = {{float(mat[0]), float(mat[1]), float(mat[2]), float(mat[3])},
+                         {float(mat[4]), float(mat[5]), float(mat[6]), float(mat[7])},
+                         {float(mat[8]), float(mat[9]), float(mat[10]), float(mat[11])},
+                         {float(mat[12]), float(mat[13]), float(mat[14]), float(mat[15])}};
   }
   else {
     /* No matrix is present, so construct a matrix from the TRS values (each one is optional). */
@@ -288,8 +290,6 @@ static void calc_node_transforms(const tinygltf::Node &gltf_node,
       scale[0] = scale[1] = scale[2] = 1.0;
     }
 
-    using namespace blender;
-
     math::Quaternion quat;
     quat.w = float(rotation[3]);
     quat.x = float(rotation[0]);
@@ -297,17 +297,16 @@ static void calc_node_transforms(const tinygltf::Node &gltf_node,
     quat.z = float(rotation[2]);
     quat = math::normalize(quat);
 
-
     float3x3 scale_mat = float3x3::identity();
     scale_mat[0][0] = scale[0];
     scale_mat[1][1] = scale[1];
     scale_mat[2][2] = scale[2];
 
-    float4x4 local_transform_matrix = float4x4(from_rotation<float3x3>(quat));
-    const float3 translation_vec = {
-        float(translation[0]), float(translation[1]), float(translation[2])};
+    const float4x4 rot_scale_mat = float4x4(from_rotation<float3x3>(quat) * scale_mat);
+    const float4x4 transform_mat = math::translate(
+        rot_scale_mat, float3(translation[0], translation[1], translation[2]));
 
-    r_local_transform = math::translate(local_transform_matrix, translation_vec);
+    r_local_transform = transform_mat;
   }
 
   r_world_transform = parent_transform * r_local_transform;
@@ -722,7 +721,7 @@ void GHOST_XrControllerModel::load(XrSession session)
       const tinygltf::Scene &default_scene = gltf_model.scenes.at(
           (gltf_model.defaultScene == -1) ? 0 : gltf_model.defaultScene);
 
-      blender::float4x4 root_transform = blender::float4x4::identity();
+      const blender::float4x4 root_transform = blender::float4x4::identity();
 
       for (const int node_id : default_scene.nodes) {
         load_gltf_node_recursive(gltf_model,
@@ -811,11 +810,13 @@ void GHOST_XrControllerModel::updateComponents(XrSession /*session*/, XrTime dis
         /* node_state_indices stores global indices into nodes_. */
         GHOST_XrControllerModelNode &node = nodes_[node_idx];
 
-        math::Quaternion quat = {
+        const math::Quaternion pose_quat = {
             pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z};
-        float4x4 matrix = float4x4(from_rotation<float3x3>(quat));
-        node.local_transform = math::translate(
-            matrix, float3(pose.position.x, pose.position.y, pose.position.z));
+        const float4x4 pose_rot_mat = float4x4(from_rotation<float3x3>(pose_quat));
+        const float4x4 pose_mat = math::translate(
+            pose_rot_mat, float3(pose.position.x, pose.position.y, pose.position.z));
+
+        node.local_transform = pose_mat;
       }
     }
 
