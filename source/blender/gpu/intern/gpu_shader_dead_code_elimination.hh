@@ -172,25 +172,56 @@ struct DCEStream : private LazyStringBuilder {
 
   std::string str() const
   {
-    std::string concat = static_cast<const LazyStringBuilder *>(this)->str();
+    if (total_length == 0) {
+      return {};
+    }
 
     std::string result;
-    result.reserve(concat.size());
+    result.reserve(total_length);
 
-    int64_t offset = 0;
-    for (auto [start, end] : removals) {
-      /* Copy unchanged text. */
-      result.append(concat.data() + offset, start - offset);
-      /* Fetch range to remove. */
-      auto to_remove = std::string_view(concat).substr(start, end - start);
-      /* Count newlines. */
-      int newlines = std::count(to_remove.begin(), to_remove.end(), '\n');
-      /* Append replacement. */
-      result.append(std::string(newlines, '\n'));
-      offset = end;
+    size_t global_offset = 0;
+    const auto *rem_it = removals.begin();
+
+    for (const auto &segment : stream) {
+      size_t seg_idx = 0;
+      /* Process the current segment until we reach its end */
+      while (seg_idx < segment.size()) {
+        size_t current_global_pos = global_offset + seg_idx;
+        /* If no active removals remain, copy the rest of the segment. */
+        if (rem_it == removals.end()) {
+          result.append(segment, seg_idx, std::string::npos);
+          break;
+        }
+
+        auto [r_start, r_end] = *rem_it;
+        /* Safety check: ensure we haven't somehow passed the removal (if unsorted) */
+        BLI_assert(current_global_pos < r_end);
+
+        if (current_global_pos < r_start) {
+          /* We are before the removal starts.
+           * Copy until the segment ends OR the removal starts */
+          size_t len = std::min(size_t(segment.size()) - seg_idx, r_start - current_global_pos);
+          result.append(segment, seg_idx, len);
+          seg_idx += len;
+          continue;
+        }
+
+        /* We are inside the removal range.
+         * Process until the segment ends OR the removal ends */
+        size_t len = std::min(size_t(segment.size()) - seg_idx, r_end - current_global_pos);
+        /* Replace the removed chunk by newlines. */
+        std::string_view chunk(segment.data() + seg_idx, len);
+        size_t newlines = std::count(chunk.begin(), chunk.end(), '\n');
+        result.append(newlines, '\n');
+        seg_idx += len;
+        /* If we reached the end of this removal range, move to the next one */
+        if (global_offset + seg_idx >= r_end) {
+          ++rem_it;
+        }
+      }
+      /* Update global offset before moving to next segment */
+      global_offset += segment.size();
     }
-    /* Append remainder. */
-    result.append(concat.data() + offset, concat.size() - offset);
 
     return result;
   }
