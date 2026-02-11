@@ -84,13 +84,13 @@ class Grid : Overlay {
 
       for (int grid_iter = 0; grid_iter < num_iters_; grid_iter++) {
         sub.push_constant("grid_iter", grid_iter);
-        if (axis_flag_) {
-          sub.push_constant("grid_flag", &axis_flag_);
-          sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, axis_vertex_count, 0);
-        }
         if (grid_flag_) {
           sub.push_constant("grid_flag", &grid_flag_);
           sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, grid_vertex_count, 0);
+        }
+        if (axis_flag_) {
+          sub.push_constant("grid_flag", &axis_flag_);
+          sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, axis_vertex_count, 0);
         }
       }
     }
@@ -246,18 +246,18 @@ class Grid : Overlay {
       /* Orthographic; set selected axes and plane bits dependent on the specific view
        * (top, right, left, etc.) that is selected. */
       if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
-        axis_flag_ = (show_axis_y ? AXIS_Y : OVERLAY_GridBits(0)) |
-                     (show_axis_z ? AXIS_Z : OVERLAY_GridBits(0));
+        axis_flag_ = (show_axis_y ? (AXIS_Y | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0)) |
+                     (show_axis_z ? (AXIS_Z | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
         grid_flag_ = (show_ortho ? (PLANE_YZ | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
-        axis_flag_ = (show_axis_x ? AXIS_X : OVERLAY_GridBits(0)) |
-                     (show_axis_y ? AXIS_Y : OVERLAY_GridBits(0));
+        axis_flag_ = (show_axis_x ? (AXIS_X | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0)) |
+                     (show_axis_y ? (AXIS_Y | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
         grid_flag_ = (show_ortho ? (PLANE_XY | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
-        axis_flag_ = (show_axis_x ? AXIS_X : OVERLAY_GridBits(0)) |
-                     (show_axis_z ? AXIS_Z : OVERLAY_GridBits(0));
+        axis_flag_ = (show_axis_x ? (AXIS_X | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0)) |
+                     (show_axis_z ? (AXIS_Z | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
         grid_flag_ = (show_ortho ? (PLANE_XZ | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
       }
 
