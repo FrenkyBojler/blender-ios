@@ -110,7 +110,8 @@ void node_bsdf_principled(float4 base_color,
     float sheen_NV = NV;
 #ifdef MAT_CLEARCOAT
     if (coat_weight > 0.0f) {
-      sheen_NV = dot(CN, V);
+      float3 sheen_N = safe_normalize(mix(N, CN, saturate(coat_weight)));
+      sheen_NV = dot(sheen_N, V);
     }
 #endif
 
