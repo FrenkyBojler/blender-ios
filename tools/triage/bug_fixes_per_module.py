@@ -44,7 +44,7 @@ from gitea_utils import url_json_get, BASE_API_URL
 
 
 # -----------------------------------------------------------------------------
-# Constants used throughout the script
+# Constant used throughout the script
 
 UNKNOWN = "UNKNOWN"
 
