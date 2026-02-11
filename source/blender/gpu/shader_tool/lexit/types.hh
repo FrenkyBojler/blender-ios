@@ -154,4 +154,7 @@ enum TokenType : uint8_t {
   String = DoubleQuote,
 };
 
+/* Unique identifier to a word token. */
+using TokenAtom = uint16_t;
+
 }  // namespace lexit

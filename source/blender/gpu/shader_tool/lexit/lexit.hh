@@ -30,9 +30,6 @@ namespace lexit {
 
 struct TokenBuffer;
 
-/* Unique identifier to a word token. */
-using TokenAtom = uint16_t;
-
 struct Token {
 #ifdef LEXIT_DEBUG
   std::string_view debug_str_;

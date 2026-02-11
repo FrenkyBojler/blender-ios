@@ -14,6 +14,7 @@
 #include "gpu_shader_dead_code_elimination.hh"
 #include "gpu_shader_private.hh"
 
+#include "shader_tool/lexit/identifier.hh"
 #include "shader_tool/lexit/lexit.hh"
 #include "shader_tool/lexit/tables.hh"
 
@@ -25,79 +26,6 @@ using namespace lexit;
 
 template<typename IToken> struct TokenRange {
   IToken begin, end;
-};
-
-struct IdentifierMap {
-  struct alignas(4) Identifier {
-    uint16_t next;
-    uint16_t size;
-    char data[0];
-
-    explicit operator StringRef()
-    {
-      return {data, size};
-    }
-  };
-  Vector<Identifier> identifier_buffer;
-  /* Note: Must be power of two size. */
-  std::array<uint16_t, 16384> hash_table;
-
-  IdentifierMap()
-  {
-    /* Set invalid values for all the table. */
-    std::memset(hash_table.data(), 0xFFu, sizeof(uint16_t) * hash_table.size());
-  }
-
-  void reserve(int token_count)
-  {
-    identifier_buffer.reserve(sizeof(Identifier) * token_count);
-  }
-
-  TokenAtom max_atom_value() const
-  {
-    return identifier_buffer.size();
-  }
-
-  BLI_INLINE_METHOD uint16_t lookup_or_add(uint16_t hash, StringRef str)
-  {
-    hash &= (hash_table.size() - 1);
-    uint16_t index = hash_table[hash];
-    Identifier *id = nullptr;
-    for (;;) {
-      if (index == 0xFFFFu) {
-        break;
-      }
-      id = &identifier_buffer[index];
-      if (StringRef(*id) == str) {
-        /* Cache hit. */
-        return index;
-      }
-      index = id->next;
-    }
-    /* Cache miss. Add new. */
-    uint16_t new_index = identifier_buffer.size();
-    if (id) {
-      /* Update previous element in the list. */
-      id->next = new_index;
-    }
-    else {
-      /* Update entry in table. */
-      hash_table[hash] = new_index;
-    }
-
-    {
-      /* Fast malloc replacement. */
-      int str_as_id_size = ((str.size() + (sizeof(Identifier) - 1)) / sizeof(Identifier));
-      identifier_buffer.reserve(new_index + 1 + str_as_id_size);
-      Identifier &id = *identifier_buffer.end();
-      identifier_buffer.increase_size_by_unchecked(1 + str_as_id_size);
-      /* Construct new identifier. */
-      id.next = 0xFFFFu;
-      id.size = str.size();
-      std::memcpy(id.data, str.data(), str.size());
-    }
-    return new_index;
-  }
 };
 
 /* -------------------------------------------------------------------- */
@@ -239,7 +167,7 @@ struct AtomicLexer : lexit::TokenBuffer {
   /* Backing buffer for line_offsets. */
   Vector<int> line_offsets_buf_;
 
-  IdentifierMap table;
+  lexit::IdentifierMap table;
   /**
    * All-in-one lexing pass.
    * - Keywords identification.
@@ -1702,6 +1630,7 @@ std::string Shader::run_preprocessor(StringRef source)
   }
 
   Preprocessor processor(source);
+  return source;
   processor.preprocess();
 
   if (G.debug & G_DEBUG_GPU_SHADER_NO_DCE) {
