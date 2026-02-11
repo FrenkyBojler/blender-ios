@@ -59,6 +59,8 @@ constexpr StringRefNull rod_stretch_shear_rotation_lambda =
 constexpr StringRefNull rod_bend_twist_compliance = "rod_bend_twist_compliance";
 constexpr StringRefNull rod_bend_twist_lambda = "sim_rod_bend_twist_lambda";
 
+constexpr StringRefNull linear_damping_lambda = "sim_linear_damping_lambda";
+
 }  // namespace attribute_names
 
 static NestedBundleTypePtr make_world_type()
@@ -189,6 +191,8 @@ struct GeometryData {
   VArraySpan<float> rest_lengths;
   VArraySpan<math::Quaternion> rest_rotations;
 
+  bke::SpanAttributeWriter<float> linear_damping_lambdas;
+
   Array<float3> prev_positions;
   Array<math::Quaternion> prev_rotations;
 
@@ -218,6 +222,8 @@ struct Geometries {
    * multi-threading (and preparation for multi-threading).
    */
   Vector<GeometryDataChunk> chunks;
+
+  Vector<xpbd::GeometryRef> solver_refs;
 };
 
 struct FieldEvaluatorKey {
@@ -268,6 +274,7 @@ struct ChunkConstraints {
   Vector<xpbd::PinnedPositionConstraintSet *> pinned_positions;
   Vector<xpbd::RodStretchAndShearConstraintSet *> rod_stretch_shear;
   Vector<xpbd::RodBendAndTwistConstraintSet *> rod_bend_twist;
+  Vector<xpbd::LinearDampingConstraintSet *> linear_damping;
 };
 
 struct ConstraintsInfo {
@@ -322,6 +329,7 @@ class XpbdSolverStep {
     this->prepare_inverse_inertias();
     this->prepare_cosserat_rod_stretch_shear_constraints();
     this->prepare_rod_bend_and_twist_constraints();
+    this->prepare_damping_constraints();
     this->evaluate_constraint_fields();
     this->do_simulation();
     this->finish_attribute_writers();
@@ -718,6 +726,36 @@ class XpbdSolverStep {
     }
   }
 
+  void prepare_damping_constraints()
+  {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      const float linear_factor = 0.9 * sub_delta_time_;
+      // const float angular_factor = 0.8 * sub_delta_time_;
+      /* Stiffness k = d*t/(1-d*t) leads to an equivalent damping factor of d*t=-k/(1+k).
+       * This reduces velocity by the same factor when using the update rule for a compliant
+       * velocity constraint v(t) - v(0) = -v(0) * k/(1+k) = -v(0) * 1/(1 + alpha). */
+      const float linear_stiffness = std::max(
+          math::safe_divide(linear_factor, 1.0f - linear_factor), 0.0f);
+      // const float angular_stiffness = std::max(
+      //     math::safe_divide(angular_factor, 1.0f - angular_factor), 0.0f);
+
+      geo_data.linear_damping_lambdas = geo_data.attributes.lookup_or_add_for_write_span<float>(
+          attribute_names::linear_damping_lambda, geo_data.domain, bke::AttributeInitValue(0.0f));
+
+      for (const int chunk_i : geo_data.chunks) {
+        const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+        ChunkConstraints &chunk_constraints = constraints_info_.static_chunk_constraints[chunk_i];
+        chunk_constraints.linear_damping.append(
+            &scope_.construct<xpbd::LinearDampingConstraintSet>(
+                data_key_i,
+                chunk.points_range,
+                linear_stiffness,
+                geo_data.linear_damping_lambdas.span));
+      }
+    }
+  }
+
   fn::FieldEvaluator &get_field_evaluator(const int data_key_i,
                                           const AttrDomain domain,
                                           std::optional<Field<bool>> selection)
@@ -817,6 +855,8 @@ class XpbdSolverStep {
       geo_data.prev_rotations.reinitialize(geo_data.size);
     }
 
+    this->prepare_solver_geometry_refs();
+
     for (const int substep_i : IndexRange(substeps_)) {
       const SubstepInterval substep(substeps_, substep_i);
 
@@ -835,6 +875,28 @@ class XpbdSolverStep {
               this->simulate__update_velocities(chunk_i);
             }
           });
+
+      this->simulate__velocity_solve();
+    }
+  }
+
+  void prepare_solver_geometry_refs()
+  {
+    geometries_.solver_refs.reinitialize(geometries_.data_keys.size());
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      xpbd::GeometryRef &ref = geometries_.solver_refs[data_key_i];
+      ref.positions = geo_data.position_attr.span;
+      ref.velocities = geo_data.velocity_attr.span;
+      ref.prev_positions = geo_data.prev_positions;
+      ref.inverse_masses = geo_data.inv_masses;
+
+      ref.rotations = geo_data.rotation_attr.span;
+      ref.angular_velocities = geo_data.angular_velocity_attr.span;
+      ref.prev_rotations = geo_data.prev_rotations;
+
+      ref.inertias = geo_data.inertias;
+      ref.inverse_inertias = geo_data.inv_inertias;
     }
   }
 
@@ -883,23 +945,6 @@ class XpbdSolverStep {
 
   void simulate__position_solve()
   {
-    Vector<xpbd::GeometryRef> solver_geo_refs(geometries_.data_keys.size());
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      GeometryData &geo_data = geometries_.data[data_key_i];
-      xpbd::GeometryRef &ref = solver_geo_refs[data_key_i];
-      ref.positions = geo_data.position_attr.span;
-      ref.velocities = geo_data.velocity_attr.span;
-      ref.prev_positions = geo_data.prev_positions;
-      ref.inverse_masses = geo_data.inv_masses;
-
-      ref.rotations = geo_data.rotation_attr.span;
-      ref.angular_velocities = geo_data.angular_velocity_attr.span;
-      ref.prev_rotations = geo_data.prev_rotations;
-
-      ref.inertias = geo_data.inertias;
-      ref.inverse_inertias = geo_data.inv_inertias;
-    }
-
     for ([[maybe_unused]] const int constraint_iter_i : IndexRange(constraint_iterations_)) {
       threading::parallel_for(
           geometries_.chunks.index_range(), 1, [&](const IndexRange chunks_range) {
@@ -923,7 +968,7 @@ class XpbdSolverStep {
               }
 
               xpbd::ConstraintSetParams solve_params{
-                  solver_geo_refs, substep_compliance_factor_, std::nullopt};
+                  geometries_.solver_refs, substep_compliance_factor_, std::nullopt};
               this->solve_constraints(solve_params, local_constraints);
             }
           });
@@ -944,6 +989,28 @@ class XpbdSolverStep {
                                     geo_data.prev_rotations.as_span().slice(points_range),
                                     geo_data.rotation_attr.span.slice(points_range),
                                     geo_data.angular_velocity_attr.span.slice(points_range));
+  }
+
+  void simulate__velocity_solve()
+  {
+    threading::parallel_for(
+        geometries_.chunks.index_range(), 8, [&](const IndexRange chunks_range) {
+          for (const int chunk_i : chunks_range) {
+            const ChunkConstraints &chunk_constraints =
+                constraints_info_.static_chunk_constraints[chunk_i];
+
+            Vector<xpbd::VelocityConstraintSet *> local_constraints;
+            for (xpbd::LinearDampingConstraintSet *constraint : chunk_constraints.linear_damping) {
+              local_constraints.append(constraint);
+            }
+            xpbd::VelocityUpdater velocity_updater{geometries_.solver_refs};
+            xpbd::ConstraintSetParams params{
+                geometries_.solver_refs, substep_compliance_factor_, std::nullopt};
+            for (xpbd::VelocityConstraintSet *constraint : local_constraints) {
+              constraint->solve_step(velocity_updater, params);
+            }
+          }
+        });
   }
 
   void finish_attribute_writers()
@@ -979,6 +1046,7 @@ class XpbdSolverStep {
       geo_data.rod_stretch_shear_lambda_pos.finish();
       geo_data.rod_stretch_shear_lambda_rot.finish();
       geo_data.rod_bend_twist_lamba_attr.finish();
+      geo_data.linear_damping_lambdas.finish();
     }
   }
 

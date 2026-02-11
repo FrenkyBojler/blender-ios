@@ -1137,34 +1137,40 @@ class LinearDampingConstraintSet
     : public TemplatedVelocityConstraintSet<LinearDampingConstraintSet> {
  private:
   int geo_i_;
+  IndexRange points_;
   /* Damping constraints typically have very high compliance, so using stiffness (1/compliance)
    * instead leads to better conditioning. */
   float stiffness_term_;
+  /** Indexed by point index. */
   MutableSpan<float> lambdas_;
 
  public:
   static constexpr StringRefNull debug_name = "Linear Damping";
 
   LinearDampingConstraintSet(const int geo_i,
+                             const IndexRange points,
                              const float stiffness_term,
                              MutableSpan<float> lambdas)
-      : TemplatedVelocityConstraintSet<LinearDampingConstraintSet>(lambdas.size(), {geo_i}),
+      : TemplatedVelocityConstraintSet<LinearDampingConstraintSet>(points.size(), {geo_i}),
         geo_i_(geo_i),
+        points_(points),
         stiffness_term_(stiffness_term),
         lambdas_(lambdas)
   {
   }
 
-  void reset_force(const int point_i) const
+  void reset_force(const int constraint_i) const
   {
+    const int point_i = points_[constraint_i];
     lambdas_[point_i] = 0.0f;
   }
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
                        const ConstraintSetParams &params,
-                       const int point_i) const
+                       const int constraint_i) const
   {
+    const int point_i = points_[constraint_i];
     const float3 &velocity = params.velocity(geo_i_, point_i);
     float residual;
     const float3 gradient = math::normalize_and_get_length(velocity, residual);
@@ -1185,32 +1191,38 @@ class AngularDampingConstraintSet
     : public TemplatedVelocityConstraintSet<AngularDampingConstraintSet> {
  private:
   int geo_i_;
+  IndexRange points_;
   float stiffness_term_;
+  /** Indexed by point index. */
   MutableSpan<float> lambdas_;
 
  public:
   static constexpr StringRefNull debug_name = "Angular Damping";
 
   AngularDampingConstraintSet(const int geo_i,
+                              const IndexRange points,
                               const float stiffness_term,
                               MutableSpan<float> lambdas)
-      : TemplatedVelocityConstraintSet<AngularDampingConstraintSet>(lambdas.size(), {geo_i}),
+      : TemplatedVelocityConstraintSet<AngularDampingConstraintSet>(points.size(), {geo_i}),
         geo_i_(geo_i),
+        points_(points),
         stiffness_term_(stiffness_term),
         lambdas_(lambdas)
   {
   }
 
-  void reset_force(const int point_i) const
+  void reset_force(const int constraint_i) const
   {
+    const int point_i = points_[constraint_i];
     lambdas_[point_i] = 0.0f;
   }
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
                        const ConstraintSetParams &params,
-                       const int point_i) const
+                       const int constraint_i) const
   {
+    const int point_i = points_[constraint_i];
     const float3 &angular_velocity = params.angular_velocity(geo_i_, point_i);
     float residual;
     const float3 gradient = math::normalize_and_get_length(angular_velocity, residual);

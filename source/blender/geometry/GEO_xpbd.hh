@@ -142,18 +142,6 @@ class NonDeterministicJacobianUpdater {
 
   void apply();
 };
-/**
- * Updater that writes the changes directly to the simulated points.
- */
-class VelocityUpdater {
- private:
-  Span<GeometryRef> geometry_refs_;
-
- public:
-  VelocityUpdater(Span<GeometryRef> geometry_refs);
-  void update_velocity(const int geo_i, const int point_i, const float3 &offset);
-  void update_angular_velocity(const int geo_i, const int point_i, const float3 &offset);
-};
 
 using UpdaterVariant = std::variant<GaussSeidelUpdater, NonDeterministicJacobianUpdater>;
 
@@ -203,6 +191,19 @@ class ConstraintSet {
   virtual StringRef debug_name() const = 0;
 
   Span<int> get_affected_geo_indices() const;
+};
+
+/**
+ * Updater that writes the changes directly to the simulated points.
+ */
+class VelocityUpdater {
+ private:
+  Span<GeometryRef> geometry_refs_;
+
+ public:
+  VelocityUpdater(Span<GeometryRef> geometry_refs);
+  void update_velocity(const int geo_i, const int point_i, const float3 &offset);
+  void update_angular_velocity(const int geo_i, const int point_i, const float3 &offset);
 };
 
 class VelocityConstraintSet {
