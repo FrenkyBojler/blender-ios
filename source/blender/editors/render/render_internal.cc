@@ -341,9 +341,7 @@ static bool disable_save_output_allowed(const bool is_animation, Scene &scene, R
   }
 
   if (is_animation && !save_output && !do_compositing) {
-    BKE_report(reports,
-               RPT_ERROR,
-               "Render output disabled in Output properties and compositing disabled");
+    BKE_report(reports, RPT_ERROR, "Render output and compositing disabled in Output properties");
     return false;
   }
 
