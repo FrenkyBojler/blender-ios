@@ -65,7 +65,7 @@ class CommitInfo():
         self.check_full_commit_message_for_fixed_reports()
 
         self.module = UNKNOWN
-    
+
     def check_full_commit_message_for_fixed_reports(self) -> None:
         command = ['git', 'show', '-s', '--format=%B', self.hash]
         command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
@@ -74,7 +74,7 @@ class CommitInfo():
         match = re.findall(r'#(\d+)', command_output)
         if match:
             self.fixed_reports = match
-    
+
     def get_module(self, labels: list[dict[Any, Any]]) -> str:
         # Figures out what module the report that was fixed belongs too.
         for label in labels:
@@ -92,7 +92,7 @@ class CommitInfo():
             if report_information is None:
                 # It might be `None` if bug report has been deleted.
                 continue
-            
+
             if isinstance(report_information, list):
                 # List type is the wrong format.
                 continue
@@ -108,6 +108,7 @@ class CommitInfo():
 
 # -----------------------------------------------------------------------------
 # Argument Parsing
+
 
 def argparse_create() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
@@ -139,27 +140,29 @@ def argparse_create() -> argparse.ArgumentParser:
 
     return parser
 
+
 def validate_arguments(args: argparse.Namespace) -> bool:
     def valid_date(date_string: str) -> bool:
         if len(date_string) == 0:
             print("Date is missing")
             print(date_string)
             return False
-        
+
         split_date = date_string.split("-")
         if len(split_date) != 3:
             print("Date has too many or too few sections. It should be in the format YYYY-MM-DD")
             print(date_string)
             return False
-        
+
         return True
-        
+
     if not (valid_date(args.start) and valid_date(args.end)):
         return False
-    
+
     return True
 
 # -----------------------------------------------------------------------------
+
 
 def setup_commit_info(commit: str) -> CommitInfo | None:
     commit_information = CommitInfo(commit)
@@ -169,7 +172,19 @@ def setup_commit_info(commit: str) -> CommitInfo | None:
 
 
 def get_fix_commits(start_date: str, end_date: str, single_threaded: bool) -> list[CommitInfo]:
-    command = ['git', '--no-pager', 'log', '--oneline', '--no-abbrev-commit', f'--since={start_date}', f'--until={end_date}', '-i', '-P', '--grep', r'Fix.*#+\d+', ]
+    command = [
+        'git',
+        '--no-pager',
+        'log',
+        '--oneline',
+        '--no-abbrev-commit',
+        f'--since={start_date}',
+        f'--until={end_date}',
+        '-i',
+        '-P',
+        '--grep',
+        r'Fix.*#+\d+',
+    ]
     git_log_command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
     git_log_output = git_log_command_output.splitlines()
 
@@ -181,11 +196,12 @@ def get_fix_commits(start_date: str, end_date: str, single_threaded: bool) -> li
         import multiprocessing
         with multiprocessing.Pool() as pool:
             intial_list_of_commits = pool.map(setup_commit_info, git_log_output)
-    
+
     list_of_commits = [result for result in intial_list_of_commits if result]
     return list_of_commits
 
 # -----------------------------------------------------------------------------
+
 
 def classify_commits(list_of_commits: list[CommitInfo]) -> None:
     number_of_commits = len(list_of_commits)
@@ -210,6 +226,7 @@ def classify_commits(list_of_commits: list[CommitInfo]) -> None:
     print("\n\n\n")
 
 # -----------------------------------------------------------------------------
+
 
 def print_info(list_of_commits: list[CommitInfo], start_date: str, end_date: str) -> None:
     print(f"Between {start_date} and {end_date}, there were a total of {len(list_of_commits)} Fix #NUMBER commits.")
@@ -237,12 +254,13 @@ def print_info(list_of_commits: list[CommitInfo], start_date: str, end_date: str
 
 # -----------------------------------------------------------------------------
 
+
 def main() -> int:
     args = argparse_create().parse_args()
 
     if not validate_arguments(args):
         return 0
-    
+
     list_of_commits = get_fix_commits(args.start, args.end, args.single_thread)
 
     classify_commits(list_of_commits)
@@ -250,6 +268,7 @@ def main() -> int:
     print_info(list_of_commits, args.start, args.end)
 
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
