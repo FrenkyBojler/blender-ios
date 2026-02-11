@@ -1439,7 +1439,7 @@ static bke::bNodeSocketType *make_socket_type_menu()
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
     const auto *data = static_cast<const bNodeSocketValueMenu *>(socket.socket_data);
     const EnumPropertyItem *items;
-    if (data->has_conflict()) {
+    if (data->has_conflict() || !data->enum_items) {
       items = rna_enum_dummy_NULL_items;
     }
     else {
