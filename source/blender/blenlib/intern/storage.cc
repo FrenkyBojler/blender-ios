@@ -458,7 +458,7 @@ bool BLI_is_dir(const char *path)
 {
 #ifdef WIN32
   wchar_t *tmp_16 = alloc_utf16_from_8(path, 1);
-  const short attr = GetFileAttributesW(tmp_16);
+  const DWORD attr = GetFileAttributesW(tmp_16);
   free(tmp_16);
   return (attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY));
 #else
@@ -470,7 +470,7 @@ bool BLI_is_file(const char *path)
 {
 #ifdef WIN32
   wchar_t *tmp_16 = alloc_utf16_from_8(path, 1);
-  const short attr = GetFileAttributesW(tmp_16);
+  const DWORD attr = GetFileAttributesW(tmp_16);
   free(tmp_16);
   return (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY));
 #else
