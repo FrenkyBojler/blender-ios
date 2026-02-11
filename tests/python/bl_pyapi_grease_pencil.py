@@ -83,42 +83,61 @@ class TestGreasePencilLayers(unittest.TestCase):
         self.assertEqual(round(self.gp.layers[1].tint_factor, 1), self.tint_factors[2])
         self.assertEqual(round(self.gp.layers[2].tint_factor, 1), self.tint_factors[0])
 
-    def test_grease_pencil_layer_mask_new(self):
+    def test_grease_pencil_layer_mask_add(self):
+        # Ensure we have enough layers to work with
+        while len(self.gp.layers) < 4:
+            self.gp.layers.new(f"Layer_{len(self.gp.layers)}")
+
         layer = self.gp.layers[0]
-        
-        # Test creating mask with a name
-        mask = layer.mask_layers.new(name="TestMask")
-        self.assertIsNotNone(mask)
+        mask_layer_1 = self.gp.layers[1]
+        mask_layer_2 = self.gp.layers[2]
+        mask_layer_3 = self.gp.layers[3]
+
+        # Test adding first mask
+        mask1 = layer.mask_layers.add(mask_layer_1)
+        self.assertIsNotNone(mask1)
         self.assertEqual(len(layer.mask_layers), 1)
-        
-        # Test creating mask with empty name (auto-generated)
-        mask2 = layer.mask_layers.new(name="")
+
+        # Test adding second mask
+        mask2 = layer.mask_layers.add(mask_layer_2)
         self.assertIsNotNone(mask2)
         self.assertEqual(len(layer.mask_layers), 2)
-        
-        # Test creating multiple masks
-        mask3 = layer.mask_layers.new(name="Mask_Color")
+
+        # Test adding third mask
+        mask3 = layer.mask_layers.add(mask_layer_3)
         self.assertIsNotNone(mask3)
         self.assertEqual(len(layer.mask_layers), 3)
 
+        # Test duplicate prevention - adding same layer again
+        mask_dup = layer.mask_layers.add(mask_layer_1)
+        self.assertIsNotNone(mask_dup)
+        self.assertEqual(len(layer.mask_layers), 3)  # Should still be 3, not 4
+
     def test_grease_pencil_layer_mask_remove(self):
+        while len(self.gp.layers) < 4:
+            self.gp.layers.new(f"Layer_{len(self.gp.layers)}")
+
         layer = self.gp.layers[0]
-        
-        # Add masks
-        mask1 = layer.mask_layers.new(name="Mask1")
-        mask2 = layer.mask_layers.new(name="Mask2")
-        mask3 = layer.mask_layers.new(name="Mask3")
-        
+        mask_layer_1 = self.gp.layers[1]
+        mask_layer_2 = self.gp.layers[2]
+        mask_layer_3 = self.gp.layers[3]
+
+        # Add masks using the new add() API (not new()!)
+        mask1 = layer.mask_layers.add(mask_layer_1)
+        mask2 = layer.mask_layers.add(mask_layer_2)
+        mask3 = layer.mask_layers.add(mask_layer_3)
+
         self.assertEqual(len(layer.mask_layers), 3)
-        
+
         # Remove middle mask
         layer.mask_layers.remove(mask2)
         self.assertEqual(len(layer.mask_layers), 2)
-        
+
         # Remove remaining masks
         layer.mask_layers.remove(mask1)
         layer.mask_layers.remove(mask3)
         self.assertEqual(len(layer.mask_layers), 0)
+
 
 class TestGreasePencilFrame(unittest.TestCase):
     def setUp(self):

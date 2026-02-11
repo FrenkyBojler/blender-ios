@@ -655,33 +655,48 @@ static void rna_GreasePencil_layer_group_move_to_layer_group(GreasePencil *greas
   WM_main_add_notifier(NC_GPENCIL | NA_EDITED, grease_pencil);
 }
 
-static GreasePencilLayerMask *rna_grease_pencil_layer_mask_new(GreasePencilLayer *layer,
-                                                               const char *name)
+static GreasePencilLayerMask *rna_grease_pencil_layer_mask_add(GreasePencilLayer *layer,
+                                                               ReportList *reports,
+                                                               GreasePencilLayer *mask_layer)
 {
   if (layer == nullptr) {
+    BKE_report(reports, RPT_ERROR, "Layer is null");
     return nullptr;
   }
 
-  /* Allocate and initialize new mask. */
-  GreasePencilLayerMask *mask = MEM_new<GreasePencilLayerMask>(__func__);
-
-  /* Set mask name or generate default. */
-  if (name != nullptr && name[0] != '\0') {
-    mask->layer_name = BLI_strdup(name);
-  }
-  else {
-    int num = BLI_listbase_count(&layer->masks) + 1;
-    char temp_name[64];
-    BLI_snprintf(temp_name, sizeof(temp_name), "Mask.%03d", num);
-    mask->layer_name = BLI_strdup(temp_name);
+  if (mask_layer == nullptr) {
+    BKE_report(reports, RPT_ERROR, "Mask layer is null");
+    return nullptr;
   }
 
-  /* Add mask to the layer's mask list. */
-  BLI_addtail(&layer->masks, mask);
+  /* Get the mask layer's name */
+  const std::string mask_layer_name = mask_layer->wrap().name();
+
+  /* Check if this layer is already in the masks list */
+  for (GreasePencilLayerMask *existing_mask =
+           static_cast<GreasePencilLayerMask *>(layer->masks.first);
+       existing_mask != nullptr;
+       existing_mask = existing_mask->next)
+  {
+    if (existing_mask->layer_name && STREQ(existing_mask->layer_name, mask_layer_name.c_str())) {
+      BKE_reportf(reports, RPT_WARNING, "Layer '%s' is already masked", mask_layer_name.c_str());
+      return existing_mask;
+    }
+  }
+
+  /* Create a new mask entry */
+  GreasePencilLayerMask *new_mask = MEM_new<GreasePencilLayerMask>(__func__);
+
+  /* Store a reference to the mask layer by copying its name */
+  new_mask->layer_name = BLI_strdup(mask_layer_name.c_str());
+  new_mask->flag = 0;
+
+  /* Add the mask to this layer's mask list */
+  BLI_addtail(&layer->masks, new_mask);
 
   WM_main_add_notifier(NC_GPENCIL | ND_DATA, nullptr);
 
-  return mask;
+  return new_mask;
 }
 
 static void rna_grease_pencil_layer_mask_remove(GreasePencilLayer *layer,
@@ -728,14 +743,17 @@ void RNA_api_grease_pencil_layer_masks(StructRNA *srna)
   FunctionRNA *func;
   PropertyRNA *parm;
 
-  /* masks.new(name) */
-  func = RNA_def_function(srna, "new", "rna_grease_pencil_layer_mask_new");
-  RNA_def_function_ui_description(func, "Add a new mask to the layer");
-  parm = RNA_def_string(func, "name", nullptr, MAX_NAME, "Name", "Name for the new mask");
-  parm = RNA_def_pointer(func, "mask", "GreasePencilLayerMask", "", "Newly created mask");
+  /* masks.add(layer). */
+  func = RNA_def_function(srna, "add", "rna_grease_pencil_layer_mask_add");
+  RNA_def_function_ui_description(func, "Add an existing layer as a mask to this layer");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  parm = RNA_def_pointer(func, "layer", "GreasePencilLayer", "", "Layer to add as a mask");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
+  parm = RNA_def_pointer(
+      func, "mask", "GreasePencilLayerMask", "", "The mask entry referencing the layer");
   RNA_def_function_return(func, parm);
 
-  /* masks.remove(mask) */
+  /* masks.remove(mask). */
   func = RNA_def_function(srna, "remove", "rna_grease_pencil_layer_mask_remove");
   RNA_def_function_ui_description(func, "Remove a mask from the layer");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
