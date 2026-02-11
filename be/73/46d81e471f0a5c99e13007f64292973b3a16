@@ -1,2 +1,2 @@
 Referenced by pull request #154164, Fix #150273: Center the viewport orbit on the world origin and remove tilt in default startup file
-Referenced by issue #151972, Vulkan: Uninitialized variable in texture loader causes intermittent timeout and crash on Polaris/Vega
+Referenced by issue #151972, Vulkan: Uninitialized variable in texture loader causes intermittent driver timeout on Polaris/Vega
