@@ -92,10 +92,6 @@ class Grid : Overlay {
           sub.push_constant("grid_flag", &grid_flag_);
           sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, grid_vertex_count, 0);
         }
-        if (axis_flag_) {
-          sub.push_constant("grid_flag", &axis_flag_);
-          sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, axis_vertex_count, 0);
-        }
       }
     }
 
@@ -268,6 +264,13 @@ class Grid : Overlay {
       /* If any axes are set, set SHOW_AXES. If `grid` is toggled, set SHOW_GRID. */
       axis_flag_ |= (axis_flag_ ? SHOW_AXES : OVERLAY_GridBits(0));
       grid_flag_ |= (grid_flag_ ? SHOW_GRID : OVERLAY_GridBits(0));
+      
+      /* Axes are passed to the grid flag for correct occlusion. */
+      if (grid_flag_) {
+        grid_flag_ |= (show_axis_x ? AXIS_X : OVERLAY_GridBits(0));
+        grid_flag_ |= (show_axis_y ? AXIS_Y : OVERLAY_GridBits(0));
+        grid_flag_ |= (show_axis_z ? AXIS_Z : OVERLAY_GridBits(0));
+      }
     }
 
     /* Query grid scales from unit/scaling; this range suffices for user-visible levels. */
