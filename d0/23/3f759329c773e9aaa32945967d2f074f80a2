@@ -1,2 +1,3 @@
 Referenced by pull request #154266, Fix #154270: Cycles particle hair sync missing vertex colors
 Referenced by issue #154270, Cycles: Some hair curves are unable to read UV map data
+Referenced by commit 6955eebd463f2c078dab69e805411c62dd607b2d, Fix #154270: Cycles particle hair sync missing attributes
