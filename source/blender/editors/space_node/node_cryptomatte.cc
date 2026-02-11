@@ -16,6 +16,8 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
+#include "BLT_translation.hh"
+
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
@@ -62,10 +64,32 @@ namespace blender::ed::space_node {
 
 enum {
   CRYPTO_PICK_MODAL_CANCEL = 1,
+  CRYPTO_PICK_MODAL_SAMPLE_BEGIN,
+  CRYPTO_PICK_MODAL_SAMPLE_RELEASE,
   CRYPTO_PICK_MODAL_CONFIRM,
-  CRYPTO_PICK_MODAL_BEGIN,
-  CRYPTO_PICK_MODAL_RESET,
 };
+
+wmKeyMap *cryptomatte_sample_modal_keymap(wmKeyConfig *keyconf)
+{
+  static const EnumPropertyItem modal_items[] = {
+      {CRYPTO_PICK_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+      {CRYPTO_PICK_MODAL_SAMPLE_BEGIN, "SAMPLE_BEGIN", 0, "Sample", ""},
+      {CRYPTO_PICK_MODAL_SAMPLE_RELEASE, "SAMPLE_RELEASE", 0, "Release Sample", ""},
+      {CRYPTO_PICK_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Cryptomatte Sample Modal Map");
+  if (keymap && keymap->modal_items) {
+    return nullptr;
+  }
+
+  keymap = WM_modalkeymap_ensure(keyconf, "Cryptomatte Sample Modal Map", modal_items);
+  WM_modalkeymap_assign(keymap, "NODE_OT_cryptomatte_entry_add");
+  WM_modalkeymap_assign(keymap, "NODE_OT_cryptomatte_entry_remove");
+
+  return keymap;
+}
 
 struct CryptomattePicker {
   bNode *node = nullptr;
@@ -434,6 +458,8 @@ static void cryptomatte_pick_exit(bContext *C, wmOperator *op)
     picker->session = nullptr;
   }
 
+  ED_workspace_status_text(C, nullptr);
+
   op->customdata = nullptr;
   MEM_delete(picker);
 }
@@ -502,24 +528,26 @@ static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, cons
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
       case CRYPTO_PICK_MODAL_CANCEL:
-        cryptomatte_pick_exit(C, op);
+        cryptomatte_pick_cancel(C, op);
         return OPERATOR_CANCELLED;
 
-      case CRYPTO_PICK_MODAL_BEGIN:
+      case CRYPTO_PICK_MODAL_SAMPLE_BEGIN:
         picker->accum_start = true;
         cryptomatte_pick_sample_and_apply(C, picker, event->xy);
         cryptomatte_pick_sample_text_update(C, picker, event->xy);
         break;
 
-      case CRYPTO_PICK_MODAL_CONFIRM:
-        if (picker->accum_tot == 0) {
-          cryptomatte_pick_sample_and_apply(C, picker, event->xy);
+      case CRYPTO_PICK_MODAL_SAMPLE_RELEASE:
+        picker->accum_start = false;
+        if (!picker->multi_sample) {
+          cryptomatte_pick_exit(C, op);
+          return OPERATOR_FINISHED;
         }
+        break;
+
+      case CRYPTO_PICK_MODAL_CONFIRM:
         cryptomatte_pick_exit(C, op);
         return OPERATOR_FINISHED;
-
-      case CRYPTO_PICK_MODAL_RESET:
-        break;
     }
   }
   else if (ISMOUSE_MOTION(event->type)) {
@@ -527,39 +555,14 @@ static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, cons
       cryptomatte_pick_sample_and_apply(C, picker, event->xy);
     }
     cryptomatte_pick_sample_text_update(C, picker, event->xy);
+
+    WorkspaceStatus status(C);
+    status.opmodal(IFACE_("Sample"), op->type, CRYPTO_PICK_MODAL_SAMPLE_BEGIN);
+    status.opmodal(IFACE_("Confirm"), op->type, CRYPTO_PICK_MODAL_CONFIRM);
+    status.opmodal(IFACE_("Cancel"), op->type, CRYPTO_PICK_MODAL_CANCEL);
   }
 
   return OPERATOR_RUNNING_MODAL;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Modal Keymap
- * \{ */
-
-wmKeyMap *cryptomatte_pick_modal_keymap(wmKeyConfig *keyconf)
-{
-  static const EnumPropertyItem modal_items[] = {
-      {CRYPTO_PICK_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
-      {CRYPTO_PICK_MODAL_CONFIRM, "CONFIRM", 0, "Confirm Picking", ""},
-      {CRYPTO_PICK_MODAL_BEGIN, "BEGIN", 0, "Start Picking", ""},
-      {CRYPTO_PICK_MODAL_RESET, "RESET", 0, "Reset Picking", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Cryptomatte Pick Modal Map");
-
-  if (keymap && keymap->modal_items) {
-    return nullptr;
-  }
-
-  keymap = WM_modalkeymap_ensure(keyconf, "Cryptomatte Pick Modal Map", modal_items);
-
-  WM_modalkeymap_assign(keymap, "NODE_OT_cryptomatte_entry_add");
-  WM_modalkeymap_assign(keymap, "NODE_OT_cryptomatte_entry_remove");
-
-  return keymap;
 }
 
 /** \} */
