@@ -38,9 +38,9 @@ import argparse
 import subprocess
 
 from typing import Any
-from time import time, sleep
+from time import time
 
-from gitea_utils import url_json_get
+from gitea_utils import url_json_get, BASE_API_URL
 
 
 # -----------------------------------------------------------------------------
@@ -87,8 +87,7 @@ class CommitInfo():
     def classify(self) -> bool:
         commit_was_sorted = False
         for report_number in self.fixed_reports:
-            report_information = url_json_get(
-                f"https://projects.blender.org/api/v1/repos/blender/blender/issues/{report_number}")
+            report_information = url_json_get(f"{BASE_API_URL}/repos/blender/blender/issues/{report_number}")
 
             if report_information is None:
                 # It might be `None` if bug report has been deleted.
@@ -260,8 +259,6 @@ def print_info(list_of_commits: list[CommitInfo], start_date: str, end_date: str
 
     if UNKNOWN in dict_of_modules_and_commits:
         print(f"\n{UNKNOWN}: {dict_of_modules_and_commits[UNKNOWN]}")
-
-    # TODO: Print out the modules that fixed 0 issues
 
 # -----------------------------------------------------------------------------
 
