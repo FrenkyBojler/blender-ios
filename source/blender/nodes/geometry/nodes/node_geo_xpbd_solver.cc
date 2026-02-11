@@ -139,11 +139,11 @@ struct GeometryData {
   /* Indexed by pin index. */
   Array<float> pin_rotation_compliance_terms;
 
-  Array<float> rod_stretch_shear_compliance_terms;
+  VArraySpan<float> rod_stretch_shear_compliances;
   bke::SpanAttributeWriter<float3> rod_stretch_shear_lambda_pos;
   bke::SpanAttributeWriter<float3> rod_stretch_shear_lambda_rot;
 
-  Array<float> rod_bend_twist_compliance_terms;
+  VArraySpan<float> rod_bend_twist_compliances;
   /** Note, these are not really quaternions, but there is no float4 attribute type yet. */
   bke::SpanAttributeWriter<math::Quaternion> rod_bend_twist_lamba_attr;
 
@@ -517,13 +517,8 @@ class XpbdSolverStep {
       geo_data.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::rest_length, geo_data.domain, 0.0f);
 
-      VArray<float> compliance_attr = *geo_data.attributes.lookup_or_default<float>(
+      geo_data.rod_stretch_shear_compliances = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::rod_stretch_shear_compliance, geo_data.domain, 0.0f);
-      geo_data.rod_stretch_shear_compliance_terms.reinitialize(geo_data.size);
-      for (const int i : IndexRange(geo_data.size)) {
-        geo_data.rod_stretch_shear_compliance_terms[i] = std::max(
-            compliance_attr[i] * substep_compliance_factor_, 0.0f);
-      }
 
       geo_data.rod_stretch_shear_lambda_pos =
           geo_data.attributes.lookup_or_add_for_write_span<float3>(
@@ -537,7 +532,7 @@ class XpbdSolverStep {
               data_key_i,
               points_by_curve,
               geo_data.rest_lengths,
-              geo_data.rod_stretch_shear_compliance_terms,
+              geo_data.rod_stretch_shear_compliances,
               geo_data.rod_stretch_shear_lambda_pos.span,
               geo_data.rod_stretch_shear_lambda_rot.span));
     }
@@ -558,13 +553,8 @@ class XpbdSolverStep {
       geo_data.rest_rotations = *geo_data.attributes.lookup_or_default<math::Quaternion>(
           attribute_names::rest_rotation, geo_data.domain, math::Quaternion::identity());
 
-      VArray<float> compliance_attr = *geo_data.attributes.lookup_or_default<float>(
+      geo_data.rod_bend_twist_compliances = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::rod_bend_twist_compliance, geo_data.domain, 0.0f);
-      geo_data.rod_bend_twist_compliance_terms.reinitialize(geo_data.size);
-      for (const int i : IndexRange(geo_data.size)) {
-        geo_data.rod_bend_twist_compliance_terms[i] = std::max(
-            compliance_attr[i] * substep_compliance_factor_, 0.0f);
-      }
 
       geo_data.rod_bend_twist_lamba_attr =
           geo_data.attributes.lookup_or_add_for_write_span<math::Quaternion>(
@@ -577,7 +567,7 @@ class XpbdSolverStep {
               data_key_i,
               points_by_curve,
               geo_data.rest_rotations,
-              geo_data.rod_bend_twist_compliance_terms,
+              geo_data.rod_bend_twist_compliances,
               geo_data.rod_bend_twist_lamba_attr.span.cast<float4>()));
     }
   }
@@ -743,7 +733,9 @@ class XpbdSolverStep {
       Vector<xpbd::ConstraintSet *> constraint_sets = xpbd::ConstraintSetCollector::combine(
           scope_, {&constraint_collector});
 
-      xpbd::solve_gauss_seidel_one_at_a_time(solver_geo_refs, constraint_sets, std::nullopt);
+      xpbd::ConstraintSetParams solve_params{
+          solver_geo_refs, substep_compliance_factor_, std::nullopt};
+      xpbd::solve_gauss_seidel_one_at_a_time(solve_params, constraint_sets);
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];

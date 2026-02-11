@@ -775,7 +775,7 @@ class RodStretchAndShearCurveLocalConstraintSet
     : public TemplatedCurveLocalConstraintSet<RodStretchAndShearCurveLocalConstraintSet> {
  private:
   Span<float> rest_lengths_;
-  Span<float> compliance_terms_;
+  Span<float> compliances_;
   MutableSpan<float3> lambdas_pos_;
   MutableSpan<float3> lambdas_rot_;
 
@@ -785,13 +785,13 @@ class RodStretchAndShearCurveLocalConstraintSet
   RodStretchAndShearCurveLocalConstraintSet(const int geo_i,
                                             const OffsetIndices<int> points_by_curve,
                                             const Span<float> rest_lengths,
-                                            const Span<float> compliance_terms,
+                                            const Span<float> compliances,
                                             MutableSpan<float3> lambdas_pos,
                                             MutableSpan<float3> lambdas_rot)
       : TemplatedCurveLocalConstraintSet<RodStretchAndShearCurveLocalConstraintSet>(
             geo_i, points_by_curve),
         rest_lengths_(rest_lengths),
-        compliance_terms_(compliance_terms),
+        compliances_(compliances),
         lambdas_pos_(lambdas_pos),
         lambdas_rot_(lambdas_rot)
   {
@@ -824,7 +824,7 @@ class RodStretchAndShearCurveLocalConstraintSet
           params.inverse_mass(geo_i_, point_i1),
           params.inertia(geo_i_, point_i0),
           rest_lengths_[point_i0],
-          compliance_terms_[point_i0],
+          compliances_[point_i0] * params.compliance_term_factor,
           lambdas_pos_[point_i0],
           lambdas_rot_[point_i0]);
       lambdas_pos_[point_i0] += result.delta_lambda_pos;
@@ -846,7 +846,7 @@ class RodBendAndTwistCurveLocalConstraintSet
     : public TemplatedCurveLocalConstraintSet<RodBendAndTwistCurveLocalConstraintSet> {
  private:
   Span<math::Quaternion> rest_rotations_;
-  Span<float> compliance_terms_;
+  Span<float> compliances_;
   MutableSpan<float4> lambdas_;
 
  public:
@@ -855,12 +855,12 @@ class RodBendAndTwistCurveLocalConstraintSet
   RodBendAndTwistCurveLocalConstraintSet(const int geo_i,
                                          const OffsetIndices<int> points_by_curve,
                                          const Span<math::Quaternion> rest_rotations,
-                                         const Span<float> compliance_terms,
+                                         const Span<float> compliances,
                                          MutableSpan<float4> lambdas)
       : TemplatedCurveLocalConstraintSet<RodBendAndTwistCurveLocalConstraintSet>(geo_i,
                                                                                  points_by_curve),
         rest_rotations_(rest_rotations),
-        compliance_terms_(compliance_terms),
+        compliances_(compliances),
         lambdas_(lambdas)
   {
   }
@@ -891,7 +891,7 @@ class RodBendAndTwistCurveLocalConstraintSet
           params.inertia(geo_i_, point_i0),
           params.inertia(geo_i_, point_i1),
           rest_rotations_[point_i0],
-          compliance_terms_[point_i0],
+          compliances_[point_i0] * params.compliance_term_factor,
           lambdas_[point_i0]);
       lambdas_[point_i0] += result.delta_lambda;
       updater.update_rotation(geo_i_, point_i0, result.offset0);

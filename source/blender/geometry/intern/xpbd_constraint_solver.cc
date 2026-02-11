@@ -61,12 +61,10 @@ Vector<IndexMask> n_ary_constraints_to_independent_masks_multi(
       memory);
 }
 
-void solve_gauss_seidel_one_at_a_time(const Span<GeometryRef> geometry_refs,
-                                      const Span<ConstraintSet *> constraint_sets,
-                                      std::optional<SolverDebugStageFn> debug_fn)
+void solve_gauss_seidel_one_at_a_time(ConstraintSetParams &params,
+                                      const Span<ConstraintSet *> constraint_sets)
 {
-  ConstraintSetParams params{geometry_refs, debug_fn};
-  SolveStrategy strategy{SolveStrategyType::GaussSeidelOneAtATime, geometry_refs};
+  SolveStrategy strategy{SolveStrategyType::GaussSeidelOneAtATime, params.geometry_refs()};
   for (ConstraintSet *constraint_set : constraint_sets) {
     constraint_set->solve_step(strategy, params);
   }
@@ -278,12 +276,10 @@ void SolveStrategy::apply()
   }
 }
 
-void solve_jacobian_non_deterministic(const Span<GeometryRef> geometry_refs,
-                                      const Span<ConstraintSet *> constraint_sets,
-                                      std::optional<SolverDebugStageFn> debug_fn)
+void solve_jacobian_non_deterministic(ConstraintSetParams &params,
+                                      const Span<ConstraintSet *> constraint_sets)
 {
-  ConstraintSetParams params{geometry_refs, debug_fn};
-  SolveStrategy strategy{SolveStrategyType::JacobianNonDeterministic, geometry_refs};
+  SolveStrategy strategy{SolveStrategyType::JacobianNonDeterministic, params.geometry_refs()};
   threading::parallel_for(
       constraint_sets.index_range(), 1, [&](const IndexRange constraint_sets_range) {
         for (const int constraint_set_i : constraint_sets_range) {
@@ -294,11 +290,9 @@ void solve_jacobian_non_deterministic(const Span<GeometryRef> geometry_refs,
   strategy.apply();
 }
 
-void solve_gauss_seidel_parallel(const Span<GeometryRef> geometry_refs,
-                                 const Span<ConstraintSet *> constraint_sets,
-                                 std::optional<SolverDebugStageFn> debug_fn)
+void solve_gauss_seidel_parallel(ConstraintSetParams &params,
+                                 const Span<ConstraintSet *> constraint_sets)
 {
-  ConstraintSetParams params{geometry_refs, debug_fn};
   MultiValueMap<int, ConstraintSet *> single_target_constraints_by_geo_index;
   Vector<ConstraintSet *> multi_target_constraints;
 
@@ -323,7 +317,7 @@ void solve_gauss_seidel_parallel(const Span<GeometryRef> geometry_refs,
     single_target_constraint_sets.append(constraint_sets);
   }
 
-  SolveStrategy strategy{SolveStrategyType::GaussSeidelParallel, geometry_refs};
+  SolveStrategy strategy{SolveStrategyType::GaussSeidelParallel, params.geometry_refs()};
 
   threading::parallel_for(
       single_target_constraint_sets.index_range(), 1, [&](const IndexRange range) {

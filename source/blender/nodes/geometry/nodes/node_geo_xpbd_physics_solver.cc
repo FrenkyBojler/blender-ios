@@ -509,14 +509,14 @@ struct CurveRodStretchAndShearConstraintData {
   int geo_key_i;
   int constraints_key_i;
   Span<float> rest_lengths;
-  Span<float> compliance_terms;
+  Span<float> compliances;
 };
 
 struct CurveRodBendAndTwistConstraintData {
   int geo_key_i;
   int constraints_key_i;
   Span<math::Quaternion> rest_rotations;
-  Span<float> compliance_terms;
+  Span<float> compliances;
 };
 
 struct PinnedPositionConstraintData {
@@ -2802,16 +2802,14 @@ PROFILE_FUNCTION static void prepare_evaluation__curves_rod_stretch_and_shear_co
     for (const RodStretchAndShearXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
       MutableSpan<float> rest_lengths = scope.allocator().allocate_array<float>(
           sim_points.points_num);
-      MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(
+      MutableSpan<float> compliances = scope.allocator().allocate_array<float>(
           sim_points.points_num);
       evaluator.add_with_destination(constraint_bundle->rest_length, rest_lengths);
-      evaluator.add_with_destination(
-          convert_to_compliance_term_field(constraint_bundle->compliance, delta_time),
-          compliance_terms);
+      evaluator.add_with_destination(constraint_bundle->compliance, compliances);
       const int constraints_key_i = world_info.constraints_keys.index_of_or_add(
           SimConstraintsKey{constraint_bundle->self_path, key});
       world_info.rod_stretch_and_shear_constraints.append(CurveRodStretchAndShearConstraintData{
-          key_i, constraints_key_i, rest_lengths, compliance_terms});
+          key_i, constraints_key_i, rest_lengths, compliances});
     }
   }
 }
@@ -2849,16 +2847,14 @@ PROFILE_FUNCTION static void prepare_evaluation__curves_rod_bend_and_twist_const
       MutableSpan<math::Quaternion> rest_rotations =
           scope.allocator().allocate_array<math::Quaternion>(
               evaluator.evaluation_mask().min_array_size());
-      MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(
+      MutableSpan<float> compliances = scope.allocator().allocate_array<float>(
           evaluator.evaluation_mask().min_array_size());
       evaluator.add_with_destination(constraint_bundle->rest_rotation, rest_rotations);
-      evaluator.add_with_destination(
-          convert_to_compliance_term_field(constraint_bundle->compliance, delta_time),
-          compliance_terms);
+      evaluator.add_with_destination(constraint_bundle->compliance, compliances);
       const int constraints_key_i = world_info.constraints_keys.index_of_or_add(
           SimConstraintsKey{constraint_bundle->self_path, key});
       world_info.rod_bend_and_twist_constraints.append(CurveRodBendAndTwistConstraintData{
-          key_i, constraints_key_i, rest_rotations, compliance_terms});
+          key_i, constraints_key_i, rest_rotations, compliances});
     }
   }
 }
@@ -3464,7 +3460,7 @@ gather_curve_rod_stretch_and_shear_constraints(ThreadLocalStorage &tls,
         key_i,
         points_by_curve,
         constraint_info.rest_lengths,
-        constraint_info.compliance_terms,
+        constraint_info.compliances,
         lambdas_pos,
         lambdas_rot));
   }
@@ -3499,7 +3495,7 @@ gather_curve_rod_bend_and_twist_constraints(ThreadLocalStorage &tls,
         key_i,
         points_by_curve,
         constraint_info.rest_rotations,
-        constraint_info.compliance_terms,
+        constraint_info.compliances,
         lambdas));
   }
   return result;
@@ -3637,21 +3633,20 @@ PROFILE_FUNCTION static void remove_unused_states(XPBDState &state)
 }
 
 PROFILE_FUNCTION static void solve_constraints(const SolverType solver_type,
-                                               const Span<xpbd::GeometryRef> geometry_refs,
-                                               const Span<xpbd::ConstraintSet *> constraint_sets,
-                                               std::optional<xpbd::SolverDebugStageFn> debug_fn)
+                                               xpbd::ConstraintSetParams &params,
+                                               const Span<xpbd::ConstraintSet *> constraint_sets)
 {
   switch (solver_type) {
     case SolverType::SerialGaussSeidel: {
-      xpbd::solve_gauss_seidel_one_at_a_time(geometry_refs, constraint_sets, debug_fn);
+      xpbd::solve_gauss_seidel_one_at_a_time(params, constraint_sets);
       break;
     }
     case SolverType::ParallelGaussSeidel: {
-      xpbd::solve_gauss_seidel_parallel(geometry_refs, constraint_sets, debug_fn);
+      xpbd::solve_gauss_seidel_parallel(params, constraint_sets);
       break;
     }
     case SolverType::NonDeterministicJacobian: {
-      xpbd::solve_jacobian_non_deterministic(geometry_refs, constraint_sets, debug_fn);
+      xpbd::solve_jacobian_non_deterministic(params, constraint_sets);
       break;
     }
   }
@@ -4112,8 +4107,10 @@ PROFILE_FUNCTION static void simulate_key_group_global(
 
                 /* Velocity constraint solve. */
                 {
-                  const xpbd::ConstraintSetParams params = {geometry_refs_local,
-                                                            constraint_solver_debug_fn};
+                  const xpbd::ConstraintSetParams params = {
+                      geometry_refs_local,
+                      compute_compliance_factor(sub_delta_time),
+                      constraint_solver_debug_fn};
                   xpbd::VelocityUpdater velocity_updater{geometry_refs_local};
                   for (const xpbd::ConstraintSetCollector *constraint_sets : constraint_collectors)
                   {
@@ -4194,8 +4191,10 @@ PROFILE_FUNCTION static void simulate_key_group_global(
     /* Actually solve the constraints. */
     for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
       start_debug_constraint_iteration(debug_recorder, debug_key_group);
-      solve_constraints(
-          solver_type, geometry_refs_local, current_constraint_sets, constraint_solver_debug_fn);
+      xpbd::ConstraintSetParams params{geometry_refs_local,
+                                       compute_compliance_factor(sub_delta_time),
+                                       constraint_solver_debug_fn};
+      solve_constraints(solver_type, params, current_constraint_sets);
     }
 
     if (debug_recorder.has_paths()) {
@@ -4301,7 +4300,9 @@ PROFILE_FUNCTION static void simulate_curve_local(
         geometry_refs_local[key_i].prev_positions = prev_positions;
         geometry_refs_local[key_i].prev_rotations = prev_rotations;
 
-        xpbd::ConstraintSetParams params{geometry_refs_local, constraint_solver_debug_fn};
+        xpbd::ConstraintSetParams params{geometry_refs_local,
+                                         compute_compliance_factor(sub_delta_time),
+                                         constraint_solver_debug_fn};
         for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
           const SubstepInterval substep = {float(substep_i) / substeps,
                                            float(substep_i + 1) / substeps};

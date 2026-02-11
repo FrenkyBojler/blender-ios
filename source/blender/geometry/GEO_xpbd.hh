@@ -57,8 +57,13 @@ class ConstraintSetParams {
   std::optional<SolverDebugStageFn> debug_stage_fn_;
 
  public:
+  float compliance_term_factor;
+
   ConstraintSetParams(Span<GeometryRef> geometry_refs,
+                      float compliance_term_factor,
                       std::optional<SolverDebugStageFn> debug_stage_fn);
+
+  Span<GeometryRef> geometry_refs() const;
 
   const float3 &position(int geo_i, int point_i) const;
   const math::Quaternion &rotation(int geo_i, int point_i) const;
@@ -204,24 +209,21 @@ class ConstraintSet {
  * Slow but simple iterative Gauss Seidel solver. It evaluates each constraints serially without
  * any parallelism.
  */
-void solve_gauss_seidel_one_at_a_time(Span<GeometryRef> geometry_refs,
-                                      Span<ConstraintSet *> constraint_sets,
-                                      std::optional<SolverDebugStageFn> debug_fn);
+void solve_gauss_seidel_one_at_a_time(ConstraintSetParams &params,
+                                      Span<ConstraintSet *> constraint_sets);
 
 /**
  * Fully parallel Jacobian solver, but it is not deterministic. This is mainly for testing
  * purposes.
  */
-void solve_jacobian_non_deterministic(Span<GeometryRef> geometry_refs,
-                                      Span<ConstraintSet *> constraint_sets,
-                                      std::optional<SolverDebugStageFn> debug_fn);
+void solve_jacobian_non_deterministic(ConstraintSetParams &params,
+                                      Span<ConstraintSet *> constraint_sets);
 
 /**
  * A Gauss Seidel solver that attempts to parallelize the evaluation of constraints.
  */
-void solve_gauss_seidel_parallel(Span<GeometryRef> geometry_refs,
-                                 Span<ConstraintSet *> constraint_sets,
-                                 std::optional<SolverDebugStageFn> debug_fn);
+void solve_gauss_seidel_parallel(ConstraintSetParams &params,
+                                 Span<ConstraintSet *> constraint_sets);
 
 /* -------------------------------------------------------------------- */
 /** \name Inline Functions
@@ -309,9 +311,17 @@ inline Span<int> ConstraintSet::get_affected_geo_indices() const
 }
 
 inline ConstraintSetParams::ConstraintSetParams(Span<GeometryRef> geometry_refs,
+                                                const float compliance_term_factor,
                                                 std::optional<SolverDebugStageFn> debug_stage_fn)
-    : geometry_refs_(geometry_refs), debug_stage_fn_(debug_stage_fn)
+    : geometry_refs_(geometry_refs),
+      debug_stage_fn_(debug_stage_fn),
+      compliance_term_factor(compliance_term_factor)
 {
+}
+
+inline Span<GeometryRef> ConstraintSetParams::geometry_refs() const
+{
+  return geometry_refs_;
 }
 
 inline const float3 &ConstraintSetParams::position(const int geo_i, const int point_i) const
