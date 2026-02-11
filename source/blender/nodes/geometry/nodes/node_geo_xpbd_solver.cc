@@ -49,9 +49,12 @@ constexpr StringRefNull sim_pin_rotation_end = "sim_pin_rotation_end";
 constexpr StringRefNull sim_pin_rotation_compliance = "sim_pin_rotation_compliance";
 
 constexpr StringRefNull rest_length = "rest_length";
+constexpr StringRefNull rest_rotation = "rest_rotation";
 constexpr StringRefNull rod_stretch_shear_compliance = "rod_stretch_shear_compliance";
 constexpr StringRefNull rod_stretch_shear_position_lambda = "rod_stretch_shear_position_lambda";
 constexpr StringRefNull rod_stretch_shear_rotation_lambda = "rod_stretch_shear_rotation_lambda";
+constexpr StringRefNull rod_bend_twist_compliance = "rod_bend_twist_compliance";
+constexpr StringRefNull rod_bend_twist_lambda = "rod_bend_twist_lambda";
 
 }  // namespace attribute_names
 
@@ -138,8 +141,12 @@ struct GeometryData {
   bke::SpanAttributeWriter<float3> rod_stretch_shear_lambda_pos;
   bke::SpanAttributeWriter<float3> rod_stretch_shear_lambda_rot;
 
-  // TODO
+  Array<float> rod_bend_twist_compliance_terms;
+  /** Note, these are not really quaternions, but there is no float4 attribute type yet. */
+  bke::SpanAttributeWriter<math::Quaternion> rod_bend_twist_lamba_attr;
+
   VArraySpan<float> rest_lengths;
+  VArraySpan<math::Quaternion> rest_rotations;
 
   Array<float3> prev_positions;
   Array<math::Quaternion> prev_rotations;
@@ -213,6 +220,7 @@ struct SubstepInterval {
 struct ConstraintsInfo {
   Vector<xpbd::PinnedPositionConstraintSet *> pinned_positions;
   Vector<xpbd::RodStretchAndShearCurveLocalConstraintSet *> rod_stretch_shear;
+  Vector<xpbd::RodBendAndTwistCurveLocalConstraintSet *> rod_bend_twist;
 };
 
 class XpbdSolverStep {
@@ -254,6 +262,7 @@ class XpbdSolverStep {
     this->prepare_inverse_masses();
     this->prepare_inverse_inertias();
     this->prepare_cosserat_rod_stretch_shear_constraints();
+    this->prepare_rod_bend_and_twist_constraints();
     this->evaluate_constraint_fields();
     this->do_simulation();
     this->finish_attribute_writers();
@@ -499,7 +508,8 @@ class XpbdSolverStep {
         continue;
       }
       Curves &curves_id = *geometries_.geometry_sets[data_key.geo_bundle_i].get_curves_for_write();
-      const OffsetIndices<int> points_by_curve = curves_id.geometry.wrap().points_by_curve();
+      bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
       geo_data.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::rest_length, geo_data.domain, 0.0f);
 
@@ -526,6 +536,45 @@ class XpbdSolverStep {
               geo_data.rod_stretch_shear_compliance_terms,
               geo_data.rod_stretch_shear_lambda_pos.span,
               geo_data.rod_stretch_shear_lambda_rot.span));
+    }
+  }
+
+  void prepare_rod_bend_and_twist_constraints()
+  {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      const DataKey &data_key = geometries_.data_keys[data_key_i];
+      if (data_key.type != bke::GeometryComponent::Type::Curve) {
+        continue;
+      }
+      Curves &curves_id = *geometries_.geometry_sets[data_key.geo_bundle_i].get_curves_for_write();
+      bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+
+      geo_data.rest_rotations = *geo_data.attributes.lookup_or_default<math::Quaternion>(
+          attribute_names::rest_rotation, geo_data.domain, math::Quaternion::identity());
+
+      VArray<float> compliance_attr = *geo_data.attributes.lookup_or_default<float>(
+          attribute_names::rod_bend_twist_compliance, geo_data.domain, 0.0f);
+      geo_data.rod_bend_twist_compliance_terms.reinitialize(geo_data.size);
+      for (const int i : IndexRange(geo_data.size)) {
+        geo_data.rod_bend_twist_compliance_terms[i] = std::max(
+            compliance_attr[i] * substep_compliance_factor_, 0.0f);
+      }
+
+      geo_data.rod_bend_twist_lamba_attr =
+          geo_data.attributes.lookup_or_add_for_write_span<math::Quaternion>(
+              attribute_names::rod_bend_twist_lambda,
+              geo_data.domain,
+              bke::AttributeInitValue(math::Quaternion(0, 0, 0, 0)));
+
+      constraints_info_.rod_bend_twist.append(
+          &scope_.construct<xpbd::RodBendAndTwistCurveLocalConstraintSet>(
+              data_key_i,
+              points_by_curve,
+              geo_data.rest_rotations,
+              geo_data.rod_bend_twist_compliance_terms,
+              geo_data.rod_bend_twist_lamba_attr.span.cast<float4>()));
     }
   }
 
@@ -684,6 +733,9 @@ class XpbdSolverStep {
       for (auto *constraint : constraints_info_.rod_stretch_shear) {
         constraint_collector.curve_local.append(constraint);
       }
+      for (auto *constraint : constraints_info_.rod_bend_twist) {
+        constraint_collector.curve_local.append(constraint);
+      }
       Vector<xpbd::ConstraintSet *> constraint_sets = xpbd::ConstraintSetCollector::combine(
           scope_, {&constraint_collector});
 
@@ -724,6 +776,7 @@ class XpbdSolverStep {
       geo_data.pin_position_lambda_attr.finish();
       geo_data.rod_stretch_shear_lambda_pos.finish();
       geo_data.rod_stretch_shear_lambda_rot.finish();
+      geo_data.rod_bend_twist_lamba_attr.finish();
     }
   }
 
