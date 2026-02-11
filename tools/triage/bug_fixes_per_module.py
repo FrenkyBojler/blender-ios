@@ -34,11 +34,8 @@ __all__ = (
 
 import re
 import sys
-import json
 import argparse
 import subprocess
-import urllib.error
-import urllib.request
 
 from typing import Any
 from time import time, sleep
@@ -91,8 +88,9 @@ class CommitInfo():
         for report_number in self.fixed_reports:
             report_information = url_json_get(
                 f"https://projects.blender.org/api/v1/repos/blender/blender/issues/{report_number}")
-            
+
             if "pull" in report_information['html_url']:
+                # Pull requests aren't bug reports. So skip processing it.
                 continue
 
             module = self.get_module(report_information['labels'])
@@ -185,12 +183,12 @@ def classify_commits(list_of_commits: list[CommitInfo]) -> None:
     number_of_commits = len(list_of_commits)
 
     print("Identifying which module the fix should be assigned too.")
-    print("This requires querying information from Gitea, and can take a while.\n")
+    print("This requires querying information from Gitea which may take a while.\n")
 
     i = 0
     start_time = time()
     for commit in list_of_commits:
-        # Simple progress bar.
+        # Progress bar.
         i += 1
         print(
             f"{i}/{number_of_commits} - Estimated time remaining:",
