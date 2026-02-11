@@ -282,9 +282,7 @@ struct MutableString {
   void insert_directive(Token at, const std::string directive)
   {
     insert_after(at, "\n" + directive + "\n");
-    std::string_view content = at.str_view_with_whitespace();
-    size_t lines = std::count(content.begin(), content.end(), '\n');
-    insert_line_number(at, at.line_number() + lines);
+    insert_line_number(at, at.line_number(true));
     size_t line_break = str_.find_last_of("\n", at.str_index_last() + 1);
     size_t spaces = at.str_index_last() - line_break;
     insert_after(at, std::string(spaces, ' '));
