@@ -3426,6 +3426,9 @@ gather_angular_damping_constraints(ResourceScope &scope,
   for (const DampingConstraintData &constraint : world_info.damping_constraints) {
     const SimConstraintsKey &key = world_info.constraints_keys[constraint.constraints_key_i];
     const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.points_key.path);
+    if (!world_bundles.geometries[geometry_bundle_i].has_rotation) {
+      continue;
+    }
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     const bke::GeometryComponent *component = applied_geometry.get_component(key.points_key.type);
     if (!component) {
