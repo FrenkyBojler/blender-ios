@@ -850,11 +850,11 @@ void GHOST_XrControllerModel::getData(GHOST_XrControllerModelData &r_data)
     r_data.base_pose = base_pose_;
   }
   else {
-    r_data.vertices.clear();
-    r_data.indices.clear();
-    r_data.components.clear();
-    r_data.textures.clear();
-    r_data.base_pose = {false, {0, 0, 0}, {1, 0, 0, 0}};
+    r_data.vertices = {};
+    r_data.indices = {};
+    r_data.components = {};
+    r_data.textures = {};
+    r_data.base_pose = {.is_active=false, .position={0, 0, 0}, .orientation_quat={1, 0, 0, 0}};
   }
 }
 

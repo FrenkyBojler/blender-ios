@@ -237,7 +237,7 @@ static gpu::Batch *wm_xr_controller_model_batch_create(GHOST_IXrContext *xr_cont
   GHOST_XrControllerModelData model_data;
 
   if (!GHOST_XrGetControllerModelData(xr_context, subaction_path, &model_data) ||
-      model_data.vertices.empty())
+      model_data.vertices.is_empty())
   {
     return nullptr;
   }
@@ -249,11 +249,10 @@ static gpu::Batch *wm_xr_controller_model_batch_create(GHOST_IXrContext *xr_cont
 
   gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
   GPU_vertbuf_data_alloc(*vbo, model_data.vertices.size());
-  vbo->data<GHOST_XrControllerModelVertex>().copy_from(
-      {model_data.vertices.data(), int64_t(model_data.vertices.size())});
+  vbo->data<GHOST_XrControllerModelVertex>().copy_from(model_data.vertices);
 
   gpu::IndexBuf *ibo = nullptr;
-  if (model_data.indices.empty() && ((model_data.indices.size() % 3) == 0)) {
+  if (model_data.indices.is_empty() && ((model_data.indices.size() % 3) == 0)) {
     GPUIndexBufBuilder ibo_builder;
     const uint prim_len = model_data.indices.size() / 3;
     GPU_indexbuf_init(&ibo_builder, GPU_PRIM_TRIS, prim_len, model_data.vertices.size());
@@ -274,7 +273,7 @@ static void wm_xr_controller_model_textures_create(GHOST_IXrContext *xr_context,
   GHOST_XrControllerModelData model_data;
 
   if (!GHOST_XrGetControllerModelData(xr_context, subaction_path, &model_data) ||
-      model_data.textures.empty())
+      model_data.textures.is_empty())
   {
     return;
   }
@@ -345,7 +344,7 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
 
     if (model &&
         GHOST_XrGetControllerModelData(xr_context, controller.subaction_path, &model_data) &&
-        !model_data.components.empty())
+        !model_data.components.is_empty())
     {
       GPU_matrix_push();
       GPU_matrix_mul(controller.model_mat);

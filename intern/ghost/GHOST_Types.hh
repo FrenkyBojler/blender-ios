@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_span.hh"
+
 #include <cstdint>
 #include <cstdio>
 #include <string>
@@ -1251,10 +1253,10 @@ struct GHOST_XrControllerModelComponent {
 using GHOST_XrControllerModelTextureData = std::vector<uchar>;
 
 struct GHOST_XrControllerModelData {
-  std::vector<GHOST_XrControllerModelVertex> vertices;
-  std::vector<uint32_t> indices;
-  std::vector<GHOST_XrControllerModelComponent> components;
-  std::vector<GHOST_XrControllerModelTextureData> textures;
+  blender::Span<GHOST_XrControllerModelVertex> vertices;
+  blender::Span<uint32_t> indices;
+  blender::Span<GHOST_XrControllerModelComponent> components;
+  blender::Span<GHOST_XrControllerModelTextureData> textures;
 
   GHOST_XrPose base_pose;
 };
