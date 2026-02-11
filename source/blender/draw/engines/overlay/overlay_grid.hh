@@ -248,17 +248,17 @@ class Grid : Overlay {
       if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
         axis_flag_ = (show_axis_y ? AXIS_Y : OVERLAY_GridBits(0)) |
                      (show_axis_z ? AXIS_Z : OVERLAY_GridBits(0));
-        grid_flag_ = (show_ortho ? PLANE_YZ : OVERLAY_GridBits(0));
+        grid_flag_ = (show_ortho ? (PLANE_YZ | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
         axis_flag_ = (show_axis_x ? AXIS_X : OVERLAY_GridBits(0)) |
                      (show_axis_y ? AXIS_Y : OVERLAY_GridBits(0));
-        grid_flag_ = (show_ortho ? PLANE_XY : OVERLAY_GridBits(0));
+        grid_flag_ = (show_ortho ? (PLANE_XY | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
         axis_flag_ = (show_axis_x ? AXIS_X : OVERLAY_GridBits(0)) |
                      (show_axis_z ? AXIS_Z : OVERLAY_GridBits(0));
-        grid_flag_ = (show_ortho ? PLANE_XZ : OVERLAY_GridBits(0));
+        grid_flag_ = (show_ortho ? (PLANE_XZ | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
       }
 
       /* If any axes are set, set SHOW_AXES. If `grid` is toggled, set SHOW_GRID. */

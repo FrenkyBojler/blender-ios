@@ -198,7 +198,7 @@ void main()
 
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vertex_out.pos, 1.0f));
 
-  /* Adjust z-component */
+  /* Adjust z-component. */
   if (drw_view_is_perspective()) {
     /* To minimize z-fighting, the grid is drawn N times with progressive alpha and z-bias,
      * making it fade through geometry. The smaller the range below, the more it pops in. */
@@ -206,11 +206,9 @@ void main()
                      float(OVERLAY_GRID_ITER_LEN * OVERLAY_GRID_STEPS_DRAW);
     gl_Position.z += mix(5e-4f, 1e-4f, z_factor);
   }
-  else { /* orthographic */
-    /* Set z to far plane in orthographic, so it is behind all things. */
-    if (!flag_test(grid_flag, GRID_SIMA)) {
-      gl_Position.z = 1.0f;
-    }
+  else if (flag_test(grid_flag, GRID_BEHIND_GEOMETRY)) {
+    /* Set z to far plane, placing the grid behind all geometry. */
+    gl_Position.z = 1.0f;
   }
 
   /* Stage output for viewport anti-aliasing/alpha dithering. */
