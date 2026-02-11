@@ -1443,7 +1443,9 @@ static ConstInputProxyFnMap create_proxy_const_input_node_functions()
   result.add_new(SOCK_VECTOR, [](bContext &C, bNodeTree &tree, const void *value) {
     bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputVector");
     auto &node_storage = *static_cast<NodeInputVector *>(node->storage);
-    copy_v3_v3(node_storage.vector, static_cast<const bNodeSocketValueVector *>(value)->value);
+    const auto &socket_value = *static_cast<const bNodeSocketValueVector *>(value);
+    node_storage.dimensions = socket_value.dimensions;
+    copy_v4_v4(node_storage.vector, socket_value.value);
     return node;
   });
   result.add_new(SOCK_RGBA, [](bContext &C, bNodeTree &tree, const void *value) {
