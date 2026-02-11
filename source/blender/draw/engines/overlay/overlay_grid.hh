@@ -61,7 +61,7 @@ class Grid : Overlay {
     if (state.is_space_image()) {
       float3 tile_scale(grid_ubo_.clip_rect.x, grid_ubo_.clip_rect.y, 0.0f);
       const float4 color_back = math::interpolate(
-          res.theme.colors.background, res.theme.colors.grid, 0.33);
+          res.theme.colors.background, res.theme.colors.grid, 0.5f);
 
       auto &sub = grid_ps_.sub("grid_background");
       sub.shader_set(res.shaders->grid_background.get());
@@ -261,7 +261,7 @@ class Grid : Overlay {
         grid_flag_ = (show_ortho ? PLANE_XZ : OVERLAY_GridBits(0));
       }
 
-      /* If any axes are set, set SHOW_AXES. If `grid` is toggled, set SHOW_GRID. 
+      /* If any axes are set, set SHOW_AXES. If `grid` is toggled, set SHOW_GRID.
        * We also set `GRID_BEHIND_GEOMETRY` for fixed plane views, to place it on
        * the far plane. */
       axis_flag_ |= (axis_flag_ ? (SHOW_AXES | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
