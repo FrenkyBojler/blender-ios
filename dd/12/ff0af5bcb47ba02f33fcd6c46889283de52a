@@ -1,2 +1,2 @@
 Referenced by issue #150814, Crash with planar probes since dd12ff0af5bcb47ba02f33fcd6c46889283de52a
-Referenced by issue #154207, Crash in Vulkan backend using "shader to RGB" node with blended render
+Referenced by issue #154207, `BLI_assert_unreachable` in Vulkan backend using "shader to RGB" node with "blended render"
