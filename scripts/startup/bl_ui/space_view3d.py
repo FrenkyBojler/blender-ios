@@ -6847,7 +6847,7 @@ class VIEW3D_PT_shading_cavity(Panel):
         row = layout.row()
         row.active = not xray_active
         row.prop(shading, "show_cavity")
-        row = row.row(align=False)
+        row = row.row()
         row.active = shading.show_cavity
         row.prop(shading, "cavity_type", text="Type")
 
