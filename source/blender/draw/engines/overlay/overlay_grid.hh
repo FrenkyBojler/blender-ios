@@ -319,8 +319,10 @@ class Grid : Overlay {
       float3 camera_offs = drw_view_position - dist * drw_view_forward;
       grid_ubo_.offset = camera_offs.xy();
     }
-    else { /* Orthographic, Image/UV view. */
-      grid_ubo_.offset = drw_view_position.xy();
+    else { /* Orthographic. */
+      float3 camera_offs = drw_view_position -
+                           drw_view_forward * dot(drw_view_position, drw_view_forward);
+      grid_ubo_.offset = camera_offs.xy();
     }
 
     /* Find the lowest relevant grid level + fractional. */
