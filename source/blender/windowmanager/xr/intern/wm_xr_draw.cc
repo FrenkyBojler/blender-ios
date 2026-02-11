@@ -252,7 +252,7 @@ static gpu::Batch *wm_xr_controller_model_batch_create(GHOST_IXrContext *xr_cont
   vbo->data<GHOST_XrControllerModelVertex>().copy_from(model_data.vertices);
 
   gpu::IndexBuf *ibo = nullptr;
-  if (model_data.indices.is_empty() && ((model_data.indices.size() % 3) == 0)) {
+  if (!(model_data.indices.is_empty()) && ((model_data.indices.size() % 3) == 0)) {
     GPUIndexBufBuilder ibo_builder;
     const uint prim_len = model_data.indices.size() / 3;
     GPU_indexbuf_init(&ibo_builder, GPU_PRIM_TRIS, prim_len, model_data.vertices.size());
