@@ -51,10 +51,12 @@ constexpr StringRefNull sim_pin_rotation_compliance = "sim_pin_rotation_complian
 constexpr StringRefNull rest_length = "rest_length";
 constexpr StringRefNull rest_rotation = "rest_rotation";
 constexpr StringRefNull rod_stretch_shear_compliance = "rod_stretch_shear_compliance";
-constexpr StringRefNull rod_stretch_shear_position_lambda = "rod_stretch_shear_position_lambda";
-constexpr StringRefNull rod_stretch_shear_rotation_lambda = "rod_stretch_shear_rotation_lambda";
+constexpr StringRefNull rod_stretch_shear_position_lambda =
+    "sim_rod_stretch_shear_position_lambda";
+constexpr StringRefNull rod_stretch_shear_rotation_lambda =
+    "sim_rod_stretch_shear_rotation_lambda";
 constexpr StringRefNull rod_bend_twist_compliance = "rod_bend_twist_compliance";
-constexpr StringRefNull rod_bend_twist_lambda = "rod_bend_twist_lambda";
+constexpr StringRefNull rod_bend_twist_lambda = "sim_rod_bend_twist_lambda";
 
 }  // namespace attribute_names
 
