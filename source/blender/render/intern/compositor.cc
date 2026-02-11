@@ -229,12 +229,62 @@ class Context : public compositor::Context {
 
     const int2 size = viewer_result.is_single_value() ? this->get_render_size() :
                                                         viewer_result.domain().data_size;
-    if (image_buffer->x != size.x || image_buffer->y != size.y) {
+
+    /* The image buffer has a different size than the viewer result, set the new size and free all
+     * data to be reallocated later. */
+    if (int2(image_buffer->x, image_buffer->y) != size) {
       IMB_free_byte_pixels(image_buffer);
       IMB_free_float_pixels(image_buffer);
       IMB_free_gpu_textures(image_buffer);
       image_buffer->x = size.x;
       image_buffer->y = size.y;
+    }
+
+    if (this->use_gpu()) {
+      /* If using GPU, free any potential previous CPU data. */
+      IMB_free_float_pixels(image_buffer);
+
+      /* Allocate a GPU texture if using GPU and no texture exists or one exists but with a
+       * different format. */
+      if (!image_buffer->gpu.texture ||
+          GPU_texture_format(image_buffer->gpu.texture) != viewer_result.get_gpu_texture_format())
+      {
+        gpu::TextureFormat format = viewer_result.get_gpu_texture_format();
+        gpu::Texture *texture = GPU_texture_create_2d(
+            __func__, size.x, size.y, 1, format, GPU_TEXTURE_USAGE_GENERAL, nullptr);
+        IMB_assign_gpu_texture(image_buffer, texture);
+      }
+    }
+    else {
+      /* If not using GPU, free any potential previous GPU data. */
+      IMB_free_gpu_textures(image_buffer);
+
+      /* Allocate float buffer if not using GPU and no float buffer exists. */
+      if (!image_buffer->float_buffer.data) {
+        IMB_alloc_float_pixels(image_buffer, 4, false);
+      }
+    }
+
+    if (this->use_gpu()) {
+      if (viewer_result.is_single_value()) {
+        GPU_texture_clear(image_buffer->gpu.texture,
+                          GPU_DATA_FLOAT,
+                          viewer_result.get_single_value<compositor::Color>());
+      }
+      else {
+        GPU_texture_copy(image_buffer->gpu.texture, viewer_result);
+      }
+      image_buffer->userflags |= IB_HOST_BUFFER_INVALID;
+    }
+    else {
+      if (viewer_result.is_single_value()) {
+        IMB_rectfill(image_buffer, viewer_result.get_single_value<compositor::Color>());
+      }
+      else {
+        std::memcpy(image_buffer->float_buffer.data,
+                    viewer_result.cpu_data().data(),
+                    size.x * size.y * 4 * sizeof(float));
+      }
       image_buffer->userflags |= IB_DISPLAY_BUFFER_INVALID;
     }
 
@@ -244,29 +294,6 @@ class Context : public compositor::Context {
       copy_v2_v2_int(image_buffer->display_size, viewer_result.domain().display_size);
       copy_v2_v2_int(image_buffer->display_offset, display_offset);
       copy_v2_v2_int(image_buffer->data_offset, viewer_result.domain().data_offset);
-    }
-
-    if (viewer_result.is_single_value() || !this->use_gpu()) {
-      IMB_free_gpu_textures(image_buffer);
-      if (!image_buffer->float_buffer.data) {
-        IMB_alloc_float_pixels(image_buffer, 4, false);
-      }
-    }
-    else {
-      IMB_free_float_pixels(image_buffer);
-    }
-
-    if (viewer_result.is_single_value()) {
-      IMB_rectfill(image_buffer, viewer_result.get_single_value<compositor::Color>());
-    }
-    else if (this->use_gpu()) {
-      IMB_assign_gpu_texture(image_buffer, viewer_result);
-      GPU_texture_ref(viewer_result);
-    }
-    else {
-      std::memcpy(image_buffer->float_buffer.data,
-                  viewer_result.cpu_data().data(),
-                  size.x * size.y * 4 * sizeof(float));
     }
 
     BKE_image_partial_update_mark_full_update(image);

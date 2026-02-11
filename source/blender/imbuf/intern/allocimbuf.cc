@@ -423,7 +423,6 @@ void IMB_assign_gpu_texture(ImBuf *ibuf, gpu::Texture *texture)
 {
   IMB_free_gpu_textures(ibuf);
   ibuf->gpu.texture = texture;
-  ibuf->userflags |= IB_HOST_BUFFER_INVALID;
 }
 
 void IMB_ensure_host_buffer(ImBuf *ibuf)
