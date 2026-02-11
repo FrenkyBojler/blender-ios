@@ -688,6 +688,94 @@ static float get_fcurve_blend_value(FCurve &fcu,
   return value_to_write;
 }
 
+/**
+ * Apply the rotation fcurves to the `ptr` by converting them to a matrix first. This means the
+ * rotation can be applied regardless of rotation mode.
+ */
+static void apply_rotation_with_conversion(PointerRNA &ptr,
+                                           Span<FCurve *> rotation_fcurves,
+                                           const eRotationModes fcurve_rotation_mode,
+                                           const float eval_time)
+{
+  /* The rotation data is 0 initialized for reasonable defaults in case some indices have no
+   * FCurves associated with them. */
+  float4 rotation_data(0.0);
+  if (fcurve_rotation_mode == ROT_MODE_QUAT) {
+    /* Default W value for quaternions. */
+    rotation_data[0] = 1.0;
+  }
+
+  for (FCurve *fcurve : rotation_fcurves) {
+    BLI_assert_msg(fcurve->array_index >= 0 && fcurve->array_index < 4,
+                   "Rotation properties have at most 4 components.");
+    rotation_data[fcurve->array_index] = evaluate_fcurve(fcurve, eval_time);
+  }
+
+  /* Convert the rotation from the pose to the mode that the blender data expects. */
+  float rotation_matrix[3][3];
+  switch (fcurve_rotation_mode) {
+    case ROT_MODE_QUAT: {
+      quat_to_mat3(rotation_matrix, rotation_data);
+      break;
+    }
+    case ROT_MODE_EUL: {
+      /* TODO: determine the rotation order for euler angles. This has to be stored at the
+       * point of pose creation. */
+      eulO_to_mat3(rotation_matrix, rotation_data, ROT_MODE_XYZ);
+      break;
+    }
+    case ROT_MODE_AXISANGLE: {
+      axis_angle_to_mat3(rotation_matrix, &rotation_data[1], rotation_data[0]);
+      break;
+    }
+    default: {
+      BLI_assert_unreachable();
+    }
+  }
+
+  /* Apply the rotation matrix to the blender data. */
+  if (ptr.type == RNA_PoseBone) {
+    BKE_pchan_mat3_to_rot(static_cast<bPoseChannel *>(ptr.data), rotation_matrix, false);
+  }
+  else if (ptr.type == RNA_Object) {
+    BKE_object_mat3_to_rot(static_cast<Object *>(ptr.data), rotation_matrix, false);
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+}
+
+static void apply_rotation(PointerRNA &ptr,
+                           Span<FCurve *> rotation_fcurves,
+                           const eRotationModes fcurve_rotation_mode,
+                           const AnimationEvalContext *anim_eval_context,
+                           const float blend_factor)
+{
+  if (fcurve_rotation_mode == ROT_MODE_QUAT) {
+    PathResolvedRNA anim_rna;
+    /* The function `animsys_blend_fcurves_quaternion` deals with the array index of the
+     * PathResolvedRNA. This is why we can just use the array_index of the first FCurve. */
+    if (!BKE_animsys_rna_path_resolve(
+            &ptr, rotation_fcurves[0]->rna_path, rotation_fcurves[0]->array_index, &anim_rna))
+    {
+      return;
+    }
+    animsys_blend_fcurves_quaternion(&anim_rna, rotation_fcurves, anim_eval_context, blend_factor);
+  }
+  else {
+    for (FCurve *fcurve : rotation_fcurves) {
+      PathResolvedRNA anim_rna;
+      if (!BKE_animsys_rna_path_resolve(&ptr, fcurve->rna_path, fcurve->array_index, &anim_rna)) {
+        continue;
+      }
+
+      const float value_to_write = get_fcurve_blend_value(
+          *fcurve, anim_rna, anim_eval_context, blend_factor);
+      BKE_animsys_write_to_rna_path(&anim_rna, value_to_write);
+    }
+  }
+}
+
 /* LERP between current value (blend_factor=0.0) and the value from the FCurve (blend_factor=1.0)
  */
 static void animsys_blend_in_fcurves(PointerRNA *ptr,
@@ -727,86 +815,23 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
         ptr_rotation_mode.has_value(),
         "We have an FCurve on a rotation property, the RNA data should have a rotation order.");
 
-    const std::optional<eRotationModes> path_rotation_mode = animrig::get_rotation_mode_from_path(
-        rna_path);
-    BLI_assert(path_rotation_mode.has_value());
-    if (path_rotation_mode.value() == ptr_rotation_mode.value()) {
-      /* Easy case, animation mode of pose and of blender data are matching. Data can just be
-       * applied. */
-      if (path_rotation_mode.value() == ROT_MODE_QUAT) {
-        PathResolvedRNA anim_rna;
-        /* The function `animsys_blend_fcurves_quaternion` deals with the array index of the
-         * PathResolvedRNA. This is why we can just use the array_index of the first FCurve. */
-        if (!BKE_animsys_rna_path_resolve(
-                ptr, rna_path.data(), rotation_fcurves[0]->array_index, &anim_rna))
-        {
-          continue;
-        }
-        animsys_blend_fcurves_quaternion(
-            &anim_rna, rotation_fcurves, anim_eval_context, blend_factor);
-      }
-      else {
-        for (FCurve *fcurve : rotation_fcurves) {
-          PathResolvedRNA anim_rna;
-          if (!BKE_animsys_rna_path_resolve(ptr, fcurve->rna_path, fcurve->array_index, &anim_rna))
-          {
-            continue;
-          }
+    const std::optional<eRotationModes> fcurve_rotation_mode =
+        animrig::get_rotation_mode_from_path(rna_path);
+    BLI_assert(fcurve_rotation_mode.has_value());
 
-          const float value_to_write = get_fcurve_blend_value(
-              *fcurve, anim_rna, anim_eval_context, blend_factor);
-          BKE_animsys_write_to_rna_path(&anim_rna, value_to_write);
-        }
-      }
+    if (fcurve_rotation_mode.value() == ptr_rotation_mode.value()) {
+      /* Easy case, animation mode of pose and of blender data are matching. Data can just be
+       * applied. The reason to have this separate is because in this case euler angles > 180 are
+       * still applied. The other path uses a conversion to a matrix which loses that information.
+       */
+      apply_rotation(
+          *ptr, rotation_fcurves, fcurve_rotation_mode.value(), anim_eval_context, blend_factor);
     }
     else {
-      /* The rotation data is 0 initialized for reasonable defaults in case some indices have no
-       * FCurves associated with them. */
-      float4 rotation_data(0.0);
-      if (path_rotation_mode.value() == ROT_MODE_QUAT) {
-        /* Default W value for quaternions. */
-        rotation_data[0] = 1.0;
-      }
-
-      for (FCurve *fcurve : rotation_fcurves) {
-        BLI_assert_msg(fcurve->array_index >= 0 && fcurve->array_index < 4,
-                       "Rotation properties have at most 4 components.");
-        rotation_data[fcurve->array_index] = evaluate_fcurve(fcurve, anim_eval_context->eval_time);
-      }
-
-      /* Convert the rotation from the pose to the mode that the blender data expects. */
-      float rotation_matrix[3][3];
-      switch (path_rotation_mode.value()) {
-        case ROT_MODE_QUAT: {
-          quat_to_mat3(rotation_matrix, rotation_data);
-          break;
-        }
-        case ROT_MODE_EUL: {
-          /* TODO: determine the rotation order for euler angles. This has to be stored at the
-           * point of pose creation. */
-          eulO_to_mat3(rotation_matrix, rotation_data, ROT_MODE_XYZ);
-          break;
-        }
-        case ROT_MODE_AXISANGLE: {
-          axis_angle_to_mat3(rotation_matrix, &rotation_data[1], rotation_data[0]);
-          break;
-        }
-        default: {
-          BLI_assert_unreachable();
-        }
-      }
-
-      /* Apply the rotation matrix to the blender data. */
-      if (resolved_ptr.type == RNA_PoseBone) {
-        BKE_pchan_mat3_to_rot(
-            static_cast<bPoseChannel *>(resolved_ptr.data), rotation_matrix, false);
-      }
-      else if (resolved_ptr.type == RNA_Object) {
-        BKE_object_mat3_to_rot(static_cast<Object *>(resolved_ptr.data), rotation_matrix, false);
-      }
-      else {
-        BLI_assert_unreachable();
-      }
+      apply_rotation_with_conversion(resolved_ptr,
+                                     rotation_fcurves,
+                                     fcurve_rotation_mode.value(),
+                                     anim_eval_context->eval_time);
     }
   }
 

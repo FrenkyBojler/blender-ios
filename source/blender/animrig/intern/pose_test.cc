@@ -464,7 +464,7 @@ TEST_F(PoseTest, apply_action_differing_rotation_mode_from_quaternion)
   copy_m4_m4(expected_matrix, bone_a->chan_mat);
 
   /* Check that other rotation modes work the same as applying quaternion directly. */
-  bone_a->rotmode = ROT_MODE_EUL;
+  bone_a->rotmode = ROT_MODE_XYZ;
   animrig::pose_apply_action({obj_armature_a}, *pose_action, &eval_context, 1.0);
   BKE_pchan_calc_mat(bone_a);
   EXPECT_NEAR_ARRAY_ND(expected_matrix, bone_a->chan_mat, 4, 4, 0.001);
@@ -506,7 +506,7 @@ TEST_F(PoseTest, apply_action_differing_rotation_mode_from_axisangle)
   copy_m4_m4(expected_matrix, bone_a->chan_mat);
 
   /* Check that other rotation modes work the same as applying quaternion directly. */
-  bone_a->rotmode = ROT_MODE_EUL;
+  bone_a->rotmode = ROT_MODE_XYZ;
   animrig::pose_apply_action({obj_armature_a}, *pose_action, &eval_context, 1.0);
   BKE_pchan_calc_mat(bone_a);
   EXPECT_NEAR_ARRAY_ND(expected_matrix, bone_a->chan_mat, 4, 4, 0.001);
