@@ -234,23 +234,6 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
   bool view_changed = false;
   const short old_mainb = sseq->mainb;
 
-  if (region_preview && sseq->runtime->last_view != sseq->view) {
-    if (region_tools) {
-      if (sequencer_is_scopes_view(sseq->view)) {
-        if ((region_tools->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_HIDDEN_BY_USER)) == 0) {
-          region_tools->flag |= RGN_FLAG_HIDDEN;
-          sseq->runtime->tools_region_was_visible = true;
-          view_changed = true;
-        }
-      }
-      else if (sseq->runtime->tools_region_was_visible) {
-        region_tools->flag &= ~RGN_FLAG_HIDDEN;
-        sseq->runtime->tools_region_was_visible = false;
-        view_changed = true;
-      }
-    }
-  }
-
   if (sseq->view == SEQ_VIEW_SCOPES) {
     if (sequencer_is_display_mode_a_scope(*sseq)) {
       sseq->runtime->last_scope_mainb = eSpaceSeq_RegionType(sseq->mainb);
@@ -824,6 +807,13 @@ static void sequencer_footer_region_listener(const wmRegionListenerParams *param
 }
 
 /* *********************** toolbar region ************************ */
+
+static bool sequencer_tools_region_poll(const RegionPollParams *params)
+{
+  const SpaceSeq *sseq = static_cast<SpaceSeq *>(params->area->spacedata.first);
+  return sseq->view != SEQ_VIEW_SCOPES;
+}
+
 /* Add handlers, stuff you only do once or on area/region changes. */
 static void sequencer_tools_region_init(wmWindowManager *wm, ARegion *region)
 {
@@ -1247,6 +1237,7 @@ void ED_spacetype_sequencer()
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
   art->message_subscribe = ED_region_generic_tools_region_message_subscribe;
   art->snap_size = ED_region_generic_tools_region_snap_size;
+  art->poll = sequencer_tools_region_poll;
   art->init = sequencer_tools_region_init;
   art->draw = sequencer_tools_region_draw;
   art->listener = sequencer_main_region_listener;

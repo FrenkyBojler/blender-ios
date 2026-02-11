@@ -64,7 +64,6 @@ struct SpaceSeq_Runtime : public NonCopyable {
   float timeline_clamp_custom_range = 0;
   eSpaceSeq_RegionType last_scope_mainb = SEQ_DRAW_IMG_WAVEFORM;
   char last_view = SEQ_VIEW_SEQUENCE;
-  bool tools_region_was_visible = false;
 
   SeqScopes scopes;
 

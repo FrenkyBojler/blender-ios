@@ -4100,23 +4100,6 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_sequencer_generic.sample,
             *_tools_annotate,
         ],
-        'SCOPES': [
-            (
-                _defs_sequencer_select.select_preview,
-                _defs_sequencer_select.box_preview,
-                _defs_sequencer_select.lasso_preview,
-                _defs_sequencer_select.circle_preview,
-            ),
-            _defs_sequencer_generic.cursor,
-            None,
-            _defs_sequencer_generic.translate,
-            _defs_sequencer_generic.rotate,
-            _defs_sequencer_generic.scale,
-            _defs_sequencer_generic.transform,
-            None,
-            _defs_sequencer_generic.sample,
-            *_tools_annotate,
-        ],
         'SEQUENCER': [
             (
                 _defs_sequencer_select.box_timeline,
@@ -4132,6 +4115,9 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
             _defs_sequencer_generic.blade,
         ],
+        'SCOPES': [
+            _defs_sequencer_select.box_preview,
+        ]
     }
 
 
