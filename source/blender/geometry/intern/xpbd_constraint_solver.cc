@@ -61,6 +61,11 @@ Vector<IndexMask> n_ary_constraints_to_independent_masks_multi(
       memory);
 }
 
+Vector<IndexMask> all_independent_masks(const int constraints_num)
+{
+  return {IndexMask(constraints_num)};
+}
+
 void solve_gauss_seidel_one_at_a_time(ConstraintSetParams &params,
                                       const Span<ConstraintSet *> constraint_sets)
 {

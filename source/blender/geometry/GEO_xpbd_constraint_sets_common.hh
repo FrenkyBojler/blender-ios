@@ -155,33 +155,31 @@ inline RodStretchAndShearConstraintResult evaluate_rod_stretch_and_shear_constra
 }
 
 class PinnedPositionConstraintSet : public TemplatedConstraintSet<PinnedPositionConstraintSet> {
- private:
-  int geo_i_;
-  Span<int> indices_;
-  Span<float3> pin_positions_;
-  Span<float> compliance_terms_;
-  MutableSpan<float> lambdas_;
-
  public:
+  /** Indexed by constraint index. */
+  Span<int> point_indices;
+  Span<float3> pin_positions;
+  Span<float> compliance_terms;
+  MutableSpan<float> lambdas;
+
   static constexpr StringRefNull debug_name = "Pinned Position";
 
   PinnedPositionConstraintSet(const int geo_i,
-                              const Span<int> indices,
+                              const Span<int> point_indices,
                               const Span<float3> pin_positions,
                               const Span<float> compliance_terms,
                               const MutableSpan<float> lambdas)
-      : TemplatedConstraintSet<PinnedPositionConstraintSet>(indices.size(), {geo_i}),
-        geo_i_(geo_i),
-        indices_(indices),
-        pin_positions_(pin_positions),
-        compliance_terms_(compliance_terms),
-        lambdas_(lambdas)
+      : TemplatedConstraintSet<PinnedPositionConstraintSet>(point_indices.size(), {geo_i}),
+        point_indices(point_indices),
+        pin_positions(pin_positions),
+        compliance_terms(compliance_terms),
+        lambdas(lambdas)
   {
   }
 
   void reset_force(const int constraint_i) const
   {
-    lambdas_[constraint_i] = 0.0f;
+    this->lambdas[constraint_i] = 0.0f;
   }
 
   template<typename UpdaterT>
@@ -189,22 +187,23 @@ class PinnedPositionConstraintSet : public TemplatedConstraintSet<PinnedPosition
                        const ConstraintSetParams &params,
                        const int constraint_i) const
   {
-    const int point_i = indices_[constraint_i];
+    const int geo_i = affected_geo_indices_[0];
+    const int point_i = this->point_indices[constraint_i];
     const DistanceConstraintResult result = evaluate_distance_constraint(
-        params.position(geo_i_, point_i),
-        pin_positions_[constraint_i],
-        params.inverse_mass(geo_i_, point_i),
+        params.position(geo_i, point_i),
+        this->pin_positions[constraint_i],
+        params.inverse_mass(geo_i, point_i),
         0.0f,
         0.0f,
-        compliance_terms_[constraint_i],
-        lambdas_[constraint_i]);
-    lambdas_[constraint_i] += result.delta_lambda;
-    updater.update_position(geo_i_, point_i, result.offset0);
+        this->compliance_terms[constraint_i],
+        this->lambdas[constraint_i]);
+    this->lambdas[constraint_i] += result.delta_lambda;
+    updater.update_position(geo_i, point_i, result.offset0);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
   {
-    return unary_constraints_to_independent_masks(indices_, memory);
+    return unary_constraints_to_independent_masks(point_indices, memory);
   }
 
   bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
@@ -772,67 +771,82 @@ class PressureConstraintSet : public TemplatedConstraintSet<PressureConstraintSe
  * and rotation of the frame. At the same time, it enforces a certain length.
  */
 class RodStretchAndShearCurveLocalConstraintSet
-    : public TemplatedCurveLocalConstraintSet<RodStretchAndShearCurveLocalConstraintSet> {
- private:
-  Span<float> rest_lengths_;
-  Span<float> compliances_;
-  MutableSpan<float3> lambdas_pos_;
-  MutableSpan<float3> lambdas_rot_;
-
+    : public TemplatedConstraintSet<RodStretchAndShearCurveLocalConstraintSet> {
  public:
+  /** Curves that are effected by this constraint set. Each curve is seen as one constraint. */
+  IndexRange curves_range;
+  OffsetIndices<int> points_by_curve;
+
+  /** Indexed by point index. */
+  Span<float> rest_lengths;
+  Span<float> compliances;
+  MutableSpan<float3> lambdas_pos;
+  MutableSpan<float3> lambdas_rot;
+
   static constexpr StringRefNull debug_name = "Rod Stretch and Shear";
 
   RodStretchAndShearCurveLocalConstraintSet(const int geo_i,
+                                            const IndexRange curves_range,
                                             const OffsetIndices<int> points_by_curve,
                                             const Span<float> rest_lengths,
                                             const Span<float> compliances,
                                             MutableSpan<float3> lambdas_pos,
                                             MutableSpan<float3> lambdas_rot)
-      : TemplatedCurveLocalConstraintSet<RodStretchAndShearCurveLocalConstraintSet>(
-            geo_i, points_by_curve),
-        rest_lengths_(rest_lengths),
-        compliances_(compliances),
-        lambdas_pos_(lambdas_pos),
-        lambdas_rot_(lambdas_rot)
+      : TemplatedConstraintSet<RodStretchAndShearCurveLocalConstraintSet>(curves_range.size(),
+                                                                          {geo_i}),
+        curves_range(curves_range),
+        points_by_curve(points_by_curve),
+        rest_lengths(rest_lengths),
+        compliances(compliances),
+        lambdas_pos(lambdas_pos),
+        lambdas_rot(lambdas_rot)
   {
   }
 
-  void reset_curve_forces(const int curve_i) const
+  void reset_force(const int constraint_i) const
   {
-    const IndexRange points = points_by_curve_[curve_i];
+    const int curve_i = this->curves_range[constraint_i];
+    const IndexRange points = this->points_by_curve[curve_i];
     for (const int point_i0 : points.drop_back(1)) {
-      lambdas_pos_[point_i0] = float3(0.0f);
-      lambdas_rot_[point_i0] = float3(0.0f);
+      this->lambdas_pos[point_i0] = float3(0.0f);
+      this->lambdas_rot[point_i0] = float3(0.0f);
     }
   }
 
   template<typename UpdaterT>
-  void evaluate_curve(UpdaterT &updater,
-                      const ConstraintSetParams &params,
-                      const int curve_i) const
+  void evaluate_single(UpdaterT &updater,
+                       const ConstraintSetParams &params,
+                       const int constraint_i) const
   {
-    const IndexRange points = points_by_curve_[curve_i];
+    const int curve_i = this->curves_range[constraint_i];
+    const IndexRange points = this->points_by_curve[curve_i];
+    const int geo_i = affected_geo_indices_[0];
 
     /* TODO: Implement bilateral interleaving ordering for better stability. */
     for (const int point_i0 : points.drop_back(1)) {
       const int point_i1 = point_i0 + 1;
       const RodStretchAndShearConstraintResult result = evaluate_rod_stretch_and_shear_constraint(
-          params.position(geo_i_, point_i0),
-          params.position(geo_i_, point_i1),
-          params.rotation(geo_i_, point_i0),
-          params.inverse_mass(geo_i_, point_i0),
-          params.inverse_mass(geo_i_, point_i1),
-          params.inertia(geo_i_, point_i0),
-          rest_lengths_[point_i0],
-          compliances_[point_i0] * params.compliance_term_factor,
-          lambdas_pos_[point_i0],
-          lambdas_rot_[point_i0]);
-      lambdas_pos_[point_i0] += result.delta_lambda_pos;
-      lambdas_rot_[point_i0] += result.delta_lambda_rot;
-      updater.update_position(geo_i_, point_i0, result.offset0);
-      updater.update_position(geo_i_, point_i1, result.offset1);
-      updater.update_rotation(geo_i_, point_i0, result.offset_rot);
+          params.position(geo_i, point_i0),
+          params.position(geo_i, point_i1),
+          params.rotation(geo_i, point_i0),
+          params.inverse_mass(geo_i, point_i0),
+          params.inverse_mass(geo_i, point_i1),
+          params.inertia(geo_i, point_i0),
+          this->rest_lengths[point_i0],
+          this->compliances[point_i0] * params.compliance_term_factor,
+          this->lambdas_pos[point_i0],
+          this->lambdas_rot[point_i0]);
+      this->lambdas_pos[point_i0] += result.delta_lambda_pos;
+      this->lambdas_rot[point_i0] += result.delta_lambda_rot;
+      updater.update_position(geo_i, point_i0, result.offset0);
+      updater.update_position(geo_i, point_i1, result.offset1);
+      updater.update_rotation(geo_i, point_i0, result.offset_rot);
     }
+  }
+
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory & /*memory*/) const override
+  {
+    return all_independent_masks(constraints_num_);
   }
 
   bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
@@ -843,8 +857,13 @@ class RodStretchAndShearCurveLocalConstraintSet
 
 /** Aligns rotations of two consecutive rods based on a rest rotation. */
 class RodBendAndTwistCurveLocalConstraintSet
-    : public TemplatedCurveLocalConstraintSet<RodBendAndTwistCurveLocalConstraintSet> {
+    : public TemplatedConstraintSet<RodBendAndTwistCurveLocalConstraintSet> {
  private:
+  /** Curves that are effected by this constraint set. Each curve is seen as one constraint. */
+  IndexRange curves_range;
+  OffsetIndices<int> points_by_curve;
+
+  /** Indexed by point index. */
   Span<math::Quaternion> rest_rotations_;
   Span<float> compliances_;
   MutableSpan<float4> lambdas_;
@@ -853,32 +872,38 @@ class RodBendAndTwistCurveLocalConstraintSet
   static constexpr StringRefNull debug_name = "Rod Bend and Twist";
 
   RodBendAndTwistCurveLocalConstraintSet(const int geo_i,
+                                         const IndexRange curves_range,
                                          const OffsetIndices<int> points_by_curve,
                                          const Span<math::Quaternion> rest_rotations,
                                          const Span<float> compliances,
                                          MutableSpan<float4> lambdas)
-      : TemplatedCurveLocalConstraintSet<RodBendAndTwistCurveLocalConstraintSet>(geo_i,
-                                                                                 points_by_curve),
+      : TemplatedConstraintSet<RodBendAndTwistCurveLocalConstraintSet>(curves_range.size(),
+                                                                       {geo_i}),
+        curves_range(curves_range),
+        points_by_curve(points_by_curve),
         rest_rotations_(rest_rotations),
         compliances_(compliances),
         lambdas_(lambdas)
   {
   }
 
-  void reset_curve_forces(const int curve_i) const
+  void reset_force(const int constraint_i) const
   {
-    const IndexRange points = points_by_curve_[curve_i];
+    const int curve_i = this->curves_range[constraint_i];
+    const IndexRange points = this->points_by_curve[curve_i];
     for (const int point_i0 : points.drop_back(2)) {
       lambdas_[point_i0] = float4(0.0f);
     }
   }
 
   template<typename UpdaterT>
-  void evaluate_curve(UpdaterT &updater,
-                      const ConstraintSetParams &params,
-                      const int curve_i) const
+  void evaluate_single(UpdaterT &updater,
+                       const ConstraintSetParams &params,
+                       const int constraint_i) const
   {
-    const IndexRange points = points_by_curve_[curve_i];
+    const int curve_i = this->curves_range[constraint_i];
+    const IndexRange points = this->points_by_curve[curve_i];
+    const int geo_i = affected_geo_indices_[0];
 
     /* TODO: Implement bilateral interleaving ordering for better stability. */
     /* Note that the last segment does not have this constraint, because the rotation of the last
@@ -886,17 +911,22 @@ class RodBendAndTwistCurveLocalConstraintSet
     for (const int point_i0 : points.drop_back(2)) {
       const int point_i1 = point_i0 + 1;
       const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
-          params.rotation(geo_i_, point_i0),
-          params.rotation(geo_i_, point_i1),
-          params.inertia(geo_i_, point_i0),
-          params.inertia(geo_i_, point_i1),
+          params.rotation(geo_i, point_i0),
+          params.rotation(geo_i, point_i1),
+          params.inertia(geo_i, point_i0),
+          params.inertia(geo_i, point_i1),
           rest_rotations_[point_i0],
           compliances_[point_i0] * params.compliance_term_factor,
           lambdas_[point_i0]);
       lambdas_[point_i0] += result.delta_lambda;
-      updater.update_rotation(geo_i_, point_i0, result.offset0);
-      updater.update_rotation(geo_i_, point_i1, result.offset1);
+      updater.update_rotation(geo_i, point_i0, result.offset0);
+      updater.update_rotation(geo_i, point_i1, result.offset1);
     }
+  }
+
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory & /*memory*/) const override
+  {
+    return all_independent_masks(constraints_num_);
   }
 
   bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const

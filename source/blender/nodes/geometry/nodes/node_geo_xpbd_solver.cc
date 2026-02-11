@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_stack.hh"
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
 
@@ -107,10 +108,26 @@ struct DataKey {
   friend bool operator==(const DataKey &a, const DataKey &b) = default;
 };
 
+struct GeometryDataChunk {
+  int data_key_i;
+  IndexRange points_range;
+  /** Only used when the geometry data has curves. */
+  std::optional<IndexRange> curves_range;
+};
+
 struct GeometryData {
   bke::MutableAttributeAccessor attributes;
   AttrDomain domain;
   int size;
+  /** Easy access to curve data for curves and grease pencil layers. */
+  bke::CurvesGeometry *curves = nullptr;
+
+  IndexRange chunks;
+  /**
+   * Allows fast lookup of which chunk a point belongs to. This allows e.g. grouping collisions by
+   * chunk efficiently.
+   */
+  Array<int> point_to_chunk;
 
   bke::SpanAttributeWriter<float3> position_attr;
   bke::SpanAttributeWriter<float3> velocity_attr;
@@ -119,8 +136,6 @@ struct GeometryData {
   VArraySpan<float3> external_force_attr;
   VArraySpan<float3> external_torque_attr;
 
-  IndexMask pin_position_mask;
-  Vector<int> pin_position_indices;
   /** Indexed by point index. */
   VArraySpan<float3> pin_position_begin;
   VArraySpan<float3> pin_position_end;
@@ -173,6 +188,12 @@ struct Geometries {
 
   VectorSet<DataKey> data_keys;
   Vector<GeometryData> data;
+
+  /**
+   * By having static chunks, across the entire solve step allows for more efficient
+   * multi-threading (and preparation for multi-threading).
+   */
+  Vector<GeometryDataChunk> chunks;
 };
 
 struct FieldEvaluatorKey {
@@ -219,16 +240,21 @@ struct SubstepInterval {
   }
 };
 
-struct ConstraintsInfo {
+struct ChunkConstraints {
   Vector<xpbd::PinnedPositionConstraintSet *> pinned_positions;
   Vector<xpbd::RodStretchAndShearCurveLocalConstraintSet *> rod_stretch_shear;
   Vector<xpbd::RodBendAndTwistCurveLocalConstraintSet *> rod_bend_twist;
+};
+
+struct ConstraintsInfo {
+  Array<ChunkConstraints> static_chunk_constraints;
 };
 
 class XpbdSolverStep {
  private:
   ResourceScope &scope_;
   LinearAllocator<> &allocator_;
+  threading::EnumerableThreadSpecific<ResourceScope> thread_scopes_;
   IndexMaskMemory memory_;
   Bundle &world_;
   const int substeps_;
@@ -259,6 +285,7 @@ class XpbdSolverStep {
   {
     this->prepare_substep_compliance_factor();
     this->gather_geometries_from_world();
+    this->prepare_geometry_chunks();
     this->prepare_pinned_positions();
     this->prepare_pinned_rotations();
     this->prepare_inverse_masses();
@@ -309,6 +336,9 @@ class XpbdSolverStep {
         bke::GeometryComponent &component = geometry.get_component_for_write(type);
         geometries_.data_keys.add_new({geo_bundle_i, type, std::nullopt});
         GeometryData geo_data{*component.attributes_for_write()};
+        geo_data.curves = type == bke::GeometryComponent::Type::Curve ?
+                              &geometry.get_curves_for_write()->geometry.wrap() :
+                              nullptr;
         geo_data.domain = type == bke::GeometryComponent::Type::Instance ? AttrDomain::Instance :
                                                                            AttrDomain::Point;
         geometries_.data.append(std::move(geo_data));
@@ -327,6 +357,7 @@ class XpbdSolverStep {
               {geo_bundle_i, bke::GeometryComponent::Type::Curve, layer_i});
           GeometryData geo_data{curves.attributes_for_write()};
           geo_data.domain = AttrDomain::Point;
+          geo_data.curves = &curves;
           geometries_.data.append(std::move(geo_data));
         }
       }
@@ -350,6 +381,70 @@ class XpbdSolverStep {
     }
   }
 
+  void prepare_geometry_chunks()
+  {
+    constexpr int approx_points_per_chunk = 256;
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      const int old_chunks_num = geometries_.chunks.size();
+
+      if (geo_data.curves) {
+        /* For curve data, align the ranges with curve boundaries. */
+        const bke::CurvesGeometry &curves = *geo_data.curves;
+        const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+        Stack<IndexRange> curve_ranges_to_check;
+        curve_ranges_to_check.push(curves.curves_range());
+        while (!curve_ranges_to_check.is_empty()) {
+          const IndexRange curves_range = curve_ranges_to_check.pop();
+          const IndexRange points_range = points_by_curve[curves_range];
+          if (points_range.is_empty()) {
+            continue;
+          }
+          if (curves_range.size() == 1 || points_range.size() <= approx_points_per_chunk) {
+            geometries_.chunks.append({data_key_i, points_range, curves_range});
+            continue;
+          }
+          const int split_pos = curves_range.size() / 2;
+          const IndexRange curves_range_left = curves_range.take_front(split_pos);
+          const IndexRange curves_range_right = curves_range.drop_front(split_pos);
+          /* Pushing in this order ensures that the chunks are sorted in the end. */
+          curve_ranges_to_check.push(curves_range_right);
+          curve_ranges_to_check.push(curves_range_left);
+        }
+      }
+      else {
+        const IndexRange points_range = IndexRange(geo_data.size);
+        Stack<IndexRange> ranges_to_check;
+        ranges_to_check.push(points_range);
+        while (!ranges_to_check.is_empty()) {
+          const IndexRange points_range = ranges_to_check.pop();
+          if (points_range.is_empty()) {
+            continue;
+          }
+          if (points_range.size() <= approx_points_per_chunk) {
+            geometries_.chunks.append({data_key_i, points_range});
+            continue;
+          }
+          const int split_pos = points_range.size() / 2;
+          const IndexRange points_range_left = points_range.take_front(split_pos);
+          const IndexRange points_range_right = points_range.drop_front(split_pos);
+          /* Pushing in this order ensures that the chunks are sorted in the end. */
+          ranges_to_check.push(points_range_right);
+          ranges_to_check.push(points_range_left);
+        }
+      }
+      geo_data.chunks = IndexRange::from_begin_end(old_chunks_num, geometries_.chunks.size());
+
+      /* Create mapping from points to chunks. */
+      geo_data.point_to_chunk.reinitialize(geo_data.size);
+      for (const int chunk_i : geo_data.chunks) {
+        const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+        geo_data.point_to_chunk.as_mutable_span().slice(chunk.points_range).fill(chunk_i);
+      }
+      constraints_info_.static_chunk_constraints.reinitialize(geometries_.chunks.size());
+    }
+  }
+
   void prepare_pinned_positions()
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
@@ -363,9 +458,8 @@ class XpbdSolverStep {
       if (!pin_attr || !begin_attr || !end_attr) {
         continue;
       }
-      geo_data.pin_position_mask = IndexMask::from_bools(*pin_attr, memory_);
-      const int pin_num = geo_data.pin_position_mask.size();
-      geo_data.pin_position_indices = geo_data.pin_position_mask.to_indices<int>();
+
+      const VArraySpan<bool> pin_attr_span = *pin_attr;
       geo_data.pin_position_begin = begin_attr.varray;
       geo_data.pin_position_end = end_attr.varray;
       geo_data.pin_position_lambda_attr = geo_data.attributes.lookup_or_add_for_write_span<float>(
@@ -375,24 +469,44 @@ class XpbdSolverStep {
 
       const VArray<float> compliance_attr = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::sim_pin_position_compliance, geo_data.domain, 0.0f);
-      geo_data.pin_position_compliance_terms.reinitialize(pin_num);
-      geo_data.pin_position_lambdas.reinitialize(pin_num);
-      for (const int i : geo_data.pin_position_indices.index_range()) {
-        const int point_i = geo_data.pin_position_indices[i];
-        geo_data.pin_position_compliance_terms[i] = std::max(compliance_attr[point_i], 0.0f) *
-                                                    substep_compliance_factor_;
-        geo_data.pin_position_lambdas[i] = geo_data.pin_position_lambda_attr.span[point_i];
-      }
-      /* This will be initialized every time a substep starts. */
-      geo_data.pin_position_current.reinitialize(pin_num);
 
-      constraints_info_.pinned_positions.append(
-          &scope_.construct<xpbd::PinnedPositionConstraintSet>(
-              data_key_i,
-              geo_data.pin_position_indices,
-              geo_data.pin_position_current,
-              geo_data.pin_position_compliance_terms,
-              geo_data.pin_position_lambdas));
+      threading::parallel_for(
+          geo_data.chunks.index_range(), 16, [&](const IndexRange chunk_range) {
+            ResourceScope &thread_scope = thread_scopes_.local();
+            LinearAllocator<> &thread_allocator = thread_scope.allocator();
+            for (const int chunk_i : chunk_range) {
+              const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+              ChunkConstraints &chunk_constraints =
+                  constraints_info_.static_chunk_constraints[chunk_i];
+              Vector<int> pin_indices_vec;
+              for (const int points_i : chunk.points_range) {
+                const bool is_pinned = pin_attr_span[points_i];
+                if (!is_pinned) {
+                  continue;
+                }
+                pin_indices_vec.append(points_i);
+              }
+              const int pin_num = pin_indices_vec.size();
+              if (pin_num == 0) {
+                continue;
+              }
+              const Span<int> pin_indices = thread_allocator.construct_array_copy<int>(
+                  pin_indices_vec);
+              MutableSpan<float> compliance_terms = thread_allocator.allocate_array<float>(
+                  pin_num);
+              MutableSpan<float> lambdas = thread_allocator.allocate_array<float>(pin_num);
+              for (const int pin_i : IndexRange(pin_num)) {
+                const int point_i = pin_indices[pin_i];
+                compliance_terms[pin_i] = compliance_attr[point_i] * substep_compliance_factor_;
+                lambdas[pin_i] = geo_data.pin_position_lambda_attr.span[point_i];
+              }
+              /* This is initialized in each substep. */
+              MutableSpan<float3> pin_positions = thread_allocator.allocate_array<float3>(pin_num);
+              chunk_constraints.pinned_positions.append(
+                  &scope_.construct<xpbd::PinnedPositionConstraintSet>(
+                      data_key_i, pin_indices, pin_positions, compliance_terms, lambdas));
+            }
+          });
     }
   }
 
@@ -507,19 +621,15 @@ class XpbdSolverStep {
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-      const DataKey &data_key = geometries_.data_keys[data_key_i];
-      if (data_key.type != bke::GeometryComponent::Type::Curve) {
+      if (!geo_data.curves) {
         continue;
       }
-      Curves &curves_id = *geometries_.geometry_sets[data_key.geo_bundle_i].get_curves_for_write();
-      bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+      bke::CurvesGeometry &curves = *geo_data.curves;
       const OffsetIndices<int> points_by_curve = curves.points_by_curve();
       geo_data.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::rest_length, geo_data.domain, 0.0f);
-
       geo_data.rod_stretch_shear_compliances = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::rod_stretch_shear_compliance, geo_data.domain, 0.0f);
-
       geo_data.rod_stretch_shear_lambda_pos =
           geo_data.attributes.lookup_or_add_for_write_span<float3>(
               attribute_names::rod_stretch_shear_position_lambda, geo_data.domain);
@@ -527,14 +637,19 @@ class XpbdSolverStep {
           geo_data.attributes.lookup_or_add_for_write_span<float3>(
               attribute_names::rod_stretch_shear_rotation_lambda, geo_data.domain);
 
-      constraints_info_.rod_stretch_shear.append(
-          &scope_.construct<xpbd::RodStretchAndShearCurveLocalConstraintSet>(
-              data_key_i,
-              points_by_curve,
-              geo_data.rest_lengths,
-              geo_data.rod_stretch_shear_compliances,
-              geo_data.rod_stretch_shear_lambda_pos.span,
-              geo_data.rod_stretch_shear_lambda_rot.span));
+      for (const int chunk_i : geo_data.chunks) {
+        const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+        ChunkConstraints &chunk_constraints = constraints_info_.static_chunk_constraints[chunk_i];
+        chunk_constraints.rod_stretch_shear.append(
+            &scope_.construct<xpbd::RodStretchAndShearCurveLocalConstraintSet>(
+                data_key_i,
+                *chunk.curves_range,
+                points_by_curve,
+                geo_data.rest_lengths,
+                geo_data.rod_stretch_shear_compliances,
+                geo_data.rod_stretch_shear_lambda_pos.span,
+                geo_data.rod_stretch_shear_lambda_rot.span));
+      }
     }
   }
 
@@ -549,26 +664,27 @@ class XpbdSolverStep {
       Curves &curves_id = *geometries_.geometry_sets[data_key.geo_bundle_i].get_curves_for_write();
       bke::CurvesGeometry &curves = curves_id.geometry.wrap();
       const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-
       geo_data.rest_rotations = *geo_data.attributes.lookup_or_default<math::Quaternion>(
           attribute_names::rest_rotation, geo_data.domain, math::Quaternion::identity());
-
       geo_data.rod_bend_twist_compliances = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::rod_bend_twist_compliance, geo_data.domain, 0.0f);
-
       geo_data.rod_bend_twist_lamba_attr =
           geo_data.attributes.lookup_or_add_for_write_span<math::Quaternion>(
               attribute_names::rod_bend_twist_lambda,
               geo_data.domain,
               bke::AttributeInitValue(math::Quaternion(0, 0, 0, 0)));
 
-      constraints_info_.rod_bend_twist.append(
-          &scope_.construct<xpbd::RodBendAndTwistCurveLocalConstraintSet>(
-              data_key_i,
-              points_by_curve,
-              geo_data.rest_rotations,
-              geo_data.rod_bend_twist_compliances,
-              geo_data.rod_bend_twist_lamba_attr.span.cast<float4>()));
+      for (const int chunk_i : geo_data.chunks) {
+        const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+        constraints_info_.static_chunk_constraints[chunk_i].rod_bend_twist.append(
+            &scope_.construct<xpbd::RodBendAndTwistCurveLocalConstraintSet>(
+                data_key_i,
+                *chunk.curves_range,
+                points_by_curve,
+                geo_data.rest_rotations,
+                geo_data.rod_bend_twist_compliances,
+                geo_data.rod_bend_twist_lamba_attr.span.cast<float4>()));
+      }
     }
   }
 
@@ -665,23 +781,61 @@ class XpbdSolverStep {
 
   void do_simulation()
   {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      geo_data.prev_positions.reinitialize(geo_data.size);
+      geo_data.prev_rotations.reinitialize(geo_data.size);
+    }
+
     for (const int substep_i : IndexRange(substeps_)) {
       const SubstepInterval substep(substeps_, substep_i);
-      for (const int data_key_i : geometries_.data_keys.index_range()) {
-        GeometryData &geo_data = geometries_.data[data_key_i];
-        geo_data.prev_positions = Array<float3>(geo_data.position_attr.span.as_span());
-        geo_data.prev_rotations = Array<math::Quaternion>(geo_data.rotation_attr.span.as_span());
-      }
-      for (const int data_key_i : geometries_.data_keys.index_range()) {
-        GeometryData &geo_data = geometries_.data[data_key_i];
-        for (const int i : geo_data.pin_position_indices.index_range()) {
-          const int point_i = geo_data.pin_position_indices[i];
-          const float3 &begin_pos = geo_data.pin_position_begin[point_i];
-          const float3 &end_pos = geo_data.pin_position_end[point_i];
-          const float3 pin_pos = math::interpolate(begin_pos, end_pos, substep.end_factor);
-          geo_data.pin_position_current[i] = pin_pos;
-        }
-      }
+
+      threading::parallel_for(
+          geometries_.chunks.index_range(), 4, [&](const IndexRange chunks_range) {
+            for (const int chunk_i : chunks_range) {
+              const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+              const IndexRange points_range = chunk.points_range;
+              const int data_key_i = chunk.data_key_i;
+              GeometryData &geo_data = geometries_.data[data_key_i];
+              ChunkConstraints &static_chunk_constraints =
+                  constraints_info_.static_chunk_constraints[chunk_i];
+
+              geo_data.prev_positions.as_mutable_span()
+                  .slice(points_range)
+                  .copy_from(geo_data.position_attr.span.slice(points_range));
+              geo_data.prev_rotations.as_mutable_span()
+                  .slice(points_range)
+                  .copy_from(geo_data.rotation_attr.span.slice(points_range));
+
+              /* Update animated pin positions. */
+              for (const xpbd::PinnedPositionConstraintSet *constraint :
+                   static_chunk_constraints.pinned_positions)
+              {
+                for (const int pin_i : constraint->point_indices.index_range()) {
+                  const int point_i = constraint->point_indices[pin_i];
+                  const float3 &begin_pos = geo_data.pin_position_begin[point_i];
+                  const float3 &end_pos = geo_data.pin_position_end[point_i];
+                  const float3 pin_pos = math::interpolate(begin_pos, end_pos, substep.end_factor);
+                  *const_cast<float3 *>(&constraint->pin_positions[pin_i]) = pin_pos;
+                }
+              }
+
+              this->integrate_linear_velocities(
+                  sub_delta_time_,
+                  geo_data.prev_positions.as_span().slice(points_range),
+                  geo_data.position_attr.span.slice(points_range),
+                  geo_data.velocity_attr.span.slice(points_range),
+                  geo_data.inv_masses.as_span().slice(points_range),
+                  geo_data.external_force_attr.slice(points_range));
+              this->integrate_angular_velocities(
+                  sub_delta_time_,
+                  geo_data.prev_rotations.as_span().slice(points_range),
+                  geo_data.rotation_attr.span.slice(points_range),
+                  geo_data.angular_velocity_attr.span.slice(points_range),
+                  geo_data.inv_inertias.as_span().slice(points_range),
+                  geo_data.external_torque_attr.slice(points_range));
+            }
+          });
 
       Vector<xpbd::GeometryRef> solver_geo_refs(geometries_.data_keys.size());
       for (const int data_key_i : geometries_.data_keys.index_range()) {
@@ -700,69 +854,72 @@ class XpbdSolverStep {
         ref.inverse_inertias = geo_data.inv_inertias;
       }
 
-      for (const int data_key_i : geometries_.data_keys.index_range()) {
-        GeometryData &geo_data = geometries_.data[data_key_i];
-        threading::parallel_for(IndexRange(geo_data.size), 256, [&](const IndexRange range) {
-          this->integrate_linear_velocities(sub_delta_time_,
-                                            geo_data.prev_positions.as_span().slice(range),
-                                            geo_data.position_attr.span.slice(range),
-                                            geo_data.velocity_attr.span.slice(range),
-                                            geo_data.inv_masses.as_span().slice(range),
-                                            geo_data.external_force_attr.slice(range));
-        });
-        threading::parallel_for(IndexRange(geo_data.size), 256, [&](const IndexRange range) {
-          this->integrate_angular_velocities(sub_delta_time_,
-                                             geo_data.prev_rotations.as_span().slice(range),
-                                             geo_data.rotation_attr.span.slice(range),
-                                             geo_data.angular_velocity_attr.span.slice(range),
-                                             geo_data.inv_inertias.as_span().slice(range),
-                                             geo_data.external_torque_attr.slice(range));
-        });
+      Vector<xpbd::ConstraintSet *> constraints;
+      for (const ChunkConstraints &chunk_constraints : constraints_info_.static_chunk_constraints)
+      {
+        for (xpbd::PinnedPositionConstraintSet *constraint : chunk_constraints.pinned_positions) {
+          constraints.append(constraint);
+        }
+        for (xpbd::RodStretchAndShearCurveLocalConstraintSet *constraint :
+             chunk_constraints.rod_stretch_shear)
+        {
+          constraints.append(constraint);
+        }
+        for (xpbd::RodBendAndTwistCurveLocalConstraintSet *constraint :
+             chunk_constraints.rod_bend_twist)
+        {
+          constraints.append(constraint);
+        }
       }
-
-      xpbd::ConstraintSetCollector constraint_collector;
-      for (auto *constraint : constraints_info_.pinned_positions) {
-        constraint_collector.general.append(constraint);
-      }
-      for (auto *constraint : constraints_info_.rod_stretch_shear) {
-        constraint_collector.curve_local.append(constraint);
-      }
-      for (auto *constraint : constraints_info_.rod_bend_twist) {
-        constraint_collector.curve_local.append(constraint);
-      }
-      Vector<xpbd::ConstraintSet *> constraint_sets = xpbd::ConstraintSetCollector::combine(
-          scope_, {&constraint_collector});
 
       xpbd::ConstraintSetParams solve_params{
           solver_geo_refs, substep_compliance_factor_, std::nullopt};
-      xpbd::solve_gauss_seidel_one_at_a_time(solve_params, constraint_sets);
+      xpbd::solve_gauss_seidel_one_at_a_time(solve_params, constraints);
 
-      for (const int data_key_i : geometries_.data_keys.index_range()) {
-        GeometryData &geo_data = geometries_.data[data_key_i];
-        threading::parallel_for(IndexRange(geo_data.size), 256, [&](const IndexRange range) {
-          this->update_linear_velocities(sub_delta_time_,
-                                         geo_data.prev_positions.as_span().slice(range),
-                                         geo_data.position_attr.span.slice(range),
-                                         geo_data.velocity_attr.span.slice(range));
-          this->update_angular_velocities(sub_delta_time_,
-                                          geo_data.prev_rotations.as_span().slice(range),
-                                          geo_data.rotation_attr.span.slice(range),
-                                          geo_data.angular_velocity_attr.span.slice(range));
-        });
-      }
+      threading::parallel_for(
+          geometries_.chunks.index_range(), 16, [&](const IndexRange chunks_range) {
+            for (const int chunk_i : chunks_range) {
+              const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+              const IndexRange points_range = chunk.points_range;
+              const int data_key_i = chunk.data_key_i;
+              GeometryData &geo_data = geometries_.data[data_key_i];
+              this->update_linear_velocities(sub_delta_time_,
+                                             geo_data.prev_positions.as_span().slice(points_range),
+                                             geo_data.position_attr.span.slice(points_range),
+                                             geo_data.velocity_attr.span.slice(points_range));
+              this->update_angular_velocities(
+                  sub_delta_time_,
+                  geo_data.prev_rotations.as_span().slice(points_range),
+                  geo_data.rotation_attr.span.slice(points_range),
+                  geo_data.angular_velocity_attr.span.slice(points_range));
+            }
+          });
     }
   }
 
   void finish_attribute_writers()
   {
+    threading::parallel_for(
+        geometries_.chunks.index_range(), 16, [&](const IndexRange chunks_range) {
+          for (const int chunk_i : chunks_range) {
+            const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+            const ChunkConstraints &chunk_constraints =
+                constraints_info_.static_chunk_constraints[chunk_i];
+            GeometryData &geo_data = geometries_.data[chunk.data_key_i];
+
+            /* Write back pin position lambdas. */
+            for (xpbd::PinnedPositionConstraintSet *constraint :
+                 chunk_constraints.pinned_positions) {
+              for (const int pin_i : constraint->point_indices.index_range()) {
+                const int point_i = constraint->point_indices[pin_i];
+                geo_data.pin_position_lambda_attr.span[point_i] = constraint->lambdas[pin_i];
+              }
+            }
+          }
+        });
+
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-
-      /* Write back pin position lambdas. */
-      for (const int i : geo_data.pin_position_indices.index_range()) {
-        const int point_i = geo_data.pin_position_indices[i];
-        geo_data.pin_position_lambda_attr.span[point_i] = geo_data.pin_position_lambdas[i];
-      }
 
       geo_data.position_attr.finish();
       geo_data.velocity_attr.finish();

@@ -208,6 +208,7 @@ Vector<IndexMask> n_ary_constraints_to_independent_masks_multi(
     const GroupedSpan<int> affected_geometries,
     const GroupedSpan<int> affected_points,
     IndexMaskMemory &memory);
+Vector<IndexMask> all_independent_masks(const int constraints_num);
 
 class ConstraintSetCollector {
  public:
