@@ -154,7 +154,10 @@ SearchInfo SocketSearchData::info(const bContext &C) const
         RNA_NodesModifier,
         const_cast<NodesModifierData *>(nmd));
     PointerRNA properties_ptr = RNA_pointer_get(&nmd_ptr, "properties");
-    PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
+    const bNodeTree &node_group = *nmd->node_group;
+    const bool is_output = bke::node_find_interface_output_by_identifier(node_group,
+                                                                         this->socket_identifier);
+    PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, is_output ? "outputs" : "inputs");
     PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, this->socket_identifier);
     return {tree_log, nmd->node_group, socket_props_ptr};
   }
