@@ -246,6 +246,7 @@ class XpbdSolverStep {
     this->prepare_cosserat_rod_constraints();
     this->evaluate_constraint_fields();
     this->do_simulation();
+    this->finish_attribute_writers();
     this->write_back_geometries_to_world();
   }
 
@@ -660,6 +661,7 @@ class XpbdSolverStep {
       geo_data.position_attr.finish();
       geo_data.velocity_attr.finish();
       geo_data.rotation_attr.finish();
+      geo_data.angular_velocity_attr.finish();
       geo_data.angular_velocity_attr.finish();
       geo_data.pin_position_lambda_attr.finish();
     }
