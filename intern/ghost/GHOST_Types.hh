@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_math_matrix.hh"
 #include "BLI_span.hh"
 
 #include <cstdint>
@@ -1242,7 +1243,7 @@ struct GHOST_XrControllerModelVertex {
 
 struct GHOST_XrControllerModelComponent {
   /** World space transform. */
-  float transform[4][4];
+  blender::float4x4 transform;
   uint32_t vertex_offset;
   uint32_t vertex_count;
   uint32_t index_offset;

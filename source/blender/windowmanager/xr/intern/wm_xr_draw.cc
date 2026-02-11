@@ -359,7 +359,7 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
         }
 
         GPU_matrix_push();
-        GPU_matrix_mul(component.transform);
+        GPU_matrix_mul(component.transform.ptr());
 
         if (texture) {
           /* Use textured model. */
