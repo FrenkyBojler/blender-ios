@@ -21,6 +21,7 @@
 
 #include "BKE_idprop.hh"
 #include "BKE_main.hh"
+#include "BKE_node_runtime.hh"
 
 #include "readfile.hh"
 
@@ -40,21 +41,27 @@ static void version_geometry_nodes_properties(NodesModifierData &nmd)
   if (!nmd.node_group) {
     return;
   }
-  NodesModifierSettings &settings = nmd.settings;
-  bNodeTree &ntree = *nmd.node_group;
+  const bNodeTree &ntree = *nmd.node_group;
   ntree.ensure_interface_cache();
 
+  IDProperty *system_props = bke::idprop::create_group("NodesModifierProperties").release();
+
   IDProperty *inputs = bke::idprop::create_group("inputs").release();
-  for (const bNodeTreeInterfaceSocket *socket : ntree.interface_inputs()) {
-    const StringRef identifier = socket->identifier;
+  IDP_AddToGroup(system_props, inputs);
+
+  for (const bNodeTreeInterfaceSocket *input : ntree.interface_inputs()) {
+    const StringRef identifier = input->identifier;
     IDProperty *old_value_prop = IDP_GetPropertyFromGroup(nmd.settings.properties, identifier);
     if (!old_value_prop) {
       continue;
     }
+
     IDProperty *group = bke::idprop::create_group(identifier).release();
     IDP_AddToGroup(inputs, group);
+
     IDProperty *new_value_prop = IDP_CopyProperty(old_value_prop);
     STRNCPY(new_value_prop->name, "value");
+    IDP_AddToGroup(group, new_value_prop);
 
     const IDProperty *use_attribute = IDP_GetPropertyFromGroup(nmd.settings.properties,
                                                                identifier + "_use_attribute");
@@ -68,24 +75,39 @@ static void version_geometry_nodes_properties(NodesModifierData &nmd)
       IDP_AddToGroup(
           group, bke::idprop::create("attribute_name", IDP_string_get(attribute_name)).release());
     }
-
-    IDProperty *outputs = bke::idprop::create_group("outputs").release();
-    IDProperty *panels = bke::idprop::create_group("panels").release();
-    for (IDProperty &idprop : settings.properties->data.group) {
-      const StringRef name = idprop.name;
-      if (name.endswith("_use_attribute")) {
-        continue;
-      }
-      if (name.endswith("_attribute_name")) {
-        continue;
-      }
-    }
-    IDProperty *system_props = bke::idprop::create_group("NodesModifierProperties").release();
   }
+
+  IDProperty *outputs = bke::idprop::create_group("outputs").release();
+  IDP_AddToGroup(system_props, outputs);
+  for (const bNodeTreeInterfaceSocket *output : ntree.interface_outputs()) {
+    const StringRef identifier = output->identifier;
+    IDProperty *old_name_prop = IDP_GetPropertyFromGroup(nmd.settings.properties,
+                                                         identifier + "_attribute_name");
+    if (!old_name_prop) {
+      continue;
+    }
+    IDProperty *group = bke::idprop::create_group(identifier).release();
+    IDP_AddToGroup(outputs, group);
+
+    IDProperty *new_value_prop = IDP_CopyProperty(old_name_prop);
+    STRNCPY(new_value_prop->name, "attribute_name");
+    IDP_AddToGroup(group, new_value_prop);
+  }
+
+  nmd.modifier.system_properties = system_props;
+  IDP_FreeProperty(nmd.settings.properties);
+  nmd.settings.properties = nullptr;
 }
 
-void do_versions_after_linking_520(FileData * /*fd*/, Main * /*bmain*/)
+void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
 {
+  for (Object &object : bmain->objects) {
+    for (ModifierData &md : object.modifiers) {
+      if (md.type == eModifierType_Nodes) {
+        version_geometry_nodes_properties(reinterpret_cast<NodesModifierData &>(md));
+      }
+    }
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
