@@ -1,2 +1,2 @@
 Referenced by issue #152969, Compositor colour correction node has changed under specific situations
-Referenced by issue #151972, Vulkan: Uninitialized variable in texture loader causes intermittent timeout and crash on Polaris/Vega
+Referenced by issue #151972, Vulkan: Uninitialized variable in texture loader causes intermittent driver timeout on Polaris/Vega
