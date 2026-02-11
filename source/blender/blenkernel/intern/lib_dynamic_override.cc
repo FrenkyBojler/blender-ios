@@ -23,12 +23,14 @@
 
 #include "DNA_ID.h"
 #include "DNA_dynamic_override_types.h"
+#include "DNA_scene_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
 
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
+#include "BKE_lib_dynamic_override.hh".hh "
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_library.hh"
@@ -142,34 +144,34 @@ static void dynoverride_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_OV = {
-    /*id_code*/ DynamicOverride::id_type,
-    /*id_filter*/ FILTER_ID_OV,
-    /*dependencies_id_types*/ FILTER_ID_ALL,
-    /*main_listbase_index*/ INDEX_ID_OV,
-    /*struct_size*/ sizeof(DynamicOverride),
-    /*name*/ "Dynamic Override",
-    /*name_plural*/ N_("dynamic_overrides"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_DYNAMIC_OVERRIDE,
-    /*flags*/ 0,
-    /*asset_type_info*/ nullptr,
+    .id_code = DynamicOverride::id_type,
+    .id_filter = FILTER_ID_OV,
+    .dependencies_id_types = FILTER_ID_ALL,
+    .main_listbase_index = INDEX_ID_OV,
+    .struct_size = sizeof(DynamicOverride),
+    .name = "Dynamic Override",
+    .name_plural = N_("dynamic_overrides"),
+    .translation_context = BLT_I18NCONTEXT_ID_DYNAMIC_OVERRIDE,
+    .flags = 0,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ dynoverride_init_data,
-    /*copy_data*/ dynoverride_copy_data,
-    /*free_data*/ dynoverride_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ dynoverride_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = dynoverride_init_data,
+    .copy_data = dynoverride_copy_data,
+    .free_data = dynoverride_free_data,
+    .make_local = nullptr,
+    .foreach_id = dynoverride_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ dynoverride_blend_write,
-    /*blend_read_data*/ dynoverride_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = dynoverride_blend_write,
+    .blend_read_data = dynoverride_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 /* -------------------------------------------------------------------- */
@@ -499,6 +501,47 @@ void dynamic_override_rule_property_remove(DynamicOverrideRule &rule,
   BLI_remlink(&rule_iddata.properties, existing_property);
   dynamic_override_rule_property_free(*existing_property);
   MEM_delete(existing_property);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Runtime/depgraph building & evaluation context.
+ * \{ */
+
+void DynamicOverrideDepsgraphCtx::gather_dynamic_overrides()
+{
+  if (dynamic_overrides_are_gathered_) {
+    return;
+  }
+
+  if (scene_->dynamic_override) {
+    dynamic_overrides_.add_as(scene_->dynamic_override);
+  }
+  dynamic_overrides_are_gathered_ = true;
+}
+
+void DynamicOverrideDepsgraphCtx::gather_id_targets()
+{
+  if (id_targets_are_gathered_) {
+    return;
+  }
+
+  if (!dynamic_overrides_are_gathered_) {
+    gather_dynamic_overrides();
+  }
+  for (const DynamicOverride *dynoverride_iter : dynamic_overrides_) {
+    for (const DynamicOverrideRule &rule_iter : dynoverride_iter->rules) {
+      if (rule_iter.type == DynamicOverrideRuleType::IDDATA) {
+        const DynamicOverrideRuleIDData &id_rule =
+            reinterpret_cast<const DynamicOverrideRuleIDData &>(rule_iter);
+        if (id_rule.owner_id) {
+          id_targets_.add(id_rule.owner_id);
+        }
+      }
+    }
+  }
+  id_targets_are_gathered_ = true;
 }
 
 /** \} */

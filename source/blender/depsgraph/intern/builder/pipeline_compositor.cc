@@ -37,12 +37,14 @@ CompositorBuilderPipeline::CompositorBuilderPipeline(blender::Depsgraph *graph,
 
 std::unique_ptr<DepsgraphNodeBuilder> CompositorBuilderPipeline::construct_node_builder()
 {
-  return std::make_unique<CompositorDepsgraphNodeBuilder>(bmain_, deg_graph_, &builder_cache_);
+  return std::make_unique<CompositorDepsgraphNodeBuilder>(
+      bmain_, deg_graph_, &builder_cache_, dynamic_override_ctx_);
 }
 
 std::unique_ptr<DepsgraphRelationBuilder> CompositorBuilderPipeline::construct_relation_builder()
 {
-  return std::make_unique<CompositorDepsgraphRelationBuilder>(bmain_, deg_graph_, &builder_cache_);
+  return std::make_unique<CompositorDepsgraphRelationBuilder>(
+      bmain_, deg_graph_, &builder_cache_, dynamic_override_ctx_);
 }
 
 void CompositorBuilderPipeline::build_nodes(DepsgraphNodeBuilder &node_builder)

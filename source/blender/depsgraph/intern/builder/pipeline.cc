@@ -81,7 +81,8 @@ AbstractBuilderPipeline::AbstractBuilderPipeline(blender::Depsgraph *graph)
     : deg_graph_(reinterpret_cast<Depsgraph *>(graph)),
       bmain_(deg_graph_->bmain),
       scene_(deg_graph_->scene),
-      view_layer_(deg_graph_->view_layer)
+      view_layer_(deg_graph_->view_layer),
+      dynamic_override_ctx_(&deg_graph_->dynamic_override_ctx_)
 {
 }
 
@@ -111,6 +112,13 @@ void AbstractBuilderPipeline::build_step_sanity_check()
   BLI_assert(BLI_findindex(&scene_->view_layers, view_layer_) != -1);
   BLI_assert(deg_graph_->scene == scene_);
   BLI_assert(deg_graph_->view_layer == view_layer_);
+  BLI_assert(&deg_graph_->dynamic_override_ctx_ == dynamic_override_ctx_);
+}
+
+void AbstractBuilderPipeline::build_step_dynamic_overrides()
+{
+  /* Find which IDs are affected by the active dynamic overrides. */
+  dynamic_override_ctx_->gather_id_targets();
 }
 
 void AbstractBuilderPipeline::build_step_nodes()
@@ -169,12 +177,14 @@ void AbstractBuilderPipeline::build_step_finalize()
 
 std::unique_ptr<DepsgraphNodeBuilder> AbstractBuilderPipeline::construct_node_builder()
 {
-  return std::make_unique<DepsgraphNodeBuilder>(bmain_, deg_graph_, &builder_cache_);
+  return std::make_unique<DepsgraphNodeBuilder>(
+      bmain_, deg_graph_, &builder_cache_, dynamic_override_ctx_);
 }
 
 std::unique_ptr<DepsgraphRelationBuilder> AbstractBuilderPipeline::construct_relation_builder()
 {
-  return std::make_unique<DepsgraphRelationBuilder>(bmain_, deg_graph_, &builder_cache_);
+  return std::make_unique<DepsgraphRelationBuilder>(
+      bmain_, deg_graph_, &builder_cache_, dynamic_override_ctx_);
 }
 
 }  // namespace deg

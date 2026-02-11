@@ -122,8 +122,9 @@ namespace blender::deg {
 
 DepsgraphNodeBuilder::DepsgraphNodeBuilder(Main *bmain,
                                            Depsgraph *graph,
-                                           DepsgraphBuilderCache *cache)
-    : DepsgraphBuilder(bmain, graph, cache),
+                                           DepsgraphBuilderCache *cache,
+                                           bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx)
+    : DepsgraphBuilder(bmain, graph, cache, dynamic_override_ctx),
       scene_(nullptr),
       view_layer_(nullptr),
       view_layer_index_(-1),

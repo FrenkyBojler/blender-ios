@@ -59,8 +59,11 @@ bool deg_check_base_in_depsgraph(const Depsgraph *graph, Base *base)
 /** \name Base Class for Builders
  * \{ */
 
-DepsgraphBuilder::DepsgraphBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuilderCache *cache)
-    : bmain_(bmain), graph_(graph), cache_(cache)
+DepsgraphBuilder::DepsgraphBuilder(Main *bmain,
+                                   Depsgraph *graph,
+                                   DepsgraphBuilderCache *cache,
+                                   bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx)
+    : bmain_(bmain), graph_(graph), cache_(cache), dynamic_override_ctx_(dynamic_override_ctx)
 {
 }
 

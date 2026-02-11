@@ -19,6 +19,10 @@ struct PointerRNA;
 struct Scene;
 struct bPoseChannel;
 
+namespace bke {
+class DynamicOverrideDepsgraphCtx;
+}
+
 namespace deg {
 
 struct Depsgraph;
@@ -47,12 +51,18 @@ class DepsgraphBuilder {
 
  protected:
   /* NOTE: The builder does NOT take ownership over any of those resources. */
-  DepsgraphBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuilderCache *cache);
+  DepsgraphBuilder(Main *bmain,
+                   Depsgraph *graph,
+                   DepsgraphBuilderCache *cache,
+                   bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx);
 
   /* State which never changes, same for the whole builder time. */
   Main *bmain_;
   Depsgraph *graph_;
   DepsgraphBuilderCache *cache_;
+
+  /** Owned by the depsgraph. */
+  bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx_;
 };
 
 bool deg_check_id_in_depsgraph(const Depsgraph *graph, ID *id_orig);

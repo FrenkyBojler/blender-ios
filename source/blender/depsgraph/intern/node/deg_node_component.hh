@@ -215,6 +215,7 @@ DEG_COMPONENT_NODE_DECLARE_NO_COW_TAG_ON_UPDATE(Visibility);
 DEG_COMPONENT_NODE_DECLARE_GENERIC(Simulation);
 DEG_COMPONENT_NODE_DECLARE_GENERIC(NTreeOutput);
 DEG_COMPONENT_NODE_DECLARE_GENERIC(NTreeGeometryPreprocess);
+DEG_COMPONENT_NODE_DECLARE_GENERIC(DynamicOverride);
 
 /* Bone Component */
 struct BoneComponentNode : public ComponentNode {

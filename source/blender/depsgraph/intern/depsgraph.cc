@@ -50,6 +50,7 @@ Depsgraph::Depsgraph(Main *bmain, Scene *scene, ViewLayer *view_layer, eEvaluati
       scene(scene),
       view_layer(view_layer),
       mode(mode),
+      dynamic_override_ctx_(scene, view_layer),
       frame(BKE_scene_frame_get(scene)),
       ctime(BKE_scene_ctime_get(scene)),
       scene_cow(nullptr),
@@ -298,6 +299,7 @@ void DEG_graph_replace_owners(Depsgraph *depsgraph,
   deg_graph->bmain = bmain;
   deg_graph->scene = scene;
   deg_graph->view_layer = view_layer;
+  deg_graph->dynamic_override_ctx_.reset_data(scene, view_layer);
 
   if (do_update_register) {
     deg::register_graph(deg_graph);

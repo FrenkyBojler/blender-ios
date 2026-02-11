@@ -54,6 +54,9 @@ enum class OperationCode {
   /* Writes to RNA properties to ensure implicitly-shared data is un-shared. */
   DRIVER_UNSHARE,
 
+  /* Dynamic overrides evaluation. */
+  DYNAMIC_OVERRIDE_EVAL,
+
   /* Scene related. ------------------------------------------------------- */
   SCENE_EVAL,
   AUDIO_ENTRY,

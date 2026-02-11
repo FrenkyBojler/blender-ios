@@ -36,8 +36,9 @@ class DepsgraphFromCollectionIDsNodeBuilder : public DepsgraphNodeBuilder {
   DepsgraphFromCollectionIDsNodeBuilder(Main *bmain,
                                         Depsgraph *graph,
                                         DepsgraphBuilderCache *cache,
+                                        bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx,
                                         const Set<ID *> &ids)
-      : DepsgraphNodeBuilder(bmain, graph, cache), filter_(ids)
+      : DepsgraphNodeBuilder(bmain, graph, cache, dynamic_override_ctx), filter_(ids)
   {
   }
 
@@ -58,8 +59,9 @@ class DepsgraphFromCollectionIDsRelationBuilder : public DepsgraphRelationBuilde
   DepsgraphFromCollectionIDsRelationBuilder(Main *bmain,
                                             Depsgraph *graph,
                                             DepsgraphBuilderCache *cache,
+                                            bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx,
                                             const Set<ID *> &ids)
-      : DepsgraphRelationBuilder(bmain, graph, cache), filter_(ids)
+      : DepsgraphRelationBuilder(bmain, graph, cache, dynamic_override_ctx), filter_(ids)
   {
   }
 
@@ -94,14 +96,14 @@ FromCollectionBuilderPipeline::FromCollectionBuilderPipeline(blender::Depsgraph 
 std::unique_ptr<DepsgraphNodeBuilder> FromCollectionBuilderPipeline::construct_node_builder()
 {
   return std::make_unique<DepsgraphFromCollectionIDsNodeBuilder>(
-      bmain_, deg_graph_, &builder_cache_, ids_);
+      bmain_, deg_graph_, &builder_cache_, dynamic_override_ctx_, ids_);
 }
 
 std::unique_ptr<DepsgraphRelationBuilder> FromCollectionBuilderPipeline::
     construct_relation_builder()
 {
   return std::make_unique<DepsgraphFromCollectionIDsRelationBuilder>(
-      bmain_, deg_graph_, &builder_cache_, ids_);
+      bmain_, deg_graph_, &builder_cache_, dynamic_override_ctx_, ids_);
 }
 
 void FromCollectionBuilderPipeline::build_nodes(DepsgraphNodeBuilder &node_builder)

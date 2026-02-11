@@ -36,12 +36,14 @@ RenderBuilderPipeline::RenderBuilderPipeline(blender::Depsgraph *graph)
 
 std::unique_ptr<DepsgraphNodeBuilder> RenderBuilderPipeline::construct_node_builder()
 {
-  return std::make_unique<RenderDepsgraphNodeBuilder>(bmain_, deg_graph_, &builder_cache_);
+  return std::make_unique<RenderDepsgraphNodeBuilder>(
+      bmain_, deg_graph_, &builder_cache_, dynamic_override_ctx_);
 }
 
 std::unique_ptr<DepsgraphRelationBuilder> RenderBuilderPipeline::construct_relation_builder()
 {
-  return std::make_unique<RenderDepsgraphRelationBuilder>(bmain_, deg_graph_, &builder_cache_);
+  return std::make_unique<RenderDepsgraphRelationBuilder>(
+      bmain_, deg_graph_, &builder_cache_, dynamic_override_ctx_);
 }
 
 void RenderBuilderPipeline::build_nodes(DepsgraphNodeBuilder &node_builder)

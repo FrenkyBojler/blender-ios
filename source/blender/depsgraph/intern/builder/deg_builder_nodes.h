@@ -61,6 +61,10 @@ struct bPoseChannel;
 struct bSound;
 struct PointerRNA;
 
+namespace bke {
+class DynamicOverrideDepsgraphCtx;
+}
+
 namespace deg {
 
 struct ComponentNode;
@@ -73,7 +77,10 @@ struct TimeSourceNode;
 
 class DepsgraphNodeBuilder : public DepsgraphBuilder {
  public:
-  DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuilderCache *cache);
+  DepsgraphNodeBuilder(Main *bmain,
+                       Depsgraph *graph,
+                       DepsgraphBuilderCache *cache,
+                       bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx);
   ~DepsgraphNodeBuilder();
 
   /* For given original ID get ID which is created by copy-on-evaluation system. */
@@ -251,6 +258,8 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
    * and here it is called `rna_path_from_target_prop`. */
   virtual void build_driver_id_property(const PointerRNA &target_prop,
                                         const char *rna_path_from_target_prop);
+
+  // virtual void build_dynamic_override(ID *id);
 
   virtual void build_parameters(ID *id);
   virtual void build_dimensions(Object *object);
