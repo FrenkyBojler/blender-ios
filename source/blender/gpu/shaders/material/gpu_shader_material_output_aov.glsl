@@ -5,5 +5,5 @@
 [[node]]
 void node_output_aov(float4 color, float value, float hash, Closure &dummy)
 {
-  output_aov(color, value, floatBitsToUint(hash));
+  output_aov(color, value, floatBitsToUint(hash), g_holdout, drw_object_infos().flag);
 }
