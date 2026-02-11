@@ -89,6 +89,10 @@ class CommitInfo():
             report_information = url_json_get(
                 f"https://projects.blender.org/api/v1/repos/blender/blender/issues/{report_number}")
 
+            if report_information is None:
+                # It might be `None` if bug report has been deleted.
+                continue
+
             if "pull" in report_information['html_url']:
                 # Pull requests aren't bug reports. So skip processing it.
                 continue
