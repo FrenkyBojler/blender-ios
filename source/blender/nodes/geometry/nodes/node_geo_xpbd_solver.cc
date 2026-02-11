@@ -823,117 +823,128 @@ class XpbdSolverStep {
       threading::parallel_for(
           geometries_.chunks.index_range(), 4, [&](const IndexRange chunks_range) {
             for (const int chunk_i : chunks_range) {
-              const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-              const IndexRange points_range = chunk.points_range;
-              const int data_key_i = chunk.data_key_i;
-              GeometryData &geo_data = geometries_.data[data_key_i];
-              ChunkConstraints &static_chunk_constraints =
-                  constraints_info_.static_chunk_constraints[chunk_i];
-
-              geo_data.prev_positions.as_mutable_span()
-                  .slice(points_range)
-                  .copy_from(geo_data.position_attr.span.slice(points_range));
-              geo_data.prev_rotations.as_mutable_span()
-                  .slice(points_range)
-                  .copy_from(geo_data.rotation_attr.span.slice(points_range));
-
-              /* Update animated pin positions. */
-              for (const xpbd::PinnedPositionConstraintSet *constraint :
-                   static_chunk_constraints.pinned_positions)
-              {
-                for (const int pin_i : constraint->point_indices.index_range()) {
-                  const int point_i = constraint->point_indices[pin_i];
-                  const float3 &begin_pos = geo_data.pin_position_begin[point_i];
-                  const float3 &end_pos = geo_data.pin_position_end[point_i];
-                  const float3 pin_pos = math::interpolate(begin_pos, end_pos, substep.end_factor);
-                  *const_cast<float3 *>(&constraint->pin_positions[pin_i]) = pin_pos;
-                }
-              }
-
-              this->integrate_linear_velocities(
-                  sub_delta_time_,
-                  geo_data.prev_positions.as_span().slice(points_range),
-                  geo_data.position_attr.span.slice(points_range),
-                  geo_data.velocity_attr.span.slice(points_range),
-                  geo_data.inv_masses.as_span().slice(points_range),
-                  geo_data.external_force_attr.slice(points_range));
-              this->integrate_angular_velocities(
-                  sub_delta_time_,
-                  geo_data.prev_rotations.as_span().slice(points_range),
-                  geo_data.rotation_attr.span.slice(points_range),
-                  geo_data.angular_velocity_attr.span.slice(points_range),
-                  geo_data.inv_inertias.as_span().slice(points_range),
-                  geo_data.external_torque_attr.slice(points_range));
+              this->simulate__pre_position_solve(substep, chunk_i);
             }
           });
 
-      Vector<xpbd::GeometryRef> solver_geo_refs(geometries_.data_keys.size());
-      for (const int data_key_i : geometries_.data_keys.index_range()) {
-        GeometryData &geo_data = geometries_.data[data_key_i];
-        xpbd::GeometryRef &ref = solver_geo_refs[data_key_i];
-        ref.positions = geo_data.position_attr.span;
-        ref.velocities = geo_data.velocity_attr.span;
-        ref.prev_positions = geo_data.prev_positions;
-        ref.inverse_masses = geo_data.inv_masses;
-
-        ref.rotations = geo_data.rotation_attr.span;
-        ref.angular_velocities = geo_data.angular_velocity_attr.span;
-        ref.prev_rotations = geo_data.prev_rotations;
-
-        ref.inertias = geo_data.inertias;
-        ref.inverse_inertias = geo_data.inv_inertias;
-      }
-
-      for ([[maybe_unused]] const int constraint_iter_i : IndexRange(constraint_iterations_)) {
-        threading::parallel_for(
-            geometries_.chunks.index_range(), 1, [&](const IndexRange chunks_range) {
-              for (const int chunk_i : chunks_range) {
-                const ChunkConstraints &chunk_constraints =
-                    constraints_info_.static_chunk_constraints[chunk_i];
-
-                Vector<xpbd::ConstraintSet *> local_constraints;
-                for (xpbd::PinnedPositionConstraintSet *constraint :
-                     chunk_constraints.pinned_positions)
-                {
-                  local_constraints.append(constraint);
-                }
-                for (xpbd::RodStretchAndShearCurveLocalConstraintSet *constraint :
-                     chunk_constraints.rod_stretch_shear)
-                {
-                  local_constraints.append(constraint);
-                }
-                for (xpbd::RodBendAndTwistCurveLocalConstraintSet *constraint :
-                     chunk_constraints.rod_bend_twist)
-                {
-                  local_constraints.append(constraint);
-                }
-
-                xpbd::ConstraintSetParams solve_params{
-                    solver_geo_refs, substep_compliance_factor_, std::nullopt};
-                this->solve_constraints(solve_params, local_constraints);
-              }
-            });
-      }
+      this->simulate__position_solve();
 
       threading::parallel_for(
           geometries_.chunks.index_range(), 16, [&](const IndexRange chunks_range) {
             for (const int chunk_i : chunks_range) {
-              const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-              const IndexRange points_range = chunk.points_range;
-              const int data_key_i = chunk.data_key_i;
-              GeometryData &geo_data = geometries_.data[data_key_i];
-              this->update_linear_velocities(sub_delta_time_,
-                                             geo_data.prev_positions.as_span().slice(points_range),
-                                             geo_data.position_attr.span.slice(points_range),
-                                             geo_data.velocity_attr.span.slice(points_range));
-              this->update_angular_velocities(
-                  sub_delta_time_,
-                  geo_data.prev_rotations.as_span().slice(points_range),
-                  geo_data.rotation_attr.span.slice(points_range),
-                  geo_data.angular_velocity_attr.span.slice(points_range));
+              this->simulate__update_velocities(chunk_i);
             }
           });
     }
+  }
+
+  void simulate__pre_position_solve(const SubstepInterval &substep, const int chunk_i)
+  {
+    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+    const IndexRange points_range = chunk.points_range;
+    const int data_key_i = chunk.data_key_i;
+    GeometryData &geo_data = geometries_.data[data_key_i];
+    ChunkConstraints &static_chunk_constraints =
+        constraints_info_.static_chunk_constraints[chunk_i];
+
+    geo_data.prev_positions.as_mutable_span()
+        .slice(points_range)
+        .copy_from(geo_data.position_attr.span.slice(points_range));
+    geo_data.prev_rotations.as_mutable_span()
+        .slice(points_range)
+        .copy_from(geo_data.rotation_attr.span.slice(points_range));
+
+    /* Update animated pin positions. */
+    for (const xpbd::PinnedPositionConstraintSet *constraint :
+         static_chunk_constraints.pinned_positions)
+    {
+      for (const int pin_i : constraint->point_indices.index_range()) {
+        const int point_i = constraint->point_indices[pin_i];
+        const float3 &begin_pos = geo_data.pin_position_begin[point_i];
+        const float3 &end_pos = geo_data.pin_position_end[point_i];
+        const float3 pin_pos = math::interpolate(begin_pos, end_pos, substep.end_factor);
+        *const_cast<float3 *>(&constraint->pin_positions[pin_i]) = pin_pos;
+      }
+    }
+
+    this->integrate_linear_velocities(sub_delta_time_,
+                                      geo_data.prev_positions.as_span().slice(points_range),
+                                      geo_data.position_attr.span.slice(points_range),
+                                      geo_data.velocity_attr.span.slice(points_range),
+                                      geo_data.inv_masses.as_span().slice(points_range),
+                                      geo_data.external_force_attr.slice(points_range));
+    this->integrate_angular_velocities(sub_delta_time_,
+                                       geo_data.prev_rotations.as_span().slice(points_range),
+                                       geo_data.rotation_attr.span.slice(points_range),
+                                       geo_data.angular_velocity_attr.span.slice(points_range),
+                                       geo_data.inv_inertias.as_span().slice(points_range),
+                                       geo_data.external_torque_attr.slice(points_range));
+  }
+
+  void simulate__position_solve()
+  {
+    Vector<xpbd::GeometryRef> solver_geo_refs(geometries_.data_keys.size());
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      xpbd::GeometryRef &ref = solver_geo_refs[data_key_i];
+      ref.positions = geo_data.position_attr.span;
+      ref.velocities = geo_data.velocity_attr.span;
+      ref.prev_positions = geo_data.prev_positions;
+      ref.inverse_masses = geo_data.inv_masses;
+
+      ref.rotations = geo_data.rotation_attr.span;
+      ref.angular_velocities = geo_data.angular_velocity_attr.span;
+      ref.prev_rotations = geo_data.prev_rotations;
+
+      ref.inertias = geo_data.inertias;
+      ref.inverse_inertias = geo_data.inv_inertias;
+    }
+
+    for ([[maybe_unused]] const int constraint_iter_i : IndexRange(constraint_iterations_)) {
+      threading::parallel_for(
+          geometries_.chunks.index_range(), 1, [&](const IndexRange chunks_range) {
+            for (const int chunk_i : chunks_range) {
+              const ChunkConstraints &chunk_constraints =
+                  constraints_info_.static_chunk_constraints[chunk_i];
+
+              Vector<xpbd::ConstraintSet *> local_constraints;
+              for (xpbd::PinnedPositionConstraintSet *constraint :
+                   chunk_constraints.pinned_positions) {
+                local_constraints.append(constraint);
+              }
+              for (xpbd::RodStretchAndShearCurveLocalConstraintSet *constraint :
+                   chunk_constraints.rod_stretch_shear)
+              {
+                local_constraints.append(constraint);
+              }
+              for (xpbd::RodBendAndTwistCurveLocalConstraintSet *constraint :
+                   chunk_constraints.rod_bend_twist)
+              {
+                local_constraints.append(constraint);
+              }
+
+              xpbd::ConstraintSetParams solve_params{
+                  solver_geo_refs, substep_compliance_factor_, std::nullopt};
+              this->solve_constraints(solve_params, local_constraints);
+            }
+          });
+    }
+  }
+
+  void simulate__update_velocities(const int chunk_i)
+  {
+    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+    const IndexRange points_range = chunk.points_range;
+    const int data_key_i = chunk.data_key_i;
+    GeometryData &geo_data = geometries_.data[data_key_i];
+    this->update_linear_velocities(sub_delta_time_,
+                                   geo_data.prev_positions.as_span().slice(points_range),
+                                   geo_data.position_attr.span.slice(points_range),
+                                   geo_data.velocity_attr.span.slice(points_range));
+    this->update_angular_velocities(sub_delta_time_,
+                                    geo_data.prev_rotations.as_span().slice(points_range),
+                                    geo_data.rotation_attr.span.slice(points_range),
+                                    geo_data.angular_velocity_attr.span.slice(points_range));
   }
 
   void finish_attribute_writers()
