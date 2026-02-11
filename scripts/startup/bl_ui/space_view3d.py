@@ -6833,6 +6833,7 @@ class VIEW3D_PT_shading_cavity(Panel):
     bl_region_type = 'HEADER'
     bl_label = "Cavity"
     bl_parent_id = "VIEW3D_PT_shading"
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -7192,6 +7193,7 @@ class VIEW3D_PT_overlay_motion_tracking(Panel):
     bl_region_type = 'HEADER'
     bl_parent_id = "VIEW3D_PT_overlay"
     bl_label = "Motion Tracking"
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
         layout = self.layout
