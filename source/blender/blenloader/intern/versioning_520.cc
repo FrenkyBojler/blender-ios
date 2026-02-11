@@ -41,7 +41,7 @@ static void version_geometry_nodes_properties(NodesModifierData &nmd)
     return;
   }
   NodesModifierSettings &settings = nmd.settings;
-  const bNodeTree &ntree = *nmd.node_group;
+  bNodeTree &ntree = *nmd.node_group;
   ntree.ensure_interface_cache();
 
   IDProperty *inputs = bke::idprop::create_group("inputs").release();

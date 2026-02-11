@@ -8,10 +8,12 @@
 
 #include "RNA_types.hh"
 
+namespace blender {
+
 struct StructRNA;
 struct bNodeTree;
 
-namespace blender::nodes {
+namespace nodes {
 
 /**
  * Shared across all socket types, though some entries don't make sense for some types.
@@ -36,4 +38,5 @@ struct GeneratedTreeSrnaData {
 StructRNA *get_geometry_nodes_interface_srna_for_modifier(const bNodeTree &tree,
                                                           GeneratedTreeSrnaData &r_generated);
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender
