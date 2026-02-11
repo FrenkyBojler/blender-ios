@@ -848,22 +848,16 @@ void GHOST_XrControllerModel::updateComponents(XrSession /*session*/, XrTime dis
 void GHOST_XrControllerModel::getData(GHOST_XrControllerModelData &r_data)
 {
   if (data_loaded_) {
-    r_data.count_vertices = uint32_t(vertices_.size());
-    r_data.vertices = vertices_.data();
-    r_data.count_indices = uint32_t(indices_.size());
-    r_data.indices = indices_.data();
-    r_data.count_components = uint32_t(components_.size());
-    r_data.components = components_.data();
+    r_data.vertices = vertices_;
+    r_data.indices = indices_;
+    r_data.components = components_;
     r_data.textures = textures_;
     r_data.base_pose = base_pose_;
   }
   else {
-    r_data.count_vertices = 0;
-    r_data.vertices = nullptr;
-    r_data.count_indices = 0;
-    r_data.indices = nullptr;
-    r_data.count_components = 0;
-    r_data.components = nullptr;
+    r_data.vertices.clear();
+    r_data.indices.clear();
+    r_data.components.clear();
     r_data.textures.clear();
     r_data.base_pose = {false, {0, 0, 0}, {1, 0, 0, 0}};
   }

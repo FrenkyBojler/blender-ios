@@ -1251,13 +1251,11 @@ struct GHOST_XrControllerModelComponent {
 using GHOST_XrControllerModelTextureData = std::vector<uchar>;
 
 struct GHOST_XrControllerModelData {
-  uint32_t count_vertices;
-  const GHOST_XrControllerModelVertex *vertices;
-  uint32_t count_indices;
-  const uint32_t *indices;
-  uint32_t count_components;
-  const GHOST_XrControllerModelComponent *components;
+  std::vector<GHOST_XrControllerModelVertex> vertices;
+  std::vector<uint32_t> indices;
+  std::vector<GHOST_XrControllerModelComponent> components;
   std::vector<GHOST_XrControllerModelTextureData> textures;
+
   GHOST_XrPose base_pose;
 };
 

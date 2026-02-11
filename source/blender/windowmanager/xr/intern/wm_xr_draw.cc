@@ -237,7 +237,7 @@ static gpu::Batch *wm_xr_controller_model_batch_create(GHOST_IXrContext *xr_cont
   GHOST_XrControllerModelData model_data;
 
   if (!GHOST_XrGetControllerModelData(xr_context, subaction_path, &model_data) ||
-      model_data.count_vertices < 1)
+      model_data.vertices.empty())
   {
     return nullptr;
   }
@@ -248,15 +248,15 @@ static gpu::Batch *wm_xr_controller_model_batch_create(GHOST_IXrContext *xr_cont
   GPU_vertformat_attr_add(&format, "texCoord", gpu::VertAttrType::SFLOAT_32_32);
 
   gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(*vbo, model_data.count_vertices);
+  GPU_vertbuf_data_alloc(*vbo, model_data.vertices.size());
   vbo->data<GHOST_XrControllerModelVertex>().copy_from(
-      {model_data.vertices, model_data.count_vertices});
+      {model_data.vertices.data(), int64_t(model_data.vertices.size())});
 
   gpu::IndexBuf *ibo = nullptr;
-  if (model_data.count_indices > 0 && ((model_data.count_indices % 3) == 0)) {
+  if (model_data.indices.empty() && ((model_data.indices.size() % 3) == 0)) {
     GPUIndexBufBuilder ibo_builder;
-    const uint prim_len = model_data.count_indices / 3;
-    GPU_indexbuf_init(&ibo_builder, GPU_PRIM_TRIS, prim_len, model_data.count_vertices);
+    const uint prim_len = model_data.indices.size() / 3;
+    GPU_indexbuf_init(&ibo_builder, GPU_PRIM_TRIS, prim_len, model_data.vertices.size());
     for (uint i = 0; i < prim_len; ++i) {
       const uint32_t *idx = &model_data.indices[i * 3];
       GPU_indexbuf_add_tri_verts(&ibo_builder, idx[0], idx[1], idx[2]);
@@ -345,24 +345,22 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
 
     if (model &&
         GHOST_XrGetControllerModelData(xr_context, controller.subaction_path, &model_data) &&
-        model_data.count_components > 0)
+        !model_data.components.empty())
     {
       GPU_matrix_push();
       GPU_matrix_mul(controller.model_mat);
 
-      for (uint component_idx = 0; component_idx < model_data.count_components; ++component_idx) {
-        const GHOST_XrControllerModelComponent *component = &model_data.components[component_idx];
-
+      for (const GHOST_XrControllerModelComponent &component: model_data.components) {
         /* Check if this component has a texture. */
         gpu::Texture *texture = nullptr;
-        if (component->texture_index >= 0 &&
-            component->texture_index < controller.model_textures.size())
+        if (component.texture_index >= 0 &&
+            component.texture_index < controller.model_textures.size())
         {
-          texture = controller.model_textures[component->texture_index];
+          texture = controller.model_textures[component.texture_index];
         }
 
         GPU_matrix_push();
-        GPU_matrix_mul(component->transform);
+        GPU_matrix_mul(component.transform);
 
         if (texture) {
           /* Use textured model. */
@@ -379,8 +377,8 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
         }
 
         GPU_batch_draw_range(model,
-                             model->elem ? component->index_offset : component->vertex_offset,
-                             model->elem ? component->index_count : component->vertex_count);
+                             model->elem ? component.index_offset : component.vertex_offset,
+                             model->elem ? component.index_count : component.vertex_count);
 
         if (texture) {
           GPU_texture_unbind(texture);
