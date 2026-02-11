@@ -1056,6 +1056,7 @@ struct RectTransformInteraction {
   float orig_matrix_final_no_offset[4][4];
   Dial *dial;
   bool use_temp_uniform;
+  bool use_temp_centered;
 };
 
 }  // namespace
@@ -1156,22 +1157,31 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
 {
   RectTransformInteraction *data = static_cast<RectTransformInteraction *>(gz->interaction_data);
   int transform_flag = RNA_enum_get(gz->ptr, "transform");
+
+  const bool use_temp_uniform = (event->modifier & KM_SHIFT) != 0;
+  const bool use_temp_centered = (event->modifier & KM_CTRL) != 0;
+
+  bool uniform_changed = false;
   if ((transform_flag & ED_GIZMO_CAGE_XFORM_FLAG_SCALE_UNIFORM) == 0) {
     /* WARNING: Checking the events modifier only makes sense as long as `tweak_flag`
      * remains unused (this controls #WM_GIZMO_TWEAK_PRECISE by default). */
-    const bool use_temp_uniform = (event->modifier & KM_SHIFT) != 0;
-    const bool changed = data->use_temp_uniform != use_temp_uniform;
+    uniform_changed = data->use_temp_uniform != use_temp_uniform;
     data->use_temp_uniform = use_temp_uniform;
     if (use_temp_uniform) {
       transform_flag |= ED_GIZMO_CAGE_XFORM_FLAG_SCALE_UNIFORM;
     }
+  }
 
-    if (changed) {
-      /* Always refresh. */
-    }
-    else if (event->type != MOUSEMOVE) {
-      return OPERATOR_RUNNING_MODAL;
-    }
+  const bool centered_changed = data->use_temp_centered != use_temp_centered;
+  data->use_temp_centered = use_temp_centered;
+
+  if (centered_changed) {
+    ED_region_tag_redraw_editor_overlays(CTX_wm_region(C));
+  }
+
+  /* Only return early if no modifier state changed and not a mouse move. */
+  if (!uniform_changed && !centered_changed && event->type != MOUSEMOVE) {
+    return OPERATOR_RUNNING_MODAL;
   }
 
   float point_local[2];
@@ -1254,7 +1264,7 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
     const int draw_style = RNA_enum_get(gz->ptr, "draw_style");
 
     float pivot[2];
-    if (transform_flag & ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE) {
+    if ((transform_flag & ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE) && !data->use_temp_centered) {
       gizmo_pivot_from_scale_part(gz->highlight_part, pivot);
       mul_v2_v2(pivot, dims);
     }
