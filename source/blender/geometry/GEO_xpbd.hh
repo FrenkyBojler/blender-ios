@@ -205,6 +205,23 @@ class ConstraintSet {
   Span<int> get_affected_geo_indices() const;
 };
 
+class VelocityConstraintSet {
+ protected:
+  Vector<int> affected_geo_indices_;
+
+ public:
+  VelocityConstraintSet(Vector<int> affected_geo_indices)
+      : affected_geo_indices_(std::move(affected_geo_indices))
+  {
+  }
+  virtual ~VelocityConstraintSet() = default;
+
+  virtual void reset_forces() = 0;
+  virtual void solve_step(VelocityUpdater &updater, const ConstraintSetParams &params) = 0;
+
+  Span<int> get_affected_geo_indices() const;
+};
+
 /**
  * Slow but simple iterative Gauss Seidel solver. It evaluates each constraints serially without
  * any parallelism.
