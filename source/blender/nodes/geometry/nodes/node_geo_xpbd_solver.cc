@@ -854,27 +854,33 @@ class XpbdSolverStep {
         ref.inverse_inertias = geo_data.inv_inertias;
       }
 
-      Vector<xpbd::ConstraintSet *> constraints;
-      for (const ChunkConstraints &chunk_constraints : constraints_info_.static_chunk_constraints)
-      {
-        for (xpbd::PinnedPositionConstraintSet *constraint : chunk_constraints.pinned_positions) {
-          constraints.append(constraint);
-        }
-        for (xpbd::RodStretchAndShearCurveLocalConstraintSet *constraint :
-             chunk_constraints.rod_stretch_shear)
-        {
-          constraints.append(constraint);
-        }
-        for (xpbd::RodBendAndTwistCurveLocalConstraintSet *constraint :
-             chunk_constraints.rod_bend_twist)
-        {
-          constraints.append(constraint);
-        }
-      }
+      threading::parallel_for(
+          geometries_.chunks.index_range(), 1, [&](const IndexRange chunks_range) {
+            for (const int chunk_i : chunks_range) {
+              const ChunkConstraints &chunk_constraints =
+                  constraints_info_.static_chunk_constraints[chunk_i];
 
-      xpbd::ConstraintSetParams solve_params{
-          solver_geo_refs, substep_compliance_factor_, std::nullopt};
-      xpbd::solve_gauss_seidel_one_at_a_time(solve_params, constraints);
+              Vector<xpbd::ConstraintSet *> local_constraints;
+              for (xpbd::PinnedPositionConstraintSet *constraint :
+                   chunk_constraints.pinned_positions) {
+                local_constraints.append(constraint);
+              }
+              for (xpbd::RodStretchAndShearCurveLocalConstraintSet *constraint :
+                   chunk_constraints.rod_stretch_shear)
+              {
+                local_constraints.append(constraint);
+              }
+              for (xpbd::RodBendAndTwistCurveLocalConstraintSet *constraint :
+                   chunk_constraints.rod_bend_twist)
+              {
+                local_constraints.append(constraint);
+              }
+
+              xpbd::ConstraintSetParams solve_params{
+                  solver_geo_refs, substep_compliance_factor_, std::nullopt};
+              xpbd::solve_gauss_seidel_one_at_a_time(solve_params, local_constraints);
+            }
+          });
 
       threading::parallel_for(
           geometries_.chunks.index_range(), 16, [&](const IndexRange chunks_range) {
