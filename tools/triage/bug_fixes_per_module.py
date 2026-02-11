@@ -246,24 +246,24 @@ def print_info(list_of_commits: list[CommitInfo], start_date: str, end_date: str
     print(f"Between {start_date} and {end_date}, there were a total of {len(list_of_commits)} Fix #NUMBER commits.")
     print("These are the numbers per module:\n")
 
-    dict_of_modules_and_commits: dict[str, int] = {}
+    dict_of_modules_and_commits: dict[str, list[CommitInfo]] = {}
 
     for commit in list_of_commits:
         try:
-            dict_of_modules_and_commits[commit.module] += 1
+            dict_of_modules_and_commits[commit.module].append(commit)
         except KeyError:
-            dict_of_modules_and_commits[commit.module] = 1
+            dict_of_modules_and_commits[commit.module] = [commit]
 
     dict_of_modules_and_commits = dict(sorted(dict_of_modules_and_commits.items()))
 
     for module in dict_of_modules_and_commits:
         if module == UNKNOWN:
             continue
-        print(f"{module}: {dict_of_modules_and_commits[module]}")
+        print(f"{module}: {len(dict_of_modules_and_commits[module])}")
 
     if UNKNOWN in dict_of_modules_and_commits:
         unknown_commits = dict_of_modules_and_commits[UNKNOWN]
-        print(f"\n{UNKNOWN}: {unknown_commits}")
+        print(f"\n{UNKNOWN}: {len(unknown_commits)}")
         print("Here is a list of the commits with unknown modules.")
         print("Go through each of the commit messages, find the bug reports they fixed, then update the module label.")
         for commit in unknown_commits:
