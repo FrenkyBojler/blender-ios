@@ -552,7 +552,7 @@ void GHOST_XrControllerModel::load(XrSession session)
     return;
   }
 
-  std::vector<XrRenderModelIdEXT> interaction_model_ids{XR_NULL_PATH, num_models};
+  std::vector<XrRenderModelIdEXT> interaction_model_ids(num_models, XR_NULL_PATH);
   CHECK_XR(g_xrEnumerateInteractionRenderModelIdsEXT(
                session, nullptr, num_models, &num_models, interaction_model_ids.data()),
            "Failed to iterate interaction render models.");
