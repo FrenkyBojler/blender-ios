@@ -101,8 +101,11 @@ struct CryptomattePicker {
   void *draw_handle_sample_text = nullptr;
   char sample_text[MAX_NAME] = {};
   bool accum_start = false;
+  bool multi_sample = false;
   float last_picked_hash = 0.0f;
   int accum_tot = 0;
+  ListBase initial_entries = {nullptr, nullptr};
+  char *initial_matte_id = nullptr;
 };
 
 /* -------------------------------------------------------------------- */
@@ -458,6 +461,9 @@ static void cryptomatte_pick_exit(bContext *C, wmOperator *op)
     picker->session = nullptr;
   }
 
+  BLI_freelistN(&picker->initial_entries);
+  MEM_SAFE_DELETE(picker->initial_matte_id);
+
   ED_workspace_status_text(C, nullptr);
 
   op->customdata = nullptr;
@@ -466,6 +472,23 @@ static void cryptomatte_pick_exit(bContext *C, wmOperator *op)
 
 static void cryptomatte_pick_cancel(bContext *C, wmOperator *op)
 {
+  CryptomattePicker *picker = static_cast<CryptomattePicker *>(op->customdata);
+
+  if (picker->accum_tot > 0 && picker->node) {
+    NodeCryptomatte *crypto = static_cast<NodeCryptomatte *>(picker->node->storage);
+
+    BLI_freelistN(&crypto->entries);
+    BLI_duplicatelist(&crypto->entries, &picker->initial_entries);
+
+    MEM_SAFE_DELETE(crypto->matte_id);
+    if (picker->initial_matte_id) {
+      crypto->matte_id = BLI_strdup(picker->initial_matte_id);
+    }
+
+    BKE_ntree_update_tag_node_property(picker->ntree, picker->node);
+    BKE_main_ensure_invariants(*CTX_data_main(C), picker->ntree->id);
+  }
+
   cryptomatte_pick_exit(C, op);
 }
 
@@ -502,6 +525,8 @@ static wmOperatorStatus cryptomatte_pick_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
+  NodeCryptomatte *crypto = static_cast<NodeCryptomatte *>(node->storage);
+
   CryptomattePicker *picker = MEM_new<CryptomattePicker>(__func__);
   picker->node = node;
   picker->ntree = ntree;
@@ -510,6 +535,11 @@ static wmOperatorStatus cryptomatte_pick_invoke(bContext *C,
   picker->cb_win = CTX_wm_window(C);
   picker->draw_handle_sample_text = WM_draw_cb_activate(
       picker->cb_win, cryptomatte_draw_cb, picker);
+
+  BLI_duplicatelist(&picker->initial_entries, &crypto->entries);
+  if (crypto->matte_id) {
+    picker->initial_matte_id = BLI_strdup(crypto->matte_id);
+  }
 
   op->customdata = picker;
 
@@ -528,17 +558,22 @@ static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, cons
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
       case EYE_MODAL_CRYPTO_CANCEL:
-        cryptomatte_pick_exit(C, op);
+        cryptomatte_pick_cancel(C, op);
         return OPERATOR_CANCELLED;
 
       case EYE_MODAL_CRYPTO_SAMPLE_BEGIN:
         picker->accum_start = true;
+        picker->multi_sample = (event->modifier & KM_SHIFT) != 0;
         cryptomatte_pick_sample_and_apply(C, picker, event->xy);
         cryptomatte_pick_sample_text_update(C, picker, event->xy);
         break;
 
       case EYE_MODAL_CRYPTO_SAMPLE_RELEASE:
         picker->accum_start = false;
+        if (!picker->multi_sample) {
+          cryptomatte_pick_exit(C, op);
+          return OPERATOR_FINISHED;
+        }
         break;
 
       case EYE_MODAL_CRYPTO_CONFIRM:
@@ -554,6 +589,7 @@ static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, cons
 
     WorkspaceStatus status(C);
     status.opmodal(IFACE_("Sample"), op->type, EYE_MODAL_CRYPTO_SAMPLE_BEGIN);
+    status.item(IFACE_("Multi-Sample"), ICON_EVENT_SHIFT, ICON_MOUSE_LMB);
     status.opmodal(IFACE_("Confirm"), op->type, EYE_MODAL_CRYPTO_CONFIRM);
     status.opmodal(IFACE_("Cancel"), op->type, EYE_MODAL_CRYPTO_CANCEL);
   }
