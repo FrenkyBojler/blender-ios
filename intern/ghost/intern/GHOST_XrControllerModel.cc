@@ -65,10 +65,10 @@ static void validate_accessor(const tinygltf::Accessor &accessor,
 }
 
 template<float (GHOST_XrControllerModelVertex::*field)[3]>
-static void read_vertices(const tinygltf::Accessor &accessor,
-                          const tinygltf::BufferView &buffer_view,
-                          const tinygltf::Buffer &buffer,
-                          GHOST_XrPrimitive &primitive)
+static void read_vertices_vec3(const tinygltf::Accessor &accessor,
+                               const tinygltf::BufferView &buffer_view,
+                               const tinygltf::Buffer &buffer,
+                               GHOST_XrPrimitive &primitive)
 {
   if (accessor.type != TINYGLTF_TYPE_VEC3) {
     throw GHOST_XrException(
@@ -97,6 +97,36 @@ static void read_vertices(const tinygltf::Accessor &accessor,
   }
 }
 
+template<float (GHOST_XrControllerModelVertex::*field)[2]>
+static void read_vertices_vec2(const tinygltf::Accessor &accessor,
+                               const tinygltf::BufferView &buffer_view,
+                               const tinygltf::Buffer &buffer,
+                               GHOST_XrPrimitive &primitive)
+{
+  if (accessor.type != TINYGLTF_TYPE_VEC2) {
+    throw GHOST_XrException(
+        "glTF: Accessor for primitive attribute has incorrect type (VEC2 expected).");
+  }
+
+  if (accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT) {
+    throw GHOST_XrException(
+        "glTF: Accessor for primitive attribute has incorrect component type (FLOAT expected).");
+  }
+
+  constexpr size_t packed_size = sizeof(float) * 2;
+  const size_t stride = buffer_view.byteStride == 0 ? packed_size : buffer_view.byteStride;
+  validate_accessor(accessor, buffer_view, buffer, stride, packed_size);
+
+  primitive.vertices.resize(accessor.count);
+
+  const uint8_t *buffer_ptr = buffer.data.data() + buffer_view.byteOffset + accessor.byteOffset;
+  for (size_t i = 0; i < accessor.count; i++, buffer_ptr += stride) {
+    memcpy(primitive.vertices[i].*field, buffer_ptr, packed_size);
+    /* glTF uses top-left UV origin (V=0 at top), Blender uses bottom-left (V=0 at bottom). */
+    (primitive.vertices[i].*field)[1] = 1.0f - (primitive.vertices[i].*field)[1];
+  }
+}
+
 static void load_attribute_accessor(const tinygltf::Model &gltf_model,
                                     const std::string &attribute_name,
                                     int accessor_id,
@@ -116,12 +146,16 @@ static void load_attribute_accessor(const tinygltf::Model &gltf_model,
 
   const tinygltf::Buffer &buffer = gltf_model.buffers.at(buffer_view.buffer);
 
-  if (attribute_name.compare("POSITION") == 0) {
-    read_vertices<&GHOST_XrControllerModelVertex::position>(
+  if (attribute_name == "POSITION") {
+    read_vertices_vec3<&GHOST_XrControllerModelVertex::position>(
         accessor, buffer_view, buffer, primitive);
   }
-  else if (attribute_name.compare("NORMAL") == 0) {
-    read_vertices<&GHOST_XrControllerModelVertex::normal>(
+  else if (attribute_name == "NORMAL") {
+    read_vertices_vec3<&GHOST_XrControllerModelVertex::normal>(
+        accessor, buffer_view, buffer, primitive);
+  }
+  else if (attribute_name == "TEXCOORD_0") {
+    read_vertices_vec2<&GHOST_XrControllerModelVertex::uv>(
         accessor, buffer_view, buffer, primitive);
   }
 }
@@ -282,19 +316,19 @@ static void calc_node_transforms(const tinygltf::Node &gltf_node,
                                           *(Eigen::Matrix4f *)r_local_transform;
 }
 
-static void load_node(
-    const tinygltf::Model &gltf_model,
-    int gltf_node_id,
-    int32_t parent_idx,
-    const float parent_transform[4][4],
-    const std::string &parent_name,
-    const std::vector<XrRenderModelAssetNodePropertiesEXT> &node_properties,
-    std::vector<GHOST_XrControllerModelVertex> &vertices,
-    std::vector<uint32_t> &indices,
-    std::vector<GHOST_XrControllerModelComponent> &components,
-    std::vector<GHOST_XrControllerModelNode> &nodes,
-    std::vector<int32_t> &node_state_indices,
-    int32_t component_offset)
+static void load_node(const tinygltf::Model &gltf_model,
+                      int gltf_node_id,
+                      int32_t parent_idx,
+                      const float parent_transform[4][4],
+                      const std::string &parent_name,
+                      const std::vector<XrRenderModelAssetNodePropertiesEXT> &node_properties,
+                      const std::vector<int32_t> &material_to_texture,
+                      std::vector<GHOST_XrControllerModelVertex> &vertices,
+                      std::vector<uint32_t> &indices,
+                      std::vector<GHOST_XrControllerModelComponent> &components,
+                      std::vector<GHOST_XrControllerModelNode> &nodes,
+                      std::vector<int32_t> &node_state_indices,
+                      int32_t component_offset)
 {
   const tinygltf::Node &gltf_node = gltf_model.nodes.at(gltf_node_id);
   float world_transform[4][4];
@@ -322,8 +356,16 @@ static void load_node(
     memcpy(component.transform, world_transform, sizeof(component.transform));
     component.vertex_offset = vertices.size();
     component.index_offset = indices.size();
+    component.texture_index = -1;
 
     for (const tinygltf::Primitive &gltf_primitive : gltf_mesh.primitives) {
+      /* Get texture index from material (use first primitive's material). */
+      const bool valid_material_idx = (gltf_primitive.material >= 0 &&
+                                       gltf_primitive.material < material_to_texture.size());
+      if (component.texture_index == -1 && valid_material_idx) {
+        component.texture_index = material_to_texture[gltf_primitive.material];
+      }
+
       const GHOST_XrPrimitive primitive = read_primitive(gltf_model, gltf_primitive);
 
       const size_t start_vertex = vertices.size();
@@ -351,17 +393,18 @@ static void load_node(
   /* Recursively load children. */
   for (const int child_node_id : gltf_node.children) {
     load_node(gltf_model,
-                  child_node_id,
-                  node_idx,
-                  world_transform,
-                  gltf_node.name,
-                  node_properties,
-                  vertices,
-                  indices,
-                  components,
-                  nodes,
-                  node_state_indices,
-                  component_offset);
+              child_node_id,
+              node_idx,
+              world_transform,
+              gltf_node.name,
+              node_properties,
+              material_to_texture,
+              vertices,
+              indices,
+              components,
+              nodes,
+              node_state_indices,
+              component_offset);
   }
 }
 
@@ -605,16 +648,23 @@ void GHOST_XrControllerModel::load(XrSession session)
     tinygltf::Model gltf_model;
     std::string err_msg;
 
-    /* Set custom image loader (workaround for TINYGLTF_NO_STB_IMAGE). */
-    auto load_img_func = [](tinygltf::Image *,
+    /* Use custom image loader to store raw encoded data instead of decoding.
+     * The actual decoding happens later using ImBuf in #wm_xr_controller_model_textures_create. */
+    auto load_img_func = [](tinygltf::Image *image,
                             const int,
                             std::string *,
                             std::string *,
                             int,
                             int,
-                            const uchar *,
-                            int,
-                            void *) -> bool { return true; };
+                            const uchar *bytes,
+                            int size,
+                            void *) -> bool {
+      /* Directly store bytes into the tinyGltf image. */
+      image->image.assign(bytes, bytes + size);
+      image->as_is = true;
+
+      return true;
+    };
     gltf_loader.SetImageLoader(load_img_func, nullptr);
 
     if (!gltf_loader.LoadBinaryFromMemory(
@@ -639,6 +689,23 @@ void GHOST_XrControllerModel::load(XrSession session)
     CHECK_XR(g_xrDestroyRenderModelAssetEXT(asset),
              "Failed to destroy interaction render model asset hanndle.");
 
+    /* Extract raw texture data from glTF images. */
+    const int32_t existing_textures_offset = int32_t(textures_.size());
+    for (const tinygltf::Image &image : gltf_model.images) {
+      textures_.push_back(image.image);
+    }
+
+    /* Build glTF material to texture index mapping. */
+    std::vector<int32_t> material_to_texture(gltf_model.materials.size(), -1);
+    for (size_t i = 0; i < gltf_model.materials.size(); ++i) {
+      const tinygltf::Material &mat = gltf_model.materials[i];
+
+      int tex_index = mat.pbrMetallicRoughness.baseColorTexture.index;
+      int image_index = gltf_model.textures[tex_index].source;
+
+      material_to_texture[i] = existing_textures_offset + image_index;
+    }
+
     /* Setup per-model tracking. */
     PerModelData per_model;
     per_model.node_properties = std::move(node_properties);
@@ -654,17 +721,18 @@ void GHOST_XrControllerModel::load(XrSession session)
 
       for (const int node_id : default_scene.nodes) {
         load_node(gltf_model,
-                      node_id,
-                      -1, /* Root has no parent. */
-                      root_transform,
-                      "", /* Root has no parent name. */
-                      per_model.node_properties,
-                      vertices_,
-                      indices_,
-                      components_,
-                      nodes_,
-                      per_model.node_state_indices,
-                      per_model.component_offset);
+                  node_id,
+                  -1, /* Root has no parent. */
+                  root_transform,
+                  "", /* Root has no parent name. */
+                  per_model.node_properties,
+                  material_to_texture,
+                  vertices_,
+                  indices_,
+                  components_,
+                  nodes_,
+                  per_model.node_state_indices,
+                  per_model.component_offset);
       }
     }
 
@@ -786,6 +854,7 @@ void GHOST_XrControllerModel::getData(GHOST_XrControllerModelData &r_data)
     r_data.indices = indices_.data();
     r_data.count_components = uint32_t(components_.size());
     r_data.components = components_.data();
+    r_data.textures = textures_;
     r_data.base_pose = base_pose_;
   }
   else {
@@ -795,6 +864,7 @@ void GHOST_XrControllerModel::getData(GHOST_XrControllerModelData &r_data)
     r_data.indices = nullptr;
     r_data.count_components = 0;
     r_data.components = nullptr;
+    r_data.textures.clear();
     r_data.base_pose = {false, {0, 0, 0}, {1, 0, 0, 0}};
   }
 }

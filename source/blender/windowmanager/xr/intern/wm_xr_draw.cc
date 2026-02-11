@@ -24,11 +24,17 @@
 
 #include "GHOST_Xr-api.hh"
 
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+
 #include "GPU_batch_presets.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
+#include "GPU_texture.hh"
 #include "GPU_viewport.hh"
+
+#include "MEM_guardedalloc.h"
 
 #include "UI_resources.hh"
 
@@ -239,6 +245,7 @@ static gpu::Batch *wm_xr_controller_model_batch_create(GHOST_IXrContext *xr_cont
   GPUVertFormat format = {0};
   GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
   GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SFLOAT_32_32_32);
+  GPU_vertformat_attr_add(&format, "texCoord", gpu::VertAttrType::SFLOAT_32_32);
 
   gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
   GPU_vertbuf_data_alloc(*vbo, model_data.count_vertices);
@@ -258,6 +265,46 @@ static gpu::Batch *wm_xr_controller_model_batch_create(GHOST_IXrContext *xr_cont
   }
 
   return GPU_batch_create_ex(GPU_PRIM_TRIS, vbo, ibo, GPU_BATCH_OWNS_VBO | GPU_BATCH_OWNS_INDEX);
+}
+
+static void wm_xr_controller_model_textures_create(GHOST_IXrContext *xr_context,
+                                                   const char *subaction_path,
+                                                   wmXrController &controller)
+{
+  GHOST_XrControllerModelData model_data;
+
+  if (!GHOST_XrGetControllerModelData(xr_context, subaction_path, &model_data) ||
+      model_data.textures.empty())
+  {
+    return;
+  }
+
+  for (const GHOST_XrControllerModelTextureData &texture : model_data.textures) {
+    if (texture.empty()) {
+      continue;
+    }
+
+    /* Decode raw glTF texture image data using ImBuf. */
+    ImBuf *ibuf = IMB_load_image_from_memory(
+        texture.data(), texture.size(), IB_byte_data, "xr_controller_tex_image");
+
+    if (!ibuf) {
+      continue;
+    }
+
+    /* Create GPU texture. */
+    gpu::Texture *model_texture = GPU_texture_create_2d("xr_controller_tex",
+                                                        ibuf->x,
+                                                        ibuf->y,
+                                                        1,
+                                                        gpu::TextureFormat::SRGBA_8_8_8_8,
+                                                        GPU_TEXTURE_USAGE_SHADER_READ,
+                                                        nullptr);
+    GPU_texture_update(model_texture, GPU_DATA_UBYTE, ibuf->byte_buffer.data);
+    controller.model_textures.append(model_texture);
+
+    IMB_freeImBuf(ibuf);
+  }
 }
 
 static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
@@ -282,7 +329,6 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
       break;
   }
 
-  GPU_depth_test(GPU_DEPTH_NONE);
   GPU_blend(GPU_BLEND_ALPHA);
 
   for (wmXrController &controller : state->controllers) {
@@ -294,24 +340,52 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
     if (!model) {
       model = controller.model = wm_xr_controller_model_batch_create(xr_context,
                                                                      controller.subaction_path);
+      wm_xr_controller_model_textures_create(xr_context, controller.subaction_path, controller);
     }
 
     if (model &&
         GHOST_XrGetControllerModelData(xr_context, controller.subaction_path, &model_data) &&
         model_data.count_components > 0)
     {
-      GPU_batch_program_set_builtin(model, GPU_SHADER_3D_UNIFORM_COLOR);
-      GPU_batch_uniform_4fv(model, "color", color);
-
       GPU_matrix_push();
       GPU_matrix_mul(controller.model_mat);
+
       for (uint component_idx = 0; component_idx < model_data.count_components; ++component_idx) {
         const GHOST_XrControllerModelComponent *component = &model_data.components[component_idx];
+
+        /* Check if this component has a texture. */
+        gpu::Texture *texture = nullptr;
+        if (component->texture_index >= 0 &&
+            component->texture_index < controller.model_textures.size())
+        {
+          texture = controller.model_textures[component->texture_index];
+        }
+
         GPU_matrix_push();
         GPU_matrix_mul(component->transform);
+
+        if (texture) {
+          /* Use textured model. */
+          GPU_batch_program_set_builtin(model, GPU_SHADER_3D_IMAGE);
+          int binding = GPU_shader_get_sampler_binding(model->shader, "image");
+          GPU_texture_bind(texture, binding);
+          GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+        }
+        else {
+          /* Fallback to transparent model with solid color. */
+          GPU_batch_program_set_builtin(model, GPU_SHADER_3D_UNIFORM_COLOR);
+          GPU_batch_uniform_4fv(model, "color", color);
+          GPU_depth_test(GPU_DEPTH_NONE);
+        }
+
         GPU_batch_draw_range(model,
                              model->elem ? component->index_offset : component->vertex_offset,
                              model->elem ? component->index_count : component->vertex_count);
+
+        if (texture) {
+          GPU_texture_unbind(texture);
+        }
+
         GPU_matrix_pop();
       }
       GPU_matrix_pop();

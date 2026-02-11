@@ -35,6 +35,7 @@
 #include "GHOST_Xr-api.hh"
 
 #include "GPU_batch.hh"
+#include "GPU_texture.hh"
 #include "GPU_viewport.hh"
 
 #include "MEM_guardedalloc.h"
@@ -82,11 +83,17 @@ static void wm_xr_session_create_cb()
 static void wm_xr_session_controller_data_free(wmXrSessionState *state)
 {
   ListBaseT<wmXrController> *lb = &state->controllers;
-  while (wmXrController *c = static_cast<wmXrController *>(BLI_pophead(lb))) {
-    if (c->model) {
-      GPU_batch_discard(c->model);
+  while (wmXrController *controller = static_cast<wmXrController *>(BLI_pophead(lb))) {
+    if (controller->model) {
+      GPU_batch_discard(controller->model);
     }
-    BLI_freelinkN(lb, c);
+    if (!controller->model_textures.is_empty()) {
+      for (gpu::Texture *texture : controller->model_textures) {
+        GPU_texture_free(texture);
+      }
+      controller->model_textures.clear();
+    }
+    BLI_freelinkN(lb, controller);
   }
 }
 
@@ -1363,7 +1370,7 @@ void wm_xr_session_controller_data_populate(const wmXrAction *grip_action,
   wm_xr_session_controller_data_free(state);
 
   for (uint i = 0; i < count; ++i) {
-    wmXrController *controller = MEM_new_zeroed<wmXrController>(__func__);
+    wmXrController *controller = MEM_new<wmXrController>(__func__);
 
     BLI_assert(STREQ(grip_action->subaction_paths[i], aim_action->subaction_paths[i]));
     STRNCPY(controller->subaction_path, grip_action->subaction_paths[i]);

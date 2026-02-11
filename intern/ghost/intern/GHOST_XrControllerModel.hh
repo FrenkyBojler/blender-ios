@@ -49,6 +49,10 @@ class GHOST_XrControllerModel {
   std::vector<GHOST_XrControllerModelComponent> components_;
   std::vector<GHOST_XrControllerModelNode> nodes_;
 
+  /* Texture storage (raw encoded image data). */
+  using XrTextureData = std::vector<uchar>;
+  std::vector<XrTextureData> textures_;
+
   /* Per-model tracking for updates. */
   struct PerModelData {
     std::vector<XrRenderModelAssetNodePropertiesEXT> node_properties;
