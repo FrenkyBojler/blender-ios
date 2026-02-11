@@ -15,6 +15,7 @@ __all__ = (
 
 from enum import Enum, unique
 
+
 @unique
 class BackendType(Enum):
     MESH = 0
@@ -35,6 +36,7 @@ COLOR_BACKEND_TYPES = [BackendType.MESH]
 # Applying a multires mesh does not transfer mask values.
 # See #153743 for a tracking issue to enable these tests
 MASK_BACKEND_TYPES = [BackendType.MESH]
+
 
 def _get_mesh(backend_type):
     import bpy
@@ -143,6 +145,7 @@ def set_view3d_context_override(context_override):
                 context_override["area"] = area
                 context_override["region"] = region
 
+
 def generate_monkey(backend):
     """
     Create a dense enough mesh to use for testing.
@@ -206,5 +209,3 @@ def generate_stroke(context, start_over_mesh=False):
         stroke.append(step)
 
     return stroke
-
-
