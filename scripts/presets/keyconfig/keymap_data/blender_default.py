@@ -2195,9 +2195,9 @@ def km_image(params):
         items.extend([
             # Old pivot.
             ("wm.context_set_enum", {"type": 'COMMA', "value": 'PRESS'},
-             {"properties": [("data_path", "space_data.pivot_point"), ("value", 'CENTER')]}),
+             {"properties": [("data_path", "space_data.pivot_point"), ("value", 'BOUNDING_BOX_CENTER')]}),
             ("wm.context_set_enum", {"type": 'COMMA', "value": 'PRESS', "ctrl": True},
-             {"properties": [("data_path", "space_data.pivot_point"), ("value", 'MEDIAN')]}),
+             {"properties": [("data_path", "space_data.pivot_point"), ("value", 'MEDIAN_POINT')]}),
             ("wm.context_set_enum", {"type": 'PERIOD', "value": 'PRESS'},
              {"properties": [("data_path", "space_data.pivot_point"), ("value", 'CURSOR')]}),
 
@@ -2353,8 +2353,6 @@ def km_node_editor(params):
         ("node.render_changed", {"type": 'Z', "value": 'PRESS'}, None),
         ("node.clipboard_copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("node.clipboard_paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
-        ("node.viewer_border", {"type": 'B', "value": 'PRESS', "ctrl": True}, None),
-        ("node.clear_viewer_border", {"type": 'B', "value": 'PRESS', "ctrl": True, "alt": True}, None),
         ("node.translate_attach",
          {"type": 'G', "value": 'PRESS'},
          {"properties": [("TRANSFORM_OT_translate", [("view2d_edge_pan", True)])]}),
@@ -3168,7 +3166,7 @@ def km_sequencer(params):
         ("sequencer.gap_remove", {"type": 'BACK_SPACE', "value": 'PRESS', "shift": True},
          {"properties": [("all", True)]}),
         ("sequencer.gap_insert", {"type": 'EQUAL', "value": 'PRESS', "shift": True}, None),
-        ("sequencer.snap", {"type": 'S', "value": 'PRESS', "shift": True}, None),
+        ("sequencer.snap", {"type": 'S', "value": 'PRESS', "shift": True}, {"properties": [("keep_offset", True)]}),
         ("sequencer.swap_inputs", {"type": 'S', "value": 'PRESS', "alt": True}, None),
         *(
             (("sequencer.split_multicam",
@@ -3943,9 +3941,10 @@ def km_grease_pencil_selection(params):
     items.extend([
         # Select All
         *_template_items_select_actions(params, "grease_pencil.select_all"),
+        # Select fill
+        ("grease_pencil.select_fill", {"type": 'L', "value": 'PRESS', "ctrl": True}, None),
         # Select linked
         ("grease_pencil.select_linked", {"type": 'L', "value": 'PRESS'}, None),
-        ("grease_pencil.select_linked", {"type": 'L', "value": 'PRESS', "ctrl": True}, None),
         # Select more/less
         ("grease_pencil.select_more", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("grease_pencil.select_less", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
@@ -4163,6 +4162,11 @@ def km_grease_pencil_edit_mode(params):
 
         # Set Handle Type
         ("grease_pencil.set_handle_type", {"type": 'V', "value": 'PRESS'}, None),
+
+        # Join Fills
+        ("grease_pencil.join_fills", {"type": 'J', "value": 'PRESS', "shift": True}, None),
+        # Separate Fills
+        ("grease_pencil.separate_fills", {"type": 'P', "value": 'PRESS', "alt": True}, None),
 
         op_tool_optional(
             ("grease_pencil.interpolate", {"type": 'E', "value": 'PRESS',

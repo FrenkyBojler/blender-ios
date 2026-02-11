@@ -228,6 +228,10 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
     return IMB_FTYPE_WEBP;
   }
 #endif
+  if (imtype == R_IMF_IMTYPE_AVIF) {
+    r_options->quality = 90;
+    return IMB_FTYPE_AVIF;
+  }
 
   return IMB_FTYPE_JPG;
 }
@@ -283,6 +287,9 @@ char BKE_ftype_to_imtype(const int ftype, const ImbFormatOptions *options)
     return R_IMF_IMTYPE_WEBP;
   }
 #endif
+  if (ftype == IMB_FTYPE_AVIF) {
+    return R_IMF_IMTYPE_AVIF;
+  }
 
   return R_IMF_IMTYPE_JPEG90;
 }
@@ -317,6 +324,7 @@ bool BKE_imtype_supports_quality(const char imtype)
     case R_IMF_IMTYPE_JPEG90:
     case R_IMF_IMTYPE_JP2:
     case R_IMF_IMTYPE_WEBP:
+    case R_IMF_IMTYPE_AVIF:
       return true;
   }
   return false;
@@ -353,6 +361,7 @@ char BKE_imtype_valid_channels(const char imtype)
     case R_IMF_IMTYPE_JP2:
     case R_IMF_IMTYPE_DPX:
     case R_IMF_IMTYPE_WEBP:
+    case R_IMF_IMTYPE_AVIF:
       chan_flag |= IMA_CHAN_FLAG_RGBA;
       break;
   }
@@ -367,6 +376,7 @@ char BKE_imtype_valid_channels(const char imtype)
     case R_IMF_IMTYPE_TIFF:
     case R_IMF_IMTYPE_IRIS:
     case R_IMF_IMTYPE_OPENEXR:
+    case R_IMF_IMTYPE_AVIF:
       chan_flag |= IMA_CHAN_FLAG_BW;
       break;
   }
@@ -394,6 +404,8 @@ char BKE_imtype_valid_depths(const char imtype)
       return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16;
     case R_IMF_IMTYPE_PNG:
       return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_16;
+    case R_IMF_IMTYPE_AVIF:
+      return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_10 | R_IMF_CHAN_DEPTH_12;
     /* Most formats are 8bit only. */
     default:
       return R_IMF_CHAN_DEPTH_8;
@@ -500,6 +512,9 @@ char BKE_imtype_from_arg(const char *imtype_arg)
     return R_IMF_IMTYPE_WEBP;
   }
 #endif
+  if (STREQ(imtype_arg, "AVIF")) {
+    return R_IMF_IMTYPE_AVIF;
+  }
 
   return R_IMF_IMTYPE_INVALID;
 }
@@ -577,6 +592,9 @@ static int image_path_ext_from_imformat_impl(const char imtype,
     r_ext[ext_num++] = ".webp";
   }
 #endif
+  else if (imtype == R_IMF_IMTYPE_AVIF) {
+    r_ext[ext_num++] = ".avif";
+  }
   else {
     /* Handles: #R_IMF_IMTYPE_JPEG90 etc. */
     r_ext[ext_num++] = ".jpg";
@@ -869,6 +887,17 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
     ibuf->foptions.quality = quality;
   }
 #endif
+  else if (imtype == R_IMF_IMTYPE_AVIF) {
+    ibuf->ftype = IMB_FTYPE_AVIF;
+    ibuf->foptions.quality = quality;
+
+    if (imf->depth == R_IMF_CHAN_DEPTH_10) {
+      ibuf->foptions.flag |= AVIF_10BIT;
+    }
+    else if (imf->depth == R_IMF_CHAN_DEPTH_12) {
+      ibuf->foptions.flag |= AVIF_12BIT;
+    }
+  }
   else {
     /* #R_IMF_IMTYPE_JPEG90, etc. default to JPEG. */
     if (quality < 10) {
@@ -1052,6 +1081,19 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
   }
 #endif
 
+  else if (ftype == IMB_FTYPE_AVIF) {
+    im_format->imtype = R_IMF_IMTYPE_AVIF;
+    im_format->quality = quality;
+
+    if (custom_flags & AVIF_10BIT) {
+      im_format->depth = R_IMF_CHAN_DEPTH_10;
+      is_depth_set = true;
+    }
+    else if (custom_flags & AVIF_12BIT) {
+      im_format->depth = R_IMF_CHAN_DEPTH_12;
+      is_depth_set = true;
+    }
+  }
   else {
     im_format->imtype = R_IMF_IMTYPE_JPEG90;
     im_format->quality = quality;
