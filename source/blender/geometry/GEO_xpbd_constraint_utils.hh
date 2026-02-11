@@ -163,28 +163,30 @@ class CurveLocalConstraintSets : public ConstraintSet {
 
 class VelocityConstraintSet {
  protected:
-  int geo_i_;
+  Vector<int> affected_geo_indices_;
 
  public:
-  VelocityConstraintSet(const int geo_i) : geo_i_(geo_i) {}
+  VelocityConstraintSet(Vector<int> affected_geo_indices)
+      : affected_geo_indices_(std::move(affected_geo_indices))
+  {
+  }
   virtual ~VelocityConstraintSet() = default;
 
-  virtual void reset_forces(IndexRange points_range) = 0;
-  virtual void solve_step(VelocityUpdater &updater,
-                          const ConstraintSetParams &params,
-                          IndexRange points_range) = 0;
+  virtual void reset_forces() = 0;
+  virtual void solve_step(VelocityUpdater &updater, const ConstraintSetParams &params) = 0;
 
-  int affected_geo_i() const;
+  Span<int> get_affected_geo_indices() const;
 };
 
 template<typename Child> class TemplatedVelocityConstraintSet : public VelocityConstraintSet {
- public:
-  TemplatedVelocityConstraintSet(const int geo_i);
+ protected:
+  const int constraint_num_;
 
-  void reset_forces(IndexRange points_range) override;
-  void solve_step(VelocityUpdater &updater,
-                  const ConstraintSetParams &params,
-                  IndexRange points_range) override;
+ public:
+  TemplatedVelocityConstraintSet(int constraints_num, Vector<int> affected_geo_indices);
+
+  void reset_forces() override;
+  void solve_step(VelocityUpdater &updater, const ConstraintSetParams &params) override;
 
   StringRef debug_name() const
   {
@@ -193,9 +195,7 @@ template<typename Child> class TemplatedVelocityConstraintSet : public VelocityC
 
  private:
   template<bool use_debug>
-  void solve_step_with_debug(VelocityUpdater &updater,
-                             const ConstraintSetParams &params,
-                             IndexRange points_range);
+  void solve_step_with_debug(VelocityUpdater &updater, const ConstraintSetParams &params);
 };
 
 Vector<IndexMask> unary_constraints_to_independent_masks(const Span<int> affected_points,
@@ -447,43 +447,42 @@ void TemplatedCurveLocalConstraintSet<Child>::solve_step_with_debug(
   }
 }
 
-inline int VelocityConstraintSet::affected_geo_i() const
+inline Span<int> VelocityConstraintSet::get_affected_geo_indices() const
 {
-  return geo_i_;
+  return affected_geo_indices_;
 }
 
 template<typename Child>
-inline TemplatedVelocityConstraintSet<Child>::TemplatedVelocityConstraintSet(const int geo_i)
-    : VelocityConstraintSet(geo_i)
+inline TemplatedVelocityConstraintSet<Child>::TemplatedVelocityConstraintSet(
+    int constraints_num, Vector<int> affected_geo_indices)
+    : VelocityConstraintSet(std::move(affected_geo_indices)), constraint_num_(constraints_num)
 {
 }
 
-template<typename Child>
-void TemplatedVelocityConstraintSet<Child>::reset_forces(const IndexRange points_range)
+template<typename Child> void TemplatedVelocityConstraintSet<Child>::reset_forces()
 {
   Child &self = static_cast<Child &>(*this);
-  for (const int point_i : points_range) {
-    self.reset_force(point_i);
+  for (const int constraint_i : IndexRange(constraint_num_)) {
+    self.reset_force(constraint_i);
   }
 }
 
 template<typename Child>
 void TemplatedVelocityConstraintSet<Child>::solve_step(VelocityUpdater &updater,
-                                                       const ConstraintSetParams &params,
-                                                       IndexRange points_range)
+                                                       const ConstraintSetParams &params)
 {
   if (params.use_debug()) {
-    solve_step_with_debug<true>(updater, params, points_range);
+    solve_step_with_debug<true>(updater, params);
   }
   else {
-    solve_step_with_debug<false>(updater, params, points_range);
+    solve_step_with_debug<false>(updater, params);
   }
 }
 
 template<typename Child>
 template<bool use_debug>
 void TemplatedVelocityConstraintSet<Child>::solve_step_with_debug(
-    VelocityUpdater &updater, const ConstraintSetParams &params, IndexRange points_range)
+    VelocityUpdater &updater, const ConstraintSetParams &params)
 {
   Child &self = static_cast<Child &>(*this);
 
@@ -493,15 +492,15 @@ void TemplatedVelocityConstraintSet<Child>::solve_step_with_debug(
     debug_geometry = self.as_debug_geometry(debug_attribute_writers);
   }
 
-  for (const int point_i : points_range) {
-    self.evaluate_single(updater, params, point_i);
+  for (const int constraint_i : IndexRange(constraint_num_)) {
+    self.evaluate_single(updater, params, constraint_i);
   }
 
   if constexpr (use_debug) {
     for (bke::GSpanAttributeWriter &writer : debug_attribute_writers) {
       writer.finish();
     }
-    params.debug_stage(this->debug_name(), {geo_i_}, std::move(debug_geometry));
+    params.debug_stage(this->debug_name(), affected_geo_indices_, std::move(debug_geometry));
   }
 }
 

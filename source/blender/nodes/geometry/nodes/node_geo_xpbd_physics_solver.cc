@@ -29,6 +29,7 @@
 
 #define PROFILE_FUNCTION BLI_NOINLINE
 
+#if 0
 namespace blender::nodes::node_geo_xpbd_physics_solver_cc {
 
 using namespace physics_bundles;
@@ -4706,6 +4707,7 @@ static void node_register()
   ntype.internally_linked_input = node_internally_linked_input;
   blender::bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_geo_xpbd_physics_solver_cc
+
+#endif
