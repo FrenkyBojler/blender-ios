@@ -251,6 +251,14 @@ static wmOperatorStatus graphkeys_viewall(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
+  if (ac.regiontype != RGN_TYPE_WINDOW) {
+    for (ARegion &region : ac.area->regionbase) {
+      if (region.regiontype == RGN_TYPE_WINDOW) {
+        ac.region = &region;
+        break;
+      }
+    }
+  }
   /* Set the horizontal range, with an extra offset so that the extreme keys will be in view. */
   get_graph_keyframe_extents(&ac,
                              &cur_new.xmin,
@@ -575,11 +583,20 @@ static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator * 
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   SpaceGraph *sipo = CTX_wm_space_graph(C);
-  int bit_to_clear = 0;
   bool enter_local_view = (sipo->local_view_bits == 0);
+  bool changed = false;
 
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
+  }
+
+  if (ac.regiontype != RGN_TYPE_WINDOW) {
+    for (ARegion &region : ac.area->regionbase) {
+      if (region.regiontype == RGN_TYPE_WINDOW) {
+        ac.region = &region;
+        break;
+      }
+    }
   }
 
   const int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS | ANIMFILTER_NODUPLIS |
@@ -592,10 +609,6 @@ static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator * 
     sipo->local_view_bits = free_localview_bit(CTX_data_main(C));
     sipo->cur = ac.region->v2d.cur;
   }
-  else {
-    bit_to_clear = sipo->local_view_bits;
-    sipo->local_view_bits = 0;
-  }
 
   for (bAnimListElem &ale : anim_data) {
     FCurve *fcu = static_cast<FCurve *>(ale.key_data);
@@ -604,26 +617,34 @@ static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator * 
     }
 
     if (!enter_local_view) {
-      fcu->local_view_bits &= ~bit_to_clear;
+      fcu->local_view_bits &= ~sipo->local_view_bits;
+      changed = true;
       continue;
     }
     else {
       if (ale.flag & FCURVE_SELECTED) {
         /* Set bit for selected Fcurves to draw them in local view. */
         fcu->local_view_bits |= sipo->local_view_bits;
+        changed = true;
       }
       else {
         fcu->local_view_bits &= ~sipo->local_view_bits;
       }
     }
   }
+  ANIM_animdata_freelist(&anim_data);
+
+  if (!changed) {
+    return OPERATOR_CANCELLED;
+  }
 
   if (enter_local_view) {
     graphkeys_viewall(C, false, true, 200);
   } else {
     ui::view2d_smooth_view(C, ac.region, &sipo->cur, 200);
+    sipo->local_view_bits = 0;
   }
-  ANIM_animdata_freelist(&anim_data);
+
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   return OPERATOR_FINISHED;
 }
