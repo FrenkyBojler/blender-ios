@@ -313,19 +313,19 @@ static void calc_node_transforms(const tinygltf::Node &gltf_node,
                                           *(Eigen::Matrix4f *)r_local_transform;
 }
 
-static void load_node(const tinygltf::Model &gltf_model,
-                      int gltf_node_id,
-                      int32_t parent_idx,
-                      const float parent_transform[4][4],
-                      const std::string &parent_name,
-                      const std::vector<XrRenderModelAssetNodePropertiesEXT> &node_properties,
-                      const std::vector<int32_t> &material_to_texture,
-                      std::vector<GHOST_XrControllerModelVertex> &vertices,
-                      std::vector<uint32_t> &indices,
-                      std::vector<GHOST_XrControllerModelComponent> &components,
-                      std::vector<GHOST_XrControllerModelNode> &nodes,
-                      std::vector<int32_t> &node_state_indices,
-                      int32_t component_offset)
+static void load_gltf_node_recursive(
+    const tinygltf::Model &gltf_model,
+    int gltf_node_id,
+    int32_t parent_idx,
+    const float parent_transform[4][4],
+    const std::vector<XrRenderModelAssetNodePropertiesEXT> &node_properties,
+    const std::vector<int32_t> &material_to_texture,
+    std::vector<GHOST_XrControllerModelVertex> &vertices,
+    std::vector<uint32_t> &indices,
+    std::vector<GHOST_XrControllerModelComponent> &components,
+    std::vector<GHOST_XrControllerModelNode> &nodes,
+    std::vector<int32_t> &node_state_indices,
+    int32_t component_offset)
 {
   const tinygltf::Node &gltf_node = gltf_model.nodes.at(gltf_node_id);
   float world_transform[4][4];
@@ -389,19 +389,18 @@ static void load_node(const tinygltf::Model &gltf_model,
 
   /* Recursively load children. */
   for (const int child_node_id : gltf_node.children) {
-    load_node(gltf_model,
-              child_node_id,
-              node_idx,
-              world_transform,
-              gltf_node.name,
-              node_properties,
-              material_to_texture,
-              vertices,
-              indices,
-              components,
-              nodes,
-              node_state_indices,
-              component_offset);
+    load_gltf_node_recursive(gltf_model,
+                             child_node_id,
+                             node_idx,
+                             world_transform,
+                             node_properties,
+                             material_to_texture,
+                             vertices,
+                             indices,
+                             components,
+                             nodes,
+                             node_state_indices,
+                             component_offset);
   }
 }
 
@@ -717,19 +716,18 @@ void GHOST_XrControllerModel::load(XrSession session)
       float root_transform[4][4] = {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}};
 
       for (const int node_id : default_scene.nodes) {
-        load_node(gltf_model,
-                  node_id,
-                  -1, /* Root has no parent. */
-                  root_transform,
-                  "", /* Root has no parent name. */
-                  per_model.node_properties,
-                  material_to_texture,
-                  vertices_,
-                  indices_,
-                  components_,
-                  nodes_,
-                  per_model.node_state_indices,
-                  per_model.component_offset);
+        load_gltf_node_recursive(gltf_model,
+                                 node_id,
+                                 -1, /* Root has no parent. */
+                                 root_transform,
+                                 per_model.node_properties,
+                                 material_to_texture,
+                                 vertices_,
+                                 indices_,
+                                 components_,
+                                 nodes_,
+                                 per_model.node_state_indices,
+                                 per_model.component_offset);
       }
     }
 
