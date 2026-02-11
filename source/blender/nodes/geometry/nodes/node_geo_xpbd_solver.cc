@@ -134,6 +134,10 @@ struct GeometryData {
   /* Indexed by pin index. */
   Array<float> pin_rotation_compliance_terms;
 
+  Array<float> rod_stretch_shear_compliance_terms;
+  bke::SpanAttributeWriter<float3> rod_stretch_shear_lambda_pos;
+  bke::SpanAttributeWriter<float3> rod_stretch_shear_lambda_rot;
+
   // TODO
   VArraySpan<float> rest_lengths;
 
@@ -147,6 +151,11 @@ struct GeometryData {
    */
   Array<float> inv_masses;
   Array<float3> inv_inertias;
+  /**
+   * This does not match the inertia attribute exactly, since it has special handling for special
+   * cases like pinning (for which it is infinity).
+   */
+  Array<float3> inertias;
 };
 
 struct Geometries {
@@ -203,6 +212,7 @@ struct SubstepInterval {
 
 struct ConstraintsInfo {
   Vector<xpbd::PinnedPositionConstraintSet *> pinned_positions;
+  Vector<xpbd::RodStretchAndShearCurveLocalConstraintSet *> rod_stretch_shear;
 };
 
 class XpbdSolverStep {
@@ -243,7 +253,7 @@ class XpbdSolverStep {
     this->prepare_pinned_rotations();
     this->prepare_inverse_masses();
     this->prepare_inverse_inertias();
-    this->prepare_cosserat_rod_constraints();
+    this->prepare_cosserat_rod_stretch_shear_constraints();
     this->evaluate_constraint_fields();
     this->do_simulation();
     this->finish_attribute_writers();
@@ -466,14 +476,56 @@ class XpbdSolverStep {
       }
 
       index_mask::masked_fill(inv_inertias, float3(0.0f), geo_data.pin_rotation_mask);
+
+      geo_data.inertias.reinitialize(geo_data.size);
+      for (const int i : IndexRange(geo_data.size)) {
+        const float3 &inv_inertia = inv_inertias[i];
+        if (math::is_zero(inv_inertia)) {
+          geo_data.inertias[i] = float3(std::numeric_limits<float>::infinity());
+        }
+        else {
+          geo_data.inertias[i] = math::safe_rcp(inv_inertia);
+        }
+      }
     }
   }
 
-  void prepare_cosserat_rod_constraints()
+  void prepare_cosserat_rod_stretch_shear_constraints()
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-      // TODO
+      const DataKey &data_key = geometries_.data_keys[data_key_i];
+      if (data_key.type != bke::GeometryComponent::Type::Curve) {
+        continue;
+      }
+      Curves &curves_id = *geometries_.geometry_sets[data_key.geo_bundle_i].get_curves_for_write();
+      const OffsetIndices<int> points_by_curve = curves_id.geometry.wrap().points_by_curve();
+      geo_data.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
+          attribute_names::rest_length, geo_data.domain, 0.0f);
+
+      VArray<float> compliance_attr = *geo_data.attributes.lookup_or_default<float>(
+          attribute_names::rod_stretch_shear_compliance, geo_data.domain, 0.0f);
+      geo_data.rod_stretch_shear_compliance_terms.reinitialize(geo_data.size);
+      for (const int i : IndexRange(geo_data.size)) {
+        geo_data.rod_stretch_shear_compliance_terms[i] = std::max(
+            compliance_attr[i] * substep_compliance_factor_, 0.0f);
+      }
+
+      geo_data.rod_stretch_shear_lambda_pos =
+          geo_data.attributes.lookup_or_add_for_write_span<float3>(
+              attribute_names::rod_stretch_shear_position_lambda, geo_data.domain);
+      geo_data.rod_stretch_shear_lambda_rot =
+          geo_data.attributes.lookup_or_add_for_write_span<float3>(
+              attribute_names::rod_stretch_shear_rotation_lambda, geo_data.domain);
+
+      constraints_info_.rod_stretch_shear.append(
+          &scope_.construct<xpbd::RodStretchAndShearCurveLocalConstraintSet>(
+              data_key_i,
+              points_by_curve,
+              geo_data.rest_lengths,
+              geo_data.rod_stretch_shear_compliance_terms,
+              geo_data.rod_stretch_shear_lambda_pos.span,
+              geo_data.rod_stretch_shear_lambda_rot.span));
     }
   }
 
@@ -601,8 +653,8 @@ class XpbdSolverStep {
         ref.angular_velocities = geo_data.angular_velocity_attr.span;
         ref.prev_rotations = geo_data.prev_rotations;
 
+        ref.inertias = geo_data.inertias;
         ref.inverse_inertias = geo_data.inv_inertias;
-        // TODO: need inertias?
       }
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
@@ -625,10 +677,16 @@ class XpbdSolverStep {
         });
       }
 
-      Vector<xpbd::ConstraintSet *> constraint_sets;
+      xpbd::ConstraintSetCollector constraint_collector;
       for (auto *constraint : constraints_info_.pinned_positions) {
-        constraint_sets.append(constraint);
+        constraint_collector.general.append(constraint);
       }
+      for (auto *constraint : constraints_info_.rod_stretch_shear) {
+        constraint_collector.curve_local.append(constraint);
+      }
+      Vector<xpbd::ConstraintSet *> constraint_sets = xpbd::ConstraintSetCollector::combine(
+          scope_, {&constraint_collector});
+
       xpbd::solve_gauss_seidel_one_at_a_time(solver_geo_refs, constraint_sets, std::nullopt);
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
@@ -664,6 +722,8 @@ class XpbdSolverStep {
       geo_data.angular_velocity_attr.finish();
       geo_data.angular_velocity_attr.finish();
       geo_data.pin_position_lambda_attr.finish();
+      geo_data.rod_stretch_shear_lambda_pos.finish();
+      geo_data.rod_stretch_shear_lambda_rot.finish();
     }
   }
 
