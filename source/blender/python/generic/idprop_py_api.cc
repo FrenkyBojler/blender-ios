@@ -1074,7 +1074,7 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *key, IDProperty *group, PyOb
 
     IDP_AppendArray(group, new_prop);
     /* IDP_AppendArray does a shallow copy (memcpy), only free memory */
-    MEM_freeN(new_prop);
+    MEM_delete(new_prop);
 
     return true;
   }
@@ -1687,16 +1687,18 @@ static void IDGroup_View_init_type()
 PyDoc_STRVAR(
     /* Wrap. */
     BPy_IDGroup_pop_doc,
-    ".. method:: pop(key, default)\n"
+    ".. method:: pop(key, default=None)\n"
     "\n"
     "   Remove an item from the group, returning a Python representation.\n"
     "\n"
     "   :raises KeyError: When the item doesn't exist.\n"
     "\n"
-    "   :arg key: Name of item to remove.\n"
+    "   :param key: Name of item to remove.\n"
     "   :type key: str\n"
-    "   :arg default: Value to return when key isn't found, otherwise raise an exception.\n"
-    "   :type default: Any\n");
+    "   :param default: Value to return when key isn't found, otherwise raise an exception.\n"
+    "   :type default: Any\n"
+    "   :return: A Python representation of the removed item.\n"
+    "   :rtype: Any\n");
 static PyObject *BPy_IDGroup_pop(BPy_IDProperty *self, PyObject *args)
 {
   IDProperty *idprop;
@@ -1851,7 +1853,7 @@ PyDoc_STRVAR(
     "   Return the keys associated with this group.\n"
     "\n"
     "   :return: The keys.\n"
-    "   :rtype: idprop.types.IDPropertyGroupViewKeys\n");
+    "   :rtype: :class:`IDPropertyGroupViewKeys`\n");
 static PyObject *BPy_IDGroup_keys(BPy_IDProperty *self)
 {
   return BPy_IDGroup_ViewKeys_CreatePyObject(self);
@@ -1862,7 +1864,10 @@ PyDoc_STRVAR(
     BPy_IDGroup_values_doc,
     ".. method:: values()\n"
     "\n"
-    "   Return the values associated with this group.\n");
+    "   Return the values associated with this group.\n"
+    "\n"
+    "   :return: A view of the values.\n"
+    "   :rtype: :class:`IDPropertyGroupViewValues`\n");
 static PyObject *BPy_IDGroup_values(BPy_IDProperty *self)
 {
   return BPy_IDGroup_ViewValues_CreatePyObject(self);
@@ -1873,7 +1878,10 @@ PyDoc_STRVAR(
     BPy_IDGroup_items_doc,
     ".. method:: items()\n"
     "\n"
-    "   Iterate through the items in the dict; behaves like dictionary method items.\n");
+    "   Iterate through the items in the dict; behaves like dictionary method items.\n"
+    "\n"
+    "   :return: A view of the items.\n"
+    "   :rtype: :class:`IDPropertyGroupViewItems`\n");
 static PyObject *BPy_IDGroup_items(BPy_IDProperty *self)
 {
   return BPy_IDGroup_ViewItems_CreatePyObject(self);
@@ -1896,9 +1904,9 @@ PyDoc_STRVAR(
     BPy_IDGroup_update_doc,
     ".. method:: update(other)\n"
     "\n"
-    "   Update key, values.\n"
+    "   Update key-value pairs.\n"
     "\n"
-    "   :arg other: Updates the values in the group with this.\n"
+    "   :param other: Updates the values in the group with this.\n"
     /* TODO: replace `Any` with an alias for all types an ID property can use. */
     "   :type other: :class:`IDPropertyGroup` | dict[str, Any]\n");
 static PyObject *BPy_IDGroup_update(BPy_IDProperty *self, PyObject *value)
@@ -1938,7 +1946,10 @@ PyDoc_STRVAR(
     BPy_IDGroup_to_dict_doc,
     ".. method:: to_dict()\n"
     "\n"
-    "   Return a purely Python version of the group.\n");
+    "   Return a purely Python version of the group.\n"
+    "\n"
+    "   :return: A dictionary representation of the group.\n"
+    "   :rtype: dict[str, Any]\n");
 static PyObject *BPy_IDGroup_to_dict(BPy_IDProperty *self)
 {
   return BPy_IDGroup_MapDataToPy(self->prop);
@@ -1961,7 +1972,14 @@ PyDoc_STRVAR(
     BPy_IDGroup_get_doc,
     ".. method:: get(key, default=None)\n"
     "\n"
-    "   Return the value for key, if it exists, else default.\n");
+    "   Return the value for key, if it exists, else default.\n"
+    "\n"
+    "   :param key: The key to look up.\n"
+    "   :type key: str\n"
+    "   :param default: Value to return if *key* is not found.\n"
+    "   :type default: Any\n"
+    "   :return: The value for the key, or *default* if not found.\n"
+    "   :rtype: Any\n");
 static PyObject *BPy_IDGroup_get(BPy_IDProperty *self, PyObject *args)
 {
   IDProperty *idprop;
@@ -2184,7 +2202,10 @@ PyDoc_STRVAR(
     BPy_IDArray_to_list_doc,
     ".. method:: to_list()\n"
     "\n"
-    "   Return the array as a list.\n");
+    "   Return the array as a list.\n"
+    "\n"
+    "   :return: The array as a list.\n"
+    "   :rtype: list[int] | list[float]\n");
 static PyObject *BPy_IDArray_to_list(BPy_IDArray *self)
 {
   return BPy_IDGroup_MapDataToPy(self->prop);
@@ -2371,10 +2392,10 @@ static int BPy_IDArray_ass_slice(BPy_IDArray *self, int begin, int end, PyObject
   alloc_len = size * elem_size;
 
   /* NOTE: we count on int/float being the same size here */
-  vec = MEM_mallocN(alloc_len, "array assignment");
+  vec = MEM_new_uninitialized(alloc_len, "array assignment");
 
   if (PyC_AsArray(vec, elem_size, seq, size, py_type, "slice assignment: ") == -1) {
-    MEM_freeN(vec);
+    MEM_delete_void(vec);
     return -1;
   }
 
@@ -2383,7 +2404,7 @@ static int BPy_IDArray_ass_slice(BPy_IDArray *self, int begin, int end, PyObject
       vec,
       alloc_len);
 
-  MEM_freeN(vec);
+  MEM_delete_void(vec);
   return 0;
 }
 
@@ -2499,7 +2520,7 @@ static int BPy_IDArray_getbuffer(BPy_IDArray *self, Py_buffer *view, int flags)
   view->itemsize = itemsize;
   view->format = const_cast<char *>(idp_format_from_array_type(prop->subtype));
 
-  Py_ssize_t *shape = MEM_mallocN<Py_ssize_t>(__func__);
+  Py_ssize_t *shape = MEM_new_uninitialized<Py_ssize_t>(__func__);
   shape[0] = prop->len;
   view->shape = shape;
 
@@ -2508,7 +2529,7 @@ static int BPy_IDArray_getbuffer(BPy_IDArray *self, Py_buffer *view, int flags)
 
 static void BPy_IDArray_releasebuffer(BPy_IDArray * /*self*/, Py_buffer *view)
 {
-  MEM_freeN(view->shape);
+  MEM_delete(view->shape);
 }
 
 static PyBufferProcs BPy_IDArray_Buffer = {
@@ -2720,7 +2741,7 @@ PyObject *BPyInit_idprop()
 
   /* idprop.types */
   PyModule_AddObject(mod, "types", (submodule = BPyInit_idprop_types()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   return mod;
 }

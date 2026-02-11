@@ -93,7 +93,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                                .socket_name_ptr(
                                    &tree->id, *RepeatItemsAccessor::item_srna, &item, "name");
         auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-        if (socket_type_supports_fields(socket_type)) {
+        if (socket_type_supports_attributes(socket_type)) {
           input_decl.supports_field();
           output_decl.dependent_field({input_decl.index()});
         }
@@ -110,7 +110,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryRepeatInput *data = MEM_new_for_free<NodeGeometryRepeatInput>(__func__);
+  NodeGeometryRepeatInput *data = MEM_new<NodeGeometryRepeatInput>(__func__);
   /* Needs to be initialized for the node to work. */
   data->output_node_id = 0;
   node->storage = data;
@@ -188,7 +188,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                              .socket_name_ptr(
                                  &tree->id, *RepeatItemsAccessor::item_srna, &item, "name");
       auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-      if (socket_type_supports_fields(socket_type)) {
+      if (socket_type_supports_attributes(socket_type)) {
         input_decl.supports_field();
         output_decl.dependent_field({input_decl.index()});
       }
@@ -204,12 +204,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree *tree, bNode *node)
 {
-  NodeGeometryRepeatOutput *data = MEM_new_for_free<NodeGeometryRepeatOutput>(__func__);
+  NodeGeometryRepeatOutput *data = MEM_new<NodeGeometryRepeatOutput>(__func__);
 
   data->next_identifier = 0;
 
   if (tree->type == NTREE_GEOMETRY) {
-    data->items = MEM_new_array_for_free<NodeRepeatItem>(1, __func__);
+    data->items = MEM_new_array<NodeRepeatItem>(1, __func__);
     data->items[0].name = BLI_strdup(DATA_("Geometry"));
     data->items[0].socket_type = SOCK_GEOMETRY;
     data->items[0].identifier = data->next_identifier++;
@@ -222,14 +222,13 @@ static void node_init(bNodeTree *tree, bNode *node)
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<RepeatItemsAccessor>(*node);
-  MEM_freeN(reinterpret_cast<NodeGeometryRepeatOutput *>(node->storage));
+  MEM_delete(reinterpret_cast<NodeGeometryRepeatOutput *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryRepeatOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new_for_free<NodeGeometryRepeatOutput>(__func__,
-                                                                 dna::shallow_copy(src_storage));
+  auto *dst_storage = MEM_new<NodeGeometryRepeatOutput>(__func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<RepeatItemsAccessor>(*src_node, *dst_node);

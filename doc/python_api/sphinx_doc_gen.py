@@ -417,6 +417,8 @@ INFO_DOCS = (
      "Topics which may not be required for typical usage."),
     ("change_log.rst",
      "List of changes since last Blender release"),
+    ("info_contributing.rst",
+     "Guide for contributing to Blender's Python API documentation."),
 )
 # Referenced indirectly.
 INFO_DOCS_OTHER = (
@@ -1521,7 +1523,7 @@ def pyrna2sphinx(basepath):
             kwargs = {"as_ret": True}
             identifier = ""
         else:
-            id_name = "arg"
+            id_name = "param"
             id_type = "type"
             kwargs = {"as_arg": True}
             identifier = " {:s}".format(prop.identifier)

@@ -668,7 +668,10 @@ int _BaseMathObject_RaiseBufferViewExc(BaseMathObject *self, Py_buffer *view, in
 
 /* #BaseMathObject generic functions for all mathutils types. */
 
-char BaseMathObject_owner_doc[] = "The item this is wrapping or None  (read-only).";
+char BaseMathObject_owner_doc[] =
+    "The item this is wrapping or None (read-only).\n"
+    "\n"
+    ":type: Any";
 PyObject *BaseMathObject_owner_get(BaseMathObject *self, void * /*closure*/)
 {
   PyObject *ret = self->cb_user ? self->cb_user : Py_None;
@@ -702,7 +705,8 @@ char BaseMathObject_freeze_doc[] =
     "\n"
     "   After this the object can be hashed, used in dictionaries & sets.\n"
     "\n"
-    "   :return: An instance of this object.\n";
+    "   :return: An instance of this object.\n"
+    "   :rtype: Self\n";
 PyObject *BaseMathObject_freeze(BaseMathObject *self)
 {
   if ((self->flag & BASE_MATH_FLAG_IS_WRAP) || (self->cb_user != nullptr)) {
@@ -863,26 +867,26 @@ PyMODINIT_FUNC PyInit_mathutils()
   /* XXX, python doesn't do imports with this usefully yet
    * 'from mathutils.geometry import PolyFill'
    * ...fails without this. */
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   PyModule_AddObject(mod, "interpolate", (submodule = PyInit_mathutils_interpolate()));
   /* XXX, python doesn't do imports with this usefully yet
    * 'from mathutils.geometry import PolyFill'
    * ...fails without this. */
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
 #ifndef MATH_STANDALONE
   /* Noise submodule */
   PyModule_AddObject(mod, "noise", (submodule = PyInit_mathutils_noise()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   /* BVHTree submodule */
   PyModule_AddObject(mod, "bvhtree", (submodule = PyInit_mathutils_bvhtree()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   /* KDTree_3d submodule */
   PyModule_AddObject(mod, "kdtree", (submodule = PyInit_mathutils_kdtree()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 #endif
 
   mathutils_matrix_row_cb_index = Mathutils_RegisterCallback(&mathutils_matrix_row_cb);

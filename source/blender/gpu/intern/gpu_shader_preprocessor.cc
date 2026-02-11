@@ -8,7 +8,6 @@
 
 #include "BKE_global.hh"
 #include "BLI_bit_vector.hh"
-#include "BLI_struct_equality_utils.hh"
 
 #include "shader_tool/expression.hh"
 
@@ -418,7 +417,10 @@ class Line {
     return Line(lex_, index_ - 1);
   }
 
-  BLI_STRUCT_EQUALITY_OPERATORS_1(Line, index_)
+  friend bool operator==(const Line &a, const Line &b)
+  {
+    return a.index_ == b.index_;
+  }
 
   uint64_t hash() const
   {
@@ -540,7 +542,10 @@ class Directive {
     return lex_->substr(tok_start, tok_end);
   }
 
-  BLI_STRUCT_EQUALITY_OPERATORS_1(Directive, index_)
+  friend bool operator==(const Directive &a, const Directive &b)
+  {
+    return a.index_ == b.index_;
+  }
 
   uint64_t hash() const
   {

@@ -78,7 +78,7 @@ void node_tree_interface_draw(bContext &C, ui::Layout &layout, bNodeTree &tree)
     layout.prop(&active_item_ptr, "socket_type", UI_ITEM_NONE, IFACE_("Type"), ICON_NONE);
     layout.prop(&active_item_ptr, "description", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     if (tree.type == NTREE_GEOMETRY) {
-      if (nodes::socket_type_supports_fields(stype->type) && stype->type != SOCK_MENU) {
+      if (nodes::socket_type_supports_attributes(stype->type)) {
         if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
           layout.prop(&active_item_ptr, "attribute_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         }
@@ -123,7 +123,7 @@ static void node_tree_interface_panel_draw(const bContext *C, Panel *panel)
 
 void node_tree_interface_panel_register(ARegionType *art)
 {
-  PanelType *pt = MEM_callocN<PanelType>("NODE_PT_node_tree_interface");
+  PanelType *pt = MEM_new_zeroed<PanelType>("NODE_PT_node_tree_interface");
   STRNCPY_UTF8(pt->idname, "NODE_PT_node_tree_interface");
   STRNCPY_UTF8(pt->label, N_("Group Sockets"));
   STRNCPY_UTF8(pt->category, "Group");

@@ -1,6 +1,6 @@
-/* SPDX-FileCopyrightText: 2026 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Clement Foucault
  *
- * SPDX-License-Identifier: GPL-2.0-or-later */
+ * SPDX-License-Identifier: MIT */
 
 /**
  * LexIt is a lexer tool library focus on simplicity and efficiency.
@@ -286,11 +286,11 @@ struct TokenBuffer {
 
  private:
   template<bool with_whitespace>
-  inline void tokenize_scalar(__restrict uint32_t &offset,
-                              __restrict uint32_t &cursor_begin,
-                              __restrict uint32_t &cursor_end,
-                              __restrict CharClass &prev_char_class,
-                              __restrict bool &prev_whitespace,
+  inline void tokenize_scalar(uint32_t &__restrict offset,
+                              uint32_t &__restrict cursor_begin,
+                              uint32_t &__restrict cursor_end,
+                              CharClass &__restrict prev_char_class,
+                              bool &__restrict prev_whitespace,
                               uint32_t end,
                               const CharClass char_class_table[128]);
 };

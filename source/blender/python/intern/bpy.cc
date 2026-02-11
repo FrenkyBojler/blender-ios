@@ -108,11 +108,11 @@ PyDoc_STRVAR(
     "\n"
     "   Returns a list of paths to external files referenced by the loaded .blend file.\n"
     "\n"
-    "   :arg absolute: When true the paths returned are made absolute.\n"
+    "   :param absolute: When true the paths returned are made absolute.\n"
     "   :type absolute: bool\n"
-    "   :arg packed: When true include file paths for packed data.\n"
+    "   :param packed: When true include file paths for packed data.\n"
     "   :type packed: bool\n"
-    "   :arg local: When true skip linked library paths.\n"
+    "   :param local: When true skip linked library paths.\n"
     "   :type local: bool\n"
     "   :return: path list.\n"
     "   :rtype: list[str]\n");
@@ -127,7 +127,6 @@ static PyObject *bpy_blend_paths(PyObject * /*self*/, PyObject *args, PyObject *
 
   static const char *_keywords[] = {"absolute", "packed", "local", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O&" /* `absolute` */
       "O&" /* `packed` */
@@ -179,9 +178,9 @@ PyDoc_STRVAR(
     "   Flip a name between left/right sides, useful for \n"
     "   mirroring bone names.\n"
     "\n"
-    "   :arg name: Bone name to flip.\n"
+    "   :param name: Bone name to flip.\n"
     "   :type name: str\n"
-    "   :arg strip_digits: Whether to remove ``.###`` suffix.\n"
+    "   :param strip_digits: Whether to remove ``.###`` suffix.\n"
     "   :type strip_digits: bool\n"
     "   :return: The flipped name.\n"
     "   :rtype: str\n");
@@ -193,7 +192,6 @@ static PyObject *bpy_flip_name(PyObject * /*self*/, PyObject *args, PyObject *kw
 
   static const char *_keywords[] = {"", "strip_digits", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s#" /* `name` */
       "|$" /* Optional, keyword only arguments. */
       "O&" /* `strip_digits` */
@@ -235,7 +233,6 @@ static PyObject *bpy_user_resource(PyObject * /*self*/, PyObject *args, PyObject
 
   static const char *_keywords[] = {"type", "path", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `type` */
       "|$" /* Optional keyword only arguments. */
       "O&" /* `path` */
@@ -270,9 +267,9 @@ PyDoc_STRVAR(
     "\n"
     "   Return a system resource path.\n"
     "\n"
-    "   :arg type: string in ['DATAFILES', 'SCRIPTS', 'EXTENSIONS', 'PYTHON'].\n"
+    "   :param type: string in ['DATAFILES', 'SCRIPTS', 'EXTENSIONS', 'PYTHON'].\n"
     "   :type type: str\n"
-    "   :arg path: Optional subdirectory.\n"
+    "   :param path: Optional subdirectory.\n"
     "   :type path: str | bytes\n");
 static PyObject *bpy_system_resource(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
@@ -289,7 +286,6 @@ static PyObject *bpy_system_resource(PyObject * /*self*/, PyObject *args, PyObje
 
   static const char *_keywords[] = {"type", "path", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `type` */
       "|$" /* Optional keyword only arguments. */
       "O&" /* `path` */
@@ -321,11 +317,11 @@ PyDoc_STRVAR(
     "\n"
     "   Return the base path for storing system files.\n"
     "\n"
-    "   :arg type: string in ['USER', 'LOCAL', 'SYSTEM'].\n"
+    "   :param type: string in ['USER', 'LOCAL', 'SYSTEM'].\n"
     "   :type type: str\n"
-    "   :arg major: major version, defaults to current.\n"
+    "   :param major: major version, defaults to current.\n"
     "   :type major: int\n"
-    "   :arg minor: minor version, defaults to current.\n"
+    "   :param minor: minor version, defaults to current.\n"
     "   :type minor: int\n"
     "   :return: the resource path (not necessarily existing).\n"
     "   :rtype: str\n");
@@ -343,7 +339,6 @@ static PyObject *bpy_resource_path(PyObject * /*self*/, PyObject *args, PyObject
 
   static const char *_keywords[] = {"type", "major", "minor", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `type` */
       "|$" /* Optional keyword only arguments. */
       "i"  /* `major` */
@@ -372,11 +367,11 @@ PyDoc_STRVAR(
     "\n"
     "   Test if the script should be considered trusted.\n"
     "\n"
-    "   :arg code: The code to test.\n"
+    "   :param code: The code to test.\n"
     "   :type code: code\n"
-    "   :arg namespace: The namespace of values which are allowed.\n"
-    "   :type namespace: dict[str, Any]\n"
-    "   :arg verbose: Print the reason for considering insecure to the ``stderr``.\n"
+    "   :param namespace: The namespace of values which are allowed.\n"
+    "   :type namespace: dict[str, Any] | None\n"
+    "   :param verbose: Print the reason for considering insecure to the ``stderr``.\n"
     "   :type verbose: bool\n"
     "   :return: True when the script is considered trusted.\n"
     "   :rtype: bool\n");
@@ -384,13 +379,13 @@ static PyObject *bpy_driver_secure_code_test(PyObject * /*self*/, PyObject *args
 {
   PyObject *py_code;
   PyObject *py_namespace = nullptr;
+  PyC_TypeOrNone py_namespace_or_none = {&PyDict_Type, &py_namespace};
   bool verbose = false;
   static const char *_keywords[] = {"code", "namespace", "verbose", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O!" /* `expression` */
       "|$" /* Optional keyword only arguments. */
-      "O!" /* `namespace` */
+      "O&" /* `namespace` */
       "O&" /* `verbose` */
       ":driver_secure_code_test",
       _keywords,
@@ -401,8 +396,8 @@ static PyObject *bpy_driver_secure_code_test(PyObject * /*self*/, PyObject *args
                                         &_parser,
                                         &PyCode_Type,
                                         &py_code,
-                                        &PyDict_Type,
-                                        &py_namespace,
+                                        PyC_ParseTypeOrNone,
+                                        &py_namespace_or_none,
                                         PyC_ParseBool,
                                         &verbose))
   {
@@ -418,7 +413,7 @@ PyDoc_STRVAR(
     "\n"
     "   Simple string escaping function used for animation paths.\n"
     "\n"
-    "   :arg string: text\n"
+    "   :param string: text\n"
     "   :type string: str\n"
     "   :return: The escaped string.\n"
     "   :rtype: str\n");
@@ -458,7 +453,7 @@ PyDoc_STRVAR(
     "   Simple string un-escape function used for animation paths.\n"
     "   This performs the reverse of :func:`escape_identifier`.\n"
     "\n"
-    "   :arg string: text\n"
+    "   :param string: text\n"
     "   :type string: str\n"
     "   :return: The un-escaped string.\n"
     "   :rtype: str\n");

@@ -5,7 +5,7 @@
 macro(list_insert_after
   list_id item_check item_add
   )
-  set(_index)
+  set(_index "")
   list(FIND "${list_id}" "${item_check}" _index)
   if("${_index}" MATCHES "-1")
     message(FATAL_ERROR "'${list_id}' doesn't contain '${item_check}'")
@@ -18,7 +18,7 @@ endmacro()
 macro(list_insert_before
   list_id item_check item_add
   )
-  set(_index)
+  set(_index "")
   list(FIND "${list_id}" "${item_check}" _index)
   if("${_index}" MATCHES "-1")
     message(FATAL_ERROR "'${list_id}' doesn't contain '${item_check}'")
@@ -107,10 +107,10 @@ macro(file_list_suffix
   )
 
   # in case of empty list
-  set(_fp)
-  set(_fp_suffixed)
+  set(_fp "")
+  set(_fp_suffixed "")
 
-  set(fp_list_new)
+  set(fp_list_new "")
 
   foreach(_fp ${fp_list})
     file_suffix(_fp_suffixed "${_fp}" "${fn_suffix}")
@@ -358,27 +358,27 @@ function(blender_link_libraries
   #
   #   set(FOO_LIBRARIES optimized libfoo.lib debug libfoo_d.lib)
   #
-  # Complications starts with a single argument for library_deps: all the elements are being
+  # Complications start with a single argument for library_deps: all the elements are being
   # put to a list: "${FOO_LIBRARIES}" will become "optimized;libfoo.lib;debug;libfoo_d.lib".
-  # This makes it impossible to pass it as-is to target_link_libraries sine it will treat
+  # This makes it impossible to pass it as-is to target_link_libraries since it will treat
   # this argument as a list of libraries to be linked against, causing missing libraries
   # for optimized.lib.
   #
-  # What this code does it traverses library_deps and extracts information about whether
-  # library is to provided as general, debug or optimized. This is a little state machine which
-  # keeps track of which build type library is to provided for:
+  # What this code does is traverse library_deps and extracts information about whether
+  # library is to be provided as general, debug or optimized. This is a little state machine which
+  # keeps track of which build type library is to be provided for:
   #
   # - If "debug" or "optimized" word is found, the next element in the list is expected to be
   #   a library which will be passed to target_link_libraries() under corresponding build type.
   #
   # - If there is no "debug" or "optimized" used library is specified for all build types.
   #
-  # NOTE: If separated libraries for debug and release are needed every library is the list are
+  # NOTE: If separated libraries for debug and release are needed every library in the list is
   # to be prefixed explicitly.
   #
   # Use: "optimized libfoo optimized libbar debug libfoo_d debug libbar_d"
   # NOT: "optimized libfoo libbar debug libfoo_d libbar_d"
-  set(dependency_libraries)
+  set(dependency_libraries "")
   if(NOT "${library_deps}" STREQUAL "")
     set(next_library_mode "")
     set(next_interface_mode "PRIVATE")
@@ -448,7 +448,7 @@ function(blender_add_lib__impl
   # Not for system includes because they can resolve to the same path
   # list_assert_duplicates("${includes_sys}")
 
-  # blenders dependency loops are longer than cmake expects and we need additional loops to
+  # Blender's dependency loops are longer than cmake expects and we need additional loops to
   # properly link.
   set_property(TARGET ${name} APPEND PROPERTY LINK_INTERFACE_MULTIPLICITY 3)
 endfunction()
@@ -485,9 +485,9 @@ endfunction()
 # Ninja only: assign 'heavy pool' to some targets that are especially RAM-consuming to build.
 function(setup_heavy_lib_pool)
   if(WITH_NINJA_POOL_JOBS AND NINJA_MAX_NUM_PARALLEL_COMPILE_HEAVY_JOBS)
-    set(_HEAVY_LIBS)
-    set(_HEAVY_FILES)
-    set(_TARGET)
+    set(_HEAVY_LIBS "")
+    set(_HEAVY_FILES "")
+    set(_TARGET "")
     if(WITH_CYCLES)
       list(APPEND _HEAVY_LIBS "cycles_device" "cycles_kernel" "cycles_hydra")
     endif()
@@ -784,9 +784,9 @@ endmacro()
 
 macro(remove_strict_cxx_flags_file
   filenames)
-  remove_strict_c_flags_file(${filenames} ${ARHV})
+  remove_strict_c_flags_file(${filenames} ${ARGV})
   foreach(_SOURCE ${ARGV})
-    if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR
+    if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR
        (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
       set_source_files_properties(
         ${_SOURCE} PROPERTIES
@@ -1079,7 +1079,7 @@ function(glsl_to_c
   get_filename_component(_file_to   ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.c  REALPATH)
 
   # Turn include directories into absolute paths
-  set(_inc_list)
+  set(_inc_list "")
   foreach(path IN LISTS ${include_list})
     get_filename_component(_inc_path ${CMAKE_CURRENT_SOURCE_DIR}/${path} REALPATH)
     list(APPEND _inc_list ${_inc_path})
@@ -1396,7 +1396,7 @@ endmacro()
 
 macro(windows_install_shared_manifest)
   set(options OPTIONAL DEBUG RELEASE ALL)
-  set(oneValueArgs)
+  set(oneValueArgs "")
   set(multiValueArgs FILES)
   cmake_parse_arguments(
     WINDOWS_INSTALL
@@ -1447,7 +1447,7 @@ macro(windows_install_shared_manifest)
 endmacro()
 
 macro(windows_generate_manifest)
-  set(options)
+  set(options "")
   set(oneValueArgs OUTPUT NAME)
   set(multiValueArgs FILES)
   cmake_parse_arguments(

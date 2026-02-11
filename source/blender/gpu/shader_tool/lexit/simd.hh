@@ -9,6 +9,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstdint>
 
 #if defined(__ARM_NEON)
 #  define USE_NEON
@@ -307,7 +308,7 @@ struct u8x16_table {
 #  if defined(USE_NEON)
       result.lanes[i] = vqtbl1q_u8(table.lanes[0], index.lanes[i]);
 #  elif defined(USE_SSE4_2)
-      result.lanes[i] = _mm_shuffle_epi8(table.lanes[0], safe_indices);
+      result.lanes[i] = _mm_shuffle_epi8(table.lanes[0], index.lanes[i]);
 #  endif
     }
     return result;
@@ -318,7 +319,7 @@ struct u8x64_table {
 #  if defined(USE_NEON)
   uint8x16x4_t table;
 #  elif defined(USE_SSE4_2)
-  u8x64 table;
+  u8x16_table tables[4];
 #  endif
 
   u8x64_table() = default;
@@ -328,7 +329,13 @@ struct u8x64_table {
   {
   }
 #  elif defined(USE_SSE4_2)
-  u8x64_table(u8x64 table) : table(table) {}
+  u8x64_table(u8x64 table)
+  {
+    tables[0].table = table.lane(0);
+    tables[1].table = table.lane(1);
+    tables[2].table = table.lane(2);
+    tables[3].table = table.lane(3);
+  }
 #  endif
 
   static u8x64_table load_unaligned(const uint8_t *src)
@@ -337,9 +344,8 @@ struct u8x64_table {
 #  if defined(USE_NEON)
     table.table = vld1q_u8_x4(src);
 #  elif defined(USE_SSE4_2)
-#    pragma unroll
     for (int i = 0; i < 4; ++i) {
-      table[i] = u8x16::load_unaligned(src + i * 16);
+      table.tables[i] = u8x16_table::load_unaligned(src + i * 16);
     }
 #  endif
     return table;
@@ -352,9 +358,8 @@ struct u8x64_table {
 #  if defined(USE_NEON)
     table.table = vld1q_u8_x4(src);
 #  elif defined(USE_SSE4_2)
-#    pragma unroll
     for (int i = 0; i < 4; ++i) {
-      table[i] = u8x16::load(src + i * 16);
+      table.tables[i] = u8x16_table::load(src + i * 16);
     }
 #  endif
     return table;
@@ -367,10 +372,10 @@ struct u8x64_table {
 #  if defined(USE_NEON)
       result.lanes[i] = vqtbl4q_u8(table, index.lanes[i]);
 #  elif defined(USE_SSE4_2)
-      result.lanes[i] = tables[0][i];
-      result.lanes[i] |= tables[0][i ^ u8x64(0x10)];
-      result.lanes[i] |= tables[0][i ^ u8x64(0x20)];
-      result.lanes[i] |= tables[0][i ^ u8x64(0x30)];
+      result = tables[i][index];
+      result |= tables[i][index ^ u8_base<Size>(0x10)];
+      result |= tables[i][index ^ u8_base<Size>(0x20)];
+      result |= tables[i][index ^ u8_base<Size>(0x30)];
 #  endif
     }
     return result;

@@ -247,7 +247,7 @@ PyDoc_STRVAR(
     "\n"
     "   Unbind the offscreen object.\n"
     "\n"
-    "   :arg restore: Restore the OpenGL state, can only be used when the state has been "
+    "   :param restore: Restore the OpenGL state, can only be used when the state has been "
     "saved before.\n"
     "   :type restore: bool\n");
 static PyObject *pygpu_offscreen_unbind(BPyGPUOffScreen *self, PyObject *args, PyObject *kwds)
@@ -258,7 +258,6 @@ static PyObject *pygpu_offscreen_unbind(BPyGPUOffScreen *self, PyObject *args, P
 
   static const char *_keywords[] = {"restore", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O&" /* `restore` */
       ":unbind",
@@ -292,7 +291,6 @@ static PyObject *pygpu_offscreen__tp_new(PyTypeObject * /*self*/, PyObject *args
 
   static const char *_keywords[] = {"width", "height", "format", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `width` */
       "i"  /* `height` */
       "|$" /* Optional keyword only arguments. */
@@ -375,21 +373,21 @@ PyDoc_STRVAR(
     "\n"
     "   Draw the 3d viewport in the offscreen object.\n"
     "\n"
-    "   :arg scene: Scene to draw.\n"
+    "   :param scene: Scene to draw.\n"
     "   :type scene: :class:`bpy.types.Scene`\n"
-    "   :arg view_layer: View layer to draw.\n"
+    "   :param view_layer: View layer to draw.\n"
     "   :type view_layer: :class:`bpy.types.ViewLayer`\n"
-    "   :arg view3d: 3D View to get the drawing settings from.\n"
+    "   :param view3d: 3D View to get the drawing settings from.\n"
     "   :type view3d: :class:`bpy.types.SpaceView3D`\n"
-    "   :arg region: Region of the 3D View (required as temporary draw target).\n"
+    "   :param region: Region of the 3D View (required as temporary draw target).\n"
     "   :type region: :class:`bpy.types.Region`\n"
-    "   :arg view_matrix: View Matrix (e.g. ``camera.matrix_world.inverted()``).\n"
+    "   :param view_matrix: View Matrix (e.g. ``camera.matrix_world.inverted()``).\n"
     "   :type view_matrix: :class:`mathutils.Matrix`\n"
-    "   :arg projection_matrix: Projection Matrix (e.g. ``camera.calc_matrix_camera(...)``).\n"
+    "   :param projection_matrix: Projection Matrix (e.g. ``camera.calc_matrix_camera(...)``).\n"
     "   :type projection_matrix: :class:`mathutils.Matrix`\n"
-    "   :arg do_color_management: Color manage the output.\n"
+    "   :param do_color_management: Color manage the output.\n"
     "   :type do_color_management: bool\n"
-    "   :arg draw_background: Draw background.\n"
+    "   :param draw_background: Draw background.\n"
     "   :type draw_background: bool\n");
 static PyObject *pygpu_offscreen_draw_view3d(BPyGPUOffScreen *self, PyObject *args, PyObject *kwds)
 {
@@ -419,7 +417,6 @@ static PyObject *pygpu_offscreen_draw_view3d(BPyGPUOffScreen *self, PyObject *ar
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O"  /* `scene` */
       "O"  /* `view_layer` */
       "O"  /* `view3d` */
@@ -600,17 +597,12 @@ PyDoc_STRVAR(
     "\n"
     "   This object gives access to off screen buffers.\n"
     "\n"
-    "   :arg width: Horizontal dimension of the buffer.\n"
+    "   :param width: Horizontal dimension of the buffer.\n"
     "   :type width: int\n"
-    "   :arg height: Vertical dimension of the buffer.\n"
+    "   :param height: Vertical dimension of the buffer.\n"
     "   :type height: int\n"
-    "   :arg format: Internal data format inside GPU memory for color attachment "
-    "texture. Possible values are:\n"
-    "      ``RGBA8``,\n"
-    "      ``RGBA16``,\n"
-    "      ``RGBA16F``,\n"
-    "      ``RGBA32F``.\n"
-    "   :type format: str\n");
+    "   :param format: Internal data format inside GPU memory for color attachment texture.\n"
+    "   :type format: Literal['RGBA8', 'RGBA16', 'RGBA16F', 'RGBA32F']\n");
 PyTypeObject BPyGPUOffScreen_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "GPUOffScreen",

@@ -72,7 +72,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                            .socket_name_ptr(
                                &ntree->id, *BakeItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-    if (socket_type_supports_fields(socket_type)) {
+    if (socket_type_supports_attributes(socket_type)) {
       input_decl.supports_field();
       if (item.flag & GEO_NODE_BAKE_ITEM_IS_ATTRIBUTE) {
         output_decl.field_source();
@@ -96,20 +96,20 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryBake *data = MEM_new_for_free<NodeGeometryBake>(__func__);
+  NodeGeometryBake *data = MEM_new<NodeGeometryBake>(__func__);
   node->storage = data;
 }
 
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<BakeItemsAccessor>(*node);
-  MEM_freeN(reinterpret_cast<NodeGeometryBake *>(node->storage));
+  MEM_delete(reinterpret_cast<NodeGeometryBake *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryBake &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new_for_free<NodeGeometryBake>(__func__, dna::shallow_copy(src_storage));
+  auto *dst_storage = MEM_new<NodeGeometryBake>(__func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<BakeItemsAccessor>(*src_node, *dst_node);
@@ -132,10 +132,11 @@ static void draw_bake_items(const bContext *C, ui::Layout &layout, PointerRNA no
     socket_items::ui::draw_active_item_props<BakeItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
           const NodeGeometryBakeItem &active_item = storage.items[storage.active_index];
+          const auto socket_type = eNodeSocketDatatype(active_item.socket_type);
           panel->use_property_split_set(true);
           panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          if (socket_type_supports_fields(eNodeSocketDatatype(active_item.socket_type))) {
+          if (socket_type_supports_attributes(socket_type)) {
             panel->prop(item_ptr, "attribute_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
             panel->prop(item_ptr, "is_attribute", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           }
@@ -829,7 +830,7 @@ static void draw_bake_data_block_list_item(uiList * /*ui_list*/,
 void draw_data_blocks(const bContext *C, ui::Layout &layout, PointerRNA &bake_rna)
 {
   static const uiListType *data_block_list = []() {
-    uiListType *list = MEM_callocN<uiListType>(__func__);
+    uiListType *list = MEM_new_zeroed<uiListType>(__func__);
     STRNCPY_UTF8(list->idname, "DATA_UL_nodes_modifier_data_blocks");
     list->draw_item = draw_bake_data_block_list_item;
     WM_uilisttype_add(list);

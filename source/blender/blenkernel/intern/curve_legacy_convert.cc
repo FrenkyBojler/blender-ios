@@ -218,11 +218,14 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBaseT<Nurb> 
       create_bezier,
       create_nurbs);
 
-  curves.normal_mode_for_write().fill(normal_mode_from_legacy(curve_legacy.twist_mode));
+  curves_attributes.add<int8_t>(
+      "normal_mode",
+      bke::AttrDomain::Curve,
+      bke::AttributeInitValue(int8_t(normal_mode_from_legacy(curve_legacy.twist_mode))));
 
   radius_attribute.finish();
 
-  curves_id->mat = static_cast<Material **>(MEM_dupallocN(curve_legacy.mat));
+  curves_id->mat = MEM_dupalloc(curve_legacy.mat);
   curves_id->totcol = curve_legacy.totcol;
 
   return curves_id;

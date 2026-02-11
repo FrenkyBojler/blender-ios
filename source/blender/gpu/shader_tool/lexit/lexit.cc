@@ -1,12 +1,13 @@
-/* SPDX-FileCopyrightText: 2026 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Clement Foucault
  *
- * SPDX-License-Identifier: GPL-2.0-or-later */
+ * SPDX-License-Identifier: MIT */
 
 #include "lexit.hh"
 #include "simd.hh"
 
 #include <algorithm>
 #include <cassert>
+#include <cstring>
 
 #if defined(__clang__) || defined(__GNUC__)
 #  define count_bits_i(i) __builtin_popcount(i)
@@ -400,11 +401,11 @@ inline ShuffleIndicesResult<4> shuffle_indices_from_emit_mask(uint64_t emit_mask
 }
 
 template<bool with_whitespace>
-inline void TokenBuffer::tokenize_scalar(__restrict uint32_t &offset,
-                                         __restrict uint32_t &cursor_begin,
-                                         __restrict uint32_t &cursor_end,
-                                         __restrict CharClass &prev_char_class,
-                                         __restrict bool &prev_whitespace,
+inline void TokenBuffer::tokenize_scalar(uint32_t &__restrict offset,
+                                         uint32_t &__restrict cursor_begin,
+                                         uint32_t &__restrict cursor_end,
+                                         CharClass &__restrict prev_char_class,
+                                         bool &__restrict prev_whitespace,
                                          uint32_t end,
                                          const CharClass char_class_table[128])
 {
@@ -779,7 +780,12 @@ static uint32_t merge_token(const TokenType *in_types,
     out_original_offsets[j + 1] = next_offset;
     /* If false, make the next token overwrite this one.
      * Effectively merging the token with the one before. */
-    j += int(type != removed_type && type != removed_type2);
+    if constexpr (removed_type == removed_type2) {
+      j += int(type != removed_type);
+    }
+    else {
+      j += int(type != removed_type && type != removed_type2);
+    }
   }
 
   out_types[j] = EndOfFile;

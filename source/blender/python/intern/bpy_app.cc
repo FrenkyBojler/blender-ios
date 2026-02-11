@@ -491,11 +491,17 @@ static PyObject *bpy_app_driver_dict_get(PyObject * /*self*/, void * /*closure*/
 
 PyDoc_STRVAR(
     /* Wrap. */
-    bpy_app_preview_render_size_doc,
-    "Reference size for icon/preview renders (read-only).\n"
+    bpy_app_render_icon_size_doc,
+    "Reference size for icon renders (read-only).\n"
     "\n"
     ":type: int\n");
-static PyObject *bpy_app_preview_render_size_get(PyObject * /*self*/, void *closure)
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_app_render_preview_size_doc,
+    "Reference size for preview renders (read-only).\n"
+    "\n"
+    ":type: int\n");
+static PyObject *bpy_app_render_preview_or_icon_size_get(PyObject * /*self*/, void *closure)
 {
   return PyLong_FromLong(
       long(ui::icon_preview_to_render_size(eIconSizes(POINTER_AS_INT(closure)))));
@@ -657,14 +663,14 @@ static PyGetSetDef bpy_app_getsets[] = {
     {"driver_namespace", bpy_app_driver_dict_get, nullptr, bpy_app_driver_dict_doc, nullptr},
 
     {"render_icon_size",
-     bpy_app_preview_render_size_get,
+     bpy_app_render_preview_or_icon_size_get,
      nullptr,
-     bpy_app_preview_render_size_doc,
+     bpy_app_render_icon_size_doc,
      reinterpret_cast<void *>(ICON_SIZE_ICON)},
     {"render_preview_size",
-     bpy_app_preview_render_size_get,
+     bpy_app_render_preview_or_icon_size_get,
      nullptr,
-     bpy_app_preview_render_size_doc,
+     bpy_app_render_preview_size_doc,
      reinterpret_cast<void *>(ICON_SIZE_PREVIEW)},
 
     {"online_access",
@@ -715,7 +721,7 @@ PyDoc_STRVAR(
     "\n"
     "   Check whether a job of the given type is running.\n"
     "\n"
-    "   :arg job_type: job type in :ref:`rna_enum_wm_job_type_items`.\n"
+    "   :param job_type: job type in :ref:`rna_enum_wm_job_type_items`.\n"
     "   :type job_type: str\n"
     "   :return: Whether a job of the given type is currently running.\n"
     "   :rtype: bool\n");
@@ -727,7 +733,6 @@ static PyObject *bpy_app_is_job_running(PyObject * /*self*/, PyObject *args, PyO
 
   static const char *_keywords[] = {"job_type", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `job_type` */
       ":is_job_running",
       _keywords,
@@ -756,7 +761,7 @@ PyDoc_STRVAR(
     "\n"
     "   Return the help text as a string.\n"
     "\n"
-    "   :arg all: Return all arguments, "
+    "   :param all: Return all arguments, "
     "even those which aren't available for the current platform.\n"
     "   :type all: bool\n"
     "   :return: Help text.\n"
@@ -766,7 +771,6 @@ static PyObject *bpy_app_help_text(PyObject * /*self*/, PyObject *args, PyObject
   bool all = false;
   static const char *_keywords[] = {"all", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O&" /* `all` */
       ":help_text",
@@ -779,7 +783,7 @@ static PyObject *bpy_app_help_text(PyObject * /*self*/, PyObject *args, PyObject
 
   char *buf = BPY_python_app_help_text_fn(all);
   PyObject *result = PyUnicode_FromString(buf);
-  MEM_freeN(buf);
+  MEM_delete(buf);
   return result;
 }
 

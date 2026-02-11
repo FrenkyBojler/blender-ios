@@ -363,6 +363,7 @@ enum {
   R_IMF_IMTYPE_PSD = 34,
   R_IMF_IMTYPE_WEBP = 35,
   /* R_IMF_IMTYPE_AV1 = 36, DEPRECATED */
+  R_IMF_IMTYPE_AVIF = 37,
 
   R_IMF_IMTYPE_INVALID = 255,
 };
@@ -414,7 +415,8 @@ enum {
   R_IMF_EXR_CODEC_B44A = 7,
   R_IMF_EXR_CODEC_DWAA = 8,
   R_IMF_EXR_CODEC_DWAB = 9,
-  R_IMF_EXR_CODEC_MAX = 10,
+  R_IMF_EXR_CODEC_HTJ2K = 10,
+  R_IMF_EXR_CODEC_MAX = 11,
 };
 
 /** #ImageFormatData::exr_flag */
@@ -1866,7 +1868,8 @@ enum eSnapMode {
   SCE_SNAP_TO_KEYS = (1 << 3),
   SCE_SNAP_TO_STRIPS = (1 << 4),
 
-  /** #ToolSettings::snap_mode and #ToolSettings::snap_node_mode and #ToolSettings.snap_uv_mode */
+  /** #ToolSettings::snap_mode and #ToolSettings::snap_node_mode and #ToolSettings.snap_uv_mode and
+     #ToolSettings::snap_mode_tools */
   SCE_SNAP_TO_POINT = (1 << 0),
   SCE_SNAP_TO_EDGE_MIDPOINT = (1 << 1),
   SCE_SNAP_TO_EDGE_ENDPOINT = (1 << 2),
@@ -1885,8 +1888,14 @@ enum eSnapMode {
 };
 ENUM_OPERATORS(eSnapMode)
 
+/**
+ * \note The exact value here is used in an enum, any changes require versioning.
+ */
 #define SCE_SNAP_TO_VERTEX (SCE_SNAP_TO_POINT | SCE_SNAP_TO_EDGE_ENDPOINT)
 
+/**
+ * \note The exact value here is used in an enum, any changes require versioning.
+ */
 #define SCE_SNAP_TO_GEOM \
   (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT | \
    SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR)
@@ -2627,6 +2636,10 @@ struct SceneEEVEE {
   float clamp_surface_indirect = 10.0f;
   float clamp_volume_direct = 0;
   float clamp_volume_indirect = 0;
+
+  /** Global lighting intensity. */
+  float direct_light_intensity = 1.0f;
+  float indirect_light_intensity = 1.0f;
 
   int ray_tracing_method = RAYTRACE_EEVEE_METHOD_SCREEN;
 
