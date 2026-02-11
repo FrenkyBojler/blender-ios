@@ -696,8 +696,17 @@ void GHOST_XrControllerModel::load(XrSession session)
     for (size_t i = 0; i < gltf_model.materials.size(); ++i) {
       const tinygltf::Material &mat = gltf_model.materials[i];
 
+      /* Texture index is -1 when no texture is assigned. */
       int tex_index = mat.pbrMetallicRoughness.baseColorTexture.index;
+      if (tex_index < 0 || tex_index >= gltf_model.textures.size()) {
+        continue;
+      }
+
+      /* Texture source is optional, -1 means no image source. */
       int image_index = gltf_model.textures[tex_index].source;
+      if (image_index < 0 || image_index >= gltf_model.images.size()) {
+        continue;
+      }
 
       material_to_texture[i] = existing_textures_offset + image_index;
     }
