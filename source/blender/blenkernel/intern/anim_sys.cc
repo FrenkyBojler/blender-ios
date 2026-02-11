@@ -605,7 +605,8 @@ static void animsys_evaluate_fcurves(PointerRNA *ptr,
  * have to be in array_index order. If the quaternion is only partially keyed,
  * the result is normalized. If it is fully keyed, the result is returned as-is.
  */
-static void animsys_quaternion_evaluate_fcurves(PathResolvedRNA quat_rna,
+static void animsys_quaternion_evaluate_fcurves(PointerRNA &ptr,
+                                                PropertyRNA *prop,
                                                 Span<FCurve *> quat_fcurves,
                                                 const AnimationEvalContext *anim_eval_context,
                                                 float r_quaternion[4])
@@ -618,7 +619,9 @@ static void animsys_quaternion_evaluate_fcurves(PathResolvedRNA quat_rna,
   r_quaternion[1] = 0.0f;
   r_quaternion[2] = 0.0f;
   r_quaternion[3] = 0.0f;
-
+  PathResolvedRNA quat_rna;
+  quat_rna.ptr = ptr;
+  quat_rna.prop = prop;
   for (FCurve *quat_curve_fcu : quat_fcurves) {
     const int array_index = quat_curve_fcu->array_index;
     quat_rna.prop_index = array_index;
@@ -636,7 +639,8 @@ static void animsys_quaternion_evaluate_fcurves(PathResolvedRNA quat_rna,
  * This function assumes that the quaternion keys are sequential. They do not
  * have to be in array_index order.
  */
-static void animsys_blend_fcurves_quaternion(PathResolvedRNA *anim_rna,
+static void animsys_blend_fcurves_quaternion(PointerRNA &ptr,
+                                             PropertyRNA *prop,
                                              Span<FCurve *> quaternion_fcurves,
                                              const AnimationEvalContext *anim_eval_context,
                                              const float blend_factor)
@@ -644,16 +648,16 @@ static void animsys_blend_fcurves_quaternion(PathResolvedRNA *anim_rna,
   BLI_assert(quaternion_fcurves.size() <= 4);
 
   float current_quat[4];
-  RNA_property_float_get_array(&anim_rna->ptr, anim_rna->prop, current_quat);
+  RNA_property_float_get_array(&ptr, prop, current_quat);
 
   float target_quat[4];
   animsys_quaternion_evaluate_fcurves(
-      *anim_rna, quaternion_fcurves, anim_eval_context, target_quat);
+      ptr, prop, quaternion_fcurves, anim_eval_context, target_quat);
 
   float blended_quat[4];
   interp_qt_qtqt(blended_quat, current_quat, target_quat, blend_factor);
 
-  RNA_property_float_set_array(&anim_rna->ptr, anim_rna->prop, blended_quat);
+  RNA_property_float_set_array(&ptr, prop, blended_quat);
 }
 
 static float get_fcurve_blend_value(FCurve &fcu,
@@ -757,33 +761,25 @@ static void blend_rotation_with_conversion(PointerRNA &ptr,
 }
 
 static void blend_rotation(PointerRNA &ptr,
+                           PropertyRNA *prop,
                            Span<FCurve *> rotation_fcurves,
                            const eRotationModes fcurve_rotation_mode,
                            const AnimationEvalContext *anim_eval_context,
                            const float blend_factor)
 {
   if (fcurve_rotation_mode == ROT_MODE_QUAT) {
-    PathResolvedRNA anim_rna;
-    /* The function `animsys_blend_fcurves_quaternion` deals with the array index of the
-     * PathResolvedRNA. This is why we can just use the array_index of the first FCurve. */
-    if (!BKE_animsys_rna_path_resolve(
-            &ptr, rotation_fcurves[0]->rna_path, rotation_fcurves[0]->array_index, &anim_rna))
-    {
-      return;
-    }
-    animsys_blend_fcurves_quaternion(&anim_rna, rotation_fcurves, anim_eval_context, blend_factor);
+    animsys_blend_fcurves_quaternion(ptr, prop, rotation_fcurves, anim_eval_context, blend_factor);
+    return;
   }
-  else {
-    for (FCurve *fcurve : rotation_fcurves) {
-      PathResolvedRNA anim_rna;
-      if (!BKE_animsys_rna_path_resolve(&ptr, fcurve->rna_path, fcurve->array_index, &anim_rna)) {
-        continue;
-      }
 
-      const float value_to_write = get_fcurve_blend_value(
-          *fcurve, anim_rna, anim_eval_context, blend_factor);
-      BKE_animsys_write_to_rna_path(&anim_rna, value_to_write);
-    }
+  PathResolvedRNA anim_rna;
+  anim_rna.ptr = ptr;
+  anim_rna.prop = prop;
+  for (FCurve *fcurve : rotation_fcurves) {
+    anim_rna.prop_index = fcurve->array_index;
+    const float value_to_write = get_fcurve_blend_value(
+        *fcurve, anim_rna, anim_eval_context, blend_factor);
+    BKE_animsys_write_to_rna_path(&anim_rna, value_to_write);
   }
 }
 
@@ -834,8 +830,12 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
        * applied. The reason to have this separate is because in this case euler angles > 180
        * degrees are preserved. The other path uses a conversion to a matrix which loses that
        * information. */
-      blend_rotation(
-          *ptr, rotation_fcurves, fcurve_rotation_mode.value(), anim_eval_context, blend_factor);
+      blend_rotation(resolved_ptr,
+                     resolved_prop,
+                     rotation_fcurves,
+                     fcurve_rotation_mode.value(),
+                     anim_eval_context,
+                     blend_factor);
     }
     else {
       blend_rotation_with_conversion(resolved_ptr,
