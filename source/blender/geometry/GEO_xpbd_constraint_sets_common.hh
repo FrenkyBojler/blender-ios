@@ -154,7 +154,7 @@ inline RodStretchAndShearConstraintResult evaluate_rod_stretch_and_shear_constra
   return result;
 }
 
-class PinnedPositionConstraintSet : public TemplatedConstraintSet<PinnedPositionConstraintSet> {
+class PinPositionConstraintSet : public TemplatedConstraintSet<PinPositionConstraintSet> {
  public:
   /** Indexed by constraint index. */
   Span<int> point_indices;
@@ -164,12 +164,12 @@ class PinnedPositionConstraintSet : public TemplatedConstraintSet<PinnedPosition
 
   static constexpr StringRefNull debug_name = "Pinned Position";
 
-  PinnedPositionConstraintSet(const int geo_i,
-                              const Span<int> point_indices,
-                              const Span<float3> pin_positions,
-                              const Span<float> compliance_terms,
-                              const MutableSpan<float> lambdas)
-      : TemplatedConstraintSet<PinnedPositionConstraintSet>(point_indices.size(), {geo_i}),
+  PinPositionConstraintSet(const int geo_i,
+                           const Span<int> point_indices,
+                           const Span<float3> pin_positions,
+                           const Span<float> compliance_terms,
+                           const MutableSpan<float> lambdas)
+      : TemplatedConstraintSet<PinPositionConstraintSet>(point_indices.size(), {geo_i}),
         point_indices(point_indices),
         pin_positions(pin_positions),
         compliance_terms(compliance_terms),

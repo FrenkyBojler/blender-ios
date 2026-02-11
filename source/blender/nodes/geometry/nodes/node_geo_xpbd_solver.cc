@@ -271,7 +271,7 @@ struct SubstepInterval {
 };
 
 struct ChunkConstraints {
-  Vector<xpbd::PinnedPositionConstraintSet *> pinned_positions;
+  Vector<xpbd::PinPositionConstraintSet *> pinned_positions;
   Vector<xpbd::RodStretchAndShearConstraintSet *> rod_stretch_shear;
   Vector<xpbd::RodBendAndTwistConstraintSet *> rod_bend_twist;
   Vector<xpbd::LinearDampingConstraintSet *> linear_damping;
@@ -541,7 +541,7 @@ class XpbdSolverStep {
               /* This is initialized in each substep. */
               MutableSpan<float3> pin_positions = thread_allocator.allocate_array<float3>(pin_num);
               chunk_constraints.pinned_positions.append(
-                  &scope_.construct<xpbd::PinnedPositionConstraintSet>(
+                  &scope_.construct<xpbd::PinPositionConstraintSet>(
                       data_key_i, pin_indices, pin_positions, compliance_terms, lambdas));
             }
           });
@@ -917,7 +917,7 @@ class XpbdSolverStep {
         .copy_from(geo_data.rotation_attr.span.slice(points_range));
 
     /* Update animated pin positions. */
-    for (const xpbd::PinnedPositionConstraintSet *constraint :
+    for (const xpbd::PinPositionConstraintSet *constraint :
          static_chunk_constraints.pinned_positions)
     {
       for (const int pin_i : constraint->point_indices.index_range()) {
@@ -953,8 +953,8 @@ class XpbdSolverStep {
                   constraints_info_.static_chunk_constraints[chunk_i];
 
               Vector<xpbd::ConstraintSet *> local_constraints;
-              for (xpbd::PinnedPositionConstraintSet *constraint :
-                   chunk_constraints.pinned_positions) {
+              for (xpbd::PinPositionConstraintSet *constraint : chunk_constraints.pinned_positions)
+              {
                 local_constraints.append(constraint);
               }
               for (xpbd::RodStretchAndShearConstraintSet *constraint :
@@ -1024,8 +1024,7 @@ class XpbdSolverStep {
             GeometryData &geo_data = geometries_.data[chunk.data_key_i];
 
             /* Write back pin position lambdas. */
-            for (xpbd::PinnedPositionConstraintSet *constraint :
-                 chunk_constraints.pinned_positions) {
+            for (xpbd::PinPositionConstraintSet *constraint : chunk_constraints.pinned_positions) {
               for (const int pin_i : constraint->point_indices.index_range()) {
                 const int point_i = constraint->point_indices[pin_i];
                 geo_data.pin_position_lambda_attr.span[point_i] = constraint->lambdas[pin_i];

@@ -64,7 +64,7 @@ static EnumPropertyItem stage_items[] = {
     constraint_set_enum_item<xpbd::CollisionPlaneConstraintSet>(1002),
     constraint_set_enum_item<xpbd::DistanceConstraintSet>(1003),
     constraint_set_enum_item<xpbd::MinimumDistanceConstraintSet>(1004),
-    constraint_set_enum_item<xpbd::PinnedPositionConstraintSet>(1005),
+    constraint_set_enum_item<xpbd::PinPositionConstraintSet>(1005),
     constraint_set_enum_item<xpbd::PinRotationConstraintSet>(1006),
     constraint_set_enum_item<xpbd::PressureConstraintSet>(1007),
     constraint_set_enum_item<xpbd::RodBendAndTwistConstraintSet>(1008),
