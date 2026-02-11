@@ -591,16 +591,29 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     calculate_plane_basis(loop, center_3d, normal, p, q);
 
     bool is_mirrored = false;
+    int mirror_axis = -1;
+
     if (!loop_data.is_closed) {
       BMVert *v_start = loop.first();
       BMVert *v_end = loop.last();
 
-      for (int axis = 0; axis < 3; axis++) {
-        if (std::abs(v_start->co[axis]) < MIRROR_LIMIT && std::abs(v_end->co[axis]) < MIRROR_LIMIT)
-        {
-          is_mirrored = true;
-          break;
-        }
+      if (mirror_x && std::abs(v_start->co[0]) < MIRROR_LIMIT &&
+          std::abs(v_end->co[0]) < MIRROR_LIMIT)
+      {
+        is_mirrored = true;
+        mirror_axis = 0;
+      }
+      else if (mirror_y && std::abs(v_start->co[1]) < MIRROR_LIMIT &&
+               std::abs(v_end->co[1]) < MIRROR_LIMIT)
+      {
+        is_mirrored = true;
+        mirror_axis = 1;
+      }
+      else if (mirror_z && std::abs(v_start->co[2]) < MIRROR_LIMIT &&
+               std::abs(v_end->co[2]) < MIRROR_LIMIT)
+      {
+        is_mirrored = true;
+        mirror_axis = 2;
       }
     }
 
@@ -642,6 +655,16 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
         float projected_pos[3];
         if (project_on_mesh(bvh_tree, &bvh_data, cv.v, final_pos, normal, projected_pos)) {
           final_pos = float3(projected_pos);
+        }
+      }
+
+      /* If this vertex is an endpoint of a mirrored loop, force it
+       * exactly to 0.0 on the mirror axis.
+       * There are some cases where a slight floating point drift ends up being
+       * produced which prevents the mirror modifier from merging vertices. */
+      if (is_mirrored && mirror_axis != -1) {
+        if (cv.v == loop.first() || cv.v == loop.last()) {
+          final_pos[mirror_axis] = 0.0f;
         }
       }
 
