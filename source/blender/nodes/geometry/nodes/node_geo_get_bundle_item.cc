@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
 #include "node_geometry_util.hh"
 
 #include "NOD_geo_bundle.hh"
@@ -14,6 +15,8 @@
 #include "UI_resources.hh"
 
 #include <fmt/format.h>
+
+#include <algorithm>
 
 namespace blender::nodes::node_geo_get_bundle_item_cc {
 
@@ -65,6 +68,61 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = storage;
 }
 
+static ListPtr optimized_list_from_socket_values(Array<bke::SocketValueVariant> &values,
+                                                 const eNodeSocketDatatype data_type)
+{
+  if (!std::ranges::all_of(values,
+                           [](const bke::SocketValueVariant &value) { return value.is_single(); }))
+  {
+    return List::from_container(std::move(values));
+  }
+
+  const CPPType &type = *bke::socket_type_to_geo_nodes_base_cpp_type(data_type);
+  GArray<> array(type, values.size(), NoInitialization());
+  threading::parallel_for(values.index_range(), 128, [&](const IndexRange range) {
+    for (const int list_i : range) {
+      void *closure_result = const_cast<void *>(values[list_i].get_single_ptr_raw());
+      type.move_construct(closure_result, array[list_i]);
+    }
+  });
+  return List::from_garray(std::move(array));
+}
+
+struct NotFoundError {};
+struct InternalValueError {};
+struct ImplicitConversionError {};
+using GetBundleResult = std::
+    variant<bke::SocketValueVariant, NotFoundError, InternalValueError, ImplicitConversionError>;
+
+static GetBundleResult get_bundle_item(BundlePtr &bundle,
+                                       const bke::bNodeSocketType &socket_type,
+                                       const StringRef path)
+{
+  const BundleItemValue *value = bundle->lookup_path(path);
+  if (!value) {
+    return NotFoundError{};
+  }
+
+  const auto *socket_value = std::get_if<BundleItemSocketValue>(&value->value);
+  if (!socket_value) {
+    return InternalValueError{};
+  }
+
+  SocketValueVariant output_value = socket_value->value;
+  if (socket_value->type->type != socket_type.type) {
+    if (std::optional<SocketValueVariant> converted_value = implicitly_convert_socket_value(
+            *socket_value->type, output_value, socket_type))
+    {
+      output_value = std::move(*converted_value);
+    }
+    else {
+      return ImplicitConversionError{};
+    }
+  }
+
+  return output_value;
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
@@ -76,8 +134,116 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const std::string path = params.extract_input<std::string>("Path");
-  const bool remove = params.extract_input<bool>("Remove");
+  const bke::bNodeSocketType &socket_type = *bke::node_socket_type_find_static(storage.socket_type,
+                                                                               0);
+
+  auto path_value = params.extract_input<bke::SocketValueVariant>("Path");
+  auto remove_value = params.extract_input<bke::SocketValueVariant>("Remove");
+  if (path_value.is_list()) {
+    const VArraySpan<std::string> paths = path_value.get<ListPtr>()->varray<std::string>();
+
+    /* Check paths are valid. */
+    IndexMaskMemory memory;
+    const IndexMask valid_paths = IndexMask::from_predicate(
+        paths.index_range(), GrainSize(128), memory, [&](const int64_t i) {
+          return Bundle::is_valid_path(paths[i]);
+        });
+    const IndexMask invalid_paths = valid_paths.complement(paths.index_range(), memory);
+    if (!invalid_paths.is_empty()) {
+      invalid_paths.foreach_index(GrainSize(64), [&](const int64_t i) {
+        params.error_message_add(
+            NodeWarningType::Warning,
+            fmt::format(fmt::runtime(TIP_("Invalid bundle path: {}")), paths[i]));
+      });
+    }
+
+    /* Look up items from bundle. */
+    Array<const BundleItemValue *, 16> items(paths.size());
+    const IndexMask found_paths = IndexMask::from_predicate(
+        valid_paths, GrainSize(64), memory, [&](const int64_t i) {
+          items[i] = bundle->lookup_path(paths[i]);
+          return items[i] != nullptr;
+        });
+    if (found_paths.size() != valid_paths.size()) {
+      const IndexMask not_found_paths = found_paths.complement(valid_paths, memory);
+      not_found_paths.foreach_index([&](const int64_t i) {
+        params.error_message_add(
+            NodeWarningType::Warning,
+            fmt::format(fmt::runtime(TIP_("Bundle path not found: {}")), paths[i]));
+      });
+    }
+
+    /* Check that items are socket values rather than internal data which can't be outputed. */
+    const IndexMask socket_value_paths = IndexMask::from_predicate(
+        found_paths, GrainSize(2048), memory, [&](const int64_t i) {
+          return std::get_if<BundleItemSocketValue>(&items[i]->value);
+        });
+    if (socket_value_paths.size() != found_paths.size()) {
+      const IndexMask not_found_paths = socket_value_paths.complement(found_paths, memory);
+      not_found_paths.foreach_index([&](const int64_t i) {
+        params.error_message_add(
+            NodeWarningType::Warning,
+            fmt::format(fmt::runtime(TIP_("Cannot get internal value from bundle: {}")),
+                        paths[i]));
+      });
+    }
+
+    /* Convert socket values to the selected type. */
+    Array<bke::SocketValueVariant> output_values(paths.size(), NoInitialization());
+    const IndexMask converted_paths = IndexMask::from_predicate(
+        socket_value_paths, GrainSize(2048), memory, [&](const int64_t i) {
+          const auto &item_value = std::get<BundleItemSocketValue>(items[i]->value);
+          std::optional<SocketValueVariant> converted = implicitly_convert_socket_value(
+              *item_value.type, item_value.value, socket_type);
+          if (!converted) {
+            return false;
+          }
+          output_values[i] = std::move(*converted);
+          return true;
+        });
+    if (converted_paths.size() != socket_value_paths.size()) {
+      const IndexMask not_converted_paths = converted_paths.complement(socket_value_paths, memory);
+      not_converted_paths.foreach_index([&](const int64_t i) {
+        params.error_message_add(
+            NodeWarningType::Warning,
+            fmt::format(fmt::runtime(TIP_("Cannot convert item to the selected type: {}")),
+                        paths[i]));
+      });
+    }
+
+    /* Fill outputs for previous failures with default values. */
+    converted_paths.complement(paths.index_range(), memory).foreach_index([&](const int64_t i) {
+      new (&output_values[i]) bke::SocketValueVariant(*socket_type.geometry_nodes_default_value);
+    });
+
+    const VArray<bool> remove = remove_value.is_list() ?
+                                    remove_value.get<ListPtr>()->varray<bool>() :
+                                    VArray<bool>::from_single(path_value.get<bool>(),
+                                                              paths.size());
+
+    const IndexMask remove_mask = IndexMask::from_bools(valid_paths, remove, memory);
+    if (!remove_mask.is_empty()) {
+      Bundle &bundle_mut = bundle.ensure_mutable_inplace();
+      remove_mask.foreach_index([&](const int64_t i) { bundle_mut.remove_path(paths[i]); });
+    }
+
+    params.set_output("Item", optimized_list_from_socket_values(output_values, socket_type.type));
+    return;
+  }
+
+  if (!path_value.is_single()) {
+    params.error_message_add(NodeWarningType::Error, "Path must be a single value or list");
+    params.set_default_remaining_outputs();
+    return;
+  }
+  if (!remove_value.is_single()) {
+    params.error_message_add(NodeWarningType::Error, "Remove must be a single value");
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  const std::string path = path_value.extract<std::string>();
+  const bool remove = remove_value.extract<bool>();
 
   if (!Bundle::is_valid_path(path)) {
     if (!path.empty()) {
