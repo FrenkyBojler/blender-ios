@@ -6306,10 +6306,11 @@ void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
         if (idprop->type != IDP_STRING) {
           IDP_ClearProperty(idprop);
           idprop->type = IDP_STRING;
+          idprop->subtype = IDP_STRING_SUB_UTF8;
           int len;
           char *string = RNA_property_string_get_default_alloc(&ptr, &rna_prop, nullptr, 0, &len);
           idprop->data.pointer = string;
-          idprop->len = len;
+          idprop->len = len + 1;
           idprop->totallen = len;
         }
         break;
