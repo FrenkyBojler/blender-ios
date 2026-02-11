@@ -8,6 +8,7 @@
  */
 
 #include "BLI_listbase.h"
+#include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
 
@@ -20,6 +21,7 @@
 #include "BKE_anim_visualization.h"
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_object.hh"
@@ -41,9 +43,11 @@
 #include "ED_object.hh"
 #include "ED_screen.hh"
 
+#include "ANIM_action.hh"
 #include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyframing.hh"
+#include "ANIM_rna.hh"
 
 #include "armature_intern.hh"
 
@@ -614,16 +618,223 @@ void POSE_OT_autoside_names(wmOperatorType *ot)
 
 /* ********************************************** */
 
+/* Data structure to group rotation fcurves of different channelbags.  */
+
+static bool is_rotation_path(const StringRefNull rna_path)
+{
+  return rna_path.endswith(".rotation_quaternion") || rna_path.endswith(".rotation_euler") ||
+         rna_path.endswith(".rotation_axis_angle");
+}
+
+struct RotationFCurves {
+  FCurve *fcurves[4];
+};
+/* Rotation FCurves sorted by the channelbag which they are in. */
+using ChannelbagFCurveMap = Map<animrig::Channelbag *, RotationFCurves>;
+/* FCurves sorted by RNA path. */
+using RNAPathFCurveMap = Map<StringRef, ChannelbagFCurveMap>;
+
+static void build_rotation_fcurve_map(RNAPathFCurveMap &pchan_rotations,
+                                      animrig::Action &action,
+                                      const animrig::slot_handle_t slot_handle)
+{
+  pchan_rotations.clear();
+  for (animrig::Channelbag *channelbag : animrig::channelbags_for_action_slot(action, slot_handle))
+  {
+    for (FCurve *fcurve : channelbag->fcurves()) {
+      StringRefNull rna_path(fcurve->rna_path);
+      if (!is_rotation_path(rna_path)) {
+        continue;
+      }
+      ChannelbagFCurveMap &rotations = pchan_rotations.lookup_or_add(rna_path, {});
+      RotationFCurves &fcurve_group = rotations.lookup_or_add(channelbag, {});
+      fcurve_group.fcurves[fcurve->array_index] = fcurve;
+    }
+  }
+}
+
+static Set<int64_t> build_keyframe_ids(const Span<FCurve *> fcurves)
+{
+  Set<int64_t> keyframe_ids;
+  for (FCurve *fcurve : fcurves) {
+    if (!fcurve || !fcurve->bezt) {
+      continue;
+    }
+    for (int i = 0; i < fcurve->totvert; i++) {
+      keyframe_ids.add(int64_t(fcurve->bezt[i].vec[1][0] / BEZT_BINARYSEARCH_THRESH));
+    }
+  }
+  return keyframe_ids;
+}
+
+static void rotation_values_to_matrix(const float rotation_values[4],
+                                      const eRotationModes mode,
+                                      float r_matrix[3][3])
+{
+  switch (mode) {
+    case ROT_MODE_QUAT:
+      quat_to_mat3(r_matrix, rotation_values);
+      break;
+
+    case ROT_MODE_AXISANGLE:
+      axis_angle_to_mat3(r_matrix, &rotation_values[1], rotation_values[0]);
+      break;
+
+    default:
+      eulO_to_mat3(r_matrix, rotation_values, mode);
+      break;
+  }
+}
+
+static void matrix_to_rotation_values(const float matrix[3][3],
+                                      const eRotationModes mode,
+                                      const float reference_rotation[4],
+                                      float r_rotation_values[4])
+{
+  switch (mode) {
+    case ROT_MODE_QUAT:
+      mat3_to_quat(r_rotation_values, matrix);
+      break;
+
+    case ROT_MODE_AXISANGLE:
+      mat3_to_axis_angle(&r_rotation_values[1], r_rotation_values, matrix);
+      break;
+
+    default:
+      mat3_to_compatible_eulO(r_rotation_values, reference_rotation, mode, matrix);
+      break;
+  }
+}
+
+static void get_rotation_values(const bPoseChannel &pose_bone, float rotation_values[4])
+{
+  switch (pose_bone.rotmode) {
+    case ROT_MODE_QUAT:
+      copy_v4_v4(rotation_values, pose_bone.quat);
+      break;
+
+    case ROT_MODE_AXISANGLE:
+      copy_v3_v3(&rotation_values[1], pose_bone.rotAxis);
+      rotation_values[0] = pose_bone.rotAngle;
+      break;
+
+    default:
+      copy_v3_v3(rotation_values, pose_bone.eul);
+      break;
+  }
+}
+
+static void convert_pose_bone_rotation_keys(Main *bmain,
+                                            Object &ob,
+                                            bPoseChannel &pchan,
+                                            RNAPathFCurveMap &fcurves_by_rna_path,
+                                            const eRotationModes to_mode)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob.id, RNA_PoseBone, &pchan);
+  const std::optional<std::string> pchan_path = RNA_path_from_ID_to_struct(&ptr);
+  if (!pchan_path) {
+    return;
+  }
+  const StringRef rotation_mode = animrig::get_rotation_mode_path(eRotationModes(pchan.rotmode));
+  /* This is the current rotation mode path. */
+  std::string current_rotation_path = pchan_path.value() + "." + rotation_mode;
+  ChannelbagFCurveMap *channelbag_map = fcurves_by_rna_path.lookup_ptr(current_rotation_path);
+  if (!channelbag_map) {
+    /* No rotation fcurves for that bone. */
+    return;
+  }
+
+  const StringRef foo = animrig::get_rotation_mode_path(to_mode);
+  std::string new_rotation_path = pchan_path.value() + "." + foo;
+
+  /* Storing the previous rotation for euler angles larger than 180 degrees. */
+  float previous_conversion[4] = {0, 0, 0, 0};
+  float converted_rotation[4];
+  float rotation_values[4];
+  float rotation_matrix[3][3];
+
+  int fcurve_count = 4;
+  if (pchan.rotmode > ROT_MODE_QUAT) {
+    fcurve_count = 3;
+  }
+  /* True if the conversion is just between different euler rotations. */
+  const bool is_rotation_order_change = pchan.rotmode > ROT_MODE_QUAT && to_mode > ROT_MODE_QUAT;
+  FCurve *evaluation_buffer[4];
+  FCurve *insertion_buffer[4];
+
+  for (const auto &item : channelbag_map->items()) {
+    if (is_rotation_order_change) {
+      /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
+       * rotation mode could influence the result. */
+      for (int i : IndexRange(fcurve_count)) {
+        insertion_buffer[i] = &item.key->fcurve_ensure(bmain, {new_rotation_path, i});
+        evaluation_buffer[i] = BKE_fcurve_copy(insertion_buffer[i]);
+      }
+    }
+    else {
+      for (int i : IndexRange(fcurve_count)) {
+        evaluation_buffer[i] = &item.key->fcurve_ensure(bmain, {new_rotation_path, i});
+        insertion_buffer[i] = evaluation_buffer[i];
+      }
+    }
+    Span<FCurve *> fcurve_span(item.value.fcurves, fcurve_count);
+    Set<int64_t> keyframe_ids = build_keyframe_ids(fcurve_span);
+    get_rotation_values(pchan, rotation_values);
+
+    for (const int64_t frame_id : keyframe_ids) {
+      const float frame = frame_id * BEZT_BINARYSEARCH_THRESH;
+      /* Generate the current rotation values respecting missing FCurves. */
+      for (int i : IndexRange(fcurve_count)) {
+        FCurve *fcurve = evaluation_buffer[i];
+        rotation_values[fcurve->array_index] = evaluate_fcurve(fcurve, frame);
+      }
+      /* Convert those to the new rotation mode. */
+      rotation_values_to_matrix(rotation_values, eRotationModes(pchan.rotmode), rotation_matrix);
+      matrix_to_rotation_values(rotation_matrix, to_mode, previous_conversion, converted_rotation);
+      for (int i : IndexRange(fcurve_count)) {
+        /* Insert a key */
+        FCurve *fcurve = insertion_buffer[i];
+        animrig::insert_vert_fcurve(
+            fcurve, {frame, converted_rotation[i]}, {}, eInsertKeyFlags(0));
+      }
+
+      std::swap(converted_rotation, previous_conversion);
+    }
+
+    if (is_rotation_order_change) {
+      for (int i = 0; i < fcurve_count; i++) {
+        BKE_fcurve_free(evaluation_buffer[i]);
+      }
+    }
+  }
+}
+
 static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
 {
   const int mode = RNA_enum_get(op->ptr, "type");
   Object *prev_ob = nullptr;
+  /* A map built per object to make it quicker to find the FCurves of one bPoseChannel. */
+  RNAPathFCurveMap fcurves_by_rna_path;
 
   /* Set rotation mode of selected bones. */
   CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
-    /* use API Method for conversions... */
-    BKE_rotMode_change_values(
-        pchan->quat, pchan->eul, pchan->rotAxis, &pchan->rotAngle, pchan->rotmode, short(mode));
+    if (pchan->rotmode == mode) {
+      /* Already in the correct mode. */
+      continue;
+    }
+    AnimData *adt = BKE_animdata_from_id(&ob->id);
+    if (adt && adt->action && adt->slot_handle != animrig::Slot::unassigned) {
+      if (prev_ob != ob) {
+        build_rotation_fcurve_map(fcurves_by_rna_path, adt->action->wrap(), adt->slot_handle);
+      }
+      convert_pose_bone_rotation_keys(
+          CTX_data_main(C), *ob, *pchan, fcurves_by_rna_path, eRotationModes(mode));
+    }
+    else {
+      /* No animation, just convert the values. */
+      BKE_rotMode_change_values(
+          pchan->quat, pchan->eul, pchan->rotAxis, &pchan->rotAngle, pchan->rotmode, short(mode));
+    }
 
     /* finally, set the new rotation type */
     pchan->rotmode = mode;
