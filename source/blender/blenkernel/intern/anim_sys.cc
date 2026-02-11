@@ -717,7 +717,7 @@ static void blend_rotation_with_conversion(PointerRNA &ptr,
     rotation_data[fcurve->array_index] = evaluate_fcurve(fcurve, eval_time);
   }
 
-  /* Convert the rotation from the pose to the mode that the `ptr` expects. */
+  /* Converting to a 3x3 matrix makes it easy to apply afterwards. */
   float rotation_matrix[3][3];
   switch (fcurve_rotation_mode) {
     case ROT_MODE_QUAT: {
@@ -746,14 +746,14 @@ static void blend_rotation_with_conversion(PointerRNA &ptr,
     float bone_matrix[3][3];
     BKE_pchan_rot_to_mat3(pose_bone, bone_matrix);
     interp_m3_m3m3(blended_matrix, bone_matrix, rotation_matrix, blend_factor);
-    BKE_pchan_mat3_to_rot(pose_bone, blended_matrix, false);
+    BKE_pchan_mat3_to_rot(pose_bone, blended_matrix, true);
   }
   else if (ptr.type == RNA_Object) {
     Object *object = static_cast<Object *>(ptr.data);
     float object_matrix[3][3];
     BKE_object_rot_to_mat3(object, object_matrix, true);
     interp_m3_m3m3(blended_matrix, object_matrix, rotation_matrix, blend_factor);
-    BKE_object_mat3_to_rot(object, blended_matrix, false);
+    BKE_object_mat3_to_rot(object, blended_matrix, true);
   }
   else {
     BLI_assert_unreachable();
@@ -791,7 +791,7 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
                                      const float blend_factor)
 {
   /* Rotations are a special case since the rotation mode of the pose may not match with the
-   * current rotation mode of the bone. Also quaternions need to be handled together. */
+   * current rotation mode of the `ptr`. Also quaternions need to be handled together. */
   Map<StringRefNull, Vector<FCurve *>> rotation_fcurve_map;
   for (FCurve *fcurve : fcurves) {
     StringRefNull rna_path(fcurve->rna_path);
