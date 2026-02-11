@@ -143,6 +143,7 @@ void node_keymap(wmKeyConfig *keyconf)
 
   node_link_modal_keymap(keyconf);
   node_resize_modal_keymap(keyconf);
+  cryptomatte_sample_modal_keymap(keyconf);
 }
 
 }  // namespace ed::space_node
