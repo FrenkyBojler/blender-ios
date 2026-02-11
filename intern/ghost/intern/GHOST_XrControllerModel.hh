@@ -24,9 +24,7 @@ struct GHOST_XrControllerModelNode;
  */
 class GHOST_XrControllerModel {
  public:
-  GHOST_XrControllerModel(XrInstance instance,
-                          XrSpace base_space,
-                          const char *subaction_path_str);
+  GHOST_XrControllerModel(XrInstance instance, XrSpace base_space, const char *subaction_path_str);
   ~GHOST_XrControllerModel();
 
   void load(XrSession session);

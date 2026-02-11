@@ -6,8 +6,6 @@
  * \ingroup GHOST
  */
 
-#include <cassert>
-
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
@@ -20,7 +18,6 @@
 #define TINYGLTF_IMPLEMENTATION
 #define TINYGLTF_NO_STB_IMAGE
 #define TINYGLTF_NO_STB_IMAGE_WRITE
-#define STBIWDEF static inline
 #include "tiny_gltf.h"
 
 struct GHOST_XrControllerModelNode {
@@ -93,7 +90,7 @@ static void read_vertices_vec3(const tinygltf::Accessor &accessor,
   /* Copy the attribute value over from the glTF buffer into the appropriate vertex field. */
   const uint8_t *buffer_ptr = buffer.data.data() + buffer_view.byteOffset + accessor.byteOffset;
   for (size_t i = 0; i < accessor.count; i++, buffer_ptr += stride) {
-    memcpy(primitive.vertices[i].*field, buffer_ptr, packed_size); // TODO: was stride
+    memcpy(primitive.vertices[i].*field, buffer_ptr, packed_size);  // TODO: was stride
   }
 }
 
