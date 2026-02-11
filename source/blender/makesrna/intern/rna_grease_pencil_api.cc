@@ -723,6 +723,7 @@ static void rna_grease_pencil_layer_mask_remove(GreasePencilLayer *layer,
 
   BLI_remlink(&layer->masks, mask);
 
+  MEM_delete(mask->layer_name);
   MEM_delete(mask);
 
   /* Clear the RNA pointer. */
