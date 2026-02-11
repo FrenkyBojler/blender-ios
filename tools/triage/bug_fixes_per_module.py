@@ -43,41 +43,14 @@ import urllib.request
 from typing import Any
 from time import time, sleep
 
+from gitea_utils import url_json_get
+
 
 # -----------------------------------------------------------------------------
 # Constants used throughout the script
 
 UNKNOWN = "UNKNOWN"
 
-# -----------------------------------------------------------------------------
-# Private Utilities
-
-# Conform to Blenders crawl delay request:
-# https://projects.blender.org/robots.txt
-crawl_delay = 2
-last_checked_time = None
-
-
-def url_json_get(url: str) -> Any:
-    global last_checked_time
-
-    if last_checked_time is not None:
-        sleep(max(crawl_delay - (time() - last_checked_time), 0))
-    last_checked_time = time()
-
-    try:
-        # Make the HTTP request and store the response in a 'response' object
-        with urllib.request.urlopen(url) as response:
-            result_bytes = response.read()
-    except urllib.error.URLError as ex:
-        print(url)
-        print(f"Error making HTTP request: {ex}")
-        return None
-
-    # Convert the response content to a JSON object containing the user information.
-    result = json.loads(result_bytes)
-    assert result is None or isinstance(result, (dict, list))
-    return result
 
 # -----------------------------------------------------------------------------
 # Commit Info Class
