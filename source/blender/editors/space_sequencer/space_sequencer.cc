@@ -81,39 +81,6 @@ static bool sequencer_is_scopes_view(const char view)
   return view == SEQ_VIEW_SCOPES;
 }
 
-static void sequencer_preview_region_view_store(const char view,
-                                                SpaceSeq_Runtime &runtime,
-                                                const View2D &v2d)
-{
-  if (sequencer_is_scopes_view(view)) {
-    runtime.scopes_view_cur = v2d.cur;
-    runtime.scopes_view_valid = true;
-  }
-  else if (sequencer_is_image_preview_view(view)) {
-    runtime.preview_view_cur = v2d.cur;
-    runtime.preview_view_valid = true;
-  }
-}
-
-static bool sequencer_preview_region_view_restore(const char view,
-                                                  SpaceSeq_Runtime &runtime,
-                                                  View2D &v2d)
-{
-  if (sequencer_is_scopes_view(view)) {
-    if (runtime.scopes_view_valid) {
-      v2d.cur = runtime.scopes_view_cur;
-      return true;
-    }
-  }
-  else if (sequencer_is_image_preview_view(view)) {
-    if (runtime.preview_view_valid) {
-      v2d.cur = runtime.preview_view_cur;
-      return true;
-    }
-  }
-  return false;
-}
-
 SpaceSeq_Runtime::~SpaceSeq_Runtime() = default;
 
 /* ******************** default callbacks for sequencer space ***************** */
@@ -268,12 +235,6 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
   const short old_mainb = sseq->mainb;
 
   if (region_preview && sseq->runtime->last_view != sseq->view) {
-    sequencer_preview_region_view_store(
-        sseq->runtime->last_view, *sseq->runtime, region_preview->v2d);
-    if (sequencer_preview_region_view_restore(sseq->view, *sseq->runtime, region_preview->v2d)) {
-      ED_region_tag_redraw(region_preview);
-    }
-
     if (region_tools) {
       if (sequencer_is_scopes_view(sseq->view)) {
         if ((region_tools->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_HIDDEN_BY_USER)) == 0) {
@@ -288,8 +249,6 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
         view_changed = true;
       }
     }
-
-    sseq->runtime->last_view = sseq->view;
   }
 
   if (sseq->view == SEQ_VIEW_SCOPES) {
@@ -312,7 +271,7 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
     case SEQ_VIEW_PREVIEW:
     case SEQ_VIEW_SCOPES:
       /* Reset scrolling when preview region just appears. */
-      if (!(region_preview->v2d.flag & V2D_IS_INIT)) {
+      if (!(region_preview->v2d.flag & V2D_IS_INIT) || sseq->runtime->last_view != sseq->view) {
         region_preview->v2d.cur = region_preview->v2d.tot;
         /* Only redraw, don't re-init. */
         ED_area_tag_redraw(area);
@@ -352,6 +311,8 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
     case SEQ_VIEW_SEQUENCE:
       break;
   }
+
+  sseq->runtime->last_view = sseq->view;
 
   if (view_changed) {
     ED_area_init(const_cast<bContext *>(C), window, area);
