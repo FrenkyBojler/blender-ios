@@ -717,7 +717,7 @@ static void blend_rotation_with_conversion(PointerRNA &ptr,
     rotation_data[fcurve->array_index] = evaluate_fcurve(fcurve, eval_time);
   }
 
-  /* Convert the rotation from the pose to the mode that the blender data expects. */
+  /* Convert the rotation from the pose to the mode that the `ptr` expects. */
   float rotation_matrix[3][3];
   switch (fcurve_rotation_mode) {
     case ROT_MODE_QUAT: {
@@ -739,7 +739,7 @@ static void blend_rotation_with_conversion(PointerRNA &ptr,
     }
   }
 
-  /* Apply the rotation matrix to the blender data. */
+  /* Apply the rotation matrix to the `ptr`. */
   float blended_matrix[3][3];
   if (ptr.type == RNA_PoseBone) {
     bPoseChannel *pose_bone = static_cast<bPoseChannel *>(ptr.data);
@@ -826,7 +826,7 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
     BLI_assert(fcurve_rotation_mode.has_value());
 
     if (fcurve_rotation_mode.value() == ptr_rotation_mode.value()) {
-      /* Easy case, animation mode of pose and of blender data are matching. Data can just be
+      /* Easy case, animation mode of fcurves and of `resolved_ptr` are matching. Data can just be
        * applied. The reason to have this separate is because in this case euler angles > 180
        * degrees are preserved. The other path uses a conversion to a matrix which loses that
        * information. */
