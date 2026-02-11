@@ -35,6 +35,10 @@ namespace blender {
 
 static void version_geometry_nodes_properties(NodesModifierData &nmd)
 {
+  const IDProperty *old_props = nmd.settings.properties;
+  if (!old_props) {
+    return;
+  }
   if (nmd.modifier.system_properties) {
     return;
   }
@@ -51,7 +55,7 @@ static void version_geometry_nodes_properties(NodesModifierData &nmd)
 
   for (const bNodeTreeInterfaceSocket *input : ntree.interface_inputs()) {
     const StringRef identifier = input->identifier;
-    IDProperty *old_value_prop = IDP_GetPropertyFromGroup(nmd.settings.properties, identifier);
+    IDProperty *old_value_prop = IDP_GetPropertyFromGroup(old_props, identifier);
     if (!old_value_prop) {
       continue;
     }
@@ -59,29 +63,55 @@ static void version_geometry_nodes_properties(NodesModifierData &nmd)
     IDProperty *group = bke::idprop::create_group(identifier).release();
     IDP_AddToGroup(inputs, group);
 
+    if (input->flag & NODE_INTERFACE_SOCKET_LAYER_SELECTION) {
+      IDP_AddToGroup(
+          group, bke::idprop::create("type", int(nodes::GeometryNodesInputType::Layer)).release());
+      const StringRefNull layer_name = [&]() {
+        const IDProperty *layer_name = IDP_GetPropertyFromGroup(old_props, identifier);
+        if (layer_name) {
+          return StringRefNull(IDP_string_get(layer_name));
+        }
+        return StringRefNull();
+      }();
+      IDP_AddToGroup(group, bke::idprop::create("layer_name", layer_name).release());
+      continue;
+    }
+
     IDProperty *new_value_prop = IDP_CopyProperty(old_value_prop);
     STRNCPY(new_value_prop->name, "value");
     IDP_AddToGroup(group, new_value_prop);
 
-    const IDProperty *use_attribute = IDP_GetPropertyFromGroup(nmd.settings.properties,
-                                                               identifier + "_use_attribute");
-    const auto input_type = IDP_bool_get(use_attribute) ?
-                                nodes::GeometryNodesInputType::Attribute :
-                                nodes::GeometryNodesInputType::Value;
+    const bool use_attribute = [&]() {
+      const IDProperty *use_attribute = IDP_GetPropertyFromGroup(old_props,
+                                                                 identifier + "_use_attribute");
+      if (!use_attribute) {
+        return false;
+      }
+      if (use_attribute->type == IDP_INT) {
+        return bool(IDP_int_get(use_attribute));
+      }
+      return bool(IDP_bool_get(use_attribute));
+    }();
+
+    const auto input_type = use_attribute ? nodes::GeometryNodesInputType::Attribute :
+                                            nodes::GeometryNodesInputType::Value;
     IDP_AddToGroup(group, bke::idprop::create("type", int(input_type)).release());
-    if (const IDProperty *attribute_name = IDP_GetPropertyFromGroup(
-            nmd.settings.properties, identifier + "_attribute_name"))
-    {
-      IDP_AddToGroup(
-          group, bke::idprop::create("attribute_name", IDP_string_get(attribute_name)).release());
-    }
+    const StringRefNull attribute_name = [&]() {
+      const IDProperty *attribute_name = IDP_GetPropertyFromGroup(old_props,
+                                                                  identifier + "_attribute_name");
+      if (attribute_name) {
+        return StringRefNull(IDP_string_get(attribute_name));
+      }
+      return StringRefNull();
+    }();
+    IDP_AddToGroup(group, bke::idprop::create("attribute_name", attribute_name).release());
   }
 
   IDProperty *outputs = bke::idprop::create_group("outputs").release();
   IDP_AddToGroup(system_props, outputs);
   for (const bNodeTreeInterfaceSocket *output : ntree.interface_outputs()) {
     const StringRef identifier = output->identifier;
-    IDProperty *old_name_prop = IDP_GetPropertyFromGroup(nmd.settings.properties,
+    IDProperty *old_name_prop = IDP_GetPropertyFromGroup(old_props,
                                                          identifier + "_attribute_name");
     if (!old_name_prop) {
       continue;
