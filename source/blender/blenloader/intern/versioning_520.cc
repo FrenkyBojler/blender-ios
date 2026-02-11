@@ -62,6 +62,12 @@ static void version_geometry_nodes_properties(NodesModifierData &nmd)
                                 nodes::GeometryNodesInputType::Attribute :
                                 nodes::GeometryNodesInputType::Value;
     IDP_AddToGroup(group, bke::idprop::create("type", int(input_type)).release());
+    if (const IDProperty *attribute_name = IDP_GetPropertyFromGroup(
+            nmd.settings.properties, identifier + "_attribute_name"))
+    {
+      IDP_AddToGroup(
+          group, bke::idprop::create("attribute_name", IDP_string_get(attribute_name)).release());
+    }
 
     IDProperty *outputs = bke::idprop::create_group("outputs").release();
     IDProperty *panels = bke::idprop::create_group("panels").release();
