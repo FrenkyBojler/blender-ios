@@ -20,6 +20,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
@@ -1789,11 +1790,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   Object *obedit = CTX_data_edit_object(C);
   EditBone *bone;
 
-  float3x3 obmat;
-  copy_m3_m4(obmat.ptr(), obedit->object_to_world().ptr());
-
-  float3x3 imat;
-  invert_m3_m3(imat.ptr(), obmat.ptr());
+  const float3x3 imat = float3x3(obedit->world_to_object());
 
   float3x3 bone_orient_mat = float3x3::zero();
   float3 roll_vector;
@@ -1811,35 +1808,34 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   switch (align) {
     case VIEW_3D: {
       RegionView3D *rv3d = CTX_wm_region_view3d(C);
-      float3x3 view_mat;
-      copy_m3_m4(view_mat.ptr(), rv3d->viewinv);
+      const float3x3 view_mat = float3x3(float4x4(rv3d->viewinv));
+      bone_orient_mat = imat * view_mat;
+      roll_vector = bone_orient_mat.z_axis();
 
-      mul_m3_m3m3(bone_orient_mat.ptr(), imat.ptr(), view_mat.ptr());
-      copy_v3_v3(roll_vector, bone_orient_mat[2]);
       break;
     }
 
     case CURSOR_3D: {
       Scene *scene = CTX_data_scene(C);
       const View3DCursor &cursor = scene->cursor;
-
       const float3x3 cursor_mat = cursor.matrix<float3x3>();
-
-      mul_m3_m3m3(bone_orient_mat.ptr(), imat.ptr(), cursor_mat.ptr());
-      copy_v3_v3(roll_vector, bone_orient_mat[2]);
+      bone_orient_mat = imat * cursor_mat;
+      roll_vector = bone_orient_mat.z_axis();
       break;
     }
 
     case AXES: {
       if (space == WORLD) {
-        copy_m3_m3(bone_orient_mat.ptr(), imat.ptr());
-        copy_v3_fl3(roll_vector, 0.0f, 0.0f, 1.0f);
-        mul_m3_v3(imat.ptr(), roll_vector);
+        bone_orient_mat = imat;
+        roll_vector = imat.z_axis();
       }
       else { /* Object Space.  Assumes Z is Up.*/
-        bone_orient_mat[0][0] = 1.0f;
-        bone_orient_mat[1][2] = -1.0f;
-        bone_orient_mat[2][1] = 1.0f;
+        // clang-format off
+        bone_orient_mat = float3x3(
+            float3(1.0f, 0.0f, 0.0f),
+            float3(0.0f, 0.0f, -1.0f),
+            float3(0.0f, 1.0f, 0.0f));
+        // clang-format on
       }
       break;
     }
@@ -1847,17 +1843,20 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
     case UP: {
       if (space == WORLD) {
         /* Construct a matrix that points Y up, Z Forward and X left-right. */
-        bone_orient_mat[0][0] = 1.0f;
-        bone_orient_mat[1][2] = 1.0f;
-        bone_orient_mat[2][1] = -1.0f;
+        // clang-format off
+        bone_orient_mat = float3x3(
+            float3(1.0f, 0.0f, 0.0f),
+            float3(0.0f, 0.0f, 1.0f),
+            float3(0.0f, -1.0f, 0.0f));
+        // clang-format on
 
-        mul_m3_m3m3(bone_orient_mat.ptr(), imat.ptr(), bone_orient_mat.ptr());
+        bone_orient_mat = imat * bone_orient_mat;
 
         /* Set roll reference for ED_armature_ebone_roll_to_vector. */
-        copy_v3_v3(roll_vector, bone_orient_mat[2]);
+        roll_vector = -imat.y_axis();
       }
       else { /* Object Space. */
-        unit_m3(bone_orient_mat.ptr());
+        bone_orient_mat = float3x3::identity();
       }
 
       break;
@@ -1867,13 +1866,10 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   char name[MAXBONENAME];
   RNA_string_get(op->ptr, "name", name);
 
-  float3 curs;
-  copy_v3_v3(curs, CTX_data_scene(C)->cursor.location);
-
+  float3 curs = CTX_data_scene(C)->cursor.location;
   /* Get inverse point for head and orientation for tail. */
   invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
-
-  mul_m4_v3(obedit->world_to_object().ptr(), curs);
+  curs = (obedit->world_to_object() * float4(curs, 1.0f)).xyz();
 
   ED_armature_edit_deselect_all(obedit);
 
@@ -1912,17 +1908,14 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   /* Bone head to cursor position. */
   copy_v3_v3(bone->head, curs);
 
-  float tail_vector[3] = {0.0f, 0.0f, 1.0f};
-  mul_m3_v3(bone_orient_mat.ptr(), tail_vector);
-  mul_v3_fl(tail_vector, length);
+  float3 tail_vector = bone_orient_mat * float3(0.0f, 0.0f, 1.0f);
+  tail_vector *= length;
   add_v3_v3v3(bone->tail, bone->head, tail_vector);
 
   const bool needs_bone_roll = (ELEM(align, CURSOR_3D, VIEW_3D) || space == WORLD);
 
   if (needs_bone_roll) {
-    copy_v3_v3(tail_vector, bone_orient_mat[1]);
-    normalize_v3(tail_vector);
-    mul_v3_fl(tail_vector, length);
+    tail_vector = math::normalize(bone_orient_mat[1]) * length;
     add_v3_v3v3(bone->tail, bone->head, tail_vector);
 
     /* Compute bone roll so its local Z aligns with desired Z axis. */
