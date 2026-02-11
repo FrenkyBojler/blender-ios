@@ -8,6 +8,7 @@
 #include "BLI_string.h"
 
 #include "NOD_geometry_nodes_srna.hh"
+#include "NOD_socket.hh"
 
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
@@ -121,8 +122,7 @@ static StructRNA *create_inputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDat
       continue;
     }
     const StringRefNull identifier = r_generated.scope.allocator().copy_string(socket->identifier);
-    RNA_def_pointer_runtime(
-        srna, identifier.c_str(), socket_srna, socket->name, socket->description);
+    RNA_def_pointer_runtime(srna, identifier.c_str(), socket_srna, socket->name, "");
   }
 
   return srna;
@@ -144,15 +144,30 @@ static StructRNA *create_outputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDa
   BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.structs.append(srna);
 
-  StructRNA *output_srna = RNA_def_struct_ptr(
-      &RNA_blender_rna_get(), "GeometryNodesInterfaceOutputAttribute", RNA_PropertyGroup);
-  BLI_assert(!RNA_struct_in_public_namespace(output_srna));
-  RNA_def_string(output_srna, "attribute_name", nullptr, 0, "Attribute Name", "");
-  RNA_def_struct_path_func_runtime(output_srna, rna_NodesModifierPropertyOutput_path);
+  LinearAllocator<> &allocator = r_generated.scope.allocator();
 
-  for (const bNodeTreeInterfaceSocket *socket : tree.interface_outputs()) {
-    RNA_def_pointer_runtime(
-        srna, socket->identifier, output_srna, socket->name, socket->description);
+  for (const bNodeTreeInterfaceSocket *output : tree.interface_outputs()) {
+    const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(output->socket_type);
+    if (!nodes::socket_type_supports_attributes(eNodeSocketDatatype(socket_type->type))) {
+      continue;
+    }
+
+    const StringRefNull identifier = allocator.copy_string(output->identifier);
+    const StringRefNull name = allocator.copy_string(output->name);
+    const StringRefNull description = allocator.copy_string(output->description);
+    const StringRefNull default_value = allocator.copy_string(output->default_attribute_name);
+
+    StructRNA *output_srna = RNA_def_struct_ptr(
+        &RNA_blender_rna_get(), identifier.c_str(), RNA_PropertyGroup);
+    BLI_assert(!RNA_struct_in_public_namespace(output_srna));
+    RNA_def_string(output_srna,
+                   "attribute_name",
+                   default_value.is_empty() ? nullptr : default_value.c_str(),
+                   0,
+                   name.c_str(),
+                   description.c_str());
+    RNA_def_struct_path_func_runtime(output_srna, rna_NodesModifierPropertyOutput_path);
+    RNA_def_pointer_runtime(srna, identifier.c_str(), output_srna, name.c_str(), "");
   }
 
   return srna;
