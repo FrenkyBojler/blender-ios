@@ -821,35 +821,11 @@ static void replace_interface_socket(bContext &C,
   bool needs_proxy = false;
   bool use_default_value_or_input = false;
   if (incoming_links.is_empty()) {
-    /* The socket has no incoming links. A proxy is needed if any outgoing connection has a
-     * different type and cannot store the input value without loss of information. */
-    if (implicit_input_fn) {
+    /* The socket has no incoming links, a proxy is needed if a socket value needs to be stored or
+     * a default input node must be used. */
+    if (socket_value || implicit_input_fn) {
       needs_proxy = true;
       use_default_value_or_input = true;
-    }
-    else if (socket_value) {
-      use_default_value_or_input = true;
-      for (const MutableNodeAndSocket &out_link : outgoing_links) {
-        bke::node_declaration_ensure(dst_tree, out_link.node);
-        const bNodeSocket &out_socket = out_link.find_socket();
-        const eNodeSocketDatatype out_type = eNodeSocketDatatype(out_socket.type);
-        const nodes::SocketDeclaration *out_decl = out_socket.runtime->declaration;
-        const bool output_has_implicit_input =
-            out_decl ?
-                out_decl->default_input_type != NodeDefaultInputType::NODE_DEFAULT_INPUT_VALUE :
-                false;
-        const bool out_hide_value = out_decl ? out_decl->hide_value : false;
-
-        const bool has_value_copy_fn = bke::node_interface::find_socket_value_copy_function(
-            socket_type, out_type);
-        /* The target socket can only store the value if it does not use an implicit input and
-         * actually shows the value. */
-        const bool can_copy_value = !output_has_implicit_input && !out_hide_value &&
-                                    has_value_copy_fn;
-        if (!can_copy_value) {
-          needs_proxy = true;
-        }
-      }
     }
   }
   else {
@@ -911,22 +887,11 @@ static void replace_interface_socket(bContext &C,
     }
   }
   else {
+    BLI_assert(!use_default_value_or_input || !socket_value);
     /* N-to-M links (in practice N is usually 0 or 1). */
     for (const MutableNodeAndSocket &from_socket : incoming_links) {
       for (const MutableNodeAndSocket &to_socket : outgoing_links) {
         unique_links.add({from_socket, to_socket});
-      }
-    }
-    /* Copy or transfer the socket value where needed. */
-    if (use_default_value_or_input && socket_value) {
-      for (const MutableNodeAndSocket &out_link : outgoing_links) {
-        const bNodeSocket &out_socket = out_link.find_socket();
-        const eNodeSocketDatatype to_type = eNodeSocketDatatype(out_socket.type);
-        if (bke::node_interface::SocketValueCopyFn copy_fn =
-                bke::node_interface::find_socket_value_copy_function(socket_type, to_type))
-        {
-          copy_fn(socket_value, out_socket.default_value);
-        }
       }
     }
   }

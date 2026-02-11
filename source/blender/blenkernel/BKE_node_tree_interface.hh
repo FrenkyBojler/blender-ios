@@ -416,12 +416,6 @@ ImplicitInputCreateFn find_proxy_implicit_input_node_function(eNodeSocketDatatyp
  */
 ConverterNodeCreateFn find_proxy_converter_node_function(eNodeSocketDatatype socket_type);
 
-/**
- * Returns a function that stores a socket value in the data of another socket type.
- */
-SocketValueCopyFn find_socket_value_copy_function(eNodeSocketDatatype from_type,
-                                                  eNodeSocketDatatype to_type);
-
 }  // namespace node_interface
 
 }  // namespace blender::bke
