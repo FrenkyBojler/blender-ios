@@ -42,9 +42,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       decl.structure_type(StructureType(storage.structure_type));
     }
   }
-  b.add_output<decl::Bool>("Exists");
-  b.add_input<decl::String>("Path").optional_label();
-  b.add_input<decl::Bool>("Remove");
+  b.add_output<decl::Bool>("Exists").structure_type(StructureType::Dynamic);
+  b.add_input<decl::String>("Path").structure_type(StructureType::Dynamic).optional_label();
+  b.add_input<decl::Bool>("Remove").structure_type(StructureType::Dynamic);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
