@@ -17,6 +17,7 @@
 #include "BLI_bit_vector.hh"
 #include "BLI_listbase.h"
 #include "BLI_listbase_wrapper.hh"
+#include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
@@ -692,10 +693,11 @@ static float get_fcurve_blend_value(FCurve &fcu,
  * Apply the rotation fcurves to the `ptr` by converting them to a matrix first. This means the
  * rotation can be applied regardless of rotation mode.
  */
-static void apply_rotation_with_conversion(PointerRNA &ptr,
+static void blend_rotation_with_conversion(PointerRNA &ptr,
                                            Span<FCurve *> rotation_fcurves,
                                            const eRotationModes fcurve_rotation_mode,
-                                           const float eval_time)
+                                           const float eval_time,
+                                           const float blend_factor)
 {
   /* The rotation data is 0 initialized for reasonable defaults in case some indices have no
    * FCurves associated with them. */
@@ -734,18 +736,27 @@ static void apply_rotation_with_conversion(PointerRNA &ptr,
   }
 
   /* Apply the rotation matrix to the blender data. */
+  float blended_matrix[3][3];
   if (ptr.type == RNA_PoseBone) {
-    BKE_pchan_mat3_to_rot(static_cast<bPoseChannel *>(ptr.data), rotation_matrix, false);
+    bPoseChannel *pose_bone = static_cast<bPoseChannel *>(ptr.data);
+    float bone_matrix[3][3];
+    BKE_pchan_rot_to_mat3(pose_bone, bone_matrix);
+    interp_m3_m3m3(blended_matrix, bone_matrix, rotation_matrix, blend_factor);
+    BKE_pchan_mat3_to_rot(pose_bone, blended_matrix, false);
   }
   else if (ptr.type == RNA_Object) {
-    BKE_object_mat3_to_rot(static_cast<Object *>(ptr.data), rotation_matrix, false);
+    Object *object = static_cast<Object *>(ptr.data);
+    float object_matrix[3][3];
+    BKE_object_rot_to_mat3(object, object_matrix, true);
+    interp_m3_m3m3(blended_matrix, object_matrix, rotation_matrix, blend_factor);
+    BKE_object_mat3_to_rot(object, blended_matrix, false);
   }
   else {
     BLI_assert_unreachable();
   }
 }
 
-static void apply_rotation(PointerRNA &ptr,
+static void blend_rotation(PointerRNA &ptr,
                            Span<FCurve *> rotation_fcurves,
                            const eRotationModes fcurve_rotation_mode,
                            const AnimationEvalContext *anim_eval_context,
@@ -801,7 +812,6 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
     rotation_fcurves.append(fcurve);
   }
 
-  /* Apply rotation FCurves. */
   for (const auto &[rna_path, rotation_fcurves] : rotation_fcurve_map.items()) {
     PointerRNA resolved_ptr;
     PropertyRNA *resolved_prop;
@@ -821,21 +831,21 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
 
     if (fcurve_rotation_mode.value() == ptr_rotation_mode.value()) {
       /* Easy case, animation mode of pose and of blender data are matching. Data can just be
-       * applied. The reason to have this separate is because in this case euler angles > 180 are
-       * still applied. The other path uses a conversion to a matrix which loses that information.
-       */
-      apply_rotation(
+       * applied. The reason to have this separate is because in this case euler angles > 180
+       * degrees are preserved. The other path uses a conversion to a matrix which loses that
+       * information. */
+      blend_rotation(
           *ptr, rotation_fcurves, fcurve_rotation_mode.value(), anim_eval_context, blend_factor);
     }
     else {
-      apply_rotation_with_conversion(resolved_ptr,
+      blend_rotation_with_conversion(resolved_ptr,
                                      rotation_fcurves,
                                      fcurve_rotation_mode.value(),
-                                     anim_eval_context->eval_time);
+                                     anim_eval_context->eval_time,
+                                     blend_factor);
     }
   }
 
-  /* Apply all FCurves that are *not* rotation related. */
   for (FCurve *fcu : fcurves) {
     if (!is_fcurve_evaluatable(fcu)) {
       continue;
