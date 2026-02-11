@@ -574,6 +574,9 @@ static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator * 
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
+  SpaceGraph *sipo = CTX_wm_space_graph(C);
+  int bit_to_clear = 0;
+  bool enter_local_view = (sipo->local_view_bits == 0);
 
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
@@ -584,11 +587,10 @@ static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator * 
   ANIM_animdata_filter(
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
-  SpaceGraph *sipo = CTX_wm_space_graph(C);
-  int bit_to_clear = 0;
-  if (sipo->local_view_bits == 0) {
+  if (enter_local_view) {
     /* Find a bit and set local view for graph editor in current context */
     sipo->local_view_bits = free_localview_bit(CTX_data_main(C));
+    sipo->cur = ac.region->v2d.cur;
   }
   else {
     bit_to_clear = sipo->local_view_bits;
@@ -601,7 +603,7 @@ static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator * 
       continue;
     }
 
-    if (sipo->local_view_bits == 0) {
+    if (!enter_local_view) {
       fcu->local_view_bits &= ~bit_to_clear;
       continue;
     }
@@ -616,7 +618,11 @@ static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator * 
     }
   }
 
-  graphkeys_viewall(C, false, true, 200);
+  if (enter_local_view) {
+    graphkeys_viewall(C, false, true, 200);
+  } else {
+    ui::view2d_smooth_view(C, ac.region, &sipo->cur, 200);
+  }
   ANIM_animdata_freelist(&anim_data);
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   return OPERATOR_FINISHED;

@@ -264,7 +264,8 @@ struct SpaceGraph {
   /** Pivot point for transforms. */
   int around = 0;
   int local_view_bits = 0;
-
+  /* Store visible region size before entering the local view. */
+  rctf cur = {};
   SpaceGraph_Runtime runtime;
 };
 
