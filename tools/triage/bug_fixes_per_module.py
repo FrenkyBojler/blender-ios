@@ -84,7 +84,8 @@ class CommitInfo():
 
         return UNKNOWN
 
-    def classify(self) -> None:
+    def classify(self) -> bool:
+        commit_was_sorted = False
         for report_number in self.fixed_reports:
             report_information = url_json_get(
                 f"https://projects.blender.org/api/v1/repos/blender/blender/issues/{report_number}")
@@ -101,10 +102,13 @@ class CommitInfo():
                 # Pull requests aren't bug reports. So skip processing it.
                 continue
 
+            # The commit didn't exit early due to the criteria above, so it was correctly sorted.
+            commit_was_sorted = True
             module = self.get_module(report_information['labels'])
             if module != UNKNOWN:
                 self.module = module
                 break
+        return commit_was_sorted
 
 # -----------------------------------------------------------------------------
 # Argument Parsing
@@ -203,7 +207,7 @@ def get_fix_commits(start_date: str, end_date: str, single_threaded: bool) -> li
 # -----------------------------------------------------------------------------
 
 
-def classify_commits(list_of_commits: list[CommitInfo]) -> None:
+def classify_commits(list_of_commits: list[CommitInfo]) -> list[CommitInfo]:
     number_of_commits = len(list_of_commits)
 
     print("Identifying which module the fix should be assigned too.")
@@ -211,6 +215,7 @@ def classify_commits(list_of_commits: list[CommitInfo]) -> None:
 
     i = 0
     start_time = time()
+    new_list_of_commits: list[CommitInfo] = []
     for commit in list_of_commits:
         # Progress bar.
         i += 1
@@ -220,10 +225,16 @@ def classify_commits(list_of_commits: list[CommitInfo]) -> None:
             end="\r",
             flush=True
         )
-        commit.classify()
+
+        if commit.classify():
+            # Only add commit to list if it was sorted.
+            # If it wasn't sorted, then it probably means the commit "fixed" a pull request.
+            new_list_of_commits.append(commit)
 
     # Print so we're away from the progress bar.
     print("\n\n\n")
+
+    return new_list_of_commits
 
 # -----------------------------------------------------------------------------
 
@@ -263,7 +274,7 @@ def main() -> int:
 
     list_of_commits = get_fix_commits(args.start, args.end, args.single_thread)
 
-    classify_commits(list_of_commits)
+    list_of_commits = classify_commits(list_of_commits)
 
     print_info(list_of_commits, args.start, args.end)
 
