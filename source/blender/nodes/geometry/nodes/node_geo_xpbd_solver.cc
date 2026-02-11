@@ -266,8 +266,8 @@ struct SubstepInterval {
 
 struct ChunkConstraints {
   Vector<xpbd::PinnedPositionConstraintSet *> pinned_positions;
-  Vector<xpbd::RodStretchAndShearCurveLocalConstraintSet *> rod_stretch_shear;
-  Vector<xpbd::RodBendAndTwistCurveLocalConstraintSet *> rod_bend_twist;
+  Vector<xpbd::RodStretchAndShearConstraintSet *> rod_stretch_shear;
+  Vector<xpbd::RodBendAndTwistConstraintSet *> rod_bend_twist;
 };
 
 struct ConstraintsInfo {
@@ -671,7 +671,7 @@ class XpbdSolverStep {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
         ChunkConstraints &chunk_constraints = constraints_info_.static_chunk_constraints[chunk_i];
         chunk_constraints.rod_stretch_shear.append(
-            &scope_.construct<xpbd::RodStretchAndShearCurveLocalConstraintSet>(
+            &scope_.construct<xpbd::RodStretchAndShearConstraintSet>(
                 data_key_i,
                 *chunk.curves_range,
                 points_by_curve,
@@ -707,7 +707,7 @@ class XpbdSolverStep {
       for (const int chunk_i : geo_data.chunks) {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
         constraints_info_.static_chunk_constraints[chunk_i].rod_bend_twist.append(
-            &scope_.construct<xpbd::RodBendAndTwistCurveLocalConstraintSet>(
+            &scope_.construct<xpbd::RodBendAndTwistConstraintSet>(
                 data_key_i,
                 *chunk.curves_range,
                 points_by_curve,
@@ -912,14 +912,13 @@ class XpbdSolverStep {
                    chunk_constraints.pinned_positions) {
                 local_constraints.append(constraint);
               }
-              for (xpbd::RodStretchAndShearCurveLocalConstraintSet *constraint :
+              for (xpbd::RodStretchAndShearConstraintSet *constraint :
                    chunk_constraints.rod_stretch_shear)
               {
                 local_constraints.append(constraint);
               }
-              for (xpbd::RodBendAndTwistCurveLocalConstraintSet *constraint :
-                   chunk_constraints.rod_bend_twist)
-              {
+              for (xpbd::RodBendAndTwistConstraintSet *constraint :
+                   chunk_constraints.rod_bend_twist) {
                 local_constraints.append(constraint);
               }
 

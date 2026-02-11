@@ -770,8 +770,8 @@ class PressureConstraintSet : public TemplatedConstraintSet<PressureConstraintSe
  * the actual tangent of the rod. If it is misaligned, it moves the start position, end position
  * and rotation of the frame. At the same time, it enforces a certain length.
  */
-class RodStretchAndShearCurveLocalConstraintSet
-    : public TemplatedConstraintSet<RodStretchAndShearCurveLocalConstraintSet> {
+class RodStretchAndShearConstraintSet
+    : public TemplatedConstraintSet<RodStretchAndShearConstraintSet> {
  public:
   /** Curves that are effected by this constraint set. Each curve is seen as one constraint. */
   IndexRange curves_range;
@@ -785,15 +785,14 @@ class RodStretchAndShearCurveLocalConstraintSet
 
   static constexpr StringRefNull debug_name = "Rod Stretch and Shear";
 
-  RodStretchAndShearCurveLocalConstraintSet(const int geo_i,
-                                            const IndexRange curves_range,
-                                            const OffsetIndices<int> points_by_curve,
-                                            const Span<float> rest_lengths,
-                                            const Span<float> compliances,
-                                            MutableSpan<float3> lambdas_pos,
-                                            MutableSpan<float3> lambdas_rot)
-      : TemplatedConstraintSet<RodStretchAndShearCurveLocalConstraintSet>(curves_range.size(),
-                                                                          {geo_i}),
+  RodStretchAndShearConstraintSet(const int geo_i,
+                                  const IndexRange curves_range,
+                                  const OffsetIndices<int> points_by_curve,
+                                  const Span<float> rest_lengths,
+                                  const Span<float> compliances,
+                                  MutableSpan<float3> lambdas_pos,
+                                  MutableSpan<float3> lambdas_rot)
+      : TemplatedConstraintSet<RodStretchAndShearConstraintSet>(curves_range.size(), {geo_i}),
         curves_range(curves_range),
         points_by_curve(points_by_curve),
         rest_lengths(rest_lengths),
@@ -856,8 +855,7 @@ class RodStretchAndShearCurveLocalConstraintSet
 };
 
 /** Aligns rotations of two consecutive rods based on a rest rotation. */
-class RodBendAndTwistCurveLocalConstraintSet
-    : public TemplatedConstraintSet<RodBendAndTwistCurveLocalConstraintSet> {
+class RodBendAndTwistConstraintSet : public TemplatedConstraintSet<RodBendAndTwistConstraintSet> {
  private:
   /** Curves that are effected by this constraint set. Each curve is seen as one constraint. */
   IndexRange curves_range;
@@ -871,14 +869,13 @@ class RodBendAndTwistCurveLocalConstraintSet
  public:
   static constexpr StringRefNull debug_name = "Rod Bend and Twist";
 
-  RodBendAndTwistCurveLocalConstraintSet(const int geo_i,
-                                         const IndexRange curves_range,
-                                         const OffsetIndices<int> points_by_curve,
-                                         const Span<math::Quaternion> rest_rotations,
-                                         const Span<float> compliances,
-                                         MutableSpan<float4> lambdas)
-      : TemplatedConstraintSet<RodBendAndTwistCurveLocalConstraintSet>(curves_range.size(),
-                                                                       {geo_i}),
+  RodBendAndTwistConstraintSet(const int geo_i,
+                               const IndexRange curves_range,
+                               const OffsetIndices<int> points_by_curve,
+                               const Span<math::Quaternion> rest_rotations,
+                               const Span<float> compliances,
+                               MutableSpan<float4> lambdas)
+      : TemplatedConstraintSet<RodBendAndTwistConstraintSet>(curves_range.size(), {geo_i}),
         curves_range(curves_range),
         points_by_curve(points_by_curve),
         rest_rotations_(rest_rotations),
