@@ -84,6 +84,10 @@ class Grid : Overlay {
 
       for (int grid_iter = 0; grid_iter < num_iters_; grid_iter++) {
         sub.push_constant("grid_iter", grid_iter);
+        if (axis_flag_) {
+          sub.push_constant("grid_flag", &axis_flag_);
+          sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, axis_vertex_count, 0);
+        }
         if (grid_flag_) {
           sub.push_constant("grid_flag", &grid_flag_);
           sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, grid_vertex_count, 0);
