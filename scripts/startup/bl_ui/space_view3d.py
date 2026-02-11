@@ -31,6 +31,30 @@ from bpy.app.translations import (
 )
 
 
+def _toggle_xray_operator(layout, context, text=None):
+    # The X-ray toggle has to have special logic since it affects a different property in pose mode.
+    # See #70433 and #58661.
+    view = context.space_data
+    obj = context.active_object
+    object_mode = 'OBJECT' if obj is None else obj.mode
+    has_pose_mode = (
+        (object_mode == 'POSE') or
+        (object_mode == 'WEIGHT_PAINT' and context.pose_object is not None)
+    )
+    if has_pose_mode:
+        draw_depressed = view.overlay.show_xray_bone
+    elif view.shading.type == 'WIREFRAME':
+        draw_depressed = view.shading.show_xray_wireframe
+    else:
+        draw_depressed = view.shading.show_xray
+    layout.operator(
+        "view3d.toggle_xray",
+        text=text,
+        icon='XRAY',
+        depress=draw_depressed,
+    )
+
+
 class VIEW3D_HT_tool_header(Header):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOL_HEADER'
@@ -1072,20 +1096,7 @@ class VIEW3D_HT_header(Header):
         row = layout.row()
         row.active = (object_mode == 'EDIT') or (shading.type in {'WIREFRAME', 'SOLID'})
 
-        # While exposing `shading.show_xray(_wireframe)` is correct.
-        # this hides the key shortcut from users: #70433.
-        if has_pose_mode:
-            draw_depressed = overlay.show_xray_bone
-        elif shading.type == 'WIREFRAME':
-            draw_depressed = shading.show_xray_wireframe
-        else:
-            draw_depressed = shading.show_xray
-        row.operator(
-            "view3d.toggle_xray",
-            text="",
-            icon='XRAY',
-            depress=draw_depressed,
-        )
+        _toggle_xray_operator(row, context, text="")
 
         row = layout.row(align=True)
         row.prop(shading, "type", text="", expand=True)
@@ -2197,7 +2208,9 @@ class VIEW3D_MT_select_edit_grease_pencil(Menu):
 
         layout.separator()
 
+        layout.operator_menu_enum("grease_pencil.select_by_stroke_type", "type", text="By Stroke Type")
         layout.operator_menu_enum("grease_pencil.select_similar", "mode")
+        layout.operator("grease_pencil.select_fill")
         layout.operator("grease_pencil.select_linked")
 
         layout.separator()
@@ -2866,6 +2879,8 @@ class VIEW3D_MT_object_animation(Menu):
 
         layout.operator("nla.bake", text="Bake Action...")
         layout.operator("grease_pencil.bake_grease_pencil_animation", text="Bake Object Transform to Grease Pencil...")
+        layout.operator("anim.replace_action")
+        layout.operator("anim.replace_action_new")
 
 
 class VIEW3D_MT_object_rigid_body(Menu):
@@ -5147,10 +5162,14 @@ class VIEW3D_MT_edit_mesh_showhide(ShowHideMenu, Menu):
 class VIEW3D_MT_edit_greasepencil_delete(Menu):
     bl_label = "Delete"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
 
-        layout.operator("grease_pencil.delete")
+        tool_settings = context.tool_settings
+        is_stroke_selection = tool_settings.gpencil_selectmode_edit == 'STROKE'
+        layout.operator("grease_pencil.delete", text="Strokes" if is_stroke_selection else "Points").mode = 'ALL'
+        layout.operator("grease_pencil.delete", text="Only Strokes").mode = 'STROKES'
+        layout.operator("grease_pencil.delete", text="Only Fills").mode = 'FILLS'
 
         layout.separator()
 
@@ -5843,7 +5862,14 @@ class VIEW3D_MT_edit_greasepencil_stroke(Menu):
 
         layout.separator()
 
+        # Set stroke mode
+        layout.operator_menu_enum("grease_pencil.set_stroke_type", "type", text="Set Stroke Type")
+
+        layout.separator()
+
         layout.operator("grease_pencil.reset_uvs")
+        layout.operator("grease_pencil.join_fills")
+        layout.operator("grease_pencil.separate_fills")
 
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 
@@ -6052,25 +6078,7 @@ class VIEW3D_MT_shading_ex_pie(Menu):
         pie.prop_enum(view.shading, "type", value='WIREFRAME')
         pie.prop_enum(view.shading, "type", value='SOLID')
 
-        # Note this duplicates "view3d.toggle_xray" logic, so we can see the active item: #58661.
-        if context.pose_object:
-            pie.prop(view.overlay, "show_xray_bone", icon='XRAY')
-        else:
-            xray_active = (
-                (context.mode == 'EDIT_MESH') or
-                (view.shading.type in {'SOLID', 'WIREFRAME'})
-            )
-            if xray_active:
-                sub = pie
-            else:
-                sub = pie.row()
-                sub.active = False
-            sub.prop(
-                view.shading,
-                "show_xray_wireframe" if (view.shading.type == 'WIREFRAME') else "show_xray",
-                text="Toggle X-Ray",
-                icon='XRAY',
-            )
+        _toggle_xray_operator(pie, context)
 
         pie.prop(view.overlay, "show_overlays", text="Toggle Overlays", icon='OVERLAY')
 
@@ -8377,6 +8385,11 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
 
             col.separator()
 
+            # Set stroke mode
+            col.operator_menu_enum("grease_pencil.set_stroke_type", "type", text="Set Stroke Type")
+
+            col.separator()
+
             # Deform Operators
             col.operator("grease_pencil.stroke_smooth", text="Smooth")
             col.operator("transform.transform", text="Shrink/Fatten").mode = 'CURVE_SHRINKFATTEN'
@@ -8422,6 +8435,11 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.operator("grease_pencil.stroke_subdivide_smooth", text="Subdivide and Smooth")
             col.operator("grease_pencil.stroke_simplify", text="Simplify")
             col.operator("grease_pencil.outline", text="Outline")
+
+            col.separator()
+
+            # Set stroke mode
+            col.operator_menu_enum("grease_pencil.set_stroke_type", "type", text="Set Stroke Type")
 
             col.separator()
 
@@ -8504,15 +8522,12 @@ class VIEW3D_PT_greasepencil_draw_context_menu(Panel):
         is_pin_vertex = gp_settings.brush_draw_mode == 'VERTEXCOLOR'
         is_vertex = settings.color_mode == 'VERTEXCOLOR' or brush.gpencil_brush_type == 'TINT' or is_pin_vertex
 
+        layout.prop(gp_settings, "stroke_type", expand=True)
+
         if brush.gpencil_brush_type not in {'ERASE', 'CUTTER', 'EYEDROPPER'} and is_vertex:
             split = layout.split(factor=0.1)
             split.prop(brush, "color", text="")
             split.template_color_picker(brush, "color", value_slider=True)
-
-            col = layout.column()
-            col.separator()
-            col.prop_menu_enum(gp_settings, "vertex_mode", text="Mode")
-            col.separator()
 
         if brush.gpencil_brush_type not in {'FILL', 'CUTTER', 'ERASE'}:
             if brush.use_locked_size == 'VIEW':
@@ -8602,8 +8617,10 @@ class VIEW3D_PT_greasepencil_vertex_paint_context_menu(Panel):
 
         if brush.gpencil_vertex_brush_type in {'DRAW', 'REPLACE'}:
             split = layout.split(factor=0.1)
-            split.prop(settings.unified_paint_settings, "color", text="")
-            split.template_color_picker(settings.unified_paint_settings, "color", value_slider=True)
+            ups = settings.unified_paint_settings
+            prop_owner = ups if ups.use_unified_color else brush
+            split.prop(prop_owner, "color", text="")
+            split.template_color_picker(prop_owner, "color", value_slider=True)
 
             col = layout.column()
             col.separator()
@@ -9002,8 +9019,9 @@ class TOPBAR_PT_grease_pencil_vertex_color(Panel):
 
         gp_settings = brush.gpencil_settings
         if brush.gpencil_brush_type in {'DRAW', 'FILL'}:
-            row = layout.row(align=True)
-            row.prop(gp_settings, "vertex_mode", text="Mode")
+            if ob.mode == 'VERTEX_GREASE_PENCIL':
+                row = layout.row(align=True)
+                row.prop(gp_settings, "vertex_mode", text="Mode")
             row = layout.row(align=True)
             row.prop(gp_settings, "vertex_color_factor", slider=True, text="Mix Factor")
 

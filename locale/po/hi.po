@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'c1168d06bba2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-26 11:28+0000\n"
+"POT-Creation-Date: 2026-02-09 09:47+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -710,6 +710,10 @@ msgid "Fill"
 msgstr "भरण"
 
 
+msgid "Both"
+msgstr "दोनों"
+
+
 msgid "Background Image"
 msgstr "पृष्ठभूमि छवि"
 
@@ -1326,6 +1330,10 @@ msgstr "ज्या"
 
 msgid "Phase"
 msgstr "चरण"
+
+
+msgid "Sigma"
+msgstr "सिग्मा"
 
 
 msgid "Frame"
@@ -2064,10 +2072,6 @@ msgid "Nodes"
 msgstr "ग्रन्थि्"
 
 
-msgid "Use boundaries for viewer nodes and composite backdrop"
-msgstr "दर्शक नोड्स और मिश्रित पृष्ठभूमि के लिए सीमाओं का उपयोग करें"
-
-
 msgid "Edit"
 msgstr "संपादन"
 
@@ -2581,52 +2585,44 @@ msgid "Dots"
 msgstr "बिन्दु्"
 
 
-msgid "Show/Hide"
-msgstr "छुपाएँ / दिखाएँ"
-
-
 msgid "Bone Roll"
 msgstr "हड्डी पंजी"
+
+
+msgid "Show/Hide"
+msgstr "छुपाएँ / दिखाएँ"
 
 
 msgid "Names"
 msgstr "नाम"
 
 
-msgid "Import"
-msgstr "आयात करें"
-
-
-msgid "Math"
-msgstr "गणित"
+msgid "Toggle Bone Options"
+msgstr "हड्डी विकल्प बंद/बुझ"
 
 
 msgid "Merge"
 msgstr "विलय करें"
 
 
-msgid "UV"
-msgstr "यूवी"
-
-
-msgid "Rigid Body"
-msgstr "कठोर-पदार्थ"
-
-
 msgid "Enable Bone Options"
 msgstr "हड्डी विकल्प को सक्षम करें"
-
-
-msgid "Toggle Bone Options"
-msgstr "हड्डी विकल्प बंद/बुझ"
 
 
 msgid "Apply"
 msgstr "लागू करें"
 
 
+msgid "Keying"
+msgstr "कुंजीयन"
+
+
 msgid "Hooks"
 msgstr "खूँटी"
+
+
+msgid "Math"
+msgstr "गणित"
 
 
 msgid "Make Single User"
@@ -2637,16 +2633,16 @@ msgid "Quick Effects"
 msgstr "त्वरित प्रभाव"
 
 
-msgid "Track"
-msgstr "ट्रैक"
-
-
 msgid "Light"
 msgstr "प्रकाश"
 
 
-msgid "Keying"
-msgstr "कुंजीयन"
+msgid "Track"
+msgstr "ट्रैक"
+
+
+msgid "Rigid Body"
+msgstr "कठोर-पदार्थ"
 
 
 msgid "Snap"
@@ -2655,6 +2651,14 @@ msgstr "स्नैप"
 
 msgid "Mirror"
 msgstr "दर्पण"
+
+
+msgid "Import"
+msgstr "आयात करें"
+
+
+msgid "UV"
+msgstr "यूवी"
 
 
 msgid "Basic"
@@ -3606,14 +3610,6 @@ msgid "Side"
 msgstr "किनारा"
 
 
-msgid "Both"
-msgstr "दोनों"
-
-
-msgid "Sigma"
-msgstr "सिग्मा"
-
-
 msgid "Next Keyframe"
 msgstr "अगले अनुबोधक चिन्ह"
 
@@ -3843,10 +3839,6 @@ msgstr "निर्गम"
 
 msgid "Current"
 msgstr "वर्तमान"
-
-
-msgid "Set the boundaries for viewer operations"
-msgstr "दर्शक संचालन के लिए सीमाएँ सेट करें"
 
 
 msgctxt "Operator"
@@ -6019,10 +6011,6 @@ msgid "New"
 msgstr "नई"
 
 
-msgid "Modified"
-msgstr "संशोधित"
-
-
 msgid "Stop animation playback"
 msgstr "अनुप्राणन चलाएँ रोकें"
 
@@ -6538,6 +6526,10 @@ msgstr "रिम"
 
 msgid "Blender File View"
 msgstr "ब्लेंडर संचिका दृश्य"
+
+
+msgid "Modified"
+msgstr "संशोधित"
 
 
 msgid "ON"

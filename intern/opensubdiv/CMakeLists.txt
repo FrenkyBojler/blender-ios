@@ -77,7 +77,16 @@ if(WITH_OPENSUBDIV)
 
   if(WIN32)
     add_definitions(-DNOMINMAX)
-    add_definitions(-D_USE_MATH_DEFINES)
+  endif()
+
+  if(WITH_METAL_BACKEND)
+    add_definitions(-DWITH_METAL_BACKEND)
+  endif()
+  if(WITH_OPENGL_BACKEND)
+    add_definitions(-DWITH_OPENGL_BACKEND)
+  endif()
+  if(WITH_VULKAN_BACKEND)
+    add_definitions(-DWITH_VULKAN_BACKEND)
   endif()
 
   set(GLSL_SRC
