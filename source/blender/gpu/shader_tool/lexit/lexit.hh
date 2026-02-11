@@ -22,6 +22,10 @@
 
 // #define LEXIT_DEBUG
 
+#ifdef LEXIT_DEBUG
+#  include <vector>
+#endif
+
 namespace lexit {
 
 struct TokenBuffer;

@@ -53,7 +53,7 @@ template<int Size> struct u8_base {
 #  if defined(USE_NEON)
       result.lanes[i] = vld1q_u8(src + i * 16);
 #  elif defined(USE_SSE4_2)
-      result.lanes[i] = _mm_loadu_si128((const __m128i *)src + i * 16);
+      result.lanes[i] = _mm_loadu_si128((const __m128i *)src + i);
 #  endif
     }
     return result;
@@ -67,7 +67,7 @@ template<int Size> struct u8_base {
 #  if defined(USE_NEON)
       result.lanes[i] = vld1q_u8(src + i * 16);
 #  elif defined(USE_SSE4_2)
-      result.lanes[i] = _mm_load_si128((const __m128i *)src + i * 16);
+      result.lanes[i] = _mm_load_si128((const __m128i *)src + i);
 #  endif
     }
     return result;
@@ -79,7 +79,7 @@ template<int Size> struct u8_base {
 #  if defined(USE_NEON)
       vst1q_u8(dst + i * 16, lanes[i]);
 #  elif defined(USE_SSE4_2)
-      _mm_storeu_si128(dst + i * 16, lanes[i]);
+      _mm_storeu_si128((__m128i_u *)dst + i, lanes[i]);
 #  endif
     }
   }
@@ -90,7 +90,7 @@ template<int Size> struct u8_base {
 #  if defined(USE_NEON)
       vst1q_u8(dst + i * 16, lanes[i]);
 #  elif defined(USE_SSE4_2)
-      _mm_store_si128(dst + i * 16, lanes[i]);
+      _mm_store_si128((__m128i *)dst + i, lanes[i]);
 #  endif
     }
   }
@@ -108,7 +108,8 @@ template<int Size> struct u8_base {
 #  if defined(USE_NEON)
     return vgetq_lane_u8(lanes[Size - 1], 15);
 #  elif defined(USE_SSE4_2)
-    return _mm_extract_epi8(lanes[Size - 1], 15);
+    auto lane = lanes[Size - 1];
+    return _mm_extract_epi8(lane, 15);
 #  endif
   }
 
@@ -368,16 +369,16 @@ struct u8x64_table {
   template<int Size> u8_base<Size> operator[](u8_base<Size> index) const
   {
     u8_base<Size> result;
-    for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
+    for (int i = 0; i < Size; ++i) {
       result.lanes[i] = vqtbl4q_u8(table, index.lanes[i]);
-#  elif defined(USE_SSE4_2)
-      result = tables[i][index];
-      result |= tables[i][index ^ u8_base<Size>(0x10)];
-      result |= tables[i][index ^ u8_base<Size>(0x20)];
-      result |= tables[i][index ^ u8_base<Size>(0x30)];
-#  endif
     }
+#  elif defined(USE_SSE4_2)
+    result = tables[0][index];
+    result |= tables[1][index ^ u8_base<Size>(0x10)];
+    result |= tables[2][index ^ u8_base<Size>(0x20)];
+    result |= tables[3][index ^ u8_base<Size>(0x30)];
+#  endif
     return result;
   }
 };
@@ -484,10 +485,10 @@ inline uint64_t movemask(u8x64 mask)
   sum0 = vpaddq_u8(sum0, sum0);
   result = vgetq_lane_u64(vreinterpretq_u64_u8(sum0), 0);
 #  elif defined(USE_SSE4_2)
-  result = _mm_movemask_epi8(mask.lanes[0]);
-  result = _mm_movemask_epi8(mask.lanes[1]) | (result << 16);
+  result = _mm_movemask_epi8(mask.lanes[3]);
   result = _mm_movemask_epi8(mask.lanes[2]) | (result << 16);
-  result = _mm_movemask_epi8(mask.lanes[3]) | (result << 16);
+  result = _mm_movemask_epi8(mask.lanes[1]) | (result << 16);
+  result = _mm_movemask_epi8(mask.lanes[0]) | (result << 16);
 #  endif
   return result;
 }
@@ -548,7 +549,7 @@ template<int Size> struct u32_base {
 #  if defined(USE_NEON)
       vst1q_u32(dst + i * 4, lanes[i]);
 #  elif defined(USE_SSE4_2)
-      _mm_storeu_si128(dst + i * 4, lanes[i]);
+      _mm_storeu_si128((__m128i_u *)dst + i, lanes[i]);
 #  endif
     }
   }
