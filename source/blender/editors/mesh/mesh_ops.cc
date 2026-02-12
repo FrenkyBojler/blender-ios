@@ -191,6 +191,7 @@ void ED_operatortypes_mesh()
   WM_operatortype_append(MESH_OT_mod_weighted_strength);
   WM_operatortype_append(MESH_OT_flip_quad_tessellation);
   WM_operatortype_append(MESH_OT_reorder_vertices_spatial);
+  WM_operatortype_append(MESH_OT_space_evenly);
 }
 
 #if 0 /* UNUSED, remove? */

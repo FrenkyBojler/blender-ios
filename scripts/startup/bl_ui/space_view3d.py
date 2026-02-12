@@ -1269,6 +1269,7 @@ class VIEW3D_MT_transform_base:
         layout.separator()
 
         layout.operator("transform.tosphere", text="To Sphere")
+        layout.operator("mesh.space_evenly", text="Space Evenly")
         layout.operator("transform.shear", text="Shear")
         layout.operator("transform.bend", text="Bend")
         layout.operator("transform.push_pull", text="Push/Pull")
@@ -4552,6 +4553,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
+            col.operator("mesh.space_evenly", text="Space Evenly")
 
             col.separator()
 
@@ -4603,6 +4605,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
+            col.operator("mesh.space_evenly", text="Space Evenly")
 
             col.separator()
 
@@ -4673,6 +4676,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
+            col.operator("mesh.space_evenly", text="Space Evenly")
 
             col.separator()
 
