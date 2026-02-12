@@ -1172,7 +1172,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
 
   {
     const bool use_vertex_displacement = !codegen.displacement.empty() &&
-                                         (displacement_type != MAT_DISPLACEMENT_BUMP || pixel_depth_offset) &&
+                                         (displacement_type != MAT_DISPLACEMENT_BUMP) &&
                                          !ELEM(geometry_type, MAT_GEOM_WORLD, MAT_GEOM_VOLUME);
 
     vert_gen << "float3 nodetree_displacement()\n";
