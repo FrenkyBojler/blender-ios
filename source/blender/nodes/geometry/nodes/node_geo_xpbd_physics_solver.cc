@@ -413,6 +413,16 @@ class XPBDState {
     }
   }
 
+  /* Several lambda arrays may be stored for the same key. */
+  void resize_constraint_lambdas(const SimConstraintsKey &key, const int sub_keys_num)
+  {
+    std::lock_guard<Mutex> lock(this->sim_constraints_mutex);
+    SimConstraintsData &data = this->sim_constraints.lookup_or_add(key, {});
+    if (data.lambdas.size() != sub_keys_num) {
+      data.lambdas.resize(sub_keys_num);
+    }
+  }
+
   template<typename T>
   MutableSpan<T> ensure_constraint_lambdas(const SimConstraintsKey &key,
                                            const int sub_key,
@@ -422,15 +432,13 @@ class XPBDState {
     const CPPType &cpp_type = CPPType::get<T>();
     SimConstraintsData &data = this->sim_constraints.lookup_or_add(key, {});
     BLI_assert(data.persistent_ids.is_empty() || data.persistent_ids.size() == constraints_num);
-    if (sub_key >= data.lambdas.size()) {
-      data.lambdas.resize(sub_key + 1);
-    }
+    BLI_assert(data.lambdas.index_range().contains(sub_key));
 
     GArray<> &lambdas = data.lambdas[sub_key];
     if (lambdas.data() == nullptr) {
       lambdas = GArray<>(cpp_type, constraints_num);
     }
-    else if (data.lambdas.size() != constraints_num) {
+    else if (lambdas.size() != constraints_num) {
       lambdas.reinitialize(constraints_num);
     }
     return lambdas.as_mutable_span().typed<T>();
@@ -439,6 +447,7 @@ class XPBDState {
   template<typename T>
   MutableSpan<T> ensure_constraint_lambdas(const SimConstraintsKey &key, const int constraints_num)
   {
+    resize_constraint_lambdas(key, 1);
     return ensure_constraint_lambdas<T>(key, 0, constraints_num);
   }
 
@@ -588,8 +597,8 @@ struct PressureConstraintData {
 struct DampingConstraintData {
   int geo_key_i;
   int constraints_key_i;
-  float linear_stiffness_term;
-  float angular_stiffness_term;
+  float linear_factor;
+  float angular_factor;
 };
 
 struct ForceFieldsData {
@@ -1956,6 +1965,7 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
     const SimPoints &sim_points = state.sim_points.lookup(item.key.points_key);
     const StaticPlaneContacts &plane_contacts = item.value;
     const int constraints_num = plane_contacts.indices.size();
+    state.resize_constraint_lambdas(item.key, 2);
 
     MutableSpan active_states = state.ensure_constraint_data<bool>(
         item.key, constraints_num, "is_active");
@@ -2660,17 +2670,13 @@ PROFILE_FUNCTION static void prepare_evaluation__damping_constraints(
     for (const DampingBundle *constraint_bundle : constraint_bundles) {
       const int constraints_key_i = world_info.constraints_keys.index_of_or_add(
           SimConstraintsKey{constraint_bundle->self_path, key});
-      const float linear_factor = constraint_bundle->linear_damping * delta_time;
-      const float angular_factor = constraint_bundle->angular_damping * delta_time;
-      /* Stiffness k = d*t/(1-d*t) leads to an equivalent damping factor of d*t=-k/(1+k).
-       * This reduces velocity by the same factor when using the update rule for a compliant
-       * velocity constraint v(t) - v(0) = -v(0) * k/(1+k) = -v(0) * 1/(1 + alpha). */
-      const float linear_stiffness = std::max(
-          math::safe_divide(linear_factor, 1.0f - linear_factor), 0.0f);
-      const float angular_stiffness = std::max(
-          math::safe_divide(angular_factor, 1.0f - angular_factor), 0.0f);
+
+      const float linear_factor = std::clamp(
+          constraint_bundle->linear_damping * delta_time, 0.0f, 1.0f);
+      const float angular_factor = std::clamp(
+          constraint_bundle->angular_damping * delta_time, 0.0f, 1.0f);
       world_info.damping_constraints.append(
-          {key_i, constraints_key_i, linear_stiffness, angular_stiffness});
+          {key_i, constraints_key_i, linear_factor, angular_factor});
     }
   }
 }
@@ -3397,7 +3403,7 @@ gather_linear_damping_constraints(ResourceScope &scope,
 
     MutableSpan lambdas = state.ensure_constraint_lambdas<float>(key, constraints_num);
     result.append(&scope.construct<xpbd::LinearDampingConstraintSet>(
-        constraint.geo_key_i, constraint.linear_stiffness_term, lambdas));
+        constraint.geo_key_i, constraint.linear_factor, lambdas));
   }
   return result;
 }
@@ -3413,6 +3419,9 @@ gather_angular_damping_constraints(ResourceScope &scope,
   for (const DampingConstraintData &constraint : world_info.damping_constraints) {
     const SimConstraintsKey &key = world_info.constraints_keys[constraint.constraints_key_i];
     const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.points_key.path);
+    if (!world_bundles.geometries[geometry_bundle_i].has_rotation) {
+      continue;
+    }
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     const bke::GeometryComponent *component = applied_geometry.get_component(key.points_key.type);
     if (!component) {
@@ -3425,7 +3434,7 @@ gather_angular_damping_constraints(ResourceScope &scope,
 
     MutableSpan lambdas = state.ensure_constraint_lambdas<float>(key, constraints_num);
     result.append(&scope.construct<xpbd::AngularDampingConstraintSet>(
-        constraint.geo_key_i, constraint.angular_stiffness_term, lambdas));
+        constraint.geo_key_i, constraint.angular_factor, lambdas));
   }
   return result;
 }
@@ -3452,6 +3461,8 @@ gather_curve_rod_stretch_and_shear_constraints(ThreadLocalStorage &tls,
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const SimConstraintsKey &constraints_key =
         world_info.constraints_keys[constraint_info.constraints_key_i];
+    state.resize_constraint_lambdas(constraints_key, 2);
+
     const int constraints_num = curves.points_num();
     MutableSpan lambdas_pos = state.ensure_constraint_lambdas<float3>(
         constraints_key, 0, constraints_num);
