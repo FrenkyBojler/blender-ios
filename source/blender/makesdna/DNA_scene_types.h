@@ -363,6 +363,7 @@ enum {
   R_IMF_IMTYPE_PSD = 34,
   R_IMF_IMTYPE_WEBP = 35,
   /* R_IMF_IMTYPE_AV1 = 36, DEPRECATED */
+  R_IMF_IMTYPE_AVIF = 37,
 
   R_IMF_IMTYPE_INVALID = 255,
 };
@@ -687,6 +688,12 @@ enum eCompositorDenoiseQaulity {
   SCE_COMPOSITOR_DENOISE_FAST = 2,
 };
 
+/** #RenderData::save_mode */
+enum eRenderOutputMode {
+  R_SAVE_MODE_DEFAULT = 0,
+  R_SAVE_MODE_DISABLED = 1,
+};
+
 /** #RenderData::time_jump_unit */
 enum {
   SCE_TIME_JUMP_FRAME = 0,
@@ -734,6 +741,7 @@ enum {
   R_EDGE_FRS = 1 << 25,        /* R_EDGE reserved for Freestyle */
   R_PERSISTENT_DATA = 1 << 26, /* Keep data around for re-render. */
   R_MODE_UNUSED_27 = 1 << 27,  /* cleared */
+  R_SAVE_OUTPUT = 1 << 28,
 };
 
 /** #RenderData::seq_flag */
@@ -880,7 +888,7 @@ struct RenderData {
   /**
    * Flags for render settings. Use bit-masking to access the settings.
    */
-  int mode = 0;
+  int mode = R_SAVE_OUTPUT;
 
   short frs_sec = 24;
 
@@ -1867,7 +1875,8 @@ enum eSnapMode {
   SCE_SNAP_TO_KEYS = (1 << 3),
   SCE_SNAP_TO_STRIPS = (1 << 4),
 
-  /** #ToolSettings::snap_mode and #ToolSettings::snap_node_mode and #ToolSettings.snap_uv_mode */
+  /** #ToolSettings::snap_mode and #ToolSettings::snap_node_mode and #ToolSettings.snap_uv_mode and
+     #ToolSettings::snap_mode_tools */
   SCE_SNAP_TO_POINT = (1 << 0),
   SCE_SNAP_TO_EDGE_MIDPOINT = (1 << 1),
   SCE_SNAP_TO_EDGE_ENDPOINT = (1 << 2),
@@ -1886,8 +1895,14 @@ enum eSnapMode {
 };
 ENUM_OPERATORS(eSnapMode)
 
+/**
+ * \note The exact value here is used in an enum, any changes require versioning.
+ */
 #define SCE_SNAP_TO_VERTEX (SCE_SNAP_TO_POINT | SCE_SNAP_TO_EDGE_ENDPOINT)
 
+/**
+ * \note The exact value here is used in an enum, any changes require versioning.
+ */
 #define SCE_SNAP_TO_GEOM \
   (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT | \
    SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR)
@@ -2628,6 +2643,10 @@ struct SceneEEVEE {
   float clamp_surface_indirect = 10.0f;
   float clamp_volume_direct = 0;
   float clamp_volume_indirect = 0;
+
+  /** Global lighting intensity. */
+  float direct_light_intensity = 1.0f;
+  float indirect_light_intensity = 1.0f;
 
   int ray_tracing_method = RAYTRACE_EEVEE_METHOD_SCREEN;
 

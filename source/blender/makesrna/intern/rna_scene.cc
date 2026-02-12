@@ -352,6 +352,9 @@ static const EnumPropertyItem rna_enum_media_type_image_items[] = {
 #  define R_IMF_ENUM_WEBP
 #endif
 
+#define R_IMF_ENUM_AVIF \
+  {R_IMF_IMTYPE_AVIF, "AVIF", 0, "AVIF (.avif)", "Output image in AVIF format"},
+
 #ifdef WITH_FFMPEG
 #  define R_IMF_ENUM_FFMPEG {R_IMF_IMTYPE_FFMPEG, "FFMPEG", ICON_FILE_MOVIE, "FFmpeg Video", ""},
 #else
@@ -360,6 +363,7 @@ static const EnumPropertyItem rna_enum_media_type_image_items[] = {
 
 #define IMAGE_TYPE_ITEMS_IMAGE \
   /* DDS save not supported yet R_IMF_ENUM_DDS */ \
+  R_IMF_ENUM_AVIF \
   R_IMF_ENUM_JPEG \
   R_IMF_ENUM_EXR \
   R_IMF_ENUM_PNG \
@@ -4020,7 +4024,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(
       prop, "Surface Offset", "Offset along the normal when drawing on surfaces");
-  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1f, 3);
   RNA_def_property_float_default(prop, 0.150f);
 
@@ -7280,6 +7284,12 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Overwrite", "Overwrite existing files while rendering");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
+  prop = RNA_def_property(srna, "save_output", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "mode", R_SAVE_OUTPUT);
+  RNA_def_property_ui_text(prop, "Save Output", "Write frames to disk for animation renders");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
   prop = RNA_def_property(srna, "use_compositing", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "scemode", R_DOCOMP);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -8264,6 +8274,24 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
                            "much noise and slow convergence at the cost of accuracy. "
                            "Used by light-probes.");
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "direct_light_intensity", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "Direct Light Strength", "Scale the contribution of direct lighting");
+  RNA_def_property_range(prop, 0, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 3.0f, 1, 3);
+  RNA_def_property_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "indirect_light_intensity", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "Indirect Light Strength", "Scale the contribution of indirect lighting");
+  RNA_def_property_range(prop, 0, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 3.0f, 1, 3);
+  RNA_def_property_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
