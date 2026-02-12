@@ -1566,6 +1566,11 @@ def pyrna2sphinx(basepath):
 
         type_descr = prop.get_type_description(**kwargs)
 
+        # Operator sub-call parameters (e.g. ACTION_OT_duplicate) reference
+        # internal operator types that aren't documented; use the base type.
+        if prop.fixed_type and "_OT_" in prop.fixed_type.identifier:
+            type_descr = ":class:`OperatorProperties`"
+
         # If the link has been written, no need to inline the enum items.
         enum_text = "" if enum_descr_override else pyrna_enum2sphinx(prop)
         if prop.name or prop.description or enum_text:
