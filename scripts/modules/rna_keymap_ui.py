@@ -253,7 +253,15 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
             subrow.prop(kmi, "key_modifier", text="", event=True)
 
         # Operator properties
-        box.template_keymap_item_properties(kmi)
+        # Manually iterate to respect the 'PROP_HIDDEN' flag (the template ignores it).
+        if kmi.properties:
+            for prop in kmi.properties.rna_type.properties:
+                if prop.identifier == "rna_type":
+                    continue
+                if prop.is_hidden:
+                    continue
+                
+                box.prop(kmi.properties, prop.identifier)
 
         # Modal key maps attached to this operator
         if not km.is_modal:
