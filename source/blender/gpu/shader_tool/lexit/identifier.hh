@@ -54,18 +54,24 @@ struct IdentifierMap {
   {
     hash &= (hash_table.size() - 1);
     uint16_t index = hash_table[hash];
+
+    /* Move first iteration out of the loop as this is the most probable out case. */
+    if (index != 0xFFFFu && std::string_view(identifier_buffer[index]) == str) [[likely]] {
+      return index;
+    }
+
     Identifier *id = nullptr;
     for (;;) {
-      if (index == 0xFFFFu) {
+      if (index == 0xFFFFu) [[unlikely]] {
         break;
       }
       id = &identifier_buffer[index];
-      if (std::string_view(*id) == str) {
-        /* Cache hit. */
+      if (std::string_view(*id) == str) [[likely]] {
         return index;
       }
       index = id->next;
     }
+
     /* Cache miss. Add new. */
     uint16_t new_index = identifier_buffer.size();
     if (id) {
