@@ -427,6 +427,7 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
             self.assertEqual(test_socket.type, expected_socket.type)
             self.assertEqual(test_socket.description, expected_socket.description)
             self.assertEqual(test_socket.is_output, expected_socket.is_output)
+            self.assertEqual(test_socket.hide, expected_socket.hide)
 
             # Input value
             if not expected_socket.is_output:
