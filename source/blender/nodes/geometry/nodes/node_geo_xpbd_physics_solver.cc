@@ -596,8 +596,8 @@ struct PressureConstraintData {
 struct DampingConstraintData {
   int geo_key_i;
   int constraints_key_i;
-  float linear_stiffness_term;
-  float angular_stiffness_term;
+  float linear_factor;
+  float angular_factor;
 };
 
 struct ForceFieldsData {
@@ -2669,17 +2669,13 @@ PROFILE_FUNCTION static void prepare_evaluation__damping_constraints(
     for (const DampingBundle *constraint_bundle : constraint_bundles) {
       const int constraints_key_i = world_info.constraints_keys.index_of_or_add(
           SimConstraintsKey{constraint_bundle->self_path, key});
-      const float linear_factor = constraint_bundle->linear_damping * delta_time;
-      const float angular_factor = constraint_bundle->angular_damping * delta_time;
-      /* Stiffness k = d*t/(1-d*t) leads to an equivalent damping factor of d*t=-k/(1+k).
-       * This reduces velocity by the same factor when using the update rule for a compliant
-       * velocity constraint v(t) - v(0) = -v(0) * k/(1+k) = -v(0) * 1/(1 + alpha). */
-      const float linear_stiffness = std::max(
-          math::safe_divide(linear_factor, 1.0f - linear_factor), 0.0f);
-      const float angular_stiffness = std::max(
-          math::safe_divide(angular_factor, 1.0f - angular_factor), 0.0f);
+
+      const float linear_factor = std::clamp(
+          constraint_bundle->linear_damping * delta_time, 0.0f, 1.0f);
+      const float angular_factor = std::clamp(
+          constraint_bundle->angular_damping * delta_time, 0.0f, 1.0f);
       world_info.damping_constraints.append(
-          {key_i, constraints_key_i, linear_stiffness, angular_stiffness});
+          {key_i, constraints_key_i, linear_factor, angular_factor});
     }
   }
 }
@@ -3410,7 +3406,7 @@ gather_linear_damping_constraints(ResourceScope &scope,
 
     MutableSpan lambdas = state.ensure_constraint_lambdas<float>(key, constraints_num);
     result.append(&scope.construct<xpbd::LinearDampingConstraintSet>(
-        constraint.geo_key_i, constraint.linear_stiffness_term, lambdas));
+        constraint.geo_key_i, constraint.linear_factor, lambdas));
   }
   return result;
 }
@@ -3441,7 +3437,7 @@ gather_angular_damping_constraints(ResourceScope &scope,
 
     MutableSpan lambdas = state.ensure_constraint_lambdas<float>(key, constraints_num);
     result.append(&scope.construct<xpbd::AngularDampingConstraintSet>(
-        constraint.geo_key_i, constraint.angular_stiffness_term, lambdas));
+        constraint.geo_key_i, constraint.angular_factor, lambdas));
   }
   return result;
 }
