@@ -11,6 +11,8 @@
 #include <iostream>
 #include <memory>
 
+#include <fmt/format.h>
+
 #include <OpenImageIO/Imath.h>
 #include <OpenImageIO/color.h>
 #include <OpenImageIO/filesystem.h>
@@ -42,13 +44,13 @@ static std::string datestring(time_t t)
 {
   struct tm mytm;
   OIIO::Sysutil::get_local_time(&t, &mytm);
-  return OIIO::Strutil::fmt::format("{:4d}:{:02d}:{:02d} {:02d}:{:02d}:{:02d}",
-                                    mytm.tm_year + 1900,
-                                    mytm.tm_mon + 1,
-                                    mytm.tm_mday,
-                                    mytm.tm_hour,
-                                    mytm.tm_min,
-                                    mytm.tm_sec);
+  return fmt::format("{:4d}:{:02d}:{:02d} {:02d}:{:02d}:{:02d}",
+                     mytm.tm_year + 1900,
+                     mytm.tm_mon + 1,
+                     mytm.tm_mday,
+                     mytm.tm_hour,
+                     mytm.tm_min,
+                     mytm.tm_sec);
 }
 
 template<class SRCTYPE>
@@ -526,8 +528,7 @@ static void write_stats_tx(OIIO::ImageBuf &buf, const bool use_openexr)
       buf.specmod().attribute("oiio:ConstantColor", colstr);
     }
     else {
-      desc += OIIO::Strutil::fmt::format(
-          "{}oiio:ConstantColor={}", desc.length() ? " " : "", colstr);
+      desc += fmt::format("{}oiio:ConstantColor={}", desc.length() ? " " : "", colstr);
     }
     LOG_DEBUG << "  ConstantColor: " << colstr;
   }
@@ -538,7 +539,7 @@ static void write_stats_tx(OIIO::ImageBuf &buf, const bool use_openexr)
     buf.specmod().attribute("oiio:AverageColor", avgstr);
   }
   else {
-    desc += OIIO::Strutil::fmt::format("{}oiio:AverageColor={}", desc.length() ? " " : "", avgstr);
+    desc += fmt::format("{}oiio:AverageColor={}", desc.length() ? " " : "", avgstr);
   }
   LOG_DEBUG << "  AverageColor: " << avgstr;
 
