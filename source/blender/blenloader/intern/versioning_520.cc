@@ -27,16 +27,6 @@ namespace blender {
 
 // static CLG_LogRef LOG = {"blend.doversion"};
 
-void do_versions_after_linking_520(FileData * /*fd*/, Main * /*bmain*/)
-{
-  /**
-   * Always bump subversion in BKE_blender_version.h when adding versioning
-   * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
-   *
-   * \note Keep this message at the bottom of the function.
-   */
-}
-
 /* Saving file extension is now a property of the the File Output node. So inherit this
  * setting from the active scene to restore the old behavior.
  * Note: One limitation is that node groups containing file outputs that are not part of any
@@ -58,14 +48,8 @@ static void do_version_file_output_use_file_extension_recursive(bNodeTree &node_
   }
 }
 
-void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
+void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
 {
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 1)) {
-    for (Scene &scene : bmain->scenes) {
-      scene.r.mode |= R_SAVE_OUTPUT;
-    }
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 2)) {
     for (Scene &scene : bmain->scenes) {
       bNodeTree *node_tree = version_get_scene_compositor_node_tree(bmain, &scene);
@@ -75,6 +59,22 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       do_version_file_output_use_file_extension_recursive(*node_tree, scene);
     }
   }
+  /**
+   * Always bump subversion in BKE_blender_version.h when adding versioning
+   * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
+   *
+   * \note Keep this message at the bottom of the function.
+   */
+}
+
+void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
+{
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 1)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.r.mode |= R_SAVE_OUTPUT;
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
