@@ -1464,7 +1464,7 @@ static void bmw_EdgeringWalker_begin(BMWalker *walker, void *data)
   *lwalk = owalk;
 
   const bool delimit_ngon = (walker->delimit & BMW_DELIMIT_EDGE_RING_NGONS) != 0;
-  if (delimit_ngon ? (lwalk->l->f->len % 2 != 0) : (lwalk->l->f->len != 4)) {
+  if (delimit_ngon ? (lwalk->l->f->len != 4) : (lwalk->l->f->len % 2 != 0)) {
     lwalk->l = lwalk->l->radial_next;
   }
 
@@ -1524,6 +1524,17 @@ static void *bmw_EdgeringWalker_step(BMWalker *walker)
   bool step_ok = false;
 
   if (delimit_ngon) {
+    /* Only quads. */
+    l = l->radial_next;
+    l = l->next->next;
+
+    if ((l->f->len != 4) || !EDGE_CHECK(l->e) || !bmw_mask_check_face(walker, l->f)) {
+      l = owalk.l->next->next;
+    }
+    /* Only walk to manifold edge. */
+    step_ok = (l->f->len == 4) && EDGE_CHECK(l->e) && !walker->visit_set->contains(l->e);
+  }
+  else {
     /* Only N-gons with an even number of sides. */
     l = l->radial_next;
 
@@ -1544,17 +1555,6 @@ static void *bmw_EdgeringWalker_step(BMWalker *walker)
     }
     /* Only walk to manifold edge. */
     step_ok = (l->f->len % 2 == 0) && EDGE_CHECK(l->e) && !walker->visit_set->contains(l->e);
-  }
-  else {
-    /* Only quads. */
-    l = l->radial_next;
-    l = l->next->next;
-
-    if ((l->f->len != 4) || !EDGE_CHECK(l->e) || !bmw_mask_check_face(walker, l->f)) {
-      l = owalk.l->next->next;
-    }
-    /* Only walk to manifold edge. */
-    step_ok = (l->f->len == 4) && EDGE_CHECK(l->e) && !walker->visit_set->contains(l->e);
   }
 
   if (step_ok) {
