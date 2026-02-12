@@ -9,7 +9,7 @@ This script looks for Fix #NUMBER commits in the current branch between
 a start and end date. It then iterates through each commit figuring
 out which issue it fixed and what module that issue belonged too.
 
-Finally it prints the list of modules and the corrisponding fix numbers
+Finally it prints the list of modules and the corresponding fix numbers
 to terminal.
 
 The steps to use it as as follows:
@@ -19,7 +19,7 @@ the branch you're interested in (E.g. main) and up to date.
   - `-s` and `-e` are the start and end dates you want to checkout.
 - Wait for the script to finish.
 
-Limitaiton:
+Limitation:
 Because the script is only looking at commits that contain `Fix #NUMBER`
 in them, this will not gather a full list of fix commits. It will just
 gather a list of commits that fixed reported issues.
@@ -196,15 +196,15 @@ def get_fix_commits(start_date: str, end_date: str, single_threaded: bool) -> li
     git_log_output = git_log_command_output.splitlines()
 
     if single_threaded:
-        intial_list_of_commits = []
+        initial_commits = []
         for commit in git_log_output:
-            intial_list_of_commits.append(setup_commit_info(commit))
+            initial_commits.append(setup_commit_info(commit))
     else:
         import multiprocessing
         with multiprocessing.Pool() as pool:
-            intial_list_of_commits = pool.map(setup_commit_info, git_log_output)
+            initial_commits = pool.map(setup_commit_info, git_log_output)
 
-    list_of_commits = [result for result in intial_list_of_commits if result]
+    list_of_commits = [result for result in initial_commits if result]
     return list_of_commits
 
 # -----------------------------------------------------------------------------
