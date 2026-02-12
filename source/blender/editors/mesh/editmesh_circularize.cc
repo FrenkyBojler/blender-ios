@@ -156,7 +156,7 @@ void MESH_OT_circularize(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
   ot->ui = edbm_circularize_ui;
 
-  prop = RNA_def_float_factor(
+  RNA_def_float_factor(
       ot->srna, "factor", 1.0f, 0.0f, 1.0f, "Factor", "Force of the tool", 0.0f, 1.0f);
   RNA_def_enum(ot->srna,
                "fit_method",
