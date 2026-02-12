@@ -128,10 +128,10 @@ static void palette_blend_write(BlendWriter *writer, ID *id, const void *id_addr
 {
   Palette *palette = id_cast<Palette *>(id);
 
-  BLO_write_id_struct(writer, Palette, id_address, &palette->id);
+  writer->write_id_struct(id_address, palette);
   BKE_id_blend_write(writer, &palette->id);
 
-  BLO_write_struct_list(writer, PaletteColor, &palette->colors);
+  writer->write_struct_list(&palette->colors);
 }
 
 static void palette_blend_read_data(BlendDataReader *reader, ID *id)
@@ -152,34 +152,34 @@ static void palette_undo_preserve(BlendLibReader * /*reader*/, ID *id_new, ID *i
 }
 
 IDTypeInfo IDType_ID_PAL = {
-    /*id_code*/ Palette::id_type,
-    /*id_filter*/ FILTER_ID_PAL,
-    /*dependencies_id_types*/ 0,
-    /*main_listbase_index*/ INDEX_ID_PAL,
-    /*struct_size*/ sizeof(Palette),
-    /*name*/ "Palette",
-    /*name_plural*/ N_("palettes"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_PALETTE,
-    /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA,
-    /*asset_type_info*/ nullptr,
+    .id_code = Palette::id_type,
+    .id_filter = FILTER_ID_PAL,
+    .dependencies_id_types = 0,
+    .main_listbase_index = INDEX_ID_PAL,
+    .struct_size = sizeof(Palette),
+    .name = "Palette",
+    .name_plural = N_("palettes"),
+    .translation_context = BLT_I18NCONTEXT_ID_PALETTE,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ palette_init_data,
-    /*copy_data*/ palette_copy_data,
-    /*free_data*/ palette_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ nullptr,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ palette_foreach_working_space_color,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = palette_init_data,
+    .copy_data = palette_copy_data,
+    .free_data = palette_free_data,
+    .make_local = nullptr,
+    .foreach_id = nullptr,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = palette_foreach_working_space_color,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ palette_blend_write,
-    /*blend_read_data*/ palette_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = palette_blend_write,
+    .blend_read_data = palette_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ palette_undo_preserve,
+    .blend_read_undo_preserve = palette_undo_preserve,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 static void paint_curve_copy_data(Main * /*bmain*/,
@@ -193,7 +193,7 @@ static void paint_curve_copy_data(Main * /*bmain*/,
 
   if (paint_curve_src->tot_points != 0) {
     paint_curve_dst->points = static_cast<PaintCurvePoint *>(
-        MEM_dupallocN(paint_curve_src->points));
+        MEM_dupalloc(paint_curve_src->points));
   }
 }
 
@@ -201,7 +201,7 @@ static void paint_curve_free_data(ID *id)
 {
   PaintCurve *paint_curve = id_cast<PaintCurve *>(id);
 
-  MEM_SAFE_FREE(paint_curve->points);
+  MEM_SAFE_DELETE(paint_curve->points);
   paint_curve->tot_points = 0;
 }
 
@@ -209,10 +209,10 @@ static void paint_curve_blend_write(BlendWriter *writer, ID *id, const void *id_
 {
   PaintCurve *pc = id_cast<PaintCurve *>(id);
 
-  BLO_write_id_struct(writer, PaintCurve, id_address, &pc->id);
+  writer->write_id_struct(id_address, pc);
   BKE_id_blend_write(writer, &pc->id);
 
-  BLO_write_struct_array(writer, PaintCurvePoint, pc->tot_points, pc->points);
+  writer->write_struct_array(pc->tot_points, pc->points);
 }
 
 static void paint_curve_blend_read_data(BlendDataReader *reader, ID *id)
@@ -222,34 +222,34 @@ static void paint_curve_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_PC = {
-    /*id_code*/ PaintCurve::id_type,
-    /*id_filter*/ FILTER_ID_PC,
-    /*dependencies_id_types*/ 0,
-    /*main_listbase_index*/ INDEX_ID_PC,
-    /*struct_size*/ sizeof(PaintCurve),
-    /*name*/ "PaintCurve",
-    /*name_plural*/ N_("paint_curves"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_PAINTCURVE,
-    /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA,
-    /*asset_type_info*/ nullptr,
+    .id_code = PaintCurve::id_type,
+    .id_filter = FILTER_ID_PC,
+    .dependencies_id_types = 0,
+    .main_listbase_index = INDEX_ID_PC,
+    .struct_size = sizeof(PaintCurve),
+    .name = "PaintCurve",
+    .name_plural = N_("paint_curves"),
+    .translation_context = BLT_I18NCONTEXT_ID_PAINTCURVE,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ nullptr,
-    /*copy_data*/ paint_curve_copy_data,
-    /*free_data*/ paint_curve_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ nullptr,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = nullptr,
+    .copy_data = paint_curve_copy_data,
+    .free_data = paint_curve_free_data,
+    .make_local = nullptr,
+    .foreach_id = nullptr,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ paint_curve_blend_write,
-    /*blend_read_data*/ paint_curve_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = paint_curve_blend_write,
+    .blend_read_data = paint_curve_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 static ePaintOverlayControlFlags overlay_flags = ePaintOverlayControlFlags(0);
@@ -1399,7 +1399,7 @@ void BKE_palette_color_remove(Palette *palette, PaletteColor *color)
     palette->active_color = 0;
   }
 
-  MEM_freeN(color);
+  MEM_delete(color);
 }
 
 void BKE_palette_clear(Palette *palette)
@@ -1427,7 +1427,7 @@ Palette *BKE_palette_add(Main *bmain, const char *name)
 
 PaletteColor *BKE_palette_color_add(Palette *palette)
 {
-  PaletteColor *color = MEM_new_for_free<PaletteColor>(__func__);
+  PaletteColor *color = MEM_new<PaletteColor>(__func__);
   BLI_addtail(&palette->colors, color);
   return color;
 }
@@ -1581,7 +1581,7 @@ bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name)
   const int totpal = BLI_ghash_len(color_table);
 
   if (totpal > 0) {
-    color_array = MEM_new_array_for_free<tPaletteColorHSV>(totpal, __func__);
+    color_array = MEM_new_array<tPaletteColorHSV>(totpal, __func__);
     /* Put all colors in an array. */
     GHashIterator gh_iter;
     int t = 0;
@@ -1626,7 +1626,7 @@ bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name)
   }
 
   if (totpal > 0) {
-    MEM_SAFE_FREE(color_array);
+    MEM_SAFE_DELETE(color_array);
   }
 
   return done;
@@ -1767,38 +1767,38 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
   if ((reinterpret_cast<VPaint **>(r_paint) == &ts->vpaint) ||
       (reinterpret_cast<VPaint **>(r_paint) == &ts->wpaint))
   {
-    VPaint *data = MEM_new_for_free<VPaint>(__func__);
+    VPaint *data = MEM_new<VPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if (reinterpret_cast<Sculpt **>(r_paint) == &ts->sculpt) {
-    Sculpt *data = MEM_new_for_free<Sculpt>(__func__);
+    Sculpt *data = MEM_new<Sculpt>(__func__);
 
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if (reinterpret_cast<GpPaint **>(r_paint) == &ts->gp_paint) {
-    GpPaint *data = MEM_new_for_free<GpPaint>(__func__);
+    GpPaint *data = MEM_new<GpPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if (reinterpret_cast<GpVertexPaint **>(r_paint) == &ts->gp_vertexpaint) {
-    GpVertexPaint *data = MEM_new_for_free<GpVertexPaint>(__func__);
+    GpVertexPaint *data = MEM_new<GpVertexPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if (reinterpret_cast<GpSculptPaint **>(r_paint) == &ts->gp_sculptpaint) {
-    GpSculptPaint *data = MEM_new_for_free<GpSculptPaint>(__func__);
+    GpSculptPaint *data = MEM_new<GpSculptPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if (reinterpret_cast<GpWeightPaint **>(r_paint) == &ts->gp_weightpaint) {
-    GpWeightPaint *data = MEM_new_for_free<GpWeightPaint>(__func__);
+    GpWeightPaint *data = MEM_new<GpWeightPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if (reinterpret_cast<CurvesSculpt **>(r_paint) == &ts->curves_sculpt) {
-    CurvesSculpt *data = MEM_new_for_free<CurvesSculpt>(__func__);
+    CurvesSculpt *data = MEM_new<CurvesSculpt>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
@@ -2030,8 +2030,7 @@ void BKE_paint_blend_write(BlendWriter *writer, Paint *paint)
     if (tool_brush_bindings.main_brush_asset_reference) {
       BKE_asset_weak_reference_write(writer, tool_brush_bindings.main_brush_asset_reference);
     }
-    BLO_write_struct_list(
-        writer, NamedBrushAssetReference, &tool_brush_bindings.active_brush_per_brush_type);
+    writer->write_struct_list(&tool_brush_bindings.active_brush_per_brush_type);
     for (NamedBrushAssetReference &brush_ref : tool_brush_bindings.active_brush_per_brush_type) {
       BLO_write_string(writer, brush_ref.name);
       if (brush_ref.brush_asset_reference) {
@@ -2234,18 +2233,6 @@ void BKE_sculptsession_free_deformMats(SculptSession *ss)
   ss->face_normals_deform = {};
 }
 
-void BKE_sculptsession_free_vwpaint_data(SculptSession *ss)
-{
-  if (ss->mode_type == OB_MODE_WEIGHT_PAINT) {
-    MEM_SAFE_FREE(ss->mode.wpaint.alpha_weight);
-    if (!ss->mode.wpaint.dvert_prev.is_empty()) {
-      BKE_defvert_array_free_elems(ss->mode.wpaint.dvert_prev.data(),
-                                   ss->mode.wpaint.dvert_prev.size());
-      ss->mode.wpaint.dvert_prev = {};
-    }
-  }
-}
-
 /**
  * Write out the sculpt dynamic-topology #BMesh to the #Mesh.
  */
@@ -2348,10 +2335,6 @@ SculptSession::~SculptSession()
   if (this->tex_pool) {
     BKE_image_pool_free(this->tex_pool);
   }
-
-  BKE_sculptsession_free_vwpaint_data(this);
-
-  MEM_SAFE_FREE(this->last_paint_canvas_key);
 }
 
 ActiveVert SculptSession::active_vert() const
@@ -2592,18 +2575,7 @@ static void sculpt_update_object(Depsgraph *depsgraph,
 
   ss.shapekey_active = (mmd == nullptr) ? BKE_keyblock_from_object(ob) : nullptr;
 
-  /* NOTE: Weight pPaint require mesh info for loop lookup, but it never uses multires code path,
-   * so no extra checks is needed here. */
-  if (mmd) {
-    ss.multires.active = true;
-    ss.multires.modifier = mmd;
-    ss.multires.level = mmd->sculptlvl;
-  }
-  else {
-    ss.multires.active = false;
-    ss.multires.modifier = nullptr;
-    ss.multires.level = 0;
-  }
+  ss.multires_modifier = mmd;
 
   ss.subdiv_ccg = mesh_eval->runtime->subdiv_ccg.get();
 
@@ -2655,20 +2627,8 @@ static void sculpt_update_object(Depsgraph *depsgraph,
   if (ss.shapekey_active != nullptr && ss.deform_cos.is_empty()) {
     ss.deform_cos = Span(static_cast<const float3 *>(ss.shapekey_active->data),
                          mesh_orig->verts_num);
-  }
-
-  /* if pbvh is deformed, key block is already applied to it */
-  if (ss.shapekey_active) {
-    if (ss.deform_cos.is_empty()) {
-      const Span key_data(static_cast<const float3 *>(ss.shapekey_active->data),
-                          mesh_orig->verts_num);
-
-      if (key_data.data() != nullptr) {
-        BKE_pbvh_vert_coords_apply(pbvh, key_data);
-        if (ss.deform_cos.is_empty()) {
-          ss.deform_cos = key_data;
-        }
-      }
+    if (!ss.deform_cos.is_empty()) {
+      BKE_pbvh_vert_coords_apply(pbvh, ss.deform_cos);
     }
   }
 
@@ -2678,16 +2638,11 @@ static void sculpt_update_object(Depsgraph *depsgraph,
      * The relevant changes are stored/encoded in the paint canvas key.
      * These include the active uv map, and resolutions. */
     if (USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint)) {
-      char *paint_canvas_key = BKE_paint_canvas_key_get(&scene->toolsettings->paint_mode, ob);
-      if (ss.last_paint_canvas_key == nullptr ||
-          !STREQ(paint_canvas_key, ss.last_paint_canvas_key))
-      {
-        MEM_SAFE_FREE(ss.last_paint_canvas_key);
+      std::string paint_canvas_key = BKE_paint_canvas_key_get(&scene->toolsettings->paint_mode,
+                                                              ob);
+      if (!ss.last_paint_canvas_key || paint_canvas_key != ss.last_paint_canvas_key) {
         ss.last_paint_canvas_key = paint_canvas_key;
         BKE_pbvh_mark_rebuild_pixels(pbvh);
-      }
-      else {
-        MEM_freeN(paint_canvas_key);
       }
     }
 
@@ -2731,9 +2686,6 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
     BKE_sculptsession_free_pbvh(*ob_orig);
 
     BKE_sculptsession_free_deformMats(ss);
-
-    /* In vertex/weight paint, force maps to be rebuilt. */
-    BKE_sculptsession_free_vwpaint_data(ss);
   }
   else if (pbvh) {
     IndexMaskMemory memory;
@@ -2825,7 +2777,7 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
       GridPaintMask *gpm = &gmask[i];
 
       gpm->level = level;
-      gpm->data = MEM_calloc_arrayN<float>(gridarea, "GridPaintMask.data");
+      gpm->data = MEM_new_array_zeroed<float>(gridarea, "GridPaintMask.data");
     }
 
     /* If vertices already have mask, copy into multires data. */
@@ -3072,14 +3024,22 @@ bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const RegionView3D *rv3d)
     return false;
   }
 
+  /* External render engines like Cycles do not have access to the pbvh::Tree
+   * like Eevee does, and need evaluated mesh geometry to render from. */
+  const bool external_engine = rv3d && rv3d->view_render != nullptr;
+
   if (pbvh->type() == bke::pbvh::Type::Mesh) {
-    /* Regular mesh only draws from pbvh::Tree without modifiers and shape keys, or for
-     * external engines that do not have access to the pbvh::Tree like Eevee does. */
-    const bool external_engine = rv3d && rv3d->view_render != nullptr;
+    /* Regular mesh only draws from pbvh::Tree without modifiers and shape keys,
+     * and without external render engine. */
     return !(ss->shapekey_active || ss->deform_modifiers_active || external_engine);
   }
 
-  /* Multires and dyntopo always draw directly from the pbvh::Tree. */
+  if (pbvh->type() == bke::pbvh::Type::BMesh) {
+    /* Dyntopo draws from pbvh::Tree, except for external render engines. */
+    return !external_engine;
+  }
+
+  /* Multires always draws directly from the pbvh::Tree. */
   return true;
 }
 

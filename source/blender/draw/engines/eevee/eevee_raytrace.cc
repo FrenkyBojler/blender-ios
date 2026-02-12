@@ -29,6 +29,8 @@ void RayTraceModule::init()
   if ((sce_eevee.flag & SCE_EEVEE_FAST_GI_ENABLED) == 0) {
     ray_tracing_options_.trace_max_roughness = 1.0f;
   }
+  /* Always initialize thickness, for the ray-cast node. */
+  data_.thickness = ray_tracing_options_.screen_trace_thickness;
 
   tracing_method_ = RaytraceEEVEE_Method(sce_eevee.ray_tracing_method);
   fast_gi_ray_count_ = sce_eevee.fast_gi_ray_count;
@@ -426,7 +428,6 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
   const int2 extent = inst_.film.render_extent_get();
   const int2 tracing_res = math::divide_ceil(extent, int2(resolution_scale));
   const int2 tracing_res_horizon = math::divide_ceil(extent, int2(horizon_resolution_scale));
-  const int2 dummy_extent(1, 1);
   const int2 group_size(RAYTRACE_GROUP_SIZE);
 
   const int2 denoise_tiles = divide_ceil(extent, group_size);

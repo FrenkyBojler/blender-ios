@@ -72,7 +72,7 @@ static void free_runtime_data(void *runtime_data_v)
   if (runtime_data->subdiv != nullptr) {
     bke::subdiv::free(runtime_data->subdiv);
   }
-  MEM_freeN(runtime_data);
+  MEM_delete(runtime_data);
 }
 
 static void free_data(ModifierData *md)
@@ -85,7 +85,7 @@ static MultiresRuntimeData *multires_ensure_runtime(MultiresModifierData *mmd)
 {
   MultiresRuntimeData *runtime_data = static_cast<MultiresRuntimeData *>(mmd->modifier.runtime);
   if (runtime_data == nullptr) {
-    runtime_data = MEM_callocN<MultiresRuntimeData>(__func__);
+    runtime_data = MEM_new_zeroed<MultiresRuntimeData>(__func__);
     mmd->modifier.runtime = runtime_data;
   }
   return runtime_data;
@@ -216,9 +216,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     if (ctx->object->runtime->sculpt_session != nullptr) {
       SculptSession *sculpt_session = ctx->object->runtime->sculpt_session;
       sculpt_session->subdiv_ccg = result->runtime->subdiv_ccg.get();
-      sculpt_session->multires.active = true;
-      sculpt_session->multires.modifier = mmd;
-      sculpt_session->multires.level = mmd->sculptlvl;
+      sculpt_session->multires_modifier = mmd;
     }
     // bke::subdiv::stats_print(&subdiv->stats);
   }

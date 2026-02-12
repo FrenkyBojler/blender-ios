@@ -23,6 +23,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector_set.hh"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -95,14 +96,14 @@ static void ui_popup_block_position(wmWindow *window,
 
   /* Compute block size in window space, based on buttons contained in it. */
   if (block->rect.xmin == 0.0f && block->rect.xmax == 0.0f) {
-    if (!block->buttons.is_empty()) {
+    if (!block->buttons_ptrs.is_empty()) {
       BLI_rctf_init_minmax(&block->rect);
 
-      for (const std::unique_ptr<Button> &bt : block->buttons) {
+      for (Button &bt : block->buttons()) {
         if (block->content_hints & BLOCK_CONTAINS_SUBMENU_BUT) {
-          bt->rect.xmax += UI_MENU_SUBMENU_PADDING;
+          bt.rect.xmax += UI_MENU_SUBMENU_PADDING;
         }
-        BLI_rctf_union(&block->rect, &bt->rect);
+        BLI_rctf_union(&block->rect, &bt.rect);
       }
     }
     else {
@@ -118,10 +119,10 @@ static void ui_popup_block_position(wmWindow *window,
   const float max_radius = (0.5f * U.widget_unit);
 
   if (delta >= 0 && delta < max_radius) {
-    for (const std::unique_ptr<Button> &bt : block->buttons) {
+    for (Button &bt : block->buttons()) {
       /* Only trim the right most buttons in multi-column popovers. */
-      if (bt->rect.xmax == block->rect.xmax) {
-        bt->rect.xmax -= delta;
+      if (bt.rect.xmax == block->rect.xmax) {
+        bt.rect.xmax -= delta;
       }
     }
     block->rect.xmax -= delta;
@@ -313,13 +314,13 @@ static void ui_popup_block_position(wmWindow *window,
   }
 
   /* Apply offset, buttons in window coords. */
-  for (const std::unique_ptr<Button> &bt : block->buttons) {
-    block_to_window_rctf(butregion, but->block, &bt->rect, &bt->rect);
+  for (Button &bt : block->buttons()) {
+    block_to_window_rctf(butregion, but->block, &bt.rect, &bt.rect);
 
-    BLI_rctf_translate(&bt->rect, offset_x, offset_y);
+    BLI_rctf_translate(&bt.rect, offset_x, offset_y);
 
     /* ui_but_update recalculates drawstring size in pixels */
-    button_update(bt.get());
+    button_update(&bt);
   }
 
   BLI_rctf_translate(&block->rect, offset_x, offset_y);
@@ -397,7 +398,7 @@ static void ui_popup_block_position(wmWindow *window,
   }
 
   /* Keep a list of these, needed for pull-down menus. */
-  SafetyRect *saferct = MEM_new_for_free<SafetyRect>(__func__);
+  SafetyRect *saferct = MEM_new<SafetyRect>(__func__);
   saferct->parent = butrct;
   saferct->safety = block->safety;
   BLI_freelistN(&block->saferct);
@@ -506,9 +507,9 @@ static void ui_popup_block_clip(wmWindow *window, Block *block)
 
   /* ensure menu items draw inside left/right boundary */
   const float xofs = block->rect.xmin - xmin_orig;
-  for (const std::unique_ptr<Button> &bt : block->buttons) {
-    bt->rect.xmin += xofs;
-    bt->rect.xmax += xofs;
+  for (Button &bt : block->buttons()) {
+    bt.rect.xmin += xofs;
+    bt.rect.xmax += xofs;
   }
 }
 
@@ -516,36 +517,40 @@ void popup_block_scrolltest(Block *block)
 {
   block->flag &= ~(BLOCK_CLIPBOTTOM | BLOCK_CLIPTOP);
 
-  for (const std::unique_ptr<Button> &bt : block->buttons) {
-    bt->flag &= ~UI_SCROLLED;
+  for (Button &bt : block->buttons()) {
+    bt.flag &= ~UI_SCROLLED;
   }
 
-  if (block->buttons.size() < 2) {
+  if (block->buttons_ptrs.size() < 2) {
     return;
   }
 
   /* mark buttons that are outside boundary */
-  for (const std::unique_ptr<Button> &bt : block->buttons) {
-    if (bt->rect.ymin < block->rect.ymin) {
-      bt->flag |= UI_SCROLLED;
+  for (Button &bt : block->buttons()) {
+    if (bt.rect.ymax < block->rect.ymin) {
+      bt.flag |= UI_SCROLLED;
+    }
+    if (bt.rect.ymin > block->rect.ymax) {
+      bt.flag |= UI_SCROLLED;
+    }
+    if (bt.rect.ymin < block->rect.ymin) {
       block->flag |= BLOCK_CLIPBOTTOM;
     }
-    if (bt->rect.ymax > block->rect.ymax) {
-      bt->flag |= UI_SCROLLED;
+    if (bt.rect.ymax > block->rect.ymax) {
       block->flag |= BLOCK_CLIPTOP;
     }
   }
 
   /* mark buttons overlapping arrows, if we have them */
-  for (const std::unique_ptr<Button> &bt : block->buttons) {
+  for (Button &bt : block->buttons()) {
     if (block->flag & BLOCK_CLIPBOTTOM) {
-      if (bt->rect.ymin < block->rect.ymin + UI_MENU_SCROLL_ARROW) {
-        bt->flag |= UI_SCROLLED;
+      if (bt.rect.ymax < block->rect.ymin + UI_MENU_SCROLL_MOUSE) {
+        bt.flag |= UI_SCROLLED;
       }
     }
     if (block->flag & BLOCK_CLIPTOP) {
-      if (bt->rect.ymax > block->rect.ymax - UI_MENU_SCROLL_ARROW) {
-        bt->flag |= UI_SCROLLED;
+      if (bt.rect.ymin > block->rect.ymax - UI_MENU_SCROLL_MOUSE) {
+        bt.flag |= UI_SCROLLED;
       }
     }
   }
@@ -608,7 +613,49 @@ void layout_panel_popup_scroll_apply(Panel *panel, const float dy)
   }
 }
 
-void popup_dummy_panel_set(ARegion *region, Block *block)
+/**
+ * Persistent storage of open-close-state of layout panels in popups.
+ *
+ * Usually this state is stored in each region's panels, however since these regions are
+ * temporally allocated this state is lost when the popup is closed and the region is freed.
+ * See #152631.
+ */
+struct PopupLayoutPanelStates {
+  /** #PanelType::idname or #OperatorType::idname. */
+  std::string idname;
+  ListBaseT<LayoutPanelState> states = {};
+
+  PopupLayoutPanelStates(StringRef idname) : idname{idname} {}
+
+  ~PopupLayoutPanelStates()
+  {
+    for (LayoutPanelState &state : states.items_mutable()) {
+      BLI_remlink(&states, &state);
+      MEM_delete(state.idname);
+      MEM_delete(&state);
+    }
+  }
+};
+
+struct PopupLayoutPanelStatesIDNameGetter {
+  StringRef operator()(const std::unique_ptr<PopupLayoutPanelStates> &value) const
+  {
+    return StringRef(value->idname);
+  }
+};
+
+ListBaseT<LayoutPanelState> &popup_persistent_layout_panel_states(StringRef idname)
+{
+  static CustomIDVectorSet<std::unique_ptr<PopupLayoutPanelStates>,
+                           PopupLayoutPanelStatesIDNameGetter>
+      popup_states;
+  if (!popup_states.contains_as(idname)) {
+    popup_states.add_new(std::make_unique<PopupLayoutPanelStates>(idname));
+  }
+  return popup_states.lookup_key_as(idname)->states;
+}
+
+void popup_dummy_panel_set(ARegion *region, Block *block, StringRef idname)
 {
   Panel *&panel = region->runtime->popup_block_panel;
   if (!panel) {
@@ -621,6 +668,7 @@ void popup_dummy_panel_set(ARegion *region, Block *block)
     panel = BKE_panel_new(&panel_type);
   }
   panel->runtime->layout_panels.clear();
+  panel->runtime->popup_layout_panel_states = &popup_persistent_layout_panel_states(idname);
   block->panel = panel;
   panel->runtime->block = block;
 }
@@ -722,7 +770,7 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
   }
   else {
     /* Keep a list of these, needed for pull-down menus. */
-    SafetyRect *saferct = MEM_new_for_free<SafetyRect>(__func__);
+    SafetyRect *saferct = MEM_new<SafetyRect>(__func__);
     saferct->safety = block->safety;
     BLI_addhead(&block->saferct, saferct);
   }
@@ -776,9 +824,9 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
 
     /* lastly set the buttons at the center of the pie menu, ready for animation */
     if (U.pie_animation_timeout > 0) {
-      for (const std::unique_ptr<Button> &but_iter : block->buttons) {
-        if (but_iter->pie_dir != UI_RADIAL_NONE) {
-          BLI_rctf_recenter(&but_iter->rect, UNPACK2(block->pie_data.pie_center_spawned));
+      for (Button &but_iter : block->buttons()) {
+        if (but_iter.pie_dir != UI_RADIAL_NONE) {
+          BLI_rctf_recenter(&but_iter.rect, UNPACK2(block->pie_data.pie_center_spawned));
         }
       }
     }
@@ -796,9 +844,9 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
     /* clip block with window boundary */
     ui_popup_block_clip(window, block);
 
-    /* Avoid menu moving down and losing cursor focus by keeping it at
-     * the same height. */
-    if (handle->refresh && handle->prev_block_rect.ymax > block->rect.ymax) {
+    /* Avoid menu moving down and losing cursor focus by keeping it at the same height when the
+     * popup is displaced down by at least one window unit. */
+    if (handle->refresh && (handle->prev_block_rect.ymax - block->rect.ymax) > 1.0f) {
       if (block->bounds_type != BLOCK_BOUNDS_POPUP_CENTER) {
         const float offset = handle->prev_block_rect.ymax - block->rect.ymax;
         block_translate(block, 0, offset);
@@ -820,9 +868,9 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
     /* Popups can change size, fix scroll offset if a panel was closed. */
     float ymin = FLT_MAX;
     float ymax = -FLT_MAX;
-    for (const std::unique_ptr<Button> &bt : block->buttons) {
-      ymin = min_ff(ymin, bt->rect.ymin);
-      ymax = max_ff(ymax, bt->rect.ymax);
+    for (const Button &bt : block->buttons()) {
+      ymin = min_ff(ymin, bt.rect.ymin);
+      ymax = max_ff(ymax, bt.rect.ymax);
     }
     const int scroll_pad = block_is_menu(block) ? UI_MENU_SCROLL_PAD : UI_UNIT_Y * 0.5f;
     const float scroll_min = std::min(block->rect.ymax - ymax - scroll_pad, 0.0f);
@@ -830,9 +878,9 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
     handle->scrolloffset = std::clamp(handle->scrolloffset, scroll_min, scroll_max);
     /* apply scroll offset */
     if (handle->scrolloffset != 0.0f) {
-      for (const std::unique_ptr<Button> &bt : block->buttons) {
-        bt->rect.ymin += handle->scrolloffset;
-        bt->rect.ymax += handle->scrolloffset;
+      for (Button &bt : block->buttons()) {
+        bt.rect.ymin += handle->scrolloffset;
+        bt.rect.ymax += handle->scrolloffset;
       }
     }
     /* Layout panels are relative to `block->rect.ymax`. Rather than a
@@ -1044,7 +1092,7 @@ static Block *ui_alert_create(bContext *C, ARegion *region, void *user_data)
   block_theme_style_set(block, BLOCK_THEME_STYLE_POPUP);
   block_flag_disable(block, BLOCK_LOOP);
   block_emboss_set(block, EmbossType::Emboss);
-  popup_dummy_panel_set(region, block);
+  popup_dummy_panel_set(region, block, data->title);
 
   block_flag_enable(block, BLOCK_KEEP_OPEN | BLOCK_NUMSELECT);
   if (data->mouse_move_quit) {

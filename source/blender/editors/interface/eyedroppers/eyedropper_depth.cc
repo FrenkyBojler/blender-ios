@@ -22,6 +22,8 @@
 #include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
 
+#include "BLT_translation.hh"
+
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_report.hh"
@@ -158,7 +160,7 @@ static int depthdropper_init(bContext *C, wmOperator *op)
       MEM_delete(ddr);
       return false;
     }
-    PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
+    PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, RNA_Context, C);
     if (!depthdropper_get_path(&ctx_ptr, op, prop_data_path.c_str(), &ddr->ptr, &ddr->prop)) {
       MEM_delete(ddr);
       return false;
@@ -176,8 +178,7 @@ static int depthdropper_init(bContext *C, wmOperator *op)
             BKE_id_is_editable(CTX_data_main(C), static_cast<const ID *>(v3d->camera->data)))
         {
           Camera *camera = id_cast<Camera *>(v3d->camera->data);
-          ddr->ptr = RNA_pointer_create_discrete(
-              &camera->id, &RNA_CameraDOFSettings, &camera->dof);
+          ddr->ptr = RNA_pointer_create_discrete(&camera->id, RNA_CameraDOFSettings, &camera->dof);
           ddr->prop = RNA_struct_find_property(&ddr->ptr, "focus_distance");
           ddr->is_undo = true;
         }
@@ -289,7 +290,7 @@ static void depthdropper_depth_sample_pt(bContext *C,
                                    false);
         }
         else {
-          STRNCPY_UTF8(ddr->name, "Nothing under cursor");
+          STRNCPY_UTF8(ddr->name, RPT_("Nothing under cursor"));
         }
       }
     }

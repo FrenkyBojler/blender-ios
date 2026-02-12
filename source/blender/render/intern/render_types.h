@@ -24,6 +24,8 @@
 
 #include "tile_highlight.h"
 
+class GHOST_IContext;
+
 namespace blender {
 
 namespace compositor {
@@ -205,6 +207,8 @@ struct Render : public BaseRender {
 struct RenderDisplay {
   ~RenderDisplay();
 
+  void free_gpu_context();
+
   void ensure_system_gpu_context();
   void *ensure_blender_gpu_context();
 
@@ -237,7 +241,7 @@ struct RenderDisplay {
 
   /* GPU contexts.
    * TODO: replace by a whole draw manager. */
-  void *system_gpu_context = nullptr;
+  GHOST_IContext *system_gpu_context = nullptr;
   void *blender_gpu_context = nullptr;
 };
 

@@ -78,7 +78,7 @@ void ED_gpencil_layer_make_cfra_list(bGPDlayer *gpl, ListBaseT<CfraElem> *elems,
   /* loop through gp-frames, adding */
   for (bGPDframe &gpf : gpl->frames) {
     if ((onlysel == 0) || (gpf.flag & GP_FRAME_SELECT)) {
-      ce = MEM_callocN<CfraElem>("CfraElem");
+      ce = MEM_new_zeroed<CfraElem>("CfraElem");
 
       ce->cfra = float(gpf.framenum);
       ce->sel = (gpf.flag & GP_FRAME_SELECT) ? 1 : 0;
@@ -355,7 +355,7 @@ bool ED_gpencil_anim_copybuf_copy(bAnimContext *ac)
 
     /* create a new layer in buffer if there were keyframes here */
     if (BLI_listbase_is_empty(&copied_frames) == false) {
-      bGPDlayer *new_layer = MEM_new_for_free<bGPDlayer>("GPCopyPasteLayer");
+      bGPDlayer *new_layer = MEM_new<bGPDlayer>("GPCopyPasteLayer");
       BLI_addtail(&gpencil_anim_copybuf, new_layer);
 
       /* move over copied frames */
@@ -379,9 +379,6 @@ bool ED_gpencil_anim_copybuf_copy(bAnimContext *ac)
 
 bool ED_gpencil_anim_copybuf_paste(bAnimContext *ac, const short offset_mode)
 {
-  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
-  int filter;
-
   Scene *scene = ac->scene;
   bool no_name = false;
   int offset = 0;
@@ -412,14 +409,20 @@ bool ED_gpencil_anim_copybuf_paste(bAnimContext *ac, const short offset_mode)
       break;
   }
 
-  /* filter data */
-  /* TODO: try doing it with selection, then without selection limits. */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_SEL |
-            ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
+  /* Only paste into selected layers. */
+  int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
+                ANIMFILTER_NODUPLIS | ANIMFILTER_SEL);
   ANIM_animdata_filter(
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
+  if (BLI_listbase_is_empty(&anim_data)) {
+    /* If no cannels are selected at all, make even unselected layers "targets" for pasting. */
+    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_NODUPLIS |
+              ANIMFILTER_FOREDIT);
+    ANIM_animdata_filter(
+        ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
+  }
 
-  /* from selected channels */
   for (bAnimListElem &ale : anim_data) {
     /* Only deal with GPlayers (case of calls from general dope-sheet). */
     if (ale.type != ANIMTYPE_GPLAYER) {
