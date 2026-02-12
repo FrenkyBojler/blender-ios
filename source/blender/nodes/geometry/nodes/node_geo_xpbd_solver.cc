@@ -505,6 +505,9 @@ class XpbdSolverStep {
     constexpr int approx_points_per_chunk = 256;
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
+      if (geo_data.size == 0) {
+        continue;
+      }
       const int old_chunks_num = geometries_.chunks.size();
 
       if (geo_data.curves) {

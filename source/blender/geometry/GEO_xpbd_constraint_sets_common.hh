@@ -1162,18 +1162,10 @@ class LinearDampingConstraintSet
     const int point_i = points_[constraint_i];
     const float3 &velocity = params.velocity(geo_i_, point_i);
     const float damping = linear_dampings_[point_i];
-    const float damping_factor = damping * params.delta_time;
-    /* Damping constraints typically have very high compliance, so using stiffness (1/compliance)
-     * instead leads to better conditioning. */
-    /* Stiffness k = d*t/(1-d*t) leads to an equivalent damping factor of d*t=-k/(1+k).
-     * This reduces velocity by the same factor when using the update rule for a compliant
-     * velocity constraint v(t) - v(0) = -v(0) * k/(1+k) = -v(0) * 1/(1 + alpha). */
-    const float stiffness_term = std::max(math::safe_divide(damping_factor, 1.0f - damping_factor),
-                                          0.0f);
+    const float damping_factor = std::clamp(params.delta_time * damping, 0.0f, 1.0f);
     float residual;
     const float3 gradient = math::normalize_and_get_length(velocity, residual);
-    const float delta_lambda = (-residual * stiffness_term /*- lambdas_[point_i] */) /
-                               (stiffness_term + 1.0f);
+    const float delta_lambda = -residual * damping_factor /* - lambdas_[point_i] */;
     const float3 offset = gradient * delta_lambda;
     lambdas_[point_i] += delta_lambda;
     updater.update_velocity(geo_i_, point_i, offset);
@@ -1224,13 +1216,9 @@ class AngularDampingConstraintSet
     const float3 &angular_velocity = params.angular_velocity(geo_i_, point_i);
     const float damping = angular_dampings_[point_i];
     const float damping_factor = damping * params.delta_time;
-    /* See #LinearDampingConstraintSet. */
-    const float stiffness_term = std::max(math::safe_divide(damping_factor, 1.0f - damping_factor),
-                                          0.0f);
     float residual;
     const float3 gradient = math::normalize_and_get_length(angular_velocity, residual);
-    const float delta_lambda = (-residual * stiffness_term /*- lambdas_[point_i] */) /
-                               (stiffness_term + 1.0f);
+    const float delta_lambda = -residual * damping_factor /*- lambdas_[point_i]*/;
     const float3 offset = gradient * delta_lambda;
     lambdas_[point_i] += delta_lambda;
     updater.update_angular_velocity(geo_i_, point_i, offset);
