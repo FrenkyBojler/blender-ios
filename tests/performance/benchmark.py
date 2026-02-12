@@ -136,7 +136,11 @@ def run_entry(env: api.TestEnvironment,
     testcategory = entry.category
     device_type = entry.device_type
     device_id = entry.device_id
-    gpu_backend = entry.gpu_backend
+    gpu_backend = {
+        'VULKAN': 'vulkan',
+        'METAL': 'metal',
+        'OPENGL': 'opengl'
+    }.get(device_type, 'default')
 
     test = config.tests.find(testname, testcategory)
     if not test:
@@ -148,8 +152,6 @@ def run_entry(env: api.TestEnvironment,
     logname = testcategory + '_' + testname + '_' + revision
     if device_id != 'CPU':
         logname += '_' + device_id
-    if gpu_backend != 'default':
-        logname += '_' + gpu_backend
     env.set_log_file(config.logs_dir / (logname + '.log'), clear=True)
 
     # Clear output

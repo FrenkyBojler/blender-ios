@@ -25,12 +25,6 @@ class Test:
         """
         return False
     
-    def use_gpu_backend(self):
-        """
-        Test uses a specific GPU backend.
-        """
-        return False
-
     def use_background(self) -> bool:
         """
         Test runs in background mode and requires no display.

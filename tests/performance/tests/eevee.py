@@ -130,11 +130,11 @@ else:
         def category(self):
             return "eevee"
 
+        def use_device(self) -> bool:
+            return True
+
         def use_background(self):
             return False
-
-        def use_gpu_backend(self):
-            return True
 
         def run(self, env, device_id, gpu_backend):
             args = {}
