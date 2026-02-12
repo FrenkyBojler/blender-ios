@@ -635,6 +635,13 @@ void region_on_poll_success(const bContext *C, ARegion *region)
                        region->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_HIDDEN_BY_USER),
                        ASSETSHELF_REGION_IS_HIDDEN);
   }
+
+  /* Ensure the asset shelf header region is hidden when the shelf is hidden. */
+  ARegion *header_region = BKE_area_find_region_type(area, RGN_TYPE_ASSET_SHELF_HEADER);
+  if (!header_region) {
+    return;
+  }
+  SET_FLAG_FROM_TEST(header_region->flag, region->flag & RGN_FLAG_HIDDEN, RGN_FLAG_HIDDEN);
 }
 
 void header_region_listen(const wmRegionListenerParams *params)
