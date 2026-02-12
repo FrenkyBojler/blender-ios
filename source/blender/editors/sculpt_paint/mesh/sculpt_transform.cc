@@ -83,7 +83,8 @@ void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char 
   }
 }
 
-static std::array<float4x4, 8> transform_matrices_init(const SculptSession &ss,
+static std::array<float4x4, 8> transform_matrices_init(const Object &ob,
+                                                       const SculptSession &ss,
                                                        const ePaintSymmetryFlags symm,
                                                        const TransformDisplacementMode t_mode)
 {
@@ -145,6 +146,11 @@ static std::array<float4x4, 8> transform_matrices_init(const SculptSession &ss,
     mul_m4_m4m4(transform_mat, transform_mat, s_mat);
     mul_m4_m4m4(mats[i].ptr(), transform_mat, pivot_imat);
     mul_m4_m4m4(mats[i].ptr(), pivot_mat, mats[i].ptr());
+    float temp[4][4];
+    const float4x4 &ob_to_world = ob.object_to_world();
+    const float4x4 &world_to_ob = ob.world_to_object();
+    mul_m4_m4m4(temp, mats[i].ptr(), ob_to_world.ptr());
+    mul_m4_m4m4(mats[i].ptr(), temp, world_to_ob.ptr());
   }
 
   return mats;
@@ -290,7 +296,7 @@ static void sculpt_transform_all_vertices(const Depsgraph &depsgraph, const Scul
   const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   std::array<float4x4, 8> transform_mats = transform_matrices_init(
-      ss, symm, ss.filter_cache->transform_displacement_mode);
+      ob, ss, symm, ss.filter_cache->transform_displacement_mode);
 
   /* Regular transform applies all symmetry passes at once as it is split by symmetry areas
    * (each vertex can only be transformed once by the transform matrix of its area). */
@@ -461,7 +467,7 @@ static void transform_radius_elastic(const Depsgraph &depsgraph,
   const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   std::array<float4x4, 8> transform_mats = transform_matrices_init(
-      ss, symm, ss.filter_cache->transform_displacement_mode);
+      ob, ss, symm, ss.filter_cache->transform_displacement_mode);
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   const IndexMask &node_mask = ss.filter_cache->node_mask;
