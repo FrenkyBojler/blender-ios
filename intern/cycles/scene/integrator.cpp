@@ -323,10 +323,14 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
     kintegrator->blue_noise_sequence_length -= 1;
   }
 
+  /* Randomize the seed every frame when applying jitter. */
+  if (use_jitter) {
+    kintegrator->seed = hash_uint2(seed, frame);
+  }
   /* The blue-noise sampler needs a randomized seed to scramble properly, providing e.g. 0 won't
    * work properly. Therefore, hash the seed in those cases. */
-  if (kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_FIRST ||
-      kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_PURE)
+  else if (kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_FIRST ||
+           kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_PURE)
   {
     kintegrator->seed = hash_uint(seed);
   }
