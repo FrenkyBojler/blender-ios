@@ -41,7 +41,7 @@ void clear_aovs()
 #endif
 }
 
-void output_aov(float4 color, float value, uint hash, float &holdout, eObjectInfoFlag ob_flag)
+void output_aov(float4 color, float value, uint hash, float holdout, eObjectInfoFlag ob_flag)
 {
 #if defined(MAT_RENDER_PASS_SUPPORT) && defined(GPU_FRAGMENT_SHADER)
   uint total_len = uniform_buf.render_pass.aovs.color_len + uniform_buf.render_pass.aovs.value_len;
