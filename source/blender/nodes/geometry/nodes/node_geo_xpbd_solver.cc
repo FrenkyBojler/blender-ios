@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_bvhutils.hh"
 #include "BLI_stack.hh"
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
@@ -75,6 +76,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(XPBDGeometryBundle::get_bundle_type());
   types.append(DampingBundle::get_bundle_type());
   types.append(InfiniteGroundPlaneBundle::get_bundle_type());
+  types.append(ColliderBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>("Blender.XpbdWorld",
                                                                             std::move(types));
@@ -221,6 +223,7 @@ struct GeometryData {
   Array<float3> inertias;
 
   Vector<int> infinite_plane_colliders;
+  Vector<int> mesh_colliders;
 };
 
 struct Geometries {
@@ -326,9 +329,23 @@ struct InfinitePlaneColliders {
   Vector<InfinitePlaneCollider> colliders;
 };
 
+struct MeshCollider {
+  std::string path;
+  const Mesh *mesh;
+  bke::BVHTreeFromMesh corner_tris_bvh;
+  float4x4 end_transform;
+  float friction;
+  float compliance;
+};
+
+struct MeshColliders {
+  Vector<MeshCollider> colliders;
+};
+
 struct ConstraintsInfo {
   Array<ChunkConstraints> chunk_constraints;
   InfinitePlaneColliders infinite_plane_colliders;
+  MeshColliders mesh_colliders;
 };
 
 class XpbdSolverStep {
@@ -373,6 +390,7 @@ class XpbdSolverStep {
     this->prepare_substep_compliance_factor();
     this->gather_geometries_from_world();
     this->gather_infinite_plane_colliders_from_world();
+    this->gather_mesh_colliders_from_world();
     this->prepare_geometry_chunks();
     this->prepare_pinned_positions();
     this->prepare_pinned_rotations();
@@ -496,6 +514,36 @@ class XpbdSolverStep {
               {path, *position, math::normalize(*normal), friction});
       for (GeometryData &geo_data : geometries_.data) {
         geo_data.infinite_plane_colliders.append(collider_i);
+      }
+    }
+  }
+
+  void gather_mesh_colliders_from_world()
+  {
+    const Vector<std::string> paths = gather_bundle_paths_by_type(world_, ColliderBundle::name);
+    for (const StringRef path : paths) {
+      const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
+      if (!bundle_ptr || !*bundle_ptr) {
+        continue;
+      }
+      const Bundle &bundle = **bundle_ptr;
+      const bke::GeometrySet *geometry = bundle.lookup_ptr<bke::GeometrySet>("geometry");
+      const float friction = bundle.lookup<float>("friction").value_or(0.0f);
+      const float compliance = bundle.lookup<float>("compliance").value_or(0.0f);
+      if (!geometry) {
+        continue;
+      }
+      const Mesh *mesh = geometry->get_mesh();
+      if (!mesh) {
+        continue;
+      }
+      if (mesh->faces_num == 0) {
+        continue;
+      }
+      const int collider_i = constraints_info_.mesh_colliders.colliders.append_and_get_index(
+          {path, mesh, mesh->bvh_corner_tris(), float4x4::identity(), friction, compliance});
+      for (GeometryData &geo_data : geometries_.data) {
+        geo_data.mesh_colliders.append(collider_i);
       }
     }
   }
@@ -1083,9 +1131,18 @@ class XpbdSolverStep {
         geometries_.chunks.index_range(), 1, [&](const IndexRange chunks_range) {
           for (const int chunk_i : chunks_range) {
             ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
-            chunk_constraints.external_plane_contacts.clear();
-            this->gather_ground_plane_contacts(
-                chunk_i, max_distance, chunk_constraints.external_plane_contacts);
+            ExternalPlaneContacts &contacts = chunk_constraints.external_plane_contacts;
+            contacts.clear();
+            this->gather_ground_plane_contacts(chunk_i, max_distance, contacts);
+            this->gather_mesh_contacts(chunk_i, max_distance, contacts);
+
+            const int contacts_num = contacts.points.size();
+            contacts.lambdas_normal = Vector<float>(contacts_num, 0.0f);
+            contacts.lambdas = Vector<float>(contacts_num, 0.0f);
+            contacts.active_states = Vector<bool>(contacts_num, false);
+            for (const int i : IndexRange(contacts_num)) {
+              contacts.collider_velocities.append(contacts.collider_motion[i] / sub_delta_time_);
+            }
           }
         });
   }
@@ -1356,19 +1413,71 @@ class XpbdSolverStep {
         r_contacts.positions_on_plane.append(position - collider.normal * distance);
         /* Static plane does not move. */
         r_contacts.collider_motion.append(float3(0.0f));
-        r_contacts.collider_velocities.append(float3(0.0f));
         r_contacts.separating_axes.append(collider.normal);
         const float point_friction = geo_data.frictions[point_i];
-        const float friction = math::sqrt(point_friction * collider.friction);
+        const float friction = this->compute_contact_friction(point_friction, collider.friction);
         r_contacts.static_frictions.append(friction);
         r_contacts.dynamic_frictions.append(friction);
         r_contacts.compliance_terms.append(0.0f);
       }
     }
-    const int contacts_num = r_contacts.points.size();
-    r_contacts.lambdas_normal = Vector<float>(contacts_num, 0.0f);
-    r_contacts.lambdas = Vector<float>(contacts_num, 0.0f);
-    r_contacts.active_states = Vector<bool>(contacts_num, false);
+  }
+
+  void gather_mesh_contacts(const int chunk_i,
+                            const float max_distance,
+                            ExternalPlaneContacts &r_contacts)
+  {
+    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+    const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
+    for (const int collider_i : geo_data.mesh_colliders) {
+      const MeshCollider &collider = constraints_info_.mesh_colliders.colliders[collider_i];
+      const bke::BVHTreeFromMesh &bvh = collider.corner_tris_bvh;
+      const float4x4 &mesh_to_local =
+          constraints_info_.mesh_colliders.colliders[collider_i].end_transform;
+      /* TODO: Persistent collider transform. */
+      const float4x4 &prev_mesh_to_local = mesh_to_local;
+      const float4x4 local_to_mesh = math::invert(mesh_to_local);
+
+      for (const int point_i : chunk.points_range) {
+        const float3 &pos_local = geo_data.position_attr.span[point_i];
+        const float3 pos_mesh = math::transform_point(local_to_mesh, pos_local);
+        BVHTreeNearest nearest{};
+        nearest.index = -1;
+        nearest.dist_sq = pow2f(max_distance);
+        BLI_bvhtree_find_nearest(bvh.tree, pos_mesh, &nearest, bvh.nearest_callback, (void *)&bvh);
+        if (nearest.index == -1) {
+          continue;
+        }
+        const float3 &contact_pos_mesh = float3(nearest.co);
+        const float3 dir_mesh = contact_pos_mesh - pos_mesh;
+        const bool is_inside = math::dot(dir_mesh, float3(nearest.no)) > 0.0f;
+        const float point_friction = geo_data.frictions[point_i];
+        const float friction = this->compute_contact_friction(point_friction, collider.friction);
+        const float3 contact_pos_local = math::transform_point(mesh_to_local, contact_pos_mesh);
+        const float3 prev_contact_pos_local = math::transform_point(prev_mesh_to_local,
+                                                                    contact_pos_mesh);
+        /* Separating axis to move self out of penetration. */
+        const float3 collision_axis = is_inside ? contact_pos_local - pos_local :
+                                                  pos_local - contact_pos_local;
+        const float3 valid_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
+                                                      math::transpose(float3x3(local_to_mesh)) *
+                                                          contact_pos_mesh :
+                                                      collision_axis);
+        r_contacts.points.append(point_i);
+        r_contacts.positions_on_plane.append(contact_pos_local);
+        r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
+        r_contacts.separating_axes.append(valid_axis);
+        r_contacts.static_frictions.append(friction);
+        r_contacts.dynamic_frictions.append(friction);
+        r_contacts.compliance_terms.append(
+            std::max(0.0f, substep_compliance_factor_ * collider.compliance));
+      }
+    }
+  }
+
+  float compute_contact_friction(const float point_friction, const float collider_friction) const
+  {
+    return math::sqrt(point_friction * collider_friction);
   }
 
   float get_max_search_distance(const float delta_time)
