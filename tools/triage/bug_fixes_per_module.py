@@ -216,12 +216,10 @@ def classify_commits(list_of_commits: list[CommitInfo]) -> list[CommitInfo]:
     print("Identifying which module the fix should be assigned too.")
     print("This requires querying information from Gitea which may take a while.\n")
 
-    i = 0
     start_time = time()
     new_list_of_commits: list[CommitInfo] = []
-    for commit in list_of_commits:
+    for i, commit in enumerate(list_of_commits, 1):
         # Progress bar.
-        i += 1
         print(
             f"{i}/{number_of_commits} - Estimated time remaining:",
             f"{(((time() - start_time) / i) * (number_of_commits - i)) / 60:.1f} minutes",
