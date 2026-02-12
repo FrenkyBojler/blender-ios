@@ -18,6 +18,20 @@ void ImageSpaceDrawingMode::image_sync(blender::Image *image, ImageUser *iuser) 
 {
   PassSimple &pass = instance_.state.image_ps;
   pass.init();
+
+  {
+    /* If the buffer does not contain any data, draw nothing. */
+    void *lock;
+    const bool is_viewer = image->source == IMA_SRC_VIEWER;
+    ImBuf *buffer = BKE_image_acquire_ibuf(image, iuser, is_viewer ? &lock : nullptr);
+    BLI_SCOPED_DEFER([&]() { BKE_image_release_ibuf(image, buffer, is_viewer ? lock : nullptr); });
+    if (!buffer->float_buffer.data && !buffer->byte_buffer.data && !buffer->gpu.texture) {
+      pass.clear_color(float4(0.0f));
+      pass.clear_depth(1.0f);
+      return;
+    }
+  }
+
   pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS);
   pass.shader_set(image->source == IMA_SRC_TILED ? ShaderModule::module_get().image_tiled.get() :
                                                    ShaderModule::module_get().image.get());
