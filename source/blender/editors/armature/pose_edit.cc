@@ -763,6 +763,7 @@ static void convert_pose_bone_rotation_keys(Main *bmain,
   FCurve *insertion_buffer[4];
 
   for (const auto &item : channelbag_map->items()) {
+
     if (is_rotation_order_change) {
       /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
        * rotation mode could influence the result. */
@@ -794,7 +795,7 @@ static void convert_pose_bone_rotation_keys(Main *bmain,
         continue;
       }
       /* Using the settings of the first key assumes that the settings are consistent which they
-       * may not be. */
+       * may not be. We will need to see if this is an issue in practice. */
       BezTriple &key = fcurve->bezt[0];
       settings.handle = eBezTriple_Handle(key.h1);
       settings.interpolation = eBezTriple_Interpolation(key.ipo);
@@ -827,8 +828,16 @@ static void convert_pose_bone_rotation_keys(Main *bmain,
     }
 
     if (is_rotation_order_change) {
+      /* Free the FCurves that have been duplicated beforehand. */
       for (int i = 0; i < evaluation_buffer_count; i++) {
         BKE_fcurve_free(evaluation_buffer[i]);
+      }
+    }
+    else {
+      /* When changing between euler, axis angle or quaternion the currently existing rotation
+       * FCurves need to be removed. */
+      for (int i : IndexRange(evaluation_buffer_count)) {
+        item.key->fcurve_remove(*evaluation_buffer[i]);
       }
     }
   }
