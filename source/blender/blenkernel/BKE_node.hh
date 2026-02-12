@@ -521,8 +521,6 @@ struct bNodeTreeType {
 
   bool (*validate_link)(eNodeSocketDatatype from, eNodeSocketDatatype to) = nullptr;
 
-  void (*node_add_init)(bNodeTree *ntree, bNode *bnode) = nullptr;
-
   /* Check if the socket type is valid for this tree type. */
   bool (*valid_socket_type)(bNodeTreeType *ntreetype, bNodeSocketType *socket_type) = nullptr;
 
@@ -633,6 +631,14 @@ StringRefNull node_type_find_alias(StringRefNull alias);
 void node_register_type(bNodeType &ntype);
 void node_unregister_type(bNodeType &ntype);
 void node_register_alias(bNodeType &nt, StringRef alias);
+
+/**
+ * Set the node type \a idname and \a type_legacy to "undefined" to prevent future access to broken
+ * nodes. This should be used for nodes with missing data that cannot be fixed and should be
+ * permanently disabled.
+ * \warning The node type is not recoverable afterwards!
+ */
+void node_set_undefined_type(bNode &node);
 
 Span<bNodeType *> node_types_get();
 

@@ -141,7 +141,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
         const uint vert_tot = mesh->verts_num;
         uint i;
 
-        vweights = MEM_malloc_arrayN<float>(vert_tot, __func__);
+        vweights = MEM_new_array_uninitialized<float>(vert_tot, __func__);
 
         if (dmd->flag & MOD_DECIM_FLAG_INVERT_VGROUP) {
           for (i = 0; i < vert_tot; i++) {
@@ -193,7 +193,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   }
 
   if (vweights) {
-    MEM_freeN(vweights);
+    MEM_delete(vweights);
   }
 
   updateFaceCount(ctx, dmd, bm->totface);
@@ -224,7 +224,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   int decimate_type = RNA_enum_get(ptr, "decimate_type");
   char count_info[64];
-  SNPRINTF(count_info, RPT_("Face Count: %d"), RNA_int_get(ptr, "face_count"));
+  char face_count_str[BLI_STR_FORMAT_INT32_GROUPED_SIZE];
+  BLI_str_format_int_grouped(face_count_str, RNA_int_get(ptr, "face_count"));
+  SNPRINTF(count_info, RPT_("Face Count: %s"), face_count_str);
 
   layout.prop(ptr, "decimate_type", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 

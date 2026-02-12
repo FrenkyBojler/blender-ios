@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'12e628ea43f8')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'c1168d06bba2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-12 15:09+0000\n"
+"POT-Creation-Date: 2026-02-09 09:47+0000\n"
 "PO-Revision-Date: 2025-11-19 06:24+0000\n"
 "Last-Translator: \"M. Amin Taheri\" <amintaheri2001@gmail.com>\n"
 "Language-Team: Persian <https://translate.blender.org/projects/blender-ui/ui/fa/>\n"
@@ -1426,6 +1426,10 @@ msgstr "ﮓﻧﺭ"
 
 msgid "Saturation"
 msgstr "ﻉﺎﺒﺷﺍ"
+
+
+msgid "Both"
+msgstr "ﻭﺩ ﺮﻫ"
 
 
 msgctxt "File browser"
@@ -3078,48 +3082,48 @@ msgid "Mix"
 msgstr "ﻁﻮﻠﺨﻣ"
 
 
-msgid "Math"
-msgstr "ﯽﺿﺎﯾﺭ"
-
-
-msgid "Pivot Point"
-msgstr "ﺶﺧﺮﭼ ﻪﻄﻘﻧ"
-
-
-msgid "Import"
-msgstr "ﻥﺩﺮﮐ ﺩﺭﺍﻭ"
-
-
-msgid "Mirror"
-msgstr "ﻪﻨﯾﺁ"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Add Image"
-msgstr "ﺮﯾﻮﺼﺗ ﻥﺩﺮﮐ‌ﻪﻓﺎﺿﺍ"
-
-
-msgid "Relations"
-msgstr "ﻂﺑﺍﻭﺭ"
-
-
 msgid "Apply"
 msgstr "ﻝﺎﻤﻋﺍ"
-
-
-msgid "Convert"
-msgstr "ﻞﯾﺪﺒﺗ"
 
 
 msgid "Layout"
 msgstr "ﺡﺮﻃ"
 
 
+msgid "Convert"
+msgstr "ﻞﯾﺪﺒﺗ"
+
+
 msgid "Tracking"
 msgstr "ﯽﺑﺎﯾﺩﺭ"
+
+
+msgid "Math"
+msgstr "ﯽﺿﺎﯾﺭ"
+
+
+msgid "Relations"
+msgstr "ﻂﺑﺍﻭﺭ"
+
+
+msgid "Add Image"
+msgstr "ﺮﯾﻮﺼﺗ ﻥﺩﺮﮐ‌ﻪﻓﺎﺿﺍ"
+
+
+msgid "Mirror"
+msgstr "ﻪﻨﯾﺁ"
+
+
+msgid "Import"
+msgstr "ﻥﺩﺮﮐ ﺩﺭﺍﻭ"
+
+
+msgid "Pivot Point"
+msgstr "ﺶﺧﺮﭼ ﻪﻄﻘﻧ"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Key"
@@ -3487,6 +3491,10 @@ msgid "Mirror"
 msgstr "ﺏﺎﺗﺯﺎﺑ"
 
 
+msgid "Single"
+msgstr "ﯽﮑﺗ"
+
+
 msgid "Fill Type"
 msgstr "ﻥﺩﺮﮐ ﺮﭘ ﻉﻮﻧ"
 
@@ -3565,10 +3573,6 @@ msgstr "ﻩﺮﮔ ﯽﺟﻭﺮﺧ"
 
 msgid "Value to Normal"
 msgstr "ﯼﺩﺎﻋ ﺖﻟﺎﺣ ﻪﺑ ﺭﺍﺪﻘﻣ"
-
-
-msgid "Single"
-msgstr "ﯽﮑﺗ"
 
 
 msgid "Linked"
@@ -3887,10 +3891,6 @@ msgid "Play"
 msgstr "ﺶﺨﭘ"
 
 
-msgid "Both"
-msgstr "ﻭﺩ ﺮﻫ"
-
-
 msgid "Flat"
 msgstr "ﺖﺨﺗ"
 
@@ -3930,10 +3930,6 @@ msgstr "ﯽﯾﺎﻤﻨﮑﭼﻮﮐ"
 
 msgid "Feather"
 msgstr "ﺮﭘ"
-
-
-msgid "Select ring"
-msgstr "ﻪﻘﻠﺣ ﺏﺎﺨﺘﻧﺍ"
 
 
 msgid "Select Bigger"
@@ -4320,12 +4316,12 @@ msgid "Restrict"
 msgstr "ﻥﺩﺮﮐ ﺩﻭﺪﺤﻣ"
 
 
-msgid "Motion Tracking"
-msgstr "ﺖﮐﺮﺣ ﯽﺑﺎﯾﺩﺭ"
-
-
 msgid "Transform Orientations"
 msgstr "ﻞﮑﺷ ﺮﯿﯿﻐﺗ ﺖﻬﺟ"
+
+
+msgid "Motion Tracking"
+msgstr "ﺖﮐﺮﺣ ﯽﺑﺎﯾﺩﺭ"
 
 
 msgid "Bone Constraints"

@@ -154,10 +154,19 @@ bool transform_snap_is_active(const TransInfo *t)
 
 bool transformModeUseSnap(const TransInfo *t)
 {
-  /* The VSE and animation editors should not depend on the snapping options of the 3D viewport. */
-  if (ELEM(t->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA, SPACE_SEQ)) {
+  /* The animation editors should not depend on the snapping options of the 3D viewport. */
+  if (ELEM(t->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA)) {
     return true;
   }
+
+  /* In the VSE preview, for rotate/scale, we want snap disabled by default, with increment snap on
+   * `ctrl`. Do this by returning `false` here, which sets/unsets the necessary flags elsewhere. */
+  if (t->spacetype == SPACE_SEQ && t->region->regiontype == RGN_TYPE_PREVIEW &&
+      ELEM(t->mode, TFM_ROTATION, TFM_RESIZE))
+  {
+    return false;
+  }
+
   ToolSettings *ts = t->settings;
   if (t->mode == TFM_TRANSLATION) {
     return (ts->snap_transform_mode_flag & SCE_SNAP_TRANSFORM_MODE_TRANSLATE) != 0;
@@ -186,10 +195,6 @@ static bool doForceIncrementSnap(const TransInfo *t)
   if (ELEM(t->spacetype, SPACE_GRAPH, SPACE_ACTION, SPACE_NLA)) {
     /* These spaces don't support increment snapping. */
     return false;
-  }
-
-  if (t->spacetype == SPACE_SEQ && ELEM(t->mode, TFM_ROTATION, TFM_RESIZE)) {
-    return true;
   }
 
   if (t->modifiers & MOD_SNAP_FORCED) {
@@ -861,7 +866,7 @@ static void initSnappingMode(TransInfo *t)
     t->tsnap.mode = SCE_SNAP_TO_INCREMENT;
   }
 
-  if ((t->spacetype != SPACE_VIEW3D) || (t->flag & T_NO_PROJECT)) {
+  if (!ELEM(t->spacetype, SPACE_VIEW3D, SPACE_SEQ) || (t->flag & T_NO_PROJECT)) {
     /* Force project off when not supported. */
     t->tsnap.mode &= ~(SCE_SNAP_INDIVIDUAL_PROJECT | SCE_SNAP_INDIVIDUAL_NEAREST);
   }
@@ -1018,7 +1023,7 @@ void initSnapping(TransInfo *t, wmOperator *op)
   if (t->spacetype == SPACE_VIEW3D) {
     if (t->tsnap.object_context == nullptr) {
       SET_FLAG_FROM_TEST(t->tsnap.flag, snap_use_backface_culling(t), SCE_SNAP_BACKFACE_CULLING);
-      t->tsnap.object_context = snap_object_context_create(t->scene, 0);
+      t->tsnap.object_context = snap_object_context_create();
       snap_object_context_init(t);
     }
   }
@@ -1139,7 +1144,7 @@ void addSnapPoint(TransInfo *t)
 {
   /* Currently only 3D viewport works for snapping points. */
   if (t->tsnap.status & SNAP_TARGET_FOUND && t->spacetype == SPACE_VIEW3D) {
-    TransSnapPoint *p = MEM_callocN<TransSnapPoint>("SnapPoint");
+    TransSnapPoint *p = MEM_new_zeroed<TransSnapPoint>("SnapPoint");
 
     t->tsnap.selectedPoint = p;
 
@@ -1722,11 +1727,6 @@ static void snap_increment_apply(const TransInfo *t, const float loc[3], float r
 bool transform_snap_increment_ex(const TransInfo *t, bool use_local_space, float *r_val)
 {
   if (!transform_snap_is_active(t)) {
-    return false;
-  }
-
-  if (t->spacetype == SPACE_SEQ) {
-    /* Sequencer has its own dedicated enum for snap_mode with increment snap bit overridden. */
     return false;
   }
 

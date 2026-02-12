@@ -652,11 +652,13 @@ PyDoc_STRVAR(
     "   Returns the deform weight matching the key or default\n"
     "   when not found (matches Python's dictionary function of the same name).\n"
     "\n"
-    "   :arg key: The key associated with deform weight.\n"
+    "   :param key: The key associated with deform weight.\n"
     "   :type key: int\n"
-    "   :arg default: Optional argument for the value to return if\n"
+    "   :param default: Optional argument for the value to return if\n"
     "      *key* is not found.\n"
-    "   :type default: Any\n");
+    "   :type default: Any\n"
+    "   :return: The deform weight or the default when not found.\n"
+    "   :rtype: float | Any\n");
 static PyObject *bpy_bmdeformvert_get(BPy_BMDeformVert *self, PyObject *args)
 {
   int key;

@@ -375,7 +375,7 @@ const Mesh *DRW_object_get_editmesh_cage_for_drawing(const Object &object)
 
 DRWData *DRW_viewport_data_create()
 {
-  DRWData *drw_data = MEM_callocN<DRWData>("DRWData");
+  DRWData *drw_data = MEM_new_zeroed<DRWData>("DRWData");
 
   drw_data->default_view = new draw::View("DrawDefaultView");
 
@@ -414,7 +414,7 @@ void DRW_viewport_data_free(DRWData *drw_data)
   DRW_pointcloud_module_free(drw_data->pointcloud_module);
   DRW_curves_module_free(drw_data->curves_module);
   delete drw_data->default_view;
-  MEM_freeN(drw_data);
+  MEM_delete(drw_data);
 }
 
 static DRWData *drw_viewport_data_ensure(GPUViewport *viewport)
@@ -509,6 +509,11 @@ draw::TextureFromPool &DRW_viewport_pass_texture_get(const char *pass_name)
 {
   return *drw_get().view_data_active->viewport_compositor_passes.lookup_or_add_cb(
       pass_name, [&]() { return std::make_unique<draw::TextureFromPool>(pass_name); });
+}
+
+bool DRW_viewport_pass_texture_exists(const char *pass_name)
+{
+  return drw_get().view_data_active->viewport_compositor_passes.contains(pass_name);
 }
 
 void DRW_viewport_request_redraw()
@@ -659,7 +664,7 @@ ObjectRef::ObjectRef(Object &ob, Object *dupli_parent, const VectorList<DupliObj
 
 namespace draw {
 
-static bool supports_handle_ranges(DupliObject *dupli, Object *parent)
+static bool supports_handle_ranges(DupliObject *dupli, Object *parent, const DRWContext &draw_ctx)
 {
   int ob_type = dupli->ob_data ? BKE_object_obdata_to_type(dupli->ob_data) : OB_EMPTY;
   if (!ELEM(ob_type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_POINTCLOUD, OB_GREASE_PENCIL))
@@ -669,6 +674,10 @@ static bool supports_handle_ranges(DupliObject *dupli, Object *parent)
 
   Object *ob = dupli->ob;
   if (min(ob->dt, parent->dt) == OB_BOUNDBOX) {
+    return false;
+  }
+
+  if (BKE_sculptsession_use_pbvh_draw(ob, draw_ctx.rv3d)) {
     return false;
   }
 
@@ -812,8 +821,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
     }
 
     duplilist.clear();
-    object_duplilist(
-        draw_ctx.depsgraph, draw_ctx.scene, ob, deg_iter_settings.included_objects, duplilist);
+    object_duplilist(draw_ctx.depsgraph, ob, deg_iter_settings.included_objects, duplilist);
 
     if (duplilist.is_empty()) {
       continue;
@@ -835,7 +843,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       }
 #endif
 
-      if (!engines_support_handle_ranges || !supports_handle_ranges(&dupli, ob)) {
+      if (!engines_support_handle_ranges || !supports_handle_ranges(&dupli, ob, draw_ctx)) {
         /* Sync the dupli as a single object. */
         if (!evil::DEG_iterator_temp_object_from_dupli(
                 ob, &dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
