@@ -43,6 +43,7 @@ set(LIB
   PUBLIC bf::dependencies::optional::openvdb
   PRIVATE bf::dependencies::optional::opencolorio
   PRIVATE bf::dependencies::zstd
+  PRIVATE bf::dependencies::optional::openexr
 )
 
 set(SRC_HEADERS
