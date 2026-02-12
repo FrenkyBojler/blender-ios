@@ -36,6 +36,7 @@ import re
 import sys
 import argparse
 import subprocess
+import multiprocessing
 
 from typing import Any
 from time import time
@@ -135,14 +136,10 @@ def argparse_create() -> argparse.ArgumentParser:
             "Date to stop checking commits. Must be in the format YYYY-MM-DD."
         ),
     )
-    parser.add_argument(
-        "-st",
-        "--single-thread",
-        action="store_true",
-        help=(
-            "Run one of the parts of this script in single threaded mode "
-            "(Only really useful for debugging)."
-        ),
+    parser.add_argument("-j", "--jobs", type=int, default=None, help=(
+        "Number of threads to use when processing commit messages "
+        "(Only really useful for debugging)."
+    ),
     )
 
     return parser
@@ -178,7 +175,7 @@ def setup_commit_info(commit: str) -> CommitInfo | None:
     return None
 
 
-def get_fix_commits(start_date: str, end_date: str, single_threaded: bool) -> list[CommitInfo]:
+def get_fix_commits(start_date: str, end_date: str, jobs: int | None) -> list[CommitInfo]:
     command = [
         'git',
         '--no-pager',
@@ -195,14 +192,8 @@ def get_fix_commits(start_date: str, end_date: str, single_threaded: bool) -> li
     git_log_command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
     git_log_output = git_log_command_output.splitlines()
 
-    if single_threaded:
-        list_of_commits = []
-        for commit in git_log_output:
-            list_of_commits.append(setup_commit_info(commit))
-    else:
-        import multiprocessing
-        with multiprocessing.Pool() as pool:
-            list_of_commits = pool.map(setup_commit_info, git_log_output)
+    with multiprocessing.Pool(processes=jobs) as pool:
+        list_of_commits = pool.map(setup_commit_info, git_log_output)
 
     return [commit for commit in list_of_commits if commit is not None]
 
@@ -273,7 +264,7 @@ def main() -> int:
     if not validate_arguments(args):
         return 0
 
-    list_of_commits = get_fix_commits(args.start, args.end, args.single_thread)
+    list_of_commits = get_fix_commits(args.start, args.end, args.jobs)
 
     list_of_commits = classify_commits(list_of_commits)
 
