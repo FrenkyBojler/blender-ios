@@ -673,14 +673,10 @@ static GreasePencilLayerMask *rna_grease_pencil_layer_mask_add(GreasePencilLayer
   const std::string mask_layer_name = mask_layer->wrap().name();
 
   /* Check if this layer is already in the masks list */
-  for (GreasePencilLayerMask *existing_mask =
-           static_cast<GreasePencilLayerMask *>(layer->masks.first);
-       existing_mask != nullptr;
-       existing_mask = existing_mask->next)
-  {
-    if (existing_mask->layer_name && STREQ(existing_mask->layer_name, mask_layer_name.c_str())) {
+  for (GreasePencilLayerMask &existing_mask : layer->masks) {
+    if (existing_mask.layer_name && STREQ(existing_mask.layer_name, mask_layer_name.c_str())) {
       BKE_reportf(reports, RPT_WARNING, "Layer '%s' is already masked", mask_layer_name.c_str());
-      return existing_mask;
+      return &existing_mask;
     }
   }
 
@@ -694,7 +690,7 @@ static GreasePencilLayerMask *rna_grease_pencil_layer_mask_add(GreasePencilLayer
   /* Add the mask to this layer's mask list */
   BLI_addtail(&layer->masks, new_mask);
 
-  WM_main_add_notifier(NC_GPENCIL | ND_DATA, nullptr);
+  WM_main_add_notifier(NC_GPENCIL | ND_DATA | NA_SELECTED, nullptr);
 
   return new_mask;
 }
@@ -730,7 +726,7 @@ static void rna_grease_pencil_layer_mask_remove(GreasePencilLayer *layer,
   mask_ptr->data = nullptr;
   mask_ptr->type = nullptr;
 
-  WM_main_add_notifier(NC_GPENCIL | ND_DATA, nullptr);
+  WM_main_add_notifier(NC_GPENCIL | ND_DATA | NA_SELECTED, nullptr);
 }
 
 }  // namespace blender
