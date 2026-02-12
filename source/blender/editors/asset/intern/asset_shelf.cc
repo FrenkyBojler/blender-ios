@@ -641,7 +641,13 @@ void region_on_poll_success(const bContext *C, ARegion *region)
   if (!header_region) {
     return;
   }
+
+  /* Also update region visibility for the header region. */
+  const int old_header_region_flag = header_region->flag;
   SET_FLAG_FROM_TEST(header_region->flag, region->flag & RGN_FLAG_HIDDEN, RGN_FLAG_HIDDEN);
+  if (old_header_region_flag != header_region->flag) {
+    ED_region_visibility_change_update(const_cast<bContext *>(C), area, header_region);
+  }
 }
 
 void header_region_listen(const wmRegionListenerParams *params)
