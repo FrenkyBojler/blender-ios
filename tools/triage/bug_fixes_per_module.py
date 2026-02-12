@@ -75,9 +75,9 @@ class CommitInfo():
             return
 
         # Find every instance of #NUMBER. These are the report that the commit claims to fix.
-        match = re.findall(r'#(\d+)', command_output)
-        if match:
-            self.fixed_reports = match
+        issue_match = re.findall(r'#(\d+)\b', command_output)
+        if issue_match:
+            self.fixed_reports = issue_match
 
     def get_module(self, labels: list[dict[Any, Any]]) -> str:
         # Figures out what module the report that was fixed belongs too.
