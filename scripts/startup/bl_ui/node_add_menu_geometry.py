@@ -328,6 +328,7 @@ class NODE_MT_gn_input_constant_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeInputBool")
         self.node_operator(layout, "GeometryNodeInputCollection")
         self.node_operator(layout, "FunctionNodeInputColor")
+        self.node_operator(layout, "GeometryNodeInputFont")
         self.node_operator(layout, "GeometryNodeInputImage")
         self.node_operator(layout, "FunctionNodeInputInt")
         self.node_operator(layout, "GeometryNodeInputMaterial")

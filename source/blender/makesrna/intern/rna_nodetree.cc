@@ -8441,6 +8441,19 @@ static void def_geo_input_collection(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_geo_input_font(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "font", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "id");
+  RNA_def_property_struct_type(prop, "VectorFont");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(prop, "Font", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_geo_input_normal(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop = RNA_def_property(srna, "legacy_corner_normals", PROP_BOOLEAN, PROP_NONE);
@@ -10157,6 +10170,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeInputCurveHandlePositions");
   define("GeometryNode", "GeometryNodeInputCurveTilt");
   define("GeometryNode", "GeometryNodeInputEdgeSmooth");
+  define("GeometryNode", "GeometryNodeInputFont", def_geo_input_font);
   define("GeometryNode", "GeometryNodeInputID");
   define("GeometryNode", "GeometryNodeInputImage", def_geo_image);
   define("GeometryNode", "GeometryNodeInputIndex");
