@@ -5664,8 +5664,7 @@ bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
    * NOTE: `mval` will only be null when re-executing the saved stroke.
    * We have exception for 'exec' strokes since they may not set `mval`,
    * only 'location', see: #52195. */
-  if (((op->flag & OP_IS_INVOKE) == 0) || (mval == nullptr) ||
-      over_mesh(*this->depsgraph, this->vc, *sculpt_, this->brush, op, mval))
+  if ((mval == nullptr) || over_mesh(*this->depsgraph, this->vc, *sculpt_, this->brush, op, mval))
   {
     Object &ob = *this->object;
     Brush *brush = this->brush;
