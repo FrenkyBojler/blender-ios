@@ -57,10 +57,11 @@ class ConstraintSetParams {
   std::optional<SolverDebugStageFn> debug_stage_fn_;
 
  public:
+  float delta_time;
   float compliance_term_factor;
 
   ConstraintSetParams(Span<GeometryRef> geometry_refs,
-                      float compliance_term_factor,
+                      float delta_time,
                       std::optional<SolverDebugStageFn> debug_stage_fn);
 
   Span<GeometryRef> geometry_refs() const;
@@ -329,11 +330,12 @@ inline Span<int> ConstraintSet::get_affected_geo_indices() const
 }
 
 inline ConstraintSetParams::ConstraintSetParams(Span<GeometryRef> geometry_refs,
-                                                const float compliance_term_factor,
+                                                const float delta_time,
                                                 std::optional<SolverDebugStageFn> debug_stage_fn)
     : geometry_refs_(geometry_refs),
       debug_stage_fn_(debug_stage_fn),
-      compliance_term_factor(compliance_term_factor)
+      delta_time(delta_time),
+      compliance_term_factor(math::safe_rcp(delta_time * delta_time))
 {
 }
 

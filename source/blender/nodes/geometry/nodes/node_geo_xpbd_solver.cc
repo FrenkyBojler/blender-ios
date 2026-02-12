@@ -60,7 +60,10 @@ constexpr StringRefNull rod_stretch_shear_rotation_lambda =
 constexpr StringRefNull rod_bend_twist_compliance = "rod_bend_twist_compliance";
 constexpr StringRefNull rod_bend_twist_lambda = "sim_rod_bend_twist_lambda";
 
+constexpr StringRefNull linear_damping = "linear_damping";
 constexpr StringRefNull linear_damping_lambda = "sim_linear_damping_lambda";
+constexpr StringRefNull angular_damping = "angular_damping";
+constexpr StringRefNull angular_damping_lambda = "sim_angular_damping_lambda";
 
 }  // namespace attribute_names
 
@@ -193,7 +196,10 @@ struct GeometryData {
   VArraySpan<float> rest_lengths;
   VArraySpan<math::Quaternion> rest_rotations;
 
+  VArraySpan<float> linear_dampings;
+  VArraySpan<float> angular_dampings;
   bke::SpanAttributeWriter<float> linear_damping_lambdas;
+  bke::SpanAttributeWriter<float> angular_damping_lambdas;
 
   Array<float3> prev_positions;
   Array<math::Quaternion> prev_rotations;
@@ -268,6 +274,7 @@ struct ChunkConstraints {
   Vector<xpbd::RodStretchAndShearConstraintSet *> rod_stretch_shear;
   Vector<xpbd::RodBendAndTwistConstraintSet *> rod_bend_twist;
   Vector<xpbd::LinearDampingConstraintSet *> linear_damping;
+  Vector<xpbd::AngularDampingConstraintSet *> angular_damping;
 };
 
 struct ConstraintsInfo {
@@ -761,18 +768,15 @@ class XpbdSolverStep {
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-      const float linear_factor = 0.9 * sub_delta_time_;
-      // const float angular_factor = 0.8 * sub_delta_time_;
-      /* Stiffness k = d*t/(1-d*t) leads to an equivalent damping factor of d*t=-k/(1+k).
-       * This reduces velocity by the same factor when using the update rule for a compliant
-       * velocity constraint v(t) - v(0) = -v(0) * k/(1+k) = -v(0) * 1/(1 + alpha). */
-      const float linear_stiffness = std::max(
-          math::safe_divide(linear_factor, 1.0f - linear_factor), 0.0f);
-      // const float angular_stiffness = std::max(
-      //     math::safe_divide(angular_factor, 1.0f - angular_factor), 0.0f);
 
+      geo_data.linear_dampings = *geo_data.attributes.lookup_or_default<float>(
+          attribute_names::linear_damping, geo_data.domain, 0.0f);
+      geo_data.angular_dampings = *geo_data.attributes.lookup_or_default<float>(
+          attribute_names::angular_damping, geo_data.domain, 0.0f);
       geo_data.linear_damping_lambdas = geo_data.attributes.lookup_or_add_for_write_span<float>(
-          attribute_names::linear_damping_lambda, geo_data.domain, bke::AttributeInitValue(0.0f));
+          attribute_names::linear_damping_lambda, geo_data.domain);
+      geo_data.angular_damping_lambdas = geo_data.attributes.lookup_or_add_for_write_span<float>(
+          attribute_names::angular_damping_lambda, geo_data.domain);
 
       for (const int chunk_i : geo_data.chunks) {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
@@ -781,8 +785,14 @@ class XpbdSolverStep {
             &scope_.construct<xpbd::LinearDampingConstraintSet>(
                 data_key_i,
                 chunk.points_range,
-                linear_stiffness,
+                geo_data.linear_dampings,
                 geo_data.linear_damping_lambdas.span));
+        chunk_constraints.angular_damping.append(
+            &scope_.construct<xpbd::AngularDampingConstraintSet>(
+                data_key_i,
+                chunk.points_range,
+                geo_data.angular_dampings,
+                geo_data.angular_damping_lambdas.span));
       }
     }
   }
@@ -1011,7 +1021,7 @@ class XpbdSolverStep {
               }
 
               xpbd::ConstraintSetParams solve_params{
-                  geometries_.solver_refs, substep_compliance_factor_, std::nullopt};
+                  geometries_.solver_refs, sub_delta_time_, std::nullopt};
               this->solve_constraints(solve_params, local_constraints);
             }
           });
@@ -1046,9 +1056,13 @@ class XpbdSolverStep {
             for (xpbd::LinearDampingConstraintSet *constraint : chunk_constraints.linear_damping) {
               local_constraints.append(constraint);
             }
+            for (xpbd::AngularDampingConstraintSet *constraint : chunk_constraints.angular_damping)
+            {
+              local_constraints.append(constraint);
+            }
             xpbd::VelocityUpdater velocity_updater{geometries_.solver_refs};
             xpbd::ConstraintSetParams params{
-                geometries_.solver_refs, substep_compliance_factor_, std::nullopt};
+                geometries_.solver_refs, sub_delta_time_, std::nullopt};
             for (xpbd::VelocityConstraintSet *constraint : local_constraints) {
               constraint->solve_step(velocity_updater, params);
             }
@@ -1098,6 +1112,7 @@ class XpbdSolverStep {
       geo_data.rod_stretch_shear_lambda_rot.finish();
       geo_data.rod_bend_twist_lamba_attr.finish();
       geo_data.linear_damping_lambdas.finish();
+      geo_data.angular_damping_lambdas.finish();
     }
   }
 

@@ -1139,10 +1139,8 @@ class LinearDampingConstraintSet
  private:
   int geo_i_;
   IndexRange points_;
-  /* Damping constraints typically have very high compliance, so using stiffness (1/compliance)
-   * instead leads to better conditioning. */
-  float stiffness_term_;
   /** Indexed by point index. */
+  Span<float> linear_dampings_;
   MutableSpan<float> lambdas_;
 
  public:
@@ -1150,12 +1148,12 @@ class LinearDampingConstraintSet
 
   LinearDampingConstraintSet(const int geo_i,
                              const IndexRange points,
-                             const float stiffness_term,
+                             const Span<float> linear_dampings,
                              MutableSpan<float> lambdas)
       : TemplatedVelocityConstraintSet<LinearDampingConstraintSet>(points.size(), {geo_i}),
         geo_i_(geo_i),
         points_(points),
-        stiffness_term_(stiffness_term),
+        linear_dampings_(linear_dampings),
         lambdas_(lambdas)
   {
   }
@@ -1173,10 +1171,19 @@ class LinearDampingConstraintSet
   {
     const int point_i = points_[constraint_i];
     const float3 &velocity = params.velocity(geo_i_, point_i);
+    const float damping = linear_dampings_[point_i];
+    const float damping_factor = damping * params.delta_time;
+    /* Damping constraints typically have very high compliance, so using stiffness (1/compliance)
+     * instead leads to better conditioning. */
+    /* Stiffness k = d*t/(1-d*t) leads to an equivalent damping factor of d*t=-k/(1+k).
+     * This reduces velocity by the same factor when using the update rule for a compliant
+     * velocity constraint v(t) - v(0) = -v(0) * k/(1+k) = -v(0) * 1/(1 + alpha). */
+    const float stiffness_term = std::max(math::safe_divide(damping_factor, 1.0f - damping_factor),
+                                          0.0f);
     float residual;
     const float3 gradient = math::normalize_and_get_length(velocity, residual);
-    const float delta_lambda = (-residual * stiffness_term_ - lambdas_[point_i]) /
-                               (stiffness_term_ + 1.0f);
+    const float delta_lambda = (-residual * stiffness_term /*- lambdas_[point_i] */) /
+                               (stiffness_term + 1.0f);
     const float3 offset = gradient * delta_lambda;
     lambdas_[point_i] += delta_lambda;
     updater.update_velocity(geo_i_, point_i, offset);
@@ -1193,8 +1200,8 @@ class AngularDampingConstraintSet
  private:
   int geo_i_;
   IndexRange points_;
-  float stiffness_term_;
   /** Indexed by point index. */
+  Span<float> angular_dampings_;
   MutableSpan<float> lambdas_;
 
  public:
@@ -1202,12 +1209,12 @@ class AngularDampingConstraintSet
 
   AngularDampingConstraintSet(const int geo_i,
                               const IndexRange points,
-                              const float stiffness_term,
+                              const Span<float> angular_dampings,
                               MutableSpan<float> lambdas)
       : TemplatedVelocityConstraintSet<AngularDampingConstraintSet>(points.size(), {geo_i}),
         geo_i_(geo_i),
         points_(points),
-        stiffness_term_(stiffness_term),
+        angular_dampings_(angular_dampings),
         lambdas_(lambdas)
   {
   }
@@ -1225,10 +1232,15 @@ class AngularDampingConstraintSet
   {
     const int point_i = points_[constraint_i];
     const float3 &angular_velocity = params.angular_velocity(geo_i_, point_i);
+    const float damping = angular_dampings_[point_i];
+    const float damping_factor = damping * params.delta_time;
+    /* See #LinearDampingConstraintSet. */
+    const float stiffness_term = std::max(math::safe_divide(damping_factor, 1.0f - damping_factor),
+                                          0.0f);
     float residual;
     const float3 gradient = math::normalize_and_get_length(angular_velocity, residual);
-    const float delta_lambda = (-residual * stiffness_term_ - lambdas_[point_i]) /
-                               (stiffness_term_ + 1.0f);
+    const float delta_lambda = (-residual * stiffness_term /*- lambdas_[point_i] */) /
+                               (stiffness_term + 1.0f);
     const float3 offset = gradient * delta_lambda;
     lambdas_[point_i] += delta_lambda;
     updater.update_angular_velocity(geo_i_, point_i, offset);
