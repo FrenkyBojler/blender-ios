@@ -326,6 +326,7 @@ enum {
 
   V3D_OVERLAY_EDIT_CU_NORMALS = (1 << 21),
   V3D_OVERLAY_EDIT_CONSTANT_SCREEN_SIZE_NORMALS = (1 << 22),
+  V3D_OVERLAY_EDIT_CU_SHOW_LENGTHS = (1 << 23),
 };
 
 /** #View3DOverlay.paint_flag */
@@ -612,6 +613,7 @@ struct View3DShading {
 
 /** 3D Viewport Overlay settings. */
 struct View3DOverlay {
+  char _pad[4] = {};
   int flag = V3D_OVERLAY_VIEWER_ATTRIBUTE | V3D_OVERLAY_SCULPT_SHOW_MASK |
              V3D_OVERLAY_SCULPT_SHOW_FACE_SETS;
 
@@ -621,6 +623,7 @@ struct View3DOverlay {
                   V3D_OVERLAY_EDIT_CREASES | V3D_OVERLAY_EDIT_BWEIGHTS;
   float normals_length = 0.1f;
   float normals_constant_screen_size = 7.0f;
+  int curve_length_decimals = 2;
 
   /** Paint mode settings. */
   int paint_flag = 0;

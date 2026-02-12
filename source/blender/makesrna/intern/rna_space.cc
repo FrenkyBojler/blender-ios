@@ -5308,6 +5308,19 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
                            "Keep size of normals constant in relation to 3D view");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
+  prop = RNA_def_property(srna, "show_curve_length", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.edit_flag",
+                                V3D_OVERLAY_EDIT_CU_SHOW_LENGTHS);
+  RNA_def_property_ui_text(prop, "Curve Length", "Display curve lengths");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+
+  prop = RNA_def_property(srna, "curve_length_decimals", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "overlay.curve_length_decimals");
+  RNA_def_property_range(prop, 0, 6);
+  RNA_def_property_ui_text(prop, "Length Decimals",
+                          "Number of decimals for the Curve Length measurement");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+
   prop = RNA_def_property(srna, "texture_paint_mode_opacity", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "overlay.texture_paint_mode_opacity");
   RNA_def_property_ui_text(

@@ -581,7 +581,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
         break;
       case OB_SURF:
       case OB_CURVES_LEGACY:
-        layer.curves.edit_object_sync_legacy(manager, ob_ref, resources);
+        layer.curves.edit_object_sync_legacy(manager, ob_ref, resources, state);
         break;
       case OB_CURVES:
         layer.curves.edit_object_sync(manager, ob_ref, resources, state);

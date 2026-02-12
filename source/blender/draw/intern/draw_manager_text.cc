@@ -18,6 +18,7 @@
 #include "BLI_rect.h"
 #include "BLI_string.h"
 
+#include "BKE_curves.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_cache.hh"
 #include "BKE_global.hh"
@@ -33,6 +34,8 @@
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
+
+#include "DRW_render.hh"
 
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
@@ -676,4 +679,41 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
   }
 }
 
+void DRW_text_edit_curves_measure_stats(bke::CurvesGeometry curves_geom,
+                                      const View3D *v3d,
+                                      const Object *ob,
+                                      const UnitSettings &unit,
+                                      DRWTextStore *dt)
+{
+  if (ob->object_to_world() != blender::float4x4::identity()) {
+    curves_geom.transform(ob->object_to_world().view<4, 4>());
+  }
+  const Vector<float3> eval_points = curves_geom.evaluated_positions();
+  curves_geom.ensure_evaluated_lengths();
+  const Vector<float> lengths = curves_geom.runtime->evaluated_length_cache.data();
+  const Vector<int> offsets = curves_geom.runtime->evaluated_offsets_cache.data().evaluated_offsets;
+  VArray<bool> cyclic = curves_geom.cyclic();
+  for (int index = 0; index < curves_geom.curve_num; index++) {
+    const int start_index = offsets[index];
+    const int end_index = offsets[index + 1];
+    const size_t mid_point_index = size_t((start_index + end_index) / 2);
+    const float3 text_pos = eval_points[mid_point_index];
+    /* lengths contains an etra length for each curve, this is why '+ index' is added. */
+    const float length = cyclic[index] ? lengths[(end_index - 1) + index] : lengths[(end_index - 2) + index];
+    char length_str[32];
+    size_t length_str_len;
+    if (unit.system) { // 0 = no unit; 1 = metric; 2 = imperial
+      const int prec = v3d->overlay.curve_length_decimals * -1; //currently negative precision is fixed length...
+      length_str_len = BKE_unit_value_as_string_scaled(length_str, sizeof(length_str), length,
+                        prec, B_UNIT_LENGTH, unit, false);
+    } else {
+      char decimal_format[16];
+      BLI_snprintf(decimal_format, sizeof(decimal_format),"%%.%df", v3d->overlay.curve_length_decimals);
+      length_str_len = SNPRINTF_RLEN(length_str, decimal_format, length);
+    }
+    uchar4 col = {0, 0, 0, 255};
+    ui::theme::get_color_3ubv(TH_TEXT, col);  // is there a need to add its own color to the theme?
+    DRW_text_cache_add(dt, text_pos, length_str, length_str_len, 0, 0, DRW_TEXT_CACHE_GLOBALSPACE, col, false, true);
+  }
+}
 }  // namespace blender

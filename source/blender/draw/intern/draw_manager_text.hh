@@ -18,6 +18,10 @@ struct Object;
 struct UnitSettings;
 struct View3D;
 
+namespace bke {
+class CurvesGeometry;
+}  // namespace bke
+
 DRWTextStore *DRW_text_cache_create();
 void DRW_text_cache_destroy(DRWTextStore *dt);
 
@@ -42,6 +46,12 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
                                       const Object *ob,
                                       const UnitSettings &unit,
                                       DRWTextStore *dt = DRW_text_cache_ensure());
+
+void DRW_text_edit_curves_measure_stats(bke::CurvesGeometry curves_geom,
+                                        const View3D *v3d,
+                                        const Object *ob,
+                                        const UnitSettings &unit,
+                                        DRWTextStore *dt = DRW_text_cache_ensure());
 
 enum {
   // DRW_UNUSED_1 = (1 << 0),  /* dirty */

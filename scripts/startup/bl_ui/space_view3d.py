@@ -7481,6 +7481,14 @@ class VIEW3D_PT_overlay_edit_curve(Panel):
         sub.active = overlay.show_curve_normals
         sub.prop(overlay, "normals_length", text="Normals")
 
+        col.separator()
+
+        row = col.row()
+        row.prop(overlay, "show_curve_length")
+        row = col.row()
+        row.active = overlay.show_curve_length
+        row.prop(overlay, "curve_length_decimals")
+
 
 class VIEW3D_PT_overlay_edit_curves(Panel):
     bl_space_type = 'VIEW_3D'
@@ -7504,6 +7512,14 @@ class VIEW3D_PT_overlay_edit_curves(Panel):
 
         row = col.row()
         row.prop(overlay, "display_handle", text="Handles")
+
+        col.separator()
+
+        row = col.row()
+        row.prop(overlay, "show_curve_length")
+        row = col.row()
+        row.active = overlay.show_curve_length
+        row.prop(overlay, "curve_length_decimals")
 
 
 class VIEW3D_PT_overlay_sculpt(Panel):

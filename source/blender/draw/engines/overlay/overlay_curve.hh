@@ -194,7 +194,7 @@ class Curves : Overlay {
   void edit_object_sync(Manager &manager,
                         const ObjectRef &ob_ref,
                         Resources & /*res*/,
-                        const State & /*state*/) final
+                        const State & state) final
   {
     if (!enabled_) {
       return;
@@ -216,10 +216,14 @@ class Curves : Overlay {
       gpu::Batch *geom = DRW_curves_batch_cache_get_edit_curves_lines(&curves);
       edit_curves_lines_->draw(geom, manager.unique_handle(ob_ref));
     }
+    if (state.show_text && (state.overlay.edit_flag & V3D_OVERLAY_EDIT_CU_SHOW_LENGTHS)) {
+      blender::DRW_text_edit_curves_measure_stats(curves.geometry.wrap(), state.v3d, ob, state.scene->unit, state.dt);
+    }
   }
 
   /* Used for legacy curves. */
-  void edit_object_sync_legacy(Manager &manager, const ObjectRef &ob_ref, Resources & /*res*/)
+  void edit_object_sync_legacy(Manager &manager, const ObjectRef &ob_ref, Resources & /*res*/,
+                               const State & state)
   {
     if (!enabled_) {
       return;
@@ -251,6 +255,10 @@ class Curves : Overlay {
     {
       gpu::Batch *geom = DRW_cache_curve_vert_overlay_get(ob);
       edit_legacy_curve_points_->draw(geom, res_handle);
+    }
+    if (state.show_text && (state.overlay.edit_flag & V3D_OVERLAY_EDIT_CU_SHOW_LENGTHS)) {
+      const blender::Curves *work_curve = curve.curve_eval;
+      blender::DRW_text_edit_curves_measure_stats(work_curve->geometry.wrap(), state.v3d, ob, state.scene->unit, state.dt);
     }
   }
 
