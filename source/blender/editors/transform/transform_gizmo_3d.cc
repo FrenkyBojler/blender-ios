@@ -360,37 +360,25 @@ static void gizmo_get_axis_color(const int axis_idx,
 
   switch (axis_idx) {
     case MAN_AXIS_TRANS_X:
+    case MAN_AXIS_ROT_X:
+    case MAN_AXIS_SCALE_X:
     case MAN_AXIS_TRANS_YZ:
+    case MAN_AXIS_SCALE_YZ:
       ui::theme::get_color_4fv(TH_AXIS_X, r_col);
       break;
-    case MAN_AXIS_ROT_X:
-      ui::theme::get_color_4fv(TH_AXIS_X_ROTATION, r_col);
-      break;
-    case MAN_AXIS_SCALE_X:
-    case MAN_AXIS_SCALE_YZ:
-      ui::theme::get_color_4fv(TH_AXIS_X_SCALE, r_col);
-      break;
     case MAN_AXIS_TRANS_Y:
+    case MAN_AXIS_ROT_Y:
+    case MAN_AXIS_SCALE_Y:
     case MAN_AXIS_TRANS_ZX:
+    case MAN_AXIS_SCALE_ZX:
       ui::theme::get_color_4fv(TH_AXIS_Y, r_col);
       break;
-    case MAN_AXIS_ROT_Y:
-      ui::theme::get_color_4fv(TH_AXIS_Y_ROTATION, r_col);
-      break;
-    case MAN_AXIS_SCALE_Y:
-    case MAN_AXIS_SCALE_ZX:
-      ui::theme::get_color_4fv(TH_AXIS_Y_SCALE, r_col);
-      break;
     case MAN_AXIS_TRANS_Z:
-    case MAN_AXIS_TRANS_XY:
-      ui::theme::get_color_4fv(TH_AXIS_Z, r_col);
-      break;
     case MAN_AXIS_ROT_Z:
-      ui::theme::get_color_4fv(TH_AXIS_Z_ROTATION, r_col);
-      break;
     case MAN_AXIS_SCALE_Z:
+    case MAN_AXIS_TRANS_XY:
     case MAN_AXIS_SCALE_XY:
-      ui::theme::get_color_4fv(TH_AXIS_Z_SCALE, r_col);
+      ui::theme::get_color_4fv(TH_AXIS_Z, r_col);
       break;
     case MAN_AXIS_TRANS_C:
     case MAN_AXIS_ROT_C:
