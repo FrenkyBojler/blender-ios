@@ -1,0 +1,123 @@
+# SPDX-FileCopyrightText: 2025 Blender Authors
+#
+# SPDX-License-Identifier: GPL-2.0-or-later */
+
+__all__ = (
+    "main",
+)
+
+import os
+import math
+import unittest
+import sys
+import pathlib
+import numpy as np
+
+import bpy
+
+"""
+blender -b --factory-startup --python tests/python/sculpt_paint/sculpt_brushes_test.py -- --testdir tests/files/mesh_paint/
+"""
+
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+from modules.test_helpers import AttributeType, BackendType, COLOR_BACKEND_TYPES, MASK_BACKEND_TYPES, get_attribute_data, set_view3d_context_override, generate_stroke, generate_monkey
+
+args = None
+
+def get_face_set_data(mesh):
+    num_faces = mesh.attributes.domain_size('FACE')
+    face_set_data = np.zeros(num_faces, dtype=np.int32)
+    face_set_attribute = mesh.attributes.get(".sculpt_face_set")
+    face_set_attribute.data.foreach_get('value', np.ravel(face_set_data))
+
+    return face_set_data
+
+def get_verts_without_face_set(face_set):
+    mesh = bpy.context.active_object.data
+
+    face_sets = get_face_set_data(mesh)
+
+    faces = np.where(face_sets != face_set)
+    verts_per_face = [list(mesh.polygons[int(idx)].vertices) for idx in faces[0]]
+    verts = [v for face_verts in verts_per_face for v in face_verts]
+
+    return list(set(verts))
+
+def get_verts_with_face_set(face_set):
+    mesh = bpy.context.active_object.data
+
+    face_sets = get_face_set_data(mesh)
+
+    faces = np.where(face_sets == face_set)
+    verts_per_face = [list(mesh.polygons[int(idx)].vertices) for idx in faces[0]]
+    verts = [v for face_verts in verts_per_face for v in face_verts]
+
+    return list(set(verts))
+
+
+class BrushAutomaskTest(unittest.TestCase):
+    """
+    Test that none of the included brushes create NaN or inf valued vertices
+    """
+
+    def setUp(self):
+        bpy.ops.wm.open_mainfile(filepath=str(args.testdir / "monkey_realized_island_id_and_face_set.blend"), load_ui=False)
+        bpy.ops.object.mode_set(mode="SCULPT")
+        bpy.ops.ed.undo_push()
+
+        result = bpy.ops.brush.asset_activate(
+            asset_library_type='ESSENTIALS',
+            relative_asset_identifier='brushes/essentials_brushes-mesh_sculpt.blend/Brush/Draw')
+        self.assertEqual({'FINISHED'}, result)
+
+    def test_face_set_automasking_ignores_any_non_starting_face_set(self):
+        active_face_set = 3
+        bpy.data.scenes[0].tool_settings.sculpt.use_automasking_face_sets = True
+
+        initial_data = get_attribute_data(BackendType.MESH, AttributeType.POSITION)
+
+        context_override = bpy.context.copy()
+        set_view3d_context_override(context_override)
+        with bpy.context.temp_override(**context_override):
+            bpy.ops.sculpt.brush_stroke(
+                stroke=generate_stroke(
+                    context_override,
+                    start_percent=(0.5, 0.5)),
+                override_location=True)
+
+        new_data = get_attribute_data(BackendType.MESH, AttributeType.POSITION)
+
+        verts_with_face_set = get_verts_with_face_set(active_face_set)
+
+        filtered_initial_data = initial_data[verts_with_face_set]
+        filtered_new_data = new_data[verts_with_face_set]
+
+        any_different = any([orig != new for (orig, new) in zip(filtered_initial_data, filtered_new_data)])
+        self.assertTrue(any_different, "At least one position should be different from its original value")
+
+        verts_without_face_set = get_verts_without_face_set(active_face_set)
+
+        filtered_initial_data = initial_data[verts_without_face_set]
+        filtered_new_data = new_data[verts_without_face_set]
+
+        all_same = all([orig == new for (orig, new) in zip(filtered_initial_data, filtered_new_data)])
+        self.assertTrue(all_same, "Vertices that are not included in the original face sets should be unchanged")
+
+def main():
+    global args
+    import argparse
+
+    argv = [sys.argv[0]]
+    if '--' in sys.argv:
+        argv += sys.argv[sys.argv.index('--') + 1:]
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--testdir', required=True, type=pathlib.Path)
+
+    args, remaining = parser.parse_known_args(argv)
+
+    unittest.main(argv=remaining, verbosity=2)
+
+
+if __name__ == "__main__":
+    main()
