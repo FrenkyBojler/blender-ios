@@ -196,16 +196,15 @@ def get_fix_commits(start_date: str, end_date: str, single_threaded: bool) -> li
     git_log_output = git_log_command_output.splitlines()
 
     if single_threaded:
-        initial_commits = []
+        list_of_commits = []
         for commit in git_log_output:
-            initial_commits.append(setup_commit_info(commit))
+            list_of_commits.append(setup_commit_info(commit))
     else:
         import multiprocessing
         with multiprocessing.Pool() as pool:
-            initial_commits = pool.map(setup_commit_info, git_log_output)
+            list_of_commits = pool.map(setup_commit_info, git_log_output)
 
-    list_of_commits = [result for result in initial_commits if result]
-    return list_of_commits
+    return [commit for commit in list_of_commits if commit is not None]
 
 # -----------------------------------------------------------------------------
 
