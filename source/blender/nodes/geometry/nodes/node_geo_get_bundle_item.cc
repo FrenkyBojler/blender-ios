@@ -160,7 +160,7 @@ struct GetItemsResult {
         if (!converted) {
           return false;
         }
-        output_values[i] = std::move(*converted);
+        new (&output_values[i]) bke::SocketValueVariant(std::move(*converted));
         return true;
       });
   if (converted_paths.size() != socket_value_paths.size()) {
@@ -168,8 +168,7 @@ struct GetItemsResult {
     not_converted_paths.foreach_index([&](const int64_t i) {
       params.error_message_add(
           NodeWarningType::Warning,
-          fmt::format(fmt::runtime(TIP_("Cannot convert item to the selected type: {}")),
-                      paths[i]));
+          fmt::format(fmt::runtime(TIP_("Cannot convert item to selected type: {}")), paths[i]));
     });
   }
 
