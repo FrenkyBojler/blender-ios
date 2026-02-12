@@ -1,5 +1,5 @@
 /* SPDX-FileCopyrightText: 2025 OpenImageIO project
- * SPDX-FileCopyrightText: 2025 Blender Authors
+ * SPDX-FileCopyrightText: 2026 Blender Authors
  * SPDX-License-Identifier: Apache-2.0
  *
  * This is a modified version of maketexture.cpp from OpenImageIO, to add a few
@@ -318,9 +318,12 @@ static std::string alpha_type_string(const ImageAlphaType alpha_type)
       return "ignore";
       break;
     case IMAGE_ALPHA_AUTO:
+      return "auto";
     case IMAGE_ALPHA_NUM_TYPES:
       break;
   }
+
+  assert(!"Unknown tx alpha type");
 
   return "auto";
 }
@@ -333,6 +336,8 @@ static std::string format_tyoe_string(const ImageFormatType format_type)
     case IMAGE_FORMAT_EQUIANGULAR:
       return "equiangular";
   }
+
+  assert(!"Unknown tx format type");
 
   return "unknown";
 }
