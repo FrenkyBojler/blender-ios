@@ -1450,17 +1450,18 @@ def pycontext2sphinx(basepath):
             type_strs = []
             for member_type, is_seq in member_types:
                 if member_type.isidentifier():
-                    type_strs.append(
-                        "{:s}:class:`{:s}{:s}`".format(
-                            "sequence of " if is_seq else "",
-                            "bpy.types." if member_type not in PRIMITIVE_TYPE_NAMES else "",
-                            member_type,
-                        )
+                    class_str = ":class:`{:s}{:s}`".format(
+                        "bpy.types." if member_type not in PRIMITIVE_TYPE_NAMES else "",
+                        member_type,
                     )
+                    if is_seq:
+                        type_strs.append("Sequence[{:s}]".format(class_str))
+                    else:
+                        type_strs.append(class_str)
                 else:
                     type_strs.append(member_type)
 
-            fw("   :type: {:s}\n\n".format(" or ".join(type_strs)))
+            fw("   :type: {:s}\n\n".format(" | ".join(type_strs)))
             write_example_ref("   ", fw, "bpy.context." + member)
 
     # Generate type-map:
