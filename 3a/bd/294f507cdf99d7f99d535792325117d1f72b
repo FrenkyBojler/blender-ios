@@ -3,3 +3,4 @@ Referenced by issue #149784, 5.0: Candidates for corrective releases
 Referenced by issue #152626, Raw cache doesn't update for metastrips when changing render resolution
 Referenced by issue #152342, Video Size Glitches When Scaling a Video Meta Strip
 Referenced by pull request #154280, Fix #152342: Incorrect image size in preview when changing render size
+Referenced by commit a673db0a56af856a168cbfa9f7b91f898aff7b7d, Fix #152342: Incorrect image size in preview when changing render size
