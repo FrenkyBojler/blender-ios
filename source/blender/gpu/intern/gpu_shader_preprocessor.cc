@@ -152,18 +152,6 @@ struct AtomicLexer : lexit::TokenBuffer {
     lex_pass();
   }
 
-  /** Map string hashes to atom value. */
-  // Map<StringRef, TokenAtom> atomization_map_;
-  /* Reserve top range for longer token. */
-  uint16_t atom_hash_counter_ = long_atom_range_start;
-
-  uint16_t next_hash()
-  {
-    /* Check for overflow. */
-    BLI_assert(atom_hash_counter_ >= long_atom_range_start);
-    return atom_hash_counter_++;
-  }
-
   /* Backing buffer for line_offsets. */
   Vector<int> line_offsets_buf_;
 
@@ -188,45 +176,47 @@ struct AtomicLexer : lexit::TokenBuffer {
     /* Reserve token identifiers. */
     hash(" "); /* Reserved 0 atom (invalid).  */
 
-    Vector<TokenType, 64> id_to_tok;
-    id_to_tok.resize(64);
+    /* Keyword table. Need to be filled first. */
+    Vector<TokenType, 32> id_to_tok;
+    id_to_tok.resize(32);
     id_to_tok.fill(Word);
-
-    /* Warm identifier table to have high frequency words at the start of the table and buckets. */
     id_to_tok[hash("line")] = TokenType::Line;
-    hash("r"); /* Warmup. */
     id_to_tok[hash("define")] = Define;
-    hash("float");  /* Warmup. */
-    hash("return"); /* Warmup. */
-    hash("a");      /* Warmup. */
     id_to_tok[hash("endif")] = Endif;
     id_to_tok[hash("ifdef")] = Ifdef;
-    hash("int");    /* Warmup. */
-    hash("x");      /* Warmup. */
-    hash("float3"); /* Warmup. */
-    hash("uint");   /* Warmup. */
-    hash("y");      /* Warmup. */
-    hash("float4"); /* Warmup. */
-    hash("b");      /* Warmup. */
-    hash("coord");  /* Warmup. */
     id_to_tok[hash("if")] = If;
     id_to_tok[hash("elif")] = Elif;
     id_to_tok[hash("else")] = Else;
     id_to_tok[hash("undef")] = Undef;
     id_to_tok[hash("ifndef")] = Ifndef;
     id_to_tok[hash("pragma")] = Pragma;
+    /* Warm identifier table to have high frequency words at the start of the table and buckets. */
+    hash("r");
+    hash("float");
+    hash("return");
+    hash("a");
+    hash("int");
+    hash("x");
+    hash("float3");
+    hash("uint");
+    hash("y");
+    hash("float4");
+    hash("b");
+    hash("coord");
     hash("float2");
     hash("void");
 
     line_offsets_buf_.append(0);
     for (auto tok : *this) {
-      switch (tok.type()) {
+      TokenType type = tok.type();
+      switch (type) {
         case Word: {
-          tok.atom() = hash(tok.str());
-          tok.type() = id_to_tok[std::min(TokenAtom(64 - 1), tok.atom())];
-          if (tok.type() != Word) {
-            tok.atom() = 0;
-          }
+          StringRef str = tok.str();
+          uint16_t hash = smol_hash(str);
+          TokenAtom atom = table.lookup_or_add(hash, str);
+          type = id_to_tok[std::min(TokenAtom(32 - 1), atom)];
+          tok.atom() = atom;
+          tok.type() = type;
           break;
         }
         case NewLine: {
