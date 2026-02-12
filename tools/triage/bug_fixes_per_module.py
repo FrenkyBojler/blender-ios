@@ -249,10 +249,7 @@ def print_info(list_of_commits: list[CommitInfo], start_date: str, end_date: str
     dict_of_modules_and_commits: dict[str, list[CommitInfo]] = {}
 
     for commit in list_of_commits:
-        try:
-            dict_of_modules_and_commits[commit.module].append(commit)
-        except KeyError:
-            dict_of_modules_and_commits[commit.module] = [commit]
+        dict_of_modules_and_commits.setdefault(commit.module, []).append(commit)
 
     dict_of_modules_and_commits = dict(sorted(dict_of_modules_and_commits.items()))
 
