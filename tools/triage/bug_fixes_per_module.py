@@ -136,10 +136,15 @@ def argparse_create() -> argparse.ArgumentParser:
             "Date to stop checking commits. Must be in the format YYYY-MM-DD."
         ),
     )
-    parser.add_argument("-j", "--jobs", type=int, default=None, help=(
-        "Number of threads to use when processing commit messages "
-        "(Only really useful for debugging)."
-    ),
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=None,
+        help=(
+            "Number of threads to use when processing commit messages "
+            "(Only really useful for debugging)."
+        ),
     )
 
     return parser
