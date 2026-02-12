@@ -3788,10 +3788,80 @@ static const EnumPropertyItem *rna_Node_ItemArray_socket_type_itemf(bContext * /
       });
 }
 
-static const EnumPropertyItem *rna_SimulationStateItem_socket_subtype_itemf(
-    bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
+static const EnumPropertyItem *rna_SimulationStateItem_socket_subtype_itemf(bContext * /*C*/,
+                                                                            PointerRNA *ptr,
+                                                                            PropertyRNA * /*prop*/,
+                                                                            bool *r_free)
 {
   const NodeSimulationItem *item = static_cast<const NodeSimulationItem *>(ptr->data);
+  if (item == nullptr) {
+    return rna_enum_dummy_NULL_items;
+  }
+
+  *r_free = true;
+
+  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item->socket_type);
+  switch (socket_type) {
+    case SOCK_FLOAT:
+      return itemf_function_check(rna_enum_property_subtype_items, [](const EnumPropertyItem *it) {
+        switch (it->value) {
+          case PROP_PERCENTAGE:
+          case PROP_FACTOR:
+          case PROP_MASS:
+          case PROP_ANGLE:
+          case PROP_TIME:
+          case PROP_TIME_ABSOLUTE:
+          case PROP_DISTANCE:
+          case PROP_WAVELENGTH:
+          case PROP_COLOR_TEMPERATURE:
+          case PROP_FREQUENCY:
+          case PROP_NONE:
+            return true;
+          default:
+            return false;
+        }
+      });
+    case SOCK_INT:
+      return itemf_function_check(rna_enum_property_subtype_items, [](const EnumPropertyItem *it) {
+        switch (it->value) {
+          case PROP_PERCENTAGE:
+          case PROP_FACTOR:
+          case PROP_NONE:
+            return true;
+          default:
+            return false;
+        }
+      });
+    case SOCK_VECTOR:
+      return itemf_function_check(rna_enum_property_subtype_items, [](const EnumPropertyItem *it) {
+        switch (it->value) {
+          case PROP_FACTOR:
+          case PROP_PERCENTAGE:
+          case PROP_TRANSLATION:
+          case PROP_DIRECTION:
+          case PROP_VELOCITY:
+          case PROP_ACCELERATION:
+          case PROP_EULER:
+          case PROP_XYZ:
+          case PROP_NONE:
+            return true;
+          default:
+            return false;
+        }
+      });
+    default:
+      return itemf_function_check(rna_enum_property_subtype_items, [](const EnumPropertyItem *it) {
+        return it->value == PROP_NONE;
+      });
+  }
+}
+
+static const EnumPropertyItem *rna_RepeatItem_socket_subtype_itemf(bContext * /*C*/,
+                                                                   PointerRNA *ptr,
+                                                                   PropertyRNA * /*prop*/,
+                                                                   bool *r_free)
+{
+  const NodeRepeatItem *item = static_cast<const NodeRepeatItem *>(ptr->data);
   if (item == nullptr) {
     return rna_enum_dummy_NULL_items;
   }
@@ -7427,8 +7497,7 @@ static void rna_def_geo_simulation_state_item(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Simulation Item", "");
   RNA_def_struct_sdna(srna, "NodeSimulationItem");
 
-  rna_def_node_item_array_socket_item_common(
-      srna, "SimulationItemsAccessor", true, true);
+  rna_def_node_item_array_socket_item_common(srna, "SimulationItemsAccessor", true, true);
 
   prop = RNA_def_property(srna, "attribute_domain", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_attribute_domain_items);
@@ -7505,11 +7574,25 @@ static void def_geo_simulation_output(BlenderRNA *brna, StructRNA *srna)
 
 static void rna_def_geo_repeat_item(BlenderRNA *brna)
 {
+  PropertyRNA *prop;
+
   StructRNA *srna = RNA_def_struct(brna, "RepeatItem", nullptr);
   RNA_def_struct_ui_text(srna, "Repeat Item", "");
   RNA_def_struct_sdna(srna, "NodeRepeatItem");
 
-  rna_def_node_item_array_socket_item_common(srna, "RepeatItemsAccessor", true);
+  rna_def_node_item_array_socket_item_common(srna, "RepeatItemsAccessor", true, true);
+
+  prop = RNA_def_property(srna, "socket_subtype", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_property_subtype_items);
+  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_RepeatItem_socket_subtype_itemf");
+  RNA_def_property_enum_sdna(prop, nullptr, "socket_subtype");
+  RNA_def_property_ui_text(
+      prop,
+      "Subtype",
+      "Visual subtype for the socket (only affects how values are displayed in the UI)");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<RepeatItemsAccessor>");
 }
 
 static void rna_def_geo_repeat_items(BlenderRNA *brna)

@@ -21,6 +21,7 @@ struct RepeatItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
   static constexpr StringRefNull node_idname = "GeometryNodeRepeatOutput";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
+  static constexpr bool has_vector_dimensions = true;
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_repeat_zone_item_add";
     static constexpr StringRefNull remove_item = "NODE_OT_repeat_zone_item_remove";
@@ -72,10 +73,18 @@ struct RepeatItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
   static void init_with_socket_type_and_name(bNode &node,
                                              NodeRepeatItem &item,
                                              const eNodeSocketDatatype socket_type,
-                                             const char *name)
+                                             const char *name,
+                                             std::optional<int> dimensions = std::nullopt)
   {
     auto *storage = static_cast<NodeGeometryRepeatOutput *>(node.storage);
     item.socket_type = socket_type;
+    if (socket_type == SOCK_VECTOR) {
+      item.vector_socket_dimensions = dimensions.value_or(3);
+    }
+    else {
+      item.vector_socket_dimensions = 0;
+    }
+    item.socket_subtype = 0;
     item.identifier = storage->next_identifier++;
     socket_items::set_item_name_and_make_unique<RepeatItemsAccessor>(node, item, name);
   }
