@@ -215,12 +215,12 @@ class PinPositionConstraintSet : public TemplatedConstraintSet<PinPositionConstr
 class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstraintSet> {
   /** Indexed by constraint index. */
   Span<float> compliance_terms_;
-  MutableSpan<float4> lambdas_;
 
  public:
   /** Indexed by constraint index. */
   Span<int> point_indices;
   Span<math::Quaternion> pin_rotations;
+  MutableSpan<float4> lambdas;
 
   static constexpr StringRefNull debug_name = "Pin Rotation";
 
@@ -231,15 +231,15 @@ class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstr
                            MutableSpan<float4> lambdas)
       : TemplatedConstraintSet<PinRotationConstraintSet>(point_indices.size(), {geo_i}),
         compliance_terms_(compliance_terms),
-        lambdas_(lambdas),
         point_indices(point_indices),
-        pin_rotations(pin_rotations)
+        pin_rotations(pin_rotations),
+        lambdas(lambdas)
   {
   }
 
   void reset_force(const int constraint_i) const
   {
-    lambdas_[constraint_i] = float4(0.0f);
+    this->lambdas[constraint_i] = float4(0.0f);
   }
 
   template<typename UpdaterT>
@@ -256,8 +256,8 @@ class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstr
         float3(std::numeric_limits<float>::infinity()),
         math::Quaternion::identity(),
         compliance_terms_[constraint_i],
-        lambdas_[constraint_i]);
-    lambdas_[constraint_i] += result.delta_lambda;
+        this->lambdas[constraint_i]);
+    this->lambdas[constraint_i] += result.delta_lambda;
     updater.update_rotation(geo_i, point_i, result.offset0);
   }
 
