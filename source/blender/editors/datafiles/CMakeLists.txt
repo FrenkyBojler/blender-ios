@@ -8,7 +8,6 @@ set(INC
 )
 
 set(INC_SYS
-
 )
 
 # Part of the `blender` binary (sources for data-files are appended).
@@ -763,6 +762,7 @@ if(WITH_BLENDER)
       preview_loading
       preview_range
       prev_keyframe
+      project
       properties
       prop_con
       prop_off
@@ -782,6 +782,7 @@ if(WITH_BLENDER)
       render_animation
       render_result
       render_still
+      render_swap_dimensions
       restrict_color_off
       restrict_color_on
       restrict_instanced_off
@@ -916,6 +917,8 @@ if(WITH_BLENDER)
       unlocked
       unpinned
       url
+      usb_drive
+      usb_drive_large
       user
       uv
       uv_data
@@ -999,8 +1002,8 @@ if(WITH_BLENDER)
       cursor_zoom_out
     )
 
-    set(SVG_CONTENTS_H)
-    set(SVG_CONTENTS_C)
+    set(SVG_CONTENTS_H "")
+    set(SVG_CONTENTS_C "")
     foreach(svg ${SVG_FILENAMES_NOEXT})
       data_to_c_simple(../../../../release/datafiles/icons_svg/${svg}.svg SRC)
       string(TOUPPER ${svg} svg_name_upper)
@@ -1008,7 +1011,7 @@ if(WITH_BLENDER)
         "extern const char datatoc_${svg}_svg[]\;\n"
       )
       list(APPEND SVG_CONTENTS_C
-        "case ICON_${svg_name_upper}: return datatoc_${svg}_svg\;\n"
+        "case blender::ICON_${svg_name_upper}: return datatoc_${svg}_svg\;\n"
       )
     endforeach()
     unset(svg_name_upper)
@@ -1032,7 +1035,7 @@ if(WITH_BLENDER)
     list(APPEND SRC ${CMAKE_CURRENT_BINARY_DIR}/svg_icons.h)
     list(APPEND SRC ${CMAKE_CURRENT_BINARY_DIR}/svg_icons.cc)
 
-    set(SVG_CURSORS_CONTENTS_H)
+    set(SVG_CURSORS_CONTENTS_H "")
     foreach(svg ${SVG_CURSORS_FILENAMES_NOEXT})
       data_to_c_simple(../../../../release/datafiles/cursors/${svg}.svg SRC)
       list(APPEND SVG_CURSORS_CONTENTS_H

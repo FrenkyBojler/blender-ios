@@ -575,14 +575,14 @@ class TOPBAR_MT_window(Menu):
 
         layout.separator()
 
-        layout.operator("screen.screenshot")
+        layout.operator("screen.screenshot", text="Save Screenshot...")
 
         # Showing the status in the area doesn't work well in this case.
         # - From the top-bar, the text replaces the file-menu (not so bad but strange).
         # - From menu-search it replaces the area that the user may want to screen-shot.
         # Setting the context to screen causes the status to show in the global status-bar.
         with operator_context(layout, 'INVOKE_SCREEN'):
-            layout.operator("screen.screenshot_area")
+            layout.operator("screen.screenshot_area", text="Save Screenshot (Editor)...")
 
         if sys.platform[:3] == "win":
             layout.separator()
@@ -781,9 +781,16 @@ class TOPBAR_PT_name_marker(Panel):
         )
 
     @staticmethod
+    def is_using_sequencer(context):
+        sd = context.space_data
+        return sd.type == 'SEQUENCE_EDITOR'
+
+    @staticmethod
     def get_selected_marker(context):
         if TOPBAR_PT_name_marker.is_using_pose_markers(context):
             markers = context.active_action.pose_markers
+        elif TOPBAR_PT_name_marker.is_using_sequencer(context):
+            markers = context.sequencer_scene.timeline_markers
         else:
             markers = context.scene.timeline_markers
 

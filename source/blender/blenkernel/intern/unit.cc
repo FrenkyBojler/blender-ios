@@ -26,6 +26,8 @@
 #  include "BLI_winstuff.h"
 #endif
 
+namespace blender {
+
 /* No BKE or DNA includes! */
 
 /* Keep alignment. */
@@ -2170,7 +2172,7 @@ static size_t unit_as_string(char *str,
                              int str_maxncpy,
                              double value,
                              int prec,
-                             const bool do_rstrip_zero,
+                             const bool variable_width,
                              const bUnitCollection *usys,
                              /* Non exposed options. */
                              const bUnitDef *unit,
@@ -2191,8 +2193,11 @@ static size_t unit_as_string(char *str,
 
   /* Adjust precision to expected number of significant digits.
    * Note that here, we shall not have to worry about very big/small numbers, units are expected
-   * to replace 'scientific notation' in those cases. */
-  prec -= integer_digits_d(value_conv);
+   * to replace 'scientific notation' in those cases.
+   * Fixed width mode skips this to preserve the exact decimal place count. */
+  if (variable_width) {
+    prec -= integer_digits_d(value_conv);
+  }
 
   CLAMP(prec, 0, 6);
 
@@ -2207,7 +2212,7 @@ static size_t unit_as_string(char *str,
   size_t i = len - 1;
 
   if (prec > 0) {
-    if (do_rstrip_zero) {
+    if (variable_width) {
       while (i > 0 && str[i] == '0') { /* 4.300 -> 4.3 */
         str[i--] = pad;
       }
@@ -2272,7 +2277,7 @@ static size_t unit_as_string_split_pair(char *str,
                                         int str_maxncpy,
                                         double value,
                                         int prec,
-                                        const bool do_rstrip_zero,
+                                        const bool variable_width,
                                         const bUnitCollection *usys,
                                         const bUnitDef *main_unit)
 {
@@ -2286,9 +2291,12 @@ static size_t unit_as_string_split_pair(char *str,
     /* Always strip zeros for the larger unit, since it is truncated and won't ever "jitter". */
     size_t i = unit_as_string(str, str_maxncpy, value_a, prec, true, usys, unit_a, '\0');
 
-    prec -= integer_digits_d(value_a / unit_b->scalar) -
-            integer_digits_d(value_b / unit_b->scalar);
-    prec = max_ii(prec, 0);
+    /* Fixed width mode skips this to preserve the exact decimal place count. */
+    if (variable_width) {
+      prec -= integer_digits_d(value_a / unit_b->scalar) -
+              integer_digits_d(value_b / unit_b->scalar);
+      prec = max_ii(prec, 0);
+    }
 
     /* Is there enough space for at least 1 char of the next unit? */
     if (i + 2 < str_maxncpy) {
@@ -2296,7 +2304,7 @@ static size_t unit_as_string_split_pair(char *str,
 
       /* Use low precision since this is a smaller unit. */
       i += unit_as_string(
-          str + i, str_maxncpy - i, value_b, prec, do_rstrip_zero, usys, unit_b, '\0');
+          str + i, str_maxncpy - i, value_b, prec, variable_width, usys, unit_b, '\0');
     }
     return i;
   }
@@ -2375,15 +2383,15 @@ static size_t unit_as_string_main(char *str,
     main_unit = get_preferred_display_unit_if_used(type, units);
   }
 
-  bool do_rstrip_zero = true;
+  bool variable_width = true;
   if (prec < 0) {
     prec = -prec;
-    do_rstrip_zero = false;
+    variable_width = false;
   }
 
   if (split && unit_should_be_split(type)) {
     int length = unit_as_string_split_pair(
-        str, str_maxncpy, value, prec, do_rstrip_zero, usys, main_unit);
+        str, str_maxncpy, value, prec, variable_width, usys, main_unit);
     /* Split failed when length is negative, fall back to no split. */
     if (length >= 0) {
       return length;
@@ -2391,7 +2399,7 @@ static size_t unit_as_string_main(char *str,
   }
 
   return unit_as_string(
-      str, str_maxncpy, value, prec, do_rstrip_zero, usys, main_unit, pad ? ' ' : '\0');
+      str, str_maxncpy, value, prec, variable_width, usys, main_unit, pad ? ' ' : '\0');
 }
 
 size_t BKE_unit_value_as_string_adaptive(
@@ -2712,7 +2720,7 @@ static int unit_scale_str(char *str,
   }
 
   /* XXX: investigate, does not respect str_maxncpy properly. */
-  char *str_found = (char *)unit_find_str(str, replace_str, case_sensitive);
+  char *str_found = const_cast<char *>(unit_find_str(str, replace_str, case_sensitive));
 
   if (str_found == nullptr) {
     return 0;
@@ -3059,7 +3067,7 @@ void BKE_unit_system_get(int system, int type, void const **r_usys_pt, int *r_le
 
 int BKE_unit_base_get(const void *usys_pt)
 {
-  return ((bUnitCollection *)usys_pt)->base_unit;
+  return (static_cast<bUnitCollection *>(const_cast<void *>(usys_pt)))->base_unit;
 }
 
 int BKE_unit_base_of_type_get(int system, int type)
@@ -3103,3 +3111,5 @@ bool BKE_unit_is_suppressed(const void *usys_pt, int index)
   BLI_assert(uint(index) < uint(usys->length));
   return (usys->units[index].flag & B_UNIT_DEF_SUPPRESS) != 0;
 }
+
+}  // namespace blender

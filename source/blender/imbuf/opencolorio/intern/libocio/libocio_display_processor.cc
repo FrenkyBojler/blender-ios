@@ -24,9 +24,9 @@
 
 #  include "CLG_log.h"
 
-static CLG_LogRef LOG = {"color_management"};
-
 namespace blender::ocio {
+
+static CLG_LogRef LOG = {"color_management"};
 
 static TransferFunction system_extended_srgb_transfer_function(const LibOCIOView *view,
                                                                const bool use_hdr_buffer)
@@ -462,7 +462,7 @@ OCIO_NAMESPACE::ConstProcessorRcPtr create_ocio_display_processor(
     }
   }
   else {
-    /* Untonemapped case, directly to extended sRGB. */
+    /* Un-tone-mapped case, directly to extended sRGB. */
     group->appendTransform(create_untonemapped_ocio_display_transform(
         config, display_parameters.display, from_colorspace, display_parameters.use_hdr_buffer));
   }

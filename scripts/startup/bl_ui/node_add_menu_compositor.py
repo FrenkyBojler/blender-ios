@@ -12,17 +12,18 @@ class NODE_MT_compositor_node_input_base(node_add_menu.NodeMenu):
     bl_label = "Input"
 
     def draw(self, context):
-        del context
         layout = self.layout
         self.draw_menu(layout, path="Input/Constant")
         layout.separator()
-        self.node_operator(layout, "NodeGroupInput")
         self.node_operator(layout, "CompositorNodeBokehImage")
+        self.node_operator(layout, "NodeGroupInput")
         self.node_operator(layout, "CompositorNodeImage")
         self.node_operator(layout, "CompositorNodeImageInfo")
         self.node_operator(layout, "CompositorNodeImageCoordinates")
         self.node_operator(layout, "CompositorNodeMask")
         self.node_operator(layout, "CompositorNodeMovieClip")
+        if context.space_data.node_tree_sub_type == 'SEQUENCER':
+            self.node_operator(layout, "CompositorNodeSequencerStripInfo")
 
         layout.separator()
         self.draw_menu(layout, path="Input/Scene")
@@ -36,9 +37,12 @@ class NODE_MT_compositor_node_input_constant_base(node_add_menu.NodeMenu):
 
     def draw(self, _context):
         layout = self.layout
+        self.node_operator(layout, "FunctionNodeInputBool")
         self.node_operator(layout, "CompositorNodeRGB")
-        self.node_operator(layout, "ShaderNodeValue")
+        self.node_operator(layout, "FunctionNodeInputInt")
         self.node_operator(layout, "CompositorNodeNormal")
+        self.node_operator(layout, "ShaderNodeValue")
+        self.node_operator(layout, "FunctionNodeInputVector")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -143,6 +147,7 @@ class NODE_MT_compositor_node_filter_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodeDespeckle")
         layout.separator()
         self.node_operator(layout, "CompositorNodeDilateErode")
+        self.node_operator(layout, "CompositorNodeMaskToSDF")
         self.node_operator(layout, "CompositorNodeInpaint")
         layout.separator()
         self.node_operator_with_searchable_enum_socket(
@@ -279,6 +284,7 @@ class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "CompositorNodeSplit")
         self.node_operator(layout, "CompositorNodeSwitch")
+        self.node_operator(layout, "GeometryNodeIndexSwitch")
         self.node_operator(layout, "GeometryNodeMenuSwitch")
         self.node_operator(
             layout, "CompositorNodeSwitchView",

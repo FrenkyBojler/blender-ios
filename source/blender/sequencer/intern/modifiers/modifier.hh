@@ -16,16 +16,21 @@
 
 #include "IMB_imbuf.hh"
 
+namespace blender {
+
 struct bContext;
 struct ARegionType;
 struct ImBuf;
 struct Strip;
-struct uiLayout;
 struct Panel;
 struct PanelType;
 struct PointerRNA;
 
-namespace blender::seq {
+namespace ui {
+struct Layout;
+}  // namespace ui
+
+namespace seq {
 
 struct RenderData;
 struct SeqRenderState;
@@ -63,7 +68,7 @@ void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame);
 
 bool modifier_persistent_uids_are_valid(const Strip &strip);
 
-void draw_mask_input_type_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr);
+void draw_mask_input_type_settings(const bContext *C, ui::Layout &layout, PointerRNA *ptr);
 
 bool modifier_ui_poll(const bContext *C, PanelType *pt);
 
@@ -335,4 +340,5 @@ void apply_modifier_op(T &op, ImBuf *ibuf, const ImBuf *mask, const float3x3 &ma
   });
 }
 
-}  // namespace blender::seq
+}  // namespace seq
+}  // namespace blender
