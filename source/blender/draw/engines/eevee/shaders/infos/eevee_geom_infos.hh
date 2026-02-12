@@ -129,3 +129,13 @@ ADDITIONAL_INFO(draw_object_infos) /* Unused, but allow debug compilation. */
 ADDITIONAL_INFO(draw_resource_id_varying)
 ADDITIONAL_INFO(draw_view)
 GPU_SHADER_CREATE_END()
+
+/* Store pre-displacement vertex position (for correct bump mapping) */
+GPU_SHADER_NAMED_INTERFACE_INFO(eevee_surf_iface_displacement, interp_displacement)
+SMOOTH(float3, P)
+GPU_SHADER_NAMED_INTERFACE_END(interp_displacement)
+
+GPU_SHADER_CREATE_INFO(eevee_displacement)
+DEFINE("MAT_DISPLACEMENT_BUMP")
+VERTEX_OUT(eevee_surf_iface_displacement)
+GPU_SHADER_CREATE_END()

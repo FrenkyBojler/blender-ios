@@ -71,6 +71,13 @@ void main()
 
   fragment_displacement();
 
+#ifdef MAT_DISPLACEMENT_DEPTH
+  if (!is_equal(reverse_z::read(gl_FragDepth), texelFetch(hiz_tx, int2(gl_FragCoord.xy), 0).r, 1e-6f)) {
+    gpu_discard_fragment();
+    return;
+  }
+#endif
+
   nodetree_surface(closure_rand);
 
   g_holdout = saturate(g_holdout);

@@ -976,6 +976,14 @@ void RNA_def_material(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Displacement Method", "Method to use for the displacement");
   RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
+  prop = RNA_def_property(srna, "use_pixel_depth_offset", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "depth_flag", MA_DF_PIXEL_DEPTH_OFFSET);
+  RNA_def_property_ui_text(prop,
+                           "Pixel Depth Displacement",
+                           "Displace the surface towards and away from the camera "
+                           "based on the Displacement socket output");
+  RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
 #  if 1 /* Delete this section once we remove old eevee. */
   /* Blending (only Eevee for now) */
   prop = RNA_def_property(srna, "blend_method", PROP_ENUM, PROP_NONE);

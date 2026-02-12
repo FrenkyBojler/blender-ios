@@ -251,6 +251,7 @@ def draw_material_surface_settings(layout, mat, is_eevee=True):
 
     if is_eevee:
         col.prop(mat, "displacement_method", text="Displacement")
+        col.prop(mat, "use_pixel_depth_offset", text="Pixel Depth Offset")
         col = col.column(align=True)
 
     col.enabled = mat.displacement_method != 'BUMP'

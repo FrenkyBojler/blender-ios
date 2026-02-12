@@ -222,6 +222,11 @@ void ShaderCreateInfo::finalize(const bool recursive)
       depth_write_ = info.depth_write_;
     }
 
+    /* If any gl_FragDepth is used. */
+    if (info.fragment_depth_write_) {
+      fragment_depth_write_ = true;
+    }
+
     /* Inherit builtin bits from additional info. */
     builtins_ |= info.builtins_;
 
@@ -281,6 +286,12 @@ void ShaderCreateInfo::finalize(const bool recursive)
       assert_no_overlap(compute_entry_fn_ == "main", "Compute function already existing");
       compute_entry_fn_ = info.compute_entry_fn_;
     }
+  }
+
+  /* Force disable early fragment test if gl_FragDepth is written. */
+  if (fragment_depth_write_) {
+    depth_write_ = DepthWrite::ANY;
+    early_fragment_test_ = false;
   }
 
   if (!geometry_source_.is_empty() && bool(builtins_ & BuiltinBits::LAYER)) {

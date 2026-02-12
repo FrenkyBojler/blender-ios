@@ -795,12 +795,14 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   eMaterialDisplacement displacement_type;
   eMaterialThickness thickness_type;
   bool transparent_shadows;
+  bool pixel_depth_offset;
   material_type_from_shader_uuid(shader_uuid,
                                  pipeline_type,
                                  geometry_type,
                                  displacement_type,
                                  thickness_type,
-                                 transparent_shadows);
+                                 transparent_shadows,
+                                 pixel_depth_offset);
 
   GPUCodegenOutput &codegen = *codegen_;
   ShaderCreateInfo &info = *reinterpret_cast<ShaderCreateInfo *>(codegen.create_info);
@@ -1170,7 +1172,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
 
   {
     const bool use_vertex_displacement = !codegen.displacement.empty() &&
-                                         (displacement_type != MAT_DISPLACEMENT_BUMP) &&
+                                         (displacement_type != MAT_DISPLACEMENT_BUMP || pixel_depth_offset) &&
                                          !ELEM(geometry_type, MAT_GEOM_WORLD, MAT_GEOM_VOLUME);
 
     vert_gen << "float3 nodetree_displacement()\n";
@@ -1204,7 +1206,13 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
 
     if (!codegen.displacement.empty()) {
       /* Bump displacement. Needed to recompute normals after displacement. */
-      info.define("MAT_DISPLACEMENT_BUMP");
+      info.additional_info("eevee_displacement");
+
+      if (pixel_depth_offset)
+      {
+        info.define("MAT_DISPLACEMENT_DEPTH");
+        info.fragment_depth_write(true);
+      }
 
       frag_gen << "float3 nodetree_displacement()\n";
       frag_gen << "{\n";
@@ -1315,12 +1323,14 @@ static GPUPass *pass_replacement_cb(void *void_thunk, GPUMaterial *mat)
   eMaterialDisplacement displacement_type;
   eMaterialThickness thickness_type;
   bool transparent_shadows;
+  bool pixel_depth_offset;
   material_type_from_shader_uuid(shader_uuid,
                                  pipeline_type,
                                  geometry_type,
                                  displacement_type,
                                  thickness_type,
-                                 transparent_shadows);
+                                 transparent_shadows,
+                                 pixel_depth_offset);
 
   bool is_shadow_pass = pipeline_type == eMaterialPipeline::MAT_PIPE_SHADOW;
   bool is_prepass = ELEM(pipeline_type,
@@ -1337,11 +1347,12 @@ static GPUPass *pass_replacement_cb(void *void_thunk, GPUMaterial *mat)
   bool has_shadow_transparency = has_transparency && transparent_shadows;
   bool has_raytraced_transmission = blender_mat && (blender_mat->blend_flag & MA_BL_SS_REFRACTION);
   bool has_raycast = GPU_material_flag_get(mat, GPU_MATFLAG_RAYCAST);
+  bool has_pixel_depth_offset = GPU_material_has_displacement_output(mat) && pixel_depth_offset;
 
   bool can_use_default = (is_shadow_pass &&
                           (!has_vertex_displacement && !has_shadow_transparency)) ||
                          (is_prepass && (!has_vertex_displacement && !has_transparency &&
-                                         !has_raytraced_transmission && !has_raycast));
+                                         !has_raytraced_transmission && !has_raycast && !has_pixel_depth_offset));
   if (can_use_default) {
     GPUMaterial *mat = thunk->shader_module->material_shader_get(thunk->default_mat,
                                                                  thunk->default_mat->nodetree,
@@ -1385,7 +1396,8 @@ GPUMaterial *ShaderModule::material_shader_get(blender::Material *blender_mat,
   eMaterialThickness thickness_type = to_thickness_type(blender_mat->thickness_mode);
 
   uint64_t shader_uuid = shader_uuid_from_material_type(
-      pipeline_type, geometry_type, displacement_type, thickness_type, blender_mat->blend_flag);
+      pipeline_type, geometry_type, displacement_type, thickness_type, blender_mat->blend_flag,
+      blender_mat->depth_flag & MA_DF_PIXEL_DEPTH_OFFSET);
 
   bool is_default_material = default_mat == nullptr;
   BLI_assert(blender_mat != default_mat);

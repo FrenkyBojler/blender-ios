@@ -150,6 +150,7 @@ namespace blender {
 
 #  define EARLY_FRAGMENT_TEST(enable) .early_fragment_test(enable)
 #  define DEPTH_WRITE(value) .depth_write(value)
+#  define FRAGMENT_DEPTH_WRITE(value) .fragment_depth_write(value)
 
 #  define SPECIALIZATION_CONSTANT(type, name, default_value) \
     .specialization_constant(Type::type##_t, #name, default_value)
@@ -768,6 +769,7 @@ struct ShaderCreateInfo {
   bool auto_resource_location_ = false;
   /** If true, force depth and stencil tests to always happen before fragment shader invocation. */
   bool early_fragment_test_ = false;
+  bool fragment_depth_write_ = false;
   /** Allow optimization when fragment shader writes to `gl_FragDepth`. */
   DepthWrite depth_write_ = DepthWrite::UNCHANGED;
   /** GPU Backend compatibility flag. Temporary requirement until Metal enablement is fully
@@ -1160,6 +1162,12 @@ struct ShaderCreateInfo {
   {
     early_fragment_test_ = enable;
     return *static_cast<Self *>(this);
+  }
+
+  Self &fragment_depth_write(bool enable)
+  {
+    fragment_depth_write_ = enable;
+    return *(Self *)this;
   }
 
   /**

@@ -69,6 +69,10 @@ void main()
   init_globals();
   attrib_load(CurvesPoint{ws_pt.curve_id, ws_pt.point_id, ws_pt.curve_segment});
 
+#ifdef MAT_DISPLACEMENT_BUMP
+  interp_displacement.P = interp.P;
+#endif
+
   interp.P += nodetree_displacement();
 
 #ifdef MAT_SHADOW

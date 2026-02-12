@@ -42,6 +42,10 @@ void main()
   init_globals();
   attrib_load(MeshVertex{0});
 
+#ifdef MAT_DISPLACEMENT_BUMP
+  interp_displacement.P = interp.P;
+#endif
+
   interp.P += nodetree_displacement();
 
 #ifdef MAT_CLIP_PLANE

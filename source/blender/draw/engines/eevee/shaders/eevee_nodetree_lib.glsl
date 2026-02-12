@@ -21,6 +21,7 @@ SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
 #include "eevee_renderpass_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_utility_tx_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_safe_lib.glsl"
@@ -570,7 +571,7 @@ float derivative_scale_get();
 
 #ifdef MAT_DISPLACEMENT_BUMP
 /* Return new shading normal. */
-float3 displacement_bump()
+float3 displacement_bump(float3 center_sample)
 {
 #  if !defined(MAT_GEOM_CURVES)
   /* This is the filter width for automatic displacement + bump mapping, which is fixed.
@@ -578,7 +579,9 @@ float3 displacement_bump()
   constexpr float bump_filter_width = 0.1f;
 
   float2 dHd;
-  dF_branch(dot(nodetree_displacement(), g_data.N + dF_impl(g_data.N)), bump_filter_width, dHd);
+  dF_branch_incomplete(dot(nodetree_displacement(), g_data.N + dF_impl(g_data.N)), bump_filter_width, dHd);
+  /* Re-use displacement evaluation for/from fragment depth offset. */
+  dHd -= float2(dot(center_sample, g_data.N));
 
   float3 dPdx = gpu_dfdx(g_data.P) * derivative_scale_get();
   float3 dPdy = gpu_dfdy(g_data.P) * derivative_scale_get();
@@ -603,7 +606,24 @@ float3 displacement_bump()
 void fragment_displacement()
 {
 #ifdef MAT_DISPLACEMENT_BUMP
-  g_data.N = g_data.Ni = displacement_bump();
+  g_data.P = interp_displacement.P;
+  float3 displacement = nodetree_displacement();
+  g_data.N = g_data.Ni = displacement_bump(displacement);
+#endif
+
+#if defined(MAT_DISPLACEMENT_DEPTH)
+  float3 incident = drw_world_incident_vector(interp.P);
+
+  /* In depth-only case, true_displacement == displacement. */
+  float3 true_displacement = displacement + (interp_displacement.P - interp.P);
+  /* Component along view vector. */
+  float3 world_pos = interp.P + incident * dot(incident, true_displacement);
+  gl_FragDepth = reverse_z::read(drw_point_world_to_screen(world_pos).z);
+
+  /* Modify shading position. */
+  g_data.P = world_pos;
+#else if defined (MAT_DISPLACEMENT_BUMP)
+  g_data.P = interp.P;
 #endif
 }
 

@@ -206,6 +206,11 @@ enum {
   MA_DISPLACEMENT_BOTH = 2,
 };
 
+/** #Material::depth_flag */
+enum {
+  MA_DF_PIXEL_DEPTH_OFFSET= (1 << 0),
+};
+
 /** #Material::thickness_mode */
 enum {
   MA_THICKNESS_SPHERE = 0,
@@ -406,7 +411,8 @@ struct Material {
   /* Displacement. */
   float inflate_bounds = 0;
 
-  char _pad3[4] = {};
+  char depth_flag = 0;
+  char _pad3[3] = {};
 
   /**
    * Cached slots for texture painting, must be refreshed via

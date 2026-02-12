@@ -37,9 +37,16 @@ float4 closure_to_rgba(Closure cl)
 
 void main()
 {
-#ifdef MAT_TRANSPARENT
+  /* nodetree_surface() or fragment_displacement() may be used. */
+#if defined(MAT_TRANSPARENT) || defined(MAT_DISPLACEMENT_DEPTH)
   init_globals();
+#endif
 
+#ifdef MAT_DISPLACEMENT_DEPTH
+  fragment_displacement();
+#endif
+
+#ifdef MAT_TRANSPARENT
   nodetree_surface(0.0f);
 
 #  ifdef MAT_FORWARD
