@@ -602,6 +602,7 @@ class DOPESHEET_MT_channel(Menu):
         layout.operator_context = 'INVOKE_REGION_CHANNELS'
 
         layout.operator("anim.channels_delete")
+        layout.operator("anim.modifiers_delete")
         layout.operator("action.clean", text="Clean Channels").channels = True
 
         layout.separator()
@@ -924,6 +925,7 @@ class DOPESHEET_MT_channel_context_menu(Menu):
         layout.separator()
 
         layout.operator("anim.channels_delete")
+        layout.operator("anim.modifiers_delete")
 
         if is_graph_editor and context.space_data.mode == 'DRIVERS':
             layout.operator("graph.driver_delete_invalid")
