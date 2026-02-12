@@ -332,6 +332,7 @@ class NODE_MT_gn_input_constant_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeInputImage")
         self.node_operator(layout, "FunctionNodeInputInt")
         self.node_operator(layout, "GeometryNodeInputMaterial")
+        self.node_operator(layout, "FunctionNodeInputMenu")
         self.node_operator(layout, "GeometryNodeInputObject")
         self.node_operator(layout, "FunctionNodeInputRotation")
         self.node_operator(layout, "FunctionNodeInputString")
