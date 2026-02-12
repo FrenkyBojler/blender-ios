@@ -400,7 +400,7 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
         self.assertTrue(args.testdir.exists(),
                         'Test dir {0} should exist'.format(args.testdir))
         open_test_file()
-        self.assertEqual(bpy.data.version, (5, 1, 23))
+        self.assertEqual(bpy.data.version, (5, 1, 27))
 
     def tearDown(self):
         self._tempdir.cleanup()
