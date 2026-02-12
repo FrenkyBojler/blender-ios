@@ -93,6 +93,7 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/ramp_util.h
   svm/radial_tiling.h
   svm/radial_tiling_shared.h
+  svm/raycast.h
   svm/sepcomb_color.h
   svm/sepcomb_vector.h
   svm/sky.h
@@ -146,6 +147,7 @@ set(SRC_KERNEL_BAKE_HEADERS
 
 set(SRC_KERNEL_BVH_HEADERS
   bvh/bvh.h
+  bvh/intersect_filter.h
   bvh/nodes.h
   bvh/shadow_all.h
   bvh/local.h
@@ -235,9 +237,9 @@ set(SRC_KERNEL_UTIL_HEADERS
   util/colorspace.h
   util/differential.h
   util/ies.h
+  util/image_3d.h
   util/lookup_table.h
   util/nanovdb.h
-  util/texture_3d.h
   util/profiler.h
 )
 
@@ -292,17 +294,18 @@ set(SRC_UTIL_HEADERS
   ../util/rect.h
   ../util/static_assert.h
   ../util/transform.h
-  ../util/texture.h
   ../util/types.h
   ../util/types_base.h
   ../util/types_float2.h
   ../util/types_float3.h
   ../util/types_float4.h
   ../util/types_float8.h
+  ../util/types_image.h
   ../util/types_int2.h
   ../util/types_int3.h
   ../util/types_int4.h
   ../util/types_int8.h
+  ../util/types_normal.h
   ../util/types_spectrum.h
   ../util/types_rgbe.h
   ../util/types_uchar2.h
@@ -321,12 +324,9 @@ set(LIB
 
 # `Zstd` compressor for kernels.
 add_executable(zstd_compress ../cmake/zstd_compress.cpp)
-target_include_directories(zstd_compress SYSTEM PRIVATE ${ZSTD_INCLUDE_DIRS})
 
-target_link_libraries(zstd_compress ${ZSTD_LIBRARIES})
-if(DEFINED PTHREADS_LIBRARIES)
-  target_link_libraries(zstd_compress ${PTHREADS_LIBRARIES})
-endif()
+target_link_libraries(zstd_compress PRIVATE bf::dependencies::zstd)
+target_link_libraries(zstd_compress PRIVATE bf::dependencies::pthreads)
 
 if(NOT WITH_BLENDER)
   # For the Cycles standalone put libraries next to the Cycles application.
@@ -344,7 +344,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 if(WITH_COMPILER_ASAN)
-  if(CMAKE_COMPILER_IS_GNUCC AND (NOT WITH_CYCLES_KERNEL_ASAN))
+  if((CMAKE_C_COMPILER_ID STREQUAL "GNU") AND (NOT WITH_CYCLES_KERNEL_ASAN))
     # GCC hangs compiling the big kernel files with ASAN and release, so disable by default.
     string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -fno-sanitize=all")
     string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fno-sanitize=vptr")
@@ -357,7 +357,7 @@ if(WITH_COMPILER_ASAN)
 endif()
 
 # -----------------------------------------------------------------------------
-# Create module with headers common for all compute backend.
+# Create module with headers common for all compute backends.
 
 add_library(cycles_kernel INTERFACE)
 target_sources(cycles_kernel INTERFACE
@@ -422,10 +422,12 @@ add_subdirectory(device/metal)
 add_subdirectory(device/oneapi)
 add_subdirectory(device/optix)
 
-target_link_libraries(cycles_kernel INTERFACE cycles_kernel_cpu)
+target_link_libraries(cycles_kernel
+  INTERFACE cycles_kernel_cpu
+)
 
 if(NOT WITH_CYCLES_PARALLEL_DEVICE_KERNEL_BUILD)
-  set(_cycles_prev_gpu_kernel_target)
+  set(_cycles_prev_gpu_kernel_target "")
   macro(cycles_add_gpu_kernel_dependencies GPU_KERNEL_TARGET)
     if(TARGET ${GPU_KERNEL_TARGET})
       if(_cycles_prev_gpu_kernel_target)

@@ -225,8 +225,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string identifier = GeoViewerItemsAccessor::socket_identifier_for_item(item);
     auto &input_decl = b.add_input(socket_type, name, identifier)
                            .socket_name_ptr(
-                               &tree->id, GeoViewerItemsAccessor::item_srna, &item, "name");
-    if (socket_type_supports_fields(socket_type)) {
+                               &tree->id, *GeoViewerItemsAccessor::item_srna, &item, "name");
+    if (socket_type_supports_attributes(socket_type)) {
       input_decl.field_on_all();
     }
     input_decl.structure_type(StructureType::Dynamic);
@@ -238,7 +238,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryViewer *data = MEM_new_for_free<NodeGeometryViewer>(__func__);
+  NodeGeometryViewer *data = MEM_new<NodeGeometryViewer>(__func__);
   data->data_type_legacy = CD_PROP_FLOAT;
   data->domain = int8_t(AttrDomain::Auto);
   node->storage = data;
@@ -257,7 +257,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
     if (socket_type == SOCK_GEOMETRY) {
       has_geometry_input = true;
     }
-    else if (socket_type_supports_fields(socket_type)) {
+    else if (socket_type_supports_attributes(socket_type)) {
       has_potential_field_input = true;
     }
   }
@@ -323,7 +323,7 @@ static void log_viewer_attribute(const bNode &node, geo_eval_log::ViewerNodeLog 
     if (!last_geometry_identifier) {
       continue;
     }
-    if (!socket_type_supports_fields(type.type)) {
+    if (!socket_type_supports_attributes(type.type)) {
       continue;
     }
     /* Changing the `value` field doesn't change the hash or equality of the item. */
@@ -443,14 +443,13 @@ static void node_operators()
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<GeoViewerItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_delete(static_cast<NodeGeometryViewer *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryViewer &src_storage = node_storage(*src_node);
-  dst_node->storage = MEM_new_for_free<NodeGeometryViewer>(__func__,
-                                                           dna::shallow_copy(src_storage));
+  dst_node->storage = MEM_new<NodeGeometryViewer>(__func__, dna::shallow_copy(src_storage));
 
   socket_items::copy_array<GeoViewerItemsAccessor>(*src_node, *dst_node);
 }
@@ -505,7 +504,7 @@ NOD_REGISTER_NODE(node_register)
 
 namespace nodes {
 
-StructRNA *GeoViewerItemsAccessor::item_srna = &RNA_NodeGeometryViewerItem;
+StructRNA **GeoViewerItemsAccessor::item_srna = &RNA_NodeGeometryViewerItem;
 
 void GeoViewerItemsAccessor::blend_write_item(BlendWriter *writer,
                                               const NodeGeometryViewerItem &item)

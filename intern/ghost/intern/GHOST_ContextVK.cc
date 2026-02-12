@@ -31,6 +31,7 @@
 
 #include "CLG_log.h"
 
+#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 #include <algorithm>
@@ -51,56 +52,6 @@ using namespace std;
 
 static CLG_LogRef LOG = {"ghost.context"};
 
-static const char *vulkan_error_as_string(VkResult result)
-{
-#define FORMAT_ERROR(X) \
-  case X: { \
-    return "" #X; \
-  }
-
-  switch (result) {
-    FORMAT_ERROR(VK_NOT_READY);
-    FORMAT_ERROR(VK_TIMEOUT);
-    FORMAT_ERROR(VK_EVENT_SET);
-    FORMAT_ERROR(VK_EVENT_RESET);
-    FORMAT_ERROR(VK_INCOMPLETE);
-    FORMAT_ERROR(VK_ERROR_OUT_OF_HOST_MEMORY);
-    FORMAT_ERROR(VK_ERROR_OUT_OF_DEVICE_MEMORY);
-    FORMAT_ERROR(VK_ERROR_INITIALIZATION_FAILED);
-    FORMAT_ERROR(VK_ERROR_DEVICE_LOST);
-    FORMAT_ERROR(VK_ERROR_MEMORY_MAP_FAILED);
-    FORMAT_ERROR(VK_ERROR_LAYER_NOT_PRESENT);
-    FORMAT_ERROR(VK_ERROR_EXTENSION_NOT_PRESENT);
-    FORMAT_ERROR(VK_ERROR_FEATURE_NOT_PRESENT);
-    FORMAT_ERROR(VK_ERROR_INCOMPATIBLE_DRIVER);
-    FORMAT_ERROR(VK_ERROR_TOO_MANY_OBJECTS);
-    FORMAT_ERROR(VK_ERROR_FORMAT_NOT_SUPPORTED);
-    FORMAT_ERROR(VK_ERROR_FRAGMENTED_POOL);
-    FORMAT_ERROR(VK_ERROR_UNKNOWN);
-    FORMAT_ERROR(VK_ERROR_OUT_OF_POOL_MEMORY);
-    FORMAT_ERROR(VK_ERROR_INVALID_EXTERNAL_HANDLE);
-    FORMAT_ERROR(VK_ERROR_FRAGMENTATION);
-    FORMAT_ERROR(VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS);
-    FORMAT_ERROR(VK_ERROR_SURFACE_LOST_KHR);
-    FORMAT_ERROR(VK_ERROR_NATIVE_WINDOW_IN_USE_KHR);
-    FORMAT_ERROR(VK_SUBOPTIMAL_KHR);
-    FORMAT_ERROR(VK_ERROR_OUT_OF_DATE_KHR);
-    FORMAT_ERROR(VK_ERROR_INCOMPATIBLE_DISPLAY_KHR);
-    FORMAT_ERROR(VK_ERROR_VALIDATION_FAILED_EXT);
-    FORMAT_ERROR(VK_ERROR_INVALID_SHADER_NV);
-    FORMAT_ERROR(VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT);
-    FORMAT_ERROR(VK_ERROR_NOT_PERMITTED_EXT);
-    FORMAT_ERROR(VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT);
-    FORMAT_ERROR(VK_THREAD_IDLE_KHR);
-    FORMAT_ERROR(VK_THREAD_DONE_KHR);
-    FORMAT_ERROR(VK_OPERATION_DEFERRED_KHR);
-    FORMAT_ERROR(VK_OPERATION_NOT_DEFERRED_KHR);
-    FORMAT_ERROR(VK_PIPELINE_COMPILE_REQUIRED_EXT);
-    default:
-      return "Unknown Error";
-  }
-}
-
 #define __STR(A) "" #A
 #define VK_CHECK(__expression, fail_value) \
   do { \
@@ -109,7 +60,7 @@ static const char *vulkan_error_as_string(VkResult result)
       CLOG_ERROR(&LOG, \
                  "Vulkan: %s resulted in code %s.", \
                  __STR(__expression), \
-                 vulkan_error_as_string(r)); \
+                 blender::gpu::to_string(r)); \
       return fail_value; \
     } \
   } while (0)
@@ -331,7 +282,7 @@ class GHOST_DeviceVK {
         vk_physical_device, &queue_family_count, queue_families.data());
 
     generic_queue_family = 0;
-    for (const auto &queue_family : queue_families) {
+    for (const VkQueueFamilyProperties &queue_family : queue_families) {
       /* Every VULKAN implementation by spec must have one queue family that support both graphics
        * and compute pipelines. We select this one; compute only queue family hints at asynchronous
        * compute implementations. */
@@ -442,7 +393,7 @@ struct GHOST_InstanceVK {
 
     int best_device_score = -1;
     int device_index = -1;
-    for (const auto &physical_device : physical_devices) {
+    for (const VkPhysicalDevice &physical_device : physical_devices) {
       GHOST_DeviceVK device_vk(physical_device, false);
       device_index++;
 
@@ -456,8 +407,8 @@ struct GHOST_InstanceVK {
       if (
 #ifndef __APPLE__
           !device_vk.features.features.geometryShader ||
-          !device_vk.features.features.vertexPipelineStoresAndAtomics ||
 #endif
+          !device_vk.features.features.vertexPipelineStoresAndAtomics ||
           !device_vk.features.features.multiViewport ||
           !device_vk.features.features.shaderClipDistance ||
           !device_vk.features.features.fragmentStoresAndAtomics ||
@@ -557,8 +508,8 @@ struct GHOST_InstanceVK {
     VkPhysicalDeviceFeatures device_features = {};
 #ifndef __APPLE__
     device_features.geometryShader = VK_TRUE;
-    device_features.vertexPipelineStoresAndAtomics = VK_TRUE;
 #endif
+    device_features.vertexPipelineStoresAndAtomics = VK_TRUE;
     device_features.multiViewport = VK_TRUE;
     device_features.shaderClipDistance = VK_TRUE;
     device_features.fragmentStoresAndAtomics = VK_TRUE;
@@ -742,6 +693,25 @@ struct GHOST_InstanceVK {
  * incorrect device.
  */
 static std::optional<GHOST_InstanceVK> vulkan_instance;
+
+bool GHOST_ContextVK::is_instance_extension_enabled(blender::StringRefNull extension_name)
+{
+  if (!vulkan_instance.has_value()) {
+    return false;
+  }
+  return vulkan_instance->extensions.is_enabled(extension_name.c_str());
+}
+
+bool GHOST_ContextVK::is_device_extension_enabled(blender::StringRefNull extension_name)
+{
+  if (!vulkan_instance.has_value()) {
+    return false;
+  }
+  if (!vulkan_instance->device.has_value()) {
+    return false;
+  }
+  return vulkan_instance->device->extensions.is_enabled(extension_name.c_str());
+}
 
 /** \} */
 
@@ -975,7 +945,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   if (swapchain_ == VK_NULL_HANDLE) {
     GHOST_VulkanSwapChainData swap_chain_data = {};
     if (swap_buffer_draw_callback_) {
-      swap_buffer_draw_callback_(&swap_chain_data);
+      swap_buffer_draw_callback_(&swap_chain_data, true);
     }
     return GHOST_kSuccess;
   }
@@ -1004,7 +974,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
 
   vkResetFences(vk_device, 1, &submission_frame_data.submission_fence);
   if (swap_buffer_draw_callback_) {
-    swap_buffer_draw_callback_(&swap_chain_data);
+    swap_buffer_draw_callback_(&swap_chain_data, true);
   }
 
   VkPresentInfoKHR present_info = {};
@@ -1041,7 +1011,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   if (present_result != VK_SUCCESS) {
     CLOG_ERROR(&LOG,
                "Vulkan: failed to present swap-chain image : %s",
-               vulkan_error_as_string(present_result));
+               blender::gpu::to_string(present_result));
     return GHOST_kFailure;
   }
 
@@ -1089,7 +1059,7 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanHandles(GHOST_VulkanHandles &r_handles)
 }
 
 GHOST_TSuccess GHOST_ContextVK::setVulkanSwapBuffersCallbacks(
-    std::function<void(const GHOST_VulkanSwapChainData *)> swap_buffer_draw_callback,
+    std::function<void(const GHOST_VulkanSwapChainData *, bool)> swap_buffer_draw_callback,
     std::function<void(void)> swap_buffer_acquired_callback,
     std::function<void(GHOST_VulkanOpenXRData *)> openxr_acquire_framebuffer_image_callback,
     std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback)
@@ -1126,7 +1096,7 @@ static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
   if (vsync != GHOST_kVSyncModeUnset) {
     const bool vsync_off = (vsync == GHOST_kVSyncModeOff);
     if (vsync_off) {
-      for (auto present_mode : presents) {
+      for (const VkPresentModeKHR present_mode : presents) {
         if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
           *r_presentMode = present_mode;
           return GHOST_kSuccess;
@@ -1143,7 +1113,7 @@ static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
   /* TODO: select the correct presentation mode based on the actual being performed by the user.
    * When low latency is required (paint cursor) we should select mailbox, otherwise we can do FIFO
    * to reduce CPU/GPU usage. */
-  for (auto present_mode : presents) {
+  for (const VkPresentModeKHR present_mode : presents) {
     if (present_mode == VK_PRESENT_MODE_MAILBOX_KHR) {
       *r_presentMode = present_mode;
       return GHOST_kSuccess;
@@ -1543,9 +1513,27 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   if (!vulkan_instance.has_value()) {
     vulkan_instance.emplace();
     GHOST_InstanceVK &instance_vk = vulkan_instance.value();
-    if (context_params_.is_debug) {
-      instance_vk.extensions.enable(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true);
-    }
+    instance_vk.extensions.enable(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true);
+
+    /* Some XR platforms load functions without knowing if they were replaced by a core
+     * function. Monado for example always uses the extension functions. Due to maintenance changes
+     * drivers now only return the function pointer when the extension is enabled.
+     *
+     * We work around this by requesting Vulkan promoted extensions.
+     */
+#ifdef WITH_XR_OPENXR
+    /* Vulkan 1.1 promoted instance extensions, enabled for OpenXR usage.*/
+    instance_vk.extensions.enable(VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME);
+    instance_vk.extensions.enable(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
+    instance_vk.extensions.enable(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
+    instance_vk.extensions.enable(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+
+    /* SteamVR requests both NVIDIA and KHR rectified extension. */
+    instance_vk.extensions.enable(VK_NV_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME, true);
+
+    /* Has been promoted to VK_EXT_debug_utils. */
+    instance_vk.extensions.enable(VK_EXT_DEBUG_REPORT_EXTENSION_NAME, true);
+#endif
 
     if (use_window_surface) {
       const char *native_surface_extension_name = getPlatformSpecificSurfaceExtension();
@@ -1638,7 +1626,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 #ifdef _WIN32
     optional_device_extensions.append(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
 #elif defined(__APPLE__)
-#else
+#else /* Linux */
     optional_device_extensions.append(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
 #endif
 
@@ -1668,6 +1656,45 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 #if 0
     /* VK_EXT_host_image_copy isn't supported by Renderdoc and also isn't working as expected. */
     optional_device_extensions.append(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME);
+#endif
+
+#ifdef WITH_XR_OPENXR
+    optional_device_extensions.extend({
+#  ifdef _WIN32
+        VK_KHR_EXTERNAL_FENCE_WIN32_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME,
+
+        VK_KHR_WIN32_KEYED_MUTEX_EXTENSION_NAME,
+#  elif defined(__APPLE__)
+#  else
+        VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME,
+#  endif
+        /* Vulkan 1.1 promoted device extensions, enabled for OpenXR usage. */
+        VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME,
+        VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
+        VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_FENCE_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME,
+        VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
+        VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
+        VK_KHR_MULTIVIEW_EXTENSION_NAME,
+        VK_KHR_MAINTENANCE_1_EXTENSION_NAME,
+        VK_KHR_MAINTENANCE_2_EXTENSION_NAME,
+
+        /* Vulkan 1.2 promoted device extensions, enabled for OpenXR usage. */
+        VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
+        VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
+
+        /* Vulkan 1.3 promoted device extensions, enabled for OpenXR usage. */
+        VK_EXT_PIPELINE_CREATION_CACHE_CONTROL_EXTENSION_NAME,
+
+        /* Vulkan 1.4 promoted device extensions, enabled for OpenXR usage. */
+        VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+
+        /* Has been promoted to VK_EXT_debug_utils */
+        VK_EXT_DEBUG_MARKER_EXTENSION_NAME});
 #endif
 
     if (!instance_vk.select_physical_device(preferred_device_, required_device_extensions)) {

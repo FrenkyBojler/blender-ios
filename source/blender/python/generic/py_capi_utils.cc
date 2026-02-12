@@ -31,10 +31,6 @@
 #  include "BLI_math_base.h" /* isfinite() */
 #endif
 
-#if PY_VERSION_HEX < 0x030d0000 /* <3.13 */
-#  define PyLong_AsInt _PyLong_AsInt
-#endif
-
 namespace blender {
 
 /* -------------------------------------------------------------------- */
@@ -512,6 +508,101 @@ int PyC_ParseBool(PyObject *o, void *p)
   }
 
   *bool_p = value ? true : false;
+  return 1;
+}
+
+int PyC_ParseTypeOrNone(PyObject *o, void *p)
+{
+  PyC_TypeOrNone *data = static_cast<PyC_TypeOrNone *>(p);
+  if (o == Py_None) {
+    *data->value_p = nullptr;
+    return 1;
+  }
+  if (!PyObject_TypeCheck(o, data->type)) {
+    PyErr_Format(PyExc_TypeError,
+                 "expected %.200s or None, not %.200s",
+                 data->type->tp_name,
+                 Py_TYPE(o)->tp_name);
+    return 0;
+  }
+  *data->value_p = o;
+  return 1;
+}
+
+int PyC_ParseOptionalInt(PyObject *o, void *p)
+{
+  std::optional<int> *value_p = static_cast<std::optional<int> *>(p);
+  if (o == Py_None) {
+    value_p->reset();
+    return 1;
+  }
+  const int value = PyC_Long_AsI32(o);
+  if (value == -1 && PyErr_Occurred()) {
+    return 0;
+  }
+  *value_p = value;
+  return 1;
+}
+
+int PyC_ParseOptionalDouble(PyObject *o, void *p)
+{
+  std::optional<double> *value_p = static_cast<std::optional<double> *>(p);
+  if (o == Py_None) {
+    value_p->reset();
+    return 1;
+  }
+  const double value = PyFloat_AsDouble(o);
+  if (value == -1.0 && PyErr_Occurred()) {
+    return 0;
+  }
+  *value_p = value;
+  return 1;
+}
+
+int PyC_ParseOptionalFloat(PyObject *o, void *p)
+{
+  std::optional<float> *value_p = static_cast<std::optional<float> *>(p);
+  if (o == Py_None) {
+    value_p->reset();
+    return 1;
+  }
+  const double value = PyFloat_AsDouble(o);
+  if (value == -1.0 && PyErr_Occurred()) {
+    return 0;
+  }
+  *value_p = float(value);
+  return 1;
+}
+
+int PyC_ParseOptionalUInt(PyObject *o, void *p)
+{
+  std::optional<uint> *value_p = static_cast<std::optional<uint> *>(p);
+  if (o == Py_None) {
+    value_p->reset();
+    return 1;
+  }
+  const uint value = PyC_Long_AsU32(o);
+  if (value == uint(-1) && PyErr_Occurred()) {
+    return 0;
+  }
+  *value_p = value;
+  return 1;
+}
+
+int PyC_ParseOptionalBool(PyObject *o, void *p)
+{
+  std::optional<bool> *value_p = static_cast<std::optional<bool> *>(p);
+  if (o == Py_None) {
+    value_p->reset();
+    return 1;
+  }
+  long value;
+  if (((value = PyLong_AsLong(o)) == -1) || !ELEM(value, 0, 1)) {
+    PyErr_Format(
+        PyExc_ValueError, "expected a bool, int (0/1), or None, got %s", Py_TYPE(o)->tp_name);
+    return 0;
+  }
+  *value_p = value ? true : false;
   return 1;
 }
 
@@ -1174,6 +1265,20 @@ void PyC_MainModule_Restore(PyObject *main_mod)
   }
 }
 
+int PyC_Module_AddToSysModules(PyObject *sys_modules, PyObject *module)
+{
+  /* It would be OK to remove this assert if we ever wanted to add to a non-standard module dict.
+   * Currently it's only ever expected that they match, hence the assert. */
+  BLI_assert(sys_modules == PyImport_GetModuleDict());
+  PyObject *name = PyModule_GetNameObject(module);
+  if (name == nullptr) {
+    return -1;
+  }
+  int result = PyDict_SetItem(sys_modules, name, module);
+  Py_DECREF(name);
+  return result;
+}
+
 bool PyC_IsInterpreterActive()
 {
   /* instead of PyThreadState_Get, which calls Py_FatalError */
@@ -1611,7 +1716,7 @@ bool PyC_RunString_AsStringAndSize(const char *imports[],
       ok = false;
     }
     else {
-      char *val_alloc = MEM_malloc_arrayN<char>(size_t(val_len) + 1, __func__);
+      char *val_alloc = MEM_new_array_uninitialized<char>(size_t(val_len) + 1, __func__);
       memcpy(val_alloc, val, (size_t(val_len) + 1) * sizeof(*val_alloc));
       *r_value = val_alloc;
       *r_value_size = val_len;
@@ -1655,7 +1760,7 @@ bool PyC_RunString_AsStringAndSizeOrNone(const char *imports[],
         ok = false;
       }
       else {
-        char *val_alloc = MEM_malloc_arrayN<char>(size_t(val_len) + 1, __func__);
+        char *val_alloc = MEM_new_array_uninitialized<char>(size_t(val_len) + 1, __func__);
         memcpy(val_alloc, val, (size_t(val_len) + 1) * sizeof(val_alloc));
         *r_value = val_alloc;
         *r_value_size = val_len;

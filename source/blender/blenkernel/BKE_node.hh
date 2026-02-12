@@ -515,14 +515,11 @@ struct bNodeTreeType {
 
   /* calls allowing threaded composite */
   void (*localize)(bNodeTree *localtree, bNodeTree *ntree) = nullptr;
-  void (*local_merge)(Main *bmain, bNodeTree *localtree, bNodeTree *ntree) = nullptr;
 
   /* Tree update. Overrides `nodetype->updatetreefunc`. */
   void (*update)(bNodeTree *ntree) = nullptr;
 
   bool (*validate_link)(eNodeSocketDatatype from, eNodeSocketDatatype to) = nullptr;
-
-  void (*node_add_init)(bNodeTree *ntree, bNode *bnode) = nullptr;
 
   /* Check if the socket type is valid for this tree type. */
   bool (*valid_socket_type)(bNodeTreeType *ntreetype, bNodeSocketType *socket_type) = nullptr;
@@ -635,6 +632,14 @@ void node_register_type(bNodeType &ntype);
 void node_unregister_type(bNodeType &ntype);
 void node_register_alias(bNodeType &nt, StringRef alias);
 
+/**
+ * Set the node type \a idname and \a type_legacy to "undefined" to prevent future access to broken
+ * nodes. This should be used for nodes with missing data that cannot be fixed and should be
+ * permanently disabled.
+ * \warning The node type is not recoverable afterwards!
+ */
+void node_set_undefined_type(bNode &node);
+
 Span<bNodeType *> node_types_get();
 
 bNodeSocketType *node_socket_type_find(StringRef idname);
@@ -740,6 +745,9 @@ bNode *node_find_node_by_name(bNodeTree &ntree, StringRefNull name);
 /** Try to find an input item with the given identifier in the entire node interface tree. */
 const bNodeTreeInterfaceSocket *node_find_interface_input_by_identifier(const bNodeTree &ntree,
                                                                         StringRef identifier);
+/** Try to find an output item with the given identifier in the entire node interface tree. */
+const bNodeTreeInterfaceSocket *node_find_interface_output_by_identifier(const bNodeTree &ntree,
+                                                                         StringRef identifier);
 
 bool node_is_parent_and_child(const bNode &parent, const bNode &child);
 
@@ -923,13 +931,6 @@ void node_tree_update_all_new(Main &main);
 void node_update_asset_metadata(bNodeTree &node_tree);
 
 void node_tree_node_flag_set(bNodeTree &ntree, int flag, bool enable);
-
-/**
- * Merge local tree results back, and free local tree.
- *
- * We have to assume the editor already changed completely.
- */
-void node_tree_local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree);
 
 /**
  * \note `ntree` itself has been read!

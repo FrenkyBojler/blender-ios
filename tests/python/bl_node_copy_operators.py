@@ -12,6 +12,7 @@ import bpy
 
 # Test cases listed below must have a test data in the "Tests" node group in the main test file.
 # Each test case should have a frame node whose content is used as input for operators.
+# Nodes labeled "external" are excluded from the grouping operator to test external links.
 #
 # A single test case can be tested using the '--subtest <NAME>' argument:
 #
@@ -40,6 +41,7 @@ testfile = "node_copy_operators.blend"
 # List of test cases expected in the test file.
 # A set of options can be associated with each test case:
 # - NODE_GROUP: Test starts as a node group instead of internal nodes. Only ungrouping and separating is tested.
+# - GROUP_INSERT: There should be one node group labeled "external", all other nodes are inserted into the group.
 all_test_cases = [
     ('test_empty', {}),
     ('test_socket_types', {}),
@@ -59,6 +61,8 @@ all_test_cases = [
     ('test_anim_data', {}),
     ('test_extension_sockets', {}),
     ('test_pass_through', {'NODE_GROUP'}),
+    ('test_insert_group_with_sockets', {'GROUP_INSERT'}),
+    ('test_ungroup_multiple', {'NODE_GROUP'}),
 ]
 
 
@@ -72,23 +76,31 @@ class NodeMapping:
     def add_tree(self, test_tree, expected_tree):
         self.tree_map[test_tree] = expected_tree
 
-    def add_node(self, test_node, expected_node):
+    def add_node(self, test_node, expected_node, map_group_node_trees):
+        assert self.node_map.get(test_node, expected_node) == expected_node
         self.node_map[test_node] = expected_node
         # Add all sockets of mapped nodes to their own dictionary, assuming the socket order is the same.
         for test_socket, expected_socket in zip(test_node.inputs, expected_node.inputs):
+            assert self.socket_map.get(test_socket, expected_socket) == expected_socket
             self.socket_map[test_socket] = expected_socket
         for test_socket, expected_socket in zip(test_node.outputs, expected_node.outputs):
+            assert self.socket_map.get(test_socket, expected_socket) == expected_socket
             self.socket_map[test_socket] = expected_socket
 
-    def add_nodes_by_name(self, test_nodes, expected_nodes):
-        expected_nodes_map = {node.name: node for node in expected_nodes}
+        if map_group_node_trees and isinstance(expected_node, bpy.types.GeometryNodeGroup):
+            assert isinstance(test_node, bpy.types.GeometryNodeGroup)
+            self.add_tree(test_node.node_tree, expected_node.node_tree)
+            self.add_nodes_by_name(test_node.node_tree.nodes, expected_node.node_tree.nodes, map_group_node_trees)
+
+    def add_nodes_by_name(self, test_nodes, expected_nodes, map_group_node_trees):
+        expected_node_by_name = {node.name: node for node in expected_nodes}
         for test_node in test_nodes:
             # Raises key error if not all test nodes can be mapped.
-            expected_node = expected_nodes_map.pop(test_node.name)
-            self.add_node(test_node, expected_node)
-            self.add_node(test_node, expected_node)
+            expected_node = expected_node_by_name.pop(test_node.name)
+            self.add_node(test_node, expected_node, map_group_node_trees)
+
         # Should map all expected nodes.
-        assert not expected_nodes_map
+        assert not expected_node_by_name
 
 
 def open_test_file():
@@ -171,8 +183,12 @@ def find_test_frame(tree, test_name):
 
 
 # Find nodes inside a top level frame of the given name.
-def find_expected_nodes(tree, test_name):
-    test_nodes = list()
+# Returns two lists: internal_nodes, external_nodes
+# Only internal nodes should be included in the grouping operation.
+# External nodes are identified by "external" prefix.
+def find_test_nodes(tree, test_name):
+    internal_nodes = list()
+    external_nodes = list()
     for node in tree.nodes:
         top_parent = node.parent
         while top_parent:
@@ -181,26 +197,31 @@ def find_expected_nodes(tree, test_name):
             top_parent = top_parent.parent
 
         if top_parent and isinstance(top_parent, bpy.types.NodeFrame) and top_parent.label == test_name:
-            test_nodes.append(node)
-    return test_nodes
+            if node.label.lower() == "external":
+                external_nodes.append(node)
+            else:
+                internal_nodes.append(node)
+    return internal_nodes, external_nodes
 
 
-# NOOP case when the test starts out with a node group.
-def execute_node_group_noop(test_case, test_tree, expected_tree=None):
-    test_nodes = find_expected_nodes(test_tree, test_case)
-    assert len(test_nodes) == 1
-    group_node = test_nodes[0]
-
+# Skip a test case.
+def execute_skip(test_case, test_tree, expected_tree=None):
     if expected_tree:
-        # Map resulting nodes to expected nodes.
-        expected_nodes = find_expected_nodes(expected_tree, test_case)
-        assert len(expected_nodes) == 1
-        expected_node = expected_nodes[0]
-        mapping = NodeMapping()
-        mapping.add_tree(group_node.node_tree, expected_node.node_tree)
-        mapping.add_node(group_node, expected_node)
-        mapping.add_nodes_by_name(group_node.node_tree.nodes, expected_node.node_tree.nodes)
-        return mapping
+        return NodeMapping()
+
+
+# NOOP case when the test starts out with node groups.
+def execute_node_group_noop(test_case, test_tree, expected_tree=None):
+    test_nodes_internal, test_nodes_external = find_test_nodes(test_tree, test_case)
+
+    if not expected_tree:
+        return
+    # Map resulting nodes to expected nodes.
+    expected_nodes_internal, expected_nodes_external = find_test_nodes(expected_tree, test_case)
+    mapping = NodeMapping()
+    mapping.add_nodes_by_name(test_nodes_internal, expected_nodes_internal, True)
+    mapping.add_nodes_by_name(test_nodes_external, expected_nodes_external, False)
+    return mapping
 
 
 # Run the 'node.make_group' operator on test nodes.
@@ -208,25 +229,27 @@ def execute_make_group(test_case, test_tree, expected_tree=None):
     # Special case: skip if the test starts as a node group.
     if 'NODE_GROUP' in test_options(test_case):
         return execute_node_group_noop(test_case, test_tree, expected_tree)
+    if 'GROUP_INSERT' in test_options(test_case):
+        return execute_skip(test_case, test_tree, expected_tree)
 
-    test_nodes = find_expected_nodes(test_tree, test_case)
+    test_nodes_internal, test_nodes_external = find_test_nodes(test_tree, test_case)
 
-    with node_editor_context_override(bpy.context, test_tree, selected_nodes=test_nodes):
+    with node_editor_context_override(bpy.context, test_tree, selected_nodes=test_nodes_internal):
         bpy.ops.node.group_make()
     group_node = test_tree.nodes.active
     # Re-attach to the parent frame to identify the operator result.
     group_node.parent = find_test_frame(test_tree, test_case)
 
-    if expected_tree:
-        # Map resulting nodes to expected nodes.
-        expected_nodes = find_expected_nodes(expected_tree, test_case)
-        assert len(expected_nodes) == 1
-        expected_node = expected_nodes[0]
-        mapping = NodeMapping()
-        mapping.add_tree(group_node.node_tree, expected_node.node_tree)
-        mapping.add_node(group_node, expected_node)
-        mapping.add_nodes_by_name(group_node.node_tree.nodes, expected_node.node_tree.nodes)
-        return mapping
+    if not expected_tree:
+        return
+    # Map resulting nodes to expected nodes.
+    expected_nodes_internal, expected_nodes_external = find_test_nodes(expected_tree, test_case)
+    assert len(expected_nodes_internal) == 1
+    expected_node = expected_nodes_internal[0]
+    mapping = NodeMapping()
+    mapping.add_node(group_node, expected_node, True)
+    mapping.add_nodes_by_name(test_nodes_external, expected_nodes_external, False)
+    return mapping
 
 
 # Run the 'node.group_insert' operator on test nodes.
@@ -235,15 +258,36 @@ def execute_group_insert(test_case, test_tree, expected_tree=None):
     if 'NODE_GROUP' in test_options(test_case):
         return execute_node_group_noop(test_case, test_tree, expected_tree)
 
-    test_nodes = find_expected_nodes(test_tree, test_case)
-    centroid = node_centroid(test_nodes)
+    test_nodes_internal, test_nodes_external = find_test_nodes(test_tree, test_case)
+    centroid = node_centroid(test_nodes_internal)
+
+    # Special case: Expect an existing group node to insert into.
+    if 'GROUP_INSERT' in test_options(test_case):
+        print(len(test_nodes_internal), [n.name for n in test_nodes_external])
+        # Should have one node group labeled "external".
+        assert len(test_nodes_external) == 1
+        group_node = test_nodes_external[0]
+        with node_editor_context_override(bpy.context, test_tree, selected_nodes=test_nodes_internal + [group_node], active_node=group_node):
+            bpy.ops.node.group_insert()
+
+        if not expected_tree:
+            return
+        # Map resulting nodes to expected nodes.
+        expected_nodes_internal, expected_nodes_external = find_test_nodes(expected_tree, test_case)
+        assert len(expected_nodes_internal) == 0
+        assert len(expected_nodes_external) == 1
+        expected_node = expected_nodes_external[0]
+        mapping = NodeMapping()
+        mapping.add_node(group_node, expected_node, True)
+        mapping.add_nodes_by_name(test_nodes_external, expected_nodes_external, False)
+        return mapping
 
     # Make empty node group.
     group_tree = bpy.data.node_groups.new(f"{test_case}_GroupInsert", 'GeometryNodeTree')
     # Copy nodes into the tree to force deduplication testing.
     # Note: this is not ideal since it depends on yet another operator,
     # but there is no way to retain the original nodes when inserting to enforce duplicate names.
-    with node_editor_context_override(bpy.context, test_tree, selected_nodes=test_nodes):
+    with node_editor_context_override(bpy.context, test_tree, selected_nodes=test_nodes_internal):
         bpy.ops.node.clipboard_copy()
     with node_editor_context_override(bpy.context, group_tree):
         bpy.ops.node.clipboard_paste()
@@ -260,77 +304,90 @@ def execute_group_insert(test_case, test_tree, expected_tree=None):
         group_node.parent = find_test_frame(test_tree, test_case)
         group_node.location = centroid
     # Insert nodes into the group.
-    with node_editor_context_override(bpy.context, test_tree, selected_nodes=test_nodes + [group_node], active_node=group_node):
+    with node_editor_context_override(bpy.context, test_tree, selected_nodes=test_nodes_internal + [group_node], active_node=group_node):
         bpy.ops.node.group_insert()
 
-    if expected_tree:
-        # Map resulting nodes to expected nodes.
-        expected_nodes = find_expected_nodes(expected_tree, test_case)
-        assert len(expected_nodes) == 1
-        expected_node = expected_nodes[0]
-        mapping = NodeMapping()
-        mapping.add_tree(group_node.node_tree, expected_node.node_tree)
-        mapping.add_node(group_node, expected_node)
-        mapping.add_nodes_by_name(group_node.node_tree.nodes, expected_node.node_tree.nodes)
-        return mapping
+    if not expected_tree:
+        return
+    # Map resulting nodes to expected nodes.
+    expected_nodes_internal, expected_nodes_external = find_test_nodes(expected_tree, test_case)
+    assert len(expected_nodes_internal) == 1
+    expected_node = expected_nodes_internal[0]
+    mapping = NodeMapping()
+    mapping.add_node(group_node, expected_node, True)
+    mapping.add_nodes_by_name(test_nodes_external, expected_nodes_external, False)
+    return mapping
 
 
 # Run the 'node.ungroup' operator on test nodes.
 def execute_ungroup(test_case, test_tree, expected_tree=None):
-    test_nodes = find_expected_nodes(test_tree, test_case)
+    if 'GROUP_INSERT' in test_options(test_case):
+        return execute_skip(test_case, test_tree, expected_tree)
 
-    with node_editor_context_override(bpy.context, test_tree, selected_nodes=test_nodes):
+    test_nodes_internal, test_nodes_external = find_test_nodes(test_tree, test_case)
+
+    with node_editor_context_override(bpy.context, test_tree, selected_nodes=test_nodes_internal):
         bpy.ops.node.group_ungroup()
-    internal_nodes = [node for node in test_tree.nodes if node.select]
+    ungrouped_nodes = [node for node in test_tree.nodes if node.select]
     # Re-attach to the parent frame to identify the operator result.
-    for node in internal_nodes:
+    for node in ungrouped_nodes:
         if node.parent is None:
             node.parent = find_test_frame(test_tree, test_case)
 
-    if expected_tree:
-        # Map resulting nodes to expected nodes.
-        expected_nodes = find_expected_nodes(expected_tree, test_case)
-        mapping = NodeMapping()
-        mapping.add_nodes_by_name(internal_nodes, expected_nodes)
-        return mapping
+    if not expected_tree:
+        return
+    # Map resulting nodes to expected nodes.
+    expected_nodes_internal, expected_nodes_external = find_test_nodes(expected_tree, test_case)
+    mapping = NodeMapping()
+    mapping.add_nodes_by_name(ungrouped_nodes, expected_nodes_internal, False)
+    mapping.add_nodes_by_name(test_nodes_external, expected_nodes_external, False)
+    return mapping
 
 
 # Run the 'node.group_separate' operator on test nodes.
 # type can be 'COPY' or 'MOVE'.
 def execute_group_separate(type, test_case, test_tree, expected_tree=None):
-    test_nodes = find_expected_nodes(test_tree, test_case)
+    if 'GROUP_INSERT' in test_options(test_case):
+        return execute_skip(test_case, test_tree, expected_tree)
+
+    test_nodes_internal, test_nodes_external = find_test_nodes(test_tree, test_case)
 
     # Test nodes should be node groups
-    assert len(test_nodes) == 1
-    group_node = test_nodes[0]
-    assert isinstance(group_node, bpy.types.GeometryNodeGroup)
-
     # Ensure single-user node group, so that moving nodes out does not modify a shared tree.
-    group_node.node_tree = group_node.node_tree.copy()
+    all_group_trees = dict()
+    for group_node in test_nodes_internal:
+        assert isinstance(group_node, bpy.types.GeometryNodeGroup)
+        group_tree = all_group_trees.get(group_node.node_tree)
+        if not group_tree:
+            group_tree = group_node.node_tree.copy()
+            all_group_trees[group_node.node_tree] = group_tree
+        group_node.node_tree = group_tree
 
-    with node_editor_context_override(bpy.context, test_tree, selected_nodes=[group_node]):
-        bpy.ops.node.group_edit(exit=False)
-        # Stay in current context so that the tree path has a valid "parent" tree to copy nodes into.
+        with node_editor_context_override(bpy.context, test_tree, selected_nodes=[group_node]):
+            bpy.ops.node.group_edit(exit=False)
+            # Stay in current context so that the tree path has a valid "parent" tree to copy nodes into.
 
-        # Select all nodes for separating.
-        select_nodes(group_node.node_tree, selected_nodes=group_node.node_tree.nodes)
-        bpy.ops.node.group_separate(type=type)
+            # Select all nodes for separating.
+            select_nodes(group_node.node_tree, selected_nodes=group_node.node_tree.nodes)
+            bpy.ops.node.group_separate(type=type)
 
-    separated_nodes = [node for node in test_tree.nodes if node.select and node.parent is None]
-    centroid = node_centroid(separated_nodes)
-    # Re-attach to the parent frame to identify the operator result.
-    for node in separated_nodes:
-        offset = node.location - centroid
-        node.parent = find_test_frame(test_tree, test_case)
-        node.location = group_node.location + Vector((0, -1000)) + offset
+        separated_nodes = [node for node in test_tree.nodes if node.select and node.parent is None]
+        centroid = node_centroid(separated_nodes)
+        # Re-attach to the parent frame to identify the operator result.
+        for node in separated_nodes:
+            offset = node.location - centroid
+            node.parent = find_test_frame(test_tree, test_case)
+            node.location = group_node.location + Vector((0, -1000)) + offset
 
-    if expected_tree:
-        # Map resulting nodes to expected nodes.
-        result_nodes = find_expected_nodes(test_tree, test_case)
-        expected_nodes = find_expected_nodes(expected_tree, test_case)
-        mapping = NodeMapping()
-        mapping.add_nodes_by_name(result_nodes, expected_nodes)
-        return mapping
+    if not expected_tree:
+        return
+    # Map resulting nodes to expected nodes.
+    result_nodes_internal, _ = find_test_nodes(test_tree, test_case)
+    expected_nodes_internal, expected_nodes_external = find_test_nodes(expected_tree, test_case)
+    mapping = NodeMapping()
+    mapping.add_nodes_by_name(result_nodes_internal, expected_nodes_internal, False)
+    mapping.add_nodes_by_name(test_nodes_external, expected_nodes_external, False)
+    return mapping
 
 
 class AbstractNodeCopyOperatorTest(unittest.TestCase):
@@ -343,7 +400,7 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
         self.assertTrue(args.testdir.exists(),
                         'Test dir {0} should exist'.format(args.testdir))
         open_test_file()
-        self.assertEqual(bpy.data.version, (5, 1, 16))
+        self.assertEqual(bpy.data.version, (5, 1, 23))
 
     def tearDown(self):
         self._tempdir.cleanup()
@@ -397,15 +454,8 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
 
                 for test_link in test_socket.links:
                     test_target = link_target(test_link)
-                    # If there is no entry in the mapping for the connected test socket then the link is ignored.
-                    # External connections are not usually added to the map to keep test cases simple.
-                    # The total number of links must still match.
-                    expected_target = (
-                        mapping.node_map.get(
-                            test_target[0], None), mapping.socket_map.get(
-                            test_target[1], None))
-                    if expected_target[0]:
-                        self.assertIn(expected_target, expected_targets)
+                    expected_target = (mapping.node_map[test_target[0]], mapping.socket_map[test_target[1]])
+                    self.assertIn(expected_target, expected_targets)
 
     # Validate a node against the expected data using the node map.
     def compare_node(self, test_node, expected_node, mapping):
@@ -474,14 +524,9 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
                 self.assertEqual(test_item.default_closed, expected_item.default_closed)
 
     def compare(self, mapping):
-        # New sockets may be added to this dictionary while comparing nodes!
-        # Make a copy of the original nodes that should be compared.
-        orig_test_nodes = list(mapping.node_map.keys())
-        orig_expected_nodes = list(mapping.node_map.values())
-
         for test_tree, expected_tree in mapping.tree_map.items():
             self.compare_tree_interface(test_tree, expected_tree)
-        for test_node, expected_node in zip(orig_test_nodes, orig_expected_nodes):
+        for test_node, expected_node in mapping.node_map.items():
             self.compare_node(test_node, expected_node, mapping)
 
 

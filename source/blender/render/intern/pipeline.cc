@@ -61,8 +61,6 @@
 
 #include "NOD_composite.hh"
 
-#include "COM_compositor.hh"
-#include "COM_context.hh"
 #include "COM_node_group_operation.hh"
 #include "COM_render_context.hh"
 
@@ -78,6 +76,7 @@
 
 #include "MOV_write.hh"
 
+#include "RE_compositor.hh"
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
@@ -157,7 +156,7 @@ static void render_callback_exec_string(Render *re, Main *bmain, eCbEvent evt, c
   if (re->r.scemode & R_BUTS_PREVIEW) {
     return;
   }
-  BKE_callback_exec_string(bmain, evt, str);
+  BKE_callback_exec_string(bmain, str, evt);
 }
 
 static void render_callback_exec_id(Render *re, Main *bmain, ID *id, eCbEvent evt)
@@ -207,7 +206,7 @@ static void stats_background(void * /*arg*/, RenderStats *rs)
 
   /* NOTE: using G_MAIN seems valid here???
    * Not sure it's actually even used anyway, we could as well pass nullptr? */
-  BKE_callback_exec_string(G_MAIN, BKE_CB_EVT_RENDER_STATS, rs->infostr);
+  BKE_callback_exec_string(G_MAIN, rs->infostr, BKE_CB_EVT_RENDER_STATS);
 
   if (show_info) {
     fflush(stdout);
@@ -677,8 +676,8 @@ void RE_FreeUnusedGPUResources()
 
     if (do_free) {
       re_gpu_texture_caches_free(re);
-      if (!re->display_shared) {
-        RE_display_free(re);
+      if (re->display && !re->display_shared) {
+        re->display->free_gpu_context();
       }
 
       /* We also free the resources from the interactive compositor render of the scene if one
@@ -687,8 +686,10 @@ void RE_FreeUnusedGPUResources()
           RenderGlobal.interactive_compositor_renders.lookup_default(re->owner, nullptr);
       if (interactive_compositor_render) {
         re_gpu_texture_caches_free(interactive_compositor_render);
-        if (!interactive_compositor_render->display_shared) {
-          RE_display_free(interactive_compositor_render);
+        if (interactive_compositor_render->display &&
+            !interactive_compositor_render->display_shared)
+        {
+          interactive_compositor_render->display->free_gpu_context();
         }
       }
     }
@@ -866,7 +867,7 @@ void RE_InitState(Render *re,
 
     /* make empty render result, so display callbacks can initialize */
     render_result_free(re->result);
-    re->result = MEM_new_for_free<RenderResult>("new render result");
+    re->result = MEM_new<RenderResult>("new render result");
     re->result->rectx = re->rectx;
     re->result->recty = re->recty;
     BKE_scene_ppm_get(&re->r, re->result->ppm);
@@ -963,11 +964,11 @@ void RE_display_share(Render *re, const Render *parent_re)
 
 void RE_display_free(Render *re)
 {
-  /* Re-initializing with a new RenderDisplay will free the GPU contexts. */
+  /* Re-initializing with a new RenderDisplay will free the GPU contexts and all callbacks. */
   RE_display_init(re);
 }
 
-void *RE_system_gpu_context_get(Render *re)
+GHOST_IContext *RE_system_gpu_context_get(Render *re)
 {
   RenderDisplay *display = re->display.get();
   return display->system_gpu_context;
@@ -1193,7 +1194,9 @@ static void do_render_compositor_scenes(Render *re)
 
     scenes_rendered.add_new(node_scene);
     do_render_compositor_scene(re, node_scene, re->scene->r.cfra);
-    node->typeinfo->updatefunc(re->scene->compositing_node_group, node);
+    if (node->typeinfo->updatefunc) {
+      node->typeinfo->updatefunc(re->scene->compositing_node_group, node);
+    }
   }
 
   /* If another scene was rendered, switch back to the current scene. */
@@ -1255,9 +1258,6 @@ static void do_render_compositor(Render *re)
       }
 
       if (!re->display->test_break()) {
-        ntree->runtime->test_break = re->display->test_break_cb;
-        ntree->runtime->tbh = re->display->tbh;
-
         if (update_newframe) {
           /* If we have consistent depsgraph now would be a time to update them. */
         }
@@ -1272,26 +1272,23 @@ static void do_render_compositor(Render *re)
 
         CLOG_STR_INFO(&LOG, "Executing compositor");
 
-        re->display->progress(0.0f);
         re->i.infostr = IFACE_("Compositing");
         re->display->stats_draw(&re->i);
+        re->i.infostr = nullptr;
 
         compositor::RenderContext compositor_render_context;
         compositor_render_context.is_animation_render = re->flag & R_ANIMATION;
         for (RenderView &rv : re->result->views) {
-          COM_execute(re,
-                      &re->r,
-                      re->pipeline_scene_eval,
-                      ntree,
-                      rv.name,
-                      &compositor_render_context,
-                      nullptr,
-                      needed_outputs);
+          RE_compositor_execute(*re,
+                                *re->pipeline_scene_eval,
+                                re->r,
+                                *ntree,
+                                rv.name,
+                                &compositor_render_context,
+                                nullptr,
+                                needed_outputs);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
-
-        ntree->runtime->test_break = nullptr;
-        ntree->runtime->tbh = nullptr;
       }
     }
   }
@@ -2820,7 +2817,7 @@ RenderPass *RE_create_gp_pass(RenderResult *rr, const char *layername, const cha
   RenderLayer *rl = RE_GetRenderLayer(rr, layername);
   /* only create render layer if not exist */
   if (!rl) {
-    rl = MEM_new_for_free<RenderLayer>(layername);
+    rl = MEM_new<RenderLayer>(layername);
     BLI_addtail(&rr->layers, rl);
     STRNCPY(rl->name, layername);
     rl->layflag = SCE_LAY_SOLID;
