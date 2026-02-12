@@ -69,6 +69,7 @@ static NestedBundleTypePtr make_world_type()
   Vector<std::shared_ptr<const FlatBundleType>> types;
   types.append(GravityBundle::get_bundle_type());
   types.append(XPBDGeometryBundle::get_bundle_type());
+  types.append(DampingBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>("Blender.XpbdWorld",
                                                                             std::move(types));
