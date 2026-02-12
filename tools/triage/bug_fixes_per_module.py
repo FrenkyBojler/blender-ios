@@ -46,7 +46,7 @@ from gitea_utils import url_json_get, BASE_API_URL
 # -----------------------------------------------------------------------------
 # Constant used throughout the script
 
-UNKNOWN = "UNKNOWN"
+UNKNOWN_MODULE = "UNKNOWN_MODULE"
 
 
 # -----------------------------------------------------------------------------
@@ -64,7 +64,7 @@ class CommitInfo():
         self.fixed_reports: list[str] = []
         self.check_full_commit_message_for_fixed_reports()
 
-        self.module = UNKNOWN
+        self.module = UNKNOWN_MODULE
 
     def check_full_commit_message_for_fixed_reports(self) -> None:
         command = ['git', 'show', '-s', '--format=%B', self.hash]
@@ -86,7 +86,7 @@ class CommitInfo():
                 # Module labels are typically in the format Module/NAME.
                 return " ".join(label['name'].split("/")[1:])
 
-        return UNKNOWN
+        return UNKNOWN_MODULE
 
     def classify(self) -> bool:
         commit_was_sorted = False
@@ -108,7 +108,7 @@ class CommitInfo():
             # The commit didn't exit early due to the criteria above, so it was correctly sorted.
             commit_was_sorted = True
             module = self.get_module(report_information['labels'])
-            if module != UNKNOWN:
+            if module != UNKNOWN_MODULE:
                 self.module = module
                 break
         return commit_was_sorted
@@ -252,13 +252,13 @@ def print_info(list_of_commits: list[CommitInfo], start_date: str, end_date: str
     dict_of_modules_and_commits = dict(sorted(dict_of_modules_and_commits.items()))
 
     for module in dict_of_modules_and_commits:
-        if module == UNKNOWN:
+        if module == UNKNOWN_MODULE:
             continue
         print(f"{module}: {len(dict_of_modules_and_commits[module])}")
 
-    if UNKNOWN in dict_of_modules_and_commits:
-        unknown_commits = dict_of_modules_and_commits[UNKNOWN]
-        print(f"\n{UNKNOWN}: {len(unknown_commits)}")
+    if UNKNOWN_MODULE in dict_of_modules_and_commits:
+        unknown_commits = dict_of_modules_and_commits[UNKNOWN_MODULE]
+        print(f"\nUnknown: {len(unknown_commits)}")
         print("Here is a list of the commits with unknown modules.")
         print("Go through each of the commit messages, find the bug reports they fixed, then update the module label.")
         for commit in unknown_commits:
