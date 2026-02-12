@@ -108,23 +108,9 @@ struct AtomicLexer : lexit::TokenBuffer {
   Line line(int index) const;
   Directive directive(int index) const;
 
-  /* Chosen to be easily masked. */
-  constexpr static TokenAtom long_atom_range_start = 0x8000;
-
-  constexpr BLI_INLINE uint16_t smol_hash(std::string_view s)
-  {
-    uint32_t hash = 5381;
-    hash = ((hash << 5) + hash) + s.size();
-    hash = ((hash << 5) + hash) + static_cast<uint8_t>(s[0]);
-    hash = ((hash << 5) + hash) + static_cast<uint8_t>(s[s.size() / 2]);
-    hash = ((hash << 5) + hash) + static_cast<uint8_t>(s.back());
-    return static_cast<uint16_t>(hash);
-  }
-
   BLI_INLINE_METHOD TokenAtom hash(StringRef tok_str)
   {
-    uint16_t hash = smol_hash(tok_str);
-    return table.lookup_or_add(hash, tok_str);
+    return table.lookup_or_add(tok_str);
   }
 
   TokenPastingBuffer pasting_buf;
@@ -207,13 +193,29 @@ struct AtomicLexer : lexit::TokenBuffer {
     hash("void");
 
     line_offsets_buf_.append(0);
-    for (auto tok : *this) {
+
+    /* The unsafe lex needs to operate on tokens that start
+     * before the last 16 bytes of the input string. */
+    lex_token_range<true>(IndexRange(size_).drop_back(16), id_to_tok.as_span());
+    lex_token_range<false>(IndexRange(size_).take_back(16), id_to_tok.as_span());
+
+    /* Finish last line. But only do so if it contains at least one character. */
+    if (line_offsets_buf_.last() != size()) {
+      line_offsets_buf_.append(size());
+    }
+
+    line_offsets = line_offsets_buf_.as_span();
+  }
+
+  template<bool Unsafe> void lex_token_range(IndexRange range, Span<TokenType> id_to_tok)
+  {
+    for (int i : range) {
+      TokenMut tok = (*this)[i];
       TokenType type = tok.type();
       switch (type) {
         case Word: {
           StringRef str = tok.str();
-          uint16_t hash = smol_hash(str);
-          TokenAtom atom = table.lookup_or_add(hash, str);
+          TokenAtom atom = table.lookup_or_add<Unsafe>(str);
           type = id_to_tok[std::min(TokenAtom(32 - 1), atom)];
           tok.atom() = atom;
           tok.type() = type;
@@ -240,14 +242,6 @@ struct AtomicLexer : lexit::TokenBuffer {
           break;
       }
     }
-
-    /* Finish last line. But only do so if it contains at least one character. */
-    if (line_offsets_buf_.last() != size()) {
-      line_offsets_buf_.append(size());
-    }
-
-    line_offsets = line_offsets_buf_.as_span();
-    // table.print_distribution_stats();
   }
 };
 
