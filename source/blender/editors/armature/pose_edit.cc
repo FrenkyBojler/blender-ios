@@ -28,6 +28,7 @@
 #include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -653,10 +654,11 @@ static void build_rotation_fcurve_map(RNAPathFCurveMap &pchan_rotations,
   }
 }
 
-static Set<int64_t> build_keyframe_ids(const Span<FCurve *> fcurves)
+static Set<int64_t> build_keyframe_ids(FCurve *fcurves[4])
 {
   Set<int64_t> keyframe_ids;
-  for (FCurve *fcurve : fcurves) {
+  const Span<FCurve *> fcurve_span(fcurves, 4);
+  for (FCurve *fcurve : fcurve_span) {
     if (!fcurve || !fcurve->bezt) {
       continue;
     }
@@ -753,10 +755,8 @@ static void convert_pose_bone_rotation_keys(Main *bmain,
   float rotation_values[4];
   float rotation_matrix[3][3];
 
-  int fcurve_count = 4;
-  if (pchan.rotmode > ROT_MODE_QUAT) {
-    fcurve_count = 3;
-  }
+  const int evaluation_buffer_count = pchan.rotmode > ROT_MODE_QUAT ? 3 : 4;
+  const int insertion_buffer_count = to_mode > ROT_MODE_QUAT ? 3 : 4;
   /* True if the conversion is just between different euler rotations. */
   const bool is_rotation_order_change = pchan.rotmode > ROT_MODE_QUAT && to_mode > ROT_MODE_QUAT;
   FCurve *evaluation_buffer[4];
@@ -766,32 +766,39 @@ static void convert_pose_bone_rotation_keys(Main *bmain,
     if (is_rotation_order_change) {
       /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
        * rotation mode could influence the result. */
-      for (int i : IndexRange(fcurve_count)) {
-        insertion_buffer[i] = &item.key->fcurve_ensure(bmain, {new_rotation_path, i});
+      animrig::FCurveDescriptor descriptor = {
+          new_rotation_path, 0, PROP_FLOAT, PROP_EULER, pchan.name};
+      for (int i : IndexRange(3)) {
+        descriptor.array_index = i;
+        insertion_buffer[i] = &item.key->fcurve_ensure(bmain, descriptor);
         evaluation_buffer[i] = BKE_fcurve_copy(insertion_buffer[i]);
       }
     }
     else {
-      for (int i : IndexRange(fcurve_count)) {
-        evaluation_buffer[i] = &item.key->fcurve_ensure(bmain, {new_rotation_path, i});
-        insertion_buffer[i] = evaluation_buffer[i];
+      for (int i : IndexRange(evaluation_buffer_count)) {
+        evaluation_buffer[i] = item.value.fcurves[i];
+      }
+      animrig::FCurveDescriptor descriptor = {
+          new_rotation_path, 0, PROP_FLOAT, PROP_EULER, pchan.name};
+      for (int i : IndexRange(insertion_buffer_count)) {
+        descriptor.array_index = i;
+        insertion_buffer[i] = &item.key->fcurve_ensure(bmain, descriptor);
       }
     }
-    Span<FCurve *> fcurve_span(item.value.fcurves, fcurve_count);
-    Set<int64_t> keyframe_ids = build_keyframe_ids(fcurve_span);
+    Set<int64_t> keyframe_ids = build_keyframe_ids(evaluation_buffer);
     get_rotation_values(pchan, rotation_values);
 
     for (const int64_t frame_id : keyframe_ids) {
       const float frame = frame_id * BEZT_BINARYSEARCH_THRESH;
       /* Generate the current rotation values respecting missing FCurves. */
-      for (int i : IndexRange(fcurve_count)) {
+      for (int i : IndexRange(evaluation_buffer_count)) {
         FCurve *fcurve = evaluation_buffer[i];
         rotation_values[fcurve->array_index] = evaluate_fcurve(fcurve, frame);
       }
       /* Convert those to the new rotation mode. */
       rotation_values_to_matrix(rotation_values, eRotationModes(pchan.rotmode), rotation_matrix);
       matrix_to_rotation_values(rotation_matrix, to_mode, previous_conversion, converted_rotation);
-      for (int i : IndexRange(fcurve_count)) {
+      for (int i : IndexRange(insertion_buffer_count)) {
         /* Insert a key */
         FCurve *fcurve = insertion_buffer[i];
         animrig::insert_vert_fcurve(
@@ -802,7 +809,7 @@ static void convert_pose_bone_rotation_keys(Main *bmain,
     }
 
     if (is_rotation_order_change) {
-      for (int i = 0; i < fcurve_count; i++) {
+      for (int i = 0; i < evaluation_buffer_count; i++) {
         BKE_fcurve_free(evaluation_buffer[i]);
       }
     }
@@ -829,6 +836,7 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
       }
       convert_pose_bone_rotation_keys(
           CTX_data_main(C), *ob, *pchan, fcurves_by_rna_path, eRotationModes(mode));
+      DEG_id_tag_update(&adt->action->id, ID_RECALC_ANIMATION);
     }
     else {
       /* No animation, just convert the values. */
