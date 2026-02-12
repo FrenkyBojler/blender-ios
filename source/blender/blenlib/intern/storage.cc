@@ -409,7 +409,7 @@ bool BLI_exists(const char *path)
   free(path_16);
   return exists;
 #else
-  return BLI_file_stat_mode(path);
+  return BLI_file_stat_mode(path) != 0;
 #endif
 }
 

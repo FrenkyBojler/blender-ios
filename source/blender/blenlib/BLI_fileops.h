@@ -32,7 +32,7 @@ namespace blender {
 /** \name Common
  * \{ */
 
- /**
+/**
  * Returns true if the path (file or directory) exists.
  */
 bool BLI_exists(const char *path) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
