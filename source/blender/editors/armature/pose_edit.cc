@@ -654,6 +654,9 @@ static void build_rotation_fcurve_map(RNAPathFCurveMap &pchan_rotations,
   }
 }
 
+/* Builds a set of frames where at least one of the given FCurves has a key. This uses int instead
+ * of float to avoid precision issues. The maximum subframe resolution is dicated by
+ * BEZT_BINARYSEARCH_THRESH so this is used to convert to a unique integer. */
 static Set<int64_t> build_keyframe_ids(FCurve *fcurves[4])
 {
   Set<int64_t> keyframe_ids;
