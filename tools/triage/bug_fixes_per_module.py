@@ -123,7 +123,7 @@ def argparse_create() -> argparse.ArgumentParser:
     parser.add_argument(
         "-s",
         "--start",
-        default="",
+        required=True,
         help=(
             "Date to start checking commits from. Must be in the format YYYY-MM-DD."
         ),
@@ -131,7 +131,7 @@ def argparse_create() -> argparse.ArgumentParser:
     parser.add_argument(
         "-e",
         "--end",
-        default="",
+        required=True,
         help=(
             "Date to stop checking commits. Must be in the format YYYY-MM-DD."
         ),
