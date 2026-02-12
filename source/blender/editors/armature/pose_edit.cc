@@ -787,12 +787,29 @@ static void convert_pose_bone_rotation_keys(Main *bmain,
     }
     Set<int64_t> keyframe_ids = build_keyframe_ids(evaluation_buffer);
     get_rotation_values(pchan, rotation_values);
+    animrig::KeyframeSettings settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO_ANIM, BEZT_IPO_BEZ};
+    for (int i : IndexRange(evaluation_buffer_count)) {
+      FCurve *fcurve = evaluation_buffer[i];
+      if (!fcurve || !fcurve->bezt) {
+        continue;
+      }
+      /* Using the settings of the first key assumes that the settings are consistent which they
+       * may not be. */
+      BezTriple &key = fcurve->bezt[0];
+      settings.handle = eBezTriple_Handle(key.h1);
+      settings.interpolation = eBezTriple_Interpolation(key.ipo);
+      settings.keyframe_type = BEZKEYTYPE(&key);
+      break;
+    }
 
     for (const int64_t frame_id : keyframe_ids) {
       const float frame = frame_id * BEZT_BINARYSEARCH_THRESH;
       /* Generate the current rotation values respecting missing FCurves. */
       for (int i : IndexRange(evaluation_buffer_count)) {
         FCurve *fcurve = evaluation_buffer[i];
+        if (!fcurve) {
+          continue;
+        }
         rotation_values[fcurve->array_index] = evaluate_fcurve(fcurve, frame);
       }
       /* Convert those to the new rotation mode. */
@@ -801,8 +818,9 @@ static void convert_pose_bone_rotation_keys(Main *bmain,
       for (int i : IndexRange(insertion_buffer_count)) {
         /* Insert a key */
         FCurve *fcurve = insertion_buffer[i];
+        BLI_assert_msg(fcurve, "For insertion all FCurves are expected to be created before");
         animrig::insert_vert_fcurve(
-            fcurve, {frame, converted_rotation[i]}, {}, eInsertKeyFlags(0));
+            fcurve, {frame, converted_rotation[i]}, settings, eInsertKeyFlags(0));
       }
 
       std::swap(converted_rotation, previous_conversion);
