@@ -498,78 +498,68 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   }
 };
 
-// class FrictionConstraintSet : public TemplatedVelocityConstraintSet<FrictionConstraintSet> {
-//  private:
-//   int geo_i_;
-//   /* Constraint index for each point. */
-//   Span<int> index_mapping_;
-//   /* True if the contact is in static friction. */
-//   Span<float3> separating_axes_;
-//   Span<float3> contact_velocities_;
-//   /* Constraint multiplier lambda for the normal displacement divided by time step. */
-//   Span<float> dynamic_friction_terms_;
-//   Span<float> lambdas_normal_;
-//   MutableSpan<float> lambdas_;
+class FrictionConstraintSet : public TemplatedVelocityConstraintSet<FrictionConstraintSet> {
+ private:
+  int geo_i_;
+  /* Constraint index for each point. */
+  Span<int> points_;
+  Span<float3> separating_axes_;
+  Span<float3> contact_velocities_;
+  /* Constraint multiplier lambda for the normal displacement divided by time step. */
+  Span<float> dynamic_friction_terms_;
+  Span<float> lambdas_normal_;
+  MutableSpan<float> lambdas_;
 
-//  public:
-//   static constexpr StringRefNull debug_name = "Friction";
+ public:
+  static constexpr StringRefNull debug_name = "Friction";
 
-//   FrictionConstraintSet(const int geo_i,
-//                         const Span<int> index_mapping,
-//                         const Span<float3> separating_axes,
-//                         const Span<float3> contact_velocities,
-//                         const Span<float> dynamic_friction_terms,
-//                         const Span<float> lambdas_normal,
-//                         MutableSpan<float> lambdas)
-//       : TemplatedVelocityConstraintSet<FrictionConstraintSet>({geo_i}),
-//         geo_i_(geo_i),
-//         index_mapping_(index_mapping),
-//         separating_axes_(separating_axes),
-//         contact_velocities_(contact_velocities),
-//         dynamic_friction_terms_(dynamic_friction_terms),
-//         lambdas_normal_(lambdas_normal),
-//         lambdas_(lambdas)
-//   {
-//   }
+  FrictionConstraintSet(const int geo_i,
+                        const Span<int> points,
+                        const Span<float3> separating_axes,
+                        const Span<float3> contact_velocities,
+                        const Span<float> dynamic_friction_terms,
+                        const Span<float> lambdas_normal,
+                        MutableSpan<float> lambdas)
+      : TemplatedVelocityConstraintSet<FrictionConstraintSet>(points.size(), {geo_i}),
+        geo_i_(geo_i),
+        points_(points),
+        separating_axes_(separating_axes),
+        contact_velocities_(contact_velocities),
+        dynamic_friction_terms_(dynamic_friction_terms),
+        lambdas_normal_(lambdas_normal),
+        lambdas_(lambdas)
+  {
+  }
 
-//   void reset_force(const int point_i) const
-//   {
-//     const int constraint_i = index_mapping_[point_i];
-//     if (constraint_i < 0) {
-//       return;
-//     }
+  void reset_force(const int constraint_i) const
+  {
+    lambdas_[constraint_i] = 0.0f;
+  }
 
-//     lambdas_[constraint_i] = 0.0f;
-//   }
+  template<typename UpdaterT>
+  void evaluate_single(UpdaterT &updater,
+                       const ConstraintSetParams &params,
+                       const int constraint_i) const
+  {
+    const int point_i = points_[constraint_i];
+    const float3 &axis = separating_axes_[constraint_i];
+    const float3 &contact_velocity = contact_velocities_[constraint_i];
+    const float3 &velocity = params.velocity(geo_i_, point_i) - contact_velocity;
+    const float3 velocity_tangent = velocity - math::dot(velocity, axis) * axis;
+    float residual;
+    const float3 gradient = math::normalize_and_get_length(velocity_tangent, residual);
+    const float delta_lambda = std::min(
+        dynamic_friction_terms_[constraint_i] * lambdas_normal_[constraint_i], residual);
 
-//   template<typename UpdaterT>
-//   void evaluate_single(UpdaterT &updater,
-//                        const ConstraintSetParams &params,
-//                        const int point_i) const
-//   {
-//     const int constraint_i = index_mapping_[point_i];
-//     if (constraint_i < 0) {
-//       return;
-//     }
+    lambdas_[constraint_i] += delta_lambda;
+    updater.update_velocity(geo_i_, point_i, -gradient * delta_lambda);
+  }
 
-//     const float3 &axis = separating_axes_[constraint_i];
-//     const float3 &contact_velocity = contact_velocities_[constraint_i];
-//     const float3 &velocity = params.velocity(geo_i_, point_i) - contact_velocity;
-//     const float3 velocity_tangent = velocity - math::dot(velocity, axis) * axis;
-//     float residual;
-//     const float3 gradient = math::normalize_and_get_length(velocity_tangent, residual);
-//     const float delta_lambda = std::min(
-//         dynamic_friction_terms_[constraint_i] * lambdas_normal_[constraint_i], residual);
-
-//     lambdas_[constraint_i] += delta_lambda;
-//     updater.update_velocity(geo_i_, point_i, -gradient * delta_lambda);
-//   }
-
-//   bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
-//   {
-//     return {};
-//   }
-// };
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
+  }
+};
 
 class MinimumDistanceConstraintSet : public TemplatedConstraintSet<MinimumDistanceConstraintSet> {
  private:

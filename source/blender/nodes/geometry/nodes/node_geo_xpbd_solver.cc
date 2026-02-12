@@ -278,6 +278,7 @@ struct ExternalPlaneContacts {
   Vector<float3> positions_on_plane;
   /* The movement of the collider in the current substep. */
   Vector<float3> collider_motion;
+  Vector<float3> collider_velocities;
   Vector<float3> separating_axes;
   Vector<float> static_frictions;
   Vector<float> dynamic_frictions;
@@ -286,18 +287,21 @@ struct ExternalPlaneContacts {
   /* TODO: persist over time */
   Vector<bool> active_states;
   Vector<float> lambdas_normal;
+  Vector<float> lambdas;
 
   void clear()
   {
     this->points.clear();
     this->positions_on_plane.clear();
     this->collider_motion.clear();
+    this->collider_velocities.clear();
     this->separating_axes.clear();
     this->static_frictions.clear();
     this->dynamic_frictions.clear();
     this->compliance_terms.clear();
     this->active_states.clear();
     this->lambdas_normal.clear();
+    this->lambdas.clear();
   }
 };
 
@@ -1154,8 +1158,8 @@ class XpbdSolverStep {
     threading::parallel_for(
         geometries_.chunks.index_range(), 8, [&](const IndexRange chunks_range) {
           for (const int chunk_i : chunks_range) {
-            const ChunkConstraints &chunk_constraints =
-                constraints_info_.chunk_constraints[chunk_i];
+            const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+            ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
 
             Vector<xpbd::VelocityConstraintSet *> local_constraints;
             for (xpbd::LinearDampingConstraintSet *constraint : chunk_constraints.linear_damping) {
@@ -1165,6 +1169,19 @@ class XpbdSolverStep {
             {
               local_constraints.append(constraint);
             }
+            std::optional<xpbd::FrictionConstraintSet> friction_constraint;
+            if (!chunk_constraints.external_plane_contacts.points.is_empty()) {
+              ExternalPlaneContacts &contacts = chunk_constraints.external_plane_contacts;
+              friction_constraint.emplace(chunk.data_key_i,
+                                          contacts.points,
+                                          contacts.separating_axes,
+                                          contacts.collider_velocities,
+                                          contacts.dynamic_frictions,
+                                          contacts.lambdas_normal,
+                                          contacts.lambdas);
+              local_constraints.append(&*friction_constraint);
+            }
+
             xpbd::VelocityUpdater velocity_updater{geometries_.solver_refs};
             xpbd::ConstraintSetParams params{
                 geometries_.solver_refs, sub_delta_time_, std::nullopt};
@@ -1336,6 +1353,7 @@ class XpbdSolverStep {
         r_contacts.positions_on_plane.append(position - collider.normal * distance);
         /* Static plane does not move. */
         r_contacts.collider_motion.append(float3(0.0f));
+        r_contacts.collider_velocities.append(float3(0.0f));
         r_contacts.separating_axes.append(collider.normal);
         const float point_friction = geo_data.frictions[point_i];
         const float friction = math::sqrt(point_friction * collider.friction);
@@ -1344,9 +1362,10 @@ class XpbdSolverStep {
         r_contacts.compliance_terms.append(0.0f);
       }
     }
-    // TODO
-    r_contacts.lambdas_normal = Vector<float>(r_contacts.points.size(), 0.0f);
-    r_contacts.active_states = Vector<bool>(r_contacts.points.size(), false);
+    const int contacts_num = r_contacts.points.size();
+    r_contacts.lambdas_normal = Vector<float>(contacts_num, 0.0f);
+    r_contacts.lambdas = Vector<float>(contacts_num, 0.0f);
+    r_contacts.active_states = Vector<bool>(contacts_num, false);
   }
 
   float get_max_search_distance(const float delta_time)
