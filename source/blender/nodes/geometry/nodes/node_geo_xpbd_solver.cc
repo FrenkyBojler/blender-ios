@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_bvhutils.hh"
+#include "BKE_instances.hh"
 #include "BLI_stack.hh"
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
@@ -331,6 +332,7 @@ struct InfinitePlaneColliders {
 
 struct MeshCollider {
   std::string path;
+  Vector<int> instance_ids;
   const Mesh *mesh;
   bke::BVHTreeFromMesh corner_tris_bvh;
   float4x4 end_transform;
@@ -533,17 +535,69 @@ class XpbdSolverStep {
       if (!geometry) {
         continue;
       }
-      const Mesh *mesh = geometry->get_mesh();
-      if (!mesh) {
-        continue;
+      Vector<int> affected_data;
+      // TODO: support filtering
+      for (const int data_key_i : geometries_.data_keys.index_range()) {
+        affected_data.append(data_key_i);
       }
-      if (mesh->faces_num == 0) {
-        continue;
+      Vector<int> instance_id_stack;
+      this->gather_colliders_in_geometry(path,
+                                         float4x4::identity(),
+                                         *geometry,
+                                         friction,
+                                         compliance,
+                                         affected_data,
+                                         instance_id_stack);
+    }
+  }
+
+  void gather_colliders_in_geometry(const StringRef path,
+                                    const float4x4 &transform,
+                                    const GeometrySet &collider_geo,
+                                    const float friction,
+                                    const float compliance,
+                                    const Span<int> affected_data,
+                                    Vector<int> &instance_id_stack)
+  {
+    if (const Mesh *mesh = collider_geo.get_mesh()) {
+      if (mesh->faces_num > 0) {
+        const int collider_i = constraints_info_.mesh_colliders.colliders.append_and_get_index(
+            {path,
+             instance_id_stack,
+             mesh,
+             mesh->bvh_corner_tris(),
+             transform,
+             friction,
+             compliance});
+        for (const int data_key_i : affected_data) {
+          geometries_.data[data_key_i].mesh_colliders.append(collider_i);
+        }
       }
-      const int collider_i = constraints_info_.mesh_colliders.colliders.append_and_get_index(
-          {path, mesh, mesh->bvh_corner_tris(), float4x4::identity(), friction, compliance});
-      for (GeometryData &geo_data : geometries_.data) {
-        geo_data.mesh_colliders.append(collider_i);
+    }
+    if (const bke::Instances *instances = collider_geo.get_instances()) {
+      const Span<float4x4> instance_transforms = instances->transforms();
+      const Span<bke::InstanceReference> references = instances->references();
+      const Span<int> handles = instances->reference_handles();
+      const Span<int> instance_ids = instances->unique_ids();
+      for (const int instance_i : instance_transforms.index_range()) {
+        const int handle = handles[instance_i];
+        if (!references.index_range().contains(handle)) {
+          continue;
+        }
+        const int instance_id = instance_ids[instance_i];
+        const float4x4 instance_transform = instance_transforms[instance_i];
+        const bke::InstanceReference &reference = references[handle];
+        GeometrySet reference_geo;
+        reference.to_geometry_set(reference_geo);
+        instance_id_stack.append(instance_id);
+        BLI_SCOPED_DEFER([&]() { instance_id_stack.pop_last(); });
+        this->gather_colliders_in_geometry(path,
+                                           transform * instance_transform,
+                                           reference_geo,
+                                           friction,
+                                           compliance,
+                                           affected_data,
+                                           instance_id_stack);
       }
     }
   }
