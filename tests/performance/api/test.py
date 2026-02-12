@@ -24,7 +24,6 @@ class Test:
         Test uses a specific CPU or GPU device.
         """
         return False
-    
     def use_background(self) -> bool:
         """
         Test runs in background mode and requires no display.

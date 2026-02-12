@@ -149,4 +149,4 @@ else:
 
     def generate(env):
         filepaths = env.find_blend_files('eevee/*')
-        return [EeveeTest(filepath) for (filepath) in filepaths]
+        return [EeveeTest(filepath) for filepath in filepaths]

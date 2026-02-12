@@ -135,8 +135,6 @@ class TestConfig:
         self.devices = []
         self._update_devices(env, getattr(config, 'devices', ['CPU']))
 
-        self.gpu_backends = getattr(config, 'gpu_backends', ['default'])
-
         self._update_queue(env)
 
     def revision_names(self) -> list:
@@ -154,7 +152,6 @@ class TestConfig:
         config_dir.mkdir(parents=True, exist_ok=True)
 
         default_config = """devices = ['CPU']\n"""
-        default_config += """gpu_backends = ['default']\n"""
         default_config += """tests = ['*']\n"""
         default_config += """categories = ['*']\n"""
         default_config += """builds = {\n"""
@@ -258,10 +255,10 @@ class TestConfig:
                 if entry:
                     # Test if revision hash or executable changed.
                     if entry.git_hash != git_hash or \
-                        entry.executable != executable or \
-                        entry.environment != environment or \
-                        entry.benchmark_type != self.benchmark_type or \
-                        entry.date != date:
+                       entry.executable != executable or \
+                       entry.environment != environment or \
+                       entry.benchmark_type != self.benchmark_type or \
+                       entry.date != date:
                         
                         # Update existing entry.
                         entry.git_hash = git_hash
