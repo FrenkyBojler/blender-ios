@@ -13,8 +13,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_input<decl::String>("String").optional_label();
   b.add_output<decl::String>("String").align_with_previous();
-  b.add_input<decl::Bool>("Whitespace").default_value(true);
   b.add_input<decl::String>("Characters").optional_label();
+  b.add_input<decl::Bool>("Whitespace").default_value(true);
 }
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
