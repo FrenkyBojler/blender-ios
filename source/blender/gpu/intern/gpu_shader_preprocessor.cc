@@ -141,7 +141,54 @@ struct AtomicLexer : lexit::TokenBuffer {
   /* Backing buffer for line_offsets. */
   Vector<int> line_offsets_buf_;
 
+  static constexpr PaddedString8 pad_ifdef = {'i', 'f', 'd', 'e', 'f', '\0', '\0', '\0'};
+  static constexpr PaddedString8 pad_else = {'e', 'l', 's', 'e', '\0', '\0', '\0', '\0'};
+  static constexpr PaddedString8 pad_define = {'d', 'e', 'f', 'i', 'n', 'e', '\0', '\0'};
+  static constexpr PaddedString8 pad_if = {'i', 'f', '\0', '\0', '\0', '\0', '\0', '\0'};
+  static constexpr PaddedString8 pad_endif = {'e', 'n', 'd', 'i', 'f', '\0', '\0', '\0'};
+  static constexpr PaddedString8 pad_line = {'l', 'i', 'n', 'e', '\0', '\0', '\0', '\0'};
+  static constexpr PaddedString8 pad_pragma = {'p', 'r', 'a', 'g', 'm', 'a', '\0', '\0'};
+  static constexpr PaddedString8 pad_ifndef = {'i', 'f', 'n', 'd', 'e', 'f', '\0', '\0'};
+  static constexpr PaddedString8 pad_elif = {'e', 'l', 'i', 'f', '\0', '\0', '\0', '\0'};
+  static constexpr PaddedString8 pad_undef = {'u', 'n', 'd', 'e', 'f', '\0', '\0', '\0'};
+
+  struct KeywordHash {
+    static constexpr uint8_t hash(PaddedString8 str)
+    {
+      return (((str.data >> 12) ^ (str.data << 3)) & 0xFF) >> 3;
+    }
+
+    /* Used to fit the hash function manually by checking for overlaps. Not used. */
+    static constexpr void keyword_check(PaddedString8 str)
+    {
+      switch (hash(str)) {
+        case hash(pad_ifdef):
+          break;
+        case hash(pad_else):
+          break;
+        case hash(pad_define):
+          break;
+        case hash(pad_if):
+          break;
+        case hash(pad_endif):
+          break;
+        case hash(pad_line):
+          break;
+        case hash(pad_pragma):
+          break;
+        case hash(pad_ifndef):
+          break;
+        case hash(pad_elif):
+          break;
+        case hash(pad_undef):
+          break;
+      }
+    }
+  };
+
   lexit::IdentifierMap table;
+  lexit::KeywordMap<PaddedString8, TokenAtom, 32, KeywordHash> keyword_map;
+
   /**
    * All-in-one lexing pass.
    * - Keywords identification.
@@ -159,23 +206,19 @@ struct AtomicLexer : lexit::TokenBuffer {
 
     std::memset(atoms_.get(), 0, size() * sizeof(TokenAtom));
 
+    /* Reserved 0 atom (invalid). */
+    hash(" ");
     /* Reserve token identifiers. */
-    hash(" "); /* Reserved 0 atom (invalid).  */
-
-    /* Keyword table. Need to be filled first. */
-    Vector<TokenType, 32> id_to_tok;
-    id_to_tok.resize(32);
-    id_to_tok.fill(Word);
-    id_to_tok[hash("line")] = TokenType::Line;
-    id_to_tok[hash("define")] = Define;
-    id_to_tok[hash("endif")] = Endif;
-    id_to_tok[hash("ifdef")] = Ifdef;
-    id_to_tok[hash("if")] = If;
-    id_to_tok[hash("elif")] = Elif;
-    id_to_tok[hash("else")] = Else;
-    id_to_tok[hash("undef")] = Undef;
-    id_to_tok[hash("ifndef")] = Ifndef;
-    id_to_tok[hash("pragma")] = Pragma;
+    TokenAtom atom_line = hash("line");
+    TokenAtom atom_define = hash("define");
+    TokenAtom atom_endif = hash("endif");
+    TokenAtom atom_ifdef = hash("ifdef");
+    TokenAtom atom_if = hash("if");
+    TokenAtom atom_elif = hash("elif");
+    TokenAtom atom_else = hash("else");
+    TokenAtom atom_undef = hash("undef");
+    TokenAtom atom_ifndef = hash("ifndef");
+    TokenAtom atom_pragma = hash("pragma");
     /* Warm identifier table to have high frequency words at the start of the table and buckets. */
     hash("r");
     hash("float");
@@ -192,12 +235,54 @@ struct AtomicLexer : lexit::TokenBuffer {
     hash("float2");
     hash("void");
 
+    /* Keyword table. Need to be filled first. */
+    std::array<PaddedString8, 32> hash_to_keyword;
+    hash_to_keyword.fill(0);
+    hash_to_keyword[KeywordHash::hash(pad_line)] = pad_line;
+    hash_to_keyword[KeywordHash::hash(pad_define)] = pad_define;
+    hash_to_keyword[KeywordHash::hash(pad_endif)] = pad_endif;
+    hash_to_keyword[KeywordHash::hash(pad_ifdef)] = pad_ifdef;
+    hash_to_keyword[KeywordHash::hash(pad_if)] = pad_if;
+    hash_to_keyword[KeywordHash::hash(pad_elif)] = pad_elif;
+    hash_to_keyword[KeywordHash::hash(pad_else)] = pad_else;
+    hash_to_keyword[KeywordHash::hash(pad_undef)] = pad_undef;
+    hash_to_keyword[KeywordHash::hash(pad_ifndef)] = pad_ifndef;
+    hash_to_keyword[KeywordHash::hash(pad_pragma)] = pad_pragma;
+    keyword_map.match_table = hash_to_keyword;
+
+    std::array<TokenAtom, 32> hash_to_atom;
+    hash_to_atom.fill(0);
+    hash_to_atom[KeywordHash::hash(pad_line)] = atom_line;
+    hash_to_atom[KeywordHash::hash(pad_define)] = atom_define;
+    hash_to_atom[KeywordHash::hash(pad_endif)] = atom_endif;
+    hash_to_atom[KeywordHash::hash(pad_ifdef)] = atom_ifdef;
+    hash_to_atom[KeywordHash::hash(pad_if)] = atom_if;
+    hash_to_atom[KeywordHash::hash(pad_elif)] = atom_elif;
+    hash_to_atom[KeywordHash::hash(pad_else)] = atom_else;
+    hash_to_atom[KeywordHash::hash(pad_undef)] = atom_undef;
+    hash_to_atom[KeywordHash::hash(pad_ifndef)] = atom_ifndef;
+    hash_to_atom[KeywordHash::hash(pad_pragma)] = atom_pragma;
+    keyword_map.value_map = hash_to_atom;
+
+    std::array<TokenType, 32> atom_to_tok;
+    atom_to_tok.fill(Word);
+    atom_to_tok[atom_line] = TokenType::Line;
+    atom_to_tok[atom_define] = Define;
+    atom_to_tok[atom_endif] = Endif;
+    atom_to_tok[atom_ifdef] = Ifdef;
+    atom_to_tok[atom_if] = If;
+    atom_to_tok[atom_elif] = Elif;
+    atom_to_tok[atom_else] = Else;
+    atom_to_tok[atom_undef] = Undef;
+    atom_to_tok[atom_ifndef] = Ifndef;
+    atom_to_tok[atom_pragma] = Pragma;
+
     line_offsets_buf_.append(0);
 
     /* The unsafe lex needs to operate on tokens that start
      * before the last 16 bytes of the input string. */
-    lex_token_range<true>(IndexRange(size_).drop_back(16), id_to_tok.as_span());
-    lex_token_range<false>(IndexRange(size_).take_back(16), id_to_tok.as_span());
+    lex_token_range<true>(IndexRange(size_).drop_back(16), atom_to_tok);
+    lex_token_range<false>(IndexRange(size_).take_back(16), atom_to_tok);
 
     /* Finish last line. But only do so if it contains at least one character. */
     if (line_offsets_buf_.last() != size()) {
@@ -207,18 +292,26 @@ struct AtomicLexer : lexit::TokenBuffer {
     line_offsets = line_offsets_buf_.as_span();
   }
 
-  template<bool Unsafe> void lex_token_range(IndexRange range, Span<TokenType> id_to_tok)
+  template<bool Unsafe> void lex_token_range(IndexRange range, Span<TokenType> atom_to_tok)
   {
     for (int i : range) {
       TokenMut tok = (*this)[i];
       TokenType type = tok.type();
       switch (type) {
         case Word: {
+          TokenAtom atom;
           StringRef str = tok.str();
-          TokenAtom atom = table.lookup_or_add<Unsafe>(str);
-          type = id_to_tok[std::min(TokenAtom(32 - 1), atom)];
+          if constexpr (Unsafe) {
+            if (str.size() <= 16) {
+              PaddedString16 padded_str(str);
+              atom = table.lookup_or_add(padded_str, str.size());
+              tok.type() = atom_to_tok[std::min(TokenAtom(32 - 1), atom)];
+              tok.atom() = atom;
+              break;
+            }
+          }
+          atom = table.lookup_or_add(str);
           tok.atom() = atom;
-          tok.type() = type;
           break;
         }
         case NewLine: {

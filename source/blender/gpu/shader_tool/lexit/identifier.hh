@@ -18,6 +18,65 @@
 
 namespace lexit {
 
+static constexpr uint64_t padded_string_masks[8] = {
+    uint64_t(0xFFFFFFFFFFFFFFFF),
+    uint64_t(0x00000000000000FF),
+    uint64_t(0x000000000000FFFF),
+    uint64_t(0x0000000000FFFFFF),
+    uint64_t(0x00000000FFFFFFFF),
+    uint64_t(0x000000FFFFFFFFFF),
+    uint64_t(0x0000FFFFFFFFFFFF),
+    uint64_t(0x00FFFFFFFFFFFFFF),
+};
+
+/* Copy of a small string onto aligned bytes. This avoids the cost of calling memcmp. */
+struct PaddedString16 {
+  uint64_t data[2] = {0, 0};
+
+  PaddedString16() = default;
+  PaddedString16(std::string_view str)
+  {
+    // assert(str.size() <= 16);
+    /* In order for this to not be slow, we need to copy a known quantity. This is why the caller
+     * needs to ensure the source extends enough bytes after the start `str`. */
+    std::memcpy(data, (const char *)str.data(), sizeof(data));
+    /* Fast way of masking the excess chars. */
+    int last_qword = (str.size() - 1) >> 3;
+    data[last_qword] &= padded_string_masks[str.size() & 7];
+  }
+
+  friend bool operator==(const PaddedString16 &, const PaddedString16 &) = default;
+};
+
+struct PaddedString8 {
+  uint64_t data = 0;
+
+  PaddedString8() = default;
+  /* Source is already padded. */
+  constexpr PaddedString8(const uint64_t str) : data(str) {}
+  /* Note that this looses the size requirement. To be used with caution. */
+  explicit constexpr PaddedString8(const PaddedString16 &s16) : data(s16.data[0]) {}
+
+  constexpr PaddedString8(char c0, char c1, char c2, char c3, char c4, char c5, char c6, char c7)
+      : data((uint64_t(c0) << 0) | (uint64_t(c1) << 8) | (uint64_t(c2) << 16) |
+             (uint64_t(c3) << 24) | (uint64_t(c4) << 32) | (uint64_t(c5) << 40) |
+             (uint64_t(c6) << 48) | (uint64_t(c7) << 56))
+  {
+  }
+
+  PaddedString8(std::string_view str)
+  {
+    // assert(str.size() <= 8);
+    /* In order for this to not be slow, we need to copy a known quantity. This is why the caller
+     * needs to ensure the source extends enough bytes after the start `str`. */
+    std::memcpy(&data, (const char *)str.data(), sizeof(data));
+    /* Fast way of masking the excess chars. */
+    data &= padded_string_masks[str.size() & 7];
+  }
+
+  friend bool operator==(const PaddedString8 &, const PaddedString8 &) = default;
+};
+
 struct IdentifierMap {
   struct alignas(8) Identifier {
     uint16_t next;
@@ -25,12 +84,13 @@ struct IdentifierMap {
     uint32_t hash;
     uint64_t data[0];
 
-    bool operator==(const uint64_t str[2]) const
+    /* Caller must ensure size matches. */
+    bool operator==(PaddedString16 str) const
     {
       if (size > 8) {
-        return data[0] == str[0] && data[1] == str[1];
+        return data[0] == str.data[0] && data[1] == str.data[1];
       }
-      return data[0] == str[0];
+      return data[0] == str.data[0];
     }
 
     bool operator==(std::string_view str) const
@@ -73,45 +133,28 @@ struct IdentifierMap {
     return static_cast<uint16_t>(hash);
   }
 
-  /* If unsafe is true, it means that caller ensures that the string is padded to 16 bytes.
-   * In other term, that the string_view starts before the last 16 bytes of the base string. */
-  template<bool Unsafe = false> INLINE_METHOD TokenAtom lookup_or_add(std::string_view str)
+  INLINE_METHOD TokenAtom lookup_or_add(PaddedString16 str, size_t str_size)
+  {
+    std::string_view str_view{(const char *)&str, str_size};
+    uint32_t hash = str_hash(str_view);
+    uint16_t index = hash_table[hash & hash_table_index_mask];
+
+    Identifier *id = nullptr;
+    for (; index != 0xFFFFu; index = id->next) {
+      id = &identifier_buffer[index];
+      if (id->hash == hash && id->size == str_size && *id == str) [[likely]] {
+        return index;
+      }
+    }
+    return add_after(hash, str_view, id);
+  }
+
+  TokenAtom lookup_or_add(std::string_view str)
   {
     uint32_t hash = str_hash(str);
     uint16_t index = hash_table[hash & hash_table_index_mask];
 
     Identifier *id = nullptr;
-
-    if constexpr (Unsafe) {
-      /* Small identifier optimization. */
-      if (str.size() <= 16) [[likely]] {
-        /* Copy of the small string onto aligned bytes. This avoids the cost of calling memcmp. */
-        uint64_t str_aligned_bytes[2];
-        static const uint64_t mask_table[8] = {
-            uint64_t(0xFFFFFFFFFFFFFFFF),
-            uint64_t(0x00000000000000FF),
-            uint64_t(0x000000000000FFFF),
-            uint64_t(0x0000000000FFFFFF),
-            uint64_t(0x00000000FFFFFFFF),
-            uint64_t(0x000000FFFFFFFFFF),
-            uint64_t(0x0000FFFFFFFFFFFF),
-            uint64_t(0x00FFFFFFFFFFFFFF),
-        };
-        /* In order for this to not be slow, we need to copy a known quantity.
-         * This is why the caller needs to ensure . */
-        std::memcpy(&str_aligned_bytes, str.data(), sizeof(str_aligned_bytes));
-        str_aligned_bytes[int(str.size() > 8)] &= mask_table[str.size() & 7];
-
-        for (; index != 0xFFFFu; index = id->next) {
-          id = &identifier_buffer[index];
-          if (id->hash == hash && id->size == str.size() && *id == str_aligned_bytes) [[likely]] {
-            return index;
-          }
-        }
-        return add_after(hash, str, id);
-      }
-    }
-
     for (; index != 0xFFFFu; index = id->next) {
       id = &identifier_buffer[index];
       if (id->hash == hash && *id == str) [[likely]] {
@@ -149,6 +192,24 @@ struct IdentifierMap {
       std::memcpy(id.data, str.data(), str.size());
     }
     return new_index;
+  }
+};
+
+/**
+ * Based on this article.
+ * https://lemire.me/blog/2022/12/30/quickly-checking-that-a-string-belongs-to-a-small-set/
+ */
+template<typename KeyT, typename ValueT, int Size, typename HashT> struct KeywordMap {
+  std::array<TokenAtom, Size> value_map;
+  std::array<KeyT, Size> match_table;
+
+  constexpr TokenAtom lookup_default(KeyT str, ValueT default_value)
+  {
+    uint8_t hash = HashT::hash(str);
+    bool match = match_table[hash] == str;
+    /* Assuming the input is already a Word, lookup the 0th value on mismatch, which conveniently
+     * is also a Word, resulting in a noop. */
+    return match ? value_map[hash] : default_value;
   }
 };
 
