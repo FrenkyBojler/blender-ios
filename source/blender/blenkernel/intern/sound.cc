@@ -883,9 +883,9 @@ AUD_SequenceEntry BKE_sound_scene_add_scene_sound(Scene *scene, Strip *strip)
     int frameskip = strip->startofs + strip->anim_startofs;
     const double fps = scene->frames_per_second();
     return AUD_SequenceEntry(parent_sound->add(strip->scene->runtime->audio.sound_scene,
-                                                     startframe / fps,
-                                                     endframe / fps,
-                                                     frameskip / fps));
+                                               startframe / fps,
+                                               endframe / fps,
+                                               frameskip / fps));
   }
   return nullptr;
 }
@@ -954,16 +954,15 @@ AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
     parent_strip->runtime->scene_sound->setSound(parent_strip->runtime->meta_sound_sequence);
   }
   if (offset_time >= 0.0f) {
-    return AUD_SequenceEntry(
-        parent_sound->add(add_handle,
-                                (startframe - parent_start) / fps + offset_time,
-                                (endframe - parent_start) / fps,
-                                0.0f));
+    return AUD_SequenceEntry(parent_sound->add(add_handle,
+                                               (startframe - parent_start) / fps + offset_time,
+                                               (endframe - parent_start) / fps,
+                                               0.0f));
   }
   return AUD_SequenceEntry(parent_sound->add(add_handle,
-                                                   (startframe - parent_start) / fps,
-                                                   (endframe - parent_start) / fps,
-                                                   -offset_time));
+                                             (startframe - parent_start) / fps,
+                                             (endframe - parent_start) / fps,
+                                             -offset_time));
 }
 
 void BKE_sound_remove_scene_sound(Scene *scene, AUD_SequenceEntry handle)

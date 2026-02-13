@@ -1110,8 +1110,7 @@ static bool seq_mute_sound_strips_cb(Strip *strip, void *user_data)
 static void strip_update_mix_sounds(Scene *scene, Strip *strip)
 {
   AUD_Sequence parent_sound = BKE_strip_get_parent_sound(strip, scene);
-  if (strip->runtime->scene_sound != nullptr &&
-      parent_sound == strip->runtime->last_parent_sound)
+  if (strip->runtime->scene_sound != nullptr && parent_sound == strip->runtime->last_parent_sound)
   {
     return;
   }
