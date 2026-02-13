@@ -961,15 +961,6 @@ void BKE_undosys_stack_group_end(UndoStack *ustack)
   }
 }
 
-bool ED_undosys_autosave_compatible(UndoStack *ustack)
-{
-  if (!ustack->step_active) {
-    return false;
-  }
-
-  return ELEM(ustack->step_active->type, BKE_UNDOSYS_TYPE_MEMFILE, BKE_UNDOSYS_TYPE_IMAGE);
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */

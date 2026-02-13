@@ -374,6 +374,14 @@ void ED_memfile_undosys_type(UndoType *ut)
 /* -------------------------------------------------------------------- */
 /** \name Utilities
  * \{ */
+bool ED_undosys_autosave_compatible(UndoStack *ustack)
+{
+  if (!ustack->step_active) {
+    return false;
+  }
+
+  return ELEM(ustack->step_active->type, BKE_UNDOSYS_TYPE_MEMFILE, BKE_UNDOSYS_TYPE_IMAGE);
+}
 
 void ED_undosys_stack_memfile_id_changed_tag(UndoStack *ustack, ID *id)
 {

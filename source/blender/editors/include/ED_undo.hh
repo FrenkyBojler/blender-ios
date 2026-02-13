@@ -124,15 +124,14 @@ UndoStack *ED_undo_stack_get();
 void ED_undo_object_set_active_or_warn(
     Scene *scene, ViewLayer *view_layer, Object *ob, const char *info, CLG_LogRef *log);
 
-/* `undo_system.cc` */
-bool ED_undosys_autosave_compatible(UndoStack *ustack);
-
 /* `undo_system_types.cc` */
 
 void ED_undosys_type_init();
 void ED_undosys_type_free();
 
 /* `memfile_undo.cc` */
+
+bool ED_undosys_autosave_compatible(UndoStack *ustack);
 
 /**
  * If the last undo step is a memfile one, find the first #MemFileChunk matching given ID
