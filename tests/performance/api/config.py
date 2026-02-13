@@ -259,7 +259,6 @@ class TestConfig:
                        entry.environment != environment or \
                        entry.benchmark_type != self.benchmark_type or \
                        entry.date != date:
-                        
                         # Update existing entry.
                         entry.git_hash = git_hash
                         entry.environment = environment
