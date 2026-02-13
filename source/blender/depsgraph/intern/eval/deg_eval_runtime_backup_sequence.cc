@@ -79,8 +79,8 @@ StripBackup::StripBackup(const Depsgraph * /*depsgraph*/)
 void StripBackup::reset()
 {
   scene_sound = nullptr;
-  last_parent_sound_scene = nullptr;
-  meta_scene_sound = nullptr;
+  last_parent_sound = nullptr;
+  meta_sound_sequence = nullptr;
   sound_time_stretch = nullptr;
   sound_time_stretch_fps = 0.0f;
   movie_readers.clear();
@@ -90,8 +90,8 @@ void StripBackup::reset()
 void StripBackup::init_from_strip(Strip *strip)
 {
   scene_sound = strip->runtime->scene_sound;
-  last_parent_sound_scene = strip->runtime->last_parent_sound_scene;
-  meta_scene_sound = strip->runtime->meta_scene_sound;
+  last_parent_sound = strip->runtime->last_parent_sound;
+  meta_sound_sequence = strip->runtime->meta_sound_sequence;
   sound_time_stretch = strip->runtime->sound_time_stretch;
   sound_time_stretch_fps = strip->runtime->sound_time_stretch_fps;
   movie_readers = std::move(strip->runtime->movie_readers);
@@ -113,8 +113,8 @@ void StripBackup::init_from_strip(Strip *strip)
 void StripBackup::restore_to_strip(Strip *strip)
 {
   strip->runtime->scene_sound = scene_sound;
-  strip->runtime->last_parent_sound_scene = last_parent_sound_scene;
-  strip->runtime->meta_scene_sound = meta_scene_sound;
+  strip->runtime->last_parent_sound = last_parent_sound;
+  strip->runtime->meta_sound_sequence = meta_sound_sequence;
   strip->runtime->sound_time_stretch = sound_time_stretch;
   strip->runtime->sound_time_stretch_fps = sound_time_stretch_fps;
   strip->runtime->movie_readers = std::move(movie_readers);

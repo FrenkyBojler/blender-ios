@@ -212,7 +212,7 @@ static void seq_strip_free_ex(Scene *scene,
     if (strip->runtime->scene_sound &&
         ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SCENE, STRIP_TYPE_META))
     {
-      BKE_sound_remove_sound(strip->runtime->last_parent_sound_scene, strip->runtime->scene_sound);
+      BKE_sound_remove_sound(strip->runtime->last_parent_sound, strip->runtime->scene_sound);
       strip->runtime->scene_sound.reset();
     }
   }
@@ -291,7 +291,7 @@ void StripRuntime::clear_sound_time_stretch()
 void StripRuntime::remove_sound()
 {
   if (scene_sound != nullptr) {
-    BKE_sound_remove_sound(last_parent_sound_scene, scene_sound);
+    BKE_sound_remove_sound(last_parent_sound, scene_sound);
     scene_sound.reset();
   }
 }
@@ -632,8 +632,8 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx,
   strip_new->runtime = MEM_new<StripRuntime>(__func__);
   strip_new->runtime->flag = strip->runtime->flag;
 
-  strip_new->runtime->meta_scene_sound = strip->runtime->meta_scene_sound;
-  strip_new->runtime->last_parent_sound_scene = strip->runtime->last_parent_sound_scene;
+  strip_new->runtime->meta_sound_sequence = strip->runtime->meta_sound_sequence;
+  strip_new->runtime->last_parent_sound = strip->runtime->last_parent_sound;
 
   ctx.strip_map.add(strip, strip_new);
 
@@ -1109,9 +1109,9 @@ static bool seq_mute_sound_strips_cb(Strip *strip, void *user_data)
 /* Adds sound of strip to the `scene->sound_scene` - "sound timeline". */
 static void strip_update_mix_sounds(Scene *scene, Strip *strip)
 {
-  AUD_Sequence parent_sound_scene = BKE_strip_get_parent_sound_scene(strip, scene);
+  AUD_Sequence parent_sound = BKE_strip_get_parent_sound(strip, scene);
   if (strip->runtime->scene_sound != nullptr &&
-      parent_sound_scene == strip->runtime->last_parent_sound_scene)
+      parent_sound == strip->runtime->last_parent_sound)
   {
     return;
   }
