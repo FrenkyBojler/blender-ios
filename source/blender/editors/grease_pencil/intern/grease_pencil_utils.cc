@@ -24,7 +24,6 @@
 #include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
-#include "BLI_math_numbers.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_vector_set.hh"
 
@@ -406,6 +405,13 @@ float3 DrawingPlacement::place(const float2 co, const float depth) const
 {
   float3 loc;
   ED_view3d_unproject_v3(region_, co.x, co.y, depth, loc);
+
+  if (depth_ == DrawingPlacementDepth::Surface) {
+    float3 view_normal;
+    ED_view3d_win_to_vector(region_, co, view_normal);
+    loc -= view_normal * surface_offset_;
+  }
+
   return math::transform_point(world_space_to_layer_space_, loc);
 }
 
@@ -1616,7 +1622,7 @@ static float pixel_radius_to_world_space_radius(const RegionView3D *rv3d,
   ED_view3d_win_to_delta(region, xy_delta, zfac, delta);
 
   const float scale = math::length(
-      math::transform_direction(to_world, float3(math::numbers::inv_sqrt3)));
+      math::transform_direction(to_world, float3(std::numbers::inv_sqrt3)));
 
   return math::safe_divide(math::length(delta), scale);
 }
@@ -2158,14 +2164,18 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
   AttributeAccessor src_attributes = merged_layers_grease_pencil.attributes();
   MutableAttributeAccessor dst_attributes = orig_grease_pencil.attributes_for_write();
   src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    /* Anonymous attributes shouldn't be available on original geometry. */
-    if (attribute_name_is_anonymous(iter.name)) {
-      return;
-    }
     if (iter.data_type == bke::AttrType::String) {
       return;
     }
-    const GVArraySpan src = *iter.get(AttrDomain::Layer);
+    const GVArray src_attr = *iter.get(AttrDomain::Layer);
+    const CommonVArrayInfo info = src_attr.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const bke::AttributeInitValue init(GPointer(src_attr.type(), info.data));
+      if (dst_attributes.add(iter.name, iter.domain, iter.data_type, init)) {
+        return;
+      }
+    }
+    const GVArraySpan src = src_attr;
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, AttrDomain::Layer, iter.data_type);
     if (!dst) {

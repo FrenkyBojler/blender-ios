@@ -58,6 +58,9 @@ namespace blender {
  * and set it to the result using a set alpha node. */
 static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode &node)
 {
+  if (!version_node_ensure_storage_or_invalidate(node)) {
+    return;
+  }
   const NodeShaderMix *data = reinterpret_cast<NodeShaderMix *>(node.storage);
   if (data->data_type != SOCK_RGBA) {
     return;
@@ -133,6 +136,9 @@ static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode 
  * and set it to the result using a pair of separate and combine color nodes. */
 static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &node)
 {
+  if (!version_node_ensure_storage_or_invalidate(node)) {
+    return;
+  }
   const NodeShaderMix *data = reinterpret_cast<NodeShaderMix *>(node.storage);
   if (data->data_type != SOCK_RGBA) {
     return;
@@ -904,6 +910,26 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 25)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.eevee.direct_light_intensity = 1.0f;
+      scene.eevee.indirect_light_intensity = 1.0f;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 27)) {
+    for (Scene &scene : bmain->scenes) {
+      if (scene.toolsettings) {
+        const short snap_geom_old = SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE |
+                                    SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR;
+        static_assert(snap_geom_old == 63);
+        if (scene.toolsettings->snap_mode_tools == snap_geom_old) {
+          scene.toolsettings->snap_mode_tools = SCE_SNAP_TO_GEOM;
+        }
+      }
+    }
   }
 
   /**
