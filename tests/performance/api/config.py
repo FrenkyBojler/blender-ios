@@ -251,7 +251,7 @@ class TestConfig:
             # no devices are supported for backwards compatibility
             devices = self.devices
             if test.use_device():
-                devices = devices.filter(lambda device: device.type in test.supported_device_types())
+                devices = filter(lambda device: device.type in test.supported_device_types(), devices)
             if not devices:
                 devices = ['CPU']
 
