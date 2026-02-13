@@ -15,6 +15,7 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_mask.hh"
 
 #include "BLT_translation.hh"
@@ -36,6 +37,7 @@
 
 #include "ANIM_keyframing.hh"
 
+#include "UI_interface.hh"
 #include "UI_interface_icons.hh"
 
 #include "RNA_access.hh"
@@ -100,14 +102,50 @@ MaskLayer *ED_mask_layer_ensure(bContext *C, bool *r_added_mask)
 static wmOperatorStatus mask_new_exec(bContext *C, wmOperator *op)
 {
   char name[MAX_ID_NAME - 2];
-
+  
   RNA_string_get(op->ptr, "name", name);
 
-  ED_mask_new(C, name);
+  Mask *mask = BKE_mask_new(CTX_data_main(C), name);
 
-  WM_event_add_notifier(C, NC_MASK | NA_ADDED, nullptr);
+  PropertyPointerRNA *pprop = static_cast<PropertyPointerRNA *>(op->customdata);
+
+  if (pprop && pprop->prop) {
+    /* when creating new ID blocks, use is already 1, but RNA
+     * pointer use also increases user, so this compensates it */
+    id_us_min(&mask->id);
+
+    PointerRNA idptr = RNA_id_pointer_create(&mask->id);
+    RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr, nullptr);
+    RNA_property_update(C, &pprop->ptr, pprop->prop);
+
+    MEM_delete(pprop);
+    op->customdata = nullptr;
+  }
+  else {
+    ED_mask_new(C, name);
+  }
+
+  WM_event_add_notifier(C, NC_MASK | NA_ADDED, mask);
 
   return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus mask_new_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+{
+  PropertyPointerRNA *pprop;
+  op->customdata = pprop = MEM_new<PropertyPointerRNA>("MaskNewPropertyPointerRNA");
+  ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
+  return mask_new_exec(C, op);
+}
+
+static bool mask_new_poll(bContext *C)
+{
+  ScrArea *area = CTX_wm_area(C);
+  if (area && area->spacetype == SPACE_NODE) {
+      return true;
+  }
+
+  return ED_maskedit_poll(C);
 }
 
 void MASK_OT_new(wmOperatorType *ot)
@@ -121,8 +159,9 @@ void MASK_OT_new(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* API callbacks. */
+  ot->invoke = mask_new_invoke;
   ot->exec = mask_new_exec;
-  ot->poll = ED_maskedit_poll;
+  ot->poll = mask_new_poll;
 
   /* properties */
   RNA_def_string(ot->srna, "name", nullptr, MAX_ID_NAME - 2, "Name", "Name of new mask");
