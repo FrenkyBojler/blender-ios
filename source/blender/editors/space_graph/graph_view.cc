@@ -136,10 +136,11 @@ void get_graph_keyframe_extents(bAnimContext *ac,
         if (ymax == ymin) {
           *ymin -= 0.05f;
           *ymax += 0.05f;
-        } else if (fabsf(*ymax - *ymin) < 0.00001f) {
+        }
+        else if (fabsf(*ymax - *ymin) < 0.00001f) {
           *ymin -= 0.000005f;
           *ymax += 0.000005f;
-       }
+        }
       }
     }
     else {
