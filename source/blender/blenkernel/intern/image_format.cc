@@ -8,7 +8,6 @@
 
 #include <cstring>
 
-#include "DNA_defaults.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_path_utils.hh"
@@ -24,13 +23,15 @@
 #include "BKE_image_format.hh"
 #include "BKE_path_templates.hh"
 
-namespace path_templates = blender::bke::path_templates;
+namespace blender {
+
+namespace path_templates = bke::path_templates;
 
 /* Init/Copy/Free */
 
 void BKE_image_format_init(ImageFormatData *imf)
 {
-  *imf = *DNA_struct_default_get(ImageFormatData);
+  *imf = ImageFormatData();
 
   BKE_color_managed_display_settings_init(&imf->display_settings);
 
@@ -178,7 +179,7 @@ void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype)
 
 int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
 {
-  memset(r_options, 0, sizeof(*r_options));
+  *r_options = ImbFormatOptions();
 
   if (imtype == R_IMF_IMTYPE_TARGA) {
     return IMB_FTYPE_TGA;
@@ -231,6 +232,10 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
     return IMB_FTYPE_WEBP;
   }
 #endif
+  if (imtype == R_IMF_IMTYPE_AVIF) {
+    r_options->quality = 90;
+    return IMB_FTYPE_AVIF;
+  }
 
   r_options->quality = 90;
   return IMB_FTYPE_JPG;
@@ -287,6 +292,9 @@ char BKE_ftype_to_imtype(const int ftype, const ImbFormatOptions *options)
     return R_IMF_IMTYPE_WEBP;
   }
 #endif
+  if (ftype == IMB_FTYPE_AVIF) {
+    return R_IMF_IMTYPE_AVIF;
+  }
 
   return R_IMF_IMTYPE_JPEG90;
 }
@@ -321,6 +329,7 @@ bool BKE_imtype_supports_quality(const char imtype)
     case R_IMF_IMTYPE_JPEG90:
     case R_IMF_IMTYPE_JP2:
     case R_IMF_IMTYPE_WEBP:
+    case R_IMF_IMTYPE_AVIF:
       return true;
   }
   return false;
@@ -357,6 +366,7 @@ char BKE_imtype_valid_channels(const char imtype)
     case R_IMF_IMTYPE_JP2:
     case R_IMF_IMTYPE_DPX:
     case R_IMF_IMTYPE_WEBP:
+    case R_IMF_IMTYPE_AVIF:
       chan_flag |= IMA_CHAN_FLAG_RGBA;
       break;
   }
@@ -398,6 +408,8 @@ char BKE_imtype_valid_depths(const char imtype)
       return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16;
     case R_IMF_IMTYPE_PNG:
       return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_16;
+    case R_IMF_IMTYPE_AVIF:
+      return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_10 | R_IMF_CHAN_DEPTH_12;
     /* Most formats are 8bit only. */
     default:
       return R_IMF_CHAN_DEPTH_8;
@@ -413,7 +425,7 @@ char BKE_imtype_valid_depths_with_video(char imtype, const ID *owner_id)
   if (imtype == R_IMF_IMTYPE_FFMPEG) {
     const bool is_render_out = (owner_id && GS(owner_id->name) == ID_SCE);
     if (is_render_out) {
-      const Scene *scene = (const Scene *)owner_id;
+      const Scene *scene = id_cast<const Scene *>(owner_id);
       depths |= MOV_codec_valid_bit_depths(scene->r.ffcodecdata.codec_id_get());
     }
   }
@@ -504,6 +516,9 @@ char BKE_imtype_from_arg(const char *imtype_arg)
     return R_IMF_IMTYPE_WEBP;
   }
 #endif
+  if (STREQ(imtype_arg, "AVIF")) {
+    return R_IMF_IMTYPE_AVIF;
+  }
 
   return R_IMF_IMTYPE_INVALID;
 }
@@ -581,6 +596,9 @@ static int image_path_ext_from_imformat_impl(const char imtype,
     r_ext[ext_num++] = ".webp";
   }
 #endif
+  else if (imtype == R_IMF_IMTYPE_AVIF) {
+    r_ext[ext_num++] = ".avif";
+  }
   else {
     /* Handles: #R_IMF_IMTYPE_JPEG90 etc. */
     r_ext[ext_num++] = ".jpg";
@@ -636,7 +654,7 @@ int BKE_image_path_ext_from_imtype_ensure(char *filepath,
   return do_ensure_image_extension(filepath, filepath_maxncpy, imtype, nullptr);
 }
 
-static blender::Vector<path_templates::Error> do_makepicstring(
+static Vector<path_templates::Error> do_makepicstring(
     char filepath[FILE_MAX],
     const char *base,
     const char *relbase,
@@ -654,7 +672,7 @@ static blender::Vector<path_templates::Error> do_makepicstring(
   BLI_strncpy(filepath, base, FILE_MAX - 10); /* weak assumption */
 
   if (template_variables) {
-    const blender::Vector<path_templates::Error> variable_errors = BKE_path_apply_template(
+    const Vector<path_templates::Error> variable_errors = BKE_path_apply_template(
         filepath, FILE_MAX, *template_variables);
     if (!variable_errors.is_empty()) {
       return variable_errors;
@@ -678,7 +696,7 @@ static blender::Vector<path_templates::Error> do_makepicstring(
   return {};
 }
 
-blender::Vector<path_templates::Error> BKE_image_path_from_imformat(
+Vector<path_templates::Error> BKE_image_path_from_imformat(
     char *filepath,
     const char *base,
     const char *relbase,
@@ -701,7 +719,7 @@ blender::Vector<path_templates::Error> BKE_image_path_from_imformat(
                           suffix);
 }
 
-blender::Vector<path_templates::Error> BKE_image_path_from_imtype(
+Vector<path_templates::Error> BKE_image_path_from_imtype(
     char *filepath,
     const char *base,
     const char *relbase,
@@ -873,6 +891,17 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
     ibuf->foptions.quality = quality;
   }
 #endif
+  else if (imtype == R_IMF_IMTYPE_AVIF) {
+    ibuf->ftype = IMB_FTYPE_AVIF;
+    ibuf->foptions.quality = quality;
+
+    if (imf->depth == R_IMF_CHAN_DEPTH_10) {
+      ibuf->foptions.flag |= AVIF_10BIT;
+    }
+    else if (imf->depth == R_IMF_CHAN_DEPTH_12) {
+      ibuf->foptions.flag |= AVIF_12BIT;
+    }
+  }
   else {
     /* #R_IMF_IMTYPE_JPEG90, etc. default to JPEG. */
     if (quality < 10) {
@@ -1055,6 +1084,19 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
   }
 #endif
 
+  else if (ftype == IMB_FTYPE_AVIF) {
+    im_format->imtype = R_IMF_IMTYPE_AVIF;
+    im_format->quality = quality;
+
+    if (custom_flags & AVIF_10BIT) {
+      im_format->depth = R_IMF_CHAN_DEPTH_10;
+      is_depth_set = true;
+    }
+    else if (custom_flags & AVIF_12BIT) {
+      im_format->depth = R_IMF_CHAN_DEPTH_12;
+      is_depth_set = true;
+    }
+  }
   else {
     im_format->imtype = R_IMF_IMTYPE_JPEG90;
     im_format->quality = quality;
@@ -1136,3 +1178,5 @@ void BKE_image_format_init_for_write(ImageFormatData *imf,
                  IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR));
   }
 }
+
+}  // namespace blender

@@ -100,6 +100,9 @@ if(POLICY CMP0177)
   cmake_policy(SET CMP0177 NEW)
 endif()
 
+# The target_sources() command converts relative paths to absolute.
+cmake_policy(SET CMP0076 NEW)
+
 # -----------------------------------------------------------------------------
 # Load Blender's Local Macros
 
@@ -136,33 +139,32 @@ endif()
 #
 # Keep in sync with: https://developer.blender.org/docs/handbook/building_blender/
 
-if(CMAKE_COMPILER_IS_GNUCC)
-  if("${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "11.0.0")
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  if("${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "14.0.0")
     message(FATAL_ERROR
-      "The minimum supported version of GCC is 11.0.0, found C compiler: "
+      "The minimum supported version of GCC is 14.0.0, found C compiler: "
       "${CMAKE_C_COMPILER_VERSION}"
     )
   endif()
-  if("${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS "11.0.0")
+  if("${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS "14.0.0")
     message(FATAL_ERROR
-      "The minimum supported version of GCC is 11.0.0, found C++ compiler: "
+      "The minimum supported version of GCC is 14.0.0, found C++ compiler: "
       "${CMAKE_CXX_COMPILER_VERSION}"
     )
   endif()
-elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
-  if(CMAKE_COMPILER_IS_GNUCC)
-    if("${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "8.0")
-      message(FATAL_ERROR
-        "The minimum supported version of CLANG is 8.0, found C compiler: "
-        "${CMAKE_C_COMPILER_VERSION}"
-      )
-    endif()
-    if("${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS "8.0")
-      message(FATAL_ERROR
-        "The minimum supported version of CLANG is 8.0, found C++ compiler: "
-        "${CMAKE_CXX_COMPILER_VERSION}"
-      )
-    endif()
+elseif(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_C_COMPILER_ID MATCHES "AppleClang")
+  # Only check regular clang version; Apple/Xcode clang uses a different versioning scheme
+  if("${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "17.0")
+    message(FATAL_ERROR
+      "The minimum supported version of CLANG is 17.0, found C compiler: "
+      "${CMAKE_C_COMPILER_VERSION}"
+    )
+  endif()
+  if("${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS "17.0")
+    message(FATAL_ERROR
+      "The minimum supported version of CLANG is 17.0, found C++ compiler: "
+      "${CMAKE_CXX_COMPILER_VERSION}"
+    )
   endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   if(MSVC_VERSION VERSION_LESS "1928")
@@ -305,7 +307,7 @@ Use pre-compiled headers to speed up compilation."
   )
   mark_as_advanced(WITH_COMPILER_PRECOMPILED_HEADERS)
 
-  if(WITH_CLANG_TIDY AND (CMAKE_COMPILER_IS_GNUCC OR APPLE))
+  if(WITH_CLANG_TIDY AND ((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR APPLE))
     if(WITH_COMPILER_PRECOMPILED_HEADERS)
       message(STATUS
         "Clang-Tidy and the current compiler's precompiled headers are incompatible, "
@@ -344,17 +346,7 @@ Use the systems bullet library (currently unsupported due to missing features in
 mark_as_advanced(WITH_SYSTEM_BULLET)
 option(WITH_OPENCOLORIO "Enable OpenColorIO color management" ON)
 
-set(_option_default ON)
-if(APPLE)
-  # There's no OpenXR runtime in sight for macOS, neither is code well
-  # tested there -> disable it by default.
-  set(_option_default OFF)
-endif()
-option(WITH_XR_OPENXR "Enable VR features through the OpenXR specification" ${_option_default})
-if(APPLE)
-  mark_as_advanced(WITH_XR_OPENXR)
-endif()
-unset(_option_default)
+option(WITH_XR_OPENXR "Enable VR features through the OpenXR specification" ON)
 
 option(WITH_GMP "Enable features depending on GMP (Exact Boolean)" ON)
 option(WITH_MANIFOLD "Enable features depending on Manifold (Fast Robust Boolean)" ON)
@@ -452,10 +444,8 @@ endif()
 
 if(UNIX AND NOT APPLE)
   option(WITH_SYSTEM_FREETYPE "Use the freetype library provided by the operating system" OFF)
-  option(WITH_SYSTEM_EIGEN3 "Use the systems Eigen3 library" OFF)
 else()
   set(WITH_SYSTEM_FREETYPE OFF)
-  set(WITH_SYSTEM_EIGEN3 OFF)
 endif()
 
 if((NOT WITH_PYTHON_MODULE) AND (
@@ -500,6 +490,13 @@ option(WITH_MATERIALX "Enable MaterialX Support" ON)
 
 # Hydra render engine
 option(WITH_HYDRA "Enable Hydra render engine" ON)
+
+# Storm tests (via USD or Hydra)
+option(WITH_STORM_TESTS_VULKAN "\
+Enable Storm tests using the Vulkan backend. Requires WITH_HYDRA."
+  OFF
+)
+mark_as_advanced(WITH_STORM_TESTS_VULKAN)
 
 # RTL Languages, Complex Shaping, OpenType Features
 option(WITH_FRIBIDI "Enable features relying on fribidi" OFF)
@@ -658,6 +655,10 @@ option(WITH_CYCLES_PRECOMPUTE "Build Cycles data precomputation tool" OFF)
 
 option(WITH_CYCLES_HYDRA_RENDER_DELEGATE "Build Cycles Hydra render delegate" OFF)
 
+option(WITH_CYCLES_PARALLEL_DEVICE_KERNEL_BUILD
+       "Build Cycles kernels of difference devices in parallel (faster, but uses more memory)" OFF)
+mark_as_advanced(WITH_CYCLES_PARALLEL_DEVICE_KERNEL_BUILD)
+
 option(WITH_CYCLES_DEBUG_NAN "\
 Build Cycles with additional asserts for detecting NaNs and invalid values"
   OFF
@@ -752,25 +753,19 @@ if(NOT APPLE AND NOT (WIN32 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64"))
 Enable Ahead-Of-Time compilation for Cycles oneAPI device"
     OFF
   )
-  option(WITH_CYCLES_ONEAPI_HOST_TASK_EXECUTION "\
-Switch target of oneAPI implementation from SYCL devices to Host Task (single thread on CPU). \
-This option is only for debugging purposes."
-    OFF
-  )
 
   # https://www.intel.com/content/www/us/en/develop/documentation/oneapi-dpcpp-cpp-compiler-dev-guide-and-reference/top/compilation/ahead-of-time-compilation.html
   # The supported devices can be retrieved from `ocloc` output when running
   # `ocloc compile --help`.
   # If you have completed optimization work and now want to enable AoT for new Intel devices,
   # update the optimization status in OneapiDevice::architecture_information.
-  set(CYCLES_ONEAPI_INTEL_BINARIES_ARCH dg2 mtl lnl bmg ptl CACHE STRING "\
+  set(CYCLES_ONEAPI_INTEL_BINARIES_ARCH dg2 mtl arl-h bmg lnl ptl CACHE STRING "\
 oneAPI Intel GPU architectures to build binaries for"
   )
   set(CYCLES_ONEAPI_SYCL_TARGETS spir64 spir64_gen CACHE STRING "\
 oneAPI targets to build AOT binaries for"
   )
 
-  mark_as_advanced(WITH_CYCLES_ONEAPI_HOST_TASK_EXECUTION)
   mark_as_advanced(CYCLES_ONEAPI_INTEL_BINARIES_ARCH)
   mark_as_advanced(CYCLES_ONEAPI_SYCL_TARGETS)
 endif()
@@ -784,9 +779,6 @@ option(WITH_LLVM "Use LLVM" OFF)
 option(LLVM_STATIC "Link with LLVM static libraries" OFF)
 mark_as_advanced(LLVM_STATIC)
 option(WITH_CLANG "Use Clang" OFF)
-
-option(WITH_MEM_JEMALLOC "Enable malloc replacement (http://www.canonware.com/jemalloc)" ON)
-mark_as_advanced(WITH_MEM_JEMALLOC)
 
 # currently only used for BLI_mempool
 option(WITH_MEM_VALGRIND "Enable extended valgrind support for better reporting" OFF)
@@ -807,14 +799,15 @@ Use Clang Tidy to analyze the source code \
   mark_as_advanced(WITH_CLANG_TIDY)
 endif()
 
-option(WITH_BOOST "Enable features depending on boost" ON)
 option(WITH_TBB "\
 Enable multi-threading. TBB is also required for features such as Cycles, OpenVDB and USD"
   ON
 )
 
-# TBB malloc is only supported on for windows currently
-if(WIN32 AND NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+# TBB malloc is only supported:
+# - On MS-Windows.
+# - On Unix/Linux.
+if((WIN32 AND NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64") OR (UNIX AND NOT APPLE))
   option(WITH_TBB_MALLOC_PROXY "Enable the TBB malloc replacement" ON)
 endif()
 
@@ -889,6 +882,13 @@ else()
   # TODO: We should probably add more sanity checks for Windows and Mac as well
   set(WITH_LINUX_OFFICIAL_RELEASE_TESTS OFF)
 endif()
+
+option(WITH_UI_TESTS_VULKAN "\
+Enable UI tests using the Vulkan backend. \
+Requires WITH_UI_TESTS and WITH_GPU_RENDER_TESTS_VULKAN."
+  OFF
+)
+mark_as_advanced(WITH_UI_TESTS_VULKAN)
 
 option(WITH_TESTS_EXPERIMENTAL "\
 Run tests marked as experimental. \
@@ -1009,14 +1009,10 @@ mark_as_advanced(WITH_STRSIZE_DEBUG)
 
 # Compiler tool-chain.
 if(UNIX AND NOT APPLE)
-  if(CMAKE_COMPILER_IS_GNUCC)
-    option(WITH_LINKER_GOLD "Use ld.gold linker which is usually faster than ld.bfd" ON)
-    mark_as_advanced(WITH_LINKER_GOLD)
-  endif()
-  if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
-    option(WITH_LINKER_LLD "Use ld.lld linker which is usually faster than ld.gold" OFF)
+  if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
+    option(WITH_LINKER_LLD "Use ld.lld linker which is usually faster than ld.bfd" ON)
     mark_as_advanced(WITH_LINKER_LLD)
-    option(WITH_LINKER_MOLD "Use ld.mold linker which is usually faster than ld.gold & ld.lld" OFF)
+    option(WITH_LINKER_MOLD "Use ld.mold linker which is usually faster than ld.bfd & ld.lld" ON)
     mark_as_advanced(WITH_LINKER_MOLD)
   endif()
 endif()
@@ -1032,9 +1028,9 @@ Can cause linking issues due to too large binary size."
   OFF
 )
 mark_as_advanced(WITH_COMPILER_ASAN_EXTERN)
-set_and_warn_incompatible(WITH_COMPILER_ASAN WITH_MEM_JEMALLOC OFF)
+# Note: Using TBBMALLOC allocator seems to be fully compatible with current sanitizers
+# (both CLANG/LLVM and GCC ones).
 set_and_warn_incompatible(WITH_COMPILER_ASAN WITH_MEM_VALGRIND OFF)
-set_and_warn_incompatible(WITH_COMPILER_ASAN_EXTERN WITH_MEM_JEMALLOC OFF)
 set_and_warn_incompatible(WITH_COMPILER_ASAN_EXTERN WITH_MEM_VALGRIND OFF)
 
 option(WITH_COMPILER_CODE_COVERAGE "\
@@ -1044,7 +1040,7 @@ Build and link with code coverage support (only for Debug targets)."
 mark_as_advanced(WITH_COMPILER_CODE_COVERAGE)
 
 if(WITH_COMPILER_CODE_COVERAGE)
-  if(CMAKE_COMPILER_IS_GNUCC)
+  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     set(_code_coverage_defaults "--coverage")
   elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     get_filename_component(COMPILER_DIRECTORY ${CMAKE_CXX_COMPILER} DIRECTORY)
@@ -1090,7 +1086,7 @@ if(WITH_COMPILER_CODE_COVERAGE)
   endif()
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
   if(WITH_COMPILER_ASAN)
     set(_asan_defaults "\
 -fsanitize=address \
@@ -1106,6 +1102,9 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
 -fsanitize=vla-bound \
 -fno-sanitize=alignment \
 ")
+    # Make sure we don't omit frame pointers as the leak backtraces might not be able to
+    # correctly track the source otherwise.
+    string(APPEND _asan_defaults " -fno-omit-frame-pointer")
 
     if(MSVC)
       # clang-cl doesn't support all sanitizers, but leak and object-size give errors/warnings.
@@ -1119,7 +1118,7 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
       else()
         string(APPEND _asan_defaults " -fsanitize=object-size")
       endif()
-    elseif(CMAKE_COMPILER_IS_GNUCC)
+    elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
       string(APPEND _asan_defaults " -fsanitize=leak -fsanitize=object-size")
     else()
       string(APPEND _asan_defaults " -fsanitize=leak")
@@ -1155,7 +1154,7 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
       )
       unset(CLANG_LIB_DIR)
       mark_as_advanced(COMPILER_ASAN_LIBRARY)
-    elseif(CMAKE_COMPILER_IS_GNUCC)
+    elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
       find_library(
         COMPILER_ASAN_LIBRARY asan ${CMAKE_C_IMPLICIT_LINK_DIRECTORIES}
       )
@@ -1165,7 +1164,7 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
   endif()
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
   option(WITH_COMPILER_SHORT_FILE_MACRO "\
 Make paths in macros like __FILE__ relative to top level source and build directories."
     ON
@@ -1359,13 +1358,7 @@ set_and_warn_dependency(WITH_PYTHON WITH_CYCLES        OFF)
 set_and_warn_dependency(WITH_PYTHON WITH_DRACO         OFF)
 set_and_warn_dependency(WITH_PYTHON WITH_MOD_FLUID     OFF)
 
-# enable boost for cycles, audaspace or i18n
-# otherwise if the user disabled
-
-set_and_warn_dependency(WITH_BOOST WITH_OPENVDB        OFF)
-set_and_warn_dependency(WITH_BOOST WITH_USD            OFF)
 if(WITH_CYCLES)
-  set_and_warn_dependency(WITH_BOOST   WITH_CYCLES_OSL          OFF)
   set_and_warn_dependency(WITH_PUGIXML WITH_CYCLES_OSL          OFF)
   set_and_warn_dependency(WITH_PUGIXML WITH_CYCLES_STANDALONE   OFF)
   set_and_warn_dependency(WITH_CYCLES_OSL WITH_CYCLES_TEST_OSL  OFF)
@@ -1426,7 +1419,7 @@ endif()
 if(WITH_AUDASPACE)
   if(NOT WITH_SYSTEM_AUDASPACE)
     set(AUDASPACE_C_INCLUDE_DIRS
-      "${CMAKE_SOURCE_DIR}/extern/audaspace/bindings/C"
+      "${CMAKE_SOURCE_DIR}/extern/audaspace/include"
       "${CMAKE_BINARY_DIR}/extern/audaspace"
     )
     set(AUDASPACE_PY_INCLUDE_DIRS
@@ -1465,11 +1458,13 @@ if(WITH_PYTHON)
   # Do this before main 'platform_*' checks,
   # because UNIX will search for the old Python paths which may not exist.
   # giving errors about missing paths before this case is met.
-  if(DEFINED PYTHON_VERSION AND "${PYTHON_VERSION}" VERSION_LESS "3.11")
-    message(
-      FATAL_ERROR
-      "At least Python 3.11 is required to build, but found Python ${PYTHON_VERSION}"
-    )
+  if(DEFINED PYTHON_VERSION)
+    if("${PYTHON_VERSION}" VERSION_LESS "3.13")
+      message(
+        FATAL_ERROR
+        "At least Python 3.13 is required to build, but found Python ${PYTHON_VERSION}"
+      )
+    endif()
   endif()
 endif()
 
@@ -1484,18 +1479,18 @@ set(WITH_BINRELOC OFF)
 set(EXETYPE "")
 
 # C/C++ flags
-set(PLATFORM_CFLAGS)
+set(PLATFORM_CFLAGS "")
 
 # these are added to later on.
-set(C_WARNINGS)
-set(CXX_WARNINGS)
+set(C_WARNINGS "")
+set(CXX_WARNINGS "")
 
 # NOTE: These flags are intended for situations where it's impractical to
 # suppress warnings by modifying the code or for code which is maintained externally.
 # For GCC this typically means adding `-Wno-*` arguments to negate warnings
 # that are useful in the general case.
-set(C_REMOVE_STRICT_FLAGS)
-set(CXX_REMOVE_STRICT_FLAGS)
+set(C_REMOVE_STRICT_FLAGS "")
+set(CXX_REMOVE_STRICT_FLAGS "")
 
 # Libraries to link to targets in setup_platform_linker_libs
 set(PLATFORM_LINKLIBS "")
@@ -1509,7 +1504,7 @@ set(PLATFORM_LINKFLAGS_RELEASE "")
 set(PLATFORM_LINKFLAGS_EXECUTABLE "")
 
 if(WITH_COMPILER_CODE_COVERAGE)
-  if(CMAKE_COMPILER_IS_GNUCC)
+  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # GCC only supports this on debug builds.
     string(APPEND CMAKE_C_FLAGS_DEBUG " ${COMPILER_CODE_COVERAGE_CFLAGS}")
     string(APPEND CMAKE_CXX_FLAGS_DEBUG " ${COMPILER_CODE_COVERAGE_CXXFLAGS}")
@@ -1598,7 +1593,7 @@ endif()
 # Add the default compiler SIMD flags if enabled
 #
 if(WITH_COMPILER_SIMD)
-  set(COMPILER_SSE42_FLAG)
+  set(COMPILER_SSE42_FLAG "")
   get_sse_flags(COMPILER_SSE42_FLAG)
   string(APPEND CMAKE_CXX_FLAGS " ${COMPILER_SSE42_FLAG}")
   string(APPEND CMAKE_C_FLAGS " ${COMPILER_SSE42_FLAG}")
@@ -1630,8 +1625,19 @@ if(WITH_IMAGE_OPENJPEG)
   endif()
 endif()
 
-if(NOT WITH_SYSTEM_EIGEN3)
-  set(EIGEN3_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extern/Eigen3)
+if (WITH_COMPILER_ASAN AND NOT WITH_COMPILER_ASAN_EXTERN)
+  # See also:
+  # - `EIGEN_MALLOC_ALREADY_ALIGNED` definition and usages in
+  #   `./extern/Eigen3/Eigen/src/Core/util/Memory.h`
+  # - Report: https://projects.blender.org/blender/blender/issues/152010
+  #
+  # NOTE: It seems to only affect GCC and its sanitizer library - but best
+  #       be on the safe side here, and do that for all compilers and systems.
+  message(DEBUG
+    "Forcing Eigen to use their own allocator code because `WITH_COMPILER_ASAN` is enabled but "
+    "`WITH_COMPILER_ASAN_EXTERN` is disabled, which can cause mismatch usages of Eigen allocators."
+  )
+  add_definitions(-DEIGEN_MALLOC_ALREADY_ALIGNED=0)
 endif()
 
 # -----------------------------------------------------------------------------
@@ -1677,7 +1683,7 @@ if(WITH_LIBMV OR WITH_GTESTS)
       message(FATAL_ERROR "System wide Gflags is requested but was not found")
     endif()
     # `FindGflags` does not define this, and we are not even sure what to use here.
-    set(GFLAGS_DEFINES)
+    set(GFLAGS_DEFINES "")
   else()
     set(GFLAGS_DEFINES
       -DGFLAGS_DLL_DEFINE_FLAG=
@@ -1695,7 +1701,7 @@ if(WITH_LIBMV OR WITH_GTESTS)
       message(FATAL_ERROR "System wide Glog is requested but was not found")
     endif()
     # `FindGlog` does not define this, and we are not even sure what to use here.
-    set(GLOG_DEFINES)
+    set(GLOG_DEFINES "")
   else()
     set(GLOG_DEFINES
       -DGOOGLE_GLOG_DLL_DECL=
@@ -1795,8 +1801,8 @@ Keep at '0' to automatically compute optimal values for each build."
       "  NINJA_MAX_NUM_PARALLEL_LINK_JOBS: "
       "max concurrent linking jobs (computed): ${_link_jobs}"
     )
-    set(_link_mem)
-    set(_link_jobs_max)
+    unset(_link_mem)
+    unset(_link_jobs_max)
   endif()
   set_property(
     GLOBAL APPEND PROPERTY
@@ -1816,9 +1822,15 @@ Keep at '0' to automatically compute optimal values for each build."
     # Heuristics: Maximum amount of memory needed per heavy compile task.
     # Note: These values are purposely over-estimated by 10-15% at least, to account
     #       for other types of jobs' memory usage, other system memory usages, etc.
+    # NOTE: Since CMake 4.2, specific files can be put into specific jobs, which
+    #       allows for a more optimal usage of available RAM & CPU resources.
     set(_compile_heavy_mem 2000)
     if(WITH_COMPILER_ASAN)
-      set(_compile_heavy_mem 15000)
+      if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.2.0")
+        set(_compile_heavy_mem 6000)
+      else()
+        set(_compile_heavy_mem 15000)
+      endif()
     elseif("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
       set(_compile_heavy_mem 2000)
     endif()
@@ -1846,8 +1858,8 @@ Keep at '0' to automatically compute optimal values for each build."
       "max concurrent heavy compile jobs (computed): ${_compile_heavy_jobs}"
     )
 
-    set(_compile_heavy_mem)
-    set(_compile_heavy_jobs_max)
+    unset(_compile_heavy_mem)
+    unset(_compile_heavy_jobs_max)
   endif()
   set_property(
     GLOBAL APPEND PROPERTY
@@ -1876,9 +1888,15 @@ Keep at '0' to automatically compute optimal values for each build."
     # values in ASAN build cases is the best that can be done.
     # Alternative solution would be to put several whole targets (like `bf_blenkernel`)
     # into the heavy pool, but that is likely even worse of a workaround.
+    # NOTE: Since CMake 4.2, specific files can be put into specific jobs, which
+    #       allows for a more optimal usage of available RAM & CPU resources.
     set(_compile_mem 500)
     if(WITH_COMPILER_ASAN)
-      set(_compile_mem 4000)
+     if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.2.0")
+        set(_compile_mem 1000)
+      else()
+        set(_compile_mem 4000)
+      endif()
     elseif("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
       set(_compile_mem 500)
     endif()
@@ -1902,8 +1920,8 @@ Keep at '0' to automatically compute optimal values for each build."
       "  NINJA_MAX_NUM_PARALLEL_COMPILE_JOBS: "
       "max concurrent regular compile jobs (computed): ${_compile_jobs}"
     )
-    set(_compile_mem)
-    set(_compile_jobs_max)
+    unset(_compile_mem)
+    unset(_compile_jobs_max)
   endif()
   set_property(
     GLOBAL APPEND PROPERTY
@@ -1911,18 +1929,18 @@ Keep at '0' to automatically compute optimal values for each build."
   )
   set(CMAKE_JOB_POOL_COMPILE compile_job_pool)
 
-  set(_link_jobs)
-  set(_compile_heavy_jobs)
-  set(_compile_jobs)
-  set(_NUM_CORES)
-  set(_TOT_MEM)
+  unset(_link_jobs)
+  unset(_compile_heavy_jobs)
+  unset(_compile_jobs)
+  unset(_NUM_CORES)
+  unset(_TOT_MEM)
 endif()
 
 
 # -----------------------------------------------------------------------------
 # Extra Compile Flags
 
-if(CMAKE_COMPILER_IS_GNUCC)
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 
   add_check_c_compiler_flags(
     C_WARNINGS
@@ -2116,8 +2134,6 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     CXX_WARNINGS
 
     CXX_WARN_ALL -Wall
-    # Using C++20 features while having C++17 as the project language isn't allowed by MSVC.
-    CXX_CXX20_DESIGNATOR -Wc++20-designator
 
     CXX_WARN_NO_AUTOLOGICAL_COMPARE -Wno-tautological-compare
     CXX_WARN_NO_UNKNOWN_PRAGMAS -Wno-unknown-pragmas
@@ -2541,7 +2557,6 @@ elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
     "/wd4828"  # The file contains a character that is illegal
     "/wd4996"  # identifier was declared deprecated
     "/wd4661"  # no suitable definition provided for explicit template instantiation request
-    "/wd4848"  # 'no_unique_address' is a vendor extension in C++17
     # errors:
     "/we4013"  # 'function' undefined; assuming extern returning int
     "/we4133"  # incompatible pointer types
@@ -2580,9 +2595,6 @@ if(WITH_PYTHON)
   elseif((WITH_PYTHON_INSTALL AND WITH_PYTHON_INSTALL_NUMPY) OR WITH_PYTHON_NUMPY)
     if(("${PYTHON_NUMPY_PATH}" STREQUAL "") OR (${PYTHON_NUMPY_PATH} MATCHES NOTFOUND))
       set(_numpy_include "_core/include")
-      if(PYTHON_VERSION VERSION_LESS "3.13")
-        set(_numpy_include "core/include")
-      endif()
       find_python_package(numpy "${_numpy_include}")
       unset(_numpy_include)
     endif()
@@ -2601,16 +2613,16 @@ if(WITH_PYTHON)
   endif()
 endif()
 
-# Select C++17 as the standard for C++ projects.
-set(CMAKE_CXX_STANDARD 17)
-# If C++17 is not available, downgrading to an earlier standard is NOT OK.
+# Select C++20 as the standard for C++ projects.
+set(CMAKE_CXX_STANDARD 20)
+# If C++20 is not available, downgrading to an earlier standard is NOT OK.
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Do not enable compiler specific language extensions.
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Visual Studio has all standards it supports available by default
 # Clang on windows copies this behavior and does not support these switches
-if(CMAKE_COMPILER_IS_GNUCC OR
+if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR
    (CMAKE_C_COMPILER_ID MATCHES "Clang" AND (NOT MSVC)) OR
    (CMAKE_C_COMPILER_ID STREQUAL "Intel"))
 
@@ -2788,7 +2800,7 @@ if(FIRST_RUN)
 
     set(_msg "  - ${_setting}")
     string(LENGTH "${_msg}" _len)
-    while("36" GREATER "${_len}")
+    while("40" GREATER "${_len}")
       string(APPEND _msg " ")
       math(EXPR _len "${_len} + 1")
     endwhile()
@@ -2839,7 +2851,7 @@ if(FIRST_RUN)
 
   info_cfg_text("System Options:")
   info_cfg_option(WITH_INSTALL_PORTABLE)
-  info_cfg_option(WITH_MEM_JEMALLOC)
+  info_cfg_option(WITH_TBB_MALLOC_PROXY)
   info_cfg_option(WITH_MEM_VALGRIND)
 
   info_cfg_text("GHOST Options:")
@@ -2880,8 +2892,10 @@ if(FIRST_RUN)
   if(WITH_PYTHON)
     info_cfg_text("Python:")
     info_cfg_option(WITH_PYTHON_INSTALL)
-    info_cfg_option(WITH_PYTHON_INSTALL_NUMPY)
-    info_cfg_option(WITH_PYTHON_INSTALL_ZSTANDARD)
+    if(WITH_PYTHON_INSTALL)
+      info_cfg_option(WITH_PYTHON_INSTALL_NUMPY)
+      info_cfg_option(WITH_PYTHON_INSTALL_ZSTANDARD)
+    endif()
     info_cfg_option(WITH_PYTHON_MODULE)
     info_cfg_option(WITH_PYTHON_SAFETY)
   endif()
@@ -2910,6 +2924,21 @@ if(FIRST_RUN)
       info_cfg_option(WITH_CYCLES_DEVICE_HIPRT)
     endif()
   endif()
+
+  info_cfg_text("Tests:")
+  info_cfg_option(WITH_GTESTS)
+  info_cfg_option(CYCLES_TEST_DEVICES)
+  info_cfg_option(WITH_CYCLES_TEST_OSL)
+  info_cfg_option(WITH_GPU_RENDER_TESTS)
+  info_cfg_option(WITH_GPU_BACKEND_TESTS)
+  info_cfg_option(WITH_GPU_DRAW_TESTS)
+  info_cfg_option(WITH_GPU_COMPOSITOR_TESTS)
+  info_cfg_option(WITH_GPU_MESH_PAINT_TESTS)
+  info_cfg_option(WITH_UI_TESTS)
+  info_cfg_option(WITH_UI_TESTS_HEADLESS)
+  info_cfg_option(WITH_UI_TESTS_VULKAN)
+  info_cfg_option(WITH_GPU_RENDER_TESTS_VULKAN)
+  info_cfg_option(WITH_LINUX_OFFICIAL_RELEASE_TESTS)
 
   info_cfg_text("")
 

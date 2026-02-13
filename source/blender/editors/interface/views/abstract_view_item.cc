@@ -93,8 +93,12 @@ void AbstractViewItem::activate_for_context_menu(bContext &C)
 
 void AbstractViewItem::deactivate()
 {
+  if (is_active_) {
+    /* Deselect only active item, otherwise selection state before active item is cleared, see:
+     * !150891 */
+    is_selected_ = false;
+  }
   is_active_ = false;
-  is_selected_ = false;
 }
 
 std::optional<bool> AbstractViewItem::should_be_selected() const
@@ -203,8 +207,8 @@ static AbstractViewItem *find_item_from_rename_button(const Button &rename_but)
       continue;
     }
 
-    ButtonViewItem *view_item_but = (ButtonViewItem *)but.get();
-    AbstractViewItem *item = reinterpret_cast<AbstractViewItem *>(view_item_but->view_item);
+    ButtonViewItem *view_item_but = static_cast<ButtonViewItem *>(but.get());
+    AbstractViewItem *item = view_item_but->view_item;
     const AbstractView &view = item->get_view();
 
     if (item->is_renaming() && (view.get_rename_buffer().data() == rename_but.poin)) {
@@ -237,7 +241,6 @@ void AbstractViewItem::add_rename_button(Block &block)
                                 1.0f,
                                 view.get_rename_buffer().size(),
                                 "");
-  button_retval_set(rename_but, 1);
 
   /* Gotta be careful with what's passed to the `arg1` here. Any view data will be freed once the
    * callback is executed. */
@@ -317,7 +320,7 @@ std::optional<std::string> AbstractViewItem::debug_name() const
 
 AbstractViewItemDragController::AbstractViewItemDragController(AbstractView &view) : view_(view) {}
 
-void AbstractViewItemDragController::on_drag_start(bContext & /*C*/)
+void AbstractViewItemDragController::on_drag_start(bContext & /*C*/, AbstractViewItem & /*item*/)
 {
   /* Do nothing by default. */
 }
@@ -466,11 +469,7 @@ bool view_item_drag_start(bContext &C, AbstractViewItem &item)
     WM_event_start_drag(
         &C, ICON_NONE, *drag_type, drag_controller->create_drag_data(), WM_DRAG_FREE_DATA);
   }
-  drag_controller->on_drag_start(C);
-
-  /* Make sure the view item is highlighted as active when dragging from it. This is useful user
-   * feedback. */
-  item.set_state_active();
+  drag_controller->on_drag_start(C, item);
 
   return true;
 }

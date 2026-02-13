@@ -14,6 +14,8 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
+#include "BLI_math_color.h"
+
 #include "ED_image.hh"
 #include "ED_view3d.hh"
 #include "GPU_texture.hh"
@@ -59,7 +61,7 @@ class Grid : Overlay {
     if (state.is_space_image()) {
       float3 tile_scale(grid_ubo_.clip_rect.x, grid_ubo_.clip_rect.y, 0.0f);
       const float4 color_back = math::interpolate(
-          res.theme.colors.background, res.theme.colors.grid, 0.33);
+          res.theme.colors.background, res.theme.colors.grid, 0.5f);
 
       auto &sub = grid_ps_.sub("grid_background");
       sub.shader_set(res.shaders->grid_background.get());
@@ -143,8 +145,8 @@ class Grid : Overlay {
     const View2D *v2d = &state.region->v2d;
     SpaceImage *sima = (SpaceImage *)state.space_data;
 
-    /* Grid is currently visible in UV edit, if enabled. */
-    const bool show_grid = sima->mode == SI_MODE_UV &&
+    /* Grid is currently visible in UV and Image editors, if enabled. */
+    const bool show_grid = ELEM(sima->mode, SI_MODE_UV, SI_MODE_VIEW) &&
                            (sima->overlay.flag & SI_OVERLAY_SHOW_GRID_BACKGROUND);
     if (!show_grid) {
       return false;
@@ -160,8 +162,13 @@ class Grid : Overlay {
     std::array<float, SI_GRID_STEPS_LEN> steps_x, steps_y;
     ED_space_image_grid_steps(sima, steps_x.data(), steps_y.data(), SI_GRID_STEPS_LEN);
     for (int i : IndexRange(SI_GRID_STEPS_LEN)) {
-      grid_ubo_.steps[i].x = grid_ubo_.steps[i].z = steps_x[i] * 2.0f;
-      grid_ubo_.steps[i].y = steps_y[i] * 2.0f;
+      /* If the current level is not specified, or the same size as the previous level,
+       * we apply a 10x scale to the previous level and use that. */
+      float step_mult = (i > 0 && (steps_x[i] == 0.0f || steps_x[i] == steps_x[i - 1])) ? 20.0f :
+                                                                                          2.0f;
+      grid_ubo_.steps[i].x = steps_x[i] * step_mult;
+      grid_ubo_.steps[i].z = grid_ubo_.steps[i].x;
+      grid_ubo_.steps[i].y = steps_y[i] * step_mult;
     }
 
     /* Determine camera offset to center of v2d. */
@@ -194,7 +201,7 @@ class Grid : Overlay {
     tile_pos_buf_.push_update();
 
     /* This suffices for most cases, and in others we fade to hide it. */
-    grid_ubo_.num_lines = 301u;
+    grid_ubo_.num_lines = 601u;
     num_iters_ = 1u;
 
     return true;
@@ -208,9 +215,8 @@ class Grid : Overlay {
     const bool show_axis_z = (state.v3d_gridflag & V3D_SHOW_Z) != 0;
     const bool show_persp = (state.v3d_gridflag & V3D_SHOW_FLOOR) != 0;
     const bool show_ortho = (state.v3d_gridflag & V3D_SHOW_ORTHO_GRID) != 0;
-    const bool show_any = show_axis_x || show_axis_y || show_axis_z || show_persp || show_ortho;
 
-    if (!show_any) {
+    if (!(show_axis_x || show_axis_y || show_axis_z || show_persp || show_ortho)) {
       return false;
     }
 
@@ -219,42 +225,68 @@ class Grid : Overlay {
 
     /* Set `grid_flag_` dependent on view configuration. */
     if (rv3d->is_persp || rv3d->view == RV3D_VIEW_USER) {
-      /* Perspective; set selected axes and floor bits. */
-      axis_flag_ |= (show_axis_x ? (AXIS_X | SHOW_AXES) : OVERLAY_GridBits(0));
-      axis_flag_ |= (show_axis_y ? (AXIS_Y | SHOW_AXES) : OVERLAY_GridBits(0));
-      axis_flag_ |= (show_axis_z ? (AXIS_Z | SHOW_AXES) : OVERLAY_GridBits(0));
-      grid_flag_ |= (show_axis_x ? AXIS_X : OVERLAY_GridBits(0));
-      grid_flag_ |= (show_axis_y ? AXIS_Y : OVERLAY_GridBits(0));
-      grid_flag_ |= (show_axis_z ? AXIS_Z : OVERLAY_GridBits(0));
-      grid_flag_ |= (show_persp ? (PLANE_XY | SHOW_GRID) : OVERLAY_GridBits(0));
+      /* Perspective/orthographic; set selected axes and plane (floor = XY) bits. */
+      axis_flag_ |= (show_axis_x ? AXIS_X : OVERLAY_GridBits(0));
+      axis_flag_ |= (show_axis_y ? AXIS_Y : OVERLAY_GridBits(0));
+      axis_flag_ |= (show_axis_z ? AXIS_Z : OVERLAY_GridBits(0));
+      grid_flag_ |= (show_persp ? PLANE_XY : OVERLAY_GridBits(0));
+
+      /* If any options were set, set SHOW_AXES/SHOW_GRID. */
+      axis_flag_ |= (axis_flag_ ? SHOW_AXES : OVERLAY_GridBits(0));
+      grid_flag_ |= (grid_flag_ ? SHOW_GRID : OVERLAY_GridBits(0));
+
+      /* Axes are passed to the grid flag for correct occlusion. */
+      if (grid_flag_) {
+        grid_flag_ |= (show_axis_x ? AXIS_X : OVERLAY_GridBits(0));
+        grid_flag_ |= (show_axis_y ? AXIS_Y : OVERLAY_GridBits(0));
+        grid_flag_ |= (show_axis_z ? AXIS_Z : OVERLAY_GridBits(0));
+      }
     }
     else {
-      /* Orthographic; set selected axes and plane bits dependent on the specific view
+      /* Fixed plane orthographic: set axis/plane bits dependent on the view
        * (top, right, left, etc.) that is selected. */
       if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
         axis_flag_ = (show_axis_y ? AXIS_Y : OVERLAY_GridBits(0)) |
                      (show_axis_z ? AXIS_Z : OVERLAY_GridBits(0));
-        grid_flag_ = axis_flag_ | PLANE_YZ;
+        grid_flag_ = (show_ortho ? PLANE_YZ : OVERLAY_GridBits(0));
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
         axis_flag_ = (show_axis_x ? AXIS_X : OVERLAY_GridBits(0)) |
                      (show_axis_y ? AXIS_Y : OVERLAY_GridBits(0));
-        grid_flag_ = axis_flag_ | PLANE_XY;
+        grid_flag_ = (show_ortho ? PLANE_XY : OVERLAY_GridBits(0));
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
         axis_flag_ = (show_axis_x ? AXIS_X : OVERLAY_GridBits(0)) |
                      (show_axis_z ? AXIS_Z : OVERLAY_GridBits(0));
-        grid_flag_ = axis_flag_ | PLANE_XZ;
+        grid_flag_ = (show_ortho ? PLANE_XZ : OVERLAY_GridBits(0));
       }
-      grid_flag_ |= (show_ortho ? SHOW_GRID : OVERLAY_GridBits(0));
-      axis_flag_ |= (show_ortho ? SHOW_AXES : OVERLAY_GridBits(0));
+
+      /* If any axes are set, set SHOW_AXES. If `grid` is toggled, set SHOW_GRID.
+       * We also set `GRID_BEHIND_GEOMETRY` for fixed plane views, to place it on
+       * the far plane. */
+      axis_flag_ |= (axis_flag_ ? (SHOW_AXES | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
+      grid_flag_ |= (grid_flag_ ? (SHOW_GRID | GRID_BEHIND_GEOMETRY) : OVERLAY_GridBits(0));
+
+      /* Axes are passed to the grid flag for correct occlusion. */
+      if (grid_flag_) {
+        grid_flag_ |= (show_axis_x ? AXIS_X : OVERLAY_GridBits(0));
+        grid_flag_ |= (show_axis_y ? AXIS_Y : OVERLAY_GridBits(0));
+        grid_flag_ |= (show_axis_z ? AXIS_Z : OVERLAY_GridBits(0));
+      }
     }
 
     /* Query grid scales from unit/scaling; this range suffices for user-visible levels. */
     Array<float, SI_GRID_STEPS_LEN> steps(SI_GRID_STEPS_LEN);
     ED_view3d_grid_steps(state.scene, v3d, rv3d, steps.data());
     for (int i : IndexRange(SI_GRID_STEPS_LEN)) {
-      grid_ubo_.steps[i] = float4(steps[i]);
+      /* If the current level is not specified, or the same size as the previous level,
+       * we apply a 10x scale to the previous level and use that. */
+      if (i > 0 && (steps[i] == 0.0f || steps[i] == steps[i - 1])) {
+        grid_ubo_.steps[i] = grid_ubo_.steps[i - 1] * 10.0f;
+      }
+      else {
+        grid_ubo_.steps[i] = float4(steps[i]);
+      }
     }
 
     /* Camera parameters. */
@@ -289,14 +321,16 @@ class Grid : Overlay {
       float3 camera_offs = drw_view_position - dist * drw_view_forward;
       grid_ubo_.offset = camera_offs.xy();
     }
-    else { /* Orthographic, Image/UV view. */
-      grid_ubo_.offset = drw_view_position.xy();
+    else { /* Orthographic. */
+      float3 camera_offs = drw_view_position -
+                           drw_view_forward * dot(drw_view_position, drw_view_forward);
+      grid_ubo_.offset = camera_offs.xy();
     }
 
     /* Find the lowest relevant grid level + fractional. */
-    for (int i : IndexRange(SI_GRID_STEPS_LEN - 1)) {
+    for (int i : IndexRange(SI_GRID_STEPS_LEN)) {
       float curr = std::min(grid_ubo_.steps[i].x, grid_ubo_.steps[i].y);
-      float next = (i < OVERLAY_GRID_STEPS_LEN - 1) ?
+      float next = (i < SI_GRID_STEPS_LEN - 1) ?
                        std::min(grid_ubo_.steps[i + 1].x, grid_ubo_.steps[i + 1].y) :
                        curr * 10.0f;
       if (next >= dist || i == OVERLAY_GRID_STEPS_LEN - 1) {
@@ -316,8 +350,11 @@ class Grid : Overlay {
       grid_ubo_.clip_rect = float2(clip_dist);
     }
     else {
-      float clip_dist = rv3d->is_persp ? v3d->clip_end :
-                                         (4.0f / max(rv3d->winmat[0][0], rv3d->winmat[1][1]));
+      /* WATCH(not_mark): This appears to function in ortho/VR, but I'm not convinced. */
+      bool use_clip_end = rv3d->is_persp ||
+                          ((v3d->flag & (V3D_XR_SESSION_SURFACE | V3D_XR_SESSION_MIRROR)) != 0);
+      float clip_dist = use_clip_end ? v3d->clip_end :
+                                       (4.0f / max(rv3d->winmat[0][0], rv3d->winmat[1][1]));
       grid_ubo_.clip_rect = float2(clip_dist);
     }
 

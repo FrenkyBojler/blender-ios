@@ -105,13 +105,15 @@
 #include <fmt/format.h>
 #include <sstream>
 
-namespace geo_log = blender::nodes::geo_eval_log;
-using blender::bke::bNodeTreeZone;
-using blender::bke::bNodeTreeZones;
-using blender::ed::space_node::NestedTreePreviews;
-using blender::nodes::NodeExtraInfoRow;
+namespace blender {
 
-namespace blender::ed::space_node {
+namespace geo_log = nodes::geo_eval_log;
+using bke::bNodeTreeZone;
+using bke::bNodeTreeZones;
+using ed::space_node::NestedTreePreviews;
+using nodes::NodeExtraInfoRow;
+
+namespace ed::space_node {
 
 #define NODE_ZONE_PADDING UI_UNIT_X
 #define ZONE_ZONE_PADDING 0.3f * UI_UNIT_X
@@ -263,9 +265,7 @@ static bool compare_node_depth(const bNode *a, const bNode *b)
 void tree_draw_order_update(bNodeTree &ntree)
 {
   Array<bNode *> sort_nodes = ntree.all_nodes();
-  std::sort(sort_nodes.begin(), sort_nodes.end(), [](bNode *a, bNode *b) {
-    return a->ui_order < b->ui_order;
-  });
+  std::ranges::sort(sort_nodes, [](bNode *a, bNode *b) { return a->ui_order < b->ui_order; });
   std::stable_sort(sort_nodes.begin(), sort_nodes.end(), compare_node_depth);
   for (const int i : sort_nodes.index_range()) {
     sort_nodes[i]->ui_order = i;
@@ -278,9 +278,8 @@ Array<bNode *> tree_draw_order_calc_nodes(bNodeTree &ntree)
   if (nodes.is_empty()) {
     return {};
   }
-  std::sort(nodes.begin(), nodes.end(), [](const bNode *a, const bNode *b) {
-    return a->ui_order < b->ui_order;
-  });
+  std::ranges::sort(nodes,
+                    [](const bNode *a, const bNode *b) { return a->ui_order < b->ui_order; });
   return nodes;
 }
 
@@ -290,9 +289,8 @@ Array<bNode *> tree_draw_order_calc_nodes_reversed(bNodeTree &ntree)
   if (nodes.is_empty()) {
     return {};
   }
-  std::sort(nodes.begin(), nodes.end(), [](const bNode *a, const bNode *b) {
-    return a->ui_order > b->ui_order;
-  });
+  std::ranges::sort(nodes,
+                    [](const bNode *a, const bNode *b) { return a->ui_order > b->ui_order; });
   return nodes;
 }
 
@@ -362,7 +360,7 @@ static bool node_update_basis_buttons(const bContext &C,
     return false;
   }
 
-  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
+  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, RNA_Node, &node);
 
   /* Round the node origin because text contents are always pixel-aligned. */
   const float2 loc = math::round(node_to_view(node.location));
@@ -388,7 +386,7 @@ static bool node_update_basis_buttons(const bContext &C,
 
   layout.context_ptr_set("node", &nodeptr);
 
-  draw_buttons(layout, (bContext *)&C, &nodeptr);
+  draw_buttons(layout, const_cast<bContext *>(&C), &nodeptr);
 
   block_align_end(&block);
   const int buty = ui::block_layout_resolve(&block).y;
@@ -518,12 +516,12 @@ static bool node_update_basis_socket(TreeDrawContext &tree_draw_ctx,
   }
 
   ui::Layout *row = &layout.row(true);
-  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
+  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, RNA_Node, &node);
   row->context_ptr_set("node", &nodeptr);
 
   if (input_socket) {
     /* Context pointers for current node and socket. */
-    PointerRNA sockptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, input_socket);
+    PointerRNA sockptr = RNA_pointer_create_discrete(&ntree.id, RNA_NodeSocket, input_socket);
     row->context_ptr_set("socket", &sockptr);
 
     row->alignment_set(ui::LayoutAlign::Expand);
@@ -533,7 +531,7 @@ static bool node_update_basis_socket(TreeDrawContext &tree_draw_ctx,
   }
   else {
     /* Context pointers for current node and socket. */
-    PointerRNA sockptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, output_socket);
+    PointerRNA sockptr = RNA_pointer_create_discrete(&ntree.id, RNA_NodeSocket, output_socket);
     row->context_ptr_set("socket", &sockptr);
 
     /* Align output buttons to the right. */
@@ -1168,7 +1166,7 @@ static void node_update_basis_from_declaration(TreeDrawContext &tree_draw_ctx,
             if (!ID_IS_EDITABLE(&ntree.id)) {
               layout.enabled_set(false);
             }
-            PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
+            PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree.id, RNA_Node, &node);
             layout.context_ptr_set("node", &node_ptr);
             decl.draw(layout, const_cast<bContext *>(&C), &node_ptr);
             block_align_end(&block);
@@ -1521,10 +1519,10 @@ void node_socket_color_get(const bContext &C,
     return;
   }
 
-  BLI_assert(RNA_struct_is_a(node_ptr.type, &RNA_Node));
+  BLI_assert(RNA_struct_is_a(node_ptr.type, RNA_Node));
   PointerRNA ptr = RNA_pointer_create_discrete(
-      &const_cast<ID &>(ntree.id), &RNA_NodeSocket, &const_cast<bNodeSocket &>(sock));
-  sock.typeinfo->draw_color((bContext *)&C, &ptr, &node_ptr, r_color);
+      &const_cast<ID &>(ntree.id), RNA_NodeSocket, &const_cast<bNodeSocket &>(sock));
+  sock.typeinfo->draw_color(const_cast<bContext *>(&C), &ptr, &node_ptr, r_color);
 }
 
 static void node_socket_add_tooltip_in_node_editor(const bNodeSocket &sock, ui::Layout &layout)
@@ -1551,7 +1549,7 @@ void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, ui
     const bNodeSocket *socket;
   };
 
-  SocketTooltipData *data = MEM_callocN<SocketTooltipData>(__func__);
+  SocketTooltipData *data = MEM_new_zeroed<SocketTooltipData>(__func__);
   data->ntree = &ntree;
   data->socket = &sock;
 
@@ -1562,8 +1560,8 @@ void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, ui
         build_socket_tooltip(tip, C, but, *data->ntree, *data->socket);
       },
       data,
-      MEM_dupallocN,
-      MEM_freeN);
+      MEM_dupalloc_void,
+      MEM_delete_void);
 }
 
 #define NODE_SOCKET_OUTLINE U.pixelsize
@@ -1611,7 +1609,7 @@ static bool draw_node_details(const SpaceNode &snode)
 static void node_draw_preview_background(rctf *rect)
 {
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_2D_CHECKER);
 
@@ -1682,7 +1680,7 @@ static void node_toggle_button_cb(bContext *C, void *node_argv, void *op_argv)
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &node_tree = *snode.edittree;
   bNode &node = *node_tree.node_by_id(POINTER_AS_INT(node_argv));
-  const char *opname = (const char *)op_argv;
+  const char *opname = static_cast<const char *>(op_argv);
 
   /* Select & activate only the button's node. */
   node_select_single(*C, node);
@@ -1872,7 +1870,7 @@ static void node_draw_sockets(const bContext &C,
   }
 
   PointerRNA nodeptr = RNA_pointer_create_discrete(
-      const_cast<ID *>(&ntree.id), &RNA_Node, const_cast<bNode *>(&node));
+      const_cast<ID *>(&ntree.id), RNA_Node, const_cast<bNode *>(&node));
 
   const float outline_thickness = NODE_SOCKET_OUTLINE;
 
@@ -2049,8 +2047,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, ui::Block &blo
 
     /* Panel toggle. */
     if (input_socket && !input_socket->is_logically_linked()) {
-      PointerRNA socket_ptr = RNA_pointer_create_discrete(
-          &ntree.id, &RNA_NodeSocket, input_socket);
+      PointerRNA socket_ptr = RNA_pointer_create_discrete(&ntree.id, RNA_NodeSocket, input_socket);
       ui::Button *panel_toggle_but = uiDefButR(&block,
                                                ui::ButtonType::Checkbox,
                                                "",
@@ -2064,7 +2061,6 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, ui::Block &blo
                                                0,
                                                0,
                                                "");
-      button_retval_set(panel_toggle_but, -1);
       button_func_tooltip_custom_set(
           panel_toggle_but,
           [](bContext &C, ui::TooltipData &tip, ui::Button *but, void *argN) {
@@ -2421,11 +2417,9 @@ static std::string named_attribute_tooltip(bContext * /*C*/, void *argN, const S
   for (auto &&item : arg.usage_by_attribute.items()) {
     sorted_used_attribute.append({item.key, item.value});
   }
-  std::sort(sorted_used_attribute.begin(),
-            sorted_used_attribute.end(),
-            [](const NameWithUsage &a, const NameWithUsage &b) {
-              return BLI_strcasecmp_natural(a.name.c_str(), b.name.c_str()) < 0;
-            });
+  std::ranges::sort(sorted_used_attribute, [](const NameWithUsage &a, const NameWithUsage &b) {
+    return BLI_strcasecmp_natural(a.name.c_str(), b.name.c_str()) < 0;
+  });
 
   for (const NameWithUsage &attribute : sorted_used_attribute) {
     const StringRefNull name = attribute.name;
@@ -2846,6 +2840,10 @@ static ColorTheme4f node_header_color_get(const bNodeTree &ntree,
                                           const int color_id)
 {
   ColorTheme4f color_header;
+  /* Use node backdrop alpha for node header, blend between 0.55 - 1.0. */
+  ColorTheme4f color_alpha;
+  ui::theme::get_color_4fv(TH_NODE, color_alpha);
+  const float alpha = 0.55f + color_alpha.a * (1.0f - 0.55f);
 
   /* The base color of the node header. */
   if (node_undefined_or_unsupported(ntree, node)) {
@@ -2853,10 +2851,11 @@ static ColorTheme4f node_header_color_get(const bNodeTree &ntree,
     ui::theme::get_color_blend_shade_4fv(TH_REDALERT, color_id, 0.1f, -40, color_header);
   }
   else if ((node.flag & NODE_COLLAPSED) && (node.flag & NODE_CUSTOM_COLOR)) {
-    rgba_float_args_set(color_header, node.color[0], node.color[1], node.color[2], 1.0f);
+    rgba_float_args_set(color_header, node.color[0], node.color[1], node.color[2], alpha);
   }
   else {
     ui::theme::get_color_4fv(color_id, color_header);
+    color_header.a = alpha;
   }
 
   /* Draw selected nodes fully opaque. */
@@ -3040,7 +3039,7 @@ static void node_draw_basis(const bContext &C,
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
-                    (void *)"NODE_OT_preview_toggle");
+                    (void *)("NODE_OT_preview_toggle"));
     block_emboss_set(&block, ui::EmbossType::Emboss);
   }
   if (ELEM(node.type_legacy, NODE_CUSTOM, NODE_CUSTOM_GROUP) &&
@@ -3080,7 +3079,7 @@ static void node_draw_basis(const bContext &C,
     const char *operator_idname = is_active ? "NODE_OT_deactivate_viewer" :
                                               "NODE_OT_activate_viewer";
     button_func_set(
-        but, node_toggle_button_cb, POINTER_FROM_INT(node.identifier), (void *)operator_idname);
+        but, node_toggle_button_cb, POINTER_FROM_INT(node.identifier), (void *)(operator_idname));
 
     short shortcut_icon = get_viewer_shortcut_icon(node);
     uiDefIconBut(&block,
@@ -3117,7 +3116,7 @@ static void node_draw_basis(const bContext &C,
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
-                    (void *)"NODE_OT_activate_viewer");
+                    (void *)("NODE_OT_activate_viewer"));
 
     uiDefIconBut(&block,
                  ui::ButtonType::But,
@@ -3163,7 +3162,7 @@ static void node_draw_basis(const bContext &C,
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
-                    (void *)"NODE_OT_hide_toggle");
+                    (void *)("NODE_OT_hide_toggle"));
     block_emboss_set(&block, ui::EmbossType::Emboss);
   }
 
@@ -3359,7 +3358,7 @@ static void node_draw_collapsed(const bContext &C,
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
-                    (void *)"NODE_OT_hide_toggle");
+                    (void *)("NODE_OT_hide_toggle"));
     block_emboss_set(&block, ui::EmbossType::Emboss);
   }
 
@@ -3511,7 +3510,7 @@ static FrameNodeLayout frame_node_layout(const bNode &frame_node)
 {
   BLI_assert(frame_node.is_frame());
 
-  const NodeFrame *frame_data = (NodeFrame *)frame_node.storage;
+  const NodeFrame *frame_data = static_cast<NodeFrame *>(frame_node.storage);
 
   FrameNodeLayout frame_layout;
 
@@ -3584,7 +3583,7 @@ static rctf calc_node_frame_dimensions(const bContext &C,
     return node_bounds;
   }
 
-  NodeFrame *data = (NodeFrame *)node.storage;
+  NodeFrame *data = static_cast<NodeFrame *>(node.storage);
 
   const FrameNodeLayout frame_layout = frame_node_layout(node);
 
@@ -3683,13 +3682,52 @@ static void node_update_nodetree(const bContext &C,
   }
 }
 
-static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
-                                  const bNode &node,
-                                  const SpaceNode &snode)
+static void node_frame_get_color(const bNode &node, float r_color[4])
+{
+  if (node.flag & NODE_CUSTOM_COLOR) {
+    rgba_float_args_set(r_color, node.color[0], node.color[1], node.color[2], 1.0f);
+  }
+  else {
+    /* Checking for nested frames. */
+    int depth = 0;
+    for (const bNode *parent = node.parent; parent; parent = parent->parent) {
+      depth++;
+    }
+    if (depth % 2 == 0) {
+      ui::theme::get_color_4fv(TH_NODE_FRAME, r_color);
+    }
+    else {
+      ui::theme::get_color_shade_4fv(TH_NODE_FRAME, 20, r_color);
+    }
+  }
+}
+
+static void node_frame_get_label_color(const float bgcolor[4], uchar r_color[3])
+{
+  float text_color_rgb[3];
+  ui::theme::get_color_3fv(TH_TEXT, text_color_rgb);
+
+  float text_color_hsl[3];
+  rgb_to_hsl_v(text_color_rgb, text_color_hsl);
+
+  if (srgb_to_grayscale(bgcolor) > 0.5f) {
+    /* Light background -> dark text. */
+    text_color_hsl[2] = 0.05f;
+  }
+  else {
+    /* Dark background -> light text. */
+    text_color_hsl[2] = 0.95f;
+  }
+
+  hsl_to_rgb_v(text_color_hsl, text_color_rgb);
+  rgb_float_to_uchar(r_color, text_color_rgb);
+}
+
+static void frame_node_draw_label(const bNode &node, const SpaceNode &snode)
 {
   /* XXX font id is crap design */
   const int fontid = ui::style_get()->widget.uifont_id;
-  const NodeFrame *data = (const NodeFrame *)node.storage;
+  const NodeFrame *data = static_cast<const NodeFrame *>(node.storage);
 
   /* Setting BLF_aspect() and then counter-scaling by aspect in BLF_size() has no effect on the
    * rendered text size, because the two adjustments cancel each other out. But, using aspect
@@ -3701,11 +3739,14 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
 
   const FrameNodeLayout frame_layout = frame_node_layout(node);
 
-  /* Title color. */
-  int color_id = node_get_colorid(tree_draw_ctx, node);
-  uchar color[3];
-  ui::theme::get_color_blend_shade_3ubv(TH_TEXT, color_id, 0.4f, 10, color);
-  BLF_color3ubv(fontid, color);
+  /* Calculate frame background color to determine text contrast. */
+  float bgcolor[4];
+  node_frame_get_color(node, bgcolor);
+
+  /* The Text color changes according to background color. */
+  uchar text_color[3];
+  node_frame_get_label_color(bgcolor, text_color);
+  BLF_color3ubv(fontid, text_color);
 
   const float label_width = BLF_width(fontid, node.label, strlen(node.label));
 
@@ -3721,7 +3762,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
 
   /* Draw text body. */
   if (node.id) {
-    const Text *text = (const Text *)node.id;
+    const Text *text = id_cast<const Text *>(node.id);
     const float line_spacing = BLF_height_max(fontid) * aspect;
     const float line_width = (BLI_rctf_size_x(&rct) - 2 * frame_layout.margin) / aspect;
 
@@ -3736,11 +3777,11 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
 
     BLF_wordwrap(fontid, line_width);
 
-    LISTBASE_FOREACH (const TextLine *, line, &text->lines) {
-      if (line->line[0]) {
+    for (const TextLine &line : text->lines) {
+      if (line.line[0]) {
         BLF_position(fontid, x, y, 0);
         ResultBLF info;
-        BLF_draw(fontid, line->line, line->len, &info);
+        BLF_draw(fontid, line.line, line.len, &info);
         y -= line_spacing * info.lines;
       }
       else {
@@ -3766,28 +3807,16 @@ static void frame_node_draw_background(const ARegion &region,
     return;
   }
 
+  /* Use opacity from theme, but color from the frame. */
+  float temp_theme_color[4];
+  ui::theme::get_color_4fv(TH_NODE_FRAME, temp_theme_color);
+  const float alpha = temp_theme_color[3];
+
   float color[4];
-  ui::theme::get_color_4fv(TH_NODE_FRAME, color);
-  const float alpha = color[3];
+  node_frame_get_color(node, color);
+  color[3] = alpha;
 
   node_draw_shadow(snode, node, BASIS_RAD, alpha);
-
-  if (node.flag & NODE_CUSTOM_COLOR) {
-    rgba_float_args_set(color, node.color[0], node.color[1], node.color[2], alpha);
-  }
-  else {
-    int depth = 0;
-    for (const bNode *parent = node.parent; parent; parent = parent->parent) {
-      depth++;
-    }
-
-    if (depth % 2 == 0) {
-      ui::theme::get_color_4fv(TH_NODE_FRAME, color);
-    }
-    else {
-      ui::theme::get_color_shade_4fv(TH_NODE_FRAME, 20, color);
-    }
-  }
 
   const rctf &rct = node.runtime->draw_bounds;
   draw_roundbox_corner_set(ui::CNR_ALL);
@@ -3846,7 +3875,7 @@ static void frame_node_draw_overlay(const bContext &C,
   }
 
   /* Label and text. */
-  frame_node_draw_label(tree_draw_ctx, node, snode);
+  frame_node_draw_label(node, snode);
 
   node_draw_extra_info_panel(C, tree_draw_ctx, snode, node, nullptr, block);
 
@@ -3979,7 +4008,7 @@ static void reroute_node_draw_body(const bContext &C,
   bNodeSocket &sock = *static_cast<bNodeSocket *>(node.inputs.first);
 
   PointerRNA nodeptr = RNA_pointer_create_discrete(
-      const_cast<ID *>(&ntree.id), &RNA_Node, const_cast<bNode *>(&node));
+      const_cast<ID *>(&ntree.id), RNA_Node, const_cast<bNode *>(&node));
 
   ColorTheme4f socket_color;
   ColorTheme4f outline_color;
@@ -4254,7 +4283,7 @@ static void node_draw_zones_and_frames(const ARegion &region,
   };
 
   const uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+      immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32_32);
 
   using ZoneOrNode = std::variant<const bNodeTreeZone *, const bNode *>;
   Vector<ZoneOrNode> draw_order;
@@ -4278,7 +4307,7 @@ static void node_draw_zones_and_frames(const ARegion &region,
     BLI_assert_unreachable();
     return 0.0f;
   };
-  std::sort(draw_order.begin(), draw_order.end(), [&](const ZoneOrNode &a, const ZoneOrNode &b) {
+  std::ranges::sort(draw_order, [&](const ZoneOrNode &a, const ZoneOrNode &b) {
     /* Draw zones with smaller bounding box on top to make them visible. */
     return get_zone_or_node_width(a) > get_zone_or_node_width(b);
   });
@@ -4734,24 +4763,10 @@ static void draw_nodetree(const bContext &C,
   node_draw_nodetree(C, tree_draw_ctx, region, *snode, ntree, nodes, blocks, parent_key);
 }
 
-/**
- * Make the background slightly brighter to indicate that users are inside a node-group.
- */
-static void draw_background_color(const SpaceNode &snode)
+static void draw_background_color()
 {
-  const int max_tree_length = 3;
-  const float bright_factor = 0.25f;
-
-  /* We ignore the first element of the path since it is the top-most tree and it doesn't need to
-   * be brighter. We also set a cap to how many levels we want to set apart, to avoid the
-   * background from getting too bright. */
-  const int clamped_tree_path_length = BLI_listbase_count_at_most(&snode.treepath,
-                                                                  max_tree_length);
-  const int depth = max_ii(0, clamped_tree_path_length - 1);
-
   float color[3];
   ui::theme::get_color_3fv(TH_BACK, color);
-  mul_v3_fl(color, 1.0f + bright_factor * depth);
   GPU_clear_color(color[0], color[1], color[2], 1.0);
 }
 
@@ -4764,11 +4779,11 @@ void node_draw_space(const bContext &C, ARegion &region)
   /* Setup off-screen buffers. */
   GPUViewport *viewport = WM_draw_region_get_viewport(&region);
 
-  blender::gpu::FrameBuffer *framebuffer_overlay = GPU_viewport_framebuffer_overlay_get(viewport);
+  gpu::FrameBuffer *framebuffer_overlay = GPU_viewport_framebuffer_overlay_get(viewport);
   GPU_framebuffer_bind_no_srgb(framebuffer_overlay);
 
   ui::view2d_view_ortho(&v2d);
-  draw_background_color(snode);
+  draw_background_color();
   GPU_depth_test(GPU_DEPTH_NONE);
   GPU_scissor_test(true);
 
@@ -4795,7 +4810,7 @@ void node_draw_space(const bContext &C, ARegion &region)
 
   /* Draw parent node trees. */
   if (snode.treepath.last) {
-    bNodeTreePath *path = (bNodeTreePath *)snode.treepath.last;
+    bNodeTreePath *path = static_cast<bNodeTreePath *>(snode.treepath.last);
 
     /* Update tree path name (drawn in the bottom left). */
     ID *name_id = (path->nodetree && path->nodetree != snode.nodetree) ? &path->nodetree->id :
@@ -4886,9 +4901,8 @@ void node_draw_space(const bContext &C, ARegion &region)
    * is open. Otherwise we can have two scroll bars. #141225 */
   ScrArea *area = CTX_wm_area(&C);
   bool sidebar = false;
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (region->alignment == RGN_ALIGN_RIGHT && region->overlap &&
-        !(region->flag & RGN_FLAG_HIDDEN))
+  for (ARegion &region : area->regionbase) {
+    if (region.alignment == RGN_ALIGN_RIGHT && region.overlap && !(region.flag & RGN_FLAG_HIDDEN))
     {
       sidebar = true;
       break;
@@ -4905,4 +4919,6 @@ void node_draw_space(const bContext &C, ARegion &region)
   ui::view2d_scrollers_draw(&v2d, nullptr);
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+
+}  // namespace blender

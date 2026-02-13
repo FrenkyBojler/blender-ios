@@ -6,6 +6,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+namespace blender {
+
 /** \file
  * \ingroup bke
  */
@@ -22,13 +24,14 @@
 /** Blender patch version for bug-fix releases. */
 #define BLENDER_VERSION_PATCH 0
 /** Blender release cycle stage: alpha/beta/rc/release. */
-#define BLENDER_VERSION_CYCLE alpha
+#define BLENDER_VERSION_CYCLE beta
 /** Blender release type suffix. LTS or blank. */
 #define BLENDER_VERSION_SUFFIX
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
-#define BLENDER_FILE_SUBVERSION 12
+
+#define BLENDER_FILE_SUBVERSION 27
 
 /* Minimum Blender version that supports reading file written with the current
  * version. Older Blender versions will test this and cancel loading the file, showing a warning to
@@ -66,3 +69,5 @@ void BKE_blender_version_blendfile_string_from_values(char *str_buff,
                                                       const size_t str_buff_maxncpy,
                                                       const short file_version,
                                                       const short file_subversion);
+
+}  // namespace blender
