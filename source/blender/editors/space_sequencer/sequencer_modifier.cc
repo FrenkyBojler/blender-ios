@@ -356,11 +356,14 @@ static wmOperatorStatus strip_modifier_duplicate_exec(bContext *C, wmOperator *o
   }
 
   std::string modifier_name = RNA_string_get(op->ptr, "modifier");
-  if (modifier_name.empty()) {
-    return OPERATOR_CANCELLED;
-  }
+  StripModifierData *smd = [&]() {
+    if (modifier_name.empty()) {
+      /* Use the active modifier. */
+      return seq::modifier_get_active(active_strip);
+    }
+    return seq::modifier_find_by_name(active_strip, modifier_name.c_str());
+  }();
 
-  StripModifierData *smd = seq::modifier_find_by_name(active_strip, modifier_name.c_str());
   if (!smd) {
     return OPERATOR_CANCELLED;
   }
@@ -379,7 +382,7 @@ void SEQUENCER_OT_strip_modifier_duplicate(wmOperatorType *ot)
 {
   ot->name = "Duplicate modifier";
   ot->idname = "SEQUENCER_OT_strip_modifier_duplicate";
-  ot->description = "Duplicate modifier of the active strip";
+  ot->description = "Duplicate (active) modifier of the active strip";
 
   ot->exec = strip_modifier_duplicate_exec;
   ot->poll = sequencer_strip_editable_poll;
@@ -387,7 +390,12 @@ void SEQUENCER_OT_strip_modifier_duplicate(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   ot->prop = RNA_def_string(
-      ot->srna, "modifier", nullptr, MAX_NAME, "Modifier", "Name of the modifier to duplicate");
+      ot->srna,
+      "modifier",
+      nullptr,
+      MAX_NAME,
+      "Modifier",
+      "Name of the modifier to duplicate. If empty duplicate the active modifier");
   RNA_def_property_flag(ot->prop, PROP_HIDDEN);
 }
 
