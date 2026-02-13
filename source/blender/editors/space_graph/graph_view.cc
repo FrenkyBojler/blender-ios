@@ -129,9 +129,17 @@ void get_graph_keyframe_extents(bAnimContext *ac,
         *xmin -= 0.0005f;
         *xmax += 0.0005f;
       }
-      if ((ymin && ymax) && (fabsf(*ymax - *ymin) < 0.001f)) {
-        *ymin -= 0.05f;
-        *ymax += 0.05f;
+      if (ymin && ymax) {
+        /* When ymax and ymin are exactly equal, zom in less. This is to prevent
+         * tedious zooming out again after (accidentally) framing a single key.
+         */
+        if (ymax == ymin) {
+          *ymin -= 0.05f;
+          *ymax += 0.05f;
+        } else if (fabsf(*ymax - *ymin) < 0.00001f) {
+          *ymin -= 0.000005f;
+          *ymax += 0.000005f;
+       }
       }
     }
     else {
