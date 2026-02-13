@@ -353,8 +353,10 @@ struct ChunkConstraints {
 
 struct InfinitePlaneCollider {
   std::string path;
-  float3 position;
-  float3 normal;
+  float3 end_position;
+  float3 end_normal;
+  float3 begin_position;
+  float3 begin_normal;
   float friction;
 };
 
@@ -544,9 +546,19 @@ class XpbdSolverStep {
       if (math::is_zero(*normal)) {
         continue;
       }
-      const int collider_i =
-          constraints_info_.infinite_plane_colliders.colliders.append_and_get_index(
-              {path, *position, math::normalize(*normal), friction});
+      const float3 prev_position = bundle.lookup<float3>("prev_position").value_or(*position);
+      float3 prev_normal = bundle.lookup<float3>("prev_normal").value_or(*normal);
+      if (math::is_zero(prev_normal)) {
+        prev_normal = *normal;
+      }
+
+      const int collider_i = constraints_info_.infinite_plane_colliders.colliders
+                                 .append_and_get_index({path,
+                                                        *position,
+                                                        math::normalize(*normal),
+                                                        prev_position,
+                                                        math::normalize(prev_normal),
+                                                        friction});
       for (GeometryData &geo_data : geometries_.data) {
         geo_data.infinite_plane_colliders.append(collider_i);
       }
@@ -1257,14 +1269,15 @@ class XpbdSolverStep {
             ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
             const ExternalPlaneContacts &prev_contacts = chunk_constraints.external_plane_contacts;
             ExternalPlaneContacts new_contacts;
-            this->gather_ground_plane_contacts(chunk_i, max_distance, prev_contacts, new_contacts);
+            this->gather_ground_plane_contacts(
+                chunk_i, max_distance, substep, prev_contacts, new_contacts);
             this->gather_mesh_contacts(
                 chunk_i, max_distance, substep, prev_contacts, new_contacts);
 
             const int contacts_num = new_contacts.points.size();
             for (const int i : IndexRange(contacts_num)) {
-              new_contacts.collider_velocities.append(new_contacts.collider_motion[i] /
-                                                      sub_delta_time_);
+              new_contacts.collider_velocities.append(
+                  math::safe_divide(new_contacts.collider_motion[i], sub_delta_time_));
             }
             chunk_constraints.external_plane_contacts = std::move(new_contacts);
           }
@@ -1496,6 +1509,7 @@ class XpbdSolverStep {
 
   void gather_ground_plane_contacts(const int chunk_i,
                                     const float max_distance,
+                                    const SubstepInterval &substep,
                                     const ExternalPlaneContacts &prev_contacts,
                                     ExternalPlaneContacts &r_contacts)
   {
@@ -1504,18 +1518,23 @@ class XpbdSolverStep {
     for (const int collider_i : geo_data.infinite_plane_colliders) {
       const InfinitePlaneCollider &collider =
           constraints_info_.infinite_plane_colliders.colliders[collider_i];
+      const float3 collider_position = math::interpolate(
+          collider.begin_position, collider.end_position, substep.end_factor);
+      const float3 collider_normal = math::interpolate(
+          collider.begin_normal, collider.end_normal, substep.end_factor);
       for (const int point_i : chunk.points_range) {
         const float3 &position = geo_data.position_attr.span[point_i];
-        const float distance = math::dot(position - collider.position, collider.normal);
+
+        const float distance = math::dot(position - collider_position, collider_normal);
         if (distance >= max_distance) {
           continue;
         }
 
         const int contact_i = r_contacts.points.append_and_get_index(point_i);
-        r_contacts.positions_on_plane.append(position - collider.normal * distance);
+        r_contacts.positions_on_plane.append(position - collider_normal * distance);
         /* Static plane does not move. */
         r_contacts.collider_motion.append(float3(0.0f));
-        r_contacts.separating_axes.append(collider.normal);
+        r_contacts.separating_axes.append(collider_normal);
         const float point_friction = geo_data.frictions[point_i];
         const float friction = this->compute_contact_friction(point_friction, collider.friction);
         r_contacts.static_frictions.append(friction);
