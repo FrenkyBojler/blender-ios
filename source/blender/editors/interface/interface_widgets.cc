@@ -2568,8 +2568,35 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
   }
 
   /* Always draw text for text-button cursor. */
-  widget_draw_text(fstyle, wcol, but, rect);
 
+  if (but->type != ButtonType::MultilineLabel) {
+    widget_draw_text(fstyle, wcol, but, rect);
+  }
+  else {
+    /* Draw text. */
+    ButtonMultilineLabel *multiline_button = static_cast<ButtonMultilineLabel *>(but);
+    const float line_height = BLI_rcti_size_y(rect) / float(multiline_button->last_total_lines);
+
+    FontStyleDrawParams params{};
+    params.align = multiline_button->text_align;
+
+    float ymax = rect->ymax;
+    rcti rect2 = *rect;
+    for (const StringRef line : multiline_button->wrap_cache->wrapped_lines) {
+      rect2.ymax = ymax;
+      ymax -= line_height;
+      rect2.ymin = ymax;
+      fontstyle_draw_ex(fstyle,
+                        &rect2,
+                        line.begin(),
+                        line.size(),
+                        wcol->text,
+                        &params,
+                        nullptr,
+                        nullptr,
+                        nullptr);
+    }
+  }
   button_text_password_hide(password_str, but, true);
 
   /* if a widget uses font shadow it has to be deactivated now */
@@ -5074,6 +5101,9 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
     /* Use the same widget types for both no emboss types. Later on,
      * #EmbossType::NoneOrStatus will blend state colors if they apply. */
     switch (but->type) {
+      case ButtonType::MultilineLabel:
+        wt = widget_type(UI_WTYPE_LABEL);
+        break;
       case ButtonType::Label:
       case ButtonType::Text:
         wt = widget_type(UI_WTYPE_ICON_LABEL);
@@ -5158,7 +5188,9 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
       case ButtonType::ListRow:
         wt = widget_type(UI_WTYPE_LISTITEM);
         break;
-
+      case ButtonType::MultilineLabel:
+        wt = widget_type(UI_WTYPE_LABEL);
+        break;
       case ButtonType::Text:
         wt = widget_type(UI_WTYPE_NAME);
         break;

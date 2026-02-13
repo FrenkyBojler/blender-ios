@@ -551,7 +551,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
                           const char *menu_id);
 
   void progress_indicator(const char *text, float factor, ButProgressType progress_type);
-
+  void multiline_label(StringRefNull label, FontStyleAlign align = UI_STYLE_TEXT_LEFT);
   /**
    * Adds a RNA property item, and exposes it into the layout.
    * \param ptr: RNA pointer to the struct owner of \a prop.
@@ -708,6 +708,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
   void estimate();
   virtual void estimate_impl();
   void resolve();
+  int resolve_dynamic_height();
   virtual void resolve_impl();
 };
 

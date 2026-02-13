@@ -8557,6 +8557,7 @@ static int ui_do_button(bContext *C, Block *block, Button *but, const wmEvent *e
 
   switch (but->type) {
     case ButtonType::But:
+    case ButtonType::MultilineLabel:
     case ButtonType::Decorator:
       retval = ui_do_but_BUT(C, but, data, event);
       break;

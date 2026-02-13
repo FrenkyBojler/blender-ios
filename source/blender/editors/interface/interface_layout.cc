@@ -17,6 +17,9 @@
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BLF_api.hh"
+#include "BLF_enums.hh"
+
 #include "BLI_array.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
@@ -180,6 +183,7 @@ struct LayoutInternal {
   static Layout *ui_item_prop_split_layout_hack(Layout *layout_parent, Layout *layout_split);
   static void layout_offset_size_set(Layout *layout, int x, int y, int w, int h);
   static void layout_move(Layout *layout, int delta_xmin, int delta_xmax);
+  static void layout_y_move(Layout *layout, int delta_xmin, int delta_xmax);
   static void layout_space_set(Layout *layout, int space);
 };
 
@@ -515,6 +519,33 @@ void LayoutInternal::layout_offset_size_set(Layout *layout, int x, int y, int w,
   layout->y_ = y;
   layout->w_ = w;
   layout->h_ = h;
+}
+
+
+void LayoutInternal::layout_y_move(Layout *layout, int delta_min, int delta_max)
+{
+  layout->y_ += delta_min;
+  layout->h_ += delta_max;
+}
+
+static void ui_item_y_move(Item *item, const int delta_min, const int delta_max, bool recursive)
+{
+  if (item->type() == ItemType::Button) {
+    ButtonItem *bitem = static_cast<ButtonItem *>(item);
+
+    bitem->but->rect.ymin += delta_min;
+    bitem->but->rect.ymax += delta_max;
+  }
+  else {
+    auto *layout = static_cast<Layout *>(item);
+    LayoutInternal::layout_y_move(layout, delta_min, delta_max);
+    if (!recursive) {
+      return;
+    }
+    for (auto sub : layout->items()) {
+      ui_item_y_move(sub, delta_min, delta_max, true);
+    }
+  }
 }
 
 static void ui_item_move(Item *item, const int delta_xmin, const int delta_xmax)
@@ -1924,6 +1955,14 @@ Layout *LayoutInternal::ui_item_prop_split_layout_hack(Layout *layout_parent, La
     return layout_parent->child_items_layout_;
   }
   return layout_split;
+}
+
+void Layout::multiline_label(StringRefNull text, FontStyleAlign align)
+{
+  block_layout_set_current(this->block(), this);
+  Button *but = uiDefBut(
+      this->block(), ButtonType::MultilineLabel, text, 0, 0, 100, UI_UNIT_Y, nullptr, 0, 0, "");
+  static_cast<ButtonMultilineLabel *>(but)->text_align = align;
 }
 
 void Layout::prop(PointerRNA *ptr,
@@ -3592,6 +3631,7 @@ void LayoutInternal::layout_estimate(Layout *layout)
 void LayoutInternal::layout_resolve(Layout *layout)
 {
   layout->resolve();
+  layout->resolve_dynamic_height();
 }
 
 /* single-row layout */
@@ -5400,6 +5440,104 @@ void Layout::resolve()
     }
     static_cast<Layout *>(subitem)->resolve();
   }
+}
+
+static Vector<StringRef> multiline_label_wrap_lines(ButtonMultilineLabel *button)
+{
+  const uiFontStyle &fstyle = style_get()->widget;
+  const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&button->rect)), 0);
+  StringRef text = button->str;
+  if (true) {
+    if (!button->wrap_cache) {
+      button->wrap_cache = std::make_unique<ButtonMultilineLabel::WrapCache>();
+    }
+    ButtonMultilineLabel::WrapCache &cache = *button->wrap_cache;
+    if (cache.wrap_width == width && text == cache.text) {
+      return cache.wrapped_lines;
+    }
+    cache.text = text;
+    text = cache.text;
+    cache.wrap_width = width;
+  }
+  else {
+    button->wrap_cache.reset();
+  }
+  fontstyle_set(&fstyle);
+  Vector<StringRef> lines = BLF_string_wrap(fstyle.uifont_id, text, width, BLFWrapMode::HardLimit);
+  if (button->wrap_cache) {
+    button->wrap_cache->wrapped_lines = lines;
+  }
+  while (!lines.is_empty()) {
+    lines.last() = lines.last().trim();
+    if (lines.last().is_empty()) {
+      lines.pop_last();
+    }
+    else {
+      break;
+    }
+  }
+  while (!lines.is_empty()) {
+    lines.first() = lines.first().trim();
+    if (lines.first().is_empty()) {
+      lines.remove(0);
+    }
+    else {
+      break;
+    }
+  }
+  button->last_total_lines = lines.size();
+  return lines;
+}
+
+static void resolve_multiline_label(ButtonMultilineLabel *button)
+{
+  multiline_label_wrap_lines(button);
+  button->rect.ymin = button->rect.ymax - UI_UNIT_Y * std::max(1, button->last_total_lines);
+}
+
+int Layout::resolve_dynamic_height()
+{
+  if (this->items().is_empty()) {
+    return 0;
+  }
+  int extra_y_offs = 0;
+  int max_subitem_h = 0;
+
+  for (Item *subitem : this->items()) {
+    if (extra_y_offs && this->local_direction() == LayoutDirection::Vertical) {
+      ui_item_y_move(subitem, -extra_y_offs, -extra_y_offs, true);
+    }
+    if (subitem->type() == ItemType::Button) {
+      ButtonItem *sub_bitem = static_cast<ButtonItem *>(subitem);
+      if (sub_bitem->but->type == ButtonType::MultilineLabel) {
+        int2 size = subitem->size();
+        resolve_multiline_label(static_cast<ButtonMultilineLabel *>(sub_bitem->but));
+        int2 new_size = subitem->size();
+        if (this->local_direction() == LayoutDirection::Vertical) {
+          extra_y_offs += new_size.y - size.y;
+        }
+        else if (max_subitem_h < new_size.y) {
+          max_subitem_h = new_size.y;
+          extra_y_offs = new_size.y - size.y;
+        }
+      }
+      continue;
+    }
+    int2 size = subitem->size();
+    if (this->local_direction() == LayoutDirection::Vertical) {
+      extra_y_offs += static_cast<Layout *>(subitem)->resolve_dynamic_height();
+    }
+    else {
+      static_cast<Layout *>(subitem)->resolve_dynamic_height();
+      int2 new_size = subitem->size();
+      if (new_size.y > max_subitem_h) {
+        max_subitem_h = new_size.y;
+        extra_y_offs = new_size.y - size.y;
+      }
+    }
+  }
+  ui_item_y_move(this, -extra_y_offs, extra_y_offs, false);
+  return extra_y_offs;
 }
 
 static int2 ui_layout_end(Layout *layout)

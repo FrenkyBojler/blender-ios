@@ -367,6 +367,18 @@ struct Button : NonMovable {
   virtual ~Button() = default;
 };
 
+struct ButtonMultilineLabel : public Button {
+  int last_total_lines = 0;
+  struct WrapCache {
+    int wrap_width = 0;
+    std::string text;
+    Vector<StringRef> wrapped_lines;
+  };
+  /** Wrap cache from last redraw. */
+  std::unique_ptr<WrapCache> wrap_cache;
+  FontStyleAlign text_align = UI_STYLE_TEXT_LEFT;
+};
+
 /** Derived struct for #ButtonType::Num */
 struct ButtonNumber : public Button {
   float step_size = 0.0f;

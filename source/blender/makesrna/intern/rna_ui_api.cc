@@ -536,6 +536,18 @@ static void rna_uiItemL(Layout *layout,
   layout->label(text.value_or(""), icon);
 }
 
+static void rna_multiline_label(Layout *layout,
+                        const char *name,
+                        const char *text_ctxt,
+                        bool translate,
+                        int alignment)
+{
+  /* Get translated name (label). */
+  std::optional<StringRefNull> text = rna_translate_ui_text(
+      name, text_ctxt, nullptr, nullptr, translate);
+  layout->multiline_label(text.value_or(""), ui::FontStyleAlign(alignment));
+}
+
 static void rna_uiItemM(Layout *layout,
                         const char *menuname,
                         const char *name,
@@ -1307,6 +1319,12 @@ void RNA_api_ui_layout(StructRNA *srna)
        "Replace the selected nodes with the specified type."},
       {0, nullptr, 0, nullptr, nullptr},
   };
+  static const EnumPropertyItem rna_enum_text_align[] = {
+      {int(ui::UI_STYLE_TEXT_LEFT), "LEFT", 0, "LEFT", ""},
+      {int(ui::UI_STYLE_TEXT_RIGHT), "RIGHT", 0, "RIGHT", ""},
+      {int(ui::UI_STYLE_TEXT_CENTER), "CENTER", 0, "CENTER", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
 
   static const float node_socket_color_default[] = {0.0f, 0.0f, 0.0f, 1.0f};
 
@@ -1663,6 +1681,11 @@ void RNA_api_ui_layout(StructRNA *srna)
   api_ui_item_common(func);
   parm = RNA_def_property(func, "icon_value", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
+
+  func = RNA_def_function(srna, "multiline_label", "rna_multiline_label");
+  RNA_def_function_ui_description(func, "Displays text in the layout.");
+  api_ui_item_common_text(func);
+  parm = RNA_def_enum(func, "alignment", rna_enum_text_align, 0, "", "");
 
   func = RNA_def_function(srna, "menu", "rna_uiItemM");
   parm = RNA_def_string(func, "menu", nullptr, 0, "", "Identifier of the menu");
