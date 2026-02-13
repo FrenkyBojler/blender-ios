@@ -140,9 +140,12 @@ static wmOperatorStatus mask_new_invoke(bContext *C, wmOperator *op, const wmEve
 
 static bool mask_new_poll(bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
-  if (area && area->spacetype == SPACE_NODE) {
-      return true;
+  PropertyPointerRNA pprop;
+  ui::context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
+
+  /* Allow if invoked from a template_ID button */
+  if (pprop.prop != nullptr) {
+    return true;
   }
 
   return ED_maskedit_poll(C);
