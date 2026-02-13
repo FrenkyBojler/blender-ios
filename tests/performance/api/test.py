@@ -25,7 +25,7 @@ class Test:
         Test uses a specific CPU or GPU device.
         """
         return False
-        
+
     def supported_device_types(self) -> typing.List[str]:
         """
         Supported device types when using multiple devices.

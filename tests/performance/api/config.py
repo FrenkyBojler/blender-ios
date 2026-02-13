@@ -247,12 +247,15 @@ class TestConfig:
             test_name = test.name()
             test_category = test.category()
 
-            for device in self.devices:
-                if not (test.use_device() or device.type == "CPU"):
-                    continue
-                if test.use_device() and device.type not in test.supported_device_types():
-                    continue
+            # Filter devices that are supported by this test. Add a default CPU when
+            # no devices are supported for backwards compatibility
+            devices = self.devices
+            if test.use_device():
+                devices = devices.filter(lambda device: device.type in test.supported_device_types())
+            if not devices:
+                devices = ['CPU']
 
+            for device in devices:
                 entry = self.queue.find(revision_name, test_name, test_category, device.id)
                 if entry:
                     # Test if revision hash or executable changed.

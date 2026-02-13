@@ -81,7 +81,7 @@ class CyclesTest(api.Test):
 
     def use_device(self):
         return True
-    
+
     def supported_device_types(self):
         return [
             "CPU", "CPU-OSL", "CUDA", "OPTIX", "OPTIX-OSL", "ONEAPI", "ONEAPI-RT", "HIP", "HIP-RT", "METAL", "METAL-RT"

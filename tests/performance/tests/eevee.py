@@ -138,7 +138,6 @@ else:
                 "METAL", "VULKAN", "OPENGL",
             ]
 
-
         def use_background(self):
             return False
 
