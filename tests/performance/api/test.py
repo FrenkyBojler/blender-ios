@@ -4,6 +4,7 @@
 
 import abc
 import fnmatch
+import typing
 
 
 class Test:
@@ -24,6 +25,12 @@ class Test:
         Test uses a specific CPU or GPU device.
         """
         return False
+        
+    def supported_device_types(self) -> typing.List[str]:
+        """
+        Supported device types when using multiple devices.
+        """
+        return ['CPU']
 
     def use_background(self) -> bool:
         """

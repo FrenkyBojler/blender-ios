@@ -250,6 +250,8 @@ class TestConfig:
             for device in self.devices:
                 if not (test.use_device() or device.type == "CPU"):
                     continue
+                if test.use_device() and device.type not in test.supported_device_types():
+                    continue
 
                 entry = self.queue.find(revision_name, test_name, test_category, device.id)
                 if entry:

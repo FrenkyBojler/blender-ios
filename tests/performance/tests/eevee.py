@@ -133,6 +133,12 @@ else:
         def use_device(self) -> bool:
             return True
 
+        def supported_device_types(self):
+            return [
+                "METAL", "VULKAN", "OPENGL",
+            ]
+
+
         def use_background(self):
             return False
 
