@@ -706,6 +706,8 @@ struct UnusedIDsData {
   std::array<int, INDEX_ID_MAX> *num_local;
   std::array<int, INDEX_ID_MAX> *num_linked;
 
+  /* Known sets of used & unused IDs. */
+  Set<ID *> used_ids;
   Set<ID *> unused_ids;
 
   UnusedIDsData(Main *bmain, const int id_tag, LibQueryUnusedIDsData &parameters)
@@ -728,6 +730,7 @@ struct UnusedIDsData {
              std::array<int, INDEX_ID_MAX> &num_local,
              std::array<int, INDEX_ID_MAX> &num_linked)
   {
+    used_ids.clear();
     unused_ids.clear();
     this->do_local_ids = do_local_ids;
     this->do_linked_ids = do_linked_ids;
@@ -738,45 +741,70 @@ struct UnusedIDsData {
   }
 };
 
-static void lib_query_unused_ids_tag_id(ID *id, UnusedIDsData &data)
+static void lib_query_unused_ids_tag_id(ID &id, UnusedIDsData &data)
 {
-  if (data.filter_fn && !data.filter_fn(id)) {
+  if (id.flag & ID_FLAG_EMBEDDED_DATA) {
+    /* Nothing to do for embedded IDs, these may have to be processed in dependency chains, but are
+     * never actually considered for used/unused status, as they are private data of their owner
+     * ID. */
     return;
   }
-  id->tag |= data.id_tag;
-  data.unused_ids.add(id);
-
-  const int id_code = BKE_idtype_idcode_to_index(GS(id->name));
-  (*data.num_total)[INDEX_ID_NULL]++;
-  (*data.num_total)[id_code]++;
-  if (ID_IS_LINKED(id)) {
-    (*data.num_linked)[INDEX_ID_NULL]++;
-    (*data.num_linked)[id_code]++;
+  if (data.filter_fn && !data.filter_fn(&id)) {
+    return;
   }
-  else {
-    (*data.num_local)[INDEX_ID_NULL]++;
-    (*data.num_local)[id_code]++;
+  id.tag |= data.id_tag;
+  BLI_assert(!data.used_ids.contains(&id));
+
+  if (data.unused_ids.add(&id)) {
+    const int id_type_index = BKE_idtype_idcode_to_index(GS(id.name));
+    (*data.num_total)[INDEX_ID_NULL]++;
+    (*data.num_total)[id_type_index]++;
+    if (ID_IS_LINKED(&id)) {
+      (*data.num_linked)[INDEX_ID_NULL]++;
+      (*data.num_linked)[id_type_index]++;
+    }
+    else {
+      (*data.num_local)[INDEX_ID_NULL]++;
+      (*data.num_local)[id_type_index]++;
+    }
   }
 }
 
 static void lib_query_unused_ids_untag_id(ID &id, UnusedIDsData &data)
 {
-  BLI_assert(data.unused_ids.contains(&id));
-
+  if (id.flag & ID_FLAG_EMBEDDED_DATA) {
+    /* Nothing to do for embedded IDs, these may have to be processed in dependency chains, but are
+     * never actually considered for used/unused status, as they are private data of their owner
+     * ID. */
+    return;
+  }
   id.tag &= ~data.id_tag;
-  data.unused_ids.remove_contained(&id);
 
-  const int id_code = BKE_idtype_idcode_to_index(GS(id.name));
-  (*data.num_total)[INDEX_ID_NULL]--;
-  (*data.num_total)[id_code]--;
-  if (ID_IS_LINKED(&id)) {
-    (*data.num_linked)[INDEX_ID_NULL]--;
-    (*data.num_linked)[id_code]--;
+  if (data.unused_ids.remove(&id)) {
+    const int id_type_index = BKE_idtype_idcode_to_index(GS(id.name));
+    (*data.num_total)[INDEX_ID_NULL]--;
+    (*data.num_total)[id_type_index]--;
+    if (ID_IS_LINKED(&id)) {
+      (*data.num_linked)[INDEX_ID_NULL]--;
+      (*data.num_linked)[id_type_index]--;
+    }
+    else {
+      (*data.num_local)[INDEX_ID_NULL]--;
+      (*data.num_local)[id_type_index]--;
+    }
   }
-  else {
-    (*data.num_local)[INDEX_ID_NULL]--;
-    (*data.num_local)[id_code]--;
-  }
+}
+
+static void lib_query_unused_ids_add_used_id(ID &id, UnusedIDsData &data)
+{
+  BLI_assert(!data.unused_ids.contains(&id));
+  /* NOTE: In some cases, data with zero users have to be considered as used, see e.g.
+   * #lib_query_unused_ids_has_exception_user code. */
+
+  /* Do add embedded IDs in used set here, this is only internal data and it simplifies other parts
+   * of the code (e.g. asserts that an ID passed to #lib_query_unused_ids_used_tag_recurse is
+   * used). */
+  data.used_ids.add(&id);
 }
 
 /**
@@ -830,119 +858,40 @@ static bool lib_query_unused_ids_has_exception_user(ID &id, UnusedIDsData &data)
   return false;
 }
 
-/**
- * Returns `true` if given ID is detected as part of at least one dependency loop, false otherwise.
- */
-static bool lib_query_unused_ids_tag_recurse(ID *id, UnusedIDsData &data)
+static void lib_query_unused_ids_find_used_recurse(ID &id, UnusedIDsData &data)
 {
-  /* We should never deal with embedded, not-in-main IDs here. */
-  BLI_assert((id->flag & ID_FLAG_EMBEDDED_DATA) == 0);
+  BLI_assert(data.used_ids.contains(&id));
 
-  MainIDRelationsEntry *id_relations = data.bmain->relations->relations_from_pointers->lookup(id);
-
-  if ((id_relations->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED) != 0) {
-    return false;
-  }
-  if ((id_relations->tags & MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS) != 0) {
-    /* This ID has not yet been fully processed. If this condition is reached, it means this is a
-     * dependency loop case. */
-    return true;
-  }
-
-  if ((!data.do_linked_ids && ID_IS_LINKED(id)) || (!data.do_local_ids && !ID_IS_LINKED(id))) {
-    id_relations->tags |= MAINIDRELATIONS_ENTRY_TAGS_PROCESSED;
-    return false;
-  }
-
-  if (data.unused_ids.contains(id)) {
-    id_relations->tags |= MAINIDRELATIONS_ENTRY_TAGS_PROCESSED;
-    return false;
-  }
-
-  if ((id->flag & ID_FLAG_FAKEUSER) != 0) {
-    /* This ID is forcefully kept around, and therefore never unused, no need to check it further.
-     */
-    id_relations->tags |= MAINIDRELATIONS_ENTRY_TAGS_PROCESSED;
-    return false;
-  }
-
-  const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
-  if (id_type->flags & IDTYPE_FLAGS_NEVER_UNUSED) {
-    /* Some 'root' ID types are never unused (even though they may not have actual users), unless
-     * their actual user-count is set to 0. */
-    id_relations->tags |= MAINIDRELATIONS_ENTRY_TAGS_PROCESSED;
-    return false;
-  }
-
-  if (lib_query_unused_ids_has_exception_user(*id, data)) {
-    id_relations->tags |= MAINIDRELATIONS_ENTRY_TAGS_PROCESSED;
-    return false;
-  }
+  MainIDRelationsEntry *id_relations = data.bmain->relations->relations_from_pointers->lookup(&id);
 
   /* An ID user is 'valid' (i.e. may affect the 'used'/'not used' status of the ID it uses) if it
    * does not match `ignored_usages`, and does match `required_usages`. */
-  const int ignored_usages = (IDWALK_CB_LOOPBACK | IDWALK_CB_EMBEDDED |
-                              IDWALK_CB_EMBEDDED_NOT_OWNING);
-  const int required_usages = (IDWALK_CB_USER | IDWALK_CB_USER_ONE);
+  const int ignored_usages = (IDWALK_CB_LOOPBACK | IDWALK_CB_EMBEDDED_NOT_OWNING);
+  const int required_usages = (IDWALK_CB_USER | IDWALK_CB_USER_ONE | IDWALK_CB_EMBEDDED);
 
-  /* This ID may be tagged as unused if none of its users are 'valid', as defined above.
-   *
-   * First recursively check all its valid users, if all of them can be tagged as
-   * unused, then we can tag this ID as such too. */
-  bool has_valid_from_users = false;
-  bool is_part_of_dependency_loop = false;
-  id_relations->tags |= MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS;
-  for (MainIDRelationsEntryItem *id_from_item = id_relations->from_ids; id_from_item != nullptr;
-       id_from_item = id_from_item->next)
+  /* Given ID is known to be used, so all of its 'valid' ID usages also make these used IDs
+   * effectively used, recusively. */
+  for (MainIDRelationsEntryItem *id_to_item = id_relations->to_ids; id_to_item != nullptr;
+       id_to_item = id_to_item->next)
   {
-    if ((id_from_item->usage_flag & ignored_usages) != 0 ||
-        (id_from_item->usage_flag & required_usages) == 0)
+    if ((id_to_item->usage_flag & ignored_usages) != 0 ||
+        (id_to_item->usage_flag & required_usages) == 0)
     {
       continue;
     }
 
-    ID *id_from = id_from_item->id_pointer.from;
-    if ((id_from->flag & ID_FLAG_EMBEDDED_DATA) != 0) {
-      /* Directly 'by-pass' to actual real ID owner. */
-      id_from = BKE_id_owner_get(id_from);
-      BLI_assert(id_from != nullptr);
-    }
-
-    if (lib_query_unused_ids_tag_recurse(id_from, data)) {
-      /* Dependency loop case, ignore the `id_from` tag value here (as it should not be considered
-       * as valid yet), and presume that this is a 'valid user' case for now. */
-      is_part_of_dependency_loop = true;
+    ID *id_to = id_to_item->id_pointer.to;
+    if (!id_to || data.used_ids.contains(id_to)) {
+      /* Already known to be used, likely a dependency cycle, no need to go deeper in this branch
+       * in any case. */
       continue;
     }
-    if (!data.unused_ids.contains(id_from)) {
-      has_valid_from_users = true;
-      break;
-    }
-  }
-  if (!has_valid_from_users && !is_part_of_dependency_loop) {
-    /* Tag the ID as unused, only in case it is not part of a dependency loop. */
-    lib_query_unused_ids_tag_id(id, data);
-  }
 
-  /* This ID is not being processed anymore.
-   *
-   * However, we can only tag is as successfully processed if either it was detected as part of a
-   * valid usage hierarchy, or, if detected as unused, if it was not part of a dependency loop.
-   *
-   * Otherwise, this is an undecided state, it will be resolved at the entry point of this
-   * recursive process for the root id (see below in  #BKE_lib_query_unused_ids_tag calling code).
-   */
-  id_relations->tags &= ~MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS;
-  if (has_valid_from_users || !is_part_of_dependency_loop) {
-    id_relations->tags |= MAINIDRELATIONS_ENTRY_TAGS_PROCESSED;
-  }
+    lib_query_unused_ids_untag_id(*id_to, data);
+    lib_query_unused_ids_add_used_id(*id_to, data);
 
-  /* If that ID is part of a dependency loop, but it does have a valid user (which is not part of
-   * that loop), then that dependency loop does not form (or is not part of) an unused archipelago.
-   *
-   * In other words, this current `id` is used, and is therefore a valid user of the 'calling ID'
-   * from previous recursion level.. */
-  return is_part_of_dependency_loop && !has_valid_from_users;
+    lib_query_unused_ids_find_used_recurse(*id_to, data);
+  }
 }
 
 static void lib_query_unused_ids_tag(UnusedIDsData &data)
@@ -954,14 +903,21 @@ static void lib_query_unused_ids_tag(UnusedIDsData &data)
    * NOTE: It also takes care of clearing given tag for used IDs. */
   ID *id;
   FOREACH_MAIN_ID_BEGIN (data.bmain, id) {
+    const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
     if ((!data.do_linked_ids && ID_IS_LINKED(id)) || (!data.do_local_ids && !ID_IS_LINKED(id))) {
       id->tag &= ~data.id_tag;
+      lib_query_unused_ids_add_used_id(*id, data);
     }
     else if (id->us == 0) {
-      lib_query_unused_ids_tag_id(id, data);
+      BLI_assert((id_type->flags & IDTYPE_FLAGS_NEVER_UNUSED) == 0);
+      lib_query_unused_ids_tag_id(*id, data);
     }
     else {
       id->tag &= ~data.id_tag;
+      /* Some ID types are never unused. */
+      if ((id_type->flags & IDTYPE_FLAGS_NEVER_UNUSED) != 0) {
+        lib_query_unused_ids_add_used_id(*id, data);
+      }
     }
   }
   FOREACH_MAIN_ID_END;
@@ -975,16 +931,17 @@ static void lib_query_unused_ids_tag(UnusedIDsData &data)
   int loop_num;
   for (loop_num = 0; loop_num < max_loop_num; loop_num++) {
     bool do_loop = false;
-    FOREACH_MAIN_LISTBASE_ID_BEGIN (&data.bmain->objects, id) {
-      if (!data.unused_ids.contains(id)) {
+    FOREACH_MAIN_ID_BEGIN (data.bmain, id) {
+      if (data.used_ids.contains(id)) {
         continue;
       }
       if (lib_query_unused_ids_has_exception_user(*id, data)) {
         lib_query_unused_ids_untag_id(*id, data);
+        lib_query_unused_ids_add_used_id(*id, data);
         do_loop = true;
       }
     }
-    FOREACH_MAIN_LISTBASE_ID_END;
+    FOREACH_MAIN_ID_END;
     if (!do_loop) {
       break;
     }
@@ -997,33 +954,22 @@ static void lib_query_unused_ids_tag(UnusedIDsData &data)
     return;
   }
 
+  /* Pre-tag all IDs not yet known to be used as unused. */
   FOREACH_MAIN_ID_BEGIN (data.bmain, id) {
-    if (lib_query_unused_ids_tag_recurse(id, data)) {
-      /* This root processed ID is part of one or more dependency loops.
-       *
-       * If it was not tagged, and its matching relations entry is not marked as processed, it
-       * means that it's the first encountered entry point of an 'unused archipelago' (i.e. the
-       * entry point to a set of IDs with relationships to each other, but no 'valid usage'
-       * relations to the current Blender file (like being part of a scene, etc.).
-       *
-       * So the entry can be tagged as processed, and the ID tagged as unused. */
-      if (!data.unused_ids.contains(id)) {
-        MainIDRelationsEntry *id_relations =
-            data.bmain->relations->relations_from_pointers->lookup(id);
-        if ((id_relations->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED) == 0) {
-          id_relations->tags |= MAINIDRELATIONS_ENTRY_TAGS_PROCESSED;
-          lib_query_unused_ids_tag_id(id, data);
-        }
-      }
+    if (data.used_ids.contains(id)) {
+      continue;
     }
+    lib_query_unused_ids_tag_id(*id, data);
+  }
+  FOREACH_MAIN_ID_END;
 
-#ifndef NDEBUG
-    /* Relation entry for the root processed ID should always be marked as processed now. */
-    MainIDRelationsEntry *id_relations = data.bmain->relations->relations_from_pointers->lookup(
-        id);
-    BLI_assert((id_relations->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED) != 0);
-    BLI_assert((id_relations->tags & MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS) == 0);
-#endif
+  /* Follow all valid dependencies of known used IDs and mark them as used as well (i.e. untag
+   * their 'unused' status). */
+  FOREACH_MAIN_ID_BEGIN (data.bmain, id) {
+    if (!data.used_ids.contains(id)) {
+      continue;
+    }
+    lib_query_unused_ids_find_used_recurse(*id, data);
   }
   FOREACH_MAIN_ID_END;
 }
