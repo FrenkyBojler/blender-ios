@@ -20,16 +20,13 @@
 #  include "BKE_library.hh"
 #  include "BKE_main.hh"
 #  include "BKE_report.hh"
+#  include "BKE_sound.hh"
 
 namespace blender {
 
 static void rna_Sound_pack(bSound *sound, Main *bmain, ReportList *reports)
 {
-  if (sound->packedfile) {
-    BKE_packedfile_free(sound->packedfile);
-  }
-  sound->packedfile = BKE_packedfile_new(
-      reports, sound->filepath, ID_BLEND_PATH(bmain, &sound->id));
+  BKE_sound_packfile_ensure(bmain, sound, reports);
 }
 
 static void rna_Sound_unpack(bSound *sound, Main *bmain, ReportList *reports, int method)

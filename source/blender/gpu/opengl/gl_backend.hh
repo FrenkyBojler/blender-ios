@@ -88,7 +88,7 @@ class GLBackend : public GPUBackend {
     GLTexture::samplers_update();
   };
 
-  Context *context_alloc(void *ghost_window, void * /*ghost_context*/) override
+  Context *context_alloc(GHOST_IWindow *ghost_window, GHOST_IContext * /*ghost_context*/) override
   {
     return new GLContext(ghost_window, shared_orphan_list_);
   };
@@ -133,10 +133,7 @@ class GLBackend : public GPUBackend {
     return new GLTexture(name);
   };
 
-  TexturePool *texturepool_alloc() override
-  {
-    return new GLTexturePool();
-  }
+  TexturePool *texturepool_alloc() override;
 
   UniformBuf *uniformbuf_alloc(size_t size, const char *name) override
   {

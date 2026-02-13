@@ -85,7 +85,7 @@ static void texture_copy_data(Main *bmain,
   }
 
   if (texture_dst->coba) {
-    texture_dst->coba = static_cast<ColorBand *>(MEM_dupallocN(texture_dst->coba));
+    texture_dst->coba = MEM_dupalloc(texture_dst->coba);
   }
   if (texture_src->nodetree) {
     if (texture_src->nodetree->runtime->execdata) {
@@ -120,14 +120,14 @@ static void texture_free_data(ID *id)
   /* is no lib link block, but texture extension */
   if (texture->nodetree) {
     bke::node_tree_free_embedded_tree(texture->nodetree);
-    MEM_freeN(texture->nodetree);
+    MEM_delete(texture->nodetree);
     texture->nodetree = nullptr;
   }
 
-  MEM_SAFE_FREE(texture->coba);
+  MEM_SAFE_DELETE(texture->coba);
 
   BKE_icon_id_delete(id_cast<ID *>(texture));
-  BKE_previewimg_free(&texture->preview);
+  BKE_previewimg_id_free(&texture->id);
 }
 
 static void texture_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -147,7 +147,7 @@ static void texture_blend_write(BlendWriter *writer, ID *id, const void *id_addr
   Tex *tex = id_cast<Tex *>(id);
 
   /* write LibData */
-  BLO_write_id_struct(writer, Tex, id_address, &tex->id);
+  writer->write_id_struct(id_address, tex);
   BKE_id_blend_write(writer, &tex->id);
 
   /* direct data */
@@ -158,7 +158,7 @@ static void texture_blend_write(BlendWriter *writer, ID *id, const void *id_addr
   /* nodetree is integral part of texture, no libdata */
   if (tex->nodetree) {
     BLO_Write_IDBuffer temp_embedded_id_buffer{tex->nodetree->id, writer};
-    BLO_write_struct_at_address(writer, bNodeTree, tex->nodetree, temp_embedded_id_buffer.get());
+    writer->write_struct_at_address_cast<bNodeTree>(tex->nodetree, temp_embedded_id_buffer.get());
     bke::node_tree_blend_write(writer,
                                reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get()));
   }
@@ -181,34 +181,34 @@ static void texture_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_TE = {
-    /*id_code*/ Tex::id_type,
-    /*id_filter*/ FILTER_ID_TE,
-    /*dependencies_id_types*/ FILTER_ID_IM | FILTER_ID_OB,
-    /*main_listbase_index*/ INDEX_ID_TE,
-    /*struct_size*/ sizeof(Tex),
-    /*name*/ "Texture",
-    /*name_plural*/ N_("textures"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_TEXTURE,
-    /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .id_code = Tex::id_type,
+    .id_filter = FILTER_ID_TE,
+    .dependencies_id_types = FILTER_ID_IM | FILTER_ID_OB,
+    .main_listbase_index = INDEX_ID_TE,
+    .struct_size = sizeof(Tex),
+    .name = "Texture",
+    .name_plural = N_("textures"),
+    .translation_context = BLT_I18NCONTEXT_ID_TEXTURE,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ texture_init_data,
-    /*copy_data*/ texture_copy_data,
-    /*free_data*/ texture_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ texture_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = texture_init_data,
+    .copy_data = texture_copy_data,
+    .free_data = texture_free_data,
+    .make_local = nullptr,
+    .foreach_id = texture_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ texture_blend_write,
-    /*blend_read_data*/ texture_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = texture_blend_write,
+    .blend_read_data = texture_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 void BKE_texture_mtex_foreach_id(LibraryForeachIDData *data, MTex *mtex)
@@ -221,7 +221,7 @@ void BKE_texture_mtex_foreach_id(LibraryForeachIDData *data, MTex *mtex)
 
 TexMapping *BKE_texture_mapping_add(int type)
 {
-  TexMapping *texmap = MEM_new_for_free<TexMapping>("TexMapping");
+  TexMapping *texmap = MEM_new<TexMapping>("TexMapping");
 
   BKE_texture_mapping_default(texmap, type);
 
@@ -324,7 +324,7 @@ void BKE_texture_mapping_init(TexMapping *texmap)
 
 ColorMapping *BKE_texture_colormapping_add()
 {
-  ColorMapping *colormap = MEM_new_for_free<ColorMapping>("ColorMapping");
+  ColorMapping *colormap = MEM_new<ColorMapping>("ColorMapping");
 
   BKE_texture_colormapping_default(colormap);
 
@@ -386,7 +386,7 @@ MTex *BKE_texture_mtex_add()
 {
   MTex *mtex;
 
-  mtex = MEM_new_for_free<MTex>("BKE_texture_mtex_add");
+  mtex = MEM_new<MTex>("BKE_texture_mtex_add");
 
   BKE_texture_mtex_default(mtex);
 
@@ -426,7 +426,7 @@ MTex *BKE_texture_mtex_add_id(ID *id, int slot)
 
   if (mtex_ar[slot]) {
     id_us_min(id_cast<ID *>(mtex_ar[slot]->tex));
-    MEM_freeN(mtex_ar[slot]);
+    MEM_delete(mtex_ar[slot]);
     mtex_ar[slot] = nullptr;
   }
 
@@ -470,7 +470,7 @@ void set_current_linestyle_texture(FreestyleLineStyle *linestyle, Tex *newtex)
     id_us_plus(&newtex->id);
   }
   else {
-    MEM_SAFE_FREE(linestyle->mtex[act]);
+    MEM_SAFE_DELETE(linestyle->mtex[act]);
   }
 }
 
@@ -575,7 +575,7 @@ void set_current_particle_texture(ParticleSettings *part, Tex *newtex)
     id_us_plus(&newtex->id);
   }
   else {
-    MEM_SAFE_FREE(part->mtex[act]);
+    MEM_SAFE_DELETE(part->mtex[act]);
   }
 }
 

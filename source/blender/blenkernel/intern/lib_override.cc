@@ -14,6 +14,8 @@
 #include <map>
 #include <optional>
 
+#include <fmt/format.h>
+
 #include "CLG_log.h"
 
 #include "MEM_guardedalloc.h"
@@ -107,7 +109,7 @@ BLI_INLINE IDOverrideLibraryRuntime *override_library_runtime_ensure(
     IDOverrideLibrary *liboverride)
 {
   if (liboverride->runtime == nullptr) {
-    liboverride->runtime = MEM_new_for_free<IDOverrideLibraryRuntime>(__func__);
+    liboverride->runtime = MEM_new<IDOverrideLibraryRuntime>(__func__);
   }
   return liboverride->runtime;
 }
@@ -171,7 +173,7 @@ IDOverrideLibrary *BKE_lib_override_library_init(ID *local_id, ID *reference_id)
   BLI_assert(local_id->override_library == nullptr);
 
   /* Else, generate new empty override. */
-  local_id->override_library = MEM_new_for_free<IDOverrideLibrary>(__func__);
+  local_id->override_library = MEM_new<IDOverrideLibrary>(__func__);
   local_id->override_library->reference = reference_id;
   if (reference_id) {
     id_us_plus(local_id->override_library->reference);
@@ -256,11 +258,11 @@ void BKE_lib_override_library_free(IDOverrideLibrary **liboverride, const bool d
     if ((*liboverride)->runtime->rna_path_to_override_properties != nullptr) {
       BLI_ghash_free((*liboverride)->runtime->rna_path_to_override_properties, nullptr, nullptr);
     }
-    MEM_SAFE_FREE((*liboverride)->runtime);
+    MEM_SAFE_DELETE((*liboverride)->runtime);
   }
 
   BKE_lib_override_library_clear(*liboverride, do_id_user);
-  MEM_freeN(*liboverride);
+  MEM_delete(*liboverride);
   *liboverride = nullptr;
 }
 
@@ -585,7 +587,7 @@ bool BKE_lib_override_library_create_from_tag(Main *bmain,
     if ((reference_id->tag & ID_TAG_DOIT) != 0 && reference_id->lib == reference_library &&
         BKE_idtype_idcode_is_linkable(GS(reference_id->name)))
     {
-      todo_id_iter = MEM_callocN<LinkData>(__func__);
+      todo_id_iter = MEM_new_zeroed<LinkData>(__func__);
       todo_id_iter->data = reference_id;
       BLI_addtail(&todo_ids, todo_id_iter);
     }
@@ -1959,40 +1961,70 @@ static void lib_override_root_hierarchy_set(
   }
 }
 
-static void lib_override_library_main_hierarchy_id_root_ensure(Main *bmain,
-                                                               ID *id,
-                                                               Set<ID *> &processed_ids)
+static void lib_override_library_main_hierarchy_id_root_ensure(
+    Main *bmain,
+    ID *id,
+    Set<ID *> &processed_ids,
+    LibOverride_HierarchyRoot_ValidateOptions options,
+    ReportList *reports)
 {
   BLI_assert(ID_IS_OVERRIDE_LIBRARY_REAL(id));
+
+  if (id->override_library->flag & LIBOVERRIDE_FLAG_NO_HIERARCHY) {
+    if (id->override_library->hierarchy_root != id) {
+      std::string error_msg = fmt::format(
+          "Existing isolated override '{}' has a non-null hierarchy root ('{}'), will be "
+          "cleared",
+          id->name,
+          id->override_library->hierarchy_root->name);
+      if (reports) {
+        BKE_report(reports, RPT_ERROR, error_msg.c_str());
+      }
+      else {
+        CLOG_ERROR(&LOG, "%s", error_msg.c_str());
+      }
+      id->override_library->hierarchy_root = nullptr;
+    }
+    return;
+  }
+
+  bool null_hierarchy_root_is_expected = false;
 
   if (id->override_library->hierarchy_root != nullptr) {
     if (!ID_IS_OVERRIDE_LIBRARY_REAL(id->override_library->hierarchy_root) ||
         id->override_library->hierarchy_root->lib != id->lib)
     {
-      CLOG_ERROR(
-          &LOG,
-          "Existing override hierarchy root ('%s') for ID '%s' is invalid, will try to find a "
-          "new valid one",
+      std::string error_msg = fmt::format(
+          "Existing override hierarchy root ('{}') for ID '{}' is invalid, will try to find a new "
+          "valid one",
           id->override_library->hierarchy_root != nullptr ?
               id->override_library->hierarchy_root->name :
               "<NONE>",
           id->name);
+      if (reports) {
+        BKE_report(reports, RPT_ERROR, error_msg.c_str());
+      }
+      else {
+        CLOG_ERROR(&LOG, "%s", error_msg.c_str());
+      }
       id->override_library->hierarchy_root = nullptr;
+      null_hierarchy_root_is_expected = true;
     }
     else if (!lib_override_root_is_valid(bmain, id)) {
       /* Serious invalid cases (likely resulting from bugs or invalid operations) should have
        * been caught by the first check above. Invalid hierarchy roots detected here can happen
        * in normal situations, e.g. when breaking a hierarchy by making one of its components
        * local. See also #137412. */
-      CLOG_DEBUG(
-          &LOG,
-          "Existing override hierarchy root ('%s') for ID '%s' is invalid, will try to find a "
-          "new valid one",
+      std::string error_msg = fmt::format(
+          "Existing override hierarchy root ('{}') for ID '{}' is invalid, will try to find a new "
+          "valid one",
           id->override_library->hierarchy_root != nullptr ?
               id->override_library->hierarchy_root->name :
               "<NONE>",
           id->name);
+      CLOG_DEBUG(&LOG, "%s", error_msg.c_str());
       id->override_library->hierarchy_root = nullptr;
+      null_hierarchy_root_is_expected = true;
     }
     else {
       /* This ID is considered as having a valid hierarchy root. */
@@ -2010,19 +2042,41 @@ static void lib_override_library_main_hierarchy_id_root_ensure(Main *bmain,
   if (!ELEM(id->override_library->hierarchy_root, id_root, nullptr)) {
     /* In case the detected hierarchy root does not match with the currently defined one, this is
      * likely an issue and is worth a warning. */
-    CLOG_WARN(&LOG,
-              "Potential inconsistency in library override hierarchy of ID '%s' (current root "
-              "%s), detected as part of the hierarchy of '%s' (current root '%s')",
-              id->name,
-              id->override_library->hierarchy_root != nullptr ?
-                  id->override_library->hierarchy_root->name :
-                  "<NONE>",
-              id_root->name,
-              id_root->override_library->hierarchy_root != nullptr ?
-                  id_root->override_library->hierarchy_root->name :
-                  "<NONE>");
+    std::string error_msg = fmt::format(
+        "Potential inconsistency in library override hierarchy of ID '{}' (current root "
+        "{}), detected as part of the hierarchy of '{}' (current root '{}')",
+        id->name,
+        id->override_library->hierarchy_root != nullptr ?
+            id->override_library->hierarchy_root->name :
+            "<NONE>",
+        id_root->name,
+        id_root->override_library->hierarchy_root != nullptr ?
+            id_root->override_library->hierarchy_root->name :
+            "<NONE>");
+    if (reports) {
+      BKE_report(reports, RPT_WARNING, error_msg.c_str());
+    }
+    else {
+      CLOG_WARN(&LOG, "%s", error_msg.c_str());
+    }
     processed_ids.add(id);
     return;
+  }
+
+  if (!id->override_library->hierarchy_root && !null_hierarchy_root_is_expected &&
+      (options & REPORT_NULL_ROOT_POINTERS) != 0)
+  {
+    std::string error_msg = fmt::format(
+        "Missing library override hierarchy root data for ID '{}', will be changed to use '{}' as "
+        "root.",
+        id->name,
+        id_root->name);
+    if (reports) {
+      BKE_report(reports, RPT_ERROR, error_msg.c_str());
+    }
+    else {
+      CLOG_ERROR(&LOG, "%s", error_msg.c_str());
+    }
   }
 
   lib_override_root_hierarchy_set(bmain, id_root, id, nullptr, processed_ids);
@@ -2030,7 +2084,8 @@ static void lib_override_library_main_hierarchy_id_root_ensure(Main *bmain,
   BLI_assert(id->override_library->hierarchy_root != nullptr);
 }
 
-void BKE_lib_override_library_main_hierarchy_root_ensure(Main *bmain)
+void BKE_lib_override_library_main_hierarchy_root_ensure(
+    Main *bmain, LibOverride_HierarchyRoot_ValidateOptions options, ReportList *reports)
 {
   ID *id;
 
@@ -2043,7 +2098,12 @@ void BKE_lib_override_library_main_hierarchy_root_ensure(Main *bmain)
       continue;
     }
 
-    lib_override_library_main_hierarchy_id_root_ensure(bmain, id, processed_ids);
+    if ((options & ONLY_PROCESS_NULL_ROOT_POINTERS) != 0 && id->override_library->hierarchy_root) {
+      processed_ids.add(id);
+      continue;
+    }
+
+    lib_override_library_main_hierarchy_id_root_ensure(bmain, id, processed_ids, options, reports);
   }
   FOREACH_MAIN_ID_END;
 
@@ -3372,7 +3432,7 @@ static void lib_override_resync_tagging_finalize(Main *bmain,
     }
 
     LinkNodePair *id_resync_roots = id_roots.lookup_or_add_cb(
-        hierarchy_root, []() { return MEM_callocN<LinkNodePair>(__func__); });
+        hierarchy_root, []() { return MEM_new_zeroed<LinkNodePair>(__func__); });
     BLI_linklist_append(id_resync_roots, id_iter);
   }
   FOREACH_MAIN_ID_END;
@@ -3687,7 +3747,7 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
   BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 
   for (LinkNodePair *pair : id_roots.values()) {
-    MEM_freeN(pair);
+    MEM_delete(pair);
   }
 
   /* In some fairly rare (and degenerate) cases, some root ID from other liboverrides may have been
@@ -3705,7 +3765,7 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
         continue;
       }
 
-      lib_override_library_main_hierarchy_id_root_ensure(bmain, id, processed_ids);
+      lib_override_library_main_hierarchy_id_root_ensure(bmain, id, processed_ids, {}, nullptr);
     }
     FOREACH_MAIN_ID_END;
 
@@ -3726,30 +3786,59 @@ static int lib_override_sort_libraries_func(LibraryIDLinkCallbackData *cb_data)
   }
   ID *id_owner = cb_data->owner_id;
   ID *id = *cb_data->id_pointer;
-  if (id != nullptr && ID_IS_LINKED(id) && id->lib != id_owner->lib) {
-    const int owner_library_indirect_level = ID_IS_LINKED(id_owner) ?
-                                                 id_owner->lib->runtime->temp_index :
-                                                 0;
+  if (id != nullptr && ID_IS_LINKED(id)) {
+    /* Archive libraries, used to store packed data, should not be processed here, as conceptually
+     * they are the same thing as the source/real library when it comes to dependency. And they can
+     * easily lead to fake cyclic dependencies, as packed IDs that depend on each other may end up
+     * in different archived libraries.
+     *
+     * Bottom line being, only consider 'real' libraries for dependencies here, the archive ones
+     * only add noise and artifacts, and do not need to be processed. */
+    auto get_real_library = [](ID *id) -> Library * {
+      if (!ID_IS_LINKED(id)) {
+        return nullptr;
+      }
+      Library *id_lib_valid = id->lib;
+      if (id_lib_valid->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+        BLI_assert(ID_IS_PACKED(id));
+        BLI_assert(id_lib_valid->archive_parent_library);
+        id_lib_valid = id_lib_valid->archive_parent_library;
+      }
+      return id_lib_valid;
+    };
+
+    Library *id_lib = get_real_library(id);
+    BLI_assert(id_lib);
+    Library *id_owner_lib = get_real_library(id_owner);
+    if (id_lib == id_owner_lib) {
+      return IDWALK_RET_NOP;
+    }
+
+    const int owner_library_indirect_level = id_owner_lib ? id_owner_lib->runtime->temp_index : 0;
     if (owner_library_indirect_level > 100) {
       CLOG_ERROR(&LOG_RESYNC,
                  "Levels of indirect usages of libraries is way too high, there are most likely "
                  "dependency loops, skipping further building loops (involves at least '%s' from "
                  "'%s' and '%s' from '%s')",
                  id_owner->name,
-                 id_owner->lib->filepath,
+                 id_owner_lib->filepath,
                  id->name,
-                 id->lib->filepath);
-      return IDWALK_RET_NOP;
+                 id_lib->filepath);
+      /* Ensure a library part of a dependency is not considered as a root one (i.e. it does not
+       * get a `0` temp index). */
+      if (id->lib->runtime->temp_index > 0) {
+        return IDWALK_RET_NOP;
+      }
     }
-    if (owner_library_indirect_level > 90) {
+    else if (owner_library_indirect_level > 90) {
       CLOG_WARN(
           &LOG_RESYNC,
           "Levels of indirect usages of libraries is suspiciously too high, there are most likely "
           "dependency loops (involves at least '%s' from '%s' and '%s' from '%s')",
           id_owner->name,
-          id_owner->lib->filepath,
+          id_owner_lib->filepath,
           id->name,
-          id->lib->filepath);
+          id_lib->filepath);
     }
 
     if (owner_library_indirect_level >= id->lib->runtime->temp_index) {
@@ -4019,7 +4108,7 @@ IDOverrideLibraryProperty *BKE_lib_override_library_property_get(IDOverrideLibra
   IDOverrideLibraryProperty *op = BKE_lib_override_library_property_find(liboverride, rna_path);
 
   if (op == nullptr) {
-    op = MEM_new_for_free<IDOverrideLibraryProperty>(__func__);
+    op = MEM_new<IDOverrideLibraryProperty>(__func__);
     op->rna_path = BLI_strdup(rna_path);
     BLI_addtail(&liboverride->properties, op);
 
@@ -4069,7 +4158,7 @@ void lib_override_library_property_clear(IDOverrideLibraryProperty *op)
 {
   BLI_assert(op->rna_path != nullptr);
 
-  MEM_freeN(op->rna_path);
+  MEM_delete(op->rna_path);
 
   for (IDOverrideLibraryPropertyOperation &opop : op->operations) {
     lib_override_library_property_operation_clear(&opop);
@@ -4091,7 +4180,7 @@ bool BKE_lib_override_library_property_rna_path_change(IDOverrideLibrary *libove
   }
 
   /* Switch over the RNA path. */
-  MEM_SAFE_FREE(liboverride_property->rna_path);
+  MEM_SAFE_DELETE(liboverride_property->rna_path);
   liboverride_property->rna_path = BLI_strdup(new_rna_path);
 
   /* Put property back into the lookup mapping, using the new RNA path. */
@@ -4311,7 +4400,7 @@ IDOverrideLibraryPropertyOperation *BKE_lib_override_library_property_operation_
       r_strict);
 
   if (opop == nullptr) {
-    opop = MEM_new_for_free<IDOverrideLibraryPropertyOperation>(__func__);
+    opop = MEM_new<IDOverrideLibraryPropertyOperation>(__func__);
     opop->operation = operation;
     if (subitem_locname) {
       opop->subitem_local_name = BLI_strdup(subitem_locname);
@@ -4355,10 +4444,10 @@ void lib_override_library_property_operation_copy(IDOverrideLibraryPropertyOpera
 void lib_override_library_property_operation_clear(IDOverrideLibraryPropertyOperation *opop)
 {
   if (opop->subitem_reference_name) {
-    MEM_freeN(opop->subitem_reference_name);
+    MEM_delete(opop->subitem_reference_name);
   }
   if (opop->subitem_local_name) {
-    MEM_freeN(opop->subitem_local_name);
+    MEM_delete(opop->subitem_local_name);
   }
 }
 
@@ -4908,9 +4997,9 @@ static bool lib_override_library_id_reset_do(Main *bmain,
       PointerRNA ptr, ptr_lib;
       PropertyRNA *prop, *prop_lib;
 
-      PointerRNA ptr_root = RNA_pointer_create_discrete(id_root, &RNA_ID, id_root);
+      PointerRNA ptr_root = RNA_pointer_create_discrete(id_root, RNA_ID, id_root);
       PointerRNA ptr_root_lib = RNA_pointer_create_discrete(
-          id_root->override_library->reference, &RNA_ID, id_root->override_library->reference);
+          id_root->override_library->reference, RNA_ID, id_root->override_library->reference);
 
       bool prop_exists = RNA_path_resolve_property(&ptr_root, op.rna_path, &ptr, &prop);
       if (prop_exists) {

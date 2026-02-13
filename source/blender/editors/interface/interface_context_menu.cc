@@ -182,7 +182,7 @@ static Block *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
 
   BLI_assert(kmi != nullptr);
 
-  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, &RNA_KeyMapItem, kmi);
+  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, RNA_KeyMapItem, kmi);
 
   Block *block = block_begin(C, region, "_popup", EmbossType::Emboss);
   block_func_handle_set(block, but_shortcut_name_func, but);
@@ -243,7 +243,7 @@ static Block *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
   km = WM_keymap_guess_opname(C, idname);
   kmi = WM_keymap_item_find_id(km, kmi_id);
 
-  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, &RNA_KeyMapItem, kmi);
+  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, RNA_KeyMapItem, kmi);
 
   Block *block = block_begin(C, region, "_popup", EmbossType::Emboss);
   block_func_handle_set(block, but_shortcut_name_func, but);
@@ -410,7 +410,7 @@ static void ui_but_user_menu_add(bContext *C, Button *but, bUserMenu *um)
           char *expr_result = nullptr;
           if (BPY_run_string_as_string(C, expr_imports, expr, nullptr, &expr_result)) {
             drawstr = expr_result;
-            MEM_freeN(expr_result);
+            MEM_delete(expr_result);
           }
           else {
             BLI_assert(0);
@@ -634,7 +634,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
       }
     }
 
-    if ((but->flag & BUT_ANIMATED) && (but->rnapoin.type != &RNA_NlaStrip)) {
+    if ((but->flag & BUT_ANIMATED) && (but->rnapoin.type != RNA_NlaStrip)) {
       if (is_array_component) {
         PointerRNA op_ptr = layout.op(
             "ANIM_OT_keyframe_clear_button",
@@ -864,6 +864,16 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
     layout.separator();
 
     /* Property Operators */
+    /* Swap render X and Y dimensions. */
+    if (but->rnaprop && but->rnapoin.type == RNA_RenderSettings) {
+      const std::string prop_id = RNA_property_identifier(but->rnaprop);
+      if (prop_id == "resolution_x" || prop_id == "resolution_y") {
+        layout.op("RENDER_OT_swap_dimensions",
+                  CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Swap Dimensions"),
+                  ICON_RENDER_SWAP_DIMENSIONS);
+        layout.separator();
+      }
+    }
 
     /* Copy Property Value
      * Paste Property Value */
@@ -995,7 +1005,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
   {
     /* If the button represents an id, it can set the "id" context pointer. */
     if (ed::asset::can_mark_single_from_context(C)) {
-      const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(C, "id", &RNA_ID).data);
+      const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(C, "id", RNA_ID).data);
 
       /* Gray out items depending on if data-block is an asset. Preferably this could be done via
        * operator poll, but that doesn't work since the operator also works with "selected_ids",
@@ -1072,7 +1082,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
       }
     }
     if (um_array) {
-      MEM_freeN(um_array);
+      MEM_delete(um_array);
     }
 
     if (!item_found) {
@@ -1296,7 +1306,7 @@ void popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
     return;
   }
 
-  PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_Panel, panel);
+  PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, RNA_Panel, panel);
 
   PopupMenu *pup = popup_menu_begin(C, IFACE_("Panel"), ICON_NONE);
   Layout &layout = *popup_menu_layout(pup);
@@ -1309,7 +1319,7 @@ void popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
     /* evil, force shortcut flag */
     {
       Block *block = layout.block();
-      Button *but = block->buttons.last().get();
+      Button *but = block->buttons_ptrs.last().get();
       but->flag |= BUT_HAS_SEP_CHAR;
     }
   }

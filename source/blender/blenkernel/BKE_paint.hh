@@ -324,8 +324,6 @@ float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_jitter,
 void BKE_paint_blend_write(BlendWriter *writer, Paint *paint);
 void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Paint *paint);
 
-#define SCULPT_FACE_SET_NONE 0
-
 /* Data used for displaying extra visuals while using the Pose brush */
 struct SculptPoseIKChainPreview {
   Array<float3> initial_orig_coords;
@@ -469,30 +467,17 @@ struct SculptSession : NonCopyable, NonMovable {
 
   /* Transform operator */
   float3 pivot_pos = {};
-  float4 pivot_rot = {};
+  float4 pivot_rot = float4(0.0f, 0.0f, 0.0f, 1.0f);
   float3 pivot_scale = {};
 
   float3 init_pivot_pos = {};
-  float4 init_pivot_rot = {};
+  float4 init_pivot_rot = float4(0.0f, 0.0f, 0.0f, 1.0f);
   float3 init_pivot_scale = {};
 
   float3 prev_pivot_pos = {};
-  float4 prev_pivot_rot = {};
+  float4 prev_pivot_rot = float4(0.0f, 0.0f, 0.0f, 1.0f);
   float3 prev_pivot_scale = {};
 
-  struct {
-    struct {
-      /* Keep track of how much each vertex has been painted (non-airbrush only). */
-      float *alpha_weight;
-
-      /* Needed to continuously re-apply over the same weights (#BRUSH_ACCUMULATE disabled).
-       * Lazy initialize as needed (flag is set to 1 to tag it as uninitialized). */
-      Array<MDeformVert> dvert_prev;
-    } wpaint;
-
-    /* TODO: identify sculpt-only fields */
-    // struct { ... } sculpt;
-  } mode = {};
   eObjectMode mode_type;
 
   /**
@@ -512,7 +497,7 @@ struct SculptSession : NonCopyable, NonMovable {
   /**
    * Last used painting canvas key.
    */
-  char *last_paint_canvas_key = nullptr;
+  std::optional<std::string> last_paint_canvas_key = {};
   float3 last_normal;
 
   std::unique_ptr<SculptTopologyIslandCache> topology_island_cache;
@@ -575,7 +560,6 @@ struct SculptSession : NonCopyable, NonMovable {
 
 void BKE_sculptsession_free(Object *ob);
 void BKE_sculptsession_free_deformMats(SculptSession *ss);
-void BKE_sculptsession_free_vwpaint_data(SculptSession *ss);
 void BKE_sculptsession_free_pbvh(Object &object);
 void BKE_sculptsession_bm_to_me(Object *ob);
 void BKE_sculptsession_bm_to_me_for_render(Object *object);
@@ -645,7 +629,7 @@ bool BKE_object_sculpt_use_dyntopo(const Object *object);
  * Create a key that can be used to compare with previous ones to identify changes.
  * The resulting 'string' is owned by the caller.
  */
-char *BKE_paint_canvas_key_get(PaintModeSettings *settings, Object *ob);
+std::string BKE_paint_canvas_key_get(PaintModeSettings *settings, Object *ob);
 
 bool BKE_paint_canvas_image_get(PaintModeSettings *settings,
                                 Object *ob,

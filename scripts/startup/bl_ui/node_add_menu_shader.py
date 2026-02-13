@@ -118,10 +118,11 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
             context, layout, "ShaderNodePointInfo",
             ["Position", "Radius", "Random"],
         )
+        self.node_operator(layout, "ShaderNodeRaycast")
         self.node_operator(layout, "ShaderNodeTangent")
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeTexCoord",
-            ["Normal", "UV", "Object", "Camera", "Window", "Reflection"],
+            ["Generated", "Normal", "UV", "Object", "Camera", "Window", "Reflection"],
         )
         self.node_operator(layout, "ShaderNodeUVAlongStroke", poll=line_style_shader_nodes_poll(context))
         self.node_operator(layout, "ShaderNodeUVMap")
@@ -422,6 +423,7 @@ class NODE_MT_shader_node_utilities_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "NodeEvaluateClosure")
         self.node_operator(layout, "NodeCombineBundle")
         self.node_operator(layout, "NodeSeparateBundle")
+        self.node_operator(layout, "NodeJoinBundle")
         layout.separator()
         self.node_operator(layout, "GeometryNodeMenuSwitch")
         if cycles_shader_nodes_poll(context):

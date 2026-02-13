@@ -173,10 +173,11 @@ static void draw_simulation_state(const bContext *C,
     socket_items::ui::draw_active_item_props<SimulationItemsAccessor>(
         ntree, output_node, [&](PointerRNA *item_ptr) {
           NodeSimulationItem &active_item = storage.items[storage.active_index];
+          const auto socket_type = eNodeSocketDatatype(active_item.socket_type);
           panel->use_property_split_set(true);
           panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          if (socket_type_supports_fields(eNodeSocketDatatype(active_item.socket_type))) {
+          if (socket_type_supports_attributes(socket_type)) {
             panel->prop(item_ptr, "attribute_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           }
         });
@@ -410,9 +411,9 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string identifier = SimulationItemsAccessor::socket_identifier_for_item(item);
     auto &input_decl = b.add_input(socket_type, name, identifier)
                            .socket_name_ptr(
-                               &node_tree->id, SimulationItemsAccessor::item_srna, &item, "name");
+                               &node_tree->id, *SimulationItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-    if (socket_type_supports_fields(socket_type)) {
+    if (socket_type_supports_attributes(socket_type)) {
       /* If it's below a geometry input it may be a field evaluated on that geometry. */
       input_decl.supports_field().structure_type(StructureType::Dynamic);
       output_decl.dependent_field({input_decl.index()});
@@ -426,7 +427,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySimulationInput *data = MEM_new_for_free<NodeGeometrySimulationInput>(__func__);
+  NodeGeometrySimulationInput *data = MEM_new<NodeGeometrySimulationInput>(__func__);
   /* Needs to be initialized for the node to work. */
   data->output_node_id = 0;
   node->storage = data;
@@ -746,9 +747,9 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string identifier = SimulationItemsAccessor::socket_identifier_for_item(item);
     auto &input_decl = b.add_input(socket_type, name, identifier)
                            .socket_name_ptr(
-                               &tree->id, SimulationItemsAccessor::item_srna, &item, "name");
+                               &tree->id, *SimulationItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-    if (socket_type_supports_fields(socket_type)) {
+    if (socket_type_supports_attributes(socket_type)) {
       /* If it's below a geometry input it may be a field evaluated on that geometry. */
       input_decl.supports_field().structure_type(StructureType::Dynamic);
       output_decl.dependent_field({input_decl.index()});
@@ -762,11 +763,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySimulationOutput *data = MEM_new_for_free<NodeGeometrySimulationOutput>(__func__);
+  NodeGeometrySimulationOutput *data = MEM_new<NodeGeometrySimulationOutput>(__func__);
 
   data->next_identifier = 0;
 
-  data->items = MEM_new_array_for_free<NodeSimulationItem>(1, __func__);
+  data->items = MEM_new_array<NodeSimulationItem>(1, __func__);
   data->items[0].name = BLI_strdup(DATA_("Geometry"));
   data->items[0].socket_type = SOCK_GEOMETRY;
   data->items[0].identifier = data->next_identifier++;
@@ -778,14 +779,14 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<SimulationItemsAccessor>(*node);
-  MEM_freeN(reinterpret_cast<NodeGeometrySimulationOutput *>(node->storage));
+  MEM_delete(reinterpret_cast<NodeGeometrySimulationOutput *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometrySimulationOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new_for_free<NodeGeometrySimulationOutput>(
-      __func__, dna::shallow_copy(src_storage));
+  auto *dst_storage = MEM_new<NodeGeometrySimulationOutput>(__func__,
+                                                            dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<SimulationItemsAccessor>(*src_node, *dst_node);
@@ -955,8 +956,7 @@ void mix_baked_data_item(const eNodeSocketDatatype socket_type,
       void *prev_value = prev.get_single_ptr().get();
       const void *next_value = next_copy.get_single_ptr().get();
 
-      bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
-        using T = decltype(dummy);
+      bke::attribute_math::to_static_type(type, [&]<typename T>() {
         *static_cast<T *>(prev_value) = bke::attribute_math::mix2(
             factor, *static_cast<T *>(prev_value), *static_cast<const T *>(next_value));
       });
@@ -967,7 +967,7 @@ void mix_baked_data_item(const eNodeSocketDatatype socket_type,
   }
 }
 
-StructRNA *SimulationItemsAccessor::item_srna = &RNA_SimulationStateItem;
+StructRNA **SimulationItemsAccessor::item_srna = &RNA_SimulationStateItem;
 
 void SimulationItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
