@@ -335,6 +335,7 @@ struct MeshCollider {
   Vector<int> instance_ids;
   const Mesh *mesh;
   bke::BVHTreeFromMesh corner_tris_bvh;
+  float4x4 begin_transform;
   float4x4 end_transform;
   float friction;
   float compliance;
@@ -532,6 +533,7 @@ class XpbdSolverStep {
       const bke::GeometrySet *geometry = bundle.lookup_ptr<bke::GeometrySet>("geometry");
       const float friction = bundle.lookup<float>("friction").value_or(0.0f);
       const float compliance = bundle.lookup<float>("compliance").value_or(0.0f);
+      const bke::GeometrySet *prev_geometry = bundle.lookup_ptr<bke::GeometrySet>("prev_geometry");
       if (!geometry) {
         continue;
       }
@@ -543,7 +545,9 @@ class XpbdSolverStep {
       Vector<int> instance_id_stack;
       this->gather_colliders_in_geometry(path,
                                          float4x4::identity(),
+                                         float4x4::identity(),
                                          *geometry,
+                                         prev_geometry,
                                          friction,
                                          compliance,
                                          affected_data,
@@ -553,7 +557,9 @@ class XpbdSolverStep {
 
   void gather_colliders_in_geometry(const StringRef path,
                                     const float4x4 &transform,
+                                    const float4x4 &prev_transform,
                                     const GeometrySet &collider_geo,
+                                    const GeometrySet *prev_collider_geo,
                                     const float friction,
                                     const float compliance,
                                     const Span<int> affected_data,
@@ -566,6 +572,7 @@ class XpbdSolverStep {
              instance_id_stack,
              mesh,
              mesh->bvh_corner_tris(),
+             prev_transform,
              transform,
              friction,
              compliance});
@@ -575,6 +582,26 @@ class XpbdSolverStep {
       }
     }
     if (const bke::Instances *instances = collider_geo.get_instances()) {
+      struct PrevInstanceItem {
+        const float4x4 *transform;
+        const bke::InstanceReference *reference;
+      };
+      Map<int, PrevInstanceItem> prev_instance_by_id;
+      if (prev_collider_geo) {
+        const bke::Instances *prev_instances = prev_collider_geo->get_instances();
+        if (prev_instances) {
+          const Span<float4x4> prev_instance_transforms = prev_instances->transforms();
+          const Span<int> prev_instance_ids = prev_instances->unique_ids();
+          const Span<bke::InstanceReference> prev_references = prev_instances->references();
+          for (const int i : prev_instance_transforms.index_range()) {
+            const int prev_instance_id = prev_instance_ids[i];
+            const float4x4 &prev_instance_transform = prev_instance_transforms[i];
+            const bke::InstanceReference &prev_reference = prev_references[i];
+            prev_instance_by_id.add(prev_instance_id, {&prev_instance_transform, &prev_reference});
+          }
+        }
+      }
+
       const Span<float4x4> instance_transforms = instances->transforms();
       const Span<bke::InstanceReference> references = instances->references();
       const Span<int> handles = instances->reference_handles();
@@ -586,14 +613,24 @@ class XpbdSolverStep {
         }
         const int instance_id = instance_ids[instance_i];
         const float4x4 instance_transform = instance_transforms[instance_i];
+        const PrevInstanceItem *prev_instance_item = prev_instance_by_id.lookup_ptr(instance_id);
         const bke::InstanceReference &reference = references[handle];
         GeometrySet reference_geo;
         reference.to_geometry_set(reference_geo);
+        GeometrySet prev_reference_geo;
+        float4x4 prev_instance_transform = instance_transform;
+        if (prev_instance_item) {
+          prev_instance_item->reference->to_geometry_set(prev_reference_geo);
+          prev_instance_transform = *prev_instance_item->transform;
+        }
+
         instance_id_stack.append(instance_id);
         BLI_SCOPED_DEFER([&]() { instance_id_stack.pop_last(); });
         this->gather_colliders_in_geometry(path,
                                            transform * instance_transform,
+                                           prev_transform * prev_instance_transform,
                                            reference_geo,
+                                           prev_instance_item ? &prev_reference_geo : nullptr,
                                            friction,
                                            compliance,
                                            affected_data,
@@ -1092,7 +1129,7 @@ class XpbdSolverStep {
             }
           });
 
-      this->simulate__gather_dynamic_constraints();
+      this->simulate__gather_dynamic_constraints(substep);
       this->simulate__position_solve();
 
       threading::parallel_for(
@@ -1178,7 +1215,7 @@ class XpbdSolverStep {
                                        geo_data.external_torque_attr.slice(points_range));
   }
 
-  void simulate__gather_dynamic_constraints()
+  void simulate__gather_dynamic_constraints(const SubstepInterval &substep)
   {
     const float max_distance = this->get_max_search_distance(sub_delta_time_);
     threading::parallel_for(
@@ -1188,7 +1225,7 @@ class XpbdSolverStep {
             ExternalPlaneContacts &contacts = chunk_constraints.external_plane_contacts;
             contacts.clear();
             this->gather_ground_plane_contacts(chunk_i, max_distance, contacts);
-            this->gather_mesh_contacts(chunk_i, max_distance, contacts);
+            this->gather_mesh_contacts(chunk_i, max_distance, substep, contacts);
 
             const int contacts_num = contacts.points.size();
             contacts.lambdas_normal = Vector<float>(contacts_num, 0.0f);
@@ -1479,6 +1516,7 @@ class XpbdSolverStep {
 
   void gather_mesh_contacts(const int chunk_i,
                             const float max_distance,
+                            const SubstepInterval &substep,
                             ExternalPlaneContacts &r_contacts)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
@@ -1486,10 +1524,10 @@ class XpbdSolverStep {
     for (const int collider_i : geo_data.mesh_colliders) {
       const MeshCollider &collider = constraints_info_.mesh_colliders.colliders[collider_i];
       const bke::BVHTreeFromMesh &bvh = collider.corner_tris_bvh;
-      const float4x4 &mesh_to_local =
-          constraints_info_.mesh_colliders.colliders[collider_i].end_transform;
-      /* TODO: Persistent collider transform. */
-      const float4x4 &prev_mesh_to_local = mesh_to_local;
+      const float4x4 &mesh_to_local = math::interpolate(
+          collider.begin_transform, collider.end_transform, substep.end_factor);
+      const float4x4 &prev_mesh_to_local = math::interpolate(
+          collider.begin_transform, collider.end_transform, substep.begin_factor);
       const float4x4 local_to_mesh = math::invert(mesh_to_local);
 
       for (const int point_i : chunk.points_range) {
