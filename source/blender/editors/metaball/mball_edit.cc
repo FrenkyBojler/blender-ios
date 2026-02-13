@@ -11,6 +11,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_bitmap.h"
 #include "BLI_kdtree.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -462,39 +463,74 @@ static wmOperatorStatus select_random_metaelems_exec(bContext *C, wmOperator *op
 
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
-  for (const int ob_index : objects.index_range()) {
-    Object *obedit = objects[ob_index];
-    MetaBall *mb = id_cast<MetaBall *>(obedit->data);
-    if (!BKE_mball_is_any_unselected(mb)) {
-      continue;
+
+  struct ObjectNameHasher {
+    uint operator()(Object *ob) const
+    {
+      /* This gives a consistent result regardless of object order. */
+      return BLI_ghashutil_strhash_p(ob->id.name);
     }
-    int seed_iter = seed;
+  };
 
-    /* This gives a consistent result regardless of object order. */
-    if (ob_index) {
-      seed_iter += BLI_ghashutil_strhash_p(obedit->id.name);
+  int element_count = 0;
+  Set<Object *, sizeof(Object *), blender::DefaultProbingStrategy, ObjectNameHasher> metaball_set;
+  {
+    Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+        scene, view_layer, CTX_wm_view3d(C));
+
+    metaball_set.reserve(objects.size());
+    for (auto obedit : objects) {
+      MetaBall *mb = id_cast<MetaBall *>(obedit->data);
+      if (!BKE_mball_is_any_unselected(mb)) {
+        continue;
+      }
+      element_count += BLI_listbase_count(mb->editelems);
+      metaball_set.add(obedit);
     }
+  }
 
-    RNG *rng = BLI_rng_new_srandom(seed_iter);
+  const int select_count = element_count * randfac;
+  if (select_count == 0) {
+    return OPERATOR_FINISHED;
+  }
 
-    for (MetaElem &ml : *mb->editelems) {
-      if (BLI_rng_get_float(rng) < randfac) {
+  BLI_bitmap *selection_mask = BLI_BITMAP_NEW(element_count, __func__);
+  for (int i = 0; i < select_count; i++) {
+    BLI_BITMAP_SET(selection_mask, i, true);
+  }
+  BLI_bitmap_randomize(selection_mask, element_count, seed);
+
+  int mask_offset = 0;
+  int selects_remaining = select_count;
+  for (auto obedit : metaball_set) {
+    if (!selects_remaining) {
+      break;
+    }
+    /* `id_cast<>` was used when filtering the collection - `reinterpret_cast` should be ok. */
+    MetaBall *mb = reinterpret_cast<MetaBall *>(obedit->data);
+
+    for (auto &ml : *mb->editelems) {
+      const int bit_index = mask_offset++;
+      if (BLI_BITMAP_TEST(selection_mask, bit_index)) {
         if (select) {
           ml.flag |= SELECT;
         }
         else {
           ml.flag &= ~SELECT;
         }
+        selects_remaining--;
+        if (!selects_remaining) {
+          break;
+        }
       }
     }
-
-    BLI_rng_free(rng);
 
     DEG_id_tag_update(&mb->id, ID_RECALC_SELECT);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, mb);
   }
+
+  MEM_delete(selection_mask);
+
   return OPERATOR_FINISHED;
 }
 

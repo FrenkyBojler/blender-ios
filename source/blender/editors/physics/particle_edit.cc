@@ -2119,7 +2119,6 @@ static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
   const float randfac = RNA_float_get(op->ptr, "ratio");
   const int seed = WM_operator_properties_select_random_seed_increment_get(op);
   const bool select = (RNA_enum_get(op->ptr, "action") == SEL_SELECT);
-  RNG *rng;
 
   type = RNA_enum_get(op->ptr, "type");
 
@@ -2127,28 +2126,43 @@ static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
   data.select_action = SEL_SELECT;
   edit = PE_get_current(data.depsgraph, data.scene, data.ob);
 
-  rng = BLI_rng_new_srandom(seed);
+  Vector<std::pair<PTCacheEditPoint *, PTCacheEditKey *>> point_key_pairs;
+  PTCacheEditKey *const SELECT_ALL_KEYS = reinterpret_cast<PTCacheEditKey *>(-1);
 
   switch (type) {
     case RAN_HAIR:
       LOOP_VISIBLE_POINTS {
-        int flag = ((BLI_rng_get_float(rng) < randfac) == select) ? SEL_SELECT : SEL_DESELECT;
-        LOOP_KEYS {
-          data.is_changed |= select_action_apply(point, key, flag);
-        }
+        point_key_pairs.append({point, SELECT_ALL_KEYS});
       }
       break;
     case RAN_POINTS:
       LOOP_VISIBLE_POINTS {
         LOOP_VISIBLE_KEYS {
-          int flag = ((BLI_rng_get_float(rng) < randfac) == select) ? SEL_SELECT : SEL_DESELECT;
-          data.is_changed |= select_action_apply(point, key, flag);
+          point_key_pairs.append({point, key});
         }
       }
       break;
   }
 
-  BLI_rng_free(rng);
+  const int tot = point_key_pairs.size();
+  const int totselect = tot * randfac;
+  if (totselect == 0) {
+    return OPERATOR_FINISHED;
+  }
+
+  BLI_array_randomize(point_key_pairs.data(), sizeof(point_key_pairs.first()), tot, seed);
+
+  for (int i = 0; i < totselect; i++) {
+    auto [point, key] = point_key_pairs[i];
+    if (key == SELECT_ALL_KEYS) {
+      LOOP_KEYS {
+        data.is_changed |= select_action_apply(point, key, select ? SEL_SELECT : SEL_DESELECT);
+      }
+    }
+    else {
+      data.is_changed |= select_action_apply(point, key, select ? SEL_SELECT : SEL_DESELECT);
+    }
+  }
 
   if (data.is_changed) {
     PE_update_selection(data.depsgraph, data.scene, data.ob, 1);
