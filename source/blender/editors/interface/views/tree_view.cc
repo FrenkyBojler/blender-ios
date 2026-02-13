@@ -416,8 +416,11 @@ bool AbstractTreeView::scroll(ViewScrollDirection direction)
   }
   /* Scroll value will be sanitized/clamped when drawing. */
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
-  /* Return false when scroll goes out of bounds. This is to prevent adding timer during autoscroll. */
-  if (*scroll_value_ < 0 || *scroll_value_ >= (last_tot_items_ - tot_visible_row_count().value_or(0))) {
+  /* Return false when scroll goes out of bounds. This is to prevent adding timer during
+   * autoscroll. */
+  if (*scroll_value_ < 0 ||
+      *scroll_value_ >= (last_tot_items_ - tot_visible_row_count().value_or(0)))
+  {
     return false;
   }
   return true;

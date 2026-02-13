@@ -249,8 +249,9 @@ void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const int xy[2])
     if (drag.timer->time_duration > duration) {
       WM_event_timer_remove(wm, window, drag.timer);
       drag.timer = nullptr;
-    } else {
-     return;
+    }
+    else {
+      return;
     }
   }
 
