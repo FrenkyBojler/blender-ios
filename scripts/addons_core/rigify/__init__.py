@@ -684,7 +684,8 @@ def register_rig_parameters():
             seen_error = True
 
     if seen_error:
-        # Make sure errors are seen by the caller. This helps to catch issues with Rigify in automated systems like the buildbot.
+        # Make sure errors are seen by the caller. This helps to catch issues with
+        # Rigify in automated systems like the buildbot.
         raise RuntimeError("There was an issue registering at least one Rigify rig type, check the terminal for errors")
 
 
