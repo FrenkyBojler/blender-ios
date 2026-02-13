@@ -553,6 +553,7 @@ def view3d_texture_paint_complex():
     yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_y(window))
 
     yield e.ctrl.z(6)                   # Undo: second slot added.
+    t.assertTrue(False)
     t.assertEqual(len(bpy.context.active_object.modifiers), 0, "No modifiers should exist")
 
     after_undo = tuple(bpy.data.images['Suzanne Base Color'].pixels)
