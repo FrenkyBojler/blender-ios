@@ -16,6 +16,7 @@
 #include "util/colorspace.h"
 #include "util/log.h"
 #include "util/string.h"
+#include "util/types_image.h"
 
 #include "kernel/device/cpu/image.h"
 
