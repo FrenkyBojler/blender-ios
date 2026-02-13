@@ -41,7 +41,7 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
   const Brush &brush = *BKE_paint_brush(&paint);
   const bool invert = this->is_inverted(brush);
 
-  const IMB_BlendMode blend = IMB_BlendMode(brush.blend);
+  const IMB_BlendMode blend_mode = IMB_BlendMode(brush.blend);
 
   const bool use_selection_masking = ED_grease_pencil_any_vertex_mask_selection(
       scene.toolsettings);
@@ -86,7 +86,7 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
           const Color linearrgb_color = color::unpremultiply_alpha(color);
 
           color = color::premultiply_alpha(color::BLI_mix_colors<Color, Traits>(
-              blend, linearrgb_color, mix_color, Traits::range * influence));
+              blend_mode, linearrgb_color, mix_color, Traits::range * influence));
         });
       }
     }
@@ -125,7 +125,7 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
           const Color linearrgb_color = color::unpremultiply_alpha(color);
 
           color = color::premultiply_alpha(color::BLI_mix_colors<Color, Traits>(
-              blend, linearrgb_color, mix_color, Traits::range * influence));
+              blend_mode, linearrgb_color, mix_color, Traits::range * influence));
         });
       }
     }
