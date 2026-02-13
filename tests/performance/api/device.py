@@ -50,7 +50,8 @@ def get_gpu_device(args: None) -> list:
     # TODO: Cannot retrieve actual GPU name as the gpu module isn't initialized when run in background mode
     #   !152683 adds support to use gpu module in background mode.
     # TODO: Add support for device selection when Vulkan backend isn't enabled.
-    # TODO: We should add a property for gpu_backends_available as current API only lists all possible backends (Including Metal)
+    # TODO: We should add a property for gpu_backends_available as current API
+    # only lists all possible backends (Including Metal)
     for gpu_backend in prefs.system.bl_rna.properties['gpu_backend'].enum_items:
         result.append({'type': gpu_backend.identifier, 'name': gpu_backend.name})
 
