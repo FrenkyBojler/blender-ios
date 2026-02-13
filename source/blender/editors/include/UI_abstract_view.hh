@@ -112,7 +112,7 @@ class AbstractView {
    */
   virtual bool is_fully_visible() const;
 
-  virtual void scroll(ViewScrollDirection direction);
+  virtual bool scroll(ViewScrollDirection direction);
 
   /**
    * From the current view state, return certain state that will be written to files (stored in

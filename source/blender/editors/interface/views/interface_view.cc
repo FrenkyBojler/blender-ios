@@ -265,12 +265,14 @@ void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const int xy[2])
   bottom_bounds.ymax = bottom_bounds.ymin + (UI_UNIT_Y + 1);
 
   if (BLI_rcti_isect_pt(&top_bounds, mx, my)) {
-    view->scroll(ViewScrollDirection::UP);
-    drag.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
+    if (view->scroll(ViewScrollDirection::UP)) {
+      drag.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
+    }
   }
   else if (BLI_rcti_isect_pt(&bottom_bounds, mx, my)) {
-    view->scroll(ViewScrollDirection::DOWN);
-    drag.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
+    if (view->scroll(ViewScrollDirection::DOWN)) {
+      drag.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
+    }
   }
 
   ED_region_tag_redraw(region);

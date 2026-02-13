@@ -59,6 +59,11 @@ static std::string ui_view_drop_tooltip(bContext *C,
   const ARegion *region = CTX_wm_region(C);
   std::unique_ptr<DropTargetInterface> drop_target = region_views_find_drop_target_at(region, xy);
 
+  if (drag->timer != nullptr) {
+    /* Skip drawing tooltip during auto scroll near edges. */
+    return {};
+  }
+
   if (drop_target == nullptr) {
     return {};
   }

@@ -158,8 +158,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   void foreach_root_item(ItemIterFn iter_fn) const;
 
   bool is_fully_visible() const override;
-  void scroll(ViewScrollDirection direction) override;
-
+  bool scroll(ViewScrollDirection direction) override;
   /**
    * \param xy: The mouse coordinates in window space.
    */
