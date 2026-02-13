@@ -825,7 +825,6 @@ static bool vfont_to_curve(Object *ob,
       MARGIN_X_MIN,
       MARGIN_Y_MIN,
   };
-  xtrax = 0.5f * cu.spacing - 0.5f;
 
   TextBoxBounds_ForCursor *tb_bounds_for_cursor = nullptr;
   if (cursor_params != nullptr) {
@@ -881,6 +880,8 @@ static bool vfont_to_curve(Object *ob,
     ct->wordnr = wnr;
 
     twidth = vfont_char_width(cu, che, ct->is_smallcaps);
+
+    xtrax = (cu.spacing - 1.0f) * twidth;
 
     /* Calculate positions. */
 
