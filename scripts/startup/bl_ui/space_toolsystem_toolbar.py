@@ -4115,9 +4115,6 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
             _defs_sequencer_generic.blade,
         ],
-        'SCOPES': [
-            _defs_sequencer_select.box_preview,
-        ]
     }
 
 

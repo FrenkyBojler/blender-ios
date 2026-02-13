@@ -253,8 +253,12 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
   switch (sseq->view) {
     case SEQ_VIEW_PREVIEW:
     case SEQ_VIEW_SCOPES:
+      /* Reset zoom when view is switched between `SEQ_VIEW_PREVIEW` and `SEQ_VIEW_SCOPES`. */
+      if (sseq->view != sseq->runtime->last_view) {
+        sseq->flag |= SEQ_ZOOM_TO_FIT;
+      }
       /* Reset scrolling when preview region just appears. */
-      if (!(region_preview->v2d.flag & V2D_IS_INIT) || sseq->runtime->last_view != sseq->view) {
+      if (!(region_preview->v2d.flag & V2D_IS_INIT)) {
         region_preview->v2d.cur = region_preview->v2d.tot;
         /* Only redraw, don't re-init. */
         ED_area_tag_redraw(area);

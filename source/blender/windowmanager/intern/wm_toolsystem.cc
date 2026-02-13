@@ -736,7 +736,10 @@ static bool toolsystem_key_ensure_check(const bToolKey *tkey)
     case SPACE_NODE:
       return true;
     case SPACE_SEQ:
-      return true;
+      if (ELEM(tkey->mode, SEQ_VIEW_SCOPES) == false) {
+        return true;
+      }
+      break;
   }
   return false;
 }
