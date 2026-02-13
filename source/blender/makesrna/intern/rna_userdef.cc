@@ -338,6 +338,7 @@ static void rna_userdef_gpu_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
 
   WM_main_add_notifier(NC_WINDOW, nullptr);             /* full redraw */
   WM_main_add_notifier(NC_SCREEN | NA_EDITED, nullptr); /* refresh region sizes */
+  WM_main_add_notifier(NC_FONT_UI, nullptr);
   USERDEF_TAG_DIRTY;
 }
 

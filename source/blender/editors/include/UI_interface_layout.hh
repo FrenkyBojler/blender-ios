@@ -94,6 +94,7 @@ enum class LayoutSeparatorType : int8_t {
   Auto,
   Space,
   Line,
+  Vertical,
 };
 
 enum class NodeAssetMenuOperatorType : int8_t {

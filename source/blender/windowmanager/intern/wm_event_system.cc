@@ -779,6 +779,11 @@ void wm_event_do_notifiers(bContext *C)
           region_params.notifier = note;
 
           ED_region_do_listen(&region_params);
+
+          if (note->category == NC_FONT_UI) {
+            ED_region_tag_redraw(&region);
+            ED_region_tag_refresh_ui(&region);
+          }
         }
 
         ED_screen_areas_iter (&win, screen, area) {

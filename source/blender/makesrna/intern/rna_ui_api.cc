@@ -1291,6 +1291,11 @@ void RNA_api_ui_layout(StructRNA *srna)
        0,
        "Line",
        "Horizontal or Vertical line, depending on layout direction."},
+      {int(ui::LayoutSeparatorType::Vertical),
+       "VERTICAL",
+       0,
+       "Vertical",
+       "Vertical line, regardless of layout direction."},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

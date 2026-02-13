@@ -3285,6 +3285,9 @@ void Layout::separator(float factor, const LayoutSeparatorType type)
     case LayoutSeparatorType::Line:
       but_type = ButtonType::SeprLine;
       break;
+    case LayoutSeparatorType::Vertical:
+      but_type = ButtonType::SeprLine;
+      break;
     case LayoutSeparatorType::Auto:
       but_type = (is_menu && !is_pie) ? ButtonType::SeprLine : ButtonType::Sepr;
       break;
@@ -3292,7 +3295,8 @@ void Layout::separator(float factor, const LayoutSeparatorType type)
       but_type = ButtonType::Sepr;
   }
 
-  bool is_vertical_bar = (w_ == 0) && but_type == ButtonType::SeprLine;
+  bool is_vertical_bar = ((w_ == 0) && but_type == ButtonType::SeprLine) ||
+                         (type == LayoutSeparatorType::Vertical);
 
   block_layout_set_current(block, this);
   Button *but = uiDefBut(block,

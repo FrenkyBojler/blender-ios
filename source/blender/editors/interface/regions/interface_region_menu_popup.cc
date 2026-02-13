@@ -442,7 +442,7 @@ PopupBlockHandle *popup_menu_create(
       but,
       nullptr,
       [menu_func, arg](bContext *C, Layout *layout) { menu_func(C, layout, arg); },
-      false);
+      item_menutype_func == menu_func);
 }
 
 /** \} */

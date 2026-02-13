@@ -1308,10 +1308,49 @@ void PREFERENCES_OT_clear_filter(wmOperatorType *ot)
   ot->poll = ED_operator_preferences_active;
 }
 
+static wmOperatorStatus preferences_zoom_up_exec(bContext *C, wmOperator * /*op*/)
+{
+  U.ui_scale *= 1.2f;
+  WM_main_add_notifier(NC_WINDOW, nullptr);             /* full redraw */
+  WM_main_add_notifier(NC_SCREEN | NA_EDITED, nullptr); /* refresh region sizes */
+  WM_main_add_notifier(NC_FONT_UI, nullptr);
+  U.runtime.is_dirty = true;
+  return OPERATOR_FINISHED;
+}
+
+void PREFERENCES_OT_zoom_up(wmOperatorType *ot)
+{
+  ot->name = "Zoom Up";
+  ot->description = "Increase the zoom level";
+  ot->idname = "PREFERENCES_OT_zoom_up";
+  ot->exec = preferences_zoom_up_exec;
+}
+
+static wmOperatorStatus preferences_zoom_down_exec(bContext *C, wmOperator * /*op*/)
+{
+  U.ui_scale /= 1.2f;
+  WM_main_add_notifier(NC_WINDOW, nullptr);             /* full redraw */
+  WM_main_add_notifier(NC_SCREEN | NA_EDITED, nullptr); /* refresh region sizes */
+  WM_main_add_notifier(NC_FONT_UI, nullptr);
+  U.runtime.is_dirty = true;
+  return OPERATOR_FINISHED;
+}
+
+void PREFERENCES_OT_zoom_down(wmOperatorType *ot)
+{
+  ot->name = "Zoom Down";
+  ot->description = "Decrease the zoom level";
+  ot->idname = "PREFERENCES_OT_zoom_down";
+  ot->exec = preferences_zoom_down_exec;
+}
+
 /** \} */
 
 void ED_operatortypes_userpref()
 {
+  WM_operatortype_append(PREFERENCES_OT_zoom_up);
+  WM_operatortype_append(PREFERENCES_OT_zoom_down);
+
   WM_operatortype_append(PREFERENCES_OT_reset_default_theme);
 
   WM_operatortype_append(PREFERENCES_OT_autoexec_path_add);

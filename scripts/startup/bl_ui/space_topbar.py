@@ -562,6 +562,19 @@ class TOPBAR_MT_window(Menu):
 
         layout.separator()
 
+        prefs = context.preferences
+        view = prefs.view
+
+        split = layout.split(factor=0.8, align=True)
+        split.prop(view, "ui_scale", text="Zoom", icon='ZOOM_IN')
+        row = split.row(align=True)
+        row.alignment = 'RIGHT'
+        row.separator(type='VERTICAL')
+        row.operator("preferences.zoom_up", text="", icon='ADD', emboss=False)
+        row.operator("preferences.zoom_down", text="", icon='REMOVE', emboss=False)
+
+        layout.separator()
+
         layout.operator("wm.window_fullscreen_toggle", icon='FULLSCREEN_ENTER')
 
         layout.separator()

@@ -170,6 +170,9 @@ Button *uiDefAutoButR(Block *block,
       if (RNA_property_flag(prop) & PROP_TEXTEDIT_UPDATE) {
         button_flag_enable(but, BUT_TEXTEDIT_UPDATE);
       }
+      if (icon != ICON_NONE) {
+        def_but_icon(but, icon, UI_HAS_ICON);
+      }
       break;
     }
     case PROP_ENUM: {

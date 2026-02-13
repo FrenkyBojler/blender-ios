@@ -411,6 +411,8 @@ struct wmNotifier {
 #define NC_ASSET (27 << 24)
 /* Changes to the active viewer path. */
 #define NC_VIEWER_PATH (28 << 24)
+/* Changes in theme preferences that affects UI text drawing. */
+#define NC_FONT_UI (29 << 24)
 
 /* Data type, 256 entries is enough, it can overlap. */
 #define NOTE_DATA 0x00FF0000
