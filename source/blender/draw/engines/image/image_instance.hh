@@ -131,13 +131,11 @@ class Instance : public DrawEngine {
     state.flags.do_tile_drawing = false;
 
     this->image_sync();
+    drawing_mode_.reset();
     if (this->state.image) {
       this->drawing_mode_ = this->get_drawing_mode();
       drawing_mode_->begin_sync();
       drawing_mode_->image_sync(state.image, space_->get_image_user());
-    }
-    else {
-      drawing_mode_.reset();
     }
   }
 
