@@ -636,7 +636,7 @@ gpu::Texture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser);
 gpu::Texture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser);
 
 /*
- * Like BKE_image_get_gpu_viewer_texture, but generates the image buffer is provided explicitly.
+ * Like BKE_image_get_gpu_viewer_texture, but the image buffer is provided explicitly.
  */
 gpu::Texture *BKE_image_get_gpu_viewer_texture(Image *image,
                                                ImageUser *iuser,
