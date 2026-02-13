@@ -292,6 +292,10 @@ static PyObject *bpy_prop_deferred_keywords_get(BPy_PropDeferred *self, void * /
   return ret;
 }
 
+/**
+ * While these should be private, historically they didn't use an underscore prefix.
+ * Keep them as-as some scripts use (`rigify` at least).
+ */
 static PyGetSetDef bpy_prop_deferred_getset[] = {
     {"function",
      reinterpret_cast<getter>(bpy_prop_deferred_function_get),
@@ -3509,6 +3513,10 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "   :param tags: Enumerator of tags that are defined by parent class.\n" \
   "   :type tags: set[str]\n"
 
+#define BPY_PROPDEF_RETURN_DOC \
+  "   :return: Opaque type used for registration.\n" \
+  "   :rtype: :class:`_PropertyDeferred`\n"
+
 #if 0
 static int bpy_struct_id_used(StructRNA *srna, char *identifier)
 {
@@ -3566,6 +3574,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_SET_DOC("bool")
     BPY_PROPDEF_GET_TRANSFORM_DOC("bool")
     BPY_PROPDEF_SET_TRANSFORM_DOC("bool")
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -3757,6 +3766,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_SET_DOC("tuple[bool, ...]")
     BPY_PROPDEF_GET_TRANSFORM_DOC("Sequence[bool]")
     BPY_PROPDEF_SET_TRANSFORM_DOC("Sequence[bool]")
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -3980,6 +3990,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_SET_DOC("int")
     BPY_PROPDEF_GET_TRANSFORM_DOC("int")
     BPY_PROPDEF_SET_TRANSFORM_DOC("int")
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_IntProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -4177,6 +4188,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_SET_DOC("tuple[int, ...]")
     BPY_PROPDEF_GET_TRANSFORM_DOC("Sequence[int]")
     BPY_PROPDEF_SET_TRANSFORM_DOC("Sequence[int]")
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_IntVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -4408,6 +4420,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_SET_DOC("float")
     BPY_PROPDEF_GET_TRANSFORM_DOC("float")
     BPY_PROPDEF_SET_TRANSFORM_DOC("float")
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -4621,6 +4634,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_SET_DOC("tuple[float, ...]")
     BPY_PROPDEF_GET_TRANSFORM_DOC("Sequence[float]")
     BPY_PROPDEF_SET_TRANSFORM_DOC("Sequence[float]")
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -4863,6 +4877,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_GET_TRANSFORM_DOC("str")
     BPY_PROPDEF_SET_TRANSFORM_DOC("str")
     BPY_PROPDEF_SEARCH_DOC
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -5126,6 +5141,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_SET_DOC("int")
     BPY_PROPDEF_GET_TRANSFORM_DOC("int")
     BPY_PROPDEF_SET_TRANSFORM_DOC("int")
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -5390,6 +5406,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_TAGS_DOC
     BPY_PROPDEF_POLL_DOC
     BPY_PROPDEF_UPDATE_DOC
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
     "\n"
     ".. note:: Pointer properties do not support storing references to embedded IDs "
@@ -5553,6 +5570,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_OPTIONS_DOC
     BPY_PROPDEF_OPTIONS_OVERRIDE_COLLECTION_DOC
     BPY_PROPDEF_TAGS_DOC
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 PyObject *BPy_CollectionProperty(PyObject *self, PyObject *args, PyObject *kw)
