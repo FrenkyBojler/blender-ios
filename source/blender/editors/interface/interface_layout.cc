@@ -521,7 +521,6 @@ void LayoutInternal::layout_offset_size_set(Layout *layout, int x, int y, int w,
   layout->h_ = h;
 }
 
-
 void LayoutInternal::layout_y_move(Layout *layout, int delta_min, int delta_max)
 {
   layout->y_ += delta_min;
@@ -1957,14 +1956,6 @@ Layout *LayoutInternal::ui_item_prop_split_layout_hack(Layout *layout_parent, La
   return layout_split;
 }
 
-void Layout::multiline_label(StringRefNull text, FontStyleAlign align)
-{
-  block_layout_set_current(this->block(), this);
-  Button *but = uiDefBut(
-      this->block(), ButtonType::MultilineLabel, text, 0, 0, 100, UI_UNIT_Y, nullptr, 0, 0, "");
-  static_cast<ButtonMultilineLabel *>(but)->text_align = align;
-}
-
 void Layout::prop(PointerRNA *ptr,
                   PropertyRNA *prop,
                   int index,
@@ -3244,6 +3235,14 @@ Button *uiItemL_ex(
 void Layout::label(const StringRef name, int icon)
 {
   uiItem_simple(this, name, icon);
+}
+
+void Layout::label_multiline(StringRefNull text, FontStyleAlign align)
+{
+  block_layout_set_current(this->block(), this);
+  Button *but = uiDefBut(
+      this->block(), ButtonType::MultilineLabel, text, 0, 0, 100, UI_UNIT_Y, nullptr, 0, 0, "");
+  static_cast<ButtonMultilineLabel *>(but)->text_align = align;
 }
 
 PropertySplitWrapper uiItemPropertySplitWrapperCreate(Layout *parent_layout)

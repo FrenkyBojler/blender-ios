@@ -406,6 +406,8 @@ struct Layout : public Item, NonCopyable, NonMovable {
   /** Adds a label item that will display text and/or icon in the layout. */
   void label(StringRef name, int icon);
 
+  void label_multiline(StringRefNull label, FontStyleAlign align = UI_STYLE_TEXT_LEFT);
+
   /**
    * Adds a menu item, which is a button that when active will display a menu.
    * If menu fails to poll with `WM_menutype_poll` it will not be added into the layout.
@@ -551,7 +553,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
                           const char *menu_id);
 
   void progress_indicator(const char *text, float factor, ButProgressType progress_type);
-  void multiline_label(StringRefNull label, FontStyleAlign align = UI_STYLE_TEXT_LEFT);
+
   /**
    * Adds a RNA property item, and exposes it into the layout.
    * \param ptr: RNA pointer to the struct owner of \a prop.

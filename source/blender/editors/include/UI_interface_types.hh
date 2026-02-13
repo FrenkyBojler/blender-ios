@@ -57,7 +57,6 @@ enum FontStyleAlign {
   UI_STYLE_TEXT_RIGHT = 2,
 };
 
-
 }  // namespace ui
 
 namespace ocio {

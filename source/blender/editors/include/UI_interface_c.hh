@@ -2752,7 +2752,6 @@ Block *region_block_find_mouse_over(const ARegion *region, const int xy[2], bool
  */
 ARegion *region_searchbox_region_get(const ARegion *button_region);
 
-
 struct FontStyleDrawParams {
   FontStyleAlign align;
   uint word_wrap : 1;

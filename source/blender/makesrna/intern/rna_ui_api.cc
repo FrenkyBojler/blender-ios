@@ -536,16 +536,13 @@ static void rna_uiItemL(Layout *layout,
   layout->label(text.value_or(""), icon);
 }
 
-static void rna_multiline_label(Layout *layout,
-                        const char *name,
-                        const char *text_ctxt,
-                        bool translate,
-                        int alignment)
+static void rna_multiline_label(
+    Layout *layout, const char *name, const char *text_ctxt, bool translate, int alignment)
 {
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, nullptr, translate);
-  layout->multiline_label(text.value_or(""), ui::FontStyleAlign(alignment));
+  layout->label_multiline(text.value_or(""), ui::FontStyleAlign(alignment));
 }
 
 static void rna_uiItemM(Layout *layout,
@@ -1682,7 +1679,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   parm = RNA_def_property(func, "icon_value", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
 
-  func = RNA_def_function(srna, "multiline_label", "rna_multiline_label");
+  func = RNA_def_function(srna, "label_multiline", "rna_multiline_label");
   RNA_def_function_ui_description(func, "Displays text in the layout.");
   api_ui_item_common_text(func);
   parm = RNA_def_enum(func, "alignment", rna_enum_text_align, 0, "", "");
