@@ -483,7 +483,7 @@ void BKE_previewimg_render_start(PreviewImage *prv, const int size, const bool u
 
 void BKE_previewimg_render_end(PreviewImage *prv,
                                const int size,
-                               const PreviewImageRenderStatus status)
+                               const PreviewImageRenderEndStatus status)
 {
   BLI_assert(BLI_thread_is_main());
 
@@ -500,7 +500,7 @@ void BKE_previewimg_render_end(PreviewImage *prv,
     prv->flag[size] &= ~PRV_RENDERING;
   }
 
-  /* Check if we need to do deferred delation and it's safe to do so. */
+  /* Check if we need to do deferred deletion and it's safe to do so. */
   for (int i = 0; i < NUM_ICON_SIZES; i++) {
     if (prv->runtime->tag[i] & PRV_TAG_DEFERRED_RENDERING) {
       /* Another size is still rendering, */

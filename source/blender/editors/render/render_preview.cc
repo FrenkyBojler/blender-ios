@@ -1647,7 +1647,7 @@ static void icon_preview_startjob_all_sizes(void *customdata, wmJobWorkerStatus 
   }
 }
 
-static void icon_preview_endjob(void *customdata, const PreviewImageRenderStatus status)
+static void icon_preview_endjob(void *customdata, const PreviewImageRenderEndStatus status)
 {
   IconPreview *ip = static_cast<IconPreview *>(customdata);
 
@@ -2408,15 +2408,6 @@ void ED_preview_online_download_finished(wmWindowManager *wm,
 {
   PreviewLoadJob::on_download_completed(wm, preview_full_filepath);
 }
-
-/**
- * ID previews may be generated in a parallel job. The operation that generates the preview
- * likely does an undo push before the preview is actually done and stored in the ID. The
- * restart system exists to make sure previews remain up to date.
- *
- * When undoing back to the moment the preview generation was triggered, this function
- * schedules the preview for regeneration.
- */
 
 void ED_preview_restart_work(const bContext *C)
 {
