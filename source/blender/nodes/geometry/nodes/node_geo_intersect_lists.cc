@@ -11,7 +11,8 @@ namespace blender::nodes::node_geo_intersect_lists_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   // TODO: generalize socket type
-  b.add_input<decl::String>("Lists").multi_input().hide_value();
+  b.add_input<decl::String>("Lists").multi_input().hide_value().structure_type(
+      StructureType::List);
   b.add_output<decl::Bool>("Intersect");
 }
 

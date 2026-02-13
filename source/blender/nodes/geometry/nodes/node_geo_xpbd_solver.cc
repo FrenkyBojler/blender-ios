@@ -157,6 +157,7 @@ struct GeometryData {
   int size;
   /** Easy access to curve data for curves and grease pencil layers. */
   bke::CurvesGeometry *curves = nullptr;
+  Vector<std::string> tags;
 
   IndexRange chunks;
   /**
@@ -230,6 +231,7 @@ struct GeometryData {
 struct Geometries {
   Vector<std::string> paths;
   Vector<GeometrySet> geometry_sets;
+  Vector<VectorSet<std::string>> geometry_tags;
 
   VectorSet<DataKey> data_keys;
   Vector<GeometryData> data;
@@ -456,8 +458,28 @@ class XpbdSolverStep {
 
     /* Move the geometry sets out of the bundles. They are put back in after the simulation. */
     geometries_.geometry_sets.reinitialize(geometries_.paths.size());
+    geometries_.geometry_tags.reinitialize(geometries_.paths.size());
     for (const int i : geometries_.paths.index_range()) {
       const StringRef geometry_path = geometries_.paths[i];
+      BundlePtr *geometry_bundle_ptr = world_.lookup_path_for_write_ptr<BundlePtr>(geometry_path);
+      if (!geometry_bundle_ptr || !*geometry_bundle_ptr) {
+        continue;
+      }
+      Bundle &geometry_bundle = geometry_bundle_ptr->ensure_mutable_inplace();
+      GeometrySet *geometry = geometry_bundle.lookup_ptr<GeometrySet>("geometry");
+      if (!geometry) {
+        continue;
+      }
+      if (const std::optional<ListPtr> tags_list_ptr = geometry_bundle.lookup<ListPtr>("tags")) {
+        if (*tags_list_ptr) {
+          const List &tags_list = **tags_list_ptr;
+          if (tags_list.cpp_type().is<std::string>()) {
+            tags_list.foreach<std::string>(
+                [&](const std::string &tag) { geometries_.geometry_tags[i].add(tag); });
+          }
+        }
+      }
+
       if (GeometrySet *geometry = world_.lookup_path_for_write_ptr<GeometrySet>(geometry_path +
                                                                                 "/geometry"))
       {
@@ -546,6 +568,7 @@ class XpbdSolverStep {
       if (math::is_zero(*normal)) {
         continue;
       }
+      const std::string filter = bundle.lookup<std::string>("filter").value_or("");
       const float3 prev_position = bundle.lookup<float3>("prev_position").value_or(*position);
       float3 prev_normal = bundle.lookup<float3>("prev_normal").value_or(*normal);
       if (math::is_zero(prev_normal)) {
@@ -559,10 +582,38 @@ class XpbdSolverStep {
                                                         prev_position,
                                                         math::normalize(prev_normal),
                                                         friction});
-      for (GeometryData &geo_data : geometries_.data) {
-        geo_data.infinite_plane_colliders.append(collider_i);
+      for (const int data_key_i : geometries_.data_keys.index_range()) {
+        if (this->data_matches_filter(data_key_i, filter)) {
+          geometries_.data[data_key_i].infinite_plane_colliders.append(collider_i);
+        }
       }
     }
+  }
+
+  bool data_matches_filter(const int data_key_i, const StringRef filter) const
+  {
+    if (filter.is_empty()) {
+      return true;
+    }
+    const DataKey &data_key = geometries_.data_keys[data_key_i];
+    const VectorSet<std::string> &geometry_tags = geometries_.geometry_tags[data_key.geo_bundle_i];
+    StringRef remaining = filter;
+    while (!remaining.is_empty()) {
+      const int sep = remaining.find(',');
+      if (sep == -1) {
+        const StringRef tag = remaining.trim();
+        if (geometry_tags.contains_as(tag)) {
+          return true;
+        }
+        return false;
+      }
+      const StringRef tag = remaining.substr(0, sep).trim();
+      if (geometry_tags.contains_as(tag)) {
+        return true;
+      }
+      remaining = remaining.substr(sep + 1);
+    }
+    return false;
   }
 
   void gather_mesh_colliders_from_world()
@@ -577,14 +628,16 @@ class XpbdSolverStep {
       const bke::GeometrySet *geometry = bundle.lookup_ptr<bke::GeometrySet>("geometry");
       const float friction = bundle.lookup<float>("friction").value_or(0.0f);
       const float compliance = bundle.lookup<float>("compliance").value_or(0.0f);
+      const std::string filter = bundle.lookup<std::string>("filter").value_or("");
       const bke::GeometrySet *prev_geometry = bundle.lookup_ptr<bke::GeometrySet>("prev_geometry");
       if (!geometry) {
         continue;
       }
       Vector<int> affected_data;
-      // TODO: support filtering
       for (const int data_key_i : geometries_.data_keys.index_range()) {
-        affected_data.append(data_key_i);
+        if (this->data_matches_filter(data_key_i, filter)) {
+          affected_data.append(data_key_i);
+        }
       }
       Vector<int> instance_id_stack;
       this->gather_colliders_in_geometry(path,

@@ -19,9 +19,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
-  static auto trim_fn = mf::build::SI3_SO<std::string, bool, std::string, std::string>(
+  static auto trim_fn = mf::build::SI3_SO<std::string, std::string, bool, std::string>(
       "Trim",
-      [](const std::string &input_str, const bool trim_whitespace, const std::string &characters) {
+      [](const std::string &input_str, const std::string &characters, const bool trim_whitespace) {
         std::string characters_to_trim = characters;
         if (trim_whitespace) {
           characters_to_trim.append(" \t\n\r");
