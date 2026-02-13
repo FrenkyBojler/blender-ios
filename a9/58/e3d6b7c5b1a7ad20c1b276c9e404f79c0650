@@ -8,7 +8,7 @@ Referenced by commit e83b5645badcd2f5d4ed5c477c219f4a74937407, Fix #152517: FBX 
 Referenced by commit 29dcb8437351409973f7578f8524f039dcf9e828, Fix: Make sure added UV map is set active
 Referenced by pull request #154126, Fix #154020: Renaming a UV Map loses its active state
 Referenced by pull request #154127, Fix #154020: Renaming a UV Map loses its active state
-Referenced by issue #154133, Can't preview UVs on curve objects converted to meshes in geometry nodes (but this used to work).
+Referenced by issue #154133, UVs from Store Named Attributes node cannot be previewed in UV/Image Editors (e.g. curve objects converted to meshes in geometry nodes)
 Referenced by commit 475a1e21983821b98c714313adfc559df9398ccc, Fix #154020: Renaming a UV Map loses its active state
 Referenced by pull request #154190, Fix #154189: Transfer Mesh Data UVs are not set active
 Referenced by pull request #154196, Fix #154133: UVs from Store Named Attributes node missing
