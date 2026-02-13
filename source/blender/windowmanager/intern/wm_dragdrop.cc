@@ -70,8 +70,6 @@
 
 namespace blender {
 
-#define TREE_VIEW_DRAG_SCROLL_SPEED 0.001
-
 /* ****************************************************** */
 
 struct wmDropBoxMap;
@@ -637,12 +635,7 @@ void wm_drop_end(bContext *C, wmDrag * /*drag*/, wmDropBox * /*drop*/)
 
 void wm_drags_handle_events(bContext *C, const wmEvent *event)
 {
-  if (!(ELEM(event->type, MOUSEMOVE, EVT_DROP, TIMER) || ISKEYMODIFIER(event->type))) {
-    return;
-  }
-
   wmWindowManager *wm = CTX_wm_manager(C);
-  ARegion *region = CTX_wm_region(C);
   /* Set this boolean to true during timer event so that modal cursor won't be changed at the
    * bottom of the function. */
   bool any_active = event->type == TIMER;
@@ -652,16 +645,8 @@ void wm_drags_handle_events(bContext *C, const wmEvent *event)
 
     if (drag.drop_state.active_dropbox) {
       any_active = true;
-      if (region && drag.drop_state.active_dropbox->on_hover) {
-        if (drag.timer == nullptr) {
-          drag.timer = WM_event_timer_add(
-              wm, CTX_wm_window(C), TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
-        }
-        if (drag.timer == event->customdata) {
-          WM_event_timer_remove(wm, CTX_wm_window(C), drag.timer);
-          drag.timer = nullptr;
-          drag.drop_state.active_dropbox->on_hover(region, event->xy);
-        }
+      if (drag.drop_state.active_dropbox->on_hover) {
+        drag.drop_state.active_dropbox->on_hover(C, drag, event->xy);
       }
     }
   }

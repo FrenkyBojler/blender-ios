@@ -34,8 +34,10 @@
 #include "UI_abstract_view.hh"
 #include "UI_grid_view.hh"
 #include "UI_tree_view.hh"
+#include "WM_api.hh"
 
 namespace blender::ui {
+#define TREE_VIEW_DRAG_SCROLL_SPEED 0.01
 
 /**
  * Wrapper to store views in a #ListBase, addressable via an identifier.
@@ -230,12 +232,26 @@ AbstractView *region_view_find_at(const ARegion *region,
   return nullptr;
 }
 
-void region_view_scroll_at_borders(ARegion *region, const int xy[2])
+void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const int xy[2])
 {
   Block *block = nullptr;
+  ARegion *region = CTX_wm_region(C);
+  wmWindow *window = CTX_wm_window(C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+
   AbstractView *view = region_view_find_at(region, xy, UI_UNIT_Y, &block);
   if (view == nullptr) {
     return;
+  }
+
+  if (drag.timer) {
+    const float duration = 0.1f;
+    if (drag.timer->time_duration > duration) {
+      WM_event_timer_remove(wm, window, drag.timer);
+      drag.timer = nullptr;
+    } else {
+     return;
+    }
   }
 
   float mx = xy[0];
@@ -250,9 +266,11 @@ void region_view_scroll_at_borders(ARegion *region, const int xy[2])
 
   if (BLI_rcti_isect_pt(&top_bounds, mx, my)) {
     view->scroll(ViewScrollDirection::UP);
+    drag.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
   }
   else if (BLI_rcti_isect_pt(&bottom_bounds, mx, my)) {
     view->scroll(ViewScrollDirection::DOWN);
+    drag.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
   }
 
   ED_region_tag_redraw(region);
