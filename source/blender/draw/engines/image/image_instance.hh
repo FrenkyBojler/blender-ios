@@ -191,6 +191,7 @@ class Instance : public DrawEngine {
           DRW_context_get()->viewport_framebuffer_list_get()->default_fb, float4(0.0), 1.0f);
     }
     state.image = nullptr;
+    drawing_mode_.reset();
     DRW_submission_end();
   }
 };

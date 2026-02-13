@@ -23,6 +23,14 @@ ImageSpaceDrawingMode::ImageSpaceDrawingMode(Instance &instance,
   }
 }
 
+ImageSpaceDrawingMode::~ImageSpaceDrawingMode()
+{
+  GPU_texture_free(texture_);
+  if (tile_mapping_texture_) {
+    GPU_texture_free(tile_mapping_texture_);
+  }
+}
+
 void ImageSpaceDrawingMode::begin_sync() const {}
 
 void ImageSpaceDrawingMode::image_sync(blender::Image * /*image*/, ImageUser * /*iuser*/) const {}
@@ -56,11 +64,6 @@ void ImageSpaceDrawingMode::draw_viewport() const
   }
   pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   instance_.manager->submit(instance_.state.image_ps, instance_.state.view);
-
-  GPU_texture_free(texture_);
-  if (tile_mapping_texture_) {
-    GPU_texture_free(tile_mapping_texture_);
-  }
 }
 
 void ImageSpaceDrawingMode::draw_finish() const {}
