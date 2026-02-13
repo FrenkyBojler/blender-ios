@@ -2,3 +2,4 @@ Referenced by issue #119044, Bring back Shadow pass for Cycles !!!!
 Referenced by issue #107777, Regression: Shadow always produces black image on baking
 Referenced by issue #106482, Shadow Pass removed from Blender 3.5 (needs mention in the release notes)
 Referenced by issue #77889, Cycles: Many Lights Sampling
+Referenced by issue #99772, Shader color affects Shadow Pass in Cycles
