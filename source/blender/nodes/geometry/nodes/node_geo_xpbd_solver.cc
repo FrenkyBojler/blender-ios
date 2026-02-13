@@ -277,7 +277,35 @@ struct SubstepInterval {
   }
 };
 
+struct InfinitePlaneContactId {
+  int infinite_plane_collider_i;
+  int point_i;
+
+  uint64_t hash() const
+  {
+    return get_default_hash(this->infinite_plane_collider_i, this->point_i);
+  }
+
+  friend bool operator==(const InfinitePlaneContactId &a,
+                         const InfinitePlaneContactId &b) = default;
+};
+
+struct MeshContactId {
+  int mesh_collider_i;
+  int point_i;
+
+  uint64_t hash() const
+  {
+    return get_default_hash(this->mesh_collider_i, this->point_i);
+  }
+
+  friend bool operator==(const MeshContactId &a, const MeshContactId &b) = default;
+};
+
 struct ExternalPlaneContacts {
+  Map<MeshContactId, int> mesh_contact_indices;
+  Map<InfinitePlaneContactId, int> infinite_plane_contact_indices;
+
   Vector<int> points;
   Vector<float3> positions_on_plane;
   /* The movement of the collider in the current substep. */
@@ -288,24 +316,23 @@ struct ExternalPlaneContacts {
   Vector<float> dynamic_frictions;
   Vector<float> compliance_terms;
 
-  /* TODO: persist over time */
   Vector<bool> active_states;
   Vector<float> lambdas_normal;
   Vector<float> lambdas;
 
-  void clear()
+  void init_or_preserve_state(const ExternalPlaneContacts &prev_contacts,
+                              const std::optional<int> &prev_i)
   {
-    this->points.clear();
-    this->positions_on_plane.clear();
-    this->collider_motion.clear();
-    this->collider_velocities.clear();
-    this->separating_axes.clear();
-    this->static_frictions.clear();
-    this->dynamic_frictions.clear();
-    this->compliance_terms.clear();
-    this->active_states.clear();
-    this->lambdas_normal.clear();
-    this->lambdas.clear();
+    if (prev_i) {
+      this->active_states.append(prev_contacts.active_states[*prev_i]);
+      this->lambdas_normal.append(prev_contacts.lambdas_normal[*prev_i]);
+      this->lambdas.append(prev_contacts.lambdas[*prev_i]);
+    }
+    else {
+      this->active_states.append(false);
+      this->lambdas_normal.append(0.0f);
+      this->lambdas.append(0.0f);
+    }
   }
 };
 
@@ -1228,18 +1255,18 @@ class XpbdSolverStep {
         geometries_.chunks.index_range(), 1, [&](const IndexRange chunks_range) {
           for (const int chunk_i : chunks_range) {
             ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
-            ExternalPlaneContacts &contacts = chunk_constraints.external_plane_contacts;
-            contacts.clear();
-            this->gather_ground_plane_contacts(chunk_i, max_distance, contacts);
-            this->gather_mesh_contacts(chunk_i, max_distance, substep, contacts);
+            const ExternalPlaneContacts &prev_contacts = chunk_constraints.external_plane_contacts;
+            ExternalPlaneContacts new_contacts;
+            this->gather_ground_plane_contacts(chunk_i, max_distance, prev_contacts, new_contacts);
+            this->gather_mesh_contacts(
+                chunk_i, max_distance, substep, prev_contacts, new_contacts);
 
-            const int contacts_num = contacts.points.size();
-            contacts.lambdas_normal = Vector<float>(contacts_num, 0.0f);
-            contacts.lambdas = Vector<float>(contacts_num, 0.0f);
-            contacts.active_states = Vector<bool>(contacts_num, false);
+            const int contacts_num = new_contacts.points.size();
             for (const int i : IndexRange(contacts_num)) {
-              contacts.collider_velocities.append(contacts.collider_motion[i] / sub_delta_time_);
+              new_contacts.collider_velocities.append(new_contacts.collider_motion[i] /
+                                                      sub_delta_time_);
             }
+            chunk_constraints.external_plane_contacts = std::move(new_contacts);
           }
         });
   }
@@ -1469,6 +1496,7 @@ class XpbdSolverStep {
 
   void gather_ground_plane_contacts(const int chunk_i,
                                     const float max_distance,
+                                    const ExternalPlaneContacts &prev_contacts,
                                     ExternalPlaneContacts &r_contacts)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
@@ -1483,7 +1511,7 @@ class XpbdSolverStep {
           continue;
         }
 
-        r_contacts.points.append(point_i);
+        const int contact_i = r_contacts.points.append_and_get_index(point_i);
         r_contacts.positions_on_plane.append(position - collider.normal * distance);
         /* Static plane does not move. */
         r_contacts.collider_motion.append(float3(0.0f));
@@ -1493,6 +1521,11 @@ class XpbdSolverStep {
         r_contacts.static_frictions.append(friction);
         r_contacts.dynamic_frictions.append(friction);
         r_contacts.compliance_terms.append(0.0f);
+
+        const InfinitePlaneContactId contact_id{collider_i, point_i};
+        r_contacts.infinite_plane_contact_indices.add(contact_id, contact_i);
+        r_contacts.init_or_preserve_state(
+            prev_contacts, prev_contacts.infinite_plane_contact_indices.lookup_try(contact_id));
       }
     }
   }
@@ -1500,6 +1533,7 @@ class XpbdSolverStep {
   void gather_mesh_contacts(const int chunk_i,
                             const float max_distance,
                             const SubstepInterval &substep,
+                            const ExternalPlaneContacts &prev_contacts,
                             ExternalPlaneContacts &r_contacts)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
@@ -1523,6 +1557,7 @@ class XpbdSolverStep {
         if (nearest.index == -1) {
           continue;
         }
+
         const float3 &contact_pos_mesh = float3(nearest.co);
         const float3 dir_mesh = contact_pos_mesh - pos_mesh;
         const bool is_inside = math::dot(dir_mesh, float3(nearest.no)) > 0.0f;
@@ -1538,7 +1573,7 @@ class XpbdSolverStep {
                                                       math::transpose(float3x3(local_to_mesh)) *
                                                           contact_pos_mesh :
                                                       collision_axis);
-        r_contacts.points.append(point_i);
+        const int contact_i = r_contacts.points.append_and_get_index(point_i);
         r_contacts.positions_on_plane.append(contact_pos_local);
         r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
         r_contacts.separating_axes.append(valid_axis);
@@ -1546,6 +1581,11 @@ class XpbdSolverStep {
         r_contacts.dynamic_frictions.append(friction);
         r_contacts.compliance_terms.append(
             std::max(0.0f, substep_compliance_factor_ * collider.compliance));
+
+        const MeshContactId contact_id{collider_i, point_i};
+        r_contacts.mesh_contact_indices.add(contact_id, contact_i);
+        r_contacts.init_or_preserve_state(
+            prev_contacts, prev_contacts.mesh_contact_indices.lookup_try(contact_id));
       }
     }
   }
