@@ -94,6 +94,7 @@ void AbstractBuilderPipeline::build()
   }
 
   build_step_sanity_check();
+  build_step_dynamic_overrides();
   build_step_nodes();
   build_step_relations();
   build_step_finalize();

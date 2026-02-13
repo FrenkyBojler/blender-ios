@@ -30,6 +30,7 @@ struct BoneCollection;
 struct CacheFile;
 struct Camera;
 struct Collection;
+struct DynamicOverride;
 struct FCurve;
 struct FreestyleLineSet;
 struct FreestyleLineStyle;
@@ -259,9 +260,14 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   virtual void build_driver_id_property(const PointerRNA &target_prop,
                                         const char *rna_path_from_target_prop);
 
-  // virtual void build_dynamic_override(ID *id);
+  /**
+   * Build the dynamic override ID itself and its dependencies (animation, other imported dynamic
+   * override...). */
+  virtual void build_dynamic_override(DynamicOverride *dynamic_override);
 
   virtual void build_parameters(ID *id);
+  /** Ensure that the root dynamic override affecting the given ID is built. */
+  virtual void build_id_dynamic_override(ID *id);
   virtual void build_dimensions(Object *object);
   /** IK Solver Eval Steps. */
   virtual void build_ik_pose(Object *object, bPoseChannel *pchan, bConstraint *con);

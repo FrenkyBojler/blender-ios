@@ -54,6 +54,7 @@ void DepsgraphNodeBuilder::build_scene_parameters(Scene *scene)
     return;
   }
   build_parameters(&scene->id);
+  build_id_dynamic_override(&scene->id);
   build_idproperties(scene->id.properties);
   build_idproperties(scene->id.system_properties);
 

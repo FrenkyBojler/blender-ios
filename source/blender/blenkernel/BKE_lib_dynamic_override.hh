@@ -72,10 +72,9 @@ class DynamicOverrideDepsgraphCtx {
   DynamicOverrideDepsgraphCtx(Scene *scene, ViewLayer *layer) : scene_(scene), layer_(layer) {}
   virtual ~DynamicOverrideDepsgraphCtx() = default;
 
-  bool has_overrides() const
-  {
-    return !dynamic_overrides_.is_empty();
-  }
+  /* ----------
+   * Building/updating API.
+   */
 
   /** Reset internal data, clear any cached/evaluated override info. */
   void reset_data(Scene *scene, ViewLayer *layer)
@@ -97,6 +96,31 @@ class DynamicOverrideDepsgraphCtx {
    * Gather all affected (overridden) IDs from the list of active dynamic overrides.
    */
   void gather_id_targets();
+
+  /* ----------
+   * Querying API.
+   */
+
+  /** Is there any dynamic overrides active in this this context. */
+  bool has_overrides() const
+  {
+    BLI_assert(dynamic_overrides_are_gathered_);
+    return !dynamic_overrides_.is_empty();
+  }
+
+  /**
+   * Is the given (orig) ID (potentially) affected by the current dynamic overrides in the context.
+   */
+  DynamicOverride *get_override_for_id(ID &id) const
+  {
+    BLI_assert(dynamic_overrides_are_gathered_ && id_targets_are_gathered_);
+    /* TODO once there are several dynoverride IDs composed together, should be a mapping returning
+     * the 'root' override ID for a given ID. */
+    if (id_targets_.contains(&id)) {
+      return dynamic_overrides_[0];
+    }
+    return nullptr;
+  }
 };
 
 /** \} */

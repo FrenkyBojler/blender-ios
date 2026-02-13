@@ -536,6 +536,9 @@ void DynamicOverrideDepsgraphCtx::gather_id_targets()
         const DynamicOverrideRuleIDData &id_rule =
             reinterpret_cast<const DynamicOverrideRuleIDData &>(rule_iter);
         if (id_rule.owner_id) {
+          /* Dynamic overrides are not allowed to be overridden by other dynamic overrides!
+           * NOTE: Once implemented, dynoverride imports will be a different case. */
+          BLI_assert(GS(id_rule.owner_id->name) != ID_OV);
           id_targets_.add(id_rule.owner_id);
         }
       }
