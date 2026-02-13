@@ -109,7 +109,7 @@ def frame_change_handler(scene):
         elapsed_seconds = stop_record_time - start_record_time
         avg_frame_time = elapsed_seconds / num_frames
         fps = 1.0 / avg_frame_time
-        print(f"{LOG_KEY}{{'time': {avg_frame_time}, 'fps': {fps} }}")
+        print(f"{LOG_KEY}{{'fps': {fps} }}")
         bpy.app.handlers.frame_change_post.remove(frame_change_handler)
         bpy.ops.wm.quit_blender()
 

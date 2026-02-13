@@ -78,7 +78,10 @@ def print_row(config: api.TestConfig, entries: list, end='\n') -> None:
         output = entry.output
         result = ''
         if status in {'done', 'outdated'} and output:
-            result = '%7.4f s' % output['time']
+            if 'time' in output:
+                result = '%7.4f s' % output['time']
+            elif 'fps' in output:
+                result = '%7.4f fps' % output['fps']
 
             if status == 'outdated':
                 result += " (outdated)"
