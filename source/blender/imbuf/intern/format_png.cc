@@ -32,7 +32,7 @@ ImBuf *imb_load_png(const uchar *mem, size_t size, int flags, ImFileColorSpace &
   ImBuf *ibuf = imb_oiio_read(ctx, config, r_colorspace, spec);
   if (ibuf) {
     if (spec.format == TypeDesc::UINT16) {
-      ibuf->flags |= PNG_16BIT;
+      ibuf->foptions.flag |= PNG_16BIT;
     }
   }
 
@@ -61,7 +61,7 @@ bool imb_save_png(ImBuf *ibuf, const char *filepath, int flags)
     file_spec.attribute("oiio:UnassociatedAlpha", 1);
   }
 
-  int compression = int(float(ibuf->foptions.quality) / 11.1111f);
+  int compression = int(float(ibuf->foptions.compress) / 11.1111f);
   compression = compression < 0 ? 0 : (compression > 9 ? 9 : compression);
   file_spec.attribute("png:compressionLevel", compression);
 

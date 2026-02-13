@@ -78,12 +78,12 @@ namespace blender {
 void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from)
 {
   for (bNodeTreePath &path : snode->treepath.items_mutable()) {
-    MEM_freeN(&path);
+    MEM_delete(&path);
   }
   BLI_listbase_clear(&snode->treepath);
 
   if (ntree) {
-    bNodeTreePath *path = MEM_new_for_free<bNodeTreePath>("node tree path");
+    bNodeTreePath *path = MEM_new<bNodeTreePath>("node tree path");
     path->nodetree = ntree;
     path->parent_key = bke::NODE_INSTANCE_KEY_BASE;
 
@@ -120,7 +120,7 @@ void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID 
 
 void ED_node_tree_push(ARegion *region, SpaceNode *snode, bNodeTree *ntree, bNode *gnode)
 {
-  bNodeTreePath *path = MEM_new_for_free<bNodeTreePath>("node tree path");
+  bNodeTreePath *path = MEM_new<bNodeTreePath>("node tree path");
   bNodeTreePath *prev_path = static_cast<bNodeTreePath *>(snode->treepath.last);
   path->nodetree = ntree;
   if (gnode) {
@@ -167,7 +167,7 @@ void ED_node_tree_pop(ARegion *region, SpaceNode *snode)
   }
 
   BLI_remlink(&snode->treepath, path);
-  MEM_freeN(path);
+  MEM_delete(path);
 
   /* update current tree */
   path = static_cast<bNodeTreePath *>(snode->treepath.last);
@@ -485,7 +485,9 @@ static const ComputeContext *get_node_editor_root_compute_context(
         if (!object_and_modifier) {
           return nullptr;
         }
-        return &compute_context_cache.for_modifier(nullptr, *object_and_modifier->nmd);
+        const bke::DataBlockComputeContext &object_context = compute_context_cache.for_data_block(
+            nullptr, object_and_modifier->object->id);
+        return &compute_context_cache.for_modifier(&object_context, *object_and_modifier->nmd);
       }
       case SNODE_GEOMETRY_TOOL: {
         return &compute_context_cache.for_operator(nullptr);
@@ -556,7 +558,7 @@ const ComputeContext *compute_context_for_edittree_node(
 
 static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 {
-  SpaceNode *snode = MEM_new_for_free<SpaceNode>(__func__);
+  SpaceNode *snode = MEM_new<SpaceNode>(__func__);
   snode->runtime = MEM_new<SpaceNode_Runtime>(__func__);
   snode->spacetype = SPACE_NODE;
 
@@ -845,7 +847,7 @@ static void node_area_refresh(const bContext *C, ScrArea *area)
   if (snode->nodetree && snode->nodetree == scene->compositing_node_group) {
     if (snode->runtime->recalc_regular_compositing) {
       snode->runtime->recalc_regular_compositing = false;
-      ED_node_composite_job(C, scene->compositing_node_group, scene);
+      ED_node_compositor_job(C);
     }
   }
 }
@@ -853,7 +855,7 @@ static void node_area_refresh(const bContext *C, ScrArea *area)
 static SpaceLink *node_duplicate(SpaceLink *sl)
 {
   SpaceNode *snode = reinterpret_cast<SpaceNode *>(sl);
-  SpaceNode *snoden = static_cast<SpaceNode *>(MEM_dupallocN(snode));
+  SpaceNode *snoden = MEM_dupalloc(snode);
 
   BLI_duplicatelist(&snoden->treepath, &snode->treepath);
 
@@ -1422,7 +1424,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
     if (snode->edittree) {
       for (bNode *node : snode->edittree->all_nodes()) {
         if (node->flag & NODE_SELECT) {
-          CTX_data_list_add(result, &snode->edittree->id, &RNA_Node, node);
+          CTX_data_list_add(result, &snode->edittree->id, RNA_Node, node);
         }
       }
     }
@@ -1432,7 +1434,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
   if (CTX_data_equals(member, "active_node")) {
     if (snode->edittree) {
       bNode *node = bke::node_get_active(*snode->edittree);
-      CTX_data_pointer_set(result, &snode->edittree->id, &RNA_Node, node);
+      CTX_data_pointer_set(result, &snode->edittree->id, RNA_Node, node);
     }
 
     CTX_data_type_set(result, ContextDataType::Pointer);
@@ -1440,10 +1442,8 @@ static int /*eContextResult*/ node_context(const bContext *C,
   }
   if (CTX_data_equals(member, "node_previews")) {
     if (snode->nodetree) {
-      CTX_data_pointer_set(result,
-                           &snode->nodetree->id,
-                           &RNA_NodeInstanceHash,
-                           &snode->nodetree->runtime->previews);
+      CTX_data_pointer_set(
+          result, &snode->nodetree->id, RNA_NodeInstanceHash, &snode->nodetree->runtime->previews);
     }
 
     CTX_data_type_set(result, ContextDataType::Pointer);
@@ -1543,7 +1543,7 @@ static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
       path_next = path->next;
 
       BLI_remlink(&snode->treepath, path);
-      MEM_freeN(path);
+      MEM_delete(path);
     }
 
     /* edittree is just the last in the path,
@@ -1655,7 +1655,7 @@ static void node_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
         for (bNodeTreePath *path_next; path; path = path_next) {
           path_next = path->next;
           BLI_remlink(&snode->treepath, path);
-          MEM_freeN(path);
+          MEM_delete(path);
         }
         break;
       }
@@ -1704,7 +1704,7 @@ static void node_space_subtype_item_extend(bContext *C, EnumPropertyItem **item,
   const EnumPropertyItem *item_src = RNA_enum_node_tree_types_itemf_impl(C, &free);
   RNA_enum_items_add(item, totitem, item_src);
   if (free) {
-    MEM_freeN(item_src);
+    MEM_delete(item_src);
   }
 }
 
@@ -1799,7 +1799,7 @@ void ED_spacetype_node()
   st->blend_write = node_space_blend_write;
 
   /* regions: main window */
-  art = MEM_callocN<ARegionType>("spacetype node region");
+  art = MEM_new_zeroed<ARegionType>("spacetype node region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = node_main_region_init;
   art->draw = node_main_region_draw;
@@ -1814,7 +1814,7 @@ void ED_spacetype_node()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = MEM_callocN<ARegionType>("spacetype node region");
+  art = MEM_new_zeroed<ARegionType>("spacetype node region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
@@ -1825,7 +1825,7 @@ void ED_spacetype_node()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: asset shelf */
-  art = MEM_callocN<ARegionType>("spacetype node asset shelf region");
+  art = MEM_new_zeroed<ARegionType>("spacetype node asset shelf region");
   art->regionid = RGN_TYPE_ASSET_SHELF;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_ASSET_SHELF | ED_KEYMAP_FRAMES;
   art->duplicate = asset::shelf::region_duplicate;
@@ -1843,7 +1843,7 @@ void ED_spacetype_node()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: asset shelf header */
-  art = MEM_callocN<ARegionType>("spacetype node asset shelf header region");
+  art = MEM_new_zeroed<ARegionType>("spacetype node asset shelf header region");
   art->regionid = RGN_TYPE_ASSET_SHELF_HEADER;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_ASSET_SHELF | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
   art->init = asset::shelf::header_region_init;
@@ -1855,7 +1855,7 @@ void ED_spacetype_node()
   asset::shelf::types_register(art, SPACE_NODE);
 
   /* regions: list-view/buttons */
-  art = MEM_callocN<ARegionType>("spacetype node region");
+  art = MEM_new_zeroed<ARegionType>("spacetype node region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
@@ -1869,7 +1869,7 @@ void ED_spacetype_node()
   node_tree_interface_panel_register(art);
 
   /* regions: toolbar */
-  art = MEM_callocN<ARegionType>("spacetype view3d tools region");
+  art = MEM_new_zeroed<ARegionType>("spacetype view3d tools region");
   art->regionid = RGN_TYPE_TOOLS;
   art->prefsizex = int(UI_TOOLBAR_WIDTH);
   art->prefsizey = 50; /* XXX */
@@ -1881,10 +1881,10 @@ void ED_spacetype_node()
   art->draw = node_toolbar_region_draw;
   BLI_addhead(&st->regiontypes, art);
 
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, catalog_assets_menu_type()));
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, unassigned_assets_menu_type()));
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_root_catalogs_menu_type()));
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, swap_root_catalogs_menu_type()));
+  WM_menutype_add(MEM_new<MenuType>(__func__, catalog_assets_menu_type()));
+  WM_menutype_add(MEM_new<MenuType>(__func__, unassigned_assets_menu_type()));
+  WM_menutype_add(MEM_new<MenuType>(__func__, add_root_catalogs_menu_type()));
+  WM_menutype_add(MEM_new<MenuType>(__func__, swap_root_catalogs_menu_type()));
 
   BKE_spacetype_register(std::move(st));
 }

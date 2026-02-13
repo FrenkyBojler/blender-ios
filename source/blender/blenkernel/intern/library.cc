@@ -178,7 +178,7 @@ static void library_blend_write_data(BlendWriter *writer, ID *id, const void *id
   /* Clear runtime data. */
   library->runtime = nullptr;
 
-  BLO_write_id_struct(writer, Library, id_address, id);
+  writer->write_id_struct(id_address, library);
   BKE_id_blend_write(writer, id);
 
   /* Write packed file if necessary. */
@@ -212,34 +212,34 @@ static void library_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id
 }
 
 IDTypeInfo IDType_ID_LI = {
-    /*id_code*/ Library::id_type,
-    /*id_filter*/ FILTER_ID_LI,
-    /*dependencies_id_types*/ FILTER_ID_LI,
-    /*main_listbase_index*/ INDEX_ID_LI,
-    /*struct_size*/ sizeof(Library),
-    /*name*/ "Library",
-    /*name_plural*/ N_("libraries"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_LIBRARY,
-    /*flags*/ IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NEVER_UNUSED,
-    /*asset_type_info*/ nullptr,
+    .id_code = Library::id_type,
+    .id_filter = FILTER_ID_LI,
+    .dependencies_id_types = FILTER_ID_LI,
+    .main_listbase_index = INDEX_ID_LI,
+    .struct_size = sizeof(Library),
+    .name = "Library",
+    .name_plural = N_("libraries"),
+    .translation_context = BLT_I18NCONTEXT_ID_LIBRARY,
+    .flags = IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NEVER_UNUSED,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ library_init_data,
-    /*copy_data*/ library_copy_data,
-    /*free_data*/ library_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ library_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ library_foreach_path,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = library_init_data,
+    .copy_data = library_copy_data,
+    .free_data = library_free_data,
+    .make_local = nullptr,
+    .foreach_id = library_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = library_foreach_path,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ library_blend_write_data,
-    /*blend_read_data*/ library_blend_read_data,
-    /*blend_read_after_liblink*/ library_blend_read_after_liblink,
+    .blend_write = library_blend_write_data,
+    .blend_read_data = library_blend_read_data,
+    .blend_read_after_liblink = library_blend_read_after_liblink,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 void BKE_library_filepath_set(Main *bmain, Library *lib, const char *filepath)
@@ -580,10 +580,18 @@ static void pack_linked_id(Main &bmain,
                            VectorSet<ID *> &ids_to_remap,
                            bke::id::IDRemapper &id_remapper)
 {
-  BLI_assert(linked_id->newid == nullptr);
-
   const IDHash linked_id_deep_hash = deep_hashes.hashes.lookup(linked_id);
   ID *packed_id = already_packed_ids.lookup_default(linked_id_deep_hash, nullptr);
+
+  /* It is possible that the `newid` was already set by a previous call to #pack_linked_ids, and
+   * not yet cleared (e.g. when linking & packing several 'root' IDs at the same time, which end up
+   * using the same dependencies).
+   *
+   * Handling it here again ensures consistency in deep hash values etc., and allows to properly
+   * handle its linked-to-packed versions remapping for all of its usages.
+   *
+   * See also #150786. */
+  BLI_assert(ELEM(linked_id->newid, nullptr, packed_id));
 
   if (packed_id) {
     /* Exact same ID (and all of its dependencies) have already been linked and packed before,
@@ -761,9 +769,6 @@ void bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
                        "Non-packed data-block references packed data-block from the same library, "
                        "which is not allowed");
           }
-          return IDWALK_RET_NOP;
-        }
-        if (referenced_id->newid && ID_IS_PACKED(referenced_id->newid)) {
           return IDWALK_RET_NOP;
         }
         if (GS(referenced_id->name) == ID_KE) {

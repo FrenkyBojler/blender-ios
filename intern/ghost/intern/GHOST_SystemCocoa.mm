@@ -34,18 +34,9 @@
 #  include "GHOST_NDOFManagerCocoa.hh"
 #endif
 
-#include "AssertMacros.h"
-
-#import <Cocoa/Cocoa.h>
-
 /* For the currently not ported to Cocoa keyboard layout functions (64bit & 10.6 compatible) */
 #include <Carbon/Carbon.h>
-
-#include <sys/sysctl.h>
 #include <sys/time.h>
-#include <sys/types.h>
-
-#include <mach/mach_time.h>
 
 /* --------------------------------------------------------------------
  * Keymaps, mouse converters.
@@ -979,8 +970,6 @@ GHOST_TCapabilityFlag GHOST_SystemCocoa::getCapabilities() const
           /* Cocoa doesn't define a Hyper modifier key,
            * it's possible another modifier could be optionally used in it's place. */
           GHOST_kCapabilityKeyboardHyperKey |
-          /* No support yet for RGBA mouse cursors. */
-          GHOST_kCapabilityCursorRGBA |
           /* No support yet for dynamic cursor generation. */
           GHOST_kCapabilityCursorGenerator));
 }
@@ -1201,6 +1190,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleWindowEvent(GHOST_TEventType eventType,
       if (!ignore_window_sized_messages_) {
         /* Enforce only one resize message per event loop
          * (coalescing all the live resize messages). */
+        window->updateDrawingSize();
         window->updateDrawingContext();
         pushEvent(
             std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowSize, window));
@@ -1215,6 +1205,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleWindowEvent(GHOST_TEventType eventType,
       }
       break;
     case GHOST_kEventNativeResolutionChange:
+      window->updateDrawingSize();
 
       if (native_pixel_) {
         window->setNativePixelSize();

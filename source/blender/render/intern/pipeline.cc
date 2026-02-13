@@ -39,11 +39,14 @@
 #include "BLI_timecode.h"
 #include "BLI_vector.hh"
 
+#include "BLT_translation.hh"
+
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h" /* <------ should this be here?, needed for sequencer update */
 #include "BKE_callbacks.hh"
 #include "BKE_camera.h"
 #include "BKE_colortools.hh"
+#include "BKE_compositor.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
@@ -59,8 +62,7 @@
 
 #include "NOD_composite.hh"
 
-#include "COM_compositor.hh"
-#include "COM_context.hh"
+#include "COM_node_group_operation.hh"
 #include "COM_render_context.hh"
 
 #include "DEG_depsgraph.hh"
@@ -75,6 +77,7 @@
 
 #include "MOV_write.hh"
 
+#include "RE_compositor.hh"
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
@@ -154,7 +157,7 @@ static void render_callback_exec_string(Render *re, Main *bmain, eCbEvent evt, c
   if (re->r.scemode & R_BUTS_PREVIEW) {
     return;
   }
-  BKE_callback_exec_string(bmain, evt, str);
+  BKE_callback_exec_string(bmain, str, evt);
 }
 
 static void render_callback_exec_id(Render *re, Main *bmain, ID *id, eCbEvent evt)
@@ -171,8 +174,12 @@ static void render_callback_exec_id(Render *re, Main *bmain, ID *id, eCbEvent ev
 /** \name Allocation & Free
  * \{ */
 
-static bool do_write_image_or_movie(
-    Render *re, Main *bmain, Scene *scene, const int totvideos, const char *filepath_override);
+static bool do_write_image_or_movie(Render *re,
+                                    Main *bmain,
+                                    Scene *scene,
+                                    const int totvideos,
+                                    const char *filepath_override,
+                                    const bool write_anim);
 
 /* default callbacks, set in each new render */
 static void result_rcti_nothing(void * /*arg*/, RenderResult * /*rr*/, rcti * /*rect*/) {}
@@ -204,7 +211,7 @@ static void stats_background(void * /*arg*/, RenderStats *rs)
 
   /* NOTE: using G_MAIN seems valid here???
    * Not sure it's actually even used anyway, we could as well pass nullptr? */
-  BKE_callback_exec_string(G_MAIN, BKE_CB_EVT_RENDER_STATS, rs->infostr);
+  BKE_callback_exec_string(G_MAIN, rs->infostr, BKE_CB_EVT_RENDER_STATS);
 
   if (show_info) {
     fflush(stdout);
@@ -674,8 +681,8 @@ void RE_FreeUnusedGPUResources()
 
     if (do_free) {
       re_gpu_texture_caches_free(re);
-      if (!re->display_shared) {
-        RE_display_free(re);
+      if (re->display && !re->display_shared) {
+        re->display->free_gpu_context();
       }
 
       /* We also free the resources from the interactive compositor render of the scene if one
@@ -684,8 +691,10 @@ void RE_FreeUnusedGPUResources()
           RenderGlobal.interactive_compositor_renders.lookup_default(re->owner, nullptr);
       if (interactive_compositor_render) {
         re_gpu_texture_caches_free(interactive_compositor_render);
-        if (!interactive_compositor_render->display_shared) {
-          RE_display_free(interactive_compositor_render);
+        if (interactive_compositor_render->display &&
+            !interactive_compositor_render->display_shared)
+        {
+          interactive_compositor_render->display->free_gpu_context();
         }
       }
     }
@@ -863,7 +872,7 @@ void RE_InitState(Render *re,
 
     /* make empty render result, so display callbacks can initialize */
     render_result_free(re->result);
-    re->result = MEM_new_for_free<RenderResult>("new render result");
+    re->result = MEM_new<RenderResult>("new render result");
     re->result->rectx = re->rectx;
     re->result->recty = re->recty;
     BKE_scene_ppm_get(&re->r, re->result->ppm);
@@ -960,11 +969,11 @@ void RE_display_share(Render *re, const Render *parent_re)
 
 void RE_display_free(Render *re)
 {
-  /* Re-initializing with a new RenderDisplay will free the GPU contexts. */
+  /* Re-initializing with a new RenderDisplay will free the GPU contexts and all callbacks. */
   RE_display_init(re);
 }
 
-void *RE_system_gpu_context_get(Render *re)
+GHOST_IContext *RE_system_gpu_context_get(Render *re)
 {
   RenderDisplay *display = re->display.get();
   return display->system_gpu_context;
@@ -1190,24 +1199,15 @@ static void do_render_compositor_scenes(Render *re)
 
     scenes_rendered.add_new(node_scene);
     do_render_compositor_scene(re, node_scene, re->scene->r.cfra);
-    node->typeinfo->updatefunc(re->scene->compositing_node_group, node);
+    if (node->typeinfo->updatefunc) {
+      node->typeinfo->updatefunc(re->scene->compositing_node_group, node);
+    }
   }
 
   /* If another scene was rendered, switch back to the current scene. */
   if (!scenes_rendered.is_empty()) {
     re->display->current_scene_update(re->scene);
   }
-}
-
-/* bad call... need to think over proper method still */
-static void render_compositor_stats(void *arg, const char *str)
-{
-  Render *re = static_cast<Render *>(arg);
-
-  RenderStats i;
-  memcpy(&i, &re->i, sizeof(i));
-  i.infostr = str;
-  re->display->stats_draw(&i);
 }
 
 /* Render compositor nodes, along with any scenes required for them.
@@ -1263,42 +1263,37 @@ static void do_render_compositor(Render *re)
       }
 
       if (!re->display->test_break()) {
-        ntree->runtime->stats_draw = render_compositor_stats;
-        ntree->runtime->test_break = re->display->test_break_cb;
-        ntree->runtime->progress = re->display->progress_cb;
-        ntree->runtime->sdh = re;
-        ntree->runtime->tbh = re->display->tbh;
-        ntree->runtime->prh = re->display->prh;
-
         if (update_newframe) {
           /* If we have consistent depsgraph now would be a time to update them. */
         }
 
-        compositor::OutputTypes needed_outputs = compositor::OutputTypes::Composite |
-                                                 compositor::OutputTypes::FileOutput;
+        compositor::NodeGroupOutputTypes needed_outputs =
+            compositor::NodeGroupOutputTypes::GroupOutputNode |
+            compositor::NodeGroupOutputTypes::FileOutputNode;
         if (!G.background) {
-          needed_outputs |= compositor::OutputTypes::Viewer | compositor::OutputTypes::Previews;
+          needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode |
+                            compositor::NodeGroupOutputTypes::NodePreviews;
         }
 
         CLOG_STR_INFO(&LOG, "Executing compositor");
+
+        re->i.infostr = IFACE_("Compositing");
+        re->display->stats_draw(&re->i);
+        re->i.infostr = nullptr;
+
         compositor::RenderContext compositor_render_context;
         compositor_render_context.is_animation_render = re->flag & R_ANIMATION;
         for (RenderView &rv : re->result->views) {
-          COM_execute(re,
-                      &re->r,
-                      re->pipeline_scene_eval,
-                      ntree,
-                      rv.name,
-                      &compositor_render_context,
-                      nullptr,
-                      needed_outputs);
+          RE_compositor_execute(*re,
+                                *re->pipeline_scene_eval,
+                                re->r,
+                                *ntree,
+                                rv.name,
+                                &compositor_render_context,
+                                nullptr,
+                                needed_outputs);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
-
-        ntree->runtime->stats_draw = nullptr;
-        ntree->runtime->test_break = nullptr;
-        ntree->runtime->progress = nullptr;
-        ntree->runtime->tbh = ntree->runtime->sdh = ntree->runtime->prh = nullptr;
       }
     }
   }
@@ -1683,34 +1678,17 @@ static int check_valid_camera(Scene *scene, Object *camera_override, ReportList 
   return true;
 }
 
-static bool node_tree_has_file_output(const bNodeTree *node_tree)
-{
-  node_tree->ensure_topology_cache();
-  for (const bNode *node : node_tree->nodes_by_type("CompositorNodeOutputFile")) {
-    if (!node->is_muted()) {
-      return true;
-    }
-  }
-
-  for (const bNode *node : node_tree->group_nodes()) {
-    if (node->is_muted() || !node->id) {
-      continue;
-    }
-
-    if (node_tree_has_file_output(reinterpret_cast<const bNodeTree *>(node->id))) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 static bool scene_has_compositor_output(Scene *scene)
 {
+  if (scene->compositing_node_group == nullptr) {
+    return false;
+  }
+
   if (node_tree_has_group_output(scene->compositing_node_group)) {
     return true;
   }
-  return node_tree_has_file_output(scene->compositing_node_group);
+
+  return bke::compositor::node_tree_has_linked_file_output(scene->compositing_node_group);
 }
 
 /* Identify if the compositor can run on the GPU. Currently, this only checks if the compositor is
@@ -1999,7 +1977,7 @@ void RE_RenderFrame(Render *re,
             nullptr);
 
         if (errors.is_empty()) {
-          do_write_image_or_movie(re, bmain, scene, 0, filepath_override);
+          do_write_image_or_movie(re, bmain, scene, 0, filepath_override, false);
         }
         else {
           BKE_report_path_template_errors(re->reports, RPT_ERROR, rd.pic, errors);
@@ -2192,8 +2170,12 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
   return ok;
 }
 
-static bool do_write_image_or_movie(
-    Render *re, Main *bmain, Scene *scene, const int totvideos, const char *filepath_override)
+static bool do_write_image_or_movie(Render *re,
+                                    Main *bmain,
+                                    Scene *scene,
+                                    const int totvideos,
+                                    const char *filepath_override,
+                                    const bool write_anim)
 {
   char filepath[FILE_MAX];
   RenderResult rres;
@@ -2202,8 +2184,9 @@ static bool do_write_image_or_movie(
   RenderEngineType *re_type = RE_engines_find(re->r.engine);
 
   /* Only disable file writing if postprocessing is also disabled. */
-  const bool do_write_file = !(re_type->flag & RE_USE_NO_IMAGE_SAVE) ||
-                             (re_type->flag & RE_USE_POSTPROCESS);
+  const bool do_write_file = (!(re_type->flag & RE_USE_NO_IMAGE_SAVE) ||
+                              (re_type->flag & RE_USE_POSTPROCESS)) &&
+                             write_anim;
 
   if (do_write_file) {
     RE_AcquireResultImageViews(re, &rres);
@@ -2367,10 +2350,13 @@ void RE_RenderAnim(Render *re,
   const bool is_movie = BKE_imtype_is_movie(image_format.imtype);
   const bool is_multiview_name = ((rd.scemode & R_MULTIVIEW) != 0 &&
                                   (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
+  const bool write_anim = (scene->r.mode & R_SAVE_OUTPUT);
 
-  /* Only disable file writing if postprocessing is also disabled. */
-  const bool do_write_file = !(re_type->flag & RE_USE_NO_IMAGE_SAVE) ||
-                             (re_type->flag & RE_USE_POSTPROCESS);
+  /* Disable file writing if postprocessing is also disabled or if it's explicitly disabled by the
+   * user. */
+  const bool do_write_file = (!(re_type->flag & RE_USE_NO_IMAGE_SAVE) ||
+                              (re_type->flag & RE_USE_POSTPROCESS)) &&
+                             write_anim;
 
   render_init_depsgraph(re);
 
@@ -2543,7 +2529,7 @@ void RE_RenderAnim(Render *re,
     const bool should_write = !(re->flag & R_SKIP_WRITE);
     if (re->display->test_break() == 0) {
       if (!G.is_break && should_write) {
-        if (!do_write_image_or_movie(re, bmain, scene, totvideos, nullptr)) {
+        if (!do_write_image_or_movie(re, bmain, scene, totvideos, nullptr, write_anim)) {
           G.is_break = true;
         }
       }
@@ -2827,7 +2813,7 @@ RenderPass *RE_create_gp_pass(RenderResult *rr, const char *layername, const cha
   RenderLayer *rl = RE_GetRenderLayer(rr, layername);
   /* only create render layer if not exist */
   if (!rl) {
-    rl = MEM_new_for_free<RenderLayer>(layername);
+    rl = MEM_new<RenderLayer>(layername);
     BLI_addtail(&rr->layers, rl);
     STRNCPY(rl->name, layername);
     rl->layflag = SCE_LAY_SOLID;

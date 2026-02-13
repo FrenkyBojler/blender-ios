@@ -202,13 +202,13 @@ static AbstractViewItem *find_item_from_rename_button(const Button &rename_but)
   /* A minimal sanity check, can't do much more here. */
   BLI_assert(rename_but.type == ButtonType::Text && rename_but.poin);
 
-  for (const std::unique_ptr<Button> &but : rename_but.block->buttons) {
-    if (but->type != ButtonType::ViewItem) {
+  for (Button &but : rename_but.block->buttons()) {
+    if (but.type != ButtonType::ViewItem) {
       continue;
     }
 
-    ButtonViewItem *view_item_but = static_cast<ButtonViewItem *>(but.get());
-    AbstractViewItem *item = reinterpret_cast<AbstractViewItem *>(view_item_but->view_item);
+    ButtonViewItem *view_item_but = static_cast<ButtonViewItem *>(&but);
+    AbstractViewItem *item = view_item_but->view_item;
     const AbstractView &view = item->get_view();
 
     if (item->is_renaming() && (view.get_rename_buffer().data() == rename_but.poin)) {
@@ -241,7 +241,6 @@ void AbstractViewItem::add_rename_button(Block &block)
                                 1.0f,
                                 view.get_rename_buffer().size(),
                                 "");
-  button_retval_set(rename_but, 1);
 
   /* Gotta be careful with what's passed to the `arg1` here. Any view data will be freed once the
    * callback is executed. */
@@ -471,10 +470,6 @@ bool view_item_drag_start(bContext &C, AbstractViewItem &item)
         &C, ICON_NONE, *drag_type, drag_controller->create_drag_data(), WM_DRAG_FREE_DATA);
   }
   drag_controller->on_drag_start(C, item);
-
-  /* Make sure the view item is highlighted as active when dragging from it. This is useful user
-   * feedback. */
-  item.set_state_active();
 
   return true;
 }

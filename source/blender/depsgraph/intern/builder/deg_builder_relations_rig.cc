@@ -73,7 +73,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
    * one Init IK node per armature, this link has quite high risk of spurious dependency cycles.
    */
   const bool is_itasc = (object->pose->iksolver == IKSOLVER_ITASC);
-  PointerRNA con_ptr = RNA_pointer_create_discrete(&object->id, &RNA_Constraint, con);
+  PointerRNA con_ptr = RNA_pointer_create_discrete(&object->id, RNA_Constraint, con);
   if (is_itasc || cache_->isAnyPropertyAnimated(&con_ptr)) {
     add_relation(pchan_local_key, init_ik_key, "IK Constraint -> Init IK Tree");
   }
@@ -381,6 +381,11 @@ void DepsgraphRelationBuilder::build_rig(Object *object)
     pchan.flag &= ~POSE_DONE;
     /* Pose init to bone local. */
     add_relation(pose_init_key, bone_local_key, "Pose Init - Bone Local", RELATION_FLAG_GODMODE);
+
+    /* Bone visibility (BONE_VISIBILITY) has no relationships. The node is a no-op, and it's just
+     * there to ensure the pose data itself is there. It does have the implicit dependency on the
+     * COPY_ON_EVAL node. */
+
     /* Local to pose parenting operation. */
     add_relation(bone_local_key, bone_pose_key, "Bone Local - Bone Pose");
     /* Parent relation. */

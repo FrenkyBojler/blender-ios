@@ -70,7 +70,6 @@ static PyObject *pygpu_uniformbuffer__tp_new(PyTypeObject * /*self*/,
 
   static const char *_keywords[] = {"data", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O" /* `data` */
       ":GPUUniformBuf.__new__",
       _keywords,
@@ -112,7 +111,10 @@ PyDoc_STRVAR(
     pygpu_uniformbuffer_update_doc,
     ".. method:: update(data)\n"
     "\n"
-    "   Update the data of the uniform buffer object.\n");
+    "   Update the data of the uniform buffer object.\n"
+    "\n"
+    "   :param data: Data to fill the buffer.\n"
+    "   :type data: Buffer\n");
 static PyObject *pygpu_uniformbuffer_update(BPyGPUUniformBuf *self, PyObject *obj)
 {
   BPYGPU_UNIFORMBUF_CHECK_OBJ(self);
@@ -132,7 +134,7 @@ static PyObject *pygpu_uniformbuffer_update(BPyGPUUniformBuf *self, PyObject *ob
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_uniformbuffer_free_doc,
-    ".. method::free()\n"
+    ".. method:: free()\n"
     "\n"
     "   Free the uniform buffer object.\n"
     "   The uniform buffer object will no longer be accessible.\n");
@@ -174,10 +176,10 @@ PyDoc_STRVAR(
     pygpu_uniformbuffer__tp_doc,
     ".. class:: GPUUniformBuf(data)\n"
     "\n"
-    "   This object gives access to off uniform buffers.\n"
+    "   This object gives access to uniform buffers.\n"
     "\n"
-    "   :arg data: Data to fill the buffer.\n"
-    "   :type data: object exposing buffer interface\n");
+    "   :param data: Data to fill the buffer.\n"
+    "   :type data: Buffer\n");
 PyTypeObject BPyGPUUniformBuf_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "GPUUniformBuf",

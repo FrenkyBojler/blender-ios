@@ -104,11 +104,11 @@ static void light_free_data(ID *id)
   /* is no lib link block, but light extension */
   if (la->nodetree) {
     bke::node_tree_free_embedded_tree(la->nodetree);
-    MEM_freeN(la->nodetree);
+    MEM_delete(la->nodetree);
     la->nodetree = nullptr;
   }
 
-  BKE_previewimg_free(&la->preview);
+  BKE_previewimg_id_free(&la->id);
   BKE_icon_id_delete(&la->id);
   la->id.icon_id = 0;
 }
@@ -141,17 +141,17 @@ static void light_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     la->energy_deprecated /= M_PI_4;
   }
 
-  /* Forward compatibiilty for Use Nodes. */
+  /* Forward compatibility for Use Nodes. */
   la->use_nodes = true;
 
   /* write LibData */
-  BLO_write_id_struct(writer, Light, id_address, &la->id);
+  writer->write_id_struct(id_address, la);
   BKE_id_blend_write(writer, &la->id);
 
   /* Node-tree is integral part of lights, no libdata. */
   if (la->nodetree) {
     BLO_Write_IDBuffer temp_embedded_id_buffer{la->nodetree->id, writer};
-    BLO_write_struct_at_address(writer, bNodeTree, la->nodetree, temp_embedded_id_buffer.get());
+    writer->write_struct_at_address_cast<bNodeTree>(la->nodetree, temp_embedded_id_buffer.get());
     bke::node_tree_blend_write(writer,
                                reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get()));
   }
@@ -168,34 +168,34 @@ static void light_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_LA = {
-    /*id_code*/ Light::id_type,
-    /*id_filter*/ FILTER_ID_LA,
-    /*dependencies_id_types*/ FILTER_ID_TE,
-    /*main_listbase_index*/ INDEX_ID_LA,
-    /*struct_size*/ sizeof(Light),
-    /*name*/ "Light",
-    /*name_plural*/ N_("lights"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_LIGHT,
-    /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .id_code = Light::id_type,
+    .id_filter = FILTER_ID_LA,
+    .dependencies_id_types = FILTER_ID_TE,
+    .main_listbase_index = INDEX_ID_LA,
+    .struct_size = sizeof(Light),
+    .name = "Light",
+    .name_plural = N_("lights"),
+    .translation_context = BLT_I18NCONTEXT_ID_LIGHT,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ light_init_data,
-    /*copy_data*/ light_copy_data,
-    /*free_data*/ light_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ light_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ light_foreach_working_space_color,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = light_init_data,
+    .copy_data = light_copy_data,
+    .free_data = light_free_data,
+    .make_local = nullptr,
+    .foreach_id = light_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = light_foreach_working_space_color,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ light_blend_write,
-    /*blend_read_data*/ light_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = light_blend_write,
+    .blend_read_data = light_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 Light *BKE_light_add(Main *bmain, const char *name)

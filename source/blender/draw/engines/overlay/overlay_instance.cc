@@ -67,7 +67,7 @@ void Instance::init()
     state.xray_flag_enabled = SHADING_XRAY_FLAG_ENABLED(state.v3d->shading) &&
                               !state.is_depth_only_drawing;
     state.vignette_enabled = ctx->mode == DRWContext::VIEWPORT_XR &&
-                             state.v3d->vignette_aperture < M_SQRT1_2;
+                             state.v3d->xr_vignette_aperture < M_SQRT1_2;
 
     const bool viewport_uses_workbench = state.v3d->shading.type <= OB_SOLID ||
                                          BKE_scene_uses_blender_workbench(state.scene);
@@ -364,7 +364,8 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   /* Emphasize division lines lighter instead of darker, if background is darker than grid. */
   const bool is_bg_darker = reduce_add(gb.colors.grid.xyz()) + 0.12f >
                             reduce_add(gb.colors.background.xyz());
-  ui::theme::get_color_shade_4fv(TH_GRID, (is_bg_darker) ? 30 : -10, gb.colors.grid_emphasis);
+  ui::theme::get_color_shade_4fv(
+      state.rv3d ? TH_GRID_MAJOR : TH_GRID, is_bg_darker ? 20 : -10, gb.colors.grid_emphasis);
 
   /* Grid Axis */
   ui::theme::get_color_blend_shade_4fv(TH_GRID, TH_AXIS_X, 0.85f, -20, gb.colors.grid_axis_x);
@@ -1039,7 +1040,9 @@ bool Instance::object_is_particle_edit_mode(const ObjectRef &ob_ref)
 
 bool Instance::object_is_sculpt_mode(const Object *object)
 {
-  if (object->sculpt && (object->sculpt->mode_type == OB_MODE_SCULPT)) {
+  if (object->runtime->sculpt_session &&
+      (object->runtime->sculpt_session->mode_type == OB_MODE_SCULPT))
+  {
     return object == state.object_active;
   }
   return false;

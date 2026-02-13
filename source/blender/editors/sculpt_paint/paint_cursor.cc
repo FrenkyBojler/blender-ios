@@ -37,6 +37,7 @@
 #include "BKE_image.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
 #include "BKE_screen.hh"
@@ -63,20 +64,21 @@
 #include "UI_resources.hh"
 
 #include "paint_intern.hh"
-#include "sculpt_boundary.hh"
-#include "sculpt_cloth.hh"
-#include "sculpt_expand.hh"
+
+#include "mesh/sculpt_boundary.hh"
+#include "mesh/sculpt_cloth.hh"
+#include "mesh/sculpt_expand.hh"
 /* still needed for sculpt_stroke_get_location, should be
  * removed eventually (TODO) */
-#include "sculpt_intern.hh"
-#include "sculpt_pose.hh"
+#include "mesh/sculpt_intern.hh"
+#include "mesh/sculpt_pose.hh"
 
 #include "bmesh.hh"
 
 /* Needed for determining tool material/vertex-color pinning. */
-#include "grease_pencil_intern.hh"
+#include "grease_pencil/grease_pencil_intern.hh"
 
-#include "brushes/brushes.hh"
+#include "mesh/brushes/brushes.hh"
 
 namespace blender {
 
@@ -322,10 +324,10 @@ static int load_tex(Paint *paint, Brush *br, ViewContext *vc, float zoom, bool c
       target->old_col = col;
     }
     if (col) {
-      buffer = MEM_malloc_arrayN<uchar>(size * size * 4, "load_tex");
+      buffer = MEM_new_array_uninitialized<uchar>(size * size * 4, "load_tex");
     }
     else {
-      buffer = MEM_malloc_arrayN<uchar>(size * size, "load_tex");
+      buffer = MEM_new_array_uninitialized<uchar>(size * size, "load_tex");
     }
 
     pool = BKE_image_pool_new();
@@ -376,7 +378,7 @@ static int load_tex(Paint *paint, Brush *br, ViewContext *vc, float zoom, bool c
     }
 
     if (buffer) {
-      MEM_freeN(buffer);
+      MEM_delete(buffer);
     }
   }
   else {
@@ -461,7 +463,7 @@ static int load_tex_cursor(Paint *paint, Brush *br, float zoom)
 
       cursor_snap.size = size;
     }
-    buffer = MEM_malloc_arrayN<uchar>(size * size, "load_tex");
+    buffer = MEM_new_array_uninitialized<uchar>(size * size, "load_tex");
 
     BKE_curvemapping_init(br->curve_distance_falloff);
 
@@ -488,7 +490,7 @@ static int load_tex_cursor(Paint *paint, Brush *br, float zoom)
     }
 
     if (buffer) {
-      MEM_freeN(buffer);
+      MEM_delete(buffer);
     }
   }
   else {
@@ -564,7 +566,7 @@ static int project_brush_radius_grease_pencil(ViewContext *vc,
   ED_view3d_win_to_delta(vc->region, xy_delta, zfac, delta);
 
   const float scale = math::length(
-      math::transform_direction(to_world, float3(math::numbers::inv_sqrt3)));
+      math::transform_direction(to_world, float3(std::numbers::inv_sqrt3)));
   return math::safe_divide(scale * radius, math::length(delta));
 }
 
@@ -1049,7 +1051,7 @@ static void paint_cursor_update_unprojected_size(Paint &paint,
       projected_radius = paint_runtime.anchored_size;
     }
     else {
-      if (brush.flag & BRUSH_ANCHORED) {
+      if (brush.stroke_method == BRUSH_STROKE_ANCHORED) {
         projected_radius = 8;
       }
       else {
@@ -1184,7 +1186,7 @@ static void sculpt_geometry_preview_lines_draw(const Depsgraph &depsgraph,
     return;
   }
 
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   if (bke::object::pbvh_get(object)->type() != bke::pbvh::Type::Mesh) {
     return;
   }
@@ -1357,7 +1359,7 @@ static bool paint_cursor_context_init(bContext *C,
 
   pcontext.vc = ED_view3d_viewcontext_init(C, pcontext.depsgraph);
 
-  if (pcontext.brush->flag & BRUSH_CURVE) {
+  if (pcontext.brush->stroke_method == BRUSH_STROKE_CURVE) {
     pcontext.cursor_type = PaintCursorDrawingType::Curve;
   }
   else if (paint_use_2d_cursor(pcontext.mode)) {
@@ -1390,7 +1392,7 @@ static bool paint_cursor_context_init(bContext *C,
   pcontext.outline_alpha = pcontext.brush->add_col[3];
 
   Object *active_object = pcontext.vc.obact;
-  pcontext.ss = active_object ? active_object->sculpt : nullptr;
+  pcontext.ss = active_object ? active_object->runtime->sculpt_session : nullptr;
 
   if (pcontext.ss && pcontext.ss->draw_faded_cursor) {
     pcontext.outline_alpha = 0.3f;
@@ -1504,7 +1506,10 @@ static void paint_update_mouse_cursor(PaintCursorContext &pcontext)
     WM_cursor_set(pcontext.win, WM_CURSOR_DOT);
   }
   else {
-    WM_cursor_set(pcontext.win, WM_CURSOR_PAINT);
+    /* Don't use paint cursor when overlapping with the size circle. */
+    const int brush_size = BKE_brush_size_get(pcontext.paint, pcontext.brush);
+    const bool small = brush_size < 28 && brush_size > 12;
+    WM_cursor_set(pcontext.win, small ? WM_CURSOR_DOT : WM_CURSOR_PAINT);
   }
 }
 
@@ -1653,10 +1658,7 @@ static void grease_pencil_brush_cursor_draw(PaintCursorContext &pcontext)
 
         const bool use_vertex_color = ed::sculpt_paint::greasepencil::brush_using_vertex_color(
             pcontext.scene->toolsettings->gp_paint, brush);
-        const bool use_vertex_color_stroke = use_vertex_color &&
-                                             ELEM(brush->gpencil_settings->vertex_mode,
-                                                  GPPAINT_MODE_STROKE,
-                                                  GPPAINT_MODE_BOTH);
+        const bool use_vertex_color_stroke = use_vertex_color;
         if (use_vertex_color_stroke) {
           IMB_colormanagement_scene_linear_to_srgb_v3(color, brush->color);
         }

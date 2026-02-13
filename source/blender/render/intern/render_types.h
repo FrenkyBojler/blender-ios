@@ -24,12 +24,14 @@
 
 #include "tile_highlight.h"
 
+class GHOST_IContext;
+
 namespace blender {
 
 namespace compositor {
 class RenderContext;
 class Profiler;
-enum class OutputTypes : uint8_t;
+enum class NodeGroupOutputTypes : uint8_t;
 }  // namespace compositor
 
 struct bNodeTree;
@@ -56,7 +58,7 @@ struct BaseRender {
                                   const char *view_name,
                                   compositor::RenderContext *render_context,
                                   compositor::Profiler *profiler,
-                                  compositor::OutputTypes needed_outputs) = 0;
+                                  compositor::NodeGroupOutputTypes needed_outputs) = 0;
   virtual void compositor_free() = 0;
 
   /**
@@ -101,7 +103,7 @@ struct ViewRender : public BaseRender {
                           const char * /*view_name*/,
                           compositor::RenderContext * /*render_context*/,
                           compositor::Profiler * /*profiler*/,
-                          compositor::OutputTypes /*needed_outputs*/) override
+                          compositor::NodeGroupOutputTypes /*needed_outputs*/) override
   {
   }
   void compositor_free() override {}
@@ -129,7 +131,7 @@ struct Render : public BaseRender {
                           const char *view_name,
                           compositor::RenderContext *render_context,
                           compositor::Profiler *profiler,
-                          compositor::OutputTypes needed_outputs) override;
+                          compositor::NodeGroupOutputTypes needed_outputs) override;
   void compositor_free() override;
 
   bool prepare_viewlayer(struct ViewLayer *view_layer, struct Depsgraph *depsgraph) override;
@@ -205,6 +207,8 @@ struct Render : public BaseRender {
 struct RenderDisplay {
   ~RenderDisplay();
 
+  void free_gpu_context();
+
   void ensure_system_gpu_context();
   void *ensure_blender_gpu_context();
 
@@ -237,7 +241,7 @@ struct RenderDisplay {
 
   /* GPU contexts.
    * TODO: replace by a whole draw manager. */
-  void *system_gpu_context = nullptr;
+  GHOST_IContext *system_gpu_context = nullptr;
   void *blender_gpu_context = nullptr;
 };
 

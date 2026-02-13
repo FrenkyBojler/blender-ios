@@ -39,8 +39,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   auto &input_value = b.add_input(data_type, "Value").hide_value();
   auto &output_value = b.add_output(data_type, "Value").align_with_previous();
 
-  if (nodes::socket_type_supports_fields(data_type)) {
+  if (socket_type_supports_attributes(data_type)) {
     input_value.supports_field();
+    output_value.dependent_field().reference_pass_all();
   }
 
   if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(data_type)) {
@@ -124,7 +125,7 @@ class EnableOutputOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *node_get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new EnableOutputOperation(context, node);
 }
@@ -196,7 +197,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
-  ntype.get_compositor_operation = node_get_compositor_operation;
+  ntype.get_compositor_operation = get_compositor_operation;
   ntype.get_extra_info = node_extra_info;
   ntype.internally_linked_input = node_internally_linked_input;
   bke::node_register_type(ntype);

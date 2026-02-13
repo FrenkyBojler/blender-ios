@@ -92,11 +92,11 @@ void ViewLink::views_bounds_calc(const Block &block)
     views_bounds.add(link.view.get(), minmax);
   }
 
-  for (const std::unique_ptr<Button> &but : block.buttons) {
-    if (but->type != ButtonType::ViewItem) {
+  for (Button &but : block.buttons()) {
+    if (but.type != ButtonType::ViewItem) {
       continue;
     }
-    auto *view_item_but = static_cast<ButtonViewItem *>(but.get());
+    auto *view_item_but = static_cast<ButtonViewItem *>(&but);
     if (!view_item_but->view_item) {
       continue;
     }
@@ -155,7 +155,7 @@ static uiViewStateLink *ensure_view_state(ARegion &region, const ViewLink &link)
     }
   }
 
-  uiViewStateLink *new_state = MEM_new_for_free<uiViewStateLink>(__func__);
+  uiViewStateLink *new_state = MEM_new<uiViewStateLink>(__func__);
   link.idname.copy(new_state->idname, sizeof(new_state->idname));
   BLI_addhead(&region.view_states, new_state);
   return new_state;
@@ -384,11 +384,11 @@ ButtonViewItem *block_view_find_matching_view_item_but_in_old_block(
     return nullptr;
   }
 
-  for (const std::unique_ptr<Button> &old_but : old_block->buttons) {
-    if (old_but->type != ButtonType::ViewItem) {
+  for (Button &old_but : old_block->buttons()) {
+    if (old_but.type != ButtonType::ViewItem) {
       continue;
     }
-    ButtonViewItem *old_item_but = static_cast<ButtonViewItem *>(old_but.get());
+    ButtonViewItem *old_item_but = static_cast<ButtonViewItem *>(&old_but);
     if (!old_item_but->view_item) {
       continue;
     }

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'c1168d06bba2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-05 11:52+0000\n"
+"POT-Creation-Date: 2026-02-09 09:47+0000\n"
 "PO-Revision-Date: 2025-07-23 15:32+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -3077,6 +3077,14 @@ msgid "Show Lasso"
 msgstr "Näytä lasso"
 
 
+msgid "Stroke"
+msgstr "Piirto"
+
+
+msgid "Fill"
+msgstr "Täytä"
+
+
 msgid "Active Layer"
 msgstr "Aktiivinen taso"
 
@@ -3177,16 +3185,8 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "Määritteen miten kärkiväri vaikuttaa viivoihin"
 
 
-msgid "Stroke"
-msgstr "Piirto"
-
-
 msgid "Vertex Color affects to Stroke only"
 msgstr "Kärkiväri vaikuttaa ainoastaan viivaan"
-
-
-msgid "Fill"
-msgstr "Täytä"
 
 
 msgid "Vertex Color affects to Fill only"
@@ -5368,6 +5368,10 @@ msgid "Roughness"
 msgstr "Karheus"
 
 
+msgid "Sigma"
+msgstr "Sigma"
+
+
 msgid "Step Size"
 msgstr "Askelkoko"
 
@@ -7244,22 +7248,6 @@ msgid "ID Type"
 msgstr "ID-tyyppi"
 
 
-msgid "Show/Hide"
-msgstr "Näytä/Piilota"
-
-
-msgid "Names"
-msgstr "Nimet"
-
-
-msgid "Math"
-msgstr "Matematiikka"
-
-
-msgid "Utilities"
-msgstr "Työkalut"
-
-
 msgid "Read"
 msgstr "Lue"
 
@@ -7268,44 +7256,44 @@ msgid "Write"
 msgstr "Kirjoita"
 
 
-msgid "Instances"
-msgstr "Instanssit"
+msgid "Show/Hide"
+msgstr "Näytä/Piilota"
 
 
-msgid "Import"
-msgstr "Tuo"
-
-
-msgid "UV Mapping"
-msgstr "UV-kartoittaminen"
-
-
-msgid "Select More/Less"
-msgstr "Valitse enemmän/vähemmän"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Select Similar"
-msgstr "Valitse samankaltainen"
-
-
-msgid "Select All by Trait"
-msgstr "Valitse kaikki piirteen mukaan"
-
-
-msgid "Select Loops"
-msgstr "Valitse silmukat"
+msgid "Names"
+msgstr "Nimet"
 
 
 msgid "Metaball"
 msgstr "Metapallo"
 
 
+msgid "Mesh Select Mode"
+msgstr "Muodon valintatila"
+
+
+msgid "Random Mask"
+msgstr "Satunnainen maski"
+
+
+msgid "Hooks"
+msgstr "Koukut"
+
+
+msgid "Utilities"
+msgstr "Työkalut"
+
+
+msgid "Math"
+msgstr "Matematiikka"
+
+
 msgid "Light"
 msgstr "Valo"
+
+
+msgid "Track"
+msgstr "Raide"
 
 
 msgid "Light Probe"
@@ -7316,20 +7304,36 @@ msgid "Add Image"
 msgstr "Lisää kuva"
 
 
-msgid "Track"
-msgstr "Raide"
+msgid "Select More/Less"
+msgstr "Valitse enemmän/vähemmän"
 
 
-msgid "Hooks"
-msgstr "Koukut"
+msgid "Select Loops"
+msgstr "Valitse silmukat"
 
 
-msgid "Random Mask"
-msgstr "Satunnainen maski"
+msgid "Select Similar"
+msgstr "Valitse samankaltainen"
 
 
-msgid "Mesh Select Mode"
-msgstr "Muodon valintatila"
+msgid "Select All by Trait"
+msgstr "Valitse kaikki piirteen mukaan"
+
+
+msgid "UV Mapping"
+msgstr "UV-kartoittaminen"
+
+
+msgid "Instances"
+msgstr "Instanssit"
+
+
+msgid "Import"
+msgstr "Tuo"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Basic"
@@ -9782,10 +9786,6 @@ msgid "Side"
 msgstr "Sivu"
 
 
-msgid "Sigma"
-msgstr "Sigma"
-
-
 msgid "The start frame"
 msgstr "Aloituskehys"
 
@@ -11091,22 +11091,6 @@ msgstr "Z-Kartoittaminen"
 
 msgid "Text Box"
 msgstr "Tekstilaatikko"
-
-
-msgid "Textbox Height"
-msgstr "Tekstilaatikon Korkeus"
-
-
-msgid "Textbox Width"
-msgstr "Tekstilaatikon Leveys"
-
-
-msgid "Textbox X Offset"
-msgstr "Tekstilaatikon X-Siirros"
-
-
-msgid "Textbox Y Offset"
-msgstr "Tekstilaatikon Y-Siirros"
 
 
 msgid "Random Angle"
@@ -13364,6 +13348,11 @@ msgstr "Juuret"
 
 
 msgctxt "Operator"
+msgid "Edge Loops"
+msgstr "Reunasilmukat"
+
+
+msgctxt "Operator"
 msgid "First"
 msgstr "Ensimmäinen"
 
@@ -13490,11 +13479,6 @@ msgstr "Heikko"
 msgctxt "Operator"
 msgid "Strong"
 msgstr "Vahva"
-
-
-msgctxt "Operator"
-msgid "Edge Loops"
-msgstr "Reunasilmukat"
 
 
 msgctxt "Operator"
@@ -13724,10 +13708,6 @@ msgstr "Harnaa"
 
 msgid "Eyes"
 msgstr "Silmät"
-
-
-msgid "Pupils"
-msgstr "Pupillit"
 
 
 msgid "Nothing selected"
@@ -14497,10 +14477,6 @@ msgid "Trace"
 msgstr "Jäljitä"
 
 
-msgid "PaintCurve"
-msgstr "Maalikäyrä"
-
-
 msgid " UVs,"
 msgstr " UV:t,"
 
@@ -14519,6 +14495,10 @@ msgstr "Ei aktiivista kamerasarjaa"
 
 msgid "Attribute Data Detected"
 msgstr "Attribuutti-data havaittu"
+
+
+msgid "PaintCurve"
+msgstr "Maalikäyrä"
 
 
 msgid "Active F-Curve"
@@ -14607,14 +14587,6 @@ msgstr "Ei esineitä"
 
 msgid "File path"
 msgstr "Tiedostopolku"
-
-
-msgid "seconds"
-msgstr "sekunnit"
-
-
-msgid "bytes"
-msgstr "tavut"
 
 
 msgid "Create new directory?"
@@ -14757,6 +14729,10 @@ msgid "No packed file"
 msgstr "Ei pakattua tiedostoa"
 
 
+msgid "No data to paste"
+msgstr "Ei dataa liitettäväksi"
+
+
 msgid "No Items"
 msgstr "Ei esineitä"
 
@@ -14873,10 +14849,6 @@ msgid "No active item to rename"
 msgstr "Ei aktiivista esinettä uudelleen nimettäväksi"
 
 
-msgid "No data to paste"
-msgstr "Ei dataa liitettäväksi"
-
-
 msgid "Missing library"
 msgstr "Kirjasto puuttuu"
 
@@ -14915,6 +14887,10 @@ msgstr "Luokka"
 
 msgid "(Geometry)"
 msgstr "(Geometria)"
+
+
+msgid "bytes"
+msgstr "tavut"
 
 
 msgid "Data Set"
@@ -15501,6 +15477,14 @@ msgid "Key Color"
 msgstr "Avainväri"
 
 
+msgid "Cb"
+msgstr "Cb"
+
+
+msgid "Cr"
+msgstr "Cr"
+
+
 msgid "Upper Left"
 msgstr "Ylävase"
 
@@ -15551,14 +15535,6 @@ msgstr "Tekijä"
 
 msgid "Offset Y"
 msgstr "Y-siirros"
-
-
-msgid "Cb"
-msgstr "Cb"
-
-
-msgid "Cr"
-msgstr "Cr"
 
 
 msgid "Column 1 Row 1"

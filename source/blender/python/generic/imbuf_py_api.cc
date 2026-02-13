@@ -78,9 +78,9 @@ PyDoc_STRVAR(
     "\n"
     "   Resize the image.\n"
     "\n"
-    "   :arg size: New size.\n"
+    "   :param size: New size.\n"
     "   :type size: tuple[int, int]\n"
-    "   :arg method: Method of resizing ('FAST', 'BILINEAR')\n"
+    "   :param method: Method of resizing ('FAST', 'BILINEAR')\n"
     "   :type method: str\n");
 static PyObject *py_imbuf_resize(Py_ImBuf *self, PyObject *args, PyObject *kw)
 {
@@ -98,7 +98,6 @@ static PyObject *py_imbuf_resize(Py_ImBuf *self, PyObject *args, PyObject *kw)
 
   static const char *_keywords[] = {"size", "method", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "(ii)" /* `size` */
       "|$"   /* Optional keyword only arguments. */
       "O&"   /* `method` */
@@ -135,9 +134,9 @@ PyDoc_STRVAR(
     "\n"
     "   Crop the image.\n"
     "\n"
-    "   :arg min: X, Y minimum.\n"
+    "   :param min: X, Y minimum.\n"
     "   :type min: tuple[int, int]\n"
-    "   :arg max: X, Y maximum.\n"
+    "   :param max: X, Y maximum.\n"
     "   :type max: tuple[int, int]\n");
 static PyObject *py_imbuf_crop(Py_ImBuf *self, PyObject *args, PyObject *kw)
 {
@@ -147,7 +146,6 @@ static PyObject *py_imbuf_crop(Py_ImBuf *self, PyObject *args, PyObject *kw)
 
   static const char *_keywords[] = {"min", "max", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "(II)" /* `min` */
       "(II)" /* `max` */
       ":crop",
@@ -349,7 +347,7 @@ static int py_imbuf_filepath_set(Py_ImBuf *self, PyObject *value, void * /*closu
 PyDoc_STRVAR(
     /* Wrap. */
     py_imbuf_planes_doc,
-    "Number of bits associated with this image.\n"
+    "Number of bits per pixel.\n"
     "\n"
     ":type: int\n");
 static PyObject *py_imbuf_planes_get(Py_ImBuf *self, void * /*closure*/)
@@ -362,7 +360,7 @@ static PyObject *py_imbuf_planes_get(Py_ImBuf *self, void * /*closure*/)
 PyDoc_STRVAR(
     /* Wrap. */
     py_imbuf_channels_doc,
-    "Number of bit-planes.\n"
+    "Number of color channels.\n"
     "\n"
     ":type: int\n");
 static PyObject *py_imbuf_channels_get(Py_ImBuf *self, void * /*closure*/)
@@ -506,18 +504,17 @@ PyDoc_STRVAR(
     M_imbuf_new_doc,
     ".. function:: new(size)\n"
     "\n"
-    "   Load a new image.\n"
+    "   Create a new image.\n"
     "\n"
-    "   :arg size: The size of the image in pixels.\n"
+    "   :param size: The size of the image in pixels.\n"
     "   :type size: tuple[int, int]\n"
-    "   :return: the newly loaded image.\n"
+    "   :return: the newly created image.\n"
     "   :rtype: :class:`ImBuf`\n");
 static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   int size[2];
   static const char *_keywords[] = {"size", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "(ii)" /* `size` */
       ":new",
       _keywords,
@@ -573,7 +570,7 @@ PyDoc_STRVAR(
     "\n"
     "   Load an image from a file.\n"
     "\n"
-    "   :arg filepath: the filepath of the image.\n"
+    "   :param filepath: the filepath of the image.\n"
     "   :type filepath: str | bytes\n"
     "   :return: the newly loaded image.\n"
     "   :rtype: :class:`ImBuf`\n");
@@ -583,7 +580,6 @@ static PyObject *M_imbuf_load(PyObject * /*self*/, PyObject *args, PyObject *kw)
 
   static const char *_keywords[] = {"filepath", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `filepath` */
       ":load",
       _keywords,
@@ -622,7 +618,7 @@ PyDoc_STRVAR(
     "\n"
     "   Load an image from a buffer.\n"
     "\n"
-    "   :arg buffer: A buffer containing the image data.\n"
+    "   :param buffer: A buffer containing the image data.\n"
     "   :type buffer: collections.abc.Buffer\n"
     "   :return: the newly loaded image.\n"
     "   :rtype: :class:`ImBuf`\n");
@@ -632,7 +628,6 @@ static PyObject *M_imbuf_load_from_buffer(PyObject * /*self*/, PyObject *args, P
 
   static const char *_keywords[] = {"buffer", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O" /* `buffer` */
       ":load_from_buffer",
       _keywords,
@@ -684,9 +679,9 @@ PyDoc_STRVAR(
     "\n"
     "   Write an image.\n"
     "\n"
-    "   :arg image: the image to write.\n"
+    "   :param image: the image to write.\n"
     "   :type image: :class:`ImBuf`\n"
-    "   :arg filepath: Optional filepath of the image (fallback to the images file path).\n"
+    "   :param filepath: Optional filepath of the image (fallback to the images file path).\n"
     "   :type filepath: str | bytes | None\n");
 static PyObject *M_imbuf_write(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
@@ -695,7 +690,6 @@ static PyObject *M_imbuf_write(PyObject * /*self*/, PyObject *args, PyObject *kw
 
   static const char *_keywords[] = {"image", "filepath", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O!" /* `image` */
       "|$" /* Optional keyword only arguments. */
       "O&" /* `filepath` */
@@ -797,7 +791,7 @@ PyObject *BPyInit_imbuf()
 
   /* `imbuf.types` */
   PyModule_AddObject(mod, "types", (submodule = BPyInit_imbuf_types()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   return mod;
 }

@@ -335,7 +335,7 @@ inline constexpr int64_t power_of_2_max(const int64_t x)
  * \{ */
 
 #define POINTER_OFFSET(v, ofs) \
-  (reinterpret_cast<typename std::remove_reference<decltype(v)>::type>((char *)(v) + (ofs)))
+  (reinterpret_cast<std::remove_reference_t<decltype(v)>>((char *)(v) + (ofs)))
 
 /* Warning-free macros for storing ints in pointers. Use these _only_
  * for storing an int in a pointer, not a pointer in an int (64bit)! */
@@ -565,15 +565,6 @@ extern bool BLI_memory_is_zero(const void *arr, size_t arr_size);
 
 /** No-op for expressions we don't want to instantiate, but must remain valid. */
 #define EXPR_NOP(expr) (void)(0 ? ((void)(expr), 1) : 0)
-
-/**
- * Utility macro that wraps `std::enable_if` to make it a bit easier to use and less verbose for
- * SFINAE in common cases.
- *
- * \note Often one has to invoke this macro with double parenthesis. That's because the condition
- * often contains a comma and angle brackets are not recognized as parenthesis by the preprocessor.
- */
-#define BLI_ENABLE_IF(condition) typename std::enable_if_t<(condition)> * = nullptr
 
 #if defined(_MSC_VER) && !defined(__clang__)
 #  define BLI_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
