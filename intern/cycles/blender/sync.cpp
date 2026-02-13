@@ -588,10 +588,12 @@ void BlenderSync::sync_film(blender::ViewLayer &b_view_layer,
   if (b_cam_ob && b_cam_ob->type == blender::OB_CAMERA) {
     const blender::Camera *b_cam = (const blender::Camera *)b_cam_ob->data;
     if (b_cam->flag & blender::CAM_USE_PHYSICAL_CAMERA) {
-      film_exposure = BKE_camera_exposure_multiplier(b_cam);
-    }
-    else {
-      film_exposure *= BKE_camera_exposure_multiplier(b_cam);
+      if (b_cam->flag & blender::CAM_USE_PHYSICAL_EXPOSURE) {
+        film_exposure = BKE_camera_exposure_multiplier(b_cam);
+      }
+      else {
+        film_exposure *= BKE_camera_exposure_multiplier(b_cam);
+      }
     }
   }
 

@@ -1148,6 +1148,32 @@ void RNA_def_camera(BlenderRNA *brna)
       "Use physical camera parameters (ISO, Shutter Speed, F-Stop) to control exposure");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
+  prop = RNA_def_property(srna, "use_physical_exposure", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", CAM_USE_PHYSICAL_EXPOSURE);
+  RNA_def_property_ui_text(prop,
+                           "Physical Exposure",
+                           "Override film exposure with physical camera exposure. "
+                           "When disabled, film exposure acts as a multiplier on "
+                           "top of the physical exposure if the physical camera is enabled");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "use_physical_shutter", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", CAM_USE_PHYSICAL_SHUTTER);
+  RNA_def_property_ui_text(
+      prop,
+      "Physical Shutter",
+      "Override motion blur shutter with physical camera shutter speed"
+      "When disabled, motion blur is only control by the motion blur's shutter");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "use_physical_fstop", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", CAM_USE_PHYSICAL_FSTOP);
+  RNA_def_property_ui_text(prop,
+                           "Physical F-Stop",
+                           "Override DOF aperture f-stop with physical camera f-stop"
+                           "When disabled, f-stop is only control by the depth of field's f-stop");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
   prop = RNA_def_property(srna, "physical_iso", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 25.0f, 25600.0f);
   RNA_def_property_ui_range(prop, 50.0f, 6400.0f, 100, 0);

@@ -410,8 +410,11 @@ class DATA_PT_camera_dof_aperture(CameraButtonsPanel, Panel):
         flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
 
         col = flow.column()
+        row = col.row()
+        row.active = cam.use_physical_camera
+        row.prop(cam, "use_physical_fstop", text="Physical F-Stop")
         sub = col.column()
-        sub.active = not cam.use_physical_camera
+        sub.active = not (cam.use_physical_camera and cam.use_physical_fstop)
         sub.prop(dof, "aperture_fstop")
 
         col = flow.column()

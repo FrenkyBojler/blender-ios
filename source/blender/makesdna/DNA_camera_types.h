@@ -81,6 +81,9 @@ enum {
   CAM_SHOW_SAFE_CENTER = (1 << 9),
   CAM_SHOW_BG_IMAGE = (1 << 10),
   CAM_USE_PHYSICAL_CAMERA = (1 << 11),
+  CAM_USE_PHYSICAL_EXPOSURE = (1 << 12),
+  CAM_USE_PHYSICAL_SHUTTER = (1 << 13),
+  CAM_USE_PHYSICAL_FSTOP = (1 << 14),
 };
 
 /* Sensor fit */

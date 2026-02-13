@@ -357,8 +357,7 @@ float BKE_camera_exposure_multiplier(const Camera *camera)
   const float ev = BKE_camera_exposure_ev(camera);
   const float attenuation = fmaxf(camera->lens_attenuation, 1e-3f);
   const float reference = camera_lens_attenuation_reference(camera->lens_attenuation_mode);
-  float exposure = -ev + base_ev - log2f(reference / attenuation) +
-                   camera->exposure_compensation;
+  float exposure = -ev + base_ev - log2f(reference / attenuation) + camera->exposure_compensation;
   return exp2f(exposure);
 }
 

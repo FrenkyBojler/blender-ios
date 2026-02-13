@@ -247,7 +247,17 @@ class RENDER_PT_eevee_motion_blur(RenderButtonsPanel, Panel):
         layout.active = props.use_motion_blur
         col = layout.column()
         col.prop(props, "motion_blur_position", text="Position")
-        col.prop(props, "motion_blur_shutter")
+        cam_obj = scene.camera
+        if cam_obj and cam_obj.type == 'CAMERA':
+            cam = cam_obj.data
+            row = col.row()
+            row.active = cam.use_physical_camera
+            row.prop(cam, "use_physical_shutter", text="Physical Shutter")
+            sub = col.column()
+            sub.active = not (cam.use_physical_camera and cam.use_physical_shutter)
+            sub.prop(props, "motion_blur_shutter")
+        else:
+            col.prop(props, "motion_blur_shutter")
         col.separator()
         col.prop(eevee_props, "motion_blur_depth_scale")
         col.prop(eevee_props, "motion_blur_max")

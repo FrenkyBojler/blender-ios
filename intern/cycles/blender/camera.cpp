@@ -243,7 +243,9 @@ static void blender_camera_from_object(BlenderCamera *bcam,
       /* allow f/stop number to change aperture_size but still
        * give manual control over aperture radius */
       float fstop = b_camera.dof.aperture_fstop;
-      if (b_camera.flag & blender::CAM_USE_PHYSICAL_CAMERA) {
+      if ((b_camera.flag & blender::CAM_USE_PHYSICAL_CAMERA) &&
+          (b_camera.flag & blender::CAM_USE_PHYSICAL_FSTOP))
+      {
         fstop = b_camera.physical_fstop;
       }
       fstop = max(fstop, 1e-5f);
@@ -686,7 +688,9 @@ void BlenderSync::sync_camera(const blender::RenderData &b_render,
   blender::Object *b_cam_ob = get_camera_object(nullptr, nullptr);
   if (b_cam_ob && b_cam_ob->type == blender::OB_CAMERA) {
     const blender::Camera *b_cam = (const blender::Camera *)b_cam_ob->data;
-    if (b_cam->flag & blender::CAM_USE_PHYSICAL_CAMERA) {
+    if ((b_cam->flag & blender::CAM_USE_PHYSICAL_CAMERA) &&
+        (b_cam->flag & blender::CAM_USE_PHYSICAL_SHUTTER))
+    {
       bcam.shuttertime = b_cam->physical_shutter_speed * b_render.frs_sec;
     }
   }

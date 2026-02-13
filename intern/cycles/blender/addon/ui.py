@@ -723,11 +723,17 @@ class CYCLES_RENDER_PT_motion_blur(CyclesButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(rd, "motion_blur_position", text="Position")
-        sub = col.column()
         cam_obj = scene.camera
-        if cam_obj and cam_obj.type == 'CAMERA' and cam_obj.data.use_physical_camera:
-            sub.active = False
-        sub.prop(rd, "motion_blur_shutter")
+        if cam_obj and cam_obj.type == 'CAMERA':
+            cam = cam_obj.data
+            row = col.row()
+            row.active = cam.use_physical_camera
+            row.prop(cam, "use_physical_shutter", text="Physical Shutter")
+            sub = col.column()
+            sub.active = not (cam.use_physical_camera and cam.use_physical_shutter)
+            sub.prop(rd, "motion_blur_shutter")
+        else:
+            col.prop(rd, "motion_blur_shutter")
         col.separator()
         col.prop(cscene, "rolling_shutter_type", text="Rolling Shutter")
         sub = col.column()
@@ -775,11 +781,17 @@ class CYCLES_RENDER_PT_film(CyclesButtonsPanel, Panel):
         cscene = scene.cycles
 
         col = layout.column()
-        sub = col.column()
         cam_obj = scene.camera
-        if cam_obj and cam_obj.type == 'CAMERA' and cam_obj.data.use_physical_camera:
-            sub.active = False
-        sub.prop(cscene, "film_exposure")
+        if cam_obj and cam_obj.type == 'CAMERA':
+            cam = cam_obj.data
+            row = col.row()
+            row.active = cam.use_physical_camera
+            row.prop(cam, "use_physical_exposure", text="Physical Exposure")
+            sub = col.column()
+            sub.active = not (cam.use_physical_camera and cam.use_physical_exposure)
+            sub.prop(cscene, "film_exposure")
+        else:
+            col.prop(cscene, "film_exposure")
 
 
 class CYCLES_RENDER_PT_film_transparency(CyclesButtonsPanel, Panel):
@@ -1191,7 +1203,12 @@ class CYCLES_CAMERA_PT_dof_aperture(CyclesButtonsPanel, Panel):
         flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
 
         col = flow.column()
-        col.prop(dof, "aperture_fstop")
+        row = col.row()
+        row.active = cam.use_physical_camera
+        row.prop(cam, "use_physical_fstop", text="Physical F-Stop")
+        sub = col.column()
+        sub.active = not (cam.use_physical_camera and cam.use_physical_fstop)
+        sub.prop(dof, "aperture_fstop")
         col.prop(dof, "aperture_blades")
         col.prop(dof, "aperture_rotation")
         col.prop(dof, "aperture_ratio")
