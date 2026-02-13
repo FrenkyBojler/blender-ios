@@ -31,6 +31,8 @@ std::optional<pxr::SdfValueTypeName> convert_blender_type_to_usd(const bke::Attr
       return pxr::SdfValueTypeNames->Float2Array;
     case bke::AttrType::Float3:
       return pxr::SdfValueTypeNames->Float3Array;
+    case bke::AttrType::Float4:
+      return pxr::SdfValueTypeNames->Float4Array;
     case bke::AttrType::String:
       return pxr::SdfValueTypeNames->StringArray;
     case bke::AttrType::Bool:
@@ -62,6 +64,7 @@ std::optional<bke::AttrType> convert_usd_type_to_blender(const pxr::SdfValueType
     map.add_new(pxr::SdfValueTypeNames->TexCoord3fArray, bke::AttrType::Float2);
     map.add_new(pxr::SdfValueTypeNames->TexCoord3hArray, bke::AttrType::Float2);
     map.add_new(pxr::SdfValueTypeNames->Float3Array, bke::AttrType::Float3);
+    map.add_new(pxr::SdfValueTypeNames->Float4Array, bke::AttrType::Float4);
     map.add_new(pxr::SdfValueTypeNames->Point3fArray, bke::AttrType::Float3);
     map.add_new(pxr::SdfValueTypeNames->Point3dArray, bke::AttrType::Float3);
     map.add_new(pxr::SdfValueTypeNames->Point3hArray, bke::AttrType::Float3);
@@ -125,6 +128,10 @@ void copy_primvar_to_blender_attribute(const pxr::UsdGeomPrimvar &primvar,
       copy_primvar_to_blender_buffer<pxr::GfVec3f>(
           primvar, time, face_indices, attribute.span.typed<float3>());
       break;
+    case bke::AttrType::Float4:
+      copy_primvar_to_blender_buffer<pxr::GfVec4f>(
+          primvar, time, face_indices, attribute.span.typed<float4>());
+      break;
     case bke::AttrType::ColorFloat: {
       const pxr::SdfValueTypeName pv_type = primvar.GetTypeName();
       if (ELEM(pv_type,
@@ -182,6 +189,10 @@ void copy_blender_attribute_to_primvar(const GVArray &attribute,
     case bke::AttrType::Float3:
       copy_blender_buffer_to_primvar<float3, pxr::GfVec3f>(
           attribute.typed<float3>(), time, primvar, value_writer);
+      break;
+    case bke::AttrType::Float4:
+      copy_blender_buffer_to_primvar<float4, pxr::GfVec4f>(
+          attribute.typed<float4>(), time, primvar, value_writer);
       break;
     case bke::AttrType::Bool:
       copy_blender_buffer_to_primvar<bool, bool>(

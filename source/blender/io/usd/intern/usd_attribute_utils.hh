@@ -47,6 +47,7 @@ template<> struct is_layout_compatible<float3, pxr::GfVec3f> : std::true_type {}
 
 template<> struct is_layout_compatible<pxr::GfVec2f, float2> : std::true_type {};
 template<> struct is_layout_compatible<pxr::GfVec3f, float3> : std::true_type {};
+template<> struct is_layout_compatible<pxr::GfVec4f, float4> : std::true_type {};
 
 /* Conversion utilities to convert a Blender type to an USD type. */
 template<typename From, typename To> inline To convert_value(const From value)
@@ -61,6 +62,10 @@ template<> inline pxr::GfVec2f convert_value(const float2 value)
 template<> inline pxr::GfVec3f convert_value(const float3 value)
 {
   return pxr::GfVec3f(value[0], value[1], value[2]);
+}
+template<> inline pxr::GfVec4f convert_value(const float4 value)
+{
+  return pxr::GfVec4f(value[0], value[1], value[2], value[3]);
 }
 template<> inline pxr::GfVec3f convert_value(const ColorGeometry4f value)
 {
@@ -92,6 +97,10 @@ template<> inline float2 convert_value(const pxr::GfVec2f value)
 template<> inline float3 convert_value(const pxr::GfVec3f value)
 {
   return float3(value[0], value[1], value[2]);
+}
+template<> inline float4 convert_value(const pxr::GfVec4f value)
+{
+  return float4(value[0], value[1], value[2], value[3]);
 }
 template<> inline ColorGeometry4f convert_value(const pxr::GfVec3f value)
 {
