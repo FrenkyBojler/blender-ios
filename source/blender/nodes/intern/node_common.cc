@@ -785,6 +785,57 @@ bool bke::node_is_connected_to_output(const bNodeTree &ntree, const bNode &node)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Adapt Type Node
+ * \{ */
+
+static void node_adapt_type_declare(nodes::NodeDeclarationBuilder &b)
+{
+  const bNode *node = b.node_or_null();
+  if (node == nullptr) {
+    return;
+  }
+
+  const StringRefNull socket_idname(
+      static_cast<const NodeAdaptType *>(node->storage)->type_idname);
+  b.add_input<nodes::decl::Custom>("Input")
+      .idname(socket_idname.c_str())
+      .structure_type(nodes::StructureType::Dynamic);
+  b.add_output<nodes::decl::Custom>("Output")
+      .idname(socket_idname.c_str())
+      .structure_type(nodes::StructureType::Dynamic)
+      .reference_pass_all()
+      .propagate_all();
+}
+
+static void node_adapt_type_init(bNodeTree * /*ntree*/, bNode *node)
+{
+  NodeAdaptType *data = MEM_new<NodeAdaptType>(__func__);
+  STRNCPY(data->type_idname, "NodeSocketColor");
+  node->storage = data;
+}
+
+void register_node_type_adapt_type()
+{
+  /* Adapt type node is used for all tree types, needs dynamic allocation. */
+  bke::bNodeType *ntype = MEM_new<bke::bNodeType>("Adapt Type node type");
+  ntype->free_self = [](bke::bNodeType *type) { MEM_delete(type); };
+
+  bke::node_type_base(*ntype, "NodeAdaptType");
+  ntype->ui_name = "Adapt Type";
+  ntype->ui_description =
+      "Pass through values if the type matches, otherwise implicitly convert the input";
+  ntype->nclass = NODE_CLASS_CONVERTER;
+  ntype->declare = node_adapt_type_declare;
+  ntype->initfunc = node_adapt_type_init;
+  node_type_storage(
+      *ntype, "NodeAdaptType", node_free_standard_storage, node_copy_standard_storage);
+
+  bke::node_register_type(*ntype);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Node #GROUP_INPUT / #GROUP_OUTPUT
  * \{ */
 
