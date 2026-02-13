@@ -46,6 +46,13 @@ enum {
   CAM_CUSTOM_SHADER_EXTERNAL = 1,
 };
 
+/* lens_attenuation_mode */
+enum {
+  CAM_LENS_ATTENUATION_DIGITAL = 0,
+  CAM_LENS_ATTENUATION_FILM = 1,
+  CAM_LENS_ATTENUATION_CUSTOM = 2,
+};
+
 /* dtx */
 enum {
   CAM_DTX_CENTER = (1 << 0),
@@ -73,6 +80,7 @@ enum {
   CAM_SHOWSENSOR = (1 << 8),
   CAM_SHOW_SAFE_CENTER = (1 << 9),
   CAM_SHOW_BG_IMAGE = (1 << 10),
+  CAM_USE_PHYSICAL_CAMERA = (1 << 11),
 };
 
 /* Sensor fit */
@@ -245,6 +253,15 @@ struct Camera {
   char *custom_bytecode = nullptr;
   int custom_mode = 0;
   int _pad3 = {};
+
+  /* Physical camera properties. */
+  float physical_iso = 100.0f;
+  float physical_shutter_speed = 0.008f;
+  float physical_fstop = 2.4f;
+  float exposure_compensation = 0.0f;
+  float lens_attenuation = 0.65f;
+  char lens_attenuation_mode = CAM_LENS_ATTENUATION_DIGITAL;
+  char _pad4[3] = {};
 
   DNA_DEPRECATED struct Object *dof_ob = nullptr;
   DNA_DEPRECATED struct GPUDOFSettings gpu_dof;

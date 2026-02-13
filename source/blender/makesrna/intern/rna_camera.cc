@@ -82,6 +82,12 @@ static void rna_Camera_angle_y_set(PointerRNA *ptr, float value)
   cam->lens = fov_to_focallength(value, cam->sensor_y);
 }
 
+static float rna_Camera_exposure_ev_get(PointerRNA *ptr)
+{
+  const Camera *cam = id_cast<const Camera *>(ptr->owner_id);
+  return BKE_camera_exposure_ev(cam);
+}
+
 static void rna_Camera_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   Camera *camera = id_cast<Camera *>(ptr->owner_id);
@@ -736,6 +742,25 @@ void RNA_def_camera(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem lens_attenuation_mode_items[] = {
+      {CAM_LENS_ATTENUATION_DIGITAL,
+       "DIGITAL",
+       0,
+       "Digital",
+       "Digital camera reference (q = 0.78)"},
+      {CAM_LENS_ATTENUATION_FILM,
+       "FILM",
+       0,
+       "Film",
+       "Film camera reference (q = 0.65, ISO 12232)"},
+      {CAM_LENS_ATTENUATION_CUSTOM,
+       "CUSTOM",
+       0,
+       "Custom",
+       "Custom reference (q = 1.0, perfect lens)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "Camera", "ID");
   RNA_def_struct_ui_text(srna, "Camera", "Camera data-block for storing camera settings");
   RNA_def_struct_ui_icon(srna, ICON_CAMERA_DATA);
@@ -1112,6 +1137,57 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_override_funcs(
       prop, nullptr, nullptr, "rna_Camera_background_images_override_apply");
   RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, nullptr);
+
+  /* Physical Camera */
+
+  prop = RNA_def_property(srna, "use_physical_camera", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", CAM_USE_PHYSICAL_CAMERA);
+  RNA_def_property_ui_text(
+      prop,
+      "Physical Camera",
+      "Use physical camera parameters (ISO, Shutter Speed, F-Stop) to control exposure");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "physical_iso", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_range(prop, 25.0f, 25600.0f);
+  RNA_def_property_ui_range(prop, 50.0f, 6400.0f, 100, 0);
+  RNA_def_property_ui_text(prop, "ISO", "Sensor sensitivity");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "physical_shutter_speed", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_range(prop, 1e-6f, 30.0f);
+  RNA_def_property_ui_range(prop, 0.00025f, 1.0f, 0.01f, 5);
+  RNA_def_property_ui_text(prop, "Shutter Speed", "Exposure time in seconds");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "physical_fstop", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_range(prop, 0.5f, 128.0f);
+  RNA_def_property_ui_range(prop, 0.5f, 32.0f, 10, 1);
+  RNA_def_property_ui_text(prop, "F-Stop", "Aperture f-stop ratio");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "exposure_compensation", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_range(prop, -10.0f, 10.0f);
+  RNA_def_property_ui_range(prop, -10.0f, 10.0f, 1, 1);
+  RNA_def_property_ui_text(prop, "Exposure Compensation", "Exposure adjustment in EV stops");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "lens_attenuation_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, lens_attenuation_mode_items);
+  RNA_def_property_ui_text(prop, "Lens Type", "Reference transmission factor for the lens type");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "lens_attenuation", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_range(prop, 0.01f, 1.0f);
+  RNA_def_property_ui_range(prop, 0.5f, 1.0f, 1, 2);
+  RNA_def_property_ui_text(prop, "Lens Attenuation", "Light transmission factor of the lens");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "exposure_ev", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_float_funcs(prop, "rna_Camera_exposure_ev_get", nullptr, nullptr);
+  RNA_def_property_ui_text(
+      prop, "Exposure Value", "Calculated exposure value (EV) from ISO, Shutter Speed and F-Stop");
 
   RNA_define_lib_overridable(false);
 

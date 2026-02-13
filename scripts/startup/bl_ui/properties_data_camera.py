@@ -248,6 +248,112 @@ class DATA_PT_camera(CameraButtonsPanel, Panel):
             sub.prop(cam, "sensor_height", text="Height")
 
 
+class CAMERA_MT_physical_iso_presets(bpy.types.Menu):
+    bl_label = "ISO Presets"
+
+    def draw(self, _context):
+        layout = self.layout
+        # Full stops
+        for iso in [50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600]:
+            props = layout.operator("wm.context_set_float", text=str(iso))
+            props.data_path = "object.data.physical_iso"
+            props.value = float(iso)
+        layout.separator()
+        # Third stops
+        for iso in [64, 80, 125, 160, 250, 320, 500, 640, 1000, 1250,
+                    2000, 2500, 4000, 5000, 8000, 10000]:
+            props = layout.operator("wm.context_set_float", text=str(iso))
+            props.data_path = "object.data.physical_iso"
+            props.value = float(iso)
+
+
+class CAMERA_MT_physical_shutter_presets(bpy.types.Menu):
+    bl_label = "Shutter Speed Presets"
+
+    def draw(self, _context):
+        layout = self.layout
+        # Full stops
+        for denom in [8000, 4000, 2000, 1000, 500, 250, 125, 60, 30, 15, 8, 4, 2, 1]:
+            if denom > 1:
+                label = "1/%d" % denom
+            else:
+                label = "%d\"" % denom
+            props = layout.operator("wm.context_set_float", text=label)
+            props.data_path = "object.data.physical_shutter_speed"
+            props.value = 1.0 / denom
+        layout.separator()
+        # Third stops
+        for denom in [6000, 3200, 1600, 800, 400, 200, 100, 80, 50, 40, 25, 20, 13, 10, 6, 5, 3]:
+            label = "1/%d" % denom
+            props = layout.operator("wm.context_set_float", text=label)
+            props.data_path = "object.data.physical_shutter_speed"
+            props.value = 1.0 / denom
+
+
+class CAMERA_MT_physical_fstop_presets(bpy.types.Menu):
+    bl_label = "F-Stop Presets"
+
+    def draw(self, _context):
+        layout = self.layout
+        # Full stops
+        for fstop in [1.0, 1.4, 2.0, 2.8, 4.0, 5.6, 8.0, 11.0, 16.0, 22.0, 32.0]:
+            props = layout.operator("wm.context_set_float", text="f/%.1f" % fstop)
+            props.data_path = "object.data.physical_fstop"
+            props.value = fstop
+        layout.separator()
+        # Third stops
+        for fstop in [1.2, 1.8, 2.5, 3.5, 4.5, 6.3, 7.1, 9.0, 10.0, 13.0, 14.0, 18.0, 20.0, 25.0]:
+            props = layout.operator("wm.context_set_float", text="f/%.1f" % fstop)
+            props.data_path = "object.data.physical_fstop"
+            props.value = fstop
+
+
+class DATA_PT_camera_physical(CameraButtonsPanel, Panel):
+    bl_label = "Physical Camera"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH',
+    }
+
+    def draw_header(self, context):
+        cam = context.camera
+        self.layout.prop(cam, "use_physical_camera", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        cam = context.camera
+        layout.active = cam.use_physical_camera
+
+        col = layout.column()
+
+        row = col.row(align=True)
+        row.prop(cam, "physical_iso", text="ISO")
+        row.menu("CAMERA_MT_physical_iso_presets", icon='DOWNARROW_HLT', text="")
+
+        row = col.row(align=True)
+        row.prop(cam, "physical_shutter_speed", text="Shutter Speed")
+        row.menu("CAMERA_MT_physical_shutter_presets", icon='DOWNARROW_HLT', text="")
+
+        row = col.row(align=True)
+        row.prop(cam, "physical_fstop", text="F-Stop")
+        row.menu("CAMERA_MT_physical_fstop_presets", icon='DOWNARROW_HLT', text="")
+
+        col.separator()
+        col.prop(cam, "exposure_compensation", text="Exposure Compensation")
+
+        col.prop(cam, "lens_attenuation_mode", text="Lens Type")
+        col.prop(cam, "lens_attenuation", text="Lens Attenuation")
+
+        col.separator()
+        row = col.row()
+        row.enabled = False
+        row.prop(cam, "exposure_ev", text="Exposure Value (EV)")
+
+
 class DATA_PT_camera_dof(CameraButtonsPanel, Panel):
     bl_label = "Depth of Field"
     bl_options = {'DEFAULT_CLOSED'}
@@ -304,7 +410,9 @@ class DATA_PT_camera_dof_aperture(CameraButtonsPanel, Panel):
         flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
 
         col = flow.column()
-        col.prop(dof, "aperture_fstop")
+        sub = col.column()
+        sub.active = not cam.use_physical_camera
+        sub.prop(dof, "aperture_fstop")
 
         col = flow.column()
         col.prop(dof, "aperture_blades")
@@ -584,6 +692,10 @@ classes = (
     CAMERA_PT_safe_areas_presets,
     DATA_PT_context_camera,
     DATA_PT_lens,
+    CAMERA_MT_physical_iso_presets,
+    CAMERA_MT_physical_shutter_presets,
+    CAMERA_MT_physical_fstop_presets,
+    DATA_PT_camera_physical,
     DATA_PT_camera_dof,
     DATA_PT_camera_dof_aperture,
     DATA_PT_camera,

@@ -723,7 +723,11 @@ class CYCLES_RENDER_PT_motion_blur(CyclesButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(rd, "motion_blur_position", text="Position")
-        col.prop(rd, "motion_blur_shutter")
+        sub = col.column()
+        cam_obj = scene.camera
+        if cam_obj and cam_obj.type == 'CAMERA' and cam_obj.data.use_physical_camera:
+            sub.active = False
+        sub.prop(rd, "motion_blur_shutter")
         col.separator()
         col.prop(cscene, "rolling_shutter_type", text="Rolling Shutter")
         sub = col.column()
@@ -771,7 +775,11 @@ class CYCLES_RENDER_PT_film(CyclesButtonsPanel, Panel):
         cscene = scene.cycles
 
         col = layout.column()
-        col.prop(cscene, "film_exposure")
+        sub = col.column()
+        cam_obj = scene.camera
+        if cam_obj and cam_obj.type == 'CAMERA' and cam_obj.data.use_physical_camera:
+            sub.active = False
+        sub.prop(cscene, "film_exposure")
 
 
 class CYCLES_RENDER_PT_film_transparency(CyclesButtonsPanel, Panel):

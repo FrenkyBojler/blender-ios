@@ -321,6 +321,47 @@ float BKE_camera_object_dof_distance(const Object *ob)
   return fmax(cam->dof.focus_distance, 1e-5f);
 }
 
+/* Photopic luminous efficacy: 683 lm/W (SI constant).
+ * base_ev = log2(683) = 9.416, bridges SI photometric units to the EV scale. */
+static const float luminous_efficacy = 683.0f;
+static const float base_ev = log2f(luminous_efficacy);
+
+/* Reference transmission factors per lens attenuation mode:
+ * - Digital: 0.78 (Unreal Engine convention)
+ * - Film: 0.65 (ISO 12232 standard)
+ * - Custom: 1.0 (perfect lens) */
+static float camera_lens_attenuation_reference(int mode)
+{
+  switch (mode) {
+    case CAM_LENS_ATTENUATION_DIGITAL:
+      return 0.78f;
+    case CAM_LENS_ATTENUATION_FILM:
+      return 0.65f;
+    case CAM_LENS_ATTENUATION_CUSTOM:
+    default:
+      return 1.0f;
+  }
+}
+
+float BKE_camera_exposure_ev(const Camera *camera)
+{
+  const float fstop = fmaxf(camera->physical_fstop, 1e-5f);
+  const float shutter = fmaxf(camera->physical_shutter_speed, 1e-6f);
+  const float iso = fmaxf(camera->physical_iso, 1.0f);
+
+  return log2f((100.0f * fstop * fstop) / (iso * shutter));
+}
+
+float BKE_camera_exposure_multiplier(const Camera *camera)
+{
+  const float ev = BKE_camera_exposure_ev(camera);
+  const float attenuation = fmaxf(camera->lens_attenuation, 1e-3f);
+  const float reference = camera_lens_attenuation_reference(camera->lens_attenuation_mode);
+  float exposure = -ev + base_ev - log2f(reference / attenuation) +
+                   camera->exposure_compensation;
+  return exp2f(exposure);
+}
+
 float BKE_camera_sensor_size(int sensor_fit, float sensor_x, float sensor_y)
 {
   /* sensor size used to fit to. for auto, sensor_x is both x and y. */

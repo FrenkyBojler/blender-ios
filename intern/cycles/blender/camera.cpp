@@ -13,6 +13,7 @@
 #include "util/log.h"
 
 #include "BKE_action.hh"
+#include "BKE_camera.h"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_camera_types.h"
 #include "DNA_light_types.h"
@@ -242,6 +243,9 @@ static void blender_camera_from_object(BlenderCamera *bcam,
       /* allow f/stop number to change aperture_size but still
        * give manual control over aperture radius */
       float fstop = b_camera.dof.aperture_fstop;
+      if (b_camera.flag & blender::CAM_USE_PHYSICAL_CAMERA) {
+        fstop = b_camera.physical_fstop;
+      }
       fstop = max(fstop, 1e-5f);
 
       if (bcam->type == CAMERA_ORTHOGRAPHIC || bcam->type == CAMERA_CUSTOM) {
@@ -678,6 +682,15 @@ void BlenderSync::sync_camera(const blender::RenderData &b_render,
   bcam.pixelaspect.x = b_render.xasp;
   bcam.pixelaspect.y = b_render.yasp;
   bcam.shuttertime = b_render.motion_blur_shutter;
+
+  blender::Object *b_cam_ob = get_camera_object(nullptr, nullptr);
+  if (b_cam_ob && b_cam_ob->type == blender::OB_CAMERA) {
+    const blender::Camera *b_cam = (const blender::Camera *)b_cam_ob->data;
+    if (b_cam->flag & blender::CAM_USE_PHYSICAL_CAMERA) {
+      bcam.shuttertime = b_cam->physical_shutter_speed * b_render.frs_sec;
+    }
+  }
+
   bcam.motion_position = blender_motion_blur_position_type_to_cycles(
       b_render.motion_blur_position);
 

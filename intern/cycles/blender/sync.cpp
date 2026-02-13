@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include "BKE_appdir.hh"
+#include "BKE_camera.h"
 #include "DEG_depsgraph_query.hh"
+#include "DNA_camera_types.h"
 #include "DNA_world_types.h"
 #include "RNA_prototypes.hh"
 #include "RNA_types.hh"
@@ -580,7 +582,20 @@ void BlenderSync::sync_film(blender::ViewLayer &b_view_layer,
     film->set_show_active_pixels(new_viewport_parameters.show_active_pixels);
   }
 
-  film->set_exposure(get_float(cscene, "film_exposure"));
+  float film_exposure = get_float(cscene, "film_exposure");
+
+  blender::Object *b_cam_ob = get_camera_object(b_v3d, nullptr);
+  if (b_cam_ob && b_cam_ob->type == blender::OB_CAMERA) {
+    const blender::Camera *b_cam = (const blender::Camera *)b_cam_ob->data;
+    if (b_cam->flag & blender::CAM_USE_PHYSICAL_CAMERA) {
+      film_exposure = BKE_camera_exposure_multiplier(b_cam);
+    }
+    else {
+      film_exposure *= BKE_camera_exposure_multiplier(b_cam);
+    }
+  }
+
+  film->set_exposure(film_exposure);
   film->set_filter_type(
       (FilterType)get_enum(cscene, "pixel_filter_type", FILTER_NUM_TYPES, FILTER_BLACKMAN_HARRIS));
   const float filter_width = (film->get_filter_type() == FILTER_BOX) ?
