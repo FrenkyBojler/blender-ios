@@ -1240,11 +1240,6 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(281, 13)) {
     userdef->auto_smoothing_new = FCURVE_SMOOTH_CONT_ACCEL;
-
-    if (userdef->file_space_data.display_type == FILE_DEFAULTDISPLAY) {
-      memcpy(
-          &userdef->file_space_data, &U_default.file_space_data, sizeof(userdef->file_space_data));
-    }
   }
 
   if (!USER_VERSION_ATLEAST(281, 16)) {
@@ -1253,10 +1248,6 @@ void blo_do_versions_userdef(UserDef *userdef)
     params.check_diff_item_add = true;
     BKE_keyconfig_pref_filter_items(
         userdef, &params, keymap_item_has_invalid_wm_context_data_path, nullptr);
-  }
-
-  if (!USER_VERSION_ATLEAST(282, 1)) {
-    userdef->file_space_data.filter_id = U_default.file_space_data.filter_id;
   }
 
   if (!USER_VERSION_ATLEAST(282, 4)) {
@@ -1678,12 +1669,6 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(500, 59)) {
     userdef->preferences_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW;
-  }
-
-  if (!USER_VERSION_ATLEAST(500, 76)) {
-    if (userdef->stored_bounds.file.xmin == userdef->stored_bounds.file.xmax) {
-      memcpy(&userdef->stored_bounds, &U_default.stored_bounds, sizeof(userdef->stored_bounds));
-    }
   }
 
   if (!USER_VERSION_ATLEAST(500, 90)) {

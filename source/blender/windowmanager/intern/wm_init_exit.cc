@@ -24,6 +24,7 @@
 #include "BLI_listbase.h"
 #include "BLI_memory_cache.hh"
 #include "BLI_path_utils.hh"
+#include "BLI_settings.hh"
 #include "BLI_string.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
@@ -231,6 +232,7 @@ void WM_init(bContext *C, int argc, const char **argv)
   ED_node_init_butfuncs();
 
   BLF_init();
+  BLI_settings_init();
 
   BLT_lang_init();
   /* Must call first before doing any `.blend` file reading,
@@ -619,6 +621,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   WM_uilisttype_free();
 
   BLF_exit();
+  BLI_settings_save();
 
   BLT_lang_free();
 

@@ -34,6 +34,7 @@
 #include "BLI_fnmatch.h"
 #include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
+#include "BLI_settings.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -108,7 +109,8 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 
   if (!asset_params) {
     asset_params = sfile->asset_params = MEM_new<FileAssetSelectParams>("FileAssetSelectParams");
-    asset_params->base_params.details_flags = U_default.file_space_data.details_flags;
+    asset_params->base_params.details_flags = BLI_settings_get_int(
+        "file.browser", "details_flags", FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME);
     asset_params->asset_library_ref.type = ASSET_LIBRARY_ALL;
     asset_params->asset_library_ref.custom_library_index = -1;
     asset_params->import_method = FILE_ASSET_IMPORT_FOLLOW_PREFS;
@@ -118,7 +120,8 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
   FileSelectParams *base_params = &asset_params->base_params;
   base_params->file[0] = '\0';
   base_params->filter_glob[0] = '\0';
-  base_params->flag |= U_default.file_space_data.flag | FILE_ASSETS_ONLY | FILE_FILTER;
+  base_params->flag |= BLI_settings_get_int("file.browser", "flag", FILE_HIDE_DOT) |
+                       FILE_ASSETS_ONLY | FILE_FILTER;
   base_params->flag &= ~FILE_DIRSEL_ONLY;
   base_params->filter |= FILE_TYPE_BLENDERLIB;
   base_params->filter_id = FILTER_ID_ALL;
@@ -161,9 +164,10 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
                             sfile->params->file,
                             sizeof(sfile->params->file));
     sfile->params->filter_glob[0] = '\0';
-    sfile->params->thumbnail_size = U_default.file_space_data.thumbnail_size;
-    sfile->params->details_flags = U_default.file_space_data.details_flags;
-    sfile->params->filter_id = U_default.file_space_data.filter_id;
+    sfile->params->thumbnail_size = BLI_settings_get_int("file.browser", "thumbnail_size", 96);
+    sfile->params->details_flags = BLI_settings_get_int(
+        "file.browser", "details_flags", FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME);
+    sfile->params->filter_id = BLI_settings_get_int64("file.browser", "filter_id", FILTER_ID_ALL);
     sfile->params->list_thumbnail_size = 16;
     sfile->params->list_column_size = 500;
   }
@@ -326,7 +330,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     }
 
     if (params->display == FILE_DEFAULTDISPLAY) {
-      params->display = U_default.file_space_data.display_type;
+      params->display = BLI_settings_get_int("file.browser", "display_type", FILE_VERTICALDISPLAY);
     }
 
     if ((prop = RNA_struct_find_property(op->ptr, "sort_method"))) {
@@ -334,7 +338,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     }
 
     if (params->sort == FILE_SORT_DEFAULT) {
-      params->sort = U_default.file_space_data.sort_type;
+      params->sort = BLI_settings_get_int("file.browser", "sort_type", FILE_SORT_ALPHA);
     }
 
     if (is_relative_path) {
@@ -348,7 +352,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
   else {
     /* default values, if no operator */
     params->type = FILE_UNIX;
-    params->flag |= U_default.file_space_data.flag;
+    params->flag |= BLI_settings_get_int("file.browser", "flag", FILE_HIDE_DOT);
     params->flag &= ~FILE_DIRSEL_ONLY;
     params->display = FILE_VERTICALDISPLAY;
     params->sort = FILE_SORT_ALPHA;
@@ -666,7 +670,6 @@ static bool file_select_use_default_sort_type(const SpaceFile *sfile)
 void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
 {
   wmOperator *op = sfile->op;
-  UserDef_FileSpaceData *sfile_udata = &U.file_space_data;
 
   sfile->browse_mode = FILE_BROWSE_MODE_FILES;
 
@@ -675,51 +678,55 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
     return;
   }
 
-  params->thumbnail_size = sfile_udata->thumbnail_size;
-  params->details_flags = sfile_udata->details_flags;
-  params->filter_id = sfile_udata->filter_id;
+  params->thumbnail_size = BLI_settings_get_int("file.browser", "thumbnail_size", 96);
+  params->details_flags = BLI_settings_get_int(
+      "file.browser", "details_flags", FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME);
+  params->filter_id = BLI_settings_get_int64("file.browser", "filter_id", FILTER_ID_ALL);
 
   /* Combine flags we take from params with the flags we take from userdef. */
   params->flag = (params->flag & ~PARAMS_FLAGS_REMEMBERED) |
-                 (sfile_udata->flag & PARAMS_FLAGS_REMEMBERED);
+                 (BLI_settings_get_int(
+                      "file.browser", "flag", FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME) &
+                  PARAMS_FLAGS_REMEMBERED);
 
   if (file_select_use_default_display_type(sfile)) {
-    params->display = sfile_udata->display_type;
+    params->display = BLI_settings_get_int("file.browser", "display_type", FILE_VERTICALDISPLAY);
   }
   if (file_select_use_default_sort_type(sfile)) {
-    params->sort = sfile_udata->sort_type;
+    params->sort = BLI_settings_get_int("file.browser", "sort_type", FILE_SORT_ALPHA);
     /* For the default sorting, also take invert flag from userdef. */
-    params->flag = (params->flag & ~FILE_SORT_INVERT) | (sfile_udata->flag & FILE_SORT_INVERT);
+    params->flag = (params->flag & ~FILE_SORT_INVERT) |
+                   (BLI_settings_get_int(
+                        "file.browser", "flag", FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME) &
+                    FILE_SORT_INVERT);
   }
 }
 
 void ED_fileselect_params_to_userdef(SpaceFile *sfile)
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
-  UserDef_FileSpaceData *sfile_udata_new = &U.file_space_data;
-  UserDef_FileSpaceData sfile_udata_old = U.file_space_data;
 
-  sfile_udata_new->thumbnail_size = params->thumbnail_size;
-  sfile_udata_new->details_flags = params->details_flags;
-  sfile_udata_new->flag = params->flag & PARAMS_FLAGS_REMEMBERED;
-  sfile_udata_new->filter_id = params->filter_id;
+  // sfile_udata_new->thumbnail_size = params->thumbnail_size;
+  BLI_settings_set_int("file.browser", "thumbnail_size", params->thumbnail_size);
+  BLI_settings_set_int("file.browser", "details_flags", params->details_flags);
+  BLI_settings_set_int("file.browser", "flag", params->flag & PARAMS_FLAGS_REMEMBERED);
+  BLI_settings_set_int64("file.browser", "filter_id", params->filter_id);
 
   /* In some rare cases, operators ask for a specific display or sort type (e.g. chronological
    * sorting for "Recover Auto Save"). So the settings are optimized for a specific operation.
    * Don't let that change the userdef memory for more general cases. */
   if (file_select_use_default_display_type(sfile)) {
-    sfile_udata_new->display_type = params->display;
+    BLI_settings_set_int("file.browser", "display_type", params->display);
   }
   if (file_select_use_default_sort_type(sfile)) {
-    sfile_udata_new->sort_type = params->sort;
+    BLI_settings_set_int("file.browser", "sort_type", params->sort);
     /* In this case also remember the invert flag. */
-    sfile_udata_new->flag = (sfile_udata_new->flag & ~FILE_SORT_INVERT) |
-                            (params->flag & FILE_SORT_INVERT);
-  }
-
-  /* Tag preferences as dirty if something has changed. */
-  if (memcmp(sfile_udata_new, &sfile_udata_old, sizeof(sfile_udata_old)) != 0) {
-    U.runtime.is_dirty = true;
+    BLI_settings_set_int(
+        "file.browser",
+        "flag",
+        (BLI_settings_get_int("file.browser", "flag", FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME) &
+         ~FILE_SORT_INVERT) |
+            (params->flag & FILE_SORT_INVERT));
   }
 }
 
