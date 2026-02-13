@@ -28,7 +28,11 @@ INCLUDED_DIRS = {
 # Block-list of paths to python modules, relative to the given `--root-dir` argument.
 EXCLUDED_FILE_PATHS = {
     # Require `bpy` module.
+    "doc/python_api/check_stubs.py",
+    # Use newer Python features.
     "doc/python_api/sphinx_doc_gen.py",
+    "doc/python_api/sphinx_stub_gen.py",
+    "doc/python_api/sphinx_stub_validate.py",
 
     # XXX These scripts execute on import! bad, need to be fixed or removed.
     # FIXME: Should be reasonably trivial to fix/cleanup for most of them.
