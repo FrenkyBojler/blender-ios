@@ -1241,19 +1241,17 @@ class XpbdSolverStep {
     this->prepare_solver_geometry_refs();
 
     if (this->support_chunk_local_simulation()) {
-      threading::parallel_for(geometries_.chunks.index_range(), 1, [&](const IndexRange &range) {
-        for (const int chunk_i : range) {
-          for (const int substep_i : IndexRange(substeps_)) {
-            const SubstepInterval substep(substeps_, substep_i);
-            this->simulate__pre_position_solve__chunk(substep, chunk_i);
-            this->simulate__gather_dynamic_constraints__chunk_local(substep, chunk_i);
-            this->simulate__reset_forces__chunk_local(chunk_i);
-            for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
-              this->simulate__position_solve__single_iteration__chunk_local(chunk_i);
-            }
-            this->simulate__update_velocities__chunk(chunk_i);
-            this->simulate__velocity_solve__chunk_local(chunk_i);
+      this->parallel_for_each_chunk(1, [&](const int chunk_i) {
+        for (const int substep_i : IndexRange(substeps_)) {
+          const SubstepInterval substep(substeps_, substep_i);
+          this->simulate__pre_position_solve__chunk(substep, chunk_i);
+          this->simulate__gather_dynamic_constraints__chunk_local(substep, chunk_i);
+          this->simulate__reset_forces__chunk_local(chunk_i);
+          for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
+            this->simulate__position_solve__single_iteration__chunk_local(chunk_i);
           }
+          this->simulate__update_velocities__chunk(chunk_i);
+          this->simulate__velocity_solve__chunk_local(chunk_i);
         }
       });
     }
@@ -1299,12 +1297,9 @@ class XpbdSolverStep {
 
   void simulate__pre_position_solve(const SubstepInterval &substep)
   {
-    threading::parallel_for(
-        geometries_.chunks.index_range(), 16, [&](const IndexRange chunks_range) {
-          for (const int chunk_i : chunks_range) {
-            this->simulate__pre_position_solve__chunk(substep, chunk_i);
-          }
-        });
+    this->parallel_for_each_chunk(16, [&](const int chunk_i) {
+      this->simulate__pre_position_solve__chunk(substep, chunk_i);
+    });
   }
 
   void simulate__pre_position_solve__chunk(const SubstepInterval &substep, const int chunk_i)
@@ -1354,13 +1349,9 @@ class XpbdSolverStep {
 
   void simulate__gather_dynamic_constraints(const SubstepInterval &substep)
   {
-
-    threading::parallel_for(
-        geometries_.chunks.index_range(), 1, [&](const IndexRange chunks_range) {
-          for (const int chunk_i : chunks_range) {
-            this->simulate__gather_dynamic_constraints__chunk_local(substep, chunk_i);
-          }
-        });
+    this->parallel_for_each_chunk(1, [&](const int chunk_i) {
+      this->simulate__gather_dynamic_constraints__chunk_local(substep, chunk_i);
+    });
   }
 
   void simulate__gather_dynamic_constraints__chunk_local(const SubstepInterval &substep,
@@ -1384,12 +1375,8 @@ class XpbdSolverStep {
 
   void simulate__reset_forces()
   {
-    threading::parallel_for(
-        geometries_.chunks.index_range(), 16, [&](const IndexRange chunks_range) {
-          for (const int chunk_i : chunks_range) {
-            this->simulate__reset_forces__chunk_local(chunk_i);
-          }
-        });
+    this->parallel_for_each_chunk(
+        16, [&](const int chunk_i) { this->simulate__reset_forces__chunk_local(chunk_i); });
   }
 
   void simulate__reset_forces__chunk_local(const int chunk_i)
@@ -1405,13 +1392,9 @@ class XpbdSolverStep {
 
   void simulate__position_solve__single_iteration()
   {
-
-    threading::parallel_for(
-        geometries_.chunks.index_range(), 1, [&](const IndexRange chunks_range) {
-          for (const int chunk_i : chunks_range) {
-            this->simulate__position_solve__single_iteration__chunk_local(chunk_i);
-          }
-        });
+    this->parallel_for_each_chunk(1, [&](const int chunk_i) {
+      this->simulate__position_solve__single_iteration__chunk_local(chunk_i);
+    });
   }
 
   void simulate__position_solve__single_iteration__chunk_local(const int chunk_i)
@@ -1443,12 +1426,8 @@ class XpbdSolverStep {
 
   void simulate__update_velocities()
   {
-    threading::parallel_for(
-        geometries_.chunks.index_range(), 16, [&](const IndexRange chunks_range) {
-          for (const int chunk_i : chunks_range) {
-            this->simulate__update_velocities__chunk(chunk_i);
-          }
-        });
+    this->parallel_for_each_chunk(
+        16, [&](const int chunk_i) { this->simulate__update_velocities__chunk(chunk_i); });
   }
 
   void simulate__update_velocities__chunk(const int chunk_i)
@@ -1469,12 +1448,8 @@ class XpbdSolverStep {
 
   void simulate__velocity_solve()
   {
-    threading::parallel_for(
-        geometries_.chunks.index_range(), 8, [&](const IndexRange chunks_range) {
-          for (const int chunk_i : chunks_range) {
-            this->simulate__velocity_solve__chunk_local(chunk_i);
-          }
-        });
+    this->parallel_for_each_chunk(
+        8, [&](const int chunk_i) { this->simulate__velocity_solve__chunk_local(chunk_i); });
   }
 
   void simulate__velocity_solve__chunk_local(const int chunk_i)
@@ -1506,28 +1481,24 @@ class XpbdSolverStep {
 
   void finish_attribute_writers()
   {
-    threading::parallel_for(
-        geometries_.chunks.index_range(), 16, [&](const IndexRange chunks_range) {
-          for (const int chunk_i : chunks_range) {
-            const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-            const ChunkConstraints &chunk_constraints =
-                constraints_info_.chunk_constraints[chunk_i];
-            GeometryData &geo_data = geometries_.data[chunk.data_key_i];
+    this->parallel_for_each_chunk(16, [&](const int chunk_i) {
+      const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+      const ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+      GeometryData &geo_data = geometries_.data[chunk.data_key_i];
 
-            /* Write back pin position lambdas. */
-            for (const int pin_i : chunk_constraints.pin_positions.index_range()) {
-              const int point_i = chunk_constraints.pin_position_indices[pin_i];
-              geo_data.pin_position_lambda_attr.span[point_i] =
-                  chunk_constraints.pin_position_lambdas[pin_i];
-            }
-            /* Write back pin rotation lambdas. */
-            for (const int pin_i : chunk_constraints.pin_rotations.index_range()) {
-              const int point_i = chunk_constraints.pin_rotation_indices[pin_i];
-              geo_data.pin_rotation_lambda_attr.span[point_i] = math::Quaternion(
-                  chunk_constraints.pin_rotation_lambdas[pin_i]);
-            }
-          }
-        });
+      /* Write back pin position lambdas. */
+      for (const int pin_i : chunk_constraints.pin_positions.index_range()) {
+        const int point_i = chunk_constraints.pin_position_indices[pin_i];
+        geo_data.pin_position_lambda_attr.span[point_i] =
+            chunk_constraints.pin_position_lambdas[pin_i];
+      }
+      /* Write back pin rotation lambdas. */
+      for (const int pin_i : chunk_constraints.pin_rotations.index_range()) {
+        const int point_i = chunk_constraints.pin_rotation_indices[pin_i];
+        geo_data.pin_rotation_lambda_attr.span[point_i] = math::Quaternion(
+            chunk_constraints.pin_rotation_lambdas[pin_i]);
+      }
+    });
 
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
@@ -1755,6 +1726,16 @@ class XpbdSolverStep {
     constexpr float max_velocity = 60.0f;
     const float max_search_distance = 2.0f * max_velocity * delta_time;
     return max_search_distance;
+  }
+
+  void parallel_for_each_chunk(const int grain_size, const FunctionRef<void(int chunk_i)> fn)
+  {
+    threading::parallel_for(
+        geometries_.chunks.index_range(), grain_size, [&](const IndexRange chunk_range) {
+          for (const int chunk_i : chunk_range) {
+            fn(chunk_i);
+          }
+        });
   }
 
   void write_back_geometries_to_world()
