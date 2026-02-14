@@ -532,6 +532,8 @@ class XpbdSolverStep {
       GeometryData &geo_data = geometries_.data[data_key_i];
       const AttrDomain domain = geo_data.domain;
       geo_data.size = geo_data.attributes.domain_size(domain);
+      geo_data.prev_positions.reinitialize(geo_data.size);
+      geo_data.prev_rotations.reinitialize(geo_data.size);
       geo_data.position_attr = geo_data.attributes.lookup_or_add_for_write_span<float3>(
           attribute_names::position, domain);
       geo_data.velocity_attr = geo_data.attributes.lookup_or_add_for_write_span<float3>(
@@ -1232,12 +1234,6 @@ class XpbdSolverStep {
 
   void do_simulation()
   {
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      GeometryData &geo_data = geometries_.data[data_key_i];
-      geo_data.prev_positions.reinitialize(geo_data.size);
-      geo_data.prev_rotations.reinitialize(geo_data.size);
-    }
-
     this->prepare_solver_geometry_refs();
 
     if (this->support_chunk_local_simulation()) {
