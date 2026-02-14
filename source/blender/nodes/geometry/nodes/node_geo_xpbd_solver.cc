@@ -36,6 +36,7 @@ constexpr StringRefNull external_torque = "external_torque";
 constexpr StringRefNull mass = "mass";
 /* TODO: Should this be something like `rotational_inertia`? */
 constexpr StringRefNull inertia = "inertia";
+constexpr StringRefNull friction = "friction";
 
 /** True for pinned points. */
 constexpr StringRefNull sim_pin_position = "sim_pin_position";
@@ -240,8 +241,6 @@ struct GeometrySetData {
    */
   GeometrySet geometry;
   VectorSet<std::string> tags;
-
-  Field<float> friction_field;
 };
 
 struct Geometries {
@@ -510,8 +509,6 @@ class XpbdSolverStep {
           }
         }
       }
-      geo_set_data.friction_field = bundle_in_geo.lookup_path<Field<float>>("friction")
-                                        .value_or(fn::make_constant_field(0.0f));
     }
 
     /* Gather individual components that should be simulated. There may be more than geometry sets
@@ -557,8 +554,6 @@ class XpbdSolverStep {
       }
     }
     for (const int data_key_i : geometries_.data_keys.index_range()) {
-      const DataKey &data_key = geometries_.data_keys[data_key_i];
-      const GeometrySetData &geo_set_data = geometries_.geometry_sets[data_key.geo_bundle_i];
       GeometryData &geo_data = geometries_.data[data_key_i];
       const AttrDomain domain = geo_data.domain;
       geo_data.size = geo_data.attributes.domain_size(domain);
@@ -576,10 +571,8 @@ class XpbdSolverStep {
           attribute_names::external_force, domain, float3(0, 0, 0));
       geo_data.external_torque_attr = *geo_data.attributes.lookup_or_default<float3>(
           attribute_names::external_torque, domain, float3(0, 0, 0));
-
-      fn::FieldEvaluator &field_evaluator = this->get_field_evaluator(
-          data_key_i, geo_data.domain, std::nullopt);
-      field_evaluator.add(geo_set_data.friction_field, &geo_data.frictions);
+      geo_data.frictions = *geo_data.attributes.lookup_or_default<float>(
+          attribute_names::friction, domain, 0.0f);
     }
   }
 
