@@ -1253,14 +1253,14 @@ class XpbdSolverStep {
         for (const int substep_i : IndexRange(substeps_)) {
           const SubstepInterval substep(substeps_, substep_i);
           this->simulate__update_pin_positions__chunk(chunk_i, substep);
-          this->simulate__pre_position_solve__chunk(chunk_i, solver_refs_i);
-          this->simulate__gather_dynamic_constraints__chunk_local(substep, chunk_i);
-          this->simulate__reset_forces__chunk_local(chunk_i);
+          this->simulate__inertial_update__chunk(chunk_i, solver_refs_i);
+          this->simulate__gather_dynamic_constraints__chunk(substep, chunk_i);
+          this->simulate__reset_forces__chunk(chunk_i);
           for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
-            this->simulate__position_solve__single_iteration__chunk_local(chunk_i, solver_refs_i);
+            this->simulate__position_solve__single_iteration__chunk(chunk_i, solver_refs_i);
           }
           this->simulate__update_velocities__chunk(chunk_i, solver_refs_i);
-          this->simulate__velocity_solve__chunk_local(chunk_i, solver_refs_i);
+          this->simulate__velocity_solve__chunk(chunk_i, solver_refs_i);
           solver_refs_i = 1 - solver_refs_i;
         }
         this->simulate__ensure_final_data_in_outputs__chunk(chunk_i);
@@ -1272,14 +1272,16 @@ class XpbdSolverStep {
         const SubstepInterval substep(substeps_, substep_i);
         this->parallel_for_each_chunk(16, [&](const int chunk_i) {
           this->simulate__update_pin_positions__chunk(chunk_i, substep);
-          this->simulate__pre_position_solve__chunk(chunk_i, solver_refs_i);
+          this->simulate__inertial_update__chunk(chunk_i, solver_refs_i);
         });
         this->simulate__gather_dynamic_constraints(substep);
         this->simulate__reset_forces();
         for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
           this->simulate__position_solve__single_iteration(solver_refs_i);
         }
-        this->simulate__update_velocities(solver_refs_i);
+        this->parallel_for_each_chunk(16, [&](const int chunk_i) {
+          this->simulate__update_velocities__chunk(chunk_i, solver_refs_i);
+        });
         this->simulate__velocity_solve(solver_refs_i);
         this->parallel_for_each_chunk(16, [&](const int chunk_i) {
           this->simulate__ensure_final_data_in_outputs__chunk(chunk_i);
@@ -1349,13 +1351,12 @@ class XpbdSolverStep {
     }
   }
 
-  void simulate__pre_position_solve__chunk(const int chunk_i, const int solver_refs_i)
+  void simulate__inertial_update__chunk(const int chunk_i, const int solver_refs_i)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const IndexRange points_range = chunk.points_range;
     const int data_key_i = chunk.data_key_i;
     GeometryData &geo_data = geometries_.data[data_key_i];
-
     xpbd::GeometryRef &ref = geometries_.solver_refs[solver_refs_i][data_key_i];
 
     this->integrate_linear_velocities(sub_delta_time_,
@@ -1375,12 +1376,12 @@ class XpbdSolverStep {
   void simulate__gather_dynamic_constraints(const SubstepInterval &substep)
   {
     this->parallel_for_each_chunk(1, [&](const int chunk_i) {
-      this->simulate__gather_dynamic_constraints__chunk_local(substep, chunk_i);
+      this->simulate__gather_dynamic_constraints__chunk(substep, chunk_i);
     });
   }
 
-  void simulate__gather_dynamic_constraints__chunk_local(const SubstepInterval &substep,
-                                                         const int chunk_i)
+  void simulate__gather_dynamic_constraints__chunk(const SubstepInterval &substep,
+                                                   const int chunk_i)
   {
     const float max_distance = this->get_max_search_distance(sub_delta_time_);
     ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
@@ -1401,10 +1402,10 @@ class XpbdSolverStep {
   void simulate__reset_forces()
   {
     this->parallel_for_each_chunk(
-        16, [&](const int chunk_i) { this->simulate__reset_forces__chunk_local(chunk_i); });
+        16, [&](const int chunk_i) { this->simulate__reset_forces__chunk(chunk_i); });
   }
 
-  void simulate__reset_forces__chunk_local(const int chunk_i)
+  void simulate__reset_forces__chunk(const int chunk_i)
   {
     ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
     for (xpbd::ConstraintSet *constraint : chunk_constraints.static_constraints) {
@@ -1418,12 +1419,12 @@ class XpbdSolverStep {
   void simulate__position_solve__single_iteration(const int solver_refs_i)
   {
     this->parallel_for_each_chunk(1, [&](const int chunk_i) {
-      this->simulate__position_solve__single_iteration__chunk_local(chunk_i, solver_refs_i);
+      this->simulate__position_solve__single_iteration__chunk(chunk_i, solver_refs_i);
     });
   }
 
-  void simulate__position_solve__single_iteration__chunk_local(const int chunk_i,
-                                                               const int solver_refs_i)
+  void simulate__position_solve__single_iteration__chunk(const int chunk_i,
+                                                         const int solver_refs_i)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
@@ -1451,13 +1452,6 @@ class XpbdSolverStep {
     this->solve_constraints(solve_params, local_constraints);
   }
 
-  void simulate__update_velocities(const int solver_refs_i)
-  {
-    this->parallel_for_each_chunk(16, [&](const int chunk_i) {
-      this->simulate__update_velocities__chunk(chunk_i, solver_refs_i);
-    });
-  }
-
   void simulate__update_velocities__chunk(const int chunk_i, const int solver_refs_i)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
@@ -1478,11 +1472,11 @@ class XpbdSolverStep {
   void simulate__velocity_solve(const int solver_refs_i)
   {
     this->parallel_for_each_chunk(8, [&](const int chunk_i) {
-      this->simulate__velocity_solve__chunk_local(chunk_i, solver_refs_i);
+      this->simulate__velocity_solve__chunk(chunk_i, solver_refs_i);
     });
   }
 
-  void simulate__velocity_solve__chunk_local(const int chunk_i, const int solver_refs_i)
+  void simulate__velocity_solve__chunk(const int chunk_i, const int solver_refs_i)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
