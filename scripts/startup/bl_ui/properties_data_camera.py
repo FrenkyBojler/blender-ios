@@ -254,14 +254,23 @@ class CAMERA_MT_physical_iso_presets(bpy.types.Menu):
     def draw(self, _context):
         layout = self.layout
         # Full stops
-        for iso in [50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600]:
+        for iso in [25, 50, 100, 200, 400, 800, 1600, 3200, 6400, 12800,
+                    25600, 51200, 102400, 204800, 409600]:
+            props = layout.operator("wm.context_set_float", text=str(iso))
+            props.data_path = "object.data.physical_iso"
+            props.value = float(iso)
+        layout.separator()
+        # Half stops
+        for iso in [35, 70, 140, 280, 560, 1100, 2200, 4500, 9000, 18000,
+                    36000, 72000, 144000, 288000]:
             props = layout.operator("wm.context_set_float", text=str(iso))
             props.data_path = "object.data.physical_iso"
             props.value = float(iso)
         layout.separator()
         # Third stops
-        for iso in [64, 80, 125, 160, 250, 320, 500, 640, 1000, 1250,
-                    2000, 2500, 4000, 5000, 8000, 10000]:
+        for iso in [32, 40, 64, 80, 125, 160, 250, 320, 500, 640, 1000,
+                    1250, 2000, 2500, 4000, 5000, 8000, 10000, 16000, 20000,
+                    32000, 40000, 64000, 80000, 128000, 160000, 256000, 320000]:
             props = layout.operator("wm.context_set_float", text=str(iso))
             props.data_path = "object.data.physical_iso"
             props.value = float(iso)
@@ -272,22 +281,36 @@ class CAMERA_MT_physical_shutter_presets(bpy.types.Menu):
 
     def draw(self, _context):
         layout = self.layout
-        # Full stops
-        for denom in [8000, 4000, 2000, 1000, 500, 250, 125, 60, 30, 15, 8, 4, 2, 1]:
-            if denom > 1:
-                label = "1/%d" % denom
-            else:
-                label = "%d\"" % denom
+
+        def _shutter_entry(layout, seconds, label):
             props = layout.operator("wm.context_set_float", text=label)
             props.data_path = "object.data.physical_shutter_speed"
-            props.value = 1.0 / denom
+            props.value = seconds
+
+        # Full stops
+        for denom in [180000, 90000, 45000, 22000, 11000, 8000, 4000, 2000,
+                      1000, 500, 250, 125, 60, 30, 15, 8, 4, 2, 1]:
+            _shutter_entry(layout, 1.0 / denom, "1/%d" % denom)
+        for sec in [2, 4, 8, 15, 30, 60, 120, 240, 480, 960, 1920, 3600]:
+            _shutter_entry(layout, float(sec), "%d\"" % sec)
+        layout.separator()
+        # Half stops
+        for denom in [128000, 64000, 32000, 16000, 6000, 3000, 1500, 750,
+                      350, 180, 90, 45, 20, 10, 6, 3]:
+            _shutter_entry(layout, 1.0 / denom, "1/%d" % denom)
+        for sec in [1.5, 3, 6, 10, 20, 45, 90, 180, 350, 700, 1400, 2700]:
+            label = "%.1f\"" % sec if sec != int(sec) else "%d\"" % int(sec)
+            _shutter_entry(layout, sec, label)
         layout.separator()
         # Third stops
-        for denom in [6000, 3200, 1600, 800, 400, 200, 100, 80, 50, 40, 25, 20, 13, 10, 6, 5, 3]:
-            label = "1/%d" % denom
-            props = layout.operator("wm.context_set_float", text=label)
-            props.data_path = "object.data.physical_shutter_speed"
-            props.value = 1.0 / denom
+        for denom in [144000, 108000, 72000, 54000, 36000, 27000, 18000, 13000,
+                      6400, 3200, 1600, 800, 400, 200, 100, 80, 50, 40, 25,
+                      20, 13, 10, 5]:
+            _shutter_entry(layout, 1.0 / denom, "1/%d" % denom)
+        for sec in [1.3, 1.6, 2.5, 3.2, 5, 6, 10, 13, 25, 40, 50, 80, 100,
+                    160, 200, 320, 400, 640, 800, 1300, 1600, 2500]:
+            label = "%.1f\"" % sec if sec != int(sec) else "%d\"" % int(sec)
+            _shutter_entry(layout, sec, label)
 
 
 class CAMERA_MT_physical_fstop_presets(bpy.types.Menu):
@@ -295,15 +318,35 @@ class CAMERA_MT_physical_fstop_presets(bpy.types.Menu):
 
     def draw(self, _context):
         layout = self.layout
+
+        def _fstop_fmt(v):
+            if v < 1.0:
+                return "f/%.2f" % v
+            return "f/%.1f" % v
+
         # Full stops
-        for fstop in [1.0, 1.4, 2.0, 2.8, 4.0, 5.6, 8.0, 11.0, 16.0, 22.0, 32.0]:
-            props = layout.operator("wm.context_set_float", text="f/%.1f" % fstop)
+        for fstop in [0.1, 0.14, 0.2, 0.28, 0.4, 0.5, 0.7, 1.0, 1.4, 2.0,
+                      2.8, 4.0, 5.6, 8.0, 11.0, 16.0, 22.0, 32.0, 45.0,
+                      64.0, 90.0, 128.0]:
+            props = layout.operator("wm.context_set_float", text=_fstop_fmt(fstop))
+            props.data_path = "object.data.physical_fstop"
+            props.value = fstop
+        layout.separator()
+        # Half stops
+        for fstop in [0.12, 0.17, 0.24, 0.33, 0.47, 0.6, 0.85, 1.2, 1.7,
+                      2.4, 3.3, 4.8, 6.7, 9.5, 13.0, 19.0, 27.0, 38.0,
+                      54.0, 76.0, 108.0]:
+            props = layout.operator("wm.context_set_float", text=_fstop_fmt(fstop))
             props.data_path = "object.data.physical_fstop"
             props.value = fstop
         layout.separator()
         # Third stops
-        for fstop in [1.2, 1.8, 2.5, 3.5, 4.5, 6.3, 7.1, 9.0, 10.0, 13.0, 14.0, 18.0, 20.0, 25.0]:
-            props = layout.operator("wm.context_set_float", text="f/%.1f" % fstop)
+        for fstop in [0.11, 0.13, 0.16, 0.18, 0.22, 0.25, 0.32, 0.35, 0.45,
+                      0.55, 0.63, 0.8, 0.9, 1.1, 1.2, 1.6, 1.8, 2.2, 2.5,
+                      3.2, 3.5, 4.5, 5.0, 6.3, 7.1, 9.0, 10.0, 13.0, 14.0,
+                      18.0, 20.0, 25.0, 28.0, 36.0, 40.0, 50.0, 57.0, 72.0,
+                      80.0, 101.0, 114.0]:
+            props = layout.operator("wm.context_set_float", text=_fstop_fmt(fstop))
             props.data_path = "object.data.physical_fstop"
             props.value = fstop
 
