@@ -30,6 +30,19 @@ void main()
       out_color = cryptomatte_false_color(
           imageLoadFast(cryptomatte_img, int3(texel_film, display_id)).r);
     }
+
+    /* Apply film exposure to combined and light passes. */
+    bool use_exposure = (display_id == -1) ||
+                        (display_id == uniform_buf.film.diffuse_light_id) ||
+                        (display_id == uniform_buf.film.specular_light_id) ||
+                        (display_id == uniform_buf.film.volume_light_id) ||
+                        (display_id == uniform_buf.film.emission_id) ||
+                        (display_id == uniform_buf.film.environment_id) ||
+                        (display_id == uniform_buf.film.shadow_id) ||
+                        (display_id == uniform_buf.film.transparent_id);
+    if (use_exposure) {
+      out_color.rgb *= uniform_buf.film.film_exposure;
+    }
   }
   else {
     film_process_data(texel_film, out_color, out_depth);

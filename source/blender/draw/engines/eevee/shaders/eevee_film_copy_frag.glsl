@@ -46,6 +46,19 @@ void main()
     out_color = cryptomatte_false_color(imageLoadFast(cryptomatte_img, int3(texel, display_id)).r);
   }
 
+  /* Apply film exposure to combined and light passes. */
+  bool use_exposure = (display_id == -1) ||
+                      (display_id == uniform_buf.film.diffuse_light_id) ||
+                      (display_id == uniform_buf.film.specular_light_id) ||
+                      (display_id == uniform_buf.film.volume_light_id) ||
+                      (display_id == uniform_buf.film.emission_id) ||
+                      (display_id == uniform_buf.film.environment_id) ||
+                      (display_id == uniform_buf.film.shadow_id) ||
+                      (display_id == uniform_buf.film.transparent_id);
+  if (use_exposure) {
+    out_color.rgb *= uniform_buf.film.film_exposure;
+  }
+
   float out_depth = imageLoadFast(depth_img, texel).r;
   out_depth = drw_depth_view_to_screen(-out_depth);
   out_depth += 2.4e-7f * 4.0f + gpu_fwidth(out_depth);
