@@ -16,6 +16,12 @@ namespace blender {
 
 namespace nodes::node_shader_output_aov_cc {
 
+static void node_declare(NodeDeclarationBuilder &b)
+{
+  b.add_input<decl::Color>("Color").default_value({0.0f, 0.0f, 0.0f, 1.0f});
+  b.add_input<decl::Float>("Value").default_value(0.0f).min(0.0f).max(1.0f);
+}
+
 static BIFIconID aov_icon(const ViewLayer *view_layer, PointerRNA *ptr)
 {
   char aov_name[MAX_NAME];
@@ -26,8 +32,8 @@ static BIFIconID aov_icon(const ViewLayer *view_layer, PointerRNA *ptr)
   }
 
   const ViewLayerAOV *aov = static_cast<const ViewLayerAOV *>(
-    BLI_findstring(&view_layer->aovs, aov_name, offsetof(ViewLayerAOV, name)));
-      
+      BLI_findstring(&view_layer->aovs, aov_name, offsetof(ViewLayerAOV, name)));
+
   if (aov) {
     switch (aov->type) {
       case AOV_TYPE_COLOR:
@@ -40,12 +46,6 @@ static BIFIconID aov_icon(const ViewLayer *view_layer, PointerRNA *ptr)
   return ICON_RECORD_OFF;
 }
 
-static void node_declare(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Color>("Color").default_value({0.0f, 0.0f, 0.0f, 1.0f});
-  b.add_input<decl::Float>("Value").default_value(0.0f).min(0.0f).max(1.0f);
-}
-
 static void node_shader_buts_output_aov(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   Scene *scene = CTX_data_scene(C);
@@ -54,7 +54,8 @@ static void node_shader_buts_output_aov(ui::Layout &layout, bContext *C, Pointer
   if (scene && view_layer) {
     PointerRNA view_layer_rna_ptr = RNA_pointer_create_id_subdata(
         scene->id, RNA_ViewLayer, view_layer);
-    layout.prop_search(ptr, "aov_name", &view_layer_rna_ptr, "aovs", "", aov_icon(view_layer, ptr));
+    layout.prop_search(
+        ptr, "aov_name", &view_layer_rna_ptr, "aovs", "", aov_icon(view_layer, ptr));
   }
   else {
     layout.prop(ptr, "aov_name", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
