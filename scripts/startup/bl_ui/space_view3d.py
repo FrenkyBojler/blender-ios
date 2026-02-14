@@ -3806,27 +3806,20 @@ class VIEW3D_MT_sculpt_trim(Menu):
         layout = self.layout
 
         props = layout.operator("sculpt.trim_box_gesture", text="Box Trim")
-        props.trim_mode = 'DIFFERENCE'
 
         props = layout.operator("sculpt.trim_lasso_gesture", text="Lasso Trim")
-        props.trim_mode = 'DIFFERENCE'
 
         props = layout.operator("sculpt.trim_line_gesture", text="Line Trim")
-        props.trim_mode = 'DIFFERENCE'
 
         props = layout.operator("sculpt.trim_polyline_gesture", text="Polyline Trim")
-        props.trim_mode = 'DIFFERENCE'
 
         layout.separator()
 
-        props = layout.operator("sculpt.trim_box_gesture", text="Box Add")
-        props.trim_mode = 'JOIN'
+        props = layout.operator("sculpt.trim_box_additive_gesture", text="Box Add")
 
-        props = layout.operator("sculpt.trim_lasso_gesture", text="Lasso Add")
-        props.trim_mode = 'JOIN'
+        props = layout.operator("sculpt.trim_lasso_additive_gesture", text="Lasso Add")
 
-        props = layout.operator("sculpt.trim_polyline_gesture", text="Polyline Add")
-        props.trim_mode = 'JOIN'
+        props = layout.operator("sculpt.trim_polyline_additive_gesture", text="Polyline Add")
 
 
 class VIEW3D_MT_sculpt_curves(Menu):
