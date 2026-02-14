@@ -140,7 +140,7 @@ def argparse_create() -> argparse.ArgumentParser:
         "-j",
         "--jobs",
         type=int,
-        default=None,
+        default=0,
         help=(
             "Number of threads to use when processing commit messages "
             "(Only really useful for debugging)."
@@ -180,7 +180,7 @@ def setup_commit_info(commit: str) -> CommitInfo | None:
     return None
 
 
-def get_fix_commits(start_date: str, end_date: str, jobs: int | None) -> list[CommitInfo]:
+def get_fix_commits(start_date: str, end_date: str, jobs: int) -> list[CommitInfo]:
     command = [
         'git',
         '--no-pager',
@@ -269,7 +269,9 @@ def main() -> int:
     if not validate_arguments(args):
         return 0
 
-    list_of_commits = get_fix_commits(args.start, args.end, args.jobs)
+    jobs = multiprocessing.cpu_count() if args.jobs < 1 else args.jobs
+
+    list_of_commits = get_fix_commits(args.start, args.end, jobs)
 
     list_of_commits = classify_commits(list_of_commits)
 
