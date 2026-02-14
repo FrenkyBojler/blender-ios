@@ -433,7 +433,7 @@ static void fileselect_refresh_asset_params(FileAssetSelectParams *asset_params)
     BLI_assert(library->custom_library_index >= 0);
 
     user_library = BKE_preferences_asset_library_find_index(&U, library->custom_library_index);
-    if (!user_library || (user_library->flag & ASSET_LIBRARY_DISABLED)) {
+    if (!user_library || !BKE_preferences_asset_library_is_valid(&U, user_library, false)) {
       library->type = ASSET_LIBRARY_ALL;
     }
   }
@@ -455,7 +455,9 @@ static void fileselect_refresh_asset_params(FileAssetSelectParams *asset_params)
       BLI_assert(user_library);
       STRNCPY(base_params->dir, user_library->dirpath);
       BLI_path_slash_native(base_params->dir);
-      base_params->type = FILE_ASSET_LIBRARY;
+      base_params->type = (user_library->flag & ASSET_LIBRARY_USE_REMOTE_URL) ?
+                              FILE_ASSET_LIBRARY_REMOTE :
+                              FILE_ASSET_LIBRARY;
       break;
   }
 }
