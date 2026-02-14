@@ -40,8 +40,8 @@ struct GeometryRef {
   MutableSpan<float3> angular_velocities;
   /** Rotations before time integration. */
   Span<math::Quaternion> prev_rotations;
-  Span<float3> inertias;
-  Span<float3> inverse_inertias;
+  Span<float3> moments_of_inertia;
+  Span<float3> inverse_moments_of_inertia;
 
   uint64_t size() const;
 };
@@ -83,11 +83,11 @@ class ConstraintSetParams {
   float inverse_mass(int geo_i, int point_i) const;
   Span<float> inverse_masses(int geo_i) const;
 
-  float3 inertia(int geo_i, int point_i) const;
-  Span<float3> inertias(int geo_i) const;
+  float3 moment_of_inertia(int geo_i, int point_i) const;
+  Span<float3> moments_of_inertia(int geo_i) const;
 
-  float3 inverse_inertia(int geo_i, int point_i) const;
-  Span<float3> inverse_inertias(int geo_i) const;
+  float3 inverse_moment_of_inertia(int geo_i, int point_i) const;
+  Span<float3> inverse_moments_of_inertia(int geo_i) const;
 
   bool use_debug() const;
   void debug_stage(StringRef constraint_name,
@@ -417,24 +417,25 @@ inline Span<float> ConstraintSetParams::inverse_masses(const int geo_i) const
   return geometry_refs_[geo_i].inverse_masses;
 }
 
-inline float3 ConstraintSetParams::inertia(const int geo_i, const int point_i) const
+inline float3 ConstraintSetParams::moment_of_inertia(const int geo_i, const int point_i) const
 {
-  return geometry_refs_[geo_i].inertias[point_i];
+  return geometry_refs_[geo_i].moments_of_inertia[point_i];
 }
 
-inline Span<float3> ConstraintSetParams::inertias(const int geo_i) const
+inline Span<float3> ConstraintSetParams::moments_of_inertia(const int geo_i) const
 {
-  return geometry_refs_[geo_i].inertias;
+  return geometry_refs_[geo_i].moments_of_inertia;
 }
 
-inline float3 ConstraintSetParams::inverse_inertia(const int geo_i, const int point_i) const
+inline float3 ConstraintSetParams::inverse_moment_of_inertia(const int geo_i,
+                                                             const int point_i) const
 {
-  return geometry_refs_[geo_i].inverse_inertias[point_i];
+  return geometry_refs_[geo_i].inverse_moments_of_inertia[point_i];
 }
 
-inline Span<float3> ConstraintSetParams::inverse_inertias(const int geo_i) const
+inline Span<float3> ConstraintSetParams::inverse_moments_of_inertia(const int geo_i) const
 {
-  return geometry_refs_[geo_i].inverse_inertias;
+  return geometry_refs_[geo_i].inverse_moments_of_inertia;
 }
 
 inline bool ConstraintSetParams::use_debug() const

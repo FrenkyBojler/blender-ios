@@ -252,7 +252,7 @@ class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstr
     const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
         params.rotation(geo_i, point_i),
         pin_rotations[constraint_i],
-        params.inertia(geo_i, point_i),
+        params.moment_of_inertia(geo_i, point_i),
         float3(std::numeric_limits<float>::infinity()),
         math::Quaternion::identity(),
         compliance_terms_[constraint_i],
@@ -821,7 +821,7 @@ class RodStretchAndShearConstraintSet
           params.rotation(geo_i, point_i0),
           params.inverse_mass(geo_i, point_i0),
           params.inverse_mass(geo_i, point_i1),
-          params.inertia(geo_i, point_i0),
+          params.moment_of_inertia(geo_i, point_i0),
           this->rest_lengths[point_i0],
           this->compliances[point_i0] * params.compliance_term_factor,
           this->lambdas_pos[point_i0],
@@ -901,8 +901,8 @@ class RodBendAndTwistConstraintSet : public TemplatedConstraintSet<RodBendAndTwi
       const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
           params.rotation(geo_i, point_i0),
           params.rotation(geo_i, point_i1),
-          params.inertia(geo_i, point_i0),
-          params.inertia(geo_i, point_i1),
+          params.moment_of_inertia(geo_i, point_i0),
+          params.moment_of_inertia(geo_i, point_i1),
           rest_rotations_[point_i0],
           compliances_[point_i0] * params.compliance_term_factor,
           lambdas_[point_i0]);

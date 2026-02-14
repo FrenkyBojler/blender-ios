@@ -34,8 +34,7 @@ constexpr StringRefNull external_force = "external_force";
 constexpr StringRefNull external_torque = "external_torque";
 /** Mass of each point. */
 constexpr StringRefNull mass = "mass";
-/* TODO: Should this be something like `rotational_inertia`? */
-constexpr StringRefNull inertia = "inertia";
+constexpr StringRefNull moment_of_inertia = "moment_of_inertia";
 constexpr StringRefNull friction = "friction";
 
 /** True for pinned points. */
@@ -224,12 +223,12 @@ struct GeometryData {
    * - If there is no mass attribute, or it is <= 0, this is set to 1.
    */
   Array<float> inv_masses;
-  Array<float3> inv_inertias;
+  Array<float3> inv_moments_of_inertia;
   /**
    * This does not match the inertia attribute exactly, since it has special handling for special
    * cases like pinning (for which it is infinity).
    */
-  Array<float3> inertias;
+  Array<float3> moments_of_inertia;
 
   Vector<int> infinite_plane_colliders;
   Vector<int> mesh_colliders;
@@ -458,7 +457,7 @@ class XpbdSolverStep {
     this->prepare_pinned_positions();
     this->prepare_pinned_rotations();
     this->prepare_inverse_masses();
-    this->prepare_inverse_inertias();
+    this->prepare_inverse_moments_of_inertia();
     this->prepare_damping_constraints();
 
     this->evaluate_constraint_fields();
@@ -1035,44 +1034,44 @@ class XpbdSolverStep {
     }
   }
 
-  void prepare_inverse_inertias()
+  void prepare_inverse_moments_of_inertia()
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-      geo_data.inv_inertias.reinitialize(geo_data.size);
-      MutableSpan<float3> inv_inertias = geo_data.inv_inertias;
+      geo_data.inv_moments_of_inertia.reinitialize(geo_data.size);
+      MutableSpan<float3> inv_moments_of_inertia = geo_data.inv_moments_of_inertia;
 
-      const bke::AttributeReader<float3> inertia_attr = geo_data.attributes.lookup<float3>(
-          attribute_names::inertia, geo_data.domain);
+      const bke::AttributeReader<float3> moment_of_inertia_attr =
+          geo_data.attributes.lookup<float3>(attribute_names::moment_of_inertia, geo_data.domain);
 
-      if (inertia_attr) {
+      if (moment_of_inertia_attr) {
         threading::parallel_for(IndexRange(geo_data.size), 2048, [&](const IndexRange range) {
           for (const int i : range) {
-            const float3 inertia = inertia_attr.varray[i];
-            if (math::is_zero(inertia)) {
-              inv_inertias[i] = float3(0.0f);
+            const float3 moment_of_inertia = moment_of_inertia_attr.varray[i];
+            if (math::is_zero(moment_of_inertia)) {
+              inv_moments_of_inertia[i] = float3(0.0f);
             }
             else {
-              inv_inertias[i] = math::safe_rcp(inertia);
+              inv_moments_of_inertia[i] = math::safe_rcp(moment_of_inertia);
             }
           }
         });
       }
       else {
-        inv_inertias.fill(float3(1.0f));
+        inv_moments_of_inertia.fill(float3(1.0f));
       }
 
       // TODO: This should only be done for hard pinning.
       // index_mask::masked_fill(inv_inertias, float3(0.0f), geo_data.pin_rotation_mask);
 
-      geo_data.inertias.reinitialize(geo_data.size);
+      geo_data.moments_of_inertia.reinitialize(geo_data.size);
       for (const int i : IndexRange(geo_data.size)) {
-        const float3 &inv_inertia = inv_inertias[i];
+        const float3 &inv_inertia = inv_moments_of_inertia[i];
         if (math::is_zero(inv_inertia)) {
-          geo_data.inertias[i] = float3(std::numeric_limits<float>::infinity());
+          geo_data.moments_of_inertia[i] = float3(std::numeric_limits<float>::infinity());
         }
         else {
-          geo_data.inertias[i] = math::safe_rcp(inv_inertia);
+          geo_data.moments_of_inertia[i] = math::safe_rcp(inv_inertia);
         }
       }
     }
@@ -1406,8 +1405,8 @@ class XpbdSolverStep {
         ref.velocities = geo_data.velocity_attr.span;
         ref.inverse_masses = geo_data.inv_masses;
         ref.angular_velocities = geo_data.angular_velocity_attr.span;
-        ref.inertias = geo_data.inertias;
-        ref.inverse_inertias = geo_data.inv_inertias;
+        ref.moments_of_inertia = geo_data.moments_of_inertia;
+        ref.inverse_moments_of_inertia = geo_data.inv_moments_of_inertia;
       }
     }
   }
@@ -1450,12 +1449,13 @@ class XpbdSolverStep {
                                       geo_data.velocity_attr.span.slice(points_range),
                                       geo_data.inv_masses.as_span().slice(points_range),
                                       geo_data.external_force_attr.slice(points_range));
-    this->integrate_angular_velocities(sub_delta_time_,
-                                       ref.prev_rotations.slice(points_range),
-                                       ref.rotations.slice(points_range),
-                                       geo_data.angular_velocity_attr.span.slice(points_range),
-                                       geo_data.inv_inertias.as_span().slice(points_range),
-                                       geo_data.external_torque_attr.slice(points_range));
+    this->integrate_angular_velocities(
+        sub_delta_time_,
+        ref.prev_rotations.slice(points_range),
+        ref.rotations.slice(points_range),
+        geo_data.angular_velocity_attr.span.slice(points_range),
+        geo_data.inv_moments_of_inertia.as_span().slice(points_range),
+        geo_data.external_torque_attr.slice(points_range));
   }
 
   void simulate__gather_dynamic_constraints(const SubstepInterval &substep)
