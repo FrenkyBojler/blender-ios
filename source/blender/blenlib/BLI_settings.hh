@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,29 +12,39 @@
 
 namespace blender {
 
-void BLI_settings_init();
-bool BLI_settings_save();
+extern toml::value data;
 
-std::string BLI_settings_get_string(std::string table, std::string key, std::string default_value);
-void BLI_settings_set_string(std::string table, std::string key, std::string value);
+struct settings_t {
 
-char BLI_settings_get_char(std::string table, std::string key, char default_value);
-void BLI_settings_set_char(std::string table, std::string key, char value);
+  void init();
+  bool save();
 
-int32_t BLI_settings_get_int(std::string table, std::string key, int32_t default_value);
-void BLI_settings_set_int(std::string table, std::string key, int32_t value);
+  template<typename T>
+  T get(const std::string &section, const std::string &item, const T &default_value);
 
-int64_t BLI_settings_get_int64(std::string table, std::string key, int64_t default_value);
-void BLI_settings_set_int64(std::string table, std::string key, int64_t value);
+  template<typename T>
+  void set(const std::string &section, const std::string &item, const T &value);
+};
 
-bool BLI_settings_get_bool(std::string table, std::string key, bool default_value);
-void BLI_settings_set_bool(std::string table, std::string key, bool value);
+static settings_t settings;
 
-float BLI_settings_get_float(std::string table, std::string key, float default_value);
-void BLI_settings_set_float(std::string table, std::string key, float value);
+template<typename T>
+T settings_t::get(const std::string &section, const std::string &item, const T &default_value)
+{
+  if (data.is_empty()) {
+    init();
+  }
+  return toml::get_or(data[section][item], default_value);
+}
 
-std::vector<float> BLI_settings_get_floats(std::string table, std::string key);
-void BLI_settings_set_floats(std::string table, std::string key, std::vector<float> values);
+template<typename T>
+void settings_t::set(const std::string &section, const std::string &item, const T &value)
+{
+  if (data.is_empty()) {
+    init();
+  }
+  data[section][item] = value;
+}
 
 /**********************************/
 

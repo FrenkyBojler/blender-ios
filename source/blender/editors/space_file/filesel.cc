@@ -109,8 +109,8 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 
   if (!asset_params) {
     asset_params = sfile->asset_params = MEM_new<FileAssetSelectParams>("FileAssetSelectParams");
-    asset_params->base_params.details_flags = BLI_settings_get_int(
-        "file.browser", "details_flags", FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME);
+    asset_params->base_params.details_flags = settings.get(
+        "file.browser", "details_flags", char(FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME));
     asset_params->asset_library_ref.type = ASSET_LIBRARY_ALL;
     asset_params->asset_library_ref.custom_library_index = -1;
     asset_params->import_method = FILE_ASSET_IMPORT_FOLLOW_PREFS;
@@ -120,8 +120,8 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
   FileSelectParams *base_params = &asset_params->base_params;
   base_params->file[0] = '\0';
   base_params->filter_glob[0] = '\0';
-  base_params->flag |= BLI_settings_get_int("file.browser", "flag", FILE_HIDE_DOT) |
-                       FILE_ASSETS_ONLY | FILE_FILTER;
+  base_params->flag |= settings.get(
+      "file.browser", "flag", int16_t(FILE_HIDE_DOT) | FILE_ASSETS_ONLY | FILE_FILTER);
   base_params->flag &= ~FILE_DIRSEL_ONLY;
   base_params->filter |= FILE_TYPE_BLENDERLIB;
   base_params->filter_id = FILTER_ID_ALL;
@@ -164,10 +164,10 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
                             sfile->params->file,
                             sizeof(sfile->params->file));
     sfile->params->filter_glob[0] = '\0';
-    sfile->params->thumbnail_size = BLI_settings_get_int("file.browser", "thumbnail_size", 96);
-    sfile->params->details_flags = BLI_settings_get_int(
-        "file.browser", "details_flags", FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME);
-    sfile->params->filter_id = BLI_settings_get_int64("file.browser", "filter_id", FILTER_ID_ALL);
+    sfile->params->thumbnail_size = settings.get("file.browser", "thumbnail_size", int16_t(96));
+    sfile->params->details_flags = settings.get(
+        "file.browser", "details_flags", int8_t(FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME));
+    sfile->params->filter_id = settings.get("file.browser", "filter_id", int64_t(FILTER_ID_ALL));
     sfile->params->list_thumbnail_size = 16;
     sfile->params->list_column_size = 500;
   }
@@ -330,7 +330,8 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     }
 
     if (params->display == FILE_DEFAULTDISPLAY) {
-      params->display = BLI_settings_get_int("file.browser", "display_type", FILE_VERTICALDISPLAY);
+      params->display = settings.get(
+          "file.browser", "display_type", int16_t(FILE_VERTICALDISPLAY));
     }
 
     if ((prop = RNA_struct_find_property(op->ptr, "sort_method"))) {
@@ -338,7 +339,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     }
 
     if (params->sort == FILE_SORT_DEFAULT) {
-      params->sort = BLI_settings_get_int("file.browser", "sort_type", FILE_SORT_ALPHA);
+      params->sort = settings.get("file.browser", "sort_type", int16_t(FILE_SORT_ALPHA));
     }
 
     if (is_relative_path) {
@@ -352,7 +353,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
   else {
     /* default values, if no operator */
     params->type = FILE_UNIX;
-    params->flag |= BLI_settings_get_int("file.browser", "flag", FILE_HIDE_DOT);
+    params->flag |= settings.get("file.browser", "flag", int16_t(FILE_HIDE_DOT));
     params->flag &= ~FILE_DIRSEL_ONLY;
     params->display = FILE_VERTICALDISPLAY;
     params->sort = FILE_SORT_ALPHA;
@@ -678,27 +679,27 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
     return;
   }
 
-  params->thumbnail_size = BLI_settings_get_int("file.browser", "thumbnail_size", 96);
-  params->details_flags = BLI_settings_get_int(
+  params->thumbnail_size = settings.get("file.browser", "thumbnail_size", 96);
+  params->details_flags = settings.get(
       "file.browser", "details_flags", FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME);
-  params->filter_id = BLI_settings_get_int64("file.browser", "filter_id", FILTER_ID_ALL);
+  params->filter_id = settings.get("file.browser", "filter_id", int64_t(FILTER_ID_ALL));
 
   /* Combine flags we take from params with the flags we take from userdef. */
   params->flag = (params->flag & ~PARAMS_FLAGS_REMEMBERED) |
-                 (BLI_settings_get_int(
-                      "file.browser", "flag", FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME) &
+                 (settings.get(
+                      "file.browser", "flag", int16_t(FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME)) &
                   PARAMS_FLAGS_REMEMBERED);
 
   if (file_select_use_default_display_type(sfile)) {
-    params->display = BLI_settings_get_int("file.browser", "display_type", FILE_VERTICALDISPLAY);
+    params->display = settings.get("file.browser", "display_type", int16_t(FILE_VERTICALDISPLAY));
   }
   if (file_select_use_default_sort_type(sfile)) {
-    params->sort = BLI_settings_get_int("file.browser", "sort_type", FILE_SORT_ALPHA);
+    params->sort = settings.get("file.browser", "sort_type", int16_t(FILE_SORT_ALPHA));
     /* For the default sorting, also take invert flag from userdef. */
-    params->flag = (params->flag & ~FILE_SORT_INVERT) |
-                   (BLI_settings_get_int(
-                        "file.browser", "flag", FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME) &
-                    FILE_SORT_INVERT);
+    params->flag =
+        (params->flag & ~FILE_SORT_INVERT) |
+        (settings.get("file.browser", "flag", int16_t(FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME)) &
+         FILE_SORT_INVERT);
   }
 }
 
@@ -707,26 +708,27 @@ void ED_fileselect_params_to_userdef(SpaceFile *sfile)
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
   // sfile_udata_new->thumbnail_size = params->thumbnail_size;
-  BLI_settings_set_int("file.browser", "thumbnail_size", params->thumbnail_size);
-  BLI_settings_set_int("file.browser", "details_flags", params->details_flags);
-  BLI_settings_set_int("file.browser", "flag", params->flag & PARAMS_FLAGS_REMEMBERED);
-  BLI_settings_set_int64("file.browser", "filter_id", params->filter_id);
+  settings.set("file.browser", "thumbnail_size", params->thumbnail_size);
+  settings.set("file.browser", "details_flags", params->details_flags);
+  settings.set("file.browser", "flag", params->flag & PARAMS_FLAGS_REMEMBERED);
+  settings.set("file.browser", "filter_id", int64_t(params->filter_id));
 
   /* In some rare cases, operators ask for a specific display or sort type (e.g. chronological
    * sorting for "Recover Auto Save"). So the settings are optimized for a specific operation.
    * Don't let that change the userdef memory for more general cases. */
   if (file_select_use_default_display_type(sfile)) {
-    BLI_settings_set_int("file.browser", "display_type", params->display);
+    settings.set("file.browser", "display_type", params->display);
   }
   if (file_select_use_default_sort_type(sfile)) {
-    BLI_settings_set_int("file.browser", "sort_type", params->sort);
+    settings.set("file.browser", "sort_type", params->sort);
     /* In this case also remember the invert flag. */
-    BLI_settings_set_int(
-        "file.browser",
-        "flag",
-        (BLI_settings_get_int("file.browser", "flag", FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME) &
-         ~FILE_SORT_INVERT) |
-            (params->flag & FILE_SORT_INVERT));
+    settings.set("file.browser",
+                 "flag",
+                 int32_t(settings.get("file.browser",
+                                      "flag",
+                                      int32_t(FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME)) &
+                         ~FILE_SORT_INVERT) |
+                     (params->flag & FILE_SORT_INVERT));
   }
 }
 
