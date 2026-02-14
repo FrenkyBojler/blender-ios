@@ -8851,7 +8851,7 @@ static void rna_def_node(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Height",
       "Height of the node. This property holds true data only under certain circumstances, "
-      "e.g. for a Frame node after the node graph was rendered. For most types of nodes, "
+      "e.g. for a Frame node after the node graph was displayed. For most types of nodes, "
       "the displayed height is based on the node's contents and not reflected in this property.");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
 
