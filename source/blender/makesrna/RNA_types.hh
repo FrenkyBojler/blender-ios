@@ -805,7 +805,6 @@ enum eStringPropertySearchFlag {
    * Allow members besides the ones listed to be entered.
    *
    * \warning disabling this options causes the search callback to run on redraw and should
-   * only be enabled this doesn't cause performance issues.
    */
   PROP_STRING_SEARCH_SUGGESTION = (1 << 2),
 };
