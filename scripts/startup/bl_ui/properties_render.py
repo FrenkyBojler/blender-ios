@@ -760,7 +760,17 @@ class RENDER_PT_eevee_film(RenderButtonsPanel, Panel):
         props = scene.eevee
 
         col = layout.column()
-        col.prop(props, "film_exposure")
+        cam_obj = scene.camera
+        if cam_obj and cam_obj.type == 'CAMERA':
+            cam = cam_obj.data
+            row = col.row()
+            row.active = cam.use_physical_camera
+            row.prop(cam, "use_physical_exposure", text="Physical Exposure")
+            sub = col.column()
+            sub.active = not (cam.use_physical_camera and cam.use_physical_exposure)
+            sub.prop(props, "film_exposure")
+        else:
+            col.prop(props, "film_exposure")
         col.prop(rd, "filter_size")
         col.prop(rd, "film_transparent", text="Transparent")
 

@@ -16,8 +16,11 @@
 #include "BLI_rect.h"
 #include "BLI_set.hh"
 
+#include "BKE_camera.h"
 #include "BKE_compositor.hh"
 #include "BKE_scene.hh"
+
+#include "DNA_camera_types.h"
 
 #include "GPU_framebuffer.hh"
 #include "GPU_texture.hh"
@@ -404,8 +407,25 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     const eViewLayerEEVEEPassType color_passes_3 = EEVEE_RENDER_PASS_TRANSPARENT;
 
     data_.exposure_scale = pow2f(scene.view_settings.exposure);
-    data_.film_exposure = scene.eevee.film_exposure;
-    film_exposure_ = scene.eevee.film_exposure;
+
+    float film_exposure = scene.eevee.film_exposure;
+    const Object *camera_object_eval = inst_.camera_eval_object ? inst_.camera_eval_object :
+                                                                  scene.camera;
+    if (camera_object_eval && camera_object_eval->type == OB_CAMERA) {
+      const blender::Camera *cam = reinterpret_cast<const blender::Camera *>(
+          camera_object_eval->data);
+      if (cam->flag & CAM_USE_PHYSICAL_CAMERA) {
+        if (cam->flag & CAM_USE_PHYSICAL_EXPOSURE) {
+          film_exposure = BKE_camera_exposure_multiplier(cam);
+        }
+        else {
+          film_exposure *= BKE_camera_exposure_multiplier(cam);
+        }
+      }
+    }
+
+    data_.film_exposure = film_exposure;
+    film_exposure_ = film_exposure;
     if (enabled_passes_ & data_passes) {
       enabled_categories_ |= PASS_CATEGORY_DATA;
     }

@@ -101,7 +101,13 @@ void DepthOfField::sync()
   focus_distance_ = BKE_camera_object_dof_distance(camera_object_eval);
   data_.bokeh_anisotropic_scale_inv = 1.0f / data_.bokeh_anisotropic_scale;
 
-  float fstop = max_ff(camera_data->dof.aperture_fstop, 1e-5f);
+  float fstop = camera_data->dof.aperture_fstop;
+  if ((camera_data->flag & CAM_USE_PHYSICAL_CAMERA) &&
+      (camera_data->flag & CAM_USE_PHYSICAL_FSTOP))
+  {
+    fstop = camera_data->physical_fstop;
+  }
+  fstop = max_ff(fstop, 1e-5f);
 
   float aperture = 1.0f / (2.0f * fstop);
   if (camera.is_perspective()) {

@@ -6,7 +6,10 @@
  * \ingroup eevee
  */
 
+#include "BKE_camera.h"
 #include "BKE_colortools.hh"
+
+#include "DNA_camera_types.h"
 
 #include "RE_engine.h"
 
@@ -49,6 +52,16 @@ void MotionBlurModule::init()
   frame_time_ = initial_frame_ + initial_subframe_;
   shutter_position_ = scene->r.motion_blur_position;
   shutter_time_ = scene->r.motion_blur_shutter;
+
+  const Object *camera_object_eval = inst_.camera_eval_object ? inst_.camera_eval_object :
+                                                                scene->camera;
+  if (camera_object_eval && camera_object_eval->type == OB_CAMERA) {
+    const blender::Camera *cam = reinterpret_cast<const blender::Camera *>(
+        camera_object_eval->data);
+    if ((cam->flag & CAM_USE_PHYSICAL_CAMERA) && (cam->flag & CAM_USE_PHYSICAL_SHUTTER)) {
+      shutter_time_ = cam->physical_shutter_speed * scene->r.frs_sec;
+    }
+  }
 
   data_.depth_scale = scene->eevee.motion_blur_depth_scale;
   motion_blur_fx_enabled_ = true; /* TODO(fclem): UI option. */
