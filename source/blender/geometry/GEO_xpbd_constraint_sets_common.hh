@@ -1165,7 +1165,7 @@ class LinearDampingConstraintSet
     const float damping_factor = std::clamp(params.delta_time * damping, 0.0f, 1.0f);
     float residual;
     const float3 gradient = math::normalize_and_get_length(velocity, residual);
-    const float delta_lambda = -residual * damping_factor /* - lambdas_[point_i] */;
+    const float delta_lambda = -residual * damping_factor - lambdas_[point_i];
     const float3 offset = gradient * delta_lambda;
     lambdas_[point_i] += delta_lambda;
     updater.update_velocity(geo_i_, point_i, offset);
@@ -1218,7 +1218,7 @@ class AngularDampingConstraintSet
     const float damping_factor = damping * params.delta_time;
     float residual;
     const float3 gradient = math::normalize_and_get_length(angular_velocity, residual);
-    const float delta_lambda = -residual * damping_factor /*- lambdas_[point_i]*/;
+    const float delta_lambda = -residual * damping_factor - lambdas_[point_i];
     const float3 offset = gradient * delta_lambda;
     lambdas_[point_i] += delta_lambda;
     updater.update_angular_velocity(geo_i_, point_i, offset);

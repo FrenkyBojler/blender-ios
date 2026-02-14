@@ -1251,6 +1251,7 @@ class XpbdSolverStep {
           });
 
       this->simulate__gather_dynamic_constraints(substep);
+      this->simulate__reset_forces();
       this->simulate__position_solve();
 
       threading::parallel_for(
@@ -1349,6 +1350,26 @@ class XpbdSolverStep {
                   math::safe_divide(new_contacts.collider_motion[i], sub_delta_time_));
             }
             chunk_constraints.external_plane_contacts = std::move(new_contacts);
+          }
+        });
+  }
+
+  void simulate__reset_forces()
+  {
+    threading::parallel_for(
+        geometries_.chunks.index_range(), 16, [&](const IndexRange chunks_range) {
+          for (const int chunk_i : chunks_range) {
+            ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+            for (xpbd::ConstraintSet *constraint : chunk_constraints.static_constraints) {
+              constraint->reset_forces();
+            }
+            chunk_constraints.external_plane_contacts.lambdas.fill(0.0f);
+            chunk_constraints.external_plane_contacts.lambdas_normal.fill(0.0f);
+            for (xpbd::VelocityConstraintSet *constraint :
+                 chunk_constraints.static_velocity_constraints)
+            {
+              constraint->reset_forces();
+            }
           }
         });
   }
