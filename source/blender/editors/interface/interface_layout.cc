@@ -5483,19 +5483,45 @@ static Vector<StringRef> multiline_label_wrap_lines(ButtonMultilineLabel *button
   const uiFontStyle &fstyle = style_get()->widget;
   const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&button->rect)), 0);
   StringRef text = button->str;
-  if (!button->wrap_cache) {
-    button->wrap_cache = std::make_unique<ButtonMultilineLabel::WrapCache>();
+  text = text.trim();
+  if (button->wrap_cache) {
+    TextWrapCache &cache = *button->wrap_cache;
+    if (!(cache.wrap_width == width && cache.text == text)) {
+      button->wrap_cache = {};
+    }
   }
-  ButtonMultilineLabel::WrapCache &cache = *button->wrap_cache;
-  if (cache.wrap_width == width && text == cache.text) {
+  else if (button->block->oldblock) {
+    int i = 0;
+    for (std::shared_ptr<blender::ui::TextWrapCache> &cache_ptr :
+         button->block->oldblock->text_wrap_cache)
+    {
+      TextWrapCache &cache = *cache_ptr;
+      if (cache.wrap_width == width && cache.text == text) {
+        button->wrap_cache = cache_ptr;
+        break;
+      }
+      i++;
+    }
+    if (button->wrap_cache) {
+      button->block->oldblock->text_wrap_cache.remove(i);
+    }
+  }
+  if (button->wrap_cache) {
+    button->block->text_wrap_cache.append(button->wrap_cache);
+    TextWrapCache &cache = *button->wrap_cache;
+    button->last_total_lines = cache.wrapped_lines.size();
     return cache.wrapped_lines;
   }
+  button->wrap_cache = std::make_unique<TextWrapCache>();
+  TextWrapCache &cache = *button->wrap_cache;
   cache.text = text;
   cache.wrap_width = width;
 
+  button->block->text_wrap_cache.append(button->wrap_cache);
+
   fontstyle_set(&fstyle);
-  text = text.trim();
-  Vector<StringRef> lines = BLF_string_wrap(fstyle.uifont_id, text, width, BLFWrapMode::HardLimit);
+  Vector<StringRef> lines = BLF_string_wrap(
+      fstyle.uifont_id, cache.text, width, BLFWrapMode::HardLimit);
   cache.wrapped_lines = lines;
   button->last_total_lines = lines.size();
   return lines;

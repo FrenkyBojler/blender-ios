@@ -367,15 +367,17 @@ struct Button : NonMovable {
   virtual ~Button() = default;
 };
 
+struct TextWrapCache {
+  int wrap_width = 0;
+  std::string text;
+  Vector<StringRef> wrapped_lines;
+};
+
 struct ButtonMultilineLabel : public Button {
   int last_total_lines = 0;
-  struct WrapCache {
-    int wrap_width = 0;
-    std::string text;
-    Vector<StringRef> wrapped_lines;
-  };
+
   /** Wrap cache from last redraw. */
-  std::unique_ptr<WrapCache> wrap_cache;
+  std::shared_ptr<TextWrapCache> wrap_cache;
   FontStyleAlign text_align = UI_STYLE_TEXT_LEFT;
 };
 
@@ -628,6 +630,8 @@ struct Block {
   Block *next = nullptr, *prev = nullptr;
 
   Vector<std::unique_ptr<Button>> buttons_ptrs;
+  Vector<std::shared_ptr<TextWrapCache>> text_wrap_cache;
+
   Panel *panel = nullptr;
   Block *oldblock = nullptr;
 
