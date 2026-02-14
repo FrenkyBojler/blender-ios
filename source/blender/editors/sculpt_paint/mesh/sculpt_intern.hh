@@ -965,6 +965,9 @@ void SCULPT_OT_trim_lasso_gesture(wmOperatorType *ot);
 void SCULPT_OT_trim_box_gesture(wmOperatorType *ot);
 void SCULPT_OT_trim_line_gesture(wmOperatorType *ot);
 void SCULPT_OT_trim_polyline_gesture(wmOperatorType *ot);
+void SCULPT_OT_trim_lasso_additive_gesture(wmOperatorType *ot);
+void SCULPT_OT_trim_box_additive_gesture(wmOperatorType *ot);
+void SCULPT_OT_trim_polyline_additive_gesture(wmOperatorType *ot);
 }  // namespace ed::sculpt_paint::trim
 
 namespace ed::sculpt_paint::face_set {

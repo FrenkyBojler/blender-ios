@@ -52,14 +52,7 @@ enum class OperationType {
   Join = 3,
 };
 
-/* Intersect is not exposed in the UI because it does not work correctly with symmetry (it deletes
- * the symmetrical part of the mesh in the first symmetry pass). */
-static EnumPropertyItem operation_types[] = {
-    {int(OperationType::Difference),
-     "DIFFERENCE",
-     0,
-     "Difference",
-     "Use a difference boolean operation"},
+static EnumPropertyItem operation_types_additive[] = {
     {int(OperationType::Union), "UNION", 0, "Union", "Use a union boolean operation"},
     {int(OperationType::Join),
      "JOIN",
@@ -637,7 +630,13 @@ static void init_operation(gesture::GestureData &gesture_data, wmOperator &op)
   trim_operation->op.apply_for_symmetry_pass = gesture_apply_for_symmetry_pass;
   trim_operation->op.end = gesture_end;
 
-  trim_operation->mode = OperationType(RNA_enum_get(op.ptr, "trim_mode"));
+  /* Check if trim_mode property exists (additive operators), otherwise default to Difference. */
+  if (RNA_struct_find_property(op.ptr, "trim_mode")) {
+    trim_operation->mode = OperationType(RNA_enum_get(op.ptr, "trim_mode"));
+  }
+  else {
+    trim_operation->mode = OperationType::Difference;
+  }
   trim_operation->use_cursor_depth = RNA_boolean_get(op.ptr, "use_cursor_depth");
   trim_operation->orientation = OrientationType(RNA_enum_get(op.ptr, "trim_orientation"));
   trim_operation->extrude_mode = ExtrudeMode(RNA_enum_get(op.ptr, "trim_extrude_mode"));
@@ -670,10 +669,53 @@ static void operator_properties(wmOperatorType *ot)
                             INT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
+  RNA_def_boolean(
+      ot->srna,
+      "use_cursor_depth",
+      false,
+      "Use Cursor for Depth",
+      "Use cursor location and radius for the dimensions and position of the trimming shape");
+  RNA_def_enum(ot->srna,
+               "trim_orientation",
+               orientation_types,
+               int(OrientationType::View),
+               "Shape Orientation",
+               nullptr);
+  RNA_def_enum(ot->srna,
+               "trim_extrude_mode",
+               extrude_modes,
+               int(ExtrudeMode::Fixed),
+               "Extrude Mode",
+               nullptr);
+
+  RNA_def_enum(ot->srna,
+               "trim_solver",
+               solver_items,
+               int(geometry::boolean::Solver::Manifold),
+               "Solver",
+               nullptr);
+}
+
+static void operator_properties_additive(wmOperatorType *ot)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_int_vector(ot->srna,
+                            "location",
+                            2,
+                            nullptr,
+                            INT_MIN,
+                            INT_MAX,
+                            "Location",
+                            "Mouse location",
+                            INT_MIN,
+                            INT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
   RNA_def_enum(ot->srna,
                "trim_mode",
-               operation_types,
-               int(OperationType::Difference),
+               operation_types_additive,
+               int(OperationType::Union),
                "Trim Mode",
                nullptr);
   RNA_def_boolean(
@@ -975,5 +1017,169 @@ void SCULPT_OT_trim_polyline_gesture(wmOperatorType *ot)
   gesture::operator_properties(ot, gesture::ShapeType::Lasso);
 
   operator_properties(ot);
+}
+
+static wmOperatorStatus gesture_box_additive_exec(bContext *C, wmOperator *op)
+{
+  if (!can_exec(*C, *op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(C, op);
+  if (!gesture_data) {
+    return OPERATOR_CANCELLED;
+  }
+
+  gesture_data->operation = reinterpret_cast<gesture::Operation *>(
+      MEM_new_zeroed<TrimOperation>(__func__));
+  initialize_cursor_info(*C, *op, *gesture_data);
+  init_operation(*gesture_data, *op);
+
+  gesture::apply(*C, *gesture_data, *op);
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus gesture_box_additive_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent *event)
+{
+  if (!can_invoke(*C)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  RNA_int_set_array(op->ptr, "location", event->mval);
+
+  return WM_gesture_box_invoke(C, op, event);
+}
+
+void SCULPT_OT_trim_box_additive_gesture(wmOperatorType *ot)
+{
+  ot->name = "Trim Box Additive";
+  ot->idname = "SCULPT_OT_trim_box_additive_gesture";
+  ot->description =
+      "Execute an additive trim (union or join) with a rectangle defined by the cursor";
+
+  ot->invoke = gesture_box_additive_invoke;
+  ot->modal = WM_gesture_box_modal;
+  ot->exec = gesture_box_additive_exec;
+
+  ot->poll = SCULPT_mode_poll_view3d;
+
+  ot->flag = OPTYPE_REGISTER;
+
+  /* Properties. */
+  WM_operator_properties_border(ot);
+  gesture::operator_properties(ot, gesture::ShapeType::Box);
+
+  operator_properties_additive(ot);
+}
+
+static wmOperatorStatus gesture_lasso_additive_exec(bContext *C, wmOperator *op)
+{
+  if (!can_exec(*C, *op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_lasso(C, op);
+  if (!gesture_data) {
+    return OPERATOR_CANCELLED;
+  }
+
+  gesture_data->operation = reinterpret_cast<gesture::Operation *>(
+      MEM_new_zeroed<TrimOperation>(__func__));
+  initialize_cursor_info(*C, *op, *gesture_data);
+  init_operation(*gesture_data, *op);
+
+  gesture::apply(*C, *gesture_data, *op);
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus gesture_lasso_additive_invoke(bContext *C,
+                                                      wmOperator *op,
+                                                      const wmEvent *event)
+{
+  if (!can_invoke(*C)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  RNA_int_set_array(op->ptr, "location", event->mval);
+
+  return WM_gesture_lasso_invoke(C, op, event);
+}
+
+void SCULPT_OT_trim_lasso_additive_gesture(wmOperatorType *ot)
+{
+  ot->name = "Trim Lasso Additive";
+  ot->idname = "SCULPT_OT_trim_lasso_additive_gesture";
+  ot->description = "Execute an additive trim (union or join) with a shape defined by the cursor";
+
+  ot->invoke = gesture_lasso_additive_invoke;
+  ot->modal = WM_gesture_lasso_modal;
+  ot->exec = gesture_lasso_additive_exec;
+
+  ot->poll = SCULPT_mode_poll_view3d;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_DEPENDS_ON_CURSOR;
+
+  /* Properties. */
+  WM_operator_properties_gesture_lasso(ot);
+  gesture::operator_properties(ot, gesture::ShapeType::Lasso);
+
+  operator_properties_additive(ot);
+}
+
+static wmOperatorStatus gesture_polyline_additive_exec(bContext *C, wmOperator *op)
+{
+  if (!can_exec(*C, *op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_polyline(C, op);
+  if (!gesture_data) {
+    return OPERATOR_CANCELLED;
+  }
+
+  gesture_data->operation = reinterpret_cast<gesture::Operation *>(
+      MEM_new_zeroed<TrimOperation>(__func__));
+  initialize_cursor_info(*C, *op, *gesture_data);
+  init_operation(*gesture_data, *op);
+
+  gesture::apply(*C, *gesture_data, *op);
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus gesture_polyline_additive_invoke(bContext *C,
+                                                         wmOperator *op,
+                                                         const wmEvent *event)
+{
+  if (!can_invoke(*C)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  RNA_int_set_array(op->ptr, "location", event->mval);
+
+  return WM_gesture_polyline_invoke(C, op, event);
+}
+
+void SCULPT_OT_trim_polyline_additive_gesture(wmOperatorType *ot)
+{
+  ot->name = "Trim Polyline Additive";
+  ot->idname = "SCULPT_OT_trim_polyline_additive_gesture";
+  ot->description =
+      "Execute an additive trim (union or join) with a polygonal shape defined by the cursor";
+
+  ot->invoke = gesture_polyline_additive_invoke;
+  ot->modal = WM_gesture_polyline_modal;
+  ot->exec = gesture_polyline_additive_exec;
+
+  ot->poll = SCULPT_mode_poll_view3d;
+
+  ot->flag = OPTYPE_REGISTER;
+
+  /* Properties. */
+  WM_operator_properties_gesture_polyline(ot);
+  gesture::operator_properties(ot, gesture::ShapeType::Lasso);
+
+  operator_properties_additive(ot);
 }
 }  // namespace blender::ed::sculpt_paint::trim
