@@ -37,6 +37,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Matrix>("Rest Pose")
       .description("Original transform of the bone in armature space, defined in edit mode");
   b.add_output<decl::Float>("Rest Length").description("Original length of the bone");
+  b.add_output<decl::Float>("Envelope").description("Envelope distance of the bone");
+  b.add_output<decl::Float>("Radius Head").description("Radius of the head of the bone");
+  b.add_output<decl::Float>("Radius Tail").description("Radius of the tail of the bone");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -71,6 +74,18 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
       params.add_item(IFACE_("Rest Length"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeBoneInfo");
         params.update_and_connect_available_socket(node, "Rest Length");
+      });
+      params.add_item(IFACE_("Envelope"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        params.update_and_connect_available_socket(node, "Envelope");
+      });
+      params.add_item(IFACE_("Radius Head"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        params.update_and_connect_available_socket(node, "Radius Head");
+      });
+      params.add_item(IFACE_("Radius Tail"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        params.update_and_connect_available_socket(node, "Radius Tail");
       });
     }
   }
@@ -161,6 +176,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Transform Pose", transform_pose);
   params.set_output("Rest Pose", rest_pose);
   params.set_output("Rest Length", bone->length);
+  params.set_output("Envelope", bone->dist);
+  params.set_output("Radius Head", bone->rad_head);
+  params.set_output("Radius Tail", bone->rad_tail);
 }
 
 static void node_rna(StructRNA *srna)
