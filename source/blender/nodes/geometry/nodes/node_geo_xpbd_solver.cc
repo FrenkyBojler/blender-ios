@@ -408,7 +408,7 @@ struct ConstraintsInfo {
 
 class XpbdSolverStep {
  private:
-  ResourceScope &scope_;
+  ResourceScope &global_scope_;
   LinearAllocator<> &allocator_;
   threading::EnumerableThreadSpecific<ResourceScope> thread_scopes_;
   IndexMaskMemory memory_;
@@ -433,7 +433,7 @@ class XpbdSolverStep {
                  const int substeps,
                  const SolverType solver_type,
                  const int constraint_iterations)
-      : scope_(scope),
+      : global_scope_(scope),
         allocator_(scope.allocator()),
         world_(world),
         substeps_(substeps),
@@ -920,7 +920,7 @@ class XpbdSolverStep {
               chunk_constraints.pin_positions = pin_positions;
               chunk_constraints.pin_position_lambdas = lambdas;
               chunk_constraints.static_constraints.append(
-                  &scope_.construct<xpbd::PinPositionConstraintSet>(
+                  &thread_scope.construct<xpbd::PinPositionConstraintSet>(
                       data_key_i, pin_indices, pin_positions, compliance_terms, lambdas));
             }
           });
@@ -992,7 +992,7 @@ class XpbdSolverStep {
               chunk_constraints.pin_rotations = pin_rotations;
               chunk_constraints.pin_rotation_lambdas = lambdas;
               chunk_constraints.static_constraints.append(
-                  &scope_.construct<xpbd::PinRotationConstraintSet>(
+                  &thread_scope.construct<xpbd::PinRotationConstraintSet>(
                       data_key_i, pin_indices, pin_rotations, compliance_terms, lambdas));
             }
           });
@@ -1127,7 +1127,7 @@ class XpbdSolverStep {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
         ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
         chunk_constraints.static_constraints.append(
-            &scope_.construct<xpbd::RodStretchAndShearConstraintSet>(
+            &global_scope_.construct<xpbd::RodStretchAndShearConstraintSet>(
                 data_key_i,
                 *chunk.curves_range,
                 points_by_curve,
@@ -1190,7 +1190,7 @@ class XpbdSolverStep {
       for (const int chunk_i : geo_data.chunks) {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
         constraints_info_.chunk_constraints[chunk_i].static_constraints.append(
-            &scope_.construct<xpbd::RodBendAndTwistConstraintSet>(
+            &global_scope_.construct<xpbd::RodBendAndTwistConstraintSet>(
                 data_key_i,
                 *chunk.curves_range,
                 points_by_curve,
@@ -1219,13 +1219,13 @@ class XpbdSolverStep {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
         ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
         chunk_constraints.static_velocity_constraints.append(
-            &scope_.construct<xpbd::LinearDampingConstraintSet>(
+            &global_scope_.construct<xpbd::LinearDampingConstraintSet>(
                 data_key_i,
                 chunk.points_range,
                 geo_data.linear_dampings,
                 geo_data.linear_damping_lambdas.span));
         chunk_constraints.static_velocity_constraints.append(
-            &scope_.construct<xpbd::AngularDampingConstraintSet>(
+            &global_scope_.construct<xpbd::AngularDampingConstraintSet>(
                 data_key_i,
                 chunk.points_range,
                 geo_data.angular_dampings,
@@ -1242,7 +1242,7 @@ class XpbdSolverStep {
     return *field_evaluators_.lookup_or_add_cb(key, [&]() {
       const auto &field_context = this->make_geometry_field_context(data_key_i, domain);
       const int domain_size = geometries_.data[data_key_i].size;
-      auto &evaluator = scope_.construct<fn::FieldEvaluator>(field_context, domain_size);
+      auto &evaluator = global_scope_.construct<fn::FieldEvaluator>(field_context, domain_size);
       if (selection) {
         evaluator.set_selection(*selection);
       }
@@ -1276,22 +1276,24 @@ class XpbdSolverStep {
     const GeometrySet &geometry_set = geometries_.geometry_sets[data_key.geo_bundle_i].geometry;
     switch (data_key.type) {
       case bke::GeometryComponent::Type::Mesh:
-        return scope_.construct<bke::MeshFieldContext>(*geometry_set.get_mesh(), domain);
+        return global_scope_.construct<bke::MeshFieldContext>(*geometry_set.get_mesh(), domain);
       case bke::GeometryComponent::Type::PointCloud:
-        return scope_.construct<bke::PointCloudFieldContext>(*geometry_set.get_pointcloud());
+        return global_scope_.construct<bke::PointCloudFieldContext>(
+            *geometry_set.get_pointcloud());
       case bke::GeometryComponent::Type::Instance:
-        return scope_.construct<bke::InstancesFieldContext>(*geometry_set.get_instances());
+        return global_scope_.construct<bke::InstancesFieldContext>(*geometry_set.get_instances());
       case bke::GeometryComponent::Type::Curve:
-        return scope_.construct<bke::CurvesFieldContext>(*geometry_set.get_curves(), domain);
+        return global_scope_.construct<bke::CurvesFieldContext>(*geometry_set.get_curves(),
+                                                                domain);
       case bke::GeometryComponent::Type::GreasePencil:
-        return scope_.construct<bke::GreasePencilLayerFieldContext>(
+        return global_scope_.construct<bke::GreasePencilLayerFieldContext>(
             *geometry_set.get_grease_pencil(), domain, *data_key.layer_i);
       case bke::GeometryComponent::Type::Volume:
       case bke::GeometryComponent::Type::Edit:
         break;
     }
     BLI_assert_unreachable();
-    return scope_.construct<fn::FieldContext>();
+    return global_scope_.construct<fn::FieldContext>();
   }
 
   Vector<int> find_data_keys_for_filter(const StringRef self_path, const StringRef filter) const
