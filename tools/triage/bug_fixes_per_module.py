@@ -197,6 +197,8 @@ def get_fix_commits(start_date: str, end_date: str, jobs: int) -> list[CommitInf
     git_log_command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
     git_log_output = git_log_command_output.splitlines()
 
+    # Gathering a list of commits is not compute intensive, it is time consuming due to hundreds of git log calls.
+    # Multiprocessing can significantly reduce the time taken (E.g. 19s -> 4s on a 32 thread CPU).
     with multiprocessing.Pool(processes=jobs) as pool:
         list_of_commits = pool.map(setup_commit_info, git_log_output)
 
