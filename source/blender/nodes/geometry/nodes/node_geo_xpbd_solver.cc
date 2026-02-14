@@ -54,13 +54,11 @@ constexpr StringRefNull sim_pin_rotation_compliance = "sim_pin_rotation_complian
 constexpr StringRefNull sim_pin_rotation_lambda = "sim_pin_rotation_lambda";
 
 constexpr StringRefNull rest_length = "rest_length";
-constexpr StringRefNull rest_rotation = "rest_rotation";
-constexpr StringRefNull rod_stretch_shear_compliance = "rod_stretch_shear_compliance";
+constexpr StringRefNull rest_bend_rotation = "rest_bend_rotation";
 constexpr StringRefNull rod_stretch_shear_position_lambda =
     "sim_rod_stretch_shear_position_lambda";
 constexpr StringRefNull rod_stretch_shear_rotation_lambda =
     "sim_rod_stretch_shear_rotation_lambda";
-constexpr StringRefNull rod_bend_twist_compliance = "rod_bend_twist_compliance";
 constexpr StringRefNull rod_bend_twist_lambda = "sim_rod_bend_twist_lambda";
 
 constexpr StringRefNull linear_damping = "linear_damping";
@@ -78,6 +76,8 @@ static NestedBundleTypePtr make_world_type()
   types.append(DampingBundle::get_bundle_type());
   types.append(InfiniteGroundPlaneBundle::get_bundle_type());
   types.append(ColliderBundle::get_bundle_type());
+  types.append(RodStretchAndShearXPBDConstraintBundle::get_bundle_type());
+  types.append(RodBendAndTwistXPBDConstraintBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>("Blender.XpbdWorld",
                                                                             std::move(types));
@@ -193,16 +193,18 @@ struct GeometryData {
   Array<float4> pin_rotation_lambdas;
   Array<math::Quaternion> pin_rotation_current;
 
+  bool has_rod_stretch_shear_constraint = false;
   VArraySpan<float> rod_stretch_shear_compliances;
   bke::SpanAttributeWriter<float3> rod_stretch_shear_lambda_pos;
   bke::SpanAttributeWriter<float3> rod_stretch_shear_lambda_rot;
 
+  bool has_rod_bend_twist_constraint = false;
   VArraySpan<float> rod_bend_twist_compliances;
   /** Note, these are not really quaternions, but there is no float4 attribute type yet. */
   bke::SpanAttributeWriter<math::Quaternion> rod_bend_twist_lamba_attr;
 
   VArraySpan<float> rest_lengths;
-  VArraySpan<math::Quaternion> rest_rotations;
+  VArraySpan<math::Quaternion> rest_bend_rotations;
 
   VArraySpan<float> linear_dampings;
   VArraySpan<float> angular_dampings;
@@ -447,18 +449,23 @@ class XpbdSolverStep {
   void do_step()
   {
     this->prepare_substep_compliance_factor();
-    this->gather_geometries_from_world();
-    this->gather_infinite_plane_colliders_from_world();
-    this->gather_mesh_colliders_from_world();
+    this->gather_from_world__geometries();
     this->prepare_geometry_chunks();
+    this->gather_from_world__infinite_plane_colliders();
+    this->gather_from_world__mesh_colliders();
+    this->gather_from_world__stretch_shear_constraints();
+    this->gather_from_world__bend_twist_constraints();
     this->prepare_pinned_positions();
     this->prepare_pinned_rotations();
     this->prepare_inverse_masses();
     this->prepare_inverse_inertias();
-    this->prepare_cosserat_rod_stretch_shear_constraints();
-    this->prepare_rod_bend_and_twist_constraints();
     this->prepare_damping_constraints();
+
     this->evaluate_constraint_fields();
+
+    this->create_rod_stretch_shear_constraints();
+    this->create_bend_twist_constraints();
+
     this->do_simulation();
     this->finish_attribute_writers();
     this->write_back_geometries_to_world();
@@ -471,7 +478,7 @@ class XpbdSolverStep {
     substep_compliance_factor_field_ = fn::make_constant_field(substep_compliance_factor_);
   }
 
-  void gather_geometries_from_world()
+  void gather_from_world__geometries()
   {
     /* Gather geometry bundle paths. */
     const Vector<std::string> paths = gather_bundle_paths_by_type(world_,
@@ -554,6 +561,7 @@ class XpbdSolverStep {
       }
     }
     for (const int data_key_i : geometries_.data_keys.index_range()) {
+      const DataKey &data_key = geometries_.data_keys[data_key_i];
       GeometryData &geo_data = geometries_.data[data_key_i];
       const AttrDomain domain = geo_data.domain;
       geo_data.size = geo_data.attributes.domain_size(domain);
@@ -573,10 +581,18 @@ class XpbdSolverStep {
           attribute_names::external_torque, domain, float3(0, 0, 0));
       geo_data.frictions = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::friction, domain, 0.0f);
+      if (geo_data.curves || data_key.type == bke::GeometryComponent::Type::Mesh) {
+        geo_data.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
+            attribute_names::rest_length, geo_data.domain, 0.0f);
+      }
+      if (geo_data.curves) {
+        geo_data.rest_bend_rotations = *geo_data.attributes.lookup_or_default<math::Quaternion>(
+            attribute_names::rest_bend_rotation, geo_data.domain, math::Quaternion::identity());
+      }
     }
   }
 
-  void gather_infinite_plane_colliders_from_world()
+  void gather_from_world__infinite_plane_colliders()
   {
     const Vector<std::string> paths = gather_bundle_paths_by_type(world_,
                                                                   InfiniteGroundPlaneBundle::name);
@@ -660,7 +676,7 @@ class XpbdSolverStep {
     return false;
   }
 
-  void gather_mesh_colliders_from_world()
+  void gather_from_world__mesh_colliders()
   {
     const Vector<std::string> paths = gather_bundle_paths_by_type(world_, ColliderBundle::name);
     for (const StringRef path : paths) {
@@ -1062,19 +1078,47 @@ class XpbdSolverStep {
     }
   }
 
-  void prepare_cosserat_rod_stretch_shear_constraints()
+  void gather_from_world__stretch_shear_constraints()
+  {
+    const Vector<std::string> paths = gather_bundle_paths_by_type(
+        world_, RodStretchAndShearXPBDConstraintBundle::name);
+    for (const StringRef path : paths) {
+      const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
+      if (!bundle_ptr || !*bundle_ptr) {
+        continue;
+      }
+      const Bundle &bundle = **bundle_ptr;
+      const Field<float> compliance_field =
+          bundle.lookup<Field<float>>("compliance").value_or(fn::make_constant_field(0.0f));
+
+      for (const int data_key_i : geometries_.data_keys.index_range()) {
+        GeometryData &geo_data = geometries_.data[data_key_i];
+        if (geo_data.has_rod_stretch_shear_constraint) {
+          continue;
+        }
+        if (!this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+          continue;
+        }
+        if (!geo_data.curves) {
+          continue;
+        }
+        fn::FieldEvaluator &evaluator = this->get_field_evaluator(
+            data_key_i, geo_data.domain, std::nullopt);
+        evaluator.add(compliance_field, &geo_data.rod_stretch_shear_compliances);
+        geo_data.has_rod_stretch_shear_constraint = true;
+      }
+    }
+  }
+
+  void create_rod_stretch_shear_constraints()
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-      if (!geo_data.curves) {
+      if (!geo_data.has_rod_stretch_shear_constraint) {
         continue;
       }
       bke::CurvesGeometry &curves = *geo_data.curves;
       const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-      geo_data.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
-          attribute_names::rest_length, geo_data.domain, 0.0f);
-      geo_data.rod_stretch_shear_compliances = *geo_data.attributes.lookup_or_default<float>(
-          attribute_names::rod_stretch_shear_compliance, geo_data.domain, 0.0f);
       geo_data.rod_stretch_shear_lambda_pos =
           geo_data.attributes.lookup_or_add_for_write_span<float3>(
               attribute_names::rod_stretch_shear_position_lambda, geo_data.domain);
@@ -1098,22 +1142,48 @@ class XpbdSolverStep {
     }
   }
 
-  void prepare_rod_bend_and_twist_constraints()
+  void gather_from_world__bend_twist_constraints()
   {
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      const DataKey &data_key = geometries_.data_keys[data_key_i];
-      GeometryData &geo_data = geometries_.data[data_key_i];
-      GeometrySetData &geo_set_data = geometries_.geometry_sets[data_key.geo_bundle_i];
-      if (data_key.type != bke::GeometryComponent::Type::Curve) {
+    const Vector<std::string> paths = gather_bundle_paths_by_type(
+        world_, RodBendAndTwistXPBDConstraintBundle::name);
+    for (const StringRef path : paths) {
+      const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
+      if (!bundle_ptr || !*bundle_ptr) {
         continue;
       }
-      Curves &curves_id = *geo_set_data.geometry.get_curves_for_write();
-      bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+      const Bundle &bundle = **bundle_ptr;
+      const Field<float> compliance_field =
+          bundle.lookup<Field<float>>("compliance").value_or(fn::make_constant_field(0.0f));
+
+      for (const int data_key_i : geometries_.data_keys.index_range()) {
+        GeometryData &geo_data = geometries_.data[data_key_i];
+        if (geo_data.has_rod_bend_twist_constraint) {
+          continue;
+        }
+        if (!this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+          continue;
+        }
+        if (!geo_data.curves) {
+          continue;
+        }
+        fn::FieldEvaluator &evaluator = this->get_field_evaluator(
+            data_key_i, geo_data.domain, std::nullopt);
+        evaluator.add(compliance_field, &geo_data.rod_bend_twist_compliances);
+        geo_data.has_rod_bend_twist_constraint = true;
+      }
+    }
+  }
+
+  void create_bend_twist_constraints()
+  {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      if (!geo_data.has_rod_bend_twist_constraint) {
+        continue;
+      }
+      bke::CurvesGeometry &curves = *geo_data.curves;
       const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-      geo_data.rest_rotations = *geo_data.attributes.lookup_or_default<math::Quaternion>(
-          attribute_names::rest_rotation, geo_data.domain, math::Quaternion::identity());
-      geo_data.rod_bend_twist_compliances = *geo_data.attributes.lookup_or_default<float>(
-          attribute_names::rod_bend_twist_compliance, geo_data.domain, 0.0f);
+
       geo_data.rod_bend_twist_lamba_attr =
           geo_data.attributes.lookup_or_add_for_write_span<math::Quaternion>(
               attribute_names::rod_bend_twist_lambda,
@@ -1127,7 +1197,7 @@ class XpbdSolverStep {
                 data_key_i,
                 *chunk.curves_range,
                 points_by_curve,
-                geo_data.rest_rotations,
+                geo_data.rest_bend_rotations,
                 geo_data.rod_bend_twist_compliances,
                 geo_data.rod_bend_twist_lamba_attr.span.cast<float4>()));
       }
