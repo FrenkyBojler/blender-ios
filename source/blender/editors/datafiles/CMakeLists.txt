@@ -134,6 +134,7 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.sculpt.border_face_set
   ops.sculpt.border_hide
   ops.sculpt.border_mask
+  ops.sculpt.box_add
   ops.sculpt.box_trim
   ops.sculpt.cloth_filter
   ops.sculpt.color_filter
@@ -141,6 +142,7 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.sculpt.lasso_face_set
   ops.sculpt.lasso_hide
   ops.sculpt.lasso_mask
+  ops.sculpt.lasso_add
   ops.sculpt.lasso_trim
   ops.sculpt.line_face_set
   ops.sculpt.line_hide
@@ -152,6 +154,7 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.sculpt.polyline_face_set
   ops.sculpt.polyline_hide
   ops.sculpt.polyline_mask
+  ops.sculpt.polyline_add
   ops.sculpt.polyline_trim
   ops.sequencer.blade
   ops.sequencer.retime
