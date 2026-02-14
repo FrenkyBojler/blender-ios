@@ -568,7 +568,6 @@ class XpbdSolverStep {
       if (math::is_zero(*normal)) {
         continue;
       }
-      const std::string filter = bundle.lookup<std::string>("filter").value_or("");
       const float3 prev_position = bundle.lookup<float3>("prev_position").value_or(*position);
       float3 prev_normal = bundle.lookup<float3>("prev_normal").value_or(*normal);
       if (math::is_zero(prev_normal)) {
@@ -583,19 +582,37 @@ class XpbdSolverStep {
                                                         math::normalize(prev_normal),
                                                         friction});
       for (const int data_key_i : geometries_.data_keys.index_range()) {
-        if (this->data_matches_filter(data_key_i, filter)) {
+        if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
           geometries_.data[data_key_i].infinite_plane_colliders.append(collider_i);
         }
       }
     }
   }
 
-  bool data_matches_filter(const int data_key_i, const StringRef filter) const
+  bool behavior_applies_to_geometry(const StringRef behavior_path,
+                                    const Bundle &behavior,
+                                    const int data_key_i) const
   {
-    if (filter.is_empty()) {
+    const DataKey &data_key = geometries_.data_keys[data_key_i];
+    const StringRef geo_bundle_path = geometries_.paths[data_key.geo_bundle_i];
+
+    const bool filter_local = behavior.lookup<bool>("filter_local").value_or(false);
+    if (filter_local) {
+      const int pos = behavior_path.rfind('/');
+      if (pos == StringRef::not_found) {
+        /* The behavior is at the root level, so a local filter applies to everything.*/
+        return true;
+      }
+      const StringRef behavior_parent_path = behavior_path.substr(0, pos);
+      if (geo_bundle_path.startswith(behavior_parent_path)) {
+        return true;
+      }
+      return false;
+    }
+    const std::string filter = behavior.lookup<std::string>("filter").value_or("");
+    if (filter.empty()) {
       return true;
     }
-    const DataKey &data_key = geometries_.data_keys[data_key_i];
     const VectorSet<std::string> &geometry_tags = geometries_.geometry_tags[data_key.geo_bundle_i];
     StringRef remaining = filter;
     while (!remaining.is_empty()) {
@@ -628,14 +645,13 @@ class XpbdSolverStep {
       const bke::GeometrySet *geometry = bundle.lookup_ptr<bke::GeometrySet>("geometry");
       const float friction = bundle.lookup<float>("friction").value_or(0.0f);
       const float compliance = bundle.lookup<float>("compliance").value_or(0.0f);
-      const std::string filter = bundle.lookup<std::string>("filter").value_or("");
       const bke::GeometrySet *prev_geometry = bundle.lookup_ptr<bke::GeometrySet>("prev_geometry");
       if (!geometry) {
         continue;
       }
       Vector<int> affected_data;
       for (const int data_key_i : geometries_.data_keys.index_range()) {
-        if (this->data_matches_filter(data_key_i, filter)) {
+        if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
           affected_data.append(data_key_i);
         }
       }
