@@ -259,11 +259,11 @@ struct Camera {
 
   /* Physical camera properties. */
   float physical_iso = 100.0f;
-  float physical_shutter_speed = 0.008f;
+  float physical_shutter_speed = 1.0f / 125.0f;
   float physical_fstop = 2.4f;
   float exposure_compensation = 0.0f;
   float lens_attenuation = 0.65f;
-  char lens_attenuation_mode = CAM_LENS_ATTENUATION_DIGITAL;
+  char lens_attenuation_mode = CAM_LENS_ATTENUATION_FILM;
   char _pad4[3] = {};
 
   DNA_DEPRECATED struct Object *dof_ob = nullptr;

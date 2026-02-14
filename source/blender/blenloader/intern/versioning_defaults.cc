@@ -760,6 +760,14 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     /* Initialize to a useful value. */
     camera.dof.focus_distance = 10.0f;
     camera.dof.aperture_fstop = 2.8f;
+
+    /* Physical camera defaults. */
+    camera.physical_iso = 100.0f;
+    camera.physical_shutter_speed = 1.0f / 125.0f;
+    camera.physical_fstop = 2.4f;
+    camera.exposure_compensation = 0.0f;
+    camera.lens_attenuation = 0.65f;
+    camera.lens_attenuation_mode = CAM_LENS_ATTENUATION_FILM;
   }
 
   for (Light &light : bmain->lights) {
