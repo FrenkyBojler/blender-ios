@@ -232,10 +232,18 @@ struct GeometryData {
   Vector<int> mesh_colliders;
 };
 
+struct GeometrySetData {
+  std::string path;
+  /**
+   * The geometry is moved out of the world bundle for local processing and is moved back in the
+   * end.
+   */
+  GeometrySet geometry;
+  VectorSet<std::string> tags;
+};
+
 struct Geometries {
-  Vector<std::string> paths;
-  Vector<GeometrySet> geometry_sets;
-  Vector<VectorSet<std::string>> geometry_tags;
+  Vector<GeometrySetData> geometry_sets;
 
   VectorSet<DataKey> data_keys;
   Vector<GeometryData> data;
@@ -465,43 +473,44 @@ class XpbdSolverStep {
   void gather_geometries_from_world()
   {
     /* Gather geometry bundle paths. */
-    geometries_.paths = gather_bundle_paths_by_type(world_, XPBDGeometryBundle::name);
+    const Vector<std::string> paths = gather_bundle_paths_by_type(world_,
+                                                                  XPBDGeometryBundle::name);
+    const int num_geometry_sets = paths.size();
+    geometries_.geometry_sets.reinitialize(num_geometry_sets);
 
-    /* Move the geometry sets out of the bundles. They are put back in after the simulation. */
-    geometries_.geometry_sets.reinitialize(geometries_.paths.size());
-    geometries_.geometry_tags.reinitialize(geometries_.paths.size());
-    for (const int i : geometries_.paths.index_range()) {
-      const StringRef geometry_path = geometries_.paths[i];
-      BundlePtr *geometry_bundle_ptr = world_.lookup_path_for_write_ptr<BundlePtr>(geometry_path);
-      if (!geometry_bundle_ptr || !*geometry_bundle_ptr) {
+    for (const int i : IndexRange(num_geometry_sets)) {
+      const StringRef path = paths[i];
+      GeometrySetData &geometry_set_data = geometries_.geometry_sets[i];
+      geometry_set_data.path = path;
+      BundlePtr *geo_bundle_ptr = world_.lookup_path_for_write_ptr<BundlePtr>(path);
+      if (!geo_bundle_ptr || !*geo_bundle_ptr) {
         continue;
       }
-      Bundle &geometry_bundle = geometry_bundle_ptr->ensure_mutable_inplace();
-      GeometrySet *geometry = geometry_bundle.lookup_ptr<GeometrySet>("geometry");
+      Bundle &geo_bundle = geo_bundle_ptr->ensure_mutable_inplace();
+      GeometrySet *geometry = geo_bundle.lookup_ptr<GeometrySet>("geometry");
       if (!geometry) {
         continue;
       }
-      if (const std::optional<ListPtr> tags_list_ptr = geometry_bundle.lookup<ListPtr>("tags")) {
+      if (const std::optional<ListPtr> tags_list_ptr = geo_bundle.lookup<ListPtr>("tags")) {
         if (*tags_list_ptr) {
           const List &tags_list = **tags_list_ptr;
           if (tags_list.cpp_type().is<std::string>()) {
             tags_list.foreach<std::string>(
-                [&](const std::string &tag) { geometries_.geometry_tags[i].add(tag); });
+                [&](const std::string &tag) { geometry_set_data.tags.add(tag); });
           }
         }
       }
 
-      if (GeometrySet *geometry = world_.lookup_path_for_write_ptr<GeometrySet>(geometry_path +
-                                                                                "/geometry"))
-      {
-        geometries_.geometry_sets[i] = std::move(*geometry);
+      if (GeometrySet *geometry = geo_bundle.lookup_path_for_write_ptr<GeometrySet>("geometry")) {
+        geometry_set_data.geometry = std::move(*geometry);
       }
     }
 
     /* Gather individual components that should be simulated. There may be more than geometry sets
      * because each geometry set could contain e.g. a mesh and curves. */
-    for (const int geo_bundle_i : geometries_.paths.index_range()) {
-      GeometrySet &geometry = geometries_.geometry_sets[geo_bundle_i];
+    for (const int geo_bundle_i : IndexRange(num_geometry_sets)) {
+      GeometrySetData &geometry_set_data = geometries_.geometry_sets[geo_bundle_i];
+      GeometrySet &geometry = geometry_set_data.geometry;
       for (bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh,
                                                 bke::GeometryComponent::Type::PointCloud,
                                                 bke::GeometryComponent::Type::Curve,
@@ -607,7 +616,8 @@ class XpbdSolverStep {
                                     const int data_key_i) const
   {
     const DataKey &data_key = geometries_.data_keys[data_key_i];
-    const StringRef geo_bundle_path = geometries_.paths[data_key.geo_bundle_i];
+    const GeometrySetData &geo_set_data = geometries_.geometry_sets[data_key.geo_bundle_i];
+    const StringRef geo_bundle_path = geo_set_data.path;
 
     const bool filter_local = behavior.lookup<bool>("filter_local").value_or(false);
     if (filter_local) {
@@ -626,19 +636,18 @@ class XpbdSolverStep {
     if (filter.empty()) {
       return true;
     }
-    const VectorSet<std::string> &geometry_tags = geometries_.geometry_tags[data_key.geo_bundle_i];
     StringRef remaining = filter;
     while (!remaining.is_empty()) {
       const int sep = remaining.find(',');
       if (sep == -1) {
         const StringRef tag = remaining.trim();
-        if (geometry_tags.contains_as(tag)) {
+        if (geo_set_data.tags.contains_as(tag)) {
           return true;
         }
         return false;
       }
       const StringRef tag = remaining.substr(0, sep).trim();
-      if (geometry_tags.contains_as(tag)) {
+      if (geo_set_data.tags.contains_as(tag)) {
         return true;
       }
       remaining = remaining.substr(sep + 1);
@@ -1087,12 +1096,13 @@ class XpbdSolverStep {
   void prepare_rod_bend_and_twist_constraints()
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
-      GeometryData &geo_data = geometries_.data[data_key_i];
       const DataKey &data_key = geometries_.data_keys[data_key_i];
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      GeometrySetData &geo_set_data = geometries_.geometry_sets[data_key.geo_bundle_i];
       if (data_key.type != bke::GeometryComponent::Type::Curve) {
         continue;
       }
-      Curves &curves_id = *geometries_.geometry_sets[data_key.geo_bundle_i].get_curves_for_write();
+      Curves &curves_id = *geo_set_data.geometry.get_curves_for_write();
       bke::CurvesGeometry &curves = curves_id.geometry.wrap();
       const OffsetIndices<int> points_by_curve = curves.points_by_curve();
       geo_data.rest_rotations = *geo_data.attributes.lookup_or_default<math::Quaternion>(
@@ -1191,7 +1201,7 @@ class XpbdSolverStep {
   fn::FieldContext &make_geometry_field_context(const int data_key_i, const AttrDomain domain)
   {
     const DataKey &data_key = geometries_.data_keys[data_key_i];
-    const GeometrySet &geometry_set = geometries_.geometry_sets[data_key.geo_bundle_i];
+    const GeometrySet &geometry_set = geometries_.geometry_sets[data_key.geo_bundle_i].geometry;
     switch (data_key.type) {
       case bke::GeometryComponent::Type::Mesh:
         return scope_.construct<bke::MeshFieldContext>(*geometry_set.get_mesh(), domain);
@@ -1217,7 +1227,7 @@ class XpbdSolverStep {
     Vector<int> data_keys;
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       const DataKey &data_key = geometries_.data_keys[data_key_i];
-      const StringRef geo_bundle_path = geometries_.paths[data_key.geo_bundle_i];
+      const StringRef geo_bundle_path = geometries_.geometry_sets[data_key.geo_bundle_i].path;
       if (nested_bundle_path_is_selected(self_path, filter, geo_bundle_path)) {
         data_keys.append(data_key_i);
       }
@@ -1778,10 +1788,9 @@ class XpbdSolverStep {
 
   void write_back_geometries_to_world()
   {
-    for (const int geo_bundle_i : geometries_.paths.index_range()) {
-      const StringRef geometry_path = geometries_.paths[geo_bundle_i];
-      GeometrySet &geometry = geometries_.geometry_sets[geo_bundle_i];
-      world_.add_path_override(geometry_path + "/geometry", std::move(geometry));
+    for (const int geo_bundle_i : geometries_.geometry_sets.index_range()) {
+      GeometrySetData &geo_set_data = geometries_.geometry_sets[geo_bundle_i];
+      world_.add_path_override(geo_set_data.path + "/geometry", std::move(geo_set_data.geometry));
     }
   }
 };
