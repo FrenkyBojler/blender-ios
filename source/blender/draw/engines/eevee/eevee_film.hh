@@ -110,6 +110,7 @@ class Film {
   PassCategory enabled_categories_ = PassCategory(0);
   bool use_reprojection_ = false;
   bool is_valid_render_extent_ = true;
+  float film_exposure_ = 1.0f;
 
  public:
   Film(Instance &inst, FilmData &data) : inst_(inst), data_(data) {};
@@ -218,6 +219,20 @@ class Film {
                  EEVEE_RENDER_PASS_COMBINED,
                  EEVEE_RENDER_PASS_VECTOR,
                  EEVEE_RENDER_PASS_TRANSPARENT);
+  }
+
+  /** Returns true if this pass type should have film exposure applied. */
+  static bool pass_use_exposure(eViewLayerEEVEEPassType pass_type)
+  {
+    return ELEM(pass_type,
+                EEVEE_RENDER_PASS_COMBINED,
+                EEVEE_RENDER_PASS_DIFFUSE_LIGHT,
+                EEVEE_RENDER_PASS_SPECULAR_LIGHT,
+                EEVEE_RENDER_PASS_VOLUME_LIGHT,
+                EEVEE_RENDER_PASS_EMIT,
+                EEVEE_RENDER_PASS_ENVIRONMENT,
+                EEVEE_RENDER_PASS_SHADOW,
+                EEVEE_RENDER_PASS_TRANSPARENT);
   }
 
   /* Returns layer offset in the accumulation texture. -1 if the pass is not enabled. */

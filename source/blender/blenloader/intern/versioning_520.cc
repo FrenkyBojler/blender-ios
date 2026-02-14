@@ -9,6 +9,7 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_ID.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_sys_types.h"
@@ -74,6 +75,13 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       scene.r.mode |= R_SAVE_OUTPUT;
     }
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 2)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.eevee.film_exposure = 1.0f;
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

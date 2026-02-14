@@ -2654,6 +2654,9 @@ struct SceneEEVEE {
 
   float overscan = 3.0f;
   float light_threshold = 0.01f;
+
+  float film_exposure = 1.0f;
+  int _pad2 = {};
 };
 
 struct SceneGpencil {

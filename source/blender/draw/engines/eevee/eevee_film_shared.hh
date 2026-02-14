@@ -114,6 +114,8 @@ struct [[host_shared]] FilmData {
   float mist_exponent;
   /** Scene exposure used for better noise reduction. */
   float exposure_scale;
+  /** Film exposure multiplier applied to the final combined output. */
+  float film_exposure;
   /** Scaling factor for scaled resolution rendering. */
   int scaling_factor;
   /** Software LOD bias to apply to when sampling texture inside the node-tree evaluation. */
@@ -124,7 +126,7 @@ struct [[host_shared]] FilmData {
   int samples_len;
   /** Sum of the weights of all samples in the sample table. */
   float samples_weight_total;
-  int _pad2;
+
   struct FilmSample samples[FILM_PRECOMP_SAMPLE_MAX];
 };
 

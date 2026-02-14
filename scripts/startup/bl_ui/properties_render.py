@@ -750,6 +750,7 @@ class RENDER_PT_eevee_film(RenderButtonsPanel, Panel):
         props = scene.eevee
 
         col = layout.column()
+        col.prop(props, "film_exposure")
         col.prop(rd, "filter_size")
         col.prop(rd, "film_transparent", text="Transparent")
 

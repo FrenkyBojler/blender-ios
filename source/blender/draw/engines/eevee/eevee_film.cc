@@ -404,6 +404,8 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     const eViewLayerEEVEEPassType color_passes_3 = EEVEE_RENDER_PASS_TRANSPARENT;
 
     data_.exposure_scale = pow2f(scene.view_settings.exposure);
+    data_.film_exposure = scene.eevee.film_exposure;
+    film_exposure_ = scene.eevee.film_exposure;
     if (enabled_passes_ & data_passes) {
       enabled_categories_ |= PASS_CATEGORY_DATA;
     }
@@ -915,6 +917,13 @@ float *Film::read_pass(eViewLayerEEVEEPassType pass_type, int layer_offset)
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
   float *result = static_cast<float *>(GPU_texture_read(pass_tx, GPU_DATA_FLOAT, 0));
+
+  if (pass_use_exposure(pass_type) && film_exposure_ != 1.0f) {
+    const int pixel_count = GPU_texture_width(pass_tx) * GPU_texture_height(pass_tx);
+    for (const int px : IndexRange(pixel_count)) {
+      *reinterpret_cast<float3 *>(result + px * 4) *= film_exposure_;
+    }
+  }
 
   if (pass_is_float3(pass_type)) {
     /* Convert result in place as we cannot do this conversion on GPU. */

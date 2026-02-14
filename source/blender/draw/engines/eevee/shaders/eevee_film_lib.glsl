@@ -551,7 +551,9 @@ void film_store_combined(
   color = clamp_negative_values(color);
 
   if (display_id == -1) {
+    /* Apply film exposure only for display, not for accumulation storage. */
     display = color;
+    display.rgb *= uniform_buf.film.film_exposure;
   }
   color = film_patch_float_for_16f_storage(color);
   imageStoreFast(out_combined_img, dst.texel, color);
@@ -868,6 +870,20 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
           dst, texel_film, uniform_buf.film.cryptomatte_asset_id, 1, out_color);
       film_cryptomatte_layer_accum_and_store(
           dst, texel_film, uniform_buf.film.cryptomatte_material_id, 2, out_color);
+    }
+  }
+
+  /* Apply film exposure to display output for light passes. */
+  if (display_id != -1) {
+    bool use_exposure = (display_id == uniform_buf.film.diffuse_light_id) ||
+                        (display_id == uniform_buf.film.specular_light_id) ||
+                        (display_id == uniform_buf.film.volume_light_id) ||
+                        (display_id == uniform_buf.film.emission_id) ||
+                        (display_id == uniform_buf.film.environment_id) ||
+                        (display_id == uniform_buf.film.shadow_id) ||
+                        (display_id == uniform_buf.film.transparent_id);
+    if (use_exposure) {
+      out_color.rgb *= uniform_buf.film.film_exposure;
     }
   }
 }
