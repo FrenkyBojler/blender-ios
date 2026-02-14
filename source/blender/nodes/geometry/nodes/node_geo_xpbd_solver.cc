@@ -29,13 +29,13 @@ constexpr StringRefNull position = "position";
 constexpr StringRefNull velocity = "velocity";
 constexpr StringRefNull rotation = "rotation";
 constexpr StringRefNull angular_velocity = "angular_velocity";
-/** Force that is applied to each point. */
 constexpr StringRefNull external_force = "external_force";
 constexpr StringRefNull external_torque = "external_torque";
-/** Mass of each point. */
 constexpr StringRefNull mass = "mass";
 constexpr StringRefNull moment_of_inertia = "moment_of_inertia";
 constexpr StringRefNull friction = "friction";
+constexpr StringRefNull rest_length = "rest_length";
+constexpr StringRefNull rest_bend_rotation = "rest_bend_rotation";
 
 /** True for pinned points. */
 constexpr StringRefNull sim_pin_position = "sim_pin_position";
@@ -52,8 +52,6 @@ constexpr StringRefNull sim_pin_rotation_end = "sim_pin_rotation_end";
 constexpr StringRefNull sim_pin_rotation_compliance = "sim_pin_rotation_compliance";
 constexpr StringRefNull sim_pin_rotation_lambda = "sim_pin_rotation_lambda";
 
-constexpr StringRefNull rest_length = "rest_length";
-constexpr StringRefNull rest_bend_rotation = "rest_bend_rotation";
 constexpr StringRefNull rod_stretch_shear_position_lambda =
     "sim_rod_stretch_shear_position_lambda";
 constexpr StringRefNull rod_stretch_shear_rotation_lambda =
