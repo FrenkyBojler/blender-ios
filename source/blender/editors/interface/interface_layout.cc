@@ -95,6 +95,7 @@ struct LayoutRoot {
   const uiStyle *style;
   Block *block;
   Layout *layout;
+  LayoutDirection direction;
 };
 
 /* Item */
@@ -183,7 +184,7 @@ struct LayoutInternal {
   static Layout *ui_item_prop_split_layout_hack(Layout *layout_parent, Layout *layout_split);
   static void layout_offset_size_set(Layout *layout, int x, int y, int w, int h);
   static void layout_move(Layout *layout, int delta_xmin, int delta_xmax);
-  static void layout_y_move(Layout *layout, int delta_xmin, int delta_xmax);
+  static void layout_translate_y(Layout *layout, int delta);
   static void layout_space_set(Layout *layout, int space);
 };
 
@@ -280,20 +281,25 @@ struct LayoutItemBx : public LayoutColumn {
 
   void estimate_impl() override;
   void resolve_impl() override;
+  int resolve_dynamic_height() override;
 };
 
 struct LayoutItemPanelHeader : public Layout {
   PointerRNA open_prop_owner;
   std::string open_prop_name;
+  int index = 0;
   LayoutItemPanelHeader() : Layout(ItemType::LayoutPanelHeader, nullptr) {}
 
   void estimate_impl() override;
   void resolve_impl() override;
+  int resolve_dynamic_height() override;
 };
 
 struct LayoutItemPanelBody : public LayoutColumn {
+  int index = 0;
   LayoutItemPanelBody() : LayoutColumn(ItemType::LayoutPanelBody, nullptr) {}
   void resolve_impl() override;
+  int resolve_dynamic_height() override;
 };
 
 struct LayoutItemSplit : public LayoutRow {
@@ -521,28 +527,24 @@ void LayoutInternal::layout_offset_size_set(Layout *layout, int x, int y, int w,
   layout->h_ = h;
 }
 
-void LayoutInternal::layout_y_move(Layout *layout, int delta_min, int delta_max)
+void LayoutInternal::layout_translate_y(Layout *layout, int delta)
 {
-  layout->y_ += delta_min;
-  layout->h_ += delta_max;
+  layout->y_ += delta;
 }
 
-static void ui_item_y_move(Item *item, const int delta_min, const int delta_max, bool recursive)
+static void ui_item_translate_y(Item *item, const int delta)
 {
   if (item->type() == ItemType::Button) {
     ButtonItem *bitem = static_cast<ButtonItem *>(item);
 
-    bitem->but->rect.ymin += delta_min;
-    bitem->but->rect.ymax += delta_max;
+    bitem->but->rect.ymin += delta;
+    bitem->but->rect.ymax += delta;
   }
   else {
     auto *layout = static_cast<Layout *>(item);
-    LayoutInternal::layout_y_move(layout, delta_min, delta_max);
-    if (!recursive) {
-      return;
-    }
+    LayoutInternal::layout_translate_y(layout, delta);
     for (auto sub : layout->items()) {
-      ui_item_y_move(sub, delta_min, delta_max, true);
+      ui_item_translate_y(sub, delta);
     }
   }
 }
@@ -586,8 +588,9 @@ void LayoutInternal::layout_space_set(Layout *layout, int space)
 LayoutDirection Layout::local_direction() const
 {
   switch (this->type()) {
-    case ItemType::LayoutRow:
     case ItemType::LayoutRoot:
+      return this->root_->direction;
+    case ItemType::LayoutRow:
     case ItemType::LayoutOverlap:
     case ItemType::LayoutPanelHeader:
     case ItemType::LayoutGridFlow:
@@ -4085,8 +4088,20 @@ void LayoutItemPanelHeader::resolve_impl()
   y_ -= size.y;
   ui_item_position(item, x_, y_, w_, size.y);
   const float offset = style_get_dpi()->panelspace;
+  this->index = panel->runtime->layout_panels.bodies.size();
   panel->runtime->layout_panels.headers.append(
       {float(y_) - offset, float(y_ + h_) - offset, open_prop_owner, open_prop_name});
+}
+
+int LayoutItemPanelHeader::resolve_dynamic_height()
+{
+  const int yoffs = Layout::resolve_dynamic_height();
+  Panel *panel = this->root_panel();
+  LayoutPanelHeader &header = panel->runtime->layout_panels.headers[this->index];
+  const float offset = style_get_dpi()->panelspace;
+  header.start_y = float(y_) - offset;
+  header.end_y = float(y_ + h_) - offset;
+  return yoffs;
 }
 
 /* panel body layout */
@@ -4095,10 +4110,22 @@ void LayoutItemPanelBody::resolve_impl()
   Panel *panel = this->root_panel();
   LayoutColumn::resolve_impl();
   const float offset = style_get_dpi()->panelspace;
+  this->index = panel->runtime->layout_panels.bodies.size();
   panel->runtime->layout_panels.bodies.append({
       float(y_ - space_) - offset,
       float(y_ + h_ + space_) - offset,
   });
+}
+
+int LayoutItemPanelBody::resolve_dynamic_height()
+{
+  const int yoffs = Layout::resolve_dynamic_height();
+  Panel *panel = this->root_panel();
+  LayoutPanelBody &body = panel->runtime->layout_panels.bodies[this->index];
+  const float offset = style_get_dpi()->panelspace;
+  body.start_y = float(y_ - space_) - offset;
+  body.end_y = float(y_ + h_ + space_) - offset;
+  return yoffs;
 }
 
 /* box layout */
@@ -4156,6 +4183,16 @@ void LayoutItemBx::resolve_impl()
   but->rect.ymin = y_;
   but->rect.xmax = x_ + w_;
   but->rect.ymax = y_ + h_;
+}
+
+int LayoutItemBx::resolve_dynamic_height()
+{
+  const int yoffs = Layout::resolve_dynamic_height();
+  /* roundbox around the sublayout */
+  Button *but = this->roundbox;
+  but->rect.ymin = y_;
+  but->rect.ymax = y_ + h_;
+  return yoffs;
 }
 
 /* multi-column layout, automatically flowing to the next */
@@ -5446,44 +5483,20 @@ static Vector<StringRef> multiline_label_wrap_lines(ButtonMultilineLabel *button
   const uiFontStyle &fstyle = style_get()->widget;
   const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&button->rect)), 0);
   StringRef text = button->str;
-  if (true) {
-    if (!button->wrap_cache) {
-      button->wrap_cache = std::make_unique<ButtonMultilineLabel::WrapCache>();
-    }
-    ButtonMultilineLabel::WrapCache &cache = *button->wrap_cache;
-    if (cache.wrap_width == width && text == cache.text) {
-      return cache.wrapped_lines;
-    }
-    cache.text = text;
-    text = cache.text;
-    cache.wrap_width = width;
+  if (!button->wrap_cache) {
+    button->wrap_cache = std::make_unique<ButtonMultilineLabel::WrapCache>();
   }
-  else {
-    button->wrap_cache.reset();
+  ButtonMultilineLabel::WrapCache &cache = *button->wrap_cache;
+  if (cache.wrap_width == width && text == cache.text) {
+    return cache.wrapped_lines;
   }
+  cache.text = text;
+  cache.wrap_width = width;
+
   fontstyle_set(&fstyle);
+  text = text.trim();
   Vector<StringRef> lines = BLF_string_wrap(fstyle.uifont_id, text, width, BLFWrapMode::HardLimit);
-  if (button->wrap_cache) {
-    button->wrap_cache->wrapped_lines = lines;
-  }
-  while (!lines.is_empty()) {
-    lines.last() = lines.last().trim();
-    if (lines.last().is_empty()) {
-      lines.pop_last();
-    }
-    else {
-      break;
-    }
-  }
-  while (!lines.is_empty()) {
-    lines.first() = lines.first().trim();
-    if (lines.first().is_empty()) {
-      lines.remove(0);
-    }
-    else {
-      break;
-    }
-  }
+  cache.wrapped_lines = lines;
   button->last_total_lines = lines.size();
   return lines;
 }
@@ -5504,7 +5517,7 @@ int Layout::resolve_dynamic_height()
 
   for (Item *subitem : this->items()) {
     if (extra_y_offs && this->local_direction() == LayoutDirection::Vertical) {
-      ui_item_y_move(subitem, -extra_y_offs, -extra_y_offs, true);
+      ui_item_translate_y(subitem, -extra_y_offs);
     }
     if (subitem->type() == ItemType::Button) {
       ButtonItem *sub_bitem = static_cast<ButtonItem *>(subitem);
@@ -5535,7 +5548,8 @@ int Layout::resolve_dynamic_height()
       }
     }
   }
-  ui_item_y_move(this, -extra_y_offs, extra_y_offs, false);
+  this->y_ -= extra_y_offs;
+  this->h_ += extra_y_offs;
   return extra_y_offs;
 }
 
@@ -5594,6 +5608,7 @@ Layout &block_layout(Block *block,
   root->block = block;
   root->padding = padding;
   root->opcontext = wm::OpCallContext::InvokeRegionWin;
+  root->direction = dir;
   const char *func = __func__;
   Layout *layout = [&]() -> Layout * {
     switch (type) {

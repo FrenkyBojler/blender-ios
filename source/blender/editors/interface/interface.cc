@@ -991,6 +991,12 @@ static void ui_but_update_old_active_from_new(Button *oldbut, Button *but)
     std::swap(search_oldbut->arg_free_fn, search_but->arg_free_fn);
     std::swap(search_oldbut->arg, search_but->arg);
   }
+  if (oldbut->type == ButtonType::MultilineLabel) {
+    ButtonMultilineLabel *multiline_oldbut = static_cast<ButtonMultilineLabel *>(oldbut),
+                         *multiline_but = static_cast<ButtonMultilineLabel *>(but);
+    std::swap(multiline_oldbut->wrap_cache, multiline_but->wrap_cache);
+    std::swap(multiline_oldbut->last_total_lines, multiline_but->last_total_lines);
+  }
 
   /* copy hardmin for list rows to prevent 'sticking' highlight to mouse position
    * when scrolling without moving mouse (see #28432) */
