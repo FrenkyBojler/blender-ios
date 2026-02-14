@@ -1240,29 +1240,41 @@ class XpbdSolverStep {
 
     this->prepare_solver_geometry_refs();
 
-    for (const int substep_i : IndexRange(substeps_)) {
-      const SubstepInterval substep(substeps_, substep_i);
-
-      threading::parallel_for(
-          geometries_.chunks.index_range(), 4, [&](const IndexRange chunks_range) {
-            for (const int chunk_i : chunks_range) {
-              this->simulate__pre_position_solve(substep, chunk_i);
+    if (this->support_chunk_local_simulation()) {
+      threading::parallel_for(geometries_.chunks.index_range(), 1, [&](const IndexRange &range) {
+        for (const int chunk_i : range) {
+          for (const int substep_i : IndexRange(substeps_)) {
+            const SubstepInterval substep(substeps_, substep_i);
+            this->simulate__pre_position_solve__chunk(substep, chunk_i);
+            this->simulate__gather_dynamic_constraints__chunk_local(substep, chunk_i);
+            this->simulate__reset_forces__chunk_local(chunk_i);
+            for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
+              this->simulate__position_solve__single_iteration__chunk_local(chunk_i);
             }
-          });
-
-      this->simulate__gather_dynamic_constraints(substep);
-      this->simulate__reset_forces();
-      this->simulate__position_solve();
-
-      threading::parallel_for(
-          geometries_.chunks.index_range(), 16, [&](const IndexRange chunks_range) {
-            for (const int chunk_i : chunks_range) {
-              this->simulate__update_velocities(chunk_i);
-            }
-          });
-
-      this->simulate__velocity_solve();
+            this->simulate__update_velocities__chunk(chunk_i);
+            this->simulate__velocity_solve__chunk_local(chunk_i);
+          }
+        }
+      });
     }
+    else {
+      for (const int substep_i : IndexRange(substeps_)) {
+        const SubstepInterval substep(substeps_, substep_i);
+        this->simulate__pre_position_solve(substep);
+        this->simulate__gather_dynamic_constraints(substep);
+        this->simulate__reset_forces();
+        for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
+          this->simulate__position_solve__single_iteration();
+        }
+        this->simulate__update_velocities();
+        this->simulate__velocity_solve();
+      }
+    }
+  }
+
+  bool support_chunk_local_simulation() const
+  {
+    return true;
   }
 
   void prepare_solver_geometry_refs()
@@ -1285,7 +1297,17 @@ class XpbdSolverStep {
     }
   }
 
-  void simulate__pre_position_solve(const SubstepInterval &substep, const int chunk_i)
+  void simulate__pre_position_solve(const SubstepInterval &substep)
+  {
+    threading::parallel_for(
+        geometries_.chunks.index_range(), 16, [&](const IndexRange chunks_range) {
+          for (const int chunk_i : chunks_range) {
+            this->simulate__pre_position_solve__chunk(substep, chunk_i);
+          }
+        });
+  }
+
+  void simulate__pre_position_solve__chunk(const SubstepInterval &substep, const int chunk_i)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const IndexRange points_range = chunk.points_range;
@@ -1332,26 +1354,32 @@ class XpbdSolverStep {
 
   void simulate__gather_dynamic_constraints(const SubstepInterval &substep)
   {
-    const float max_distance = this->get_max_search_distance(sub_delta_time_);
+
     threading::parallel_for(
         geometries_.chunks.index_range(), 1, [&](const IndexRange chunks_range) {
           for (const int chunk_i : chunks_range) {
-            ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
-            const ExternalPlaneContacts &prev_contacts = chunk_constraints.external_plane_contacts;
-            ExternalPlaneContacts new_contacts;
-            this->gather_ground_plane_contacts(
-                chunk_i, max_distance, substep, prev_contacts, new_contacts);
-            this->gather_mesh_contacts(
-                chunk_i, max_distance, substep, prev_contacts, new_contacts);
-
-            const int contacts_num = new_contacts.points.size();
-            for (const int i : IndexRange(contacts_num)) {
-              new_contacts.collider_velocities.append(
-                  math::safe_divide(new_contacts.collider_motion[i], sub_delta_time_));
-            }
-            chunk_constraints.external_plane_contacts = std::move(new_contacts);
+            this->simulate__gather_dynamic_constraints__chunk_local(substep, chunk_i);
           }
         });
+  }
+
+  void simulate__gather_dynamic_constraints__chunk_local(const SubstepInterval &substep,
+                                                         const int chunk_i)
+  {
+    const float max_distance = this->get_max_search_distance(sub_delta_time_);
+    ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+    const ExternalPlaneContacts &prev_contacts = chunk_constraints.external_plane_contacts;
+    ExternalPlaneContacts new_contacts;
+    this->gather_ground_plane_contacts(
+        chunk_i, max_distance, substep, prev_contacts, new_contacts);
+    this->gather_mesh_contacts(chunk_i, max_distance, substep, prev_contacts, new_contacts);
+
+    const int contacts_num = new_contacts.points.size();
+    for (const int i : IndexRange(contacts_num)) {
+      new_contacts.collider_velocities.append(
+          math::safe_divide(new_contacts.collider_motion[i], sub_delta_time_));
+    }
+    chunk_constraints.external_plane_contacts = std::move(new_contacts);
   }
 
   void simulate__reset_forces()
@@ -1359,58 +1387,71 @@ class XpbdSolverStep {
     threading::parallel_for(
         geometries_.chunks.index_range(), 16, [&](const IndexRange chunks_range) {
           for (const int chunk_i : chunks_range) {
-            ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
-            for (xpbd::ConstraintSet *constraint : chunk_constraints.static_constraints) {
-              constraint->reset_forces();
-            }
-            chunk_constraints.external_plane_contacts.lambdas.fill(0.0f);
-            chunk_constraints.external_plane_contacts.lambdas_normal.fill(0.0f);
-            for (xpbd::VelocityConstraintSet *constraint :
-                 chunk_constraints.static_velocity_constraints)
-            {
-              constraint->reset_forces();
-            }
+            this->simulate__reset_forces__chunk_local(chunk_i);
           }
         });
   }
 
-  void simulate__position_solve()
+  void simulate__reset_forces__chunk_local(const int chunk_i)
   {
-    for ([[maybe_unused]] const int constraint_iter_i : IndexRange(constraint_iterations_)) {
-      threading::parallel_for(
-          geometries_.chunks.index_range(), 1, [&](const IndexRange chunks_range) {
-            for (const int chunk_i : chunks_range) {
-              const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-              ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
-
-              Vector<xpbd::ConstraintSet *> local_constraints =
-                  chunk_constraints.static_constraints;
-
-              std::optional<xpbd::CollisionPlaneConstraintSet> plane_collision_constraint;
-              if (!chunk_constraints.external_plane_contacts.points.is_empty()) {
-                ExternalPlaneContacts &contacts = chunk_constraints.external_plane_contacts;
-                plane_collision_constraint.emplace(chunk.data_key_i,
-                                                   contacts.points,
-                                                   contacts.positions_on_plane,
-                                                   contacts.collider_motion,
-                                                   contacts.separating_axes,
-                                                   contacts.compliance_terms,
-                                                   contacts.static_frictions,
-                                                   contacts.dynamic_frictions,
-                                                   contacts.active_states,
-                                                   contacts.lambdas_normal);
-                local_constraints.append(&*plane_collision_constraint);
-              }
-
-              xpbd::ConstraintSetParams solve_params{
-                  geometries_.solver_refs, sub_delta_time_, std::nullopt};
-              this->solve_constraints(solve_params, local_constraints);
-            }
-          });
+    ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+    for (xpbd::ConstraintSet *constraint : chunk_constraints.static_constraints) {
+      constraint->reset_forces();
+    }
+    for (xpbd::VelocityConstraintSet *constraint : chunk_constraints.static_velocity_constraints) {
+      constraint->reset_forces();
     }
   }
 
-  void simulate__update_velocities(const int chunk_i)
+  void simulate__position_solve__single_iteration()
+  {
+
+    threading::parallel_for(
+        geometries_.chunks.index_range(), 1, [&](const IndexRange chunks_range) {
+          for (const int chunk_i : chunks_range) {
+            this->simulate__position_solve__single_iteration__chunk_local(chunk_i);
+          }
+        });
+  }
+
+  void simulate__position_solve__single_iteration__chunk_local(const int chunk_i)
+  {
+    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+    ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+
+    Vector<xpbd::ConstraintSet *> local_constraints = chunk_constraints.static_constraints;
+
+    std::optional<xpbd::CollisionPlaneConstraintSet> plane_collision_constraint;
+    if (!chunk_constraints.external_plane_contacts.points.is_empty()) {
+      ExternalPlaneContacts &contacts = chunk_constraints.external_plane_contacts;
+      plane_collision_constraint.emplace(chunk.data_key_i,
+                                         contacts.points,
+                                         contacts.positions_on_plane,
+                                         contacts.collider_motion,
+                                         contacts.separating_axes,
+                                         contacts.compliance_terms,
+                                         contacts.static_frictions,
+                                         contacts.dynamic_frictions,
+                                         contacts.active_states,
+                                         contacts.lambdas_normal);
+      local_constraints.append(&*plane_collision_constraint);
+    }
+
+    xpbd::ConstraintSetParams solve_params{geometries_.solver_refs, sub_delta_time_, std::nullopt};
+    this->solve_constraints(solve_params, local_constraints);
+  }
+
+  void simulate__update_velocities()
+  {
+    threading::parallel_for(
+        geometries_.chunks.index_range(), 16, [&](const IndexRange chunks_range) {
+          for (const int chunk_i : chunks_range) {
+            this->simulate__update_velocities__chunk(chunk_i);
+          }
+        });
+  }
+
+  void simulate__update_velocities__chunk(const int chunk_i)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const IndexRange points_range = chunk.points_range;
@@ -1431,32 +1472,36 @@ class XpbdSolverStep {
     threading::parallel_for(
         geometries_.chunks.index_range(), 8, [&](const IndexRange chunks_range) {
           for (const int chunk_i : chunks_range) {
-            const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-            ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
-
-            Vector<xpbd::VelocityConstraintSet *> local_constraints =
-                chunk_constraints.static_velocity_constraints;
-            std::optional<xpbd::FrictionConstraintSet> friction_constraint;
-            if (!chunk_constraints.external_plane_contacts.points.is_empty()) {
-              ExternalPlaneContacts &contacts = chunk_constraints.external_plane_contacts;
-              friction_constraint.emplace(chunk.data_key_i,
-                                          contacts.points,
-                                          contacts.separating_axes,
-                                          contacts.collider_velocities,
-                                          contacts.dynamic_frictions,
-                                          contacts.lambdas_normal,
-                                          contacts.lambdas);
-              local_constraints.append(&*friction_constraint);
-            }
-
-            xpbd::VelocityUpdater velocity_updater{geometries_.solver_refs};
-            xpbd::ConstraintSetParams params{
-                geometries_.solver_refs, sub_delta_time_, std::nullopt};
-            for (xpbd::VelocityConstraintSet *constraint : local_constraints) {
-              constraint->solve_step(velocity_updater, params);
-            }
+            this->simulate__velocity_solve__chunk_local(chunk_i);
           }
         });
+  }
+
+  void simulate__velocity_solve__chunk_local(const int chunk_i)
+  {
+    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+    ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+
+    Vector<xpbd::VelocityConstraintSet *> local_constraints =
+        chunk_constraints.static_velocity_constraints;
+    std::optional<xpbd::FrictionConstraintSet> friction_constraint;
+    if (!chunk_constraints.external_plane_contacts.points.is_empty()) {
+      ExternalPlaneContacts &contacts = chunk_constraints.external_plane_contacts;
+      friction_constraint.emplace(chunk.data_key_i,
+                                  contacts.points,
+                                  contacts.separating_axes,
+                                  contacts.collider_velocities,
+                                  contacts.dynamic_frictions,
+                                  contacts.lambdas_normal,
+                                  contacts.lambdas);
+      local_constraints.append(&*friction_constraint);
+    }
+
+    xpbd::VelocityUpdater velocity_updater{geometries_.solver_refs};
+    xpbd::ConstraintSetParams params{geometries_.solver_refs, sub_delta_time_, std::nullopt};
+    for (xpbd::VelocityConstraintSet *constraint : local_constraints) {
+      constraint->solve_step(velocity_updater, params);
+    }
   }
 
   void finish_attribute_writers()
