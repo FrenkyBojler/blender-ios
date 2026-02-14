@@ -787,6 +787,35 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 4)) {
+    constexpr float default_deep_merge_tolerance = 0.01f;
+
+    for (Scene *scene = static_cast<Scene *>(bmain->scenes.first); scene;
+         scene = static_cast<Scene *>(scene->id.next))
+    {
+      scene->r.im_format.deep_merge_tolerance = default_deep_merge_tolerance;
+      scene->r.im_format.deep_alpha_merge_tolerance = default_deep_merge_tolerance;
+      scene->r.bake.im_format.deep_merge_tolerance = default_deep_merge_tolerance;
+      scene->r.bake.im_format.deep_alpha_merge_tolerance = default_deep_merge_tolerance;
+    }
+
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      for (bNode *node = static_cast<bNode *>(node_tree->nodes.first); node; node = node->next) {
+        if (node->type_legacy == CMP_NODE_OUTPUT_FILE && node->storage) {
+          NodeCompositorFileOutput *storage = static_cast<NodeCompositorFileOutput *>(
+              node->storage);
+          storage->format.deep_merge_tolerance = default_deep_merge_tolerance;
+          storage->format.deep_alpha_merge_tolerance = default_deep_merge_tolerance;
+          for (int i = 0; i < storage->items_count; i++) {
+            storage->items[i].format.deep_merge_tolerance = default_deep_merge_tolerance;
+            storage->items[i].format.deep_alpha_merge_tolerance = default_deep_merge_tolerance;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
   /* This has no version check and always runs for all versions because there is forward
    * compatibility code at write time that reallocates the storage, so we need to free it
    * regardless of the version. */

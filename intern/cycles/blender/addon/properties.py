@@ -1061,6 +1061,27 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         max=8192,
     )
 
+    # DEPRECATED: use_deep_output is no longer exposed in UI.
+    # Deep output is now auto-enabled when:
+    # - Output format is set to DEEP_EXR
+    # - Compositor File Output node uses DEEP_EXR format
+    # Kept for backward compatibility with existing blend files.
+    use_deep_output: BoolProperty(
+        name="Deep Output",
+        description="(Deprecated) Deep output is automatically enabled when needed",
+        default=False,
+    )
+    # DEPRECATED: deep_max_samples is no longer exposed in UI.
+    # Kept for backward compatibility with existing blend files.
+    # Internal default of 64 is used automatically.
+    deep_max_samples: IntProperty(
+        name="Deep Max Samples",
+        description="(Deprecated) Maximum number of deep samples to store per pixel",
+        default=64,
+        min=1,
+        max=256,
+    )
+
     # Various fine-tuning debug flags
 
     def _devices_update_callback(self, context):

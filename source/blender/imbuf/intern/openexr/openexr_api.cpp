@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <set>
 #include <string>
 
@@ -65,6 +66,10 @@
 #include <OpenEXR/ImfPartHelper.h>
 #include <OpenEXR/ImfPartType.h>
 #include <OpenEXR/ImfTiledOutputPart.h>
+
+/* deep data support */
+#include <OpenEXR/ImfDeepScanLineOutputFile.h>
+#include <OpenEXR/ImfDeepFrameBuffer.h>
 
 #include "DNA_scene_types.h" /* For OpenEXR compression constants */
 
@@ -786,7 +791,172 @@ bool imb_save_openexr(ImBuf *ibuf, const char *filepath, int flags)
   return imb_save_openexr_float(ibuf, filepath, flags);
 }
 
-/* ******* Nicer API, MultiLayer and with Tile file support ************************************ */
+/* ******* Deep EXR Support ************************************ */
+
+/* NOTE: DeepSample struct is defined in IMB_deep_sample.hh. */
+
+/* Save a deep EXR file with multiple samples per pixel. */
+bool IMB_exr_save_deep(const std::vector<std::vector<DeepSample>> &deep_data,
+                       int width,
+                       int height,
+                       const char *filepath,
+                       int compression,
+                       bool use_half_float,
+                       bool alpha_only)
+{
+  std::unique_ptr<OStream> file_stream;
+
+  try {
+    Header header(width, height);
+    header.setType(DEEPSCANLINE);
+
+    /* Deep EXR only supports: NONE, RLE, ZIPS.
+     * Map Blender compression enum to OpenEXR deep-compatible types.
+     * Default to ZIPS which provides good compression ratio. */
+    switch (compression) {
+      case R_IMF_EXR_CODEC_NONE:
+        header.compression() = NO_COMPRESSION;
+        break;
+      case R_IMF_EXR_CODEC_RLE:
+        header.compression() = RLE_COMPRESSION;
+        break;
+      case R_IMF_EXR_CODEC_ZIPS:
+      default:
+        /* ZIPS (single-scanline zip) is the best default for deep EXR. */
+        header.compression() = ZIPS_COMPRESSION;
+        break;
+    }
+
+    /* Deep EXR uses float for all channels. The use_half_float parameter is ignored since the
+     * deep data is stored as floats and half-float conversion would require extra buffers. */
+    (void)use_half_float; /* Suppress unused parameter warning. */
+    /* TODO: Add half-float support for deep data if needed. */
+
+    header.channels().insert("A", Channel(Imf::FLOAT));
+    header.channels().insert("Z", Channel(Imf::FLOAT)); /* Depth always full precision */
+    header.channels().insert("ZBack", Channel(Imf::FLOAT));
+    if (!alpha_only) {
+      header.channels().insert("R", Channel(Imf::FLOAT));
+      header.channels().insert("G", Channel(Imf::FLOAT));
+      header.channels().insert("B", Channel(Imf::FLOAT));
+    }
+
+    file_stream = std::make_unique<OFileStream>(filepath);
+    DeepScanLineOutputFile file(*file_stream, header);
+
+    /* Per-scanline buffer approach for memory efficiency.
+     * Only allocate storage for one scanline at a time, reducing
+     * peak memory from O(width*height*samples) to O(width*samples). */
+    std::vector<unsigned int> sampleCount(width);
+    std::vector<float *> dataA(width), dataZ(width), dataZBack(width);
+    std::vector<float *> dataR, dataG, dataB;
+
+    /* Storage for actual sample values for the current scanline. */
+    std::vector<std::vector<float>> aStorage(width), zStorage(width), zBackStorage(width);
+    std::vector<std::vector<float>> rStorage, gStorage, bStorage;
+
+    if (!alpha_only) {
+      dataR.resize(width);
+      dataG.resize(width);
+      dataB.resize(width);
+      rStorage.resize(width);
+      gStorage.resize(width);
+      bStorage.resize(width);
+    }
+
+    /* Process and write one scanline at a time. */
+    for (int y = 0; y < height; y++) {
+      /* Y-flip: deep_data is stored top-to-bottom, EXR expects bottom-to-top. */
+      int src_y = height - 1 - y;
+
+      for (int x = 0; x < width; x++) {
+        const std::vector<DeepSample> &samples = deep_data[src_y * width + x];
+        int n = samples.size();
+
+        sampleCount[x] = n;
+
+        aStorage[x].resize(n);
+        zStorage[x].resize(n);
+        zBackStorage[x].resize(n);
+        if (!alpha_only) {
+          rStorage[x].resize(n);
+          gStorage[x].resize(n);
+          bStorage[x].resize(n);
+        }
+
+        for (int s = 0; s < n; s++) {
+          aStorage[x][s] = samples[s].a;
+          zStorage[x][s] = samples[s].z;
+          zBackStorage[x][s] = samples[s].z_back;
+          if (!alpha_only) {
+            rStorage[x][s] = samples[s].r;
+            gStorage[x][s] = samples[s].g;
+            bStorage[x][s] = samples[s].b;
+          }
+        }
+
+        /* Set up pointers to the sample arrays. */
+        dataA[x] = n > 0 ? aStorage[x].data() : nullptr;
+        dataZ[x] = n > 0 ? zStorage[x].data() : nullptr;
+        dataZBack[x] = n > 0 ? zBackStorage[x].data() : nullptr;
+        if (!alpha_only) {
+          dataR[x] = n > 0 ? rStorage[x].data() : nullptr;
+          dataG[x] = n > 0 ? gStorage[x].data() : nullptr;
+          dataB[x] = n > 0 ? bStorage[x].data() : nullptr;
+        }
+      }
+
+      /* Set up the deep frame buffer for this scanline. */
+      DeepFrameBuffer frameBuffer;
+      
+      /* Sample count slice - points to start of scanline buffer. */
+      frameBuffer.insertSampleCountSlice(
+          Slice(UINT, 
+                (char *)(sampleCount.data() - y * width), 
+                sizeof(unsigned int),           /* xStride */
+                sizeof(unsigned int) * width)); /* yStride (not used for single scanline but required) */
+
+      /* Data slices for this scanline. */
+      frameBuffer.insert("A", DeepSlice(Imf::FLOAT, 
+          (char *)(dataA.data() - y * width), 
+          sizeof(float *), sizeof(float *) * width, sizeof(float)));
+      frameBuffer.insert("Z", DeepSlice(Imf::FLOAT, 
+          (char *)(dataZ.data() - y * width), 
+          sizeof(float *), sizeof(float *) * width, sizeof(float)));
+      frameBuffer.insert("ZBack", DeepSlice(Imf::FLOAT, 
+          (char *)(dataZBack.data() - y * width), 
+          sizeof(float *), sizeof(float *) * width, sizeof(float)));
+      if (!alpha_only) {
+        frameBuffer.insert("R", DeepSlice(Imf::FLOAT, 
+            (char *)(dataR.data() - y * width), 
+            sizeof(float *), sizeof(float *) * width, sizeof(float)));
+        frameBuffer.insert("G", DeepSlice(Imf::FLOAT, 
+            (char *)(dataG.data() - y * width), 
+            sizeof(float *), sizeof(float *) * width, sizeof(float)));
+        frameBuffer.insert("B", DeepSlice(Imf::FLOAT, 
+            (char *)(dataB.data() - y * width), 
+            sizeof(float *), sizeof(float *) * width, sizeof(float)));
+      }
+
+      file.setFrameBuffer(frameBuffer);
+      
+      /* Write this single scanline. */
+      file.writePixels(1);
+    }
+
+    CLOG_INFO(&LOG, "Wrote deep EXR: %s (%dx%d)", filepath, width, height);
+  }
+  catch (const std::exception &exc) {
+    CLOG_ERROR(&LOG, "%s: %s", __func__, exc.what());
+    return false;
+  }
+  catch (...) {
+    CLOG_ERROR(&LOG, "Unknown error in %s", __func__);
+    return false;
+  }
+
+  return true;
+}
 
 /* naming rules:
  * - parse name from right to left

@@ -1127,6 +1127,12 @@ bool BKE_image_render_write(ReportList *reports,
     return false;
   }
 
+  /* Deep EXR output is handled by Cycles DeepOutputDriver, skip flat render save. */
+  const ImageFormatData *effective_format = format ? format : &scene->r.im_format;
+  if (effective_format->imtype == R_IMF_IMTYPE_DEEP_EXR) {
+    return true;
+  }
+
   ImageFormatData image_format;
   BKE_image_format_init_for_write(&image_format, scene, format);
 

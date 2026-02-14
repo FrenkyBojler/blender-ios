@@ -1283,6 +1283,11 @@ static void do_render_compositor(Render *re)
 
         compositor::RenderContext compositor_render_context;
         compositor_render_context.is_animation_render = re->flag & R_ANIMATION;
+        /* Pass deep EXR data from RenderResult to compositor context for File Output node. */
+        if (re->result && re->result->deep_data) {
+          compositor_render_context.set_deep_data(
+              re->result->deep_data, re->result->deep_width, re->result->deep_height);
+        }
         for (RenderView &rv : re->result->views) {
           RE_compositor_execute(*re,
                                 *re->pipeline_scene_eval,
@@ -1678,6 +1683,38 @@ static int check_valid_camera(Scene *scene, Object *camera_override, ReportList 
   return true;
 }
 
+static bool node_tree_has_deep_exr_output(const bNodeTree *node_tree)
+{
+  if (!node_tree) {
+    return false;
+  }
+
+  node_tree->ensure_topology_cache();
+  for (const bNode *node : node_tree->nodes_by_type("CompositorNodeOutputFile")) {
+    if (node->is_muted() || !node->storage) {
+      continue;
+    }
+    /* Check node format for DEEP_EXR. */
+    const NodeCompositorFileOutput *storage = static_cast<const NodeCompositorFileOutput *>(
+        node->storage);
+    if (storage->format.imtype == R_IMF_IMTYPE_DEEP_EXR) {
+      return true;
+    }
+  }
+
+  for (const bNode *node : node_tree->group_nodes()) {
+    if (node->is_muted() || !node->id) {
+      continue;
+    }
+
+    if (node_tree_has_deep_exr_output(reinterpret_cast<const bNodeTree *>(node->id))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 static bool scene_has_compositor_output(Scene *scene)
 {
   if (scene->compositing_node_group == nullptr) {
@@ -1689,6 +1726,20 @@ static bool scene_has_compositor_output(Scene *scene)
   }
 
   return bke::compositor::node_tree_has_linked_file_output(scene->compositing_node_group);
+}
+
+bool RE_scene_has_deep_exr_file_output(Scene *scene)
+{
+  if (!scene) {
+    return false;
+  }
+  if (!(scene->r.scemode & R_DOCOMP)) {
+    return false;
+  }
+  if (!scene->compositing_node_group) {
+    return false;
+  }
+  return node_tree_has_deep_exr_output(scene->compositing_node_group);
 }
 
 /* Identify if the compositor can run on the GPU. Currently, this only checks if the compositor is

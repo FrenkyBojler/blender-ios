@@ -1016,11 +1016,19 @@ void uiTemplateImageSettings(ui::Layout *layout,
     col.prop(imfptr, "compression", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  if (ELEM(imf->imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER)) {
+  const bool is_openexr = ELEM(
+      imf->imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER, R_IMF_IMTYPE_DEEP_EXR);
+  const bool is_deep_exr = (imf->imtype == R_IMF_IMTYPE_DEEP_EXR);
+
+  if (is_openexr) {
     col.prop(imfptr, "exr_codec", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     if (ELEM(imf->exr_codec & OPENEXR_CODEC_MASK, R_IMF_EXR_CODEC_DWAA, R_IMF_EXR_CODEC_DWAB)) {
       col.prop(imfptr, "quality", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
+  }
+  if (is_deep_exr) {
+    col.prop(imfptr, "deep_merge_tolerance", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(imfptr, "deep_alpha_merge_tolerance", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   if (imf->imtype == R_IMF_IMTYPE_MULTILAYER) {
     col.prop(imfptr, "use_exr_interleave", UI_ITEM_NONE, std::nullopt, ICON_NONE);

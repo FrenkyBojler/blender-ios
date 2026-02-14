@@ -42,6 +42,8 @@
 #include "render_result.h"
 #include "render_types.h"
 
+#include "RE_deep_data.hh"
+
 namespace blender {
 
 /* -------------------------------------------------------------------- */
@@ -87,6 +89,10 @@ void render_result_free(RenderResult *rr)
 
       BLI_freelinkN(&rl->passes, rpass);
     }
+    if (rl->deep_data && rl->deep_data_owned) {
+      delete rl->deep_data;
+      rl->deep_data = nullptr;
+    }
     BLI_remlink(&rr->layers, rl);
     MEM_delete(rl);
   }
@@ -103,6 +109,12 @@ void render_result_free(RenderResult *rr)
   }
 
   BKE_stamp_data_free(rr->stamp_data);
+
+  /* Free deep EXR data if owned by this RenderResult. */
+  if (rr->deep_data && rr->deep_data_owned) {
+    delete rr->deep_data;
+    rr->deep_data = nullptr;
+  }
 
   MEM_delete(rr);
 }
@@ -310,6 +322,10 @@ RenderResult *render_result_new(Render *re,
 
     STRNCPY_UTF8(rl->name, view_layer->name);
     rl->layflag = view_layer->layflag;
+    rl->deep_data = nullptr;
+    rl->deep_width = 0;
+    rl->deep_height = 0;
+    rl->deep_data_owned = false;
 
     rl->passflag = view_layer->passflag;
 
@@ -338,6 +354,10 @@ RenderResult *render_result_new(Render *re,
 
     rl->rectx = rectx;
     rl->recty = recty;
+    rl->deep_data = nullptr;
+    rl->deep_width = 0;
+    rl->deep_height = 0;
+    rl->deep_data_owned = false;
 
     for (RenderView &rv : rr->views) {
       const char *view = rv.name;
@@ -568,6 +588,10 @@ static void *ml_addlayer_cb(void *base, const char *str)
   BLI_addtail(&rr->layers, rl);
 
   BLI_strncpy(rl->name, str, EXR_LAY_MAXNAME);
+  rl->deep_data = nullptr;
+  rl->deep_width = 0;
+  rl->deep_height = 0;
+  rl->deep_data_owned = false;
   return rl;
 }
 
@@ -1313,6 +1337,10 @@ static RenderLayer *duplicate_render_layer(RenderLayer *rl)
   RenderLayer *new_rl = MEM_new<RenderLayer>("new render layer", *rl);
   new_rl->next = new_rl->prev = nullptr;
   new_rl->passes.first = new_rl->passes.last = nullptr;
+  new_rl->deep_data = nullptr;
+  new_rl->deep_width = 0;
+  new_rl->deep_height = 0;
+  new_rl->deep_data_owned = false;
   for (RenderPass &rpass : rl->passes) {
     RenderPass *new_rpass = duplicate_render_pass(&rpass);
     BLI_addtail(&new_rl->passes, new_rpass);

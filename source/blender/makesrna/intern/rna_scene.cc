@@ -334,9 +334,16 @@ static const EnumPropertyItem rna_enum_media_type_image_items[] = {
      "Output image in multilayer OpenEXR format"},
 #  define R_IMF_ENUM_EXR \
     {R_IMF_IMTYPE_OPENEXR, "OPEN_EXR", 0, "OpenEXR (.exr)", "Output image in OpenEXR format"},
+#  define R_IMF_ENUM_DEEP_EXR \
+    {R_IMF_IMTYPE_DEEP_EXR, \
+     "DEEP_EXR", \
+     0, \
+     "Deep EXR (.exr)", \
+     "Output deep image with per-sample depth for compositing"},
 #else
 #  define R_IMF_ENUM_EXR_MULTILAYER
 #  define R_IMF_ENUM_EXR
+#  define R_IMF_ENUM_DEEP_EXR
 #endif
 
 #define R_IMF_ENUM_HDR \
@@ -366,6 +373,7 @@ static const EnumPropertyItem rna_enum_media_type_image_items[] = {
   R_IMF_ENUM_AVIF \
   R_IMF_ENUM_JPEG \
   R_IMF_ENUM_EXR \
+  R_IMF_ENUM_DEEP_EXR \
   R_IMF_ENUM_PNG \
   R_IMF_ENUM_WEBP \
   RNA_ENUM_ITEM_SEPR, \
@@ -1471,7 +1479,26 @@ static void rna_ImageFormatSettings_media_type_set(PointerRNA *ptr, int value)
 
 static void rna_ImageFormatSettings_file_format_set(PointerRNA *ptr, int value)
 {
-  BKE_image_format_set(static_cast<ImageFormatData *>(ptr->data), ptr->owner_id, value);
+  ImageFormatData *imf = static_cast<ImageFormatData *>(ptr->data);
+  const char prev_imtype = imf->imtype;
+  BKE_image_format_set(imf, ptr->owner_id, value);
+#ifdef WITH_IMAGE_OPENEXR
+  if (imf->imtype == R_IMF_IMTYPE_DEEP_EXR) {
+    if (prev_imtype != R_IMF_IMTYPE_DEEP_EXR) {
+      constexpr float default_deep_merge_tolerance = 0.01f;
+      if (imf->deep_merge_tolerance == 0.0f) {
+        imf->deep_merge_tolerance = default_deep_merge_tolerance;
+      }
+      if (imf->deep_alpha_merge_tolerance == 0.0f) {
+        imf->deep_alpha_merge_tolerance = default_deep_merge_tolerance;
+      }
+    }
+    const int codec = imf->exr_codec;
+    if (!ELEM(codec, R_IMF_EXR_CODEC_NONE, R_IMF_EXR_CODEC_RLE, R_IMF_EXR_CODEC_ZIPS)) {
+      imf->exr_codec = R_IMF_EXR_CODEC_ZIPS;
+    }
+  }
+#endif
 }
 
 static const EnumPropertyItem *rna_ImageFormatSettings_file_format_itemf(bContext * /*C*/,
@@ -1650,6 +1677,23 @@ static const EnumPropertyItem *rna_ImageFormatSettings_exr_codec_itemf(bContext 
 
   EnumPropertyItem *item = nullptr;
   int i = 1, totitem = 0;
+
+  if (imf->imtype == R_IMF_IMTYPE_DEEP_EXR) {
+    for (i = 0; i < R_IMF_EXR_CODEC_MAX; i++) {
+      if (!ELEM(rna_enum_exr_codec_items[i].value,
+                R_IMF_EXR_CODEC_NONE,
+                R_IMF_EXR_CODEC_RLE,
+                R_IMF_EXR_CODEC_ZIPS)) {
+        continue;
+      }
+      RNA_enum_item_add(&item, &totitem, &rna_enum_exr_codec_items[i]);
+    }
+
+    RNA_enum_item_end(&item, &totitem);
+    *r_free = true;
+
+    return item;
+  }
 
   if (imf->depth == 16) {
     return rna_enum_exr_codec_items; /* All compression types are defined for half-float. */
@@ -6462,6 +6506,27 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
       "Interleave",
       "Use legacy interleaved storage of views, layers and passes for compatibility with "
       "applications that do not support more efficient multi-part OpenEXR files.");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  /* Deep EXR */
+  prop = RNA_def_property(srna, "deep_merge_tolerance", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "deep_merge_tolerance");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_range(prop, 0.001f, 0.1f, 0.01f, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Deep Merge Tolerance",
+      "Merge similar samples within this depth distance. Smaller values keep more samples.");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "deep_alpha_merge_tolerance", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "deep_alpha_merge_tolerance");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_range(prop, 0.001f, 0.1f, 0.01f, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Alpha Merge Tolerance",
+      "Merge similar samples within this alpha difference. Smaller values keep more samples.");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 #  endif
 

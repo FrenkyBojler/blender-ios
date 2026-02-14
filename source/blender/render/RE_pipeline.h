@@ -28,6 +28,7 @@ struct MovieWriter;
 struct Main;
 struct Object;
 struct RenderData;
+struct RenderDeepData;
 struct RenderResult;
 struct ReportList;
 struct Scene;
@@ -97,6 +98,13 @@ struct RenderLayer {
   int rectx, recty;
 
   ListBaseT<RenderPass> passes;
+
+  /* Deep EXR data for compositor passthrough (final render only).
+   * Owned by RenderLayer when deep_data_owned is true.
+   * See RenderDeepData::pixels for sample layout. */
+  RenderDeepData *deep_data = nullptr;
+  int deep_width = 0, deep_height = 0;
+  bool deep_data_owned = false; /* If true, free deep_data on destruction. */
 };
 
 struct RenderResult {
@@ -154,6 +162,13 @@ struct RenderResult {
   struct StampData *stamp_data = nullptr;
 
   bool passes_allocated = false;
+
+  /* Deep EXR data for compositor passthrough (final render only).
+   * Non-owning pointer to the most recent RenderLayer deep data.
+   * See RenderLayer::deep_data for per-layer ownership and layout. */
+  RenderDeepData *deep_data = nullptr;
+  int deep_width = 0, deep_height = 0;
+  bool deep_data_owned = false; /* If true, free deep_data on destruction. */
 };
 
 struct RenderStats {
@@ -486,6 +501,12 @@ bool RE_is_rendering_allowed(struct Scene *scene,
                              struct ViewLayer *single_layer,
                              struct Object *camera_override,
                              struct ReportList *reports);
+
+/**
+ * Check if scene has any compositor File Output nodes set to Deep EXR format.
+ * Used by Cycles to know when to generate deep data for compositor passthrough.
+ */
+bool RE_scene_has_deep_exr_file_output(struct Scene *scene);
 
 bool RE_allow_render_generic_object(struct Object *ob);
 

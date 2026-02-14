@@ -1,7 +1,12 @@
 /* SPDX-FileCopyrightText: 2006 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+/** \file
+ * \ingroup cmpnodes
+ */
 
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 
 #include "BLI_assert.h"
@@ -36,7 +41,9 @@
 
 #include "WM_api.hh"
 
+#include "IMB_deep_sample_merge.hh"
 #include "IMB_imbuf.hh"
+#include "IMB_openexr.hh"
 
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
@@ -51,11 +58,108 @@
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
 
+#include "RE_deep_data.hh"
+
 #include "node_composite_util.hh"
+
+namespace blender::imbuf::deep_merge {
+
+template<> struct DeepSampleTraits<DeepSample> {
+  static float r(const DeepSample &sample)
+  {
+    return sample.r;
+  }
+
+  static float g(const DeepSample &sample)
+  {
+    return sample.g;
+  }
+
+  static float b(const DeepSample &sample)
+  {
+    return sample.b;
+  }
+
+  static float a(const DeepSample &sample)
+  {
+    return sample.a;
+  }
+
+  static float z(const DeepSample &sample)
+  {
+    return sample.z;
+  }
+
+  static float z_back(const DeepSample &sample)
+  {
+    return sample.z_back;
+  }
+
+  static void set_r(DeepSample &sample, const float value)
+  {
+    sample.r = value;
+  }
+
+  static void set_g(DeepSample &sample, const float value)
+  {
+    sample.g = value;
+  }
+
+  static void set_b(DeepSample &sample, const float value)
+  {
+    sample.b = value;
+  }
+
+  static void set_a(DeepSample &sample, const float value)
+  {
+    sample.a = value;
+  }
+
+  static void set_z_back(DeepSample &sample, const float value)
+  {
+    sample.z_back = value;
+  }
+};
+
+}  // namespace blender::imbuf::deep_merge
 
 namespace blender::nodes::node_composite_file_output_cc {
 
+namespace deep_merge = blender::imbuf::deep_merge;
+namespace path_templates = blender::bke::path_templates;
+
 NODE_STORAGE_FUNCS(NodeCompositorFileOutput)
+
+namespace {
+constexpr float deep_volume_depth_epsilon = 1e-6f;
+constexpr float default_deep_merge_tolerance = 0.01f;
+}  // namespace
+
+static void deep_merge_samples(std::vector<std::vector<DeepSample>> &deep_samples,
+                               const float depth_merge_threshold,
+                               const float alpha_merge_threshold)
+{
+  if (depth_merge_threshold <= 0.0f) {
+    return;
+  }
+
+  for (auto &pixel_samples : deep_samples) {
+    if (pixel_samples.size() <= 1) {
+      continue;
+    }
+
+    std::sort(pixel_samples.begin(),
+              pixel_samples.end(),
+              [](const DeepSample &a, const DeepSample &b) { return a.z < b.z; });
+    const size_t merged_count = deep_merge::merge_sorted_deep_samples(
+        pixel_samples.data(),
+        pixel_samples.size(),
+        depth_merge_threshold,
+        alpha_merge_threshold,
+        deep_volume_depth_epsilon);
+    pixel_samples.resize(merged_count);
+  }
+}
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -433,13 +537,159 @@ class FileOutputOperation : public NodeOperation {
  public:
   using NodeOperation::NodeOperation;
 
+  bool deep_target_from_links(const Scene **r_scene, int *r_view_layer_id) const
+  {
+    if (r_scene) {
+      *r_scene = nullptr;
+    }
+    if (r_view_layer_id) {
+      *r_view_layer_id = 0;
+    }
+
+    const bNode &node = this->node();
+    int linked_inputs = 0;
+    const bNodeLink *linked_link = nullptr;
+
+    for (bNodeSocket *socket = static_cast<bNodeSocket *>(node.inputs.first); socket;
+         socket = socket->next)
+    {
+      if (StringRef(socket->identifier).startswith("__extend__")) {
+        continue;
+      }
+      const Span<bNodeLink *> links = socket->directly_linked_links();
+      if (links.is_empty()) {
+        continue;
+      }
+      linked_inputs += links.size();
+      if (linked_inputs > 1) {
+        return false;
+      }
+      linked_link = links.first();
+    }
+
+    if (linked_inputs != 1 || linked_link == nullptr || linked_link->fromnode == nullptr) {
+      return false;
+    }
+
+    const bNode *from_node = linked_link->fromnode;
+    if (from_node->type_legacy != CMP_NODE_R_LAYERS) {
+      return false;
+    }
+
+    const Scene *scene = reinterpret_cast<const Scene *>(from_node->id);
+    if (!scene) {
+      scene = &this->context().get_scene();
+    }
+
+    if (r_scene) {
+      *r_scene = scene;
+    }
+    if (r_view_layer_id) {
+      *r_view_layer_id = from_node->custom1;
+    }
+    return true;
+  }
+
+  bool deep_alpha_only_from_links() const
+  {
+    const bNode &node = this->node();
+    int linked_inputs = 0;
+    const bNodeLink *linked_link = nullptr;
+
+    for (bNodeSocket *socket = static_cast<bNodeSocket *>(node.inputs.first); socket;
+         socket = socket->next)
+    {
+      if (StringRef(socket->identifier).startswith("__extend__")) {
+        continue;
+      }
+      const Span<bNodeLink *> links = socket->directly_linked_links();
+      if (links.is_empty()) {
+        continue;
+      }
+      linked_inputs += links.size();
+      if (linked_inputs > 1) {
+        return false;
+      }
+      linked_link = links.first();
+    }
+
+    if (linked_inputs != 1 || linked_link == nullptr || linked_link->fromsock == nullptr) {
+      return false;
+    }
+
+    return STREQ(linked_link->fromsock->name, "Alpha");
+  }
+
   void execute() override
   {
+    /* Check if format is Deep EXR - if so, use deep data from render context. */
+    const NodeCompositorFileOutput &storage = node_storage(this->node());
+    if (storage.format.imtype == R_IMF_IMTYPE_DEEP_EXR) {
+      this->execute_deep_exr();
+      return;
+    }
+
     if (this->is_multi_layer()) {
       this->execute_multi_layer();
     }
     else {
       this->execute_single_layer();
+    }
+  }
+
+  /* --------------------
+   * Deep EXR Output.
+   */
+
+  void execute_deep_exr()
+  {
+    const NodeCompositorFileOutput &storage = node_storage(this->node());
+
+    /* Compute output path. */
+    char image_path[FILE_MAX];
+    const char *view = this->context().get_view_name().data();
+    Vector<path_templates::Error> path_errors = this->get_image_path(
+        storage.format, "", view, image_path);
+    if (!path_errors.is_empty()) {
+      return;
+    }
+
+    /* Get deep data and write it. */
+    const Scene *target_scene = nullptr;
+    int view_layer_id = 0;
+    if (!this->deep_target_from_links(&target_scene, &view_layer_id)) {
+      target_scene = &this->context().get_scene();
+      view_layer_id = 0;
+    }
+
+    blender::RenderDeepData *deep_data = nullptr;
+    int width = 0;
+    int height = 0;
+    if (!this->context().get_deep_data(
+            target_scene, view_layer_id, &deep_data, &width, &height))
+    {
+      return;
+    }
+    if (!deep_data) {
+      return;
+    }
+
+    const std::vector<std::vector<DeepSample>> &deep_samples = deep_data->pixels;
+    const bool alpha_only = this->deep_alpha_only_from_links();
+    float depth_merge_tolerance = storage.format.deep_merge_tolerance;
+    const float alpha_merge_tolerance = storage.format.deep_alpha_merge_tolerance;
+    if (depth_merge_tolerance <= 0.0f && alpha_merge_tolerance > 0.0f) {
+      depth_merge_tolerance = default_deep_merge_tolerance;
+    }
+    if (depth_merge_tolerance > 0.0f) {
+      std::vector<std::vector<DeepSample>> merged_samples = deep_samples;
+      deep_merge_samples(merged_samples, depth_merge_tolerance, alpha_merge_tolerance);
+      IMB_exr_save_deep(merged_samples, width, height, image_path, storage.format.exr_codec,
+                        (storage.format.depth == R_IMF_CHAN_DEPTH_16), alpha_only);
+    }
+    else {
+      IMB_exr_save_deep(deep_samples, width, height, image_path, storage.format.exr_codec,
+                        (storage.format.depth == R_IMF_CHAN_DEPTH_16), alpha_only);
     }
   }
 

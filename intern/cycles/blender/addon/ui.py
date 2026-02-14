@@ -821,6 +821,11 @@ class CYCLES_RENDER_PT_film_pixel_filter(CyclesButtonsPanel, Panel):
             col.prop(cscene, "filter_width", text="Width")
 
 
+# REMOVED: CYCLES_RENDER_PT_film_deep_output panel
+# Deep output is only available with DEEP_EXR format, which auto-enables it.
+# No separate UI panel needed.
+
+
 class CYCLES_RENDER_PT_performance(CyclesButtonsPanel, Panel):
     bl_label = "Performance"
     bl_options = {'DEFAULT_CLOSED'}

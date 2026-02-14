@@ -381,6 +381,104 @@ source_group("sample" FILES ${SRC_KERNEL_SAMPLE_HEADERS})
 source_group("svm" FILES ${SRC_KERNEL_SVM_HEADERS})
 source_group("util" FILES ${SRC_KERNEL_UTIL_HEADERS})
 
+set(_cycles_prev_gpu_kernel_target)
+macro(cycles_add_gpu_kernel_dependencies GPU_KERNEL_TARGET)
+  if(TARGET ${GPU_KERNEL_TARGET})
+    add_dependencies(cycles_kernel ${GPU_KERNEL_TARGET})
+    if(_cycles_prev_gpu_kernel_target)
+      add_dependencies(${GPU_KERNEL_TARGET} ${_cycles_prev_gpu_kernel_target})
+    endif()
+    set(_cycles_prev_gpu_kernel_target ${GPU_KERNEL_TARGET})
+  endif()
+endmacro()
+
+cycles_add_gpu_kernel_dependencies(cycles_kernel_cuda)
+cycles_add_gpu_kernel_dependencies(cycles_kernel_optix)
+cycles_add_gpu_kernel_dependencies(cycles_kernel_hip)
+cycles_add_gpu_kernel_dependencies(cycles_kernel_hiprt)
+cycles_add_gpu_kernel_dependencies(cycles_kernel_oneapi)
+
+# Copy precompiled kernel binaries into the Blender add-on runtime folder for local builds.
+if(WITH_BLENDER)
+  set(cycles_kernel_runtime_build_lib
+      "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/${BLENDER_VERSION}/${CYCLES_INSTALL_PATH}/lib")
+
+  set(cycles_kernel_runtime_files_cuda)
+  set(cycles_kernel_runtime_files_optix)
+  set(cycles_kernel_runtime_files_hip)
+  set(cycles_kernel_runtime_files_hiprt)
+
+  if(WITH_CYCLES_CUDA_BINARIES)
+    foreach(_file IN LISTS cuda_cubins)
+      list(APPEND cycles_kernel_runtime_files_cuda "${_file}")
+    endforeach()
+  endif()
+
+  if(WITH_CYCLES_DEVICE_OPTIX)
+    foreach(_file IN LISTS optix_ptx)
+      list(APPEND cycles_kernel_runtime_files_optix "${_file}")
+    endforeach()
+    foreach(_file IN LISTS cuda_cubins)
+      list(APPEND cycles_kernel_runtime_files_optix "${_file}")
+    endforeach()
+  endif()
+
+  if(WITH_CYCLES_DEVICE_HIP)
+    foreach(_file IN LISTS hip_fatbins)
+      list(APPEND cycles_kernel_runtime_files_hip "${_file}")
+    endforeach()
+  endif()
+
+  if(WITH_CYCLES_DEVICE_HIPRT)
+    foreach(_file IN LISTS hiprt_hipfb)
+      list(APPEND cycles_kernel_runtime_files_hiprt "${_file}")
+    endforeach()
+  endif()
+
+  function(cycles_kernel_normalize_files out_var)
+    set(_out)
+    foreach(_file IN LISTS ARGN)
+      if(IS_ABSOLUTE "${_file}")
+        list(APPEND _out "${_file}")
+      else()
+        list(APPEND _out "${CMAKE_CURRENT_BINARY_DIR}/${_file}")
+      endif()
+    endforeach()
+    set(${out_var} "${_out}" PARENT_SCOPE)
+  endfunction()
+
+  function(cycles_add_runtime_copy target file_list_var)
+    if(TARGET ${target})
+      set(_files "${${file_list_var}}")
+      if(_files)
+        cycles_kernel_normalize_files(_normalized ${_files})
+        if(NOT _normalized)
+          return()
+        endif()
+        set(_copy_stamp "${CMAKE_CURRENT_BINARY_DIR}/${target}_runtime_copy.stamp")
+        add_custom_command(
+          OUTPUT ${_copy_stamp}
+          COMMAND ${CMAKE_COMMAND} -E make_directory "${cycles_kernel_runtime_build_lib}"
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                  ${_normalized}
+                  "${cycles_kernel_runtime_build_lib}"
+          COMMAND ${CMAKE_COMMAND} -E touch ${_copy_stamp}
+          DEPENDS ${_normalized}
+          COMMENT "Copying Cycles kernel binaries for ${target}"
+          VERBATIM
+        )
+        add_custom_target(${target}_runtime_copy DEPENDS ${_copy_stamp})
+        add_dependencies(${target} ${target}_runtime_copy)
+      endif()
+    endif()
+  endfunction()
+
+  cycles_add_runtime_copy(cycles_kernel_cuda cycles_kernel_runtime_files_cuda)
+  cycles_add_runtime_copy(cycles_kernel_optix cycles_kernel_runtime_files_optix)
+  cycles_add_runtime_copy(cycles_kernel_hip cycles_kernel_runtime_files_hip)
+  cycles_add_runtime_copy(cycles_kernel_hiprt cycles_kernel_runtime_files_hiprt)
+endif()
+
 # -----------------------------------------------------------------------------
 # Install kernel source for runtime compilation.
 

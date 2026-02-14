@@ -15,6 +15,7 @@
 namespace blender {
 
 struct RenderResult;
+struct RenderDeepData;
 
 namespace compositor {
 
@@ -102,6 +103,12 @@ class RenderContext {
    * information. */
   Map<std::string, std::unique_ptr<FileOutput>> file_outputs_;
 
+  /* Deep EXR data from Cycles rendering, for compositor File Output passthrough.
+   * Owned by RenderResult. */
+  RenderDeepData *deep_data_ = nullptr;
+  int deep_width_ = 0;
+  int deep_height_ = 0;
+
  public:
   /* Check if there is an available file output with the given path in the context, if one exists,
    * return it, otherwise, return a newly created one from the given parameters and add it to the
@@ -123,6 +130,19 @@ class RenderContext {
    * this method after all views were evaluated to write the file outputs. See the get_file_output
    * method for more information. */
   void save_file_outputs(Scene *scene);
+
+  /* Deep EXR data accessors for compositor File Output node. */
+  void set_deep_data(RenderDeepData *data, int width, int height)
+  {
+    deep_data_ = data;
+    deep_width_ = width;
+    deep_height_ = height;
+  }
+
+  RenderDeepData *get_deep_data() const { return deep_data_; }
+  int get_deep_width() const { return deep_width_; }
+  int get_deep_height() const { return deep_height_; }
+  bool has_deep_data() const { return deep_data_ != nullptr; }
 };
 
 }  // namespace compositor

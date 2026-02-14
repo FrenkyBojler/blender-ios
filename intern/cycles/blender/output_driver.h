@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <vector>
+
 #include "session/output_driver.h"
 
 namespace blender {
@@ -21,8 +23,16 @@ class BlenderOutputDriver : public OutputDriver {
   bool update_render_tile(const Tile &tile) override;
   bool read_render_tile(const Tile &tile) override;
 
+  /* Get captured Combined pass for deep recolor (post-render). */
+  const float *get_combined_pass(int &width, int &height) const;
+
  protected:
   blender::RenderEngine &b_engine_;
+
+  /* Captured Combined pass for deep output recolor. */
+  std::vector<float> combined_pass_buffer_;
+  int combined_width_ = 0;
+  int combined_height_ = 0;
 };
 
 CCL_NAMESPACE_END

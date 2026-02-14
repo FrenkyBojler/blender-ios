@@ -2,12 +2,15 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include <cmath>
 #include <cstdlib>
+#include <cstring>
 
 #include "DEG_depsgraph_query.hh"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "RNA_prototypes.hh"
+#include "BKE_report.hh"
 
 #include "device/device.h"
 
@@ -24,7 +27,12 @@
 #include "scene/stats.h"
 
 #include "session/buffers.h"
+#include "session/deep_output_driver.h"
 #include "session/session.h"
+
+#include "IMB_openexr.hh"
+#include "IMB_imbuf_types.hh"
+#include "RE_deep_data.hh"
 
 #include "util/hash.h"
 #include "util/log.h"
@@ -32,6 +40,7 @@
 #include "util/path.h"
 #include "util/progress.h"
 #include "util/time.h"
+#include "util/vector.h"
 
 #include "blender/display_driver.h"
 #include "blender/output_driver.h"
@@ -346,7 +355,12 @@ void BlenderSession::render(blender::Depsgraph &b_depsgraph_)
 
   /* Create driver to write out render results. */
   ensure_display_driver_if_needed();
-  session->set_output_driver(make_unique<BlenderOutputDriver>(b_engine));
+  auto output_driver = make_unique<BlenderOutputDriver>(b_engine);
+  blender_output_driver = output_driver.get();  /* Store for deep recolor access. */
+  session->set_output_driver(std::move(output_driver));
+
+  /* Note: Deep output driver setup is done AFTER sync_data() to ensure
+   * kernel pointers are properly synced. See the setup block around line 414. */
 
   session->full_buffer_written_cb = [&](string_view filename) { full_buffer_written(filename); };
 
@@ -375,6 +389,11 @@ void BlenderSession::render(blender::Depsgraph &b_depsgraph_)
   sync->sync_render_passes(*b_rlay, b_view_layer);
 
   const int num_views = BLI_listbase_count(&b_rr->views);
+  const bool is_multi_view = (num_views > 1);
+  const bool compositor_needs_deep = blender::RE_scene_has_deep_exr_file_output(
+      DEG_get_input_scene(b_depsgraph));
+  bool deep_output_blocked = false;
+  bool deep_output_error_reported = false;
 
   for (const auto [view_index, b_view] : b_rr->views.enumerate()) {
     b_rview_name = b_view.name;
@@ -403,6 +422,94 @@ void BlenderSession::render(blender::Depsgraph &b_depsgraph_)
                     height,
                     &python_thread_state,
                     session_params.denoise_device);
+
+    /* Create deep output driver if deep output is enabled (after sync populates film settings).
+     * Also auto-enable for Deep EXR format (R_IMF_IMTYPE_DEEP_EXR = 37).
+     * Also auto-enable if compositor has Deep EXR File Output node.
+     * Get fresh scene from depsgraph for accurate im_format reading.
+     * Only set up once on the first view. */
+    blender::Scene *evaluated_scene = DEG_get_evaluated_scene(b_depsgraph);
+    const bool is_deep_exr_format = (evaluated_scene &&
+                                     evaluated_scene->r.im_format.imtype ==
+                                         blender::R_IMF_IMTYPE_DEEP_EXR);
+    const bool need_deep_output = is_deep_exr_format || compositor_needs_deep;
+
+    if (is_multi_view && need_deep_output) {
+      if (!deep_output_error_reported) {
+        RE_engine_report(
+            &b_engine,
+            blender::RPT_WARNING,
+            "Deep EXR output is not supported with multi-view rendering");
+        deep_output_error_reported = true;
+      }
+      deep_output_blocked = true;
+    }
+
+    if (need_deep_output && !deep_output_blocked) {
+      /* Ensure deep output stays enabled for every view layer render. */
+      if (!scene->film->get_use_deep_output()) {
+        scene->film->set_use_deep_output(true);
+        scene->film->tag_modified();
+      }
+
+      DeepOutputDriver *deep_driver = session->get_deep_output_driver();
+      if (!deep_driver) {
+        auto new_driver = make_unique<DeepOutputDriver>(session->device.get());
+        new_driver->set_enabled(true);
+
+        /* Set callback for deep EXR writing. */
+        new_driver->set_write_callback(
+            [](const std::vector<std::vector<blender::DeepSample>> &deep_data,
+               int w,
+               int h,
+               const std::string &filepath,
+               int compression,
+               bool use_half_float) -> bool {
+              return blender::IMB_exr_save_deep(
+                  deep_data, w, h, filepath.c_str(), compression, use_half_float, false);
+            });
+
+        session->set_deep_output_driver(std::move(new_driver));
+        deep_driver = session->get_deep_output_driver();
+      }
+
+      if (deep_driver) {
+        const auto &image_format = evaluated_scene ? evaluated_scene->r.im_format :
+                                                     b_render->im_format;
+        constexpr float default_deep_merge_tolerance = 0.01f;
+        float depth_merge_tolerance = image_format.deep_merge_tolerance;
+        const float alpha_merge_tolerance = image_format.deep_alpha_merge_tolerance;
+        if (depth_merge_tolerance <= 0.0f && alpha_merge_tolerance > 0.0f) {
+          depth_merge_tolerance = default_deep_merge_tolerance;
+        }
+        deep_driver->set_merge_threshold(depth_merge_tolerance);
+        deep_driver->set_alpha_merge_threshold(alpha_merge_tolerance);
+        deep_driver->set_compression(image_format.exr_codec);
+        deep_driver->set_use_half_float(image_format.depth == blender::R_IMF_CHAN_DEPTH_16);
+
+        int max_deep_samples = scene->film->get_deep_max_samples();
+        if (scene->integrator->get_volume_ray_marching()) {
+          constexpr int deep_volume_max_samples_cap = 256;
+          const int max_steps = scene->integrator->get_volume_max_steps();
+          const int min_required = std::min(max_steps, deep_volume_max_samples_cap);
+          if (max_deep_samples < min_required) {
+            LOG_INFO << "Deep EXR: increasing max samples from " << max_deep_samples << " to "
+                     << min_required << " for ray-marched volumes";
+            max_deep_samples = min_required;
+          }
+        }
+
+        const bool needs_reset = (deep_driver->get_width() != width ||
+                                  deep_driver->get_height() != height ||
+                                  deep_driver->get_max_samples_per_pixel() != max_deep_samples);
+        if (needs_reset) {
+          deep_driver->reset(width, height, max_deep_samples);
+        }
+        else {
+          deep_driver->clear_device_buffers();
+        }
+      }
+    }
 
     /* At the moment we only free if we are not doing multi-view
      * (or if we are rendering the last view). See #58142/D4239 for discussion.
@@ -458,6 +565,134 @@ void BlenderSession::render(blender::Depsgraph &b_depsgraph_)
 
     if (session->progress.get_cancel()) {
       break;
+    }
+  }
+
+  /* Finalize deep output if enabled or Deep EXR format selected - write deep EXR file.
+   * Also finalize for compositor Deep EXR File Output nodes. */
+  blender::Scene *final_evaluated_scene = DEG_get_evaluated_scene(b_depsgraph);
+  const bool is_deep_exr_format = (final_evaluated_scene &&
+                                   final_evaluated_scene->r.im_format.imtype ==
+                                       blender::R_IMF_IMTYPE_DEEP_EXR);
+  const bool finalize_deep = (is_deep_exr_format || compositor_needs_deep) && !deep_output_blocked;
+  if (finalize_deep && !session->progress.get_cancel()) {
+    DeepOutputDriver *deep_driver = session->get_deep_output_driver();
+    if (deep_driver && deep_driver->is_enabled()) {
+      const float *combined_data = nullptr;
+      int combined_w = 0;
+      int combined_h = 0;
+
+      /* Get beauty (Combined pass) for deep recolor.
+       * Prefer output driver capture, fallback to RenderResult. */
+      vector<float> combined_local;
+      if (blender_output_driver) {
+        combined_data = blender_output_driver->get_combined_pass(combined_w, combined_h);
+      }
+      blender::RenderResult *beauty_result = RE_engine_get_result(&b_engine);
+      if (!combined_data && beauty_result) {
+        blender::RenderLayer *beauty_layer = RE_GetRenderLayer(beauty_result, b_rlay_name.c_str());
+        if (!beauty_layer) {
+          beauty_layer = static_cast<blender::RenderLayer *>(beauty_result->layers.first);
+        }
+        if (beauty_layer) {
+          for (blender::RenderPass *b_pass = static_cast<blender::RenderPass *>(
+                   beauty_layer->passes.first);
+               b_pass;
+               b_pass = b_pass->next)
+          {
+            if (b_pass->name && strcmp(b_pass->name, "Combined") == 0 && b_pass->channels == 4 &&
+                b_pass->ibuf && b_pass->ibuf->float_buffer.data)
+            {
+              const int w = b_pass->rectx;
+              const int h = b_pass->recty;
+              if (w > 0 && h > 0) {
+                const size_t size = static_cast<size_t>(w) * h * 4;
+                combined_local.assign(b_pass->ibuf->float_buffer.data,
+                                      b_pass->ibuf->float_buffer.data + size);
+                combined_data = combined_local.data();
+                combined_w = w;
+                combined_h = h;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!combined_data && beauty_result->views.first) {
+          blender::RenderView *beauty_view = static_cast<blender::RenderView *>(
+              beauty_result->views.first);
+          if (beauty_view->ibuf && beauty_view->ibuf->float_buffer.data) {
+            const int w = beauty_view->ibuf->x;
+            const int h = beauty_view->ibuf->y;
+            if (w > 0 && h > 0) {
+              const size_t size = static_cast<size_t>(w) * h * 4;
+              combined_local.assign(beauty_view->ibuf->float_buffer.data,
+                                    beauty_view->ibuf->float_buffer.data + size);
+              combined_data = combined_local.data();
+              combined_w = w;
+              combined_h = h;
+            }
+          }
+        }
+      }
+
+      if (combined_data) {
+        deep_driver->set_beauty_buffer(combined_data, combined_w, combined_h);
+      }
+
+      if (is_deep_exr_format) {
+        /* Construct deep output path. */
+        std::string deep_filepath = std::string(b_render->pic);
+
+        /* Use main output path directly for Deep EXR format. */
+        /* Ensure .exr extension. */
+        size_t dot_pos = deep_filepath.rfind('.');
+        if (dot_pos == std::string::npos ||
+            deep_filepath.substr(dot_pos) != ".exr") {
+          if (dot_pos != std::string::npos) {
+            deep_filepath = deep_filepath.substr(0, dot_pos);
+          }
+          deep_filepath += ".exr";
+        }
+
+        deep_driver->finalize_deep_output(deep_filepath);
+      }
+
+      /* Store deep data in RenderResult for compositor access.
+       * The compositor needs access to deep data via RenderResult.deep_data. */
+      blender::RenderResult *render_result = RE_engine_get_result(&b_engine);
+      if (render_result) {
+        unique_ptr<std::vector<std::vector<blender::DeepSample>>> processed_data(
+            deep_driver->get_processed_deep_data());
+        if (processed_data) {
+          unique_ptr<blender::RenderDeepData> converted_data =
+              make_unique<blender::RenderDeepData>();
+          converted_data->pixels = std::move(*processed_data);
+
+          blender::RenderLayer *deep_layer = RE_GetRenderLayer(render_result, b_rlay_name.c_str());
+          if (!deep_layer) {
+            deep_layer = static_cast<blender::RenderLayer *>(render_result->layers.first);
+          }
+
+          if (deep_layer) {
+            if (deep_layer->deep_data && deep_layer->deep_data_owned) {
+              delete deep_layer->deep_data;
+            }
+            deep_layer->deep_data = converted_data.release();
+            deep_layer->deep_width = deep_driver->get_width();
+            deep_layer->deep_height = deep_driver->get_height();
+            deep_layer->deep_data_owned = true;
+
+            if (render_result->deep_data && render_result->deep_data_owned) {
+              delete render_result->deep_data;
+            }
+            render_result->deep_data = deep_layer->deep_data;
+            render_result->deep_width = deep_layer->deep_width;
+            render_result->deep_height = deep_layer->deep_height;
+            render_result->deep_data_owned = false;
+          }
+        }
+      }
     }
   }
 

@@ -22,6 +22,39 @@ Result Context::get_pass(const Scene * /*scene*/, int /*view_layer*/, const char
   return invalid_pass;
 }
 
+bool Context::get_deep_data(const Scene * /*scene*/,
+                            int /*view_layer_id*/,
+                            RenderDeepData **r_data,
+                            int *r_width,
+                            int *r_height) const
+{
+  if (r_data) {
+    *r_data = nullptr;
+  }
+  if (r_width) {
+    *r_width = 0;
+  }
+  if (r_height) {
+    *r_height = 0;
+  }
+
+  RenderContext *render_ctx = this->render_context();
+  if (render_ctx && render_ctx->has_deep_data()) {
+    if (r_data) {
+      *r_data = render_ctx->get_deep_data();
+    }
+    if (r_width) {
+      *r_width = render_ctx->get_deep_width();
+    }
+    if (r_height) {
+      *r_height = render_ctx->get_deep_height();
+    }
+    return true;
+  }
+
+  return false;
+}
+
 const RenderData &Context::get_render_data() const
 {
   return this->get_scene().r;

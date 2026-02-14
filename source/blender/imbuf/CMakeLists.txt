@@ -52,6 +52,8 @@ set(SRC
   intern/writeimage.cc
 
   IMB_colormanagement.hh
+  IMB_deep_sample.hh
+  IMB_deep_sample_merge.hh
   IMB_imbuf.hh
   IMB_imbuf_enums.h
   IMB_imbuf_types.hh

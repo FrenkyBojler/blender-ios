@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include <cstring>
+
 #include "blender/output_driver.h"
 
 #include "BLI_listbase.h"
@@ -106,6 +108,31 @@ void BlenderOutputDriver::write_render_tile(const Tile &tile)
     if (!tile.get_pass_pixels(b_pass.name, b_pass.channels, pixels.data())) {
       memset(pixels.data(), 0, pixels.size() * sizeof(float));
     }
+
+    /* Capture Combined pass for deep recolor (post-render beauty buffer). */
+    if (strcmp(b_pass.name, "Combined") == 0 && b_pass.channels == 4) {
+      const int full_width = tile.full_size.x;
+      const int full_height = tile.full_size.y;
+
+      if (combined_pass_buffer_.empty() || combined_width_ != full_width ||
+          combined_height_ != full_height) {
+        combined_width_ = full_width;
+        combined_height_ = full_height;
+        combined_pass_buffer_.assign(
+            static_cast<size_t>(combined_width_) * combined_height_ * 4, 0.0f);
+      }
+
+      for (int y = 0; y < tile.size.y; y++) {
+        const int dst_y = tile.offset.y + y;
+        const size_t src_offset = static_cast<size_t>(y) * tile.size.x * 4;
+        const size_t dst_offset =
+            (static_cast<size_t>(dst_y) * combined_width_ + tile.offset.x) * 4;
+        memcpy(combined_pass_buffer_.data() + dst_offset,
+               pixels.data() + src_offset,
+               sizeof(float) * tile.size.x * 4);
+      }
+    }
+
     if (b_pass.ibuf && b_pass.ibuf->float_buffer.data) {
       float *rect = b_pass.ibuf->float_buffer.data;
       const size_t size_in_bytes = sizeof(float) * b_pass.rectx * b_pass.recty * b_pass.channels;
@@ -114,6 +141,18 @@ void BlenderOutputDriver::write_render_tile(const Tile &tile)
   }
 
   RE_engine_end_result(&b_engine_, b_rr, false, false, true);
+}
+
+const float *BlenderOutputDriver::get_combined_pass(int &width, int &height) const
+{
+  if (combined_pass_buffer_.empty()) {
+    width = 0;
+    height = 0;
+    return nullptr;
+  }
+  width = combined_width_;
+  height = combined_height_;
+  return combined_pass_buffer_.data();
 }
 
 CCL_NAMESPACE_END

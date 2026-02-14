@@ -206,7 +206,7 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
   if (imtype == R_IMF_IMTYPE_TIFF) {
     return IMB_FTYPE_TIF;
   }
-  if (ELEM(imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER)) {
+  if (ELEM(imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER, R_IMF_IMTYPE_DEEP_EXR)) {
     return IMB_FTYPE_OPENEXR;
   }
 #ifdef WITH_IMAGE_CINEON
@@ -338,6 +338,7 @@ bool BKE_imtype_requires_linear_float(const char imtype)
     case R_IMF_IMTYPE_RADHDR:
     case R_IMF_IMTYPE_OPENEXR:
     case R_IMF_IMTYPE_MULTILAYER:
+    case R_IMF_IMTYPE_DEEP_EXR:
       return true;
   }
   return false;
@@ -357,6 +358,7 @@ char BKE_imtype_valid_channels(const char imtype)
     case R_IMF_IMTYPE_TIFF:
     case R_IMF_IMTYPE_OPENEXR:
     case R_IMF_IMTYPE_MULTILAYER:
+    case R_IMF_IMTYPE_DEEP_EXR:
     case R_IMF_IMTYPE_DDS:
     case R_IMF_IMTYPE_JP2:
     case R_IMF_IMTYPE_DPX:
@@ -391,6 +393,7 @@ char BKE_imtype_valid_depths(const char imtype)
     case R_IMF_IMTYPE_TIFF:
       return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_16;
     case R_IMF_IMTYPE_OPENEXR:
+    case R_IMF_IMTYPE_DEEP_EXR:
       return R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_32;
     case R_IMF_IMTYPE_MULTILAYER:
       return R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_32;
@@ -487,6 +490,9 @@ char BKE_imtype_from_arg(const char *imtype_arg)
   if (STREQ(imtype_arg, "MULTILAYER")) {
     return R_IMF_IMTYPE_MULTILAYER;
   }
+  if (STREQ(imtype_arg, "DEEP_EXR")) {
+    return R_IMF_IMTYPE_DEEP_EXR;
+  }
 #endif
 #ifdef WITH_FFMPEG
   if (STREQ(imtype_arg, "FFMPEG")) {
@@ -556,7 +562,7 @@ static int image_path_ext_from_imformat_impl(const char imtype,
     r_ext[ext_num++] = ".psd";
   }
 #ifdef WITH_IMAGE_OPENEXR
-  else if (ELEM(imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER)) {
+  else if (ELEM(imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER, R_IMF_IMTYPE_DEEP_EXR)) {
     r_ext[ext_num++] = ".exr";
   }
 #endif
@@ -792,7 +798,7 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
     }
   }
 #ifdef WITH_IMAGE_OPENEXR
-  else if (ELEM(imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER)) {
+  else if (ELEM(imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER, R_IMF_IMTYPE_DEEP_EXR)) {
     ibuf->ftype = IMB_FTYPE_OPENEXR;
     if (imf->depth == R_IMF_CHAN_DEPTH_16) {
       ibuf->foptions.flag |= OPENEXR_HALF;

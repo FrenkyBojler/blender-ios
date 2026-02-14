@@ -613,6 +613,13 @@ void BlenderSync::sync_film(blender::ViewLayer &b_view_layer,
   else {
     film->set_use_approximate_shadow_catcher(!get_boolean(crl, "use_pass_shadow_catcher"));
   }
+
+  /* Deep output settings.
+   * Auto-enable deep output when DEEP_EXR format is selected.
+   * Compositor File Output node detection is handled in session.cpp. */
+  bool use_deep_output = (b_scene->r.im_format.imtype == blender::R_IMF_IMTYPE_DEEP_EXR);
+  film->set_use_deep_output(use_deep_output);
+  film->set_deep_max_samples(get_int(cscene, "deep_max_samples"));
 }
 
 /* Render Layer */

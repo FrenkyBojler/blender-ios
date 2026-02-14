@@ -364,6 +364,7 @@ enum {
   R_IMF_IMTYPE_WEBP = 35,
   /* R_IMF_IMTYPE_AV1 = 36, DEPRECATED */
   R_IMF_IMTYPE_AVIF = 37,
+  R_IMF_IMTYPE_DEEP_EXR = 38,
 
   R_IMF_IMTYPE_INVALID = 255,
 };
@@ -506,6 +507,10 @@ struct ImageFormatData {
   char _pad[3] = {};
   short cineon_white = 0, cineon_black = 0;
   float cineon_gamma = 0;
+
+  /** Deep EXR. */
+  float deep_merge_tolerance = 0.01f;
+  float deep_alpha_merge_tolerance = 0.01f;
 
   /** Multi-view. */
   Stereo3dFormat stereo3d_format;

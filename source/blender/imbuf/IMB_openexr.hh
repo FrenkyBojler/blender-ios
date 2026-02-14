@@ -10,7 +10,10 @@
 
 #pragma once
 
+#include <vector>
+
 #include "BLI_string_ref.hh"
+#include "IMB_deep_sample.hh"
 
 namespace blender {
 
@@ -96,5 +99,25 @@ void IMB_exr_get_display_window(ExrHandle *handle,
                                 int display_size[2],
                                 int display_offset[2],
                                 int data_offset[2]);
+/* Deep EXR support. */
+
+/**
+ * Save deep EXR file with per-pixel variable sample counts.
+ * \param deep_data: Vector of per-pixel sample vectors (size = width * height)
+ * \param width: Image width
+ * \param height: Image height
+ * \param filepath: Output file path
+ * \param compression: EXR compression type (from scene settings)
+ * \param use_half_float: Use 16-bit floats for RGBA channels
+ * \param alpha_only: Write only A, Z, ZBack channels (omit RGB)
+ * \return true on success
+ */
+bool IMB_exr_save_deep(const std::vector<std::vector<DeepSample>> &deep_data,
+                       int width,
+                       int height,
+                       const char *filepath,
+                       int compression,
+                       bool use_half_float,
+                       bool alpha_only);
 
 }  // namespace blender

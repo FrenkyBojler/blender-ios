@@ -28,6 +28,7 @@ struct View3D;
 
 CCL_NAMESPACE_BEGIN
 
+class BlenderOutputDriver;
 class BlenderDisplayDriver;
 class BlenderSync;
 class ImageMetaData;
@@ -104,6 +105,9 @@ class BlenderSession {
   blender::RegionView3D *b_rv3d;
   string b_rlay_name;
   string b_rview_name;
+
+  /* Stored for deep recolor access (not owned - owned by session). */
+  BlenderOutputDriver *blender_output_driver = nullptr;
 
   string last_status;
   string last_error;

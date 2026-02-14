@@ -325,6 +325,30 @@ class RENDER_PT_output(RenderOutputButtonsPanel, Panel):
             col.prop(rd, "use_placeholder")
 
 
+class RENDER_PT_output_deep_exr(RenderOutputButtonsPanel, Panel):
+    bl_label = "Deep Output"
+    bl_parent_id = "RENDER_PT_output"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'CYCLES'}
+
+    @classmethod
+    def poll(cls, context):
+        rd = context.scene.render
+        return (context.engine in cls.COMPAT_ENGINES and 
+                rd.image_settings.file_format == 'DEEP_EXR')
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        imf = context.scene.render.image_settings
+        
+        layout.prop(imf, "exr_codec", text="Compression")
+        layout.prop(imf, "deep_merge_tolerance")
+        layout.prop(imf, "deep_alpha_merge_tolerance")
+
+
 class RENDER_PT_output_views(RenderOutputButtonsPanel, Panel):
     bl_label = "Views"
     bl_parent_id = "RENDER_PT_output"
@@ -728,6 +752,7 @@ classes = (
     RENDER_PT_time_stretching,
     RENDER_PT_stereoscopy,
     RENDER_PT_output,
+    RENDER_PT_output_deep_exr,
     RENDER_PT_output_views,
     RENDER_PT_output_color_management,
     RENDER_PT_output_pixel_density,

@@ -209,6 +209,21 @@ add_definitions(
   -DCCL_NAMESPACE_END=}
 )
 
+include_directories(
+  SYSTEM
+  ${BOOST_INCLUDE_DIR}
+  ${OPENIMAGEIO_INCLUDE_DIRS}
+  ${IMATH_INCLUDE_DIRS}
+  ${OPENEXR_INCLUDE_DIRS}
+  ${PUGIXML_INCLUDE_DIR}
+)
+
+if(WITH_CYCLES_BLENDER)
+  include_directories(
+    ../../source/blender/imbuf
+  )
+endif()
+
 if(WITH_CYCLES_DEBUG)
   add_definitions(-DWITH_CYCLES_DEBUG)
 endif()
