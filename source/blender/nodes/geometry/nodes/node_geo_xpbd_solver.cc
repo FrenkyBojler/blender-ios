@@ -983,17 +983,17 @@ class XpbdSolverStep {
                 const int point_i = pin_indices[pin_i];
                 compliance_terms[pin_i] = compliance_attr[point_i] * substep_compliance_factor_;
                 lambdas[pin_i] = float4(&geo_data.pin_rotation_lambda_attr.span[point_i].w);
-                /* This is initialized in each substep. */
-                MutableSpan<math::Quaternion> pin_rotation =
-                    thread_allocator.allocate_array<math::Quaternion>(pin_num);
-
-                chunk_constraints.pin_rotation_indices = pin_indices;
-                chunk_constraints.pin_rotations = pin_rotation;
-                chunk_constraints.pin_rotation_lambdas = lambdas;
-                chunk_constraints.static_constraints.append(
-                    &scope_.construct<xpbd::PinRotationConstraintSet>(
-                        data_key_i, pin_indices, pin_rotation, compliance_terms, lambdas));
               }
+              /* This is initialized in each substep. */
+              MutableSpan<math::Quaternion> pin_rotations =
+                  thread_allocator.allocate_array<math::Quaternion>(pin_num);
+
+              chunk_constraints.pin_rotation_indices = pin_indices;
+              chunk_constraints.pin_rotations = pin_rotations;
+              chunk_constraints.pin_rotation_lambdas = lambdas;
+              chunk_constraints.static_constraints.append(
+                  &scope_.construct<xpbd::PinRotationConstraintSet>(
+                      data_key_i, pin_indices, pin_rotations, compliance_terms, lambdas));
             }
           });
     }
@@ -1628,7 +1628,6 @@ class XpbdSolverStep {
       geo_data.velocity_attr.finish();
       geo_data.rotation_attr.finish();
       geo_data.angular_velocity_attr.finish();
-      geo_data.angular_velocity_attr.finish();
       geo_data.pin_position_lambda_attr.finish();
       geo_data.pin_rotation_lambda_attr.finish();
       geo_data.rod_stretch_shear_lambda_pos.finish();
@@ -1665,16 +1664,17 @@ class XpbdSolverStep {
                                     const Span<float3> torques)
   {
     for (const int i : old_rotations.index_range()) {
+      const math::Quaternion &old_rotation = old_rotations[i];
       const float3 &external_torque = torques[i];
       const float3 &inv_inertia = inv_inertias[i];
       if (math::is_zero(inv_inertia)) {
+        new_rotations[i] = old_rotation;
         continue;
       }
       float3 &angular_velocity = angular_velocities[i];
       const float3 precession = math::cross(angular_velocity,
                                             math::safe_divide(angular_velocity, inv_inertia));
       angular_velocity += delta_time * (external_torque - precession) * inv_inertia;
-      const math::Quaternion &old_rotation = old_rotations[i];
       const math::Quaternion direction = old_rotation * math::Quaternion(0, angular_velocity);
       new_rotations[i] = math::normalize(
           math::Quaternion(float4(old_rotation) + delta_time * 0.5f * float4(direction)));
