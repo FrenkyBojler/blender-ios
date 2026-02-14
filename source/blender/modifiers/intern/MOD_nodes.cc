@@ -2001,7 +2001,8 @@ void NodesModifierUsageInferenceCache::ensure(const NodesModifierData &nmd)
     }
   }
   const uint64_t new_input_values_hash = XXH3_64bits_digest(state);
-  if (new_input_values_hash == input_values_hash_) {
+  const uint32_t new_topology_hash = tree.runtime->output_topology_hash;
+  if (new_input_values_hash == input_values_hash_ && new_topology_hash == topology_hash_) {
     if (this->inputs.size() == tree.interface_inputs().size() &&
         this->outputs.size() == tree.interface_outputs().size())
     {
@@ -2015,11 +2016,13 @@ void NodesModifierUsageInferenceCache::ensure(const NodesModifierData &nmd)
   nodes::socket_usage_inference::infer_group_interface_usage(
       tree, group_input_values, inputs, outputs);
   input_values_hash_ = new_input_values_hash;
+  topology_hash_ = new_topology_hash;
 }
 
 void NodesModifierUsageInferenceCache::reset()
 {
   input_values_hash_ = 0;
+  topology_hash_ = 0;
   this->inputs = {};
   this->outputs = {};
 }

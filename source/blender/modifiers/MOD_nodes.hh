@@ -34,6 +34,7 @@ void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd);
 class NodesModifierUsageInferenceCache {
  private:
   uint64_t input_values_hash_ = 0;
+  uint32_t topology_hash_ = 0;
 
  public:
   Array<nodes::socket_usage_inference::SocketUsage> inputs;
