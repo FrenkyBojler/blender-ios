@@ -253,7 +253,7 @@ void sequencer_draw_maskedit(const bContext *C, Scene *scene, ARegion *region, S
    * For now just disable drawing since the strip frame will likely be offset. */
 
   // if (sc->mode == SC_MODE_MASKEDIT)
-  if (0 && sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
+  if (0 && ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
     Mask *mask = SEQ_active_mask_get(scene);
 
     if (mask) {
@@ -677,7 +677,7 @@ static void draw_vectorscope_graticule(ARegion *region, SeqQuadsBatch &quads, co
   ui::view2d_text_cache_draw(region);
 }
 
-static const char *get_scope_debug_name(eSpaceSeq_RegionType type)
+static const char *get_scope_debug_name(eSpaceSeq_ScopeType type)
 {
   switch (type) {
     case SEQ_DRAW_IMG_VECTORSCOPE:
@@ -688,8 +688,6 @@ static const char *get_scope_debug_name(eSpaceSeq_RegionType type)
       return "VSE Parade";
     case SEQ_DRAW_IMG_HISTOGRAM:
       return "VSE Histogram";
-    case SEQ_DRAW_IMG_IMBUF:
-      return "VSE Overexposed";
     default:
       return "VSE Scope";
   }
@@ -703,7 +701,7 @@ static void sequencer_draw_scopes(Scene *scene,
                                   int image_height,
                                   bool premultiplied)
 {
-  GPU_debug_group_begin(get_scope_debug_name(eSpaceSeq_RegionType(space_sequencer.mainb)));
+  GPU_debug_group_begin(get_scope_debug_name(eSpaceSeq_ScopeType(space_sequencer.scope)));
 
   gpu::Texture *input_texture = seq::preview_cache_get_gpu_display_texture(
       scene, timeline_frame, 0);
@@ -715,14 +713,14 @@ static void sequencer_draw_scopes(Scene *scene,
   SeqQuadsBatch quads;
   const SeqScopes *scopes = &space_sequencer.runtime->scopes;
 
-  bool use_blend = (space_sequencer.mainb == SEQ_DRAW_IMG_IMBUF &&
-                    space_sequencer.flag & SEQ_USE_ALPHA) ||
-                   (space_sequencer.mainb != SEQ_DRAW_IMG_IMBUF);
+  bool use_blend = (ELEM(space_sequencer.view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW) &&
+                    (space_sequencer.flag & SEQ_USE_ALPHA)) ||
+                   (space_sequencer.view == SEQ_VIEW_SCOPES);
 
   const rctf preview = preview_get_full_position(region);
 
   /* Draw black rectangle over scopes area. */
-  if (space_sequencer.mainb != SEQ_DRAW_IMG_IMBUF) {
+  if (space_sequencer.view == SEQ_VIEW_SCOPES) {
     GPU_blend(GPU_BLEND_NONE);
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
     uchar black[4] = {0, 0, 0, 255};
@@ -737,7 +735,7 @@ static void sequencer_draw_scopes(Scene *scene,
   }
 
   if (input_texture) {
-    if (space_sequencer.mainb == SEQ_DRAW_IMG_IMBUF) {
+    if (ELEM(space_sequencer.view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
       /* Draw overexposed overlay. */
       GPU_blend(GPU_BLEND_NONE);
       GPUVertFormat *imm_format = immVertexFormat();
@@ -756,7 +754,7 @@ static void sequencer_draw_scopes(Scene *scene,
       GPU_texture_unbind(input_texture);
       immUnbindProgram();
     }
-    else if (space_sequencer.mainb != SEQ_DRAW_IMG_HISTOGRAM) {
+    else if (!(space_sequencer.scope & SEQ_DRAW_IMG_HISTOGRAM)) {
       /* Draw point-based scopes using a compute shader based rasterizer (using
        * regular GPU pipeline to draw many points, where thousands of them can
        * hit the same pixels, is very inefficient, especially on tile-based GPUs).
@@ -797,7 +795,7 @@ static void sequencer_draw_scopes(Scene *scene,
         GPU_shader_uniform_1b(shader, "img_premultiplied", premultiplied);
         GPU_shader_uniform_1i(shader, "image_width", image_width);
         GPU_shader_uniform_1i(shader, "image_height", image_height);
-        GPU_shader_uniform_1i(shader, "scope_mode", space_sequencer.mainb);
+        GPU_shader_uniform_1i(shader, "scope_mode", space_sequencer.scope);
 
         const int2 groups_to_dispatch = math::divide_ceil(image_size, int2(16));
         GPU_compute_dispatch(shader, groups_to_dispatch.x, groups_to_dispatch.y, 1);
@@ -849,14 +847,14 @@ static void sequencer_draw_scopes(Scene *scene,
     GPU_blend(GPU_BLEND_ALPHA);
   }
 
-  if (space_sequencer.mainb == SEQ_DRAW_IMG_HISTOGRAM) {
+  if (space_sequencer.scope & SEQ_DRAW_IMG_HISTOGRAM) {
     draw_histogram(region, scopes->histogram, quads, preview);
   }
-  if (ELEM(space_sequencer.mainb, SEQ_DRAW_IMG_WAVEFORM, SEQ_DRAW_IMG_RGBPARADE)) {
+  if (space_sequencer.scope & (SEQ_DRAW_IMG_WAVEFORM | SEQ_DRAW_IMG_RGBPARADE)) {
     use_blend = true;
     draw_waveform_graticule(&region, quads, preview);
   }
-  if (space_sequencer.mainb == SEQ_DRAW_IMG_VECTORSCOPE) {
+  if (space_sequencer.scope & SEQ_DRAW_IMG_VECTORSCOPE) {
     use_blend = true;
     draw_vectorscope_graticule(&region, quads, preview);
   }
@@ -957,7 +955,7 @@ static void update_cpu_scopes(const SpaceSeq &space_sequencer,
   }
 
   scopes.cleanup();
-  if (space_sequencer.mainb == SEQ_DRAW_IMG_HISTOGRAM) {
+  if (space_sequencer.scope & SEQ_DRAW_IMG_HISTOGRAM) {
     scopes.histogram.calc_from_ibuf(&ibuf, view_settings, display_settings);
   }
   scopes.last_ibuf = &ibuf;
@@ -1222,7 +1220,7 @@ static void preview_draw_begin(const bContext *C,
                                const ColorManagedViewSettings &view_settings,
                                const ColorManagedDisplaySettings &display_settings,
                                ARegion &region,
-                               eSpaceSeq_RegionType preview_type)
+                               eSpaceSeq_ScopeType preview_type)
 {
   sequencer_stop_running_jobs(C, CTX_data_sequencer_scene(C));
 
@@ -1240,7 +1238,7 @@ static void preview_draw_begin(const bContext *C,
   View2D &v2d = region.v2d;
   float viewrect[2];
   /* For histogram and wave/parade scopes, allow arbitrary zoom. */
-  if (ELEM(preview_type, SEQ_DRAW_IMG_HISTOGRAM, SEQ_DRAW_IMG_WAVEFORM, SEQ_DRAW_IMG_RGBPARADE)) {
+  if (preview_type & (SEQ_DRAW_IMG_HISTOGRAM | SEQ_DRAW_IMG_WAVEFORM | SEQ_DRAW_IMG_RGBPARADE)) {
     v2d.keepzoom &= ~(V2D_KEEPASPECT | V2D_KEEPZOOM);
   }
   else {
@@ -1364,12 +1362,7 @@ static void preview_draw_all_image_overlays(const bContext *C,
   {
     return;
   }
-  if (ELEM(sseq->mainb,
-           SEQ_DRAW_IMG_WAVEFORM,
-           SEQ_DRAW_IMG_RGBPARADE,
-           SEQ_DRAW_IMG_VECTORSCOPE,
-           SEQ_DRAW_IMG_HISTOGRAM))
-  {
+  if (!ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
     return;
   }
 
@@ -1622,7 +1615,7 @@ static void draw_registered_callbacks(const bContext *C, ARegion &region)
 
 static bool check_scope_needs_input_texture(const SpaceSeq &sseq)
 {
-  return (sseq.mainb != SEQ_DRAW_IMG_HISTOGRAM) &&
+  return !(sseq.scope & SEQ_DRAW_IMG_HISTOGRAM) &&
          ELEM(sseq.view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW, SEQ_VIEW_SCOPES);
 }
 
@@ -1642,15 +1635,16 @@ static void sequencer_preview_draw_overlays(const bContext *C,
                                             const int timeline_frame)
 {
   const bool is_playing = ED_screen_animation_playing(&wm);
-  const bool show_preview_image = space_sequencer.mainb == SEQ_DRAW_IMG_IMBUF;
-  const bool has_cpu_scope = input_ibuf && space_sequencer.mainb == SEQ_DRAW_IMG_HISTOGRAM;
+  const bool show_preview_image = ELEM(
+      space_sequencer.view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW);
+  const bool is_scopes_view = ELEM(space_sequencer.view, SEQ_VIEW_SCOPES);
+  const bool has_cpu_scope = is_scopes_view && input_ibuf &&
+                             (space_sequencer.scope & SEQ_DRAW_IMG_HISTOGRAM);
   const bool has_gpu_scope = input_ibuf && current_texture &&
-                             ((space_sequencer.mainb == SEQ_DRAW_IMG_IMBUF &&
-                               space_sequencer.zebra != 0) ||
-                              ELEM(space_sequencer.mainb,
-                                   SEQ_DRAW_IMG_WAVEFORM,
-                                   SEQ_DRAW_IMG_RGBPARADE,
-                                   SEQ_DRAW_IMG_VECTORSCOPE));
+                             ((show_preview_image && space_sequencer.zebra != 0) ||
+                              (is_scopes_view && (space_sequencer.scope &
+                                                  (SEQ_DRAW_IMG_WAVEFORM | SEQ_DRAW_IMG_RGBPARADE |
+                                                   SEQ_DRAW_IMG_VECTORSCOPE)) != 0));
 
   /* Update scopes before starting regular draw (GPU scopes update changes framebuffer, etc.). */
   space_sequencer.runtime->scopes.last_ibuf_float = input_ibuf &&
@@ -1800,13 +1794,12 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
 
   const Editing &editing = *scene->ed;
   const RenderData &render_data = scene->r;
+  const eSpaceSeq_ScopeType preview_type = (space_sequencer.view == SEQ_VIEW_SCOPES) ?
+                                               eSpaceSeq_ScopeType(space_sequencer.scope) :
+                                               eSpaceSeq_ScopeType(0);
 
-  preview_draw_begin(C,
-                     render_data,
-                     scene->view_settings,
-                     scene->display_settings,
-                     *region,
-                     eSpaceSeq_RegionType(space_sequencer.mainb));
+  preview_draw_begin(
+      C, render_data, scene->view_settings, scene->display_settings, *region, preview_type);
 
   const bool show_imbuf = check_show_imbuf(space_sequencer);
   const bool use_gpu_texture = show_imbuf || check_scope_needs_input_texture(space_sequencer);

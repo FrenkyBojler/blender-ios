@@ -62,7 +62,6 @@ class StripsDrawBatch;
 struct SpaceSeq_Runtime : public NonCopyable {
   int rename_channel_index = 0;
   float timeline_clamp_custom_range = 0;
-  eSpaceSeq_RegionType last_scope_mainb = SEQ_DRAW_IMG_WAVEFORM;
   char last_view = SEQ_VIEW_SEQUENCE;
 
   SeqScopes scopes;

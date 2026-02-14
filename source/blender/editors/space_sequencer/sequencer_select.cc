@@ -1171,14 +1171,8 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (region->regiontype == RGN_TYPE_PREVIEW) {
-    if (!sequencer_view_preview_only_poll(C)) {
-      return OPERATOR_CANCELLED;
-    }
-    const SpaceSeq *sseq = CTX_wm_space_seq(C);
-    if (sseq->mainb != SEQ_DRAW_IMG_IMBUF) {
-      return OPERATOR_CANCELLED;
-    }
+  if (region->regiontype == RGN_TYPE_PREVIEW && !sequencer_view_preview_only_poll(C)) {
+    return OPERATOR_CANCELLED;
   }
 
   const bool was_retiming = seq::retiming_keys_are_selected(scene);

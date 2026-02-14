@@ -335,7 +335,8 @@ struct SpaceSeq {
   /** Deprecated: offset for drawing the image preview. */
   DNA_DEPRECATED float xof = 0;
   DNA_DEPRECATED float yof = 0;
-  short mainb = 0; /* eSpaceSeq_RegionType; strange name for view type (image, histogram, ...). */
+  /* Deprecated, Use SpaceSeq.scope instead. */
+  DNA_DEPRECATED short mainb = 0;
   short render_size = 0; /* eSpaceSeq_Proxy_RenderSize. */
   short chanshown = 0;
   short zebra = 0; /* Show overexposed. 0=disabled; otherwise as percentage of "pure white". */
@@ -348,7 +349,8 @@ struct SpaceSeq {
   /** Overlay an image of the editing on below the strips. */
   char draw_flag = 0;
   char gizmo_flag = 0;
-  char _pad[4] = {};
+  short scope = 0; /* eSpaceSeq_ScopeType. */
+  char _pad[2] = {};
 
   /** 2D cursor for transform. */
   float cursor[2] = {};

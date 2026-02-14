@@ -397,13 +397,14 @@ enum eSpaceSeq_SequencerCacheOverlay_Flag {
   SEQ_CACHE_SHOW_FINAL_OUT = (1 << 5),
 };
 
-/** #SpaceSeq.mainb */
-enum eSpaceSeq_RegionType {
-  SEQ_DRAW_IMG_IMBUF = 1,
-  SEQ_DRAW_IMG_WAVEFORM = 2,
-  SEQ_DRAW_IMG_VECTORSCOPE = 3,
-  SEQ_DRAW_IMG_HISTOGRAM = 4,
-  SEQ_DRAW_IMG_RGBPARADE = 5,
+/** #SpaceSeq.scope */
+enum eSpaceSeq_ScopeType {
+  SEQ_DRAW_IMG_IMBUF = (1 << 0), /* Deprecated. */
+
+  SEQ_DRAW_IMG_WAVEFORM = (1 << 1),
+  SEQ_DRAW_IMG_VECTORSCOPE = (1 << 2),
+  SEQ_DRAW_IMG_HISTOGRAM = (1 << 3),
+  SEQ_DRAW_IMG_RGBPARADE = (1 << 4),
 };
 
 /** #SpaceSeq.draw_flag */

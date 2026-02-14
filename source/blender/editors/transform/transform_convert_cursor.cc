@@ -104,7 +104,7 @@ static void recalcData_cursor_image(TransInfo *t)
 static void createTransCursor_sequencer(bContext * /*C*/, TransInfo *t)
 {
   SpaceSeq *sseq = static_cast<SpaceSeq *>(t->area->spacedata.first);
-  if (sseq->mainb != SEQ_DRAW_IMG_IMBUF) {
+  if (!ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
     return;
   }
   createTransCursor_2D_impl(t, sseq->cursor);

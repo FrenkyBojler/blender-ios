@@ -152,7 +152,7 @@ static void createTransSeqImageData(bContext *C, TransInfo *t)
   if (ed == nullptr) {
     return;
   }
-  if (sseq->mainb != SEQ_DRAW_IMG_IMBUF) {
+  if (sseq->view != SEQ_VIEW_PREVIEW) {
     return;
   }
   if (region->regiontype == RGN_TYPE_PREVIEW && sseq->view == SEQ_VIEW_SEQUENCE_PREVIEW) {

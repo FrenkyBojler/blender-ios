@@ -7,11 +7,11 @@
 
 COMPUTE_SHADER_CREATE_INFO(gpu_shader_sequencer_scope_raster)
 
-/* Match eSpaceSeq_RegionType */
-#define SEQ_DRAW_IMG_WAVEFORM 2
-#define SEQ_DRAW_IMG_VECTORSCOPE 3
-#define SEQ_DRAW_IMG_HISTOGRAM 4
-#define SEQ_DRAW_IMG_RGBPARADE 5
+/* Match eSpaceSeq_ScopeType */
+#define SEQ_DRAW_IMG_WAVEFORM (1 << 1)
+#define SEQ_DRAW_IMG_VECTORSCOPE (1 << 2)
+#define SEQ_DRAW_IMG_HISTOGRAM (1 << 3)
+#define SEQ_DRAW_IMG_RGBPARADE (1 << 4)
 
 /* Compute shader that rasterizes scope points into screen-sized
  * raster buffer, with accumulated R,G,B,A values in fixed point.
@@ -48,12 +48,12 @@ void main()
 
   /* Calculate point position based on scope mode; possibly adjust color too. */
   float2 pos = float2(0.0);
-  if (scope_mode == SEQ_DRAW_IMG_WAVEFORM) {
+  if (bool(scope_mode & SEQ_DRAW_IMG_WAVEFORM)) {
     /* Waveform: pixel height based on luminance. */
     pos.x = texel.x - image_width / 2;
     pos.y = (get_luminance(color.rgb, luma_coeffs) - 0.5f) * image_height;
   }
-  else if (scope_mode == SEQ_DRAW_IMG_RGBPARADE) {
+  else if (bool(scope_mode & SEQ_DRAW_IMG_RGBPARADE)) {
     /* RGB parade: similar to waveform, except three different "bands"
      * for each R/G/B intensity. */
     int channel = texel.x % 3;
@@ -78,7 +78,7 @@ void main()
       color.rgb = mix(color.rgb, float3(other_channels, other_channels, 1), factor);
     }
   }
-  else if (scope_mode == SEQ_DRAW_IMG_VECTORSCOPE) {
+  else if (bool(scope_mode & SEQ_DRAW_IMG_VECTORSCOPE)) {
     /* Vectorscope: pixel position is based on U,V of the color. */
     float4 yuva;
     rgba_to_yuva_itu_709(color, yuva);
@@ -92,7 +92,7 @@ void main()
    * and use full brightness. */
   float4 hsv;
   rgb_to_hsv(color, hsv);
-  if (scope_mode != SEQ_DRAW_IMG_RGBPARADE) {
+  if (!bool(scope_mode & SEQ_DRAW_IMG_RGBPARADE)) {
     /* Saturation adjustments for parade mode are already done above. */
     hsv.y *= 0.5f;
   }

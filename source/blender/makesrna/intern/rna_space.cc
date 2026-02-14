@@ -6575,8 +6575,7 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem display_mode_items[] = {
-      {SEQ_DRAW_IMG_IMBUF, "IMAGE", ICON_SEQ_PREVIEW, "Image Preview", ""},
+  static const EnumPropertyItem scope_type_items[] = {
       {SEQ_DRAW_IMG_WAVEFORM, "WAVEFORM", ICON_SEQ_LUMA_WAVEFORM, "Luma Waveform", ""},
       {SEQ_DRAW_IMG_RGBPARADE, "RGB_PARADE", ICON_RENDERLAYERS, "RGB Parade", ""},
       {SEQ_DRAW_IMG_VECTORSCOPE, "VECTOR_SCOPE", ICON_SEQ_CHROMA_SCOPE, "Chroma Vectorscope", ""},
@@ -6628,12 +6627,12 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
       prop, "View Type", "Type of the Sequencer view (sequencer, preview, both or scopes)");
   RNA_def_property_update(prop, 0, "rna_Sequencer_view_type_update");
 
-  /* display type, fairly important */
-  prop = RNA_def_property(srna, "display_mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "mainb");
-  RNA_def_property_enum_items(prop, display_mode_items);
-  RNA_def_property_ui_text(
-      prop, "Display Mode", "View mode to use for displaying sequencer output");
+  /* scope type in Scopes view, fairly important */
+  prop = RNA_def_property(srna, "scope_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "scope");
+  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
+  RNA_def_property_enum_items(prop, scope_type_items);
+  RNA_def_property_ui_text(prop, "Scope Type", "Scope type to display sequencer output");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
   /* flags */

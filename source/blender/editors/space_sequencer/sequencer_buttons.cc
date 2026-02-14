@@ -63,9 +63,9 @@ static void metadata_panel_context_draw(const bContext *C, Panel *panel)
 
   /* NOTE: We can only reliably show metadata for the original (current)
    * frame when split view is used. */
-  const bool show_split = (scene->ed &&
-                           (scene->ed->overlay_frame_flag & SEQ_EDIT_OVERLAY_FRAME_SHOW) &&
-                           (space_sequencer->mainb == SEQ_DRAW_IMG_IMBUF));
+  const bool show_split =
+      (scene->ed && (scene->ed->overlay_frame_flag & SEQ_EDIT_OVERLAY_FRAME_SHOW) &&
+       ELEM(space_sequencer->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW));
   if (show_split && (space_sequencer->overlay_frame_type == SEQ_OVERLAY_FRAME_TYPE_REFERENCE)) {
     return;
   }

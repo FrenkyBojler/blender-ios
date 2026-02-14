@@ -175,13 +175,13 @@ static bool view_frame_preview_scope(bContext *C, wmOperator *op, ARegion *regio
     return false;
   }
   SpaceSeq *sseq = CTX_wm_space_seq(C);
-  if (!sseq) {
+  if (!sseq || sseq->view != SEQ_VIEW_SCOPES) {
     return false;
   }
   const View2D *v2d = ui::view2d_fromcontext(C);
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
-  if (sseq->mainb == SEQ_DRAW_IMG_HISTOGRAM) {
+  if (sseq->scope & SEQ_DRAW_IMG_HISTOGRAM) {
     /* For histogram scope, use extents of the histogram. */
     const ScopeHistogram &hist = sseq->runtime->scopes.histogram;
     if (hist.data.is_empty()) {
@@ -199,7 +199,7 @@ static bool view_frame_preview_scope(bContext *C, wmOperator *op, ARegion *regio
     return true;
   }
 
-  if (ELEM(sseq->mainb, SEQ_DRAW_IMG_WAVEFORM, SEQ_DRAW_IMG_RGBPARADE)) {
+  if (sseq->scope & (SEQ_DRAW_IMG_WAVEFORM | SEQ_DRAW_IMG_RGBPARADE)) {
     /* For waveform/parade scopes, use 3.0 display space Y value as bounds
      * for HDR content. */
     const bool hdr = sseq->runtime->scopes.last_ibuf_float;

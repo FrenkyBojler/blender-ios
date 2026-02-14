@@ -94,7 +94,7 @@ bool maskedit_mask_poll(bContext *C)
 
 bool check_show_maskedit(SpaceSeq *sseq, Scene *scene)
 {
-  if (sseq && sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
+  if (sseq && ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
     return (seq::active_mask_get(scene) != nullptr);
   }
 
@@ -115,8 +115,7 @@ bool maskedit_poll(bContext *C)
 
 bool check_show_imbuf(const SpaceSeq &sseq)
 {
-  return (sseq.mainb == SEQ_DRAW_IMG_IMBUF) &&
-         ELEM(sseq.view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW);
+  return ELEM(sseq.view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW);
 }
 
 bool check_show_strip(const SpaceSeq &sseq)
@@ -232,9 +231,7 @@ bool sequencer_view_has_preview_poll(bContext *C)
   if (sseq == nullptr) {
     return false;
   }
-  if (!(ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW) &&
-        (sseq->mainb == SEQ_DRAW_IMG_IMBUF)))
-  {
+  if (!ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
     return false;
   }
   ARegion *region = CTX_wm_region(C);
@@ -259,7 +256,7 @@ bool sequencer_view_preview_only_poll(const bContext *C)
   if (sseq == nullptr) {
     return false;
   }
-  if (!(ELEM(sseq->view, SEQ_VIEW_PREVIEW) && (sseq->mainb == SEQ_DRAW_IMG_IMBUF))) {
+  if (!ELEM(sseq->view, SEQ_VIEW_PREVIEW)) {
     return false;
   }
   ARegion *region = CTX_wm_region(C);

@@ -116,10 +116,11 @@ class SEQUENCER_HT_header(Header):
 
         if st.view_type == 'SCOPES':
             row = layout.row(align=True)
-            row.prop_enum(st, "display_mode", value='WAVEFORM', text="", icon='SEQ_LUMA_WAVEFORM')
-            row.prop_enum(st, "display_mode", value='RGB_PARADE', text="", icon='RENDERLAYERS')
-            row.prop_enum(st, "display_mode", value='VECTOR_SCOPE', text="", icon='SEQ_CHROMA_SCOPE')
-            row.prop_enum(st, "display_mode", value='HISTOGRAM', text="", icon='SEQ_HISTOGRAM')
+            row.prop(st, "scope_type")
+            # row.prop_enum(st, "scope_type", value='WAVEFORM', text="", icon='SEQ_LUMA_WAVEFORM')
+            # row.prop_enum(st, "scope_type", value='RGB_PARADE', text="", icon='RENDERLAYERS')
+            # row.prop_enum(st, "scope_type", value='VECTOR_SCOPE', text="", icon='SEQ_CHROMA_SCOPE')
+            # row.prop_enum(st, "scope_type", value='HISTOGRAM', text="", icon='SEQ_HISTOGRAM')
         elif st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             layout.prop(st, "preview_channels", text="", icon_only=True)
 
@@ -224,7 +225,7 @@ class SEQUENCER_PT_preview_overlay(Panel):
         overlay_settings = st.preview_overlay
         layout = self.layout
 
-        layout.active = st.show_overlays and st.display_mode == 'IMAGE'
+        layout.active = st.show_overlays and st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}
 
         split = layout.column().split()
         col = split.column()
@@ -1808,7 +1809,7 @@ class SEQUENCER_PT_view(SequencerButtonsPanel_Output, Panel):
         col = layout.column()
         col.prop(st, "display_channel", text="Channel")
 
-        if st.display_mode == 'IMAGE':
+        if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             col.prop(st, "show_overexposed")
 
         if ed:
@@ -1879,7 +1880,7 @@ class SEQUENCER_PT_view_safe_areas(SequencerButtonsPanel_Output, Panel):
     def poll(cls, context):
         st = context.space_data
         is_preview = st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}
-        return is_preview and (st.display_mode == 'IMAGE') and context.sequencer_scene
+        return is_preview and context.sequencer_scene
 
     def draw_header(self, context):
         overlay_settings = context.space_data.preview_overlay

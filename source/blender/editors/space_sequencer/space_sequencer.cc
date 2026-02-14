@@ -62,15 +62,6 @@ static void sequencer_scopes_tag_refresh(ScrArea *area, const Scene *scene)
   seq::preview_cache_invalidate(const_cast<Scene *>(scene));
 }
 
-static bool sequencer_is_display_mode_a_scope(const SpaceSeq &sseq)
-{
-  return ELEM(sseq.mainb,
-              SEQ_DRAW_IMG_WAVEFORM,
-              SEQ_DRAW_IMG_RGBPARADE,
-              SEQ_DRAW_IMG_VECTORSCOPE,
-              SEQ_DRAW_IMG_HISTOGRAM);
-}
-
 static bool sequencer_is_image_preview_view(const char view)
 {
   return ELEM(view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW);
@@ -95,7 +86,7 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
   sseq->spacetype = SPACE_SEQ;
   sseq->chanshown = 0;
   sseq->view = SEQ_VIEW_SEQUENCE;
-  sseq->mainb = SEQ_DRAW_IMG_IMBUF;
+  sseq->scope = SEQ_DRAW_IMG_WAVEFORM;
   sseq->flag = SEQ_USE_ALPHA | SEQ_SHOW_MARKERS | SEQ_ZOOM_TO_FIT | SEQ_SHOW_OVERLAY;
   sseq->preview_overlay.flag = SEQ_PREVIEW_SHOW_GPENCIL | SEQ_PREVIEW_SHOW_OUTLINE_SELECTED;
   sseq->timeline_overlay.flag = SEQ_TIMELINE_SHOW_STRIP_NAME | SEQ_TIMELINE_SHOW_STRIP_SOURCE |
@@ -232,23 +223,6 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
   ARegion *region_preview = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
   ARegion *region_tools = BKE_area_find_region_type(area, RGN_TYPE_TOOLS);
   bool view_changed = false;
-  const short old_mainb = sseq->mainb;
-
-  if (sseq->view == SEQ_VIEW_SCOPES) {
-    if (sequencer_is_display_mode_a_scope(*sseq)) {
-      sseq->runtime->last_scope_mainb = eSpaceSeq_RegionType(sseq->mainb);
-    }
-    else {
-      sseq->mainb = sseq->runtime->last_scope_mainb;
-      if (!sequencer_is_display_mode_a_scope(*sseq)) {
-        sseq->mainb = SEQ_DRAW_IMG_WAVEFORM;
-      }
-    }
-  }
-  else if (sequencer_is_display_mode_a_scope(*sseq)) {
-    sseq->runtime->last_scope_mainb = eSpaceSeq_RegionType(sseq->mainb);
-    sseq->mainb = SEQ_DRAW_IMG_IMBUF;
-  }
 
   switch (sseq->view) {
     case SEQ_VIEW_PREVIEW:
@@ -303,9 +277,6 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
 
   if (view_changed) {
     ED_area_init(const_cast<bContext *>(C), window, area);
-    ED_area_tag_redraw(area);
-  }
-  else if (sseq->mainb != old_mainb) {
     ED_area_tag_redraw(area);
   }
 }

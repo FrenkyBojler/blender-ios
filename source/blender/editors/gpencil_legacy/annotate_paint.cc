@@ -1312,7 +1312,9 @@ static bool annotation_session_initdata(bContext *C, tGPsdata *p)
       p->align_flag = &ts->gpencil_v2d_align;
 
       /* check that gpencil data is allowed to be drawn */
-      if (!((sseq->mainb == SEQ_DRAW_IMG_IMBUF) && (region->regiontype == RGN_TYPE_PREVIEW))) {
+      if (!(ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW) &&
+            (region->regiontype != RGN_TYPE_PREVIEW)))
+      {
         p->status = GP_STATUS_ERROR;
         return false;
       }

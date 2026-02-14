@@ -536,7 +536,7 @@ bool ED_imbuf_sample_poll(bContext *C)
     case SPACE_SEQ: {
       SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
 
-      if (sseq->mainb != SEQ_DRAW_IMG_IMBUF) {
+      if (!ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
         return false;
       }
       if (seq::editing_get(CTX_data_sequencer_scene(C)) == nullptr) {
