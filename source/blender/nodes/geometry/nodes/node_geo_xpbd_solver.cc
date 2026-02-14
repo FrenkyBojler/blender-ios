@@ -1244,7 +1244,8 @@ class XpbdSolverStep {
       this->parallel_for_each_chunk(1, [&](const int chunk_i) {
         for (const int substep_i : IndexRange(substeps_)) {
           const SubstepInterval substep(substeps_, substep_i);
-          this->simulate__pre_position_solve__chunk(substep, chunk_i);
+          this->simulate__update_pin_positions__chunk(chunk_i, substep);
+          this->simulate__pre_position_solve__chunk(chunk_i);
           this->simulate__gather_dynamic_constraints__chunk_local(substep, chunk_i);
           this->simulate__reset_forces__chunk_local(chunk_i);
           for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
@@ -1298,24 +1299,17 @@ class XpbdSolverStep {
   void simulate__pre_position_solve(const SubstepInterval &substep)
   {
     this->parallel_for_each_chunk(16, [&](const int chunk_i) {
-      this->simulate__pre_position_solve__chunk(substep, chunk_i);
+      this->simulate__update_pin_positions__chunk(chunk_i, substep);
+      this->simulate__pre_position_solve__chunk(chunk_i);
     });
   }
 
-  void simulate__pre_position_solve__chunk(const SubstepInterval &substep, const int chunk_i)
+  void simulate__update_pin_positions__chunk(const int chunk_i, const SubstepInterval &substep)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-    const IndexRange points_range = chunk.points_range;
     const int data_key_i = chunk.data_key_i;
     GeometryData &geo_data = geometries_.data[data_key_i];
     ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
-
-    geo_data.prev_positions.as_mutable_span()
-        .slice(points_range)
-        .copy_from(geo_data.position_attr.span.slice(points_range));
-    geo_data.prev_rotations.as_mutable_span()
-        .slice(points_range)
-        .copy_from(geo_data.rotation_attr.span.slice(points_range));
 
     /* Update animated pin positions. */
     for (const int i : chunk_constraints.pin_positions.index_range()) {
@@ -1332,6 +1326,21 @@ class XpbdSolverStep {
       const math::Quaternion pin_rot = math::interpolate(begin_rot, end_rot, substep.end_factor);
       chunk_constraints.pin_rotations[i] = pin_rot;
     }
+  }
+
+  void simulate__pre_position_solve__chunk(const int chunk_i)
+  {
+    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+    const IndexRange points_range = chunk.points_range;
+    const int data_key_i = chunk.data_key_i;
+    GeometryData &geo_data = geometries_.data[data_key_i];
+
+    geo_data.prev_positions.as_mutable_span()
+        .slice(points_range)
+        .copy_from(geo_data.position_attr.span.slice(points_range));
+    geo_data.prev_rotations.as_mutable_span()
+        .slice(points_range)
+        .copy_from(geo_data.rotation_attr.span.slice(points_range));
 
     this->integrate_linear_velocities(sub_delta_time_,
                                       geo_data.prev_positions.as_span().slice(points_range),
