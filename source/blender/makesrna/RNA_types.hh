@@ -296,6 +296,9 @@ enum PropertySubType {
   PROP_DISTANCE_DIAMETER = 48 | PROP_UNIT_LENGTH,
   /** Mass based on scene defined units. */
   PROP_MASS = 49 | PROP_UNIT_MASS,
+
+  /** Displayed a value as fraction (1/125, 1/60, etc.). */
+  PROP_FRACTION = 50,
 };
 
 /** These two enum types can be combined. */

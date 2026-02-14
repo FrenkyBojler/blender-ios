@@ -3996,6 +3996,18 @@ static void ui_but_build_drawstr_float(Button *but, double value)
       but->drawstr = fmt::format("{}{:.{}f}", but->str, value * 100, std::max(0, precision - 2));
     }
   }
+  else if (subtype == PROP_FRACTION) {
+    if (value >= 1.0) {
+      const int prec = ui_but_calc_float_precision(but, value);
+      but->drawstr = fmt::format("{}{:.{}f}", but->str, value, prec);
+    }
+    else if (value > 0.0) {
+      but->drawstr = fmt::format("{}1/{:.0f}", but->str, 1.0 / value);
+    }
+    else {
+      but->drawstr = but->str + "0";
+    }
+  }
   else if (button_is_unit(but)) {
     char new_str[UI_MAX_DRAW_STR];
     ui_get_but_string_unit(but, new_str, sizeof(new_str), value, true, -1);
