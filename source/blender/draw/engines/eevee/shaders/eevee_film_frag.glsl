@@ -32,8 +32,7 @@ void main()
     }
 
     /* Apply film exposure to combined and light passes. */
-    bool use_exposure = (display_id == -1) ||
-                        (display_id == uniform_buf.film.diffuse_light_id) ||
+    bool use_exposure = (display_id == -1) || (display_id == uniform_buf.film.diffuse_light_id) ||
                         (display_id == uniform_buf.film.specular_light_id) ||
                         (display_id == uniform_buf.film.volume_light_id) ||
                         (display_id == uniform_buf.film.emission_id) ||

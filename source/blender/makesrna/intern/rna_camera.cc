@@ -89,6 +89,16 @@ static float rna_Camera_exposure_ev_get(PointerRNA *ptr)
   return BKE_camera_exposure_ev(cam);
 }
 
+static void rna_Camera_responsivity_update(Camera *cam)
+{
+  if (cam->camera_type_preset != 0) {
+    BKE_camera_responsivity_matrix_compute(cam->camera_type_preset, cam->responsivity_matrix);
+  }
+  else {
+    unit_m3(cam->responsivity_matrix);
+  }
+}
+
 static int rna_Camera_camera_type_preset_get(PointerRNA *ptr)
 {
   const Camera *cam = id_cast<const Camera *>(ptr->owner_id);
@@ -99,18 +109,13 @@ static void rna_Camera_camera_type_preset_set(PointerRNA *ptr, int value)
 {
   Camera *cam = id_cast<Camera *>(ptr->owner_id);
   cam->camera_type_preset = value;
-  if (value != 0) {
-    BKE_camera_responsivity_matrix_compute(value, cam->responsivity_matrix);
-  }
-  else {
-    unit_m3(cam->responsivity_matrix);
-  }
+  rna_Camera_responsivity_update(cam);
 }
 
 static const EnumPropertyItem *rna_Camera_camera_type_preset_itemf(bContext * /*C*/,
-                                                                    PointerRNA * /*ptr*/,
-                                                                    PropertyRNA * /*prop*/,
-                                                                    bool *r_free)
+                                                                   PointerRNA * /*ptr*/,
+                                                                   PropertyRNA * /*prop*/,
+                                                                   bool *r_free)
 {
   const int count = BKE_camera_responsivity_preset_count();
   EnumPropertyItem *items = nullptr;
@@ -1274,8 +1279,7 @@ void RNA_def_camera(BlenderRNA *brna)
                               "rna_Camera_camera_type_preset_get",
                               "rna_Camera_camera_type_preset_set",
                               "rna_Camera_camera_type_preset_itemf");
-  RNA_def_property_ui_text(
-      prop, "Camera Type", "Camera sensor spectral sensitivity preset");
+  RNA_def_property_ui_text(prop, "Camera Type", "Camera sensor spectral sensitivity preset");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   RNA_define_lib_overridable(false);

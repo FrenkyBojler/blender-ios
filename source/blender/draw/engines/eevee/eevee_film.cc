@@ -441,7 +441,7 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     {
       float3x3 xyz_to_sl = IMB_colormanagement_get_xyz_to_scene_linear();
       float resp[3][3];
-      copy_m3_m3(resp, const_cast<float(*)[3]>(resp_cam->responsivity_matrix));
+      copy_m3_m3(resp, const_cast<float (*)[3]>(resp_cam->responsivity_matrix));
       float combined[3][3];
       mul_m3_m3m3(combined, xyz_to_sl.ptr(), resp);
       data_.responsivity_row0 = float4(combined[0][0], combined[0][1], combined[0][2], 0.0f);

@@ -46,6 +46,21 @@ static const float cie_color_match[81][3] = {
     {0.0002f, 0.0001f, 0.0000f}, {0.0002f, 0.0001f, 0.0000f}, {0.0001f, 0.0000f, 0.0000f},
     {0.0001f, 0.0000f, 0.0000f}, {0.0001f, 0.0000f, 0.0000f}, {0.0000f, 0.0000f, 0.0000f}};
 
+/* CIE Standard Illuminant D65, relative spectral power distribution,
+ * 380-780nm, 5nm steps (81 entries). Normalized so that Y = 1.
+ * Data from CIE 015:2018. */
+static const float d65_spd[81] = {
+    49.9755f, 52.3118f, 54.6482f, 68.7015f, 82.7549f, 87.1204f, 91.486f,  92.4589f, 93.4318f,
+    90.057f,  86.6823f, 95.7736f, 104.865f, 110.936f, 117.008f, 117.41f,  117.812f, 116.336f,
+    114.861f, 115.392f, 115.923f, 112.367f, 108.811f, 109.082f, 109.354f, 108.578f, 107.802f,
+    106.296f, 104.79f,  106.239f, 107.689f, 106.047f, 104.405f, 104.225f, 104.046f, 102.023f,
+    100.0f,   98.1671f, 96.3342f, 96.0611f, 95.788f,  92.2368f, 88.6856f, 89.3459f, 90.0062f,
+    89.8026f, 89.5991f, 88.6489f, 87.6987f, 85.4936f, 83.2886f, 83.4939f, 83.6992f, 81.863f,
+    80.0268f, 80.1207f, 80.2146f, 81.2462f, 82.2778f, 80.281f,  78.2842f, 74.0027f, 69.7213f,
+    70.6652f, 71.6091f, 72.979f,  74.349f,  67.9765f, 61.604f,  65.7448f, 69.8856f, 72.4863f,
+    75.087f,  69.3398f, 63.5927f, 55.0054f, 46.4182f, 56.6118f, 66.8054f, 65.0941f, 63.3828f,
+};
+
 /* Camera spectral sensitivity data. */
 #include "camera_responsivity_data.inc"
 
@@ -56,18 +71,22 @@ void BKE_camera_responsivity_matrix_compute(int preset_index, float r_matrix[3][
     return;
   }
 
-  const float(*cam_data)[3] = camera_responsivity_presets[preset_index - 1].data;
+  const float (*cam_data)[3] = camera_responsivity_presets[preset_index - 1].data;
 
-  /* Compute M[i][j] = sum_lambda(CIE_i(lambda) * CamSens_j(lambda))
-   *                  / sum_lambda(CamSens_j(lambda))
-   * Where i = XYZ channel (0=X, 1=Y, 2=Z), j = camera channel (0=R, 1=G, 2=B). */
+  /* Diagonal white balance in camera RGB space, following the PhysLight approach:
+   *
+   *   M[i][j] = sum(CIE_i(l) * cam_j(l)) / sum(D65(l) * cam_j(l))
+   *
+   * This is equivalent to computing a raw CamRGB->XYZ matrix and pre-multiplying
+   * by diag(1/wb_R, 1/wb_G, 1/wb_B) where wb_j = sum(D65 * cam_j).
+   * The luminance normalization cancels out in the ratio. */
 
   float channel_sum[3] = {0.0f, 0.0f, 0.0f};
   float matrix[3][3] = {{0.0f}};
 
   for (int wl = 0; wl < 81; wl++) {
     for (int j = 0; j < 3; j++) {
-      const float cam_sens = cam_data[wl][j];
+      const float cam_sens = cam_data[wl][j] * d65_spd[wl];
       channel_sum[j] += cam_sens;
       for (int i = 0; i < 3; i++) {
         matrix[i][j] += cie_color_match[wl][i] * cam_sens;
