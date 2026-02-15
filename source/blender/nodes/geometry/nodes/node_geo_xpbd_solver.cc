@@ -176,10 +176,10 @@ struct PinPositionConstraintUsage {
   VArray<float> compliances_varray;
 
   Span<int> points;
-  Span<float3> prev_positions;
-  Span<float3> next_positions;
-  Span<float> compliances;
+  Span<float3> begin_positions;
+  Span<float3> end_positions;
   MutableSpan<float3> current_positions;
+  Span<float> compliances;
   MutableSpan<float> lambdas;
 };
 struct PinPositionConstraintChunkUsage {
@@ -205,10 +205,10 @@ struct PinRotationConstraintUsage {
   VArray<float> compliances_varray;
 
   Span<int> points;
-  Span<math::Quaternion> prev_rotations;
-  Span<math::Quaternion> next_rotations;
-  Span<float> compliances;
+  Span<math::Quaternion> begin_rotations;
+  Span<math::Quaternion> end_rotations;
   MutableSpan<math::Quaternion> current_rotations;
+  Span<float> compliances;
   MutableSpan<float4> lambdas;
 };
 struct PinRotationConstraintChunkUsage {
@@ -1314,22 +1314,22 @@ class XpbdSolverStep {
         const int pin_num = pin_mask.size();
 
         MutableSpan<int> points = global_allocator_.allocate_array<int>(pin_num);
-        MutableSpan<float3> prev_positions = global_allocator_.allocate_array<float3>(pin_num);
-        MutableSpan<float3> next_positions = global_allocator_.allocate_array<float3>(pin_num);
+        MutableSpan<float3> begin_positions = global_allocator_.allocate_array<float3>(pin_num);
+        MutableSpan<float3> end_positions = global_allocator_.allocate_array<float3>(pin_num);
         MutableSpan<float3> current_positions = global_allocator_.allocate_array<float3>(pin_num);
         MutableSpan<float> lambdas = global_allocator_.allocate_array<float>(pin_num);
         MutableSpan<float> compliances = global_allocator_.allocate_array<float>(pin_num);
 
         constraint_usage.points = points;
-        constraint_usage.prev_positions = prev_positions;
-        constraint_usage.next_positions = next_positions;
+        constraint_usage.begin_positions = begin_positions;
+        constraint_usage.end_positions = end_positions;
         constraint_usage.current_positions = current_positions;
         constraint_usage.lambdas = lambdas;
         constraint_usage.compliances = compliances;
 
         pin_mask.to_indices(points);
         constraint_usage.positions_varray.materialize_compressed_to_uninitialized(pin_mask,
-                                                                                  next_positions);
+                                                                                  end_positions);
         constraint_usage.compliances_varray.materialize_compressed_to_uninitialized(pin_mask,
                                                                                     compliances);
 
@@ -1342,15 +1342,15 @@ class XpbdSolverStep {
         threading::parallel_for(IndexRange(pin_num), 1024, [&](const IndexRange range) {
           for (const int pin_i : range) {
             const int point_i = points[pin_i];
-            float3 &prev_position = prev_positions[pin_i];
+            float3 &begin_position = begin_positions[pin_i];
             if (has_prev_info) {
               if (was_pinned_attr[point_i]) {
-                prev_position = prev_positions_attr[point_i];
+                begin_position = prev_positions_attr[point_i];
                 continue;
               }
             }
             else {
-              prev_position = geo_data.position_attr.span[point_i];
+              begin_position = geo_data.position_attr.span[point_i];
             }
           }
         });
@@ -1413,7 +1413,7 @@ class XpbdSolverStep {
           {
             for (const int pin_i : constraint_usage.points.index_range()) {
               const int point_i = constraint_usage.points[pin_i];
-              prev_position_attr.span[point_i] = constraint_usage.next_positions[pin_i];
+              prev_position_attr.span[point_i] = constraint_usage.end_positions[pin_i];
             }
             prev_position_attr.finish();
           }
@@ -1478,9 +1478,9 @@ class XpbdSolverStep {
         const int pin_num = pin_mask.size();
 
         MutableSpan<int> points = global_allocator_.allocate_array<int>(pin_num);
-        MutableSpan<math::Quaternion> prev_rotations =
+        MutableSpan<math::Quaternion> begin_rotations =
             global_allocator_.allocate_array<math::Quaternion>(pin_num);
-        MutableSpan<math::Quaternion> next_rotations =
+        MutableSpan<math::Quaternion> end_rotations =
             global_allocator_.allocate_array<math::Quaternion>(pin_num);
         MutableSpan<math::Quaternion> current_rotations =
             global_allocator_.allocate_array<math::Quaternion>(pin_num);
@@ -1488,15 +1488,15 @@ class XpbdSolverStep {
         MutableSpan<float4> lambdas = global_allocator_.allocate_array<float4>(pin_num);
 
         constraint_usage.points = points;
-        constraint_usage.prev_rotations = prev_rotations;
-        constraint_usage.next_rotations = next_rotations;
+        constraint_usage.begin_rotations = begin_rotations;
+        constraint_usage.end_rotations = end_rotations;
         constraint_usage.current_rotations = current_rotations;
         constraint_usage.compliances = compliances;
         constraint_usage.lambdas = lambdas;
 
         pin_mask.to_indices(points);
         constraint_usage.rotations_varray.materialize_compressed_to_uninitialized(pin_mask,
-                                                                                  next_rotations);
+                                                                                  end_rotations);
         constraint_usage.compliances_varray.materialize_compressed_to_uninitialized(pin_mask,
                                                                                     compliances);
 
@@ -1510,15 +1510,15 @@ class XpbdSolverStep {
         threading::parallel_for(IndexRange(pin_num), 1024, [&](const IndexRange range) {
           for (const int pin_i : range) {
             const int point_i = points[pin_i];
-            math::Quaternion &prev_rotation = prev_rotations[pin_i];
+            math::Quaternion &begin_rotation = begin_rotations[pin_i];
             if (has_prev_info) {
               if (was_pinned_attr[point_i]) {
-                prev_rotation = prev_rotations_attr[point_i];
+                begin_rotation = prev_rotations_attr[point_i];
                 continue;
               }
             }
             else {
-              prev_rotation = geo_data.rotation_attr.span[point_i];
+              begin_rotation = geo_data.rotation_attr.span[point_i];
             }
           }
         });
@@ -1581,7 +1581,7 @@ class XpbdSolverStep {
           {
             for (const int pin_i : constraint_usage.points.index_range()) {
               const int point_i = constraint_usage.points[pin_i];
-              prev_rotation_attr.span[point_i] = constraint_usage.next_rotations[pin_i];
+              prev_rotation_attr.span[point_i] = constraint_usage.end_rotations[pin_i];
             }
             prev_rotation_attr.finish();
           }
@@ -1793,8 +1793,8 @@ class XpbdSolverStep {
       const PinPositionConstraintUsage &constraint_usage =
           geo_data.pin_position_constraints[constraint_chunk_usage.constraint_usage_i];
       for (const int pin_i : constraint_chunk_usage.pin_range) {
-        const float3 &begin_pos = constraint_usage.prev_positions[pin_i];
-        const float3 &end_pos = constraint_usage.next_positions[pin_i];
+        const float3 &begin_pos = constraint_usage.begin_positions[pin_i];
+        const float3 &end_pos = constraint_usage.end_positions[pin_i];
         const float3 pin_pos = math::interpolate(begin_pos, end_pos, substep.end_factor);
         constraint_usage.current_positions[pin_i] = pin_pos;
       }
@@ -1805,8 +1805,8 @@ class XpbdSolverStep {
       const PinRotationConstraintUsage &constraint_usage =
           geo_data.pin_rotation_constraints[constraint_chunk_usage.constraint_usage_i];
       for (const int pin_i : constraint_chunk_usage.pin_range) {
-        const math::Quaternion &begin_rot = constraint_usage.prev_rotations[pin_i];
-        const math::Quaternion &end_rot = constraint_usage.next_rotations[pin_i];
+        const math::Quaternion &begin_rot = constraint_usage.begin_rotations[pin_i];
+        const math::Quaternion &end_rot = constraint_usage.end_rotations[pin_i];
         const math::Quaternion pin_rot = math::interpolate(begin_rot, end_rot, substep.end_factor);
         constraint_usage.current_rotations[pin_i] = pin_rot;
       }
