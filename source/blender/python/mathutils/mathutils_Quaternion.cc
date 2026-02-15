@@ -433,11 +433,11 @@ PyDoc_STRVAR(
     Quaternion_cross_doc,
     ".. method:: cross(other, /)\n"
     "\n"
-    "   Return the cross product of this quaternion and another.\n"
+    "   Return the Hamilton product of this quaternion and another.\n"
     "\n"
-    "   :param other: The other quaternion to perform the cross product with.\n"
+    "   :param other: The other quaternion to perform the Hamilton product with.\n"
     "   :type other: :class:`Quaternion`\n"
-    "   :return: The cross product.\n"
+    "   :return: The Hamilton product.\n"
     "   :rtype: :class:`Quaternion`\n");
 static PyObject *Quaternion_cross(QuaternionObject *self, PyObject *value)
 {
@@ -631,7 +631,7 @@ PyDoc_STRVAR(
     "   Make this quaternion compatible with another,\n"
     "   so interpolating between them works as intended.\n"
     "\n"
-    "   :param other: The other quaternion to make compatible with.\n"
+    "   :param other: The reference quaternion to make this one compatible with.\n"
     "   :type other: :class:`Quaternion`\n");
 static PyObject *Quaternion_make_compatible(QuaternionObject *self, PyObject *value)
 {
@@ -1897,7 +1897,8 @@ PyDoc_STRVAR(
     "\n"
     "   This object gives access to Quaternions in Blender.\n"
     "\n"
-    "   :param seq: size 3 or 4\n"
+    "   :param seq: A (w, x, y, z) quaternion, a 3D exponential map vector,\n"
+    "      or a 3D axis vector (when *angle* is also provided).\n"
     "   :type seq: Sequence[float]\n"
     "   :param angle: rotation angle, in radians\n"
     "   :type angle: float\n"
