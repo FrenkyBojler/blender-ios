@@ -1186,7 +1186,7 @@ class AngularDampingConstraintSet
  private:
   int geo_i_;
   IndexRange points_;
-  /** Indexed by point index. */
+  /** Indexed by constraint index. */
   Span<float> angular_dampings_;
   MutableSpan<float> lambdas_;
 
@@ -1207,8 +1207,7 @@ class AngularDampingConstraintSet
 
   void reset_force(const int constraint_i) const
   {
-    const int point_i = points_[constraint_i];
-    lambdas_[point_i] = 0.0f;
+    lambdas_[constraint_i] = 0.0f;
   }
 
   template<typename UpdaterT>
@@ -1218,13 +1217,13 @@ class AngularDampingConstraintSet
   {
     const int point_i = points_[constraint_i];
     const float3 &angular_velocity = params.angular_velocity(geo_i_, point_i);
-    const float damping = angular_dampings_[point_i];
+    const float damping = angular_dampings_[constraint_i];
     const float damping_factor = damping * params.delta_time;
     float residual;
     const float3 gradient = math::normalize_and_get_length(angular_velocity, residual);
-    const float delta_lambda = -residual * damping_factor - lambdas_[point_i];
+    const float delta_lambda = -residual * damping_factor - lambdas_[constraint_i];
     const float3 offset = gradient * delta_lambda;
-    lambdas_[point_i] += delta_lambda;
+    lambdas_[constraint_i] += delta_lambda;
     updater.update_angular_velocity(geo_i_, point_i, offset);
   }
 
