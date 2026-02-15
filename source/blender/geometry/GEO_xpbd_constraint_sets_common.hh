@@ -902,7 +902,7 @@ class RodBendAndTwistConstraintSet : public TemplatedConstraintSet<RodBendAndTwi
     const int first_point_i_in_constraint_set =
         this->points_by_curve[this->curves_range.first()].first();
 
-    /* TODO: Implement bilateral interleaving ordering for better stability. */
+    /* Could implement bilateral interleaving ordering for better stability. */
     /* Note that the last segment does not have this constraint, because the rotation of the last
      * point in the rod is meaningless.*/
     for (const int point_i0 : points.drop_back(2)) {

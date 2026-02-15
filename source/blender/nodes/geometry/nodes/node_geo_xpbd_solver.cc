@@ -277,11 +277,6 @@ struct GeometryData {
   VArraySpan<float> rest_lengths;
   VArraySpan<math::Quaternion> rest_bend_rotations;
 
-  /**
-   * Inverse of the mass attribute + extra changes:
-   * - For hard pinned positions this is set to 0. // TODO: actually support hard pinning
-   * - If there is no mass attribute, or it is <= 0, this is set to 1.
-   */
   Array<float> inv_masses;
   Array<float3> inv_moments_of_inertia;
   /**
@@ -983,10 +978,6 @@ class XpbdSolverStep {
       else {
         inv_masses.fill(1.0f);
       }
-
-      /* Pinned points have infinite mass, so their inverse mass is 0. */
-      // TODO: This should only be done for hard pinning.
-      // index_mask::masked_fill(inv_masses, 0.0f, geo_data.pin_position_mask);
     }
   }
 
@@ -1016,9 +1007,6 @@ class XpbdSolverStep {
       else {
         inv_moments_of_inertia.fill(float3(1.0f));
       }
-
-      // TODO: This should only be done for hard pinning.
-      // index_mask::masked_fill(inv_inertias, float3(0.0f), geo_data.pin_rotation_mask);
 
       geo_data.moments_of_inertia.reinitialize(geo_data.size);
       for (const int i : IndexRange(geo_data.size)) {
