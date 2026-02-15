@@ -1273,8 +1273,9 @@ class XpbdSolverStep {
       constraint.selection = this->get_field_or_constant<bool>(bundle, "selection", true);
       constraint.position = *position_field;
       constraint.compliance = this->get_field_or_constant<float>(bundle, "compliance", 0.0f);
-      constraint.prev_position_attr = "prev_pin_position";
-      constraint.was_pinned_attr = "had_pinned_position";
+      constraint.prev_position_attr =
+          bundle.lookup<std::string>("previous_pin_position_attribute").value_or("");
+      constraint.was_pinned_attr = bundle.lookup<std::string>("was_pinned_attribute").value_or("");
       const int constraint_i = constraints_info_.pin_position_constraints.append_and_get_index(
           std::move(constraint));
 
@@ -1437,8 +1438,9 @@ class XpbdSolverStep {
       constraint.selection = this->get_field_or_constant<bool>(bundle, "selection", true);
       constraint.rotation = *rotation_field;
       constraint.compliance = this->get_field_or_constant<float>(bundle, "compliance", 0.0f);
-      constraint.prev_rotation_attr = "prev_pin_rotation";
-      constraint.was_pinned_attr = "had_pinned_rotation";
+      constraint.prev_rotation_attr =
+          bundle.lookup<std::string>("previous_pin_rotation_attribute").value_or("");
+      constraint.was_pinned_attr = bundle.lookup<std::string>("was_pinned_attribute").value_or("");
       const int constraint_i = constraints_info_.pin_rotation_constraints.append_and_get_index(
           std::move(constraint));
 
