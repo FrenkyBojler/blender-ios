@@ -29,12 +29,13 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
     }
   }
 
-  void solve_serial(const ConstraintSetParams &params, GaussSeidelUpdater &updater) override
+  void solve_serial(const ConstraintSetParams &params,
+                    GaussSeidelUpdater &updater,
+                    const IndexMask &mask) override
   {
     const Child &self = static_cast<const Child &>(*this);
-    for (const int constraint_i : IndexRange(constraints_num_)) {
-      self.evaluate_single(params, updater, constraint_i);
-    }
+    mask.foreach_index(
+        [&](const int64_t constraint_i) { self.evaluate_single(params, updater, constraint_i); });
   }
 
   StringRefNull debug_name() const final

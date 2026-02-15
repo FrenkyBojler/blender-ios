@@ -1942,7 +1942,7 @@ class XpbdSolverStep {
     xpbd::GaussSeidelUpdater updater{solver_refs};
 
     for (xpbd::ConstraintSet *constraint : chunk_data.static_constraints) {
-      constraint->solve_serial(solve_params, updater);
+      constraint->solve_serial_all(solve_params, updater);
     }
 
     if (!chunk_data.external_plane_contacts.points.is_empty()) {
@@ -1957,7 +1957,7 @@ class XpbdSolverStep {
                                                                    contacts.dynamic_frictions,
                                                                    contacts.active_states,
                                                                    contacts.lambdas_normal);
-      plane_collision_constraint.solve_serial(solve_params, updater);
+      plane_collision_constraint.solve_serial_all(solve_params, updater);
     }
   }
 
