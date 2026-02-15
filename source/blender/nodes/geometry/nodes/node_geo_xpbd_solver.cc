@@ -419,7 +419,7 @@ struct ExternalPlaneContacts {
   }
 };
 
-struct ChunkConstraints {
+struct ChunkData {
   Vector<xpbd::ConstraintSet *> static_constraints;
   Vector<xpbd::VelocityConstraintSet *> static_velocity_constraints;
 
@@ -464,7 +464,6 @@ template<typename T> class VArraySpanGetter {
 };
 
 struct ConstraintsInfo {
-  Array<ChunkConstraints> chunk_constraints;
   Vector<InfinitePlaneCollider> infinite_plane_colliders;
   Vector<MeshCollider> mesh_colliders;
   Vector<DampingConstraint> damping_constraints;
@@ -493,6 +492,7 @@ class XpbdSolverStep {
 
   Geometries geometries_;
   ConstraintsInfo constraints_;
+  Array<ChunkData> chunks_data_;
 
   Map<FieldEvaluatorKey, fn::FieldEvaluator *> field_evaluators_;
 
@@ -945,7 +945,7 @@ class XpbdSolverStep {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
         geo_data.point_to_chunk.as_mutable_span().slice(chunk.points_range).fill(chunk_i);
       }
-      constraints_.chunk_constraints.reinitialize(geometries_.chunks.size());
+      chunks_data_.reinitialize(geometries_.chunks.size());
     }
     for (const int chunk_i : geometries_.chunks.index_range()) {
       const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
@@ -1060,8 +1060,8 @@ class XpbdSolverStep {
 
       for (const int chunk_i : geo_data.chunks) {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-        ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
-        chunk_constraints.static_constraints.append(
+        ChunkData &chunk_data = chunks_data_[chunk_i];
+        chunk_data.static_constraints.append(
             &global_scope_.construct<xpbd::RodStretchAndShearConstraintSet>(
                 data_key_i,
                 *chunk.curves_range,
@@ -1137,7 +1137,7 @@ class XpbdSolverStep {
 
       for (const int chunk_i : geo_data.chunks) {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-        constraints_.chunk_constraints[chunk_i].static_constraints.append(
+        chunks_data_[chunk_i].static_constraints.append(
             &global_scope_.construct<xpbd::RodBendAndTwistConstraintSet>(
                 data_key_i,
                 *chunk.curves_range,
@@ -1203,15 +1203,15 @@ class XpbdSolverStep {
 
         for (const int chunk_i : geo_data.chunks) {
           const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-          ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
+          ChunkData &chunk_data = chunks_data_[chunk_i];
 
-          chunk_constraints.static_velocity_constraints.append(
+          chunk_data.static_velocity_constraints.append(
               &global_scope_.construct<xpbd::LinearDampingConstraintSet>(
                   data_key_i,
                   chunk.points_range,
                   linear_dampings.get_span_for_range(chunk.points_range),
                   constraint_usage.linear_damping_lambdas.slice(chunk.points_range)));
-          chunk_constraints.static_velocity_constraints.append(
+          chunk_data.static_velocity_constraints.append(
               &global_scope_.construct<xpbd::AngularDampingConstraintSet>(
                   data_key_i,
                   chunk.points_range,
@@ -1326,9 +1326,9 @@ class XpbdSolverStep {
           if (pin_range.is_empty()) {
             continue;
           }
-          ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
-          chunk_constraints.pin_position_constraints.append({constraint_usage_i, pin_range});
-          chunk_constraints.static_constraints.append(
+          ChunkData &chunk_data = chunks_data_[chunk_i];
+          chunk_data.pin_position_constraints.append({constraint_usage_i, pin_range});
+          chunk_data.static_constraints.append(
               &global_scope_.construct<xpbd::PinPositionConstraintSet>(
                   data_key_i,
                   points.slice(pin_range),
@@ -1495,9 +1495,9 @@ class XpbdSolverStep {
           if (pin_range.is_empty()) {
             continue;
           }
-          ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
-          chunk_constraints.pin_rotation_constraints.append({constraint_usage_i, pin_range});
-          chunk_constraints.static_constraints.append(
+          ChunkData &chunk_data = chunks_data_[chunk_i];
+          chunk_data.pin_rotation_constraints.append({constraint_usage_i, pin_range});
+          chunk_data.static_constraints.append(
               &global_scope_.construct<xpbd::PinRotationConstraintSet>(
                   data_key_i,
                   points.slice(pin_range),
@@ -1729,11 +1729,11 @@ class XpbdSolverStep {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const int data_key_i = chunk.data_key_i;
     GeometryData &geo_data = geometries_.data[data_key_i];
-    ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
+    ChunkData &chunk_data = chunks_data_[chunk_i];
 
     /* Update animated pin positions. */
     for (const PinPositionConstraintChunkUsage &constraint_chunk_usage :
-         chunk_constraints.pin_position_constraints)
+         chunk_data.pin_position_constraints)
     {
       const PinPositionConstraintUsage &constraint_usage =
           geo_data.pin_position_constraints[constraint_chunk_usage.constraint_usage_i];
@@ -1745,7 +1745,7 @@ class XpbdSolverStep {
       }
     }
     for (const PinRotationConstraintChunkUsage &constraint_chunk_usage :
-         chunk_constraints.pin_rotation_constraints)
+         chunk_data.pin_rotation_constraints)
     {
       const PinRotationConstraintUsage &constraint_usage =
           geo_data.pin_rotation_constraints[constraint_chunk_usage.constraint_usage_i];
@@ -1792,8 +1792,8 @@ class XpbdSolverStep {
                                                    const int chunk_i)
   {
     const float max_distance = this->get_max_search_distance(sub_delta_time_);
-    ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
-    const ExternalPlaneContacts &prev_contacts = chunk_constraints.external_plane_contacts;
+    ChunkData &chunk_data = chunks_data_[chunk_i];
+    const ExternalPlaneContacts &prev_contacts = chunk_data.external_plane_contacts;
     ExternalPlaneContacts new_contacts;
     this->gather_ground_plane_contacts(
         chunk_i, max_distance, substep, prev_contacts, new_contacts);
@@ -1804,7 +1804,7 @@ class XpbdSolverStep {
       new_contacts.collider_velocities.append(
           math::safe_divide(new_contacts.collider_motion[i], sub_delta_time_));
     }
-    chunk_constraints.external_plane_contacts = std::move(new_contacts);
+    chunk_data.external_plane_contacts = std::move(new_contacts);
   }
 
   void simulate__reset_forces()
@@ -1815,11 +1815,11 @@ class XpbdSolverStep {
 
   void simulate__reset_forces__chunk(const int chunk_i)
   {
-    ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
-    for (xpbd::ConstraintSet *constraint : chunk_constraints.static_constraints) {
+    ChunkData &chunk_data = chunks_data_[chunk_i];
+    for (xpbd::ConstraintSet *constraint : chunk_data.static_constraints) {
       constraint->reset_forces();
     }
-    for (xpbd::VelocityConstraintSet *constraint : chunk_constraints.static_velocity_constraints) {
+    for (xpbd::VelocityConstraintSet *constraint : chunk_data.static_velocity_constraints) {
       constraint->reset_forces();
     }
   }
@@ -1835,13 +1835,13 @@ class XpbdSolverStep {
                                                          const int solver_refs_i)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-    ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
+    ChunkData &chunk_data = chunks_data_[chunk_i];
 
-    Vector<xpbd::ConstraintSet *> local_constraints = chunk_constraints.static_constraints;
+    Vector<xpbd::ConstraintSet *> local_constraints = chunk_data.static_constraints;
 
     std::optional<xpbd::CollisionPlaneConstraintSet> plane_collision_constraint;
-    if (!chunk_constraints.external_plane_contacts.points.is_empty()) {
-      ExternalPlaneContacts &contacts = chunk_constraints.external_plane_contacts;
+    if (!chunk_data.external_plane_contacts.points.is_empty()) {
+      ExternalPlaneContacts &contacts = chunk_data.external_plane_contacts;
       plane_collision_constraint.emplace(chunk.data_key_i,
                                          contacts.points,
                                          contacts.positions_on_plane,
@@ -1887,13 +1887,13 @@ class XpbdSolverStep {
   void simulate__velocity_solve__chunk(const int chunk_i, const int solver_refs_i)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-    ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
+    ChunkData &chunk_data = chunks_data_[chunk_i];
 
     Vector<xpbd::VelocityConstraintSet *> local_constraints =
-        chunk_constraints.static_velocity_constraints;
+        chunk_data.static_velocity_constraints;
     std::optional<xpbd::FrictionConstraintSet> friction_constraint;
-    if (!chunk_constraints.external_plane_contacts.points.is_empty()) {
-      ExternalPlaneContacts &contacts = chunk_constraints.external_plane_contacts;
+    if (!chunk_data.external_plane_contacts.points.is_empty()) {
+      ExternalPlaneContacts &contacts = chunk_data.external_plane_contacts;
       friction_constraint.emplace(chunk.data_key_i,
                                   contacts.points,
                                   contacts.separating_axes,
