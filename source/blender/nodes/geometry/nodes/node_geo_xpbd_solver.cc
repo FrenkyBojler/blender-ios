@@ -45,7 +45,8 @@ constexpr StringRefNull external_force = "external_force";
 constexpr StringRefNull external_torque = "external_torque";
 constexpr StringRefNull mass = "mass";
 constexpr StringRefNull moment_of_inertia = "moment_of_inertia";
-constexpr StringRefNull friction = "friction";
+constexpr StringRefNull static_friction = "static_friction";
+constexpr StringRefNull dynamic_friction = "dynamic_friction";
 constexpr StringRefNull rest_length = "rest_length";
 constexpr StringRefNull rest_bend_rotation = "rest_bend_rotation";
 
@@ -276,7 +277,8 @@ struct GeometryData {
   VArraySpan<float3> external_torque_attr;
   VArraySpan<float> rest_lengths;
   VArraySpan<math::Quaternion> rest_bend_rotations;
-  VArray<float> frictions;
+  VArray<float> static_frictions;
+  VArray<float> dynamic_frictions;
   VArray<float> masses;
   VArraySpan<float3> moments_of_inertia;
 
@@ -651,20 +653,22 @@ class XpbdSolverStep {
       geo_data.size = geo_data.attributes.domain_size(domain);
       geo_data.temp_positions.reinitialize(geo_data.size);
       geo_data.temp_rotations.reinitialize(geo_data.size);
-      geo_data.position_attr = geo_data.attributes.lookup_or_add_for_write_span<float3>(
-          attribute_names::position, domain);
-      geo_data.velocity_attr = geo_data.attributes.lookup_or_add_for_write_span<float3>(
-          attribute_names::velocity, domain);
-      geo_data.rotation_attr = geo_data.attributes.lookup_or_add_for_write_span<math::Quaternion>(
-          attribute_names::rotation, domain);
-      geo_data.angular_velocity_attr = geo_data.attributes.lookup_or_add_for_write_span<float3>(
-          attribute_names::angular_velocity, domain);
+      geo_data.position_attr = this->ensure_attribute<float3>(
+          geo_data.attributes, attribute_names::position, domain);
+      geo_data.velocity_attr = this->ensure_attribute<float3>(
+          geo_data.attributes, attribute_names::velocity, domain);
+      geo_data.rotation_attr = this->ensure_attribute<math::Quaternion>(
+          geo_data.attributes, attribute_names::rotation, domain);
+      geo_data.angular_velocity_attr = this->ensure_attribute<float3>(
+          geo_data.attributes, attribute_names::angular_velocity, domain);
       geo_data.external_force_attr = *geo_data.attributes.lookup_or_default<float3>(
           attribute_names::external_force, domain, float3(0, 0, 0));
       geo_data.external_torque_attr = *geo_data.attributes.lookup_or_default<float3>(
           attribute_names::external_torque, domain, float3(0, 0, 0));
-      geo_data.frictions = *geo_data.attributes.lookup_or_default<float>(
-          attribute_names::friction, domain, 0.0f);
+      geo_data.static_frictions = *geo_data.attributes.lookup_or_default<float>(
+          attribute_names::static_friction, domain, 0.0f);
+      geo_data.dynamic_frictions = *geo_data.attributes.lookup_or_default<float>(
+          attribute_names::dynamic_friction, domain, 0.0f);
       geo_data.masses = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::mass, domain, 1.0f);
       geo_data.moments_of_inertia = *geo_data.attributes.lookup_or_default<float3>(
@@ -678,6 +682,22 @@ class XpbdSolverStep {
             attribute_names::rest_bend_rotation, geo_data.domain, math::Quaternion::identity());
       }
     }
+  }
+
+  template<typename T>
+  bke::SpanAttributeWriter<T> ensure_attribute(bke::MutableAttributeAccessor attributes,
+                                               const StringRef name,
+                                               const bke::AttrDomain domain)
+  {
+    const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(name);
+    if (meta_data) {
+      if (meta_data->domain != domain ||
+          meta_data->data_type != bke::cpp_type_to_attribute_type(CPPType::get<T>()))
+      {
+        attributes.remove(name);
+      }
+    }
+    return attributes.lookup_or_add_for_write_span<T>(name, domain);
   }
 
   void gather_from_world__infinite_plane_colliders()
@@ -1916,6 +1936,8 @@ class XpbdSolverStep {
   void simulate__reset_forces__chunk(const int chunk_i)
   {
     ChunkData &chunk_data = chunks_data_[chunk_i];
+    chunk_data.external_plane_contacts.lambdas.fill(0.0f);
+    chunk_data.external_plane_contacts.lambdas_normal.fill(0.0f);
     for (xpbd::ConstraintSet *constraint : chunk_data.static_constraints) {
       constraint->reset_forces();
     }
@@ -1963,6 +1985,11 @@ class XpbdSolverStep {
 
   void simulate__update_velocities__chunk(const int chunk_i, const int solver_refs_i)
   {
+    if (sub_delta_time_ <= 0.0f) {
+      /* This may happen for example on the first frame when no time has passed yet. */
+      return;
+    }
+
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const IndexRange points_range = chunk.points_range;
     const int data_key_i = chunk.data_key_i;
@@ -1990,26 +2017,24 @@ class XpbdSolverStep {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     ChunkData &chunk_data = chunks_data_[chunk_i];
 
-    Vector<xpbd::VelocityConstraintSet *> local_constraints =
-        chunk_data.static_velocity_constraints;
-    std::optional<xpbd::FrictionConstraintSet> friction_constraint;
-    if (!chunk_data.external_plane_contacts.points.is_empty()) {
-      ExternalPlaneContacts &contacts = chunk_data.external_plane_contacts;
-      friction_constraint.emplace(chunk.data_key_i,
-                                  contacts.points,
-                                  contacts.separating_axes,
-                                  contacts.collider_velocities,
-                                  contacts.dynamic_frictions,
-                                  contacts.lambdas_normal,
-                                  contacts.lambdas);
-      local_constraints.append(&*friction_constraint);
+    const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
+    xpbd::ConstraintSetParams params{solver_refs, sub_delta_time_};
+    xpbd::VelocityUpdater velocity_updater{solver_refs};
+
+    for (xpbd::VelocityConstraintSet *constraint : chunk_data.static_velocity_constraints) {
+      constraint->solve_sequential(params, velocity_updater);
     }
 
-    const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
-    xpbd::VelocityUpdater velocity_updater{solver_refs};
-    xpbd::ConstraintSetParams params{solver_refs, sub_delta_time_};
-    for (xpbd::VelocityConstraintSet *constraint : local_constraints) {
-      constraint->solve_sequential(params, velocity_updater);
+    if (!chunk_data.external_plane_contacts.points.is_empty()) {
+      ExternalPlaneContacts &contacts = chunk_data.external_plane_contacts;
+      xpbd::FrictionConstraintSet friction_constraint(chunk.data_key_i,
+                                                      contacts.points,
+                                                      contacts.separating_axes,
+                                                      contacts.collider_velocities,
+                                                      contacts.dynamic_frictions,
+                                                      contacts.lambdas_normal,
+                                                      contacts.lambdas);
+      friction_constraint.solve_sequential(params, velocity_updater);
     }
   }
 
@@ -2146,10 +2171,12 @@ class XpbdSolverStep {
         /* Static plane does not move. */
         r_contacts.collider_motion.append(float3(0.0f));
         r_contacts.separating_axes.append(collider_normal);
-        const float point_friction = geo_data.frictions[point_i];
-        const float friction = this->compute_contact_friction(point_friction, collider.friction);
-        r_contacts.static_frictions.append(friction);
-        r_contacts.dynamic_frictions.append(friction);
+        const float static_friction = this->compute_contact_friction(
+            geo_data.static_frictions[point_i], collider.friction);
+        const float dynamic_friction = this->compute_contact_friction(
+            geo_data.dynamic_frictions[point_i], collider.friction);
+        r_contacts.static_frictions.append(static_friction);
+        r_contacts.dynamic_frictions.append(dynamic_friction);
         r_contacts.compliance_terms.append(0.0f);
 
         const InfinitePlaneContactId contact_id{collider_usage.constraint_i, point_i};
@@ -2256,8 +2283,10 @@ class XpbdSolverStep {
         is_inside = math::dot(dir_mesh, float3(nearest.no)) > 0.0f;
       }
 
-      const float point_friction = geo_data.frictions[point_i];
-      const float friction = this->compute_contact_friction(point_friction, collider.friction);
+      const float static_friction = this->compute_contact_friction(
+          geo_data.static_frictions[point_i], collider.friction);
+      const float dynamic_friction = this->compute_contact_friction(
+          geo_data.dynamic_frictions[point_i], collider.friction);
       const float3 contact_pos_local = math::transform_point(mesh_to_local, contact_pos_mesh);
       const float3 prev_contact_pos_local = math::transform_point(prev_mesh_to_local,
                                                                   contact_pos_mesh);
@@ -2272,8 +2301,8 @@ class XpbdSolverStep {
       r_contacts.positions_on_plane.append(contact_pos_local);
       r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
       r_contacts.separating_axes.append(valid_axis);
-      r_contacts.static_frictions.append(friction);
-      r_contacts.dynamic_frictions.append(friction);
+      r_contacts.static_frictions.append(static_friction);
+      r_contacts.dynamic_frictions.append(dynamic_friction);
       r_contacts.compliance_terms.append(
           std::max(0.0f, substep_compliance_factor_ * collider.compliance));
 
@@ -2336,8 +2365,10 @@ class XpbdSolverStep {
         const float3 dir_mesh = contact_pos_mesh - pos_mesh;
         is_inside = math::dot(dir_mesh, float3(nearest.no)) > 0.0f;
       }
-      const float point_friction = geo_data.frictions[point_i];
-      const float friction = this->compute_contact_friction(point_friction, collider.friction);
+      const float static_friction = this->compute_contact_friction(
+          geo_data.static_frictions[point_i], collider.friction);
+      const float dynamic_friction = this->compute_contact_friction(
+          geo_data.dynamic_frictions[point_i], collider.friction);
       const float3 contact_pos_local = math::transform_point(mesh_to_local, contact_pos_mesh);
       const float3 prev_contact_pos_mesh = bke::attribute_math::mix3(
           bary_coords,
@@ -2356,8 +2387,8 @@ class XpbdSolverStep {
       r_contacts.positions_on_plane.append(contact_pos_local);
       r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
       r_contacts.separating_axes.append(valid_axis);
-      r_contacts.static_frictions.append(friction);
-      r_contacts.dynamic_frictions.append(friction);
+      r_contacts.static_frictions.append(static_friction);
+      r_contacts.dynamic_frictions.append(dynamic_friction);
       r_contacts.compliance_terms.append(
           std::max(0.0f, substep_compliance_factor_ * collider.compliance));
 
