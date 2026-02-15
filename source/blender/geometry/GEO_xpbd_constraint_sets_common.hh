@@ -770,9 +770,11 @@ class RodStretchAndShearConstraintSet
 
   /** Indexed by point index. */
   Span<float> rest_lengths;
-  Span<float> compliances;
   MutableSpan<float3> lambdas_pos;
   MutableSpan<float3> lambdas_rot;
+
+  /** Indexed by `point_i - first_point_i_in_constraint_set`. */
+  Span<float> compliances;
 
   static constexpr StringRefNull debug_name = "Rod Stretch and Shear";
 
@@ -787,9 +789,9 @@ class RodStretchAndShearConstraintSet
         curves_range(curves_range),
         points_by_curve(points_by_curve),
         rest_lengths(rest_lengths),
-        compliances(compliances),
         lambdas_pos(lambdas_pos),
-        lambdas_rot(lambdas_rot)
+        lambdas_rot(lambdas_rot),
+        compliances(compliances)
   {
   }
 
@@ -811,10 +813,13 @@ class RodStretchAndShearConstraintSet
     const int curve_i = this->curves_range[constraint_i];
     const IndexRange points = this->points_by_curve[curve_i];
     const int geo_i = affected_geo_indices_[0];
+    const int first_point_i_in_constraint_set =
+        this->points_by_curve[this->curves_range.first()].first();
 
-    /* TODO: Implement bilateral interleaving ordering for better stability. */
+    /* Could try implementing bilateral interleaving ordering for better stability. */
     for (const int point_i0 : points.drop_back(1)) {
       const int point_i1 = point_i0 + 1;
+      const float compliance = this->compliances[point_i0 - first_point_i_in_constraint_set];
       const RodStretchAndShearConstraintResult result = evaluate_rod_stretch_and_shear_constraint(
           params.position(geo_i, point_i0),
           params.position(geo_i, point_i1),
@@ -823,7 +828,7 @@ class RodStretchAndShearConstraintSet
           params.inverse_mass(geo_i, point_i1),
           params.moment_of_inertia(geo_i, point_i0),
           this->rest_lengths[point_i0],
-          this->compliances[point_i0] * params.compliance_term_factor,
+          compliance * params.compliance_term_factor,
           this->lambdas_pos[point_i0],
           this->lambdas_rot[point_i0]);
       this->lambdas_pos[point_i0] += result.delta_lambda_pos;
@@ -854,8 +859,10 @@ class RodBendAndTwistConstraintSet : public TemplatedConstraintSet<RodBendAndTwi
 
   /** Indexed by point index. */
   Span<math::Quaternion> rest_rotations_;
-  Span<float> compliances_;
   MutableSpan<float4> lambdas_;
+
+  /** Indexed by `point_i - first_point_i_in_constraint_set`. */
+  Span<float> compliances_;
 
  public:
   static constexpr StringRefNull debug_name = "Rod Bend and Twist";
@@ -870,8 +877,8 @@ class RodBendAndTwistConstraintSet : public TemplatedConstraintSet<RodBendAndTwi
         curves_range(curves_range),
         points_by_curve(points_by_curve),
         rest_rotations_(rest_rotations),
-        compliances_(compliances),
-        lambdas_(lambdas)
+        lambdas_(lambdas),
+        compliances_(compliances)
   {
   }
 
@@ -892,19 +899,22 @@ class RodBendAndTwistConstraintSet : public TemplatedConstraintSet<RodBendAndTwi
     const int curve_i = this->curves_range[constraint_i];
     const IndexRange points = this->points_by_curve[curve_i];
     const int geo_i = affected_geo_indices_[0];
+    const int first_point_i_in_constraint_set =
+        this->points_by_curve[this->curves_range.first()].first();
 
     /* TODO: Implement bilateral interleaving ordering for better stability. */
     /* Note that the last segment does not have this constraint, because the rotation of the last
      * point in the rod is meaningless.*/
     for (const int point_i0 : points.drop_back(2)) {
       const int point_i1 = point_i0 + 1;
+      const float compliance = this->compliances_[point_i0 - first_point_i_in_constraint_set];
       const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
           params.rotation(geo_i, point_i0),
           params.rotation(geo_i, point_i1),
           params.moment_of_inertia(geo_i, point_i0),
           params.moment_of_inertia(geo_i, point_i1),
           rest_rotations_[point_i0],
-          compliances_[point_i0] * params.compliance_term_factor,
+          compliance * params.compliance_term_factor,
           lambdas_[point_i0]);
       lambdas_[point_i0] += result.delta_lambda;
       updater.update_rotation(geo_i, point_i0, result.offset0);
