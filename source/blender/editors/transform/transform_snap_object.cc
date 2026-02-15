@@ -496,6 +496,17 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base_act = BKE_view_layer_active_base_get(view_layer);
 
+  /*Evaluate 3D cursor as pseudo-entity if the 3D cursor isn't moving*/
+  const float3 cursor_loc = scene->cursor.location;
+  float4x4 cursor_mat = float4x4::identity();
+  cursor_mat.location() = cursor_loc;
+  const bool is_cursor_active = (base_act != nullptr);
+  if ((tmp = sob_callback(sctx, nullptr, nullptr, cursor_mat, is_cursor_active, false)) !=
+      SCE_SNAP_TO_NONE)
+  {
+    ret = tmp;
+  }
+
   DupliList duplilist;
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
     if (!snap_object_is_snappable(sctx, snap_target_select, base_act, &base)) {
@@ -764,6 +775,10 @@ static eSnapMode nearest_world_object_fn(SnapObjectContext *sctx,
 {
   eSnapMode retval = SCE_SNAP_TO_NONE;
 
+  if (ob_eval == nullptr) {
+    /* 3D cursor */
+    return SCE_SNAP_TO_NONE;
+  }
   if (ob_data == nullptr) {
     if (ob_eval->type == OB_MESH) {
       retval = snap_object_editmesh(
@@ -918,7 +933,8 @@ eSnapMode snap_object_center(SnapObjectContext *sctx,
   nearest2d.clip_planes_enable(sctx, ob_eval, true);
 
   if (nearest2d.snap_point(float3(0.0f))) {
-    nearest2d.register_result(sctx, ob_eval, static_cast<const ID *>(ob_eval->data));
+    const ID *id = ob_eval ? static_cast<const ID *>(ob_eval->data) : nullptr;
+    nearest2d.register_result(sctx, ob_eval, id);
     return SCE_SNAP_TO_ORIGIN;
   }
 
@@ -939,7 +955,7 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
   eSnapMode retval = SCE_SNAP_TO_NONE;
 
   if (ob_data == nullptr) {
-    if (ob_eval->type == OB_MESH) {
+    if (ob_eval != nullptr && ob_eval->type == OB_MESH) {
       retval = snap_object_editmesh(
           sctx, ob_eval, nullptr, obmat, sctx->runtime.snap_to_flag, use_hide);
 

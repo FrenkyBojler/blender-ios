@@ -1591,6 +1591,8 @@ static eSnapMode snapObjectsTransform(
   snap_object_params.occlusion_test = SNAP_OCCLUSION_AS_SEEM;
   snap_object_params.use_backface_culling = (t->tsnap.flag & SCE_SNAP_BACKFACE_CULLING) != 0;
 
+  snap_object_params.is_cursor_transform = (t->mode == TFM_CURSOR);
+
   float *prev_co = (t->tsnap.status & SNAP_SOURCE_FOUND) ? t->tsnap.snap_source : t->center_global;
   float *grid_co = nullptr, grid_co_stack[3];
   if ((t->tsnap.mode & SCE_SNAP_TO_GRID) && (t->con.mode & CON_APPLY) && t->mode != TFM_ROTATION) {
