@@ -166,6 +166,7 @@ struct PinPositionConstraint {
   Field<float> compliance;
   std::string prev_position_attr;
   std::string was_pinned_attr;
+  std::string lambda_attr;
 };
 struct PinPositionConstraintUsage {
   /** Index of corresponding #PinPositionConstraint. */
@@ -1240,6 +1241,7 @@ class XpbdSolverStep {
       constraint.prev_position_attr =
           bundle.lookup<std::string>("previous_pin_position_attribute").value_or("");
       constraint.was_pinned_attr = bundle.lookup<std::string>("was_pinned_attribute").value_or("");
+      constraint.lambda_attr = bundle.lookup<std::string>("lambda_attribute").value_or("");
       const int constraint_i = constraints_.pin_position_constraints.append_and_get_index(
           std::move(constraint));
 
@@ -1348,42 +1350,56 @@ class XpbdSolverStep {
       {
         const PinPositionConstraint &constraint =
             constraints_.pin_position_constraints[constraint_usage.constraint_i];
-        if (!constraint.was_pinned_attr.empty()) {
-          geo_data.attributes.remove(constraint.was_pinned_attr);
-        }
-        if (!constraint.prev_position_attr.empty()) {
-          geo_data.attributes.remove(constraint.prev_position_attr);
-        }
+        geo_data.attributes.remove(constraint.was_pinned_attr);
+        geo_data.attributes.remove(constraint.prev_position_attr);
+        geo_data.attributes.remove(constraint.lambda_attr);
       }
       for (const PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints)
       {
         const PinPositionConstraint &constraint =
             constraints_.pin_position_constraints[constraint_usage.constraint_i];
-        if (!constraint.was_pinned_attr.empty()) {
-          if (bke::SpanAttributeWriter<bool> was_pinned_attr =
-                  geo_data.attributes.lookup_or_add_for_write_span<bool>(
-                      constraint.was_pinned_attr, geo_data.domain))
-          {
-            for (const int point_i : constraint_usage.points) {
-              was_pinned_attr.span[point_i] = true;
-            }
-            was_pinned_attr.finish();
+        if (bke::SpanAttributeWriter<bool> was_pinned_attr =
+                this->get_output_attribute_writer<bool>(
+                    data_key_i, constraint.was_pinned_attr, geo_data.domain))
+        {
+          for (const int point_i : constraint_usage.points) {
+            was_pinned_attr.span[point_i] = true;
           }
+          was_pinned_attr.finish();
         }
-        if (!constraint.prev_position_attr.empty()) {
-          if (bke::SpanAttributeWriter<float3> prev_position_attr =
-                  geo_data.attributes.lookup_or_add_for_write_span<float3>(
-                      constraint.prev_position_attr, geo_data.domain))
-          {
-            for (const int pin_i : constraint_usage.points.index_range()) {
-              const int point_i = constraint_usage.points[pin_i];
-              prev_position_attr.span[point_i] = constraint_usage.end_positions[pin_i];
-            }
-            prev_position_attr.finish();
+        if (bke::SpanAttributeWriter<float3> prev_position_attr =
+                this->get_output_attribute_writer<float3>(
+                    data_key_i, constraint.prev_position_attr, geo_data.domain))
+        {
+          for (const int pin_i : constraint_usage.points.index_range()) {
+            const int point_i = constraint_usage.points[pin_i];
+            prev_position_attr.span[point_i] = constraint_usage.end_positions[pin_i];
           }
+          prev_position_attr.finish();
+        }
+        if (bke::SpanAttributeWriter<float> lambda_attr = this->get_output_attribute_writer<float>(
+                data_key_i, constraint.lambda_attr, geo_data.domain))
+        {
+          for (const int pin_i : constraint_usage.points.index_range()) {
+            const int point_i = constraint_usage.points[pin_i];
+            lambda_attr.span[point_i] = constraint_usage.lambdas[pin_i];
+          }
+          lambda_attr.finish();
         }
       }
     }
+  }
+
+  template<typename T>
+  bke::SpanAttributeWriter<T> get_output_attribute_writer(const int geo_data_i,
+                                                          const StringRef name,
+                                                          const AttrDomain domain)
+  {
+    if (name.is_empty()) {
+      return {};
+    }
+    GeometryData &geo_data = geometries_.data[geo_data_i];
+    return geo_data.attributes.lookup_or_add_for_write_span<T>(name, domain);
   }
 
   void gather_from_world__pin_rotations()
@@ -1517,39 +1533,31 @@ class XpbdSolverStep {
       {
         const PinRotationConstraint &constraint =
             constraints_.pin_rotation_constraints[constraint_usage.constraint_i];
-        if (!constraint.was_pinned_attr.empty()) {
-          geo_data.attributes.remove(constraint.was_pinned_attr);
-        }
-        if (!constraint.prev_rotation_attr.empty()) {
-          geo_data.attributes.remove(constraint.prev_rotation_attr);
-        }
+        geo_data.attributes.remove(constraint.was_pinned_attr);
+        geo_data.attributes.remove(constraint.prev_rotation_attr);
       }
       for (const PinRotationConstraintUsage &constraint_usage : geo_data.pin_rotation_constraints)
       {
         const PinRotationConstraint &constraint =
             constraints_.pin_rotation_constraints[constraint_usage.constraint_i];
-        if (!constraint.was_pinned_attr.empty()) {
-          if (bke::SpanAttributeWriter<bool> was_pinned_attr =
-                  geo_data.attributes.lookup_or_add_for_write_span<bool>(
-                      constraint.was_pinned_attr, geo_data.domain))
-          {
-            for (const int point_i : constraint_usage.points) {
-              was_pinned_attr.span[point_i] = true;
-            }
-            was_pinned_attr.finish();
+        if (bke::SpanAttributeWriter<bool> was_pinned_attr =
+                this->get_output_attribute_writer<bool>(
+                    data_key_i, constraint.was_pinned_attr, geo_data.domain))
+        {
+          for (const int point_i : constraint_usage.points) {
+            was_pinned_attr.span[point_i] = true;
           }
+          was_pinned_attr.finish();
         }
-        if (!constraint.prev_rotation_attr.empty()) {
-          if (bke::SpanAttributeWriter<math::Quaternion> prev_rotation_attr =
-                  geo_data.attributes.lookup_or_add_for_write_span<math::Quaternion>(
-                      constraint.prev_rotation_attr, geo_data.domain))
-          {
-            for (const int pin_i : constraint_usage.points.index_range()) {
-              const int point_i = constraint_usage.points[pin_i];
-              prev_rotation_attr.span[point_i] = constraint_usage.end_rotations[pin_i];
-            }
-            prev_rotation_attr.finish();
+        if (bke::SpanAttributeWriter<math::Quaternion> prev_rotation_attr =
+                this->get_output_attribute_writer<math::Quaternion>(
+                    data_key_i, constraint.prev_rotation_attr, geo_data.domain))
+        {
+          for (const int pin_i : constraint_usage.points.index_range()) {
+            const int point_i = constraint_usage.points[pin_i];
+            prev_rotation_attr.span[point_i] = constraint_usage.end_rotations[pin_i];
           }
+          prev_rotation_attr.finish();
         }
       }
     }
