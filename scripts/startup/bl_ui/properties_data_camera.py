@@ -373,6 +373,9 @@ class DATA_PT_camera_physical(CameraButtonsPanel, Panel):
 
         col = layout.column()
 
+        col.prop(cam, "camera_type_preset", text="Camera Type")
+
+        col.separator()
         row = col.row(align=True)
         row.prop(cam, "physical_iso", text="ISO")
         row.menu("CAMERA_MT_physical_iso_presets", icon='DOWNARROW_HLT', text="")
@@ -395,9 +398,6 @@ class DATA_PT_camera_physical(CameraButtonsPanel, Panel):
         row = col.row()
         row.enabled = False
         row.prop(cam, "exposure_ev", text="Exposure Value (EV)")
-
-        col.separator()
-        col.prop(cam, "camera_type_preset", text="Camera Type")
 
 
 class DATA_PT_camera_dof(CameraButtonsPanel, Panel):
