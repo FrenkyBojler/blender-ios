@@ -155,13 +155,14 @@ inline RodStretchAndShearConstraintResult evaluate_rod_stretch_and_shear_constra
 }
 
 class PinPositionConstraintSet : public TemplatedConstraintSet<PinPositionConstraintSet> {
- public:
+ private:
   /** Indexed by constraint index. */
-  Span<int> point_indices;
-  Span<float3> pin_positions;
-  Span<float> compliances;
-  MutableSpan<float> lambdas;
+  Span<int> point_indices_;
+  Span<float3> pin_positions_;
+  Span<float> compliances_;
+  MutableSpan<float> lambdas_;
 
+ public:
   static constexpr StringRefNull debug_name = "Pinned Position";
 
   PinPositionConstraintSet(const int geo_i,
@@ -170,16 +171,16 @@ class PinPositionConstraintSet : public TemplatedConstraintSet<PinPositionConstr
                            const Span<float> compliances,
                            const MutableSpan<float> lambdas)
       : TemplatedConstraintSet<PinPositionConstraintSet>(point_indices.size(), {geo_i}),
-        point_indices(point_indices),
-        pin_positions(pin_positions),
-        compliances(compliances),
-        lambdas(lambdas)
+        point_indices_(point_indices),
+        pin_positions_(pin_positions),
+        compliances_(compliances),
+        lambdas_(lambdas)
   {
   }
 
   void reset_force(const int constraint_i) const
   {
-    this->lambdas[constraint_i] = 0.0f;
+    lambdas_[constraint_i] = 0.0f;
   }
 
   template<typename UpdaterT>
@@ -188,22 +189,22 @@ class PinPositionConstraintSet : public TemplatedConstraintSet<PinPositionConstr
                        const int constraint_i) const
   {
     const int geo_i = affected_geo_indices_[0];
-    const int point_i = this->point_indices[constraint_i];
+    const int point_i = point_indices_[constraint_i];
     const DistanceConstraintResult result = evaluate_distance_constraint(
         params.position(geo_i, point_i),
-        this->pin_positions[constraint_i],
+        pin_positions_[constraint_i],
         params.inverse_mass(geo_i, point_i),
         0.0f,
         0.0f,
-        this->compliances[constraint_i] * params.compliance_term_factor,
-        this->lambdas[constraint_i]);
-    this->lambdas[constraint_i] += result.delta_lambda;
+        compliances_[constraint_i] * params.compliance_term_factor,
+        lambdas_[constraint_i]);
+    lambdas_[constraint_i] += result.delta_lambda;
     updater.update_position(geo_i, point_i, result.offset0);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
   {
-    return unary_constraints_to_independent_masks(point_indices, memory);
+    return unary_constraints_to_independent_masks(point_indices_, memory);
   }
 
   bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
@@ -213,15 +214,14 @@ class PinPositionConstraintSet : public TemplatedConstraintSet<PinPositionConstr
 };
 
 class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstraintSet> {
+ private:
   /** Indexed by constraint index. */
   Span<float> compliances_;
+  Span<int> point_indices_;
+  Span<math::Quaternion> pin_rotations_;
+  MutableSpan<float4> lambdas_;
 
  public:
-  /** Indexed by constraint index. */
-  Span<int> point_indices;
-  Span<math::Quaternion> pin_rotations;
-  MutableSpan<float4> lambdas;
-
   static constexpr StringRefNull debug_name = "Pin Rotation";
 
   PinRotationConstraintSet(const int geo_i,
@@ -231,15 +231,15 @@ class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstr
                            MutableSpan<float4> lambdas)
       : TemplatedConstraintSet<PinRotationConstraintSet>(point_indices.size(), {geo_i}),
         compliances_(compliances),
-        point_indices(point_indices),
-        pin_rotations(pin_rotations),
-        lambdas(lambdas)
+        point_indices_(point_indices),
+        pin_rotations_(pin_rotations),
+        lambdas_(lambdas)
   {
   }
 
   void reset_force(const int constraint_i) const
   {
-    this->lambdas[constraint_i] = float4(0.0f);
+    lambdas_[constraint_i] = float4(0.0f);
   }
 
   template<typename UpdaterT>
@@ -248,22 +248,22 @@ class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstr
                        const int constraint_i) const
   {
     const int geo_i = affected_geo_indices_[0];
-    const int point_i = point_indices[constraint_i];
+    const int point_i = point_indices_[constraint_i];
     const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
         params.rotation(geo_i, point_i),
-        pin_rotations[constraint_i],
+        pin_rotations_[constraint_i],
         params.moment_of_inertia(geo_i, point_i),
         float3(std::numeric_limits<float>::infinity()),
         math::Quaternion::identity(),
         compliances_[constraint_i] * params.compliance_term_factor,
-        this->lambdas[constraint_i]);
-    this->lambdas[constraint_i] += result.delta_lambda;
+        lambdas_[constraint_i]);
+    lambdas_[constraint_i] += result.delta_lambda;
     updater.update_rotation(geo_i, point_i, result.offset0);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
   {
-    return unary_constraints_to_independent_masks(point_indices, memory);
+    return unary_constraints_to_independent_masks(point_indices_, memory);
   }
 
   bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
@@ -799,8 +799,8 @@ class RodStretchAndShearConstraintSet
   {
     const int curve_i = this->curves_range[constraint_i];
     const IndexRange points = this->points_by_curve[curve_i];
-    this->lambdas_pos.slice(points).fill(float3(0.0f));
-    this->lambdas_rot.slice(points).fill(float3(0.0f));
+    lambdas_pos.slice(points).fill(float3(0.0f));
+    lambdas_rot.slice(points).fill(float3(0.0f));
   }
 
   template<typename UpdaterT>
@@ -827,10 +827,10 @@ class RodStretchAndShearConstraintSet
           params.moment_of_inertia(geo_i, point_i0),
           this->rest_lengths[point_i0],
           compliance * params.compliance_term_factor,
-          this->lambdas_pos[point_i0],
-          this->lambdas_rot[point_i0]);
-      this->lambdas_pos[point_i0] += result.delta_lambda_pos;
-      this->lambdas_rot[point_i0] += result.delta_lambda_rot;
+          lambdas_pos[point_i0],
+          lambdas_rot[point_i0]);
+      lambdas_pos[point_i0] += result.delta_lambda_pos;
+      lambdas_rot[point_i0] += result.delta_lambda_rot;
       updater.update_position(geo_i, point_i0, result.offset0);
       updater.update_position(geo_i, point_i1, result.offset1);
       updater.update_rotation(geo_i, point_i0, result.offset_rot);
@@ -903,7 +903,7 @@ class RodBendAndTwistConstraintSet : public TemplatedConstraintSet<RodBendAndTwi
      * point in the rod is meaningless.*/
     for (const int point_i0 : points.drop_back(2)) {
       const int point_i1 = point_i0 + 1;
-      const float compliance = this->compliances_[point_i0 - first_point_i_in_constraint_set];
+      const float compliance = compliances_[point_i0 - first_point_i_in_constraint_set];
       const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
           params.rotation(geo_i, point_i0),
           params.rotation(geo_i, point_i1),
