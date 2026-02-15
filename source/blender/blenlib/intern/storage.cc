@@ -58,13 +58,6 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#ifndef S_IRGRP
-#  define S_IRGRP 0040
-#endif
-#ifndef S_IROTH
-#  define S_IROTH 0004
-#endif
-
 namespace blender {
 
 /* NOTE: The implementation for Apple lives in storage_apple.mm. */
