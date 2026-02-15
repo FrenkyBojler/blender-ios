@@ -1813,10 +1813,10 @@ class XpbdSolverStep {
         }
 
         ref.velocities = geo_data.velocity_attr.span;
-        ref.inverse_masses = geo_data.inv_masses;
+        ref.inv_masses = geo_data.inv_masses;
         ref.angular_velocities = geo_data.angular_velocity_attr.span;
         ref.moments_of_inertia = geo_data.moments_of_inertia;
-        ref.inverse_moments_of_inertia = geo_data.inv_moments_of_inertia;
+        ref.inv_moments_of_inertia = geo_data.inv_moments_of_inertia;
       }
     }
   }

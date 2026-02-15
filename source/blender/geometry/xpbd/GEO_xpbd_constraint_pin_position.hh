@@ -49,7 +49,7 @@ class PinPositionConstraintSet : public TemplatedConstraintSet<PinPositionConstr
     const DistanceConstraintResult result = evaluate_distance_constraint(
         params.position(geo_i, point_i),
         pin_positions_[constraint_i],
-        params.inverse_mass(geo_i, point_i),
+        params.inv_mass(geo_i, point_i),
         0.0f,
         0.0f,
         compliances_[constraint_i] * params.compliance_term_factor,

@@ -11,17 +11,17 @@
 namespace blender::xpbd {
 
 /**
- * Reference to the data that is actually being simulated.
+ * References to the data of a geometry that is being simulated.
  */
 struct GeometryRef {
   /** The position of each point. */
   MutableSpan<float3> positions;
   /** The linear velocity of each point. */
   MutableSpan<float3> velocities;
-  /** Positions before time integration. */
+  /** Positions before time integration, at the beginning of the current substep. */
   Span<float3> prev_positions;
-  /* Inverse mass of each point. This is expected to be zero for pinned points. */
-  Span<float> inverse_masses;
+  /** Inverse mass of each point. */
+  Span<float> inv_masses;
 
   /** Optional rotation data. */
   MutableSpan<math::Quaternion> rotations;
@@ -29,8 +29,10 @@ struct GeometryRef {
   MutableSpan<float3> angular_velocities;
   /** Rotations before time integration. */
   Span<math::Quaternion> prev_rotations;
+  /** Optional moment of inertia of each point. */
   Span<float3> moments_of_inertia;
-  Span<float3> inverse_moments_of_inertia;
+  /** Inverse of the above. */
+  Span<float3> inv_moments_of_inertia;
 
   uint64_t size() const
   {

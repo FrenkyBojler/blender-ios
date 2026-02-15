@@ -68,7 +68,7 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
     const float3 &plane_pos = contact_points_on_plane_[constraint_i];
     const float3 &axis = separating_axes_[constraint_i];
     const float compliance_term = compliance_terms_[constraint_i];
-    const float inv_m = params.inverse_mass(geo_i_, point_i);
+    const float inv_m = params.inv_mass(geo_i_, point_i);
 
     if (inv_m <= 0.0f) {
       /* Points with infinite mass are pinned and don't collide dynamically. */
