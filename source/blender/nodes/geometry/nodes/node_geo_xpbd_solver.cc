@@ -476,23 +476,25 @@ struct ConstraintsInfo {
 
 class XpbdSolverStep {
  private:
+  /** Used to allocate stuff during the simulation step. */
   ResourceScope &global_scope_;
   LinearAllocator<> &global_allocator_;
   threading::EnumerableThreadSpecific<ResourceScope> thread_scopes_;
-  IndexMaskMemory memory_;
+
+  /** The simulation world that is being modified. */
   Bundle &world_;
+
   const int substeps_;
   const float sub_delta_time_;
+  float substep_compliance_factor_;
+
   SolverType solver_type_;
   int constraint_iterations_;
 
-  float substep_compliance_factor_;
-  fn::Field<float> substep_compliance_factor_field_;
+  Geometries geometries_;
+  ConstraintsInfo constraints_;
 
   Map<FieldEvaluatorKey, fn::FieldEvaluator *> field_evaluators_;
-
-  Geometries geometries_;
-  ConstraintsInfo constraints_info_;
 
   Mutex warnings_mutex_;
   VectorSet<std::string> warnings_;
@@ -557,7 +559,6 @@ class XpbdSolverStep {
   void prepare_substep_compliance_factor()
   {
     substep_compliance_factor_ = math::safe_rcp(pow2f(sub_delta_time_));
-    substep_compliance_factor_field_ = fn::make_constant_field(substep_compliance_factor_);
   }
 
   void gather_from_world__geometries()
@@ -703,7 +704,7 @@ class XpbdSolverStep {
         prev_normal = *normal;
       }
 
-      const int collider_i = constraints_info_.infinite_plane_colliders.append_and_get_index(
+      const int collider_i = constraints_.infinite_plane_colliders.append_and_get_index(
           {path,
            *position,
            math::normalize(*normal),
@@ -809,7 +810,7 @@ class XpbdSolverStep {
   {
     if (const Mesh *mesh = collider_geo.get_mesh()) {
       if (mesh->faces_num > 0) {
-        const int collider_i = constraints_info_.mesh_colliders.append_and_get_index(
+        const int collider_i = constraints_.mesh_colliders.append_and_get_index(
             {path,
              instance_id_stack,
              mesh,
@@ -944,7 +945,7 @@ class XpbdSolverStep {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
         geo_data.point_to_chunk.as_mutable_span().slice(chunk.points_range).fill(chunk_i);
       }
-      constraints_info_.chunk_constraints.reinitialize(geometries_.chunks.size());
+      constraints_.chunk_constraints.reinitialize(geometries_.chunks.size());
     }
     for (const int chunk_i : geometries_.chunks.index_range()) {
       const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
@@ -1009,8 +1010,8 @@ class XpbdSolverStep {
       const Field<float> compliance_field =
           bundle.lookup<Field<float>>("compliance").value_or(fn::make_constant_field(0.0f));
 
-      const int constraint_i = constraints_info_.rod_stretch_shear_constraints
-                                   .append_and_get_index({path, compliance_field});
+      const int constraint_i = constraints_.rod_stretch_shear_constraints.append_and_get_index(
+          {path, compliance_field});
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
         if (!geo_data.curves) {
@@ -1033,7 +1034,7 @@ class XpbdSolverStep {
       }
       RodStretchShearConstraintUsage &constraint_usage = *geo_data.rod_stretch_shear_constraint;
       const RodStretchShearConstraint &constraint =
-          constraints_info_.rod_stretch_shear_constraints[constraint_usage.constraint_i];
+          constraints_.rod_stretch_shear_constraints[constraint_usage.constraint_i];
 
       constraint_usage.lambdas_pos = global_allocator_.allocate_array<float3>(geo_data.size);
       constraint_usage.lambdas_rot = global_allocator_.allocate_array<float3>(geo_data.size);
@@ -1059,7 +1060,7 @@ class XpbdSolverStep {
 
       for (const int chunk_i : geo_data.chunks) {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-        ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+        ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
         chunk_constraints.static_constraints.append(
             &global_scope_.construct<xpbd::RodStretchAndShearConstraintSet>(
                 data_key_i,
@@ -1086,7 +1087,7 @@ class XpbdSolverStep {
       const Field<float> compliance_field =
           bundle.lookup<Field<float>>("compliance").value_or(fn::make_constant_field(0.0f));
 
-      const int constraint_i = constraints_info_.rod_bend_twist_constraints.append_and_get_index(
+      const int constraint_i = constraints_.rod_bend_twist_constraints.append_and_get_index(
           {path, compliance_field});
 
       for (const int data_key_i : geometries_.data.index_range()) {
@@ -1111,7 +1112,7 @@ class XpbdSolverStep {
       }
       RodBendTwistConstraintUsage &constraint_usage = *geo_data.rod_bend_twist_constraint;
       const RodBendTwistConstraint &constraint =
-          constraints_info_.rod_bend_twist_constraints[constraint_usage.constraint_i];
+          constraints_.rod_bend_twist_constraints[constraint_usage.constraint_i];
 
       constraint_usage.lambdas = global_allocator_.allocate_array<float4>(geo_data.size);
 
@@ -1136,7 +1137,7 @@ class XpbdSolverStep {
 
       for (const int chunk_i : geo_data.chunks) {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-        constraints_info_.chunk_constraints[chunk_i].static_constraints.append(
+        constraints_.chunk_constraints[chunk_i].static_constraints.append(
             &global_scope_.construct<xpbd::RodBendAndTwistConstraintSet>(
                 data_key_i,
                 *chunk.curves_range,
@@ -1162,7 +1163,7 @@ class XpbdSolverStep {
       const Field<float> angular_damping = this->get_field_or_constant<float>(
           bundle, "angular_damping", 0.0f);
 
-      const int constraint_i = constraints_info_.damping_constraints.append_and_get_index(
+      const int constraint_i = constraints_.damping_constraints.append_and_get_index(
           {path, linear_damping, angular_damping});
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
@@ -1177,7 +1178,7 @@ class XpbdSolverStep {
       GeometryData &geo_data = geometries_.data[data_key_i];
       for (DampingConstraintUsage &constraint_usage : geo_data.damping_constraints) {
         const DampingConstraint &constraint =
-            constraints_info_.damping_constraints[constraint_usage.constraint_i];
+            constraints_.damping_constraints[constraint_usage.constraint_i];
         constraint_usage.linear_damping_lambdas = global_allocator_.allocate_array<float>(
             geo_data.size);
         constraint_usage.angular_damping_lambdas = global_allocator_.allocate_array<float>(
@@ -1202,7 +1203,7 @@ class XpbdSolverStep {
 
         for (const int chunk_i : geo_data.chunks) {
           const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-          ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+          ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
 
           chunk_constraints.static_velocity_constraints.append(
               &global_scope_.construct<xpbd::LinearDampingConstraintSet>(
@@ -1239,7 +1240,7 @@ class XpbdSolverStep {
       constraint.prev_position_attr =
           bundle.lookup<std::string>("previous_pin_position_attribute").value_or("");
       constraint.was_pinned_attr = bundle.lookup<std::string>("was_pinned_attribute").value_or("");
-      const int constraint_i = constraints_info_.pin_position_constraints.append_and_get_index(
+      const int constraint_i = constraints_.pin_position_constraints.append_and_get_index(
           std::move(constraint));
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
@@ -1253,7 +1254,7 @@ class XpbdSolverStep {
       GeometryData &geo_data = geometries_.data[data_key_i];
       for (PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints) {
         const PinPositionConstraint &constraint =
-            constraints_info_.pin_position_constraints[constraint_usage.constraint_i];
+            constraints_.pin_position_constraints[constraint_usage.constraint_i];
         fn::FieldEvaluator &evaluator = this->get_field_evaluator(
             data_key_i, geo_data.domain, constraint.selection);
         constraint_usage.evaluator = &evaluator;
@@ -1271,7 +1272,7 @@ class XpbdSolverStep {
         PinPositionConstraintUsage &constraint_usage =
             geo_data.pin_position_constraints[constraint_usage_i];
         const PinPositionConstraint &constraint =
-            constraints_info_.pin_position_constraints[constraint_usage.constraint_i];
+            constraints_.pin_position_constraints[constraint_usage.constraint_i];
 
         const IndexMask &pin_mask = constraint_usage.evaluator->get_evaluated_selection_as_mask();
         const int pin_num = pin_mask.size();
@@ -1325,7 +1326,7 @@ class XpbdSolverStep {
           if (pin_range.is_empty()) {
             continue;
           }
-          ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+          ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
           chunk_constraints.pin_position_constraints.append({constraint_usage_i, pin_range});
           chunk_constraints.static_constraints.append(
               &global_scope_.construct<xpbd::PinPositionConstraintSet>(
@@ -1346,7 +1347,7 @@ class XpbdSolverStep {
       for (const PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints)
       {
         const PinPositionConstraint &constraint =
-            constraints_info_.pin_position_constraints[constraint_usage.constraint_i];
+            constraints_.pin_position_constraints[constraint_usage.constraint_i];
         if (!constraint.was_pinned_attr.empty()) {
           geo_data.attributes.remove(constraint.was_pinned_attr);
         }
@@ -1357,7 +1358,7 @@ class XpbdSolverStep {
       for (const PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints)
       {
         const PinPositionConstraint &constraint =
-            constraints_info_.pin_position_constraints[constraint_usage.constraint_i];
+            constraints_.pin_position_constraints[constraint_usage.constraint_i];
         if (!constraint.was_pinned_attr.empty()) {
           if (bke::SpanAttributeWriter<bool> was_pinned_attr =
                   geo_data.attributes.lookup_or_add_for_write_span<bool>(
@@ -1404,7 +1405,7 @@ class XpbdSolverStep {
       constraint.prev_rotation_attr =
           bundle.lookup<std::string>("previous_pin_rotation_attribute").value_or("");
       constraint.was_pinned_attr = bundle.lookup<std::string>("was_pinned_attribute").value_or("");
-      const int constraint_i = constraints_info_.pin_rotation_constraints.append_and_get_index(
+      const int constraint_i = constraints_.pin_rotation_constraints.append_and_get_index(
           std::move(constraint));
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
@@ -1418,7 +1419,7 @@ class XpbdSolverStep {
       GeometryData &geo_data = geometries_.data[data_key_i];
       for (PinRotationConstraintUsage &constraint_usage : geo_data.pin_rotation_constraints) {
         const PinRotationConstraint &constraint =
-            constraints_info_.pin_rotation_constraints[constraint_usage.constraint_i];
+            constraints_.pin_rotation_constraints[constraint_usage.constraint_i];
         fn::FieldEvaluator &evaluator = this->get_field_evaluator(
             data_key_i, geo_data.domain, constraint.selection);
         constraint_usage.evaluator = &evaluator;
@@ -1436,7 +1437,7 @@ class XpbdSolverStep {
         PinRotationConstraintUsage &constraint_usage =
             geo_data.pin_rotation_constraints[constraint_usage_i];
         const PinRotationConstraint &constraint =
-            constraints_info_.pin_rotation_constraints[constraint_usage.constraint_i];
+            constraints_.pin_rotation_constraints[constraint_usage.constraint_i];
 
         const IndexMask &pin_mask = constraint_usage.evaluator->get_evaluated_selection_as_mask();
         const int pin_num = pin_mask.size();
@@ -1494,7 +1495,7 @@ class XpbdSolverStep {
           if (pin_range.is_empty()) {
             continue;
           }
-          ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+          ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
           chunk_constraints.pin_rotation_constraints.append({constraint_usage_i, pin_range});
           chunk_constraints.static_constraints.append(
               &global_scope_.construct<xpbd::PinRotationConstraintSet>(
@@ -1515,7 +1516,7 @@ class XpbdSolverStep {
       for (const PinRotationConstraintUsage &constraint_usage : geo_data.pin_rotation_constraints)
       {
         const PinRotationConstraint &constraint =
-            constraints_info_.pin_rotation_constraints[constraint_usage.constraint_i];
+            constraints_.pin_rotation_constraints[constraint_usage.constraint_i];
         if (!constraint.was_pinned_attr.empty()) {
           geo_data.attributes.remove(constraint.was_pinned_attr);
         }
@@ -1526,7 +1527,7 @@ class XpbdSolverStep {
       for (const PinRotationConstraintUsage &constraint_usage : geo_data.pin_rotation_constraints)
       {
         const PinRotationConstraint &constraint =
-            constraints_info_.pin_rotation_constraints[constraint_usage.constraint_i];
+            constraints_.pin_rotation_constraints[constraint_usage.constraint_i];
         if (!constraint.was_pinned_attr.empty()) {
           if (bke::SpanAttributeWriter<bool> was_pinned_attr =
                   geo_data.attributes.lookup_or_add_for_write_span<bool>(
@@ -1580,26 +1581,6 @@ class XpbdSolverStep {
       }
       return &evaluator;
     });
-  }
-
-  Field<float> get_compliance_term_field(const Bundle &bundle, const StringRef field_name) const
-  {
-    const std::optional<Field<float>> compliance_term = bundle.lookup<Field<float>>(field_name);
-    if (!compliance_term) {
-      static auto zero_field = fn::make_constant_field(0.0f);
-      return zero_field;
-    }
-    return this->to_compliance_term_field(*compliance_term);
-  }
-
-  Field<float> to_compliance_term_field(const Field<float> &compliance_field) const
-  {
-    static auto prepare_compliance_term_fn = mf::build::SI2_SO<float, float, float>(
-        "Prepare Compliance Term", [](const float compliance, const float factor) {
-          return std::max(0.0f, compliance * factor);
-        });
-    return Field<float>(fn::FieldOperation::from(
-        prepare_compliance_term_fn, {compliance_field, substep_compliance_factor_field_}));
   }
 
   fn::FieldContext &make_geometry_field_context(const int data_key_i, const AttrDomain domain)
@@ -1748,7 +1729,7 @@ class XpbdSolverStep {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const int data_key_i = chunk.data_key_i;
     GeometryData &geo_data = geometries_.data[data_key_i];
-    ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+    ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
 
     /* Update animated pin positions. */
     for (const PinPositionConstraintChunkUsage &constraint_chunk_usage :
@@ -1811,7 +1792,7 @@ class XpbdSolverStep {
                                                    const int chunk_i)
   {
     const float max_distance = this->get_max_search_distance(sub_delta_time_);
-    ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+    ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
     const ExternalPlaneContacts &prev_contacts = chunk_constraints.external_plane_contacts;
     ExternalPlaneContacts new_contacts;
     this->gather_ground_plane_contacts(
@@ -1834,7 +1815,7 @@ class XpbdSolverStep {
 
   void simulate__reset_forces__chunk(const int chunk_i)
   {
-    ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+    ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
     for (xpbd::ConstraintSet *constraint : chunk_constraints.static_constraints) {
       constraint->reset_forces();
     }
@@ -1854,7 +1835,7 @@ class XpbdSolverStep {
                                                          const int solver_refs_i)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-    ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+    ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
 
     Vector<xpbd::ConstraintSet *> local_constraints = chunk_constraints.static_constraints;
 
@@ -1906,7 +1887,7 @@ class XpbdSolverStep {
   void simulate__velocity_solve__chunk(const int chunk_i, const int solver_refs_i)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-    ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+    ChunkConstraints &chunk_constraints = constraints_.chunk_constraints[chunk_i];
 
     Vector<xpbd::VelocityConstraintSet *> local_constraints =
         chunk_constraints.static_velocity_constraints;
@@ -2062,7 +2043,7 @@ class XpbdSolverStep {
     const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
     for (const InfinitePlaneColliderUsage &collider_usage : geo_data.infinite_plane_colliders) {
       const InfinitePlaneCollider &collider =
-          constraints_info_.infinite_plane_colliders[collider_usage.constraint_i];
+          constraints_.infinite_plane_colliders[collider_usage.constraint_i];
       const float3 collider_position = math::interpolate(
           collider.begin_position, collider.end_position, substep.end_factor);
       const float3 collider_normal = math::interpolate(
@@ -2103,7 +2084,7 @@ class XpbdSolverStep {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
     for (const MeshColliderUsage &collider_usage : geo_data.mesh_colliders) {
-      const MeshCollider &collider = constraints_info_.mesh_colliders[collider_usage.constraint_i];
+      const MeshCollider &collider = constraints_.mesh_colliders[collider_usage.constraint_i];
       const bke::BVHTreeFromMesh &bvh = collider.corner_tris_bvh;
       const float4x4 &mesh_to_local = math::interpolate(
           collider.begin_transform, collider.end_transform, substep.end_factor);
