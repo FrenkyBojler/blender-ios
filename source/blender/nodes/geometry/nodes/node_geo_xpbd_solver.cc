@@ -137,18 +137,46 @@ struct GeometryDataChunk {
   std::optional<IndexRange> curves_range;
 };
 
-struct DampingConstraintInfo {
+struct DampingConstraint {
   std::string path;
   Field<float> linear_damping;
   Field<float> angular_damping;
 };
 struct DampingConstraintUsage {
-  /** Index of corresponding #DampingConstraintInfo. */
+  /** Index of corresponding #DampingConstraint. */
   int constraint_i;
   VArray<float> linear_dampings;
   VArray<float> angular_dampings;
   MutableSpan<float> linear_damping_lambdas;
   MutableSpan<float> angular_damping_lambdas;
+};
+
+struct InfinitePlaneCollider {
+  std::string path;
+  float3 end_position;
+  float3 end_normal;
+  float3 begin_position;
+  float3 begin_normal;
+  float friction;
+};
+struct InfinitePlaneColliderUsage {
+  /** Index of corresponding #InfinitePlaneCollider. */
+  int constraint_i;
+};
+
+struct MeshCollider {
+  std::string path;
+  Vector<int> instance_ids;
+  const Mesh *mesh;
+  bke::BVHTreeFromMesh corner_tris_bvh;
+  float4x4 begin_transform;
+  float4x4 end_transform;
+  float friction;
+  float compliance;
+};
+struct MeshColliderUsage {
+  /** Index of corresponding #MeshCollider. */
+  int constraint_i;
 };
 
 struct GeometryData {
@@ -227,10 +255,9 @@ struct GeometryData {
    */
   Array<float3> moments_of_inertia;
 
-  Vector<int> infinite_plane_colliders;
-  Vector<int> mesh_colliders;
-
+  Vector<InfinitePlaneColliderUsage> infinite_plane_colliders;
   Vector<DampingConstraintUsage> damping_constraints;
+  Vector<MeshColliderUsage> mesh_colliders;
 };
 
 struct GeometrySetData {
@@ -408,31 +435,11 @@ template<typename T> class VArraySpanGetter {
   }
 };
 
-struct InfinitePlaneCollider {
-  std::string path;
-  float3 end_position;
-  float3 end_normal;
-  float3 begin_position;
-  float3 begin_normal;
-  float friction;
-};
-
-struct MeshCollider {
-  std::string path;
-  Vector<int> instance_ids;
-  const Mesh *mesh;
-  bke::BVHTreeFromMesh corner_tris_bvh;
-  float4x4 begin_transform;
-  float4x4 end_transform;
-  float friction;
-  float compliance;
-};
-
 struct ConstraintsInfo {
   Array<ChunkConstraints> chunk_constraints;
   Vector<InfinitePlaneCollider> infinite_plane_colliders;
   Vector<MeshCollider> mesh_colliders;
-  Vector<DampingConstraintInfo> damping_constraints;
+  Vector<DampingConstraint> damping_constraints;
 };
 
 class XpbdSolverStep {
@@ -653,7 +660,7 @@ class XpbdSolverStep {
            friction});
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
-          geometries_.data[data_key_i].infinite_plane_colliders.append(collider_i);
+          geometries_.data[data_key_i].infinite_plane_colliders.append({collider_i});
         }
       }
     }
@@ -760,7 +767,7 @@ class XpbdSolverStep {
              friction,
              compliance});
         for (const int data_key_i : affected_data) {
-          geometries_.data[data_key_i].mesh_colliders.append(collider_i);
+          geometries_.data[data_key_i].mesh_colliders.append({collider_i});
         }
       }
     }
@@ -1262,7 +1269,7 @@ class XpbdSolverStep {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
       for (DampingConstraintUsage &constraint_usage : geo_data.damping_constraints) {
-        const DampingConstraintInfo &constraint =
+        const DampingConstraint &constraint =
             constraints_info_.damping_constraints[constraint_usage.constraint_i];
         constraint_usage.linear_damping_lambdas = global_allocator_.allocate_array<float>(
             geo_data.size);
@@ -1824,9 +1831,9 @@ class XpbdSolverStep {
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
-    for (const int collider_i : geo_data.infinite_plane_colliders) {
+    for (const InfinitePlaneColliderUsage &collider_usage : geo_data.infinite_plane_colliders) {
       const InfinitePlaneCollider &collider =
-          constraints_info_.infinite_plane_colliders[collider_i];
+          constraints_info_.infinite_plane_colliders[collider_usage.constraint_i];
       const float3 collider_position = math::interpolate(
           collider.begin_position, collider.end_position, substep.end_factor);
       const float3 collider_normal = math::interpolate(
@@ -1850,7 +1857,7 @@ class XpbdSolverStep {
         r_contacts.dynamic_frictions.append(friction);
         r_contacts.compliance_terms.append(0.0f);
 
-        const InfinitePlaneContactId contact_id{collider_i, point_i};
+        const InfinitePlaneContactId contact_id{collider_usage.constraint_i, point_i};
         r_contacts.infinite_plane_contact_indices.add(contact_id, contact_i);
         r_contacts.init_or_preserve_state(
             prev_contacts, prev_contacts.infinite_plane_contact_indices.lookup_try(contact_id));
@@ -1866,8 +1873,8 @@ class XpbdSolverStep {
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
-    for (const int collider_i : geo_data.mesh_colliders) {
-      const MeshCollider &collider = constraints_info_.mesh_colliders[collider_i];
+    for (const MeshColliderUsage &collider_usage : geo_data.mesh_colliders) {
+      const MeshCollider &collider = constraints_info_.mesh_colliders[collider_usage.constraint_i];
       const bke::BVHTreeFromMesh &bvh = collider.corner_tris_bvh;
       const float4x4 &mesh_to_local = math::interpolate(
           collider.begin_transform, collider.end_transform, substep.end_factor);
@@ -1910,7 +1917,7 @@ class XpbdSolverStep {
         r_contacts.compliance_terms.append(
             std::max(0.0f, substep_compliance_factor_ * collider.compliance));
 
-        const MeshContactId contact_id{collider_i, point_i};
+        const MeshContactId contact_id{collider_usage.constraint_i, point_i};
         r_contacts.mesh_contact_indices.add(contact_id, contact_i);
         r_contacts.init_or_preserve_state(
             prev_contacts, prev_contacts.mesh_contact_indices.lookup_try(contact_id));
