@@ -171,7 +171,7 @@ static void brush_free_data(ID *id)
 
   MEM_SAFE_DELETE(brush->gradient);
 
-  BKE_previewimg_free(&(brush->preview));
+  BKE_previewimg_id_free(&brush->id);
 }
 
 static void brush_make_local(Main *bmain, ID *id, const int flags)
@@ -518,35 +518,34 @@ static AssetTypeInfo AssetType_BR = {
 };
 
 IDTypeInfo IDType_ID_BR = {
-    /*id_code*/ Brush::id_type,
-    /*id_filter*/ FILTER_ID_BR,
-    /*dependencies_id_types*/
-    (FILTER_ID_IM | FILTER_ID_PC | FILTER_ID_TE | FILTER_ID_MA),
-    /*main_listbase_index*/ INDEX_ID_BR,
-    /*struct_size*/ sizeof(Brush),
-    /*name*/ "Brush",
-    /*name_plural*/ N_("brushes"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_BRUSH,
-    /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO,
-    /*asset_type_info*/ &AssetType_BR,
+    .id_code = Brush::id_type,
+    .id_filter = FILTER_ID_BR,
+    .dependencies_id_types = (FILTER_ID_IM | FILTER_ID_PC | FILTER_ID_TE | FILTER_ID_MA),
+    .main_listbase_index = INDEX_ID_BR,
+    .struct_size = sizeof(Brush),
+    .name = "Brush",
+    .name_plural = N_("brushes"),
+    .translation_context = BLT_I18NCONTEXT_ID_BRUSH,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO,
+    .asset_type_info = &AssetType_BR,
 
-    /*init_data*/ brush_init_data,
-    /*copy_data*/ brush_copy_data,
-    /*free_data*/ brush_free_data,
-    /*make_local*/ brush_make_local,
-    /*foreach_id*/ brush_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ brush_foreach_working_space_color,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = brush_init_data,
+    .copy_data = brush_copy_data,
+    .free_data = brush_free_data,
+    .make_local = brush_make_local,
+    .foreach_id = brush_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = brush_foreach_working_space_color,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ brush_blend_write,
-    /*blend_read_data*/ brush_blend_read_data,
-    /*blend_read_after_liblink*/ brush_blend_read_after_liblink,
+    .blend_write = brush_blend_write,
+    .blend_read_data = brush_blend_read_data,
+    .blend_read_after_liblink = brush_blend_read_after_liblink,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 static RNG *brush_rng;
@@ -913,8 +912,8 @@ const MTex *BKE_brush_color_texture_get(const Brush *brush, const eObjectMode ob
 float BKE_brush_sample_tex_3d(const Paint *paint,
                               const Brush *br,
                               const MTex *mtex,
-                              const float point[3],
-                              float rgba[4],
+                              const float3 &point,
+                              float4 &rgba,
                               const int thread,
                               ImagePool *pool)
 {
@@ -932,9 +931,8 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
   }
   else if (mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL) {
     float rotation = -mtex->rot;
-    const float point_2d[2] = {point[0], point[1]};
+    const float2 point_2d = point.xy();
     float x, y;
-    float co[3];
 
     x = point_2d[0] - br->stencil_pos[0];
     y = point_2d[1] - br->stencil_pos[1];
@@ -954,18 +952,14 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
     x /= (br->stencil_dimension[0]);
     y /= (br->stencil_dimension[1]);
 
-    co[0] = x;
-    co[1] = y;
-    co[2] = 0.0f;
-
+    float3 co(x, y, 0.0f);
     hasrgb = RE_texture_evaluate(mtex, co, thread, pool, false, false, &intensity, rgba);
   }
   else {
     float rotation = -mtex->rot;
-    const float point_2d[2] = {point[0], point[1]};
+    const float2 point_2d = point.xy();
     float x = 0.0f, y = 0.0f; /* Quite warnings */
     float invradius = 1.0f;   /* Quite warnings */
-    float co[3];
 
     if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
       /* keep coordinates relative to mouse */
@@ -1010,9 +1004,7 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
       y = flen * sinf(angle);
     }
 
-    co[0] = x;
-    co[1] = y;
-    co[2] = 0.0f;
+    float3 co(x, y, 0.0f);
 
     hasrgb = RE_texture_evaluate(mtex, co, thread, pool, false, false, &intensity, rgba);
   }
@@ -1034,18 +1026,19 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
 }
 
 float BKE_brush_sample_masktex(
-    const Paint *paint, Brush *br, const float point[2], const int thread, ImagePool *pool)
+    const Paint *paint, Brush *br, const float2 &point, const int thread, ImagePool *pool)
 {
   const bke::PaintRuntime *paint_runtime = paint->runtime;
   MTex *mtex = &br->mask_mtex;
-  float rgba[4], intensity;
+  float intensity;
+  float4 dummy_rgba;
 
   if (!mtex->tex) {
     return 1.0f;
   }
   if (mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL) {
     float rotation = -mtex->rot;
-    const float point_2d[2] = {point[0], point[1]};
+    const float2 point_2d = point;
     float x, y;
     float co[3];
 
@@ -1061,7 +1054,7 @@ float BKE_brush_sample_masktex(
     }
 
     if (fabsf(x) > br->mask_stencil_dimension[0] || fabsf(y) > br->mask_stencil_dimension[1]) {
-      zero_v4(rgba);
+      zero_v4(dummy_rgba);
       return 0.0f;
     }
     x /= (br->mask_stencil_dimension[0]);
@@ -1071,11 +1064,11 @@ float BKE_brush_sample_masktex(
     co[1] = y;
     co[2] = 0.0f;
 
-    RE_texture_evaluate(mtex, co, thread, pool, false, false, &intensity, rgba);
+    RE_texture_evaluate(mtex, co, thread, pool, false, false, &intensity, dummy_rgba);
   }
   else {
     float rotation = -mtex->rot;
-    const float point_2d[2] = {point[0], point[1]};
+    const float2 point_2d = point;
     float x = 0.0f, y = 0.0f; /* Quite warnings */
     float invradius = 1.0f;   /* Quite warnings */
     float co[3];
@@ -1127,7 +1120,7 @@ float BKE_brush_sample_masktex(
     co[1] = y;
     co[2] = 0.0f;
 
-    RE_texture_evaluate(mtex, co, thread, pool, false, false, &intensity, rgba);
+    RE_texture_evaluate(mtex, co, thread, pool, false, false, &intensity, dummy_rgba);
   }
 
   CLAMP(intensity, 0.0f, 1.0f);
@@ -1151,7 +1144,7 @@ float BKE_brush_sample_masktex(
 /** \name Unified Settings
  * \{ */
 
-const float *BKE_brush_color_get(const Paint *paint, const Brush *brush)
+float3 BKE_brush_color_get(const Paint *paint, const Brush *brush)
 {
   if (BKE_paint_use_unified_color(paint)) {
     return paint->unified_paint_settings.color;
@@ -1195,7 +1188,7 @@ std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(cons
   };
 }
 
-const float *BKE_brush_secondary_color_get(const Paint *paint, const Brush *brush)
+float3 BKE_brush_secondary_color_get(const Paint *paint, const Brush *brush)
 {
   if (BKE_paint_use_unified_color(paint)) {
     return paint->unified_paint_settings.secondary_color;
@@ -1203,7 +1196,7 @@ const float *BKE_brush_secondary_color_get(const Paint *paint, const Brush *brus
   return brush->secondary_color;
 }
 
-void BKE_brush_color_set(Paint *paint, Brush *brush, const float color[3])
+void BKE_brush_color_set(Paint *paint, Brush *brush, const float3 &color)
 {
   if (BKE_paint_use_unified_color(paint)) {
     UnifiedPaintSettings *ups = &paint->unified_paint_settings;
@@ -1396,12 +1389,9 @@ void BKE_brush_input_samples_set(Paint *paint, Brush *brush, int value)
 
 /** \} */
 
-void BKE_brush_jitter_pos(const Paint &paint,
-                          const Brush &brush,
-                          const float pos[2],
-                          float jitterpos[2])
+float2 BKE_brush_jitter_pos(const Paint &paint, const Brush &brush, const float2 &pos)
 {
-  float rand_pos[2];
+  float2 rand_pos;
   float spread;
   int diameter;
 
@@ -1419,8 +1409,8 @@ void BKE_brush_jitter_pos(const Paint &paint,
     spread = brush.jitter;
   }
   /* find random position within a circle of diameter 1 */
-  jitterpos[0] = pos[0] + 2 * rand_pos[0] * diameter * spread;
-  jitterpos[1] = pos[1] + 2 * rand_pos[1] * diameter * spread;
+  return float2(pos[0] + 2 * rand_pos[0] * diameter * spread,
+                pos[1] + 2 * rand_pos[1] * diameter * spread);
 }
 
 void BKE_brush_randomize_texture_coords(Paint *paint, bool mask)
