@@ -4,8 +4,8 @@
 
 #include "BLI_multi_value_map.hh"
 
-#include "GEO_xpbd.hh"
-#include "GEO_xpbd_constraint_utils.hh"
+#include "GEO_xpbd_constraint_coloring.hh"
+#include "GEO_xpbd_solve.hh"
 
 namespace blender::xpbd {
 

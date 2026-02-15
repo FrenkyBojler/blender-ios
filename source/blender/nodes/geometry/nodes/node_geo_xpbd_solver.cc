@@ -17,8 +17,8 @@
 #include "BKE_geometry_fields.hh"
 #include "BKE_grease_pencil.hh"
 
-#include "GEO_xpbd.hh"
 #include "GEO_xpbd_constraint_sets_common.hh"
+#include "GEO_xpbd_solve.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_parse.hh"

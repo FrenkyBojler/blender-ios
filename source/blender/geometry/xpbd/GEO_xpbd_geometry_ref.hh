@@ -32,7 +32,10 @@ struct GeometryRef {
   Span<float3> moments_of_inertia;
   Span<float3> inverse_moments_of_inertia;
 
-  uint64_t size() const;
+  uint64_t size() const
+  {
+    return this->positions.size();
+  }
 };
 
 }  // namespace blender::xpbd

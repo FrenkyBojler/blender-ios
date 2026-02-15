@@ -5,11 +5,11 @@
 #pragma once
 
 #include "BLI_math_base.h"
+#include "BLI_math_quaternion.hh"
 #include "BLI_math_vector.hh"
 
-#include "GEO_xpbd_constraint_utils.hh"
-
-#include "BKE_pointcloud.hh"
+#include "GEO_xpbd_constraint_coloring.hh"
+#include "GEO_xpbd_constraint_set_templated.hh"
 
 namespace blender::xpbd {
 

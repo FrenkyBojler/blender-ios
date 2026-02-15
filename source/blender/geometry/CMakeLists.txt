@@ -104,9 +104,16 @@ set(SRC
   GEO_uv_parametrizer.hh
   GEO_volume_grid_resample.hh
 
-  xpbd/GEO_xpbd.hh
+  xpbd/GEO_xpbd_constraint_coloring.hh
+  xpbd/GEO_xpbd_constraint_set.hh
+  xpbd/GEO_xpbd_constraint_set_params.hh
+  xpbd/GEO_xpbd_constraint_set_templated.hh
   xpbd/GEO_xpbd_constraint_sets_common.hh
-  xpbd/GEO_xpbd_constraint_utils.hh
+  xpbd/GEO_xpbd_geometry_ref.hh
+  xpbd/GEO_xpbd_solve.hh
+  xpbd/GEO_xpbd_updater_gauss_seidel.hh
+  xpbd/GEO_xpbd_updater_non_deterministic_jacobian.hh
+  xpbd/GEO_xpbd_updater_velocity.hh
 
   intern/mesh_boolean_intern.hh
   intern/mesh_boolean_manifold.hh
