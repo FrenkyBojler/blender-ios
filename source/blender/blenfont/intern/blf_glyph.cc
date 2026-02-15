@@ -114,7 +114,7 @@ static GlyphCacheBLF *blf_glyph_cache_new(FontBLF *font)
   FT_UInt gindex = blf_get_char_index(font, U'0');
   if (gindex && font->face) {
     FT_Fixed advance = 0;
-    FT_Get_Advance(font->face, gindex, FT_LOAD_DEFAULT, &advance);
+    FT_Get_Advance(font->face, gindex, FT_LOAD_NO_HINTING, &advance);
     /* Use CSS 'ch unit' width, advance of zero character. */
     gc->fixed_width = int(advance >> 16);
   }
