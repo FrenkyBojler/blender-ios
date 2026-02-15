@@ -123,27 +123,27 @@ static PyStructSequence_Field app_info_fields[] = {
 
     /* buildinfo */
     {"build_date",
-     "The date this blender instance was built\n"
+     "The date this Blender instance was built\n"
      "\n"
      ":type: bytes\n"},
     {"build_time",
-     "The time this blender instance was built\n"
+     "The time this Blender instance was built\n"
      "\n"
      ":type: bytes\n"},
     {"build_commit_timestamp",
-     "The unix timestamp of commit this blender instance was built\n"
+     "The unix timestamp of the commit this Blender instance was built from\n"
      "\n"
      ":type: int\n"},
     {"build_commit_date",
-     "The date of commit this blender instance was built\n"
+     "The date of the commit this Blender instance was built from\n"
      "\n"
      ":type: bytes\n"},
     {"build_commit_time",
-     "The time of commit this blender instance was built\n"
+     "The time of the commit this Blender instance was built from\n"
      "\n"
      ":type: bytes\n"},
     {"build_hash",
-     "The commit hash this blender instance was built with\n"
+     "The commit hash this Blender instance was built with\n"
      "\n"
      ":type: bytes\n"},
     {"build_branch",
@@ -491,11 +491,17 @@ static PyObject *bpy_app_driver_dict_get(PyObject * /*self*/, void * /*closure*/
 
 PyDoc_STRVAR(
     /* Wrap. */
-    bpy_app_preview_render_size_doc,
-    "Reference size for icon/preview renders (read-only).\n"
+    bpy_app_render_icon_size_doc,
+    "Reference size for icon renders (read-only).\n"
     "\n"
     ":type: int\n");
-static PyObject *bpy_app_preview_render_size_get(PyObject * /*self*/, void *closure)
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_app_render_preview_size_doc,
+    "Reference size for preview renders (read-only).\n"
+    "\n"
+    ":type: int\n");
+static PyObject *bpy_app_render_preview_or_icon_size_get(PyObject * /*self*/, void *closure)
 {
   return PyLong_FromLong(
       long(ui::icon_preview_to_render_size(eIconSizes(POINTER_AS_INT(closure)))));
@@ -657,14 +663,14 @@ static PyGetSetDef bpy_app_getsets[] = {
     {"driver_namespace", bpy_app_driver_dict_get, nullptr, bpy_app_driver_dict_doc, nullptr},
 
     {"render_icon_size",
-     bpy_app_preview_render_size_get,
+     bpy_app_render_preview_or_icon_size_get,
      nullptr,
-     bpy_app_preview_render_size_doc,
+     bpy_app_render_icon_size_doc,
      reinterpret_cast<void *>(ICON_SIZE_ICON)},
     {"render_preview_size",
-     bpy_app_preview_render_size_get,
+     bpy_app_render_preview_or_icon_size_get,
      nullptr,
-     bpy_app_preview_render_size_doc,
+     bpy_app_render_preview_size_doc,
      reinterpret_cast<void *>(ICON_SIZE_PREVIEW)},
 
     {"online_access",

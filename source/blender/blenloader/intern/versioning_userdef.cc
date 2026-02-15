@@ -1755,18 +1755,8 @@ void blo_do_versions_userdef(UserDef *userdef)
     }
   }
 
-  if (!USER_VERSION_ATLEAST(502, 1)) {
-    userdef->file_space_data.bookmarks_index = 0;
-    userdef->file_space_data.bookmarks_index = 0;
-    userdef->file_space_data.system_index = 1;
-    userdef->file_space_data.volumes_index = 2;
-    userdef->file_space_data.recent_index = 3;
-    userdef->file_space_data.advanced_filter_index = 4;
-    userdef->file_space_data.bookmarks_open = 1;
-    userdef->file_space_data.system_open = 1;
-    userdef->file_space_data.volumes_open = 1;
-    userdef->file_space_data.recent_open = 1;
-    userdef->file_space_data.advanced_filter_open = 1;
+  if (!USER_VERSION_ATLEAST(502, 3)) {
+    userdef->uiflag2 |= USER_UIFLAG2_SHOW_ONLINE_ASSETS;
   }
 
   /**
