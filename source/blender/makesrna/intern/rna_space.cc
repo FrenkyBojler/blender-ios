@@ -2706,6 +2706,20 @@ static void rna_SpaceSequenceEditor_zoom_percentage_set(PointerRNA *ptr, const f
   ED_region_tag_redraw(region);
 }
 
+static int rna_SpaceSequencer_scope_type_get(PointerRNA *ptr)
+{
+  SpaceSeq *sseq = static_cast<SpaceSeq *>(ptr->data);
+  return sseq->scope;
+}
+
+static void rna_SpaceSequencer_scope_type_set(PointerRNA *ptr, int value)
+{
+  SpaceSeq *sseq = static_cast<SpaceSeq *>(ptr->data);
+  if (value != 0) {
+    sseq->scope = value;
+  }
+}
+
 static PointerRNA rna_SpaceDopeSheet_overlay_get(PointerRNA *ptr)
 {
   return RNA_pointer_create_with_parent(*ptr, RNA_SpaceDopeSheetOverlay, ptr->data);
@@ -6632,6 +6646,8 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "scope");
   RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_enum_items(prop, scope_type_items);
+  RNA_def_property_enum_funcs(
+      prop, "rna_SpaceSequencer_scope_type_get", "rna_SpaceSequencer_scope_type_set", nullptr);
   RNA_def_property_ui_text(prop, "Scope Type", "Scope type to display sequencer output");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 

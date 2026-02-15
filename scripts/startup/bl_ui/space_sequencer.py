@@ -116,11 +116,7 @@ class SEQUENCER_HT_header(Header):
 
         if st.view_type == 'SCOPES':
             row = layout.row(align=True)
-            row.prop(st, "scope_type")
-            # row.prop_enum(st, "scope_type", value='WAVEFORM', text="", icon='SEQ_LUMA_WAVEFORM')
-            # row.prop_enum(st, "scope_type", value='RGB_PARADE', text="", icon='RENDERLAYERS')
-            # row.prop_enum(st, "scope_type", value='VECTOR_SCOPE', text="", icon='SEQ_CHROMA_SCOPE')
-            # row.prop_enum(st, "scope_type", value='HISTOGRAM', text="", icon='SEQ_HISTOGRAM')
+            row.prop(st, "scope_type", icon_only=True)
         elif st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             layout.prop(st, "preview_channels", text="", icon_only=True)
 
@@ -163,14 +159,17 @@ class SEQUENCER_MT_editor_menus(Menu):
         has_sequencer, _has_preview = _space_view_types(st)
 
         layout.menu("SEQUENCER_MT_view")
-        layout.menu("SEQUENCER_MT_select")
+
+        if st.view_type not in {'SCOPES'}:
+            layout.menu("SEQUENCER_MT_select")
 
         if has_sequencer and context.sequencer_scene:
             if st.show_markers:
                 layout.menu("SEQUENCER_MT_marker")
             layout.menu("SEQUENCER_MT_add")
 
-        layout.menu("SEQUENCER_MT_strip")
+        if st.view_type not in {'SCOPES'}:
+            layout.menu("SEQUENCER_MT_strip")
 
         if st.view_type in {'SEQUENCER', 'PREVIEW'}:
             layout.menu("SEQUENCER_MT_image")
