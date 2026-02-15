@@ -87,9 +87,6 @@ FontBLF *blf_font_new_from_filepath(const char *filepath);
 FontBLF *blf_font_new_from_mem(const char *mem_name, const unsigned char *mem, size_t mem_size);
 void blf_font_attach_from_mem(FontBLF *font, const unsigned char *mem, size_t mem_size);
 
-bool blf_font_otf_feature_supported(FontBLF *font, const char tag[4]);
-void blf_font_otf_feature_set(FontBLF *font, const char tag[4], int value);
-
 /**
  * Change font's output size. Returns true if successful in changing the size.
  */

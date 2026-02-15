@@ -346,9 +346,6 @@ Vector<StringRef> BLF_string_wrap(int fontid,
 void BLF_enable(int fontid, FontFlags flag);
 void BLF_disable(int fontid, FontFlags flag);
 
-void BLF_otf_feature_set(int fontid, const char tag[4], int value);
-bool BLF_otf_feature_supported(int fontid, const char tag[4]);
-
 /**
  * Is this font part of the default fonts in the fallback stack?
  */

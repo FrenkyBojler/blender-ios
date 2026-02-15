@@ -1731,19 +1731,6 @@ static FontBLF *blf_font_new_impl(const char *filepath,
   blf_font_fill(font);
   font->ft_lib = ft_lib;
 
-  /* Defaults for consistent behavior. Some often overwritten by user preferences. */
-  blf_font_otf_feature_set(font, "kern", 1); /* Kerning. */
-  blf_font_otf_feature_set(font, "locl", 1); /* Localized Forms. */
-  blf_font_otf_feature_set(font, "liga", 1); /* Standard Ligatures. */
-  blf_font_otf_feature_set(font, "case", 1); /* Case Sensitive Forms. */
-  blf_font_otf_feature_set(font, "calt", 1); /* Contextual Alternates. */
-  blf_font_otf_feature_set(font, "tnum", 1); /* Tabular Numbers. */
-
-  blf_font_otf_feature_set(font, "dlig", 0); /* Discretionary Ligatures. */
-  blf_font_otf_feature_set(font, "hlig", 0); /* Historical Ligatures. */
-  blf_font_otf_feature_set(font, "zero", 0); /* Slashed Zero. */
-  blf_font_otf_feature_set(font, "salt", 0); /* Stylistic Alternates. */
-
   /* If we have static details about this font file, we don't have to load the Face yet. */
   bool face_needed = true;
 
@@ -1759,10 +1746,6 @@ static FontBLF *blf_font_new_impl(const char *filepath,
         face_needed = false;
         break;
       }
-    }
-    if (STREQ(filename, BLF_DEFAULT_PROPORTIONAL_FONT)) {
-      blf_font_otf_feature_set(font, "ss01", 1); /* Open Digits. */
-      blf_font_otf_feature_set(font, "ss04", 1); /* Disambiguation w/o zero. */
     }
   }
 

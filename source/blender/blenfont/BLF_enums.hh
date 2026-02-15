@@ -39,10 +39,10 @@ enum FontFlags {
   // BLF_MATRIX = 1 << 4,
   BLF_ASPECT = 1 << 5,
   BLF_WORD_WRAP = 1 << 6,
-  // BLF_MONOCHROME = 1 << 7,
-  // BLF_HINTING_NONE = 1 << 8,
-  // BLF_HINTING_SLIGHT = 1 << 9,
-  // BLF_HINTING_FULL = 1 << 10,
+  // BLF_MONOCHROME = 1 << 7, /* dirty */
+  // BLF_HINTING_NONE = 1 << 8, /* dirty */
+  // BLF_HINTING_SLIGHT = 1 << 9, /* dirty */
+  // BLF_HINTING_FULL = 1 << 10, /* dirty */
   BLF_BOLD = 1 << 11,
   BLF_ITALIC = 1 << 12,
   /** Intended USE is monospaced, regardless of font type. */

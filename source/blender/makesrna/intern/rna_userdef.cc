@@ -5395,33 +5395,33 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_text_slashed_zero_ui", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_SLASHED_ZERO_UI);
   RNA_def_property_ui_text(prop, "Slashed Zero", "Replace zero number figure with slashed zero");
-  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "use_text_discretionary_ligatures", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, nullptr, "text_render", USER_TEXT_DISCRETIONARY_LIGATURES_UI);
   RNA_def_property_ui_text(
       prop, "Discretionary Ligatures", "Replace some character sequences with custom versions.");
-  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "use_text_contextual_alternates_ui", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_CONTEXTUAL_ALTERNATES_UI);
   RNA_def_property_ui_text(
       prop, "Contextual Alternates", "Alternate characters depending on context");
-  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "use_text_disambiguation", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_DISAMBIGUATION_INTER);
   RNA_def_property_editable_func(prop, "rna_UserDef_ui_font_is_default");
   RNA_def_property_ui_text(
       prop, "Disambiguation", "Inter only: Alternate characters to increase visual differences");
-  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "use_text_open_digits", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_OPEN_DIGITS_INTER);
   RNA_def_property_editable_func(prop, "rna_UserDef_ui_font_is_default");
   RNA_def_property_ui_text(prop, "Open Digits", "Inter only: Alternate style for numeric digits");
-  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "font_path_ui", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "font_path_ui");

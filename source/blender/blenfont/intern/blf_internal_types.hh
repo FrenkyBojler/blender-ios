@@ -124,7 +124,11 @@ struct ShapingData {
   blender::Vector<ShapedGlyph> glyphs = {};
   ft_pix width = 0;
   ft_pix height = 0;
-  ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len);
+  ShapingData(FontBLF *font,
+              GlyphCacheBLF *gc,
+              const char *str,
+              size_t len,
+              blender::Vector<hb_feature_t> *features = nullptr);
 };
 
 struct BatchBLF {

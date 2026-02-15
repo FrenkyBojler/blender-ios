@@ -18,6 +18,8 @@
 
 #include "BLT_lang.hh"
 
+#include "DNA_userdef_types.h"
+
 #include "blf_internal.hh"
 #include "blf_internal_types.hh"
 
@@ -33,7 +35,61 @@ rcti ShapedGlyph::integer_bounds() const
   return r;
 }
 
-ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len)
+static void blf_font_otf_feature_set(blender::Vector<hb_feature_t> &features,
+                                     hb_tag_t tag,
+                                     uint32_t value)
+{
+  for (hb_feature_t &feature : features) {
+    if (feature.tag == tag) {
+      feature.value = value;
+      return;
+    }
+  }
+  features.append({tag, value, HB_FEATURE_GLOBAL_START, HB_FEATURE_GLOBAL_END});
+}
+
+blender::Vector<hb_feature_t> blf_font_otf_features_default(FontBLF *font)
+{
+  blender::Vector<hb_feature_t> features;
+
+  blf_font_otf_feature_set(features, HB_TAG('k', 'e', 'r', 'n'), 1); /* Kerning. */
+  blf_font_otf_feature_set(features, HB_TAG('l', 'o', 'c', 'l'), 1); /* Localized Forms. */
+  blf_font_otf_feature_set(features, HB_TAG('l', 'i', 'g', 'a'), 1); /* Standard Ligatures. */
+  blf_font_otf_feature_set(features, HB_TAG('c', 'a', 's', 'e'), 1); /* Case Sensitive Forms. */
+  blf_font_otf_feature_set(features, HB_TAG('t', 'n', 'u', 'm'), 1); /* Tabular Numbers. */
+  blf_font_otf_feature_set(features, HB_TAG('h', 'l', 'i', 'g'), 0); /* Historical Ligatures. */
+  blf_font_otf_feature_set(features, HB_TAG('s', 'a', 'l', 't'), 0); /* Stylistic Alternates. */
+
+  /* Discretionary Ligatures. */
+  blf_font_otf_feature_set(features,
+                           HB_TAG('d', 'l', 'i', 'g'),
+                           U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES_UI ? 1 : 0);
+
+  /* Contextual Alternates. */
+  blf_font_otf_feature_set(features,
+                           HB_TAG('c', 'a', 'l', 't'),
+                           U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_UI ? 1 : 0);
+  /* Slashed Zero. */
+  blf_font_otf_feature_set(
+      features, HB_TAG('z', 'e', 'r', 'o'), U.text_render & USER_TEXT_SLASHED_ZERO_UI ? 1 : 0);
+
+  /* Inter Open Digits. */
+  blf_font_otf_feature_set(
+      features, HB_TAG('s', 's', '0', '1'), U.text_render & USER_TEXT_OPEN_DIGITS_INTER ? 1 : 0);
+
+  /* Inter Disambiguation w/o zero. */
+  blf_font_otf_feature_set(features,
+                           HB_TAG('s', 's', '0', '4'),
+                           U.text_render & USER_TEXT_DISAMBIGUATION_INTER ? 1 : 0);
+
+  return features;
+}
+
+ShapingData::ShapingData(FontBLF *font,
+                         GlyphCacheBLF *gc,
+                         const char *str,
+                         size_t len,
+                         blender::Vector<hb_feature_t> *features)
 {
   if (!str || !str[0] || !len) {
     return;
@@ -108,11 +164,15 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
 
     hb_buffer_set_cluster_level(hb_buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
-    hb_shape_full(segment_font->hb_font,
-                  hb_buf,
-                  font->features.data(),
-                  uint(font->features.size()),
-                  nullptr);
+    blender::Vector<hb_feature_t> otf_features = blf_font_otf_features_default(segment_font);
+    if (features) {
+      for (const hb_feature_t &feature : *features) {
+        blf_font_otf_feature_set(otf_features, feature.tag, feature.value);
+      }
+    }
+
+    hb_shape_full(
+        segment_font->hb_font, hb_buf, otf_features.data(), uint(otf_features.size()), nullptr);
 
     /* Unlikely. Drawing monospaced but changed mid-string to a proportional font. */
     bool set_mono = segment_font != font && font->flags & BLF_MONOSPACED &&
@@ -175,45 +235,6 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
   if (hb_buf) {
     hb_buffer_destroy(hb_buf);
   }
-}
-
-bool blf_font_otf_feature_supported(FontBLF *font, const char tag[4])
-{
-  if (!font) {
-    return false;
-  }
-
-  blf_ensure_face(font);
-  hb_face_t *hb_face = hb_ft_face_create_cached(font->face);
-
-  hb_tag_t tag_value = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
-  if (hb_ot_layout_language_find_feature(
-          hb_face, HB_OT_TAG_GSUB, 0, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX, tag_value, nullptr))
-  {
-    return true;
-  }
-
-  return (hb_ot_layout_language_find_feature(
-      hb_face, HB_OT_TAG_GPOS, 0, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX, tag_value, nullptr));
-}
-
-void blf_font_otf_feature_set(FontBLF *font, const char tag[4], int value)
-{
-  if (!font) {
-    return;
-  }
-
-  hb_tag_t tag_value = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
-
-  for (hb_feature_t &feature : font->features) {
-    if (feature.tag == tag_value) {
-      feature.value = hb_tag_t(value);
-      return;
-    }
-  }
-
-  font->features.append(
-      {tag_value, hb_tag_t(value), HB_FEATURE_GLOBAL_START, HB_FEATURE_GLOBAL_END});
 }
 
 /** \} */

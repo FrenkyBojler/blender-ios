@@ -544,33 +544,6 @@ void style_init()
     blf_mono_font = BLF_load_mono_default(unique);
   }
 
-  /* Set default flags based on UI preferences (not render fonts) */
-  {
-    const FontFlags flag_disable = BLF_NONE;
-    FontFlags flag_enable = BLF_NONE;
-
-    for (uiFont &font : U.uifonts) {
-      if (font.blf_id != -1) {
-        BLF_disable(font.blf_id, flag_disable);
-        BLF_enable(font.blf_id, flag_enable);
-        BLF_otf_feature_set(
-            font.blf_id, "dlig", U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES_UI ? 1 : 0);
-        BLF_otf_feature_set(
-            font.blf_id, "zero", U.text_render & USER_TEXT_SLASHED_ZERO_UI ? 1 : 0);
-        BLF_otf_feature_set(
-            font.blf_id, "calt", U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_UI ? 1 : 0);
-        BLF_otf_feature_set(
-            font.blf_id, "ss01", U.text_render & USER_TEXT_OPEN_DIGITS_INTER ? 1 : 0);
-        BLF_otf_feature_set(
-            font.blf_id, "ss04", U.text_render & USER_TEXT_DISAMBIGUATION_INTER ? 1 : 0);
-      }
-    }
-    if (blf_mono_font != -1) {
-      BLF_disable(blf_mono_font, flag_disable);
-      BLF_enable(blf_mono_font, flag_enable);
-    }
-  }
-
   /**
    * Second for rendering else we get threading problems,
    *
