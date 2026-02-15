@@ -251,7 +251,6 @@ struct GeometryData {
   int size;
   /** Easy access to curve data for curves and grease pencil layers. */
   bke::CurvesGeometry *curves = nullptr;
-  Vector<std::string> tags;
 
   IndexRange chunks;
   /**
@@ -264,12 +263,6 @@ struct GeometryData {
   bke::SpanAttributeWriter<float3> velocity_attr;
   bke::SpanAttributeWriter<math::Quaternion> rotation_attr;
   bke::SpanAttributeWriter<float3> angular_velocity_attr;
-  VArraySpan<float3> external_force_attr;
-  VArraySpan<float3> external_torque_attr;
-
-  VArraySpan<float> frictions;
-  VArraySpan<float> rest_lengths;
-  VArraySpan<math::Quaternion> rest_bend_rotations;
 
   /**
    * Temporary arrays for positions and rotations. This is necessary because xpbd requires the old
@@ -277,6 +270,12 @@ struct GeometryData {
    */
   Array<float3> temp_positions;
   Array<math::Quaternion> temp_rotations;
+
+  VArraySpan<float3> external_force_attr;
+  VArraySpan<float3> external_torque_attr;
+  VArraySpan<float> frictions;
+  VArraySpan<float> rest_lengths;
+  VArraySpan<math::Quaternion> rest_bend_rotations;
 
   /**
    * Inverse of the mass attribute + extra changes:
