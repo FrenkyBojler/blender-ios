@@ -37,7 +37,7 @@ static void bli_settings_print_errors(std::vector<toml::error_info> errors)
   }
 }
 
-void settings_t::init()
+void BLI_settings_init()
 {
   if (BLI_exists(settings_file_path().c_str())) {
     /* Read existing settings file. */
@@ -55,7 +55,7 @@ void settings_t::init()
     if (result.is_ok()) {
       data = result.unwrap();
       /* Save now so this can be edited while running. */
-      save();
+      BLI_settings_save();
     }
     else {
       bli_settings_print_errors(result.unwrap_err());
@@ -63,7 +63,7 @@ void settings_t::init()
   }
 }
 
-bool settings_t::save()
+bool BLI_settings_save()
 {
   if (data.is_empty()) {
     return false;
@@ -73,6 +73,17 @@ bool settings_t::save()
   fputs(s.c_str(), fp);
   fclose(fp);
   return true;
+}
+
+bool Settings::exists(const std::string &item)
+{
+  if (data.is_empty()) {
+    BLI_settings_init();
+  }
+
+  const auto &section_value = toml::find(data, section);
+  const auto &table = section_value.as_table();
+  return table.count(item) > 0;
 }
 
 }  // namespace blender

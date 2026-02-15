@@ -14,34 +14,43 @@ namespace blender {
 
 extern toml::value data;
 
-struct settings_t {
+void BLI_settings_init();
+bool BLI_settings_save();
 
-  void init();
-  bool save();
+struct Settings {
+  std::string section;
 
-  template<typename T>
-  T get(const std::string &section, const std::string &item, const T &default_value);
+  Settings(const std::string &section) : section(section) {}
 
-  template<typename T>
-  void set(const std::string &section, const std::string &item, const T &value);
+  bool exists(const std::string &item);
+
+  template<typename T> T get(const std::string &item);
+
+  template<typename T> T get_or(const std::string &item, const T &default_value);
+
+  template<typename T> void set(const std::string &item, const T &value);
 };
 
-static settings_t settings;
-
-template<typename T>
-T settings_t::get(const std::string &section, const std::string &item, const T &default_value)
+template<typename T> T Settings::get(const std::string &item)
 {
   if (data.is_empty()) {
-    init();
+    BLI_settings_init();
+  }
+  return toml::get<T>(data[section][item]);
+}
+
+template<typename T> T Settings::get_or(const std::string &item, const T &default_value)
+{
+  if (data.is_empty()) {
+    BLI_settings_init();
   }
   return toml::get_or(data[section][item], default_value);
 }
 
-template<typename T>
-void settings_t::set(const std::string &section, const std::string &item, const T &value)
+template<typename T> void Settings::set(const std::string &item, const T &value)
 {
   if (data.is_empty()) {
-    init();
+    BLI_settings_init();
   }
   data[section][item] = value;
 }

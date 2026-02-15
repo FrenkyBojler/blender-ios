@@ -154,8 +154,10 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
     sizey = std::max(sizey, 256);
 
     WM_window_dpi_set_userdef(CTX_wm_window(C));
+
+    Settings settings("window.dimensions");
     std::string key = "image";
-    std::vector<float> bounds = settings.get("window.dimensions", key, std::vector<float>{});
+    std::vector<float> bounds = settings.get_or(key, std::vector<float>{});
 
     const bool bounds_valid = (bounds.size() == 4 && (bounds[1] - bounds[0] > 150.0f) &&
                                (bounds[3] - bounds[2] > 100.0f));
