@@ -78,7 +78,7 @@ def playback_controls(layout, context):
             text="",
         )
 
-    row = layout.row(align=True)
+    row = layout.row(align=True, grouped=True)
     row.operator("screen.frame_jump", text="", icon='REW').end = False
     row.operator("screen.keyframe_jump", text="", icon='PREV_KEYFRAME').next = False
 
@@ -102,7 +102,7 @@ def playback_controls(layout, context):
     row.operator("screen.frame_jump", text="", icon='FF').end = True
 
     # Time jump
-    row = layout.row(align=True)
+    row = layout.row(align=True, grouped=True)
     row.operator("screen.time_jump", text="", icon='FRAME_PREV').backward = True
     row.operator("screen.time_jump", text="", icon='FRAME_NEXT').backward = False
     row.popover(panel="TIME_PT_jump", text="")

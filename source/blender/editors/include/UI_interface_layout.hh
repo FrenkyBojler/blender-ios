@@ -120,6 +120,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
   bContextStore *context_ = nullptr;
   Layout *parent_ = nullptr;
   std::string heading_;
+  bool grouped_ = false;
 
   Vector<Item *> items_;
 
@@ -148,6 +149,8 @@ struct Layout : public Item, NonCopyable, NonMovable {
 
  public:
   Layout(ItemType type, LayoutRoot *root);
+
+  Button *roundbox = nullptr;
 
   [[nodiscard]] bool active() const;
   /**
@@ -217,6 +220,12 @@ struct Layout : public Item, NonCopyable, NonMovable {
    * color #TH_REDALERT.
    */
   void red_alert_set(bool red_alert);
+
+  [[nodiscard]] bool grouped() const;
+  /**
+   * When set to true new items added in the layout are grouped together.
+   */
+  void grouped_set(bool grouped);
 
   [[nodiscard]] Panel *root_panel() const;
 
@@ -769,6 +778,11 @@ inline bool Layout::red_alert() const
 inline void Layout::red_alert_set(bool red_alert)
 {
   redalert_ = red_alert;
+}
+
+inline bool Layout::grouped() const
+{
+  return grouped_;
 }
 
 inline float Layout::search_weight() const

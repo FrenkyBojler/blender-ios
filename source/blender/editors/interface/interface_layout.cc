@@ -271,7 +271,6 @@ struct LayoutItemGridFlow : public Layout {
 };
 
 struct LayoutItemBx : public LayoutColumn {
-  Button *roundbox = nullptr;
   LayoutItemBx() : LayoutColumn(ItemType::LayoutBox, nullptr) {}
 
   void estimate_impl() override;
@@ -3640,6 +3639,8 @@ void LayoutRow::resolve_impl()
     return;
   }
 
+  int h = h_;
+
   int last_free_item_idx = -1;
   int x, neww, newtotw, minw, offset;
   int freew, fixedx, freex, flag = 0, lastw = 0;
@@ -3653,6 +3654,15 @@ void LayoutRow::resolve_impl()
   for (Item *item : this->items()) {
     totw += item->size().x;
     tot++;
+  }
+
+  if (grouped_) {
+    for (Item *item : this->items()) {
+      if (item->type() == ItemType::Button) {
+        const ButtonItem *bitem = static_cast<const ButtonItem *>(item);
+        bitem->but->drawflag |= (BUT_ALIGN | BUT_GROUP_ITEM);
+      }
+    }
   }
 
   if (totw == 0) {
@@ -3792,6 +3802,15 @@ void LayoutRow::resolve_impl()
   h_ = y_ - y;
   x_ = x;
   y_ = y;
+
+  /* roundbox around the sublayout */
+  Button *but = this->roundbox;
+  if (but) {
+    but->rect.xmin = x_ - w_;
+    but->rect.ymin = y_ - h;
+    but->rect.xmax = x_;
+    but->rect.ymax = y_;
+  }
 }
 
 static int spaces_after_column_item(const Layout *litem,
@@ -4891,6 +4910,15 @@ bool uiLayoutEndsWithPanelHeader(const Layout &layout)
   }
   const Item *item = layout.items().last();
   return item->type() == ItemType::LayoutPanelHeader;
+}
+
+void Layout::grouped_set(bool grouped)
+{
+  grouped_ = grouped;
+  if (grouped && this->roundbox == nullptr) {
+    this->roundbox = uiDefBut(
+        this->block(), ButtonType::Roundbox, "", 0, 0, 0, 0, nullptr, 0.0, 0.0, "");
+  }
 }
 
 Layout &Layout::row(bool align, const StringRef heading)

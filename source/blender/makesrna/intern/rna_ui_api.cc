@@ -893,13 +893,19 @@ static Layout *rna_uiLayoutSplit(Layout *layout, float factor, bool align)
   return &layout->split(factor, align);
 }
 
-static Layout *rna_uiLayoutRowWithHeading(
-    Layout *layout, bool align, const char *heading, const char *heading_ctxt, bool translate)
+static Layout *rna_uiLayoutRowWithHeading(Layout *layout,
+                                          bool align,
+                                          const char *heading,
+                                          const char *heading_ctxt,
+                                          bool translate,
+                                          bool grouped)
 {
   /* Get translated heading. */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       heading, heading_ctxt, nullptr, nullptr, translate);
-  return &layout->row(align, text.value_or(""));
+  Layout *row = &layout->row(align, text.value_or(""));
+  row->grouped_set(grouped);
+  return row;
 }
 
 static Layout *rna_uiLayoutColumnWithHeading(
@@ -1320,6 +1326,7 @@ void RNA_api_ui_layout(StructRNA *srna)
       "in a row.");
   RNA_def_boolean(func, "align", false, "", "Align buttons to each other");
   api_ui_item_common_heading(func);
+  RNA_def_boolean(func, "grouped", false, "", "Group buttons together");
 
   func = RNA_def_function(srna, "column", "rna_uiLayoutColumnWithHeading");
   parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");

@@ -385,6 +385,9 @@ enum {
 
   /** Draw icon inverted to indicate a special state. */
   BUT_ICON_INVERT = 1 << 27,
+
+  /** This button should be shown as grouped. */
+  BUT_GROUP_ITEM = 1 << 28,
 };
 
 enum class ButPointerType : uint8_t {

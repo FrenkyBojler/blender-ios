@@ -84,6 +84,7 @@ void uiTemplateEditModeSelection(ui::Layout *layout, bContext *C)
 
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   ui::Layout &row = layout->row(true);
+  row.grouped_set(true);
 
   wmOperatorType *ot = WM_operatortype_find("MESH_OT_select_mode", true);
   PointerRNA op_ptr = row.op(ot,

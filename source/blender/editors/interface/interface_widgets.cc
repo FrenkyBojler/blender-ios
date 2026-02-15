@@ -4653,6 +4653,11 @@ static void widget_roundbut_exec(Button *but,
   WidgetBase wtb;
   widget_init(&wtb);
 
+  if (but->drawflag & BUT_GROUP_ITEM) {
+    wtb.draw_outline = false;
+    wtb.draw_emboss = false;
+  }
+
   if (state->has_hold_action) {
     /* Show that keeping pressed performs another action (typically a menu). */
     shape_preset_init_hold_action(&wtb.tria1, rect, 0.75f, 'r');
@@ -4962,6 +4967,9 @@ static int widget_roundbox_set(Button *but, rcti *rect)
     }
     if (but->drawflag & (BUT_ALIGN_LEFT | BUT_ALIGN_STITCH_LEFT)) {
       rect->xmin -= U.pixelsize;
+      if (but->drawflag & BUT_GROUP_ITEM) {
+        rect->xmin -= U.pixelsize;
+      }
     }
 
     switch (but->drawflag & BUT_ALIGN) {
