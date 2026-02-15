@@ -163,6 +163,17 @@ struct RodStretchShearConstraintUsage {
   MutableSpan<float3> lambdas_rot;
 };
 
+struct RodBendTwistConstraint {
+  std::string path;
+  Field<float> compliance;
+};
+struct RodBendTwistConstraintUsage {
+  /** Index of corresponding #RodBendTwistConstraint. */
+  int constraint_i;
+  VArray<float> compliances;
+  MutableSpan<float4> lambdas;
+};
+
 struct InfinitePlaneCollider {
   std::string path;
   float3 end_position;
@@ -233,11 +244,6 @@ struct GeometryData {
   Array<float4> pin_rotation_lambdas;
   Array<math::Quaternion> pin_rotation_current;
 
-  /* Only a single constraint of this type is allowed. */
-  bool has_rod_bend_twist_constraint = false;
-  VArray<float> rod_bend_twist_compliances;
-  MutableSpan<float4> rod_bend_twist_lambdas;
-
   VArraySpan<float> rest_lengths;
   VArraySpan<math::Quaternion> rest_bend_rotations;
 
@@ -265,8 +271,9 @@ struct GeometryData {
   Vector<DampingConstraintUsage> damping_constraints;
   Vector<MeshColliderUsage> mesh_colliders;
 
-  /** Only a single constraint of this type is allowed. */
+  /** Only a single constraint of these types is allowed. */
   std::optional<RodStretchShearConstraintUsage> rod_stretch_shear_constraint;
+  std::optional<RodBendTwistConstraintUsage> rod_bend_twist_constraint;
 };
 
 struct GeometrySetData {
@@ -450,6 +457,7 @@ struct ConstraintsInfo {
   Vector<MeshCollider> mesh_colliders;
   Vector<DampingConstraint> damping_constraints;
   Vector<RodStretchShearConstraint> rod_stretch_shear_constraints;
+  Vector<RodBendTwistConstraint> rod_bend_twist_constraints;
 };
 
 class XpbdSolverStep {
@@ -1147,30 +1155,30 @@ class XpbdSolverStep {
         if (!geo_data.curves) {
           continue;
         }
-        if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
-          if (geo_data.rod_stretch_shear_constraint.has_value()) {
-            this->report_warning(RPT_("Duplicate rod stretch/shear constraint"));
-            break;
-          }
-          geo_data.rod_stretch_shear_constraint = {constraint_i};
-        }
-      }
-
-      for (const int data_key_i : geometries_.data_keys.index_range()) {
-        GeometryData &geo_data = geometries_.data[data_key_i];
-        if (!geo_data.rod_stretch_shear_constraint.has_value()) {
+        if (!this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
           continue;
         }
-        RodStretchShearConstraintUsage &constraint_usage = *geo_data.rod_stretch_shear_constraint;
-        const RodStretchShearConstraint &constraint =
-            constraints_info_.rod_stretch_shear_constraints[constraint_usage.constraint_i];
-
-        constraint_usage.lambdas_pos = global_allocator_.allocate_array<float3>(geo_data.size);
-        constraint_usage.lambdas_rot = global_allocator_.allocate_array<float3>(geo_data.size);
-
-        fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
-        evaluator.add(constraint.compliance, &constraint_usage.compliances);
+        if (geo_data.rod_stretch_shear_constraint.has_value()) {
+          this->report_warning(RPT_("Duplicate rod stretch/shear constraint"));
+          break;
+        }
+        geo_data.rod_stretch_shear_constraint = {constraint_i};
       }
+    }
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      if (!geo_data.rod_stretch_shear_constraint.has_value()) {
+        continue;
+      }
+      RodStretchShearConstraintUsage &constraint_usage = *geo_data.rod_stretch_shear_constraint;
+      const RodStretchShearConstraint &constraint =
+          constraints_info_.rod_stretch_shear_constraints[constraint_usage.constraint_i];
+
+      constraint_usage.lambdas_pos = global_allocator_.allocate_array<float3>(geo_data.size);
+      constraint_usage.lambdas_rot = global_allocator_.allocate_array<float3>(geo_data.size);
+
+      fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
+      evaluator.add(constraint.compliance, &constraint_usage.compliances);
     }
   }
 
@@ -1217,21 +1225,37 @@ class XpbdSolverStep {
       const Field<float> compliance_field =
           bundle.lookup<Field<float>>("compliance").value_or(fn::make_constant_field(0.0f));
 
-      for (const int data_key_i : geometries_.data_keys.index_range()) {
+      const int constraint_i = constraints_info_.rod_bend_twist_constraints.append_and_get_index(
+          {path, compliance_field});
+
+      for (const int data_key_i : geometries_.data.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
-        if (geo_data.has_rod_bend_twist_constraint) {
+        if (!geo_data.curves) {
           continue;
         }
         if (!this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
           continue;
         }
-        if (!geo_data.curves) {
-          continue;
+        if (geo_data.rod_bend_twist_constraint.has_value()) {
+          this->report_warning(RPT_("Duplicate rod bend/twist constraint"));
+          break;
         }
-        fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
-        evaluator.add(compliance_field, &geo_data.rod_bend_twist_compliances);
-        geo_data.has_rod_bend_twist_constraint = true;
+        geo_data.rod_bend_twist_constraint = {constraint_i};
       }
+    }
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      if (!geo_data.rod_bend_twist_constraint.has_value()) {
+        continue;
+      }
+      RodBendTwistConstraintUsage &constraint_usage = *geo_data.rod_bend_twist_constraint;
+      const RodBendTwistConstraint &constraint =
+          constraints_info_.rod_bend_twist_constraints[constraint_usage.constraint_i];
+
+      constraint_usage.lambdas = global_allocator_.allocate_array<float4>(geo_data.size);
+
+      fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
+      evaluator.add(constraint.compliance, &constraint_usage.compliances);
     }
   }
 
@@ -1239,15 +1263,15 @@ class XpbdSolverStep {
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-      if (!geo_data.has_rod_bend_twist_constraint) {
+      if (!geo_data.rod_bend_twist_constraint.has_value()) {
         continue;
       }
+      RodBendTwistConstraintUsage &constraint_usage = *geo_data.rod_bend_twist_constraint;
       bke::CurvesGeometry &curves = *geo_data.curves;
       const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
-      geo_data.rod_bend_twist_lambdas = global_allocator_.allocate_array<float4>(geo_data.size);
       const VArraySpanGetter<float> compliances{
-          global_scope_, geo_data.rod_bend_twist_compliances, geometries_.max_chunk_size};
+          global_scope_, constraint_usage.compliances, geometries_.max_chunk_size};
 
       for (const int chunk_i : geo_data.chunks) {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
@@ -1258,7 +1282,7 @@ class XpbdSolverStep {
                 points_by_curve,
                 geo_data.rest_bend_rotations,
                 compliances.get_span_for_range(chunk.points_range),
-                geo_data.rod_bend_twist_lambdas));
+                constraint_usage.lambdas));
       }
     }
   }
