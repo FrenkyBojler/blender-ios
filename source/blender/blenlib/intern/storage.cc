@@ -58,6 +58,13 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+#ifndef S_IRGRP
+#  define S_IRGRP 0040
+#endif
+#ifndef S_IROTH
+#  define S_IROTH 0004
+#endif
+
 namespace blender {
 
 /* NOTE: The implementation for Apple lives in storage_apple.mm. */
@@ -414,6 +421,64 @@ bool BLI_exists(const char *path)
 }
 
 #ifdef WIN32
+
+#  ifndef S_IRGRP
+#    define S_IRGRP 0040
+#  endif
+#  ifndef S_IROTH
+#    define S_IROTH 0004
+#  endif
+
+int BLI_wstat_fast(const wchar_t *path, BLI_stat_t *buffer)
+{
+  memset(buffer, 0, sizeof(BLI_stat_t));
+
+  WIN32_FILE_ATTRIBUTE_DATA file_attr;
+  if (!GetFileAttributesExW(path, GetFileExInfoStandard, &file_attr)) {
+    return -1;
+  }
+
+  buffer->st_size = ((int64_t)file_attr.nFileSizeHigh << 32) | file_attr.nFileSizeLow;
+
+  /* FILETIME is in 100-nanosecond intervals since 1601-01-01 UTC.
+     Subtract the offset to 1970-01-01 UTC and divide by 10^7 to get seconds. */
+  const int64_t FILETIME_TO_UNIX_EPOCH = 116444736000000000LL; /* 100ns units. */
+
+  int64_t filetime_100ns = ((int64_t)file_attr.ftLastWriteTime.dwHighDateTime << 32) |
+                           file_attr.ftLastWriteTime.dwLowDateTime;
+  buffer->st_mtime = (filetime_100ns - FILETIME_TO_UNIX_EPOCH) / 10000000LL;
+
+  if (file_attr.ftCreationTime.dwHighDateTime || file_attr.ftCreationTime.dwLowDateTime) {
+    filetime_100ns = ((int64_t)file_attr.ftCreationTime.dwHighDateTime << 32) |
+                     file_attr.ftCreationTime.dwLowDateTime;
+    buffer->st_ctime = (filetime_100ns - FILETIME_TO_UNIX_EPOCH) / 10000000LL;
+  }
+  else {
+    buffer->st_ctime = buffer->st_mtime;
+  }
+
+  if (file_attr.ftLastAccessTime.dwHighDateTime || file_attr.ftLastAccessTime.dwLowDateTime) {
+    filetime_100ns = ((int64_t)file_attr.ftLastAccessTime.dwHighDateTime << 32) |
+                     file_attr.ftLastAccessTime.dwLowDateTime;
+    buffer->st_atime = (filetime_100ns - FILETIME_TO_UNIX_EPOCH) / 10000000LL;
+  }
+  else {
+    buffer->st_atime = buffer->st_mtime;
+  }
+
+  buffer->st_mode |= (file_attr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? _S_IFDIR : _S_IFREG;
+  buffer->st_mode |= _S_IREAD | _S_IEXEC | S_IRGRP | S_IROTH;
+  if (!(file_attr.dwFileAttributes & FILE_ATTRIBUTE_READONLY)) {
+    buffer->st_mode |= _S_IWRITE;
+  }
+
+  buffer->st_nlink = 1; /* Assume single link. */
+  buffer->st_uid = 0;   /* Not applicable on Windows. */
+  buffer->st_gid = 0;   /* Not applicable on Windows. */
+
+  return 0;
+}
+
 int BLI_fstat(int fd, BLI_stat_t *buffer)
 {
 #  if defined(_MSC_VER)
@@ -436,6 +501,10 @@ int BLI_stat(const char *path, BLI_stat_t *buffer)
 
 int BLI_wstat(const wchar_t *path, BLI_stat_t *buffer)
 {
+  if (BLI_wstat_fast(path, buffer) == 0) {
+    return 0;
+  }
+
 #  if defined(_MSC_VER)
   return _wstat64(path, buffer);
 #  else
