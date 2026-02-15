@@ -219,23 +219,6 @@ static void parallel_for_impl_individual_size_lookup(
 
 #endif /* WITH_TBB */
 
-static void split_tasks_recursive(const IndexRange range,
-                                  const int64_t grain_size,
-                                  const TaskSizeHints_AccumulatedLookup &size_hints,
-                                  Vector<IndexRange, 64> &r_ranges)
-{
-  const int64_t total_size = size_hints.lookup_accumulated_size(range);
-  if (total_size <= grain_size) {
-    r_ranges.append(range);
-    return;
-  }
-  const int64_t middle = range.size() / 2;
-  const IndexRange left_range = range.take_front(middle);
-  const IndexRange right_range = range.drop_front(middle);
-  split_tasks_recursive(left_range, grain_size, size_hints, r_ranges);
-  split_tasks_recursive(right_range, grain_size, size_hints, r_ranges);
-}
-
 static void parallel_for_impl_accumulated_size_lookup(
     const IndexRange range,
     const int64_t grain_size,
@@ -253,20 +236,16 @@ static void parallel_for_impl_accumulated_size_lookup(
     function(range);
     return;
   }
-  Vector<IndexRange, 64> sub_tasks;
-
-  /* This is a trade-off: Lower values mean that multi-threading can start sooner but there is more
-   * threading overhead because more tasks are generated and there is more recursion. */
-  const int approximate_sub_ranges = 32;
-  split_tasks_recursive(
-      range, std::max(grain_size, total_size / approximate_sub_ranges), size_hints, sub_tasks);
-
-  threading::parallel_for(sub_tasks.index_range(), 1, [&](const IndexRange tasks_range) {
-    for (const int i : tasks_range) {
-      const IndexRange sub_task = sub_tasks[i];
-      parallel_for_impl_accumulated_size_lookup(sub_task, grain_size, function, size_hints);
-    }
-  });
+  const int64_t middle = range.size() / 2;
+  const IndexRange left_range = range.take_front(middle);
+  const IndexRange right_range = range.drop_front(middle);
+  threading::parallel_invoke(
+      [&]() {
+        parallel_for_impl_accumulated_size_lookup(left_range, grain_size, function, size_hints);
+      },
+      [&]() {
+        parallel_for_impl_accumulated_size_lookup(right_range, grain_size, function, size_hints);
+      });
 }
 
 void parallel_for_impl(const IndexRange range,
