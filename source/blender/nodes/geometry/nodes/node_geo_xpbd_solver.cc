@@ -139,6 +139,8 @@ struct DampingConstraintUsage {
 struct RodStretchShearConstraint {
   std::string path;
   Field<float> compliance;
+  std::string lambda_pos_attr;
+  std::string lambda_rot_attr;
 };
 struct RodStretchShearConstraintUsage {
   /** Index of corresponding #RodStretchShearConstraint. */
@@ -546,6 +548,7 @@ class XpbdSolverStep {
 
     this->write_back__pin_positions();
     this->write_back__pin_rotations();
+    this->write_back__rod_stretch_shear();
 
     this->finish_common_attribute_writers();
     this->write_back_geometries_to_world();
@@ -1008,11 +1011,17 @@ class XpbdSolverStep {
         continue;
       }
       const Bundle &bundle = **bundle_ptr;
-      const Field<float> compliance_field =
-          bundle.lookup<Field<float>>("compliance").value_or(fn::make_constant_field(0.0f));
+      RodStretchShearConstraint constraint;
+      constraint.path = path;
+      constraint.compliance = this->get_field_or_constant<float>(bundle, "compliance", 0.0f);
+      constraint.lambda_pos_attr =
+          bundle.lookup<std::string>("lambda_position_attribute").value_or("");
+      constraint.lambda_rot_attr =
+          bundle.lookup<std::string>("lambda_rotation_attribute").value_or("");
 
       const int constraint_i = constraints_.rod_stretch_shear_constraints.append_and_get_index(
-          {path, compliance_field});
+          std::move(constraint));
+
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
         if (!geo_data.curves) {
@@ -1071,6 +1080,37 @@ class XpbdSolverStep {
                 compliances.get_span_for_range(chunk.points_range),
                 constraint_usage.lambdas_pos,
                 constraint_usage.lambdas_rot));
+      }
+    }
+  }
+
+  void write_back__rod_stretch_shear()
+  {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      if (!geo_data.rod_stretch_shear_constraint.has_value()) {
+        continue;
+      }
+      const RodStretchShearConstraintUsage &constraint_usage =
+          *geo_data.rod_stretch_shear_constraint;
+      const RodStretchShearConstraint &constraint =
+          constraints_
+              .rod_stretch_shear_constraints[geo_data.rod_stretch_shear_constraint->constraint_i];
+      geo_data.attributes.remove(constraint.lambda_pos_attr);
+      geo_data.attributes.remove(constraint.lambda_rot_attr);
+      if (bke::SpanAttributeWriter<float3> lambda_pos_attr =
+              this->get_output_attribute_writer<float3>(
+                  data_key_i, constraint.lambda_pos_attr, geo_data.domain))
+      {
+        lambda_pos_attr.span.copy_from(constraint_usage.lambdas_pos);
+        lambda_pos_attr.finish();
+      }
+      if (bke::SpanAttributeWriter<float3> lambda_rot_attr =
+              this->get_output_attribute_writer<float3>(
+                  data_key_i, constraint.lambda_rot_attr, geo_data.domain))
+      {
+        lambda_rot_attr.span.copy_from(constraint_usage.lambdas_rot);
+        lambda_rot_attr.finish();
       }
     }
   }

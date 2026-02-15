@@ -799,10 +799,8 @@ class RodStretchAndShearConstraintSet
   {
     const int curve_i = this->curves_range[constraint_i];
     const IndexRange points = this->points_by_curve[curve_i];
-    for (const int point_i0 : points.drop_back(1)) {
-      this->lambdas_pos[point_i0] = float3(0.0f);
-      this->lambdas_rot[point_i0] = float3(0.0f);
-    }
+    this->lambdas_pos.slice(points).fill(float3(0.0f));
+    this->lambdas_rot.slice(points).fill(float3(0.0f));
   }
 
   template<typename UpdaterT>
@@ -886,9 +884,7 @@ class RodBendAndTwistConstraintSet : public TemplatedConstraintSet<RodBendAndTwi
   {
     const int curve_i = this->curves_range[constraint_i];
     const IndexRange points = this->points_by_curve[curve_i];
-    for (const int point_i0 : points.drop_back(2)) {
-      lambdas_[point_i0] = float4(0.0f);
-    }
+    lambdas_.slice(points).fill(float4(0.0f));
   }
 
   template<typename UpdaterT>
