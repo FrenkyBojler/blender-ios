@@ -214,7 +214,7 @@ class PinPositionConstraintSet : public TemplatedConstraintSet<PinPositionConstr
 
 class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstraintSet> {
   /** Indexed by constraint index. */
-  Span<float> compliance_terms_;
+  Span<float> compliances_;
 
  public:
   /** Indexed by constraint index. */
@@ -227,10 +227,10 @@ class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstr
   PinRotationConstraintSet(const int geo_i,
                            const Span<int> point_indices,
                            const Span<math::Quaternion> pin_rotations,
-                           const Span<float> compliance_terms,
+                           const Span<float> compliances,
                            MutableSpan<float4> lambdas)
       : TemplatedConstraintSet<PinRotationConstraintSet>(point_indices.size(), {geo_i}),
-        compliance_terms_(compliance_terms),
+        compliances_(compliances),
         point_indices(point_indices),
         pin_rotations(pin_rotations),
         lambdas(lambdas)
@@ -255,7 +255,7 @@ class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstr
         params.moment_of_inertia(geo_i, point_i),
         float3(std::numeric_limits<float>::infinity()),
         math::Quaternion::identity(),
-        compliance_terms_[constraint_i],
+        compliances_[constraint_i] * params.compliance_term_factor,
         this->lambdas[constraint_i]);
     this->lambdas[constraint_i] += result.delta_lambda;
     updater.update_rotation(geo_i, point_i, result.offset0);

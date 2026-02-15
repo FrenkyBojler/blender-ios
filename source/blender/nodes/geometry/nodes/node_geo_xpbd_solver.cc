@@ -37,12 +37,6 @@ constexpr StringRefNull friction = "friction";
 constexpr StringRefNull rest_length = "rest_length";
 constexpr StringRefNull rest_bend_rotation = "rest_bend_rotation";
 
-constexpr StringRefNull sim_pin_rotation = "sim_pin_rotation";
-constexpr StringRefNull sim_pin_rotation_begin = "sim_pin_rotation_begin";
-constexpr StringRefNull sim_pin_rotation_end = "sim_pin_rotation_end";
-constexpr StringRefNull sim_pin_rotation_compliance = "sim_pin_rotation_compliance";
-constexpr StringRefNull sim_pin_rotation_lambda = "sim_pin_rotation_lambda";
-
 }  // namespace attribute_names
 
 static NestedBundleTypePtr make_world_type()
@@ -194,6 +188,35 @@ struct PinPositionConstraintChunkUsage {
   IndexRange pin_range;
 };
 
+struct PinRotationConstraint {
+  std::string path;
+  Field<bool> selection;
+  Field<math::Quaternion> rotation;
+  Field<float> compliance;
+  std::string prev_rotation_attr;
+  std::string was_pinned_attr;
+};
+struct PinRotationConstraintUsage {
+  /** Index of corresponding #PinRotationConstraint. */
+  const int constraint_i;
+
+  fn::FieldEvaluator *evaluator = nullptr;
+  VArray<math::Quaternion> rotations_varray;
+  VArray<float> compliances_varray;
+
+  Span<int> points;
+  Span<math::Quaternion> prev_rotations;
+  Span<math::Quaternion> next_rotations;
+  Span<float> compliances;
+  MutableSpan<math::Quaternion> current_rotations;
+  MutableSpan<float4> lambdas;
+};
+struct PinRotationConstraintChunkUsage {
+  /** Index of the corresponding #PinRotationConstraintUsage. */
+  int constraint_usage_i;
+  IndexRange pin_range;
+};
+
 struct InfinitePlaneCollider {
   std::string path;
   float3 end_position;
@@ -245,16 +268,6 @@ struct GeometryData {
   VArraySpan<float3> external_torque_attr;
 
   VArraySpan<float> frictions;
-
-  /* Indexed by point index. */
-  VArraySpan<math::Quaternion> pin_rotation_begin;
-  VArraySpan<math::Quaternion> pin_rotation_end;
-  /** Note, these are not really quaternions, but there is no float4 attribute type yet. */
-  bke::SpanAttributeWriter<math::Quaternion> pin_rotation_lambda_attr;
-  /** Indexed by pin index. */
-  Array<float4> pin_rotation_lambdas;
-  Array<math::Quaternion> pin_rotation_current;
-
   VArraySpan<float> rest_lengths;
   VArraySpan<math::Quaternion> rest_bend_rotations;
 
@@ -280,6 +293,7 @@ struct GeometryData {
 
   Vector<DampingConstraintUsage> damping_constraints;
   Vector<PinPositionConstraintUsage> pin_position_constraints;
+  Vector<PinRotationConstraintUsage> pin_rotation_constraints;
   Vector<InfinitePlaneColliderUsage> infinite_plane_colliders;
   Vector<MeshColliderUsage> mesh_colliders;
 
@@ -419,10 +433,7 @@ struct ChunkConstraints {
   Vector<xpbd::VelocityConstraintSet *> static_velocity_constraints;
 
   Vector<PinPositionConstraintChunkUsage> pin_position_constraints;
-
-  Span<int> pin_rotation_indices;
-  MutableSpan<math::Quaternion> pin_rotations;
-  Span<float4> pin_rotation_lambdas;
+  Vector<PinRotationConstraintChunkUsage> pin_rotation_constraints;
 
   ExternalPlaneContacts external_plane_contacts;
 };
@@ -469,6 +480,7 @@ struct ConstraintsInfo {
   Vector<RodStretchShearConstraint> rod_stretch_shear_constraints;
   Vector<RodBendTwistConstraint> rod_bend_twist_constraints;
   Vector<PinPositionConstraint> pin_position_constraints;
+  Vector<PinRotationConstraint> pin_rotation_constraints;
 };
 
 class XpbdSolverStep {
@@ -516,13 +528,15 @@ class XpbdSolverStep {
     this->prepare_substep_compliance_factor();
     this->gather_from_world__geometries();
     this->prepare_geometry_chunks();
+
     this->gather_from_world__infinite_plane_colliders();
     this->gather_from_world__mesh_colliders();
     this->gather_from_world__stretch_shear_constraints();
     this->gather_from_world__bend_twist_constraints();
     this->gather_from_world__damping();
     this->gather_from_world__pin_positions();
-    this->prepare_pinned_rotations();
+    this->gather_from_world__pin_rotations();
+
     this->prepare_inverse_masses();
     this->prepare_inverse_moments_of_inertia();
 
@@ -532,11 +546,14 @@ class XpbdSolverStep {
     this->create_constraints__rod_bend_twist();
     this->create_constraints__damping();
     this->create_constraints__pin_positions();
+    this->create_constraints__pin_rotations();
 
     this->do_simulation();
 
     this->write_back__pin_positions();
-    this->finish_attribute_writers();
+    this->write_back__pin_rotations();
+
+    this->finish_common_attribute_writers();
     this->write_back_geometries_to_world();
   }
 
@@ -938,78 +955,6 @@ class XpbdSolverStep {
       const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
       geometries_.max_chunk_size = std::max<int>(geometries_.max_chunk_size,
                                                  chunk.points_range.size());
-    }
-  }
-
-  void prepare_pinned_rotations()
-  {
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      GeometryData &geo_data = geometries_.data[data_key_i];
-      const bke::AttributeReader<bool> pin_attr = geo_data.attributes.lookup<bool>(
-          attribute_names::sim_pin_rotation, geo_data.domain);
-      const bke::AttributeReader<math::Quaternion> begin_attr =
-          geo_data.attributes.lookup<math::Quaternion>(attribute_names::sim_pin_rotation_begin,
-                                                       geo_data.domain);
-      const bke::AttributeReader<math::Quaternion> end_attr =
-          geo_data.attributes.lookup<math::Quaternion>(attribute_names::sim_pin_rotation_end,
-                                                       geo_data.domain);
-      if (!pin_attr || !begin_attr || !end_attr) {
-        continue;
-      }
-
-      const VArraySpan<bool> pin_attr_span = *pin_attr;
-      geo_data.pin_rotation_begin = *begin_attr;
-      geo_data.pin_rotation_end = *end_attr;
-      geo_data.pin_rotation_lambda_attr =
-          geo_data.attributes.lookup_or_add_for_write_span<math::Quaternion>(
-              attribute_names::sim_pin_rotation_lambda,
-              geo_data.domain,
-              bke::AttributeInitValue(math::Quaternion(0, 0, 0, 0)));
-
-      const VArray<float> compliance_attr = *geo_data.attributes.lookup_or_default<float>(
-          attribute_names::sim_pin_rotation_compliance, geo_data.domain, 0.0f);
-
-      threading::parallel_for(
-          geo_data.chunks.index_range(), 16, [&](const IndexRange chunk_range) {
-            ResourceScope &thread_scope = thread_scopes_.local();
-            LinearAllocator<> &thread_allocator = thread_scope.allocator();
-            for (const int chunk_i : chunk_range) {
-              const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-              ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
-              Vector<int> pin_indices_vec;
-              for (const int points_i : chunk.points_range) {
-                const bool is_pinned = pin_attr_span[points_i];
-                if (!is_pinned) {
-                  continue;
-                }
-                pin_indices_vec.append(points_i);
-              }
-              const int pin_num = pin_indices_vec.size();
-              if (pin_num == 0) {
-                continue;
-              }
-              const Span<int> pin_indices = thread_allocator.construct_array_copy<int>(
-                  pin_indices_vec);
-              MutableSpan<float> compliance_terms = thread_allocator.allocate_array<float>(
-                  pin_num);
-              MutableSpan<float4> lambdas = thread_allocator.allocate_array<float4>(pin_num);
-              for (const int pin_i : IndexRange(pin_num)) {
-                const int point_i = pin_indices[pin_i];
-                compliance_terms[pin_i] = compliance_attr[point_i] * substep_compliance_factor_;
-                lambdas[pin_i] = float4(&geo_data.pin_rotation_lambda_attr.span[point_i].w);
-              }
-              /* This is initialized in each substep. */
-              MutableSpan<math::Quaternion> pin_rotations =
-                  thread_allocator.allocate_array<math::Quaternion>(pin_num);
-
-              chunk_constraints.pin_rotation_indices = pin_indices;
-              chunk_constraints.pin_rotations = pin_rotations;
-              chunk_constraints.pin_rotation_lambdas = lambdas;
-              chunk_constraints.static_constraints.append(
-                  &thread_scope.construct<xpbd::PinRotationConstraintSet>(
-                      data_key_i, pin_indices, pin_rotations, compliance_terms, lambdas));
-            }
-          });
     }
   }
 
@@ -1477,6 +1422,174 @@ class XpbdSolverStep {
     }
   }
 
+  void gather_from_world__pin_rotations()
+  {
+    const Vector<std::string> paths = gather_bundle_paths_by_type(
+        world_, PinnedRotationXPBDConstraintBundle::name);
+    for (const StringRef path : paths) {
+      const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
+      std::optional<Field<math::Quaternion>> rotation_field =
+          bundle.lookup<Field<math::Quaternion>>("rotation");
+      if (!rotation_field) {
+        continue;
+      }
+      PinRotationConstraint constraint;
+      constraint.path = path;
+      constraint.selection = this->get_field_or_constant<bool>(bundle, "selection", true);
+      constraint.rotation = *rotation_field;
+      constraint.compliance = this->get_field_or_constant<float>(bundle, "compliance", 0.0f);
+      constraint.prev_rotation_attr = "prev_pin_rotation";
+      constraint.was_pinned_attr = "had_pinned_rotation";
+      const int constraint_i = constraints_info_.pin_rotation_constraints.append_and_get_index(
+          std::move(constraint));
+
+      for (const int data_key_i : geometries_.data_keys.index_range()) {
+        GeometryData &geo_data = geometries_.data[data_key_i];
+        if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+          geo_data.pin_rotation_constraints.append({constraint_i});
+        }
+      }
+    }
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      for (PinRotationConstraintUsage &constraint_usage : geo_data.pin_rotation_constraints) {
+        const PinRotationConstraint &constraint =
+            constraints_info_.pin_rotation_constraints[constraint_usage.constraint_i];
+        fn::FieldEvaluator &evaluator = this->get_field_evaluator(
+            data_key_i, geo_data.domain, constraint.selection);
+        constraint_usage.evaluator = &evaluator;
+        evaluator.add(constraint.rotation, &constraint_usage.rotations_varray);
+        evaluator.add(constraint.compliance, &constraint_usage.compliances_varray);
+      }
+    }
+  }
+
+  void create_constraints__pin_rotations()
+  {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      for (const int constraint_usage_i : geo_data.pin_rotation_constraints.index_range()) {
+        PinRotationConstraintUsage &constraint_usage =
+            geo_data.pin_rotation_constraints[constraint_usage_i];
+        const PinRotationConstraint &constraint =
+            constraints_info_.pin_rotation_constraints[constraint_usage.constraint_i];
+
+        const IndexMask &pin_mask = constraint_usage.evaluator->get_evaluated_selection_as_mask();
+        const int pin_num = pin_mask.size();
+
+        MutableSpan<int> points = global_allocator_.allocate_array<int>(pin_num);
+        MutableSpan<math::Quaternion> prev_rotations =
+            global_allocator_.allocate_array<math::Quaternion>(pin_num);
+        MutableSpan<math::Quaternion> next_rotations =
+            global_allocator_.allocate_array<math::Quaternion>(pin_num);
+        MutableSpan<math::Quaternion> current_rotations =
+            global_allocator_.allocate_array<math::Quaternion>(pin_num);
+        MutableSpan<float> compliances = global_allocator_.allocate_array<float>(pin_num);
+        MutableSpan<float4> lambdas = global_allocator_.allocate_array<float4>(pin_num);
+
+        constraint_usage.points = points;
+        constraint_usage.prev_rotations = prev_rotations;
+        constraint_usage.next_rotations = next_rotations;
+        constraint_usage.current_rotations = current_rotations;
+        constraint_usage.compliances = compliances;
+        constraint_usage.lambdas = lambdas;
+
+        pin_mask.to_indices(points);
+        constraint_usage.rotations_varray.materialize_compressed_to_uninitialized(pin_mask,
+                                                                                  next_rotations);
+        constraint_usage.compliances_varray.materialize_compressed_to_uninitialized(pin_mask,
+                                                                                    compliances);
+
+        const VArraySpan<math::Quaternion> prev_rotations_attr =
+            *geo_data.attributes.lookup<math::Quaternion>(constraint.prev_rotation_attr,
+                                                          geo_data.domain);
+        const VArraySpan<bool> was_pinned_attr = *geo_data.attributes.lookup<bool>(
+            constraint.was_pinned_attr, geo_data.domain);
+        const bool has_prev_info = !prev_rotations_attr.is_empty() && !was_pinned_attr.is_empty();
+
+        threading::parallel_for(IndexRange(pin_num), 1024, [&](const IndexRange range) {
+          for (const int pin_i : range) {
+            const int point_i = points[pin_i];
+            math::Quaternion &prev_rotation = prev_rotations[pin_i];
+            if (has_prev_info) {
+              if (was_pinned_attr[point_i]) {
+                prev_rotation = prev_rotations_attr[point_i];
+                continue;
+              }
+            }
+            else {
+              prev_rotation = geo_data.rotation_attr.span[point_i];
+            }
+          }
+        });
+
+        for (const int chunk_i : geo_data.chunks) {
+          const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+          const IndexRange pin_range = unique_sorted_indices::find_content_range<int>(
+              points, chunk.points_range);
+          if (pin_range.is_empty()) {
+            continue;
+          }
+          ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+          chunk_constraints.pin_rotation_constraints.append({constraint_usage_i, pin_range});
+          chunk_constraints.static_constraints.append(
+              &global_scope_.construct<xpbd::PinRotationConstraintSet>(
+                  data_key_i,
+                  points.slice(pin_range),
+                  current_rotations.slice(pin_range),
+                  compliances.slice(pin_range),
+                  lambdas.slice(pin_range)));
+        }
+      }
+    }
+  }
+
+  void write_back__pin_rotations()
+  {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      for (const PinRotationConstraintUsage &constraint_usage : geo_data.pin_rotation_constraints)
+      {
+        const PinRotationConstraint &constraint =
+            constraints_info_.pin_rotation_constraints[constraint_usage.constraint_i];
+        if (!constraint.was_pinned_attr.empty()) {
+          geo_data.attributes.remove(constraint.was_pinned_attr);
+        }
+        if (!constraint.prev_rotation_attr.empty()) {
+          geo_data.attributes.remove(constraint.prev_rotation_attr);
+        }
+      }
+      for (const PinRotationConstraintUsage &constraint_usage : geo_data.pin_rotation_constraints)
+      {
+        const PinRotationConstraint &constraint =
+            constraints_info_.pin_rotation_constraints[constraint_usage.constraint_i];
+        if (!constraint.was_pinned_attr.empty()) {
+          if (bke::SpanAttributeWriter<bool> was_pinned_attr =
+                  geo_data.attributes.lookup_or_add_for_write_span<bool>(
+                      constraint.was_pinned_attr, geo_data.domain))
+          {
+            for (const int point_i : constraint_usage.points) {
+              was_pinned_attr.span[point_i] = true;
+            }
+            was_pinned_attr.finish();
+          }
+        }
+        if (!constraint.prev_rotation_attr.empty()) {
+          if (bke::SpanAttributeWriter<math::Quaternion> prev_rotation_attr =
+                  geo_data.attributes.lookup_or_add_for_write_span<math::Quaternion>(
+                      constraint.prev_rotation_attr, geo_data.domain))
+          {
+            for (const int pin_i : constraint_usage.points.index_range()) {
+              const int point_i = constraint_usage.points[pin_i];
+              prev_rotation_attr.span[point_i] = constraint_usage.next_rotations[pin_i];
+            }
+            prev_rotation_attr.finish();
+          }
+        }
+      }
+    }
+  }
+
   template<typename T>
   Field<T> get_field_or_constant(const Bundle &bundle,
                                  const StringRef name,
@@ -1686,12 +1799,17 @@ class XpbdSolverStep {
         constraint_usage.current_positions[pin_i] = pin_pos;
       }
     }
-    for (const int i : chunk_constraints.pin_rotations.index_range()) {
-      const int point_i = chunk_constraints.pin_rotation_indices[i];
-      const math::Quaternion &begin_rot = geo_data.pin_rotation_begin[point_i];
-      const math::Quaternion &end_rot = geo_data.pin_rotation_end[point_i];
-      const math::Quaternion pin_rot = math::interpolate(begin_rot, end_rot, substep.end_factor);
-      chunk_constraints.pin_rotations[i] = pin_rot;
+    for (const PinRotationConstraintChunkUsage &constraint_chunk_usage :
+         chunk_constraints.pin_rotation_constraints)
+    {
+      const PinRotationConstraintUsage &constraint_usage =
+          geo_data.pin_rotation_constraints[constraint_chunk_usage.constraint_usage_i];
+      for (const int pin_i : constraint_chunk_usage.pin_range) {
+        const math::Quaternion &begin_rot = constraint_usage.prev_rotations[pin_i];
+        const math::Quaternion &end_rot = constraint_usage.next_rotations[pin_i];
+        const math::Quaternion pin_rot = math::interpolate(begin_rot, end_rot, substep.end_factor);
+        constraint_usage.current_rotations[pin_i] = pin_rot;
+      }
     }
   }
 
@@ -1862,21 +1980,8 @@ class XpbdSolverStep {
         .copy_from(geo_data.temp_positions.as_span().slice(points_range));
   }
 
-  void finish_attribute_writers()
+  void finish_common_attribute_writers()
   {
-    this->parallel_for_each_chunk(16, [&](const int chunk_i) {
-      const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-      const ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
-      GeometryData &geo_data = geometries_.data[chunk.data_key_i];
-
-      /* Write back pin rotation lambdas. */
-      for (const int pin_i : chunk_constraints.pin_rotations.index_range()) {
-        const int point_i = chunk_constraints.pin_rotation_indices[pin_i];
-        geo_data.pin_rotation_lambda_attr.span[point_i] = math::Quaternion(
-            chunk_constraints.pin_rotation_lambdas[pin_i]);
-      }
-    });
-
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
 
@@ -1884,7 +1989,6 @@ class XpbdSolverStep {
       geo_data.velocity_attr.finish();
       geo_data.rotation_attr.finish();
       geo_data.angular_velocity_attr.finish();
-      geo_data.pin_rotation_lambda_attr.finish();
     }
   }
 
