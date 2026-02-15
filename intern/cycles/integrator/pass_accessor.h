@@ -40,11 +40,11 @@ class PassAccessor {
 
     bool show_active_pixels = false;
 
-    /* Camera responsivity color matrix (CamRGB->SceneLinear). */
+    /* Camera to scene linear color matrix (CamRGB->SceneLinear). */
     bool use_camera_responsivity = false;
-    float4 camera_responsivity_r = zero_float4();
-    float4 camera_responsivity_g = zero_float4();
-    float4 camera_responsivity_b = zero_float4();
+    float4 camera_to_scene_linear_r = zero_float4();
+    float4 camera_to_scene_linear_g = zero_float4();
+    float4 camera_to_scene_linear_b = zero_float4();
   };
 
   class Destination {

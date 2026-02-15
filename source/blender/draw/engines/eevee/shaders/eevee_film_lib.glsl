@@ -555,10 +555,10 @@ void film_store_combined(
     display = color;
     display.rgb *= uniform_buf.film.film_exposure;
     if (uniform_buf.film.use_camera_responsivity != 0) {
-      float3x3 resp = float3x3(uniform_buf.film.responsivity_row0.xyz,
-                               uniform_buf.film.responsivity_row1.xyz,
-                               uniform_buf.film.responsivity_row2.xyz);
-      display.rgb = display.rgb * resp;
+      float3x3 cam_to_sl = float3x3(uniform_buf.film.camera_to_scene_linear_row0.xyz,
+                                     uniform_buf.film.camera_to_scene_linear_row1.xyz,
+                                     uniform_buf.film.camera_to_scene_linear_row2.xyz);
+      display.rgb = display.rgb * cam_to_sl;
     }
   }
   color = film_patch_float_for_16f_storage(color);
@@ -891,10 +891,10 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
     if (use_exposure) {
       out_color.rgb *= uniform_buf.film.film_exposure;
       if (uniform_buf.film.use_camera_responsivity != 0) {
-        float3x3 resp = float3x3(uniform_buf.film.responsivity_row0.xyz,
-                                 uniform_buf.film.responsivity_row1.xyz,
-                                 uniform_buf.film.responsivity_row2.xyz);
-        out_color.rgb = out_color.rgb * resp;
+        float3x3 cam_to_sl = float3x3(uniform_buf.film.camera_to_scene_linear_row0.xyz,
+                                       uniform_buf.film.camera_to_scene_linear_row1.xyz,
+                                       uniform_buf.film.camera_to_scene_linear_row2.xyz);
+        out_color.rgb = out_color.rgb * cam_to_sl;
       }
     }
   }

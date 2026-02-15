@@ -431,7 +431,7 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     data_.film_exposure = film_exposure;
     film_exposure_ = film_exposure;
 
-    /* Camera responsivity matrix. */
+    /* Camera to scene linear matrix (via XYZ). */
     const blender::Camera *resp_cam = nullptr;
     if (camera_object_eval && camera_object_eval->type == OB_CAMERA) {
       resp_cam = reinterpret_cast<const blender::Camera *>(camera_object_eval->data);
@@ -440,19 +440,22 @@ void Film::init(const int2 &extent, const rcti *output_rect)
         resp_cam->camera_type_preset != 0)
     {
       float3x3 xyz_to_sl = IMB_colormanagement_get_xyz_to_scene_linear();
-      float resp[3][3];
-      copy_m3_m3(resp, const_cast<float (*)[3]>(resp_cam->responsivity_matrix));
+      float cam_to_xyz[3][3];
+      copy_m3_m3(cam_to_xyz, const_cast<float (*)[3]>(resp_cam->camera_to_xyz_matrix));
       float combined[3][3];
-      mul_m3_m3m3(combined, xyz_to_sl.ptr(), resp);
-      data_.responsivity_row0 = float4(combined[0][0], combined[0][1], combined[0][2], 0.0f);
-      data_.responsivity_row1 = float4(combined[1][0], combined[1][1], combined[1][2], 0.0f);
-      data_.responsivity_row2 = float4(combined[2][0], combined[2][1], combined[2][2], 0.0f);
+      mul_m3_m3m3(combined, xyz_to_sl.ptr(), cam_to_xyz);
+      data_.camera_to_scene_linear_row0 = float4(
+          combined[0][0], combined[0][1], combined[0][2], 0.0f);
+      data_.camera_to_scene_linear_row1 = float4(
+          combined[1][0], combined[1][1], combined[1][2], 0.0f);
+      data_.camera_to_scene_linear_row2 = float4(
+          combined[2][0], combined[2][1], combined[2][2], 0.0f);
       data_.use_camera_responsivity = true;
     }
     else {
-      data_.responsivity_row0 = float4(1.0f, 0.0f, 0.0f, 0.0f);
-      data_.responsivity_row1 = float4(0.0f, 1.0f, 0.0f, 0.0f);
-      data_.responsivity_row2 = float4(0.0f, 0.0f, 1.0f, 0.0f);
+      data_.camera_to_scene_linear_row0 = float4(1.0f, 0.0f, 0.0f, 0.0f);
+      data_.camera_to_scene_linear_row1 = float4(0.0f, 1.0f, 0.0f, 0.0f);
+      data_.camera_to_scene_linear_row2 = float4(0.0f, 0.0f, 1.0f, 0.0f);
       data_.use_camera_responsivity = false;
     }
 

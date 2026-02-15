@@ -1085,9 +1085,9 @@ void PathTraceWorkGPU::get_render_tile_film_pixels(const PassAccessor::Destinati
   }
 
   pass_access_info.use_camera_responsivity = kfilm.use_camera_responsivity;
-  pass_access_info.camera_responsivity_r = kfilm.camera_responsivity_r;
-  pass_access_info.camera_responsivity_g = kfilm.camera_responsivity_g;
-  pass_access_info.camera_responsivity_b = kfilm.camera_responsivity_b;
+  pass_access_info.camera_to_scene_linear_r = kfilm.camera_to_scene_linear_r;
+  pass_access_info.camera_to_scene_linear_g = kfilm.camera_to_scene_linear_g;
+  pass_access_info.camera_to_scene_linear_b = kfilm.camera_to_scene_linear_b;
 
   const PassAccessorGPU pass_accessor(queue_.get(), pass_access_info, kfilm.exposure, num_samples);
 

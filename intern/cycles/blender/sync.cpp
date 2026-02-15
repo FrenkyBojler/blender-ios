@@ -601,21 +601,21 @@ void BlenderSync::sync_film(blender::ViewLayer &b_view_layer,
 
   film->set_exposure(film_exposure);
 
-  /* Camera responsivity matrix. */
+  /* Camera to scene linear matrix (via XYZ). */
   if (b_cam_ob && b_cam_ob->type == blender::OB_CAMERA) {
     const blender::Camera *b_cam = (const blender::Camera *)b_cam_ob->data;
     if ((b_cam->flag & blender::CAM_USE_PHYSICAL_CAMERA) && b_cam->camera_type_preset != 0) {
       blender::float3x3 xyz_to_sl = blender::IMB_colormanagement_get_xyz_to_scene_linear();
-      float resp[3][3];
-      blender::copy_m3_m3(resp, const_cast<float (*)[3]>(b_cam->responsivity_matrix));
+      float cam_to_xyz[3][3];
+      blender::copy_m3_m3(cam_to_xyz, const_cast<float (*)[3]>(b_cam->camera_to_xyz_matrix));
       float combined[3][3];
-      blender::mul_m3_m3m3(combined, xyz_to_sl.ptr(), resp);
+      blender::mul_m3_m3m3(combined, xyz_to_sl.ptr(), cam_to_xyz);
       film->set_use_camera_responsivity(true);
-      film->camera_responsivity_r = make_float4(
+      film->camera_to_scene_linear_r = make_float4(
           combined[0][0], combined[0][1], combined[0][2], 0.0f);
-      film->camera_responsivity_g = make_float4(
+      film->camera_to_scene_linear_g = make_float4(
           combined[1][0], combined[1][1], combined[1][2], 0.0f);
-      film->camera_responsivity_b = make_float4(
+      film->camera_to_scene_linear_b = make_float4(
           combined[2][0], combined[2][1], combined[2][2], 0.0f);
       film->tag_modified();
     }

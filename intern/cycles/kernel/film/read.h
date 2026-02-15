@@ -397,15 +397,15 @@ ccl_device_inline void film_get_pass_pixel_combined(
 
   if (kfilm_convert->use_camera_responsivity) {
     const float r = color.x, g = color.y, b = color.z;
-    color.x = kfilm_convert->camera_responsivity_r.x * r +
-              kfilm_convert->camera_responsivity_r.y * g +
-              kfilm_convert->camera_responsivity_r.z * b;
-    color.y = kfilm_convert->camera_responsivity_g.x * r +
-              kfilm_convert->camera_responsivity_g.y * g +
-              kfilm_convert->camera_responsivity_g.z * b;
-    color.z = kfilm_convert->camera_responsivity_b.x * r +
-              kfilm_convert->camera_responsivity_b.y * g +
-              kfilm_convert->camera_responsivity_b.z * b;
+    color.x = kfilm_convert->camera_to_scene_linear_r.x * r +
+              kfilm_convert->camera_to_scene_linear_r.y * g +
+              kfilm_convert->camera_to_scene_linear_r.z * b;
+    color.y = kfilm_convert->camera_to_scene_linear_g.x * r +
+              kfilm_convert->camera_to_scene_linear_g.y * g +
+              kfilm_convert->camera_to_scene_linear_g.z * b;
+    color.z = kfilm_convert->camera_to_scene_linear_b.x * r +
+              kfilm_convert->camera_to_scene_linear_b.y * g +
+              kfilm_convert->camera_to_scene_linear_b.z * b;
   }
 
   pixel[0] = color.x;

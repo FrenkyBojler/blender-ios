@@ -77,10 +77,10 @@ KERNEL_STRUCT_MEMBER(film, float4, rec709_to_b)
 KERNEL_STRUCT_MEMBER(film, int, is_rec709)
 /* Exposure. */
 KERNEL_STRUCT_MEMBER(film, float, exposure)
-/* Camera responsivity color matrix rows (CamRGB->SceneLinear). */
-KERNEL_STRUCT_MEMBER(film, float4, camera_responsivity_r)
-KERNEL_STRUCT_MEMBER(film, float4, camera_responsivity_g)
-KERNEL_STRUCT_MEMBER(film, float4, camera_responsivity_b)
+/* Camera to scene linear color matrix rows (CamRGB->SceneLinear). */
+KERNEL_STRUCT_MEMBER(film, float4, camera_to_scene_linear_r)
+KERNEL_STRUCT_MEMBER(film, float4, camera_to_scene_linear_g)
+KERNEL_STRUCT_MEMBER(film, float4, camera_to_scene_linear_b)
 KERNEL_STRUCT_MEMBER(film, int, use_camera_responsivity)
 /* Passed used. */
 KERNEL_STRUCT_MEMBER(film, int, pass_flag)

@@ -64,7 +64,7 @@ static const float d65_spd[81] = {
 /* Camera spectral sensitivity data. */
 #include "camera_responsivity_data.inc"
 
-void BKE_camera_responsivity_matrix_compute(int preset_index, float r_matrix[3][3])
+void BKE_camera_compute_camera_to_xyz_matrix(int preset_index, float r_matrix[3][3])
 {
   if (preset_index <= 0 || preset_index > CAM_TYPE_PRESET_COUNT) {
     unit_m3(r_matrix);

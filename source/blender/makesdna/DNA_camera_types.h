@@ -268,8 +268,12 @@ struct Camera {
 
   /* Camera responsivity (spectral sensitivity) preset. 0 = None. */
   int camera_type_preset = 0;
+  /* Scalar multiplier representing overall responsivity of the sensor system to light.
+   * Intended to be used as a per camera/lens system measured scaling value. */
+  float responsivity = 1.0f;
   /* Precomputed Camera RGB to XYZ matrix, updated when preset changes. */
-  float responsivity_matrix[3][3] = {{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+  float camera_to_xyz_matrix[3][3] = {{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+  int _pad5 = {};
 
   DNA_DEPRECATED struct Object *dof_ob = nullptr;
   DNA_DEPRECATED struct GPUDOFSettings gpu_dof;

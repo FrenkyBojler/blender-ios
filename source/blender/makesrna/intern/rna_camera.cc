@@ -92,10 +92,10 @@ static float rna_Camera_exposure_ev_get(PointerRNA *ptr)
 static void rna_Camera_responsivity_update(Camera *cam)
 {
   if (cam->camera_type_preset != 0) {
-    BKE_camera_responsivity_matrix_compute(cam->camera_type_preset, cam->responsivity_matrix);
+    BKE_camera_compute_camera_to_xyz_matrix(cam->camera_type_preset, cam->camera_to_xyz_matrix);
   }
   else {
-    unit_m3(cam->responsivity_matrix);
+    unit_m3(cam->camera_to_xyz_matrix);
   }
 }
 
@@ -1280,6 +1280,15 @@ void RNA_def_camera(BlenderRNA *brna)
                               "rna_Camera_camera_type_preset_set",
                               "rna_Camera_camera_type_preset_itemf");
   RNA_def_property_ui_text(prop, "Camera Type", "Camera sensor spectral sensitivity preset");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "responsivity", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_range(prop, 0.0f, 2.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 2.0f, 1, 2);
+  RNA_def_property_ui_text(prop,
+                           "Responsivity",
+                           "Scalar multiplier representing overall responsivity of the "
+                           "sensor system to light");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   RNA_define_lib_overridable(false);

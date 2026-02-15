@@ -293,9 +293,9 @@ void PassAccessor::init_kernel_film_convert(KernelFilmConvert *kfilm_convert,
   kfilm_convert->is_denoised = (mode == PassMode::DENOISED);
 
   kfilm_convert->use_camera_responsivity = pass_access_info_.use_camera_responsivity ? 1 : 0;
-  kfilm_convert->camera_responsivity_r = pass_access_info_.camera_responsivity_r;
-  kfilm_convert->camera_responsivity_g = pass_access_info_.camera_responsivity_g;
-  kfilm_convert->camera_responsivity_b = pass_access_info_.camera_responsivity_b;
+  kfilm_convert->camera_to_scene_linear_r = pass_access_info_.camera_to_scene_linear_r;
+  kfilm_convert->camera_to_scene_linear_g = pass_access_info_.camera_to_scene_linear_g;
+  kfilm_convert->camera_to_scene_linear_b = pass_access_info_.camera_to_scene_linear_b;
 }
 
 bool PassAccessor::set_render_tile_pixels(RenderBuffers *render_buffers, const Source &source)

@@ -160,9 +160,9 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   kfilm->pass_flag = 0;
 
   kfilm->use_camera_responsivity = use_camera_responsivity ? 1 : 0;
-  kfilm->camera_responsivity_r = camera_responsivity_r;
-  kfilm->camera_responsivity_g = camera_responsivity_g;
-  kfilm->camera_responsivity_b = camera_responsivity_b;
+  kfilm->camera_to_scene_linear_r = camera_to_scene_linear_r;
+  kfilm->camera_to_scene_linear_g = camera_to_scene_linear_g;
+  kfilm->camera_to_scene_linear_b = camera_to_scene_linear_b;
 
   kfilm->use_approximate_shadow_catcher = get_use_approximate_shadow_catcher();
 

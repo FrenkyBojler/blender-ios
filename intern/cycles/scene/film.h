@@ -54,10 +54,10 @@ class Film : public Node {
 
   NODE_SOCKET_API(bool, use_sample_count)
 
-  /* Camera responsivity matrix rows (not sockets, float4 not supported by socket system). */
-  float4 camera_responsivity_r = zero_float4();
-  float4 camera_responsivity_g = zero_float4();
-  float4 camera_responsivity_b = zero_float4();
+  /* Camera to scene linear matrix rows (not sockets, float4 not supported by socket system). */
+  float4 camera_to_scene_linear_r = zero_float4();
+  float4 camera_to_scene_linear_g = zero_float4();
+  float4 camera_to_scene_linear_b = zero_float4();
 
  private:
   size_t filter_table_offset_;

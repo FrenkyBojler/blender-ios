@@ -118,11 +118,11 @@ struct [[host_shared]] FilmData {
   float film_exposure;
   /** Whether camera responsivity color matrix is active. */
   bool32_t use_camera_responsivity;
-  /** Camera responsivity combined matrix (CamRGB->XYZ->SceneLinear).
+  /** Camera to scene linear combined matrix (CamRGB->XYZ->SceneLinear).
    * 3 rows packed as float4 for GPU alignment. Identity when disabled. */
-  float4 responsivity_row0;
-  float4 responsivity_row1;
-  float4 responsivity_row2;
+  float4 camera_to_scene_linear_row0;
+  float4 camera_to_scene_linear_row1;
+  float4 camera_to_scene_linear_row2;
   /** Scaling factor for scaled resolution rendering. */
   int scaling_factor;
   /** Software LOD bias to apply to when sampling texture inside the node-tree evaluation. */

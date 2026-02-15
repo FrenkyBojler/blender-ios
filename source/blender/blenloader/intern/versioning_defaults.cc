@@ -770,7 +770,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     camera.lens_attenuation = 0.65f;
     camera.lens_attenuation_mode = CAM_LENS_ATTENUATION_FILM;
     camera.camera_type_preset = 0;
-    unit_m3(camera.responsivity_matrix);
+    camera.responsivity = 1.0f;
+    unit_m3(camera.camera_to_xyz_matrix);
   }
 
   for (Light &light : bmain->lights) {

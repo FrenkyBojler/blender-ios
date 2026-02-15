@@ -391,6 +391,8 @@ class DATA_PT_camera_physical(CameraButtonsPanel, Panel):
         col.separator()
         col.prop(cam, "exposure_compensation", text="Exposure Compensation")
 
+        col.prop(cam, "responsivity", text="Responsivity")
+
         col.prop(cam, "lens_attenuation_mode", text="Lens Type")
         col.prop(cam, "lens_attenuation", text="Lens Attenuation")
 

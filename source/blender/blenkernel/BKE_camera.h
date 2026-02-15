@@ -40,7 +40,7 @@ float BKE_camera_exposure_multiplier(const struct Camera *camera);
 
 /* Camera Responsivity (Spectral Sensitivity) */
 
-void BKE_camera_responsivity_matrix_compute(int preset_index, float r_matrix[3][3]);
+void BKE_camera_compute_camera_to_xyz_matrix(int preset_index, float r_matrix[3][3]);
 int BKE_camera_responsivity_preset_count();
 const char *BKE_camera_responsivity_preset_name(int index);
 

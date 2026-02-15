@@ -208,9 +208,9 @@ void PathTraceWorkCPU::copy_to_display(PathTraceDisplay *display,
   }
 
   pass_access_info.use_camera_responsivity = kfilm.use_camera_responsivity;
-  pass_access_info.camera_responsivity_r = kfilm.camera_responsivity_r;
-  pass_access_info.camera_responsivity_g = kfilm.camera_responsivity_g;
-  pass_access_info.camera_responsivity_b = kfilm.camera_responsivity_b;
+  pass_access_info.camera_to_scene_linear_r = kfilm.camera_to_scene_linear_r;
+  pass_access_info.camera_to_scene_linear_g = kfilm.camera_to_scene_linear_g;
+  pass_access_info.camera_to_scene_linear_b = kfilm.camera_to_scene_linear_b;
 
   const PassAccessorCPU pass_accessor(pass_access_info, kfilm.exposure, num_samples);
 

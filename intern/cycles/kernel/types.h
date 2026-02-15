@@ -1225,11 +1225,11 @@ struct KernelFilmConvert {
 
   int is_denoised;
 
-  /* Camera responsivity color matrix rows (CamRGB->SceneLinear). */
+  /* Camera to scene linear color matrix rows (CamRGB->SceneLinear). */
   int use_camera_responsivity;
-  float4 camera_responsivity_r;
-  float4 camera_responsivity_g;
-  float4 camera_responsivity_b;
+  float4 camera_to_scene_linear_r;
+  float4 camera_to_scene_linear_g;
+  float4 camera_to_scene_linear_b;
 };
 static_assert_align(KernelFilmConvert, 16);
 
