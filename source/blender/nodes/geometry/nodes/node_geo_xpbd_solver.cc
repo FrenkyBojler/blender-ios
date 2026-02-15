@@ -4,7 +4,12 @@
 
 #include "BKE_bvhutils.hh"
 #include "BKE_instances.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_mesh.h"
+#include "BKE_mesh_sample.hh"
+
 #include "BLI_stack.hh"
+
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
 
@@ -14,6 +19,7 @@
 
 #include "GEO_xpbd.hh"
 #include "GEO_xpbd_constraint_sets_common.hh"
+
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_parse.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
@@ -233,11 +239,21 @@ struct InfinitePlaneColliderUsage {
   int constraint_i;
 };
 
+struct StaticMeshInfo {
+  const Mesh *mesh;
+  bke::BVHTreeFromMesh corner_tris_bvh;
+};
+
+struct DeformingMeshInfo {
+  const Mesh *prev_mesh;
+  Vector<const Mesh *> substep_meshes;
+  Vector<bke::BVHTreeFromMesh> substep_bvh_trees;
+};
+
 struct MeshCollider {
   std::string path;
   Vector<int> instance_ids;
-  const Mesh *mesh;
-  bke::BVHTreeFromMesh corner_tris_bvh;
+  std::variant<StaticMeshInfo, DeformingMeshInfo> mesh;
   float4x4 begin_transform;
   float4x4 end_transform;
   float friction;
@@ -353,12 +369,14 @@ struct SubstepInterval {
   float end_factor;
   bool is_first;
   bool is_last;
+  int current_i;
 
   SubstepInterval(const int substeps, const int current_i)
       : begin_factor(float(current_i) / substeps),
         end_factor(float(current_i + 1) / substeps),
         is_first(current_i == 0),
-        is_last(current_i == substeps - 1)
+        is_last(current_i == substeps - 1),
+        current_i(current_i)
   {
   }
 };
@@ -779,6 +797,7 @@ class XpbdSolverStep {
       const bke::GeometrySet *geometry = bundle.lookup_ptr<bke::GeometrySet>("geometry");
       const float friction = bundle.lookup<float>("friction").value_or(0.0f);
       const float compliance = bundle.lookup<float>("compliance").value_or(0.0f);
+      const bool deforming = bundle.lookup<bool>("deforming").value_or(false);
       const bke::GeometrySet *prev_geometry = bundle.lookup_ptr<bke::GeometrySet>("prev_geometry");
       if (!geometry) {
         continue;
@@ -797,6 +816,7 @@ class XpbdSolverStep {
                                          prev_geometry,
                                          friction,
                                          compliance,
+                                         deforming,
                                          affected_data,
                                          instance_id_stack);
     }
@@ -809,20 +829,24 @@ class XpbdSolverStep {
                                     const GeometrySet *prev_collider_geo,
                                     const float friction,
                                     const float compliance,
+                                    const bool deforming,
                                     const Span<int> affected_data,
                                     Vector<int> &instance_id_stack)
   {
     if (const Mesh *mesh = collider_geo.get_mesh()) {
       if (mesh->faces_num > 0) {
+        MeshCollider mesh_collider;
+        mesh_collider.path = path;
+        mesh_collider.instance_ids = instance_id_stack;
+        mesh_collider.friction = friction;
+        mesh_collider.compliance = compliance;
+        mesh_collider.begin_transform = prev_transform;
+        mesh_collider.end_transform = transform;
+        const Mesh *prev_mesh = prev_collider_geo ? prev_collider_geo->get_mesh() : nullptr;
+        mesh_collider.mesh = this->make_collider_mesh_info(*mesh, prev_mesh, deforming);
+
         const int collider_i = constraints_.mesh_colliders.append_and_get_index(
-            {path,
-             instance_id_stack,
-             mesh,
-             mesh->bvh_corner_tris(),
-             prev_transform,
-             transform,
-             friction,
-             compliance});
+            std::move(mesh_collider));
         for (const int data_key_i : affected_data) {
           geometries_.data[data_key_i].mesh_colliders.append({collider_i});
         }
@@ -880,10 +904,56 @@ class XpbdSolverStep {
                                            prev_instance_item ? &prev_reference_geo : nullptr,
                                            friction,
                                            compliance,
+                                           deforming,
                                            affected_data,
                                            instance_id_stack);
       }
     }
+  }
+
+  std::variant<StaticMeshInfo, DeformingMeshInfo> make_collider_mesh_info(const Mesh &mesh,
+                                                                          const Mesh *prev_mesh,
+                                                                          const bool deforming)
+  {
+    if (!deforming || !prev_mesh) {
+      return StaticMeshInfo{&mesh, mesh.bvh_corner_tris()};
+    }
+    if (mesh.verts_num != prev_mesh->verts_num) {
+      return StaticMeshInfo{&mesh, mesh.bvh_corner_tris()};
+    }
+    const int verts_num = mesh.verts_num;
+    DeformingMeshInfo result;
+    result.substep_meshes.resize(substeps_);
+    result.substep_bvh_trees.resize(substeps_);
+
+    const Span<float3> begin_positions = prev_mesh->vert_positions();
+    const Span<float3> end_positions = mesh.vert_positions();
+
+    threading::parallel_for(
+        IndexRange(substeps_ - 1),
+        std::max(1024 / verts_num, 1),
+        [&](const IndexRange substep_range) {
+          ResourceScope &thread_scope = thread_scopes_.local();
+          for (const int substep_i : substep_range) {
+            const SubstepInterval substep(substeps_, substep_i);
+            Mesh *substep_mesh = BKE_mesh_copy_for_eval(mesh);
+            thread_scope.add_destruct_call(
+                [substep_mesh]() { BKE_id_free(nullptr, substep_mesh); });
+            MutableSpan<float3> substep_positions = substep_mesh->vert_positions_for_write();
+            for (const int i : IndexRange(verts_num)) {
+              substep_positions[i] = math::interpolate(
+                  begin_positions[i], end_positions[i], substep.end_factor);
+            }
+            substep_mesh->tag_positions_changed();
+            result.substep_meshes[substep_i] = substep_mesh;
+            result.substep_bvh_trees[substep_i] = substep_mesh->bvh_corner_tris();
+          }
+        });
+
+    result.prev_mesh = prev_mesh;
+    result.substep_meshes.last() = &mesh;
+    result.substep_bvh_trees.last() = mesh.bvh_corner_tris();
+    return result;
   }
 
   void prepare_geometry_chunks()
@@ -1699,7 +1769,7 @@ class XpbdSolverStep {
           const SubstepInterval substep(substeps_, substep_i);
           this->simulate__update_pin_positions__chunk(chunk_i, substep);
           this->simulate__inertial_update__chunk(chunk_i, solver_refs_i);
-          this->simulate__gather_dynamic_constraints__chunk(substep, chunk_i);
+          this->simulate__gather_dynamic_constraints__chunk(substep, chunk_i, solver_refs_i);
           this->simulate__reset_forces__chunk(chunk_i);
           for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
             this->simulate__position_solve__single_iteration__chunk(chunk_i, solver_refs_i);
@@ -1719,7 +1789,7 @@ class XpbdSolverStep {
           this->simulate__update_pin_positions__chunk(chunk_i, substep);
           this->simulate__inertial_update__chunk(chunk_i, solver_refs_i);
         });
-        this->simulate__gather_dynamic_constraints(substep);
+        this->simulate__gather_dynamic_constraints(substep, solver_refs_i);
         this->simulate__reset_forces();
         for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
           this->simulate__position_solve__single_iteration(solver_refs_i);
@@ -1829,23 +1899,26 @@ class XpbdSolverStep {
         geo_data.external_torque_attr.slice(points_range));
   }
 
-  void simulate__gather_dynamic_constraints(const SubstepInterval &substep)
+  void simulate__gather_dynamic_constraints(const SubstepInterval &substep,
+                                            const int solver_refs_i)
   {
     this->parallel_for_each_chunk(1, [&](const int chunk_i) {
-      this->simulate__gather_dynamic_constraints__chunk(substep, chunk_i);
+      this->simulate__gather_dynamic_constraints__chunk(substep, chunk_i, solver_refs_i);
     });
   }
 
   void simulate__gather_dynamic_constraints__chunk(const SubstepInterval &substep,
-                                                   const int chunk_i)
+                                                   const int chunk_i,
+                                                   const int solver_refs_i)
   {
     const float max_distance = this->get_max_search_distance(sub_delta_time_);
     ChunkData &chunk_data = chunks_data_[chunk_i];
     const ExternalPlaneContacts &prev_contacts = chunk_data.external_plane_contacts;
     ExternalPlaneContacts new_contacts;
     this->gather_ground_plane_contacts(
-        chunk_i, max_distance, substep, prev_contacts, new_contacts);
-    this->gather_mesh_contacts(chunk_i, max_distance, substep, prev_contacts, new_contacts);
+        chunk_i, max_distance, solver_refs_i, substep, prev_contacts, new_contacts);
+    this->gather_mesh_contacts(
+        chunk_i, max_distance, solver_refs_i, substep, prev_contacts, new_contacts);
 
     const int contacts_num = new_contacts.points.size();
     for (const int i : IndexRange(contacts_num)) {
@@ -2083,12 +2156,15 @@ class XpbdSolverStep {
 
   void gather_ground_plane_contacts(const int chunk_i,
                                     const float max_distance,
+                                    const int solver_refs_i,
                                     const SubstepInterval &substep,
                                     const ExternalPlaneContacts &prev_contacts,
                                     ExternalPlaneContacts &r_contacts)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
+    const Span<float3> positions =
+        geometries_.solver_refs[solver_refs_i][chunk.data_key_i].positions;
     for (const InfinitePlaneColliderUsage &collider_usage : geo_data.infinite_plane_colliders) {
       const InfinitePlaneCollider &collider =
           constraints_.infinite_plane_colliders[collider_usage.constraint_i];
@@ -2097,7 +2173,7 @@ class XpbdSolverStep {
       const float3 collider_normal = math::interpolate(
           collider.begin_normal, collider.end_normal, substep.end_factor);
       for (const int point_i : chunk.points_range) {
-        const float3 &position = geo_data.position_attr.span[point_i];
+        const float3 &position = positions[point_i];
 
         const float distance = math::dot(position - collider_position, collider_normal);
         if (distance >= max_distance) {
@@ -2125,6 +2201,7 @@ class XpbdSolverStep {
 
   void gather_mesh_contacts(const int chunk_i,
                             const float max_distance,
+                            const int solver_refs_i,
                             const SubstepInterval &substep,
                             const ExternalPlaneContacts &prev_contacts,
                             ExternalPlaneContacts &r_contacts)
@@ -2133,54 +2210,234 @@ class XpbdSolverStep {
     const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
     for (const MeshColliderUsage &collider_usage : geo_data.mesh_colliders) {
       const MeshCollider &collider = constraints_.mesh_colliders[collider_usage.constraint_i];
-      const bke::BVHTreeFromMesh &bvh = collider.corner_tris_bvh;
       const float4x4 &mesh_to_local = math::interpolate(
           collider.begin_transform, collider.end_transform, substep.end_factor);
       const float4x4 &prev_mesh_to_local = math::interpolate(
           collider.begin_transform, collider.end_transform, substep.begin_factor);
       const float4x4 local_to_mesh = math::invert(mesh_to_local);
 
-      for (const int point_i : chunk.points_range) {
-        const float3 &pos_local = geo_data.position_attr.span[point_i];
-        const float3 pos_mesh = math::transform_point(local_to_mesh, pos_local);
-        BVHTreeNearest nearest{};
-        nearest.index = -1;
-        nearest.dist_sq = pow2f(max_distance);
-        BLI_bvhtree_find_nearest(bvh.tree, pos_mesh, &nearest, bvh.nearest_callback, (void *)&bvh);
-        if (nearest.index == -1) {
-          continue;
-        }
-
-        const float3 &contact_pos_mesh = float3(nearest.co);
-        const float3 dir_mesh = contact_pos_mesh - pos_mesh;
-        const bool is_inside = math::dot(dir_mesh, float3(nearest.no)) > 0.0f;
-        const float point_friction = geo_data.frictions[point_i];
-        const float friction = this->compute_contact_friction(point_friction, collider.friction);
-        const float3 contact_pos_local = math::transform_point(mesh_to_local, contact_pos_mesh);
-        const float3 prev_contact_pos_local = math::transform_point(prev_mesh_to_local,
-                                                                    contact_pos_mesh);
-        /* Separating axis to move self out of penetration. */
-        const float3 collision_axis = is_inside ? contact_pos_local - pos_local :
-                                                  pos_local - contact_pos_local;
-        const float3 valid_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
-                                                      math::transpose(float3x3(local_to_mesh)) *
-                                                          contact_pos_mesh :
-                                                      collision_axis);
-        const int contact_i = r_contacts.points.append_and_get_index(point_i);
-        r_contacts.positions_on_plane.append(contact_pos_local);
-        r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
-        r_contacts.separating_axes.append(valid_axis);
-        r_contacts.static_frictions.append(friction);
-        r_contacts.dynamic_frictions.append(friction);
-        r_contacts.compliance_terms.append(
-            std::max(0.0f, substep_compliance_factor_ * collider.compliance));
-
-        const MeshContactId contact_id{collider_usage.constraint_i, point_i};
-        r_contacts.mesh_contact_indices.add(contact_id, contact_i);
-        r_contacts.init_or_preserve_state(
-            prev_contacts, prev_contacts.mesh_contact_indices.lookup_try(contact_id));
+      if (const auto *static_mesh = std::get_if<StaticMeshInfo>(&collider.mesh)) {
+        this->gather_mesh_contacts__static(chunk_i,
+                                           max_distance,
+                                           solver_refs_i,
+                                           collider,
+                                           collider_usage,
+                                           *static_mesh,
+                                           mesh_to_local,
+                                           prev_mesh_to_local,
+                                           local_to_mesh,
+                                           prev_contacts,
+                                           r_contacts);
+      }
+      else if (const auto *deforming_mesh = std::get_if<DeformingMeshInfo>(&collider.mesh)) {
+        this->gather_mesh_contacts__deforming(chunk_i,
+                                              max_distance,
+                                              solver_refs_i,
+                                              substep,
+                                              collider,
+                                              collider_usage,
+                                              *deforming_mesh,
+                                              mesh_to_local,
+                                              prev_mesh_to_local,
+                                              local_to_mesh,
+                                              prev_contacts,
+                                              r_contacts);
       }
     }
+  }
+
+  void gather_mesh_contacts__static(const int chunk_i,
+                                    const float max_distance,
+                                    const int solver_refs_i,
+                                    const MeshCollider &collider,
+                                    const MeshColliderUsage &collider_usage,
+                                    const StaticMeshInfo &static_mesh,
+                                    const float4x4 &mesh_to_local,
+                                    const float4x4 &prev_mesh_to_local,
+                                    const float4x4 &local_to_mesh,
+                                    const ExternalPlaneContacts &prev_contacts,
+                                    ExternalPlaneContacts &r_contacts)
+  {
+    const Mesh &mesh = *static_mesh.mesh;
+    const Span<float3> vert_positions = mesh.vert_positions();
+    const Span<int> corner_verts = mesh.corner_verts();
+    const Span<int3> corner_tris = mesh.corner_tris();
+
+    const bke::BVHTreeFromMesh &bvh = static_mesh.corner_tris_bvh;
+    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+    const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
+    const Span<float3> positions =
+        geometries_.solver_refs[solver_refs_i][chunk.data_key_i].positions;
+
+    for (const int point_i : chunk.points_range) {
+      const float3 &pos_local = positions[point_i];
+      const float3 pos_mesh = math::transform_point(local_to_mesh, pos_local);
+      BVHTreeNearest nearest{};
+      nearest.index = -1;
+      nearest.dist_sq = pow2f(max_distance);
+      BLI_bvhtree_find_nearest(bvh.tree, pos_mesh, &nearest, bvh.nearest_callback, (void *)&bvh);
+      if (nearest.index == -1) {
+        continue;
+      }
+      const int tri_i = nearest.index;
+      const int3 &tri = corner_tris[tri_i];
+
+      const float3 &contact_pos_mesh = float3(nearest.co);
+      const float3 bary_coords = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
+          vert_positions, corner_verts, tri, contact_pos_mesh);
+      bool is_inside;
+      if (this->is_bary_coord_on_edge(bary_coords)) {
+        /* The nearest point is on an edge, so its normal is unreliable, use a more robust test. */
+        is_inside = this->is_inside(pos_mesh, mesh.bvh_corner_tris());
+      }
+      else {
+        const float3 dir_mesh = contact_pos_mesh - pos_mesh;
+        is_inside = math::dot(dir_mesh, float3(nearest.no)) > 0.0f;
+      }
+
+      const float point_friction = geo_data.frictions[point_i];
+      const float friction = this->compute_contact_friction(point_friction, collider.friction);
+      const float3 contact_pos_local = math::transform_point(mesh_to_local, contact_pos_mesh);
+      const float3 prev_contact_pos_local = math::transform_point(prev_mesh_to_local,
+                                                                  contact_pos_mesh);
+      /* Separating axis to move self out of penetration. */
+      const float3 collision_axis = is_inside ? contact_pos_local - pos_local :
+                                                pos_local - contact_pos_local;
+      const float3 valid_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
+                                                    math::transpose(float3x3(local_to_mesh)) *
+                                                        contact_pos_mesh :
+                                                    collision_axis);
+      const int contact_i = r_contacts.points.append_and_get_index(point_i);
+      r_contacts.positions_on_plane.append(contact_pos_local);
+      r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
+      r_contacts.separating_axes.append(valid_axis);
+      r_contacts.static_frictions.append(friction);
+      r_contacts.dynamic_frictions.append(friction);
+      r_contacts.compliance_terms.append(
+          std::max(0.0f, substep_compliance_factor_ * collider.compliance));
+
+      const MeshContactId contact_id{collider_usage.constraint_i, point_i};
+      r_contacts.mesh_contact_indices.add(contact_id, contact_i);
+      r_contacts.init_or_preserve_state(prev_contacts,
+                                        prev_contacts.mesh_contact_indices.lookup_try(contact_id));
+    }
+  }
+
+  void gather_mesh_contacts__deforming(const int chunk_i,
+                                       const float max_distance,
+                                       const int solver_refs_i,
+                                       const SubstepInterval &substep,
+                                       const MeshCollider &collider,
+                                       const MeshColliderUsage &collider_usage,
+                                       const DeformingMeshInfo &deforming_mesh,
+                                       const float4x4 &mesh_to_local,
+                                       const float4x4 &prev_mesh_to_local,
+                                       const float4x4 &local_to_mesh,
+                                       const ExternalPlaneContacts &prev_contacts,
+                                       ExternalPlaneContacts &r_contacts)
+  {
+    const bke::BVHTreeFromMesh &bvh = deforming_mesh.substep_bvh_trees[substep.current_i];
+    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+    const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
+    const Span<float3> positions =
+        geometries_.solver_refs[solver_refs_i][chunk.data_key_i].positions;
+
+    const Mesh &mesh = *deforming_mesh.substep_meshes[substep.current_i];
+    const Span<int3> corner_tris = mesh.corner_tris();
+    const Span<int> corner_verts = mesh.corner_verts();
+    const Span<float3> vert_positions = mesh.vert_positions();
+    const Span<float3> prev_vert_positions =
+        substep.is_first ? deforming_mesh.prev_mesh->vert_positions() :
+                           deforming_mesh.substep_meshes[substep.current_i - 1]->vert_positions();
+
+    for (const int point_i : chunk.points_range) {
+      const float3 &pos_local = positions[point_i];
+      const float3 pos_mesh = math::transform_point(local_to_mesh, pos_local);
+      BVHTreeNearest nearest{};
+      nearest.index = -1;
+      nearest.dist_sq = pow2f(max_distance);
+      BLI_bvhtree_find_nearest(bvh.tree, pos_mesh, &nearest, bvh.nearest_callback, (void *)&bvh);
+      if (nearest.index == -1) {
+        continue;
+      }
+      const int tri_i = nearest.index;
+      const int3 &tri = corner_tris[tri_i];
+      const float3 &contact_pos_mesh = float3(nearest.co);
+      const float3 bary_coords = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
+          vert_positions, corner_verts, tri, contact_pos_mesh);
+
+      bool is_inside;
+      if (this->is_bary_coord_on_edge(bary_coords)) {
+        /* The nearest point is on an edge, so its normal is unreliable, use a more robust test. */
+        is_inside = this->is_inside(pos_mesh, mesh.bvh_corner_tris());
+      }
+      else {
+        const float3 dir_mesh = contact_pos_mesh - pos_mesh;
+        is_inside = math::dot(dir_mesh, float3(nearest.no)) > 0.0f;
+      }
+      const float point_friction = geo_data.frictions[point_i];
+      const float friction = this->compute_contact_friction(point_friction, collider.friction);
+      const float3 contact_pos_local = math::transform_point(mesh_to_local, contact_pos_mesh);
+      const float3 prev_contact_pos_mesh = bke::attribute_math::mix3(
+          bary_coords,
+          prev_vert_positions[corner_verts[tri[0]]],
+          prev_vert_positions[corner_verts[tri[1]]],
+          prev_vert_positions[corner_verts[tri[2]]]);
+      const float3 prev_contact_pos_local = math::transform_point(prev_mesh_to_local,
+                                                                  prev_contact_pos_mesh);
+      const float3 collision_axis = is_inside ? contact_pos_local - pos_local :
+                                                pos_local - contact_pos_local;
+      const float3 valid_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
+                                                    math::transpose(float3x3(local_to_mesh)) *
+                                                        contact_pos_mesh :
+                                                    collision_axis);
+      const int contact_i = r_contacts.points.append_and_get_index(point_i);
+      r_contacts.positions_on_plane.append(contact_pos_local);
+      r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
+      r_contacts.separating_axes.append(valid_axis);
+      r_contacts.static_frictions.append(friction);
+      r_contacts.dynamic_frictions.append(friction);
+      r_contacts.compliance_terms.append(
+          std::max(0.0f, substep_compliance_factor_ * collider.compliance));
+
+      const MeshContactId contact_id{collider_usage.constraint_i, point_i};
+      r_contacts.mesh_contact_indices.add(contact_id, contact_i);
+      r_contacts.init_or_preserve_state(prev_contacts,
+                                        prev_contacts.mesh_contact_indices.lookup_try(contact_id));
+    }
+  }
+
+  bool is_bary_coord_on_edge(const float3 &bary_coords) const
+  {
+    constexpr float epsilon = 1e-6f;
+    return math::abs(bary_coords[0]) < epsilon || math::abs(bary_coords[1]) < epsilon ||
+           math::abs(bary_coords[2]) < epsilon;
+  }
+
+  bool is_inside(const float3 &pos, const bke::BVHTreeFromMesh &bvh) const
+  {
+    static const std::array<float3, 3> dirs = {{math::normalize(float3{0.25f, 0.64f, 0.72}),
+                                                math::normalize(float3{0.76f, 0.97f, 0.76}),
+                                                math::normalize(float3{0.40, 0.51, 0.60f})}};
+    int inside_count = 0;
+    for (const float3 &dir : dirs) {
+      BVHTreeRayHit hit{};
+      hit.index = -1;
+      hit.dist = FLT_MAX;
+      if (BLI_bvhtree_ray_cast(bvh.tree, pos, dir, 0.0f, &hit, bvh.raycast_callback, (void *)&bvh))
+      {
+        const float3 dir = float3(hit.co) - pos;
+        const bool is_inside = math::dot(dir, float3(hit.no)) > 0.0f;
+        inside_count += is_inside ? 1 : -1;
+        if (std::abs(inside_count) >= 2) {
+          break;
+        }
+      }
+      else {
+        return false;
+      }
+    }
+    return inside_count > 0;
   }
 
   float compute_contact_friction(const float point_friction, const float collider_friction) const
