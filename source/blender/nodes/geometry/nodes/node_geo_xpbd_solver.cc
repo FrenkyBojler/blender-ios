@@ -137,6 +137,20 @@ struct GeometryDataChunk {
   std::optional<IndexRange> curves_range;
 };
 
+struct DampingConstraintInfo {
+  std::string path;
+  Field<float> linear_damping;
+  Field<float> angular_damping;
+};
+struct DampingConstraintUsage {
+  /** Index of corresponding #DampingConstraintInfo. */
+  int constraint_i;
+  VArray<float> linear_dampings;
+  VArray<float> angular_dampings;
+  MutableSpan<float> linear_damping_lambdas;
+  MutableSpan<float> angular_damping_lambdas;
+};
+
 struct GeometryData {
   bke::MutableAttributeAccessor attributes;
   AttrDomain domain;
@@ -216,11 +230,7 @@ struct GeometryData {
   Vector<int> infinite_plane_colliders;
   Vector<int> mesh_colliders;
 
-  Vector<int> damping_constraints;
-  Vector<VArray<float>> linear_dampings;
-  Vector<MutableSpan<float>> linear_damping_lambdas;
-  Vector<VArray<float>> angular_dampings;
-  Vector<MutableSpan<float>> angular_damping_lambdas;
+  Vector<DampingConstraintUsage> damping_constraints;
 };
 
 struct GeometrySetData {
@@ -416,12 +426,6 @@ struct MeshCollider {
   float4x4 end_transform;
   float friction;
   float compliance;
-};
-
-struct DampingConstraintInfo {
-  std::string path;
-  Field<float> linear_damping;
-  Field<float> angular_damping;
 };
 
 struct ConstraintsInfo {
@@ -1251,27 +1255,22 @@ class XpbdSolverStep {
         if (!this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
           continue;
         }
-        geo_data.damping_constraints.append(constraint_i);
+        geo_data.damping_constraints.append({constraint_i});
       }
     }
 
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-      const int num_damping_constraints = geo_data.damping_constraints.size();
-      geo_data.linear_dampings.reinitialize(num_damping_constraints);
-      geo_data.angular_dampings.reinitialize(num_damping_constraints);
-      geo_data.linear_damping_lambdas.reinitialize(num_damping_constraints);
-      geo_data.angular_damping_lambdas.reinitialize(num_damping_constraints);
-      for (const int constraint_i : geometries_.data[data_key_i].damping_constraints) {
+      for (DampingConstraintUsage &constraint_usage : geo_data.damping_constraints) {
         const DampingConstraintInfo &constraint =
-            constraints_info_.damping_constraints[constraint_i];
-        geo_data.linear_damping_lambdas[constraint_i] = global_allocator_.allocate_array<float>(
+            constraints_info_.damping_constraints[constraint_usage.constraint_i];
+        constraint_usage.linear_damping_lambdas = global_allocator_.allocate_array<float>(
             geo_data.size);
-        geo_data.angular_damping_lambdas[constraint_i] = global_allocator_.allocate_array<float>(
+        constraint_usage.angular_damping_lambdas = global_allocator_.allocate_array<float>(
             geo_data.size);
         fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
-        evaluator.add(constraint.linear_damping, &geo_data.linear_dampings[constraint_i]);
-        evaluator.add(constraint.angular_damping, &geo_data.angular_dampings[constraint_i]);
+        evaluator.add(constraint.linear_damping, &constraint_usage.linear_dampings);
+        evaluator.add(constraint.angular_damping, &constraint_usage.angular_dampings);
       }
     }
   }
@@ -1281,11 +1280,11 @@ class XpbdSolverStep {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
 
-      for (const int constraint_i : geo_data.damping_constraints) {
+      for (DampingConstraintUsage &constraint_usage : geo_data.damping_constraints) {
         const VArraySpanGetter<float> linear_dampings{
-            global_scope_, geo_data.linear_dampings[constraint_i], geometries_.max_chunk_size};
+            global_scope_, constraint_usage.linear_dampings, geometries_.max_chunk_size};
         const VArraySpanGetter<float> angular_dampings{
-            global_scope_, geo_data.angular_dampings[constraint_i], geometries_.max_chunk_size};
+            global_scope_, constraint_usage.angular_dampings, geometries_.max_chunk_size};
 
         for (const int chunk_i : geo_data.chunks) {
           const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
@@ -1296,13 +1295,13 @@ class XpbdSolverStep {
                   data_key_i,
                   chunk.points_range,
                   linear_dampings.get_span_for_range(chunk.points_range),
-                  geo_data.linear_damping_lambdas[constraint_i].slice(chunk.points_range)));
+                  constraint_usage.linear_damping_lambdas.slice(chunk.points_range)));
           chunk_constraints.static_velocity_constraints.append(
               &global_scope_.construct<xpbd::AngularDampingConstraintSet>(
                   data_key_i,
                   chunk.points_range,
                   angular_dampings.get_span_for_range(chunk.points_range),
-                  geo_data.angular_damping_lambdas[constraint_i].slice(chunk.points_range)));
+                  constraint_usage.angular_damping_lambdas.slice(chunk.points_range)));
         }
       }
     }
