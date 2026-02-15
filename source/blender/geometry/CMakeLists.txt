@@ -58,7 +58,7 @@ set(SRC
   intern/uv_parametrizer.cc
   intern/volume_grid_resample.cc
 
-  xpbd/intern/xpbd_constraint_solver.cc
+  xpbd/intern/xpbd_constraint_coloring.cc
 
   GEO_add_curves_on_mesh.hh
   GEO_curve_constraints.hh
@@ -119,9 +119,7 @@ set(SRC
   xpbd/GEO_xpbd_constraint_set_params.hh
   xpbd/GEO_xpbd_constraint_set_templated.hh
   xpbd/GEO_xpbd_geometry_ref.hh
-  xpbd/GEO_xpbd_solve.hh
   xpbd/GEO_xpbd_updater_gauss_seidel.hh
-  xpbd/GEO_xpbd_updater_non_deterministic_jacobian.hh
   xpbd/GEO_xpbd_updater_velocity.hh
 
   intern/mesh_boolean_intern.hh

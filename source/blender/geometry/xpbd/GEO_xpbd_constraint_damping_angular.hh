@@ -38,8 +38,8 @@ class AngularDampingConstraintSet
   }
 
   template<typename UpdaterT>
-  void evaluate_single(UpdaterT &updater,
-                       const ConstraintSetParams &params,
+  void evaluate_single(const ConstraintSetParams &params,
+                       UpdaterT &updater,
                        const int constraint_i) const
   {
     const int point_i = points_[constraint_i];

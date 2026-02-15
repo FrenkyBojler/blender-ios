@@ -41,39 +41,11 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
     }
   }
 
-  void solve_step(SolveStrategy &strategy, const ConstraintSetParams &params) override
+  void solve_serial(const ConstraintSetParams &params, GaussSeidelUpdater &updater) override
   {
     const Child &self = static_cast<const Child &>(*this);
-
-    switch (strategy.type) {
-      case SolveStrategyType::GaussSeidelOneAtATime: {
-        auto &updater = std::get<GaussSeidelUpdater>(strategy.updater());
-        for (const int constraint_i : IndexRange(constraints_num_)) {
-          self.evaluate_single(updater, params, constraint_i);
-        }
-        break;
-      }
-      case SolveStrategyType::GaussSeidelParallel: {
-        auto &updater = std::get<GaussSeidelUpdater>(strategy.updater());
-        const Span<IndexMask> constraint_masks = this->get_independent_masks();
-        for (const int color_i : constraint_masks.index_range()) {
-          const IndexMask &constraint_mask = constraint_masks[color_i];
-          constraint_mask.foreach_index(GrainSize(grain_size_), [&](const int constraint_i) {
-            self.evaluate_single(updater, params, constraint_i);
-          });
-        }
-        break;
-      }
-      case SolveStrategyType::JacobianNonDeterministic: {
-        auto &updater = std::get<NonDeterministicJacobianUpdater>(strategy.updater());
-        threading::parallel_for(
-            IndexRange(constraints_num_), grain_size_, [&](const IndexRange range) {
-              for (const int constraint_i : range) {
-                self.evaluate_single(updater, params, constraint_i);
-              }
-            });
-        break;
-      }
+    for (const int constraint_i : IndexRange(constraints_num_)) {
+      self.evaluate_single(params, updater, constraint_i);
     }
   }
 
@@ -111,11 +83,11 @@ template<typename Child> class TemplatedVelocityConstraintSet : public VelocityC
     }
   }
 
-  void solve_step(VelocityUpdater &updater, const ConstraintSetParams &params) override
+  void solve_serial(const ConstraintSetParams &params, VelocityUpdater &updater) override
   {
     Child &self = static_cast<Child &>(*this);
     for (const int constraint_i : IndexRange(constraint_num_)) {
-      self.evaluate_single(updater, params, constraint_i);
+      self.evaluate_single(params, updater, constraint_i);
     }
   }
 

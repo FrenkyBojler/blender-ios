@@ -25,7 +25,6 @@
 #include "GEO_xpbd_constraint_pin_rotation.hh"
 #include "GEO_xpbd_constraint_rod_bend_twist.hh"
 #include "GEO_xpbd_constraint_rod_stretch_shear.hh"
-#include "GEO_xpbd_solve.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_parse.hh"
@@ -69,27 +68,6 @@ static NestedBundleTypePtr make_world_type()
   return world_type;
 }
 
-enum class SolverType {
-  SerialGaussSeidel,
-  ParallelGaussSeidel,
-  NonDeterministicJacobian,
-};
-
-static const EnumPropertyItem solver_type_items[] = {
-    {int(SolverType::SerialGaussSeidel), "SERIAL_GAUSS_SEIDEL", 0, "Serial Gauss-Seidel", ""},
-    {int(SolverType::ParallelGaussSeidel),
-     "PARALLEL_GAUSS_SEIDEL",
-     0,
-     "Parallel Gauss-Seidel",
-     ""},
-    {int(SolverType::NonDeterministicJacobian),
-     "NON_DETERMINISTIC_JACOBIAN",
-     0,
-     "Non-deterministic Jacobian",
-     ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -108,9 +86,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_TIME_ABSOLUTE);
 
   auto &panel = b.add_panel("Solver").default_closed(true);
-  panel.add_input<decl::Menu>("Solver Type")
-      .static_items(solver_type_items)
-      .default_value(SolverType::ParallelGaussSeidel);
   panel.add_input<decl::Int>("Substeps").default_value(10).min(1);
   panel.add_input<decl::Int>("Constraint Iterations").default_value(1).min(1);
 }
@@ -515,7 +490,6 @@ class XpbdSolverStep {
   const float sub_delta_time_;
   float substep_compliance_factor_;
 
-  SolverType solver_type_;
   int constraint_iterations_;
 
   Geometries geometries_;
@@ -532,14 +506,12 @@ class XpbdSolverStep {
                  Bundle &world,
                  const float total_delta_time,
                  const int substeps,
-                 const SolverType solver_type,
                  const int constraint_iterations)
       : global_scope_(scope),
         global_allocator_(scope.allocator()),
         world_(world),
         substeps_(substeps),
         sub_delta_time_(total_delta_time / substeps_),
-        solver_type_(solver_type),
         constraint_iterations_(constraint_iterations)
   {
   }
@@ -1965,27 +1937,28 @@ class XpbdSolverStep {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     ChunkData &chunk_data = chunks_data_[chunk_i];
 
-    Vector<xpbd::ConstraintSet *> local_constraints = chunk_data.static_constraints;
-
-    std::optional<xpbd::CollisionPlaneConstraintSet> plane_collision_constraint;
-    if (!chunk_data.external_plane_contacts.points.is_empty()) {
-      ExternalPlaneContacts &contacts = chunk_data.external_plane_contacts;
-      plane_collision_constraint.emplace(chunk.data_key_i,
-                                         contacts.points,
-                                         contacts.positions_on_plane,
-                                         contacts.collider_motion,
-                                         contacts.separating_axes,
-                                         contacts.compliance_terms,
-                                         contacts.static_frictions,
-                                         contacts.dynamic_frictions,
-                                         contacts.active_states,
-                                         contacts.lambdas_normal);
-      local_constraints.append(&*plane_collision_constraint);
-    }
-
     const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
     xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
-    this->solve_constraints(solve_params, local_constraints);
+    xpbd::GaussSeidelUpdater updater{solver_refs};
+
+    for (xpbd::ConstraintSet *constraint : chunk_data.static_constraints) {
+      constraint->solve_serial(solve_params, updater);
+    }
+
+    if (!chunk_data.external_plane_contacts.points.is_empty()) {
+      ExternalPlaneContacts &contacts = chunk_data.external_plane_contacts;
+      xpbd::CollisionPlaneConstraintSet plane_collision_constraint(chunk.data_key_i,
+                                                                   contacts.points,
+                                                                   contacts.positions_on_plane,
+                                                                   contacts.collider_motion,
+                                                                   contacts.separating_axes,
+                                                                   contacts.compliance_terms,
+                                                                   contacts.static_frictions,
+                                                                   contacts.dynamic_frictions,
+                                                                   contacts.active_states,
+                                                                   contacts.lambdas_normal);
+      plane_collision_constraint.solve_serial(solve_params, updater);
+    }
   }
 
   void simulate__update_velocities__chunk(const int chunk_i, const int solver_refs_i)
@@ -2036,7 +2009,7 @@ class XpbdSolverStep {
     xpbd::VelocityUpdater velocity_updater{solver_refs};
     xpbd::ConstraintSetParams params{solver_refs, sub_delta_time_};
     for (xpbd::VelocityConstraintSet *constraint : local_constraints) {
-      constraint->solve_step(velocity_updater, params);
+      constraint->solve_serial(params, velocity_updater);
     }
   }
 
@@ -2139,25 +2112,6 @@ class XpbdSolverStep {
       }
       const float3 new_angular_velocity = 2.0f * diff * inv_delta_time;
       r_angular_velocities[i] = new_angular_velocity;
-    }
-  }
-
-  void solve_constraints(xpbd::ConstraintSetParams &params,
-                         const Span<xpbd::ConstraintSet *> constraint_sets)
-  {
-    switch (solver_type_) {
-      case SolverType::SerialGaussSeidel: {
-        xpbd::solve_gauss_seidel_one_at_a_time(params, constraint_sets);
-        break;
-      }
-      case SolverType::ParallelGaussSeidel: {
-        xpbd::solve_gauss_seidel_parallel(params, constraint_sets);
-        break;
-      }
-      case SolverType::NonDeterministicJacobian: {
-        xpbd::solve_jacobian_non_deterministic(params, constraint_sets);
-        break;
-      }
     }
   }
 
@@ -2497,13 +2451,12 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_output("World", std::move(world_ptr));
     return;
   }
-  const SolverType solver_type = params.get_input<SolverType>("Solver Type");
   const int constraint_iterations = params.get_input<int>("Constraint Iterations");
   const float delta_time = std::max(0.0f, params.get_input<float>("Delta Time"));
   Bundle &world = world_ptr.ensure_mutable_inplace();
   ResourceScope scope;
 
-  XpbdSolverStep step(scope, world, delta_time, substeps, solver_type, constraint_iterations);
+  XpbdSolverStep step(scope, world, delta_time, substeps, constraint_iterations);
   step.do_step();
 
   for (const StringRef warning : step.warnings()) {

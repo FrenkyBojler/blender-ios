@@ -40,8 +40,8 @@ class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstr
   }
 
   template<typename UpdaterT>
-  void evaluate_single(UpdaterT &updater,
-                       const ConstraintSetParams &params,
+  void evaluate_single(const ConstraintSetParams &params,
+                       UpdaterT &updater,
                        const int constraint_i) const
   {
     const int geo_i = affected_geo_indices_[0];

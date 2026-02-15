@@ -4,48 +4,14 @@
 
 #pragma once
 
-#include <optional>
-#include <variant>
-
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 #include "GEO_xpbd_constraint_set_params.hh"
-#include "GEO_xpbd_geometry_ref.hh"
 #include "GEO_xpbd_updater_gauss_seidel.hh"
-#include "GEO_xpbd_updater_non_deterministic_jacobian.hh"
 #include "GEO_xpbd_updater_velocity.hh"
 
 namespace blender::xpbd {
-
-using UpdaterVariant = std::variant<GaussSeidelUpdater, NonDeterministicJacobianUpdater>;
-
-enum class SolveStrategyType {
-  GaussSeidelOneAtATime,
-  GaussSeidelParallel,
-  JacobianNonDeterministic,
-};
-
-class SolveStrategy {
- private:
-  std::optional<UpdaterVariant> updater_;
-
- public:
-  SolveStrategyType type;
-
-  SolveStrategy(SolveStrategyType type, Span<GeometryRef> geometry_refs);
-  SolveStrategy(SolveStrategyType type,
-                Span<GeometryRef> geometry_refs,
-                const int geo_i,
-                const IndexRange range);
-
-  UpdaterVariant &updater()
-  {
-    return *updater_;
-  }
-
-  void apply();
-};
 
 /**
  * Base class for constraint evaluators. It evaluate a batch of constraints and writes back the
@@ -60,12 +26,15 @@ class ConstraintSet {
   Vector<int> affected_geo_indices_;
 
  public:
-  ConstraintSet(Vector<int> affected_geo_indices);
+  ConstraintSet(Vector<int> affected_geo_indices)
+      : affected_geo_indices_(std::move(affected_geo_indices))
+  {
+  }
 
   virtual ~ConstraintSet() = default;
 
   virtual void reset_forces() = 0;
-  virtual void solve_step(SolveStrategy &method, const ConstraintSetParams &params) = 0;
+  virtual void solve_serial(const ConstraintSetParams &params, GaussSeidelUpdater &updater) = 0;
   virtual StringRefNull debug_name() const = 0;
 
   Span<int> get_affected_geo_indices() const
@@ -86,7 +55,7 @@ class VelocityConstraintSet {
   virtual ~VelocityConstraintSet() = default;
 
   virtual void reset_forces() = 0;
-  virtual void solve_step(VelocityUpdater &updater, const ConstraintSetParams &params) = 0;
+  virtual void solve_serial(const ConstraintSetParams &params, VelocityUpdater &updater) = 0;
 
   Span<int> get_affected_geo_indices() const
   {
