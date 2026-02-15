@@ -2648,6 +2648,10 @@ namespace ed::object::shapekey {
 void template_tree(ui::Layout *layout, bContext *C);
 }
 
+namespace ed::space_image {
+void image_render_slot_tree_view_draw(const bContext *C, ui::Layout &layout, Image *image);
+}
+
 namespace ui {
 /**
  * \return: True if the list item with unfiltered, unordered index \a item_idx is visible given the

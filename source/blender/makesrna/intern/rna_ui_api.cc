@@ -39,6 +39,7 @@ const EnumPropertyItem rna_enum_icon_items[] = {
 #  include "BLT_translation.hh"
 
 #  include "DNA_asset_types.h"
+#  include "DNA_image_types.h"
 
 #  include "BKE_report.hh"
 
@@ -1154,6 +1155,17 @@ PointerRNA rna_uiTemplatePopupConfirm(Layout *layout,
         layout, ot, text_str, cancel_text_str, icon, cancel_default, &opptr);
   }
   return opptr;
+}
+
+static void rna_uiTemplateRenderSlotTree(Layout *layout, bContext *C, PointerRNA *ptr)
+{
+  if (RNA_struct_is_a(ptr->type, RNA_Image)) {
+    Image *image = static_cast<Image *>(ptr->data);
+
+    if (image) {
+      ed::space_image::image_render_slot_tree_view_draw(C, *layout, image);
+    }
+  }
 }
 
 }  // namespace blender
@@ -2451,6 +2463,12 @@ void RNA_api_ui_layout(StructRNA *srna)
 
   func = RNA_def_function(srna, "template_shape_key_tree", "ed::object::shapekey::template_tree");
   RNA_def_function_ui_description(func, "Shape Key tree view");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+
+  func = RNA_def_function(srna, "template_render_slot_tree", "rna_uiTemplateRenderSlotTree");
+  RNA_def_function_ui_description(func, "Render Slot tree view");
+  parm = RNA_def_pointer(func, "image", "Image", "", "");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 }
 

@@ -689,6 +689,7 @@ RenderSlot *BKE_image_add_renderslot(Image *ima, const char *name);
 bool BKE_image_remove_renderslot(Image *ima, ImageUser *iuser, int slot);
 RenderSlot *BKE_image_get_renderslot(Image *ima, int index);
 bool BKE_image_clear_renderslot(Image *ima, ImageUser *iuser, int slot);
+bool BKE_image_move_renderslot(Image *ima, int old_index, int new_index);
 
 /* --- image_partial_update.cc --- */
 /** Image partial updates. */

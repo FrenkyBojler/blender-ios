@@ -19,6 +19,7 @@ set(SRC
   image_draw.cc
   image_edit.cc
   image_ops.cc
+  image_render_slot_tree_view.cc
   image_sequence.cc
   image_undo.cc
   space_image.cc

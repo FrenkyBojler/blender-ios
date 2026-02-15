@@ -167,10 +167,20 @@ struct ImagePackedFile {
   char filepath[/*FILE_MAX*/ 1024] = "";
 };
 
+/** #RenderSlot.flag */
+enum eRenderSlot_Flag {
+  /** Render slot is selected (for multi-selection). */
+  RENDERSLOT_SEL = (1 << 0),
+};
+
 struct RenderSlot {
   struct RenderSlot *next = nullptr, *prev = nullptr;
   char name[/*MAX_NAME*/ 64] = "";
   struct RenderResult *render = nullptr;
+
+  /** #eRenderSlot_Flag */
+  short flag = 0;
+  char _pad[6] = {};
 };
 
 struct ImageTile_Runtime {

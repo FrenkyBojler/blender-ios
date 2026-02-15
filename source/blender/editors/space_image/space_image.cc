@@ -250,6 +250,7 @@ static void image_operatortypes()
   WM_operatortype_append(IMAGE_OT_clear_render_slot);
   WM_operatortype_append(IMAGE_OT_add_render_slot);
   WM_operatortype_append(IMAGE_OT_remove_render_slot);
+  WM_operatortype_append(IMAGE_OT_render_slot_move);
 
   WM_operatortype_append(IMAGE_OT_sample);
   WM_operatortype_append(IMAGE_OT_sample_line);

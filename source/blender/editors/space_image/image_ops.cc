@@ -3981,6 +3981,84 @@ void IMAGE_OT_remove_render_slot(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Move Render Slot Operator
+ * \{ */
+
+enum RenderSlotMove {
+  SLOT_MOVE_UP = -1,
+  SLOT_MOVE_DOWN = 1,
+};
+
+static bool render_slot_is_selected(const Image &image,
+                                    const RenderSlot &slot,
+                                    const int slot_index)
+{
+  /* The active render slot is always considered selected. */
+  return (slot.flag & RENDERSLOT_SEL) || slot_index == image.render_slot;
+}
+
+static wmOperatorStatus image_render_slot_move_exec(bContext *C, wmOperator *op)
+{
+  Image *ima = image_from_context(C);
+  const RenderSlotMove type = RenderSlotMove(RNA_enum_get(op->ptr, "type"));
+  const int totslot = BLI_listbase_count(&ima->renderslots);
+  bool changed = false;
+
+  if (type < 0) { /* Moving upwards. */
+    for (int index = 0; index < totslot; index++) {
+      const RenderSlot *slot = static_cast<RenderSlot *>(BLI_findlink(&ima->renderslots, index));
+      if (!render_slot_is_selected(*ima, *slot, index)) {
+        continue;
+      }
+      const int new_index = max_ii(index - 1, 0);
+      changed |= BKE_image_move_renderslot(ima, index, new_index);
+    }
+  }
+  else { /* Moving downwards. */
+    for (int index = totslot - 1; index >= 0; index--) {
+      const RenderSlot *slot = static_cast<RenderSlot *>(BLI_findlink(&ima->renderslots, index));
+      if (!render_slot_is_selected(*ima, *slot, index)) {
+        continue;
+      }
+      const int new_index = min_ii(index + 1, totslot - 1);
+      changed |= BKE_image_move_renderslot(ima, index, new_index);
+    }
+  }
+
+  if (!changed) {
+    return OPERATOR_CANCELLED;
+  }
+
+  WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+void IMAGE_OT_render_slot_move(wmOperatorType *ot)
+{
+  static const EnumPropertyItem slot_move[] = {
+      {SLOT_MOVE_UP, "UP", 0, "Up", ""},
+      {SLOT_MOVE_DOWN, "DOWN", 0, "Down", ""},
+      {0, nullptr, 0, nullptr, nullptr}};
+
+  /* identifiers */
+  ot->name = "Move Render Slot";
+  ot->idname = "IMAGE_OT_render_slot_move";
+  ot->description = "Move render slot up or down in the list";
+
+  /* API callbacks. */
+  ot->poll = image_cycle_render_slot_poll;
+  ot->exec = image_render_slot_move_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_enum(ot->srna, "type", slot_move, 0, "Type", "");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Change Frame Operator
  * \{ */
 

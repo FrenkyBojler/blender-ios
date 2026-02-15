@@ -82,6 +82,7 @@ void IMAGE_OT_cycle_render_slot(wmOperatorType *ot);
 void IMAGE_OT_clear_render_slot(wmOperatorType *ot);
 void IMAGE_OT_add_render_slot(wmOperatorType *ot);
 void IMAGE_OT_remove_render_slot(wmOperatorType *ot);
+void IMAGE_OT_render_slot_move(wmOperatorType *ot);
 
 void IMAGE_OT_sample(wmOperatorType *ot);
 void IMAGE_OT_sample_line(wmOperatorType *ot);
@@ -97,7 +98,7 @@ void IMAGE_OT_tile_add(wmOperatorType *ot);
 void IMAGE_OT_tile_remove(wmOperatorType *ot);
 void IMAGE_OT_tile_fill(wmOperatorType *ot);
 
-/* image_panels.c */
+/* `image_panels.cc` */
 
 /**
  * Gets active viewer user.

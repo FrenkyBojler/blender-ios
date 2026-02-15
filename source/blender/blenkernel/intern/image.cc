@@ -5720,6 +5720,76 @@ bool BKE_image_clear_renderslot(Image *ima, ImageUser *iuser, int slot)
   return true;
 }
 
+bool BKE_image_move_renderslot(Image *ima, int old_index, int new_index)
+{
+  const int act_index = ima->render_slot;
+  const int totslot = BLI_listbase_count(&ima->renderslots);
+
+  CLAMP(new_index, 0, totslot - 1);
+  CLAMP(old_index, 0, totslot - 1);
+
+  if (new_index == old_index) {
+    return false;
+  }
+
+  const bool rev = ((new_index - old_index) < 0);
+
+  /* We swap 'old' element with its previous/next neighbor (depending on direction of the move)
+   * repeatedly, until we reach final position.
+   * This allows us to only loop on the list once! */
+  bool in_range = false;
+  int i = rev ? totslot - 1 : 0;
+  for (RenderSlot *slot = static_cast<RenderSlot *>(rev ? ima->renderslots.last :
+                                                           ima->renderslots.first);
+       slot;
+       slot = static_cast<RenderSlot *>(rev ? slot->prev : slot->next), rev ? i-- : i++)
+  {
+    if (i == old_index) {
+      in_range = true; /* Start list items swapping... */
+    }
+    else if (i == new_index) {
+      in_range = false; /* End list items swapping. */
+    }
+
+    if (in_range) {
+      RenderSlot *other_slot = static_cast<RenderSlot *>(rev ? slot->prev : slot->next);
+
+      /* Swap with previous/next list item. */
+      BLI_listbase_swaplinks(&ima->renderslots, slot, other_slot);
+
+      slot = other_slot;
+    }
+  }
+
+  /* Need to update active slot number if it's affected,
+   * same principle as for relative indices above. */
+  if (old_index == act_index) {
+    ima->render_slot = new_index;
+  }
+  else if (act_index < old_index && act_index >= new_index) {
+    ima->render_slot++;
+  }
+  else if (act_index > old_index && act_index <= new_index) {
+    ima->render_slot--;
+  }
+
+  /* Update last_render_slot if it's affected. */
+  const int last_index = ima->last_render_slot;
+  if (old_index == last_index) {
+    ima->last_render_slot = new_index;
+  }
+  else if (last_index < old_index && last_index >= new_index) {
+    ima->last_render_slot++;
+  }
+  else if (last_index > old_index && last_index <= new_index) {
+    ima->last_render_slot--;
+  }
+
+  BKE_image_partial_update_mark_full_update(ima);
+
+  return true;
+}
+
 RenderSlot *BKE_image_get_renderslot(Image *ima, int index)
 {
   /* Can be null for images without render slots. */

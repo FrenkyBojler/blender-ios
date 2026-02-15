@@ -1156,12 +1156,6 @@ class IMAGE_PT_view_display(Panel):
             col.prop(uvedit, "show_pixel_coords", text="Pixel Coordinates")
 
 
-class IMAGE_UL_render_slots(UIList):
-    def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
-        slot = item
-        layout.prop(slot, "name", text="", emboss=False)
-
-
 class IMAGE_PT_render_slots(Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'
@@ -1182,10 +1176,7 @@ class IMAGE_PT_render_slots(Panel):
         row = layout.row()
 
         col = row.column()
-        col.template_list(
-            "IMAGE_UL_render_slots", "render_slots", ima,
-            "render_slots", ima.render_slots, "active_index", rows=3,
-        )
+        col.template_render_slot_tree(ima)
 
         col = row.column(align=True)
         col.operator("image.add_render_slot", icon='ADD', text="")
@@ -1193,7 +1184,31 @@ class IMAGE_PT_render_slots(Panel):
 
         col.separator()
 
+        col.operator("image.render_slot_move", icon='TRIA_UP', text="").type = 'UP'
+        col.operator("image.render_slot_move", icon='TRIA_DOWN', text="").type = 'DOWN'
+
+        col.separator()
+
         col.operator("image.clear_render_slot", icon='X', text="")
+
+
+class IMAGE_MT_render_slot_context_menu(Menu):
+    bl_label = "Render Slot"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("image.add_render_slot", icon='ADD')
+        layout.operator("image.remove_render_slot", icon='REMOVE')
+
+        layout.separator()
+
+        layout.operator("image.render_slot_move", icon='TRIA_UP', text="Move Up").type = 'UP'
+        layout.operator("image.render_slot_move", icon='TRIA_DOWN', text="Move Down").type = 'DOWN'
+
+        layout.separator()
+
+        layout.operator("image.clear_render_slot", icon='X')
 
 
 class IMAGE_UL_udim_tiles(UIList):
@@ -1863,8 +1878,8 @@ classes = (
     IMAGE_PT_snapping,
     IMAGE_PT_proportional_edit,
     IMAGE_PT_image_properties,
-    IMAGE_UL_render_slots,
     IMAGE_PT_render_slots,
+    IMAGE_MT_render_slot_context_menu,
     IMAGE_UL_udim_tiles,
     IMAGE_PT_udim_tiles,
     IMAGE_PT_view_display,
