@@ -323,12 +323,12 @@ enum eTextEdit_Flags {
  * #UserDef.text_render
  */
 enum eText_Draw_Options {
-  USER_TEXT_DISABLE_AA_DEPRECATED = (1 << 0), /* Deprecated in 5.1. */
+  USER_TEXT_DISABLE_AA_DEPRECATED = (1 << 0), /* Deprecated in 5.2. */
 
-  USER_TEXT_HINTING_NONE_DEPRECATED = (1 << 1),      /* Deprecated in 5.1. */
-  USER_TEXT_HINTING_SLIGHT_DEPRECATED = (1 << 2),    /* Deprecated in 5.1. */
-  USER_TEXT_HINTING_FULL_DEPRECATED = (1 << 3),      /* Deprecated in 5.1. */
-  USER_TEXT_RENDER_SUBPIXELAA_DEPRECATED = (1 << 4), /* Deprecated in 5.1. */
+  USER_TEXT_HINTING_NONE_DEPRECATED = (1 << 1),      /* Deprecated in 5.2. */
+  USER_TEXT_HINTING_SLIGHT_DEPRECATED = (1 << 2),    /* Deprecated in 5.2. */
+  USER_TEXT_HINTING_FULL_DEPRECATED = (1 << 3),      /* Deprecated in 5.2. */
+  USER_TEXT_RENDER_SUBPIXELAA_DEPRECATED = (1 << 4), /* Deprecated in 5.2. */
 
   /* UI & Mono fonts. */
   USER_TEXT_SLASHED_ZERO_UI = (1 << 5),

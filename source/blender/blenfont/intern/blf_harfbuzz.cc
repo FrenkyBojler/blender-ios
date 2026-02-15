@@ -48,7 +48,7 @@ static void blf_font_otf_feature_set(blender::Vector<hb_feature_t> &features,
   features.append({tag, value, HB_FEATURE_GLOBAL_START, HB_FEATURE_GLOBAL_END});
 }
 
-blender::Vector<hb_feature_t> blf_font_otf_features_default(FontBLF *font)
+blender::Vector<hb_feature_t> blf_font_otf_features_default()
 {
   blender::Vector<hb_feature_t> features;
 
@@ -164,7 +164,7 @@ ShapingData::ShapingData(FontBLF *font,
 
     hb_buffer_set_cluster_level(hb_buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
-    blender::Vector<hb_feature_t> otf_features = blf_font_otf_features_default(segment_font);
+    blender::Vector<hb_feature_t> otf_features = blf_font_otf_features_default();
     if (features) {
       for (const hb_feature_t &feature : *features) {
         blf_font_otf_feature_set(otf_features, feature.tag, feature.value);
