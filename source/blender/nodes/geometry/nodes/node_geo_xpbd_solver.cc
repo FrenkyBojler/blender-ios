@@ -151,6 +151,18 @@ struct DampingConstraintUsage {
   MutableSpan<float> angular_damping_lambdas;
 };
 
+struct RodStretchShearConstraint {
+  std::string path;
+  Field<float> compliance;
+};
+struct RodStretchShearConstraintUsage {
+  /** Index of corresponding #RodStretchShearConstraint. */
+  int constraint_i;
+  VArray<float> compliances;
+  MutableSpan<float3> lambdas_pos;
+  MutableSpan<float3> lambdas_rot;
+};
+
 struct InfinitePlaneCollider {
   std::string path;
   float3 end_position;
@@ -222,12 +234,6 @@ struct GeometryData {
   Array<math::Quaternion> pin_rotation_current;
 
   /* Only a single constraint of this type is allowed. */
-  bool has_rod_stretch_shear_constraint = false;
-  VArray<float> rod_stretch_shear_compliances;
-  MutableSpan<float3> rod_stretch_shear_lambdas_pos;
-  MutableSpan<float3> rod_stretch_shear_lambdas_rot;
-
-  /* Only a single constraint of this type is allowed. */
   bool has_rod_bend_twist_constraint = false;
   VArray<float> rod_bend_twist_compliances;
   MutableSpan<float4> rod_bend_twist_lambdas;
@@ -258,6 +264,9 @@ struct GeometryData {
   Vector<InfinitePlaneColliderUsage> infinite_plane_colliders;
   Vector<DampingConstraintUsage> damping_constraints;
   Vector<MeshColliderUsage> mesh_colliders;
+
+  /** Only a single constraint of this type is allowed. */
+  std::optional<RodStretchShearConstraintUsage> rod_stretch_shear_constraint;
 };
 
 struct GeometrySetData {
@@ -440,6 +449,7 @@ struct ConstraintsInfo {
   Vector<InfinitePlaneCollider> infinite_plane_colliders;
   Vector<MeshCollider> mesh_colliders;
   Vector<DampingConstraint> damping_constraints;
+  Vector<RodStretchShearConstraint> rod_stretch_shear_constraints;
 };
 
 class XpbdSolverStep {
@@ -1130,20 +1140,36 @@ class XpbdSolverStep {
       const Field<float> compliance_field =
           bundle.lookup<Field<float>>("compliance").value_or(fn::make_constant_field(0.0f));
 
+      const int constraint_i = constraints_info_.rod_stretch_shear_constraints
+                                   .append_and_get_index({path, compliance_field});
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
-        if (geo_data.has_rod_stretch_shear_constraint) {
-          continue;
-        }
-        if (!this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
-          continue;
-        }
         if (!geo_data.curves) {
           continue;
         }
+        if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+          if (geo_data.rod_stretch_shear_constraint.has_value()) {
+            this->report_warning(RPT_("Duplicate rod stretch/shear constraint"));
+            break;
+          }
+          geo_data.rod_stretch_shear_constraint = {constraint_i};
+        }
+      }
+
+      for (const int data_key_i : geometries_.data_keys.index_range()) {
+        GeometryData &geo_data = geometries_.data[data_key_i];
+        if (!geo_data.rod_stretch_shear_constraint.has_value()) {
+          continue;
+        }
+        RodStretchShearConstraintUsage &constraint_usage = *geo_data.rod_stretch_shear_constraint;
+        const RodStretchShearConstraint &constraint =
+            constraints_info_.rod_stretch_shear_constraints[constraint_usage.constraint_i];
+
+        constraint_usage.lambdas_pos = global_allocator_.allocate_array<float3>(geo_data.size);
+        constraint_usage.lambdas_rot = global_allocator_.allocate_array<float3>(geo_data.size);
+
         fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
-        evaluator.add(compliance_field, &geo_data.rod_stretch_shear_compliances);
-        geo_data.has_rod_stretch_shear_constraint = true;
+        evaluator.add(constraint.compliance, &constraint_usage.compliances);
       }
     }
   }
@@ -1152,18 +1178,15 @@ class XpbdSolverStep {
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-      if (!geo_data.has_rod_stretch_shear_constraint) {
+      if (!geo_data.rod_stretch_shear_constraint.has_value()) {
         continue;
       }
+      RodStretchShearConstraintUsage &constraint_usage = *geo_data.rod_stretch_shear_constraint;
       bke::CurvesGeometry &curves = *geo_data.curves;
       const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-      geo_data.rod_stretch_shear_lambdas_pos = global_allocator_.allocate_array<float3>(
-          geo_data.size);
-      geo_data.rod_stretch_shear_lambdas_rot = global_allocator_.allocate_array<float3>(
-          geo_data.size);
 
       const VArraySpanGetter<float> compliances{
-          global_scope_, geo_data.rod_stretch_shear_compliances, geometries_.max_chunk_size};
+          global_scope_, constraint_usage.compliances, geometries_.max_chunk_size};
 
       for (const int chunk_i : geo_data.chunks) {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
@@ -1175,8 +1198,8 @@ class XpbdSolverStep {
                 points_by_curve,
                 geo_data.rest_lengths,
                 compliances.get_span_for_range(chunk.points_range),
-                geo_data.rod_stretch_shear_lambdas_pos,
-                geo_data.rod_stretch_shear_lambdas_rot));
+                constraint_usage.lambdas_pos,
+                constraint_usage.lambdas_rot));
       }
     }
   }
@@ -1259,10 +1282,9 @@ class XpbdSolverStep {
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
-        if (!this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
-          continue;
+        if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+          geo_data.damping_constraints.append({constraint_i});
         }
-        geo_data.damping_constraints.append({constraint_i});
       }
     }
 
@@ -1954,6 +1976,12 @@ class XpbdSolverStep {
       GeometrySetData &geo_set_data = geometries_.geometry_sets[geo_bundle_i];
       world_.add_path_override(geo_set_data.path + "/geometry", std::move(geo_set_data.geometry));
     }
+  }
+
+  void report_warning(std::string warning)
+  {
+    // TODO
+    UNUSED_VARS(warning);
   }
 };
 
