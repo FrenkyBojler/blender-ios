@@ -273,17 +273,14 @@ struct GeometryData {
 
   VArraySpan<float3> external_force_attr;
   VArraySpan<float3> external_torque_attr;
-  VArraySpan<float> frictions;
   VArraySpan<float> rest_lengths;
   VArraySpan<math::Quaternion> rest_bend_rotations;
+  VArray<float> frictions;
+  VArray<float> masses;
+  VArraySpan<float3> moments_of_inertia;
 
   Array<float> inv_masses;
   Array<float3> inv_moments_of_inertia;
-  /**
-   * This does not match the inertia attribute exactly, since it has special handling for special
-   * cases like pinning (for which it is infinity).
-   */
-  Array<float3> moments_of_inertia;
 
   Vector<DampingConstraintUsage> damping_constraints;
   Vector<PinPositionConstraintUsage> pin_position_constraints;
@@ -666,6 +663,10 @@ class XpbdSolverStep {
           attribute_names::external_torque, domain, float3(0, 0, 0));
       geo_data.frictions = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::friction, domain, 0.0f);
+      geo_data.masses = *geo_data.attributes.lookup_or_default<float>(
+          attribute_names::mass, domain, 1.0f);
+      geo_data.moments_of_inertia = *geo_data.attributes.lookup_or_default<float3>(
+          attribute_names::moment_of_inertia, domain, float3(1.0f));
       if (geo_data.curves || data_key.type == bke::GeometryComponent::Type::Mesh) {
         geo_data.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
             attribute_names::rest_length, geo_data.domain, 0.0f);
@@ -959,24 +960,17 @@ class XpbdSolverStep {
       geo_data.inv_masses.reinitialize(geo_data.size);
       MutableSpan<float> inv_masses = geo_data.inv_masses;
 
-      const bke::AttributeReader<float> mass_attr = geo_data.attributes.lookup<float>(
-          attribute_names::mass, geo_data.domain);
-
-      if (mass_attr) {
-        threading::parallel_for(IndexRange(geo_data.size), 2048, [&](const IndexRange range) {
-          for (const int i : range) {
-            const float mass = mass_attr.varray[i];
-            if (mass <= 0.0f) {
-              inv_masses[i] = 1.0f;
-            }
-            else {
-              inv_masses[i] = 1.0f / mass;
-            }
-          }
-        });
+      if (const std::optional<float> mass = geo_data.masses.get_if_single()) {
+        inv_masses.fill(math::safe_rcp(*mass));
       }
       else {
-        inv_masses.fill(1.0f);
+        const VArraySpan<float> masses = geo_data.masses;
+        threading::parallel_for(IndexRange(geo_data.size), 2048, [&](const IndexRange range) {
+          for (const int i : range) {
+            const float mass = masses[i];
+            inv_masses[i] = math::safe_rcp(mass);
+          }
+        });
       }
     }
   }
@@ -988,36 +982,17 @@ class XpbdSolverStep {
       geo_data.inv_moments_of_inertia.reinitialize(geo_data.size);
       MutableSpan<float3> inv_moments_of_inertia = geo_data.inv_moments_of_inertia;
 
-      const bke::AttributeReader<float3> moment_of_inertia_attr =
-          geo_data.attributes.lookup<float3>(attribute_names::moment_of_inertia, geo_data.domain);
-
-      if (moment_of_inertia_attr) {
-        threading::parallel_for(IndexRange(geo_data.size), 2048, [&](const IndexRange range) {
-          for (const int i : range) {
-            const float3 moment_of_inertia = moment_of_inertia_attr.varray[i];
-            if (math::is_zero(moment_of_inertia)) {
-              inv_moments_of_inertia[i] = float3(0.0f);
-            }
-            else {
-              inv_moments_of_inertia[i] = math::safe_rcp(moment_of_inertia);
-            }
+      threading::parallel_for(IndexRange(geo_data.size), 2048, [&](const IndexRange range) {
+        for (const int i : range) {
+          const float3 &moment_of_inertia = geo_data.moments_of_inertia[i];
+          if (math::is_zero(moment_of_inertia)) {
+            inv_moments_of_inertia[i] = float3(0.0f);
           }
-        });
-      }
-      else {
-        inv_moments_of_inertia.fill(float3(1.0f));
-      }
-
-      geo_data.moments_of_inertia.reinitialize(geo_data.size);
-      for (const int i : IndexRange(geo_data.size)) {
-        const float3 &inv_inertia = inv_moments_of_inertia[i];
-        if (math::is_zero(inv_inertia)) {
-          geo_data.moments_of_inertia[i] = float3(std::numeric_limits<float>::infinity());
+          else {
+            inv_moments_of_inertia[i] = math::safe_rcp(moment_of_inertia);
+          }
         }
-        else {
-          geo_data.moments_of_inertia[i] = math::safe_rcp(inv_inertia);
-        }
-      }
+      });
     }
   }
 
