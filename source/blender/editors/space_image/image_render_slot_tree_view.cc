@@ -218,6 +218,12 @@ class RenderSlotItem : public ui::AbstractTreeViewItem {
     slot_data_.index = index;
   }
 
+  bool matches_single(const AbstractTreeViewItem &other) const override
+  {
+    const RenderSlotItem &other_item = dynamic_cast<const RenderSlotItem &>(other);
+    return slot_data_.index == other_item.slot_data_.index;
+  }
+
   void build_row(ui::Layout &row) override
   {
     /* Determine icon based on slot state, same logic as `ui_imageuser_slot_menu`. */
