@@ -58,11 +58,6 @@ constexpr StringRefNull rod_stretch_shear_rotation_lambda =
     "sim_rod_stretch_shear_rotation_lambda";
 constexpr StringRefNull rod_bend_twist_lambda = "sim_rod_bend_twist_lambda";
 
-constexpr StringRefNull linear_damping = "linear_damping";
-constexpr StringRefNull linear_damping_lambda = "sim_linear_damping_lambda";
-constexpr StringRefNull angular_damping = "angular_damping";
-constexpr StringRefNull angular_damping_lambda = "sim_angular_damping_lambda";
-
 }  // namespace attribute_names
 
 static NestedBundleTypePtr make_world_type()
@@ -203,11 +198,6 @@ struct GeometryData {
   VArraySpan<float> rest_lengths;
   VArraySpan<math::Quaternion> rest_bend_rotations;
 
-  VArraySpan<float> linear_dampings;
-  VArraySpan<float> angular_dampings;
-  bke::SpanAttributeWriter<float> linear_damping_lambdas;
-  bke::SpanAttributeWriter<float> angular_damping_lambdas;
-
   /**
    * Temporary arrays for positions and rotations. This is necessary because xpbd requires the old
    * and new positions in the end to compute the new velocities.
@@ -230,6 +220,12 @@ struct GeometryData {
 
   Vector<int> infinite_plane_colliders;
   Vector<int> mesh_colliders;
+
+  Vector<int> damping_constraints;
+  Vector<VArray<float>> linear_dampings;
+  Vector<MutableSpan<float>> linear_damping_lambdas;
+  Vector<VArray<float>> angular_dampings;
+  Vector<MutableSpan<float>> angular_damping_lambdas;
 };
 
 struct GeometrySetData {
@@ -253,6 +249,7 @@ struct Geometries {
    * multi-threading (and preparation for multi-threading).
    */
   Vector<GeometryDataChunk> chunks;
+  int max_chunk_size = -1;
 
   /**
    * Two arrays of geometry references are used because the arrays containing the previous and
@@ -372,6 +369,40 @@ struct ChunkConstraints {
   ExternalPlaneContacts external_plane_contacts;
 };
 
+template<typename T> class VArraySpanGetter {
+ private:
+  const int max_range_size_;
+  std::optional<Span<T>> full_span_;
+  std::optional<Span<T>> chunk_span_;
+
+ public:
+  VArraySpanGetter(ResourceScope &scope, const VArray<T> &varray, const int max_range_size)
+      : max_range_size_(max_range_size)
+  {
+    if (varray.is_span()) {
+      full_span_ = varray.get_internal_span();
+    }
+    else if (const std::optional<T> single_value = varray.get_if_single()) {
+      chunk_span_ = scope.allocator().construct_array<T>(max_range_size, *single_value);
+    }
+    else {
+      MutableSpan<T> full_span = scope.allocator().allocate_array<T>(max_range_size);
+      varray.materialize_to_uninitialized(full_span);
+      full_span_ = full_span;
+    }
+  }
+
+  Span<T> get_span_for_range(const IndexRange range) const
+  {
+    const int range_size = range.size();
+    BLI_assert(range_size <= max_range_size_);
+    if (full_span_) {
+      return full_span_->slice(range);
+    }
+    return chunk_span_->take_front(range_size);
+  }
+};
+
 struct InfinitePlaneCollider {
   std::string path;
   float3 end_position;
@@ -379,10 +410,6 @@ struct InfinitePlaneCollider {
   float3 begin_position;
   float3 begin_normal;
   float friction;
-};
-
-struct InfinitePlaneColliders {
-  Vector<InfinitePlaneCollider> colliders;
 };
 
 struct MeshCollider {
@@ -396,20 +423,23 @@ struct MeshCollider {
   float compliance;
 };
 
-struct MeshColliders {
-  Vector<MeshCollider> colliders;
+struct DampingConstraintInfo {
+  std::string path;
+  Field<float> linear_damping;
+  Field<float> angular_damping;
 };
 
 struct ConstraintsInfo {
   Array<ChunkConstraints> chunk_constraints;
-  InfinitePlaneColliders infinite_plane_colliders;
-  MeshColliders mesh_colliders;
+  Vector<InfinitePlaneCollider> infinite_plane_colliders;
+  Vector<MeshCollider> mesh_colliders;
+  Vector<DampingConstraintInfo> damping_constraints;
 };
 
 class XpbdSolverStep {
  private:
   ResourceScope &global_scope_;
-  LinearAllocator<> &allocator_;
+  LinearAllocator<> &global_allocator_;
   threading::EnumerableThreadSpecific<ResourceScope> thread_scopes_;
   IndexMaskMemory memory_;
   Bundle &world_;
@@ -434,7 +464,7 @@ class XpbdSolverStep {
                  const SolverType solver_type,
                  const int constraint_iterations)
       : global_scope_(scope),
-        allocator_(scope.allocator()),
+        global_allocator_(scope.allocator()),
         world_(world),
         substeps_(substeps),
         sub_delta_time_(total_delta_time / substeps_),
@@ -452,16 +482,17 @@ class XpbdSolverStep {
     this->gather_from_world__mesh_colliders();
     this->gather_from_world__stretch_shear_constraints();
     this->gather_from_world__bend_twist_constraints();
+    this->gather_from_world__damping();
     this->prepare_pinned_positions();
     this->prepare_pinned_rotations();
     this->prepare_inverse_masses();
     this->prepare_inverse_moments_of_inertia();
-    this->prepare_damping_constraints();
 
     this->evaluate_constraint_fields();
 
-    this->create_rod_stretch_shear_constraints();
-    this->create_bend_twist_constraints();
+    this->create_constraints__rod_stretch_shear();
+    this->create_constraints__rod_bend_twist();
+    this->create_constraints__damping();
 
     this->do_simulation();
     this->finish_attribute_writers();
@@ -614,13 +645,13 @@ class XpbdSolverStep {
         prev_normal = *normal;
       }
 
-      const int collider_i = constraints_info_.infinite_plane_colliders.colliders
-                                 .append_and_get_index({path,
-                                                        *position,
-                                                        math::normalize(*normal),
-                                                        prev_position,
-                                                        math::normalize(prev_normal),
-                                                        friction});
+      const int collider_i = constraints_info_.infinite_plane_colliders.append_and_get_index(
+          {path,
+           *position,
+           math::normalize(*normal),
+           prev_position,
+           math::normalize(prev_normal),
+           friction});
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
           geometries_.data[data_key_i].infinite_plane_colliders.append(collider_i);
@@ -720,7 +751,7 @@ class XpbdSolverStep {
   {
     if (const Mesh *mesh = collider_geo.get_mesh()) {
       if (mesh->faces_num > 0) {
-        const int collider_i = constraints_info_.mesh_colliders.colliders.append_and_get_index(
+        const int collider_i = constraints_info_.mesh_colliders.append_and_get_index(
             {path,
              instance_id_stack,
              mesh,
@@ -856,6 +887,11 @@ class XpbdSolverStep {
         geo_data.point_to_chunk.as_mutable_span().slice(chunk.points_range).fill(chunk_i);
       }
       constraints_info_.chunk_constraints.reinitialize(geometries_.chunks.size());
+    }
+    for (const int chunk_i : geometries_.chunks.index_range()) {
+      const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+      geometries_.max_chunk_size = std::max<int>(geometries_.max_chunk_size,
+                                                 chunk.points_range.size());
     }
   }
 
@@ -1099,15 +1135,14 @@ class XpbdSolverStep {
         if (!geo_data.curves) {
           continue;
         }
-        fn::FieldEvaluator &evaluator = this->get_field_evaluator(
-            data_key_i, geo_data.domain, std::nullopt);
+        fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
         evaluator.add(compliance_field, &geo_data.rod_stretch_shear_compliances);
         geo_data.has_rod_stretch_shear_constraint = true;
       }
     }
   }
 
-  void create_rod_stretch_shear_constraints()
+  void create_constraints__rod_stretch_shear()
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
@@ -1163,15 +1198,14 @@ class XpbdSolverStep {
         if (!geo_data.curves) {
           continue;
         }
-        fn::FieldEvaluator &evaluator = this->get_field_evaluator(
-            data_key_i, geo_data.domain, std::nullopt);
+        fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
         evaluator.add(compliance_field, &geo_data.rod_bend_twist_compliances);
         geo_data.has_rod_bend_twist_constraint = true;
       }
     }
   }
 
-  void create_bend_twist_constraints()
+  void create_constraints__rod_bend_twist()
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
@@ -1201,42 +1235,100 @@ class XpbdSolverStep {
     }
   }
 
-  void prepare_damping_constraints()
+  void gather_from_world__damping()
   {
+    const Vector<std::string> paths = gather_bundle_paths_by_type(world_, DampingBundle::name);
+    for (const StringRef path : paths) {
+      const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
+      if (!bundle_ptr || !*bundle_ptr) {
+        continue;
+      }
+      const Bundle &bundle = **bundle_ptr;
+      const Field<float> linear_damping = this->get_field_or_constant<float>(
+          bundle, "linear_damping", 0.0f);
+      const Field<float> angular_damping = this->get_field_or_constant<float>(
+          bundle, "angular_damping", 0.0f);
+
+      const int constraint_i = constraints_info_.damping_constraints.append_and_get_index(
+          {path, linear_damping, angular_damping});
+
+      for (const int data_key_i : geometries_.data_keys.index_range()) {
+        GeometryData &geo_data = geometries_.data[data_key_i];
+        if (!this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+          continue;
+        }
+        geo_data.damping_constraints.append(constraint_i);
+      }
+    }
+
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-
-      geo_data.linear_dampings = *geo_data.attributes.lookup_or_default<float>(
-          attribute_names::linear_damping, geo_data.domain, 0.0f);
-      geo_data.angular_dampings = *geo_data.attributes.lookup_or_default<float>(
-          attribute_names::angular_damping, geo_data.domain, 0.0f);
-      geo_data.linear_damping_lambdas = geo_data.attributes.lookup_or_add_for_write_span<float>(
-          attribute_names::linear_damping_lambda, geo_data.domain);
-      geo_data.angular_damping_lambdas = geo_data.attributes.lookup_or_add_for_write_span<float>(
-          attribute_names::angular_damping_lambda, geo_data.domain);
-
-      for (const int chunk_i : geo_data.chunks) {
-        const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-        ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
-        chunk_constraints.static_velocity_constraints.append(
-            &global_scope_.construct<xpbd::LinearDampingConstraintSet>(
-                data_key_i,
-                chunk.points_range,
-                geo_data.linear_dampings,
-                geo_data.linear_damping_lambdas.span));
-        chunk_constraints.static_velocity_constraints.append(
-            &global_scope_.construct<xpbd::AngularDampingConstraintSet>(
-                data_key_i,
-                chunk.points_range,
-                geo_data.angular_dampings,
-                geo_data.angular_damping_lambdas.span));
+      const int num_damping_constraints = geo_data.damping_constraints.size();
+      geo_data.linear_dampings.reinitialize(num_damping_constraints);
+      geo_data.angular_dampings.reinitialize(num_damping_constraints);
+      geo_data.linear_damping_lambdas.reinitialize(num_damping_constraints);
+      geo_data.angular_damping_lambdas.reinitialize(num_damping_constraints);
+      for (const int constraint_i : geometries_.data[data_key_i].damping_constraints) {
+        const DampingConstraintInfo &constraint =
+            constraints_info_.damping_constraints[constraint_i];
+        geo_data.linear_damping_lambdas[constraint_i] = global_allocator_.allocate_array<float>(
+            geo_data.size);
+        geo_data.angular_damping_lambdas[constraint_i] = global_allocator_.allocate_array<float>(
+            geo_data.size);
+        fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
+        evaluator.add(constraint.linear_damping, &geo_data.linear_dampings[constraint_i]);
+        evaluator.add(constraint.angular_damping, &geo_data.angular_dampings[constraint_i]);
       }
     }
   }
 
+  void create_constraints__damping()
+  {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+
+      for (const int constraint_i : geo_data.damping_constraints) {
+        const VArraySpanGetter<float> linear_dampings{
+            global_scope_, geo_data.linear_dampings[constraint_i], geometries_.max_chunk_size};
+        const VArraySpanGetter<float> angular_dampings{
+            global_scope_, geo_data.angular_dampings[constraint_i], geometries_.max_chunk_size};
+
+        for (const int chunk_i : geo_data.chunks) {
+          const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+          ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
+
+          chunk_constraints.static_velocity_constraints.append(
+              &global_scope_.construct<xpbd::LinearDampingConstraintSet>(
+                  data_key_i,
+                  chunk.points_range,
+                  linear_dampings.get_span_for_range(chunk.points_range),
+                  geo_data.linear_damping_lambdas[constraint_i].slice(chunk.points_range)));
+          chunk_constraints.static_velocity_constraints.append(
+              &global_scope_.construct<xpbd::AngularDampingConstraintSet>(
+                  data_key_i,
+                  chunk.points_range,
+                  angular_dampings.get_span_for_range(chunk.points_range),
+                  geo_data.angular_damping_lambdas[constraint_i].slice(chunk.points_range)));
+        }
+      }
+    }
+  }
+
+  template<typename T>
+  Field<T> get_field_or_constant(const Bundle &bundle,
+                                 const StringRef name,
+                                 const T &default_value)
+  {
+    const std::optional<Field<T>> field = bundle.lookup<Field<T>>(name);
+    if (field) {
+      return *field;
+    }
+    return fn::make_constant_field(default_value);
+  }
+
   fn::FieldEvaluator &get_field_evaluator(const int data_key_i,
                                           const AttrDomain domain,
-                                          std::optional<Field<bool>> selection)
+                                          std::optional<Field<bool>> selection = std::nullopt)
   {
     FieldEvaluatorKey key{data_key_i, domain, selection ? *selection : get_constant_true_field()};
     return *field_evaluators_.lookup_or_add_cb(key, [&]() {
@@ -1635,8 +1727,6 @@ class XpbdSolverStep {
       geo_data.rod_stretch_shear_lambda_pos.finish();
       geo_data.rod_stretch_shear_lambda_rot.finish();
       geo_data.rod_bend_twist_lamba_attr.finish();
-      geo_data.linear_damping_lambdas.finish();
-      geo_data.angular_damping_lambdas.finish();
     }
   }
 
@@ -1746,7 +1836,7 @@ class XpbdSolverStep {
     const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
     for (const int collider_i : geo_data.infinite_plane_colliders) {
       const InfinitePlaneCollider &collider =
-          constraints_info_.infinite_plane_colliders.colliders[collider_i];
+          constraints_info_.infinite_plane_colliders[collider_i];
       const float3 collider_position = math::interpolate(
           collider.begin_position, collider.end_position, substep.end_factor);
       const float3 collider_normal = math::interpolate(
@@ -1787,7 +1877,7 @@ class XpbdSolverStep {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
     for (const int collider_i : geo_data.mesh_colliders) {
-      const MeshCollider &collider = constraints_info_.mesh_colliders.colliders[collider_i];
+      const MeshCollider &collider = constraints_info_.mesh_colliders[collider_i];
       const bke::BVHTreeFromMesh &bvh = collider.corner_tris_bvh;
       const float4x4 &mesh_to_local = math::interpolate(
           collider.begin_transform, collider.end_transform, substep.end_factor);
