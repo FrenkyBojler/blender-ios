@@ -385,14 +385,14 @@ void RNA_api_image(StructRNA *srna)
               INT_MAX);
   /* return value */
   parm = RNA_def_int(
-      func, "error", 0, -INT_MAX, INT_MAX, "Error", "OpenGL error value", -INT_MAX, INT_MAX);
+      func, "error", 0, -INT_MAX, INT_MAX, "Error", "GPU error value", -INT_MAX, INT_MAX);
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "gl_load", "rna_Image_gl_load");
   RNA_def_function_ui_description(
       func,
-      "Load the image into an OpenGL texture. On success, image.bindcode will contain the "
-      "OpenGL texture bindcode. Colors read from the texture will be in scene linear color space "
+      "Load the image into a GPU texture. On success, image.bindcode will contain the "
+      "GPU texture bindcode. Colors read from the texture will be in scene linear color space "
       "and have premultiplied or straight alpha matching the image alpha mode.");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   RNA_def_int(
@@ -417,11 +417,11 @@ void RNA_api_image(StructRNA *srna)
               INT_MAX);
   /* return value */
   parm = RNA_def_int(
-      func, "error", 0, -INT_MAX, INT_MAX, "Error", "OpenGL error value", -INT_MAX, INT_MAX);
+      func, "error", 0, -INT_MAX, INT_MAX, "Error", "GPU error value", -INT_MAX, INT_MAX);
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "gl_free", "rna_Image_gl_free");
-  RNA_def_function_ui_description(func, "Free the image from OpenGL graphics memory");
+  RNA_def_function_ui_description(func, "Free the image from GPU graphics memory");
 
   /* path to an frame specified by image user */
   func = RNA_def_function(srna, "filepath_from_user", "rna_Image_filepath_from_user");

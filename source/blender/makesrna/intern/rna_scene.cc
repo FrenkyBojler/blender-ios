@@ -8007,9 +8007,9 @@ static void rna_def_scene_display(BlenderRNA *brna)
       prop, "Viewport Anti-Aliasing", "Method of anti-aliasing when rendering 3d viewport");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 
-  /* OpenGL render engine settings. */
+  /* Viewport render engine settings. */
   prop = RNA_def_property(srna, "shading", PROP_POINTER, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Shading Settings", "Shading settings for OpenGL render engine");
+  RNA_def_property_ui_text(prop, "Shading Settings", "Shading settings for viewport rendering");
 }
 
 static void rna_def_raytrace_eevee(BlenderRNA *brna)

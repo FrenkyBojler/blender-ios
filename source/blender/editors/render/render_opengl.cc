@@ -1446,7 +1446,7 @@ void RENDER_OT_opengl(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_boolean(
-      ot->srna, "sequencer", false, "Sequencer", "Render using the sequencer's OpenGL display");
+      ot->srna, "sequencer", false, "Sequencer", "Render using the sequencer's viewport display");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_boolean(
       ot->srna,
