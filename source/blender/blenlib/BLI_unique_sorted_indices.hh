@@ -77,20 +77,6 @@ template<typename T> inline int64_t find_size_of_next_range(const Span<T> indice
   });
 }
 
-template<typename T>
-inline IndexRange find_content_range(const Span<T> indices, const IndexRange range)
-{
-  if (indices.is_empty() || range.is_empty()) {
-    return {};
-  }
-  const int64_t begin = binary_search::first_if(
-      indices, [&](const T &value) { return value >= range.first(); });
-  const int64_t end_exclusive = begin + binary_search::first_if(
-                                            indices.drop_front(begin),
-                                            [&](const T &value) { return value > range.last(); });
-  return IndexRange::from_begin_end(begin, end_exclusive);
-}
-
 /**
  * Find a slice of the given indices that only contains values in the given range.
  */
