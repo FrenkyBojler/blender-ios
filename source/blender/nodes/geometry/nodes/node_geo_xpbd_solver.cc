@@ -27,7 +27,6 @@
 #include "GEO_xpbd_constraint_rod_stretch_shear.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
-#include "NOD_geometry_nodes_bundle_parse.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
 
 #include "node_geometry_util.hh"
@@ -1724,19 +1723,6 @@ class XpbdSolverStep {
     }
     BLI_assert_unreachable();
     return global_scope_.construct<fn::FieldContext>();
-  }
-
-  Vector<int> find_data_keys_for_filter(const StringRef self_path, const StringRef filter) const
-  {
-    Vector<int> data_keys;
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      const DataKey &data_key = geometries_.data_keys[data_key_i];
-      const StringRef geo_bundle_path = geometries_.geometry_sets[data_key.geo_bundle_i].path;
-      if (nested_bundle_path_is_selected(self_path, filter, geo_bundle_path)) {
-        data_keys.append(data_key_i);
-      }
-    }
-    return data_keys;
   }
 
   void evaluate_constraint_fields()
