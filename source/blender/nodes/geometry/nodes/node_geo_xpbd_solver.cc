@@ -534,6 +534,8 @@ class XpbdSolverStep {
     this->create_constraints__pin_positions();
 
     this->do_simulation();
+
+    this->write_back__pin_positions();
     this->finish_attribute_writers();
     this->write_back_geometries_to_world();
   }
@@ -1429,6 +1431,52 @@ class XpbdSolverStep {
     }
   }
 
+  void write_back__pin_positions()
+  {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      for (const PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints)
+      {
+        const PinPositionConstraint &constraint =
+            constraints_info_.pin_position_constraints[constraint_usage.constraint_i];
+        if (!constraint.was_pinned_attr.empty()) {
+          geo_data.attributes.remove(constraint.was_pinned_attr);
+        }
+        if (!constraint.prev_position_attr.empty()) {
+          geo_data.attributes.remove(constraint.prev_position_attr);
+        }
+      }
+      for (const PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints)
+      {
+        const PinPositionConstraint &constraint =
+            constraints_info_.pin_position_constraints[constraint_usage.constraint_i];
+        if (!constraint.was_pinned_attr.empty()) {
+          if (bke::SpanAttributeWriter<bool> was_pinned_attr =
+                  geo_data.attributes.lookup_or_add_for_write_span<bool>(
+                      constraint.was_pinned_attr, geo_data.domain))
+          {
+            for (const int point_i : constraint_usage.points) {
+              was_pinned_attr.span[point_i] = true;
+            }
+            was_pinned_attr.finish();
+          }
+        }
+        if (!constraint.prev_position_attr.empty()) {
+          if (bke::SpanAttributeWriter<float3> prev_position_attr =
+                  geo_data.attributes.lookup_or_add_for_write_span<float3>(
+                      constraint.prev_position_attr, geo_data.domain))
+          {
+            for (const int pin_i : constraint_usage.points.index_range()) {
+              const int point_i = constraint_usage.points[pin_i];
+              prev_position_attr.span[point_i] = constraint_usage.next_positions[pin_i];
+            }
+            prev_position_attr.finish();
+          }
+        }
+      }
+    }
+  }
+
   template<typename T>
   Field<T> get_field_or_constant(const Bundle &bundle,
                                  const StringRef name,
@@ -1816,49 +1864,6 @@ class XpbdSolverStep {
 
   void finish_attribute_writers()
   {
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      GeometryData &geo_data = geometries_.data[data_key_i];
-      for (const PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints)
-      {
-        const PinPositionConstraint &constraint =
-            constraints_info_.pin_position_constraints[constraint_usage.constraint_i];
-        if (!constraint.was_pinned_attr.empty()) {
-          geo_data.attributes.remove(constraint.was_pinned_attr);
-        }
-        if (!constraint.prev_position_attr.empty()) {
-          geo_data.attributes.remove(constraint.prev_position_attr);
-        }
-      }
-      for (const PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints)
-      {
-        const PinPositionConstraint &constraint =
-            constraints_info_.pin_position_constraints[constraint_usage.constraint_i];
-        if (!constraint.was_pinned_attr.empty()) {
-          if (bke::SpanAttributeWriter<bool> was_pinned_attr =
-                  geo_data.attributes.lookup_or_add_for_write_span<bool>(
-                      constraint.was_pinned_attr, geo_data.domain))
-          {
-            for (const int point_i : constraint_usage.points) {
-              was_pinned_attr.span[point_i] = true;
-            }
-            was_pinned_attr.finish();
-          }
-        }
-        if (!constraint.prev_position_attr.empty()) {
-          if (bke::SpanAttributeWriter<float3> prev_position_attr =
-                  geo_data.attributes.lookup_or_add_for_write_span<float3>(
-                      constraint.prev_position_attr, geo_data.domain))
-          {
-            for (const int pin_i : constraint_usage.points.index_range()) {
-              const int point_i = constraint_usage.points[pin_i];
-              prev_position_attr.span[point_i] = constraint_usage.next_positions[pin_i];
-            }
-            prev_position_attr.finish();
-          }
-        }
-      }
-    }
-
     this->parallel_for_each_chunk(16, [&](const int chunk_i) {
       const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
       const ChunkConstraints &chunk_constraints = constraints_info_.chunk_constraints[chunk_i];
