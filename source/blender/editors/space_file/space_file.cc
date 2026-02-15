@@ -776,7 +776,7 @@ static void file_tools_region_exit(wmWindowManager * /*wm*/, ARegion *region)
     return a->sortorder < b->sortorder;
   });
 
-  for (int i = 0; i < panels.size(); i++) {
+  for (const int i : panels.index_range()) {
     Panel *panel = panels[i];
     const bool is_open = !(panel->flag & PNL_CLOSED);
 
