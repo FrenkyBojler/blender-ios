@@ -1977,7 +1977,7 @@ class XpbdSolverStep {
     }
 
     const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
-    xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_, std::nullopt};
+    xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
     this->solve_constraints(solve_params, local_constraints);
   }
 
@@ -2027,7 +2027,7 @@ class XpbdSolverStep {
 
     const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
     xpbd::VelocityUpdater velocity_updater{solver_refs};
-    xpbd::ConstraintSetParams params{solver_refs, sub_delta_time_, std::nullopt};
+    xpbd::ConstraintSetParams params{solver_refs, sub_delta_time_};
     for (xpbd::VelocityConstraintSet *constraint : local_constraints) {
       constraint->solve_step(velocity_updater, params);
     }

@@ -46,23 +46,16 @@ struct GeometryRef {
   uint64_t size() const;
 };
 
-using ConstraintGeometryFn = FunctionRef<bke::GeometrySet(int points_ref_index)>;
-using SolverDebugStageFn = FunctionRef<void(
-    StringRef name, Span<int> points_ref_indices, bke::GeometrySet &&constraint_geometry)>;
-
 /** Provides access to the input data that should be considered by a constraint. */
 class ConstraintSetParams {
  private:
   Span<GeometryRef> geometry_refs_;
-  std::optional<SolverDebugStageFn> debug_stage_fn_;
 
  public:
   float delta_time;
   float compliance_term_factor;
 
-  ConstraintSetParams(Span<GeometryRef> geometry_refs,
-                      float delta_time,
-                      std::optional<SolverDebugStageFn> debug_stage_fn);
+  ConstraintSetParams(Span<GeometryRef> geometry_refs, float delta_time);
 
   Span<GeometryRef> geometry_refs() const;
 
@@ -88,11 +81,6 @@ class ConstraintSetParams {
 
   float3 inverse_moment_of_inertia(int geo_i, int point_i) const;
   Span<float3> inverse_moments_of_inertia(int geo_i) const;
-
-  bool use_debug() const;
-  void debug_stage(StringRef constraint_name,
-                   Span<int> points_ref_indices,
-                   bke::GeometrySet &&constraint_geometry) const;
 };
 
 /**
@@ -189,7 +177,7 @@ class ConstraintSet {
 
   virtual void reset_forces() = 0;
   virtual void solve_step(SolveStrategy &method, const ConstraintSetParams &params) = 0;
-  virtual StringRef debug_name() const = 0;
+  virtual StringRefNull debug_name() const = 0;
 
   Span<int> get_affected_geo_indices() const;
 };
@@ -330,10 +318,8 @@ inline Span<int> ConstraintSet::get_affected_geo_indices() const
 }
 
 inline ConstraintSetParams::ConstraintSetParams(Span<GeometryRef> geometry_refs,
-                                                const float delta_time,
-                                                std::optional<SolverDebugStageFn> debug_stage_fn)
+                                                const float delta_time)
     : geometry_refs_(geometry_refs),
-      debug_stage_fn_(debug_stage_fn),
       delta_time(delta_time),
       compliance_term_factor(math::safe_rcp(delta_time * delta_time))
 {
@@ -436,20 +422,6 @@ inline float3 ConstraintSetParams::inverse_moment_of_inertia(const int geo_i,
 inline Span<float3> ConstraintSetParams::inverse_moments_of_inertia(const int geo_i) const
 {
   return geometry_refs_[geo_i].inverse_moments_of_inertia;
-}
-
-inline bool ConstraintSetParams::use_debug() const
-{
-  return debug_stage_fn_.has_value();
-}
-
-inline void ConstraintSetParams::debug_stage(StringRef constraint_name,
-                                             const Span<int> points_ref_indices,
-                                             bke::GeometrySet &&constraint_geometry) const
-{
-  if (debug_stage_fn_) {
-    (*debug_stage_fn_)(constraint_name, points_ref_indices, std::move(constraint_geometry));
-  }
 }
 
 /** \} */
