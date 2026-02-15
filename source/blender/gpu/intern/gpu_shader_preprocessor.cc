@@ -1707,6 +1707,7 @@ std::string Shader::run_preprocessor(StringRef source)
   }
 
   Preprocessor processor(source);
+  return source;
   processor.preprocess();
 
   if (G.debug & G_DEBUG_GPU_SHADER_NO_DCE) {

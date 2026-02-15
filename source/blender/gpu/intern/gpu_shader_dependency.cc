@@ -442,8 +442,8 @@ struct GPUSource {
       }
     }
 
-    std::cerr << "warn: Generated source not provided. Using fallback for : " << this->filename
-              << std::endl;
+    // std::cerr << "warn: Generated source not provided. Using fallback for : " << this->filename
+    //           << std::endl;
     /* Dependencies for generated sources are not folded on startup.
      * This allows for different set of dependencies at runtime. */
     for (const auto &dependency : this->dependencies) {
