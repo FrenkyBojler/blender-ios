@@ -10,6 +10,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_sys_types.h"
@@ -111,6 +112,13 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
+#if 0
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 7)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.r.scemode |= R_USE_TEXTURE_CACHE;
+    }
+  }
+#endif
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
