@@ -50,9 +50,9 @@ class RodBendAndTwistConstraintSet : public TemplatedConstraintSet<RodBendAndTwi
   }
 
   template<typename UpdaterT>
-  void evaluate_single(const ConstraintSetParams &params,
-                       UpdaterT &updater,
-                       const int constraint_i) const
+  void solve_single(const ConstraintSetParams &params,
+                    UpdaterT &updater,
+                    const int constraint_i) const
   {
     const int curve_i = curves_range_[constraint_i];
     const IndexRange points = points_by_curve_[curve_i];

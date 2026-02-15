@@ -37,15 +37,15 @@ class ConstraintSet {
   virtual ~ConstraintSet() = default;
 
   virtual StringRefNull debug_name() const = 0;
-  virtual void solve_serial(const ConstraintSetParams &params,
-                            GaussSeidelUpdater &updater,
-                            const IndexMask &mask) = 0;
+  virtual void solve_sequential(const ConstraintSetParams &params,
+                                GaussSeidelUpdater &updater,
+                                const IndexMask &mask) = 0;
   virtual void reset_forces() = 0;
   virtual ConstraintColoring color_constraints(IndexMaskMemory &memory) const = 0;
 
-  void solve_serial_all(const ConstraintSetParams &params, GaussSeidelUpdater &updater)
+  void solve_sequential_all(const ConstraintSetParams &params, GaussSeidelUpdater &updater)
   {
-    this->solve_serial(params, updater, IndexMask(constraints_num_));
+    this->solve_sequential(params, updater, IndexMask(constraints_num_));
   }
 
   Span<int> get_affected_geo_indices() const
@@ -66,7 +66,7 @@ class VelocityConstraintSet {
   virtual ~VelocityConstraintSet() = default;
 
   virtual void reset_forces() = 0;
-  virtual void solve_serial(const ConstraintSetParams &params, VelocityUpdater &updater) = 0;
+  virtual void solve_sequential(const ConstraintSetParams &params, VelocityUpdater &updater) = 0;
 
   Span<int> get_affected_geo_indices() const
   {

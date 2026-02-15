@@ -12,7 +12,7 @@ namespace blender::xpbd {
  * Utility to implement a constraint evaluator that automatically works with multiple updaters like
  * #GaussSeidelUpdater.
  *
- * Child classes have to implement the templated #evaluate_single method.
+ * Child classes have to implement the templated #solve_single method.
  */
 template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
  public:
@@ -29,13 +29,13 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
     }
   }
 
-  void solve_serial(const ConstraintSetParams &params,
-                    GaussSeidelUpdater &updater,
-                    const IndexMask &mask) override
+  void solve_sequential(const ConstraintSetParams &params,
+                        GaussSeidelUpdater &updater,
+                        const IndexMask &mask) override
   {
     const Child &self = static_cast<const Child &>(*this);
     mask.foreach_index(
-        [&](const int64_t constraint_i) { self.evaluate_single(params, updater, constraint_i); });
+        [&](const int64_t constraint_i) { self.solve_single(params, updater, constraint_i); });
   }
 
   StringRefNull debug_name() const final
@@ -62,11 +62,11 @@ template<typename Child> class TemplatedVelocityConstraintSet : public VelocityC
     }
   }
 
-  void solve_serial(const ConstraintSetParams &params, VelocityUpdater &updater) override
+  void solve_sequential(const ConstraintSetParams &params, VelocityUpdater &updater) override
   {
     Child &self = static_cast<Child &>(*this);
     for (const int constraint_i : IndexRange(constraint_num_)) {
-      self.evaluate_single(params, updater, constraint_i);
+      self.solve_single(params, updater, constraint_i);
     }
   }
 

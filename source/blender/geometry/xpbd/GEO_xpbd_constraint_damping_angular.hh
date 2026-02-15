@@ -38,9 +38,9 @@ class AngularDampingConstraintSet
   }
 
   template<typename UpdaterT>
-  void evaluate_single(const ConstraintSetParams &params,
-                       UpdaterT &updater,
-                       const int constraint_i) const
+  void solve_single(const ConstraintSetParams &params,
+                    UpdaterT &updater,
+                    const int constraint_i) const
   {
     const int point_i = points_[constraint_i];
     const float3 &angular_velocity = params.angular_velocity(geo_i_, point_i);

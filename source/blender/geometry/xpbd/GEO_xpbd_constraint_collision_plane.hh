@@ -59,9 +59,9 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   }
 
   template<typename UpdaterT>
-  void evaluate_single(const ConstraintSetParams &params,
-                       UpdaterT &updater,
-                       const int constraint_i) const
+  void solve_single(const ConstraintSetParams &params,
+                    UpdaterT &updater,
+                    const int constraint_i) const
   {
     const int point_i = points_[constraint_i];
     const float3 &pos = params.position(geo_i_, point_i);
