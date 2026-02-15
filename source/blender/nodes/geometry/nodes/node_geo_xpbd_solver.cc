@@ -480,6 +480,9 @@ class XpbdSolverStep {
   Geometries geometries_;
   ConstraintsInfo constraints_info_;
 
+  Mutex warnings_mutex_;
+  VectorSet<std::string> warnings_;
+
  public:
   XpbdSolverStep(ResourceScope &scope,
                  Bundle &world,
@@ -521,6 +524,11 @@ class XpbdSolverStep {
     this->do_simulation();
     this->finish_attribute_writers();
     this->write_back_geometries_to_world();
+  }
+
+  Span<std::string> warnings() const
+  {
+    return warnings_;
   }
 
  private:
@@ -2004,8 +2012,8 @@ class XpbdSolverStep {
 
   void report_warning(std::string warning)
   {
-    // TODO
-    UNUSED_VARS(warning);
+    std::lock_guard<Mutex> lock(warnings_mutex_);
+    warnings_.add(std::move(warning));
   }
 };
 
@@ -2029,6 +2037,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   XpbdSolverStep step(scope, world, delta_time, substeps, solver_type, constraint_iterations);
   step.do_step();
+
+  for (const StringRef warning : step.warnings()) {
+    params.error_message_add(NodeWarningType::Warning, warning);
+  }
 
   params.set_output("World", std::move(world_ptr));
 }
