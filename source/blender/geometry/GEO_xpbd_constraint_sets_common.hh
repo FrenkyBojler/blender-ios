@@ -159,7 +159,7 @@ class PinPositionConstraintSet : public TemplatedConstraintSet<PinPositionConstr
   /** Indexed by constraint index. */
   Span<int> point_indices;
   Span<float3> pin_positions;
-  Span<float> compliance_terms;
+  Span<float> compliances;
   MutableSpan<float> lambdas;
 
   static constexpr StringRefNull debug_name = "Pinned Position";
@@ -167,12 +167,12 @@ class PinPositionConstraintSet : public TemplatedConstraintSet<PinPositionConstr
   PinPositionConstraintSet(const int geo_i,
                            const Span<int> point_indices,
                            const Span<float3> pin_positions,
-                           const Span<float> compliance_terms,
+                           const Span<float> compliances,
                            const MutableSpan<float> lambdas)
       : TemplatedConstraintSet<PinPositionConstraintSet>(point_indices.size(), {geo_i}),
         point_indices(point_indices),
         pin_positions(pin_positions),
-        compliance_terms(compliance_terms),
+        compliances(compliances),
         lambdas(lambdas)
   {
   }
@@ -195,7 +195,7 @@ class PinPositionConstraintSet : public TemplatedConstraintSet<PinPositionConstr
         params.inverse_mass(geo_i, point_i),
         0.0f,
         0.0f,
-        this->compliance_terms[constraint_i],
+        this->compliances[constraint_i] * params.compliance_term_factor,
         this->lambdas[constraint_i]);
     this->lambdas[constraint_i] += result.delta_lambda;
     updater.update_position(geo_i, point_i, result.offset0);
