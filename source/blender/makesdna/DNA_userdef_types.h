@@ -769,7 +769,6 @@ struct UserDef_SpaceData {
  * Storage for UI data that to keep it even after the window was closed. (Similar to
  * #UserDef_SpaceData.)
  */
-
 struct UserDef_FileSpaceData {
   int display_type = FILE_VERTICALDISPLAY; /* FileSelectParams.display */
   int thumbnail_size = 96;                 /* FileSelectParams.thumbnail_size */
