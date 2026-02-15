@@ -30,30 +30,34 @@ namespace blender::nodes::node_composite_track_position_cc {
 NODE_STORAGE_FUNCS(NodeTrackPosData)
 
 static const EnumPropertyItem mode_items[] = {
-    {CMP_NODE_TRACK_POSITION_ABSOLUTE,
-     "ABSOLUTE",
-     0,
-     N_("Absolute"),
-     N_("Returns the position and speed of the marker at the current scene frame relative to the "
-        "zero origin of the tracking space")},
-    {CMP_NODE_TRACK_POSITION_RELATIVE_START,
-     "RELATIVE_START",
-     0,
-     N_("Relative Start"),
-     N_("Returns the position and speed of the marker at the current scene frame relative to the "
-        "position of the first non-disabled marker in the track")},
-    {CMP_NODE_TRACK_POSITION_RELATIVE_FRAME,
-     "RELATIVE_FRAME",
-     0,
-     N_("Relative Frame"),
-     N_("Returns the position and speed of the marker at the current scene frame relative to the "
-        "position of the marker at the current scene frame plus the user given relative frame")},
-    {CMP_NODE_TRACK_POSITION_ABSOLUTE_FRAME,
-     "ABSOLUTE_FRAME",
-     0,
-     N_("Absolute Frame"),
-     N_("Returns the position and speed of the marker at the given absolute frame")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_TRACK_POSITION_ABSOLUTE,
+     .identifier = "ABSOLUTE",
+     .icon = 0,
+     .name = N_("Absolute"),
+     .description = N_(
+         "Returns the position and speed of the marker at the current scene frame relative to the "
+         "zero origin of the tracking space")},
+    {.value = CMP_NODE_TRACK_POSITION_RELATIVE_START,
+     .identifier = "RELATIVE_START",
+     .icon = 0,
+     .name = N_("Relative Start"),
+     .description = N_(
+         "Returns the position and speed of the marker at the current scene frame relative to the "
+         "position of the first non-disabled marker in the track")},
+    {.value = CMP_NODE_TRACK_POSITION_RELATIVE_FRAME,
+     .identifier = "RELATIVE_FRAME",
+     .icon = 0,
+     .name = N_("Relative Frame"),
+     .description = N_(
+         "Returns the position and speed of the marker at the current scene frame relative to the "
+         "position of the marker at the current scene frame plus the user given relative frame")},
+    {.value = CMP_NODE_TRACK_POSITION_ABSOLUTE_FRAME,
+     .identifier = "ABSOLUTE_FRAME",
+     .icon = 0,
+     .name = N_("Absolute Frame"),
+     .description = N_(
+         "Returns the position and speed of the marker at the given absolute frame")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

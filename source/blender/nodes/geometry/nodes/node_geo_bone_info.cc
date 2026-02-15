@@ -166,17 +166,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem rna_node_geometry_object_info_transform_space_items[] = {
-      {GEO_NODE_TRANSFORM_SPACE_ORIGINAL,
-       "ORIGINAL",
-       0,
-       "Original",
-       "Output the bone pose relative to the armature object transform"},
-      {GEO_NODE_TRANSFORM_SPACE_RELATIVE,
-       "RELATIVE",
-       0,
-       "Relative",
-       "Bring the bone pose into the modified object"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = GEO_NODE_TRANSFORM_SPACE_ORIGINAL,
+       .identifier = "ORIGINAL",
+       .icon = 0,
+       .name = "Original",
+       .description = "Output the bone pose relative to the armature object transform"},
+      {.value = GEO_NODE_TRANSFORM_SPACE_RELATIVE,
+       .identifier = "RELATIVE",
+       .icon = 0,
+       .name = "Relative",
+       .description = "Bring the bone pose into the modified object"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   PropertyRNA *prop = RNA_def_node_enum(srna,

@@ -78,7 +78,7 @@ static Mesh *create_ico_sphere_mesh(const int subdivisions,
 
   BMeshCreateParams bmesh_create_params{};
   bmesh_create_params.use_toolflags = true;
-  const BMAllocTemplate allocsize = {0, 0, 0, 0};
+  const BMAllocTemplate allocsize = {.totvert = 0, .totedge = 0, .totloop = 0, .totface = 0};
   BMesh *bm = BM_mesh_create(&allocsize, &bmesh_create_params);
   BM_data_layer_add_named(bm, &bm->ldata, CD_PROP_FLOAT2, "UVMap");
   /* Make sure the associated boolean layers exists as well. Normally this would be done when

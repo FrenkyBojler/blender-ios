@@ -12,8 +12,8 @@
 namespace blender {
 
 static bke::bNodeSocketTemplate outputs[] = {
-    {SOCK_VECTOR, N_("Coordinates")},
-    {-1, ""},
+    {.type = SOCK_VECTOR, .name = N_("Coordinates")},
+    {.type = -1, .name = ""},
 };
 
 static void vectorfn(

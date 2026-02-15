@@ -80,7 +80,9 @@ static void evaluate_node_elem_upstream(const NodeInContext &ctx_node,
   /* Build temporary map to be used by node evaluation function. */
   Map<const bNodeSocket *, ElemVariant> elem_by_local_socket;
   for (const bNodeSocket *output_socket : node.output_sockets()) {
-    if (const ElemVariant *elem = elem_by_socket.lookup_ptr({ctx_node.context, output_socket})) {
+    if (const ElemVariant *elem = elem_by_socket.lookup_ptr(
+            {.context = ctx_node.context, .socket = output_socket}))
+    {
       elem_by_local_socket.add(output_socket, *elem);
     }
   }
@@ -90,7 +92,8 @@ static void evaluate_node_elem_upstream(const NodeInContext &ctx_node,
   /* Write back changed socket values to the map. */
   for (const SocketElem &input_elem : input_elems) {
     if (input_elem.elem) {
-      elem_by_socket.add({ctx_node.context, input_elem.socket}, input_elem.elem);
+      elem_by_socket.add({.context = ctx_node.context, .socket = input_elem.socket},
+                         input_elem.elem);
       r_modified_inputs.append(input_elem.socket);
     }
   }
@@ -119,7 +122,7 @@ static void get_input_elems_to_propagate(const NodeInContext &ctx_node,
                                          Map<SocketInContext, ElemVariant> &elem_by_socket)
 {
   for (const bNodeSocket *socket : ctx_node.node->input_sockets()) {
-    if (elem_by_socket.contains({ctx_node.context, socket})) {
+    if (elem_by_socket.contains({.context = ctx_node.context, .socket = socket})) {
       r_sockets.append(socket);
     }
   }
@@ -134,10 +137,11 @@ LocalInverseEvalTargets find_local_inverse_eval_targets(const bNodeTree &tree,
 
   bke::ComputeContextCache compute_context_cache;
   Map<SocketInContext, ElemVariant> elem_by_socket;
-  elem_by_socket.add({nullptr, initial_socket_elem.socket}, initial_socket_elem.elem);
+  elem_by_socket.add({.context = nullptr, .socket = initial_socket_elem.socket},
+                     initial_socket_elem.elem);
 
   const partial_eval::UpstreamEvalTargets upstream_eval_targets = partial_eval::eval_upstream(
-      {{nullptr, initial_socket_elem.socket}},
+      {{.context = nullptr, .socket = initial_socket_elem.socket}},
       compute_context_cache,
       /* Evaluate node. */
       [&](const NodeInContext &ctx_node, Vector<const bNodeSocket *> &r_modified_inputs) {
@@ -163,7 +167,7 @@ LocalInverseEvalTargets find_local_inverse_eval_targets(const bNodeTree &tree,
     if (!elem || !*elem) {
       continue;
     }
-    targets.input_sockets.append({ctx_socket.socket, *elem});
+    targets.input_sockets.append({.socket = ctx_socket.socket, .elem = *elem});
   }
 
   for (const NodeInContext ctx_node : upstream_eval_targets.value_nodes) {
@@ -172,11 +176,11 @@ LocalInverseEvalTargets find_local_inverse_eval_targets(const bNodeTree &tree,
       continue;
     }
     const bNodeSocket &socket = ctx_node.node->output_socket(0);
-    const ElemVariant *elem = elem_by_socket.lookup_ptr({nullptr, &socket});
+    const ElemVariant *elem = elem_by_socket.lookup_ptr({.context = nullptr, .socket = &socket});
     if (!elem || !*elem) {
       continue;
     }
-    targets.value_nodes.append({ctx_node.node, *elem});
+    targets.value_nodes.append({.node = ctx_node.node, .elem = *elem});
   }
 
   for (const int group_input_index : tree.interface_inputs().index_range()) {
@@ -189,14 +193,16 @@ LocalInverseEvalTargets find_local_inverse_eval_targets(const bNodeTree &tree,
     /* Combine the elems from each group input node. */
     for (const bNode *node : tree.group_input_nodes()) {
       const bNodeSocket &socket = node->output_socket(group_input_index);
-      if (const ElemVariant *socket_elem = elem_by_socket.lookup_ptr({nullptr, &socket})) {
+      if (const ElemVariant *socket_elem = elem_by_socket.lookup_ptr(
+              {.context = nullptr, .socket = &socket}))
+      {
         elem->merge(*socket_elem);
       }
     }
     if (!*elem) {
       continue;
     }
-    targets.group_inputs.append({group_input_index, *elem});
+    targets.group_inputs.append({.group_input_index = group_input_index, .elem = *elem});
   }
 
   return targets;
@@ -216,7 +222,9 @@ static void evaluate_node_elem_downstream_filtered(
   /* Build temporary map used by the node evaluation. */
   Map<const bNodeSocket *, ElemVariant> elem_by_local_socket;
   for (const bNodeSocket *input_socket : node.input_sockets()) {
-    if (const ElemVariant *elem = elem_by_socket.lookup_ptr({ctx_node.context, input_socket})) {
+    if (const ElemVariant *elem = elem_by_socket.lookup_ptr(
+            {.context = ctx_node.context, .socket = input_socket}))
+    {
       elem_by_local_socket.add(input_socket, *elem);
     }
   }
@@ -227,11 +235,11 @@ static void evaluate_node_elem_downstream_filtered(
   for (const SocketElem &output_elem : output_elems) {
     if (output_elem.elem) {
       if (const ElemVariant *elem_filter = elem_by_socket_filter.lookup_ptr(
-              {ctx_node.context, output_elem.socket}))
+              {.context = ctx_node.context, .socket = output_elem.socket}))
       {
         ElemVariant new_elem = *elem_filter;
         new_elem.intersect(output_elem.elem);
-        elem_by_socket.add({ctx_node.context, output_elem.socket}, new_elem);
+        elem_by_socket.add({.context = ctx_node.context, .socket = output_elem.socket}, new_elem);
         if (new_elem) {
           r_outputs_to_propagate.append(output_elem.socket);
         }
@@ -285,12 +293,12 @@ void foreach_element_on_inverse_eval_path(
   }
   bke::ComputeContextCache compute_context_cache;
   Map<SocketInContext, ElemVariant> upstream_elem_by_socket;
-  upstream_elem_by_socket.add({&initial_context, initial_socket_elem.socket},
+  upstream_elem_by_socket.add({.context = &initial_context, .socket = initial_socket_elem.socket},
                               initial_socket_elem.elem);
 
   /* In a first pass, propagate upstream to find the upstream targets. */
   const partial_eval::UpstreamEvalTargets upstream_eval_targets = partial_eval::eval_upstream(
-      {{&initial_context, initial_socket_elem.socket}},
+      {{.context = &initial_context, .socket = initial_socket_elem.socket}},
       compute_context_cache,
       /* Evaluate node. */
       [&](const NodeInContext &ctx_node, Vector<const bNodeSocket *> &r_modified_inputs) {
@@ -320,7 +328,7 @@ void foreach_element_on_inverse_eval_path(
                                                upstream_eval_targets.group_inputs.end());
   for (const NodeInContext &ctx_node : upstream_eval_targets.value_nodes) {
     initial_downstream_evaluation_sockets.append(
-        {ctx_node.context, &ctx_node.node->output_socket(0)});
+        {.context = ctx_node.context, .socket = &ctx_node.node->output_socket(0)});
   }
 
   Map<SocketInContext, ElemVariant> final_elem_by_socket;
@@ -663,7 +671,9 @@ static void backpropagate_socket_values_through_node(
       continue;
     }
     /* First check if there is an updated socket value for an output socket. */
-    if (const SocketValueVariant *value = value_by_socket.lookup_ptr({context, socket})) {
+    if (const SocketValueVariant *value = value_by_socket.lookup_ptr(
+            {.context = context, .socket = socket}))
+    {
       old_socket_values.add(socket, *value);
     }
     /* If not, retrieve the output socket value from the log. */
@@ -680,7 +690,7 @@ static void backpropagate_socket_values_through_node(
   /* Write back new socket values. */
   for (auto &&item : updated_socket_values.items()) {
     const bNodeSocket &socket = *item.key;
-    value_by_socket.add({context, &socket}, std::move(item.value));
+    value_by_socket.add({.context = context, .socket = &socket}, std::move(item.value));
     r_modified_inputs.append(&socket);
   }
 }
@@ -709,11 +719,12 @@ bool backpropagate_socket_values(bContext &C,
       if (!converted_value) {
         continue;
       }
-      value_by_socket.add({socket_to_update.context, socket_to_update.multi_input_link->fromsock},
+      value_by_socket.add({.context = socket_to_update.context,
+                           .socket = socket_to_update.multi_input_link->fromsock},
                           *converted_value);
     }
     else {
-      value_by_socket.add({socket_to_update.context, socket_to_update.socket},
+      value_by_socket.add({.context = socket_to_update.context, .socket = socket_to_update.socket},
                           socket_to_update.new_value);
     }
   }
@@ -752,7 +763,7 @@ bool backpropagate_socket_values(bContext &C,
       /* Get input sockets to propagate. */
       [&](const NodeInContext &ctx_node, Vector<const bNodeSocket *> &r_sockets) {
         for (const bNodeSocket *socket : ctx_node.node->input_sockets()) {
-          if (value_by_socket.contains({ctx_node.context, socket})) {
+          if (value_by_socket.contains({.context = ctx_node.context, .socket = socket})) {
             r_sockets.append(socket);
           }
         }
@@ -769,7 +780,7 @@ bool backpropagate_socket_values(bContext &C,
   /* Set new values for value nodes. */
   for (const NodeInContext &ctx_node : upstream_eval_targets.value_nodes) {
     if (const SocketValueVariant *value = value_by_socket.lookup_ptr(
-            {ctx_node.context, &ctx_node.node->output_socket(0)}))
+            {.context = ctx_node.context, .socket = &ctx_node.node->output_socket(0)}))
     {
       bNode &node_mutable = const_cast<bNode &>(*ctx_node.node);
       any_success |= set_value_node_value(C, node_mutable, *value);
@@ -781,7 +792,7 @@ bool backpropagate_socket_values(bContext &C,
   for (const bNode *group_input_node : nmd.node_group->group_input_nodes()) {
     for (const bNodeSocket *socket : group_input_node->output_sockets().drop_back(1)) {
       if (const SocketValueVariant *value = value_by_socket.lookup_ptr(
-              {&modifier_context, socket}))
+              {.context = &modifier_context, .socket = socket}))
       {
         any_success |= set_modifier_value(
             C, object, nmd, *nmd.node_group->interface_inputs()[socket->index()], *value);

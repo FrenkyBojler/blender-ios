@@ -804,10 +804,10 @@ static Vector<OutputAttributeToStore> compute_attributes_to_store(
         const bke::AttributeValidator validator = attributes.lookup_validator(output_info.name);
 
         OutputAttributeToStore store{
-            component_type,
-            domain,
-            output_info.name,
-            GMutableSpan{
+            .component_type = component_type,
+            .domain = domain,
+            .name = output_info.name,
+            .data = GMutableSpan{
                 type,
                 MEM_new_uninitialized_aligned(type.size * domain_size, type.alignment, __func__),
                 domain_size}};

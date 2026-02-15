@@ -117,12 +117,12 @@ inline NodeInContext::operator bool() const
 
 inline SocketInContext NodeInContext::input_socket(const int index) const
 {
-  return {this->context, &this->node->input_socket(index)};
+  return {.context = this->context, .socket = &this->node->input_socket(index)};
 }
 
 inline SocketInContext NodeInContext::output_socket(const int index) const
 {
-  return {this->context, &this->node->output_socket(index)};
+  return {.context = this->context, .socket = &this->node->output_socket(index)};
 }
 
 /** \} */
@@ -158,7 +158,7 @@ inline SocketInContext::operator bool() const
 
 inline NodeInContext SocketInContext::owner_node() const
 {
-  return {this->context, &this->socket->owner_node()};
+  return {.context = this->context, .node = &this->socket->owner_node()};
 }
 
 /** \} */

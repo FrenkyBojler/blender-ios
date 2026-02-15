@@ -287,7 +287,9 @@ static void node_mix_gather_link_searches(GatherLinkSearchOpParams &params)
        item++)
   {
     if (item->name != nullptr && item->identifier[0] != '\0') {
-      params.add_item(IFACE_(item->name), SocketSearchOp{socket_name, item->value}, weight);
+      params.add_item(IFACE_(item->name),
+                      SocketSearchOp{.socket_name = socket_name, .type = item->value},
+                      weight);
     }
   }
 }

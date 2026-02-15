@@ -90,17 +90,19 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem mode_items[] = {
-      {int(Mode::Edges),
-       "EDGES",
-       0,
-       "Edges",
-       "Convert mesh edges to curve segments. Attributes are propagated to curve points."},
-      {int(Mode::Faces),
-       "FACES",
-       0,
-       "Faces",
-       "Convert each mesh face to a cyclic curve. Face attributes are propagated to curves."},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = int(Mode::Edges),
+       .identifier = "EDGES",
+       .icon = 0,
+       .name = "Edges",
+       .description =
+           "Convert mesh edges to curve segments. Attributes are propagated to curve points."},
+      {.value = int(Mode::Faces),
+       .identifier = "FACES",
+       .icon = 0,
+       .name = "Faces",
+       .description =
+           "Convert each mesh face to a cyclic curve. Face attributes are propagated to curves."},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(

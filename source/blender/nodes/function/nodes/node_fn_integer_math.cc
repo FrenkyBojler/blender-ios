@@ -104,7 +104,8 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   {
     if (item->name != nullptr && item->identifier[0] != '\0') {
       params.add_item(CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, item->name),
-                      SocketSearchOp{"Value", NodeIntegerMathOperation(item->value)},
+                      SocketSearchOp{.socket_name = "Value",
+                                     .operation = NodeIntegerMathOperation(item->value)},
                       weight);
     }
   }

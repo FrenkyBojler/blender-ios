@@ -277,7 +277,8 @@ class LazyFunctionForBakeNode final : public LazyFunction {
               user_data))
       {
         tree_logger->node_warnings.append(
-            *tree_logger->allocator, {node_.identifier, {NodeWarningType::Error, info->message}});
+            *tree_logger->allocator,
+            {.node_id = node_.identifier, .warning = {NodeWarningType::Error, info->message}});
       }
       this->set_default_outputs(params);
     }

@@ -185,7 +185,7 @@ BLI_NOINLINE static void update_elimination_mask_for_close_points(
     struct CallbackData {
       int index;
       MutableSpan<bool> elimination_mask;
-    } callback_data = {i, elimination_mask};
+    } callback_data = {.index = i, .elimination_mask = elimination_mask};
 
     kdtree_3d_range_search_cb(
         kdtree,

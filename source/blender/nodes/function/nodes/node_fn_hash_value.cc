@@ -135,13 +135,16 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     if (socket_type == SOCK_BOOLEAN) {
       socket_type = SOCK_INT;
     }
-    params.add_item(IFACE_("Value"), SocketSearchOp{"Value", socket_type});
-    params.add_item(IFACE_("Seed"), SocketSearchOp{"Seed", SOCK_INT});
+    params.add_item(IFACE_("Value"),
+                    SocketSearchOp{.socket_name = "Value", .socket_type = socket_type});
+    params.add_item(IFACE_("Seed"),
+                    SocketSearchOp{.socket_name = "Seed", .socket_type = SOCK_INT});
   }
   else {
     if (!ELEM(socket_type, SOCK_STRING)) {
       const int weight = ELEM(params.other_socket().type, SOCK_INT) ? 0 : -1;
-      params.add_item(IFACE_("Hash"), SocketSearchOp{"Hash", SOCK_INT}, weight);
+      params.add_item(
+          IFACE_("Hash"), SocketSearchOp{.socket_name = "Hash", .socket_type = SOCK_INT}, weight);
     }
   }
 }

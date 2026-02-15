@@ -206,17 +206,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem mode_items[] = {
-      {GEO_NODE_CURVE_PRIMITIVE_CIRCLE_TYPE_POINTS,
-       "POINTS",
-       ICON_NONE,
-       "Points",
-       "Define the radius and location with three points"},
-      {GEO_NODE_CURVE_PRIMITIVE_CIRCLE_TYPE_RADIUS,
-       "RADIUS",
-       ICON_NONE,
-       "Radius",
-       "Define the radius with a float"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = GEO_NODE_CURVE_PRIMITIVE_CIRCLE_TYPE_POINTS,
+       .identifier = "POINTS",
+       .icon = ICON_NONE,
+       .name = "Points",
+       .description = "Define the radius and location with three points"},
+      {.value = GEO_NODE_CURVE_PRIMITIVE_CIRCLE_TYPE_RADIUS,
+       .identifier = "RADIUS",
+       .icon = ICON_NONE,
+       .name = "Radius",
+       .description = "Define the radius with a float"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

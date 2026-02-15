@@ -40,25 +40,27 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
   static EnumPropertyItem mode_items[] = {
-      {int(Mode::Inactive),
-       "INACTIVE",
-       0,
-       N_("Inactive"),
-       N_("Turn inactive voxels and tiles into inactive background tiles")},
-      {int(Mode::Threshold),
-       "THRESHOLD",
-       0,
-       N_("Threshold"),
-       N_("Turn regions where all voxels have the same value and active state (within a tolerance "
-          "threshold) into inactive background tiles")},
-      {int(Mode::SDF),
-       "SDF",
-       0,
-       N_("SDF"),
-       N_("Replace inactive tiles with inactive nodes. Faster than tolerance-based pruning, "
-          "useful for cases like narrow-band SDF grids with only inside or outside background "
-          "values.")},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = int(Mode::Inactive),
+       .identifier = "INACTIVE",
+       .icon = 0,
+       .name = N_("Inactive"),
+       .description = N_("Turn inactive voxels and tiles into inactive background tiles")},
+      {.value = int(Mode::Threshold),
+       .identifier = "THRESHOLD",
+       .icon = 0,
+       .name = N_("Threshold"),
+       .description = N_("Turn regions where all voxels have the same value and active state "
+                         "(within a tolerance "
+                         "threshold) into inactive background tiles")},
+      {.value = int(Mode::SDF),
+       .identifier = "SDF",
+       .icon = 0,
+       .name = N_("SDF"),
+       .description = N_(
+           "Replace inactive tiles with inactive nodes. Faster than tolerance-based pruning, "
+           "useful for cases like narrow-band SDF grids with only inside or outside background "
+           "values.")},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
   b.add_input<decl::Menu>("Mode")
       .static_items(mode_items)

@@ -24,24 +24,33 @@ namespace blender::nodes::node_geo_curve_fill_cc {
 NODE_STORAGE_FUNCS(NodeGeometryCurveFill)
 
 static const EnumPropertyItem mode_items[] = {
-    {GEO_NODE_CURVE_FILL_MODE_TRIANGULATED, "TRIANGLES", 0, N_("Triangles"), ""},
-    {GEO_NODE_CURVE_FILL_MODE_NGONS, "NGONS", 0, N_("N-gons"), ""},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = GEO_NODE_CURVE_FILL_MODE_TRIANGULATED,
+     .identifier = "TRIANGLES",
+     .icon = 0,
+     .name = N_("Triangles"),
+     .description = ""},
+    {.value = GEO_NODE_CURVE_FILL_MODE_NGONS,
+     .identifier = "NGONS",
+     .icon = 0,
+     .name = N_("N-gons"),
+     .description = ""},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 /* See #CDT_output_type in BLI_delaunay_2d.hh for winding rule details. */
 static const EnumPropertyItem fill_rule_items[] = {
-    {GEO_NODE_CURVE_FILL_RULE_EVEN_ODD,
-     "EVEN_ODD",
-     0,
-     N_("Even-Odd"),
-     N_("Alternate inside/outside based on crossing count")},
-    {GEO_NODE_CURVE_FILL_RULE_NON_ZERO,
-     "NON_ZERO",
-     0,
-     N_("Non-Zero"),
-     N_("Overlapping curves with the same winding direction are filled as a union")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = GEO_NODE_CURVE_FILL_RULE_EVEN_ODD,
+     .identifier = "EVEN_ODD",
+     .icon = 0,
+     .name = N_("Even-Odd"),
+     .description = N_("Alternate inside/outside based on crossing count")},
+    {.value = GEO_NODE_CURVE_FILL_RULE_NON_ZERO,
+     .identifier = "NON_ZERO",
+     .icon = 0,
+     .name = N_("Non-Zero"),
+     .description = N_(
+         "Overlapping curves with the same winding direction are filled as a union")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

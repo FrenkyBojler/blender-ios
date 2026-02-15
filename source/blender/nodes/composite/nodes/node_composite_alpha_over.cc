@@ -20,24 +20,27 @@
 namespace blender::nodes::node_composite_alpha_over_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {CMP_NODE_ALPHA_OVER_OPERATION_TYPE_OVER,
-     "OVER",
-     ICON_NONE,
-     N_("Over"),
-     N_("The foreground goes over the background according to the alpha of the foreground")},
-    {CMP_NODE_ALPHA_OVER_OPERATION_TYPE_DISJOINT_OVER,
-     "DISJOINT_OVER",
-     ICON_NONE,
-     N_("Disjoint Over"),
-     N_("The foreground goes over the background according to the alpha of the foreground while "
-        "assuming the background is being held out by the foreground")},
-    {CMP_NODE_ALPHA_OVER_OPERATION_TYPE_CONJOINT_OVER,
-     "CONJOINT_OVER",
-     ICON_NONE,
-     N_("Conjoint Over"),
-     N_("The foreground goes over the background according to the alpha of the foreground but the "
-        "foreground completely covers the background if it is more opaque")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_ALPHA_OVER_OPERATION_TYPE_OVER,
+     .identifier = "OVER",
+     .icon = ICON_NONE,
+     .name = N_("Over"),
+     .description = N_(
+         "The foreground goes over the background according to the alpha of the foreground")},
+    {.value = CMP_NODE_ALPHA_OVER_OPERATION_TYPE_DISJOINT_OVER,
+     .identifier = "DISJOINT_OVER",
+     .icon = ICON_NONE,
+     .name = N_("Disjoint Over"),
+     .description = N_(
+         "The foreground goes over the background according to the alpha of the foreground while "
+         "assuming the background is being held out by the foreground")},
+    {.value = CMP_NODE_ALPHA_OVER_OPERATION_TYPE_CONJOINT_OVER,
+     .identifier = "CONJOINT_OVER",
+     .icon = ICON_NONE,
+     .name = N_("Conjoint Over"),
+     .description = N_("The foreground goes over the background according to the alpha of the "
+                       "foreground but the "
+                       "foreground completely covers the background if it is more opaque")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

@@ -22,9 +22,15 @@ namespace blender {
  * In this file: wrappers to use procedural textures as nodes
  */
 
-static bke::bNodeSocketTemplate outputs_both[] = {{SOCK_RGBA, N_("Color"), 1.0f, 0.0f, 0.0f, 1.0f},
-                                                  {-1, ""}};
-static bke::bNodeSocketTemplate outputs_color_only[] = {{SOCK_RGBA, N_("Color")}, {-1, ""}};
+static bke::bNodeSocketTemplate outputs_both[] = {{.type = SOCK_RGBA,
+                                                   .name = N_("Color"),
+                                                   .val1 = 1.0f,
+                                                   .val2 = 0.0f,
+                                                   .val3 = 0.0f,
+                                                   .val4 = 1.0f},
+                                                  {.type = -1, .name = ""}};
+static bke::bNodeSocketTemplate outputs_color_only[] = {{.type = SOCK_RGBA, .name = N_("Color")},
+                                                        {.type = -1, .name = ""}};
 
 /* Inputs common to all, #defined because nodes will need their own inputs too */
 #define I 2 /* count */
@@ -102,17 +108,64 @@ static int count_outputs(bNode *node)
   }
 
 /* --- VORONOI -- */
-static bke::bNodeSocketTemplate voronoi_inputs[] = {
-    COMMON_INPUTS,
-    {SOCK_FLOAT, N_("W1"), 1.0f, 0.0f, 0.0f, 0.0f, -2.0f, 2.0f, PROP_NONE},
-    {SOCK_FLOAT, N_("W2"), 0.0f, 0.0f, 0.0f, 0.0f, -2.0f, 2.0f, PROP_NONE},
-    {SOCK_FLOAT, N_("W3"), 0.0f, 0.0f, 0.0f, 0.0f, -2.0f, 2.0f, PROP_NONE},
-    {SOCK_FLOAT, N_("W4"), 0.0f, 0.0f, 0.0f, 0.0f, -2.0f, 2.0f, PROP_NONE},
+static bke::bNodeSocketTemplate voronoi_inputs[] = {COMMON_INPUTS,
+                                                    {.type = SOCK_FLOAT,
+                                                     .name = N_("W1"),
+                                                     .val1 = 1.0f,
+                                                     .val2 = 0.0f,
+                                                     .val3 = 0.0f,
+                                                     .val4 = 0.0f,
+                                                     .min = -2.0f,
+                                                     .max = 2.0f,
+                                                     .subtype = PROP_NONE},
+                                                    {.type = SOCK_FLOAT,
+                                                     .name = N_("W2"),
+                                                     .val1 = 0.0f,
+                                                     .val2 = 0.0f,
+                                                     .val3 = 0.0f,
+                                                     .val4 = 0.0f,
+                                                     .min = -2.0f,
+                                                     .max = 2.0f,
+                                                     .subtype = PROP_NONE},
+                                                    {.type = SOCK_FLOAT,
+                                                     .name = N_("W3"),
+                                                     .val1 = 0.0f,
+                                                     .val2 = 0.0f,
+                                                     .val3 = 0.0f,
+                                                     .val4 = 0.0f,
+                                                     .min = -2.0f,
+                                                     .max = 2.0f,
+                                                     .subtype = PROP_NONE},
+                                                    {.type = SOCK_FLOAT,
+                                                     .name = N_("W4"),
+                                                     .val1 = 0.0f,
+                                                     .val2 = 0.0f,
+                                                     .val3 = 0.0f,
+                                                     .val4 = 0.0f,
+                                                     .min = -2.0f,
+                                                     .max = 2.0f,
+                                                     .subtype = PROP_NONE},
 
-    {SOCK_FLOAT, N_("iScale"), 1.0f, 0.0f, 0.0f, 0.0f, 0.01f, 10.0f, PROP_UNSIGNED},
-    {SOCK_FLOAT, N_("Size"), 0.25f, 0.0f, 0.0f, 0.0f, 0.0001f, 4.0f, PROP_UNSIGNED},
+                                                    {.type = SOCK_FLOAT,
+                                                     .name = N_("iScale"),
+                                                     .val1 = 1.0f,
+                                                     .val2 = 0.0f,
+                                                     .val3 = 0.0f,
+                                                     .val4 = 0.0f,
+                                                     .min = 0.01f,
+                                                     .max = 10.0f,
+                                                     .subtype = PROP_UNSIGNED},
+                                                    {.type = SOCK_FLOAT,
+                                                     .name = N_("Size"),
+                                                     .val1 = 0.25f,
+                                                     .val2 = 0.0f,
+                                                     .val3 = 0.0f,
+                                                     .val4 = 0.0f,
+                                                     .min = 0.0001f,
+                                                     .max = 4.0f,
+                                                     .subtype = PROP_UNSIGNED},
 
-    {-1, ""}};
+                                                    {.type = -1, .name = ""}};
 static void voronoi_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short thread)
 {
   tex->vn_w1 = tex_input_value(in[I + 0], p, thread);
@@ -126,15 +179,22 @@ static void voronoi_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short th
 ProcDef(voronoi);
 
 /* --- BLEND -- */
-static bke::bNodeSocketTemplate blend_inputs[] = {COMMON_INPUTS, {-1, ""}};
+static bke::bNodeSocketTemplate blend_inputs[] = {COMMON_INPUTS, {.type = -1, .name = ""}};
 ProcNoInputs(blend);
 ProcDef(blend);
 
 /* -- MAGIC -- */
-static bke::bNodeSocketTemplate magic_inputs[] = {
-    COMMON_INPUTS,
-    {SOCK_FLOAT, N_("Turbulence"), 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 200.0f, PROP_UNSIGNED},
-    {-1, ""}};
+static bke::bNodeSocketTemplate magic_inputs[] = {COMMON_INPUTS,
+                                                  {.type = SOCK_FLOAT,
+                                                   .name = N_("Turbulence"),
+                                                   .val1 = 5.0f,
+                                                   .val2 = 0.0f,
+                                                   .val3 = 0.0f,
+                                                   .val4 = 0.0f,
+                                                   .min = 0.0f,
+                                                   .max = 200.0f,
+                                                   .subtype = PROP_UNSIGNED},
+                                                  {.type = -1, .name = ""}};
 static void magic_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short thread)
 {
   tex->turbul = tex_input_value(in[I + 0], p, thread);
@@ -142,11 +202,26 @@ static void magic_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short thre
 ProcDef(magic);
 
 /* --- MARBLE --- */
-static bke::bNodeSocketTemplate marble_inputs[] = {
-    COMMON_INPUTS,
-    {SOCK_FLOAT, N_("Size"), 0.25f, 0.0f, 0.0f, 0.0f, 0.0001f, 2.0f, PROP_UNSIGNED},
-    {SOCK_FLOAT, N_("Turbulence"), 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 200.0f, PROP_UNSIGNED},
-    {-1, ""}};
+static bke::bNodeSocketTemplate marble_inputs[] = {COMMON_INPUTS,
+                                                   {.type = SOCK_FLOAT,
+                                                    .name = N_("Size"),
+                                                    .val1 = 0.25f,
+                                                    .val2 = 0.0f,
+                                                    .val3 = 0.0f,
+                                                    .val4 = 0.0f,
+                                                    .min = 0.0001f,
+                                                    .max = 2.0f,
+                                                    .subtype = PROP_UNSIGNED},
+                                                   {.type = SOCK_FLOAT,
+                                                    .name = N_("Turbulence"),
+                                                    .val1 = 5.0f,
+                                                    .val2 = 0.0f,
+                                                    .val3 = 0.0f,
+                                                    .val4 = 0.0f,
+                                                    .min = 0.0f,
+                                                    .max = 200.0f,
+                                                    .subtype = PROP_UNSIGNED},
+                                                   {.type = -1, .name = ""}};
 static void marble_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short thread)
 {
   tex->noisesize = tex_input_value(in[I + 0], p, thread);
@@ -155,10 +230,17 @@ static void marble_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short thr
 ProcDef(marble);
 
 /* --- CLOUDS --- */
-static bke::bNodeSocketTemplate clouds_inputs[] = {
-    COMMON_INPUTS,
-    {SOCK_FLOAT, N_("Size"), 0.25f, 0.0f, 0.0f, 0.0f, 0.0001f, 2.0f, PROP_UNSIGNED},
-    {-1, ""}};
+static bke::bNodeSocketTemplate clouds_inputs[] = {COMMON_INPUTS,
+                                                   {.type = SOCK_FLOAT,
+                                                    .name = N_("Size"),
+                                                    .val1 = 0.25f,
+                                                    .val2 = 0.0f,
+                                                    .val3 = 0.0f,
+                                                    .val4 = 0.0f,
+                                                    .min = 0.0001f,
+                                                    .max = 2.0f,
+                                                    .subtype = PROP_UNSIGNED},
+                                                   {.type = -1, .name = ""}};
 static void clouds_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short thread)
 {
   tex->noisesize = tex_input_value(in[I + 0], p, thread);
@@ -166,11 +248,26 @@ static void clouds_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short thr
 ProcDef(clouds);
 
 /* --- DISTORTED NOISE --- */
-static bke::bNodeSocketTemplate distnoise_inputs[] = {
-    COMMON_INPUTS,
-    {SOCK_FLOAT, N_("Size"), 0.25f, 0.0f, 0.0f, 0.0f, 0.0001f, 2.0f, PROP_UNSIGNED},
-    {SOCK_FLOAT, N_("Distortion"), 1.00f, 0.0f, 0.0f, 0.0f, 0.0000f, 10.0f, PROP_UNSIGNED},
-    {-1, ""}};
+static bke::bNodeSocketTemplate distnoise_inputs[] = {COMMON_INPUTS,
+                                                      {.type = SOCK_FLOAT,
+                                                       .name = N_("Size"),
+                                                       .val1 = 0.25f,
+                                                       .val2 = 0.0f,
+                                                       .val3 = 0.0f,
+                                                       .val4 = 0.0f,
+                                                       .min = 0.0001f,
+                                                       .max = 2.0f,
+                                                       .subtype = PROP_UNSIGNED},
+                                                      {.type = SOCK_FLOAT,
+                                                       .name = N_("Distortion"),
+                                                       .val1 = 1.00f,
+                                                       .val2 = 0.0f,
+                                                       .val3 = 0.0f,
+                                                       .val4 = 0.0f,
+                                                       .min = 0.0000f,
+                                                       .max = 10.0f,
+                                                       .subtype = PROP_UNSIGNED},
+                                                      {.type = -1, .name = ""}};
 static void distnoise_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short thread)
 {
   tex->noisesize = tex_input_value(in[I + 0], p, thread);
@@ -179,11 +276,26 @@ static void distnoise_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short 
 ProcDef(distnoise);
 
 /* --- WOOD --- */
-static bke::bNodeSocketTemplate wood_inputs[] = {
-    COMMON_INPUTS,
-    {SOCK_FLOAT, N_("Size"), 0.25f, 0.0f, 0.0f, 0.0f, 0.0001f, 2.0f, PROP_UNSIGNED},
-    {SOCK_FLOAT, N_("Turbulence"), 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 200.0f, PROP_UNSIGNED},
-    {-1, ""}};
+static bke::bNodeSocketTemplate wood_inputs[] = {COMMON_INPUTS,
+                                                 {.type = SOCK_FLOAT,
+                                                  .name = N_("Size"),
+                                                  .val1 = 0.25f,
+                                                  .val2 = 0.0f,
+                                                  .val3 = 0.0f,
+                                                  .val4 = 0.0f,
+                                                  .min = 0.0001f,
+                                                  .max = 2.0f,
+                                                  .subtype = PROP_UNSIGNED},
+                                                 {.type = SOCK_FLOAT,
+                                                  .name = N_("Turbulence"),
+                                                  .val1 = 5.0f,
+                                                  .val2 = 0.0f,
+                                                  .val3 = 0.0f,
+                                                  .val4 = 0.0f,
+                                                  .min = 0.0f,
+                                                  .max = 200.0f,
+                                                  .subtype = PROP_UNSIGNED},
+                                                 {.type = -1, .name = ""}};
 static void wood_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short thread)
 {
   tex->noisesize = tex_input_value(in[I + 0], p, thread);
@@ -192,15 +304,54 @@ static void wood_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short threa
 ProcDef(wood);
 
 /* --- MUSGRAVE --- */
-static bke::bNodeSocketTemplate musgrave_inputs[] = {
-    COMMON_INPUTS,
-    {SOCK_FLOAT, N_("H"), 1.0f, 0.0f, 0.0f, 0.0f, 0.0001f, 2.0f, PROP_UNSIGNED},
-    {SOCK_FLOAT, N_("Lacunarity"), 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, 6.0f, PROP_UNSIGNED},
-    {SOCK_FLOAT, N_("Octaves"), 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, 8.0f, PROP_UNSIGNED},
+static bke::bNodeSocketTemplate musgrave_inputs[] = {COMMON_INPUTS,
+                                                     {.type = SOCK_FLOAT,
+                                                      .name = N_("H"),
+                                                      .val1 = 1.0f,
+                                                      .val2 = 0.0f,
+                                                      .val3 = 0.0f,
+                                                      .val4 = 0.0f,
+                                                      .min = 0.0001f,
+                                                      .max = 2.0f,
+                                                      .subtype = PROP_UNSIGNED},
+                                                     {.type = SOCK_FLOAT,
+                                                      .name = N_("Lacunarity"),
+                                                      .val1 = 2.0f,
+                                                      .val2 = 0.0f,
+                                                      .val3 = 0.0f,
+                                                      .val4 = 0.0f,
+                                                      .min = 0.0f,
+                                                      .max = 6.0f,
+                                                      .subtype = PROP_UNSIGNED},
+                                                     {.type = SOCK_FLOAT,
+                                                      .name = N_("Octaves"),
+                                                      .val1 = 2.0f,
+                                                      .val2 = 0.0f,
+                                                      .val3 = 0.0f,
+                                                      .val4 = 0.0f,
+                                                      .min = 0.0f,
+                                                      .max = 8.0f,
+                                                      .subtype = PROP_UNSIGNED},
 
-    {SOCK_FLOAT, N_("iScale"), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 10.0f, PROP_UNSIGNED},
-    {SOCK_FLOAT, N_("Size"), 0.25f, 0.0f, 0.0f, 0.0f, 0.0001f, 2.0f, PROP_UNSIGNED},
-    {-1, ""}};
+                                                     {.type = SOCK_FLOAT,
+                                                      .name = N_("iScale"),
+                                                      .val1 = 1.0f,
+                                                      .val2 = 0.0f,
+                                                      .val3 = 0.0f,
+                                                      .val4 = 0.0f,
+                                                      .min = 0.0f,
+                                                      .max = 10.0f,
+                                                      .subtype = PROP_UNSIGNED},
+                                                     {.type = SOCK_FLOAT,
+                                                      .name = N_("Size"),
+                                                      .val1 = 0.25f,
+                                                      .val2 = 0.0f,
+                                                      .val3 = 0.0f,
+                                                      .val4 = 0.0f,
+                                                      .min = 0.0001f,
+                                                      .max = 2.0f,
+                                                      .subtype = PROP_UNSIGNED},
+                                                     {.type = -1, .name = ""}};
 static void musgrave_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short thread)
 {
   tex->mg_H = tex_input_value(in[I + 0], p, thread);
@@ -212,16 +363,31 @@ static void musgrave_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short t
 ProcDef(musgrave);
 
 /* --- NOISE --- */
-static bke::bNodeSocketTemplate noise_inputs[] = {COMMON_INPUTS, {-1, ""}};
+static bke::bNodeSocketTemplate noise_inputs[] = {COMMON_INPUTS, {.type = -1, .name = ""}};
 ProcNoInputs(noise);
 ProcDef(noise);
 
 /* --- STUCCI --- */
-static bke::bNodeSocketTemplate stucci_inputs[] = {
-    COMMON_INPUTS,
-    {SOCK_FLOAT, N_("Size"), 0.25f, 0.0f, 0.0f, 0.0f, 0.0001f, 2.0f, PROP_UNSIGNED},
-    {SOCK_FLOAT, N_("Turbulence"), 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 200.0f, PROP_UNSIGNED},
-    {-1, ""}};
+static bke::bNodeSocketTemplate stucci_inputs[] = {COMMON_INPUTS,
+                                                   {.type = SOCK_FLOAT,
+                                                    .name = N_("Size"),
+                                                    .val1 = 0.25f,
+                                                    .val2 = 0.0f,
+                                                    .val3 = 0.0f,
+                                                    .val4 = 0.0f,
+                                                    .min = 0.0001f,
+                                                    .max = 2.0f,
+                                                    .subtype = PROP_UNSIGNED},
+                                                   {.type = SOCK_FLOAT,
+                                                    .name = N_("Turbulence"),
+                                                    .val1 = 5.0f,
+                                                    .val2 = 0.0f,
+                                                    .val3 = 0.0f,
+                                                    .val4 = 0.0f,
+                                                    .min = 0.0f,
+                                                    .max = 200.0f,
+                                                    .subtype = PROP_UNSIGNED},
+                                                   {.type = -1, .name = ""}};
 static void stucci_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short thread)
 {
   tex->noisesize = tex_input_value(in[I + 0], p, thread);

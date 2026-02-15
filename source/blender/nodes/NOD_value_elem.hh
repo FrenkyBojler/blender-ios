@@ -109,7 +109,7 @@ struct VectorElem {
 
   static VectorElem all()
   {
-    return {{true}, {true}, {true}};
+    return {.x = {true}, .y = {true}, .z = {true}};
   }
 };
 
@@ -151,7 +151,7 @@ struct RotationElem {
 
   static RotationElem all()
   {
-    return {VectorElem::all(), VectorElem::all(), {true}};
+    return {.euler = VectorElem::all(), .axis = VectorElem::all(), .angle = {true}};
   }
 };
 
@@ -193,7 +193,10 @@ struct MatrixElem {
 
   static MatrixElem all()
   {
-    return {VectorElem::all(), RotationElem::all(), VectorElem::all(), FloatElem::all()};
+    return {.translation = VectorElem::all(),
+            .rotation = RotationElem::all(),
+            .scale = VectorElem::all(),
+            .any_non_transform = FloatElem::all()};
   }
 };
 

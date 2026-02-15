@@ -13,15 +13,20 @@
 namespace blender {
 
 static bke::bNodeSocketTemplate inputs[] = {
-    {SOCK_RGBA, N_("Color"), 0.0f, 0.0f, 0.0f, 1.0f},
-    {-1, ""},
+    {.type = SOCK_RGBA,
+     .name = N_("Color"),
+     .val1 = 0.0f,
+     .val2 = 0.0f,
+     .val3 = 0.0f,
+     .val4 = 1.0f},
+    {.type = -1, .name = ""},
 };
 static bke::bNodeSocketTemplate outputs[] = {
-    {SOCK_FLOAT, N_("Red")},
-    {SOCK_FLOAT, N_("Green")},
-    {SOCK_FLOAT, N_("Blue")},
-    {SOCK_FLOAT, N_("Alpha")},
-    {-1, ""},
+    {.type = SOCK_FLOAT, .name = N_("Red")},
+    {.type = SOCK_FLOAT, .name = N_("Green")},
+    {.type = SOCK_FLOAT, .name = N_("Blue")},
+    {.type = SOCK_FLOAT, .name = N_("Alpha")},
+    {.type = -1, .name = ""},
 };
 
 static void apply_color_space(float *out, NodeCombSepColorMode type)

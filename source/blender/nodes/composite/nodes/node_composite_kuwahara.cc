@@ -22,17 +22,17 @@
 namespace blender::nodes::node_composite_kuwahara_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {CMP_NODE_KUWAHARA_CLASSIC,
-     "CLASSIC",
-     0,
-     N_("Classic"),
-     N_("Fast but less accurate variation")},
-    {CMP_NODE_KUWAHARA_ANISOTROPIC,
-     "ANISOTROPIC",
-     0,
-     N_("Anisotropic"),
-     N_("Accurate but slower variation")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_KUWAHARA_CLASSIC,
+     .identifier = "CLASSIC",
+     .icon = 0,
+     .name = N_("Classic"),
+     .description = N_("Fast but less accurate variation")},
+    {.value = CMP_NODE_KUWAHARA_ANISOTROPIC,
+     .identifier = "ANISOTROPIC",
+     .icon = 0,
+     .name = N_("Anisotropic"),
+     .description = N_("Accurate but slower variation")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

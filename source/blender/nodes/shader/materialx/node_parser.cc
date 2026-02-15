@@ -233,7 +233,8 @@ NodeItem NodeParser::get_input_link(const bNodeSocket &socket,
     return empty();
   }
 
-  NodeParserData data = {graph_, to_type, group_parser_, empty()};
+  NodeParserData data = {
+      .graph = graph_, .to_type = to_type, .group_parser = group_parser_, .result = empty()};
   from_node->typeinfo->materialx_fn(&data, const_cast<bNode *>(from_node), link->fromsock);
   return data.result;
 }

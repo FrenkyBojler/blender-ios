@@ -17,17 +17,17 @@
 namespace blender::nodes::node_composite_set_alpha_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {CMP_NODE_SETALPHA_MODE_APPLY,
-     "APPLY",
-     0,
-     N_("Apply Mask"),
-     N_("Multiply the input image's RGBA channels by the alpha input value")},
-    {CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA,
-     "REPLACE_ALPHA",
-     0,
-     N_("Replace Alpha"),
-     N_("Replace the input image's alpha channel by the alpha input value")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_SETALPHA_MODE_APPLY,
+     .identifier = "APPLY",
+     .icon = 0,
+     .name = N_("Apply Mask"),
+     .description = N_("Multiply the input image's RGBA channels by the alpha input value")},
+    {.value = CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA,
+     .identifier = "REPLACE_ALPHA",
+     .icon = 0,
+     .name = N_("Replace Alpha"),
+     .description = N_("Replace the input image's alpha channel by the alpha input value")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

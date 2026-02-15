@@ -17,8 +17,13 @@ namespace blender {
 
 /* **************** COMPOSITE ******************** */
 static bke::bNodeSocketTemplate inputs[] = {
-    {SOCK_RGBA, N_("Color"), 0.0f, 0.0f, 0.0f, 1.0f},
-    {-1, ""},
+    {.type = SOCK_RGBA,
+     .name = N_("Color"),
+     .val1 = 0.0f,
+     .val2 = 0.0f,
+     .val3 = 0.0f,
+     .val4 = 1.0f},
+    {.type = -1, .name = ""},
 };
 
 /* applies to render pipeline */

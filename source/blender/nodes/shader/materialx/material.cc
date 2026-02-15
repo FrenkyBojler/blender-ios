@@ -72,7 +72,10 @@ MaterialX::DocumentPtr export_to_materialx(Depsgraph *depsgraph,
   local_tree->ensure_topology_cache();
   bNode *output_node = ntreeShaderOutputNode(local_tree, SHD_OUTPUT_ALL);
   if (output_node && output_node->typeinfo->materialx_fn) {
-    NodeParserData data = {graph, NodeItem::Type::Material, nullptr, graph.empty_node()};
+    NodeParserData data = {.graph = graph,
+                           .to_type = NodeItem::Type::Material,
+                           .group_parser = nullptr,
+                           .result = graph.empty_node()};
     output_node->typeinfo->materialx_fn(&data, output_node, nullptr);
     output_item = data.result;
   }

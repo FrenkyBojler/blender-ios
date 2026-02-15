@@ -15,12 +15,20 @@ namespace blender {
 
 /* **************** VALTORGB ******************** */
 static bke::bNodeSocketTemplate valtorgb_in[] = {
-    {SOCK_FLOAT, N_("Fac"), 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
-    {-1, ""},
+    {.type = SOCK_FLOAT,
+     .name = N_("Fac"),
+     .val1 = 0.5f,
+     .val2 = 0.0f,
+     .val3 = 0.0f,
+     .val4 = 0.0f,
+     .min = 0.0f,
+     .max = 1.0f,
+     .subtype = PROP_FACTOR},
+    {.type = -1, .name = ""},
 };
 static bke::bNodeSocketTemplate valtorgb_out[] = {
-    {SOCK_RGBA, N_("Color")},
-    {-1, ""},
+    {.type = SOCK_RGBA, .name = N_("Color")},
+    {.type = -1, .name = ""},
 };
 
 static void valtorgb_colorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
@@ -67,12 +75,26 @@ void register_node_type_tex_valtorgb()
 
 /* **************** RGBTOBW ******************** */
 static bke::bNodeSocketTemplate rgbtobw_in[] = {
-    {SOCK_RGBA, N_("Color"), 0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 1.0f},
-    {-1, ""},
+    {.type = SOCK_RGBA,
+     .name = N_("Color"),
+     .val1 = 0.5f,
+     .val2 = 0.5f,
+     .val3 = 0.5f,
+     .val4 = 1.0f,
+     .min = 0.0f,
+     .max = 1.0f},
+    {.type = -1, .name = ""},
 };
 static bke::bNodeSocketTemplate rgbtobw_out[] = {
-    {SOCK_FLOAT, N_("Val"), 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
-    {-1, ""},
+    {.type = SOCK_FLOAT,
+     .name = N_("Val"),
+     .val1 = 0.0f,
+     .val2 = 0.0f,
+     .val3 = 0.0f,
+     .val4 = 1.0f,
+     .min = 0.0f,
+     .max = 1.0f},
+    {.type = -1, .name = ""},
 };
 
 static void rgbtobw_valuefn(

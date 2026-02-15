@@ -19,8 +19,8 @@
 namespace blender {
 
 static bke::bNodeSocketTemplate outputs[] = {
-    {SOCK_RGBA, N_("Image")},
-    {-1, ""},
+    {.type = SOCK_RGBA, .name = N_("Image")},
+    {.type = -1, .name = ""},
 };
 
 static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack ** /*in*/, short /*thread*/)

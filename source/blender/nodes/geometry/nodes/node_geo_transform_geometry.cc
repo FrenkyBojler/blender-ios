@@ -13,13 +13,17 @@
 namespace blender::nodes::node_geo_transform_geometry_cc {
 
 static EnumPropertyItem mode_items[] = {
-    {GEO_NODE_TRANSFORM_MODE_COMPONENTS,
-     "COMPONENTS",
-     0,
-     N_("Components"),
-     N_("Provide separate location, rotation and scale")},
-    {GEO_NODE_TRANSFORM_MODE_MATRIX, "MATRIX", 0, N_("Matrix"), N_("Use a transformation matrix")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = GEO_NODE_TRANSFORM_MODE_COMPONENTS,
+     .identifier = "COMPONENTS",
+     .icon = 0,
+     .name = N_("Components"),
+     .description = N_("Provide separate location, rotation and scale")},
+    {.value = GEO_NODE_TRANSFORM_MODE_MATRIX,
+     .identifier = "MATRIX",
+     .icon = 0,
+     .name = N_("Matrix"),
+     .description = N_("Use a transformation matrix")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

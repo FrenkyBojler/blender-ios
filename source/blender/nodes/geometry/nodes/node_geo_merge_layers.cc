@@ -181,18 +181,19 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem mode_items[] = {
-      {int(MergeLayerMode::ByName),
-       "MERGE_BY_NAME",
-       0,
-       "By Name",
-       "Combine all layers which have the same name"},
-      {int(MergeLayerMode::ByID),
-       "MERGE_BY_ID",
-       0,
-       "By Group ID",
-       "Provide a custom group ID for each layer and all layers with the same ID will be merged "
-       "into one"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = int(MergeLayerMode::ByName),
+       .identifier = "MERGE_BY_NAME",
+       .icon = 0,
+       .name = "By Name",
+       .description = "Combine all layers which have the same name"},
+      {.value = int(MergeLayerMode::ByID),
+       .identifier = "MERGE_BY_ID",
+       .icon = 0,
+       .name = "By Group ID",
+       .description = "Provide a custom group ID for each layer and all layers with the same ID "
+                      "will be merged "
+                      "into one"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

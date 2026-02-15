@@ -20,11 +20,27 @@
 namespace blender::nodes::node_composite_box_mask_cc {
 
 static const EnumPropertyItem operation_items[] = {
-    {CMP_NODE_MASKTYPE_ADD, "ADD", 0, N_("Add"), ""},
-    {CMP_NODE_MASKTYPE_SUBTRACT, "SUBTRACT", 0, N_("Subtract"), ""},
-    {CMP_NODE_MASKTYPE_MULTIPLY, "MULTIPLY", 0, N_("Multiply"), ""},
-    {CMP_NODE_MASKTYPE_NOT, "NOT", 0, N_("Not"), ""},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_MASKTYPE_ADD,
+     .identifier = "ADD",
+     .icon = 0,
+     .name = N_("Add"),
+     .description = ""},
+    {.value = CMP_NODE_MASKTYPE_SUBTRACT,
+     .identifier = "SUBTRACT",
+     .icon = 0,
+     .name = N_("Subtract"),
+     .description = ""},
+    {.value = CMP_NODE_MASKTYPE_MULTIPLY,
+     .identifier = "MULTIPLY",
+     .icon = 0,
+     .name = N_("Multiply"),
+     .description = ""},
+    {.value = CMP_NODE_MASKTYPE_NOT,
+     .identifier = "NOT",
+     .icon = 0,
+     .name = N_("Not"),
+     .description = ""},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

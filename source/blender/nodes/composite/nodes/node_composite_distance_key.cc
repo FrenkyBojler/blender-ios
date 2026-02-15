@@ -20,9 +20,17 @@
 namespace blender::nodes::node_composite_distance_key_cc {
 
 static const EnumPropertyItem color_space_items[] = {
-    {CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_RGBA, "RGB", 0, N_("RGB"), N_("RGB color space")},
-    {CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_YCCA, "YCC", 0, N_("YCC"), N_("YCbCr color space")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_RGBA,
+     .identifier = "RGB",
+     .icon = 0,
+     .name = N_("RGB"),
+     .description = N_("RGB color space")},
+    {.value = CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_YCCA,
+     .identifier = "YCC",
+     .icon = 0,
+     .name = N_("YCC"),
+     .description = N_("YCbCr color space")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

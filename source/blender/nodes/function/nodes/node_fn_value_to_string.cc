@@ -109,9 +109,17 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem data_types[] = {
-      {SOCK_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
-      {SOCK_INT, "INT", ICON_NODE_SOCKET_INT, "Integer", "32-bit integer"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = SOCK_FLOAT,
+       .identifier = "FLOAT",
+       .icon = ICON_NODE_SOCKET_FLOAT,
+       .name = "Float",
+       .description = "Floating-point value"},
+      {.value = SOCK_INT,
+       .identifier = "INT",
+       .icon = ICON_NODE_SOCKET_INT,
+       .name = "Integer",
+       .description = "32-bit integer"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

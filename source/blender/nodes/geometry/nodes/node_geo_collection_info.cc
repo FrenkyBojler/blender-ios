@@ -116,7 +116,8 @@ static void node_geo_exec(GeoNodeExecParams params)
         }
       }
       const int handle = instances->add_reference(*child_collection);
-      entries.append({handle, &(child_collection->id.name[2]), transform});
+      entries.append(
+          {.handle = handle, .name = &(child_collection->id.name[2]), .transform = transform});
     }
     for (Object *child_object : children_objects) {
       const int handle = instances->add_reference(*child_object);
@@ -130,7 +131,8 @@ static void node_geo_exec(GeoNodeExecParams params)
         }
         transform *= child_object->object_to_world();
       }
-      entries.append({handle, &(child_object->id.name[2]), transform});
+      entries.append(
+          {.handle = handle, .name = &(child_object->id.name[2]), .transform = transform});
     }
 
     std::ranges::sort(entries, [](const InstanceListEntry &a, const InstanceListEntry &b) {
@@ -165,18 +167,19 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem rna_node_geometry_collection_info_transform_space_items[] = {
-      {GEO_NODE_TRANSFORM_SPACE_ORIGINAL,
-       "ORIGINAL",
-       0,
-       "Original",
-       "Output the geometry relative to the collection offset"},
-      {GEO_NODE_TRANSFORM_SPACE_RELATIVE,
-       "RELATIVE",
-       0,
-       "Relative",
-       "Bring the input collection geometry into the modified object, maintaining the relative "
-       "position between the objects in the scene"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = GEO_NODE_TRANSFORM_SPACE_ORIGINAL,
+       .identifier = "ORIGINAL",
+       .icon = 0,
+       .name = "Original",
+       .description = "Output the geometry relative to the collection offset"},
+      {.value = GEO_NODE_TRANSFORM_SPACE_RELATIVE,
+       .identifier = "RELATIVE",
+       .icon = 0,
+       .name = "Relative",
+       .description = "Bring the input collection geometry into the modified object, maintaining "
+                      "the relative "
+                      "position between the objects in the scene"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   PropertyRNA *prop = RNA_def_node_enum(

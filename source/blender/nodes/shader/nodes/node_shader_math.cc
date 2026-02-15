@@ -117,9 +117,10 @@ static void sh_node_math_gather_link_searches(GatherLinkSearchOpParams &params)
            ELEM(item->value, NODE_MATH_COMPARE, NODE_MATH_GREATER_THAN, NODE_MATH_LESS_THAN)) ?
               -1 :
               weight;
-      params.add_item(CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, item->name),
-                      SocketSearchOp{"Value", NodeMathOperation(item->value)},
-                      gn_weight);
+      params.add_item(
+          CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, item->name),
+          SocketSearchOp{.socket_name = "Value", .mode = NodeMathOperation(item->value)},
+          gn_weight);
     }
   }
 }

@@ -12,14 +12,30 @@
 namespace blender {
 
 static bke::bNodeSocketTemplate inputs[] = {
-    {SOCK_VECTOR, N_("Coordinate 1"), 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, PROP_NONE},
-    {SOCK_VECTOR, N_("Coordinate 2"), 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, PROP_NONE},
-    {-1, ""},
+    {.type = SOCK_VECTOR,
+     .name = N_("Coordinate 1"),
+     .val1 = 0.0f,
+     .val2 = 0.0f,
+     .val3 = 0.0f,
+     .val4 = 0.0f,
+     .min = -1.0f,
+     .max = 1.0f,
+     .subtype = PROP_NONE},
+    {.type = SOCK_VECTOR,
+     .name = N_("Coordinate 2"),
+     .val1 = 0.0f,
+     .val2 = 0.0f,
+     .val3 = 0.0f,
+     .val4 = 0.0f,
+     .min = -1.0f,
+     .max = 1.0f,
+     .subtype = PROP_NONE},
+    {.type = -1, .name = ""},
 };
 
 static bke::bNodeSocketTemplate outputs[] = {
-    {SOCK_FLOAT, N_("Value")},
-    {-1, ""},
+    {.type = SOCK_FLOAT, .name = N_("Value")},
+    {.type = -1, .name = ""},
 };
 
 static void valuefn(float *out, TexParams *p, bNode * /*node*/, bNodeStack **in, short thread)

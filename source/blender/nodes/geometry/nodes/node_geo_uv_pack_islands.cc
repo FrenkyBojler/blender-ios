@@ -19,22 +19,24 @@ enum class ShapeMethod : int16_t {
 };
 
 static const EnumPropertyItem shape_method_items[] = {
-    {int(ShapeMethod::Aabb),
-     "AABB",
-     0,
-     N_("Bounding Box"),
-     N_("Use axis-aligned bounding boxes for packing (fastest, least space efficient)")},
-    {int(ShapeMethod::Convex),
-     "CONVEX",
-     0,
-     N_("Convex Hull"),
-     N_("Use convex hull approximation of islands (good balance of speed and space efficiency)")},
-    {int(ShapeMethod::Concave),
-     "CONCAVE",
-     0,
-     N_("Exact Shape"),
-     N_("Use exact geometry for most efficient packing (slowest)")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = int(ShapeMethod::Aabb),
+     .identifier = "AABB",
+     .icon = 0,
+     .name = N_("Bounding Box"),
+     .description = N_(
+         "Use axis-aligned bounding boxes for packing (fastest, least space efficient)")},
+    {.value = int(ShapeMethod::Convex),
+     .identifier = "CONVEX",
+     .icon = 0,
+     .name = N_("Convex Hull"),
+     .description = N_(
+         "Use convex hull approximation of islands (good balance of speed and space efficiency)")},
+    {.value = int(ShapeMethod::Concave),
+     .identifier = "CONCAVE",
+     .icon = 0,
+     .name = N_("Exact Shape"),
+     .description = N_("Use exact geometry for most efficient packing (slowest)")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static eUVPackIsland_ShapeMethod convert_shape_method(const ShapeMethod method)

@@ -71,7 +71,7 @@ ClosureSignature ClosureSignature::from_closure_output_node(const bNode &node,
                 socket,
                 NodeSocketInterfaceStructureType(item.structure_type),
                 allow_auto_structure_type);
-        signature.inputs.add({item.name, stype, structure_type});
+        signature.inputs.add({.key = item.name, .type = stype, .structure_type = structure_type});
       }
     }
   }
@@ -84,7 +84,7 @@ ClosureSignature ClosureSignature::from_closure_output_node(const bNode &node,
               socket,
               NodeSocketInterfaceStructureType(item.structure_type),
               allow_auto_structure_type);
-      signature.outputs.add({item.name, stype, structure_type});
+      signature.outputs.add({.key = item.name, .type = stype, .structure_type = structure_type});
     }
   }
   return signature;
@@ -105,7 +105,7 @@ ClosureSignature ClosureSignature::from_evaluate_closure_node(const bNode &node,
               socket,
               NodeSocketInterfaceStructureType(item.structure_type),
               allow_auto_structure_type);
-      signature.inputs.add({item.name, stype, structure_type});
+      signature.inputs.add({.key = item.name, .type = stype, .structure_type = structure_type});
     }
   }
   for (const int i : IndexRange(storage.output_items.items_num)) {
@@ -117,7 +117,7 @@ ClosureSignature ClosureSignature::from_evaluate_closure_node(const bNode &node,
               socket,
               NodeSocketInterfaceStructureType(item.structure_type),
               allow_auto_structure_type);
-      signature.outputs.add({item.name, stype, structure_type});
+      signature.outputs.add({.key = item.name, .type = stype, .structure_type = structure_type});
     }
   }
   return signature;

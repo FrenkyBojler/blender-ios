@@ -23,22 +23,22 @@ namespace blender::nodes::node_geo_volume_to_mesh_cc {
 NODE_STORAGE_FUNCS(NodeGeometryVolumeToMesh)
 
 static EnumPropertyItem resolution_mode_items[] = {
-    {VOLUME_TO_MESH_RESOLUTION_MODE_GRID,
-     "GRID",
-     0,
-     CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Grid"),
-     N_("Use resolution of the volume grid")},
-    {VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_AMOUNT,
-     "VOXEL_AMOUNT",
-     0,
-     CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Amount"),
-     N_("Desired number of voxels along one axis")},
-    {VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_SIZE,
-     "VOXEL_SIZE",
-     0,
-     CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Size"),
-     N_("Desired voxel side length")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = VOLUME_TO_MESH_RESOLUTION_MODE_GRID,
+     .identifier = "GRID",
+     .icon = 0,
+     .name = CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Grid"),
+     .description = N_("Use resolution of the volume grid")},
+    {.value = VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_AMOUNT,
+     .identifier = "VOXEL_AMOUNT",
+     .icon = 0,
+     .name = CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Amount"),
+     .description = N_("Desired number of voxels along one axis")},
+    {.value = VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_SIZE,
+     .identifier = "VOXEL_SIZE",
+     .icon = 0,
+     .name = CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Size"),
+     .description = N_("Desired voxel side length")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

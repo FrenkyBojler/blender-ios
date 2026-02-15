@@ -22,17 +22,17 @@ namespace blender::nodes::node_geo_mesh_to_volume_cc {
 NODE_STORAGE_FUNCS(NodeGeometryMeshToVolume)
 
 static EnumPropertyItem resolution_mode_items[] = {
-    {MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_AMOUNT,
-     "VOXEL_AMOUNT",
-     0,
-     CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Amount"),
-     N_("Desired number of voxels along one axis")},
-    {MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_SIZE,
-     "VOXEL_SIZE",
-     0,
-     CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Size"),
-     N_("Desired voxel side length")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_AMOUNT,
+     .identifier = "VOXEL_AMOUNT",
+     .icon = 0,
+     .name = CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Amount"),
+     .description = N_("Desired number of voxels along one axis")},
+    {.value = MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_SIZE,
+     .identifier = "VOXEL_SIZE",
+     .icon = 0,
+     .name = CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Size"),
+     .description = N_("Desired voxel side length")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

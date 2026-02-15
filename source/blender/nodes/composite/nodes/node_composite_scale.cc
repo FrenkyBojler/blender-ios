@@ -24,19 +24,47 @@
 namespace blender::nodes::node_composite_scale_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {CMP_NODE_SCALE_RELATIVE, "RELATIVE", 0, N_("Relative"), ""},
-    {CMP_NODE_SCALE_ABSOLUTE, "ABSOLUTE", 0, N_("Absolute"), ""},
-    {CMP_NODE_SCALE_RENDER_PERCENT, "SCENE_SIZE", 0, N_("Scene Size"), ""},
-    {CMP_NODE_SCALE_RENDER_SIZE, "RENDER_SIZE", 0, N_("Render Size"), ""},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_SCALE_RELATIVE,
+     .identifier = "RELATIVE",
+     .icon = 0,
+     .name = N_("Relative"),
+     .description = ""},
+    {.value = CMP_NODE_SCALE_ABSOLUTE,
+     .identifier = "ABSOLUTE",
+     .icon = 0,
+     .name = N_("Absolute"),
+     .description = ""},
+    {.value = CMP_NODE_SCALE_RENDER_PERCENT,
+     .identifier = "SCENE_SIZE",
+     .icon = 0,
+     .name = N_("Scene Size"),
+     .description = ""},
+    {.value = CMP_NODE_SCALE_RENDER_SIZE,
+     .identifier = "RENDER_SIZE",
+     .icon = 0,
+     .name = N_("Render Size"),
+     .description = ""},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 /* Matches bgpic_camera_frame_items[]. */
 static const EnumPropertyItem frame_type_items[] = {
-    {CMP_NODE_SCALE_RENDER_SIZE_STRETCH, "STRETCH", 0, N_("Stretch"), ""},
-    {CMP_NODE_SCALE_RENDER_SIZE_FIT, "FIT", 0, N_("Fit"), ""},
-    {CMP_NODE_SCALE_RENDER_SIZE_CROP, "CROP", 0, N_("Crop"), ""},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_SCALE_RENDER_SIZE_STRETCH,
+     .identifier = "STRETCH",
+     .icon = 0,
+     .name = N_("Stretch"),
+     .description = ""},
+    {.value = CMP_NODE_SCALE_RENDER_SIZE_FIT,
+     .identifier = "FIT",
+     .icon = 0,
+     .name = N_("Fit"),
+     .description = ""},
+    {.value = CMP_NODE_SCALE_RENDER_SIZE_CROP,
+     .identifier = "CROP",
+     .icon = 0,
+     .name = N_("Crop"),
+     .description = ""},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

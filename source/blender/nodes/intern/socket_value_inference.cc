@@ -231,8 +231,8 @@ class SocketValueInferencerImpl {
     }
     const ComputeContext &group_context = compute_context_cache_.for_group_node(
         socket.context, node->identifier, &node->owner_tree());
-    const SocketInContext socket_in_group{&group_context,
-                                          &group_output_node->input_socket(socket->index())};
+    const SocketInContext socket_in_group{
+        .context = &group_context, .socket = &group_output_node->input_socket(socket->index())};
     const std::optional<InferenceValue> value = all_socket_values_.lookup_try(socket_in_group);
     if (!value.has_value()) {
       this->push_value_task(socket_in_group);
@@ -255,8 +255,9 @@ class SocketValueInferencerImpl {
 
     const bke::GroupNodeComputeContext &group_context =
         *static_cast<const bke::GroupNodeComputeContext *>(socket.context);
-    const SocketInContext group_node_input{group_context.parent(),
-                                           &group_context.node()->input_socket(socket->index())};
+    const SocketInContext group_node_input{
+        .context = group_context.parent(),
+        .socket = &group_context.node()->input_socket(socket->index())};
     const std::optional<InferenceValue> value = all_socket_values_.lookup_try(group_node_input);
     if (!value.has_value()) {
       this->push_value_task(group_node_input);
@@ -551,8 +552,8 @@ class SocketValueInferencerImpl {
     BLI_assert(node->input_sockets().size() >= 1);
     BLI_assert(node->output_sockets().size() >= 1);
 
-    const SocketInContext condition_socket{socket.context,
-                                           get_first_available_bsocket(node->input_sockets())};
+    const SocketInContext condition_socket{
+        .context = socket.context, .socket = get_first_available_bsocket(node->input_sockets())};
     const std::optional<InferenceValue> condition_value = all_socket_values_.lookup_try(
         condition_socket);
     if (!condition_value.has_value()) {
@@ -586,7 +587,8 @@ class SocketValueInferencerImpl {
     }
     if (selected_inputs.size() == 1) {
       /* A single input is selected, so just pass through this value without regarding others. */
-      const SocketInContext selected_input{socket.context, selected_inputs[0]};
+      const SocketInContext selected_input{.context = socket.context,
+                                           .socket = selected_inputs[0]};
       const std::optional<InferenceValue> input_value = all_socket_values_.lookup_try(
           selected_input);
       if (!input_value.has_value()) {
@@ -710,7 +712,8 @@ class SocketValueInferencerImpl {
     SocketInContext input_socket;
     for (const bNodeLink &internal_link : node->internal_links()) {
       if (internal_link.tosock == socket.socket) {
-        input_socket = SocketInContext{socket.context, internal_link.fromsock};
+        input_socket = SocketInContext{.context = socket.context,
+                                       .socket = internal_link.fromsock};
         break;
       }
     }
@@ -752,7 +755,8 @@ class SocketValueInferencerImpl {
       this->value_task__input__unlinked(socket);
       return;
     }
-    this->value_task__input__linked({socket.context, source_link->fromsock}, socket);
+    this->value_task__input__linked({.context = socket.context, .socket = source_link->fromsock},
+                                    socket);
   }
 
   void value_task__input__unlinked(const SocketInContext &socket)

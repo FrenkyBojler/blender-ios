@@ -756,7 +756,7 @@ class LazyFunctionForMultiFunctionNode : public LazyFunction {
         {
           tree_logger->node_warnings.append(
               *tree_logger->allocator,
-              {node_.identifier, {NodeWarningType::Error, error_message}});
+              {.node_id = node_.identifier, .warning = {NodeWarningType::Error, error_message}});
         }
       }
       return;
@@ -837,7 +837,8 @@ class LazyFunctionForViewerNode : public LazyFunction {
 
     auto log = allocator.construct<geo_eval_log::ViewerNodeLog>();
     geo_viewer_node_log(bnode_, values, *log);
-    tree_logger->viewer_node_logs.append(allocator, {bnode_.identifier, std::move(log)});
+    tree_logger->viewer_node_logs.append(
+        allocator, {.node_id = bnode_.identifier, .viewer_log = std::move(log)});
   }
 };
 
@@ -938,7 +939,9 @@ class LazyFunctionForGizmoNode : public LazyFunction {
           geometry.get_component_for_write<GeometryComponentEditData>();
       edit_data.gizmo_edit_hints_ = std::make_unique<bke::GizmoEditHints>();
       edit_data.gizmo_edit_hints_->gizmo_transforms.add(
-          {user_data.compute_context->hash(), bnode_.identifier}, float4x4::identity());
+          {.compute_context_hash = user_data.compute_context->hash(),
+           .node_id = bnode_.identifier},
+          float4x4::identity());
       params.set_output(0, SocketValueVariant::From(std::move(geometry)));
     }
 
@@ -1597,8 +1600,9 @@ void report_from_multi_function(const mf::Context &context,
     return;
   }
   geo_eval_log::GeoTreeLogger &logger = log->get_local_tree_logger(*tree_context);
-  logger.node_warnings.append(*logger.allocator,
-                              {node_context->node_id(), {type, std::move(message)}});
+  logger.node_warnings.append(
+      *logger.allocator,
+      {.node_id = node_context->node_id(), .warning = {type, std::move(message)}});
 }
 
 using JoinReferenceSetsCache = Map<Vector<lf::OutputSocket *>, lf::OutputSocket *>;
@@ -1864,8 +1868,8 @@ class GeometryNodesLazyFunctionLogger : public lf::GraphExecutor::Logger {
         if (!bsockets.is_empty()) {
           const bNodeSocket &bsocket = *bsockets[0];
           const bNode &bnode = bsocket.owner_node();
-          tree_logger->debug_messages.append(*tree_logger->allocator,
-                                             {bnode.identifier, thread_id_str});
+          tree_logger->debug_messages.append(
+              *tree_logger->allocator, {.node_id = bnode.identifier, .message = thread_id_str});
           return true;
         }
       }
@@ -3808,7 +3812,7 @@ struct GeometryNodesLazyFunctionBuilder {
       if (inserted) {
         continue;
       }
-      types_with_links.append({to_bsocket.typeinfo, {link}});
+      types_with_links.append({.typeinfo = to_bsocket.typeinfo, .links = {link}});
     }
     return types_with_links;
   }

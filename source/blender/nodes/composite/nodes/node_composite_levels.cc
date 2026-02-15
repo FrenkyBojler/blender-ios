@@ -17,12 +17,32 @@
 namespace blender::nodes::node_composite_levels_cc {
 
 static const EnumPropertyItem channel_items[] = {
-    {CMP_NODE_LEVLES_LUMINANCE, "COMBINED_RGB", 0, N_("Combined"), N_("Combined RGB")},
-    {CMP_NODE_LEVLES_RED, "RED", 0, N_("Red"), N_("Red Channel")},
-    {CMP_NODE_LEVLES_GREEN, "GREEN", 0, N_("Green"), N_("Green Channel")},
-    {CMP_NODE_LEVLES_BLUE, "BLUE", 0, N_("Blue"), N_("Blue Channel")},
-    {CMP_NODE_LEVLES_LUMINANCE_BT709, "LUMINANCE", 0, N_("Luminance"), N_("Luminance Channel")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_LEVLES_LUMINANCE,
+     .identifier = "COMBINED_RGB",
+     .icon = 0,
+     .name = N_("Combined"),
+     .description = N_("Combined RGB")},
+    {.value = CMP_NODE_LEVLES_RED,
+     .identifier = "RED",
+     .icon = 0,
+     .name = N_("Red"),
+     .description = N_("Red Channel")},
+    {.value = CMP_NODE_LEVLES_GREEN,
+     .identifier = "GREEN",
+     .icon = 0,
+     .name = N_("Green"),
+     .description = N_("Green Channel")},
+    {.value = CMP_NODE_LEVLES_BLUE,
+     .identifier = "BLUE",
+     .icon = 0,
+     .name = N_("Blue"),
+     .description = N_("Blue Channel")},
+    {.value = CMP_NODE_LEVLES_LUMINANCE_BT709,
+     .identifier = "LUMINANCE",
+     .icon = 0,
+     .name = N_("Luminance"),
+     .description = N_("Luminance Channel")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

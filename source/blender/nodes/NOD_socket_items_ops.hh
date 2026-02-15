@@ -267,9 +267,17 @@ inline void move_active_item(wmOperatorType *ot,
   };
 
   static const EnumPropertyItem direction_items[] = {
-      {int(MoveDirection::Up), "UP", 0, "Up", ""},
-      {int(MoveDirection::Down), "DOWN", 0, "Down", ""},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = int(MoveDirection::Up),
+       .identifier = "UP",
+       .icon = 0,
+       .name = "Up",
+       .description = ""},
+      {.value = int(MoveDirection::Down),
+       .identifier = "DOWN",
+       .icon = 0,
+       .name = "Down",
+       .description = ""},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_enum(ot->srna, "direction", direction_items, 0, "Direction", "Move direction");

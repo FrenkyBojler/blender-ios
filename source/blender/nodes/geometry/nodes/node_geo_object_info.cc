@@ -169,20 +169,22 @@ static void node_node_init(bNodeTree * /*tree*/, bNode *node)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem rna_node_geometry_object_info_transform_space_items[] = {
-      {GEO_NODE_TRANSFORM_SPACE_ORIGINAL,
-       "ORIGINAL",
-       0,
-       "Original",
-       "Output the geometry relative to the input object transform, and the location, rotation "
-       "and "
-       "scale relative to the world origin"},
-      {GEO_NODE_TRANSFORM_SPACE_RELATIVE,
-       "RELATIVE",
-       0,
-       "Relative",
-       "Bring the input object geometry, location, rotation and scale into the modified object, "
-       "maintaining the relative position between the two objects in the scene"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = GEO_NODE_TRANSFORM_SPACE_ORIGINAL,
+       .identifier = "ORIGINAL",
+       .icon = 0,
+       .name = "Original",
+       .description = "Output the geometry relative to the input object transform, and the "
+                      "location, rotation "
+                      "and "
+                      "scale relative to the world origin"},
+      {.value = GEO_NODE_TRANSFORM_SPACE_RELATIVE,
+       .identifier = "RELATIVE",
+       .icon = 0,
+       .name = "Relative",
+       .description = "Bring the input object geometry, location, rotation and scale into the "
+                      "modified object, "
+                      "maintaining the relative position between the two objects in the scene"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   PropertyRNA *prop = RNA_def_node_enum(srna,

@@ -27,17 +27,17 @@
 namespace blender::nodes::node_geo_scale_elements_cc {
 
 static const EnumPropertyItem scale_mode_items[] = {
-    {GEO_NODE_SCALE_ELEMENTS_UNIFORM,
-     "UNIFORM",
-     ICON_NONE,
-     N_("Uniform"),
-     N_("Scale elements by the same factor in every direction")},
-    {GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS,
-     "SINGLE_AXIS",
-     ICON_NONE,
-     N_("Single Axis"),
-     N_("Scale elements in a single direction")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = GEO_NODE_SCALE_ELEMENTS_UNIFORM,
+     .identifier = "UNIFORM",
+     .icon = ICON_NONE,
+     .name = N_("Uniform"),
+     .description = N_("Scale elements by the same factor in every direction")},
+    {.value = GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS,
+     .identifier = "SINGLE_AXIS",
+     .icon = ICON_NONE,
+     .name = N_("Single Axis"),
+     .description = N_("Scale elements in a single direction")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -536,17 +536,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem domain_items[] = {
-      {int(AttrDomain::Face),
-       "FACE",
-       ICON_NONE,
-       "Face",
-       "Scale individual faces or neighboring face islands"},
-      {int(AttrDomain::Edge),
-       "EDGE",
-       ICON_NONE,
-       "Edge",
-       "Scale individual edges or neighboring edge islands"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = int(AttrDomain::Face),
+       .identifier = "FACE",
+       .icon = ICON_NONE,
+       .name = "Face",
+       .description = "Scale individual faces or neighboring face islands"},
+      {.value = int(AttrDomain::Edge),
+       .identifier = "EDGE",
+       .icon = ICON_NONE,
+       .name = "Edge",
+       .description = "Scale individual edges or neighboring edge islands"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

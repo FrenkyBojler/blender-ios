@@ -1513,10 +1513,22 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem mode_items[] = {
-      {GEO_NODE_EXTRUDE_MESH_VERTICES, "VERTICES", 0, "Vertices", ""},
-      {GEO_NODE_EXTRUDE_MESH_EDGES, "EDGES", 0, "Edges", ""},
-      {GEO_NODE_EXTRUDE_MESH_FACES, "FACES", 0, "Faces", ""},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = GEO_NODE_EXTRUDE_MESH_VERTICES,
+       .identifier = "VERTICES",
+       .icon = 0,
+       .name = "Vertices",
+       .description = ""},
+      {.value = GEO_NODE_EXTRUDE_MESH_EDGES,
+       .identifier = "EDGES",
+       .icon = 0,
+       .name = "Edges",
+       .description = ""},
+      {.value = GEO_NODE_EXTRUDE_MESH_FACES,
+       .identifier = "FACES",
+       .icon = 0,
+       .name = "Faces",
+       .description = ""},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

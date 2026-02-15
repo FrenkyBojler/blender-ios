@@ -61,7 +61,8 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
       aal::RelationsInNode &relations = this->get_anonymous_attribute_relations();
       const int field_input = socket_builder->decl_base_->index;
       for (const int data_input : data_inputs) {
-        relations.eval_relations.append({field_input, data_input});
+        relations.eval_relations.append(
+            {.field_input = field_input, .geometry_input = data_input});
       }
     }
   }
@@ -70,7 +71,8 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
       aal::RelationsInNode &relations = this->get_anonymous_attribute_relations();
       const int field_output = socket_builder->decl_base_->index;
       for (const int data_output : data_outputs) {
-        relations.available_relations.append({field_output, data_output});
+        relations.available_relations.append(
+            {.field_output = field_output, .geometry_output = data_output});
       }
     }
     if (socket_builder->reference_pass_all_) {
@@ -81,7 +83,8 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
         if (input_socket_decl.input_field_type != InputSocketFieldType::None ||
             ELEM(input_socket_decl.socket_type, SOCK_BUNDLE, SOCK_CLOSURE))
         {
-          relations.reference_relations.append({input_i, field_output});
+          relations.reference_relations.append(
+              {.from_field_input = input_i, .to_field_output = field_output});
         }
       }
     }
@@ -89,7 +92,8 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
       aal::RelationsInNode &relations = this->get_anonymous_attribute_relations();
       const int data_output = socket_builder->decl_base_->index;
       for (const int data_input : data_inputs) {
-        relations.propagate_relations.append({data_input, data_output});
+        relations.propagate_relations.append(
+            {.from_geometry_input = data_input, .to_geometry_output = data_output});
       }
     }
   }
@@ -492,7 +496,7 @@ PanelDeclarationBuilder &DeclarationListBuilder::add_panel(const StringRef name,
 
 void PanelDeclaration::build(bNodePanelState &panel) const
 {
-  panel = {0};
+  panel = {.identifier = 0};
   panel.identifier = this->identifier;
   SET_FLAG_FROM_TEST(panel.flag, this->default_collapsed, NODE_PANEL_COLLAPSED);
 }

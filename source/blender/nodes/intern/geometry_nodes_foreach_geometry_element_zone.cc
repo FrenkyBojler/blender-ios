@@ -342,9 +342,9 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
           if (!eval_storage.main_geometry.is_empty()) {
             tree_logger->node_warnings.append(
                 *tree_logger->allocator,
-                {zone_.input_node()->identifier,
-                 {NodeWarningType::Info,
-                  N_("Input geometry has no elements in the iteration domain.")}});
+                {.node_id = zone_.input_node()->identifier,
+                 .warning = {NodeWarningType::Info,
+                             N_("Input geometry has no elements in the iteration domain.")}});
           }
         }
       }
@@ -445,13 +445,15 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
           if (curves.is_empty()) {
             continue;
           }
-          component_ids.append({component_type, iteration_domain, layer_i});
+          component_ids.append({.component_type = component_type,
+                                .domain = iteration_domain,
+                                .layer_index = layer_i});
         }
       }
       else {
         const int domain_size = src_component->attribute_domain_size(iteration_domain);
         if (domain_size > 0) {
-          component_ids.append({component_type, iteration_domain});
+          component_ids.append({.component_type = component_type, .domain = iteration_domain});
         }
       }
     }
@@ -1051,7 +1053,7 @@ void LazyFunctionForReduceForeachGeometryElement::handle_generation_items_group(
       if (attribute_filter.allow_skip(iter.name)) {
         return;
       }
-      attributes_to_propagate.append({iter.name, iter.data_type});
+      attributes_to_propagate.append({.name = iter.name, .type = iter.data_type});
     });
     Map<StringRef, GVArray> cached_adapted_src_attributes;
 

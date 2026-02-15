@@ -125,18 +125,18 @@ static void initialize_volume_component_from_points(GeoNodeExecParams &params,
 NODE_STORAGE_FUNCS(NodeGeometryPointsToVolume)
 
 static EnumPropertyItem resolution_mode_items[] = {
-    {GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_AMOUNT,
-     "VOXEL_AMOUNT",
-     0,
-     CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Amount"),
-     N_("Specify the approximate number of voxels along the diagonal")},
-    {GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_SIZE,
-     "VOXEL_SIZE",
-     0,
+    {.value = GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_AMOUNT,
+     .identifier = "VOXEL_AMOUNT",
+     .icon = 0,
+     .name = CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Amount"),
+     .description = N_("Specify the approximate number of voxels along the diagonal")},
+    {.value = GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_SIZE,
+     .identifier = "VOXEL_SIZE",
+     .icon = 0,
 
-     CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Size"),
-     N_("Specify the voxel side length")},
-    {0, nullptr, 0, nullptr, nullptr},
+     .name = CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Size"),
+     .description = N_("Specify the voxel side length")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

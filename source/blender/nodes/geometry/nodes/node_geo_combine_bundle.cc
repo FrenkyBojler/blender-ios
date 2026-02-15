@@ -139,7 +139,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     bke::SocketValueVariant value = params.extract_input<bke::SocketValueVariant>(
         node.input_socket(i).identifier);
-    bundle.add(name, BundleItemSocketValue{stype, std::move(value)});
+    bundle.add(name, BundleItemSocketValue{.type = stype, .value = std::move(value)});
   }
 
   params.set_output("Bundle", std::move(bundle_ptr));

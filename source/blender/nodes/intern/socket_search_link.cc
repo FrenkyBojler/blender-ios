@@ -35,7 +35,7 @@ void GatherLinkSearchOpParams::add_item_full_name(std::string name,
                                                   SocketLinkOperation::LinkSocketFn fn,
                                                   int weight)
 {
-  items_.append({std::move(name), std::move(fn), weight});
+  items_.append({.name = std::move(name), .fn = std::move(fn), .weight = weight});
 }
 
 const bNodeSocket &GatherLinkSearchOpParams::other_socket() const

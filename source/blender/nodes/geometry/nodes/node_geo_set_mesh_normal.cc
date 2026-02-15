@@ -183,26 +183,29 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem mode_items[] = {
-      {int(Mode::Sharpness),
-       "SHARPNESS",
-       0,
-       "Sharpness",
-       "Store the sharpness of each face or edge. Similar to the \"Shade Smooth\" and \"Shade "
-       "Flat\" operators."},
-      {int(Mode::Free),
-       "FREE",
-       0,
-       "Free",
-       "Store custom normals as simple vectors in the local space of the mesh. Values are not "
-       "necessarily updated automatically later on as the mesh is deformed."},
-      {int(Mode::CornerFanSpace),
-       "TANGENT_SPACE",
-       0,
-       "Tangent Space",
-       "Store normals in a deformation dependent custom transformation space. This method is "
-       "slower, but can be better when subsequent operations change the mesh without handling "
-       "normals specifically."},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = int(Mode::Sharpness),
+       .identifier = "SHARPNESS",
+       .icon = 0,
+       .name = "Sharpness",
+       .description =
+           "Store the sharpness of each face or edge. Similar to the \"Shade Smooth\" and \"Shade "
+           "Flat\" operators."},
+      {.value = int(Mode::Free),
+       .identifier = "FREE",
+       .icon = 0,
+       .name = "Free",
+       .description =
+           "Store custom normals as simple vectors in the local space of the mesh. Values are not "
+           "necessarily updated automatically later on as the mesh is deformed."},
+      {.value = int(Mode::CornerFanSpace),
+       .identifier = "TANGENT_SPACE",
+       .icon = 0,
+       .name = "Tangent Space",
+       .description =
+           "Store normals in a deformation dependent custom transformation space. This method is "
+           "slower, but can be better when subsequent operations change the mesh without handling "
+           "normals specifically."},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

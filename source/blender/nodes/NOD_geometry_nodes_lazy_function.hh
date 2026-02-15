@@ -541,8 +541,8 @@ class ScopedNodeTimer {
     auto &local_user_data = static_cast<GeoNodesLocalUserData &>(*context_.local_user_data);
     if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data))
     {
-      tree_logger->node_execution_times.append(*tree_logger->allocator,
-                                               {node_.identifier, start_, end});
+      tree_logger->node_execution_times.append(
+          *tree_logger->allocator, {.node_id = node_.identifier, .start = start_, .end = end});
     }
   }
 };

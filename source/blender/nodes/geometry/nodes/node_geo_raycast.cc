@@ -26,17 +26,17 @@ using namespace blender::bke::mesh_surface_sample;
 NODE_STORAGE_FUNCS(NodeGeometryRaycast)
 
 static EnumPropertyItem interpolation_items[] = {
-    {GEO_NODE_RAYCAST_INTERPOLATED,
-     "INTERPOLATED",
-     0,
-     N_("Interpolated"),
-     N_("Interpolate the attribute from the corners of the hit face")},
-    {GEO_NODE_RAYCAST_NEAREST,
-     "NEAREST",
-     0,
-     N_("Nearest"),
-     N_("Use the attribute value of the closest mesh element")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = GEO_NODE_RAYCAST_INTERPOLATED,
+     .identifier = "INTERPOLATED",
+     .icon = 0,
+     .name = N_("Interpolated"),
+     .description = N_("Interpolate the attribute from the corners of the hit face")},
+    {.value = GEO_NODE_RAYCAST_NEAREST,
+     .identifier = "NEAREST",
+     .icon = 0,
+     .name = N_("Nearest"),
+     .description = N_("Use the attribute value of the closest mesh element")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

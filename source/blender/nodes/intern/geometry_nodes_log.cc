@@ -116,8 +116,9 @@ GeometryInfoLog::GeometryInfoLog(const bke::GeometrySet &geometry_set)
                                      const bke::GeometryComponent & /*component*/) {
                                    if (!bke::attribute_name_is_anonymous(name) && names.add(name))
                                    {
-                                     this->attributes.append(
-                                         {name, meta_data.domain, meta_data.data_type});
+                                     this->attributes.append({.name = name,
+                                                              .domain = meta_data.domain,
+                                                              .data_type = meta_data.data_type});
                                    }
                                  });
 
@@ -177,7 +178,7 @@ GeometryInfoLog::GeometryInfoLog(const bke::GeometrySet &geometry_set)
           info.grids.resize(BKE_volume_num_grids(volume));
           for (const int i : IndexRange(BKE_volume_num_grids(volume))) {
             const bke::VolumeGridData *grid = BKE_volume_grid_get(volume, i);
-            info.grids[i] = {grid->name(), bke::volume_grid::get_type(*grid)};
+            info.grids[i] = {.name = grid->name(), .grid_type = bke::volume_grid::get_type(*grid)};
           }
         }
 #endif /* WITH_OPENVDB */
@@ -223,7 +224,7 @@ GridInfoLog::GridInfoLog(const bke::GVolumeGrid &grid)
   const openvdb::GridBase &vdb_grid = grid->grid(token);
   const VolumeGridType grid_type = bke::volume_grid::get_type(vdb_grid);
 
-  GridIsEmptyOp is_empty_op{vdb_grid};
+  GridIsEmptyOp is_empty_op{.base_grid = vdb_grid};
   if (BKE_volume_grid_type_operation(grid_type, is_empty_op)) {
     this->is_empty = is_empty_op.result;
   }
@@ -248,9 +249,9 @@ ClosureValueLog::ClosureValueLog(Vector<Item> inputs,
     const bNodeTree *tree_eval = source_location->tree;
     const bNodeTree *tree_orig = reinterpret_cast<const bNodeTree *>(
         DEG_get_original_id(&tree_eval->id));
-    this->source = Source{tree_orig->id.session_uid,
-                          source_location->closure_output_node_id,
-                          source_location->compute_context_hash};
+    this->source = Source{.orig_node_tree_session_uid = tree_orig->id.session_uid,
+                          .closure_output_node_id = source_location->closure_output_node_id,
+                          .compute_context_hash = source_location->compute_context_hash};
   }
 }
 
@@ -306,7 +307,9 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
     auto &socket_values = socket.in_out == SOCK_IN ? this->input_socket_values :
                                                      this->output_socket_values;
     socket_values.append(*this->allocator,
-                         {node.identifier, socket.index(), std::move(value_log)});
+                         {.node_id = node.identifier,
+                          .socket_index = socket.index(),
+                          .value = std::move(value_log)});
   };
 
   auto log_generic_value = [&](const CPPType &type, const void *value) {
@@ -342,12 +345,12 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
           if (const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(
                   &item.value.value))
           {
-            items.append({item.key, {socket_value->type}});
+            items.append({.key = item.key, .type = {socket_value->type}});
           }
           if (const BundleItemInternalValue *internal_value = std::get_if<BundleItemInternalValue>(
                   &item.value.value))
           {
-            items.append({item.key, {internal_value->value->type_name()}});
+            items.append({.key = item.key, .type = {internal_value->value->type_name()}});
           }
         }
       }
@@ -361,10 +364,10 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
       if (const ClosurePtr closure = value_variant.extract<ClosurePtr>()) {
         const ClosureSignature &signature = closure->signature();
         for (const ClosureSignature::Item &item : signature.inputs) {
-          inputs.append({item.key, item.type});
+          inputs.append({.key = item.key, .type = item.type});
         }
         for (const ClosureSignature::Item &item : signature.outputs) {
-          outputs.append({item.key, item.type});
+          outputs.append({.key = item.key, .type = item.type});
         }
         source_location = closure->source_location();
         eval_log = closure->eval_log_ptr();

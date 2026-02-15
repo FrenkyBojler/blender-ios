@@ -229,17 +229,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem mode_items[] = {
-      {int(DistributeMode::Random),
-       "DENSITY_RANDOM",
-       0,
-       "Random",
-       "Distribute points randomly inside of the volume"},
-      {int(DistributeMode::Grid),
-       "DENSITY_GRID",
-       0,
-       "Grid",
-       "Distribute the points in a grid pattern inside of the volume"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = int(DistributeMode::Random),
+       .identifier = "DENSITY_RANDOM",
+       .icon = 0,
+       .name = "Random",
+       .description = "Distribute points randomly inside of the volume"},
+      {.value = int(DistributeMode::Grid),
+       .identifier = "DENSITY_GRID",
+       .icon = 0,
+       .name = "Grid",
+       .description = "Distribute the points in a grid pattern inside of the volume"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

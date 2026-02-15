@@ -17,18 +17,19 @@ enum class KernelDataType : uint8_t {
 };
 
 static const EnumPropertyItem kernel_data_type_items[] = {
-    {int(KernelDataType::Float),
-     "FLOAT",
-     0,
-     N_("Float"),
-     N_("The kernel is a float and will be convolved with all input channels")},
-    {int(KernelDataType::Color),
-     "COLOR",
-     0,
-     N_("Color"),
-     N_("The kernel is a color and each channel of the kernel will be convolved with each "
-        "respective channel in the input")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = int(KernelDataType::Float),
+     .identifier = "FLOAT",
+     .icon = 0,
+     .name = N_("Float"),
+     .description = N_("The kernel is a float and will be convolved with all input channels")},
+    {.value = int(KernelDataType::Color),
+     .identifier = "COLOR",
+     .icon = 0,
+     .name = N_("Color"),
+     .description = N_(
+         "The kernel is a color and each channel of the kernel will be convolved with each "
+         "respective channel in the input")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

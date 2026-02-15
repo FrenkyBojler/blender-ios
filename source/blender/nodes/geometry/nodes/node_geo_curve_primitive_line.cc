@@ -114,17 +114,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem mode_items[] = {
-      {GEO_NODE_CURVE_PRIMITIVE_LINE_MODE_POINTS,
-       "POINTS",
-       ICON_NONE,
-       "Points",
-       "Define the start and end points of the line"},
-      {GEO_NODE_CURVE_PRIMITIVE_LINE_MODE_DIRECTION,
-       "DIRECTION",
-       ICON_NONE,
-       "Direction",
-       "Define a line with a start point, direction and length"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = GEO_NODE_CURVE_PRIMITIVE_LINE_MODE_POINTS,
+       .identifier = "POINTS",
+       .icon = ICON_NONE,
+       .name = "Points",
+       .description = "Define the start and end points of the line"},
+      {.value = GEO_NODE_CURVE_PRIMITIVE_LINE_MODE_DIRECTION,
+       .identifier = "DIRECTION",
+       .icon = ICON_NONE,
+       .name = "Direction",
+       .description = "Define a line with a start point, direction and length"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

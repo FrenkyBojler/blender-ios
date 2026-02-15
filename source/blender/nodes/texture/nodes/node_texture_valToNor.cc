@@ -11,14 +11,30 @@
 namespace blender {
 
 static bke::bNodeSocketTemplate inputs[] = {
-    {SOCK_FLOAT, N_("Val"), 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_NONE},
-    {SOCK_FLOAT, N_("Nabla"), 0.025f, 0.0f, 0.0f, 0.0f, 0.001f, 0.1f, PROP_UNSIGNED},
-    {-1, ""},
+    {.type = SOCK_FLOAT,
+     .name = N_("Val"),
+     .val1 = 0.0f,
+     .val2 = 0.0f,
+     .val3 = 0.0f,
+     .val4 = 1.0f,
+     .min = 0.0f,
+     .max = 1.0f,
+     .subtype = PROP_NONE},
+    {.type = SOCK_FLOAT,
+     .name = N_("Nabla"),
+     .val1 = 0.025f,
+     .val2 = 0.0f,
+     .val3 = 0.0f,
+     .val4 = 0.0f,
+     .min = 0.001f,
+     .max = 0.1f,
+     .subtype = PROP_UNSIGNED},
+    {.type = -1, .name = ""},
 };
 
 static bke::bNodeSocketTemplate outputs[] = {
-    {SOCK_VECTOR, N_("Normal")},
-    {-1, ""},
+    {.type = SOCK_VECTOR, .name = N_("Normal")},
+    {.type = -1, .name = ""},
 };
 
 static void normalfn(float *out, TexParams *p, bNode * /*node*/, bNodeStack **in, short thread)

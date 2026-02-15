@@ -151,10 +151,22 @@ static void node_extra_info(NodeExtraInfoParams &params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem axis_items[] = {
-      {int(math::Axis::X), "X", ICON_NONE, "X", ""},
-      {int(math::Axis::Y), "Y", ICON_NONE, "Y", ""},
-      {int(math::Axis::Z), "Z", ICON_NONE, "Z", ""},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = int(math::Axis::X),
+       .identifier = "X",
+       .icon = ICON_NONE,
+       .name = "X",
+       .description = ""},
+      {.value = int(math::Axis::Y),
+       .identifier = "Y",
+       .icon = ICON_NONE,
+       .name = "Y",
+       .description = ""},
+      {.value = int(math::Axis::Z),
+       .identifier = "Z",
+       .icon = ICON_NONE,
+       .name = "Z",
+       .description = ""},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

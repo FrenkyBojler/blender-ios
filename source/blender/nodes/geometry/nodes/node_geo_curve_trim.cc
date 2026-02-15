@@ -112,12 +112,16 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     if (params.node_tree().typeinfo->validate_link(eNodeSocketDatatype(params.other_socket().type),
                                                    SOCK_FLOAT))
     {
-      params.add_item(IFACE_("Start (Factor)"),
-                      SocketSearchOp{"Start", GEO_NODE_CURVE_SAMPLE_FACTOR});
-      params.add_item(IFACE_("End (Factor)"), SocketSearchOp{"End", GEO_NODE_CURVE_SAMPLE_FACTOR});
-      params.add_item(IFACE_("Start (Length)"),
-                      SocketSearchOp{"Start", GEO_NODE_CURVE_SAMPLE_LENGTH});
-      params.add_item(IFACE_("End (Length)"), SocketSearchOp{"End", GEO_NODE_CURVE_SAMPLE_LENGTH});
+      params.add_item(
+          IFACE_("Start (Factor)"),
+          SocketSearchOp{.socket_name = "Start", .mode = GEO_NODE_CURVE_SAMPLE_FACTOR});
+      params.add_item(IFACE_("End (Factor)"),
+                      SocketSearchOp{.socket_name = "End", .mode = GEO_NODE_CURVE_SAMPLE_FACTOR});
+      params.add_item(
+          IFACE_("Start (Length)"),
+          SocketSearchOp{.socket_name = "Start", .mode = GEO_NODE_CURVE_SAMPLE_LENGTH});
+      params.add_item(IFACE_("End (Length)"),
+                      SocketSearchOp{.socket_name = "End", .mode = GEO_NODE_CURVE_SAMPLE_LENGTH});
     }
   }
 }
@@ -240,17 +244,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static EnumPropertyItem mode_items[] = {
-      {GEO_NODE_CURVE_SAMPLE_FACTOR,
-       "FACTOR",
-       0,
-       "Factor",
-       "Find the endpoint positions using a factor of each spline's length"},
-      {GEO_NODE_CURVE_RESAMPLE_LENGTH,
-       "LENGTH",
-       0,
-       "Length",
-       "Find the endpoint positions using a length from the start of each spline"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = GEO_NODE_CURVE_SAMPLE_FACTOR,
+       .identifier = "FACTOR",
+       .icon = 0,
+       .name = "Factor",
+       .description = "Find the endpoint positions using a factor of each spline's length"},
+      {.value = GEO_NODE_CURVE_RESAMPLE_LENGTH,
+       .identifier = "LENGTH",
+       .icon = 0,
+       .name = "Length",
+       .description = "Find the endpoint positions using a length from the start of each spline"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

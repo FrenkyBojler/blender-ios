@@ -31,10 +31,22 @@ enum class InterpolationMode {
 };
 
 static const EnumPropertyItem interpolation_mode_items[] = {
-    {int(InterpolationMode::Nearest), "NEAREST", 0, N_("Nearest Neighbor"), ""},
-    {int(InterpolationMode::TriLinear), "TRILINEAR", 0, N_("Trilinear"), ""},
-    {int(InterpolationMode::TriQuadratic), "TRIQUADRATIC", 0, N_("Triquadratic"), ""},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = int(InterpolationMode::Nearest),
+     .identifier = "NEAREST",
+     .icon = 0,
+     .name = N_("Nearest Neighbor"),
+     .description = ""},
+    {.value = int(InterpolationMode::TriLinear),
+     .identifier = "TRILINEAR",
+     .icon = 0,
+     .name = N_("Trilinear"),
+     .description = ""},
+    {.value = int(InterpolationMode::TriQuadratic),
+     .identifier = "TRIQUADRATIC",
+     .icon = 0,
+     .name = N_("Triquadratic"),
+     .description = ""},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

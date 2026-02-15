@@ -16,22 +16,22 @@ namespace blender::nodes::node_fn_match_string_cc {
 enum class MatchStringOperation : int8_t { StartsWith, EndsWith, Contains };
 
 const EnumPropertyItem rna_enum_node_match_string_items[] = {
-    {int(MatchStringOperation::StartsWith),
-     "STARTS_WITH",
-     0,
-     N_("Starts With"),
-     N_("True when the first input starts with the second")},
-    {int(MatchStringOperation::EndsWith),
-     "ENDS_WITH",
-     0,
-     N_("Ends With"),
-     N_("True when the first input ends with the second")},
-    {int(MatchStringOperation::Contains),
-     "CONTAINS",
-     0,
-     N_("Contains"),
-     N_("True when the first input contains the second as a substring")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = int(MatchStringOperation::StartsWith),
+     .identifier = "STARTS_WITH",
+     .icon = 0,
+     .name = N_("Starts With"),
+     .description = N_("True when the first input starts with the second")},
+    {.value = int(MatchStringOperation::EndsWith),
+     .identifier = "ENDS_WITH",
+     .icon = 0,
+     .name = N_("Ends With"),
+     .description = N_("True when the first input ends with the second")},
+    {.value = int(MatchStringOperation::Contains),
+     .identifier = "CONTAINS",
+     .icon = 0,
+     .name = N_("Contains"),
+     .description = N_("True when the first input contains the second as a substring")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

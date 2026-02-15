@@ -22,23 +22,28 @@
 namespace blender::nodes::node_composite_channel_key_cc {
 
 static const EnumPropertyItem color_space_items[] = {
-    {CMP_NODE_CHANNEL_MATTE_CS_RGB, "RGB", 0, N_("RGB"), N_("RGB (Red, Green, Blue) color space")},
-    {CMP_NODE_CHANNEL_MATTE_CS_HSV,
-     "HSV",
-     0,
-     N_("HSV"),
-     N_("HSV (Hue, Saturation, Value) color space")},
-    {CMP_NODE_CHANNEL_MATTE_CS_YUV,
-     "YUV",
-     0,
-     N_("YUV"),
-     N_("YUV (Y - luma, U V - chroma) color space")},
-    {CMP_NODE_CHANNEL_MATTE_CS_YCC,
-     "YCC",
-     0,
-     N_("YCbCr"),
-     N_("YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color space")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_CHANNEL_MATTE_CS_RGB,
+     .identifier = "RGB",
+     .icon = 0,
+     .name = N_("RGB"),
+     .description = N_("RGB (Red, Green, Blue) color space")},
+    {.value = CMP_NODE_CHANNEL_MATTE_CS_HSV,
+     .identifier = "HSV",
+     .icon = 0,
+     .name = N_("HSV"),
+     .description = N_("HSV (Hue, Saturation, Value) color space")},
+    {.value = CMP_NODE_CHANNEL_MATTE_CS_YUV,
+     .identifier = "YUV",
+     .icon = 0,
+     .name = N_("YUV"),
+     .description = N_("YUV (Y - luma, U V - chroma) color space")},
+    {.value = CMP_NODE_CHANNEL_MATTE_CS_YCC,
+     .identifier = "YCC",
+     .icon = 0,
+     .name = N_("YCbCr"),
+     .description = N_(
+         "YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color space")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 enum class RGBChannel : uint8_t {
@@ -48,10 +53,10 @@ enum class RGBChannel : uint8_t {
 };
 
 static const EnumPropertyItem rgb_channel_items[] = {
-    {int(RGBChannel::R), "R", 0, "R", ""},
-    {int(RGBChannel::G), "G", 0, "G", ""},
-    {int(RGBChannel::B), "B", 0, "B", ""},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = int(RGBChannel::R), .identifier = "R", .icon = 0, .name = "R", .description = ""},
+    {.value = int(RGBChannel::G), .identifier = "G", .icon = 0, .name = "G", .description = ""},
+    {.value = int(RGBChannel::B), .identifier = "B", .icon = 0, .name = "B", .description = ""},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 enum class HSVChannel : uint8_t {
@@ -61,10 +66,10 @@ enum class HSVChannel : uint8_t {
 };
 
 static const EnumPropertyItem hsv_channel_items[] = {
-    {int(HSVChannel::H), "H", 0, "H", ""},
-    {int(HSVChannel::S), "S", 0, "S", ""},
-    {int(HSVChannel::V), "V", 0, "V", ""},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = int(HSVChannel::H), .identifier = "H", .icon = 0, .name = "H", .description = ""},
+    {.value = int(HSVChannel::S), .identifier = "S", .icon = 0, .name = "S", .description = ""},
+    {.value = int(HSVChannel::V), .identifier = "V", .icon = 0, .name = "V", .description = ""},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 enum class YUVChannel : uint8_t {
@@ -74,10 +79,10 @@ enum class YUVChannel : uint8_t {
 };
 
 static const EnumPropertyItem yuv_channel_items[] = {
-    {int(YUVChannel::Y), "Y", 0, "Y", ""},
-    {int(YUVChannel::U), "U", 0, "U", ""},
-    {int(YUVChannel::V), "V", 0, "V", ""},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = int(YUVChannel::Y), .identifier = "Y", .icon = 0, .name = "Y", .description = ""},
+    {.value = int(YUVChannel::U), .identifier = "U", .icon = 0, .name = "U", .description = ""},
+    {.value = int(YUVChannel::V), .identifier = "V", .icon = 0, .name = "V", .description = ""},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 enum class YCbCrChannel : uint8_t {
@@ -87,24 +92,32 @@ enum class YCbCrChannel : uint8_t {
 };
 
 static const EnumPropertyItem ycbcr_channel_items[] = {
-    {int(YCbCrChannel::Y), "Y", 0, "Y", ""},
-    {int(YCbCrChannel::Cb), "CB", 0, "Cb", ""},
-    {int(YCbCrChannel::Cr), "CR", 0, "Cr", ""},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = int(YCbCrChannel::Y), .identifier = "Y", .icon = 0, .name = "Y", .description = ""},
+    {.value = int(YCbCrChannel::Cb),
+     .identifier = "CB",
+     .icon = 0,
+     .name = "Cb",
+     .description = ""},
+    {.value = int(YCbCrChannel::Cr),
+     .identifier = "CR",
+     .icon = 0,
+     .name = "Cr",
+     .description = ""},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static const EnumPropertyItem limit_method_items[] = {
-    {CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE,
-     "SINGLE",
-     0,
-     "Single",
-     "Limit by single channel"},
-    {CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_MAX,
-     "MAX",
-     0,
-     "Max",
-     "Limit by maximum of other channels"},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE,
+     .identifier = "SINGLE",
+     .icon = 0,
+     .name = "Single",
+     .description = "Limit by single channel"},
+    {.value = CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_MAX,
+     .identifier = "MAX",
+     .icon = 0,
+     .name = "Max",
+     .description = "Limit by maximum of other channels"},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

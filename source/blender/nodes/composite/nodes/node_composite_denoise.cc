@@ -33,39 +33,49 @@
 namespace blender::nodes::node_composite_denoise_cc {
 
 static const EnumPropertyItem prefilter_items[] = {
-    {CMP_NODE_DENOISE_PREFILTER_NONE,
-     "NONE",
-     0,
-     N_("None"),
-     N_("No prefiltering, use when guiding passes are noise-free")},
-    {CMP_NODE_DENOISE_PREFILTER_FAST,
-     "FAST",
-     0,
-     N_("Fast"),
-     N_("Denoise image and guiding passes together. Improves quality when guiding passes are "
-        "noisy using least amount of extra processing time.")},
-    {CMP_NODE_DENOISE_PREFILTER_ACCURATE,
-     "ACCURATE",
-     0,
-     N_("Accurate"),
-     N_("Prefilter noisy guiding passes before denoising image. Improves quality when guiding "
-        "passes are noisy using extra processing time.")},
-    {0, nullptr, 0, nullptr, nullptr}};
+    {.value = CMP_NODE_DENOISE_PREFILTER_NONE,
+     .identifier = "NONE",
+     .icon = 0,
+     .name = N_("None"),
+     .description = N_("No prefiltering, use when guiding passes are noise-free")},
+    {.value = CMP_NODE_DENOISE_PREFILTER_FAST,
+     .identifier = "FAST",
+     .icon = 0,
+     .name = N_("Fast"),
+     .description = N_(
+         "Denoise image and guiding passes together. Improves quality when guiding passes are "
+         "noisy using least amount of extra processing time.")},
+    {.value = CMP_NODE_DENOISE_PREFILTER_ACCURATE,
+     .identifier = "ACCURATE",
+     .icon = 0,
+     .name = N_("Accurate"),
+     .description = N_(
+         "Prefilter noisy guiding passes before denoising image. Improves quality when guiding "
+         "passes are noisy using extra processing time.")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr}};
 
 static const EnumPropertyItem quality_items[] = {
-    {CMP_NODE_DENOISE_QUALITY_SCENE,
-     "FOLLOW_SCENE",
-     0,
-     N_("Follow Scene"),
-     N_("Use the scene's denoising quality setting")},
-    {CMP_NODE_DENOISE_QUALITY_HIGH, "HIGH", 0, "High", "High quality"},
-    {CMP_NODE_DENOISE_QUALITY_BALANCED,
-     "BALANCED",
-     0,
-     N_("Balanced"),
-     N_("Balanced between performance and quality")},
-    {CMP_NODE_DENOISE_QUALITY_FAST, "FAST", 0, "Fast", "High performance"},
-    {0, nullptr, 0, nullptr, nullptr}};
+    {.value = CMP_NODE_DENOISE_QUALITY_SCENE,
+     .identifier = "FOLLOW_SCENE",
+     .icon = 0,
+     .name = N_("Follow Scene"),
+     .description = N_("Use the scene's denoising quality setting")},
+    {.value = CMP_NODE_DENOISE_QUALITY_HIGH,
+     .identifier = "HIGH",
+     .icon = 0,
+     .name = "High",
+     .description = "High quality"},
+    {.value = CMP_NODE_DENOISE_QUALITY_BALANCED,
+     .identifier = "BALANCED",
+     .icon = 0,
+     .name = N_("Balanced"),
+     .description = N_("Balanced between performance and quality")},
+    {.value = CMP_NODE_DENOISE_QUALITY_FAST,
+     .identifier = "FAST",
+     .icon = 0,
+     .name = "Fast",
+     .description = "High performance"},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr}};
 
 static void node_declare(NodeDeclarationBuilder &b)
 {

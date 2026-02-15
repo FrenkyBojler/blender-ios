@@ -133,11 +133,11 @@ class LazyFunctionForClosureZone : public LazyFunction {
 
     for (const int i : IndexRange(storage.input_items.items_num)) {
       const bNodeSocket &bsocket = zone_.input_node()->output_socket(i);
-      closure_signature_->inputs.add({bsocket.name, bsocket.typeinfo});
+      closure_signature_->inputs.add({.key = bsocket.name, .type = bsocket.typeinfo});
     }
     for (const int i : IndexRange(storage.output_items.items_num)) {
       const bNodeSocket &bsocket = zone_.output_node()->input_socket(i);
-      closure_signature_->outputs.add({bsocket.name, bsocket.typeinfo});
+      closure_signature_->outputs.add({.key = bsocket.name, .type = bsocket.typeinfo});
     }
   }
 
@@ -258,9 +258,9 @@ class LazyFunctionForClosureZone : public LazyFunction {
     lf::GraphExecutor &lf_graph_executor = closure_scope->construct<lf::GraphExecutor>(
         lf_graph, nullptr, &side_effect_provider, nullptr);
     ClosureSourceLocation source_location{
-        &btree_,
-        output_bnode_.identifier,
-        user_data.compute_context->hash(),
+        .tree = &btree_,
+        .closure_output_node_id = output_bnode_.identifier,
+        .compute_context_hash = user_data.compute_context->hash(),
     };
     ClosurePtr closure{MEM_new<Closure>(__func__,
                                         closure_signature_,
@@ -363,8 +363,8 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
         {
           tree_logger->node_warnings.append(
               *tree_logger->allocator,
-              {bnode_.identifier,
-               {NodeWarningType::Error, TIP_("Recursive closure is not allowed")}});
+              {.node_id = bnode_.identifier,
+               .warning = {NodeWarningType::Error, TIP_("Recursive closure is not allowed")}});
         }
         this->set_default_outputs(params);
         return;
@@ -378,7 +378,9 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
 
         const bNodeTree &btree_orig = *DEG_get_original(&btree_);
         ClosureEvalLocation eval_location{
-            btree_orig.id.session_uid, bnode_.identifier, user_data.compute_context->hash()};
+            .orig_node_tree_session_uid = btree_orig.id.session_uid,
+            .evaluate_closure_node_id = bnode_.identifier,
+            .compute_context_hash = user_data.compute_context->hash()};
         eval_storage.closure->log_evaluation(eval_location);
       }
       else {
@@ -453,35 +455,39 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
         {
           tree_logger->node_warnings.append(
               *tree_logger->allocator,
-              {bnode_.identifier,
-               {NodeWarningType::Error,
-                fmt::format("{}: {} \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
-                            " {})",
-                            TIP_("Conversion not supported when evaluating closure"),
-                            TIP_("Input"),
-                            item.name,
-                            TIP_(item_type->label),
-                            TIP_(closure_item.type->label))}});
+              {.node_id = bnode_.identifier,
+               .warning = {
+                   NodeWarningType::Error,
+                   fmt::format(
+                       "{}: {} \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
+                       " {})",
+                       TIP_("Conversion not supported when evaluating closure"),
+                       TIP_("Input"),
+                       item.name,
+                       TIP_(item_type->label),
+                       TIP_(closure_item.type->label))}});
         }
         else if (item.socket_type != closure_item.type->type) {
           tree_logger->node_warnings.append(
               *tree_logger->allocator,
-              {bnode_.identifier,
-               {NodeWarningType::Info,
-                fmt::format("{}: {} \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
-                            " {})",
-                            TIP_("Implicit type conversion when evaluating closure"),
-                            TIP_("Input"),
-                            item.name,
-                            TIP_(item_type->label),
-                            TIP_(closure_item.type->label))}});
+              {.node_id = bnode_.identifier,
+               .warning = {
+                   NodeWarningType::Info,
+                   fmt::format(
+                       "{}: {} \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
+                       " {})",
+                       TIP_("Implicit type conversion when evaluating closure"),
+                       TIP_("Input"),
+                       item.name,
+                       TIP_(item_type->label),
+                       TIP_(closure_item.type->label))}});
         }
       }
       else {
         tree_logger->node_warnings.append(
             *tree_logger->allocator,
-            {bnode_.identifier,
-             {
+            {.node_id = bnode_.identifier,
+             .warning = {
                  NodeWarningType::Error,
                  fmt::format(fmt::runtime(TIP_("Closure does not have input: \"{}\"")), item.name),
              }});
@@ -498,37 +504,41 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
         {
           tree_logger->node_warnings.append(
               *tree_logger->allocator,
-              {bnode_.identifier,
-               {NodeWarningType::Error,
-                fmt::format("{}: {} \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
-                            " {})",
-                            TIP_("Conversion not supported when evaluating closure"),
-                            TIP_("Output"),
-                            item.name,
-                            TIP_(closure_item.type->label),
-                            TIP_(item_type->label))}});
+              {.node_id = bnode_.identifier,
+               .warning = {
+                   NodeWarningType::Error,
+                   fmt::format(
+                       "{}: {} \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
+                       " {})",
+                       TIP_("Conversion not supported when evaluating closure"),
+                       TIP_("Output"),
+                       item.name,
+                       TIP_(closure_item.type->label),
+                       TIP_(item_type->label))}});
         }
         else if (item.socket_type != closure_item.type->type) {
           tree_logger->node_warnings.append(
               *tree_logger->allocator,
-              {bnode_.identifier,
-               {NodeWarningType::Info,
-                fmt::format("{}: {} \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
-                            " {})",
-                            TIP_("Implicit type conversion when evaluating closure"),
-                            TIP_("Output"),
-                            item.name,
-                            TIP_(closure_item.type->label),
-                            TIP_(item_type->label))}});
+              {.node_id = bnode_.identifier,
+               .warning = {
+                   NodeWarningType::Info,
+                   fmt::format(
+                       "{}: {} \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
+                       " {})",
+                       TIP_("Implicit type conversion when evaluating closure"),
+                       TIP_("Output"),
+                       item.name,
+                       TIP_(closure_item.type->label),
+                       TIP_(item_type->label))}});
         }
       }
       else {
         tree_logger->node_warnings.append(
             *tree_logger->allocator,
-            {bnode_.identifier,
-             {NodeWarningType::Error,
-              fmt::format(fmt::runtime(TIP_("Closure does not have output: \"{}\"")),
-                          item.name)}});
+            {.node_id = bnode_.identifier,
+             .warning = {NodeWarningType::Error,
+                         fmt::format(fmt::runtime(TIP_("Closure does not have output: \"{}\"")),
+                                     item.name)}});
       }
     }
   }

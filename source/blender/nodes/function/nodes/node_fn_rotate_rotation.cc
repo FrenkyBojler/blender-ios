@@ -53,17 +53,17 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem space_items[] = {
-      {int(RotationSpace::Global),
-       "GLOBAL",
-       ICON_NONE,
-       "Global",
-       "Rotate the input rotation in global space"},
-      {int(RotationSpace::Local),
-       "LOCAL",
-       ICON_NONE,
-       "Local",
-       "Rotate the input rotation in its local space"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = int(RotationSpace::Global),
+       .identifier = "GLOBAL",
+       .icon = ICON_NONE,
+       .name = "Global",
+       .description = "Rotate the input rotation in global space"},
+      {.value = int(RotationSpace::Local),
+       .identifier = "LOCAL",
+       .icon = ICON_NONE,
+       .name = "Local",
+       .description = "Rotate the input rotation in its local space"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

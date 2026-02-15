@@ -795,7 +795,7 @@ static void iter_shader_to_rgba_depth_count(bNodeTree *ntree,
 
   Stack<StackNode> stack;
   Stack<StackNode> zone_stack;
-  stack.push({node_start, 0});
+  stack.push({.node = node_start, .depth = 0});
 
   while (!stack.is_empty() || !zone_stack.is_empty()) {
     StackNode s_node = !stack.is_empty() ? stack.pop() : zone_stack.pop();
@@ -824,7 +824,7 @@ static void iter_shader_to_rgba_depth_count(bNodeTree *ntree,
         /* Skip links marked as cyclic. */
         continue;
       }
-      stack.push({link->fromnode, depth_level});
+      stack.push({.node = link->fromnode, .depth = depth_level});
     }
 
     /* Zone input nodes are linked to their corresponding zone output nodes, even if there is no
@@ -832,7 +832,7 @@ static void iter_shader_to_rgba_depth_count(bNodeTree *ntree,
     if (const bke::bNodeZoneType *zone_type = bke::zone_type_by_node_type(node->type_legacy)) {
       if (zone_type->output_type == node->type_legacy) {
         if (bNode *zone_input_node = zone_type->get_corresponding_input(*ntree, *node)) {
-          zone_stack.push({zone_input_node, depth_level});
+          zone_stack.push({.node = zone_input_node, .depth = depth_level});
         }
       }
     }

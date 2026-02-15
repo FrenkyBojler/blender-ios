@@ -30,18 +30,22 @@
 namespace blender::nodes::node_composite_color_balance_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {CMP_NODE_COLOR_BALANCE_LGG, "LIFT_GAMMA_GAIN", 0, N_("Lift/Gamma/Gain"), ""},
-    {CMP_NODE_COLOR_BALANCE_ASC_CDL,
-     "OFFSET_POWER_SLOPE",
-     0,
-     N_("Offset/Power/Slope (ASC-CDL)"),
-     N_("ASC-CDL standard color correction")},
-    {CMP_NODE_COLOR_BALANCE_WHITEPOINT,
-     "WHITEPOINT",
-     0,
-     N_("White Point"),
-     N_("Chromatic adaption from a different white point")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_COLOR_BALANCE_LGG,
+     .identifier = "LIFT_GAMMA_GAIN",
+     .icon = 0,
+     .name = N_("Lift/Gamma/Gain"),
+     .description = ""},
+    {.value = CMP_NODE_COLOR_BALANCE_ASC_CDL,
+     .identifier = "OFFSET_POWER_SLOPE",
+     .icon = 0,
+     .name = N_("Offset/Power/Slope (ASC-CDL)"),
+     .description = N_("ASC-CDL standard color correction")},
+    {.value = CMP_NODE_COLOR_BALANCE_WHITEPOINT,
+     .identifier = "WHITEPOINT",
+     .icon = 0,
+     .name = N_("White Point"),
+     .description = N_("Chromatic adaption from a different white point")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

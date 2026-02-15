@@ -19,7 +19,8 @@ NodeMultiFunctions::NodeMultiFunctions(const bNodeTree &tree,
     NodeMultiFunctionBuilder builder{*bnode, tree, shared_tree};
     bnode->typeinfo->build_multi_function(builder);
     if (builder.built_fn_ != nullptr) {
-      map_.add_new(bnode, {builder.built_fn_, std::move(builder.owned_built_fn_)});
+      map_.add_new(bnode,
+                   {.fn = builder.built_fn_, .owned_fn = std::move(builder.owned_built_fn_)});
     }
   }
 }

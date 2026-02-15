@@ -14,24 +14,26 @@ namespace blender::nodes::node_geo_uv_unwrap_cc {
 NODE_STORAGE_FUNCS(NodeGeometryUVUnwrap)
 
 static EnumPropertyItem method_items[] = {
-    {GEO_NODE_UV_UNWRAP_METHOD_ANGLE_BASED,
-     "ANGLE_BASED",
-     0,
-     N_("Angle Based"),
-     N_("This method gives a good 2D representation of a mesh")},
-    {GEO_NODE_UV_UNWRAP_METHOD_CONFORMAL,
-     "CONFORMAL",
-     0,
-     N_("Conformal"),
-     N_("Uses LSCM (Least Squares Conformal Mapping). This usually gives a less accurate UV "
-        "mapping than Angle Based, but works better for simpler objects")},
-    {GEO_NODE_UV_UNWRAP_METHOD_MINIMUM_STRETCH,
-     "MINIMUM_STRETCH",
-     0,
-     N_("Minimum Stretch"),
-     N_("Uses SLIM (Scalable Locally Injective Mapping). Minimizes distortion in areas and "
-        "angles.")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = GEO_NODE_UV_UNWRAP_METHOD_ANGLE_BASED,
+     .identifier = "ANGLE_BASED",
+     .icon = 0,
+     .name = N_("Angle Based"),
+     .description = N_("This method gives a good 2D representation of a mesh")},
+    {.value = GEO_NODE_UV_UNWRAP_METHOD_CONFORMAL,
+     .identifier = "CONFORMAL",
+     .icon = 0,
+     .name = N_("Conformal"),
+     .description = N_(
+         "Uses LSCM (Least Squares Conformal Mapping). This usually gives a less accurate UV "
+         "mapping than Angle Based, but works better for simpler objects")},
+    {.value = GEO_NODE_UV_UNWRAP_METHOD_MINIMUM_STRETCH,
+     .identifier = "MINIMUM_STRETCH",
+     .icon = 0,
+     .name = N_("Minimum Stretch"),
+     .description = N_(
+         "Uses SLIM (Scalable Locally Injective Mapping). Minimizes distortion in areas and "
+         "angles.")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

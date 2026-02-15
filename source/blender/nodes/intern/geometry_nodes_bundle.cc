@@ -108,8 +108,8 @@ static BundleItemValue create_nested_bundle_item()
 {
   static const bke::bNodeSocketType *bundle_socket_type = bke::node_socket_type_find_static(
       SOCK_BUNDLE);
-  return {
-      BundleItemSocketValue{bundle_socket_type, bke::SocketValueVariant::From(Bundle::create())}};
+  return {BundleItemSocketValue{.type = bundle_socket_type,
+                                .value = bke::SocketValueVariant::From(Bundle::create())}};
 }
 
 void Bundle::add_path_override(const StringRef path, const BundleItemValue &value)
@@ -355,7 +355,7 @@ void BundleSignature::add(std::string key, const eNodeSocketDatatype socket_type
 {
   const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(socket_type);
   BLI_assert(stype);
-  items.add({std::move(key), stype});
+  items.add({.key = std::move(key), .type = stype});
 }
 
 BundleSignature BundleSignature::from_combine_bundle_node(const bNode &node,
@@ -373,7 +373,7 @@ BundleSignature BundleSignature::from_combine_bundle_node(const bNode &node,
               socket,
               NodeSocketInterfaceStructureType(item.structure_type),
               allow_auto_structure_type);
-      signature.items.add({item.name, stype, structure_type});
+      signature.items.add({.key = item.name, .type = stype, .structure_type = structure_type});
     }
   }
   return signature;
@@ -394,7 +394,7 @@ BundleSignature BundleSignature::from_separate_bundle_node(const bNode &node,
               socket,
               NodeSocketInterfaceStructureType(item.structure_type),
               allow_auto_structure_type);
-      signature.items.add({item.name, stype, structure_type});
+      signature.items.add({.key = item.name, .type = stype, .structure_type = structure_type});
     }
   }
   return signature;

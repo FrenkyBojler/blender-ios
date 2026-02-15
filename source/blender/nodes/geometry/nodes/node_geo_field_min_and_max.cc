@@ -277,14 +277,22 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static EnumPropertyItem items[] = {
-      {CD_PROP_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
-      {CD_PROP_INT32, "INT", ICON_NODE_SOCKET_INT, "Integer", "32-bit integer"},
-      {CD_PROP_FLOAT3,
-       "FLOAT_VECTOR",
-       ICON_NODE_SOCKET_VECTOR,
-       "Vector",
-       "3D vector with floating-point values"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = CD_PROP_FLOAT,
+       .identifier = "FLOAT",
+       .icon = ICON_NODE_SOCKET_FLOAT,
+       .name = "Float",
+       .description = "Floating-point value"},
+      {.value = CD_PROP_INT32,
+       .identifier = "INT",
+       .icon = ICON_NODE_SOCKET_INT,
+       .name = "Integer",
+       .description = "32-bit integer"},
+      {.value = CD_PROP_FLOAT3,
+       .identifier = "FLOAT_VECTOR",
+       .icon = ICON_NODE_SOCKET_VECTOR,
+       .name = "Vector",
+       .description = "3D vector with floating-point values"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

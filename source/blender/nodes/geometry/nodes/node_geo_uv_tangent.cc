@@ -17,20 +17,23 @@ enum class Method {
 };
 
 static EnumPropertyItem method_items[] = {
-    {int(Method::Exact),
-     "EXACT",
-     0,
-     N_("Exact"),
-     N_("Calculation using the MikkTSpace library, consistent with tangents used elsewhere in "
-        "Blender")},
-    {int(Method::Fast),
-     "FAST",
-     0,
-     N_("Fast"),
-     N_("Significantly faster method that approximates tangents interpolated across face corners "
-        "with matching UVs. For a value actually tangential to the surface, use the cross product "
-        "with the normal.")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = int(Method::Exact),
+     .identifier = "EXACT",
+     .icon = 0,
+     .name = N_("Exact"),
+     .description = N_(
+         "Calculation using the MikkTSpace library, consistent with tangents used elsewhere in "
+         "Blender")},
+    {.value = int(Method::Fast),
+     .identifier = "FAST",
+     .icon = 0,
+     .name = N_("Fast"),
+     .description = N_(
+         "Significantly faster method that approximates tangents interpolated across face corners "
+         "with matching UVs. For a value actually tangential to the surface, use the cross "
+         "product "
+         "with the normal.")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -114,7 +117,7 @@ static void calc_uv_tangents_simple(const Span<float3> positions,
           }
         }
         if (!found) {
-          shared_corners.append({uv, {corner}, tri_tangent});
+          shared_corners.append({.uv = uv, .corners = {corner}, .tangent_sum = tri_tangent});
         }
       }
       for (const SharedCorners &shared_corner : shared_corners) {

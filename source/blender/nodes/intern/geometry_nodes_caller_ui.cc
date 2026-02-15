@@ -137,7 +137,8 @@ static std::optional<ed::space_node::ObjectAndModifier> get_modifier_data(
     return std::nullopt;
   }
   BLI_assert(md->type == eModifierType_Nodes);
-  return ed::space_node::ObjectAndModifier{object, reinterpret_cast<NodesModifierData *>(md)};
+  return ed::space_node::ObjectAndModifier{.object = object,
+                                           .nmd = reinterpret_cast<NodesModifierData *>(md)};
 }
 
 SearchInfo SocketSearchData::info(const bContext &C) const
@@ -153,7 +154,7 @@ SearchInfo SocketSearchData::info(const bContext &C) const
       return {};
     }
     geo_log::GeoTreeLog *tree_log = get_root_tree_log(*object_and_modifier->object, *nmd);
-    return {tree_log, nmd->node_group, nmd->settings.properties};
+    return {.tree_log = tree_log, .tree = nmd->node_group, .properties = nmd->settings.properties};
   }
   if (const auto *operator_search_data = std::get_if<OperatorSearchData>(&this->search_data)) {
     return operator_search_data->info;
@@ -955,7 +956,7 @@ static void draw_named_attributes_panel(ui::Layout &layout, Object &object, Node
 
   Vector<NameWithUsage> sorted_used_attribute;
   for (auto &&item : usage_by_attribute.items()) {
-    sorted_used_attribute.append({item.key, item.value});
+    sorted_used_attribute.append({.name = item.key, .usage = item.value});
   }
   std::ranges::sort(sorted_used_attribute, [](const NameWithUsage &a, const NameWithUsage &b) {
     return BLI_strcasecmp_natural(a.name.c_str(), b.name.c_str()) < 0;
@@ -1022,18 +1023,18 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
   NodesModifierData &nmd = *modifier_ptr->data_as<NodesModifierData>();
   Object &object = *reinterpret_cast<Object *>(modifier_ptr->owner_id);
 
-  DrawGroupInputsContext ctx{C,
-                             nmd.node_group,
-                             get_root_tree_log(object, nmd),
-                             nmd.settings.properties,
-                             modifier_ptr,
-                             &bmain_ptr};
+  DrawGroupInputsContext ctx{.C = C,
+                             .tree = nmd.node_group,
+                             .tree_log = get_root_tree_log(object, nmd),
+                             .properties = nmd.settings.properties,
+                             .properties_ptr = modifier_ptr,
+                             .bmain_ptr = &bmain_ptr};
 
   ctx.panel_open_property_fn = [&](const bNodeTreeInterfacePanel &io_panel) -> PanelOpenProperty {
     NodesModifierPanel *panel = find_panel_by_id(nmd, io_panel.identifier);
     PointerRNA panel_ptr = RNA_pointer_create_discrete(
         modifier_ptr->owner_id, RNA_NodesModifierPanel, panel);
-    return {panel_ptr, "is_open"};
+    return {.ptr = panel_ptr, .name = "is_open"};
   };
   ctx.socket_search_data_fn = [&](const bNodeTreeInterfaceSocket &io_socket) -> SocketSearchData {
     SocketSearchData data{};
@@ -1103,7 +1104,12 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
   Main &bmain = *CTX_data_main(&C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(&bmain);
 
-  DrawGroupInputsContext ctx{C, &tree, tree_log, op.properties, op.ptr, &bmain_ptr};
+  DrawGroupInputsContext ctx{.C = C,
+                             .tree = &tree,
+                             .tree_log = tree_log,
+                             .properties = op.properties,
+                             .properties_ptr = op.ptr,
+                             .bmain_ptr = &bmain_ptr};
   ctx.panel_open_property_fn = [&](const bNodeTreeInterfacePanel &io_panel) -> PanelOpenProperty {
     Panel *root_panel = layout.root_panel();
     LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(
@@ -1111,7 +1117,7 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
         "node_operator_panel_" + std::to_string(io_panel.identifier),
         io_panel.flag & NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
     PointerRNA state_ptr = RNA_pointer_create_discrete(nullptr, RNA_LayoutPanelState, state);
-    return {state_ptr, "is_open"};
+    return {.ptr = state_ptr, .name = "is_open"};
   };
   ctx.socket_search_data_fn = [&](const bNodeTreeInterfaceSocket &io_socket) -> SocketSearchData {
     SocketSearchData data{};

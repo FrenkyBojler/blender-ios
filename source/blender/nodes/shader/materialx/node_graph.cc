@@ -118,7 +118,10 @@ std::string NodeGraph::unique_node_name(const bNode *node,
                                         NodeItem::Type to_type)
 {
   /* Reuse existing name, important in case it got changed due to conflicts. */
-  NodeKey key{node, socket_out_name, to_type, graph_element_};
+  NodeKey key{.node = node,
+              .socket_name = socket_out_name,
+              .to_type = to_type,
+              .graph_element = graph_element_};
   const std::string *existing_name = key_to_name_map_.lookup_ptr(key);
   if (existing_name) {
     return *existing_name;

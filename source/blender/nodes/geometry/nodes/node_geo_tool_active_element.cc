@@ -79,11 +79,27 @@ static void node_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem rna_domain_items[] = {
-      {int(AttrDomain::Point), "POINT", 0, "Point", ""},
-      {int(AttrDomain::Edge), "EDGE", 0, "Edge", ""},
-      {int(AttrDomain::Face), "FACE", 0, "Face", ""},
-      {int(AttrDomain::Layer), "LAYER", 0, "Layer", ""},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = int(AttrDomain::Point),
+       .identifier = "POINT",
+       .icon = 0,
+       .name = "Point",
+       .description = ""},
+      {.value = int(AttrDomain::Edge),
+       .identifier = "EDGE",
+       .icon = 0,
+       .name = "Edge",
+       .description = ""},
+      {.value = int(AttrDomain::Face),
+       .identifier = "FACE",
+       .icon = 0,
+       .name = "Face",
+       .description = ""},
+      {.value = int(AttrDomain::Layer),
+       .identifier = "LAYER",
+       .icon = 0,
+       .name = "Layer",
+       .description = ""},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

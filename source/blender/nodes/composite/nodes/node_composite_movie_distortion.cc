@@ -24,9 +24,17 @@
 namespace blender::nodes::node_composite_movie_distortion_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {int(compositor::DistortionType::Undistort), "UNDISTORT", 0, N_("Undistort"), ""},
-    {int(compositor::DistortionType::Distort), "DISTORT", 0, N_("Distort"), ""},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = int(compositor::DistortionType::Undistort),
+     .identifier = "UNDISTORT",
+     .icon = 0,
+     .name = N_("Undistort"),
+     .description = ""},
+    {.value = int(compositor::DistortionType::Distort),
+     .identifier = "DISTORT",
+     .icon = 0,
+     .name = N_("Distort"),
+     .description = ""},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

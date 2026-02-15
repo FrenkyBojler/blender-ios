@@ -11,13 +11,26 @@
 namespace blender {
 
 static bke::bNodeSocketTemplate inputs[] = {
-    {SOCK_RGBA, N_("Texture"), 0.0f, 0.0f, 0.0f, 1.0f},
-    {SOCK_VECTOR, N_("Coordinates"), 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, PROP_NONE},
-    {-1, ""},
+    {.type = SOCK_RGBA,
+     .name = N_("Texture"),
+     .val1 = 0.0f,
+     .val2 = 0.0f,
+     .val3 = 0.0f,
+     .val4 = 1.0f},
+    {.type = SOCK_VECTOR,
+     .name = N_("Coordinates"),
+     .val1 = 0.0f,
+     .val2 = 0.0f,
+     .val3 = 0.0f,
+     .val4 = 0.0f,
+     .min = -1.0f,
+     .max = 1.0f,
+     .subtype = PROP_NONE},
+    {.type = -1, .name = ""},
 };
 static bke::bNodeSocketTemplate outputs[] = {
-    {SOCK_RGBA, N_("Texture")},
-    {-1, ""},
+    {.type = SOCK_RGBA, .name = N_("Texture")},
+    {.type = -1, .name = ""},
 };
 
 static void colorfn(float *out, TexParams *p, bNode * /*node*/, bNodeStack **in, short thread)

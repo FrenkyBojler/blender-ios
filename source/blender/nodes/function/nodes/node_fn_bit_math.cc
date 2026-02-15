@@ -30,39 +30,42 @@ enum BitMathOperation : int16_t {
 };
 
 const std::array<EnumPropertyItem, 7> bit_math_operation_items = {{
-    {BitMathOperation::And,
-     "AND",
-     0,
-     "And",
-     "Returns a value where the bits of A and B are both set"},
-    {BitMathOperation::Or,
-     "OR",
-     0,
-     "Or",
-     "Returns a value where the bits of either A or B are set"},
-    {BitMathOperation::Xor,
-     "XOR",
-     0,
-     "Exclusive Or",
-     "Returns a value where only one bit from A and B is set"},
-    {BitMathOperation::Not,
-     "NOT",
-     0,
-     "Not",
-     "Returns the opposite bit value of A, in decimal it is equivalent of A = -A - 1"},
-    {BitMathOperation::Shift,
-     "SHIFT",
-     0,
-     "Shift",
-     "Shifts the bit values of A by the specified Shift amount. Positive values shift left, "
-     "negative values shift right."},
-    {BitMathOperation::Rotate,
-     "ROTATE",
-     0,
-     "Rotate",
-     "Rotates the bit values of A by the specified Shift amount. Positive values rotate left, "
-     "negative values rotate right."},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = BitMathOperation::And,
+     .identifier = "AND",
+     .icon = 0,
+     .name = "And",
+     .description = "Returns a value where the bits of A and B are both set"},
+    {.value = BitMathOperation::Or,
+     .identifier = "OR",
+     .icon = 0,
+     .name = "Or",
+     .description = "Returns a value where the bits of either A or B are set"},
+    {.value = BitMathOperation::Xor,
+     .identifier = "XOR",
+     .icon = 0,
+     .name = "Exclusive Or",
+     .description = "Returns a value where only one bit from A and B is set"},
+    {.value = BitMathOperation::Not,
+     .identifier = "NOT",
+     .icon = 0,
+     .name = "Not",
+     .description =
+         "Returns the opposite bit value of A, in decimal it is equivalent of A = -A - 1"},
+    {.value = BitMathOperation::Shift,
+     .identifier = "SHIFT",
+     .icon = 0,
+     .name = "Shift",
+     .description =
+         "Shifts the bit values of A by the specified Shift amount. Positive values shift left, "
+         "negative values shift right."},
+    {.value = BitMathOperation::Rotate,
+     .identifier = "ROTATE",
+     .icon = 0,
+     .name = "Rotate",
+     .description =
+         "Rotates the bit values of A by the specified Shift amount. Positive values rotate left, "
+         "negative values rotate right."},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 }};
 
 constexpr static int32_t max_shift = sizeof(int32_t) * CHAR_BIT - 1;
@@ -117,7 +120,9 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   for (const auto &item : bit_math_operation_items) {
     if (item.name != nullptr && item.identifier[0] != '\0') {
       params.add_item(
-          IFACE_(item.name), SocketSearchOp{socket_name, BitMathOperation(item.value)}, weight);
+          IFACE_(item.name),
+          SocketSearchOp{.socket_name = socket_name, .operation = BitMathOperation(item.value)},
+          weight);
     }
   }
 }

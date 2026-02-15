@@ -224,7 +224,8 @@ static void node_shader_update_tex_voronoi(bNodeTree *ntree, bNode *node)
       *ntree, *outRadiusSock, storage.feature == SHD_VORONOI_N_SPHERE_RADIUS);
 }
 
-static mf::MultiFunction::ExecutionHints voronoi_execution_hints{50, false};
+static mf::MultiFunction::ExecutionHints voronoi_execution_hints{.min_grain_size = 50,
+                                                                 .allocates_array = false};
 
 class VoronoiMetricFunction : public mf::MultiFunction {
  private:

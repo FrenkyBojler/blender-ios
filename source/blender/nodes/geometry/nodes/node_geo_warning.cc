@@ -64,7 +64,8 @@ class LazyFunctionForWarningNode : public LazyFunction {
     {
       tree_logger->node_warnings.append(
           *tree_logger->allocator,
-          {node_.identifier, {NodeWarningType(node_.custom1), std::move(message)}});
+          {.node_id = node_.identifier,
+           .warning = {NodeWarningType(node_.custom1), std::move(message)}});
     }
     /* Only set output in the end so that this node is not finished before the warning is set. */
     params.set_output(0, show_variant);

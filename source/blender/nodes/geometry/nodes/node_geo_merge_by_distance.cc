@@ -16,17 +16,18 @@ namespace blender::nodes::node_geo_merge_by_distance_cc {
 NODE_STORAGE_FUNCS(NodeGeometryMergeByDistance)
 
 static EnumPropertyItem mode_items[] = {
-    {GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL,
-     "ALL",
-     0,
-     N_("All"),
-     N_("Merge all close selected points, whether or not they are connected")},
-    {GEO_NODE_MERGE_BY_DISTANCE_MODE_CONNECTED,
-     "CONNECTED",
-     0,
-     N_("Connected"),
-     N_("Only merge mesh vertices along existing edges. This method can be much faster")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL,
+     .identifier = "ALL",
+     .icon = 0,
+     .name = N_("All"),
+     .description = N_("Merge all close selected points, whether or not they are connected")},
+    {.value = GEO_NODE_MERGE_BY_DISTANCE_MODE_CONNECTED,
+     .identifier = "CONNECTED",
+     .icon = 0,
+     .name = N_("Connected"),
+     .description = N_(
+         "Only merge mesh vertices along existing edges. This method can be much faster")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

@@ -551,8 +551,8 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
       {
         tree_logger->node_warnings.append(
             *tree_logger->allocator,
-            {node_.identifier,
-             {NodeWarningType::Error, TIP_("Simulation zone is not supported")}});
+            {.node_id = node_.identifier,
+             .warning = {NodeWarningType::Error, TIP_("Simulation zone is not supported")}});
       }
       this->set_default_outputs(params);
       return;
@@ -567,8 +567,9 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
               user_data))
       {
         const StringRefNull message = TIP_("Simulation must not be in a loop or closure");
-        tree_logger->node_warnings.append(*tree_logger->allocator,
-                                          {node_.identifier, {NodeWarningType::Error, message}});
+        tree_logger->node_warnings.append(
+            *tree_logger->allocator,
+            {.node_id = node_.identifier, .warning = {NodeWarningType::Error, message}});
       }
       this->set_default_outputs(params);
       return;

@@ -221,7 +221,10 @@ static FormatPatternInfo get_pattern_by_type_impl(const CPPType &type)
   }
   /* End of string. */
   pattern += '$';
-  return {pattern, std::regex{pattern}, width_group, precision_group};
+  return {.pattern_str = pattern,
+          .pattern = std::regex{pattern},
+          .width_group = width_group,
+          .precision_group = precision_group};
 }
 
 static const FormatPatternInfo *get_pattern_by_type(const CPPType &type)

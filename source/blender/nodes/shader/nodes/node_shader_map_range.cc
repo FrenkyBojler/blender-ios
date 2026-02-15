@@ -155,23 +155,35 @@ static void node_map_range_gather_link_searches(GatherLinkSearchOpParams &params
 
   if (params.in_out() == SOCK_IN) {
     if (*type == CD_PROP_FLOAT3) {
-      params.add_item(IFACE_("Vector"), SocketSearchOp{"Vector", *type}, 0);
+      params.add_item(
+          IFACE_("Vector"), SocketSearchOp{.socket_name = "Vector", .data_type = *type}, 0);
     }
     else {
-      params.add_item(IFACE_("Value"), SocketSearchOp{"Value", *type}, 0);
+      params.add_item(
+          IFACE_("Value"), SocketSearchOp{.socket_name = "Value", .data_type = *type}, 0);
     }
-    params.add_item(IFACE_("From Min"), SocketSearchOp{"From Min", *type}, -1);
-    params.add_item(IFACE_("From Max"), SocketSearchOp{"From Max", *type}, -1);
-    params.add_item(IFACE_("To Min"), SocketSearchOp{"To Min", *type}, -2);
-    params.add_item(IFACE_("To Max"), SocketSearchOp{"To Max", *type}, -2);
-    params.add_item(IFACE_("Steps"), SocketSearchOp{"Steps", *type, NODE_MAP_RANGE_STEPPED}, -3);
+    params.add_item(
+        IFACE_("From Min"), SocketSearchOp{.socket_name = "From Min", .data_type = *type}, -1);
+    params.add_item(
+        IFACE_("From Max"), SocketSearchOp{.socket_name = "From Max", .data_type = *type}, -1);
+    params.add_item(
+        IFACE_("To Min"), SocketSearchOp{.socket_name = "To Min", .data_type = *type}, -2);
+    params.add_item(
+        IFACE_("To Max"), SocketSearchOp{.socket_name = "To Max", .data_type = *type}, -2);
+    params.add_item(IFACE_("Steps"),
+                    SocketSearchOp{.socket_name = "Steps",
+                                   .data_type = *type,
+                                   .interpolation_type = NODE_MAP_RANGE_STEPPED},
+                    -3);
   }
   else {
     if (*type == CD_PROP_FLOAT3) {
-      params.add_item(IFACE_("Vector"), SocketSearchOp{"Vector", *type});
+      params.add_item(IFACE_("Vector"),
+                      SocketSearchOp{.socket_name = "Vector", .data_type = *type});
     }
     else {
-      params.add_item(IFACE_("Result"), SocketSearchOp{"Result", *type});
+      params.add_item(IFACE_("Result"),
+                      SocketSearchOp{.socket_name = "Result", .data_type = *type});
     }
   }
 }

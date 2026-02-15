@@ -23,24 +23,24 @@ enum class RGBChannel : uint8_t {
 };
 
 static const EnumPropertyItem rgb_channel_items[] = {
-    {int(RGBChannel::R), "R", 0, "R", ""},
-    {int(RGBChannel::G), "G", 0, "G", ""},
-    {int(RGBChannel::B), "B", 0, "B", ""},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = int(RGBChannel::R), .identifier = "R", .icon = 0, .name = "R", .description = ""},
+    {.value = int(RGBChannel::G), .identifier = "G", .icon = 0, .name = "G", .description = ""},
+    {.value = int(RGBChannel::B), .identifier = "B", .icon = 0, .name = "B", .description = ""},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static const EnumPropertyItem limit_method_items[] = {
-    {CMP_NODE_COLOR_SPILL_LIMIT_ALGORITHM_SINGLE,
-     "SINGLE",
-     0,
-     N_("Single"),
-     N_("Limit by a single channel")},
-    {CMP_NODE_COLOR_SPILL_LIMIT_ALGORITHM_AVERAGE,
-     "AVERAGE",
-     0,
-     N_("Average"),
-     N_("Limit by the average of the other two channels")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_COLOR_SPILL_LIMIT_ALGORITHM_SINGLE,
+     .identifier = "SINGLE",
+     .icon = 0,
+     .name = N_("Single"),
+     .description = N_("Limit by a single channel")},
+    {.value = CMP_NODE_COLOR_SPILL_LIMIT_ALGORITHM_AVERAGE,
+     .identifier = "AVERAGE",
+     .icon = 0,
+     .name = N_("Average"),
+     .description = N_("Limit by the average of the other two channels")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

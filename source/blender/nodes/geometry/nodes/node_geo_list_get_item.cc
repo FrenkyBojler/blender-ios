@@ -78,12 +78,15 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   if (params.in_out() == SOCK_IN) {
     if (params.node_tree().typeinfo->validate_link(socket_type, SOCK_INT)) {
-      params.add_item(IFACE_("Index"), SocketSearchOp{"Index", SOCK_INT});
+      params.add_item(IFACE_("Index"),
+                      SocketSearchOp{.socket_name = "Index", .socket_type = SOCK_INT});
     }
-    params.add_item(IFACE_("List"), SocketSearchOp{"List", socket_type});
+    params.add_item(IFACE_("List"),
+                    SocketSearchOp{.socket_name = "List", .socket_type = socket_type});
   }
   else {
-    params.add_item(IFACE_("Value"), SocketSearchOp{"Value", socket_type});
+    params.add_item(IFACE_("Value"),
+                    SocketSearchOp{.socket_name = "Value", .socket_type = socket_type});
   }
 }
 

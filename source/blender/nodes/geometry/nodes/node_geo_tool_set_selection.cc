@@ -206,18 +206,19 @@ static void node_rna(StructRNA *srna)
                     NOD_inline_enum_accessors(custom1),
                     int(AttrDomain::Point));
   static EnumPropertyItem mode_items[] = {
-      {int(SelectionType::Boolean),
-       "BOOLEAN",
-       0,
-       "Boolean",
-       "Store true or false selection values in edit mode"},
-      {int(SelectionType::Float),
-       "FLOAT",
-       0,
-       "Float",
-       "Store floating point selection values. For mesh geometry, stored inverted as the sculpt "
-       "mode mask"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = int(SelectionType::Boolean),
+       .identifier = "BOOLEAN",
+       .icon = 0,
+       .name = "Boolean",
+       .description = "Store true or false selection values in edit mode"},
+      {.value = int(SelectionType::Float),
+       .identifier = "FLOAT",
+       .icon = 0,
+       .name = "Float",
+       .description = "Store floating point selection values. For mesh geometry, stored inverted "
+                      "as the sculpt "
+                      "mode mask"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
   RNA_def_node_enum(srna,
                     "selection_type",

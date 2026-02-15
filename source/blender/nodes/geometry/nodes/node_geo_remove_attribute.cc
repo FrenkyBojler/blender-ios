@@ -16,18 +16,19 @@ enum class PatternMode {
 };
 
 static const EnumPropertyItem pattern_mode_items[] = {
-    {int(PatternMode::Exact),
-     "EXACT",
-     0,
-     N_("Exact"),
-     N_("Remove the one attribute with the given name")},
-    {int(PatternMode::Wildcard),
-     "WILDCARD",
-     0,
-     N_("Wildcard"),
-     N_("Remove all attributes that match the pattern which is allowed to contain a single "
-        "wildcard (*)")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = int(PatternMode::Exact),
+     .identifier = "EXACT",
+     .icon = 0,
+     .name = N_("Exact"),
+     .description = N_("Remove the one attribute with the given name")},
+    {.value = int(PatternMode::Wildcard),
+     .identifier = "WILDCARD",
+     .icon = 0,
+     .name = N_("Wildcard"),
+     .description = N_(
+         "Remove all attributes that match the pattern which is allowed to contain a single "
+         "wildcard (*)")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

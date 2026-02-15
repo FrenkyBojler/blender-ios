@@ -25,11 +25,27 @@
 namespace blender::nodes::node_composite_dilate_erode_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {CMP_NODE_DILATE_ERODE_STEP, "STEP", 0, N_("Steps"), ""},
-    {CMP_NODE_DILATE_ERODE_DISTANCE_THRESHOLD, "THRESHOLD", 0, N_("Threshold"), ""},
-    {CMP_NODE_DILATE_ERODE_DISTANCE, "DISTANCE", 0, N_("Distance"), ""},
-    {CMP_NODE_DILATE_ERODE_DISTANCE_FEATHER, "FEATHER", 0, N_("Feather"), ""},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_DILATE_ERODE_STEP,
+     .identifier = "STEP",
+     .icon = 0,
+     .name = N_("Steps"),
+     .description = ""},
+    {.value = CMP_NODE_DILATE_ERODE_DISTANCE_THRESHOLD,
+     .identifier = "THRESHOLD",
+     .icon = 0,
+     .name = N_("Threshold"),
+     .description = ""},
+    {.value = CMP_NODE_DILATE_ERODE_DISTANCE,
+     .identifier = "DISTANCE",
+     .icon = 0,
+     .name = N_("Distance"),
+     .description = ""},
+    {.value = CMP_NODE_DILATE_ERODE_DISTANCE_FEATHER,
+     .identifier = "FEATHER",
+     .icon = 0,
+     .name = N_("Feather"),
+     .description = ""},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

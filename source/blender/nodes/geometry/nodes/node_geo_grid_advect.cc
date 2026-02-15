@@ -37,61 +37,70 @@ enum class LimiterType : int8_t {
 };
 
 static const EnumPropertyItem integration_scheme_items[] = {
-    {int(IntegrationScheme::SemiLagrangian),
-     "SEMI",
-     0,
-     N_("Semi-Lagrangian"),
-     N_("1st order semi-Lagrangian integration. Fast but least accurate, suitable for simple "
-        "advection")},
-    {int(IntegrationScheme::Midpoint),
-     "MID",
-     0,
-     N_("Midpoint"),
-     N_("2nd order midpoint integration. Good balance between speed and accuracy for most cases")},
-    {int(IntegrationScheme::RungeKutta3),
-     "RK3",
-     0,
-     N_("Runge-Kutta 3"),
-     N_("3rd order Runge-Kutta integration. Higher accuracy at moderate computational cost")},
-    {int(IntegrationScheme::RungeKutta4),
-     "RK4",
-     0,
-     N_("Runge-Kutta 4"),
-     N_("4th order Runge-Kutta integration. Highest accuracy single-step method but slower")},
-    {int(IntegrationScheme::MacCormack),
-     "MAC",
-     0,
-     N_("MacCormack"),
-     N_("MacCormack scheme with implicit diffusion control. Reduces numerical dissipation while "
-        "maintaining stability")},
-    {int(IntegrationScheme::BFECC),
-     "BFECC",
-     0,
-     N_("BFECC"),
-     N_("Back and Forth Error Compensation and Correction. Advanced scheme that minimizes "
-        "dissipation and diffusion")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = int(IntegrationScheme::SemiLagrangian),
+     .identifier = "SEMI",
+     .icon = 0,
+     .name = N_("Semi-Lagrangian"),
+     .description = N_(
+         "1st order semi-Lagrangian integration. Fast but least accurate, suitable for simple "
+         "advection")},
+    {.value = int(IntegrationScheme::Midpoint),
+     .identifier = "MID",
+     .icon = 0,
+     .name = N_("Midpoint"),
+     .description = N_("2nd order midpoint integration. Good balance between speed and accuracy "
+                       "for most cases")},
+    {.value = int(IntegrationScheme::RungeKutta3),
+     .identifier = "RK3",
+     .icon = 0,
+     .name = N_("Runge-Kutta 3"),
+     .description = N_(
+         "3rd order Runge-Kutta integration. Higher accuracy at moderate computational cost")},
+    {.value = int(IntegrationScheme::RungeKutta4),
+     .identifier = "RK4",
+     .icon = 0,
+     .name = N_("Runge-Kutta 4"),
+     .description = N_(
+         "4th order Runge-Kutta integration. Highest accuracy single-step method but slower")},
+    {.value = int(IntegrationScheme::MacCormack),
+     .identifier = "MAC",
+     .icon = 0,
+     .name = N_("MacCormack"),
+     .description = N_(
+         "MacCormack scheme with implicit diffusion control. Reduces numerical dissipation while "
+         "maintaining stability")},
+    {.value = int(IntegrationScheme::BFECC),
+     .identifier = "BFECC",
+     .icon = 0,
+     .name = N_("BFECC"),
+     .description = N_(
+         "Back and Forth Error Compensation and Correction. Advanced scheme that minimizes "
+         "dissipation and diffusion")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static const EnumPropertyItem limiter_type_items[] = {
-    {int(LimiterType::None),
-     "NONE",
-     0,
-     N_("None"),
-     N_("No limiting applied. Fastest but may produce artifacts in high-order schemes")},
-    {int(LimiterType::Clamp),
-     "CLAMP",
-     0,
-     N_("Clamp"),
-     N_("Clamp values to the range of the original neighborhood. Prevents overshooting and "
-        "undershooting")},
-    {int(LimiterType::Revert),
-     "REVERT",
-     0,
-     N_("Revert"),
-     N_("Revert to 1st order integration when clamping would be applied. More conservative than "
-        "clamping")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = int(LimiterType::None),
+     .identifier = "NONE",
+     .icon = 0,
+     .name = N_("None"),
+     .description = N_(
+         "No limiting applied. Fastest but may produce artifacts in high-order schemes")},
+    {.value = int(LimiterType::Clamp),
+     .identifier = "CLAMP",
+     .icon = 0,
+     .name = N_("Clamp"),
+     .description = N_(
+         "Clamp values to the range of the original neighborhood. Prevents overshooting and "
+         "undershooting")},
+    {.value = int(LimiterType::Revert),
+     .identifier = "REVERT",
+     .icon = 0,
+     .name = N_("Revert"),
+     .description = N_(
+         "Revert to 1st order integration when clamping would be applied. More conservative than "
+         "clamping")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

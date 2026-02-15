@@ -341,23 +341,25 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static EnumPropertyItem mode_items[] = {
-      {GEO_NODE_CURVE_RESAMPLE_EVALUATED,
-       "EVALUATED",
-       0,
-       "Evaluated",
-       "Create points from the curve's evaluated points, based on the resolution attribute for "
-       "NURBS and Bézier splines"},
-      {GEO_NODE_CURVE_RESAMPLE_COUNT,
-       "COUNT",
-       0,
-       "Count",
-       "Sample each spline by evenly distributing the specified number of points"},
-      {GEO_NODE_CURVE_RESAMPLE_LENGTH,
-       "LENGTH",
-       0,
-       "Length",
-       "Sample each spline by splitting it into segments with the specified length"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = GEO_NODE_CURVE_RESAMPLE_EVALUATED,
+       .identifier = "EVALUATED",
+       .icon = 0,
+       .name = "Evaluated",
+       .description = "Create points from the curve's evaluated points, based on the resolution "
+                      "attribute for "
+                      "NURBS and Bézier splines"},
+      {.value = GEO_NODE_CURVE_RESAMPLE_COUNT,
+       .identifier = "COUNT",
+       .icon = 0,
+       .name = "Count",
+       .description = "Sample each spline by evenly distributing the specified number of points"},
+      {.value = GEO_NODE_CURVE_RESAMPLE_LENGTH,
+       .identifier = "LENGTH",
+       .icon = 0,
+       .name = "Length",
+       .description =
+           "Sample each spline by splitting it into segments with the specified length"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

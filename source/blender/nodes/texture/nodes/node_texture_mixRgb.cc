@@ -17,14 +17,32 @@ namespace blender {
 
 /* **************** MIX RGB ******************** */
 static bke::bNodeSocketTemplate inputs[] = {
-    {SOCK_FLOAT, N_("Factor"), 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE},
-    {SOCK_RGBA, N_("Color1"), 0.5f, 0.5f, 0.5f, 1.0f},
-    {SOCK_RGBA, N_("Color2"), 0.5f, 0.5f, 0.5f, 1.0f},
-    {-1, ""},
+    {.type = SOCK_FLOAT,
+     .name = N_("Factor"),
+     .val1 = 0.5f,
+     .val2 = 0.0f,
+     .val3 = 0.0f,
+     .val4 = 0.0f,
+     .min = 0.0f,
+     .max = 1.0f,
+     .subtype = PROP_NONE},
+    {.type = SOCK_RGBA,
+     .name = N_("Color1"),
+     .val1 = 0.5f,
+     .val2 = 0.5f,
+     .val3 = 0.5f,
+     .val4 = 1.0f},
+    {.type = SOCK_RGBA,
+     .name = N_("Color2"),
+     .val1 = 0.5f,
+     .val2 = 0.5f,
+     .val3 = 0.5f,
+     .val4 = 1.0f},
+    {.type = -1, .name = ""},
 };
 static bke::bNodeSocketTemplate outputs[] = {
-    {SOCK_RGBA, N_("Color")},
-    {-1, ""},
+    {.type = SOCK_RGBA, .name = N_("Color")},
+    {.type = -1, .name = ""},
 };
 
 static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)

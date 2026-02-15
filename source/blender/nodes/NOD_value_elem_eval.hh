@@ -38,7 +38,7 @@ class ElemEvalParams {
   template<typename T> void set_output_elem(const StringRef identifier, T elem)
   {
     const bNodeSocket &socket = *node.output_by_identifier(identifier);
-    output_elems_.append({&socket, ElemVariant{elem}});
+    output_elems_.append({.socket = &socket, .elem = ElemVariant{elem}});
   }
 };
 
@@ -70,7 +70,7 @@ class InverseElemEvalParams {
   template<typename T> void set_input_elem(const StringRef identifier, T elem)
   {
     const bNodeSocket &socket = *node.input_by_identifier(identifier);
-    input_elems_.append({&socket, ElemVariant{elem}});
+    input_elems_.append({.socket = &socket, .elem = ElemVariant{elem}});
   }
 };
 

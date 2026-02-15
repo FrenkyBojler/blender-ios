@@ -100,17 +100,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem mode_items[] = {
-      {int(Mode::Stroke),
-       "STROKE",
-       ICON_NONE,
-       "Stroke",
-       "Set the color and opacity for the points of the stroke"},
-      {int(Mode::Fill),
-       "FILL",
-       ICON_NONE,
-       "Fill",
-       "Set the color and opacity for the stroke fills"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = int(Mode::Stroke),
+       .identifier = "STROKE",
+       .icon = ICON_NONE,
+       .name = "Stroke",
+       .description = "Set the color and opacity for the points of the stroke"},
+      {.value = int(Mode::Fill),
+       .identifier = "FILL",
+       .icon = ICON_NONE,
+       .name = "Fill",
+       .description = "Set the color and opacity for the stroke fills"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna, "mode", "Mode", "", mode_items, NOD_inline_enum_accessors(custom1));

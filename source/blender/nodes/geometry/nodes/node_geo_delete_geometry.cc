@@ -89,10 +89,22 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem mode_items[] = {
-      {GEO_NODE_DELETE_GEOMETRY_MODE_ALL, "ALL", 0, "All", ""},
-      {GEO_NODE_DELETE_GEOMETRY_MODE_EDGE_FACE, "EDGE_FACE", 0, "Only Edges & Faces", ""},
-      {GEO_NODE_DELETE_GEOMETRY_MODE_ONLY_FACE, "ONLY_FACE", 0, "Only Faces", ""},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = GEO_NODE_DELETE_GEOMETRY_MODE_ALL,
+       .identifier = "ALL",
+       .icon = 0,
+       .name = "All",
+       .description = ""},
+      {.value = GEO_NODE_DELETE_GEOMETRY_MODE_EDGE_FACE,
+       .identifier = "EDGE_FACE",
+       .icon = 0,
+       .name = "Only Edges & Faces",
+       .description = ""},
+      {.value = GEO_NODE_DELETE_GEOMETRY_MODE_ONLY_FACE,
+       .identifier = "ONLY_FACE",
+       .icon = 0,
+       .name = "Only Faces",
+       .description = ""},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

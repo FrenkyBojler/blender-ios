@@ -52,11 +52,13 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   if (params.in_out() == SOCK_IN) {
-    params.add_item(IFACE_("List"), SocketSearchOp{"List", socket_type});
+    params.add_item(IFACE_("List"),
+                    SocketSearchOp{.socket_name = "List", .socket_type = socket_type});
   }
   else {
     if (params.node_tree().typeinfo->validate_link(socket_type, SOCK_INT)) {
-      params.add_item(IFACE_("Length"), SocketSearchOp{"Length", SOCK_INT});
+      params.add_item(IFACE_("Length"),
+                      SocketSearchOp{.socket_name = "Length", .socket_type = SOCK_INT});
     }
   }
 }

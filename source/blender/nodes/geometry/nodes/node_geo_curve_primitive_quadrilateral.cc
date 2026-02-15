@@ -151,17 +151,23 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
                eNodeSocketDatatype(params.other_socket().type), SOCK_FLOAT))
   {
     params.add_item(IFACE_("Width"),
-                    SocketSearchOp{"Width", GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_RECTANGLE});
+                    SocketSearchOp{.socket_name = "Width",
+                                   .quad_mode = GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_RECTANGLE});
     params.add_item(IFACE_("Height"),
-                    SocketSearchOp{"Height", GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_RECTANGLE});
+                    SocketSearchOp{.socket_name = "Height",
+                                   .quad_mode = GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_RECTANGLE});
     params.add_item(IFACE_("Bottom Width"),
-                    SocketSearchOp{"Bottom Width", GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_TRAPEZOID});
+                    SocketSearchOp{.socket_name = "Bottom Width",
+                                   .quad_mode = GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_TRAPEZOID});
     params.add_item(IFACE_("Top Width"),
-                    SocketSearchOp{"Top Width", GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_TRAPEZOID});
+                    SocketSearchOp{.socket_name = "Top Width",
+                                   .quad_mode = GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_TRAPEZOID});
     params.add_item(IFACE_("Offset"),
-                    SocketSearchOp{"Offset", GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_PARALLELOGRAM});
+                    SocketSearchOp{.socket_name = "Offset",
+                                   .quad_mode = GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_PARALLELOGRAM});
     params.add_item(IFACE_("Point 1"),
-                    SocketSearchOp{"Point 1", GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_POINTS});
+                    SocketSearchOp{.socket_name = "Point 1",
+                                   .quad_mode = GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_POINTS});
   }
 }
 
@@ -275,28 +281,32 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static EnumPropertyItem mode_items[] = {
-      {GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_RECTANGLE,
-       "RECTANGLE",
-       0,
-       "Rectangle",
-       "Create a rectangle"},
-      {GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_PARALLELOGRAM,
-       "PARALLELOGRAM",
-       0,
-       "Parallelogram",
-       "Create a parallelogram"},
-      {GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_TRAPEZOID,
-       "TRAPEZOID",
-       0,
-       "Trapezoid",
-       "Create a trapezoid"},
-      {GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_KITE, "KITE", 0, "Kite", "Create a Kite / Dart"},
-      {GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_POINTS,
-       "POINTS",
-       0,
-       "Points",
-       "Create a quadrilateral from four points"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_RECTANGLE,
+       .identifier = "RECTANGLE",
+       .icon = 0,
+       .name = "Rectangle",
+       .description = "Create a rectangle"},
+      {.value = GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_PARALLELOGRAM,
+       .identifier = "PARALLELOGRAM",
+       .icon = 0,
+       .name = "Parallelogram",
+       .description = "Create a parallelogram"},
+      {.value = GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_TRAPEZOID,
+       .identifier = "TRAPEZOID",
+       .icon = 0,
+       .name = "Trapezoid",
+       .description = "Create a trapezoid"},
+      {.value = GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_KITE,
+       .identifier = "KITE",
+       .icon = 0,
+       .name = "Kite",
+       .description = "Create a Kite / Dart"},
+      {.value = GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_POINTS,
+       .identifier = "POINTS",
+       .icon = 0,
+       .name = "Points",
+       .description = "Create a quadrilateral from four points"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,

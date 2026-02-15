@@ -175,16 +175,20 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       if (const std::optional<eNodeSocketDatatype> fixed_type = get_compare_type_for_operation(
               type, operation))
       {
-        params.add_item(IFACE_(item->name), SocketSearchOp{socket_name, *fixed_type, operation});
+        params.add_item(IFACE_(item->name),
+                        SocketSearchOp{.socket_name = socket_name,
+                                       .data_type = *fixed_type,
+                                       .operation = operation});
       }
     }
   }
 
   if (params.in_out() == SOCK_IN && type != SOCK_STRING) {
-    params.add_item(
-        IFACE_("Angle"),
-        SocketSearchOp{
-            "Angle", SOCK_VECTOR, NODE_COMPARE_GREATER_THAN, NODE_COMPARE_MODE_DIRECTION});
+    params.add_item(IFACE_("Angle"),
+                    SocketSearchOp{.socket_name = "Angle",
+                                   .data_type = SOCK_VECTOR,
+                                   .operation = NODE_COMPARE_GREATER_THAN,
+                                   .mode = NODE_COMPARE_MODE_DIRECTION});
   }
 }
 
@@ -642,28 +646,32 @@ static void data_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem mode_items[] = {
-      {NODE_COMPARE_MODE_ELEMENT,
-       "ELEMENT",
-       0,
-       "Element-Wise",
-       "Compare each element of the input vectors"},
-      {NODE_COMPARE_MODE_LENGTH, "LENGTH", 0, "Length", "Compare the length of the input vectors"},
-      {NODE_COMPARE_MODE_AVERAGE,
-       "AVERAGE",
-       0,
-       "Average",
-       "Compare the average of the input vectors elements"},
-      {NODE_COMPARE_MODE_DOT_PRODUCT,
-       "DOT_PRODUCT",
-       0,
-       "Dot Product",
-       "Compare the dot products of the input vectors"},
-      {NODE_COMPARE_MODE_DIRECTION,
-       "DIRECTION",
-       0,
-       "Direction",
-       "Compare the direction of the input vectors"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = NODE_COMPARE_MODE_ELEMENT,
+       .identifier = "ELEMENT",
+       .icon = 0,
+       .name = "Element-Wise",
+       .description = "Compare each element of the input vectors"},
+      {.value = NODE_COMPARE_MODE_LENGTH,
+       .identifier = "LENGTH",
+       .icon = 0,
+       .name = "Length",
+       .description = "Compare the length of the input vectors"},
+      {.value = NODE_COMPARE_MODE_AVERAGE,
+       .identifier = "AVERAGE",
+       .icon = 0,
+       .name = "Average",
+       .description = "Compare the average of the input vectors elements"},
+      {.value = NODE_COMPARE_MODE_DOT_PRODUCT,
+       .identifier = "DOT_PRODUCT",
+       .icon = 0,
+       .name = "Dot Product",
+       .description = "Compare the dot products of the input vectors"},
+      {.value = NODE_COMPARE_MODE_DIRECTION,
+       .identifier = "DIRECTION",
+       .icon = 0,
+       .name = "Direction",
+       .description = "Compare the direction of the input vectors"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   PropertyRNA *prop;

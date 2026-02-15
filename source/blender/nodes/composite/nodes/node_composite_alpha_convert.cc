@@ -17,17 +17,17 @@
 namespace blender::nodes::node_composite_alpha_convert_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {CMP_NODE_ALPHA_CONVERT_PREMULTIPLY,
-     "STRAIGHT_TO_PREMULTIPLIED",
-     0,
-     N_("To Premultiplied"),
-     N_("Convert straight to premultiplied")},
-    {CMP_NODE_ALPHA_CONVERT_UNPREMULTIPLY,
-     "PREMULTIPLIED_TO_STRAIGHT",
-     0,
-     N_("To Straight"),
-     N_("Convert premultiplied to straight")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_ALPHA_CONVERT_PREMULTIPLY,
+     .identifier = "STRAIGHT_TO_PREMULTIPLIED",
+     .icon = 0,
+     .name = N_("To Premultiplied"),
+     .description = N_("Convert straight to premultiplied")},
+    {.value = CMP_NODE_ALPHA_CONVERT_UNPREMULTIPLY,
+     .identifier = "PREMULTIPLIED_TO_STRAIGHT",
+     .icon = 0,
+     .name = N_("To Straight"),
+     .description = N_("Convert premultiplied to straight")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

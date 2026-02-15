@@ -30,17 +30,19 @@
 namespace blender::nodes::node_composite_lens_distortion_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {CMP_NODE_LENS_DISTORTION_RADIAL,
-     "RADIAL",
-     0,
-     N_("Radial"),
-     N_("Radially distorts the image to create a barrel or a Pincushion distortion")},
-    {CMP_NODE_LENS_DISTORTION_HORIZONTAL,
-     "HORIZONTAL",
-     0,
-     N_("Horizontal"),
-     N_("Horizontally distorts the image to create a channel/color shifting effect")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_LENS_DISTORTION_RADIAL,
+     .identifier = "RADIAL",
+     .icon = 0,
+     .name = N_("Radial"),
+     .description = N_(
+         "Radially distorts the image to create a barrel or a Pincushion distortion")},
+    {.value = CMP_NODE_LENS_DISTORTION_HORIZONTAL,
+     .identifier = "HORIZONTAL",
+     .icon = 0,
+     .name = N_("Horizontal"),
+     .description = N_(
+         "Horizontally distorts the image to create a channel/color shifting effect")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

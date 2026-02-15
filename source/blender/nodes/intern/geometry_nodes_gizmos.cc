@@ -102,7 +102,9 @@ static TreeGizmoPropagation build_tree_gizmo_propagation(bNodeTree &tree)
            group_gizmo_propagation.gizmo_inputs_by_group_inputs.keys())
       {
         const bNodeSocket &input_socket = node->input_socket(group_input_elem.group_input_index);
-        all_gizmo_inputs.append({&input_socket, &input_socket, group_input_elem.elem});
+        all_gizmo_inputs.append({.gizmo_socket = &input_socket,
+                                 .propagation_start_socket = &input_socket,
+                                 .elem = group_input_elem.elem});
       }
     }
     if (is_builtin_gizmo_node(*node)) {
@@ -114,7 +116,9 @@ static TreeGizmoPropagation build_tree_gizmo_propagation(bNodeTree &tree)
         if (!link->is_used()) {
           continue;
         }
-        all_gizmo_inputs.append({&gizmo_input_socket, link->fromsock, elem});
+        all_gizmo_inputs.append({.gizmo_socket = &gizmo_input_socket,
+                                 .propagation_start_socket = link->fromsock,
+                                 .elem = elem});
       }
     }
   }
@@ -122,7 +126,8 @@ static TreeGizmoPropagation build_tree_gizmo_propagation(bNodeTree &tree)
   /* Find the local gizmo targets for all gizmo inputs. */
   for (const GizmoInput &gizmo_input : all_gizmo_inputs) {
     gizmo_propagation.gizmo_endpoint_sockets.add(gizmo_input.gizmo_socket);
-    const ie::SocketElem gizmo_input_socket_elem{gizmo_input.gizmo_socket, gizmo_input.elem};
+    const ie::SocketElem gizmo_input_socket_elem{.socket = gizmo_input.gizmo_socket,
+                                                 .elem = gizmo_input.elem};
     /* The conversion is necessary when e.g. connecting a Rotation directly to the matrix input of
      * the Transform Gizmo node. */
     const std::optional<ie::ElemVariant> converted_elem = ie::convert_socket_elem(
@@ -131,7 +136,7 @@ static TreeGizmoPropagation build_tree_gizmo_propagation(bNodeTree &tree)
       continue;
     }
     const ie::LocalInverseEvalTargets targets = ie::find_local_inverse_eval_targets(
-        tree, {gizmo_input.propagation_start_socket, *converted_elem});
+        tree, {.socket = gizmo_input.propagation_start_socket, .elem = *converted_elem});
     const bool has_target = !targets.input_sockets.is_empty() ||
                             !targets.group_inputs.is_empty() || !targets.value_nodes.is_empty();
     if (!has_target) {
@@ -228,7 +233,8 @@ static void foreach_gizmo_for_input(const ie::SocketElem &input_socket,
         compute_context, node.identifier, &tree);
     foreach_gizmo_for_group_input(
         group,
-        ie::GroupInputElem{input_socket.socket->index(), input_socket.elem},
+        ie::GroupInputElem{.group_input_index = input_socket.socket->index(),
+                           .elem = input_socket.elem},
         compute_context_cache,
         &group_compute_context,
         fn);
@@ -320,9 +326,9 @@ static void foreach_active_gizmo_in_open_node_editor(
     }
     const bNodeSocket &gizmo_input_socket = gizmo_node->input_socket(0);
     if ((gizmo_node->flag & NODE_SELECT) || (gizmo_input_socket.flag & SOCK_GIZMO_PIN)) {
-      used_gizmo_inputs.add(
-          {&gizmo_input_socket,
-           *ie::get_elem_variant_for_socket_type(eNodeSocketDatatype(gizmo_input_socket.type))});
+      used_gizmo_inputs.add({.socket = &gizmo_input_socket,
+                             .elem = *ie::get_elem_variant_for_socket_type(
+                                 eNodeSocketDatatype(gizmo_input_socket.type))});
     }
   }
   for (const ie::SocketElem &gizmo_input : used_gizmo_inputs) {
@@ -483,7 +489,10 @@ void foreach_compute_context_on_gizmo_path(const ComputeContext &gizmo_context,
                                            FunctionRef<void(const ComputeContext &context)> fn)
 {
   ie::foreach_element_on_inverse_eval_path(
-      gizmo_context, {&gizmo_socket, get_gizmo_socket_elem(gizmo_node, gizmo_socket)}, fn, {});
+      gizmo_context,
+      {.socket = &gizmo_socket, .elem = get_gizmo_socket_elem(gizmo_node, gizmo_socket)},
+      fn,
+      {});
 }
 
 void foreach_socket_on_gizmo_path(
@@ -494,7 +503,10 @@ void foreach_socket_on_gizmo_path(
         const ComputeContext &context, const bNodeSocket &socket, const ie::ElemVariant &elem)> fn)
 {
   ie::foreach_element_on_inverse_eval_path(
-      gizmo_context, {&gizmo_socket, get_gizmo_socket_elem(gizmo_node, gizmo_socket)}, {}, fn);
+      gizmo_context,
+      {.socket = &gizmo_socket, .elem = get_gizmo_socket_elem(gizmo_node, gizmo_socket)},
+      {},
+      fn);
 }
 
 ie::ElemVariant get_editable_gizmo_elem(const ComputeContext &gizmo_context,
@@ -507,7 +519,7 @@ ie::ElemVariant get_editable_gizmo_elem(const ComputeContext &gizmo_context,
 
   ie::foreach_element_on_inverse_eval_path(
       gizmo_context,
-      {&gizmo_socket, get_gizmo_socket_elem(gizmo_node, gizmo_socket)},
+      {.socket = &gizmo_socket, .elem = get_gizmo_socket_elem(gizmo_node, gizmo_socket)},
       {},
       [&](const ComputeContext &context, const bNodeSocket &socket, const ie::ElemVariant &elem) {
         if (context.hash() == gizmo_context.hash() && &socket == &gizmo_socket) {
@@ -554,7 +566,10 @@ void apply_gizmo_change(
     bke::SocketValueVariant new_value = *old_value_converted;
     apply_on_gizmo_value_fn(new_value);
 
-    sockets_to_update.append({&gizmo_context, &gizmo_socket, link, new_value});
+    sockets_to_update.append({.context = &gizmo_context,
+                              .socket = &gizmo_socket,
+                              .multi_input_link = link,
+                              .new_value = new_value});
   }
 
   /* Actually backpropagate the socket values. */

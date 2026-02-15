@@ -15,15 +15,39 @@ namespace blender {
 
 /* **************** SCALAR MATH ******************** */
 static bke::bNodeSocketTemplate inputs[] = {
-    {SOCK_FLOAT, N_("Value"), 0.5f, 0.5f, 0.5f, 1.0f, -100.0f, 100.0f, PROP_NONE},
-    {SOCK_FLOAT, N_("Value"), 0.5f, 0.5f, 0.5f, 1.0f, -100.0f, 100.0f, PROP_NONE},
-    {SOCK_FLOAT, N_("Value"), 0.0f, 0.5f, 0.5f, 1.0f, -100.0f, 100.0f, PROP_NONE},
-    {-1, ""},
+    {.type = SOCK_FLOAT,
+     .name = N_("Value"),
+     .val1 = 0.5f,
+     .val2 = 0.5f,
+     .val3 = 0.5f,
+     .val4 = 1.0f,
+     .min = -100.0f,
+     .max = 100.0f,
+     .subtype = PROP_NONE},
+    {.type = SOCK_FLOAT,
+     .name = N_("Value"),
+     .val1 = 0.5f,
+     .val2 = 0.5f,
+     .val3 = 0.5f,
+     .val4 = 1.0f,
+     .min = -100.0f,
+     .max = 100.0f,
+     .subtype = PROP_NONE},
+    {.type = SOCK_FLOAT,
+     .name = N_("Value"),
+     .val1 = 0.0f,
+     .val2 = 0.5f,
+     .val3 = 0.5f,
+     .val4 = 1.0f,
+     .min = -100.0f,
+     .max = 100.0f,
+     .subtype = PROP_NONE},
+    {.type = -1, .name = ""},
 };
 
 static bke::bNodeSocketTemplate outputs[] = {
-    {SOCK_FLOAT, N_("Value")},
-    {-1, ""},
+    {.type = SOCK_FLOAT, .name = N_("Value")},
+    {.type = -1, .name = ""},
 };
 
 static void valuefn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)

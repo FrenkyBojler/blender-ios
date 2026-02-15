@@ -70,16 +70,16 @@ static BundleSyncState get_sync_state_separate_bundle(
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
       snode, compute_context_cache, *src_bundle_socket);
   if (!current_context) {
-    return {NodeSyncState::NoSyncSource};
+    return {.state = NodeSyncState::NoSyncSource};
   }
   const LinkedBundleSignatures linked_signatures = gather_linked_origin_bundle_signatures(
       current_context, *src_bundle_socket, compute_context_cache);
   if (linked_signatures.items.is_empty()) {
-    return {NodeSyncState::NoSyncSource};
+    return {.state = NodeSyncState::NoSyncSource};
   }
   std::optional<BundleSignature> merged_signature = linked_signatures.get_merged_signature();
   if (!merged_signature.has_value()) {
-    return {NodeSyncState::ConflictingSyncSources};
+    return {.state = NodeSyncState::ConflictingSyncSources};
   }
   if (!linked_signatures.has_type_definition()) {
     merged_signature->set_auto_structure_types();
@@ -87,9 +87,9 @@ static BundleSyncState get_sync_state_separate_bundle(
   const nodes::BundleSignature &current_signature =
       nodes::BundleSignature::from_separate_bundle_node(separate_bundle_node, true);
   if (*merged_signature != current_signature) {
-    return {NodeSyncState::CanBeSynced, std::move(merged_signature)};
+    return {.state = NodeSyncState::CanBeSynced, .source_signature = std::move(merged_signature)};
   }
-  return {NodeSyncState::Synced};
+  return {.state = NodeSyncState::Synced};
 }
 
 static BundleSyncState get_sync_state_combine_bundle(
@@ -108,16 +108,16 @@ static BundleSyncState get_sync_state_combine_bundle(
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
       snode, compute_context_cache, *src_bundle_socket);
   if (!current_context) {
-    return {NodeSyncState::NoSyncSource};
+    return {.state = NodeSyncState::NoSyncSource};
   }
   const LinkedBundleSignatures linked_signatures = gather_linked_target_bundle_signatures(
       current_context, *src_bundle_socket, compute_context_cache);
   if (linked_signatures.items.is_empty()) {
-    return {NodeSyncState::NoSyncSource};
+    return {.state = NodeSyncState::NoSyncSource};
   }
   std::optional<BundleSignature> merged_signature = linked_signatures.get_merged_signature();
   if (!merged_signature.has_value()) {
-    return {NodeSyncState::ConflictingSyncSources};
+    return {.state = NodeSyncState::ConflictingSyncSources};
   }
   if (!linked_signatures.has_type_definition()) {
     merged_signature->set_auto_structure_types();
@@ -125,9 +125,9 @@ static BundleSyncState get_sync_state_combine_bundle(
   const nodes::BundleSignature &current_signature =
       nodes::BundleSignature::from_combine_bundle_node(combine_bundle_node, true);
   if (*merged_signature != current_signature) {
-    return {NodeSyncState::CanBeSynced, std::move(merged_signature)};
+    return {.state = NodeSyncState::CanBeSynced, .source_signature = std::move(merged_signature)};
   }
-  return {NodeSyncState::Synced};
+  return {.state = NodeSyncState::Synced};
 }
 
 static ClosureSyncState get_sync_state_closure_output(
@@ -145,16 +145,16 @@ static ClosureSyncState get_sync_state_closure_output(
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
       snode, compute_context_cache, *src_closure_socket);
   if (!current_context) {
-    return {NodeSyncState::NoSyncSource};
+    return {.state = NodeSyncState::NoSyncSource};
   }
   const LinkedClosureSignatures linked_signatures = gather_linked_target_closure_signatures(
       current_context, *src_closure_socket, compute_context_cache);
   if (linked_signatures.items.is_empty()) {
-    return {NodeSyncState::NoSyncSource};
+    return {.state = NodeSyncState::NoSyncSource};
   }
   std::optional<ClosureSignature> merged_signature = linked_signatures.get_merged_signature();
   if (!merged_signature.has_value()) {
-    return {NodeSyncState::ConflictingSyncSources};
+    return {.state = NodeSyncState::ConflictingSyncSources};
   }
   if (!linked_signatures.has_type_definition()) {
     merged_signature->set_auto_structure_types();
@@ -162,9 +162,9 @@ static ClosureSyncState get_sync_state_closure_output(
   const nodes::ClosureSignature &current_signature =
       nodes::ClosureSignature::from_closure_output_node(closure_output_node, true);
   if (*merged_signature != current_signature) {
-    return {NodeSyncState::CanBeSynced, merged_signature};
+    return {.state = NodeSyncState::CanBeSynced, .source_signature = merged_signature};
   }
-  return {NodeSyncState::Synced};
+  return {.state = NodeSyncState::Synced};
 }
 
 static ClosureSyncState get_sync_state_evaluate_closure(
@@ -182,16 +182,16 @@ static ClosureSyncState get_sync_state_evaluate_closure(
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
       snode, compute_context_cache, *src_closure_socket);
   if (!current_context) {
-    return {NodeSyncState::NoSyncSource};
+    return {.state = NodeSyncState::NoSyncSource};
   }
   const LinkedClosureSignatures linked_signatures = gather_linked_origin_closure_signatures(
       current_context, *src_closure_socket, compute_context_cache);
   if (linked_signatures.items.is_empty()) {
-    return {NodeSyncState::NoSyncSource};
+    return {.state = NodeSyncState::NoSyncSource};
   }
   std::optional<ClosureSignature> merged_signature = linked_signatures.get_merged_signature();
   if (!merged_signature.has_value()) {
-    return {NodeSyncState::ConflictingSyncSources};
+    return {.state = NodeSyncState::ConflictingSyncSources};
   }
   if (!linked_signatures.has_type_definition()) {
     merged_signature->set_auto_structure_types();
@@ -199,9 +199,9 @@ static ClosureSyncState get_sync_state_evaluate_closure(
   const nodes::ClosureSignature &current_signature =
       nodes::ClosureSignature::from_evaluate_closure_node(evaluate_closure_node, true);
   if (*merged_signature != current_signature) {
-    return {NodeSyncState::CanBeSynced, merged_signature};
+    return {.state = NodeSyncState::CanBeSynced, .source_signature = merged_signature};
   }
-  return {NodeSyncState::Synced};
+  return {.state = NodeSyncState::Synced};
 }
 
 void sync_sockets_separate_bundle(SpaceNode &snode,

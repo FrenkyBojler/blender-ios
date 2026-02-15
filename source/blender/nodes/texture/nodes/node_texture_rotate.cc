@@ -15,15 +15,36 @@
 namespace blender {
 
 static bke::bNodeSocketTemplate inputs[] = {
-    {SOCK_RGBA, N_("Color"), 0.0f, 0.0f, 0.0f, 1.0f},
-    {SOCK_FLOAT, N_("Turns"), 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, PROP_NONE},
-    {SOCK_VECTOR, N_("Axis"), 0.0f, 0.0f, 1.0f, 0.0f, -1.0f, 1.0f, PROP_DIRECTION},
-    {-1, ""},
+    {.type = SOCK_RGBA,
+     .name = N_("Color"),
+     .val1 = 0.0f,
+     .val2 = 0.0f,
+     .val3 = 0.0f,
+     .val4 = 1.0f},
+    {.type = SOCK_FLOAT,
+     .name = N_("Turns"),
+     .val1 = 0.0f,
+     .val2 = 0.0f,
+     .val3 = 0.0f,
+     .val4 = 0.0f,
+     .min = -1.0f,
+     .max = 1.0f,
+     .subtype = PROP_NONE},
+    {.type = SOCK_VECTOR,
+     .name = N_("Axis"),
+     .val1 = 0.0f,
+     .val2 = 0.0f,
+     .val3 = 1.0f,
+     .val4 = 0.0f,
+     .min = -1.0f,
+     .max = 1.0f,
+     .subtype = PROP_DIRECTION},
+    {.type = -1, .name = ""},
 };
 
 static bke::bNodeSocketTemplate outputs[] = {
-    {SOCK_RGBA, N_("Color")},
-    {-1, ""},
+    {.type = SOCK_RGBA, .name = N_("Color")},
+    {.type = -1, .name = ""},
 };
 
 static void rotate(float new_co[3], float a, const float ax[3], const float co[3])

@@ -141,9 +141,10 @@ void eval_downstream(
         /* Forward the value to every group input node. */
         for (const bNode *group_input_node : group_tree->group_input_nodes()) {
           if (propagate_value_fn(ctx_group_node_input,
-                                 {&group_context, &group_input_node->output_socket(socket_index)}))
+                                 {.context = &group_context,
+                                  .socket = &group_input_node->output_socket(socket_index)}))
           {
-            schedule_node({&group_context, group_input_node});
+            schedule_node({.context = &group_context, .node = group_input_node});
           }
         }
       };
@@ -156,12 +157,12 @@ void eval_downstream(
       }
       const bNode &target_node = *link->tonode;
       const bNodeSocket &target_socket = *link->tosock;
-      if (!propagate_value_fn(ctx_output_socket, {context, &target_socket})) {
+      if (!propagate_value_fn(ctx_output_socket, {.context = context, .socket = &target_socket})) {
         continue;
       }
-      schedule_node({context, &target_node});
+      schedule_node({.context = context, .node = &target_node});
       if (target_node.is_group()) {
-        forward_group_node_input_into_group({context, &target_socket});
+        forward_group_node_input_into_group({.context = context, .socket = &target_socket});
       }
     }
   };
@@ -173,7 +174,7 @@ void eval_downstream(
       if (node.is_group()) {
         forward_group_node_input_into_group(ctx_socket);
       }
-      schedule_node({ctx_socket.context, &node});
+      schedule_node({.context = ctx_socket.context, .node = &node});
     }
     else {
       forward_output(ctx_socket);
@@ -193,15 +194,18 @@ void eval_downstream(
     const ComputeContext *context = ctx_node.context;
 
     if (node.is_reroute()) {
-      if (propagate_value_fn({context, &node.input_socket(0)}, {context, &node.output_socket(0)}))
+      if (propagate_value_fn({.context = context, .socket = &node.input_socket(0)},
+                             {.context = context, .socket = &node.output_socket(0)}))
       {
-        forward_output({context, &node.output_socket(0)});
+        forward_output({.context = context, .socket = &node.output_socket(0)});
       }
     }
     else if (node.is_muted()) {
       for (const bNodeLink &link : node.internal_links()) {
-        if (propagate_value_fn({context, link.fromsock}, {context, link.tosock})) {
-          forward_output({context, link.tosock});
+        if (propagate_value_fn({.context = context, .socket = link.fromsock},
+                               {.context = context, .socket = link.tosock}))
+        {
+          forward_output({.context = context, .socket = link.tosock});
         }
       }
     }
@@ -223,23 +227,24 @@ void eval_downstream(
       /* Propagate the values from the group output node to the outputs of the group node and
        * continue forwarding them from there. */
       for (const int index : group->interface_outputs().index_range()) {
-        if (propagate_value_fn({&group_context, &group_output->input_socket(index)},
-                               {context, &node.output_socket(index)}))
+        if (propagate_value_fn(
+                {.context = &group_context, .socket = &group_output->input_socket(index)},
+                {.context = context, .socket = &node.output_socket(index)}))
         {
-          forward_output({context, &node.output_socket(index)});
+          forward_output({.context = context, .socket = &node.output_socket(index)});
         }
       }
     }
     else if (node.is_group_input()) {
       for (const bNodeSocket *output_socket : node.output_sockets()) {
-        forward_output({context, output_socket});
+        forward_output({.context = context, .socket = output_socket});
       }
     }
     else {
       sockets_vec.clear();
       evaluate_node_fn(ctx_node, sockets_vec);
       for (const bNodeSocket *socket : sockets_vec) {
-        forward_output({context, socket});
+        forward_output({.context = context, .socket = socket});
       }
     }
   }
@@ -286,10 +291,10 @@ UpstreamEvalTargets eval_upstream(
     }
     const ComputeContext &group_context = compute_context_cache.for_group_node(
         context, group_node.identifier, &group_node.owner_tree());
-    propagate_value_fn(
-        ctx_output_socket,
-        {&group_context, &group_output->input_socket(ctx_output_socket.socket->index())});
-    schedule_node({&group_context, group_output});
+    propagate_value_fn(ctx_output_socket,
+                       {.context = &group_context,
+                        .socket = &group_output->input_socket(ctx_output_socket.socket->index())});
+    schedule_node({.context = &group_context, .node = group_output});
   };
 
   const auto forward_group_input_to_parent = [&](const SocketInContext &ctx_output_socket) {
@@ -310,8 +315,9 @@ UpstreamEvalTargets eval_upstream(
     const ComputeContext *parent_context = ctx_output_socket.context->parent();
     /* Note that we might propagate multiple values to the same input of the group node. The
      * callback has to handle that case gracefully. */
-    propagate_value_fn(ctx_output_socket, {parent_context, &caller_input_socket});
-    schedule_node({parent_context, &caller_node});
+    propagate_value_fn(ctx_output_socket,
+                       {.context = parent_context, .socket = &caller_input_socket});
+    schedule_node({.context = parent_context, .node = &caller_node});
   };
 
   const auto forward_input = [&](const SocketInContext &ctx_input_socket) {
@@ -326,16 +332,16 @@ UpstreamEvalTargets eval_upstream(
       }
       const bNode &origin_node = *link->fromnode;
       const bNodeSocket &origin_socket = *link->fromsock;
-      if (!propagate_value_fn(ctx_input_socket, {context, &origin_socket})) {
+      if (!propagate_value_fn(ctx_input_socket, {.context = context, .socket = &origin_socket})) {
         continue;
       }
-      schedule_node({context, &origin_node});
+      schedule_node({.context = context, .node = &origin_node});
       if (origin_node.is_group()) {
-        forward_group_node_output_into_group({context, &origin_socket});
+        forward_group_node_output_into_group({.context = context, .socket = &origin_socket});
         continue;
       }
       if (origin_node.is_group_input()) {
-        forward_group_input_to_parent({context, &origin_socket});
+        forward_group_input_to_parent({.context = context, .socket = &origin_socket});
         continue;
       }
     }
@@ -355,7 +361,7 @@ UpstreamEvalTargets eval_upstream(
         forward_group_input_to_parent(ctx_socket);
       }
       else {
-        schedule_node({ctx_socket.context, &node});
+        schedule_node({.context = ctx_socket.context, .node = &node});
       }
     }
   }
@@ -377,13 +383,16 @@ UpstreamEvalTargets eval_upstream(
       eval_targets.value_nodes.add(ctx_node);
     }
     else if (node.is_reroute()) {
-      propagate_value_fn({context, &node.output_socket(0)}, {context, &node.input_socket(0)});
-      forward_input({context, &node.input_socket(0)});
+      propagate_value_fn({.context = context, .socket = &node.output_socket(0)},
+                         {.context = context, .socket = &node.input_socket(0)});
+      forward_input({.context = context, .socket = &node.input_socket(0)});
     }
     else if (node.is_muted()) {
       for (const bNodeLink &link : node.internal_links()) {
-        if (propagate_value_fn({context, link.tosock}, {context, link.fromsock})) {
-          forward_input({context, link.fromsock});
+        if (propagate_value_fn({.context = context, .socket = link.tosock},
+                               {.context = context, .socket = link.fromsock}))
+        {
+          forward_input({.context = context, .socket = link.fromsock});
         }
       }
     }
@@ -393,21 +402,21 @@ UpstreamEvalTargets eval_upstream(
       sockets_vec.clear();
       get_inputs_to_propagate_fn(ctx_node, sockets_vec);
       for (const bNodeSocket *socket : sockets_vec) {
-        forward_input({context, socket});
+        forward_input({.context = context, .socket = socket});
       }
     }
     else if (node.is_group_output()) {
       sockets_vec.clear();
       get_inputs_to_propagate_fn(ctx_node, sockets_vec);
       for (const bNodeSocket *socket : sockets_vec) {
-        forward_input({context, socket});
+        forward_input({.context = context, .socket = socket});
       }
     }
     else {
       sockets_vec.clear();
       evaluate_node_fn(ctx_node, sockets_vec);
       for (const bNodeSocket *input_socket : sockets_vec) {
-        forward_input({context, input_socket});
+        forward_input({.context = context, .socket = input_socket});
       }
     }
   }

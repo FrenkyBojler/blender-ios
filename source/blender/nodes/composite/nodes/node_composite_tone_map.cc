@@ -21,17 +21,17 @@
 namespace blender::nodes::node_composite_tone_map_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {CMP_NODE_TONE_MAP_PHOTORECEPTOR,
-     "RD_PHOTORECEPTOR",
-     0,
-     N_("R/D Photoreceptor"),
-     N_("More advanced algorithm based on eye physiology, by Reinhard and Devlin")},
-    {CMP_NODE_TONE_MAP_SIMPLE,
-     "RH_SIMPLE",
-     0,
-     N_("Rh Simple"),
-     N_("Simpler photographic algorithm by Reinhard")},
-    {0, nullptr, 0, nullptr, nullptr},
+    {.value = CMP_NODE_TONE_MAP_PHOTORECEPTOR,
+     .identifier = "RD_PHOTORECEPTOR",
+     .icon = 0,
+     .name = N_("R/D Photoreceptor"),
+     .description = N_("More advanced algorithm based on eye physiology, by Reinhard and Devlin")},
+    {.value = CMP_NODE_TONE_MAP_SIMPLE,
+     .identifier = "RH_SIMPLE",
+     .icon = 0,
+     .name = N_("Rh Simple"),
+     .description = N_("Simpler photographic algorithm by Reinhard")},
+    {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)

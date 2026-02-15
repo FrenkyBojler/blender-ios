@@ -118,17 +118,17 @@ static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem mode_items[] = {
 
-      {GEO_NODE_CURVE_PRIMITIVE_BEZIER_SEGMENT_POSITION,
-       "POSITION",
-       ICON_NONE,
-       "Position",
-       "The start and end handles are fixed positions"},
-      {GEO_NODE_CURVE_PRIMITIVE_BEZIER_SEGMENT_OFFSET,
-       "OFFSET",
-       ICON_NONE,
-       "Offset",
-       "The start and end handles are offsets from the spline's control points"},
-      {0, nullptr, 0, nullptr, nullptr},
+      {.value = GEO_NODE_CURVE_PRIMITIVE_BEZIER_SEGMENT_POSITION,
+       .identifier = "POSITION",
+       .icon = ICON_NONE,
+       .name = "Position",
+       .description = "The start and end handles are fixed positions"},
+      {.value = GEO_NODE_CURVE_PRIMITIVE_BEZIER_SEGMENT_OFFSET,
+       .identifier = "OFFSET",
+       .icon = ICON_NONE,
+       .name = "Offset",
+       .description = "The start and end handles are offsets from the spline's control points"},
+      {.value = 0, .identifier = nullptr, .icon = 0, .name = nullptr, .description = nullptr},
   };
 
   RNA_def_node_enum(srna,
