@@ -104,11 +104,20 @@ set(SRC
   GEO_uv_parametrizer.hh
   GEO_volume_grid_resample.hh
 
+  xpbd/GEO_xpbd_constraint_align_rotations.hh
+  xpbd/GEO_xpbd_constraint_collision_plane.hh
   xpbd/GEO_xpbd_constraint_coloring.hh
+  xpbd/GEO_xpbd_constraint_damping_angular.hh
+  xpbd/GEO_xpbd_constraint_damping_linear.hh
+  xpbd/GEO_xpbd_constraint_distance.hh
+  xpbd/GEO_xpbd_constraint_friction.hh
+  xpbd/GEO_xpbd_constraint_pin_position.hh
+  xpbd/GEO_xpbd_constraint_pin_rotation.hh
+  xpbd/GEO_xpbd_constraint_rod_bend_twist.hh
+  xpbd/GEO_xpbd_constraint_rod_stretch_shear.hh
   xpbd/GEO_xpbd_constraint_set.hh
   xpbd/GEO_xpbd_constraint_set_params.hh
   xpbd/GEO_xpbd_constraint_set_templated.hh
-  xpbd/GEO_xpbd_constraint_sets_common.hh
   xpbd/GEO_xpbd_geometry_ref.hh
   xpbd/GEO_xpbd_solve.hh
   xpbd/GEO_xpbd_updater_gauss_seidel.hh

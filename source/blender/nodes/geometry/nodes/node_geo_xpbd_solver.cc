@@ -17,7 +17,14 @@
 #include "BKE_geometry_fields.hh"
 #include "BKE_grease_pencil.hh"
 
-#include "GEO_xpbd_constraint_sets_common.hh"
+#include "GEO_xpbd_constraint_collision_plane.hh"
+#include "GEO_xpbd_constraint_damping_angular.hh"
+#include "GEO_xpbd_constraint_damping_linear.hh"
+#include "GEO_xpbd_constraint_friction.hh"
+#include "GEO_xpbd_constraint_pin_position.hh"
+#include "GEO_xpbd_constraint_pin_rotation.hh"
+#include "GEO_xpbd_constraint_rod_bend_twist.hh"
+#include "GEO_xpbd_constraint_rod_stretch_shear.hh"
 #include "GEO_xpbd_solve.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
