@@ -92,6 +92,8 @@ NODE_DEFINE(Film)
   SOCKET_FLOAT(exposure, "Exposure", 1.0f);
   SOCKET_FLOAT(pass_alpha_threshold, "Pass Alpha Threshold", 0.0f);
 
+  SOCKET_BOOLEAN(use_camera_responsivity, "Use Camera Responsivity", false);
+
   static NodeEnum filter_enum;
   filter_enum.insert("box", FILTER_BOX);
   filter_enum.insert("gaussian", FILTER_GAUSSIAN);
@@ -156,6 +158,11 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   kfilm->exposure = exposure;
   kfilm->pass_alpha_threshold = pass_alpha_threshold;
   kfilm->pass_flag = 0;
+
+  kfilm->use_camera_responsivity = use_camera_responsivity ? 1 : 0;
+  kfilm->camera_responsivity_r = camera_responsivity_r;
+  kfilm->camera_responsivity_g = camera_responsivity_g;
+  kfilm->camera_responsivity_b = camera_responsivity_b;
 
   kfilm->use_approximate_shadow_catcher = get_use_approximate_shadow_catcher();
 

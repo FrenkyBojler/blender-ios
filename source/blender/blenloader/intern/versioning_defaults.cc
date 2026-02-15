@@ -18,6 +18,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
@@ -768,6 +769,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     camera.exposure_compensation = 0.0f;
     camera.lens_attenuation = 0.65f;
     camera.lens_attenuation_mode = CAM_LENS_ATTENUATION_FILM;
+    camera.camera_type_preset = 0;
+    unit_m3(camera.responsivity_matrix);
   }
 
   for (Light &light : bmain->lights) {

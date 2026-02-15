@@ -396,6 +396,9 @@ class DATA_PT_camera_physical(CameraButtonsPanel, Panel):
         row.enabled = False
         row.prop(cam, "exposure_ev", text="Exposure Value (EV)")
 
+        col.separator()
+        col.prop(cam, "camera_type_preset", text="Camera Type")
+
 
 class DATA_PT_camera_dof(CameraButtonsPanel, Panel):
     bl_label = "Depth of Field"

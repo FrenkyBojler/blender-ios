@@ -266,6 +266,11 @@ struct Camera {
   char lens_attenuation_mode = CAM_LENS_ATTENUATION_FILM;
   char _pad4[3] = {};
 
+  /* Camera responsivity (spectral sensitivity) preset. 0 = None. */
+  int camera_type_preset = 0;
+  /* Precomputed Camera RGB to XYZ matrix, updated when preset changes. */
+  float responsivity_matrix[3][3] = {{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+
   DNA_DEPRECATED struct Object *dof_ob = nullptr;
   DNA_DEPRECATED struct GPUDOFSettings gpu_dof;
   struct CameraDOFSettings dof;

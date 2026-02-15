@@ -66,6 +66,10 @@ bool PathTraceTile::get_pass_pixels(const string_view pass_name,
   pass_access_info.use_approximate_shadow_catcher = buffer_params.use_approximate_shadow_catcher;
   pass_access_info.use_approximate_shadow_catcher_background =
       pass_access_info.use_approximate_shadow_catcher && !buffer_params.use_transparent_background;
+  pass_access_info.use_camera_responsivity = buffer_params.use_camera_responsivity;
+  pass_access_info.camera_responsivity_r = buffer_params.camera_responsivity_r;
+  pass_access_info.camera_responsivity_g = buffer_params.camera_responsivity_g;
+  pass_access_info.camera_responsivity_b = buffer_params.camera_responsivity_b;
 
   const PassAccessorCPU pass_accessor(pass_access_info, exposure, num_samples);
   const PassAccessor::Destination destination(pixels, num_channels);

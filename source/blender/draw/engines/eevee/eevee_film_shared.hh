@@ -116,6 +116,13 @@ struct [[host_shared]] FilmData {
   float exposure_scale;
   /** Film exposure multiplier applied to the final combined output. */
   float film_exposure;
+  /** Whether camera responsivity color matrix is active. */
+  bool32_t use_camera_responsivity;
+  /** Camera responsivity combined matrix (CamRGB->XYZ->SceneLinear).
+   * 3 rows packed as float4 for GPU alignment. Identity when disabled. */
+  float4 responsivity_row0;
+  float4 responsivity_row1;
+  float4 responsivity_row2;
   /** Scaling factor for scaled resolution rendering. */
   int scaling_factor;
   /** Software LOD bias to apply to when sampling texture inside the node-tree evaluation. */
@@ -126,6 +133,9 @@ struct [[host_shared]] FilmData {
   int samples_len;
   /** Sum of the weights of all samples in the sample table. */
   float samples_weight_total;
+  int _pad0;
+  int _pad1;
+  int _pad2;
 
   struct FilmSample samples[FILM_PRECOMP_SAMPLE_MAX];
 };

@@ -392,8 +392,21 @@ ccl_device_inline void film_get_pass_pixel_combined(
 
   const ccl_global float *in = buffer + kfilm_convert->pass_offset;
 
-  const float3 color = make_float3(in[0], in[1], in[2]) * scale_exposure;
+  float3 color = make_float3(in[0], in[1], in[2]) * scale_exposure;
   const float alpha = in[3] * scale;
+
+  if (kfilm_convert->use_camera_responsivity) {
+    const float r = color.x, g = color.y, b = color.z;
+    color.x = kfilm_convert->camera_responsivity_r.x * r +
+              kfilm_convert->camera_responsivity_r.y * g +
+              kfilm_convert->camera_responsivity_r.z * b;
+    color.y = kfilm_convert->camera_responsivity_g.x * r +
+              kfilm_convert->camera_responsivity_g.y * g +
+              kfilm_convert->camera_responsivity_g.z * b;
+    color.z = kfilm_convert->camera_responsivity_b.x * r +
+              kfilm_convert->camera_responsivity_b.y * g +
+              kfilm_convert->camera_responsivity_b.z * b;
+  }
 
   pixel[0] = color.x;
   pixel[1] = color.y;

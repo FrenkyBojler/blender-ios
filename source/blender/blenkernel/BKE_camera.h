@@ -38,6 +38,12 @@ float BKE_camera_object_dof_distance(const struct Object *ob);
 float BKE_camera_exposure_ev(const struct Camera *camera);
 float BKE_camera_exposure_multiplier(const struct Camera *camera);
 
+/* Camera Responsivity (Spectral Sensitivity) */
+
+void BKE_camera_responsivity_matrix_compute(int preset_index, float r_matrix[3][3]);
+int BKE_camera_responsivity_preset_count();
+const char *BKE_camera_responsivity_preset_name(int index);
+
 int BKE_camera_sensor_fit(int sensor_fit, float sizex, float sizey);
 float BKE_camera_sensor_size(int sensor_fit, float sensor_x, float sensor_y);
 

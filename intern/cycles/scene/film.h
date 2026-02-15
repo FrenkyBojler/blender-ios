@@ -33,6 +33,8 @@ class Film : public Node {
   NODE_SOCKET_API(float, exposure)
   NODE_SOCKET_API(float, pass_alpha_threshold)
 
+  NODE_SOCKET_API(bool, use_camera_responsivity)
+
   NODE_SOCKET_API(PassType, display_pass)
   NODE_SOCKET_API(bool, show_active_pixels)
 
@@ -51,6 +53,11 @@ class Film : public Node {
   NODE_SOCKET_API(bool, use_approximate_shadow_catcher)
 
   NODE_SOCKET_API(bool, use_sample_count)
+
+  /* Camera responsivity matrix rows (not sockets, float4 not supported by socket system). */
+  float4 camera_responsivity_r = zero_float4();
+  float4 camera_responsivity_g = zero_float4();
+  float4 camera_responsivity_b = zero_float4();
 
  private:
   size_t filter_table_offset_;

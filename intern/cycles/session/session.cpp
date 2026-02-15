@@ -516,6 +516,10 @@ bool Session::delayed_reset_buffer_params()
   buffer_params_.use_approximate_shadow_catcher =
       scene->film->get_use_approximate_shadow_catcher();
   buffer_params_.use_transparent_background = scene->background->get_transparent();
+  buffer_params_.use_camera_responsivity = scene->film->get_use_camera_responsivity();
+  buffer_params_.camera_responsivity_r = scene->film->camera_responsivity_r;
+  buffer_params_.camera_responsivity_g = scene->film->camera_responsivity_g;
+  buffer_params_.camera_responsivity_b = scene->film->camera_responsivity_b;
 
   /* Tile and work scheduling. */
   tile_manager_.reset_scheduling(buffer_params_, get_effective_tile_size());

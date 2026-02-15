@@ -57,6 +57,12 @@ void main()
                       (display_id == uniform_buf.film.transparent_id);
   if (use_exposure) {
     out_color.rgb *= uniform_buf.film.film_exposure;
+    if (uniform_buf.film.use_camera_responsivity != 0) {
+      float3x3 resp = float3x3(uniform_buf.film.responsivity_row0.xyz,
+                               uniform_buf.film.responsivity_row1.xyz,
+                               uniform_buf.film.responsivity_row2.xyz);
+      out_color.rgb = out_color.rgb * resp;
+    }
   }
 
   float out_depth = imageLoadFast(depth_img, texel).r;

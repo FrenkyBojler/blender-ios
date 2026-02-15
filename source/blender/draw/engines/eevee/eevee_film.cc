@@ -20,7 +20,11 @@
 #include "BKE_compositor.hh"
 #include "BKE_scene.hh"
 
+#include "BLI_math_matrix.h"
+
 #include "DNA_camera_types.h"
+
+#include "IMB_colormanagement.hh"
 
 #include "GPU_framebuffer.hh"
 #include "GPU_texture.hh"
@@ -426,6 +430,32 @@ void Film::init(const int2 &extent, const rcti *output_rect)
 
     data_.film_exposure = film_exposure;
     film_exposure_ = film_exposure;
+
+    /* Camera responsivity matrix. */
+    const blender::Camera *resp_cam = nullptr;
+    if (camera_object_eval && camera_object_eval->type == OB_CAMERA) {
+      resp_cam = reinterpret_cast<const blender::Camera *>(camera_object_eval->data);
+    }
+    if (resp_cam && (resp_cam->flag & CAM_USE_PHYSICAL_CAMERA) &&
+        resp_cam->camera_type_preset != 0)
+    {
+      float3x3 xyz_to_sl = IMB_colormanagement_get_xyz_to_scene_linear();
+      float resp[3][3];
+      copy_m3_m3(resp, const_cast<float(*)[3]>(resp_cam->responsivity_matrix));
+      float combined[3][3];
+      mul_m3_m3m3(combined, xyz_to_sl.ptr(), resp);
+      data_.responsivity_row0 = float4(combined[0][0], combined[0][1], combined[0][2], 0.0f);
+      data_.responsivity_row1 = float4(combined[1][0], combined[1][1], combined[1][2], 0.0f);
+      data_.responsivity_row2 = float4(combined[2][0], combined[2][1], combined[2][2], 0.0f);
+      data_.use_camera_responsivity = true;
+    }
+    else {
+      data_.responsivity_row0 = float4(1.0f, 0.0f, 0.0f, 0.0f);
+      data_.responsivity_row1 = float4(0.0f, 1.0f, 0.0f, 0.0f);
+      data_.responsivity_row2 = float4(0.0f, 0.0f, 1.0f, 0.0f);
+      data_.use_camera_responsivity = false;
+    }
+
     if (enabled_passes_ & data_passes) {
       enabled_categories_ |= PASS_CATEGORY_DATA;
     }

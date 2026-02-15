@@ -1079,10 +1079,15 @@ void PathTraceWorkGPU::get_render_tile_film_pixels(const PassAccessor::Destinati
 {
   const KernelFilm &kfilm = device_scene_->data.film;
 
-  const PassAccessor::PassAccessInfo pass_access_info = get_display_pass_access_info(pass_mode);
+  PassAccessor::PassAccessInfo pass_access_info = get_display_pass_access_info(pass_mode);
   if (pass_access_info.type == PASS_NONE) {
     return;
   }
+
+  pass_access_info.use_camera_responsivity = kfilm.use_camera_responsivity;
+  pass_access_info.camera_responsivity_r = kfilm.camera_responsivity_r;
+  pass_access_info.camera_responsivity_g = kfilm.camera_responsivity_g;
+  pass_access_info.camera_responsivity_b = kfilm.camera_responsivity_b;
 
   const PassAccessorGPU pass_accessor(queue_.get(), pass_access_info, kfilm.exposure, num_samples);
 

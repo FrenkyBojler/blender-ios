@@ -26,6 +26,7 @@
 
 #  include <fmt/format.h>
 
+#  include "BLI_math_matrix.h"
 #  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 
@@ -86,6 +87,50 @@ static float rna_Camera_exposure_ev_get(PointerRNA *ptr)
 {
   const Camera *cam = id_cast<const Camera *>(ptr->owner_id);
   return BKE_camera_exposure_ev(cam);
+}
+
+static int rna_Camera_camera_type_preset_get(PointerRNA *ptr)
+{
+  const Camera *cam = id_cast<const Camera *>(ptr->owner_id);
+  return cam->camera_type_preset;
+}
+
+static void rna_Camera_camera_type_preset_set(PointerRNA *ptr, int value)
+{
+  Camera *cam = id_cast<Camera *>(ptr->owner_id);
+  cam->camera_type_preset = value;
+  if (value != 0) {
+    BKE_camera_responsivity_matrix_compute(value, cam->responsivity_matrix);
+  }
+  else {
+    unit_m3(cam->responsivity_matrix);
+  }
+}
+
+static const EnumPropertyItem *rna_Camera_camera_type_preset_itemf(bContext * /*C*/,
+                                                                    PointerRNA * /*ptr*/,
+                                                                    PropertyRNA * /*prop*/,
+                                                                    bool *r_free)
+{
+  const int count = BKE_camera_responsivity_preset_count();
+  EnumPropertyItem *items = nullptr;
+  int totitem = 0;
+
+  EnumPropertyItem none_item = {0, "NONE", 0, "None", "Blender camera: no responsivity applied"};
+  RNA_enum_item_add(&items, &totitem, &none_item);
+
+  for (int i = 0; i < count; i++) {
+    EnumPropertyItem item = {0};
+    item.value = i + 1;
+    item.identifier = BKE_camera_responsivity_preset_name(i);
+    item.name = BKE_camera_responsivity_preset_name(i);
+    item.description = "";
+    RNA_enum_item_add(&items, &totitem, &item);
+  }
+
+  RNA_enum_item_end(&items, &totitem);
+  *r_free = true;
+  return items;
 }
 
 static void rna_Camera_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
@@ -1214,6 +1259,24 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_float_funcs(prop, "rna_Camera_exposure_ev_get", nullptr, nullptr);
   RNA_def_property_ui_text(
       prop, "Exposure Value", "Calculated exposure value (EV) from ISO, Shutter Speed and F-Stop");
+
+  /* Camera Responsivity */
+
+  static const EnumPropertyItem camera_type_preset_dummy_items[] = {
+      {0, "NONE", 0, "None", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "camera_type_preset", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "camera_type_preset");
+  RNA_def_property_enum_items(prop, camera_type_preset_dummy_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_Camera_camera_type_preset_get",
+                              "rna_Camera_camera_type_preset_set",
+                              "rna_Camera_camera_type_preset_itemf");
+  RNA_def_property_ui_text(
+      prop, "Camera Type", "Camera sensor spectral sensitivity preset");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   RNA_define_lib_overridable(false);
 

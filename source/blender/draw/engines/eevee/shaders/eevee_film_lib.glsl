@@ -554,6 +554,12 @@ void film_store_combined(
     /* Apply film exposure only for display, not for accumulation storage. */
     display = color;
     display.rgb *= uniform_buf.film.film_exposure;
+    if (uniform_buf.film.use_camera_responsivity != 0) {
+      float3x3 resp = float3x3(uniform_buf.film.responsivity_row0.xyz,
+                               uniform_buf.film.responsivity_row1.xyz,
+                               uniform_buf.film.responsivity_row2.xyz);
+      display.rgb = display.rgb * resp;
+    }
   }
   color = film_patch_float_for_16f_storage(color);
   imageStoreFast(out_combined_img, dst.texel, color);
@@ -884,6 +890,12 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
                         (display_id == uniform_buf.film.transparent_id);
     if (use_exposure) {
       out_color.rgb *= uniform_buf.film.film_exposure;
+      if (uniform_buf.film.use_camera_responsivity != 0) {
+        float3x3 resp = float3x3(uniform_buf.film.responsivity_row0.xyz,
+                                 uniform_buf.film.responsivity_row1.xyz,
+                                 uniform_buf.film.responsivity_row2.xyz);
+        out_color.rgb = out_color.rgb * resp;
+      }
     }
   }
 }

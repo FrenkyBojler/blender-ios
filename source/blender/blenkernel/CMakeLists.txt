@@ -74,6 +74,7 @@ set(SRC
   intern/cachefile.cc
   intern/callbacks.cc
   intern/camera.cc
+  intern/camera_responsivity.cc
   intern/cloth.cc
   intern/collection.cc
   intern/collision.cc

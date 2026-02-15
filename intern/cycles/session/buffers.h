@@ -99,6 +99,10 @@ class BufferParams : public Node {
   float exposure = 1.0f;
   bool use_approximate_shadow_catcher = false;
   bool use_transparent_background = false;
+  bool use_camera_responsivity = false;
+  float4 camera_responsivity_r = zero_float4();
+  float4 camera_responsivity_g = zero_float4();
+  float4 camera_responsivity_b = zero_float4();
 
   BufferParams();
 
