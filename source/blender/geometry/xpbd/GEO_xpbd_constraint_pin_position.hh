@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "GEO_xpbd_constraint_coloring.hh"
+#include "GEO_xpbd_constraint_coloring_utils.hh"
 #include "GEO_xpbd_constraint_distance.hh"
 #include "GEO_xpbd_constraint_set_templated.hh"
 
@@ -58,9 +58,9 @@ class PinPositionConstraintSet : public TemplatedConstraintSet<PinPositionConstr
     updater.update_position(geo_i, point_i, result.offset0);
   }
 
-  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
+  ConstraintColoring color_constraints(IndexMaskMemory &memory) const override
   {
-    return unary_constraints_to_independent_masks(point_indices_, memory);
+    return color_constraints__unary(point_indices_, memory);
   }
 };
 

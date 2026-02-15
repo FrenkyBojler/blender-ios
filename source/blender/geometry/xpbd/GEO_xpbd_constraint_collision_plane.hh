@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "GEO_xpbd_constraint_coloring.hh"
+#include "GEO_xpbd_constraint_coloring_utils.hh"
 #include "GEO_xpbd_constraint_set_templated.hh"
 
 namespace blender::xpbd {
@@ -108,9 +108,9 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
     updater.update_position(geo_i_, point_i, offset);
   }
 
-  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
+  ConstraintColoring color_constraints(IndexMaskMemory &memory) const override
   {
-    return unary_constraints_to_independent_masks(points_, memory);
+    return color_constraints__unary(points_, memory);
   }
 };
 

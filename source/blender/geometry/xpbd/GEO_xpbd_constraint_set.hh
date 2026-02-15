@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include "BLI_index_mask.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "GEO_xpbd_constraint_coloring.hh"
 #include "GEO_xpbd_constraint_set_params.hh"
 #include "GEO_xpbd_updater_gauss_seidel.hh"
 #include "GEO_xpbd_updater_velocity.hh"
@@ -23,11 +25,12 @@ namespace blender::xpbd {
  */
 class ConstraintSet {
  protected:
+  int constraints_num_;
   Vector<int> affected_geo_indices_;
 
  public:
-  ConstraintSet(Vector<int> affected_geo_indices)
-      : affected_geo_indices_(std::move(affected_geo_indices))
+  ConstraintSet(int constraints_num, Vector<int> affected_geo_indices)
+      : constraints_num_(constraints_num), affected_geo_indices_(std::move(affected_geo_indices))
   {
   }
 
@@ -36,6 +39,7 @@ class ConstraintSet {
   virtual void reset_forces() = 0;
   virtual void solve_serial(const ConstraintSetParams &params, GaussSeidelUpdater &updater) = 0;
   virtual StringRefNull debug_name() const = 0;
+  virtual ConstraintColoring color_constraints(IndexMaskMemory &memory) const = 0;
 
   Span<int> get_affected_geo_indices() const
   {

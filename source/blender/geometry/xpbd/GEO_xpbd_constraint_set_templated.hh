@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include "BLI_cache_mutex.hh"
-#include "BLI_index_mask.hh"
-
 #include "GEO_xpbd_constraint_set.hh"
 
 namespace blender::xpbd {
@@ -18,18 +15,9 @@ namespace blender::xpbd {
  * Child classes have to implement the templated #evaluate_single method.
  */
 template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
- protected:
-  const int constraints_num_;
-  const int grain_size_ = 256;
-
- private:
-  mutable CacheMutex independent_masks_mutex_;
-  mutable IndexMaskMemory independent_masks_memory_;
-  mutable Vector<IndexMask> independent_masks_;
-
  public:
-  TemplatedConstraintSet(int constraints_num, Vector<int> affected_geo_indices)
-      : ConstraintSet(std::move(affected_geo_indices)), constraints_num_(constraints_num)
+  TemplatedConstraintSet(const int constraints_num, Vector<int> affected_geo_indices)
+      : ConstraintSet(constraints_num, std::move(affected_geo_indices))
   {
   }
 
@@ -53,16 +41,6 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
   {
     return Child::debug_name;
   }
-
-  Span<IndexMask> get_independent_masks() const
-  {
-    independent_masks_mutex_.ensure([&]() {
-      independent_masks_ = this->generate_independent_masks(independent_masks_memory_);
-    });
-    return independent_masks_;
-  }
-
-  virtual Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const = 0;
 };
 
 template<typename Child> class TemplatedVelocityConstraintSet : public VelocityConstraintSet {

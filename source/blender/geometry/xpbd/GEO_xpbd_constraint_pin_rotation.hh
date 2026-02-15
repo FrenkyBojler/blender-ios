@@ -5,7 +5,7 @@
 #pragma once
 
 #include "GEO_xpbd_constraint_align_rotations.hh"
-#include "GEO_xpbd_constraint_coloring.hh"
+#include "GEO_xpbd_constraint_coloring_utils.hh"
 #include "GEO_xpbd_constraint_set_templated.hh"
 
 namespace blender::xpbd {
@@ -58,9 +58,9 @@ class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstr
     updater.update_rotation(geo_i, point_i, result.offset0);
   }
 
-  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
+  ConstraintColoring color_constraints(IndexMaskMemory &memory) const override
   {
-    return unary_constraints_to_independent_masks(point_indices_, memory);
+    return color_constraints__unary(point_indices_, memory);
   }
 };
 
