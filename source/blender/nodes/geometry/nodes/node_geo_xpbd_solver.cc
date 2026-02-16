@@ -2259,13 +2259,13 @@ class XpbdSolverStep {
       const float3 &contact_pos_mesh = float3(nearest.co);
       const float3 bary_coords = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
           vert_positions, corner_verts, tri, contact_pos_mesh);
+      const float3 dir_mesh = contact_pos_mesh - pos_mesh;
       bool is_inside;
       if (this->is_bary_coord_on_edge(bary_coords)) {
         /* The nearest point is on an edge, so its normal is unreliable, use a more robust test. */
-        is_inside = this->is_inside(pos_mesh, mesh.bvh_corner_tris());
+        is_inside = this->is_inside(pos_mesh, mesh.bvh_corner_tris(), dir_mesh);
       }
       else {
-        const float3 dir_mesh = contact_pos_mesh - pos_mesh;
         is_inside = math::dot(dir_mesh, float3(nearest.no)) > 0.0f;
       }
 
@@ -2342,13 +2342,13 @@ class XpbdSolverStep {
       const float3 bary_coords = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
           vert_positions, corner_verts, tri, contact_pos_mesh);
 
+      const float3 dir_mesh = contact_pos_mesh - pos_mesh;
       bool is_inside;
       if (this->is_bary_coord_on_edge(bary_coords)) {
         /* The nearest point is on an edge, so its normal is unreliable, use a more robust test. */
-        is_inside = this->is_inside(pos_mesh, mesh.bvh_corner_tris());
+        is_inside = this->is_inside(pos_mesh, mesh.bvh_corner_tris(), dir_mesh);
       }
       else {
-        const float3 dir_mesh = contact_pos_mesh - pos_mesh;
         is_inside = math::dot(dir_mesh, float3(nearest.no)) > 0.0f;
       }
       const float static_friction = this->compute_contact_friction(
@@ -2392,11 +2392,17 @@ class XpbdSolverStep {
            math::abs(bary_coords[2]) < epsilon;
   }
 
-  bool is_inside(const float3 &pos, const bke::BVHTreeFromMesh &bvh) const
+  bool is_inside(const float3 &pos,
+                 const bke::BVHTreeFromMesh &bvh,
+                 const float3 &approx_ray_direction) const
   {
-    static const std::array<float3, 3> dirs = {{math::normalize(float3{0.25f, 0.64f, 0.72}),
-                                                math::normalize(float3{0.76f, 0.97f, 0.76}),
-                                                math::normalize(float3{0.40, 0.51, 0.60f})}};
+    /* Shoot rays in the approximate direction of where the nearest point is. This is a heuristic
+     * for better performance to make the rays shorter. */
+    const float3 approx_ray_direction_normalized = math::normalize(approx_ray_direction);
+    const std::array<float3, 3> dirs = {
+        {math::normalize(approx_ray_direction_normalized + float3{0.125f, -0.164f, 0.172f}),
+         math::normalize(approx_ray_direction_normalized + float3{0.176f, 0.197f, -0.176f}),
+         math::normalize(approx_ray_direction_normalized + float3{-0.140f, 0.151f, -0.126f})}};
     int inside_count = 0;
     for (const float3 &dir : dirs) {
       BVHTreeRayHit hit{};
