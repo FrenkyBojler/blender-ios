@@ -10,6 +10,8 @@
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_memory_counter_fwd.hh"
 
+#include "BKE_node_socket_value.hh"
+
 #include "NOD_geometry_nodes_list_fwd.hh"
 
 namespace blender::nodes {
@@ -177,5 +179,8 @@ template<typename T, typename Fn> inline void List::foreach_for_write(Fn &&fn)
     fn(**single_value);
   }
 }
+
+ListPtr optimized_list_from_socket_values(Array<bke::SocketValueVariant> &&values,
+                                          eNodeSocketDatatype data_type);
 
 }  // namespace blender::nodes

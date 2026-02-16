@@ -2,11 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_array_utils.hh"
 #include "node_geometry_util.hh"
 
 #include "NOD_geo_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_list.hh"
 #include "NOD_rna_define.hh"
 
 #include "RNA_enum_types.hh"
@@ -15,8 +15,6 @@
 #include "UI_resources.hh"
 
 #include <fmt/format.h>
-
-#include <algorithm>
 
 namespace blender::nodes::node_geo_get_bundle_item_cc {
 
@@ -66,26 +64,6 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   auto *storage = MEM_new<NodeGetBundleItem>(__func__);
   storage->socket_type = SOCK_FLOAT;
   node->storage = storage;
-}
-
-static ListPtr optimized_list_from_socket_values(Array<bke::SocketValueVariant> &&values,
-                                                 const eNodeSocketDatatype data_type)
-{
-  if (!std::ranges::all_of(values,
-                           [](const bke::SocketValueVariant &value) { return value.is_single(); }))
-  {
-    return List::from_container(std::move(values));
-  }
-
-  const CPPType &type = *bke::socket_type_to_geo_nodes_base_cpp_type(data_type);
-  GArray<> array(type, values.size(), NoInitialization());
-  threading::parallel_for(values.index_range(), 128, [&](const IndexRange range) {
-    for (const int list_i : range) {
-      void *closure_result = const_cast<void *>(values[list_i].get_single_ptr_raw());
-      type.move_construct(closure_result, array[list_i]);
-    }
-  });
-  return List::from_garray(std::move(array));
 }
 
 struct GetItemsResult {
