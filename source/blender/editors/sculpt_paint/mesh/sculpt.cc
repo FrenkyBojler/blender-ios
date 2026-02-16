@@ -2346,7 +2346,7 @@ void sculpt_apply_texture(const SculptSession &ss,
                           const float brush_point[3],
                           const int thread_id,
                           float *r_value,
-                          float r_rgba[4])
+                          float4 &r_rgba)
 {
   const ed::sculpt_paint::StrokeCache &cache = *ss.cache;
   const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
@@ -5989,8 +5989,8 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   ignore_background_click = RNA_boolean_get(op->ptr, "ignore_background_click");
   const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
   if (ignore_background_click && !over_mesh(C, op, mval)) {
-    MEM_delete(stroke);
     stroke->free(C, op);
+    MEM_delete(stroke);
     return OPERATOR_PASS_THROUGH;
   }
 
@@ -6000,8 +6000,8 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op->customdata);
     if (stroke) {
-      MEM_delete(stroke);
       stroke->free(C, op);
+      MEM_delete(stroke);
     }
     return retval;
   }
