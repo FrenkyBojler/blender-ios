@@ -2753,6 +2753,7 @@ static void UI_OT_view_item_rename(wmOperatorType *ot)
 
   ot->flag = OPTYPE_INTERNAL;
 }
+/** \} */
 
 static wmOperatorStatus view_item_click_select(bContext &C,
                                                AbstractViewItem *clicked_item,
@@ -2915,10 +2916,17 @@ static void UI_OT_view_item_delete(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Tree View Page Scroll Operator
+ *
+ * Scroll the view to up/down by one page or to the top/bottom of the view.
+ *
+ * \{ */
+
 enum class ScrollPage {
-  Top,
   Up,
   Down,
+  Top,
   Bottom,
 };
 
@@ -2939,10 +2947,6 @@ static wmOperatorStatus ui_view_item_scroll_page_invoke(bContext *C,
   const int visible_rows = tree_view->tot_visible_row_count().value_or(0);
   const ScrollPage scroll_direction = ScrollPage(RNA_enum_get(op->ptr, "scroll_direction"));
   switch (scroll_direction) {
-    case ScrollPage::Top:
-      direction = ViewScrollDirection::UP;
-      scroll_value = tree_view->scroll_value();
-      break;
     case ScrollPage::Up:
       direction = ViewScrollDirection::UP;
       scroll_value = visible_rows;
@@ -2951,13 +2955,17 @@ static wmOperatorStatus ui_view_item_scroll_page_invoke(bContext *C,
       direction = ViewScrollDirection::DOWN;
       scroll_value = visible_rows;
       break;
+    case ScrollPage::Top:
+      direction = ViewScrollDirection::UP;
+      scroll_value = tree_view->scroll_value();
+      break;
     case ScrollPage::Bottom:
       direction = ViewScrollDirection::DOWN;
       scroll_value = tree_view->tot_row_count() - (visible_rows + tree_view->scroll_value());
       break;
   }
 
-  while (scroll_value != 0) {
+  while (scroll_value > 0) {
     tree_view->scroll(direction);
     scroll_value--;
   }
@@ -2970,7 +2978,7 @@ static void UI_OT_view_item_page_scroll(wmOperatorType *ot)
 {
   ot->name = "Scroll page";
   ot->idname = "UI_OT_view_item_page_scroll";
-  ot->description = "Scroll the list to next page";
+  ot->description = "Scroll the list to the next/previous page";
 
   ot->invoke = ui_view_item_scroll_page_invoke;
   ot->poll = ui_view_focused_poll;
@@ -2978,10 +2986,10 @@ static void UI_OT_view_item_page_scroll(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 
   static const EnumPropertyItem direction_enum_items[] = {
-      {int(ScrollPage::Top), "TOP", 0, "Top", "Scroll to First Page"},
-      {int(ScrollPage::Up), "UP", 0, "Up", "Scroll above to previous page"},
-      {int(ScrollPage::Down), "DOWN", 0, "Down", "Scroll below to next page"},
-      {int(ScrollPage::Bottom), "BOTTOM", 0, "Bottom", "Scroll to Last Page"},
+      {int(ScrollPage::Up), "UP", 0, "Up", "Scroll one page up"},
+      {int(ScrollPage::Down), "DOWN", 0, "Down", "Scroll one page down"},
+      {int(ScrollPage::Top), "TOP", 0, "Top", "Scroll to the top"},
+      {int(ScrollPage::Bottom), "BOTTOM", 0, "Bottom", "Scroll to the bottom"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
