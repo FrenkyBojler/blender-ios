@@ -210,7 +210,7 @@ class MeshBrushTests(unittest.TestCase):
                 self._activate_brush("Trim")
                 self._check_stroke(backend, AttributeType.POSITION)
 
-    @unittest.skip("Asserts in blender")
+    @unittest.skip("Needs raycast")
     def test_boundary_brush_creates_valid_data(self):
         for backend in BackendType:
             with self.subTest(backend):
@@ -246,7 +246,7 @@ class MeshBrushTests(unittest.TestCase):
                 self._activate_brush("Grab 2D")
                 self._check_stroke(backend, AttributeType.POSITION)
 
-    @unittest.skip("Test currently fails")
+    @unittest.skip("Requires raycast")
     def test_grab_silhouette_brush_creates_valid_data(self):
         for backend in BackendType:
             with self.subTest(backend):
@@ -268,6 +268,7 @@ class MeshBrushTests(unittest.TestCase):
                 self._activate_brush("Pinch/Magnify")
                 self._check_stroke(backend, AttributeType.POSITION)
 
+    @unittest.skip("Brush requires raycast")
     def test_pose_brush_creates_valid_data(self):
         for backend in BackendType:
             with self.subTest(backend):
@@ -456,7 +457,7 @@ class MeshBrushTests(unittest.TestCase):
                 self._activate_brush("Blur")
                 self._check_stroke(backend, AttributeType.COLOR)
 
-    @unittest.skip("Asserts in blender")
+    @unittest.skip("Brush requires raycast")
     def test_bend_boundary_cloth_brush_creates_valid_data(self):
         for backend in BackendType:
             with self.subTest(backend):
@@ -464,6 +465,7 @@ class MeshBrushTests(unittest.TestCase):
                 self._activate_brush("Bend Boundary Cloth")
                 self._check_stroke(backend, AttributeType.POSITION)
 
+    @unittest.skip("Brush requires raycast")
     def test_bend_twist_cloth_brush_creates_valid_data(self):
         for backend in BackendType:
             with self.subTest(backend):
@@ -485,13 +487,13 @@ class MeshBrushTests(unittest.TestCase):
                 self._activate_brush("Expand/Contract Cloth")
                 self._check_stroke(backend, AttributeType.POSITION)
 
-    @unittest.skip("Test currently fails")
+    @unittest.skip("Brush requires raycast")
     def test_grab_cloth_brush_creates_valid_data(self):
         for backend in BackendType:
             with self.subTest(backend):
                 self._initialize(backend)
                 self._activate_brush("Grab Cloth")
-                self._check_stroke(backend, AttributeType.POSITION, start_over_mesh=True)
+                self._check_stroke(backend, AttributeType.POSITION)
 
     @unittest.skip("Brush has a typo currently in the name, 'Grab Planar Cloth '")
     def test_grab_planar_cloth_brush_creates_valid_data(self):
@@ -501,7 +503,7 @@ class MeshBrushTests(unittest.TestCase):
                 self._activate_brush("Grab Planar Cloth")
                 self._check_stroke(backend, AttributeType.POSITION, start_over_mesh=True)
 
-    @unittest.skip("Test currently fails")
+    @unittest.skip("Brush requires raycast")
     def test_grab_random_cloth_brush_creates_valid_data(self):
         for backend in BackendType:
             with self.subTest(backend):
@@ -537,6 +539,7 @@ class MeshBrushTests(unittest.TestCase):
                 self._activate_brush("Push Cloth")
                 self._check_stroke(backend, AttributeType.POSITION, start_over_mesh=True)
 
+    @unittest.skip("Brush requires raycast")
     def test_stretch_move_cloth_brush_creates_valid_data(self):
         for backend in BackendType:
             with self.subTest(backend):
@@ -544,7 +547,7 @@ class MeshBrushTests(unittest.TestCase):
                 self._activate_brush("Stretch/Move Cloth")
                 self._check_stroke(backend, AttributeType.POSITION, start_over_mesh=True)
 
-    @unittest.skip("Asserts in blender")
+    @unittest.skip("Brush requires raycast")
     def test_twist_boundary_cloth_brush_creates_valid_data(self):
         for backend in BackendType:
             with self.subTest(backend):
