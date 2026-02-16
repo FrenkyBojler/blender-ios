@@ -2015,6 +2015,8 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   const char *drawstr_right = nullptr;
   bool use_right_only = false;
   const char *indeterminate_str = UI_VALUE_INDETERMINATE_CHAR;
+  const float alpha = float(wcol->text[3]) / 255.0f *
+                      ((but->active || !(but->block->flag & BLOCK_MENU_DIM)) ? 1 : 0.75f);
 
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data;
@@ -2243,11 +2245,14 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     if (drawlen > 0) {
       FontStyleDrawParams params{};
       params.align = align;
+      uchar col[4];
+      copy_v4_v4_uchar(col, wcol->text);
+      col[3] *= alpha;
       fontstyle_draw_ex(fstyle,
                         rect,
                         drawstr + but->ofs,
                         drawlen,
-                        wcol->text,
+                        col,
                         &params,
                         &font_xofs,
                         &font_yofs,
@@ -2390,7 +2395,8 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
                                   rcti *rect)
 {
   const bool show_menu_icon = ui_but_draw_menu_icon(but);
-  const float alpha = float(wcol->text[3]) / 255.0f;
+  const float alpha = float(wcol->text[3]) / 255.0f *
+                      ((but->active || !(but->block->flag & BLOCK_MENU_DIM)) ? 1 : 0.75f);
   std::string password_str;
   bool no_text_padding = but->drawflag & BUT_NO_TEXT_PADDING;
 
@@ -5325,7 +5331,9 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
   if (wt == nullptr) {
     return;
   }
-
+  if (but->block->flag & BLOCK_MENU_DIM) {
+    wt->wcol.text[3] = char(float(wt->wcol.text[3]) * 0.25);
+  }
   // rcti disablerect = *rect; /* rect gets clipped smaller for text */
 
   const int roundboxalign = widget_roundbox_set(but, rect);

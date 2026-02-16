@@ -11954,6 +11954,21 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
   return retval;
 }
 
+static void ui_menus_dim_recursive(PopupBlockHandle *menu)
+{
+  Button *but = region_find_active_but(menu->region);
+  HandleButtonData *data = (but) ? but->active : nullptr;
+  PopupBlockHandle *sub_menu = (data) ? data->menu : nullptr;
+  if (!sub_menu) {
+    Block *block = static_cast<Block *>(menu->region->runtime->uiblocks.first);
+    block->flag &= ~BLOCK_MENU_DIM;
+    return;
+  }
+  ui_menus_dim_recursive(sub_menu);
+  Block *block = static_cast<Block *>(menu->region->runtime->uiblocks.first);
+  block->flag |= BLOCK_MENU_DIM;
+}
+
 static int ui_handle_menus_recursive(bContext *C,
                                      const wmEvent *event,
                                      PopupBlockHandle *menu,
@@ -12312,6 +12327,7 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
        * this will handle events from the top to the bottom menu */
       if (data->menu) {
         retval = ui_handle_menus_recursive(C, event, data->menu, 0, false, false, false);
+        ui_menus_dim_recursive(data->menu);
       }
 
       /* handle events for the activated button */
@@ -12388,6 +12404,7 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
   }
 
   ui_handle_menus_recursive(C, event, menu, 0, false, false, true);
+  ui_menus_dim_recursive(menu);
 
   /* free if done, does not free handle itself */
   if (menu->menuretval) {

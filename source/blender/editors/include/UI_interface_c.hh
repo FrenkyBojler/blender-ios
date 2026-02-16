@@ -190,6 +190,7 @@ enum {
   BLOCK_QUICK_SETUP = 1 << 26,
   /** Don't accelerator keys for the items in the block. */
   BLOCK_NO_ACCELERATOR_KEYS = 1 << 27,
+  BLOCK_MENU_DIM = 1 << 28,
 };
 
 /** #PopupBlockHandle.menuretval */
