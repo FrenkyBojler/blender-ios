@@ -8,12 +8,14 @@
 
 #include <fmt/format.h>
 
+#include "BKE_report.hh"
 #include "BLI_fileops.h"
 #include "BLI_hash_md5.hh"
 #include "BLI_listbase.h"
 #include "BLI_memory_utils.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_ref.hh"
 #include "BLI_threads.h"
 
 #include "BLT_translation.hh"
@@ -357,6 +359,27 @@ static bool remote_library_request_asset_download_file(const bContext &C,
         RPT_WARNING,
         "Asset listing does not indicate where the file should be downloaded to, for asset '%s'",
         asset_name.c_str());
+    return false;
+  }
+
+  /* Protect against maliciously constructed file paths. This code can just check & reject, as the
+   * actual sanitisation happens when the listing is downloaded (see `listing_downloader.py`). */
+  if (BLI_path_is_abs_from_cwd(dst_filepath.c_str())) {
+    /* Absolute file paths. */
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Asset '%s' references file with absolute path, which is not allowed",
+                asset_name.c_str());
+    return false;
+  }
+  if (dst_filepath.find("../") != StringRefNull::not_found ||
+      dst_filepath.find("..\\") != StringRefNull::not_found)
+  {
+    /* "../" entries. */
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Asset '%s' references file with '../', which is not allowed",
+                asset_name.c_str());
     return false;
   }
 
