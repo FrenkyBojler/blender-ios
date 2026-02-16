@@ -252,6 +252,13 @@ static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
   }
 
   std::string modifier_name = RNA_string_get(op->ptr, "modifier");
+  StripModifierData *src_smd = nullptr;
+  if (!modifier_name.empty()) {
+    src_smd = seq::modifier_find_by_name(active_strip, modifier_name.c_str());
+    if (!src_smd) {
+      return OPERATOR_CANCELLED;
+    }
+  }
 
   int isSound = ELEM(active_strip->type, STRIP_TYPE_SOUND);
 
@@ -281,12 +288,9 @@ static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
       }
     }
 
-    if (!modifier_name.empty()) {
-      StripModifierData *smd = seq::modifier_find_by_name(active_strip, modifier_name.c_str());
-      if (smd) {
-        StripModifierData *smd_new = seq::modifier_copy(*strip_iter, smd);
-        seq::modifier_persistent_uid_init(*strip_iter, *smd_new);
-      }
+    if (src_smd) {
+      StripModifierData *smd_new = seq::modifier_copy(*strip_iter, src_smd);
+      seq::modifier_persistent_uid_init(*strip_iter, *smd_new);
     }
     else {
       for (StripModifierData &smd : active_strip->modifiers) {
