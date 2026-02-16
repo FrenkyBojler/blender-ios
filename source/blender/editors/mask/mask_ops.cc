@@ -102,7 +102,7 @@ MaskLayer *ED_mask_layer_ensure(bContext *C, bool *r_added_mask)
 static wmOperatorStatus mask_new_exec(bContext *C, wmOperator *op)
 {
   char name[MAX_ID_NAME - 2];
-  
+
   RNA_string_get(op->ptr, "name", name);
 
   Mask *mask = BKE_mask_new(CTX_data_main(C), name);
@@ -110,8 +110,8 @@ static wmOperatorStatus mask_new_exec(bContext *C, wmOperator *op)
   PropertyPointerRNA *pprop = static_cast<PropertyPointerRNA *>(op->customdata);
 
   if (pprop && pprop->prop) {
-    /* when creating new ID blocks, use is already 1, but RNA
-     * pointer use also increases user, so this compensates it */
+    /* When creating new ID blocks, use is already 1, but RNA
+     * pointer use also increases user, so this compensates it. */
     id_us_min(&mask->id);
 
     PointerRNA idptr = RNA_id_pointer_create(&mask->id);
@@ -143,7 +143,7 @@ static bool mask_new_poll(bContext *C)
   PropertyPointerRNA pprop;
   ui::context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
 
-  /* Allow if invoked from a template_ID button */
+  /* Allow if invoked from a template_ID button. */
   if (pprop.prop != nullptr) {
     return true;
   }
