@@ -209,10 +209,17 @@ static void node_geo_exec(GeoNodeExecParams params)
       attribute_outputs.intersecting_edges_id ? &intersecting_edges : nullptr,
       &error);
   if (error.type == geometry::boolean::BooleanErrorType::NonManifold) {
-    if (error.non_manifold_mesh_index > -1) {
-      params.error_message_add(NodeWarningType::Error,
-                               fmt::format(fmt::runtime(TIP_("Input {} was not manifold")),
-                                           error.non_manifold_mesh_index));
+    if (!error.non_manifold_mesh_indices.is_empty()) {
+      std::string indices;
+      for (const int index : error.non_manifold_mesh_indices) {
+        if (!indices.empty()) {
+          indices += ", ";
+        }
+        indices += fmt::format("{}", index);
+      }
+      params.error_message_add(
+          NodeWarningType::Error,
+          fmt::format(fmt::runtime(TIP_("Input(s) {} were not manifold")), indices));
     }
     else {
       params.error_message_add(NodeWarningType::Error, TIP_("An input was not manifold"));

@@ -1761,12 +1761,11 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
         for (int i = 0; i < manifolds.size(); i++) {
           if (manifolds[i].Status() == Manifold::Error::NotManifold) {
             r_error->type = BooleanErrorType::NonManifold;
-            r_error->non_manifold_mesh_index = i;
-            break;
+            r_error->non_manifold_mesh_indices.append(i);
           }
         }
 
-        if (r_error->non_manifold_mesh_index == -1) {
+        if (r_error->non_manifold_mesh_indices.is_empty()) {
           r_error->type = BooleanErrorType::UnknownError;
         }
         return nullptr;

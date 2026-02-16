@@ -44,7 +44,7 @@ enum class BooleanErrorType {
 
 struct BooleanError {
   BooleanErrorType type = BooleanErrorType::NoError;
-  int non_manifold_mesh_index = -1;
+  Vector<int> non_manifold_mesh_indices;
 };
 
 /**
