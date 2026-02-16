@@ -323,7 +323,7 @@ int2 get_bounds(float2 p0, float4 p1, float4 p2)
 float3 ndc_to_view(float4 ndc)
 {
   if (drw_view_is_perspective()) {
-    float3 view = point_ndc_to_view(ndc);
+    float3 view = (drw_view().wininv * ndc).xyz;
     view.z *= -1.0;
     return view;
   }

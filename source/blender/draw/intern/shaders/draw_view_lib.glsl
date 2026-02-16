@@ -176,12 +176,6 @@ float3 drw_point_ndc_to_world(float3 ssP)
   return drw_point_view_to_world(drw_point_ndc_to_view(ssP));
 }
 
-/* TEMP: to remove. */
-float3 point_ndc_to_view(float4 ndc)
-{
-  return (drw_view().wininv * ndc).xyz;
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
