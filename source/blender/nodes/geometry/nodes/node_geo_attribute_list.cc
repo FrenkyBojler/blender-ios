@@ -16,12 +16,15 @@
 
 #include "node_geometry_util.hh"
 
+#include "NOD_geo_bundle.hh"
+#include "NOD_geometry_nodes_bundle.hh"
+
 namespace blender::nodes::node_geo_attribute_list_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Geometry");
-  b.add_output<decl::String>("Names").structure_type(StructureType::List);
+  b.add_output<decl::Bundle>("Attributes").structure_type(StructureType::List);
   b.add_input<decl::Bool>("Filter").default_value(true);
 }
 
@@ -87,13 +90,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const AttributeAccessor attributes = *component->attributes();
   Vector<StringRef> sort_attributes;
+  Vector<BundlePtr> bundles;
 
   attributes.foreach_attribute([&](const AttributeIter &iter) {
     bool valid_name;
     if (filter) {
       valid_name = iter.domain == domain &&
-                    iter.data_type == bke::custom_data_type_to_attr_type(data_type) &&
-                    iter.name[0] != '.';
+                   iter.data_type == bke::custom_data_type_to_attr_type(data_type) &&
+                   iter.name[0] != '.';
     }
     else {
       valid_name = iter.name[0] != '.';
@@ -101,6 +105,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
     if (valid_name) {
       sort_attributes.append(iter.name);
+
+      BundlePtr bundle_ptr;
+      bundle_ptr = Bundle::create();
+      Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
+      bundle.add("Name", std::string(iter.name));
+      bundle.add("Data Type", static_cast<int>(iter.data_type));
+      bundle.add("Domain", static_cast<int>(iter.domain));
+      bundles.append(bundle_ptr);
     }
   });
 
@@ -109,19 +121,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  parallel_sort(sort_attributes.begin(),
-                sort_attributes.end(),
-                [](const StringRef &a, const StringRef &b) { return a < b; });
+  //  parallel_sort(sort_attributes.begin(),
+  //               sort_attributes.end(),
+  //               [](const StringRef &a, const StringRef &b) { return a < b; });
 
-  auto *names = new ImplicitSharedValue<Vector<std::string>>();
-  names->data.resize(sort_attributes.size());
-  std::copy(sort_attributes.begin(), sort_attributes.end(), names->data.begin());
-
-  List::ArrayData names_array_data = {names->data.data(), ImplicitSharingPtr<>(names)};
-
-  params.set_output(
-      "Names",
-      List::create(CPPType::get<std::string>(), std::move(names_array_data), names->data.size()));
+  params.set_output("Attributes", List::from_container(bundles));
 }
 
 static void node_rna(StructRNA *srna)
