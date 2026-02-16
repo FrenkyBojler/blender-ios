@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <string_view>
 
@@ -29,8 +30,14 @@ static constexpr uint64_t padded_string_masks[8] = {
     uint64_t(0x00FFFFFFFFFFFFFF),
 };
 
-/* Copy of a small string onto aligned bytes.
- * This avoids the cost of calling memcmp during comparison. */
+/**
+ * Copy of a small string onto aligned bytes.
+ * This avoids the cost of calling memcmp during comparison.
+ * For performance reason, this needs to be constructed on string whose size falls into
+ * the ((Size-1) * 8, Size * 8] range.
+ * IMPORTANT: The string view given to the constructor *MUST* point to at least Size * 8
+ * addressable byte region regardless of the string size.
+ */
 template<int Size> struct PaddedString {
   uint64_t data[Size];
   uint32_t size;
@@ -77,23 +84,10 @@ struct IdentifierMap {
     /* Caller must ensure size matches. */
     template<int Size> bool operator==(const PaddedString<Size> &str) const
     {
-      if constexpr (Size == 1) {
-        return size == str.size && data[0] == str.data[0];
+      if (size != str.size) {
+        return false;
       }
-      else if constexpr (Size == 2) {
-        return size == str.size && data[0] == str.data[0] && data[1] == str.data[1];
-      }
-      else if constexpr (Size == 3) {
-        return size == str.size && data[0] == str.data[0] && data[1] == str.data[1] &&
-               data[2] == str.data[2];
-      }
-      else if constexpr (Size == 4) {
-        return size == str.size && data[0] == str.data[0] && data[1] == str.data[1] &&
-               data[2] == str.data[2] && data[3] == str.data[3];
-      }
-      else {
-        static_assert(false, "invalid size");
-      }
+      return std::equal(data, data + Size, str.data);
     }
 
     bool operator==(std::string_view str) const
@@ -136,23 +130,7 @@ struct IdentifierMap {
     return static_cast<uint16_t>(hash);
   }
 
-  template<int Size> INLINE_METHOD TokenAtom lookup_or_add(const PaddedString<Size> &padded_str)
-  {
-    std::string_view str = padded_str;
-    uint32_t hash = str_hash(str);
-    uint16_t index = hash_table[hash & hash_table_index_mask];
-
-    Identifier *id = nullptr;
-    for (; index != 0xFFFFu; index = id->next) {
-      id = &identifier_buffer[index];
-      if (id->hash == hash && *id == padded_str) [[likely]] {
-        return index;
-      }
-    }
-    return add_after(hash, str, id);
-  }
-
-  TokenAtom lookup_or_add(std::string_view str)
+  template<typename StringT> INLINE_METHOD TokenAtom lookup_or_add(StringT str)
   {
     uint32_t hash = str_hash(str);
     uint16_t index = hash_table[hash & hash_table_index_mask];
@@ -223,7 +201,8 @@ struct KeywordTable {
 
   TokenType operator[](TokenAtom atom) const
   {
-    /* Atom allocation are of size 2. Avoid wasting slots.
+    /* Identifier are always allocated in 2 or more consecutive slots. Which means TokenAtom values
+     * always increment by at least 2. Avoid wasting slots in the map by dividing the atom by 2.
      * If atom is bigger than the table, revert to 0 atom (invalid) which becomes a Noop by
      * returning Word. */
     return map[(atom / 2) * (atom < 128)];
