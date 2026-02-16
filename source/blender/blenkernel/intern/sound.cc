@@ -875,17 +875,17 @@ void BKE_sound_update_scene_listener(Scene *scene)
 AUD_SequenceEntry BKE_sound_scene_add_scene_sound(Scene *scene, Strip *strip)
 {
   sound_verify_evaluated_id(&scene->id);
-  AUD_Sequence parent_sound_scene = BKE_strip_get_parent_sound_scene(strip, scene);
-  strip->runtime->last_parent_sound_scene = parent_sound_scene;
+  AUD_Sequence parent_sound = BKE_strip_get_parent_sound(strip, scene);
+  strip->runtime->last_parent_sound = parent_sound;
   if (strip->scene && scene != strip->scene) {
     int startframe = strip->left_handle();
     int endframe = strip->right_handle(scene);
     int frameskip = strip->startofs + strip->anim_startofs;
     const double fps = scene->frames_per_second();
-    return AUD_SequenceEntry(parent_sound_scene->add(strip->scene->runtime->audio.sound_scene,
-                                                     startframe / fps,
-                                                     endframe / fps,
-                                                     frameskip / fps));
+    return AUD_SequenceEntry(parent_sound->add(strip->scene->runtime->audio.sound_scene,
+                                               startframe / fps,
+                                               endframe / fps,
+                                               frameskip / fps));
   }
   return nullptr;
 }
@@ -893,23 +893,23 @@ AUD_SequenceEntry BKE_sound_scene_add_scene_sound(Scene *scene, Strip *strip)
 AUD_Sound BKE_get_sound_hanlde(Strip *strip)
 {
   return strip->type == STRIP_TYPE_META ?
-             std::static_pointer_cast<aud::ISound>(strip->runtime->meta_scene_sound) :
+             std::static_pointer_cast<aud::ISound>(strip->runtime->meta_sound_sequence) :
              BKE_sound_playback_handle_get(strip->sound);
 }
 
-AUD_Sequence BKE_strip_get_parent_sound_scene(Strip *strip, Scene *scene)
+AUD_Sequence BKE_strip_get_parent_sound(Strip *strip, Scene *scene)
 {
   Strip *parent_strip = blender::seq::lookup_meta_by_strip(scene->ed, strip);
 
   if (parent_strip != nullptr) {
-    if (parent_strip->runtime->meta_scene_sound == nullptr) {
+    if (parent_strip->runtime->meta_sound_sequence == nullptr) {
       aud::Specs specs;
       specs.channels = aud::CHANNELS_STEREO;
       specs.rate = aud::RATE_48000;
-      parent_strip->runtime->meta_scene_sound = AUD_Sequence(
+      parent_strip->runtime->meta_sound_sequence = AUD_Sequence(
           new aud::Sequence(specs, scene->frames_per_second(), scene->audio.flag & AUDIO_MUTE));
     }
-    return parent_strip->runtime->meta_scene_sound;
+    return parent_strip->runtime->meta_sound_sequence;
   }
 
   return scene->runtime->audio.sound_scene;
@@ -929,7 +929,7 @@ AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
 
   const double fps = scene->frames_per_second();
   const Strip *parent_strip = blender::seq::lookup_meta_by_strip(scene->ed, strip);
-  AUD_Sequence parent_sound_scene = BKE_strip_get_parent_sound_scene(strip, scene);
+  AUD_Sequence parent_sound = BKE_strip_get_parent_sound(strip, scene);
   AUD_Sound add_handle = BKE_get_sound_hanlde(strip);
   double offset_time = 0.0f;
 
@@ -939,31 +939,30 @@ AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
   }
 
   /* This is needed when strips that were previosly added to a scene are now moved to a meta. */
-  if (strip->runtime->scene_sound && strip->runtime->last_parent_sound_scene &&
-      (strip->runtime->last_parent_sound_scene != parent_sound_scene))
+  if (strip->runtime->scene_sound && strip->runtime->last_parent_sound &&
+      (strip->runtime->last_parent_sound != parent_sound))
   {
-    BKE_sound_remove_sound(strip->runtime->last_parent_sound_scene, strip->runtime->scene_sound);
+    BKE_sound_remove_sound(strip->runtime->last_parent_sound, strip->runtime->scene_sound);
   }
   /* Store last parent sequence so it can be removed. */
-  strip->runtime->last_parent_sound_scene = parent_sound_scene;
+  strip->runtime->last_parent_sound = parent_sound;
 
   int parent_start = 0;
   if (parent_strip != nullptr) {
     parent_start = parent_strip->left_handle();
     /* If this strip is inside a meta, update the meta's scene_sound entry. */
-    parent_strip->runtime->scene_sound->setSound(parent_strip->runtime->meta_scene_sound);
+    parent_strip->runtime->scene_sound->setSound(parent_strip->runtime->meta_sound_sequence);
   }
   if (offset_time >= 0.0f) {
-    return AUD_SequenceEntry(
-        parent_sound_scene->add(add_handle,
-                                (startframe - parent_start) / fps + offset_time,
-                                (endframe - parent_start) / fps,
-                                0.0f));
+    return AUD_SequenceEntry(parent_sound->add(add_handle,
+                                               (startframe - parent_start) / fps + offset_time,
+                                               (endframe - parent_start) / fps,
+                                               0.0f));
   }
-  return AUD_SequenceEntry(parent_sound_scene->add(add_handle,
-                                                   (startframe - parent_start) / fps,
-                                                   (endframe - parent_start) / fps,
-                                                   -offset_time));
+  return AUD_SequenceEntry(parent_sound->add(add_handle,
+                                             (startframe - parent_start) / fps,
+                                             (endframe - parent_start) / fps,
+                                             -offset_time));
 }
 
 void BKE_sound_remove_scene_sound(Scene *scene, AUD_SequenceEntry handle)
@@ -971,9 +970,9 @@ void BKE_sound_remove_scene_sound(Scene *scene, AUD_SequenceEntry handle)
   scene->runtime->audio.sound_scene->remove(handle);
 }
 
-void BKE_sound_remove_sound(AUD_Sequence sound_scene, AUD_SequenceEntry handle)
+void BKE_sound_remove_sound(AUD_Sequence sound_sequence, AUD_SequenceEntry handle)
 {
-  sound_scene->remove(handle);
+  sound_sequence->remove(handle);
 }
 
 void BKE_sound_mute_scene_sound(AUD_SequenceEntry handle, bool mute)
