@@ -118,6 +118,10 @@ static wmOperatorStatus mask_new_exec(bContext *C, wmOperator *op)
     /* When creating new ID blocks, use is already 1, but RNA
      * pointer use also increases user, so this compensates it. */
     id_us_min(&mask->id);
+
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, mask->id, *ptr.owner_id);
+    }
     
     PointerRNA idptr = RNA_id_pointer_create(&mask->id);
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
