@@ -244,15 +244,10 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
     object = object_map.find(key);
 
     if (object && object->use_motion()) {
-      Transform tfm_ = tfm;
-      object->adjust_volume_tfm(tfm_);
-
       /* Set transform at matching motion time step. */
       const int time_index = object->motion_step(motion_time);
       if (time_index >= 0) {
-        array<Transform> motion = object->get_motion();
-        motion[time_index] = tfm_;
-        object->set_motion(motion);
+        object->set_motion_tfm(tfm, time_index);
       }
 
       /* mesh deformation */

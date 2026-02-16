@@ -473,6 +473,14 @@ bool Object::tfm_equals(Transform tfm)
   return tfm == get_tfm();
 }
 
+void Object::set_motion_tfm(Transform tfm, const int step_index)
+{
+  adjust_volume_tfm(tfm);
+  array<Transform> motion = get_motion();
+  motion[step_index] = tfm;
+  set_motion(motion);
+}
+
 /* Object Manager */
 
 ObjectManager::ObjectManager()
