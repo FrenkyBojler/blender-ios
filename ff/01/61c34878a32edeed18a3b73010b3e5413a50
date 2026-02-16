@@ -1,2 +1,3 @@
 Referenced by pull request #154478, Revert "Fix: Paint: Mimic modal execution when calling `PaintStroke::exec`"
 Referenced by pull request #154477, Fix: Build failure from recent merge
+Referenced by commit fce99dea8e332e6bb816dcebafc91b3dd4e4afd0, Fix: Build failure from recent merge
