@@ -102,7 +102,7 @@ MaskLayer *ED_mask_layer_ensure(bContext *C, bool *r_added_mask)
 static wmOperatorStatus mask_new_exec(bContext *C, wmOperator *op)
 {
   char name[MAX_ID_NAME - 2];
-  
+
   RNA_string_get(op->ptr, "name", name);
 
   Main *bmain = CTX_data_main(C);
