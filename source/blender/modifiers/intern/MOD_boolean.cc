@@ -486,9 +486,10 @@ static Mesh *non_float_boolean_mesh(BooleanModifierData *bmd,
   if (error.type != geometry::boolean::BooleanErrorType::NoError) {
     if (error.type == geometry::boolean::BooleanErrorType::NonManifold) {
       if (error.non_manifold_mesh_index != -1) {
-        BKE_modifier_set_error(
-            ctx->object, (ModifierData *)bmd, "Cannot execute, object '%s' has non-manifold geometry",
-            object_names[error.non_manifold_mesh_index]);
+        BKE_modifier_set_error(ctx->object,
+                               (ModifierData *)bmd,
+                               "Cannot execute, object '%s' has non-manifold geometry",
+                               object_names[error.non_manifold_mesh_index]);
       }
       else {
         BKE_modifier_set_error(
