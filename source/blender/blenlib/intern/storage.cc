@@ -422,7 +422,7 @@ bool BLI_exists(const char *path)
 #    define S_IROTH 0004
 #  endif
 
-int BLI_wstat_fast(const wchar_t *path, BLI_stat_t *buffer)
+static int bli_wstat_fast(const wchar_t *path, BLI_stat_t *buffer)
 {
   memset(buffer, 0, sizeof(BLI_stat_t));
 
@@ -459,8 +459,8 @@ int BLI_wstat_fast(const wchar_t *path, BLI_stat_t *buffer)
     buffer->st_atime = buffer->st_mtime;
   }
 
+  buffer->st_mode |= _S_IREAD;
   buffer->st_mode |= (file_attr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? _S_IFDIR : _S_IFREG;
-  buffer->st_mode |= _S_IREAD | _S_IEXEC | S_IRGRP | S_IROTH;
   if (!(file_attr.dwFileAttributes & FILE_ATTRIBUTE_READONLY)) {
     buffer->st_mode |= _S_IWRITE;
   }
@@ -494,7 +494,7 @@ int BLI_stat(const char *path, BLI_stat_t *buffer)
 
 int BLI_wstat(const wchar_t *path, BLI_stat_t *buffer)
 {
-  if (BLI_wstat_fast(path, buffer) == 0) {
+  if (bli_wstat_fast(path, buffer) == 0) {
     return 0;
   }
 
