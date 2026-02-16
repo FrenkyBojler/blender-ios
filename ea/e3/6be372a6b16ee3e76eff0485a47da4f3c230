@@ -17,3 +17,4 @@ Referenced by issue #97110, Regression: Using Sculpt mode Paint tool and Dyntopo
 Referenced by issue #96895, GPU Subdivision destroys vertex color in Eevee
 Referenced by issue #96209, Smear tool painting vertex colors  corrupts color info: part 2
 Referenced by issue #94428, Geometry Nodes - Vertex Color Issues
+Referenced by issue #154462, Mesh Data Transfer UI misses face corner mapping options for colors
