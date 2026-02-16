@@ -123,6 +123,8 @@ static LoopData walk_boundary_loop(BMEdge *start_edge,
   loop_data.verts.append(start_edge->v2);
   visited.add(start_edge);
 
+  /* The initial edge direction (v1 -> v2) is arbitrary. 
+   * We walk from v2 to extend this sequence. */
   walk_fn(start_edge->v2, start_edge, loop_data.verts);
 
   /* If the traversal forms a closed loop, the last vertex will match the first.
