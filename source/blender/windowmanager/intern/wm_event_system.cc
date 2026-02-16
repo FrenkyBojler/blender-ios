@@ -40,6 +40,7 @@
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_global.hh"
+#include "BKE_id_hash.hh"
 #include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_remap.hh"
@@ -4036,7 +4037,10 @@ static bool wm_event_xr_handler_matches_actiondata(const wmEventHandler_Op *op_h
   return (handler_op_type_match && handler_op_properties_match);
 }
 
-static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent *event)
+static void wm_event_handle_xrevent(wmWindowManager *wm,
+                                    wmWindow *win,
+                                    wmEvent *event,
+                                    bContext *main_context)
 {
   bContext *xr_context = WM_xr_session_context_ensure(wm, wm->xr.runtime);
 
@@ -4053,6 +4057,12 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
   BLI_assert(event->custom == EVT_DATA_XR);
   BLI_assert(event->customdata);
   wmXrActionData *actiondata = static_cast<wmXrActionData *>(event->customdata);
+
+  /* Check if the XR context scene matches the main Blender context scene to counter-act possible
+   * re-allocation on undo operator execution. */
+  const unsigned int xr_ctx_scene_uid = CTX_data_scene(xr_context)->id.session_uid;
+  const unsigned int main_ctx_scene_uid = CTX_data_scene(main_context)->id.session_uid;
+  const bool ctx_xr_main_scene_match = (xr_ctx_scene_uid == main_ctx_scene_uid);
 
   /* Only process XR operator handlers to prevent interferences with main window handlers.
    * NOTE: This is a stripped-down XR-specific version of #wm_handlers_do_intern. Changes made
@@ -4109,6 +4119,13 @@ static void wm_event_handle_xrevent(wmWindowManager *wm, wmWindow *win, wmEvent 
         }
       }
     }
+  }
+
+  /* The undo operator may have re-allocated the XR context Scene and Main data pointers.
+   * Prevent dangling pointers in the main Blender context by re-assigning them as needed. */
+  CTX_data_main_set(main_context, CTX_data_main(xr_context));
+  if (ctx_xr_main_scene_match) {
+    CTX_data_scene_set(main_context, CTX_data_scene(xr_context));
   }
 }
 #endif /* WITH_XR_OPENXR */
@@ -4261,7 +4278,7 @@ void wm_event_do_handlers(bContext *C)
 
 #ifdef WITH_XR_OPENXR
       if (event->type == EVT_XR_ACTION) {
-        wm_event_handle_xrevent(wm, &win, event);
+        wm_event_handle_xrevent(wm, &win, event, C);
         BLI_remlink(&win.runtime->event_queue, event);
         wm_event_free_last_handled(&win, event);
         /* Skip mouse event handling below, which is unnecessary for XR events. */
