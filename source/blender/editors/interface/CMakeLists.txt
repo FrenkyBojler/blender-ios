@@ -5,6 +5,7 @@
 set(INC
   .
   ../asset
+  ../../animrig
   ../include
   ../../makesrna
   ../../python
