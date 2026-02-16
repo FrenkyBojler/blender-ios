@@ -210,7 +210,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       &error);
   if (error.type == geometry::boolean::BooleanErrorType::NonManifold) {
     if (!error.non_manifold_mesh_indices.is_empty()) {
-      for (const int index : error.non_manifold_mesh_indices) {
+      for (const auto index : error.non_manifold_mesh_indices) {
         params.error_message_add(
             NodeWarningType::Error,
             fmt::format(fmt::runtime(TIP_("Input {} was not manifold")), index));
