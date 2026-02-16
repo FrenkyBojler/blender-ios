@@ -24,15 +24,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static BIFIconID aov_icon(const ViewLayer *view_layer, PointerRNA *ptr)
 {
-  char aov_name[MAX_NAME];
-  RNA_string_get(ptr, "aov_name", aov_name);
+  std::string aov_name = RNA_string_get(ptr, "aov_name");
 
-  if (aov_name[0] == '\0') {
+  if (aov_name.empty()) {
     return ICON_RECORD_OFF;
   }
 
   const ViewLayerAOV *aov = static_cast<const ViewLayerAOV *>(
-      BLI_findstring(&view_layer->aovs, aov_name, offsetof(ViewLayerAOV, name)));
+      BLI_findstring(&view_layer->aovs, aov_name.c_str(), offsetof(ViewLayerAOV, name)));
 
   if (aov) {
     switch (aov->type) {
