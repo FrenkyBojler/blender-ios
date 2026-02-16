@@ -25,7 +25,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 static BIFIconID aov_icon(const ViewLayer *view_layer, PointerRNA *ptr)
 {
   std::string aov_name = RNA_string_get(ptr, "aov_name");
-
   if (aov_name.empty()) {
     return ICON_RECORD_OFF;
   }
