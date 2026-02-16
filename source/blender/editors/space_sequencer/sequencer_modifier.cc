@@ -388,7 +388,7 @@ static wmOperatorStatus strip_modifier_duplicate_exec(bContext *C, wmOperator *o
 
 void SEQUENCER_OT_strip_modifier_duplicate(wmOperatorType *ot)
 {
-  ot->name = "Duplicate modifier";
+  ot->name = "Duplicate Modifier";
   ot->idname = "SEQUENCER_OT_strip_modifier_duplicate";
   ot->description = "Duplicate (active) modifier of the active strip";
 
