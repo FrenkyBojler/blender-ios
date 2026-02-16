@@ -1659,7 +1659,7 @@ wmOperatorStatus PaintStroke::exec(bContext *C, wmOperator *op)
     const float pressure = RNA_float_get(&itemptr, "pressure");
     float2 mouse_out;
     paint_stroke_jitter_pos(
-        this->paint, mode, *this->brush, pressure, stroke_mode_, zoom_2d_, mval, mouse_out);
+        this->paint, mode, *this->brush, pressure, stroke_mode_, zoom_2d_, mval);
 
     /* TODO: This process misses updating some values at the moment, see `add_step` */
     float3 dummy_location;
