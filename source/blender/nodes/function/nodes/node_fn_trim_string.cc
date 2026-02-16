@@ -38,7 +38,7 @@ static void node_register()
 
   fn_node_type_base(&ntype, "FunctionNodeTrimString");
   ntype.ui_name = "Trim String";
-  ntype.ui_description = "Remove characters whitespace from the beginning and end of a string";
+  ntype.ui_description = "Remove characters from the beginning and end of a string";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
