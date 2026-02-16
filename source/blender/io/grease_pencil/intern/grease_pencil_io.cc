@@ -249,14 +249,13 @@ void GreasePencilExporter::prepare_render_params(Scene &scene, const int frame_n
                                  context_.rv3d,
                                  true,
                                  &camera_rect);
-    screen_rect_ = Bounds<float2>({camera_rect.xmin, camera_rect.ymin},
-                                  {camera_rect.xmax, camera_rect.ymax});
+    screen_rect_ = {{camera_rect.xmin, camera_rect.ymin}, {camera_rect.xmax, camera_rect.ymax}};
     camera_persmat_ = persmat_from_camera_object(scene);
 
     /* Output resolution (when in camera view). */
     int width, height;
     BKE_render_resolution(&scene.r, false, &width, &height);
-    camera_rect_ = Bounds<float2>({0.0f, 0.0f}, {float(width), float(height)});
+    camera_rect_ = {{0.0f, 0.0f}, {float(width), float(height)}};
     /* Compute factor that remaps screen_rect to final output resolution. */
     BLI_assert(screen_rect_.size() != float2(0.0f));
     camera_fac_ = float2(camera_rect_.size()) / float2(screen_rect_.size());

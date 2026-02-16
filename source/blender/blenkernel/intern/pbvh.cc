@@ -52,8 +52,7 @@ namespace bke::pbvh {
 /** Create invalid bounds for use with #math::min_max. */
 static Bounds<float3> negative_bounds()
 {
-  return Bounds<float3>(float3(std::numeric_limits<float>::max()),
-                        float3(std::numeric_limits<float>::lowest()));
+  return {float3(std::numeric_limits<float>::max()), float3(std::numeric_limits<float>::lowest())};
 }
 
 static Bounds<float3> merge_bounds(const Bounds<float3> &a, const Bounds<float3> &b)

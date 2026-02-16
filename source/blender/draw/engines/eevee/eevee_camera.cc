@@ -104,7 +104,7 @@ void Camera::sync()
                 film_offset.y,
                 film_offset.y + film_extent.y);
 
-  Bounds<float2> uv_region(float2(0.0f), float2(display_extent));
+  Bounds<float2> uv_region = {float2(0.0f), float2(display_extent)};
   if (inst_.drw_view) {
     float2 uv_scale = float4(inst_.rv3d->viewcamtexcofac).xy();
     float2 uv_bias = float4(inst_.rv3d->viewcamtexcofac).zw();

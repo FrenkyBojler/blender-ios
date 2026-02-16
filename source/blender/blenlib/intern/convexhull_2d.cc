@@ -729,7 +729,7 @@ static float convexhull_aabb_fit_hull_2d(const float (*points_hull)[2], int poin
   int index_best = std::numeric_limits<int>::max();
 
   /* Initialize to zero because the first pass uses the first index to set the bounds. */
-  Bounds<int> bounds_index[2] = {Bounds<int>(0, 0), Bounds<int>(0, 0)};
+  Bounds<int> bounds_index[2] = {{0, 0}, {0, 0}};
 
   HullAngleIter hull_iter = convexhull_2d_angle_iter_init(points_hull, points_hull_num);
 
@@ -741,20 +741,14 @@ static float convexhull_aabb_fit_hull_2d(const float (*points_hull)[2], int poin
   while (const HullAngleStep *hstep = hull_iter.axis_ordered) {
     /* Step the calipers to the new rotation `sincos`, returning the bounds at the same time. */
     Bounds<float> bounds_test[2] = {
-        Bounds<float>(
-            convexhull_2d_compute_extent_on_axis<0, -1>(
-                points_hull, points_hull_num, hstep->angle.sincos_canonical, &bounds_index[0].min),
-            convexhull_2d_compute_extent_on_axis<0, 1>(points_hull,
-                                                       points_hull_num,
-                                                       hstep->angle.sincos_canonical,
-                                                       &bounds_index[0].max)),
-        Bounds<float>(
-            convexhull_2d_compute_extent_on_axis<1, -1>(
-                points_hull, points_hull_num, hstep->angle.sincos_canonical, &bounds_index[1].min),
-            convexhull_2d_compute_extent_on_axis<1, 1>(points_hull,
-                                                       points_hull_num,
-                                                       hstep->angle.sincos_canonical,
-                                                       &bounds_index[1].max)),
+        {convexhull_2d_compute_extent_on_axis<0, -1>(
+             points_hull, points_hull_num, hstep->angle.sincos_canonical, &bounds_index[0].min),
+         convexhull_2d_compute_extent_on_axis<0, 1>(
+             points_hull, points_hull_num, hstep->angle.sincos_canonical, &bounds_index[0].max)},
+        {convexhull_2d_compute_extent_on_axis<1, -1>(
+             points_hull, points_hull_num, hstep->angle.sincos_canonical, &bounds_index[1].min),
+         convexhull_2d_compute_extent_on_axis<1, 1>(
+             points_hull, points_hull_num, hstep->angle.sincos_canonical, &bounds_index[1].max)},
     };
 
     const float area_test = (bounds_test[0].max - bounds_test[0].min) *

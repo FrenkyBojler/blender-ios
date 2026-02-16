@@ -24,7 +24,7 @@ namespace bounds {
 
 template<typename T> [[nodiscard]] inline Bounds<T> merge(const Bounds<T> &a, const Bounds<T> &b)
 {
-  return Bounds<T>(math::min(a.min, b.min), math::max(a.max, b.max));
+  return {math::min(a.min, b.min), math::max(a.max, b.max)};
 }
 
 template<typename T>
@@ -55,9 +55,9 @@ template<typename T>
                                                       const T &b)
 {
   if (a.has_value()) {
-    return merge(*a, Bounds<T>(b));
+    return merge(*a, {b, b});
   }
-  return Bounds<T>(b);
+  return Bounds<T>{b, b};
 }
 
 /**
@@ -235,7 +235,7 @@ inline Bounds<VecBase<T, 3>> transform_bounds(const MatBase<T, D, D> &matrix,
   for (VecBase<T, 3> &p : points) {
     p = math::transform_point(matrix, p);
   }
-  return Bounds<VecBase<T, 3>>(math::min(Span(points)), math::max(Span(points)));
+  return {math::min(Span(points)), math::max(Span(points))};
 }
 
 namespace detail {
@@ -306,7 +306,7 @@ template<typename T> [[nodiscard]] inline bool any_less_or_equal_than(const T &a
 
 template<typename T> [[nodiscard]] inline Bounds<T> segment_bounds(const T &start, const T &end)
 {
-  Bounds<T> bounds(start, start);
+  Bounds<T> bounds{start, start};
   math::min_max(end, bounds.min, bounds.max);
   return bounds;
 }

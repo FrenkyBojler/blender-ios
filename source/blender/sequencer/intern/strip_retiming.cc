@@ -177,7 +177,7 @@ static Bounds<float> strip_retiming_clamp_bounds_get(const Scene *scene,
                                                      const Strip *strip,
                                                      SeqRetimingKey *key)
 {
-  Bounds<float> max_tml_frame_offset(MINAFRAMEF, MAXFRAMEF);
+  Bounds<float> max_tml_frame_offset = {MINAFRAMEF, MAXFRAMEF};
 
   if (key->strip_frame_index != 0) {
     SeqRetimingKey *prev_key = key - 1;

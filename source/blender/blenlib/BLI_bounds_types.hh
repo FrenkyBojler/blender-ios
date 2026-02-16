@@ -15,7 +15,7 @@ template<typename T> struct Bounds {
   T max;
   Bounds() = default;
   explicit Bounds(const T &value) : min(value), max(value) {}
-  explicit Bounds(const T &min, const T &max) : min(min), max(max) {}
+  Bounds(const T &min, const T &max) : min(min), max(max) {}
 
   /**
    * Returns true when the size of the bounds is zero (or negative).
