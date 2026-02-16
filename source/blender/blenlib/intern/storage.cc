@@ -437,12 +437,12 @@ static int bli_wstat_fast(const wchar_t *path, BLI_stat_t *buffer)
      Subtract the offset to 1970-01-01 UTC and divide by 10^7 to get seconds. */
   const int64_t FILETIME_TO_UNIX_EPOCH = 116444736000000000LL; /* 100ns units. */
 
-  int64_t filetime_100ns = ((int64_t)file_attr.ftLastWriteTime.dwHighDateTime << 32) |
+  int64_t filetime_100ns = (int64_t(file_attr.ftLastWriteTime.dwHighDateTime) << 32) |
                            file_attr.ftLastWriteTime.dwLowDateTime;
   buffer->st_mtime = (filetime_100ns - FILETIME_TO_UNIX_EPOCH) / 10000000LL;
 
   if (file_attr.ftCreationTime.dwHighDateTime || file_attr.ftCreationTime.dwLowDateTime) {
-    filetime_100ns = ((int64_t)file_attr.ftCreationTime.dwHighDateTime << 32) |
+    filetime_100ns = (int64_t(file_attr.ftCreationTime.dwHighDateTime) << 32) |
                      file_attr.ftCreationTime.dwLowDateTime;
     buffer->st_ctime = (filetime_100ns - FILETIME_TO_UNIX_EPOCH) / 10000000LL;
   }
@@ -451,7 +451,7 @@ static int bli_wstat_fast(const wchar_t *path, BLI_stat_t *buffer)
   }
 
   if (file_attr.ftLastAccessTime.dwHighDateTime || file_attr.ftLastAccessTime.dwLowDateTime) {
-    filetime_100ns = ((int64_t)file_attr.ftLastAccessTime.dwHighDateTime << 32) |
+    filetime_100ns = (int64_t(file_attr.ftLastAccessTime.dwHighDateTime) << 32) |
                      file_attr.ftLastAccessTime.dwLowDateTime;
     buffer->st_atime = (filetime_100ns - FILETIME_TO_UNIX_EPOCH) / 10000000LL;
   }
