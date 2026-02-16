@@ -107,7 +107,8 @@ static wmOperatorStatus mask_new_exec(bContext *C, wmOperator *op)
 
   Mask *mask = BKE_mask_new(CTX_data_main(C), name);
 
-  PropertyPointerRNA *pprop = static_cast<PropertyPointerRNA *>(op->customdata);
+  PropertyPointerRNA *pprop = MEM_new<PropertyPointerRNA>("MaskNewPropertyPointerRNA");
+  ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 
   if (pprop && pprop->prop) {
     /* When creating new ID blocks, use is already 1, but RNA
@@ -119,7 +120,6 @@ static wmOperatorStatus mask_new_exec(bContext *C, wmOperator *op)
     RNA_property_update(C, &pprop->ptr, pprop->prop);
 
     MEM_delete(pprop);
-    op->customdata = nullptr;
   }
   else {
     ED_mask_new(C, name);
@@ -128,14 +128,6 @@ static wmOperatorStatus mask_new_exec(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_MASK | NA_ADDED, mask);
 
   return OPERATOR_FINISHED;
-}
-
-static wmOperatorStatus mask_new_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
-{
-  PropertyPointerRNA *pprop;
-  op->customdata = pprop = MEM_new<PropertyPointerRNA>("MaskNewPropertyPointerRNA");
-  ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
-  return mask_new_exec(C, op);
 }
 
 static bool mask_new_poll(bContext *C)
@@ -162,7 +154,6 @@ void MASK_OT_new(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* API callbacks. */
-  ot->invoke = mask_new_invoke;
   ot->exec = mask_new_exec;
   ot->poll = mask_new_poll;
 
