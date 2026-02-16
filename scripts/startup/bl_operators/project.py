@@ -30,6 +30,33 @@ class ProjectLoadException(Exception):
 
 # -------------------------------------------------------------
 
+def escape_string(text):
+    """ Escape a string according the required escapes in
+        https://toml.io/en/v1.1.0#string
+    """
+
+    # First replace literal backslashes.
+    text = text.replace("\\", "\\\\")
+
+    # Then the rest.
+    required_escapes = [
+        # Quotes.
+        "\"",
+        # U+0000 to U+0008.
+        "\x00", "\x01", "\x02", "\x03", "\x04", "\x05" "\x06", "\x07", "\x08",
+        # U+000A to U+001F.
+        "\x0A", "\x0B", "\x0C", "\x0D", "\x0E", "\x0F", "\x10", "\x11", "\x12",
+        "\x13", "\x14", "\x15", "\x16", "\x17", "\x18", "\x19", "\x1A", "\x1B",
+        "\x1C", "\x1D", "\x1E", "\x1F",
+        # U+007F.
+        "\x7F",
+    ]
+    for esc in required_escapes:
+        text = text.replace(esc, f"\\{esc}")
+
+    return text
+
+
 def save_project(project):
     """ Saves the passed project to disk.
 
@@ -69,7 +96,7 @@ def save_project(project):
     try:
         with config_path.open(mode='w', encoding='utf-8') as f:
             # The actual project file writing.
-            f.write("name = \"{}\"\n".format(data.name))
+            f.write("name = \"{}\"\n".format(escape_string(data.name)))
     except PermissionError:
         raise ProjectSaveException("Cannot write to '{}' due to filesystem permissions.".format(PROJECT_CONFIG))
 
