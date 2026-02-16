@@ -511,7 +511,7 @@ static BMOpDefine bmo_circularize_def = {
     {
         /* Input geometry. */
         {"geom", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BM_EDGE | BM_FACE}},
-        /* Influence factor. */
+        /* Influence factor, spans from 0.0 to 1.0. */
         {"factor", BMO_OP_SLOT_FLT},
         /* Custom radius. */
         {"custom_radius", BMO_OP_SLOT_FLT},
