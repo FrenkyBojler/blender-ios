@@ -75,10 +75,16 @@ using ColorSpace = ocio::ColorSpace;
 #define TIF_COMPRESS_LZW (1 << 5)
 #define TIF_COMPRESS_PACKBITS (1 << 4)
 
+#define AVIF_10BIT (1 << 8)
+#define AVIF_12BIT (1 << 9)
+
 struct ImbFormatOptions {
   short flag = 0;
-  /** Quality serves dual purpose as quality number for JPEG or compression amount for PNG. */
-  char quality = 0;
+  /** Quality for JPEG, WebP, AVIF. */
+  char quality = 90;
+  /* Compression amount for PNG.
+   * Default to low compression ratio that is not time consuming. */
+  char compress = 15;
 };
 
 /* -------------------------------------------------------------------- */

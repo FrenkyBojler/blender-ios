@@ -45,7 +45,7 @@ class ErrorMessages {
   ErrorMessages(const bool verbose) : verbose_(verbose) {}
   ~ErrorMessages()
   {
-    std::sort(messages.begin(), messages.end());
+    std::ranges::sort(messages);
     for (const std::string &message : messages) {
       CLOG_ERROR(&LOG, "%s", message.c_str());
     }
@@ -802,6 +802,9 @@ static bool validate_generic_attributes(const Mesh &mesh, const bool verbose, Me
       case AttrType::ColorByte:
         break;
       case AttrType::String:
+        break;
+      case AttrType::Float4:
+        validate_float_attribute(iter, 4, verbose, all_attributes_valid, mesh_mut);
         break;
     }
   });
