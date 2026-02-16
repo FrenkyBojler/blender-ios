@@ -123,7 +123,7 @@ static LoopData walk_boundary_loop(BMEdge *start_edge,
   loop_data.verts.append(start_edge->v2);
   visited.add(start_edge);
 
-  /* The initial edge direction (v1 -> v2) is arbitrary. 
+  /* The initial edge direction (v1 -> v2) is arbitrary.
    * We walk from v2 to extend this sequence. */
   walk_fn(start_edge->v2, start_edge, loop_data.verts);
 
@@ -152,10 +152,10 @@ static LoopData walk_boundary_loop(BMEdge *start_edge,
 }
 
 /* Collects all valid boundary edge loops from the current selection. */
-static void get_input_loops(BMesh *bm,
-                            Vector<LoopData> &r_loops,
-                            const char hflag,
-                            const bool check_axis[3])
+static void bm_extract_input_loops_from_boundary_edges(BMesh *bm,
+                                                       Vector<LoopData> &r_loops,
+                                                       const char hflag,
+                                                       const bool check_axis[3])
 {
   Set<BMEdge *> visited;
   BMIter iter;
@@ -537,7 +537,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       bm, op->slots_in, "geom", BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
 
   Vector<LoopData> loops;
-  get_input_loops(bm, loops, BM_ELEM_TAG, check_axis);
+  bm_extract_input_loops_from_boundary_edges(bm, loops, BM_ELEM_TAG, check_axis);
 
   /* Builds a BVH tree when flatten is disabled. Without this we would have to iterate
    * over every face in the mesh for every vertex which is too slow. */
