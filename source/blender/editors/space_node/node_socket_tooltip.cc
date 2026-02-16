@@ -87,7 +87,7 @@ class SocketTooltipBuilder {
     }
     this->build_tooltip_description();
     this->build_tooltip_value();
-    this->build_tooltip_behaviors();
+    this->build_tooltip_expected_bundle_type();
     this->build_python();
 
     /* Extra padding at the bottom. */
@@ -831,7 +831,7 @@ class SocketTooltipBuilder {
     return true;
   }
 
-  void build_tooltip_behaviors()
+  void build_tooltip_expected_bundle_type()
   {
     if (socket_.type != SOCK_BUNDLE) {
       return;

@@ -1087,7 +1087,7 @@ static bool socket_needs_volume_grid_search(const bNode &node, const bNodeSocket
   return socket.runtime->declaration->is_volume_grid_name;
 }
 
-static bool socket_needs_behavior_type_search(const bNode &node, const bNodeSocket &socket)
+static bool socket_needs_bundle_type_search(const bNode &node, const bNodeSocket &socket)
 {
   if (node.type_legacy == NODE_COMBINE_BUNDLE) {
     return socket.name == nodes::Bundle::type_item_name;
@@ -1281,14 +1281,14 @@ static void std_node_socket_draw(
           node_geometry_add_volume_grid_search_button(*C, *node, *ptr, *row);
         }
       }
-      else if (socket_needs_behavior_type_search(*node, *sock)) {
+      else if (socket_needs_bundle_type_search(*node, *sock)) {
         if (optional_label) {
-          node_behavior_add_string_search_button(*C, *node, *ptr, *layout, label);
+          node_bundle_type_add_string_search_button(*C, *node, *ptr, *layout, label);
         }
         else {
           ui::Layout *row = &layout->split(0.4f, false);
           row->label(label, ICON_NONE);
-          node_behavior_add_string_search_button(*C, *node, *ptr, *row);
+          node_bundle_type_add_string_search_button(*C, *node, *ptr, *row);
         }
       }
       else {

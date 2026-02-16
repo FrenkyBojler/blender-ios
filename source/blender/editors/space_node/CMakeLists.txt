@@ -28,7 +28,7 @@ set(SRC
   drawnode.cc
   link_drag_search.cc
   node_add.cc
-  node_behavior_string_search.cc
+  node_bundle_type_search.cc
   node_context_path.cc
   node_copy_util.cc
   node_draw.cc

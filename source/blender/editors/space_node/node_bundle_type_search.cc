@@ -24,7 +24,7 @@
 
 namespace blender::ed::space_node {
 
-struct BehaviorSocketSearchData {
+struct BundleTypeSocketSearchData {
   int32_t node_id;
   char socket_identifier[MAX_NAME];
 
@@ -43,10 +43,10 @@ struct BehaviorSocketSearchData {
   }
 };
 /* This class must not have a destructor, since it is used by buttons and freed with #MEM_freeN. */
-static_assert(std::is_trivially_destructible_v<BehaviorSocketSearchData>);
+static_assert(std::is_trivially_destructible_v<BundleTypeSocketSearchData>);
 
 static Vector<std::string> get_type_names_from_context(const bContext &C,
-                                                       const BehaviorSocketSearchData &data)
+                                                       const BundleTypeSocketSearchData &data)
 {
   const bNode *node = data.find_node(C);
   if (!node) {
@@ -56,7 +56,7 @@ static Vector<std::string> get_type_names_from_context(const bContext &C,
   return nodes::BundleTypeRegistry::get_all_flat_type_names();
 }
 
-static void behavior_type_string_search(
+static void bundle_type_string_search(
     const bContext *C, void *arg, const char *str_ptr, ui::SearchItems *items, const bool is_first)
 {
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
@@ -65,7 +65,7 @@ static void behavior_type_string_search(
 
   StringRef str = str_ptr;
 
-  const auto *data = static_cast<BehaviorSocketSearchData *>(arg);
+  const auto *data = static_cast<BundleTypeSocketSearchData *>(arg);
   const Vector<std::string> names = get_type_names_from_context(*C, *data);
 
   /* Any string is valid, so add the current search string along with the hints. */
@@ -94,12 +94,12 @@ static void behavior_type_string_search(
   }
 }
 
-static void behavior_type_string_search_exec(bContext *C, void *data_v, void * /*item_v*/)
+static void bundle_type_string_search_exec(bContext *C, void *data_v, void * /*item_v*/)
 {
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     return;
   }
-  const auto &data = *static_cast<BehaviorSocketSearchData *>(data_v);
+  const auto &data = *static_cast<BundleTypeSocketSearchData *>(data_v);
   bNode *node = data.find_node(*C);
   if (!node) {
     return;
@@ -122,11 +122,11 @@ static void behavior_type_string_search_exec(bContext *C, void *data_v, void * /
   BKE_main_ensure_invariants(*CTX_data_main(C));
 }
 
-void node_behavior_add_string_search_button(const bContext & /*C*/,
-                                            const bNode &node,
-                                            PointerRNA &socket_ptr,
-                                            ui::Layout &layout,
-                                            const StringRef placeholder)
+void node_bundle_type_add_string_search_button(const bContext & /*C*/,
+                                               const bNode &node,
+                                               PointerRNA &socket_ptr,
+                                               ui::Layout &layout,
+                                               const StringRef placeholder)
 {
   ui::Block *block = layout.block();
   ui::Button *but = uiDefIconTextButR(block,
@@ -144,7 +144,7 @@ void node_behavior_add_string_search_button(const bContext & /*C*/,
   ui::button_placeholder_set(but, placeholder);
 
   const bNodeSocket &socket = *socket_ptr.data_as<bNodeSocket>();
-  BehaviorSocketSearchData *data = MEM_new_zeroed<BehaviorSocketSearchData>(__func__);
+  BundleTypeSocketSearchData *data = MEM_new_zeroed<BundleTypeSocketSearchData>(__func__);
   data->node_id = node.identifier;
   STRNCPY_UTF8(data->socket_identifier, socket.identifier);
 
@@ -152,11 +152,11 @@ void node_behavior_add_string_search_button(const bContext & /*C*/,
   ui::button_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
   ui::button_func_search_set(but,
                              nullptr,
-                             behavior_type_string_search,
+                             bundle_type_string_search,
                              data,
                              true,
                              nullptr,
-                             behavior_type_string_search_exec,
+                             bundle_type_string_search_exec,
                              nullptr);
 }
 
