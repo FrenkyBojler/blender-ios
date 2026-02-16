@@ -61,7 +61,13 @@ static void node_declare(NodeDeclarationBuilder &b)
           &clip->id, RNA_MovieTracking, tracking);
 
       ui::Layout &col = layout.column(false);
-      col.prop_search(ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
+      col.prop_search(ptr,
+                      "tracking_object",
+                      &tracking_ptr,
+                      "objects",
+                      "",
+                      ICON_OBJECT_DATA,
+                      IFACE_("Tracking Object"));
 
       tracking_object = BKE_tracking_object_get_named(tracking,
                                                       node_storage(*node).tracking_object);
@@ -69,10 +75,16 @@ static void node_declare(NodeDeclarationBuilder &b)
         PointerRNA object_ptr = RNA_pointer_create_discrete(
             &clip->id, RNA_MovieTrackingObject, tracking_object);
 
-        col.prop_search(ptr, "plane_track_name", &object_ptr, "plane_tracks", "", ICON_ANIM_DATA);
+        col.prop_search(ptr,
+                        "plane_track_name",
+                        &object_ptr,
+                        "plane_tracks",
+                        "",
+                        ICON_ANIM_DATA,
+                        IFACE_("Track"));
       }
       else {
-        layout.prop(ptr, "plane_track_name", UI_ITEM_NONE, "", ICON_ANIM_DATA);
+        layout.prop(ptr, "plane_track_name", UI_ITEM_NONE, "", ICON_ANIM_DATA, IFACE_("Track"));
       }
     }
   });

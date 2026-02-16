@@ -76,7 +76,13 @@ static void node_draw_buttons(ui::Layout &layout, bContext *C, PointerRNA *ptr)
         &clip->id, RNA_MovieTracking, &clip->tracking);
 
     ui::Layout &col = layout.column(true);
-    col.prop_search(ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
+    col.prop_search(ptr,
+                    "tracking_object",
+                    &tracking_ptr,
+                    "objects",
+                    "",
+                    ICON_OBJECT_DATA,
+                    IFACE_("Tracking Object"));
   }
 }
 
