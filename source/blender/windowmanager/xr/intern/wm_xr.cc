@@ -200,7 +200,7 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
   if ((*runtime)->ghost_context != nullptr) {
     GHOST_IXrContext *ghost_context = (*runtime)->ghost_context;
     /* Prevent recursive #GHOST_XrContextDestroy() call by nulling the context pointer before
-     * the first call, see comment above. */
+     * the first call, see comment at the beginning of the function. */
     (*runtime)->ghost_context = nullptr;
 
     wm_xr_session_data_free(&(*runtime)->session_state);
@@ -209,17 +209,28 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
     GHOST_XrContextDestroy(ghost_context);
   }
 
-  ScrArea *xr_offscreen_area = (*runtime)->offscreen_area;
-  BLI_assert(xr_offscreen_area);
+  if ((*runtime)->offscreen_area != nullptr) {
+    ScrArea *xr_offscreen_area = (*runtime)->offscreen_area;
+    BLI_assert(xr_offscreen_area);
 
-  wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
-  wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, (*runtime));
-  WM_event_remove_handlers_by_area(&xr_win->runtime->handlers, xr_offscreen_area);
-  ED_area_offscreen_free(wm, xr_win, xr_offscreen_area);
+    wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
+    wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, (*runtime));
+    WM_event_remove_handlers_by_area(&xr_win->runtime->handlers, xr_offscreen_area);
+    ED_area_offscreen_free(wm, xr_win, xr_offscreen_area);
 
-  CTX_free((*runtime)->b_context);
+    /* Set to nullptr to prevent double frees, see comment at the beginning of the function. */
+    (*runtime)->offscreen_area = nullptr;
+  }
 
-  MEM_SAFE_DELETE(*runtime);
+  if ((*runtime)->b_context != nullptr) {
+    CTX_free((*runtime)->b_context);
+    (*runtime)->b_context = nullptr;
+  }
+
+  if (*runtime != nullptr) {
+    MEM_SAFE_DELETE(*runtime);
+    *runtime = nullptr;
+  }
 }
 
 /** \} */ /* XR Runtime Data. */
