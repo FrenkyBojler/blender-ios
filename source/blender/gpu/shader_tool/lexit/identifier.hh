@@ -42,7 +42,7 @@ template<int Size> struct PaddedString {
   {
     size = str.size();
     assert(str.size() > 8 * (Size - 1));
-    assert(str.size() < 8 * Size);
+    assert(str.size() <= 8 * Size);
 
     std::memcpy(data, (const char *)str.data(), sizeof(data));
     /* Fast way of masking the excess chars. */

@@ -204,8 +204,7 @@ struct AtomicLexer : lexit::TokenBuffer {
     /* Create directive structure. */
     directive_lines.reserve(line_offsets_buf_.size());
     for (int i = 0; i < line_offsets_buf_.size(); ++i) {
-      int line_start = line_offsets_buf_[i];
-      if (types_[line_start + 1] == '#') {
+      if (types_[line_offsets_buf_[i]] == '#') {
         directive_lines.append(i);
       }
     }
@@ -862,6 +861,7 @@ struct Preprocessor {
   void preprocess()
   {
     if (lex_.directive_lines.is_empty()) {
+      /* FIXME: If there is not directive, DCE will not work. */
       return;
     }
 

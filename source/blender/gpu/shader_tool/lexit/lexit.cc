@@ -21,6 +21,11 @@
 
 namespace lexit {
 
+static uint32_t divide_ceil(uint32_t a, uint32_t b)
+{
+  return (a + b - 1) / b;
+}
+
 /* Helper function to realloc aligned array keeping elem_count data. */
 template<typename T>
 void realloc_aligned_array(std::unique_ptr<T[]> &ptr, size_t elem_count, size_t new_size)
@@ -709,17 +714,19 @@ void TokenBuffer::atomize_words(IdentifierMap &identifiers, const KeywordTable &
   struct Masks {
     uint64_t mask8, mask16, mask24, mask32;
   };
-  /* First scan to create a bitmap of potential matches to avoid wasting cycles. */
+  /* First scan to create a bitmap of potential matches to avoid wasting cycles iterating over
+   * non-words. */
   lexit::Vector<Masks> masks_small_id;
   lexit::Vector<uint64_t> masks_large_id;
-  masks_small_id.resize((size_ + stride) / stride);
-  masks_large_id.resize((size_ + stride) / stride);
+  masks_small_id.resize(divide_ceil(size_, stride));
+  masks_large_id.resize(divide_ceil(size_, stride));
 
   {
+    uint32_t chunk_id = 0;
     uint32_t tok_id = 0;
 #if defined(USE_NEON) || defined(USE_SSE4_2)
     using namespace simd;
-    for (; tok_id + stride <= size_; tok_id += stride) {
+    for (; tok_id + stride <= size_; tok_id += stride, ++chunk_id) {
       const u8x64 size = u8x64::load(&lengths_[tok_id]);
       const u8x64 type = u8x64::load((uint8_t *)types_.get() + tok_id);
       const uint64_t is_word = movemask(type == Word);
@@ -728,24 +735,46 @@ void TokenBuffer::atomize_words(IdentifierMap &identifiers, const KeywordTable &
       const uint64_t less_24 = movemask(size < 25);
       const uint64_t less_32 = movemask(size < 33);
 
-      const uint64_t chunk_id = tok_id / stride;
       Masks small;
       small.mask8 = is_word & less_8;
       small.mask16 = is_word & less_16 & ~less_8;
       small.mask24 = is_word & less_24 & ~less_16;
       small.mask32 = is_word & less_32 & ~less_24;
       masks_small_id[chunk_id] = small;
-
-      uint64_t large_mask = is_word & ~less_32;
-      masks_large_id[chunk_id] = large_mask;
+      masks_large_id[chunk_id] = is_word & ~less_32;
     }
 #endif
-    /* TODO: Scalar tail. */
+    for (; tok_id < size_; tok_id += stride, ++chunk_id) {
+      uint64_t is_word = 0, less_8 = 0, less_16 = 0, less_24 = 0, less_32 = 0;
+
+      for (int i = 0; i < stride && tok_id + i < size_; ++i) {
+        const uint8_t size = lengths_[tok_id + i];
+        const TokenType type = types_[tok_id + i];
+        const uint64_t bit = uint64_t(1) << i;
+        /* Generate a masks of all 1s if true, all 0s if false. */
+        is_word |= bit & -uint64_t(type == Word);
+        less_8 |= bit & -uint64_t(size < 9);
+        less_16 |= bit & -uint64_t(size < 17);
+        less_24 |= bit & -uint64_t(size < 25);
+        less_32 |= bit & -uint64_t(size < 33);
+      }
+
+      Masks small;
+      small.mask8 = is_word & less_8;
+      small.mask16 = is_word & less_16 & ~less_8;
+      small.mask24 = is_word & less_24 & ~less_16;
+      small.mask32 = is_word & less_32 & ~less_24;
+      masks_small_id[chunk_id] = small;
+      masks_large_id[chunk_id] = is_word & ~less_32;
+    }
   }
   {
     /* Iterate over the bitmasks. */
-    const int end = size_ / stride;
-    for (int chunk = 0; chunk < end; ++chunk) {
+    const int end = divide_ceil(size_, stride);
+    /* The atomize_short_tokens_in_mask can read past the end of each token by 8 bytes.
+     * For this reason we process the last chunk separately. */
+    int chunk = 0;
+    for (; chunk < end - 1; ++chunk) {
       const Masks small = masks_small_id[chunk];
       atomize_short_tokens_in_mask<1>(small.mask8, chunk * stride, identifiers, keywords);
       atomize_short_tokens_in_mask<2>(small.mask16, chunk * stride, identifiers, keywords);
@@ -753,6 +782,38 @@ void TokenBuffer::atomize_words(IdentifierMap &identifiers, const KeywordTable &
       atomize_short_tokens_in_mask<4>(small.mask32, chunk * stride, identifiers, keywords);
       atomize_tokens_in_mask(masks_large_id[chunk], chunk * stride, identifiers, keywords);
     }
+    for (; chunk < end; ++chunk) {
+      const Masks small = masks_small_id[chunk];
+      atomize_tokens_in_mask(small.mask8, chunk * stride, identifiers, keywords);
+      atomize_tokens_in_mask(small.mask16, chunk * stride, identifiers, keywords);
+      atomize_tokens_in_mask(small.mask24, chunk * stride, identifiers, keywords);
+      atomize_tokens_in_mask(small.mask32, chunk * stride, identifiers, keywords);
+      atomize_tokens_in_mask(masks_large_id[chunk], chunk * stride, identifiers, keywords);
+    }
+  }
+}
+
+INLINE_METHOD void TokenBuffer::atomize_tokens_in_mask(uint64_t mask,
+                                                       uint32_t tok_id_base,
+                                                       IdentifierMap &id_map,
+                                                       const KeywordTable &kw_table)
+{
+  if (mask == 0) [[likely]] {
+    return;
+  }
+  while (mask != 0) {
+    const int index = __builtin_ctzll(mask);
+    const int tok_id = tok_id_base + index;
+
+    const int str_start = offsets_[tok_id];
+    const int str_size = offsets_end_[tok_id + 1] - str_start;
+    const std::string_view str = {str_.data() + str_start, size_t(str_size)};
+
+    const TokenAtom atom = id_map.lookup_or_add(str);
+    atoms_[tok_id] = atom;
+    types_[tok_id] = kw_table[atom];
+    /* Pop last bit. */
+    mask &= (mask - 1);
   }
 }
 
@@ -796,30 +857,6 @@ template void TokenBuffer::atomize_short_tokens_in_mask<4>(uint64_t,
                                                            uint32_t,
                                                            IdentifierMap &,
                                                            const KeywordTable &);
-
-INLINE_METHOD void TokenBuffer::atomize_tokens_in_mask(uint64_t mask,
-                                                       uint32_t tok_id_base,
-                                                       IdentifierMap &id_map,
-                                                       const KeywordTable &kw_table)
-{
-  if (mask == 0) [[likely]] {
-    return;
-  }
-  while (mask != 0) {
-    const int index = __builtin_ctzll(mask);
-    const int tok_id = tok_id_base + index;
-
-    const int str_start = offsets_[tok_id];
-    const int str_size = offsets_end_[tok_id + 1] - str_start;
-    const std::string_view str = {str_.data() + str_start, size_t(str_size)};
-
-    const TokenAtom atom = id_map.lookup_or_add(str);
-    atoms_[tok_id] = atom;
-    types_[tok_id] = kw_table[atom];
-    /* Pop last bit. */
-    mask &= (mask - 1);
-  }
-}
 
 static void lex_string(const TokenType *types, uint32_t &cursor)
 {
