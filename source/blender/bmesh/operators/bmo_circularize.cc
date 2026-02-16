@@ -14,6 +14,7 @@
 #include "BLI_vector.hh"
 
 #include <numbers>
+#include <optional>
 
 #include "bmesh.hh"
 #include "intern/bmesh_operators_private.hh" /* own include */
@@ -82,10 +83,10 @@ static bool is_valid_boundary_edge(BMEdge *e, const char hflag, const bool check
  * 2. Open chains: walks in one direction until a dead end, then walks in the
  * opposite direction from the start edge and merges the results.
  */
-static LoopData walk_boundary_loop(BMEdge *start_edge,
-                                   Set<BMEdge *> &visited,
-                                   const char hflag,
-                                   const bool check_axis[3])
+static std::optional<LoopData> walk_boundary_loop(BMEdge *start_edge,
+                                                  Set<BMEdge *> &visited,
+                                                  const char hflag,
+                                                  const bool check_axis[3])
 {
   LoopData loop_data;
   /* Finds the next valid boundary edge that isn't visited. */
@@ -130,6 +131,9 @@ static LoopData walk_boundary_loop(BMEdge *start_edge,
   /* If the traversal forms a closed loop, the last vertex will match the first.
    * Remove the duplicate end vertex. */
   if (loop_data.verts.size() > 2 && loop_data.verts.first() == loop_data.verts.last()) {
+    if (loop_data.verts.size() < 4) {
+      return std::nullopt;
+    }
     loop_data.verts.remove_last();
     loop_data.is_closed = true;
     return loop_data;
@@ -148,6 +152,11 @@ static LoopData walk_boundary_loop(BMEdge *start_edge,
   }
 
   loop_data.is_closed = false;
+
+  if (loop_data.verts.size() < 3) {
+    return std::nullopt;
+  }
+
   return loop_data;
 }
 
@@ -169,9 +178,9 @@ static void bm_extract_input_loops_from_boundary_edges(BMesh *bm,
       continue;
     }
 
-    LoopData ld = walk_boundary_loop(edge, visited, hflag, check_axis);
-    if (ld.verts.size() >= 3) {
-      r_loops.append(ld);
+    std::optional<LoopData> ld = walk_boundary_loop(edge, visited, hflag, check_axis);
+    if (ld.has_value()) {
+      r_loops.append(*ld);
     }
   }
 }
@@ -562,10 +571,6 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
 
   for (LoopData &loop_data : loops) {
     const Vector<BMVert *> &loop = loop_data.verts;
-
-    if (loop.size() < 3) {
-      continue;
-    }
 
     float3 center_3d, normal, p, q;
     calculate_plane_basis(loop, center_3d, normal, p, q);
