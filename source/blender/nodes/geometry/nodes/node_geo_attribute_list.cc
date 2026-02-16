@@ -73,6 +73,64 @@ static const GeometryComponent *find_source_component(const GeometrySet &geometr
   return nullptr;
 }
 
+static std::string type_to_string(const bke::AttrType type)
+{
+  switch (type) {
+    case bke::AttrType::Bool:
+      return "Bool";
+    case bke::AttrType::Int8:
+      return "Int8";
+    case bke::AttrType::Int16_2D:
+      return "Int16_2D";
+    case bke::AttrType::Int32:
+      return "Int32";
+    case bke::AttrType::Int32_2D:
+      return "Int32_2D";
+    case bke::AttrType::Float:
+      return "Float";
+    case bke::AttrType::Float2:
+      return "Float2";
+    case bke::AttrType::Float3:
+      return "Float3";
+    case bke::AttrType::Float4x4:
+      return "Float4x4";
+    case bke::AttrType::ColorByte:
+      return "ColorByte";
+    case bke::AttrType::ColorFloat:
+      return "ColorFloat";
+    case bke::AttrType::Quaternion:
+      return "Quaternion";
+    case bke::AttrType::String:
+      return "String";
+    case bke::AttrType::Float4:
+      return "Float4";
+    default:
+      return "";
+  }
+}
+
+static std::string domain_to_string(const AttrDomain domain)
+{
+  switch (domain) {
+    case AttrDomain::Point:
+      return "Point";
+    case AttrDomain::Edge:
+      return "Edge";
+    case AttrDomain::Face:
+      return "Face";
+    case AttrDomain::Corner:
+      return "Face Corner";
+    case AttrDomain::Curve:
+      return "Curve";
+    case AttrDomain::Instance:
+      return "Instance";
+    case AttrDomain::Layer:
+      return "Layer";
+    default:
+      return "";
+  }
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
@@ -109,8 +167,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     BundlePtr bundle_ptr = Bundle::create();
     Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
     bundle.add("Name", std::string(iter.name));
-    bundle.add("Data Type", static_cast<int>(iter.data_type));
-    bundle.add("Domain", static_cast<int>(iter.domain));
+    bundle.add("Data Type", type_to_string(iter.data_type));
+    bundle.add("Domain", domain_to_string(iter.domain));
     bundles.append(bundle_ptr);
   });
 
