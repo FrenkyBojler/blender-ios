@@ -10,6 +10,9 @@
 
 #include <optional>
 
+/* For the legacy rcti/rctf C types. */
+#include "DNA_vec_types.h"
+
 #include "BLI_bounds_types.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_math_matrix.hh"
@@ -380,6 +383,18 @@ template<typename T, int Size>
 
 }  // namespace detail
 }  // namespace bounds
+
+template<>
+inline Bounds<int2>::Bounds(const rcti &rect)
+    : min(rect.xmin, rect.ymin), max(rect.xmax, rect.ymax)
+{
+}
+template<>
+inline Bounds<float2>::Bounds(const rctf &rect)
+    : min(rect.xmin, rect.ymin), max(rect.xmax, rect.ymax)
+{
+}
+template<typename T> Bounds<T>::Bounds(const T &value) : min(value), max(value) {}
 
 template<typename T> inline bool Bounds<T>::is_empty() const
 {
