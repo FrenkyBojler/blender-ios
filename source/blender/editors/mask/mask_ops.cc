@@ -102,11 +102,10 @@ MaskLayer *ED_mask_layer_ensure(bContext *C, bool *r_added_mask)
 static wmOperatorStatus mask_new_exec(bContext *C, wmOperator *op)
 {
   char name[MAX_ID_NAME - 2];
-
+  
   RNA_string_get(op->ptr, "name", name);
 
   Main *bmain = CTX_data_main(C);
-  Mask *mask = BKE_mask_new(CTX_data_main(C), name);
 
   PointerRNA ptr;
   PropertyRNA *prop;
@@ -115,6 +114,8 @@ static wmOperatorStatus mask_new_exec(bContext *C, wmOperator *op)
   Mask *mask;
 
   if (prop) {
+    mask = BKE_mask_new(bmain, name);
+
     /* When creating new ID blocks, use is already 1, but RNA
      * pointer use also increases user, so this compensates it. */
     id_us_min(&mask->id);
@@ -122,13 +123,13 @@ static wmOperatorStatus mask_new_exec(bContext *C, wmOperator *op)
     if (ptr.owner_id) {
       BKE_id_move_to_same_lib(*bmain, mask->id, *ptr.owner_id);
     }
-    
+
     PointerRNA idptr = RNA_id_pointer_create(&mask->id);
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
     RNA_property_update(C, &ptr, prop);
   }
   else {
-    ED_mask_new(C, name);
+    mask = ED_mask_new(C, name);
   }
 
   WM_event_add_notifier(C, NC_MASK | NA_ADDED, mask);
