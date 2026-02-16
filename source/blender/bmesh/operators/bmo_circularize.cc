@@ -89,7 +89,7 @@ static LoopData walk_boundary_loop(BMEdge *start_edge,
 {
   LoopData loop_data;
   /* Finds the next valid boundary edge that isn't visited. */
-  auto get_next_edge = [&](BMVert *v, BMEdge *exclude_e) -> BMEdge * {
+  auto get_next_edge_fn = [&](BMVert *v, BMEdge *exclude_e) -> BMEdge * {
     BMIter eiter;
     BMEdge *e_next;
     BM_ITER_ELEM (e_next, &eiter, v, BM_EDGES_OF_VERT) {
@@ -103,9 +103,9 @@ static LoopData walk_boundary_loop(BMEdge *start_edge,
   };
 
   /* Walks in one direction until a dead end. */
-  auto walk = [&](BMVert *curr_v, BMEdge *curr_e, Vector<BMVert *> &list) {
+  auto walk_fn = [&](BMVert *curr_v, BMEdge *curr_e, Vector<BMVert *> &list) {
     while (true) {
-      BMEdge *next_e = get_next_edge(curr_v, curr_e);
+      BMEdge *next_e = get_next_edge_fn(curr_v, curr_e);
       if (!next_e) {
         break;
       }
@@ -123,7 +123,7 @@ static LoopData walk_boundary_loop(BMEdge *start_edge,
   loop_data.verts.append(start_edge->v2);
   visited.add(start_edge);
 
-  walk(start_edge->v2, start_edge, loop_data.verts);
+  walk_fn(start_edge->v2, start_edge, loop_data.verts);
 
   /* If the traversal forms a closed loop, the last vertex will match the first.
    * Remove the duplicate end vertex. */
@@ -136,7 +136,7 @@ static LoopData walk_boundary_loop(BMEdge *start_edge,
   /* If we are here, the loop is open.
    * We need to check the other direction from the start vertex. */
   Vector<BMVert *> pre_loop;
-  walk(start_edge->v1, start_edge, pre_loop);
+  walk_fn(start_edge->v1, start_edge, pre_loop);
 
   if (!pre_loop.is_empty()) {
     std::reverse(pre_loop.begin(), pre_loop.end());
@@ -440,7 +440,7 @@ static bool project_on_mesh(BVHTree *bvh_tree,
   float best_dist = FLT_MAX;
   bool found = false;
 
-  auto test_tri = [&](BMVert *v1, BMVert *v2, BMVert *v3) {
+  auto test_tri_fn = [&](BMVert *v1, BMVert *v2, BMVert *v3) {
     for (int i = 0; i < 2; i++) {
       float lambda;
       float uv[2];
@@ -467,10 +467,10 @@ static bool project_on_mesh(BVHTree *bvh_tree,
     BMVert *v1 = l_start->v;
     BMVert *v2 = l_start->next->v;
     BMVert *v3 = l_start->next->next->v;
-    test_tri(v1, v2, v3);
+    test_tri_fn(v1, v2, v3);
     if (f->len == 4) {
       BMVert *v4 = l_start->prev->v;
-      test_tri(v1, v3, v4);
+      test_tri_fn(v1, v3, v4);
     }
   }
 
