@@ -415,13 +415,6 @@ bool BLI_exists(const char *path)
 
 #ifdef WIN32
 
-#  ifndef S_IRGRP
-#    define S_IRGRP 0040
-#  endif
-#  ifndef S_IROTH
-#    define S_IROTH 0004
-#  endif
-
 static int bli_wstat_fast(const wchar_t *path, BLI_stat_t *buffer)
 {
   memset(buffer, 0, sizeof(BLI_stat_t));
