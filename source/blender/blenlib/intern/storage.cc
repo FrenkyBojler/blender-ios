@@ -415,6 +415,27 @@ bool BLI_exists(const char *path)
 
 #ifdef WIN32
 
+/**
+ * Fast Windows-specific stat implementation using GetFileAttributesExW.
+ *
+ * This static helper function populates a BLI_stat_t buffer with file metadata
+ * (size, timestamps, and mode) for the given wide-character path. It serves as
+ * an optimized alternative to the standard _wstat functions as it does not open
+ * the file.
+ *
+ * Timestamps (creation, access, modification) are converted from Windows
+ * FILETIME (100-nanosecond intervals since 1601-01-01) to Unix epoch seconds.
+ * If creation or access times are unavailable (FILETIME components are zero),
+ * they default to the modification time for consistency.
+ *
+ * Mode flags are set minimally: _S_IREAD for read permission, _S_IWRITE if not
+ * read-only, and _S_IFDIR or _S_IFREG based on file attributes. Other Unix-like
+ * permissions (execute, group/other) are omitted as they don't directly map
+ * to Windows file attributes.
+ *
+ * \param path: Wide-character path to the file or directory.
+ * \param buffer: Pointer to BLI_stat_t structure to populate.
+ * \return 0 on success, -1 on failure (e.g., invalid path). */
 static int bli_wstat_fast(const wchar_t *path, BLI_stat_t *buffer)
 {
   memset(buffer, 0, sizeof(BLI_stat_t));
