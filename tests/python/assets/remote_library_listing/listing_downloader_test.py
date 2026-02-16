@@ -42,7 +42,13 @@ class ListingDownloaderTest(unittest.TestCase):
         self.assertTrue(self.json_path.exists(), "JSON file should have been rewritten")
         self._test_sanitize_asset_page_with_specific_bad_path(r"\\NAS\share\temp\kubus.blend", "temp/kubus.blend")
         self.assertTrue(self.json_path.exists(), "JSON file should have been rewritten")
-        self._test_sanitize_asset_page_with_specific_bad_path(r"//NAS/share/temp/kubus.blend", "NAS/share/temp/kubus.blend")
+        self._test_sanitize_asset_page_with_specific_bad_path(
+            r"//NAS/share/temp/kubus.blend", "NAS/share/temp/kubus.blend")
+        self.assertTrue(self.json_path.exists(), "JSON file should have been rewritten")
+
+        # Relative path that attempts to break out of the asset library.
+        self._test_sanitize_asset_page_with_specific_bad_path(
+            "sneaky/path/../../../temp/kubus.blend", "temp/kubus.blend")
         self.assertTrue(self.json_path.exists(), "JSON file should have been rewritten")
 
     def test_sanitize_asset_page__all_ok(self) -> None:
@@ -51,38 +57,38 @@ class ListingDownloaderTest(unittest.TestCase):
 
         asset_page = api_models.AssetLibraryIndexPageV1(
             # Set correct asset & file counts.
-            asset_count = 1,
-            file_count = 1,
+            asset_count=1,
+            file_count=1,
 
-            assets = [
+            assets=[
                 api_models.AssetV1(
-                    name = "Kubus",
-                    id_type = "OBJECT",
-                    files = [blend_path],
-                    thumbnail = api_models.URLWithHash(url="thumbs/kubus.webp", hash="12345"),
-                    meta = None,
+                    name="Kubus",
+                    id_type="OBJECT",
+                    files=[blend_path],
+                    thumbnail=api_models.URLWithHash(url="thumbs/kubus.webp", hash="12345"),
+                    meta=None,
                 ),
             ],
-            files = [
+            files=[
                 api_models.FileV1(
                     # Absolute path, should get corrected.
-                    path = blend_path,
-                    size_in_bytes = 328051946337,
-                    hash = "CAT:51756572637573",
-                    blender_version = "5.2",
-                    url = None,
+                    path=blend_path,
+                    size_in_bytes=328051946337,
+                    hash="CAT:51756572637573",
+                    blender_version="5.2",
+                    url=None,
                 ),
             ],
         )
 
         Downloader = listing_downloader.RemoteAssetListingDownloader
         dl = Downloader(
-                remote_url = "http://localhost/",
-                local_path = "/tmp/does-not-matter-we-do-not-write",
-                on_update_callback = lambda downloader: None,
-                on_done_callback = lambda downloader: None,
-                on_metafiles_done_callback = None,
-                on_page_done_callback = None,
+            remote_url="http://localhost/",
+            local_path="/tmp/does-not-matter-we-do-not-write",
+            on_update_callback=lambda downloader: None,
+            on_done_callback=lambda downloader: None,
+            on_metafiles_done_callback=None,
+            on_page_done_callback=None,
         )
         self.json_path.unlink(missing_ok=True)
         dl._sanitize_asset_page(asset_page, self.json_path)
@@ -93,47 +99,50 @@ class ListingDownloaderTest(unittest.TestCase):
 
         # Check that the file paths are also kept the same.
         self.assertEqual(blend_path, asset_page.files[0].path, "In-memory file entry should have been sanitized")
-        self.assertEqual([blend_path], asset_page.assets[0].files, "In-memory file reference of asset entry should have been sanitized")
+        self.assertEqual(
+            [blend_path],
+            asset_page.assets[0].files,
+            "In-memory file reference of asset entry should have been sanitized")
 
         # Check that the JSON file does not exist, because rewriting was not necessary.
         self.assertFalse(self.json_path.exists(), "JSON file should NOT have been rewritten")
 
-    def _test_sanitize_asset_page_with_specific_bad_path(self, bad_path: str, sanitized_path: str ) -> None:
+    def _test_sanitize_asset_page_with_specific_bad_path(self, bad_path: str, sanitized_path: str) -> None:
         # Construct an incorrect asset page, with bad counts and an absolute path to a file.
         asset_page = api_models.AssetLibraryIndexPageV1(
             # Set incorrect asset & file counts. These should get corrected.
-            asset_count = 47,
-            file_count = 327,
+            asset_count=47,
+            file_count=327,
 
-            assets = [
+            assets=[
                 api_models.AssetV1(
-                    name = "Kubus",
-                    id_type = "OBJECT",
-                    files = [bad_path],
-                    thumbnail = api_models.URLWithHash(url="thumbs/kubus.webp", hash="12345"),
-                    meta = None,
+                    name="Kubus",
+                    id_type="OBJECT",
+                    files=[bad_path],
+                    thumbnail=api_models.URLWithHash(url="thumbs/kubus.webp", hash="12345"),
+                    meta=None,
                 ),
             ],
-            files = [
+            files=[
                 api_models.FileV1(
                     # Absolute path, should get corrected.
-                    path = bad_path,
-                    size_in_bytes = 328051946337,
-                    hash = "CAT:51756572637573",
-                    blender_version = "5.2",
-                    url = None,
+                    path=bad_path,
+                    size_in_bytes=328051946337,
+                    hash="CAT:51756572637573",
+                    blender_version="5.2",
+                    url=None,
                 ),
             ],
         )
 
         Downloader = listing_downloader.RemoteAssetListingDownloader
         dl = Downloader(
-                remote_url = "http://localhost/",
-                local_path = "/tmp/does-not-matter-we-do-not-write",
-                on_update_callback = lambda downloader: None,
-                on_done_callback = lambda downloader: None,
-                on_metafiles_done_callback = None,
-                on_page_done_callback = None,
+            remote_url="http://localhost/",
+            local_path="/tmp/does-not-matter-we-do-not-write",
+            on_update_callback=lambda downloader: None,
+            on_done_callback=lambda downloader: None,
+            on_metafiles_done_callback=None,
+            on_page_done_callback=None,
         )
         self.json_path.unlink(missing_ok=True)
         dl._sanitize_asset_page(asset_page, self.json_path)
@@ -145,7 +154,8 @@ class ListingDownloaderTest(unittest.TestCase):
         # Check that the absolute file path has been sanitized.
         # Both the Windows and the POSIX version of bad_path should sanitize to this path.
         self.assertEqual(sanitized_path, asset_page.files[0].path, "In-memory file entry should have been sanitized")
-        self.assertEqual([sanitized_path], asset_page.assets[0].files, "In-memory file reference of asset entry should have been sanitized")
+        self.assertEqual([sanitized_path], asset_page.assets[0].files,
+                         "In-memory file reference of asset entry should have been sanitized")
 
         # Check that the JSON file has been updated, so that when Blender later reads it, it's been sanitized.
         parser = json_parsing.ValidatingParser()
@@ -159,7 +169,8 @@ class ListingDownloaderTest(unittest.TestCase):
         # Check that the absolute file path has been sanitized.
         # Both the Windows and the POSIX version of bad_path should sanitize to this path.
         self.assertEqual(sanitized_path, from_file.files[0].path, "File entry should have been sanitized")
-        self.assertEqual([sanitized_path], from_file.assets[0].files, "File reference of asset entry should have been sanitized")
+        self.assertEqual([sanitized_path], from_file.assets[0].files,
+                         "File reference of asset entry should have been sanitized")
 
 
 class PathGuessingTest(unittest.TestCase):
@@ -167,9 +178,55 @@ class PathGuessingTest(unittest.TestCase):
         str_to_path = listing_downloader._str_to_path_multiplatform
         self.assertEqual(PureWindowsPath(r'C:\Program Files\Blender'), str_to_path(r'C:\Program Files/Blender'))
         self.assertEqual(PureWindowsPath(r'C:\Program Files\Blender'), str_to_path(r'C:/Program Files/Blender'))
-        self.assertEqual(PureWindowsPath(r'\\NAS\share\flamenco\file.blend'), str_to_path(r'\\NAS\share\flamenco\file.blend'))
+        self.assertEqual(PureWindowsPath(r'\\NAS\share\flamenco\file.blend'),
+                         str_to_path(r'\\NAS\share\flamenco\file.blend'))
         self.assertEqual(PurePosixPath('/Program Files/Blender'), str_to_path('/Program Files/Blender'))
         self.assertEqual(PurePath('file.blend'), str_to_path('file.blend'))
+
+
+class SanitizePathFromURLTest(unittest.TestCase):
+    def test_sanitize_path_from_url(self) -> None:
+        _sanitize_path_from_url = listing_downloader._sanitize_path_from_url
+        self.assertEqual(
+            PurePosixPath('normal/path/as/expected.blend'),
+            _sanitize_path_from_url('/normal/path/as/expected.blend'),
+        )
+        self.assertEqual(
+            PurePosixPath('normal/path/as/expected.blend'),
+            _sanitize_path_from_url(PurePosixPath('/normal/path/as/expected.blend')),
+        )
+        self.assertEqual(
+            PurePosixPath('.'),
+            _sanitize_path_from_url(PurePosixPath('')),
+        )
+        self.assertEqual(
+            PurePosixPath('path/filename.blend'),
+            _sanitize_path_from_url(PurePosixPath('/path/sub/../filename.blend')),
+        )
+        self.assertEqual(
+            PurePosixPath('path/filename.blend'),
+            _sanitize_path_from_url('/path/sub%2F%2E%2e/filename.blend'),
+        )
+        self.assertEqual(
+            PurePosixPath('path/filename.blend'),
+            _sanitize_path_from_url('path/filename.blend'),
+        )
+        self.assertEqual(
+            PurePosixPath('longer/filename.blend'),
+            _sanitize_path_from_url(PurePosixPath('/longer/faster/path/../../filename.blend')),
+        )
+        self.assertEqual(
+            PurePosixPath('filename.blend'),
+            _sanitize_path_from_url(PurePosixPath('/faster/path/../../filename.blend')),
+        )
+        self.assertEqual(
+            PurePosixPath('filename.blend'),
+            _sanitize_path_from_url('/faster/path/../../filename.blend'),
+        )
+        self.assertEqual(
+            PurePosixPath('etc/passwd'),
+            _sanitize_path_from_url(PurePosixPath('/../../../../../etc/passwd')),
+        )
 
 
 def main():

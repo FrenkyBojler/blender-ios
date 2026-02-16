@@ -497,32 +497,22 @@ class RemoteAssetListingDownloader:
         # need updating.
         bad_to_good_paths: dict[str, str] = {}
         for file in asset_page.files:
-            # Guess which platform the path is from. The listing generator always writes POSIX style paths, but a
-            # malicious server may try and use something else.
-            if '\\' in file.path or (len(file.path) >= 2 and file.path[1] == ':'):
-                file_path = PureWindowsPath(file.path)
-            elif '/' in file.path:
-                file_path = PurePosixPath(file.path)
-            else:
-                file_path = PurePath(file.path)
+            file_path = _str_to_path_multiplatform(file.path)
+            sanitized_path = _path_make_relative_safe(file_path)
 
-            if not file_path.is_absolute():
+            if file_path == sanitized_path:
                 continue
 
-            print(("Warning: file in {json_path!s} has absolute path ({file_path!s}). {report!s}").format(
-                json_path=json_path,
-                file_path=file_path,
-                report=report))
+            print(("Warning: file in {json_path!s} tries to escape the asset library ({file_path!s}). {report!s}").format(
+                json_path=json_path, file_path=file_path, report=report))
 
-            # Remove the first part of the path, which is '/' on POSIX paths and may contain a drive letter on Windows.
-            relative_path = file_path.with_segments(*file_path.parts[1:])
             bad_path = file.path
-            file.path = relative_path.as_posix()
+            file.path = sanitized_path.as_posix()
             bad_to_good_paths[bad_path] = file.path
-            badness_found = True
 
         # If any of the file paths were found to be bad, assets referencing them also need updating.
         if bad_to_good_paths:
+            badness_found = True
             for asset in asset_page.assets:
                 asset.files = [
                     bad_to_good_paths.get(path, path) for path in asset.files
@@ -763,53 +753,36 @@ class RemoteAssetListingDownloader:
         logger.info("Download finished: %s", http_req_descr)
 
 
-def _sanitize_path_from_url(urlpath: PurePosixPath | str) -> PurePosixPath:
+def _sanitize_path_from_url(urlpath: PurePath | str) -> PurePosixPath:
     """Safely convert some path (assumed from a URL) to a relative path.
 
+    URL-unquoting and unicode normalisation is only done when `urlpath` is a `str`.
+
     Directory up-references ('/../') are removed.
-
-    >>> _sanitize_path_from_url(PurePosixPath('/normal/path/as/expected.blend'))
-    PurePosixPath('normal/path/as/expected.blend')
-
-    >>> _sanitize_path_from_url(PurePosixPath(''))
-    PurePosixPath('.')
-
-    >>> _sanitize_path_from_url(PurePosixPath('/path/sub/../filename.blend'))
-    PurePosixPath('path/filename.blend')
-
-    >>> _sanitize_path_from_url('/path/sub%2F%2E%2e/filename.blend')
-    PurePosixPath('path/filename.blend')
-
-    >>> _sanitize_path_from_url('path/filename.blend')
-    PurePosixPath('path/filename.blend')
-
-    >>> _sanitize_path_from_url(PurePosixPath('/longer/faster/path/../../filename.blend'))
-    PurePosixPath('longer/filename.blend')
-
-    >>> _sanitize_path_from_url(PurePosixPath('/faster/path/../../filename.blend'))
-    PurePosixPath('filename.blend')
-
-    >>> _sanitize_path_from_url('/faster/path/../../filename.blend')
-    PurePosixPath('filename.blend')
-
-    >>> _sanitize_path_from_url(PurePosixPath('/../../../../../etc/passwd'))
-    PurePosixPath('etc/passwd')
     """
 
     if isinstance(urlpath, str):
-        # Assumption: this string comes directly from urllib.parse.urlsplit(url).path
+        # Assumption: this string either comes directly from urllib.parse.urlsplit(url).path,
+        # or comes from file paths in the asset listing json.
+        if '\\' in urlpath:
+            # Convert backslashes (from Windows) to forward slashes, as this
+            # function only deals with POSIX style paths.
+            urlpath = urlpath.replace('\\', '/')
+
         unquoted = urllib.parse.unquote(urlpath)
         normalized = unicodedata.normalize('NFKC', unquoted)
         urlpath = PurePosixPath(normalized)
 
     # The URL could have entries like `..` in there, which should be removed.
-    # However, PurePosixPath does not have functionality for this (for good
-    # reason), but since this is about URL paths and not real filesystem paths
-    # (yet) we can just go ahead and do this ourselves.
+    return PurePosixPath(*_path_make_relative_safe(urlpath).parts)
 
-    parts = list(urlpath.parts)
 
-    if urlpath.is_absolute():
+def _path_make_relative_safe(some_path: PurePath) -> PurePath:
+    """Remove the root/anchor from the path, and remove '..' entries."""
+
+    parts = list(some_path.parts)
+
+    if some_path.is_absolute():
         parts = parts[1:]
 
     i = 0
@@ -825,7 +798,8 @@ def _sanitize_path_from_url(urlpath: PurePosixPath | str) -> PurePosixPath:
         parts = parts[:i - 1] + parts[i + 1:]
         i -= 1
 
-    return PurePosixPath(*parts)
+    # some_path.with_segments() ensures that the returned path is of the same type as 'some_path'.
+    return some_path.with_segments(*parts)
 
 
 def _str_to_path_multiplatform(as_str: str) -> PurePath:
