@@ -89,7 +89,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const AttributeAccessor attributes = *component->attributes();
-  Vector<StringRef> sort_attributes;
   Vector<BundlePtr> bundles;
 
   attributes.foreach_attribute([&](const AttributeIter &iter) {
@@ -104,8 +103,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
 
     if (valid_name) {
-      sort_attributes.append(iter.name);
-
       BundlePtr bundle_ptr;
       bundle_ptr = Bundle::create();
       Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
@@ -116,14 +113,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   });
 
-  if (sort_attributes.is_empty()) {
+  if (bundles.is_empty()) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  //  parallel_sort(sort_attributes.begin(),
-  //               sort_attributes.end(),
-  //               [](const StringRef &a, const StringRef &b) { return a < b; });
+  parallel_sort(bundles.begin(), bundles.end(), [](const BundlePtr &a, const BundlePtr &b) {
+    return (a->lookup<std::string>("Name")) < (b->lookup<std::string>("Name"));
+  });
 
   params.set_output("Attributes", List::from_container(bundles));
 }
