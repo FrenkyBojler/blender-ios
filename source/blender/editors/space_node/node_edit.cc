@@ -339,6 +339,11 @@ void ED_node_compositor_job(const bContext *C)
 
   G.is_break = false;
   WM_jobs_start(CTX_wm_manager(C), job);
+
+  /* If animation is playing, block until the job is done. */
+  if (ED_window_animation_playing_no_scrub(CTX_wm_manager(C))) {
+    WM_jobs_wait_until_finished(CTX_wm_manager(C), job);
+  }
 }
 
 /** \} */

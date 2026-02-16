@@ -584,14 +584,17 @@ static void wm_job_free(wmWindowManager *wm, wmJob *wm_job)
   wm_jobs_update_qos(wm);
 }
 
-/* Stop job, end thread, free data completely. */
-static void wm_jobs_kill_job(wmWindowManager *wm, wmJob *wm_job)
+/* Force the given job to finish synchronously, if cancel_job is true, the job will be signaled to
+ * cancel, otherwise, the function will wait until the job completely finishes. */
+static void wm_jobs_finish_job(wmWindowManager *wm, wmJob *wm_job, const bool cancel_job)
 {
   bool update_progress = (wm_job->flag & WM_JOB_PROGRESS) != 0;
 
   if (wm_job->running) {
-    /* Signal job to end. */
-    wm_job->worker_status.stop = true;
+    if (cancel_job) {
+      /* Signal job to cancel. */
+      wm_job->worker_status.stop = true;
+    }
 
     WM_job_main_thread_lock_release(wm_job);
     BLI_threadpool_end(&wm_job->threads);
@@ -618,12 +621,17 @@ static void wm_jobs_kill_job(wmWindowManager *wm, wmJob *wm_job)
   }
 }
 
+void WM_jobs_wait_until_finished(wmWindowManager *window_manager, wmJob *job)
+{
+  wm_jobs_finish_job(window_manager, job, false);
+}
+
 void WM_jobs_kill_all(wmWindowManager *wm)
 {
   wmJob *wm_job;
 
   while ((wm_job = static_cast<wmJob *>(wm->runtime->jobs.first))) {
-    wm_jobs_kill_job(wm, wm_job);
+    wm_jobs_finish_job(wm, wm_job, true);
   }
 
   /* This job will be automatically restarted. */
@@ -634,7 +642,7 @@ void WM_jobs_kill_all_except(wmWindowManager *wm, const void *owner)
 {
   for (wmJob &wm_job : wm->runtime->jobs.items_mutable()) {
     if (wm_job.owner != owner) {
-      wm_jobs_kill_job(wm, &wm_job);
+      wm_jobs_finish_job(wm, &wm_job, true);
     }
   }
 }
@@ -649,7 +657,7 @@ void WM_jobs_kill_type(wmWindowManager *wm, const void *owner, int job_type)
     }
 
     if (wm_job.job_type == job_type) {
-      wm_jobs_kill_job(wm, &wm_job);
+      wm_jobs_finish_job(wm, &wm_job, true);
     }
   }
 }
@@ -658,7 +666,7 @@ void WM_jobs_kill_all_from_owner(wmWindowManager *wm, const void *owner)
 {
   for (wmJob &wm_job : wm->runtime->jobs.items_mutable()) {
     if (wm_job.owner == owner) {
-      wm_jobs_kill_job(wm, &wm_job);
+      wm_jobs_finish_job(wm, &wm_job, true);
     }
   }
 }
@@ -694,7 +702,7 @@ void wm_jobs_timer_end(wmWindowManager *wm, wmTimer *wt)
 {
   wmJob *wm_job = static_cast<wmJob *>(BLI_findptr(&wm->runtime->jobs, wt, offsetof(wmJob, wt)));
   if (wm_job) {
-    wm_jobs_kill_job(wm, wm_job);
+    wm_jobs_finish_job(wm, wm_job, true);
   }
 }
 
