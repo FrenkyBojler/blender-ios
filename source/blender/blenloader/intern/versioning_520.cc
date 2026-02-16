@@ -21,6 +21,8 @@
 
 #include "BKE_idprop.hh"
 #include "BKE_main.hh"
+#include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 
 #include "readfile.hh"
@@ -129,13 +131,36 @@ static void version_geometry_nodes_properties(NodesModifierData &nmd)
   nmd.settings.properties = nullptr;
 }
 
+/* Saving file extension is now a property of the the File Output node. So inherit this
+ * setting from the active scene to restore the old behavior.
+ * Note: One limitation is that node groups containing file outputs that are not part of any
+ * scene are not affected by versioning. */
+static void do_version_file_output_use_file_extension_recursive(bNodeTree &node_tree,
+                                                                const Scene &scene)
+{
+  for (bNode &node : node_tree.nodes) {
+    if (node.type_legacy == CMP_NODE_OUTPUT_FILE) {
+      NodeCompositorFileOutput *data = static_cast<NodeCompositorFileOutput *>(node.storage);
+      data->use_file_extension = (scene.r.scemode & R_EXTENSION) != 0;
+    }
+    else if (node.type_legacy == NODE_GROUP) {
+      bNodeTree *ngroup = id_cast<bNodeTree *>(node.id);
+      if (ngroup) {
+        do_version_file_output_use_file_extension_recursive(*ngroup, scene);
+      }
+    }
+  }
+}
+
 void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
 {
-  for (Object &object : bmain->objects) {
-    for (ModifierData &md : object.modifiers) {
-      if (md.type == eModifierType_Nodes) {
-        version_geometry_nodes_properties(reinterpret_cast<NodesModifierData &>(md));
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 2)) {
+    for (Scene &scene : bmain->scenes) {
+      bNodeTree *node_tree = version_get_scene_compositor_node_tree(bmain, &scene);
+      if (node_tree == nullptr) {
+        continue;
       }
+      do_version_file_output_use_file_extension_recursive(*node_tree, scene);
     }
   }
   /**
@@ -144,10 +169,24 @@ void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
    *
    * \note Keep this message at the bottom of the function.
    */
+
+  /* Keep this block at the end of this function until file format changes in 6.0. */
+  for (Object &object : bmain->objects) {
+    for (ModifierData &md : object.modifiers) {
+      if (md.type == eModifierType_Nodes) {
+        version_geometry_nodes_properties(reinterpret_cast<NodesModifierData &>(md));
+      }
+    }
+  }
 }
 
-void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main * /*bmain*/)
+void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 1)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.r.mode |= R_SAVE_OUTPUT;
+    }
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
