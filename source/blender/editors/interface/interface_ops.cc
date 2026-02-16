@@ -2637,7 +2637,7 @@ static void UI_OT_view_drop(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name UI View Drop Operator
+/** \name UI View Scroll Operator
  * \{ */
 
 static bool ui_view_scroll_poll(bContext *C)
@@ -2752,6 +2752,15 @@ static void UI_OT_view_item_rename(wmOperatorType *ot)
 
   ot->flag = OPTYPE_INTERNAL;
 }
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UI View Select Operator
+ *
+ * Operator for selection of view items. This activates the clicked item.
+ * Also supports multi-selection with Shift and Ctrl modifier keys.
+ *
+ * \{ */
 
 static wmOperatorStatus view_item_click_select(bContext &C,
                                                AbstractViewItem *clicked_item,
@@ -2886,6 +2895,14 @@ static void UI_OT_view_item_select(wmOperatorType *ot)
                          "Select all between clicked and active items");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UI View Item Delete Operator
+ *
+ * Main purpose of this operator is to support deleting selected view items with `X` hotkey.
+ *
+ * \{ */
 
 static wmOperatorStatus ui_view_item_delete_invoke(bContext *C,
                                                    wmOperator * /*op*/,
