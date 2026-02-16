@@ -82,11 +82,6 @@ if(WITH_TBB)
   endif()
 endif()
 
-if(WIN32)
-  # Windows.h will define min/max macros that will collide with the STL versions.
-  add_definitions(-DNOMINMAX)
-endif()
-
 if(WITH_USD)
   # USD links libMaterialX, when using pre-compiled libraries
   # ensures `usd_ms` can find `MaterialXRender` and friends.
@@ -97,16 +92,6 @@ if(WITH_USD)
   # files could get outdated too.
   if(DEFINED LIBDIR)
     link_directories(${LIBDIR}/materialx/lib)
-  endif()
-endif()
-
-if(WITH_IMAGE_OPENEXR)
-  # NOTE: This is _only_ needed when linking blender before the install target runs.
-  # Once `openjph` libraries have been copied into `TARGETDIR_LIB` then Blender will link.
-  # Don't rely on this though as failing on a fresh build is no good and the library
-  # files could get outdated too.
-  if(DEFINED LIBDIR)
-    link_directories(${LIBDIR}/openjph/lib)
   endif()
 endif()
 
@@ -125,6 +110,10 @@ endif()
 
 if(WITH_SDL)
   add_definitions(-DWITH_SDL)
+endif()
+
+if(WITH_INPUT_NDOF)
+  add_definitions(-DWITH_INPUT_NDOF)
 endif()
 
 if(WITH_BINRELOC)
@@ -573,6 +562,18 @@ if(WIN32)
       DIRECTORY ${LIBDIR}/osl/lib/python${PYTHON_VERSION}_debug/site-packages/oslquery
       DESTINATION ${TARGETDIR_SITE_PACKAGES}
       CONFIGURATIONS Debug
+    )
+  endif()
+  if(EXISTS ${LIBDIR}/ceres/bin/ceres.dll) # 5.1+
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ceres/bin/ceres.dll
+      RELEASE
+    )
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ceres/bin/ceres-debug.dll
+      DEBUG
     )
   endif()
   if(EXISTS ${LIBDIR}/osl/bin/oslquery.dll) # 4.1+
@@ -1880,7 +1881,7 @@ unset(TARGETDIR_TEXT)
 
 # Geometry icons.
 get_property(_icon_names GLOBAL PROPERTY ICON_GEOM_NAMES)
-set(_icon_files)
+set(_icon_files "")
 foreach(_f ${_icon_names})
   list(APPEND _icon_files
     "${CMAKE_SOURCE_DIR}/release/datafiles/icons/${_f}.dat"
@@ -2028,12 +2029,15 @@ endif()
 
 if(WIN32)
   if(WITH_CYCLES_DEVICE_HIPRT)
-    if(EXISTS ${LIBDIR}/hiprt/bin/hiprt64.dll)
-      windows_install_shared_manifest(
-        FILES ${LIBDIR}/hiprt/bin/hiprt64.dll
-        ALL
-      )
-    endif()
+    # Cycles does `find_package(HIPRT)` for its compilation purposes, and the variables defined by
+    # the FindHIPRT.cmake are only available in Cycles. In order to access HIPRT_VERSION need to
+    # find the package from here as well.
+    # For the strict compilation rely on Cycles to take care of set_and_warn_library_found().
+    find_package(HIPRT)
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/hiprt/bin/hiprt${HIPRT_VERSION}64.dll
+      ALL
+    )
   endif()
 endif()
 

@@ -8,6 +8,8 @@
 
 #include <fmt/format.h>
 
+#include "AS_remote_library.hh"
+
 #include "BKE_context.hh"
 #include "BKE_library.hh"
 
@@ -132,7 +134,7 @@ static std::string ui_drop_material_tooltip(bContext *C,
 
   PointerRNA rna_prev_material = RNA_pointer_get(&mat_slot, "material");
   Material *prev_mat_in_slot = static_cast<Material *>(rna_prev_material.data);
-  const char *dragged_material_name = WM_drag_get_item_name(drag);
+  const std::string dragged_material_name = WM_drag_get_item_name(drag);
 
   if (prev_mat_in_slot) {
     return fmt::format(fmt::runtime(TIP_("Drop {} on slot {} (replacing {}) of {}")),
@@ -151,6 +153,21 @@ static std::string ui_drop_material_tooltip(bContext *C,
                      dragged_material_name,
                      target_slot,
                      ob->id.name + 2);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Asset Prefetch Callbacks
+ * \{ */
+
+static void ui_prefetch_assets(bContext &C, wmDrag &drag)
+{
+  BLI_assert(drag.type == WM_DRAG_ASSET);
+  wmDragAsset *asset_drag = static_cast<wmDragAsset *>(drag.poin);
+
+  blender::asset_system::remote_library_request_asset_download(
+      C, *asset_drag->asset, CTX_wm_reports(&C));
 }
 
 /** \} */
@@ -176,6 +193,8 @@ void dropboxes_ui()
                  ui_drop_material_copy,
                  WM_drag_free_imported_drag_ID,
                  ui_drop_material_tooltip);
+
+  WM_drag_global_prefetch_handler_add(WM_DRAG_ASSET, ui_prefetch_assets);
 }
 
 /** \} */

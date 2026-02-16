@@ -5567,8 +5567,8 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
             /* Color texture (alpha used as mask). */
             if (ps->is_texbrush) {
               const MTex *mtex = BKE_brush_color_texture_get(brush, OB_MODE_TEXTURE_PAINT);
-              float samplecos[3];
-              float texrgba[4];
+              float3 samplecos;
+              float4 texrgba;
 
               /* taking 3d copy to account for 3D mapping too.
                * It gets concatenated during sampling */
@@ -6025,9 +6025,9 @@ static void project_state_init(bContext *C,
     /* only check for inversion for the soften brush, elsewhere,
      * a resident brush inversion flag can cause issues */
     if (ps->brush_type == IMAGE_PAINT_BRUSH_TYPE_SOFTEN) {
-      ps->mode = (((ps->mode == BrushStrokeMode::Invert) ^ ((brush->flag & BRUSH_DIR_IN) != 0)) ?
-                      BrushStrokeMode::Invert :
-                      BrushStrokeMode::Normal);
+      ps->mode = (ps->mode == BrushStrokeMode::Invert) != ((brush->flag & BRUSH_DIR_IN) != 0) ?
+                     BrushStrokeMode::Invert :
+                     BrushStrokeMode::Normal;
 
       ps->blurkernel = paint_new_blur_kernel(brush, true);
     }

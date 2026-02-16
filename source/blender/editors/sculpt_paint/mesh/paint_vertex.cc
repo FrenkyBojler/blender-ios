@@ -608,14 +608,11 @@ bool vertex_paint_poll_ignore_tool(bContext *C)
 static ColorPaint4f vpaint_get_current_col(VPaint &vp, bool secondary)
 {
   const Brush *brush = BKE_paint_brush_for_read(&vp.paint);
-  float color[4];
-  const float *brush_color = secondary ? BKE_brush_secondary_color_get(&vp.paint, brush) :
+  const float3 brush_color = secondary ? BKE_brush_secondary_color_get(&vp.paint, brush) :
                                          BKE_brush_color_get(&vp.paint, brush);
-  copy_v3_v3(color, brush_color);
 
-  color[3] = 1.0f; /* alpha isn't used, could even be removed to speedup paint a little */
-
-  return ColorPaint4f(color);
+  /* alpha isn't used, could even be removed to speedup paint a little */
+  return ColorPaint4f(brush_color.x, brush_color.y, brush_color.z, 1.0f);
 }
 
 /* wpaint has 'wpaint_blend' */
@@ -735,8 +732,8 @@ static Color vpaint_blend_stroke(const VPaint &vp,
 
 static void paint_and_tex_color_alpha_intern(const VPaint &vp,
                                              const ViewContext *vc,
-                                             const float co[3],
-                                             float r_rgba[4])
+                                             const float3 &co,
+                                             float4 &r_rgba)
 {
   const Brush *brush = BKE_paint_brush_for_read(&vp.paint);
   const MTex *mtex = BKE_brush_mask_texture_get(brush, OB_MODE_SCULPT);
@@ -910,13 +907,6 @@ struct VPaintData : public PaintModeData {
   NormalAnglePrecalc normal_angle_precalc;
 
   ColorPaint4f paintcol;
-
-  /**
-   * Owned by #vp_handle.
-   * \todo Look into replacing this with just using the evaluated/deform positions.
-   */
-  Span<float3> vert_positions;
-  Span<float3> vert_normals;
 
   bool is_texbrush;
 
@@ -1688,8 +1678,8 @@ static float paint_and_tex_color_alpha(const VPaint &vp,
                                        const float v_co[3],
                                        Color *r_color)
 {
-  ColorPaint4f rgba;
-  paint_and_tex_color_alpha_intern(vp, &vpd.vc, v_co, &rgba.r);
+  float4 rgba;
+  paint_and_tex_color_alpha_intern(vp, &vpd.vc, v_co, rgba);
 
   ColorPaint4f rgba_br = toFloat(vpd.paintcol);
   mul_v3_v3(rgba_br, rgba);
@@ -1825,7 +1815,7 @@ static void vpaint_do_draw(const Depsgraph &depsgraph,
            * position in order to project it. This ensures that the
            * brush texture will be oriented correctly.
            * This is the method also used in #sculpt_apply_texture(). */
-          float3 position = vpd.vert_positions[vert];
+          float3 position = vert_positions[vert];
           if (cache.radial_symmetry_pass) {
             position = math::transform_point(cache.symm_rot_mat_inv, position);
           }
@@ -2083,8 +2073,11 @@ static wmOperatorStatus vpaint_invoke(bContext *C, wmOperator *op, const wmEvent
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
-    stroke->free(C, op);
-    MEM_delete(stroke);
+    VertexPaintStroke *stroke = static_cast<VertexPaintStroke *>(op->customdata);
+    if (stroke) {
+      stroke->free(C, op);
+      MEM_delete(stroke);
+    }
     return OPERATOR_FINISHED;
   }
 
@@ -2113,6 +2106,7 @@ static wmOperatorStatus vpaint_modal(bContext *C, wmOperator *op, const wmEvent 
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);
+    op->customdata = nullptr;
   }
 
   return retval;

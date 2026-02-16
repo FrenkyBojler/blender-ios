@@ -128,7 +128,8 @@ ccl_device_inline float3 texco_normal_from_uv(KernelGlobals kg,
   float3 N;
   if ((sd->type & PRIMITIVE_TRIANGLE) && (sd->shader & SHADER_SMOOTH_NORMAL)) {
     N = (sd->type == PRIMITIVE_TRIANGLE) ?
-            triangle_smooth_normal(kg, zero_float3(), sd->prim, u, v) :
+            triangle_smooth_normal(
+                kg, zero_float3(), sd->object, sd->object_flag, sd->prim, u, v) :
             motion_triangle_smooth_normal(kg, zero_float3(), sd->object, sd->prim, u, v, sd->time);
     if (is_zero(N)) {
       N = sd->Ng;
@@ -328,11 +329,18 @@ ccl_device_noinline void svm_node_normal_map(KernelGlobals kg,
   uint color_offset;
   uint strength_offset;
   uint normal_offset;
-  uint space;
-  svm_unpack_node_uchar4(node.y, &color_offset, &strength_offset, &normal_offset, &space);
+  uint flags;
+  svm_unpack_node_uchar4(node.y, &color_offset, &strength_offset, &normal_offset, &flags);
+
+  const uint space = flags & NODE_NORMAL_MAP_FLAG_SPACE_MASK;
+  const bool invert_green = (flags & NODE_NORMAL_MAP_FLAG_DIRECTX) != 0;
 
   float3 color = stack_load_float3(stack, color_offset);
   color = 2.0f * make_float3(color.x - 0.5f, color.y - 0.5f, color.z - 0.5f);
+
+  if (invert_green) {
+    color.y = -color.y;
+  }
 
   const bool is_backfacing = (sd->flag & SD_BACKFACING) != 0;
   float3 N;
@@ -373,7 +381,7 @@ ccl_device_noinline void svm_node_normal_map(KernelGlobals kg,
         linear_interpolate_strength = true;
       }
       else {
-        normal = triangle_smooth_normal_unnormalized(kg, sd, sd->Ng, sd->prim, sd->u, sd->v);
+        normal = triangle_smooth_normal_unnormalized_object_space(kg, sd);
       }
     }
     else {

@@ -98,7 +98,7 @@ source/blender/blenkernel/intern/tracking.*  @sergey
 
 # --------------------------------------------------
 # Render and Cycles module.
-intern/cycles/.*           @sergey @brecht
+intern/cycles/.*           @sergey @brecht @weizhen @sherholz
 source/blender/render/.*   @sergey @brecht
 
 # --------------------------------------------------
@@ -173,6 +173,18 @@ source/blender/blenlib/intern/memory_cache.*               @JacquesLucke
 source/blender/blenlib/intern/memory_counter.*             @JacquesLucke
 
 # --------------------------------------------------
+# UI: Themes/Icons/Templates.
+release/datafiles/userdef/.*                @pablovazquez
+scripts/presets/interface_theme/.*          @pablovazquez
+release/datafiles/icons/.*                  @pablovazquez
+release/datafiles/icons_svg/.*              @pablovazquez
+release/datafiles/icons_blend/.*            @pablovazquez
+release/datafiles/studiolights/.*           @pablovazquez
+release/datafiles/cursors/.*                @pablovazquez
+release/freedesktop/icons/.*                @pablovazquez
+scripts/startup/bl_app_templates_system/.*  @pablovazquez
+
+# --------------------------------------------------
 # Viewport & EEVEE Module.
 extern/renderdoc/.*                                     @Jeroen-Bakker
 extern/vulkan_memory_allocator/.*                       @Jeroen-Bakker
@@ -184,6 +196,15 @@ source/blender/blenkernel/intern/image_gpu.*            @Jeroen-Bakker
 source/blender/blenkernel/intern/image_partial_update.* @Jeroen-Bakker
 source/blender/gpu/vulkan/.*                            @Jeroen-Bakker
 source/blender/python/gpu/.*                            @Jeroen-Bakker
+source/blender/eevee/.*                                 @fclem
+source/blender/gpu/opengl/.*                            @fclem
+source/blender/gpu/shader_tool/.*                       @fclem
+source/blender/gpu/shaders/.*                           @fclem
+
+# --------------------------------------------------
+# VSE.
+source/blender/sequencer/.*                  @eliphaz 
+source/blender/editors/space_sequencer/.*    @eliphaz
 
 # --------------------------------------------------
 # XR
@@ -220,3 +241,12 @@ build_files/buildbot/.*         @bartvdbraak
 build_files/config/.*           @bartvdbraak
 .gitea/workflows/.*             @bartvdbraak
 .github/.*                      @bartvdbraak
+
+# --------------------------------------------------
+# glTF
+scripts/addons_core/io_scene_gltf2/.*       @JulienDuroure
+extern/draco/.*                             @JulienDuroure
+
+# --------------------------------------------------
+# Asset System
+source/blender/asset_system/.* @JulianEisel
