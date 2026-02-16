@@ -20,70 +20,39 @@ blender -b --factory-startup --python tests/python/sculpt_paint/sculpt_brushes_t
 """
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
-from modules.test_helpers import AttributeType, BackendType, COLOR_BACKEND_TYPES, MASK_BACKEND_TYPES, get_attribute_data, set_view3d_context_override, generate_stroke, generate_monkey
+from modules.test_helpers import AttributeType, BackendType, get_attribute_data, set_view3d_context_override, generate_stroke, generate_monkey
 
 args = None
 
-def get_face_set_data(mesh):
-    num_faces = mesh.attributes.domain_size('FACE')
-    face_set_data = np.zeros(num_faces, dtype=np.int32)
-    face_set_attribute = mesh.attributes.get(".sculpt_face_set")
-    face_set_attribute.data.foreach_get('value', np.ravel(face_set_data))
-
-    return face_set_data
-
-def get_verts_without_face_set(face_set):
-    mesh = bpy.context.active_object.data
-
-    face_sets = get_face_set_data(mesh)
-
-    faces = np.where(face_sets != face_set)
+def get_verts_without_face_set(mesh, attr_data, face_set):
+    faces = np.where(attr_data != face_set)
     verts_per_face = [list(mesh.polygons[int(idx)].vertices) for idx in faces[0]]
     verts = [v for face_verts in verts_per_face for v in face_verts]
 
     return list(set(verts))
 
-def get_verts_with_face_set(face_set):
-    mesh = bpy.context.active_object.data
-
-    face_sets = get_face_set_data(mesh)
-
-    faces = np.where(face_sets == face_set)
+def get_verts_with_face_set(mesh, attr_data, face_set):
+    faces = np.where(attr_data == face_set)
     verts_per_face = [list(mesh.polygons[int(idx)].vertices) for idx in faces[0]]
     verts = [v for face_verts in verts_per_face for v in face_verts]
 
     return list(set(verts))
 
-def get_island_data(mesh):
-    num_faces = mesh.attributes.domain_size('POINT')
-    island_id_data = np.zeros(num_faces, dtype=np.int32)
-    island_id_attribute = mesh.attributes.get(".island_id")
-    island_id_attribute.data.foreach_get('value', np.ravel(island_id_data))
 
-    return island_id_data
-
-def get_verts_with_island_id(island_id):
-    mesh = bpy.context.active_object.data
-
-    islands = get_island_data(mesh)
-
-    verts = np.where(islands == island_id)
+def get_verts_with_island_id(attr_data, island_id):
+    verts = np.where(attr_data == island_id)
 
     return list(set(verts))
 
-def get_verts_without_island_id(island_id):
-    mesh = bpy.context.active_object.data
-
-    islands = get_island_data(mesh)
-
-    verts = np.where(islands != island_id)
+def get_verts_without_island_id(attr_data, island_id):
+    verts = np.where(attr_data != island_id)
 
     return list(set(verts))
 
 
 class BrushAutomaskTest(unittest.TestCase):
     """
-    Test that none of the included brushes create NaN or inf valued vertices
+    Test that automasking prevents certain vertices from being modified
     """
 
     def setUp(self):
@@ -97,7 +66,8 @@ class BrushAutomaskTest(unittest.TestCase):
         self.assertEqual({'FINISHED'}, result)
 
     def test_face_set_automasking_ignores_any_non_starting_face_set(self):
-        active_face_set = 3
+        # This test mesh has 3 face sets, 1 and 2 are used for the eyes, the rest of the monkey's head is 3
+        ACTIVE_FACE_SET = 3
         bpy.data.scenes[0].tool_settings.sculpt.use_automasking_face_sets = True
 
         initial_data = get_attribute_data(BackendType.MESH, AttributeType.POSITION)
@@ -113,7 +83,13 @@ class BrushAutomaskTest(unittest.TestCase):
 
         new_data = get_attribute_data(BackendType.MESH, AttributeType.POSITION)
 
-        verts_with_face_set = get_verts_with_face_set(active_face_set)
+        mesh = bpy.context.active_object.data
+        num_faces = mesh.attributes.domain_size('FACE')
+        face_set_data = np.zeros(num_faces, dtype=np.int32)
+        face_set_attribute = mesh.attributes.get(".sculpt_face_set")
+        face_set_attribute.data.foreach_get('value', np.ravel(face_set_data))
+
+        verts_with_face_set = get_verts_with_face_set(mesh, face_set_data, ACTIVE_FACE_SET)
 
         filtered_initial_data = initial_data[verts_with_face_set]
         filtered_new_data = new_data[verts_with_face_set]
@@ -121,7 +97,7 @@ class BrushAutomaskTest(unittest.TestCase):
         any_different = any([orig != new for (orig, new) in zip(filtered_initial_data, filtered_new_data)])
         self.assertTrue(any_different, "At least one position should be different from its original value")
 
-        verts_without_face_set = get_verts_without_face_set(active_face_set)
+        verts_without_face_set = get_verts_without_face_set(mesh, face_set_data, ACTIVE_FACE_SET)
 
         filtered_initial_data = initial_data[verts_without_face_set]
         filtered_new_data = new_data[verts_without_face_set]
@@ -130,7 +106,8 @@ class BrushAutomaskTest(unittest.TestCase):
         self.assertTrue(all_same, "Vertices that are not included in the original face sets should be unchanged")
 
     def test_topology_automasking_ignores_any_non_starting_island(self):
-        active_face_set = 3
+        # This test mesh has 3 island ids, 0 and 1 are used for the eyes, the rest of the monkey's head is 2
+        ACTIVE_ISLAND_ID = 2
         bpy.data.scenes[0].tool_settings.sculpt.use_automasking_face_sets = True
 
         initial_data = get_attribute_data(BackendType.MESH, AttributeType.POSITION)
@@ -146,21 +123,27 @@ class BrushAutomaskTest(unittest.TestCase):
 
         new_data = get_attribute_data(BackendType.MESH, AttributeType.POSITION)
 
-        verts_with_face_set = get_verts_with_face_set(active_face_set)
+        mesh = bpy.context.active_object.data
+        num_faces = mesh.attributes.domain_size('POINT')
+        island_id_data = np.zeros(num_faces, dtype=np.int32)
+        island_id_attribute = mesh.attributes.get("island_id")
+        island_id_attribute.data.foreach_get('value', np.ravel(island_id_data))
 
-        filtered_initial_data = initial_data[verts_with_face_set]
-        filtered_new_data = new_data[verts_with_face_set]
+        verts_with_island_id = get_verts_with_island_id(island_id_data, ACTIVE_ISLAND_ID)
+
+        filtered_initial_data = initial_data[verts_with_island_id]
+        filtered_new_data = new_data[verts_with_island_id]
 
         any_different = any([orig != new for (orig, new) in zip(filtered_initial_data, filtered_new_data)])
         self.assertTrue(any_different, "At least one position should be different from its original value")
 
-        verts_without_face_set = get_verts_without_face_set(active_face_set)
+        verts_without_island_id = get_verts_without_island_id(island_id_data, ACTIVE_ISLAND_ID)
 
-        filtered_initial_data = initial_data[verts_without_face_set]
-        filtered_new_data = new_data[verts_without_face_set]
+        filtered_initial_data = initial_data[verts_without_island_id]
+        filtered_new_data = new_data[verts_without_island_id]
 
         all_same = all([orig == new for (orig, new) in zip(filtered_initial_data, filtered_new_data)])
-        self.assertTrue(all_same, "Vertices that are not included in the original face sets should be unchanged")
+        self.assertTrue(all_same, "Vertices that are not part of the inital mesh island should be unchanged")
 
 def main():
     global args
