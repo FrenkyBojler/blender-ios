@@ -5,7 +5,6 @@
 import os
 from pathlib import Path
 import tomllib
-import atexit
 
 import bpy
 from bpy.types import Operator
