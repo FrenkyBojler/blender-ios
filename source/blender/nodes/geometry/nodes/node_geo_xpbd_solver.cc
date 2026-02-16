@@ -2246,42 +2246,24 @@ class XpbdSolverStep {
     for (const int point_i : chunk.points_range) {
       const float3 &pos_local = positions[point_i];
       const float3 pos_mesh = math::transform_point(local_to_mesh, pos_local);
-      BVHTreeNearest nearest{};
-      nearest.index = -1;
-      nearest.dist_sq = pow2f(max_distance);
-      BLI_bvhtree_find_nearest(bvh.tree, pos_mesh, &nearest, bvh.nearest_callback, (void *)&bvh);
-      if (nearest.index == -1) {
+      const std::optional<ClosestMeshContact> contact = this->get_closest_mesh_contact(
+          pos_mesh, bvh, corner_tris, corner_verts, vert_positions, max_distance);
+      if (!contact) {
         continue;
       }
-      const int tri_i = nearest.index;
-      const int3 &tri = corner_tris[tri_i];
-
-      const float3 &contact_pos_mesh = float3(nearest.co);
-      const float3 bary_coords = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
-          vert_positions, corner_verts, tri, contact_pos_mesh);
-      const float3 dir_mesh = contact_pos_mesh - pos_mesh;
-      bool is_inside;
-      if (this->is_bary_coord_on_edge(bary_coords)) {
-        /* The nearest point is on an edge, so its normal is unreliable, use a more robust test. */
-        is_inside = this->is_inside(pos_mesh, mesh.bvh_corner_tris(), dir_mesh);
-      }
-      else {
-        is_inside = math::dot(dir_mesh, float3(nearest.no)) > 0.0f;
-      }
-
       const float static_friction = this->compute_contact_friction(
           geo_data.static_frictions[point_i], collider.friction);
       const float dynamic_friction = this->compute_contact_friction(
           geo_data.dynamic_frictions[point_i], collider.friction);
-      const float3 contact_pos_local = math::transform_point(mesh_to_local, contact_pos_mesh);
+      const float3 contact_pos_local = math::transform_point(mesh_to_local, contact->nearest_pos);
       const float3 prev_contact_pos_local = math::transform_point(prev_mesh_to_local,
-                                                                  contact_pos_mesh);
+                                                                  contact->nearest_pos);
       /* Separating axis to move self out of penetration. */
-      const float3 collision_axis = is_inside ? contact_pos_local - pos_local :
-                                                pos_local - contact_pos_local;
+      const float3 collision_axis = contact->is_inside ? contact_pos_local - pos_local :
+                                                         pos_local - contact_pos_local;
       const float3 valid_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
                                                     math::transpose(float3x3(local_to_mesh)) *
-                                                        contact_pos_mesh :
+                                                        contact->nearest_pos :
                                                     collision_axis);
       const int contact_i = r_contacts.points.append_and_get_index(point_i);
       r_contacts.positions_on_plane.append(contact_pos_local);
@@ -2329,45 +2311,29 @@ class XpbdSolverStep {
     for (const int point_i : chunk.points_range) {
       const float3 &pos_local = positions[point_i];
       const float3 pos_mesh = math::transform_point(local_to_mesh, pos_local);
-      BVHTreeNearest nearest{};
-      nearest.index = -1;
-      nearest.dist_sq = pow2f(max_distance);
-      BLI_bvhtree_find_nearest(bvh.tree, pos_mesh, &nearest, bvh.nearest_callback, (void *)&bvh);
-      if (nearest.index == -1) {
+      const std::optional<ClosestMeshContact> contact = this->get_closest_mesh_contact(
+          pos_mesh, bvh, corner_tris, corner_verts, vert_positions, max_distance);
+      if (!contact) {
         continue;
-      }
-      const int tri_i = nearest.index;
-      const int3 &tri = corner_tris[tri_i];
-      const float3 &contact_pos_mesh = float3(nearest.co);
-      const float3 bary_coords = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
-          vert_positions, corner_verts, tri, contact_pos_mesh);
-
-      const float3 dir_mesh = contact_pos_mesh - pos_mesh;
-      bool is_inside;
-      if (this->is_bary_coord_on_edge(bary_coords)) {
-        /* The nearest point is on an edge, so its normal is unreliable, use a more robust test. */
-        is_inside = this->is_inside(pos_mesh, mesh.bvh_corner_tris(), dir_mesh);
-      }
-      else {
-        is_inside = math::dot(dir_mesh, float3(nearest.no)) > 0.0f;
       }
       const float static_friction = this->compute_contact_friction(
           geo_data.static_frictions[point_i], collider.friction);
       const float dynamic_friction = this->compute_contact_friction(
           geo_data.dynamic_frictions[point_i], collider.friction);
-      const float3 contact_pos_local = math::transform_point(mesh_to_local, contact_pos_mesh);
+      const float3 contact_pos_local = math::transform_point(mesh_to_local, contact->nearest_pos);
+      const int3 &tri = corner_tris[contact->tri_i];
       const float3 prev_contact_pos_mesh = bke::attribute_math::mix3(
-          bary_coords,
+          contact->bary_coords,
           prev_vert_positions[corner_verts[tri[0]]],
           prev_vert_positions[corner_verts[tri[1]]],
           prev_vert_positions[corner_verts[tri[2]]]);
       const float3 prev_contact_pos_local = math::transform_point(prev_mesh_to_local,
                                                                   prev_contact_pos_mesh);
-      const float3 collision_axis = is_inside ? contact_pos_local - pos_local :
-                                                pos_local - contact_pos_local;
+      const float3 collision_axis = contact->is_inside ? contact_pos_local - pos_local :
+                                                         pos_local - contact_pos_local;
       const float3 valid_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
                                                     math::transpose(float3x3(local_to_mesh)) *
-                                                        contact_pos_mesh :
+                                                        contact->nearest_pos :
                                                     collision_axis);
       const int contact_i = r_contacts.points.append_and_get_index(point_i);
       r_contacts.positions_on_plane.append(contact_pos_local);
@@ -2385,6 +2351,50 @@ class XpbdSolverStep {
     }
   }
 
+  struct ClosestMeshContact {
+    float3 nearest_pos;
+    float3 bary_coords;
+    bool is_inside;
+    int tri_i;
+  };
+
+  std::optional<ClosestMeshContact> get_closest_mesh_contact(
+      const float3 &sample_pos,
+      const bke::BVHTreeFromMesh &corner_tris_bvh,
+      const Span<int3> corner_tris,
+      const Span<int> corner_verts,
+      const Span<float3> vert_positions,
+      const float max_distance) const
+  {
+    BVHTreeNearest nearest{};
+    nearest.index = -1;
+    nearest.dist_sq = pow2f(max_distance);
+    BLI_bvhtree_find_nearest(corner_tris_bvh.tree,
+                             sample_pos,
+                             &nearest,
+                             corner_tris_bvh.nearest_callback,
+                             (void *)&corner_tris_bvh);
+    if (nearest.index == -1) {
+      return std::nullopt;
+    }
+    const int tri_i = nearest.index;
+    const int3 &tri = corner_tris[tri_i];
+    const float3 &contact_pos = float3(nearest.co);
+    const float3 bary_coords = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
+        vert_positions, corner_verts, tri, contact_pos);
+    const float3 direction_to_mesh = contact_pos - sample_pos;
+    bool is_inside;
+    if (this->is_bary_coord_on_edge(bary_coords)) {
+      /* The nearest point is on an edge, so its normal is unreliable, use a more robust test. */
+      is_inside = this->test_is_inside_ray_using_rays(
+          sample_pos, corner_tris_bvh, direction_to_mesh);
+    }
+    else {
+      is_inside = math::dot(direction_to_mesh, float3(nearest.no)) > 0.0f;
+    }
+    return ClosestMeshContact{contact_pos, bary_coords, is_inside, tri_i};
+  }
+
   bool is_bary_coord_on_edge(const float3 &bary_coords) const
   {
     constexpr float epsilon = 1e-6f;
@@ -2392,9 +2402,9 @@ class XpbdSolverStep {
            math::abs(bary_coords[2]) < epsilon;
   }
 
-  bool is_inside(const float3 &pos,
-                 const bke::BVHTreeFromMesh &bvh,
-                 const float3 &approx_ray_direction) const
+  bool test_is_inside_ray_using_rays(const float3 &pos,
+                                     const bke::BVHTreeFromMesh &bvh,
+                                     const float3 &approx_ray_direction) const
   {
     /* Shoot rays in the approximate direction of where the nearest point is. This is a heuristic
      * for better performance to make the rays shorter. */
