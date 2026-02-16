@@ -340,8 +340,12 @@ void SEQUENCER_OT_strip_modifier_copy(wmOperatorType *ot)
 
   /* properties */
   ot->prop = RNA_def_enum(ot->srna, "type", type_items, SEQ_MODIFIER_COPY_REPLACE, "Type", "");
-  prop = RNA_def_string(
-      ot->srna, "modifier", nullptr, MAX_NAME, "Modifier", "Name of the modifier to copy");
+  prop = RNA_def_string(ot->srna,
+                        "modifier",
+                        nullptr,
+                        MAX_NAME,
+                        "Modifier",
+                        "Name of the modifier to copy. If empty, copy all modifiers");
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
