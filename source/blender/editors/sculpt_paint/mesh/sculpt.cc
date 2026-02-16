@@ -5661,8 +5661,7 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
 bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
 {
   /* Don't start the stroke until `mval` goes over the mesh. */
-  if (over_mesh(*this->depsgraph, this->vc, *sculpt_, this->brush, op, mval))
-  {
+  if (over_mesh(*this->depsgraph, this->vc, *sculpt_, this->brush, op, mval)) {
     Object &ob = *this->object;
     Brush *brush = this->brush;
 
