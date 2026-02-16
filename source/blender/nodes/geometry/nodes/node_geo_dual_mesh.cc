@@ -73,34 +73,6 @@ static VertexType get_vertex_type_with_added_neighbor(VertexType old_type)
   return VertexType::Loose;
 }
 
-/* Copy only where vertex_types is 'normal'. If keep boundaries is selected, also copy from
- * boundary vertices. */
-template<typename T>
-static void copy_data_based_on_vertex_types(Span<T> data,
-                                            MutableSpan<T> r_data,
-                                            const Span<VertexType> vertex_types,
-                                            const bool keep_boundaries)
-{
-  if (keep_boundaries) {
-    int out_i = 0;
-    for (const int i : data.index_range()) {
-      if (ELEM(vertex_types[i], VertexType::Normal, VertexType::Boundary)) {
-        r_data[out_i] = data[i];
-        out_i++;
-      }
-    }
-  }
-  else {
-    int out_i = 0;
-    for (const int i : data.index_range()) {
-      if (vertex_types[i] == VertexType::Normal) {
-        r_data[out_i] = data[i];
-        out_i++;
-      }
-    }
-  }
-}
-
 template<typename T>
 static void copy_data_based_on_pairs(Span<T> data,
                                      MutableSpan<T> r_data,
@@ -150,6 +122,30 @@ static void transfer_attributes(
   names.remove("sharp_face");
   names.remove_if([&](const StringRef id) { return attribute_filter.allow_skip(id); });
 
+  const int verts_num = vertex_types.size();
+  Array<int> new_face_to_old_vert;
+  const auto ensure_vert_map = [&]() {
+    new_face_to_old_vert.reinitialize(verts_num);
+    if (keep_boundaries) {
+      int out_i = 0;
+      for (const int i : IndexRange(verts_num)) {
+        if (ELEM(vertex_types[i], VertexType::Normal, VertexType::Boundary)) {
+          new_face_to_old_vert[out_i] = i;
+          out_i++;
+        }
+      }
+    }
+    else {
+      int out_i = 0;
+      for (const int i : IndexRange(verts_num)) {
+        if (vertex_types[i] == VertexType::Normal) {
+          new_face_to_old_vert[out_i] = i;
+          out_i++;
+        }
+      }
+    }
+  };
+
   for (const StringRef id : names) {
     GAttributeReader src = src_attributes.lookup(id);
 
@@ -181,14 +177,10 @@ static void transfer_attributes(
     }
 
     switch (src.domain) {
-      case AttrDomain::Point: {
-        const GVArraySpan src_span(*src);
-        bke::attribute_math::to_static_type(data_type, [&]<typename T>() {
-          copy_data_based_on_vertex_types(
-              src_span.typed<T>(), dst.span.typed<T>(), vertex_types, keep_boundaries);
-        });
+      case AttrDomain::Point:
+        ensure_vert_map();
+        bke::attribute_math::gather(*src, new_face_to_old_vert, dst.span);
         break;
-      }
       case AttrDomain::Edge:
         bke::attribute_math::gather(*src, new_to_old_edges_map, dst.span);
         break;
@@ -893,9 +885,7 @@ static Mesh *calc_dual_mesh(const Mesh &src_mesh,
     }
 
     face_sizes.append(corner_indices.size());
-    for (const int j : corner_indices) {
-      corner_verts.append(j);
-    }
+    corner_verts.extend(corner_indices);
   }
   Mesh *mesh_out = BKE_mesh_new_nomain(
       vert_positions.size(), new_edges.size(), face_sizes.size(), corner_verts.size());
