@@ -49,8 +49,7 @@ struct LoopData {
  * Valid boundary edges are edges that are selected, not hidden
  * and are not interior. They lie on the boundary between a selected
  * face and an unselected face and do not lie on the mirror plane. */
-static bool is_valid_boundary_edge(
-    BMEdge *e, const char hflag, const bool check_x, const bool check_y, const bool check_z)
+static bool is_valid_boundary_edge(BMEdge *e, const char hflag, const bool check_axis[3])
 {
   if (!BM_elem_flag_test(e, hflag) || BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
     return false;
@@ -66,18 +65,12 @@ static bool is_valid_boundary_edge(
   /* If both vertices of an edge lie close to the same coordinate plane
    * (X = 0, Y = 0, or Z = 0), the edge lies on a mirror plane and is not
    * considered a valid boundary edge. */
-
-  /* YZ Plane */
-  if (check_x && std::abs(e->v1->co[0]) < MIRROR_LIMIT && std::abs(e->v2->co[0]) < MIRROR_LIMIT) {
-    return false;
-  }
-  /* XZ Plane */
-  if (check_y && std::abs(e->v1->co[1]) < MIRROR_LIMIT && std::abs(e->v2->co[1]) < MIRROR_LIMIT) {
-    return false;
-  }
-  /* XY Plane */
-  if (check_z && std::abs(e->v1->co[2]) < MIRROR_LIMIT && std::abs(e->v2->co[2]) < MIRROR_LIMIT) {
-    return false;
+  for (int i = 0; i < 3; i++) {
+    if (check_axis[i] && std::abs(e->v1->co[i]) < MIRROR_LIMIT &&
+        std::abs(e->v2->co[i]) < MIRROR_LIMIT)
+    {
+      return false;
+    }
   }
 
   return true;
@@ -92,9 +85,7 @@ static bool is_valid_boundary_edge(
 static LoopData walk_boundary_loop(BMEdge *start_edge,
                                    Set<BMEdge *> &visited,
                                    const char hflag,
-                                   const bool check_x,
-                                   const bool check_y,
-                                   const bool check_z)
+                                   const bool check_axis[3])
 {
   LoopData loop_data;
   /* Finds the next valid boundary edge that isn't visited. */
@@ -103,7 +94,7 @@ static LoopData walk_boundary_loop(BMEdge *start_edge,
     BMEdge *e_next;
     BM_ITER_ELEM (e_next, &eiter, v, BM_EDGES_OF_VERT) {
       if (e_next != exclude_e && !visited.contains(e_next)) {
-        if (is_valid_boundary_edge(e_next, hflag, check_x, check_y, check_z)) {
+        if (is_valid_boundary_edge(e_next, hflag, check_axis)) {
           return e_next;
         }
       }
@@ -162,9 +153,7 @@ static LoopData walk_boundary_loop(BMEdge *start_edge,
 static void get_input_loops(BMesh *bm,
                             Vector<LoopData> &r_loops,
                             const char hflag,
-                            const bool check_x,
-                            const bool check_y,
-                            const bool check_z)
+                            const bool check_axis[3])
 {
   Set<BMEdge *> visited;
   BMIter iter;
@@ -174,11 +163,11 @@ static void get_input_loops(BMesh *bm,
     if (visited.contains(edge)) {
       continue;
     }
-    if (!is_valid_boundary_edge(edge, hflag, check_x, check_y, check_z)) {
+    if (!is_valid_boundary_edge(edge, hflag, check_axis)) {
       continue;
     }
 
-    LoopData ld = walk_boundary_loop(edge, visited, hflag, check_x, check_y, check_z);
+    LoopData ld = walk_boundary_loop(edge, visited, hflag, check_axis);
     if (ld.verts.size() >= 3) {
       r_loops.append(ld);
     }
@@ -530,9 +519,12 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
   const int fit_method = BMO_slot_int_get(op->slots_in, "fit_method");
   const bool flatten = BMO_slot_bool_get(op->slots_in, "flatten");
   const bool regular = BMO_slot_bool_get(op->slots_in, "regular");
-  const bool mirror_x = BMO_slot_bool_get(op->slots_in, "mirror_x");
-  const bool mirror_y = BMO_slot_bool_get(op->slots_in, "mirror_y");
-  const bool mirror_z = BMO_slot_bool_get(op->slots_in, "mirror_z");
+
+  const bool check_axis[3] = {
+      BMO_slot_bool_get(op->slots_in, "mirror_x"),
+      BMO_slot_bool_get(op->slots_in, "mirror_y"),
+      BMO_slot_bool_get(op->slots_in, "mirror_z"),
+  };
 
   const bool lock_x = BMO_slot_bool_get(op->slots_in, "lock_x");
   const bool lock_y = BMO_slot_bool_get(op->slots_in, "lock_y");
@@ -543,7 +535,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       bm, op->slots_in, "geom", BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
 
   Vector<LoopData> loops;
-  get_input_loops(bm, loops, BM_ELEM_TAG, mirror_x, mirror_y, mirror_z);
+  get_input_loops(bm, loops, BM_ELEM_TAG, check_axis);
 
   /* Builds a BVH tree when flatten is disabled. Without this we would have to iterate
    * over every face in the mesh for every vertex which is too slow. */
@@ -583,23 +575,13 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       BMVert *v_start = loop.first();
       BMVert *v_end = loop.last();
 
-      if (mirror_x && std::abs(v_start->co[0]) < MIRROR_LIMIT &&
-          std::abs(v_end->co[0]) < MIRROR_LIMIT)
-      {
-        is_mirrored = true;
-        mirror_axis = 0;
-      }
-      else if (mirror_y && std::abs(v_start->co[1]) < MIRROR_LIMIT &&
-               std::abs(v_end->co[1]) < MIRROR_LIMIT)
-      {
-        is_mirrored = true;
-        mirror_axis = 1;
-      }
-      else if (mirror_z && std::abs(v_start->co[2]) < MIRROR_LIMIT &&
-               std::abs(v_end->co[2]) < MIRROR_LIMIT)
-      {
-        is_mirrored = true;
-        mirror_axis = 2;
+      for (int i = 0; i < 3; i++) {
+        if (check_axis[i] && std::abs(v_start->co[i]) < MIRROR_LIMIT &&
+            std::abs(v_end->co[i]) < MIRROR_LIMIT)
+        {
+          is_mirrored = true;
+          mirror_axis = i;
+        }
       }
     }
 
