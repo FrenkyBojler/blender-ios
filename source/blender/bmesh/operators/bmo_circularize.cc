@@ -20,20 +20,23 @@
 
 namespace blender {
 
-constexpr int NLLS_MAX_ITERATIONS = 500;
+/** Maximum iterations for the non linear least squares solver. */
+constexpr int NON_LINEAR_LEAST_SQUARES_MAX_ITERATIONS = 500;
+/** Threshold for considering a vertex to be on the mirror plane. */
 constexpr float MIRROR_LIMIT = 0.001f;
+/** Used for convergence checks and precision comparisons. */
 constexpr float CIRCULARIZE_EPSILON = 1e-6f;
 
-/* Holds data for a vertex projected onto the local plane. */
+/** Holds data for a vertex projected onto the local plane. */
 struct CircleVert {
   BMVert *v;
-  /* Current position on the plane. */
+  /** Current position on the plane. */
   float2 co_2d;
-  /* Where it should move to on the circle. */
+  /** Where it should move to on the circle. */
   float2 target_2d;
 };
 
-/* Stores the geometry loop and whether it forms a closed circle or open chain. */
+/** Stores the geometry loop and whether it forms a closed circle or open chain. */
 struct LoopData {
   Vector<BMVert *> verts;
   bool is_closed;
@@ -250,7 +253,7 @@ static void calculate_circle_best_fit(Span<CircleVert> verts,
   float initial_y = 0.0f;
   float initial_radius = 1.0f;
 
-  for (int iter = 0; iter < NLLS_MAX_ITERATIONS; iter++) {
+  for (int iter = 0; iter < NON_LINEAR_LEAST_SQUARES_MAX_ITERATIONS; iter++) {
     float normal_matrix[3][3];
     float jacobian_transpose_residual[3];
 
