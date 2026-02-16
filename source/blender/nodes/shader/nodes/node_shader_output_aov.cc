@@ -53,10 +53,10 @@ static void node_shader_buts_output_aov(ui::Layout &layout, bContext *C, Pointer
     PointerRNA view_layer_rna_ptr = RNA_pointer_create_id_subdata(
         scene->id, RNA_ViewLayer, view_layer);
     layout.prop_search(
-        ptr, "aov_name", &view_layer_rna_ptr, "aovs", "", aov_icon(view_layer, ptr));
+        ptr, "aov_name", &view_layer_rna_ptr, "aovs", "", aov_icon(view_layer, ptr), "Name");
   }
   else {
-    layout.prop(ptr, "aov_name", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "aov_name", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE, "Name");
   }
 }
 
