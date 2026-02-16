@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from __future__ import annotations
+from __future__ import absolute_import, annotations
 
 __all__ = (
     'RemoteAssetListingLocator',
@@ -17,7 +17,7 @@ import functools
 import logging
 import unicodedata
 import urllib.parse
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PurePath, PureWindowsPath
 from typing import Callable, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -419,7 +419,8 @@ class RemoteAssetListingDownloader:
                                  http_req_descr: http_dl.RequestDescription,
                                  unsafe_local_file: Path,
                                  ) -> None:
-        _, used_unsafe_file = self._parse_api_model(unsafe_local_file, api_models.AssetLibraryIndexPageV1)
+        asset_page, used_unsafe_file = self._parse_api_model(unsafe_local_file, api_models.AssetLibraryIndexPageV1)
+        self._sanitize_asset_page(asset_page, unsafe_local_file)
 
         # The file passed validation, so can be marked safe.
         if used_unsafe_file:
@@ -464,6 +465,76 @@ class RemoteAssetListingDownloader:
         top_metadata.touch()
 
         self._shutdown_if_done()
+
+    def _sanitize_asset_page(self, asset_page: api_models.AssetLibraryIndexPageV1, json_path: Path) -> None:
+        """Perform cleanup beyond the validation that cattrs can do.
+
+        - Ensure asset/file counts are correct.
+        - Ensure file paths are relative.
+        """
+
+        # TODO: include contact info of the asset library here.
+        report = "Please report this to the author of the asset library."
+
+        badness_found = False
+
+        # Ensure counts are correct. These can be corrected, and are merely there as a sanity check.
+        if asset_page.asset_count != len(asset_page.assets):
+            badness_found = True
+            print(("Warning: asset count in {json_path!s} incorrect (file has {filecount:d}, "
+                   "should be {realcount:d}. {report!s}").format(
+                json_path=json_path, filecount=asset_page.asset_count, realcount=len(asset_page.assets), report=report))
+            asset_page.asset_count = len(asset_page.assets)
+        if asset_page.file_count != len(asset_page.files):
+            badness_found = True
+            print(("Warning: file count in {json_path!s} incorrect (file has {filecount:d}, "
+                   "should be {realcount:d}. {report!s}").format(
+                json_path=json_path, filecount=asset_page.file_count, realcount=len(asset_page.files), report=report))
+            asset_page.file_count = len(asset_page.files)
+
+        # File paths should always be relative to the asset library; allowing absolute paths may cause Blender to
+        # overwrite arbitrary local files. Keep track of the changed paths, because assets that reference to them also
+        # need updating.
+        bad_to_good_paths: dict[str, str] = {}
+        for file in asset_page.files:
+            # Guess which platform the path is from. The listing generator always writes POSIX style paths, but a
+            # malicious server may try and use something else.
+            if '\\' in file.path or (len(file.path) >= 2 and file.path[1] == ':'):
+                file_path = PureWindowsPath(file.path)
+            elif '/' in file.path:
+                file_path = PurePosixPath(file.path)
+            else:
+                file_path = PurePath(file.path)
+
+            if not file_path.is_absolute():
+                continue
+
+            print(("Warning: file in {json_path!s} has absolute path ({file_path!s}). {report!s}").format(
+                json_path=json_path,
+                file_path=file_path,
+                report=report))
+
+            # Remove the first part of the path, which is '/' on POSIX paths and may contain a drive letter on Windows.
+            relative_path = file_path.with_segments(*file_path.parts[1:])
+            bad_path = file.path
+            file.path = relative_path.as_posix()
+            bad_to_good_paths[bad_path] = file.path
+            badness_found = True
+
+        # If any of the file paths were found to be bad, assets referencing them also need updating.
+        if bad_to_good_paths:
+            for asset in asset_page.assets:
+                asset.files = [
+                    bad_to_good_paths.get(path, path) for path in asset.files
+                ]
+
+        if not badness_found:
+            return
+
+        # Badness was found. Rewrite the JSON with the corrected info.
+        parser = json_parsing.ValidatingParser()
+        json_data = parser.dumps(asset_page)
+        json_path.write_text(json_data)
 
     def _shutdown_if_done(self) -> None:
         if self._num_asset_pages_pending == 0 and self._bg_downloader.all_downloads_done:
@@ -755,6 +826,25 @@ def _sanitize_path_from_url(urlpath: PurePosixPath | str) -> PurePosixPath:
         i -= 1
 
     return PurePosixPath(*parts)
+
+
+def _str_to_path_multiplatform(as_str: str) -> PurePath:
+    """Convert the given string to a pure path.
+
+    Some heuristics are used to determine whether to return a PureWindowsPath, a
+    PurePosixPath, or a PurePath (which will be either of the two, depending on
+    the local platform).
+    """
+
+    # Guess which platform the path is from. The listing generator always writes POSIX
+    # style paths, but a malicious server may try and use something else.
+    if '\\' in as_str or (len(as_str) >= 2 and as_str[1] == ':'):
+        return PureWindowsPath(as_str)
+
+    if '/' in as_str:
+        return PurePosixPath(as_str)
+
+    return PurePath(as_str)
 
 
 def is_more_recent_than(library_path: Path, max_age_sec: float | int) -> bool:
