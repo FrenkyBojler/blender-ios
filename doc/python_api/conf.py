@@ -5,6 +5,8 @@
 import os
 import time
 
+from docutils import nodes
+
 
 def has_module(module_name):
     found = False
@@ -140,5 +142,26 @@ class PatchedPythonDomain(PythonDomain):
             env, fromdocname, builder, typ, target, node, contnode)
 
 
+# Style tweaks via doctree manipulation (adding CSS classes to type-annotation fields).
+USE_HTML_STYLE_TWEAKS = True
+
+
+def _add_type_field_classes(_app, doctree, _docname):
+    """Add ``field-type`` CSS class to type-annotation fields.
+
+    Matches field names: "Type" (attribute type) and "Return type" (function return type).
+
+    This allows CSS to style types (which use type-hint syntax) as code
+    instead of Sphinx's default italic variable-width text.
+    """
+    type_field_names = {"Type", "Return type"}
+    for field_node in doctree.findall(nodes.field):
+        field_name = field_node.children[0]
+        if field_name.astext() in type_field_names:
+            field_node.children[1]["classes"].append("field-type")
+
+
 def setup(app):
     app.add_domain(PatchedPythonDomain, override=True)
+    if USE_HTML_STYLE_TWEAKS:
+        app.connect("doctree-resolved", _add_type_field_classes)

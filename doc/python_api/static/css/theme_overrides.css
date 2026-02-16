@@ -87,6 +87,12 @@ dl.field-list > dd > p:last-child {
     }
 }
 
+/* Style type annotations in field lists with a monospace font.
+ * The `field-type` class is added by `conf.py` (`USE_HTML_STYLE_TWEAKS`). */
+dl.field-list > dd.field-type > p {
+	font-family: var(--font-stack--monospace);
+}
+
 /* TABLE & FIGURE */
 
 /* Cell's vertical align. */
