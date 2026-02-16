@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'c1168d06bba2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-24 08:35+0000\n"
+"POT-Creation-Date: 2026-02-09 09:47+0000\n"
 "PO-Revision-Date: 2025-07-23 15:34+0000\n"
 "Last-Translator: Just Adam <adam.abbas2009@gmail.com>\n"
 "Language-Team: Bulgarian <https://translate.blender.org/projects/blender-ui/ui/bg/>\n"
@@ -584,12 +584,16 @@ msgid "All"
 msgstr "Всички"
 
 
-msgid "Active Layer"
-msgstr "Активен Слой"
-
-
 msgid "Fill"
 msgstr "Запълни"
+
+
+msgid "Both"
+msgstr "Двете"
+
+
+msgid "Active Layer"
+msgstr "Активен Слой"
 
 
 msgid "Crop"
@@ -872,6 +876,22 @@ msgid "Collection"
 msgstr "Колекция"
 
 
+msgid "Font"
+msgstr "Шрифт"
+
+
+msgid "Text"
+msgstr "Текст"
+
+
+msgid "Mask"
+msgstr "Маскиране"
+
+
+msgid "Sound"
+msgstr "Звук"
+
+
 msgid "Exclusive"
 msgstr "Изключващ"
 
@@ -926,10 +946,6 @@ msgstr "Ортографиране"
 
 msgid "Extrude"
 msgstr "Изтегляне"
-
-
-msgid "Font"
-msgstr "Шрифт"
 
 
 msgid "Small Caps"
@@ -1010,10 +1026,6 @@ msgstr "Неродени"
 
 msgid "3D Cursor"
 msgstr "3D Курсор"
-
-
-msgid "Sound"
-msgstr "Звук"
 
 
 msgid "Blend"
@@ -1136,40 +1148,24 @@ msgid "ID Type"
 msgstr "ID тип"
 
 
-msgid "Mask"
-msgstr "Маскиране"
+msgid "Merge"
+msgstr "Слей"
 
 
 msgid "Apply"
 msgstr "Прилагане"
 
 
-msgid "Make Single User"
-msgstr "Направи с Единствен Потребител"
+msgid "In-Betweens"
+msgstr "Междинни Кадри"
 
 
 msgid "Hooks"
 msgstr "Куки"
 
 
-msgid "In-Betweens"
-msgstr "Междинни Кадри"
-
-
-msgid "Merge"
-msgstr "Слей"
-
-
-msgid "UV Mapping"
-msgstr "UV Картиране"
-
-
-msgid "Text"
-msgstr "Текст"
-
-
-msgid "Import"
-msgstr "Внеси"
+msgid "Make Single User"
+msgstr "Направи с Единствен Потребител"
 
 
 msgid "Light"
@@ -1180,8 +1176,12 @@ msgid "Rigid Body"
 msgstr "Твърдо тяло"
 
 
-msgid "Languages..."
-msgstr "Езици..."
+msgid "UV Mapping"
+msgstr "UV Картиране"
+
+
+msgid "Import"
+msgstr "Внеси"
 
 
 msgid "Cache"
@@ -1543,10 +1543,6 @@ msgid "Unlink"
 msgstr "Развържи"
 
 
-msgid "Both"
-msgstr "Двете"
-
-
 msgid "Next Keyframe"
 msgstr "Следващ Ключов Кадър"
 
@@ -1600,10 +1596,6 @@ msgstr "Закривай Геометрията"
 
 msgid "X-Ray"
 msgstr "Рентген"
-
-
-msgid "Ring"
-msgstr "Прстн"
 
 
 msgctxt "Operator"
