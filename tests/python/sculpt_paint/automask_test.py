@@ -54,6 +54,32 @@ def get_verts_with_face_set(face_set):
 
     return list(set(verts))
 
+def get_island_data(mesh):
+    num_faces = mesh.attributes.domain_size('POINT')
+    island_id_data = np.zeros(num_faces, dtype=np.int32)
+    island_id_attribute = mesh.attributes.get(".island_id")
+    island_id_attribute.data.foreach_get('value', np.ravel(island_id_data))
+
+    return island_id_data
+
+def get_verts_with_island_id(island_id):
+    mesh = bpy.context.active_object.data
+
+    islands = get_island_data(mesh)
+
+    verts = np.where(islands == island_id)
+
+    return list(set(verts))
+
+def get_verts_without_island_id(island_id):
+    mesh = bpy.context.active_object.data
+
+    islands = get_island_data(mesh)
+
+    verts = np.where(islands != island_id)
+
+    return list(set(verts))
+
 
 class BrushAutomaskTest(unittest.TestCase):
     """
@@ -71,6 +97,39 @@ class BrushAutomaskTest(unittest.TestCase):
         self.assertEqual({'FINISHED'}, result)
 
     def test_face_set_automasking_ignores_any_non_starting_face_set(self):
+        active_face_set = 3
+        bpy.data.scenes[0].tool_settings.sculpt.use_automasking_face_sets = True
+
+        initial_data = get_attribute_data(BackendType.MESH, AttributeType.POSITION)
+
+        context_override = bpy.context.copy()
+        set_view3d_context_override(context_override)
+        with bpy.context.temp_override(**context_override):
+            bpy.ops.sculpt.brush_stroke(
+                stroke=generate_stroke(
+                    context_override,
+                    start_percent=(0.5, 0.5)),
+                override_location=True)
+
+        new_data = get_attribute_data(BackendType.MESH, AttributeType.POSITION)
+
+        verts_with_face_set = get_verts_with_face_set(active_face_set)
+
+        filtered_initial_data = initial_data[verts_with_face_set]
+        filtered_new_data = new_data[verts_with_face_set]
+
+        any_different = any([orig != new for (orig, new) in zip(filtered_initial_data, filtered_new_data)])
+        self.assertTrue(any_different, "At least one position should be different from its original value")
+
+        verts_without_face_set = get_verts_without_face_set(active_face_set)
+
+        filtered_initial_data = initial_data[verts_without_face_set]
+        filtered_new_data = new_data[verts_without_face_set]
+
+        all_same = all([orig == new for (orig, new) in zip(filtered_initial_data, filtered_new_data)])
+        self.assertTrue(all_same, "Vertices that are not included in the original face sets should be unchanged")
+
+    def test_topology_automasking_ignores_any_non_starting_island(self):
         active_face_set = 3
         bpy.data.scenes[0].tool_settings.sculpt.use_automasking_face_sets = True
 
