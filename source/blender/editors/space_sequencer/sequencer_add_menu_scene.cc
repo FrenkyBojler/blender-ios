@@ -193,7 +193,7 @@ static void sequencer_add_scene_draw(const bContext *C, Menu *menu)
     const Scene *active_scene = CTX_data_sequencer_scene(C);
 
     if (scenes_len == 1) {
-      layout.label(IFACE_("No other scene."), ICON_NONE);
+      layout.label(IFACE_("No other scenes."), ICON_NONE);
     }
 
     for (const auto [i, scene] : bmain->scenes.enumerate()) {
