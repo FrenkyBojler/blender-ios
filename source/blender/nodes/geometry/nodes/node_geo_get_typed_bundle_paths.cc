@@ -10,7 +10,7 @@ namespace blender::nodes::node_geo_get_typed_bundle_paths_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Bundle>("Bundle");
-  b.add_input<decl::String>("Type");
+  b.add_input<decl::String>("Type").optional_label();
   b.add_output<decl::String>("Paths").structure_type(StructureType::List);
 }
 

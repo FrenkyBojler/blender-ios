@@ -1089,13 +1089,13 @@ static bool socket_needs_volume_grid_search(const bNode &node, const bNodeSocket
 
 static bool socket_needs_behavior_type_search(const bNode &node, const bNodeSocket &socket)
 {
-  if (node.type_legacy != NODE_COMBINE_BUNDLE) {
-    return false;
+  if (node.type_legacy == NODE_COMBINE_BUNDLE) {
+    return socket.name == nodes::Bundle::type_item_name;
   }
-  if (socket.name != nodes::Bundle::type_item_name) {
-    return false;
+  if (node.is_type("NodeGetTypedBundlePaths")) {
+    return socket.name == StringRef("Type");
   }
-  return true;
+  return false;
 }
 
 static void draw_gizmo_pin_icon(ui::Layout *layout, PointerRNA *socket_ptr)
@@ -1282,7 +1282,7 @@ static void std_node_socket_draw(
         }
       }
       else if (socket_needs_behavior_type_search(*node, *sock)) {
-        if (label.is_empty()) {
+        if (optional_label) {
           node_behavior_add_string_search_button(*C, *node, *ptr, *layout, label);
         }
         else {

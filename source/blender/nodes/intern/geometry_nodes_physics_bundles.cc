@@ -86,10 +86,10 @@ const FlatBundleTypePtr &DampingBundle::get_bundle_type()
   return bundle_type;
 }
 
-const FlatBundleTypePtr &XPBDGeometryBundle::get_bundle_type()
+const FlatBundleTypePtr &GeometryBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(XPBDGeometryBundle::name);
+    FlatBundleTypeBuilder b(GeometryBundle::name);
     b.add<decl::Geometry>("geometry").supported_type(bke::GeometryComponent::Type::Mesh);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
@@ -98,10 +98,10 @@ const FlatBundleTypePtr &XPBDGeometryBundle::get_bundle_type()
   return bundle_type;
 }
 
-const FlatBundleTypePtr &PinnedPositionXPBDConstraintBundle::get_bundle_type()
+const FlatBundleTypePtr &PinPositionBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(PinnedPositionXPBDConstraintBundle::name);
+    FlatBundleTypeBuilder b(PinPositionBundle::name);
     add_filter(b);
     b.add<decl::Bool>("selection").default_value(true).supports_field();
     b.add<decl::Vector>("position").supports_field();
@@ -116,10 +116,10 @@ const FlatBundleTypePtr &PinnedPositionXPBDConstraintBundle::get_bundle_type()
   return bundle_type;
 }
 
-const FlatBundleTypePtr &PinnedRotationXPBDConstraintBundle::get_bundle_type()
+const FlatBundleTypePtr &PinRotationBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(PinnedRotationXPBDConstraintBundle::name);
+    FlatBundleTypeBuilder b(PinRotationBundle::name);
     add_filter(b);
     b.add<decl::Bool>("selection").default_value(true).supports_field();
     b.add<decl::Rotation>("rotation").supports_field();
@@ -133,10 +133,10 @@ const FlatBundleTypePtr &PinnedRotationXPBDConstraintBundle::get_bundle_type()
   return bundle_type;
 }
 
-const FlatBundleTypePtr &InfiniteGroundPlaneBundle::get_bundle_type()
+const FlatBundleTypePtr &InfinitePlaneColliderBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(InfiniteGroundPlaneBundle::name);
+    FlatBundleTypeBuilder b(InfinitePlaneColliderBundle::name);
     add_filter(b);
     b.add<decl::Vector>("position");
     b.add<decl::Vector>("normal").default_value(float3(0.0f, 0.0f, 1.0f));
@@ -148,10 +148,10 @@ const FlatBundleTypePtr &InfiniteGroundPlaneBundle::get_bundle_type()
   return bundle_type;
 }
 
-const FlatBundleTypePtr &RodStretchAndShearXPBDConstraintBundle::get_bundle_type()
+const FlatBundleTypePtr &RodStretchShearBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(RodStretchAndShearXPBDConstraintBundle::name);
+    FlatBundleTypeBuilder b(RodStretchShearBundle::name);
     add_filter(b);
     b.add<decl::Float>("compliance").default_value(1e-4f).min(0.0f);
     b.add<decl::String>("lambda_position_attribute");
@@ -163,10 +163,10 @@ const FlatBundleTypePtr &RodStretchAndShearXPBDConstraintBundle::get_bundle_type
   return bundle_type;
 }
 
-const FlatBundleTypePtr &RodBendAndTwistXPBDConstraintBundle::get_bundle_type()
+const FlatBundleTypePtr &RodBendTwistBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(RodBendAndTwistXPBDConstraintBundle::name);
+    FlatBundleTypeBuilder b(RodBendTwistBundle::name);
     add_filter(b);
     b.add<decl::Float>("compliance").default_value(1e-4f).min(0.0f);
     const FlatBundleTypePtr bundle_type = b.build();

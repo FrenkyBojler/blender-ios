@@ -55,15 +55,19 @@ static NestedBundleTypePtr make_world_type()
 {
   Vector<std::shared_ptr<const FlatBundleType>> types;
   types.append(GravityBundle::get_bundle_type());
-  types.append(XPBDGeometryBundle::get_bundle_type());
+  types.append(GeometryBundle::get_bundle_type());
   types.append(DampingBundle::get_bundle_type());
-  types.append(InfiniteGroundPlaneBundle::get_bundle_type());
+  types.append(InfinitePlaneColliderBundle::get_bundle_type());
   types.append(ColliderBundle::get_bundle_type());
-  types.append(RodStretchAndShearXPBDConstraintBundle::get_bundle_type());
-  types.append(RodBendAndTwistXPBDConstraintBundle::get_bundle_type());
+  types.append(RodStretchShearBundle::get_bundle_type());
+  types.append(RodBendTwistBundle::get_bundle_type());
+  types.append(PinPositionBundle::get_bundle_type());
+  types.append(PinRotationBundle::get_bundle_type());
+  types.append(ForceBundle::get_bundle_type());
+  types.append(TorqueBundle::get_bundle_type());
 
-  NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>("Blender.XpbdWorld",
-                                                                            std::move(types));
+  NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
+      "Blender.XPBDSolverWorld", std::move(types));
   BundleTypeRegistry::register_type(world_type);
   return world_type;
 }
@@ -566,8 +570,7 @@ class XpbdSolverStep {
   void gather_from_world__geometries()
   {
     /* Gather geometry bundle paths. */
-    const Vector<std::string> paths = gather_bundle_paths_by_type(world_,
-                                                                  XPBDGeometryBundle::name);
+    const Vector<std::string> paths = gather_bundle_paths_by_type(world_, GeometryBundle::name);
     const int num_geometry_sets = paths.size();
     geometries_.geometry_sets.reinitialize(num_geometry_sets);
 
@@ -685,8 +688,8 @@ class XpbdSolverStep {
 
   void gather_from_world__infinite_plane_colliders()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_type(world_,
-                                                                  InfiniteGroundPlaneBundle::name);
+    const Vector<std::string> paths = gather_bundle_paths_by_type(
+        world_, InfinitePlaneColliderBundle::name);
     for (const StringRef path : paths) {
       const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
       if (!bundle_ptr || !*bundle_ptr) {
@@ -1319,8 +1322,8 @@ class XpbdSolverStep {
 
   void gather_from_world__stretch_shear_constraints()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_type(
-        world_, RodStretchAndShearXPBDConstraintBundle::name);
+    const Vector<std::string> paths = gather_bundle_paths_by_type(world_,
+                                                                  RodStretchShearBundle::name);
     for (const StringRef path : paths) {
       const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
       if (!bundle_ptr || !*bundle_ptr) {
@@ -1433,8 +1436,8 @@ class XpbdSolverStep {
 
   void gather_from_world__bend_twist_constraints()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_type(
-        world_, RodBendAndTwistXPBDConstraintBundle::name);
+    const Vector<std::string> paths = gather_bundle_paths_by_type(world_,
+                                                                  RodBendTwistBundle::name);
     for (const StringRef path : paths) {
       const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
       if (!bundle_ptr || !*bundle_ptr) {
@@ -1581,8 +1584,7 @@ class XpbdSolverStep {
 
   void gather_from_world__pin_positions()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_type(
-        world_, PinnedPositionXPBDConstraintBundle::name);
+    const Vector<std::string> paths = gather_bundle_paths_by_type(world_, PinPositionBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
       std::optional<Field<float3>> position_field = bundle.lookup<Field<float3>>("position");
@@ -1748,8 +1750,7 @@ class XpbdSolverStep {
 
   void gather_from_world__pin_rotations()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_type(
-        world_, PinnedRotationXPBDConstraintBundle::name);
+    const Vector<std::string> paths = gather_bundle_paths_by_type(world_, PinRotationBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
       std::optional<Field<math::Quaternion>> rotation_field =
