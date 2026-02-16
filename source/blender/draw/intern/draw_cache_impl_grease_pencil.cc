@@ -1414,11 +1414,11 @@ static void grease_pencil_geom_batch_ensure(Object &object,
         }
         switch (gp_style->placement_mode) {
           case GP_MATERIAL_PLACEMENT_SINGLE:
-          case GP_MATERIAL_PLACEMENT_NUMBER:
+          case GP_MATERIAL_PLACEMENT_SUBDIV:
             return float(i);
           case GP_MATERIAL_PLACEMENT_RADIUS:
             return i > 0 ? radii_lengths[i - 1] : 0.0f;
-          case GP_MATERIAL_PLACEMENT_LENGTH:
+          case GP_MATERIAL_PLACEMENT_DENSITY:
           default:
             const float u = i > 0 ? lengths[i - 1] : 0.0f;
             const float u_stroke = u_scale * u + u_translation;

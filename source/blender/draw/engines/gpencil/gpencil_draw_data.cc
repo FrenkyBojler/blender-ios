@@ -223,11 +223,11 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
         case GP_MATERIAL_PLACEMENT_RADIUS:
           mat_data->flag |= GP_DOTS_PLACEMENT_MODE_RADIUS;
           break;
-        case GP_MATERIAL_PLACEMENT_LENGTH:
-          mat_data->flag |= GP_DOTS_PLACEMENT_MODE_LENGTH;
+        case GP_MATERIAL_PLACEMENT_DENSITY:
+          mat_data->flag |= GP_DOTS_PLACEMENT_MODE_DENSITY;
           break;
-        case GP_MATERIAL_PLACEMENT_NUMBER:
-          mat_data->flag |= GP_DOTS_PLACEMENT_MODE_NUMBER;
+        case GP_MATERIAL_PLACEMENT_SUBDIV:
+          mat_data->flag |= GP_DOTS_PLACEMENT_MODE_SUBDIV;
           break;
         case GP_MATERIAL_PLACEMENT_SINGLE:
         default:

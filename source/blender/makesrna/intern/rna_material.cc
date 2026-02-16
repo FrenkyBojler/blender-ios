@@ -580,8 +580,16 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
 
   static EnumPropertyItem placement_mode_items[] = {
       {GP_MATERIAL_PLACEMENT_SINGLE, "SINGLE", 0, "Single", "Place one dot per geometry"},
-      {GP_MATERIAL_PLACEMENT_NUMBER, "NUMBER", 0, "Number", "Place multiple dots per geometry"},
-      {GP_MATERIAL_PLACEMENT_LENGTH, "LENGTH", 0, "Length", "Place a dot every length"},
+      {GP_MATERIAL_PLACEMENT_SUBDIV,
+       "SUBDIVIDE",
+       0,
+       "Subdivide",
+       "Place multiple dots per geometry"},
+      {GP_MATERIAL_PLACEMENT_DENSITY,
+       "DENSITY",
+       0,
+       "Density",
+       "Place multiple dot per every length"},
       {GP_MATERIAL_PLACEMENT_RADIUS, "RADIUS", 0, "Radius", "Place dots with respect to radius"},
       {0, nullptr, 0, nullptr, nullptr},
   };

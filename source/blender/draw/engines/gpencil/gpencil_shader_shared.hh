@@ -29,8 +29,8 @@ enum [[host_shared]] gpMaterialFlag : uint32_t {
                    GP_FILL_GRADIENT_USE | GP_FILL_GRADIENT_RADIAL | GP_FILL_HOLDOUT | GP_FILL),
   GP_DOTS_PLACEMENT_MODE = ((1u << 16u) | (1u << 17u)),
   GP_DOTS_PLACEMENT_MODE_SINGLE = 0u,
-  GP_DOTS_PLACEMENT_MODE_NUMBER = (1u << 16u),
-  GP_DOTS_PLACEMENT_MODE_LENGTH = (1u << 17u),
+  GP_DOTS_PLACEMENT_MODE_SUBDIV = (1u << 16u),
+  GP_DOTS_PLACEMENT_MODE_DENSITY = (1u << 17u),
   GP_DOTS_PLACEMENT_MODE_RADIUS = ((1u << 16u) | (1u << 17u)),
 };
 
