@@ -240,6 +240,7 @@ class MeshTest(ABC):
         self.expected_object.name = self.exp_object_name
         x, y, z = self.test_object.location
         self.expected_object.location = (x, y + 10, z)
+        self.apply_operations(self.expected_object.name)
 
     def create_evaluated_object(self):
         """
@@ -289,11 +290,14 @@ class MeshTest(ABC):
             print("Compare evaluated and expected object in Blender.\n")
             return False
 
+        print([a.name for a in self.evaluated_object.data.attributes])
+        print([a.name for a in self.expected_object.data.attributes])
         result = self.compare_object_data(
             self.evaluated_object,
             self.expected_object,
             self.threshold,
             self.allow_index_change)
+        print(result)
 
         # Initializing with True to get correct resultant of result_code booleans.
         success = True
@@ -808,8 +812,11 @@ class BlendFileTest(MeshTest):
         modifiers_list = evaluated_test_object.modifiers
         if not modifiers_list:
             raise Exception("No modifiers are added to test object.")
+        print("#### apply", evaluated_test_object, list(evaluated_test_object.modifiers))
+        # raise Exception("apply")
         for modifier in modifiers_list:
             bpy.ops.object.modifier_apply(modifier=modifier.name)
+        print("#### applied", evaluated_test_object, list(evaluated_test_object.modifiers))
 
 
 class GeoNodesSimulationTest(MeshTest):
