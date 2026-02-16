@@ -387,6 +387,9 @@ static void read_array_data(BlendDataReader &reader,
       BLO_read_struct_array(
           &reader, MStringProperty, size, reinterpret_cast<MStringProperty **>(data));
       return;
+    case int8_t(AttrType::Float4):
+      BLO_read_float_array(&reader, size * 4, reinterpret_cast<float **>(data));
+      return;
     default:
       *data = nullptr;
       return;
@@ -423,7 +426,13 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
       if (data.size != 0 && !data.data) {
         return std::nullopt;
       }
-      return Attribute::ArrayData{data.data, data.size, ImplicitSharingPtr<>(data.sharing_info)};
+      Attribute::ArrayData array_data{
+          data.data, data.size, ImplicitSharingPtr<>(data.sharing_info)};
+      if (data.is_single) {
+        const CPPType &cpp_type = attribute_type_to_cpp_type(AttrType(dna_attr_type));
+        return Attribute::SingleData::from_value(GPointer(cpp_type, data.data));
+      }
+      return array_data;
     }
     case int8_t(AttrStorageType::Single): {
       BLO_read_struct(&reader, AttributeSingle, &dna_attr.data);
@@ -557,10 +566,15 @@ static void write_array_data(BlendWriter &writer,
     case AttrType::String:
       writer.write_struct_array_cast<MStringProperty>(size, data);
       break;
+    case AttrType::Float4:
+      BLO_write_float_array(&writer, size * 4, static_cast<const float *>(data));
+      break;
   }
 }
 
 void attribute_storage_blend_write_prepare(AttributeStorage &data,
+                                           const bool use_5_0_compatibility,
+                                           FunctionRef<int(AttrDomain)> get_domain_size,
                                            AttributeStorage::BlendWriteData &write_data)
 {
   for (Attribute &attr : data) {
@@ -568,7 +582,6 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
     attribute_dna.name = attr.name().c_str();
     attribute_dna.data_type = int16_t(attr.data_type());
     attribute_dna.domain = int8_t(attr.domain());
-    attribute_dna.storage_type = int8_t(attr.storage_type());
 
     /* The idea is to use a separate DNA struct for each #AttrStorageType. They each need to have a
      * unique address (while writing a specific ID anyway) in order to be identified when
@@ -576,19 +589,40 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
      * Using a #ResourceScope is a simple way to get pointer stability when adding every new data
      * struct without the cost of many small allocations or unnecessary overhead of storing a full
      * array for every storage type. */
+    const auto create_dna_array = [&](const Attribute::ArrayData &array_data) -> AttributeArray & {
+      auto &array_dna = write_data.scope.construct<AttributeArray>();
+      array_dna.data = array_data.data;
+      array_dna.sharing_info = array_data.sharing_info.get();
+      array_dna.size = array_data.size;
+      return array_dna;
+    };
 
     if (const auto *data = std::get_if<Attribute::ArrayData>(&attr.data())) {
-      auto &array_dna = write_data.scope.construct<blender::AttributeArray>();
-      array_dna.data = data->data;
-      array_dna.sharing_info = data->sharing_info.get();
-      array_dna.size = data->size;
-      attribute_dna.data = &array_dna;
+      attribute_dna.storage_type = int8_t(AttrStorageType::Array);
+      attribute_dna.data = &create_dna_array(*data);
     }
     else if (const auto *data = std::get_if<Attribute::SingleData>(&attr.data())) {
-      auto &single_dna = write_data.scope.construct<blender::AttributeSingle>();
-      single_dna.data = data->value;
-      single_dna.sharing_info = data->sharing_info.get();
-      attribute_dna.data = &single_dna;
+      if (use_5_0_compatibility) {
+        attribute_dna.storage_type = int8_t(AttrStorageType::Array);
+        /* Convert single value storage to array storage for forward compatibility.
+         * See #AttributeArray::is_single) comment for more details. */
+        const CPPType &cpp_type = attribute_type_to_cpp_type(attr.data_type());
+        const GPointer value(cpp_type, data->value);
+        const int domain_size = get_domain_size(attr.domain());
+        auto &array_data = write_data.scope.construct<Attribute::ArrayData>(
+            Attribute::ArrayData::from_value(value, domain_size));
+
+        auto &array_dna = create_dna_array(array_data);
+        array_dna.is_single = true;
+        attribute_dna.data = &array_dna;
+      }
+      else {
+        attribute_dna.storage_type = int8_t(AttrStorageType::Single);
+        auto &single_dna = write_data.scope.construct<blender::AttributeSingle>();
+        single_dna.data = data->value;
+        single_dna.sharing_info = data->sharing_info.get();
+        attribute_dna.data = &single_dna;
+      }
     }
 
     write_data.attributes.append(attribute_dna);

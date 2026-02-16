@@ -191,8 +191,7 @@ static void copy_curve_attributes_without_id(const bke::CurvesGeometry &src_curv
             curve_offsets, selection, attribute.src, attribute.dst.span);
         break;
       case AttrDomain::Point:
-        bke::attribute_math::convert_to_static_type(attribute.src.type(), [&](auto dummy) {
-          using T = decltype(dummy);
+        bke::attribute_math::to_static_type(attribute.src.type(), [&]<typename T>() {
           const Span<T> src = attribute.src.typed<T>();
           MutableSpan<T> dst = attribute.dst.span.typed<T>();
           selection.foreach_index(
@@ -803,8 +802,7 @@ static bke::CurvesGeometry duplicate_points_CurvesGeometry(
            {bke::AttrDomain::Curve},
            bke::attribute_filter_with_skip_ref(attribute_filter, {"id"})))
   {
-    bke::attribute_math::convert_to_static_type(attribute.src.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    bke::attribute_math::to_static_type(attribute.src.type(), [&]<typename T>() {
       const Span<T> src = attribute.src.typed<T>();
       MutableSpan<T> dst = attribute.dst.span.typed<T>();
       selection.foreach_index(GrainSize(512), [&](const int64_t index, const int64_t i_selection) {
@@ -1149,18 +1147,21 @@ static void duplicate_instances(GeometrySet &geometry_set,
     return;
   }
 
-  std::unique_ptr<bke::Instances> dst_instances = std::make_unique<bke::Instances>();
+  const Span<bke::InstanceReference> src_references = src_instances.references();
+  const Span<int> src_handles = src_instances.reference_handles();
 
-  dst_instances->resize(duplicates.total_size());
+  auto dst_instances = std::make_unique<bke::Instances>(duplicates.total_size());
+
+  MutableSpan<int> handles = dst_instances->reference_handles_for_write();
   selection.foreach_index([&](const int i_src, const int i_dst) {
     const IndexRange range = duplicates[i_dst];
     if (range.is_empty()) {
       return;
     }
-    const int old_handle = src_instances.reference_handles()[i_src];
-    const bke::InstanceReference reference = src_instances.references()[old_handle];
+    const int old_handle = src_handles[i_src];
+    const bke::InstanceReference reference = src_references[old_handle];
     const int new_handle = dst_instances->add_reference(reference);
-    dst_instances->reference_handles_for_write().slice(range).fill(new_handle);
+    handles.slice(range).fill(new_handle);
   });
 
   bke::gather_attributes_to_groups(
@@ -1180,7 +1181,7 @@ static void duplicate_instances(GeometrySet &geometry_set,
                                      duplicates);
   }
 
-  geometry_set = GeometrySet::from_instances(dst_instances.release());
+  geometry_set = GeometrySet::from_instances(std::move(dst_instances));
 }
 
 /** \} */

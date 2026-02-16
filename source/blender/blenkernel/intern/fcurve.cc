@@ -1312,6 +1312,12 @@ void sort_time_fcurve(FCurve &fcu)
         /* Swap if one is after the other (and indicate that order has changed). */
         if (bezt->vec[1][0] > (bezt + 1)->vec[1][0]) {
           std::swap(*bezt, *(bezt + 1));
+          if (a == fcu.active_keyframe_index) {
+            fcu.active_keyframe_index++;
+          }
+          else if (a + 1 == fcu.active_keyframe_index) {
+            fcu.active_keyframe_index--;
+          }
           ok = true;
         }
       }
@@ -2388,6 +2394,19 @@ float evaluate_fcurve_only_curve(const FCurve *fcu, float evaltime)
    * Also works for driver-f-curves when the driver itself is not relevant.
    * E.g. when inserting a keyframe in a driver f-curve. */
   return evaluate_fcurve_ex(fcu, evaltime, 0.0);
+}
+
+float evaluate_fcurve_unmodified(const FCurve *fcu, float evaltime)
+{
+  if (fcu->bezt) {
+    return fcurve_eval_keyframes(fcu, fcu->bezt, evaltime);
+  }
+  if (fcu->fpt) {
+    return fcurve_eval_samples(fcu, fcu->fpt, evaltime);
+  }
+
+  BLI_assert_unreachable();
+  return 0;
 }
 
 float evaluate_fcurve_driver(PathResolvedRNA *anim_rna,

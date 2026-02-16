@@ -93,14 +93,20 @@ if(DEFINED LIBDIR)
   include(platform_old_libs_update)
 
   set(WITH_STATIC_LIBS ON)
-  set(Boost_NO_BOOST_CMAKE ON)
-  set(Boost_ROOT ${LIBDIR}/boost)
-  set(BOOST_LIBRARYDIR ${LIBDIR}/boost/lib)
-  set(Boost_NO_SYSTEM_PATHS ON)
   set(OPENEXR_ROOT_DIR ${LIBDIR}/openexr)
   set(CLANG_ROOT_DIR ${LIBDIR}/llvm)
   set(MaterialX_DIR ${LIBDIR}/materialx/lib/cmake/MaterialX)
   set(fmt_ROOT ${LIBDIR}/fmt)
+  set(OSL_ROOT ${LIBDIR}/osl)
+  set(OpenImageIO_ROOT ${LIBDIR}/openimageio)
+  set(OpenEXR_ROOT ${LIBDIR}/openexr)
+  # OpenEXR deps, used by the OpenEXR module scripts
+  set(Imath_ROOT ${LIBDIR}/imath)
+  set(openjph_ROOT ${LIBDIR}/openjph)
+  # OpenEXR deps end
+  set(absl_ROOT ${LIBDIR}/abseil)
+  set(Ceres_ROOT ${LIBDIR}/ceres)
+  set(Eigen3_ROOT ${LIBDIR}/eigen)
 endif()
 
 # Wrapper to prefer static libraries
@@ -169,21 +175,23 @@ endif()
 add_bundled_libraries(vulkan/lib)
 
 function(check_freetype_for_brotli)
-  if((DEFINED HAVE_BROTLI AND HAVE_BROTLI) AND
-     (DEFINED HAVE_BROTLI_INC AND ("${HAVE_BROTLI_INC}" STREQUAL "${FREETYPE_INCLUDE_DIRS}")))
-    # Pass, the includes didn't change, use the cached value.
-  else()
-    unset(HAVE_BROTLI CACHE)
-    include(CheckSymbolExists)
-    set(CMAKE_REQUIRED_INCLUDES ${FREETYPE_INCLUDE_DIRS})
-    check_symbol_exists(FT_CONFIG_OPTION_USE_BROTLI "freetype/config/ftconfig.h" HAVE_BROTLI)
-    unset(CMAKE_REQUIRED_INCLUDES)
-    if(NOT HAVE_BROTLI)
-      unset(HAVE_BROTLI CACHE)
-      message(FATAL_ERROR "Freetype needs to be compiled with brotli support!")
+  if((DEFINED HAVE_BROTLI) AND (DEFINED HAVE_BROTLI_INC))
+    if(HAVE_BROTLI AND ("${HAVE_BROTLI_INC}" STREQUAL "${FREETYPE_INCLUDE_DIRS}"))
+      # Pass, the includes didn't change, use the cached value.
+      return()
     endif()
-    set(HAVE_BROTLI_INC "${FREETYPE_INCLUDE_DIRS}" CACHE INTERNAL "")
   endif()
+
+  unset(HAVE_BROTLI CACHE)
+  include(CheckSymbolExists)
+  set(CMAKE_REQUIRED_INCLUDES ${FREETYPE_INCLUDE_DIRS})
+  check_symbol_exists(FT_CONFIG_OPTION_USE_BROTLI "freetype/config/ftconfig.h" HAVE_BROTLI)
+  unset(CMAKE_REQUIRED_INCLUDES)
+  if(NOT HAVE_BROTLI)
+    unset(HAVE_BROTLI CACHE)
+    message(FATAL_ERROR "Freetype needs to be compiled with brotli support!")
+  endif()
+  set(HAVE_BROTLI_INC "${FREETYPE_INCLUDE_DIRS}" CACHE INTERNAL "")
 endfunction()
 
 if(NOT WITH_SYSTEM_FREETYPE)
@@ -259,8 +267,17 @@ else()
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  find_package_wrapper(OpenEXR)  # our own module
-  set_and_warn_library_found("OpenEXR" OPENEXR_FOUND WITH_IMAGE_OPENEXR)
+  find_package_wrapper(OpenEXR)
+  set_and_warn_library_found("OpenEXR" OpenEXR_FOUND WITH_IMAGE_OPENEXR)
+endif()
+if(DEFINED OpenEXR_DIR)
+  mark_as_advanced(OpenEXR_DIR)
+endif()
+if(DEFINED Imath_DIR)
+  mark_as_advanced(Imath_DIR)
+endif()
+if(DEFINED openjph_DIR)
+  mark_as_advanced(openjph_DIR)
 endif()
 add_bundled_libraries(openexr/lib)
 add_bundled_libraries(imath/lib)
@@ -359,19 +376,11 @@ if(WITH_CYCLES AND WITH_CYCLES_OSL)
   endif()
   find_package_wrapper(OSL 1.13.4)
   set_and_warn_library_found("OSL" OSL_FOUND WITH_CYCLES_OSL)
-
-  if(OSL_FOUND)
-    if(${OSL_LIBRARY_VERSION_MAJOR} EQUAL "1" AND ${OSL_LIBRARY_VERSION_MINOR} LESS "6")
-      # Note: --whole-archive is needed to force loading of all symbols in liboslexec,
-      # otherwise LLVM is missing the osl_allocate_closure_component function
-      set(OSL_LIBRARIES
-        ${OSL_OSLCOMP_LIBRARY}
-        -Wl,--whole-archive ${OSL_OSLEXEC_LIBRARY}
-        -Wl,--no-whole-archive ${OSL_OSLQUERY_LIBRARY}
-      )
-    endif()
-  endif()
 endif()
+if(DEFINED OSL_DIR)
+  mark_as_advanced(OSL_DIR)
+endif()
+
 add_bundled_libraries(osl/lib)
 
 if(WITH_CYCLES AND DEFINED LIBDIR)
@@ -408,6 +417,9 @@ endif()
 if(WITH_OPENVDB)
   find_package(OpenVDB)
   set_and_warn_library_found("OpenVDB" OPENVDB_FOUND WITH_OPENVDB)
+  if(OPENVDB_FOUND)
+    set(OPENVDB_DEFINITIONS "")
+  endif()
 endif()
 add_bundled_libraries(openvdb/lib)
 
@@ -439,53 +451,6 @@ if(WITH_MATERIALX)
 endif()
 add_bundled_libraries(materialx/lib)
 
-# With Blender 4.4 libraries there is no more Boost. But Linux distros may have
-# older versions of libs like USD with a header dependency on Boost, so can't
-# remove this entirely yet.
-if(WITH_BOOST)
-  if(DEFINED LIBDIR AND NOT EXISTS "${LIBDIR}/boost")
-    set(WITH_BOOST OFF)
-    set(BOOST_LIBRARIES)
-    set(BOOST_PYTHON_LIBRARIES)
-    set(BOOST_INCLUDE_DIR)
-  endif()
-endif()
-
-if(WITH_BOOST)
-  # uses in build instructions to override include and library variables
-  if(NOT BOOST_CUSTOM)
-    if(WITH_STATIC_LIBS)
-      set(Boost_USE_STATIC_LIBS OFF)
-    endif()
-    set(Boost_USE_MULTITHREADED ON)
-    set(__boost_packages)
-    if(WITH_USD AND USD_PYTHON_SUPPORT)
-      list(APPEND __boost_packages python${PYTHON_VERSION_NO_DOTS})
-    endif()
-    set(Boost_NO_WARN_NEW_VERSIONS ON)
-    find_package(Boost 1.48 COMPONENTS ${__boost_packages})
-    if(NOT Boost_FOUND)
-      # try to find non-multithreaded if -mt not found, this flag
-      # doesn't matter for us, it has nothing to do with thread
-      # safety, but keep it to not disturb build setups
-      set(Boost_USE_MULTITHREADED OFF)
-      find_package(Boost 1.48 COMPONENTS ${__boost_packages})
-    endif()
-    unset(__boost_packages)
-    mark_as_advanced(Boost_DIR)  # why doesn't boost do this?
-    mark_as_advanced(Boost_INCLUDE_DIR)  # why doesn't boost do this?
-  endif()
-
-  # Boost Python is the only library Blender directly depends on, though USD headers.
-  if(WITH_USD AND USD_PYTHON_SUPPORT)
-    set(BOOST_PYTHON_LIBRARIES ${Boost_PYTHON${PYTHON_VERSION_NO_DOTS}_LIBRARY})
-  endif()
-  set(BOOST_INCLUDE_DIR ${Boost_INCLUDE_DIRS})
-  set(BOOST_LIBPATH ${Boost_LIBRARY_DIRS})
-  set(BOOST_DEFINITIONS "-DBOOST_ALL_NO_LIB")
-endif()
-add_bundled_libraries(boost/lib)
-
 if(WITH_PUGIXML)
   find_package_wrapper(PugiXML)
   set_and_warn_library_found("PugiXML" PUGIXML_FOUND WITH_PUGIXML)
@@ -500,6 +465,9 @@ if(WITH_IMAGE_WEBP)
 endif()
 
 find_package_wrapper(OpenImageIO REQUIRED)
+if(DEFINED OpenImageIO_DIR)
+  mark_as_advanced(OpenImageIO_DIR)
+endif()
 add_bundled_libraries(openimageio/lib)
 
 if(WITH_OPENCOLORIO)
@@ -541,7 +509,7 @@ if(WITH_OPENSUBDIV)
   find_package(OpenSubdiv)
 
   set(OPENSUBDIV_LIBRARIES ${OPENSUBDIV_LIBRARIES})
-  set(OPENSUBDIV_LIBPATH)  # TODO, remove and reference the absolute path everywhere
+  set(OPENSUBDIV_LIBPATH "")  # TODO, remove and reference the absolute path everywhere
 
   set_and_warn_library_found("OpenSubdiv" OPENSUBDIV_FOUND WITH_OPENSUBDIV)
 endif()
@@ -694,12 +662,12 @@ if(WITH_SYSTEM_FREETYPE)
   set(BROTLI_LIBRARIES "")
 endif()
 
-if(WITH_SYSTEM_EIGEN3)
-  find_package_wrapper(Eigen3)
-  if(NOT EIGEN3_FOUND)
-    message(FATAL_ERROR "Failed finding system Eigen3 version!")
-  endif()
+find_package_wrapper(Eigen3 REQUIRED)
+
+if(WITH_LIBMV)
+  find_package_wrapper(Ceres REQUIRED)
 endif()
+add_bundled_libraries(ceres/lib)
 
 # Jack is intended to use the system library.
 if(WITH_JACK)
@@ -1045,13 +1013,6 @@ unset(_IS_LINKER_DEFAULT)
 set(PLATFORM_SYMBOLS_MAP ${CMAKE_SOURCE_DIR}/source/creator/symbols_unix.map)
 set(PLATFORM_LINKFLAGS
   "${PLATFORM_LINKFLAGS} -Wl,--version-script='${PLATFORM_SYMBOLS_MAP}'"
-)
-
-# We do not ensure transitive dependencies of dynamic libraries are available at
-# link time, this allows that. The better solution would be to switch to cmake
-# configs but more work is needed for that.
-set(PLATFORM_LINKFLAGS
-  "${PLATFORM_LINKFLAGS} -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs"
 )
 
 # Don't use position independent executable for portable install since file

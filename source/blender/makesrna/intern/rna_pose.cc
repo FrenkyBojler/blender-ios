@@ -107,7 +107,7 @@ static void rna_PoseBone_visibility_update(Main * /* bmain */,
                                            PointerRNA *ptr)
 {
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
-  WM_main_add_notifier(NC_OBJECT | ND_POSE, ptr->owner_id);
+  WM_main_add_notifier(NC_OBJECT | ND_BONE_SELECT, ptr->owner_id);
 }
 
 static void rna_Pose_dependency_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
@@ -199,10 +199,7 @@ static void rna_Pose_ik_solver_set(PointerRNA *ptr, int value)
   if (pose->iksolver != value) {
     /* the solver has changed, must clean any temporary structures */
     BIK_clear_data(pose);
-    if (pose->ikparam) {
-      MEM_delete_void(pose->ikparam);
-      pose->ikparam = nullptr;
-    }
+    MEM_SAFE_DELETE(pose->ikparam);
     pose->iksolver = value;
     BKE_pose_ikparam_init(pose);
   }
