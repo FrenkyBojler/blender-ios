@@ -759,7 +759,8 @@ float2 image_preview_unit_from_px(const Scene *scene, const float2 co_src)
 
 static Bounds<float2> negative_bounds()
 {
-  return {float2(std::numeric_limits<float>::max()), float2(std::numeric_limits<float>::lowest())};
+  return Bounds<float2>(float2(std::numeric_limits<float>::max()),
+                        float2(std::numeric_limits<float>::lowest()));
 }
 
 Bounds<float2> image_transform_bounding_box_from_collection(Scene *scene,

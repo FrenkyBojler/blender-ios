@@ -52,7 +52,8 @@ namespace bke::pbvh {
 /** Create invalid bounds for use with #math::min_max. */
 static Bounds<float3> negative_bounds()
 {
-  return {float3(std::numeric_limits<float>::max()), float3(std::numeric_limits<float>::lowest())};
+  return Bounds<float3>(float3(std::numeric_limits<float>::max()),
+                        float3(std::numeric_limits<float>::lowest()));
 }
 
 static Bounds<float3> merge_bounds(const Bounds<float3> &a, const Bounds<float3> &b)
@@ -1665,7 +1666,7 @@ Bounds<float3> bounds_get(const Tree &pbvh)
   return std::visit(
       [](auto &nodes) -> Bounds<float3> {
         if (nodes.is_empty()) {
-          return float3(0);
+          return Bounds<float3>(float3(0));
         }
         return nodes.first().bounds_;
       },

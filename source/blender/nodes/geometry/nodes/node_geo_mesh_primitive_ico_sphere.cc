@@ -59,7 +59,7 @@ static Bounds<float3> calculate_bounds_ico_sphere(const float radius, const int 
   const float3 bounds_min(x_min, y_min, -radius);
   const float3 bounds_max(x_max, y_max, radius);
 
-  return {bounds_min, bounds_max};
+  return Bounds<float3>(bounds_min, bounds_max);
 }
 
 static Mesh *create_ico_sphere_mesh(const int subdivisions,

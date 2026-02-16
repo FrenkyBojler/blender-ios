@@ -732,7 +732,7 @@ static wmOperatorStatus uv_arrange_islands_exec(bContext *C, wmOperator *op)
   const uint other_axis = (uint(axis) + 1) % 2;
 
   float2 position = {0.0f, 0.0f};
-  Bounds<float2> bounds = {{0.0f, 0.0f}, {1.0f, 1.0f}};
+  Bounds<float2> bounds({0.0f, 0.0f}, {1.0f, 1.0f});
   if (initial_position == UVAlignInitialPosition::BoundingBox) {
     INIT_MINMAX2(bounds.min, bounds.max);
     for (Object *obedit : objects) {

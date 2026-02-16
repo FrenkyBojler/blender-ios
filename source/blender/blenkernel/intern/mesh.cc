@@ -650,7 +650,8 @@ static Bounds<float3> merge_bounds(const Bounds<float3> &a, const Bounds<float3>
 
 static Bounds<float3> negative_bounds()
 {
-  return {float3(std::numeric_limits<float>::max()), float3(std::numeric_limits<float>::lowest())};
+  return Bounds<float3>(float3(std::numeric_limits<float>::max()),
+                        float3(std::numeric_limits<float>::lowest()));
 }
 
 struct NonContiguousGroup {

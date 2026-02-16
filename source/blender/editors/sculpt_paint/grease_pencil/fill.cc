@@ -825,7 +825,7 @@ static VArray<ColorGeometry4f> get_stroke_colors(const Object &object,
 static Bounds<float2> get_region_bounds(const ARegion &region)
 {
   /* Initialize maximum bound-box size. */
-  return {float2(0), float2(region.winx, region.winy)};
+  return Bounds<float2>(float2(0), float2(region.winx, region.winy));
 }
 
 /* Helper: Calc the maximum bounding box size of strokes to get the zoom level of the viewport.
@@ -893,7 +893,7 @@ static std::optional<Bounds<float2>> get_boundary_bounds(const ARegion &region,
             &region, pos_world, pos_view, V3D_PROJ_TEST_NOP);
         if (result == V3D_PROJ_RET_OK) {
           const float pixels = radii[point_i] / ED_view3d_pixel_size(&rv3d, pos_world);
-          Bounds<float2> point_bounds = {pos_view - float2(pixels), pos_view + float2(pixels)};
+          const Bounds<float2> point_bounds(pos_view - float2(pixels), pos_view + float2(pixels));
           boundary_bounds = bounds::merge(boundary_bounds, {point_bounds});
         }
       }
@@ -953,9 +953,9 @@ static auto fit_strokes_to_view(const ViewContext &view_context,
       const float2 zoom = uniform_zoom ? float2(math::reduce_max(zoom_factors)) : zoom_factors;
 
       /* Actual rendered bounds based on the final zoom factor. */
-      const Bounds<float2> render_bounds = {
+      const Bounds<float2> render_bounds(
           fill_bounds.center() - 0.5f * region_bounds.size() * zoom.x,
-          fill_bounds.center() + 0.5f * region_bounds.size() * zoom.y};
+          fill_bounds.center() + 0.5f * region_bounds.size() * zoom.y);
 
       /* Center offset for View3d matrices (strokes to pixels). */
       const float2 offset = math::safe_divide(render_bounds.center() - region_bounds.center(),

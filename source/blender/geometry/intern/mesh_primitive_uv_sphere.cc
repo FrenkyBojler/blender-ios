@@ -29,7 +29,7 @@ Bounds<float3> calculate_bounds_radial_primitive(const float radius_top,
   const float3 bounds_min(x_min, y_min, -height);
   const float3 bounds_max(x_max, y_max, height);
 
-  return {bounds_min, bounds_max};
+  return Bounds<float3>(bounds_min, bounds_max);
 }
 
 static int sphere_vert_total(const int segments, const int rings)

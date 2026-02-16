@@ -75,7 +75,7 @@ static Bounds<int2> tri_to_cell_bounds(const int3 &tri,
   const int2 min_cell = math::min(math::min(cell_0, cell_1), cell_2);
   const int2 max_cell = math::max(math::max(cell_0, cell_1), cell_2);
 
-  return {min_cell, max_cell};
+  return Bounds<int2>(min_cell, max_cell);
 }
 
 /**

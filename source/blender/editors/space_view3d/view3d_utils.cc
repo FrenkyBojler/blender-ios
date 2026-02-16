@@ -158,10 +158,7 @@ float ED_view3d_dist_soft_min_get(const View3D *v3d, const bool use_persp_range)
 
 Bounds<float> ED_view3d_dist_soft_range_get(const View3D *v3d, const bool use_persp_range)
 {
-  return {
-      ED_view3d_dist_soft_min_get(v3d, use_persp_range),
-      v3d->clip_end * 10.0f,
-  };
+  return Bounds<float>(ED_view3d_dist_soft_min_get(v3d, use_persp_range), v3d->clip_end * 10.0f);
 }
 
 bool ED_view3d_clip_range_get(const Depsgraph *depsgraph,
