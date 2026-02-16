@@ -47,7 +47,7 @@ def get_gpu_device(args: None) -> list:
                 index += 1
 
     # Get GPU backends
-    # TODO: Add support for device selection even when Vulkan backend isn't enabled.
+    # TODO: Add support for Vulkan device selection even when backend isn't active.
     # TODO: Cannot retrieve actual GPU name as the gpu module isn't initialized when run in background mode
     #   !152683 adds support to use gpu module in background mode.
     original_gpu_backend = prefs.system.gpu_backend
