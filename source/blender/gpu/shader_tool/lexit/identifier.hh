@@ -29,52 +29,42 @@ static constexpr uint64_t padded_string_masks[8] = {
     uint64_t(0x00FFFFFFFFFFFFFF),
 };
 
-/* Copy of a small string onto aligned bytes. This avoids the cost of calling memcmp. */
-struct PaddedString16 {
-  uint64_t data[2] = {0, 0};
+/* Copy of a small string onto aligned bytes.
+ * This avoids the cost of calling memcmp during comparison. */
+template<int Size> struct PaddedString {
+  uint64_t data[Size];
+  uint32_t size;
 
-  PaddedString16() = default;
-  PaddedString16(std::string_view str)
+  PaddedString() = default;
+
+  /* Caller need to ensure enough bytes are accessible after the end of string. */
+  explicit PaddedString(std::string_view str)
   {
-    // assert(str.size() <= 16);
-    /* In order for this to not be slow, we need to copy a known quantity. This is why the caller
-     * needs to ensure the source extends enough bytes after the start `str`. */
+    size = str.size();
+    assert(str.size() > 8 * (Size - 1));
+    assert(str.size() < 8 * Size);
+
     std::memcpy(data, (const char *)str.data(), sizeof(data));
     /* Fast way of masking the excess chars. */
-    int last_qword = (str.size() - 1) >> 3;
-    data[last_qword] &= padded_string_masks[str.size() & 7];
+    data[Size - 1] &= padded_string_masks[str.size() & (sizeof(data[0]) - 1)];
   }
 
-  friend bool operator==(const PaddedString16 &, const PaddedString16 &) = default;
+  operator std::string_view() const
+  {
+    return {(const char *)data, size};
+  }
 };
 
-struct PaddedString8 {
-  uint64_t data = 0;
+struct Keyword {
+  std::string_view str;
+  TokenType type;
+  TokenAtom atom;
 
-  PaddedString8() = default;
-  /* Source is already padded. */
-  constexpr PaddedString8(const uint64_t str) : data(str) {}
-  /* Note that this looses the size requirement. To be used with caution. */
-  explicit constexpr PaddedString8(const PaddedString16 &s16) : data(s16.data[0]) {}
+  Keyword() = default;
 
-  constexpr PaddedString8(char c0, char c1, char c2, char c3, char c4, char c5, char c6, char c7)
-      : data((uint64_t(c0) << 0) | (uint64_t(c1) << 8) | (uint64_t(c2) << 16) |
-             (uint64_t(c3) << 24) | (uint64_t(c4) << 32) | (uint64_t(c5) << 40) |
-             (uint64_t(c6) << 48) | (uint64_t(c7) << 56))
+  Keyword(std::string_view str, TokenType type, TokenAtom atom) : str(str), type(type), atom(atom)
   {
   }
-
-  PaddedString8(std::string_view str)
-  {
-    // assert(str.size() <= 8);
-    /* In order for this to not be slow, we need to copy a known quantity. This is why the caller
-     * needs to ensure the source extends enough bytes after the start `str`. */
-    std::memcpy(&data, (const char *)str.data(), sizeof(data));
-    /* Fast way of masking the excess chars. */
-    data &= padded_string_masks[str.size() & 7];
-  }
-
-  friend bool operator==(const PaddedString8 &, const PaddedString8 &) = default;
 };
 
 struct IdentifierMap {
@@ -85,12 +75,25 @@ struct IdentifierMap {
     uint64_t data[0];
 
     /* Caller must ensure size matches. */
-    bool operator==(PaddedString16 str) const
+    template<int Size> bool operator==(const PaddedString<Size> &str) const
     {
-      if (size > 8) {
-        return data[0] == str.data[0] && data[1] == str.data[1];
+      if constexpr (Size == 1) {
+        return size == str.size && data[0] == str.data[0];
       }
-      return data[0] == str.data[0];
+      else if constexpr (Size == 2) {
+        return size == str.size && data[0] == str.data[0] && data[1] == str.data[1];
+      }
+      else if constexpr (Size == 3) {
+        return size == str.size && data[0] == str.data[0] && data[1] == str.data[1] &&
+               data[2] == str.data[2];
+      }
+      else if constexpr (Size == 4) {
+        return size == str.size && data[0] == str.data[0] && data[1] == str.data[1] &&
+               data[2] == str.data[2] && data[3] == str.data[3];
+      }
+      else {
+        static_assert(false, "invalid size");
+      }
     }
 
     bool operator==(std::string_view str) const
@@ -133,20 +136,20 @@ struct IdentifierMap {
     return static_cast<uint16_t>(hash);
   }
 
-  INLINE_METHOD TokenAtom lookup_or_add(PaddedString16 str, size_t str_size)
+  template<int Size> INLINE_METHOD TokenAtom lookup_or_add(const PaddedString<Size> &padded_str)
   {
-    std::string_view str_view{(const char *)&str, str_size};
-    uint32_t hash = str_hash(str_view);
+    std::string_view str = padded_str;
+    uint32_t hash = str_hash(str);
     uint16_t index = hash_table[hash & hash_table_index_mask];
 
     Identifier *id = nullptr;
     for (; index != 0xFFFFu; index = id->next) {
       id = &identifier_buffer[index];
-      if (id->hash == hash && id->size == str_size && *id == str) [[likely]] {
+      if (id->hash == hash && *id == padded_str) [[likely]] {
         return index;
       }
     }
-    return add_after(hash, str_view, id);
+    return add_after(hash, str, id);
   }
 
   TokenAtom lookup_or_add(std::string_view str)
@@ -193,23 +196,37 @@ struct IdentifierMap {
     }
     return new_index;
   }
+
+  Keyword make_keyword(std::string_view str, TokenType type)
+  {
+    return Keyword(str, type, lookup_or_add(str));
+  }
 };
 
-/**
- * Based on this article.
- * https://lemire.me/blog/2022/12/30/quickly-checking-that-a-string-belongs-to-a-small-set/
- */
-template<typename KeyT, typename ValueT, int Size, typename HashT> struct KeywordMap {
-  std::array<TokenAtom, Size> value_map;
-  std::array<KeyT, Size> match_table;
+/* Convert Atom to Keyword types. */
+struct KeywordTable {
+  /* Indexed by string TokenAtom. */
+  alignas(64) std::array<TokenType, 64> map;
 
-  constexpr TokenAtom lookup_default(KeyT str, ValueT default_value)
+  KeywordTable(const std::vector<Keyword> &vector)
   {
-    uint8_t hash = HashT::hash(str);
-    bool match = match_table[hash] == str;
-    /* Assuming the input is already a Word, lookup the 0th value on mismatch, which conveniently
-     * is also a Word, resulting in a noop. */
-    return match ? value_map[hash] : default_value;
+    /* We only lookup words, so a word mismatch should be a Noop. */
+    map.fill(Word);
+    for (auto keyword : vector) {
+      /* Check for overflow. */
+      assert(keyword.atom < 128);
+      /* Check default case not being overwritten. */
+      assert(keyword.atom != 0);
+      map[keyword.atom / 2] = keyword.type;
+    }
+  }
+
+  TokenType operator[](TokenAtom atom) const
+  {
+    /* Atom allocation are of size 2. Avoid wasting slots.
+     * If atom is bigger than the table, revert to 0 atom (invalid) which becomes a Noop by
+     * returning Word. */
+    return map[(atom / 2) * (atom < 128)];
   }
 };
 

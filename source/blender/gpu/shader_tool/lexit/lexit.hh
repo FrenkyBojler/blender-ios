@@ -18,12 +18,19 @@
 #include <memory>
 #include <string_view>
 
+#include "identifier.hh"
 #include "types.hh"
 
 // #define LEXIT_DEBUG
 
 #ifdef LEXIT_DEBUG
 #  include <vector>
+#endif
+
+#if defined(_MSC_VER)
+#  define INLINE_METHOD __forceinline
+#else
+#  define INLINE_METHOD inline __attribute__((always_inline))
 #endif
 
 namespace lexit {
@@ -105,6 +112,8 @@ struct TokenBuffer {
   std::unique_ptr<uint32_t[]> offsets_;
   /* Original character index of each next token before whitespace merging (optional). */
   std::unique_ptr<uint32_t[]> offsets_end_;
+  /* Length in characters of each token. A value of 127 means the real size is over 126. */
+  std::unique_ptr<uint8_t[]> lengths_;
   /* Unique id for identifiers (Words). Externally set (optional). */
   std::unique_ptr<TokenAtom[]> atoms_;
   /* Number of tokens inside the buffer excluding the terminating EndOfFile token. */
@@ -130,6 +139,7 @@ struct TokenBuffer {
     clear();
     reserve(str.size());
     tokenize<true>(char_class_table);
+    compute_lengths();
   }
 
   void process_without_whitespace(const std::string_view str,
@@ -139,6 +149,7 @@ struct TokenBuffer {
     clear();
     reserve(str.size());
     tokenize<false>(char_class_table);
+    compute_lengths();
   }
 
   /**
@@ -178,6 +189,16 @@ struct TokenBuffer {
    */
   void merge_whitespaces();
   void merge_spaces();
+
+  /**
+   * @brief Assign keyword types and atoms for a small set of identifier.
+   */
+  void atomize_words(IdentifierMap &identifiers, const KeywordTable &keywords);
+
+  /**
+   * @brief Compute small token length for speeding up certain tasks.
+   */
+  void compute_lengths();
 
   /**
    * @brief Return the amount of token inside the buffer.
@@ -294,6 +315,17 @@ struct TokenBuffer {
                               bool &__restrict prev_whitespace,
                               uint32_t end,
                               const CharClass char_class_table[128]);
+
+  template<int Size = 0>
+  INLINE_METHOD void atomize_short_tokens_in_mask(uint64_t mask,
+                                                  uint32_t tok_id_base,
+                                                  IdentifierMap &id_map,
+                                                  const KeywordTable &kw_table);
+
+  INLINE_METHOD void atomize_tokens_in_mask(uint64_t mask,
+                                            uint32_t tok_id_base,
+                                            IdentifierMap &id_map,
+                                            const KeywordTable &kw_table);
 };
 
 inline Token::Token(const TokenBuffer *buf, int32_t index) : buf_(buf)

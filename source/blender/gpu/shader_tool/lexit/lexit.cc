@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT */
 
 #include "lexit.hh"
+#include "identifier.hh"
 #include "simd.hh"
 
 #include <algorithm>
@@ -47,6 +48,7 @@ void TokenBuffer::reserve(const uint32_t count)
   realloc_aligned_array(offsets_, size_ + 1, allocated_size_);
   realloc_aligned_array(offsets_end_, size_ + 1, allocated_size_);
   realloc_aligned_array(atoms_, size_ + 1, allocated_size_);
+  realloc_aligned_array(lengths_, size_ + 1, allocated_size_);
 }
 
 #if defined(USE_NEON) || defined(USE_SSE4_2)
@@ -672,6 +674,152 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
 
 template void TokenBuffer::tokenize<true>(const CharClass[128]);
 template void TokenBuffer::tokenize<false>(const CharClass[128]);
+
+void TokenBuffer::compute_lengths()
+{
+  uint32_t tok_id = 0;
+#if defined(USE_NEON) || defined(USE_SSE4_2)
+  using namespace simd;
+  static constexpr int stride = 64;
+  for (; tok_id + stride <= size_; tok_id += stride) {
+    const u32x64 str_start = u32x64::load(&offsets_[tok_id]);
+    const u32x64 str_end = u32x64::load_unaligned(&offsets_end_[tok_id + 1]); /* TODO align */
+    const u32x64 str_size_32 = str_end - str_start;
+    const u8x64 str_large = u8x64(str_size_32 > 127);
+    /* Saturate the size to max int8_t since SSE comparison is signed. */
+    const u8x64 str_size = select(u8x64(str_size_32), u8x64(127), str_large);
+    str_size.store(lengths_.get() + tok_id);
+  }
+  /* Finish tail using scalar loop. */
+#endif
+  for (; tok_id < size_; ++tok_id) {
+    const uint32_t str_start = offsets_[tok_id];
+    const uint32_t str_end = offsets_end_[tok_id + 1];
+    const uint32_t str_size_32 = str_end - str_start;
+    /* Saturate the size to max int8_t since SSE comparison is signed. */
+    const uint8_t str_size = select(uint8_t(str_size_32), 127, str_size_32 > 127);
+    lengths_[tok_id] = str_size;
+  }
+}
+
+void TokenBuffer::atomize_words(IdentifierMap &identifiers, const KeywordTable &keywords)
+{
+  static constexpr int stride = 64;
+
+  struct Masks {
+    uint64_t mask8, mask16, mask24, mask32;
+  };
+  /* First scan to create a bitmap of potential matches to avoid wasting cycles. */
+  lexit::Vector<Masks> masks_small_id;
+  lexit::Vector<uint64_t> masks_large_id;
+  masks_small_id.resize((size_ + stride) / stride);
+  masks_large_id.resize((size_ + stride) / stride);
+
+  {
+    uint32_t tok_id = 0;
+#if defined(USE_NEON) || defined(USE_SSE4_2)
+    using namespace simd;
+    for (; tok_id + stride <= size_; tok_id += stride) {
+      const u8x64 size = u8x64::load(&lengths_[tok_id]);
+      const u8x64 type = u8x64::load((uint8_t *)types_.get() + tok_id);
+      const uint64_t is_word = movemask(type == Word);
+      const uint64_t less_8 = movemask(size < 9);
+      const uint64_t less_16 = movemask(size < 17);
+      const uint64_t less_24 = movemask(size < 25);
+      const uint64_t less_32 = movemask(size < 33);
+
+      const uint64_t chunk_id = tok_id / stride;
+      Masks small;
+      small.mask8 = is_word & less_8;
+      small.mask16 = is_word & less_16 & ~less_8;
+      small.mask24 = is_word & less_24 & ~less_16;
+      small.mask32 = is_word & less_32 & ~less_24;
+      masks_small_id[chunk_id] = small;
+
+      uint64_t large_mask = is_word & ~less_32;
+      masks_large_id[chunk_id] = large_mask;
+    }
+#endif
+    /* TODO: Scalar tail. */
+  }
+  {
+    /* Iterate over the bitmasks. */
+    const int end = size_ / stride;
+    for (int chunk = 0; chunk < end; ++chunk) {
+      const Masks small = masks_small_id[chunk];
+      atomize_short_tokens_in_mask<1>(small.mask8, chunk * stride, identifiers, keywords);
+      atomize_short_tokens_in_mask<2>(small.mask16, chunk * stride, identifiers, keywords);
+      atomize_short_tokens_in_mask<3>(small.mask24, chunk * stride, identifiers, keywords);
+      atomize_short_tokens_in_mask<4>(small.mask32, chunk * stride, identifiers, keywords);
+      atomize_tokens_in_mask(masks_large_id[chunk], chunk * stride, identifiers, keywords);
+    }
+  }
+}
+
+template<int Size>
+INLINE_METHOD void TokenBuffer::atomize_short_tokens_in_mask(uint64_t mask,
+                                                             uint32_t tok_id_base,
+                                                             IdentifierMap &id_map,
+                                                             const KeywordTable &kw_table)
+{
+  while (mask != 0) {
+    const int index = __builtin_ctzll(mask);
+    const int tok_id = tok_id_base + index;
+
+    const int str_start = offsets_[tok_id];
+    const int str_size = lengths_[tok_id]; /* PaddedString is for small identifier. */
+
+    const std::string_view str = {str_.data() + str_start, size_t(str_size)};
+    const PaddedString<Size> padded_str(str);
+
+    const TokenAtom atom = id_map.lookup_or_add(padded_str);
+    atoms_[tok_id] = atom;
+    types_[tok_id] = kw_table[atom];
+    /* Pop last bit. */
+    mask &= (mask - 1);
+  }
+}
+
+template void TokenBuffer::atomize_short_tokens_in_mask<1>(uint64_t,
+                                                           uint32_t,
+                                                           IdentifierMap &,
+                                                           const KeywordTable &);
+template void TokenBuffer::atomize_short_tokens_in_mask<2>(uint64_t,
+                                                           uint32_t,
+                                                           IdentifierMap &,
+                                                           const KeywordTable &);
+template void TokenBuffer::atomize_short_tokens_in_mask<3>(uint64_t,
+                                                           uint32_t,
+                                                           IdentifierMap &,
+                                                           const KeywordTable &);
+template void TokenBuffer::atomize_short_tokens_in_mask<4>(uint64_t,
+                                                           uint32_t,
+                                                           IdentifierMap &,
+                                                           const KeywordTable &);
+
+INLINE_METHOD void TokenBuffer::atomize_tokens_in_mask(uint64_t mask,
+                                                       uint32_t tok_id_base,
+                                                       IdentifierMap &id_map,
+                                                       const KeywordTable &kw_table)
+{
+  if (mask == 0) [[likely]] {
+    return;
+  }
+  while (mask != 0) {
+    const int index = __builtin_ctzll(mask);
+    const int tok_id = tok_id_base + index;
+
+    const int str_start = offsets_[tok_id];
+    const int str_size = offsets_end_[tok_id + 1] - str_start;
+    const std::string_view str = {str_.data() + str_start, size_t(str_size)};
+
+    const TokenAtom atom = id_map.lookup_or_add(str);
+    atoms_[tok_id] = atom;
+    types_[tok_id] = kw_table[atom];
+    /* Pop last bit. */
+    mask &= (mask - 1);
+  }
+}
 
 static void lex_string(const TokenType *types, uint32_t &cursor)
 {

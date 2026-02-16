@@ -61,7 +61,7 @@ template<int Size> struct u8_base {
 
   static u8_base load(const uint8_t *src)
   {
-    assert((intptr_t(src) & (16 * Size - 1)) == 0);
+    assert((intptr_t(src) & (16 - 1)) == 0);
     u8_base result;
     for (int i = 0; i < Size; ++i) {
 #  if defined(USE_NEON)
@@ -170,6 +170,24 @@ template<int Size> struct u8_base {
     return res;
   }
 
+  friend u8_base operator&(u8_base a, uint8_t b)
+  {
+#  if defined(USE_NEON)
+    uint8x16_t ref = vdupq_n_u8(b);
+#  elif defined(USE_SSE4_2)
+    __m128i ref = _mm_set1_epi8(b);
+#  endif
+    u8_base res;
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      res.lanes[i] = vandq_u8(a.lanes[i], ref);
+#  elif defined(USE_SSE4_2)
+      res.lanes[i] = _mm_and_si128(a.lanes[i], ref);
+#  endif
+    }
+    return res;
+  }
+
   u8_base operator~() const
   {
     u8_base res;
@@ -193,6 +211,24 @@ template<int Size> struct u8_base {
       res.lanes[i] = vaddq_u8(a.lanes[i], b.lanes[i]);
 #  elif defined(USE_SSE4_2)
       res.lanes[i] = _mm_add_epi8(a.lanes[i], b.lanes[i]);
+#  endif
+    }
+    return res;
+  }
+
+  friend u8_base operator+(u8_base a, uint8_t b)
+  {
+#  if defined(USE_NEON)
+    uint8x16_t ref = vdupq_n_u8(b);
+#  elif defined(USE_SSE4_2)
+    __m128i ref = _mm_set1_epi8(b);
+#  endif
+    u8_base res;
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      res.lanes[i] = vaddq_u8(a.lanes[i], ref);
+#  elif defined(USE_SSE4_2)
+      res.lanes[i] = _mm_add_epi8(a.lanes[i], ref);
 #  endif
     }
     return res;
@@ -236,6 +272,25 @@ template<int Size> struct u8_base {
       res.lanes[i] = vcltq_u8(a.lanes[i], b.lanes[i]);
 #  elif defined(USE_SSE4_2)
       res.lanes[i] = _mm_cmplt_epi8(a.lanes[i], b.lanes[i]);
+#  endif
+    }
+    return res;
+  }
+
+  /** WARNING: Signed comparison on SSE. Will not work for input greater than 127. */
+  friend u8_base operator<(u8_base a, uint8_t b)
+  {
+#  if defined(USE_NEON)
+    uint8x16_t ref = vdupq_n_u8(b);
+#  elif defined(USE_SSE4_2)
+    __m128i ref = _mm_set1_epi8(b);
+#  endif
+    u8_base res;
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      res.lanes[i] = vcltq_u8(a.lanes[i], ref);
+#  elif defined(USE_SSE4_2)
+      res.lanes[i] = _mm_cmplt_epi8(a.lanes[i], ref);
 #  endif
     }
     return res;
@@ -493,6 +548,27 @@ inline uint64_t movemask(u8x64 mask)
   return result;
 }
 
+/* Create a bitmask from a u8x32 mask containing 0xFF or 0x00 inside each lane. */
+inline uint32_t movemask(u8x32 mask)
+{
+  uint32_t result;
+
+#  if defined(USE_NEON)
+  const uint8x16_t bits = {1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128};
+  /* Merge lanes with their neighbors (e.g. [1, 2, 4, 8, ...] > [3, 12, 48, ...]).
+   * This is equivalent to merging using | and >> operations.
+   * Doing it 3 time to collapse the 8 bits. */
+  uint8x16_t sum = vpaddq_u8(vandq_u8(mask.lanes[0], bits), vandq_u8(mask.lanes[1], bits));
+  sum = vpaddq_u8(sum, sum);
+  sum = vpaddq_u8(sum, sum);
+  result = vgetq_lane_u64(vreinterpretq_u64_u8(sum), 0);
+#  elif defined(USE_SSE4_2)
+  result = _mm_movemask_epi8(mask.lanes[1]);
+  result = _mm_movemask_epi8(mask.lanes[0]) | (result << 16);
+#  endif
+  return result;
+}
+
 /* Create a bitmask from a u8x64 mask containing 0xFF or 0x00 inside each lane. */
 inline uint16_t movemask(u8x16 mask)
 {
@@ -513,6 +589,43 @@ inline uint16_t movemask(u8x16 mask)
 #  endif
   return result;
 }
+
+/* Size must be power of 2. */
+template<int Size> struct u16_base {
+#  if defined(USE_NEON)
+  uint16x8_t lanes[Size];
+#  elif defined(USE_SSE4_2)
+  __m128i lanes[Size];
+#  endif
+
+  u16_base() = default;
+
+  explicit u16_base(const u8_base<Size / 2> v)
+  {
+    for (int i = 0; i < Size / 2; ++i) {
+#  if defined(USE_NEON)
+      lanes[i * 2 + 0] = vmovl_u8(vget_low_u8(v.lanes[i]));
+      lanes[i * 2 + 1] = vmovl_u8(vget_high_u8(v.lanes[i]));
+#  elif defined(USE_SSE4_2)
+/* TODO */
+#  endif
+    }
+  }
+
+  void store(uint16_t *dst) const
+  {
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      vst1q_u16(dst + i * 8, lanes[i]);
+#  elif defined(USE_SSE4_2)
+      _mm_storeu_si128((__m128i_u *)dst + i, lanes[i]);
+#  endif
+    }
+  }
+};
+
+using u16x16 = u16_base<2>;
+using u16x64 = u16_base<8>;
 
 /* Size must be power of 2. */
 template<int Size> struct u32_base {
@@ -543,6 +656,54 @@ template<int Size> struct u32_base {
     }
   }
 
+  explicit operator u8_base<Size / 4>() const
+  {
+    u8_base<Size / 4> res;
+    for (int i = 0; i < Size / 4; ++i) {
+#  if defined(USE_NEON)
+      uint16x4_t n0 = vmovn_u32(lanes[i * 4 + 0]);
+      uint16x4_t n1 = vmovn_u32(lanes[i * 4 + 1]);
+      uint16x4_t n2 = vmovn_u32(lanes[i * 4 + 2]);
+      uint16x4_t n3 = vmovn_u32(lanes[i * 4 + 3]);
+      uint16x8_t q01 = vcombine_u16(n0, n1);
+      uint16x8_t q23 = vcombine_u16(n2, n3);
+      res.lanes[i] = vcombine_u8(vmovn_u16(q01), vmovn_u16(q23));
+#  elif defined(USE_SSE4_2)
+      __m128i pack_16_lo = _mm_packus_epi32(lanes[i * 4 + 0], lanes[i * 4 + 1]);
+      __m128i pack_16_hi = _mm_packus_epi32(lanes[i * 4 + 2], lanes[i * 4 + 3]);
+      res.lanes[i] = _mm_packus_epi16(pack_16_lo, pack_16_hi);
+#  endif
+    }
+    return res;
+  }
+
+  static u32_base load_unaligned(const uint32_t *src)
+  {
+    u32_base result;
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      result.lanes[i] = vld1q_u32(src + i * 4);
+#  elif defined(USE_SSE4_2)
+      result.lanes[i] = _mm_loadu_si128((const __m128i *)src + i);
+#  endif
+    }
+    return result;
+  }
+
+  static u32_base load(const uint32_t *src)
+  {
+    assert((intptr_t(src) & (16 - 1)) == 0);
+    u32_base result;
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      result.lanes[i] = vld1q_u32(src + i * 4);
+#  elif defined(USE_SSE4_2)
+      result.lanes[i] = _mm_load_si128((const __m128i *)src + i);
+#  endif
+    }
+    return result;
+  }
+
   void store_unaligned(uint32_t *dst) const
   {
     for (int i = 0; i < Size; ++i) {
@@ -554,7 +715,70 @@ template<int Size> struct u32_base {
     }
   }
 
+  void store(uint32_t *dst) const
+  {
+    assert((intptr_t(dst) & (16 - 1)) == 0);
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      vst1q_u32(dst + i * 4, lanes[i]);
+#  elif defined(USE_SSE4_2)
+      _mm_store_si128((__m128i_u *)dst + i, lanes[i]);
+#  endif
+    }
+  }
+
   /* --- Arithmetic Operators --- */
+
+  friend u32_base operator<(u32_base a, u32_base b)
+  {
+    u32_base res;
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      res.lanes[i] = vcltq_u32(a.lanes[i], b.lanes[i]);
+#  elif defined(USE_SSE4_2)
+      static_assert(0);  // TODO
+#  endif
+    }
+    return res;
+  }
+
+  friend u32_base operator<(u32_base a, uint32_t b)
+  {
+#  if defined(USE_NEON)
+    uint32x4_t tmp = vdupq_n_u32(b);
+#  elif defined(USE_SSE4_2)
+    __m128i tmp = _mm_set1_epi32(b);
+#  endif
+
+    u32_base res;
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      res.lanes[i] = vcltq_u32(a.lanes[i], tmp);
+#  elif defined(USE_SSE4_2)
+      static_assert(0);  // TODO
+#  endif
+    }
+    return res;
+  }
+
+  friend u32_base operator>(u32_base a, uint32_t b)
+  {
+#  if defined(USE_NEON)
+    uint32x4_t tmp = vdupq_n_u32(b);
+#  elif defined(USE_SSE4_2)
+    __m128i tmp = _mm_set1_epi32(b);
+#  endif
+
+    u32_base res;
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      res.lanes[i] = vcgtq_u32(a.lanes[i], tmp);
+#  elif defined(USE_SSE4_2)
+      static_assert(0);  // TODO
+#  endif
+    }
+    return res;
+  }
 
   friend u32_base operator+(u32_base a, uint32_t b)
   {
@@ -574,9 +798,24 @@ template<int Size> struct u32_base {
     }
     return res;
   }
+
+  friend u32_base operator-(u32_base a, u32_base b)
+  {
+    u32_base res;
+    for (int i = 0; i < Size; ++i) {
+#  if defined(USE_NEON)
+      res.lanes[i] = vsubq_u32(a.lanes[i], b.lanes[i]);
+#  elif defined(USE_SSE4_2)
+      res.lanes[i] = _mm_sub_epi32(a.lanes[i], b.lanes[i]);
+#  endif
+    }
+    return res;
+  }
 };
 
 using u32x16 = u32_base<4>;
+using u32x32 = u32_base<8>;
+using u32x64 = u32_base<16>;
 
 }  // namespace lexit::simd
 
