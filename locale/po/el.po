@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'c1168d06bba2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-24 08:35+0000\n"
+"POT-Creation-Date: 2026-02-09 09:47+0000\n"
 "PO-Revision-Date: 2025-07-23 15:19+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -153,6 +153,10 @@ msgstr "Όλα"
 
 msgid "Fill"
 msgstr "Συμπλήρωμα"
+
+
+msgid "Both"
+msgstr "Both"
 
 
 msgid "Crop"
@@ -335,6 +339,18 @@ msgid "Collision"
 msgstr "Σύγκρουση"
 
 
+msgid "Font"
+msgstr "Γραμματοσειρά"
+
+
+msgid "Text"
+msgstr "Κείμενο"
+
+
+msgid "Sound"
+msgstr "Ήχος"
+
+
 msgid "Border"
 msgstr "Πλαίσιο"
 
@@ -377,10 +393,6 @@ msgstr "Προεξοχή"
 
 msgid "Path"
 msgstr "Μονοπάτι"
-
-
-msgid "Font"
-msgstr "Γραμματοσειρά"
 
 
 msgid "Shear"
@@ -471,10 +483,6 @@ msgid "Lattice"
 msgstr "Πλέγμα"
 
 
-msgid "Sound"
-msgstr "Ήχος"
-
-
 msgid "Blend"
 msgstr "Ανάμιξη"
 
@@ -515,20 +523,36 @@ msgid "Keyboard"
 msgstr "Πληκτρολόγιο"
 
 
+msgid "Metaball"
+msgstr "Μετα-σφαίρα"
+
+
+msgid "Merge"
+msgstr "Συγχώνευση"
+
+
 msgid "Apply"
 msgstr "Εφαρμογή"
-
-
-msgid "Track"
-msgstr "Ανίχνευση"
 
 
 msgid "Make Single User"
 msgstr "Ορισμός Ενός Χρήστη"
 
 
-msgid "Merge"
-msgstr "Συγχώνευση"
+msgid "Light"
+msgstr "Φως"
+
+
+msgid "Track"
+msgstr "Ανίχνευση"
+
+
+msgid "Rigid Body"
+msgstr "Rigid Body"
+
+
+msgid "Select Linked"
+msgstr "Επιλογή Συνδεδεμένων"
 
 
 msgid "Snap"
@@ -539,28 +563,8 @@ msgid "Mirror"
 msgstr "Καθρέφτισμα"
 
 
-msgid "Text"
-msgstr "Κείμενο"
-
-
-msgid "Metaball"
-msgstr "Μετα-σφαίρα"
-
-
-msgid "Select Linked"
-msgstr "Επιλογή Συνδεδεμένων"
-
-
 msgid "Import"
 msgstr "Εισαγωγή"
-
-
-msgid "Light"
-msgstr "Φως"
-
-
-msgid "Rigid Body"
-msgstr "Rigid Body"
 
 
 msgid "Cache"
@@ -733,10 +737,6 @@ msgid "Open"
 msgstr "Άνοιγμα"
 
 
-msgid "Both"
-msgstr "Both"
-
-
 msgid "Next Keyframe"
 msgstr "Επόμενο Καρέ με Κλειδί"
 
@@ -758,10 +758,6 @@ msgstr "Replace Image"
 msgctxt "Operator"
 msgid "Fill"
 msgstr "Συμπλήρωμα"
-
-
-msgid "Ring"
-msgstr "Ring"
 
 
 msgid "Merge selected vertices"

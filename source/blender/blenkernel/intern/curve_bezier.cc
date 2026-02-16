@@ -119,7 +119,7 @@ static std::pair<float3, float3> calculate_align_both_handles(const float3 &posi
     return {position - right_dir, right_handle};
   }
   if (right_length == 0.0f) {
-    return {left_handle, position - left_handle};
+    return {left_handle, position - left_dir};
   }
 
   /* Use the direction halfway between the two directions. */
@@ -433,8 +433,7 @@ void interpolate_to_evaluated(const GSpan src,
                               const OffsetIndices<int> evaluated_offsets,
                               GMutableSpan dst)
 {
-  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
+  attribute_math::to_static_type(src.type(), [&]<typename T>() {
     if constexpr (!std::is_void_v<attribute_math::DefaultMixer<T>>) {
       interpolate_to_evaluated(src.typed<T>(), evaluated_offsets, dst.typed<T>());
     }

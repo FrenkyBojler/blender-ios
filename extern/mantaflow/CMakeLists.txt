@@ -46,6 +46,7 @@ endif()
 
 if(WIN32)
   add_definitions(-D_USE_MATH_DEFINES)
+  remove_definitions(-DNOMINMAX)
 endif()
 
 if(WITH_MANTA_NUMPY AND WITH_PYTHON_NUMPY)
@@ -68,8 +69,6 @@ if(WITH_MANTA_DEPENDENCIES)
 endif()
 
 set(INC_SYS
-  ${PYTHON_INCLUDE_DIRS}
-  ${ZLIB_INCLUDE_DIRS}
 )
 
 if(WITH_MANTA_NUMPY AND WITH_PYTHON_NUMPY)
@@ -229,8 +228,8 @@ endif()
 set(LIB
   PRIVATE bf::dependencies::optional::openvdb
   PRIVATE bf::dependencies::optional::tbb
-  ${PYTHON_LINKFLAGS}
-  ${PYTHON_LIBRARIES}
+  PRIVATE bf::dependencies::optional::python
+  PRIVATE bf::dependencies::zlib
 )
 
 blender_add_lib(extern_mantaflow "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

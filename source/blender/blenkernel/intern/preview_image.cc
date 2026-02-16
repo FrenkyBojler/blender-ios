@@ -37,7 +37,9 @@
 
 #include "BKE_preview_image.hh"
 
-using CachedPreviewMap = blender::Map<std::string, PreviewImage *>;
+namespace blender {
+
+using CachedPreviewMap = Map<std::string, PreviewImage *>;
 
 /* Not mutex-protected! */
 static CachedPreviewMap &get_cached_previews_map()
@@ -46,11 +48,13 @@ static CachedPreviewMap &get_cached_previews_map()
   return cached_previews_map;
 }
 
-namespace blender::bke {
+namespace bke {
 
 struct PreviewDeferredLoadingData {
   std::string filepath;
   ThumbSource source;
+  /** See #BKE_previewimg_is_online(). */
+  bool is_online = false;
 };
 
 PreviewImageRuntime::PreviewImageRuntime() = default;
@@ -63,13 +67,12 @@ PreviewImageRuntime::PreviewImageRuntime(const PreviewImageRuntime &other)
 }
 PreviewImageRuntime::~PreviewImageRuntime() = default;
 
-}  // namespace blender::bke
+}  // namespace bke
 
 static PreviewImage *previewimg_deferred_create(const char *filepath, ThumbSource source)
 {
   PreviewImage *prv = BKE_previewimg_create();
-  prv->runtime->deferred_loading_data =
-      std::make_unique<blender::bke::PreviewDeferredLoadingData>();
+  prv->runtime->deferred_loading_data = std::make_unique<bke::PreviewDeferredLoadingData>();
   prv->runtime->deferred_loading_data->filepath = filepath;
   prv->runtime->deferred_loading_data->source = source;
   return prv;
@@ -77,14 +80,14 @@ static PreviewImage *previewimg_deferred_create(const char *filepath, ThumbSourc
 
 PreviewImage *BKE_previewimg_create()
 {
-  PreviewImage *prv = MEM_callocN<PreviewImage>(__func__);
+  PreviewImage *prv = MEM_new<PreviewImage>(__func__);
 
   for (int i = 0; i < NUM_ICON_SIZES; i++) {
     prv->flag[i] |= PRV_CHANGED;
     prv->changed_timestamp[i] = 0;
   }
 
-  prv->runtime = MEM_new<blender::bke::PreviewImageRuntime>(__func__);
+  prv->runtime = MEM_new<bke::PreviewImageRuntime>(__func__);
   return prv;
 }
 
@@ -93,7 +96,7 @@ void BKE_previewimg_free(PreviewImage **prv)
   if (prv && (*prv)) {
     for (int i = 0; i < NUM_ICON_SIZES; i++) {
       if ((*prv)->rect[i]) {
-        MEM_freeN((*prv)->rect[i]);
+        MEM_delete((*prv)->rect[i]);
       }
       if ((*prv)->runtime->gputexture[i]) {
         GPU_texture_free((*prv)->runtime->gputexture[i]);
@@ -101,7 +104,7 @@ void BKE_previewimg_free(PreviewImage **prv)
     }
 
     MEM_delete((*prv)->runtime);
-    MEM_freeN(*prv);
+    MEM_delete(*prv);
     *prv = nullptr;
   }
 }
@@ -119,7 +122,7 @@ void BKE_preview_images_free()
 
 void BKE_previewimg_clear_single(PreviewImage *prv, enum eIconSizes size)
 {
-  MEM_SAFE_FREE(prv->rect[size]);
+  MEM_SAFE_DELETE(prv->rect[size]);
   if (prv->runtime->gputexture[size]) {
     GPU_texture_free(prv->runtime->gputexture[size]);
   }
@@ -132,7 +135,7 @@ void BKE_previewimg_clear_single(PreviewImage *prv, enum eIconSizes size)
 void BKE_previewimg_clear(PreviewImage *prv)
 {
   for (int i = 0; i < NUM_ICON_SIZES; i++) {
-    BKE_previewimg_clear_single(prv, (eIconSizes)i);
+    BKE_previewimg_clear_single(prv, eIconSizes(i));
   }
 }
 
@@ -142,13 +145,13 @@ PreviewImage *BKE_previewimg_copy(const PreviewImage *prv)
     return nullptr;
   }
 
-  PreviewImage *prv_img = MEM_mallocN<PreviewImage>(__func__);
-  *prv_img = blender::dna::shallow_copy(*prv);
-  prv_img->runtime = MEM_new<blender::bke::PreviewImageRuntime>(__func__, *prv->runtime);
+  PreviewImage *prv_img = MEM_new<PreviewImage>(__func__);
+  *prv_img = dna::shallow_copy(*prv);
+  prv_img->runtime = MEM_new<bke::PreviewImageRuntime>(__func__, *prv->runtime);
 
   for (int i = 0; i < NUM_ICON_SIZES; i++) {
     if (prv->rect[i]) {
-      prv_img->rect[i] = (uint *)MEM_dupallocN(prv->rect[i]);
+      prv_img->rect[i] = MEM_dupalloc(prv->rect[i]);
     }
     prv_img->runtime->gputexture[i] = nullptr;
   }
@@ -210,8 +213,9 @@ PreviewImage *BKE_previewimg_id_get(const ID *id)
 void BKE_previewimg_id_free(ID *id)
 {
   PreviewImage **prv_p = BKE_previewimg_id_get_p(id);
-  if (prv_p) {
-    BKE_previewimg_free(prv_p);
+  if (prv_p && *prv_p) {
+    BKE_previewimg_deferred_release(*prv_p);
+    *prv_p = nullptr;
   }
 }
 
@@ -336,6 +340,17 @@ PreviewImage *BKE_previewimg_cached_thumbnail_read(const char *name,
   return prv;
 }
 
+PreviewImage *BKE_previewimg_online_thumbnail_read(const char *name,
+                                                   const char *dst_filepath,
+                                                   const bool force_update)
+{
+  PreviewImage *preview = BKE_previewimg_cached_thumbnail_read(
+      name, dst_filepath, THB_SOURCE_DIRECT, force_update);
+  preview->runtime->deferred_loading_data->is_online = true;
+
+  return preview;
+}
+
 void BKE_previewimg_cached_release(const char *name)
 {
   BLI_assert(BLI_thread_is_main());
@@ -358,8 +373,7 @@ void BKE_previewimg_ensure(PreviewImage *prv, const int size)
     return;
   }
 
-  const blender::bke::PreviewDeferredLoadingData &prv_deferred =
-      *prv->runtime->deferred_loading_data;
+  const bke::PreviewDeferredLoadingData &prv_deferred = *prv->runtime->deferred_loading_data;
   int icon_w, icon_h;
 
   ImBuf *thumb = IMB_thumb_manage(prv_deferred.filepath.c_str(), THB_LARGE, prv_deferred.source);
@@ -373,7 +387,8 @@ void BKE_previewimg_ensure(PreviewImage *prv, const int size)
   if (do_preview) {
     prv->w[ICON_SIZE_PREVIEW] = thumb->x;
     prv->h[ICON_SIZE_PREVIEW] = thumb->y;
-    prv->rect[ICON_SIZE_PREVIEW] = (uint *)MEM_dupallocN(thumb->byte_buffer.data);
+    prv->rect[ICON_SIZE_PREVIEW] = reinterpret_cast<unsigned int *>(
+        MEM_dupalloc<uint8_t>(thumb->byte_buffer.data));
     prv->flag[ICON_SIZE_PREVIEW] &= ~(PRV_CHANGED | PRV_USER_EDITED | PRV_RENDERING);
   }
   if (do_icon) {
@@ -392,19 +407,29 @@ void BKE_previewimg_ensure(PreviewImage *prv, const int size)
     IMB_scale(thumb, icon_w, icon_h, IMBScaleFilter::Box, false);
     prv->w[ICON_SIZE_ICON] = icon_w;
     prv->h[ICON_SIZE_ICON] = icon_h;
-    prv->rect[ICON_SIZE_ICON] = (uint *)MEM_dupallocN(thumb->byte_buffer.data);
+    prv->rect[ICON_SIZE_ICON] = reinterpret_cast<unsigned int *>(
+        MEM_dupalloc<uint8_t>(thumb->byte_buffer.data));
     prv->flag[ICON_SIZE_ICON] &= ~(PRV_CHANGED | PRV_USER_EDITED | PRV_RENDERING);
   }
   IMB_freeImBuf(thumb);
 }
 
-const char *BKE_previewimg_deferred_filepath_get(const PreviewImage *prv)
+bool BKE_previewimg_is_online(const PreviewImage *prv)
 {
   if (!prv->runtime->deferred_loading_data) {
-    return nullptr;
+    return false;
   }
 
-  return prv->runtime->deferred_loading_data->filepath.c_str();
+  return prv->runtime->deferred_loading_data->is_online;
+}
+
+std::optional<blender::StringRefNull> BKE_previewimg_deferred_filepath_get(const PreviewImage *prv)
+{
+  if (!prv->runtime->deferred_loading_data) {
+    return std::nullopt;
+  }
+
+  return prv->runtime->deferred_loading_data->filepath;
 }
 
 std::optional<int> BKE_previewimg_deferred_thumb_source_get(const PreviewImage *prv)
@@ -459,9 +484,9 @@ void BKE_previewimg_blend_write(BlendWriter *writer, const PreviewImage *prv)
     return;
   }
 
-  PreviewImage prv_copy = blender::dna::shallow_copy(*prv);
+  PreviewImage prv_copy = dna::shallow_copy(*prv);
   prv_copy.runtime = nullptr;
-  BLO_write_struct_at_address(writer, PreviewImage, prv, &prv_copy);
+  writer->write_struct_at_address(prv, &prv_copy);
   if (prv_copy.rect[0]) {
     BLO_write_uint32_array(writer, prv_copy.w[0] * prv_copy.h[0], prv_copy.rect[0]);
   }
@@ -476,7 +501,7 @@ void BKE_previewimg_blend_read(BlendDataReader *reader, PreviewImage *prv)
     return;
   }
 
-  prv->runtime = MEM_new<blender::bke::PreviewImageRuntime>(__func__);
+  prv->runtime = MEM_new<bke::PreviewImageRuntime>(__func__);
 
   for (int i = 0; i < NUM_ICON_SIZES; i++) {
     if (prv->rect[i]) {
@@ -490,3 +515,5 @@ void BKE_previewimg_blend_read(BlendDataReader *reader, PreviewImage *prv)
     }
   }
 }
+
+}  // namespace blender

@@ -23,6 +23,7 @@
 #include "DNA_modifier_types.h"
 #include "DNA_node_tree_interface_types.h"
 
+#include "ED_node.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 #include "ED_undo.hh"
@@ -75,7 +76,8 @@ struct SocketSearchData {
 
   SearchInfo info(const bContext &C) const;
 };
-/* This class must not have a destructor, since it is used by buttons and freed with #MEM_freeN. */
+/* This class must not have a destructor, since it is used by buttons and freed with
+ * #MEM_delete_void. */
 BLI_STATIC_ASSERT(std::is_trivially_destructible_v<SocketSearchData>, "");
 
 struct DrawGroupInputsContext {
@@ -105,51 +107,52 @@ struct DrawGroupInputsContext {
 };
 }  // namespace
 
-static geo_log::GeoTreeLog *get_root_tree_log(const NodesModifierData &nmd)
+static geo_log::GeoTreeLog *get_root_tree_log(const Object &object, const NodesModifierData &nmd)
 {
   if (!nmd.runtime->eval_log) {
     return nullptr;
   }
-  bke::ModifierComputeContext compute_context{nullptr, nmd};
-  return &nmd.runtime->eval_log->get_tree_log(compute_context.hash());
+  bke::DataBlockComputeContext data_block_context{nullptr, object.id};
+  bke::ModifierComputeContext modifier_context{&data_block_context, nmd};
+  return &nmd.runtime->eval_log->get_tree_log(modifier_context.hash());
 }
 
-static NodesModifierData *get_modifier_data(Main &bmain,
-                                            const wmWindowManager &wm,
-                                            const ModifierSearchData &data)
+static std::optional<ed::space_node::ObjectAndModifier> get_modifier_data(
+    Main &bmain, const wmWindowManager &wm, const ModifierSearchData &data)
 {
   if (ED_screen_animation_playing(&wm)) {
     /* Work around an issue where the attribute search exec function has stale pointers when data
      * is reallocated when evaluating the node tree, causing a crash. This would be solved by
      * allowing the UI search data to own arbitrary memory rather than just referencing it. */
-    return nullptr;
+    return std::nullopt;
   }
 
-  const Object *object = (Object *)BKE_libblock_find_session_uid(
-      &bmain, ID_OB, data.object_session_uid);
+  const Object *object = id_cast<Object *>(
+      BKE_libblock_find_session_uid(&bmain, ID_OB, data.object_session_uid));
   if (object == nullptr) {
-    return nullptr;
+    return std::nullopt;
   }
   ModifierData *md = BKE_modifiers_findby_name(object, data.modifier_name);
   if (md == nullptr) {
-    return nullptr;
+    return std::nullopt;
   }
   BLI_assert(md->type == eModifierType_Nodes);
-  return reinterpret_cast<NodesModifierData *>(md);
+  return ed::space_node::ObjectAndModifier{object, reinterpret_cast<NodesModifierData *>(md)};
 }
 
 SearchInfo SocketSearchData::info(const bContext &C) const
 {
   if (const auto *modifier_search_data = std::get_if<ModifierSearchData>(&this->search_data)) {
-    const NodesModifierData *nmd = get_modifier_data(
+    const std::optional<ed::space_node::ObjectAndModifier> object_and_modifier = get_modifier_data(
         *CTX_data_main(&C), *CTX_wm_manager(&C), *modifier_search_data);
-    if (nmd == nullptr) {
+    if (!object_and_modifier) {
       return {};
     }
+    const NodesModifierData *nmd = object_and_modifier->nmd;
     if (nmd->node_group == nullptr) {
       return {};
     }
-    geo_log::GeoTreeLog *tree_log = get_root_tree_log(*nmd);
+    geo_log::GeoTreeLog *tree_log = get_root_tree_log(*object_and_modifier->object, *nmd);
     return {tree_log, nmd->node_group, nmd->settings.properties};
   }
   if (const auto *operator_search_data = std::get_if<OperatorSearchData>(&this->search_data)) {
@@ -159,7 +162,7 @@ SearchInfo SocketSearchData::info(const bContext &C) const
 }
 
 static void layer_name_search_update_fn(
-    const bContext *C, void *arg, const char *str, uiSearchItems *items, const bool is_first)
+    const bContext *C, void *arg, const char *str, ui::SearchItems *items, const bool is_first)
 {
   const SocketSearchData &data = *static_cast<SocketSearchData *>(arg);
   const SearchInfo info = data.info(*C);
@@ -238,20 +241,20 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
   name_row.label(socket.name ? IFACE_(socket.name) : "", ICON_NONE);
   ui::Layout &prop_row = split.row(true);
 
-  uiBlock *block = prop_row.block();
-  uiBut *but = uiDefIconTextButR(block,
-                                 ButType::SearchMenu,
-                                 ICON_OUTLINER_DATA_GP_LAYER,
-                                 "",
-                                 0,
-                                 0,
-                                 10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
-                                 UI_UNIT_Y,
-                                 ctx.properties_ptr,
-                                 rna_path,
-                                 0,
-                                 StringRef(socket.description));
-  UI_but_placeholder_set(but, IFACE_("Layer"));
+  ui::Block *block = prop_row.block();
+  ui::Button *but = uiDefIconTextButR(block,
+                                      ui::ButtonType::SearchMenu,
+                                      ICON_OUTLINER_DATA_GP_LAYER,
+                                      "",
+                                      0,
+                                      0,
+                                      10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
+                                      UI_UNIT_Y,
+                                      ctx.properties_ptr,
+                                      rna_path,
+                                      0,
+                                      StringRef(socket.description));
+  button_placeholder_set(but, IFACE_("Layer"));
   layout.label("", ICON_BLANK1);
 
   const Object *object = ed::object::context_object(&ctx.C);
@@ -261,13 +264,13 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
   }
 
   /* Using a custom free function make the search not work currently. So make sure this data can be
-   * freed with MEM_freeN. */
+   * freed with MEM_delete. */
   SocketSearchData *data = static_cast<SocketSearchData *>(
-      MEM_mallocN(sizeof(SocketSearchData), __func__));
+      MEM_new_uninitialized(sizeof(SocketSearchData), __func__));
   *data = ctx.socket_search_data_fn(socket);
-  UI_but_func_search_set_results_are_suggestions(but, true);
-  UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
-  UI_but_func_search_set(but,
+  button_func_search_set_results_are_suggestions(but, true);
+  button_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
+  button_func_search_set(but,
                          nullptr,
                          layer_name_search_update_fn,
                          data,
@@ -278,7 +281,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
 }
 
 static void attribute_search_update_fn(
-    const bContext *C, void *arg, const char *str, uiSearchItems *items, const bool is_first)
+    const bContext *C, void *arg, const char *str, ui::SearchItems *items, const bool is_first)
 {
   SocketSearchData &data = *static_cast<SocketSearchData *>(arg);
   const SearchInfo info = data.info(*C);
@@ -355,19 +358,19 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
-  uiBlock *block = layout.block();
-  uiBut *but = uiDefIconTextButR(block,
-                                 ButType::SearchMenu,
-                                 ICON_NONE,
-                                 "",
-                                 0,
-                                 0,
-                                 10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
-                                 UI_UNIT_Y,
-                                 ctx.properties_ptr,
-                                 rna_path_attribute_name,
-                                 0,
-                                 StringRef(socket.description));
+  ui::Block *block = layout.block();
+  ui::Button *but = uiDefIconTextButR(block,
+                                      ui::ButtonType::SearchMenu,
+                                      ICON_NONE,
+                                      "",
+                                      0,
+                                      0,
+                                      10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
+                                      UI_UNIT_Y,
+                                      ctx.properties_ptr,
+                                      rna_path_attribute_name,
+                                      0,
+                                      StringRef(socket.description));
 
   const Object *object = ed::object::context_object(&ctx.C);
   BLI_assert(object != nullptr);
@@ -376,13 +379,13 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
   }
 
   /* Using a custom free function make the search not work currently. So make sure this data can be
-   * freed with MEM_freeN. */
+   * freed with MEM_delete. */
   SocketSearchData *data = static_cast<SocketSearchData *>(
-      MEM_mallocN(sizeof(SocketSearchData), __func__));
+      MEM_new_uninitialized(sizeof(SocketSearchData), __func__));
   *data = ctx.socket_search_data_fn(socket);
-  UI_but_func_search_set_results_are_suggestions(but, true);
-  UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
-  UI_but_func_search_set(but,
+  button_func_search_set_results_are_suggestions(but, true);
+  button_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
+  button_func_search_set(but,
                          nullptr,
                          attribute_search_update_fn,
                          data,
@@ -394,7 +397,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
   std::string attribute_name = RNA_string_get(ctx.properties_ptr, rna_path_attribute_name.c_str());
   const bool access_allowed = bke::allow_procedural_attribute_access(attribute_name);
   if (!access_allowed) {
-    UI_but_flag_enable(but, UI_BUT_REDALERT);
+    button_flag_enable(but, ui::BUT_REDALERT);
   }
 }
 
@@ -537,22 +540,60 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       row.prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "textures", name, ICON_TEXTURE);
       break;
     }
+    case SOCK_FONT: {
+      PropertyRNA *prop = RNA_struct_find_property(ctx.properties_ptr, rna_path.c_str());
+      if (prop && RNA_property_type(prop) == PROP_POINTER) {
+        template_id(&row,
+                    &ctx.C,
+                    ctx.properties_ptr,
+                    rna_path,
+                    nullptr,
+                    "FONT_OT_open",
+                    "FONT_OT_unlink",
+                    ui::TEMPLATE_ID_FILTER_ALL,
+                    false,
+                    name);
+      }
+      else {
+        /* #template_id only supports pointer properties currently. Node tools store
+         * data-block pointers in strings currently. */
+        row.prop_search(
+            ctx.properties_ptr, rna_path, ctx.bmain_ptr, "fonts", name, ICON_FONT_DATA);
+      }
+      break;
+    }
+    case SOCK_SCENE: {
+      row.prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "scenes", name, ICON_SCENE);
+      break;
+    }
+    case SOCK_TEXT_ID: {
+      row.prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "texts", name, ICON_TEXT);
+      break;
+    }
+    case SOCK_MASK: {
+      row.prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "masks", name, ICON_NONE);
+      break;
+    }
+    case SOCK_SOUND: {
+      row.prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "sounds", name, ICON_SOUND);
+      break;
+    }
     case SOCK_IMAGE: {
       PropertyRNA *prop = RNA_struct_find_property(ctx.properties_ptr, rna_path.c_str());
       if (prop && RNA_property_type(prop) == PROP_POINTER) {
-        uiTemplateID(&row,
-                     &ctx.C,
-                     ctx.properties_ptr,
-                     rna_path,
-                     "image.new",
-                     "image.open",
-                     nullptr,
-                     UI_TEMPLATE_ID_FILTER_ALL,
-                     false,
-                     name);
+        template_id(&row,
+                    &ctx.C,
+                    ctx.properties_ptr,
+                    rna_path,
+                    "image.new",
+                    "image.open",
+                    nullptr,
+                    ui::TEMPLATE_ID_FILTER_ALL,
+                    false,
+                    name);
       }
       else {
-        /* #uiTemplateID only supports pointer properties currently. Node tools store data-block
+        /* #template_id only supports pointer properties currently. Node tools store data-block
          * pointers in strings currently. */
         row.prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "images", name, ICON_IMAGE);
       }
@@ -564,7 +605,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
          * see #ui_item_enum_expand_exec. */
         row.prop(ctx.properties_ptr,
                  rna_path,
-                 UI_ITEM_R_EXPAND,
+                 ui::ITEM_R_EXPAND,
                  StringRef(name).is_empty() ? " " : name,
                  ICON_NONE);
       }
@@ -664,7 +705,7 @@ static void draw_interface_panel_as_panel(DrawGroupInputsContext &ctx,
     return;
   }
   PanelOpenProperty open_property = ctx.panel_open_property_fn(interface_panel);
-  PanelLayout panel_layout;
+  ui::PanelLayout panel_layout;
   bool skip_first = false;
   /* Check if the panel should have a toggle in the header. */
   const bNodeTreeInterfaceSocket *toggle_socket = interface_panel.header_toggle_socket();
@@ -717,7 +758,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
 {
   for (const bNodeTreeInterfaceItem *item : interface_panel.items().drop_front(skip_first ? 1 : 0))
   {
-    switch (NodeTreeInterfaceItemType(item->item_type)) {
+    switch (eNodeTreeInterfaceItemType(item->item_type)) {
       case NODE_INTERFACE_PANEL: {
         const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
         draw_interface_panel_as_panel(ctx, layout, sub_interface_panel);
@@ -770,7 +811,8 @@ static void draw_warnings(const bContext *C,
     return;
   }
   using namespace geo_log;
-  GeoTreeLog *tree_log = get_root_tree_log(nmd);
+  Object &object = *id_cast<Object *>(md_ptr->owner_id);
+  GeoTreeLog *tree_log = get_root_tree_log(object, nmd);
   if (!tree_log) {
     return;
   }
@@ -787,7 +829,7 @@ static void draw_warnings(const bContext *C,
   const int num_warnings = count_by_type.lookup_default(NodeWarningType::Warning, 0);
   const int num_infos = count_by_type.lookup_default(NodeWarningType::Info, 0);
   const std::string panel_name = get_node_warning_panel_name(num_errors, num_warnings, num_infos);
-  PanelLayout panel = layout.panel_prop(C, md_ptr, "open_warnings_panel");
+  ui::PanelLayout panel = layout.panel_prop(C, md_ptr, "open_warnings_panel");
   panel.header->label(panel_name.c_str(), ICON_NONE);
   if (!panel.body) {
     return;
@@ -796,7 +838,7 @@ static void draw_warnings(const bContext *C,
   for (const int i : warnings.index_range()) {
     warnings[i] = &tree_log->all_warnings[i];
   }
-  std::sort(warnings.begin(), warnings.end(), [](const NodeWarning *a, const NodeWarning *b) {
+  std::ranges::sort(warnings, [](const NodeWarning *a, const NodeWarning *b) {
     const int severity_a = node_warning_type_severity(a->type);
     const int severity_b = node_warning_type_severity(b->type);
     if (severity_a > severity_b) {
@@ -809,17 +851,17 @@ static void draw_warnings(const bContext *C,
   });
 
   ui::Layout &col = panel.body->column(false);
-  uiBlock *block = col.block();
+  ui::Block *block = col.block();
   for (const NodeWarning *warning : warnings) {
     const int icon = node_warning_type_icon(warning->type);
     const StringRef message = RPT_(warning->message);
-    uiBut *but = uiDefIconTextBut(
-        block, ButType::Label, icon, message, 0, 0, 1, UI_UNIT_Y, nullptr, std::nullopt);
+    ui::Button *but = uiDefIconTextBut(
+        block, ui::ButtonType::Label, icon, message, 0, 0, 1, UI_UNIT_Y, nullptr, std::nullopt);
     /* Add tooltip containing the same message. This is helpful if the message is very long so that
      * it doesn't fit in the panel. */
-    UI_but_func_tooltip_set(
+    button_func_tooltip_set(
         but,
-        [](bContext * /*C*/, void *argN, blender::StringRef /*tip*/) -> std::string {
+        [](bContext * /*C*/, void *argN, StringRef /*tip*/) -> std::string {
           return *static_cast<std::string *>(argN);
         },
         MEM_new<std::string>(__func__, message),
@@ -886,13 +928,13 @@ static void draw_bake_panel(ui::Layout &layout, PointerRNA *modifier_ptr)
   col.prop(modifier_ptr, "bake_directory", UI_ITEM_NONE, IFACE_("Bake Path"), ICON_NONE);
 }
 
-static void draw_named_attributes_panel(ui::Layout &layout, NodesModifierData &nmd)
+static void draw_named_attributes_panel(ui::Layout &layout, Object &object, NodesModifierData &nmd)
 {
   if (G.is_rendering) {
     /* Avoid accessing this data while baking in a separate thread. */
     return;
   }
-  geo_log::GeoTreeLog *tree_log = get_root_tree_log(nmd);
+  geo_log::GeoTreeLog *tree_log = get_root_tree_log(object, nmd);
   if (tree_log == nullptr) {
     return;
   }
@@ -915,11 +957,9 @@ static void draw_named_attributes_panel(ui::Layout &layout, NodesModifierData &n
   for (auto &&item : usage_by_attribute.items()) {
     sorted_used_attribute.append({item.key, item.value});
   }
-  std::sort(sorted_used_attribute.begin(),
-            sorted_used_attribute.end(),
-            [](const NameWithUsage &a, const NameWithUsage &b) {
-              return BLI_strcasecmp_natural(a.name.c_str(), b.name.c_str()) < 0;
-            });
+  std::ranges::sort(sorted_used_attribute, [](const NameWithUsage &a, const NameWithUsage &b) {
+    return BLI_strcasecmp_natural(a.name.c_str(), b.name.c_str()) < 0;
+  });
 
   for (const NameWithUsage &attribute : sorted_used_attribute) {
     const StringRef attribute_name = attribute.name;
@@ -968,7 +1008,8 @@ static void draw_manage_panel(const bContext *C,
   if (ui::Layout *panel_layout = layout.panel_prop(
           C, modifier_ptr, "open_named_attributes_panel", IFACE_("Named Attributes")))
   {
-    draw_named_attributes_panel(*panel_layout, nmd);
+    Object &object = *id_cast<Object *>(modifier_ptr->owner_id);
+    draw_named_attributes_panel(*panel_layout, object, nmd);
   }
 }
 
@@ -983,7 +1024,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
 
   DrawGroupInputsContext ctx{C,
                              nmd.node_group,
-                             get_root_tree_log(nmd),
+                             get_root_tree_log(object, nmd),
                              nmd.settings.properties,
                              modifier_ptr,
                              &bmain_ptr};
@@ -991,7 +1032,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
   ctx.panel_open_property_fn = [&](const bNodeTreeInterfacePanel &io_panel) -> PanelOpenProperty {
     NodesModifierPanel *panel = find_panel_by_id(nmd, io_panel.identifier);
     PointerRNA panel_ptr = RNA_pointer_create_discrete(
-        modifier_ptr->owner_id, &RNA_NodesModifierPanel, panel);
+        modifier_ptr->owner_id, RNA_NodesModifierPanel, panel);
     return {panel_ptr, "is_open"};
   };
   ctx.socket_search_data_fn = [&](const bNodeTreeInterfaceSocket &io_socket) -> SocketSearchData {
@@ -1022,7 +1063,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
   if (!(nmd.flag & NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR)) {
     const char *newop = (nmd.node_group == nullptr) ? "node.new_geometry_node_group_assign" :
                                                       "object.geometry_node_tree_copy_assign";
-    uiTemplateID(&layout, &C, modifier_ptr, "node_group", newop, nullptr, nullptr);
+    template_id(&layout, &C, modifier_ptr, "node_group", newop, nullptr, nullptr);
   }
 
   if (nmd.node_group != nullptr && nmd.settings.properties != nullptr) {
@@ -1032,7 +1073,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
     draw_interface_panel_content(ctx, layout, nmd.node_group->tree_interface.root_panel);
   }
 
-  modifier_error_message_draw(&layout, modifier_ptr);
+  modifier_error_message_draw(layout, modifier_ptr);
 
   draw_warnings(&C, nmd, layout, modifier_ptr);
 
@@ -1069,7 +1110,7 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
         root_panel,
         "node_operator_panel_" + std::to_string(io_panel.identifier),
         io_panel.flag & NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
-    PointerRNA state_ptr = RNA_pointer_create_discrete(nullptr, &RNA_LayoutPanelState, state);
+    PointerRNA state_ptr = RNA_pointer_create_discrete(nullptr, RNA_LayoutPanelState, state);
     return {state_ptr, "is_open"};
   };
   ctx.socket_search_data_fn = [&](const bNodeTreeInterfaceSocket &io_socket) -> SocketSearchData {
@@ -1086,7 +1127,7 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
       [&](ui::Layout &layout, const int icon, const bNodeTreeInterfaceSocket &io_socket) {
         const std::string prop_name = fmt::format(
             "[\"{}{}\"]", BLI_str_escape(io_socket.identifier), nodes::input_use_attribute_suffix);
-        layout.prop(op.ptr, prop_name, UI_ITEM_R_ICON_ONLY, "", icon);
+        layout.prop(op.ptr, prop_name, ui::ITEM_R_ICON_ONLY, "", icon);
       };
   ctx.use_name_for_ids = true;
 
