@@ -1301,11 +1301,11 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
                                            state);
     }
 
-    WM_xr_session_context_ensure(wm, xr->runtime);
-
     /* Set XR offscreen area View3D object type flags for operators. */
-    bContext *xr_context = xr->runtime->b_context;
-    View3D *v3d = static_cast<View3D *>(CTX_wm_area(xr_context)->spacedata.first);
+    bContext *xr_context = WM_xr_session_context_ensure(wm, xr->runtime);
+    ScrArea *xr_offscreen_area = CTX_wm_area(xr_context);
+
+    View3D *v3d = static_cast<View3D *>(xr_offscreen_area->spacedata.first);
     v3d->object_type_exclude_viewport = settings->object_type_exclude_viewport;
     v3d->object_type_exclude_select = settings->object_type_exclude_select;
 
