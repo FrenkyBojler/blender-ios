@@ -105,21 +105,23 @@ static wmOperatorStatus mask_new_exec(bContext *C, wmOperator *op)
 
   RNA_string_get(op->ptr, "name", name);
 
+  Main *bmain = CTX_data_main(C);
   Mask *mask = BKE_mask_new(CTX_data_main(C), name);
 
-  PropertyPointerRNA *pprop = MEM_new<PropertyPointerRNA>("MaskNewPropertyPointerRNA");
-  ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
+  PointerRNA ptr;
+  PropertyRNA *prop;
+  ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
-  if (pprop && pprop->prop) {
+  Mask *mask;
+
+  if (prop) {
     /* When creating new ID blocks, use is already 1, but RNA
      * pointer use also increases user, so this compensates it. */
     id_us_min(&mask->id);
-
+    
     PointerRNA idptr = RNA_id_pointer_create(&mask->id);
-    RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr, nullptr);
-    RNA_property_update(C, &pprop->ptr, pprop->prop);
-
-    MEM_delete(pprop);
+    RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
+    RNA_property_update(C, &ptr, prop);
   }
   else {
     ED_mask_new(C, name);
