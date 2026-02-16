@@ -1665,7 +1665,7 @@ wmOperatorStatus PaintStroke::exec(bContext *C, wmOperator *op)
     paint_stroke_jitter_pos(
         this->paint, mode, *this->brush, pressure, stroke_mode_, zoom_2d_, mval, mouse_out);
 
-    /* TODO: These process misses updating some values at the moment, see `add_step` */
+    /* TODO: This process misses updating some values at the moment, see `add_step` */
     float3 dummy_location;
     bool dummy_is_set;
     this->update(C, *this->brush, mode, mval, mouse_out, pressure, dummy_location, &dummy_is_set);
