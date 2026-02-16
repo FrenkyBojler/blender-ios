@@ -36,9 +36,11 @@ struct CircleVert {
   float2 target_2d;
 };
 
-/** Stores the geometry loop and whether it forms a closed circle or open chain. */
+/** Stores the boundary geometry that defines the circle. */
 struct LoopData {
+  /** The ordered vertices that defines the circle's boundary. */
   Vector<BMVert *> verts;
+  /** This is true if the path forms a closed loop, for open chains it's false. */
   bool is_closed;
 };
 
