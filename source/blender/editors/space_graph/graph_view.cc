@@ -15,6 +15,7 @@
 #include "BLI_rect.h"
 
 #include "DNA_anim_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
@@ -30,6 +31,7 @@
 #include "ED_anim_api.hh"
 #include "ED_markers.hh"
 #include "ED_screen.hh"
+#include "ED_space_graph.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -180,6 +182,155 @@ void get_graph_keyframe_extents(bAnimContext *ac,
   }
 }
 
+/**
+ * Adds padding the given view bounds based on surrounding keyframe data of selected keys.
+ */
+static void add_contextual_padding(bAnimContext &ac,
+                                   ListBaseT<bAnimListElem> &anim_data,
+                                   const bool pad_x,
+                                   const bool pad_y,
+                                   rctf &r_view_bounds)
+{
+  if (!pad_x && !pad_y) {
+    return;
+  }
+  short mapping_flag = ANIM_get_normalization_flags(ac.sl);
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
+    if (!fcu->bezt || fcu->totvert == 0) {
+      continue;
+    }
+    float offset;
+    const float unit_factor = ANIM_unit_mapping_get_factor(
+        ac.scene, ale.id, fcu, mapping_flag, &offset);
+    for (int i : IndexRange(fcu->totvert)) {
+      BezTriple *bezt = &fcu->bezt[i];
+      if (!BEZT_ISSEL_ANY(bezt)) {
+        continue;
+      }
+      const float2 key(bezt->vec[1][0], bezt->vec[1][1] * unit_factor + offset);
+      if (i - 1 >= 0) {
+        const float2 prev_key(fcu->bezt[i - 1].vec[1][0],
+                              fcu->bezt[i - 1].vec[1][1] * unit_factor + offset);
+        if (pad_x) {
+          r_view_bounds.xmin = min_ff(r_view_bounds.xmin, key.x - (key.x - prev_key.x) / 2.0);
+        }
+        if (pad_y) {
+          const float pad = abs(prev_key.y - key.y) / 2.0;
+          r_view_bounds.ymin = min_ff(r_view_bounds.ymin, key.y - pad);
+          r_view_bounds.ymax = max_ff(r_view_bounds.ymax, key.y + pad);
+        }
+      }
+      if (i + 1 < fcu->totvert) {
+        const float2 next_key(fcu->bezt[i + 1].vec[1][0],
+                              fcu->bezt[i + 1].vec[1][1] * unit_factor + offset);
+        if (pad_x) {
+          r_view_bounds.xmax = max_ff(r_view_bounds.xmax, key.x + (next_key.x - key.x) / 2.0);
+        }
+        if (pad_y) {
+          const float pad = abs(next_key.y - key.y) / 2.0;
+          /* Add to top and bottom to keep selection centered. */
+          r_view_bounds.ymin = min_ff(r_view_bounds.ymin, key.y - pad);
+          r_view_bounds.ymax = max_ff(r_view_bounds.ymax, key.y + pad);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Generate a rect for framing keyframes in the graph editor.
+ */
+static void get_graph_view_bounds(bAnimContext *ac,
+                                  rctf &view_bounds,
+                                  const bool do_sel_only,
+                                  const bool include_handles)
+{
+  Scene *scene = ac->scene;
+  ListBaseT<bAnimListElem> anim_data = ed::graph::get_editable_fcurves(*ac);
+
+  /* Check if any channels to set range with. */
+  if (!anim_data.first) {
+    /* Set default range. */
+    if (ac->scene) {
+      view_bounds.xmin = float(PSFRA);
+      view_bounds.xmax = float(PEFRA);
+    }
+    else {
+      view_bounds.xmin = -5;
+      view_bounds.xmax = 100;
+    }
+
+    view_bounds.ymin = -5;
+    view_bounds.ymax = 5;
+    return;
+  }
+
+  bool found_bounds = false;
+
+  /* Go through channels, finding max extents. */
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
+    rctf fcu_bounds;
+
+    /* Get range. */
+    if (BKE_fcurve_calc_bounds(fcu, do_sel_only, include_handles, nullptr, &fcu_bounds)) {
+      float unitFac, offset;
+      short mapping_flag = ANIM_get_normalization_flags(ac->sl);
+
+      /* Apply NLA scaling. */
+      fcu_bounds.xmin = ANIM_nla_tweakedit_remap(&ale, fcu_bounds.xmin, NLATIME_CONVERT_MAP);
+      fcu_bounds.xmax = ANIM_nla_tweakedit_remap(&ale, fcu_bounds.xmax, NLATIME_CONVERT_MAP);
+
+      /* Apply unit corrections. */
+      unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale.id, fcu, mapping_flag, &offset);
+      fcu_bounds.ymin += offset;
+      fcu_bounds.ymax += offset;
+      fcu_bounds.ymin *= unitFac;
+      fcu_bounds.ymax *= unitFac;
+      if (found_bounds) {
+        BLI_rctf_union(&view_bounds, &fcu_bounds);
+      }
+      else {
+        view_bounds = fcu_bounds;
+      }
+
+      found_bounds = true;
+    }
+  }
+
+  /* Ensure that the extents are not too extreme that view implodes. */
+  constexpr float threshold = 0.001f;
+  if (found_bounds) {
+    if (do_sel_only) {
+      /* Only adding contextual padding when looking at selected keys. When looking at all data,
+       * there is no additional information we could possibly use. */
+      add_contextual_padding(*ac,
+                             anim_data,
+                             BLI_rctf_size_x(&view_bounds) < threshold,
+                             BLI_rctf_size_y(&view_bounds) < threshold,
+                             view_bounds);
+    }
+    if (fabsf(view_bounds.xmax - view_bounds.xmin) < threshold) {
+      view_bounds.xmin -= 0.0005f;
+      view_bounds.xmax += 0.0005f;
+    }
+    if (fabsf(view_bounds.ymax - view_bounds.ymin) < threshold) {
+      view_bounds.ymin -= 0.0005f;
+      view_bounds.ymax += 0.0005f;
+    }
+  }
+  else {
+    view_bounds.xmin = float(PSFRA);
+    view_bounds.xmax = float(PEFRA);
+    view_bounds.ymin = -5;
+    view_bounds.ymax = 5;
+  }
+
+  /* Free memory. */
+  ANIM_animdata_freelist(&anim_data);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -251,13 +402,7 @@ static wmOperatorStatus graphkeys_viewall(bContext *C,
   }
 
   /* Set the horizontal range, with an extra offset so that the extreme keys will be in view. */
-  get_graph_keyframe_extents(&ac,
-                             &cur_new.xmin,
-                             &cur_new.xmax,
-                             &cur_new.ymin,
-                             &cur_new.ymax,
-                             do_sel_only,
-                             include_handles);
+  get_graph_view_bounds(&ac, cur_new, do_sel_only, include_handles);
 
   /* Give some more space at the borders. */
   cur_new = ANIM_frame_range_view2d_add_xmargin(ac.region->v2d, cur_new);
