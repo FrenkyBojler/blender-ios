@@ -7,6 +7,7 @@
  */
 
 /* Allow using deprecated functionality for .blend file I/O. */
+#include "NOD_geometry_nodes_srna.hh"
 #define DNA_DEPRECATED_ALLOW
 
 #include <cmath>
@@ -612,6 +613,92 @@ static void object_foreach_working_space_color(ID *id,
   }
 }
 
+namespace forward_compat {
+
+static void create_legacy_geometry_nodes_properties(Object &ob)
+{
+  for (ModifierData &md : ob.modifiers) {
+    if (md.type != eModifierType_Nodes) {
+      continue;
+    }
+    NodesModifierData &nmd = reinterpret_cast<NodesModifierData &>(md);
+
+    const IDProperty *system_props = nmd.modifier.system_properties;
+    if (!system_props) {
+      return;
+    }
+
+    IDProperty *old_props = bke::idprop::create_group("settings_properties").release();
+
+    const IDProperty *inputs_group = IDP_GetPropertyFromGroup(system_props, "inputs");
+    if (inputs_group && inputs_group->type == IDP_GROUP) {
+      for (IDProperty &prop_group : inputs_group->data.group) {
+        const StringRefNull identifier = prop_group.name;
+
+        const IDProperty *type_prop = IDP_GetPropertyFromGroup(&prop_group, "type");
+        if (!type_prop) {
+          continue;
+        }
+        const int type = IDP_int_get(type_prop);
+        if (type == int(nodes::GeometryNodesInputType::Layer)) {
+          if (const IDProperty *prop = IDP_GetPropertyFromGroup(&prop_group, "layer_name")) {
+            IDProperty *new_prop = IDP_CopyProperty(prop);
+            STRNCPY(new_prop->name, identifier.c_str());
+            IDP_AddToGroup(old_props, new_prop);
+          }
+        }
+        else {
+          if (const IDProperty *value = IDP_GetPropertyFromGroup(&prop_group, "value")) {
+            IDProperty *new_prop = IDP_CopyProperty(value);
+            STRNCPY(new_prop->name, identifier.c_str());
+            IDP_AddToGroup(old_props, new_prop);
+          }
+
+          const bool use_attribute = type == int(nodes::GeometryNodesInputType::Attribute);
+          IDP_AddToGroup(
+              old_props,
+              bke::idprop::create(identifier + "_use_attribute", int(use_attribute)).release());
+
+          if (const IDProperty *prop = IDP_GetPropertyFromGroup(&prop_group, "attribute_name")) {
+            IDProperty *new_attr_prop = IDP_CopyProperty(prop);
+            SNPRINTF(new_attr_prop->name, "%s_attribute_name", identifier.c_str());
+            IDP_AddToGroup(old_props, new_attr_prop);
+          }
+        }
+      }
+    }
+
+    const IDProperty *outputs_group = IDP_GetPropertyFromGroup(system_props, "outputs");
+    if (outputs_group && outputs_group->type == IDP_GROUP) {
+      for (IDProperty &prop_group : inputs_group->data.group) {
+        const StringRefNull identifier = prop_group.name;
+        if (const IDProperty *prop = IDP_GetPropertyFromGroup(&prop_group, "attribute_name")) {
+          IDProperty *new_prop = IDP_CopyProperty(prop);
+          SNPRINTF(new_prop->name, "%s_attribute_name", identifier.c_str());
+          IDP_AddToGroup(old_props, new_prop);
+        }
+      }
+    }
+
+    BLI_assert(!nmd.settings.properties);
+    nmd.settings.properties = old_props;
+  }
+}
+
+static void free_legacy_geometry_nodes_properties(Object &ob)
+{
+  for (ModifierData &md : ob.modifiers) {
+    if (md.type != eModifierType_Nodes) {
+      continue;
+    }
+    NodesModifierData &nmd = reinterpret_cast<NodesModifierData &>(md);
+    IDP_FreeProperty(nmd.settings.properties);
+    nmd.settings.properties = nullptr;
+  }
+}
+
+}  // namespace forward_compat
+
 static void object_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   Object *ob = id_cast<Object *>(id);
@@ -666,6 +753,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   }
 
   BKE_particle_system_blend_write(writer, &ob->particlesystem);
+  forward_compat::create_legacy_geometry_nodes_properties(*ob);
   BKE_modifier_blend_write(writer, &ob->id, &ob->modifiers);
   BKE_shaderfx_blend_write(writer, &ob->shader_fx);
 
@@ -684,6 +772,8 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     writer->write_struct(ob->lightprobe_cache);
     BKE_lightprobe_cache_blend_write(writer, ob->lightprobe_cache);
   }
+
+  forward_compat::free_legacy_geometry_nodes_properties(*ob);
 }
 
 static void object_blend_read_data(BlendDataReader *reader, ID *id)
