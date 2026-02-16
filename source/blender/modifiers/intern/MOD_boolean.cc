@@ -415,7 +415,7 @@ static Mesh *non_float_boolean_mesh(BooleanModifierData *bmd,
   material_remaps.append({});
 
   Vector<const char *> object_names;
-  object_names.append(ctx->object->id.name + 2);  // Skip "OB" prefix
+  object_names.append(BKE_id_name(ctx->object->id));
 
   const BooleanModifierMaterialMode material_mode = BooleanModifierMaterialMode(
       bmd->material_mode);
@@ -438,7 +438,7 @@ static Mesh *non_float_boolean_mesh(BooleanModifierData *bmd,
     BKE_mesh_wrapper_ensure_mdata(mesh_operand);
     meshes.append(mesh_operand);
     transforms.append(world_to_object * bmd->object->object_to_world());
-    object_names.append(bmd->object->id.name + 2);  // Skip "OB" prefix
+    object_names.append(BKE_id_name(bmd->object->id));
     if (material_mode == eBooleanModifierMaterialMode_Index) {
       material_remaps.append(get_material_remap_index_based(ctx->object, bmd->object));
     }
@@ -459,7 +459,7 @@ static Mesh *non_float_boolean_mesh(BooleanModifierData *bmd,
           BKE_mesh_wrapper_ensure_mdata(collection_mesh);
           meshes.append(collection_mesh);
           transforms.append(world_to_object * ob->object_to_world());
-          object_names.append(ob->id.name + 2);  // Skip "OB" prefix
+          object_names.append(BKE_id_name(ob->id));
           if (material_mode == eBooleanModifierMaterialMode_Index) {
             material_remaps.append(get_material_remap_index_based(ctx->object, ob));
           }
