@@ -42,12 +42,12 @@ def get_verts_with_face_set(mesh, attr_data, face_set):
 def get_verts_with_island_id(attr_data, island_id):
     verts = np.where(attr_data == island_id)
 
-    return list(set(verts))
+    return verts
 
 def get_verts_without_island_id(attr_data, island_id):
     verts = np.where(attr_data != island_id)
 
-    return list(set(verts))
+    return verts
 
 
 class BrushAutomaskTest(unittest.TestCase):
@@ -158,7 +158,7 @@ def main():
 
     args, remaining = parser.parse_known_args(argv)
 
-    unittest.main(argv=remaining, verbosity=2)
+    unittest.main(argv=remaining)
 
 
 if __name__ == "__main__":
