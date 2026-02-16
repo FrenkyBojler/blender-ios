@@ -44,20 +44,16 @@ struct LoopData {
  * Valid boundary edges are edges that are selected, not hidden
  * and are not interior. They lie on the boundary between a selected
  * face and an unselected face and do not lie on the mirror plane. */
-static bool is_valid_boundary_edge(BMEdge *e,
-                                   const bool check_x,
-                                   const bool check_y,
-                                   const bool check_z)
+static bool is_valid_boundary_edge(
+    BMEdge *e, const char hflag, const bool check_x, const bool check_y, const bool check_z)
 {
-  if (!BM_elem_flag_test(e, BM_ELEM_SELECT) || BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
+  if (!BM_elem_flag_test(e, hflag) || BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
     return false;
   }
 
   /* If edge has 2 selected faces, it's interior, not boundary. */
   if (e->l && e->l->radial_next != e->l) {
-    if (BM_elem_flag_test(e->l->f, BM_ELEM_SELECT) &&
-        BM_elem_flag_test(e->l->radial_next->f, BM_ELEM_SELECT))
-    {
+    if (BM_elem_flag_test(e->l->f, hflag) && BM_elem_flag_test(e->l->radial_next->f, hflag)) {
       return false;
     }
   }
@@ -90,6 +86,7 @@ static bool is_valid_boundary_edge(BMEdge *e,
  */
 static LoopData walk_boundary_loop(BMEdge *start_edge,
                                    Set<BMEdge *> &visited,
+                                   const char hflag,
                                    const bool check_x,
                                    const bool check_y,
                                    const bool check_z)
@@ -101,7 +98,7 @@ static LoopData walk_boundary_loop(BMEdge *start_edge,
     BMEdge *e_next;
     BM_ITER_ELEM (e_next, &eiter, v, BM_EDGES_OF_VERT) {
       if (e_next != exclude_e && !visited.contains(e_next)) {
-        if (is_valid_boundary_edge(e_next, check_x, check_y, check_z)) {
+        if (is_valid_boundary_edge(e_next, hflag, check_x, check_y, check_z)) {
           return e_next;
         }
       }
@@ -159,6 +156,7 @@ static LoopData walk_boundary_loop(BMEdge *start_edge,
 /* Collects all valid boundary edge loops from the current selection. */
 static void get_input_loops(BMesh *bm,
                             Vector<LoopData> &r_loops,
+                            const char hflag,
                             const bool check_x,
                             const bool check_y,
                             const bool check_z)
@@ -171,11 +169,11 @@ static void get_input_loops(BMesh *bm,
     if (visited.contains(edge)) {
       continue;
     }
-    if (!is_valid_boundary_edge(edge, check_x, check_y, check_z)) {
+    if (!is_valid_boundary_edge(edge, hflag, check_x, check_y, check_z)) {
       continue;
     }
 
-    LoopData ld = walk_boundary_loop(edge, visited, check_x, check_y, check_z);
+    LoopData ld = walk_boundary_loop(edge, visited, hflag, check_x, check_y, check_z);
     if (ld.verts.size() >= 3) {
       r_loops.append(ld);
     }
@@ -535,8 +533,12 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
   const bool lock_y = BMO_slot_bool_get(op->slots_in, "lock_y");
   const bool lock_z = BMO_slot_bool_get(op->slots_in, "lock_z");
 
+  BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
+  BMO_slot_buffer_hflag_enable(
+      bm, op->slots_in, "geom", BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
+
   Vector<LoopData> loops;
-  get_input_loops(bm, loops, mirror_x, mirror_y, mirror_z);
+  get_input_loops(bm, loops, BM_ELEM_TAG, mirror_x, mirror_y, mirror_z);
 
   /* Builds a BVH tree when flatten is disabled. Without this we would have to iterate
    * over every face in the mesh for every vertex which is too slow. */
