@@ -368,17 +368,25 @@ static bool remote_library_request_asset_download_file(const bContext &C,
     /* Absolute file paths. */
     BKE_reportf(reports,
                 RPT_ERROR,
-                "Asset '%s' references file with absolute path, which is not allowed",
+                "Asset '%s' references a file with an absolute path, which is not allowed",
                 asset_name.c_str());
     return false;
   }
-  if (dst_filepath.find("../") != StringRefNull::not_found ||
-      dst_filepath.find("..\\") != StringRefNull::not_found)
+
+  /* Check '..' entries, which can be "../" at the start of the path, or "/../" in the middle of
+   * the path. */
+  std::string path_native(dst_filepath);
+  BLI_path_slash_native(path_native.data());
+
+  static constexpr char slash_dot_dot_slash[]{SEP, '.', '.', SEP, '\0'};
+  static constexpr char const *dot_dot_slash = slash_dot_dot_slash + 1;
+
+  if (path_native.starts_with(dot_dot_slash) ||
+      path_native.find(slash_dot_dot_slash) != std::string::npos)
   {
-    /* "../" entries. */
     BKE_reportf(reports,
                 RPT_ERROR,
-                "Asset '%s' references file with '../', which is not allowed",
+                "Asset '%s' references a file with '..' in its path, which is not allowed",
                 asset_name.c_str());
     return false;
   }
