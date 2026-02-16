@@ -704,7 +704,7 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT4: {
       return estimate_max_column_width<float4>(
-          get_min_width(9 * SPREADSHEET_WIDTH_UNIT),
+          get_min_width(12 * SPREADSHEET_WIDTH_UNIT),
           fontid,
           max_sample_size,
           data_.typed<float4>(),
