@@ -169,6 +169,7 @@ def generate_monkey(backend):
     if backend == BackendType.MULTIRES:
         bpy.ops.object.subdivision_set(level=2, relative=False, ensure_modifier=True)
 
+
 def generate_stroke(context, start_percent=(0.0, 0.0), end_percent=(1.0, 1.0)):
     """
     Generate stroke for any of the paint mode operators (e.g. bpy.ops.sculpt.brush_stroke_

@@ -24,12 +24,14 @@ from modules.test_helpers import AttributeType, BackendType, get_attribute_data,
 
 args = None
 
+
 def get_verts_without_face_set(mesh, attr_data, face_set):
     faces = np.where(attr_data != face_set)
     verts_per_face = [list(mesh.polygons[int(idx)].vertices) for idx in faces[0]]
     verts = [v for face_verts in verts_per_face for v in face_verts]
 
     return list(set(verts))
+
 
 def get_verts_with_face_set(mesh, attr_data, face_set):
     faces = np.where(attr_data == face_set)
@@ -44,6 +46,7 @@ def get_verts_with_island_id(attr_data, island_id):
 
     return verts
 
+
 def get_verts_without_island_id(attr_data, island_id):
     verts = np.where(attr_data != island_id)
 
@@ -56,7 +59,11 @@ class BrushAutomaskTest(unittest.TestCase):
     """
 
     def setUp(self):
-        bpy.ops.wm.open_mainfile(filepath=str(args.testdir / "monkey_realized_island_id_and_face_set.blend"), load_ui=False)
+        bpy.ops.wm.open_mainfile(
+            filepath=str(
+                args.testdir /
+                "monkey_realized_island_id_and_face_set.blend"),
+            load_ui=False)
         bpy.ops.object.mode_set(mode="SCULPT")
         bpy.ops.ed.undo_push()
 
@@ -143,7 +150,8 @@ class BrushAutomaskTest(unittest.TestCase):
         filtered_new_data = new_data[verts_without_island_id]
 
         all_same = all([orig == new for (orig, new) in zip(filtered_initial_data, filtered_new_data)])
-        self.assertTrue(all_same, "Vertices that are not part of the inital mesh island should be unchanged")
+        self.assertTrue(all_same, "Vertices that are not part of the initial mesh island should be unchanged")
+
 
 def main():
     global args
