@@ -92,7 +92,9 @@ static void project_operatortypes() {}
 
 static void project_keymap(wmKeyConfig * /*keyconf*/) {}
 
-/* --------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
+/** \name Project Main Region
+ * \{ */
 
 static void project_main_region_init(wmWindowManager *wm, ARegion *region)
 {
@@ -113,7 +115,11 @@ static void project_main_region_draw(const bContext *C, ARegion *region)
 
 static void project_main_region_listener(const wmRegionListenerParams * /*params*/) {}
 
-/* --------------------------------------------------------- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Project Execute Region
+ * \{ */
 
 static bool project_execute_region_poll(const RegionPollParams *params)
 {
@@ -129,7 +135,11 @@ static void project_execute_region_init(wmWindowManager *wm, ARegion *region)
 
 static void project_execute_region_listener(const wmRegionListenerParams * /*params*/) {}
 
-/* --------------------------------------------------------- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Project Header Region
+ * \{ */
 
 static void project_header_region_init(wmWindowManager * /*wm*/, ARegion *region)
 {
@@ -143,7 +153,11 @@ static void project_header_region_draw(const bContext *C, ARegion *region)
 
 static void project_header_region_listener(const wmRegionListenerParams * /*params*/) {}
 
-/* --------------------------------------------------------- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Project Navigation Region
+ * \{ */
 
 static void project_navigation_region_init(wmWindowManager *wm, ARegion *region)
 {
@@ -159,7 +173,7 @@ static void project_navigation_region_draw(const bContext *C, ARegion *region)
 
 static void project_navigation_region_listener(const wmRegionListenerParams * /*params*/) {}
 
-/* --------------------------------------------------------- */
+/** \} */
 
 void ED_spacetype_project()
 {
