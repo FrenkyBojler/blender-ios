@@ -92,25 +92,26 @@ static void node_geo_exec(GeoNodeExecParams params)
   Vector<BundlePtr> bundles;
 
   attributes.foreach_attribute([&](const AttributeIter &iter) {
-    bool valid_name;
     if (filter) {
-      valid_name = iter.domain == domain &&
-                   iter.data_type == bke::custom_data_type_to_attr_type(data_type) &&
-                   iter.name[0] != '.';
-    }
-    else {
-      valid_name = iter.name[0] != '.';
+      if (iter.domain != domain) {
+        return;
+      }
+
+      if (iter.data_type != bke::custom_data_type_to_attr_type(data_type)) {
+        return;
+      }
     }
 
-    if (valid_name) {
-      BundlePtr bundle_ptr;
-      bundle_ptr = Bundle::create();
-      Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
-      bundle.add("Name", std::string(iter.name));
-      bundle.add("Data Type", static_cast<int>(iter.data_type));
-      bundle.add("Domain", static_cast<int>(iter.domain));
-      bundles.append(bundle_ptr);
+    if (iter.name[0] == '.') {
+      return;
     }
+
+    BundlePtr bundle_ptr = Bundle::create();
+    Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
+    bundle.add("Name", std::string(iter.name));
+    bundle.add("Data Type", static_cast<int>(iter.data_type));
+    bundle.add("Domain", static_cast<int>(iter.domain));
+    bundles.append(bundle_ptr);
   });
 
   if (bundles.is_empty()) {
