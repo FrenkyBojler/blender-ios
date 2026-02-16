@@ -928,9 +928,7 @@ AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
   int frameskip = strip->startofs + strip->anim_startofs;
 
   const double fps = scene->frames_per_second();
-  const Strip *parent_strip = blender::seq::lookup_meta_by_strip(scene->ed, strip);
   AUD_Sequence parent_sound = BKE_strip_get_parent_sound(strip, scene);
-  AUD_Sound add_handle = BKE_get_sound_hanlde(strip);
   double offset_time = 0.0f;
 
   if (strip->type != STRIP_TYPE_META) {
@@ -947,22 +945,17 @@ AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
   /* Store last parent sequence so it can be removed. */
   strip->runtime->last_parent_sound = parent_sound;
 
+  const Strip *parent_strip = blender::seq::lookup_meta_by_strip(scene->ed, strip);
   int parent_start = 0;
   if (parent_strip != nullptr) {
     parent_start = parent_strip->left_handle();
     /* If this strip is inside a meta, update the meta's scene_sound entry. */
-    parent_strip->runtime->scene_sound->setSound(parent_strip->runtime->meta_sound_sequence);
+    parent_strip->runtime->scene_sound->setSound(parent_sound);
   }
-  if (offset_time >= 0.0f) {
-    return AUD_SequenceEntry(parent_sound->add(add_handle,
-                                               (startframe - parent_start) / fps + offset_time,
-                                               (endframe - parent_start) / fps,
-                                               0.0f));
-  }
-  return AUD_SequenceEntry(parent_sound->add(add_handle,
+  return AUD_SequenceEntry(parent_sound->add(BKE_get_sound_hanlde(strip),
                                              (startframe - parent_start) / fps,
                                              (endframe - parent_start) / fps,
-                                             -offset_time));
+                                             -clamp_f(offset_time, 0.0f, FLT_MAX)));
 }
 
 void BKE_sound_remove_scene_sound(Scene *scene, AUD_SequenceEntry handle)
