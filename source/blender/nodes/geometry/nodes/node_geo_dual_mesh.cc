@@ -122,13 +122,17 @@ static void transfer_attributes(
   names.remove("sharp_face");
   names.remove_if([&](const StringRef id) { return attribute_filter.allow_skip(id); });
 
-  const int verts_num = vertex_types.size();
   Array<int> new_face_to_old_vert;
   const auto ensure_vert_map = [&]() {
-    new_face_to_old_vert.reinitialize(verts_num);
+    const int src_size = src_attributes.domain_size(bke::AttrDomain::Point);
+    const int dst_size = dst_attributes.domain_size(bke::AttrDomain::Face);
+    if (!new_face_to_old_vert.is_empty()) {
+      return;
+    }
+    new_face_to_old_vert.reinitialize(dst_size);
     if (keep_boundaries) {
       int out_i = 0;
-      for (const int i : IndexRange(verts_num)) {
+      for (const int i : IndexRange(src_size)) {
         if (ELEM(vertex_types[i], VertexType::Normal, VertexType::Boundary)) {
           new_face_to_old_vert[out_i] = i;
           out_i++;
@@ -137,7 +141,7 @@ static void transfer_attributes(
     }
     else {
       int out_i = 0;
-      for (const int i : IndexRange(verts_num)) {
+      for (const int i : IndexRange(src_size)) {
         if (vertex_types[i] == VertexType::Normal) {
           new_face_to_old_vert[out_i] = i;
           out_i++;
