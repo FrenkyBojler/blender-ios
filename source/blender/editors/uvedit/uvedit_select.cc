@@ -6530,9 +6530,7 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
     /* TODO: Get a tighter bounds */
   }
 
-  /* For UV_SSIM_MATERIAL we dont use a KDTree... */
-  blender::Set<const Material *> materials_set;
-  /* ... otherwise we do. */
+  blender::Set<const Material *> selected_materials;
   int tree_index = 0;
   KDTree_1d *tree_1d = kdtree_1d_new(max_faces_selected_all);
 
@@ -6569,7 +6567,7 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
       if (type == UV_SSIM_MATERIAL) {
         Material *material = (*material_array)[face->mat_nr];
         if (material != nullptr) {
-          materials_set.add(material);
+          selected_materials.add(material);
         }
       }
       else {
@@ -6627,10 +6625,7 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
       bool select = false;
       if (type == UV_SSIM_MATERIAL) {
         const Material *material = (*material_array)[face->mat_nr];
-        if (material == nullptr) {
-          continue;
-        }
-        if (materials_set.contains(material)) {
+        if (selected_materials.contains(material)) {
           select = true;
         }
       }
