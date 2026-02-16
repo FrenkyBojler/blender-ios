@@ -1288,7 +1288,6 @@ class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
         # generic...
         layout = self.layout
         if context.mode == 'EDIT_MESH':
-            layout.operator("mesh.circularize", text="To Circle")
             layout.operator("transform.shrink_fatten", text="Shrink/Fatten")
             layout.operator("transform.skin_resize")
         elif context.mode in {'EDIT_CURVE', 'EDIT_GREASE_PENCIL', 'EDIT_CURVES', 'EDIT_POINTCLOUD'}:
@@ -4623,8 +4622,6 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             col.separator()
 
-            col.separator()
-
             # Deform Operators
             col.operator("mesh.edge_rotate", text="Rotate Edge CW").use_ccw = False
             col.operator("transform.edge_slide")
@@ -4680,8 +4677,6 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             col.operator("mesh.inset")
             col.operator("mesh.poke")
-
-            col.separator()
 
             if selected_faces_len >= 2:
                 col.operator("mesh.bridge_edge_loops", text="Bridge Faces")
@@ -4866,8 +4861,6 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
 
         layout.operator("mesh.set_sharpness_by_angle")
 
-        layout.separator()
-
         if with_freestyle:
             layout.separator()
 
@@ -4948,8 +4941,6 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
 
         layout.operator("mesh.faces_shade_smooth")
         layout.operator("mesh.faces_shade_flat")
-
-        layout.separator()
 
         layout.separator()
 
