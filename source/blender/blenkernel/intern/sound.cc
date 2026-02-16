@@ -1004,12 +1004,6 @@ void BKE_sound_move_scene_sound_defaults(Scene *scene, Strip *strip)
     }
     if (strip->type == STRIP_TYPE_META) {
       offset_time += strip->startofs / scene->frames_per_second();
-      BKE_sound_move_scene_sound(scene,
-                                 strip->runtime->scene_sound,
-                                 strip->left_handle() - parent_start,
-                                 strip->right_handle(scene) - parent_start,
-                                 strip->startofs + strip->anim_startofs,
-                                 offset_time);
     }
     BKE_sound_move_scene_sound(scene,
                                strip->runtime->scene_sound,
