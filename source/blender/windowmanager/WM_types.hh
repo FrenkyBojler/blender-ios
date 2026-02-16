@@ -1441,7 +1441,7 @@ struct wmDropBox {
   void (*draw_in_view)(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2]);
 
   /* Callback to scroll the view when mouse is near edge (currently used for tree view). */
-  void (*on_hover)(bContext *C, wmDrag &drag, const int xy[2]);
+  void (*on_hover_event)(bContext *C, wmDrag &drag, const wmEvent *event);
   /** Custom data for drawing. */
   void *draw_data;
 

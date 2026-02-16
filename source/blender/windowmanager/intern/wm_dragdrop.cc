@@ -645,8 +645,8 @@ void wm_drags_handle_events(bContext *C, const wmEvent *event)
 
     if (drag.drop_state.active_dropbox) {
       any_active = true;
-      if (drag.drop_state.active_dropbox->on_hover) {
-        drag.drop_state.active_dropbox->on_hover(C, drag, event->xy);
+      if (drag.drop_state.active_dropbox->on_hover_event) {
+        drag.drop_state.active_dropbox->on_hover_event(C, drag, event);
       }
     }
   }

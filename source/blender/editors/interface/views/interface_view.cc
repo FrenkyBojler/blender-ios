@@ -232,13 +232,13 @@ AbstractView *region_view_find_at(const ARegion *region,
   return nullptr;
 }
 
-void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const int xy[2])
+void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const wmEvent *event)
 {
   Block *block = nullptr;
   ARegion *region = CTX_wm_region(C);
   wmWindow *window = CTX_wm_window(C);
   wmWindowManager *wm = CTX_wm_manager(C);
-
+  const int xy[2] = {event->xy[0], event->xy[1]};
   AbstractView *view = region_view_find_at(region, xy, UI_UNIT_Y, &block);
   if (view == nullptr) {
     return;
@@ -261,9 +261,9 @@ void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const int xy[2])
 
   std::optional<rcti> bounds = view->get_bounds();
   rcti top_bounds = *bounds;
-  top_bounds.ymin = top_bounds.ymax - (UI_UNIT_Y + 2);
+  top_bounds.ymin = top_bounds.ymax - ((UI_UNIT_Y * 2/3) + 2);
   rcti bottom_bounds = *bounds;
-  bottom_bounds.ymax = bottom_bounds.ymin + (UI_UNIT_Y + 1);
+  bottom_bounds.ymax = bottom_bounds.ymin + ((UI_UNIT_Y * 2/3) + 1);
 
   if (BLI_rcti_isect_pt(&top_bounds, mx, my)) {
     if (view->scroll(ViewScrollDirection::UP)) {
