@@ -133,7 +133,7 @@ void get_graph_keyframe_extents(bAnimContext *ac,
         /* When ymax and ymin are exactly equal, zom in less. This is to prevent
          * tedious zooming out again after (accidentally) framing a single key.
          */
-        if (ymax == ymin) {
+        if (*ymax == *ymin) {
           *ymin -= 0.05f;
           *ymax += 0.05f;
         }
