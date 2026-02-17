@@ -46,6 +46,7 @@ void ED_OT_undo_push(wmOperatorType *ot);
 void ED_OT_redo(wmOperatorType *ot);
 void ED_OT_undo_redo(wmOperatorType *ot);
 void ED_OT_undo_history(wmOperatorType *ot);
+void ED_OT_undo_clear_history(wmOperatorType *ot);
 
 /**
  * UI callbacks should call this rather than calling WM_operator_repeat() themselves.

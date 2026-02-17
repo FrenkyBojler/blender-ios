@@ -767,6 +767,37 @@ void ED_OT_undo_history(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Clear Undo History
+ * \{ */
+
+static wmOperatorStatus undo_clear_history_exec(bContext *C, wmOperator * /*op*/)
+{
+  Main *bmain = CTX_data_main(C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  UndoStack *undo_stack = wm->runtime->undo_stack;
+  if (!undo_stack) {
+    return OPERATOR_CANCELLED;
+  }
+  BKE_undosys_stack_clear(undo_stack);
+  /* Add initial undo steps. */
+  BKE_undosys_stack_init_from_main(undo_stack, bmain);
+  BKE_undosys_stack_init_from_context(undo_stack, C);
+  return OPERATOR_FINISHED;
+}
+
+void ED_OT_undo_clear_history(wmOperatorType *ot)
+{
+  ot->name = "Clear Undo History";
+  ot->description = "Delete all undo steps and free their memory";
+  ot->idname = "ED_OT_undo_clear_history";
+
+  ot->exec = undo_clear_history_exec;
+  ot->poll = ed_undo_is_init_and_screenactive_poll;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Undo Helper Functions
  * \{ */
 

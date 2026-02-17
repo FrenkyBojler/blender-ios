@@ -591,6 +591,7 @@ void ED_operatortypes_edutils()
   WM_operatortype_append(ED_OT_redo);
   WM_operatortype_append(ED_OT_undo_redo);
   WM_operatortype_append(ED_OT_undo_history);
+  WM_operatortype_append(ED_OT_undo_clear_history);
 }
 
 }  // namespace blender

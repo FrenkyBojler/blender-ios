@@ -267,6 +267,13 @@ static void undo_history_draw_menu(const bContext *C, Menu *menu)
     RNA_int_set(&op_ptr, "item", i);
     undo_step_count += 1;
   }
+
+  if (column) {
+    column->separator();
+    ui::Layout &row = column->row(false);
+    row.enabled_set(undo_step_count_all > 1);
+    row.op("ED_OT_undo_clear_history", "Clear History", ICON_TRASH);
+  }
 }
 
 static void undo_history_menu_register()
