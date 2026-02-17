@@ -6,7 +6,6 @@
  * \ingroup nodes
  */
 
-#include <cstddef>
 #include <cstring>
 
 #include "DNA_asset_types.h"
@@ -17,8 +16,6 @@
 #include "BLI_disjoint_set.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
-#include "BLI_multi_value_map.hh"
-#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_stack.hh"
 #include "BLI_string.h"
@@ -35,7 +32,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "NOD_common.hh"
-#include "NOD_composite.hh"
+#include "NOD_geometry_exec.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_node_extra_info.hh"
 #include "NOD_register.hh"
@@ -814,6 +811,12 @@ static void node_adapt_type_init(bNodeTree * /*ntree*/, bNode *node)
   node->storage = data;
 }
 
+static void node_geo_exec(nodes::GeoNodeExecParams params)
+{
+  auto input_value = params.extract_input<bke::SocketValueVariant>("Input");
+  params.set_output("Output", std::move(input_value));
+}
+
 void register_node_type_adapt_type()
 {
   /* Adapt type node is used for all tree types, needs dynamic allocation. */
@@ -829,6 +832,7 @@ void register_node_type_adapt_type()
   ntype->initfunc = node_adapt_type_init;
   node_type_storage(
       *ntype, "NodeAdaptType", node_free_standard_storage, node_copy_standard_storage);
+  ntype->geometry_node_execute = node_geo_exec;
 
   bke::node_register_type(*ntype);
 }
