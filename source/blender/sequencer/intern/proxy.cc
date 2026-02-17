@@ -262,7 +262,7 @@ ImBuf *seq_proxy_fetch(const RenderData *context, Strip *strip, int timeline_fra
 
   if (BLI_exists(filepath)) {
     /* Proxies are already be in the sequencer colorspace for fast loading, don't perform
-     * conversion of float to scene linear would usually be done. */
+     * conversion of float to scene linear that would usually be done. */
     char colorspace[IMA_MAX_SPACE];
     STRNCPY(colorspace, context->scene->sequencer_colorspace_settings.name);
     return IMB_load_image_from_filepath(
