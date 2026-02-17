@@ -2009,7 +2009,7 @@ void hash(const IDProperty &base_prop, XXH3_state_t *hash_state)
         break;
       }
       case IDP_DOUBLE: {
-        double val = IDP_double_get(prop);
+        const double val = IDP_double_get(prop);
         XXH3_64bits_update(hash_state, &val, sizeof(double));
         break;
       }
@@ -2030,7 +2030,7 @@ void hash(const IDProperty &base_prop, XXH3_state_t *hash_state)
       case IDP_ID: {
         /* NOTE: Hashing the session_uid of the ID makes the hash session-specific. An alternative
          * hash wouldn't be complete though, because data-block names aren't necessarily unique. */
-        if (ID *id = static_cast<ID *>(prop->data.pointer)) {
+        if (const ID *id = static_cast<const ID *>(prop->data.pointer)) {
           XXH3_64bits_update(hash_state, &id->session_uid, sizeof(ID::session_uid));
         }
         break;
