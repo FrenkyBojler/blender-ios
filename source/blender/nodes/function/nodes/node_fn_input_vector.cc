@@ -36,7 +36,7 @@ static int gpu_shader_vector(GPUMaterial *mat,
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
-  vector = static_cast<NodeInputVector *>(node_->storage)->vector;
+  NodeItem vector = get_output_default("Vector", NodeItem::Type::Vector3);
   return create_node("constant", NodeItem::Type::Vector3, {{"value", vector}});
 }
 #endif

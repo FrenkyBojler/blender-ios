@@ -45,8 +45,8 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
-  value = static_cast<NodeInputInt *>(node_->storage)->integer;
-  return create_node("constant", NodeItem::Type::Float, {{"value", value}});
+  NodeItem integer = get_output_default("Integer", NodeItem::Type::Integer);
+  return create_node("constant", NodeItem::Type::Integer, {{"value", integer}});
 }
 #endif
 NODE_SHADER_MATERIALX_END

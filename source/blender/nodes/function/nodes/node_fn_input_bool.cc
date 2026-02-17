@@ -45,8 +45,8 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
-  value = static_cast<NodeInputBool *>(node_->storage)->boolean;
-  return create_node("constant", NodeItem::Type::Float, {{"value", value}});
+  NodeItem boolean = get_output_default("Boolean", NodeItem::Type::Boolean);
+  return create_node("constant", NodeItem::Type::Boolean, {{"value", boolean}});
 }
 #endif
 NODE_SHADER_MATERIALX_END
