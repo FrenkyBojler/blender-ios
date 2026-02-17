@@ -20,6 +20,7 @@
 #include "BLI_stack.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_vector_set.hh"
 
 #include "BLT_translation.hh"
@@ -31,7 +32,6 @@
 
 #include "COM_node_operation.hh"
 #include "COM_result.hh"
-#include "COM_utilities.hh"
 
 #include "GPU_material.hh"
 
@@ -45,6 +45,9 @@
 #include "NOD_socket.hh"
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
+
+#include "RNA_access.hh"
+#include "RNA_enum_types.hh"
 
 #include "UI_resources.hh"
 
@@ -810,6 +813,32 @@ static void node_adapt_type_declare(nodes::NodeDeclarationBuilder &b)
       .propagate_all();
 }
 
+void node_implicit_conversion_label(const bNodeTree * /*ntree*/,
+                                    const bNode *node,
+                                    char *label,
+                                    int label_maxncpy)
+{
+  const auto &data = *static_cast<NodeImplicitConversion *>(node->storage);
+  const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(data.type_idname);
+  if (!socket_type) {
+    BLI_strncpy(label,
+                CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, node->typeinfo->ui_name.c_str()),
+                label_maxncpy);
+    return;
+  }
+
+  const char *name;
+  bool enum_label = RNA_enum_name(rna_enum_node_socket_data_type_items, socket_type->type, &name);
+  if (!enum_label) {
+    BLI_strncpy(label,
+                CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, node->typeinfo->ui_name.c_str()),
+                label_maxncpy);
+    return;
+  }
+
+  BLI_snprintf_utf8(label, label_maxncpy, "To %s", CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name));
+}
+
 static void node_implicit_conversion_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout.use_property_split_set(true);
@@ -891,6 +920,7 @@ void register_node_type_implicit_conversion()
   ntype->ui_description = "Implicitly convert the input value to a fixed socket type";
   ntype->nclass = NODE_CLASS_CONVERTER;
   ntype->declare = node_adapt_type_declare;
+  ntype->labelfunc = node_implicit_conversion_label;
   ntype->draw_buttons = node_implicit_conversion_layout;
   ntype->initfunc = node_implicit_conversion_init;
   node_type_storage(
