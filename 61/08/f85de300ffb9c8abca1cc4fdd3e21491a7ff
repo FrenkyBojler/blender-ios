@@ -1,2 +1,3 @@
 Referenced by commit e5b89cedbdc33dac92621a41cd2d3f1cfd09e76f, Fix: Nodes: add missing socket idname entries
 Referenced by issue #153053, Geometry Nodes: Viewer node crashes when connected to certain Extend sockets
+Referenced by issue #154517, Geometry Nodes: Depsgraph error after loading a String-to-Curves node
