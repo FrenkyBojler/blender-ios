@@ -949,7 +949,7 @@ AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
   return AUD_SequenceEntry(parent_sound->add(BKE_get_sound_hanlde(strip),
                                              (startframe - parent_start) / fps,
                                              (endframe - parent_start) / fps,
-                                             -clamp_f(offset_time, 0.0f, FLT_MAX)));
+                                             -fmax(offset_time, 0.0)));
 }
 
 void BKE_sound_remove_scene_sound(Scene *scene, AUD_SequenceEntry handle)
