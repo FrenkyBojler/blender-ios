@@ -78,6 +78,9 @@ static void keyframe_bounds_fallback(bAnimContext &ac, rctf &r_bounds)
  * \param only_selected if true, only selected keyframes are considered for the bounds.
  * \param include_handles if true, the handles are considered for the bounds, otherwise only the
  * key point itself.
+ *
+ * \returns true if any bounds are found. If false is returned the `r_view_bounds` have not been
+ * modified.
  */
 static bool calculate_keyframe_bounds(const ListBaseT<bAnimListElem> &anim_data,
                                       bAnimContext &ac,
