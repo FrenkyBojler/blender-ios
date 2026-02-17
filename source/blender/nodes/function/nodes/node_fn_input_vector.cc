@@ -71,6 +71,8 @@ static void node_register()
   bke::node_type_storage(
       ntype, "NodeInputVector", node_free_standard_storage, node_copy_standard_storage);
   ntype.build_multi_function = node_build_multi_function;
+  ntype.materialx_fn = node_shader_materialx;
+
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
