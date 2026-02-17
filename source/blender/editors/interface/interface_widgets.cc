@@ -2019,8 +2019,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   const uchar4 text_col = [wcol, but]() -> uchar4 {
     uchar4 col;
     copy_v4_v4_uchar(col, wcol->text);
-    col[3] *= float(wcol->text[3]) / 255.0f *
-              ((but->active || !(but->block->flag & BLOCK_MENU_DIM)) ? 1 : 0.75f);
+    col[3] *= (but->active || !(but->block->flag & BLOCK_MENU_DIM)) ? 1.0f : 0.75f;
     return col;
   }();
 #ifdef WITH_INPUT_IME
