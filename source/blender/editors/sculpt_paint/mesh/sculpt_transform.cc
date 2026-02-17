@@ -90,7 +90,7 @@ static std::array<float4x4, 8> transform_matrices_init(const Object &ob,
 {
   std::array<float4x4, 8> mats;
 
-  float3 final_pivot_pos, d_s;
+  float3 d_s;
   float d_r[4];
   float t_mat[4][4], r_mat[4][4], s_mat[4][4], pivot_mat[4][4], pivot_imat[4][4],
       transform_mat[4][4];
@@ -114,16 +114,14 @@ static std::array<float4x4, 8> transform_matrices_init(const Object &ob,
   for (int i = 0; i < PAINT_SYMM_AREAS; i++) {
     ePaintSymmetryAreas v_symm = ePaintSymmetryAreas(i);
 
-    copy_v3_v3(final_pivot_pos, ss.pivot_pos);
-    final_pivot_pos = SCULPT_flip_v3_by_symm_area(final_pivot_pos, symm, v_symm, start_pivot_pos);
+    const float3 final_pivot_pos = SCULPT_flip_v3_by_symm_area(
+        ss.pivot_pos, symm, v_symm, start_pivot_pos);
 
-    float3 start_pivot_local;
-    copy_v3_v3(start_pivot_local, start_pivot_pos);
-    start_pivot_local = SCULPT_flip_v3_by_symm_area(
-        start_pivot_local, symm, v_symm, ss.init_pivot_pos);
+    const float3 start_pivot_local = SCULPT_flip_v3_by_symm_area(
+        start_pivot_pos, symm, v_symm, ss.init_pivot_pos);
 
-    float3 final_pivot_world = math::transform_point(ob_to_world, final_pivot_pos);
-    float3 start_pivot_world = math::transform_point(ob_to_world, start_pivot_local);
+    const float3 final_pivot_world = math::transform_point(ob_to_world, final_pivot_pos);
+    const float3 start_pivot_world = math::transform_point(ob_to_world, start_pivot_local);
 
     unit_m4(pivot_mat);
 
@@ -132,8 +130,7 @@ static std::array<float4x4, 8> transform_matrices_init(const Object &ob,
     unit_m4(s_mat);
 
     /* Translation matrix. */
-    float3 d_t_world;
-    sub_v3_v3v3(d_t_world, final_pivot_world, start_pivot_world);
+    const float3 d_t_world = final_pivot_world - start_pivot_world;
     translate_m4(t_mat, d_t_world.x, d_t_world.y, d_t_world.z);
 
     /* Rotation matrix. */
