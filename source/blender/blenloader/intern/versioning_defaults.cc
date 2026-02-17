@@ -646,6 +646,23 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
         BKE_gpencil_palette_ensure(bmain, &scene);
       }
     }
+
+    /* Since !153036, the base colors for stroke & fill were getting versioned to have 0% opacity
+     * if the stroke/fill was disabled. This meant that in a new file using the following App
+     * Templates, the "Solid Stroke" material wouldn't show anything when trying to draw a fill.
+     * This sets the opacity of the fill to 50% to make sure the user can see something (and not
+     * get a warning that the fill is fully transparent). */
+    if (app_template &&
+        (STREQ(app_template, "2D_Animation") || STREQ(app_template, "Storyboarding")))
+    {
+      /* Change Solid Stroke settings. */
+      Material *ma = static_cast<Material *>(
+          BLI_findstring(&bmain->materials, "Solid Stroke", offsetof(ID, name) + 2));
+      if (ma != nullptr) {
+        /* Black at 50% opacity. */
+        copy_v4_fl4(ma->gp_style->fill_rgba, 0.0f, 0.0f, 0.0f, 0.5f);
+      }
+    }
   }
 
   /* For builtin templates only. */
