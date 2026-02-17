@@ -635,6 +635,7 @@ static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator * 
   ANIM_animdata_freelist(&anim_data);
 
   if (!changed) {
+    sipo->local_view_bits = 0;
     return OPERATOR_CANCELLED;
   }
 
