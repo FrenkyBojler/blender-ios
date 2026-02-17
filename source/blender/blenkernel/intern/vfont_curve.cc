@@ -686,7 +686,7 @@ static bool vfont_to_curve(Object *ob,
   VChar *che;
   CharTrans *chartransdata = nullptr, *ct;
   TempLineInfo *lineinfo;
-  float xtrax, linedist;
+  float linedist;
   float twidth = 0;
   int i, slen, j;
   int curbox;
@@ -825,7 +825,28 @@ static bool vfont_to_curve(Object *ob,
       MARGIN_X_MIN,
       MARGIN_Y_MIN,
   };
-  xtrax = 0.5f * cu.spacing - 0.5f;
+
+  /* `xtrax` is used to implement character "spacing".
+   * Note that this is added (when adding space), and multiplied when subtracting space.
+   *
+   * This may seem strange but is infarct quite logical for variable width fonts:
+   *
+   * - When increasing the space use **addition**:
+   *   It makes sense to add the value too keep the "gaps" between the characters even,
+   *   otherwise the space between a `W` and an `i` will have a lot of space around the
+   *   `W` and very little around the `i`.
+   * - When decreasing the space use **multiply**:
+   *   It makes sense because subtracting space may have little impact on a wide character,
+   *   where as for narrow characters, they may overlap completely, or - even move to a
+   *   point before the previous character.
+   *
+   * Other notes:
+   *
+   * - Use the #XTRAX_WITH_CHAR_WIDTH macro to enforce this logic.
+   * - See #154340, for an example of how `cu.spacing` below 1 can cause problems.
+   * */
+  const float xtrax = (cu.spacing < 1.0f) ? (cu.spacing - 1.0f) : (0.5f * cu.spacing - 0.5f);
+#define XTRAX_WITH_CHAR_WIDTH(twidth) ((xtrax < 1.0f) ? (xtrax * (twidth)) : xtrax)
 
   TextBoxBounds_ForCursor *tb_bounds_for_cursor = nullptr;
   if (cursor_params != nullptr) {
@@ -958,7 +979,7 @@ static bool vfont_to_curve(Object *ob,
 
       offset.y -= linedist;
 
-      lineinfo[lnr].x_min = (offset.x - xtrax) - tb_scale.x;
+      lineinfo[lnr].x_min = (offset.x - XTRAX_WITH_CHAR_WIDTH(twidth)) - tb_scale.x;
       lineinfo[lnr].x_max = tb_scale.w;
       lineinfo[lnr].char_nr = cnr;
       lineinfo[lnr].wspace_nr = wsnr;
@@ -1032,10 +1053,10 @@ static bool vfont_to_curve(Object *ob,
         wsfac = 1.0f;
       }
 
-      /* Set the width of the character. */
-      twidth = vfont_char_width(cu, che, ct->is_smallcaps);
+      /* Won't have been changed since last assignment, ensure this remains the case. */
+      BLI_assert(twidth == vfont_char_width(cu, che, ct->is_smallcaps));
 
-      offset.x += (twidth * wsfac * (1.0f + (info->kern / 40.0f))) + xtrax;
+      offset.x += (twidth * wsfac * (1.0f + (info->kern / 40.0f))) + XTRAX_WITH_CHAR_WIDTH(twidth);
 
       if (sb) {
         sb->w = (offset.x * font_size) - sb->w;
@@ -1549,15 +1570,15 @@ static bool vfont_to_curve(Object *ob,
           float ulwidth, uloverlap = 0.0f;
           rctf rect;
 
+          twidth = vfont_char_width(cu, che, ct->is_smallcaps);
+
           BLI_assert(&ct[1] == &chartransdata[i + 1]);
           if ((i < (slen - 1)) && (mem[i + 1] != '\n') &&
               ((mem[i + 1] != ' ') || (custrinfo[i + 1].flag & CU_CHINFO_UNDERLINE)) &&
               ((ct[1].is_wrap) == 0))
           {
-            uloverlap = xtrax;
+            uloverlap = XTRAX_WITH_CHAR_WIDTH(twidth);
           }
-
-          twidth = vfont_char_width(cu, che, ct->is_smallcaps);
           ulwidth = (twidth * (1.0f + (info->kern / 40.0f))) + uloverlap;
 
           rect.xmin = ct->offset.x;
