@@ -292,6 +292,10 @@ static PyObject *bpy_prop_deferred_keywords_get(BPy_PropDeferred *self, void * /
   return ret;
 }
 
+/**
+ * While these should be private, historically they didn't use an underscore prefix.
+ * Keep them as-as some scripts use (`rigify` at least).
+ */
 static PyGetSetDef bpy_prop_deferred_getset[] = {
     {"function",
      reinterpret_cast<getter>(bpy_prop_deferred_function_get),
@@ -3417,7 +3421,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "      This function must take 2 values (self, context) and return None.\n" \
   "      *Warning* there are no safety checks to avoid infinite recursion.\n" \
   "   :type update: Callable[[:class:`bpy.types.bpy_struct`, :class:`bpy.types.Context`], " \
-  "None]\n"
+  "None] | None\n"
 
 #define BPY_PROPDEF_POLL_DOC \
   "   :param poll: Function that determines whether an item is valid for this property.\n" \
@@ -3427,7 +3431,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "but it is still possible to assign an \"invalid\" item to the property directly.\n" \
   "\n" \
   "   :type poll: Callable[[:class:`bpy.types.bpy_struct`, :class:`bpy.types.ID`], " \
-  "bool]\n"
+  "bool] | None\n"
 
 #define BPY_PROPDEF_GET_DOC(ty) \
   "   :param get: Function to be called when this value is 'read', and the default,\n" \
@@ -3437,7 +3441,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "      .. note:: Defining this callback without a matching ``set`` one will make " \
   "the property read-only (even if ``READ_ONLY`` option is not set)." \
   "\n" \
-  "   :type get: Callable[[:class:`bpy.types.bpy_struct`], " ty "]\n"
+  "   :type get: Callable[[:class:`bpy.types.bpy_struct`], " ty "] | None\n"
 
 #define BPY_PROPDEF_SET_DOC(ty) \
   "   :param set: Function to be called when this value is 'written', and the default,\n" \
@@ -3446,7 +3450,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "\n" \
   "      .. note:: Defining this callback without a matching ``get`` one is invalid." \
   "\n" \
-  "   :type set: Callable[[:class:`bpy.types.bpy_struct`, " ty "], None]\n"
+  "   :type set: Callable[[:class:`bpy.types.bpy_struct`, " ty "], None] | None\n"
 
 #define BPY_PROPDEF_GET_TRANSFORM_DOC(ty) \
   "   :param get_transform: Function to be called when this value is 'read',\n" \
@@ -3458,7 +3462,8 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "      .. note:: The callback is responsible to ensure that value limits of the property " \
   "(min/max, length...) are respected. Otherwise a ValueError exception is raised.\n" \
   "\n" \
-  "   :type get_transform: Callable[[:class:`bpy.types.bpy_struct`, " ty ", bool], " ty "]\n"
+  "   :type get_transform: Callable[[:class:`bpy.types.bpy_struct`, " ty ", bool], " ty \
+  "] | None\n"
 
 #define BPY_PROPDEF_SET_TRANSFORM_DOC(ty) \
   "   :param set_transform: Function to be called when this value is 'written',\n" \
@@ -3473,7 +3478,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "length...) are respected. Otherwise a ValueError exception is raised.\n" \
   "\n" \
   "   :type set_transform: " \
-  "Callable[[:class:`bpy.types.bpy_struct`, " ty ", " ty ", bool], " ty "]\n"
+  "Callable[[:class:`bpy.types.bpy_struct`, " ty ", " ty ", bool], " ty "] | None\n"
 
 #define BPY_PROPDEF_SEARCH_DOC \
   "   :param search: Function to be called to show candidates " \
@@ -3486,7 +3491,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "        is additional information about the candidate.\n" \
   "   :type search: Callable[[:class:`bpy.types.bpy_struct`, :class:`bpy.types.Context`, str], " \
   "Iterable[str | tuple[str, str]]" \
-  "]\n" \
+  "] | None\n" \
   "   :param search_options: Set of strings in:\n" \
   "\n" \
   "      - 'SORT' sorts the resulting items.\n" \
@@ -3507,6 +3512,10 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
 #define BPY_PROPDEF_TAGS_DOC \
   "   :param tags: Enumerator of tags that are defined by parent class.\n" \
   "   :type tags: set[str]\n"
+
+#define BPY_PROPDEF_RETURN_DOC \
+  "   :return: Opaque type used for registration.\n" \
+  "   :rtype: :class:`_PropertyDeferred`\n"
 
 #if 0
 static int bpy_struct_id_used(StructRNA *srna, char *identifier)
@@ -3565,6 +3574,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_SET_DOC("bool")
     BPY_PROPDEF_GET_TRANSFORM_DOC("bool")
     BPY_PROPDEF_SET_TRANSFORM_DOC("bool")
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -3756,6 +3766,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_SET_DOC("tuple[bool, ...]")
     BPY_PROPDEF_GET_TRANSFORM_DOC("Sequence[bool]")
     BPY_PROPDEF_SET_TRANSFORM_DOC("Sequence[bool]")
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -3979,6 +3990,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_SET_DOC("int")
     BPY_PROPDEF_GET_TRANSFORM_DOC("int")
     BPY_PROPDEF_SET_TRANSFORM_DOC("int")
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_IntProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -4176,6 +4188,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_SET_DOC("tuple[int, ...]")
     BPY_PROPDEF_GET_TRANSFORM_DOC("Sequence[int]")
     BPY_PROPDEF_SET_TRANSFORM_DOC("Sequence[int]")
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_IntVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -4407,6 +4420,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_SET_DOC("float")
     BPY_PROPDEF_GET_TRANSFORM_DOC("float")
     BPY_PROPDEF_SET_TRANSFORM_DOC("float")
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -4620,6 +4634,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_SET_DOC("tuple[float, ...]")
     BPY_PROPDEF_GET_TRANSFORM_DOC("Sequence[float]")
     BPY_PROPDEF_SET_TRANSFORM_DOC("Sequence[float]")
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -4862,6 +4877,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_GET_TRANSFORM_DOC("str")
     BPY_PROPDEF_SET_TRANSFORM_DOC("str")
     BPY_PROPDEF_SEARCH_DOC
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -5116,7 +5132,7 @@ PyDoc_STRVAR(
     "instead.\n"
     "      WARNING: Strings cannot be specified for dynamic enums\n"
     "      (i.e. if a callback function is given as *items* parameter).\n"
-    "   :type default: str | int | set[str]\n"
+    "   :type default: str | int | set[str] | None\n"
     BPY_PROPDEF_OPTIONS_ENUM_DOC
     BPY_PROPDEF_OPTIONS_OVERRIDE_DOC
     BPY_PROPDEF_TAGS_DOC
@@ -5125,6 +5141,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_SET_DOC("int")
     BPY_PROPDEF_GET_TRANSFORM_DOC("int")
     BPY_PROPDEF_SET_TRANSFORM_DOC("int")
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -5389,6 +5406,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_TAGS_DOC
     BPY_PROPDEF_POLL_DOC
     BPY_PROPDEF_UPDATE_DOC
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
     "\n"
     ".. note:: Pointer properties do not support storing references to embedded IDs "
@@ -5552,6 +5570,7 @@ PyDoc_STRVAR(
     BPY_PROPDEF_OPTIONS_DOC
     BPY_PROPDEF_OPTIONS_OVERRIDE_COLLECTION_DOC
     BPY_PROPDEF_TAGS_DOC
+    BPY_PROPDEF_RETURN_DOC
     /* clang-format on */
 );
 PyObject *BPy_CollectionProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -5679,7 +5698,7 @@ PyDoc_STRVAR(
     "   Removes a dynamically defined property.\n"
     "\n"
     "   :param cls: The class containing the property (must be a positional argument).\n"
-    "   :type cls: type\n"
+    "   :type cls: type[:class:`bpy.types.bpy_struct`]\n"
     "   :param attr: Property name (must be passed as a keyword).\n"
     "   :type attr: str\n"
     "\n"

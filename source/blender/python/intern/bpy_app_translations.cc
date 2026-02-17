@@ -310,7 +310,7 @@ PyDoc_STRVAR(
     "   :type module_name: str\n"
     "   :param translations_dict: A dictionary built like that:\n"
     "      ``{locale: {msg_key: msg_translation, ...}, ...}``\n"
-    "   :type translations_dict: dict[str, dict[str, str]]\n"
+    "   :type translations_dict: dict[str, dict[tuple[str, str], str]]\n"
     "\n");
 static PyObject *app_translations_py_messages_register(BlenderAppTranslations *self,
                                                        PyObject *args,
@@ -599,7 +599,8 @@ PyDoc_STRVAR(
     "   .. note::\n"
     "      You should really rarely need to use this function in regular addon code, as all "
     "translation should be\n"
-    "      handled by Blender internal code. The only exception are string containing formatting "
+    "      handled by Blender internal code. "
+    "The only exceptions are strings containing formatting "
     "(like \"File: %r\"),\n"
     "      but you should rather use :func:`pgettext_iface`/:func:`pgettext_tip` in those cases!\n"
     "\n"

@@ -143,6 +143,18 @@ PyDoc_STRVAR(
     "UV selected state of this element.\n"
     "\n"
     ":type: bool\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_bm_elem_uv_select_vert_doc,
+    "UV vertex selected state of this loop.\n"
+    "\n"
+    ":type: bool\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_bm_elem_uv_select_edge_doc,
+    "UV edge selected state of this loop.\n"
+    "\n"
+    ":type: bool\n");
 
 static PyObject *bpy_bm_elem_hflag_get(BPy_BMElem *self, void *flag)
 {
@@ -186,7 +198,7 @@ PyDoc_STRVAR(
     "\n"
     "   It's also possible to assign any number to this attribute for a scripts internal logic.\n"
     "\n"
-    "   To ensure the value is up to date - see :class:`bmesh.types.BMElemSeq.index_update`.\n");
+    "   To ensure the value is up to date - see :meth:`bmesh.types.BMElemSeq.index_update`.\n");
 static PyObject *bpy_bm_elem_index_get(BPy_BMElem *self, void * /*flag*/)
 {
   BPY_BM_CHECK_OBJ(self);
@@ -279,65 +291,64 @@ PyDoc_STRVAR(
     bpy_bmvert_link_edges_doc,
     "Edges connected to this vertex (read-only).\n"
     "\n"
-    ":type: :class:`bmesh.types.BMElemSeq` of :class:`bmesh.types.BMEdge`\n");
+    ":type: :class:`bmesh.types.BMElemSeq`\\ [:class:`bmesh.types.BMEdge`]\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmvert_link_faces_doc,
     "Faces connected to this vertex (read-only).\n"
     "\n"
-    ":type: :class:`bmesh.types.BMElemSeq` of :class:`bmesh.types.BMFace`\n");
+    ":type: :class:`bmesh.types.BMElemSeq`\\ [:class:`bmesh.types.BMFace`]\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmvert_link_loops_doc,
     "Loops that use this vertex (read-only).\n"
     "\n"
-    ":type: :class:`bmesh.types.BMElemSeq` of :class:`bmesh.types.BMLoop`\n");
+    ":type: :class:`bmesh.types.BMElemSeq`\\ [:class:`bmesh.types.BMLoop`]\n");
 /* edge */
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmedge_verts_doc,
     "Verts this edge uses (always 2), (read-only).\n"
     "\n"
-    ":type: :class:`bmesh.types.BMElemSeq` of "
-    ":class:`bmesh.types.BMVert`\n");
+    ":type: :class:`bmesh.types.BMElemSeq`\\ [:class:`bmesh.types.BMVert`]\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmedge_link_faces_doc,
     "Faces connected to this edge, (read-only).\n"
     "\n"
-    ":type: :class:`bmesh.types.BMElemSeq` of :class:`bmesh.types.BMFace`\n");
+    ":type: :class:`bmesh.types.BMElemSeq`\\ [:class:`bmesh.types.BMFace`]\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmedge_link_loops_doc,
     "Loops connected to this edge, (read-only).\n"
     "\n"
-    ":type: :class:`bmesh.types.BMElemSeq` of :class:`bmesh.types.BMLoop`\n");
+    ":type: :class:`bmesh.types.BMElemSeq`\\ [:class:`bmesh.types.BMLoop`]\n");
 /* face */
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmface_verts_doc,
     "Verts of this face, (read-only).\n"
     "\n"
-    ":type: :class:`bmesh.types.BMElemSeq` of :class:`bmesh.types.BMVert`\n");
+    ":type: :class:`bmesh.types.BMElemSeq`\\ [:class:`bmesh.types.BMVert`]\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmface_edges_doc,
     "Edges of this face, (read-only).\n"
     "\n"
-    ":type: :class:`bmesh.types.BMElemSeq` of :class:`bmesh.types.BMEdge`\n");
+    ":type: :class:`bmesh.types.BMElemSeq`\\ [:class:`bmesh.types.BMEdge`]\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmface_loops_doc,
     "Loops of this face, (read-only).\n"
     "\n"
-    ":type: :class:`bmesh.types.BMElemSeq` of :class:`bmesh.types.BMLoop`\n");
+    ":type: :class:`bmesh.types.BMElemSeq`\\ [:class:`bmesh.types.BMLoop`]\n");
 /* loop */
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmloops_link_loops_doc,
     "Loops connected to this loop, (read-only).\n"
     "\n"
-    ":type: :class:`bmesh.types.BMElemSeq` of :class:`bmesh.types.BMLoop`\n");
+    ":type: :class:`bmesh.types.BMElemSeq`\\ [:class:`bmesh.types.BMLoop`]\n");
 
 static PyObject *bpy_bmelemseq_elem_get(BPy_BMElem *self, void *itype)
 {
@@ -348,7 +359,7 @@ static PyObject *bpy_bmelemseq_elem_get(BPy_BMElem *self, void *itype)
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bm_is_valid_doc,
-    "True when this element is valid (hasn't been removed).\n"
+    "True when this element is valid (hasn't been freed or removed).\n"
     "\n"
     ":type: bool\n");
 static PyObject *bpy_bm_is_valid_get(BPy_BMGeneric *self, void * /*closure*/)
@@ -689,7 +700,7 @@ static PyObject *bpy_bmloop_edge_get(BPy_BMLoop *self, void * /*closure*/)
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmloop_face_doc,
-    "The face this loop makes (read-only).\n"
+    "The face this loop belongs to (read-only).\n"
     "\n"
     ":type: :class:`bmesh.types.BMFace`\n");
 static PyObject *bpy_bmloop_face_get(BPy_BMLoop *self, void * /*closure*/)
@@ -1150,12 +1161,12 @@ static PyGetSetDef bpy_bmloop_getseters[] = {
     {"uv_select_vert",
      reinterpret_cast<getter>(bpy_bm_elem_hflag_get),
      reinterpret_cast<setter>(bpy_bm_elem_hflag_set),
-     bpy_bm_elem_uv_select_doc,
+     bpy_bm_elem_uv_select_vert_doc,
      reinterpret_cast<void *>(BM_ELEM_SELECT_UV)},
     {"uv_select_edge",
      reinterpret_cast<getter>(bpy_bm_elem_hflag_get),
      reinterpret_cast<setter>(bpy_bm_elem_hflag_set),
-     bpy_bm_elem_uv_select_doc,
+     bpy_bm_elem_uv_select_edge_doc,
      reinterpret_cast<void *>(BM_ELEM_SELECT_UV_EDGE)},
     {"index",
      reinterpret_cast<getter>(bpy_bm_elem_index_get),
@@ -1571,7 +1582,7 @@ PyDoc_STRVAR(
     ".. method:: select_flush_mode(*, flush_down=False)\n"
     "\n"
     "   Flush selection based on the current mode "
-    ":class:`bmesh.types.BMesh.select_mode`.\n"
+    ":attr:`bmesh.types.BMesh.select_mode`.\n"
     "\n"
     "   :param flush_down: Flush selection down from faces to edges & verts "
     "or from edges to verts. "
@@ -1640,7 +1651,7 @@ PyDoc_STRVAR(
     bpy_bmesh_uv_select_flush_mode_doc,
     ".. method:: uv_select_flush_mode(*, flush_down=False)\n"
     "\n"
-    "   Flush selection based on the current mode :class:`bmesh.types.BMesh.select_mode`.\n"
+    "   Flush UV selection based on the current mode :attr:`bmesh.types.BMesh.select_mode`.\n"
     "\n"
     "   :param flush_down: Flush selection down from faces to edges & verts "
     "or from edges to verts. "
@@ -2147,25 +2158,27 @@ PyDoc_STRVAR(
     "   :param matrix: 4x4 transform matrix.\n"
     "   :type matrix: :class:`mathutils.Matrix`\n"
     "   :param filter: Flag to filter vertices.\n"
-    "   :type filter: set[Literal[" BPY_BM_HFLAG_ALL_STR "]]\n");
+    "   :type filter: set[Literal[" BPY_BM_HFLAG_ALL_STR "]] | None\n");
 static PyObject *bpy_bmesh_transform(BPy_BMElem *self, PyObject *args, PyObject *kw)
 {
-  static const char *kwlist[] = {"matrix", "filter", nullptr};
-
   MatrixObject *mat;
   PyObject *filter = nullptr;
+  PyC_TypeOrNone filter_or_none = {&PySet_Type, &filter};
   int filter_flags = 0;
 
   BPY_BM_CHECK_OBJ(self);
 
-  if (!PyArg_ParseTupleAndKeywords(args,
-                                   kw,
-                                   "O!|$O!:transform",
-                                   const_cast<char **>(kwlist),
-                                   &matrix_Type,
-                                   &mat,
-                                   &PySet_Type,
-                                   &filter))
+  static const char *_keywords[] = {"matrix", "filter", nullptr};
+  static _PyArg_Parser _parser = {
+      "O!" /* `matrix` */
+      "|$" /* Optional keyword only arguments. */
+      "O&" /* `filter` */
+      ":transform",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(
+          args, kw, &_parser, &matrix_Type, &mat, PyC_ParseTypeOrNone, &filter_or_none))
   {
     return nullptr;
   }
@@ -2284,10 +2297,9 @@ PyDoc_STRVAR(
     "\n"
     "   .. note::\n"
     "\n"
-    "      This only flushes down, so selecting a face will select all its "
-    "vertices but de-selecting a vertex "
-    "won't de-select all the faces that use it, before finishing with a mesh "
-    "typically flushing is still needed.\n");
+    "      This flushes selection down (e.g. selecting a face also selects its edges and "
+    "vertices), but not up (e.g. de-selecting a vertex won't de-select faces that use it). "
+    "Before finishing with a mesh, flushing is typically still needed.\n");
 static PyObject *bpy_bm_elem_select_set(BPy_BMElem *self, PyObject *value)
 {
   int param;
@@ -2336,9 +2348,8 @@ PyDoc_STRVAR(
     "\n"
     "   Copy values from another element of matching type.\n"
     "\n"
-    "   :param other: Another element of matching type to copy from.\n"
-    "   :type other: :class:`bmesh.types.BMVert` | :class:`bmesh.types.BMEdge` | "
-    ":class:`bmesh.types.BMFace` | :class:`bmesh.types.BMLoop`\n");
+    "   :param other: Another element of the same type to copy from.\n"
+    "   :type other: Self\n");
 static PyObject *bpy_bm_elem_copy_from(BPy_BMElem *self, BPy_BMElem *value)
 {
   BPY_BM_CHECK_OBJ(self);
@@ -2554,6 +2565,8 @@ PyDoc_STRVAR(
     bpy_bmedge_calc_length_doc,
     ".. method:: calc_length()\n"
     "\n"
+    "   Return the length of the edge.\n"
+    "\n"
     "   :return: The length between both verts.\n"
     "   :rtype: float\n");
 static PyObject *bpy_bmedge_calc_length(BPy_BMEdge *self)
@@ -2566,6 +2579,8 @@ PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmedge_calc_face_angle_doc,
     ".. method:: calc_face_angle(fallback=None)\n"
+    "\n"
+    "   Return the angle between this edge's two connected faces.\n"
     "\n"
     "   :param fallback: return this when the edge doesn't have 2 faces\n"
     "      (instead of raising a :exc:`ValueError`).\n"
@@ -2606,6 +2621,8 @@ PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmedge_calc_face_angle_signed_doc,
     ".. method:: calc_face_angle_signed(fallback=None)\n"
+    "\n"
+    "   Return the signed angle between this edge's two connected faces.\n"
     "\n"
     "   :param fallback: return this when the edge doesn't have 2 faces\n"
     "      (instead of raising a :exc:`ValueError`).\n"
@@ -2679,7 +2696,7 @@ PyDoc_STRVAR(
     "\n"
     "   :param vert: a vert in this edge.\n"
     "   :type vert: :class:`bmesh.types.BMVert`\n"
-    "   :return: The edges other vert.\n"
+    "   :return: The edge's other vert.\n"
     "   :rtype: :class:`bmesh.types.BMVert` | None\n");
 static PyObject *bpy_bmedge_other_vert(BPy_BMEdge *self, BPy_BMVert *value)
 {
@@ -2818,17 +2835,16 @@ PyDoc_STRVAR(
     bpy_bmface_uv_select_set_doc,
     ".. method:: uv_select_set(select)\n"
     "\n"
-    "   Select the face.\n"
+    "   Set the UV face selection state.\n"
     "\n"
     "   :param select: Select or de-select.\n"
     "   :type select: bool\n"
     "\n"
     "   .. note::\n"
     "\n"
-    "      Currently this only flushes down, so selecting a face will select all its "
-    "vertices but de-selecting a vertex "
-    "won't de-select all the faces that use it, before finishing with a mesh "
-    "typically flushing is still needed.\n");
+    "      This flushes selection down (selecting a face also selects its edges and "
+    "vertices), but not up. Before finishing with a mesh, "
+    "flushing with :meth:`bmesh.types.BMesh.uv_select_flush_mode` is still needed.\n");
 static PyObject *bpy_bmface_uv_select_set(BPy_BMFace *self, PyObject *value)
 {
   BMesh *bm = self->bm;
@@ -2848,7 +2864,7 @@ PyDoc_STRVAR(
     "\n"
     "   Return the area of the face.\n"
     "\n"
-    "   :return: Return the area of the face.\n"
+    "   :return: The area of the face.\n"
     "   :rtype: float\n");
 static PyObject *bpy_bmface_calc_area(BPy_BMFace *self)
 {
@@ -2863,7 +2879,7 @@ PyDoc_STRVAR(
     "\n"
     "   Return the perimeter of the face.\n"
     "\n"
-    "   :return: Return the perimeter of the face.\n"
+    "   :return: The perimeter of the face.\n"
     "   :rtype: float\n");
 static PyObject *bpy_bmface_calc_perimeter(BPy_BMFace *self)
 {
@@ -3040,14 +3056,14 @@ PyDoc_STRVAR(
     bpy_bmloop_copy_from_face_interp_doc,
     ".. method:: copy_from_face_interp(face, vert=True, multires=True)\n"
     "\n"
-    "   Interpolate the customdata from a face onto this loop (the loops vert should "
+    "   Interpolate the customdata from a face onto this loop (the loop's vert should "
     "overlap the face).\n"
     "\n"
     "   :param face: The face to interpolate data from.\n"
     "   :type face: :class:`bmesh.types.BMFace`\n"
-    "   :param vert: When enabled, interpolate the loops vertex data (optional).\n"
+    "   :param vert: When enabled, interpolate the loop's vertex data (optional).\n"
     "   :type vert: bool\n"
-    "   :param multires: When enabled, interpolate the loops multires data (optional).\n"
+    "   :param multires: When enabled, interpolate the loop's multires data (optional).\n"
     "   :type multires: bool\n");
 static PyObject *bpy_bmloop_copy_from_face_interp(BPy_BMLoop *self, PyObject *args)
 {
@@ -3084,17 +3100,16 @@ PyDoc_STRVAR(
     bpy_bmloop_uv_select_vert_set_doc,
     ".. method:: uv_select_vert_set(select)\n"
     "\n"
-    "   Select the UV vertex.\n"
+    "   Set the UV vertex selection state.\n"
     "\n"
     "   :param select: Select or de-select.\n"
     "   :type select: bool\n"
     "\n"
     "   .. note::\n"
     "\n"
-    "      Currently this only flushes down, so selecting an edge will select all its "
-    "vertices but de-selecting a vertex "
-    "won't de-select the edges & faces that use it, before finishing with a mesh "
-    "typically flushing with :class:`bmesh.types.BMesh.uv_select_flush_mode` is still needed.\n");
+    "      This does not flush selection, so selecting a vertex won't "
+    "select the edges & faces that use it. Before finishing with a mesh, "
+    "flushing with :meth:`bmesh.types.BMesh.uv_select_flush_mode` is still needed.\n");
 static PyObject *bpy_bmloop_uv_select_vert_set(BPy_BMLoop *self, PyObject *value)
 {
   BMesh *bm = self->bm;
@@ -3122,10 +3137,10 @@ PyDoc_STRVAR(
     "\n"
     "   .. note::\n"
     "\n"
-    "      This only flushes down, so selecting an edge will select all its "
-    "vertices but de-selecting a vertex "
-    "won't de-select the faces that use it, before finishing with a mesh "
-    "typically flushing with :class:`bmesh.types.BMesh.uv_select_flush_mode` is still needed.\n");
+    "      This flushes selection down (selecting an edge also selects its "
+    "vertices), but not up (de-selecting a vertex won't de-select the edges & faces "
+    "that use it). Before finishing with a mesh, "
+    "flushing with :meth:`bmesh.types.BMesh.uv_select_flush_mode` is still needed.\n");
 static PyObject *bpy_bmloop_uv_select_edge_set(BPy_BMLoop *self, PyObject *value)
 {
   BMesh *bm = self->bm;
@@ -3195,24 +3210,36 @@ static PyObject *bpy_bmloop_calc_tangent(BPy_BMLoop *self)
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmvertseq_new_doc,
-    ".. method:: new(co=(0.0, 0.0, 0.0), example=None)\n"
+    ".. method:: new(co=(0.0, 0.0, 0.0), source=None)\n"
     "\n"
     "   Create a new vertex.\n"
     "\n"
     "   :param co: The initial location of the vertex (optional argument).\n"
-    "   :type co: float triplet\n"
-    "   :param example: Existing vert to initialize settings.\n"
-    "   :type example: :class:`bmesh.types.BMVert`\n"
+    "   :type co: tuple[float, float, float] | Sequence[float]\n"
+    "   :param source: Existing vert to initialize settings.\n"
+    "   :type source: :class:`bmesh.types.BMVert` | None\n"
     "   :return: The newly created vertex.\n"
     "   :rtype: :class:`bmesh.types.BMVert`\n");
-static PyObject *bpy_bmvertseq_new(BPy_BMElemSeq *self, PyObject *args)
+static PyObject *bpy_bmvertseq_new(BPy_BMElemSeq *self, PyObject *args, PyObject *kw)
 {
   PyObject *py_co = nullptr;
-  BPy_BMVert *py_vert_example = nullptr; /* optional */
+  BPy_BMVert *py_vert_source = nullptr; /* optional */
+  PyC_TypeOrNone py_vert_source_or_none = PyC_TYPE_OR_NONE_INIT(&BPy_BMVert_Type, &py_vert_source);
 
   BPY_BM_CHECK_OBJ(self);
 
-  if (!PyArg_ParseTuple(args, "|OO!:verts.new", &py_co, &BPy_BMVert_Type, &py_vert_example)) {
+  static const char *_keywords[] = {"", "source", nullptr};
+  static _PyArg_Parser _parser = {
+      "|"  /* Optional arguments. */
+      "O"  /* `co` */
+      "O&" /* `source` */
+      ":verts.new",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(
+          args, kw, &_parser, &py_co, PyC_ParseTypeOrNone, &py_vert_source_or_none))
+  {
     return nullptr;
   }
 
@@ -3220,8 +3247,8 @@ static PyObject *bpy_bmvertseq_new(BPy_BMElemSeq *self, PyObject *args)
   BMVert *v;
   float co[3] = {0.0f, 0.0f, 0.0f};
 
-  if (py_vert_example) {
-    BPY_BM_CHECK_OBJ(py_vert_example);
+  if (py_vert_source) {
+    BPY_BM_CHECK_OBJ(py_vert_source);
   }
 
   if (py_co && mathutils_array_parse(co, 3, 3, py_co, "verts.new(co)") == -1) {
@@ -3236,14 +3263,14 @@ static PyObject *bpy_bmvertseq_new(BPy_BMElemSeq *self, PyObject *args)
     return nullptr;
   }
 
-  if (py_vert_example) {
-    if (py_vert_example->bm == bm) {
-      BM_elem_attrs_copy(bm, py_vert_example->v, v);
+  if (py_vert_source) {
+    if (py_vert_source->bm == bm) {
+      BM_elem_attrs_copy(bm, py_vert_source->v, v);
     }
     else {
       const BMCustomDataCopyMap cd_vert_map = CustomData_bmesh_copy_map_calc(
-          py_vert_example->bm->vdata, bm->vdata);
-      BM_elem_attrs_copy(bm, cd_vert_map, py_vert_example->v, v);
+          py_vert_source->bm->vdata, bm->vdata);
+      BM_elem_attrs_copy(bm, cd_vert_map, py_vert_source->v, v);
     }
   }
 
@@ -3255,25 +3282,37 @@ static PyObject *bpy_bmvertseq_new(BPy_BMElemSeq *self, PyObject *args)
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmedgeseq_new_doc,
-    ".. method:: new(verts, example=None)\n"
+    ".. method:: new(verts, source=None)\n"
     "\n"
     "   Create a new edge from a given pair of verts.\n"
     "\n"
     "   :param verts: Vertex pair.\n"
     "   :type verts: Sequence[:class:`bmesh.types.BMVert`]\n"
-    "   :param example: Existing edge to initialize settings (optional argument).\n"
-    "   :type example: :class:`bmesh.types.BMEdge`\n"
+    "   :param source: Existing edge to initialize settings (optional argument).\n"
+    "   :type source: :class:`bmesh.types.BMEdge` | None\n"
     "   :return: The newly created edge.\n"
     "   :rtype: :class:`bmesh.types.BMEdge`\n");
-static PyObject *bpy_bmedgeseq_new(BPy_BMElemSeq *self, PyObject *args)
+static PyObject *bpy_bmedgeseq_new(BPy_BMElemSeq *self, PyObject *args, PyObject *kw)
 {
   const char *error_prefix = "edges.new(...)";
   PyObject *vert_seq;
-  BPy_BMEdge *py_edge_example = nullptr; /* optional */
+  BPy_BMEdge *py_edge_source = nullptr; /* optional */
+  PyC_TypeOrNone py_edge_source_or_none = PyC_TYPE_OR_NONE_INIT(&BPy_BMEdge_Type, &py_edge_source);
 
   BPY_BM_CHECK_OBJ(self);
 
-  if (!PyArg_ParseTuple(args, "O|O!:edges.new", &vert_seq, &BPy_BMEdge_Type, &py_edge_example)) {
+  static const char *_keywords[] = {"", "source", nullptr};
+  static _PyArg_Parser _parser = {
+      "O"  /* `verts` */
+      "|"  /* Optional arguments. */
+      "O&" /* `source` */
+      ":edges.new",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(
+          args, kw, &_parser, &vert_seq, PyC_ParseTypeOrNone, &py_edge_source_or_none))
+  {
     return nullptr;
   }
 
@@ -3281,8 +3320,8 @@ static PyObject *bpy_bmedgeseq_new(BPy_BMElemSeq *self, PyObject *args)
   BMEdge *e;
   PyObject *ret = nullptr;
 
-  if (py_edge_example) {
-    BPY_BM_CHECK_OBJ(py_edge_example);
+  if (py_edge_source) {
+    BPY_BM_CHECK_OBJ(py_edge_source);
   }
 
   Py_ssize_t vert_seq_num; /* Always 2. */
@@ -3305,14 +3344,14 @@ static PyObject *bpy_bmedgeseq_new(BPy_BMElemSeq *self, PyObject *args)
     goto cleanup;
   }
 
-  if (py_edge_example) {
-    if (py_edge_example->bm == bm) {
-      BM_elem_attrs_copy(bm, py_edge_example->e, e);
+  if (py_edge_source) {
+    if (py_edge_source->bm == bm) {
+      BM_elem_attrs_copy(bm, py_edge_source->e, e);
     }
     else {
       const BMCustomDataCopyMap cd_edge_map = CustomData_bmesh_copy_map_calc(
-          py_edge_example->bm->edata, bm->edata);
-      BM_elem_attrs_copy(bm, cd_edge_map, py_edge_example->e, e);
+          py_edge_source->bm->edata, bm->edata);
+      BM_elem_attrs_copy(bm, cd_edge_map, py_edge_source->e, e);
     }
   }
 
@@ -3330,25 +3369,37 @@ cleanup:
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmfaceseq_new_doc,
-    ".. method:: new(verts, example=None)\n"
+    ".. method:: new(verts, source=None)\n"
     "\n"
     "   Create a new face from a given set of verts.\n"
     "\n"
     "   :param verts: Sequence of 3 or more verts.\n"
     "   :type verts: Sequence[:class:`bmesh.types.BMVert`]\n"
-    "   :param example: Existing face to initialize settings (optional argument).\n"
-    "   :type example: :class:`bmesh.types.BMFace`\n"
+    "   :param source: Existing face to initialize settings (optional argument).\n"
+    "   :type source: :class:`bmesh.types.BMFace` | None\n"
     "   :return: The newly created face.\n"
     "   :rtype: :class:`bmesh.types.BMFace`\n");
-static PyObject *bpy_bmfaceseq_new(BPy_BMElemSeq *self, PyObject *args)
+static PyObject *bpy_bmfaceseq_new(BPy_BMElemSeq *self, PyObject *args, PyObject *kw)
 {
   const char *error_prefix = "faces.new(...)";
   PyObject *vert_seq;
-  BPy_BMFace *py_face_example = nullptr; /* optional */
+  BPy_BMFace *py_face_source = nullptr; /* optional */
+  PyC_TypeOrNone py_face_source_or_none = PyC_TYPE_OR_NONE_INIT(&BPy_BMFace_Type, &py_face_source);
 
   BPY_BM_CHECK_OBJ(self);
 
-  if (!PyArg_ParseTuple(args, "O|O!:faces.new", &vert_seq, &BPy_BMFace_Type, &py_face_example)) {
+  static const char *_keywords[] = {"", "source", nullptr};
+  static _PyArg_Parser _parser = {
+      "O"  /* `verts` */
+      "|"  /* Optional arguments. */
+      "O&" /* `source` */
+      ":faces.new",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(
+          args, kw, &_parser, &vert_seq, PyC_ParseTypeOrNone, &py_face_source_or_none))
+  {
     return nullptr;
   }
 
@@ -3358,8 +3409,8 @@ static PyObject *bpy_bmfaceseq_new(BPy_BMElemSeq *self, PyObject *args)
 
   BMFace *f_new;
 
-  if (py_face_example) {
-    BPY_BM_CHECK_OBJ(py_face_example);
+  if (py_face_source) {
+    BPY_BM_CHECK_OBJ(py_face_source);
   }
 
   Py_ssize_t vert_seq_num;
@@ -3381,7 +3432,7 @@ static PyObject *bpy_bmfaceseq_new(BPy_BMElemSeq *self, PyObject *args)
   f_new = BM_face_create_verts(bm,
                                vert_array,
                                vert_seq_num,
-                               py_face_example ? py_face_example->f : nullptr,
+                               py_face_source ? py_face_source->f : nullptr,
                                BM_CREATE_NOP,
                                true);
 
@@ -3495,12 +3546,12 @@ PyDoc_STRVAR(
     "\n"
     "   Return an edge which uses the **verts** passed.\n"
     "\n"
-    "   :param verts: Sequence of verts.\n"
+    "   :param verts: Pair of verts (exactly 2).\n"
     "   :type verts: Sequence[:class:`bmesh.types.BMVert`]\n"
     "   :param fallback: Return this value if nothing is found.\n"
     "   :type fallback: Any\n"
-    "   :return: The edge found or None\n"
-    "   :rtype: :class:`bmesh.types.BMEdge`\n");
+    "   :return: The edge found or the fallback value.\n"
+    "   :rtype: :class:`bmesh.types.BMEdge` | None\n");
 static PyObject *bpy_bmedgeseq_get__method(BPy_BMElemSeq *self, PyObject *args)
 {
   const char *error_prefix = "edges.get(...)";
@@ -3548,8 +3599,8 @@ PyDoc_STRVAR(
     "   :type verts: Sequence[:class:`bmesh.types.BMVert`]\n"
     "   :param fallback: Return this value if nothing is found.\n"
     "   :type fallback: Any\n"
-    "   :return: The face found or None\n"
-    "   :rtype: :class:`bmesh.types.BMFace`\n");
+    "   :return: The face found or the fallback value.\n"
+    "   :rtype: :class:`bmesh.types.BMFace` | None\n");
 static PyObject *bpy_bmfaceseq_get__method(BPy_BMElemSeq *self, PyObject *args)
 {
   const char *error_prefix = "faces.get(...)";
@@ -3652,7 +3703,7 @@ PyDoc_STRVAR(
     bpy_bmelemseq_ensure_lookup_table_doc,
     ".. method:: ensure_lookup_table()\n"
     "\n"
-    "   Ensure internal data needed for int subscription is initialized with "
+    "   Ensure internal data needed for int subscript access is initialized with "
     "verts/edges/faces, eg ``bm.verts[index]``.\n"
     "\n"
     "   This needs to be called again after adding/removing data in this sequence.\n");
@@ -3671,7 +3722,7 @@ PyDoc_STRVAR(
     ".. method:: sort(*, key=None, reverse=False)\n"
     "\n"
     "   Sort the elements of this sequence, using an optional custom sort key.\n"
-    "   Indices of elements are not changed, :class:`bmesh.types.BMElemSeq.index_update` "
+    "   Indices of elements are not changed, :meth:`bmesh.types.BMElemSeq.index_update` "
     "can be used for that.\n"
     "\n"
     "   :param key: The key that sets the ordering of the elements.\n"
@@ -4187,7 +4238,10 @@ static PyMethodDef bpy_bmelemseq_methods[] = {
 };
 
 static PyMethodDef bpy_bmvertseq_methods[] = {
-    {"new", reinterpret_cast<PyCFunction>(bpy_bmvertseq_new), METH_VARARGS, bpy_bmvertseq_new_doc},
+    {"new",
+     reinterpret_cast<PyCFunction>(bpy_bmvertseq_new),
+     METH_VARARGS | METH_KEYWORDS,
+     bpy_bmvertseq_new_doc},
     {"remove",
      reinterpret_cast<PyCFunction>(bpy_bmvertseq_remove),
      METH_O,
@@ -4210,7 +4264,10 @@ static PyMethodDef bpy_bmvertseq_methods[] = {
 };
 
 static PyMethodDef bpy_bmedgeseq_methods[] = {
-    {"new", reinterpret_cast<PyCFunction>(bpy_bmedgeseq_new), METH_VARARGS, bpy_bmedgeseq_new_doc},
+    {"new",
+     reinterpret_cast<PyCFunction>(bpy_bmedgeseq_new),
+     METH_VARARGS | METH_KEYWORDS,
+     bpy_bmedgeseq_new_doc},
     {"remove",
      reinterpret_cast<PyCFunction>(bpy_bmedgeseq_remove),
      METH_O,
@@ -4238,7 +4295,10 @@ static PyMethodDef bpy_bmedgeseq_methods[] = {
 };
 
 static PyMethodDef bpy_bmfaceseq_methods[] = {
-    {"new", reinterpret_cast<PyCFunction>(bpy_bmfaceseq_new), METH_VARARGS, bpy_bmfaceseq_new_doc},
+    {"new",
+     reinterpret_cast<PyCFunction>(bpy_bmfaceseq_new),
+     METH_VARARGS | METH_KEYWORDS,
+     bpy_bmfaceseq_new_doc},
     {"remove",
      reinterpret_cast<PyCFunction>(bpy_bmfaceseq_remove),
      METH_O,
@@ -5017,11 +5077,11 @@ PyDoc_STRVAR(
     "\n"
     ".. |UV_SELECT_FLUSH_MODE_NEEDED| replace:: "
     "This function is selection-mode independent, "
-    "typically :class:`bmesh.types.BMesh.uv_select_flush_mode` should be called afterwards.\n"
+    "typically :meth:`bmesh.types.BMesh.uv_select_flush_mode` should be called afterwards.\n"
     "\n"
     ".. |UV_SELECT_SYNC_TO_MESH_NEEDED| replace:: "
     "This function doesn't flush the selection to the mesh, "
-    "typically :class:`bmesh.types.BMesh.uv_select_sync_to_mesh` should be called afterwards.\n");
+    "typically :meth:`bmesh.types.BMesh.uv_select_sync_to_mesh` should be called afterwards.\n");
 static PyModuleDef BPy_BM_types_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "bmesh.types",
