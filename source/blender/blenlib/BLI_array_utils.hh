@@ -21,8 +21,7 @@
 
 namespace blender::array_utils {
 
-constexpr int64_t calc_auto_copy_grain_size(const exec_mode::Tag auto mode,
-                                            const int64_t type_size)
+constexpr int64_t calc_copy_grain_size(const exec_mode::Tag auto mode, const int64_t type_size)
 {
   static_assert(mode.is_parallel);
   if constexpr (requires { mode.grain_size; }) {
@@ -33,7 +32,7 @@ constexpr int64_t calc_auto_copy_grain_size(const exec_mode::Tag auto mode,
   return 32768 / type_size;
 }
 
-constexpr int64_t calc_auto_copy_grain_size(const exec_mode::Mode mode, const int64_t type_size)
+constexpr int64_t calc_copy_grain_size(const exec_mode::Mode mode, const int64_t type_size)
 {
   BLI_assert(mode.is_parallel);
   if (mode.grain_size.has_value()) {
@@ -55,7 +54,7 @@ inline void copy(const VArray<T> &src, MutableSpan<T> dst, const Mode mode = {})
     src.materialize_compressed_to_uninitialized(dst.index_range(), dst);
   }
   else {
-    const int64_t grain_size = calc_auto_copy_grain_size(mode, sizeof(T));
+    const int64_t grain_size = calc_copy_grain_size(mode, sizeof(T));
     threading::parallel_for(src.index_range(), grain_size, [&](const IndexRange range) {
       src.materialize_to_uninitialized(range, dst);
     });
@@ -74,7 +73,7 @@ inline void copy(const Span<T> src, MutableSpan<T> dst, const Mode mode = {})
     dst.copy_from(src);
   }
   else {
-    const int64_t grain_size = calc_auto_copy_grain_size(mode, sizeof(T));
+    const int64_t grain_size = calc_copy_grain_size(mode, sizeof(T));
     threading::parallel_for(src.index_range(), grain_size, [&](const IndexRange range) {
       copy(src.slice(range), dst.slice(range), exec_mode::serial);
     });
@@ -105,7 +104,7 @@ inline void copy(const Span<T> src,
     selection.foreach_index_optimized<int64_t>([&](const int64_t i) { dst[i] = src[i]; });
   }
   else {
-    const int64_t grain_size = calc_auto_copy_grain_size(mode, sizeof(T));
+    const int64_t grain_size = calc_copy_grain_size(mode, sizeof(T));
     threading::parallel_for(selection.index_range(), grain_size, [&](const IndexRange range) {
       copy(src, selection.slice(range), dst, exec_mode::serial);
     });
@@ -151,7 +150,7 @@ inline void scatter(const Span<T> src,
     }
   }
   else {
-    const int64_t grain_size = calc_auto_copy_grain_size(mode, sizeof(T));
+    const int64_t grain_size = calc_copy_grain_size(mode, sizeof(T));
     threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
       scatter(src, indices.slice(range), dst, exec_mode::serial);
     });
@@ -171,7 +170,7 @@ inline void scatter(const Span<T> src,
         [&](const int64_t index, const int64_t pos) { dst[index] = src[pos]; });
   }
   else {
-    const int64_t grain_size = calc_auto_copy_grain_size(mode, sizeof(T));
+    const int64_t grain_size = calc_copy_grain_size(mode, sizeof(T));
     threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
       scatter(src, indices.slice(range), dst, exec_mode::serial);
     });
@@ -208,7 +207,7 @@ inline void gather(const VArray<T> &src,
     src.materialize_compressed_to_uninitialized(indices, dst);
   }
   else {
-    const int64_t grain_size = calc_auto_copy_grain_size(mode, sizeof(T));
+    const int64_t grain_size = calc_copy_grain_size(mode, sizeof(T));
     threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
       src.materialize_compressed_to_uninitialized(indices.slice(range), dst.slice(range));
     });
@@ -230,7 +229,7 @@ inline void gather(const Span<T> src,
         [&](const int64_t i, const int64_t pos) { dst[pos] = src[i]; });
   }
   else {
-    const int64_t grain_size = calc_auto_copy_grain_size(mode, sizeof(T));
+    const int64_t grain_size = calc_copy_grain_size(mode, sizeof(T));
     threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
       gather(src, indices.slice(range), dst, exec_mode::serial);
     });
@@ -253,7 +252,7 @@ inline void gather(const Span<T> src,
     }
   }
   else {
-    const int64_t grain_size = calc_auto_copy_grain_size(mode, sizeof(T));
+    const int64_t grain_size = calc_copy_grain_size(mode, sizeof(T));
     threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
       gather(src, indices.slice(range), dst.slice(range), exec_mode::serial);
     });
@@ -278,7 +277,7 @@ inline void gather(const VArray<T> &src,
     });
   }
   else {
-    const int64_t grain_size = calc_auto_copy_grain_size(mode, sizeof(T));
+    const int64_t grain_size = calc_copy_grain_size(mode, sizeof(T));
     threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
       gather(src, indices.slice(range), dst.slice(range), exec_mode::serial);
     });

@@ -23,7 +23,7 @@ void copy(const GVArray &src, GMutableSpan dst, const exec_mode::Mode mode)
     src.materialize_to_uninitialized(src.index_range(), dst.data());
   }
   else {
-    const int64_t grain_size = calc_auto_copy_grain_size(mode, src.type().size);
+    const int64_t grain_size = calc_copy_grain_size(mode, src.type().size);
     threading::parallel_for(src.index_range(), grain_size, [&](const IndexRange range) {
       src.materialize_to_uninitialized(range, dst.data());
     });
@@ -42,7 +42,7 @@ void copy(const GVArray &src,
     src.materialize_to_uninitialized(selection, dst.data());
   }
   else {
-    const int64_t grain_size = calc_auto_copy_grain_size(mode, src.type().size);
+    const int64_t grain_size = calc_copy_grain_size(mode, src.type().size);
     threading::parallel_for(selection.index_range(), grain_size, [&](const IndexRange range) {
       src.materialize_to_uninitialized(selection.slice(range), dst.data());
     });
@@ -60,7 +60,7 @@ void gather(const GVArray &src,
     src.materialize_compressed_to_uninitialized(indices, dst.data());
   }
   else {
-    const int64_t grain_size = calc_auto_copy_grain_size(mode, src.type().size);
+    const int64_t grain_size = calc_copy_grain_size(mode, src.type().size);
     threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
       src.materialize_compressed_to_uninitialized(indices.slice(range), dst.slice(range).data());
     });
