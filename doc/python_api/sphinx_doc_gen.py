@@ -1585,7 +1585,9 @@ def pyrna2sphinx(basepath):
             # way to construct this data type, so - coercing them from a `dict` is supported.
             # Since this is a special case in the RNA API, we need to override the type.
             # Link to the operator to find the supported arguments.
-            type_info.append(":mod:`bpy.ops.{:s}` keyword arguments".format(format_operator_as_module(prop.identifier)))
+            type_info.append(
+                ":func:`bpy.ops.{:s}` keyword arguments".format(format_operator_as_module(prop.identifier)),
+            )
             type_descr = "dict[str, Any]"
 
         prop_name = prop.name
@@ -1986,13 +1988,13 @@ def pyrna2sphinx(basepath):
             ]
 
             for key, descr in descr_items:
-                # `GetSetDescriptorType`, `GetSetDescriptorType` types are not documented yet.
                 if type(descr) == MethodDescriptorType:
-                    py_descr2sphinx("   ", fw, descr, "bpy.types", class_name, key, is_class=True)
+                    py_descr2sphinx("   ", fw, descr, class_module_name, class_name, key, is_class=True)
 
             for key, descr in descr_items:
                 if type(descr) == GetSetDescriptorType:
-                    py_descr2sphinx("   ", fw, descr, "bpy.types", class_name, key, is_class=True)
+                    py_descr2sphinx("   ", fw, descr, class_module_name, class_name, key, is_class=True)
+
             file.close()
 
         # Write Python C-API classes.
