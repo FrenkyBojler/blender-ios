@@ -16,7 +16,7 @@ struct IDProperty;
 
 namespace bke::idprop {
 
-void hash(const IDProperty &prop, XXH3_state_t *hash_state);
+void hash(const IDProperty &base_prop, XXH3_state_t *hash_state);
 
 }  // namespace bke::idprop
 }  // namespace blender
