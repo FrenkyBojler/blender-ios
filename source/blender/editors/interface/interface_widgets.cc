@@ -2933,7 +2933,10 @@ static void widget_state_menu_item(WidgetType *wt,
  * \{ */
 
 /* outside of rect, rad to left/bottom/right */
-static void widget_softshadow(const rcti *rect, int roundboxalign, const float radin)
+static void widget_softshadow(const rcti *rect,
+                              int roundboxalign,
+                              const float radin,
+                              bool use_shadow_offset = true)
 {
   const float outline = U.pixelsize;
 
@@ -2946,7 +2949,7 @@ static void widget_softshadow(const rcti *rect, int roundboxalign, const float r
   const float shadow_alpha = theme::theme_get()->tui.menu_shadow_fac;
   const float shadow_width = theme::get_menu_shadow_width();
 
-  draw_dropshadow(&shadow_rect, radin, shadow_width, 1.0f, shadow_alpha);
+  draw_dropshadow(&shadow_rect, radin, shadow_width, 1.0f, shadow_alpha, use_shadow_offset);
 }
 
 static void widget_menu_back(uiWidgetColors *wcol,
@@ -2983,7 +2986,7 @@ static void widget_menu_back(uiWidgetColors *wcol,
 
   GPU_blend(GPU_BLEND_ALPHA);
   const float radius = widget_radius_from_zoom(zoom, wcol);
-  widget_softshadow(rect, roundboxalign, radius);
+  widget_softshadow(rect, roundboxalign, radius, !(block_flag & BLOCK_MENU_REDUCED_SHADOW_OFFSET));
 
   round_box_edges(&wtb, roundboxalign, rect, radius);
   wtb.draw_emboss = false;
@@ -5495,7 +5498,8 @@ static void ui_draw_popover_back_impl(const uiWidgetColors *wcol,
                                       const rcti *rect,
                                       int direction,
                                       const float unit_size,
-                                      const float mval_origin[2])
+                                      const float mval_origin[2],
+                                      bool use_shadow_offset)
 {
   /* Alas, this isn't nice. */
   const float unit_half = unit_size / 2;
@@ -5512,7 +5516,7 @@ static void ui_draw_popover_back_impl(const uiWidgetColors *wcol,
     widget_init(&wtb);
 
     const int roundboxalign = CNR_ALL;
-    widget_softshadow(rect, roundboxalign, wcol->roundness * U.widget_unit);
+    widget_softshadow(rect, roundboxalign, wcol->roundness * U.widget_unit, use_shadow_offset);
 
     round_box_edges(&wtb, roundboxalign, rect, wcol->roundness * U.widget_unit);
     wtb.draw_emboss = false;
@@ -5567,8 +5571,12 @@ void draw_popover_back(ARegion *region, uiStyle * /*style*/, Block *block, const
 
   float mval_origin[2] = {float(block->bounds_offset[0]), float(block->bounds_offset[1])};
   window_to_block_fl(region, block, &mval_origin[0], &mval_origin[1]);
-  ui_draw_popover_back_impl(
-      wt->wcol_theme, rect, block->direction, U.widget_unit / block->aspect, mval_origin);
+  ui_draw_popover_back_impl(wt->wcol_theme,
+                            rect,
+                            block->direction,
+                            U.widget_unit / block->aspect,
+                            mval_origin,
+                            !(block->flag & BLOCK_MENU_REDUCED_SHADOW_OFFSET));
 
   ui_draw_clip_tri(block, rect, wt);
 }

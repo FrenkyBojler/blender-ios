@@ -11954,7 +11954,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
   return retval;
 }
 
-static bool ui_menus_dim_recursive(PopupBlockHandle *menu, const int2 xy)
+static bool ui_menus_dim_recursive(PopupBlockHandle *menu, const int2 xy, int level)
 {
   Button *but = region_find_active_but(menu->region);
   HandleButtonData *data = (but) ? but->active : nullptr;
@@ -11965,15 +11965,13 @@ static bool ui_menus_dim_recursive(PopupBlockHandle *menu, const int2 xy)
     int mx = xy[0];
     int my = xy[1];
     window_to_block(menu->region, block, &mx, &my);
-    return BLI_rctf_isect_pt(&block->rect, mx, my) || but;
+    const bool active = BLI_rctf_isect_pt(&block->rect, mx, my) || but;
+    SET_FLAG_FROM_TEST(block->flag, (level > 0), BLOCK_MENU_REDUCED_SHADOW_OFFSET);
+    return active;
   }
   Block *block = static_cast<Block *>(menu->region->runtime->uiblocks.first);
-  if (ui_menus_dim_recursive(sub_menu, xy)) {
-    block->flag |= BLOCK_MENU_DIM;
-  }
-  else {
-    block->flag &= ~BLOCK_MENU_DIM;
-  }
+  SET_FLAG_FROM_TEST(block->flag, ui_menus_dim_recursive(sub_menu, xy, level + 1), BLOCK_MENU_DIM);
+  SET_FLAG_FROM_TEST(block->flag, level > 0, BLOCK_MENU_REDUCED_SHADOW_OFFSET);
   return true;
 }
 
@@ -12335,7 +12333,7 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
        * this will handle events from the top to the bottom menu */
       if (data->menu) {
         retval = ui_handle_menus_recursive(C, event, data->menu, 0, false, false, false);
-        ui_menus_dim_recursive(data->menu, event->xy);
+        ui_menus_dim_recursive(data->menu, event->xy, 0);
       }
 
       /* handle events for the activated button */
@@ -12412,7 +12410,7 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
   }
 
   ui_handle_menus_recursive(C, event, menu, 0, false, false, true);
-  ui_menus_dim_recursive(menu, event->xy);
+  ui_menus_dim_recursive(menu, event->xy, 0);
 
   /* free if done, does not free handle itself */
   if (menu->menuretval) {

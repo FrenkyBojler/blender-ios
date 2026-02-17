@@ -191,6 +191,8 @@ enum {
   /** Don't accelerator keys for the items in the block. */
   BLOCK_NO_ACCELERATOR_KEYS = 1 << 27,
   BLOCK_MENU_DIM = 1 << 28,
+  BLOCK_MENU_REDUCED_SHADOW_OFFSET = 1 << 29,
+
 };
 
 /** #PopupBlockHandle.menuretval */
@@ -547,7 +549,12 @@ void draw_roundbox_4fv_ex(const rctf *rect,
 int draw_roundbox_corner_get();
 #endif
 
-void draw_dropshadow(const rctf *rct, float radius, float width, float aspect, float alpha);
+void draw_dropshadow(const rctf *rct,
+                     float radius,
+                     float width,
+                     float aspect,
+                     float alpha,
+                     bool use_shadow_offset = true);
 
 void draw_text_underline(int pos_x, int pos_y, int len, int height, const float color[4]);
 

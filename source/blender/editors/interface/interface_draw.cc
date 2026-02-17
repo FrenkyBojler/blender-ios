@@ -2455,8 +2455,12 @@ void draw_but_TRACKPREVIEW(ARegion *region,
 
 /* ****************************************************** */
 
-void draw_dropshadow(
-    const rctf *rct, const float radius, const float width, const float aspect, const float alpha)
+void draw_dropshadow(const rctf *rct,
+                     const float radius,
+                     const float width,
+                     const float aspect,
+                     const float alpha,
+                     bool use_shadow_offset)
 {
   if (width == 0.0f) {
     return;
@@ -2480,7 +2484,7 @@ void draw_dropshadow(
   widget_params.rect.xmin = rct->xmin - shadow_width;
   widget_params.rect.ymin = rct->ymin - shadow_width;
   widget_params.rect.xmax = rct->xmax + shadow_width;
-  widget_params.rect.ymax = rct->ymax + shadow_width - shadow_offset;
+  widget_params.rect.ymax = rct->ymax + shadow_width - (use_shadow_offset ? shadow_offset : 0.0f);
   widget_params.radi = inner_radius;
   widget_params.rad = shadow_radius;
   widget_params.round_corners[0] = (roundboxtype & CNR_BOTTOM_LEFT) ? 1.0f : 0.0f;
