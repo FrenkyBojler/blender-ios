@@ -4,6 +4,8 @@
 
 /** \file
  * \ingroup spfile
+ *
+ * Directory browsing with support for displaying .blend file contents.
  */
 
 #include "filelist_intern.hh"

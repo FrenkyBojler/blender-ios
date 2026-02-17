@@ -326,6 +326,7 @@ bool filelist_checkdir_lib(const FileList * /*filelist*/,
                            const bool do_change);
 
 void filelist_set_readjob_main(FileList *filelist);
+void filelist_set_readjob_directories(FileList *filelist);
 void filelist_set_readjob_library(FileList *filelist);
 void filelist_set_readjob_on_disk_asset_library(FileList *filelist);
 void filelist_set_readjob_remote_asset_library(FileList *filelist);

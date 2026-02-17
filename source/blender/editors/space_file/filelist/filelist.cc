@@ -82,7 +82,6 @@
 #include "filelist_readjob.hh"
 
 namespace blender {
-using TimePoint = std::chrono::steady_clock::time_point;
 
 static ImBuf *gSpecialFileImages[int(SpecialFileImages::_Max)];
 
@@ -897,9 +896,7 @@ void filelist_settype(FileList *filelist, short type)
       filelist_set_readjob_all_asset_library(filelist);
       break;
     default:
-      filelist->check_dir_fn = filelist_checkdir_dir;
-      filelist->read_job_fn = filelist_readjob_dir;
-      filelist->filter_fn = is_filtered_file;
+      filelist_set_readjob_directories(filelist);
       break;
   }
 
