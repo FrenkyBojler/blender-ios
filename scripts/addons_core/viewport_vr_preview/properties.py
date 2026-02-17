@@ -11,12 +11,9 @@ from bpy.app.handlers import persistent
 
 # Landmarks.
 @persistent
-def vr_ensure_default_landmark(context: bpy.context):
-    # Ensure there's a default landmark (scene camera by default).
+def vr_ensure_empty_landmarks(context: bpy.context):
     landmarks = bpy.context.scene.vr_landmarks
-    if not landmarks:
-        landmarks.add()
-        landmarks[0].type = 'SCENE_CAMERA'
+    landmarks.clear()
 
 
 def vr_landmark_active_type_update(self, context):
@@ -236,7 +233,7 @@ def register():
         update=vr_landmark_active_update,
     )
 
-    bpy.app.handlers.load_post.append(vr_ensure_default_landmark)
+    bpy.app.handlers.load_post.append(vr_ensure_empty_landmarks)
 
 
 def unregister():
@@ -247,4 +244,4 @@ def unregister():
     del bpy.types.Scene.vr_landmarks_selected
     del bpy.types.Scene.vr_landmarks_active
 
-    bpy.app.handlers.load_post.remove(vr_ensure_default_landmark)
+    bpy.app.handlers.load_post.remove(vr_ensure_empty_landmarks)

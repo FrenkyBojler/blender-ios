@@ -188,36 +188,12 @@ static void wm_xr_draw_viewport_buffers_to_active_framebuffer(
   GPU_viewport_draw_to_screen_ex(vp->viewport, 0, &rect, draw_view->expects_srgb_buffer, true);
 }
 
-void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
+static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
 {
   wmXrDrawData *draw_data = static_cast<wmXrDrawData *>(customdata);
   wmXrData *xr_data = draw_data->xr_data;
-  wmXrSurfaceData *surface_data = draw_data->surface_data;
   wmXrSessionState *session_state = &xr_data->runtime->session_state;
   XrSessionSettings *settings = &xr_data->session_settings;
-
-  const int display_flags = V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS | settings->draw_flags;
-
-  float viewmat[4][4], winmat[4][4];
-
-  BLI_assert(WM_xr_session_is_ready(xr_data));
-
-  wm_xr_session_draw_data_update(session_state, settings, draw_view, draw_data);
-  wm_xr_draw_matrices_create(draw_data, draw_view, settings, session_state, viewmat, winmat);
-  wm_xr_session_state_update(settings, draw_data, draw_view, session_state);
-
-  if (!wm_xr_session_surface_offscreen_ensure(surface_data, draw_view)) {
-    return;
-  }
-
-  const wmXrViewportPair *vp = static_cast<const wmXrViewportPair *>(
-      BLI_findlink(&surface_data->viewports, draw_view->view_idx));
-  BLI_assert(vp && vp->offscreen && vp->viewport);
-
-  /* In case a framebuffer is still bound from drawing the last eye. */
-  GPU_framebuffer_restore();
-  /* Some systems have drawing glitches without this. */
-  GPU_clear_depth(1.0f);
 
   /* WIP Hack: Draw the viewfinder view here and pass it to wm_xr_controller_model_draw via a
    *           static local global as context prevents us from doing this in model_draw */
@@ -239,8 +215,8 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   Camera *camera_data = id_cast<Camera *>(camera_ob->data);
 
   /* Hack: The DoF live DoF settings need to be overriden during playback to display
-   * the DoF of the captured shot. Circumvent this by storing the live DoF setting
-   * when entering playback, and restoring them when going back to live. */
+   * the DoF of the captured shot. Circumvent this by storing the live DoF settings
+   * when entering playback and restoring them when going back to live. */
   static bool dirty_dof_settings = false;
   static CameraDOFSettings live_dof_settings = camera_data->dof;
 
@@ -285,11 +261,15 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
 
       /* Note: unsafe, relies on the VR add-on to be loaded. */
       PropertyRNA *landmarks_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks");
-      PropertyRNA *landmark_idx_prop = RNA_struct_find_property(&scene_ptr,
-                                                                "vr_landmarks_selected");
-      const int landmark_idx = RNA_property_int_get(&scene_ptr, landmark_idx_prop);
+      if (RNA_property_collection_is_empty(&scene_ptr, landmarks_prop)) {
+        /* Nothing to draw, early return. */
+        return;
+      }
 
-      /* Hack: Doing some hardcore RNA introspection to obtain the values back. */
+      PropertyRNA *lm_idx_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks_selected");
+      const int landmark_idx = RNA_property_int_get(&scene_ptr, lm_idx_prop);
+
+      /* Workaround: Doing some hardcore RNA introspection to obtain the values back. */
       PointerRNA current_landmark;
       RNA_property_collection_lookup_int(
           &scene_ptr, landmarks_prop, landmark_idx, &current_landmark);
@@ -383,6 +363,40 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
                                   true,
                                   g_viewfinder_offscreen,
                                   gpu_viewport);
+}
+
+void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
+{
+  wmXrDrawData *draw_data = static_cast<wmXrDrawData *>(customdata);
+  wmXrData *xr_data = draw_data->xr_data;
+  wmXrSurfaceData *surface_data = draw_data->surface_data;
+  wmXrSessionState *session_state = &xr_data->runtime->session_state;
+  XrSessionSettings *settings = &xr_data->session_settings;
+
+  const int display_flags = V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS | settings->draw_flags;
+
+  float viewmat[4][4], winmat[4][4];
+
+  BLI_assert(WM_xr_session_is_ready(xr_data));
+
+  wm_xr_session_draw_data_update(session_state, settings, draw_view, draw_data);
+  wm_xr_draw_matrices_create(draw_data, draw_view, settings, session_state, viewmat, winmat);
+  wm_xr_session_state_update(settings, draw_data, draw_view, session_state);
+
+  if (!wm_xr_session_surface_offscreen_ensure(surface_data, draw_view)) {
+    return;
+  }
+
+  const wmXrViewportPair *vp = static_cast<const wmXrViewportPair *>(
+      BLI_findlink(&surface_data->viewports, draw_view->view_idx));
+  BLI_assert(vp && vp->offscreen && vp->viewport);
+
+  /* In case a framebuffer is still bound from drawing the last eye. */
+  GPU_framebuffer_restore();
+  /* Some systems have drawing glitches without this. */
+  GPU_clear_depth(1.0f);
+
+  wm_xr_draw_viewfinder_texture(draw_view, customdata);
 
   /* Draws the view into the surface_data->viewport's frame-buffers. */
   ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
@@ -543,12 +557,12 @@ static ui::Block *viewfinder_action_enum_ui_block(const bContext *C,
     sub1.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_LENS, "", ICON_NONE);
     sub1.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_DOF, "", ICON_NONE);
 
-    ui::Layout &sub2 = row.row(true);
     const Object *scene_cam = CTX_data_scene(C)->camera;
     const Camera *cam_data = id_cast<const Camera *>(scene_cam->data);
-    sub2.enabled_set(cam_data->dof.flag & CAM_DOF_ENABLED);
 
+    ui::Layout &sub2 = row.row(true);
     /* Show these controls greyed-out if DoF is disabled. */
+    sub2.enabled_set(cam_data->dof.flag & CAM_DOF_ENABLED);
     sub2.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_FOCUS, "", ICON_NONE);
     sub2.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_APERTURE, "", ICON_NONE);
   }
@@ -576,12 +590,12 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
   ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
 
   Scene *scene = CTX_data_scene(C);
-  Object *cam_ob = scene->camera;
+  const Object *cam_ob = scene->camera;
   const Camera *cam = id_cast<const Camera *>(cam_ob->data);
 
   PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
 
-  /* Note: unsafe, relies on the VR add-on to be loaded. */
+  /* Note: unsafe, relies on the VR add-on being loaded. */
   PropertyRNA *landmark_len_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks");
   PropertyRNA *landmark_idx_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks_selected");
   const int landmark_len = RNA_property_collection_length(&scene_ptr, landmark_len_prop);
@@ -597,7 +611,9 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
                                    cam->dof.aperture_fstop);
       break;
     case XR_VIEWFINDER_MODE_PLAYBACK:
-      settings_label = fmt::format("{} / {}", landmark_idx + 1, landmark_len);
+      if (landmark_len > 1) {
+        settings_label = fmt::format("{} / {}", landmark_idx + 1, landmark_len);
+      }
       break;
     default:
       BLI_assert_unreachable();
@@ -655,6 +671,24 @@ static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C,
   return block;
 }
 
+static ui::Block *viewfinder_missing_captures_label_ui_block(const bContext *C,
+                                                             const XrSessionSettings *settings)
+{
+  PointerRNA scene_ptr = RNA_id_pointer_create(&CTX_data_scene(C)->id);
+  const bool empty_captures = RNA_collection_is_empty(&scene_ptr, "vr_landmarks");
+
+  ui::Block *block = nullptr;
+  ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
+
+  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
+    layout.label("No shots captured yet.", ICON_NONE);
+  }
+
+  ui::block_end_xr(C, block);
+
+  return block;
+}
+
 static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
                                                         const XrSessionSettings *settings,
                                                         const rctf viewfinder_rect)
@@ -690,10 +724,14 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
                                   viewfinder_rect.xmax - 1.25f;
   const float action_enum_y = viewfinder_rect.ymin - 0.15f;
 
+  const float captures_label_x = -1.1f;
+  const float captures_label_y = 0.1f;
+
   draw_block(viewfinder_mode_tabs_ui_block, mode_tabs_x, mode_tabs_y);
   draw_block(viewfinder_settings_label_ui_block, settings_label_x, settings_label_y);
   draw_block(viewfinder_action_label_ui_block, action_label_x, action_label_y);
   draw_block(viewfinder_action_enum_ui_block, action_enum_x, action_enum_y);
+  draw_block(viewfinder_missing_captures_label_ui_block, captures_label_x, captures_label_y);
 }
 
 static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect)
@@ -725,8 +763,14 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
   GPU_matrix_pop();
 }
 
-static void wm_xr_controller_viewfinder_draw_view_texture(const rctf viewfinder_rect)
+static void wm_xr_controller_viewfinder_draw_view_texture(const XrSessionSettings *settings,
+                                                          const rctf viewfinder_rect,
+                                                          const bool empty_captures)
 {
+  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
+    return;
+  }
+
   /* Obtain the Viewfinder view texture we computed in `wm_xr_draw_view()`. */
   blender::gpu::Texture *view_tex = GPU_offscreen_color_texture(g_viewfinder_offscreen);
 
@@ -813,7 +857,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   const float viewfinder_height = settings->viewfinder_width * 9.0f / 16.0f;
   const float viewfinder_vertical_offset = 3.5f; /* Center of the viewfinder rectangle. */
 
-  rctf viewfinder_rect = {0};
+  rctf viewfinder_rect = {};
   BLI_rctf_resize(&viewfinder_rect, settings->viewfinder_width, viewfinder_height);
 
   /* Initial transform setup. */
@@ -823,11 +867,14 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   GPU_matrix_translate_3f(0.0f, 0.0f, -viewfinder_vertical_offset);
   GPU_matrix_rotate_3f(-90.0f, 1.0f, 0.0f, 0.0f);
 
+  PointerRNA scene_ptr = RNA_id_pointer_create(&CTX_data_scene(C)->id);
+  const bool empty_captures = RNA_collection_is_empty(&scene_ptr, "vr_landmarks");
+
   /* Main background overlays. */
   wm_xr_controller_viewfinder_draw_overlays(viewfinder_rect);
 
   /* Viewfinder View texture and flash. */
-  wm_xr_controller_viewfinder_draw_view_texture(viewfinder_rect);
+  wm_xr_controller_viewfinder_draw_view_texture(settings, viewfinder_rect, empty_captures);
   wm_xr_controller_viewfinder_draw_view_flash(state, settings, viewfinder_rect);
 
   /* UI Widgets. */

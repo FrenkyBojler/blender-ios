@@ -741,112 +741,112 @@ actionconfig_data = [
                         ],
                     },
                 ),
-                (
-                    "nav_grab",
-                    {
-                        "type": "FLOAT",
-                        "user_paths": ["/user/hand/left"],
-                        "op": "wm.xr_navigation_grab",
-                        "op_mode": "MODAL",
-                        "bimanual": "True",
-                        "haptic_name": "",
-                        "haptic_match_user_paths": "False",
-                        "haptic_duration": "0.0",
-                        "haptic_frequency": "0.0",
-                        "haptic_amplitude": "0.0",
-                        "haptic_mode": "PRESS",
-                    },
-                    {
-                        "op_properties": [
-                            ("lock_rotation", True),
-                        ],
-                    },
-                    {
-                        "bindings": [
-                            (
-                                "huawei",
-                                {
-                                    "profile": "/interaction_profiles/huawei/controller",
-                                    "component_paths": ["/input/trackpad/click"],
-                                    "threshold": "0.30000001192092896",
-                                    "axis_region": "ANY",
-                                },
-                            ),
-                            (
-                                "index",
-                                {
-                                    "profile": "/interaction_profiles/valve/index_controller",
-                                    "component_paths": ["/input/squeeze/force"],
-                                    "threshold": "0.5",
-                                    "axis_region": "ANY",
-                                },
-                            ),
-                            (
-                                "oculus",
-                                {
-                                    "profile": "/interaction_profiles/oculus/touch_controller",
-                                    "component_paths": ["/input/squeeze/value"],
-                                    "threshold": "0.30000001192092896",
-                                    "axis_region": "ANY",
-                                },
-                            ),
-                            (
-                                "reverb_g2",
-                                {
-                                    "profile": "/interaction_profiles/hp/mixed_reality_controller",
-                                    "component_paths": ["/input/squeeze/value"],
-                                    "threshold": "0.30000001192092896",
-                                    "axis_region": "ANY",
-                                },
-                            ),
-                            (
-                                "simple",
-                                {
-                                    "profile": "/interaction_profiles/khr/simple_controller",
-                                    "component_paths": ["/input/menu/click"],
-                                    "threshold": "0.30000001192092896",
-                                    "axis_region": "ANY",
-                                },
-                            ),
-                            (
-                                "vive",
-                                {
-                                    "profile": "/interaction_profiles/htc/vive_controller",
-                                    "component_paths": ["/input/squeeze/click"],
-                                    "threshold": "0.30000001192092896",
-                                    "axis_region": "ANY",
-                                },
-                            ),
-                            (
-                                "vive_cosmos",
-                                {
-                                    "profile": "/interaction_profiles/htc/vive_cosmos_controller",
-                                    "component_paths": ["/input/squeeze/click"],
-                                    "threshold": "0.30000001192092896",
-                                    "axis_region": "ANY",
-                                },
-                            ),
-                            (
-                                "vive_focus",
-                                {
-                                    "profile": "/interaction_profiles/htc/vive_focus3_controller",
-                                    "component_paths": ["/input/squeeze/click"],
-                                    "threshold": "0.30000001192092896",
-                                    "axis_region": "ANY",
-                                },
-                            ),
-                            (
-                                "wmr",
-                                {
-                                    "profile": "/interaction_profiles/microsoft/motion_controller",
-                                    "component_paths": ["/input/squeeze/click"],
-                                    "threshold": "0.30000001192092896",
-                                    "axis_region": "ANY",
-                                },
-                            ),
-                        ],
-                    },
-                ),
+                # (
+                #     "nav_grab",
+                #     {
+                #         "type": "FLOAT",
+                #         "user_paths": ["/user/hand/right"],
+                #         "op": "wm.xr_navigation_grab",
+                #         "op_mode": "MODAL",
+                #         "bimanual": "True",
+                #         "haptic_name": "",
+                #         "haptic_match_user_paths": "False",
+                #         "haptic_duration": "0.0",
+                #         "haptic_frequency": "0.0",
+                #         "haptic_amplitude": "0.0",
+                #         "haptic_mode": "PRESS",
+                #     },
+                #     {
+                #         "op_properties": [
+                #             ("lock_rotation", True),
+                #         ],
+                #     },
+                #     {
+                #         "bindings": [
+                #             (
+                #                 "huawei",
+                #                 {
+                #                     "profile": "/interaction_profiles/huawei/controller",
+                #                     "component_paths": ["/input/trackpad/click"],
+                #                     "threshold": "0.30000001192092896",
+                #                     "axis_region": "ANY",
+                #                 },
+                #             ),
+                #             (
+                #                 "index",
+                #                 {
+                #                     "profile": "/interaction_profiles/valve/index_controller",
+                #                     "component_paths": ["/input/squeeze/force"],
+                #                     "threshold": "0.5",
+                #                     "axis_region": "ANY",
+                #                 },
+                #             ),
+                #             (
+                #                 "oculus",
+                #                 {
+                #                     "profile": "/interaction_profiles/oculus/touch_controller",
+                #                     "component_paths": ["/input/squeeze/value"],
+                #                     "threshold": "0.30000001192092896",
+                #                     "axis_region": "ANY",
+                #                 },
+                #             ),
+                #             (
+                #                 "reverb_g2",
+                #                 {
+                #                     "profile": "/interaction_profiles/hp/mixed_reality_controller",
+                #                     "component_paths": ["/input/squeeze/value"],
+                #                     "threshold": "0.30000001192092896",
+                #                     "axis_region": "ANY",
+                #                 },
+                #             ),
+                #             (
+                #                 "simple",
+                #                 {
+                #                     "profile": "/interaction_profiles/khr/simple_controller",
+                #                     "component_paths": ["/input/menu/click"],
+                #                     "threshold": "0.30000001192092896",
+                #                     "axis_region": "ANY",
+                #                 },
+                #             ),
+                #             (
+                #                 "vive",
+                #                 {
+                #                     "profile": "/interaction_profiles/htc/vive_controller",
+                #                     "component_paths": ["/input/squeeze/click"],
+                #                     "threshold": "0.30000001192092896",
+                #                     "axis_region": "ANY",
+                #                 },
+                #             ),
+                #             (
+                #                 "vive_cosmos",
+                #                 {
+                #                     "profile": "/interaction_profiles/htc/vive_cosmos_controller",
+                #                     "component_paths": ["/input/squeeze/click"],
+                #                     "threshold": "0.30000001192092896",
+                #                     "axis_region": "ANY",
+                #                 },
+                #             ),
+                #             (
+                #                 "vive_focus",
+                #                 {
+                #                     "profile": "/interaction_profiles/htc/vive_focus3_controller",
+                #                     "component_paths": ["/input/squeeze/click"],
+                #                     "threshold": "0.30000001192092896",
+                #                     "axis_region": "ANY",
+                #                 },
+                #             ),
+                #             (
+                #                 "wmr",
+                #                 {
+                #                     "profile": "/interaction_profiles/microsoft/motion_controller",
+                #                     "component_paths": ["/input/squeeze/click"],
+                #                     "threshold": "0.30000001192092896",
+                #                     "axis_region": "ANY",
+                #                 },
+                #             ),
+                #         ],
+                #     },
+                # ),
                 (
                     "fly_forward",
                     {
