@@ -21,6 +21,7 @@
 
 #ifdef WIN32
 #  include "BKE_appdir.hh"
+#  include "BLF_api.hh"
 #  include "BLI_winstuff.h"
 #endif
 
