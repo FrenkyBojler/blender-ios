@@ -590,7 +590,7 @@ static void GREASE_PENCIL_OT_delete(wmOperatorType *ot)
        0,
        "Only Strokes",
        "Delete only strokes and not fills"},
-      {int(DeleteMode::OnlyFills), "FILLS", 0, "Only Fills", "Delte only fills and not strokes"},
+      {int(DeleteMode::OnlyFills), "FILLS", 0, "Only Fills", "Delete only fills and not strokes"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -2650,7 +2650,7 @@ static bke::GeometrySet join_geometries_with_transforms(Span<bke::GeometrySet> g
   geometry::RealizeInstancesOptions options;
   options.keep_original_ids = true;
   options.realize_instance_attributes = false;
-  return realize_instances(bke::GeometrySet::from_instances(instances.release()), options)
+  return realize_instances(bke::GeometrySet::from_instances(std::move(instances)), options)
       .geometry;
 }
 static bke::GeometrySet join_geometries_with_transform(Span<bke::GeometrySet> geometries,

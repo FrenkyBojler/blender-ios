@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-02 14:51+0000\n"
+"POT-Creation-Date: 2026-02-16 10:28+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -1525,16 +1525,20 @@ msgid "Saturation"
 msgstr "Засићеност"
 
 
-msgid "Active Layer"
-msgstr "Активни слој"
-
-
 msgid "Stroke"
 msgstr "Потез"
 
 
 msgid "Fill"
 msgstr "Испуна"
+
+
+msgid "Both"
+msgstr "Обе"
+
+
+msgid "Active Layer"
+msgstr "Активни слој"
 
 
 msgid "Background Image"
@@ -6262,10 +6266,6 @@ msgid "Node tree consisting of linked nodes used for compositing"
 msgstr "Дрво чворова који чине чворови за слагање"
 
 
-msgid "Use boundaries for viewer nodes and composite backdrop"
-msgstr "Користи оквир за чворове приказа и сложену позадину"
-
-
 msgid "Edit"
 msgstr "Уреди"
 
@@ -8489,20 +8489,16 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
-msgid "Math"
-msgstr "Математика"
+msgid "Show/Hide"
+msgstr "Прикажи/сакриј"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Special Characters"
+msgstr "Специјални знаци"
 
 
 msgid "Metaball"
 msgstr "Мета лопта"
-
-
-msgid "Show/Hide"
-msgstr "Прикажи/сакриј"
 
 
 msgid "Names"
@@ -8537,16 +8533,20 @@ msgid "Align View"
 msgstr "Поравнај поглед"
 
 
-msgid "Select Linked"
-msgstr "Изабери повезано"
-
-
 msgid "Keying"
 msgstr "Збирка тастера"
 
 
+msgid "Select Linked"
+msgstr "Изабери повезано"
+
+
 msgid "Tracking"
 msgstr "Праћење"
+
+
+msgid "Math"
+msgstr "Математика"
 
 
 msgid "Light"
@@ -8601,20 +8601,20 @@ msgid "Disable Bone Options"
 msgstr "Онемогући опције костију"
 
 
-msgid "Mesh Select Mode"
-msgstr "Мод избора мреже"
-
-
 msgid "Import"
 msgstr "Увоз"
+
+
+msgid "Mesh Select Mode"
+msgstr "Мод избора мреже"
 
 
 msgid "Merge"
 msgstr "Сједини"
 
 
-msgid "Special Characters"
-msgstr "Специјални знаци"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Basic"
@@ -13818,10 +13818,6 @@ msgid "Side"
 msgstr "Са стране"
 
 
-msgid "Both"
-msgstr "Обе"
-
-
 msgctxt "Operator"
 msgid "Add F-Curve Modifier"
 msgstr "Додај модификатор Ф-криве"
@@ -14944,10 +14940,6 @@ msgid "Minor Radius"
 msgstr "Споредни полупречник"
 
 
-msgid "Radius of the torus' cross section"
-msgstr "Полупречник пресека прстена торуса"
-
-
 msgid "Minor Segments"
 msgstr "Споредни делови"
 
@@ -14992,10 +14984,6 @@ msgstr "Открива сва сакривена темена, ивице и с�
 msgctxt "Operator"
 msgid "Rip"
 msgstr "Поцепај"
-
-
-msgid "Disconnect vertex or edges from connected geometry"
-msgstr "Раздваја темена или ивице од повезане геометрије"
 
 
 msgid "Fill the ripped region"
@@ -15957,10 +15945,6 @@ msgstr "Деформација меша"
 msgctxt "Operator"
 msgid "Add Metaball"
 msgstr "Додај мета-лопту"
-
-
-msgid "Add an metaball object to the scene"
-msgstr "Додаје објекат мета-лопте на сцену"
 
 
 msgctxt "Operator"
@@ -17609,10 +17593,6 @@ msgstr "Чувај меморију звука у остави."
 msgctxt "Operator"
 msgid "Jump to Strip"
 msgstr "Исеци траке"
-
-
-msgid "Move frame to previous edit point"
-msgstr "Премести кадар на претходну тачку уређења"
 
 
 msgid "Next Strip"
@@ -21565,6 +21545,16 @@ msgid "Original image width"
 msgstr "Оригинална ширина слике"
 
 
+msgctxt "Sequence"
+msgid "Color Balance"
+msgstr "Однос боја"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Криве"
+
+
 msgid "Adaptation"
 msgstr "Адаптација"
 
@@ -22275,10 +22265,6 @@ msgstr "Прикажи Z осу"
 
 msgid "Draw Normals"
 msgstr "Прикажи нормале"
-
-
-msgid "Display 3D curve normals in editmode"
-msgstr "Прикажи нормале 3D криве у режиму измене"
 
 
 msgid "Face Angles"
@@ -25365,16 +25351,6 @@ msgstr "Очисти групу темена"
 
 msgid "All render layers are disabled"
 msgstr "Сва правила су просечна"
-
-
-msgctxt "Sequence"
-msgid "Color Balance"
-msgstr "Однос боја"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Криве"
 
 
 msgid "Strips must be the same length"

@@ -108,15 +108,16 @@ static bke::CurvesGeometry duplicate_strokes(const bke::CurvesGeometry &curves,
   instances->transforms_for_write().fill(float4x4::identity());
 
   for ([[maybe_unused]] const int i : IndexRange(count)) {
-    handles[i] = unselected_handle;
+    handles[i] = masked_handle;
   }
-  handles[count] = masked_handle;
+  handles[count] = unselected_handle;
 
   geometry::RealizeInstancesOptions options;
   options.keep_original_ids = true;
   options.realize_instance_attributes = true;
   bke::GeometrySet result_geo = geometry::realize_instances(
-                                    bke::GeometrySet::from_instances(instances.release()), options)
+                                    bke::GeometrySet::from_instances(std::move(instances)),
+                                    options)
                                     .geometry;
   return std::move(result_geo.get_curves_for_write()->geometry.wrap());
 }

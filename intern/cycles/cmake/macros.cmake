@@ -71,6 +71,12 @@ macro(cycles_add_library target library_deps)
     endforeach()
   endif()
 
+  # On windows vcpkg goes out of its way to make its libs the preferred
+  # libs, and needs to be explicitly be told not to do that.
+  if(WIN32)
+    set_target_properties(${target} PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
+  endif()
+
   cycles_set_solution_folder(${target})
 endmacro()
 
@@ -138,9 +144,7 @@ macro(cycles_external_libraries_append libraries)
     ${ZLIB_LIBRARIES}
     ${CMAKE_DL_LIBS}
   )
-  if(NOT WITH_PYTHON_MODULE)
-    list(APPEND ${libraries} ${PYTHON_LIBRARIES})
-  endif()
+  list(APPEND ${libraries} bf::dependencies::optional::python)
 
   if(DEFINED PTHREADS_LIBRARIES)
     list(APPEND ${libraries}
