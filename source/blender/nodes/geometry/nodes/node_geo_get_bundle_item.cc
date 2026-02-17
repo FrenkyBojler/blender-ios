@@ -189,6 +189,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     GetItemsResult result;
     if (remove_value.is_list()) {
       const ListPtr remove_list = remove_value.extract<ListPtr>();
+      if (remove_list->size() != paths.size()) {
+        params.error_message_add(NodeWarningType::Error,
+                                 "List size of \"Remove\" must match the size of \"Path\"");
+        return;
+      }
       result = get_items(bundle, socket_type, paths, remove_list->varray<bool>(), params);
     }
     else if (remove_value.is_single()) {
@@ -203,8 +208,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
   else if (path_value.is_single()) {
-    params.set_output("Bundle", std::move(bundle));
-    params.set_default_remaining_outputs();
     if (remove_value.is_single()) {
       const std::string path = path_value.extract<std::string>();
       const bool remove = remove_value.extract<bool>();
