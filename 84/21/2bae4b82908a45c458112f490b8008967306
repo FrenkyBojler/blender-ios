@@ -2,3 +2,4 @@ Referenced by issue #140635, Mem leak on undo since AttributeStorage changes
 Referenced by commit 0e737b23c553f23d9a749dab3b58d9b340edf2c9, Revert "Attributes: Remove AttributeStorage legacy compatibility option"
 Referenced by commit f61fbc468ab9f67ae25ac22f73f3496b7bfb105c, Attributes: Remove AttributeStorage legacy compatibility option
 Referenced by issue #140704, Mem leak on undo since AttributeStorage changes
+Referenced by issue #154434, Undo/Redo for some actions takes a lot longer than 4.5
