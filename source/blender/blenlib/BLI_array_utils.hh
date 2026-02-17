@@ -21,7 +21,8 @@
 
 namespace blender::array_utils {
 
-constexpr int64_t calc_auto_copy_grain_size(const exec_mode::Tag auto mode, int64_t type_size)
+constexpr int64_t calc_auto_copy_grain_size(const exec_mode::Tag auto mode,
+                                            const int64_t type_size)
 {
   static_assert(mode.is_parallel);
   if constexpr (requires { mode.grain_size; }) {
