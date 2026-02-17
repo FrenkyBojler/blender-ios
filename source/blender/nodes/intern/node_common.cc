@@ -793,7 +793,7 @@ static void node_adapt_type_declare(nodes::NodeDeclarationBuilder &b)
   }
 
   const StringRefNull socket_idname(
-      static_cast<const NodeAdaptType *>(node->storage)->type_idname);
+      static_cast<const NodeImplicitConversion *>(node->storage)->type_idname);
   b.add_input<nodes::decl::Custom>("Input")
       .idname(socket_idname.c_str())
       .structure_type(nodes::StructureType::Dynamic);
@@ -804,35 +804,34 @@ static void node_adapt_type_declare(nodes::NodeDeclarationBuilder &b)
       .propagate_all();
 }
 
-static void node_adapt_type_init(bNodeTree * /*ntree*/, bNode *node)
+static void node_implicit_conversion_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeAdaptType *data = MEM_new<NodeAdaptType>(__func__);
+  NodeImplicitConversion *data = MEM_new<NodeImplicitConversion>(__func__);
   STRNCPY(data->type_idname, "NodeSocketColor");
   node->storage = data;
 }
 
-static void node_geo_exec(nodes::GeoNodeExecParams params)
+static void node_implicit_conversion_geo_exec(nodes::GeoNodeExecParams params)
 {
   auto input_value = params.extract_input<bke::SocketValueVariant>("Input");
   params.set_output("Output", std::move(input_value));
 }
 
-void register_node_type_adapt_type()
+void register_node_type_implicit_conversion()
 {
   /* Adapt type node is used for all tree types, needs dynamic allocation. */
-  bke::bNodeType *ntype = MEM_new<bke::bNodeType>("Adapt Type node type");
+  bke::bNodeType *ntype = MEM_new<bke::bNodeType>("Implicit Conversion node type");
   ntype->free_self = [](bke::bNodeType *type) { MEM_delete(type); };
 
-  bke::node_type_base(*ntype, "NodeAdaptType");
-  ntype->ui_name = "Adapt Type";
-  ntype->ui_description =
-      "Pass through values if the type matches, otherwise implicitly convert the input";
+  bke::node_type_base(*ntype, "NodeImplicitConversion");
+  ntype->ui_name = "Implicit Conversion";
+  ntype->ui_description = "Implicitly convert the input value to a fixed socket type";
   ntype->nclass = NODE_CLASS_CONVERTER;
   ntype->declare = node_adapt_type_declare;
-  ntype->initfunc = node_adapt_type_init;
+  ntype->initfunc = node_implicit_conversion_init;
   node_type_storage(
-      *ntype, "NodeAdaptType", node_free_standard_storage, node_copy_standard_storage);
-  ntype->geometry_node_execute = node_geo_exec;
+      *ntype, "NodeImplicitConversion", node_free_standard_storage, node_copy_standard_storage);
+  ntype->geometry_node_execute = node_implicit_conversion_geo_exec;
 
   bke::node_register_type(*ntype);
 }

@@ -4109,6 +4109,30 @@ static void rna_reroute_node_socket_type_set(PointerRNA *ptr, const char *value)
   STRNCPY(storage->type_idname, value);
 }
 
+static void rna_implicit_conversion_node_socket_type_set(PointerRNA *ptr, const char *value)
+{
+  const bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
+  bke::bNodeTreeType *ntree_type = ntree.typeinfo;
+
+  bNode &node = *ptr->data_as<bNode>();
+
+  if (value == nullptr) {
+    return;
+  }
+  bke::bNodeSocketType *socket_type = bke::node_socket_type_find(value);
+  if (socket_type == nullptr) {
+    return;
+  }
+  if (socket_type->subtype != PROP_NONE) {
+    return;
+  }
+  if (ntree_type->valid_socket_type && !ntree_type->valid_socket_type(ntree_type, socket_type)) {
+    return;
+  }
+  NodeImplicitConversion *storage = static_cast<NodeImplicitConversion *>(node.storage);
+  STRNCPY(storage->type_idname, value);
+}
+
 static const EnumPropertyItem *rna_NodeConvertColorSpace_color_space_itemf(bContext * /*C*/,
                                                                            PointerRNA * /*ptr*/,
                                                                            PropertyRNA * /*prop*/,
@@ -8643,13 +8667,14 @@ static void def_reroute(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
-static void def_adapt_type(BlenderRNA * /*brna*/, StructRNA *srna)
+static void def_implicit_conversion(BlenderRNA * /*brna*/, StructRNA *srna)
 {
-  RNA_def_struct_sdna_from(srna, "NodeAdaptType", "storage");
+  RNA_def_struct_sdna_from(srna, "NodeImplicitConversion", "storage");
 
   PropertyRNA *prop = RNA_def_property(srna, "socket_idname", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "type_idname");
-  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_reroute_node_socket_type_set");
+  RNA_def_property_string_funcs(
+      prop, nullptr, nullptr, "rna_implicit_conversion_node_socket_type_set");
   RNA_def_property_ui_text(prop, "Type of socket", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
@@ -9798,7 +9823,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("NodeInternal", "NodeGroupInput", def_group_input);
   define("NodeInternal", "NodeGroupOutput", def_group_output);
   define("NodeInternal", "NodeReroute", def_reroute);
-  define("NodeInternal", "NodeAdaptType", def_adapt_type);
+  define("NodeInternal", "NodeImplicitConversion", def_implicit_conversion);
 
   define("NodeInternal", "NodeClosureInput", def_closure_input);
   define("NodeInternal", "NodeClosureOutput", def_closure_output);

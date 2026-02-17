@@ -2137,8 +2137,8 @@ struct NodeReroute {
   char type_idname[64] = "";
 };
 
-struct NodeAdaptType {
-  DNA_DEFINE_CXX_METHODS(NodeAdaptType)
+struct NodeImplicitConversion {
+  DNA_DEFINE_CXX_METHODS(NodeImplicitConversion)
 
   /** Name of the socket type (e.g. `NodeSocketFloat`). */
   char type_idname[64] = "";
