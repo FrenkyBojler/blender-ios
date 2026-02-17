@@ -2019,7 +2019,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   const uchar4 text_col = [wcol, but]() -> uchar4 {
     uchar4 col;
     copy_v4_v4_uchar(col, wcol->text);
-    col[3] *= (but->active || !(but->block->flag & BLOCK_MENU_DIM)) ? 1.0f : 0.75f;
+    col[3] *= 1.0f - (but->active ? 0.0f : but->block->dim_factor);
     return col;
   }();
 #ifdef WITH_INPUT_IME
@@ -2401,7 +2401,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
 {
   const bool show_menu_icon = ui_but_draw_menu_icon(but);
   const float alpha = float(wcol->text[3]) / 255.0f *
-                      ((but->active || !(but->block->flag & BLOCK_MENU_DIM)) ? 1.0f : 0.75f);
+                      (1.0f - (but->active ? 0.0f : but->block->dim_factor));
   std::string password_str;
   bool no_text_padding = but->drawflag & BUT_NO_TEXT_PADDING;
 
@@ -2509,7 +2509,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
     if (show_menu_icon) {
       BLI_assert(but->block->content_hints & BLOCK_CONTAINS_SUBMENU_BUT);
       widget_draw_submenu_tria(
-          but, rect, wcol, (but->active || !(but->block->flag & BLOCK_MENU_DIM)) ? 1.0f : 0.75f);
+          but, rect, wcol, 1.0f - (but->active ? 0.0f : but->block->dim_factor));
     }
 
 #ifdef USE_UI_TOOLBAR_HACK

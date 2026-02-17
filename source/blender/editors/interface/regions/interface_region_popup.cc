@@ -596,6 +596,9 @@ static void ui_popup_block_remove(bContext *C, PopupBlockHandle *handle)
   if (handle->scrolltimer) {
     WM_event_timer_remove(wm, win, handle->scrolltimer);
   }
+  if (handle->dimtimer) {
+    WM_event_timer_remove(wm, win, handle->dimtimer);
+  }
 }
 
 void layout_panel_popup_scroll_apply(Panel *panel, const float dy)
@@ -887,6 +890,9 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
      * scroll, this is a offset applied due to the overflow at the top. */
     layout_panel_popup_scroll_apply(block->panel, -scroll_min);
   }
+  SET_FLAG_FROM_TEST(block->flag, handle->dim, BLOCK_MENU_DIM);
+  SET_FLAG_FROM_TEST(block->flag, handle->reduce_shadow_offset, BLOCK_MENU_REDUCED_SHADOW_OFFSET);
+  block->dim_factor = handle->dim_factor;
   /* Apply popup scroll offset to layout panels. */
   layout_panel_popup_scroll_apply(block->panel, handle->scrolloffset);
 

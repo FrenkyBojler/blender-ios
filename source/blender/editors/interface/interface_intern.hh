@@ -730,6 +730,8 @@ struct Block {
    */
   char display_device[64] = "";
 
+  float dim_factor = 0.0f;
+
   PieMenuData pie_data;
 
   void remove_but(const Button *but);
@@ -979,6 +981,11 @@ struct PopupBlockHandle {
 
   wmTimer *scrolltimer = nullptr;
   float scrolloffset = 0.0f;
+
+  wmTimer *dimtimer = nullptr;
+  bool reduce_shadow_offset=false;
+  bool dim=false;
+  float dim_factor = 0.0f;
 
   KeyNavLock keynav_state;
 

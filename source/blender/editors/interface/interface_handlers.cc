@@ -11954,24 +11954,43 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
   return retval;
 }
 
-static bool ui_menus_dim_recursive(PopupBlockHandle *menu, const int2 xy, int level)
+static constexpr float menu_max_dim_factor = 0.25f;
+static constexpr float menu_dim_step = 0.015f;
+static constexpr float menu_dim_step_interval = 0.015f;
+
+bool ui_menus_dim_recursive(bContext *C, PopupBlockHandle *menu, const wmEvent *event, int level)
 {
   Button *but = region_find_active_but(menu->region);
   HandleButtonData *data = (but) ? but->active : nullptr;
   PopupBlockHandle *sub_menu = (data) ? data->menu : nullptr;
+  Block *block = static_cast<Block *>(menu->region->runtime->uiblocks.first);
+  auto start_dim_timer = [C, menu, block]() {
+    SET_FLAG_FROM_TEST(block->flag, menu->dim, BLOCK_MENU_DIM);
+    SET_FLAG_FROM_TEST(block->flag, menu->reduce_shadow_offset, BLOCK_MENU_REDUCED_SHADOW_OFFSET);
+    if (menu->dimtimer) {
+      return;
+    }
+    if (menu->dim_factor == (menu->dim ? menu_max_dim_factor : 0.0f)) {
+      return;
+    }
+    menu->dimtimer = WM_event_timer_add(
+        CTX_wm_manager(C), CTX_wm_window(C), TIMER, menu_dim_step_interval);
+  };
+
   if (!sub_menu) {
-    Block *block = static_cast<Block *>(menu->region->runtime->uiblocks.first);
     block->flag &= ~BLOCK_MENU_DIM;
-    int mx = xy[0];
-    int my = xy[1];
+    int mx = event->xy[0];
+    int my = event->xy[1];
     window_to_block(menu->region, block, &mx, &my);
     const bool active = BLI_rctf_isect_pt(&block->rect, mx, my) || but;
-    SET_FLAG_FROM_TEST(block->flag, (level > 0), BLOCK_MENU_REDUCED_SHADOW_OFFSET);
+    menu->reduce_shadow_offset = level > 0;
+    menu->dim = false;
+    start_dim_timer();
     return active;
   }
-  Block *block = static_cast<Block *>(menu->region->runtime->uiblocks.first);
-  SET_FLAG_FROM_TEST(block->flag, ui_menus_dim_recursive(sub_menu, xy, level + 1), BLOCK_MENU_DIM);
-  SET_FLAG_FROM_TEST(block->flag, level > 0, BLOCK_MENU_REDUCED_SHADOW_OFFSET);
+  menu->dim = ui_menus_dim_recursive(C, sub_menu, event, level + 1);
+  menu->reduce_shadow_offset = level > 0;
+  start_dim_timer();
   return true;
 }
 
@@ -11983,6 +12002,19 @@ static int ui_handle_menus_recursive(bContext *C,
                                      const bool is_parent_menu,
                                      const bool is_floating)
 {
+  if (event->type == TIMER && menu->dimtimer == event->customdata) {
+    Block *block = static_cast<Block *>(menu->region->runtime->uiblocks.first);
+
+    menu->dim_factor += (menu->dim) ? menu_dim_step : -menu_dim_step;
+    menu->dim_factor = std::clamp(menu->dim_factor, 0.0f, menu_max_dim_factor);
+    if (menu->dim_factor == (menu->dim ? menu_max_dim_factor : 0.0f)) {
+      WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), menu->dimtimer);
+      menu->dimtimer = nullptr;
+    }
+    block->dim_factor = menu->dim_factor;
+    ED_region_tag_redraw_no_rebuild(menu->region);
+    return WM_UI_HANDLER_BREAK;
+  }
   int retval = WM_UI_HANDLER_CONTINUE;
   bool do_towards_reinit = false;
 
@@ -12333,7 +12365,7 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
        * this will handle events from the top to the bottom menu */
       if (data->menu) {
         retval = ui_handle_menus_recursive(C, event, data->menu, 0, false, false, false);
-        ui_menus_dim_recursive(data->menu, event->xy, 0);
+        ui_menus_dim_recursive(C, data->menu, event, 0);
       }
 
       /* handle events for the activated button */
@@ -12410,7 +12442,7 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
   }
 
   ui_handle_menus_recursive(C, event, menu, 0, false, false, true);
-  ui_menus_dim_recursive(menu, event->xy, 0);
+  ui_menus_dim_recursive(C, menu, event, 0);
 
   /* free if done, does not free handle itself */
   if (menu->menuretval) {
