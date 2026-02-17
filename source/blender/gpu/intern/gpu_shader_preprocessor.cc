@@ -134,7 +134,7 @@ struct AtomicLexer : lexit::TokenBuffer {
  protected:
   void lexical_analysis(std::string_view input)
   {
-    process_without_whitespace(input, lexit::char_class_table);
+    process(input, lexit::char_class_table);
     lex_pass();
   }
 
