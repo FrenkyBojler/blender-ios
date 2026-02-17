@@ -2755,10 +2755,9 @@ static void UI_OT_view_item_rename(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name UI View Select Operator
+/** \name UI View Item Select Operator
  *
- * Operator for selection of view items. This activates the clicked item.
- * Also supports multi-selection with Shift and Ctrl modifier keys.
+ * Operator for selecting view items, supports multi-selection with `SHIFT`/`CTRL`.
  *
  * \{ */
 
@@ -2900,7 +2899,7 @@ static void UI_OT_view_item_select(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name UI View Item Delete Operator
  *
- * Main purpose of this operator is to support deleting selected view items with `X` hotkey.
+ * Operator for deleting selected view items, binded to the `X` hotkey.
  *
  * \{ */
 
