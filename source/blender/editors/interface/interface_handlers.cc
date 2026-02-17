@@ -8868,6 +8868,9 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
         if (but->block->auto_open == true) { /* test for toolbox */
           time = 1;
         }
+        else if (but->block->flag & BLOCK_LOOP && but->type == ButtonType::Pulldown) {
+          time = 5 * U.menuthreshold2;
+        }
         else if (U.uiflag & USER_MENUOPENAUTO) {
           time = 5 * U.menuthreshold1;
         }
