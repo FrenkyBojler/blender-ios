@@ -7,7 +7,6 @@
  */
 
 /* Allow using deprecated functionality for .blend file I/O. */
-#include "NOD_geometry_nodes_srna.hh"
 #define DNA_DEPRECATED_ALLOW
 
 #include <cmath>
@@ -142,6 +141,8 @@
 
 #include "ANIM_action_legacy.hh"
 #include "ANIM_animdata.hh"
+
+#include "NOD_geometry_nodes_srna.hh"
 
 #include "RNA_prototypes.hh"
 
@@ -615,6 +616,10 @@ static void object_foreach_working_space_color(ID *id,
 
 namespace forward_compat {
 
+/**
+ * \note We do this at the object level so that pointers for temporarily allocated IDProperties
+ * aren't reused between modifiers.
+ */
 static void create_legacy_geometry_nodes_properties(Object &ob)
 {
   for (ModifierData &md : ob.modifiers) {
@@ -628,27 +633,26 @@ static void create_legacy_geometry_nodes_properties(Object &ob)
       return;
     }
 
-    IDProperty *old_props = bke::idprop::create_group("settings_properties").release();
+    IDProperty *old_props = bke::idprop::create_group("Nodes Modifier Settings").release();
 
-    const IDProperty *inputs_group = IDP_GetPropertyFromGroup(system_props, "inputs");
-    if (inputs_group && inputs_group->type == IDP_GROUP) {
-      for (IDProperty &prop_group : inputs_group->data.group) {
-        const StringRefNull identifier = prop_group.name;
-
-        const IDProperty *type_prop = IDP_GetPropertyFromGroup(&prop_group, "type");
+    const IDProperty *inputs = IDP_GetPropertyFromGroup(system_props, "inputs");
+    if (inputs && inputs->type == IDP_GROUP) {
+      for (const IDProperty &prop : inputs->data.group) {
+        const StringRefNull identifier = prop.name;
+        const IDProperty *type_prop = IDP_GetPropertyFromGroup(&prop, "type");
         if (!type_prop) {
           continue;
         }
         const int type = IDP_int_get(type_prop);
         if (type == int(nodes::GeometryNodesInputType::Layer)) {
-          if (const IDProperty *prop = IDP_GetPropertyFromGroup(&prop_group, "layer_name")) {
-            IDProperty *new_prop = IDP_CopyProperty(prop);
+          if (const IDProperty *name = IDP_GetPropertyFromGroup(&prop, "layer_name")) {
+            IDProperty *new_prop = IDP_CopyProperty(name);
             STRNCPY(new_prop->name, identifier.c_str());
             IDP_AddToGroup(old_props, new_prop);
           }
         }
         else {
-          if (const IDProperty *value = IDP_GetPropertyFromGroup(&prop_group, "value")) {
+          if (const IDProperty *value = IDP_GetPropertyFromGroup(&prop, "value")) {
             IDProperty *new_prop = IDP_CopyProperty(value);
             STRNCPY(new_prop->name, identifier.c_str());
             IDP_AddToGroup(old_props, new_prop);
@@ -659,8 +663,8 @@ static void create_legacy_geometry_nodes_properties(Object &ob)
               old_props,
               bke::idprop::create(identifier + "_use_attribute", int(use_attribute)).release());
 
-          if (const IDProperty *prop = IDP_GetPropertyFromGroup(&prop_group, "attribute_name")) {
-            IDProperty *new_attr_prop = IDP_CopyProperty(prop);
+          if (const IDProperty *name = IDP_GetPropertyFromGroup(&prop, "attribute_name")) {
+            IDProperty *new_attr_prop = IDP_CopyProperty(name);
             SNPRINTF(new_attr_prop->name, "%s_attribute_name", identifier.c_str());
             IDP_AddToGroup(old_props, new_attr_prop);
           }
@@ -668,12 +672,12 @@ static void create_legacy_geometry_nodes_properties(Object &ob)
       }
     }
 
-    const IDProperty *outputs_group = IDP_GetPropertyFromGroup(system_props, "outputs");
-    if (outputs_group && outputs_group->type == IDP_GROUP) {
-      for (IDProperty &prop_group : inputs_group->data.group) {
-        const StringRefNull identifier = prop_group.name;
-        if (const IDProperty *prop = IDP_GetPropertyFromGroup(&prop_group, "attribute_name")) {
-          IDProperty *new_prop = IDP_CopyProperty(prop);
+    const IDProperty *outputs = IDP_GetPropertyFromGroup(system_props, "outputs");
+    if (outputs && outputs->type == IDP_GROUP) {
+      for (const IDProperty &prop : inputs->data.group) {
+        const StringRefNull identifier = prop.name;
+        if (const IDProperty *name = IDP_GetPropertyFromGroup(&prop, "attribute_name")) {
+          IDProperty *new_prop = IDP_CopyProperty(name);
           SNPRINTF(new_prop->name, "%s_attribute_name", identifier.c_str());
           IDP_AddToGroup(old_props, new_prop);
         }
@@ -692,6 +696,9 @@ static void free_legacy_geometry_nodes_properties(Object &ob)
       continue;
     }
     NodesModifierData &nmd = reinterpret_cast<NodesModifierData &>(md);
+    if (!nmd.settings.properties) {
+      continue;
+    }
     IDP_FreeProperty(nmd.settings.properties);
     nmd.settings.properties = nullptr;
   }
@@ -717,6 +724,10 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   /* write LibData */
   writer->write_id_struct(id_address, ob);
   BKE_id_blend_write(writer, &ob->id);
+
+  if (!is_undo) {
+    forward_compat::create_legacy_geometry_nodes_properties(*ob);
+  }
 
   /* direct data */
   BLO_write_pointer_array(writer, ob->totcol, ob->mat);
@@ -753,7 +764,6 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   }
 
   BKE_particle_system_blend_write(writer, &ob->particlesystem);
-  forward_compat::create_legacy_geometry_nodes_properties(*ob);
   BKE_modifier_blend_write(writer, &ob->id, &ob->modifiers);
   BKE_shaderfx_blend_write(writer, &ob->shader_fx);
 
@@ -1070,8 +1080,8 @@ PartEff *BKE_object_do_version_give_parteff_245(Object *ob)
 
 static void object_lib_override_apply_post(ID *id_dst, ID *id_src)
 {
-  /* id_dst is the new local override copy of the linked reference data. id_src is the old override
-   * data stored on disk, used as source data for override operations. */
+  /* id_dst is the new local override copy of the linked reference data. id_src is the old
+   * override data stored on disk, used as source data for override operations. */
   Object *object_dst = id_cast<Object *>(id_dst);
   Object *object_src = id_cast<Object *>(id_src);
 
@@ -1398,11 +1408,12 @@ static bool object_modifier_type_copy_check(ModifierType md_type)
 
 /**
  * Find a `psys` matching given `psys_src` in `ob_dst`
- * (i.e. sharing the same #ParticleSettings ID), or add one, and return valid `psys` from `ob_dst`.
+ * (i.e. sharing the same #ParticleSettings ID), or add one, and return valid `psys` from
+ * `ob_dst`.
  *
  * \note Order handling is fairly weak here. This code assumes that it is called **before** the
- * modifier using the `psys` is actually copied, and that this copied modifier will be added at the
- * end of the stack. That way we can be sure that the particle modifier will be before the one
+ * modifier using the `psys` is actually copied, and that this copied modifier will be added at
+ * the end of the stack. That way we can be sure that the particle modifier will be before the one
  * using its particle system in the stack.
  */
 static ParticleSystem *object_copy_modifier_particle_system_ensure(Main *bmain,
@@ -2574,8 +2585,8 @@ Object *BKE_object_duplicate(Main *bmain,
     copy_flags |= LIB_ID_COPY_RIGID_BODY_NO_COLLECTION_HANDLING;
   }
   if (is_root_id) {
-    /* In case root duplicated ID is linked, assume we want to get a local copy of it and duplicate
-     * all expected linked data. */
+    /* In case root duplicated ID is linked, assume we want to get a local copy of it and
+     * duplicate all expected linked data. */
     if (ID_IS_LINKED(ob)) {
       dupflag |= USER_DUP_LINKED_ID;
     }
@@ -2708,7 +2719,8 @@ Object *BKE_object_duplicate(Main *bmain,
         bmain, &obn->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR);
 
 #ifndef NDEBUG
-    /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */
+    /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags.
+     */
     ID *id_iter;
     FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
       BLI_assert((id_iter->tag & ID_TAG_NEW) == 0);
@@ -3192,7 +3204,8 @@ static void give_parvert(const Object *par, int nr, float vec[3], const bool use
     ListBaseT<Nurb> *nurb;
 
     /* It is possible that a cycle in the dependency graph was resolved in a way that caused this
-     * object to be evaluated before its dependencies. In this case the curve cache may be null. */
+     * object to be evaluated before its dependencies. In this case the curve cache may be null.
+     */
     if (par->runtime->curve_cache && par->runtime->curve_cache->deformed_nurbs.first != nullptr) {
       nurb = &par->runtime->curve_cache->deformed_nurbs;
     }
@@ -3439,10 +3452,10 @@ float4x4 BKE_object_calc_parent(Depsgraph *depsgraph, Scene *scene, Object *ob)
   workob.par3 = ob->par3;
 
   /* The effects of constraints should NOT be included in the parent-inverse matrix. Constraints
-   * are supposed to be applied after the object's local loc/rot/scale. If the (inverted) effect of
-   * constraints would be included in the parent inverse matrix, these would be applied before the
-   * object's local loc/rot/scale instead of after. For example, a "Copy Rotation" constraint would
-   * rotate the object's local translation as well. See #82156. */
+   * are supposed to be applied after the object's local loc/rot/scale. If the (inverted) effect
+   * of constraints would be included in the parent inverse matrix, these would be applied before
+   * the object's local loc/rot/scale instead of after. For example, a "Copy Rotation" constraint
+   * would rotate the object's local translation as well. See #82156. */
 
   STRNCPY_UTF8(workob.parsubstr, ob->parsubstr);
 
