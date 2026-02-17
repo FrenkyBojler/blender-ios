@@ -407,7 +407,6 @@ inline ShuffleIndicesResult<4> shuffle_indices_from_emit_mask(uint64_t emit_mask
   return {simd::u8x64::load((const uint8_t *)&combined), popcount};
 }
 
-template<bool with_whitespace>
 inline void TokenBuffer::tokenize_scalar(uint32_t &__restrict offset,
                                          uint32_t &__restrict cursor_begin,
                                          uint32_t &__restrict cursor_end,
@@ -425,9 +424,7 @@ inline void TokenBuffer::tokenize_scalar(uint32_t &__restrict offset,
      * as having a condition. */
     types_[cursor_begin] = curr_tok_type;
     offsets_[cursor_begin] = offset;
-    if constexpr (!with_whitespace) {
-      offsets_end_[cursor_end] = offset;
-    }
+    offsets_end_[cursor_end] = offset;
     /**
      * Split if no class in common.
      * Example:
@@ -457,43 +454,24 @@ inline void TokenBuffer::tokenize_scalar(uint32_t &__restrict offset,
 
     prev_whitespace = curr_ws;
 
-    if constexpr (with_whitespace) {
 #ifdef LEXIT_DEBUG
-      if (emit) {
-        int start = offsets_[cursor_begin - 1];
-        int end = offsets_[cursor_end];
-        token_str_debug_.emplace_back(str_.data() + start, end - start);
-        token_str_with_whitespace_debug_.emplace_back(str_.data() + start, end - start);
-      }
-#endif
-      cursor_begin += emit;
-      cursor_end += emit;
+    if (emit_start) {
+      int start = offsets_[cursor_begin - 1];
+      int end = offsets_[cursor_begin];
+      token_str_with_whitespace_debug_.emplace_back(str_.data() + start, end - start);
     }
-    else {
-#ifdef LEXIT_DEBUG
-      if (emit_start) {
-        int start = offsets_[cursor_begin - 1];
-        int end = offsets_[cursor_begin];
-        token_str_with_whitespace_debug_.emplace_back(str_.data() + start, end - start);
-      }
-      if (emit_end) {
-        int start = offsets_[cursor_end];
-        int end = offsets_end_[cursor_end];
-        token_str_debug_.emplace_back(str_.data() + start, end - start);
-      }
-#endif
-      cursor_begin += emit_start;
-      cursor_end += emit_end;
+    if (emit_end) {
+      int start = offsets_[cursor_end];
+      int end = offsets_end_[cursor_end];
+      token_str_debug_.emplace_back(str_.data() + start, end - start);
     }
+#endif
+    cursor_begin += emit_start;
+    cursor_end += emit_end;
   }
 }
 
-template void TokenBuffer::tokenize_scalar<true>(
-    uint32_t &, uint32_t &, uint32_t &, CharClass &, bool &, uint32_t, const CharClass[128]);
-template void TokenBuffer::tokenize_scalar<false>(
-    uint32_t &, uint32_t &, uint32_t &, CharClass &, bool &, uint32_t, const CharClass[128]);
-
-template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_class_table[128])
+void TokenBuffer::tokenize(const CharClass char_class_table[128])
 {
   if (str_.size() == 0) {
     size_ = 0;
@@ -536,20 +514,20 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
     prev_whitespace = curr == CharClass::WhiteSpace;
   }
 
-  uint32_t offset = 1, cursor = 1, cursor_end = 0;
+  uint32_t offset = 1, cursor = 1, cursor_end = prev_whitespace ? 1 : 0;
 
   int stride = 64;
 
   /* Process until alignment to SIMD size is met. */
   size_t index_at_align = ((stride - (uintptr_t(str_.data() + 1) & (stride - 1))) & (stride - 1)) +
                           1;
-  tokenize_scalar<with_whitespace>(offset,
-                                   cursor,
-                                   cursor_end,
-                                   prev_value,
-                                   prev_whitespace,
-                                   str_.size() > index_at_align ? index_at_align : str_.size(),
-                                   char_class_table);
+  tokenize_scalar(offset,
+                  cursor,
+                  cursor_end,
+                  prev_value,
+                  prev_whitespace,
+                  str_.size() > index_at_align ? index_at_align : str_.size(),
+                  char_class_table);
 
 #if defined(USE_NEON) || defined(USE_SSE4_2)
   using namespace lexit::simd;
@@ -583,9 +561,7 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
     prev_whitespace = !curr_non_ws.last();
     uint64_t emit_end_mask = movemask(emit_end);
     uint64_t emit_start_mask = movemask(emit_start);
-    if constexpr (with_whitespace) {
-      emit_start_mask = movemask(emit);
-    }
+
     /* Stream compaction of data based on the emit mask (0xFF == emit, 0x00 == skip).
      * Stores `data` compacted inside `data_out` starting from `data_out + cursor` and advance
      * `cursor` by the number of element compacted. */
@@ -610,7 +586,7 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
 #  endif
       cursor += popcount;
     }
-    if constexpr (!with_whitespace) {
+    {
       auto [shuffle, popcount] = shuffle_indices_from_emit_mask(emit_end_mask);
       /* The offsets are contained inside the 8 bit shuffle vector.
        * We need to promote it to 32 bit before adding the base offset. */
@@ -620,35 +596,24 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
       (u32x16(shuffle.lane(3)) + offset).store_unaligned(&offsets_end_[cursor_end + 48]);
 #  ifdef LEXIT_DEBUG
       for (int i = cursor_end; i < cursor_end + popcount; i++) {
-        int start = offsets_[i - 1];
+        int start = offsets_[i];
         int end = offsets_end_[i];
         token_str_debug_.emplace_back(str_.data() + start, end - start);
       }
 #  endif
       cursor_end += popcount;
     }
-    if constexpr (!with_whitespace) {
-      assert(cursor_end == cursor || cursor_end + 1 == cursor);
-    }
+    assert(cursor_end == cursor || cursor_end + 1 == cursor);
   }
 #endif
 
-  if constexpr (!with_whitespace) {
-    assert(cursor_end == cursor || cursor_end + 1 == cursor);
-  }
+  assert(cursor_end == cursor || cursor_end + 1 == cursor);
+
   /* Finish tail using scalar loop. */
-  tokenize_scalar<with_whitespace>(
+  tokenize_scalar(
       offset, cursor, cursor_end, prev_value, prev_whitespace, str_.size(), char_class_table);
 
-  if constexpr (!with_whitespace) {
-    assert(cursor_end == cursor || cursor_end + 1 == cursor);
-  }
-
-  if constexpr (with_whitespace) {
-    /* Copy instead of setting it inside the loop. */
-    std::memcpy(offsets_end_.get(), offsets_.get() + 1, (cursor - 1) * sizeof(offsets_end_[0]));
-    cursor_end = cursor - 1;
-  }
+  assert(cursor_end == cursor || cursor_end + 1 == cursor);
 
   /* Set end of last token. */
   offsets_[cursor] = str_.size();
@@ -657,9 +622,6 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
   types_[cursor] = EndOfFile;
   size_ = cursor;
 }
-
-template void TokenBuffer::tokenize<true>(const CharClass[128]);
-template void TokenBuffer::tokenize<false>(const CharClass[128]);
 
 void TokenBuffer::compute_lengths()
 {
@@ -860,20 +822,37 @@ static void lex_string(const TokenType *types, uint32_t &cursor)
 static void lex_number(const std::string_view str,
                        const TokenType *types,
                        const uint32_t *offsets,
+                       const uint32_t *offsets_end_,
                        uint32_t &cursor)
 {
   const TokenType *type = types + cursor;
   const uint32_t *offset = offsets + cursor;
+  const uint32_t *offset_end_ = offsets_end_ + cursor;
+
+  /* If number is followed by whitespace itself. */
+  const bool followed_by_whitespace = offset_end_[0] != offset[1];
+  if (followed_by_whitespace) {
+    return;
+  }
+
   while (true) {
     cursor++;
     type++;
     offset++;
+    offset_end_++;
+
     /* Check if the previous char was an exponent "e" char. */
     if ((*type == '+' || *type == '-') && str[*offset - 1] != 'e') {
       break;
     }
     if (!(*type == Word || *type == Number || *type == '.' || *type == '+' || *type == '-')) {
       break;
+    }
+    /* Break if this token is part of the number but followed by a whitespace. */
+    const bool followed_by_whitespace = offset_end_[0] != offset[1];
+    if (followed_by_whitespace) {
+      /* Note: we don't want to do the cursor roll back since we want to merge this token. */
+      return;
     }
   }
   /* We need to evaluate the token we broke on. */
@@ -885,20 +864,24 @@ void TokenBuffer::merge_complex_literals()
   const TokenType *in_types = types_.get();
   TokenType *out_type = types_.get();
   const uint32_t *in_offsets = offsets_.get();
+  const uint32_t *in_offset_end = offsets_end_.get();
   uint32_t *out_offset = offsets_.get();
+  uint32_t *out_offset_end = offsets_end_.get();
 
-  for (uint32_t i = 0; i < size_; i++, out_type++, out_offset++) {
+  for (uint32_t i = 0; i < size_; i++, out_type++, out_offset++, out_offset_end++) {
     const TokenType type = in_types[i];
     const uint32_t offset = in_offsets[i];
+    const uint32_t offset_end = in_offset_end[i];
     *out_type = type;
     *out_offset = offset;
+    *out_offset_end = offset_end;
 
     switch (type) {
       case String:
         lex_string(in_types, i);
         break;
       case Number:
-        lex_number(str_, in_types, in_offsets, i);
+        lex_number(str_, in_types, in_offsets, in_offset_end, i);
         break;
       default:
         break;
@@ -910,77 +893,6 @@ void TokenBuffer::merge_complex_literals()
   size_ = out_type - in_types;
   types_[size_] = EndOfFile;
   offsets_[size_] = str_.size();
-}
-
-template<TokenType removed_type, TokenType removed_type2 = removed_type>
-static uint32_t merge_token(const TokenType *in_types,
-                            const uint32_t *in_offsets,
-                            TokenType *out_types,
-                            uint32_t *out_offsets,
-                            uint32_t *out_original_offsets,
-                            const uint32_t token_count,
-                            const uint32_t str_size)
-{
-  uint32_t j = 0;
-  out_original_offsets[j] = 0;
-
-  if (token_count > 0) {
-    /* Iter 0 never merges. */
-    const TokenType type = in_types[0];
-    const uint32_t offset = in_offsets[0];
-    const uint32_t next_offset = in_offsets[0 + 1];
-
-    out_types[j] = type;
-    out_offsets[j] = offset;
-    out_original_offsets[j] = next_offset;
-    j++;
-  }
-
-  for (uint32_t i = 1; i < token_count; i++) {
-    const TokenType type = in_types[i];
-    const uint32_t offset = in_offsets[i];
-    const uint32_t next_offset = in_offsets[i + 1];
-
-    out_types[j] = type;
-    out_offsets[j] = offset;
-    out_original_offsets[j] = next_offset;
-    /* If false, make the next token overwrite this one.
-     * Effectively merging the token with the one before. */
-    if constexpr (removed_type == removed_type2) {
-      j += int(type != removed_type);
-    }
-    else {
-      j += int(type != removed_type && type != removed_type2);
-    }
-  }
-
-  out_types[j] = EndOfFile;
-  out_offsets[j] = str_size;
-  out_original_offsets[j] = str_size;
-
-  return j;
-}
-
-void TokenBuffer::merge_whitespaces()
-{
-  size_ = merge_token<Space, NewLine>(types_.get(),
-                                      offsets_.get(),
-                                      types_.get(),
-                                      offsets_.get(),
-                                      offsets_end_.get(),
-                                      size_,
-                                      str_.size());
-}
-
-void TokenBuffer::merge_spaces()
-{
-  size_ = merge_token<Space>(types_.get(),
-                             offsets_.get(),
-                             types_.get(),
-                             offsets_.get(),
-                             offsets_end_.get(),
-                             size_,
-                             str_.size());
 }
 
 }  // namespace lexit

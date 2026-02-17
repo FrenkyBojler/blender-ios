@@ -397,6 +397,18 @@ template<typename LexerClass, typename ParserClass> struct IntermediateForm : Mu
     std::cout << "Token scopes: \"" << parser_.token_scope << "\"" << std::endl;
     std::cout << "Scope Types: \"" << parser_.scope_types_str << "\"" << std::endl;
   }
+
+  void debug_print_tokens()
+  {
+    for (auto tok : lex_) {
+      std::cout << "id:" << int(tok) << " start:" << lex_.offsets_[int(tok)]
+                << " end:" << lex_.offsets_end_[int(tok)] << " type:" << tok.type()
+                << " scope:" << parser_.token_scope[int(tok)] << "("
+                << parser_.scope_types_str[parser_.token_scope[int(tok)]] << ")"
+                << " atom:" << tok.atom() << " str:\"" << tok.str() << "\""
+                << " followed_by_whitespace:" << tok.followed_by_whitespace() << "\n";
+    }
+  }
 };
 
 }  // namespace blender::gpu::shader::parser

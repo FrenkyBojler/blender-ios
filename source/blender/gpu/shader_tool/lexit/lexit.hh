@@ -138,17 +138,7 @@ struct TokenBuffer {
     str_ = str;
     clear();
     reserve(str.size());
-    tokenize<true>(char_class_table);
-    compute_lengths();
-  }
-
-  void process_without_whitespace(const std::string_view str,
-                                  const CharClass char_class_table[128])
-  {
-    str_ = str;
-    clear();
-    reserve(str.size());
-    tokenize<false>(char_class_table);
+    tokenize(char_class_table);
     compute_lengths();
   }
 
@@ -177,18 +167,12 @@ struct TokenBuffer {
    *
    * @param char_class_table  A lookup table mapping ASCII values (0-127) to an 8-bit CharClass.
    */
-  template<bool with_whitespace> void tokenize(const CharClass char_class_table[128]);
+  void tokenize(const CharClass char_class_table[128]);
 
   /**
    * @brief Merge complex literals such as floats and strings.
    */
   void merge_complex_literals();
-
-  /**
-   * @brief Merge whitespaces with their preceding token.
-   */
-  void merge_whitespaces();
-  void merge_spaces();
 
   /**
    * @brief Assign keyword types and atoms for a small set of identifier.
@@ -306,7 +290,6 @@ struct TokenBuffer {
   }
 
  private:
-  template<bool with_whitespace>
   inline void tokenize_scalar(uint32_t &__restrict offset,
                               uint32_t &__restrict cursor_begin,
                               uint32_t &__restrict cursor_end,

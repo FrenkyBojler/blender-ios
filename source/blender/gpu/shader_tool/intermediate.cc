@@ -108,6 +108,7 @@ alignas(128) const std::array<CharClass, 128> LexerBase::bsl_char_class_table = 
   std::array<CharClass, 128> table;
   memcpy(table.data(), lexit::char_class_table, sizeof(lexit::char_class_table));
 
+  table['\n'] = CharClass::WhiteSpace;
   /* Make < and > separators in order to support template.
    * That means >= and <= need to be manually handled. */
   table['<'] = CharClass::Separator;
@@ -149,7 +150,7 @@ static always_inline TokenType multi_tok_lookup(TokenType input, std::string_vie
 void LexerBase::merge_tokens()
 {
   merge_complex_literals();
-  merge_whitespaces();
+  // merge_whitespaces();
 
   update_string_view();
 }
