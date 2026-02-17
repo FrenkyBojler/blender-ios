@@ -120,9 +120,14 @@ void BKE_collection_add_from_collection(Main *bmain,
 void BKE_collection_free_data(Collection *collection);
 
 /**
+ * Can the collection be modified.
+ */
+bool BKE_collection_is_editable(const Collection *collection);
+
+/**
  * Add a new collection exporter to the collection.
  */
-CollectionImport *BKE_collection_importer_add(Collection *collection, char *idname, char *label);
+CollectionImport *BKE_collection_importer_add(Collection *collection, const char *idname);
 
 /**
  * Add a new collection exporter to the collection.

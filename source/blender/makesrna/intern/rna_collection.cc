@@ -132,6 +132,15 @@ static bool rna_collection_objects_edit_check(Collection *collection,
                 collection->id.name + 2);
     return false;
   }
+  if (collection->importer != nullptr) {
+    BKE_reportf(
+        reports,
+        RPT_ERROR,
+        "Could not (un)link the object '%s' because the collection '%s' cannot be modified",
+        object->id.name + 2,
+        collection->id.name + 2);
+    return false;
+  }
   return true;
 }
 
@@ -258,6 +267,15 @@ static bool rna_collection_children_edit_check(Collection *collection,
                 "Could not (un)link the collection '%s' because the collection '%s' is linked",
                 child->id.name + 2,
                 collection->id.name + 2);
+    return false;
+  }
+  if (collection->importer != nullptr) {
+    BKE_reportf(
+        reports,
+        RPT_ERROR,
+        "Could not (un)link the collection '%s' because the collection '%s' cannot be modified",
+        child->id.name + 2,
+        collection->id.name + 2);
     return false;
   }
   return true;

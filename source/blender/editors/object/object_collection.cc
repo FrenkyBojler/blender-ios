@@ -485,7 +485,7 @@ static wmOperatorStatus collection_importer_add_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED;
   }
 
-  BKE_collection_importer_add(collection, fh->idname, fh->label);
+  BKE_collection_importer_add(collection, fh->idname);
 
   BKE_view_layer_need_resync_tag(CTX_data_view_layer(C));
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
@@ -1188,6 +1188,11 @@ static wmOperatorStatus collection_link_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "Could not add the collection because it is linked");
     return OPERATOR_CANCELLED;
   }
+  if (collection->importer != nullptr) {
+    BKE_report(
+        op->reports, RPT_ERROR, "Could not add the collection because it cannot be modified");
+    return OPERATOR_CANCELLED;
+  }
 
   /* Adding object to collection which is used as dupli-collection for self is bad idea.
    *
@@ -1245,7 +1250,7 @@ static wmOperatorStatus collection_remove_exec(bContext *C, wmOperator *op)
   if (!ob || !collection) {
     return OPERATOR_CANCELLED;
   }
-  if (!ID_IS_EDITABLE(collection) || ID_IS_OVERRIDE_LIBRARY(collection)) {
+  if (!BKE_collection_is_editable(collection)) {
     BKE_report(op->reports,
                RPT_ERROR,
                "Cannot remove an object from a linked or library override collection");
