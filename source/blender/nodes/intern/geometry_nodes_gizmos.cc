@@ -25,6 +25,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "ED_node.hh"
+
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
