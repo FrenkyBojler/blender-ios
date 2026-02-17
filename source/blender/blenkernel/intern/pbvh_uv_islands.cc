@@ -1498,7 +1498,7 @@ UVIslandsMask::Tile::Tile(float2 udim_offset, ushort2 tile_resolution)
 bool UVIslandsMask::Tile::contains(const float2 uv) const
 {
   const float2 tile_uv = uv - udim_offset;
-  return IN_RANGE_INCL(tile_uv.x, 0.0, 1.0f) && IN_RANGE_INCL(tile_uv.y, 0.0f, 1.0f);
+  return IN_RANGE_INCL(tile_uv.x, 0.0f, 1.0f) && IN_RANGE_INCL(tile_uv.y, 0.0f, 1.0f);
 }
 
 float UVIslandsMask::Tile::get_pixel_size_in_uv_space() const
@@ -1636,8 +1636,8 @@ bool UVIslandsMask::Tile::is_masked(const uint16_t island_index, const float2 uv
     return false;
   }
   float2 pixel_pos_f = local_uv * float2(mask_resolution.x, mask_resolution.y);
-  ushort2 pixel_pos = ushort2(clamp_f(pixel_pos_f.x, 0, mask_resolution.x - 1),
-                              clamp_f(pixel_pos_f.y, 0, mask_resolution.y - 1));
+  ushort2 pixel_pos = ushort2(clamp_i(pixel_pos_f.x, 0, mask_resolution.x - 1),
+                              clamp_i(pixel_pos_f.y, 0, mask_resolution.y - 1));
   uint64_t offset = pixel_pos.y * mask_resolution.x + pixel_pos.x;
   return mask[offset] == island_index;
 }
