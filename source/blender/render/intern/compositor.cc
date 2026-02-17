@@ -225,7 +225,7 @@ class Context : public compositor::Context {
     BLI_thread_lock(LOCK_DRAW_IMAGE);
 
     void *lock;
-    ImBuf *image_buffer = BKE_image_acquire_ibuf(image, &image_user, &lock);
+    ImBuf *image_buffer = BKE_image_acquire_ibuf_gpu(image, &image_user, &lock);
 
     const int2 size = viewer_result.is_single_value() ? this->get_render_size() :
                                                         viewer_result.domain().data_size;

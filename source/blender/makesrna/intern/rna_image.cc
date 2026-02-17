@@ -622,7 +622,6 @@ static int rna_Image_pixels_get_length(const PointerRNA *ptr, int length[RNA_MAX
   void *lock;
 
   ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
-  IMB_ensure_host_buffer(ibuf);
 
   if (ibuf) {
     length[0] = IMB_get_pixel_count(ibuf) * size_t(ibuf->channels);
@@ -643,7 +642,6 @@ static void rna_Image_pixels_get(PointerRNA *ptr, float *values)
   void *lock;
 
   ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
-  IMB_ensure_host_buffer(ibuf);
 
   if (ibuf) {
     const size_t size = IMB_get_pixel_count(ibuf) * size_t(ibuf->channels);

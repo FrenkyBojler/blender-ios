@@ -175,7 +175,7 @@ static void WIDGETGROUP_node_transform_refresh(const bContext *C, wmGizmoGroup *
 
   void *lock;
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, nullptr, &lock);
 
   if (UNLIKELY(ibuf == nullptr)) {
     WM_gizmo_set_flag(cage, WM_GIZMO_HIDDEN, true);
@@ -431,7 +431,7 @@ static void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgro
 
   void *lock;
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, nullptr, &lock);
 
   if (UNLIKELY(ibuf == nullptr)) {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
@@ -633,7 +633,7 @@ static void WIDGETGROUP_node_mask_refresh(const bContext *C, wmGizmoGroup *gzgro
 
   void *lock;
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Render Result");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, nullptr, &lock);
 
   if (UNLIKELY(ibuf == nullptr)) {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
@@ -825,7 +825,7 @@ static void WIDGETGROUP_node_glare_refresh(const bContext *C, wmGizmoGroup *gzgr
 
   void *lock;
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, nullptr, &lock);
 
   if (UNLIKELY(ibuf == nullptr)) {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
@@ -939,7 +939,7 @@ static void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup 
 
   void *lock;
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, nullptr, &lock);
 
   if (UNLIKELY(ibuf == nullptr)) {
     for (int i = 0; i < 4; i++) {
@@ -1105,7 +1105,7 @@ static void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgr
 
   void *lock;
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Render Result");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, nullptr, &lock);
 
   if (UNLIKELY(ibuf == nullptr)) {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);

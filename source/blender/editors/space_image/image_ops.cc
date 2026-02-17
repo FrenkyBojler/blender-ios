@@ -1934,11 +1934,6 @@ static bool save_image_op(
 {
   WM_cursor_wait(true);
 
-  void *lock;
-  ImBuf *image_buffer = BKE_image_acquire_ibuf(ima, iuser, &lock);
-  IMB_ensure_host_buffer(image_buffer);
-  BKE_image_release_ibuf(ima, image_buffer, lock);
-
   bool ok = BKE_image_save(op->reports, bmain, ima, iuser, opts);
 
   WM_cursor_wait(false);
@@ -3615,7 +3610,7 @@ bool ED_space_image_get_position(SpaceImage *sima,
                                  float r_fpos[2])
 {
   void *lock;
-  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
+  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0, false);
 
   if (ibuf == nullptr) {
     ED_space_image_release_buffer(sima, ibuf, lock);
@@ -3642,8 +3637,7 @@ bool ED_space_image_color_sample(
   int tile = BKE_image_get_tile_from_pos(sima->image, uv, uv, nullptr);
 
   void *lock;
-  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile);
-  IMB_ensure_host_buffer(ibuf);
+  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile, true);
   bool ret = false;
 
   if (ibuf == nullptr) {
@@ -3729,8 +3723,7 @@ static wmOperatorStatus image_sample_line_exec(bContext *C, wmOperator *op)
   sub_v2_v2(uv2, ofs);
 
   void *lock;
-  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile);
-  IMB_ensure_host_buffer(ibuf);
+  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile, true);
   Histogram *hist = &sima->sample_line_hist;
 
   if (ibuf == nullptr) {

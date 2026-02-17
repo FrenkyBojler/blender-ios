@@ -74,7 +74,8 @@ class Instance : public DrawEngine {
   {
     if (this->state.image->source != IMA_SRC_TILED) {
       void *lock;
-      ImBuf *buffer = BKE_image_acquire_ibuf(this->state.image, space_->get_image_user(), &lock);
+      ImBuf *buffer = BKE_image_acquire_ibuf_gpu(
+          this->state.image, space_->get_image_user(), &lock);
       BLI_SCOPED_DEFER([&]() { BKE_image_release_ibuf(this->state.image, buffer, lock); });
 
       /* The image buffer already have a GPU texture, so use image space drawing. */
@@ -101,7 +102,7 @@ class Instance : public DrawEngine {
       ImageUser tile_user = space_->get_image_user() ? *space_->get_image_user() :
                                                        ImageUser{.scene = nullptr};
       tile_user.tile = image_tile.get_tile_number();
-      ImBuf *buffer = BKE_image_acquire_ibuf(this->state.image, &tile_user, nullptr);
+      ImBuf *buffer = BKE_image_acquire_ibuf_gpu(this->state.image, &tile_user, nullptr);
       BLI_SCOPED_DEFER([&]() { BKE_image_release_ibuf(this->state.image, buffer, nullptr); });
       if (!buffer) {
         continue;
