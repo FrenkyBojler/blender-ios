@@ -23,10 +23,10 @@
 
 #include "BKE_screen.hh"
 
+#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_rect.h"
-#include "BLI_bounds.hh"
 
 #include "ED_screen.hh"
 
@@ -249,10 +249,12 @@ void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const wmEvent *eve
   const float2 mouse_coords(x, y);
 
   std::optional<rcti> bounds = view->get_bounds();
-  Bounds<float2> top_bounds(float2(bounds->xmin, bounds->ymin), float2(bounds->xmax, bounds->ymax));
-  top_bounds.min.y = top_bounds.max.y - ((UI_UNIT_Y * 2/3) + 2);
-  Bounds<float2> bottom_bounds(float2(bounds->xmin, bounds->ymin), float2(bounds->xmax, bounds->ymax));
-  bottom_bounds.max.y = bottom_bounds.min.y + ((UI_UNIT_Y * 2/3) + 1);
+  Bounds<float2> top_bounds(float2(bounds->xmin, bounds->ymin),
+                            float2(bounds->xmax, bounds->ymax));
+  top_bounds.min.y = top_bounds.max.y - ((UI_UNIT_Y * 2 / 3) + 2);
+  Bounds<float2> bottom_bounds(float2(bounds->xmin, bounds->ymin),
+                               float2(bounds->xmax, bounds->ymax));
+  bottom_bounds.max.y = bottom_bounds.min.y + ((UI_UNIT_Y * 2 / 3) + 1);
 
   const int scroll_dir = [&]() -> int {
     if (top_bounds.contains(mouse_coords)) {
@@ -274,7 +276,8 @@ void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const wmEvent *eve
     if (event->type == TIMER) {
       view->scroll(ViewScrollDirection(scroll_dir));
     }
-  } else {
+  }
+  else {
     drag.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
   }
 
