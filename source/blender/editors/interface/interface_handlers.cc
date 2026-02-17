@@ -5494,63 +5494,101 @@ static bool ui_numedit_but_NUM(ButtonNumber *but,
      * 2px == 1-int, or 1px == 1-ClickStep */
     if (is_float) {
       fac *= 0.01f * but->step_size;
-      switch (scale_type) {
-        case PROP_SCALE_LINEAR: {
-          tempf = float(data->startvalue) + float(mx - data->dragstartx) * fac;
-          break;
-        }
-        case PROP_SCALE_LOG: {
-          const float startvalue = max_ff(float(data->startvalue), log_min);
-          tempf = expf(float(mx - data->dragstartx) * fac) * startvalue;
-          if (tempf <= log_min) {
-            tempf = 0.0f;
+
+      if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_FRACTION &&
+          data->startvalue > 0.0)
+      {
+        /* Additional 0.5 factor so that 2 pixels = 0.1 step on the denominator. */
+        const float frac_fac = 0.1f * but->step_size;
+        const float drag_delta = float(mx - data->dragstartx) * frac_fac * 0.5f;
+        if (data->startvalue < 1.0) {
+          /* Fraction mode: drag on the denominator. */
+          const float start_denom = float(1.0 / data->startvalue);
+          const float new_denom = start_denom - drag_delta;
+          if (new_denom > 1.0f) {
+            tempf = 1.0f / new_denom;
           }
-          break;
+          else {
+            /* Crossed above 1, continue linearly. */
+            tempf = 1.0f + (1.0f - new_denom);
+          }
         }
-        case PROP_SCALE_CUBIC: {
-          tempf = cbrtf(float(data->startvalue)) + float(mx - data->dragstartx) * fac;
-          tempf *= tempf * tempf;
-          break;
+        else {
+          /* Normal mode: drag linearly on the value. */
+          const float new_value = float(data->startvalue) + drag_delta;
+          if (new_value >= 1.0f) {
+            tempf = new_value;
+          }
+          else {
+            /* Crossed below 1, switch to fraction mode. */
+            tempf = 1.0f / (1.0f + (1.0f - new_value));
+          }
+        }
+        CLAMP(tempf, softmin, softmax);
+      }
+      else {
+        switch (scale_type) {
+          case PROP_SCALE_LINEAR: {
+            tempf = float(data->startvalue) + float(mx - data->dragstartx) * fac;
+            break;
+          }
+          case PROP_SCALE_LOG: {
+            const float startvalue = max_ff(float(data->startvalue), log_min);
+            tempf = expf(float(mx - data->dragstartx) * fac) * startvalue;
+            if (tempf <= log_min) {
+              tempf = 0.0f;
+            }
+            break;
+          }
+          case PROP_SCALE_CUBIC: {
+            tempf = cbrtf(float(data->startvalue)) + float(mx - data->dragstartx) * fac;
+            tempf *= tempf * tempf;
+            break;
+          }
         }
       }
 
       tempf = ui_numedit_apply_snapf(but, tempf, softmin, softmax, snap);
 
 #if 1 /* fake moving the click start, nicer for dragging back after passing the limit */
-      switch (scale_type) {
-        case PROP_SCALE_LINEAR: {
-          if (tempf < softmin) {
-            data->dragstartx -= (softmin - tempf) / fac;
-            tempf = softmin;
+      if (!(but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_FRACTION &&
+            data->startvalue > 0.0))
+      {
+        switch (scale_type) {
+          case PROP_SCALE_LINEAR: {
+            if (tempf < softmin) {
+              data->dragstartx -= (softmin - tempf) / fac;
+              tempf = softmin;
+            }
+            else if (tempf > softmax) {
+              data->dragstartx -= (softmax - tempf) / fac;
+              tempf = softmax;
+            }
+            break;
           }
-          else if (tempf > softmax) {
-            data->dragstartx -= (softmax - tempf) / fac;
-            tempf = softmax;
+          case PROP_SCALE_LOG: {
+            const float startvalue = max_ff(float(data->startvalue), log_min);
+            if (tempf < log_min) {
+              data->dragstartx -= logf(log_min / startvalue) / fac - float(mx - data->dragstartx);
+              tempf = softmin;
+            }
+            else if (tempf > softmax) {
+              data->dragstartx -= logf(softmax / startvalue) / fac - float(mx - data->dragstartx);
+              tempf = softmax;
+            }
+            break;
           }
-          break;
-        }
-        case PROP_SCALE_LOG: {
-          const float startvalue = max_ff(float(data->startvalue), log_min);
-          if (tempf < log_min) {
-            data->dragstartx -= logf(log_min / startvalue) / fac - float(mx - data->dragstartx);
-            tempf = softmin;
+          case PROP_SCALE_CUBIC: {
+            if (tempf < softmin) {
+              data->dragstartx = mx - int((cbrtf(softmin) - cbrtf(float(data->startvalue))) / fac);
+              tempf = softmin;
+            }
+            else if (tempf > softmax) {
+              data->dragstartx = mx - int((cbrtf(softmax) - cbrtf(float(data->startvalue))) / fac);
+              tempf = softmax;
+            }
+            break;
           }
-          else if (tempf > softmax) {
-            data->dragstartx -= logf(softmax / startvalue) / fac - float(mx - data->dragstartx);
-            tempf = softmax;
-          }
-          break;
-        }
-        case PROP_SCALE_CUBIC: {
-          if (tempf < softmin) {
-            data->dragstartx = mx - int((cbrtf(softmin) - cbrtf(float(data->startvalue))) / fac);
-            tempf = softmin;
-          }
-          else if (tempf > softmax) {
-            data->dragstartx = mx - int((cbrtf(softmax) - cbrtf(float(data->startvalue))) / fac);
-            tempf = softmax;
-          }
-          break;
         }
       }
 #else
@@ -5946,24 +5984,48 @@ static int ui_do_but_NUM(
 
         button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
 
-        double value_step;
-        if (scale_type == PROP_SCALE_LOG) {
-          double precision = (roundf(log10f(data->value) + UI_PROP_SCALE_LOG_SNAP_OFFSET) - 1.0f) +
-                             log10f(number_but->step_size);
-          /* Non-finite when `data->value` is zero. */
-          if (UNLIKELY(!isfinite(precision))) {
-            precision = -FLT_MAX; /* Ignore this value. */
+        double value_test;
+        if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_FRACTION &&
+            data->value > 0.0)
+        {
+          /* Use step_size * 0.1 so that a RNA step of 1 gives 0.1 increments. */
+          const double step = double(number_but->step_size) * 0.1;
+          const bool increase = (but->drawflag & BUT_HOVER_RIGHT);
+
+          if (data->value < 1.0) {
+            /* Fraction mode: step the denominator (1/denom). */
+            const double denom = 1.0 / data->value;
+            const double new_denom = increase ? denom - step : denom + step;
+            value_test = (new_denom > 1.0) ? 1.0 / new_denom : 1.0;
           }
-          value_step = powf(10.0f, max_ff(precision, -number_but->precision));
+          else {
+            /* Normal mode: step the value directly. */
+            const double new_value = increase ? data->value + step : data->value - step;
+            /* When crossing below 1: 1/1 = 1, denominator becomes 1 + step. */
+            value_test = (new_value >= 1.0) ? new_value : 1.0 / (1.0 + step);
+          }
+          value_test = double(clamp_f(float(value_test), but->softmin, but->softmax));
         }
         else {
-          value_step = double(number_but->step_size * UI_PRECISION_FLOAT_SCALE);
+          double value_step;
+          if (scale_type == PROP_SCALE_LOG) {
+            double precision = (roundf(log10f(data->value) + UI_PROP_SCALE_LOG_SNAP_OFFSET) -
+                                1.0f) +
+                               log10f(number_but->step_size);
+            /* Non-finite when `data->value` is zero. */
+            if (UNLIKELY(!isfinite(precision))) {
+              precision = -FLT_MAX;
+            }
+            value_step = powf(10.0f, max_ff(precision, -number_but->precision));
+          }
+          else {
+            value_step = double(number_but->step_size * UI_PRECISION_FLOAT_SCALE);
+          }
+          BLI_assert(value_step > 0.0f);
+          value_test = (but->drawflag & BUT_HOVER_LEFT) ?
+                           double(max_ff(but->softmin, float(data->value - value_step))) :
+                           double(min_ff(but->softmax, float(data->value + value_step)));
         }
-        BLI_assert(value_step > 0.0f);
-        const double value_test =
-            (but->drawflag & BUT_HOVER_LEFT) ?
-                double(max_ff(but->softmin, float(data->value - value_step))) :
-                double(min_ff(but->softmax, float(data->value + value_step)));
         if (value_test != data->value) {
           data->value = value_test;
         }
