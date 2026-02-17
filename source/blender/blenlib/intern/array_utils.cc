@@ -15,7 +15,7 @@
 
 namespace blender::array_utils {
 
-void copy(const GVArray &src, GMutableSpan dst, const ExecutionMode mode)
+void copy(const GVArray &src, GMutableSpan dst, const ExecutionModeVariant mode)
 {
   BLI_assert(src.type() == dst.type());
   BLI_assert(src.size() == dst.size());
@@ -33,7 +33,7 @@ void copy(const GVArray &src, GMutableSpan dst, const ExecutionMode mode)
 void copy(const GVArray &src,
           const IndexMask &selection,
           GMutableSpan dst,
-          const ExecutionMode mode)
+          const ExecutionModeVariant mode)
 {
   BLI_assert(src.type() == dst.type());
   BLI_assert(src.size() >= selection.min_array_size());
@@ -52,7 +52,7 @@ void copy(const GVArray &src,
 void gather(const GVArray &src,
             const IndexMask &indices,
             GMutableSpan dst,
-            const ExecutionMode mode)
+            const ExecutionModeVariant mode)
 {
   BLI_assert(src.type() == dst.type());
   BLI_assert(indices.size() == dst.size());
@@ -67,7 +67,10 @@ void gather(const GVArray &src,
   }
 }
 
-void gather(const GSpan src, const IndexMask &indices, GMutableSpan dst, const ExecutionMode mode)
+void gather(const GSpan src,
+            const IndexMask &indices,
+            GMutableSpan dst,
+            const ExecutionModeVariant mode)
 {
   gather(GVArray::from_span(src), indices, dst, mode);
 }

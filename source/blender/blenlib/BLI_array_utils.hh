@@ -9,8 +9,8 @@
 #pragma once
 
 #include <numeric>
-#include <variant>
 
+#include "BLI_execution_mode_variant.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_index_mask.hh"
@@ -19,39 +19,39 @@
 #include "BLI_task.hh"
 #include "BLI_virtual_array.hh"
 
-namespace blender {
+namespace blender::array_utils {
 
-/** Potentially use multiple threads to execute the function. */
-class ExecuteParallel {};
-/** Execute the function in the current thread. */
-class ExecuteSerial {};
-/** Execute the function in multiple threads with a specific grain size. */
-using ExecuteParallelGrainSize = int;
-using ExecutionMode = std::variant<ExecuteParallel, ExecuteParallelGrainSize, ExecuteSerial>;
+constexpr int64_t calc_auto_copy_grain_size(const ExecutionMode auto mode, int64_t type_size)
+{
+  static_assert(mode.is_parallel);
+  if constexpr (requires { mode.grain_size; }) {
+    return mode.grain_size;
+  }
+  /* The grain size should roughly depend on the work being done per index, which roughly
+   * corresponds with the size of the type being copied. */
+  return 32768 / type_size;
+}
 
-namespace array_utils {
-
-constexpr int64_t calc_auto_copy_grain_size(const ExecutionMode mode, const int64_t type_size)
+constexpr int64_t calc_auto_copy_grain_size(const ExecutionModeVariant mode,
+                                            const int64_t type_size)
 {
   BLI_assert(!std::holds_alternative<ExecuteSerial>(mode));
-  if (std::holds_alternative<ExecuteParallelGrainSize>(mode)) {
-    return std::get<ExecuteParallelGrainSize>(mode);
+  if (const auto *grain_size = std::get_if<ExecuteParallelGrainSize>(&mode)) {
+    return calc_auto_copy_grain_size(*grain_size, type_size);
   }
-  return 32768 / type_size;
+  return calc_auto_copy_grain_size(std::get<ExecuteParallel>(mode), type_size);
 }
 
 /**
  * Fill the destination span by copying all values from the `src` array. Threaded based on
  * grain-size.
  */
-void copy(const GVArray &src, GMutableSpan dst, ExecutionMode mode = ExecuteParallel());
-template<typename T>
-inline void copy(const VArray<T> &src,
-                 MutableSpan<T> dst,
-                 const ExecutionMode mode = ExecuteParallel())
+void copy(const GVArray &src, GMutableSpan dst, ExecutionModeVariant mode = ExecuteParallel());
+template<typename T, ExecutionMode Mode = ExecuteParallel>
+inline void copy(const VArray<T> &src, MutableSpan<T> dst, const Mode mode = {})
 {
   BLI_assert(src.size() == dst.size());
-  if (std::holds_alternative<ExecuteSerial>(mode)) {
+  if constexpr (!mode.is_parallel) {
     src.materialize_compressed_to_uninitialized(dst.index_range(), dst);
   }
   else {
@@ -66,13 +66,11 @@ inline void copy(const VArray<T> &src,
  * Fill the destination span by copying all values from the `src` array. Threaded based on
  * grain-size.
  */
-template<typename T>
-inline void copy(const Span<T> src,
-                 MutableSpan<T> dst,
-                 const ExecutionMode mode = ExecuteParallel())
+template<typename T, ExecutionMode Mode = ExecuteParallel>
+inline void copy(const Span<T> src, MutableSpan<T> dst, const Mode mode = {})
 {
   BLI_assert(src.size() == dst.size());
-  if (std::holds_alternative<ExecuteSerial>(mode)) {
+  if constexpr (!mode.is_parallel) {
     dst.copy_from(src);
   }
   else {
@@ -90,20 +88,20 @@ inline void copy(const Span<T> src,
 void copy(const GVArray &src,
           const IndexMask &selection,
           GMutableSpan dst,
-          ExecutionMode mode = ExecuteParallel());
+          ExecutionModeVariant mode = ExecuteParallel());
 
 /**
  * Fill the destination span by copying values from the `src` array. Threaded based on
  * grain-size.
  */
-template<typename T>
+template<typename T, ExecutionMode Mode = ExecuteParallel>
 inline void copy(const Span<T> src,
                  const IndexMask &selection,
                  MutableSpan<T> dst,
-                 const ExecutionMode mode = ExecuteParallel())
+                 const Mode mode = {})
 {
   BLI_assert(src.size() == dst.size());
-  if (std::holds_alternative<ExecuteSerial>(mode)) {
+  if constexpr (!mode.is_parallel) {
     selection.foreach_index_optimized<int64_t>([&](const int64_t i) { dst[i] = src[i]; });
   }
   else {
@@ -140,14 +138,14 @@ template<typename T> T compute_sum(const Span<T> data)
 /**
  * Fill the specified indices of the destination with the values in the source span.
  */
-template<typename T, typename IndexT>
+template<typename T, typename IndexT, ExecutionMode Mode = ExecuteParallel>
 inline void scatter(const Span<T> src,
                     const Span<IndexT> indices,
                     MutableSpan<T> dst,
-                    const ExecutionMode mode = ExecuteParallel())
+                    const Mode mode = {})
 {
   BLI_assert(indices.size() == src.size());
-  if (std::holds_alternative<ExecuteSerial>(mode)) {
+  if constexpr (!mode.is_parallel) {
     for (const int64_t i : indices.index_range()) {
       dst[indices[i]] = src[i];
     }
@@ -160,15 +158,15 @@ inline void scatter(const Span<T> src,
   }
 }
 
-template<typename T>
+template<typename T, ExecutionMode Mode = ExecuteParallel>
 inline void scatter(const Span<T> src,
                     const IndexMask &indices,
                     MutableSpan<T> dst,
-                    const ExecutionMode mode = ExecuteParallel())
+                    const Mode mode = {})
 {
   BLI_assert(indices.size() == src.size());
   BLI_assert(indices.min_array_size() <= dst.size());
-  if (std::holds_alternative<ExecuteSerial>(mode)) {
+  if constexpr (!mode.is_parallel) {
     indices.foreach_index_optimized<int64_t>(
         [&](const int64_t index, const int64_t pos) { dst[index] = src[pos]; });
   }
@@ -186,7 +184,7 @@ inline void scatter(const Span<T> src,
 void gather(const GVArray &src,
             const IndexMask &indices,
             GMutableSpan dst,
-            ExecutionMode mode = ExecuteParallel());
+            ExecutionModeVariant mode = ExecuteParallel());
 
 /**
  * Fill the destination span by gathering indexed values from the `src` array.
@@ -194,19 +192,19 @@ void gather(const GVArray &src,
 void gather(GSpan src,
             const IndexMask &indices,
             GMutableSpan dst,
-            ExecutionMode mode = ExecuteParallel());
+            ExecutionModeVariant mode = ExecuteParallel());
 
 /**
  * Fill the destination span by gathering indexed values from the `src` array.
  */
-template<typename T>
+template<typename T, ExecutionMode Mode = ExecuteParallel>
 inline void gather(const VArray<T> &src,
                    const IndexMask &indices,
                    MutableSpan<T> dst,
-                   const ExecutionMode mode = ExecuteParallel())
+                   const Mode mode = {})
 {
   BLI_assert(indices.size() == dst.size());
-  if (std::holds_alternative<ExecuteSerial>(mode)) {
+  if constexpr (!mode.is_parallel) {
     src.materialize_compressed_to_uninitialized(indices, dst);
   }
   else {
@@ -220,14 +218,14 @@ inline void gather(const VArray<T> &src,
 /**
  * Fill the destination span by gathering indexed values from the `src` array.
  */
-template<typename T>
+template<typename T, ExecutionMode Mode = ExecuteParallel>
 inline void gather(const Span<T> src,
                    const IndexMask &indices,
                    MutableSpan<T> dst,
-                   const ExecutionMode mode = ExecuteParallel())
+                   const Mode mode = {})
 {
   BLI_assert(indices.size() == dst.size());
-  if (std::holds_alternative<ExecuteSerial>(mode)) {
+  if constexpr (!mode.is_parallel) {
     indices.foreach_index_optimized<int64_t>(
         [&](const int64_t i, const int64_t pos) { dst[pos] = src[i]; });
   }
@@ -242,14 +240,14 @@ inline void gather(const Span<T> src,
 /**
  * Fill the destination span by gathering indexed values from the `src` array.
  */
-template<typename T, typename IndexT>
+template<typename T, typename IndexT, ExecutionMode Mode = ExecuteParallel>
 inline void gather(const Span<T> src,
                    const Span<IndexT> indices,
                    MutableSpan<T> dst,
-                   const ExecutionMode mode = ExecuteParallel())
+                   const Mode mode = {})
 {
   BLI_assert(indices.size() == dst.size());
-  if (std::holds_alternative<ExecuteSerial>(mode)) {
+  if constexpr (!mode.is_parallel) {
     for (const int64_t i : indices.index_range()) {
       dst[i] = src[indices[i]];
     }
@@ -265,14 +263,14 @@ inline void gather(const Span<T> src,
 /**
  * Fill the destination span by gathering indexed values from the `src` array.
  */
-template<typename T, typename IndexT>
+template<typename T, typename IndexT, ExecutionMode Mode = ExecuteParallel>
 inline void gather(const VArray<T> &src,
                    const Span<IndexT> indices,
                    MutableSpan<T> dst,
-                   const ExecutionMode mode = ExecuteParallel())
+                   const Mode mode = {})
 {
   BLI_assert(indices.size() == dst.size());
-  if (std::holds_alternative<ExecuteSerial>(mode)) {
+  if constexpr (!mode.is_parallel) {
     devirtualize_varray(src, [&](const auto &src) {
       for (const int64_t i : dst.index_range()) {
         dst[i] = src[indices[i]];
@@ -480,5 +478,4 @@ inline std::optional<int64_t> max_element_index(const VArray<T> &array,
       });
 }
 
-}  // namespace array_utils
-}  // namespace blender
+}  // namespace blender::array_utils
