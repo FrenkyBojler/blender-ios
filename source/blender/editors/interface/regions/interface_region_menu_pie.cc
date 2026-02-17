@@ -103,6 +103,7 @@ PieMenu *pie_menu_begin(bContext *C, const char *title, int icon, const wmEvent 
   // pie->pie_block->flag |= BLOCK_POPUP_MEMORY;
   pie->pie_block->puphash = ui_popup_menu_hash(title);
   pie->pie_block->flag |= BLOCK_PIE_MENU;
+  pie->pie_block->pie_data = std::make_unique<PieMenuData>();
 
   /* if pie is spawned by a left click, release or click event,
    * it is always assumed to be click style */

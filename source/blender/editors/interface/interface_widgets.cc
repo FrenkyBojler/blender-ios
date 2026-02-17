@@ -4396,7 +4396,7 @@ static void widget_menu_pie_itembut(Button *but,
                                     int /*roundboxalign*/,
                                     const float zoom)
 {
-  const float fac = but->block->pie_data->alphafac;
+  const float fac = but->block->pie_data ? but->block->pie_data->alphafac : 1.0f;
 
   WidgetBase wtb;
   widget_init(&wtb);

@@ -5463,7 +5463,7 @@ Layout &block_layout(Block *block,
       case LayoutType::VerticalBar:
         return MEM_new<LayoutColumn>(func, root);
       case LayoutType::PieMenu:
-        block->pie_data = std::make_unique<PieMenuData>();
+        BLI_assert(block->pie_data);
         return MEM_new<LayoutRootPieMenu>(func, root);
       case LayoutType::Header:
         return MEM_new<LayoutRow>(func, ItemType::LayoutRoot, root);
