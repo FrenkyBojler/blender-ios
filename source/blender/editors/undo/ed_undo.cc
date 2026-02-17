@@ -16,6 +16,8 @@
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "BKE_blender_undo.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_context.hh"
@@ -47,6 +49,8 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
+
+#include "UI_interface_icons.hh"
 
 namespace blender {
 
@@ -770,6 +774,14 @@ void ED_OT_undo_history(wmOperatorType *ot)
 /** \name Clear Undo History
  * \{ */
 
+static wmOperatorStatus undo_clear_history_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent * /*event*/)
+{
+  return WM_operator_confirm_ex(
+      C, op, IFACE_("Clear undo history?"), nullptr, IFACE_("Clear"), ui::AlertIcon::None, false);
+}
+
 static wmOperatorStatus undo_clear_history_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
@@ -791,6 +803,7 @@ void ED_OT_undo_clear_history(wmOperatorType *ot)
   ot->description = "Delete all undo steps and free their memory";
   ot->idname = "ED_OT_undo_clear_history";
 
+  ot->invoke = undo_clear_history_invoke;
   ot->exec = undo_clear_history_exec;
   ot->poll = ed_undo_is_init_and_screenactive_poll;
 }
