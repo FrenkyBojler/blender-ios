@@ -281,7 +281,7 @@ struct LayoutItemBx : public LayoutColumn {
 struct LayoutItemPanelHeader : public Layout {
   PointerRNA open_prop_owner;
   std::string open_prop_name;
-  Button *box = nullptr;
+  Button *panel_box = nullptr;
   LayoutItemPanelHeader() : Layout(ItemType::LayoutPanelHeader, nullptr) {}
 
   void estimate_impl() override;
@@ -289,7 +289,7 @@ struct LayoutItemPanelHeader : public Layout {
 };
 
 struct LayoutItemPanelBody : public LayoutColumn {
-  Button *header_box = nullptr;
+  Button *panel_box = nullptr;
   Button *body_box = nullptr;
   LayoutItemPanelBody() : LayoutColumn(ItemType::LayoutPanelBody, nullptr) {}
   void resolve_impl() override;
@@ -4051,11 +4051,11 @@ void LayoutItemPanelHeader::resolve_impl()
   const float offset = style_get_dpi()->panelspace;
   panel->runtime->layout_panels.headers.append(
       {float(y_) - offset, float(y_ + h_) - offset, open_prop_owner, open_prop_name});
-  if (this->block()->flag & (BLOCK_POPOVER | BLOCK_LOOP)) {
-    this->box->rect.xmin = x_;
-    this->box->rect.xmax = x_ + w_;
-    this->box->rect.ymin = y_;
-    this->box->rect.ymax = y_ + h_;
+  if (this->panel_box) {
+    this->panel_box->rect.xmin = x_;
+    this->panel_box->rect.xmax = x_ + w_;
+    this->panel_box->rect.ymin = y_;
+    this->panel_box->rect.ymax = y_ + h_ + offset / 4;
   }
 }
 
@@ -4065,12 +4065,14 @@ void LayoutItemPanelBody::resolve_impl()
   Panel *panel = this->root_panel();
   LayoutColumn::resolve_impl();
   const float offset = style_get_dpi()->panelspace;
-  if (this->block()->flag & (BLOCK_POPOVER | BLOCK_LOOP)) {
-    this->header_box->rect.ymin = y_ - space_;
-    this->body_box->rect.xmin = x_;
-    this->body_box->rect.xmax = x_ + w_;
-    this->body_box->rect.ymin = y_ - space_ - offset;
-    this->body_box->rect.ymax = y_ + h_ + space_ + offset / 2;
+  if (this->panel_box) {
+    this->panel_box->rect.ymin = y_ - space_ + offset / 4;
+    if (this->body_box) {
+      this->body_box->rect.xmin = x_;
+      this->body_box->rect.xmax = x_ + w_;
+      this->body_box->rect.ymin = y_ - space_ - offset;
+      this->body_box->rect.ymax = y_ + h_ + space_ + offset / 4;
+    }
   }
   else {
     panel->runtime->layout_panels.bodies.append({
@@ -4821,18 +4823,18 @@ PanelLayout Layout::panel_prop(const bContext *C,
 
   block_layout_set_current(this->block(), this);
 
-  ButtonRoundBox *header_box = nullptr;
-  if (this->block()->flag & (BLOCK_POPOVER | BLOCK_LOOP)) {
-    header_box = static_cast<ButtonRoundBox *>(
+  ButtonRoundBox *panel_box = nullptr;
+  if (this->block()->flag & (BLOCK_POPOVER | BLOCK_LOOP | BLOCK_KEEP_OPEN)) {
+    panel_box = static_cast<ButtonRoundBox *>(
         uiDefBut(this->block(), ButtonType::Roundbox, "", 0, 0, 0, 0, nullptr, 0.0, 0.0, ""));
-    header_box->panel_style = true;
+    panel_box->panel_style = true;
   }
 
   PanelLayout panel_layout{};
   {
     LayoutItemPanelHeader *header_litem = MEM_new<LayoutItemPanelHeader>(__func__);
     LayoutInternal::init_from_parent(header_litem, this, false);
-    header_litem->box = header_box;
+    header_litem->panel_box = panel_box;
     header_litem->open_prop_owner = *open_prop_owner;
     header_litem->open_prop_name = open_prop_name;
 
@@ -4853,7 +4855,7 @@ PanelLayout Layout::panel_prop(const bContext *C,
   block_layout_set_current(this->block(), this);
 
   ButtonRoundBox *body_box = nullptr;
-  if (this->block()->flag & (BLOCK_POPOVER | BLOCK_LOOP)) {
+  if (panel_box) {
     body_box = static_cast<ButtonRoundBox *>(
         uiDefBut(this->block(), ButtonType::Roundbox, "", 0, 0, 0, 0, nullptr, 0.0, 0.0, ""));
     body_box->panel_sub_back_style = true;
@@ -4870,7 +4872,7 @@ PanelLayout Layout::panel_prop(const bContext *C,
   row.separator(1.2f);
 
   body_litem->body_box = body_box;
-  body_litem->header_box = header_box;
+  body_litem->panel_box = panel_box;
   return panel_layout;
 }
 
