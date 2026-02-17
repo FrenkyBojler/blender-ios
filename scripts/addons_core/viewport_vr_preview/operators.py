@@ -169,10 +169,9 @@ class VIEW3D_OT_vr_landmark_remove(Operator):
         scene = context.scene
         landmarks = scene.vr_landmarks
 
-        if len(landmarks) > 1:
+        if landmarks:
             landmark_selected_idx = scene.vr_landmarks_selected
             landmarks.remove(landmark_selected_idx)
-
             scene.vr_landmarks_selected -= 1
 
         return {'FINISHED'}
@@ -464,6 +463,8 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
             # Playblack control
             scene = context.scene
             landmarks = scene.vr_landmarks
+            if not landmarks:
+                return {'FINISHED'}
 
             match active_playback_action:
                 # Browse shots left/right
