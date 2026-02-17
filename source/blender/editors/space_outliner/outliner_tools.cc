@@ -3247,7 +3247,8 @@ static wmOperatorStatus outliner_action_set_exec(bContext *C, wmOperator *op)
   }
 
   /* set notifier that things have changed */
-  DEG_id_tag_update(te->store_elem->id, ID_RECALC_ANIMATION);
+  DEG_id_tag_update(&act->id, ID_RECALC_ANIMATION);
+  DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   ED_undo_push(C, "Set action");
 
