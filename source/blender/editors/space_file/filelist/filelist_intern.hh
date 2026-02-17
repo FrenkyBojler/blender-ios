@@ -310,7 +310,6 @@ void prepare_filter_asset_library(const FileList *filelist, FileListFilter *filt
 bool is_filtered_file(FileListInternEntry *file, const char * /*root*/, FileListFilter *filter);
 bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter);
 bool is_filtered_lib(FileListInternEntry *file, const char *root, FileListFilter *filter);
-bool is_filtered_main(FileListInternEntry *file, const char * /*dir*/, FileListFilter *filter);
 bool is_filtered_main_assets(FileListInternEntry *file,
                              const char * /*dir*/,
                              FileListFilter *filter);
