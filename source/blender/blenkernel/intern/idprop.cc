@@ -796,6 +796,56 @@ static void IDP_FreeGroup(IDProperty *prop, const bool do_id_user)
   BLI_freelistN(&prop->data.group);
 }
 
+std::optional<StringRefNull> IDP_group_lookup_string(const IDProperty &group, StringRef name)
+{
+  const IDProperty *prop = IDP_GetPropertyFromGroup(&group, name);
+  if (!prop || prop->type != IDP_STRING) {
+    return std::nullopt;
+  }
+  return IDP_string_get(prop);
+}
+
+std::optional<float> IDP_group_lookup_float(const IDProperty &group, StringRef name)
+{
+  const IDProperty *prop = IDP_GetPropertyFromGroup(&group, name);
+  if (!prop || prop->type != IDP_FLOAT) {
+    return std::nullopt;
+  }
+  return IDP_float_get(prop);
+}
+
+std::optional<int> IDP_group_lookup_int(const IDProperty &group, StringRef name)
+{
+  const IDProperty *prop = IDP_GetPropertyFromGroup(&group, name);
+  if (!prop || prop->type != IDP_INT) {
+    return std::nullopt;
+  }
+  return IDP_int_get(prop);
+}
+
+std::optional<bool> IDP_group_lookup_bool(const IDProperty &group, StringRef name)
+{
+  const IDProperty *prop = IDP_GetPropertyFromGroup(&group, name);
+  if (!prop || prop->type != IDP_BOOLEAN) {
+    return std::nullopt;
+  }
+  return IDP_bool_get(prop);
+}
+
+std::optional<Span<float>> IDP_group_lookup_float_array(const IDProperty &group,
+                                                        StringRef name,
+                                                        int required_size)
+{
+  const IDProperty *prop = IDP_GetPropertyFromGroup(&group, name);
+  if (!prop || prop->type != IDP_FLOAT) {
+    return std::nullopt;
+  }
+  if (prop->len != required_size) {
+    return std::nullopt;
+  }
+  return Span(IDP_array_float_get(prop), prop->len);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

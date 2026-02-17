@@ -1144,56 +1144,6 @@ static bool run_node_group_poll(bContext *C, wmOperatorType *ot)
   return true;
 }
 
-static std::optional<StringRefNull> try_get_string(const IDProperty &group, const StringRef name)
-{
-  const IDProperty *prop = IDP_GetPropertyFromGroup(&group, name);
-  if (!prop || prop->type != IDP_STRING) {
-    return std::nullopt;
-  }
-  return IDP_string_get(prop);
-}
-
-static std::optional<float> try_get_float(const IDProperty &group, const StringRef name)
-{
-  const IDProperty *prop = IDP_GetPropertyFromGroup(&group, name);
-  if (!prop || prop->type != IDP_FLOAT) {
-    return std::nullopt;
-  }
-  return IDP_float_get(prop);
-}
-
-static std::optional<bool> try_get_bool(const IDProperty &group, const StringRef name)
-{
-  const IDProperty *prop = IDP_GetPropertyFromGroup(&group, name);
-  if (!prop || prop->type != IDP_BOOLEAN) {
-    return std::nullopt;
-  }
-  return IDP_bool_get(prop);
-}
-
-static std::optional<Span<float>> try_get_float_array(const IDProperty &group,
-                                                      const StringRef name,
-                                                      const int required_size)
-{
-  const IDProperty *prop = IDP_GetPropertyFromGroup(&group, name);
-  if (!prop || prop->type != IDP_FLOAT) {
-    return std::nullopt;
-  }
-  if (prop->len != required_size) {
-    return std::nullopt;
-  }
-  return Span(IDP_array_float_get(prop), prop->len);
-}
-
-static std::optional<int> try_get_int(const IDProperty &group, const StringRef name)
-{
-  const IDProperty *prop = IDP_GetPropertyFromGroup(&group, name);
-  if (!prop || prop->type != IDP_INT) {
-    return std::nullopt;
-  }
-  return IDP_int_get(prop);
-}
-
 static const EnumPropertyItem *enum_input_items_fn(bContext * /*C*/,
                                                    PointerRNA *ptr,
                                                    PropertyRNA *prop,
@@ -1216,8 +1166,8 @@ static const EnumPropertyItem *enum_input_items_fn(bContext * /*C*/,
   for (IDProperty &item_idprop : items_idprop->data.group) {
     EnumPropertyItem item;
     item.identifier = item_idprop.name;
-    item.name = try_get_string(item_idprop, "name").value_or("").c_str();
-    item.description = try_get_string(item_idprop, "description").value_or("").c_str();
+    item.name = IDP_group_lookup_string(item_idprop, "name").value_or("").c_str();
+    item.description = IDP_group_lookup_string(item_idprop, "description").value_or("").c_str();
     item.value = std::stoi(item_idprop.name);
     RNA_enum_item_add(&items, &totitem, &item);
   }
@@ -1239,8 +1189,8 @@ static void make_common_attribute_name_prop(StructRNA &srna,
                                             const StringRefNull description,
                                             const IDProperty &input_idprop)
 {
-  const std::optional<StringRefNull> default_name = try_get_string(input_idprop,
-                                                                   "default_attribute_name");
+  const std::optional<StringRefNull> default_name = IDP_group_lookup_string(
+      input_idprop, "default_attribute_name");
   RNA_def_string(&srna,
                  "attribute_name",
                  default_name.has_value() ? default_name->c_str() : nullptr,
@@ -1271,7 +1221,7 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
 {
 
   const StringRefNull identifier = input_idprop.name;
-  const std::optional<int> type = try_get_int(input_idprop, "type");
+  const std::optional<int> type = IDP_group_lookup_int(input_idprop, "type");
   if (!type) {
     return nullptr;
   }
@@ -1280,8 +1230,9 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
   BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.append(srna);
   // RNA_def_struct_path_func_runtime(srna, rna_NodesModifierPropertyInput_path);
-  const StringRefNull name = try_get_string(input_idprop, "name").value_or(identifier);
-  const StringRefNull description = try_get_string(input_idprop, "description").value_or("");
+  const StringRefNull name = IDP_group_lookup_string(input_idprop, "name").value_or(identifier);
+  const StringRefNull description =
+      IDP_group_lookup_string(input_idprop, "description").value_or("");
   RNA_def_struct_ui_text(srna, name.c_str(), description.c_str());
 
   switch (eNodeSocketDatatype(*type)) {
@@ -1289,21 +1240,22 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
       PropertyRNA *prop = RNA_def_float(
           srna,
           "value",
-          try_get_float(input_idprop, "default_value").value_or(0.0f),
+          IDP_group_lookup_float(input_idprop, "default_value").value_or(0.0f),
           -FLT_MAX,
           FLT_MAX,
           name.c_str(),
           description.c_str(),
-          try_get_float(input_idprop, "min").value_or(-FLT_MAX),
-          try_get_float(input_idprop, "max").value_or(FLT_MAX));
+          IDP_group_lookup_float(input_idprop, "min").value_or(-FLT_MAX),
+          IDP_group_lookup_float(input_idprop, "max").value_or(FLT_MAX));
       RNA_def_property_subtype(
-          prop, PropertySubType(try_get_int(input_idprop, "subtype").value_or(PROP_NONE)));
+          prop,
+          PropertySubType(IDP_group_lookup_int(input_idprop, "subtype").value_or(PROP_NONE)));
       make_common_value_and_attribute_props(*srna, name, description, input_idprop);
       break;
     }
     case SOCK_VECTOR: {
-      const int dimensions = try_get_int(input_idprop, "dimensions").value_or(3);
-      std::optional<Span<float>> defaults = try_get_float_array(
+      const int dimensions = IDP_group_lookup_int(input_idprop, "dimensions").value_or(3);
+      std::optional<Span<float>> defaults = IDP_group_lookup_float_array(
           input_idprop, "default_value", dimensions);
       PropertyRNA *prop = RNA_def_float_array(
           srna,
@@ -1314,15 +1266,17 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
           FLT_MAX,
           name.c_str(),
           description.c_str(),
-          try_get_float(input_idprop, "min").value_or(-FLT_MAX),
-          try_get_float(input_idprop, "max").value_or(FLT_MAX));
+          IDP_group_lookup_float(input_idprop, "min").value_or(-FLT_MAX),
+          IDP_group_lookup_float(input_idprop, "max").value_or(FLT_MAX));
       RNA_def_property_subtype(
-          prop, PropertySubType(try_get_int(input_idprop, "subtype").value_or(PROP_NONE)));
+          prop,
+          PropertySubType(IDP_group_lookup_int(input_idprop, "subtype").value_or(PROP_NONE)));
       make_common_value_and_attribute_props(*srna, name, description, input_idprop);
       break;
     }
     case SOCK_RGBA: {
-      std::optional<Span<float>> defaults = try_get_float_array(input_idprop, "default_value", 4);
+      std::optional<Span<float>> defaults = IDP_group_lookup_float_array(
+          input_idprop, "default_value", 4);
       PropertyRNA *prop = RNA_def_float_color(srna,
                                               "value",
                                               4,
@@ -1340,7 +1294,7 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
     case SOCK_BOOLEAN: {
       RNA_def_boolean(srna,
                       "value",
-                      try_get_bool(input_idprop, "default_value").value_or(false),
+                      IDP_group_lookup_bool(input_idprop, "default_value").value_or(false),
                       name.c_str(),
                       description.c_str());
       make_common_type_prop(*srna,
@@ -1350,17 +1304,19 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
       break;
     }
     case SOCK_INT: {
-      PropertyRNA *prop = RNA_def_int(srna,
-                                      "value",
-                                      try_get_int(input_idprop, "default_value").value_or(0),
-                                      INT_MIN,
-                                      INT_MAX,
-                                      name.c_str(),
-                                      description.c_str(),
-                                      try_get_int(input_idprop, "min").value_or(INT_MIN),
-                                      try_get_int(input_idprop, "max").value_or(INT_MIN));
+      PropertyRNA *prop = RNA_def_int(
+          srna,
+          "value",
+          IDP_group_lookup_int(input_idprop, "default_value").value_or(0),
+          INT_MIN,
+          INT_MAX,
+          name.c_str(),
+          description.c_str(),
+          IDP_group_lookup_int(input_idprop, "min").value_or(INT_MIN),
+          IDP_group_lookup_int(input_idprop, "max").value_or(INT_MIN));
       RNA_def_property_subtype(
-          prop, PropertySubType(try_get_int(input_idprop, "subtype").value_or(PROP_NONE)));
+          prop,
+          PropertySubType(IDP_group_lookup_int(input_idprop, "subtype").value_or(PROP_NONE)));
       make_common_value_and_attribute_props(*srna, name, description, input_idprop);
       break;
     }
@@ -1368,12 +1324,13 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
       PropertyRNA *prop = RNA_def_string(
           srna,
           "value",
-          try_get_string(input_idprop, "default_value").value_or("").c_str(),
+          IDP_group_lookup_string(input_idprop, "default_value").value_or("").c_str(),
           0,
           name.c_str(),
           description.c_str());
       RNA_def_property_subtype(
-          prop, PropertySubType(try_get_int(input_idprop, "subtype").value_or(PROP_NONE)));
+          prop,
+          PropertySubType(IDP_group_lookup_int(input_idprop, "subtype").value_or(PROP_NONE)));
       make_common_value_props(*srna);
       break;
     }
@@ -1386,7 +1343,8 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
       break;
     }
     case SOCK_ROTATION: {
-      std::optional<Span<float>> defaults = try_get_float_array(input_idprop, "default_value", 3);
+      std::optional<Span<float>> defaults = IDP_group_lookup_float_array(
+          input_idprop, "default_value", 3);
       RNA_def_float_rotation(srna,
                              "value",
                              3,
