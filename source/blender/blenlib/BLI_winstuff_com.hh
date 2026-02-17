@@ -17,15 +17,10 @@
 
 #define WIN32_LEAN_AND_MEAN
 
-#ifndef NOMINMAX
-#  define NOMINMAX
-#  include <windows.h>
-#  undef NOMINMAX
-#else
-#  include <windows.h>
-#endif
+#include <windows.h>
 
 namespace blender {
+
 class CoInitializeWrapper {
   HRESULT _hr;
 
@@ -45,4 +40,5 @@ class CoInitializeWrapper {
     return _hr;
   }
 };
+
 }  // namespace blender

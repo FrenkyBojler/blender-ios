@@ -25,7 +25,9 @@
 #include "BLI_vector_set.hh"
 #include "BLI_virtual_array_fwd.hh"
 
-namespace blender::index_mask {
+namespace blender {
+
+namespace index_mask {
 
 /**
  * Constants that define the maximum segment size. Segment sizes are limited so that the indices
@@ -468,6 +470,7 @@ class IndexMask : private IndexMaskData {
    * size as the mask.
    */
   template<typename T> void to_indices(MutableSpan<T> r_indices) const;
+  template<typename T> Vector<T> to_indices() const;
   /**
    * Set the bits at indices in the mask to 1.
    */
@@ -1075,6 +1078,13 @@ void IndexMask::from_groups(const IndexMask &universe,
   }
 }
 
+template<typename T> inline Vector<T> IndexMask::to_indices() const
+{
+  Vector<T> indices(indices_num_);
+  this->to_indices<T>(indices);
+  return indices;
+}
+
 std::optional<IndexRange> inline IndexMask::to_range() const
 {
   if (indices_num_ == 0) {
@@ -1135,11 +1145,11 @@ IndexMask random_mask(const int64_t universe_size,
                       const float probability,
                       IndexMaskMemory &memory);
 
-}  // namespace blender::index_mask
+}  // namespace index_mask
 
-namespace blender {
 using index_mask::IndexMask;
 using index_mask::IndexMaskFromSegment;
 using index_mask::IndexMaskMemory;
 using index_mask::IndexMaskSegment;
+
 }  // namespace blender

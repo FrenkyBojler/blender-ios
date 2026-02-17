@@ -102,6 +102,7 @@ class VIEW3D_PT_tools_object_options_transform(View3DPanel, Panel):
     bl_context = ".objectmode"  # dot on purpose (access from topbar)
     bl_label = "Transform"
     bl_parent_id = "VIEW3D_PT_tools_object_options"
+    bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
         layout = self.layout
@@ -487,7 +488,7 @@ class SelectPaintSlotHelper:
                     layout.operator("paint.add_simple_uvs", icon='ADD', text="Add UVs")
                 else:
                     layout.menu("VIEW3D_MT_tools_projectpaint_uvlayer", text=uv_text, translate=False)
-                have_image = getattr(settings, self.canvas_image_attr_name) is not None
+                have_image = getattr(mode_settings, self.canvas_image_attr_name) is not None
 
                 self.draw_image_interpolation(layout=layout, mode_settings=mode_settings)
 
@@ -2231,7 +2232,6 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_mixcolor(View3DPanel, Panel):
         sub_row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
 
         if brush.gpencil_brush_type in {'DRAW', 'FILL'}:
-            col.prop(gp_settings, "vertex_mode", text="Mode")
             col.prop(gp_settings, "vertex_color_factor", slider=True, text="Mix Factor")
 
 

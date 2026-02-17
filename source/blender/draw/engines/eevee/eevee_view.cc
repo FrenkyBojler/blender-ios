@@ -95,8 +95,13 @@ void ShadingView::render()
 
   combined_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
                       GPU_ATTACHMENT_TEXTURE(rbufs.combined_tx));
-  prepass_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
-                     GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx));
+
+  const bool with_raycast = inst_.pipelines.has_raycast;
+  prepass_fb_.ensure(
+      GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
+      with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.prepass_normal_tx) : GPU_ATTACHMENT_NONE,
+      with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx) : GPU_ATTACHMENT_NONE,
+      GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx));
 
   GBuffer &gbuf = inst_.gbuffer;
   gbuf.acquire(extent_,
@@ -113,10 +118,14 @@ void ShadingView::render()
 
   /* If camera has any motion, compute motion vector in the film pass. Otherwise, we avoid float
    * precision issue by setting the motion of all static geometry to 0. */
+  /* TODO: Clear using GPU_framebuffer. */
   float4 clear_velocity = float4(inst_.velocity.camera_has_motion() ? VELOCITY_INVALID : 0.0f);
+  GPU_texture_clear(rbufs.vector_tx, GPU_DATA_FLOAT, &clear_velocity);
+  if (with_raycast) {
+    rbufs.object_id_tx.clear(uint4(0));
+    rbufs.prepass_normal_tx.clear(float4(0.0f));
+  }
 
-  GPU_framebuffer_bind(prepass_fb_);
-  GPU_framebuffer_clear_color(prepass_fb_, clear_velocity);
   /* Alpha stores transmittance. So start at 1. */
   float4 clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
   GPU_framebuffer_bind(combined_fb_);
@@ -146,11 +155,12 @@ void ShadingView::render()
 
   inst_.volume.draw_compute(main_view_, extent_);
 
+  inst_.volume.draw_resolve(main_view_);
+
   inst_.ambient_occlusion.render_pass(render_view_);
 
-  inst_.pipelines.forward.render(render_view_, prepass_fb_, combined_fb_, extent_);
-
-  render_transparent_pass(rbufs);
+  inst_.pipelines.forward.render(
+      render_view_, rbufs.depth_tx, prepass_fb_, transparent_fb_, combined_fb_, extent_);
 
   inst_.lights.debug_draw(render_view_, combined_fb_);
   inst_.hiz_buffer.debug_draw(render_view_, combined_fb_);
@@ -166,20 +176,6 @@ void ShadingView::render()
   postfx_tx_.release();
 
   GPU_debug_group_end();
-}
-
-void ShadingView::render_transparent_pass(RenderBuffers &rbufs)
-{
-  if (rbufs.data.transparent_id != -1) {
-    transparent_fb_.ensure(
-        GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
-        GPU_ATTACHMENT_TEXTURE_LAYER(rbufs.rp_color_tx, rbufs.data.transparent_id));
-    /* Alpha stores transmittance. So start at 1. */
-    float4 clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
-    GPU_framebuffer_bind(transparent_fb_);
-    GPU_framebuffer_clear_color(transparent_fb_, clear_color);
-    inst_.pipelines.forward.render(render_view_, prepass_fb_, transparent_fb_, rbufs.extent_get());
-  }
 }
 
 gpu::Texture *ShadingView::render_postfx(gpu::Texture *input_tx)
@@ -361,11 +357,21 @@ void CaptureView::render_probes()
     }
 
     int2 extent = int2(update_info->cube_target_extent);
-    inst_.render_buffers.acquire(extent);
+    RenderBuffers &rbufs = inst_.render_buffers;
+    rbufs.acquire(extent);
 
-    inst_.render_buffers.vector_tx.clear(float4(0.0f));
-    prepass_fb.ensure(GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.depth_tx),
-                      GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.vector_tx));
+    const bool with_raycast = inst_.pipelines.has_raycast;
+    prepass_fb.ensure(
+        GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
+        with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.prepass_normal_tx) : GPU_ATTACHMENT_NONE,
+        with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx) : GPU_ATTACHMENT_NONE,
+        GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx));
+
+    rbufs.vector_tx.clear(float4(0.0f));
+    if (with_raycast) {
+      rbufs.object_id_tx.clear(uint4(0));
+      rbufs.prepass_normal_tx.clear(float4(0.0f));
+    }
 
     inst_.gbuffer.acquire(extent,
                           inst_.pipelines.probe.header_layer_count(),

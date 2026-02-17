@@ -26,6 +26,8 @@
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"lib.query"};
 
 /* status */
@@ -57,7 +59,7 @@ struct LibraryForeachIDData {
    * Function to call for every ID pointers of current processed data, and its opaque user data
    * pointer.
    */
-  blender::FunctionRef<LibraryIDLinkCallback> callback;
+  FunctionRef<LibraryIDLinkCallback> callback;
   void *user_data;
   /**
    * Store the returned value from the callback, to decide how to continue the processing of ID
@@ -67,7 +69,7 @@ struct LibraryForeachIDData {
 
   /* To handle recursion. */
   /* All IDs that are either already done, or still in ids_todo stack. */
-  blender::Set<ID *> *ids_handled;
+  Set<ID *> *ids_handled;
   BLI_LINKSTACK_DECLARE(ids_todo, ID *);
 };
 
@@ -153,7 +155,7 @@ int BKE_lib_query_foreachid_process_callback_flag_override(
 static bool library_foreach_ID_link(Main *bmain,
                                     ID *owner_id,
                                     ID *id,
-                                    blender::FunctionRef<LibraryIDLinkCallback> callback,
+                                    FunctionRef<LibraryIDLinkCallback> callback,
                                     void *user_data,
                                     LibraryForeachIDFlag flag,
                                     LibraryForeachIDData *inherit_data);
@@ -162,7 +164,7 @@ void BKE_lib_query_idpropertiesForeachIDLink_callback(IDProperty *id_prop, void 
 {
   BLI_assert(id_prop->type == IDP_ID);
 
-  LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
+  LibraryForeachIDData *data = static_cast<LibraryForeachIDData *>(user_data);
   const LibraryForeachIDCallbackFlag cb_flag = IDWALK_CB_USER |
                                                ((id_prop->flag & IDP_FLAG_OVERRIDABLE_LIBRARY) ?
                                                     IDWALK_CB_NOP :
@@ -218,7 +220,7 @@ static void library_foreach_ID_data_cleanup(LibraryForeachIDData *data)
 static bool library_foreach_ID_link(Main *bmain,
                                     ID *owner_id,
                                     ID *id,
-                                    blender::FunctionRef<LibraryIDLinkCallback> callback,
+                                    FunctionRef<LibraryIDLinkCallback> callback,
                                     void *user_data,
                                     LibraryForeachIDFlag flag,
                                     LibraryForeachIDData *inherit_data)
@@ -244,7 +246,7 @@ static bool library_foreach_ID_link(Main *bmain,
      * see also comments in #BKE_library_foreach_ID_embedded.
      * This is why we can always create this data here, and do not need to try and re-use it from
      * `inherit_data`. */
-    data.ids_handled = MEM_new<blender::Set<ID *>>(__func__);
+    data.ids_handled = MEM_new<Set<ID *>>(__func__);
     BLI_LINKSTACK_INIT(data.ids_todo);
 
     data.ids_handled->add(id);
@@ -347,13 +349,20 @@ static bool library_foreach_ID_link(Main *bmain,
        * but we might as well use it (Main->relations is always assumed valid,
        * it's responsibility of code creating it to free it,
        * especially if/when it starts modifying Main database). */
-      MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-          BLI_ghash_lookup(bmain->relations->relations_from_pointers, id));
+      MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id);
       for (MainIDRelationsEntryItem *to_id_entry = entry->to_ids; to_id_entry != nullptr;
            to_id_entry = to_id_entry->next)
       {
-        BKE_lib_query_foreachid_process(
-            &data, to_id_entry->id_pointer.to, to_id_entry->usage_flag);
+        /* NOTE: Since `use_bmain_relations` can only be true if `IDWALK_READONLY` is set, checking
+         * that the pointer is not modified is redundant (#BKE_lib_query_foreachid_process would
+         * already have asserted on it).
+         *
+         * Does not hurt to have that double-check here though, as it makes that expectation more
+         * obvious. */
+        ID *to_id_tmp = to_id_entry->id_pointer.to;
+        BKE_lib_query_foreachid_process(&data, &to_id_tmp, to_id_entry->usage_flag);
+        BLI_assert(to_id_tmp == to_id_entry->id_pointer.to);
+
         if (BKE_lib_query_foreachid_iter_stop(&data)) {
           library_foreach_ID_data_cleanup(&data);
           return false;
@@ -376,11 +385,11 @@ static bool library_foreach_ID_link(Main *bmain,
                          IDWALK_CB_USER | IDWALK_CB_OVERRIDE_LIBRARY_REFERENCE);
 
       CALLBACK_INVOKE_ID(id->override_library->hierarchy_root, IDWALK_CB_LOOPBACK);
-      LISTBASE_FOREACH (IDOverrideLibraryProperty *, op, &id->override_library->properties) {
-        LISTBASE_FOREACH (IDOverrideLibraryPropertyOperation *, opop, &op->operations) {
-          CALLBACK_INVOKE_ID(opop->subitem_reference_id,
+      for (IDOverrideLibraryProperty &op : id->override_library->properties) {
+        for (IDOverrideLibraryPropertyOperation &opop : op.operations) {
+          CALLBACK_INVOKE_ID(opop.subitem_reference_id,
                              IDWALK_CB_DIRECT_WEAK_LINK | IDWALK_CB_OVERRIDE_LIBRARY_REFERENCE);
-          CALLBACK_INVOKE_ID(opop->subitem_local_id,
+          CALLBACK_INVOKE_ID(opop.subitem_local_id,
                              IDWALK_CB_DIRECT_WEAK_LINK | IDWALK_CB_OVERRIDE_LIBRARY_REFERENCE);
         }
       }
@@ -431,7 +440,7 @@ static bool library_foreach_ID_link(Main *bmain,
 
 void BKE_library_foreach_ID_link(Main *bmain,
                                  ID *id,
-                                 blender::FunctionRef<LibraryIDLinkCallback> callback,
+                                 FunctionRef<LibraryIDLinkCallback> callback,
                                  void *user_data,
                                  const LibraryForeachIDFlag flag)
 {
@@ -453,8 +462,8 @@ void BKE_library_foreach_subdata_id(
     Main *bmain,
     ID *owner_id,
     ID *self_id,
-    blender::FunctionRef<void(LibraryForeachIDData *data)> subdata_foreach_id,
-    blender::FunctionRef<LibraryIDLinkCallback> callback,
+    FunctionRef<void(LibraryForeachIDData *data)> subdata_foreach_id,
+    FunctionRef<LibraryIDLinkCallback> callback,
     void *user_data,
     const LibraryForeachIDFlag flag)
 {
@@ -491,7 +500,7 @@ uint64_t BKE_library_id_can_use_filter_id(const ID *owner_id,
   /* Casting to non const.
    * TODO(jbakker): We should introduce a ntree_id_has_tree function as we are actually not
    * interested in the result. */
-  if (blender::bke::node_tree_from_id(const_cast<ID *>(owner_id))) {
+  if (bke::node_tree_from_id(const_cast<ID *>(owner_id))) {
     return FILTER_ID_ALL;
   }
 
@@ -527,7 +536,7 @@ bool BKE_library_id_can_use_idtype(ID *owner_id, const short id_type_used)
 struct IDUsersIter {
   ID *id;
 
-  // ListBase *lb_array[INDEX_ID_MAX]; /* UNUSED. */
+  // ListBaseT<ID> *lb_array[INDEX_ID_MAX]; /* UNUSED. */
   // int lb_idx; /* UNUSED. */
 
   ID *curr_id;
@@ -582,8 +591,11 @@ int BKE_library_ID_use_ID(ID *id_user, ID *id_used)
   iter.curr_id = id_user;
   iter.count_direct = iter.count_indirect = 0;
 
-  BKE_library_foreach_ID_link(
-      nullptr, iter.curr_id, foreach_libblock_id_users_callback, (void *)&iter, IDWALK_READONLY);
+  BKE_library_foreach_ID_link(nullptr,
+                              iter.curr_id,
+                              foreach_libblock_id_users_callback,
+                              static_cast<void *>(&iter),
+                              IDWALK_READONLY);
 
   return iter.count_direct + iter.count_indirect;
 }
@@ -688,13 +700,13 @@ struct UnusedIDsData {
   bool do_linked_ids;
   bool do_recursive;
 
-  blender::FunctionRef<bool(ID *id)> filter_fn;
+  FunctionRef<bool(ID *id)> filter_fn;
 
   std::array<int, INDEX_ID_MAX> *num_total;
   std::array<int, INDEX_ID_MAX> *num_local;
   std::array<int, INDEX_ID_MAX> *num_linked;
 
-  blender::Set<ID *> unused_ids;
+  Set<ID *> unused_ids;
 
   UnusedIDsData(Main *bmain, const int id_tag, LibQueryUnusedIDsData &parameters)
       : bmain(bmain),
@@ -794,8 +806,8 @@ static bool lib_query_unused_ids_has_exception_user(ID &id, UnusedIDsData &data)
       if (!ID_IS_LINKED(&id)) {
         return false;
       }
-      MainIDRelationsEntry *id_relations = static_cast<MainIDRelationsEntry *>(
-          BLI_ghash_lookup(data.bmain->relations->relations_from_pointers, &id));
+      MainIDRelationsEntry *id_relations = data.bmain->relations->relations_from_pointers->lookup(
+          &id);
       for (MainIDRelationsEntryItem *from = id_relations->from_ids; from; from = from->next) {
         if (!data.unused_ids.contains(from->id_pointer.from)) {
           return true;
@@ -826,8 +838,7 @@ static bool lib_query_unused_ids_tag_recurse(ID *id, UnusedIDsData &data)
   /* We should never deal with embedded, not-in-main IDs here. */
   BLI_assert((id->flag & ID_FLAG_EMBEDDED_DATA) == 0);
 
-  MainIDRelationsEntry *id_relations = static_cast<MainIDRelationsEntry *>(
-      BLI_ghash_lookup(data.bmain->relations->relations_from_pointers, id));
+  MainIDRelationsEntry *id_relations = data.bmain->relations->relations_from_pointers->lookup(id);
 
   if ((id_relations->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED) != 0) {
     return false;
@@ -997,8 +1008,8 @@ static void lib_query_unused_ids_tag(UnusedIDsData &data)
        *
        * So the entry can be tagged as processed, and the ID tagged as unused. */
       if (!data.unused_ids.contains(id)) {
-        MainIDRelationsEntry *id_relations = static_cast<MainIDRelationsEntry *>(
-            BLI_ghash_lookup(data.bmain->relations->relations_from_pointers, id));
+        MainIDRelationsEntry *id_relations =
+            data.bmain->relations->relations_from_pointers->lookup(id);
         if ((id_relations->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED) == 0) {
           id_relations->tags |= MAINIDRELATIONS_ENTRY_TAGS_PROCESSED;
           lib_query_unused_ids_tag_id(id, data);
@@ -1008,8 +1019,8 @@ static void lib_query_unused_ids_tag(UnusedIDsData &data)
 
 #ifndef NDEBUG
     /* Relation entry for the root processed ID should always be marked as processed now. */
-    MainIDRelationsEntry *id_relations = static_cast<MainIDRelationsEntry *>(
-        BLI_ghash_lookup(data.bmain->relations->relations_from_pointers, id));
+    MainIDRelationsEntry *id_relations = data.bmain->relations->relations_from_pointers->lookup(
+        id);
     BLI_assert((id_relations->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED) != 0);
     BLI_assert((id_relations->tags & MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS) == 0);
 #endif
@@ -1149,14 +1160,16 @@ void BKE_library_indirectly_used_data_tag_clear(Main *bmain)
     do_loop = false;
 
     while (i--) {
-      LISTBASE_FOREACH (ID *, id, lb_array[i]) {
-        if (!ID_IS_LINKED(id) || id->tag & ID_TAG_DOIT) {
+      for (ID &id : *lb_array[i]) {
+        if (!ID_IS_LINKED(&id) || id.tag & ID_TAG_DOIT) {
           /* Local or non-indirectly-used ID (so far), no need to check it further. */
           continue;
         }
         BKE_library_foreach_ID_link(
-            bmain, id, foreach_libblock_used_linked_data_tag_clear_cb, &do_loop, IDWALK_READONLY);
+            bmain, &id, foreach_libblock_used_linked_data_tag_clear_cb, &do_loop, IDWALK_READONLY);
       }
     }
   }
 }
+
+}  // namespace blender
