@@ -267,7 +267,6 @@ static IndexMask find_faces_bad_edges(const Mesh &mesh,
   threading::EnumerableThreadSpecific<Vector<std::pair<int, int>>> all_replacements;
   IndexMask faces_bad_edges = IndexMask::from_batch_predicate(
       mask,
-      GrainSize(4096),
       memory,
       [&](const IndexMaskSegment universe_segment, IndexRangesBuilder<int16_t> &builder) {
         Vector<std::pair<int, int>> &replacements = all_replacements.local();

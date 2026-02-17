@@ -285,10 +285,10 @@ class IndexMask : private IndexMaskData {
    */
   static IndexMask from_batch_predicate(
       const IndexMask &universe,
-      GrainSize grain_size,
       IndexMaskMemory &memory,
       FunctionRef<int64_t(const IndexMaskSegment &universe_segment,
-                          IndexRangesBuilder<int16_t> &builder)> batch_predicate);
+                          IndexRangesBuilder<int16_t> &builder)> batch_predicate,
+      exec_mode::Mode mode = exec_mode::parallel);
   /** Sorts all indices from #universe into the different output masks. */
   template<typename T, typename Fn>
   static void from_groups(const IndexMask &universe,

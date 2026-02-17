@@ -411,7 +411,6 @@ static IndexMask face_tris_mask(const OffsetIndices<int> src_faces,
 {
   return IndexMask::from_batch_predicate(
       mask,
-      GrainSize(4096),
       memory,
       [&](const IndexMaskSegment universe_segment, IndexRangesBuilder<int16_t> &builder) {
         if (unique_sorted_indices::non_empty_is_range(universe_segment.base_span())) {
