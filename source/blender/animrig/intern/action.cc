@@ -2146,7 +2146,6 @@ SingleKeyingResult StripKeyframeData::keyframe_insert(Main *bmain,
       fcurve, time_value, settings, insert_key_flags);
 
   if (insert_vert_result != SingleKeyingResult::SUCCESS) {
-    // todo(habib): handle SingleKeyingResult::NO_KEY_NEEDED
     CLOG_WARN(&LOG,
               "Could not insert key into FCurve %s[%d] for slot %s.\n",
               fcurve_descriptor.rna_path.c_str(),
