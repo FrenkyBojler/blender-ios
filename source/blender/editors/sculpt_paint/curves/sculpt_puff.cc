@@ -153,7 +153,7 @@ struct PuffOperationExecutor {
 
     IndexMaskMemory memory;
     const IndexMask curves_mask = IndexMask::from_predicate(
-        curve_selection_, GrainSize(4096), memory, [&](const int64_t curve_i) {
+        curve_selection_, memory, [&](const int64_t curve_i) {
           return curve_weights[curve_i] > 0.0f;
         });
 

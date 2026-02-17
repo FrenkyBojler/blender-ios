@@ -95,19 +95,18 @@ static IndexMask find_edges_bad_verts(const Mesh &mesh,
   const Span<int2> edges = mesh.edges();
 
   ErrorMessages errors(verbose);
-  return IndexMask::from_predicate(
-      edges.index_range(), GrainSize(4096), memory, [&](const int edge_i) {
-        const int2 edge = edges[edge_i];
-        if (edge[0] == edge[1]) {
-          errors.add("Edge {} has equal vertex indices {}", edge_i, edge[0]);
-          return true;
-        }
-        if (!verts_range.contains(edge[0]) || !verts_range.contains(edge[1])) {
-          errors.add("Edge {} has out of range vertex ({}, {})", edge_i, edge[0], edge[1]);
-          return true;
-        }
-        return false;
-      });
+  return IndexMask::from_predicate(edges.index_range(), memory, [&](const int edge_i) {
+    const int2 edge = edges[edge_i];
+    if (edge[0] == edge[1]) {
+      errors.add("Edge {} has equal vertex indices {}", edge_i, edge[0]);
+      return true;
+    }
+    if (!verts_range.contains(edge[0]) || !verts_range.contains(edge[1])) {
+      errors.add("Edge {} has out of range vertex ({}, {})", edge_i, edge[0], edge[1]);
+      return true;
+    }
+    return false;
+  });
 }
 
 using EdgeMap = VectorSet<OrderedEdge,
@@ -157,16 +156,15 @@ static IndexMask find_faces_bad_offsets(const Mesh &mesh,
     errors.add("Faces offsets do not start at 0. Considering all faces invalid");
     return IndexMask(mesh.faces_num);
   }
-  return IndexMask::from_predicate(
-      IndexRange(mesh.faces_num), GrainSize(4096), memory, [&](const int face_i) {
-        const int face_start = face_offsets[face_i];
-        const int face_size = face_offsets[face_i + 1] - face_start;
-        if (face_size < 3) {
-          errors.add("Face {} has invalid size {}", face_i, face_size);
-          return true;
-        }
-        return false;
-      });
+  return IndexMask::from_predicate(IndexRange(mesh.faces_num), memory, [&](const int face_i) {
+    const int face_start = face_offsets[face_i];
+    const int face_size = face_offsets[face_i + 1] - face_start;
+    if (face_size < 3) {
+      errors.add("Face {} has invalid size {}", face_i, face_size);
+      return true;
+    }
+    return false;
+  });
 }
 
 static IndexMask find_faces_bad_verts(const Mesh &mesh,
@@ -178,16 +176,20 @@ static IndexMask find_faces_bad_verts(const Mesh &mesh,
   const OffsetIndices<int> faces(mesh.face_offsets(), offset_indices::NoSortCheck());
   const Span<int> corner_verts = mesh.corner_verts();
   ErrorMessages errors(verbose);
-  return IndexMask::from_predicate(mask, GrainSize(512), memory, [&](const int face_i) {
-    const IndexRange face = faces[face_i];
-    for (const int vert : corner_verts.slice(face)) {
-      if (!verts_range.contains(vert)) {
-        errors.add("Face {} has invalid vertex {}", face_i, vert);
-        return true;
-      }
-    }
-    return false;
-  });
+  return IndexMask::from_predicate(
+      mask,
+      memory,
+      [&](const int face_i) {
+        const IndexRange face = faces[face_i];
+        for (const int vert : corner_verts.slice(face)) {
+          if (!verts_range.contains(vert)) {
+            errors.add("Face {} has invalid vertex {}", face_i, vert);
+            return true;
+          }
+        }
+        return false;
+      },
+      exec_mode::grain_size(512));
 }
 
 static IndexMask find_faces_duplicate_verts(const Mesh &mesh,
@@ -199,17 +201,21 @@ static IndexMask find_faces_duplicate_verts(const Mesh &mesh,
   const OffsetIndices<int> faces(mesh.face_offsets(), offset_indices::NoSortCheck());
   const Span<int> corner_verts = mesh.corner_verts();
   ErrorMessages errors(verbose);
-  return IndexMask::from_predicate(mask, GrainSize(512), memory, [&](const int face_i) {
-    Set<int, 16> set;
-    const IndexRange face = faces[face_i];
-    for (const int vert : corner_verts.slice(face)) {
-      if (!set.add(vert)) {
-        errors.add("Face {} has duplicate vertex {}", face_i, vert);
-        return true;
-      }
-    }
-    return false;
-  });
+  return IndexMask::from_predicate(
+      mask,
+      memory,
+      [&](const int face_i) {
+        Set<int, 16> set;
+        const IndexRange face = faces[face_i];
+        for (const int vert : corner_verts.slice(face)) {
+          if (!set.add(vert)) {
+            errors.add("Face {} has duplicate vertex {}", face_i, vert);
+            return true;
+          }
+        }
+        return false;
+      },
+      exec_mode::grain_size(512));
 }
 
 static IndexMask find_faces_missing_edges(const Mesh &mesh,
@@ -223,19 +229,25 @@ static IndexMask find_faces_missing_edges(const Mesh &mesh,
   const Span<int> corner_verts = mesh.corner_verts();
 
   ErrorMessages errors(verbose);
-  return IndexMask::from_predicate(mask, GrainSize(1024), memory, [&](const int face_i) {
-    const IndexRange face = faces[face_i];
-    for (const int corner : face) {
-      const int corner_next = mesh::face_corner_next(face, corner);
-      const OrderedEdge actual_edge(corner_verts[corner], corner_verts[corner_next]);
-      if (!unique_edges.contains(actual_edge)) {
-        errors.add(
-            "Face {} has missing edge ({}, {})", face_i, actual_edge.v_low, actual_edge.v_high);
-        return true;
-      }
-    }
-    return false;
-  });
+  return IndexMask::from_predicate(
+      mask,
+      memory,
+      [&](const int face_i) {
+        const IndexRange face = faces[face_i];
+        for (const int corner : face) {
+          const int corner_next = mesh::face_corner_next(face, corner);
+          const OrderedEdge actual_edge(corner_verts[corner], corner_verts[corner_next]);
+          if (!unique_edges.contains(actual_edge)) {
+            errors.add("Face {} has missing edge ({}, {})",
+                       face_i,
+                       actual_edge.v_low,
+                       actual_edge.v_high);
+            return true;
+          }
+        }
+        return false;
+      },
+      exec_mode::grain_size(1024));
 }
 
 static IndexMask find_faces_bad_edges(const Mesh &mesh,
@@ -624,7 +636,7 @@ static bool validate_material_indices(const Mesh &mesh,
   const VArraySpan<int> material_indices_span(material_indices);
   IndexMaskMemory memory;
   const IndexMask invalid_indices = IndexMask::from_predicate(
-      material_indices.index_range(), GrainSize(4096), memory, [&](const int face) {
+      material_indices.index_range(), memory, [&](const int face) {
         return !materials_range.contains(material_indices_span[face]);
       });
   if (invalid_indices.is_empty()) {
@@ -654,7 +666,7 @@ static bool validate_selection_history(const Mesh &mesh, const bool verbose, Mes
   const Span<MSelect> mselect(mesh.mselect, mesh.totselect);
   IndexMaskMemory memory;
   const IndexMask invalid = IndexMask::from_predicate(
-      mselect.index_range(), GrainSize(4096), memory, [&](const int i) {
+      mselect.index_range(), memory, [&](const int i) {
         if (mselect[i].index < 0) {
           return true;
         }
@@ -702,13 +714,12 @@ static IndexMask get_invalid_float_mask(const Span<float> values,
   }
   const int num_items = values.size() / floats_per_item;
 
-  return IndexMask::from_predicate(
-      IndexRange(num_items), GrainSize(4096), memory, [&](const int64_t index) {
-        const Span<float> item_floats = values.slice(index * floats_per_item, floats_per_item);
-        return std::any_of(item_floats.begin(), item_floats.end(), [](const float value) {
-          return !std::isfinite(value);
-        });
-      });
+  return IndexMask::from_predicate(IndexRange(num_items), memory, [&](const int64_t index) {
+    const Span<float> item_floats = values.slice(index * floats_per_item, floats_per_item);
+    return std::any_of(item_floats.begin(), item_floats.end(), [](const float value) {
+      return !std::isfinite(value);
+    });
+  });
 }
 
 static void validate_float_attribute(const bke::AttributeIter &iter,
@@ -747,9 +758,7 @@ static void validate_bool_attribute(const bke::AttributeIter &iter,
   const Span<int8_t> int_span = span.cast<int8_t>();
   IndexMaskMemory memory;
   const IndexMask invalid = IndexMask::from_predicate(
-      int_span.index_range(), GrainSize(4096), memory, [&](const int i) {
-        return !ELEM(int_span[i], 0, 1);
-      });
+      int_span.index_range(), memory, [&](const int i) { return !ELEM(int_span[i], 0, 1); });
   if (invalid.is_empty()) {
     return;
   }
@@ -821,7 +830,7 @@ static bool validate_mdisps(const Mesh &mesh, const bool verbose, Mesh *mesh_mut
 
   IndexMaskMemory memory;
   const IndexMask invalid = IndexMask::from_predicate(
-      IndexRange(mesh.corners_num), GrainSize(4096), memory, [&](const int i) {
+      IndexRange(mesh.corners_num), memory, [&](const int i) {
         const Span<float> disps = Span(reinterpret_cast<const float3 *>(mdisps[i].disps),
                                        mdisps[i].totdisp)
                                       .cast<float>();

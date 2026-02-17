@@ -680,7 +680,7 @@ static std::optional<bke::CurvesGeometry> extrude_curves(const PenToolOperation 
     const VArray<int8_t> knot_modes = dst.nurbs_knots_modes();
     const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
     const IndexMask include_curves = IndexMask::from_predicate(
-        src.curves_range(), GrainSize(512), memory, [&](const int64_t curve_index) {
+        src.curves_range(), memory, [&](const int64_t curve_index) {
           return curve_types[curve_index] == CURVE_TYPE_NURBS &&
                  knot_modes[curve_index] == NURBS_KNOT_MODE_CUSTOM &&
                  points_by_curve[curve_index].size() == dst_points_by_curve[curve_index].size();
@@ -785,7 +785,7 @@ static void insert_point_to_curve(const PenToolOperation &ptd, bke::CurvesGeomet
     const VArray<int8_t> knot_modes = dst.nurbs_knots_modes();
     const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
     const IndexMask include_curves = IndexMask::from_predicate(
-        src.curves_range(), GrainSize(512), memory, [&](const int64_t curve_index) {
+        src.curves_range(), memory, [&](const int64_t curve_index) {
           return curve_types[curve_index] == CURVE_TYPE_NURBS &&
                  knot_modes[curve_index] == NURBS_KNOT_MODE_CUSTOM &&
                  points_by_curve[curve_index].size() == dst_points_by_curve[curve_index].size();
@@ -1128,7 +1128,7 @@ static IndexMask retrieve_visible_bezier_handle_points(const bke::CurvesGeometry
       ".selection_handle_right", bke::AttrDomain::Point, true);
 
   const IndexMask selected_points = IndexMask::from_predicate(
-      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
+      curves.points_range(), memory, [&](const int64_t point_i) {
         const bool is_selected = selected_point[point_i] || selected_left[point_i] ||
                                  selected_right[point_i];
         const bool is_bezier = types[point_to_curve_map[point_i]] == CURVE_TYPE_BEZIER;

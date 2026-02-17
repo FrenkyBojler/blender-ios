@@ -447,7 +447,7 @@ static IndexMask tris_in_set(const IndexMask &tri_mask,
                                              SimpleVectorSetSlot<TriKey, int>> &unique_tris,
                              IndexMaskMemory &memory)
 {
-  return IndexMask::from_predicate(tri_mask, GrainSize(4096), memory, [&](const int face_i) {
+  return IndexMask::from_predicate(tri_mask, memory, [&](const int face_i) {
     BLI_assert(faces[face_i].size() == 3);
     const int3 corner_tri(&corner_verts[faces[face_i].start()]);
     return unique_tris.contains_as(tri_to_ordered(corner_tri));
@@ -505,9 +505,9 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
    * for correctness, but considering groups of each face type separately simplifies optimizing
    * for each type. For example, quad triangulation is much simpler than Ngon triangulation. */
   const IndexMask quads = IndexMask::from_predicate(
-      selection, GrainSize(4096), memory, [&](const int i) { return src_faces[i].size() == 4; });
+      selection, memory, [&](const int i) { return src_faces[i].size() == 4; });
   const IndexMask ngons = IndexMask::from_predicate(
-      selection, GrainSize(4096), memory, [&](const int i) { return src_faces[i].size() > 4; });
+      selection, memory, [&](const int i) { return src_faces[i].size() > 4; });
   if (quads.is_empty() && ngons.is_empty()) {
     /* All selected faces are already triangles. */
     return std::nullopt;

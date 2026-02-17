@@ -131,11 +131,14 @@ void mesh_show_all(const Depsgraph &depsgraph, Object &object, const IndexMask &
   if (!hide_vert.is_empty()) {
     IndexMaskMemory memory;
     const IndexMask changed_nodes = IndexMask::from_predicate(
-        node_mask, GrainSize(1), memory, [&](const int i) {
+        node_mask,
+        memory,
+        [&](const int i) {
           const Span<int> verts = nodes[i].verts();
           return std::any_of(
               verts.begin(), verts.end(), [&](const int i) { return hide_vert[i]; });
-        });
+        },
+        exec_mode::grain_size(1));
     undo::push_nodes(depsgraph, object, changed_nodes, undo::Type::HideVert);
     pbvh.tag_visibility_changed(changed_nodes);
   }
@@ -155,12 +158,15 @@ void grids_show_all(Depsgraph &depsgraph, Object &object, const IndexMask &node_
   if (!grid_hidden.is_empty()) {
     IndexMaskMemory memory;
     const IndexMask changed_nodes = IndexMask::from_predicate(
-        node_mask, GrainSize(1), memory, [&](const int i) {
+        node_mask,
+        memory,
+        [&](const int i) {
           const Span<int> grids = nodes[i].grids();
           return std::any_of(grids.begin(), grids.end(), [&](const int i) {
             return bits::any_bit_set(grid_hidden[i]);
           });
-        });
+        },
+        exec_mode::grain_size(1));
     if (changed_nodes.is_empty()) {
       return;
     }

@@ -969,9 +969,10 @@ static void restore_color_from_undo_step(Object &object)
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
   IndexMaskMemory memory;
   const IndexMask node_mask = IndexMask::from_predicate(
-      nodes.index_range(), GrainSize(64), memory, [&](const int i) {
-        return orig_color_data_lookup_mesh(object, nodes[i]).has_value();
-      });
+      nodes.index_range(),
+      memory,
+      [&](const int i) { return orig_color_data_lookup_mesh(object, nodes[i]).has_value(); },
+      exec_mode::grain_size(64));
 
   BLI_assert(pbvh.type() == bke::pbvh::Type::Mesh);
   Mesh &mesh = *id_cast<Mesh *>(object.data);
@@ -1062,9 +1063,12 @@ void restore_position_from_undo_step(const Depsgraph &depsgraph, Object &object)
       MutableSpan positions_orig = mesh.vert_positions_for_write();
 
       const IndexMask node_mask = IndexMask::from_predicate(
-          nodes.index_range(), GrainSize(64), memory, [&](const int i) {
+          nodes.index_range(),
+          memory,
+          [&](const int i) {
             return orig_position_data_lookup_mesh(object, nodes[i]).has_value();
-          });
+          },
+          exec_mode::grain_size(64));
 
       struct LocalData {
         Vector<float3> translations;
@@ -1137,9 +1141,12 @@ void restore_position_from_undo_step(const Depsgraph &depsgraph, Object &object)
       const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
 
       const IndexMask node_mask = IndexMask::from_predicate(
-          nodes.index_range(), GrainSize(64), memory, [&](const int i) {
+          nodes.index_range(),
+          memory,
+          [&](const int i) {
             return orig_position_data_lookup_grids(object, nodes[i]).has_value();
-          });
+          },
+          exec_mode::grain_size(64));
 
       SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
       const BitGroupVector<> grid_hidden = subdiv_ccg.grid_hidden;

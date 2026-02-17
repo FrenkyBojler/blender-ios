@@ -50,21 +50,20 @@ IndexMask retrieve_selected_curves(const bke::CurvesGeometry &curves, IndexMaskM
     }
 
     const OffsetIndices points_by_curve = curves.points_by_curve();
-    return IndexMask::from_predicate(
-        curves_range, GrainSize(512), memory, [&](const int64_t curve) {
-          const IndexRange points = points_by_curve[curve];
-          /* The curve is selected if any of its points are selected. */
-          Array<bool, 32> point_selection(points.size());
-          selection.materialize_compressed(points, point_selection);
-          bool is_selected = point_selection.as_span().contains(true);
-          if (curve_types[curve] == CURVE_TYPE_BEZIER) {
-            selection_left.materialize_compressed(points, point_selection);
-            is_selected |= point_selection.as_span().contains(true);
-            selection_right.materialize_compressed(points, point_selection);
-            is_selected |= point_selection.as_span().contains(true);
-          }
-          return is_selected;
-        });
+    return IndexMask::from_predicate(curves_range, memory, [&](const int64_t curve) {
+      const IndexRange points = points_by_curve[curve];
+      /* The curve is selected if any of its points are selected. */
+      Array<bool, 32> point_selection(points.size());
+      selection.materialize_compressed(points, point_selection);
+      bool is_selected = point_selection.as_span().contains(true);
+      if (curve_types[curve] == CURVE_TYPE_BEZIER) {
+        selection_left.materialize_compressed(points, point_selection);
+        is_selected |= point_selection.as_span().contains(true);
+        selection_right.materialize_compressed(points, point_selection);
+        is_selected |= point_selection.as_span().contains(true);
+      }
+      return is_selected;
+    });
   }
   const VArray<bool> selection = *attributes.lookup_or_default<bool>(
       ".selection", bke::AttrDomain::Curve, true);
@@ -1211,35 +1210,32 @@ IndexMask select_mask_from_predicates(const bke::CurvesGeometry &curves,
 
   if (selection_domain == bke::AttrDomain::Point) {
     return IndexMask::from_predicate(
-        mask.slice_content(curves.points_range()), GrainSize(1024), memory, point_predicate);
+        mask.slice_content(curves.points_range()), memory, point_predicate);
   }
   if (selection_domain == bke::AttrDomain::Curve) {
-    return IndexMask::from_predicate(mask.slice_content(curves.curves_range()),
-                                     GrainSize(512),
-                                     memory,
-                                     [&](const int curve) -> bool {
-                                       const IndexRange points = points_by_curve[curve];
-                                       const bool is_cyclic = cyclic[curve];
+    return IndexMask::from_predicate(
+        mask.slice_content(curves.curves_range()), memory, [&](const int curve) -> bool {
+          const IndexRange points = points_by_curve[curve];
+          const bool is_cyclic = cyclic[curve];
 
-                                       /* Single-point curve can still be selected in curve mode.
-                                        */
-                                       if (points.size() == 1) {
-                                         return point_predicate(points.first());
-                                       }
+          /* Single-point curve can still be selected in curve mode.
+           */
+          if (points.size() == 1) {
+            return point_predicate(points.first());
+          }
 
-                                       for (const int point : points.drop_back(1)) {
-                                         if (line_predicate(curve, point, point + 1)) {
-                                           return true;
-                                         }
-                                       }
-                                       if (is_cyclic) {
-                                         if (line_predicate(curve, points.last(), points.first()))
-                                         {
-                                           return true;
-                                         }
-                                       }
-                                       return false;
-                                     });
+          for (const int point : points.drop_back(1)) {
+            if (line_predicate(curve, point, point + 1)) {
+              return true;
+            }
+          }
+          if (is_cyclic) {
+            if (line_predicate(curve, points.last(), points.first())) {
+              return true;
+            }
+          }
+          return false;
+        });
   }
   return {};
 }

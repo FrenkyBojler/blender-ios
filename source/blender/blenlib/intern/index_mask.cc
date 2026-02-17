@@ -653,7 +653,7 @@ IndexMask IndexMask::from_bools(const IndexMask &universe,
     return IndexMask::from_bools(universe, span, memory);
   }
   return IndexMask::from_predicate(
-      universe, GrainSize(512), memory, [&](const int64_t index) { return bools[index]; });
+      universe, memory, [&](const int64_t index) { return bools[index]; }, exec_mode::parallel);
 }
 
 IndexMask IndexMask::from_bools_inverse(const IndexMask &universe,
@@ -669,7 +669,7 @@ IndexMask IndexMask::from_bools_inverse(const IndexMask &universe,
     return IndexMask::from_bools_inverse(universe, span, memory);
   }
   return IndexMask::from_predicate(
-      universe, GrainSize(512), memory, [&](const int64_t index) { return !bools[index]; });
+      universe, memory, [&](const int64_t index) { return !bools[index]; }, exec_mode::parallel);
 }
 
 template<typename T>
@@ -844,16 +844,16 @@ static void segments_from_predicate_filter(
 
 IndexMask from_predicate_impl(
     const IndexMask &universe,
-    const GrainSize grain_size,
     IndexMaskMemory &memory,
-    const FunctionRef<int64_t(IndexMaskSegment indices, int16_t *r_true_indices)> filter_indices)
+    const FunctionRef<int64_t(IndexMaskSegment indices, int16_t *r_true_indices)> filter_indices,
+    const exec_mode::Mode mode)
 {
   if (universe.is_empty()) {
     return {};
   }
 
   Vector<IndexMaskSegment, 16> segments;
-  if (universe.size() <= grain_size.value) {
+  if (!mode.is_parallel && universe.size() <= mode.grain_size.value_or(4096)) {
     for (const int64_t segment_i : IndexRange(universe.segments_num())) {
       const IndexMaskSegment universe_segment = universe.segment(segment_i);
       segments_from_predicate_filter(universe_segment, memory, filter_indices, segments);
@@ -861,11 +861,12 @@ IndexMask from_predicate_impl(
   }
   else {
     ParallelSegmentsCollector segments_collector;
-    universe.foreach_segment(grain_size, [&](const IndexMaskSegment universe_segment) {
-      ParallelSegmentsCollector::LocalData &data = segments_collector.data_by_thread.local();
-      segments_from_predicate_filter(
-          universe_segment, data.allocator, filter_indices, data.segments);
-    });
+    universe.foreach_segment(
+        GrainSize(mode.grain_size.value_or(4096)), [&](const IndexMaskSegment universe_segment) {
+          ParallelSegmentsCollector::LocalData &data = segments_collector.data_by_thread.local();
+          segments_from_predicate_filter(
+              universe_segment, data.allocator, filter_indices, data.segments);
+        });
     segments_collector.reduce(memory, segments);
   }
 

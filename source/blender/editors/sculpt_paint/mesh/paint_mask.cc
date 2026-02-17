@@ -370,11 +370,14 @@ static bool try_remove_mask_mesh(const Depsgraph &depsgraph,
 
   IndexMaskMemory memory;
   const IndexMask changed_nodes = IndexMask::from_predicate(
-      node_mask, GrainSize(1), memory, [&](const int i) {
+      node_mask,
+      memory,
+      [&](const int i) {
         const Span<int> verts = nodes[i].verts();
         return std::any_of(
             verts.begin(), verts.end(), [&](const int i) { return mask[i] != 0.0f; });
-      });
+      },
+      exec_mode::grain_size(1));
 
   undo::push_nodes(depsgraph, object, changed_nodes, undo::Type::Mask);
   attributes.remove(".sculpt_mask");

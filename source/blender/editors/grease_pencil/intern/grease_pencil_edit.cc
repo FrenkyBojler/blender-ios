@@ -259,7 +259,7 @@ static IndexMask simplify_fixed(const bke::CurvesGeometry &curves,
 
   /* Find points to keep among selected points. */
   const IndexMask selected_to_keep = IndexMask::from_predicate(
-      selected_points, GrainSize(2048), memory, [&](const int64_t i) {
+      selected_points, memory, [&](const int64_t i) {
         const int curve_i = point_to_curve_map[i];
         const IndexRange points = points_by_curve[curve_i];
         if (points.size() <= 2) {
@@ -347,7 +347,7 @@ static wmOperatorStatus grease_pencil_stroke_simplify_exec(bContext *C, wmOperat
         const float merge_distance = RNA_float_get(op->ptr, "distance");
         const IndexMask selected_points = IndexMask::from_ranges(points_by_curve, strokes, memory);
         const IndexMask filtered_points = IndexMask::from_predicate(
-            selected_points, GrainSize(2048), memory, [&](const int64_t i) {
+            selected_points, memory, [&](const int64_t i) {
               const int curve_i = point_to_curve_map[i];
               const IndexRange points = points_by_curve[curve_i];
               if (points.drop_front(1).drop_back(1).contains(i)) {
@@ -469,17 +469,15 @@ static bool remove_curves_based_on_mode(Object &object,
   const IndexMask strokes_to_delete = [&]() -> IndexMask {
     if (mode == DeleteMode::OnlyStrokes) {
       /* Only curves that are unfilled and have the stroke set. */
-      return IndexMask::from_predicate(
-          editable_strokes, GrainSize(1024), memory, [&](const int index) {
-            return fill_ids[index] == 0 && !hidden_strokes[index];
-          });
+      return IndexMask::from_predicate(editable_strokes, memory, [&](const int index) {
+        return fill_ids[index] == 0 && !hidden_strokes[index];
+      });
     }
     if (mode == DeleteMode::OnlyFills) {
       /* Only curves that don't have the stroke set and are filled. */
-      return IndexMask::from_predicate(
-          editable_strokes, GrainSize(1024), memory, [&](const int index) {
-            return hidden_strokes[index] && fill_ids[index] != 0;
-          });
+      return IndexMask::from_predicate(editable_strokes, memory, [&](const int index) {
+        return hidden_strokes[index] && fill_ids[index] != 0;
+      });
     }
     BLI_assert_unreachable();
     return {};
@@ -509,7 +507,7 @@ static bool remove_stroke_or_fill_based_on_mode(Object &object,
   const VArray<bool> hidden_strokes = *attributes.lookup_or_default<bool>(
       "hide_stroke", bke::AttrDomain::Curve, false);
   const IndexMask fills_with_stroke = IndexMask::from_predicate(
-      editable_strokes, GrainSize(1024), memory, [&](const int index) {
+      editable_strokes, memory, [&](const int index) {
         return fill_ids[index] != 0 && !hidden_strokes[index];
       });
   if (fills_with_stroke.is_empty()) {
@@ -1678,9 +1676,7 @@ static wmOperatorStatus grease_pencil_clean_loose_exec(bContext *C, wmOperator *
         *object, info.drawing, info.layer_index, memory);
 
     const IndexMask curves_to_delete = IndexMask::from_predicate(
-        editable_strokes, GrainSize(4096), memory, [&](const int i) {
-          return points_by_curve[i].size() <= limit;
-        });
+        editable_strokes, memory, [&](const int i) { return points_by_curve[i].size() <= limit; });
 
     curves.remove_curves(curves_to_delete, {});
   });
@@ -3269,7 +3265,7 @@ static bke::CurvesGeometry extrude_grease_pencil_curves(const bke::CurvesGeometr
     const VArray<int8_t> knot_modes = dst.nurbs_knots_modes();
     const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
     const IndexMask include_curves = IndexMask::from_predicate(
-        src.curves_range(), GrainSize(512), memory, [&](const int64_t curve_index) {
+        src.curves_range(), memory, [&](const int64_t curve_index) {
           return curve_types[curve_index] == CURVE_TYPE_NURBS &&
                  knot_modes[curve_index] == NURBS_KNOT_MODE_CUSTOM &&
                  points_by_curve[curve_index].size() == dst_points_by_curve[curve_index].size();

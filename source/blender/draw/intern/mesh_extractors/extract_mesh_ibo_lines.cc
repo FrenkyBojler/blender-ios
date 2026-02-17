@@ -31,9 +31,8 @@ static IndexMask calc_mesh_edge_visibility(const MeshRenderData &mr,
   }
   if (mr.hide_unmapped_edges && mr.orig_index_edge != nullptr) {
     const int *orig_index = mr.orig_index_edge;
-    visible = IndexMask::from_predicate(visible, GrainSize(4096), memory, [&](const int64_t i) {
-      return orig_index[i] != ORIGINDEX_NONE;
-    });
+    visible = IndexMask::from_predicate(
+        visible, memory, [&](const int64_t i) { return orig_index[i] != ORIGINDEX_NONE; });
   }
   return visible;
 }
@@ -66,11 +65,11 @@ static IndexMask calc_visible_loose_edge_indices(const MeshRenderData &mr, Index
   if (!mr.hide_edge.is_empty()) {
     const Span<bool> hide_edge = mr.hide_edge;
     visible = IndexMask::from_predicate(
-        visible, GrainSize(4096), memory, [&](const int i) { return !hide_edge[loose_edges[i]]; });
+        visible, memory, [&](const int i) { return !hide_edge[loose_edges[i]]; });
   }
   if (mr.hide_unmapped_edges && mr.orig_index_edge != nullptr) {
     const int *orig_index = mr.orig_index_edge;
-    visible = IndexMask::from_predicate(visible, GrainSize(4096), memory, [&](const int64_t i) {
+    visible = IndexMask::from_predicate(visible, memory, [&](const int64_t i) {
       return orig_index[loose_edges[i]] != ORIGINDEX_NONE;
     });
   }
@@ -178,7 +177,7 @@ static void extract_lines_bm(const MeshRenderData &mr,
 
   IndexMaskMemory memory;
   const IndexMask visible_loose_edges = IndexMask::from_predicate(
-      loose_edges.index_range(), GrainSize(2048), memory, [&](const int i) {
+      loose_edges.index_range(), memory, [&](const int i) {
         const BMEdge &edge = *BM_edge_at_index(&const_cast<BMesh &>(bm), loose_edges[i]);
         return !BM_elem_flag_test_bool(&edge, BM_ELEM_HIDDEN);
       });
@@ -198,7 +197,7 @@ static void extract_lines_bm(const MeshRenderData &mr,
   const IndexMask all_loose_edges = IndexMask::from_indices(mr.loose_edges, memory);
   const IndexMask non_loose_edges = all_loose_edges.complement(IndexRange(bm.totedge), memory);
   const IndexMask visible_non_loose_edges = IndexMask::from_predicate(
-      non_loose_edges, GrainSize(2048), memory, [&](const int i) {
+      non_loose_edges, memory, [&](const int i) {
         const BMEdge &edge = *BM_edge_at_index(&const_cast<BMesh &>(bm), i);
         return !BM_elem_flag_test_bool(&edge, BM_ELEM_HIDDEN);
       });

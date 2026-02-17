@@ -509,7 +509,7 @@ void ensure_nodes_constraints(const Sculpt &sd,
     case bke::pbvh::Type::Mesh: {
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       const IndexMask uninitialized_nodes = IndexMask::from_predicate(
-          node_mask, GrainSize(1024), memory, [&](const int i) {
+          node_mask, memory, [&](const int i) {
             const int node_index = cloth_sim.node_state_index.lookup(&nodes[i]);
             return cloth_sim.node_state[node_index] == SCULPT_CLOTH_NODE_UNINITIALIZED;
           });
@@ -560,7 +560,7 @@ void ensure_nodes_constraints(const Sculpt &sd,
     case bke::pbvh::Type::Grids: {
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       const IndexMask uninitialized_nodes = IndexMask::from_predicate(
-          node_mask, GrainSize(1024), memory, [&](const int i) {
+          node_mask, memory, [&](const int i) {
             const int node_index = cloth_sim.node_state_index.lookup(&nodes[i]);
             return cloth_sim.node_state[node_index] == SCULPT_CLOTH_NODE_UNINITIALIZED;
           });
@@ -602,7 +602,7 @@ void ensure_nodes_constraints(const Sculpt &sd,
     case bke::pbvh::Type::BMesh: {
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       const IndexMask uninitialized_nodes = IndexMask::from_predicate(
-          node_mask, GrainSize(1024), memory, [&](const int i) {
+          node_mask, memory, [&](const int i) {
             const int node_index = cloth_sim.node_state_index.lookup(&nodes[i]);
             return cloth_sim.node_state[node_index] == SCULPT_CLOTH_NODE_UNINITIALIZED;
           });
@@ -1426,7 +1426,7 @@ void do_simulation_step(const Depsgraph &depsgraph,
     case bke::pbvh::Type::Mesh: {
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       const IndexMask active_nodes = IndexMask::from_predicate(
-          node_mask, GrainSize(1024), memory, [&](const int i) {
+          node_mask, memory, [&](const int i) {
             const int node_index = cloth_sim.node_state_index.lookup(&nodes[i]);
             return cloth_sim.node_state[node_index] == SCULPT_CLOTH_NODE_ACTIVE;
           });
@@ -1464,7 +1464,7 @@ void do_simulation_step(const Depsgraph &depsgraph,
     case bke::pbvh::Type::Grids: {
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       const IndexMask active_nodes = IndexMask::from_predicate(
-          node_mask, GrainSize(1024), memory, [&](const int i) {
+          node_mask, memory, [&](const int i) {
             const int node_index = cloth_sim.node_state_index.lookup(&nodes[i]);
             return cloth_sim.node_state[node_index] == SCULPT_CLOTH_NODE_ACTIVE;
           });
@@ -1500,7 +1500,7 @@ void do_simulation_step(const Depsgraph &depsgraph,
     case bke::pbvh::Type::BMesh: {
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       const IndexMask active_nodes = IndexMask::from_predicate(
-          node_mask, GrainSize(1024), memory, [&](const int i) {
+          node_mask, memory, [&](const int i) {
             const int node_index = cloth_sim.node_state_index.lookup(&nodes[i]);
             return cloth_sim.node_state[node_index] == SCULPT_CLOTH_NODE_ACTIVE;
           });

@@ -165,7 +165,7 @@ bool select_box(PointCloud &pointcloud,
 
   IndexMaskMemory memory;
   const IndexMask mask = IndexMask::from_predicate(
-      positions.index_range(), GrainSize(1024), memory, [&](const int point) {
+      positions.index_range(), memory, [&](const int point) {
         const float2 pos_proj = ED_view3d_project_float_v2_m4(
             &region, positions[point], projection);
         return BLI_rcti_isect_pt_v(&rect, int2(pos_proj));
@@ -187,7 +187,7 @@ bool select_lasso(PointCloud &pointcloud,
 
   IndexMaskMemory memory;
   const IndexMask mask = IndexMask::from_predicate(
-      positions.index_range(), GrainSize(1024), memory, [&](const int point) {
+      positions.index_range(), memory, [&](const int point) {
         const float2 pos_proj = ED_view3d_project_float_v2_m4(
             &region, positions[point], projection);
         if (!BLI_rcti_isect_pt_v(&bbox, int2(pos_proj))) {
@@ -216,7 +216,7 @@ bool select_circle(PointCloud &pointcloud,
 
   IndexMaskMemory memory;
   const IndexMask mask = IndexMask::from_predicate(
-      positions.index_range(), GrainSize(1024), memory, [&](const int point) {
+      positions.index_range(), memory, [&](const int point) {
         const float2 pos_proj = ED_view3d_project_float_v2_m4(
             &region, positions[point], projection);
         return math::distance_squared(pos_proj, float2(coord)) <= radius_sq;

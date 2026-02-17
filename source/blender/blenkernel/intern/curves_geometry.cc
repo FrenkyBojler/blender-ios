@@ -546,11 +546,9 @@ IndexMask CurvesGeometry::nurbs_custom_knot_curves(IndexMaskMemory &memory) cons
 {
   const VArray<int8_t> curve_types = this->curve_types();
   const VArray<int8_t> knot_modes = this->nurbs_knots_modes();
-  return IndexMask::from_predicate(
-      this->curves_range(), GrainSize(4096), memory, [&](const int64_t curve) {
-        return curve_types[curve] == CURVE_TYPE_NURBS &&
-               knot_modes[curve] == NURBS_KNOT_MODE_CUSTOM;
-      });
+  return IndexMask::from_predicate(this->curves_range(), memory, [&](const int64_t curve) {
+    return curve_types[curve] == CURVE_TYPE_NURBS && knot_modes[curve] == NURBS_KNOT_MODE_CUSTOM;
+  });
 }
 
 OffsetIndices<int> CurvesGeometry::nurbs_custom_knots_by_curve() const
@@ -1318,7 +1316,7 @@ void CurvesGeometry::calculate_bezier_aligned_handles()
   const IndexMask bezier_points = bke::curves::curve_type_point_selection(
       *this, CURVE_TYPE_BEZIER, memory);
   const IndexMask selection = IndexMask::from_predicate(
-      bezier_points, GrainSize(4096), memory, [&](const int64_t i) {
+      bezier_points, memory, [&](const int64_t i) {
         return types_left[i] == BEZIER_HANDLE_ALIGN && types_right[i] == BEZIER_HANDLE_ALIGN;
       });
 
@@ -1489,9 +1487,7 @@ CurvesGeometry curves_copy_point_selection(const CurvesGeometry &curves,
 
   IndexMaskMemory memory;
   const IndexMask curves_to_copy = IndexMask::from_predicate(
-      curves.curves_range(), GrainSize(4096), memory, [&](const int64_t i) {
-        return curve_point_counts[i] > 0;
-      });
+      curves.curves_range(), memory, [&](const int64_t i) { return curve_point_counts[i] > 0; });
 
   CurvesGeometry dst_curves(points_to_copy.size(), curves_to_copy.size());
 

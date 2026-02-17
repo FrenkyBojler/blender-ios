@@ -1605,7 +1605,7 @@ Span<gpu::IndexBufPtr> DrawCacheImpl::ensure_lines_indices(const Object &object,
 
   IndexMaskMemory memory;
   const IndexMask nodes_to_calculate = IndexMask::from_predicate(
-      node_mask, GrainSize(8196), memory, [&](const int i) { return !ibos[i]; });
+      node_mask, memory, [&](const int i) { return !ibos[i]; });
 
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
@@ -1678,7 +1678,7 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
    * recompute visible nodes. */
   IndexMaskMemory memory;
   const IndexMask empty_mask = IndexMask::from_predicate(
-      node_mask, GrainSize(8196), memory, [&](const int i) { return !vbos[i]; });
+      node_mask, memory, [&](const int i) { return !vbos[i]; });
   const IndexMask dirty_mask = IndexMask::from_bits(
       node_mask.slice_content(data.dirty_nodes.index_range()), data.dirty_nodes, memory);
   const IndexMask mask = IndexMask::from_union(empty_mask, dirty_mask, memory);
@@ -1788,7 +1788,7 @@ Span<gpu::IndexBufPtr> DrawCacheImpl::ensure_tri_indices(const Object &object,
        * distribution between threads. */
       IndexMaskMemory memory;
       const IndexMask nodes_to_calculate = IndexMask::from_predicate(
-          node_mask, GrainSize(8196), memory, [&](const int i) { return !ibos[i]; });
+          node_mask, memory, [&](const int i) { return !ibos[i]; });
 
       const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
       const OffsetIndices<int> faces = mesh.faces();
@@ -1818,7 +1818,7 @@ Span<gpu::IndexBufPtr> DrawCacheImpl::ensure_tri_indices(const Object &object,
        * distribution between threads. */
       IndexMaskMemory memory;
       const IndexMask nodes_to_calculate = IndexMask::from_predicate(
-          node_mask, GrainSize(8196), memory, [&](const int i) { return !ibos[i]; });
+          node_mask, memory, [&](const int i) { return !ibos[i]; });
 
       const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);

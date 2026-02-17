@@ -779,18 +779,16 @@ static IndexMask get_visible_boundary_strokes(const Object &object,
     const VArray<bool> fill_guides = *attributes.lookup_or_default<bool>(
         attr_is_fill_guide, bke::AttrDomain::Curve, false);
 
-    return IndexMask::from_predicate(
-        strokes.curves_range(), GrainSize(512), memory, [&](const int curve_i) {
-          if (!is_visible_curve(curve_i)) {
-            return false;
-          }
-          const bool is_boundary_stroke = fill_guides[curve_i];
-          return is_boundary_stroke;
-        });
+    return IndexMask::from_predicate(strokes.curves_range(), memory, [&](const int curve_i) {
+      if (!is_visible_curve(curve_i)) {
+        return false;
+      }
+      const bool is_boundary_stroke = fill_guides[curve_i];
+      return is_boundary_stroke;
+    });
   }
 
-  return IndexMask::from_predicate(
-      strokes.curves_range(), GrainSize(512), memory, is_visible_curve);
+  return IndexMask::from_predicate(strokes.curves_range(), memory, is_visible_curve);
 }
 
 static VArray<ColorGeometry4f> get_stroke_colors(const Object &object,

@@ -766,17 +766,16 @@ static bke::CurvesGeometry convert_bezier_or_catmull_rom_to_poly_before_conversi
 {
   const VArray<int8_t> src_curve_types = src_curves.curve_types();
   IndexMaskMemory memory;
-  const IndexMask mask = IndexMask::from_predicate(
-      selection, GrainSize(4096), memory, [&](const int curve_i) {
-        const CurveType type = CurveType(src_curve_types[curve_i]);
-        if (!options.keep_bezier_shape_as_nurbs && type == CURVE_TYPE_BEZIER) {
-          return true;
-        }
-        if (!options.keep_catmull_rom_shape_as_nurbs && type == CURVE_TYPE_CATMULL_ROM) {
-          return true;
-        }
-        return false;
-      });
+  const IndexMask mask = IndexMask::from_predicate(selection, memory, [&](const int curve_i) {
+    const CurveType type = CurveType(src_curve_types[curve_i]);
+    if (!options.keep_bezier_shape_as_nurbs && type == CURVE_TYPE_BEZIER) {
+      return true;
+    }
+    if (!options.keep_catmull_rom_shape_as_nurbs && type == CURVE_TYPE_CATMULL_ROM) {
+      return true;
+    }
+    return false;
+  });
   return convert_curves_trivial(src_curves, mask, CURVE_TYPE_POLY);
 }
 

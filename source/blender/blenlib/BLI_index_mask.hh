@@ -13,6 +13,7 @@
 #include <variant>
 
 #include "BLI_bit_span.hh"
+#include "BLI_execution_mode.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_index_ranges_builder_fwd.hh"
@@ -180,8 +181,8 @@ class IndexMaskSegment : public OffsetSpan<int64_t, int16_t> {
  *   stored in the mask and the second is the index that would have to be passed into `operator[]`
  *   to get the first index.
  *
- *   The `foreach_*` methods also accept an optional `GrainSize` argument. When that is provided,
- *   multi-threading is used when appropriate. Integrating multi-threading at this level works well
+ *   The `foreach_*` methods also accept an execution mode optional argument. When that is
+ *   provided, multi-threading  might be used. Integrating multi-threading at this level works well
  *   because mask iteration and parallelism are often used at the same time.
  *
  * Extraction:
@@ -271,9 +272,9 @@ class IndexMask : private IndexMaskData {
   /** Construct a mask from all the indices for which the predicate is true. */
   template<typename Fn>
   static IndexMask from_predicate(const IndexMask &universe,
-                                  GrainSize grain_size,
                                   IndexMaskMemory &memory,
-                                  Fn &&predicate);
+                                  Fn &&predicate,
+                                  exec_mode::Mode mode = exec_mode::parallel);
   /**
    * This is a variant of #from_predicate that is more efficient if the predicate for many indices
    * can be evaluated at once.
@@ -1026,20 +1027,19 @@ template<typename Fn> inline void IndexMask::foreach_range(Fn &&fn) const
 namespace detail {
 IndexMask from_predicate_impl(
     const IndexMask &universe,
-    GrainSize grain_size,
     IndexMaskMemory &memory,
-    FunctionRef<int64_t(IndexMaskSegment indices, int16_t *r_true_indices)> filter_indices);
+    FunctionRef<int64_t(IndexMaskSegment indices, int16_t *r_true_indices)> filter_indices,
+    exec_mode::Mode mode);
 }
 
 template<typename Fn>
 inline IndexMask IndexMask::from_predicate(const IndexMask &universe,
-                                           const GrainSize grain_size,
                                            IndexMaskMemory &memory,
-                                           Fn &&predicate)
+                                           Fn &&predicate,
+                                           const exec_mode::Mode mode)
 {
   return detail::from_predicate_impl(
       universe,
-      grain_size,
       memory,
       [&](const IndexMaskSegment indices, int16_t *__restrict r_true_indices) {
         int16_t *r_current = r_true_indices;
@@ -1059,7 +1059,8 @@ inline IndexMask IndexMask::from_predicate(const IndexMask &universe,
         }
         const int16_t true_indices_num = int16_t(r_current - r_true_indices);
         return true_indices_num;
-      });
+      },
+      mode);
 }
 
 template<typename T, typename Fn>

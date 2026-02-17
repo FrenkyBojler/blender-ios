@@ -53,7 +53,7 @@ static gpu::IndexBufPtr extract_edituv_tris_bm(const MeshRenderData &mr, const b
 
   IndexMaskMemory memory;
   const IndexMask selection = IndexMask::from_predicate(
-      IndexRange(bm.totface), GrainSize(4096), memory, [&](const int face) {
+      IndexRange(bm.totface), memory, [&](const int face) {
         return !skip_bm_face(*BM_face_at_index(&const_cast<BMesh &>(bm), face), sync_selection);
       });
 
@@ -106,17 +106,16 @@ static gpu::IndexBufPtr extract_edituv_tris_mesh(const MeshRenderData &mr,
   IndexMaskMemory memory;
   IndexMask selection;
   if (mr.bm) {
-    selection = IndexMask::from_predicate(
-        faces.index_range(), GrainSize(4096), memory, [&](const int face) {
-          const BMFace *face_orig = bm_original_face_get(mr, face);
-          if (!face_orig) {
-            return false;
-          }
-          if (skip_bm_face(*face_orig, sync_selection)) {
-            return false;
-          }
-          return true;
-        });
+    selection = IndexMask::from_predicate(faces.index_range(), memory, [&](const int face) {
+      const BMFace *face_orig = bm_original_face_get(mr, face);
+      if (!face_orig) {
+        return false;
+      }
+      if (skip_bm_face(*face_orig, sync_selection)) {
+        return false;
+      }
+      return true;
+    });
   }
   else {
     if (mr.hide_poly.is_empty()) {
@@ -200,10 +199,7 @@ static gpu::IndexBufPtr extract_edituv_tris_subdiv_bm(const MeshRenderData &mr,
 
   IndexMaskMemory memory;
   const IndexMask selection = IndexMask::from_predicate(
-      IndexRange(subdiv_cache.num_subdiv_quads),
-      GrainSize(4096),
-      memory,
-      [&](const int subdiv_quad_index) {
+      IndexRange(subdiv_cache.num_subdiv_quads), memory, [&](const int subdiv_quad_index) {
         const uint corner_start = subdiv_quad_index * 4;
         const int coarse_face = subdiv_loop_face_index[corner_start];
         const BMFace &bm_face = *BM_face_at_index(&const_cast<BMesh &>(bm), coarse_face);
@@ -222,10 +218,7 @@ static gpu::IndexBufPtr extract_edituv_tris_subdiv_mesh(const MeshRenderData &mr
 
   IndexMaskMemory memory;
   const IndexMask selection = IndexMask::from_predicate(
-      IndexRange(subdiv_cache.num_subdiv_quads),
-      GrainSize(4096),
-      memory,
-      [&](const int subdiv_quad_index) {
+      IndexRange(subdiv_cache.num_subdiv_quads), memory, [&](const int subdiv_quad_index) {
         const uint corner_start = subdiv_quad_index * 4;
         const int coarse_face = subdiv_loop_face_index[corner_start];
         const BMFace *face_orig = bm_original_face_get(mr, coarse_face);
@@ -647,7 +640,7 @@ static gpu::IndexBufPtr extract_edituv_face_dots_bm(const MeshRenderData &mr,
   const BMesh &bm = *mr.bm;
   IndexMaskMemory memory;
   const IndexMask visible = IndexMask::from_predicate(
-      IndexMask(bm.totface), GrainSize(4096), memory, [&](const int i) {
+      IndexMask(bm.totface), memory, [&](const int i) {
         return !skip_bm_face(*BM_face_at_index(&const_cast<BMesh &>(bm), i), sync_selection);
       });
 
@@ -662,21 +655,20 @@ static gpu::IndexBufPtr extract_edituv_face_dots_mesh(const MeshRenderData &mr,
 {
   const OffsetIndices faces = mr.faces;
   IndexMaskMemory memory;
-  IndexMask visible = IndexMask::from_predicate(
-      faces.index_range(), GrainSize(4096), memory, [&](const int i) {
-        const BMFace *face_orig = bm_original_face_get(mr, i);
-        if (!face_orig) {
-          return false;
-        }
-        if (skip_bm_face(*face_orig, sync_selection)) {
-          return false;
-        }
-        return true;
-      });
+  IndexMask visible = IndexMask::from_predicate(faces.index_range(), memory, [&](const int i) {
+    const BMFace *face_orig = bm_original_face_get(mr, i);
+    if (!face_orig) {
+      return false;
+    }
+    if (skip_bm_face(*face_orig, sync_selection)) {
+      return false;
+    }
+    return true;
+  });
   if (mr.use_subsurf_fdots) {
     const BitSpan facedot_tags = mr.mesh->runtime->subsurf_face_dot_tags;
     const Span<int> corner_verts = mr.corner_verts;
-    visible = IndexMask::from_predicate(visible, GrainSize(4096), memory, [&](const int i) {
+    visible = IndexMask::from_predicate(visible, memory, [&](const int i) {
       const Span<int> face_verts = corner_verts.slice(faces[i]);
       return std::any_of(face_verts.begin(), face_verts.end(), [&](const int vert) {
         return facedot_tags[vert];

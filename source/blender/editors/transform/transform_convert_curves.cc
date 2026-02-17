@@ -65,10 +65,9 @@ void create_aligned_handles_masks(const bke::CurvesGeometry &curves,
       selected_left_handles, selected_right_handles, memory);
 
   auto aligned_handles_to_selection = [&](const VArraySpan<int8_t> &handle_types) {
-    return IndexMask::from_predicate(
-        affected_handles, GrainSize(4096), memory, [&](const int64_t i) {
-          return handle_types[i] == BEZIER_HANDLE_ALIGN;
-        });
+    return IndexMask::from_predicate(affected_handles, memory, [&](const int64_t i) {
+      return handle_types[i] == BEZIER_HANDLE_ALIGN;
+    });
   };
 
   const IndexMask both_aligned = IndexMask::from_intersection(
@@ -160,7 +159,7 @@ static IndexMask handles_by_type(const IndexMask &handles,
   }
   const VArraySpan types_span = types;
   return IndexMask::from_predicate(
-      handles, GrainSize(4096), memory, [&](const int64_t i) { return types_span[i] == type; });
+      handles, memory, [&](const int64_t i) { return types_span[i] == type; });
 }
 
 static bool update_auto_handle_types(bke::CurvesGeometry &curves,

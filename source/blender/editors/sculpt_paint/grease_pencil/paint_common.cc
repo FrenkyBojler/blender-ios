@@ -176,7 +176,7 @@ IndexMask brush_point_influence_mask(const Paint &paint,
 
   Array<float> all_influences(selection.min_array_size());
   const IndexMask influence_mask = IndexMask::from_predicate(
-      selection, GrainSize(4096), memory, [&](const int point) {
+      selection, memory, [&](const int point) {
         /* Distance falloff. */
         const float distance_squared = math::distance_squared(int2(view_positions[point]), mval_i);
         if (distance_squared > radius_squared) {
@@ -768,7 +768,7 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
       const VArraySpan<int> materials = *attributes.lookup_or_default<int>(
           "material_index", bke::AttrDomain::Point, 0);
       const IndexMask active_material_mask = IndexMask::from_predicate(
-          curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
+          curves.points_range(), memory, [&](const int64_t point_i) {
             return active_material_index == materials[point_i];
           });
       automask_info.point_mask = IndexMask::from_intersection(
@@ -785,7 +785,7 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
       const Array<float2> view_positions = view_positions_from_curve_mask(params,
                                                                           stroke_selection);
       const IndexMask strokes_under_brush = IndexMask::from_predicate(
-          stroke_selection, GrainSize(512), memory, [&](const int curve_i) {
+          stroke_selection, memory, [&](const int curve_i) {
             for (const int point_i : points_by_curve[curve_i]) {
               const float distance = math::distance(mval_i, int2(view_positions[point_i]));
               if (distance <= stroke_distance_threshold) {
@@ -836,7 +836,7 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
           "material_index", bke::AttrDomain::Curve, 0);
       IndexMaskMemory memory;
       const IndexMask masked_curves = IndexMask::from_predicate(
-          curves.curves_range(), GrainSize(1024), memory, [&](const int curve_i) {
+          curves.curves_range(), memory, [&](const int curve_i) {
             return masked_material_indices.contains(material_indices[curve_i]);
           });
 

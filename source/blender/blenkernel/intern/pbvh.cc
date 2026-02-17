@@ -2574,16 +2574,16 @@ void BKE_pbvh_sync_visibility_from_verts(Object &object)
       IndexMaskMemory memory;
       const IndexMask hidden_faces =
           !grid_hidden.is_empty() ?
-              IndexMask::from_predicate(faces.index_range(),
-                                        GrainSize(1024),
-                                        memory,
-                                        [&](const int i) {
-                                          const IndexRange face = faces[i];
-                                          return std::any_of(
-                                              face.begin(), face.end(), [&](const int corner) {
-                                                return grid_hidden[corner][key.grid_area - 1];
-                                              });
-                                        }) :
+              IndexMask::from_predicate(
+                  faces.index_range(),
+                  memory,
+                  [&](const int i) {
+                    const IndexRange face = faces[i];
+                    return std::any_of(face.begin(), face.end(), [&](const int corner) {
+                      return grid_hidden[corner][key.grid_area - 1];
+                    });
+                  },
+                  exec_mode::grain_size(1024)) :
               IndexMask();
 
       MutableAttributeAccessor attributes = mesh.attributes_for_write();
@@ -2610,10 +2610,9 @@ IndexMask all_leaf_nodes(const Tree &pbvh, IndexMaskMemory &memory)
 {
   return std::visit(
       [&](const auto &nodes) {
-        return IndexMask::from_predicate(
-            nodes.index_range(), GrainSize(1024), memory, [&](const int i) {
-              return (nodes[i].flag_ & Node::Leaf) != 0;
-            });
+        return IndexMask::from_predicate(nodes.index_range(), memory, [&](const int i) {
+          return (nodes[i].flag_ & Node::Leaf) != 0;
+        });
       },
       pbvh.nodes_);
 }

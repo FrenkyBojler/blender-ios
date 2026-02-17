@@ -154,7 +154,7 @@ bool apply_mask_as_segment_selection(bke::CurvesGeometry &curves,
   IndexMaskMemory memory;
 
   const IndexMask changed_curve_mask = ed::curves::curve_mask_from_points(
-      curves, point_selection_mask, GrainSize(512), memory);
+      curves, point_selection_mask, memory);
 
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const Span<float2> screen_space_positions = tree_data.start_positions.as_span().slice(
@@ -912,7 +912,7 @@ static wmOperatorStatus select_fill_exec(bContext *C, wmOperator * /*op*/)
     selected_strokes.to_bools(selected_curves);
 
     const IndexMask strokes = IndexMask::from_predicate(
-        curves.curves_range(), GrainSize(4096), memory, [&](const int64_t curve_i) {
+        curves.curves_range(), memory, [&](const int64_t curve_i) {
           const int fill_id = fill_ids[curve_i];
           if (fill_id == 0) {
             return selected_curves[curve_i];
@@ -1225,9 +1225,7 @@ static wmOperatorStatus grease_pencil_select_by_stroke_type_exec(bContext *C, wm
               "hide_stroke", bke::AttrDomain::Curve))
       {
         IndexMask mask = IndexMask::from_predicate(
-            selectable_strokes, GrainSize(1024), memory, [&](const int index) {
-              return !hide_stroke[index];
-            });
+            selectable_strokes, memory, [&](const int index) { return !hide_stroke[index]; });
         if (selection_domain == bke::AttrDomain::Point) {
           mask = IndexMask::from_ranges(curves.points_by_curve(), mask, memory);
         }
@@ -1243,9 +1241,7 @@ static wmOperatorStatus grease_pencil_select_by_stroke_type_exec(bContext *C, wm
                                                                        bke::AttrDomain::Curve))
       {
         IndexMask mask = IndexMask::from_predicate(
-            selectable_strokes, GrainSize(1024), memory, [&](const int index) {
-              return fill_id[index] != 0;
-            });
+            selectable_strokes, memory, [&](const int index) { return fill_id[index] != 0; });
         if (selection_domain == bke::AttrDomain::Point) {
           mask = IndexMask::from_ranges(curves.points_by_curve(), mask, memory);
         }

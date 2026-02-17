@@ -504,7 +504,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
           /* Only get curves that are in the fill and valid. */
           const IndexMask fill = IndexMask::from_predicate(
-              base_fill, GrainSize(4096), memory, [&](const int64_t curve_i) {
+              base_fill, memory, [&](const int64_t curve_i) {
                 const IndexRange points = points_by_curve[curve_i];
                 return points.size() >= 3;
               });
@@ -1033,12 +1033,11 @@ static IndexMask curves_to_fills_mask(const IndexMask &curve_mask,
   Array<bool> selected_curves(num_curves);
   curve_mask.to_bools(selected_curves);
 
-  return IndexMask::from_predicate(
-      fills->index_range(), GrainSize(4096), memory, [&](const int64_t fill_index) {
-        const Span<int> fill = (*fills)[fill_index];
-        return std::any_of(
-            fill.begin(), fill.end(), [&](const int curve_i) { return selected_curves[curve_i]; });
-      });
+  return IndexMask::from_predicate(fills->index_range(), memory, [&](const int64_t fill_index) {
+    const Span<int> fill = (*fills)[fill_index];
+    return std::any_of(
+        fill.begin(), fill.end(), [&](const int curve_i) { return selected_curves[curve_i]; });
+  });
 }
 
 static void update_triangle_and_offsets_changed(const Span<float3> positions,
