@@ -852,26 +852,33 @@ static void node_implicit_conversion_geo_exec(nodes::GeoNodeExecParams params)
   params.set_output("Output", std::move(input_value));
 }
 
-namespace compositor {
-
-class ImplicitConversionOperation : public NodeOperation {
+class ImplicitConversionOperation : public compositor::NodeOperation {
  public:
   using NodeOperation::NodeOperation;
 
   void execute() override
   {
+    using namespace compositor;
     const Result &input = this->get_input("Input");
     Result &output = this->get_result("Output");
     output.share_data(input);
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
+static compositor::NodeOperation *node_implicit_conversion_compositor_operation(
+    compositor::Context &context, const bNode &node)
 {
   return new ImplicitConversionOperation(context, node);
 }
 
-}  // namespace compositor
+static int node_implicit_conversion_gpu(GPUMaterial *mat,
+                                        bNode *node,
+                                        bNodeExecData * /*execdata*/,
+                                        GPUNodeStack *in,
+                                        GPUNodeStack *out)
+{
+  return GPU_stack_link(mat, node, "node_background", in, out);
+}
 
 void register_node_type_implicit_conversion()
 {
@@ -890,7 +897,8 @@ void register_node_type_implicit_conversion()
       *ntype, "NodeImplicitConversion", node_free_standard_storage, node_copy_standard_storage);
   ntype->poll_instance = node_implicit_conversion_poll_instance;
   ntype->geometry_node_execute = node_implicit_conversion_geo_exec;
-  ntype->get_compositor_operation = compositor::get_compositor_operation;
+  ntype->gpu_fn = node_implicit_conversion_gpu;
+  ntype->get_compositor_operation = node_implicit_conversion_compositor_operation;
 
   bke::node_register_type(*ntype);
 }
