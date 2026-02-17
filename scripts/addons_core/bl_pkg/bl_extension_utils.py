@@ -1149,7 +1149,9 @@ class CommandBatch:
             if update_count > 0:
                 # NOTE: the UI design in #120612 has the number of extensions available in icon.
                 # Include in the text as this is not yet supported.
-                return rpt_("Extension Update Available ({:d}){:s}" if update_count == 1 else "Extension Updates Available ({:d}){:s}").format(update_count, fail_text), 'INTERNET'
+                return rpt_(
+                    "Extension Update Available ({:d}){:s}" if update_count == 1 else "Extension Updates Available ({:d}){:s}").format(
+                    update_count, fail_text), 'INTERNET'
             return rpt_("All Extensions Up-to-date{:s}").format(fail_text), 'CHECKMARK'
 
         # Should never reach this line!
@@ -2192,9 +2194,9 @@ class RepoLock:
 
     def __init__(self, *, repo_directories: Sequence[str], cookie: str):
         """
-        :arg repo_directories:
+        :param repo_directories:
             Directories to attempt to lock.
-        :arg cookie:
+        :param cookie:
             A path which is used as a reference.
             It must point to a path that exists.
             When a lock exists, check if the cookie path exists, if it doesn't, allow acquiring the lock.

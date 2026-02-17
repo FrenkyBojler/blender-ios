@@ -126,6 +126,10 @@ def setup():
         # Light-probes
         eevee.gi_cubemap_resolution = '256'
 
+        # Light-path intensity
+        eevee.direct_light_intensity = 1.0
+        eevee.indirect_light_intensity = 1.0
+
         # Only include the plane in probes
         for ob in scene.objects:
             if ob.type == 'LIGHT' and not skip_shadow_setup:
@@ -234,7 +238,7 @@ def main():
         gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
         if gpu_vendor == "INTEL":
             blocklist += BLOCKLIST_INTEL
-        if gpu_vendor == "INTEL" and sys.platform == "win32" and args.gpu_backend == "vulkan":
+        if gpu_vendor == "INTEL" and sys.platform == "win32" and args.gpu_backend == "opengl":
             blocklist += BLOCKLIST_INTEL_WINDOWS_GL
 
     report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)

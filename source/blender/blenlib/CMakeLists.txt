@@ -217,6 +217,7 @@ set(SRC
   BLI_disjoint_set.hh
   BLI_dot_export.hh
   BLI_dot_export_attribute_enums.hh
+  BLI_dynamic_stack_buffer.hh
   BLI_dynstr.h
   BLI_easing.h
   BLI_endian_defines.h
@@ -224,6 +225,7 @@ set(SRC
   BLI_endian_switch_inline.h
   BLI_enum_flags.hh
   BLI_enumerable_thread_specific.hh
+  BLI_execution_mode.hh
   BLI_expr_pylike_eval.h
   BLI_fftw.hh
   BLI_fileops.h
@@ -307,7 +309,6 @@ set(SRC
   BLI_math_matrix.hh
   BLI_math_matrix_types.hh
   BLI_math_mpq.hh
-  BLI_math_numbers.hh
   BLI_math_quaternion.hh
   BLI_math_quaternion_types.hh
   BLI_math_rotation.h
@@ -377,7 +378,6 @@ set(SRC
   BLI_string_utf8.h
   BLI_string_utf8_symbols.h
   BLI_string_utils.hh
-  BLI_struct_equality_utils.hh
   BLI_sub_frame.hh
   BLI_subprocess.hh
   BLI_sys_types.h
@@ -475,6 +475,11 @@ if(UNIX AND NOT APPLE)
   list(APPEND LIB
     bf_intern_libc_compat
   )
+endif()
+
+# needed for BLI_subprocess.cc when using the mold linker.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  list(APPEND LIB rt)
 endif()
 
 # no need to compile object files for inline headers.
