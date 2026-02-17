@@ -14,6 +14,7 @@
  * \todo document
  */
 
+#include <functional>
 #include <optional>
 #include <string>
 
@@ -313,6 +314,9 @@ bool WM_window_pixels_read_sample(bContext *C, wmWindow *win, const int pos[2], 
  * Support for native pixel size
  *
  * \note macOS retina opens window in size X, but it has up to 2 x more pixels.
+ *
+ * \warning This includes CSD (Client-Side Decoration) area such as the title-bar.
+ * Use #WM_window_rect_calc to get the usable content bounds.
  */
 int WM_window_native_pixel_x(const wmWindow *win);
 int WM_window_native_pixel_y(const wmWindow *win);
@@ -1683,6 +1687,20 @@ wmDropBox *WM_dropbox_add(ListBaseT<wmDropBox> *lb,
                           void (*cancel)(Main *bmain, wmDrag *drag, wmDropBox *drop),
                           WMDropboxTooltipFunc tooltip);
 /**
+ * Register a "prefetch" handler that gets triggered whenever dragging starts, independent of which
+ * drop handlers are available or will be used in the end.
+ *
+ * #wmDropBox::on_drag_start() is similar, but it will only be executed for drop-boxes visible in a
+ * window. For example, sequencer drop-boxes pre-fetch information about dragged media files this
+ * way, but this should only be done if a sequencer is visible somewhere.
+ *
+ * Contrary to the #wmDropBox::on_drag_start() prefetch handlers, the "global" prefetch handlers
+ * here always trigger for the given data type.
+ */
+void WM_drag_global_prefetch_handler_add(
+    const eWM_DragDataType drag_type,
+    const std::function<void(bContext &C, wmDrag &drag)> on_drag_start);
+/**
  * Ensure operator pointers & properties are valid after operators have been added/removed.
  */
 void WM_dropbox_update_ot();
@@ -2256,7 +2274,6 @@ void WM_xr_session_state_nav_rotation_set(wmXrData *xr, const float rotation[4])
 bool WM_xr_session_state_nav_scale_get(const wmXrData *xr, float *r_scale);
 void WM_xr_session_state_nav_scale_set(wmXrData *xr, float scale);
 void WM_xr_session_state_navigation_reset(wmXrSessionState *state);
-void WM_xr_session_state_vignette_reset(wmXrSessionState *state);
 void WM_xr_session_state_vignette_activate(wmXrData *xr);
 void WM_xr_session_state_vignette_update(wmXrSessionState *state);
 

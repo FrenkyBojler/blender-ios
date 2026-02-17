@@ -74,41 +74,41 @@ def enum_sampling_pattern(self, context):
 
     items = [
         ('AUTOMATIC',
-         "Automatic",
-         "Use a blue-noise sampling pattern, which optimizes the frequency distribution of noise, for random sampling. For viewport rendering, optimize first sample quality for interactive preview",
+         n_("Automatic"),
+         n_("Use a blue-noise sampling pattern, which optimizes the frequency distribution of noise, for random sampling. For viewport rendering, optimize first sample quality for interactive preview"),
          5)]
 
     debug_items = [
         ('SOBOL_BURLEY',
-         "Sobol-Burley",
-         "Use on-the-fly computed Owen-scrambled Sobol for random sampling",
+         n_("Sobol-Burley"),
+         n_("Use on-the-fly computed Owen-scrambled Sobol for random sampling"),
          0),
         ('TABULATED_SOBOL',
-         "Tabulated Sobol",
-         "Use pre-computed tables of Owen-scrambled Sobol for random sampling",
+         n_("Tabulated Sobol"),
+         n_("Use pre-computed tables of Owen-scrambled Sobol for random sampling"),
          1),
         ('BLUE_NOISE',
-         "Blue-Noise (pure)",
-         "Use a blue-noise pattern, which optimizes the frequency distribution of noise, for random sampling",
+         n_("Blue-Noise (pure)"),
+         n_("Use a blue-noise pattern, which optimizes the frequency distribution of noise, for random sampling"),
          2),
         ('BLUE_NOISE_FIRST',
-         "Blue-Noise (first)",
-         "Use a blue-noise pattern for the first sample, then use Tabulated Sobol for the remaining samples, for random sampling",
+         n_("Blue-Noise (first)"),
+         n_("Use a blue-noise pattern for the first sample, then use Tabulated Sobol for the remaining samples, for random sampling"),
          3),
         ('BLUE_NOISE_ROUND',
-         "Blue-Noise (round)",
-         "Use a blue-noise sequence with a length rounded up to the next power of 2, for random sampling",
+         n_("Blue-Noise (round)"),
+         n_("Use a blue-noise sequence with a length rounded up to the next power of 2, for random sampling"),
          4),
     ]
 
     non_debug_items = [
         ('TABULATED_SOBOL',
-         "Classic",
-         "Use pre-computed tables of Owen-scrambled Sobol for random sampling",
+         n_("Classic"),
+         n_("Use pre-computed tables of Owen-scrambled Sobol for random sampling"),
          1),
         ('BLUE_NOISE',
-         "Blue-Noise",
-         "Use a blue-noise pattern, which optimizes the frequency distribution of noise, for random sampling",
+         n_("Blue-Noise"),
+         n_("Use a blue-noise pattern, which optimizes the frequency distribution of noise, for random sampling"),
          2),
     ]
 
@@ -1848,6 +1848,14 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             elif device_type == 'ONEAPI':
                 import sys
                 if sys.platform.startswith("win"):
+                    # NOTE(@sirgienko)
+                    # We need NEO driver version 35716 or higher, see oneapi/device_impl.cpp for more details.
+                    # The minimal version for Intel® Arc™ GPUs is driver 101.8331
+                    # The minimal version for Intel® Arc™ Pro GPUs is driver 101.8306
+                    # The previous driver version for Intel® Arc™ GPUs, before 101.8331, was driver 101.8250
+                    # and no intermediate versions were publicly available between 8250 and 8331 for Intel® Arc™ GPUs.
+                    # As a result, we can safely recommend users to use driver version 8306 or higher, without needing
+                    # to distinguish between Intel® Arc™ and Intel® Arc™ Pro users.
                     driver_version = "XX.X.101.8306"
                     col.label(text=rpt_("Requires Intel GPU with Xe-HPG architecture"), icon='BLANK1', translate=False)
                     col.label(text=rpt_("and Windows driver version %s or newer") % driver_version,

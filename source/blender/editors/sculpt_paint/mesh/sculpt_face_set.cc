@@ -130,7 +130,7 @@ void initialize_none_to_id(Mesh *mesh, const int new_id)
   }
 
   for (const int i : face_sets.span.index_range()) {
-    if (face_sets.span[i] == SCULPT_FACE_SET_NONE) {
+    if (face_sets.span[i] == face_set_none_id) {
       face_sets.span[i] = new_id;
     }
   }
@@ -140,12 +140,12 @@ void initialize_none_to_id(Mesh *mesh, const int new_id)
 int active_update_and_get(bContext *C, Object &ob, const float mval[2])
 {
   if (!ob.runtime->sculpt_session) {
-    return SCULPT_FACE_SET_NONE;
+    return face_set_none_id;
   }
 
   CursorGeometryInfo gi;
   if (!cursor_geometry_info_update(C, &gi, mval, false)) {
-    return SCULPT_FACE_SET_NONE;
+    return face_set_none_id;
   }
 
   return active_face_set_get(ob);
@@ -411,6 +411,8 @@ static wmOperatorStatus create_op_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
+
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   if (pbvh.type() == bke::pbvh::Type::BMesh) {
     /* Dyntopo not supported. */
@@ -582,12 +584,12 @@ void SCULPT_OT_face_sets_create(wmOperatorType *ot)
        "ALL",
        0,
        "Face Set Full Mesh",
-       "Create an unique face set with all faces in the sculpt"},
+       "Create a unique face set with all faces in the sculpt"},
       {int(CreateMode::Selection),
        "SELECTION",
        0,
        "Face Set from Edit Mode Selection",
-       "Create an face set corresponding to the Edit Mode face selection"},
+       "Create a face set corresponding to the Edit Mode face selection"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   RNA_def_enum(ot->srna, "mode", modes, int(CreateMode::Masked), "Mode", "");
@@ -707,6 +709,8 @@ static wmOperatorStatus init_op_exec(bContext *C, wmOperator *op)
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
+
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
 
@@ -1281,7 +1285,7 @@ static bool check_single_face_set(const Object &object, const bool check_visible
   if (face_sets.is_empty()) {
     return true;
   }
-  int first_face_set = SCULPT_FACE_SET_NONE;
+  int first_face_set = face_set_none_id;
   if (check_visible_only) {
     for (const int i : face_sets.index_range()) {
       if (!hide_poly.is_empty() && hide_poly[i]) {
@@ -1295,7 +1299,7 @@ static bool check_single_face_set(const Object &object, const bool check_visible
     first_face_set = face_sets[0];
   }
 
-  if (first_face_set == SCULPT_FACE_SET_NONE) {
+  if (first_face_set == face_set_none_id) {
     return true;
   }
 
@@ -1536,6 +1540,10 @@ static wmOperatorStatus edit_op_exec(bContext *C, wmOperator *op)
   const EditMode mode = EditMode(RNA_enum_get(op->ptr, "mode"));
   const bool modify_hidden = RNA_boolean_get(op->ptr, "modify_hidden");
 
+  if (ELEM(mode, EditMode::Grow, EditMode::Shrink)) {
+    ed::sculpt_paint::face_set_overlay_check(*C, *op);
+  }
+
   switch (mode) {
     case EditMode::DeleteGeometry:
       edit_modify_geometry(C, ob, active_face_set, modify_hidden, op);
@@ -1617,13 +1625,13 @@ void SCULPT_OT_face_sets_edit(wmOperatorType *ot)
        "FAIR_POSITIONS",
        0,
        "Fair Positions",
-       "Creates a smooth as possible geometry patch from the face set minimizing changes in "
+       "Creates the smoothest possible geometry patch from the face set minimizing changes in "
        "vertex positions"},
       {int(EditMode::FairTangency),
        "FAIR_TANGENCY",
        0,
        "Fair Tangency",
-       "Creates a smooth as possible geometry patch from the face set minimizing changes in "
+       "Creates the smoothest possible geometry patch from the face set minimizing changes in "
        "vertex tangents"},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -1834,6 +1842,7 @@ static wmOperatorStatus gesture_box_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*gesture_data, *op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
@@ -1856,6 +1865,7 @@ static wmOperatorStatus gesture_lasso_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*gesture_data, *op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
@@ -1878,6 +1888,7 @@ static wmOperatorStatus gesture_line_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*gesture_data, *op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
@@ -1900,6 +1911,7 @@ static wmOperatorStatus gesture_polyline_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*gesture_data, *op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }

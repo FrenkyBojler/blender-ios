@@ -65,6 +65,8 @@
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
 
+#include "BLT_translation.hh"
+
 #include "NOD_texture.h"
 
 #include "DEG_depsgraph.hh"
@@ -198,7 +200,7 @@ int active_face_set_get(const Object &object)
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArray face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
       if (!face_sets || !ss.active_face_index) {
-        return SCULPT_FACE_SET_NONE;
+        return face_set_none_id;
       }
       return face_sets[*ss.active_face_index];
     }
@@ -207,16 +209,16 @@ int active_face_set_get(const Object &object)
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArray face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
       if (!face_sets || !ss.active_grid_index) {
-        return SCULPT_FACE_SET_NONE;
+        return face_set_none_id;
       }
       const int face_index = BKE_subdiv_ccg_grid_to_face_index(*ss.subdiv_ccg,
                                                                *ss.active_grid_index);
       return face_sets[face_index];
     }
     case bke::pbvh::Type::BMesh:
-      return SCULPT_FACE_SET_NONE;
+      return face_set_none_id;
   }
-  return SCULPT_FACE_SET_NONE;
+  return face_set_none_id;
 }
 
 }  // namespace face_set
@@ -227,7 +229,7 @@ int vert_face_set_get(const GroupedSpan<int> vert_to_face_map,
                       const Span<int> face_sets,
                       const int vert)
 {
-  int face_set = SCULPT_FACE_SET_NONE;
+  int face_set = face_set_none_id;
   for (const int face : vert_to_face_map[vert]) {
     face_set = std::max(face_sets[face], face_set);
   }
@@ -242,7 +244,7 @@ int vert_face_set_get(const SubdivCCG &subdiv_ccg, const Span<int> face_sets, co
 
 int vert_face_set_get(const int /*face_set_offset*/, const BMVert & /*vert*/)
 {
-  return SCULPT_FACE_SET_NONE;
+  return face_set_none_id;
 }
 
 bool vert_has_face_set(const GroupedSpan<int> vert_to_face_map,
@@ -251,7 +253,7 @@ bool vert_has_face_set(const GroupedSpan<int> vert_to_face_map,
                        const int face_set)
 {
   if (face_sets.is_empty()) {
-    return face_set == SCULPT_FACE_SET_NONE;
+    return face_set == face_set_none_id;
   }
   const Span<int> faces = vert_to_face_map[vert];
   return std::any_of(
@@ -264,7 +266,7 @@ bool vert_has_face_set(const SubdivCCG &subdiv_ccg,
                        const int face_set)
 {
   if (face_sets.is_empty()) {
-    return face_set == SCULPT_FACE_SET_NONE;
+    return face_set == face_set_none_id;
   }
   const int face = BKE_subdiv_ccg_grid_to_face_index(subdiv_ccg, grid);
   return face_sets[face] == face_set;
@@ -273,7 +275,7 @@ bool vert_has_face_set(const SubdivCCG &subdiv_ccg,
 bool vert_has_face_set(const int face_set_offset, const BMVert &vert, const int face_set)
 {
   if (face_set_offset == -1) {
-    return face_set == SCULPT_FACE_SET_NONE;
+    return face_set == face_set_none_id;
   }
   BMIter iter;
   BMFace *face;
@@ -2344,7 +2346,7 @@ void sculpt_apply_texture(const SculptSession &ss,
                           const float brush_point[3],
                           const int thread_id,
                           float *r_value,
-                          float r_rgba[4])
+                          float4 &r_rgba)
 {
   const ed::sculpt_paint::StrokeCache &cache = *ss.cache;
   const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
@@ -3907,7 +3909,6 @@ static void smooth_brush_toggle_on(Main *bmain, Paint *paint, StrokeCache *cache
   const char *target_asset = brush_type_is_paint(cur_brush->sculpt_brush_type) ? "Blur" : "Smooth";
   if (!BKE_paint_brush_set_essentials(bmain, paint, target_asset)) {
     BKE_paint_brush_set(paint, cur_brush);
-    CLOG_WARN(&LOG, "Unable to switch to the 'Smooth' essentials brush asset");
     CLOG_WARN(&LOG, "Unable to switch to the '%s' essentials brush asset", target_asset);
     cache->saved_active_brush = nullptr;
     return;
@@ -5547,6 +5548,20 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
   cache->invert = stroke_mode == BrushStrokeMode::Invert;
   cache->alt_smooth = brush_switch_mode == BrushSwitchMode::Smooth;
   cache->alt_mask = brush_switch_mode == BrushSwitchMode::Mask;
+
+  /* Alt-Smooth. */
+  if (cache->alt_smooth) {
+    smooth_brush_toggle_on(bmain_, this->paint, cache);
+    /* Refresh the brush pointer in case we switched brush in the toggle function. */
+    brush = BKE_paint_brush(this->paint);
+  }
+  /* Alt-Mask. */
+  if (cache->alt_mask) {
+    mask_brush_toggle_on(bmain_, this->paint, cache);
+    /* Refresh brush pointer after switching. */
+    brush = BKE_paint_brush(this->paint);
+  }
+
   cache->normal_weight = brush->normal_weight;
 
   /* Interpret invert as following normal, for grab brushes. */
@@ -5564,19 +5579,6 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
   }
   else {
     paint_runtime->draw_inverted = false;
-  }
-
-  /* Alt-Smooth. */
-  if (cache->alt_smooth) {
-    smooth_brush_toggle_on(bmain_, this->paint, cache);
-    /* Refresh the brush pointer in case we switched brush in the toggle function. */
-    brush = BKE_paint_brush(this->paint);
-  }
-  /* Alt-Mask. */
-  if (cache->alt_mask) {
-    mask_brush_toggle_on(bmain_, this->paint, cache);
-    /* Refresh brush pointer after switching. */
-    brush = BKE_paint_brush(this->paint);
   }
 
   cache->mouse = cache->initial_mouse;
@@ -5658,13 +5660,8 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
 
 bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
 {
-  /* Don't start the stroke until `mval` goes over the mesh.
-   * NOTE: `mval` will only be null when re-executing the saved stroke.
-   * We have exception for 'exec' strokes since they may not set `mval`,
-   * only 'location', see: #52195. */
-  if (((op->flag & OP_IS_INVOKE) == 0) || (mval == nullptr) ||
-      over_mesh(*this->depsgraph, this->vc, *sculpt_, this->brush, op, mval))
-  {
+  /* Don't start the stroke until `mval` goes over the mesh. */
+  if (over_mesh(*this->depsgraph, this->vc, *sculpt_, this->brush, op, mval)) {
     Object &ob = *this->object;
     Brush *brush = this->brush;
 
@@ -5957,6 +5954,11 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   if (brush_type_is_mask(brush.sculpt_brush_type)) {
     MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
     BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_pointer(C), CTX_data_main(C), &ob, mmd);
+
+    ed::sculpt_paint::mask_overlay_check(*C, *op);
+  }
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW_FACE_SETS) {
+    ed::sculpt_paint::face_set_overlay_check(*C, *op);
   }
   if (!brush_type_is_attribute_only(brush.sculpt_brush_type) &&
       report_if_shape_key_is_locked(ob, op->reports))
@@ -5982,8 +5984,8 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   ignore_background_click = RNA_boolean_get(op->ptr, "ignore_background_click");
   const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
   if (ignore_background_click && !over_mesh(C, op, mval)) {
-    MEM_delete(stroke);
     stroke->free(C, op);
+    MEM_delete(stroke);
     return OPERATOR_PASS_THROUGH;
   }
 
@@ -5993,8 +5995,8 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op->customdata);
     if (stroke) {
-      MEM_delete(stroke);
       stroke->free(C, op);
+      MEM_delete(stroke);
     }
     return retval;
   }
@@ -8186,6 +8188,50 @@ void filter_above_plane_factors(const Span<float3> positions,
   for (const int i : positions.index_range()) {
     if (plane_point_side_v3(plane, positions[i]) > 0.0f) {
       factors[i] = 0.0f;
+    }
+  }
+}
+
+void mask_overlay_check(bContext &C, wmOperator &op)
+{
+  View3D *v3d = CTX_wm_view3d(&C);
+  if (!v3d) {
+    return;
+  }
+
+  if (v3d->flag2 & V3D_HIDE_OVERLAYS) {
+    BKE_report(op.reports, RPT_WARNING, RPT_("Viewport overlays are disabled"));
+  }
+  else {
+    if (!(v3d->overlay.flag & V3D_OVERLAY_SCULPT_SHOW_MASK)) {
+      v3d->overlay.flag |= V3D_OVERLAY_SCULPT_SHOW_MASK;
+      WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    }
+
+    if (v3d->overlay.sculpt_mode_mask_opacity == 0.0f) {
+      BKE_report(op.reports, RPT_WARNING, RPT_("Mask overlay opacity is currently set to 0"));
+    }
+  }
+}
+
+void face_set_overlay_check(bContext &C, wmOperator &op)
+{
+  View3D *v3d = CTX_wm_view3d(&C);
+  if (!v3d) {
+    return;
+  }
+
+  if (v3d->flag2 & V3D_HIDE_OVERLAYS) {
+    BKE_report(op.reports, RPT_WARNING, RPT_("Viewport overlays are disabled"));
+  }
+  else {
+    if (!(v3d->overlay.flag & V3D_OVERLAY_SCULPT_SHOW_FACE_SETS)) {
+      v3d->overlay.flag |= V3D_OVERLAY_SCULPT_SHOW_FACE_SETS;
+      WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    }
+
+    if (v3d->overlay.sculpt_mode_face_sets_opacity == 0.0f) {
+      BKE_report(op.reports, RPT_WARNING, RPT_("Face Sets overlay opacity is currently set to 0"));
     }
   }
 }
