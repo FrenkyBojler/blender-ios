@@ -48,7 +48,7 @@ namespace blender {
  * values for x and y due to the nature of the data displayed. The minimum distance on x for
  * keyframes is BEZT_BINARYSEARCH_THRESH so differences larger than that cannot occur. For the y
  * value there is no such limit, so we have to choose a smaller number. */
-constexpr float2 view_threshold(BEZT_BINARYSEARCH_THRESH, 0.00001f);
+constexpr float2 view_threshold(BEZT_BINARYSEARCH_THRESH, 0.0001f);
 
 /**
  * Sets the given rect to hardcoded values. Useful in case no bounds could be found by other means.
