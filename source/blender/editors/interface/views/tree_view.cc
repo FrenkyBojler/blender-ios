@@ -438,7 +438,8 @@ void AbstractTreeView::scroll_active_into_view(bool scroll)
     foreach_item(
         [&, this](AbstractTreeViewItem &item) {
           if (item.is_active_) {
-            *scroll_value_ = std::max(0, index - (*visible_row_count)/2 + 1);
+            *scroll_value_ = std::clamp(
+                index - (*visible_row_count - 1) / 2, 0, (last_tot_items_ - *visible_row_count));
             return;
           }
           index++;
