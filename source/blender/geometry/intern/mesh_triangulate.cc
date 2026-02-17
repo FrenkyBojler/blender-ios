@@ -228,9 +228,11 @@ static OffsetIndices<int> calc_tris_by_ngon(const OffsetIndices<int> src_faces,
                                             const IndexMask &ngons,
                                             MutableSpan<int> face_offset_data)
 {
-  ngons.foreach_index(GrainSize(2048), [&](const int face, const int mask) {
-    face_offset_data[mask] = bke::mesh::face_triangles_num(src_faces[face].size());
-  });
+  ngons.foreach_index(
+      [&](const int face, const int mask) {
+        face_offset_data[mask] = bke::mesh::face_triangles_num(src_faces[face].size());
+      },
+      exec_mode::grain_size(2048));
   return offset_indices::accumulate_counts_to_offsets(face_offset_data);
 }
 

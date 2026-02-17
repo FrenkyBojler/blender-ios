@@ -729,7 +729,7 @@ static void extrude_mesh_edges(Mesh &mesh,
       MutableSpan<T> data = attribute.span.typed<T>();
       MutableSpan<T> new_data = data.slice(new_loop_range);
       edge_selection.foreach_index(
-          GrainSize(256), [&](const int64_t orig_edge_index, const int64_t i_edge_selection) {
+          [&](const int64_t orig_edge_index, const int64_t i_edge_selection) {
             const Span<int> connected_faces = edge_to_face_map[orig_edge_index];
             if (connected_faces.is_empty()) {
               /* If there are no connected faces, there is no corner data to interpolate. */
@@ -773,7 +773,8 @@ static void extrude_mesh_edges(Mesh &mesh,
                 new_data[i] = side_face_corner_data.last();
               }
             }
-          });
+          },
+          exec_mode::grain_size(256));
     });
 
     attribute.finish();
@@ -1160,27 +1161,31 @@ static void extrude_mesh_face_regions(Mesh &mesh,
   MutableSpan<float3> positions = mesh.vert_positions_for_write();
   if (face_position_offsets.is_single()) {
     const float3 offset = face_position_offsets.get_internal_single();
-    all_selected_verts.foreach_index(GrainSize(1024), [&](const int orig_vert) {
-      const int i_new = new_vert_indices.index_of_try(orig_vert);
-      if (i_new == -1) {
-        positions[orig_vert] += offset;
-      }
-      else {
-        positions[new_vert_range[i_new]] += offset;
-      }
-    });
+    all_selected_verts.foreach_index(
+        [&](const int orig_vert) {
+          const int i_new = new_vert_indices.index_of_try(orig_vert);
+          if (i_new == -1) {
+            positions[orig_vert] += offset;
+          }
+          else {
+            positions[new_vert_range[i_new]] += offset;
+          }
+        },
+        exec_mode::grain_size(1024));
   }
   else {
-    all_selected_verts.foreach_index(GrainSize(1024), [&](const int orig_vert) {
-      const int i_new = new_vert_indices.index_of_try(orig_vert);
-      const float3 offset = vert_offsets[orig_vert];
-      if (i_new == -1) {
-        positions[orig_vert] += offset;
-      }
-      else {
-        positions[new_vert_range[i_new]] += offset;
-      }
-    });
+    all_selected_verts.foreach_index(
+        [&](const int orig_vert) {
+          const int i_new = new_vert_indices.index_of_try(orig_vert);
+          const float3 offset = vert_offsets[orig_vert];
+          if (i_new == -1) {
+            positions[orig_vert] += offset;
+          }
+          else {
+            positions[new_vert_range[i_new]] += offset;
+          }
+        },
+        exec_mode::grain_size(1024));
   }
 
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Point)) {
@@ -1290,7 +1295,7 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
   Array<int> new_vert_indices(extrude_corner_size);
   Array<int> duplicate_edge_indices(extrude_corner_size);
   face_selection.foreach_index(
-      GrainSize(256), [&](const int64_t index, const int64_t i_selection) {
+      [&](const int64_t index, const int64_t i_selection) {
         const IndexRange extrude_range = group_per_face[i_selection];
 
         const IndexRange face = faces[index];
@@ -1335,7 +1340,8 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
 
           connect_edges[i_extrude] = int2(orig_vert, new_vert);
         }
-      });
+      },
+      exec_mode::grain_size(256));
 
   /* New vertices copy the attributes from their original vertices. */
   gather_vert_attributes(
@@ -1351,7 +1357,7 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
   if (!ids_by_domain[int(AttrDomain::Edge)].is_empty()) {
     Array<int2> neighbor_edges(connect_edge_range.size());
     face_selection.foreach_index(
-        GrainSize(1024), [&](const int64_t index, const int64_t i_selection) {
+        [&](const int64_t index, const int64_t i_selection) {
           const IndexRange face = faces[index];
           const IndexRange extrude_range = group_per_face[i_selection];
 
@@ -1362,7 +1368,8 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
             neighbor_edges[i_extrude] = int2(duplicate_edge_indices[i_extrude],
                                              duplicate_edge_indices[i_extrude_prev]);
           }
-        });
+        },
+        exec_mode::grain_size(1024));
 
     for (const StringRef id : ids_by_domain[int(AttrDomain::Edge)]) {
       GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
@@ -1398,7 +1405,7 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
   if (!ids_by_domain[int(AttrDomain::Corner)].is_empty()) {
     Array<int> orig_corners(side_loop_range.size());
     face_selection.foreach_index(
-        GrainSize(256), [&](const int64_t index, const int64_t i_selection) {
+        [&](const int64_t index, const int64_t i_selection) {
           const IndexRange face = faces[index];
           const IndexRange extrude_range = group_per_face[i_selection];
 
@@ -1414,20 +1421,22 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
             orig_corners[side_face[2]] = corner;
             orig_corners[side_face[3]] = next_corner;
           }
-        });
+        },
+        exec_mode::grain_size(256));
     gather_attributes(
         attributes, ids_by_domain[int(AttrDomain::Corner)], orig_corners, side_loop_range);
   }
 
   /* Offset the new vertices. */
-  face_selection.foreach_index(GrainSize(1025),
-                               [&](const int64_t index, const int64_t i_selection) {
-                                 const IndexRange extrude_range = group_per_face[i_selection];
-                                 for (const int i : extrude_range) {
-                                   const int src_vert = new_vert_indices[i];
-                                   new_positions[i] = positions[src_vert] + face_offset[index];
-                                 }
-                               });
+  face_selection.foreach_index(
+      [&](const int64_t index, const int64_t i_selection) {
+        const IndexRange extrude_range = group_per_face[i_selection];
+        for (const int i : extrude_range) {
+          const int src_vert = new_vert_indices[i];
+          new_positions[i] = positions[src_vert] + face_offset[index];
+        }
+      },
+      exec_mode::grain_size(1025));
 
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Point)) {
     array_utils::gather(

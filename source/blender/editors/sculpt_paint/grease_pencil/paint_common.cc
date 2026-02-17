@@ -350,16 +350,18 @@ Array<float2> view_positions_from_point_mask(const GreasePencilStrokeParams &par
 
   /* Compute screen space positions. */
   const float4x4 transform = params.layer.to_world_space(params.ob_eval);
-  point_mask.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
-    const eV3DProjStatus result = ED_view3d_project_float_global(
-        &params.region,
-        math::transform_point(transform, deformation.positions[point_i]),
-        view_positions[point_i],
-        V3D_PROJ_TEST_NOP);
-    if (result != V3D_PROJ_RET_OK) {
-      view_positions[point_i] = float2(0);
-    }
-  });
+  point_mask.foreach_index(
+      [&](const int64_t point_i) {
+        const eV3DProjStatus result = ED_view3d_project_float_global(
+            &params.region,
+            math::transform_point(transform, deformation.positions[point_i]),
+            view_positions[point_i],
+            V3D_PROJ_TEST_NOP);
+        if (result != V3D_PROJ_RET_OK) {
+          view_positions[point_i] = float2(0);
+        }
+      },
+      exec_mode::grain_size(4096));
 
   return view_positions;
 }
@@ -374,19 +376,21 @@ Array<float2> view_positions_from_curve_mask(const GreasePencilStrokeParams &par
   /* Compute screen space positions. */
   const OffsetIndices points_by_curve = params.drawing.strokes().points_by_curve();
   const float4x4 transform = params.layer.to_world_space(params.ob_eval);
-  curve_mask.foreach_index(GrainSize(256), [&](const int64_t curve_i) {
-    const IndexRange points = points_by_curve[curve_i];
-    for (const int point_i : points) {
-      const eV3DProjStatus result = ED_view3d_project_float_global(
-          &params.region,
-          math::transform_point(transform, deformation.positions[point_i]),
-          view_positions[point_i],
-          V3D_PROJ_TEST_NOP);
-      if (result != V3D_PROJ_RET_OK) {
-        view_positions[point_i] = float2(0);
-      }
-    }
-  });
+  curve_mask.foreach_index(
+      [&](const int64_t curve_i) {
+        const IndexRange points = points_by_curve[curve_i];
+        for (const int point_i : points) {
+          const eV3DProjStatus result = ED_view3d_project_float_global(
+              &params.region,
+              math::transform_point(transform, deformation.positions[point_i]),
+              view_positions[point_i],
+              V3D_PROJ_TEST_NOP);
+          if (result != V3D_PROJ_RET_OK) {
+            view_positions[point_i] = float2(0);
+          }
+        }
+      },
+      exec_mode::grain_size(256));
 
   return view_positions;
 }
@@ -404,16 +408,18 @@ Array<float2> view_positions_left_from_point_mask(const GreasePencilStrokeParams
 
   /* Compute screen space positions. */
   const float4x4 transform = params.layer.to_world_space(params.ob_eval);
-  selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
-    eV3DProjStatus result = ED_view3d_project_float_global(
-        &params.region,
-        math::transform_point(transform, handle_positions_left[point_i]),
-        view_positions[point_i],
-        V3D_PROJ_TEST_NOP);
-    if (result != V3D_PROJ_RET_OK) {
-      view_positions[point_i] = float2(0);
-    }
-  });
+  selection.foreach_index(
+      [&](const int64_t point_i) {
+        eV3DProjStatus result = ED_view3d_project_float_global(
+            &params.region,
+            math::transform_point(transform, handle_positions_left[point_i]),
+            view_positions[point_i],
+            V3D_PROJ_TEST_NOP);
+        if (result != V3D_PROJ_RET_OK) {
+          view_positions[point_i] = float2(0);
+        }
+      },
+      exec_mode::grain_size(4096));
 
   return view_positions;
 }
@@ -431,16 +437,18 @@ Array<float2> view_positions_right_from_point_mask(const GreasePencilStrokeParam
 
   /* Compute screen space positions. */
   const float4x4 transform = params.layer.to_world_space(params.ob_eval);
-  selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
-    eV3DProjStatus result = ED_view3d_project_float_global(
-        &params.region,
-        math::transform_point(transform, handle_positions_right[point_i]),
-        view_positions[point_i],
-        V3D_PROJ_TEST_NOP);
-    if (result != V3D_PROJ_RET_OK) {
-      view_positions[point_i] = float2(0);
-    }
-  });
+  selection.foreach_index(
+      [&](const int64_t point_i) {
+        eV3DProjStatus result = ED_view3d_project_float_global(
+            &params.region,
+            math::transform_point(transform, handle_positions_right[point_i]),
+            view_positions[point_i],
+            V3D_PROJ_TEST_NOP);
+        if (result != V3D_PROJ_RET_OK) {
+          view_positions[point_i] = float2(0);
+        }
+      },
+      exec_mode::grain_size(4096));
 
   return view_positions;
 }
@@ -455,11 +463,13 @@ Array<float> view_radii_from_point_selection(const GreasePencilStrokeParams &par
   Array<float> view_radii(radii.size());
   /* Compute screen space radii. */
   const float4x4 transform = params.layer.to_world_space(params.ob_eval);
-  selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
-    const float pixel_size = ED_view3d_pixel_size(
-        rv3d, math::transform_point(transform, deformation.positions[point_i]));
-    view_radii[point_i] = radii[point_i] / pixel_size;
-  });
+  selection.foreach_index(
+      [&](const int64_t point_i) {
+        const float pixel_size = ED_view3d_pixel_size(
+            rv3d, math::transform_point(transform, deformation.positions[point_i]));
+        view_radii[point_i] = radii[point_i] / pixel_size;
+      },
+      exec_mode::grain_size(4096));
 
   return view_radii;
 }

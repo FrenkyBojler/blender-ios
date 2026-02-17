@@ -213,10 +213,12 @@ static void extract_lines_bm(const MeshRenderData &mr,
 
   /* Make use of BMesh's edge to loop topology knowledge to iterate over edges instead of
    * iterating over faces and defining edges implicitly as done in the #Mesh extraction. */
-  visible_non_loose_edges.foreach_index(GrainSize(4096), [&](const int i, const int pos) {
-    const BMEdge &edge = *BM_edge_at_index(&const_cast<BMesh &>(bm), i);
-    data[pos] = uint2(BM_elem_index_get(edge.l), BM_elem_index_get(edge.l->next));
-  });
+  visible_non_loose_edges.foreach_index(
+      [&](const int i, const int pos) {
+        const BMEdge &edge = *BM_edge_at_index(&const_cast<BMesh &>(bm), i);
+        data[pos] = uint2(BM_elem_index_get(edge.l), BM_elem_index_get(edge.l->next));
+      },
+      exec_mode::grain_size(4096));
 
   fill_loose_lines_ibo(mr, visible_loose_edges, data.take_back(visible_loose_edges.size()));
 

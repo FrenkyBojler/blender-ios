@@ -446,8 +446,8 @@ class IndexMask : private IndexMaskData {
    * `i` is the index that should be processed and `pos` is the position of that index in the mask:
    *   `i == mask[pos]`
    */
-  void foreach_index(ForeachIndexFn auto &&fn) const;
-  void foreach_index(GrainSize grain_size, ForeachIndexFn auto &&fn) const;
+  template<ForeachIndexFn Fn, exec_mode::Tag Mode = exec_mode::Serial>
+  void foreach_index(Fn &&fn, Mode mode = exec_mode::serial) const;
 
   /**
    * Same as #foreach_index, but generates more code, increasing compile time and binary size. This
@@ -840,37 +840,38 @@ inline IndexMaskData &IndexMask::data_for_inplace_construction()
   return *this;
 }
 
-template<ForeachIndexFn Fn> inline void IndexMask::foreach_index(Fn &&fn) const
+template<ForeachIndexFn Fn, exec_mode::Tag Mode>
+inline void IndexMask::foreach_index(Fn &&fn, const Mode mode) const
 {
-  this->foreach_segment(
-      [&](const IndexMaskSegment indices, [[maybe_unused]] const int64_t start_segment_pos) {
-        if constexpr (IndexPosFn<Fn>) {
-          for (const int64_t i : indices.index_range()) {
-            fn(indices[i], start_segment_pos + i);
+  if constexpr (mode.is_parallel) {
+    threading::parallel_for(
+        this->index_range(), mode.grain_size(4096), [&](const IndexRange range) {
+          const IndexMask sub_mask = this->slice(range);
+          sub_mask.foreach_index([&](const int64_t i, [[maybe_unused]] const int64_t index_pos) {
+            if constexpr (std::is_invocable_r_v<void, Fn, int64_t, int64_t>) {
+              fn(i, index_pos + range.start());
+            }
+            else {
+              fn(i);
+            }
+          });
+        });
+  }
+  else {
+    this->foreach_segment(
+        [&](const IndexMaskSegment indices, [[maybe_unused]] const int64_t start_segment_pos) {
+          if constexpr (IndexPosFn<Fn>) {
+            for (const int64_t i : indices.index_range()) {
+              fn(indices[i], start_segment_pos + i);
+            }
           }
-        }
-        else {
-          for (const int64_t index : indices) {
-            fn(index);
+          else {
+            for (const int64_t index : indices) {
+              fn(index);
+            }
           }
-        }
-      });
-}
-
-template<ForeachIndexFn Fn>
-inline void IndexMask::foreach_index(const GrainSize grain_size, Fn &&fn) const
-{
-  threading::parallel_for(this->index_range(), grain_size.value, [&](const IndexRange range) {
-    const IndexMask sub_mask = this->slice(range);
-    sub_mask.foreach_index([&](const int64_t i, [[maybe_unused]] const int64_t index_pos) {
-      if constexpr (std::is_invocable_r_v<void, Fn, int64_t, int64_t>) {
-        fn(i, index_pos + range.start());
-      }
-      else {
-        fn(i);
-      }
-    });
-  });
+        });
+  }
 }
 
 template<typename T, typename Fn>

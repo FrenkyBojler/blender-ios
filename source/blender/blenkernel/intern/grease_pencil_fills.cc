@@ -97,9 +97,9 @@ void gather_next_available_fill_ids(const VArray<int> &fill_ids,
                                     MutableSpan<int> r_new_fill_ids)
 {
   const int next_fill_id = get_next_available_fill_id(fill_ids);
-  curve_mask.foreach_index(GrainSize(1024), [&](const int index, const int pos) {
-    r_new_fill_ids[index] = next_fill_id + pos;
-  });
+  curve_mask.foreach_index(
+      [&](const int index, const int pos) { r_new_fill_ids[index] = next_fill_id + pos; },
+      exec_mode::grain_size(1024));
 }
 
 IndexMask selected_mask_to_fills(const IndexMask &selected_mask,
@@ -218,12 +218,14 @@ void separate_fill_ids(CurvesGeometry &curves, const IndexMask &strokes_to_keep)
   strokes_to_change.foreach_index(
       [&](const int curve_i) { fill_indexing.add(fill_ids.span[curve_i]); });
 
-  strokes_to_change.foreach_index(GrainSize(1024), [&](const int curve_i) {
-    if (fill_ids.span[curve_i] == 0) {
-      return;
-    }
-    fill_ids.span[curve_i] = fill_indexing.index_of(fill_ids.span[curve_i]) + max_id + 1;
-  });
+  strokes_to_change.foreach_index(
+      [&](const int curve_i) {
+        if (fill_ids.span[curve_i] == 0) {
+          return;
+        }
+        fill_ids.span[curve_i] = fill_indexing.index_of(fill_ids.span[curve_i]) + max_id + 1;
+      },
+      exec_mode::grain_size(1024));
 
   fill_ids.finish();
 }

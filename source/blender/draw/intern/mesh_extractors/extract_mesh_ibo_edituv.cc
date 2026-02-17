@@ -84,15 +84,17 @@ static gpu::IndexBufPtr extract_edituv_tris_bm(const MeshRenderData &mr, const b
   GPU_indexbuf_init(&builder, GPU_PRIM_TRIS, tris_num, mr.corners_num);
   MutableSpan<uint3> data = GPU_indexbuf_get_data(&builder).cast<uint3>();
 
-  selection.foreach_index(GrainSize(4096), [&](const int face, const int mask) {
-    const IndexRange tris = bke::mesh::face_triangles_range(faces, face);
-    const IndexRange ibo_tris = bke::mesh::face_triangles_range(selected_faces, mask);
-    for (const int i : tris.index_range()) {
-      data[ibo_tris[i]] = uint3(BM_elem_index_get(looptris[tris[i]][0]),
-                                BM_elem_index_get(looptris[tris[i]][1]),
-                                BM_elem_index_get(looptris[tris[i]][2]));
-    }
-  });
+  selection.foreach_index(
+      [&](const int face, const int mask) {
+        const IndexRange tris = bke::mesh::face_triangles_range(faces, face);
+        const IndexRange ibo_tris = bke::mesh::face_triangles_range(selected_faces, mask);
+        for (const int i : tris.index_range()) {
+          data[ibo_tris[i]] = uint3(BM_elem_index_get(looptris[tris[i]][0]),
+                                    BM_elem_index_get(looptris[tris[i]][1]),
+                                    BM_elem_index_get(looptris[tris[i]][2]));
+        }
+      },
+      exec_mode::grain_size(4096));
 
   return gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, mr.corners_num, false));
 }
@@ -149,14 +151,16 @@ static gpu::IndexBufPtr extract_edituv_tris_mesh(const MeshRenderData &mr,
   GPU_indexbuf_init(&builder, GPU_PRIM_TRIS, tris_num, mr.corners_num);
   MutableSpan<uint3> data = GPU_indexbuf_get_data(&builder).cast<uint3>();
 
-  selection.foreach_index(GrainSize(4096), [&](const int face, const int mask) {
-    const IndexRange tris = bke::mesh::face_triangles_range(faces, face);
-    const IndexRange ibo_tris = bke::mesh::face_triangles_range(selected_faces, mask);
-    for (const int i : tris.index_range()) {
-      data[ibo_tris[i]] = uint3(
-          corner_tris[tris[i]][0], corner_tris[tris[i]][1], corner_tris[tris[i]][2]);
-    }
-  });
+  selection.foreach_index(
+      [&](const int face, const int mask) {
+        const IndexRange tris = bke::mesh::face_triangles_range(faces, face);
+        const IndexRange ibo_tris = bke::mesh::face_triangles_range(selected_faces, mask);
+        for (const int i : tris.index_range()) {
+          data[ibo_tris[i]] = uint3(
+              corner_tris[tris[i]][0], corner_tris[tris[i]][1], corner_tris[tris[i]][2]);
+        }
+      },
+      exec_mode::grain_size(4096));
 
   return gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, mr.corners_num, false));
 }
@@ -179,11 +183,13 @@ static gpu::IndexBufPtr build_tris_from_subdiv_quad_selection(const DRWSubdivCac
   GPU_indexbuf_init(&builder, GPU_PRIM_TRIS, tris_num, subdiv_cache.num_subdiv_loops);
   MutableSpan<uint3> data = GPU_indexbuf_get_data(&builder).cast<uint3>();
 
-  selection.foreach_index(GrainSize(4096), [&](const int subdiv_quad_index, const int mask) {
-    const uint corner_start = subdiv_quad_index * 4;
-    data[mask * 2 + 0] = uint3(corner_start, corner_start + 1, corner_start + 2);
-    data[mask * 2 + 1] = uint3(corner_start, corner_start + 2, corner_start + 3);
-  });
+  selection.foreach_index(
+      [&](const int subdiv_quad_index, const int mask) {
+        const uint corner_start = subdiv_quad_index * 4;
+        data[mask * 2 + 0] = uint3(corner_start, corner_start + 1, corner_start + 2);
+        data[mask * 2 + 1] = uint3(corner_start, corner_start + 2, corner_start + 3);
+      },
+      exec_mode::grain_size(4096));
 
   return gpu::IndexBufPtr(
       GPU_indexbuf_build_ex(&builder, 0, subdiv_cache.num_subdiv_loops, false));

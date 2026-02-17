@@ -155,10 +155,12 @@ static gpu::IndexBufPtr extract_points_bm(const MeshRenderData &mr)
   if (mr.loose_verts.is_empty() && mr.loose_edges.is_empty()) {
     /* Make use of BMesh's vertex to loop topology knowledge to iterate over verts instead of
      * iterating over faces and defining points implicitly as done in the #Mesh extraction. */
-    visible_verts.foreach_index(GrainSize(4096), [&](const int i, const int pos) {
-      BMVert &vert = *BM_vert_at_index(&bm, i);
-      data[pos] = BM_elem_index_get(BM_vert_find_first_loop(&vert));
-    });
+    visible_verts.foreach_index(
+        [&](const int i, const int pos) {
+          BMVert &vert = *BM_vert_at_index(&bm, i);
+          data[pos] = BM_elem_index_get(BM_vert_find_first_loop(&vert));
+        },
+        exec_mode::grain_size(4096));
   }
   else if (visible_verts.size() == bm.totvert) {
     Array<bool> used(mr.verts_num, false);

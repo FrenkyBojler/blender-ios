@@ -190,31 +190,34 @@ struct PuffOperationExecutor {
         bke::crazyspace::get_evaluated_curves_deformation(*ctx_.depsgraph, *object_);
     const OffsetIndices points_by_curve = curves_->points_by_curve();
 
-    curve_selection_.foreach_index(GrainSize(256), [&](const int64_t curve_i) {
-      const IndexRange points = points_by_curve[curve_i];
-      const float3 first_pos_cu = math::transform_point(brush_transform_inv,
-                                                        deformation.positions[points[0]]);
-      float2 prev_pos_re = ED_view3d_project_float_v2_m4(ctx_.region, first_pos_cu, projection);
-      float max_weight = 0.0f;
-      for (const int point_i : points.drop_front(1)) {
-        const float3 pos_cu = math::transform_point(brush_transform_inv,
-                                                    deformation.positions[point_i]);
-        const float2 pos_re = ED_view3d_project_float_v2_m4(ctx_.region, pos_cu, projection);
-        BLI_SCOPED_DEFER([&]() { prev_pos_re = pos_re; });
+    curve_selection_.foreach_index(
+        [&](const int64_t curve_i) {
+          const IndexRange points = points_by_curve[curve_i];
+          const float3 first_pos_cu = math::transform_point(brush_transform_inv,
+                                                            deformation.positions[points[0]]);
+          float2 prev_pos_re = ED_view3d_project_float_v2_m4(
+              ctx_.region, first_pos_cu, projection);
+          float max_weight = 0.0f;
+          for (const int point_i : points.drop_front(1)) {
+            const float3 pos_cu = math::transform_point(brush_transform_inv,
+                                                        deformation.positions[point_i]);
+            const float2 pos_re = ED_view3d_project_float_v2_m4(ctx_.region, pos_cu, projection);
+            BLI_SCOPED_DEFER([&]() { prev_pos_re = pos_re; });
 
-        const float dist_to_brush_sq_re = dist_squared_to_line_segment_v2(
-            brush_pos_re_, prev_pos_re, pos_re);
-        if (dist_to_brush_sq_re > brush_radius_sq_re) {
-          continue;
-        }
+            const float dist_to_brush_sq_re = dist_squared_to_line_segment_v2(
+                brush_pos_re_, prev_pos_re, pos_re);
+            if (dist_to_brush_sq_re > brush_radius_sq_re) {
+              continue;
+            }
 
-        const float dist_to_brush_re = std::sqrt(dist_to_brush_sq_re);
-        const float radius_falloff = BKE_brush_curve_strength(
-            brush_, dist_to_brush_re, brush_radius_re);
-        math::max_inplace(max_weight, radius_falloff);
-      }
-      math::max_inplace(r_curve_weights[curve_i], max_weight);
-    });
+            const float dist_to_brush_re = std::sqrt(dist_to_brush_sq_re);
+            const float radius_falloff = BKE_brush_curve_strength(
+                brush_, dist_to_brush_re, brush_radius_re);
+            math::max_inplace(max_weight, radius_falloff);
+          }
+          math::max_inplace(r_curve_weights[curve_i], max_weight);
+        },
+        exec_mode::grain_size(256));
   }
 
   void find_curves_weights_spherical_with_symmetry(MutableSpan<float> r_curve_weights)
@@ -247,25 +250,27 @@ struct PuffOperationExecutor {
         bke::crazyspace::get_evaluated_curves_deformation(*ctx_.depsgraph, *object_);
     const OffsetIndices points_by_curve = curves_->points_by_curve();
 
-    curve_selection_.foreach_index(GrainSize(256), [&](const int64_t curve_i) {
-      const IndexRange points = points_by_curve[curve_i];
-      float max_weight = 0.0f;
-      for (const int point_i : points.drop_front(1)) {
-        const float3 &prev_pos_cu = deformation.positions[point_i - 1];
-        const float3 &pos_cu = deformation.positions[point_i];
-        const float dist_to_brush_sq_cu = dist_squared_to_line_segment_v3(
-            brush_pos_cu, prev_pos_cu, pos_cu);
-        if (dist_to_brush_sq_cu > brush_radius_sq_cu) {
-          continue;
-        }
+    curve_selection_.foreach_index(
+        [&](const int64_t curve_i) {
+          const IndexRange points = points_by_curve[curve_i];
+          float max_weight = 0.0f;
+          for (const int point_i : points.drop_front(1)) {
+            const float3 &prev_pos_cu = deformation.positions[point_i - 1];
+            const float3 &pos_cu = deformation.positions[point_i];
+            const float dist_to_brush_sq_cu = dist_squared_to_line_segment_v3(
+                brush_pos_cu, prev_pos_cu, pos_cu);
+            if (dist_to_brush_sq_cu > brush_radius_sq_cu) {
+              continue;
+            }
 
-        const float dist_to_brush_cu = std::sqrt(dist_to_brush_sq_cu);
-        const float radius_falloff = BKE_brush_curve_strength(
-            brush_, dist_to_brush_cu, brush_radius_cu);
-        math::max_inplace(max_weight, radius_falloff);
-      }
-      math::max_inplace(r_curve_weights[curve_i], max_weight);
-    });
+            const float dist_to_brush_cu = std::sqrt(dist_to_brush_sq_cu);
+            const float radius_falloff = BKE_brush_curve_strength(
+                brush_, dist_to_brush_cu, brush_radius_cu);
+            math::max_inplace(max_weight, radius_falloff);
+          }
+          math::max_inplace(r_curve_weights[curve_i], max_weight);
+        },
+        exec_mode::grain_size(256));
   }
 
   void puff(const IndexMask &selection, const Span<float> curve_weights)

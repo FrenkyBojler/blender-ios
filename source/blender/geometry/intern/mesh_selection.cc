@@ -30,9 +30,11 @@ static IndexMask mapped_corner_selection_from_face(const OffsetIndices<int> face
                                                    IndexMaskMemory &memory)
 {
   Array<bool> array(verts_or_edges_num, false);
-  face_mask.foreach_index(GrainSize(512), [&](const int64_t i) {
-    array.as_mutable_span().fill_indices(corner_verts_or_edges.slice(faces[i]), true);
-  });
+  face_mask.foreach_index(
+      [&](const int64_t i) {
+        array.as_mutable_span().fill_indices(corner_verts_or_edges.slice(faces[i]), true);
+      },
+      exec_mode::grain_size(512));
   return IndexMask::from_bools(array, memory);
 }
 

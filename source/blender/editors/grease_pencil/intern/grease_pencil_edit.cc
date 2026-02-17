@@ -947,21 +947,23 @@ static bke::CurvesGeometry subdivide_last_segement(const bke::CurvesGeometry &cu
   Array<int> use_cuts(curves.points_num(), 0);
   const OffsetIndices points_by_curve = curves.points_by_curve();
 
-  strokes.foreach_index(GrainSize(4096), [&](const int curve_i) {
-    if (cyclic[curve_i]) {
-      const IndexRange points = points_by_curve[curve_i];
-      const float end_distance = math::distance(positions[points.first()],
-                                                positions[points.last()]);
+  strokes.foreach_index(
+      [&](const int curve_i) {
+        if (cyclic[curve_i]) {
+          const IndexRange points = points_by_curve[curve_i];
+          const float end_distance = math::distance(positions[points.first()],
+                                                    positions[points.last()]);
 
-      /* Because the curve is already cyclical the last segment has to be subtracted. */
-      const float curve_length = curves.evaluated_length_total_for_curve(curve_i, true) -
-                                 end_distance;
+          /* Because the curve is already cyclical the last segment has to be subtracted. */
+          const float curve_length = curves.evaluated_length_total_for_curve(curve_i, true) -
+                                     end_distance;
 
-      /* Calculate cuts to match the average density. */
-      const float point_density = float(points.size()) / curve_length;
-      use_cuts[points.last()] = int(point_density * end_distance);
-    }
-  });
+          /* Calculate cuts to match the average density. */
+          const float point_density = float(points.size()) / curve_length;
+          use_cuts[points.last()] = int(point_density * end_distance);
+        }
+      },
+      exec_mode::grain_size(4096));
 
   const VArray<int> cuts = VArray<int>::from_span(use_cuts.as_span());
 
@@ -3448,63 +3450,69 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op
         if (mode == ReprojectMode::Surface) {
           const float4x4 layer_space_to_world_space = layer.to_world_space(*object);
           const float4x4 world_space_to_layer_space = math::invert(layer_space_to_world_space);
-          points_to_reproject.foreach_index(GrainSize(4096), [&](const int point_i) {
-            float3 &position = positions[point_i];
-            const float3 world_pos = math::transform_point(layer_space_to_world_space, position);
-            float2 screen_co;
-            if (ED_view3d_project_float_global(region, world_pos, screen_co, V3D_PROJ_TEST_NOP) !=
-                eV3DProjStatus::V3D_PROJ_RET_OK)
-            {
-              return;
-            }
+          points_to_reproject.foreach_index(
+              [&](const int point_i) {
+                float3 &position = positions[point_i];
+                const float3 world_pos = math::transform_point(layer_space_to_world_space,
+                                                               position);
+                float2 screen_co;
+                if (ED_view3d_project_float_global(
+                        region, world_pos, screen_co, V3D_PROJ_TEST_NOP) !=
+                    eV3DProjStatus::V3D_PROJ_RET_OK)
+                {
+                  return;
+                }
 
-            float3 ray_start, ray_direction;
-            if (!ED_view3d_win_to_ray_clipped(
-                    depsgraph, region, v3d, screen_co, ray_start, ray_direction, true))
-            {
-              return;
-            }
+                float3 ray_start, ray_direction;
+                if (!ED_view3d_win_to_ray_clipped(
+                        depsgraph, region, v3d, screen_co, ray_start, ray_direction, true))
+                {
+                  return;
+                }
 
-            float hit_depth = std::numeric_limits<float>::max();
-            float3 hit_position(0.0f);
-            float3 hit_normal(0.0f);
+                float hit_depth = std::numeric_limits<float>::max();
+                float3 hit_position(0.0f);
+                float3 hit_normal(0.0f);
 
-            transform::SnapObjectParams params{};
-            params.snap_target_select = SCE_SNAP_TARGET_ALL;
-            transform::SnapObjectContext *snap_context = thread_snap_contexts.local();
-            if (transform::snap_object_project_ray(snap_context,
-                                                   depsgraph,
-                                                   v3d,
-                                                   &params,
-                                                   ray_start,
-                                                   ray_direction,
-                                                   &hit_depth,
-                                                   hit_position,
-                                                   hit_normal))
-            {
-              /* Apply offset over surface. */
-              const float3 new_pos = math::transform_point(
-                  world_space_to_layer_space,
-                  hit_position + math::normalize(ray_start - hit_position) * offset);
+                transform::SnapObjectParams params{};
+                params.snap_target_select = SCE_SNAP_TARGET_ALL;
+                transform::SnapObjectContext *snap_context = thread_snap_contexts.local();
+                if (transform::snap_object_project_ray(snap_context,
+                                                       depsgraph,
+                                                       v3d,
+                                                       &params,
+                                                       ray_start,
+                                                       ray_direction,
+                                                       &hit_depth,
+                                                       hit_position,
+                                                       hit_normal))
+                {
+                  /* Apply offset over surface. */
+                  const float3 new_pos = math::transform_point(
+                      world_space_to_layer_space,
+                      hit_position + math::normalize(ray_start - hit_position) * offset);
 
-              if (selection_name == ".selection") {
-                radii[point_i] *= calculate_radius_projection_factor(rv3d, position, new_pos);
-              }
-              position = new_pos;
-            }
-          });
+                  if (selection_name == ".selection") {
+                    radii[point_i] *= calculate_radius_projection_factor(rv3d, position, new_pos);
+                  }
+                  position = new_pos;
+                }
+              },
+              exec_mode::grain_size(4096));
         }
         else {
           const DrawingPlacement drawing_placement(
               scene, *region, *v3d, *object, &layer, mode, offset, nullptr);
-          points_to_reproject.foreach_index(GrainSize(4096), [&](const int point_i) {
-            const float3 new_pos = drawing_placement.reproject(positions[point_i]);
-            if (selection_name == ".selection") {
-              radii[point_i] *= calculate_radius_projection_factor(
-                  rv3d, positions[point_i], new_pos);
-            }
-            positions[point_i] = new_pos;
-          });
+          points_to_reproject.foreach_index(
+              [&](const int point_i) {
+                const float3 new_pos = drawing_placement.reproject(positions[point_i]);
+                if (selection_name == ".selection") {
+                  radii[point_i] *= calculate_radius_projection_factor(
+                      rv3d, positions[point_i], new_pos);
+                }
+                positions[point_i] = new_pos;
+              },
+              exec_mode::grain_size(4096));
         }
 
         info.drawing.tag_positions_changed();
@@ -3680,11 +3688,13 @@ static wmOperatorStatus grease_pencil_snap_to_grid_exec(bContext *C, wmOperator 
       else if (selection_name == ".selection_handle_right") {
         positions = curves.handle_positions_right_for_write();
       }
-      selected_points.foreach_index(GrainSize(4096), [&](const int point_i) {
-        const float3 pos_world = math::transform_point(layer_to_world, positions[point_i]);
-        const float3 pos_snapped = grid_size * math::floor(pos_world / grid_size + 0.5f);
-        positions[point_i] = math::transform_point(world_to_layer, pos_snapped);
-      });
+      selected_points.foreach_index(
+          [&](const int point_i) {
+            const float3 pos_world = math::transform_point(layer_to_world, positions[point_i]);
+            const float3 pos_snapped = grid_size * math::floor(pos_world / grid_size + 0.5f);
+            positions[point_i] = math::transform_point(world_to_layer, pos_snapped);
+          },
+          exec_mode::grain_size(4096));
     }
 
     drawing_info.drawing.tag_positions_changed();
@@ -3751,14 +3761,16 @@ static wmOperatorStatus grease_pencil_snap_to_cursor_exec(bContext *C, wmOperato
       const IndexMask selected_curves = ed::curves::retrieve_selected_curves(
           curves, selected_curves_memory);
 
-      selected_curves.foreach_index(GrainSize(512), [&](const int curve_i) {
-        const IndexRange points = points_by_curve[curve_i];
+      selected_curves.foreach_index(
+          [&](const int curve_i) {
+            const IndexRange points = points_by_curve[curve_i];
 
-        /* Offset from first point of the curve. */
-        const float3 offset = cursor_layer - positions[points.first()];
-        selected_points.slice_content(points).foreach_index_optimized<int>(
-            [&](const int point_i) { positions[point_i] += offset; }, exec_mode::parallel);
-      });
+            /* Offset from first point of the curve. */
+            const float3 offset = cursor_layer - positions[points.first()];
+            selected_points.slice_content(points).foreach_index_optimized<int>(
+                [&](const int point_i) { positions[point_i] += offset; }, exec_mode::parallel);
+          },
+          exec_mode::grain_size(512));
     }
     else {
       /* Set all selected positions to the cursor location. */
@@ -3838,11 +3850,13 @@ static bool grease_pencil_snap_compute_centroid(const Scene &scene,
     const float4x4 layer_to_world = layer.to_world_space(object);
 
     Span<float3> positions = curves.positions();
-    selected_points.foreach_index(GrainSize(4096), [&](const int point_i) {
-      const float3 pos_world = math::transform_point(layer_to_world, positions[point_i]);
-      r_centroid += pos_world;
-      math::min_max(pos_world, r_min, r_max);
-    });
+    selected_points.foreach_index(
+        [&](const int point_i) {
+          const float3 pos_world = math::transform_point(layer_to_world, positions[point_i]);
+          r_centroid += pos_world;
+          math::min_max(pos_world, r_min, r_max);
+        },
+        exec_mode::grain_size(4096));
     num_selected += selected_points.size();
   }
   if (num_selected == 0) {
@@ -4214,17 +4228,19 @@ static wmOperatorStatus grease_pencil_set_handle_type_exec(bContext *C, wmOperat
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
     MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
-    bezier_curves.foreach_index(GrainSize(256), [&](const int curve_i) {
-      const IndexRange points = points_by_curve[curve_i];
-      for (const int point_i : points) {
-        if (selection_left[point_i] || selection[point_i]) {
-          handle_types_left[point_i] = new_handle_type(handle_types_left[point_i]);
-        }
-        if (selection_right[point_i] || selection[point_i]) {
-          handle_types_right[point_i] = new_handle_type(handle_types_right[point_i]);
-        }
-      }
-    });
+    bezier_curves.foreach_index(
+        [&](const int curve_i) {
+          const IndexRange points = points_by_curve[curve_i];
+          for (const int point_i : points) {
+            if (selection_left[point_i] || selection[point_i]) {
+              handle_types_left[point_i] = new_handle_type(handle_types_left[point_i]);
+            }
+            if (selection_right[point_i] || selection[point_i]) {
+              handle_types_right[point_i] = new_handle_type(handle_types_right[point_i]);
+            }
+          }
+        },
+        exec_mode::grain_size(256));
 
     curves.calculate_bezier_auto_handles();
     curves.calculate_bezier_aligned_handles();

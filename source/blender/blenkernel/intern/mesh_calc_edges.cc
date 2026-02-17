@@ -358,12 +358,13 @@ void mesh_calc_edges(Mesh &mesh,
     }
     else {
       src_to_dst_mask.foreach_index(
-          GrainSize(1024), [&](const int src_index, const int dst_index) {
+          [&](const int src_index, const int dst_index) {
             const OrderedEdge edge = original_edges[src_index];
             const int map_i = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
             const int edge_index = edge_maps[map_i].index_of(edge);
             edge_map_to_result_index[edge_offsets[map_i][edge_index]] = dst_index;
-          });
+          },
+          exec_mode::grain_size(1024));
     }
 
     if (!no_new_edges) {

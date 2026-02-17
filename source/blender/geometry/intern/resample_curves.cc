@@ -521,12 +521,14 @@ CurvesGeometry resample_to_length(const CurvesGeometry &src_curves,
   MutableSpan<int> dst_offsets = dst_curves.offsets_for_write();
 
   src_curves.ensure_evaluated_lengths();
-  selection.foreach_index(GrainSize(1024), [&](const int curve_i) {
-    const float curve_length = src_curves.evaluated_length_total_for_curve(curve_i,
-                                                                           curves_cyclic[curve_i]);
-    dst_offsets[curve_i] = get_count_from_length(
-        curve_length, sample_lengths[curve_i], keep_last_segment);
-  });
+  selection.foreach_index(
+      [&](const int curve_i) {
+        const float curve_length = src_curves.evaluated_length_total_for_curve(
+            curve_i, curves_cyclic[curve_i]);
+        dst_offsets[curve_i] = get_count_from_length(
+            curve_length, sample_lengths[curve_i], keep_last_segment);
+      },
+      exec_mode::grain_size(1024));
 
   IndexMaskMemory memory;
   const IndexMask unselected = selection.complement(src_curves.curves_range(), memory);

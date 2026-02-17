@@ -1974,12 +1974,14 @@ static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *
       }
 
       Array<bool> points_to_remove(curves.points_num(), false);
-      curve_selection.foreach_index(GrainSize(512), [&](const int64_t curve_i) {
-        for (const int point : points_by_curve[curve_i]) {
-          points_to_remove[point] = is_point_inside_lasso(lasso,
-                                                          int2(screen_space_positions[point]));
-        }
-      });
+      curve_selection.foreach_index(
+          [&](const int64_t curve_i) {
+            for (const int point : points_by_curve[curve_i]) {
+              points_to_remove[point] = is_point_inside_lasso(lasso,
+                                                              int2(screen_space_positions[point]));
+            }
+          },
+          exec_mode::grain_size(512));
       points_to_remove_per_drawing[drawing_i] = IndexMask::from_bools(points_to_remove, memory);
     }
   });

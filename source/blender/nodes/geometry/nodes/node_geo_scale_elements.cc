@@ -354,12 +354,14 @@ static int face_to_vert_islands(const Mesh &mesh,
 
   disjoint_set.calc_reduced_ids(vert_island_indices);
 
-  face_mask.foreach_index(GrainSize(4096), [&](const int face_i, const int face_pos) {
-    const int face_vert_i = face_verts[face_i].first();
-    const int vert_pos = verts_pos[face_vert_i];
-    const int vert_island = vert_island_indices[vert_pos];
-    face_island_indices[face_pos] = vert_island;
-  });
+  face_mask.foreach_index(
+      [&](const int face_i, const int face_pos) {
+        const int face_vert_i = face_verts[face_i].first();
+        const int vert_pos = verts_pos[face_vert_i];
+        const int vert_island = vert_island_indices[vert_pos];
+        face_island_indices[face_pos] = vert_island;
+      },
+      exec_mode::grain_size(4096));
 
   return disjoint_set.count_sets();
 }
@@ -422,13 +424,15 @@ static int edge_to_vert_islands(const Mesh &mesh,
 
   disjoint_set.calc_reduced_ids(vert_island_indices);
 
-  edge_mask.foreach_index(GrainSize(4096), [&](const int edge_i, const int edge_pos) {
-    const int2 edge = edges[edge_i];
-    const int edge_vert_i = edge[0];
-    const int vert_pos = verts_pos[edge_vert_i];
-    const int vert_island = vert_island_indices[vert_pos];
-    edge_island_indices[edge_pos] = vert_island;
-  });
+  edge_mask.foreach_index(
+      [&](const int edge_i, const int edge_pos) {
+        const int2 edge = edges[edge_i];
+        const int edge_vert_i = edge[0];
+        const int vert_pos = verts_pos[edge_vert_i];
+        const int vert_island = vert_island_indices[vert_pos];
+        edge_island_indices[edge_pos] = vert_island;
+      },
+      exec_mode::grain_size(4096));
 
   return disjoint_set.count_sets();
 }

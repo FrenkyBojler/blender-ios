@@ -585,23 +585,25 @@ void curve_populate_trans_data_structs(const TransInfo &t,
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   Array<float3> mean_center_point_per_curve(curves.curves_num(), float3(0));
   if (use_individual_origin) {
-    affected_curves.foreach_index(GrainSize(512), [&](const int64_t curve_i) {
-      const IndexRange points = points_by_curve[curve_i];
-      IndexMaskMemory memory;
-      const IndexMask selection =
-          IndexMask::from_bools(point_selection, memory).slice_content(points);
-      if (selection.is_empty()) {
-        /* For proportional editing around individual origins, unselected points will not use the
-         * TransData center (instead the closest point found is used, see logic in #set_prop_dist /
-         * #prop_dist_loc_get). */
-        return;
-      }
-      float3 center(0.0f);
-      selection.foreach_index_optimized<int64_t>(
-          [&](const int64_t point_i) { center += point_positions[point_i]; });
-      center /= selection.size();
-      mean_center_point_per_curve[curve_i] = center;
-    });
+    affected_curves.foreach_index(
+        [&](const int64_t curve_i) {
+          const IndexRange points = points_by_curve[curve_i];
+          IndexMaskMemory memory;
+          const IndexMask selection =
+              IndexMask::from_bools(point_selection, memory).slice_content(points);
+          if (selection.is_empty()) {
+            /* For proportional editing around individual origins, unselected points will not use
+             * the TransData center (instead the closest point found is used, see logic in
+             * #set_prop_dist / #prop_dist_loc_get). */
+            return;
+          }
+          float3 center(0.0f);
+          selection.foreach_index_optimized<int64_t>(
+              [&](const int64_t point_i) { center += point_positions[point_i]; });
+          center /= selection.size();
+          mean_center_point_per_curve[curve_i] = center;
+        },
+        exec_mode::grain_size(512));
   }
 
   const Array<int> point_to_curve_map = curves.point_to_curve_map();
@@ -615,7 +617,7 @@ void curve_populate_trans_data_structs(const TransInfo &t,
     const VArray<bool> selection = selection_attrs[selection_i];
 
     points_to_transform.foreach_index(
-        GrainSize(1024), [&](const int64_t domain_i, const int64_t transform_i) {
+        [&](const int64_t domain_i, const int64_t transform_i) {
           const int curve_i = point_to_curve_map[domain_i];
 
           TransData &td = tc_data[transform_i];
@@ -666,7 +668,8 @@ void curve_populate_trans_data_structs(const TransInfo &t,
             copy_m3_m3(td.smtx, smtx.ptr());
             copy_m3_m3(td.mtx, mtx.ptr());
           }
-        });
+        },
+        exec_mode::grain_size(1024));
   }
   if (points_to_transform_per_attr.size() > 1 && points_to_transform_per_attr.first().is_empty()) {
     auto update_handle_center = [&](const int handle_selection_attr,
@@ -687,10 +690,12 @@ void curve_populate_trans_data_structs(const TransInfo &t,
 
   if (use_connected_only) {
     Array<int> curves_offsets_in_td_buffer(curves.curves_num() + 1, 0);
-    affected_curves.foreach_index(GrainSize(512), [&](const int64_t curve) {
-      curves_offsets_in_td_buffer[curve] =
-          points_to_transform_per_attr[0].slice_content(points_by_curve[curve]).size();
-    });
+    affected_curves.foreach_index(
+        [&](const int64_t curve) {
+          curves_offsets_in_td_buffer[curve] =
+              points_to_transform_per_attr[0].slice_content(points_by_curve[curve]).size();
+        },
+        exec_mode::grain_size(512));
     offset_indices::accumulate_counts_to_offsets(curves_offsets_in_td_buffer);
     const OffsetIndices<int> curves_offsets_in_td(curves_offsets_in_td_buffer);
 

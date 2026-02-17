@@ -323,30 +323,32 @@ static IndexMask find_duplicate_faces(const Mesh &mesh,
   const Span<int> corner_verts = mesh.corner_verts();
 
   Array<int> ordered_corner_verts(mesh.corners_num);
-  mask.foreach_index(GrainSize(1024), [&](const int face_i) {
-    const IndexRange face = faces[face_i];
-    MutableSpan<int> ordered_face_verts = ordered_corner_verts.as_mutable_span().slice(face);
-    /* Order by the smallest index, then the smallest adjacent index this ensures:
-     * - Faces are only considered duplicates when they share vertices & edges.
-     * - Faces winding in opposite directions are considered duplicates.
-     * See: #150842. */
-    Span<int> face_verts = corner_verts.slice(face);
-    const int face_verts_num = face_verts.size();
-    int i_min = 0;
-    for (int i = 1; i < face_verts_num; i += 1) {
-      if (face_verts[i] < face_verts[i_min]) {
-        i_min = i;
-      }
-    }
-    /* Allow modulo after subtraction within the `face_verts_num` range. */
-    const int i_min_for_modulo = i_min + face_verts_num;
-    const int i_min_prev = (i_min_for_modulo - 1) % face_verts_num;
-    const int i_min_next = (i_min_for_modulo + 1) % face_verts_num;
-    const int sign = face_verts[i_min_next] < face_verts[i_min_prev] ? 1 : -1;
-    for (int i = 0; i < face_verts_num; i += 1) {
-      ordered_face_verts[i] = face_verts[(i_min_for_modulo + (i * sign)) % face_verts_num];
-    }
-  });
+  mask.foreach_index(
+      [&](const int face_i) {
+        const IndexRange face = faces[face_i];
+        MutableSpan<int> ordered_face_verts = ordered_corner_verts.as_mutable_span().slice(face);
+        /* Order by the smallest index, then the smallest adjacent index this ensures:
+         * - Faces are only considered duplicates when they share vertices & edges.
+         * - Faces winding in opposite directions are considered duplicates.
+         * See: #150842. */
+        Span<int> face_verts = corner_verts.slice(face);
+        const int face_verts_num = face_verts.size();
+        int i_min = 0;
+        for (int i = 1; i < face_verts_num; i += 1) {
+          if (face_verts[i] < face_verts[i_min]) {
+            i_min = i;
+          }
+        }
+        /* Allow modulo after subtraction within the `face_verts_num` range. */
+        const int i_min_for_modulo = i_min + face_verts_num;
+        const int i_min_prev = (i_min_for_modulo - 1) % face_verts_num;
+        const int i_min_next = (i_min_for_modulo + 1) % face_verts_num;
+        const int sign = face_verts[i_min_next] < face_verts[i_min_prev] ? 1 : -1;
+        for (int i = 0; i < face_verts_num; i += 1) {
+          ordered_face_verts[i] = face_verts[(i_min_for_modulo + (i * sign)) % face_verts_num];
+        }
+      },
+      exec_mode::grain_size(1024));
 
   using FaceMap = VectorSet<Span<int>,
                             32,
@@ -453,12 +455,14 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
 
       void *dst = MEM_new_array_uninitialized(new_faces.total_size(), elem_size, __func__);
 
-      valid_faces.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
-        CustomData_copy_elements(cd_type,
-                                 POINTER_OFFSET(src, elem_size * old_faces[src_i].start()),
-                                 POINTER_OFFSET(dst, elem_size * new_faces[dst_i].start()),
-                                 new_faces[dst_i].size());
-      });
+      valid_faces.foreach_index(
+          [&](const int64_t src_i, const int64_t dst_i) {
+            CustomData_copy_elements(cd_type,
+                                     POINTER_OFFSET(src, elem_size * old_faces[src_i].start()),
+                                     POINTER_OFFSET(dst, elem_size * new_faces[dst_i].start()),
+                                     new_faces[dst_i].size());
+          },
+          exec_mode::grain_size(512));
 
       layer.sharing_info->remove_user_and_delete_if_last();
       layer.data = dst;
@@ -849,14 +853,16 @@ static bool validate_mdisps(const Mesh &mesh, const bool verbose, Mesh *mesh_mut
     if (MDisps *mdisp_mut = static_cast<MDisps *>(
             CustomData_get_layer_for_write(&mesh_mut->corner_data, CD_MDISPS, mesh.corners_num)))
     {
-      invalid.foreach_index(GrainSize(512), [&](const int i) {
-        MutableSpan<float> disps = MutableSpan(reinterpret_cast<float3 *>(mdisp_mut[i].disps),
-                                               mdisp_mut[i].totdisp)
-                                       .cast<float>();
-        for (float &disp_component : disps) {
-          disp_component = std::isfinite(disp_component) ? disp_component : 0.0f;
-        }
-      });
+      invalid.foreach_index(
+          [&](const int i) {
+            MutableSpan<float> disps = MutableSpan(reinterpret_cast<float3 *>(mdisp_mut[i].disps),
+                                                   mdisp_mut[i].totdisp)
+                                           .cast<float>();
+            for (float &disp_component : disps) {
+              disp_component = std::isfinite(disp_component) ? disp_component : 0.0f;
+            }
+          },
+          exec_mode::grain_size(512));
     }
   }
   return false;
