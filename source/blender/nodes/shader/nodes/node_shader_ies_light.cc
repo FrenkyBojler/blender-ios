@@ -40,7 +40,7 @@ static void node_shader_buts_ies(ui::Layout &layout, bContext * /*C*/, PointerRN
       row.prop(ptr, "ies", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
     }
     else {
-      row.prop(ptr, "filepath", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE, "File Path");
+      row.prop(ptr, "filepath", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE, IFACE_("File Path"));
     }
   }
 }

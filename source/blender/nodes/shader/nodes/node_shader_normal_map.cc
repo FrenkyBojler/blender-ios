@@ -49,12 +49,13 @@ static void node_shader_buts_normal_map(ui::Layout &layout, bContext *C, Pointer
       if (depsgraph) {
         Object *object_eval = DEG_get_evaluated(depsgraph, object);
         PointerRNA dataptr = RNA_id_pointer_create(object_eval->data);
-        layout.prop_search(ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS, "UV Map");
+        layout.prop_search(
+            ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS, IFACE_("UV Map"));
         return;
       }
     }
 
-    layout.prop(ptr, "uv_map", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    layout.prop(ptr, "uv_map", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE, IFACE_("UV Map")));
   }
 }
 
