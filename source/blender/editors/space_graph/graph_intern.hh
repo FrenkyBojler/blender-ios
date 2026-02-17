@@ -98,7 +98,7 @@ enum eGraphKeys_ColumnSelect_Mode {
 /* `graph_edit.cc` */
 
 /**
- * Get the min/max keyframes.
+ * Get the keyframe bounds with added padding to ensure that the bounds always have a size > 0.
  * \note it should return total bound-box, filter for selection only can be argument.
  */
 void get_graph_keyframe_extents(bAnimContext *ac,

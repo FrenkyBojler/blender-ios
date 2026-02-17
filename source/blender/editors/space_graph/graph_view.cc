@@ -48,7 +48,28 @@ namespace blender {
  * values for x and y due to the nature of the data displayed. The minimum distance on x for
  * keyframes is BEZT_BINARYSEARCH_THRESH so differences larger than that cannot occur. For the y
  * value there is no such limit, so we have to choose a smaller number. */
-constexpr float2 view_threshold(BEZT_BINARYSEARCH_THRESH, 0.0001f);
+constexpr float2 view_threshold(BEZT_BINARYSEARCH_THRESH, 0.00001f);
+
+/**
+ * Sets the given rect to hardcoded values. Useful in case no bounds could be found by other means.
+ */
+static void keyframe_bounds_fallback(bAnimContext &ac, rctf &r_bounds)
+{
+  /* Set default range. */
+  if (ac.scene) {
+    Scene *scene = ac.scene;
+    r_bounds.xmin = float(PSFRA);
+    /* The scene range can have the same start and end frame. */
+    r_bounds.xmax = max_ff(float(PEFRA), r_bounds.xmin + 1);
+  }
+  else {
+    r_bounds.xmin = -5;
+    r_bounds.xmax = 100;
+  }
+
+  r_bounds.ymin = -5;
+  r_bounds.ymax = 5;
+}
 
 /**
  * Return the bounds of keyframes elements in anim_data. The bounds will be in frame (x) and value
@@ -66,21 +87,7 @@ static bool calculate_keyframe_bounds(const ListBaseT<bAnimListElem> &anim_data,
 {
   /* Check if any channels to set range with. */
   if (!anim_data.first) {
-    /* Set default range. */
-    if (ac.scene) {
-      Scene *scene = ac.scene;
-      r_view_bounds.xmin = float(PSFRA);
-      r_view_bounds.xmax = float(PEFRA);
-    }
-    else {
-      r_view_bounds.xmin = -5;
-      r_view_bounds.xmax = 100;
-    }
-
-    r_view_bounds.ymin = -5;
-    r_view_bounds.ymax = 5;
-    /* We technically found bounds, just not from the FCurves. */
-    return true;
+    return false;
   }
 
   bool found_bounds = false;
@@ -126,8 +133,6 @@ void get_graph_keyframe_extents(bAnimContext *ac,
                                 const bool do_sel_only,
                                 const bool include_handles)
 {
-  Scene *scene = ac->scene;
-
   ListBaseT<bAnimListElem> anim_data = ed::graph::get_editable_fcurves(*ac);
   rctf fcurve_bounds;
   bool foundBounds = calculate_keyframe_bounds(
@@ -135,7 +140,6 @@ void get_graph_keyframe_extents(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 
   /* Ensure that the extents are not too extreme that view implodes. */
-
   if (foundBounds) {
     if ((xmin && xmax) && (fabsf(*xmax - *xmin) < view_threshold.x)) {
       *xmin -= view_threshold.x / 2;
@@ -146,6 +150,10 @@ void get_graph_keyframe_extents(bAnimContext *ac,
       *ymax += view_threshold.y / 2;
     }
   }
+  else {
+    keyframe_bounds_fallback(*ac, fcurve_bounds);
+  }
+
   if (xmin) {
     *xmin = fcurve_bounds.xmin;
   }
@@ -218,6 +226,8 @@ static void add_contextual_padding(bAnimContext &ac,
 
 /**
  * Generate a rect for framing keyframes in the graph editor.
+ * This function tries to find a reasonable minimum bound for the case where the actual bounds are
+ * 0 on either axis.
  */
 static void get_graph_view_bounds(bAnimContext *ac,
                                   rctf &r_view_bounds,
@@ -246,6 +256,9 @@ static void get_graph_view_bounds(bAnimContext *ac,
       r_view_bounds.ymin -= view_threshold.y / 2;
       r_view_bounds.ymax += view_threshold.y / 2;
     }
+  }
+  else {
+    keyframe_bounds_fallback(*ac, r_view_bounds);
   }
 
   ANIM_animdata_freelist(&anim_data);
