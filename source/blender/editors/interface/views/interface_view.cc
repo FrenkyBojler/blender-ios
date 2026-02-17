@@ -254,34 +254,31 @@ void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const wmEvent *eve
   Bounds<float2> bottom_bounds(float2(bounds->xmin, bounds->ymin), float2(bounds->xmax, bounds->ymax));
   bottom_bounds.max.y = bottom_bounds.min.y + ((UI_UNIT_Y * 2/3) + 1);
 
-  if (top_bounds.contains(mouse_coords)) {
-    if (drag.timer) {
-      if (event->type == TIMER) {
-        view->scroll(ViewScrollDirection::UP);
-      }
-    } else {
-      drag.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
+  const int scroll_dir = [&]() -> int {
+    if (top_bounds.contains(mouse_coords)) {
+      return (int)ViewScrollDirection::UP;
     }
-  }
-  else if (bottom_bounds.contains(mouse_coords)) {
-    if (drag.timer) {
-      if (event->type == TIMER) {
-        view->scroll(ViewScrollDirection::DOWN);
-      }
-    } else {
-      drag.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
+    if (bottom_bounds.contains(mouse_coords)) {
+      return (int)ViewScrollDirection::DOWN;
     }
-  }
-  else {
-    if (drag.timer) {
-      WM_event_timer_remove(wm, window, drag.timer);
-      drag.timer = nullptr;
-    }
+    return -1;
+  }();
+
+  if (scroll_dir == -1) {
+    WM_event_timer_remove(wm, window, drag.timer);
+    drag.timer = nullptr;
+    return;
   }
 
   if (drag.timer) {
-    ED_region_tag_redraw(region);
+    if (event->type == TIMER) {
+      view->scroll(ViewScrollDirection(scroll_dir));
+    }
+  } else {
+    drag.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
   }
+
+  ED_region_tag_redraw(region);
 }
 
 AbstractViewItem *region_views_find_item_at(const ARegion &region, const int xy[2])
