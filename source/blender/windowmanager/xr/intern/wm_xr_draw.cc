@@ -612,7 +612,7 @@ static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C,
   ui::block_flag_enable(block, ui::BLOCK_LOOP | ui::BLOCK_KEEP_OPEN | ui::BLOCK_NO_WIN_CLIP);
   ui::block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
 
-  const float tab_width = UI_UNIT_X * 10.0f;
+  const float tab_width = UI_UNIT_X * 10.5f;
 
   ui::Button *but = uiDefBut(block,
                              ui::ButtonType::Tab,
