@@ -6279,6 +6279,8 @@ static void update_idprop_float(PointerRNA &rna_ptr, PropertyRNA &rna_prop, IDPr
 
 void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
 {
+  BLI_assert(idprops.type == IDP_GROUP);
+  Set<IDProperty *> used_props;
   StructRNA &srna = *ptr.type;
   for (PropertyRNA &rna_prop : *RNA_struct_type_properties(&srna)) {
     const StringRefNull identifier = RNA_property_identifier(&rna_prop);
@@ -6288,6 +6290,8 @@ void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
       idprop = bke::idprop::create_group(identifier, IDP_FLAG_STATIC_TYPE).release();
       IDP_AddToGroup(&idprops, idprop);
     }
+
+    used_props.add_new(idprop);
 
     switch (RNA_property_type(&rna_prop)) {
       case PROP_BOOLEAN: {
@@ -6347,6 +6351,13 @@ void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
         BLI_assert_unreachable();
         break;
       }
+    }
+  }
+
+  /* Remove old properties no longer used by the RNA type. */
+  for (IDProperty &prop : idprops.data.group.items_mutable()) {
+    if (!used_props.contains(&prop)) {
+      IDP_FreeFromGroup(&idprops, &prop);
     }
   }
 }
