@@ -52,7 +52,7 @@ class ShadingView {
   Framebuffer combined_fb_ = {"combined_fb_"};
   Framebuffer gbuffer_fb_ = {"gbuffer_fb_"};
   Framebuffer transparent_fb_ = {"transparent"};
-  TextureFromPool postfx_tx_;
+  TextureFromPool postfx_tx_ = {"postfx"};
 
   /** Main views is created from the camera (or is from the viewport). It is not jittered. */
   View main_view_ = {"main_view"};

@@ -579,6 +579,12 @@ void DepthOfField::render(View &view,
      * leave blocks of un-initialized memory. Doing a flush seems to alleviate the issue. */
     GPU_flush();
   }
+  if (GPU_type_matches_ex(GPU_DEVICE_INTEL, GPU_OS_UNIX, GPU_DRIVER_ANY, GPU_BACKEND_VULKAN)) {
+    /* On Intel, there is a sync bug with TextureFromPool, which can make either the LUT or
+     * accumulation texture with overscan leave blocks of aliased/uninitialized memory. Doing
+     * a flush seems to alleviate the issue (and my sanity). */
+    GPU_flush();
+  }
 
   GPU_debug_group_begin("Depth of Field");
 
