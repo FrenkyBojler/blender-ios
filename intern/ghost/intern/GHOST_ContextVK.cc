@@ -466,7 +466,6 @@ struct GHOST_InstanceVK {
   }
 
   bool create_device(const bool use_vk_ext_swapchain_maintenance1,
-                     const bool is_debug,
                      blender::Span<const char *> required_device_extensions,
                      blender::Span<const char *> optional_device_extensions)
   {
@@ -475,24 +474,6 @@ struct GHOST_InstanceVK {
 
     device.extensions.enable(required_device_extensions);
     device.extensions.enable(optional_device_extensions, true);
-
-    /* Disabling pipeline libraries and dynamic vertex input on AMD drivers due to random crashes
-     * that are also happening when enabling the extension, but not using it at all. This needs
-     * more investigation as it could be related to development workflows.
-     *
-     * This seems to affect the pro drivers more than the `Adrenalin` ones.
-     * But as both share the same code-base it is better to disable them until
-     * it is clear what causes the crashes and when these were fixed.
-     *
-     * Ref #151103
-     */
-    const bool is_amd_driver = device.properties_12.driverID == VK_DRIVER_ID_AMD_PROPRIETARY ||
-                               device.properties_12.driverID == VK_DRIVER_ID_AMD_OPEN_SOURCE;
-    if (is_amd_driver && is_debug) {
-      device.extensions.disable(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
-      device.extensions.disable(VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME);
-      device.extensions.disable(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
-    }
 
     device.init_generic_queue_family();
 
@@ -1702,7 +1683,6 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     }
 
     if (!instance_vk.create_device(use_vk_ext_swapchain_colorspace,
-                                   context_params_.is_debug,
                                    required_device_extensions,
                                    optional_device_extensions))
     {
