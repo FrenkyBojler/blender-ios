@@ -936,12 +936,6 @@ AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
     offset_time = strip->sound->offset_time + strip->sound_offset - frameskip / fps;
   }
 
-  /* This is needed when strips that were previosly added to a scene are now moved to a meta. */
-  if (strip->runtime->scene_sound && strip->runtime->last_parent_sound &&
-      (strip->runtime->last_parent_sound != parent_sound))
-  {
-    BKE_sound_remove_sound(strip->runtime->last_parent_sound, strip->runtime->scene_sound);
-  }
   /* Store last parent sequence so it can be removed. */
   strip->runtime->last_parent_sound = parent_sound;
 
