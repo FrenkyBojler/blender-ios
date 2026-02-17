@@ -707,18 +707,6 @@ const bTheme U_theme_default = {
     .facedot_size = 4,
     .match = RGBA(0x4772b3ff),
   },
-  .space_project = {
-    .back = RGBA(0x30303000),
-    .title = RGBA(0xeeeeeeff),
-    .text = RGBA(0xe6e6e6ff),
-    .text_hi = RGBA(0xffffffff),
-    .header = RGBA(0x303030b3),
-    .header_text = RGBA(0xeeeeeeff),
-    .header_text_hi = RGBA(0xffffffff),
-    .vertex_size = 3,
-    .outline_width = 1,
-    .facedot_size = 4,
-  },
   .space_console = {
     .back = RGBA(0x1d1d1d00),
     .title = RGBA(0xeeeeeeff),
