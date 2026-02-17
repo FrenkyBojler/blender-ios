@@ -40,9 +40,6 @@
 #include "mtl_texture.hh"
 #include "mtl_vertex_buffer.hh"
 
-#include "GHOST_C-api.h"
-
-using namespace blender;
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
 
@@ -140,11 +137,6 @@ MTLShader::~MTLShader()
     /* NOTE(Metal): #ShaderInterface deletion is handled in the super destructor `~Shader()`. */
   }
   valid_ = false;
-}
-
-void MTLShader::init(const shader::ShaderCreateInfo & /*info*/, bool is_batch_compilation)
-{
-  async_compilation_ = is_batch_compilation;
 }
 
 const shader::ShaderCreateInfo &MTLShader::patch_create_info(
@@ -258,24 +250,13 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
 
   std::string concat_source = fmt::to_string(fmt::join(sources, "")) + wrapper.second;
 
-  if (this->name_get() == G.gpu_debug_shader_source_name) {
-    NSFileManager *sharedFM = [NSFileManager defaultManager];
-    NSURL *app_bundle_url = [[NSBundle mainBundle] bundleURL];
-    NSURL *shader_dir = [[app_bundle_url URLByDeletingLastPathComponent]
-        URLByAppendingPathComponent:@"Shaders/"
-                        isDirectory:YES];
+  dump_source_to_disk(this->name_get(), this->entry_point_name_get(stage), ".msl", concat_source);
 
-    [sharedFM createDirectoryAtURL:shader_dir
-        withIntermediateDirectories:YES
-                         attributes:nil
-                              error:nil];
+  if (!this->skip_preprocessor) {
+    concat_source = run_preprocessor(concat_source);
 
-    const char *path_cstr = [shader_dir fileSystemRepresentation];
-
-    std::ofstream output_source_file(std::string(path_cstr) + "/" +
-                                     this->entry_point_name_get(stage) + ".msl");
-    output_source_file << concat_source;
-    output_source_file.close();
+    dump_source_to_disk(
+        this->name_get(), this->entry_point_name_get(stage) + ".expanded", ".msl", concat_source);
   }
 
   {
@@ -343,16 +324,16 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
     return false;
   }
 
-  if (this->shader_library_frag_ == nil && this->shader_library_frag_ == nil &&
+  if (this->shader_library_vert_ == nil && this->shader_library_frag_ == nil &&
       this->shader_library_comp_ == nil)
   {
     /* All compilations failed. */
     return false;
   }
 
-  const bool is_compute = (this->shader_library_frag_ == nil && this->shader_library_frag_ == nil);
+  const bool is_compute = (this->shader_library_vert_ == nil && this->shader_library_frag_ == nil);
 
-  if (!is_compute && (this->shader_library_frag_ == nil || this->shader_library_frag_ == nil)) {
+  if (!is_compute && (this->shader_library_vert_ == nil || this->shader_library_frag_ == nil)) {
     /* One stage failed to compile. */
     return false;
   }
@@ -484,8 +465,8 @@ void MTLShader::warm_cache(int limit)
     MTLShader *parent_mtl = static_cast<MTLShader *>(parent_shader_);
 
     /* Extract PSO descriptors from parent shader. */
-    blender::Vector<MTLRenderPipelineStateDescriptor> descriptors;
-    blender::Vector<MTLPrimitiveTopologyClass> prim_classes;
+    Vector<MTLRenderPipelineStateDescriptor> descriptors;
+    Vector<MTLPrimitiveTopologyClass> prim_classes;
 
     parent_mtl->pso_cache_lock_.lock();
     for (const auto &pso_entry : parent_mtl->pso_cache_.items()) {
@@ -1109,7 +1090,7 @@ Shader *MTLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
   return shader;
 }
 
-void MTLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
+void MTLShaderCompiler::specialize_shader(const ShaderSpecialization &specialization)
 {
   MTLShader *shader = static_cast<MTLShader *>(specialization.shader);
 

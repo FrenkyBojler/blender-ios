@@ -52,11 +52,13 @@
 
 #include "DNA_node_types.h"
 
+namespace blender {
+
 struct SpaceNode;
 struct NodesModifierData;
 struct Report;
 
-namespace blender::nodes::geo_eval_log {
+namespace nodes::geo_eval_log {
 
 using fn::GField;
 
@@ -72,7 +74,7 @@ struct NodeWarning {
     return get_default_hash(this->type, this->message);
   }
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(NodeWarning, type, message)
+  friend bool operator==(const NodeWarning &a, const NodeWarning &b) = default;
 };
 
 enum class NamedAttributeUsage {
@@ -508,4 +510,6 @@ class GeoNodesLog {
   static const ViewerNodeLog *find_viewer_node_log_for_path(const ViewerPath &viewer_path);
 };
 
-}  // namespace blender::nodes::geo_eval_log
+}  // namespace nodes::geo_eval_log
+
+}  // namespace blender

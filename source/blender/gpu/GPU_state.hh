@@ -11,7 +11,9 @@
 #include "BLI_enum_flags.hh"
 #include "BLI_sys_types.h"
 
-/** Opaque type hiding blender::gpu::Fence. */
+namespace blender {
+
+/** Opaque type hiding gpu::Fence. */
 struct GPUFence;
 
 enum GPUWriteMask {
@@ -110,6 +112,12 @@ enum GPUBlend {
   /** Multiplies every channel (alpha included) by `1 - SRC.a`. Used for piercing a hole using an
    * image alpha channel. */
   GPU_BLEND_OVERLAY_MASK_FROM_ALPHA,
+  /**
+   * Alpha channel is interpreted as transmittance (aka transparency) and not alpha.
+   * To be used with a frame-buffer with alpha cleared to 1 for full transparency.
+   * Equivalent to: `DST.rgba * SRC.a + float4(SRC.rgb, 0.0)`.
+   */
+  GPU_BLEND_TRANSPARENCY,
 };
 
 enum GPUDepthTest {
@@ -154,7 +162,6 @@ void GPU_depth_test(GPUDepthTest test);
 void GPU_stencil_test(GPUStencilTest test);
 void GPU_provoking_vertex(GPUProvokingVertex vert);
 void GPU_front_facing(bool invert);
-void GPU_depth_range(float near, float far);
 void GPU_scissor_test(bool enable);
 void GPU_line_smooth(bool enable);
 /**
@@ -184,7 +191,6 @@ void GPU_write_mask(GPUWriteMask mask);
 void GPU_color_mask(bool r, bool g, bool b, bool a);
 void GPU_depth_mask(bool depth);
 bool GPU_depth_mask_get();
-void GPU_shadow_offset(bool enable);
 void GPU_clip_distances(int distances_enabled);
 bool GPU_mipmap_enabled();
 void GPU_state_set(GPUWriteMask write_mask,
@@ -234,3 +240,5 @@ GPUFence *GPU_fence_create();
 void GPU_fence_free(GPUFence *fence);
 void GPU_fence_signal(GPUFence *fence);
 void GPU_fence_wait(GPUFence *fence);
+
+}  // namespace blender
