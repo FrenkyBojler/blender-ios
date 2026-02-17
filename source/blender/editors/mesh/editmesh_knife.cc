@@ -8,10 +8,6 @@
  * Interactive editmesh knife tool.
  */
 
-#ifdef _MSC_VER
-#  define _USE_MATH_DEFINES
-#endif
-
 #include <fmt/format.h>
 
 #include "MEM_guardedalloc.h"
@@ -1861,7 +1857,7 @@ static void prepare_linehits_for_cut(KnifeTool_OpData *kcd)
     return;
   }
 
-  std::sort(kcd->linehits.begin(), kcd->linehits.end(), linehit_compare);
+  std::ranges::sort(kcd->linehits, linehit_compare);
 
   /* Remove any edge hits that are preceded or followed
    * by a vertex hit that is very near. Mark such edge hits using

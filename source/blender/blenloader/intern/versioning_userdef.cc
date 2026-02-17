@@ -419,7 +419,15 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_action.anim_interpolation_linear);
   }
 
-  if (!USER_VERSION_ATLEAST(501, 24)) {
+  if (!USER_VERSION_ATLEAST(501, 19)) {
+    FROM_DEFAULT_V4_UCHAR(space_preferences.match);
+  }
+
+  if (!USER_VERSION_ATLEAST(501, 26)) {
+    FROM_DEFAULT_V4_UCHAR(space_view3d.grid_major);
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 4)) {
     FROM_DEFAULT_V4_UCHAR(space_project.back);
     FROM_DEFAULT_V4_UCHAR(space_project.title);
     FROM_DEFAULT_V4_UCHAR(space_project.text);
@@ -430,10 +438,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     btheme->space_project.vertex_size = U_theme_default.space_project.vertex_size;
     btheme->space_project.outline_width = U_theme_default.space_project.outline_width;
     btheme->space_project.facedot_size = U_theme_default.space_project.facedot_size;
-  }
-
-  if (!USER_VERSION_ATLEAST(501, 100)) {
-    FROM_DEFAULT_V4_UCHAR(space_preferences.match);
   }
 
   /**
@@ -1753,7 +1757,22 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->flag |= USER_HIDE_DOT_DATABLOCK;
   }
 
-  if (!USER_VERSION_ATLEAST(501, 19)) {
+  if (!USER_VERSION_ATLEAST(501, 24)) {
+    /* Increase the base XR vignette value to match the previous default after logic refactor. */
+    /* Can be either 50 or 60 due to an oversight in the original feature (dde9d21b91) where
+     * the DNA default was set 60, but the versioning_userdef set it to 50. */
+    if (userdef->xr_navigation.vignette_intensity == 50 ||
+        userdef->xr_navigation.vignette_intensity == 60)
+    {
+      userdef->xr_navigation.vignette_intensity = 70;
+    }
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 3)) {
+    userdef->uiflag2 |= USER_UIFLAG2_SHOW_ONLINE_ASSETS;
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 4)) {
     userdef->pref_flag |= USER_PREF_FLAG_PROJECT_SAVE;
   }
 

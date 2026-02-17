@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-26 11:28+0000\n"
+"POT-Creation-Date: 2026-02-16 10:28+0000\n"
 "PO-Revision-Date: 2025-07-23 15:31+0000\n"
 "Last-Translator: Balázs Füvesi <fuvesib@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -1228,6 +1228,10 @@ msgstr "Árnyalat"
 
 msgid "Saturation"
 msgstr "Telítettség"
+
+
+msgid "Both"
+msgstr "Mindkettő"
 
 
 msgid "Active Layer"
@@ -4199,10 +4203,6 @@ msgid "How powerful the effect of the brush is when applied"
 msgstr "Az ecset hatásának erőssége használat közben"
 
 
-msgid "Airbrush"
-msgstr "Festékszóró"
-
-
 msgid "Use this brush in texture paint mode"
 msgstr "A jelenlegi ecset használata textúra festő módban"
 
@@ -6577,28 +6577,48 @@ msgid "Use Material Mask"
 msgstr "Anyagmaszk használata"
 
 
-msgid "Show/Hide"
-msgstr "Mutat/Rejt"
-
-
 msgid "Clean Up"
 msgstr "Tisztítás"
 
 
-msgid "Import"
-msgstr "Importálás"
+msgid "Show/Hide"
+msgstr "Mutat/Rejt"
 
 
 msgid "Metaball"
 msgstr "Meta test"
 
 
-msgid "Merge"
-msgstr "Összefésülés"
+msgid "Mirror"
+msgstr "Tükrözés"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Local View"
+msgstr "Helyi nézet"
+
+
+msgid "Navigation"
+msgstr "Navigáció"
+
+
+msgid "Align View"
+msgstr "Nézet igazítása"
+
+
+msgid "Keying"
+msgstr "Kulcsozás"
+
+
+msgid "Tracking"
+msgstr "Követés"
+
+
+msgid "Light"
+msgstr "Fényforrás"
+
+
+msgid "Relations"
+msgstr "Kapcsolatok"
 
 
 msgid "Rigid Body"
@@ -6613,36 +6633,16 @@ msgid "Track"
 msgstr "Nyom"
 
 
-msgid "Relations"
-msgstr "Kapcsolatok"
+msgid "Import"
+msgstr "Importálás"
 
 
-msgid "Light"
-msgstr "Fényforrás"
+msgid "Merge"
+msgstr "Összefésülés"
 
 
-msgid "Keying"
-msgstr "Kulcsozás"
-
-
-msgid "Tracking"
-msgstr "Követés"
-
-
-msgid "Navigation"
-msgstr "Navigáció"
-
-
-msgid "Align View"
-msgstr "Nézet igazítása"
-
-
-msgid "Local View"
-msgstr "Helyi nézet"
-
-
-msgid "Mirror"
-msgstr "Tükrözés"
+msgid "UV"
+msgstr "UV"
 
 
 msgctxt "MovieClip"
@@ -10408,10 +10408,6 @@ msgid "Decimate Keyframes"
 msgstr "Kulcs-képkockák tizedelése"
 
 
-msgid "Both"
-msgstr "Mindkettő"
-
-
 msgid "Jump to previous/next keyframe"
 msgstr "Ugrás az előző/következő kulcskockára"
 
@@ -10938,10 +10934,6 @@ msgstr "Térháló deformálció kötés"
 
 msgid "Bind mesh to cage in mesh deform modifier"
 msgstr "Térháló kötése a ketrechez a térháló deformálás módosítóban"
-
-
-msgid "Add an metaball object to the scene"
-msgstr "Meta test hozzáadása a jelenethez"
 
 
 msgctxt "Operator"
@@ -12133,30 +12125,6 @@ msgid "Mixdown"
 msgstr "Lekeverés"
 
 
-msgid "Construct a Nurbs surface Circle"
-msgstr "Nurbs felület kör létrehozása"
-
-
-msgid "Construct a Nurbs surface Curve"
-msgstr "Nurbs felület görbe létrehozása"
-
-
-msgid "Construct a Nurbs surface Cylinder"
-msgstr "Nurbs henger létrehozása"
-
-
-msgid "Construct a Nurbs surface Sphere"
-msgstr "Nurbs gömb létrehozása"
-
-
-msgid "Construct a Nurbs surface Patch"
-msgstr "Nurbs felület darabka létrehozása"
-
-
-msgid "Construct a Nurbs surface Torus"
-msgstr "Nurbs tórusz létrehozása"
-
-
 msgid "Add a new texture"
 msgstr "Új textúra hozzáadása"
 
@@ -12797,12 +12765,12 @@ msgid "Detail Size"
 msgstr "Részlet mérete"
 
 
-msgid "Motion Tracking"
-msgstr "Mozgáskövetés"
-
-
 msgid "Render Pass"
 msgstr "Render vezeték"
+
+
+msgid "Motion Tracking"
+msgstr "Mozgáskövetés"
 
 
 msgid "Chain Scaling"
@@ -14445,6 +14413,11 @@ msgstr "Trimmelés kezdete"
 
 msgid "Outline Width"
 msgstr "Körvonal vastagsága"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Görbék"
 
 
 msgid "Translate X"
@@ -16944,11 +16917,6 @@ msgstr "Nem lehet renderelni, nincs kamera"
 
 msgid "No border area selected"
 msgstr "Nincs téglalap-kijelölés"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Görbék"
 
 
 msgid "Glow"

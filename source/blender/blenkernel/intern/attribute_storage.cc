@@ -387,6 +387,9 @@ static void read_array_data(BlendDataReader &reader,
       BLO_read_struct_array(
           &reader, MStringProperty, size, reinterpret_cast<MStringProperty **>(data));
       return;
+    case int8_t(AttrType::Float4):
+      BLO_read_float_array(&reader, size * 4, reinterpret_cast<float **>(data));
+      return;
     default:
       *data = nullptr;
       return;
@@ -423,12 +426,13 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
       if (data.size != 0 && !data.data) {
         return std::nullopt;
       }
+      Attribute::ArrayData array_data{
+          data.data, data.size, ImplicitSharingPtr<>(data.sharing_info)};
       if (data.is_single) {
         const CPPType &cpp_type = attribute_type_to_cpp_type(AttrType(dna_attr_type));
-        data.sharing_info->remove_user_and_delete_if_last();
         return Attribute::SingleData::from_value(GPointer(cpp_type, data.data));
       }
-      return Attribute::ArrayData{data.data, data.size, ImplicitSharingPtr<>(data.sharing_info)};
+      return array_data;
     }
     case int8_t(AttrStorageType::Single): {
       BLO_read_struct(&reader, AttributeSingle, &dna_attr.data);
@@ -561,6 +565,9 @@ static void write_array_data(BlendWriter &writer,
       break;
     case AttrType::String:
       writer.write_struct_array_cast<MStringProperty>(size, data);
+      break;
+    case AttrType::Float4:
+      BLO_write_float_array(&writer, size * 4, static_cast<const float *>(data));
       break;
   }
 }
