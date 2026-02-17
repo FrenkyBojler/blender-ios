@@ -44,6 +44,80 @@ namespace blender {
 /** \name Calculate Range
  * \{ */
 
+/* Used to ensure that the extents are not too extreme that view implodes. We need different
+ * values for x and y due to the nature of the data displayed. The minimum distance on x for
+ * keyframes is BEZT_BINARYSEARCH_THRESH so differences larger than that cannot occur. For the y
+ * value there is no such limit, so we have to choose a smaller number. */
+constexpr float2 view_threshold(BEZT_BINARYSEARCH_THRESH, 0.0001f);
+
+/**
+ * Return the bounds of keyframes elements in anim_data. The bounds will be in frame (x) and value
+ * (y) units.
+ *
+ * \param only_selected if true, only selected keyframes are considered for the bounds.
+ * \param include_handles if true, the handles are considered for the bounds, otherwise only the
+ * key point itself.
+ */
+static bool calculate_keyframe_bounds(const ListBaseT<bAnimListElem> &anim_data,
+                                      bAnimContext &ac,
+                                      const bool only_selected,
+                                      const bool include_handles,
+                                      rctf &r_view_bounds)
+{
+  /* Check if any channels to set range with. */
+  if (!anim_data.first) {
+    /* Set default range. */
+    if (ac.scene) {
+      Scene *scene = ac.scene;
+      r_view_bounds.xmin = float(PSFRA);
+      r_view_bounds.xmax = float(PEFRA);
+    }
+    else {
+      r_view_bounds.xmin = -5;
+      r_view_bounds.xmax = 100;
+    }
+
+    r_view_bounds.ymin = -5;
+    r_view_bounds.ymax = 5;
+    /* We technically found bounds, just not from the FCurves. */
+    return true;
+  }
+
+  bool found_bounds = false;
+
+  /* Go through channels, finding max extents. */
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
+    rctf fcu_bounds;
+
+    /* Get range. */
+    if (BKE_fcurve_calc_bounds(fcu, only_selected, include_handles, nullptr, &fcu_bounds)) {
+      float unitFac, offset;
+      short mapping_flag = ANIM_get_normalization_flags(ac.sl);
+
+      /* Apply NLA scaling. */
+      fcu_bounds.xmin = ANIM_nla_tweakedit_remap(&ale, fcu_bounds.xmin, NLATIME_CONVERT_MAP);
+      fcu_bounds.xmax = ANIM_nla_tweakedit_remap(&ale, fcu_bounds.xmax, NLATIME_CONVERT_MAP);
+
+      /* Apply unit corrections. */
+      unitFac = ANIM_unit_mapping_get_factor(ac.scene, ale.id, fcu, mapping_flag, &offset);
+      fcu_bounds.ymin += offset;
+      fcu_bounds.ymax += offset;
+      fcu_bounds.ymin *= unitFac;
+      fcu_bounds.ymax *= unitFac;
+      if (found_bounds) {
+        BLI_rctf_union(&r_view_bounds, &fcu_bounds);
+      }
+      else {
+        r_view_bounds = fcu_bounds;
+      }
+
+      found_bounds = true;
+    }
+  }
+  return found_bounds;
+}
+
 void get_graph_keyframe_extents(bAnimContext *ac,
                                 float *xmin,
                                 float *xmax,
@@ -54,131 +128,35 @@ void get_graph_keyframe_extents(bAnimContext *ac,
 {
   Scene *scene = ac->scene;
 
-  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
-  int filter;
+  ListBaseT<bAnimListElem> anim_data = ed::graph::get_editable_fcurves(*ac);
+  rctf fcurve_bounds;
+  bool foundBounds = calculate_keyframe_bounds(
+      anim_data, *ac, do_sel_only, include_handles, fcurve_bounds);
+  ANIM_animdata_freelist(&anim_data);
 
-  /* Get data to filter, from Dope-sheet. */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_FCURVESONLY |
-            ANIMFILTER_NODUPLIS);
-  if (U.animation_flag & USER_ANIM_ONLY_SHOW_SELECTED_CURVE_KEYS) {
-    filter |= ANIMFILTER_SEL;
+  /* Ensure that the extents are not too extreme that view implodes. */
+
+  if (foundBounds) {
+    if ((xmin && xmax) && (fabsf(*xmax - *xmin) < view_threshold.x)) {
+      *xmin -= view_threshold.x / 2;
+      *xmax += view_threshold.x / 2;
+    }
+    if ((ymin && ymax) && (fabsf(*ymax - *ymin) < view_threshold.y)) {
+      *ymin -= view_threshold.y / 2;
+      *ymax += view_threshold.y / 2;
+    }
   }
-
-  ANIM_animdata_filter(
-      ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
-
-  /* Set large values initial values that will be easy to override. */
   if (xmin) {
-    *xmin = 999999999.0f;
+    *xmin = fcurve_bounds.xmin;
   }
   if (xmax) {
-    *xmax = -999999999.0f;
+    *xmax = fcurve_bounds.xmax;
   }
   if (ymin) {
-    *ymin = 999999999.0f;
+    *ymin = fcurve_bounds.ymin;
   }
   if (ymax) {
-    *ymax = -999999999.0f;
-  }
-
-  /* Check if any channels to set range with. */
-  if (anim_data.first) {
-    bool foundBounds = false;
-
-    /* Go through channels, finding max extents. */
-    for (bAnimListElem &ale : anim_data) {
-      FCurve *fcu = static_cast<FCurve *>(ale.key_data);
-      rctf bounds;
-      float unitFac, offset;
-
-      /* Get range. */
-      if (BKE_fcurve_calc_bounds(fcu, do_sel_only, include_handles, nullptr, &bounds)) {
-        short mapping_flag = ANIM_get_normalization_flags(ac->sl);
-
-        /* Apply NLA scaling. */
-        bounds.xmin = ANIM_nla_tweakedit_remap(&ale, bounds.xmin, NLATIME_CONVERT_MAP);
-        bounds.xmax = ANIM_nla_tweakedit_remap(&ale, bounds.xmax, NLATIME_CONVERT_MAP);
-
-        /* Apply unit corrections. */
-        unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale.id, fcu, mapping_flag, &offset);
-        bounds.ymin += offset;
-        bounds.ymax += offset;
-        bounds.ymin *= unitFac;
-        bounds.ymax *= unitFac;
-
-        /* Try to set cur using these values, if they're more extreme than previously set values.
-         */
-        if ((xmin) && (bounds.xmin < *xmin)) {
-          *xmin = bounds.xmin;
-        }
-        if ((xmax) && (bounds.xmax > *xmax)) {
-          *xmax = bounds.xmax;
-        }
-        if ((ymin) && (bounds.ymin < *ymin)) {
-          *ymin = bounds.ymin;
-        }
-        if ((ymax) && (bounds.ymax > *ymax)) {
-          *ymax = bounds.ymax;
-        }
-
-        foundBounds = true;
-      }
-    }
-
-    /* Ensure that the extents are not too extreme that view implodes. */
-    if (foundBounds) {
-      if ((xmin && xmax) && (fabsf(*xmax - *xmin) < 0.001f)) {
-        *xmin -= 0.0005f;
-        *xmax += 0.0005f;
-      }
-      if ((ymin && ymax) && (fabsf(*ymax - *ymin) < 0.001f)) {
-        *ymin -= 0.05f;
-        *ymax += 0.05f;
-      }
-    }
-    else {
-      if (xmin) {
-        *xmin = float(PSFRA);
-      }
-      if (xmax) {
-        *xmax = float(PEFRA);
-      }
-      if (ymin) {
-        *ymin = -5;
-      }
-      if (ymax) {
-        *ymax = 5;
-      }
-    }
-
-    /* Free memory. */
-    ANIM_animdata_freelist(&anim_data);
-  }
-  else {
-    /* Set default range. */
-    if (ac->scene) {
-      if (xmin) {
-        *xmin = float(PSFRA);
-      }
-      if (xmax) {
-        *xmax = float(PEFRA);
-      }
-    }
-    else {
-      if (xmin) {
-        *xmin = -5;
-      }
-      if (xmax) {
-        *xmax = 100;
-      }
-    }
-
-    if (ymin) {
-      *ymin = -5;
-    }
-    if (ymax) {
-      *ymax = 5;
-    }
+    *ymax = fcurve_bounds.ymax;
   }
 }
 
@@ -242,95 +220,34 @@ static void add_contextual_padding(bAnimContext &ac,
  * Generate a rect for framing keyframes in the graph editor.
  */
 static void get_graph_view_bounds(bAnimContext *ac,
-                                  rctf &view_bounds,
-                                  const bool do_sel_only,
+                                  rctf &r_view_bounds,
+                                  const bool only_selected,
                                   const bool include_handles)
 {
-  Scene *scene = ac->scene;
   ListBaseT<bAnimListElem> anim_data = ed::graph::get_editable_fcurves(*ac);
+  bool found_bounds = calculate_keyframe_bounds(
+      anim_data, *ac, only_selected, include_handles, r_view_bounds);
 
-  /* Check if any channels to set range with. */
-  if (!anim_data.first) {
-    /* Set default range. */
-    if (ac->scene) {
-      view_bounds.xmin = float(PSFRA);
-      view_bounds.xmax = float(PEFRA);
-    }
-    else {
-      view_bounds.xmin = -5;
-      view_bounds.xmax = 100;
-    }
-
-    view_bounds.ymin = -5;
-    view_bounds.ymax = 5;
-    return;
-  }
-
-  bool found_bounds = false;
-
-  /* Go through channels, finding max extents. */
-  for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
-    rctf fcu_bounds;
-
-    /* Get range. */
-    if (BKE_fcurve_calc_bounds(fcu, do_sel_only, include_handles, nullptr, &fcu_bounds)) {
-      float unitFac, offset;
-      short mapping_flag = ANIM_get_normalization_flags(ac->sl);
-
-      /* Apply NLA scaling. */
-      fcu_bounds.xmin = ANIM_nla_tweakedit_remap(&ale, fcu_bounds.xmin, NLATIME_CONVERT_MAP);
-      fcu_bounds.xmax = ANIM_nla_tweakedit_remap(&ale, fcu_bounds.xmax, NLATIME_CONVERT_MAP);
-
-      /* Apply unit corrections. */
-      unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale.id, fcu, mapping_flag, &offset);
-      fcu_bounds.ymin += offset;
-      fcu_bounds.ymax += offset;
-      fcu_bounds.ymin *= unitFac;
-      fcu_bounds.ymax *= unitFac;
-      if (found_bounds) {
-        BLI_rctf_union(&view_bounds, &fcu_bounds);
-      }
-      else {
-        view_bounds = fcu_bounds;
-      }
-
-      found_bounds = true;
-    }
-  }
-
-  /* Ensure that the extents are not too extreme that view implodes. We need different values for x
-   * and y due to the nature of the data displayed. The minimum distance on x for keyframes is
-   * BEZT_BINARYSEARCH_THRESH so differences larger than that cannot occur. For the y value there
-   * is no such limit, so we have to choose a smaller number. */
-  constexpr float2 threshold(BEZT_BINARYSEARCH_THRESH, 0.0001f);
   if (found_bounds) {
-    if (do_sel_only) {
-      /* Only adding contextual padding when looking at selected keys. When looking at all data,
+    if (only_selected) {
+      /* Only adding contextual padding when looking at selected keys. When framing all data,
        * there is no additional information we could possibly use. */
       add_contextual_padding(*ac,
                              anim_data,
-                             BLI_rctf_size_x(&view_bounds) < threshold.x,
-                             BLI_rctf_size_y(&view_bounds) < threshold.y,
-                             view_bounds);
+                             BLI_rctf_size_x(&r_view_bounds) < view_threshold.x,
+                             BLI_rctf_size_y(&r_view_bounds) < view_threshold.y,
+                             r_view_bounds);
     }
-    if (fabsf(view_bounds.xmax - view_bounds.xmin) < threshold.x) {
-      view_bounds.xmin -= 0.0005f;
-      view_bounds.xmax += 0.0005f;
+    if (fabsf(r_view_bounds.xmax - r_view_bounds.xmin) < view_threshold.x) {
+      r_view_bounds.xmin -= view_threshold.x / 2;
+      r_view_bounds.xmax += view_threshold.x / 2;
     }
-    if (fabsf(view_bounds.ymax - view_bounds.ymin) < threshold.y) {
-      view_bounds.ymin -= 0.0005f;
-      view_bounds.ymax += 0.0005f;
+    if (fabsf(r_view_bounds.ymax - r_view_bounds.ymin) < view_threshold.y) {
+      r_view_bounds.ymin -= view_threshold.y / 2;
+      r_view_bounds.ymax += view_threshold.y / 2;
     }
-  }
-  else {
-    view_bounds.xmin = float(PSFRA);
-    view_bounds.xmax = float(PEFRA);
-    view_bounds.ymin = -5;
-    view_bounds.ymax = 5;
   }
 
-  /* Free memory. */
   ANIM_animdata_freelist(&anim_data);
 }
 
