@@ -1,2 +1,3 @@
 Referenced by issue #154243, Cycles: Volume with Motion Blur rendering speed regression
 Referenced by pull request #154366, Fix #154243: Cycles: Performance regression from motion blur on static volumes
+Referenced by commit efab450c9bef834f4487a065c3e6e73b0ef92053, Fix #154243: Cycles: Performance regression from motion blur on static volumes
