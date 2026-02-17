@@ -33,6 +33,7 @@ class VKBuffer : public NonCopyable {
   void *mapped_memory_ = nullptr;
 
   VkDeviceAddress vk_device_address = 0;
+  VkMemoryPropertyFlags vk_memory_property_ = 0;
 
  public:
   VKBuffer() = default;

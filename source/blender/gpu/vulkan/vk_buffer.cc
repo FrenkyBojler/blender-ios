@@ -108,10 +108,11 @@ bool VKBuffer::create(size_t size_in_bytes,
    * Source:
    * https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
    */
-  const bool is_mappable = bool(allocation_flags &
-                                (VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
-                                 VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT));
-  if (is_mappable) {
+  const bool mappable_requested = bool(allocation_flags &
+                                       (VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
+                                        VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT));
+  vmaGetAllocationMemoryProperties(allocator, allocation_, &vk_memory_property_);
+  if (mappable_requested && bool(vk_memory_property_ & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
     return map();
   }
 
