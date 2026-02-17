@@ -252,8 +252,8 @@ static wmOperatorStatus graphkeys_viewall(bContext *C,
   }
 
   if (ac.regiontype != RGN_TYPE_WINDOW) {
-    /* It is possible that operator is invoked from other regions like channel.
-    Main region is required here forgi smooth view function. */
+    /* It is possible that operator is invoked from other regions like channel. Main region is
+     * required here for smooth view function. */
     for (ARegion &region : ac.area->regionbase) {
       if (region.regiontype == RGN_TYPE_WINDOW) {
         ac.region = &region;
@@ -593,8 +593,8 @@ static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator * 
   }
 
   if (ac.regiontype != RGN_TYPE_WINDOW) {
-    /* It is possible that operator is invoked from other regions like channel.
-    Main region is required here for current bounds and smooth view function. */
+    /* It is possible that operator is invoked from other regions like channel. Main region is
+     * required here for current bounds and smooth view function. */
     for (ARegion &region : ac.area->regionbase) {
       if (region.regiontype == RGN_TYPE_WINDOW) {
         ac.region = &region;
