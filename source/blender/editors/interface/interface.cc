@@ -2205,7 +2205,7 @@ void block_end_xr(const bContext *C, Block *block)
                CTX_wm_region(C),
                CTX_data_depsgraph_pointer(C),
                block,
-               window.runtime->eventstate->xy,
+               nullptr,
                nullptr);
 }
 
