@@ -20,7 +20,7 @@ template<typename T> struct Bounds {
   /* Construct bounds from the legacy rcti/rctf types. */
   Bounds(const rcti &rect);
   Bounds(const rctf &rect);
-  Bounds(const T &value);
+  explicit Bounds(const T &value);
   Bounds(const T &min, const T &max) : min(min), max(max) {}
 
   /**
