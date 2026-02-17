@@ -1457,7 +1457,8 @@ static void widget_draw_icon(
 
 static void widget_draw_submenu_tria(const Button *but,
                                      const rcti *rect,
-                                     const uiWidgetColors *wcol)
+                                     const uiWidgetColors *wcol,
+                                     float alfa_factor)
 {
   const float aspect = but->block->aspect * UI_INV_SCALE_FAC;
   const int tria_height = int(ICON_DEFAULT_HEIGHT / aspect);
@@ -1467,7 +1468,7 @@ static void widget_draw_submenu_tria(const Button *but,
 
   float col[4];
   rgba_uchar_to_float(col, wcol->text);
-  col[3] *= 0.8f;
+  col[3] *= 0.8f * alfa_factor;
 
   rctf tria_rect;
   BLI_rctf_init(&tria_rect, xs, xs + tria_width, ys, ys + tria_height);
@@ -2015,9 +2016,13 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   const char *drawstr_right = nullptr;
   bool use_right_only = false;
   const char *indeterminate_str = UI_VALUE_INDETERMINATE_CHAR;
-  const float alpha = float(wcol->text[3]) / 255.0f *
-                      ((but->active || !(but->block->flag & BLOCK_MENU_DIM)) ? 1 : 0.75f);
-
+  const uchar4 text_col = [wcol, but]() -> uchar4 {
+    uchar4 col;
+    copy_v4_v4_uchar(col, wcol->text);
+    col[3] *= float(wcol->text[3]) / 255.0f *
+              ((but->active || !(but->block->flag & BLOCK_MENU_DIM)) ? 1 : 0.75f);
+    return col;
+  }();
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data;
 #endif
@@ -2245,14 +2250,11 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     if (drawlen > 0) {
       FontStyleDrawParams params{};
       params.align = align;
-      uchar col[4];
-      copy_v4_v4_uchar(col, wcol->text);
-      col[3] *= alpha;
       fontstyle_draw_ex(fstyle,
                         rect,
                         drawstr + but->ofs,
                         drawlen,
-                        col,
+                        text_col,
                         &params,
                         &font_xofs,
                         &font_yofs,
@@ -2286,7 +2288,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
             int pos_y = rect->ymin + font_yofs + bounds.ymin - U.pixelsize;
             /* Use text output because direct drawing doesn't always work. See #89246. */
             BLF_position(fstyle->uifont_id, float(pos_x), pos_y, 0.0f);
-            BLF_color4ubv(fstyle->uifont_id, wcol->text);
+            BLF_color4ubv(fstyle->uifont_id, text_col);
             BLF_draw(fstyle->uifont_id, "_", 2);
           }
         }
@@ -2302,18 +2304,22 @@ static void widget_draw_text(const uiFontStyle *fstyle,
       params.align = align;
       uiFontStyle style = *fstyle;
       style.shadow = 0;
-      uchar col[4];
-      copy_v4_v4_uchar(col, wcol->text);
-      col[3] *= 0.33f;
-      fontstyle_draw_ex(
-          &style, rect, placeholder, strlen(placeholder), col, &params, nullptr, nullptr, nullptr);
+      fontstyle_draw_ex(&style,
+                        rect,
+                        placeholder,
+                        strlen(placeholder),
+                        text_col,
+                        &params,
+                        nullptr,
+                        nullptr,
+                        nullptr);
     }
   }
 
   /* part text right aligned */
   if (drawstr_right) {
     uchar col[4];
-    copy_v4_v4_uchar(col, wcol->text);
+    copy_v4_v4_uchar(col, text_col);
     if (use_drawstr_right_as_hint) {
       col[3] *= 0.5f;
     }
@@ -2396,7 +2402,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
 {
   const bool show_menu_icon = ui_but_draw_menu_icon(but);
   const float alpha = float(wcol->text[3]) / 255.0f *
-                      ((but->active || !(but->block->flag & BLOCK_MENU_DIM)) ? 1 : 0.75f);
+                      ((but->active || !(but->block->flag & BLOCK_MENU_DIM)) ? 1.0f : 0.75f);
   std::string password_str;
   bool no_text_padding = but->drawflag & BUT_NO_TEXT_PADDING;
 
@@ -2503,7 +2509,8 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
 
     if (show_menu_icon) {
       BLI_assert(but->block->content_hints & BLOCK_CONTAINS_SUBMENU_BUT);
-      widget_draw_submenu_tria(but, rect, wcol);
+      widget_draw_submenu_tria(
+          but, rect, wcol, (but->active || !(but->block->flag & BLOCK_MENU_DIM)) ? 1.0f : 0.75f);
     }
 
 #ifdef USE_UI_TOOLBAR_HACK
@@ -5334,9 +5341,7 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
   if (wt == nullptr) {
     return;
   }
-  if (but->block->flag & BLOCK_MENU_DIM) {
-    wt->wcol.text[3] = char(float(wt->wcol.text[3]) * 0.25);
-  }
+
   // rcti disablerect = *rect; /* rect gets clipped smaller for text */
 
   const int roundboxalign = widget_roundbox_set(but, rect);
