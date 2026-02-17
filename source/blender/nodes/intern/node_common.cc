@@ -33,8 +33,6 @@
 #include "COM_node_operation.hh"
 #include "COM_result.hh"
 
-#include "GPU_material.hh"
-
 #include "MEM_guardedalloc.h"
 
 #include "NOD_common.hh"
@@ -813,10 +811,10 @@ static void node_adapt_type_declare(nodes::NodeDeclarationBuilder &b)
       .propagate_all();
 }
 
-void node_implicit_conversion_label(const bNodeTree * /*ntree*/,
-                                    const bNode *node,
-                                    char *label,
-                                    int label_maxncpy)
+static void node_implicit_conversion_label(const bNodeTree * /*ntree*/,
+                                           const bNode *node,
+                                           char *label,
+                                           int label_maxncpy)
 {
   const auto &data = *static_cast<NodeImplicitConversion *>(node->storage);
   const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(data.type_idname);
@@ -900,15 +898,6 @@ static compositor::NodeOperation *node_implicit_conversion_compositor_operation(
   return new ImplicitConversionOperation(context, node);
 }
 
-static int node_implicit_conversion_gpu(GPUMaterial *mat,
-                                        bNode *node,
-                                        bNodeExecData * /*execdata*/,
-                                        GPUNodeStack *in,
-                                        GPUNodeStack *out)
-{
-  return GPU_stack_link(mat, node, "node_background", in, out);
-}
-
 void register_node_type_implicit_conversion()
 {
   /* Adapt type node is used for all tree types, needs dynamic allocation. */
@@ -927,7 +916,6 @@ void register_node_type_implicit_conversion()
       *ntype, "NodeImplicitConversion", node_free_standard_storage, node_copy_standard_storage);
   ntype->poll_instance = node_implicit_conversion_poll_instance;
   ntype->geometry_node_execute = node_implicit_conversion_geo_exec;
-  ntype->gpu_fn = node_implicit_conversion_gpu;
   ntype->get_compositor_operation = node_implicit_conversion_compositor_operation;
 
   bke::node_register_type(*ntype);
