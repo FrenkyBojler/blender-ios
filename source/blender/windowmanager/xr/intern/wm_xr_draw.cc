@@ -283,7 +283,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
                                                                 "vr_landmarks_selected");
       const int landmark_idx = RNA_property_int_get(&scene_ptr, landmark_idx_prop);
 
-      /* Hack: Doing some hardcore RNA introspection to obtain the values back. */
+      /* Workaround: Doing some hardcore RNA introspection to obtain the values back. */
       PointerRNA current_landmark;
       RNA_property_collection_lookup_int(
           &scene_ptr, landmarks_prop, landmark_idx, &current_landmark);
@@ -537,12 +537,12 @@ static ui::Block *viewfinder_action_enum_ui_block(const bContext *C,
     sub1.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_LENS, "", ICON_NONE);
     sub1.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_DOF, "", ICON_NONE);
 
-    ui::Layout &sub2 = row.row(true);
     const Object *scene_cam = CTX_data_scene(C)->camera;
     const Camera *cam_data = id_cast<const Camera *>(scene_cam->data);
-    sub2.enabled_set(cam_data->dof.flag & CAM_DOF_ENABLED);
 
+    ui::Layout &sub2 = row.row(true);
     /* Show these controls greyed-out if DoF is disabled. */
+    sub2.enabled_set(cam_data->dof.flag & CAM_DOF_ENABLED);
     sub2.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_FOCUS, "", ICON_NONE);
     sub2.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_APERTURE, "", ICON_NONE);
   }
@@ -570,12 +570,12 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
   ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
 
   Scene *scene = CTX_data_scene(C);
-  Object *cam_ob = scene->camera;
+  const Object *cam_ob = scene->camera;
   const Camera *cam = id_cast<const Camera *>(cam_ob->data);
 
   PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
 
-  /* Note: unsafe, relies on the VR add-on to be loaded. */
+  /* Note: unsafe, relies on the VR add-on being loaded. */
   PropertyRNA *landmark_len_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks");
   PropertyRNA *landmark_idx_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks_selected");
   const int landmark_len = RNA_property_collection_length(&scene_ptr, landmark_len_prop);
@@ -807,7 +807,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   const float viewfinder_height = settings->viewfinder_width * 9.0f / 16.0f;
   const float viewfinder_vertical_offset = 3.5f; /* Center of the viewfinder rectangle. */
 
-  rctf viewfinder_rect = {0};
+  rctf viewfinder_rect = {};
   BLI_rctf_resize(&viewfinder_rect, settings->viewfinder_width, viewfinder_height);
 
   /* Initial transform setup. */
