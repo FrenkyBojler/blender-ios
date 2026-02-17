@@ -745,7 +745,7 @@ actionconfig_data = [
                     "nav_grab",
                     {
                         "type": "FLOAT",
-                        "user_paths": ["/user/hand/left"],
+                        "user_paths": ["/user/hand/right"],
                         "op": "wm.xr_navigation_grab",
                         "op_mode": "MODAL",
                         "bimanual": "True",
