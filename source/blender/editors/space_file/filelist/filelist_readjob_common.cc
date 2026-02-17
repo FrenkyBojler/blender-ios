@@ -19,6 +19,11 @@
 #include "BKE_blendfile.hh"
 #include "BKE_idtype.hh"
 
+#ifdef WIN32
+#  include "BKE_appdir.hh"
+#  include "BLI_winstuff.h"
+#endif
+
 #include "DNA_space_enums.h"
 
 #include "ED_file_indexer.hh"

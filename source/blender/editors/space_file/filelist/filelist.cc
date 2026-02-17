@@ -8,20 +8,12 @@
 
 /* global includes */
 
-#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <memory>
 #include <optional>
 #include <sys/stat.h>
-
-#ifndef WIN32
-#  include <unistd.h>
-#else
-#  include <direct.h>
-#  include <io.h>
-#endif
 
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
@@ -39,11 +31,6 @@
 #include "BLI_string.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
-
-#ifdef WIN32
-#  include "BKE_appdir.hh"
-#  include "BLI_winstuff.h"
-#endif
 
 #include "BKE_asset.hh"
 #include "BKE_blendfile.hh"
