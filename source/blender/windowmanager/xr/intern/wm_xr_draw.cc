@@ -660,7 +660,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   const auto draw_block = [&](BlockFuncPtr block_func, float x_off, float y_off) {
     GPU_matrix_push();
     GPU_matrix_translate_3f(x_off, y_off, 0.0f);
-    GPU_matrix_scale_1f(0.01f);
+    GPU_matrix_scale_1f(0.02f);
 
     ui::Block *block = block_func(fake_C, settings);
     ui::block_draw_xr(fake_C, block); /* Stripped-down XR version of #UI_block_draw. */
