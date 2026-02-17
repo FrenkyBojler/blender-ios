@@ -108,17 +108,25 @@ static void node_draw_buttons(ui::Layout &layout, bContext *C, PointerRNA *ptr)
     PointerRNA tracking_ptr = RNA_pointer_create_discrete(&clip->id, RNA_MovieTracking, tracking);
 
     ui::Layout &col = layout.column(false);
-    col.prop_search(ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA, IFACE_("Tracking Object"));
+    col.prop_search(ptr,
+                    "tracking_object",
+                    &tracking_ptr,
+                    "objects",
+                    "",
+                    ICON_OBJECT_DATA,
+                    IFACE_("Tracking Object"));
 
     tracking_object = BKE_tracking_object_get_named(tracking, data->tracking_object);
     if (tracking_object) {
       PointerRNA object_ptr = RNA_pointer_create_discrete(
           &clip->id, RNA_MovieTrackingObject, tracking_object);
 
-      col.prop_search(ptr, "track_name", &object_ptr, "tracks", "", ICON_ANIM_DATA, IFACE_("Track"));
+      col.prop_search(
+          ptr, "track_name", &object_ptr, "tracks", "", ICON_ANIM_DATA, IFACE_("Track"));
     }
     else {
-      layout.prop(ptr, "track_name", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_ANIM_DATA, IFACE_("Track"));
+      layout.prop(
+          ptr, "track_name", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_ANIM_DATA, IFACE_("Track"));
     }
   }
 }
