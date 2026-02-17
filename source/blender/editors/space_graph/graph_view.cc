@@ -640,7 +640,8 @@ static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator * 
 
   if (enter_local_view) {
     graphkeys_viewall(C, false, true, 200);
-  } else {
+  }
+  else {
     ui::view2d_smooth_view(C, ac.region, &sipo->cur, 200);
     sipo->local_view_bits = 0;
   }
