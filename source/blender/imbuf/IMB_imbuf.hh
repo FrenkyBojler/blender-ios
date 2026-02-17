@@ -32,6 +32,13 @@ void IMB_init();
 void IMB_exit();
 
 /**
+ * Module GPU context management.
+ */
+void IMB_ensure_gpu_context();
+void IMB_activate_gpu_context();
+void IMB_deactivate_gpu_context();
+
+/**
  * Load image.
  */
 ImBuf *IMB_load_image_from_memory(const unsigned char *mem,
