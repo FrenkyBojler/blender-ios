@@ -127,13 +127,13 @@ class SculptSelectionFieldInput final : public bke::GeometryFieldInput {
           case bke::AttrType::Bool: {
             Array<bool> selection(mask.min_array_size());
             mask.foreach_index_optimized<int>(
-                GrainSize(4096), [&](const int i) { selection[i] = attribute[i] < 1.0f; });
+                [&](const int i) { selection[i] = attribute[i] < 1.0f; }, exec_mode::parallel);
             return VArray<bool>::from_container(std::move(selection));
           }
           case bke::AttrType::Float: {
             Array<float> selection(mask.min_array_size());
             mask.foreach_index_optimized<int>(
-                GrainSize(4096), [&](const int i) { selection[i] = 1.0f - attribute[i]; });
+                [&](const int i) { selection[i] = 1.0f - attribute[i]; }, exec_mode::parallel);
             return VArray<float>::from_container(std::move(selection));
           }
           default: {

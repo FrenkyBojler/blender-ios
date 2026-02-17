@@ -470,10 +470,12 @@ static void face_keys_to_face_indices(const Span<TriKey> faces, MutableSpan<int>
 static void quad_indices_of_tris(const IndexMask &quads, MutableSpan<int> indices)
 {
   BLI_assert(quads.size() * 2 == indices.size());
-  quads.foreach_index_optimized<int>(GrainSize(4096), [&](const int index, const int pos) {
-    indices[2 * pos + 0] = index;
-    indices[2 * pos + 1] = index;
-  });
+  quads.foreach_index_optimized<int>(
+      [&](const int index, const int pos) {
+        indices[2 * pos + 0] = index;
+        indices[2 * pos + 1] = index;
+      },
+      exec_mode::parallel);
 }
 
 static void ngon_indices_of_tris(const IndexMask &ngons,
@@ -482,9 +484,9 @@ static void ngon_indices_of_tris(const IndexMask &ngons,
 {
   BLI_assert(tris_by_ngon.size() == ngons.size());
   BLI_assert(tris_by_ngon.total_size() == indices.size());
-  ngons.foreach_index_optimized<int>(GrainSize(4096), [&](const int index, const int pos) {
-    indices.slice(tris_by_ngon[pos]).fill(index);
-  });
+  ngons.foreach_index_optimized<int>(
+      [&](const int index, const int pos) { indices.slice(tris_by_ngon[pos]).fill(index); },
+      exec_mode::parallel);
 }
 
 std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,

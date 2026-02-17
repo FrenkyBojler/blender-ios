@@ -446,7 +446,7 @@ bool has_anything_selected(const GSpan selection)
 static void invert_selection(MutableSpan<float> selection, const IndexMask &mask)
 {
   mask.foreach_index_optimized<int64_t>(
-      GrainSize(2048), [&](const int64_t i) { selection[i] = 1.0f - selection[i]; });
+      [&](const int64_t i) { selection[i] = 1.0f - selection[i]; }, exec_mode::parallel);
 }
 
 static void invert_selection(GMutableSpan selection, const IndexMask &mask)

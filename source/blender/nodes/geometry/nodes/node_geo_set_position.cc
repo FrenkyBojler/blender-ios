@@ -122,7 +122,7 @@ static void set_instances_position(bke::Instances &instances,
 
   MutableSpan<float4x4> transforms = instances.transforms_for_write();
   selection.foreach_index_optimized<int>(
-      GrainSize(2048), [&](const int i) { transforms[i].location() = result[i]; });
+      [&](const int i) { transforms[i].location() = result[i]; }, exec_mode::parallel);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)

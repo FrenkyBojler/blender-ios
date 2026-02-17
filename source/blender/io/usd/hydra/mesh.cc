@@ -264,9 +264,10 @@ void gather_face_data(const Span<int> tri_faces,
                       const Span<T> src_data,
                       MutableSpan<T> dst_data)
 {
-  triangles.foreach_index_optimized<int>(GrainSize(1024), [&](const int src, const int dst) {
-    dst_data[dst] = src_data[tri_faces[src]];
-  });
+  triangles.foreach_index_optimized<int>(
+      GrainSize(1024),
+      [&](const int src, const int dst) { dst_data[dst] = src_data[tri_faces[src]]; },
+      exec_mode::parallel);
 }
 
 template<typename T>
@@ -275,12 +276,14 @@ void gather_corner_data(const Span<int3> corner_tris,
                         const Span<T> src_data,
                         MutableSpan<T> dst_data)
 {
-  triangles.foreach_index_optimized<int>(GrainSize(1024), [&](const int src, const int dst) {
-    const int3 &tri = corner_tris[src];
-    dst_data[dst * 3 + 0] = src_data[tri[0]];
-    dst_data[dst * 3 + 1] = src_data[tri[1]];
-    dst_data[dst * 3 + 2] = src_data[tri[2]];
-  });
+  triangles.foreach_index_optimized<int>(
+      [&](const int src, const int dst) {
+        const int3 &tri = corner_tris[src];
+        dst_data[dst * 3 + 0] = src_data[tri[0]];
+        dst_data[dst * 3 + 1] = src_data[tri[1]];
+        dst_data[dst * 3 + 2] = src_data[tri[2]];
+      },
+      exec_mode::parallel);
 }
 
 static void copy_submesh(const Mesh &mesh,

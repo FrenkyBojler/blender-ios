@@ -341,14 +341,16 @@ static int face_to_vert_islands(const Mesh &mesh,
   AtomicDisjointSet disjoint_set(vert_mask.size());
   const GroupedSpan<int> face_verts(mesh.faces(), mesh.corner_verts());
 
-  face_mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int face_i) {
-    const Span<int> verts = face_verts[face_i];
-    const int v1 = verts_pos[verts.first()];
-    for (const int vert_i : verts.drop_front(1)) {
-      const int v2 = verts_pos[vert_i];
-      disjoint_set.join(v1, v2);
-    }
-  });
+  face_mask.foreach_index_optimized<int>(
+      [&](const int face_i) {
+        const Span<int> verts = face_verts[face_i];
+        const int v1 = verts_pos[verts.first()];
+        for (const int vert_i : verts.drop_front(1)) {
+          const int v2 = verts_pos[vert_i];
+          disjoint_set.join(v1, v2);
+        }
+      },
+      exec_mode::parallel);
 
   disjoint_set.calc_reduced_ids(vert_island_indices);
 
@@ -409,12 +411,14 @@ static int edge_to_vert_islands(const Mesh &mesh,
   AtomicDisjointSet disjoint_set(vert_mask.size());
   const Span<int2> edges = mesh.edges();
 
-  edge_mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int edge_i) {
-    const int2 edge = edges[edge_i];
-    const int v1 = verts_pos[edge[0]];
-    const int v2 = verts_pos[edge[1]];
-    disjoint_set.join(v1, v2);
-  });
+  edge_mask.foreach_index_optimized<int>(
+      [&](const int edge_i) {
+        const int2 edge = edges[edge_i];
+        const int v1 = verts_pos[edge[0]];
+        const int v2 = verts_pos[edge[1]];
+        disjoint_set.join(v1, v2);
+      },
+      exec_mode::parallel);
 
   disjoint_set.calc_reduced_ids(vert_island_indices);
 

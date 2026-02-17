@@ -3757,7 +3757,7 @@ static wmOperatorStatus grease_pencil_snap_to_cursor_exec(bContext *C, wmOperato
         /* Offset from first point of the curve. */
         const float3 offset = cursor_layer - positions[points.first()];
         selected_points.slice_content(points).foreach_index_optimized<int>(
-            GrainSize(4096), [&](const int point_i) { positions[point_i] += offset; });
+            [&](const int point_i) { positions[point_i] += offset; }, exec_mode::parallel);
       });
     }
     else {
@@ -5407,8 +5407,8 @@ static wmOperatorStatus grease_pencil_separate_fills_exec(bContext *C, wmOperato
     if (individual) {
       /* Each selected stroke becomes a new fill. */
       strokes.foreach_index_optimized<int>(
-          GrainSize(4096),
-          [&](const int64_t i, const int64_t pos) { fill_ids.span[i] = pos + new_fill_id; });
+          [&](const int64_t i, const int64_t pos) { fill_ids.span[i] = pos + new_fill_id; },
+          exec_mode::parallel);
     }
     else {
       /* All selected strokes become a new fill. */

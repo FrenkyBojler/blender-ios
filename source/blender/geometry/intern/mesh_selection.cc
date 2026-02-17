@@ -14,10 +14,12 @@ IndexMask vert_selection_from_edge(const Span<int2> edges,
                                    IndexMaskMemory &memory)
 {
   Array<bool> array(verts_num, false);
-  edge_mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int i) {
-    array[edges[i][0]] = true;
-    array[edges[i][1]] = true;
-  });
+  edge_mask.foreach_index_optimized<int>(
+      [&](const int i) {
+        array[edges[i][0]] = true;
+        array[edges[i][1]] = true;
+      },
+      exec_mode::parallel);
   return IndexMask::from_bools(array, memory);
 }
 

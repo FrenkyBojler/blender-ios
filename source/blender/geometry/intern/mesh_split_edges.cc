@@ -333,9 +333,10 @@ static Array<int2> calc_new_edges(const OffsetIndices<int> faces,
 {
   /* Calculate the offset of new edges assuming no new edges are identical and are merged. */
   selected_edges.foreach_index_optimized<int>(
-      GrainSize(4096), [&](const int edge, const int mask) {
+      [&](const int edge, const int mask) {
         r_new_edge_offsets[mask] = std::max<int>(edge_to_corner_map[edge].size() - 1, 0);
-      });
+      },
+      exec_mode::parallel);
   const OffsetIndices offsets = offset_indices::accumulate_counts_to_offsets(r_new_edge_offsets);
 
   Array<int2> new_edges(offsets.total_size());

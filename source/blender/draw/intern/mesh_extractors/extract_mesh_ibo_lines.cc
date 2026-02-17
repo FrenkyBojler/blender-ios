@@ -51,9 +51,11 @@ static void fill_loose_lines_ibo(const MeshRenderData &mr,
       array_utils::fill_index_range(data.cast<uint>(), loose_start);
     }
     else {
-      visible.foreach_index_optimized<int>(GrainSize(4096), [&](const int i, const int pos) {
-        data[pos] = loose_start + uint2(i * 2 + 0, i * 2 + 1);
-      });
+      visible.foreach_index_optimized<int>(
+          [&](const int i, const int pos) {
+            data[pos] = loose_start + uint2(i * 2 + 0, i * 2 + 1);
+          },
+          exec_mode::parallel);
     }
   });
 }

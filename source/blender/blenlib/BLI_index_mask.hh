@@ -454,9 +454,8 @@ class IndexMask : private IndexMaskData {
    * is because separate loops are generated for segments that are ranges and those that are not.
    * Only use this when very little processing is done for each index.
    */
-  template<typename IndexT> void foreach_index_optimized(ForeachIndexFn auto &&fn) const;
-  template<typename IndexT>
-  void foreach_index_optimized(GrainSize grain_size, ForeachIndexFn auto &&fn) const;
+  template<typename IndexT, ForeachIndexFn Fn, exec_mode::Tag Mode = exec_mode::Serial>
+  void foreach_index_optimized(Fn &&fn, Mode mode = exec_mode::serial) const;
 
   /**
    * Calls the function once for every segment. This should be used instead of #foreach_index if
@@ -922,35 +921,35 @@ inline void optimized_foreach_index_with_pos(const IndexMaskSegment segment,
   }
 }
 
-template<typename IndexT, ForeachIndexFn Fn>
-inline void IndexMask::foreach_index_optimized(Fn &&fn) const
+template<typename IndexT, ForeachIndexFn Fn, exec_mode::Tag Mode>
+inline void IndexMask::foreach_index_optimized(Fn &&fn, Mode mode) const
 {
-  this->foreach_segment(
-      [&](const IndexMaskSegment segment, [[maybe_unused]] const int64_t segment_pos) {
-        if constexpr (IndexPosFn<Fn>) {
-          optimized_foreach_index_with_pos<IndexT>(segment, segment_pos, fn);
-        }
-        else {
-          optimized_foreach_index<IndexT>(segment, fn);
-        }
-      });
-}
-
-template<typename IndexT, ForeachIndexFn Fn>
-inline void IndexMask::foreach_index_optimized(const GrainSize grain_size, Fn &&fn) const
-{
-  threading::parallel_for(this->index_range(), grain_size.value, [&](const IndexRange range) {
-    const IndexMask sub_mask = this->slice(range);
-    sub_mask.foreach_segment(
+  if constexpr (mode.is_parallel) {
+    threading::parallel_for(
+        this->index_range(), mode.grain_size(4096), [&](const IndexRange range) {
+          const IndexMask sub_mask = this->slice(range);
+          sub_mask.foreach_segment([&](const IndexMaskSegment segment,
+                                       [[maybe_unused]] const int64_t segment_pos) {
+            if constexpr (IndexPosFn<Fn>) {
+              optimized_foreach_index_with_pos<IndexT>(segment, segment_pos + range.start(), fn);
+            }
+            else {
+              optimized_foreach_index<IndexT>(segment, fn);
+            }
+          });
+        });
+  }
+  else {
+    this->foreach_segment(
         [&](const IndexMaskSegment segment, [[maybe_unused]] const int64_t segment_pos) {
           if constexpr (IndexPosFn<Fn>) {
-            optimized_foreach_index_with_pos<IndexT>(segment, segment_pos + range.start(), fn);
+            optimized_foreach_index_with_pos<IndexT>(segment, segment_pos, fn);
           }
           else {
             optimized_foreach_index<IndexT>(segment, fn);
           }
         });
-  });
+  }
 }
 
 template<ForeachSegmentOrRangePosFn Fn, exec_mode::Tag Mode>
