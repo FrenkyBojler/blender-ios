@@ -206,8 +206,8 @@ PyDoc_STRVAR(
     "   :type order: Literal['XYZ', 'XZY', 'YXZ', 'YZX', 'ZXY', 'ZYX']\n"
     "   :param euler_compat: Optional euler argument the new euler will be made\n"
     "      compatible with (no axis flipping between them).\n"
-    "      Useful for converting a series of matrices to animation curves.\n"
-    "   :type euler_compat: :class:`Euler`\n"
+    "      Useful for converting a series of quaternions to animation curves.\n"
+    "   :type euler_compat: :class:`Euler` | None\n"
     "   :return: Euler representation of the quaternion.\n"
     "   :rtype: :class:`Euler`\n");
 static PyObject *Quaternion_to_euler(QuaternionObject *self, PyObject *args)
@@ -217,8 +217,20 @@ static PyObject *Quaternion_to_euler(QuaternionObject *self, PyObject *args)
   const char *order_str = nullptr;
   short order = EULER_ORDER_XYZ;
   EulerObject *eul_compat = nullptr;
+  PyC_TypeOrNone eul_compat_or_none = PyC_TYPE_OR_NONE_INIT(&euler_Type, &eul_compat);
 
-  if (!PyArg_ParseTuple(args, "|sO!:to_euler", &order_str, &euler_Type, &eul_compat)) {
+  static const char *_keywords[] = {"", "", nullptr};
+  static _PyArg_Parser _parser = {
+      "|"  /* Optional arguments. */
+      "s"  /* `order` */
+      "O&" /* `euler_compat` */
+      ":to_euler",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(
+          args, nullptr, &_parser, &order_str, PyC_ParseTypeOrNone, &eul_compat_or_none))
+  {
     return nullptr;
   }
 
@@ -394,8 +406,8 @@ PyDoc_STRVAR(
     "   This representation consists of the rotation axis multiplied by the rotation angle.\n"
     "   Such a representation is useful for interpolation between multiple orientations.\n"
     "\n"
-    "   :return: exponential map.\n"
-    "   :rtype: :class:`Vector` of size 3\n"
+    "   :return: 3D exponential map.\n"
+    "   :rtype: :class:`Vector`\n"
     "\n"
     "   To convert back to a quaternion, pass it to the :class:`Quaternion` constructor.\n");
 static PyObject *Quaternion_to_exponential_map(QuaternionObject *self)
@@ -619,7 +631,7 @@ PyDoc_STRVAR(
     "   Make this quaternion compatible with another,\n"
     "   so interpolating between them works as intended.\n"
     "\n"
-    "   :param other: The other quaternion to make compatible with.\n"
+    "   :param other: The reference quaternion to make this one compatible with.\n"
     "   :type other: :class:`Quaternion`\n");
 static PyObject *Quaternion_make_compatible(QuaternionObject *self, PyObject *value)
 {
@@ -1545,7 +1557,7 @@ static PyNumberMethods Quaternion_NumMethods = {
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_axis_doc,
-    "Quaternion axis value.\n"
+    "Quaternion component value.\n"
     "\n"
     ":type: float\n");
 static PyObject *Quaternion_axis_get(QuaternionObject *self, void *type)
@@ -1885,8 +1897,9 @@ PyDoc_STRVAR(
     "\n"
     "   This object gives access to Quaternions in Blender.\n"
     "\n"
-    "   :param seq: size 3 or 4\n"
-    "   :type seq: :class:`Vector`\n"
+    "   :param seq: A (w, x, y, z) quaternion, a 3D exponential map vector,\n"
+    "      or a 3D axis vector (when *angle* is also provided).\n"
+    "   :type seq: Sequence[float]\n"
     "   :param angle: rotation angle, in radians\n"
     "   :type angle: float\n"
     "\n"

@@ -463,7 +463,8 @@ struct FileAssetSelectParams {
 
   short import_method = 0; /* eFileAssetImportMethod */
   short import_flags = 0;  /* eFileImportFlags */
-  char _pad2[4] = {};
+
+  int asset_flags = 0; /* #eFileSel_AssetParams_Flag */
 };
 
 /**
@@ -1287,6 +1288,7 @@ struct SpreadsheetRowFilter {
   float threshold = 0;
   float value_float2[2] = {};
   float value_float3[3] = {};
+  float value_float4[4] = {};
   float value_color[4] = {};
   char _pad1[4] = {};
 };
