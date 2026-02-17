@@ -134,10 +134,9 @@ bool AbstractView::is_fully_visible() const
   return false;
 }
 
-bool AbstractView::scroll(ViewScrollDirection /*direction*/)
+void AbstractView::scroll(ViewScrollDirection /*direction*/)
 {
   BLI_assert_msg(false, "Unsupported for this view type");
-  return false;
 }
 
 std::optional<uiViewState> AbstractView::persistent_state() const

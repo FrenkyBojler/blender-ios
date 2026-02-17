@@ -409,21 +409,13 @@ bool AbstractTreeView::is_fully_visible() const
   return this->tot_visible_row_count().value_or(0) >= last_tot_items_;
 }
 
-bool AbstractTreeView::scroll(ViewScrollDirection direction)
+void AbstractTreeView::scroll(ViewScrollDirection direction)
 {
   if (!supports_scrolling()) {
-    return false;
+    return;
   }
   /* Scroll value will be sanitized/clamped when drawing. */
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
-  /* Return false when scroll goes out of bounds. This is to prevent adding timer during
-   * autoscroll. */
-  if (*scroll_value_ < 0 ||
-      *scroll_value_ >= (last_tot_items_ - tot_visible_row_count().value_or(0)))
-  {
-    return false;
-  }
-  return true;
 }
 
 void AbstractTreeView::scroll_active_into_view()

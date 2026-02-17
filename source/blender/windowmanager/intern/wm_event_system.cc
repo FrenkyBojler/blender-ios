@@ -3557,7 +3557,6 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
                   action |= WM_HANDLER_BREAK;
 
                   /* Free the drags. */
-                  WM_event_timer_remove(wm, win, drag.timer);
                   WM_drag_free_list(lb);
                   WM_drag_free_list(&single_lb);
 
@@ -3909,6 +3908,16 @@ static void wm_paintcursor_test(bContext *C, const wmEvent *event)
   }
 }
 
+static void wm_drag_free_timer(wmWindowManager *wm, wmWindow *win)
+{
+  for (wmDrag &drag : wm->runtime->drags) {
+    if (drag.timer) {
+      WM_event_timer_remove(wm, win, drag.timer);
+      drag.timer = nullptr;
+    }
+  }
+}
+
 static eHandlerActionFlag wm_event_drag_and_drop_test(wmWindowManager *wm,
                                                       wmWindow *win,
                                                       wmEvent *event)
@@ -3923,6 +3932,7 @@ static eHandlerActionFlag wm_event_drag_and_drop_test(wmWindowManager *wm,
     screen->do_draw_drag = true;
   }
   else if (ELEM(event->type, EVT_ESCKEY, RIGHTMOUSE)) {
+    wm_drag_free_timer(wm, win);
     wm_drags_exit(wm, win);
     WM_drag_free_list(&wm->runtime->drags);
 
@@ -3933,6 +3943,7 @@ static eHandlerActionFlag wm_event_drag_and_drop_test(wmWindowManager *wm,
   else if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
     event->type = EVT_DROP;
 
+    wm_drag_free_timer(wm, win);
     /* Create custom-data, first free existing. */
     wm_event_custom_free(event);
     wm_event_custom_clear(event);

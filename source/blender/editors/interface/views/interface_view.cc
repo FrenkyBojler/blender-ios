@@ -38,7 +38,7 @@
 #include "WM_api.hh"
 
 namespace blender::ui {
-#define TREE_VIEW_DRAG_SCROLL_SPEED 0.01
+#define TREE_VIEW_DRAG_SCROLL_SPEED 0.1
 
 /**
  * Wrapper to store views in a #ListBase, addressable via an identifier.
@@ -244,16 +244,6 @@ void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const wmEvent *eve
     return;
   }
 
-  if (drag.timer) {
-    const float duration = 0.1f;
-    if (drag.timer->time_duration > duration) {
-      WM_event_timer_remove(wm, window, drag.timer);
-      drag.timer = nullptr;
-    }
-    else {
-      return;
-    }
-  }
   float x = event->xy[0], y = event->xy[1];
   window_to_block_fl(region, block, &x, &y);
   const float2 mouse_coords(x, y);
@@ -265,17 +255,33 @@ void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const wmEvent *eve
   bottom_bounds.max.y = bottom_bounds.min.y + ((UI_UNIT_Y * 2/3) + 1);
 
   if (top_bounds.contains(mouse_coords)) {
-    if (view->scroll(ViewScrollDirection::UP)) {
+    if (drag.timer) {
+      if (event->type == TIMER) {
+        view->scroll(ViewScrollDirection::UP);
+      }
+    } else {
       drag.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
     }
   }
   else if (bottom_bounds.contains(mouse_coords)) {
-    if (view->scroll(ViewScrollDirection::DOWN)) {
+    if (drag.timer) {
+      if (event->type == TIMER) {
+        view->scroll(ViewScrollDirection::DOWN);
+      }
+    } else {
       drag.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
     }
   }
+  else {
+    if (drag.timer) {
+      WM_event_timer_remove(wm, window, drag.timer);
+      drag.timer = nullptr;
+    }
+  }
 
-  ED_region_tag_redraw(region);
+  if (drag.timer) {
+    ED_region_tag_redraw(region);
+  }
 }
 
 AbstractViewItem *region_views_find_item_at(const ARegion &region, const int xy[2])
