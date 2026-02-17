@@ -232,7 +232,7 @@ static void undo_history_draw_menu(const bContext *C, Menu *menu)
 
   int undo_step_count = 0;
   int undo_step_count_all = 0;
-  bool has_visible_undo_step = false; 
+  bool has_visible_undo_step = false;
   for (UndoStep &us : wm->runtime->undo_stack->steps.items_reversed()) {
     undo_step_count_all += 1;
     if (us.skip) {
