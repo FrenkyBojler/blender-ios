@@ -186,11 +186,10 @@ static void bm_extract_input_loops_from_boundary_edges(BMesh *bm,
 }
 
 /* Computes the local coordinate system defining the 2D plane of the vertex loop. */
-static void calculate_plane_basis(
-    Span<BMVert *> loop, float3 &r_center, float3 &r_normal, float3 &r_p, float3 &r_q)
+static float3x3 calculate_plane_orientation(Span<BMVert *> loop, float3 &r_center)
 {
   r_center = float3(0.0f);
-  r_normal = float3(0.0f);
+  float3 normal = float3(0.0f);
 
   for (BMVert *v : loop) {
     r_center += float3(v->co);
@@ -201,34 +200,37 @@ static void calculate_plane_basis(
   for (const int i : loop.index_range()) {
     BMVert *curr = loop[i];
     BMVert *next = loop[(i + 1) % loop.size()];
-    add_newell_cross_v3_v3v3(r_normal, curr->co, next->co);
+    add_newell_cross_v3_v3v3(normal, curr->co, next->co);
   }
-  r_normal = math::normalize(r_normal);
+  normal = math::normalize(normal);
   float3 guess = float3(1.0f, 0.0f, 0.0f);
 
-  /* If r_normal is parallel to (1,0,0) cross product would be zero.
+  /* If normal is parallel to (1,0,0),the cross product would be zero.
    * In that case, we switch the guess to the y axis to allow a valid
    * perpendicular vector to be found. */
-  if (std::abs(math::dot(r_normal, guess)) > 0.99f) {
+  if (std::abs(math::dot(normal, guess)) > 0.99f) {
     guess = float3(0.0f, 1.0f, 0.0f);
   }
 
-  r_p = math::cross(r_normal, guess);
-  r_p = math::normalize(r_p);
-  r_q = math::cross(r_normal, r_p);
+  float3 p = math::normalize(math::cross(normal, guess));
+  float3 q = math::cross(normal, p);
+  float3x3 mat;
+  mat.x_axis() = p;
+  mat.y_axis() = q;
+  mat.z_axis() = normal;
+  return mat;
 }
 
 /* Projects 3D vertex coordinates onto a local 2D plane defined by the P and Q basis vectors. */
 static void project_loop_to_2d(Span<BMVert *> loop,
                                const float3 &center,
-                               const float3 &p,
-                               const float3 &q,
+                               const float3x3 &mat,
                                Vector<CircleVert> &r_2d_verts)
 {
   r_2d_verts.reserve(loop.size());
   for (BMVert *v : loop) {
     float3 vec = float3(v->co) - center;
-    CircleVert cv{.v = v, .co_2d = {math::dot(vec, p), math::dot(vec, q)}};
+    CircleVert cv{.v = v, .co_2d = {math::dot(vec, mat.x_axis()), math::dot(vec, mat.y_axis())}};
     r_2d_verts.append(cv);
   }
 }
@@ -572,8 +574,8 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
   for (LoopData &loop_data : loops) {
     const Vector<BMVert *> &loop = loop_data.verts;
 
-    float3 center_3d, normal, p, q;
-    calculate_plane_basis(loop, center_3d, normal, p, q);
+    float3 center_3d;
+    float3x3 mat = calculate_plane_orientation(loop, center_3d);
 
     bool is_mirrored = false;
     int mirror_axis = -1;
@@ -599,12 +601,14 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       BMVert *v_end = loop.last();
 
       center_3d = math::midpoint(float3(v_start->co), float3(v_end->co));
-      p = math::normalize(float3(v_start->co) - center_3d);
-      q = math::normalize(math::cross(normal, p));
+      float3 p = math::normalize(float3(v_start->co) - center_3d);
+      float3 q = math::normalize(math::cross(mat.z_axis(), p));
+      mat.x_axis() = p;
+      mat.y_axis() = q;
     }
 
     Vector<CircleVert> circle_verts;
-    project_loop_to_2d(loop, center_3d, p, q, circle_verts);
+    project_loop_to_2d(loop, center_3d, mat, circle_verts);
 
     float2 circle_center_2d;
     float radius;
@@ -624,11 +628,12 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
         circle_verts, circle_center_2d, radius, regular, loop_data.is_closed, angle);
 
     for (const CircleVert &cv : circle_verts) {
-      float3 final_pos = center_3d + p * cv.target_2d.x + q * cv.target_2d.y;
+      const float3 target_local(cv.target_2d.x, cv.target_2d.y, 0.0f);
+      float3 final_pos = center_3d + mat * target_local;
 
       if (!flatten) {
         float projected_pos[3];
-        if (project_on_mesh(bvh_tree, &bvh_data, cv.v, final_pos, normal, projected_pos)) {
+        if (project_on_mesh(bvh_tree, &bvh_data, cv.v, final_pos, mat.z_axis(), projected_pos)) {
           final_pos = float3(projected_pos);
         }
       }
