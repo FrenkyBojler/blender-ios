@@ -24,6 +24,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_idprop.hh"
+#include "BKE_idprop_hash.hh"
 #include "BKE_lib_id.hh"
 
 #include "CLG_log.h"
