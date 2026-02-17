@@ -299,23 +299,26 @@ static void get_graph_view_bounds(bAnimContext *ac,
     }
   }
 
-  /* Ensure that the extents are not too extreme that view implodes. */
-  constexpr float threshold = 0.001f;
+  /* Ensure that the extents are not too extreme that view implodes. We need different values for x
+   * and y due to the nature of the data displayed. The minimum distance on x for keyframes is
+   * BEZT_BINARYSEARCH_THRESH so differences larger than that cannot occur. For the y value there
+   * is no such limit, so we have to choose a smaller number. */
+  constexpr float2 threshold(BEZT_BINARYSEARCH_THRESH, 0.001f);
   if (found_bounds) {
     if (do_sel_only) {
       /* Only adding contextual padding when looking at selected keys. When looking at all data,
        * there is no additional information we could possibly use. */
       add_contextual_padding(*ac,
                              anim_data,
-                             BLI_rctf_size_x(&view_bounds) < threshold,
-                             BLI_rctf_size_y(&view_bounds) < threshold,
+                             BLI_rctf_size_x(&view_bounds) < threshold.x,
+                             BLI_rctf_size_y(&view_bounds) < threshold.y,
                              view_bounds);
     }
-    if (fabsf(view_bounds.xmax - view_bounds.xmin) < threshold) {
+    if (fabsf(view_bounds.xmax - view_bounds.xmin) < threshold.x) {
       view_bounds.xmin -= 0.0005f;
       view_bounds.xmax += 0.0005f;
     }
-    if (fabsf(view_bounds.ymax - view_bounds.ymin) < threshold) {
+    if (fabsf(view_bounds.ymax - view_bounds.ymin) < threshold.y) {
       view_bounds.ymin -= 0.0005f;
       view_bounds.ymax += 0.0005f;
     }
