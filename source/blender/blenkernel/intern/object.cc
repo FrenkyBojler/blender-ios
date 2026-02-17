@@ -627,13 +627,12 @@ static void create_legacy_geometry_nodes_properties(Object &ob)
       continue;
     }
     NodesModifierData &nmd = reinterpret_cast<NodesModifierData &>(md);
-
     const IDProperty *system_props = nmd.modifier.system_properties;
     if (!system_props) {
       return;
     }
 
-    IDProperty *old_props = bke::idprop::create_group("Nodes Modifier Settings").release();
+    IDProperty *legacy_props = bke::idprop::create_group("Nodes Modifier Settings").release();
 
     const IDProperty *inputs = IDP_GetPropertyFromGroup(system_props, "inputs");
     if (inputs && inputs->type == IDP_GROUP) {
@@ -646,27 +645,27 @@ static void create_legacy_geometry_nodes_properties(Object &ob)
         const int type = IDP_int_get(type_prop);
         if (type == int(nodes::GeometryNodesInputType::Layer)) {
           if (const IDProperty *name = IDP_GetPropertyFromGroup(&prop, "layer_name")) {
-            IDProperty *new_prop = IDP_CopyProperty(name);
-            STRNCPY(new_prop->name, identifier.c_str());
-            IDP_AddToGroup(old_props, new_prop);
+            IDProperty *legacy_prop = IDP_CopyProperty(name);
+            STRNCPY(legacy_prop->name, identifier.c_str());
+            IDP_AddToGroup(legacy_props, legacy_prop);
           }
         }
         else {
           if (const IDProperty *value = IDP_GetPropertyFromGroup(&prop, "value")) {
-            IDProperty *new_prop = IDP_CopyProperty(value);
-            STRNCPY(new_prop->name, identifier.c_str());
-            IDP_AddToGroup(old_props, new_prop);
+            IDProperty *legacy_prop = IDP_CopyProperty(value);
+            STRNCPY(legacy_prop->name, identifier.c_str());
+            IDP_AddToGroup(legacy_props, legacy_prop);
           }
 
           const bool use_attribute = type == int(nodes::GeometryNodesInputType::Attribute);
           IDP_AddToGroup(
-              old_props,
+              legacy_props,
               bke::idprop::create(identifier + "_use_attribute", int(use_attribute)).release());
 
           if (const IDProperty *name = IDP_GetPropertyFromGroup(&prop, "attribute_name")) {
-            IDProperty *new_attr_prop = IDP_CopyProperty(name);
-            SNPRINTF(new_attr_prop->name, "%s_attribute_name", identifier.c_str());
-            IDP_AddToGroup(old_props, new_attr_prop);
+            IDProperty *legacy_attr_prop = IDP_CopyProperty(name);
+            SNPRINTF(legacy_attr_prop->name, "%s_attribute_name", identifier.c_str());
+            IDP_AddToGroup(legacy_props, legacy_attr_prop);
           }
         }
       }
@@ -677,15 +676,15 @@ static void create_legacy_geometry_nodes_properties(Object &ob)
       for (const IDProperty &prop : inputs->data.group) {
         const StringRefNull identifier = prop.name;
         if (const IDProperty *name = IDP_GetPropertyFromGroup(&prop, "attribute_name")) {
-          IDProperty *new_prop = IDP_CopyProperty(name);
-          SNPRINTF(new_prop->name, "%s_attribute_name", identifier.c_str());
-          IDP_AddToGroup(old_props, new_prop);
+          IDProperty *legacy_prop = IDP_CopyProperty(name);
+          SNPRINTF(legacy_prop->name, "%s_attribute_name", identifier.c_str());
+          IDP_AddToGroup(legacy_props, legacy_prop);
         }
       }
     }
 
     BLI_assert(!nmd.settings.properties);
-    nmd.settings.properties = old_props;
+    nmd.settings.properties = legacy_props;
   }
 }
 
