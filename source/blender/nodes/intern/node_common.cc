@@ -782,7 +782,7 @@ bool bke::node_is_connected_to_output(const bNodeTree &ntree, const bNode &node)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Adapt Type Node
+/** \name Implicit Conversion Node
  * \{ */
 
 static void node_adapt_type_declare(nodes::NodeDeclarationBuilder &b)
@@ -802,6 +802,13 @@ static void node_adapt_type_declare(nodes::NodeDeclarationBuilder &b)
       .structure_type(nodes::StructureType::Dynamic)
       .reference_pass_all()
       .propagate_all();
+}
+
+static void node_implicit_conversion_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_implicit_conversion_init(bNodeTree * /*ntree*/, bNode *node)
@@ -850,6 +857,7 @@ void register_node_type_implicit_conversion()
   ntype->ui_description = "Implicitly convert the input value to a fixed socket type";
   ntype->nclass = NODE_CLASS_CONVERTER;
   ntype->declare = node_adapt_type_declare;
+  ntype->draw_buttons = node_implicit_conversion_layout;
   ntype->initfunc = node_implicit_conversion_init;
   node_type_storage(
       *ntype, "NodeImplicitConversion", node_free_standard_storage, node_copy_standard_storage);

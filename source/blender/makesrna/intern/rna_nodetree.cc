@@ -4172,6 +4172,46 @@ static PointerRNA rna_NodeMenuSwitch_enum_definition_get(PointerRNA *ptr)
   return *ptr;
 }
 
+static int rna_NodeImplicitConversion_data_type_get(PointerRNA *ptr)
+{
+  const bNode &node = *ptr->data_as<bNode>();
+  const NodeImplicitConversion &data = *static_cast<NodeImplicitConversion *>(node.storage);
+  const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(data.type_idname);
+  return socket_type ? socket_type->type : SOCK_CUSTOM;
+}
+
+static void rna_NodeImplicitConversion_data_type_set(PointerRNA *ptr, const int value)
+{
+  const bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(value);
+  if (socket_type) {
+    bNode &node = *ptr->data_as<bNode>();
+    NodeImplicitConversion &data = *static_cast<NodeImplicitConversion *>(node.storage);
+    STRNCPY(data.type_idname, socket_type->idname.c_str());
+  }
+}
+
+static const EnumPropertyItem *rna_NodeImplicitConversion_data_type_itemf(bContext * /*C*/,
+                                                                          PointerRNA *ptr,
+                                                                          PropertyRNA * /*prop*/,
+                                                                          bool *r_free)
+{
+  *r_free = true;
+  bNodeTree &ntree = *id_cast<bNodeTree *>(ptr->owner_id);
+  return itemf_function_check(
+      rna_enum_node_socket_data_type_items, [&](const EnumPropertyItem *item) {
+        bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(item->value);
+        if (!socket_type) {
+          return false;
+        }
+        if (ntree.typeinfo->valid_socket_type &&
+            !ntree.typeinfo->valid_socket_type(ntree.typeinfo, socket_type))
+        {
+          return false;
+        }
+        return true;
+      });
+}
+
 }  // namespace blender
 
 #else
@@ -8669,13 +8709,26 @@ static void def_reroute(BlenderRNA * /*brna*/, StructRNA *srna)
 
 static void def_implicit_conversion(BlenderRNA * /*brna*/, StructRNA *srna)
 {
+  PropertyRNA *prop;
+
   RNA_def_struct_sdna_from(srna, "NodeImplicitConversion", "storage");
 
-  PropertyRNA *prop = RNA_def_property(srna, "socket_idname", PROP_STRING, PROP_NONE);
+  prop = RNA_def_property(srna, "socket_idname", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "type_idname");
   RNA_def_property_string_funcs(
       prop, nullptr, nullptr, "rna_implicit_conversion_node_socket_type_set");
   RNA_def_property_ui_text(prop, "Type of socket", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_node_socket_data_type_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_NodeImplicitConversion_data_type_get",
+                              "rna_NodeImplicitConversion_data_type_set",
+                              "rna_NodeImplicitConversion_data_type_itemf");
+  RNA_def_property_enum_default(prop, SOCK_FLOAT);
+  RNA_def_property_ui_text(prop, "Data Type", "");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
