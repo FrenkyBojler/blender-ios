@@ -191,25 +191,20 @@ wmXrRuntimeData *wm_xr_runtime_data_create()
 
 void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
 {
-  /* Note that this function may be called twice, because of an indirect recursion: If a session is
-   * running while WM-XR calls this function, calling GHOST_XrContextDestroy() will call this
-   * again, because it's also set as the session exit callback. So nullptr-check and nullptr
-   * everything that is freed here. */
+  /* This function may be called recursively via the #GHOST_XrContextDestroy session exit callback.
+   * Guard against double-free by nulling pointers after freeing. */
 
-  /* We free all runtime XR data here, so if the context is still alive, destroy it. */
+  /* Destroy context if still alive. */
   if ((*runtime)->ghost_context != nullptr) {
     GHOST_IXrContext *ghost_context = (*runtime)->ghost_context;
-    /* Prevent recursive #GHOST_XrContextDestroy() call by nulling the context pointer before
-     * the first call, see comment at the beginning of the function. */
+    /* Set to nullptr before calling XrContextDestroy to prevent recursive calls. */
     (*runtime)->ghost_context = nullptr;
-
-    wm_xr_session_data_free(&(*runtime)->session_state);
-    WM_xr_actionmaps_clear(*runtime);
 
     GHOST_XrContextDestroy(ghost_context);
   }
 
-  if ((*runtime)->offscreen_area != nullptr) {
+  /* Free remaining runtime data. */
+  if (*runtime != nullptr) {
     ScrArea *xr_offscreen_area = (*runtime)->offscreen_area;
     BLI_assert(xr_offscreen_area);
 
@@ -218,16 +213,11 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
     WM_event_remove_handlers_by_area(&xr_win->runtime->handlers, xr_offscreen_area);
     ED_area_offscreen_free(wm, xr_win, xr_offscreen_area);
 
-    /* Set to nullptr to prevent double frees, see comment at the beginning of the function. */
-    (*runtime)->offscreen_area = nullptr;
-  }
-
-  if ((*runtime)->b_context != nullptr) {
     CTX_free((*runtime)->b_context);
-    (*runtime)->b_context = nullptr;
-  }
 
-  if (*runtime != nullptr) {
+    wm_xr_session_data_free(&(*runtime)->session_state);
+    WM_xr_actionmaps_clear(*runtime);
+
     MEM_SAFE_DELETE(*runtime);
     *runtime = nullptr;
   }
