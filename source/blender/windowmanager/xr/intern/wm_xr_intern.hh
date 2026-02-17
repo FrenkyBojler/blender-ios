@@ -10,6 +10,8 @@
 
 #include "CLG_log.h"
 
+#include "BLI_vector.hh"
+
 #include "GHOST_IContext.hh"
 #include "GHOST_IXrContext.hh"
 #include "GHOST_Types.hh"
@@ -29,6 +31,10 @@ struct wmWindowManager;
 struct wmXrActionSet;
 struct wmXrController;
 struct wmXrData;
+
+namespace gpu {
+class Texture;
+}
 
 struct wmXrSessionState {
   bool is_started;
@@ -157,9 +163,13 @@ struct wmXrController {
   GHOST_XrPose aim_pose;
   float aim_mat[4][4];
   float aim_mat_base[4][4];
+  /** Model pose matrix (in world space, for render model positioning). */
+  float model_mat[4][4];
 
   /** Controller model. */
   gpu::Batch *model;
+  /** Controller model textures. */
+  Vector<gpu::Texture *> model_textures;
 };
 
 struct wmXrAction {

@@ -8,9 +8,13 @@
 
 #pragma once
 
+#include "BLI_math_matrix.hh"
+#include "BLI_span.hh"
+
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 #ifdef WITH_VULKAN_BACKEND
 #  include <vulkan/vulkan_core.h>
@@ -1234,24 +1238,28 @@ struct GHOST_XrActionProfileInfo {
 struct GHOST_XrControllerModelVertex {
   float position[3];
   float normal[3];
+  float uv[2];
 };
 
 struct GHOST_XrControllerModelComponent {
   /** World space transform. */
-  float transform[4][4];
+  blender::float4x4 transform;
   uint32_t vertex_offset;
   uint32_t vertex_count;
   uint32_t index_offset;
   uint32_t index_count;
+  int32_t texture_index;
 };
 
+using GHOST_XrControllerModelTextureData = std::vector<uchar>;
+
 struct GHOST_XrControllerModelData {
-  uint32_t count_vertices;
-  const GHOST_XrControllerModelVertex *vertices;
-  uint32_t count_indices;
-  const uint32_t *indices;
-  uint32_t count_components;
-  const GHOST_XrControllerModelComponent *components;
+  blender::Span<GHOST_XrControllerModelVertex> vertices;
+  blender::Span<uint32_t> indices;
+  blender::Span<GHOST_XrControllerModelComponent> components;
+  blender::Span<GHOST_XrControllerModelTextureData> textures;
+
+  GHOST_XrPose base_pose;
 };
 
 #endif /* WITH_XR_OPENXR */

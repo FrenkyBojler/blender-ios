@@ -41,6 +41,7 @@ struct OpenXRSessionData {
   std::vector<XrView> views;
   std::vector<GHOST_XrSwapchain> swapchains;
 
+  // TODO: replace with Blender types or at least unordered_map
   std::map<std::string, GHOST_XrActionSet> action_sets;
   /* Controller models identified by subaction path. */
   std::map<std::string, GHOST_XrControllerModel> controller_models;
@@ -973,24 +974,22 @@ void GHOST_XrSession::getActionCustomdataArray(const char *action_set_name,
 
 bool GHOST_XrSession::loadControllerModel(const char *subaction_path)
 {
-  if (!context_->isExtensionEnabled(XR_MSFT_CONTROLLER_MODEL_EXTENSION_NAME)) {
+  if (!(context_->isExtensionEnabled(XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME))) {
     return false;
   }
 
   XrSession session = oxr_->session;
-  std::map<std::string, GHOST_XrControllerModel> &controller_models = oxr_->controller_models;
-  std::map<std::string, GHOST_XrControllerModel>::iterator it = controller_models.find(
-      subaction_path);
+  auto &controller_models = oxr_->controller_models;
+  auto it = controller_models.find(subaction_path);
 
   if (it == controller_models.end()) {
     XrInstance instance = context_->getInstance();
-    it = controller_models
-             .emplace(std::piecewise_construct,
-                      std::make_tuple(subaction_path),
-                      std::make_tuple(instance, subaction_path))
-             .first;
+
+    controller_models.try_emplace(subaction_path, instance, oxr_->reference_space, subaction_path);
+    it = controller_models.find(subaction_path);
   }
 
+  /* Load the model, this can be called multiple times. */
   it->second.load(session);
 
   return true;
@@ -998,21 +997,19 @@ bool GHOST_XrSession::loadControllerModel(const char *subaction_path)
 
 void GHOST_XrSession::unloadControllerModel(const char *subaction_path)
 {
-  std::map<std::string, GHOST_XrControllerModel> &controller_models = oxr_->controller_models;
-  /* It's possible nothing is removed. */
+  auto &controller_models = oxr_->controller_models;
   controller_models.erase(subaction_path);
 }
 
 bool GHOST_XrSession::updateControllerModelComponents(const char *subaction_path)
 {
   XrSession session = oxr_->session;
-  std::map<std::string, GHOST_XrControllerModel>::iterator it = oxr_->controller_models.find(
-      subaction_path);
+  auto it = oxr_->controller_models.find(subaction_path);
   if (it == oxr_->controller_models.end()) {
     return false;
   }
 
-  it->second.updateComponents(session);
+  it->second.updateComponents(session, draw_info_->frame_state.predictedDisplayTime);
 
   return true;
 }
@@ -1020,8 +1017,7 @@ bool GHOST_XrSession::updateControllerModelComponents(const char *subaction_path
 bool GHOST_XrSession::getControllerModelData(const char *subaction_path,
                                              GHOST_XrControllerModelData &r_data)
 {
-  std::map<std::string, GHOST_XrControllerModel>::iterator it = oxr_->controller_models.find(
-      subaction_path);
+  auto it = oxr_->controller_models.find(subaction_path);
   if (it == oxr_->controller_models.end()) {
     return false;
   }

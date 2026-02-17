@@ -476,8 +476,10 @@ void GHOST_XrContext::getExtensionsToEnable(
 #endif
   try_ext.push_back(XR_HUAWEI_CONTROLLER_INTERACTION_EXTENSION_NAME);
 
-  /* Controller model extension. */
-  try_ext.push_back(XR_MSFT_CONTROLLER_MODEL_EXTENSION_NAME);
+  /* Interaction (controller) render model extensions and dependency. */
+  try_ext.push_back(XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME);
+  try_ext.push_back(XR_EXT_RENDER_MODEL_EXTENSION_NAME);
+  try_ext.push_back(XR_EXT_UUID_EXTENSION_NAME);
 
   /* Varjo quad view extension. */
   try_ext.push_back(XR_VARJO_QUAD_VIEWS_EXTENSION_NAME);
