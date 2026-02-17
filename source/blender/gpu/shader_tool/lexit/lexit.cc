@@ -614,13 +614,13 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
       /* Move data to destination elements (compaction). */
       const u8x64 data_packed = u8x64_table(curr_tok_type)[shuffle];
       /* Write 16 types in the stream. */
-      data_packed.store_unaligned((uint8_t *)types_.get() + cursor);
+      data_packed.store_unaligned((uint8_t *)&types_[cursor]);
       /* The offsets are contained inside the 8 bit shuffle vector.
        * We need to promote it to 32 bit before adding the base offset. */
-      (u32x16(shuffle.lane(0)) + offset).store_unaligned(offsets_.get() + (cursor + 0));
-      (u32x16(shuffle.lane(1)) + offset).store_unaligned(offsets_.get() + (cursor + 16));
-      (u32x16(shuffle.lane(2)) + offset).store_unaligned(offsets_.get() + (cursor + 32));
-      (u32x16(shuffle.lane(3)) + offset).store_unaligned(offsets_.get() + (cursor + 48));
+      (u32x16(shuffle.lane(0)) + offset).store_unaligned(&offsets_[cursor + 0]);
+      (u32x16(shuffle.lane(1)) + offset).store_unaligned(&offsets_[cursor + 16]);
+      (u32x16(shuffle.lane(2)) + offset).store_unaligned(&offsets_[cursor + 32]);
+      (u32x16(shuffle.lane(3)) + offset).store_unaligned(&offsets_[cursor + 48]);
 #  ifdef LEXIT_DEBUG
       for (int i = cursor; i < cursor + popcount; i++) {
         int start = offsets_[i - 1];
@@ -634,10 +634,10 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
       auto [shuffle, popcount] = shuffle_indices_from_emit_mask(emit_end_mask);
       /* The offsets are contained inside the 8 bit shuffle vector.
        * We need to promote it to 32 bit before adding the base offset. */
-      (u32x16(shuffle.lane(0)) + offset).store_unaligned(offsets_end_.get() + (cursor_end + 0));
-      (u32x16(shuffle.lane(1)) + offset).store_unaligned(offsets_end_.get() + (cursor_end + 16));
-      (u32x16(shuffle.lane(2)) + offset).store_unaligned(offsets_end_.get() + (cursor_end + 32));
-      (u32x16(shuffle.lane(3)) + offset).store_unaligned(offsets_end_.get() + (cursor_end + 48));
+      (u32x16(shuffle.lane(0)) + offset).store_unaligned(&offsets_end_[cursor_end + 0]);
+      (u32x16(shuffle.lane(1)) + offset).store_unaligned(&offsets_end_[cursor_end + 16]);
+      (u32x16(shuffle.lane(2)) + offset).store_unaligned(&offsets_end_[cursor_end + 32]);
+      (u32x16(shuffle.lane(3)) + offset).store_unaligned(&offsets_end_[cursor_end + 48]);
 #  ifdef LEXIT_DEBUG
       for (int i = cursor_end; i < cursor_end + popcount; i++) {
         int start = offsets_[i - 1];
@@ -693,7 +693,7 @@ void TokenBuffer::compute_lengths()
     const u8x64 str_large = u8x64(str_size_32 > 127);
     /* Saturate the size to max int8_t since SSE comparison is signed. */
     const u8x64 str_size = select(u8x64(str_size_32), u8x64(127), str_large);
-    str_size.store(lengths_.get() + tok_id);
+    str_size.store(&lengths_[tok_id]);
   }
   /* Finish tail using scalar loop. */
 #endif
@@ -728,7 +728,7 @@ void TokenBuffer::atomize_words(IdentifierMap &identifiers, const KeywordTable &
     using namespace simd;
     for (; tok_id + stride <= size_; tok_id += stride, ++chunk_id) {
       const u8x64 size = u8x64::load(&lengths_[tok_id]);
-      const u8x64 type = u8x64::load((uint8_t *)types_.get() + tok_id);
+      const u8x64 type = u8x64::load((uint8_t *)&types_[tok_id]);
       const uint64_t is_word = movemask(type == Word);
       const uint64_t less_8 = movemask(size < 9);
       const uint64_t less_16 = movemask(size < 17);
