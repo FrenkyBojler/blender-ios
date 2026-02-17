@@ -781,43 +781,45 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
     const VArray<int8_t> knots_modes = this->nurbs_knots_modes();
     const Span<float> custom_knots = this->nurbs_custom_knots();
 
-    nurbs_mask.foreach_segment(GrainSize(64), [&](const IndexMaskSegment segment) {
-      Vector<float, 32> knots;
-      for (const int curve_index : segment) {
-        const IndexRange points = points_by_curve[curve_index];
-        const IndexRange evaluated_points = evaluated_points_by_curve[curve_index];
+    nurbs_mask.foreach_segment(
+        [&](const IndexMaskSegment segment) {
+          Vector<float, 32> knots;
+          for (const int curve_index : segment) {
+            const IndexRange points = points_by_curve[curve_index];
+            const IndexRange evaluated_points = evaluated_points_by_curve[curve_index];
 
-        const int8_t order = orders[curve_index];
-        const int resolution = resolutions[curve_index];
-        const bool is_cyclic = cyclic[curve_index];
-        const KnotsMode mode = KnotsMode(knots_modes[curve_index]);
+            const int8_t order = orders[curve_index];
+            const int resolution = resolutions[curve_index];
+            const bool is_cyclic = cyclic[curve_index];
+            const KnotsMode mode = KnotsMode(knots_modes[curve_index]);
 
-        if (!curves::nurbs::check_valid_eval_params(
-                points.size(), order, is_cyclic, mode, resolution))
-        {
-          r_data[curve_index].invalid = true;
-          continue;
-        }
-        const int knots_num = curves::nurbs::knots_num(points.size(), order, is_cyclic);
-        knots.reinitialize(knots_num);
-        curves::nurbs::load_curve_knots(mode,
-                                        points.size(),
-                                        order,
-                                        is_cyclic,
-                                        custom_knots_by_curve[curve_index],
-                                        custom_knots,
-                                        knots);
+            if (!curves::nurbs::check_valid_eval_params(
+                    points.size(), order, is_cyclic, mode, resolution))
+            {
+              r_data[curve_index].invalid = true;
+              continue;
+            }
+            const int knots_num = curves::nurbs::knots_num(points.size(), order, is_cyclic);
+            knots.reinitialize(knots_num);
+            curves::nurbs::load_curve_knots(mode,
+                                            points.size(),
+                                            order,
+                                            is_cyclic,
+                                            custom_knots_by_curve[curve_index],
+                                            custom_knots,
+                                            knots);
 
-        curves::nurbs::calculate_basis_cache(points.size(),
-                                             evaluated_points.size(),
-                                             order,
-                                             resolution,
-                                             is_cyclic,
-                                             mode,
-                                             knots,
-                                             r_data[curve_index]);
-      }
-    });
+            curves::nurbs::calculate_basis_cache(points.size(),
+                                                 evaluated_points.size(),
+                                                 order,
+                                                 resolution,
+                                                 is_cyclic,
+                                                 mode,
+                                                 knots,
+                                                 r_data[curve_index]);
+          }
+        },
+        exec_mode::grain_size(64));
   });
 }
 

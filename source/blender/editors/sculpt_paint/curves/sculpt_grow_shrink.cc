@@ -91,14 +91,16 @@ class ShrinkCurvesEffect : public CurvesEffect {
                MutableSpan<float3> positions_cu) override
   {
     const OffsetIndices points_by_curve = curves.points_by_curve();
-    curve_mask.foreach_segment(GrainSize(256), [&](IndexMaskSegment segment) {
-      ParameterizationBuffers data;
-      for (const int curve_i : segment) {
-        const float move_distance_cu = move_distances_cu[curve_i];
-        const IndexRange points = points_by_curve[curve_i];
-        this->shrink_curve(positions_cu.slice(points), move_distance_cu, data);
-      }
-    });
+    curve_mask.foreach_segment(
+        [&](IndexMaskSegment segment) {
+          ParameterizationBuffers data;
+          for (const int curve_i : segment) {
+            const float move_distance_cu = move_distances_cu[curve_i];
+            const IndexRange points = points_by_curve[curve_i];
+            this->shrink_curve(positions_cu.slice(points), move_distance_cu, data);
+          }
+        },
+        exec_mode::grain_size(256));
   }
 
  private:
@@ -140,26 +142,29 @@ class ExtrapolateCurvesEffect : public CurvesEffect {
                MutableSpan<float3> positions_cu) override
   {
     const OffsetIndices points_by_curve = curves.points_by_curve();
-    curve_mask.foreach_segment(GrainSize(256), [&](IndexMaskSegment segment) {
-      MoveAndResampleBuffers resample_buffer;
-      for (const int curve_i : segment) {
-        const float move_distance_cu = move_distances_cu[curve_i];
-        const IndexRange points = points_by_curve[curve_i];
-        if (points.size() <= 1) {
-          continue;
-        }
+    curve_mask.foreach_segment(
+        [&](IndexMaskSegment segment) {
+          MoveAndResampleBuffers resample_buffer;
+          for (const int curve_i : segment) {
+            const float move_distance_cu = move_distances_cu[curve_i];
+            const IndexRange points = points_by_curve[curve_i];
+            if (points.size() <= 1) {
+              continue;
+            }
 
-        const float3 old_last_pos_cu = positions_cu[points.last()];
-        /* Use some point within the curve rather than the end point to smooth out some random
-         * variation. */
-        const float3 direction_reference_point =
-            positions_cu[points.size() > 2 ? points[points.size() / 2] : points.first()];
-        const float3 direction = math::normalize(old_last_pos_cu - direction_reference_point);
+            const float3 old_last_pos_cu = positions_cu[points.last()];
+            /* Use some point within the curve rather than the end point to smooth out some random
+             * variation. */
+            const float3 direction_reference_point =
+                positions_cu[points.size() > 2 ? points[points.size() / 2] : points.first()];
+            const float3 direction = math::normalize(old_last_pos_cu - direction_reference_point);
 
-        const float3 new_last_pos_cu = old_last_pos_cu + direction * move_distance_cu;
-        move_last_point_and_resample(resample_buffer, positions_cu.slice(points), new_last_pos_cu);
-      }
-    });
+            const float3 new_last_pos_cu = old_last_pos_cu + direction * move_distance_cu;
+            move_last_point_and_resample(
+                resample_buffer, positions_cu.slice(points), new_last_pos_cu);
+          }
+        },
+        exec_mode::grain_size(256));
   }
 };
 

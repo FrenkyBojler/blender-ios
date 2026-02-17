@@ -207,7 +207,7 @@ void copy_with_mixing(const Span<T> src,
                       MutableSpan<T> dst)
 {
   selection.foreach_segment(
-      GrainSize(512), [&](const IndexMaskSegment segment, const int64_t segment_pos) {
+      [&](const IndexMaskSegment segment, const int64_t segment_pos) {
         const IndexRange dst_range(segment_pos, segment.size());
         bke::attribute_math::DefaultPropagationMixer<T> mixer{dst.slice(dst_range)};
         for (const int i : segment.index_range()) {
@@ -216,7 +216,8 @@ void copy_with_mixing(const Span<T> src,
           }
         }
         mixer.finalize();
-      });
+      },
+      exec_mode::grain_size(512));
 }
 
 static void copy_with_mixing(const GSpan src,

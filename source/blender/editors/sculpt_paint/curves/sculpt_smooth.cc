@@ -223,28 +223,30 @@ struct SmoothOperationExecutor {
     const OffsetIndices points_by_curve = curves_->points_by_curve();
     MutableSpan<float3> positions = curves_->positions_for_write();
 
-    curve_selection_.foreach_segment(GrainSize(256), [&](const IndexMaskSegment segment) {
-      Vector<float3> old_positions;
-      for (const int curve_i : segment) {
-        const IndexRange points = points_by_curve[curve_i];
-        old_positions.clear();
-        old_positions.extend(positions.slice(points));
-        for (const int i : IndexRange(points.size()).drop_front(1).drop_back(1)) {
-          const int point_i = points[i];
-          const float smooth_factor = point_smooth_factors[point_i];
-          if (smooth_factor == 0.0f) {
-            continue;
+    curve_selection_.foreach_segment(
+        [&](const IndexMaskSegment segment) {
+          Vector<float3> old_positions;
+          for (const int curve_i : segment) {
+            const IndexRange points = points_by_curve[curve_i];
+            old_positions.clear();
+            old_positions.extend(positions.slice(points));
+            for (const int i : IndexRange(points.size()).drop_front(1).drop_back(1)) {
+              const int point_i = points[i];
+              const float smooth_factor = point_smooth_factors[point_i];
+              if (smooth_factor == 0.0f) {
+                continue;
+              }
+              /* Move towards the middle of the neighboring points. */
+              const float3 old_pos = old_positions[i];
+              const float3 &prev_pos = old_positions[i - 1];
+              const float3 &next_pos = old_positions[i + 1];
+              const float3 goal_pos = math::midpoint(prev_pos, next_pos);
+              const float3 new_pos = math::interpolate(old_pos, goal_pos, smooth_factor);
+              positions[point_i] = new_pos;
+            }
           }
-          /* Move towards the middle of the neighboring points. */
-          const float3 old_pos = old_positions[i];
-          const float3 &prev_pos = old_positions[i - 1];
-          const float3 &next_pos = old_positions[i + 1];
-          const float3 goal_pos = math::midpoint(prev_pos, next_pos);
-          const float3 new_pos = math::interpolate(old_pos, goal_pos, smooth_factor);
-          positions[point_i] = new_pos;
-        }
-      }
-    });
+        },
+        exec_mode::grain_size(256));
   }
 };
 

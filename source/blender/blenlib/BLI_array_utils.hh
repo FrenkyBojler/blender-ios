@@ -35,8 +35,8 @@ constexpr int64_t calc_copy_grain_size(const exec_mode::Tag auto mode, const int
 constexpr int64_t calc_copy_grain_size(const exec_mode::Mode mode, const int64_t type_size)
 {
   BLI_assert(mode.is_parallel);
-  if (mode.grain_size.has_value()) {
-    return *mode.grain_size;
+  if (mode.grain_size_override.has_value()) {
+    return *mode.grain_size_override;
   }
   return std::max<int64_t>(1, 32768 / type_size);
 }

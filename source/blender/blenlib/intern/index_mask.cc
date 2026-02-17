@@ -564,7 +564,9 @@ IndexMask IndexMask::from_batch_predicate(
 
   Vector<IndexMaskSegment, 16> segments;
   constexpr int fallback_grain_size = 4096;
-  if (!mode.is_parallel || universe.size() <= mode.grain_size.value_or(fallback_grain_size)) {
+  if (!mode.is_parallel ||
+      universe.size() <= mode.grain_size_override.value_or(fallback_grain_size))
+  {
     for (const int64_t segment_i : IndexRange(universe.segments_num())) {
       const IndexMaskSegment universe_segment = universe.segment(segment_i);
       segments_from_batch_predicate(universe_segment, memory, batch_predicate, segments);
@@ -573,12 +575,12 @@ IndexMask IndexMask::from_batch_predicate(
   else {
     ParallelSegmentsCollector segments_collector;
     universe.foreach_segment(
-        GrainSize(mode.grain_size.value_or(fallback_grain_size)),
         [&](const IndexMaskSegment universe_segment) {
           ParallelSegmentsCollector::LocalData &data = segments_collector.data_by_thread.local();
           segments_from_batch_predicate(
               universe_segment, data.allocator, batch_predicate, data.segments);
-        });
+        },
+        exec_mode::grain_size(mode.grain_size(fallback_grain_size)));
     segments_collector.reduce(memory, segments);
   }
 
@@ -857,7 +859,9 @@ IndexMask from_predicate_impl(
 
   Vector<IndexMaskSegment, 16> segments;
   constexpr int fallback_grain_size = 4096;
-  if (!mode.is_parallel && universe.size() <= mode.grain_size.value_or(fallback_grain_size)) {
+  if (!mode.is_parallel &&
+      universe.size() <= mode.grain_size_override.value_or(fallback_grain_size))
+  {
     for (const int64_t segment_i : IndexRange(universe.segments_num())) {
       const IndexMaskSegment universe_segment = universe.segment(segment_i);
       segments_from_predicate_filter(universe_segment, memory, filter_indices, segments);
@@ -866,12 +870,12 @@ IndexMask from_predicate_impl(
   else {
     ParallelSegmentsCollector segments_collector;
     universe.foreach_segment(
-        GrainSize(mode.grain_size.value_or(fallback_grain_size)),
         [&](const IndexMaskSegment universe_segment) {
           ParallelSegmentsCollector::LocalData &data = segments_collector.data_by_thread.local();
           segments_from_predicate_filter(
               universe_segment, data.allocator, filter_indices, data.segments);
-        });
+        },
+        exec_mode::grain_size(mode.grain_size(fallback_grain_size)));
     segments_collector.reduce(memory, segments);
   }
 

@@ -501,14 +501,16 @@ static bke::CurvesGeometry convert_curves_to_nurbs(const bke::CurvesGeometry &sr
         dst_curves.nurbs_knots_modes_for_write(), NURBS_KNOT_MODE_BEZIER, selection);
     fill_weights_if_necessary(selection);
 
-    selection.foreach_segment(GrainSize(512), [&](const IndexMaskSegment segment) {
-      for (const int i : segment) {
-        const IndexRange src_points = src_points_by_curve[i];
-        const IndexRange dst_points = dst_points_by_curve[i];
-        catmull_rom_to_nurbs_positions(
-            src_positions.slice(src_points), src_cyclic[i], dst_positions.slice(dst_points));
-      }
-    });
+    selection.foreach_segment(
+        [&](const IndexMaskSegment segment) {
+          for (const int i : segment) {
+            const IndexRange src_points = src_points_by_curve[i];
+            const IndexRange dst_points = dst_points_by_curve[i];
+            catmull_rom_to_nurbs_positions(
+                src_positions.slice(src_points), src_cyclic[i], dst_positions.slice(dst_points));
+          }
+        },
+        exec_mode::grain_size(512));
 
     for (bke::AttributeTransferData &attribute : generic_attributes) {
       if (attributes_to_skip.contains(attribute.name)) {

@@ -698,64 +698,66 @@ void curve_populate_trans_data_structs(const TransInfo &t,
     offset_indices::copy_group_sizes(points_by_curve, bezier_curves, bezier_offsets_in_td);
     offset_indices::accumulate_counts_to_offsets(bezier_offsets_in_td);
 
-    affected_curves.foreach_segment(GrainSize(512), [&](const IndexMaskSegment segment) {
-      Array<int> map;
-      Array<float> closest_distances;
-      Array<float3> mapped_curve_positions;
+    affected_curves.foreach_segment(
+        [&](const IndexMaskSegment segment) {
+          Array<int> map;
+          Array<float> closest_distances;
+          Array<float3> mapped_curve_positions;
 
-      for (const int curve_i : segment) {
-        const int selection_attrs_num = curve_types[curve_i] == CURVE_TYPE_BEZIER ? 3 : 1;
-        const IndexRange curve_points = points_by_curve[curve_i];
-        const IndexRange editable_curve_points = curves_offsets_in_td[curve_i];
-        const int total_curve_points = selection_attrs_num * editable_curve_points.size();
-        map.reinitialize(total_curve_points);
-        closest_distances.reinitialize(total_curve_points);
-        closest_distances.fill(std::numeric_limits<float>::max());
-        mapped_curve_positions.reinitialize(total_curve_points);
+          for (const int curve_i : segment) {
+            const int selection_attrs_num = curve_types[curve_i] == CURVE_TYPE_BEZIER ? 3 : 1;
+            const IndexRange curve_points = points_by_curve[curve_i];
+            const IndexRange editable_curve_points = curves_offsets_in_td[curve_i];
+            const int total_curve_points = selection_attrs_num * editable_curve_points.size();
+            map.reinitialize(total_curve_points);
+            closest_distances.reinitialize(total_curve_points);
+            closest_distances.fill(std::numeric_limits<float>::max());
+            mapped_curve_positions.reinitialize(total_curve_points);
 
-        fill_map(CurveType(curve_types[curve_i]),
-                 editable_curve_points,
-                 position_offsets_in_td,
-                 bezier_offsets_in_td[curve_i],
-                 map);
+            fill_map(CurveType(curve_types[curve_i]),
+                     editable_curve_points,
+                     position_offsets_in_td,
+                     bezier_offsets_in_td[curve_i],
+                     map);
 
-        bool has_any_selected = false;
-        for (const int selection_attr_i : IndexRange(selection_attrs_num)) {
-          has_any_selected = has_any_selected ||
-                             ed::curves::has_anything_selected(selection_attrs[selection_attr_i],
-                                                               curve_points);
-        }
-        if (!has_any_selected) {
-          for (const int i : map) {
-            TransData &td = all_tc_data[i];
-            td.flag |= TD_SKIP;
+            bool has_any_selected = false;
+            for (const int selection_attr_i : IndexRange(selection_attrs_num)) {
+              has_any_selected = has_any_selected ||
+                                 ed::curves::has_anything_selected(
+                                     selection_attrs[selection_attr_i], curve_points);
+            }
+            if (!has_any_selected) {
+              for (const int i : map) {
+                TransData &td = all_tc_data[i];
+                td.flag |= TD_SKIP;
+              }
+              continue;
+            }
+
+            for (const int i : closest_distances.index_range()) {
+              TransData &td = all_tc_data[map[i]];
+              mapped_curve_positions[i] = td.loc;
+              if (td.flag & TD_SELECTED) {
+                closest_distances[i] = 0.0f;
+              }
+            }
+
+            if (cyclic[curve_i]) {
+              cyclic_curve_connected_point_distances(mapped_curve_positions.as_span(),
+                                                     closest_distances.as_mutable_span());
+            }
+            else {
+              curve_connected_point_distances(mapped_curve_positions.as_span(),
+                                              closest_distances.as_mutable_span());
+            }
+
+            for (const int i : closest_distances.index_range()) {
+              TransData &td = all_tc_data[map[i]];
+              td.dist = closest_distances[i];
+            }
           }
-          continue;
-        }
-
-        for (const int i : closest_distances.index_range()) {
-          TransData &td = all_tc_data[map[i]];
-          mapped_curve_positions[i] = td.loc;
-          if (td.flag & TD_SELECTED) {
-            closest_distances[i] = 0.0f;
-          }
-        }
-
-        if (cyclic[curve_i]) {
-          cyclic_curve_connected_point_distances(mapped_curve_positions.as_span(),
-                                                 closest_distances.as_mutable_span());
-        }
-        else {
-          curve_connected_point_distances(mapped_curve_positions.as_span(),
-                                          closest_distances.as_mutable_span());
-        }
-
-        for (const int i : closest_distances.index_range()) {
-          TransData &td = all_tc_data[map[i]];
-          td.dist = closest_distances[i];
-        }
-      }
-    });
+        },
+        exec_mode::grain_size(512));
   }
 }
 

@@ -493,7 +493,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
   threading::EnumerableThreadSpecific<LocalMemArena> all_local_mem_arenas;
   fill_mask.foreach_segment(
-      GrainSize(32), [&](const IndexMaskSegment mask_segment, const int segment_pos) {
+      [&](const IndexMaskSegment mask_segment, const int segment_pos) {
         MemArena *pf_arena = all_local_mem_arenas.local().pf_arena;
         for (const int index : mask_segment.index_range()) {
           const int fill_index = mask_segment[index];
@@ -613,7 +613,8 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
           BLI_memarena_clear(pf_arena);
         }
-      });
+      },
+      exec_mode::grain_size(32));
 
   threading::parallel_for(triangle_results.index_range(), 512, [&](const IndexRange range) {
     for (const int i : range) {
