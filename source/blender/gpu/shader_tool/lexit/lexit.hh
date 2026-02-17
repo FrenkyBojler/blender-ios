@@ -110,7 +110,7 @@ struct TokenBuffer {
   std::unique_ptr<TokenType[]> types_;
   /* Starting character index of each token. */
   std::unique_ptr<uint32_t[]> offsets_;
-  /* Original character index of each next token before whitespace merging (optional). */
+  /* Original character index of each token before whitespace merging. */
   std::unique_ptr<uint32_t[]> offsets_end_;
   /* Length in characters of each token. A value of 127 means the real size is over 126. */
   std::unique_ptr<uint8_t[]> lengths_;
@@ -218,8 +218,7 @@ struct TokenBuffer {
                           const bool with_trailing_whitespaces = false) const
   {
     int start_char = offsets_[int(start)];
-    int end_char = (!with_trailing_whitespaces) ? offsets_end_[int(end) + 1] :
-                                                  offsets_[int(end) + 1];
+    int end_char = (!with_trailing_whitespaces) ? offsets_end_[int(end)] : offsets_[int(end) + 1];
     return str_.substr(start_char, end_char - start_char);
   }
 
@@ -232,7 +231,7 @@ struct TokenBuffer {
     types_[size_] = type;
     atoms_[size_] = atom;
     offsets_[size_ + 1] = offsets_[size_] + str_size_with_witespaces;
-    offsets_end_[size_ + 1] = offsets_[size_] + str_size;
+    offsets_end_[size_] = offsets_[size_] + str_size;
     size_++;
   }
 
@@ -375,7 +374,7 @@ inline Token Token::prev(int i) const
 inline std::string_view Token::str() const
 {
   int start = buf_->offsets_[index_];
-  int end = buf_->offsets_end_[index_ + 1];
+  int end = buf_->offsets_end_[index_];
   return {buf_->str_.data() + start, size_t(end - start)};
 }
 
@@ -389,7 +388,7 @@ inline std::string_view Token::str_with_whitespace() const
 inline bool Token::followed_by_whitespace() const
 {
   assert(is_valid());
-  return buf_->offsets_end_[index_ + 1] != buf_->offsets_[index_ + 1];
+  return buf_->offsets_end_[index_] != buf_->offsets_[index_ + 1];
 }
 
 inline std::ostream &operator<<(std::ostream &os, const Token &tok)

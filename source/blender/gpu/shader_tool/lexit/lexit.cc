@@ -477,7 +477,7 @@ inline void TokenBuffer::tokenize_scalar(uint32_t &__restrict offset,
         token_str_with_whitespace_debug_.emplace_back(str_.data() + start, end - start);
       }
       if (emit_end) {
-        int start = offsets_[cursor_end - 1];
+        int start = offsets_[cursor_end];
         int end = offsets_end_[cursor_end];
         token_str_debug_.emplace_back(str_.data() + start, end - start);
       }
@@ -521,16 +521,13 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
    * emit start:    1 0 0 0 1 1 1 1 0 1
    * emit end:      1 0 0 1 0 1 1 1 1 1
    * offsets start: 0       4 5 6 7   9
-   * offsets end:   0     3   5 6 7 8 9
-   *                ^
-   *                Note that in order to match start and end indices, an extra 0 offset is
-   *                prepended to `offsets_end`.
+   * offsets end:         3   5 6 7 8 9
    */
 
   CharClass prev_value = CharClass::None;
   bool prev_whitespace;
   {
-    /* First iteration needs to always emit start and end of the token. */
+    /* First iteration needs to always emit start of the token. */
     const CharClass curr = char_class_table[str_[0]];
     types_[0] = select(str_[0], char(curr), curr > CharClass::ClassToTypeThreshold);
     offsets_[0] = 0;
@@ -539,24 +536,7 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
     prev_whitespace = curr == CharClass::WhiteSpace;
   }
 
-  uint32_t offset = 1, cursor = 1, cursor_end = 1;
-
-  /**
-   * The case when `str` starts with whitespaces needs to be handled a bit differently.
-   *
-   * str:               i n t   a ;   EndOfFile
-   * emit start:    1 0 1 0 0 0 1 1 0 1
-   * emit end:      1 0 0 0 0 1 0 1 1 1
-   * offsets start: 0   2       6 7   9
-   * offsets end:   0 0       5   7 8 9
-   *                  ^
-   *                Note that in order to match start and end indices, an extra 0 offset is
-   *                prepended to `offsets_end`.
-   */
-  if (!with_whitespace && prev_whitespace) {
-    offsets_end_[1] = 0;
-    cursor_end++;
-  }
+  uint32_t offset = 1, cursor = 1, cursor_end = 0;
 
   int stride = 64;
 
@@ -648,33 +628,34 @@ template<bool with_whitespace> void TokenBuffer::tokenize(const CharClass char_c
       cursor_end += popcount;
     }
     if constexpr (!with_whitespace) {
-      assert(cursor_end - 1 == cursor || cursor_end == cursor);
+      assert(cursor_end == cursor || cursor_end + 1 == cursor);
     }
   }
 #endif
 
   if constexpr (!with_whitespace) {
-    assert(cursor_end - 1 == cursor || cursor_end == cursor);
+    assert(cursor_end == cursor || cursor_end + 1 == cursor);
   }
   /* Finish tail using scalar loop. */
   tokenize_scalar<with_whitespace>(
       offset, cursor, cursor_end, prev_value, prev_whitespace, str_.size(), char_class_table);
 
   if constexpr (!with_whitespace) {
-    assert(cursor_end - 1 == cursor || cursor_end == cursor);
+    assert(cursor_end == cursor || cursor_end + 1 == cursor);
+  }
+
+  if constexpr (with_whitespace) {
+    /* Copy instead of setting it inside the loop. */
+    std::memcpy(offsets_end_.get(), offsets_.get() + 1, (cursor - 1) * sizeof(offsets_end_[0]));
+    cursor_end = cursor - 1;
   }
 
   /* Set end of last token. */
   offsets_[cursor] = str_.size();
-  offsets_end_[cursor] = str_.size();
+  offsets_end_[cursor_end] = str_.size();
   /* Set end of file token. */
   types_[cursor] = EndOfFile;
   size_ = cursor;
-
-  if constexpr (with_whitespace) {
-    /* Copy instead of setting it inside the loop. */
-    std::memcpy(offsets_end_.get(), offsets_.get(), size_ * sizeof(offsets_end_[0]));
-  }
 }
 
 template void TokenBuffer::tokenize<true>(const CharClass[128]);
@@ -688,7 +669,7 @@ void TokenBuffer::compute_lengths()
   static constexpr int stride = 64;
   for (; tok_id + stride <= size_; tok_id += stride) {
     const u32x64 str_start = u32x64::load(&offsets_[tok_id]);
-    const u32x64 str_end = u32x64::load_unaligned(&offsets_end_[tok_id + 1]); /* TODO align */
+    const u32x64 str_end = u32x64::load(&offsets_end_[tok_id]);
     const u32x64 str_size_32 = str_end - str_start;
     const u8x64 str_large = u8x64(str_size_32 > 127);
     /* Saturate the size to max int8_t since SSE comparison is signed. */
@@ -699,7 +680,7 @@ void TokenBuffer::compute_lengths()
 #endif
   for (; tok_id < size_; ++tok_id) {
     const uint32_t str_start = offsets_[tok_id];
-    const uint32_t str_end = offsets_end_[tok_id + 1];
+    const uint32_t str_end = offsets_end_[tok_id];
     const uint32_t str_size_32 = str_end - str_start;
     /* Saturate the size to max int8_t since SSE comparison is signed. */
     const uint8_t str_size = select(uint8_t(str_size_32), 127, str_size_32 > 127);
@@ -806,7 +787,7 @@ INLINE_METHOD void TokenBuffer::atomize_tokens_in_mask(uint64_t mask,
     const int tok_id = tok_id_base + index;
 
     const int str_start = offsets_[tok_id];
-    const int str_size = offsets_end_[tok_id + 1] - str_start;
+    const int str_size = offsets_end_[tok_id] - str_start;
     const std::string_view str = {str_.data() + str_start, size_t(str_size)};
 
     const TokenAtom atom = id_map.lookup_or_add(str);
@@ -951,7 +932,7 @@ static uint32_t merge_token(const TokenType *in_types,
 
     out_types[j] = type;
     out_offsets[j] = offset;
-    out_original_offsets[j + 1] = next_offset;
+    out_original_offsets[j] = next_offset;
     j++;
   }
 
@@ -962,7 +943,7 @@ static uint32_t merge_token(const TokenType *in_types,
 
     out_types[j] = type;
     out_offsets[j] = offset;
-    out_original_offsets[j + 1] = next_offset;
+    out_original_offsets[j] = next_offset;
     /* If false, make the next token overwrite this one.
      * Effectively merging the token with the one before. */
     if constexpr (removed_type == removed_type2) {
