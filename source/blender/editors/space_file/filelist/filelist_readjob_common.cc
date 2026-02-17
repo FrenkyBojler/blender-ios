@@ -823,10 +823,10 @@ void filelist_readjob_recursive_dir_add_items(const bool do_lib,
 }
 
 void filelist_readjob_directories_and_libraries(const bool do_lib,
-                                   FileListReadJob *job_params,
-                                   const bool *stop,
-                                   bool *do_update,
-                                   float *progress)
+                                                FileListReadJob *job_params,
+                                                const bool *stop,
+                                                bool *do_update,
+                                                float *progress)
 {
   FileList *filelist = job_params->tmp_filelist; /* Use the thread-safe filelist queue. */
 
