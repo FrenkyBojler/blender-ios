@@ -6,12 +6,16 @@
 
 #include "gpu_shader_compositor_sample_rect.glsl"
 
-void realize_on_domain()
+template<enum Sampler sampler> void realize_on_domain()
 {
   const int2 texel = int2(gl_GlobalInvocationID.xy);
   float2 uv = to_float2x2(inverse_matrix) * float2(texel) + inverse_matrix[2].xy;
-  imageStore(domain_img, texel, sample_rect(sampler, input_tx, uv, wh));
+  imageStore(domain_img, texel, sample_rect<sampler>(input_tx, uv, wh));
 }
+
+template void realize_on_domain<Sampler::Bilinear>;
+template void realize_on_domain<Sampler::Box>;
+template void realize_on_domain<Sampler::Bspline>;
 
 /* For Nearest & Bilinear sampling, matrix has been pre-multiplied to produce
  * uv values in the range 0-1, and wh is not needed.

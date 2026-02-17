@@ -4,7 +4,7 @@
 
 #include "gpu_shader_math_vector_lib.glsl"
 
-enum Sampler : int { Nearest, Bilinear, Box, Bspline, Anisotropic };
+enum Sampler : uchar { Nearest, Bilinear, Box, Bspline, Anisotropic };
 
 template<enum Sampler sampler> static inline float weight(float x) {}
 
@@ -12,7 +12,7 @@ template<enum Sampler sampler> static inline float weight(float x) {}
  * Generic version works for any cubic filter (todo: fix for filters with negative weights)
  */
 template<enum Sampler sampler>
-static inline float4 _sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
+float4 sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
 {
   const float2 w1 = max(wh, 1.0f);
   const float2 r = 2 * w1;
@@ -50,9 +50,16 @@ static inline float4 _sample_rect(const sampler2D &source, const float2 &uv, con
   return sum / (div * divx);
 }
 
+/* specialized as wh is ignored and it maps directly to texture() */
+template<>
+float4 sample_rect<Sampler::Bilinear>(const sampler2D &source, const float2 &uv, const float2 &wh)
+{
+  return texture(source, uv / float2(textureSize(source, 0)));
+}
+
 /* specialized as r is smaller and weight function needs to know size of a pixel */
 template<>
-float4 _sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uv, const float2 &wh)
+float4 sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uv, const float2 &wh)
 {
   const float2 r = max((wh + 1) / 2.0f, 1.0f);
   const float2 a = floor(uv - r + 0.5f) + 0.5f;                // first non-zero sample
@@ -89,24 +96,22 @@ float4 _sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uv, con
   return sum / (div * divx);
 }
 
-template<> float weight<Sampler::Bspline>(float x)
+template<> static inline float weight<Sampler::Bspline>(float x)
 {
   return x < 1 ? (0.5 * x - 1) * x * x + 4.0 / 6 : ((-1 / 6.0 * x + 1) * x - 2) * x + 4.0 / 3;
 }
-template float4 _sample_rect<Sampler::Bspline>(const sampler2D &source,
-                                               const float2 &uv,
-                                               const float2 &wh);
+template float4 sample_rect<Sampler::Bspline>(sampler2D source, float2 uv, float2 wh);
 
 #if 0 /* potential other samplers */
 
 template <>
-float weight<Sampler::Cubic>(float x)
+static inline float weight<Sampler::Cubic>(float x)
 {
   return x < 1 ? (1.5 * x - 15.0 / 6) * x * x + 1 : ((-0.5 * x + 15.0 / 6) * x - 4) * x + 2;
 }
 
 template <>
-float weight<Sampler::Mitchell>(float x)
+static inline float weight<Sampler::Mitchell>(float x)
 {
   return x < 1 ? (7.0 / 6 * x - 2) * x * x + 16.0 / 18 :
                  ((-7.0 / 18 * x + 2) * x - 20.0 / 6) * x + 32.0 / 18;
@@ -114,23 +119,10 @@ float weight<Sampler::Mitchell>(float x)
 
 /* r = 5*w1 */
 template <>
-float weight<Sampler::Lanczos5>(float x)
+static inline float weight<Sampler::Lanczos5>(float x)
 {
   x = 3.1415926535897932f * x;
   return x != 0 ? sin(x) * sin(x / 5) * 5 / (x * x) : 1;
 }
 
 #endif
-
-float4 sample_rect(Sampler sampler, const sampler2D &source, const float2 &uv, const float2 &wh)
-{
-  switch (sampler) {
-    case Nearest:
-    case Bilinear:
-      return texture(source, uv / float2(textureSize(source, 0)));
-    default: /* case Sampler::Box */
-      return _sample_rect<Sampler::Box>(source, uv, wh);
-    case Bspline:
-      return _sample_rect<Sampler::Bspline>(source, uv, wh);
-  }
-}
