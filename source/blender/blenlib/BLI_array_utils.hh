@@ -29,7 +29,7 @@ constexpr int64_t calc_copy_grain_size(const exec_mode::Tag auto mode, const int
   }
   /* The grain size should roughly depend on the work being done per index, which roughly
    * corresponds with the size of the type being copied. */
-  return 32768 / type_size;
+  return std::max<int64_t>(1, 32768 / type_size);
 }
 
 constexpr int64_t calc_copy_grain_size(const exec_mode::Mode mode, const int64_t type_size)
@@ -38,7 +38,7 @@ constexpr int64_t calc_copy_grain_size(const exec_mode::Mode mode, const int64_t
   if (mode.grain_size.has_value()) {
     return *mode.grain_size;
   }
-  return 32768 / type_size;
+  return std::max<int64_t>(1, 32768 / type_size);
 }
 
 /**
