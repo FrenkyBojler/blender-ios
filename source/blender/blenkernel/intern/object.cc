@@ -673,7 +673,7 @@ static void create_legacy_geometry_nodes_properties(Object &ob)
 
     const IDProperty *outputs = IDP_GetPropertyFromGroup(system_props, "outputs");
     if (outputs && outputs->type == IDP_GROUP) {
-      for (const IDProperty &prop : inputs->data.group) {
+      for (const IDProperty &prop : outputs->data.group) {
         const StringRefNull identifier = prop.name;
         if (const IDProperty *name = IDP_GetPropertyFromGroup(&prop, "attribute_name")) {
           IDProperty *legacy_prop = IDP_CopyProperty(name);
@@ -698,7 +698,7 @@ static void free_legacy_geometry_nodes_properties(Object &ob)
     if (!nmd.settings.properties) {
       continue;
     }
-    IDP_FreeProperty(nmd.settings.properties);
+    IDP_FreeProperty_ex(nmd.settings.properties, false);
     nmd.settings.properties = nullptr;
   }
 }
