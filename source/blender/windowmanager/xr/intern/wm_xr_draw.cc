@@ -748,11 +748,14 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
   BLI_rctf_mul(&outline_rect, 100);
 
   /* Prevent other XR UI elements (like locomotion rays) from drawing through the viewfinder. */
-  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
-  ui::draw_roundbox_3fv_alpha(&background_rect, true, 16, background_col, 1.0f);
-  GPU_depth_test(GPU_DEPTH_NONE);
 
+  GPU_polygon_offset(-1.0f, -1.0f);
+  ui::draw_roundbox_3fv_alpha(&background_rect, true, 16, background_col, 1.0f);
+
+  GPU_polygon_offset(-0.5f, -0.5f);
   ui::draw_roundbox_3fv_alpha(&outline_rect, true, 12, outline_col, 0.2f);
+
+  GPU_polygon_offset(0.0f, 0.0f);
 
   GPU_matrix_pop();
 }
@@ -864,6 +867,8 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   PointerRNA scene_ptr = RNA_id_pointer_create(&CTX_data_scene(C)->id);
   const bool empty_captures = RNA_collection_is_empty(&scene_ptr, "vr_landmarks");
 
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+
   /* Main background overlays. */
   wm_xr_controller_viewfinder_draw_overlays(viewfinder_rect);
 
@@ -874,6 +879,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   /* UI Widgets. */
   wm_xr_controller_viewfinder_draw_ui_widgets(C, settings, viewfinder_rect);
 
+  GPU_depth_test(GPU_DEPTH_NONE);
   GPU_matrix_pop();
 }
 
