@@ -6343,7 +6343,8 @@ void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
         break;
       }
       case PROP_COLLECTION: {
-        // UUHHH
+        /* Not yet supported. */
+        BLI_assert_unreachable();
         break;
       }
     }
@@ -7611,8 +7612,7 @@ int RNA_parameter_list_ret_count(const ParameterList *parms)
 void RNA_parameter_list_begin(ParameterList *parms, ParameterIterator *iter)
 {
   /* may be useful but unused now */
-  // RNA_pointer_create_discrete(nullptr, RNA_Function, parms->func, &iter->funcptr); /* UNUSED
-  // */
+  // RNA_pointer_create_discrete(nullptr, RNA_Function, parms->func, &iter->funcptr); /* UNUSED */
 
   iter->parms = parms;
   iter->parm = static_cast<PropertyRNA *>(parms->func->cont.properties.first);
