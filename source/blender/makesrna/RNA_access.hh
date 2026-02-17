@@ -677,6 +677,12 @@ int RNA_property_collection_raw_set(ReportList *reports,
 size_t RNA_raw_type_sizeof(RawPropertyType type);
 RawPropertyType RNA_property_raw_type(PropertyRNA *prop);
 
+/**
+ * Update the system properties (IDProperties) for a specific RNA type, converting so that
+ * properties match the current RNA definition.
+ *
+ * TODO: Remove idproperties that are not used anymore.
+ */
 void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops);
 
 /* to create ID property groups */
