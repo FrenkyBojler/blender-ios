@@ -347,34 +347,34 @@ static void grease_pencil_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_GP = {
-    /*id_code*/ GreasePencil::id_type,
-    /*id_filter*/ FILTER_ID_GP,
-    /*dependencies_id_types*/ FILTER_ID_GP | FILTER_ID_MA | FILTER_ID_OB,
-    /*main_listbase_index*/ INDEX_ID_GP,
-    /*struct_size*/ sizeof(GreasePencil),
-    /*name*/ "GreasePencil",
-    /*name_plural*/ N_("grease_pencils"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_GPENCIL,
-    /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .id_code = GreasePencil::id_type,
+    .id_filter = FILTER_ID_GP,
+    .dependencies_id_types = FILTER_ID_GP | FILTER_ID_MA | FILTER_ID_OB,
+    .main_listbase_index = INDEX_ID_GP,
+    .struct_size = sizeof(GreasePencil),
+    .name = "GreasePencil",
+    .name_plural = N_("grease_pencils"),
+    .translation_context = BLT_I18NCONTEXT_ID_GPENCIL,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ grease_pencil_init_data,
-    /*copy_data*/ grease_pencil_copy_data,
-    /*free_data*/ grease_pencil_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ grease_pencil_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ grease_pencil_foreach_working_space_color,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = grease_pencil_init_data,
+    .copy_data = grease_pencil_copy_data,
+    .free_data = grease_pencil_free_data,
+    .make_local = nullptr,
+    .foreach_id = grease_pencil_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = grease_pencil_foreach_working_space_color,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ grease_pencil_blend_write,
-    /*blend_read_data*/ grease_pencil_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = grease_pencil_blend_write,
+    .blend_read_data = grease_pencil_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 namespace bke::greasepencil {
@@ -597,7 +597,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
               return -1;
             }
             /* Just get the first point if there are multiple at the same position. */
-            return result.vert_orig[vert].first();
+            return int(result.vert_orig[vert].first());
           };
 
           for (const int i : result.face.index_range()) {
@@ -1594,7 +1594,7 @@ Span<FramesMapKeyT> Layer::sorted_keys() const
     for (const FramesMapKeyT key : this->frames().keys()) {
       r_data[i++] = key;
     }
-    std::sort(r_data.begin(), r_data.end());
+    std::ranges::sort(r_data);
   });
   return this->runtime->sorted_keys_cache_.data();
 }
@@ -3997,6 +3997,9 @@ bke::greasepencil::Layer &GreasePencil::duplicate_layer(
   this->attribute_storage.wrap().resize(bke::AttrDomain::Layer, numLayers + 1);
   bke::MutableAttributeAccessor attributes = this->attributes_for_write();
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.storage_type == bke::AttrStorageType::Single) {
+      return;
+    }
     bke::GSpanAttributeWriter attr = attributes.lookup_for_write_span(iter.name);
     GMutableSpan span = attr.span;
     span.type().copy_assign(span[*duplicate_layer_idx], span[numLayers]);

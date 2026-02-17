@@ -660,6 +660,12 @@ enum {
   SHD_SPACE_BLENDER_WORLD = 4,
 };
 
+/* normal map, convention */
+enum {
+  SHD_NORMAL_MAP_CONVENTION_OPENGL = 0,
+  SHD_NORMAL_MAP_CONVENTION_DIRECTX = 1,
+};
+
 enum {
   SHD_AO_INSIDE = 1,
   SHD_AO_LOCAL = 2,
@@ -2327,7 +2333,9 @@ struct NodeCompositorFileOutput {
   int active_item_index = 0;
   /* Apply the render part of the display transform when saving non-linear images. */
   char save_as_render = 0;
-  char _pad[7] = {};
+  /* Add a file extension to the file name. */
+  char use_file_extension = 0;
+  char _pad[6] = {};
 };
 
 struct NodeImageMultiFileSocket {
@@ -2821,6 +2829,8 @@ struct NodeShaderNormalMap {
 
   int space = 0;
   char uv_map[/*MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX*/ 64] = "";
+  char convention = SHD_NORMAL_MAP_CONVENTION_OPENGL;
+  char _pad[7];
 };
 
 struct NodeRadialTiling {

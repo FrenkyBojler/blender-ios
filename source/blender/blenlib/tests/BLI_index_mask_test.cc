@@ -228,7 +228,7 @@ TEST(index_mask, FromBitsBenchmark)
     current = int(current * 1.3);
   }
   set_bit_nums.append(size);
-  std::sort(set_bit_nums.begin(), set_bit_nums.end());
+  std::ranges::sort(set_bit_nums);
 
   for (const int set_bit_num : set_bit_nums) {
     benchmark_uniform_bit_distribution(size, set_bit_num, iterations);
@@ -559,6 +559,17 @@ TEST(index_mask, FromPredicate)
     mask.to_indices<int64_t>(new_indices);
     EXPECT_EQ(indices, new_indices);
   }
+}
+
+TEST(index_mask, ToIndices)
+{
+  IndexMaskMemory memory;
+  const IndexMask mask = IndexMask::from_indices<int>({3, 6, 8, 9}, memory);
+  Vector<int64_t> indices = mask.to_indices<int64_t>();
+  EXPECT_EQ(indices[0], 3);
+  EXPECT_EQ(indices[1], 6);
+  EXPECT_EQ(indices[2], 8);
+  EXPECT_EQ(indices[3], 9);
 }
 
 TEST(index_mask, IndexIteratorConversionFuzzy)

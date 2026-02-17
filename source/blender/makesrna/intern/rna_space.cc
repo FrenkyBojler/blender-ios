@@ -2139,8 +2139,12 @@ static const EnumPropertyItem *rna_SpaceImageEditor_pivot_itemf(bContext * /*C*/
                                                                 bool * /*r_free*/)
 {
   static const EnumPropertyItem pivot_items[] = {
-      {V3D_AROUND_CENTER_BOUNDS, "CENTER", ICON_PIVOT_BOUNDBOX, "Bounding Box Center", ""},
-      {V3D_AROUND_CENTER_MEDIAN, "MEDIAN", ICON_PIVOT_MEDIAN, "Median Point", ""},
+      {V3D_AROUND_CENTER_BOUNDS,
+       "BOUNDING_BOX_CENTER",
+       ICON_PIVOT_BOUNDBOX,
+       "Bounding Box Center",
+       ""},
+      {V3D_AROUND_CENTER_MEDIAN, "MEDIAN_POINT", ICON_PIVOT_MEDIAN, "Median Point", ""},
       {V3D_AROUND_CURSOR, "CURSOR", ICON_PIVOT_CURSOR, "2D Cursor", ""},
       {V3D_AROUND_LOCAL_ORIGINS,
        "INDIVIDUAL_ORIGINS",
@@ -2595,8 +2599,14 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
 
 static void rna_SequenceEditor_render_size_update(bContext *C, PointerRNA *ptr)
 {
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (scene == nullptr) {
+    return;
+  }
+
   seq_build_proxy(C, ptr);
-  rna_SequenceEditor_update_cache(CTX_data_main(C), CTX_data_sequencer_scene(C), ptr);
+  seq::cache_cleanup(scene, seq::CacheCleanup::All);
 }
 
 static bool rna_SequenceEditor_clamp_view_get(PointerRNA *ptr)
@@ -5278,12 +5288,12 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "overlay.handle_display");
   RNA_def_property_enum_items(prop, rna_enum_curve_display_handle_items);
   RNA_def_property_ui_text(
-      prop, "Display Handles", "Limit the display of curve handles in edit mode");
+      prop, "Display Handles", "Limit the display of curve handles in Edit Mode");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "show_curve_normals", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "overlay.edit_flag", V3D_OVERLAY_EDIT_CU_NORMALS);
-  RNA_def_property_ui_text(prop, "Draw Normals", "Display 3D curve normals in editmode");
+  RNA_def_property_ui_text(prop, "Draw Normals", "Display 3D curve normals in Edit Mode");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "normals_length", PROP_FLOAT, PROP_FACTOR);
@@ -6473,6 +6483,26 @@ static void rna_def_space_sequencer_timeline_overlay(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Waveform Style", "How Waveforms are displayed");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
+  static const EnumPropertyItem thumbnail_style_items[] = {
+      {0, "NO_THUMBNAILS", 0, "None", "Do not show strip thumbnails"},
+      {SEQ_TIMELINE_STRIP_END_THUMBNAILS,
+       "STRIP_ENDS",
+       0,
+       "Strip Ends",
+       "Show thumbnails only at the beginning and end of the strip"},
+      {SEQ_TIMELINE_CONTINUOUS_THUMBNAILS,
+       "CONTINUOUS",
+       0,
+       "Continuous",
+       "Display thumbnails as a filmstrip"},
+      {0, nullptr, 0, nullptr, nullptr}};
+
+  prop = RNA_def_property(srna, "thumbnail_display_style", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "timeline_overlay.flag");
+  RNA_def_property_enum_items(prop, thumbnail_style_items);
+  RNA_def_property_ui_text(prop, "Thumbnail style", "How thumbnails are displayed");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
   prop = RNA_def_property(srna, "show_fcurves", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "timeline_overlay.flag", SEQ_TIMELINE_SHOW_FCURVES);
   RNA_def_property_ui_text(prop, "Show F-Curves", "Display strip opacity/volume curve");
@@ -6506,12 +6536,6 @@ static void rna_def_space_sequencer_timeline_overlay(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(
       prop, nullptr, "timeline_overlay.flag", SEQ_TIMELINE_SHOW_STRIP_OFFSETS);
   RNA_def_property_ui_text(prop, "Show Offsets", "Display strip in/out offsets");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
-
-  prop = RNA_def_property(srna, "show_thumbnails", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "timeline_overlay.flag", SEQ_TIMELINE_SHOW_THUMBNAILS);
-  RNA_def_property_ui_text(prop, "Show Thumbnails", "Show strip thumbnails");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
   prop = RNA_def_property(srna, "show_strip_tag_color", PROP_BOOLEAN, PROP_NONE);
@@ -7772,6 +7796,13 @@ static void rna_def_fileselect_asset_params(BlenderRNA *brna)
                            "them directly to the scene");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 
+  prop = RNA_def_property(srna, "show_online_assets", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "asset_flags", FILE_ASSETS_HIDE_ONLINE);
+  RNA_def_property_ui_text(prop,
+                           "Show Online Assets",
+                           "When internet access is enabled, load and display online assets");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
+
   prop = RNA_def_property(srna, "instance_collections_on_append", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, nullptr, "import_flags", FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_APPEND);
@@ -8991,6 +9022,11 @@ static void rna_def_spreadsheet_row_filter(BlenderRNA *brna)
   prop = RNA_def_property(srna, "value_float3", PROP_FLOAT, PROP_NONE);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Vector Value", "");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
+
+  prop = RNA_def_property(srna, "value_float4", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "4D Vector Value", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 
   prop = RNA_def_property(srna, "value_color", PROP_FLOAT, PROP_NONE);

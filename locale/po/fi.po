@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-02 14:51+0000\n"
+"POT-Creation-Date: 2026-02-16 10:28+0000\n"
 "PO-Revision-Date: 2025-07-23 15:32+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -3077,6 +3077,14 @@ msgid "Show Lasso"
 msgstr "Näytä lasso"
 
 
+msgid "Stroke"
+msgstr "Piirto"
+
+
+msgid "Fill"
+msgstr "Täytä"
+
+
 msgid "Active Layer"
 msgstr "Aktiivinen taso"
 
@@ -3177,16 +3185,8 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "Määritteen miten kärkiväri vaikuttaa viivoihin"
 
 
-msgid "Stroke"
-msgstr "Piirto"
-
-
 msgid "Vertex Color affects to Stroke only"
 msgstr "Kärkiväri vaikuttaa ainoastaan viivaan"
-
-
-msgid "Fill"
-msgstr "Täytä"
 
 
 msgid "Vertex Color affects to Fill only"
@@ -7248,28 +7248,20 @@ msgid "ID Type"
 msgstr "ID-tyyppi"
 
 
-msgid "Math"
-msgstr "Matematiikka"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Metaball"
-msgstr "Metapallo"
-
-
-msgid "Show/Hide"
-msgstr "Näytä/Piilota"
-
-
 msgid "Read"
 msgstr "Lue"
 
 
 msgid "Write"
 msgstr "Kirjoita"
+
+
+msgid "Show/Hide"
+msgstr "Näytä/Piilota"
+
+
+msgid "Metaball"
+msgstr "Metapallo"
 
 
 msgid "Names"
@@ -7300,6 +7292,10 @@ msgid "Utilities"
 msgstr "Työkalut"
 
 
+msgid "Math"
+msgstr "Matematiikka"
+
+
 msgid "Light"
 msgstr "Valo"
 
@@ -7324,16 +7320,20 @@ msgid "Random Mask"
 msgstr "Satunnainen maski"
 
 
-msgid "Mesh Select Mode"
-msgstr "Muodon valintatila"
-
-
 msgid "Instances"
 msgstr "Instanssit"
 
 
 msgid "Import"
 msgstr "Tuo"
+
+
+msgid "Mesh Select Mode"
+msgstr "Muodon valintatila"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Basic"
@@ -11033,6 +11033,31 @@ msgid "Pan"
 msgstr "Panoroi"
 
 
+msgctxt "Sequence"
+msgid "Brightness/Contrast"
+msgstr "Kirkkaus/Kontrasti"
+
+
+msgctxt "Sequence"
+msgid "Color Balance"
+msgstr "Väritasapaino"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Käyrät"
+
+
+msgctxt "Sequence"
+msgid "Hue Correct"
+msgstr "Sävykorjaus"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "Valkotasapaino"
+
+
 msgid "Move along X axis"
 msgstr "Liiku X-akselin mukaisesti"
 
@@ -13708,10 +13733,6 @@ msgstr "Harnaa"
 
 msgid "Eyes"
 msgstr "Silmät"
-
-
-msgid "Pupils"
-msgstr "Pupillit"
 
 
 msgid "Nothing selected"
@@ -16525,33 +16546,8 @@ msgstr "Kaikki renderöintitasot on poistettu käytöstä"
 
 
 msgctxt "Sequence"
-msgid "Brightness/Contrast"
-msgstr "Kirkkaus/Kontrasti"
-
-
-msgctxt "Sequence"
-msgid "Color Balance"
-msgstr "Väritasapaino"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Käyrät"
-
-
-msgctxt "Sequence"
-msgid "Hue Correct"
-msgstr "Sävykorjaus"
-
-
-msgctxt "Sequence"
 msgid "Tonemap"
 msgstr "Sävykartta"
-
-
-msgctxt "Sequence"
-msgid "White Balance"
-msgstr "Valkotasapaino"
 
 
 msgctxt "Sequence"

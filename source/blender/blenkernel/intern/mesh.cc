@@ -493,34 +493,34 @@ static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_ME = {
-    /*id_code*/ Mesh::id_type,
-    /*id_filter*/ FILTER_ID_ME,
-    /*dependencies_id_types*/ FILTER_ID_ME | FILTER_ID_MA | FILTER_ID_IM | FILTER_ID_KE,
-    /*main_listbase_index*/ INDEX_ID_ME,
-    /*struct_size*/ sizeof(Mesh),
-    /*name*/ "Mesh",
-    /*name_plural*/ N_("meshes"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_MESH,
-    /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .id_code = Mesh::id_type,
+    .id_filter = FILTER_ID_ME,
+    .dependencies_id_types = FILTER_ID_ME | FILTER_ID_MA | FILTER_ID_IM | FILTER_ID_KE,
+    .main_listbase_index = INDEX_ID_ME,
+    .struct_size = sizeof(Mesh),
+    .name = "Mesh",
+    .name_plural = N_("meshes"),
+    .translation_context = BLT_I18NCONTEXT_ID_MESH,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ mesh_init_data,
-    /*copy_data*/ mesh_copy_data,
-    /*free_data*/ mesh_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ mesh_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ mesh_foreach_path,
-    /*foreach_working_space_color*/ mesh_foreach_working_space_color,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = mesh_init_data,
+    .copy_data = mesh_copy_data,
+    .free_data = mesh_free_data,
+    .make_local = nullptr,
+    .foreach_id = mesh_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = mesh_foreach_path,
+    .foreach_working_space_color = mesh_foreach_working_space_color,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ mesh_blend_write,
-    /*blend_read_data*/ mesh_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = mesh_blend_write,
+    .blend_read_data = mesh_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 bool BKE_mesh_attribute_required(const StringRef name)
@@ -763,7 +763,7 @@ static void build_vertex_groups_for_leaves(const int verts_num,
 
       new (&verts_per_leaf[i]) Array<int>(verts.size());
       std::copy(verts.begin(), verts.end(), verts_per_leaf[i].begin());
-      std::sort(verts_per_leaf[i].begin(), verts_per_leaf[i].end());
+      std::ranges::sort(verts_per_leaf[i]);
       group.corner_count = corners_count;
     }
   });
@@ -929,6 +929,9 @@ void mesh_apply_spatial_organization(Mesh &mesh)
 
   MutableAttributeAccessor attributes_for_write = mesh.attributes_for_write();
   attributes_for_write.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.storage_type == bke::AttrStorageType::Single) {
+      return;
+    }
     if (iter.domain == bke::AttrDomain::Face) {
       bke::GSpanAttributeWriter attribute = attributes_for_write.lookup_for_write_span(iter.name);
       const CPPType &type = attribute.span.type();
