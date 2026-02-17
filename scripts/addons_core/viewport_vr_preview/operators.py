@@ -275,6 +275,8 @@ class VIEW3D_OT_vr_landmark_activate(Operator):
         return {'FINISHED'}
 
 # Viewfinder.
+
+
 class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
     bl_idname = "view3d.vr_viewfinder_capture_landmark"
     bl_label = "Capture VR Landmark from Viewfinder"
@@ -316,7 +318,7 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
         lm.viewfinder_dof_dist = camera.dof.focus_distance
         lm.viewfinder_dof_fstop = camera.dof.aperture_fstop
 
-        xr_state.viewfinder_capture_flash = 1 # Internal value, setting to 1 will trigger a flash
+        xr_state.viewfinder_capture_flash = 1  # Internal value, setting to 1 will trigger a flash
 
         return {'FINISHED'}
 
@@ -440,7 +442,7 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
                     world_dir = view_quat @ direction
                     world_dir.normalize()
 
-                    hit_success, hit_location, _, _, _, _= scene.ray_cast(depsgraph, view_origin, world_dir)
+                    hit_success, hit_location, _, _, _, _ = scene.ray_cast(depsgraph, view_origin, world_dir)
 
                     if hit_success:
                         distance = (hit_location - view_origin).length
@@ -493,7 +495,7 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
                     cone.location = lm_pos
                     cone.rotation_mode = 'QUATERNION'
                     cone.rotation_quaternion = lm_quat
-                    cone.scale.z = lm_lens / 50 # Scale on local Z to represent focal length, 50mm being 1.0 scale
+                    cone.scale.z = lm_lens / 50  # Scale on local Z to represent focal length, 50mm being 1.0 scale
 
                     return {'FINISHED'}
 

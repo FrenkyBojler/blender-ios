@@ -2015,7 +2015,7 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem viewfinder_live_but_states[] = {
+  static const EnumPropertyItem viewfinder_live_actions[] = {
       {XR_VIEWFINDER_ACTION_LIVE_LENS, "LENS", ICON_VIEW_ZOOM, "Lens/Zoom", nullptr},
       {XR_VIEWFINDER_ACTION_LIVE_DOF, "DOF", ICON_COMMUNITY, "Depth of Field", nullptr},
       {XR_VIEWFINDER_ACTION_LIVE_FOCUS, "FOCUS", ICON_PIVOT_BOUNDBOX, "Focus Point", nullptr},
@@ -2023,7 +2023,7 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem viewfinder_playback_but_states[] = {
+  static const EnumPropertyItem viewfinder_playback_actions[] = {
       {XR_VIEWFINDER_ACTION_PB_BROWSE,
        "BROWSE",
        ICON_RENDERLAYERS,
@@ -2152,15 +2152,15 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "viewfinder_active_action_live", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_enum_items(prop, viewfinder_live_but_states);
-  RNA_def_property_ui_text(prop, "Viewfinder Live Button", "Active viewfinder live button state");
+  RNA_def_property_enum_items(prop, viewfinder_live_actions);
+  RNA_def_property_ui_text(prop, "Viewfinder Live Button", "Active viewfinder live action");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "viewfinder_active_action_playback", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_enum_items(prop, viewfinder_playback_but_states);
+  RNA_def_property_enum_items(prop, viewfinder_playback_actions);
   RNA_def_property_ui_text(
-      prop, "Viewfinder Playback Button", "Active viewfinder playback button state");
+      prop, "Viewfinder Playback Button", "Active viewfinder playback action");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "clip_start", PROP_FLOAT, PROP_DISTANCE);

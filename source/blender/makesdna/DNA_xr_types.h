@@ -30,6 +30,26 @@ enum eXrSessionControllerDrawStyle {
   XR_CONTROLLER_DRAW_LIGHT_RAY = 3,
 };
 
+enum eXrSessionControllerDominantHand {
+  XR_CONTROLLER_DHAND_LEFT = 0,
+  XR_CONTROLLER_DHAND_RIGHT = 1
+};
+
+enum eXrViewfinderMode { XR_VIEWFINDER_MODE_LIVE = 0, XR_VIEWFINDER_MODE_PLAYBACK = 1 };
+
+enum eXrViewfinderLiveAction {
+  XR_VIEWFINDER_ACTION_LIVE_LENS = 0,
+  XR_VIEWFINDER_ACTION_LIVE_DOF = 1,
+  XR_VIEWFINDER_ACTION_LIVE_FOCUS = 2,
+  XR_VIEWFINDER_ACTION_LIVE_APERTURE = 3
+};
+
+enum eXrViewfinderPlaybackAction {
+  XR_VIEWFINDER_ACTION_PB_BROWSE = 0,
+  XR_VIEWFINDER_ACTION_PB_PREVIEW = 1,
+  XR_VIEWFINDER_ACTION_PB_DELETE = 2
+};
+
 /** XR action type. Enum values match those in GHOST_XrActionType enum for consistency. */
 enum eXrActionType {
   XR_BOOLEAN_INPUT = 1,
@@ -108,7 +128,17 @@ struct XrSessionSettings {
   char draw_flags = 0;
   /** Draw style for controller visualization. */
   char controller_draw_style = 0;
-  char _pad2[2] = {};
+  char controller_dominant_hand; /* #eXrSessionDominantHand */
+
+  char viewfinder_enable;
+
+  /** Active/Selected Viewfinder button/mode, different paradigm as the rest of the Blender UI. */
+  char viewfinder_active_mode;            /* #eXrViewfinderMode */
+  char viewfinder_active_action_live;     /* #eXrViewfinderLiveAction */
+  char viewfinder_active_action_playback; /* #eXrViewfinderPlaybackAction */
+  char _pad2;
+
+  float viewfinder_width;
 
   /** Clipping distance. */
   float clip_start = 0, clip_end = 0;

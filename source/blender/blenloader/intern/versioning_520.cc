@@ -9,6 +9,8 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_ID.h"
+#include "DNA_windowmanager_types.h"
+#include "DNA_xr_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_sys_types.h"
@@ -72,6 +74,19 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 1)) {
     for (Scene &scene : bmain->scenes) {
       scene.r.mode |= R_SAVE_OUTPUT;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 4)) {
+    for (wmWindowManager &wm : bmain->wm) {
+      wm.xr.session_settings.controller_dominant_hand = XR_CONTROLLER_DHAND_RIGHT;
+
+      wm.xr.session_settings.viewfinder_enable = true;
+      wm.xr.session_settings.viewfinder_width = 5.0f;
+
+      wm.xr.session_settings.viewfinder_active_mode = XR_VIEWFINDER_MODE_LIVE;
+      wm.xr.session_settings.viewfinder_active_action_live = XR_VIEWFINDER_ACTION_LIVE_LENS;
+      wm.xr.session_settings.viewfinder_active_action_playback = XR_VIEWFINDER_ACTION_PB_BROWSE;
     }
   }
   /**

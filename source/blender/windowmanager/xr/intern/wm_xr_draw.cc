@@ -49,10 +49,10 @@
 
 #include "wm_xr_intern.hh"
 
+namespace blender {
+
 extern bContext *evil_main_C;
 static GPUOffScreen *g_viewfinder_offscreen;
-
-namespace blender {
 
 void wm_xr_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4])
 {
@@ -111,9 +111,9 @@ static wmXrController *get_viewfinder_controller(const XrSessionSettings *settin
       return nullptr;
   }
 
-  LISTBASE_FOREACH (wmXrController *, controller, &state->controllers) {
-    if (STREQ(controller->subaction_path, subaction_path)) {
-      return controller;
+  for (wmXrController &controller : state->controllers) {
+    if (STREQ(controller.subaction_path, subaction_path)) {
+      return &controller;
     }
   }
 
@@ -230,7 +230,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
 
   Scene *scene = draw_data->scene;
   Object *camera_ob = scene->camera; /* Active scene camera. */
-  Camera *camera_data = static_cast<Camera *>(camera_ob->data);
+  Camera *camera_data = id_cast<Camera *>(camera_ob->data);
 
   /* Hack: The DoF live DoF settings need to be overriden during playback to display
    * the DoF of the captured shot. Circumvent this by storing the live DoF setting
@@ -469,17 +469,17 @@ static gpu::Batch *wm_xr_controller_model_batch_create(GHOST_IXrContext *xr_cont
   return GPU_batch_create_ex(GPU_PRIM_TRIS, vbo, ibo, GPU_BATCH_OWNS_VBO | GPU_BATCH_OWNS_INDEX);
 }
 
-static uiLayout &uiblock_prepare(uiBlock **block,
-                                 const bContext *C,
-                                 blender::ui::EmbossType emboss)
+static ui::Layout &uiblock_prepare(ui::Block **block,
+                                   const bContext *C,
+                                   blender::ui::EmbossType emboss)
 {
-  const uiStyle *style = UI_style_get_dpi();
+  const uiStyle *style = ui::style_get_dpi();
   const int viewfinder_width = style->widget.points * 50 * UI_SCALE_FAC;
 
-  *block = UI_block_begin_xr(C, __func__, emboss);
+  *block = ui::block_begin_xr(C, __func__, emboss);
 
-  UI_block_flag_enable(*block, UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
-  UI_block_theme_style_set(*block, UI_BLOCK_THEME_STYLE_POPUP); /* Can also use REGULAR here. */
+  ui::block_flag_enable(*block, ui::BLOCK_LOOP | ui::BLOCK_KEEP_OPEN | ui::BLOCK_NO_WIN_CLIP);
+  ui::block_theme_style_set(*block, ui::BLOCK_THEME_STYLE_POPUP); /* Can also use REGULAR here. */
 
   using namespace blender;
   return ui::block_layout(*block,
@@ -493,38 +493,38 @@ static uiLayout &uiblock_prepare(uiBlock **block,
                           style);
 }
 
-static uiBlock *viewfinder_action_label_ui_block(const bContext *C,
-                                                 const XrSessionSettings *settings)
+static ui::Block *viewfinder_action_label_ui_block(const bContext *C,
+                                                   const XrSessionSettings *settings)
 {
   const char *active_action_prop = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
                                        "viewfinder_active_action_live" :
                                        "viewfinder_active_action_playback";
 
   /* XR Session settings RNA pointer. */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_XrSessionSettings, (void *)settings);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_XrSessionSettings, (void *)settings);
   //  PropertyRNA *prop = RNA_struct_find_property(&ptr, active_action_prop);
 
-  uiBlock *block = nullptr;
-  uiLayout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::None);
+  ui::Block *block = nullptr;
+  ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::None);
 
   // TODO: Address the small menu down arrow that can be seen on the right side
-  layout.prop(&ptr, active_action_prop, UI_ITEM_R_COMPACT | UI_ITEM_R_ICON_NEVER, "", ICON_NONE);
+  layout.prop(&ptr, active_action_prop, ui::ITEM_R_COMPACT | ui::ITEM_R_ICON_NEVER, "", ICON_NONE);
 
-  UI_block_end_xr(C, block);
+  ui::block_end_xr(C, block);
 
   return block;
 }
 
-static uiBlock *viewfinder_action_enum_ui_block(const bContext *C,
-                                                const XrSessionSettings *settings)
+static ui::Block *viewfinder_action_enum_ui_block(const bContext *C,
+                                                  const XrSessionSettings *settings)
 {
   /* XR Session settings RNA pointer. */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_XrSessionSettings, (void *)settings);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_XrSessionSettings, (void *)settings);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "viewfinder_active_action_live");
 
-  uiBlock *block = nullptr;
-  uiLayout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
-  uiLayout &row = layout.row(true);
+  ui::Block *block = nullptr;
+  ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
+  ui::Layout &row = layout.row(true);
 
   layout.scale_y_set(1.1f);
 
@@ -533,13 +533,13 @@ static uiBlock *viewfinder_action_enum_ui_block(const bContext *C,
      * as disabled when DoF is disabled. */
     layout.ui_units_x_set(8.0f); /* Width hack. */
 
-    uiLayout &sub1 = row.row(true);
+    ui::Layout &sub1 = row.row(true);
     sub1.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_LENS, "", ICON_NONE);
     sub1.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_DOF, "", ICON_NONE);
 
-    uiLayout &sub2 = row.row(true);
+    ui::Layout &sub2 = row.row(true);
     const Object *scene_cam = CTX_data_scene(C)->camera;
-    const Camera *cam_data = static_cast<const Camera *>(scene_cam->data);
+    const Camera *cam_data = id_cast<const Camera *>(scene_cam->data);
     sub2.enabled_set(cam_data->dof.flag & CAM_DOF_ENABLED);
 
     /* Show these controls greyed-out if DoF is disabled. */
@@ -552,26 +552,26 @@ static uiBlock *viewfinder_action_enum_ui_block(const bContext *C,
 
     row.prop(&ptr,
              "viewfinder_active_action_playback",
-             UI_ITEM_R_EXPAND | UI_ITEM_R_ICON_ONLY,
+             ui::ITEM_R_EXPAND | ui::ITEM_R_ICON_ONLY,
              "",
              ICON_NONE);
   }
 
-  UI_block_end_xr(C, block);
+  ui::block_end_xr(C, block);
 
   return block;
 }
 
-static uiBlock *viewfinder_settings_label_ui_block(const bContext *C,
-                                                   const XrSessionSettings *settings)
+static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
+                                                     const XrSessionSettings *settings)
 {
 
-  uiBlock *block = nullptr;
-  uiLayout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
+  ui::Block *block = nullptr;
+  ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
 
   Scene *scene = CTX_data_scene(C);
   Object *cam_ob = scene->camera;
-  const Camera *cam = static_cast<const Camera *>(cam_ob->data);
+  const Camera *cam = id_cast<const Camera *>(cam_ob->data);
 
   PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
 
@@ -600,28 +600,37 @@ static uiBlock *viewfinder_settings_label_ui_block(const bContext *C,
 
   layout.label(settings_label.c_str(), ICON_NONE);
 
-  UI_block_end_xr(C, block);
+  ui::block_end_xr(C, block);
 
   return block;
 }
 
-static uiBlock *viewfinder_mode_tabs_ui_block(const bContext *C, const XrSessionSettings *settings)
+static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C,
+                                                const XrSessionSettings *settings)
 {
-  uiBlock *block = UI_block_begin_xr(C, __func__, blender::ui::EmbossType::Emboss);
-  UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
-  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
+  ui::Block *block = ui::block_begin_xr(C, __func__, blender::ui::EmbossType::Emboss);
+  ui::block_flag_enable(block, ui::BLOCK_LOOP | ui::BLOCK_KEEP_OPEN | ui::BLOCK_NO_WIN_CLIP);
+  ui::block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
 
   const float tab_width = UI_UNIT_X * 10.0f;
 
-  uiBut *but = uiDefBut(
-      block, ButType::Tab, 0, "Live Camera View", 0, 0, tab_width, UI_UNIT_Y, nullptr, 0, 0, "");
-  UI_but_func_pushed_state_set(but, [&settings](const uiBut &) -> bool {
+  ui::Button *but = uiDefBut(block,
+                             ui::ButtonType::Tab,
+                             "Live Camera View",
+                             0,
+                             0,
+                             tab_width,
+                             UI_UNIT_Y,
+                             nullptr,
+                             0,
+                             0,
+                             "");
+  button_func_pushed_state_set(but, [&settings](const ui::Button &) -> bool {
     return settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE;
   });
 
   but = uiDefBut(block,
-                 ButType::Tab,
-                 0,
+                 ui::ButtonType::Tab,
                  "Image Playback",
                  tab_width,
                  0,
@@ -631,11 +640,11 @@ static uiBlock *viewfinder_mode_tabs_ui_block(const bContext *C, const XrSession
                  0,
                  0,
                  "");
-  UI_but_func_pushed_state_set(but, [&settings](const uiBut &) -> bool {
+  button_func_pushed_state_set(but, [&settings](const ui::Button &) -> bool {
     return settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK;
   });
 
-  UI_block_end_xr(C, block);
+  ui::block_end_xr(C, block);
 
   return block;
 }
@@ -653,8 +662,8 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
     GPU_matrix_translate_3f(x_off, y_off, 0.0f);
     GPU_matrix_scale_1f(0.01f);
 
-    uiBlock *block = block_func(fake_C, settings);
-    UI_block_draw_xr(fake_C, block); /* Stripped-down XR version of #UI_block_draw. */
+    ui::Block *block = block_func(fake_C, settings);
+    ui::block_draw_xr(fake_C, block); /* Stripped-down XR version of #UI_block_draw. */
 
     GPU_matrix_pop();
   };
@@ -702,10 +711,10 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
 
   /* Prevent other XR UI elements (like locomotion rays) from drawing through the viewfinder. */
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
-  UI_draw_roundbox_3fv_alpha(&background_rect, true, 16, background_col, 1.0f);
+  ui::draw_roundbox_3fv_alpha(&background_rect, true, 16, background_col, 1.0f);
   GPU_depth_test(GPU_DEPTH_NONE);
 
-  UI_draw_roundbox_3fv_alpha(&outline_rect, true, 12, outline_col, 0.2f);
+  ui::draw_roundbox_3fv_alpha(&outline_rect, true, 12, outline_col, 0.2f);
 
   GPU_matrix_pop();
 }
@@ -781,7 +790,7 @@ static void wm_xr_controller_viewfinder_draw_view_flash(wmXrSessionState *state,
 }
 
 static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
-                                             GHOST_XrContextHandle /*xr_context*/,
+                                             GHOST_IXrContext * /*xr_context*/,
                                              wmXrSessionState *state,
                                              const bContext *C)
 {

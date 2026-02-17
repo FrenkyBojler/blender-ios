@@ -1800,7 +1800,7 @@ static wmOperatorStatus wm_xr_viewfinder_cycle_action_exec(bContext *C, wmOperat
   if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE) {
     /* If we're in live mode, disallow cycling to the DoF controls if DoF is not enabled. */
     const Object *scene_cam = CTX_data_scene(C)->camera;
-    const Camera *cam_data = static_cast<const Camera *>(scene_cam->data);
+    const Camera *cam_data = id_cast<const Camera *>(scene_cam->data);
     const bool dof_enabled = cam_data->dof.flag & CAM_DOF_ENABLED;
 
     enum_length = dof_enabled ? 4 : 2;

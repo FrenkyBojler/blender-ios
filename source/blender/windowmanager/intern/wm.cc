@@ -61,7 +61,6 @@
 
 #include "BLO_read_write.hh"
 
-
 namespace blender {
 
 bContext *evil_main_C;
