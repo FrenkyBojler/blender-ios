@@ -367,6 +367,12 @@ struct Button : NonMovable {
   virtual ~Button() = default;
 };
 
+/** Derived struct for #ButtonType::Roundbox or #ButtonType::ListBox. */
+struct ButtonRoundBox : public Button {
+  bool panel_style = false;
+  bool panel_sub_back_style = false;
+};
+
 /** Derived struct for #ButtonType::Num */
 struct ButtonNumber : public Button {
   float step_size = 0.0f;

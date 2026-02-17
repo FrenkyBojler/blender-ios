@@ -4586,11 +4586,18 @@ static void widget_box(Button *but,
                        int roundboxalign,
                        const float zoom)
 {
+  ButtonRoundBox *box = static_cast<ButtonRoundBox *>(but);
   WidgetBase wtb;
   widget_init(&wtb);
 
   uchar old_col[3];
   copy_v3_v3_uchar(old_col, wcol->inner);
+  if (box && box->panel_style) {
+    theme::get_color_4ubv(TH_BACK, wcol->inner);
+  }
+  if (box && box->panel_sub_back_style) {
+    theme::get_color_4ubv(TH_PANEL_SUB_BACK, wcol->inner);
+  }
 
   /* abuse but->hsv - if it's non-zero, use this color as the box's background */
   if (but != nullptr && but->col[3]) {
@@ -4603,6 +4610,7 @@ static void widget_box(Button *but,
   const float rad = widget_radius_from_zoom(zoom, wcol);
   round_box_edges(&wtb, roundboxalign, rect, rad);
   wtb.draw_emboss = draw_emboss(but);
+  wtb.draw_outline = box && !box->panel_sub_back_style;
   widgetbase_draw(&wtb, wcol);
 
   copy_v3_v3_uchar(wcol->inner, old_col);
@@ -5109,7 +5117,7 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
     switch (but->type) {
       case ButtonType::Label:
         wt = widget_type(UI_WTYPE_LABEL);
-        if (but->drawflag & BUT_BOX_ITEM) {
+        if (true) {
           wt->wcol_theme = &tui->wcol_box;
           wt->state = widget_state;
         }

@@ -281,6 +281,7 @@ struct LayoutItemBx : public LayoutColumn {
 struct LayoutItemPanelHeader : public Layout {
   PointerRNA open_prop_owner;
   std::string open_prop_name;
+  Button *box = nullptr;
   LayoutItemPanelHeader() : Layout(ItemType::LayoutPanelHeader, nullptr) {}
 
   void estimate_impl() override;
@@ -288,6 +289,8 @@ struct LayoutItemPanelHeader : public Layout {
 };
 
 struct LayoutItemPanelBody : public LayoutColumn {
+  Button *header_box = nullptr;
+  Button *body_box = nullptr;
   LayoutItemPanelBody() : LayoutColumn(ItemType::LayoutPanelBody, nullptr) {}
   void resolve_impl() override;
 };
@@ -4048,6 +4051,12 @@ void LayoutItemPanelHeader::resolve_impl()
   const float offset = style_get_dpi()->panelspace;
   panel->runtime->layout_panels.headers.append(
       {float(y_) - offset, float(y_ + h_) - offset, open_prop_owner, open_prop_name});
+  if (this->block()->flag & (BLOCK_POPOVER | BLOCK_LOOP)) {
+    this->box->rect.xmin = x_;
+    this->box->rect.xmax = x_ + w_;
+    this->box->rect.ymin = y_;
+    this->box->rect.ymax = y_ + h_;
+  }
 }
 
 /* panel body layout */
@@ -4056,10 +4065,19 @@ void LayoutItemPanelBody::resolve_impl()
   Panel *panel = this->root_panel();
   LayoutColumn::resolve_impl();
   const float offset = style_get_dpi()->panelspace;
-  panel->runtime->layout_panels.bodies.append({
-      float(y_ - space_) - offset,
-      float(y_ + h_ + space_) - offset,
-  });
+  if (this->block()->flag & (BLOCK_POPOVER | BLOCK_LOOP)) {
+    this->header_box->rect.ymin = y_ - space_;
+    this->body_box->rect.xmin = x_;
+    this->body_box->rect.xmax = x_ + w_;
+    this->body_box->rect.ymin = y_ - space_ - offset;
+    this->body_box->rect.ymax = y_ + h_ + space_ + offset / 2;
+  }
+  else {
+    panel->runtime->layout_panels.bodies.append({
+        float(y_ - space_) - offset,
+        float(y_ + h_ + space_) - offset,
+    });
+  }
 }
 
 /* box layout */
@@ -4801,11 +4819,20 @@ PanelLayout Layout::panel_prop(const bContext *C,
   const bool search_filter_active = region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE;
   const bool is_open = is_real_open || search_filter_active;
 
+  block_layout_set_current(this->block(), this);
+
+  ButtonRoundBox *header_box = nullptr;
+  if (this->block()->flag & (BLOCK_POPOVER | BLOCK_LOOP)) {
+    header_box = static_cast<ButtonRoundBox *>(
+        uiDefBut(this->block(), ButtonType::Roundbox, "", 0, 0, 0, 0, nullptr, 0.0, 0.0, ""));
+    header_box->panel_style = true;
+  }
+
   PanelLayout panel_layout{};
   {
     LayoutItemPanelHeader *header_litem = MEM_new<LayoutItemPanelHeader>(__func__);
     LayoutInternal::init_from_parent(header_litem, this, false);
-
+    header_litem->box = header_box;
     header_litem->open_prop_owner = *open_prop_owner;
     header_litem->open_prop_name = open_prop_name;
 
@@ -4823,13 +4850,27 @@ PanelLayout Layout::panel_prop(const bContext *C,
   if (!is_open) {
     return panel_layout;
   }
+  block_layout_set_current(this->block(), this);
+
+  ButtonRoundBox *body_box = nullptr;
+  if (this->block()->flag & (BLOCK_POPOVER | BLOCK_LOOP)) {
+    body_box = static_cast<ButtonRoundBox *>(
+        uiDefBut(this->block(), ButtonType::Roundbox, "", 0, 0, 0, 0, nullptr, 0.0, 0.0, ""));
+    body_box->panel_sub_back_style = true;
+  }
 
   LayoutItemPanelBody *body_litem = MEM_new<LayoutItemPanelBody>(__func__);
   body_litem->space_ = root_->style->templatespace;
   LayoutInternal::init_from_parent(body_litem, this, false);
   block_layout_set_current(this->block(), body_litem);
-  panel_layout.body = body_litem;
 
+  Layout &row = body_litem->row(true);
+  row.separator(1.2f);
+  panel_layout.body = &row.column(false);
+  row.separator(1.2f);
+
+  body_litem->body_box = body_box;
+  body_litem->header_box = header_box;
   return panel_layout;
 }
 
