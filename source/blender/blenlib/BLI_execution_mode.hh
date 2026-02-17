@@ -43,7 +43,7 @@ concept Tag = requires {
 };
 
 /**
- * A version of #Tag that is not constexpr and can therefore be used in non-template functions.
+ * A version of #Tag that can be used in non-template functions.
  */
 struct Mode {
   bool is_parallel;
