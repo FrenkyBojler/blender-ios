@@ -22,6 +22,8 @@
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
+#include "BLF_api.hh"
+
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_lib_query.hh"
@@ -343,6 +345,13 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
 
   /* reset view matrix */
   ui::view2d_view_restore(C);
+
+  if (sipo->local_view_bits) {
+    const float x = 80.0f;
+    const float y = region->winy - UI_TIME_SCRUB_MARGIN_Y - 50.0f;
+    std::string name = "Local View";
+    BLF_draw_default(x, y, 0.0f, name.c_str(), name.length() + 1);
+  }
 
   /* time-scrubbing */
   int base = round_db_to_int(scene->frames_per_second());
