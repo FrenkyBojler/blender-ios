@@ -811,6 +811,28 @@ static void node_implicit_conversion_init(bNodeTree * /*ntree*/, bNode *node)
   node->storage = data;
 }
 
+static bool node_implicit_conversion_poll_instance(const bNode *node,
+                                                   const bNodeTree *nodetree,
+                                                   const char **r_disabled_hint)
+{
+  const NodeImplicitConversion &data = *static_cast<NodeImplicitConversion *>(node->storage);
+  bke::bNodeSocketType *socket_type = bke::node_socket_type_find(data.type_idname);
+  if (!socket_type) {
+    if (r_disabled_hint) {
+      *r_disabled_hint = "Socket type not found";
+    }
+    return false;
+  }
+  bke::bNodeTreeType &tree_type = *nodetree->typeinfo;
+  if (tree_type.valid_socket_type && !tree_type.valid_socket_type(&tree_type, socket_type)) {
+    if (r_disabled_hint) {
+      *r_disabled_hint = "Socket type not supported";
+    }
+    return false;
+  }
+  return true;
+}
+
 static void node_implicit_conversion_geo_exec(nodes::GeoNodeExecParams params)
 {
   auto input_value = params.extract_input<bke::SocketValueVariant>("Input");
@@ -831,6 +853,7 @@ void register_node_type_implicit_conversion()
   ntype->initfunc = node_implicit_conversion_init;
   node_type_storage(
       *ntype, "NodeImplicitConversion", node_free_standard_storage, node_copy_standard_storage);
+  ntype->poll_instance = node_implicit_conversion_poll_instance;
   ntype->geometry_node_execute = node_implicit_conversion_geo_exec;
 
   bke::node_register_type(*ntype);
