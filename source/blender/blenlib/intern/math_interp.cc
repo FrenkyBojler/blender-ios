@@ -580,7 +580,7 @@ template<enum Sampler sampler> BLI_INLINE float weight(float x);
  * Generic version works for any cubic filter (todo: fix for filters with negative weights)
  */
 template<enum Sampler sampler>
-BLI_INLINE float4 _sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
+static float4 _sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
 {
   const float2 w1 = max(wh, 1.0f);
   const float2 r = 2 * w1;
@@ -725,19 +725,56 @@ template<> float weight<Sampler::Bspline>(float x)
                     ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
 }
 
-float4 sample_rect(Sampler sampler, const sampler2D &source, const float2 &uv, const float2 &wh)
+/* Return the function to call to sample the given source. This depends on the
+ * sampler. The source may also be used to specialize base on the wrapping or the
+ * size or channels or type of the image (NYI).
+ */
+SampleRect sample_rect(Sampler sampler, const sampler2D &)
 {
   BLI_assert(source.components == 4);
   switch (sampler) {
     case Sampler::Nearest:
-      return _sample_rect<Sampler::Nearest>(source, uv, wh);
+      return _sample_rect<Sampler::Nearest>;
     case Sampler::Bilinear:
-      return _sample_rect<Sampler::Bilinear>(source, uv, wh);
+      return _sample_rect<Sampler::Bilinear>;
     default: /* case Sampler::Box */
-      return _sample_rect<Sampler::Box>(source, uv, wh);
+      return _sample_rect<Sampler::Box>;
     case Sampler::Bspline:
-      return _sample_rect<Sampler::Bspline>(source, uv, wh);
+      return _sample_rect<Sampler::Bspline>;
   }
+}
+
+BLI_INLINE float2 hypot(const float2 &a, const float2 &b)
+{
+  return float2{hypotf(a.x, b.x), hypotf(a.y, b.y)};
+}
+
+template<enum Sampler sampler>
+static float4 _sample_area(const sampler2D &source,
+                           const float2 &uv,
+                           const float2 &dPdx,
+                           const float2 &dPdy)
+{
+  return _sample_rect<sampler>(source, uv, hypot(dPdx, dPdy));
+}
+
+// specializations that skip unused computation of hypot
+template<>
+float4 _sample_area<Sampler::Nearest>(const sampler2D &source,
+                                      const float2 &uv,
+                                      const float2 &dPdx,
+                                      const float2 &)
+{
+  return _sample_rect<Sampler::Nearest>(source, uv, dPdx);
+}
+
+template<>
+float4 _sample_area<Sampler::Bilinear>(const sampler2D &source,
+                                       const float2 &uv,
+                                       const float2 &dPdx,
+                                       const float2 &)
+{
+  return _sample_rect<Sampler::Bilinear>(source, uv, dPdx);
 }
 
 BLI_INLINE int32_t wrap_coord_i(int32_t u, int32_t size, InterpWrapMode wrap)
@@ -800,29 +837,20 @@ BLI_INLINE float4 sample_anisotropic(const sampler2D &source,
   return pixel_value;
 }
 
-BLI_INLINE float2 hypot(const float2 &a, const float2 &b)
-{
-  return float2{hypotf(a.x, b.x), hypotf(a.y, b.y)};
-}
-
-float4 sample_area(Sampler sampler,
-                   const sampler2D &source,
-                   const float2 &uv,
-                   const float2 &dPdx,
-                   const float2 &dPdy)
+SampleArea sample_area(Sampler sampler, const sampler2D &)
 {
   BLI_assert(source.components == 4);
   switch (sampler) {
     case Sampler::Nearest:
-      return _sample_rect<Sampler::Nearest>(source, uv, dPdx);  // wh is ignored
+      return _sample_area<Sampler::Nearest>;
     case Sampler::Bilinear:
-      return _sample_rect<Sampler::Bilinear>(source, uv, dPdx);  // wh is ignored
-    default:                                                     /* case Sampler::Box */
-      return _sample_rect<Sampler::Box>(source, uv, hypot(dPdx, dPdy));
+      return _sample_area<Sampler::Bilinear>;
+    default: /* case Sampler::Box */
+      return _sample_area<Sampler::Box>;
     case Sampler::Bspline:
-      return _sample_rect<Sampler::Bspline>(source, uv, hypot(dPdx, dPdy));
+      return _sample_area<Sampler::Bspline>;
     case Sampler::Anisotropic:
-      return sample_anisotropic(source, uv, dPdx, dPdy);
+      return sample_anisotropic;
   }
 }
 

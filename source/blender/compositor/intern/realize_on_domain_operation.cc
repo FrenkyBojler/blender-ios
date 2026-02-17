@@ -267,17 +267,21 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const int2 &size,
   const float2 translate(inverse_transformation[2].xy());
 
   if (options.sampler == math::Sampler::Anisotropic) {
+    auto sample_area = math::sample_area(options.sampler, source);
     parallel_for(size, [&](const int2 texel) {
       float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
-      float4 sample = math::sample_area(options.sampler, source, uv, dPdx, dPdy);
+      float4 sample = sample_area(source, uv, dPdx, dPdy);
       output.store_pixel(texel, Color(sample));
     });
     return;
   }
 
+  // locate the optimized version of sample_rect
+  auto sample_rect = math::sample_rect(options.sampler, source);
+
   parallel_for(size, [&](const int2 texel) {
     float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
-    float4 sample = math::sample_rect(options.sampler, source, uv, wh);
+    float4 sample = sample_rect(source, uv, wh);
     output.store_pixel(texel, Color(sample));
   });
 }
