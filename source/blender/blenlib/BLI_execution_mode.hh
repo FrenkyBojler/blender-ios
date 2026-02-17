@@ -9,16 +9,17 @@
 #pragma once
 
 #include <concepts>
+#include <optional>
 
-namespace blender {
+namespace blender::exec_mode {
 
 /** Potentially use multiple threads to execute the function. */
-struct ExecuteParallel {
+struct Parallel {
   static constexpr bool is_parallel = true;
 };
 
 /** Execute the function in the current thread. */
-struct ExecuteSerial {
+struct Serial {
   static constexpr bool is_parallel = false;
 };
 
@@ -26,21 +27,38 @@ struct ExecuteSerial {
  * Potentially use multiple threads to execute the function, with a configurable grain size to
  * influence the parallel task size.
  */
-struct ExecuteParallelGrainSize {
+struct ParallelGrainSize {
   static constexpr bool is_parallel = true;
   int grain_size = 1;
 };
 
 /**
  * Argument used to control whether a function should use parallel execution or not.
- * \note For a version that doesn't require constexpr and can be passed to non-template functions,
- * see #ExecutionModeVariant.
  */
 template<typename T>
-concept ExecutionMode = requires {
+concept Tag = requires {
   {
     T::is_parallel
   } -> std::convertible_to<bool>;
 };
 
-}  // namespace blender
+/**
+ * A version of #Tag that is not constexpr and can therefore be used in non-template functions.
+ */
+struct Mode {
+  bool is_parallel;
+  std::optional<int> grain_size;
+  constexpr Mode(Parallel /*tag*/) : is_parallel(true), grain_size(std::nullopt) {}
+  constexpr Mode(Serial /*tag*/) : is_parallel(false), grain_size(std::nullopt) {}
+  constexpr Mode(ParallelGrainSize tag) : is_parallel(true), grain_size(tag.grain_size) {}
+};
+
+/** Main access points to control execution mode. */
+constexpr Parallel parallel = Parallel();
+constexpr Serial serial = Serial();
+constexpr ParallelGrainSize grain_size(int grain_size)
+{
+  return ParallelGrainSize{grain_size};
+}
+
+}  // namespace blender::exec_mode

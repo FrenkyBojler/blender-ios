@@ -83,7 +83,7 @@ static OffsetIndices<int> accumulate_counts_to_offsets(const IndexMask &selectio
     array_utils::gather(counts,
                         selection,
                         r_offset_data.as_mutable_span().drop_back(1),
-                        ExecuteParallelGrainSize{1024});
+                        exec_mode::grain_size(1024));
     offset_indices::accumulate_counts_to_offsets(r_offset_data);
   }
   return OffsetIndices<int>(r_offset_data);

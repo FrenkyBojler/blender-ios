@@ -15,11 +15,11 @@
 
 namespace blender::array_utils {
 
-void copy(const GVArray &src, GMutableSpan dst, const ExecutionModeVariant mode)
+void copy(const GVArray &src, GMutableSpan dst, const exec_mode::Mode mode)
 {
   BLI_assert(src.type() == dst.type());
   BLI_assert(src.size() == dst.size());
-  if (std::holds_alternative<ExecuteSerial>(mode)) {
+  if (!mode.is_parallel) {
     src.materialize_to_uninitialized(src.index_range(), dst.data());
   }
   else {
@@ -33,12 +33,12 @@ void copy(const GVArray &src, GMutableSpan dst, const ExecutionModeVariant mode)
 void copy(const GVArray &src,
           const IndexMask &selection,
           GMutableSpan dst,
-          const ExecutionModeVariant mode)
+          const exec_mode::Mode mode)
 {
   BLI_assert(src.type() == dst.type());
   BLI_assert(src.size() >= selection.min_array_size());
   BLI_assert(dst.size() >= selection.min_array_size());
-  if (std::holds_alternative<ExecuteSerial>(mode)) {
+  if (!mode.is_parallel) {
     src.materialize_to_uninitialized(selection, dst.data());
   }
   else {
@@ -52,11 +52,11 @@ void copy(const GVArray &src,
 void gather(const GVArray &src,
             const IndexMask &indices,
             GMutableSpan dst,
-            const ExecutionModeVariant mode)
+            const exec_mode::Mode mode)
 {
   BLI_assert(src.type() == dst.type());
   BLI_assert(indices.size() == dst.size());
-  if (std::holds_alternative<ExecuteSerial>(mode)) {
+  if (!mode.is_parallel) {
     src.materialize_compressed_to_uninitialized(indices, dst.data());
   }
   else {
@@ -70,7 +70,7 @@ void gather(const GVArray &src,
 void gather(const GSpan src,
             const IndexMask &indices,
             GMutableSpan dst,
-            const ExecutionModeVariant mode)
+            const exec_mode::Mode mode)
 {
   gather(GVArray::from_span(src), indices, dst, mode);
 }
