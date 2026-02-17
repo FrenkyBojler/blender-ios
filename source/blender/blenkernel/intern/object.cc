@@ -1079,8 +1079,8 @@ PartEff *BKE_object_do_version_give_parteff_245(Object *ob)
 
 static void object_lib_override_apply_post(ID *id_dst, ID *id_src)
 {
-  /* id_dst is the new local override copy of the linked reference data. id_src is the old
-   * override data stored on disk, used as source data for override operations. */
+  /* id_dst is the new local override copy of the linked reference data. id_src is the old override
+   * data stored on disk, used as source data for override operations. */
   Object *object_dst = id_cast<Object *>(id_dst);
   Object *object_src = id_cast<Object *>(id_src);
 
@@ -1407,12 +1407,11 @@ static bool object_modifier_type_copy_check(ModifierType md_type)
 
 /**
  * Find a `psys` matching given `psys_src` in `ob_dst`
- * (i.e. sharing the same #ParticleSettings ID), or add one, and return valid `psys` from
- * `ob_dst`.
+ * (i.e. sharing the same #ParticleSettings ID), or add one, and return valid `psys` from `ob_dst`.
  *
  * \note Order handling is fairly weak here. This code assumes that it is called **before** the
- * modifier using the `psys` is actually copied, and that this copied modifier will be added at
- * the end of the stack. That way we can be sure that the particle modifier will be before the one
+ * modifier using the `psys` is actually copied, and that this copied modifier will be added at the
+ * end of the stack. That way we can be sure that the particle modifier will be before the one
  * using its particle system in the stack.
  */
 static ParticleSystem *object_copy_modifier_particle_system_ensure(Main *bmain,
@@ -2584,8 +2583,8 @@ Object *BKE_object_duplicate(Main *bmain,
     copy_flags |= LIB_ID_COPY_RIGID_BODY_NO_COLLECTION_HANDLING;
   }
   if (is_root_id) {
-    /* In case root duplicated ID is linked, assume we want to get a local copy of it and
-     * duplicate all expected linked data. */
+    /* In case root duplicated ID is linked, assume we want to get a local copy of it and duplicate
+     * all expected linked data. */
     if (ID_IS_LINKED(ob)) {
       dupflag |= USER_DUP_LINKED_ID;
     }
@@ -2718,8 +2717,7 @@ Object *BKE_object_duplicate(Main *bmain,
         bmain, &obn->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR);
 
 #ifndef NDEBUG
-    /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags.
-     */
+    /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */
     ID *id_iter;
     FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
       BLI_assert((id_iter->tag & ID_TAG_NEW) == 0);
@@ -3203,8 +3201,7 @@ static void give_parvert(const Object *par, int nr, float vec[3], const bool use
     ListBaseT<Nurb> *nurb;
 
     /* It is possible that a cycle in the dependency graph was resolved in a way that caused this
-     * object to be evaluated before its dependencies. In this case the curve cache may be null.
-     */
+     * object to be evaluated before its dependencies. In this case the curve cache may be null. */
     if (par->runtime->curve_cache && par->runtime->curve_cache->deformed_nurbs.first != nullptr) {
       nurb = &par->runtime->curve_cache->deformed_nurbs;
     }
@@ -3451,10 +3448,10 @@ float4x4 BKE_object_calc_parent(Depsgraph *depsgraph, Scene *scene, Object *ob)
   workob.par3 = ob->par3;
 
   /* The effects of constraints should NOT be included in the parent-inverse matrix. Constraints
-   * are supposed to be applied after the object's local loc/rot/scale. If the (inverted) effect
-   * of constraints would be included in the parent inverse matrix, these would be applied before
-   * the object's local loc/rot/scale instead of after. For example, a "Copy Rotation" constraint
-   * would rotate the object's local translation as well. See #82156. */
+   * are supposed to be applied after the object's local loc/rot/scale. If the (inverted) effect of
+   * constraints would be included in the parent inverse matrix, these would be applied before the
+   * object's local loc/rot/scale instead of after. For example, a "Copy Rotation" constraint would
+   * rotate the object's local translation as well. See #82156. */
 
   STRNCPY_UTF8(workob.parsubstr, ob->parsubstr);
 
