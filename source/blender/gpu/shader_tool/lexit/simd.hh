@@ -602,12 +602,16 @@ template<int Size> struct u16_base {
 
   explicit u16_base(const u8_base<Size / 2> v)
   {
+#  if defined(USE_SSE4_2)
+    __m128i zero = _mm_setzero_si128();
+#  endif
     for (int i = 0; i < Size / 2; ++i) {
 #  if defined(USE_NEON)
       lanes[i * 2 + 0] = vmovl_u8(vget_low_u8(v.lanes[i]));
       lanes[i * 2 + 1] = vmovl_u8(vget_high_u8(v.lanes[i]));
 #  elif defined(USE_SSE4_2)
-/* TODO */
+      lanes[i * 2 + 0] = _mm_unpacklo_epi8(v.lanes[i], zero);
+      lanes[i * 2 + 1] = _mm_unpackhi_epi8(v.lanes[i], zero);
 #  endif
     }
   }
@@ -729,6 +733,7 @@ template<int Size> struct u32_base {
 
   /* --- Arithmetic Operators --- */
 
+  /* Note: Signed comparison on SSE. */
   friend u32_base operator<(u32_base a, u32_base b)
   {
     u32_base res;
@@ -736,12 +741,13 @@ template<int Size> struct u32_base {
 #  if defined(USE_NEON)
       res.lanes[i] = vcltq_u32(a.lanes[i], b.lanes[i]);
 #  elif defined(USE_SSE4_2)
-      static_assert(0);  // TODO
+      res.lanes[i] = _mm_cmplt_epi32(a.lanes[i], b.lanes[i]);
 #  endif
     }
     return res;
   }
 
+  /* Note: Signed comparison on SSE. */
   friend u32_base operator<(u32_base a, uint32_t b)
   {
 #  if defined(USE_NEON)
@@ -755,7 +761,7 @@ template<int Size> struct u32_base {
 #  if defined(USE_NEON)
       res.lanes[i] = vcltq_u32(a.lanes[i], tmp);
 #  elif defined(USE_SSE4_2)
-      static_assert(0);  // TODO
+      res.lanes[i] = _mm_cmplt_epi32(a.lanes[i], tmp);
 #  endif
     }
     return res;
@@ -774,7 +780,7 @@ template<int Size> struct u32_base {
 #  if defined(USE_NEON)
       res.lanes[i] = vcgtq_u32(a.lanes[i], tmp);
 #  elif defined(USE_SSE4_2)
-      static_assert(0);  // TODO
+      res.lanes[i] = _mm_cmpgt_epi32(a.lanes[i], b.lanes[i]);
 #  endif
     }
     return res;
