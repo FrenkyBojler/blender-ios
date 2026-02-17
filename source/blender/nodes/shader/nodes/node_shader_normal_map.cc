@@ -55,7 +55,7 @@ static void node_shader_buts_normal_map(ui::Layout &layout, bContext *C, Pointer
       }
     }
 
-    layout.prop(ptr, "uv_map", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE, IFACE_("UV Map")));
+    layout.prop(ptr, "uv_map", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE, IFACE_("UV Map"));
   }
 }
 
