@@ -166,6 +166,11 @@ void relations_invalidate_cache(Scene *scene, Strip *strip)
     strip_effect_speed_rebuild_map(scene, strip);
   }
 
+  /* Zero-input compositor effect source caches also need to be invalidated. */
+  if (strip->type == STRIP_TYPE_COMPOSITOR && !strip->is_effect_with_inputs()) {
+    source_image_cache_invalidate_strip(scene, strip);
+  }
+
   invalidate_final_cache_strip_range(scene, strip);
   intra_frame_cache_invalidate(scene, strip);
   preview_cache_invalidate(scene);
