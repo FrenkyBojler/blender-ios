@@ -82,7 +82,6 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
           if (mmd->flag & MOD_MIR_AXIS_Z) {
             mirror_z = true;
           }
-          break;
         }
       }
     }
