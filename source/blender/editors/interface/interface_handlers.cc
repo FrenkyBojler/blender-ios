@@ -11797,7 +11797,8 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
       if (event->val != KM_RELEASE) {
         ui_handle_menu_button(C, event, menu);
 
-        if (len_squared_v2v2(event_xy, block->pie_data->pie_center_init) > PIE_CLICK_THRESHOLD_SQ) {
+        if (len_squared_v2v2(event_xy, block->pie_data->pie_center_init) > PIE_CLICK_THRESHOLD_SQ)
+        {
           block->pie_data->flags |= PIE_DRAG_STYLE;
         }
         /* why redraw here? It's simple, we are getting many double click events here.
