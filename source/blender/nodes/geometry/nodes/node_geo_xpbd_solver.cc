@@ -47,7 +47,6 @@ constexpr StringRefNull mass = "mass";
 constexpr StringRefNull moment_of_inertia = "moment_of_inertia";
 constexpr StringRefNull static_friction = "static_friction";
 constexpr StringRefNull dynamic_friction = "dynamic_friction";
-constexpr StringRefNull rest_length = "rest_length";
 constexpr StringRefNull rest_bend_rotation = "rest_bend_rotation";
 
 }  // namespace attribute_names
@@ -131,6 +130,7 @@ struct DampingConstraintUsage {
 
 struct RodStretchShearConstraint {
   std::string path;
+  Field<float> rest_length;
   Field<float> compliance;
   std::string lambda_pos_attr;
   std::string lambda_rot_attr;
@@ -138,6 +138,7 @@ struct RodStretchShearConstraint {
 struct RodStretchShearConstraintUsage {
   /** Index of corresponding #RodStretchShearConstraint. */
   int constraint_i;
+  VArraySpan<float> rest_lengths;
   VArray<float> compliances;
   MutableSpan<float3> lambdas_pos;
   MutableSpan<float3> lambdas_rot;
@@ -215,12 +216,14 @@ struct PinRotationConstraintChunkUsage {
 
 struct EdgeLengthConstraint {
   std::string path;
+  Field<float> rest_length;
   Field<float> compliance;
 };
 struct EdgeLengthConstraintUsage {
   /** Index of corresponding #EdgeLengthConstraint. */
   const int constraint_i;
 
+  VArraySpan<float> rest_lengths;
   VArraySpan<float> compliances;
   MutableSpan<float> lambdas;
 
@@ -298,7 +301,6 @@ struct GeometryData {
 
   VArraySpan<float3> external_force_attr;
   VArraySpan<float3> external_torque_attr;
-  VArraySpan<float> rest_lengths;
   VArraySpan<math::Quaternion> rest_bend_rotations;
   VArray<float> static_frictions;
   VArray<float> dynamic_frictions;
@@ -682,7 +684,6 @@ class XpbdSolverStep {
       }
     }
     for (const int data_key_i : geometries_.data_keys.index_range()) {
-      const DataKey &data_key = geometries_.data_keys[data_key_i];
       GeometryData &geo_data = geometries_.data[data_key_i];
       const AttrDomain domain = geo_data.domain;
       geo_data.size = geo_data.attributes.domain_size(domain);
@@ -708,14 +709,6 @@ class XpbdSolverStep {
           attribute_names::mass, domain, 1.0f);
       geo_data.moments_of_inertia = *geo_data.attributes.lookup_or_default<float3>(
           attribute_names::moment_of_inertia, domain, float3(1.0f));
-      if (geo_data.curves) {
-        geo_data.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
-            attribute_names::rest_length, AttrDomain::Point, 0.0f);
-      }
-      if (data_key.type == bke::GeometryComponent::Type::Mesh) {
-        geo_data.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
-            attribute_names::rest_length, AttrDomain::Edge, 0.0f);
-      }
       if (geo_data.curves) {
         geo_data.rest_bend_rotations = *geo_data.attributes.lookup_or_default<math::Quaternion>(
             attribute_names::rest_bend_rotation, geo_data.domain, math::Quaternion::identity());
@@ -1367,6 +1360,7 @@ class XpbdSolverStep {
       const Bundle &bundle = **bundle_ptr;
       RodStretchShearConstraint constraint;
       constraint.path = path;
+      constraint.rest_length = this->get_field_or_constant<float>(bundle, "rest_length", 0.0f);
       constraint.compliance = this->get_field_or_constant<float>(bundle, "compliance", 0.0f);
       constraint.lambda_pos_attr =
           bundle.lookup<std::string>("lambda_position_attribute").value_or("");
@@ -1404,6 +1398,7 @@ class XpbdSolverStep {
       constraint_usage.lambdas_rot = tls.allocator.allocate_array<float3>(geo_data.size);
 
       fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
+      evaluator.add(constraint.rest_length, &constraint_usage.rest_lengths);
       evaluator.add(constraint.compliance, &constraint_usage.compliances);
     }
   }
@@ -1431,7 +1426,7 @@ class XpbdSolverStep {
                 data_key_i,
                 *chunk.curves_range,
                 points_by_curve,
-                geo_data.rest_lengths,
+                constraint_usage.rest_lengths,
                 compliances.get_span_for_range(chunk.points_range),
                 constraint_usage.lambdas_pos,
                 constraint_usage.lambdas_rot));
@@ -1548,11 +1543,13 @@ class XpbdSolverStep {
     const Span<std::string> paths = nested_bundle_paths_.lookup(EdgeLengthConstraintBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
+      const Field<float> rest_length_field = this->get_field_or_constant(
+          bundle, "rest_length", 0.0f);
       const Field<float> compliance_field = this->get_field_or_constant(
           bundle, "compliance", 0.0f);
 
       const int constraint_i = constraints_.edge_length_constraints.append_and_get_index(
-          {path, compliance_field});
+          {path, rest_length_field, compliance_field});
 
       for (const int data_key_i : geometries_.data.index_range()) {
         const DataKey &data_key = geometries_.data_keys[data_key_i];
@@ -1576,6 +1573,7 @@ class XpbdSolverStep {
         const int edge_num = mesh.edges_num;
         constraint_usage.lambdas = tls.allocator.allocate_array<float>(edge_num);
         fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, AttrDomain::Edge);
+        evaluator.add(constraint.rest_length, &constraint_usage.rest_lengths);
         evaluator.add(constraint.compliance, &constraint_usage.compliances);
       }
     }
@@ -1598,7 +1596,7 @@ class XpbdSolverStep {
         auto &constraint_set = tls.scope.construct<xpbd::DistanceConstraintSet>(
             data_key_i,
             edges,
-            geo_data.rest_lengths,
+            constraint_usage.rest_lengths,
             constraint_usage.compliances,
             constraint_usage.lambdas);
         xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.mask_memory);
