@@ -1,1 +1,1 @@
-Referenced by issue #113930, depsgraph_update_pre is not triggered on manual depsgraph update
+Referenced by issue #113930, Updating Custom Properties (or properties defined via bpy.props) via code are not considered an ID change (do not trigger depsgraph_update_pre callbacks)
