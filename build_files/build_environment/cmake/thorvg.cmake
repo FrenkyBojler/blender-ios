@@ -18,6 +18,7 @@ ExternalProject_Add(external_thorvg
       ${MESON_BUILD_TYPE}
       --default-library static
       --libdir lib
+      -Dloaders=svg
       ${BUILD_DIR}/thorvg/src/external_thorvg-build
       ${BUILD_DIR}/thorvg/src/external_thorvg
 

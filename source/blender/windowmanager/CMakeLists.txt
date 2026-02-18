@@ -120,7 +120,7 @@ if(WITH_HEADLESS)
 else()
   # SVG cursors.
   list(APPEND LIB
-    PRIVATE bf::extern::nanosvg
+    PRIVATE bf::dependencies::optional::thorvg
     PRIVATE bf::editor::datafiles
   )
 endif()

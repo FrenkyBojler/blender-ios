@@ -36,8 +36,8 @@
 #include "BLF_api.hh"
 
 #ifndef WITH_HEADLESS
-#  include "nanosvgrast.h"
 #  include "svg_cursors.h"
+#  include "thorvg.h"
 #endif
 
 #include "WM_api.hh"
@@ -228,40 +228,54 @@ static uint8_t *cursor_bitmap_from_svg(const char *svg,
   UNUSED_VARS(svg, cursor_size, alloc_fn, r_bitmap_size);
   return nullptr;
 #else
-  /* #nsvgParse alters the source string. */
-  std::string svg_source = svg;
+  /* Intialize the ThorVG engine. Use only the main thread. */
+  tvg::Initializer::init(0);
 
-  NSVGimage *image = nsvgParse(svg_source.data(), "px", 96.0f);
-  if (image == nullptr) {
-    return nullptr;
-  }
-  if (image->width == 0 || image->height == 0) {
-    nsvgDelete(image);
-    return nullptr;
-  }
-  NSVGrasterizer *rast = nsvgCreateRasterizer();
-  if (rast == nullptr) {
-    nsvgDelete(image);
+  /* Create a Picture and parse the SVG into it. */
+  tvg::Picture *picture = tvg::Picture::gen();
+  if (picture->load(svg, strlen(svg), "svg", nullptr, false) != tvg::Result::Success) {
+    tvg::Initializer::term();
     return nullptr;
   }
 
+  /* Scale it down to cursor size. */
   const float scale = float(cursor_size) / 1600.0f;
-  const size_t dest_size[2] = {
-      std::min(size_t(ceil(image->width * scale)), size_t(cursor_size)),
-      std::min(size_t(ceil(image->height * scale)), size_t(cursor_size)),
-  };
+  picture->scale(scale);
 
+  /* Create a bitmap to draw onto. */
+  float width;
+  float height;
+  picture->size(&width, &height);
+  const size_t dest_size[2] = {
+      std::min(size_t(ceil(width * scale)), size_t(cursor_size)),
+      std::min(size_t(ceil(height * scale)), size_t(cursor_size)),
+  };
   uint8_t *bitmap_rgba = alloc_fn(sizeof(uint8_t[4]) * dest_size[0] * dest_size[1]);
   if (bitmap_rgba == nullptr) {
+    tvg::Paint::rel(picture);
+    tvg::Initializer::term();
     return nullptr;
   }
 
-  nsvgRasterize(
-      rast, image, 0.0f, 0.0f, scale, bitmap_rgba, dest_size[0], dest_size[1], dest_size[0] * 4);
+  /* Create a canvas that will draw to our bitmap. */
+  tvg::SwCanvas *canvas = tvg::SwCanvas::gen();
+  uint32_t *bitmap_rgba_uint32 = reinterpret_cast<uint32_t *>(bitmap_rgba);
+  canvas->target(
+      bitmap_rgba_uint32, dest_size[0], dest_size[0], dest_size[1], tvg::ColorSpace::ABGR8888);
 
-  nsvgDeleteRasterizer(rast);
-  nsvgDelete(image);
+  /* Push the SVG image to the canvas. */
+  canvas->push(picture);
+  /* Release the paint object. */
+  tvg::Paint::rel(picture);
 
+  /* Draw to the bitmap. */
+  canvas->draw(true);
+  canvas->sync();
+
+  /* Shut down the ThorVG engine. */
+  tvg::Initializer::term();
+
+  /* Return the bitmap size to the caller. */
   r_bitmap_size[0] = dest_size[0];
   r_bitmap_size[1] = dest_size[1];
 
