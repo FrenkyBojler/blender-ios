@@ -29,6 +29,12 @@ constexpr float MIRROR_LIMIT = 0.001f;
 /** Used for convergence checks and precision comparisons. */
 constexpr float CIRCULARIZE_EPSILON = 1e-6f;
 
+/** Method used for fitting the circle to vertices. */
+enum FitMethod{
+  FIT_METHOD_BEST = 0,
+  FIT_METHOD_INSIDE = 1
+};
+
 /** Holds data for a vertex projected onto the local plane. */
 struct CircleVert {
   BMVert *v;
@@ -619,7 +625,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       fixed_center = float2(0.0f);
     }
 
-    if (fit_method == 1) {
+    if (fit_method == FIT_METHOD_INSIDE) {
       calculate_circle_inside_fit(circle_verts, fixed_center, circle_center_2d, &radius);
     }
     else {
