@@ -468,7 +468,7 @@ bool WM_xr_session_state_viewfinder_location_get(const wmXrData *xr, float r_loc
     return false;
   }
 
-  copy_v3_v3(r_location, xr->runtime->session_state.viewfinder_capture_position);
+  copy_v3_v3(r_location, xr->runtime->session_state.viewfinder.capture_position);
   return true;
 }
 
@@ -479,7 +479,7 @@ bool WM_xr_session_state_viewfinder_rotation_get(const wmXrData *xr, float r_rot
     return false;
   }
 
-  copy_v4_v4(r_rotation, xr->runtime->session_state.viewfinder_capture_orientation_quat);
+  copy_v4_v4(r_rotation, xr->runtime->session_state.viewfinder.capture_orientation_quat);
   return true;
 }
 
@@ -490,7 +490,7 @@ bool WM_xr_session_state_viewfinder_capture_flash_get(const wmXrData *xr, float 
     return false;
   }
 
-  *r_flash = xr->runtime->session_state.viewfinder_capture_flash;
+  *r_flash = xr->runtime->session_state.viewfinder.capture_flash;
   return true;
 }
 
@@ -498,7 +498,7 @@ void WM_xr_session_state_viewfinder_capture_flash_set(wmXrData *xr, float flash)
 {
   if (WM_xr_session_exists(xr)) {
     CLAMP(flash, 0.0f, 1.0f);
-    xr->runtime->session_state.viewfinder_capture_flash = flash;
+    xr->runtime->session_state.viewfinder.capture_flash = flash;
   }
 }
 
@@ -657,7 +657,9 @@ void WM_xr_session_state_navigation_reset(wmXrSessionState *state)
   state->nav_scale = 1.0f;
   state->is_navigation_dirty = true;
   state->swap_hands = false;
-  state->viewfinder_capture_flash = 0.0f;
+
+  state->viewfinder.smoothing_delta_t = 0.0f;
+  state->viewfinder.capture_flash = 0.0f;
 }
 
 void WM_xr_session_state_vignette_activate(wmXrData *xr)

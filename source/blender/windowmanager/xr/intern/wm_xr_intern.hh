@@ -30,6 +30,15 @@ struct wmXrActionSet;
 struct wmXrController;
 struct wmXrData;
 
+struct wmXrViewfinderState {
+  float capture_position[3];
+  float capture_orientation_quat[4];
+
+  float capture_flash;
+
+  double smoothing_delta_t;
+};
+
 struct wmXrSessionState {
   bool is_started;
 
@@ -41,10 +50,7 @@ struct wmXrSessionState {
   float viewer_mat_base[4][4];
   float focal_len;
 
-  float viewfinder_capture_position[3];
-  float viewfinder_capture_orientation_quat[4];
-  float viewfinder_capture_flash;
-  double viewfinder_smoothing_delta_t;
+  wmXrViewfinderState viewfinder;
 
   /** Copy of XrSessionSettings.base_pose_ data to detect changes that need
    * resetting to base pose. */

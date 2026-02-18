@@ -242,37 +242,37 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       mat4_to_loc_quat(
           raw_capture_position, raw_capture_orientation_quat, viewfinder_raw_capture_mat);
 
-      if (session_state->viewfinder_smoothing_delta_t > 0) {
+      if (session_state->viewfinder.smoothing_delta_t > 0) {
         /* Apply exponential movement smoothing. */
         constexpr float movement_smoothing_speed = 15.0f;
 
         const double current_time = BLI_time_now_seconds();
-        const float delta_t = float(current_time - session_state->viewfinder_smoothing_delta_t);
+        const float delta_t = float(current_time - session_state->viewfinder.smoothing_delta_t);
         const float clamped_delta = min_ff(delta_t, 0.1f);
         const float factor = 1.0f - exp(-clamped_delta * movement_smoothing_speed);
 
-        interp_v3_v3v3(session_state->viewfinder_capture_position,
-                       session_state->viewfinder_capture_position,
+        interp_v3_v3v3(session_state->viewfinder.capture_position,
+                       session_state->viewfinder.capture_position,
                        raw_capture_position,
                        factor);
-        interp_qt_qtqt(session_state->viewfinder_capture_orientation_quat,
-                       session_state->viewfinder_capture_orientation_quat,
+        interp_qt_qtqt(session_state->viewfinder.capture_orientation_quat,
+                       session_state->viewfinder.capture_orientation_quat,
                        raw_capture_orientation_quat,
                        factor);
-        session_state->viewfinder_smoothing_delta_t = current_time;
+        session_state->viewfinder.smoothing_delta_t = current_time;
       }
       else {
         /* First initialization. */
-        copy_v3_v3(session_state->viewfinder_capture_position, raw_capture_position);
-        copy_qt_qt(session_state->viewfinder_capture_orientation_quat,
+        copy_v3_v3(session_state->viewfinder.capture_position, raw_capture_position);
+        copy_qt_qt(session_state->viewfinder.capture_orientation_quat,
                    raw_capture_orientation_quat);
-        session_state->viewfinder_smoothing_delta_t = BLI_time_now_seconds();
+        session_state->viewfinder.smoothing_delta_t = BLI_time_now_seconds();
       }
 
       /* Build final smoothed capture matrix for rendering. */
       float viewfinder_capture_mat[4][4];
-      quat_to_mat4(viewfinder_capture_mat, session_state->viewfinder_capture_orientation_quat);
-      copy_v3_v3(viewfinder_capture_mat[3], session_state->viewfinder_capture_position);
+      quat_to_mat4(viewfinder_capture_mat, session_state->viewfinder.capture_orientation_quat);
+      copy_v3_v3(viewfinder_capture_mat[3], session_state->viewfinder.capture_position);
 
       invert_m4_m4(viewfinder_capture_viewmat, viewfinder_capture_mat);
 
@@ -847,7 +847,7 @@ static void wm_xr_controller_viewfinder_draw_view_flash(wmXrSessionState *state,
 {
   /* Do not apply the flash effect if we're in playback mode. */
   if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
-    state->viewfinder_capture_flash = 0.0f;
+    state->viewfinder.capture_flash = 0.0f;
     return;
   }
 
@@ -856,9 +856,9 @@ static void wm_xr_controller_viewfinder_draw_view_flash(wmXrSessionState *state,
   constexpr float full_flash_alpha = 0.3f;
 
   static double last_flash_time;
-  if (state->viewfinder_capture_flash != 0.0f) {
+  if (state->viewfinder.capture_flash != 0.0f) {
     last_flash_time = BLI_time_now_seconds();
-    state->viewfinder_capture_flash = 0.0f;
+    state->viewfinder.capture_flash = 0.0f;
   }
 
   const float last_flash_delta = BLI_time_now_seconds() - last_flash_time;
