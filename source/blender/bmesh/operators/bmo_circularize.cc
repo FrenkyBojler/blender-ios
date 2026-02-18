@@ -373,7 +373,10 @@ static void calculate_target_locations(MutableSpan<CircleVert> verts,
      * the resulting rotation of the circle in an undesirable way.
      * So instead, we calculate the circular mean of the rotation by measuring
      * the angular deviation for every vertex and averaging them to find the best
-     * fit alignment. */
+     * fit alignment.
+     * Note: We accumulate the sine and cosine of the angular deviations to calculate
+     * the circular mean because angles wrap around 360 degrees, and averaging them directly
+     * would give incorrect results. */
     for (const int i : verts.index_range()) {
       float2 vec = verts[i].co_2d - center;
       const float angle_diff = atan2f(vec.y, vec.x) - (step * i);
