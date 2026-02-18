@@ -565,8 +565,8 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     bvh_tree = BLI_bvhtree_new(tot_tri, 0.0f, 8, 8);
     for (const int i : looptris.index_range()) {
       const std::array<BMLoop *, 3> &ltri = looptris[i];
-      float3 cos[3] = {float3(ltri[0]->v->co), float3(ltri[1]->v->co), float3(ltri[2]->v->co)};
-      BLI_bvhtree_insert(bvh_tree, i, reinterpret_cast<float *>(cos), 3);
+      float3 tri_coords[3] = {float3(ltri[0]->v->co), float3(ltri[1]->v->co), float3(ltri[2]->v->co)};
+      BLI_bvhtree_insert(bvh_tree, i, reinterpret_cast<float *>(tri_coords), 3);
     }
     BLI_bvhtree_balance(bvh_tree);
     bvh_data.looptris = looptris;
