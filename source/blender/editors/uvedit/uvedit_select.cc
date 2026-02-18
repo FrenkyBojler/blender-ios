@@ -66,6 +66,7 @@
 namespace blender {
 
 enum class UVDelimitMode : int {
+  NONE = 0,
   SEAM = 1,
   SHARP = 2,
   MATERIAL = 4,
@@ -2537,7 +2538,7 @@ static void uv_select_linked_multi(const Scene *scene,
                                    bool deselect,
                                    const bool toggle,
                                    const bool select_faces,
-                                   const int delimit_mode,
+                                   const UVDelimitMode delimit_mode,
                                    const char hflag)
 {
   if (select_faces) {
@@ -2677,10 +2678,11 @@ static void uv_select_linked_multi(const Scene *scene,
 
       efa = BM_face_at_index(bm, a);
 
-      blender::VectorSet<BMEdge *> edges;
-      if (delimit_mode != 0) {
+      std::optional<blender::VectorSet<BMEdge *>> delimit_edges;
+      if (!ELEM(delimit_mode, UVDelimitMode::NONE)) {
+        delimit_edges.emplace();
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-          edges.add(l->e);
+          delimit_edges->add(l->e);
         }
       }
       BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
@@ -2705,28 +2707,28 @@ static void uv_select_linked_multi(const Scene *scene,
           }
 
           if (!flag[iterv->face_index]) {
-            if (delimit_mode != 0) {
+            if (!ELEM(delimit_mode, UVDelimitMode::NONE)) {
               BMFace *iterv_f = BM_face_at_index(bm, iterv->face_index);
               bool shares_valid_edge = false;
               BMLoop *iterv_l;
               BMIter iterv_iter;
               BM_ITER_ELEM (iterv_l, &iterv_iter, iterv_f, BM_LOOPS_OF_FACE) {
-                if (edges.contains(iterv_l->e)) {
+                if (delimit_edges->contains(iterv_l->e)) {
                   bool edge_valid = true;
 
-                  if (delimit_mode & int(UVDelimitMode::SEAM) &&
+                  if (ELEM(delimit_mode, UVDelimitMode::SEAM) &&
                       BM_elem_flag_test(iterv_l->e, BM_ELEM_SEAM))
                   {
                     edge_valid = false;
                   }
 
-                  if (delimit_mode & int(UVDelimitMode::SHARP) &&
+                  if (ELEM(delimit_mode, UVDelimitMode::SHARP) &&
                       !BM_elem_flag_test(iterv_l->e, BM_ELEM_SMOOTH))
                   {
                     edge_valid = false;
                   }
 
-                  if (delimit_mode & int(UVDelimitMode::MATERIAL) &&
+                  if (ELEM(delimit_mode, UVDelimitMode::MATERIAL) &&
                       efa->mat_nr != iterv_f->mat_nr)
                   {
                     edge_valid = false;
@@ -2875,26 +2877,6 @@ static void uv_select_linked_multi(const Scene *scene,
       }
     }
   }
-}
-
-/**
- * A wrapper for #uv_select_linked_multi that uses defaults for UV island selection.
- */
-static void uv_select_linked_multi_for_select_island(const Scene *scene,
-                                                     const Span<Object *> objects,
-                                                     Object *obedit,
-                                                     BMFace *efa,
-                                                     const bool deselect,
-                                                     const bool select_faces,
-                                                     const char hflag)
-{
-  const bool extend = true;
-  const bool toggle = false;
-
-  UvNearestHit hit = {};
-  hit.ob = obedit;
-  hit.efa = efa;
-  uv_select_linked_multi(scene, objects, &hit, extend, deselect, toggle, select_faces, 0, hflag);
 }
 
 /** \} */
@@ -3829,7 +3811,7 @@ static bool uv_mouse_select_multi(bContext *C,
       /* Current behavior of 'extend'
        * is actually toggling, so pass extend flag as 'toggle' here */
       uv_select_linked_multi(
-          scene, objects, &hit, extend, deselect, toggle, false, 0, BM_ELEM_SELECT);
+          scene, objects, &hit, extend, deselect, toggle, false, UVDelimitMode::NONE, BM_ELEM_SELECT);
       /* TODO: check if this actually changed. */
       changed = true;
     }
@@ -4265,7 +4247,7 @@ static wmOperatorStatus uv_select_linked_internal(bContext *C,
     extend = RNA_boolean_get(op->ptr, "extend");
     deselect = RNA_boolean_get(op->ptr, "deselect");
   }
-  int delimit_mode = RNA_enum_get(op->ptr, "delimit");
+  UVDelimitMode delimit_mode = UVDelimitMode(RNA_enum_get(op->ptr, "delimit"));
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -4342,8 +4324,7 @@ void UV_OT_select_linked(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  PropertyRNA *prop;
-  prop = RNA_def_enum_flag(ot->srna,
+  RNA_def_enum_flag(ot->srna,
                            "delimit",
                            delimit_mode_items,
                            0,
