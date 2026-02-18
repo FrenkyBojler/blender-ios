@@ -75,7 +75,7 @@ struct StripRuntime {
   SessionUID session_uid = {};
   StripRuntimeFlag flag = StripRuntimeFlag::None;
   AUD_Sequence meta_sound_sequence = nullptr;
-  AUD_Sequence last_parent_sound = nullptr;
+  AUD_Sequence last_sound_sequence = nullptr;
   AUD_SequenceEntry scene_sound;
   AUD_Sound sound_time_stretch;
   float sound_time_stretch_fps = 0.0f;

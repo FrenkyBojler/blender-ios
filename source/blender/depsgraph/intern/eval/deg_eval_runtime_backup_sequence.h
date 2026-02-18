@@ -57,7 +57,7 @@ class StripBackup {
 
   bool isEmpty() const;
 
-  AUD_Sequence last_parent_sound;
+  AUD_Sequence last_sound_sequence;
   AUD_Sequence meta_sound_sequence;
   AUD_SequenceEntry scene_sound;
   AUD_Sound sound_time_stretch;

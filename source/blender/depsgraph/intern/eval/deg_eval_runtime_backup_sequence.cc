@@ -79,7 +79,7 @@ StripBackup::StripBackup(const Depsgraph * /*depsgraph*/)
 void StripBackup::reset()
 {
   scene_sound = nullptr;
-  last_parent_sound = nullptr;
+  last_sound_sequence = nullptr;
   meta_sound_sequence = nullptr;
   sound_time_stretch = nullptr;
   sound_time_stretch_fps = 0.0f;
@@ -90,7 +90,7 @@ void StripBackup::reset()
 void StripBackup::init_from_strip(Strip *strip)
 {
   scene_sound = strip->runtime->scene_sound;
-  last_parent_sound = strip->runtime->last_parent_sound;
+  last_sound_sequence = strip->runtime->last_sound_sequence;
   meta_sound_sequence = strip->runtime->meta_sound_sequence;
   sound_time_stretch = strip->runtime->sound_time_stretch;
   sound_time_stretch_fps = strip->runtime->sound_time_stretch_fps;
@@ -113,7 +113,7 @@ void StripBackup::init_from_strip(Strip *strip)
 void StripBackup::restore_to_strip(Strip *strip)
 {
   strip->runtime->scene_sound = scene_sound;
-  strip->runtime->last_parent_sound = last_parent_sound;
+  strip->runtime->last_sound_sequence = last_sound_sequence;
   strip->runtime->meta_sound_sequence = meta_sound_sequence;
   strip->runtime->sound_time_stretch = sound_time_stretch;
   strip->runtime->sound_time_stretch_fps = sound_time_stretch_fps;

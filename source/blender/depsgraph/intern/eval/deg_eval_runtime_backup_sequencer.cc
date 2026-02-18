@@ -64,7 +64,7 @@ void SequencerBackup::restore_to_scene(Scene *scene)
   /* Cleanup audio while the scene is still known. */
   for (StripBackup &strip_backup : strips_backup.values()) {
     if (strip_backup.scene_sound != nullptr) {
-      BKE_sound_remove_sound(strip_backup.last_parent_sound, strip_backup.scene_sound);
+      BKE_sound_remove_sound(strip_backup.last_sound_sequence, strip_backup.scene_sound);
       strip_backup.scene_sound.reset();
     }
   }

@@ -876,7 +876,7 @@ AUD_SequenceEntry BKE_sound_scene_add_scene_sound(Scene *scene, Strip *strip)
 {
   sound_verify_evaluated_id(&scene->id);
   AUD_Sequence parent_sound = BKE_strip_get_parent_sound(strip, scene);
-  strip->runtime->last_parent_sound = parent_sound;
+  strip->runtime->last_sound_sequence = parent_sound;
   if (strip->scene && scene != strip->scene) {
     int startframe = strip->left_handle();
     int endframe = strip->right_handle(scene);
@@ -937,7 +937,7 @@ AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
   }
 
   /* Store last parent sequence so it can be removed. */
-  strip->runtime->last_parent_sound = parent_sound;
+  strip->runtime->last_sound_sequence = parent_sound;
 
   const Strip *parent_strip = blender::seq::lookup_meta_by_strip(scene->ed, strip);
   int parent_start = 0;
