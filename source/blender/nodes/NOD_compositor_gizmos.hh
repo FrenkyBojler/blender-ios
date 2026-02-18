@@ -6,10 +6,12 @@
  * \ingroup nodes
  */
 
+namespace blender {
 struct bContext;
 struct wmGizmoGroup;
 struct ARegion;
 struct wmGizmoGroupType;
+}  // namespace blender
 
 namespace blender::nodes::gizmos {
 
