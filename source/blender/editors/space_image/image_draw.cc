@@ -125,17 +125,10 @@ void ED_image_draw_info(Scene *scene,
   const int ymin = rect->ymin;
   const int dy = ymin + 0.3f * UI_UNIT_Y;
 
-/* text colors */
-/* XXX colored text not allowed in Blender UI */
-#if 0
-  uchar red[3] = {255, 50, 50};
-  uchar green[3] = {0, 255, 0};
-  uchar blue[3] = {100, 100, 255};
-#else
-  const uchar red[3] = {255, 255, 255};
-  const uchar green[3] = {255, 255, 255};
-  const uchar blue[3] = {255, 255, 255};
-#endif
+  const uchar red[3] = {255, 50, 50};
+  const uchar green[3] = {0, 255, 0};
+  const uchar blue[3] = {100, 100, 255};
+
   float hue = 0, sat = 0, val = 0, lum = 0, u = 0, v = 0;
   float col[4], finalcol[4];
 
