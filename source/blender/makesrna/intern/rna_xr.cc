@@ -40,7 +40,7 @@ static wmXrData *rna_XrSession_wm_xr_data_get(PointerRNA *ptr)
   /* Callers could also get XrSessionState pointer through ptr->data, but prefer if we just
    * consistently pass wmXrData pointers to the WM_xr_xxx() API. */
 
-  BLI_assert(ELEM(ptr->type, RNA_XrSessionSettings, RNA_XrSessionState));
+  BLI_assert(ELEM(ptr->type, RNA_XrSessionSettings, RNA_XrSessionState, RNA_XrViewfinderState));
 
   wmWindowManager *wm = (wmWindowManager *)ptr->owner_id;
   BLI_assert(wm && (GS(wm->id.name) == ID_WM));
@@ -1027,6 +1027,18 @@ static void rna_XrSessionState_viewer_pose_rotation_get(PointerRNA *ptr, float *
 #  endif
 }
 
+static PointerRNA rna_XrSessionState_viewfinder_get(PointerRNA *ptr)
+{
+#  ifdef WITH_XR_OPENXR
+  const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  wmXrViewfinderState *viewfinder = WM_xr_session_state_viewfinder_handle_get(xr);
+  return RNA_pointer_create_discrete(ptr->owner_id, RNA_XrViewfinderState, viewfinder);
+#  else
+  UNUSED_VARS(ptr);
+  return PointerRNA_NULL;
+#  endif
+}
+
 static void rna_XrSessionState_viewfinder_location_get(PointerRNA *ptr, float *r_values)
 {
 #  ifdef WITH_XR_OPENXR
@@ -1038,11 +1050,11 @@ static void rna_XrSessionState_viewfinder_location_get(PointerRNA *ptr, float *r
 #  endif
 }
 
-static void rna_XrSessionState_viewfinder_rotation_get(PointerRNA *ptr, float *r_values)
+static void rna_XrSessionState_viewfinder_orientation_get(PointerRNA *ptr, float *r_values)
 {
 #  ifdef WITH_XR_OPENXR
   const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
-  WM_xr_session_state_viewfinder_rotation_get(xr, r_values);
+  WM_xr_session_state_viewfinder_orientation_get(xr, r_values);
 #  else
   UNUSED_VARS(ptr);
   unit_qt(r_values);
@@ -1067,6 +1079,98 @@ static void rna_XrSessionState_viewfinder_capture_flash_set(PointerRNA *ptr, flo
 #  ifdef WITH_XR_OPENXR
   wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
   WM_xr_session_state_viewfinder_capture_flash_set(xr, value);
+#  else
+  UNUSED_VARS(ptr, value);
+#  endif
+}
+
+static bool rna_XrSessionState_viewfinder_capture_use_dof_get(PointerRNA *ptr)
+{
+  bool value;
+#  ifdef WITH_XR_OPENXR
+  const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewfinder_capture_use_dof_get(xr, &value);
+#  else
+  UNUSED_VARS(ptr);
+  value = 1.0f;
+#  endif
+  return value;
+}
+
+static void rna_XrSessionState_viewfinder_capture_use_dof_set(PointerRNA *ptr, bool value)
+{
+#  ifdef WITH_XR_OPENXR
+  wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewfinder_capture_use_dof_set(xr, value);
+#  else
+  UNUSED_VARS(ptr, value);
+#  endif
+}
+
+static float rna_XrSessionState_viewfinder_capture_lens_get(PointerRNA *ptr)
+{
+  float value;
+#  ifdef WITH_XR_OPENXR
+  const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewfinder_capture_lens_get(xr, &value);
+#  else
+  UNUSED_VARS(ptr);
+  value = 1.0f;
+#  endif
+  return value;
+}
+
+static void rna_XrSessionState_viewfinder_capture_lens_set(PointerRNA *ptr, float value)
+{
+#  ifdef WITH_XR_OPENXR
+  wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewfinder_capture_lens_set(xr, value);
+#  else
+  UNUSED_VARS(ptr, value);
+#  endif
+}
+
+static float rna_XrSessionState_viewfinder_capture_aperture_fstop_get(PointerRNA *ptr)
+{
+  float value;
+#  ifdef WITH_XR_OPENXR
+  const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewfinder_capture_aperture_fstop_get(xr, &value);
+#  else
+  UNUSED_VARS(ptr);
+  value = 1.0f;
+#  endif
+  return value;
+}
+
+static void rna_XrSessionState_viewfinder_capture_aperture_fstop_set(PointerRNA *ptr, float value)
+{
+#  ifdef WITH_XR_OPENXR
+  wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewfinder_capture_aperture_fstop_set(xr, value);
+#  else
+  UNUSED_VARS(ptr, value);
+#  endif
+}
+
+static float rna_XrSessionState_viewfinder_capture_focus_distance_get(PointerRNA *ptr)
+{
+  float value;
+#  ifdef WITH_XR_OPENXR
+  const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewfinder_capture_focus_distance_get(xr, &value);
+#  else
+  UNUSED_VARS(ptr);
+  value = 1.0f;
+#  endif
+  return value;
+}
+
+static void rna_XrSessionState_viewfinder_capture_focus_distance_set(PointerRNA *ptr, float value)
+{
+#  ifdef WITH_XR_OPENXR
+  wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewfinder_capture_focus_distance_set(xr, value);
 #  else
   UNUSED_VARS(ptr, value);
 #  endif
@@ -2235,6 +2339,12 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "XrSessionState", nullptr);
   RNA_def_struct_ui_text(srna, "Session State", "Runtime state information about the VR session");
 
+  /* XrViewfinderState */
+  prop = RNA_def_pointer(
+      srna, "viewfinder", "XrViewfinderState", "Viewfinder", "Viewfinder State");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_XrSessionState_viewfinder_get", nullptr, nullptr, nullptr);
+
   func = RNA_def_function(srna, "is_running", "rna_XrSessionState_is_running");
   RNA_def_function_ui_description(func, "Query if the VR session is currently running");
   RNA_def_function_flag(func, FUNC_NO_SELF);
@@ -2527,28 +2637,6 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
       "Viewer Pose Rotation",
       "Last known rotation of the viewer pose (center between the eyes) in world space");
 
-  prop = RNA_def_property(srna, "viewfinder_location", PROP_FLOAT, PROP_TRANSLATION);
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_float_funcs(
-      prop, "rna_XrSessionState_viewfinder_location_get", nullptr, nullptr);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(
-      prop, "Viewfinder Location", "Last known location of the viewfinder in world space");
-
-  prop = RNA_def_property(srna, "viewfinder_rotation", PROP_FLOAT, PROP_QUATERNION);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_float_funcs(
-      prop, "rna_XrSessionState_viewfinder_rotation_get", nullptr, nullptr);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(
-      prop, "Viewfinder Rotation", "Last known rotation of the viewfinder in world space");
-
-  prop = RNA_def_property(srna, "viewfinder_capture_flash", PROP_FLOAT, PROP_NONE); /* Internal */
-  RNA_def_property_float_funcs(prop,
-                               "rna_XrSessionState_viewfinder_capture_flash_get",
-                               "rna_XrSessionState_viewfinder_capture_flash_set",
-                               nullptr);
-
   prop = RNA_def_property(srna, "navigation_location", PROP_FLOAT, PROP_TRANSLATION);
   RNA_def_property_array(prop, 3);
   RNA_def_property_float_funcs(
@@ -2602,6 +2690,68 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
                              "rna_XrSessionState_selected_actionmap_set",
                              nullptr);
   RNA_def_property_ui_text(prop, "Selected Action Map", "");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name XR Session State Viewfinder
+ * \{ */
+
+static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "XrViewfinderState", nullptr);
+  RNA_def_struct_ui_text(srna,
+                         "Viewfinder State",
+                         "Runtime state information about the VR Location Scouting Viewfinder");
+
+  prop = RNA_def_property(srna, "location", PROP_FLOAT, PROP_TRANSLATION);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_float_funcs(
+      prop, "rna_XrSessionState_viewfinder_location_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop, "Viewfinder Location", "Last known location of the viewfinder in world space");
+
+  prop = RNA_def_property(srna, "orientation", PROP_FLOAT, PROP_QUATERNION);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_float_funcs(
+      prop, "rna_XrSessionState_viewfinder_orientation_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop, "Viewfinder Rotation", "Last known orientation of the viewfinder in world space");
+
+  prop = RNA_def_property(srna, "capture_flash", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_funcs(prop,
+                               "rna_XrSessionState_viewfinder_capture_flash_get",
+                               "rna_XrSessionState_viewfinder_capture_flash_set",
+                               nullptr);
+
+  prop = RNA_def_property(srna, "capture_use_dof", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(prop,
+                                 "rna_XrSessionState_viewfinder_capture_use_dof_get",
+                                 "rna_XrSessionState_viewfinder_capture_use_dof_set");
+
+  prop = RNA_def_property(srna, "capture_lens", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_funcs(prop,
+                               "rna_XrSessionState_viewfinder_capture_lens_get",
+                               "rna_XrSessionState_viewfinder_capture_lens_set",
+                               nullptr);
+
+  prop = RNA_def_property(srna, "capture_aperture_fstop", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_funcs(prop,
+                               "rna_XrSessionState_viewfinder_capture_aperture_fstop_get",
+                               "rna_XrSessionState_viewfinder_capture_aperture_fstop_set",
+                               nullptr);
+
+  prop = RNA_def_property(srna, "capture_focus_distance", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_funcs(prop,
+                               "rna_XrSessionState_viewfinder_capture_focus_distance_get",
+                               "rna_XrSessionState_viewfinder_capture_focus_distance_set",
+                               nullptr);
 }
 
 /** \} */
@@ -2718,6 +2868,7 @@ void RNA_def_xr(BlenderRNA *brna)
   rna_def_xr_actionmap(brna);
   rna_def_xr_session_settings(brna);
   rna_def_xr_session_state(brna);
+  rna_def_xr_session_state_viewfinder(brna);
   rna_def_xr_eventdata(brna);
 
   RNA_define_animate_sdna(true);

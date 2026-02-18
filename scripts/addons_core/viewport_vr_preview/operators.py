@@ -304,8 +304,8 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
         lm.name = "Viewfinder Landmark"
         scene.vr_landmarks_selected = len(landmarks) - 1
 
-        loc = xr_state.viewfinder_location
-        rot = xr_state.viewfinder_rotation
+        loc = xr_state.viewfinder.location
+        rot = xr_state.viewfinder.orientation
 
         lm.base_pose_location = loc  # Used as viewfinder position
         lm.base_pose_angle = rot.to_euler()[2]  # Only filled in for Landmark Viewport Feedback to work
@@ -317,7 +317,7 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
         lm.viewfinder_dof_dist = camera.dof.focus_distance
         lm.viewfinder_dof_fstop = camera.dof.aperture_fstop
 
-        xr_state.viewfinder_capture_flash = 1  # Internal value, setting to 1 will trigger a flash
+        xr_state.viewfinder.capture_flash = 1  # Internal value, setting to 1 will trigger a flash
 
         return {'FINISHED'}
 
@@ -346,6 +346,8 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
         wm = context.window_manager
         xr_state = wm.xr_session_state
         xr_settings = wm.xr_session_settings
+
+        viewfinder = xr_state.viewfinder
 
         viewfinder_mode = xr_settings.viewfinder_active_mode
         active_live_action = xr_settings.viewfinder_active_action_live
@@ -415,16 +417,16 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
             match active_live_action:
                 # View Zoom Control
                 case "LENS":
-                    current_focal = camera.lens
+                    current_focal = viewfinder.capture_lens
 
                     new_idx = get_next_in_map(current_focal, focal_map, self.action_up)
-                    camera.lens = focal_map[new_idx]
+                    viewfinder.capture_lens = focal_map[new_idx]
 
                     return {'FINISHED'}
 
                 # Toggle DoF on/off
                 case "DOF":
-                    camera.dof.use_dof = not camera.dof.use_dof
+                    viewfinder.capture_use_dof = not viewfinder.capture_use_dof
 
                     return {'FINISHED'}
 
@@ -434,8 +436,8 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
                     depsgraph = context.evaluated_depsgraph_get()
 
                     # Cast a ray from the Viewfinder PoV to find the distance to the nearest object
-                    view_origin = xr_state.viewfinder_location
-                    view_quat = xr_state.viewfinder_rotation
+                    view_origin = xr_state.viewfinder.location
+                    view_quat = xr_state.viewfinder.orientation
 
                     direction = Vector((0.0, 0.0, -1.0))
                     world_dir = view_quat @ direction
@@ -446,16 +448,16 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
                     if hit_success:
                         distance = (hit_location - view_origin).length
                         # Set the DoF Focus Distance from the hit
-                        camera.dof.focus_distance = distance
+                        viewfinder.capture_focus_distance = distance
 
                     return {'FINISHED'}
 
                 # F-Stop control
                 case "APERTURE":
-                    current_fstop = camera.dof.aperture_fstop
+                    current_fstop = viewfinder.capture_aperture_fstop
 
                     new_idx = get_next_in_map(current_fstop, fstop_map, self.action_up)
-                    camera.dof.aperture_fstop = fstop_map[new_idx]
+                    viewfinder.capture_aperture_fstop = fstop_map[new_idx]
 
                     return {'FINISHED'}
 

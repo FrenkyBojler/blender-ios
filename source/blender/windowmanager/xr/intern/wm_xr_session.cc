@@ -434,6 +434,11 @@ wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr)
   return xr->runtime ? &xr->runtime->session_state : nullptr;
 }
 
+wmXrViewfinderState *WM_xr_session_state_viewfinder_handle_get(const wmXrData *xr)
+{
+  return xr->runtime ? &xr->runtime->session_state.viewfinder : nullptr;
+}
+
 ScrArea *WM_xr_session_area_get(const wmXrData *xr)
 {
   return xr->runtime ? xr->runtime->area : nullptr;
@@ -472,7 +477,7 @@ bool WM_xr_session_state_viewfinder_location_get(const wmXrData *xr, float r_loc
   return true;
 }
 
-bool WM_xr_session_state_viewfinder_rotation_get(const wmXrData *xr, float r_rotation[4])
+bool WM_xr_session_state_viewfinder_orientation_get(const wmXrData *xr, float r_rotation[4])
 {
   if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
     unit_qt(r_rotation);
@@ -499,6 +504,83 @@ void WM_xr_session_state_viewfinder_capture_flash_set(wmXrData *xr, float flash)
   if (WM_xr_session_exists(xr)) {
     CLAMP(flash, 0.0f, 1.0f);
     xr->runtime->session_state.viewfinder.capture_flash = flash;
+  }
+}
+
+bool WM_xr_session_state_viewfinder_capture_use_dof_get(const wmXrData *xr, bool *r_use_dof)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_use_dof = 0.0f;
+    return false;
+  }
+
+  *r_use_dof = xr->runtime->session_state.viewfinder.capture_use_dof;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_capture_use_dof_set(wmXrData *xr, bool use_dof)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.capture_use_dof = use_dof;
+  }
+}
+
+bool WM_xr_session_state_viewfinder_capture_lens_get(const wmXrData *xr, float *r_lens)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_lens = 1.0f;
+    return false;
+  }
+
+  *r_lens = xr->runtime->session_state.viewfinder.capture_lens;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_capture_lens_set(wmXrData *xr, float lens)
+{
+  if (WM_xr_session_exists(xr)) {
+    CLAMP(lens, 0.0f, 1.0f);
+    xr->runtime->session_state.viewfinder.capture_lens = lens;
+  }
+}
+
+bool WM_xr_session_state_viewfinder_capture_aperture_fstop_get(const wmXrData *xr,
+                                                               float *r_aperture_fstop)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_aperture_fstop = 1.0f;
+    return false;
+  }
+
+  *r_aperture_fstop = xr->runtime->session_state.viewfinder.capture_aperture_fstop;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_capture_aperture_fstop_set(wmXrData *xr, float aperture_fstop)
+{
+  if (WM_xr_session_exists(xr)) {
+    CLAMP(aperture_fstop, 0.0f, 1.0f);
+    xr->runtime->session_state.viewfinder.capture_aperture_fstop = aperture_fstop;
+  }
+}
+
+bool WM_xr_session_state_viewfinder_capture_focus_distance_get(const wmXrData *xr,
+                                                               float *r_focus_distance)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_focus_distance = 1.0f;
+    return false;
+  }
+
+  *r_focus_distance = xr->runtime->session_state.viewfinder.capture_focus_distance;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_capture_focus_distance_set(wmXrData *xr, float focus_distance)
+{
+  if (WM_xr_session_exists(xr)) {
+    CLAMP(focus_distance, 0.0f, 1.0f);
+    xr->runtime->session_state.viewfinder.capture_focus_distance = focus_distance;
   }
 }
 
@@ -658,8 +740,15 @@ void WM_xr_session_state_navigation_reset(wmXrSessionState *state)
   state->is_navigation_dirty = true;
   state->swap_hands = false;
 
-  state->viewfinder.smoothing_delta_t = 0.0f;
+  /* Viewfinder Runtime values. */
+  state->viewfinder.movement_smoothing_delta_t = 0.0f;
   state->viewfinder.capture_flash = 0.0f;
+
+  /* Viewfinder Settings. */
+  state->viewfinder.capture_use_dof = false;
+  state->viewfinder.capture_lens = 50.0f;
+  state->viewfinder.capture_aperture_fstop = 2.8f;
+  state->viewfinder.capture_focus_distance = 10.0f;
 }
 
 void WM_xr_session_state_vignette_activate(wmXrData *xr)

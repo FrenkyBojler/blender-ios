@@ -34,9 +34,17 @@ struct wmXrViewfinderState {
   float capture_position[3];
   float capture_orientation_quat[4];
 
+  /* Runtime values. */  // TODO: add a runtime prefix here
   float capture_flash;
+  double movement_smoothing_delta_t;
 
-  double smoothing_delta_t;
+  /* Capture settings. */
+  bool capture_use_dof;
+  float capture_lens;
+  float capture_aperture_fstop;
+  float capture_focus_distance;
+
+  // TODO: move member from settings in here.
 };
 
 struct wmXrSessionState {

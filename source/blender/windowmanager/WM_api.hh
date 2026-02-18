@@ -78,6 +78,7 @@ struct wmNDOFMotionData;
 #ifdef WITH_XR_OPENXR
 struct wmXrRuntimeData;
 struct wmXrSessionState;
+struct wmXrViewfinderState;
 #endif
 
 namespace bke::id {
@@ -2248,14 +2249,25 @@ bool WM_xr_session_exists(const wmXrData *xr);
  */
 bool WM_xr_session_is_ready(const wmXrData *xr);
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr);
+wmXrViewfinderState *WM_xr_session_state_viewfinder_handle_get(const wmXrData *xr);
 ScrArea *WM_xr_session_area_get(const wmXrData *xr);
 void WM_xr_session_base_pose_reset(wmXrData *xr);
 bool WM_xr_session_state_viewer_pose_location_get(const wmXrData *xr, float r_location[3]);
 bool WM_xr_session_state_viewer_pose_rotation_get(const wmXrData *xr, float r_rotation[4]);
 bool WM_xr_session_state_viewfinder_location_get(const wmXrData *xr, float r_location[3]);
-bool WM_xr_session_state_viewfinder_rotation_get(const wmXrData *xr, float r_rotation[4]);
+bool WM_xr_session_state_viewfinder_orientation_get(const wmXrData *xr, float r_rotation[4]);
 bool WM_xr_session_state_viewfinder_capture_flash_get(const wmXrData *xr, float *r_flash);
 void WM_xr_session_state_viewfinder_capture_flash_set(wmXrData *xr, float flash);
+bool WM_xr_session_state_viewfinder_capture_use_dof_get(const wmXrData *xr, bool *r_use_dof);
+void WM_xr_session_state_viewfinder_capture_use_dof_set(wmXrData *xr, bool use_dof);
+bool WM_xr_session_state_viewfinder_capture_lens_get(const wmXrData *xr, float *r_lens);
+void WM_xr_session_state_viewfinder_capture_lens_set(wmXrData *xr, float lens);
+bool WM_xr_session_state_viewfinder_capture_aperture_fstop_get(const wmXrData *xr,
+                                                               float *r_aperture_fstop);
+void WM_xr_session_state_viewfinder_capture_aperture_fstop_set(wmXrData *xr, float aperture_fstop);
+bool WM_xr_session_state_viewfinder_capture_focus_distance_get(const wmXrData *xr,
+                                                               float *r_focus_distance);
+void WM_xr_session_state_viewfinder_capture_focus_distance_set(wmXrData *xr, float focus_distance);
 bool WM_xr_session_state_viewer_pose_matrix_info_get(const wmXrData *xr,
                                                      float r_viewmat[4][4],
                                                      float *r_focal_len);

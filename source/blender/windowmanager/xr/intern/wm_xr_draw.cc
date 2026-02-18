@@ -204,29 +204,20 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
   }
   static GPUViewport *gpu_viewport = GPU_viewport_create();
 
-  Scene *scene = draw_data->scene;
-  Object *camera_ob = scene->camera; /* Active scene camera. */
-  Camera *camera_data = id_cast<Camera *>(camera_ob->data);
+  float viewfinder_render_viewmat[4][4] = {};
 
-  /* Hack: The DoF live DoF settings need to be overriden during playback to display
-   * the DoF of the captured shot. Circumvent this by storing the live DoF settings
-   * when entering playback and restoring them when going back to live. */
-  static bool dirty_dof_settings = false;
-  static CameraDOFSettings live_dof_settings = camera_data->dof;
+  /* Hack: This should really be an allocated ID, but the rendering code this is passed to via a
+   *       shim object doesn't seem to care. */
+  Camera cam_render_data = {};
+  CameraParams cam_render_params;
+  BKE_camera_params_init(&cam_render_params);
 
-  float viewfinder_capture_viewmat[4][4] = {};
-  float current_landmark_vf_lens = 0.0f;
   switch (settings->viewfinder_active_mode) {
     case XR_VIEWFINDER_MODE_LIVE: {
       const wmXrController *viewfinder_controller = get_viewfinder_controller(settings,
                                                                               session_state);
       if (!viewfinder_controller) {
         break;
-      }
-
-      if (dirty_dof_settings) {
-        camera_data->dof = live_dof_settings;
-        dirty_dof_settings = false;
       }
 
       /* Note: View offsets can be configured using the Scene Camera Shift X/Y settings. */
@@ -242,12 +233,13 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       mat4_to_loc_quat(
           raw_capture_position, raw_capture_orientation_quat, viewfinder_raw_capture_mat);
 
-      if (session_state->viewfinder.smoothing_delta_t > 0) {
+      if (session_state->viewfinder.movement_smoothing_delta_t > 0) {
         /* Apply exponential movement smoothing. */
         constexpr float movement_smoothing_speed = 25.0f;
 
         const double current_time = BLI_time_now_seconds();
-        const float delta_t = float(current_time - session_state->viewfinder.smoothing_delta_t);
+        const float delta_t = float(current_time -
+                                    session_state->viewfinder.movement_smoothing_delta_t);
         const float clamped_delta = min_ff(delta_t, 0.1f);
         const float factor = 1.0f - exp(-clamped_delta * movement_smoothing_speed);
 
@@ -259,14 +251,14 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
                        session_state->viewfinder.capture_orientation_quat,
                        raw_capture_orientation_quat,
                        factor);
-        session_state->viewfinder.smoothing_delta_t = current_time;
+        session_state->viewfinder.movement_smoothing_delta_t = current_time;
       }
       else {
-        /* First initialization. */
+        /* Initialization. */
         copy_v3_v3(session_state->viewfinder.capture_position, raw_capture_position);
         copy_qt_qt(session_state->viewfinder.capture_orientation_quat,
                    raw_capture_orientation_quat);
-        session_state->viewfinder.smoothing_delta_t = BLI_time_now_seconds();
+        session_state->viewfinder.movement_smoothing_delta_t = BLI_time_now_seconds();
       }
 
       /* Build final smoothed capture matrix for rendering. */
@@ -274,17 +266,19 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       quat_to_mat4(viewfinder_capture_mat, session_state->viewfinder.capture_orientation_quat);
       copy_v3_v3(viewfinder_capture_mat[3], session_state->viewfinder.capture_position);
 
-      invert_m4_m4(viewfinder_capture_viewmat, viewfinder_capture_mat);
+      invert_m4_m4(viewfinder_render_viewmat, viewfinder_capture_mat);
+
+      /* Parse live capture parameter for rendering. */
+      cam_render_params.lens = session_state->viewfinder.capture_lens;
+      SET_FLAG_FROM_TEST(
+          cam_render_data.dof.flag, session_state->viewfinder.capture_use_dof, CAM_DOF_ENABLED);
+      cam_render_data.dof.aperture_fstop = session_state->viewfinder.capture_aperture_fstop;
+      cam_render_data.dof.focus_distance = session_state->viewfinder.capture_focus_distance;
 
       break;
     }
     case XR_VIEWFINDER_MODE_PLAYBACK: {
-      if (!dirty_dof_settings) {
-        live_dof_settings = camera_data->dof;
-        dirty_dof_settings = true;
-      }
-
-      PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
+      PointerRNA scene_ptr = RNA_id_pointer_create(&draw_data->scene->id);
 
       /* Note: unsafe, relies on the VR add-on to be loaded. */
       PropertyRNA *landmarks_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks");
@@ -315,7 +309,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       copy_v3_v3(viewfinder_pose.position, landmark_viewfinder_pos);
       copy_qt_qt(viewfinder_pose.orientation_quat, landmark_viewfinder_quat);
 
-      wm_xr_pose_to_imat(&viewfinder_pose, viewfinder_capture_viewmat);
+      wm_xr_pose_to_imat(&viewfinder_pose, viewfinder_render_viewmat);
 
       /* Captured view settings (lens / DoF). */
       PropertyRNA *lm_vf_lens_prop = RNA_struct_find_property(&current_landmark,
@@ -327,14 +321,14 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       PropertyRNA *lm_vf_dof_fstop_prop = RNA_struct_find_property(&current_landmark,
                                                                    "viewfinder_dof_fstop");
 
-      current_landmark_vf_lens = RNA_property_float_get(&current_landmark, lm_vf_lens_prop);
+      cam_render_params.lens = RNA_property_float_get(&current_landmark, lm_vf_lens_prop);
       const bool landmark_use_dof = RNA_property_boolean_get(&current_landmark,
                                                              lm_vf_use_dof_prop);
-      SET_FLAG_FROM_TEST(camera_data->dof.flag, landmark_use_dof, CAM_DOF_ENABLED);
-      camera_data->dof.focus_distance = RNA_property_float_get(&current_landmark,
-                                                               lm_vf_dof_dist_prop);
-      camera_data->dof.aperture_fstop = RNA_property_float_get(&current_landmark,
-                                                               lm_vf_dof_fstop_prop);
+      SET_FLAG_FROM_TEST(cam_render_data.dof.flag, landmark_use_dof, CAM_DOF_ENABLED);
+      cam_render_data.dof.focus_distance = RNA_property_float_get(&current_landmark,
+                                                                  lm_vf_dof_dist_prop);
+      cam_render_data.dof.aperture_fstop = RNA_property_float_get(&current_landmark,
+                                                                  lm_vf_dof_fstop_prop);
       break;
     }
     default:
@@ -342,23 +336,13 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       break;
   }
 
-  CameraParams params;
-  BKE_camera_params_init(&params);
-  BKE_camera_params_from_object(&params, camera_ob);
-
-  /* In Playback mode, override the lens with the value stored in the landmark.
-   * Note: Only the lens and DoF are restored, tweaking the Shift X/Y and other Camera settings
-   *       between captures will cause inconsistencies. */
-  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
-    params.lens = current_landmark_vf_lens;
-  }
-
-  BKE_camera_params_compute_viewplane(
-      &params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
-  BKE_camera_params_compute_matrix(&params);
+  /* Compute obtained camera parameter from Live / Playback for render. */
+  // TODO: dummy 16:9 aspect ratio for now, make editable and save in shots.
+  BKE_camera_params_compute_viewplane(&cam_render_params, 1920, 1080, 1, 1);
+  BKE_camera_params_compute_matrix(&cam_render_params);
 
   float viewfinder_winmat[4][4];
-  copy_m4_m4(viewfinder_winmat, params.winmat);
+  copy_m4_m4(viewfinder_winmat, cam_render_params.winmat);
 
   const int viewfinder_display_flag = V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS |
                                       V3D_OFSDRAW_SHOW_ANNOTATION | V3D_OFSDRAW_SHOW_GRIDFLOOR;
@@ -367,6 +351,11 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
    * for Workbench. */
   View3DShading viewfinder_shading_settings = settings->shading;
   viewfinder_shading_settings.flag |= V3D_SHADING_DEPTH_OF_FIELD;
+
+  /* Shim Viewfinder Camera Object to override the View3D with for rendering and pass it our
+   * cam_render_data settings. */
+  Object viewfinder_cam_ob = {};
+  viewfinder_cam_ob.data = id_cast<ID *>(&cam_render_data);
 
   ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
                                   draw_data->scene,
@@ -377,7 +366,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
                                   draw_view->width,
                                   draw_view->height,
                                   viewfinder_display_flag,
-                                  viewfinder_capture_viewmat,
+                                  viewfinder_render_viewmat,
                                   viewfinder_winmat,
                                   settings->clip_start,
                                   settings->clip_end,
@@ -387,7 +376,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
                                   true,
                                   nullptr,
                                   true,
-                                  true,
+                                  &viewfinder_cam_ob,
                                   g_viewfinder_offscreen,
                                   gpu_viewport);
 }
@@ -445,7 +434,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
                                   true,
                                   nullptr,
                                   false,
-                                  false,
+                                  nullptr,
                                   vp->offscreen,
                                   vp->viewport);
 
@@ -884,7 +873,6 @@ static void wm_xr_controller_viewfinder_draw_view_flash(wmXrSessionState *state,
 }
 
 static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
-                                             GHOST_IXrContext * /*xr_context*/,
                                              wmXrSessionState *state,
                                              const bContext *C)
 {
@@ -1005,7 +993,7 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
     }
   }
 
-  wm_xr_controller_viewfinder_draw(settings, xr_context, state, C);
+  wm_xr_controller_viewfinder_draw(settings, state, C);
 }
 
 static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSessionState *state)
