@@ -780,7 +780,7 @@ template<int Size> struct u32_base {
 #  if defined(USE_NEON)
       res.lanes[i] = vcgtq_u32(a.lanes[i], tmp);
 #  elif defined(USE_SSE4_2)
-      res.lanes[i] = _mm_cmpgt_epi32(a.lanes[i], b.lanes[i]);
+      res.lanes[i] = _mm_cmpgt_epi32(a.lanes[i], tmp);
 #  endif
     }
     return res;
