@@ -245,6 +245,11 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    */
   Map<bNodeInstanceKey, bNodePreview> previews;
 
+  /**
+   * Set to true if there is any node being moved currently.
+   */
+  bool is_transforming = false;
+
   /** Only valid when #topology_cache_is_dirty is false. */
   Vector<bNodeLink *> links;
   Vector<bNodeSocket *> sockets;

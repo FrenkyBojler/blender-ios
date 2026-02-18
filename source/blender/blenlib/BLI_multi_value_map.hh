@@ -157,6 +157,14 @@ template<typename Key, typename Value> class MultiValueMap {
     return map_.values();
   }
 
+  /**
+   * NOTE: This signature will change when the implementation changes.
+   */
+  typename MapType::MutableValueIterator values()
+  {
+    return map_.values();
+  }
+
   void clear()
   {
     map_.clear();

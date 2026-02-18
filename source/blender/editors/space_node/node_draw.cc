@@ -3645,6 +3645,73 @@ static void reroute_node_prepare_for_draw(bNode &node)
   node.runtime->draw_bounds.ymin = loc.y - radius;
 }
 
+static Set<const bNode *> find_covering_nodes(const Span<const bNode *> nodes_in_draw_order)
+{
+  constexpr float cell_size = 200;
+  const auto pos_to_cell = [&](const float2 pos) { return int2(pos / cell_size); };
+  const auto pos_to_cell_bounds = [&](const rctf &bounds) {
+    return Bounds<int2>(pos_to_cell(float2(bounds.xmin, bounds.ymin)),
+                        pos_to_cell(float2(bounds.xmax, bounds.ymax)));
+  };
+
+  MultiValueMap<int2, const bNode *> nodes_by_cell;
+  for (const bNode *node : nodes_in_draw_order) {
+    if (node->is_frame() || node->is_reroute()) {
+      continue;
+    }
+    const rctf &bounds = node->runtime->draw_bounds;
+    const Bounds<int2> cell_bounds = pos_to_cell_bounds(bounds);
+    for (int x = cell_bounds.min.x; x <= cell_bounds.max.x; x++) {
+      for (int y = cell_bounds.min.y; y <= cell_bounds.max.y; y++) {
+        nodes_by_cell.add({x, y}, node);
+      }
+    }
+  }
+
+  Set<const bNode *> covering_nodes;
+  for (MutableSpan<const bNode *> nodes_in_cell : nodes_by_cell.values()) {
+    if (nodes_in_cell.size() <= 1) {
+      continue;
+    }
+    if (nodes_in_cell.size() > 10) {
+      /* There are many nodes in the same place, maybe the tree is generated with a script.
+       * Instead of creating potentially hundreds of warnings, just put one on the top most node.
+       * This also avoids the quadratic complexity below when there are too many nodes. */
+      covering_nodes.add(nodes_in_cell.last());
+      continue;
+    }
+    for (const int top_node_i : nodes_in_cell.index_range().drop_front(1)) {
+      for (const int bottom_node_i : nodes_in_cell.index_range().take_front(top_node_i)) {
+        const bNode &top_node = *nodes_in_cell[top_node_i];
+        const bNode &bottom_node = *nodes_in_cell[bottom_node_i];
+        rctf top_bounds = top_node.runtime->draw_bounds;
+        const rctf &bottom_bounds = bottom_node.runtime->draw_bounds;
+        BLI_rctf_pad(&top_bounds, 2, 2);
+        if (BLI_rctf_inside_rctf(&top_bounds, &bottom_bounds)) {
+          covering_nodes.add(&top_node);
+          break;
+        }
+      }
+    }
+  }
+  return covering_nodes;
+}
+
+static void add_covering_node_warnings(TreeDrawContext &tree_draw_ctx,
+                                       const Span<bNode *> nodes_in_draw_order)
+{
+  const Set<const bNode *> covering_nodes = find_covering_nodes(nodes_in_draw_order);
+  /* This is added here instead of #node_get_extra_info because this is only known after computing
+   * node bounds. */
+  for (const bNode *node : covering_nodes) {
+    NodeExtraInfoRow row;
+    row.text = IFACE_("Hidden Node");
+    row.icon = ICON_INFO;
+    row.tooltip = TIP_("This not covers another node which may not be intentional");
+    tree_draw_ctx.extra_info_rows_per_node[node->index()].append(std::move(row));
+  }
+}
+
 static void node_update_nodetree(const bContext &C,
                                  TreeDrawContext &tree_draw_ctx,
                                  bNodeTree &ntree,
@@ -3680,6 +3747,11 @@ static void node_update_nodetree(const bContext &C,
   /* Now calculate the size of frame nodes, which can depend on the size of other nodes. */
   for (bNode *frame : ntree.root_frames()) {
     calc_node_frame_dimensions(C, tree_draw_ctx, *snode, *frame);
+  }
+
+  /* Only draw these warnings when not currently moving nodes to avoid flickering. */
+  if (!ntree.runtime->is_transforming) {
+    add_covering_node_warnings(tree_draw_ctx, nodes);
   }
 }
 

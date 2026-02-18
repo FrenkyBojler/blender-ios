@@ -194,6 +194,8 @@ static void createTransNodeData(bContext *C, TransInfo *t)
   for (const int i : nodes.index_range()) {
     create_transform_data_for_node(tc->data[i], tc->data_2d[i], *nodes[i], UI_SCALE_FAC);
   }
+
+  node_tree->runtime->is_transforming = true;
 }
 
 /** \} */
@@ -402,6 +404,8 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
 
   space_node::node_insert_on_link_flags_clear(*ntree);
   space_node::node_insert_on_frame_flag_clear(*snode);
+
+  ntree->runtime->is_transforming = false;
 
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_insert_offset", true);
   BLI_assert(ot);
