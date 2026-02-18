@@ -42,20 +42,22 @@ VKImageView::VKImageView(VKTexture &texture, const VKImageViewInfo &info, String
     vk_format_ = to_non_srgb_format(vk_format_);
   }
 
-  VkImageViewCreateInfo image_view_info = {};
-  image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  image_view_info.image = texture.vk_image_handle();
-  image_view_info.viewType = to_vk_image_view_type(texture.type_get(), info.usage, info.arrayed);
-  image_view_info.format = vk_format_;
-  image_view_info.components.r = to_vk_component_swizzle(info.swizzle[0]);
-  image_view_info.components.g = to_vk_component_swizzle(info.swizzle[1]);
-  image_view_info.components.b = to_vk_component_swizzle(info.swizzle[2]);
-  image_view_info.components.a = to_vk_component_swizzle(info.swizzle[3]);
-  image_view_info.subresourceRange.aspectMask = image_aspect;
-  image_view_info.subresourceRange.baseMipLevel = info.mip_range.first();
-  image_view_info.subresourceRange.levelCount = info.mip_range.size();
-  image_view_info.subresourceRange.baseArrayLayer = info.layer_range.first();
-  image_view_info.subresourceRange.layerCount = info.layer_range.size();
+  VkImageViewCreateInfo image_view_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = 0,
+      .image = texture.vk_image_handle(),
+      .viewType = to_vk_image_view_type(texture.type_get(), info.usage, info.arrayed),
+      .format = vk_format_,
+      .components = {to_vk_component_swizzle(info.swizzle[0]),
+                     to_vk_component_swizzle(info.swizzle[1]),
+                     to_vk_component_swizzle(info.swizzle[2]),
+                     to_vk_component_swizzle(info.swizzle[3])},
+      .subresourceRange = {image_aspect,
+                           info.mip_range.first(),
+                           info.mip_range.size(),
+                           info.layer_range.first(),
+                           info.layer_range.size()}};
 
   const VKDevice &device = VKBackend::get().device;
   vkCreateImageView(device.vk_handle(), &image_view_info, nullptr, &vk_image_view_);

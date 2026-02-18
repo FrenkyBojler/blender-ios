@@ -32,17 +32,14 @@ void VKShaderModule::finalize(StringRefNull name)
     return;
   }
 
-  VkShaderModuleCreateInfo create_info = {};
-  create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-  if (!spirv_binary.is_empty()) {
-    create_info.codeSize = spirv_binary.size() * sizeof(uint32_t);
-    create_info.pCode = spirv_binary.data();
-  }
-  else {
-    create_info.codeSize = (compilation_result.end() - compilation_result.begin()) *
-                           sizeof(uint32_t);
-    create_info.pCode = compilation_result.begin();
-  }
+  VkShaderModuleCreateInfo create_info = {
+      .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = 0,
+      .codeSize = !spirv_binary.is_empty() ?
+                      (spirv_binary.size() * sizeof(uint32_t)) :
+                      ((compilation_result.end() - compilation_result.begin()) * sizeof(uint32_t)),
+      .pCode = !spirv_binary.is_empty() ? spirv_binary.data() : compilation_result.begin()};
 
   const VKDevice &device = VKBackend::get().device;
   vkCreateShaderModule(device.vk_handle(), &create_info, nullptr, &vk_shader_module);

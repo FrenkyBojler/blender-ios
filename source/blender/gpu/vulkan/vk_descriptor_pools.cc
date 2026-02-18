@@ -50,11 +50,12 @@ void VKDescriptorPools::ensure_pool(const VKDevice &device)
       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, POOL_SIZE_UNIFORM_BUFFER},
       {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, POOL_SIZE_UNIFORM_TEXEL_BUFFER},
       {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, POOL_SIZE_INPUT_ATTACHMENT}};
-  VkDescriptorPoolCreateInfo pool_info = {};
-  pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  pool_info.maxSets = POOL_SIZE_DESCRIPTOR_SETS;
-  pool_info.poolSizeCount = pool_sizes.size();
-  pool_info.pPoolSizes = pool_sizes.data();
+  VkDescriptorPoolCreateInfo pool_info = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+                                          .pNext = nullptr,
+                                          .flags = 0,
+                                          .maxSets = POOL_SIZE_DESCRIPTOR_SETS,
+                                          .poolSizeCount = uint32_t(pool_sizes.size()),
+                                          .pPoolSizes = pool_sizes.data()};
   vkCreateDescriptorPool(device.vk_handle(), &pool_info, nullptr, &vk_descriptor_pool_);
 }
 
@@ -78,11 +79,12 @@ VkDescriptorSet VKDescriptorPools::allocate(const VkDescriptorSetLayout descript
   BLI_assert(vk_descriptor_pool_ != VK_NULL_HANDLE);
   const VKDevice &device = VKBackend::get().device;
 
-  VkDescriptorSetAllocateInfo allocate_info = {};
-  allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-  allocate_info.descriptorPool = vk_descriptor_pool_;
-  allocate_info.descriptorSetCount = 1;
-  allocate_info.pSetLayouts = &descriptor_set_layout;
+  VkDescriptorSetAllocateInfo allocate_info = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+      .pNext = nullptr,
+      .descriptorPool = vk_descriptor_pool_,
+      .descriptorSetCount = 1,
+      .pSetLayouts = &descriptor_set_layout};
   VkDescriptorSet vk_descriptor_set = VK_NULL_HANDLE;
   VkResult result = vkAllocateDescriptorSets(
       device.vk_handle(), &allocate_info, &vk_descriptor_set);

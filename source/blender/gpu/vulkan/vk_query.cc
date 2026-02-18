@@ -48,10 +48,11 @@ void VKQueryPool::begin_query()
   if (pool_index == vk_query_pools_.size()) {
     BLI_assert(is_new_pool);
 
-    VkQueryPoolCreateInfo create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
-    create_info.queryType = vk_query_type_;
-    create_info.queryCount = query_chunk_len_;
+    VkQueryPoolCreateInfo create_info = {.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+                                         .pNext = nullptr,
+                                         .flags = 0,
+                                         .queryType = vk_query_type_,
+                                         .queryCount = query_chunk_len_};
 
     VkQueryPool vk_query_pool = VK_NULL_HANDLE;
     vkCreateQueryPool(device.vk_handle(), &create_info, nullptr, &vk_query_pool);

@@ -383,12 +383,14 @@ void VKCommandBuilder::activate_debug_group(VKRenderGraph &render_graph,
   if (num_begins > 0) {
     Vector<VKRenderGraph::DebugGroupNameID> &to_group =
         render_graph.debug_.used_groups[debug_group];
-    VkDebugUtilsLabelEXT debug_utils_label = {};
-    debug_utils_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
     for (int index : IndexRange(debug_groups.debug_level, num_begins)) {
       const VKRenderGraph::DebugGroup &debug_group = render_graph.debug_.groups[to_group[index]];
-      debug_utils_label.pLabelName = debug_group.name.c_str();
-      copy_v4_v4(debug_utils_label.color, debug_group.color);
+      float color[4];
+      copy_v4_v4(color, debug_group.color);
+      VkDebugUtilsLabelEXT debug_utils_label = {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+                                                .pNext = nullptr,
+                                                .pLabelName = debug_group.name.c_str(),
+                                                .color = {color[0], color[1], color[2], color[3]}};
       command_buffer.begin_debug_utils_label(&debug_utils_label);
     }
   }

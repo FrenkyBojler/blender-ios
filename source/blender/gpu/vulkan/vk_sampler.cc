@@ -25,14 +25,25 @@ void VKSampler::create(const GPUSamplerState &sampler_state)
 
   const VKDevice &device = VKBackend::get().device;
 
-  VkSamplerCreateInfo sampler_info = {};
-  sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  /* Extend */
-  sampler_info.addressModeU = to_vk_sampler_address_mode(sampler_state.extend_x);
-  sampler_info.addressModeV = sampler_info.addressModeW = to_vk_sampler_address_mode(
-      sampler_state.extend_yz);
-  sampler_info.minLod = 0;
-  sampler_info.maxLod = 0;
+  VkSamplerCreateInfo sampler_info = {
+      .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = 0,
+      .magFilter = VK_FILTER_NEAREST,
+      .minFilter = VK_FILTER_NEAREST,
+      .mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST,
+      .addressModeU = to_vk_sampler_address_mode(sampler_state.extend_x),
+      .addressModeV = to_vk_sampler_address_mode(sampler_state.extend_yz),
+      .addressModeW = to_vk_sampler_address_mode(sampler_state.extend_yz),
+      .mipLodBias = 0.0f,
+      .anisotropyEnable = VK_FALSE,
+      .maxAnisotropy = 1.0f,
+      .compareEnable = VK_FALSE,
+      .compareOp = VK_COMPARE_OP_ALWAYS,
+      .minLod = 0,
+      .maxLod = 0,
+      .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+      .unnormalizedCoordinates = VK_FALSE};
 
   if (sampler_state.type == GPU_SAMPLER_STATE_TYPE_PARAMETERS) {
     /* Apply filtering. */

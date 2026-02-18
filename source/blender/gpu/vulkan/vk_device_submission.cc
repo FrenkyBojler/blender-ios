@@ -109,8 +109,12 @@ void VKDevice::wait_for_timeline(TimelineValue timeline)
   if (timeline == 0) {
     return;
   }
-  VkSemaphoreWaitInfo vk_semaphore_wait_info = {
-      VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO, nullptr, 0, 1, &vk_timeline_semaphore_, &timeline};
+  VkSemaphoreWaitInfo vk_semaphore_wait_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+                                                .pNext = nullptr,
+                                                .flags = 0,
+                                                .semaphoreCount = 1,
+                                                .pSemaphores = &vk_timeline_semaphore_,
+                                                .pValues = &timeline};
   VkResult wait_result = vkWaitSemaphores(vk_device_, &vk_semaphore_wait_info, UINT64_MAX);
   if (wait_result != VK_SUCCESS) {
     CLOG_ERROR(
@@ -146,10 +150,11 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
   VKDevice *device = static_cast<VKDevice *>(BLI_task_pool_user_data(pool));
   VkCommandPool vk_command_pool = VK_NULL_HANDLE;
   VkCommandPoolCreateInfo vk_command_pool_create_info = {
-      VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-      nullptr,
-      VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-      device->vk_queue_family_};
+      .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
+               VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+      .queueFamilyIndex = device->vk_queue_family_};
   vkCreateCommandPool(device->vk_device_, &vk_command_pool_create_info, nullptr, &vk_command_pool);
 
   render_graph::VKScheduler scheduler;
@@ -186,11 +191,11 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
       if (command_buffers_unused.is_empty()) {
         command_buffers_unused.resize(10, VK_NULL_HANDLE);
         VkCommandBufferAllocateInfo vk_command_buffer_allocate_info = {
-            VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            nullptr,
-            vk_command_pool,
-            VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            10};
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .pNext = nullptr,
+            .commandPool = vk_command_pool,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = 10};
         vkAllocateCommandBuffers(
             device->vk_device_, &vk_command_buffer_allocate_info, command_buffers_unused.data());
       };
@@ -229,21 +234,21 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
                                                       submit_task->wait_dst_stage_mask};
 
       VkTimelineSemaphoreSubmitInfo vk_timeline_semaphore_submit_info = {
-          VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
-          nullptr,
-          wait_semaphore_len,
-          wait_semaphore_values,
-          signal_semaphore_len,
-          signal_semaphore_values};
-      VkSubmitInfo vk_submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                                     &vk_timeline_semaphore_submit_info,
-                                     wait_semaphore_len,
-                                     wait_semaphores,
-                                     pipeline_stage_flags,
-                                     1,
-                                     &vk_command_buffer,
-                                     signal_semaphore_len,
-                                     signal_semaphores};
+          .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+          .pNext = nullptr,
+          .waitSemaphoreValueCount = wait_semaphore_len,
+          .pWaitSemaphoreValues = wait_semaphore_values,
+          .signalSemaphoreValueCount = signal_semaphore_len,
+          .pSignalSemaphoreValues = signal_semaphore_values};
+      VkSubmitInfo vk_submit_info = {.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                                     .pNext = &vk_timeline_semaphore_submit_info,
+                                     .waitSemaphoreCount = wait_semaphore_len,
+                                     .pWaitSemaphores = wait_semaphores,
+                                     .pWaitDstStageMask = pipeline_stage_flags,
+                                     .commandBufferCount = 1,
+                                     .pCommandBuffers = &vk_command_buffer,
+                                     .signalSemaphoreCount = signal_semaphore_len,
+                                     .pSignalSemaphores = signal_semaphores};
 
       CLOG_TRACE(&LOG, "Submitting %u render graph nodes to device.", uint32_t(num_nodes));
       num_nodes = 0;
@@ -294,9 +299,14 @@ void VKDevice::init_submission_pool()
   unused_render_graphs_ = BLI_thread_queue_init();
 
   VkSemaphoreTypeCreateInfo vk_semaphore_type_create_info = {
-      VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO, nullptr, VK_SEMAPHORE_TYPE_TIMELINE, 0};
+      .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+      .pNext = nullptr,
+      .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+      .initialValue = 0};
   VkSemaphoreCreateInfo vk_semaphore_create_info = {
-      VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, &vk_semaphore_type_create_info, 0};
+      .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+      .pNext = &vk_semaphore_type_create_info,
+      .flags = 0};
   vkCreateSemaphore(vk_device_, &vk_semaphore_create_info, nullptr, &vk_timeline_semaphore_);
 
   BLI_task_pool_push(submission_pool_, VKDevice::submission_runner, nullptr, false, nullptr);

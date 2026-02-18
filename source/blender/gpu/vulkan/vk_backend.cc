@@ -49,10 +49,10 @@ static const char *vk_extension_get(int index)
 bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
 {
   /* Check for known faulty drivers. */
-  VkPhysicalDeviceProperties2 vk_physical_device_properties = {};
-  VkPhysicalDeviceDriverProperties vk_physical_device_driver_properties = {};
-  vk_physical_device_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-  vk_physical_device_driver_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
+  VkPhysicalDeviceProperties2 vk_physical_device_properties = {
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, .pNext = nullptr};
+  VkPhysicalDeviceDriverProperties vk_physical_device_driver_properties = {
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES, .pNext = nullptr};
   vk_physical_device_properties.pNext = &vk_physical_device_driver_properties;
   vkGetPhysicalDeviceProperties2(vk_physical_device, &vk_physical_device_properties);
 
@@ -139,11 +139,11 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   Vector<StringRefNull> missing_capabilities;
   /* Check device features. */
   VkPhysicalDeviceVulkan12Features features_12 = {
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, .pNext = nullptr};
   VkPhysicalDeviceVulkan11Features features_11 = {
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES, &features_12};
-  VkPhysicalDeviceFeatures2 features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-                                        &features_11};
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES, .pNext = &features_12};
+  VkPhysicalDeviceFeatures2 features = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+                                        .pNext = &features_11};
 
   vkGetPhysicalDeviceFeatures2(vk_physical_device, &features);
 
@@ -242,15 +242,22 @@ bool VKBackend::is_supported()
   BLI_setenv("VK_LOADER_LAYERS_ALLOW", allowed_layers.str().c_str());
 
   /* Initialize an vulkan 1.2 instance. */
-  VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
-  vk_application_info.pApplicationName = "Blender";
-  vk_application_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-  vk_application_info.pEngineName = "Blender";
-  vk_application_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  vk_application_info.apiVersion = VK_API_VERSION_1_2;
+  VkApplicationInfo vk_application_info = {.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+                                           .pNext = nullptr,
+                                           .pApplicationName = "Blender",
+                                           .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+                                           .pEngineName = "Blender",
+                                           .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+                                           .apiVersion = VK_API_VERSION_1_2};
 
-  VkInstanceCreateInfo vk_instance_info = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
-  vk_instance_info.pApplicationInfo = &vk_application_info;
+  VkInstanceCreateInfo vk_instance_info = {.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+                                           .pNext = nullptr,
+                                           .flags = 0,
+                                           .pApplicationInfo = &vk_application_info,
+                                           .enabledLayerCount = 0,
+                                           .ppEnabledLayerNames = nullptr,
+                                           .enabledExtensionCount = 0,
+                                           .ppEnabledExtensionNames = nullptr};
 
   VkInstance vk_instance = VK_NULL_HANDLE;
   vkCreateInstance(&vk_instance_info, nullptr, &vk_instance);

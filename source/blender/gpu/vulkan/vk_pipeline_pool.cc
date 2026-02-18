@@ -33,8 +33,11 @@ namespace gpu {
 void VKPipelinePool::init()
 {
   VKDevice &device = VKBackend::get().device;
-  VkPipelineCacheCreateInfo create_info = {};
-  create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+  VkPipelineCacheCreateInfo create_info = {.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
+                                           .pNext = nullptr,
+                                           .flags = 0,
+                                           .initialDataSize = 0,
+                                           .pInitialData = nullptr};
   vkCreatePipelineCache(device.vk_handle(), &create_info, nullptr, &vk_pipeline_cache_static_);
   debug::object_label(vk_pipeline_cache_static_, "VkPipelineCache.Static");
   vkCreatePipelineCache(device.vk_handle(), &create_info, nullptr, &vk_pipeline_cache_non_static_);
@@ -64,20 +67,22 @@ VkPipeline VKPipelineMap<VKComputeInfo>::create(const VKComputeInfo &compute_inf
 {
   /* Building compute pipeline create info */
   const bool do_specialization_constants = !compute_info.specialization_constants.is_empty();
+  VkPipelineShaderStageCreateInfo shader_stage_info = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = 0,
+      .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+      .module = compute_info.vk_shader_module,
+      .pName = "main",
+      .pSpecializationInfo = nullptr};
   VkComputePipelineCreateInfo vk_compute_pipeline_create_info = {
-      VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-      nullptr,
-      0,
-      {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-       nullptr,
-       0,
-       VK_SHADER_STAGE_COMPUTE_BIT,
-       compute_info.vk_shader_module,
-       "main",
-       nullptr},
-      compute_info.vk_pipeline_layout,
-      vk_pipeline_base,
-      0};
+      .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = 0,
+      .stage = shader_stage_info,
+      .layout = compute_info.vk_pipeline_layout,
+      .basePipelineHandle = vk_pipeline_base,
+      .basePipelineIndex = 0};
 
   /* Specialization constants */
   VkSpecializationInfo vk_specialization_info;
@@ -712,10 +717,12 @@ void VKPipelinePool::read_from_disk()
 
   CLOG_INFO(&LOG, "Initialize static pipeline cache from disk [%s].", cache_file.c_str());
   VKDevice &device = VKBackend::get().device;
-  VkPipelineCacheCreateInfo create_info = {};
-  create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-  create_info.initialDataSize = read_prefix.data_size;
-  create_info.pInitialData = buffer.data() + sizeof(VKPipelineCachePrefixHeader);
+  VkPipelineCacheCreateInfo create_info = {.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
+                                           .pNext = nullptr,
+                                           .flags = 0,
+                                           .initialDataSize = read_prefix.data_size,
+                                           .pInitialData = buffer.data() +
+                                                           sizeof(VKPipelineCachePrefixHeader)};
   VkPipelineCache vk_pipeline_cache = VK_NULL_HANDLE;
   vkCreatePipelineCache(device.vk_handle(), &create_info, nullptr, &vk_pipeline_cache);
 

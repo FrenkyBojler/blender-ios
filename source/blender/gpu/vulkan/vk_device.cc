@@ -222,8 +222,8 @@ void VKDevice::init_physical_device_properties()
 {
   BLI_assert(vk_physical_device_ != VK_NULL_HANDLE);
 
-  VkPhysicalDeviceProperties2 vk_physical_device_properties = {};
-  vk_physical_device_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+  VkPhysicalDeviceProperties2 vk_physical_device_properties = {
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, .pNext = nullptr};
   vk_physical_device_driver_properties_.sType =
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
   vk_physical_device_id_properties_.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES;
@@ -256,8 +256,8 @@ void VKDevice::init_physical_device_features()
 {
   BLI_assert(vk_physical_device_ != VK_NULL_HANDLE);
 
-  VkPhysicalDeviceFeatures2 features = {};
-  features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+  VkPhysicalDeviceFeatures2 features = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+                                        .pNext = nullptr};
   vk_physical_device_vulkan_11_features_.sType =
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
   vk_physical_device_vulkan_12_features_.sType =

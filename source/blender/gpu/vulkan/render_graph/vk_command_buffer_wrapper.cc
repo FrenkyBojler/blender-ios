@@ -21,10 +21,10 @@ VKCommandBufferWrapper::VKCommandBufferWrapper(VkCommandBuffer vk_command_buffer
 void VKCommandBufferWrapper::begin_recording()
 {
   VkCommandBufferBeginInfo vk_command_buffer_begin_info = {
-      VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-      nullptr,
-      VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-      nullptr};
+      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+      .pNext = nullptr,
+      .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+      .pInheritanceInfo = nullptr};
   vkBeginCommandBuffer(vk_command_buffer_, &vk_command_buffer_begin_info);
 }
 

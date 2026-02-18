@@ -443,36 +443,39 @@ void VKTexture::update_sub(int mip,
     VkImageAspectFlags vk_image_aspects = to_vk_image_aspect_single_bit(
         to_vk_image_aspect_flag_bits(device_format_), false);
     VkHostImageLayoutTransitionInfoEXT image_layout_transition = {
-        VK_STRUCTURE_TYPE_HOST_IMAGE_LAYOUT_TRANSITION_INFO_EXT,
-        nullptr,
-        vk_image_handle(),
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        {vk_image_aspects, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS},
-    };
+        .sType = VK_STRUCTURE_TYPE_HOST_IMAGE_LAYOUT_TRANSITION_INFO_EXT,
+        .pNext = nullptr,
+        .image = vk_image_handle(),
+        .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        .subresourceRange = {
+            vk_image_aspects, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS}};
     device.functions.vkTransitionImageLayout(device.vk_handle(), 1, &image_layout_transition);
     device.resources.update_image_layout(vk_image_handle(),
                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     /* TODO: Add support for VK_HOST_IMAGE_COPY_MEMCPY_EXT flag. It would theoretically allow
      * faster uploading, but requires sub resource to match our CPU layout. */
     VkMemoryToImageCopyEXT vk_memory_to_image_copy = {
-        VK_STRUCTURE_TYPE_MEMORY_TO_IMAGE_COPY_EXT,
-        nullptr,
-        data,
-        unpack_row_length,
-        0,
-        {vk_image_aspects, uint32_t(mip), uint32_t(start_layer), uint32_t(layers)},
-        {offset.x, offset.y, offset.z},
-        {uint32_t(extent.x), uint32_t(extent.y), uint32_t(extent.z)}};
+        .sType = VK_STRUCTURE_TYPE_MEMORY_TO_IMAGE_COPY_EXT,
+        .pNext = nullptr,
+        .pHostPointer = data,
+        .memoryRowLength = unpack_row_length,
+        .memoryImageHeight = 0,
+        .imageSubresource = {vk_image_aspects,
+                             uint32_t(mip),
+                             uint32_t(start_layer),
+                             uint32_t(layers)},
+        .imageOffset = {offset.x, offset.y, offset.z},
+        .imageExtent = {uint32_t(extent.x), uint32_t(extent.y), uint32_t(extent.z)}};
 
     VkCopyMemoryToImageInfoEXT vk_copy_memory_to_image = {
-        VK_STRUCTURE_TYPE_COPY_MEMORY_TO_IMAGE_INFO_EXT,
-        nullptr,
-        VkHostImageCopyFlagsEXT(0),
-        vk_image_handle(),
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        1,
-        &vk_memory_to_image_copy};
+        .sType = VK_STRUCTURE_TYPE_COPY_MEMORY_TO_IMAGE_INFO_EXT,
+        .pNext = nullptr,
+        .flags = VkHostImageCopyFlagsEXT(0),
+        .dstImage = vk_image_handle(),
+        .dstImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        .regionCount = 1,
+        .pRegions = &vk_memory_to_image_copy};
     device.functions.vkCopyMemoryToImage(device.vk_handle(), &vk_copy_memory_to_image);
 
     has_data_ = true;
@@ -571,10 +574,11 @@ VKMemoryExport VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handl
   BLI_assert_msg(device.extensions_get().external_memory,
                  "Requested to export memory, but isn't supported by the device");
   if (handle_type == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT) {
-    VkMemoryGetFdInfoKHR vk_memory_get_fd_info = {VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
-                                                  nullptr,
-                                                  allocation_info_.deviceMemory,
-                                                  handle_type};
+    VkMemoryGetFdInfoKHR vk_memory_get_fd_info = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
+        .pNext = nullptr,
+        .memory = allocation_info_.deviceMemory,
+        .handleType = handle_type};
     int fd_handle = 0;
     device.functions.vkGetMemoryFd(device.vk_handle(), &vk_memory_get_fd_info, &fd_handle);
     return {uint64_t(fd_handle), allocation_info_.size, allocation_info_.offset};
@@ -614,9 +618,10 @@ bool VKTexture::init_internal()
 
   if (extensions.host_image_copy) {
     VkFormat vk_format = to_vk_format(device_format_);
-    VkFormatProperties3 vk_format_properties3 = {VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_3};
-    VkFormatProperties2 vk_format_properties2 = {VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2,
-                                                 &vk_format_properties3};
+    VkFormatProperties3 vk_format_properties3 = {.sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_3,
+                                                 .pNext = nullptr};
+    VkFormatProperties2 vk_format_properties2 = {.sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2,
+                                                 .pNext = &vk_format_properties3};
     vkGetPhysicalDeviceFormatProperties2(
         device.physical_device_get(), vk_format, &vk_format_properties2);
     if (bool(vk_format_properties3.optimalTilingFeatures &
@@ -755,11 +760,17 @@ bool VKTexture::allocate()
   }
 
   VkExternalMemoryImageCreateInfo external_memory_create_info = {
-      VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO, nullptr, 0};
+      .sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
+      .pNext = nullptr,
+      .handleTypes = 0};
 
-  VmaAllocationCreateInfo allocCreateInfo = {};
-  allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-  allocCreateInfo.priority = memory_priority(texture_usage);
+  VmaAllocationCreateInfo allocCreateInfo = {.flags = 0,
+                                             .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+                                             .requiredFlags = 0,
+                                             .preferredFlags = 0,
+                                             .pool = nullptr,
+                                             .pUserData = nullptr,
+                                             .priority = memory_priority(texture_usage)};
 
   if (bool(texture_usage & GPU_TEXTURE_USAGE_MEMORY_EXPORT)) {
     image_info.pNext = &external_memory_create_info;

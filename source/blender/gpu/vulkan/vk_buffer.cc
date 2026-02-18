@@ -62,25 +62,23 @@ bool VKBuffer::create(size_t size_in_bytes,
   }
 
   VmaAllocator allocator = device.mem_allocator_get();
-  VkBufferCreateInfo create_info = {};
-  create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  create_info.flags = 0;
-  create_info.size = alloc_size_in_bytes_;
-  create_info.usage = buffer_usage;
-  /* We use the same command queue for the compute and graphics pipeline, so it is safe to use
-   * exclusive resource handling. */
-  create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-  create_info.queueFamilyIndexCount = 1;
   const uint32_t queue_family_indices[1] = {device.queue_family_get()};
-  create_info.pQueueFamilyIndices = queue_family_indices;
+  VkBufferCreateInfo create_info = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                                    .pNext = nullptr,
+                                    .flags = 0,
+                                    .size = alloc_size_in_bytes_,
+                                    .usage = buffer_usage,
+                                    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+                                    .queueFamilyIndexCount = 1,
+                                    .pQueueFamilyIndices = queue_family_indices};
 
   VkExternalMemoryBufferCreateInfo external_memory_create_info = {
-      VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO, nullptr, 0};
+      .sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
+      .pNext = nullptr,
+      .handleTypes = 0};
 
-  VmaAllocationCreateInfo vma_create_info = {};
-  vma_create_info.flags = allocation_flags;
-  vma_create_info.priority = priority;
-  vma_create_info.usage = vma_memory_usage;
+  VmaAllocationCreateInfo vma_create_info = {
+      .flags = allocation_flags, .usage = vma_memory_usage, .priority = priority};
 
   if (export_memory) {
     create_info.pNext = &external_memory_create_info;

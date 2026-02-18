@@ -78,11 +78,11 @@ GPUPixelBufferNativeHandle VKPixelBuffer::get_native_handle()
 
 #ifdef _WIN32
   /* Opaque Windows handle. */
-  VkMemoryGetWin32HandleInfoKHR info = {};
-  info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
-  info.pNext = nullptr;
-  info.memory = memory;
-  info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+  VkMemoryGetWin32HandleInfoKHR info = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
+      .pNext = nullptr,
+      .memory = memory,
+      .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT};
 
   HANDLE handle = 0;
   if (device.functions.vkGetMemoryWin32Handle(device.vk_handle(), &info, &handle) != VK_SUCCESS) {
@@ -94,11 +94,10 @@ GPUPixelBufferNativeHandle VKPixelBuffer::get_native_handle()
   native_handle.size = memory_size;
 #else
   /* Opaque file descriptor. */
-  VkMemoryGetFdInfoKHR info = {};
-  info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
-  info.pNext = nullptr;
-  info.memory = memory;
-  info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+  VkMemoryGetFdInfoKHR info = {.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
+                               .pNext = nullptr,
+                               .memory = memory,
+                               .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT};
 
   int fd = -1;
   if (device.functions.vkGetMemoryFd(device.vk_handle(), &info, &fd) != VK_SUCCESS) {

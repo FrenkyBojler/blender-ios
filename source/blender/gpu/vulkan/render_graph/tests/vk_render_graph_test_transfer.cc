@@ -107,16 +107,8 @@ TEST_F(VKRenderGraphTestTransfer, clear_clear_copy_and_read_back)
   resources.add_image(src_image, false);
   resources.add_image(dst_image, false);
   resources.add_buffer(staging_buffer);
-  VkClearColorValue color_white = {};
-  color_white.float32[0] = 1.0f;
-  color_white.float32[1] = 1.0f;
-  color_white.float32[2] = 1.0f;
-  color_white.float32[3] = 1.0f;
-  VkClearColorValue color_black = {};
-  color_black.float32[0] = 0.0f;
-  color_black.float32[1] = 0.0f;
-  color_black.float32[2] = 0.0f;
-  color_black.float32[3] = 1.0f;
+  VkClearColorValue color_white = {.float32 = {1.0f, 1.0f, 1.0f, 1.0f}};
+  VkClearColorValue color_black = {.float32 = {0.0f, 0.0f, 0.0f, 1.0f}};
 
   VKClearColorImageNode::CreateInfo clear_color_image_src = {};
   clear_color_image_src.vk_image = src_image;
@@ -248,11 +240,7 @@ TEST_F(VKRenderGraphTestTransfer, clear_blit_copy_and_read_back)
   resources.add_image(src_image, false);
   resources.add_image(dst_image, false);
   resources.add_buffer(staging_buffer);
-  VkClearColorValue color_black = {};
-  color_black.float32[0] = 0.0f;
-  color_black.float32[1] = 0.0f;
-  color_black.float32[2] = 0.0f;
-  color_black.float32[3] = 1.0f;
+  VkClearColorValue color_black = {.float32 = {0.0f, 0.0f, 0.0f, 1.0f}};
   VkImageBlit vk_image_blit = {};
   VKClearColorImageNode::CreateInfo clear_color_image_src = {};
   clear_color_image_src.vk_image = src_image;

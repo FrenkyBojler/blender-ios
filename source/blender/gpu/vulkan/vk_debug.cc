@@ -176,11 +176,12 @@ void object_label(VkObjectType vk_object_type, uint64_t object_handle, const cha
 {
   const VKDevice &device = VKBackend::get().device;
   if (G.debug & G_DEBUG_GPU && device.functions.vkSetDebugUtilsObjectName && object_handle != 0) {
-    VkDebugUtilsObjectNameInfoEXT info = {};
-    info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-    info.objectType = vk_object_type;
-    info.objectHandle = object_handle;
-    info.pObjectName = name;
+    VkDebugUtilsObjectNameInfoEXT info = {
+        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+        .pNext = nullptr,
+        .objectType = vk_object_type,
+        .objectHandle = object_handle,
+        .pObjectName = name};
     device.functions.vkSetDebugUtilsObjectName(device.vk_handle(), &info);
   }
 }

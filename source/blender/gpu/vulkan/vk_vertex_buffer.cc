@@ -53,11 +53,13 @@ void VKVertexBuffer::ensure_buffer_view()
     return;
   }
 
-  VkBufferViewCreateInfo buffer_view_info = {};
-  buffer_view_info.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
-  buffer_view_info.buffer = buffer_.vk_handle();
-  buffer_view_info.format = to_vk_format();
-  buffer_view_info.range = buffer_.size_in_bytes();
+  VkBufferViewCreateInfo buffer_view_info = {.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
+                                             .pNext = nullptr,
+                                             .flags = 0,
+                                             .buffer = buffer_.vk_handle(),
+                                             .format = to_vk_format(),
+                                             .offset = 0,
+                                             .range = buffer_.size_in_bytes()};
 
   const VKDevice &device = VKBackend::get().device;
   vkCreateBufferView(device.vk_handle(), &buffer_view_info, nullptr, &vk_buffer_view_);

@@ -673,14 +673,8 @@ bool VKShader::finalize_pipeline_layout(VKDevice &device,
                                         const VKShaderInterface &shader_interface)
 {
   const uint32_t layout_count = vk_descriptor_set_layout_ == VK_NULL_HANDLE ? 0 : 1;
-  VkPipelineLayoutCreateInfo pipeline_info = {};
-  VkPushConstantRange push_constant_range = {};
-  pipeline_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipeline_info.flags = 0;
-  pipeline_info.setLayoutCount = layout_count;
-  pipeline_info.pSetLayouts = &vk_descriptor_set_layout_;
+  VkPushConstantRange push_constant_range = {.stageFlags = 0, .offset = 0, .size = 0};
 
-  /* Setup push constants. */
   const VKPushConstants::Layout &push_constants_layout =
       shader_interface.push_constants_layout_get();
   if (push_constants_layout.storage_type_get() == VKPushConstants::StorageType::PUSH_CONSTANTS) {
@@ -688,9 +682,16 @@ bool VKShader::finalize_pipeline_layout(VKDevice &device,
     push_constant_range.size = push_constants_layout.size_in_bytes();
     push_constant_range.stageFlags = is_compute_shader_ ? VK_SHADER_STAGE_COMPUTE_BIT :
                                                           VK_SHADER_STAGE_ALL_GRAPHICS;
-    pipeline_info.pushConstantRangeCount = 1;
-    pipeline_info.pPushConstantRanges = &push_constant_range;
   }
+
+  VkPipelineLayoutCreateInfo pipeline_info = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = 0,
+      .setLayoutCount = layout_count,
+      .pSetLayouts = &vk_descriptor_set_layout_,
+      .pushConstantRangeCount = push_constant_range.size > 0 ? 1 : 0,
+      .pPushConstantRanges = push_constant_range.size > 0 ? &push_constant_range : nullptr};
 
   if (vkCreatePipelineLayout(device.vk_handle(), &pipeline_info, nullptr, &vk_pipeline_layout) !=
       VK_SUCCESS)
