@@ -1253,10 +1253,8 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "default_attribute_name", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "default_attribute_name");
-  RNA_def_property_ui_text(prop,
-                           "Default Attribute",
-                           "The attribute name used by default when the node group is used by a "
-                           "geometry nodes modifier");
+  RNA_def_property_ui_text(
+      prop, "Default Attribute", "Name of an attribute that is passed in as field by default");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);

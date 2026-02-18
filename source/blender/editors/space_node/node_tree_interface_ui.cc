@@ -82,8 +82,6 @@ void node_tree_interface_draw(bContext &C, ui::Layout &layout, bNodeTree &tree)
         if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
           layout.prop(&active_item_ptr, "attribute_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         }
-        layout.prop(
-            &active_item_ptr, "default_attribute_name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       }
     }
     if (stype->interface_draw) {

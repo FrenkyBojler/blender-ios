@@ -1501,8 +1501,11 @@ static void std_node_socket_interface_draw(ID *id,
 
   const bNodeTree *node_tree = reinterpret_cast<const bNodeTree *>(id);
   if (interface_socket->flag & NODE_INTERFACE_SOCKET_INPUT && node_tree->type == NTREE_GEOMETRY) {
-    if (ELEM(type, SOCK_INT, SOCK_VECTOR, SOCK_MATRIX)) {
+    if (nodes::socket_type_supports_fields(type)) {
       col->prop(&ptr, "default_input", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
+      if (nodes::socket_type_supports_attributes(type)) {
+        col->prop(&ptr, "default_attribute_name", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
+      }
     }
   }
 
