@@ -11,7 +11,6 @@ namespace blender::nodes::node_fn_split_string_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.is_function_node();
   b.add_input<decl::String>("String").optional_label();
   b.add_input<decl::String>("Separator").optional_label();
   b.add_output<decl::String>("List").structure_type(StructureType::List);

@@ -641,8 +641,6 @@ class NODE_MT_gn_simulation_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.simulation_zone(layout, label="Simulation")
         layout.separator()
-        self.node_operator(layout, "GeometryNodeXPBDDebugExtract")
-        self.node_operator(layout, "GeometryNodeXPBDPhysicsSolver", label="XPBD Physics Solver (old)")
         self.node_operator(layout, "GeometryNodeXPBDSolver")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
@@ -811,7 +809,7 @@ class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "NodeStoreBundleItem")
         self.node_operator(layout, "NodeJoinBundle")
         self.typed_bundle(layout, label="Typed Bundle")
-        self.draw_assets_for_catalog(layout, "Utilities/Bundle")
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_category_utilities_closure_base(node_add_menu.NodeMenu):
@@ -836,6 +834,7 @@ class NODE_MT_gn_utilities_list_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeFieldToList")
         self.node_operator(layout, "GeometryNodeListGetItem")
         self.node_operator(layout, "GeometryNodeListLength")
+        self.node_operator(layout, "GeometryNodeIntersectLists")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 

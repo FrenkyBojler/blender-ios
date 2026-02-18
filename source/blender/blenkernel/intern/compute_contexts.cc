@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <fmt/format.h>
 #include <ostream>
 
 #include "DEG_depsgraph_query.hh"

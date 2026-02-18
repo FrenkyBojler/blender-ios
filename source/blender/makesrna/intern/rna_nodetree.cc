@@ -6477,6 +6477,14 @@ static void def_cmp_file_output(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_ui_text(
       prop, "Save as Render", "Apply render part of display transform when saving byte image");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, nullptr);
+
+  prop = RNA_def_property(srna, "use_file_extension", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_file_extension", 1);
+  RNA_def_property_ui_text(
+      prop,
+      "File Extensions",
+      "Add the file format extensions to the saved file name (eg: filename + .jpg)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, nullptr);
 }
 
 static void def_cmp_convert_color_space(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -10190,6 +10198,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeInputSplineResolution");
   define("GeometryNode", "GeometryNodeInputTangent");
   define("GeometryNode", "GeometryNodeInputVoxelIndex");
+  define("GeometryNode", "GeometryNodeIntersectLists");
   define("GeometryNode", "GeometryNodeInstanceOnPoints");
   define("GeometryNode", "GeometryNodeInstancesToPoints");
   define("GeometryNode", "GeometryNodeInstanceTransform");
@@ -10312,9 +10321,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeVolumeCube");
   define("GeometryNode", "GeometryNodeVolumeToMesh");
   define("GeometryNode", "GeometryNodeWarning");
-  define("GeometryNode", "GeometryNodeXPBDDebugExtract");
   define("GeometryNode", "GeometryNodeXPBDSolver");
-  define("GeometryNode", "GeometryNodeXPBDPhysicsSolver");
 
 
   /* Node group types are currently defined for each tree type individually. */
