@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_vfont.hh"
+
+#include "DNA_vfont_types.h"
+
 #include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
 
@@ -23,9 +27,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   });
 }
 
+static void node_init(bNodeTree * /*ntree*/, bNode *node)
+{
+  node->id = id_cast<ID *>(BKE_vfont_builtin_ensure());
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  VFont *font = reinterpret_cast<VFont *>(params.node().id);
+  VFont *font = id_cast<VFont *>(params.node().id);
   params.set_output("Font", font);
 }
 
@@ -38,6 +47,7 @@ static void node_register()
   ntype.ui_description = "Output a font";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
+  ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
   bke::node_register_type(ntype);
 }
