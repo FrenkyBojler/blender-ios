@@ -20,13 +20,14 @@ bl_info = {
 
 if "bpy" in locals():
     import importlib
+    importlib.reload(action_registry)
     importlib.reload(action_map)
     importlib.reload(gui)
     importlib.reload(operators)
     importlib.reload(properties)
     importlib.reload(preferences)
 else:
-    from . import action_map, gui, operators, properties, preferences
+    from . import action_registry, action_map, gui, operators, properties, preferences
 
 import bpy
 
@@ -36,6 +37,7 @@ def register():
         bpy.utils.register_class(gui.VIEW3D_PT_vr_info)
         return
 
+    action_registry.register()
     action_map.register()
     gui.register()
     operators.register()
@@ -48,6 +50,7 @@ def unregister():
         bpy.utils.unregister_class(gui.VIEW3D_PT_vr_info)
         return
 
+    action_registry.unregister()
     action_map.unregister()
     gui.unregister()
     operators.unregister()

@@ -1,18 +1,37 @@
 import importlib
+
+if "bpy" in locals():
+    importlib.reload(actions)
+    importlib.reload(profiles)
+else:
+    from . import actions, profiles
+
+import bpy
 import inspect
 import pkgutil
 
-from .action import VRAction, VRActionPathType
+from .action import VRAction
 from .action_profile import (
     VRDefaultActions,
     VRDefaultActionmaps,
     VRActionProfile
 )
-from . import actions, profiles
 
-
+# A singletone class representing the mapping between generalized actions in Blender
+# and device-specific action profiles.
 class VRActionRegistry:
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
     def __init__(self):
+        if self._initialized:
+            return
+        self._initialized = True
         self.actions = {}
         self.profiles = {}
         self.dirty = True
@@ -32,19 +51,25 @@ class VRActionRegistry:
         self.dirty = True
 
     def ensure_actionmaps(self, session_state):
+        print("ActionRegistry(): ensure_actionmaps")
+
         if not session_state:
             return False
         needs_build = self.dirty
+
+        # TODO: Remove this for loop once we confirm it's no longer needed
         for name in (VRDefaultActionmaps.DEFAULT.value, VRDefaultActionmaps.GAMEPAD.value):
             idx = session_state.actionmaps.find(session_state, name)
             if idx is None or idx < 0:
                 needs_build = True
         if needs_build:
             self.build_actionmaps(session_state)
+            self.build_profile_settings()
             self.dirty = False
         return True
 
     def build_actionmaps(self, session_state):
+        print("ActionRegistry(): build_actionmaps")
         self._remove_actionmap(session_state, VRDefaultActionmaps.DEFAULT.value)
         self._remove_actionmap(session_state, VRDefaultActionmaps.GAMEPAD.value)
 
@@ -86,6 +111,37 @@ class VRActionRegistry:
                 for profile_name in gamepad_profiles:
                     profile = self.profiles[profile_name]
                     slot.vr_action_map_item_add(item, profile)
+
+    def destroy_profile_settings(self):
+        for profile in self.profiles.values():
+            setting_name = f"vr_actions_enable_{profile.name}"
+            if hasattr(bpy.types.Scene, setting_name):
+                print(f"ActionRegistry(): Removing property {setting_name} from bpy.types.Scene")
+                delattr(bpy.types.Scene, setting_name)
+
+    def get_opt_in_profiles(self):
+        return [
+            profile for profile in self.profiles.values()
+            if profile.requires_opt_in
+        ]
+    
+    def build_profile_settings(self):   
+        print("ActionRegistry(): build_profile_settings")
+        self.destroy_profile_settings()
+
+        opt_in_profiles = self.get_opt_in_profiles()
+        for profile in opt_in_profiles:
+            setting_name =  f"vr_actions_enable_{profile.name}"
+            profile_setting = bpy.props.BoolProperty(
+                description=(
+                    f"Enable bindings for the {profile.ui_label} controllers. "
+                    "Note that this may not be supported by all OpenXR runtimes"
+                ),
+                default=False,
+            )
+
+            setattr(bpy.types.Scene, setting_name, profile_setting)
+            print(f"Created property {setting_name} for bpy.types.Scene")
 
     def _remove_actionmap(self, session_state, name):
         actionmaps = session_state.actionmaps
@@ -152,7 +208,9 @@ def _iter_profile_classes(module):
             continue
         yield value
 
-def build_default_registry():
+
+def register():
+    print("Generating action registry...")
     registry = VRActionRegistry()
 
     # Search through the actions module for action classes.
@@ -177,9 +235,11 @@ def build_default_registry():
             profile = profile_cls()
             registry.register_profile(profile)
 
-    registry.dirty = True
+    registry.build_profile_settings()
 
+    print("Action registry generated.")
     return registry
 
 
-registry = build_default_registry()
+def unregister():
+    print("Unregistering action registry...")

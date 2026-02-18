@@ -208,14 +208,9 @@ class VIEW3D_PT_vr_actionmaps(Panel):
         col.prop(scene, "vr_actions_use_gamepad", text="Gamepad")
 
         col = layout.column(align=True, heading="Extensions")
-        profiles = [
-            profile for profile in action_registry.registry.profiles.values()
-            if profile.requires_opt_in
-        ]
-        for profile in sorted(profiles, key=lambda item: item.ui_label or item.name):
-            setting = properties.vr_profile_setting_ensure(scene, profile.name)
-            label = profile.ui_label or profile.name
-            col.prop(setting, "enabled", text=label)
+        for profile in action_registry.VRActionRegistry().get_opt_in_profiles():
+            print(f'Drawing UI for opt-in profile: {profile.name}')
+            col.prop(scene, f"vr_actions_enable_{profile.name}", text=profile.ui_label)
 
 
 # Viewport feedback.

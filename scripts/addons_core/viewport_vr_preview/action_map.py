@@ -36,24 +36,9 @@ def vr_actions_use_gamepad_update(self, context):
     vr_actionset_active_update(context)
 
 
-def vr_registry_sync(*_):
-    context = bpy.context
-    session_state = context.window_manager.xr_session_state
-    if not session_state:
-        return
-    scene = context.scene
-    if not scene.vr_actions_enable:
-        return
-    if not action_registry.registry.dirty:
-        return
-    if bpy.types.XrSessionState.is_running(context):
-        vr_create_actions(context)
-    else:
-        action_registry.registry.ensure_actionmaps(session_state)
-
-
 @persistent
 def vr_create_actions(context: bpy.context):
+    print("vr_create_actions...")
     context = bpy.context
     session_state = context.window_manager.xr_session_state
     if not session_state:
@@ -64,13 +49,14 @@ def vr_create_actions(context: bpy.context):
     if not scene.vr_actions_enable:
         return
 
-    properties.vr_ensure_profile_settings(scene)
-
     # Ensure default action maps.
-    if not defaults.vr_ensure_default_actionmaps(session_state):
+    if not action_registry.VRActionRegistry().ensure_actionmaps(session_state):
         return
 
+    print("vr_create_actions: begin registration")
     for am in session_state.actionmaps:
+        print(f"vr_create_actions: registering actionmap {am.name}")
+
         if len(am.actionmap_items) < 1:
             continue
 
@@ -82,6 +68,8 @@ def vr_create_actions(context: bpy.context):
         controller_aim_name = ""
 
         for ami in am.actionmap_items:
+            print(f"vr_create_actions: registering action {ami.name} for actionmap {am.name}")
+            
             if len(ami.bindings) < 1:
                 continue
 
@@ -96,12 +84,7 @@ def vr_create_actions(context: bpy.context):
                     controller_aim_name = ami.name
 
             for amb in ami.bindings:
-                profile_data = action_registry.registry.profiles.get(amb.name)
-                if profile_data and profile_data.requires_opt_in:
-                    setting = properties.vr_profile_setting_ensure(scene, profile_data.name)
-                    if not setting.enabled:
-                        continue
-
+                print(f"vr_create_actions: creating action map binding {amb.name} ({amb.profile}) for action {ami.name} for actionmap {am.name}")
                 ok = session_state.action_binding_create(context, am, ami, amb)
                 if not ok:
                     return
@@ -126,15 +109,13 @@ def register():
         update=vr_actions_use_gamepad_update,
     )
     bpy.app.handlers.xr_session_start_pre.append(vr_create_actions)
-    bpy.app.handlers.frame_change_post.append(vr_registry_sync)
-    bpy.app.handlers.depsgraph_update_post.append(vr_registry_sync)
 
 
 def unregister():
     del bpy.types.Scene.vr_actions_enable
     del bpy.types.Scene.vr_actions_use_gamepad
+    
+    registry = action_registry.VRActionRegistry()
+    registry.destroy_profile_settings()
+
     bpy.app.handlers.xr_session_start_pre.remove(vr_create_actions)
-    if vr_registry_sync in bpy.app.handlers.frame_change_post:
-        bpy.app.handlers.frame_change_post.remove(vr_registry_sync)
-    if vr_registry_sync in bpy.app.handlers.depsgraph_update_post:
-        bpy.app.handlers.depsgraph_update_post.remove(vr_registry_sync)

@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
-from . import action_registry
 from bpy.types import (
     PropertyGroup,
 )
@@ -130,35 +129,6 @@ def vr_landmark_active_update(self, context):
         wm.xr_session_state.reset_to_base_pose(context)
 
 
-def vr_profile_setting_get(scene, name):
-    for setting in scene.vr_profile_settings:
-        if setting.name == name:
-            return setting
-    return None
-
-
-def vr_profile_setting_ensure(scene, name):
-    setting = vr_profile_setting_get(scene, name)
-    if setting:
-        return setting
-    setting = scene.vr_profile_settings.add()
-    setting.name = name
-    return setting
-
-
-def vr_ensure_profile_settings(scene):
-    for profile in action_registry.registry.profiles.values():
-        if profile.requires_opt_in:
-            vr_profile_setting_ensure(scene, profile.name)
-
-
-@persistent
-def vr_ensure_profile_settings_handler(_):
-    scene = bpy.context.scene
-    if scene:
-        vr_ensure_profile_settings(scene)
-
-
 class VRLandmark(PropertyGroup):
     name: bpy.props.StringProperty(
         name="VR Landmark",
@@ -224,20 +194,8 @@ class VRLandmark(PropertyGroup):
         )
 
 
-class VRProfileSetting(PropertyGroup):
-    name: bpy.props.StringProperty(
-        name="Profile Name",
-        default="",
-    )
-    enabled: bpy.props.BoolProperty(
-        name="Enabled",
-        default=False,
-    )
-
-
 classes = (
     VRLandmark,
-    VRProfileSetting,
 )
 
 
@@ -255,16 +213,8 @@ def register():
     bpy.types.Scene.vr_landmarks_active = bpy.props.IntProperty(
         update=vr_landmark_active_update,
     )
-    bpy.types.Scene.vr_profile_settings = bpy.props.CollectionProperty(
-        name="VR Profile Settings",
-        type=VRProfileSetting,
-    )
 
     bpy.app.handlers.load_post.append(vr_ensure_default_landmark)
-    bpy.app.handlers.load_post.append(vr_ensure_profile_settings_handler)
-    scene = getattr(bpy.context, "scene", None)
-    if scene:
-        vr_ensure_profile_settings(scene)
 
 
 def unregister():
@@ -274,7 +224,5 @@ def unregister():
     del bpy.types.Scene.vr_landmarks
     del bpy.types.Scene.vr_landmarks_selected
     del bpy.types.Scene.vr_landmarks_active
-    del bpy.types.Scene.vr_profile_settings
 
     bpy.app.handlers.load_post.remove(vr_ensure_default_landmark)
-    bpy.app.handlers.load_post.remove(vr_ensure_profile_settings_handler)
