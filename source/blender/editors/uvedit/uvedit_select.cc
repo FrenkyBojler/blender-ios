@@ -3810,8 +3810,15 @@ static bool uv_mouse_select_multi(bContext *C,
       const bool toggle = params.sel_op == SEL_OP_XOR;
       /* Current behavior of 'extend'
        * is actually toggling, so pass extend flag as 'toggle' here */
-      uv_select_linked_multi(
-          scene, objects, &hit, extend, deselect, toggle, false, UVDelimitMode::NONE, BM_ELEM_SELECT);
+      uv_select_linked_multi(scene,
+                             objects,
+                             &hit,
+                             extend,
+                             deselect,
+                             toggle,
+                             false,
+                             UVDelimitMode::NONE,
+                             BM_ELEM_SELECT);
       /* TODO: check if this actually changed. */
       changed = true;
     }
@@ -4240,6 +4247,7 @@ static wmOperatorStatus uv_select_linked_internal(bContext *C,
   bool deselect = false;
   bool select_faces = (ts->uv_flag & UV_FLAG_SELECT_SYNC) && (ts->selectmode & SCE_SELECT_FACE) &&
                       (ts->uv_sticky == UV_STICKY_VERT);
+                      
   UvNearestHit hit = region ? uv_nearest_hit_init_max(&region->v2d) :
                               uv_nearest_hit_init_max_default();
 
@@ -4325,11 +4333,11 @@ void UV_OT_select_linked(wmOperatorType *ot)
 
   /* properties */
   RNA_def_enum_flag(ot->srna,
-                           "delimit",
-                           delimit_mode_items,
-                           0,
-                           "Delimit",
-                           "Delimit selection when selecting linked UVs");
+                    "delimit",
+                    delimit_mode_items,
+                    0,
+                    "Delimit",
+                    "Delimit selection when selecting linked UVs");
 }
 
 /** \} */
