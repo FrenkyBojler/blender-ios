@@ -450,7 +450,7 @@ static void project_on_mesh(BVHTree *bvh_tree,
   negate_v3_v3(neg_normal, normal);
   rays[1] = neg_normal;
 
-  float best_dist = FLT_MAX;
+  float best_dist_sq = FLT_MAX;
   bool found = false;
 
   auto test_tri_fn = [&](BMVert *v1, BMVert *v2, BMVert *v3) {
@@ -460,9 +460,9 @@ static void project_on_mesh(BVHTree *bvh_tree,
       if (isect_ray_tri_v3(center_pos, rays[i], v1->co, v2->co, v3->co, &lambda, uv)) {
         float hit_pos[3];
         madd_v3_v3v3fl(hit_pos, center_pos, rays[i], lambda);
-        const float dist = len_squared_v3v3(center_pos, hit_pos);
-        if (dist < best_dist) {
-          best_dist = dist;
+        const float dist_sq = len_squared_v3v3(center_pos, hit_pos);
+        if (dist_sq < best_dist_sq) {
+          best_dist_sq = dist_sq;
           copy_v3_v3(r_pos, hit_pos);
           found = true;
         }
@@ -498,7 +498,7 @@ static void project_on_mesh(BVHTree *bvh_tree,
     closest_to_line_v3(closest, center_pos, e->v1->co, e->v2->co);
     const float fac = line_point_factor_v3(closest, e->v1->co, e->v2->co);
     if (fac > CIRCULARIZE_EPSILON && fac < 1.0f - CIRCULARIZE_EPSILON) {
-      best_dist = len_squared_v3v3(center_pos, closest);
+      best_dist_sq = len_squared_v3v3(center_pos, closest);
       copy_v3_v3(r_pos, closest);
       found = true;
       break;
