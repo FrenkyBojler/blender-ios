@@ -4,6 +4,7 @@
 
 #include <queue>
 
+#include "BKE_context.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -11,6 +12,7 @@
 #include "BKE_node_enum.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_interface.hh"
+#include "BKE_node_tree_update.hh"
 
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
@@ -29,6 +31,7 @@
 #include "DNA_vfont_types.h"
 
 #include "NOD_node_declaration.hh"
+#include "NOD_socket.hh"
 #include "NOD_socket_declarations.hh"
 
 namespace blender {
@@ -1406,7 +1409,6 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
 using ConstInputProxyFnMap = Map<eNodeSocketDatatype, ConstInputCreateFn>;
 using ImplicitInputProxyFnMap =
     Map<std::pair<eNodeSocketDatatype, NodeDefaultInputType>, ImplicitInputCreateFn>;
-using ConverterProxyFnMap = Map<eNodeSocketDatatype, ConverterNodeCreateFn>;
 using SocketValueCopyFnMap =
     Map<std::pair<eNodeSocketDatatype, eNodeSocketDatatype>, SocketValueCopyFn>;
 
@@ -1544,111 +1546,6 @@ static ImplicitInputProxyFnMap create_proxy_implicit_input_node_functions()
   return result;
 }
 
-static ConverterProxyFnMap create_proxy_converter_node_functions()
-{
-  ConverterProxyFnMap result;
-
-  result.add_new(SOCK_FLOAT, [](bContext &C, bNodeTree &tree, const void *value) {
-    bNode *node = bke::node_add_node(&C, tree, "ShaderNodeMath");
-    node->flag |= NODE_COLLAPSED;
-    BLI_strncpy_utf8(node->label, IFACE_("To Float"), sizeof(node->label));
-    bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
-    *socket->default_value_typed<bNodeSocketValueFloat>() =
-        *static_cast<const bNodeSocketValueFloat *>(value);
-    socket->next->flag |= SOCK_HIDDEN;
-    return node;
-  });
-  result.add_new(SOCK_INT, [](bContext &C, bNodeTree &tree, const void *value) {
-    bNode *node = bke::node_add_node(&C, tree, "FunctionNodeIntegerMath");
-    node->flag |= NODE_COLLAPSED;
-    BLI_strncpy_utf8(node->label, IFACE_("To Integer"), sizeof(node->label));
-    bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
-    *socket->default_value_typed<bNodeSocketValueInt>() =
-        *static_cast<const bNodeSocketValueInt *>(value);
-    socket->next->flag |= SOCK_HIDDEN;
-    return node;
-  });
-  result.add_new(SOCK_BOOLEAN, [](bContext &C, bNodeTree &tree, const void *value) {
-    bNode *node = bke::node_add_node(&C, tree, "FunctionNodeBooleanMath");
-    node->custom1 = NodeBooleanMathOperation::NODE_BOOLEAN_MATH_OR;
-    node->flag |= NODE_COLLAPSED;
-    BLI_strncpy_utf8(node->label, IFACE_("To Boolean"), sizeof(node->label));
-    bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
-    *socket->default_value_typed<bNodeSocketValueBoolean>() =
-        *static_cast<const bNodeSocketValueBoolean *>(value);
-    socket->next->flag |= SOCK_HIDDEN;
-    return node;
-  });
-  result.add_new(SOCK_ROTATION, [](bContext &C, bNodeTree &tree, const void *value) {
-    bNode *node = bke::node_add_node(&C, tree, "FunctionNodeRotateRotation");
-    node->flag |= NODE_COLLAPSED;
-    BLI_strncpy_utf8(node->label, IFACE_("To Rotation"), sizeof(node->label));
-    bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
-    *socket->default_value_typed<bNodeSocketValueRotation>() =
-        *static_cast<const bNodeSocketValueRotation *>(value);
-    socket->next->flag |= SOCK_HIDDEN;
-    return node;
-  });
-  result.add_new(
-      SOCK_VECTOR,
-      [](bContext &C,
-         bNodeTree &tree,
-         const void *value) { /* TODO This does not handle 2D or 4D vectors correctly! */
-                              bNode *node = bke::node_add_node(&C, tree, "ShaderNodeVectorMath");
-                              node->flag |= NODE_COLLAPSED;
-                              BLI_strncpy_utf8(
-                                  node->label, IFACE_("To Vector"), sizeof(node->label));
-                              bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
-                              *socket->default_value_typed<bNodeSocketValueVector>() =
-                                  *static_cast<const bNodeSocketValueVector *>(value);
-                              socket->next->flag |= SOCK_HIDDEN;
-                              return node;
-      });
-  result.add_new(SOCK_RGBA, [](bContext &C, bNodeTree &tree, const void *value) {
-    bNode *node = bke::node_add_node(&C, tree, "ShaderNodeMix");
-    NodeShaderMix &storage = *static_cast<NodeShaderMix *>(node->storage);
-    storage.data_type = SOCK_RGBA;
-    storage.factor_mode = NODE_MIX_MODE_UNIFORM;
-    storage.clamp_factor = 0;
-    storage.clamp_result = 0;
-    storage.blend_type = MA_RAMP_ADD;
-    node->flag |= NODE_COLLAPSED;
-    BLI_strncpy_utf8(node->label, IFACE_("To Color"), sizeof(node->label));
-    bNodeSocket *socket_factor = bke::node_find_socket(*node, SOCK_IN, "Factor_Float");
-    bNodeSocket *socket_color_a = bke::node_find_socket(*node, SOCK_IN, "A_Color");
-    bNodeSocket *socket_color_b = bke::node_find_socket(*node, SOCK_IN, "B_Color");
-    socket_factor->flag |= SOCK_HIDDEN;
-    socket_factor->default_value_typed<bNodeSocketValueFloat>()->value = 0.0f;
-    *socket_color_a->default_value_typed<bNodeSocketValueRGBA>() =
-        *static_cast<const bNodeSocketValueRGBA *>(value);
-    socket_color_b->flag |= SOCK_HIDDEN;
-    return node;
-  });
-  result.add_new(
-      SOCK_STRING,
-      [](bContext &C,
-         bNodeTree &tree,
-         const void *value) { /* TODO This node is only in geometry nodes, string data type is only
-                               * supported there anyway.
-                               */
-                              bNode *node = bke::node_add_node(&C, tree, "GeometryNodeStringJoin");
-                              node->flag |= NODE_COLLAPSED;
-                              BLI_strncpy_utf8(
-                                  node->label, IFACE_("To String"), sizeof(node->label));
-                              bNodeSocket *socket_delim = bke::node_find_socket(
-                                  *node, SOCK_IN, "Delimiter");
-                              bNodeSocket *socket_strings = bke::node_find_socket(
-                                  *node, SOCK_IN, "Strings");
-                              /* First socket is the delimiter input. */
-                              socket_delim->flag |= SOCK_HIDDEN;
-                              *socket_strings->default_value_typed<bNodeSocketValueString>() =
-                                  *static_cast<const bNodeSocketValueString *>(value);
-                              return node;
-      });
-
-  return result;
-}
-
 template<typename SocketValueType> SocketValueCopyFn copy_socket_value_identity_fn()
 {
   return [](const void *from_vdata, void *to_vdata) {
@@ -1673,8 +1570,26 @@ ImplicitInputCreateFn find_proxy_implicit_input_node_function(
 
 ConverterNodeCreateFn find_proxy_converter_node_function(const eNodeSocketDatatype socket_type)
 {
-  static ConverterProxyFnMap functions = create_proxy_converter_node_functions();
-  return functions.lookup_default(socket_type, {});
+  const bNodeSocketType *socket_typeinfo = bke::node_socket_type_find_static(socket_type);
+  if (!socket_typeinfo) {
+    return {};
+  }
+
+  std::string socket_idname = socket_typeinfo->idname;
+  return [socket_idname](bContext &C, bNodeTree &tree, const void *value) {
+    bNode *node = bke::node_add_node(&C, tree, "NodeImplicitConversion");
+    auto &data = *static_cast<NodeImplicitConversion *>(node->storage);
+    BLI_strncpy(data.type_idname, socket_idname.c_str(), sizeof(data.type_idname));
+    BKE_ntree_update_tag_node_property(&tree, node);
+    BKE_ntree_update_after_single_tree_change(*CTX_data_main(&C), tree);
+
+    bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
+    node_socket_copy_default_value_data(
+        eNodeSocketDatatype(socket->type), socket->default_value, value);
+
+    node->flag |= NODE_COLLAPSED;
+    return node;
+  };
 }
 
 static bNodeTreeInterfacePanel *make_panel(const int uid,

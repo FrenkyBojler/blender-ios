@@ -397,7 +397,7 @@ struct bNodeTreeInterfaceItemReference {
 using ConstInputCreateFn = FunctionRef<bNode *(bContext &C, bNodeTree &tree, const void *value)>;
 using ImplicitInputCreateFn = FunctionRef<bNode *(bContext &C, bNodeTree &tree)>;
 using ConverterNodeCreateFn =
-    FunctionRef<bNode *(bContext &C, bNodeTree &tree, const void *value)>;
+    std::function<bNode *(bContext &C, bNodeTree &tree, const void *value)>;
 using SocketValueCopyFn = FunctionRef<void(const void *from_data, void *to_data)>;
 
 /**

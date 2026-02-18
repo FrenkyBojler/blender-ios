@@ -15,6 +15,7 @@
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
+#include "BLI_string.h"
 #include "BLI_vector.hh"
 
 #include "BKE_action.hh"
@@ -916,6 +917,8 @@ static void replace_interface_socket(bContext &C,
     if (!proxy_node) {
       proxy_node = bke::node_add_static_node(&C, dst_tree, NODE_REROUTE);
     }
+    BLI_assert(proxy_node);
+    BLI_strncpy(proxy_node->label, io_socket.name, sizeof(proxy_node->label));
 
     const float width = (proxy_node->is_reroute() ? 0.0f : proxy_node->width);
     const float height = (proxy_node->is_reroute() ? 0.0f : proxy_node->height);
