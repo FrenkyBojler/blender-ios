@@ -26,7 +26,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Bundle>("Bundle");
   b.add_output<decl::Bundle>("Bundle").align_with_previous().propagate_all().reference_pass_all();
-  b.add_input<decl::String>("Path").optional_label();
+  b.add_input<decl::String>("Path").structure_type(StructureType::Dynamic).optional_label();
 
   if (node != nullptr) {
     const NodeStoreBundleItem &storage = node_storage(*node);
@@ -62,6 +62,25 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = storage;
 }
 
+static void store_items(Bundle &bundle,
+                        const bke::bNodeSocketType &socket_type,
+                        const Span<std::string> paths,
+                        MutableSpan<bke::SocketValueVariant> items,
+                        GeoNodeExecParams &params)
+{
+  for (const int i : paths.index_range()) {
+    const StringRef path = paths[i];
+    if (!Bundle::is_valid_path(path)) {
+      if (!path.is_empty()) {
+        params.error_message_add(NodeWarningType::Warning,
+                                 fmt::format(fmt::runtime(TIP_("Invalid bundle path: {}")), path));
+      }
+    }
+    bundle.add_path_override(
+        path, BundleItemSocketValue{.type = &socket_type, .value = std::move(items[i])});
+  }
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &bnode = params.node();
@@ -73,13 +92,26 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
 
-  const std::string path = params.extract_input<std::string>("Path");
-  if (!Bundle::is_valid_path(path)) {
-    if (!path.empty()) {
-      params.error_message_add(NodeWarningType::Warning, "Invalid bundle path");
+  auto path_value = params.extract_input<bke::SocketValueVariant>("Path");
+  auto item_value = params.extract_input<bke::SocketValueVariant>("Item");
+  if (path_value.is_list()) {
+    if (item_value.is_list()) {
+      ListPtr paths_list = path_value.extract<ListPtr>();
+      const VArraySpan paths = paths_list->varray<std::string>();
     }
-    params.set_output("Bundle", std::move(bundle_ptr));
-    return;
+    else {
+      params.error_message_add(NodeWarningType::Error,
+                               "\"Item\" must be a list if \"Path\" is a list");
+      return;
+    }
+  }
+  else if (path_value.is_single()) {
+    if (item_value.is_single()) {
+    }
+    else {
+      params.error_message_add(NodeWarningType::Error, "\"Item\" must be a single value");
+      return;
+    }
   }
 
   bke::SocketValueVariant value = params.extract_input<bke::SocketValueVariant>("Item");
