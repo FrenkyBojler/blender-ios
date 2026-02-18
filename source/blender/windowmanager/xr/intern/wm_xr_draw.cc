@@ -714,8 +714,8 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   const float action_label_y = viewfinder_rect.ymin - 0.15f;
 
   const float action_enum_x = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                  viewfinder_rect.xmax - 1.65f :
-                                  viewfinder_rect.xmax - 1.25f;
+                                  viewfinder_rect.xmax - 1.6f :
+                                  viewfinder_rect.xmax - 1.2f;
   const float action_enum_y = viewfinder_rect.ymin - 0.15f;
 
   const float captures_label_x = -1.1f;
@@ -732,7 +732,7 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
 {
   /* Colors TODO: Dynamically get these from the current theme. */
   const float background_col[4] = {0.188f, 0.188f, 0.188f, 1.0f};
-  const float outline_col[4] = {0.3f, 0.3f, 0.3f, 0.3f};
+  const float outline_col[4] = {0.26f, 0.26f, 0.26f, 1.0f};
 
   rctf background_rect = viewfinder_rect;
   BLI_rctf_pad(&background_rect, 0.2f, 0.6f);
@@ -747,14 +747,10 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
   BLI_rctf_mul(&background_rect, 100);
   BLI_rctf_mul(&outline_rect, 100);
 
-  /* Prevent other XR UI elements (like locomotion rays) from drawing through the viewfinder. */
-
   GPU_polygon_offset(-1.0f, -1.0f);
   ui::draw_roundbox_3fv_alpha(&background_rect, true, 16, background_col, 1.0f);
-
-  GPU_polygon_offset(-0.5f, -0.5f);
+  GPU_matrix_translate_3f(0.0f, 0.0f, 0.01f);
   ui::draw_roundbox_3fv_alpha(&outline_rect, true, 12, outline_col, 0.2f);
-
   GPU_polygon_offset(0.0f, 0.0f);
 
   GPU_matrix_pop();
@@ -777,7 +773,6 @@ static void wm_xr_controller_viewfinder_draw_view_texture(const XrSessionSetting
   uint view_tex_coord = GPU_vertformat_attr_add(
       view_text_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 
-  GPU_depth_mask(false);
   GPU_blend(GPU_BLEND_ALPHA_PREMULT);
 
   immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
@@ -790,6 +785,8 @@ static void wm_xr_controller_viewfinder_draw_view_texture(const XrSessionSetting
       "image", view_tex, {GPU_SAMPLER_FILTERING_LINEAR, extend_mode, extend_mode});
 
   immRectf_with_texco(view_tex_pos, view_tex_coord, viewfinder_rect, rctf{0.0f, 1.0f, 0.0f, 1.0f});
+
+  GPU_blend(GPU_BLEND_NONE);
 
   immUnbindProgram();
 }
@@ -872,6 +869,8 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   /* Main background overlays. */
   wm_xr_controller_viewfinder_draw_overlays(viewfinder_rect);
 
+  GPU_depth_mask(false);
+
   /* Viewfinder View texture and flash. */
   wm_xr_controller_viewfinder_draw_view_texture(settings, viewfinder_rect, empty_captures);
   wm_xr_controller_viewfinder_draw_view_flash(state, settings, viewfinder_rect);
@@ -879,6 +878,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   /* UI Widgets. */
   wm_xr_controller_viewfinder_draw_ui_widgets(C, settings, viewfinder_rect);
 
+  GPU_depth_mask(true);
   GPU_depth_test(GPU_DEPTH_NONE);
   GPU_matrix_pop();
 }
