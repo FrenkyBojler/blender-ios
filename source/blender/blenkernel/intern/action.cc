@@ -62,6 +62,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
+#include "RNA_prototypes.hh"
 
 #include "BLO_read_write.hh"
 
@@ -1239,6 +1240,7 @@ void BKE_pose_channels_remove(Object *ob,
 
       if (filter_fn(pchan->name, user_data)) {
         /* Bone itself is being removed */
+        BKE_animdata_drivers_remove_for_rna_struct(ob->id, *RNA_PoseBone, pchan);
         BKE_pose_channel_free(pchan);
         pose_channels_remove_internal_links(ob, pchan);
         if (ob->pose->chanhash) {
