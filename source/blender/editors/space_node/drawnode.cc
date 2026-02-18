@@ -1416,123 +1416,6 @@ static void std_node_socket_draw(
   }
 }
 
-static void draw_subtype_props(const eNodeSocketDatatype type, ui::Layout &layout, PointerRNA &ptr)
-{
-  switch (type) {
-    case SOCK_FLOAT: {
-      layout.prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
-      layout.prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
-      break;
-    }
-    case SOCK_INT: {
-      layout.prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
-      layout.prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
-      break;
-    }
-    case SOCK_VECTOR: {
-      layout.prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
-      layout.prop(&ptr,
-                  "dimensions",
-                  DEFAULT_FLAGS,
-                  CTX_IFACE_(BLT_I18NCONTEXT_ID_TEXTURE, "Dimensions"),
-                  ICON_NONE);
-      break;
-    }
-    case SOCK_STRING: {
-      layout.prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
-      break;
-    }
-    case SOCK_BOOLEAN:
-    case SOCK_ROTATION:
-    case SOCK_RGBA:
-    case SOCK_OBJECT:
-    case SOCK_COLLECTION:
-    case SOCK_IMAGE:
-    case SOCK_TEXTURE:
-    case SOCK_MATERIAL:
-    case SOCK_FONT:
-    case SOCK_SCENE:
-    case SOCK_TEXT_ID:
-    case SOCK_MASK:
-    case SOCK_SOUND:
-    case SOCK_MENU:
-    case SOCK_SHADER:
-    case SOCK_GEOMETRY:
-    case SOCK_MATRIX:
-    case SOCK_BUNDLE:
-    case SOCK_CLOSURE:
-      break;
-
-    case SOCK_CUSTOM:
-      BLI_assert_unreachable();
-      break;
-  }
-}
-
-static void draw_default_value_props(const eNodeSocketDatatype type,
-                                     ui::Layout &layout,
-                                     PointerRNA &ptr)
-{
-  switch (type) {
-    case SOCK_FLOAT: {
-      layout.prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
-      ui::Layout *sub = &layout.column(true);
-      sub->prop(&ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), ICON_NONE);
-      sub->prop(&ptr, "max_value", DEFAULT_FLAGS, IFACE_("Max"), ICON_NONE);
-      break;
-    }
-    case SOCK_INT: {
-      layout.prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
-      ui::Layout *sub = &layout.column(true);
-      sub->prop(&ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), ICON_NONE);
-      sub->prop(&ptr, "max_value", DEFAULT_FLAGS, IFACE_("Max"), ICON_NONE);
-      break;
-    }
-    case SOCK_VECTOR: {
-      layout.prop(&ptr, "default_value", ui::ITEM_R_EXPAND, IFACE_("Default"), ICON_NONE);
-      ui::Layout *sub = &layout.column(true);
-      sub->prop(&ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), ICON_NONE);
-      sub->prop(&ptr, "max_value", DEFAULT_FLAGS, IFACE_("Max"), ICON_NONE);
-      break;
-    }
-    case SOCK_STRING: {
-      layout.prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
-      break;
-    }
-    case SOCK_BOOLEAN:
-    case SOCK_ROTATION:
-    case SOCK_RGBA:
-    case SOCK_OBJECT:
-    case SOCK_COLLECTION:
-    case SOCK_IMAGE:
-    case SOCK_TEXTURE:
-    case SOCK_MATERIAL:
-    case SOCK_FONT:
-    case SOCK_SCENE:
-    case SOCK_TEXT_ID:
-    case SOCK_MASK:
-    case SOCK_SOUND: {
-      layout.prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
-      break;
-    }
-    case SOCK_MENU: {
-      layout.prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
-      layout.prop(&ptr, "menu_expanded", DEFAULT_FLAGS, IFACE_("Expanded"), ICON_NONE);
-      break;
-    }
-    case SOCK_SHADER:
-    case SOCK_GEOMETRY:
-    case SOCK_MATRIX:
-    case SOCK_BUNDLE:
-    case SOCK_CLOSURE:
-      break;
-
-    case SOCK_CUSTOM:
-      BLI_assert_unreachable();
-      break;
-  }
-}
-
 static void std_node_socket_interface_draw(ID *id,
                                            bNodeTreeInterfaceSocket *interface_socket,
                                            bContext * /*C*/,
@@ -1548,48 +1431,86 @@ static void std_node_socket_interface_draw(ID *id,
 
   if (interface_socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
     if (node_tree->type == NTREE_GEOMETRY) {
-      {
-        ui::Layout &col = layout->column(false);
-        draw_subtype_props(type, col, ptr);
-      }
       ui::Layout &col = layout->column(false);
       col.prop(&ptr, "default_input", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
       const NodeDefaultInputType default_input_type = NodeDefaultInputType(
           RNA_enum_get(&ptr, "default_input"));
-      switch (default_input_type) {
-        case NODE_DEFAULT_INPUT_VALUE: {
-          draw_default_value_props(type, col, ptr);
-          break;
-        }
-        case NODE_DEFAULT_INPUT_ATTRIBUTE_FIELD: {
-          col.prop(&ptr, "default_attribute_name", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
-          break;
-        }
-        case NODE_DEFAULT_INPUT_INDEX_FIELD:
-        case NODE_DEFAULT_INPUT_ID_INDEX_FIELD:
-        case NODE_DEFAULT_INPUT_NORMAL_FIELD:
-        case NODE_DEFAULT_INPUT_POSITION_FIELD:
-        case NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD:
-        case NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD:
-        case NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD: {
-          /* Nothing to draw. */
-          break;
-        }
-      }
-    }
-    else {
-      {
-        ui::Layout &col = layout->column(false);
-        draw_subtype_props(type, col, ptr);
-      }
-      {
-        ui::Layout &col = layout->column(false);
-        draw_default_value_props(type, col, ptr);
+      if (default_input_type == NODE_DEFAULT_INPUT_ATTRIBUTE_FIELD) {
+        col.prop(&ptr, "default_attribute_name", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
       }
     }
   }
 
   ui::Layout *col = &layout->column(false);
+  switch (type) {
+    case SOCK_FLOAT: {
+      col->prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
+      col->prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
+      ui::Layout *sub = &col->column(true);
+      sub->prop(&ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), ICON_NONE);
+      sub->prop(&ptr, "max_value", DEFAULT_FLAGS, IFACE_("Max"), ICON_NONE);
+      break;
+    }
+    case SOCK_INT: {
+      col->prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
+      col->prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
+      ui::Layout *sub = &col->column(true);
+      sub->prop(&ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), ICON_NONE);
+      sub->prop(&ptr, "max_value", DEFAULT_FLAGS, IFACE_("Max"), ICON_NONE);
+      break;
+    }
+    case SOCK_VECTOR: {
+      col->prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
+      col->prop(&ptr,
+                "dimensions",
+                DEFAULT_FLAGS,
+                CTX_IFACE_(BLT_I18NCONTEXT_ID_TEXTURE, "Dimensions"),
+                ICON_NONE);
+      col->prop(&ptr, "default_value", ui::ITEM_R_EXPAND, IFACE_("Default"), ICON_NONE);
+      ui::Layout *sub = &col->column(true);
+      sub->prop(&ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), ICON_NONE);
+      sub->prop(&ptr, "max_value", DEFAULT_FLAGS, IFACE_("Max"), ICON_NONE);
+      break;
+    }
+    case SOCK_STRING: {
+      col->prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
+      col->prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
+      break;
+    }
+    case SOCK_BOOLEAN:
+    case SOCK_ROTATION:
+    case SOCK_RGBA:
+    case SOCK_OBJECT:
+    case SOCK_COLLECTION:
+    case SOCK_IMAGE:
+    case SOCK_TEXTURE:
+    case SOCK_MATERIAL:
+    case SOCK_FONT:
+    case SOCK_SCENE:
+    case SOCK_TEXT_ID:
+    case SOCK_MASK:
+    case SOCK_SOUND: {
+      col->prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
+      break;
+    }
+    case SOCK_MENU: {
+      col->prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
+      col->prop(&ptr, "menu_expanded", DEFAULT_FLAGS, IFACE_("Expanded"), ICON_NONE);
+      break;
+    }
+    case SOCK_SHADER:
+    case SOCK_GEOMETRY:
+    case SOCK_MATRIX:
+    case SOCK_BUNDLE:
+    case SOCK_CLOSURE:
+      break;
+
+    case SOCK_CUSTOM:
+      BLI_assert_unreachable();
+      break;
+  }
+
+  col = &layout->column(false);
 
   if (interface_socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
     col->prop(&ptr, "optional_label", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
