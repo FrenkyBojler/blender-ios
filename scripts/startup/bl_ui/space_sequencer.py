@@ -2049,6 +2049,7 @@ class SEQUENCER_PT_sequencer_snapping(Panel):
         col = layout.column(heading="Ignore", align=True)
         col.prop(sequencer_tool_settings, "snap_ignore_muted", text="Muted Strips")
         col.prop(sequencer_tool_settings, "snap_ignore_sound", text="Sound Strips")
+        col.prop(sequencer_tool_settings, "snap_ignore_other_channels", text="Other Channels")
 
 
 classes = (

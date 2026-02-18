@@ -4447,6 +4447,13 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag", SEQ_SNAP_IGNORE_SOUND);
   RNA_def_property_ui_text(prop, "Ignore Sound Strips", "Don't snap to sound strips");
 
+  prop = RNA_def_property(srna, "snap_ignore_other_channels", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag", SEQ_SNAP_IGNORE_OTHER_CHANNELS);
+  RNA_def_property_ui_text(
+      prop,
+      "Ignore Other Channels",
+      "Only snap to strips currently on the same channel as transformed strips");
+
   prop = RNA_def_property(srna, "use_snap_current_frame_to_strips", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag", SEQ_SNAP_CURRENT_FRAME_TO_STRIPS);
   RNA_def_property_ui_text(
