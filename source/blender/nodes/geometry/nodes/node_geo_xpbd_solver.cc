@@ -536,6 +536,8 @@ class XpbdSolverStep {
   Mutex warnings_mutex_;
   VectorSet<std::string> warnings_;
 
+  MultiValueMap<std::string, std::string> nested_bundle_paths_;
+
  public:
   XpbdSolverStep(Bundle &world,
                  const float total_delta_time,
@@ -546,11 +548,12 @@ class XpbdSolverStep {
         sub_delta_time_(total_delta_time / substeps_),
         constraint_iterations_(constraint_iterations)
   {
+    substep_compliance_factor_ = math::safe_rcp(pow2f(sub_delta_time_));
   }
 
   void do_step()
   {
-    this->prepare_substep_compliance_factor();
+    this->gather_nested_bundle_paths();
     this->gather_from_world__geometries();
     this->prepare_geometry_chunks();
 
@@ -591,9 +594,21 @@ class XpbdSolverStep {
   }
 
  private:
-  void prepare_substep_compliance_factor()
+  void gather_nested_bundle_paths()
   {
-    substep_compliance_factor_ = math::safe_rcp(pow2f(sub_delta_time_));
+    foreach_nested_bundle_item(world_,
+                               [&](const Span<StringRef> path, const BundleItemValue &value) {
+                                 const BundlePtr *bundle_ptr = value.as_pointer<BundlePtr>();
+                                 if (!bundle_ptr || !*bundle_ptr) {
+                                   return;
+                                 }
+                                 const Bundle &bundle = **bundle_ptr;
+                                 const std::optional<StringRef> type = bundle.type();
+                                 if (!type.has_value()) {
+                                   return;
+                                 }
+                                 nested_bundle_paths_.add_as(*type, Bundle::combine_path(path));
+                               });
   }
 
   void gather_from_world__geometries()
@@ -710,8 +725,7 @@ class XpbdSolverStep {
 
   void gather_from_world__infinite_plane_colliders()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(
-        world_, InfinitePlaneColliderBundle::name);
+    const Span<std::string> paths = nested_bundle_paths_.lookup(InfinitePlaneColliderBundle::name);
     for (const StringRef path : paths) {
       const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
       if (!bundle_ptr || !*bundle_ptr) {
@@ -797,8 +811,7 @@ class XpbdSolverStep {
 
   void gather_from_world__mesh_colliders()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(world_,
-                                                                         ColliderBundle::name);
+    const Span<std::string> paths = nested_bundle_paths_.lookup_as(ColliderBundle::name);
     for (const StringRef path : paths) {
       const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
       if (!bundle_ptr || !*bundle_ptr) {
@@ -1345,8 +1358,7 @@ class XpbdSolverStep {
   void gather_from_world__stretch_shear_constraints()
   {
     TLS &tls = tls_.local();
-    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(
-        world_, RodStretchShearBundle::name);
+    const Span<std::string> paths = nested_bundle_paths_.lookup(RodStretchShearBundle::name);
     for (const StringRef path : paths) {
       const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
       if (!bundle_ptr || !*bundle_ptr) {
@@ -1461,8 +1473,7 @@ class XpbdSolverStep {
   void gather_from_world__bend_twist_constraints()
   {
     TLS &tls = tls_.local();
-    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(world_,
-                                                                         RodBendTwistBundle::name);
+    const Span<std::string> paths = nested_bundle_paths_.lookup(RodBendTwistBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
       const Field<float> compliance_field = this->get_field_or_constant(
@@ -1534,8 +1545,7 @@ class XpbdSolverStep {
   void gather_from_world__edge_length_constraints()
   {
     TLS &tls = tls_.local();
-    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(
-        world_, EdgeLengthConstraintBundle::name);
+    const Span<std::string> paths = nested_bundle_paths_.lookup(EdgeLengthConstraintBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
       const Field<float> compliance_field = this->get_field_or_constant(
@@ -1600,8 +1610,7 @@ class XpbdSolverStep {
   void gather_from_world__damping()
   {
     TLS &tls = tls_.local();
-    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(world_,
-                                                                         DampingBundle::name);
+    const Span<std::string> paths = nested_bundle_paths_.lookup(DampingBundle::name);
     for (const StringRef path : paths) {
       const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
       if (!bundle_ptr || !*bundle_ptr) {
@@ -1675,8 +1684,7 @@ class XpbdSolverStep {
 
   void gather_from_world__pin_positions()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(world_,
-                                                                         PinPositionBundle::name);
+    const Span<std::string> paths = nested_bundle_paths_.lookup(PinPositionBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
       std::optional<Field<float3>> position_field = bundle.lookup<Field<float3>>("position");
@@ -1843,8 +1851,7 @@ class XpbdSolverStep {
 
   void gather_from_world__pin_rotations()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(world_,
-                                                                         PinRotationBundle::name);
+    const Span<std::string> paths = nested_bundle_paths_.lookup(PinRotationBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
       std::optional<Field<math::Quaternion>> rotation_field =
