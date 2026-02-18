@@ -11956,7 +11956,8 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
 }
 
 static constexpr float menu_max_dim_factor = 0.25f;
-static constexpr float menu_dim_step = 0.015f;
+static constexpr float menu_dim_step_in = 0.015f;
+static constexpr float menu_dim_step_out = -0.02f;
 static constexpr float menu_dim_step_interval = 0.015f;
 
 bool ui_menus_dim_recursive(bContext *C, PopupBlockHandle *menu, const wmEvent *event, int level)
@@ -12006,7 +12007,7 @@ static int ui_handle_menus_recursive(bContext *C,
   if (event->type == TIMER && menu->dimtimer == event->customdata) {
     Block *block = static_cast<Block *>(menu->region->runtime->uiblocks.first);
 
-    menu->dim_factor += (menu->dim) ? menu_dim_step : -menu_dim_step;
+    menu->dim_factor += (menu->dim) ? menu_dim_step_in : menu_dim_step_out;
     menu->dim_factor = std::clamp(menu->dim_factor, 0.0f, menu_max_dim_factor);
     if (menu->dim_factor == (menu->dim ? menu_max_dim_factor : 0.0f)) {
       WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), menu->dimtimer);
