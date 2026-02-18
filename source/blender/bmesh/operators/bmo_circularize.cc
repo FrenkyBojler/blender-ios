@@ -355,7 +355,8 @@ static void calculate_target_locations(MutableSpan<CircleVert> verts,
 
       float2 vec_prev = verts[0].co_2d - center;
       vec_prev = math::normalize(vec_prev);
-
+      /* Skip the first vertex because it was used to initialize vec_prev otherwise
+       * we'll end up with a self comparison in the first iteration. */
       for (const int i : verts.index_range().drop_front(1)) {
         float2 vec_curr = verts[i].co_2d - center;
         vec_curr = math::normalize(vec_curr);
