@@ -430,14 +430,14 @@ static void project_on_mesh(BVHTree *bvh_tree,
                             const float normal[3],
                             float r_pos[3])
 {
-  if (equals_v3v3(v->co, center_pos)) {
+  float vec[3];
+  sub_v3_v3v3(vec, center_pos, v->co);
+  /* If vertices are too close, normalization can fail. */
+  if (normalize_v3(vec) == 0.0f) {
     copy_v3_v3(r_pos, center_pos);
     return;
   }
-
-  float vec[3];
-  sub_v3_v3v3(vec, center_pos, v->co);
-  const float angle = angle_v3v3(vec, normal);
+  const float angle = angle_normalized_v3v3(vec, normal);
   if (std::abs(angle) < CIRCULARIZE_EPSILON ||
       std::abs(std::numbers::pi - angle) < CIRCULARIZE_EPSILON)
   {
