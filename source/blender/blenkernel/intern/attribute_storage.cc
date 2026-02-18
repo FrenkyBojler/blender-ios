@@ -445,6 +445,9 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
       }
       return Attribute::SingleData{data.data, ImplicitSharingPtr<>(data.sharing_info)};
     }
+    case ATTR_STORAGE_TYPE_STRING_OFFSETS: {
+      return Attribute::ArrayData{};
+    }
     default:
       return std::nullopt;
   }
@@ -642,38 +645,6 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
         single_dna.data = data->value;
         single_dna.sharing_info = data->sharing_info.get();
         attribute_dna.data = &single_dna;
-      }
-    }
-    else if (const auto *data = std::get_if<Attribute::StringOffsets>(&attr.data())) {
-      if (use_5_0_compatibility) {
-        attribute_dna.storage_type = int8_t(AttrStorageType::Array);
-        const OffsetIndices<int> offsets(Span<int>(data->offsets, data->size + 1));
-        const GroupedSpan<char> strings(offsets, Span(data->all_strings, offsets.total_size()));
-
-        auto &array_data = write_data.scope.construct<Attribute::ArrayData>();
-        auto *shared_data = new ImplicitSharedValue<Array<std::string>>(data->size);
-        threading::parallel_for(IndexRange(data->size), 1024, [&](const IndexRange range) {
-          for (const int i : range) {
-            shared_data->data[i] = std::string(strings[i].begin(), strings[i].end());
-          }
-        });
-
-        array_data.data = shared_data->data.data();
-        array_data.sharing_info = ImplicitSharingPtr<>(shared_data);
-        array_data.size = data->size;
-
-        auto &array_dna = create_dna_array(array_data);
-        attribute_dna.data = &array_dna;
-      }
-      else {
-        attribute_dna.storage_type = int8_t(AttrStorageType::StringOffsets);
-        auto &strings_dna = write_data.scope.construct<blender::AttributeStringOffsets>();
-        strings_dna.all_strings = data->all_strings;
-        strings_dna.data_sharing_info = data->data_sharing_info.get();
-        strings_dna.offsets = data->offsets;
-        strings_dna.size = data->size;
-        strings_dna.offsets_sharing_info = data->offsets_sharing_info.get();
-        attribute_dna.data = &strings_dna;
       }
     }
 
