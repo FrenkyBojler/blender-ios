@@ -30,7 +30,6 @@ namespace blender::nodes::node_geo_curve_intersection_cc {
 
 /* Epsilon values for curve intersections and bvh tree. */
 constexpr float curve_isect_eps = 0.001f;
-constexpr float curve_dot_eps = 0.000000001f;
 constexpr float pi_2_f = std::numbers::pi * 0.5f;
 constexpr float pi_2_f_eps = pi_2_f - 0.0001f;
 
@@ -472,73 +471,6 @@ static bool discard_angle(const float3 an,
   return min_max_angle.x > angle || min_max_angle.y + 0.0001f < angle;
 }
 
-/* Library function `isect_line_line_epsilon_v3` is too strict for checking parallel lines. This
- * version adds an epsilon to the parallel line check^. */
-static int isect_line_line_epsilon_v3_loose(const float v1[3],
-                                            const float v2[3],
-                                            const float v3[3],
-                                            const float v4[3],
-                                            float r_i1[3],
-                                            float r_i2[3],
-                                            const float epsilon,
-                                            const float dot_epsilon)
-{
-  float a[3], b[3], c[3], ab[3], cb[3];
-  float d, div;
-  sub_v3_v3v3(a, v2, v1);
-  sub_v3_v3v3(b, v4, v3);
-
-  cross_v3_v3v3(ab, a, b);
-  div = dot_v3v3(ab, ab);
-
-  /* ^Epsilon has been added here. */
-  if (fabsf(div) <= dot_epsilon) {
-    return 0;
-  }
-
-  d = dot_v3v3(c, ab);
-  sub_v3_v3v3(c, v3, v1);
-
-  /* test if the two lines are coplanar */
-  if (UNLIKELY(fabsf(d) <= epsilon)) {
-    cross_v3_v3v3(cb, c, b);
-
-    mul_v3_fl(a, dot_v3v3(cb, ab) / div);
-    add_v3_v3v3(r_i1, v1, a);
-    copy_v3_v3(r_i2, r_i1);
-
-    return 1; /* one intersection only */
-  }
-  /* if not */
-
-  float n[3], t[3];
-  float v3t[3], v4t[3];
-  sub_v3_v3v3(t, v1, v3);
-
-  /* offset between both plane where the lines lies */
-  cross_v3_v3v3(n, a, b);
-  project_v3_v3v3(t, t, n);
-
-  /* for the first line, offset the second line until it is coplanar */
-  add_v3_v3v3(v3t, v3, t);
-  add_v3_v3v3(v4t, v4, t);
-
-  sub_v3_v3v3(c, v3t, v1);
-  sub_v3_v3v3(a, v2, v1);
-  sub_v3_v3v3(b, v4t, v3t);
-
-  cross_v3_v3v3(ab, a, b);
-  cross_v3_v3v3(cb, c, b);
-
-  mul_v3_fl(a, dot_v3v3(cb, ab) / dot_v3v3(ab, ab));
-  add_v3_v3v3(r_i1, v1, a);
-
-  /* for the second line, just subtract the offset from the first intersection point */
-  sub_v3_v3v3(r_i2, r_i1, t);
-
-  return 2; /* two nearest points */
-}
-
 /* Check intersection between the line segments ab and cd. Return true only if intersection point
  * is located on both line segments. */
 static IntersectingLineInfo intersecting_lines(const Segment &ab,
@@ -548,14 +480,13 @@ static IntersectingLineInfo intersecting_lines(const Segment &ab,
 {
   IntersectingLineInfo isectinfo{};
   isectinfo.is_intersection = false;
-  if (isect_line_line_epsilon_v3_loose(ab.start,
-                                       ab.end,
-                                       cd.start,
-                                       cd.end,
-                                       isectinfo.closest_ab,
-                                       isectinfo.closest_cd,
-                                       curve_isect_eps,
-                                       curve_dot_eps) != 0)
+  if (isect_line_line_epsilon_v3(ab.start,
+                                 ab.end,
+                                 cd.start,
+                                 cd.end,
+                                 isectinfo.closest_ab,
+                                 isectinfo.closest_cd,
+                                 curve_isect_eps) != 0)
   {
     /* Discard intersections too far away. */
     const float isect_distance = math::distance(isectinfo.closest_ab, isectinfo.closest_cd);
