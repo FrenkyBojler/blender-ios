@@ -1554,8 +1554,7 @@ static void svg_replace_color_attributes(std::string &svg,
       continue;
     }
 
-    std::string hexcolor = fmt::format(
-        "{:02x}{:02x}{:02x}{:02x}", color[0], color[1], color[2], color[3]);
+    std::string hexcolor = fmt::format("{:02x}{:02x}{:02x}", color[0], color[1], color[2]);
 
     size_t att_start = start;
     while (true) {
@@ -1568,7 +1567,7 @@ static void svg_replace_color_attributes(std::string &svg,
       if (att_end != std::string::npos && att_end < end) {
         svg.replace(att_start, att_end - att_start, key + "#" + hexcolor);
       }
-      att_start += StringRef(key + "#rrggbbaa\"").size();
+      att_start += StringRef(key + "#rrggbb\"").size();
     }
 
     att_start = start;
@@ -1582,7 +1581,7 @@ static void svg_replace_color_attributes(std::string &svg,
       if (att_end != std::string::npos && att_end - att_start < end) {
         svg.replace(att_start, att_end - att_start, key + "#" + hexcolor);
       }
-      att_start += StringRef(key + "#rrggbbaa").size();
+      att_start += StringRef(key + "#rrggbb").size();
     }
   }
 }
