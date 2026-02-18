@@ -166,6 +166,9 @@ struct TreeDrawContext {
    */
   Array<Vector<NodeExtraInfoRow>> extra_info_rows_per_node;
 
+  /** Set of nodes detected to overlay other node. */
+  Set<const bNode *> covering_nodes;
+
   Map<int32_t, VectorSet<std::string>> shader_node_errors;
 
   ~TreeDrawContext()
@@ -2940,6 +2943,11 @@ static void node_draw_basis(const bContext &C,
     node_draw_shadow(snode, node, BASIS_RAD, 1.0f);
   }
 
+  if (tree_draw_ctx.covering_nodes.contains(&node)) {
+    ui::draw_dropshadow(
+        &node.runtime->draw_bounds, U.widget_unit, U.widget_unit * 2, snode.runtime->aspect, 1.0f);
+  }
+
   const rctf &rct = node.runtime->draw_bounds;
   float color[4];
   int color_id = node_get_colorid(tree_draw_ctx, node);
@@ -3697,21 +3705,6 @@ static Set<const bNode *> find_covering_nodes(const Span<const bNode *> nodes_in
   return covering_nodes;
 }
 
-static void add_covering_node_warnings(TreeDrawContext &tree_draw_ctx,
-                                       const Span<bNode *> nodes_in_draw_order)
-{
-  const Set<const bNode *> covering_nodes = find_covering_nodes(nodes_in_draw_order);
-  /* This is added here instead of #node_get_extra_info because this is only known after computing
-   * node bounds. */
-  for (const bNode *node : covering_nodes) {
-    NodeExtraInfoRow row;
-    row.text = IFACE_("Hidden Node");
-    row.icon = ICON_INFO;
-    row.tooltip = TIP_("This not covers another node which may not be intentional");
-    tree_draw_ctx.extra_info_rows_per_node[node->index()].append(std::move(row));
-  }
-}
-
 static void node_update_nodetree(const bContext &C,
                                  TreeDrawContext &tree_draw_ctx,
                                  bNodeTree &ntree,
@@ -3749,10 +3742,7 @@ static void node_update_nodetree(const bContext &C,
     calc_node_frame_dimensions(C, tree_draw_ctx, *snode, *frame);
   }
 
-  /* Only draw these warnings when not currently moving nodes to avoid flickering. */
-  if (!ntree.runtime->is_transforming) {
-    add_covering_node_warnings(tree_draw_ctx, nodes);
-  }
+  tree_draw_ctx.covering_nodes = find_covering_nodes(nodes);
 }
 
 static void node_frame_get_color(const bNode &node, float r_color[4])
