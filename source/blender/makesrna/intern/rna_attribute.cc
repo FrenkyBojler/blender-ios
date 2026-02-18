@@ -702,9 +702,6 @@ static int rna_StringAttributeValue_s_length(PointerRNA *ptr)
 
 static void rna_StringAttributeValue_s_set(PointerRNA *ptr, const char *value)
 {
-  /* NOTE: RNA does not support byte-strings which contain null bytes.
-   * If `PROP_BYTESTRING` supported this then a value & length could be passed in
-   * and `MStringProperty` could be set with values to include null bytes. */
   std::string *string = ptr->data_as<std::string>();
   *string = value ? value : "";
 }
