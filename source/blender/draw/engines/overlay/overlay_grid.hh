@@ -146,8 +146,9 @@ class Grid : Overlay {
     SpaceImage *sima = (SpaceImage *)state.space_data;
 
     /* Grid is currently visible in UV and Image editors, if enabled. */
-    const bool show_grid = ELEM(sima->mode, SI_MODE_UV, SI_MODE_VIEW) &&
-                           (sima->overlay.flag & SI_OVERLAY_SHOW_GRID_BACKGROUND);
+    const bool show_grid =
+        ELEM(sima->mode, SI_MODE_UV, SI_MODE_VIEW, SI_MODE_PAINT, SI_MODE_MASK) &&
+        (sima->overlay.flag & SI_OVERLAY_SHOW_GRID_BACKGROUND);
     if (!show_grid) {
       return false;
     }
