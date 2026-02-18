@@ -605,8 +605,17 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
                                    cam->dof.aperture_fstop);
       break;
     case XR_VIEWFINDER_MODE_PLAYBACK:
-      if (landmark_len > 1) {
-        settings_label = fmt::format("{} / {}", landmark_idx + 1, landmark_len);
+      /* Current shot indicator (`current shot idx / all shots`). */
+      if (landmark_len > 0) {
+        const int width = landmark_len >= 10 ? 2 : 1;
+        const char *pad_prefix = landmark_len < 10 ? "     " : "";
+        /* \xe2\x80\x87 corresponds to a Unicode Figure Space (BLI_STR_UTF8_FIGURE_SPACE). */
+        settings_label = fmt::format("{}{:\xe2\x80\x87>{}} / {:\xe2\x80\x87>{}}",
+                                     pad_prefix,
+                                     landmark_idx + 1,
+                                     width,
+                                     landmark_len,
+                                     width);
       }
       break;
     default:
@@ -706,8 +715,8 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   const float mode_tabs_y = viewfinder_rect.ymax + 0.45f;
 
   const float settings_label_x = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                     viewfinder_rect.xmax - 3.40f :
-                                     viewfinder_rect.xmax - 0.55f;
+                                     viewfinder_rect.xmax - 3.4f :
+                                     viewfinder_rect.xmax - 0.8f;
   const float settings_label_y = viewfinder_rect.ymax + 0.47f;
 
   const float action_label_x = viewfinder_rect.xmin - 0.1f;
