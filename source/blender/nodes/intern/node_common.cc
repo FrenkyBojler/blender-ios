@@ -831,7 +831,8 @@ static void node_adapt_type_declare(nodes::NodeDeclarationBuilder &b)
       .idname(socket_idname.c_str())
       .structure_type(nodes::StructureType::Dynamic)
       .reference_pass_all()
-      .propagate_all();
+      .propagate_all()
+      .align_with_previous();
 }
 
 static void node_implicit_conversion_label(const bNodeTree * /*ntree*/,
