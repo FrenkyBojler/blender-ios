@@ -158,6 +158,24 @@ void VKImageCache::reset(bool force_reset)
   }
 }
 
+void VKImageCache::discard_all_of(VmaAllocation allocation)
+{
+  /* Gather images bound to the provided allocation. */
+  Vector<VKImageInfo> unused_keys;
+  for (const VKImageInfo &key : cache_.keys()) {
+    if (key.allocation == allocation) {
+      unused_keys.append(key);
+    }
+  }
+
+  /* Remove unused images from cache, and forward handles to discard pool.  */
+  VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
+  for (const VKImageInfo &key : unused_keys) {
+    VKImageHandle handle = cache_.pop(key);
+    discard_pool.discard_image(handle.image, VK_NULL_HANDLE);
+  }
+}
+
 std::optional<VKMemorySegment> VKTexturePool::AllocationHandle::acquire(
     VkMemoryRequirements requirements)
 {
@@ -452,14 +470,15 @@ void VKTexturePool::reset(bool force_free)
     }
   }
 
-  /* Remove unused images. */
-  image_cache_.reset();
-
   /* Remove unused allocations. */
   for (AllocationHandle handle : unused_allocations) {
+    image_cache_.discard_all_of(handle.allocation);
     handle.free();
     allocations_.remove(handle);
   }
+
+  /* Remove unused images from cache. */
+  image_cache_.reset();
 
   /* Log debug usage data if it differs from the last `::reset()`. */
   if (G.debug & G_DEBUG_GPU) {

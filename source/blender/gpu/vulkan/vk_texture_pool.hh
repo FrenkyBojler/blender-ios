@@ -58,6 +58,9 @@ class VKImageCache {
   /* Reset VKImageHandle internal counter. */
   void reset_unused_cycles_count(const VKImageInfo &info);
 
+  /* Discard cached images bound to an allocation. */
+  void discard_all_of(VmaAllocation allocation);
+
   uint64_t size() const
   {
     return cache_.size();
