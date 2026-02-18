@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
 "Report-Msgid-Bugs-To: Leandro Paganelli <leandrobp@fastmail.com>\n"
-"POT-Creation-Date: 2026-02-02 14:51+0000\n"
+"POT-Creation-Date: 2026-02-16 10:28+0000\n"
 "PO-Revision-Date: 2025-11-11 12:13+0000\n"
 "Last-Translator: Rafael Teixeira de Avila Soares <rafaeltas@gmail.com>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.blender.org/projects/blender-ui/ui/pt_BR/>\n"
@@ -4072,6 +4072,18 @@ msgid "Show Lasso"
 msgstr "Mostrar Laço"
 
 
+msgid "Stroke"
+msgstr "Traços"
+
+
+msgid "Fill"
+msgstr "Preencher"
+
+
+msgid "Both"
+msgstr "Ambos"
+
+
 msgid "Active Layer"
 msgstr "Camada ativa"
 
@@ -4142,14 +4154,6 @@ msgstr "Aparar Extremidades do Traço"
 
 msgid "UV Random"
 msgstr "UV Aleatório"
-
-
-msgid "Stroke"
-msgstr "Traços"
-
-
-msgid "Fill"
-msgstr "Preencher"
 
 
 msgid "Stroke & Fill"
@@ -14769,10 +14773,6 @@ msgid "Node tree consisting of linked nodes used for compositing"
 msgstr "Árvore de nós consistindo de nós conectados para composição."
 
 
-msgid "Use boundaries for viewer nodes and composite backdrop"
-msgstr "Usa limitações para nós do visualizador e pano de fundo de composição."
-
-
 msgid "Edit"
 msgstr "Editar"
 
@@ -21219,20 +21219,20 @@ msgid "Material slot name"
 msgstr "Nome do compartimento do material."
 
 
-msgid "Math"
-msgstr "Matemática"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Metaball"
-msgstr "Meta-esfera"
+msgid "Clean Up"
+msgstr "Limpeza"
 
 
 msgid "Show/Hide"
 msgstr "Mostrar ou ocultar"
+
+
+msgid "Special Characters"
+msgstr "Caracteres especiais"
+
+
+msgid "Metaball"
+msgstr "Meta-esfera"
 
 
 msgid "Names"
@@ -21241,10 +21241,6 @@ msgstr "Nomes"
 
 msgid "Bone Roll"
 msgstr "Rolagem dos ossos"
-
-
-msgid "Clean Up"
-msgstr "Limpeza"
 
 
 msgid "Pivot Point"
@@ -21257,6 +21253,10 @@ msgstr "Atrair"
 
 msgid "Proportional Editing Falloff"
 msgstr "Tipo de decaimento para edição proporcional"
+
+
+msgid "Layout"
+msgstr "Organizar"
 
 
 msgid "Mirror"
@@ -21295,10 +21295,6 @@ msgid "Select More/Less"
 msgstr "Selecionar mais ou menos"
 
 
-msgid "Layout"
-msgstr "Organizar"
-
-
 msgid "Select Similar"
 msgstr "Selecionar por similaridades"
 
@@ -21307,20 +21303,24 @@ msgid "Select All by Trait"
 msgstr "Selecionar todos por características..."
 
 
+msgid "Keying"
+msgstr "Inserção de chaves"
+
+
 msgid "Select Linked"
 msgstr "Selecionar vinculados(as)"
+
+
+msgid "Tracking"
+msgstr "Rastreamento"
 
 
 msgid "Select Loops"
 msgstr "Selecionar anéis"
 
 
-msgid "Keying"
-msgstr "Inserção de chaves"
-
-
-msgid "Tracking"
-msgstr "Rastreamento"
+msgid "Math"
+msgstr "Matemática"
 
 
 msgid "Light"
@@ -21383,6 +21383,10 @@ msgid "Propagate"
 msgstr "Propagar"
 
 
+msgid "Instances"
+msgstr "Instâncias"
+
+
 msgid "Toggle Bone Options"
 msgstr "Alternar opções de ossos"
 
@@ -21395,6 +21399,10 @@ msgid "Disable Bone Options"
 msgstr "Desabilitar as opções de ossos"
 
 
+msgid "Import"
+msgstr "Importar"
+
+
 msgid "Mesh Select Mode"
 msgstr "Modo de seleção de malhas"
 
@@ -21403,20 +21411,12 @@ msgid "Face Data"
 msgstr "Dados das faces"
 
 
-msgid "Instances"
-msgstr "Instâncias"
-
-
-msgid "Import"
-msgstr "Importar"
-
-
 msgid "Merge"
 msgstr "Fundir"
 
 
-msgid "Special Characters"
-msgstr "Caracteres especiais"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Basic"
@@ -31319,10 +31319,6 @@ msgid "Add layer"
 msgstr "Adicionar camada"
 
 
-msgid "Direction to move the active vertex group towards"
-msgstr "A direção na qual mover o grupo de vértices ativo."
-
-
 msgctxt "Operator"
 msgid "Open Cache File"
 msgstr "Abrir arquivo(s) de cache"
@@ -31904,14 +31900,6 @@ msgstr "Configurar eixo"
 
 msgid "Axis to use to align bundle along"
 msgstr "Eixo ao longo do qual haverá uso para alinhar o feixe."
-
-
-msgid "Align bundle align X axis"
-msgstr "Alinha o eixo embutido X de alinhamento."
-
-
-msgid "Align bundle align Y axis"
-msgstr "Alinha o eixo embutido Y de alinhamento."
 
 
 msgctxt "Operator"
@@ -32659,10 +32647,6 @@ msgid "Clear the tilt of selected control points"
 msgstr "Limpa a inclinação dos pontos de controle selecionados."
 
 
-msgid "Make active spline closed/opened loop"
-msgstr "Torna a Spline ativa, um anel aberto ou fechado."
-
-
 msgid "Direction to make surface cyclic in"
 msgstr "Direção na qual tornar a superfície cíclica."
 
@@ -33153,10 +33137,6 @@ msgstr "Desfaz a última ação."
 msgctxt "Operator"
 msgid "Undo History"
 msgstr "Histórico para desfazer ações"
-
-
-msgid "Redo specific action in history"
-msgstr "Permite refazer uma ação específica no histórico."
 
 
 msgid "Item"
@@ -34495,10 +34475,6 @@ msgid "Side"
 msgstr "Lado"
 
 
-msgid "Both"
-msgstr "Ambos"
-
-
 msgctxt "Operator"
 msgid "Euler Discontinuity Filter"
 msgstr "Filtro de descontinuidade para Euler"
@@ -35368,10 +35344,6 @@ msgid "Match Movie Length"
 msgstr "Combinar com o comprimento do filme"
 
 
-msgid "Set image's user's length to the one of this video"
-msgstr "Configura o comprimento de imagem do usuário para o que está neste vídeo."
-
-
 msgctxt "Operator"
 msgid "New Image"
 msgstr "Nova imagem"
@@ -35853,10 +35825,6 @@ msgid "Select mirrored lattice points"
 msgstr "Seleciona os pontos de treliça espelhados."
 
 
-msgid "Select vertex directly linked to already selected ones"
-msgstr "Seleciona vértices diretamente conectados aos já selecionados."
-
-
 msgid "Randomly select UVW control points"
 msgstr "Seleciona aleatoriamente pontos de controle UVW."
 
@@ -36113,14 +36081,6 @@ msgstr "Colar Splines"
 
 msgid "Add new circle-shaped spline"
 msgstr "Adiciona uma nova Spline em forma de círculo."
-
-
-msgid "Location of new circle"
-msgstr "Localização do novo círculo"
-
-
-msgid "Size of new circle"
-msgstr "O tamanho do novo círculo."
 
 
 msgctxt "Operator"
@@ -37448,10 +37408,6 @@ msgid "Minor Radius"
 msgstr "Raio menor"
 
 
-msgid "Radius of the torus' cross section"
-msgstr "Raio da secção cruzada do objeto toroidal."
-
-
 msgid "Minor Segments"
 msgstr "Segmentos menores"
 
@@ -37514,10 +37470,6 @@ msgstr "Revela todos os vértices, arestas e faces ocultas."
 msgctxt "Operator"
 msgid "Rip"
 msgstr "Romper"
-
-
-msgid "Disconnect vertex or edges from connected geometry"
-msgstr "Desconecta as arestas ou vértices da geometria conectada"
 
 
 msgid "Fill the ripped region"
@@ -37833,10 +37785,6 @@ msgid "Select Shortest Path"
 msgstr "Selecionar o caminho mais curto"
 
 
-msgid "Selected shortest path between two vertices/edges/faces"
-msgstr "Seleciona o caminho de interconexão mais curto entre vértices, arestas e faces."
-
-
 msgctxt "Operator"
 msgid "Smooth Normals Vectors"
 msgstr "Suavizar Vetores Normais"
@@ -38052,10 +38000,6 @@ msgstr "Conecta os vértices selecionados das faces, separando as faces."
 msgctxt "Operator"
 msgid "Split Concave Faces"
 msgstr "Dividir as faces côncavas"
-
-
-msgid "Make all faces convex"
-msgstr "Tornar todas as faces convexas."
 
 
 msgctxt "Operator"
@@ -38988,10 +38932,6 @@ msgid "Viewer Region"
 msgstr "Região da janela de visualização 3D"
 
 
-msgid "Set the boundaries for viewer operations"
-msgstr "Configura as margens para as operações de visualização dos nós."
-
-
 msgctxt "Operator"
 msgid "Add Object"
 msgstr "Adicionar objeto"
@@ -39778,10 +39718,6 @@ msgstr "Atrela a malha para uma jaula no modificador de deformação por malha."
 msgctxt "Operator"
 msgid "Add Metaball"
 msgstr "Adicionar Meta-Esfera"
-
-
-msgid "Add an metaball object to the scene"
-msgstr "Adiciona um objeto do tipo meta-esfera para a cena"
 
 
 msgid "Primitive"
@@ -40861,6 +40797,10 @@ msgid "Move the active vertex group up/down in the list"
 msgstr "Move o grupo de vértices ativo acima ou abaixo na lista."
 
 
+msgid "Direction to move the active vertex group towards"
+msgstr "A direção na qual mover o grupo de vértices ativo."
+
+
 msgid "Normalize weights of the active vertex group, so that the highest ones are now 1.0"
 msgstr "Normaliza os pesos do grupo de vértices ativo, de maneira que os valores mais altos sejam limitados ao valor 1.0."
 
@@ -41354,10 +41294,6 @@ msgstr "Arrastar e Soltar"
 msgctxt "Operator"
 msgid "Open/Close"
 msgstr "Abrir/Fechar"
-
-
-msgid "Toggle whether item under cursor is enabled or closed"
-msgstr "Alterna se o item abaixo do cursor está habilitado ou fechado."
 
 
 msgid "Close or open all items"
@@ -42228,10 +42164,6 @@ msgid "Remove Doubles"
 msgstr "Remover duplicações"
 
 
-msgid "Remove selected particles close enough of others"
-msgstr "Remove as partículas selecionadas perto o suficiente de outras."
-
-
 msgctxt "Operator"
 msgid "Reveal"
 msgstr "Revelar"
@@ -42944,10 +42876,6 @@ msgstr "Arredondado"
 msgctxt "Operator"
 msgid "Cancel Render View"
 msgstr "Cancelar visualização de renderização"
-
-
-msgid "Cancel show render view"
-msgstr "Cancela a visualização de renderização."
 
 
 msgctxt "Operator"
@@ -44453,10 +44381,6 @@ msgid "Jump to Strip"
 msgstr "Saltar para faixa"
 
 
-msgid "Move frame to previous edit point"
-msgstr "Mover quadro para o ponto de edição anterior."
-
-
 msgid "Next Strip"
 msgstr "Próxima faixa"
 
@@ -44740,17 +44664,9 @@ msgid "Add Surface Circle"
 msgstr "Adicionar círculo de superfície"
 
 
-msgid "Construct a Nurbs surface Circle"
-msgstr "Constrói uma superfície de círculo Nurbs."
-
-
 msgctxt "Operator"
 msgid "Add Surface Curve"
 msgstr "Adicionar uma superfície de curva"
-
-
-msgid "Construct a Nurbs surface Curve"
-msgstr "Constrói uma superfície de curva Nurbs."
 
 
 msgctxt "Operator"
@@ -44758,17 +44674,9 @@ msgid "Add Surface Cylinder"
 msgstr "Adicionar uma superfície de cilindro"
 
 
-msgid "Construct a Nurbs surface Cylinder"
-msgstr "Constrói um cilindro a partir de superfície Nurbs."
-
-
 msgctxt "Operator"
 msgid "Add Surface Sphere"
 msgstr "Adicionar uma superfície de esfera"
-
-
-msgid "Construct a Nurbs surface Sphere"
-msgstr "Constrói uma esfera a partir de superfície Nurbs."
 
 
 msgctxt "Operator"
@@ -44776,17 +44684,9 @@ msgid "Add Surface Patch"
 msgstr "Adicionar uma bandagem de superfície"
 
 
-msgid "Construct a Nurbs surface Patch"
-msgstr "Constrói uma bandagem de superfície entrelaçada Nurbs."
-
-
 msgctxt "Operator"
 msgid "Add Surface Torus"
 msgstr "Adicionar uma superfície toroidal"
-
-
-msgid "Construct a Nurbs surface Torus"
-msgstr "Constrói uma superfície toroidal Nurbs."
 
 
 msgctxt "Operator"
@@ -44819,10 +44719,6 @@ msgstr "Move os compartimentos de textura para cima e para baixo."
 msgctxt "Operator"
 msgid "Paste Texture Slot Settings"
 msgstr "Colar configurações de compartimento de textura"
-
-
-msgid "Copy the texture settings and nodes"
-msgstr "Copia as configurações de textura e nós."
 
 
 msgctxt "Operator"
@@ -56422,8 +56318,24 @@ msgid "Mute expanded settings for the modifier"
 msgstr "Torna mudas as configurações expandidas para o modificador."
 
 
-msgid "Tone Map"
-msgstr "Mapa de tonalidades"
+msgctxt "Sequence"
+msgid "Color Balance"
+msgstr "Balanço de cor"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Curvas"
+
+
+msgctxt "Sequence"
+msgid "Hue Correct"
+msgstr "Correção de matiz"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "Balanço dos tons brancos"
 
 
 msgid "Bright/contrast modifier data for sequence strip"
@@ -58445,10 +58357,6 @@ msgstr "Mostrar eixo Z"
 
 msgid "Draw Normals"
 msgstr "Desenhar normais"
-
-
-msgid "Display 3D curve normals in editmode"
-msgstr "Mostra as normais das curvas 3D no modo de edição."
 
 
 msgid "Display weights created for the Bevel modifier"
@@ -67608,28 +67516,8 @@ msgstr "%s: falha ao carregar '%s'"
 
 
 msgctxt "Sequence"
-msgid "Color Balance"
-msgstr "Balanço de cor"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Curvas"
-
-
-msgctxt "Sequence"
-msgid "Hue Correct"
-msgstr "Correção de matiz"
-
-
-msgctxt "Sequence"
 msgid "Tonemap"
 msgstr "Mapa de tonalidades"
-
-
-msgctxt "Sequence"
-msgid "White Balance"
-msgstr "Balanço dos tons brancos"
 
 
 msgid "Strips must be the same length"

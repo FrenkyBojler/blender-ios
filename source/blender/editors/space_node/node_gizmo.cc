@@ -93,7 +93,7 @@ void NODE_GGT_backdrop_box_mask(wmGizmoGroupType *gzgt)
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_box_mask_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
   gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_node;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_bbox_mask_refresh;
+  gzgt->refresh = nodes::gizmos::WIDGETGROUP_box_mask_refresh;
 }
 
 /** \} */
@@ -113,7 +113,7 @@ void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt)
   gzgt->setup = nodes::gizmos::WIDGETGROUP_node_ellipse_mask_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
   gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_node;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_bbox_mask_refresh;
+  gzgt->refresh = nodes::gizmos::WIDGETGROUP_box_mask_refresh;
 }
 
 /** \} */

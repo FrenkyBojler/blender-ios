@@ -18,7 +18,7 @@ namespace blender::nodes::gizmos {
  * \{ */
 
 void WIDGETGROUP_bbox_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
-void WIDGETGROUP_bbox_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+void WIDGETGROUP_box_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup);
 
 /** \} */
 
