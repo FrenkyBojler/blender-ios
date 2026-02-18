@@ -477,12 +477,12 @@ static void project_on_mesh(BVHTree *bvh_tree,
       continue;
     }
     BMLoop *l_start = f->l_first;
-    BMVert *v1 = l_start->v;
-    BMVert *v2 = l_start->next->v;
-    BMVert *v3 = l_start->next->next->v;
+    BMVert *v1 = l_start->prev->v;
+    BMVert *v2 = l_start->v;
+    BMVert *v3 = l_start->next->v;
     test_tri_fn(v1, v2, v3);
     if (f->len == 4) {
-      BMVert *v4 = l_start->prev->v;
+      BMVert *v4 = l_start->next->next->v;
       test_tri_fn(v1, v3, v4);
     }
   }
