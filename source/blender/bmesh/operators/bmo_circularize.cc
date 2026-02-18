@@ -8,6 +8,7 @@
 #include "BLI_kdopbvh.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
@@ -253,56 +254,51 @@ static void calculate_circle_best_fit(Span<CircleVert> verts,
   }
 
   /* Initial guesses. */
-  float initial_x = 0.0f;
-  float initial_y = 0.0f;
+  float2 initial_center = float2(0.0f);
   float initial_radius = 1.0f;
 
   for (int iter = 0; iter < NON_LINEAR_LEAST_SQUARES_MAX_ITERATIONS; iter++) {
-    float normal_matrix[3][3];
-    float jacobian_transpose_residual[3];
-
-    zero_m3(normal_matrix);
-    zero_v3(jacobian_transpose_residual);
+    float3x3 normal_matrix = float3x3::zero();
+    float3 jacobian_transpose_residual = float3(0.0f);
 
     for (const CircleVert &cv : verts) {
-      const float dx = initial_x - cv.co_2d.x;
-      const float dy = initial_y - cv.co_2d.y;
-      const float distance = sqrtf(dx * dx + dy * dy);
-
-      const float j_row[3] = {dx / distance, dy / distance, -1.0f};
+      const float2 d_vec = initial_center - cv.co_2d;
+      const float distance = math::length(d_vec);
+      if (distance < CIRCULARIZE_EPSILON) {
+        continue;
+      }
+      const float3 j_row = {d_vec / distance, -1.0f};
       const float residual = initial_radius - distance;
 
       for (int row = 0; row < 3; row++) {
         for (int col = 0; col < 3; col++) {
-          normal_matrix[row][col] += j_row[row] * j_row[col];
+          normal_matrix[col][row] += j_row[row] * j_row[col];
         }
         jacobian_transpose_residual[row] += j_row[row] * residual;
       }
     }
-
-    float inverse_normal_matrix[3][3];
-    if (!invert_m3_m3(inverse_normal_matrix, normal_matrix)) {
+    bool success;
+    float3x3 inverse_normal_matrix = math::invert(normal_matrix, success);
+    if (!success) {
       break;
     }
 
-    float delta[3];
-    mul_v3_m3v3(delta, inverse_normal_matrix, jacobian_transpose_residual);
+    float3 delta = inverse_normal_matrix * jacobian_transpose_residual;
 
-    initial_x += delta[0];
-    initial_y += delta[1];
-    initial_radius += delta[2];
+    initial_center.x += delta.x;
+    initial_center.y += delta.y;
+    initial_radius += delta.z;
 
     /* Check for convergence to stop iterating if we're close enough to the optimal
      * solution. */
-    if (std::abs(delta[0]) < CIRCULARIZE_EPSILON && std::abs(delta[1]) < CIRCULARIZE_EPSILON &&
-        std::abs(delta[2]) < CIRCULARIZE_EPSILON)
+    if (std::abs(delta.x) < CIRCULARIZE_EPSILON && std::abs(delta.y) < CIRCULARIZE_EPSILON &&
+        std::abs(delta.z) < CIRCULARIZE_EPSILON)
     {
       break;
     }
   }
 
-  r_center.x = initial_x;
-  r_center.y = initial_y;
+  r_center = initial_center;
   *r_radius = initial_radius;
 }
 
