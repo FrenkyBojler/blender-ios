@@ -173,7 +173,8 @@ void VKTexturePool::TextureHandle::alloc(int2 extent,
   /* Create a VkImage object. */
   VkImageCreateInfo create_info = {};
   create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-  create_info.flags = to_vk_image_create(GPU_TEXTURE_2D, to_format_flag(format), usage);
+  create_info.flags = to_vk_image_create(GPU_TEXTURE_2D, to_format_flag(format), usage) |
+                      VK_IMAGE_CREATE_ALIAS_BIT;
   create_info.usage = to_vk_image_usage(usage, to_format_flag(format), false);
   create_info.format = to_vk_format(format);
   create_info.arrayLayers = 1;
