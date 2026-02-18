@@ -1,2 +1,2 @@
-Referenced by issue #154313, Blender sometimes crashes when switching to the asset browser
+Referenced by issue #154313, Crash switching to asset browser with Load UI turned off
 Referenced by issue #154559, Crash switching to asset browser under specific conditions
