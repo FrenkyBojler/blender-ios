@@ -423,7 +423,7 @@ static void nearest_tri_cb(void *userdata, int index, const float co[3], BVHTree
   }
 }
 
-static bool project_on_mesh(BVHTree *bvh_tree,
+static void project_on_mesh(BVHTree *bvh_tree,
                             NearestTriUserData *bvh_data,
                             BMVert *v,
                             const float center_pos[3],
@@ -432,7 +432,7 @@ static bool project_on_mesh(BVHTree *bvh_tree,
 {
   if (equals_v3v3(v->co, center_pos)) {
     copy_v3_v3(r_pos, center_pos);
-    return true;
+    return;
   }
 
   float vec[3];
@@ -442,7 +442,7 @@ static bool project_on_mesh(BVHTree *bvh_tree,
       std::abs(std::numbers::pi - angle) < CIRCULARIZE_EPSILON)
   {
     copy_v3_v3(r_pos, v->co);
-    return true;
+    return;
   }
 
   const float *rays[2] = {normal, nullptr};
@@ -488,7 +488,7 @@ static bool project_on_mesh(BVHTree *bvh_tree,
   }
 
   if (found) {
-    return true;
+    return;
   }
 
   BMIter eiter;
@@ -506,7 +506,7 @@ static bool project_on_mesh(BVHTree *bvh_tree,
   }
 
   if (found) {
-    return true;
+    return;
   }
 
   if (bvh_tree) {
@@ -516,12 +516,11 @@ static bool project_on_mesh(BVHTree *bvh_tree,
     BLI_bvhtree_find_nearest(bvh_tree, center_pos, &nearest, nearest_tri_cb, bvh_data);
     if (nearest.index != -1) {
       copy_v3_v3(r_pos, nearest.co);
-      return true;
+      return;
     }
   }
 
   copy_v3_v3(r_pos, center_pos);
-  return true;
 }
 
 void bmo_circularize_exec(BMesh *bm, BMOperator *op)
@@ -638,9 +637,8 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
 
       if (!flatten) {
         float projected_pos[3];
-        if (project_on_mesh(bvh_tree, &bvh_data, cv.v, final_pos, mat.z_axis(), projected_pos)) {
-          final_pos = float3(projected_pos);
-        }
+        project_on_mesh(bvh_tree, &bvh_data, cv.v, final_pos, mat.z_axis(), projected_pos);
+        final_pos = float3(projected_pos);
       }
 
       /* If this vertex is an endpoint of a mirrored loop, force it
