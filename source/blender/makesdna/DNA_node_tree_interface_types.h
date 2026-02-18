@@ -139,6 +139,15 @@ struct bNodeTreeInterfaceSocket {
   int16_t attribute_domain = 0;
   /** NodeDefaultInputType. */
   int16_t default_input = 0;
+  /**
+   * This is used for forward compatibility, because older versions do not know about
+   * NODE_DEFAULT_INPUT_ATTRIBUTE_FIELD.
+   */
+  char use_attribute_name_as_default = 0;
+  char _pad2[7];
+  /**
+   * Default attribute name that is used when #NODE_DEFAULT_INPUT_ATTRIBUTE_FIELD is used.
+   */
   char *default_attribute_name = nullptr;
 
   /* Unique identifier for generated sockets. */

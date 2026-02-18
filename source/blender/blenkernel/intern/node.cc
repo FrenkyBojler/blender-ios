@@ -592,6 +592,31 @@ static void update_node_location_legacy(bNodeTree &ntree)
   }
 }
 
+static void update_default_input_types(bNodeTree &ntree)
+{
+  ntree.ensure_interface_cache();
+  for (bNodeTreeInterfaceSocket *io_socket : ntree.interface_inputs()) {
+    if (io_socket->default_input == NODE_DEFAULT_INPUT_ATTRIBUTE_FIELD) {
+      io_socket->default_input = NODE_DEFAULT_INPUT_VALUE;
+      io_socket->use_attribute_name_as_default = true;
+    }
+    else {
+      io_socket->use_attribute_name_as_default = false;
+    }
+  }
+}
+
+static void restore_default_input_types(bNodeTree &ntree)
+{
+  ntree.ensure_interface_cache();
+  for (bNodeTreeInterfaceSocket *io_socket : ntree.interface_inputs()) {
+    if (io_socket->use_attribute_name_as_default) {
+      io_socket->default_input = NODE_DEFAULT_INPUT_ATTRIBUTE_FIELD;
+      io_socket->use_attribute_name_as_default = false;
+    }
+  }
+}
+
 static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to_restore)
 {
   switch (ntree.type) {
@@ -1232,6 +1257,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   Map<ID **, ID *> ids_to_restore;
   if (!BLO_write_is_undo(writer)) {
     forward_compat::update_node_location_legacy(*ntree);
+    forward_compat::update_default_input_types(*ntree);
     forward_compat::write_legacy_properties(*ntree, ids_to_restore);
   }
 
@@ -1300,6 +1326,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
     for (bNode *node : ntree->all_nodes()) {
       forward_compat::free_legacy_socket_storage(*node);
     }
+    forward_compat::restore_default_input_types(*ntree);
     for (const auto &item : ids_to_restore.items()) {
       *item.key = item.value;
     }

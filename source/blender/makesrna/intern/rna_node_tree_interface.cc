@@ -50,7 +50,7 @@ const EnumPropertyItem rna_enum_node_socket_structure_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr}};
 
 static const EnumPropertyItem node_default_input_items[] = {
-    {NODE_DEFAULT_INPUT_VALUE, "VALUE", 0, "Default Value", "The node socket's default value"},
+    {NODE_DEFAULT_INPUT_VALUE, "VALUE", 0, "Value", "The node socket's default value"},
     {NODE_DEFAULT_INPUT_INDEX_FIELD, "INDEX", 0, "Index", "The index from the context"},
     {NODE_DEFAULT_INPUT_ID_INDEX_FIELD,
      "ID_OR_INDEX",

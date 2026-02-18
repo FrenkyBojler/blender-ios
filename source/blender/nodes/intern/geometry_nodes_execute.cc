@@ -1065,7 +1065,9 @@ void update_input_properties_from_node_tree(const bNodeTree &tree,
       IDP_AddToGroup(&properties, attribute_prop);
 
       if (old_properties == nullptr) {
-        if (socket.default_attribute_name && socket.default_attribute_name[0] != '\0') {
+        if (socket.default_input == NODE_DEFAULT_INPUT_ATTRIBUTE_FIELD &&
+            socket.default_attribute_name[0] != '\0')
+        {
           IDP_AssignStringMaxSize(attribute_prop, socket.default_attribute_name, MAX_NAME);
           IDP_bool_set(use_attribute_prop, true);
         }
