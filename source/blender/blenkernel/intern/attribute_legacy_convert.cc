@@ -101,6 +101,8 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
       return AttrType::ColorFloat;
     case CD_PROP_FLOAT3:
       return AttrType::Float3;
+    case CD_PROP_FLOAT4:
+      return AttrType::Float4;
     case CD_PROP_FLOAT2:
       return AttrType::Float2;
     case CD_PROP_BOOL:
@@ -205,6 +207,8 @@ std::optional<eCustomDataType> attr_type_to_custom_data_type(const AttrType attr
       return CD_PROP_FLOAT2;
     case AttrType::Float3:
       return CD_PROP_FLOAT3;
+    case AttrType::Float4:
+      return CD_PROP_FLOAT4;
     case AttrType::Float4x4:
       return CD_PROP_FLOAT4X4;
     case AttrType::ColorByte:
@@ -363,8 +367,7 @@ void LegacyMeshInterpolator::mix(Span<int> src_indices,
                     src_indices.size(),
                     dst_index);
   for (const int attr_index : attrs_src_.index_range()) {
-    attribute_math::convert_to_static_type(attrs_src_[attr_index].type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    attribute_math::to_static_type(attrs_src_[attr_index].type(), [&]<typename T>() {
       const VArray src = attrs_src_[attr_index].typed<T>();
       MutableSpan dst = attrs_dst_[attr_index].typed<T>();
       attribute_math::DefaultMixer<T> mixer(dst.slice(dst_index, 1));

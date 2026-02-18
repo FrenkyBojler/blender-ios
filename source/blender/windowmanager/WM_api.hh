@@ -14,6 +14,7 @@
  * \todo document
  */
 
+#include <functional>
 #include <optional>
 #include <string>
 
@@ -30,6 +31,8 @@
 
 #include "WM_keymap.hh"
 #include "WM_types.hh"
+
+class GHOST_IContext;
 
 namespace blender {
 
@@ -311,6 +314,9 @@ bool WM_window_pixels_read_sample(bContext *C, wmWindow *win, const int pos[2], 
  * Support for native pixel size
  *
  * \note macOS retina opens window in size X, but it has up to 2 x more pixels.
+ *
+ * \warning This includes CSD (Client-Side Decoration) area such as the title-bar.
+ * Use #WM_window_rect_calc to get the usable content bounds.
  */
 int WM_window_native_pixel_x(const wmWindow *win);
 int WM_window_native_pixel_y(const wmWindow *win);
@@ -385,10 +391,10 @@ void WM_window_ensure_active_view_layer(wmWindow *win) ATTR_NONNULL(1);
 
 bool WM_window_is_temp_screen(const wmWindow *win) ATTR_WARN_UNUSED_RESULT;
 
-void *WM_system_gpu_context_create();
-void WM_system_gpu_context_dispose(void *context);
-void WM_system_gpu_context_activate(void *context);
-void WM_system_gpu_context_release(void *context);
+GHOST_IContext *WM_system_gpu_context_create();
+void WM_system_gpu_context_dispose(GHOST_IContext *context);
+void WM_system_gpu_context_activate(GHOST_IContext *context);
+void WM_system_gpu_context_release(GHOST_IContext *context);
 
 /** #WM_window_open alignment. */
 enum eWindowAlignment {
@@ -1681,6 +1687,20 @@ wmDropBox *WM_dropbox_add(ListBaseT<wmDropBox> *lb,
                           void (*cancel)(Main *bmain, wmDrag *drag, wmDropBox *drop),
                           WMDropboxTooltipFunc tooltip);
 /**
+ * Register a "prefetch" handler that gets triggered whenever dragging starts, independent of which
+ * drop handlers are available or will be used in the end.
+ *
+ * #wmDropBox::on_drag_start() is similar, but it will only be executed for drop-boxes visible in a
+ * window. For example, sequencer drop-boxes pre-fetch information about dragged media files this
+ * way, but this should only be done if a sequencer is visible somewhere.
+ *
+ * Contrary to the #wmDropBox::on_drag_start() prefetch handlers, the "global" prefetch handlers
+ * here always trigger for the given data type.
+ */
+void WM_drag_global_prefetch_handler_add(
+    const eWM_DragDataType drag_type,
+    const std::function<void(bContext &C, wmDrag &drag)> on_drag_start);
+/**
  * Ensure operator pointers & properties are valid after operators have been added/removed.
  */
 void WM_dropbox_update_ot();
@@ -1747,7 +1767,7 @@ void WM_drag_add_asset_list_item(wmDrag *drag, const asset_system::AssetRepresen
 
 const ListBaseT<wmDragAssetListItem> *WM_drag_asset_list_get(const wmDrag *drag);
 
-const char *WM_drag_get_item_name(wmDrag *drag);
+const std::string WM_drag_get_item_name(wmDrag *drag);
 
 /* Paths drag and drop. */
 /**
@@ -1893,7 +1913,11 @@ bool WM_jobs_is_running(const wmJob *wm_job);
 bool WM_jobs_is_stopped(const wmWindowManager *wm, const void *owner);
 void *WM_jobs_customdata_get(wmJob *wm_job);
 void WM_jobs_customdata_set(wmJob *wm_job, void *customdata, void (*free)(void *));
-void WM_jobs_timer(wmJob *wm_job, double time_step, unsigned int note, unsigned int endnote);
+void WM_jobs_timer(wmJob *wm_job,
+                   double time_step,
+                   unsigned int note,
+                   unsigned int endnote,
+                   void (*timer_step)(void *) = nullptr);
 void WM_jobs_delay_start(wmJob *wm_job, double delay_time);
 
 using wm_jobs_start_callback = void (*)(void *custom_data, wmJobWorkerStatus *worker_status);
@@ -2064,6 +2088,7 @@ const char *WM_window_cursor_keymap_status_get(const wmWindow *win,
                                                int button_index,
                                                int type_index);
 void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win);
+void WM_window_cursor_keymap_status_free(wmWindow *win);
 
 void WM_window_status_area_tag_redraw(wmWindow *win);
 /**
@@ -2249,7 +2274,6 @@ void WM_xr_session_state_nav_rotation_set(wmXrData *xr, const float rotation[4])
 bool WM_xr_session_state_nav_scale_get(const wmXrData *xr, float *r_scale);
 void WM_xr_session_state_nav_scale_set(wmXrData *xr, float scale);
 void WM_xr_session_state_navigation_reset(wmXrSessionState *state);
-void WM_xr_session_state_vignette_reset(wmXrSessionState *state);
 void WM_xr_session_state_vignette_activate(wmXrData *xr);
 void WM_xr_session_state_vignette_update(wmXrSessionState *state);
 

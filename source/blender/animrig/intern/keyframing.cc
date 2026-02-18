@@ -208,7 +208,7 @@ std::optional<StringRefNull> default_channel_group_for_path(const PointerRNA *an
         prop_rna_path.find("scale") != StringRef::not_found)
     {
       /* NOTE: Keep this label in sync with the "ID" case in
-       * keyingsets_utils.py :: get_transform_generators_base_info()
+       * _keyingsets_utils.py :: get_transform_generators_base_info()
        */
       return "Object Transforms";
     }
@@ -669,7 +669,7 @@ int clear_keyframe(Main *bmain, ReportList *reports, ID *id, const RNAPath &rna_
 
   if (adt->slot_handle) {
     Vector<FCurve *> fcurves;
-    foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
+    foreach_fcurve_in_action_slot_editable(action, adt->slot_handle, [&](FCurve &fcurve) {
       if (rna_path.index.has_value() && rna_path.index.value() != fcurve.array_index) {
         return;
       }

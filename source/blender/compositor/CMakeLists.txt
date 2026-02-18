@@ -403,7 +403,7 @@ set(GLSL_INC
   shaders/infos
 )
 
-set(GLSL_C)
+set(GLSL_C "")
 foreach(GLSL_FILE ${GLSL_SRC})
   glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
@@ -439,16 +439,8 @@ list(APPEND INC ${CMAKE_CURRENT_BINARY_DIR})
 
 target_include_directories(bf_compositor_shaders PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
-if(WITH_TBB)
-  if(WIN32)
-    # TBB includes Windows.h which will define min/max macros
-    # that will collide with the STL versions.
-    add_definitions(-DNOMINMAX)
-  endif()
-endif()
-
 blender_add_lib(bf_compositor "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 if(CXX_WARN_NO_SUGGEST_OVERRIDE)
-  target_compile_options(bf_compositor PRIVATE "-Wsuggest-override")
+  target_compile_options(bf_compositor PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>)
 endif()

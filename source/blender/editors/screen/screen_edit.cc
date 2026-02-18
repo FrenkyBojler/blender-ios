@@ -1058,7 +1058,15 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
 
     if (actedge) {
       if (screen_geom_edge_is_horizontal(actedge)) {
-        WM_cursor_set(win, WM_CURSOR_Y_MOVE);
+        rcti screen_rect;
+        WM_window_screen_rect_calc(win, &screen_rect);
+        /* Check if edge is at top of screen (with small threshold that scales with interface). */
+        if (actedge->v1->vec.y >= screen_rect.ymax - int(2.0f * UI_SCALE_FAC)) {
+          WM_cursor_set(win, WM_CURSOR_DEFAULT);
+        }
+        else {
+          WM_cursor_set(win, WM_CURSOR_Y_MOVE);
+        }
       }
       else {
         WM_cursor_set(win, WM_CURSOR_X_MOVE);
@@ -1277,12 +1285,14 @@ static int screen_global_header_size()
 
 static void screen_global_topbar_area_refresh(wmWindow *win, bScreen *screen)
 {
-  const int2 win_size = WM_window_native_pixel_size(win);
   const short size = screen_global_header_size();
   rcti rect;
 
-  BLI_rcti_init(&rect, 0, win_size[0] - 1, 0, win_size[1] - 1);
-  rect.ymin = rect.ymax - size;
+  /* Use content rect to account for CSD, converted to inclusive bounds for area geometry. */
+  WM_window_rect_calc(win, &rect);
+  rect.xmax -= 1;
+  rect.ymin = (rect.ymax - 1) - size;
+  rect.ymax -= 1;
 
   screen_global_area_refresh(
       win, screen, SPACE_TOPBAR, GLOBAL_AREA_ALIGN_TOP, &rect, size, size, size);
@@ -1290,13 +1300,14 @@ static void screen_global_topbar_area_refresh(wmWindow *win, bScreen *screen)
 
 static void screen_global_statusbar_area_refresh(wmWindow *win, bScreen *screen)
 {
-  const int2 win_size = WM_window_native_pixel_size(win);
   const short size_min = 1;
   const short size_max = 0.85f * screen_global_header_size();
   const short size = (screen->flag & SCREEN_COLLAPSE_STATUSBAR) ? size_min : size_max;
   rcti rect;
 
-  BLI_rcti_init(&rect, 0, win_size[0] - 1, 0, win_size[1] - 1);
+  /* Use content rect to account for CSD, converted to inclusive bounds for area geometry. */
+  WM_window_rect_calc(win, &rect);
+  rect.xmax -= 1;
   rect.ymax = rect.ymin + size_max;
 
   screen_global_area_refresh(
@@ -2017,7 +2028,7 @@ void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph)
 
   DEG_time_tag_update(bmain);
 
-  void *camera = BKE_scene_camera_switch_find(scene);
+  void *camera = BKE_scene_camera_switch_find(scene, int(BKE_scene_ctime_get(scene)));
   if (camera && scene->camera != camera) {
     scene->camera = static_cast<Object *>(camera);
     /* are there cameras in the views that are not in the scene? */

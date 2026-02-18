@@ -256,7 +256,7 @@ static void UNUSED_FUNCTION(rna_Strip_invalidate_composite_update)(Main * /*bmai
   }
 }
 
-static void rna_Strip_scene_switch_update(bContext *C, PointerRNA *ptr)
+static void rna_Strip_scene_sync_update(bContext *C, PointerRNA *ptr)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
@@ -482,7 +482,7 @@ static void rna_Strip_retiming_key_frame_set(PointerRNA *ptr, int value)
     return;
   }
 
-  seq::retiming_key_frame_set(scene, strip, key, value, true);
+  seq::retiming_key_frame_set(scene, strip, key, value);
   seq::relations_invalidate_cache_raw(scene, strip);
 }
 
@@ -704,7 +704,7 @@ static int rna_Strip_time_editable(const PointerRNA *ptr, const char ** /*r_info
 {
   Strip *strip = static_cast<Strip *>(ptr->data);
   /* Effect strips' start frame and length must be readonly! */
-  return (seq::effect_get_num_inputs(strip->type)) ? PropertyFlag(0) : PROP_EDITABLE;
+  return strip->is_effect_with_inputs() ? PropertyFlag(0) : PROP_EDITABLE;
 }
 
 static void rna_Strip_channel_set(PointerRNA *ptr, int value)
@@ -970,6 +970,8 @@ static StructRNA *rna_Strip_refine(PointerRNA *ptr)
       return RNA_AlphaUnderStrip;
     case STRIP_TYPE_GAMCROSS:
       return RNA_GammaCrossStrip;
+    case STRIP_TYPE_COMPOSITOR:
+      return RNA_CompositorStrip;
     case STRIP_TYPE_MUL:
       return RNA_MultiplyStrip;
     case STRIP_TYPE_MULTICAM:
@@ -1146,8 +1148,7 @@ static void rna_Strip_pan_range(
 static int rna_Strip_input_count_get(PointerRNA *ptr)
 {
   Strip *strip = static_cast<Strip *>(ptr->data);
-
-  return seq::effect_get_num_inputs(strip->type);
+  return strip->effect_num_inputs_get();
 }
 
 static void rna_Strip_input_set(PointerRNA *ptr,
@@ -1856,7 +1857,7 @@ static void rna_Strip_SoundEqualizer_Curve_clear(SoundEqualizerModifierData *sem
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, NULL);
 }
 
-static bool rna_CompositorModifier_node_group_poll(PointerRNA * /*ptr*/, PointerRNA value)
+static bool rna_Compositor_node_group_poll(PointerRNA * /*ptr*/, PointerRNA value)
 {
   const bNodeTree *node_tree = value.data_as<bNodeTree>();
   if (node_tree->type != NTREE_COMPOSIT) {
@@ -1865,11 +1866,9 @@ static bool rna_CompositorModifier_node_group_poll(PointerRNA * /*ptr*/, Pointer
   return true;
 }
 
-static void rna_CompositorModifier_node_group_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void strip_compositor_node_group_update(Main *bmain, PointerRNA *ptr)
 {
-  rna_StripModifier_update(bmain, scene, ptr);
-
-  /* Tag depsgraph relations for an update since the modifier could now be referencing a different
+  /* Tag depsgraph relations for an update since the strip could now be referencing a different
    * node tree. */
   DEG_relations_tag_update(bmain);
 
@@ -1878,9 +1877,21 @@ static void rna_CompositorModifier_node_group_update(Main *bmain, Scene *scene, 
   Scene *strip_scene = reinterpret_cast<Scene *>(ptr->owner_id);
   Editing *ed = seq::editing_get(strip_scene);
 
-  /* The sequencer stores a cached mapping between compositor node trees and strips that use them
-   * as a modifier, so we need to invalidate the cache since the node tree changed. */
+  /* The sequencer stores a cached mapping between compositor node trees and strips that use them,
+   * so we need to invalidate the cache since the node tree changed. */
   seq::strip_lookup_invalidate(ed);
+}
+
+static void rna_CompositorEffect_node_group_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  rna_Strip_invalidate_raw_update(bmain, scene, ptr);
+  strip_compositor_node_group_update(bmain, ptr);
+}
+
+static void rna_CompositorModifier_node_group_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  rna_StripModifier_update(bmain, scene, ptr);
+  strip_compositor_node_group_update(bmain, ptr);
 }
 
 }  // namespace blender
@@ -2340,6 +2351,7 @@ static void rna_def_strip_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
                       eSeqModifierType_ColorBalance,
                       "",
                       "Modifier type to add");
+  RNA_def_property_translation_context(parm, BLT_I18NCONTEXT_ID_SEQUENCE);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   /* return type */
   parm = RNA_def_pointer(func, "modifier", "StripModifier", "", "Newly created modifier");
@@ -2390,6 +2402,7 @@ static void rna_def_strip(BlenderRNA *brna)
       {STRIP_TYPE_ALPHAOVER, "ALPHA_OVER", 0, "Alpha Over", ""},
       {STRIP_TYPE_ALPHAUNDER, "ALPHA_UNDER", 0, "Alpha Under", ""},
       {STRIP_TYPE_GAMCROSS, "GAMMA_CROSS", 0, "Gamma Crossfade", ""},
+      {STRIP_TYPE_COMPOSITOR, "COMPOSITOR", 0, "Compositor", ""},
       {STRIP_TYPE_MUL, "MULTIPLY", 0, "Multiply", ""},
       {STRIP_TYPE_WIPE, "WIPE", 0, "Wipe", ""},
       {STRIP_TYPE_GLOW, "GLOW", 0, "Glow", ""},
@@ -3274,13 +3287,13 @@ static void rna_def_scene(BlenderRNA *brna)
   prop = RNA_def_property(srna, "scene", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK | PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Scene", "Scene that this strip uses");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_scene_switch_update");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_scene_sync_update");
 
   prop = RNA_def_property(srna, "scene_camera", PROP_POINTER, PROP_NONE);
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
   RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_Camera_object_poll");
   RNA_def_property_ui_text(prop, "Camera Override", "Override the scene's active camera");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_scene_sync_update");
 
   prop = RNA_def_property(srna, "scene_input", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag");
@@ -3612,6 +3625,17 @@ static void rna_def_glow(StructRNA *srna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 }
 
+static void rna_def_compositor_effect(StructRNA *srna)
+{
+  RNA_def_struct_sdna_from(srna, "CompositorEffectVars", "effectdata");
+  PropertyRNA *prop = RNA_def_property(srna, "node_group", PROP_POINTER, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Node Group", "Node group that controls what this effect does");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_Compositor_node_group_poll");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_CompositorEffect_node_group_update");
+}
+
 static void rna_def_solid_color(StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -3940,6 +3964,7 @@ static EffectInfo def_effects[] = {
      0},
     {"CrossStrip", "Crossfade Strip", "Crossfade Strip", nullptr, 2},
     {"GammaCrossStrip", "Gamma Crossfade Strip", "Gamma Crossfade Strip", nullptr, 2},
+    {"CompositorStrip", "Compositor Strip", "Compositor Strip", rna_def_compositor_effect, 2},
     {"GlowStrip", "Glow Strip", "Sequence strip creating a glow effect", rna_def_glow, 1},
     {"MulticamStrip",
      "Multicam Select Strip",
@@ -4036,6 +4061,7 @@ static void rna_def_modifier(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_enum_items(prop, rna_enum_strip_modifier_type_items);
   RNA_def_property_ui_text(prop, "Type", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SEQUENCE);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 
   prop = RNA_def_property(srna, "mute", PROP_BOOLEAN, PROP_NONE);
@@ -4286,7 +4312,7 @@ static void rna_def_compositor_modifier(BlenderRNA *brna)
   PropertyRNA *prop = RNA_def_property(srna, "node_group", PROP_POINTER, PROP_NONE);
   RNA_def_property_ui_text(prop, "Node Group", "Node group that controls what this modifier does");
   RNA_def_property_pointer_funcs(
-      prop, nullptr, nullptr, nullptr, "rna_CompositorModifier_node_group_poll");
+      prop, nullptr, nullptr, nullptr, "rna_Compositor_node_group_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_CompositorModifier_node_group_update");

@@ -1031,7 +1031,7 @@ static bool lib_override_hierarchy_dependencies_recursive_tag(LibOverrideGroupTa
     if (lib_override_hierarchy_dependencies_relationship_skip_check(to_id_entry)) {
       continue;
     }
-    ID *to_id = *to_id_entry->id_pointer.to;
+    ID *to_id = to_id_entry->id_pointer.to;
     if (lib_override_hierarchy_dependencies_skip_check(id, to_id, is_override)) {
       continue;
     }
@@ -1079,7 +1079,7 @@ static void lib_override_linked_group_tag_recursive(LibOverrideGroupTagData *dat
     if (lib_override_hierarchy_dependencies_relationship_skip_check(to_id_entry)) {
       continue;
     }
-    ID *to_id = *to_id_entry->id_pointer.to;
+    ID *to_id = to_id_entry->id_pointer.to;
     BLI_assert(ID_IS_LINKED(to_id));
     if (lib_override_hierarchy_dependencies_skip_check(id_owner, to_id, false)) {
       continue;
@@ -1347,7 +1347,7 @@ static void lib_override_overrides_group_tag_recursive(LibOverrideGroupTagData *
     if (lib_override_hierarchy_dependencies_relationship_skip_check(to_id_entry)) {
       continue;
     }
-    ID *to_id = *to_id_entry->id_pointer.to;
+    ID *to_id = to_id_entry->id_pointer.to;
     if (lib_override_hierarchy_dependencies_skip_check(id_owner, to_id, true)) {
       continue;
     }
@@ -1951,7 +1951,7 @@ static void lib_override_root_hierarchy_set(
     if (lib_override_hierarchy_dependencies_relationship_skip_check(to_id_entry)) {
       continue;
     }
-    ID *to_id = *to_id_entry->id_pointer.to;
+    ID *to_id = to_id_entry->id_pointer.to;
     if (lib_override_hierarchy_dependencies_skip_check(id, to_id, true)) {
       continue;
     }
@@ -3146,7 +3146,7 @@ static void lib_override_resync_tagging_finalize_recurse(Main *bmain,
     if (lib_override_hierarchy_dependencies_relationship_skip_check(entry_item)) {
       continue;
     }
-    ID *id_to = *(entry_item->id_pointer.to);
+    ID *id_to = entry_item->id_pointer.to;
     /* Ensure the 'real' override is processed, in case `id_to` is e.g. an embedded ID, get its
      * owner instead. */
     BKE_lib_override_library_get(bmain, id_to, nullptr, &id_to);
@@ -3270,7 +3270,7 @@ static bool lib_override_resync_tagging_finalize_recursive_check_from(
     if (lib_override_hierarchy_dependencies_relationship_skip_check(to_id_entry)) {
       continue;
     }
-    ID *to_id = *(to_id_entry->id_pointer.to);
+    ID *to_id = to_id_entry->id_pointer.to;
     if (lib_override_library_main_resync_id_skip_check(to_id, library_indirect_level)) {
       continue;
     }
@@ -3527,7 +3527,7 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
       if (lib_override_hierarchy_dependencies_relationship_skip_check(entry_item)) {
         continue;
       }
-      ID *id_to = *entry_item->id_pointer.to;
+      ID *id_to = entry_item->id_pointer.to;
 
       /* Case where this ID pointer was to a linked ID, that now needs to be overridden. */
       if (ID_IS_LINKED(id_to) && (id_to->lib != id->lib) && (id_to->tag & ID_TAG_DOIT) != 0) {
@@ -3786,30 +3786,59 @@ static int lib_override_sort_libraries_func(LibraryIDLinkCallbackData *cb_data)
   }
   ID *id_owner = cb_data->owner_id;
   ID *id = *cb_data->id_pointer;
-  if (id != nullptr && ID_IS_LINKED(id) && id->lib != id_owner->lib) {
-    const int owner_library_indirect_level = ID_IS_LINKED(id_owner) ?
-                                                 id_owner->lib->runtime->temp_index :
-                                                 0;
+  if (id != nullptr && ID_IS_LINKED(id)) {
+    /* Archive libraries, used to store packed data, should not be processed here, as conceptually
+     * they are the same thing as the source/real library when it comes to dependency. And they can
+     * easily lead to fake cyclic dependencies, as packed IDs that depend on each other may end up
+     * in different archived libraries.
+     *
+     * Bottom line being, only consider 'real' libraries for dependencies here, the archive ones
+     * only add noise and artifacts, and do not need to be processed. */
+    auto get_real_library = [](ID *id) -> Library * {
+      if (!ID_IS_LINKED(id)) {
+        return nullptr;
+      }
+      Library *id_lib_valid = id->lib;
+      if (id_lib_valid->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+        BLI_assert(ID_IS_PACKED(id));
+        BLI_assert(id_lib_valid->archive_parent_library);
+        id_lib_valid = id_lib_valid->archive_parent_library;
+      }
+      return id_lib_valid;
+    };
+
+    Library *id_lib = get_real_library(id);
+    BLI_assert(id_lib);
+    Library *id_owner_lib = get_real_library(id_owner);
+    if (id_lib == id_owner_lib) {
+      return IDWALK_RET_NOP;
+    }
+
+    const int owner_library_indirect_level = id_owner_lib ? id_owner_lib->runtime->temp_index : 0;
     if (owner_library_indirect_level > 100) {
       CLOG_ERROR(&LOG_RESYNC,
                  "Levels of indirect usages of libraries is way too high, there are most likely "
                  "dependency loops, skipping further building loops (involves at least '%s' from "
                  "'%s' and '%s' from '%s')",
                  id_owner->name,
-                 id_owner->lib->filepath,
+                 id_owner_lib->filepath,
                  id->name,
-                 id->lib->filepath);
-      return IDWALK_RET_NOP;
+                 id_lib->filepath);
+      /* Ensure a library part of a dependency is not considered as a root one (i.e. it does not
+       * get a `0` temp index). */
+      if (id->lib->runtime->temp_index > 0) {
+        return IDWALK_RET_NOP;
+      }
     }
-    if (owner_library_indirect_level > 90) {
+    else if (owner_library_indirect_level > 90) {
       CLOG_WARN(
           &LOG_RESYNC,
           "Levels of indirect usages of libraries is suspiciously too high, there are most likely "
           "dependency loops (involves at least '%s' from '%s' and '%s' from '%s')",
           id_owner->name,
-          id_owner->lib->filepath,
+          id_owner_lib->filepath,
           id->name,
-          id->lib->filepath);
+          id_lib->filepath);
     }
 
     if (owner_library_indirect_level >= id->lib->runtime->temp_index) {
@@ -5065,8 +5094,8 @@ static void lib_override_library_id_hierarchy_recursive_reset(Main *bmain,
       continue;
     }
     /* We only consider IDs from the same library. */
-    if (*to_id_entry->id_pointer.to != nullptr) {
-      ID *to_id = *to_id_entry->id_pointer.to;
+    if (to_id_entry->id_pointer.to != nullptr) {
+      ID *to_id = to_id_entry->id_pointer.to;
       if (to_id->override_library != nullptr) {
         lib_override_library_id_hierarchy_recursive_reset(bmain, to_id, do_reset_system_override);
       }

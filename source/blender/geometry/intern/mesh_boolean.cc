@@ -107,8 +107,7 @@ void copy_attribute_using_map(const Span<T> src, const Span<int> out_to_in_map, 
 void copy_attribute_using_map(const GSpan src, const Span<int> out_to_in_map, GMutableSpan dst)
 {
   const CPPType &type = dst.type();
-  bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
-    using T = decltype(dummy);
+  bke::attribute_math::to_static_type(type, [&]<typename T>() {
     copy_attribute_using_map(src.typed<T>(), out_to_in_map, dst.typed<T>());
   });
 }
@@ -141,6 +140,14 @@ void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
     if (!reader) {
       return;
     }
+
+    const CommonVArrayInfo info = reader.varray.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const bke::AttributeInitValue init(GPointer(reader.varray.type(), info.data));
+      output_attrs.add(iter.name, iter.domain, iter.data_type, init);
+      return;
+    }
+
     writers.append(
         output_attrs.lookup_or_add_for_write_span(iter.name, iter.domain, iter.data_type));
     readers.append(input_attrs.lookup_or_default(iter.name, iter.domain, iter.data_type));
@@ -235,8 +242,7 @@ void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
               GMutableSpan dst = dsts[attr_index];
               const bool need_flip = face_is_flipped && is_normal_attribute[attr_index];
               const CPPType &type = dst.type();
-              bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
-                using T = decltype(dummy);
+              bke::attribute_math::to_static_type(type, [&]<typename T>() {
                 const Span<T> src_typed = src.typed<T>();
                 MutableSpan<T> dst_typed = dst.typed<T>();
                 bke::attribute_math::DefaultMixer<T> mixer{MutableSpan(&dst_typed[out_c], 1)};
@@ -699,6 +705,12 @@ static void gather_attributes_with_check(const bke::AttributeAccessor src_attrib
       return;
     }
     const bke::GAttributeReader src = iter.get(src_domain);
+    const CommonVArrayInfo info = src.varray.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const bke::AttributeInitValue init(GPointer(src.varray.type(), info.data));
+      dst_attributes.add(iter.name, iter.domain, iter.data_type, init);
+      return;
+    }
     bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, dst_domain, iter.data_type);
     if (!dst) {

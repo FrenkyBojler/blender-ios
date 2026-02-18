@@ -411,7 +411,7 @@ static void scene_free_data(ID *id)
   BKE_image_format_free(&scene->r.im_format);
   BKE_image_format_free(&scene->r.bake.im_format);
 
-  BKE_previewimg_free(&scene->preview);
+  BKE_previewimg_id_free(&scene->id);
   BKE_curvemapping_free_data(&scene->r.mblur_shutter_curve);
 
   for (ViewLayer &view_layer : scene->view_layers.items_mutable()) {
@@ -662,7 +662,7 @@ static void scene_foreach_toolsettings(LibraryForeachIDData *data,
                                                     &toolsett_old->imapaint.canvas,
                                                     IDWALK_CB_USER);
 
-  /* These two Object pointers should just follow the normal Undo behaviour. See #153065. */
+  /* These two Object pointers should just follow the normal Undo behavior. See #153065. */
   BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
                                                     &toolsett->anim_mirror_object,
                                                     do_undo_restore,
@@ -829,6 +829,10 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   IDP_foreach_property(strip->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
     BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
   });
+  if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata) {
+    CompositorEffectVars *comp_data = static_cast<CompositorEffectVars *>(strip->effectdata);
+    FOREACHID_PROCESS_IDSUPER(data, comp_data->node_group, IDWALK_CB_USER);
+  }
   /* TODO: This could use `seq::foreach_strip_modifier_id`, but because `FOREACHID_PROCESS_IDSUPER`
    * doesn't take IDs but "ID supers", it makes it a bit more cumbersome. */
   for (StripModifierData &smd : strip->modifiers) {
@@ -1615,39 +1619,39 @@ static void scene_lib_override_apply_post(ID *id_dst, ID * /*id_src*/)
 }
 
 IDTypeInfo IDType_ID_SCE = {
-    /*id_code*/ Scene::id_type,
-    /*id_filter*/ FILTER_ID_SCE,
-    /*dependencies_id_types*/
-    (FILTER_ID_OB | FILTER_ID_WO | FILTER_ID_SCE | FILTER_ID_MC | FILTER_ID_MA | FILTER_ID_GR |
-     FILTER_ID_TXT | FILTER_ID_LS | FILTER_ID_MSK | FILTER_ID_SO | FILTER_ID_GD_LEGACY |
-     FILTER_ID_BR | FILTER_ID_PAL | FILTER_ID_IM | FILTER_ID_NT),
-    /*main_listbase_index*/ INDEX_ID_SCE,
-    /*struct_size*/ sizeof(Scene),
-    /*name*/ "Scene",
-    /*name_plural*/ "scenes",
-    /*translation_context*/ BLT_I18NCONTEXT_ID_SCENE,
-    /*flags*/ IDTYPE_FLAGS_NEVER_UNUSED,
-    /*asset_type_info*/ nullptr,
+    .id_code = Scene::id_type,
+    .id_filter = FILTER_ID_SCE,
+    .dependencies_id_types = (FILTER_ID_OB | FILTER_ID_WO | FILTER_ID_SCE | FILTER_ID_MC |
+                              FILTER_ID_MA | FILTER_ID_GR | FILTER_ID_TXT | FILTER_ID_LS |
+                              FILTER_ID_MSK | FILTER_ID_SO | FILTER_ID_GD_LEGACY | FILTER_ID_BR |
+                              FILTER_ID_PAL | FILTER_ID_IM | FILTER_ID_NT),
+    .main_listbase_index = INDEX_ID_SCE,
+    .struct_size = sizeof(Scene),
+    .name = "Scene",
+    .name_plural = "scenes",
+    .translation_context = BLT_I18NCONTEXT_ID_SCENE,
+    .flags = IDTYPE_FLAGS_NEVER_UNUSED,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ scene_init_data,
-    /*copy_data*/ scene_copy_data,
-    /*free_data*/ scene_free_data,
+    .init_data = scene_init_data,
+    .copy_data = scene_copy_data,
+    .free_data = scene_free_data,
     /* For now default `BKE_lib_id_make_local_generic()` should work, may need more work though to
      * support all possible corner cases. */
-    /*make_local*/ nullptr,
-    /*foreach_id*/ scene_foreach_id,
-    /*foreach_cache*/ scene_foreach_cache,
-    /*foreach_path*/ scene_foreach_path,
-    /*foreach_working_space_color*/ scene_foreach_working_space_color,
-    /*owner_pointer_get*/ nullptr,
+    .make_local = nullptr,
+    .foreach_id = scene_foreach_id,
+    .foreach_cache = scene_foreach_cache,
+    .foreach_path = scene_foreach_path,
+    .foreach_working_space_color = scene_foreach_working_space_color,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ scene_blend_write,
-    /*blend_read_data*/ scene_blend_read_data,
-    /*blend_read_after_liblink*/ scene_blend_read_after_liblink,
+    .blend_write = scene_blend_write,
+    .blend_read_data = scene_blend_read_data,
+    .blend_read_after_liblink = scene_blend_read_after_liblink,
 
-    /*blend_read_undo_preserve*/ scene_undo_preserve,
+    .blend_read_undo_preserve = scene_undo_preserve,
 
-    /*lib_override_apply_post*/ scene_lib_override_apply_post,
+    .lib_override_apply_post = scene_lib_override_apply_post,
 };
 
 /** \} */
@@ -2338,13 +2342,12 @@ Scene *BKE_scene_find_from_collection(const Main *bmain, const Collection *colle
   return nullptr;
 }
 
-Object *BKE_scene_camera_switch_find(Scene *scene)
+Object *BKE_scene_camera_switch_find(const Scene *scene, const int time)
 {
   if (scene->r.mode & R_NO_CAMERA_SWITCH) {
     return nullptr;
   }
 
-  const int ctime = int(BKE_scene_ctime_get(scene));
   int frame = -(MAXFRAME + 1);
   int min_frame = MAXFRAME + 1;
   Object *camera = nullptr;
@@ -2352,11 +2355,11 @@ Object *BKE_scene_camera_switch_find(Scene *scene)
 
   for (TimeMarker &m : scene->markers) {
     if (m.camera && (m.camera->visibility_flag & OB_HIDE_RENDER) == 0) {
-      if ((m.frame <= ctime) && (m.frame > frame)) {
+      if ((m.frame <= time) && (m.frame > frame)) {
         camera = m.camera;
         frame = m.frame;
 
-        if (frame == ctime) {
+        if (frame == time) {
           break;
         }
       }
@@ -2381,7 +2384,7 @@ Object *BKE_scene_camera_switch_find(Scene *scene)
 
 bool BKE_scene_camera_switch_update(Scene *scene)
 {
-  Object *camera = BKE_scene_camera_switch_find(scene);
+  Object *camera = BKE_scene_camera_switch_find(scene, int(BKE_scene_ctime_get(scene)));
   if (camera && (camera != scene->camera)) {
     scene->camera = camera;
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_PARAMETERS);
@@ -3388,7 +3391,7 @@ struct DepsgraphKey {
     return get_default_hash(this->view_layer);
   }
 
-  BLI_STRUCT_EQUALITY_OPERATORS_1(DepsgraphKey, view_layer)
+  friend bool operator==(const DepsgraphKey &a, const DepsgraphKey &b) = default;
 };
 
 static void depsgraph_key_value_free(void *value)

@@ -177,7 +177,6 @@ bool effects_can_render_text(const Strip *strip)
 
 static void init_text_effect(Strip *strip)
 {
-  MEM_SAFE_DELETE_VOID(strip->effectdata);
   TextVars *data = MEM_new<TextVars>("textvars");
   strip->effectdata = data;
 
@@ -298,11 +297,6 @@ static void copy_text_effect(Strip *dst, const Strip *src, const int flag)
   text_font_load(data, (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0);
 
   dst->effectdata = data;
-}
-
-static int num_inputs_text()
-{
-  return 0;
 }
 
 static StripEarlyOut early_out_text(const Strip *strip, float /*fac*/)
@@ -1107,7 +1101,6 @@ static ImBuf *do_text_effect(const RenderData *context,
 
 void text_effect_get_handle(EffectHandle &rval)
 {
-  rval.num_inputs = num_inputs_text;
   rval.init = init_text_effect;
   rval.free = free_text_effect;
   rval.copy = copy_text_effect;
