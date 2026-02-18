@@ -11957,7 +11957,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
 
 static constexpr float menu_max_dim_factor = 0.25f;
 static constexpr float menu_dim_step_in = 0.015f;
-static constexpr float menu_dim_step_out = -0.02f;
+static constexpr float menu_dim_step_out = -0.025f;
 static constexpr float menu_dim_step_interval = 0.015f;
 
 bool ui_menus_dim_recursive(bContext *C, PopupBlockHandle *menu, const wmEvent *event, int level)
