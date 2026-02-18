@@ -136,6 +136,8 @@ class Action : public bAction {
    */
   bool layer_remove(Layer &layer_to_remove);
 
+  void layer_set_active(Layer &layer);
+
   /**
    * Ensure that there is at least one layer with the infinite keyframe strip.
    *

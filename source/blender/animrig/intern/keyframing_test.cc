@@ -997,7 +997,7 @@ class KeyframeDeleteTest : public testing::Test {
   const char *TEST_RNA_PATH = "rotation_euler";
   Object *object;
   PointerRNA object_rna_pointer;
-  Action *single_layer_action;
+  Action *test_action;
   ReportList reports;
 
   static void SetUpTestSuite()
@@ -1038,11 +1038,11 @@ class KeyframeDeleteTest : public testing::Test {
     ASSERT_EQ(3, result.get_count(SingleKeyingResult::SUCCESS));
     ASSERT_NE(object->adt->action, nullptr);
 
-    single_layer_action = &object->adt->action->wrap();
-    ASSERT_EQ(single_layer_action->layers().size(), 1);
-    ASSERT_EQ(single_layer_action->layer(0)->strips().size(), 1);
-    StripKeyframeData &strip_data =
-        single_layer_action->layer(0)->strip(0)->data<StripKeyframeData>(*single_layer_action);
+    test_action = &object->adt->action->wrap();
+    ASSERT_EQ(test_action->layers().size(), 1);
+    ASSERT_EQ(test_action->layer(0)->strips().size(), 1);
+    StripKeyframeData &strip_data = test_action->layer(0)->strip(0)->data<StripKeyframeData>(
+        *test_action);
     Channelbag *channelbag = strip_data.channelbag_for_slot(object->adt->slot_handle);
     ASSERT_NE(channelbag, nullptr);
 
@@ -1058,8 +1058,8 @@ class KeyframeDeleteTest : public testing::Test {
 
 TEST_F(KeyframeDeleteTest, delete_keyframe_single_layer)
 {
-  StripKeyframeData &strip_data = single_layer_action->layer(0)->strip(0)->data<StripKeyframeData>(
-      *single_layer_action);
+  StripKeyframeData &strip_data = test_action->layer(0)->strip(0)->data<StripKeyframeData>(
+      *test_action);
   Channelbag *channelbag = strip_data.channelbag_for_slot(object->adt->slot_handle);
 
   EXPECT_EQ(channelbag->fcurves().size(), 3);
@@ -1072,9 +1072,8 @@ TEST_F(KeyframeDeleteTest, delete_keyframe_single_layer)
 
 TEST_F(KeyframeDeleteTest, delete_keyframe_single_layer_locked_fcurves)
 {
-  return;
-  StripKeyframeData &strip_data = single_layer_action->layer(0)->strip(0)->data<StripKeyframeData>(
-      *single_layer_action);
+  StripKeyframeData &strip_data = test_action->layer(0)->strip(0)->data<StripKeyframeData>(
+      *test_action);
   Channelbag *channelbag = strip_data.channelbag_for_slot(object->adt->slot_handle);
 
   EXPECT_EQ(channelbag->fcurves().size(), 3);
@@ -1090,33 +1089,42 @@ TEST_F(KeyframeDeleteTest, delete_keyframe_single_layer_locked_fcurves)
 
 TEST_F(KeyframeDeleteTest, delete_keyframe_multi_layer)
 {
-  return;
-  Layer &second_layer = single_layer_action->layer_add("second");
-  Strip &second_strip = second_layer.strip_add(*single_layer_action, Strip::Type::Keyframe);
-  StripKeyframeData &second_layer_keydata = second_strip.data<StripKeyframeData>(
-      *single_layer_action);
+  Layer &first_layer = *test_action->layer(0);
+  Layer &second_layer = test_action->layer_add("second");
+  Strip &second_strip = second_layer.strip_add(*test_action, Strip::Type::Keyframe);
+  StripKeyframeData &second_layer_keydata = second_strip.data<StripKeyframeData>(*test_action);
   Channelbag &second_layer_channelbag = second_layer_keydata.channelbag_for_slot_add(
       object->adt->slot_handle);
 
-  Slot *slot = single_layer_action->slot_for_handle(object->adt->slot_handle);
+  Slot *slot = test_action->slot_for_handle(object->adt->slot_handle);
   ASSERT_NE(slot, nullptr);
-  second_layer_keydata.keyframe_insert(
-      bmain, *slot, {TEST_RNA_PATH}, {2.0, 0.0}, {BEZT_KEYTYPE_KEYFRAME, HD_FREE, BEZT_IPO_LIN});
-  EXPECT_EQ(second_layer_channelbag.fcurves().size(), 3);
+  second_layer_keydata.keyframe_insert(bmain,
+                                       *slot,
+                                       {TEST_RNA_PATH, 0},
+                                       {2.0, 0.0},
+                                       {BEZT_KEYTYPE_KEYFRAME, HD_FREE, BEZT_IPO_LIN});
+  EXPECT_EQ(second_layer_channelbag.fcurves().size(), 1);
 
   StripKeyframeData &first_layer_keydata =
-      single_layer_action->layer(0)->strip(0)->data<StripKeyframeData>(*single_layer_action);
+      test_action->layer(0)->strip(0)->data<StripKeyframeData>(*test_action);
   Channelbag *first_layer_channelbag = first_layer_keydata.channelbag_for_slot(
       object->adt->slot_handle);
-
   EXPECT_EQ(first_layer_channelbag->fcurves().size(), 3);
 
+  test_action->layer_set_active(second_layer);
   delete_keyframe(bmain, &reports, &object->id, {TEST_RNA_PATH}, 1.0);
 
-  EXPECT_EQ(first_layer_channelbag->fcurves().size(), 0);
-  EXPECT_EQ(second_layer_channelbag.fcurves().size(), 3);
+  /* Should only remove from active layer, which is the second layer and that has no keyframes on
+   * frame 1. */
+  EXPECT_EQ(first_layer_channelbag->fcurves().size(), 3);
+  EXPECT_EQ(second_layer_channelbag.fcurves().size(), 1);
 
   delete_keyframe(bmain, &reports, &object->id, {TEST_RNA_PATH}, 2.0);
+  EXPECT_EQ(first_layer_channelbag->fcurves().size(), 3);
+  EXPECT_EQ(second_layer_channelbag.fcurves().size(), 0);
+
+  test_action->layer_set_active(first_layer);
+  delete_keyframe(bmain, &reports, &object->id, {TEST_RNA_PATH}, 1.0);
   EXPECT_EQ(first_layer_channelbag->fcurves().size(), 0);
   EXPECT_EQ(second_layer_channelbag.fcurves().size(), 0);
 }
