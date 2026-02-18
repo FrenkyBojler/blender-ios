@@ -25,12 +25,15 @@ class VRActionRegistry:
 
     def __new__(cls):
         if cls._instance is None:
+            print("Creating VRActionRegistry instance.")
             cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):
         if self._initialized:
+            print("Instance already initialized. Skipping __init__ logic.")
             return
+        print("Initializing VRActionRegistry instance.")
         self._initialized = True
         self.actions = {}
         self.profiles = {}
@@ -43,10 +46,13 @@ class VRActionRegistry:
         else:
             bucket.append(action)
         self.dirty = True
+        print(f'ActionRegister(): register_action({action.name})')
 
     def register_profile(self, profile):
         if profile.name in self.profiles:
+            print(f'ActionRegister(): failed to register profile ({profile.name}) because already registered')
             return
+        print(f'ActionRegister(): register_profile({profile.name})')
         self.profiles[profile.name] = profile
         self.dirty = True
 
@@ -112,9 +118,12 @@ class VRActionRegistry:
                     profile = self.profiles[profile_name]
                     slot.vr_action_map_item_add(item, profile)
 
+    def get_profile_setting_name(profile_name):
+        return f"vr_actions_enable_{profile_name}"
+
     def destroy_profile_settings(self):
         for profile in self.profiles.values():
-            setting_name = f"vr_actions_enable_{profile.name}"
+            setting_name = VRActionRegistry.get_profile_setting_name(profile.name)
             if hasattr(bpy.types.Scene, setting_name):
                 print(f"ActionRegistry(): Removing property {setting_name} from bpy.types.Scene")
                 delattr(bpy.types.Scene, setting_name)
@@ -125,13 +134,31 @@ class VRActionRegistry:
             if profile.requires_opt_in
         ]
     
+    def get_profile_enabled(self, profile_name):
+        if profile_name not in self.profiles:
+            print(f'ActionRegistry(): get_profile_enabled({profile_name}) = false because {profile_name} not in registered profiles')
+            return False
+        
+        # Check if profile requires opt-in
+        profile = self.profiles[profile_name]
+        if not profile.requires_opt_in:
+            print(f'ActionRegistry(): get_profile_enabled({profile_name}) = true because {profile_name} does not require opt-in')
+            return True
+
+        # If profile opt-in is required, then return the current setting value
+        setting_name = VRActionRegistry.get_profile_setting_name(profile_name)
+        assert hasattr(bpy.context.scene, setting_name)
+        result = getattr(bpy.context.scene, setting_name)
+        print(f'ActionRegistry(): get_profile_enabled({profile_name}) = {result} because bpy.context.scene.{setting_name} is {result}')
+        return result
+
     def build_profile_settings(self):   
         print("ActionRegistry(): build_profile_settings")
         self.destroy_profile_settings()
 
         opt_in_profiles = self.get_opt_in_profiles()
         for profile in opt_in_profiles:
-            setting_name =  f"vr_actions_enable_{profile.name}"
+            setting_name = VRActionRegistry.get_profile_setting_name(profile.name)
             profile_setting = bpy.props.BoolProperty(
                 description=(
                     f"Enable bindings for the {profile.ui_label} controllers. "

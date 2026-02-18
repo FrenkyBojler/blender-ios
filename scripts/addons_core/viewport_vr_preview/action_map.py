@@ -50,9 +50,10 @@ def vr_create_actions(context: bpy.context):
         return
 
     # Ensure default action maps.
-    if not action_registry.VRActionRegistry().ensure_actionmaps(session_state):
+    registry = action_registry.VRActionRegistry()
+    if not registry.ensure_actionmaps(session_state):
         return
-
+    
     print("vr_create_actions: begin registration")
     for am in session_state.actionmaps:
         print(f"vr_create_actions: registering actionmap {am.name}")
@@ -71,10 +72,12 @@ def vr_create_actions(context: bpy.context):
             print(f"vr_create_actions: registering action {ami.name} for actionmap {am.name}")
             
             if len(ami.bindings) < 1:
+                print(f"vr_create_actions: registration failed for action {ami.name} for actionmap {am.name} because no bindings exist")
                 continue
 
             ok = session_state.action_create(context, am, ami)
             if not ok:
+                print(f"vr_create_actions: registration failed for action {ami.name} for actionmap {am.name}")
                 return
 
             if ami.type == 'POSE':
@@ -84,6 +87,10 @@ def vr_create_actions(context: bpy.context):
                     controller_aim_name = ami.name
 
             for amb in ami.bindings:
+                print(f"vr_create_actions: checking if enabled action map binding {amb.name} ({amb.profile}) for action {ami.name} for actionmap {am.name}")
+                if not registry.get_profile_enabled(amb.name):
+                    continue
+
                 print(f"vr_create_actions: creating action map binding {amb.name} ({amb.profile}) for action {ami.name} for actionmap {am.name}")
                 ok = session_state.action_binding_create(context, am, ami, amb)
                 if not ok:
