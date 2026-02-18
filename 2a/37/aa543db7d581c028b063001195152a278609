@@ -1,1 +1,2 @@
 Referenced by issue #154555, Grease Pencil: crash when drawing in a heavy gp object (500k points)
+Referenced by issue #154554, Grease pencil: Stroke duplication issue in heavy scenes (regression from 5.0)
