@@ -1108,16 +1108,13 @@ static void gizmo_node_split_foreach_rna_prop(
   PointerRNA position_ptr = RNA_pointer_create_discrete(
       &node_tree.id, RNA_NodeSocket, position_socket);
   PropertyRNA *position_prop = RNA_struct_find_property(&position_ptr, "default_value");
-  const int position_array_len = RNA_property_array_length(&position_ptr, position_prop);
 
   bNodeSocket *rotation_socket = bke::node_find_socket(*node, SOCK_IN, "Rotation");
   PointerRNA rotation_ptr = RNA_pointer_create_discrete(
       &node_tree.id, RNA_NodeSocket, rotation_socket);
   PropertyRNA *rotation_prop = RNA_struct_find_property(&position_ptr, "default_value");
 
-  for (int i = 0; i < position_array_len; i++) {
-    callback(position_ptr, position_prop, i);
-  }
+  callback(position_ptr, position_prop, -1);
   callback(rotation_ptr, rotation_prop, 0);
 }
 
