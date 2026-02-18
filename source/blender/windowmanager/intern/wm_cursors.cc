@@ -228,13 +228,9 @@ static uint8_t *cursor_bitmap_from_svg(const char *svg,
   UNUSED_VARS(svg, cursor_size, alloc_fn, r_bitmap_size);
   return nullptr;
 #else
-  /* Intialize the ThorVG engine. Use only the main thread. */
-  tvg::Initializer::init(0);
-
   /* Create a Picture and parse the SVG into it. */
   tvg::Picture *picture = tvg::Picture::gen();
   if (picture->load(svg, strlen(svg), "svg", nullptr, false) != tvg::Result::Success) {
-    tvg::Initializer::term();
     return nullptr;
   }
 
@@ -253,7 +249,6 @@ static uint8_t *cursor_bitmap_from_svg(const char *svg,
   uint8_t *bitmap_rgba = alloc_fn(sizeof(uint8_t[4]) * dest_size[0] * dest_size[1]);
   if (bitmap_rgba == nullptr) {
     tvg::Paint::rel(picture);
-    tvg::Initializer::term();
     return nullptr;
   }
 
@@ -271,9 +266,6 @@ static uint8_t *cursor_bitmap_from_svg(const char *svg,
   /* Draw to the bitmap. */
   canvas->draw(true);
   canvas->sync();
-
-  /* Shut down the ThorVG engine. */
-  tvg::Initializer::term();
 
   /* Return the bitmap size to the caller. */
   r_bitmap_size[0] = dest_size[0];

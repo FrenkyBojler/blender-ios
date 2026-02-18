@@ -80,12 +80,12 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   bf_intern_memutil
   PRIVATE bf::imbuf::opencolorio
-  PRIVATE bf::extern::nanosvg
 
   PRIVATE bf::sequencer
   PRIVATE bf::dependencies::zlib
   PRIVATE bf::dependencies::openimageio
   PRIVATE bf::dependencies::jpeg
+  PRIVATE bf::dependencies::optional::thorvg
 )
 
 if(WITH_IMAGE_OPENEXR)

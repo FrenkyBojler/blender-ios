@@ -68,6 +68,10 @@
 #  include "BPY_extern_run.hh"
 #endif
 
+#ifndef WITH_HEADLESS
+#  include "thorvg.h"
+#endif
+
 #include "GHOST_ISystem.hh"
 
 #include "RNA_define.hh"
@@ -231,6 +235,11 @@ void WM_init(bContext *C, int argc, const char **argv)
   ED_node_init_butfuncs();
 
   BLF_init();
+
+  /* Initialize ThorVG engine. */
+#ifndef WITH_HEADLESS
+  tvg::Initializer::init(0);
+#endif
 
   BLT_lang_init();
   /* Must call first before doing any `.blend` file reading,
@@ -618,6 +627,11 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   WM_uilisttype_free();
 
   BLF_exit();
+
+/* Shut down the ThorVG engine. */
+#ifndef WITH_HEADLESS
+  tvg::Initializer::term();
+#endif
 
   BLT_lang_free();
 

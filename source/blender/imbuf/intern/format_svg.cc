@@ -14,7 +14,7 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_filetype.hh"
 #include "IMB_imbuf_types.hh"
-#include "nanosvgrast.h"
+#include "thorvg.h"
 
 namespace blender {
 
@@ -25,42 +25,50 @@ ImBuf *imb_load_filepath_thumbnail_svg(const char *filepath,
                                        size_t *r_width,
                                        size_t *r_height)
 {
-  NSVGimage *image = nsvgParseFromFile(filepath, "px", 96.0f);
+  /* Create a Picture and parse the SVG into it. */
+  tvg::Picture *picture = tvg::Picture::gen();
 
-  if (image == nullptr) {
+  if (picture->load(filepath) != tvg::Result::Success) {
     return nullptr;
   }
 
-  if (image->width == 0 || image->height == 0) {
-    nsvgDelete(image);
+  float width;
+  float height;
+  picture->size(&width, &height);
+
+  if (width == 0 || height == 0) {
     return nullptr;
   }
 
-  int w = int(image->width);
-  int h = int(image->height);
-
-  /* Return full size of the image. */
-  *r_width = size_t(w);
-  *r_height = size_t(h);
-
-  NSVGrasterizer *rast = nsvgCreateRasterizer();
-  if (rast == nullptr) {
-    nsvgDelete(image);
-    return nullptr;
-  }
-
-  const float scale = float(max_thumb_size) / std::max(w, h);
-  const int dest_w = std::max(int(w * scale), 1);
-  const int dest_h = std::max(int(h * scale), 1);
-
+  const float scale = float(max_thumb_size) / std::max(width, height);
+  const int dest_w = std::max(int(width * scale), 1);
+  const int dest_h = std::max(int(height * scale), 1);
   ImBuf *ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_byte_data);
-  if (ibuf != nullptr) {
-    nsvgRasterize(rast, image, 0, 0, scale, ibuf->byte_buffer.data, dest_w, dest_h, dest_w * 4);
-    IMB_flipy(ibuf);
-  }
 
-  nsvgDeleteRasterizer(rast);
-  nsvgDelete(image);
+  picture->scale(scale);
+
+  if (ibuf != nullptr) {
+
+    /* Create a canvas that will draw to our bitmap. */
+    tvg::SwCanvas *canvas = tvg::SwCanvas::gen();
+    uint32_t *bitmap_rgba_uint32 = reinterpret_cast<uint32_t *>(ibuf->byte_buffer.data);
+    canvas->target(bitmap_rgba_uint32, dest_w, dest_w, dest_h, tvg::ColorSpace::ABGR8888);
+
+    /* Push the SVG image to the canvas. */
+    canvas->push(picture);
+    /* Release the paint object. */
+    tvg::Paint::rel(picture);
+
+    /* Draw to the bitmap. */
+    canvas->draw(true);
+    canvas->sync();
+
+    IMB_flipy(ibuf);
+
+    /* Return full size of the image. */
+    *r_width = size_t(width);
+    *r_height = size_t(height);
+  }
 
   return ibuf;
 }
