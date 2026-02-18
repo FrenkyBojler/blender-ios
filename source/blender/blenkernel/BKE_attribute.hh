@@ -18,7 +18,6 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
-#include "BLI_struct_equality_utils.hh"
 
 #include "BKE_attribute_filters.hh"
 
@@ -61,6 +60,7 @@ enum class AttrType : int16_t {
   ColorFloat = 10,
   Quaternion = 11,
   String = 12,
+  Float4 = 13,
 };
 
 const CPPType &attribute_type_to_cpp_type(AttrType type);
@@ -95,13 +95,15 @@ struct AttributeMetaData {
   AttrDomain domain;
   AttrType data_type;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(AttributeMetaData, domain, data_type)
+  friend bool operator==(const AttributeMetaData &a, const AttributeMetaData &b) = default;
 };
 
 struct AttributeDomainAndType {
   AttrDomain domain;
   AttrType data_type;
-  BLI_STRUCT_EQUALITY_OPERATORS_2(AttributeDomainAndType, domain, data_type)
+
+  friend bool operator==(const AttributeDomainAndType &a,
+                         const AttributeDomainAndType &b) = default;
 };
 
 /**
@@ -823,6 +825,9 @@ class MutableAttributeAccessor : public AttributeAccessor {
       return false;
     }
     if (this->contains(name)) {
+      return false;
+    }
+    if (name.is_empty()) {
       return false;
     }
     return fn_->add(owner_, name, domain, data_type, initializer);

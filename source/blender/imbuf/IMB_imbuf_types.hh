@@ -75,10 +75,16 @@ using ColorSpace = ocio::ColorSpace;
 #define TIF_COMPRESS_LZW (1 << 5)
 #define TIF_COMPRESS_PACKBITS (1 << 4)
 
+#define AVIF_10BIT (1 << 8)
+#define AVIF_12BIT (1 << 9)
+
 struct ImbFormatOptions {
   short flag = 0;
-  /** Quality serves dual purpose as quality number for JPEG or compression amount for PNG. */
-  char quality = 0;
+  /** Quality for JPEG, WebP, AVIF. */
+  char quality = 90;
+  /* Compression amount for PNG.
+   * Default to low compression ratio that is not time consuming. */
+  char compress = 15;
 };
 
 /* -------------------------------------------------------------------- */
@@ -115,6 +121,9 @@ enum eImBufFlags {
    * The image contains display window information. See ImbBuf.display_size and other members for
    * more information. */
   IB_has_display_window = 1 << 17,
+
+  /** Perform no color space conversions when reading, leave the image in the file colorspace. */
+  IB_no_colorspace_convert = 1 << 18,
 };
 
 /** \} */
