@@ -1,3 +1,4 @@
 Referenced by issue #154555, Grease Pencil: crash when drawing in a heavy gp object (500k points)
 Referenced by issue #154554, Grease pencil: Stroke duplication issue in heavy scenes (regression from 5.0)
 Referenced by pull request #154570, Fix #154554, #154555: Threading crashes in Grease Pencil
+Referenced by commit 011780513b650fd478b9949da9d21fc0ffe98b31, Fix #154554, #154555: Threading crashes in Grease Pencil
