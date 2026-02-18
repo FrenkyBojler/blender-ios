@@ -674,19 +674,24 @@ bNodeSocket &Menu::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &s
   return socket;
 }
 
-MenuBuilder &MenuBuilder::static_items(const EnumPropertyItem *items)
+MenuBuilder &MenuBuilder::static_items(const EnumPropertyItem *items,
+                                       const StaticItemFilterFn filter_fn)
 {
   /* Using a global map ensures that the same runtime data is used for the same static items.
    * This is necessary because otherwise each node would have a different (incompatible) menu
    * definition. */
   static Mutex mutex;
-  static Map<const EnumPropertyItem *, ImplicitSharingPtr<bke::RuntimeNodeEnumItems>>
+  static Map<std::pair<const EnumPropertyItem *, const StaticItemFilterFn>,
+             ImplicitSharingPtr<bke::RuntimeNodeEnumItems>>
       items_by_enum_ptr;
 
   std::lock_guard lock{mutex};
-  decl_->items = items_by_enum_ptr.lookup_or_add_cb(items, [&]() {
+  decl_->items = items_by_enum_ptr.lookup_or_add_cb({items, filter_fn}, [&]() {
     bke::RuntimeNodeEnumItems *runtime_items = new bke::RuntimeNodeEnumItems();
     for (const EnumPropertyItem *item = items; item->identifier; item++) {
+      if (filter_fn && !filter_fn(*item)) {
+        continue;
+      }
       bke::RuntimeNodeEnumItem runtime_item;
       runtime_item.name = item->name;
       runtime_item.description = item->description;

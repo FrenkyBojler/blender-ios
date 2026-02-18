@@ -40,12 +40,6 @@ class DampingBundle {
   static const FlatBundleTypePtr &get_bundle_type();
 };
 
-class GeometryBundle {
- public:
-  static constexpr StringRefNull name = "Blender.Geometry";
-  static const FlatBundleTypePtr &get_bundle_type();
-};
-
 class PinPositionBundle {
  public:
   static constexpr StringRefNull name = "Blender.PinPosition";

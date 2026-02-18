@@ -147,9 +147,15 @@ enum class BundlePathsGatherFilterResult {
   Recurse,
   Take,
 };
-Vector<std::string> gather_bundle_paths(
-    const Bundle &bundle, FunctionRef<BundlePathsGatherFilterResult(const Bundle &bundle)> fn);
-Vector<std::string> gather_bundle_paths_by_type(const Bundle &bundle, const StringRef type_filter);
+
+Vector<std::string> gather_bundle_paths_by_bundle_type(const Bundle &bundle,
+                                                       const StringRef type_filter);
+Vector<std::string> gather_bundle_paths_by_data_type(const Bundle &bundle,
+                                                     const eNodeSocketDatatype data_type);
+
+void foreach_nested_bundle_item(
+    const Bundle &bundle,
+    FunctionRef<void(Span<StringRef> path, const BundleItemValue &value)> fn);
 
 template<typename T>
 inline std::optional<T> BundleItemValue::as_socket_value(

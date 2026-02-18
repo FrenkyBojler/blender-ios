@@ -55,7 +55,6 @@ static NestedBundleTypePtr make_world_type()
 {
   Vector<std::shared_ptr<const FlatBundleType>> types;
   types.append(GravityBundle::get_bundle_type());
-  types.append(GeometryBundle::get_bundle_type());
   types.append(DampingBundle::get_bundle_type());
   types.append(InfinitePlaneColliderBundle::get_bundle_type());
   types.append(ColliderBundle::get_bundle_type());
@@ -570,7 +569,7 @@ class XpbdSolverStep {
   void gather_from_world__geometries()
   {
     /* Gather geometry bundle paths. */
-    const Vector<std::string> paths = gather_bundle_paths_by_type(world_, GeometryBundle::name);
+    const Vector<std::string> paths = gather_bundle_paths_by_data_type(world_, SOCK_GEOMETRY);
     const int num_geometry_sets = paths.size();
     geometries_.geometry_sets.reinitialize(num_geometry_sets);
 
@@ -578,21 +577,7 @@ class XpbdSolverStep {
       const StringRef path = paths[i];
       GeometrySetData &geo_set_data = geometries_.geometry_sets[i];
       geo_set_data.path = path;
-      BundlePtr *geo_bundle_ptr = world_.lookup_path_for_write_ptr<BundlePtr>(path);
-      if (!geo_bundle_ptr || !*geo_bundle_ptr) {
-        continue;
-      }
-      Bundle &geo_bundle = geo_bundle_ptr->ensure_mutable_inplace();
-      GeometrySet *geometry = geo_bundle.lookup_ptr<GeometrySet>("geometry");
-      if (!geometry) {
-        continue;
-      }
-      if (!geometry->has_bundle()) {
-        continue;
-      }
-      if (GeometrySet *geometry = geo_bundle.lookup_path_for_write_ptr<GeometrySet>("geometry")) {
-        geo_set_data.geometry = std::move(*geometry);
-      }
+      geo_set_data.geometry = std::move(*world_.lookup_path_for_write_ptr<GeometrySet>(path));
       const Bundle &bundle_in_geo = *geo_set_data.geometry.bundle();
       if (const std::optional<ListPtr> tags_list_ptr = bundle_in_geo.lookup_path<ListPtr>("tags"))
       {
@@ -688,7 +673,7 @@ class XpbdSolverStep {
 
   void gather_from_world__infinite_plane_colliders()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_type(
+    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(
         world_, InfinitePlaneColliderBundle::name);
     for (const StringRef path : paths) {
       const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
@@ -775,7 +760,8 @@ class XpbdSolverStep {
 
   void gather_from_world__mesh_colliders()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_type(world_, ColliderBundle::name);
+    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(world_,
+                                                                         ColliderBundle::name);
     for (const StringRef path : paths) {
       const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
       if (!bundle_ptr || !*bundle_ptr) {
@@ -1322,8 +1308,8 @@ class XpbdSolverStep {
 
   void gather_from_world__stretch_shear_constraints()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_type(world_,
-                                                                  RodStretchShearBundle::name);
+    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(
+        world_, RodStretchShearBundle::name);
     for (const StringRef path : paths) {
       const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
       if (!bundle_ptr || !*bundle_ptr) {
@@ -1436,8 +1422,8 @@ class XpbdSolverStep {
 
   void gather_from_world__bend_twist_constraints()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_type(world_,
-                                                                  RodBendTwistBundle::name);
+    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(world_,
+                                                                         RodBendTwistBundle::name);
     for (const StringRef path : paths) {
       const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
       if (!bundle_ptr || !*bundle_ptr) {
@@ -1511,7 +1497,8 @@ class XpbdSolverStep {
 
   void gather_from_world__damping()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_type(world_, DampingBundle::name);
+    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(world_,
+                                                                         DampingBundle::name);
     for (const StringRef path : paths) {
       const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
       if (!bundle_ptr || !*bundle_ptr) {
@@ -1584,7 +1571,8 @@ class XpbdSolverStep {
 
   void gather_from_world__pin_positions()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_type(world_, PinPositionBundle::name);
+    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(world_,
+                                                                         PinPositionBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
       std::optional<Field<float3>> position_field = bundle.lookup<Field<float3>>("position");
@@ -1750,7 +1738,8 @@ class XpbdSolverStep {
 
   void gather_from_world__pin_rotations()
   {
-    const Vector<std::string> paths = gather_bundle_paths_by_type(world_, PinRotationBundle::name);
+    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(world_,
+                                                                         PinRotationBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
       std::optional<Field<math::Quaternion>> rotation_field =
@@ -2462,7 +2451,7 @@ class XpbdSolverStep {
   {
     for (const int geo_bundle_i : geometries_.geometry_sets.index_range()) {
       GeometrySetData &geo_set_data = geometries_.geometry_sets[geo_bundle_i];
-      world_.add_path_override(geo_set_data.path + "/geometry", std::move(geo_set_data.geometry));
+      world_.add_path_override(geo_set_data.path, std::move(geo_set_data.geometry));
     }
   }
 

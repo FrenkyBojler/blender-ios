@@ -260,8 +260,10 @@ class MenuBuilder : public SocketDeclarationBuilder<Menu> {
   /** Draw the menu items next to each other instead of as a drop-down menu. */
   MenuBuilder &expanded(bool value = true);
 
+  using StaticItemFilterFn = bool (*)(const EnumPropertyItem &item);
   /** Set the available items in the menu. The items array must have static lifetime. */
-  MenuBuilder &static_items(const EnumPropertyItem *items);
+  MenuBuilder &static_items(const EnumPropertyItem *items,
+                            const StaticItemFilterFn filter_fn = nullptr);
 };
 
 class BundleBuilder;

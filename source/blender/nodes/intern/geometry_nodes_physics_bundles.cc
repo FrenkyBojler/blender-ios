@@ -86,18 +86,6 @@ const FlatBundleTypePtr &DampingBundle::get_bundle_type()
   return bundle_type;
 }
 
-const FlatBundleTypePtr &GeometryBundle::get_bundle_type()
-{
-  static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(GeometryBundle::name);
-    b.add<decl::Geometry>("geometry").supported_type(bke::GeometryComponent::Type::Mesh);
-    const FlatBundleTypePtr bundle_type = b.build();
-    BundleTypeRegistry::register_type(bundle_type);
-    return bundle_type;
-  }();
-  return bundle_type;
-}
-
 const FlatBundleTypePtr &PinPositionBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {

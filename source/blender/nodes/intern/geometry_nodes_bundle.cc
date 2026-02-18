@@ -436,66 +436,69 @@ std::optional<BundleSignature> LinkedBundleSignatures::get_merged_signature() co
   return signature;
 }
 
-static void gather_bundle_paths_recursive(
+static void foreach_nested_bundle_item_recursive(
     const Bundle &bundle,
-    Vector<StringRef> &path,
-    const FunctionRef<BundlePathsGatherFilterResult(const Bundle &bundle)> fn,
-    Vector<std::string> &r_paths)
+    const FunctionRef<void(Span<StringRef>, const BundleItemValue &value)> fn,
+    Vector<StringRef> &path)
 {
-  const BundlePathsGatherFilterResult filter_result = fn(bundle);
-  switch (filter_result) {
-    case BundlePathsGatherFilterResult::None: {
-      return;
-    }
-    case BundlePathsGatherFilterResult::Recurse: {
-      for (const auto &item : bundle.items()) {
-        if (const BundlePtr *child_bundle_ptr = item.value.as_pointer<BundlePtr>()) {
-          if (*child_bundle_ptr) {
-            path.append(item.key);
-            gather_bundle_paths_recursive(**child_bundle_ptr, path, fn, r_paths);
-            path.pop_last();
-          }
+  for (const auto &child_item : bundle.items()) {
+    path.append(child_item.key);
+    BLI_SCOPED_DEFER([&]() { path.pop_last(); });
+
+    if (const BundlePtr *child_bundle_ptr = child_item.value.as_pointer<BundlePtr>()) {
+      if (*child_bundle_ptr) {
+        const Bundle &child_bundle = **child_bundle_ptr;
+        if (!child_bundle.type().has_value()) {
+          foreach_nested_bundle_item_recursive(child_bundle, fn, path);
+          continue;
         }
       }
-      break;
     }
-    case BundlePathsGatherFilterResult::Take: {
-      r_paths.append(Bundle::combine_path(path));
-      break;
-    }
+    fn(path, child_item.value);
   }
 }
 
-Vector<std::string> gather_bundle_paths(
+void foreach_nested_bundle_item(
     const Bundle &bundle,
-    const FunctionRef<BundlePathsGatherFilterResult(const Bundle &bundle)> fn)
+    const FunctionRef<void(Span<StringRef>, const BundleItemValue &value)> fn)
+{
+  Vector<StringRef> path;
+  foreach_nested_bundle_item_recursive(bundle, fn, path);
+}
+
+Vector<std::string> gather_bundle_paths_by_bundle_type(const Bundle &bundle,
+                                                       const StringRef type_filter)
 {
   Vector<std::string> paths;
-  Vector<StringRef> path;
-  for (const auto &item : bundle.items()) {
-    if (const BundlePtr *child_bundle_ptr = item.value.as_pointer<BundlePtr>()) {
-      if (*child_bundle_ptr) {
-        path.append(item.key);
-        gather_bundle_paths_recursive(**child_bundle_ptr, path, fn, paths);
-        path.pop_last();
-      }
-    }
+  if (type_filter.is_empty()) {
+    return paths;
   }
+  foreach_nested_bundle_item(
+      bundle, [&](const Span<StringRef> path, const BundleItemValue &value) {
+        if (const BundlePtr *child_bundle_ptr = value.as_pointer<BundlePtr>()) {
+          if (*child_bundle_ptr) {
+            if ((*child_bundle_ptr)->type() == type_filter) {
+              paths.append(Bundle::combine_path(path));
+            }
+          }
+        }
+      });
   return paths;
 }
 
-Vector<std::string> gather_bundle_paths_by_type(const Bundle &bundle, const StringRef type_filter)
+Vector<std::string> gather_bundle_paths_by_data_type(const Bundle &bundle,
+                                                     const eNodeSocketDatatype data_type)
 {
-  return gather_bundle_paths(bundle, [&](const Bundle &child) {
-    if (const std::optional<StringRef> child_type = child.type()) {
-      if (type_filter.is_empty()) {
-        return BundlePathsGatherFilterResult::Take;
-      }
-      return *child_type == type_filter ? BundlePathsGatherFilterResult::Take :
-                                          BundlePathsGatherFilterResult::None;
-    }
-    return BundlePathsGatherFilterResult::Recurse;
-  });
+  Vector<std::string> paths;
+  foreach_nested_bundle_item(
+      bundle, [&](const Span<StringRef> path, const BundleItemValue &value) {
+        if (const auto *socket_value = std::get_if<BundleItemSocketValue>(&value.value)) {
+          if (socket_value->type->type == data_type) {
+            paths.append(Bundle::combine_path(path));
+          }
+        }
+      });
+  return paths;
 }
 
 }  // namespace blender::nodes

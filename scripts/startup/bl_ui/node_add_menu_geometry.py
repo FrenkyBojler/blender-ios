@@ -805,7 +805,7 @@ class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "NodeCombineBundle")
         self.node_operator(layout, "NodeSeparateBundle")
         self.node_operator(layout, "NodeGetBundleItem")
-        self.node_operator(layout, "NodeGetTypedBundlePaths")
+        self.node_operator(layout, "NodeGetNestedBundlePaths")
         self.node_operator(layout, "NodeStoreBundleItem")
         self.node_operator(layout, "NodeJoinBundle")
         self.typed_bundle(layout, label="Typed Bundle")

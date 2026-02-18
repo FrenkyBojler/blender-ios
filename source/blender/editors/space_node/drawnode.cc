@@ -1092,8 +1092,8 @@ static bool socket_needs_bundle_type_search(const bNode &node, const bNodeSocket
   if (node.type_legacy == NODE_COMBINE_BUNDLE) {
     return socket.name == nodes::Bundle::type_item_name;
   }
-  if (node.is_type("NodeGetTypedBundlePaths")) {
-    return socket.name == StringRef("Type");
+  if (node.is_type("NodeGetNestedBundlePaths")) {
+    return socket.name == StringRef("Bundle Type");
   }
   return false;
 }
