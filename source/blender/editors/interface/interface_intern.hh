@@ -983,8 +983,8 @@ struct PopupBlockHandle {
   float scrolloffset = 0.0f;
 
   wmTimer *dimtimer = nullptr;
-  bool reduce_shadow_offset=false;
-  bool dim=false;
+  bool reduce_shadow_offset = false;
+  bool dim = false;
   float dim_factor = 0.0f;
 
   KeyNavLock keynav_state;
