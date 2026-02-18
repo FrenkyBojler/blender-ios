@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-02 14:51+0000\n"
+"POT-Creation-Date: 2026-02-16 10:28+0000\n"
 "PO-Revision-Date: 2025-12-01 09:17+0000\n"
 "Last-Translator: Matt Mitacek <mattmitacek@gmail.com>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -3535,6 +3535,18 @@ msgid "Factor of Simplify using adaptive algorithm"
 msgstr "Faktor zjednodušení pomocí adaptivního algoritmu"
 
 
+msgid "Stroke"
+msgstr "Tah"
+
+
+msgid "Fill"
+msgstr "Vyplnit"
+
+
+msgid "Both"
+msgstr "Oba"
+
+
 msgid "Active Layer"
 msgstr "Aktivní vrstva"
 
@@ -3577,14 +3589,6 @@ msgstr "Použít Sílu Tlaku"
 
 msgid "Use tablet pressure for color strength"
 msgstr "Použít tlak tabletu pro sílu bravy"
-
-
-msgid "Stroke"
-msgstr "Tah"
-
-
-msgid "Fill"
-msgstr "Vyplnit"
 
 
 msgid "Object Path"
@@ -13830,16 +13834,20 @@ msgid "Material slot name"
 msgstr "Název okénka materiálu"
 
 
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Metaball"
-msgstr "Meta objekt"
+msgid "Clean Up"
+msgstr "Vyčistit"
 
 
 msgid "Show/Hide"
 msgstr "Zobrazit/skrýt"
+
+
+msgid "Special Characters"
+msgstr "Speciální Znaky"
+
+
+msgid "Metaball"
+msgstr "Meta objekt"
 
 
 msgid "Names"
@@ -13848,10 +13856,6 @@ msgstr "Názvy"
 
 msgid "Bone Roll"
 msgstr "Kost"
-
-
-msgid "Clean Up"
-msgstr "Vyčistit"
 
 
 msgid "Pivot Point"
@@ -13864,6 +13868,10 @@ msgstr "Přichytit"
 
 msgid "Proportional Editing Falloff"
 msgstr "Způsob útlumu"
+
+
+msgid "Layout"
+msgstr "Rozložení"
 
 
 msgid "Mirror"
@@ -13886,20 +13894,12 @@ msgid "Align View"
 msgstr "Zarovnat pohled"
 
 
-msgid "Layout"
-msgstr "Rozložení"
+msgid "Keying"
+msgstr "Klíčovací sestava"
 
 
 msgid "Select Linked"
 msgstr "Vybrat Propojené"
-
-
-msgid "Assign Material"
-msgstr "Přiřadit Materiál"
-
-
-msgid "Keying"
-msgstr "Klíčovací sestava"
 
 
 msgid "Tracking"
@@ -13908,6 +13908,14 @@ msgstr "Sledování"
 
 msgid "Utilities"
 msgstr "Nástroje"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Assign Material"
+msgstr "Přiřadit Materiál"
 
 
 msgid "Light"
@@ -13950,14 +13958,6 @@ msgid "Propagate"
 msgstr "Vložit"
 
 
-msgid "Mesh Select Mode"
-msgstr "Síťový mód výběru"
-
-
-msgid "Face Data"
-msgstr "Data Ploch"
-
-
 msgid "Instances"
 msgstr "Instance"
 
@@ -13966,12 +13966,16 @@ msgid "Import"
 msgstr "Importovat"
 
 
+msgid "Mesh Select Mode"
+msgstr "Síťový mód výběru"
+
+
+msgid "Face Data"
+msgstr "Data Ploch"
+
+
 msgid "Merge"
 msgstr "Sloučit"
-
-
-msgid "Special Characters"
-msgstr "Speciální Znaky"
 
 
 msgid "Basic"
@@ -20103,14 +20107,6 @@ msgid "Set Axis"
 msgstr "Vybrat propojení"
 
 
-msgid "Align bundle align X axis"
-msgstr "Zarovnat"
-
-
-msgid "Align bundle align Y axis"
-msgstr "Zarovnat"
-
-
 msgctxt "Operator"
 msgid "Set Origin"
 msgstr "Nastavit Původ"
@@ -21014,10 +21010,6 @@ msgid "Undo History"
 msgstr "Historie zpětných kroků"
 
 
-msgid "Redo specific action in history"
-msgstr "Vrátí zpět vybranou akci z historie"
-
-
 msgid "Item"
 msgstr "Předmět"
 
@@ -21849,10 +21841,6 @@ msgstr "Zarovnat"
 
 msgid "Side"
 msgstr "Ze strany"
-
-
-msgid "Both"
-msgstr "Oba"
 
 
 msgctxt "Operator"
@@ -23557,10 +23545,6 @@ msgid "Minor Radius"
 msgstr "Vedlejší Poloměr"
 
 
-msgid "Radius of the torus' cross section"
-msgstr "Poloměr průřezu torusu"
-
-
 msgid "Minor Segments"
 msgstr "Vedlejší Segmenty"
 
@@ -25046,10 +25030,6 @@ msgstr "Deformace"
 msgctxt "Operator"
 msgid "Add Metaball"
 msgstr "Přidat meta objekt"
-
-
-msgid "Add an metaball object to the scene"
-msgstr "Přidá meta objekt do scény"
 
 
 msgid "Primitive"
@@ -26631,10 +26611,6 @@ msgid "Remove Doubles"
 msgstr "Duplicita"
 
 
-msgid "Remove selected particles close enough of others"
-msgstr "Zobrazit a vybrat klíče"
-
-
 msgctxt "Operator"
 msgid "Reveal"
 msgstr "Odkrýt"
@@ -28060,10 +28036,6 @@ msgid "Jump to Strip"
 msgstr "NLA Proužky"
 
 
-msgid "Move frame to previous edit point"
-msgstr "Opakovat kresbu na"
-
-
 msgid "Next Strip"
 msgstr "Zarovnat NLA proužky"
 
@@ -28242,17 +28214,9 @@ msgid "Add Surface Circle"
 msgstr "Přidat Povrchový Kruh"
 
 
-msgid "Construct a Nurbs surface Circle"
-msgstr "Sestaví kruhový Nurbs povrch"
-
-
 msgctxt "Operator"
 msgid "Add Surface Curve"
 msgstr "Přidat Povrchovou Křivku"
-
-
-msgid "Construct a Nurbs surface Curve"
-msgstr "Sestaví křivku Nurbs povrchu"
 
 
 msgctxt "Operator"
@@ -28260,30 +28224,14 @@ msgid "Add Surface Cylinder"
 msgstr "Přidat Povrchový Válec"
 
 
-msgid "Construct a Nurbs surface Cylinder"
-msgstr "Sestaví válcový Nurbs povrch"
-
-
 msgctxt "Operator"
 msgid "Add Surface Sphere"
 msgstr "Přidat Povrchovou Kouly"
 
 
-msgid "Construct a Nurbs surface Sphere"
-msgstr "Sestaví kulový Nurbs povrch"
-
-
-msgid "Construct a Nurbs surface Patch"
-msgstr "Sestaví nurbs plochu typu záplata"
-
-
 msgctxt "Operator"
 msgid "Add Surface Torus"
 msgstr "Přidat Povrchový Torus"
-
-
-msgid "Construct a Nurbs surface Torus"
-msgstr "Sestaví torusový Nurbs povrch"
 
 
 msgctxt "Operator"
@@ -36679,10 +36627,6 @@ msgid "Draw Normals"
 msgstr "Kreslit Normály"
 
 
-msgid "Display 3D curve normals in editmode"
-msgstr "Zobrazit obrázek na pozadí pohledu do 3D"
-
-
 msgid "Display weights created for the Bevel modifier"
 msgstr "Zobrazí ostré hrany používané 'EdgeSplit' modifikátorem"
 
@@ -40141,10 +40085,6 @@ msgstr "Vybrat řádek"
 msgctxt "Operator"
 msgid "Duplicate Active Keyframe (Active Layer)"
 msgstr "Duplikovat Aktivní Klíčový snímek (Aktivní vrstva)"
-
-
-msgid "Toggle X-Ray"
-msgstr "Přepnout X-Ray"
 
 
 msgid "Marker Names"
