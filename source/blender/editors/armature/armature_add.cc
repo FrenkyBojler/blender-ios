@@ -1112,11 +1112,13 @@ EditBone *duplicateEditBone(EditBone *cur_bone,
   return duplicateEditBoneObjects(cur_bone, name, editbones, ob, ob);
 }
 
-static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_duplicate_selected(bContext *C,
+                                                    const bool do_flip_names,
+                                                    StringRefNull search,
+                                                    StringRefNull replace)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  const bool do_flip_names = RNA_boolean_get(op->ptr, "do_flip_names");
 
   /* cancel if nothing selected */
   if (CTX_DATA_COUNT(C, selected_bones) == 0) {
@@ -1169,6 +1171,12 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
           if (ED_armature_ebone_find_name(arm->edbo, new_bone_name_buff) == nullptr) {
             new_bone_name = new_bone_name_buff;
           }
+        }
+        if (!search.is_empty()) {
+          std::string buffer(new_bone_name);
+          BLI_string_replace(buffer, search, replace);
+          STRNCPY(new_bone_name_buff, buffer.data());
+          new_bone_name = new_bone_name_buff;
         }
 
         ebone = duplicateEditBone(ebone_iter, new_bone_name, arm->edbo, ob);
@@ -1246,6 +1254,12 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator *op)
+{
+  const bool do_flip_names = RNA_boolean_get(op->ptr, "do_flip_names");
+  return armature_duplicate_selected(C, do_flip_names, "", "");
+}
+
 void ARMATURE_OT_duplicate(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1266,6 +1280,64 @@ void ARMATURE_OT_duplicate(wmOperatorType *ot)
       false,
       "Flip Names",
       "Try to flip names of the bones, if possible, instead of adding a number extension");
+}
+
+static wmOperatorStatus armature_duplicate_rename_exec(bContext *C, wmOperator *op)
+{
+  const bool do_flip_names = RNA_boolean_get(op->ptr, "do_flip_names");
+  std::string search = RNA_string_get(op->ptr, "search");
+  std::string replace = RNA_string_get(op->ptr, "replace");
+  if (search.empty()) {
+    BKE_report(op->reports, RPT_ERROR, "No search term defined");
+    return OPERATOR_CANCELLED;
+  }
+  return armature_duplicate_selected(C, do_flip_names, search, replace);
+}
+
+static wmOperatorStatus armature_duplicate_rename_invoke(bContext *C,
+                                                         wmOperator *op,
+                                                         const wmEvent *event)
+{
+  return WM_operator_props_popup_confirm(C, op, event);
+}
+
+void ARMATURE_OT_duplicate_rename(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Duplicate and Rename";
+  ot->idname = "ARMATURE_OT_duplicate_rename";
+  ot->description =
+      "Make copies of the selected bones within the same armature and replace a part of their "
+      "name";
+
+  /* API callbacks. */
+  ot->invoke = armature_duplicate_rename_invoke;
+  ot->exec = armature_duplicate_rename_exec;
+  ot->poll = ED_operator_editarmature;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_boolean(
+      ot->srna,
+      "do_flip_names",
+      false,
+      "Flip Names",
+      "Try to flip names of the bones, if possible, instead of adding a number extension");
+
+  RNA_def_string(ot->srna,
+                 "search",
+                 nullptr,
+                 MAXBONENAME,
+                 "Search",
+                 "A part of the current bone name that will be replaced");
+  RNA_def_string(ot->srna,
+                 "replace",
+                 nullptr,
+                 MAXBONENAME,
+                 "Replace",
+                 "The substitute to be inserted into the place of the given search term. If left "
+                 "empty the search term will be removed");
 }
 
 /* Get the duplicated or existing mirrored copy of the bone. */

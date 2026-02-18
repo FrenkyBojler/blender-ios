@@ -83,6 +83,11 @@ inline void bone_deselect(bPoseChannel *pchan)
   pchan->flag &= ~POSE_SELECTED_ALL;
 }
 
+inline void bone_deselect(EditBone *ebone)
+{
+  ebone->flag &= ~(BONE_TIPSEL | BONE_SELECTED | BONE_ROOTSEL);
+}
+
 /**
  * Iterates all descendents of the given pose bone including the bone itself. Iterates breadth
  * first.
