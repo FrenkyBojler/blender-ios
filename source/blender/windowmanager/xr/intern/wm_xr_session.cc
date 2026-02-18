@@ -488,22 +488,22 @@ bool WM_xr_session_state_viewfinder_orientation_get(const wmXrData *xr, float r_
   return true;
 }
 
-bool WM_xr_session_state_viewfinder_capture_flash_get(const wmXrData *xr, float *r_flash)
+bool WM_xr_session_state_viewfinder_runtime_capture_flash_get(const wmXrData *xr, float *r_flash)
 {
   if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
     *r_flash = 1.0f;
     return false;
   }
 
-  *r_flash = xr->runtime->session_state.viewfinder.capture_flash;
+  *r_flash = xr->runtime->session_state.viewfinder.runtime_capture_flash;
   return true;
 }
 
-void WM_xr_session_state_viewfinder_capture_flash_set(wmXrData *xr, float flash)
+void WM_xr_session_state_viewfinder_runtime_capture_flash_set(wmXrData *xr, float flash)
 {
   if (WM_xr_session_exists(xr)) {
     CLAMP(flash, 0.0f, 1.0f);
-    xr->runtime->session_state.viewfinder.capture_flash = flash;
+    xr->runtime->session_state.viewfinder.runtime_capture_flash = flash;
   }
 }
 
@@ -741,8 +741,8 @@ void WM_xr_session_state_navigation_reset(wmXrSessionState *state)
   state->swap_hands = false;
 
   /* Viewfinder Runtime values. */
-  state->viewfinder.movement_smoothing_delta_t = 0.0f;
-  state->viewfinder.capture_flash = 0.0f;
+  state->viewfinder.runtime_smoothing_delta_t = 0.0f;
+  state->viewfinder.runtime_capture_flash = 0.0f;
 
   /* Viewfinder Settings. */
   state->viewfinder.capture_use_dof = false;

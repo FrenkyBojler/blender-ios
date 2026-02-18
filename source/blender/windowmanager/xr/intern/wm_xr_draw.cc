@@ -233,13 +233,13 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       mat4_to_loc_quat(
           raw_capture_position, raw_capture_orientation_quat, viewfinder_raw_capture_mat);
 
-      if (session_state->viewfinder.movement_smoothing_delta_t > 0) {
+      if (session_state->viewfinder.runtime_smoothing_delta_t > 0) {
         /* Apply exponential movement smoothing. */
         constexpr float movement_smoothing_speed = 25.0f;
 
         const double current_time = BLI_time_now_seconds();
         const float delta_t = float(current_time -
-                                    session_state->viewfinder.movement_smoothing_delta_t);
+                                    session_state->viewfinder.runtime_smoothing_delta_t);
         const float clamped_delta = min_ff(delta_t, 0.1f);
         const float factor = 1.0f - exp(-clamped_delta * movement_smoothing_speed);
 
@@ -251,14 +251,14 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
                        session_state->viewfinder.capture_orientation_quat,
                        raw_capture_orientation_quat,
                        factor);
-        session_state->viewfinder.movement_smoothing_delta_t = current_time;
+        session_state->viewfinder.runtime_smoothing_delta_t = current_time;
       }
       else {
         /* Initialization. */
         copy_v3_v3(session_state->viewfinder.capture_position, raw_capture_position);
         copy_qt_qt(session_state->viewfinder.capture_orientation_quat,
                    raw_capture_orientation_quat);
-        session_state->viewfinder.movement_smoothing_delta_t = BLI_time_now_seconds();
+        session_state->viewfinder.runtime_smoothing_delta_t = BLI_time_now_seconds();
       }
 
       /* Build final smoothed capture matrix for rendering. */
@@ -836,7 +836,7 @@ static void wm_xr_controller_viewfinder_draw_view_flash(wmXrSessionState *state,
 {
   /* Do not apply the flash effect if we're in playback mode. */
   if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
-    state->viewfinder.capture_flash = 0.0f;
+    state->viewfinder.runtime_capture_flash = 0.0f;
     return;
   }
 
@@ -845,9 +845,9 @@ static void wm_xr_controller_viewfinder_draw_view_flash(wmXrSessionState *state,
   constexpr float full_flash_alpha = 0.3f;
 
   static double last_flash_time;
-  if (state->viewfinder.capture_flash != 0.0f) {
+  if (state->viewfinder.runtime_capture_flash != 0.0f) {
     last_flash_time = BLI_time_now_seconds();
-    state->viewfinder.capture_flash = 0.0f;
+    state->viewfinder.runtime_capture_flash = 0.0f;
   }
 
   const float last_flash_delta = BLI_time_now_seconds() - last_flash_time;

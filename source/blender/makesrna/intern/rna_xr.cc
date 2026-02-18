@@ -1061,12 +1061,12 @@ static void rna_XrSessionState_viewfinder_orientation_get(PointerRNA *ptr, float
 #  endif
 }
 
-static float rna_XrSessionState_viewfinder_capture_flash_get(PointerRNA *ptr)
+static float rna_XrSessionState_viewfinder_runtime_capture_flash_get(PointerRNA *ptr)
 {
   float value;
 #  ifdef WITH_XR_OPENXR
   const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
-  WM_xr_session_state_viewfinder_capture_flash_get(xr, &value);
+  WM_xr_session_state_viewfinder_runtime_capture_flash_get(xr, &value);
 #  else
   UNUSED_VARS(ptr);
   value = 1.0f;
@@ -1074,11 +1074,11 @@ static float rna_XrSessionState_viewfinder_capture_flash_get(PointerRNA *ptr)
   return value;
 }
 
-static void rna_XrSessionState_viewfinder_capture_flash_set(PointerRNA *ptr, float value)
+static void rna_XrSessionState_viewfinder_runtime_capture_flash_set(PointerRNA *ptr, float value)
 {
 #  ifdef WITH_XR_OPENXR
   wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
-  WM_xr_session_state_viewfinder_capture_flash_set(xr, value);
+  WM_xr_session_state_viewfinder_runtime_capture_flash_set(xr, value);
 #  else
   UNUSED_VARS(ptr, value);
 #  endif
@@ -2724,10 +2724,10 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Viewfinder Rotation", "Last known orientation of the viewfinder in world space");
 
-  prop = RNA_def_property(srna, "capture_flash", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "runtime_capture_flash", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_funcs(prop,
-                               "rna_XrSessionState_viewfinder_capture_flash_get",
-                               "rna_XrSessionState_viewfinder_capture_flash_set",
+                               "rna_XrSessionState_viewfinder_runtime_capture_flash_get",
+                               "rna_XrSessionState_viewfinder_runtime_capture_flash_set",
                                nullptr);
 
   prop = RNA_def_property(srna, "capture_use_dof", PROP_BOOLEAN, PROP_NONE);

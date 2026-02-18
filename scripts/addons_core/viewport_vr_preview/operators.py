@@ -317,7 +317,7 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
         lm.viewfinder_dof_dist = camera.dof.focus_distance
         lm.viewfinder_dof_fstop = camera.dof.aperture_fstop
 
-        xr_state.viewfinder.capture_flash = 1  # Internal value, setting to 1 will trigger a flash
+        xr_state.viewfinder.runtime_capture_flash = 1  # Internal value, setting to 1 will trigger a flash
 
         return {'FINISHED'}
 

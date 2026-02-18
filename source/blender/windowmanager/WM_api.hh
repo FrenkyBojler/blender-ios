@@ -2256,8 +2256,8 @@ bool WM_xr_session_state_viewer_pose_location_get(const wmXrData *xr, float r_lo
 bool WM_xr_session_state_viewer_pose_rotation_get(const wmXrData *xr, float r_rotation[4]);
 bool WM_xr_session_state_viewfinder_location_get(const wmXrData *xr, float r_location[3]);
 bool WM_xr_session_state_viewfinder_orientation_get(const wmXrData *xr, float r_rotation[4]);
-bool WM_xr_session_state_viewfinder_capture_flash_get(const wmXrData *xr, float *r_flash);
-void WM_xr_session_state_viewfinder_capture_flash_set(wmXrData *xr, float flash);
+bool WM_xr_session_state_viewfinder_runtime_capture_flash_get(const wmXrData *xr, float *r_flash);
+void WM_xr_session_state_viewfinder_runtime_capture_flash_set(wmXrData *xr, float flash);
 bool WM_xr_session_state_viewfinder_capture_use_dof_get(const wmXrData *xr, bool *r_use_dof);
 void WM_xr_session_state_viewfinder_capture_use_dof_set(wmXrData *xr, bool use_dof);
 bool WM_xr_session_state_viewfinder_capture_lens_get(const wmXrData *xr, float *r_lens);

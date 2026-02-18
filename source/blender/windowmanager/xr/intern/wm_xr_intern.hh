@@ -34,9 +34,9 @@ struct wmXrViewfinderState {
   float capture_position[3];
   float capture_orientation_quat[4];
 
-  /* Runtime values. */  // TODO: add a runtime prefix here
-  float capture_flash;
-  double movement_smoothing_delta_t;
+  /* Runtime values. */
+  float runtime_capture_flash;
+  double runtime_smoothing_delta_t;
 
   /* Capture settings. */
   bool capture_use_dof;
