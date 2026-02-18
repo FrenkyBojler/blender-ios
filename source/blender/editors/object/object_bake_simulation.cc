@@ -920,7 +920,14 @@ static wmOperatorStatus delete_baked_simulation_exec(bContext *C, wmOperator *op
     for (ModifierData &md : object->modifiers) {
       if (md.type == eModifierType_Nodes) {
         NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(&md);
+        if (!nmd->node_group) {
+          continue;
+        }
         for (const NodesModifierBake &bake : Span(nmd->bakes, nmd->bakes_num)) {
+          const bNode *node = nmd->node_group->find_nested_node(bake.id);
+          if (node == nullptr || node->type_legacy != GEO_NODE_SIMULATION_OUTPUT) {
+            continue;
+          }
           try_delete_bake(bmain, *object, *nmd, bake.id, op->reports);
         }
       }
