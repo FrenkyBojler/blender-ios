@@ -586,8 +586,8 @@ int delete_keyframe(Main *bmain, ReportList *reports, ID *id, const RNAPath &rna
   }
   bAction *act = adt->action;
   cfra = BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP);
-  const int index = rna_path.index.value_or(-1);
-  const bool modify_all_indices = index == -1;
+  const int array_index = rna_path.index.value_or(-1);
+  const bool modify_all_indices = array_index == -1;
 
   Action &action = act->wrap();
   /* In order to support strips we'd need to offset the `cfra` into strip space. */
@@ -598,7 +598,7 @@ int delete_keyframe(Main *bmain, ReportList *reports, ID *id, const RNAPath &rna
     if (StringRefNull(fcurve.rna_path) != rna_path.path) {
       return;
     }
-    if (!modify_all_indices && index != fcurve.array_index) {
+    if (!modify_all_indices && array_index != fcurve.array_index) {
       return;
     }
     if (fcurve_delete_keyframe_at_time(&fcurve, cfra)) {
