@@ -893,13 +893,13 @@ static void image_buttons_region_draw(const bContext *C, ARegion *region)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
   Scene *scene = CTX_data_scene(C);
-  void *lock;
   /* XXX performance regression if name of scopes category changes! */
   PanelCategoryStack *category = ui::panel_category_active_find(region, "Scopes");
 
   /* only update scopes if scope category is active */
   if (category) {
     /* TODO(lukas): Support tiles in scopes? */
+    void *lock;
     ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0, true);
     if (ibuf) {
       if (!sima->scopes.ok) {
