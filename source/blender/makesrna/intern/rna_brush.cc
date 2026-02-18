@@ -1397,6 +1397,14 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem rna_enum_gpencil_brush_curve_type_items[] = {
+      {GP_BRUSH_STROKE_TYPE_POLY, "POLY", ICON_NONE, "Poly", ""},
+      {GP_BRUSH_STROKE_TYPE_BEZIER, "BEZIER", ICON_NONE, "Bézier", ""},
+      {GP_BRUSH_STROKE_TYPE_CATMULL_ROM, "CATMULL_ROM", ICON_NONE, "Catmull Rom", ""},
+      {GP_BRUSH_STROKE_TYPE_NURBS, "NURBS", ICON_NONE, "NURBS", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "BrushGpencilSettings", nullptr);
   RNA_def_struct_sdna(srna, "BrushGpencilSettings");
   RNA_def_struct_path_func(srna, "rna_BrushGpencilSettings_path");
@@ -1754,12 +1762,13 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, ParameterFlag(0));
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
-  /* Threshold distance for Bezier points. */
-  prop = RNA_def_property(srna, "bezier_threshold", PROP_FLOAT, PROP_DISTANCE);
-  RNA_def_property_float_sdna(prop, nullptr, "bezier_threshold");
+  /* Threshold distance for converting curve types. */
+  prop = RNA_def_property(srna, "conversion_threshold", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "conversion_threshold");
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
   RNA_def_property_float_default(prop, 0.001f);
-  RNA_def_property_ui_text(prop, "Threshold", "Threshold distance for between points");
+  RNA_def_property_ui_text(
+      prop, "Threshold", "Threshold distance for between points for conversion");
   RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, ParameterFlag(0));
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
@@ -2042,11 +2051,12 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
-  prop = RNA_def_property(srna, "use_bezier_type", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GP_BRUSH_BEZIER_STROKE);
-  RNA_def_property_boolean_default(prop, false);
-  RNA_def_property_ui_text(prop, "Bézier", "Convert to Bézier type");
+  prop = RNA_def_property(srna, "curve_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag");
+  RNA_def_property_enum_items(prop, rna_enum_gpencil_brush_curve_type_items);
+  RNA_def_property_ui_text(prop, "Curve Type", "Type of curves");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
   prop = RNA_def_property(srna, "use_fill_limit", PROP_BOOLEAN, PROP_NONE);

@@ -42,6 +42,7 @@
 
 #include "GEO_fit_curves.hh"
 #include "GEO_join_geometries.hh"
+#include "GEO_set_curve_type.hh"
 #include "GEO_simplify_curves.hh"
 #include "GEO_smooth_curves.hh"
 
@@ -1713,18 +1714,34 @@ void PaintOperation::on_stroke_done(const bContext &C)
                      material_index,
                      on_back);
     }
-    if ((settings->flag & GP_BRUSH_BEZIER_STROKE) != 0) {
+    if ((settings->flag & GP_BRUSH_STROKE_TYPES) != GP_BRUSH_STROKE_TYPE_POLY) {
       const IndexMask selection = IndexRange::from_single(active_curve);
+      bke::CurvesGeometry &curves = drawing.strokes_for_write();
 
-      const bke::CurvesGeometry &curves = drawing.strokes();
-
-      const float threshold = settings->bezier_threshold;
+      const float threshold = settings->conversion_threshold;
       const VArray<float> thresholds = VArray<float>::from_single(threshold, curves.curves_num());
 
       /* TODO: Detect or manually provide corners. */
       const VArray<bool> corners = VArray<bool>::from_single(false, curves.points_num());
-      drawing.strokes_for_write() = geometry::fit_poly_to_bezier_curves(
+      curves = geometry::fit_poly_to_bezier_curves(
           curves, selection, thresholds, corners, geometry::FitMethod::Refit, {});
+
+      if ((settings->flag & GP_BRUSH_STROKE_TYPES) == GP_BRUSH_STROKE_TYPE_CATMULL_ROM) {
+        geometry::ConvertCurvesOptions options;
+        options.convert_bezier_handles_to_poly_points = false;
+        options.convert_bezier_handles_to_catmull_rom_points = false;
+        options.keep_bezier_shape_as_nurbs = true;
+        options.keep_catmull_rom_shape_as_nurbs = true;
+        curves = geometry::convert_curves(curves, selection, CURVE_TYPE_CATMULL_ROM, {}, options);
+      }
+      else if ((settings->flag & GP_BRUSH_STROKE_TYPES) == GP_BRUSH_STROKE_TYPE_NURBS) {
+        geometry::ConvertCurvesOptions options;
+        options.convert_bezier_handles_to_poly_points = false;
+        options.convert_bezier_handles_to_catmull_rom_points = false;
+        options.keep_bezier_shape_as_nurbs = true;
+        options.keep_catmull_rom_shape_as_nurbs = true;
+        curves = geometry::convert_curves(curves, selection, CURVE_TYPE_NURBS, {}, options);
+      }
     }
   }
 

@@ -57,8 +57,12 @@ enum eGPDbrush_Flag {
   GP_BRUSH_ACTIVE_LAYER_ONLY = (1 << 20),
   /* Automatically remove fill guides created with fill tool. */
   GP_BRUSH_FILL_AUTO_REMOVE_FILL_GUIDES = (1 << 21),
-  /* Post process convert to Bezier stroke. */
-  GP_BRUSH_BEZIER_STROKE = (1 << 22),
+  /* Post process convert stroke type. */
+  GP_BRUSH_STROKE_TYPES = (1 << 22) | (1 << 23),
+  GP_BRUSH_STROKE_TYPE_POLY = 0,
+  GP_BRUSH_STROKE_TYPE_BEZIER = (1 << 22),
+  GP_BRUSH_STROKE_TYPE_CATMULL_ROM = (1 << 23),
+  GP_BRUSH_STROKE_TYPE_NURBS = (1 << 22) | (1 << 23),
 };
 
 enum eGPDbrush_Flag2 {
