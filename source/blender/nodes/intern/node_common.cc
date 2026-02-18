@@ -826,10 +826,10 @@ static void node_implicit_conversion_declare(nodes::NodeDeclarationBuilder &b)
 
   const StringRefNull socket_idname(
       static_cast<const NodeImplicitConversion *>(node->storage)->type_idname);
-  b.add_input<nodes::decl::Custom>("Input")
+  b.add_input<nodes::decl::Custom>("Value")
       .idname(socket_idname.c_str())
       .structure_type(nodes::StructureType::Dynamic);
-  b.add_output<nodes::decl::Custom>("Output")
+  b.add_output<nodes::decl::Custom>("Value")
       .idname(socket_idname.c_str())
       .structure_type(nodes::StructureType::Dynamic)
       .reference_pass_all()
@@ -902,8 +902,8 @@ static bool node_implicit_conversion_poll_instance(const bNode *node,
 
 static void node_implicit_conversion_geo_exec(nodes::GeoNodeExecParams params)
 {
-  auto input_value = params.extract_input<bke::SocketValueVariant>("Input");
-  params.set_output("Output", std::move(input_value));
+  auto input_value = params.extract_input<bke::SocketValueVariant>("Value");
+  params.set_output("Value", std::move(input_value));
 }
 
 class ImplicitConversionOperation : public compositor::NodeOperation {
@@ -913,8 +913,8 @@ class ImplicitConversionOperation : public compositor::NodeOperation {
   void execute() override
   {
     using namespace compositor;
-    const Result &input = this->get_input("Input");
-    Result &output = this->get_result("Output");
+    const Result &input = this->get_input("Value");
+    Result &output = this->get_result("Value");
     output.share_data(input);
   }
 };
