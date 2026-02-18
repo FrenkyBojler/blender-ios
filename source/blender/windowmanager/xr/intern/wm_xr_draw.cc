@@ -750,16 +750,24 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
   rctf outline_rect = viewfinder_rect;
   BLI_rctf_pad(&outline_rect, 0.08f, 0.08f);
 
+  rctf tabs_bg_rect = {.xmin=background_rect.xmin,
+                       .xmax=background_rect.xmin + 4.55f,
+                       .ymin=background_rect.ymax - 0.3f,
+                       .ymax=background_rect.ymax + 0.45f};
+
   GPU_matrix_push();
   /* Workaround: regain precision on the rect side by a factor of 100. */
   GPU_matrix_scale_1f(0.01f);
   BLI_rctf_mul(&background_rect, 100);
   BLI_rctf_mul(&outline_rect, 100);
+  BLI_rctf_mul(&tabs_bg_rect, 100);
 
   GPU_polygon_offset(-1.0f, -1.0f);
   ui::draw_roundbox_3fv_alpha(&background_rect, true, 16, background_col, 1.0f);
   GPU_matrix_translate_3f(0.0f, 0.0f, 0.01f);
-  ui::draw_roundbox_3fv_alpha(&outline_rect, true, 12, outline_col, 0.2f);
+  ui::draw_roundbox_3fv_alpha(&tabs_bg_rect, true, 16, background_col, 1.0f);
+  GPU_matrix_translate_3f(0.0f, 0.0f, 0.01f);
+  ui::draw_roundbox_3fv_alpha(&outline_rect, true, 16, outline_col, 0.2f);
   GPU_polygon_offset(0.0f, 0.0f);
 
   GPU_matrix_pop();
