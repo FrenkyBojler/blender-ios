@@ -1115,7 +1115,7 @@ static void strip_update_mix_sounds(Scene *scene, Strip *strip)
     return;
   }
 
-  /* Needed when the strips parent_sound changes. */
+  /* Needed when the strips parent sound changes. */
   if (strip->runtime->scene_sound && strip->runtime->last_sound_sequence &&
       (strip->runtime->last_sound_sequence != parent_sound))
   {
@@ -1123,7 +1123,7 @@ static void strip_update_mix_sounds(Scene *scene, Strip *strip)
   }
 
   if (strip->sound != nullptr || strip->type == STRIP_TYPE_META) {
-    /* Adds `strip->sound->playback_handle` to parent sound scene. */
+    /* Adds `strip->sound->playback_handle` to parent sound sequence. */
     strip->runtime->scene_sound = BKE_sound_add_scene_sound(scene, strip);
   }
   else if (strip->type == STRIP_TYPE_SCENE && strip->scene != nullptr) {
