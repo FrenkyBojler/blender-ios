@@ -40,7 +40,7 @@
 #include "BLI_string_utf8.h"
 
 #ifndef WITH_HEADLESS
-#  include "nanosvgrast.h"
+#  include "thorvg.h"
 
 #  include "svg_icons.h"
 #endif /* WITH_HEADLESS */
@@ -362,41 +362,52 @@ static GlyphBLF *blf_glyph_cache_add_svg(GlyphCacheBLF *gc,
     edit_source_cb(svg_source);
   }
 
-  NSVGimage *image = nsvgParse(svg_source.data(), "px", 96.0f);
-
-  if (image == nullptr) {
+  /* Create a Picture and parse the SVG into it. */
+  tvg::Picture *picture = tvg::Picture::gen();
+  if (picture->load(svg_source.c_str(), uint32_t(svg_source.size()), "svg", nullptr, true) !=
+      tvg::Result::Success)
+  {
     return blf_glyph_cache_add_blank(gc, charcode);
   }
 
-  if (image->width == 0 || image->height == 0) {
-    nsvgDelete(image);
-    return blf_glyph_cache_add_blank(gc, charcode);
-  }
+  float width;
+  float height;
+  picture->size(&width, &height);
 
-  NSVGrasterizer *rast = nsvgCreateRasterizer();
-  if (rast == nullptr) {
-    nsvgDelete(image);
+  if (width == 0 || height == 0) {
+    tvg::Paint::rel(picture);
     return blf_glyph_cache_add_blank(gc, charcode);
   }
 
   float scale = (gc->size / 1600.0f);
-  const int dest_w = int(ceil(image->width * scale));
-  const int dest_h = int(ceil(image->height * scale));
-  scale = float(dest_w) / image->width;
+  const int dest_w = int(ceil(width * scale));
+  const int dest_h = int(ceil(height * scale));
+  scale = float(dest_w) / width;
+
+  picture->scale(scale);
 
   Array<uchar> render_bmp(dest_w * dest_h * 4);
 
-  nsvgRasterize(rast, image, 0.0f, 0.0f, scale, render_bmp.data(), dest_w, dest_h, dest_w * 4);
-  nsvgDeleteRasterizer(rast);
+  /* Create a canvas that will draw to our bitmap. */
+  tvg::SwCanvas *canvas = tvg::SwCanvas::gen();
+  uint32_t *bitmap_rgba_uint32 = reinterpret_cast<uint32_t *>(render_bmp.data());
+  canvas->target(bitmap_rgba_uint32, dest_w, dest_w, dest_h, tvg::ColorSpace::ABGR8888);
+
+  /* Push the SVG image to the canvas. */
+  canvas->push(picture);
+  /* Release the paint object. */
+  tvg::Paint::rel(picture);
+
+  /* Draw to the bitmap. */
+  canvas->draw(true);
+  canvas->sync();
 
   /* Bitmaps vary in size, so calculate the offsets needed when drawn. */
-  const int offset_x = std::max(int(round((gc->size - (image->width * scale)) / 2.0f)),
+  const int offset_x = std::max(int(round((gc->size - (width * scale)) / 2.0f)),
                                 int(-100.0f * scale));
 
   const int offset_y = std::max(int(ceil((gc->size + float(dest_h)) / 2.0f)),
                                 dest_h - int(100.0f * scale));
-
-  nsvgDelete(image);
 
   std::unique_ptr<GlyphBLF> g = std::make_unique<GlyphBLF>();
   g->c = charcode;

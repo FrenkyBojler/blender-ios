@@ -230,7 +230,7 @@ static uint8_t *cursor_bitmap_from_svg(const char *svg,
 #else
   /* Create a Picture and parse the SVG into it. */
   tvg::Picture *picture = tvg::Picture::gen();
-  if (picture->load(svg, strlen(svg), "svg", nullptr, false) != tvg::Result::Success) {
+  if (picture->load(svg, strlen(svg), "svg", nullptr, true) != tvg::Result::Success) {
     return nullptr;
   }
 

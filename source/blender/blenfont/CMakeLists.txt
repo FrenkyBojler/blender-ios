@@ -54,7 +54,7 @@ if(WITH_HEADLESS)
 else()
   # SVG icons.
   list(APPEND LIB
-    PRIVATE bf::extern::nanosvg
+    PRIVATE bf::dependencies::optional::thorvg
     PRIVATE bf::editor::datafiles
   )
 
