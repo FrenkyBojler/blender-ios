@@ -235,9 +235,10 @@ static std::function<ID *(const bNode &node)> get_default_id_getter(
 }
 
 static std::function<void(bNode &node, bNodeSocket &socket, const char *data_path)>
-get_init_socket_fn(const bNodeTreeInterface &interface, const bNodeTreeInterfaceSocket &io_socket)
+get_init_socket_fn(const bNodeTreeInterface &tree_interface,
+                   const bNodeTreeInterfaceSocket &io_socket)
 {
-  const int item_index = interface.find_item_index(io_socket.item);
+  const int item_index = tree_interface.find_item_index(io_socket.item);
   BLI_assert(item_index >= 0);
 
   /* Avoid capturing pointers that can become dangling. */
