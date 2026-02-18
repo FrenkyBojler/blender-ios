@@ -832,7 +832,8 @@ static void node_implicit_conversion_declare(nodes::NodeDeclarationBuilder &b)
       .structure_type(nodes::StructureType::Dynamic)
       .reference_pass_all()
       .propagate_all()
-      .align_with_previous();
+      .align_with_previous()
+      .optional_label();
 }
 
 static void node_implicit_conversion_label(const bNodeTree * /*ntree*/,
