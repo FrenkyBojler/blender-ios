@@ -1014,6 +1014,32 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
   return output_geometry;
 }
 
+static std::optional<StringRefNull> socket_to_default_attribute_name(
+    const bNodeTreeInterfaceSocket &io_socket)
+{
+  switch (NodeDefaultInputType(io_socket.default_input)) {
+    case NODE_DEFAULT_INPUT_VALUE:
+    case NODE_DEFAULT_INPUT_INDEX_FIELD:
+    case NODE_DEFAULT_INPUT_ID_INDEX_FIELD:
+    case NODE_DEFAULT_INPUT_NORMAL_FIELD:
+      return std::nullopt;
+    case NODE_DEFAULT_INPUT_POSITION_FIELD:
+      return "position";
+    case NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD:
+      return "instance_transform";
+    case NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD:
+      return "handle_left";
+    case NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD:
+      return "handle_right";
+    case NODE_DEFAULT_INPUT_ATTRIBUTE_FIELD:
+      if (io_socket.default_attribute_name[0] == '\0') {
+        return std::nullopt;
+      }
+      return io_socket.default_attribute_name;
+  }
+  return std::nullopt;
+}
+
 void update_input_properties_from_node_tree(const bNodeTree &tree,
                                             const IDProperty *old_properties,
                                             IDProperty &properties,
@@ -1065,10 +1091,10 @@ void update_input_properties_from_node_tree(const bNodeTree &tree,
       IDP_AddToGroup(&properties, attribute_prop);
 
       if (old_properties == nullptr) {
-        if (socket.default_input == NODE_DEFAULT_INPUT_ATTRIBUTE_FIELD &&
-            socket.default_attribute_name[0] != '\0')
-        {
-          IDP_AssignStringMaxSize(attribute_prop, socket.default_attribute_name, MAX_NAME);
+        const std::optional<StringRefNull> default_attribute_name =
+            socket_to_default_attribute_name(socket);
+        if (default_attribute_name.has_value()) {
+          IDP_AssignStringMaxSize(attribute_prop, default_attribute_name->c_str(), MAX_NAME);
           IDP_bool_set(use_attribute_prop, true);
         }
       }
