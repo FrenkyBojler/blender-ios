@@ -355,7 +355,7 @@ class UnusedIDsTestData : public TestData {
   /* IDs that are 'immediately' unused (i.e. have `0` users refcounting). */
   Set<ID *> unused_ids;
   /* IDs that must only be detected as unused in the recursive search. */
-  Set<ID *> unused_resursive_ids;
+  Set<ID *> unused_recursive_ids;
 
   UnusedIDsTestData()
   {
@@ -404,16 +404,16 @@ class UnusedIDsTestData : public TestData {
     auto make_islands = [this](Library *lib_1, Library *lib_2) -> void {
       /* Disconnected sub-graphs of IDs. */
       Mesh *me1 = BKE_id_new_in_lib<Mesh>(this->bmain, lib_2, "IDLibQueryMeshUnused_Island_1");
-      unused_resursive_ids.add(&me1->id);
+      unused_recursive_ids.add(&me1->id);
       Mesh *me2 = BKE_id_new_in_lib<Mesh>(this->bmain, lib_1, "IDLibQueryMeshUnused2_Island_1");
-      unused_resursive_ids.add(&me2->id);
+      unused_recursive_ids.add(&me2->id);
       World *world1 = BKE_id_new_in_lib<World>(
           this->bmain, lib_2, "IDLibQueryWorldUnused_Island_1");
-      unused_resursive_ids.add(&world1->id);
+      unused_recursive_ids.add(&world1->id);
       Object *ob1 = BKE_id_new_in_lib<Object>(
           this->bmain, lib_1, "IDLibQueryObjectUnused_Island_1");
       ob1->type = OB_MESH;
-      unused_resursive_ids.add(&ob1->id);
+      unused_recursive_ids.add(&ob1->id);
       /* Create the internal links keeping this isolated group 'used' from a refcounting
        * perspective. */
       ob1->data = id_cast<ID *>(me1);
@@ -451,7 +451,7 @@ TEST_F(LibQueryTest, libquery_unused_ids_direct)
   ID *id_iter;
   FOREACH_MAIN_ID_BEGIN (context.bmain, id_iter) {
     EXPECT_TRUE(context.used_ids.contains(id_iter) || context.unused_ids.contains(id_iter) ||
-                context.unused_resursive_ids.contains(id_iter));
+                context.unused_recursive_ids.contains(id_iter));
   }
   FOREACH_MAIN_ID_END;
 
@@ -561,7 +561,7 @@ TEST_F(LibQueryTest, libquery_unused_ids_recursive)
   ID *id_iter;
   FOREACH_MAIN_ID_BEGIN (context.bmain, id_iter) {
     EXPECT_TRUE(context.used_ids.contains(id_iter) || context.unused_ids.contains(id_iter) ||
-                context.unused_resursive_ids.contains(id_iter));
+                context.unused_recursive_ids.contains(id_iter));
   }
   FOREACH_MAIN_ID_END;
 
@@ -605,7 +605,7 @@ TEST_F(LibQueryTest, libquery_unused_ids_recursive)
     /* All directly unused local IDs must be tagged, linked ones must remain untagged. */
     EXPECT_TRUE(((id_iter->tag & ID_TAG_DOIT) != 0) != ID_IS_LINKED(id_iter));
   }
-  for (ID *id_iter : context.unused_resursive_ids) {
+  for (ID *id_iter : context.unused_recursive_ids) {
     /* All unused linked IDs must not be tagged. Some local ones also remain untagged. */
     EXPECT_TRUE(((id_iter->tag & ID_TAG_DOIT) == 0) || !ID_IS_LINKED(id_iter));
   }
@@ -613,7 +613,7 @@ TEST_F(LibQueryTest, libquery_unused_ids_recursive)
     if (!ID_IS_LINKED(id_iter) && context.unused_ids.contains(id_iter)) {
       continue;
     }
-    if (!ID_IS_LINKED(id_iter) && context.unused_resursive_ids.contains(id_iter)) {
+    if (!ID_IS_LINKED(id_iter) && context.unused_recursive_ids.contains(id_iter)) {
       continue;
     }
     EXPECT_TRUE((id_iter->tag & ID_TAG_DOIT) == 0);
@@ -645,7 +645,7 @@ TEST_F(LibQueryTest, libquery_unused_ids_recursive)
     /* All directly unused linked IDs must be tagged, local ones must remain untagged. */
     EXPECT_TRUE(((id_iter->tag & ID_TAG_DOIT) != 0) == ID_IS_LINKED(id_iter));
   }
-  for (ID *id_iter : context.unused_resursive_ids) {
+  for (ID *id_iter : context.unused_recursive_ids) {
     /* All unused local IDs must not be tagged. Some linked ones also remain untagged. */
     EXPECT_TRUE(((id_iter->tag & ID_TAG_DOIT) == 0) || ID_IS_LINKED(id_iter));
   }
@@ -653,7 +653,7 @@ TEST_F(LibQueryTest, libquery_unused_ids_recursive)
     if (ID_IS_LINKED(id_iter) && context.unused_ids.contains(id_iter)) {
       continue;
     }
-    if (ID_IS_LINKED(id_iter) && context.unused_resursive_ids.contains(id_iter)) {
+    if (ID_IS_LINKED(id_iter) && context.unused_recursive_ids.contains(id_iter)) {
       continue;
     }
     EXPECT_TRUE((id_iter->tag & ID_TAG_DOIT) == 0);
@@ -692,7 +692,7 @@ TEST_F(LibQueryTest, libquery_unused_ids_recursive)
     /* All directly unused IDs must be tagged. */
     EXPECT_TRUE((id_iter->tag & ID_TAG_DOIT) != 0);
   }
-  for (ID *id_iter : context.unused_resursive_ids) {
+  for (ID *id_iter : context.unused_recursive_ids) {
     /* All indirectly unused IDs must be tagged. */
     EXPECT_TRUE((id_iter->tag & ID_TAG_DOIT) != 0);
   }
@@ -700,7 +700,7 @@ TEST_F(LibQueryTest, libquery_unused_ids_recursive)
     if (context.unused_ids.contains(id_iter)) {
       continue;
     }
-    if (context.unused_resursive_ids.contains(id_iter)) {
+    if (context.unused_recursive_ids.contains(id_iter)) {
       continue;
     }
     EXPECT_TRUE((id_iter->tag & ID_TAG_DOIT) == 0);

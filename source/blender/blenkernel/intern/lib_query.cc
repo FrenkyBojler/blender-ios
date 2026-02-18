@@ -720,7 +720,7 @@ class UnusedIDsData {
  private:
   /* Statuses of IDs.
    *
-   * NOTE: In current implementation, 'Unknown' status IDs are not explicitely stored in this
+   * NOTE: In current implementation, 'Unknown' status IDs are not explicitly stored in this
    * mapping. */
   Map<ID *, Status> ids_status_;
 
@@ -846,7 +846,7 @@ static bool id_is_enforced_used(ID &id, UnusedIDsData &data)
 }
 
 /**
- * Add some extra, 'should-not-be-needed' cases wher an ID usage defines this ID as used.
+ * Add some extra, 'should-not-be-needed' cases where an ID usage defines this ID as used.
  *
  * Currently only used for the linked, but not instantiated Object case (as many 'valid' Object
  * usages are not refcounting ones).
@@ -919,7 +919,7 @@ static void lib_query_unused_ids_find_used_dependencies(ID &id,
       return IDWALK_RET_NOP;
     }
 
-    /* Note: First condition is alwasy `true` if `required_usages == IDWALK_CB_NOP`. */
+    /* Note: First condition is always `true` if `required_usages == IDWALK_CB_NOP`. */
     if ((foreachid_cb_data->cb_flag & required_usages) == 0 &&
         !id_is_used_dependency_exception(*id_to))
     {
@@ -1001,7 +1001,7 @@ static void lib_query_unused_ids_direct_tag(UnusedIDsData &data)
       data.set_id_status(*id, UnusedIDsData::Status::Unused);
     }
     else {
-      /* In direct case, if an ID is not explicitely unused, it is always considered as used. */
+      /* In direct case, if an ID is not explicitly unused, it is always considered as used. */
       data.set_id_status(*id, UnusedIDsData::Status::Used);
     }
   }
