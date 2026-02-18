@@ -157,6 +157,7 @@ const FlatBundleTypePtr &RodBendTwistBundle::get_bundle_type()
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(RodBendTwistBundle::name);
     add_filter(b);
+    b.add<decl::Rotation>("rest_bend_rotation").supports_field();
     b.add<decl::Float>("compliance").default_value(1e-4f).min(0.0f);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);

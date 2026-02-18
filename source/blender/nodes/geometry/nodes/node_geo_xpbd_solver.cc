@@ -47,7 +47,6 @@ constexpr StringRefNull mass = "mass";
 constexpr StringRefNull moment_of_inertia = "moment_of_inertia";
 constexpr StringRefNull static_friction = "static_friction";
 constexpr StringRefNull dynamic_friction = "dynamic_friction";
-constexpr StringRefNull rest_bend_rotation = "rest_bend_rotation";
 
 }  // namespace attribute_names
 
@@ -146,11 +145,13 @@ struct RodStretchShearConstraintUsage {
 
 struct RodBendTwistConstraint {
   std::string path;
+  Field<math::Quaternion> rest_bend_rotation;
   Field<float> compliance;
 };
 struct RodBendTwistConstraintUsage {
   /** Index of corresponding #RodBendTwistConstraint. */
   int constraint_i;
+  VArraySpan<math::Quaternion> rest_bend_rotations;
   VArray<float> compliances;
   MutableSpan<float4> lambdas;
 };
@@ -301,7 +302,6 @@ struct GeometryData {
 
   VArraySpan<float3> external_force_attr;
   VArraySpan<float3> external_torque_attr;
-  VArraySpan<math::Quaternion> rest_bend_rotations;
   VArray<float> static_frictions;
   VArray<float> dynamic_frictions;
   VArray<float> masses;
@@ -709,10 +709,6 @@ class XpbdSolverStep {
           attribute_names::mass, domain, 1.0f);
       geo_data.moments_of_inertia = *geo_data.attributes.lookup_or_default<float3>(
           attribute_names::moment_of_inertia, domain, float3(1.0f));
-      if (geo_data.curves) {
-        geo_data.rest_bend_rotations = *geo_data.attributes.lookup_or_default<math::Quaternion>(
-            attribute_names::rest_bend_rotation, geo_data.domain, math::Quaternion::identity());
-      }
     }
   }
 
@@ -1471,11 +1467,15 @@ class XpbdSolverStep {
     const Span<std::string> paths = nested_bundle_paths_.lookup(RodBendTwistBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
-      const Field<float> compliance_field = this->get_field_or_constant(
-          bundle, "compliance", 0.0f);
+
+      RodBendTwistConstraint constraint;
+      constraint.path = path;
+      constraint.rest_bend_rotation = this->get_field_or_constant(
+          bundle, "rest_bend_rotation", math::Quaternion::identity());
+      constraint.compliance = this->get_field_or_constant(bundle, "compliance", 0.0f);
 
       const int constraint_i = constraints_.rod_bend_twist_constraints.append_and_get_index(
-          {path, compliance_field});
+          std::move(constraint));
 
       for (const int data_key_i : geometries_.data.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
@@ -1504,6 +1504,7 @@ class XpbdSolverStep {
       constraint_usage.lambdas = tls.allocator.allocate_array<float4>(geo_data.size);
 
       fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
+      evaluator.add(constraint.rest_bend_rotation, &constraint_usage.rest_bend_rotations);
       evaluator.add(constraint.compliance, &constraint_usage.compliances);
     }
   }
@@ -1530,7 +1531,7 @@ class XpbdSolverStep {
                 data_key_i,
                 *chunk.curves_range,
                 points_by_curve,
-                geo_data.rest_bend_rotations,
+                constraint_usage.rest_bend_rotations,
                 compliances.get_span_for_range(chunk.points_range),
                 constraint_usage.lambdas));
       }
