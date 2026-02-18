@@ -815,7 +815,7 @@ bool bke::node_is_connected_to_output(const bNodeTree &ntree, const bNode &node)
 /** \name Implicit Conversion Node
  * \{ */
 
-static void node_adapt_type_declare(nodes::NodeDeclarationBuilder &b)
+static void node_implicit_conversion_declare(nodes::NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
   if (node == nullptr) {
@@ -932,7 +932,7 @@ void register_node_type_implicit_conversion()
   ntype->ui_name = "Implicit Conversion";
   ntype->ui_description = "Implicitly convert the input value to a fixed socket type";
   ntype->nclass = NODE_CLASS_CONVERTER;
-  ntype->declare = node_adapt_type_declare;
+  ntype->declare = node_implicit_conversion_declare;
   ntype->labelfunc = node_implicit_conversion_label;
   ntype->draw_buttons = node_implicit_conversion_layout;
   ntype->initfunc = node_implicit_conversion_init;
