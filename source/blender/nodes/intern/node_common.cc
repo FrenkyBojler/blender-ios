@@ -828,6 +828,7 @@ static void node_implicit_conversion_declare(nodes::NodeDeclarationBuilder &b)
       static_cast<const NodeImplicitConversion *>(node->storage)->type_idname);
   b.use_custom_socket_order();
   b.allow_any_socket_order();
+  b.add_default_layout();
   b.add_input<nodes::decl::Custom>("Value")
       .idname(socket_idname.c_str())
       .structure_type(nodes::StructureType::Dynamic);
