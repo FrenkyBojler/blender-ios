@@ -34,6 +34,12 @@ class ColliderBundle {
   static const FlatBundleTypePtr &get_bundle_type();
 };
 
+class InfinitePlaneColliderBundle {
+ public:
+  static constexpr StringRefNull name = "Blender.InfinitePlaneCollider";
+  static const FlatBundleTypePtr &get_bundle_type();
+};
+
 class DampingBundle {
  public:
   static constexpr StringRefNull name = "Blender.Damping";
@@ -42,31 +48,25 @@ class DampingBundle {
 
 class PinPositionBundle {
  public:
-  static constexpr StringRefNull name = "Blender.PinPosition";
+  static constexpr StringRefNull name = "Blender.PinPositionConstraint";
   static const FlatBundleTypePtr &get_bundle_type();
 };
 
 class PinRotationBundle {
  public:
-  static constexpr StringRefNull name = "Blender.PinRotation";
-  static const FlatBundleTypePtr &get_bundle_type();
-};
-
-class InfinitePlaneColliderBundle {
- public:
-  static constexpr StringRefNull name = "Blender.InfinitePlaneCollider";
+  static constexpr StringRefNull name = "Blender.PinRotationConstraint";
   static const FlatBundleTypePtr &get_bundle_type();
 };
 
 class RodStretchShearBundle {
  public:
-  static constexpr StringRefNull name = "Blender.RodStretchShear";
+  static constexpr StringRefNull name = "Blender.RodStretchShearConstraint";
   static const FlatBundleTypePtr &get_bundle_type();
 };
 
 class RodBendTwistBundle {
  public:
-  static constexpr StringRefNull name = "Blender.RodBendTwist";
+  static constexpr StringRefNull name = "Blender.RodBendTwistConstraint";
   static const FlatBundleTypePtr &get_bundle_type();
 };
 
