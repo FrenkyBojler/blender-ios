@@ -109,7 +109,7 @@ class DynamicOverrideDepsgraphCtx {
   }
 
   /**
-   * Is the given (orig) ID (potentially) affected by the current dynamic overrides in the context.
+   * Return the top-most orig DynamicOverride ID affecting the given (orig) ID, in the context.
    */
   DynamicOverride *get_override_for_id(ID &id) const
   {
@@ -121,7 +121,17 @@ class DynamicOverrideDepsgraphCtx {
     }
     return nullptr;
   }
+  /**
+   * Return the top-most evaluated DynamicOverride ID affecting the given (orig) ID, in the
+   * context.
+   */
+  DynamicOverride *get_evaluated_override_for_id(Depsgraph &depsgraph, ID &id) const;
 };
+
+/** Actually evaluate the effects of dynamic overrides over a given ID. */
+void dynamic_override_eval_for_id(Depsgraph &depsgraph,
+                                  DynamicOverrideDepsgraphCtx &eval_context,
+                                  ID &id_cow);
 
 /** \} */
 

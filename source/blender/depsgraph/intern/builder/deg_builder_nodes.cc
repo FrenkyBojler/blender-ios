@@ -1471,19 +1471,6 @@ void DepsgraphNodeBuilder::build_driver_id_property(const PointerRNA &target_pro
   }
 }
 
-void DepsgraphNodeBuilder::build_dynamic_override(DynamicOverride *dynamic_override)
-{
-  /* Same as #build_generic_id, but dynamic overrides are not allowed to be overridden by other
-   * dynamic overrides. */
-  build_idproperties(dynamic_override->id.properties);
-  build_idproperties(dynamic_override->id.system_properties);
-  build_animdata(&dynamic_override->id);
-  build_parameters(&dynamic_override->id);
-  BLI_assert(dynamic_override_ctx_->get_override_for_id(dynamic_override->id) == nullptr);
-
-  /* TODO: dependencies (imported DynamicOverride IDs). */
-}
-
 void DepsgraphNodeBuilder::build_parameters(ID *id)
 {
   (void)add_id_node(id);
@@ -1514,11 +1501,25 @@ void DepsgraphNodeBuilder::build_parameters(ID *id)
 void DepsgraphNodeBuilder::build_id_dynamic_override(ID *id)
 {
   DynamicOverride *dynamic_override = dynamic_override_ctx_->get_override_for_id(*id);
-  if (!dynamic_override || built_map_.check_is_built_and_tag(&dynamic_override->id)) {
+  if (!dynamic_override) {
     return;
   }
 
-  this->build_id(&dynamic_override->id);
+  if (!built_map_.check_is_built_and_tag(&dynamic_override->id)) {
+    this->build_id(&dynamic_override->id);
+  }
+
+  /* With dynamic overrides, the dependency is reversed: the overridde ID referenced in the
+   * DynamicOverride ID depends on the latter. */
+  ID *id_cow = get_cow_id(id);
+  bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx = this->dynamic_override_ctx_;
+  add_operation_node(id,
+                     NodeType::DYNAMIC_OVERRIDE,
+                     OperationCode::DYNAMIC_OVERRIDE_EVAL,
+                     [dynamic_override_ctx, id_cow](blender::Depsgraph *depsgraph) {
+                       bke::dynamic_override_eval_for_id(
+                           *depsgraph, *dynamic_override_ctx, *id_cow);
+                     });
 }
 
 void DepsgraphNodeBuilder::build_dimensions(Object *object)
@@ -2384,6 +2385,19 @@ void DepsgraphNodeBuilder::build_vfont(VFont *vfont)
   build_id_dynamic_override(&vfont->id);
   build_idproperties(vfont->id.properties);
   build_idproperties(vfont->id.system_properties);
+}
+
+void DepsgraphNodeBuilder::build_dynamic_override(DynamicOverride *dynamic_override)
+{
+  /* Same as #build_generic_id, but dynamic overrides are not allowed to be overridden by other
+   * dynamic overrides. */
+  build_idproperties(dynamic_override->id.properties);
+  build_idproperties(dynamic_override->id.system_properties);
+  build_animdata(&dynamic_override->id);
+  build_parameters(&dynamic_override->id);
+  BLI_assert(dynamic_override_ctx_->get_override_for_id(dynamic_override->id) == nullptr);
+
+  /* TODO: dependencies (imported DynamicOverride IDs). */
 }
 
 static bool strip_node_build_cb(Strip *strip, void *user_data)

@@ -345,6 +345,7 @@ void deg_register_component_depsnodes()
   register_node_typeinfo(&DNTI_VISIBILITY);
   register_node_typeinfo(&DNTI_NTREE_OUTPUT);
   register_node_typeinfo(&DNTI_NTREE_GEOMETRY_PREPROCESS);
+  register_node_typeinfo(&DNTI_DYNAMIC_OVERRIDE);
 }
 
 /** \} */

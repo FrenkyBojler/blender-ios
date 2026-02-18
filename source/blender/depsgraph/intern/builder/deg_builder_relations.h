@@ -217,9 +217,12 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_driver_id_property(const PointerRNA &target_prop,
                                         const char *rna_path_from_target_prop);
 
-  // virtual void build_dynamic_override(ID *id);
-
   virtual void build_parameters(ID *id);
+  /**
+   * Ensure that the root dynamic override affecting the given ID, and related relations, are
+   * built.
+   */
+  virtual void build_id_dynamic_override(ID *id);
   virtual void build_dimensions(Object *object);
   virtual void build_world(World *world);
   virtual void build_rigidbody(Scene *scene);
@@ -265,6 +268,11 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_scene_audio(Scene *scene);
   virtual void build_scene_speakers(Scene *scene, ViewLayer *view_layer);
   virtual void build_vfont(VFont *vfont);
+  /**
+   * Build the dynamic override ID itself and its dependencies (animation, other imported dynamic
+   * override...).
+   */
+  virtual void build_dynamic_override(DynamicOverride *dynamic_override);
 
   virtual void build_nested_datablock(ID *owner, ID *id, bool flush_cow_changes);
   virtual void build_nested_nodetree(ID *owner, bNodeTree *ntree);
@@ -334,6 +342,9 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
    * the same node tree as a driver variable. */
   template<typename KeyFrom, typename KeyTo>
   bool is_same_nodetree_node_dependency(const KeyFrom &key_from, const KeyTo &key_to);
+
+  /** Return `true` if the given ID is affected by dynamic override. */
+  bool id_has_dynamic_override_component(ID *id);
 
  private:
   struct BuilderWalkUserData {

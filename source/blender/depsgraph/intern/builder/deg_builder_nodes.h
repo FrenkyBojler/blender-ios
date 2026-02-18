@@ -260,11 +260,6 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   virtual void build_driver_id_property(const PointerRNA &target_prop,
                                         const char *rna_path_from_target_prop);
 
-  /**
-   * Build the dynamic override ID itself and its dependencies (animation, other imported dynamic
-   * override...). */
-  virtual void build_dynamic_override(DynamicOverride *dynamic_override);
-
   virtual void build_parameters(ID *id);
   /** Ensure that the root dynamic override affecting the given ID is built. */
   virtual void build_id_dynamic_override(ID *id);
@@ -304,6 +299,11 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   virtual void build_scene_audio(Scene *scene);
   virtual void build_scene_speakers(Scene *scene, ViewLayer *view_layer);
   virtual void build_vfont(VFont *vfont);
+  /**
+   * Build the dynamic override ID itself and its dependencies (animation, other imported dynamic
+   * override...).
+   */
+  virtual void build_dynamic_override(DynamicOverride *dynamic_override);
 
   virtual Set<const ID *> get_built_ids() const;
 

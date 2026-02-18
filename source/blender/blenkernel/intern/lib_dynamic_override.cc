@@ -30,7 +30,7 @@
 
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
-#include "BKE_lib_dynamic_override.hh".hh "
+#include "BKE_lib_dynamic_override.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_library.hh"
@@ -83,13 +83,12 @@ static void dynoverride_copy_data(Main * /*bmain*/,
 
   BLI_duplicatelist(&dynoverride_dst->rules, &dynoverride_src->rules);
   for (DynamicOverrideRule *
-           dynoverride_rule_dst = static_cast<DynamicOverrideRule *>(dynoverride_dst->rules.first),
-          *dynoverride_rule_src = static_cast<DynamicOverrideRule *>(dynoverride_src->rules.first);
-       dynoverride_rule_dst;
-       dynoverride_rule_dst = dynoverride_rule_dst->next,
-          dynoverride_rule_src = dynoverride_rule_src->next)
+           rule_dst = static_cast<DynamicOverrideRule *>(dynoverride_dst->rules.first),
+          *rule_src = static_cast<DynamicOverrideRule *>(dynoverride_src->rules.first);
+       rule_dst;
+       rule_dst = rule_dst->next, rule_src = rule_src->next)
   {
-    dynamic_override_rule_copy(*dynoverride_rule_dst, *dynoverride_rule_src, flag);
+    dynamic_override_rule_copy(*rule_dst, *rule_src, flag);
   }
 
   dynoverride_dst->runtime = MEM_new<bke::DynamicOverrideRuntime>(__func__);
@@ -102,6 +101,7 @@ static void dynoverride_free_data(ID *id)
   for (DynamicOverrideRule &dynoverride_rule : dynoverride->rules) {
     dynamic_override_rule_free(dynoverride_rule);
   }
+  BLI_freelistN(&dynoverride->rules);
 
   MEM_delete(dynoverride->runtime);
 }
@@ -191,10 +191,14 @@ static void dynamic_override_rule_property_copy(
       dynoverride_rule_property_src.sub_item_name);
   dynoverride_rule_property_dst.sub_item_index = dynoverride_rule_property_src.sub_item_index;
 
-  dynoverride_rule_property_dst.new_value = IDP_CopyProperty_ex(
-      dynoverride_rule_property_src.new_value, flag);
-  dynoverride_rule_property_dst.orig_value = IDP_CopyProperty_ex(
-      dynoverride_rule_property_src.orig_value, flag);
+  if (dynoverride_rule_property_src.new_value) {
+    dynoverride_rule_property_dst.new_value = IDP_CopyProperty_ex(
+        dynoverride_rule_property_src.new_value, flag);
+  }
+  if (dynoverride_rule_property_src.orig_value) {
+    dynoverride_rule_property_dst.orig_value = IDP_CopyProperty_ex(
+        dynoverride_rule_property_src.orig_value, flag);
+  }
 }
 
 static void dynamic_override_rule_copy(DynamicOverrideRule &dynoverride_rule_dst,
@@ -339,11 +343,13 @@ static void dynamic_override_rule_property_read_data(
   BLO_read_string(&reader, &dynoverride_rule_property.rna_path);
   BLO_read_string(&reader, &dynoverride_rule_property.sub_item_name);
 
+  BLO_read_struct(&reader, IDProperty, &dynoverride_rule_property.new_value);
   if (dynoverride_rule_property.new_value) {
-    IDP_BlendDataRead(&reader, &dynoverride_rule_property.new_value);
+    IDP_DirectLinkProperty(&reader, dynoverride_rule_property.new_value);
   }
+  BLO_read_struct(&reader, IDProperty, &dynoverride_rule_property.orig_value);
   if (dynoverride_rule_property.orig_value) {
-    IDP_BlendDataRead(&reader, &dynoverride_rule_property.orig_value);
+    IDP_DirectLinkProperty(&reader, dynoverride_rule_property.orig_value);
   }
 }
 
@@ -355,6 +361,7 @@ static void dynamic_override_rule_read_data(BlendDataReader &reader,
       DynamicOverrideRuleIDData &rule = reinterpret_cast<DynamicOverrideRuleIDData &>(
           dynoverride_rule);
 
+      BLO_read_struct_list(&reader, DynamicOverrideRuleProperty, &rule.properties);
       for (DynamicOverrideRuleProperty &property : rule.properties) {
         dynamic_override_rule_property_read_data(reader, property);
       }
@@ -545,6 +552,63 @@ void DynamicOverrideDepsgraphCtx::gather_id_targets()
     }
   }
   id_targets_are_gathered_ = true;
+}
+
+DynamicOverride *DynamicOverrideDepsgraphCtx::get_evaluated_override_for_id(Depsgraph &depsgraph,
+                                                                            ID &id) const
+{
+  DynamicOverride *dynamic_override_orig = this->get_override_for_id(id);
+  if (dynamic_override_orig) {
+    return id_cast<DynamicOverride *>(
+        DEG_get_evaluated_id(&depsgraph, id_cast<ID *>(dynamic_override_orig)));
+  }
+  return nullptr;
+}
+
+void dynamic_override_eval_for_id(Depsgraph &depsgraph,
+                                  DynamicOverrideDepsgraphCtx &eval_context,
+                                  ID &id_cow)
+{
+  ID *id_orig = DEG_get_original_id(&id_cow);
+  DynamicOverride *dynamic_override = eval_context.get_evaluated_override_for_id(depsgraph,
+                                                                                 *id_orig);
+  BLI_assert(dynamic_override);
+
+  PointerRNA id_cow_ptr = RNA_id_pointer_create(&id_cow);
+  for (DynamicOverrideRule &rule : dynamic_override->rules) {
+    if (rule.type != DynamicOverrideRuleType::IDDATA) {
+      continue;
+    }
+    DynamicOverrideRuleIDData &rule_iddata = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
+    if (rule_iddata.owner_id != &id_cow) {
+      continue;
+    }
+    for (DynamicOverrideRuleProperty &prop : rule_iddata.properties) {
+      PointerRNA ptr;
+      PropertyRNA *rna_prop;
+      RNA_path_resolve(&id_cow_ptr, prop.rna_path, &ptr, &rna_prop);
+
+      if (!ptr.data || !rna_prop) {
+        continue;
+      }
+
+      const bool is_array = RNA_property_array_check(rna_prop);
+      switch (RNA_property_type(rna_prop)) {
+        case PROP_FLOAT:
+          if (is_array) {
+            int array_len = RNA_property_array_length(&ptr, rna_prop);
+            if (prop.new_value->type == IDP_ARRAY && prop.new_value->subtype == IDP_FLOAT &&
+                prop.new_value->len == array_len)
+            {
+              RNA_property_float_set_array(&ptr, rna_prop, IDP_array_float_get(prop.new_value));
+            }
+          }
+          break;
+        default:
+          break;
+      }
+    }
+  }
 }
 
 /** \} */

@@ -420,6 +420,13 @@ void IDP_BlendReadData_impl(BlendDataReader *reader,
                             const char *caller_func_id);
 #define IDP_BlendDataRead(reader, prop) IDP_BlendReadData_impl(reader, prop, __func__)
 
+/**
+ * Read an arbitrary IDProperty type.
+ *
+ * Use when the 'root' IDProperty is _not_ a Group one. Otherwise, use #IDP_BlendDataRead.
+ */
+void IDP_DirectLinkProperty(BlendDataReader *reader, IDProperty *prop);
+
 enum eIDPropertyUIDataType {
   /** Other properties types that don't support RNA UI data. */
   IDP_UI_DATA_TYPE_UNSUPPORTED = -1,
