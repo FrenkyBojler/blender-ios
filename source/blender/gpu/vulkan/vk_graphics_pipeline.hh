@@ -254,32 +254,37 @@ struct VKGraphicsPipelineCreateInfoBuilder {
   void build_graphics_pipeline_library(VkGraphicsPipelineLibraryFlagsEXT flags)
   {
     vk_graphics_pipeline_library_create_info = {
-        VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_LIBRARY_CREATE_INFO_EXT, nullptr, flags};
+        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_LIBRARY_CREATE_INFO_EXT,
+        .pNext = nullptr,
+        .flags = flags};
   }
 
   void build_shader_stages(const VKGraphicsInfo::Shaders &shaders_info)
   {
-    vk_pipeline_shader_stage_create_info[0] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                                               nullptr,
-                                               0,
-                                               VK_SHADER_STAGE_VERTEX_BIT,
-                                               shaders_info.vk_vertex_module,
-                                               "main",
-                                               nullptr};
-    vk_pipeline_shader_stage_create_info[1] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                                               nullptr,
-                                               0,
-                                               VK_SHADER_STAGE_FRAGMENT_BIT,
-                                               shaders_info.vk_fragment_module,
-                                               "main",
-                                               nullptr};
-    vk_pipeline_shader_stage_create_info[2] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                                               nullptr,
-                                               0,
-                                               VK_SHADER_STAGE_GEOMETRY_BIT,
-                                               shaders_info.vk_geometry_module,
-                                               "main",
-                                               nullptr};
+    vk_pipeline_shader_stage_create_info[0] = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .stage = VK_SHADER_STAGE_VERTEX_BIT,
+        .module = shaders_info.vk_vertex_module,
+        .pName = "main",
+        .pSpecializationInfo = nullptr};
+    vk_pipeline_shader_stage_create_info[1] = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .module = shaders_info.vk_fragment_module,
+        .pName = "main",
+        .pSpecializationInfo = nullptr};
+    vk_pipeline_shader_stage_create_info[2] = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .stage = VK_SHADER_STAGE_GEOMETRY_BIT,
+        .module = shaders_info.vk_geometry_module,
+        .pName = "main",
+        .pSpecializationInfo = nullptr};
   }
 
   void build_specialization_constants(const VKGraphicsInfo::Shaders &shaders_info)
@@ -434,11 +439,12 @@ struct VKGraphicsPipelineCreateInfoBuilder {
     if (extensions.vertex_input_dynamic_state) {
       vk_dynamic_states.append(VK_DYNAMIC_STATE_VERTEX_INPUT_EXT);
     }
-    vk_pipeline_dynamic_state_create_info = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-                                             nullptr,
-                                             0,
-                                             uint32_t(vk_dynamic_states.size()),
-                                             vk_dynamic_states.data()};
+    vk_pipeline_dynamic_state_create_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .dynamicStateCount = uint32_t(vk_dynamic_states.size()),
+        .pDynamicStates = vk_dynamic_states.data()};
   }
 
   void build_dynamic_state_for_vertex_input(const VKExtensions &extensions)
@@ -446,17 +452,20 @@ struct VKGraphicsPipelineCreateInfoBuilder {
     if (extensions.vertex_input_dynamic_state) {
       vk_dynamic_states = {VK_DYNAMIC_STATE_VERTEX_INPUT_EXT};
     }
-    vk_pipeline_dynamic_state_create_info = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-                                             nullptr,
-                                             0,
-                                             uint32_t(vk_dynamic_states.size()),
-                                             vk_dynamic_states.data()};
+    vk_pipeline_dynamic_state_create_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .dynamicStateCount = uint32_t(vk_dynamic_states.size()),
+        .pDynamicStates = vk_dynamic_states.data()};
   }
 
   void build_depth_stencil_state(const VKGraphicsInfo::Shaders &shaders_info)
   {
     vk_pipeline_depth_stencil_state_create_info = {
-        VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0};
     if (shaders_info.has_depth) {
       vk_graphics_pipeline_create_info.pDepthStencilState =
           &vk_pipeline_depth_stencil_state_create_info;
@@ -572,19 +581,21 @@ struct VKGraphicsPipelineCreateInfoBuilder {
   /* Shaders lib only requires the view-mask to be set. */
   void build_dynamic_rendering_shaders_lib()
   {
-    vk_pipeline_rendering_create_info = {VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
+    vk_pipeline_rendering_create_info = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+                                         .pNext = nullptr};
   }
 
   void build_color_blend_attachment_states(const VKGraphicsInfo::FragmentOut &fragment_output_info)
   {
-    VkPipelineColorBlendAttachmentState attachment_state = {VK_TRUE,
-                                                            VK_BLEND_FACTOR_DST_ALPHA,
-                                                            VK_BLEND_FACTOR_ONE,
-                                                            VK_BLEND_OP_ADD,
-                                                            VK_BLEND_FACTOR_ZERO,
-                                                            VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-                                                            VK_BLEND_OP_ADD,
-                                                            0};
+    VkPipelineColorBlendAttachmentState attachment_state = {
+        .blendEnable = VK_TRUE,
+        .srcColorBlendFactor = VK_BLEND_FACTOR_DST_ALPHA,
+        .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
+        .colorBlendOp = VK_BLEND_OP_ADD,
+        .srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+        .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+        .alphaBlendOp = VK_BLEND_OP_ADD,
+        .colorWriteMask = 0};
 
     switch (fragment_output_info.state.blend) {
       default:

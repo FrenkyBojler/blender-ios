@@ -54,10 +54,10 @@ VKImageView::VKImageView(VKTexture &texture, const VKImageViewInfo &info, String
                      to_vk_component_swizzle(info.swizzle[2]),
                      to_vk_component_swizzle(info.swizzle[3])},
       .subresourceRange = {image_aspect,
-                           info.mip_range.first(),
-                           info.mip_range.size(),
-                           info.layer_range.first(),
-                           info.layer_range.size()}};
+                           uint32_t(info.mip_range.first()),
+                           uint32_t(info.mip_range.size()),
+                           uint32_t(info.layer_range.first()),
+                           uint32_t(info.layer_range.size())}};
 
   const VKDevice &device = VKBackend::get().device;
   vkCreateImageView(device.vk_handle(), &image_view_info, nullptr, &vk_image_view_);

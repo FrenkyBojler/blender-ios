@@ -617,7 +617,7 @@ template<typename T> void copy_color(T dst[4], const T *src)
 
 VkClearColorValue to_vk_clear_color_value(const eGPUDataFormat format, const void *data)
 {
-  VkClearColorValue result = {{0.0f}};
+  VkClearColorValue result = {.float32 = {0.0f, 0.0f, 0.0f, 0.0f}};
   switch (format) {
     /* All float-like formats (i.e. everything except literal int/uint go
      * into VkClearColorValue float color fields. */
