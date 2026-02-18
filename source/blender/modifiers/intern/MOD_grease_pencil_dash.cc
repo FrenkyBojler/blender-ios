@@ -251,7 +251,8 @@ static bke::CurvesGeometry create_dashes(const PatternInfo &pattern_info,
   Array<int> src_point_indices(dst_point_num);
   Array<int> src_curve_indices(dst_curve_num);
 
-  int fill_id_to_set = bke::greasepencil::get_next_available_fill_id(src_fill_ids);
+  /* Start at `1` for the new geometry. */
+  int fill_id_to_set = 1;
 
   {
     /* Start at curve offset and add points for each dash. */
