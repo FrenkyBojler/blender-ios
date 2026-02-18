@@ -214,7 +214,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
   static bool dirty_dof_settings = false;
   static CameraDOFSettings live_dof_settings = camera_data->dof;
 
-  float viewfinder_viewmat[4][4] = {};
+  float viewfinder_capture_viewmat[4][4] = {};
   float current_landmark_vf_lens = 0.0f;
   switch (settings->viewfinder_active_mode) {
     case XR_VIEWFINDER_MODE_LIVE: {
@@ -230,18 +230,50 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       }
 
       /* Note: View offsets can be configured using the Scene Camera Shift X/Y settings. */
-      float viewfinder_mat[4][4];
-      copy_m4_m4(viewfinder_mat, viewfinder_controller->grip_mat);
-      rotate_m4(viewfinder_mat, 'X', -M_PI_2);
+      // TODO: Move viewfinder capture matrix computation out of the drawing function.
 
-      invert_m4_m4(viewfinder_viewmat, viewfinder_mat);
+      /* Obtain raw viewfinder capture mat from the current controller grip mat. */
+      float viewfinder_raw_capture_mat[4][4];
+      copy_m4_m4(viewfinder_raw_capture_mat, viewfinder_controller->grip_mat);
+      rotate_m4(viewfinder_raw_capture_mat, 'X', -M_PI_2);
 
-      /* Store the last known position/rotation in the XR session state for landmark capture.
-       * Note: We really shouldn't mutate runtime data from a drawing function, but this is by
-       *       far the simplest way to do it. */
-      mat4_to_loc_quat(session_state->viewfinder_position,
-                       session_state->viewfinder_orientation_quat,
-                       viewfinder_mat);
+      float raw_capture_position[3];
+      float raw_capture_orientation_quat[4];
+      mat4_to_loc_quat(raw_capture_position,
+                       raw_capture_orientation_quat, viewfinder_raw_capture_mat);
+
+      if (session_state->viewfinder_smoothing_delta_t > 0) {
+        /* Apply exponential movement smoothing. */
+        constexpr float movement_smoothing_speed = 15.0f;
+
+        const double current_time = BLI_time_now_seconds();
+        const float delta_t = float(current_time - session_state->viewfinder_smoothing_delta_t);
+        const float clamped_delta = min_ff(delta_t, 0.1f);
+        const float factor = 1.0f - exp(-clamped_delta * movement_smoothing_speed);
+
+        interp_v3_v3v3(session_state->viewfinder_capture_position,
+                       session_state->viewfinder_capture_position,
+                       raw_capture_position,
+                       factor);
+        interp_qt_qtqt(session_state->viewfinder_capture_orientation_quat,
+                       session_state->viewfinder_capture_orientation_quat,
+                       raw_capture_orientation_quat,
+                       factor);
+        session_state->viewfinder_smoothing_delta_t = current_time;
+      }
+      else {
+        /* First initialization. */
+        copy_v3_v3(session_state->viewfinder_capture_position, raw_capture_position);
+        copy_qt_qt(session_state->viewfinder_capture_orientation_quat, raw_capture_orientation_quat);
+        session_state->viewfinder_smoothing_delta_t = BLI_time_now_seconds();
+      }
+
+      /* Build final smoothed capture matrix for rendering. */
+      float viewfinder_capture_mat[4][4];
+      quat_to_mat4(viewfinder_capture_mat, session_state->viewfinder_capture_orientation_quat);
+      copy_v3_v3(viewfinder_capture_mat[3], session_state->viewfinder_capture_position);
+
+      invert_m4_m4(viewfinder_capture_viewmat, viewfinder_capture_mat);
 
       break;
     }
@@ -282,7 +314,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       copy_v3_v3(viewfinder_pose.position, landmark_viewfinder_pos);
       copy_qt_qt(viewfinder_pose.orientation_quat, landmark_viewfinder_quat);
 
-      wm_xr_pose_to_imat(&viewfinder_pose, viewfinder_viewmat);
+      wm_xr_pose_to_imat(&viewfinder_pose, viewfinder_capture_viewmat);
 
       /* Captured view settings (lens / DoF). */
       PropertyRNA *lm_vf_lens_prop = RNA_struct_find_property(&current_landmark,
@@ -344,7 +376,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
                                   draw_view->width,
                                   draw_view->height,
                                   viewfinder_display_flag,
-                                  viewfinder_viewmat,
+                                  viewfinder_capture_viewmat,
                                   viewfinder_winmat,
                                   settings->clip_start,
                                   settings->clip_end,
