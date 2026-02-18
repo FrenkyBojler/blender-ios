@@ -30,10 +30,7 @@ constexpr float MIRROR_LIMIT = 0.001f;
 constexpr float CIRCULARIZE_EPSILON = 1e-6f;
 
 /** Method used for fitting the circle. */
-enum FitMethod{
-  FIT_METHOD_BEST = 0,
-  FIT_METHOD_INSIDE = 1
-};
+enum FitMethod { FIT_METHOD_BEST = 0, FIT_METHOD_INSIDE = 1 };
 
 /** Holds data for a vertex projected onto the local plane. */
 struct CircleVert {
@@ -571,7 +568,8 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     bvh_tree = BLI_bvhtree_new(tot_tri, 0.0f, 8, 8);
     for (const int i : looptris.index_range()) {
       const std::array<BMLoop *, 3> &ltri = looptris[i];
-      float3 tri_coords[3] = {float3(ltri[0]->v->co), float3(ltri[1]->v->co), float3(ltri[2]->v->co)};
+      float3 tri_coords[3] = {
+          float3(ltri[0]->v->co), float3(ltri[1]->v->co), float3(ltri[2]->v->co)};
       BLI_bvhtree_insert(bvh_tree, i, reinterpret_cast<float *>(tri_coords), 3);
     }
     BLI_bvhtree_balance(bvh_tree);
@@ -678,7 +676,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     }
   }
 
-  /* There would be a memory leak if this isn't freed.  */
+  /* There would be a memory leak if this isn't freed. */
   if (bvh_tree) {
     BLI_bvhtree_free(bvh_tree);
   }
