@@ -1965,10 +1965,6 @@ void WM_jobs_stop_type(wmWindowManager *wm, const void *owner, eWM_JobType job_t
  */
 void WM_jobs_stop_all_from_owner(wmWindowManager *wm, const void *owner) ATTR_NONNULL();
 /**
- * Wait until the given job finished synchronously.
- */
-void WM_jobs_wait_until_finished(wmWindowManager *window_manager, wmJob *job);
-/**
  * Wait until every job ended.
  */
 void WM_jobs_kill_all(wmWindowManager *wm);
