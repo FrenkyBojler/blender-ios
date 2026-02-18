@@ -475,7 +475,7 @@ bool WM_xr_session_state_viewfinder_location_get(const wmXrData *xr, float r_loc
     return false;
   }
 
-  copy_v3_v3(r_location, xr->runtime->session_state.viewfinder_position);
+  copy_v3_v3(r_location, xr->runtime->session_state.viewfinder_capture_position);
   return true;
 }
 
@@ -486,7 +486,7 @@ bool WM_xr_session_state_viewfinder_rotation_get(const wmXrData *xr, float r_rot
     return false;
   }
 
-  copy_v4_v4(r_rotation, xr->runtime->session_state.viewfinder_orientation_quat);
+  copy_v4_v4(r_rotation, xr->runtime->session_state.viewfinder_capture_orientation_quat);
   return true;
 }
 

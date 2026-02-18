@@ -558,8 +558,8 @@ static void block_bounds_calc_post_centered(Block *block)
 static void block_bounds_calc_centered_pie(Block *block)
 {
   const int xy[2] = {
-      int(block->pie_data.pie_center_spawned[0]),
-      int(block->pie_data.pie_center_spawned[1]),
+      int(block->pie_data->pie_center_spawned[0]),
+      int(block->pie_data->pie_center_spawned[1]),
   };
 
   block_translate(block, xy[0], xy[1]);
@@ -2193,10 +2193,7 @@ void block_end(const bContext *C, Block *block)
 
 void block_end_xr(const bContext *C, Block *block)
 {
-  /* Create a fake window, size comes from development when a real window was still used. */
   wmWindow window = {};
-  window.sizex = 1600 * 2;
-  window.sizey = 900 * 2;
 
   block_end_ex(C,
                CTX_data_main(C),
@@ -4029,7 +4026,7 @@ Block *block_begin_xr(const bContext *C, std::string name, blender::ui::EmbossTy
   }
 
   /* Set window matrix and aspect for region and OpenGL state. */
-  /* Fake window size for XR, see #UI_block_end_xr. */
+  /* Dummy window size for XR. */
   const blender::int2 win_size = {1600 * 2, 900 * 2};
   const rcti winrct = {0, win_size[0] - 1, 0, win_size[1] - 1};
 

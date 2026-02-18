@@ -220,7 +220,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
   static bool dirty_dof_settings = false;
   static CameraDOFSettings live_dof_settings = camera_data->dof;
 
-  float viewfinder_viewmat[4][4] = {};
+  float viewfinder_capture_viewmat[4][4] = {};
   float current_landmark_vf_lens = 0.0f;
   switch (settings->viewfinder_active_mode) {
     case XR_VIEWFINDER_MODE_LIVE: {
@@ -236,18 +236,51 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       }
 
       /* Note: View offsets can be configured using the Scene Camera Shift X/Y settings. */
-      float viewfinder_mat[4][4];
-      copy_m4_m4(viewfinder_mat, viewfinder_controller->grip_mat);
-      rotate_m4(viewfinder_mat, 'X', -M_PI_2);
+      // TODO: Move viewfinder capture matrix computation out of the drawing function.
 
-      invert_m4_m4(viewfinder_viewmat, viewfinder_mat);
+      /* Obtain raw viewfinder capture mat from the current controller grip mat. */
+      float viewfinder_raw_capture_mat[4][4];
+      copy_m4_m4(viewfinder_raw_capture_mat, viewfinder_controller->grip_mat);
+      rotate_m4(viewfinder_raw_capture_mat, 'X', -M_PI_2);
 
-      /* Store the last known position/rotation in the XR session state for landmark capture.
-       * Note: We really shouldn't mutate runtime data from a drawing function, but this is by
-       *       far the simplest way to do it. */
-      mat4_to_loc_quat(session_state->viewfinder_position,
-                       session_state->viewfinder_orientation_quat,
-                       viewfinder_mat);
+      float raw_capture_position[3];
+      float raw_capture_orientation_quat[4];
+      mat4_to_loc_quat(
+          raw_capture_position, raw_capture_orientation_quat, viewfinder_raw_capture_mat);
+
+      if (session_state->viewfinder_smoothing_delta_t > 0) {
+        /* Apply exponential movement smoothing. */
+        constexpr float movement_smoothing_speed = 15.0f;
+
+        const double current_time = BLI_time_now_seconds();
+        const float delta_t = float(current_time - session_state->viewfinder_smoothing_delta_t);
+        const float clamped_delta = min_ff(delta_t, 0.1f);
+        const float factor = 1.0f - exp(-clamped_delta * movement_smoothing_speed);
+
+        interp_v3_v3v3(session_state->viewfinder_capture_position,
+                       session_state->viewfinder_capture_position,
+                       raw_capture_position,
+                       factor);
+        interp_qt_qtqt(session_state->viewfinder_capture_orientation_quat,
+                       session_state->viewfinder_capture_orientation_quat,
+                       raw_capture_orientation_quat,
+                       factor);
+        session_state->viewfinder_smoothing_delta_t = current_time;
+      }
+      else {
+        /* First initialization. */
+        copy_v3_v3(session_state->viewfinder_capture_position, raw_capture_position);
+        copy_qt_qt(session_state->viewfinder_capture_orientation_quat,
+                   raw_capture_orientation_quat);
+        session_state->viewfinder_smoothing_delta_t = BLI_time_now_seconds();
+      }
+
+      /* Build final smoothed capture matrix for rendering. */
+      float viewfinder_capture_mat[4][4];
+      quat_to_mat4(viewfinder_capture_mat, session_state->viewfinder_capture_orientation_quat);
+      copy_v3_v3(viewfinder_capture_mat[3], session_state->viewfinder_capture_position);
+
+      invert_m4_m4(viewfinder_capture_viewmat, viewfinder_capture_mat);
 
       break;
     }
@@ -288,7 +321,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       copy_v3_v3(viewfinder_pose.position, landmark_viewfinder_pos);
       copy_qt_qt(viewfinder_pose.orientation_quat, landmark_viewfinder_quat);
 
-      wm_xr_pose_to_imat(&viewfinder_pose, viewfinder_viewmat);
+      wm_xr_pose_to_imat(&viewfinder_pose, viewfinder_capture_viewmat);
 
       /* Captured view settings (lens / DoF). */
       PropertyRNA *lm_vf_lens_prop = RNA_struct_find_property(&current_landmark,
@@ -350,7 +383,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
                                   draw_view->width,
                                   draw_view->height,
                                   viewfinder_display_flag,
-                                  viewfinder_viewmat,
+                                  viewfinder_capture_viewmat,
                                   viewfinder_winmat,
                                   settings->clip_start,
                                   settings->clip_end,
@@ -611,8 +644,17 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
                                    cam->dof.aperture_fstop);
       break;
     case XR_VIEWFINDER_MODE_PLAYBACK:
-      if (landmark_len > 1) {
-        settings_label = fmt::format("{} / {}", landmark_idx + 1, landmark_len);
+      /* Current shot indicator (`current shot idx / all shots`). */
+      if (landmark_len > 0) {
+        const int width = landmark_len >= 10 ? 2 : 1;
+        const char *pad_prefix = landmark_len < 10 ? "     " : "";
+        /* \xe2\x80\x87 corresponds to a Unicode Figure Space (BLI_STR_UTF8_FIGURE_SPACE). */
+        settings_label = fmt::format("{}{:\xe2\x80\x87>{}} / {:\xe2\x80\x87>{}}",
+                                     pad_prefix,
+                                     landmark_idx + 1,
+                                     width,
+                                     landmark_len,
+                                     width);
       }
       break;
     default:
@@ -712,16 +754,16 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   const float mode_tabs_y = viewfinder_rect.ymax + 0.45f;
 
   const float settings_label_x = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                     viewfinder_rect.xmax - 3.40f :
-                                     viewfinder_rect.xmax - 0.55f;
+                                     viewfinder_rect.xmax - 3.4f :
+                                     viewfinder_rect.xmax - 0.8f;
   const float settings_label_y = viewfinder_rect.ymax + 0.47f;
 
   const float action_label_x = viewfinder_rect.xmin - 0.1f;
   const float action_label_y = viewfinder_rect.ymin - 0.15f;
 
   const float action_enum_x = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                  viewfinder_rect.xmax - 1.65f :
-                                  viewfinder_rect.xmax - 1.25f;
+                                  viewfinder_rect.xmax - 1.6f :
+                                  viewfinder_rect.xmax - 1.2f;
   const float action_enum_y = viewfinder_rect.ymin - 0.15f;
 
   const float captures_label_x = -1.1f;
@@ -738,7 +780,7 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
 {
   /* Colors TODO: Dynamically get these from the current theme. */
   const float background_col[4] = {0.188f, 0.188f, 0.188f, 1.0f};
-  const float outline_col[4] = {0.3f, 0.3f, 0.3f, 0.3f};
+  const float outline_col[4] = {0.26f, 0.26f, 0.26f, 1.0f};
 
   rctf background_rect = viewfinder_rect;
   BLI_rctf_pad(&background_rect, 0.2f, 0.6f);
@@ -747,18 +789,25 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
   rctf outline_rect = viewfinder_rect;
   BLI_rctf_pad(&outline_rect, 0.08f, 0.08f);
 
+  rctf tabs_bg_rect = {.xmin = background_rect.xmin,
+                       .xmax = background_rect.xmin + 4.55f,
+                       .ymin = background_rect.ymax - 0.3f,
+                       .ymax = background_rect.ymax + 0.45f};
+
   GPU_matrix_push();
   /* Workaround: regain precision on the rect side by a factor of 100. */
   GPU_matrix_scale_1f(0.01f);
   BLI_rctf_mul(&background_rect, 100);
   BLI_rctf_mul(&outline_rect, 100);
+  BLI_rctf_mul(&tabs_bg_rect, 100);
 
-  /* Prevent other XR UI elements (like locomotion rays) from drawing through the viewfinder. */
-  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+  GPU_polygon_offset(-1.0f, -1.0f);
   ui::draw_roundbox_3fv_alpha(&background_rect, true, 16, background_col, 1.0f);
-  GPU_depth_test(GPU_DEPTH_NONE);
-
-  ui::draw_roundbox_3fv_alpha(&outline_rect, true, 12, outline_col, 0.2f);
+  GPU_matrix_translate_3f(0.0f, 0.0f, 0.01f);
+  ui::draw_roundbox_3fv_alpha(&tabs_bg_rect, true, 16, background_col, 1.0f);
+  GPU_matrix_translate_3f(0.0f, 0.0f, 0.01f);
+  ui::draw_roundbox_3fv_alpha(&outline_rect, true, 16, outline_col, 0.2f);
+  GPU_polygon_offset(0.0f, 0.0f);
 
   GPU_matrix_pop();
 }
@@ -780,7 +829,6 @@ static void wm_xr_controller_viewfinder_draw_view_texture(const XrSessionSetting
   uint view_tex_coord = GPU_vertformat_attr_add(
       view_text_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 
-  GPU_depth_mask(false);
   GPU_blend(GPU_BLEND_ALPHA_PREMULT);
 
   immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
@@ -793,6 +841,8 @@ static void wm_xr_controller_viewfinder_draw_view_texture(const XrSessionSetting
       "image", view_tex, {GPU_SAMPLER_FILTERING_LINEAR, extend_mode, extend_mode});
 
   immRectf_with_texco(view_tex_pos, view_tex_coord, viewfinder_rect, rctf{0.0f, 1.0f, 0.0f, 1.0f});
+
+  GPU_blend(GPU_BLEND_NONE);
 
   immUnbindProgram();
 }
@@ -870,8 +920,12 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   PointerRNA scene_ptr = RNA_id_pointer_create(&CTX_data_scene(C)->id);
   const bool empty_captures = RNA_collection_is_empty(&scene_ptr, "vr_landmarks");
 
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+
   /* Main background overlays. */
   wm_xr_controller_viewfinder_draw_overlays(viewfinder_rect);
+
+  GPU_depth_mask(false);
 
   /* Viewfinder View texture and flash. */
   wm_xr_controller_viewfinder_draw_view_texture(settings, viewfinder_rect, empty_captures);
@@ -880,6 +934,8 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   /* UI Widgets. */
   wm_xr_controller_viewfinder_draw_ui_widgets(C, settings, viewfinder_rect);
 
+  GPU_depth_mask(true);
+  GPU_depth_test(GPU_DEPTH_NONE);
   GPU_matrix_pop();
 }
 
