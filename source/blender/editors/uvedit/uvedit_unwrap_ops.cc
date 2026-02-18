@@ -3000,13 +3000,17 @@ static void unwrap_draw(bContext * /*C*/, wmOperator *op)
   col->separator();
   col->prop(&ptr, "use_subsurf_data", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(&ptr, "original_bounds", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  if (!RNA_boolean_get(op->ptr, "original_bounds")) {
-    col->separator();
-    col->prop(&ptr, "correct_aspect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col->separator();
-    col->prop(&ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col->prop(&ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
+  const bool use_original_bounds = RNA_boolean_get(op->ptr, "original_bounds");
+
+  col->separator();
+
+  blender::ui::Layout &sub = col->column(false);
+  sub.active_set(!use_original_bounds);
+
+  sub.prop(&ptr, "correct_aspect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  sub.separator();
+  sub.prop(&ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  sub.prop(&ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void UV_OT_unwrap(wmOperatorType *ot)
