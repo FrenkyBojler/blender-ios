@@ -1460,6 +1460,13 @@ static ConstInputProxyFnMap create_proxy_const_input_node_functions()
     node_storage.string = BLI_strdup(static_cast<const bNodeSocketValueString *>(value)->value);
     return node;
   });
+  result.add_new(SOCK_MENU, [](bContext &C, bNodeTree &tree, const void *value) {
+    bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputMenu");
+    auto &node_storage = *static_cast<NodeInputMenu *>(node->storage);
+    const auto &socket_value = *static_cast<const bNodeSocketValueMenu *>(value);
+    node_storage.value = socket_value.value;
+    return node;
+  });
   result.add_new(SOCK_OBJECT, [](bContext &C, bNodeTree &tree, const void *value) {
     bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputObject");
     Object *ptr = static_cast<const bNodeSocketValueObject *>(value)->value;
@@ -1481,6 +1488,12 @@ static ConstInputProxyFnMap create_proxy_const_input_node_functions()
   result.add_new(SOCK_MATERIAL, [](bContext &C, bNodeTree &tree, const void *value) {
     bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputMaterial");
     Material *ptr = static_cast<const bNodeSocketValueMaterial *>(value)->value;
+    node->id = ptr ? &ptr->id : nullptr;
+    return node;
+  });
+  result.add_new(SOCK_FONT, [](bContext &C, bNodeTree &tree, const void *value) {
+    bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputFont");
+    VFont *ptr = static_cast<const bNodeSocketValueFont *>(value)->value;
     node->id = ptr ? &ptr->id : nullptr;
     return node;
   });

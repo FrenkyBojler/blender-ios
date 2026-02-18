@@ -8,13 +8,11 @@
 
 #include <cstdlib>
 
-#include "DNA_collection_types.h"
 #include "DNA_node_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_listbase_iterator.hh"
 #include "BLI_map.hh"
-#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
 #include "BLI_vector.hh"
