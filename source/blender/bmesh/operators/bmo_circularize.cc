@@ -345,7 +345,7 @@ static void calculate_target_locations(MutableSpan<CircleVert> verts,
   float start_angle = 0.0f;
 
   if (is_regular) {
-    float total_angle = 2.0f * std::numbers::pi;
+    float total_angle = 2.0f * std::numbers::pi_v<float>;
     int divisions = verts.size();
 
     /* For open loops, we calculate the total angle obtained by traversing
@@ -442,7 +442,7 @@ static void project_on_mesh(BVHTree *bvh_tree,
   }
   const float angle = angle_normalized_v3v3(vec, normal);
   if (std::abs(angle) < CIRCULARIZE_EPSILON ||
-      std::abs(std::numbers::pi - angle) < CIRCULARIZE_EPSILON)
+      std::abs(std::numbers::pi_v<float> - angle) < CIRCULARIZE_EPSILON)
   {
     copy_v3_v3(r_pos, v->co);
     return;
