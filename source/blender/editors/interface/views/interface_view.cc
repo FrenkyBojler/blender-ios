@@ -241,6 +241,8 @@ void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const wmEvent *eve
   wmWindowManager *wm = CTX_wm_manager(C);
   AbstractView *view = region_view_find_at(region, event->xy, UI_UNIT_Y, &block);
   if (view == nullptr) {
+    WM_event_timer_remove(wm, window, drag.timer);
+    drag.timer = nullptr;
     return;
   }
 
@@ -256,25 +258,26 @@ void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const wmEvent *eve
                                float2(bounds->xmax, bounds->ymax));
   bottom_bounds.max.y = bottom_bounds.min.y + ((UI_UNIT_Y * 2 / 3) + 1);
 
-  const int scroll_dir = [&]() -> int {
+  const std::optional<ViewScrollDirection> scroll_dir =
+      [&]() -> std::optional<ViewScrollDirection> {
     if (top_bounds.contains(mouse_coords)) {
-      return (int)ViewScrollDirection::UP;
+      return ViewScrollDirection::UP;
     }
     if (bottom_bounds.contains(mouse_coords)) {
-      return (int)ViewScrollDirection::DOWN;
+      return ViewScrollDirection::DOWN;
     }
-    return -1;
+    return std::nullopt;
   }();
 
-  if (scroll_dir == -1) {
+  if (!scroll_dir.has_value()) {
     WM_event_timer_remove(wm, window, drag.timer);
     drag.timer = nullptr;
     return;
   }
 
   if (drag.timer) {
-    if (event->type == TIMER) {
-      view->scroll(ViewScrollDirection(scroll_dir));
+    if ((event->type == TIMER) && (event->customdata == drag.timer)) {
+      view->scroll(scroll_dir.value());
     }
   }
   else {
