@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_bvhutils.hh"
+#include "BKE_curves.hh"
+#include "BKE_geometry_fields.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.h"
@@ -13,13 +16,10 @@
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
 
-#include "BKE_curves.hh"
-#include "BKE_geometry_fields.hh"
-#include "BKE_grease_pencil.hh"
-
 #include "GEO_xpbd_constraint_collision_plane.hh"
 #include "GEO_xpbd_constraint_damping_angular.hh"
 #include "GEO_xpbd_constraint_damping_linear.hh"
+#include "GEO_xpbd_constraint_distance.hh"
 #include "GEO_xpbd_constraint_friction.hh"
 #include "GEO_xpbd_constraint_pin_position.hh"
 #include "GEO_xpbd_constraint_pin_rotation.hh"
@@ -65,6 +65,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(PinRotationBundle::get_bundle_type());
   types.append(ForceBundle::get_bundle_type());
   types.append(TorqueBundle::get_bundle_type());
+  types.append(EdgeLengthConstraintBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XPBDSolverWorld", std::move(types));
@@ -212,6 +213,20 @@ struct PinRotationConstraintChunkUsage {
   IndexRange pin_range;
 };
 
+struct EdgeLengthConstraint {
+  std::string path;
+  Field<float> compliance;
+};
+struct EdgeLengthConstraintUsage {
+  /** Index of corresponding #EdgeLengthConstraint. */
+  const int constraint_i;
+
+  VArraySpan<float> compliances;
+  MutableSpan<float> lambdas;
+
+  xpbd::ConstraintColoring coloring;
+};
+
 struct InfinitePlaneCollider {
   std::string path;
   float3 end_position;
@@ -248,6 +263,11 @@ struct MeshCollider {
 struct MeshColliderUsage {
   /** Index of corresponding #MeshCollider. */
   int constraint_i;
+};
+
+struct ConstraintWithColoring {
+  xpbd::ConstraintSet *constraint;
+  xpbd::ConstraintColoring coloring;
 };
 
 struct GeometryData {
@@ -291,12 +311,15 @@ struct GeometryData {
   Vector<DampingConstraintUsage> damping_constraints;
   Vector<PinPositionConstraintUsage> pin_position_constraints;
   Vector<PinRotationConstraintUsage> pin_rotation_constraints;
+  Vector<EdgeLengthConstraintUsage> edge_length_constraints;
   Vector<InfinitePlaneColliderUsage> infinite_plane_colliders;
   Vector<MeshColliderUsage> mesh_colliders;
 
   /** Only a single constraint of these types is allowed. */
   std::optional<RodStretchShearConstraintUsage> rod_stretch_shear_constraint;
   std::optional<RodBendTwistConstraintUsage> rod_bend_twist_constraint;
+
+  Vector<ConstraintWithColoring> static_constraints;
 };
 
 struct GeometrySetData {
@@ -479,6 +502,7 @@ struct ConstraintsInfo {
   Vector<RodBendTwistConstraint> rod_bend_twist_constraints;
   Vector<PinPositionConstraint> pin_position_constraints;
   Vector<PinRotationConstraint> pin_rotation_constraints;
+  Vector<EdgeLengthConstraint> edge_length_constraints;
 };
 
 class XpbdSolverStep {
@@ -486,6 +510,7 @@ class XpbdSolverStep {
   /** Used to allocate stuff during the simulation step. */
   ResourceScope &global_scope_;
   LinearAllocator<> &global_allocator_;
+  IndexMaskMemory global_mask_memory_;
   threading::EnumerableThreadSpecific<ResourceScope> thread_scopes_;
 
   /** The simulation world that is being modified. */
@@ -531,6 +556,7 @@ class XpbdSolverStep {
     this->gather_from_world__mesh_colliders();
     this->gather_from_world__stretch_shear_constraints();
     this->gather_from_world__bend_twist_constraints();
+    this->gather_from_world__edge_length_constraints();
     this->gather_from_world__damping();
     this->gather_from_world__pin_positions();
     this->gather_from_world__pin_rotations();
@@ -545,6 +571,7 @@ class XpbdSolverStep {
     this->create_constraints__damping();
     this->create_constraints__pin_positions();
     this->create_constraints__pin_rotations();
+    this->create_constraints__edge_length();
 
     this->do_simulation();
 
@@ -579,6 +606,9 @@ class XpbdSolverStep {
       GeometrySetData &geo_set_data = geometries_.geometry_sets[i];
       geo_set_data.path = path;
       geo_set_data.geometry = std::move(*world_.lookup_path_for_write_ptr<GeometrySet>(path));
+      if (!geo_set_data.geometry.has_bundle()) {
+        continue;
+      }
       const Bundle &bundle_in_geo = *geo_set_data.geometry.bundle();
       if (const std::optional<ListPtr> tags_list_ptr = bundle_in_geo.lookup_path<ListPtr>("tags"))
       {
@@ -661,9 +691,13 @@ class XpbdSolverStep {
           attribute_names::mass, domain, 1.0f);
       geo_data.moments_of_inertia = *geo_data.attributes.lookup_or_default<float3>(
           attribute_names::moment_of_inertia, domain, float3(1.0f));
-      if (geo_data.curves || data_key.type == bke::GeometryComponent::Type::Mesh) {
+      if (geo_data.curves) {
         geo_data.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
-            attribute_names::rest_length, geo_data.domain, 0.0f);
+            attribute_names::rest_length, AttrDomain::Point, 0.0f);
+      }
+      if (data_key.type == bke::GeometryComponent::Type::Mesh) {
+        geo_data.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
+            attribute_names::rest_length, AttrDomain::Edge, 0.0f);
       }
       if (geo_data.curves) {
         geo_data.rest_bend_rotations = *geo_data.attributes.lookup_or_default<math::Quaternion>(
@@ -1426,13 +1460,9 @@ class XpbdSolverStep {
     const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(world_,
                                                                          RodBendTwistBundle::name);
     for (const StringRef path : paths) {
-      const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
-      if (!bundle_ptr || !*bundle_ptr) {
-        continue;
-      }
-      const Bundle &bundle = **bundle_ptr;
-      const Field<float> compliance_field =
-          bundle.lookup<Field<float>>("compliance").value_or(fn::make_constant_field(0.0f));
+      const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
+      const Field<float> compliance_field = this->get_field_or_constant(
+          bundle, "compliance", 0.0f);
 
       const int constraint_i = constraints_.rod_bend_twist_constraints.append_and_get_index(
           {path, compliance_field});
@@ -1492,6 +1522,70 @@ class XpbdSolverStep {
                 geo_data.rest_bend_rotations,
                 compliances.get_span_for_range(chunk.points_range),
                 constraint_usage.lambdas));
+      }
+    }
+  }
+
+  void gather_from_world__edge_length_constraints()
+  {
+    const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(
+        world_, EdgeLengthConstraintBundle::name);
+    for (const StringRef path : paths) {
+      const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
+      const Field<float> compliance_field = this->get_field_or_constant(
+          bundle, "compliance", 0.0f);
+
+      const int constraint_i = constraints_.edge_length_constraints.append_and_get_index(
+          {path, compliance_field});
+
+      for (const int data_key_i : geometries_.data.index_range()) {
+        const DataKey &data_key = geometries_.data_keys[data_key_i];
+        GeometryData &geo_data = geometries_.data[data_key_i];
+        if (data_key.type != GeometryComponent::Type::Mesh) {
+          continue;
+        }
+        if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+          geo_data.edge_length_constraints.append({constraint_i});
+        }
+      }
+    }
+
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      const DataKey &data_key = geometries_.data_keys[data_key_i];
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      for (EdgeLengthConstraintUsage &constraint_usage : geo_data.edge_length_constraints) {
+        const EdgeLengthConstraint &constraint =
+            constraints_.edge_length_constraints[constraint_usage.constraint_i];
+        const Mesh &mesh = *geometries_.geometry_sets[data_key.geo_bundle_i].geometry.get_mesh();
+        const int edge_num = mesh.edges_num;
+        constraint_usage.lambdas = global_allocator_.allocate_array<float>(edge_num);
+        fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, AttrDomain::Edge);
+        evaluator.add(constraint.compliance, &constraint_usage.compliances);
+      }
+    }
+  }
+
+  void create_constraints__edge_length()
+  {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      const DataKey &data_key = geometries_.data_keys[data_key_i];
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      if (geo_data.edge_length_constraints.is_empty()) {
+        continue;
+      }
+
+      const Mesh &mesh = *geometries_.geometry_sets[data_key.geo_bundle_i].geometry.get_mesh();
+      const Span<int2> edges = mesh.edges();
+
+      for (EdgeLengthConstraintUsage &constraint_usage : geo_data.edge_length_constraints) {
+        auto &constraint_set = global_scope_.construct<xpbd::DistanceConstraintSet>(
+            data_key_i,
+            edges,
+            geo_data.rest_lengths,
+            constraint_usage.compliances,
+            constraint_usage.lambdas);
+        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(global_mask_memory_);
+        geo_data.static_constraints.append({&constraint_set, std::move(coloring)});
       }
     }
   }
@@ -1920,7 +2014,7 @@ class XpbdSolverStep {
   {
     this->prepare_solver_geometry_refs();
 
-    if (this->support_chunk_local_simulation()) {
+    if (this->support_chunk_simulation()) {
       this->parallel_for_each_chunk(1, [&](const int chunk_i) {
         int solver_refs_i = 0;
         for (const int substep_i : IndexRange(substeps_)) {
@@ -1929,9 +2023,15 @@ class XpbdSolverStep {
           this->simulate__inertial_update__chunk(chunk_i, solver_refs_i);
           this->simulate__gather_dynamic_constraints__chunk(substep, chunk_i, solver_refs_i);
           this->simulate__reset_forces__chunk(chunk_i);
+
+          const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
+          xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
+          xpbd::GaussSeidelUpdater updater{solver_refs};
           for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
-            this->simulate__position_solve__single_iteration__chunk(chunk_i, solver_refs_i);
+            this->simulate__position_solve__single_iteration__chunk(
+                chunk_i, solve_params, updater);
           }
+
           this->simulate__update_velocities__chunk(chunk_i, solver_refs_i);
           this->simulate__velocity_solve__chunk(chunk_i, solver_refs_i);
           solver_refs_i = 1 - solver_refs_i;
@@ -1964,8 +2064,14 @@ class XpbdSolverStep {
     }
   }
 
-  bool support_chunk_local_simulation() const
+  bool support_chunk_simulation() const
   {
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      const GeometryData &geo_data = geometries_.data[data_key_i];
+      if (!geo_data.static_constraints.is_empty()) {
+        return false;
+      }
+    }
     return true;
   }
 
@@ -2090,6 +2196,12 @@ class XpbdSolverStep {
   {
     this->parallel_for_each_chunk(
         16, [&](const int chunk_i) { this->simulate__reset_forces__chunk(chunk_i); });
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      for (ConstraintWithColoring &constraint : geo_data.static_constraints) {
+        constraint.constraint->reset_forces();
+      }
+    }
   }
 
   void simulate__reset_forces__chunk(const int chunk_i)
@@ -2107,20 +2219,34 @@ class XpbdSolverStep {
 
   void simulate__position_solve__single_iteration(const int solver_refs_i)
   {
-    this->parallel_for_each_chunk(1, [&](const int chunk_i) {
-      this->simulate__position_solve__single_iteration__chunk(chunk_i, solver_refs_i);
-    });
-  }
-
-  void simulate__position_solve__single_iteration__chunk(const int chunk_i,
-                                                         const int solver_refs_i)
-  {
-    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-    ChunkData &chunk_data = chunks_data_[chunk_i];
-
     const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
     xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
     xpbd::GaussSeidelUpdater updater{solver_refs};
+
+    this->parallel_for_each_chunk(1, [&](const int chunk_i) {
+      this->simulate__position_solve__single_iteration__chunk(chunk_i, solve_params, updater);
+    });
+
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      const GeometryData &geo_data = geometries_.data[data_key_i];
+      for (const ConstraintWithColoring &constraint : geo_data.static_constraints) {
+        for (const int color_i : constraint.coloring.colors.index_range()) {
+          const IndexMask &mask = constraint.coloring.colors[color_i];
+          threading::parallel_for(mask.index_range(), 512, [&](const IndexRange range) {
+            const IndexMask sliced_mask = mask.slice(range);
+            constraint.constraint->solve_sequential(solve_params, updater, sliced_mask);
+          });
+        }
+      }
+    }
+  }
+
+  void simulate__position_solve__single_iteration__chunk(const int chunk_i,
+                                                         xpbd::ConstraintSetParams solve_params,
+                                                         xpbd::GaussSeidelUpdater &updater)
+  {
+    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+    ChunkData &chunk_data = chunks_data_[chunk_i];
 
     for (xpbd::ConstraintSet *constraint : chunk_data.static_constraints) {
       constraint->solve_sequential_all(solve_params, updater);
@@ -2385,7 +2511,7 @@ class XpbdSolverStep {
     FieldEvaluatorKey key{data_key_i, domain, selection ? *selection : get_constant_true_field()};
     return *field_evaluators_.lookup_or_add_cb(key, [&]() {
       const auto &field_context = this->make_geometry_field_context(data_key_i, domain);
-      const int domain_size = geometries_.data[data_key_i].size;
+      const int domain_size = geometries_.data[data_key_i].attributes.domain_size(domain);
       auto &evaluator = global_scope_.construct<fn::FieldEvaluator>(field_context, domain_size);
       if (selection) {
         evaluator.set_selection(*selection);

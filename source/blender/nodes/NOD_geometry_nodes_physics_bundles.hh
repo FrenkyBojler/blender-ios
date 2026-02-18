@@ -70,4 +70,10 @@ class RodBendTwistBundle {
   static const FlatBundleTypePtr &get_bundle_type();
 };
 
+class EdgeLengthConstraintBundle {
+ public:
+  static constexpr StringRefNull name = "Blender.EdgeLengthConstraint";
+  static const FlatBundleTypePtr &get_bundle_type();
+};
+
 }  // namespace blender::nodes::physics_bundles
