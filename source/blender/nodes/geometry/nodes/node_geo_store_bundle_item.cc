@@ -6,6 +6,7 @@
 
 #include "NOD_geo_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_list.hh"
 #include "NOD_rna_define.hh"
 
 #include "RNA_enum_types.hh"
@@ -62,22 +63,56 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = storage;
 }
 
-static void store_items(Bundle &bundle,
-                        const bke::bNodeSocketType &socket_type,
-                        const Span<std::string> paths,
-                        MutableSpan<bke::SocketValueVariant> items,
-                        GeoNodeExecParams &params)
+static void store_if_valid(Bundle &bundle,
+                           const bke::bNodeSocketType &socket_type,
+                           const StringRef path,
+                           const GPointer item,
+                           GeoNodeExecParams &params)
 {
-  for (const int i : paths.index_range()) {
-    const StringRef path = paths[i];
-    if (!Bundle::is_valid_path(path)) {
-      if (!path.is_empty()) {
-        params.error_message_add(NodeWarningType::Warning,
-                                 fmt::format(fmt::runtime(TIP_("Invalid bundle path: {}")), path));
-      }
+  if (!Bundle::is_valid_path(path)) {
+    if (!path.is_empty()) {
+      params.error_message_add(NodeWarningType::Warning,
+                               fmt::format(fmt::runtime(TIP_("Invalid bundle path: {}")), path));
     }
+    return;
+  }
+  if (item.type()->is<bke::SocketValueVariant>()) {
+    bundle.add_path_override(path,
+                             BundleItemSocketValue{.type = &socket_type,
+                                                   .value = *item.get<bke::SocketValueVariant>()});
+  }
+  else {
+    bke::SocketValueVariant value;
+    item.type()->copy_construct(item.get(), value.allocate_single(socket_type.type));
     bundle.add_path_override(
-        path, BundleItemSocketValue{.type = &socket_type, .value = std::move(items[i])});
+        path, BundleItemSocketValue{.type = &socket_type, .value = std::move(value)});
+  }
+}
+
+static void store_if_valid(Bundle &bundle,
+                           const bke::bNodeSocketType &socket_type,
+                           const StringRef path,
+                           const GMutablePointer item,
+                           GeoNodeExecParams &params)
+{
+  if (!Bundle::is_valid_path(path)) {
+    if (!path.is_empty()) {
+      params.error_message_add(NodeWarningType::Warning,
+                               fmt::format(fmt::runtime(TIP_("Invalid bundle path: {}")), path));
+    }
+    return;
+  }
+  if (item.type()->is<bke::SocketValueVariant>()) {
+    bundle.add_path_override(
+        path,
+        BundleItemSocketValue{.type = &socket_type,
+                              .value = std::move(*item.get<bke::SocketValueVariant>())});
+  }
+  else {
+    bke::SocketValueVariant value;
+    item.type()->move_construct(item.get(), value.allocate_single(socket_type.type));
+    bundle.add_path_override(
+        path, BundleItemSocketValue{.type = &socket_type, .value = std::move(value)});
   }
 }
 
@@ -85,6 +120,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &bnode = params.node();
   const NodeStoreBundleItem &storage = node_storage(bnode);
+  const bke::bNodeSocketType &socket_type = *bke::node_socket_type_find_static(storage.socket_type,
+                                                                               0);
 
   BundlePtr bundle_ptr = params.extract_input<nodes::BundlePtr>("Bundle");
   if (!bundle_ptr) {
@@ -94,40 +131,70 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   auto path_value = params.extract_input<bke::SocketValueVariant>("Path");
   auto item_value = params.extract_input<bke::SocketValueVariant>("Item");
-  if (path_value.is_list()) {
-    if (item_value.is_list()) {
-      ListPtr paths_list = path_value.extract<ListPtr>();
+  if (item_value.is_list()) {
+    ListPtr item_list = item_value.extract<ListPtr>();
+    const CPPType &cpp_type = item_list->cpp_type();
+    if (path_value.is_list()) {
+      ListPtr paths_list = create_repeated_list(path_value.extract<ListPtr>(), item_list->size());
       const VArraySpan paths = paths_list->varray<std::string>();
+
+      const auto item_list_data = item_list->data();
+      if (const auto *array_data = std::get_if<nodes::List::ArrayData>(&item_list_data)) {
+        if (item_list->is_mutable() && array_data->sharing_info->is_mutable()) {
+          GMutableSpan items(cpp_type, const_cast<void *>(array_data->data), item_list->size());
+          for (const int i : paths.index_range()) {
+            store_if_valid(
+                bundle, socket_type, paths[i], GMutablePointer(items.type(), items[i]), params);
+          }
+        }
+        else {
+          const GSpan items(cpp_type, array_data->data, item_list->size());
+          for (const int i : paths.index_range()) {
+            store_if_valid(
+                bundle, socket_type, paths[i], GPointer(items.type(), items[i]), params);
+          }
+        }
+      }
+      else if (const auto *single_data = std::get_if<nodes::List::SingleData>(&item_list_data)) {
+        if (item_list->is_mutable() && single_data->sharing_info->is_mutable() &&
+            item_list->size() == 1)
+        {
+          for (const int i : paths.index_range()) {
+            store_if_valid(
+                bundle,
+                socket_type,
+                paths[i],
+                GMutablePointer(item_list->cpp_type(), const_cast<void *>(single_data->value)),
+                params);
+          }
+        }
+        else {
+          for (const int i : paths.index_range()) {
+            store_if_valid(bundle,
+                           socket_type,
+                           paths[i],
+                           GPointer(item_list->cpp_type(), single_data->value),
+                           params);
+          }
+        }
+      }
     }
     else {
       params.error_message_add(NodeWarningType::Error,
-                               "\"Item\" must be a list if \"Path\" is a list");
+                               "\"Path\" must be a list if \"Item\" is a list");
       return;
     }
   }
-  else if (path_value.is_single()) {
-    if (item_value.is_single()) {
+  else if (item_value.is_single()) {
+    if (path_value.is_single()) {
+      const std::string path = path_value.extract<std::string>();
+      store_if_valid(bundle, socket_type, path, GMutablePointer(&item_value), params);
     }
     else {
-      params.error_message_add(NodeWarningType::Error, "\"Item\" must be a single value");
+      params.error_message_add(NodeWarningType::Error, "\"Path\" must be a single value");
       return;
     }
   }
-
-  bke::SocketValueVariant value = params.extract_input<bke::SocketValueVariant>("Item");
-  const bNodeSocket *item_sock = bnode.input_by_identifier("Item");
-  if (!item_sock) {
-    params.set_output("Bundle", std::move(bundle_ptr));
-    return;
-  }
-
-  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(storage.socket_type, 0);
-  if (!stype || !stype->geometry_nodes_default_value) {
-    params.set_output("Bundle", std::move(bundle_ptr));
-    return;
-  }
-
-  bundle.add_path_override(path, BundleItemSocketValue{stype, std::move(value)});
 
   params.set_output("Bundle", std::move(bundle_ptr));
 }

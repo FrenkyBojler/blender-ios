@@ -99,13 +99,13 @@ struct GetItemsResult {
         items[i] = bundle->lookup_path(paths[i]);
         return items[i] != nullptr;
       });
-  if (found_paths.size() != valid_paths.size()) {
-    const IndexMask not_found_paths = found_paths.complement(valid_paths, memory);
-    if (params.output_is_required("Exists")) {
-      exists.reinitialize(paths.size());
-      found_paths.to_bools(exists);
-    }
-    else {
+  if (params.output_is_required("Exists")) {
+    exists.reinitialize(paths.size());
+    found_paths.to_bools(exists);
+  }
+  else {
+    if (found_paths.size() != valid_paths.size()) {
+      const IndexMask not_found_paths = found_paths.complement(valid_paths, memory);
       not_found_paths.foreach_index([&](const int64_t i) {
         params.error_message_add(
             NodeWarningType::Warning,
@@ -188,12 +188,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     const VArraySpan paths = paths_list->varray<std::string>();
     GetItemsResult result;
     if (remove_value.is_list()) {
-      const ListPtr remove_list = remove_value.extract<ListPtr>();
-      if (remove_list->size() != paths.size()) {
-        params.error_message_add(NodeWarningType::Error,
-                                 "List size of \"Remove\" must match the size of \"Path\"");
-        return;
-      }
+      const ListPtr remove_list = create_repeated_list(remove_value.extract<ListPtr>(),
+                                                       paths.size());
       result = get_items(bundle, socket_type, paths, remove_list->varray<bool>(), params);
     }
     else if (remove_value.is_single()) {
@@ -220,10 +216,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     else {
       params.error_message_add(NodeWarningType::Error, "\"Remove\" must be a single value");
+      params.set_default_remaining_outputs();
+      return;
     }
   }
   else {
     params.error_message_add(NodeWarningType::Error, "Path must be a single value or list");
+    params.set_default_remaining_outputs();
+    return;
   }
 
   params.set_output("Bundle", std::move(bundle));

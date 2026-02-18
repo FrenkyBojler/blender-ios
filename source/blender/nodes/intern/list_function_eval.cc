@@ -38,35 +38,6 @@ ListPtr evaluate_field_to_list(GField field, const int64_t count)
   return List::from_garray(std::move(array));
 }
 
-static ListPtr create_repeated_list(ListPtr list, const int64_t dst_size)
-{
-  if (list->size() >= dst_size) {
-    return list;
-  }
-  if (const auto *data = std::get_if<nodes::List::ArrayData>(&list->data())) {
-    const int64_t size = list->size();
-    BLI_assert(size > 0);
-    const CPPType &cpp_type = list->cpp_type();
-    GArray new_data(cpp_type, dst_size, NoInitialization{});
-    const int64_t chunks = dst_size / size;
-    for (const int64_t i : IndexRange(chunks)) {
-      cpp_type.copy_construct_n(data->data, new_data[i * size], size);
-    }
-    const int64_t last_chunk_size = dst_size % size;
-    if (last_chunk_size > 0) {
-      cpp_type.copy_construct_n(data->data, new_data[chunks * size], last_chunk_size);
-    }
-
-    return List::from_garray(std::move(new_data));
-  }
-  if (const auto *data = std::get_if<nodes::List::SingleData>(&list->data())) {
-    const CPPType &cpp_type = list->cpp_type();
-    return List::create(cpp_type, *data, dst_size);
-  }
-  BLI_assert_unreachable();
-  return {};
-}
-
 static void add_list_to_params(mf::ParamsBuilder &params,
                                const mf::ParamType &param_type,
                                const List &list)

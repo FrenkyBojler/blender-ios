@@ -183,4 +183,6 @@ template<typename T, typename Fn> inline void List::foreach_for_write(Fn &&fn)
 ListPtr optimized_list_from_socket_values(Array<bke::SocketValueVariant> &&values,
                                           eNodeSocketDatatype data_type);
 
+ListPtr create_repeated_list(ListPtr list, int64_t dst_size);
+
 }  // namespace blender::nodes
