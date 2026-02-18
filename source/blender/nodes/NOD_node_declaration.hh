@@ -261,6 +261,8 @@ class SocketDeclaration : public ItemDeclaration {
  public:
   /** Some input sockets can have non-trivial values in the case when they are unlinked. */
   NodeDefaultInputType default_input_type = NodeDefaultInputType::NODE_DEFAULT_INPUT_VALUE;
+  std::unique_ptr<std::string> default_attribute_name;
+
   /**
    * Property that stores the name of the socket so that it can be modified directly from the
    * node without going to the side-bar.
@@ -357,6 +359,7 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &is_default_link_socket(bool value = true);
 
   BaseSocketDeclarationBuilder &default_input_type(NodeDefaultInputType value);
+  BaseSocketDeclarationBuilder &default_attribute_name(StringRef attribute_name);
 
   /** The input socket allows passing in a field. */
   BaseSocketDeclarationBuilder &supports_field();
@@ -738,7 +741,8 @@ class NodeDeclarationBuilder : public DeclarationListBuilder {
 };
 
 using ImplicitInputValueFn = std::function<void(const bNode &node, void *r_value)>;
-std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(NodeDefaultInputType type);
+std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(
+    const SocketDeclaration &socket_decl);
 bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_type,
                                              NodeDefaultInputType input_type);
 

@@ -1389,6 +1389,9 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
     if (iosock) {
       if (decl) {
         iosock->default_input = decl->default_input_type;
+        if (decl->default_attribute_name && !decl->default_attribute_name->empty()) {
+          iosock->default_attribute_name = BLI_strdup(decl->default_attribute_name->c_str());
+        }
       }
     }
   }

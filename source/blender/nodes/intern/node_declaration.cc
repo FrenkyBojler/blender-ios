@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "NOD_node_declaration.hh"
+#include "NOD_socket.hh"
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 #include "NOD_socket_usage_inference.hh"
@@ -675,6 +676,13 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::default_input_type(
   return *this;
 }
 
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::default_attribute_name(
+    StringRef attribute_name)
+{
+  decl_base_->default_attribute_name = std::make_unique<std::string>(attribute_name);
+  return *this;
+}
+
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on_all()
 {
   if (this->is_input()) {
@@ -1096,9 +1104,10 @@ static void handle_right(const bNode & /*node*/, void *r_value)
 
 }  // namespace implicit_field_inputs
 
-std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(const NodeDefaultInputType type)
+std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(
+    const SocketDeclaration &socket_decl)
 {
-  switch (type) {
+  switch (socket_decl.default_input_type) {
     case NODE_DEFAULT_INPUT_VALUE:
       return std::nullopt;
     case NODE_DEFAULT_INPUT_INDEX_FIELD:
@@ -1115,6 +1124,21 @@ std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(const NodeDefaul
       return std::make_optional(implicit_field_inputs::handle_left);
     case NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD:
       return std::make_optional(implicit_field_inputs::handle_right);
+    case NODE_DEFAULT_INPUT_ATTRIBUTE_FIELD: {
+      const CPPType *cpp_type = bke::socket_type_to_geo_nodes_base_cpp_type(
+          socket_decl.socket_type);
+      if (!cpp_type) {
+        break;
+      }
+      if (!socket_decl.default_attribute_name || socket_decl.default_attribute_name->empty()) {
+        break;
+      }
+      return std::make_optional([name = *socket_decl.default_attribute_name,
+                                 cpp_type](const bNode & /*node*/, void *r_value) {
+        bke::SocketValueVariant::ConstructIn(r_value,
+                                             bke::AttributeFieldInput::from(name, *cpp_type));
+      });
+    }
   }
   return std::nullopt;
 }
@@ -1136,6 +1160,8 @@ bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_
       return stype == SOCK_VECTOR;
     case NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD:
       return stype == SOCK_MATRIX;
+    case NODE_DEFAULT_INPUT_ATTRIBUTE_FIELD:
+      return socket_type_supports_fields(stype) && socket_type_supports_attributes(stype);
   }
   return false;
 }

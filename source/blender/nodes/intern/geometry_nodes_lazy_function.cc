@@ -3910,11 +3910,11 @@ struct GeometryNodesLazyFunctionBuilder {
     if (socket_decl == nullptr) {
       return false;
     }
-    if (socket_decl->input_field_type != InputSocketFieldType::Implicit) {
+    if (socket_decl->default_input_type == NODE_DEFAULT_INPUT_VALUE) {
       return false;
     }
     std::optional<ImplicitInputValueFn> implicit_input_fn = get_implicit_input_value_fn(
-        socket_decl->default_input_type);
+        *socket_decl);
     if (!implicit_input_fn.has_value()) {
       return false;
     }

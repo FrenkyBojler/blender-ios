@@ -419,6 +419,9 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
   decl->panel_toggle(io_socket.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE);
   decl->optional_label(io_socket.flag & NODE_INTERFACE_SOCKET_OPTIONAL_LABEL);
   decl->default_input_type(NodeDefaultInputType(io_socket.default_input));
+  if (!StringRef(io_socket.default_attribute_name).is_empty()) {
+    decl->default_attribute_name(io_socket.default_attribute_name);
+  }
   if (structure_type) {
     decl->structure_type(*structure_type);
   }

@@ -227,9 +227,9 @@ class SocketTooltipBuilder {
       return;
     }
     const nodes::SocketDeclaration *socket_decl = socket_.runtime->declaration;
-    if (socket_decl && socket_decl->input_field_type == nodes::InputSocketFieldType::Implicit) {
+    if (socket_decl && socket_decl->default_input_type != NODE_DEFAULT_INPUT_VALUE) {
       this->start_block(TooltipBlockType::Value);
-      build_tooltip_value_implicit_default(socket_decl->default_input_type);
+      build_tooltip_value_implicit_default(*socket_decl);
       return;
     }
     if (socket_decl && socket_decl->structure_type == nodes::StructureType::Grid) {
@@ -766,9 +766,9 @@ class SocketTooltipBuilder {
     this->add_text_field_mono(TIP_("Type: List"));
   }
 
-  void build_tooltip_value_implicit_default(const NodeDefaultInputType &type)
+  void build_tooltip_value_implicit_default(const nodes::SocketDeclaration &socket_decl)
   {
-    switch (type) {
+    switch (socket_decl.default_input_type) {
       case NODE_DEFAULT_INPUT_VALUE: {
         /* Should be handled elsewhere. */
         BLI_assert_unreachable();
@@ -808,6 +808,20 @@ class SocketTooltipBuilder {
         this->build_tooltip_value_and_type_oneline(
             TIP_("Right Handle Field"), this->get_field_type_name(CPPType::get<float3>()));
         break;
+      case NODE_DEFAULT_INPUT_ATTRIBUTE_FIELD: {
+        const CPPType *cpp_type = bke::socket_type_to_geo_nodes_base_cpp_type(
+            socket_decl.socket_type);
+        if (!cpp_type) {
+          break;
+        }
+        if (!socket_decl.default_attribute_name || socket_decl.default_attribute_name->empty()) {
+          break;
+        }
+        this->build_tooltip_value_and_type_oneline(
+            fmt::format("\"{}\" {}", *socket_decl.default_attribute_name, TIP_("Attribute Field")),
+            this->get_field_type_name(*cpp_type));
+        break;
+      }
     }
   }
 

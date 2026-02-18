@@ -78,6 +78,11 @@ static const EnumPropertyItem node_default_input_items[] = {
      0,
      "Right Handle",
      "The right Bézier control point handle from the context"},
+    {NODE_DEFAULT_INPUT_ATTRIBUTE_FIELD,
+     "ATTRIBUTE_FIELD",
+     0,
+     "Attribute",
+     "Use a custom attribute field name as default"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 }  // namespace blender
