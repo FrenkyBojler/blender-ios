@@ -732,7 +732,7 @@ struct Block {
 
   float dim_factor = 0.0f;
 
-  PieMenuData pie_data;
+  std::unique_ptr<PieMenuData> pie_data;
 
   void remove_but(const Button *but);
   [[nodiscard]] Button *first_but() const;
