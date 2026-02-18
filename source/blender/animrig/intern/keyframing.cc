@@ -594,7 +594,7 @@ int delete_keyframe(Main *bmain, ReportList *reports, ID *id, const RNAPath &rna
   assert_baklava_phase_2_invariants(action);
   Vector<FCurve *> modified_fcurves;
   BLI_assert(adt->action == act && action.slot_for_handle(adt->slot_handle) != nullptr);
-  foreach_fcurve_in_action_slot_editable(action, adt->slot_handle, [&](FCurve &fcurve) {
+  foreach_fcurve_in_active_layer_editable(action, adt->slot_handle, [&](FCurve &fcurve) {
     if (StringRefNull(fcurve.rna_path) != rna_path.path) {
       return;
     }

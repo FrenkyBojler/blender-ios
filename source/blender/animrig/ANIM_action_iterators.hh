@@ -57,6 +57,13 @@ void foreach_fcurve_in_action_slot_editable(Action &action,
                                             FunctionRef<void(FCurve &fcurve)> callback);
 
 /**
+ * Iterates over all the FCurves in the active layer for the given slot handle.
+ */
+void foreach_fcurve_in_active_layer_editable(Action &action,
+                                             slot_handle_t handle,
+                                             FunctionRef<void(FCurve &fcurve)> callback);
+
+/**
  * Call the given callback for each Action + Slot that this ID uses.
  *
  * The following cases are visited:
