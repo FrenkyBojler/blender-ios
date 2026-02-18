@@ -20,8 +20,13 @@
 #include "BKE_context.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
+#include "BLI_threads.h"
 
 #include "DEG_depsgraph_query.hh"
+
+#include "DRW_engine.hh"
+
+#include "GPU_context.hh"
 
 #include "IMB_colormanagement.hh"
 
@@ -109,8 +114,10 @@ class CompositorContext : public compositor::Context {
       return;
     }
 
-    result_translation_ = result.domain().transformation.location();
-    const int2 size = result.domain().data_size;
+    compositor::Result result_cpu = this->use_gpu() ? result.download_to_cpu() : result;
+
+    result_translation_ = result_cpu.domain().transformation.location();
+    const int2 size = result_cpu.domain().data_size;
     if (size != int2(image_buffer_->x, image_buffer_->y)) {
       /* Output size is different (e.g. image is blurred with expanded bounds);
        * need to allocate appropriately sized buffer. */
@@ -120,8 +127,12 @@ class CompositorContext : public compositor::Context {
       IMB_alloc_float_pixels(image_buffer_, 4, false);
     }
     std::memcpy(image_buffer_->float_buffer.data,
-                result.cpu_data().data(),
+                result_cpu.cpu_data().data(),
                 sizeof(float) * 4 * size.x * size.y);
+
+    if (this->use_gpu()) {
+      result_cpu.release();
+    }
   }
 
   void write_viewer(compositor::Result &viewer_result) override
@@ -159,7 +170,7 @@ class CompositorContext : public compositor::Context {
 
   bool use_gpu() const override
   {
-    return false;
+    return this->render_data_.scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU;
   }
 
   compositor::NodeGroupOutputTypes needed_outputs() const
@@ -170,6 +181,20 @@ class CompositorContext : public compositor::Context {
       needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
     }
     return needed_outputs;
+  }
+
+  void create_result_from_input(compositor::Result &result, const ImBuf &input) const
+  {
+    BLI_assert(input.float_buffer.data);
+    const bool gpu = this->use_gpu();
+    const int2 size = int2(input.x, input.y);
+    if (!gpu) {
+      result.wrap_external(input.float_buffer.data, size);
+    }
+    else {
+      result.allocate_texture(size);
+      GPU_texture_update(result, GPU_DATA_FLOAT, input.float_buffer.data);
+    }
   }
 
   void evaluate()
@@ -201,13 +226,11 @@ class CompositorContext : public compositor::Context {
           this->create_result(ResultType::Color, ResultPrecision::Full));
       if (input_socket == node_group.interface_inputs()[0]) {
         /* First socket is the image input. */
-        input_result->wrap_external(image_buffer_->float_buffer.data,
-                                    int2(image_buffer_->x, image_buffer_->y));
+        create_result_from_input(*input_result, *image_buffer_);
       }
       else if (mask_buffer_ && input_socket == node_group.interface_inputs()[1]) {
         /* Second socket is the mask input. */
-        input_result->wrap_external(mask_buffer_->float_buffer.data,
-                                    int2(mask_buffer_->x, mask_buffer_->y));
+        create_result_from_input(*input_result, *mask_buffer_);
         input_result->set_transformation(xform_);
       }
       else {
@@ -311,7 +334,8 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
   const bool was_float_linear = ensure_linear_float_buffer(context.image);
   const bool was_byte = context.image->float_buffer.data == nullptr;
 
-  /* TODO: Should be persistent across evaluations. */
+  /* TODO: Should be persistent across evaluations. Lack of this means shaders get re-created
+   * all the time, as well as things like "image coordinates input" caches. */
   compositor::StaticCacheManager cache_manager;
 
   CompositorContext com_context(cache_manager,
@@ -320,8 +344,38 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
                                 context.image,
                                 linear_mask,
                                 context.strip);
+
+  //@TODO: do we need GPU_use_main_context_workaround like in eevee_lightcache.cc?
+  //@TODO: check what happens when doing rendering; does it correctly use render context.
+  //@TODO: check what is needed to get half-precision working on GPU.
+
+  const bool use_gpu = com_context.use_gpu();
+  if (use_gpu) {
+    if (context.render_data.ghost_context != nullptr) {
+      DRW_system_gpu_render_context_enable(context.render_data.ghost_context);
+      if (context.render_data.gpu_context == nullptr) {
+        /* GPU context needs to be created on the thread that will use it. */
+        context.render_data.gpu_context = GPU_context_create(nullptr,
+                                                             context.render_data.ghost_context);
+      }
+      DRW_blender_gpu_render_context_enable(context.render_data.gpu_context);
+    }
+    GPU_render_begin();
+  }
+
   com_context.evaluate();
   com_context.cache_manager().reset();
+
+  if (use_gpu) {
+    if (context.render_data.ghost_context != nullptr) {
+      DRW_blender_gpu_render_context_disable(context.render_data.gpu_context);
+      GPU_render_end();
+      DRW_system_gpu_render_context_disable(context.render_data.ghost_context);
+    }
+    else {
+      GPU_render_end();
+    }
+  }
 
   context.result_translation += com_context.get_result_translation();
 

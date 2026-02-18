@@ -11,9 +11,12 @@
 #include "DNA_listBase.h"
 #include "DNA_space_enums.h"
 
+class GHOST_IContext;
+
 namespace blender {
 
 struct Depsgraph;
+struct GPUContext;
 struct GPUOffScreen;
 struct GPUViewport;
 struct ImBuf;
@@ -51,6 +54,12 @@ struct RenderData {
   GPUViewport *gpu_viewport = nullptr;
   // int gpu_samples;
   // bool gpu_full_samples;
+
+  /* If GPU access is needed and these are set, use them
+   * instead of regular GPU context. Primary case: prefetch job;
+   * it is on another thread and can't use regular GPU context. */
+  GHOST_IContext *ghost_context = nullptr;
+  mutable GPUContext *gpu_context = nullptr;
 };
 
 /**
