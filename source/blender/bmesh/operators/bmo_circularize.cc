@@ -237,14 +237,14 @@ static void project_loop_to_2d(Span<BMVert *> loop,
 }
 
 static void calculate_circle_best_fit(Span<CircleVert> verts,
-                                      const bool is_fixed,
+                                      const std::optional<float2> &fixed_center,
                                       float2 &r_center,
                                       float *r_radius)
 {
   /* If the center is locked, we skip the solver. The best fit for the fixed center
    * is simply the average radius. */
-  if (is_fixed) {
-    r_center = float2(0.0f);
+  if (fixed_center.has_value()) {
+    r_center = *fixed_center;
     *r_radius = 0.0f;
     for (const CircleVert &cv : verts) {
       *r_radius += math::length(cv.co_2d);
@@ -303,12 +303,12 @@ static void calculate_circle_best_fit(Span<CircleVert> verts,
 }
 
 static void calculate_circle_inside_fit(Span<CircleVert> verts,
-                                        const bool is_fixed,
+                                        const std::optional<float2> &fixed_center,
                                         float2 &r_center,
                                         float *r_radius)
 {
-  if (is_fixed) {
-    r_center = float2(0.0f);
+  if (fixed_center.has_value()) {
+    r_center = *fixed_center;
   }
   else {
     float2 min_co = verts[0].co_2d;
@@ -609,11 +609,16 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     float2 circle_center_2d;
     float radius;
 
+    std::optional<float2> fixed_center = std::nullopt;
+    if (is_mirrored) {
+      fixed_center = float2(0.0f);
+    }
+
     if (fit_method == 1) {
-      calculate_circle_inside_fit(circle_verts, is_mirrored, circle_center_2d, &radius);
+      calculate_circle_inside_fit(circle_verts, fixed_center, circle_center_2d, &radius);
     }
     else {
-      calculate_circle_best_fit(circle_verts, is_mirrored, circle_center_2d, &radius);
+      calculate_circle_best_fit(circle_verts, fixed_center, circle_center_2d, &radius);
     }
 
     if (custom_radius > 0.0f) {
