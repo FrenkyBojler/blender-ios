@@ -60,7 +60,7 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
 
-    if (bm->totvert < 3) {
+    if (bm->totvertsel < 3) {
       continue;
     }
 
