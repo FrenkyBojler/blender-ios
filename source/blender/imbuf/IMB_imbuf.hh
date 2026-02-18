@@ -129,7 +129,7 @@ void IMB_assign_byte_buffer(ImBuf *ibuf, uint8_t *buffer_data, ImBufOwnership ow
 void IMB_assign_float_buffer(ImBuf *ibuf, float *buffer_data, ImBufOwnership ownership);
 
 /**
- * Assign the GPU texture of the buffer to the given texture. The current GPU texture is release.
+ * Assign the GPU texture of the buffer to the given texture. The current GPU texture is released.
  *
  * \note Does not modify the topology (width, height, number of channels).
  */

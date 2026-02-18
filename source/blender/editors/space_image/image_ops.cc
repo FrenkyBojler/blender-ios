@@ -243,7 +243,7 @@ static bool image_from_context_has_data_poll(bContext *C)
   }
 
   void *lock;
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, iuser, &lock);
   const bool has_buffer = (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data ||
                                     ibuf->gpu.texture));
   BKE_image_release_ibuf(ima, ibuf, lock);
