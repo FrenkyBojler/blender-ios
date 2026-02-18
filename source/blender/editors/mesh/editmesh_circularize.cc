@@ -111,7 +111,6 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = true;
-    params.is_destructive = true;
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
   }
 
