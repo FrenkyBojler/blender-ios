@@ -285,13 +285,13 @@ void Barrier::execute() const
 void Clear::execute() const
 {
   gpu::FrameBuffer *fb = GPU_framebuffer_active_get();
-  GPU_framebuffer_clear(fb, (GPUFrameBufferBits)clear_channels, color, depth, stencil);
+  GPU_framebuffer_clear(fb, GPUFrameBufferBits(clear_channels), color, depth, stencil);
 }
 
 void ClearMulti::execute() const
 {
   gpu::FrameBuffer *fb = GPU_framebuffer_active_get();
-  GPU_framebuffer_multi_clear(fb, (const float (*)[4])colors);
+  GPU_framebuffer_multi_clear(fb, reinterpret_cast<const float (*)[4]>(colors));
 }
 
 void StateSet::execute(RecordingState &recording_state) const
@@ -316,13 +316,6 @@ void StateSet::execute(RecordingState &recording_state) const
   }
   else {
     GPU_clip_control_unit_range(false);
-  }
-
-  if (new_state & DRW_STATE_SHADOW_OFFSET) {
-    GPU_shadow_offset(true);
-  }
-  else {
-    GPU_shadow_offset(false);
   }
 
   /* TODO: this should be part of shader state. */
@@ -576,11 +569,9 @@ std::string DrawMulti::serialize(const std::string &line_prefix) const
                                         multi_draw_buf->prototype_count_);
 
   /* This emulates the GPU sorting but without the unstable draw order. */
-  std::sort(
-      prototypes.begin(), prototypes.end(), [](const DrawPrototype &a, const DrawPrototype &b) {
-        return (a.group_id < b.group_id) ||
-               (a.group_id == b.group_id && a.res_index > b.res_index);
-      });
+  std::ranges::sort(prototypes, [](const DrawPrototype &a, const DrawPrototype &b) {
+    return (a.group_id < b.group_id) || (a.group_id == b.group_id && a.res_index > b.res_index);
+  });
 
   /* Compute prefix sum to have correct offsets. */
   uint prefix_sum = 0u;

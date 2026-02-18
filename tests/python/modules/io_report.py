@@ -10,6 +10,7 @@ a HTML report showing the differences, for regression testing.
 import bpy
 import bpy_extras.node_shader_utils
 import difflib
+import html
 import json
 import os
 import pathlib
@@ -17,7 +18,10 @@ import pathlib
 from . import global_report
 from io import StringIO
 from mathutils import Matrix
-from typing import Callable, Optional
+
+from collections.abc import (
+    Callable,
+)
 
 
 def fmtf(f: float) -> str:
@@ -70,7 +74,7 @@ class Report:
         output_dir: pathlib.Path,
         input_dir: pathlib.Path,
         reference_dir: pathlib.Path,
-        comparison_func: Callable[[str, dict], None] = None,
+        comparison_func: Callable[[str, dict], None] | None = None,
     ):
         self.title = title
         self.output_dir = output_dir
@@ -165,7 +169,7 @@ class Report:
         div.page_container div {{ text-align: left; }}
         div.page_content {{  display: inline-block; }}
         .text_cell {{
-          max-width: 15em;
+          max-width: 22.5em;
           max-height: 8em;
           overflow: auto;
           font-family: monospace;
@@ -174,7 +178,7 @@ class Report:
           border: 1px solid gray;
         }}
         .text_cell_larger {{ max-height: 14em; }}
-        .text_cell_wider {{ max-width: 40em; }}
+        .text_cell_wider {{ max-width: 44em; }}
         .added {{ background-color: #d4edda; }}
         .removed {{ background-color: #f8d7da; }}
         .place {{ color: #808080; font-style: italic; }}
@@ -239,14 +243,16 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
         table_style = """ class="table-danger" """ if error else ""
         cell_class = "text_cell text_cell_larger" if error else "text_cell"
         diff_text = "&nbsp;"
+        escaped_got_desc = html.escape(got_desc)
+        escaped_ref_desc = html.escape(ref_desc)
         if error:
-            diff_text = Report._colored_diff(ref_desc, got_desc)
+            diff_text = Report._colored_diff(escaped_ref_desc, escaped_got_desc)
 
         test_html = f"""
             <tr>
                 <td{table_style}><b>{testname}</b><br/>{status}</td>
-                <td><div class="{cell_class}">{got_desc}</div></td>
-                <td><div class="{cell_class}">{ref_desc}</div></td>
+                <td><div class="{cell_class}">{escaped_got_desc}</div></td>
+                <td><div class="{cell_class}">{escaped_ref_desc}</div></td>
                 <td><div class="{cell_class} text_cell_wider">{diff_text}</div></td>
             </tr>"""
 
@@ -295,12 +301,14 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
             return res
         if isinstance(val, bpy.types.SplinePoint):
             return f"({fmtf(val.co[0])}, {fmtf(val.co[1])}, {fmtf(val.co[2])}) w:{fmtf(val.weight)}"
+        if isinstance(val, bpy.types.UDIMTile):
+            return f"{val.number}"
         return str(val)
 
     # single-line dump of head/tail
     @staticmethod
-    def _write_collection_single(col, desc: StringIO) -> None:
-        desc.write(f"    - ")
+    def _write_collection_single(col, desc: StringIO, line_prefix="    - ") -> None:
+        desc.write(line_prefix)
         side_to_print = Report.side_to_print_single_line
         if len(col) <= side_to_print * 2:
             for val in col:
@@ -446,7 +454,10 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
                 if len(mesh.edges) > 0:
                     Report._write_collection_single(mesh.edges, desc)
                 # attributes
-                for attr in mesh.attributes:
+                attr_names = [attr.name for attr in mesh.attributes]
+                attr_names.sort()
+                for name in attr_names:
+                    attr = mesh.attributes[name]
                     if not attr.is_internal:
                         Report._write_attr(attr, desc)
                 # skinning / vertex groups
@@ -857,6 +868,9 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
             desc.write(f"==== Images: {len(bpy.data.images)}\n")
             for img in bpy.data.images:
                 desc.write(f"- Image '{img.name}' {img.size[0]}x{img.size[1]} {img.depth}bpp\n")
+                if len(img.tiles) > 1:
+                    desc.write(f"  - {len(img.tiles)} tiles: ")
+                    Report._write_collection_single(img.tiles, desc, "")
                 Report._write_custom_props(img, desc)
             desc.write(f"\n")
 
@@ -864,11 +878,19 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
         desc.close()
         return text
 
-    def import_and_check(self, input_file: pathlib.Path, import_func: Callable[[str, dict], None]) -> bool:
+    def import_and_check(
+            self,
+            input_file: pathlib.Path,
+            import_func: Callable[[str, dict], None],
+    ) -> bool:
         return self.generate_and_check(input_file=input_file, generate_func=import_func)
 
-    def generate_and_check(self, input_file: pathlib.Path, generate_func: Callable[[
-            str, dict], None], output_filepath: Optional[pathlib.Path] = None) -> bool:
+    def generate_and_check(
+            self,
+            input_file: pathlib.Path,
+            generate_func: Callable[[str, dict], None],
+            output_filepath: pathlib.Path | None = None,
+    ) -> bool:
         """
         Imports a single file using the provided import function, and
         checks whether it matches with expected template, returns

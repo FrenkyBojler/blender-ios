@@ -36,6 +36,7 @@ const EnumPropertyItem rna_enum_node_match_string_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.add_input<decl::String>("String").optional_label().is_default_link_socket();
   b.add_input<decl::Menu>("Operation")
       .static_items(rna_enum_node_match_string_items)
@@ -114,7 +115,7 @@ static void node_label(const bNodeTree * /*tree*/,
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   fn_node_type_base(&ntype, "FunctionNodeMatchString");
   ntype.ui_name = "Match String";
@@ -125,7 +126,7 @@ static void node_register()
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.build_multi_function = node_build_multi_function;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

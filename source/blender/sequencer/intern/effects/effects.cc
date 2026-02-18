@@ -8,6 +8,8 @@
  * \ingroup sequencer
  */
 
+#include "BLI_math_filter.hh"
+
 #include "BKE_fcurve.hh"
 
 #include "DNA_scene_types.h"
@@ -17,12 +19,9 @@
 #include "IMB_imbuf.hh"
 #include "IMB_metadata.hh"
 
-#include "RE_pipeline.h"
-
 #include "RNA_prototypes.hh"
 
 #include "SEQ_render.hh"
-#include "SEQ_time.hh"
 
 #include "effects.hh"
 #include "render.hh"
@@ -89,7 +88,7 @@ Array<float> make_gaussian_blur_kernel(float rad, int size)
   float sum = 0.0f;
   float fac = (rad > 0.0f ? 1.0f / rad : 0.0f);
   for (int i = -size; i <= size; i++) {
-    float val = RE_filter_value(R_FILTER_GAUSS, float(i) * fac);
+    float val = math::filter_kernel_value(math::FilterKernel::Gauss, float(i) * fac);
     sum += val;
     gaussian[i + size] = val;
   }
@@ -104,19 +103,9 @@ Array<float> make_gaussian_blur_kernel(float rad, int size)
 
 static void init_noop(Strip * /*strip*/) {}
 
-static void free_default(Strip *strip, const bool /*do_id_user*/)
-{
-  MEM_SAFE_FREE(strip->effectdata);
-}
-
-static int num_inputs_default()
-{
-  return 2;
-}
-
 static void copy_effect_default(Strip *dst, const Strip *src, const int /*flag*/)
 {
-  dst->effectdata = MEM_dupallocN(src->effectdata);
+  dst->effectdata = MEM_dupalloc_void(src->effectdata);
 }
 
 static StripEarlyOut early_out_noop(const Strip * /*strip*/, float /*fac*/)
@@ -175,8 +164,7 @@ EffectHandle effect_handle_get(StripType strip_type)
   EffectHandle rval;
 
   rval.init = init_noop;
-  rval.num_inputs = num_inputs_default;
-  rval.free = free_default;
+  rval.free = nullptr;
   rval.early_out = early_out_noop;
   rval.execute = nullptr;
   rval.copy = copy_effect_default;
@@ -187,6 +175,9 @@ EffectHandle effect_handle_get(StripType strip_type)
       break;
     case STRIP_TYPE_GAMCROSS:
       gamma_cross_effect_get_handle(rval);
+      break;
+    case STRIP_TYPE_COMPOSITOR:
+      compositor_effect_get_handle(rval);
       break;
     case STRIP_TYPE_ADD:
       add_effect_get_handle(rval);
@@ -242,8 +233,7 @@ static EffectHandle effect_handle_for_blend_mode_get(StripBlendMode blend)
   EffectHandle rval;
 
   rval.init = init_noop;
-  rval.num_inputs = num_inputs_default;
-  rval.free = free_default;
+  rval.free = nullptr;
   rval.early_out = early_out_noop;
   rval.execute = nullptr;
   rval.copy = nullptr;
@@ -317,8 +307,16 @@ EffectHandle strip_blend_mode_handle_get(Strip *strip)
 
 static float transition_fader_calc(const Scene *scene, const Strip *strip, float timeline_frame)
 {
-  float fac = float(timeline_frame - time_left_handle_frame_get(scene, strip));
-  fac /= time_strip_length_get(scene, strip);
+  float fac = float(timeline_frame - strip->left_handle());
+  /* Compositor with no inputs can have strip->len not be updated,
+   * since most of existing editing code assumes no-input effects never need the length.
+   * So for the fader, just calculated it here directly. */
+  if (strip->type == STRIP_TYPE_COMPOSITOR) {
+    fac /= strip->enddisp - strip->startdisp;
+  }
+  else {
+    fac /= strip->length(scene);
+  }
   fac = math::clamp(fac, 0.0f, 1.0f);
   return fac;
 }
@@ -333,25 +331,50 @@ float effect_fader_calc(Scene *scene, Strip *strip, float timeline_frame)
   }
 
   const FCurve *fcu = id_data_find_fcurve(
-      &scene->id, strip, &RNA_Strip, "effect_fader", 0, nullptr);
+      &scene->id, strip, RNA_Strip, "effect_fader", 0, nullptr);
   if (fcu) {
     return evaluate_fcurve(fcu, timeline_frame);
   }
   return strip->effect_fader;
 }
 
-int effect_get_num_inputs(int strip_type)
+int effect_type_get_min_num_inputs(StripType type)
 {
-  EffectHandle rval = effect_handle_get(StripType(strip_type));
-  if (rval.execute == nullptr) {
+  if (!strip_type_is_effect(type)) {
     return 0;
   }
-  return rval.num_inputs();
+
+  /* Zero input effects. Note: compositor is here too, but it supports
+   * any input count. */
+  if (ELEM(type,
+           STRIP_TYPE_ADJUSTMENT,
+           STRIP_TYPE_MULTICAM,
+           STRIP_TYPE_COLOR,
+           STRIP_TYPE_TEXT,
+           STRIP_TYPE_COMPOSITOR))
+  {
+    return 0;
+  }
+
+  /* One input effects. */
+  if (ELEM(type, STRIP_TYPE_GAUSSIAN_BLUR, STRIP_TYPE_GLOW, STRIP_TYPE_SPEED)) {
+    return 1;
+  }
+
+  /* Others are two inputs. */
+  return 2;
+}
+
+bool strip_type_is_effect(StripType type)
+{
+  return (type >= STRIP_TYPE_CROSS && type <= STRIP_TYPE_COMPOSITOR) ||
+         (type >= STRIP_TYPE_WIPE && type <= STRIP_TYPE_ADJUSTMENT) ||
+         (type >= STRIP_TYPE_GAUSSIAN_BLUR && type <= STRIP_TYPE_COLORMIX);
 }
 
 bool effect_is_transition(StripType type)
 {
-  return ELEM(type, STRIP_TYPE_CROSS, STRIP_TYPE_GAMCROSS, STRIP_TYPE_WIPE);
+  return ELEM(type, STRIP_TYPE_CROSS, STRIP_TYPE_GAMCROSS, STRIP_TYPE_WIPE, STRIP_TYPE_COMPOSITOR);
 }
 
 }  // namespace blender::seq

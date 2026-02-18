@@ -33,6 +33,8 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_colormanagement_intern.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"image.read"};
 
 static void imb_handle_colorspace_and_alpha(ImBuf *ibuf,
@@ -115,7 +117,14 @@ static void imb_handle_colorspace_and_alpha(ImBuf *ibuf,
     }
   }
 
-  colormanage_imbuf_make_linear(ibuf, new_colorspace, ColorManagedFileOutput::Image);
+  if (flags & IB_no_colorspace_convert) {
+    if (ibuf->float_buffer.data != nullptr) {
+      ibuf->float_buffer.colorspace = colormanage_colorspace_get_named(new_colorspace);
+    }
+  }
+  else {
+    colormanage_imbuf_make_linear(ibuf, new_colorspace, ColorManagedFileOutput::Image);
+  }
 }
 
 ImBuf *IMB_load_image_from_memory(const uchar *mem,
@@ -265,3 +274,5 @@ ImBuf *IMB_thumb_load_image(const char *filepath,
 
   return ibuf;
 }
+
+}  // namespace blender

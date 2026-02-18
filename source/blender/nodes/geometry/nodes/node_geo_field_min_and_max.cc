@@ -47,10 +47,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -176,52 +176,49 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
 
     GVArray g_outputs;
 
-    bke::attribute_math::convert_to_static_type(g_values.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      if constexpr (is_same_any_v<T, int, float, float3>) {
-        const VArray<T> values = g_values.typed<T>();
+    g_values.type().to_static_type<int, float, float3>([&]<typename T>() {
+      const VArray<T> values = g_values.typed<T>();
 
-        if (operation_ == Operation::Min) {
-          if (group_indices.is_single()) {
-            T result = MinMaxInfo<T>::min_initial_value;
-            for (const int i : values.index_range()) {
-              result = math::min(result, values[i]);
-            }
-            g_outputs = VArray<T>::from_single(result, domain_size);
+      if (operation_ == Operation::Min) {
+        if (group_indices.is_single()) {
+          T result = MinMaxInfo<T>::min_initial_value;
+          for (const int i : values.index_range()) {
+            result = math::min(result, values[i]);
           }
-          else {
-            Map<int, T> results;
-            for (const int i : values.index_range()) {
-              T &value = results.lookup_or_add(group_indices[i], MinMaxInfo<T>::min_initial_value);
-              value = math::min(value, values[i]);
-            }
-            Array<T> outputs(domain_size);
-            for (const int i : values.index_range()) {
-              outputs[i] = results.lookup(group_indices[i]);
-            }
-            g_outputs = VArray<T>::from_container(std::move(outputs));
-          }
+          g_outputs = VArray<T>::from_single(result, domain_size);
         }
         else {
-          if (group_indices.is_single()) {
-            T result = MinMaxInfo<T>::max_initial_value;
-            for (const int i : values.index_range()) {
-              result = math::max(result, values[i]);
-            }
-            g_outputs = VArray<T>::from_single(result, domain_size);
+          Map<int, T> results;
+          for (const int i : values.index_range()) {
+            T &value = results.lookup_or_add(group_indices[i], MinMaxInfo<T>::min_initial_value);
+            value = math::min(value, values[i]);
           }
-          else {
-            Map<int, T> results;
-            for (const int i : values.index_range()) {
-              T &value = results.lookup_or_add(group_indices[i], MinMaxInfo<T>::max_initial_value);
-              value = math::max(value, values[i]);
-            }
-            Array<T> outputs(domain_size);
-            for (const int i : values.index_range()) {
-              outputs[i] = results.lookup(group_indices[i]);
-            }
-            g_outputs = VArray<T>::from_container(std::move(outputs));
+          Array<T> outputs(domain_size);
+          for (const int i : values.index_range()) {
+            outputs[i] = results.lookup(group_indices[i]);
           }
+          g_outputs = VArray<T>::from_container(std::move(outputs));
+        }
+      }
+      else {
+        if (group_indices.is_single()) {
+          T result = MinMaxInfo<T>::max_initial_value;
+          for (const int i : values.index_range()) {
+            result = math::max(result, values[i]);
+          }
+          g_outputs = VArray<T>::from_single(result, domain_size);
+        }
+        else {
+          Map<int, T> results;
+          for (const int i : values.index_range()) {
+            T &value = results.lookup_or_add(group_indices[i], MinMaxInfo<T>::max_initial_value);
+            value = math::max(value, values[i]);
+          }
+          Array<T> outputs(domain_size);
+          for (const int i : values.index_range()) {
+            outputs[i] = results.lookup(group_indices[i]);
+          }
+          g_outputs = VArray<T>::from_container(std::move(outputs));
         }
       }
     });
@@ -309,7 +306,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeFieldMinAndMax");
   ntype.ui_name = "Field Min & Max";
@@ -320,7 +317,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)

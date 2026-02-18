@@ -288,6 +288,37 @@ static IndexMask apply_row_filter(const SpreadsheetRowFilter &row_filter,
       }
     }
   }
+  else if (column_data.type().is<float4>()) {
+    const float4 value = row_filter.value_float4;
+    switch (row_filter.operation) {
+      case SPREADSHEET_ROW_FILTER_EQUAL: {
+        const float threshold_sq = pow2f(row_filter.threshold);
+        return apply_filter_operation(
+            column_data.typed<float4>(),
+            [&](const float4 cell) { return math::distance_squared(cell, value) <= threshold_sq; },
+            prev_mask,
+            memory);
+      }
+      case SPREADSHEET_ROW_FILTER_GREATER: {
+        return apply_filter_operation(
+            column_data.typed<float4>(),
+            [&](const float4 cell) {
+              return cell.x > value.x && cell.y > value.y && cell.z > value.z && cell.w > value.w;
+            },
+            prev_mask,
+            memory);
+      }
+      case SPREADSHEET_ROW_FILTER_LESS: {
+        return apply_filter_operation(
+            column_data.typed<float4>(),
+            [&](const float4 cell) {
+              return cell.x < value.x && cell.y < value.y && cell.z < value.z && cell.w < value.w;
+            },
+            prev_mask,
+            memory);
+      }
+    }
+  }
   else if (column_data.type().is<ColorGeometry4f>()) {
     const ColorGeometry4f value = row_filter.value_color;
     switch (row_filter.operation) {
@@ -442,12 +473,12 @@ IndexMask spreadsheet_filter_rows(const SpaceSpreadsheet &sspreadsheet,
       columns.add(column.values->name(), column.values);
     }
 
-    LISTBASE_FOREACH (const SpreadsheetRowFilter *, row_filter, &sspreadsheet.row_filters) {
-      if (row_filter->flag & SPREADSHEET_ROW_FILTER_ENABLED) {
-        if (!columns.contains(row_filter->column_name)) {
+    for (const SpreadsheetRowFilter &row_filter : sspreadsheet.row_filters) {
+      if (row_filter.flag & SPREADSHEET_ROW_FILTER_ENABLED) {
+        if (!columns.contains(row_filter.column_name)) {
           continue;
         }
-        mask = apply_row_filter(*row_filter, columns, mask, mask_memory);
+        mask = apply_row_filter(row_filter, columns, mask, mask_memory);
       }
     }
   }
@@ -457,7 +488,7 @@ IndexMask spreadsheet_filter_rows(const SpaceSpreadsheet &sspreadsheet,
 
 SpreadsheetRowFilter *spreadsheet_row_filter_new()
 {
-  SpreadsheetRowFilter *row_filter = MEM_callocN<SpreadsheetRowFilter>(__func__);
+  SpreadsheetRowFilter *row_filter = MEM_new<SpreadsheetRowFilter>(__func__);
   row_filter->flag = (SPREADSHEET_ROW_FILTER_UI_EXPAND | SPREADSHEET_ROW_FILTER_ENABLED);
   row_filter->operation = SPREADSHEET_ROW_FILTER_LESS;
   row_filter->threshold = 0.01f;
@@ -479,8 +510,8 @@ SpreadsheetRowFilter *spreadsheet_row_filter_copy(const SpreadsheetRowFilter *sr
 
 void spreadsheet_row_filter_free(SpreadsheetRowFilter *row_filter)
 {
-  MEM_SAFE_FREE(row_filter->value_string);
-  MEM_freeN(row_filter);
+  MEM_SAFE_DELETE(row_filter->value_string);
+  MEM_delete(row_filter);
 }
 
 }  // namespace blender::ed::spreadsheet

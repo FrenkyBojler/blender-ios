@@ -72,6 +72,7 @@
  *    pointers to virtual member functions.
  */
 
+#include "BLI_dynamic_stack_buffer.hh"  // IWYU pragma: keep
 #include "BLI_enum_flags.hh"
 #include "BLI_hash.hh"
 #include "BLI_index_mask_fwd.hh"
@@ -79,6 +80,8 @@
 #include "BLI_parameter_pack_utils.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
+
+namespace blender {
 
 /**
  * Different types support different features. Features like copy constructability can be detected
@@ -95,8 +98,6 @@ enum class CPPTypeFlags {
   BasicType = Hashable | Printable | EqualityComparable,
 };
 ENUM_OPERATORS(CPPTypeFlags)
-
-namespace blender {
 
 class CPPType : NonCopyable, NonMovable {
  public:
@@ -399,38 +400,13 @@ class CPPType : NonCopyable, NonMovable {
    * \param Types: The types that code should be generated for.
    * \param fn: The function object to call. This is expected to have a templated `operator()` and
    * a non-templated `operator()`. The templated version will be called if the current #CPPType
-   *   matches any of the given types. Otherwise, the non-templated function is called.
+   *   matches any of the given types.
+   * \return True if the function was called.
    */
-  template<typename... Types, typename Fn> void to_static_type(const Fn &fn) const;
+  template<typename... Types, typename Fn> bool to_static_type_try(Fn &&fn) const;
 
- private:
-  template<typename Fn> struct TypeTagExecutor {
-    const Fn &fn;
-
-    template<typename T> void operator()() const
-    {
-      fn(TypeTag<T>{});
-    }
-
-    void operator()() const
-    {
-      fn(TypeTag<void>{});
-    }
-  };
-
- public:
-  /**
-   * Similar to #to_static_type but is easier to use with a lambda function. The function is
-   * expected to take a single `auto TypeTag` parameter. To extract the static type, use:
-   * `using T = typename decltype(TypeTag)::type;`
-   *
-   * If the current #CPPType is not in #Types, the type tag is `void`.
-   */
-  template<typename... Types, typename Fn> void to_static_type_tag(const Fn &fn) const
-  {
-    TypeTagExecutor<Fn> executor{fn};
-    this->to_static_type<Types...>(executor);
-  }
+  /** Same as #to_static_type_try, but asserts if the type is valid. */
+  template<typename... Types, typename Fn> void to_static_type(Fn &&fn) const;
 };
 
 /**
@@ -438,15 +414,10 @@ class CPPType : NonCopyable, NonMovable {
  */
 void register_cpp_types();
 
-}  // namespace blender
-
 /* Utility for allocating an uninitialized buffer for a single value of the given #CPPType. */
 #define BUFFER_FOR_CPP_TYPE_VALUE(type, variable_name) \
-  blender::DynamicStackBuffer<64, 64> stack_buffer_for_##variable_name((type).size, \
-                                                                       (type).alignment); \
+  DynamicStackBuffer<64, 64> stack_buffer_for_##variable_name((type).size, (type).alignment); \
   void *variable_name = stack_buffer_for_##variable_name.buffer();
-
-namespace blender {
 
 /* Give a compile error instead of a link error when type information is missing. */
 template<> const CPPType &CPPType::get_impl<void>() = delete;
@@ -738,7 +709,15 @@ template<typename... T> inline bool CPPType::is_any() const
   return (this->is<T>() || ...);
 }
 
-template<typename... Types, typename Fn> inline void CPPType::to_static_type(const Fn &fn) const
+template<typename... Types, typename Fn> inline void CPPType::to_static_type(Fn &&fn) const
+{
+  if (this->to_static_type_try<Types...>(fn)) {
+    return;
+  }
+  BLI_assert_unreachable();
+}
+
+template<typename... Types, typename Fn> inline bool CPPType::to_static_type_try(Fn &&fn) const
 {
   using Callback = void (*)(const Fn &fn);
 
@@ -759,11 +738,9 @@ template<typename... Types, typename Fn> inline void CPPType::to_static_type(con
   const Callback callback = callback_map.lookup_default(this, nullptr);
   if (callback != nullptr) {
     callback(fn);
+    return true;
   }
-  else {
-    /* Call the non-templated `operator()` of the given function object. */
-    fn();
-  }
+  return false;
 }
 
 }  // namespace blender

@@ -78,10 +78,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "solver", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "solver", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 struct AttributeOutputs {
@@ -199,7 +199,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   op_params.no_self_intersections = !use_self;
   op_params.watertight = !hole_tolerant;
   op_params.no_nested_components = true; /* TODO: make this configurable. */
-  geometry::boolean::BooleanError error = geometry::boolean::BooleanError::NoError;
+  geometry::boolean::BooleanError error;
   Mesh *result = geometry::boolean::mesh_boolean(
       meshes,
       transforms,
@@ -208,18 +208,27 @@ static void node_geo_exec(GeoNodeExecParams params)
       solver,
       attribute_outputs.intersecting_edges_id ? &intersecting_edges : nullptr,
       &error);
-  if (error == geometry::boolean::BooleanError::NonManifold) {
-    params.error_message_add(NodeWarningType::Error, TIP_("An input was not manifold"));
+  if (error.type == geometry::boolean::BooleanErrorType::NonManifold) {
+    if (!error.non_manifold_mesh_indices.is_empty()) {
+      for (const auto index : error.non_manifold_mesh_indices) {
+        params.error_message_add(
+            NodeWarningType::Error,
+            fmt::format(fmt::runtime(TIP_("Input {} was not manifold")), index));
+      }
+    }
+    else {
+      params.error_message_add(NodeWarningType::Error, TIP_("An input was not manifold"));
+    }
   }
-  else if (error == geometry::boolean::BooleanError::ResultTooBig) {
+  else if (error.type == geometry::boolean::BooleanErrorType::ResultTooBig) {
     params.error_message_add(NodeWarningType::Error,
                              TIP_("Boolean result is too big for solver to handle"));
   }
-  else if (error == geometry::boolean::BooleanError::SolverNotAvailable) {
+  else if (error.type == geometry::boolean::BooleanErrorType::SolverNotAvailable) {
     params.error_message_add(NodeWarningType::Error,
                              TIP_("Boolean solver not available (compiled without it)"));
   }
-  else if (error == geometry::boolean::BooleanError::UnknownError) {
+  else if (error.type == geometry::boolean::BooleanErrorType::UnknownError) {
     params.error_message_add(NodeWarningType::Error, TIP_("Unknown Boolean error"));
   }
   if (!result) {
@@ -227,8 +236,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  MEM_SAFE_FREE(result->mat);
-  result->mat = MEM_malloc_arrayN<Material *>(size_t(materials.size()), __func__);
+  MEM_SAFE_DELETE(result->mat);
+  result->mat = MEM_new_array_uninitialized<Material *>(size_t(materials.size()), __func__);
   result->totcol = materials.size();
   MutableSpan(result->mat, result->totcol).copy_from(materials);
 
@@ -255,6 +264,9 @@ static void node_geo_exec(GeoNodeExecParams params)
       all_geometries, {}, std::make_optional(types_to_join));
   result_geometry.replace_mesh(result);
   result_geometry.name = set_a.name;
+  for (const GeometrySet &geometry : all_geometries) {
+    result_geometry.merge_bundle_from(geometry);
+  }
 
   params.set_output("Mesh", std::move(result_geometry));
 }
@@ -317,7 +329,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeMeshBoolean", GEO_NODE_MESH_BOOLEAN);
   ntype.ui_name = "Mesh Boolean";
   ntype.ui_description = "Cut, subtract, or join multiple mesh inputs";
@@ -327,7 +339,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
