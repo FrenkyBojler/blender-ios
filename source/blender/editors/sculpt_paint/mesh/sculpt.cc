@@ -5660,13 +5660,8 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
 
 bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
 {
-  /* Don't start the stroke until `mval` goes over the mesh.
-   * NOTE: `mval` will only be null when re-executing the saved stroke.
-   * We have exception for 'exec' strokes since they may not set `mval`,
-   * only 'location', see: #52195. */
-  if (((op->flag & OP_IS_INVOKE) == 0) || (mval == nullptr) ||
-      over_mesh(*this->depsgraph, this->vc, *sculpt_, this->brush, op, mval))
-  {
+  /* Don't start the stroke until `mval` goes over the mesh. */
+  if (over_mesh(*this->depsgraph, this->vc, *sculpt_, this->brush, op, mval)) {
     Object &ob = *this->object;
     Brush *brush = this->brush;
 
@@ -5989,8 +5984,8 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   ignore_background_click = RNA_boolean_get(op->ptr, "ignore_background_click");
   const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
   if (ignore_background_click && !over_mesh(C, op, mval)) {
-    MEM_delete(stroke);
     stroke->free(C, op);
+    MEM_delete(stroke);
     return OPERATOR_PASS_THROUGH;
   }
 
@@ -6000,8 +5995,8 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op->customdata);
     if (stroke) {
-      MEM_delete(stroke);
       stroke->free(C, op);
+      MEM_delete(stroke);
     }
     return retval;
   }
@@ -6660,16 +6655,6 @@ void gather_bmesh_normals(const Set<BMVert *, 0> &verts, const MutableSpan<float
 }
 
 template<typename T>
-void gather_data_mesh(const Span<T> src, const Span<int> indices, const MutableSpan<T> dst)
-{
-  BLI_assert(indices.size() == dst.size());
-
-  for (const int i : indices.index_range()) {
-    dst[i] = src[indices[i]];
-  }
-}
-
-template<typename T>
 void gather_data_grids(const SubdivCCG &subdiv_ccg,
                        const Span<T> src,
                        const Span<int> grids,
@@ -6696,16 +6681,6 @@ void gather_data_bmesh(const Span<T> src,
   for (const BMVert *vert : verts) {
     node_data[i] = src[BM_elem_index_get(vert)];
     i++;
-  }
-}
-
-template<typename T>
-void scatter_data_mesh(const Span<T> src, const Span<int> indices, const MutableSpan<T> dst)
-{
-  BLI_assert(indices.size() == src.size());
-
-  for (const int i : indices.index_range()) {
-    dst[indices[i]] = src[i];
   }
 }
 
@@ -6739,11 +6714,6 @@ void scatter_data_bmesh(const Span<T> node_data,
   }
 }
 
-template void gather_data_mesh<bool>(Span<bool>, Span<int>, MutableSpan<bool>);
-template void gather_data_mesh<int>(Span<int>, Span<int>, MutableSpan<int>);
-template void gather_data_mesh<float>(Span<float>, Span<int>, MutableSpan<float>);
-template void gather_data_mesh<float3>(Span<float3>, Span<int>, MutableSpan<float3>);
-template void gather_data_mesh<float4>(Span<float4>, Span<int>, MutableSpan<float4>);
 template void gather_data_grids<int>(const SubdivCCG &, Span<int>, Span<int>, MutableSpan<int>);
 template void gather_data_grids<float>(const SubdivCCG &,
                                        Span<float>,
@@ -6759,11 +6729,6 @@ template void gather_data_bmesh<float3>(Span<float3>,
                                         const Set<BMVert *, 0> &,
                                         MutableSpan<float3>);
 
-template void scatter_data_mesh<bool>(Span<bool>, Span<int>, MutableSpan<bool>);
-template void scatter_data_mesh<int>(Span<int>, Span<int>, MutableSpan<int>);
-template void scatter_data_mesh<float>(Span<float>, Span<int>, MutableSpan<float>);
-template void scatter_data_mesh<float3>(Span<float3>, Span<int>, MutableSpan<float3>);
-template void scatter_data_mesh<float4>(Span<float4>, Span<int>, MutableSpan<float4>);
 template void scatter_data_grids<float>(const SubdivCCG &,
                                         Span<float>,
                                         Span<int>,

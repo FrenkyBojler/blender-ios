@@ -1673,8 +1673,7 @@ void uvedit_select_prepare_sync_select(const Scene *scene, BMesh *bm)
   ED_uvedit_sync_uvselect_ensure_if_needed(scene->toolsettings, bm);
 }
 
-/* We may want to use this eventually. */
-void uvedit_select_prepare_UNUSED(const Scene *scene, BMesh *bm)
+void uvedit_select_prepare(const Scene *scene, BMesh *bm)
 {
   const ToolSettings *ts = scene->toolsettings;
   if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
@@ -6793,7 +6792,7 @@ static EnumPropertyItem uv_select_similar_type_items[] = {
      "WINDING",
      0,
      "Winding",
-     "Face direction defined by (clockwise or anti-clockwise winding (facing up or facing down)"},
+     "Face direction defined by clockwise or anti-clockwise winding (facing up or facing down)"},
     {UV_SSIM_FACE, "FACE", 0, "Amount of Faces in Island", ""},
     {0}};
 
