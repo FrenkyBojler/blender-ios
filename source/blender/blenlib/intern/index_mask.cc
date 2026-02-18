@@ -40,7 +40,7 @@ template<typename T> void build_reverse_map(const IndexMask &mask, MutableSpan<T
 #endif
   BLI_assert(r_map.size() >= mask.min_array_size());
   mask.foreach_index_optimized<T>([&](const T src, const T dst) { r_map[src] = dst; },
-                                  exec_mode::parallel);
+                                  exec_mode::grain_size(4096));
 }
 
 template void build_reverse_map<int>(const IndexMask &mask, MutableSpan<int> r_map);
@@ -659,7 +659,10 @@ IndexMask IndexMask::from_bools(const IndexMask &universe,
     return IndexMask::from_bools(universe, span, memory);
   }
   return IndexMask::from_predicate(
-      universe, memory, [&](const int64_t index) { return bools[index]; }, exec_mode::parallel);
+      universe,
+      memory,
+      [&](const int64_t index) { return bools[index]; },
+      exec_mode::grain_size(4096));
 }
 
 IndexMask IndexMask::from_bools_inverse(const IndexMask &universe,
@@ -675,7 +678,10 @@ IndexMask IndexMask::from_bools_inverse(const IndexMask &universe,
     return IndexMask::from_bools_inverse(universe, span, memory);
   }
   return IndexMask::from_predicate(
-      universe, memory, [&](const int64_t index) { return !bools[index]; }, exec_mode::parallel);
+      universe,
+      memory,
+      [&](const int64_t index) { return !bools[index]; },
+      exec_mode::grain_size(4096));
 }
 
 template<typename T>
@@ -764,7 +770,7 @@ template<typename T> void IndexMask::to_indices(MutableSpan<T> r_indices) const
       [r_indices = r_indices.data()](const int64_t i, const int64_t pos) {
         r_indices[pos] = T(i);
       },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
 }
 
 void IndexMask::set_bits(MutableBitSpan r_bits, const int64_t offset) const

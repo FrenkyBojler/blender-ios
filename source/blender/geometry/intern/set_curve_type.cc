@@ -558,7 +558,7 @@ static bke::CurvesGeometry convert_curves_to_nurbs(const bke::CurvesGeometry &sr
           [&](const int i) {
             knots_modes[i] = cyclic[i] ? NURBS_KNOT_MODE_NORMAL : NURBS_KNOT_MODE_ENDPOINT;
           },
-          exec_mode::parallel);
+          exec_mode::grain_size(4096));
     }
 
     for (bke::AttributeTransferData &attribute : generic_attributes) {

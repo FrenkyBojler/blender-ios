@@ -19,7 +19,7 @@ IndexMask vert_selection_from_edge(const Span<int2> edges,
         array[edges[i][0]] = true;
         array[edges[i][1]] = true;
       },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
   return IndexMask::from_bools(array, memory);
 }
 

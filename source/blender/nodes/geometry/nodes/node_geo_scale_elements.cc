@@ -350,7 +350,7 @@ static int face_to_vert_islands(const Mesh &mesh,
           disjoint_set.join(v1, v2);
         }
       },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
 
   disjoint_set.calc_reduced_ids(vert_island_indices);
 
@@ -420,7 +420,7 @@ static int edge_to_vert_islands(const Mesh &mesh,
         const int v2 = verts_pos[edge[1]];
         disjoint_set.join(v1, v2);
       },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
 
   disjoint_set.calc_reduced_ids(vert_island_indices);
 

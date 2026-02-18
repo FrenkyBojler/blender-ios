@@ -477,7 +477,7 @@ static void quad_indices_of_tris(const IndexMask &quads, MutableSpan<int> indice
         indices[2 * pos + 0] = index;
         indices[2 * pos + 1] = index;
       },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
 }
 
 static void ngon_indices_of_tris(const IndexMask &ngons,
@@ -488,7 +488,7 @@ static void ngon_indices_of_tris(const IndexMask &ngons,
   BLI_assert(tris_by_ngon.total_size() == indices.size());
   ngons.foreach_index_optimized<int>(
       [&](const int index, const int pos) { indices.slice(tris_by_ngon[pos]).fill(index); },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
 }
 
 std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,

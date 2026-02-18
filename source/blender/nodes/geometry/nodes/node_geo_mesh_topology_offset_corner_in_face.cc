@@ -67,7 +67,7 @@ class OffsetCornerInFaceFieldInput final : public bke::MeshFieldInput {
                                         math::mod_periodic<int>(corner_index_in_face + offset,
                                                                 face.size());
         },
-        exec_mode::parallel);
+        exec_mode::grain_size(4096));
 
     return VArray<int>::from_container(std::move(offset_corners));
   }

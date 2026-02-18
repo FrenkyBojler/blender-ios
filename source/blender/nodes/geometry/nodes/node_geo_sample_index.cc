@@ -119,7 +119,7 @@ void copy_with_clamped_indices(const VArray<T> &src,
           const int index = indices[i];
           dst[i] = src[std::clamp(index, 0, last_index)];
         },
-        exec_mode::parallel);
+        exec_mode::grain_size(4096));
   });
 }
 

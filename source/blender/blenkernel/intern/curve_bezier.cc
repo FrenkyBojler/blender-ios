@@ -240,7 +240,7 @@ void calculate_single_aligned_handles(const IndexMask &selection,
         align_handles[point] = calculate_aligned_handle(
             positions[point], align_with[point], align_handles[point]);
       },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
 }
 
 void calculate_aligned_handles(const IndexMask &selection,
@@ -257,7 +257,7 @@ void calculate_aligned_handles(const IndexMask &selection,
         align_handles_left[point] = new_left;
         align_handles_right[point] = new_right;
       },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
 }
 
 void calculate_auto_handles(const bool cyclic,

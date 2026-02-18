@@ -271,7 +271,7 @@ void gather_corner_data(const Span<int3> corner_tris,
         dst_data[dst * 3 + 1] = src_data[tri[1]];
         dst_data[dst * 3 + 2] = src_data[tri[2]];
       },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
 }
 
 static void copy_submesh(const Mesh &mesh,

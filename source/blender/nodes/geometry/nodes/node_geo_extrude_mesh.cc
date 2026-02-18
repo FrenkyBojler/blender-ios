@@ -422,7 +422,7 @@ static void extrude_mesh_vertices(Mesh &mesh,
       [&](const int index, const int i_selection) {
         new_edges[i_selection] = int2(index, new_vert_range[i_selection]);
       },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
 
   /* New vertices copy the attribute values from their source vertex. */
   gather_vert_attributes(mesh, ids_by_domain[int(AttrDomain::Point)], selection, new_vert_range);
@@ -439,7 +439,7 @@ static void extrude_mesh_vertices(Mesh &mesh,
   MutableSpan<float3> new_positions = positions.slice(new_vert_range);
   selection.foreach_index_optimized<int>(
       [&](const int index, const int i) { new_positions[i] = positions[index] + offsets[index]; },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
 
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Point)) {
     array_utils::gather(indices->as_span(), selection, indices->slice(new_vert_range));
@@ -649,7 +649,7 @@ static void extrude_mesh_edges(Mesh &mesh,
 
   new_verts.foreach_index_optimized<int>(
       [&](const int src, const int dst) { connect_edges[dst] = int2(src, new_vert_range[dst]); },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
 
   {
     Array<int> vert_to_new_vert(orig_vert_size);
@@ -786,14 +786,14 @@ static void extrude_mesh_edges(Mesh &mesh,
     const float3 offset = edge_offsets.get_internal_single();
     new_verts.foreach_index_optimized<int>(
         [&](const int src, const int dst) { new_positions[dst] = positions[src] + offset; },
-        exec_mode::parallel);
+        exec_mode::grain_size(4096));
   }
   else {
     new_verts.foreach_index_optimized<int>(
         [&](const int src, const int dst) {
           new_positions[dst] = positions[src] + vert_offsets[src];
         },
-        exec_mode::parallel);
+        exec_mode::grain_size(4096));
   }
 
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Point)) {

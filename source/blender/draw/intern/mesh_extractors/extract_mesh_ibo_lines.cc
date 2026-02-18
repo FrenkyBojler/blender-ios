@@ -55,7 +55,7 @@ static void fill_loose_lines_ibo(const MeshRenderData &mr,
           [&](const int i, const int pos) {
             data[pos] = loose_start + uint2(i * 2 + 0, i * 2 + 1);
           },
-          exec_mode::parallel);
+          exec_mode::grain_size(4096));
     }
   });
 }

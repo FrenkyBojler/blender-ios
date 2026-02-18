@@ -49,7 +49,7 @@ static VArray<bool> select_by_material(const Span<Material *> materials,
         const int slot_i = material_indices_span[domain_index];
         domain_selection[domain_index] = slots.contains(slot_i);
       },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
   return VArray<bool>::from_container(std::move(domain_selection));
 }
 

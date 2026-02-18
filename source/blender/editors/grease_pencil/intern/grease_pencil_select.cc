@@ -128,7 +128,7 @@ bool apply_mask_as_selection(bke::CurvesGeometry &curves,
       [&](const int64_t element_i) {
         ed::curves::apply_selection_operation_at_index(writer.span, element_i, sel_op);
       },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
 
   writer.finish();
 

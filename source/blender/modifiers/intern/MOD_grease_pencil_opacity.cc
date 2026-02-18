@@ -173,7 +173,7 @@ static void modify_softness(const GreasePencilOpacityModifierData &omd,
         softness.span[curve_i] =
             1.0f - std::clamp((1.0f - softness.span[curve_i]) * omd.hardness_factor, 0.0f, 1.0f);
       },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
 
   softness.finish();
 }

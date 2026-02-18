@@ -340,7 +340,7 @@ static Array<int2> calc_new_edges(const OffsetIndices<int> faces,
       [&](const int edge, const int mask) {
         r_new_edge_offsets[mask] = std::max<int>(edge_to_corner_map[edge].size() - 1, 0);
       },
-      exec_mode::parallel);
+      exec_mode::grain_size(4096));
   const OffsetIndices offsets = offset_indices::accumulate_counts_to_offsets(r_new_edge_offsets);
 
   Array<int2> new_edges(offsets.total_size());
