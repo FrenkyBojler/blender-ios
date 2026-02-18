@@ -31,6 +31,7 @@ def get_arguments(filepath, output_filepath, gpu_backend):
         "0", "0", "128", "128",
         "-noaudio",
         "--factory-startup",
+        "--no-native-pixels",
         "--enable-autoexec",
         "--debug-memory",
         "--debug-exit-on-error"]
