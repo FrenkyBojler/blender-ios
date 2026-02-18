@@ -498,10 +498,12 @@ static void project_on_mesh(BVHTree *bvh_tree,
     closest_to_line_v3(closest, center_pos, e->v1->co, e->v2->co);
     const float fac = line_point_factor_v3(closest, e->v1->co, e->v2->co);
     if (fac > CIRCULARIZE_EPSILON && fac < 1.0f - CIRCULARIZE_EPSILON) {
-      best_dist_sq = len_squared_v3v3(center_pos, closest);
-      copy_v3_v3(r_pos, closest);
-      found = true;
-      break;
+      const float dist_sq = len_squared_v3v3(center_pos, closest);
+      if (dist_sq < best_dist_sq) {
+        best_dist_sq = dist_sq;
+        copy_v3_v3(r_pos, closest);
+        found = true;
+      }
     }
   }
 
