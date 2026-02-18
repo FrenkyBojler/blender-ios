@@ -2137,6 +2137,13 @@ struct NodeReroute {
   char type_idname[64] = "";
 };
 
+struct NodeImplicitConversion {
+  DNA_DEFINE_CXX_METHODS(NodeImplicitConversion)
+
+  /** Name of the socket type (e.g. `NodeSocketFloat`). */
+  char type_idname[64] = "";
+};
+
 /** \note This one has been replaced with #ImageUser, keep it for do_versions(). */
 struct NodeImageAnim {
   DNA_DEFINE_CXX_METHODS(NodeImageAnim)
@@ -2333,7 +2340,9 @@ struct NodeCompositorFileOutput {
   int active_item_index = 0;
   /* Apply the render part of the display transform when saving non-linear images. */
   char save_as_render = 0;
-  char _pad[7] = {};
+  /* Add a file extension to the file name. */
+  char use_file_extension = 0;
+  char _pad[6] = {};
 };
 
 struct NodeImageMultiFileSocket {
