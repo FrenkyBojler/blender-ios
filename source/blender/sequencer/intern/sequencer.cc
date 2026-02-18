@@ -1099,7 +1099,7 @@ void doversion_250_sound_proxy_update(Main *bmain, Editing *ed)
 
 /* Depsgraph update functions. */
 
-static bool seq_mute_sound_strips_cb(Strip *strip, void *user_data)
+static bool seq_mute_sound_strips_cb(Strip *strip, void */*user_data*/)
 {
   strip->runtime->remove_sound();
   strip->runtime->clear_sound_time_stretch();
