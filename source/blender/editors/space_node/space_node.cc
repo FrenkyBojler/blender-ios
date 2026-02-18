@@ -1469,9 +1469,11 @@ static int /*eContextResult*/ node_context(const bContext *C,
   }
   if (CTX_data_equals(member, "edit_image")) {
     if (bNode *node = bke::node_get_active(*snode->edittree)) {
-      Image *image = id_cast<Image *>(node->id);
-      CTX_data_id_pointer_set(result, &image->id);
-      return CTX_RESULT_OK;
+      if (ELEM(node->type_legacy, SH_NODE_TEX_IMAGE, SH_NODE_TEX_ENVIRONMENT)) {
+        Image *image = id_cast<Image *>(node->id);
+        CTX_data_id_pointer_set(result, &image->id);
+        return CTX_RESULT_OK;
+      }
     }
   }
   return CTX_RESULT_MEMBER_NOT_FOUND;
