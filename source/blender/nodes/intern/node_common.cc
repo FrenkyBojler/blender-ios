@@ -834,14 +834,14 @@ static void node_implicit_conversion_declare(nodes::NodeDeclarationBuilder &b)
   b.add_default_layout();
   b.add_input<nodes::decl::Custom>("Value")
       .idname(socket_idname.c_str())
-      .structure_type(nodes::StructureType::Dynamic);
+      .structure_type(nodes::StructureType::Dynamic)
+      .optional_label();
   b.add_output<nodes::decl::Custom>("Value")
       .idname(socket_idname.c_str())
       .structure_type(nodes::StructureType::Dynamic)
       .reference_pass_all()
       .propagate_all()
-      .align_with_previous()
-      .optional_label();
+      .align_with_previous();
 }
 
 static void node_implicit_conversion_label(const bNodeTree * /*ntree*/,
