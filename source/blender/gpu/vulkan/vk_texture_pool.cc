@@ -330,7 +330,8 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   VkImageCreateInfo create_info = {
       .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
       .pNext = nullptr,
-      .flags = to_vk_image_create(GPU_TEXTURE_2D, to_format_flag(format), usage),
+      .flags = to_vk_image_create(GPU_TEXTURE_2D, to_format_flag(format), usage) |
+               VK_IMAGE_CREATE_ALIAS_BIT,
       .imageType = VK_IMAGE_TYPE_2D,
       .format = to_vk_format(format),
       .extent = VkExtent3D(static_cast<uint32_t>(extent.x), static_cast<uint32_t>(extent.y), 1),
