@@ -239,8 +239,8 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
 
       float raw_capture_position[3];
       float raw_capture_orientation_quat[4];
-      mat4_to_loc_quat(raw_capture_position,
-                       raw_capture_orientation_quat, viewfinder_raw_capture_mat);
+      mat4_to_loc_quat(
+          raw_capture_position, raw_capture_orientation_quat, viewfinder_raw_capture_mat);
 
       if (session_state->viewfinder_smoothing_delta_t > 0) {
         /* Apply exponential movement smoothing. */
@@ -264,7 +264,8 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       else {
         /* First initialization. */
         copy_v3_v3(session_state->viewfinder_capture_position, raw_capture_position);
-        copy_qt_qt(session_state->viewfinder_capture_orientation_quat, raw_capture_orientation_quat);
+        copy_qt_qt(session_state->viewfinder_capture_orientation_quat,
+                   raw_capture_orientation_quat);
         session_state->viewfinder_smoothing_delta_t = BLI_time_now_seconds();
       }
 
@@ -782,10 +783,10 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
   rctf outline_rect = viewfinder_rect;
   BLI_rctf_pad(&outline_rect, 0.08f, 0.08f);
 
-  rctf tabs_bg_rect = {.xmin=background_rect.xmin,
-                       .xmax=background_rect.xmin + 4.55f,
-                       .ymin=background_rect.ymax - 0.3f,
-                       .ymax=background_rect.ymax + 0.45f};
+  rctf tabs_bg_rect = {.xmin = background_rect.xmin,
+                       .xmax = background_rect.xmin + 4.55f,
+                       .ymin = background_rect.ymax - 0.3f,
+                       .ymax = background_rect.ymax + 0.45f};
 
   GPU_matrix_push();
   /* Workaround: regain precision on the rect side by a factor of 100. */
