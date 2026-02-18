@@ -1259,7 +1259,7 @@ StringRefNull Mesh::default_uv_map_name() const
   return this->default_uv_map_attribute ? this->default_uv_map_attribute : "";
 }
 
-StringRefNull Mesh::active_uv_map_name_or_default() const
+StringRefNull Mesh::active_or_default_uv_map_name() const
 {
   const StringRefNull active_name = this->active_uv_map_name();
   if (!active_name.is_empty()) {
