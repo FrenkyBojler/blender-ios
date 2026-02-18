@@ -653,7 +653,8 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
        * exactly to 0.0 on the mirror axis.
        * There are some cases where a slight floating point drift ends up being
        * produced which prevents the mirror modifier from merging vertices. */
-      if (is_mirrored && mirror_axis != -1) {
+      if (is_mirrored) {
+        BLI_assert(mirror_axis != -1);
         if (cv.v == loop.first() || cv.v == loop.last()) {
           final_pos[mirror_axis] = 0.0f;
         }
