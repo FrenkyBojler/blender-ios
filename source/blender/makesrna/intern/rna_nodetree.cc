@@ -4958,7 +4958,6 @@ static void def_fn_input_menu(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_NodeInputMenu_menu_itemf");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 }
 
 static void def_fn_input_rotation(BlenderRNA * /*brna*/, StructRNA *srna)
