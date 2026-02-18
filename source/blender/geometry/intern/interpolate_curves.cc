@@ -696,8 +696,8 @@ static void sample_bezier_curve_positions_handles(const bool cyclic,
         dst_right[i] = dst_pos[i] + (dst_right[i] - dst_pos[i]) * src_factor_next;
       }
 
-      dst_types_left[i] = src_types_left[src_index];
-      dst_types_right[i] = src_types_right[src_index];
+      dst_types_left[i] = src_types_left[dst_points[src_index]];
+      dst_types_right[i] = src_types_right[dst_points[src_index]];
     }
     else {
       const int src_index_next = (src_index + 1) % src_pos.size();
