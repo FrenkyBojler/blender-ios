@@ -507,11 +507,15 @@ struct ConstraintsInfo {
 
 class XpbdSolverStep {
  private:
-  /** Used to allocate stuff during the simulation step. */
-  ResourceScope &global_scope_;
-  LinearAllocator<> &global_allocator_;
-  IndexMaskMemory global_mask_memory_;
-  threading::EnumerableThreadSpecific<ResourceScope> thread_scopes_;
+  struct TLS {
+    ResourceScope scope;
+    IndexMaskMemory &mask_memory;
+    LinearAllocator<> &allocator;
+
+    TLS() : mask_memory(scope.construct<IndexMaskMemory>()), allocator(mask_memory) {}
+  };
+
+  threading::EnumerableThreadSpecific<TLS> tls_;
 
   /** The simulation world that is being modified. */
   Bundle &world_;
@@ -526,20 +530,18 @@ class XpbdSolverStep {
   ConstraintsInfo constraints_;
   Array<ChunkData> chunks_data_;
 
+  Mutex field_evaluators_mutex_;
   Map<FieldEvaluatorKey, fn::FieldEvaluator *> field_evaluators_;
 
   Mutex warnings_mutex_;
   VectorSet<std::string> warnings_;
 
  public:
-  XpbdSolverStep(ResourceScope &scope,
-                 Bundle &world,
+  XpbdSolverStep(Bundle &world,
                  const float total_delta_time,
                  const int substeps,
                  const int constraint_iterations)
-      : global_scope_(scope),
-        global_allocator_(scope.allocator()),
-        world_(world),
+      : world_(world),
         substeps_(substeps),
         sub_delta_time_(total_delta_time / substeps_),
         constraint_iterations_(constraint_iterations)
@@ -1203,12 +1205,11 @@ class XpbdSolverStep {
         IndexRange(substeps_ - 1),
         std::max(1024 / verts_num, 1),
         [&](const IndexRange substep_range) {
-          ResourceScope &thread_scope = thread_scopes_.local();
+          TLS &tls = tls_.local();
           for (const int substep_i : substep_range) {
             const SubstepInterval substep(substeps_, substep_i);
             Mesh *substep_mesh = BKE_mesh_copy_for_eval(mesh);
-            thread_scope.add_destruct_call(
-                [substep_mesh]() { BKE_id_free(nullptr, substep_mesh); });
+            tls.scope.add_destruct_call([substep_mesh]() { BKE_id_free(nullptr, substep_mesh); });
             MutableSpan<float3> substep_positions = substep_mesh->vert_positions_for_write();
             for (const int i : IndexRange(verts_num)) {
               substep_positions[i] = math::interpolate(
@@ -1343,6 +1344,7 @@ class XpbdSolverStep {
 
   void gather_from_world__stretch_shear_constraints()
   {
+    TLS &tls = tls_.local();
     const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(
         world_, RodStretchShearBundle::name);
     for (const StringRef path : paths) {
@@ -1386,8 +1388,8 @@ class XpbdSolverStep {
       const RodStretchShearConstraint &constraint =
           constraints_.rod_stretch_shear_constraints[constraint_usage.constraint_i];
 
-      constraint_usage.lambdas_pos = global_allocator_.allocate_array<float3>(geo_data.size);
-      constraint_usage.lambdas_rot = global_allocator_.allocate_array<float3>(geo_data.size);
+      constraint_usage.lambdas_pos = tls.allocator.allocate_array<float3>(geo_data.size);
+      constraint_usage.lambdas_rot = tls.allocator.allocate_array<float3>(geo_data.size);
 
       fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
       evaluator.add(constraint.compliance, &constraint_usage.compliances);
@@ -1396,6 +1398,7 @@ class XpbdSolverStep {
 
   void create_constraints__rod_stretch_shear()
   {
+    TLS &tls = tls_.local();
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
       if (!geo_data.rod_stretch_shear_constraint.has_value()) {
@@ -1406,13 +1409,13 @@ class XpbdSolverStep {
       const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
       const VArraySpanGetter<float> compliances{
-          global_scope_, constraint_usage.compliances, geometries_.max_chunk_size};
+          tls.scope, constraint_usage.compliances, geometries_.max_chunk_size};
 
       for (const int chunk_i : geo_data.chunks) {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
         ChunkData &chunk_data = chunks_data_[chunk_i];
         chunk_data.static_constraints.append(
-            &global_scope_.construct<xpbd::RodStretchAndShearConstraintSet>(
+            &tls.scope.construct<xpbd::RodStretchAndShearConstraintSet>(
                 data_key_i,
                 *chunk.curves_range,
                 points_by_curve,
@@ -1457,6 +1460,7 @@ class XpbdSolverStep {
 
   void gather_from_world__bend_twist_constraints()
   {
+    TLS &tls = tls_.local();
     const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(world_,
                                                                          RodBendTwistBundle::name);
     for (const StringRef path : paths) {
@@ -1491,7 +1495,7 @@ class XpbdSolverStep {
       const RodBendTwistConstraint &constraint =
           constraints_.rod_bend_twist_constraints[constraint_usage.constraint_i];
 
-      constraint_usage.lambdas = global_allocator_.allocate_array<float4>(geo_data.size);
+      constraint_usage.lambdas = tls.allocator.allocate_array<float4>(geo_data.size);
 
       fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
       evaluator.add(constraint.compliance, &constraint_usage.compliances);
@@ -1500,6 +1504,7 @@ class XpbdSolverStep {
 
   void create_constraints__rod_bend_twist()
   {
+    TLS &tls = tls_.local();
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
       if (!geo_data.rod_bend_twist_constraint.has_value()) {
@@ -1510,12 +1515,12 @@ class XpbdSolverStep {
       const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
       const VArraySpanGetter<float> compliances{
-          global_scope_, constraint_usage.compliances, geometries_.max_chunk_size};
+          tls.scope, constraint_usage.compliances, geometries_.max_chunk_size};
 
       for (const int chunk_i : geo_data.chunks) {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
         chunks_data_[chunk_i].static_constraints.append(
-            &global_scope_.construct<xpbd::RodBendAndTwistConstraintSet>(
+            &tls.scope.construct<xpbd::RodBendAndTwistConstraintSet>(
                 data_key_i,
                 *chunk.curves_range,
                 points_by_curve,
@@ -1528,6 +1533,7 @@ class XpbdSolverStep {
 
   void gather_from_world__edge_length_constraints()
   {
+    TLS &tls = tls_.local();
     const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(
         world_, EdgeLengthConstraintBundle::name);
     for (const StringRef path : paths) {
@@ -1558,7 +1564,7 @@ class XpbdSolverStep {
             constraints_.edge_length_constraints[constraint_usage.constraint_i];
         const Mesh &mesh = *geometries_.geometry_sets[data_key.geo_bundle_i].geometry.get_mesh();
         const int edge_num = mesh.edges_num;
-        constraint_usage.lambdas = global_allocator_.allocate_array<float>(edge_num);
+        constraint_usage.lambdas = tls.allocator.allocate_array<float>(edge_num);
         fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, AttrDomain::Edge);
         evaluator.add(constraint.compliance, &constraint_usage.compliances);
       }
@@ -1567,6 +1573,7 @@ class XpbdSolverStep {
 
   void create_constraints__edge_length()
   {
+    TLS &tls = tls_.local();
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       const DataKey &data_key = geometries_.data_keys[data_key_i];
       GeometryData &geo_data = geometries_.data[data_key_i];
@@ -1578,13 +1585,13 @@ class XpbdSolverStep {
       const Span<int2> edges = mesh.edges();
 
       for (EdgeLengthConstraintUsage &constraint_usage : geo_data.edge_length_constraints) {
-        auto &constraint_set = global_scope_.construct<xpbd::DistanceConstraintSet>(
+        auto &constraint_set = tls.scope.construct<xpbd::DistanceConstraintSet>(
             data_key_i,
             edges,
             geo_data.rest_lengths,
             constraint_usage.compliances,
             constraint_usage.lambdas);
-        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(global_mask_memory_);
+        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.mask_memory);
         geo_data.static_constraints.append({&constraint_set, std::move(coloring)});
       }
     }
@@ -1592,6 +1599,7 @@ class XpbdSolverStep {
 
   void gather_from_world__damping()
   {
+    TLS &tls = tls_.local();
     const Vector<std::string> paths = gather_bundle_paths_by_bundle_type(world_,
                                                                          DampingBundle::name);
     for (const StringRef path : paths) {
@@ -1621,9 +1629,9 @@ class XpbdSolverStep {
       for (DampingConstraintUsage &constraint_usage : geo_data.damping_constraints) {
         const DampingConstraint &constraint =
             constraints_.damping_constraints[constraint_usage.constraint_i];
-        constraint_usage.linear_damping_lambdas = global_allocator_.allocate_array<float>(
+        constraint_usage.linear_damping_lambdas = tls.allocator.allocate_array<float>(
             geo_data.size);
-        constraint_usage.angular_damping_lambdas = global_allocator_.allocate_array<float>(
+        constraint_usage.angular_damping_lambdas = tls.allocator.allocate_array<float>(
             geo_data.size);
         fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
         evaluator.add(constraint.linear_damping, &constraint_usage.linear_dampings);
@@ -1634,27 +1642,28 @@ class XpbdSolverStep {
 
   void create_constraints__damping()
   {
+    TLS &tls = tls_.local();
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
 
       for (DampingConstraintUsage &constraint_usage : geo_data.damping_constraints) {
         const VArraySpanGetter<float> linear_dampings{
-            global_scope_, constraint_usage.linear_dampings, geometries_.max_chunk_size};
+            tls.scope, constraint_usage.linear_dampings, geometries_.max_chunk_size};
         const VArraySpanGetter<float> angular_dampings{
-            global_scope_, constraint_usage.angular_dampings, geometries_.max_chunk_size};
+            tls.scope, constraint_usage.angular_dampings, geometries_.max_chunk_size};
 
         for (const int chunk_i : geo_data.chunks) {
           const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
           ChunkData &chunk_data = chunks_data_[chunk_i];
 
           chunk_data.static_velocity_constraints.append(
-              &global_scope_.construct<xpbd::LinearDampingConstraintSet>(
+              &tls.scope.construct<xpbd::LinearDampingConstraintSet>(
                   data_key_i,
                   chunk.points_range,
                   linear_dampings.get_span_for_range(chunk.points_range),
                   constraint_usage.linear_damping_lambdas.slice(chunk.points_range)));
           chunk_data.static_velocity_constraints.append(
-              &global_scope_.construct<xpbd::AngularDampingConstraintSet>(
+              &tls.scope.construct<xpbd::AngularDampingConstraintSet>(
                   data_key_i,
                   chunk.points_range,
                   angular_dampings.get_span_for_range(chunk.points_range),
@@ -1709,6 +1718,7 @@ class XpbdSolverStep {
 
   void create_constraints__pin_positions()
   {
+    TLS &tls = tls_.local();
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
       for (const int constraint_usage_i : geo_data.pin_position_constraints.index_range()) {
@@ -1720,12 +1730,12 @@ class XpbdSolverStep {
         const IndexMask &pin_mask = constraint_usage.evaluator->get_evaluated_selection_as_mask();
         const int pin_num = pin_mask.size();
 
-        MutableSpan<int> points = global_allocator_.allocate_array<int>(pin_num);
-        MutableSpan<float3> begin_positions = global_allocator_.allocate_array<float3>(pin_num);
-        MutableSpan<float3> end_positions = global_allocator_.allocate_array<float3>(pin_num);
-        MutableSpan<float3> current_positions = global_allocator_.allocate_array<float3>(pin_num);
-        MutableSpan<float> lambdas = global_allocator_.allocate_array<float>(pin_num);
-        MutableSpan<float> compliances = global_allocator_.allocate_array<float>(pin_num);
+        MutableSpan<int> points = tls.allocator.allocate_array<int>(pin_num);
+        MutableSpan<float3> begin_positions = tls.allocator.allocate_array<float3>(pin_num);
+        MutableSpan<float3> end_positions = tls.allocator.allocate_array<float3>(pin_num);
+        MutableSpan<float3> current_positions = tls.allocator.allocate_array<float3>(pin_num);
+        MutableSpan<float> lambdas = tls.allocator.allocate_array<float>(pin_num);
+        MutableSpan<float> compliances = tls.allocator.allocate_array<float>(pin_num);
 
         constraint_usage.points = points;
         constraint_usage.begin_positions = begin_positions;
@@ -1772,7 +1782,7 @@ class XpbdSolverStep {
           ChunkData &chunk_data = chunks_data_[chunk_i];
           chunk_data.pin_position_constraints.append({constraint_usage_i, pin_range});
           chunk_data.static_constraints.append(
-              &global_scope_.construct<xpbd::PinPositionConstraintSet>(
+              &tls.scope.construct<xpbd::PinPositionConstraintSet>(
                   data_key_i,
                   points.slice(pin_range),
                   current_positions.slice(pin_range),
@@ -1876,6 +1886,7 @@ class XpbdSolverStep {
 
   void create_constraints__pin_rotations()
   {
+    TLS &tls = tls_.local();
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
       for (const int constraint_usage_i : geo_data.pin_rotation_constraints.index_range()) {
@@ -1887,15 +1898,15 @@ class XpbdSolverStep {
         const IndexMask &pin_mask = constraint_usage.evaluator->get_evaluated_selection_as_mask();
         const int pin_num = pin_mask.size();
 
-        MutableSpan<int> points = global_allocator_.allocate_array<int>(pin_num);
+        MutableSpan<int> points = tls.allocator.allocate_array<int>(pin_num);
         MutableSpan<math::Quaternion> begin_rotations =
-            global_allocator_.allocate_array<math::Quaternion>(pin_num);
+            tls.allocator.allocate_array<math::Quaternion>(pin_num);
         MutableSpan<math::Quaternion> end_rotations =
-            global_allocator_.allocate_array<math::Quaternion>(pin_num);
+            tls.allocator.allocate_array<math::Quaternion>(pin_num);
         MutableSpan<math::Quaternion> current_rotations =
-            global_allocator_.allocate_array<math::Quaternion>(pin_num);
-        MutableSpan<float> compliances = global_allocator_.allocate_array<float>(pin_num);
-        MutableSpan<float4> lambdas = global_allocator_.allocate_array<float4>(pin_num);
+            tls.allocator.allocate_array<math::Quaternion>(pin_num);
+        MutableSpan<float> compliances = tls.allocator.allocate_array<float>(pin_num);
+        MutableSpan<float4> lambdas = tls.allocator.allocate_array<float4>(pin_num);
 
         constraint_usage.points = points;
         constraint_usage.begin_rotations = begin_rotations;
@@ -1943,7 +1954,7 @@ class XpbdSolverStep {
           ChunkData &chunk_data = chunks_data_[chunk_i];
           chunk_data.pin_rotation_constraints.append({constraint_usage_i, pin_range});
           chunk_data.static_constraints.append(
-              &global_scope_.construct<xpbd::PinRotationConstraintSet>(
+              &tls.scope.construct<xpbd::PinRotationConstraintSet>(
                   data_key_i,
                   points.slice(pin_range),
                   current_rotations.slice(pin_range),
@@ -2509,10 +2520,12 @@ class XpbdSolverStep {
                                           std::optional<Field<bool>> selection = std::nullopt)
   {
     FieldEvaluatorKey key{data_key_i, domain, selection ? *selection : get_constant_true_field()};
+    std::lock_guard lock{field_evaluators_mutex_};
     return *field_evaluators_.lookup_or_add_cb(key, [&]() {
-      const auto &field_context = this->make_geometry_field_context(data_key_i, domain);
+      TLS &tls = tls_.local();
+      const auto &field_context = this->make_geometry_field_context(tls, data_key_i, domain);
       const int domain_size = geometries_.data[data_key_i].attributes.domain_size(domain);
-      auto &evaluator = global_scope_.construct<fn::FieldEvaluator>(field_context, domain_size);
+      auto &evaluator = tls.scope.construct<fn::FieldEvaluator>(field_context, domain_size);
       if (selection) {
         evaluator.set_selection(*selection);
       }
@@ -2520,30 +2533,30 @@ class XpbdSolverStep {
     });
   }
 
-  fn::FieldContext &make_geometry_field_context(const int data_key_i, const AttrDomain domain)
+  fn::FieldContext &make_geometry_field_context(TLS &tls,
+                                                const int data_key_i,
+                                                const AttrDomain domain)
   {
     const DataKey &data_key = geometries_.data_keys[data_key_i];
     const GeometrySet &geometry_set = geometries_.geometry_sets[data_key.geo_bundle_i].geometry;
     switch (data_key.type) {
       case bke::GeometryComponent::Type::Mesh:
-        return global_scope_.construct<bke::MeshFieldContext>(*geometry_set.get_mesh(), domain);
+        return tls.scope.construct<bke::MeshFieldContext>(*geometry_set.get_mesh(), domain);
       case bke::GeometryComponent::Type::PointCloud:
-        return global_scope_.construct<bke::PointCloudFieldContext>(
-            *geometry_set.get_pointcloud());
+        return tls.scope.construct<bke::PointCloudFieldContext>(*geometry_set.get_pointcloud());
       case bke::GeometryComponent::Type::Instance:
-        return global_scope_.construct<bke::InstancesFieldContext>(*geometry_set.get_instances());
+        return tls.scope.construct<bke::InstancesFieldContext>(*geometry_set.get_instances());
       case bke::GeometryComponent::Type::Curve:
-        return global_scope_.construct<bke::CurvesFieldContext>(*geometry_set.get_curves(),
-                                                                domain);
+        return tls.scope.construct<bke::CurvesFieldContext>(*geometry_set.get_curves(), domain);
       case bke::GeometryComponent::Type::GreasePencil:
-        return global_scope_.construct<bke::GreasePencilLayerFieldContext>(
+        return tls.scope.construct<bke::GreasePencilLayerFieldContext>(
             *geometry_set.get_grease_pencil(), domain, *data_key.layer_i);
       case bke::GeometryComponent::Type::Volume:
       case bke::GeometryComponent::Type::Edit:
         break;
     }
     BLI_assert_unreachable();
-    return global_scope_.construct<fn::FieldContext>();
+    return tls.scope.construct<fn::FieldContext>();
   }
 
   void parallel_for_each_chunk(const int grain_size, const FunctionRef<void(int chunk_i)> fn)
@@ -2586,9 +2599,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int constraint_iterations = params.get_input<int>("Constraint Iterations");
   const float delta_time = std::max(0.0f, params.get_input<float>("Delta Time"));
   Bundle &world = world_ptr.ensure_mutable_inplace();
-  ResourceScope scope;
 
-  XpbdSolverStep step(scope, world, delta_time, substeps, constraint_iterations);
+  XpbdSolverStep step(world, delta_time, substeps, constraint_iterations);
   step.do_step();
 
   for (const StringRef warning : step.warnings()) {
