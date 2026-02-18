@@ -86,24 +86,27 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
       }
     }
 
-    BMO_op_callf(
-        bm,
-        BMO_FLAG_DEFAULTS,
-        "circularize geom=%hvef factor=%f flatten=%b regular=%b fit_method=%i custom_radius=%f "
-        "angle=%f lock_x=%b lock_y=%b lock_z=%b mirror_x=%b mirror_y=%b mirror_z=%b",
-        BM_ELEM_SELECT,
-        factor,
-        flatten,
-        regular,
-        fit_method,
-        custom_radius,
-        angle,
-        lock_x,
-        lock_y,
-        lock_z,
-        mirror_x,
-        mirror_y,
-        mirror_z);
+    if (!EDBM_op_callf(em,
+                       op,
+                       "circularize geom=%hvef factor=%f flatten=%b regular=%b fit_method=%i"
+                       "custom_radius=%f angle=%f lock_x=%b lock_y=%b lock_z=%b mirror_x=%b"
+                       "mirror_y=%b mirror_z=%b",
+                       BM_ELEM_SELECT,
+                       factor,
+                       flatten,
+                       regular,
+                       fit_method,
+                       custom_radius,
+                       angle,
+                       lock_x,
+                       lock_y,
+                       lock_z,
+                       mirror_x,
+                       mirror_y,
+                       mirror_z))
+    {
+      continue;
+    }
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
