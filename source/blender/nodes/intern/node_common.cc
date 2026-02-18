@@ -17,6 +17,8 @@
 #include "BLI_disjoint_set.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_multi_value_map.hh"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_stack.hh"
 #include "BLI_string.h"
