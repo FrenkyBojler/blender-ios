@@ -82,8 +82,7 @@ def main():
     report.set_reference_dir("overlay_renders")
 
     test_dir_name = Path(args.testdir).name
-    if test_dir_name.startswith('hair') and platform.system() == "Darwin":
-        report.set_fail_threshold(0.050)
+    report.set_fail_threshold(0.04)
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
 
