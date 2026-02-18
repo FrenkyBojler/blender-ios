@@ -55,6 +55,7 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
+  bool changed = false;
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -107,14 +108,14 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
     {
       continue;
     }
-
+    changed = true;
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = true;
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
   }
 
-  return OPERATOR_FINISHED;
+  return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 static void edbm_circularize_ui(bContext * /*C*/, wmOperator *op)
