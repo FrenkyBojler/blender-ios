@@ -244,7 +244,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
 
       if (session_state->viewfinder.smoothing_delta_t > 0) {
         /* Apply exponential movement smoothing. */
-        constexpr float movement_smoothing_speed = 15.0f;
+        constexpr float movement_smoothing_speed = 25.0f;
 
         const double current_time = BLI_time_now_seconds();
         const float delta_t = float(current_time - session_state->viewfinder.smoothing_delta_t);
