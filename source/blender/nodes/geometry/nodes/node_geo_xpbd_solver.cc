@@ -26,6 +26,7 @@
 #include "GEO_xpbd_constraint_rod_bend_twist.hh"
 #include "GEO_xpbd_constraint_rod_stretch_shear.hh"
 
+#include "NOD_geo_tag_filter.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
 
@@ -305,7 +306,7 @@ struct GeometrySetData {
    * end.
    */
   GeometrySet geometry;
-  VectorSet<std::string> tags;
+  Set<std::string> tags;
 };
 
 struct Geometries {
@@ -2361,26 +2362,8 @@ class XpbdSolverStep {
       return false;
     }
     const std::string filter = behavior.lookup<std::string>("filter").value_or("");
-    if (filter.empty()) {
-      return true;
-    }
-    StringRef remaining = filter;
-    while (!remaining.is_empty()) {
-      const int sep = remaining.find(',');
-      if (sep == -1) {
-        const StringRef tag = remaining.trim();
-        if (geo_set_data.tags.contains_as(tag)) {
-          return true;
-        }
-        return false;
-      }
-      const StringRef tag = remaining.substr(0, sep).trim();
-      if (geo_set_data.tags.contains_as(tag)) {
-        return true;
-      }
-      remaining = remaining.substr(sep + 1);
-    }
-    return false;
+    const bool match = tag_filter_matches(filter, geo_set_data.tags);
+    return match;
   }
 
   template<typename T>

@@ -667,6 +667,7 @@ class NODE_MT_gn_utilities_text_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeValueToString")
         layout.separator()
         self.node_operator(layout, "FunctionNodeInputSpecialCharacters")
+        self.node_operator(layout, "GeometryNodeTagFilter")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
