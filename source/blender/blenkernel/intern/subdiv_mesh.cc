@@ -329,7 +329,13 @@ static bool mix_bools(const Span<bool> src, const Span<int> indices, const Span<
     if (weights[i] == 0.0f) {
       continue;
     }
-    if (src[indices[i]]) {
+    if (!src[indices[i]]) {
+      return false;
+    }
+  }
+
+  for (const float weight : weights) {
+    if (weight != 0.0f) {
       return true;
     }
   }
