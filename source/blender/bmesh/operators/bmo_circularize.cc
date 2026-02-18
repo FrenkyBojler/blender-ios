@@ -29,7 +29,7 @@ constexpr float MIRROR_LIMIT = 0.001f;
 /** Used for convergence checks and precision comparisons. */
 constexpr float CIRCULARIZE_EPSILON = 1e-6f;
 
-/** Method used for fitting the circle to vertices. */
+/** Method used for fitting the circle. */
 enum FitMethod{
   FIT_METHOD_BEST = 0,
   FIT_METHOD_INSIDE = 1
