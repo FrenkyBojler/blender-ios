@@ -2,8 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
-#include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
 
@@ -13,7 +13,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Font>("Font").custom_draw([](CustomSocketDrawParams &params) {
     params.layout.alignment_set(ui::LayoutAlign::Expand);
-    params.layout.prop(&params.node_ptr, "font", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    ui::template_id(&params.layout,
+                    &params.C,
+                    &params.node_ptr,
+                    "font",
+                    nullptr,
+                    "FONT_OT_open",
+                    "FONT_OT_unlink");
   });
 }
 
