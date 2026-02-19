@@ -1773,9 +1773,7 @@ class XpbdSolverStep {
                 continue;
               }
             }
-            else {
-              begin_position = geo_data.position_attr.span[point_i];
-            }
+            begin_position = geo_data.position_attr.span[point_i];
           }
         });
 
@@ -1944,9 +1942,7 @@ class XpbdSolverStep {
                 continue;
               }
             }
-            else {
-              begin_rotation = geo_data.rotation_attr.span[point_i];
-            }
+            begin_rotation = geo_data.rotation_attr.span[point_i];
           }
         });
 

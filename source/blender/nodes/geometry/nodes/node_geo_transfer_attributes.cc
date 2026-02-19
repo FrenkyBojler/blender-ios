@@ -26,6 +26,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Source");
 
   b.add_input<decl::String>("Name").optional_label();
+
+  b.get_anonymous_attribute_relations().propagate_relations.append({0, 0});
 }
 
 static bool name_matches_pattern(const StringRef name, const StringRef pattern)

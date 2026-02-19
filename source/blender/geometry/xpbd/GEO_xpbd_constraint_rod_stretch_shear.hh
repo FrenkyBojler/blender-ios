@@ -86,7 +86,7 @@ class RodStretchAndShearConstraintSet
   IndexRange curves_range_;
   OffsetIndices<int> points_by_curve_;
 
-  /** Indexed by point index. */
+  /** Indexed by segment-end point index. */
   Span<float> rest_lengths_;
   MutableSpan<float3> lambdas_pos_;
   MutableSpan<float3> lambdas_rot_;
@@ -143,12 +143,12 @@ class RodStretchAndShearConstraintSet
           params.inv_mass(geo_i, point_i0),
           params.inv_mass(geo_i, point_i1),
           params.moment_of_inertia(geo_i, point_i0),
-          rest_lengths_[point_i0],
+          rest_lengths_[point_i1],
           compliance * params.compliance_term_factor,
-          lambdas_pos_[point_i0],
-          lambdas_rot_[point_i0]);
-      lambdas_pos_[point_i0] += result.delta_lambda_pos;
-      lambdas_rot_[point_i0] += result.delta_lambda_rot;
+          lambdas_pos_[point_i1],
+          lambdas_rot_[point_i1]);
+      lambdas_pos_[point_i1] += result.delta_lambda_pos;
+      lambdas_rot_[point_i1] += result.delta_lambda_rot;
       updater.update_position(geo_i, point_i0, result.offset0);
       updater.update_position(geo_i, point_i1, result.offset1);
       updater.update_rotation(geo_i, point_i0, result.offset_rot);
