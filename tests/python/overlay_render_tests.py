@@ -82,7 +82,6 @@ def main():
     report.set_reference_dir("overlay_renders")
 
     test_dir_name = Path(args.testdir).name
-    report.set_fail_threshold(0.04)
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
 
