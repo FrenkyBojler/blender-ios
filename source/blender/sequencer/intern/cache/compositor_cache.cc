@@ -43,7 +43,7 @@ void CompositorCache::recreate_if_needed(bool gpu,
                                          compositor::ResultPrecision precision,
                                          GHOST_IContext *ghost_context)
 {
-  this->last_evaluation_context = ghost_context;
+  this->last_evaluation_context = gpu ? ghost_context : nullptr;
 
   if (this->last_evaluation_gpu == gpu && this->last_evaluation_precision == precision) {
     return;
