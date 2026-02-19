@@ -406,6 +406,16 @@ using SocketValueCopyFn = FunctionRef<void(const void *from_data, void *to_data)
 ConstInputCreateFn find_proxy_const_input_node_function(eNodeSocketDatatype socket_type);
 
 /**
+ * Get animdata paths for the socket value and the matching constant value of an input node.
+ * This can be used to move animdata from a socket to a constant input node and vice versa.
+ */
+std::optional<std::pair<std::string, std::string>>
+get_proxy_const_input_node_animdata_path_mapping(const bNodeTree &tree_of_value_node,
+                                                 const bNode &value_node,
+                                                 const bNodeTree &tree_of_socket,
+                                                 const bNodeSocket &socket);
+
+/**
  * Returns a function creating a proxy node that outputs an implicit value.
  */
 ImplicitInputCreateFn find_proxy_implicit_input_node_function(eNodeSocketDatatype socket_type,

@@ -34,6 +34,10 @@
 #include "NOD_socket.hh"
 #include "NOD_socket_declarations.hh"
 
+#include "RNA_access.hh"
+#include "RNA_path.hh"
+#include "RNA_prototypes.hh"
+
 namespace blender {
 
 namespace bke::node_interface {
@@ -1559,6 +1563,94 @@ ConstInputCreateFn find_proxy_const_input_node_function(const eNodeSocketDatatyp
 {
   static ConstInputProxyFnMap functions = create_proxy_const_input_node_functions();
   return functions.lookup_default({socket_type}, {});
+}
+
+static std::string get_node_property_path(const bNodeTree &tree,
+                                          const bNode &node,
+                                          const StringRefNull prop)
+{
+  PointerRNA node_ptr = RNA_pointer_create_discrete(
+      &const_cast<bNodeTree &>(tree).id, RNA_Node, &const_cast<bNode &>(node));
+  return *RNA_path_from_ID_to_property(&node_ptr,
+                                       RNA_struct_find_property(&node_ptr, prop.c_str()));
+}
+
+static std::string get_socket_property_path(const bNodeTree &tree,
+                                            const bNodeSocket &socket,
+                                            const StringRefNull prop)
+{
+  PointerRNA socket_ptr = RNA_pointer_create_discrete(
+      &const_cast<bNodeTree &>(tree).id, RNA_NodeSocket, &const_cast<bNodeSocket &>(socket));
+  return *RNA_path_from_ID_to_property(&socket_ptr,
+                                       RNA_struct_find_property(&socket_ptr, prop.c_str()));
+}
+
+std::optional<std::pair<std::string, std::string>>
+get_proxy_const_input_node_animdata_path_mapping(const bNodeTree &tree_of_value_node,
+                                                 const bNode &value_node,
+                                                 const bNodeTree &tree_of_socket,
+                                                 const bNodeSocket &socket)
+{
+  switch (eNodeSocketDatatype(socket.type)) {
+    case SOCK_CUSTOM:
+    case SOCK_SHADER:
+    case SOCK_GEOMETRY:
+    case SOCK_TEXTURE:
+    case SOCK_MATRIX:
+    case SOCK_BUNDLE:
+    case SOCK_CLOSURE:
+    case SOCK_SCENE:
+    case SOCK_TEXT_ID:
+    case SOCK_MASK:
+    case SOCK_SOUND:
+      return std::nullopt;
+
+    case SOCK_FLOAT: {
+      /* Special case: the "Float" value node is the only one using the output socket value instead
+       * of its own storage data.*/
+      const bNodeSocket *output = static_cast<bNodeSocket *>(value_node.outputs.first);
+      return {{get_socket_property_path(tree_of_value_node, *output, "default_value"),
+               get_socket_property_path(tree_of_socket, socket, "default_value")}};
+    }
+    case SOCK_VECTOR:
+      return {{get_node_property_path(tree_of_value_node, value_node, "vector"),
+               get_socket_property_path(tree_of_socket, socket, "default_value")}};
+    case SOCK_RGBA:
+      return {{get_node_property_path(tree_of_value_node, value_node, "value"),
+               get_socket_property_path(tree_of_socket, socket, "default_value")}};
+    case SOCK_BOOLEAN:
+      return {{get_node_property_path(tree_of_value_node, value_node, "boolean"),
+               get_socket_property_path(tree_of_socket, socket, "default_value")}};
+    case SOCK_INT:
+      return {{get_node_property_path(tree_of_value_node, value_node, "integer"),
+               get_socket_property_path(tree_of_socket, socket, "default_value")}};
+    case SOCK_STRING:
+      return {{get_node_property_path(tree_of_value_node, value_node, "string"),
+               get_socket_property_path(tree_of_socket, socket, "default_value")}};
+    case SOCK_OBJECT:
+      return {{get_node_property_path(tree_of_value_node, value_node, "object"),
+               get_socket_property_path(tree_of_socket, socket, "default_value")}};
+    case SOCK_IMAGE:
+      return {{get_node_property_path(tree_of_value_node, value_node, "image"),
+               get_socket_property_path(tree_of_socket, socket, "default_value")}};
+    case SOCK_COLLECTION:
+      return {{get_node_property_path(tree_of_value_node, value_node, "collection"),
+               get_socket_property_path(tree_of_socket, socket, "default_value")}};
+    case SOCK_MATERIAL:
+      return {{get_node_property_path(tree_of_value_node, value_node, "material"),
+               get_socket_property_path(tree_of_socket, socket, "default_value")}};
+    case SOCK_ROTATION:
+      return {{get_node_property_path(tree_of_value_node, value_node, "rotation_euler"),
+               get_socket_property_path(tree_of_socket, socket, "default_value")}};
+    case SOCK_MENU:
+      return {{get_node_property_path(tree_of_value_node, value_node, "value"),
+               get_socket_property_path(tree_of_socket, socket, "default_value")}};
+    case SOCK_FONT:
+      return {{get_node_property_path(tree_of_value_node, value_node, "font"),
+               get_socket_property_path(tree_of_socket, socket, "default_value")}};
+  }
+  BLI_assert_unreachable();
+  return {};
 }
 
 ImplicitInputCreateFn find_proxy_implicit_input_node_function(

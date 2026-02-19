@@ -266,6 +266,13 @@ static std::string node_basepath(const bNodeTree &tree, const bNode &node)
   return *RNA_path_from_ID_to_struct(&ptr);
 }
 
+static std::string socket_basepath(const bNodeTree &tree, const bNodeSocket &socket)
+{
+  const PointerRNA ptr = RNA_pointer_create_discrete(
+      &const_cast<bNodeTree &>(tree).id, RNA_NodeSocket, &const_cast<bNodeSocket &>(socket));
+  return *RNA_path_from_ID_to_struct(&ptr);
+}
+
 /* Maps old to new identifiers for simulation input node pairing. */
 static void remap_pairing(bNodeTree &dst_tree,
                           Span<bNode *> nodes,
@@ -840,16 +847,19 @@ using UniqueLinkSet = Set<std::pair<MutableNodeAndSocket, MutableNodeAndSocket>>
 /* Replace an interface socket by adding proxy nodes and/or storing the input value directly in
  * connected socket values.
  */
-static void replace_interface_socket(bContext &C,
-                                     bNodeTree &dst_tree,
-                                     const bNodeTreeInterfaceSocket &io_socket,
-                                     const Span<MutableNodeAndSocket> incoming_links,
-                                     const Span<MutableNodeAndSocket> outgoing_links,
-                                     const bNode *group_node,
-                                     InterfaceProxyNodes &interface_proxies,
-                                     float2 &input_location,
-                                     float2 &output_location,
-                                     UniqueLinkSet &unique_links)
+static void replace_interface_socket(
+    bContext &C,
+    bNodeTree &dst_tree,
+    const bNodeTreeInterfaceSocket &io_socket,
+    const Span<MutableNodeAndSocket> incoming_links,
+    const Span<MutableNodeAndSocket> outgoing_links,
+    const bNode *group_node,
+    InterfaceProxyNodes &interface_proxies,
+    float2 &input_location,
+    float2 &output_location,
+    UniqueLinkSet &unique_links,
+    Vector<AnimationBasePathChange> &anim_basepaths_for_dst_tree,
+    Vector<AnimationBasePathChange> &anim_basepaths_for_group_tree)
 {
   const eNodeSocketDatatype socket_type = bke::node_socket_type_find(io_socket.socket_type)->type;
   const bool is_input = io_socket.flag & NODE_INTERFACE_SOCKET_INPUT;
@@ -871,11 +881,16 @@ static void replace_interface_socket(bContext &C,
   const bNodeTree &group_tree = *id_cast<bNodeTree *>(group_node->id);
   const bNode *group_output_node = group_tree.group_output_node();
   /* The source for inputs is the group node, for constant outputs is the group output node. */
+  const bNodeTree &value_source_tree = is_input ? dst_tree : group_tree;
+  Vector<AnimationBasePathChange> &anim_basepaths = is_input ? anim_basepaths_for_dst_tree :
+                                                               anim_basepaths_for_group_tree;
   const bNode *value_source_node = is_input ? group_node : group_output_node;
-  const void *socket_value =
-      value_source_node ?
-          bke::node_find_socket(*value_source_node, SOCK_IN, io_socket.identifier)->default_value :
-          nullptr;
+  const bNodeSocket *value_source_socket = value_source_node ?
+                                               bke::node_find_socket(*value_source_node,
+                                                                     SOCK_IN,
+                                                                     io_socket.identifier) :
+                                               nullptr;
+  const void *socket_value = value_source_socket ? value_source_socket->default_value : nullptr;
 
   /* Determine if the socket input value is used and whether a proxy node is needed. */
   bool needs_proxy = false;
@@ -907,11 +922,27 @@ static void replace_interface_socket(bContext &C,
       }
       else if (const_input_fn) {
         proxy_node = const_input_fn(C, dst_tree, socket_value);
+        if (value_source_socket) {
+          const std::optional<std::pair<std::string, std::string>> proxy_path_mapping =
+              bke::node_interface::get_proxy_const_input_node_animdata_path_mapping(
+                  dst_tree, *proxy_node, value_source_tree, *value_source_socket);
+          if (proxy_path_mapping) {
+            const auto [proxy_node_anim_path, value_anim_path] = *proxy_path_mapping;
+            anim_basepaths.append({value_anim_path, proxy_node_anim_path});
+          }
+        }
       }
     }
     else {
       if (converter_fn) {
         proxy_node = converter_fn(C, dst_tree, socket_value);
+        if (value_source_socket) {
+          const auto [proxy_input, proxy_output] = find_proxy_node_sockets(*proxy_node);
+          if (proxy_input) {
+            anim_basepaths.append({socket_basepath(value_source_tree, *value_source_socket),
+                                   socket_basepath(dst_tree, proxy_input->find_socket())});
+          }
+        }
       }
     }
     if (!proxy_node) {
@@ -985,6 +1016,9 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
    * input and output sockets are connected, potentially adding redundant links. This can
    * theoretically create N * M links but in practice either N or M is usually 1. */
   UniqueLinkSet unique_links;
+  /* Animdata paths for group sockets for copying animdata to proxy nodes. */
+  Vector<AnimationBasePathChange> anim_basepaths_for_dst_tree;
+  Vector<AnimationBasePathChange> anim_basepaths_for_group_tree;
 
   InterfaceProxyNodes interface_proxies;
   /* Loop over mapped items based on the interface socket order. */
@@ -1048,7 +1082,9 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
                              interface_proxies,
                              input_location,
                              output_location,
-                             unique_links);
+                             unique_links,
+                             anim_basepaths_for_dst_tree,
+                             anim_basepaths_for_group_tree);
   }
 
   /* Actually add deduplicated links to the tree. */
@@ -1059,6 +1095,11 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
                               item.second.node,
                               item.second.find_socket());
   }
+
+  BKE_animdata_copy_by_basepath(
+      *CTX_data_main(&C), dst_tree.id, dst_tree.id, anim_basepaths_for_dst_tree);
+  BKE_animdata_copy_by_basepath(
+      *CTX_data_main(&C), *group_node->id, dst_tree.id, anim_basepaths_for_group_tree);
 
   return interface_proxies;
 }

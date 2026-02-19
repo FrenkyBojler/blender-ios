@@ -59,6 +59,7 @@ all_test_cases = [
     ('test_vector_dimension', {}),
     ('test_default_input', {}),
     ('test_anim_data', {}),
+    ('test_anim_data_ungroup', {'NODE_GROUP'}),
     ('test_extension_sockets', {}),
     ('test_pass_through', {'NODE_GROUP'}),
     ('test_insert_group_with_sockets', {'GROUP_INSERT'}),
