@@ -623,6 +623,12 @@ static bool uvedit_uv_straighten(Scene *scene, BMesh *bm, eUVWeldAlign tool)
   BM_uv_element_map_free(element_map);
   return changed;
 }
+
+bool uvedit_uv_straighten_verts(Scene *scene, BMesh *bm)
+{
+  return uvedit_uv_straighten(scene, bm, UV_STRAIGHTEN);
+}
+
 enum class UVAlignInitialPosition {
   BoundingBox = 0,
   UVTileGrid = 1,
@@ -831,7 +837,7 @@ static void UV_OT_arrange_islands(wmOperatorType *ot)
        "MAX",
        0,
        "Max",
-       "Align the islands to the left side of the island"},
+       "Align the islands to the max side of the island"},
       {int(UVAlignIslandMode::Center),
        "CENTER",
        0,
@@ -2317,11 +2323,11 @@ static void UV_OT_cursor_set(wmOperatorType *ot)
 /** \name Seam from UV Islands Operator
  * \{ */
 
-static bool uv_seam_from_islands(Mesh *mesh,
-                                 Scene *scene,
-                                 const bool mark_seams,
-                                 const bool mark_sharp,
-                                 const bool selected_boundaries)
+bool uv_seam_from_islands(Mesh *mesh,
+                          Scene *scene,
+                          const bool mark_seams,
+                          const bool mark_sharp,
+                          const bool selected_boundaries)
 {
   BMEditMesh *em = mesh->runtime->edit_mesh.get();
   BMesh *bm = em->bm;
@@ -2383,9 +2389,7 @@ static wmOperatorStatus uv_seams_from_islands_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
 
   for (Object *ob : objects) {
-
     Mesh *mesh = id_cast<Mesh *>(ob->data);
-
     bool changed = uv_seam_from_islands(mesh, scene, mark_seams, mark_sharp, true);
     if (changed) {
       changed_multi = true;
@@ -2905,6 +2909,7 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_cursor_set);
   WM_operatortype_append(UV_OT_copy_mirrored_faces);
   WM_operatortype_append(UV_OT_move_on_axis);
+  WM_operatortype_append(UV_OT_straighten_island);
   WM_operatortype_append(UV_OT_straighten_island);
 }
 

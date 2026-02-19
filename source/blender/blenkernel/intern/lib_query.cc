@@ -13,7 +13,6 @@
 #include "DNA_anim_types.h"
 
 #include "BLI_function_ref.hh"
-#include "BLI_ghash.h"
 #include "BLI_linklist_stack.h"
 #include "BLI_listbase.h"
 #include "BLI_set.hh"
@@ -353,8 +352,22 @@ static bool library_foreach_ID_link(Main *bmain,
       for (MainIDRelationsEntryItem *to_id_entry = entry->to_ids; to_id_entry != nullptr;
            to_id_entry = to_id_entry->next)
       {
-        BKE_lib_query_foreachid_process(
-            &data, to_id_entry->id_pointer.to, to_id_entry->usage_flag);
+        /* NOTE: Since `use_bmain_relations` can only be true if `IDWALK_READONLY` is set, checking
+         * that the pointer is not modified is redundant (#BKE_lib_query_foreachid_process would
+         * already have asserted on it).
+         *
+         * Does not hurt to have that double-check here though, as it makes that expectation more
+         * obvious. */
+        ID *to_id_tmp = to_id_entry->id_pointer.to;
+        if (to_id_entry->usage_flag & IDWALK_CB_EMBEDDED) {
+          BLI_assert(to_id_tmp->flag & ID_FLAG_EMBEDDED_DATA);
+          BKE_library_foreach_ID_embedded(&data, &to_id_tmp);
+        }
+        else {
+          BKE_lib_query_foreachid_process(&data, &to_id_tmp, to_id_entry->usage_flag);
+        }
+        BLI_assert(to_id_tmp == to_id_entry->id_pointer.to);
+
         if (BKE_lib_query_foreachid_iter_stop(&data)) {
           library_foreach_ID_data_cleanup(&data);
           return false;
