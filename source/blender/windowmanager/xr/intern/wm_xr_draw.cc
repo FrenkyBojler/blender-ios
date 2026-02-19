@@ -571,12 +571,9 @@ static ui::Block *viewfinder_action_enum_ui_block(const bContext *C, const wmXrS
     sub1.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_LENS, "", ICON_NONE);
     sub1.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_DOF, "", ICON_NONE);
 
-    const Object *scene_cam = CTX_data_scene(C)->camera;
-    const Camera *cam_data = id_cast<const Camera *>(scene_cam->data);
-
     ui::Layout &sub2 = row.row(true);
     /* Show these controls greyed-out if DoF is disabled. */
-    sub2.enabled_set(cam_data->dof.flag & CAM_DOF_ENABLED);
+    sub2.enabled_set(state->viewfinder.capture_use_dof);
     sub2.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_FOCUS, "", ICON_NONE);
     sub2.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_APERTURE, "", ICON_NONE);
   }
@@ -601,9 +598,6 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
   ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
 
   Scene *scene = CTX_data_scene(C);
-  const Object *cam_ob = scene->camera;
-  const Camera *cam = id_cast<const Camera *>(cam_ob->data);
-
   PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
 
   /* Note: unsafe, relies on the VR add-on being loaded. */
@@ -616,10 +610,10 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
   switch (state->viewfinder.active_mode) {
     case XR_VIEWFINDER_MODE_LIVE:
       settings_label = fmt::format("{}mm   DoF: {}   d: {:.1f}   f {:.1f}",
-                                   cam->lens,
-                                   (cam->dof.flag & CAM_DOF_ENABLED) ? "on" : "off",
-                                   cam->dof.focus_distance,
-                                   cam->dof.aperture_fstop);
+                                   state->viewfinder.capture_lens,
+                                   state->viewfinder.capture_use_dof,
+                                   state->viewfinder.capture_focus_distance,
+                                   state->viewfinder.capture_aperture_fstop);
       break;
     case XR_VIEWFINDER_MODE_PLAYBACK:
       /* Current shot indicator (`current shot idx / all shots`). */
