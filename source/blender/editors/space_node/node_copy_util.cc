@@ -10,6 +10,7 @@
 
 #include "DNA_node_types.h"
 
+#include "BKE_anim_data.hh"
 #include "BLI_listbase.h"
 #include "BLI_listbase_iterator.hh"
 #include "BLI_map.hh"
@@ -608,6 +609,28 @@ static void map_panel(NodeTreeInterfaceMapping &io_mapping,
   io_mapping.panel_data.add(&io_panel, std::move(data));
 }
 
+/* Make sure the target node tree uses a different action than the source.
+ * Otherwise the target action is cleared to ensure a new action is created. */
+static void ensure_separate_actions(Main &bmain, const bNodeTree &src, bNodeTree &dst)
+{
+  const AnimData *src_adt = BKE_animdata_from_id(&src.id);
+  AnimData *dst_adt = BKE_animdata_from_id(&dst.id);
+  if (!src_adt || !dst_adt) {
+    /* Nothing to do:
+     * If the source has no animdata nothing will be copied.
+     * If the target has no animdata a new action will be created anyway. */
+    return;
+  }
+
+  if (dst_adt->action == src_adt->action) {
+    const bool unassign_ok = animrig::unassign_action({dst.id, *dst_adt});
+    BLI_assert_msg(unassign_ok, "Expected Action unassignment to work");
+    UNUSED_VARS_NDEBUG(unassign_ok);
+
+    DEG_relations_tag_update(&bmain);
+  }
+}
+
 NodeTreeInterfaceMapping map_group_node_interface(const NodeSetInterfaceParams &params,
                                                   const bNodeTree &tree,
                                                   const bNode &group_node)
@@ -700,6 +723,9 @@ NodeSetCopy NodeSetCopy::from_nodes(Main &bmain,
   remap_pairing(dst_tree, new_nodes, result.node_identifier_map_);
 
   /* Copy animation data of source nodes. */
+  if (&src_tree != &dst_tree) {
+    ensure_separate_actions(bmain, src_tree, dst_tree);
+  }
   BKE_animdata_copy_by_basepath(bmain, src_tree.id, dst_tree.id, anim_basepaths);
 
   /* Move nodes in the group to the center */

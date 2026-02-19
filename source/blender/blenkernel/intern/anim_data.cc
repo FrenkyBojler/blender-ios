@@ -609,36 +609,17 @@ static std::pair<AnimData *, AnimData *> ensure_animdata_pair(Main &bmain,
   }
   const OwnedAnimData dst_owned_adt = {dst_id, *dst_adt};
 
-  if (src_adt->action) {
-    /* Copying within the same action is allowed if the IDs are the same.
-     * Otherwise the IDs must use different actions. */
-    if (dst_adt != src_adt && dst_adt->action == src_adt->action) {
-      CLOG_WARN(&LOG,
-                "Source and Destination share animation! "
-                "('%s' and '%s' both use '%s') Making new empty action",
-                src_id.name,
-                dst_id.name,
-                src_adt->action->id.name);
+  /* Create an empty action for the destination if necessary. */
+  if (src_adt->action && !dst_adt->action) {
+    animrig::Action &new_action = animrig::action_add(bmain, src_adt->action->id.name + 2);
+    new_action.slot_add_for_id(dst_id);
 
-      const bool unassign_ok = animrig::unassign_action(dst_owned_adt);
-      BLI_assert_msg(unassign_ok, "Expected Action unassignment to work");
-      UNUSED_VARS_NDEBUG(unassign_ok);
+    const bool assign_ok = animrig::assign_action(&new_action, dst_owned_adt);
+    BLI_assert_msg(assign_ok, "Expected Action assignment to work");
+    UNUSED_VARS_NDEBUG(assign_ok);
+    BLI_assert(dst_adt->slot_handle != animrig::Slot::unassigned);
 
-      DEG_relations_tag_update(&bmain);
-    }
-
-    /* Create an empty action for the destination if necessary. */
-    if (!dst_adt->action) {
-      animrig::Action &new_action = animrig::action_add(bmain, src_adt->action->id.name + 2);
-      new_action.slot_add_for_id(dst_id);
-
-      const bool assign_ok = animrig::assign_action(&new_action, dst_owned_adt);
-      BLI_assert_msg(assign_ok, "Expected Action assignment to work");
-      UNUSED_VARS_NDEBUG(assign_ok);
-      BLI_assert(dst_adt->slot_handle != animrig::Slot::unassigned);
-
-      DEG_relations_tag_update(&bmain);
-    }
+    DEG_relations_tag_update(&bmain);
   }
 
   return {src_adt, dst_adt};
