@@ -359,62 +359,7 @@ bool BLI_file_alias_target(const char *filepath,
 }
 #endif
 
-int BLI_file_stat_mode(const char *path)
-{
 #if defined(WIN32)
-  BLI_stat_t st;
-  wchar_t *tmp_16 = alloc_utf16_from_8(path, 1);
-  int len, res;
-
-  len = wcslen(tmp_16);
-  /* in Windows #stat doesn't recognize dir ending on a slash
-   * so we remove it here */
-  if ((len > 3) && ELEM(tmp_16[len - 1], L'\\', L'/')) {
-    tmp_16[len - 1] = '\0';
-  }
-  /* two special cases where the trailing slash is needed:
-   * 1. after the share part of a UNC path
-   * 2. after the C:\ when the path is the volume only
-   */
-  if ((len >= 3) && (tmp_16[0] == L'\\') && (tmp_16[1] == L'\\')) {
-    BLI_path_normalize_unc_16(tmp_16);
-  }
-
-  if ((tmp_16[1] == L':') && (tmp_16[2] == L'\0')) {
-    tmp_16[2] = L'\\';
-    tmp_16[3] = L'\0';
-  }
-
-  res = BLI_wstat(tmp_16, &st);
-
-  free(tmp_16);
-  if (res == -1) {
-    return 0;
-  }
-#else
-  struct stat st;
-  BLI_assert(!BLI_path_is_rel(path));
-  if (stat(path, &st)) {
-    return 0;
-  }
-#endif
-  return (st.st_mode);
-}
-
-bool BLI_exists(const char *path)
-{
-#ifdef WIN32
-  wchar_t *path_16 = alloc_utf16_from_8(path, 0);
-  const bool exists = (GetFileAttributesW(path_16) != INVALID_FILE_ATTRIBUTES);
-  free(path_16);
-  return exists;
-#else
-  return BLI_file_stat_mode(path) != 0;
-#endif
-}
-
-#ifdef WIN32
-
 /**
  * Fast Windows-specific stat implementation using GetFileAttributesExW.
  *
@@ -485,6 +430,41 @@ static int bli_wstat_fast(const wchar_t *path, BLI_stat_t *buffer)
 
   return 0;
 }
+#endif
+
+int BLI_file_stat_mode(const char *path)
+{
+#if defined(WIN32)
+  BLI_stat_t st;
+  wchar_t *tmp_16 = alloc_utf16_from_8(path, 1);
+  static int res = bli_wstat_fast(tmp_16, &st);
+  free(tmp_16);
+  if (res == -1) {
+    return 0;
+  }
+#else
+  struct stat st;
+  BLI_assert(!BLI_path_is_rel(path));
+  if (stat(path, &st)) {
+    return 0;
+  }
+#endif
+  return (st.st_mode);
+}
+
+bool BLI_exists(const char *path)
+{
+#ifdef WIN32
+  wchar_t *path_16 = alloc_utf16_from_8(path, 0);
+  const bool exists = (GetFileAttributesW(path_16) != INVALID_FILE_ATTRIBUTES);
+  free(path_16);
+  return exists;
+#else
+  return BLI_file_stat_mode(path) != 0;
+#endif
+}
+
+#ifdef WIN32
 
 int BLI_fstat(int fd, BLI_stat_t *buffer)
 {
@@ -497,27 +477,12 @@ int BLI_fstat(int fd, BLI_stat_t *buffer)
 
 int BLI_stat(const char *path, BLI_stat_t *buffer)
 {
-  int r;
-  UTF16_ENCODE(path);
-
-  r = BLI_wstat(path_16, buffer);
-
-  UTF16_UN_ENCODE(path);
+  wchar_t *path_16 = alloc_utf16_from_8(path, 0);
+  const int r = bli_wstat_fast(path_16, buffer);
+  free(path_16);
   return r;
 }
 
-int BLI_wstat(const wchar_t *path, BLI_stat_t *buffer)
-{
-  if (bli_wstat_fast(path, buffer) == 0) {
-    return 0;
-  }
-
-#  if defined(_MSC_VER)
-  return _wstat64(path, buffer);
-#  else
-  return _wstat(path, buffer);
-#  endif
-}
 #else
 int BLI_fstat(int fd, struct stat *buffer)
 {

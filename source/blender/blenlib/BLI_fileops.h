@@ -140,10 +140,6 @@ int64_t BLI_ftell(FILE *stream) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 int BLI_fseek(FILE *stream, int64_t offset, int whence);
 int64_t BLI_lseek(int fd, int64_t offset, int whence);
 
-#ifdef WIN32
-int BLI_wstat(const wchar_t *path, BLI_stat_t *buffer);
-#endif
-
 enum eFileAttributes {
   FILE_ATTR_READONLY = 1 << 0,        /* Read-only or Immutable. */
   FILE_ATTR_HIDDEN = 1 << 1,          /* Hidden or invisible. */

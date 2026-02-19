@@ -106,7 +106,12 @@ struct dirent *readdir(DIR *dp)
 
   if (dp->handle == INVALID_HANDLE_VALUE) {
     wchar_t *path_16 = alloc_utf16_from_8(dp->path, 0);
-    dp->handle = FindFirstFileW(path_16, &(dp->data));
+    dp->handle = FindFirstFileExW(path_16,
+                                  FindExInfoBasic,
+                                  &(dp->data),
+                                  FindExSearchNameMatch,
+                                  nullptr,
+                                  FIND_FIRST_EX_LARGE_FETCH);
     free(path_16);
     if (dp->handle == INVALID_HANDLE_VALUE) {
       return nullptr;
