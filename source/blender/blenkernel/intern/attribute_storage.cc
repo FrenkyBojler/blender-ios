@@ -63,6 +63,36 @@ class ArrayDataImplicitSharing : public ImplicitSharingInfo {
   }
 };
 
+class SingleImplicitSharing : public ImplicitSharingInfo {
+ private:
+  void *data_;
+  const CPPType &type_;
+  /* This struct could also store caches about the array data, like the min and max values. */
+
+ public:
+  SingleImplicitSharing(void *data, const CPPType &type)
+      : ImplicitSharingInfo(), data_(data), type_(type)
+  {
+  }
+
+ private:
+  void delete_self_with_data() override
+  {
+    if (data_ != nullptr) {
+      type_.destruct(data_);
+      MEM_delete_void(data_);
+    }
+    MEM_delete(this);
+  }
+
+  void delete_data_only() override
+  {
+    type_.destruct(data_);
+    MEM_delete_void(data_);
+    data_ = nullptr;
+  }
+};
+
 Attribute::ArrayData Attribute::ArrayData::from_value(const GPointer &value,
                                                       const int64_t domain_size)
 {
@@ -81,8 +111,13 @@ Attribute::ArrayData Attribute::ArrayData::from_value(const GPointer &value,
   }
 
   data.size = domain_size;
-  BLI_assert(type.is_trivially_destructible);
-  data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
+  if (type.is_trivially_destructible) {
+    data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
+  }
+  else {
+    data.sharing_info = ImplicitSharingPtr<>(
+        MEM_new<ArrayDataImplicitSharing>(__func__, data.data, data.size, type));
+  }
   return data;
 }
 
@@ -113,7 +148,6 @@ Attribute::ArrayData Attribute::ArrayData::from_uninitialized(const CPPType &typ
     data.data = MEM_new_array_uninitialized_aligned(
         domain_size, type.size, type.alignment, __func__);
     data.size = domain_size;
-    BLI_assert(type.is_trivially_destructible);
     data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
     return data;
   }
@@ -135,8 +169,13 @@ Attribute::SingleData Attribute::SingleData::from_value(const GPointer &value)
   const CPPType &type = *value.type();
   data.value = MEM_new_uninitialized_aligned(type.size, type.alignment, __func__);
   type.copy_construct(value.get(), data.value);
-  BLI_assert(type.is_trivially_destructible);
-  data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.value));
+  if (type.is_trivially_destructible) {
+    data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.value));
+  }
+  else {
+    data.sharing_info = ImplicitSharingPtr<>(
+        MEM_new<SingleImplicitSharing>(__func__, data.value, type));
+  }
   return data;
 }
 

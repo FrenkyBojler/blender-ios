@@ -676,6 +676,14 @@ struct EnumPropertyItem {
   const char *name;
   /** Longer description used in the interface. */
   const char *description;
+  EnumPropertyItem(const int value,
+                   const char *identifier,
+                   const int icon,
+                   const char *name,
+                   const char *description)
+      : value(value), identifier(identifier), icon(icon), name(name), description(description)
+  {
+  }
 };
 
 /**
