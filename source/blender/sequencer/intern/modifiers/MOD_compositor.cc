@@ -41,12 +41,16 @@
 
 #include "RNA_access.hh"
 
+#include "WM_api.hh"
+
+#include "SEQ_sequencer.hh"
+#include "cache/compositor_cache.hh"
 #include "modifier.hh"
 #include "render.hh"
 
 namespace blender::seq {
 
-class CompositorContext : public compositor::Context {
+class CompositorModifierContext : public compositor::Context {
  private:
   const RenderData &render_data_;
   const SequencerCompositorModifierData *modifier_data_;
@@ -61,12 +65,12 @@ class CompositorContext : public compositor::Context {
   bool viewer_was_written_ = false;
 
  public:
-  CompositorContext(compositor::StaticCacheManager &cache_manager,
-                    const RenderData &render_data,
-                    const SequencerCompositorModifierData *modifier_data,
-                    ImBuf *image_buffer,
-                    ImBuf *mask_buffer,
-                    const Strip &strip)
+  CompositorModifierContext(compositor::StaticCacheManager &cache_manager,
+                            const RenderData &render_data,
+                            const SequencerCompositorModifierData *modifier_data,
+                            ImBuf *image_buffer,
+                            ImBuf *mask_buffer,
+                            const Strip &strip)
       : compositor::Context(cache_manager),
         render_data_(render_data),
         modifier_data_(modifier_data),
@@ -315,6 +319,61 @@ static bool ensure_linear_float_buffer(ImBuf *ibuf)
   return false;
 }
 
+static void begin_gpu_context(const RenderData &render_data)
+{
+  if (render_data.ghost_context != nullptr) {
+    /* Use explicitly set render context (e.g. for prefetching). */
+    WM_system_gpu_context_activate(render_data.ghost_context);
+    if (render_data.gpu_context == nullptr) {
+      /* GPU context needs to be created on the thread that will use it. */
+      render_data.gpu_context = GPU_context_create(nullptr, render_data.ghost_context);
+    }
+    GPU_render_begin();
+    GPU_context_active_set(render_data.gpu_context);
+  }
+  else {
+    GHOST_IContext *render_ghost_context = render_data.render ?
+                                               RE_system_gpu_context_get(render_data.render) :
+                                               nullptr;
+    if (BLI_thread_is_main() || render_ghost_context == nullptr) {
+      /* Use main GPU context. */
+      DRW_gpu_context_enable();
+    }
+    else {
+      /* Use GPU context from Render. */
+      WM_system_gpu_context_activate(render_ghost_context);
+      void *render_gpu_context = RE_blender_gpu_context_ensure(render_data.render);
+      GPU_render_begin();
+      GPU_context_active_set(static_cast<GPUContext *>(render_gpu_context));
+    }
+  }
+}
+
+static void end_gpu_context(const RenderData &render_data)
+{
+  if (render_data.ghost_context != nullptr) {
+    /* Use explicitly set render context (e.g. for prefetching). */
+    GPU_context_active_set(nullptr);
+    GPU_render_end();
+    WM_system_gpu_context_release(render_data.ghost_context);
+  }
+  else {
+    GHOST_IContext *render_ghost_context = render_data.render ?
+                                               RE_system_gpu_context_get(render_data.render) :
+                                               nullptr;
+    if (BLI_thread_is_main() || render_ghost_context == nullptr) {
+      /* Use main GPU context. */
+      DRW_gpu_context_disable();
+    }
+    else {
+      /* Use GPU context from Render. */
+      GPU_context_active_set(nullptr);
+      GPU_render_end();
+      WM_system_gpu_context_release(render_ghost_context);
+    }
+  }
+}
+
 static void compositor_modifier_apply(ModifierApplyContext &context,
                                       StripModifierData *strip_modifier_data,
                                       ImBuf *mask)
@@ -334,50 +393,34 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
   const bool was_float_linear = ensure_linear_float_buffer(context.image);
   const bool was_byte = context.image->float_buffer.data == nullptr;
 
-  /* TODO: Should be persistent across evaluations. Lack of this means shaders get re-created
-   * all the time, as well as things like "image coordinates input" caches. */
-  compositor::StaticCacheManager cache_manager;
-
-  CompositorContext com_context(cache_manager,
-                                context.render_data,
-                                modifier_data,
-                                context.image,
-                                linear_mask,
-                                context.strip);
+  CompositorCache &com_cache = context.render_data.scene->ed->runtime->ensure_compositor_cache();
+  CompositorModifierContext com_mod_context(com_cache.get_cache_manager(),
+                                            context.render_data,
+                                            modifier_data,
+                                            context.image,
+                                            linear_mask,
+                                            context.strip);
 
   //@TODO: do we need GPU_use_main_context_workaround like in eevee_lightcache.cc?
   //@TODO: check what happens when doing rendering; does it correctly use render context.
   //@TODO: check what is needed to get half-precision working on GPU.
 
-  const bool use_gpu = com_context.use_gpu();
+  const bool use_gpu = com_mod_context.use_gpu();
   if (use_gpu) {
-    if (context.render_data.ghost_context != nullptr) {
-      DRW_system_gpu_render_context_enable(context.render_data.ghost_context);
-      if (context.render_data.gpu_context == nullptr) {
-        /* GPU context needs to be created on the thread that will use it. */
-        context.render_data.gpu_context = GPU_context_create(nullptr,
-                                                             context.render_data.ghost_context);
-      }
-      DRW_blender_gpu_render_context_enable(context.render_data.gpu_context);
-    }
-    GPU_render_begin();
+    begin_gpu_context(context.render_data);
   }
 
-  com_context.evaluate();
-  com_context.cache_manager().reset();
+  com_mod_context.evaluate();
+  com_mod_context.cache_manager().reset();
+  com_cache.recreate_if_needed(com_mod_context.use_gpu(),
+                               com_mod_context.get_precision(),
+                               context.render_data.ghost_context);
 
   if (use_gpu) {
-    if (context.render_data.ghost_context != nullptr) {
-      DRW_blender_gpu_render_context_disable(context.render_data.gpu_context);
-      GPU_render_end();
-      DRW_system_gpu_render_context_disable(context.render_data.ghost_context);
-    }
-    else {
-      GPU_render_end();
-    }
+    end_gpu_context(context.render_data);
   }
 
-  context.result_translation += com_context.get_result_translation();
+  context.result_translation += com_mod_context.get_result_translation();
 
   if (mask != linear_mask) {
     IMB_freeImBuf(linear_mask);

@@ -33,6 +33,7 @@ struct SequencerToolSettings;
 
 namespace seq {
 
+class CompositorCache;
 struct FinalImageCache;
 struct IntraFrameCache;
 struct MediaPresence;
@@ -104,6 +105,8 @@ struct StripRuntime {
 };
 
 struct EditingRuntime {
+  ~EditingRuntime();
+
   StripLookup *strip_lookup = nullptr;
   MediaPresence *media_presence = nullptr;
   ThumbnailCache *thumbnail_cache = nullptr;
@@ -112,10 +115,14 @@ struct EditingRuntime {
   FinalImageCache *final_image_cache = nullptr;
   PreviewCache *preview_cache = nullptr;
   PrefetchJob *prefetch_job = nullptr;
+  CompositorCache *compositor_cache = nullptr;
+
   /** Used for rendering a different frame using sequencer_draw_get_transform_preview from the box
    * blade tool. */
   int transform_preview_frame = 0;
   bool show_transform_preview = false;
+
+  CompositorCache &ensure_compositor_cache();
 };
 
 SequencerToolSettings *tool_settings_init();

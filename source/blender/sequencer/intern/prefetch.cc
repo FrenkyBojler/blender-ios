@@ -281,6 +281,7 @@ void PrefetchJob::init_gpu_main()
 void PrefetchJob::free_gpu()
 {
   if (this->context_cpy.gpu_context) {
+    WM_system_gpu_context_activate(this->context_cpy.ghost_context);
     GPU_context_active_set(this->context_cpy.gpu_context);
     GPU_context_discard(this->context_cpy.gpu_context);
     this->context_cpy.gpu_context = nullptr;
@@ -288,6 +289,10 @@ void PrefetchJob::free_gpu()
   if (this->context_cpy.ghost_context) {
     WM_system_gpu_context_dispose(this->context_cpy.ghost_context);
     this->context_cpy.ghost_context = nullptr;
+
+    if (BLI_thread_is_main()) {
+      wm_window_reset_drawable();
+    }
   }
 }
 

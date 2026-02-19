@@ -45,6 +45,8 @@ set(SRC
   SEQ_utils.hh
 
   intern/animation.cc
+  intern/cache/compositor_cache.cc
+  intern/cache/compositor_cache.hh
   intern/cache/final_image_cache.cc
   intern/cache/final_image_cache.hh
   intern/cache/intra_frame_cache.cc
