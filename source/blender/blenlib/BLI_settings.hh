@@ -23,11 +23,66 @@ struct Settings {
 
   Settings(const std::string &section) : section(section) {}
 
-  bool exists(const std::string &item);
-
   template<typename T> T get(const std::string &item);
 
   template<typename T> void set(const std::string &item, const T &value);
+
+  /**
+   * Convenience proxy types to allow `settings["key"]` syntax.
+   *
+   * Usage:
+   *   int v = settings["key"];          // calls get<int>("key")
+   *   settings["key"] = v;             // calls set<int>("key", v)
+   *
+   * Note: The conversion operator template will call the templated `get<T>` method,
+   * which preserves the same behaviour and fallbacks as the explicit `get<T>` call.
+   */
+  struct Proxy {
+    Settings &owner;
+    std::string key;
+
+    Proxy(Settings &owner, std::string key) : owner(owner), key(std::move(key)) {}
+
+    template<typename T> operator T() const
+    {
+      return owner.get<T>(key);
+    }
+
+    template<typename T> Proxy &operator=(const T &value)
+    {
+      owner.set<T>(key, value);
+      return *this;
+    }
+
+    /* Allow assigning toml::value directly for advanced use. */
+    Proxy &operator=(const toml::value &v)
+    {
+      settings_current[owner.section][key] = v;
+      return *this;
+    }
+  };
+
+  struct ConstProxy {
+    const Settings &owner;
+    std::string key;
+
+    ConstProxy(const Settings &owner, std::string key) : owner(owner), key(std::move(key)) {}
+
+    template<typename T> operator T() const
+    {
+      return owner.get<T>(key);
+    }
+  };
+
+  Proxy operator[](const std::string &item)
+  {
+    return Proxy(*this, item);
+  }
+
+  ConstProxy operator[](const std::string &item) const
+  {
+    return ConstProxy(*this, item);
+  }
 };
 
 template<typename T> T Settings::get(const std::string &item)
@@ -36,18 +91,21 @@ template<typename T> T Settings::get(const std::string &item)
     BLI_settings_init();
   }
 
+  const toml::value &cur = settings_current[section][item];
+  const toml::value &def = settings_default[section][item];
+
   try {
-    return toml::get<T>(settings_current[section][item]);
+    return toml::get<T>(cur);
   }
   catch (const toml::type_error &) {
-    /* fall through to default. */
+    /* fall through to default */
   }
 
   try {
-    return toml::get<T>(settings_default[section][item]);
+    return toml::get<T>(def);
   }
   catch (const toml::type_error &) {
-    /* fall through to final fallback. */
+    /* fall through to final fallback */
   }
 
   return T{};
@@ -84,6 +142,18 @@ filter_id = 0
 display_type = 1
 sort_type = 1
 flag = 0
+
+[file_browser.panels]
+bookmarks_index = 0;
+system_index = 1;
+volumes_index = 2;
+recent_index = 3;
+advanced_filter_index = 4;
+bookmarks_open = true;
+system_open = true;
+volumes_open = true;
+recent_open = true;
+advanced_filter_open = true;
 
 )_delim_";
 

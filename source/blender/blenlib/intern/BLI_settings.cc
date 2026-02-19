@@ -79,15 +79,4 @@ bool BLI_settings_save()
   return true;
 }
 
-bool Settings::exists(const std::string &item)
-{
-  if (settings_current.is_empty()) {
-    BLI_settings_init();
-  }
-
-  const auto &section_value = toml::find(settings_current, section);
-  const auto &table = section_value.as_table();
-  return table.count(item) > 0;
-}
-
 }  // namespace blender

@@ -19,6 +19,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_settings.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_time.h"
@@ -702,6 +703,31 @@ Panel *panel_begin(
       panel->runtime_flag |= PANEL_WAS_CLOSED;
     }
 
+    /* Initialize File Browser panels from preferences. */
+    if (region->regiontype == RGN_TYPE_TOOLS && STRPREFIX(pt->idname, "FILEBROWSER_PT_")) {
+      Settings settings("file_browser.panels");
+      if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_favorites")) {
+        panel->sortorder = settings["bookmarks_index"];
+        SET_FLAG_FROM_TEST(panel->flag, !settings["bookmarks_open"], PNL_CLOSED);
+      }
+      else if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_system")) {
+        panel->sortorder = settings["system_index"];
+        SET_FLAG_FROM_TEST(panel->flag, !settings["system_open"], PNL_CLOSED);
+      }
+      else if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_volumes")) {
+        panel->sortorder = settings["volumes_index"];
+        SET_FLAG_FROM_TEST(panel->flag, !settings["volumes_open"], PNL_CLOSED);
+      }
+      else if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_recents")) {
+        panel->sortorder = settings["recent_index"];
+        SET_FLAG_FROM_TEST(panel->flag, !settings["recent_open"], PNL_CLOSED);
+      }
+      else if (STREQ(pt->idname, "FILEBROWSER_PT_advanced_filter")) {
+        panel->sortorder = settings["advanced_filter_index"];
+        SET_FLAG_FROM_TEST(panel->flag, !settings["advanced_filter_open"], PNL_CLOSED);
+      }
+    }
+
     panel->ofsx = 0;
     panel->ofsy = 0;
     panel->sizex = 0;
@@ -731,7 +757,9 @@ Panel *panel_begin(
     }
   }
 
-  if (newpanel) {
+  if (newpanel &&
+      !(region->regiontype == RGN_TYPE_TOOLS && STRPREFIX(pt->idname, "FILEBROWSER_PT_")))
+  {
     panel->sortorder = (panel_last) ? panel_last->sortorder + 1 : 0;
 
     for (Panel &panel_next : *lb) {

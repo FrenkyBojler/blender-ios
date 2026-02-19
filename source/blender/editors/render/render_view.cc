@@ -157,7 +157,7 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
 
     Settings settings("window.dimensions");
     std::string key = "image";
-    std::vector<float> bounds = settings.get<std::vector<float>>(key);
+    std::vector<float> bounds = settings[key];
 
     const bool bounds_valid = (bounds.size() == 4 && (bounds[1] - bounds[0] > 150.0f) &&
                                (bounds[3] - bounds[2] > 100.0f));
