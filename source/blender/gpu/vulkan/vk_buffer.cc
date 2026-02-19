@@ -130,6 +130,11 @@ void VKBuffer::update_sub_immediately(size_t start_offset,
 {
   BLI_assert_msg(is_mapped(), "Cannot update a non-mapped buffer.");
   memcpy(static_cast<uint8_t *>(mapped_memory_) + start_offset, data, data_size);
+  if (bool(vk_memory_property_ & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) &&
+      bool(vk_memory_property_ & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT))
+  {
+    flush();
+  }
 }
 
 void VKBuffer::update_render_graph(VKContext &context, void *data) const
