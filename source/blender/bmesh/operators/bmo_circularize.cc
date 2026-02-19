@@ -569,7 +569,11 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
   bm_extract_input_loops_from_boundary_edges(bm, loops, BM_ELEM_TAG, check_axis);
 
   /* Builds a BVH tree when flatten is disabled. Without this we would have to iterate
-   * over every face in the mesh for every vertex which is too slow. */
+   * over every face in the mesh for every vertex which is too slow.
+   *
+   /* Note: There is the possibility of a feedback loop here, with the geometry
+   * being manipulated which is used in the BVH tree. However, in practice this
+   * is an acceptable limitation that is unlikely to cause problems. */
   Vector<std::array<BMLoop *, 3>> looptris;
   BVHTree *bvh_tree = nullptr;
   NearestTriUserData bvh_data = {};
