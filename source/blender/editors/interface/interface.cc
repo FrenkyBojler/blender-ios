@@ -7070,12 +7070,12 @@ void update_text_styles()
 void invalidate_textboxes_wrap_cache(const ARegion &region)
 {
   for (Block &block : region.runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &button : block.buttons) {
-      if (button->type != ButtonType::TextBox) {
+    for (Button &button : block.buttons()) {
+      if (button.type != ButtonType::TextBox) {
         continue;
       }
-      ButtonTextBox *textbox = static_cast<ButtonTextBox *>(button.get());
-      textbox->wrap_cache.reset();
+      ButtonTextBox &textbox = static_cast<ButtonTextBox &>(button);
+      textbox.wrap_cache.reset();
     }
   }
 }
