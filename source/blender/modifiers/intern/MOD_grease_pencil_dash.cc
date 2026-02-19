@@ -17,7 +17,6 @@
 #include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
-#include "BKE_grease_pencil_fills.hh"
 #include "BKE_instances.hh"
 #include "BKE_modifier.hh"
 #include "BKE_screen.hh"

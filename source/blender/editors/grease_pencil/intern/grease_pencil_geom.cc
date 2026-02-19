@@ -22,7 +22,6 @@
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
 #include "BKE_grease_pencil.hh"
-#include "BKE_grease_pencil_fills.hh"
 
 #include "DNA_curves_types.h"
 #include "DNA_gpencil_legacy_types.h"
