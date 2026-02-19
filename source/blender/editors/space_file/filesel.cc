@@ -107,9 +107,11 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 
   FileAssetSelectParams *asset_params = sfile->asset_params;
 
+  Settings settings("file_browser");
+
   if (!asset_params) {
     asset_params = sfile->asset_params = MEM_new<FileAssetSelectParams>("FileAssetSelectParams");
-    asset_params->base_params.details_flags = settings["file_browser"]["details_flags"];
+    asset_params->base_params.details_flags = settings["details_flags"];
     asset_params->asset_library_ref.type = ASSET_LIBRARY_ALL;
     asset_params->asset_library_ref.custom_library_index = -1;
     asset_params->import_method = FILE_ASSET_IMPORT_FOLLOW_PREFS;
@@ -119,7 +121,7 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
   FileSelectParams *base_params = &asset_params->base_params;
   base_params->file[0] = '\0';
   base_params->filter_glob[0] = '\0';
-  // base_params->flag |= settings.get<short>("flag");
+  base_params->flag |= int16_t(settings["flag"]);
   base_params->flag &= ~FILE_DIRSEL_ONLY;
   base_params->filter |= FILE_TYPE_BLENDERLIB;
   base_params->filter_id = FILTER_ID_ALL;
@@ -152,6 +154,8 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 
   const char *blendfile_path = BKE_main_blendfile_path_from_global();
 
+  Settings settings("file_browser");
+
   /* create new parameters if necessary */
   if (!sfile->params) {
     sfile->params = MEM_new<FileSelectParams>("fileselparams");
@@ -162,9 +166,9 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
                             sfile->params->file,
                             sizeof(sfile->params->file));
     sfile->params->filter_glob[0] = '\0';
-    sfile->params->thumbnail_size = settings["file_browser"]["thumbnail_size"];
-    sfile->params->details_flags = settings["file_browser"]["details_flags"];
-    sfile->params->filter_id = settings["file_browser"]["filter_id"];
+    sfile->params->thumbnail_size = settings["thumbnail_size"];
+    sfile->params->details_flags = settings["details_flags"];
+    sfile->params->filter_id = settings["filter_id"];
     sfile->params->list_thumbnail_size = 16;
     sfile->params->list_column_size = 500;
   }
@@ -327,7 +331,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     }
 
     if (params->display == FILE_DEFAULTDISPLAY) {
-      params->display = settings["file_browser"]["display_type"];
+      params->display = settings["display_type"];
     }
 
     if ((prop = RNA_struct_find_property(op->ptr, "sort_method"))) {
@@ -335,7 +339,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     }
 
     if (params->sort == FILE_SORT_DEFAULT) {
-      params->sort = settings["file_browser"]["sort_type"];
+      params->sort = settings["sort_type"];
     }
 
     if (is_relative_path) {
@@ -349,7 +353,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
   else {
     /* default values, if no operator */
     params->type = FILE_UNIX;
-    params->flag |= int16_t(settings["file_browser"]["flag"]);
+    params->flag |= int16_t(settings["flag"]);
     params->flag &= ~FILE_DIRSEL_ONLY;
     params->display = FILE_VERTICALDISPLAY;
     params->sort = FILE_SORT_ALPHA;
@@ -677,20 +681,22 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
     return;
   }
 
-  params->thumbnail_size = settings["file_browser"]["thumbnail_size"];
-  params->details_flags = settings["file_browser"]["details_flags"];
-  params->filter_id = settings["file_browser"]["filter_id"];
+  Settings settings("file_browser");
+
+  params->thumbnail_size = settings["thumbnail_size"];
+  params->details_flags = settings["details_flags"];
+  params->filter_id = settings["filter_id"];
   /* Combine flags we take from params with the flags we take from userdef. */
   params->flag = (params->flag & ~PARAMS_FLAGS_REMEMBERED) |
-                 (uint16_t(settings["file_browser"]["flag"]) & PARAMS_FLAGS_REMEMBERED);
+                 (uint16_t(settings["flag"]) & PARAMS_FLAGS_REMEMBERED);
   if (file_select_use_default_display_type(sfile)) {
-    params->display = settings["file_browser"]["display_type"];
+    params->display = settings["display_type"];
   }
   if (file_select_use_default_sort_type(sfile)) {
-    params->sort = settings["file_browser"]["sort_type"];
+    params->sort = settings["sort_type"];
     /* For the default sorting, also take invert flag from userdef. */
     params->flag = (params->flag & ~FILE_SORT_INVERT) |
-                   (int16_t(settings["file_browser"]["flag"]) & FILE_SORT_INVERT);
+                   (int16_t(settings["flag"]) & FILE_SORT_INVERT);
   }
 }
 
@@ -698,23 +704,24 @@ void ED_fileselect_params_to_userdef(SpaceFile *sfile)
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
-  settings["file_browser"]["thumbnail_size"] = params->thumbnail_size;
-  settings["file_browser"]["details_flags"] = params->details_flags;
-  settings["file_browser"]["flag"] = params->flag & PARAMS_FLAGS_REMEMBERED;
-  settings["file_browser"]["filter_id"] = params->filter_id;
+  Settings settings("file_browser");
+
+  settings["thumbnail_size"] = params->thumbnail_size;
+  settings["details_flags"] = params->details_flags;
+  settings["flag"] = params->flag & PARAMS_FLAGS_REMEMBERED;
+  settings["filter_id"] = params->filter_id;
 
   /* In some rare cases, operators ask for a specific display or sort type (e.g. chronological
    * sorting for "Recover Auto Save"). So the settings are optimized for a specific operation.
    * Don't let that change the userdef memory for more general cases. */
   if (file_select_use_default_display_type(sfile)) {
-    settings["file_browser"]["display_type"] = params->display;
+    settings["display_type"] = params->display;
   }
   if (file_select_use_default_sort_type(sfile)) {
-    settings["file_browser"]["sort_type"] = params->sort;
+    settings["sort_type"] = params->sort;
     /* In this case also remember the invert flag. */
-    settings["file_browser"]["flag"] = (int16_t(settings["file_browser"]["flag"]) &
-                                        ~FILE_SORT_INVERT) |
-                                       (params->flag & FILE_SORT_INVERT);
+    settings["flag"] = (int16_t(settings["flag"]) & ~FILE_SORT_INVERT) |
+                       (params->flag & FILE_SORT_INVERT);
   }
 }
 
