@@ -136,7 +136,7 @@ static void sort_indices(MutableSpan<int> indices, const Span<T> values, const i
   std::stable_sort(indices.begin(), indices.end(), [&](int i1, int i2) {
     const T value1 = values[i1];
     const T value2 = values[i2];
-    if constexpr (is_same_any_v<T, int, float, bool, int8_t, OrderedEdge>) {
+    if constexpr (is_same_any_v<T, int, float, bool, int8_t, OrderedEdge, std::string>) {
       /* These types are already comparable. */
       return value1 < value2;
     }
@@ -251,7 +251,9 @@ static bool values_different(const T value1,
                              const float threshold,
                              const int component_i)
 {
-  if constexpr (is_same_any_v<T, int, short2, int2, bool, int8_t, OrderedEdge, ColorGeometry4b>) {
+  if constexpr (
+      is_same_any_v<T, int, short2, int2, bool, int8_t, OrderedEdge, ColorGeometry4b, std::string>)
+  {
     /* These types already have a good implementation. */
     return value1 != value2;
   }

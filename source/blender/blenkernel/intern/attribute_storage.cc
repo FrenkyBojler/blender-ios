@@ -632,6 +632,7 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
     const auto create_dna_array = [&](const Attribute::ArrayData &array_data) -> void * {
       if (attr.data_type() == AttrType::String) {
         if (use_5_0_compatible_string_attributes) {
+          attribute_dna.storage_type = int8_t(AttrStorageType::Array);
           auto &array_dna = write_data.scope.construct<AttributeArray>();
           const Span runtime_data(static_cast<std::string *>(array_data.data), array_data.size);
           MutableSpan dna_data = write_data.scope.allocator().allocate_array<MStringProperty>(
@@ -648,6 +649,8 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
           array_dna.size = array_data.size;
           return &array_dna;
         }
+
+        attribute_dna.storage_type = ATTR_STORAGE_TYPE_STRING_OFFSETS;
 
         /* Write string attributes (stored at runtime as #std::string) as an array of offsets and
          * array of character data. */
@@ -677,6 +680,7 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
         offsets_dna.size = array_data.size;
         return &offsets_dna;
       }
+      attribute_dna.storage_type = int8_t(AttrStorageType::Array);
       auto &array_dna = write_data.scope.construct<AttributeArray>();
       array_dna.data = array_data.data;
       array_dna.sharing_info = array_data.sharing_info.get();
@@ -685,12 +689,10 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
     };
 
     if (const auto *data = std::get_if<Attribute::ArrayData>(&attr.data())) {
-      attribute_dna.storage_type = int8_t(AttrStorageType::Array);
       attribute_dna.data = create_dna_array(*data);
     }
     else if (const auto *data = std::get_if<Attribute::SingleData>(&attr.data())) {
       if (use_5_0_compatibility) {
-        attribute_dna.storage_type = int8_t(AttrStorageType::Array);
         /* Convert single value storage to array storage for forward compatibility.
          * See #AttributeArray::is_single) comment for more details. */
         const CPPType &cpp_type = attribute_type_to_cpp_type(attr.data_type());

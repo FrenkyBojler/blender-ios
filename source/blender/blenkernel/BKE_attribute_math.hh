@@ -44,7 +44,8 @@ template<typename Fn> inline void to_static_type(const CPPType &cpp_type, Fn &&f
                           ColorGeometry4f,
                           ColorGeometry4b,
                           math::Quaternion,
-                          float4x4>([&]<typename T>() { fn.template operator()<T>(); });
+                          float4x4,
+                          std::string>([&]<typename T>() { fn.template operator()<T>(); });
 }
 
 template<typename Fn> inline void to_static_type(const bke::AttrType data_type, Fn &&fn)

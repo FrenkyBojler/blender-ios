@@ -246,7 +246,7 @@ static void store_layer(const eCustomDataType type,
    * Instead, these non-trivial custom data layer are stored in the undo system using implicit
    * sharing, to avoid the copy from the undo mesh.
    */
-  if (CustomData_layertype_is_dynamic(type)) {
+  if (CustomData_layertype_is_dynamic(type) || type == CD_PROP_STRING) {
     ImplicitSharingInfoAndData state = {sharing_info, data};
     if (state.data) {
       state.sharing_info->add_user();
