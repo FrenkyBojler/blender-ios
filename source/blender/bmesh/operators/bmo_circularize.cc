@@ -534,7 +534,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
   const float custom_radius = BMO_slot_float_get(op->slots_in, "custom_radius");
   const float angle = BMO_slot_float_get(op->slots_in, "angle");
   const int fit_method = BMO_slot_int_get(op->slots_in, "fit_method");
-  const bool flatten = BMO_slot_bool_get(op->slots_in, "flatten");
+  const float flatten = BMO_slot_float_get(op->slots_in, "flatten");
   const bool regular = BMO_slot_bool_get(op->slots_in, "regular");
 
   const bool check_axis[3] = {
@@ -560,7 +560,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
   BVHTree *bvh_tree = nullptr;
   NearestTriUserData bvh_data = {};
 
-  if (!flatten) {
+  if (flatten < 1.0f) {
     const int tot_tri = poly_to_tri_count(bm->totface, bm->totloop);
     looptris.reinitialize(tot_tri);
     BM_mesh_calc_tessellation(bm, looptris);
@@ -641,10 +641,10 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       const float3 target_local(cv.target_2d.x, cv.target_2d.y, 0.0f);
       float3 final_pos = center_3d + mat * target_local;
 
-      if (!flatten) {
+      if (flatten < 1.0f) {
         float projected_pos[3];
         project_on_mesh(bvh_tree, &bvh_data, cv.v, final_pos, mat.z_axis(), projected_pos);
-        final_pos = float3(projected_pos);
+        interp_v3_v3v3(final_pos, projected_pos, final_pos, flatten);
       }
 
       /* If this vertex is an endpoint of a mirrored loop, force it

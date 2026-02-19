@@ -42,7 +42,7 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   const float factor = RNA_float_get(op->ptr, "factor");
-  const bool flatten = RNA_boolean_get(op->ptr, "flatten");
+  const float flatten = RNA_float_get(op->ptr, "flatten");
   const bool regular = RNA_boolean_get(op->ptr, "regular");
   const int fit_method = RNA_enum_get(op->ptr, "fit_method");
   float custom_radius = RNA_float_get(op->ptr, "custom_radius");
@@ -69,7 +69,7 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
 
     if (!EDBM_op_callf(em,
                        op,
-                       "circularize geom=%hvef factor=%f flatten=%b regular=%b fit_method=%i"
+                       "circularize geom=%hvef factor=%f flatten=%f regular=%b fit_method=%i"
                        "custom_radius=%f angle=%f lock_x=%b lock_y=%b lock_z=%b mirror_x=%b"
                        "mirror_y=%b mirror_z=%b",
                        BM_ELEM_SELECT,
@@ -173,11 +173,15 @@ void MESH_OT_circularize(wmOperatorType *ot)
                   true,
                   "Space Evenly",
                   "Distribute vertices at constant distances along the circle");
-  RNA_def_boolean(ot->srna,
-                  "flatten",
-                  true,
-                  "Flatten",
-                  "Flatten the circle, instead of projecting it on the mesh");
+  RNA_def_float_factor(ot->srna,
+                       "flatten",
+                       1.0f,
+                       0.0f,
+                       1.0f,
+                       "Flatten",
+                       "Flatten the circle, instead of projecting it on the mesh",
+                       0.0f,
+                       1.0f);
   RNA_def_boolean_array(ot->srna, "lock", 3, nullptr, "Lock", "Lock editing of the axis");
 }
 

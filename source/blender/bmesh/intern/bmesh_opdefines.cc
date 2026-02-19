@@ -519,8 +519,8 @@ static BMOpDefine bmo_circularize_def = {
         {"angle", BMO_OP_SLOT_FLT},
         /* Method to fit the circle. */
         {"fit_method", BMO_OP_SLOT_INT},
-        /* Flattens the circle, when disabled the circle will be projected on the mesh. */
-        {"flatten", BMO_OP_SLOT_BOOL},
+        /* Flatten factor, 0.0 projects on the mesh, 1.0 flattens on the optimal plane. */
+        {"flatten", BMO_OP_SLOT_FLT},
         /* Distributes vertices at constant distances, otherwise preserves original spacing . */
         {"regular", BMO_OP_SLOT_BOOL},
         /* Lock X-axis editing. */
