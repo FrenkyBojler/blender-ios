@@ -31,7 +31,8 @@ namespace blender::nodes::node_geo_curve_intersection_cc {
 /* Epsilon values for curve intersections and bvh tree. */
 constexpr float curve_isect_eps = 0.001f;
 constexpr float pi_2_f = std::numbers::pi * 0.5f;
-constexpr float pi_2_f_eps = pi_2_f - 0.0001f;
+constexpr float min_angle_eps = 0.0001f;
+constexpr float pi_2_f_eps = pi_2_f - min_angle_eps;
 
 enum class PairData {
   PointsOnly = 0,
@@ -1235,18 +1236,19 @@ static void node_geo_exec(GeoNodeExecParams params)
         const float distance = params.extract_input<float>("Distance");
         const float min_angle = params.extract_input<float>("Min Angle");
         const float max_angle = params.extract_input<float>("Max Angle");
-        set_curve_intersections(src_curves,
-                                ids,
-                                self,
-                                all,
-                                use_radius,
-                                distance,
-                                math::clamp(float2(min_angle, max_angle), 0.0f, pi_2_f_eps),
-                                false,
-                                float3(0.0f),
-                                pair_data_mode,
-                                attribute_outputs,
-                                r_data);
+        set_curve_intersections(
+            src_curves,
+            ids,
+            self,
+            all,
+            use_radius,
+            distance,
+            math::clamp(float2(min_angle, max_angle), min_angle_eps, pi_2_f_eps),
+            false,
+            float3(0.0f),
+            pair_data_mode,
+            attribute_outputs,
+            r_data);
         break;
       }
       case IntersectionMode::Curve_Project: {
@@ -1261,18 +1263,19 @@ static void node_geo_exec(GeoNodeExecParams params)
         const float3 direction = params.extract_input<float3>("Direction");
         const float min_angle = params.extract_input<float>("Min Angle");
         const float max_angle = params.extract_input<float>("Max Angle");
-        set_curve_intersections(src_curves,
-                                ids,
-                                self,
-                                all,
-                                use_radius,
-                                distance,
-                                math::clamp(float2(min_angle, max_angle), 0.0f, pi_2_f_eps),
-                                true,
-                                direction,
-                                pair_data_mode,
-                                attribute_outputs,
-                                r_data);
+        set_curve_intersections(
+            src_curves,
+            ids,
+            self,
+            all,
+            use_radius,
+            distance,
+            math::clamp(float2(min_angle, max_angle), min_angle_eps, pi_2_f_eps),
+            true,
+            direction,
+            pair_data_mode,
+            attribute_outputs,
+            r_data);
         break;
       }
       case IntersectionMode::Plane: {
@@ -1280,12 +1283,13 @@ static void node_geo_exec(GeoNodeExecParams params)
         const float3 plane_center = params.extract_input<float3>("Center");
         const float min_angle = params.extract_input<float>("Min Angle");
         const float max_angle = params.extract_input<float>("Max Angle");
-        set_curve_intersections_plane(src_curves,
-                                      plane_center,
-                                      math::normalize(direction),
-                                      math::clamp(float2(min_angle, max_angle), 0.0f, pi_2_f_eps),
-                                      attribute_outputs,
-                                      r_data);
+        set_curve_intersections_plane(
+            src_curves,
+            plane_center,
+            math::normalize(direction),
+            math::clamp(float2(min_angle, max_angle), min_angle_eps, pi_2_f_eps),
+            attribute_outputs,
+            r_data);
         break;
       }
       case IntersectionMode::Surface: {
@@ -1293,12 +1297,13 @@ static void node_geo_exec(GeoNodeExecParams params)
         const float min_angle = params.extract_input<float>("Min Angle");
         const float max_angle = params.extract_input<float>("Max Angle");
         if (mesh_set.has_mesh()) {
-          set_curve_intersections_mesh(mesh_set,
-                                       src_curves,
-                                       ids,
-                                       math::clamp(float2(min_angle, max_angle), 0.0f, pi_2_f_eps),
-                                       attribute_outputs,
-                                       r_data);
+          set_curve_intersections_mesh(
+              mesh_set,
+              src_curves,
+              ids,
+              math::clamp(float2(min_angle, max_angle), min_angle_eps, pi_2_f_eps),
+              attribute_outputs,
+              r_data);
         }
         else {
           geometry_set.clear();
