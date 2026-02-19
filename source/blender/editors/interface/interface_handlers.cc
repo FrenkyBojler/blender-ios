@@ -11960,7 +11960,7 @@ static constexpr float menu_dim_step_in = 0.015f;
 static constexpr float menu_dim_step_out = -0.025f;
 static constexpr float menu_dim_step_interval = 0.015f;
 
-bool ui_menus_dim_recursive(bContext *C, PopupBlockHandle *menu, const wmEvent *event, int level)
+bool menu_dim_recursive(bContext *C, PopupBlockHandle *menu, const wmEvent *event, int level)
 {
   Button *but = region_find_active_but(menu->region);
   HandleButtonData *data = (but) ? but->active : nullptr;
@@ -11990,7 +11990,7 @@ bool ui_menus_dim_recursive(bContext *C, PopupBlockHandle *menu, const wmEvent *
     start_dim_timer();
     return active;
   }
-  menu->dim = ui_menus_dim_recursive(C, sub_menu, event, level + 1);
+  menu->dim = menu_dim_recursive(C, sub_menu, event, level + 1);
   menu->reduce_shadow_offset = level > 0;
   start_dim_timer();
   return true;
@@ -12369,7 +12369,7 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
         retval = ui_handle_menus_recursive(C, event, data->menu, 0, false, false, false);
         Block *block = static_cast<Block *>(data->menu->region->runtime->uiblocks.first);
         if (block_is_menu(block)) {
-          ui_menus_dim_recursive(C, data->menu, event, 0);
+          menu_dim_recursive(C, data->menu, event, 0);
         }
       }
 
@@ -12450,7 +12450,7 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
   if (Block *block = static_cast<Block *>(menu->region->runtime->uiblocks.first);
       block_is_menu(block))
   {
-    ui_menus_dim_recursive(C, menu, event, 0);
+    menu_dim_recursive(C, menu, event, 0);
   }
 
   /* free if done, does not free handle itself */
