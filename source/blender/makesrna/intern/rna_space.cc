@@ -1997,7 +1997,7 @@ static const EnumPropertyItem *rna_SpaceImageEditor_display_channels_itemf(bCont
   void *lock;
   int totitem = 0;
 
-  ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
+  ibuf = ED_space_image_acquire_buffer(sima, &lock, 0, false);
   int mask = ED_space_image_get_display_channel_mask(ibuf);
   ED_space_image_release_buffer(sima, ibuf, lock);
 
@@ -2033,7 +2033,7 @@ static int rna_SpaceImageEditor_display_channels_get(PointerRNA *ptr)
   ImBuf *ibuf;
   void *lock;
 
-  ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
+  ibuf = ED_space_image_acquire_buffer(sima, &lock, 0, false);
   int mask = ED_space_image_get_display_channel_mask(ibuf);
   ED_space_image_release_buffer(sima, ibuf, lock);
 
@@ -2125,7 +2125,7 @@ static void rna_SpaceImageEditor_scopes_update(bContext *C, PointerRNA *ptr)
   void *lock;
 
   /* TODO(lukas): Support tiles in scopes? */
-  ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
+  ibuf = ED_space_image_acquire_buffer(sima, &lock, 0, true);
   if (ibuf) {
     ED_space_image_scopes_update(C, sima, ibuf, true);
     WM_main_add_notifier(NC_IMAGE, sima->image);
@@ -9022,6 +9022,11 @@ static void rna_def_spreadsheet_row_filter(BlenderRNA *brna)
   prop = RNA_def_property(srna, "value_float3", PROP_FLOAT, PROP_NONE);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Vector Value", "");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
+
+  prop = RNA_def_property(srna, "value_float4", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "4D Vector Value", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 
   prop = RNA_def_property(srna, "value_color", PROP_FLOAT, PROP_NONE);

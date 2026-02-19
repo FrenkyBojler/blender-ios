@@ -107,7 +107,7 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 
   FileAssetSelectParams *asset_params = sfile->asset_params;
 
-  Settings settings("file.browser");
+  Settings settings("file_browser");
 
   if (!asset_params) {
     asset_params = sfile->asset_params = MEM_new<FileAssetSelectParams>("FileAssetSelectParams");
@@ -156,7 +156,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 
   const char *blendfile_path = BKE_main_blendfile_path_from_global();
 
-  Settings settings("file.browser");
+  Settings settings("file_browser");
 
   /* create new parameters if necessary */
   if (!sfile->params) {
@@ -684,7 +684,7 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
     return;
   }
 
-  Settings settings("file.browser");
+  Settings settings("file_browser");
 
   params->thumbnail_size = settings.get_or("thumbnail_size", 96);
   params->details_flags = settings.get_or("details_flags",
@@ -712,7 +712,7 @@ void ED_fileselect_params_to_userdef(SpaceFile *sfile)
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
-  Settings settings("file.browser");
+  Settings settings("file_browser");
 
   settings.set("thumbnail_size", params->thumbnail_size);
   settings.set("details_flags", params->details_flags);

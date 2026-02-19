@@ -71,6 +71,14 @@ graph = [50.0, 950.0, 200.0, 780.0]
 info = [100.0, 1000.0, 300.0, 880.0]
 outliner = [100.0, 550.0, 350.0, 800.0]
 
+[file_browser]
+details_flags = 3
+thumbnail_size = 96
+filter_id = 0
+display_type = 1
+sort_type = 1
+flag = 0
+
 )_delim_";
 
 }  // namespace blender
