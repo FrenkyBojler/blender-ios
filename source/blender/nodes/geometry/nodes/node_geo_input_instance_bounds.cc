@@ -92,16 +92,18 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
         exec_mode::grain_size(128));
 
     Array<float3> output_bounds(mask.min_array_size());
-    mask.foreach_index(GrainSize(4096), [&](const int instance_index) {
-      const float3 bound_point = reference_bounds[handles[instance_index]];
-      if (local_space_) {
-        output_bounds[instance_index] = bound_point;
-      }
-      else {
-        const float4x4 &transform = transforms[instance_index];
-        output_bounds[instance_index] = math::transform_point(transform, bound_point);
-      }
-    });
+    mask.foreach_index(
+        [&](const int instance_index) {
+          const float3 bound_point = reference_bounds[handles[instance_index]];
+          if (local_space_) {
+            output_bounds[instance_index] = bound_point;
+          }
+          else {
+            const float4x4 &transform = transforms[instance_index];
+            output_bounds[instance_index] = math::transform_point(transform, bound_point);
+          }
+        },
+        exec_mode::grain_size(4096));
 
     return VArray<float3>::from_container(std::move(output_bounds));
   }
