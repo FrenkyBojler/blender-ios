@@ -50,9 +50,8 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
     custom_radius = 0.0f;
   }
   const float angle = RNA_float_get(op->ptr, "angle");
-  const bool lock_x = RNA_boolean_get(op->ptr, "lock_x");
-  const bool lock_y = RNA_boolean_get(op->ptr, "lock_y");
-  const bool lock_z = RNA_boolean_get(op->ptr, "lock_z");
+  bool lock[3];
+  RNA_boolean_get_array(op->ptr, "lock", lock);
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
@@ -80,9 +79,9 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
                        fit_method,
                        custom_radius,
                        angle,
-                       lock_x,
-                       lock_y,
-                       lock_z,
+                       lock[0],
+                       lock[1],
+                       lock[2],
                        mirror_axis[0],
                        mirror_axis[1],
                        mirror_axis[2]))
@@ -118,9 +117,10 @@ static void edbm_circularize_ui(bContext * /*C*/, wmOperator *op)
   layout.prop(op->ptr, "flatten", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   ui::Layout &lock_row = layout.row(true, IFACE_("Lock"));
-  lock_row.prop(op->ptr, "lock_x", ui::ITEM_R_TOGGLE, "X", ICON_NONE);
-  lock_row.prop(op->ptr, "lock_y", ui::ITEM_R_TOGGLE, "Y", ICON_NONE);
-  lock_row.prop(op->ptr, "lock_z", ui::ITEM_R_TOGGLE, "Z", ICON_NONE);
+  PropertyRNA *lock_prop = RNA_struct_find_property(op->ptr, "lock");
+  lock_row.prop(op->ptr, lock_prop, 0, 0, ui::ITEM_R_TOGGLE, "X", ICON_NONE);
+  lock_row.prop(op->ptr, lock_prop, 1, 0, ui::ITEM_R_TOGGLE, "Y", ICON_NONE);
+  lock_row.prop(op->ptr, lock_prop, 2, 0, ui::ITEM_R_TOGGLE, "Z", ICON_NONE);
 }
 
 void MESH_OT_circularize(wmOperatorType *ot)
@@ -178,9 +178,7 @@ void MESH_OT_circularize(wmOperatorType *ot)
                   true,
                   "Flatten",
                   "Flatten the circle, instead of projecting it on the mesh");
-  RNA_def_boolean(ot->srna, "lock_x", false, "Lock X", "Lock editing of the X-coordinate");
-  RNA_def_boolean(ot->srna, "lock_y", false, "Lock Y", "Lock editing of the Y-coordinate");
-  RNA_def_boolean(ot->srna, "lock_z", false, "Lock Z", "Lock editing of the Z-coordinate");
+  RNA_def_boolean_array(ot->srna, "lock", 3, nullptr, "Lock", "Lock editing of the axis");
 }
 
 }  // namespace blender
