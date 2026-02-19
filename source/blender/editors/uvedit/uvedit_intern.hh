@@ -9,8 +9,6 @@
 #pragma once
 
 #include "BKE_customdata.hh"
-#include "DNA_meshdata_types.h"
-#include "GEO_uv_parametrizer.hh"
 
 namespace blender {
 

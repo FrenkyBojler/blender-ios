@@ -10,7 +10,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_array.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_image_types.h"
@@ -2715,135 +2714,6 @@ void UV_OT_copy_mirrored_faces(wmOperatorType *ot)
               16);
 }
 
-static bool uvedit_straighten_island(Object *ob, Scene *scene)
-{
-  BMEditMesh *em = BKE_editmesh_from_object(ob);
-  BMesh *bm = em->bm;
-  ToolSettings *ts = scene->toolsettings;
-  if (!bm || bm->totvertsel == 0) {
-    return false;
-  }
-
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
-
-  Set<BMLoop *> original_selected;
-  Set<BMLoop *> original_pinned;
-  Set<BMEdge *> original_seams;
-  uvedit_uv_straighten(scene, bm, eUVWeldAlign::UV_STRAIGHTEN);
-
-  UvElementMap *selection_map = BM_uv_element_map_create(bm, scene, true, false, false, true);
-  UvElementMap *islands_map = BM_uv_element_map_create(bm, scene, false, false, false, true);
-
-  if (!selection_map || !islands_map) {
-    return false;
-  }
-
-  float2 min, max;
-  for (int i = 0; i < selection_map->total_islands; i++) {
-    UvElement *element = selection_map->storage + selection_map->island_indices[i];
-    INIT_MINMAX2(min, max);
-    for (int j = 0; j < selection_map->island_total_uvs[i]; j++) {
-      BMLoop *loop = element[j].l;
-      float *luv = BM_ELEM_CD_GET_FLOAT_P(loop, offsets.uv);
-      minmax_v2v2_v2(min, max, luv);
-      if (BM_ELEM_CD_GET_BOOL(loop, offsets.pin)) {
-        original_pinned.add(loop);
-      }
-      BM_ELEM_CD_SET_BOOL(loop, offsets.pin, true);
-      original_selected.add(loop);
-    }
-    for (int j = 0; j < selection_map->island_total_uvs[i]; j++) {
-      float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
-      if (max[0] - min[0] >= max[1] - min[1]) {
-        luv[1] = 0.5f * (min[1] + max[1]);
-      }
-      else {
-        luv[0] = 0.5f * (min[0] + max[0]);
-      }
-    }
-  }
-  for (int i = 0; i < islands_map->total_islands; i++) {
-    bool island_touched = false;
-    UvElement *element = islands_map->storage + islands_map->island_indices[i];
-    for (int j = 0; j < islands_map->island_total_uvs[i]; j++) {
-      BMLoop *loop = element[j].l;
-      if (original_selected.contains(loop)) {
-        island_touched = true;
-      }
-      if (BM_elem_flag_test(loop->e, BM_ELEM_SEAM)) {
-        original_seams.add(loop->e);
-        BM_elem_flag_set(loop->e, BM_ELEM_SEAM, false);
-      }
-    }
-    if (island_touched) {
-      for (int j = 0; j < islands_map->island_total_uvs[i]; j++) {
-        uvedit_loop_vert_select_set(ts, bm, element[j].l, true);
-      }
-    }
-  }
-
-  BM_uv_element_map_free(selection_map);
-
-  uv_seam_from_islands(id_cast<Mesh *>(ob->data), scene, true, false, false);
-  UnwrapOptions options{};
-  options.topology_from_uvs = false;
-  options.only_selected_faces = false;
-  options.only_selected_uvs = true;
-  options.use_abf = true;
-  options.fill_holes = false;
-  options.correct_aspect = true;
-  uvedit_unwrap(scene, ob, &options, nullptr, nullptr);
-
-  for (int i = 0; i < islands_map->total_islands; i++) {
-    UvElement *element = islands_map->storage + islands_map->island_indices[i];
-    for (int j = 0; j < islands_map->island_total_uvs[i]; j++) {
-      BMLoop *loop = element[j].l;
-      BM_ELEM_CD_SET_BOOL(loop, offsets.pin, original_pinned.contains(loop));
-      BM_elem_flag_set(loop->e, BM_ELEM_SEAM, original_seams.contains(loop->e));
-      uvedit_loop_vert_select_set(ts, bm, loop, original_selected.contains(loop));
-    }
-  }
-  BM_uv_element_map_free(islands_map);
-  return true;
-}
-
-static wmOperatorStatus UV_OT_straighten_island_exec(bContext *C, wmOperator * /*op*/)
-{
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  SpaceImage *sima = CTX_wm_space_image(C);
-
-  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
-
-  for (Object *ob : objects) {
-    bool changed = uvedit_straighten_island(ob, scene);
-
-    if (changed) {
-      uvedit_live_unwrap_update(sima, scene, ob);
-      DEG_id_tag_update(static_cast<ID *>(ob->data), 0);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
-    }
-  }
-
-  return OPERATOR_FINISHED;
-}
-
-static void UV_OT_straighten_island(wmOperatorType *ot)
-{
-
-  /* identifiers */
-  ot->name = "Straighten Island";
-  ot->description = "Straighten selected UV";
-  ot->idname = "UV_OT_straighten_island";
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-  /* API callbacks. */
-  ot->exec = UV_OT_straighten_island_exec;
-  ot->poll = ED_operator_uvedit;
-}
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2909,7 +2779,6 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_cursor_set);
   WM_operatortype_append(UV_OT_copy_mirrored_faces);
   WM_operatortype_append(UV_OT_move_on_axis);
-  WM_operatortype_append(UV_OT_straighten_island);
   WM_operatortype_append(UV_OT_straighten_island);
 }
 
