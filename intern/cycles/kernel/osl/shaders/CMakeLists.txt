@@ -112,9 +112,9 @@ find_path(OSL_SHADER_DIR
   NAMES
     stdosl.h
   HINTS
-    ${OSL_ROOT_DIR}
     ${OSL_SHADER_HINT}
     ${OSL_SHADER_HINT}/../
+    ${OSL_ROOT_DIR}
     ${OSL_HOME_DIR}
     /usr/share/OSL/
     /usr/include/OSL/
