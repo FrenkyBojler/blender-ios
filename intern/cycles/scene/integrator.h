@@ -100,6 +100,8 @@ class Integrator : public Node {
   NODE_SOCKET_API(int, denoise_start_sample);
   NODE_SOCKET_API(bool, use_denoise_pass_albedo);
   NODE_SOCKET_API(bool, use_denoise_pass_normal);
+  NODE_SOCKET_API(bool, use_denoise_pass_roughness);
+  NODE_SOCKET_API(bool, use_denoise_pass_depth_and_motion);
   NODE_SOCKET_API(DenoiserPrefilter, denoiser_prefilter);
   NODE_SOCKET_API(bool, denoise_use_gpu);
   NODE_SOCKET_API(DenoiserQuality, denoiser_quality);
