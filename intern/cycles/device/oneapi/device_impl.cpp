@@ -1363,6 +1363,9 @@ void OneapiDevice::get_adjusted_global_and_local_sizes(SyclQueue *queue,
   assert(kernel_global_size % kernel_local_size == 0);
 }
 
+/* IMPORTANT: Although current ocloc 101.8424 was used,
+ * with its version being 36246, we have manually tested and ensured (!)
+ * compatibility of its generated AoT binaries all the way down to 101.8306. */
 /* Compute-runtime (ie. NEO) version is what gets returned by sycl/L0 on Windows
  * since Windows driver 101.3268. */
 static const int lowest_supported_driver_version_win = 1018306;
