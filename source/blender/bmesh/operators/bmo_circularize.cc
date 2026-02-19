@@ -213,12 +213,12 @@ static float3x3 calculate_plane_orientation(Span<BMVert *> loop, float3 &r_cente
     r_center += float3(v->co);
   }
   r_center /= float(loop.size());
+  BMVert *prev = loop.last();
 
   /* Compute a best fit plane normal for the loop using Newell's method. */
-  for (const int i : loop.index_range()) {
-    BMVert *curr = loop[i];
-    BMVert *next = loop[(i + 1) % loop.size()];
-    add_newell_cross_v3_v3v3(normal, curr->co, next->co);
+  for (BMVert *curr : loop) {
+    add_newell_cross_v3_v3v3(normal, prev->co, curr->co);
+    prev = curr;
   }
   normal = math::normalize(normal);
   float3 guess = float3(1.0f, 0.0f, 0.0f);
