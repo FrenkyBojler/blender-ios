@@ -50,13 +50,6 @@ float4 sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
   return sum / (div * divx);
 }
 
-/* specialized as wh is ignored and it maps directly to texture() */
-template<>
-float4 sample_rect<Sampler::Bilinear>(const sampler2D &source, const float2 &uv, const float2 &wh)
-{
-  return texture(source, uv / float2(textureSize(source, 0)));
-}
-
 /* specialized as r is smaller and weight function needs to know size of a pixel */
 template<>
 float4 sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uv, const float2 &wh)
@@ -101,28 +94,3 @@ template<> static inline float weight<Sampler::Bspline>(float x)
   return x < 1 ? (0.5 * x - 1) * x * x + 4.0 / 6 : ((-1 / 6.0 * x + 1) * x - 2) * x + 4.0 / 3;
 }
 template float4 sample_rect<Sampler::Bspline>(sampler2D source, float2 uv, float2 wh);
-
-#if 0 /* potential other samplers */
-
-template <>
-static inline float weight<Sampler::Cubic>(float x)
-{
-  return x < 1 ? (1.5 * x - 15.0 / 6) * x * x + 1 : ((-0.5 * x + 15.0 / 6) * x - 4) * x + 2;
-}
-
-template <>
-static inline float weight<Sampler::Mitchell>(float x)
-{
-  return x < 1 ? (7.0 / 6 * x - 2) * x * x + 16.0 / 18 :
-                 ((-7.0 / 18 * x + 2) * x - 20.0 / 6) * x + 32.0 / 18;
-}
-
-/* r = 5*w1 */
-template <>
-static inline float weight<Sampler::Lanczos5>(float x)
-{
-  x = 3.1415926535897932f * x;
-  return x != 0 ? sin(x) * sin(x / 5) * 5 / (x * x) : 1;
-}
-
-#endif

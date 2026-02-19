@@ -13,7 +13,6 @@ template<enum Sampler sampler> void realize_on_domain()
   imageStore(domain_img, texel, sample_rect<sampler>(input_tx, uv, wh));
 }
 
-template void realize_on_domain<Sampler::Bilinear>;
 template void realize_on_domain<Sampler::Box>;
 template void realize_on_domain<Sampler::Bspline>;
 
