@@ -25705,7 +25705,7 @@ msgstr "ﺕﺎﻴﺋﺎﻳﺰﻴﻔﻟﺍ ﻥﺰﺧ"
 
 
 msgctxt "Operator"
-msgid "Bake All Physics"
+msgid "Bake All Dynamics"
 msgstr "ﺕﺎﻴﺋﺎﻳﺰﻔﻟﺍ ﻞﻛ ﻥﺰﺧ"
 
 

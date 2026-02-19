@@ -47149,11 +47149,11 @@ msgstr "피직스를 베이크"
 
 
 msgctxt "Operator"
-msgid "Bake All Physics"
+msgid "Bake All Dynamics"
 msgstr "모든 피직스를 베이크"
 
 
-msgid "Bake all physics"
+msgid "Bake all dynamics"
 msgstr "모든 피직스를 베이크"
 
 
