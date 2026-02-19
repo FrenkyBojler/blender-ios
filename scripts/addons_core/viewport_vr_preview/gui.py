@@ -209,7 +209,6 @@ class VIEW3D_PT_vr_actionmaps(Panel):
 
         col = layout.column(align=True, heading="Extensions")
         for profile in action_registry.VRActionRegistry().get_opt_in_profiles():
-            print(f'Drawing UI for opt-in profile: {profile.name}')
             col.prop(scene, f"vr_actions_enable_{profile.name}", text=profile.ui_label)
 
 

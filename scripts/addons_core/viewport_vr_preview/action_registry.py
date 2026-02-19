@@ -25,15 +25,12 @@ class VRActionRegistry:
 
     def __new__(cls):
         if cls._instance is None:
-            print("Creating VRActionRegistry instance.")
             cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):
         if self._initialized:
-            print("Instance already initialized. Skipping __init__ logic.")
             return
-        print("Initializing VRActionRegistry instance.")
         self._initialized = True
         self.actions = {}
         self.profiles = {}
@@ -46,19 +43,14 @@ class VRActionRegistry:
         else:
             bucket.append(action)
         self.dirty = True
-        print(f'ActionRegister(): register_action({action.name})')
 
     def register_profile(self, profile):
         if profile.name in self.profiles:
-            print(f'ActionRegister(): failed to register profile ({profile.name}) because already registered')
             return
-        print(f'ActionRegister(): register_profile({profile.name})')
         self.profiles[profile.name] = profile
         self.dirty = True
 
     def ensure_actionmaps(self, session_state):
-        print("ActionRegistry(): ensure_actionmaps")
-
         if not session_state:
             return False
         needs_build = self.dirty
@@ -75,7 +67,6 @@ class VRActionRegistry:
         return True
 
     def build_actionmaps(self, session_state):
-        print("ActionRegistry(): build_actionmaps")
         self._remove_actionmap(session_state, VRDefaultActionmaps.DEFAULT.value)
         self._remove_actionmap(session_state, VRDefaultActionmaps.GAMEPAD.value)
 
@@ -125,7 +116,6 @@ class VRActionRegistry:
         for profile in self.profiles.values():
             setting_name = VRActionRegistry.get_profile_setting_name(profile.name)
             if hasattr(bpy.types.Scene, setting_name):
-                print(f"ActionRegistry(): Removing property {setting_name} from bpy.types.Scene")
                 delattr(bpy.types.Scene, setting_name)
 
     def get_opt_in_profiles(self):
@@ -136,24 +126,19 @@ class VRActionRegistry:
     
     def get_profile_enabled(self, profile_name):
         if profile_name not in self.profiles:
-            print(f'ActionRegistry(): get_profile_enabled({profile_name}) = false because {profile_name} not in registered profiles')
             return False
         
         # Check if profile requires opt-in
         profile = self.profiles[profile_name]
         if not profile.requires_opt_in:
-            print(f'ActionRegistry(): get_profile_enabled({profile_name}) = true because {profile_name} does not require opt-in')
             return True
 
         # If profile opt-in is required, then return the current setting value
         setting_name = VRActionRegistry.get_profile_setting_name(profile_name)
         assert hasattr(bpy.context.scene, setting_name)
-        result = getattr(bpy.context.scene, setting_name)
-        print(f'ActionRegistry(): get_profile_enabled({profile_name}) = {result} because bpy.context.scene.{setting_name} is {result}')
-        return result
+        return getattr(bpy.context.scene, setting_name)
 
     def build_profile_settings(self):   
-        print("ActionRegistry(): build_profile_settings")
         self.destroy_profile_settings()
 
         opt_in_profiles = self.get_opt_in_profiles()
@@ -168,7 +153,6 @@ class VRActionRegistry:
             )
 
             setattr(bpy.types.Scene, setting_name, profile_setting)
-            print(f"Created property {setting_name} for bpy.types.Scene")
 
     def _remove_actionmap(self, session_state, name):
         actionmaps = session_state.actionmaps
@@ -237,7 +221,6 @@ def _iter_profile_classes(module):
 
 
 def register():
-    print("Generating action registry...")
     registry = VRActionRegistry()
 
     # Search through the actions module for action classes.
@@ -264,9 +247,7 @@ def register():
 
     registry.build_profile_settings()
 
-    print("Action registry generated.")
-    return registry
-
 
 def unregister():
-    print("Unregistering action registry...")
+    #TODO: Clean up action registry
+    pass
