@@ -60,7 +60,11 @@ static bool is_valid_boundary_edge(BMEdge *e, const char hflag, const bool check
     return false;
   }
 
-  /* A boundary edge must be connected to exactly one selected face. */
+  /* Wire edges are not valid boundary edges. */
+  if (!e->l) {
+    return false;
+  }
+
   int selected_face_count = 0;
   BMIter fiter;
   BMFace *f;
@@ -73,7 +77,7 @@ static bool is_valid_boundary_edge(BMEdge *e, const char hflag, const bool check
     }
   }
 
-  if (selected_face_count != 1) {
+  if (selected_face_count > 1) {
     return false;
   }
 
