@@ -2303,15 +2303,11 @@ static void widget_draw_text(const uiFontStyle *fstyle,
       params.align = align;
       uiFontStyle style = *fstyle;
       style.shadow = 0;
-      fontstyle_draw_ex(&style,
-                        rect,
-                        placeholder,
-                        strlen(placeholder),
-                        text_col,
-                        &params,
-                        nullptr,
-                        nullptr,
-                        nullptr);
+      uchar col[4];
+      copy_v4_v4_uchar(col, text_col);
+      col[3] *= 0.33f;
+      fontstyle_draw_ex(
+          &style, rect, placeholder, strlen(placeholder), col, &params, nullptr, nullptr, nullptr);
     }
   }
 
