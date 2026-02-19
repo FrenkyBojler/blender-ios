@@ -55,7 +55,7 @@ Checks:  >
   -modernize-pass-by-value,
   -modernize-raw-string-literal,
   -modernize-return-braced-init-list,
-  -modernize-use-designated-initializer,
+  -modernize-use-designated-initializers,
 
   objc-*
 
