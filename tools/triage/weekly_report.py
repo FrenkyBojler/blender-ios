@@ -375,12 +375,12 @@ def report_personal_weekly_get(
             print(f"* {item['title']} ({item['formatted_ref']})")
 
     print("**Review: {:d}**".format(len(pulls_reviewed)))
-    print_pulls(sorted(pulls_reviewed))
+    print_pulls(pulls_reviewed)
     print()
 
     # Print created diffs
     print("**Created Pull Requests: {:d}**".format(len(pulls_created)))
-    print_pulls(sorted(pulls_created))
+    print_pulls(pulls_created)
     print()
 
     nice_repo_names = {
