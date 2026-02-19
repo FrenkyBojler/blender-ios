@@ -101,6 +101,7 @@ void RNA_def_struct_register_funcs(StructRNA *srna,
  * Paths must be compatible with #RNA_path_resolve & related functions.
  */
 void RNA_def_struct_path_func(StructRNA *srna, const char *path);
+void RNA_def_struct_path_func_runtime(StructRNA *srna, StructPathFunc path_fn);
 /**
  * Only used in one case when we name the struct for the purpose of useful error messages.
  */
@@ -654,6 +655,10 @@ void RNA_def_property_string_funcs_runtime(PropertyRNA *prop,
 void RNA_def_property_string_search_func_runtime(PropertyRNA *prop,
                                                  StringPropertySearchFunc search_fn,
                                                  eStringPropertySearchFlag search_flag);
+void RNA_def_property_pointer_funcs_runtime(PropertyRNA *prop,
+                                            PointerPropertyGetFunc getfunc,
+                                            PointerPropertySetFunc setfunc,
+                                            PointerPropertyTypeFunc typefunc);
 
 void RNA_def_property_translation_context(PropertyRNA *prop, const char *context);
 

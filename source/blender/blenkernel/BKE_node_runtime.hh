@@ -35,6 +35,7 @@ struct bNodeTree;
 namespace nodes {
 struct FieldInferencingInterface;
 struct GeometryNodesEvalDependencies;
+struct GeneratedTreeSrnaData;
 class NodeDeclaration;
 struct GeometryNodesLazyFunctionGraphInfo;
 struct StructureTypeInterface;
@@ -158,6 +159,9 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * tree execution instructions and its evaluation.
    */
   bNodeTreeExec *execdata = nullptr;
+
+  StructRNA *geometry_nodes_modifier_srna = nullptr;
+  std::shared_ptr<nodes::GeneratedTreeSrnaData> geometry_nodes_srna_data;
 
   /** Information about how inputs and outputs of the node group interact with fields. */
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;

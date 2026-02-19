@@ -1285,6 +1285,11 @@ void RNA_def_struct_path_func(StructRNA *srna, const char *path)
   }
 }
 
+void RNA_def_struct_path_func_runtime(StructRNA *srna, StructPathFunc path_fn)
+{
+  srna->path = path_fn;
+}
+
 void RNA_def_struct_identifier(BlenderRNA *brna, StructRNA *srna, const char *identifier)
 {
   if (DefRNA.preprocess) {
@@ -3834,6 +3839,23 @@ void RNA_def_property_string_search_func_runtime(PropertyRNA *prop,
   sprop->search = search_fn;
   if (search_fn != nullptr) {
     sprop->search_flag = search_flag | PROP_STRING_SEARCH_SUPPORTED;
+  }
+}
+
+void RNA_def_property_pointer_funcs_runtime(PropertyRNA *prop,
+                                            PointerPropertyGetFunc getfunc,
+                                            PointerPropertySetFunc setfunc,
+                                            PointerPropertyTypeFunc typefunc)
+{
+  PointerPropertyRNA *pprop = reinterpret_cast<PointerPropertyRNA *>(prop);
+  if (getfunc) {
+    pprop->get = getfunc;
+  }
+  if (setfunc) {
+    pprop->set = setfunc;
+  }
+  if (typefunc) {
+    pprop->type_fn = typefunc;
   }
 }
 

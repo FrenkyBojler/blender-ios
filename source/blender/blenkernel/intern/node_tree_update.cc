@@ -37,6 +37,7 @@
 #include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_geometry_nodes_srna.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 #include "NOD_socket_declarations.hh"
@@ -46,6 +47,9 @@
 #include "DEG_depsgraph_build.hh"
 
 #include "BLT_translation.hh"
+
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 namespace blender {
 
@@ -578,6 +582,24 @@ class NodeTreeMainUpdater {
 
     if (ntree.tree_interface.requires_dependent_tree_updates()) {
       result.interface_changed = true;
+    }
+
+    if (result.interface_changed) {
+      if (ntree.runtime->geometry_nodes_srna_data) {
+        for (StructRNA *srna : ntree.runtime->geometry_nodes_srna_data->structs) {
+          /* Avoids warning when freeing the #StructRNA. */
+          RNA_struct_py_type_set(srna, nullptr);
+          RNA_struct_free(&RNA_blender_rna_get(), srna);
+        }
+        /* TODO: Need to check that no one else is referencing this data still? */
+        ntree.runtime->geometry_nodes_srna_data->structs.clear();
+        ntree.runtime->geometry_nodes_srna_data.reset();
+        ntree.runtime->geometry_nodes_modifier_srna = nullptr;
+      }
+      ntree.runtime->geometry_nodes_srna_data = std::make_unique<GeneratedTreeSrnaData>();
+      ntree.runtime->geometry_nodes_modifier_srna =
+          nodes::get_geometry_nodes_interface_srna_for_modifier(
+              ntree, *ntree.runtime->geometry_nodes_srna_data);
     }
 
 #ifndef NDEBUG
