@@ -175,7 +175,7 @@ static void WIDGETGROUP_node_transform_refresh(const bContext *C, wmGizmoGroup *
 
   void *lock;
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, nullptr, &lock);
 
   if (UNLIKELY(ibuf == nullptr)) {
     WM_gizmo_set_flag(cage, WM_GIZMO_HIDDEN, true);
@@ -421,6 +421,36 @@ static void WIDGETGROUP_node_crop_draw_prepare(const bContext *C, wmGizmoGroup *
   node_gizmo_calc_matrix_space(snode, region, gz->matrix_space);
 }
 
+static void gizmo_node_crop_foreach_rna_prop(
+    wmGizmoProperty *gz_prop,
+    const FunctionRef<void(PointerRNA &ptr, PropertyRNA *prop, int index)> callback)
+{
+  bNode *node = static_cast<bNode *>(gz_prop->custom_func.user_data);
+  bNodeTree &node_tree = node->owner_tree();
+
+  bNodeSocket *x_socket = bke::node_find_socket(*node, SOCK_IN, "X");
+  PointerRNA x_ptr = RNA_pointer_create_discrete(&node_tree.id, RNA_NodeSocket, x_socket);
+  PropertyRNA *x_prop = RNA_struct_find_property(&x_ptr, "default_value");
+
+  bNodeSocket *y_socket = bke::node_find_socket(*node, SOCK_IN, "Y");
+  PointerRNA y_ptr = RNA_pointer_create_discrete(&node_tree.id, RNA_NodeSocket, y_socket);
+  PropertyRNA *y_prop = RNA_struct_find_property(&y_ptr, "default_value");
+
+  bNodeSocket *width_socket = bke::node_find_socket(*node, SOCK_IN, "Width");
+  PointerRNA width_ptr = RNA_pointer_create_discrete(&node_tree.id, RNA_NodeSocket, width_socket);
+  PropertyRNA *width_prop = RNA_struct_find_property(&width_ptr, "default_value");
+
+  bNodeSocket *height_socket = bke::node_find_socket(*node, SOCK_IN, "Height");
+  PointerRNA height_ptr = RNA_pointer_create_discrete(
+      &node_tree.id, RNA_NodeSocket, height_socket);
+  PropertyRNA *height_prop = RNA_struct_find_property(&height_ptr, "default_value");
+
+  callback(x_ptr, x_prop, 0);
+  callback(y_ptr, y_prop, 0);
+  callback(width_ptr, width_prop, 0);
+  callback(height_ptr, height_prop, 0);
+}
+
 static void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
@@ -431,7 +461,7 @@ static void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgro
 
   void *lock;
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, nullptr, &lock);
 
   if (UNLIKELY(ibuf == nullptr)) {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
@@ -460,6 +490,7 @@ static void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgro
   params.value_set_fn = gizmo_node_crop_prop_matrix_set;
   params.range_get_fn = nullptr;
   params.user_data = node;
+  params.foreach_rna_prop_fn = gizmo_node_crop_foreach_rna_prop;
   WM_gizmo_target_property_def_func(gz, "matrix", &params);
 
   BKE_image_release_ibuf(ima, ibuf, lock);
@@ -625,6 +656,32 @@ static void WIDGETGROUP_bbox_draw_prepare(const bContext *C, wmGizmoGroup *gzgro
   node_gizmo_calc_matrix_space(snode, region, gz->matrix_space);
 }
 
+static void gizmo_node_box_mask_foreach_rna_prop(
+    wmGizmoProperty *gz_prop,
+    const FunctionRef<void(PointerRNA &ptr, PropertyRNA *prop, int index)> callback)
+{
+  bNode *node = static_cast<bNode *>(gz_prop->custom_func.user_data);
+
+  bNodeSocket *position_socket = bke::node_find_socket(*node, SOCK_IN, "Position");
+  bNodeTree &node_tree = node->owner_tree();
+  PointerRNA position_ptr = RNA_pointer_create_discrete(
+      &node_tree.id, RNA_NodeSocket, position_socket);
+  PropertyRNA *position_prop = RNA_struct_find_property(&position_ptr, "default_value");
+
+  bNodeSocket *size_socket = bke::node_find_socket(*node, SOCK_IN, "Size");
+  PointerRNA size_ptr = RNA_pointer_create_discrete(&node_tree.id, RNA_NodeSocket, size_socket);
+  PropertyRNA *size_prop = RNA_struct_find_property(&size_ptr, "default_value");
+
+  bNodeSocket *rotation_socket = bke::node_find_socket(*node, SOCK_IN, "Rotation");
+  PointerRNA rotation_ptr = RNA_pointer_create_discrete(
+      &node_tree.id, RNA_NodeSocket, rotation_socket);
+  PropertyRNA *rotation_prop = RNA_struct_find_property(&position_ptr, "default_value");
+
+  callback(position_ptr, position_prop, -1);
+  callback(size_ptr, size_prop, -1);
+  callback(rotation_ptr, rotation_prop, 0);
+}
+
 static void WIDGETGROUP_node_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
@@ -633,7 +690,7 @@ static void WIDGETGROUP_node_mask_refresh(const bContext *C, wmGizmoGroup *gzgro
 
   void *lock;
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Render Result");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, nullptr, &lock);
 
   if (UNLIKELY(ibuf == nullptr)) {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
@@ -663,6 +720,7 @@ static void WIDGETGROUP_node_mask_refresh(const bContext *C, wmGizmoGroup *gzgro
   params.value_set_fn = gizmo_node_box_mask_prop_matrix_set;
   params.range_get_fn = nullptr;
   params.user_data = node;
+  params.foreach_rna_prop_fn = gizmo_node_box_mask_foreach_rna_prop;
   WM_gizmo_target_property_def_func(gz, "matrix", &params);
 
   BKE_image_release_ibuf(ima, ibuf, lock);
@@ -825,7 +883,7 @@ static void WIDGETGROUP_node_glare_refresh(const bContext *C, wmGizmoGroup *gzgr
 
   void *lock;
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, nullptr, &lock);
 
   if (UNLIKELY(ibuf == nullptr)) {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
@@ -939,7 +997,7 @@ static void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup 
 
   void *lock;
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, nullptr, &lock);
 
   if (UNLIKELY(ibuf == nullptr)) {
     for (int i = 0; i < 4; i++) {
@@ -1126,7 +1184,7 @@ static void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgr
 
   void *lock;
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Render Result");
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, nullptr, &lock);
 
   if (UNLIKELY(ibuf == nullptr)) {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
