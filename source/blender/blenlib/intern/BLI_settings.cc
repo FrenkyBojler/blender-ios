@@ -79,4 +79,7 @@ bool BLI_settings_save()
   return true;
 }
 
+/* Define the global root instance. */
+const SettingsRoot settings{};
+
 }  // namespace blender
