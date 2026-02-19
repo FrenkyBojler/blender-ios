@@ -4,6 +4,7 @@
 
 import bpy
 import os
+import OpenImageIO as oiio
 from pathlib import Path
 import argparse
 
@@ -128,6 +129,11 @@ def render_permutations(permutations):
         output_paths.append(testpath)
         bpy.context.scene.render.filepath = filepath
         bpy.ops.render.opengl(write_still=True, view_context=True)
+        # Downscale output image
+        src = oiio.ImageBuf(filepath)
+        dst = oiio.ImageBuf(oiio.ImageSpec(128, 128, src.nchannels, src.spec().format))
+        oiio.ImageBufAlgo.resize(dst, src, filtername="box")
+        dst.write(filepath)
 
     output_list_txt = bpy.data.filepath.replace(".blend", "_permutations.txt")
     with open(output_list_txt, 'w') as file:
@@ -138,6 +144,10 @@ def run_test(permutations):
     """Check if the command line requested a specific permutation, otherwise run all tests and quit Blender."""
     if set_permutation_from_args(permutations):
         return
+
+    bpy.context.preferences.view.ui_scale = 4.0  # x4 super-sampling
+    bpy.context.scene.render.resolution_x = 512
+    bpy.context.scene.render.resolution_y = 512
 
     def run():
         render_permutations(permutations)
