@@ -139,6 +139,8 @@ void IMB_assign_gpu_texture(ImBuf *ibuf, gpu::Texture *texture);
  * Reads the GPU data texture of the image buffer if it exists and assigns the data to the float
  * buffer. This is only done if the buffer has the IB_HOST_BUFFER_INVALID flag is set, which is
  * then reset after the function executes.
+ *
+ * \warning Not thread-safe, so callee should worry about thread locks.
  */
 void IMB_ensure_host_buffer(ImBuf *ibuf);
 
