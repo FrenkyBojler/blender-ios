@@ -261,6 +261,40 @@ class SubDataDriverRemovalTest(AbstractEmptyDriverTest, unittest.TestCase):
         self.assertEqual(len(shape_key_id.animation_data.drivers), 0,
                          "Removing the shape key should remove any driver on it")
 
+    def test_remove_bone(self):
+        arm = bpy.data.armatures.new('Armature')
+        arm_ob = bpy.data.objects.new('ArmObject', arm)
+        bpy.context.scene.collection.objects.link(arm_ob)
+        bpy.context.view_layer.objects.active = arm_ob
+
+        bpy.ops.object.mode_set(mode='EDIT')
+        ebone = arm.edit_bones.new(name="test")
+        ebone.tail = (1, 0, 0)
+        ebone = arm.edit_bones.new(name="target")
+        ebone.head = (0, 1, 0)
+        ebone.tail = (1, 1, 0)
+
+        bpy.ops.object.mode_set(mode='POSE')
+        pose_bone = arm_ob.pose.bones["test"]
+        pose_bone.driver_add("location", 0)
+        constraint = pose_bone.constraints.new('LIMIT_DISTANCE')
+        constraint.name = "test"
+        constraint.driver_add("distance")
+        self.assertEqual(len(arm_ob.animation_data.drivers), 2)
+
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.context.evaluated_depsgraph_get()
+        arm.edit_bones.remove(arm.edit_bones["test"])
+        self.assertEqual(
+            len(
+                arm_ob.animation_data.drivers),
+            2,
+            "Drivers should only be removed once leaving edit mode. "
+            "This allows replacing a bone by deleting it and creating a bone with the same name")
+        bpy.ops.object.mode_set(mode='POSE')
+        self.assertEqual(len(arm_ob.animation_data.drivers), 0,
+                         "Removing the bone should remove the driver on it and on its constraint")
+
 
 def main():
     global args
