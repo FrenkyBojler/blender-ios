@@ -110,6 +110,38 @@ void sample_corner_attribute(const Span<int3> corner_tris,
 }
 
 template<typename T>
+BLI_NOINLINE static void sample_corner_attribute(const Span<int> corner_verts,
+                                                 const Span<int3> corner_tris,
+                                                 const Span<int> tri_indices,
+                                                 const Span<float3> bary_coords,
+                                                 const VArray<T> &src,
+                                                 const IndexMask &mask,
+                                                 const MutableSpan<T> dst)
+{
+  mask.foreach_index([&](const int i) {
+    const int3 &tri = corner_tris[tri_indices[corner_verts[i]]];
+    dst[i] = sample_corner_attribute_with_bary_coords(bary_coords[corner_verts[i]], tri, src);
+  });
+}
+
+void sample_corner_attribute(const Span<int> corner_verts,
+                             const Span<int3> corner_tris,
+                             const Span<int> tri_indices,
+                             const Span<float3> bary_coords,
+                             const GVArray &src,
+                             const IndexMask &mask,
+                             const GMutableSpan dst)
+{
+  BLI_assert(src.type() == dst.type());
+
+  const CPPType &type = src.type();
+  attribute_math::to_static_type(type, [&]<typename T>() {
+    sample_corner_attribute<T>(
+        corner_verts, corner_tris, tri_indices, bary_coords, src.typed<T>(), mask, dst.typed<T>());
+  });
+}
+
+template<typename T>
 void sample_face_attribute(const Span<int> tri_faces,
                            const Span<int> tri_indices,
                            const VArray<T> &src,
@@ -134,28 +166,6 @@ void sample_face_attribute(const Span<int> corner_tri_faces,
   const CPPType &type = src.type();
   attribute_math::to_static_type(type, [&]<typename T>() {
     sample_face_attribute<T>(corner_tri_faces, tri_indices, src.typed<T>(), mask, dst.typed<T>());
-  });
-}
-
-template<bool check_indices = false>
-static void sample_barycentric_weights(const Span<float3> vert_positions,
-                                       const Span<int> corner_verts,
-                                       const Span<int3> corner_tris,
-                                       const Span<int> tri_indices,
-                                       const Span<float3> sample_positions,
-                                       const IndexMask &mask,
-                                       MutableSpan<float3> bary_coords)
-{
-  mask.foreach_index([&](const int i) {
-    if constexpr (check_indices) {
-      if (tri_indices[i] == -1) {
-        bary_coords[i] = {};
-        return;
-      }
-    }
-    const int3 &tri = corner_tris[tri_indices[i]];
-    bary_coords[i] = compute_bary_coord_in_triangle(
-        vert_positions, corner_verts, tri, sample_positions[i]);
   });
 }
 
