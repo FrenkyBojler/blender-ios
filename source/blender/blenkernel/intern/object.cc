@@ -4784,6 +4784,29 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
   return flag;
 }
 
+void BKE_object_get_mirror_axes(const Object *ob, bool r_axis[3])
+{
+  r_axis[0] = r_axis[1] = r_axis[2] = false;
+
+  for (ModifierData &md : ob->modifiers) {
+    if (md.type == eModifierType_Mirror && (md.mode & eModifierMode_Realtime)) {
+      const MirrorModifierData *mmd = reinterpret_cast<MirrorModifierData *>(&md);
+      /* Only consider the mirror axes when merging is enabled. */
+      if (!(mmd->flag & MOD_MIR_NO_MERGE)) {
+        if (mmd->flag & MOD_MIR_AXIS_X) {
+          r_axis[0] = true;
+        }
+        if (mmd->flag & MOD_MIR_AXIS_Y) {
+          r_axis[1] = true;
+        }
+        if (mmd->flag & MOD_MIR_AXIS_Z) {
+          r_axis[2] = true;
+        }
+      }
+    }
+  }
+}
+
 int BKE_object_scenes_users_get(Main *bmain, Object *ob)
 {
   int num_scenes = 0;

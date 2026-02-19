@@ -9,6 +9,7 @@
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
+#include "BKE_object.hh"
 #include "BLI_listbase.h"
 #include "BLT_translation.hh"
 
@@ -64,28 +65,8 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
     if (bm->totvertsel < 3) {
       continue;
     }
-
-    bool mirror_x = false;
-    bool mirror_y = false;
-    bool mirror_z = false;
-
-    for (ModifierData &md : obedit->modifiers) {
-      if (md.type == eModifierType_Mirror && (md.mode & eModifierMode_Realtime)) {
-        MirrorModifierData *mmd = reinterpret_cast<MirrorModifierData *>(&md);
-        /* Only consider the mirror axes when merging is enabled. */
-        if (!(mmd->flag & MOD_MIR_NO_MERGE)) {
-          if (mmd->flag & MOD_MIR_AXIS_X) {
-            mirror_x = true;
-          }
-          if (mmd->flag & MOD_MIR_AXIS_Y) {
-            mirror_y = true;
-          }
-          if (mmd->flag & MOD_MIR_AXIS_Z) {
-            mirror_z = true;
-          }
-        }
-      }
-    }
+    bool mirror_axis[3];
+    BKE_object_get_mirror_axes(obedit, mirror_axis);
 
     if (!EDBM_op_callf(em,
                        op,
@@ -102,9 +83,9 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
                        lock_x,
                        lock_y,
                        lock_z,
-                       mirror_x,
-                       mirror_y,
-                       mirror_z))
+                       mirror_axis[0],
+                       mirror_axis[1],
+                       mirror_axis[2]))
     {
       continue;
     }
