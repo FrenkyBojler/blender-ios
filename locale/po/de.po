@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-02 14:51+0000\n"
+"POT-Creation-Date: 2026-02-16 10:28+0000\n"
 "PO-Revision-Date: 2025-12-02 20:06+0000\n"
 "Last-Translator: Bastitron <bastitronhd@gmail.com>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
@@ -4163,6 +4163,18 @@ msgid "Factor of Simplify using adaptive algorithm"
 msgstr "Faktor der Vereinfachung mit adaptivem Algorithmus"
 
 
+msgid "Stroke"
+msgstr "Pinselstrich"
+
+
+msgid "Fill"
+msgstr "Füllen"
+
+
+msgid "Both"
+msgstr "Beides"
+
+
 msgid "Active Layer"
 msgstr "Aktive Ebene"
 
@@ -4311,16 +4323,8 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "Definiert, wie sich die Eckpunktfarbe auf die Striche auswirkt"
 
 
-msgid "Stroke"
-msgstr "Pinselstrich"
-
-
 msgid "Vertex Color affects to Stroke only"
 msgstr "Eckpunktfarbe wirkt sich nur auf Strich aus"
-
-
-msgid "Fill"
-msgstr "Füllen"
 
 
 msgid "Vertex Color affects to Fill only"
@@ -18706,22 +18710,6 @@ msgid "Material slot name"
 msgstr "Materialsteckplatzname"
 
 
-msgid "Math"
-msgstr "Mathematisch"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Metaball"
-msgstr "Metaball"
-
-
-msgid "Show/Hide"
-msgstr "Zeigen/Verbergen"
-
-
 msgid "Read"
 msgstr "Lesen"
 
@@ -18734,16 +18722,32 @@ msgid "Sample"
 msgstr "Beispiel"
 
 
-msgid "Names"
-msgstr "Namen"
+msgid "Clean Up"
+msgstr "Aufräumen"
 
 
 msgid "Primitives"
 msgstr "Grundkörper"
 
 
-msgid "Clean Up"
-msgstr "Aufräumen"
+msgid "Show/Hide"
+msgstr "Zeigen/Verbergen"
+
+
+msgid "Special Characters"
+msgstr "Sonderzeichen"
+
+
+msgid "Kerning"
+msgstr "Kerning"
+
+
+msgid "Metaball"
+msgstr "Metaball"
+
+
+msgid "Names"
+msgstr "Namen"
 
 
 msgid "Pivot Point"
@@ -18764,6 +18768,10 @@ msgstr "Maskenbearbeitung"
 
 msgid "Vertex Group Locks"
 msgstr "Punktgruppen sperren"
+
+
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Mirror"
@@ -18798,10 +18806,6 @@ msgid "Select More/Less"
 msgstr "Mehr/weniger anzeigen"
 
 
-msgid "Layout"
-msgstr "Layout"
-
-
 msgid "Select Similar"
 msgstr "Ähnliche auswählen"
 
@@ -18810,24 +18814,28 @@ msgid "Select All by Trait"
 msgstr "Alles nach Merkmal auswählen"
 
 
+msgid "Keying"
+msgstr "Schlüsselbilder"
+
+
 msgid "Select Linked"
 msgstr "Verknüpfte auswählen"
+
+
+msgid "Tracking"
+msgstr "Verfolgen"
 
 
 msgid "Select Loops"
 msgstr "Schleifen auswählen"
 
 
+msgid "Math"
+msgstr "Mathematisch"
+
+
 msgid "Assign Material"
 msgstr "Material zuweisen"
-
-
-msgid "Keying"
-msgstr "Schlüsselbilder"
-
-
-msgid "Tracking"
-msgstr "Verfolgen"
 
 
 msgid "Light"
@@ -18890,6 +18898,10 @@ msgid "In-Betweens"
 msgstr "Dazwischen"
 
 
+msgid "Instances"
+msgstr "Instanzen"
+
+
 msgid "Toggle Bone Options"
 msgstr "Knochen-Optionen umschalten"
 
@@ -18902,6 +18914,10 @@ msgid "Disable Bone Options"
 msgstr "Knochen-Optionen ausschalten"
 
 
+msgid "Import"
+msgstr "Importieren"
+
+
 msgid "Mesh Select Mode"
 msgstr "Maschenauswahlmodus"
 
@@ -18910,24 +18926,12 @@ msgid "Face Data"
 msgstr "Flächendaten"
 
 
-msgid "Instances"
-msgstr "Instanzen"
-
-
-msgid "Import"
-msgstr "Importieren"
-
-
 msgid "Merge"
 msgstr "Zusammenführen"
 
 
-msgid "Special Characters"
-msgstr "Sonderzeichen"
-
-
-msgid "Kerning"
-msgstr "Kerning"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Assets"
@@ -25777,10 +25781,6 @@ msgid "Lasso Select"
 msgstr "Lasso-Auswahl"
 
 
-msgid "Higher values gives a smoother stroke"
-msgstr "Höhere Werte ergeben einen glatteren Strich"
-
-
 msgctxt "Operator"
 msgid "Select Left/Right"
 msgstr "Links/Rechts auswählen"
@@ -28185,10 +28185,6 @@ msgid "Undo History"
 msgstr "Verlauf rückgängig machen"
 
 
-msgid "Redo specific action in history"
-msgstr "Bestimmte Aktion im Verlauf wiederherstellen"
-
-
 msgid "Item"
 msgstr "Gegenstand"
 
@@ -29167,10 +29163,6 @@ msgstr "Glätten"
 
 msgid "Side"
 msgstr "Seite"
-
-
-msgid "Both"
-msgstr "Beides"
 
 
 msgctxt "Operator"
@@ -30253,10 +30245,6 @@ msgid "Deselect vertices at the boundary of each selection region"
 msgstr "Punkte an der Begrenzung jeder ausgewählten Region abwählen"
 
 
-msgid "Select vertex directly linked to already selected ones"
-msgstr "Eckpunkt auswählen, der direkt mit bereits ausgewählten verknüpft ist"
-
-
 msgctxt "Operator"
 msgid "Select Ungrouped"
 msgstr "Ungruppiertes auswählen"
@@ -31320,10 +31308,6 @@ msgid "Minor Radius"
 msgstr "Nebenradius"
 
 
-msgid "Radius of the torus' cross section"
-msgstr "Radius des Torus-Querschnitts"
-
-
 msgid "Minor Segments"
 msgstr "Nebensegmente"
 
@@ -31362,10 +31346,6 @@ msgstr "Scharfe Kanten"
 msgctxt "Operator"
 msgid "Rip"
 msgstr "Zerreißen"
-
-
-msgid "Disconnect vertex or edges from connected geometry"
-msgstr "Punkt oder Kanten von der verbundenen Geometrie trennen"
 
 
 msgid "Fill the ripped region"
@@ -32931,10 +32911,6 @@ msgstr "Modifikator entfernen"
 msgctxt "Operator"
 msgid "Add Metaball"
 msgstr "Metaball hinzufügen"
-
-
-msgid "Add an metaball object to the scene"
-msgstr "Metaball Objekt zur Szene hinzufügen"
 
 
 msgid "Primitive"
@@ -34965,10 +34941,6 @@ msgid "Cancel Render View"
 msgstr "Renderansicht zeigen/verbergen"
 
 
-msgid "Cancel show render view"
-msgstr "Anzeige der Renderansicht abbrechen"
-
-
 msgctxt "Operator"
 msgid "Show/Hide Render View"
 msgstr "Renderansicht zeigen/verbergen"
@@ -36450,17 +36422,9 @@ msgid "Add Surface Circle"
 msgstr "Kreisoberfläche hinzufügen"
 
 
-msgid "Construct a Nurbs surface Circle"
-msgstr "NURBS-Kreis-Oberfläche erzeugen"
-
-
 msgctxt "Operator"
 msgid "Add Surface Curve"
 msgstr "Kurvenoberfläche hinzufügen"
-
-
-msgid "Construct a Nurbs surface Curve"
-msgstr "NURBS-Kurven-Oberfläche erzeugen"
 
 
 msgctxt "Operator"
@@ -36468,17 +36432,9 @@ msgid "Add Surface Cylinder"
 msgstr "Zylinderoberfläche hinzufügen"
 
 
-msgid "Construct a Nurbs surface Cylinder"
-msgstr "NURBS-Zylinder-Oberfläche erzeugen"
-
-
 msgctxt "Operator"
 msgid "Add Surface Sphere"
 msgstr "Kugeloberfläche hinzufügen"
-
-
-msgid "Construct a Nurbs surface Sphere"
-msgstr "NURBS-Kugel-Oberfläche erzeugen"
 
 
 msgctxt "Operator"
@@ -36486,17 +36442,9 @@ msgid "Add Surface Patch"
 msgstr "Kacheloberfläche hinzufügen"
 
 
-msgid "Construct a Nurbs surface Patch"
-msgstr "NURBS-Oberfläche erzeugen"
-
-
 msgctxt "Operator"
 msgid "Add Surface Torus"
 msgstr "Oberflächentorus hinzufügen"
-
-
-msgid "Construct a Nurbs surface Torus"
-msgstr "NURBS-Torus-Oberfläche erzeugen"
 
 
 msgctxt "Operator"
@@ -36529,10 +36477,6 @@ msgstr "Texturslots hoch und runter bewegen"
 msgctxt "Operator"
 msgid "Paste Texture Slot Settings"
 msgstr "Texturslot Einstellungen einfügen"
-
-
-msgid "Copy the texture settings and nodes"
-msgstr "Textureinstellungen und -knoten kopieren"
 
 
 msgctxt "Operator"
@@ -45845,6 +45789,21 @@ msgid "Mute expanded settings for the modifier"
 msgstr "Themeneinstellungen für den Knoteneditor"
 
 
+msgctxt "Sequence"
+msgid "Color Balance"
+msgstr "Farbbalance"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Kurven"
+
+
+msgctxt "Sequence"
+msgid "Hue Correct"
+msgstr "Farbkorrektur"
+
+
 msgid "Bright/contrast modifier data for sequence strip"
 msgstr "RGB-Kurven-Modifikator für Sequenzstreifen"
 
@@ -53189,10 +53148,6 @@ msgid "Close"
 msgstr "Schließen"
 
 
-msgid "Toggle X-Ray"
-msgstr "X-Ray umschalten"
-
-
 msgid "To 3D Cursor"
 msgstr "Zum 3D-Cursor"
 
@@ -53959,10 +53914,6 @@ msgstr "Modifier löschen"
 
 msgid "Delete envelope control point"
 msgstr "Einhüllenden-Kontrollpunkt löschen"
-
-
-msgid "Coefficient"
-msgstr "Koeffizient"
 
 
 msgid "Keying set failed to insert any keyframes"
@@ -57959,21 +57910,6 @@ msgid "%s: failed to load '%s'"
 msgstr "%s: konnte nicht geladen werden '%s'"
 
 
-msgctxt "Sequence"
-msgid "Color Balance"
-msgstr "Farbbalance"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Kurven"
-
-
-msgctxt "Sequence"
-msgid "Hue Correct"
-msgstr "Farbkorrektur"
-
-
 msgid "Strips must be the same length"
 msgstr "Streifen muss die selbe Länge haben"
 
@@ -58000,10 +57936,6 @@ msgstr "Objektdrehpunkt"
 
 msgid "Wave Effect"
 msgstr "Welleneffekt"
-
-
-msgid "Input pending "
-msgstr "Eingabe ausstehend "
 
 
 msgid "Blender File View"
