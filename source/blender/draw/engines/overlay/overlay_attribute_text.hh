@@ -330,6 +330,9 @@ class AttributeTexts : Overlay {
                               StringRef(z_str, z_str_len)},
                              col);
         }
+        else if constexpr (std::is_same_v<T, std::string>) {
+          add_text_to_cache(dt, position, value, col);
+        }
         else if constexpr (std::is_same_v<T, float4x4>) {
           float3 location;
           math::EulerXYZ rotation;
