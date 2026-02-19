@@ -247,10 +247,12 @@ static ActionLayer *rna_Action_layers_new(bAction *dna_action,
 {
   animrig::Action &action = dna_action->wrap();
 
-  if (action.layers().size() >= 1) {
-    /* Not allowed to have more than one layer, for now. This limitation is in
-     * place until working with multiple animated IDs is fleshed out better. */
-    BKE_report(reports, RPT_ERROR, "An Action may not have more than one layer");
+  if (action.layers().size() >= 1 && !U.experimental.use_action_layers) {
+    /* Not allowed to have more than one layer, without going experimental */
+    BKE_report(reports,
+               RPT_ERROR,
+               "An Action can only have more than one layer by using the experimental option "
+               "\"Action Layers\"");
     return nullptr;
   }
 
@@ -1910,6 +1912,12 @@ static void rna_def_action_layer(BlenderRNA *brna)
                                     nullptr,
                                     nullptr);
   RNA_def_property_ui_text(prop, "Strips", "The list of strips that are on this animation layer");
+
+  prop = RNA_def_property(srna, "locked", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "layer_flags", int(animrig::Layer::Flags::Locked));
+  RNA_def_property_ui_text(prop, "Locked", "Locked layers cannot be edited");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update_notifier(prop, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED);
 
   rna_def_ActionLayer_strips(brna, prop);
 }
