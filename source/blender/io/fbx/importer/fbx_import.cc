@@ -9,6 +9,7 @@
 #include "BKE_camera.h"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_light.h"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
@@ -387,7 +388,13 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
     return;
   }
 
-  LayerCollection *lc = BKE_layer_collection_get_active(view_layer);
+  LayerCollection *lc = BKE_layer_collection_get_active_editable(view_layer);
+  if (!ID_IS_EDITABLE(lc->collection)) {
+    BKE_report(params.reports,
+               RPT_WARNING,
+               "Could not find an editable collection in current scene, imported data will not be "
+               "instantiated");
+  }
   //@TODO: do we need to sort objects by name? (faster to create within blender)
 
   FbxImportContext ctx(bmain, fbx, params);
@@ -442,6 +449,10 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   BKE_view_layer_synced_ensure(scene, view_layer);
   for (Object *obj : ctx.mapping.imported_objects) {
     Base *base = BKE_view_layer_base_find(view_layer, obj);
+    if (!base) {
+      /* Object not instantiated in current viewlayer. */
+      continue;
+    }
     BKE_view_layer_base_select_and_set_active(view_layer, base);
 
     int flags = ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION |

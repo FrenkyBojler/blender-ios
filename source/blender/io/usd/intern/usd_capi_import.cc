@@ -16,6 +16,7 @@
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
@@ -317,14 +318,18 @@ static void import_endjob(void *customdata)
     }
   }
   else if (data->archive) {
-    Base *base;
-    LayerCollection *lc;
     const Scene *scene = data->scene;
     ViewLayer *view_layer = data->view_layer;
 
     BKE_view_layer_base_deselect_all(scene, view_layer);
 
-    lc = BKE_layer_collection_get_active(view_layer);
+    LayerCollection *lc = BKE_layer_collection_get_active_editable(view_layer);
+    if (!ID_IS_EDITABLE(lc->collection)) {
+      BKE_report(data->params.worker_status->reports,
+                 RPT_WARNING,
+                 "Could not find an editable collection in current scene, imported data will not "
+                 "be instantiated");
+    }
 
     /* Create prototype collections for instancing. */
     data->archive->create_proto_collections(data->bmain, lc->collection);
@@ -349,7 +354,11 @@ static void import_endjob(void *customdata)
       if (!ob) {
         continue;
       }
-      base = BKE_view_layer_base_find(view_layer, ob);
+      Base *base = BKE_view_layer_base_find(view_layer, ob);
+      if (!base) {
+        /* Object not instantiated in current viewlayer. */
+        continue;
+      }
       /* TODO: is setting active needed? */
       BKE_view_layer_base_select_and_set_active(view_layer, base);
 
