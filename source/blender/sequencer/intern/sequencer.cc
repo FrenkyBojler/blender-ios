@@ -1260,6 +1260,16 @@ void eval_strips(Depsgraph *depsgraph, Scene *scene, ListBaseT<Strip> *seqbase)
 
 }  // namespace seq
 
+Editing::Editing()
+{
+  this->runtime = MEM_new<seq::EditingRuntime>(__func__);
+}
+
+Editing::~Editing()
+{
+  MEM_delete(this->runtime);
+}
+
 ListBaseT<Strip> *Editing::current_strips()
 {
   if (this->current_meta_strip) {

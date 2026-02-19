@@ -94,7 +94,7 @@ struct PrefetchJob {
   /* Set from outside. */
   bool is_scrubbing = false;
 
-public:
+ public:
   void init_depsgraph();
   void free_depsgraph();
 
@@ -105,7 +105,7 @@ public:
 static PrefetchJob *seq_prefetch_job_get(Scene *scene)
 {
   if (scene && scene->ed) {
-    return scene->ed->prefetch_job;
+    return scene->ed->runtime->prefetch_job;
   }
   return nullptr;
 }
@@ -431,7 +431,7 @@ void seq_prefetch_free(Scene *scene)
   pfjob->free_depsgraph();
   pfjob->free_gpu();
   BKE_main_free(pfjob->bmain_eval);
-  scene->ed->prefetch_job = nullptr;
+  scene->ed->runtime->prefetch_job = nullptr;
   MEM_delete(pfjob);
 }
 
@@ -556,7 +556,7 @@ static void *seq_prefetch_frames(void *job)
       /* Don't try to prefetch anything when we are outside of the timeline range. */
       break;
     }
-    pfjob->scene_eval->ed->prefetch_job = nullptr;
+    pfjob->scene_eval->ed->runtime->prefetch_job = nullptr;
 
     seq_prefetch_update_depsgraph(pfjob);
     AnimData *adt = BKE_animdata_from_id(&pfjob->context_cpy.scene->id);
@@ -570,7 +570,7 @@ static void *seq_prefetch_frames(void *job)
      * Scene copy don't reference original scene. Perhaps, this could be done by depsgraph.
      * Set to nullptr before return!
      */
-    pfjob->scene_eval->ed->prefetch_job = pfjob;
+    pfjob->scene_eval->ed->runtime->prefetch_job = pfjob;
 
     ListBaseT<Strip> *seqbase = active_seqbase_get(editing_get(pfjob->scene_eval));
     ListBaseT<SeqTimelineChannel> *channels = channels_displayed_get(
@@ -603,7 +603,7 @@ static void *seq_prefetch_frames(void *job)
   }
 
   pfjob->running = false;
-  pfjob->scene_eval->ed->prefetch_job = nullptr;
+  pfjob->scene_eval->ed->runtime->prefetch_job = nullptr;
 
   return nullptr;
 }
@@ -617,7 +617,7 @@ static PrefetchJob *seq_prefetch_start_ex(const RenderData *context, float cfra)
       return nullptr;
     }
     pfjob = MEM_new<PrefetchJob>("PrefetchJob");
-    context->scene->ed->prefetch_job = pfjob;
+    context->scene->ed->runtime->prefetch_job = pfjob;
 
     BLI_threadpool_init(&pfjob->threads, seq_prefetch_frames, 1);
     BLI_mutex_init(&pfjob->prefetch_suspend_mutex);
