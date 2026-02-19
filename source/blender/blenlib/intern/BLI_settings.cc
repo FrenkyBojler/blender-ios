@@ -18,7 +18,8 @@ namespace blender {
 constexpr toml::spec version = toml::spec::v(1, 1, 0);
 #define BLI_SETTINGS_FILE_NAME "settings.toml"
 
-toml::value data;
+toml::value settings_current;
+toml::value settings_default;
 
 static std::string settings_file_path()
 {
@@ -39,11 +40,21 @@ static void bli_settings_print_errors(std::vector<toml::error_info> errors)
 
 void BLI_settings_init()
 {
+  /* Load default settings. */
+  toml::result result = toml::try_parse_str(default_settings_toml, version);
+  if (result.is_ok()) {
+    settings_default = result.unwrap();
+  }
+  else {
+    bli_settings_print_errors(result.unwrap_err());
+  }
+
+  /* Load settings from on-disk file if found. */
   if (BLI_exists(settings_file_path().c_str())) {
     /* Read existing settings file. */
     toml::result result = toml::try_parse(settings_file_path(), version);
     if (result.is_ok()) {
-      data = result.unwrap();
+      settings_current = result.unwrap();
     }
     else {
       bli_settings_print_errors(result.unwrap_err());
@@ -51,24 +62,17 @@ void BLI_settings_init()
   }
   else {
     /* Create a new settings file from defaults. */
-    toml::result result = toml::try_parse_str(default_settings, version);
-    if (result.is_ok()) {
-      data = result.unwrap();
-      /* Save now so this can be edited while running. */
-      BLI_settings_save();
-    }
-    else {
-      bli_settings_print_errors(result.unwrap_err());
-    }
+    settings_current = settings_default;
+    BLI_settings_save();
   }
 }
 
 bool BLI_settings_save()
 {
-  if (data.is_empty()) {
+  if (settings_current.is_empty()) {
     return false;
   }
-  std::string s = toml::format(data, version);
+  std::string s = toml::format(settings_current, version);
   FILE *fp = BLI_fopen(settings_file_path().c_str(), "w");
   fputs(s.c_str(), fp);
   fclose(fp);
@@ -77,11 +81,11 @@ bool BLI_settings_save()
 
 bool Settings::exists(const std::string &item)
 {
-  if (data.is_empty()) {
+  if (settings_current.is_empty()) {
     BLI_settings_init();
   }
 
-  const auto &section_value = toml::find(data, section);
+  const auto &section_value = toml::find(settings_current, section);
   const auto &table = section_value.as_table();
   return table.count(item) > 0;
 }

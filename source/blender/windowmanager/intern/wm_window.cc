@@ -1425,7 +1425,7 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
 
   std::string key = get_window_settings_key(eSpace_Type(space_type));
   Settings settings("window.dimensions");
-  std::vector<float> bounds = settings.get_or(key, std::vector<float>{});
+  std::vector<float> bounds = settings.get<std::vector<float>>(key);
 
   const bool bounds_valid = (bounds.size() == 4 && (bounds[1] - bounds[0] > 150.0f) &&
                              (bounds[3] - bounds[2] > 100.0f));

@@ -12,7 +12,8 @@
 
 namespace blender {
 
-extern toml::value data;
+extern toml::value settings_current;
+extern toml::value settings_default;
 
 void BLI_settings_init();
 bool BLI_settings_save();
@@ -26,40 +27,45 @@ struct Settings {
 
   template<typename T> T get(const std::string &item);
 
-  template<typename T> T get_or(const std::string &item, const T &default_value);
-
   template<typename T> void set(const std::string &item, const T &value);
 };
 
 template<typename T> T Settings::get(const std::string &item)
 {
-  if (data.is_empty()) {
+  if (settings_current.is_empty()) {
     BLI_settings_init();
   }
-  return toml::get<T>(data[section][item]);
-}
 
-template<typename T> T Settings::get_or(const std::string &item, const T &default_value)
-{
-  if (data.is_empty()) {
-    BLI_settings_init();
+  try {
+    return toml::get<T>(settings_current[section][item]);
   }
-  return toml::get_or(data[section][item], default_value);
+  catch (const toml::type_error &) {
+    /* fall through to default. */
+  }
+
+  try {
+    return toml::get<T>(settings_default[section][item]);
+  }
+  catch (const toml::type_error &) {
+    /* fall through to final fallback. */
+  }
+
+  return T{};
 }
 
 template<typename T> void Settings::set(const std::string &item, const T &value)
 {
-  if (data.is_empty()) {
+  if (settings_current.is_empty()) {
     BLI_settings_init();
   }
-  data[section][item] = value;
+  settings_current[section][item] = value;
 }
 
 /**********************************/
 
-/* Default settings file content. */
+/* Default settings. */
 
-const std::string default_settings = R"_delim_(
+const std::string default_settings_toml = R"_delim_(
 title = "Settings"
 name = "Blender"
 
