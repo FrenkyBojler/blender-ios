@@ -45,7 +45,7 @@ struct wmXrViewfinderState {
   float capture_aperture_fstop;
   float capture_focus_distance;
 
-  /** Active/Selected Viewfinder button/mode, concept differs from the rest of the Blender UI. */
+  /** Active modes, concept differs from the rest of the Blender UI. */
   eXrViewfinderMode active_mode;
   eXrViewfinderLiveAction active_action_live;
   eXrViewfinderPlaybackAction active_action_playback;

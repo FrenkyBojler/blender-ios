@@ -2255,6 +2255,7 @@ ScrArea *WM_xr_session_area_get(const wmXrData *xr);
 
 void WM_xr_session_base_pose_reset(wmXrData *xr);
 void WM_xr_session_state_navigation_reset(wmXrSessionState *state);
+void WM_xr_session_state_viewfinder_reset(wmXrSessionState *state);
 
 void WM_xr_session_state_vignette_activate(wmXrData *xr);
 void WM_xr_session_state_vignette_update(wmXrSessionState *state);

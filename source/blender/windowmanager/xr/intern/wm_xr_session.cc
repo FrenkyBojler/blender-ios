@@ -69,6 +69,7 @@ static void wm_xr_session_create_cb()
 
   /* Initialize navigation. */
   WM_xr_session_state_navigation_reset(state);
+  WM_xr_session_state_viewfinder_reset(state);
   if (settings->base_scale < FLT_EPSILON) {
     settings->base_scale = 1.0f;
   }
@@ -323,6 +324,7 @@ void wm_xr_session_draw_data_update(wmXrSessionState *state,
       }
       /* Reset navigation. */
       WM_xr_session_state_navigation_reset(state);
+      WM_xr_session_state_viewfinder_reset(state);
       break;
     case SESSION_STATE_EVENT_POSITION_TRACKING_TOGGLE:
       if (use_position_tracking) {
@@ -795,17 +797,21 @@ void WM_xr_session_state_navigation_reset(wmXrSessionState *state)
   state->nav_scale = 1.0f;
   state->is_navigation_dirty = true;
   state->swap_hands = false;
+}
 
-  /* Viewfinder Runtime values. */
+void WM_xr_session_state_viewfinder_reset(wmXrSessionState *state)
+{
+  /* Runtime values. */
   state->viewfinder.runtime_smoothing_delta_t = 0.0f;
   state->viewfinder.runtime_capture_flash = 0.0f;
 
-  /* Viewfinder Settings. */
+  /* Capture settings. */
   state->viewfinder.capture_use_dof = false;
-  state->viewfinder.capture_lens = 50.0f;
+  state->viewfinder.capture_lens = 60.0f;
   state->viewfinder.capture_aperture_fstop = 2.8f;
   state->viewfinder.capture_focus_distance = 10.0f;
 
+  /* Active modes. */
   state->viewfinder.active_mode = XR_VIEWFINDER_MODE_LIVE;
   state->viewfinder.active_action_live = XR_VIEWFINDER_ACTION_LIVE_LENS;
   state->viewfinder.active_action_playback = XR_VIEWFINDER_ACTION_PB_BROWSE;
