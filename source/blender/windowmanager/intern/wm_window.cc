@@ -569,12 +569,38 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
   const bool is_single_editor = !WM_window_is_main_top_level(win) &&
                                 (screen && BLI_listbase_is_single(&screen->areabase));
 
+  /* User-initiated close of a workspace-owned window (workspace_owner still set): drop its
+   * extra_windows entry so it won't reopen on the next switch. Workspace-switch closes clear
+   * workspace_owner beforehand, so they skip this and keep the entry for later reopening. */
+  if (win->workspace_owner && screen) {
+    for (WorkSpaceExtraWindow &ew : win->workspace_owner->extra_windows.items_mutable()) {
+      if (ew.screen == screen) {
+        BKE_workspace_extra_window_remove(win->workspace_owner, &ew);
+        break;
+      }
+    }
+  }
+
+  /* Whether the screen is still referenced by an extra_windows entry: true for a
+   * workspace-switch close (entry kept), false for a manual close or regular window. */
+  bool layout_persistent = false;
+  if (screen && workspace) {
+    for (const WorkSpaceExtraWindow &ew : workspace->extra_windows) {
+      if (ew.screen == screen) {
+        layout_persistent = true;
+        break;
+      }
+    }
+  }
+
   wm_window_free(C, wm, win);
 
   /* If temp screen, delete it after window free (it stops jobs that can access it).
    * Also delete windows with single editor. If required, they are easy to restore, see: !132978.
+   * Skip layout deletion when the screen persists in a workspace's extra_windows list,
+   * so it can be restored when the workspace is re-activated.
    */
-  if ((screen && screen->temp) || is_single_editor) {
+  if ((screen && screen->temp) || (is_single_editor && !layout_persistent)) {
     Main *bmain = CTX_data_main(C);
 
     BLI_assert(BKE_workspace_layout_screen_get(layout) == screen);
@@ -3367,22 +3393,173 @@ WorkSpace *WM_window_get_active_workspace(const wmWindow *win)
   return BKE_workspace_active_get(win->workspace_hook);
 }
 
+/**
+ * Close all secondary (child) windows that are owned by \a workspace and parented to \a win.
+ * The current window bounds are saved back into the corresponding #WorkSpaceExtraWindow entries
+ * before closing so that positions are preserved for the next activation.
+ */
+static void workspace_extra_windows_close(bContext *C,
+                                          wmWindowManager *wm,
+                                          wmWindow *win,
+                                          WorkSpace *workspace)
+{
+  for (wmWindow &child : wm->windows.items_mutable()) {
+    if (child.parent != win || child.workspace_owner != workspace) {
+      continue;
+    }
+
+    /* Save current window bounds back into the matching extra window entry (matched by screen). */
+    bScreen *child_screen = WM_window_get_active_screen(&child);
+    for (WorkSpaceExtraWindow &extra_win : workspace->extra_windows) {
+      if (extra_win.screen == child_screen) {
+        extra_win.posx = child.posx;
+        extra_win.posy = child.posy;
+        extra_win.sizex = child.sizex;
+        extra_win.sizey = child.sizey;
+        if (extra_win.screen) {
+          extra_win.screen->winid = 0;
+        }
+        break;
+      }
+    }
+
+    /* Clear ownership before closing. #wm_window_close uses workspace_owner to tell
+     * workspace-switch closes (cleared here -> entry preserved) apart from
+     * user-initiated closes (still set -> entry removed so the window is not reopened). */
+    child.workspace_owner = nullptr;
+
+    wm_window_close(C, wm, &child);
+  }
+}
+
+/**
+ * Open secondary windows for \a workspace, each at the position stored in
+ * #WorkSpaceExtraWindow.  A #WorkSpaceLayout wrapping the stored screen is added to the
+ * workspace's layout list (or reused if one already exists from a previous activation).
+ */
+static void workspace_extra_windows_open(bContext *C, wmWindowManager *wm, WorkSpace *workspace)
+{
+  Main *bmain = CTX_data_main(C);
+
+  for (WorkSpaceExtraWindow &extra_win : workspace->extra_windows) {
+    if (!extra_win.screen || BLI_listbase_is_empty(&extra_win.screen->areabase)) {
+      continue;
+    }
+
+    /* Reuse an existing layout for this screen if one was kept from a previous activation,
+     * otherwise add a new one. */
+    WorkSpaceLayout *layout = nullptr;
+    for (WorkSpaceLayout &it : workspace->layouts) {
+      if (it.screen == extra_win.screen) {
+        layout = &it;
+        break;
+      }
+    }
+    if (!layout) {
+      layout = BKE_workspace_layout_add(bmain, *workspace, *extra_win.screen, "Extra Window");
+    }
+
+    rcti rect;
+    rect.xmin = extra_win.posx;
+    rect.xmax = extra_win.posx + extra_win.sizex;
+    rect.ymin = extra_win.posy;
+    rect.ymax = extra_win.posy + extra_win.sizey;
+
+    wmWindow *new_win = WM_window_open(C,
+                                       nullptr,
+                                       &rect,
+                                       SPACE_EMPTY,
+                                       false,
+                                       false,
+                                       false,
+                                       WIN_ALIGN_ABSOLUTE,
+                                       nullptr,
+                                       nullptr);
+
+    if (!new_win) {
+      continue;
+    }
+
+    /* WM_window_open created an auto layout with a fresh empty screen.
+     * Replace it with our stored layout. */
+    WorkSpaceLayout *auto_layout = WM_window_get_active_layout(new_win);
+    if (auto_layout != layout) {
+      WM_window_set_active_layout(new_win, workspace, layout);
+      /* Update the screen's window association and refresh all areas. */
+      extra_win.screen->winid = new_win->winid;
+      ED_screen_refresh(C, wm, new_win);
+      /* Remove the auto-created temporary layout (frees its empty screen). */
+      BKE_workspace_layout_remove(bmain, workspace, auto_layout);
+    }
+
+    new_win->workspace_owner = workspace;
+  }
+}
+
 void WM_window_set_active_workspace(bContext *C, wmWindow *win, WorkSpace *workspace)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win_parent = (win->parent) ? win->parent : win;
 
+  WorkSpace *workspace_old = WM_window_get_active_workspace(win_parent);
+  if (workspace_old && workspace_old != workspace) {
+    /* Auto-capture child windows created on this workspace but not yet associated with it,
+     * so every non-temp child is remembered the first time the user switches away.
+     *
+     * A file saved with extra windows open may, after loading, have both the physical window
+     * and an extra_windows entry for the same screen. Skip adding a duplicate entry in that
+     * case, but still set workspace_owner so #workspace_extra_windows_close can close it. */
+    for (wmWindow &child : wm->windows) {
+      if (child.parent != win_parent || child.workspace_owner) {
+        continue;
+      }
+      bScreen *screen = WM_window_get_active_screen(&child);
+      if (!screen || screen->temp) {
+        continue;
+      }
+      /* Check whether this screen is already registered to avoid duplicate entries. */
+      bool already_registered = false;
+      for (const WorkSpaceExtraWindow &ew : workspace_old->extra_windows) {
+        if (ew.screen == screen) {
+          already_registered = true;
+          break;
+        }
+      }
+      if (!already_registered) {
+        BKE_workspace_extra_window_add(
+            workspace_old, screen, child.posx, child.posy, child.sizex, child.sizey);
+      }
+      child.workspace_owner = workspace_old;
+    }
+
+    /* Close the (now fully captured) secondary windows owned by the old workspace. */
+    workspace_extra_windows_close(C, wm, win_parent, workspace_old);
+    /* wm_window_free() may have nulled the context window; restore it so that
+     * ED_workspace_change -> screen_change_prepare -> ED_screen_exit can read
+     * a valid prevwin from the context. */
+    CTX_wm_window_set(C, win);
+  }
+
   ED_workspace_change(workspace, C, wm, win);
 
   for (wmWindow &win_child : wm->windows) {
     if (win_child.parent == win_parent) {
+      /* Workspace-owned secondary windows are managed via extra_windows, skip them here. */
+      if (win_child.workspace_owner) {
+        continue;
+      }
       bScreen *screen = WM_window_get_active_screen(&win_child);
       /* Don't change temporary screens, they only serve a single purpose. */
-      if (screen->temp) {
+      if (!screen || screen->temp) {
         continue;
       }
       ED_workspace_change(workspace, C, wm, &win_child);
     }
+  }
+
+  /* Open secondary windows registered for the new workspace. */
+  if (workspace_old && workspace_old != workspace) {
+    workspace_extra_windows_open(C, wm, workspace);
   }
 }
 

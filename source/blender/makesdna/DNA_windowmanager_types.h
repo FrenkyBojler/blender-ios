@@ -183,6 +183,13 @@ struct wmWindow {
 
   struct WorkSpaceInstanceHook *workspace_hook = nullptr;
 
+  /**
+   * If non-null, this is a secondary (child) window owned by the given workspace.
+   * It was created via workspace capture and will be closed automatically when the
+   * workspace is deactivated. Only valid when #wmWindow.parent is set.
+   */
+  struct WorkSpace *workspace_owner = nullptr;
+
   /** Global areas aren't part of the screen, but part of the window directly.
    * \note Code assumes global areas with fixed height, fixed width not supported yet */
   ScrAreaMap global_areas;

@@ -91,6 +91,7 @@ static void window_manager_foreach_id(ID *id, LibraryForeachIDData *data)
     }
 
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, win.unpinned_scene, IDWALK_CB_NOP);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, win.workspace_owner, IDWALK_CB_NOP);
 
     if (flag & IDWALK_INCLUDE_UI) {
       for (ScrArea &area : win.global_areas.areabase) {

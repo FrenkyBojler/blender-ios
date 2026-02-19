@@ -140,6 +140,22 @@ struct wmOwnerID {
   char name[128] = "";
 };
 
+/**
+ * Stores the state of a secondary (child) window that belongs to a workspace.
+ * When the workspace is activated these windows are opened at the stored position;
+ * when the workspace is deactivated they are closed and their state is saved back here.
+ */
+struct WorkSpaceExtraWindow {
+  struct WorkSpaceExtraWindow *next = nullptr, *prev = nullptr;
+
+  /** Screen layout (areas, editor types, space data) for this window. */
+  struct bScreen *screen = nullptr;
+
+  /** Window position and size in absolute screen coordinates (pixels). */
+  short posx = 0, posy = 0;
+  short sizex = 0, sizey = 0;
+};
+
 enum eWorkSpaceFlags : int {
   WORKSPACE_USE_FILTER_BY_ORIGIN = (1 << 1),
   WORKSPACE_USE_PIN_SCENE = (1 << 2),
@@ -160,6 +176,13 @@ struct WorkSpace {
   /* Store for each hook (so for each window) which layout has
    * been activated the last time this workspace was visible. */
   ListBaseT<struct WorkSpaceDataRelation> hook_layout_relations = {nullptr, nullptr};
+
+  /**
+   * Secondary (child) windows that are opened/closed automatically with this workspace.
+   * Each entry stores a screen layout and window geometry.
+   * \see #WorkSpaceExtraWindow
+   */
+  ListBaseT<WorkSpaceExtraWindow> extra_windows = {nullptr, nullptr};
 
   /* Feature tagging (use for addons) */
   ListBaseT<wmOwnerID> owner_ids = {nullptr, nullptr};

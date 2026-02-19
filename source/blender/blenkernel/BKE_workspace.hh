@@ -22,6 +22,7 @@ struct Main;
 struct bScreen;
 struct bToolRef;
 struct WorkSpace;
+struct WorkSpaceExtraWindow;
 struct WorkSpaceInstanceHook;
 struct WorkSpaceLayout;
 struct WorkSpaceDataRelation;
@@ -76,6 +77,22 @@ void BKE_workspace_layout_remove(Main *bmain, WorkSpace *workspace, WorkSpaceLay
     ATTR_NONNULL();
 
 void BKE_workspace_relations_free(ListBaseT<WorkSpaceDataRelation> *relation_list);
+
+/**
+ * Add a new secondary-window entry to \a workspace.
+ * The \a screen user-count is incremented.
+ */
+WorkSpaceExtraWindow *BKE_workspace_extra_window_add(WorkSpace *workspace,
+                                                     bScreen *screen,
+                                                     short posx,
+                                                     short posy,
+                                                     short sizex,
+                                                     short sizey) ATTR_NONNULL(1);
+/**
+ * Remove and free \a extra_win from \a workspace, decrementing the screen user-count.
+ */
+void BKE_workspace_extra_window_remove(WorkSpace *workspace,
+                                       WorkSpaceExtraWindow *extra_win) ATTR_NONNULL();
 
 /** \} */
 

@@ -60,6 +60,7 @@ static void workspace_free_data(ID *id)
 
   workspace->owner_ids.free_no_destruct();
   workspace->layouts.free_no_destruct();
+  workspace->extra_windows.free_no_destruct();
 
   while (!workspace->tools.is_empty()) {
     BKE_workspace_tool_remove(workspace, static_cast<bToolRef *>(workspace->tools.first));
@@ -112,6 +113,49 @@ static void workspace_copy_data(
       BKE_workspace_layout_add(bmain, *workspace_dst, *layout_src.screen, layout_src.name);
     }
   }
+
+  BLI_listbase_clear(&workspace_dst->extra_windows);
+  for (WorkSpaceExtraWindow &extra_win_src : workspace_src->extra_windows) {
+    if (extra_win_src.screen == nullptr) {
+      continue;
+    }
+
+    bScreen *screen_dst = extra_win_src.screen;
+
+    if (flag & LIB_ID_COPY_SCREEN) {
+      /* The layout copy above already duplicated each layout's screen.  Find the
+       * destination layout whose source screen matches this extra_window's screen
+       * so both reference the same copy instead of creating a redundant duplicate. */
+      WorkSpaceLayout *src_layout = static_cast<WorkSpaceLayout *>(workspace_src->layouts.first);
+      WorkSpaceLayout *dst_layout = static_cast<WorkSpaceLayout *>(workspace_dst->layouts.first);
+      bScreen *found = nullptr;
+      while (src_layout && dst_layout) {
+        if (src_layout->screen == extra_win_src.screen) {
+          found = dst_layout->screen;
+          break;
+        }
+        src_layout = src_layout->next;
+        dst_layout = dst_layout->next;
+      }
+      if (found) {
+        screen_dst = found;
+      }
+      else {
+        screen_dst = id_cast<bScreen *>(
+            BKE_id_copy_ex(bmain, &extra_win_src.screen->id, nullptr, flag));
+      }
+    }
+    else {
+      BLI_assert(flag & LIB_ID_CREATE_NO_MAIN);
+    }
+
+    BKE_workspace_extra_window_add(workspace_dst,
+                                   screen_dst,
+                                   extra_win_src.posx,
+                                   extra_win_src.posy,
+                                   extra_win_src.sizex,
+                                   extra_win_src.sizey);
+  }
 }
 
 static void workspace_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -123,6 +167,10 @@ static void workspace_foreach_id(ID *id, LibraryForeachIDData *data)
 
   for (WorkSpaceLayout &layout : workspace->layouts) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, layout.screen, IDWALK_CB_USER);
+  }
+
+  for (WorkSpaceExtraWindow &extra_win : workspace->extra_windows) {
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, extra_win.screen, IDWALK_CB_USER);
   }
 
   BKE_viewer_path_foreach_id(data, &workspace->viewer_path);
@@ -137,6 +185,7 @@ static void workspace_blend_write(BlendWriter *writer, ID *id, const void *id_ad
   writer->write_struct_list(&workspace->layouts);
   writer->write_struct_list(&workspace->hook_layout_relations);
   writer->write_struct_list(&workspace->owner_ids);
+  writer->write_struct_list(&workspace->extra_windows);
   writer->write_struct_list(&workspace->tools);
   for (bToolRef &tref : workspace->tools) {
     if (tref.properties) {
@@ -155,6 +204,7 @@ static void workspace_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct_list(reader, WorkSpaceDataRelation, &workspace->hook_layout_relations);
   BLO_read_struct_list(reader, wmOwnerID, &workspace->owner_ids);
   BLO_read_struct_list(reader, bToolRef, &workspace->tools);
+  BLO_read_struct_list(reader, WorkSpaceExtraWindow, &workspace->extra_windows);
 
   for (WorkSpaceDataRelation &relation : workspace->hook_layout_relations) {
     /* Parent pointer does not belong to workspace data and is therefore restored in lib_link step
@@ -221,12 +271,21 @@ static void workspace_blend_read_after_liblink(BlendLibReader *reader, ID *id)
       BKE_workspace_layout_remove(bmain, workspace, &layout);
     }
   }
+
+  for (WorkSpaceExtraWindow &extra_win : workspace->extra_windows.items_mutable()) {
+    if (extra_win.screen == nullptr) {
+      BKE_workspace_extra_window_remove(workspace, &extra_win);
+    }
+    else if (ID_IS_LINKED(id) && extra_win.screen->temp) {
+      BKE_workspace_extra_window_remove(workspace, &extra_win);
+    }
+  }
 }
 
 IDTypeInfo IDType_ID_WS = {
     .id_code = WorkSpace::id_type,
     .id_filter = FILTER_ID_WS,
-    .dependencies_id_types = FILTER_ID_SCE,
+    .dependencies_id_types = FILTER_ID_SCE | FILTER_ID_SCR,
     .main_listbase_index = INDEX_ID_WS,
     .struct_size = sizeof(WorkSpace),
     .name = "WorkSpace",
@@ -374,6 +433,19 @@ WorkSpace *BKE_workspace_add(Main *bmain, const char *name)
 
 void BKE_workspace_remove(Main *bmain, WorkSpace *workspace)
 {
+  /* Remove extra_windows first: they may share screens with layouts, and
+   * BKE_workspace_layout_remove frees the screen.  Clearing extra_windows
+   * first avoids dangling pointers and keeps user-counts balanced. */
+  for (WorkSpaceExtraWindow *extra_win = static_cast<WorkSpaceExtraWindow *>(
+                                 workspace->extra_windows.first),
+                            *extra_win_next;
+       extra_win;
+       extra_win = extra_win_next)
+  {
+    extra_win_next = extra_win->next;
+    BKE_workspace_extra_window_remove(workspace, extra_win);
+  }
+
   for (WorkSpaceLayout *layout = static_cast<WorkSpaceLayout *>(workspace->layouts.first),
                        *layout_next;
        layout;
@@ -494,6 +566,34 @@ void BKE_workspace_relations_free(ListBaseT<WorkSpaceDataRelation> *relation_lis
     relation_next = relation->next;
     workspace_relation_remove(relation_list, relation);
   }
+}
+
+WorkSpaceExtraWindow *BKE_workspace_extra_window_add(WorkSpace *workspace,
+                                                     bScreen *screen,
+                                                     const short posx,
+                                                     const short posy,
+                                                     const short sizex,
+                                                     const short sizey)
+{
+  WorkSpaceExtraWindow *extra_win = MEM_new<WorkSpaceExtraWindow>(__func__);
+  extra_win->screen = screen;
+  if (screen) {
+    id_us_plus(&screen->id);
+  }
+  extra_win->posx = posx;
+  extra_win->posy = posy;
+  extra_win->sizex = sizex;
+  extra_win->sizey = sizey;
+  BLI_addtail(&workspace->extra_windows, extra_win);
+  return extra_win;
+}
+
+void BKE_workspace_extra_window_remove(WorkSpace *workspace, WorkSpaceExtraWindow *extra_win)
+{
+  if (extra_win->screen) {
+    id_us_min(&extra_win->screen->id);
+  }
+  BLI_freelinkN(&workspace->extra_windows, extra_win);
 }
 
 /** \} */
