@@ -36,8 +36,8 @@ void VKUniformBuffer::update(const void *data)
   }
 
   if (data) {
-    /* update immediately can only be used when the buffer is newly allocated. The reason is that
-     * the buffer can still be written to by a clear command inside the render graph.. */
+    /* Immediate updates can only be used when the buffer is newly allocated. The reason is that
+     * the buffer can still be written to by a clear command inside the render graph. */
     if (new_allocation) {
       buffer_.update_immediately(data);
     }
@@ -75,18 +75,6 @@ void VKUniformBuffer::clear_to_zero()
 
 void VKUniformBuffer::ensure_updated()
 {
-#if 0
-  if (!buffer_.is_allocated()) {
-    allocate();
-    if (!buffer_.is_allocated()) {
-      CLOG_ERROR(&LOG,
-                 "Unable to allocate uniform buffer [%s]. Most likely an out of memory issue.",
-                 name_);
-      return;
-    }
-  }
-#endif
-
   /* Upload attached data, during bind time. */
   if (data_) {
     update(data_);
