@@ -287,8 +287,10 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
         session_is_running = bpy.types.XrSessionState.is_running(context)
 
         xr_settings = context.window_manager.xr_session_settings
+        xr_viewfinder = context.window_manager.xr_session_state.viewfinder
+
         viewfinder_enable = xr_settings.viewfinder_enable
-        viewfinder_in_live_mode = xr_settings.viewfinder_active_mode == "LIVE"
+        viewfinder_in_live_mode = xr_viewfinder.active_mode == "LIVE"
 
         return session_is_running and viewfinder_enable and viewfinder_in_live_mode
 

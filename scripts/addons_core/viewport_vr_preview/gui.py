@@ -118,7 +118,7 @@ class VIEW3D_PT_vr_viewfinder(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "VR"
-    bl_label = "Viewfinder"
+    bl_label = "Location Scouting"
 
     def draw_header(self, context):
         layout = self.layout
@@ -132,7 +132,7 @@ class VIEW3D_PT_vr_viewfinder(Panel):
 
         layout.use_property_split = True
 
-        layout.prop(session_settings, "viewfinder_width", text="View Width")
+        layout.prop(session_settings, "viewfinder_width", text="Zoom")
 
 
 # Landmarks.
