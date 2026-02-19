@@ -3764,9 +3764,9 @@ static bool is_brush_related_tool(bContext *C)
           WM_operatortype_find("SCULPT_OT_trim_line_gesture", false),
           WM_operatortype_find("SCULPT_OT_trim_polyline_gesture", false),
 
-          WM_operatortype_find("SCULPT_OT_trim_box_additive_gesture", false),
-          WM_operatortype_find("SCULPT_OT_trim_lasso_additive_gesture", false),
-          WM_operatortype_find("SCULPT_OT_trim_polyline_additive_gesture", false),
+          WM_operatortype_find("SCULPT_OT_join_box_gesture", false),
+          WM_operatortype_find("SCULPT_OT_join_lasso_gesture", false),
+          WM_operatortype_find("SCULPT_OT_join_polyline_gesture", false),
 
           WM_operatortype_find("SCULPT_OT_mesh_filter", false),
           WM_operatortype_find("SCULPT_OT_cloth_filter", false),

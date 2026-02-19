@@ -4395,7 +4395,7 @@ static void gesture_box_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "PAINT_OT_mask_box_gesture");
   WM_modalkeymap_assign(keymap, "SCULPT_OT_face_set_box_gesture");
   WM_modalkeymap_assign(keymap, "SCULPT_OT_trim_box_gesture");
-  WM_modalkeymap_assign(keymap, "SCULPT_OT_trim_box_additive_gesture");
+  WM_modalkeymap_assign(keymap, "SCULPT_OT_join_box_gesture");
   WM_modalkeymap_assign(keymap, "VIEW2D_OT_zoom_border");
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_clip_border");
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_render_border");
@@ -4430,7 +4430,7 @@ static void gesture_lasso_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "PAINT_OT_mask_lasso_gesture");
   WM_modalkeymap_assign(keymap, "SCULPT_OT_face_set_lasso_gesture");
   WM_modalkeymap_assign(keymap, "SCULPT_OT_trim_lasso_gesture");
-  WM_modalkeymap_assign(keymap, "SCULPT_OT_trim_lasso_additive_gesture");
+  WM_modalkeymap_assign(keymap, "SCULPT_OT_join_lasso_gesture");
   WM_modalkeymap_assign(keymap, "ACTION_OT_select_lasso");
   WM_modalkeymap_assign(keymap, "CLIP_OT_select_lasso");
   WM_modalkeymap_assign(keymap, "GRAPH_OT_select_lasso");
@@ -4466,7 +4466,7 @@ static void gesture_polyline_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "PAINT_OT_mask_polyline_gesture");
   WM_modalkeymap_assign(keymap, "SCULPT_OT_face_set_polyline_gesture");
   WM_modalkeymap_assign(keymap, "SCULPT_OT_trim_polyline_gesture");
-  WM_modalkeymap_assign(keymap, "SCULPT_OT_trim_polyline_additive_gesture");
+  WM_modalkeymap_assign(keymap, "SCULPT_OT_join_polyline_gesture");
 }
 
 /* Zoom to border modal operators. */

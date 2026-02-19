@@ -3815,11 +3815,11 @@ class VIEW3D_MT_sculpt_trim(Menu):
 
         layout.separator()
 
-        props = layout.operator("sculpt.trim_box_additive_gesture", text="Box Add")
+        props = layout.operator("sculpt.join_box_gesture", text="Box Join")
 
-        props = layout.operator("sculpt.trim_lasso_additive_gesture", text="Lasso Add")
+        props = layout.operator("sculpt.join_lasso_gesture", text="Lasso Join")
 
-        props = layout.operator("sculpt.trim_polyline_additive_gesture", text="Polyline Add")
+        props = layout.operator("sculpt.join_polyline_gesture", text="Polyline Join")
 
 
 class VIEW3D_MT_sculpt_curves(Menu):
