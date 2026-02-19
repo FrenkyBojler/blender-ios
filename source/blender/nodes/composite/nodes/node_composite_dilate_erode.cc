@@ -333,103 +333,92 @@ class DilateErodeOperation : public NodeOperation {
 
   void execute_distance_threshold()
   {
-    Result mask_boundary = this->compute_distance_threshold_boundary();
-    Result flooded_boundary = this->context().create_result(ResultType::Int2,
-                                                            ResultPrecision::Half);
-    jump_flooding(this->context(), mask_boundary, flooded_boundary);
-    mask_boundary.release();
+    Result masked_pixels = this->context().create_result(ResultType::Int2, ResultPrecision::Half);
+    Result unmasked_pixels = this->context().create_result(ResultType::Int2,
+                                                           ResultPrecision::Half);
+    this->compute_distance_threshold_seeds(masked_pixels, unmasked_pixels);
 
-    this->compute_distance_threshold(flooded_boundary);
-    flooded_boundary.release();
+    Result flooded_masked_pixels = this->context().create_result(ResultType::Int2,
+                                                                 ResultPrecision::Half);
+    Result flooded_unmasked_pixels = this->context().create_result(ResultType::Int2,
+                                                                   ResultPrecision::Half);
+    jump_flooding(this->context(), masked_pixels, flooded_masked_pixels);
+    masked_pixels.release();
+    jump_flooding(this->context(), unmasked_pixels, flooded_unmasked_pixels);
+    unmasked_pixels.release();
+
+    this->compute_distance_threshold(flooded_masked_pixels, flooded_unmasked_pixels);
+    flooded_masked_pixels.release();
+    flooded_unmasked_pixels.release();
   }
 
-  /* Compute an image that marks the boundary pixels of the mask region as seed pixels for
-   * the jump flooding algorithm. */
-  Result compute_distance_threshold_boundary()
+  /* Compute an image that marks both masked and unmasked pixels as seed pixels for the jump
+   * flooding algorithm. */
+  void compute_distance_threshold_seeds(Result &masked_pixels, Result &unmasked_pixels)
   {
     if (this->context().use_gpu()) {
-      return this->compute_distance_threshold_boundary_gpu();
+      this->compute_distance_threshold_seeds_gpu(masked_pixels, unmasked_pixels);
+      return;
     }
 
-    return this->compute_distance_threshold_boundary_cpu();
+    this->compute_distance_threshold_seeds_cpu(masked_pixels, unmasked_pixels);
   }
 
-  Result compute_distance_threshold_boundary_gpu()
+  void compute_distance_threshold_seeds_gpu(Result &masked_pixels, Result &unmasked_pixels)
   {
     gpu::Shader *shader = this->context().get_shader(
-        "compositor_morphological_distance_threshold_boundary", ResultPrecision::Half);
+        "compositor_morphological_distance_threshold_seeds", ResultPrecision::Half);
     GPU_shader_bind(shader);
 
     const Result &mask = this->get_input("Mask");
     mask.bind_as_texture(shader, "mask_tx");
 
-    Result boundary = this->context().create_result(ResultType::Int2, ResultPrecision::Half);
     const Domain domain = mask.domain();
-    boundary.allocate_texture(domain);
-    boundary.bind_as_image(shader, "boundary_img");
+    masked_pixels.allocate_texture(domain);
+    masked_pixels.bind_as_image(shader, "masked_pixels_img");
+    unmasked_pixels.allocate_texture(domain);
+    unmasked_pixels.bind_as_image(shader, "unmasked_pixels_img");
 
     compute_dispatch_threads_at_least(shader, domain.data_size);
 
     mask.unbind_as_texture();
-    boundary.unbind_as_image();
+    masked_pixels.unbind_as_image();
+    unmasked_pixels.unbind_as_image();
     GPU_shader_unbind();
-
-    return boundary;
   }
 
-  Result compute_distance_threshold_boundary_cpu()
+  void compute_distance_threshold_seeds_cpu(Result &masked_pixels, Result &unmasked_pixels)
   {
     const Result &mask = this->get_input("Mask");
 
-    Result boundary = this->context().create_result(ResultType::Int2, ResultPrecision::Half);
     const Domain domain = mask.domain();
-    boundary.allocate_texture(domain);
+    masked_pixels.allocate_texture(domain);
+    unmasked_pixels.allocate_texture(domain);
 
     parallel_for(domain.data_size, [&](const int2 texel) {
-      /* Identify if any of the 8 neighbors around the center pixel are unmasked. */
-      bool has_unmasked_neighbors = false;
-      for (int j = -1; j <= 1; j++) {
-        for (int i = -1; i <= 1; i++) {
-          const int2 offset = int2(i, j);
-
-          /* Exempt the center pixel. */
-          if (offset == int2(0)) {
-            continue;
-          }
-
-          if (mask.load_pixel_extended<float>(texel + offset) <= 0.5f) {
-            has_unmasked_neighbors = true;
-            break;
-          }
-        }
-      }
-
-      /* The pixels at the boundary are those that are masked and have unmasked neighbors. */
       const bool is_masked = mask.load_pixel<float>(texel) > 0.5f;
-      const bool is_boundary_pixel = is_masked && has_unmasked_neighbors;
 
-      /* Encode the boundary information in the format expected by the jump flooding algorithm. */
-      const int2 jump_flooding_value = initialize_jump_flooding_value(texel, is_boundary_pixel);
+      const int2 masked_jump_flooding_value = initialize_jump_flooding_value(texel, is_masked);
+      masked_pixels.store_pixel(texel, masked_jump_flooding_value);
 
-      boundary.store_pixel(texel, jump_flooding_value);
+      const int2 unmasked_jump_flooding_value = initialize_jump_flooding_value(texel, !is_masked);
+      unmasked_pixels.store_pixel(texel, unmasked_jump_flooding_value);
     });
-
-    return boundary;
   }
 
-  /* Compute an image that marks the boundary pixels of the mask region as seed pixels for
-   * the jump flooding algorithm. */
-  void compute_distance_threshold(const Result &flooded_boundary)
+  void compute_distance_threshold(const Result &flooded_masked_pixels,
+                                  const Result &flooded_unmasked_pixels)
   {
     if (this->context().use_gpu()) {
-      this->compute_distance_threshold_gpu(flooded_boundary);
+      this->compute_distance_threshold_gpu(flooded_masked_pixels, flooded_unmasked_pixels);
       return;
     }
 
-    this->compute_distance_threshold_cpu(flooded_boundary);
+    this->compute_distance_threshold_cpu(flooded_masked_pixels, flooded_unmasked_pixels);
   }
 
-  void compute_distance_threshold_gpu(const Result &flooded_boundary)
+  void compute_distance_threshold_gpu(const Result &flooded_masked_pixels,
+                                      const Result &flooded_unmasked_pixels)
   {
     gpu::Shader *shader = this->context().get_shader(
         "compositor_morphological_distance_threshold");
@@ -441,7 +430,8 @@ class DilateErodeOperation : public NodeOperation {
     const Result &input_mask = this->get_input("Mask");
     input_mask.bind_as_texture(shader, "mask_tx");
 
-    flooded_boundary.bind_as_texture(shader, "flooded_boundary_tx");
+    flooded_masked_pixels.bind_as_texture(shader, "flooded_masked_pixels_tx");
+    flooded_unmasked_pixels.bind_as_texture(shader, "flooded_unmasked_pixels_tx");
 
     const Domain domain = this->compute_domain();
     Result &output = this->get_result("Mask");
@@ -455,7 +445,8 @@ class DilateErodeOperation : public NodeOperation {
     input_mask.unbind_as_texture();
   }
 
-  void compute_distance_threshold_cpu(const Result &flooded_boundary)
+  void compute_distance_threshold_cpu(const Result &flooded_masked_pixels,
+                                      const Result &flooded_unmasked_pixels)
   {
     const Result &mask = this->get_input("Mask");
 
@@ -467,11 +458,14 @@ class DilateErodeOperation : public NodeOperation {
     const int distance_offset = this->get_size();
 
     parallel_for(domain.data_size, [&](const int2 texel) {
-      const bool is_inside_mask = mask.load_pixel<float>(texel) > 0.5f;
-      const int2 closest_boundary_texel = flooded_boundary.load_pixel<int2>(texel);
-      const float distance_to_boundary = math::distance(float2(texel),
-                                                        float2(closest_boundary_texel));
-      const float signed_distance = is_inside_mask ? distance_to_boundary : -distance_to_boundary;
+      const bool is_masked = mask.load_pixel<float>(texel) > 0.5f;
+      const int2 closest_masked_texel = flooded_masked_pixels.load_pixel<int2>(texel);
+      const int2 closest_unmasked_texel = flooded_unmasked_pixels.load_pixel<int2>(texel);
+      const int2 closest_different_texel = is_masked ? closest_unmasked_texel :
+                                                       closest_masked_texel;
+      const float distance_to_different = math::distance(float2(texel),
+                                                         float2(closest_different_texel));
+      const float signed_distance = is_masked ? distance_to_different : -distance_to_different;
       const float value = math::clamp(
           (signed_distance + distance_offset) / falloff_size, 0.0f, 1.0f);
 
