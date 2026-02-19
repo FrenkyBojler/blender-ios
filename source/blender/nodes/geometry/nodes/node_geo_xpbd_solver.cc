@@ -1046,7 +1046,7 @@ class XpbdSolverStep {
         vert_positions, corner_verts, tri, contact_pos);
     const float3 direction_to_mesh = contact_pos - sample_pos;
     bool is_inside;
-    if (this->is_bary_coord_on_edge(bary_coords)) {
+    if (this->is_bary_coord_close_to_edge(bary_coords)) {
       /* The nearest point is on an edge, so its normal is unreliable, use a more robust test. */
       is_inside = this->test_is_inside_ray_using_rays(
           sample_pos, corner_tris_bvh, direction_to_mesh);
@@ -1057,9 +1057,9 @@ class XpbdSolverStep {
     return ClosestMeshContact{contact_pos, bary_coords, is_inside, tri_i};
   }
 
-  bool is_bary_coord_on_edge(const float3 &bary_coords) const
+  bool is_bary_coord_close_to_edge(const float3 &bary_coords) const
   {
-    constexpr float epsilon = 1e-6f;
+    constexpr float epsilon = 1e-3f;
     return math::abs(bary_coords[0]) < epsilon || math::abs(bary_coords[1]) < epsilon ||
            math::abs(bary_coords[2]) < epsilon;
   }
