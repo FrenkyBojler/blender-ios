@@ -56,6 +56,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       const std::string identifier = EvaluateClosureInputItemsAccessor::socket_identifier_for_item(
           item);
       auto &decl = panel.add_input(socket_type, item.name, identifier);
+      if (socket_type_supports_attributes(socket_type)) 
+      {
+        decl.supports_field();
+      }
       if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
         decl.structure_type(StructureType(item.structure_type));
       }
