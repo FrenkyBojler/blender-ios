@@ -437,7 +437,7 @@ int BLI_file_stat_mode(const char *path)
 #if defined(WIN32)
   BLI_stat_t st;
   wchar_t *tmp_16 = alloc_utf16_from_8(path, 1);
-  static int res = bli_wstat_fast(tmp_16, &st);
+  const int res = bli_wstat_fast(tmp_16, &st);
   free(tmp_16);
   if (res == -1) {
     return 0;
@@ -465,7 +465,6 @@ bool BLI_exists(const char *path)
 }
 
 #ifdef WIN32
-
 int BLI_fstat(int fd, BLI_stat_t *buffer)
 {
 #  if defined(_MSC_VER)
