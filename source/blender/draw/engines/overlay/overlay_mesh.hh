@@ -498,6 +498,9 @@ class Meshes : Overlay {
     if (show_retopology_) {
       manager.submit(edit_mesh_prepass_ps_, view);
     }
+    else {
+      manager.submit(edit_mesh_prepass_ps_, view);
+    }
     manager.submit(edit_mesh_face_sets_ps_, view);
     GPU_debug_group_end();
   }
@@ -513,6 +516,16 @@ class Meshes : Overlay {
       return (editmesh_eval_cage != nullptr) && (editmesh_eval_cage != editmesh_eval_final);
     }
     return false;
+  }
+
+  bool show_retopology() const
+  {
+    return show_retopology_;
+  }
+
+  bool show_face_sets() const
+  {
+    return show_face_sets_;
   }
 
  private:
