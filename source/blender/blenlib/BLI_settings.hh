@@ -23,20 +23,10 @@ struct Settings {
 
   Settings(const std::string &section) : section(section) {}
 
-  template<typename T> T get(const std::string &item);
+  template<typename T> T get(const std::string &item) const;
 
   template<typename T> void set(const std::string &item, const T &value);
 
-  /**
-   * Convenience proxy types to allow `settings["key"]` syntax.
-   *
-   * Usage:
-   *   int v = settings["key"];          // calls get<int>("key")
-   *   settings["key"] = v;             // calls set<int>("key", v)
-   *
-   * Note: The conversion operator template will call the templated `get<T>` method,
-   * which preserves the same behaviour and fallbacks as the explicit `get<T>` call.
-   */
   struct Proxy {
     Settings &owner;
     std::string key;
@@ -85,30 +75,14 @@ struct Settings {
   }
 };
 
-template<typename T> T Settings::get(const std::string &item)
+template<typename T> T Settings::get(const std::string &item) const
 {
   if (settings_current.is_empty()) {
     BLI_settings_init();
   }
-
   const toml::value &cur = settings_current[section][item];
   const toml::value &def = settings_default[section][item];
-
-  try {
-    return toml::get<T>(cur);
-  }
-  catch (const toml::type_error &) {
-    /* fall through to default */
-  }
-
-  try {
-    return toml::get<T>(def);
-  }
-  catch (const toml::type_error &) {
-    /* fall through to final fallback */
-  }
-
-  return T{};
+  return toml::get_or(cur, toml::get_or(def, T{}));
 }
 
 template<typename T> void Settings::set(const std::string &item, const T &value)
