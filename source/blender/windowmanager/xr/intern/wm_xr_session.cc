@@ -541,7 +541,6 @@ bool WM_xr_session_state_viewfinder_capture_lens_get(const wmXrData *xr, float *
 void WM_xr_session_state_viewfinder_capture_lens_set(wmXrData *xr, float lens)
 {
   if (WM_xr_session_exists(xr)) {
-    CLAMP(lens, 0.0f, 1.0f);
     xr->runtime->session_state.viewfinder.capture_lens = lens;
   }
 }
@@ -561,7 +560,6 @@ bool WM_xr_session_state_viewfinder_capture_aperture_fstop_get(const wmXrData *x
 void WM_xr_session_state_viewfinder_capture_aperture_fstop_set(wmXrData *xr, float aperture_fstop)
 {
   if (WM_xr_session_exists(xr)) {
-    CLAMP(aperture_fstop, 0.0f, 1.0f);
     xr->runtime->session_state.viewfinder.capture_aperture_fstop = aperture_fstop;
   }
 }
@@ -581,7 +579,6 @@ bool WM_xr_session_state_viewfinder_capture_focus_distance_get(const wmXrData *x
 void WM_xr_session_state_viewfinder_capture_focus_distance_set(wmXrData *xr, float focus_distance)
 {
   if (WM_xr_session_exists(xr)) {
-    CLAMP(focus_distance, 0.0f, 1.0f);
     xr->runtime->session_state.viewfinder.capture_focus_distance = focus_distance;
   }
 }
