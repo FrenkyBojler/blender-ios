@@ -100,8 +100,6 @@ static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectPara
 
 static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 {
-  UserDef U_default = {};
-
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_ASSETS);
   BLI_assert(sfile->op == nullptr);
 
@@ -148,7 +146,6 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 {
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_FILES);
 
-  UserDef U_default = {};
   FileSelectParams *params;
   wmOperator *op = sfile->op;
 

@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "..\..\..\extern\toml11\toml.hpp"
+#include "../../../extern/toml11/toml.hpp"
 
 namespace blender {
 extern toml::value settings_current;
