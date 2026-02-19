@@ -2351,7 +2351,8 @@ static bool generic_attribute_type_supported(const EnumPropertyItem *item)
               CD_PROP_INT32,
               CD_PROP_BYTE_COLOR,
               CD_PROP_QUATERNION,
-              CD_PROP_FLOAT4X4);
+              CD_PROP_FLOAT4X4,
+              SOCK_STRING);
 }
 
 static bool generic_attribute_type_supported_with_socket(const EnumPropertyItem *item)

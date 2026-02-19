@@ -119,6 +119,7 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   attribute_storage_blend_write_prepare(
       pointcloud->attribute_storage.wrap(),
       !BLO_write_is_undo(writer),
+      !BLO_write_is_undo(writer),
       [&](const AttrDomain /*domain*/) { return pointcloud->totpoint; },
       attribute_data);
 

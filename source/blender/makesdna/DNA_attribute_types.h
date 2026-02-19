@@ -38,11 +38,12 @@ struct AttributeSingle {
 };
 
 struct AttributeStringOffsets {
-  char *all_strings;
+  char *data;
   const ImplicitSharingInfoHandle *data_sharing_info;
   int *offsets;
-  int size;
   const ImplicitSharingInfoHandle *offsets_sharing_info;
+  int size;
+  char _pad[4];
 };
 
 /** DNA data for bke::Attribute. */

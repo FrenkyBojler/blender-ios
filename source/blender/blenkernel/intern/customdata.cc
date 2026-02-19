@@ -3894,13 +3894,13 @@ void CustomData_data_copy_value_bmesh_to_mesh(const eCustomDataType type,
 {
   const LayerTypeInfo *typeInfo = layerType_getInfo(type);
 
-  if (typeInfo->copy) {
-    typeInfo->copy(source, dest, 1);
-  }
-  else if (type == CD_PROP_STRING) {
+  if (type == CD_PROP_STRING) {
     const auto *source_str = static_cast<const MStringProperty *>(source);
     auto *dest_str = static_cast<std::string *>(dest);
     new (dest_str) std::string(source_str->s, source_str->s_len);
+  }
+  else if (typeInfo->copy) {
+    typeInfo->copy(source, dest, 1);
   }
   else {
     memcpy(dest, source, typeInfo->size);
@@ -3913,14 +3913,14 @@ void CustomData_data_copy_value_mesh_to_bmesh(const eCustomDataType type,
 {
   const LayerTypeInfo *typeInfo = layerType_getInfo(type);
 
-  if (typeInfo->copy) {
-    typeInfo->copy(source, dest, 1);
-  }
-  else if (type == CD_PROP_STRING) {
+  if (type == CD_PROP_STRING) {
     const auto *source_str = static_cast<const std::string *>(source);
     auto *dest_str = static_cast<MStringProperty *>(dest);
-    dest_str->s_len = std::max(source_str->size(), sizeof(MStringProperty::s));
+    dest_str->s_len = std::min(source_str->size(), sizeof(MStringProperty::s));
     memcpy(dest_str->s, source_str->data(), dest_str->s_len);
+  }
+  else if (typeInfo->copy) {
+    typeInfo->copy(source, dest, 1);
   }
   else {
     memcpy(dest, source, typeInfo->size);

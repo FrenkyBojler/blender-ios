@@ -50,6 +50,7 @@ class Attribute {
     static ArrayData from_default_value(const CPPType &type, int64_t domain_size);
     static ArrayData from_uninitialized(const CPPType &type, int64_t domain_size);
     static ArrayData from_constructed(const CPPType &type, int64_t domain_size);
+    template<typename ContainerT> static ArrayData from_container(ContainerT &&container);
   };
   /** Data for an attribute stored as a single value for the entire domain. */
   struct SingleData {
@@ -265,6 +266,18 @@ class AttributeStorage : public blender::AttributeStorage {
 
 /** The C++ wrapper needs to be the same size as the DNA struct. */
 static_assert(sizeof(AttributeStorage) == sizeof(AttributeStorage));
+
+template<typename ContainerT>
+inline Attribute::ArrayData Attribute::ArrayData::from_container(ContainerT &&container)
+{
+  auto *sharable_data = new ImplicitSharedValue<std::decay_t<ContainerT>>(
+      std::forward<ContainerT>(container));
+  return Attribute::ArrayData{
+      .data = sharable_data->data.data(),
+      .size = sharable_data->data.size(),
+      .sharing_info = ImplicitSharingPtr<>(sharable_data),
+  };
+}
 
 inline StringRefNull Attribute::name() const
 {

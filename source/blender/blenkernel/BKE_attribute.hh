@@ -45,6 +45,7 @@ enum class AttrStorageType : int8_t {
   /** A single value for the whole attribute. */
   Single = 1,
 };
+/* Don't include in #AttrStorageType, since it's not yet used at runtime. */
 constexpr int8_t ATTR_STORAGE_TYPE_STRING_OFFSETS = 3;
 
 enum class AttrType : int16_t {

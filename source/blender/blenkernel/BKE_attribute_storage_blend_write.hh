@@ -19,6 +19,7 @@ namespace blender::bke {
  */
 void attribute_storage_blend_write_prepare(AttributeStorage &data,
                                            bool use_5_0_compatibility,
+                                           bool use_5_0_compatible_string_attributes,
                                            FunctionRef<int(AttrDomain)> get_domain_size,
                                            AttributeStorage::BlendWriteData &write_data);
 
