@@ -31,6 +31,7 @@
 #include "WM_types.hh"
 
 #include "NOD_compositor_gizmos.hh" /* Own include. */
+
 namespace blender::nodes::gizmos {
 
 /* -------------------------------------------------------------------- */
@@ -135,7 +136,7 @@ static bool show_box_mask_gizmo(const SpaceNode &snode)
   return false;
 }
 
-bool WIDGETGROUP_node_box_mask_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool box_mask_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
@@ -148,7 +149,7 @@ bool WIDGETGROUP_node_box_mask_poll_space_node(const bContext *C, wmGizmoGroupTy
   return show_box_mask_gizmo(*snode);
 }
 
-void WIDGETGROUP_node_box_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+void box_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   NodeBBoxWidgetGroup *mask_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
   mask_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
@@ -169,7 +170,7 @@ void WIDGETGROUP_node_box_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgro
   };
 }
 
-void WIDGETGROUP_bbox_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
+void bbox_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
 {
   ARegion *region = CTX_wm_region(C);
   wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
@@ -273,7 +274,7 @@ static void gizmo_node_box_mask_prop_matrix_set(const wmGizmo *gz,
   gizmo_node_bbox_update(mask_group);
 }
 
-void WIDGETGROUP_box_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+void box_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
   NodeBBoxWidgetGroup *mask_group = static_cast<NodeBBoxWidgetGroup *>(gzgroup->customdata);
@@ -460,7 +461,7 @@ static bool show_crop_gizmo(const SpaceNode &snode)
   return false;
 }
 
-bool WIDGETGROUP_node_crop_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool crop_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
@@ -473,7 +474,7 @@ bool WIDGETGROUP_node_crop_poll_space_node(const bContext *C, wmGizmoGroupType *
   return show_crop_gizmo(*snode);
 }
 
-void WIDGETGROUP_node_crop_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
+void crop_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
 {
   ARegion *region = CTX_wm_region(C);
   wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
@@ -483,7 +484,7 @@ void WIDGETGROUP_node_crop_draw_prepare_space_node(const bContext *C, wmGizmoGro
   node_gizmo_calc_matrix_space(region, snode->zoom, {-snode->xof, -snode->yof}, gz->matrix_space);
 }
 
-void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+void crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
   const SpaceNode *snode = CTX_wm_space_node(C);
@@ -528,7 +529,7 @@ void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   BKE_image_release_ibuf(ima, ibuf, lock);
 }
 
-void WIDGETGROUP_node_crop_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+void crop_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   NodeBBoxWidgetGroup *crop_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
   crop_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
@@ -585,7 +586,7 @@ static bool show_glare_gizmo(const SpaceNode &snode)
   return true;
 }
 
-bool WIDGETGROUP_node_glare_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool glare_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
@@ -598,7 +599,7 @@ bool WIDGETGROUP_node_glare_poll_space_node(const bContext *C, wmGizmoGroupType 
   return show_glare_gizmo(*snode);
 }
 
-void WIDGETGROUP_node_glare_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
+void glare_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
 {
 
   NodeGlareWidgetGroup *glare_group = static_cast<NodeGlareWidgetGroup *>(gzgroup->customdata);
@@ -615,7 +616,7 @@ void WIDGETGROUP_node_glare_draw_prepare_space_node(const bContext *C, wmGizmoGr
                                                gz->matrix_space);
 }
 
-void WIDGETGROUP_node_glare_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+void glare_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   NodeGlareWidgetGroup *glare_group = MEM_new_uninitialized<NodeGlareWidgetGroup>(__func__);
 
@@ -629,7 +630,7 @@ void WIDGETGROUP_node_glare_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
   gzgroup->customdata = glare_group;
 }
 
-void WIDGETGROUP_node_glare_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+void glare_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
   NodeGlareWidgetGroup *glare_group = static_cast<NodeGlareWidgetGroup *>(gzgroup->customdata);
@@ -685,7 +686,7 @@ static bool show_corner_pin(const SpaceNode &snode)
   return false;
 }
 
-bool WIDGETGROUP_node_corner_pin_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool corner_pin_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
@@ -698,7 +699,7 @@ bool WIDGETGROUP_node_corner_pin_poll_space_node(const bContext *C, wmGizmoGroup
   return show_corner_pin(*snode);
 }
 
-void WIDGETGROUP_node_corner_pin_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
+void corner_pin_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
 {
   NodeCornerPinWidgetGroup *cpin_group = static_cast<NodeCornerPinWidgetGroup *>(
       gzgroup->customdata);
@@ -720,7 +721,7 @@ void WIDGETGROUP_node_corner_pin_draw_prepare_space_node(const bContext *C, wmGi
   }
 }
 
-void WIDGETGROUP_node_corner_pin_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+void corner_pin_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   NodeCornerPinWidgetGroup *cpin_group = MEM_new_uninitialized<NodeCornerPinWidgetGroup>(__func__);
   const wmGizmoType *gzt_move_3d = WM_gizmotype_find("GIZMO_GT_move_3d", false);
@@ -737,7 +738,7 @@ void WIDGETGROUP_node_corner_pin_setup(const bContext * /*C*/, wmGizmoGroup *gzg
   gzgroup->customdata = cpin_group;
 }
 
-void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+void corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
   NodeCornerPinWidgetGroup *cpin_group = static_cast<NodeCornerPinWidgetGroup *>(
@@ -801,7 +802,7 @@ static bool show_ellipse_mask_gizmo(const SpaceNode &snode)
   return false;
 }
 
-bool WIDGETGROUP_node_ellipse_mask_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool ellipse_mask_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
@@ -814,7 +815,7 @@ bool WIDGETGROUP_node_ellipse_mask_poll_space_node(const bContext *C, wmGizmoGro
   return show_ellipse_mask_gizmo(*snode);
 }
 
-void WIDGETGROUP_node_ellipse_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+void ellipse_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   NodeBBoxWidgetGroup *mask_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
   mask_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
@@ -936,7 +937,7 @@ static bool show_split(const SpaceNode &snode)
   return false;
 }
 
-void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+void split_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
   NodeBBoxWidgetGroup *split_group = reinterpret_cast<NodeBBoxWidgetGroup *>(gzgroup->customdata);
@@ -983,7 +984,7 @@ void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   BKE_image_release_ibuf(ima, ibuf, lock);
 }
 
-bool WIDGETGROUP_node_split_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool split_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
@@ -996,7 +997,7 @@ bool WIDGETGROUP_node_split_poll_space_node(const bContext *C, wmGizmoGroupType 
   return show_split(*snode);
 }
 
-void WIDGETGROUP_node_split_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+void split_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   NodeBBoxWidgetGroup *split_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
   split_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
@@ -1037,7 +1038,7 @@ static void gizmo_node_backdrop_prop_matrix_set(const wmGizmo * /*gz*/,
   snode->yof = matrix[3][1];
 }
 
-bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool transform_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
@@ -1056,7 +1057,7 @@ bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType * /*gzg
   return false;
 }
 
-void WIDGETGROUP_node_transform_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+void transform_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   wmGizmoWrapper *wwrapper = MEM_new_uninitialized<wmGizmoWrapper>(__func__);
 
@@ -1073,7 +1074,7 @@ void WIDGETGROUP_node_transform_setup(const bContext * /*C*/, wmGizmoGroup *gzgr
   gzgroup->customdata = wwrapper;
 }
 
-void WIDGETGROUP_node_transform_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+void transform_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
   wmGizmo *cage = (static_cast<wmGizmoWrapper *>(gzgroup->customdata))->gizmo;

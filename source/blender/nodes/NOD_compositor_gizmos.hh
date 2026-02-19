@@ -11,16 +11,15 @@ struct bContext;
 struct wmGizmoGroup;
 struct ARegion;
 struct wmGizmoGroupType;
-}  // namespace blender
 
-namespace blender::nodes::gizmos {
+namespace nodes::gizmos {
 
 /* -------------------------------------------------------------------- */
 /** \name Common BBox Gizmos
  * \{ */
 
-void WIDGETGROUP_bbox_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
-void WIDGETGROUP_box_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+void bbox_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
+void box_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup);
 
 /** \} */
 
@@ -28,8 +27,8 @@ void WIDGETGROUP_box_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup);
 /** \name Box Mask
  * \{ */
 
-void WIDGETGROUP_node_box_mask_setup(const bContext *C, wmGizmoGroup *gzgroup);
-bool WIDGETGROUP_node_box_mask_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
+void box_mask_setup(const bContext *C, wmGizmoGroup *gzgroup);
+bool box_mask_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
 
 /** \} */
 
@@ -37,10 +36,10 @@ bool WIDGETGROUP_node_box_mask_poll_space_node(const bContext *C, wmGizmoGroupTy
 /** \name Crop
  * \{ */
 
-void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgroup);
-void WIDGETGROUP_node_crop_setup(const bContext *C, wmGizmoGroup *gzgroup);
-bool WIDGETGROUP_node_crop_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
-void WIDGETGROUP_node_crop_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
+void crop_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+void crop_setup(const bContext *C, wmGizmoGroup *gzgroup);
+bool crop_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
+void crop_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
 
 /** \} */
 
@@ -48,10 +47,10 @@ void WIDGETGROUP_node_crop_draw_prepare_space_node(const bContext *C, wmGizmoGro
 /** \name Glare
  * \{ */
 
-void WIDGETGROUP_node_glare_setup(const bContext *C, wmGizmoGroup *gzgroup);
-void WIDGETGROUP_node_glare_refresh(const bContext *C, wmGizmoGroup *gzgroup);
-bool WIDGETGROUP_node_glare_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
-void WIDGETGROUP_node_glare_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
+void glare_setup(const bContext *C, wmGizmoGroup *gzgroup);
+void glare_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+bool glare_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
+void glare_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
 
 /** \} */
 
@@ -59,10 +58,10 @@ void WIDGETGROUP_node_glare_draw_prepare_space_node(const bContext *C, wmGizmoGr
 /** \name Corner Pin
  * \{ */
 
-void WIDGETGROUP_node_corner_pin_setup(const bContext *C, wmGizmoGroup *gzgroup);
-void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup);
-bool WIDGETGROUP_node_corner_pin_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
-void WIDGETGROUP_node_corner_pin_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
+void corner_pin_setup(const bContext *C, wmGizmoGroup *gzgroup);
+void corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+bool corner_pin_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
+void corner_pin_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
 
 /** \} */
 
@@ -70,17 +69,17 @@ void WIDGETGROUP_node_corner_pin_draw_prepare_space_node(const bContext *C, wmGi
 /** \name Ellipse Mask
  * \{ */
 
-void WIDGETGROUP_node_ellipse_mask_setup(const bContext *C, wmGizmoGroup *gzgroup);
-bool WIDGETGROUP_node_ellipse_mask_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
+void ellipse_mask_setup(const bContext *C, wmGizmoGroup *gzgroup);
+bool ellipse_mask_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Split
  * \{ */
 
-void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgroup);
-void WIDGETGROUP_node_split_setup(const bContext *C, wmGizmoGroup *gzgroup);
-bool WIDGETGROUP_node_split_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
+void split_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+void split_setup(const bContext *C, wmGizmoGroup *gzgroup);
+bool split_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
 
 /** \} */
 
@@ -88,10 +87,11 @@ bool WIDGETGROUP_node_split_poll_space_node(const bContext *C, wmGizmoGroupType 
 /** \name Backdrop Gizmo
  * \{ */
 
-bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType *gzgt);
-void WIDGETGROUP_node_transform_refresh(const bContext *C, wmGizmoGroup *gzgroup);
-void WIDGETGROUP_node_transform_setup(const bContext *C, wmGizmoGroup *gzgroup);
+bool transform_poll(const bContext *C, wmGizmoGroupType *gzgt);
+void transform_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+void transform_setup(const bContext *C, wmGizmoGroup *gzgroup);
 
 /** \} */
 
-}  // namespace blender::nodes::gizmos
+}  // namespace nodes::gizmos
+}  // namespace blender

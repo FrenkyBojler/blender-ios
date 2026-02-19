@@ -50,10 +50,10 @@ void NODE_GGT_backdrop_transform(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_transform_poll;
-  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_transform_setup;
+  gzgt->poll = nodes::gizmos::transform_poll;
+  gzgt->setup = nodes::gizmos::transform_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_transform_refresh;
+  gzgt->refresh = nodes::gizmos::transform_refresh;
 }
 
 /** \} */
@@ -69,11 +69,11 @@ void NODE_GGT_backdrop_crop(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_crop_poll_space_node;
-  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_crop_setup;
+  gzgt->poll = nodes::gizmos::crop_poll_space_node;
+  gzgt->setup = nodes::gizmos::crop_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_node_crop_draw_prepare_space_node;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_crop_refresh;
+  gzgt->draw_prepare = nodes::gizmos::crop_draw_prepare_space_node;
+  gzgt->refresh = nodes::gizmos::crop_refresh;
 }
 
 /** \} */
@@ -89,11 +89,11 @@ void NODE_GGT_backdrop_box_mask(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_box_mask_poll_space_node;
-  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_box_mask_setup;
+  gzgt->poll = nodes::gizmos::box_mask_poll_space_node;
+  gzgt->setup = nodes::gizmos::box_mask_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_node;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_box_mask_refresh;
+  gzgt->draw_prepare = nodes::gizmos::bbox_draw_prepare_space_node;
+  gzgt->refresh = nodes::gizmos::box_mask_refresh;
 }
 
 /** \} */
@@ -109,11 +109,11 @@ void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_ellipse_mask_poll_space_node;
-  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_ellipse_mask_setup;
+  gzgt->poll = nodes::gizmos::ellipse_mask_poll_space_node;
+  gzgt->setup = nodes::gizmos::ellipse_mask_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_node;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_box_mask_refresh;
+  gzgt->draw_prepare = nodes::gizmos::bbox_draw_prepare_space_node;
+  gzgt->refresh = nodes::gizmos::box_mask_refresh;
 }
 
 /** \} */
@@ -129,11 +129,11 @@ void NODE_GGT_backdrop_glare(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_glare_poll_space_node;
-  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_glare_setup;
+  gzgt->poll = nodes::gizmos::glare_poll_space_node;
+  gzgt->setup = nodes::gizmos::glare_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_node_glare_draw_prepare_space_node;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_glare_refresh;
+  gzgt->draw_prepare = nodes::gizmos::glare_draw_prepare_space_node;
+  gzgt->refresh = nodes::gizmos::glare_refresh;
 }
 
 /** \} */
@@ -149,11 +149,11 @@ void NODE_GGT_backdrop_corner_pin(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_corner_pin_poll_space_node;
-  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_corner_pin_setup;
+  gzgt->poll = nodes::gizmos::corner_pin_poll_space_node;
+  gzgt->setup = nodes::gizmos::corner_pin_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_node_corner_pin_draw_prepare_space_node;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_corner_pin_refresh;
+  gzgt->draw_prepare = nodes::gizmos::corner_pin_draw_prepare_space_node;
+  gzgt->refresh = nodes::gizmos::corner_pin_refresh;
 }
 
 /** \} */
@@ -169,11 +169,11 @@ void NODE_GGT_backdrop_split(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_split_poll_space_node;
-  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_split_setup;
+  gzgt->poll = nodes::gizmos::split_poll_space_node;
+  gzgt->setup = nodes::gizmos::split_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_node;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_split_refresh;
+  gzgt->draw_prepare = nodes::gizmos::bbox_draw_prepare_space_node;
+  gzgt->refresh = nodes::gizmos::split_refresh;
 }
 
 /** \} */
