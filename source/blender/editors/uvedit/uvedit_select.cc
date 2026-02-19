@@ -66,11 +66,11 @@
 namespace blender {
 
 enum class UVDelimitMode : int {
-  NONE = 0,
-  SEAM = 1,
-  SHARP = 2,
-  MATERIAL = 4,
+  SEAM = 1 << 0,
+  SHARP = 1 << 1,
+  MATERIAL = 1 << 2,
 };
+ENUM_OPERATORS(UVDelimitMode)
 
 static void uv_select_all_perform_multi_ex(const Scene *scene,
                                            Span<Object *> objects,
@@ -2679,7 +2679,7 @@ static void uv_select_linked_multi(const Scene *scene,
       efa = BM_face_at_index(bm, a);
 
       std::optional<blender::VectorSet<BMEdge *>> delimit_edges;
-      if (!ELEM(delimit_mode, UVDelimitMode::NONE)) {
+      if (delimit_mode != static_cast<UVDelimitMode>(0)) {
         delimit_edges.emplace();
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           delimit_edges->add(l->e);
@@ -2707,7 +2707,7 @@ static void uv_select_linked_multi(const Scene *scene,
           }
 
           if (!flag[iterv->face_index]) {
-            if (!ELEM(delimit_mode, UVDelimitMode::NONE)) {
+            if (delimit_mode != static_cast<UVDelimitMode>(0)) {
               BMFace *iterv_f = BM_face_at_index(bm, iterv->face_index);
               bool shares_valid_edge = false;
               BMLoop *iterv_l;
@@ -2716,19 +2716,19 @@ static void uv_select_linked_multi(const Scene *scene,
                 if (delimit_edges->contains(iterv_l->e)) {
                   bool edge_valid = true;
 
-                  if (ELEM(delimit_mode, UVDelimitMode::SEAM) &&
+                  if (bool(delimit_mode & UVDelimitMode::SEAM) &&
                       BM_elem_flag_test(iterv_l->e, BM_ELEM_SEAM))
                   {
                     edge_valid = false;
                   }
 
-                  if (ELEM(delimit_mode, UVDelimitMode::SHARP) &&
+                  if (bool(delimit_mode & UVDelimitMode::SHARP) &&
                       !BM_elem_flag_test(iterv_l->e, BM_ELEM_SMOOTH))
                   {
                     edge_valid = false;
                   }
 
-                  if (ELEM(delimit_mode, UVDelimitMode::MATERIAL) &&
+                  if (bool(delimit_mode & UVDelimitMode::MATERIAL) &&
                       efa->mat_nr != iterv_f->mat_nr)
                   {
                     edge_valid = false;
@@ -3817,7 +3817,7 @@ static bool uv_mouse_select_multi(bContext *C,
                              deselect,
                              toggle,
                              false,
-                             UVDelimitMode::NONE,
+                             static_cast<UVDelimitMode>(0),
                              BM_ELEM_SELECT);
       /* TODO: check if this actually changed. */
       changed = true;
@@ -4247,7 +4247,7 @@ static wmOperatorStatus uv_select_linked_internal(bContext *C,
   bool deselect = false;
   bool select_faces = (ts->uv_flag & UV_FLAG_SELECT_SYNC) && (ts->selectmode & SCE_SELECT_FACE) &&
                       (ts->uv_sticky == UV_STICKY_VERT);
-                      
+
   UvNearestHit hit = region ? uv_nearest_hit_init_max(&region->v2d) :
                               uv_nearest_hit_init_max_default();
 
