@@ -16,6 +16,7 @@ struct BMVert;
 struct BMEdge;
 struct BMFace;
 struct BMLoop;
+struct Mesh;
 struct Object;
 struct Scene;
 struct SpaceImage;
@@ -135,6 +136,10 @@ void uvedit_face_select_set_no_sync(const ToolSettings *ts,
 
 /* utility tool functions */
 
+bool uv_seam_from_islands(
+    Mesh *mesh, Scene *scene, bool mark_seams, bool mark_sharp, bool selected_boundaries);
+bool uvedit_uv_straighten_verts(Scene *scene, BMesh *bm);
+
 void uvedit_live_unwrap_update(SpaceImage *sima, Scene *scene, Object *obedit);
 
 /* operators */
@@ -152,6 +157,7 @@ void UV_OT_rip(wmOperatorType *ot);
 void UV_OT_stitch(wmOperatorType *ot);
 void UV_OT_smart_project(wmOperatorType *ot);
 void UV_OT_copy_mirrored_faces(wmOperatorType *ot);
+void UV_OT_straighten_island(wmOperatorType *ot);
 
 /* uvedit_copy_paste.cc */
 void UV_OT_copy(wmOperatorType *ot);

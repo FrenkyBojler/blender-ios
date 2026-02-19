@@ -622,6 +622,12 @@ static bool uvedit_uv_straighten(Scene *scene, BMesh *bm, eUVWeldAlign tool)
   BM_uv_element_map_free(element_map);
   return changed;
 }
+
+bool uvedit_uv_straighten_verts(Scene *scene, BMesh *bm)
+{
+  return uvedit_uv_straighten(scene, bm, UV_STRAIGHTEN);
+}
+
 enum class UVAlignInitialPosition {
   BoundingBox = 0,
   UVTileGrid = 1,
@@ -2316,6 +2322,60 @@ static void UV_OT_cursor_set(wmOperatorType *ot)
 /** \name Seam from UV Islands Operator
  * \{ */
 
+bool uv_seam_from_islands(Mesh *mesh,
+                          Scene *scene,
+                          const bool mark_seams,
+                          const bool mark_sharp,
+                          const bool selected_boundaries)
+{
+  BMEditMesh *em = mesh->runtime->edit_mesh.get();
+  BMesh *bm = em->bm;
+  BMIter iter;
+
+  const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+  bool changed = false;
+
+  BMFace *f;
+  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+    if (!uvedit_face_visible_test(scene, f)) {
+      continue;
+    }
+
+    BMLoop *l_iter;
+    BMLoop *l_first;
+
+    l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+    do {
+      if (l_iter == l_iter->radial_next) {
+        continue;
+      }
+      if (selected_boundaries && !uvedit_edge_select_test(scene, bm, l_iter, offsets)) {
+        continue;
+      }
+
+      bool mark = false;
+      BMLoop *l_other = l_iter->radial_next;
+      do {
+        if (!BM_loop_uv_share_edge_check(l_iter, l_other, offsets.uv)) {
+          mark = true;
+          break;
+        }
+      } while ((l_other = l_other->radial_next) != l_iter);
+
+      if (mark) {
+        if (mark_seams) {
+          BM_elem_flag_enable(l_iter->e, BM_ELEM_SEAM);
+        }
+        if (mark_sharp) {
+          BM_elem_flag_disable(l_iter->e, BM_ELEM_SMOOTH);
+        }
+        changed = true;
+      }
+    } while ((l_iter = l_iter->next) != l_first);
+  }
+  return changed;
+}
+
 static wmOperatorStatus uv_seams_from_islands_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
@@ -2329,56 +2389,7 @@ static wmOperatorStatus uv_seams_from_islands_exec(bContext *C, wmOperator *op)
 
   for (Object *ob : objects) {
     Mesh *mesh = id_cast<Mesh *>(ob->data);
-    BMEditMesh *em = mesh->runtime->edit_mesh.get();
-    BMesh *bm = em->bm;
-    BMIter iter;
-
-    if (!EDBM_uv_check(em)) {
-      continue;
-    }
-
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
-    bool changed = false;
-
-    BMFace *f;
-    BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-      if (!uvedit_face_visible_test(scene, f)) {
-        continue;
-      }
-
-      BMLoop *l_iter;
-      BMLoop *l_first;
-
-      l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-      do {
-        if (l_iter == l_iter->radial_next) {
-          continue;
-        }
-        if (!uvedit_edge_select_test(scene, em->bm, l_iter, offsets)) {
-          continue;
-        }
-
-        bool mark = false;
-        BMLoop *l_other = l_iter->radial_next;
-        do {
-          if (!BM_loop_uv_share_edge_check(l_iter, l_other, offsets.uv)) {
-            mark = true;
-            break;
-          }
-        } while ((l_other = l_other->radial_next) != l_iter);
-
-        if (mark) {
-          if (mark_seams) {
-            BM_elem_flag_enable(l_iter->e, BM_ELEM_SEAM);
-          }
-          if (mark_sharp) {
-            BM_elem_flag_disable(l_iter->e, BM_ELEM_SMOOTH);
-          }
-          changed = true;
-        }
-      } while ((l_iter = l_iter->next) != l_first);
-    }
-
+    bool changed = uv_seam_from_islands(mesh, scene, mark_seams, mark_sharp, true);
     if (changed) {
       changed_multi = true;
       DEG_id_tag_update(&mesh->id, 0);
@@ -2768,6 +2779,7 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_cursor_set);
   WM_operatortype_append(UV_OT_copy_mirrored_faces);
   WM_operatortype_append(UV_OT_move_on_axis);
+  WM_operatortype_append(UV_OT_straighten_island);
 }
 
 void ED_operatormacros_uvedit()

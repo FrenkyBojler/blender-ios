@@ -451,6 +451,7 @@ class IMAGE_MT_uvs(Menu):
 
         layout.prop(uv, "use_live_unwrap")
         layout.menu("IMAGE_MT_uvs_unwrap")
+        layout.operator("uv.straighten_island")
 
         layout.separator()
 
