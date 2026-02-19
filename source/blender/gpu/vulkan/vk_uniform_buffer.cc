@@ -23,12 +23,14 @@ namespace gpu {
 
 void VKUniformBuffer::update(const void *data)
 {
+#if 1
   const bool reallocate = buffer_.is_allocated() && buffer_.is_mapped() && data && data_uploaded_;
   if (reallocate) {
     /* Data could still be use */
     buffer_.free();
     data_uploaded_ = false;
   }
+#endif
 
   const bool new_allocation = !buffer_.is_allocated();
   if (new_allocation) {
@@ -38,7 +40,7 @@ void VKUniformBuffer::update(const void *data)
   if (data) {
     /* Immediate updates can only be used when the buffer is newly allocated. The reason is that
      * the buffer can still be written to by a clear command inside the render graph. */
-    if (new_allocation) {
+    if (new_allocation && buffer_.is_mapped()) {
       buffer_.update_immediately(data);
     }
     else {
@@ -80,6 +82,11 @@ void VKUniformBuffer::ensure_updated()
     update(data_);
     MEM_delete_void(data_);
     data_ = nullptr;
+  }
+  else {
+    if (!buffer_.is_allocated()) {
+      allocate();
+    }
   }
 }
 
