@@ -60,11 +60,21 @@ static bool is_valid_boundary_edge(BMEdge *e, const char hflag, const bool check
     return false;
   }
 
-  /* If edge has 2 selected faces, it's interior, not boundary. */
-  if (e->l && e->l->radial_next != e->l) {
-    if (BM_elem_flag_test(e->l->f, hflag) && BM_elem_flag_test(e->l->radial_next->f, hflag)) {
-      return false;
+  /* A boundary edge must be connected to exactly one selected face. */
+  int selected_face_count = 0;
+  BMIter fiter;
+  BMFace *f;
+  BM_ITER_ELEM (f, &fiter, e, BM_FACES_OF_EDGE) {
+    if (!BM_elem_flag_test(f, BM_ELEM_HIDDEN) && BM_elem_flag_test(f, hflag)) {
+      selected_face_count++;
+      if (selected_face_count > 1) {
+        break;
+      }
     }
+  }
+
+  if (selected_face_count != 1) {
+    return false;
   }
 
   /* If both vertices of an edge lie close to the same coordinate plane
