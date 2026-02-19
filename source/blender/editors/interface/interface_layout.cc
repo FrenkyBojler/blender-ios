@@ -289,6 +289,7 @@ struct LayoutItemPanelHeader : public Layout {
 
 struct LayoutItemPanelBody : public LayoutColumn {
   LayoutItemPanelBody() : LayoutColumn(ItemType::LayoutPanelBody, nullptr) {}
+  void estimate_impl() override;
   void resolve_impl() override;
 };
 
@@ -4032,7 +4033,7 @@ void LayoutItemPanelHeader::estimate_impl()
 
   const int2 size = item->size();
   w_ = size.x;
-  h_ = size.y;
+  h_ = size.y + style_get_dpi()->panelspace;
 }
 
 void LayoutItemPanelHeader::resolve_impl()
@@ -4043,22 +4044,31 @@ void LayoutItemPanelHeader::resolve_impl()
   Item *item = this->items().first();
 
   const int2 size = item->size();
-  y_ -= size.y;
-  ui_item_position(item, x_, y_, w_, size.y);
   const float offset = style_get_dpi()->panelspace;
+  y_ = y_ - size.y - offset;
+  ui_item_position(item, x_, y_ + int(offset / 2), w_, size.y);
   panel->runtime->layout_panels.headers.append(
       {float(y_) - offset, float(y_ + h_) - offset, open_prop_owner, open_prop_name});
+}
+
+void LayoutItemPanelBody::estimate_impl()
+{
+  LayoutColumn::estimate_impl();
+  h_ += 2 * style_get_dpi()->panelspace;
 }
 
 /* panel body layout */
 void LayoutItemPanelBody::resolve_impl()
 {
+  const float offset = style_get_dpi()->panelspace;
+  y_ -= offset;
   Panel *panel = this->root_panel();
   LayoutColumn::resolve_impl();
-  const float offset = style_get_dpi()->panelspace;
+  y_ -= offset;
+  h_ += 2 * style_get_dpi()->panelspace;
   panel->runtime->layout_panels.bodies.append({
-      float(y_ - space_) - offset,
-      float(y_ + h_ + space_) - offset,
+      float(y_) - offset,
+      float(y_ + h_) - offset,
   });
 }
 
@@ -4810,11 +4820,11 @@ PanelLayout Layout::panel_prop(const bContext *C,
     header_litem->open_prop_name = open_prop_name;
 
     Layout *row = &header_litem->row(true);
-    row->ui_units_y_set(1.2f);
 
     Block *block = row->block();
     const int icon = is_open ? ICON_DOWNARROW_HLT : ICON_RIGHTARROW;
-    const int width = ui_text_icon_width(this, "", icon, false);
+    const int width = UI_UNIT_X * 0.9;
+    uiDefBut(this->block(), ButtonType::Sepr, "", 0, 0, UI_UNIT_X * 0.5, 0, nullptr, 0.0, 0.0, "");
     uiDefIconTextBut(block, ButtonType::Label, icon, "", 0, 0, width, UI_UNIT_Y, nullptr, "");
 
     panel_layout.header = row;
