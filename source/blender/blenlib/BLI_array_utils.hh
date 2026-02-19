@@ -35,8 +35,8 @@ constexpr int64_t calc_copy_grain_size(const exec_mode::Tag auto mode, const int
 constexpr int64_t calc_copy_grain_size(const exec_mode::Mode mode, const int64_t type_size)
 {
   BLI_assert(mode.is_parallel);
-  if (mode.grain_size.has_value()) {
-    return *mode.grain_size;
+  if (mode.grain_size_override.has_value()) {
+    return *mode.grain_size_override;
   }
   return std::max<int64_t>(1, 32768 / type_size);
 }
@@ -148,7 +148,7 @@ inline void scatter(const Span<T> src,
   else {
     const int64_t grain_size = calc_copy_grain_size(mode, sizeof(T));
     threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
-      scatter(src, indices.slice(range), dst, exec_mode::serial);
+      scatter(src.slice(range), indices.slice(range), dst, exec_mode::serial);
     });
   }
 }
@@ -168,7 +168,7 @@ inline void scatter(const Span<T> src,
   else {
     const int64_t grain_size = calc_copy_grain_size(mode, sizeof(T));
     threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
-      scatter(src, indices.slice(range), dst, exec_mode::serial);
+      scatter(src.slice(range), indices.slice(range), dst, exec_mode::serial);
     });
   }
 }
@@ -227,7 +227,7 @@ inline void gather(const Span<T> src,
   else {
     const int64_t grain_size = calc_copy_grain_size(mode, sizeof(T));
     threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
-      gather(src, indices.slice(range), dst, exec_mode::serial);
+      gather(src, indices.slice(range), dst.slice(range), exec_mode::serial);
     });
   }
 }
@@ -287,9 +287,11 @@ inline void gather_group_to_group(const OffsetIndices<int> src_offsets,
                                   const Span<T> src,
                                   MutableSpan<T> dst)
 {
-  selection.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
-    dst.slice(dst_offsets[dst_i]).copy_from(src.slice(src_offsets[src_i]));
-  });
+  selection.foreach_index(
+      [&](const int64_t src_i, const int64_t dst_i) {
+        dst.slice(dst_offsets[dst_i]).copy_from(src.slice(src_offsets[src_i]));
+      },
+      exec_mode::grain_size(512));
 }
 
 template<typename T>
@@ -299,9 +301,11 @@ inline void gather_group_to_group(const OffsetIndices<int> src_offsets,
                                   const VArray<T> src,
                                   MutableSpan<T> dst)
 {
-  selection.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
-    src.materialize_compressed(src_offsets[src_i], dst.slice(dst_offsets[dst_i]));
-  });
+  selection.foreach_index(
+      [&](const int64_t src_i, const int64_t dst_i) {
+        src.materialize_compressed(src_offsets[src_i], dst.slice(dst_offsets[dst_i]));
+      },
+      exec_mode::grain_size(512));
 }
 
 template<typename T>
@@ -310,9 +314,9 @@ inline void gather_to_groups(const OffsetIndices<int> dst_offsets,
                              const Span<T> src,
                              MutableSpan<T> dst)
 {
-  src_selection.foreach_index(GrainSize(1024), [&](const int src_i, const int dst_i) {
-    dst.slice(dst_offsets[dst_i]).fill(src[src_i]);
-  });
+  src_selection.foreach_index(
+      [&](const int src_i, const int dst_i) { dst.slice(dst_offsets[dst_i]).fill(src[src_i]); },
+      exec_mode::grain_size(1024));
 }
 
 /**
