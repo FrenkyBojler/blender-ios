@@ -8273,36 +8273,6 @@ def km_3d_view_tool_sculpt_polyline_trim(params):
     )
 
 
-def km_3d_view_tool_sculpt_box_trim_additive(params):
-    return (
-        "3D View Tool: Sculpt, Box Trim Add",
-        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
-        {"items": [
-            ("sculpt.trim_box_additive_gesture", params.tool_maybe_tweak_event, None),
-        ]},
-    )
-
-
-def km_3d_view_tool_sculpt_lasso_trim_additive(params):
-    return (
-        "3D View Tool: Sculpt, Lasso Trim Add",
-        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
-        {"items": [
-            ("sculpt.trim_lasso_additive_gesture", params.tool_maybe_tweak_event, None),
-        ]},
-    )
-
-
-def km_3d_view_tool_sculpt_polyline_trim_additive(params):
-    return (
-        "3D View Tool: Sculpt, Polyline Trim Add",
-        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
-        {"items": [
-            ("sculpt.trim_polyline_additive_gesture", {"type": params.tool_mouse, "value": 'PRESS'}, None)
-        ]}
-    )
-
-
 def km_3d_view_tool_sculpt_line_project(params):
     return (
         "3D View Tool: Sculpt, Line Project",
@@ -9152,9 +9122,6 @@ def generate_keymaps(params=None):
         km_3d_view_tool_sculpt_lasso_trim(params),
         km_3d_view_tool_sculpt_line_trim(params),
         km_3d_view_tool_sculpt_polyline_trim(params),
-        km_3d_view_tool_sculpt_box_trim_additive(params),
-        km_3d_view_tool_sculpt_lasso_trim_additive(params),
-        km_3d_view_tool_sculpt_polyline_trim_additive(params),
         km_3d_view_tool_sculpt_line_project(params),
         km_3d_view_tool_sculpt_mesh_filter(params),
         km_3d_view_tool_sculpt_cloth_filter(params),

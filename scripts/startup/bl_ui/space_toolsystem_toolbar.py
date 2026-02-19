@@ -1814,72 +1814,6 @@ class _defs_sculpt:
             keymap=(),
             draw_settings=draw_settings,
         )
-    
-    @ToolDef.from_fn
-    def trim_box_additive():
-        def draw_settings(_context, layout, tool):
-            props = tool.operator_properties("sculpt.trim_box_additive_gesture")
-            layout.prop(props, "trim_mode", expand=False)
-            layout.prop(props, "trim_solver", expand=False)
-            layout.prop(props, "trim_orientation", expand=False)
-            layout.prop(props, "trim_extrude_mode", expand=False)
-            layout.prop(props, "use_cursor_depth", expand=False)
-        return dict(
-            idname="builtin.box_trim_additive",
-            label="Box Additive",
-            icon="ops.sculpt.box_add",
-            widget=None,
-            keymap="3D View Tool: Sculpt, Box Trim Add",
-            draw_settings=draw_settings,
-        )
-
-    @ToolDef.from_fn
-    def trim_lasso_additive():
-        def draw_settings(_context, layout, tool, *, extra=False):
-            draw_popover = False
-            props = tool.operator_properties("sculpt.trim_lasso_additive_gesture")
-
-            if not extra:
-                layout.prop(props, "trim_mode", expand=False)
-                layout.prop(props, "trim_solver", expand=False)
-                layout.prop(props, "trim_orientation", expand=False)
-                layout.prop(props, "trim_extrude_mode", expand=False)
-                layout.prop(props, "use_cursor_depth", expand=False)
-                region_is_header = bpy.context.region.type == 'TOOL_HEADER'
-                if region_is_header:
-                    draw_popover = True
-                else:
-                    extra = True
-
-            _defs_sculpt.draw_lasso_stroke_settings(layout, props, extra, draw_popover)
-
-        return dict(
-            idname="builtin.lasso_trim_additive",
-            label="Lasso Additive",
-            icon="ops.sculpt.lasso_add",
-            widget=None,
-            keymap="3D View Tool: Sculpt, Lasso Trim Add",
-            draw_settings=draw_settings,
-        )
-
-    @ToolDef.from_fn
-    def trim_polyline_additive():
-        def draw_settings(_context, layout, tool):
-            props = tool.operator_properties("sculpt.trim_polyline_additive_gesture")
-            layout.prop(props, "trim_mode", expand=False)
-            layout.prop(props, "trim_solver", expand=False)
-            layout.prop(props, "trim_orientation", expand=False)
-            layout.prop(props, "trim_extrude_mode", expand=False)
-            layout.prop(props, "use_cursor_depth", expand=False)
-
-        return dict(
-            idname="builtin.polyline_trim_additive",
-            label="Polyline Additive",
-            icon="ops.sculpt.polyline_add",
-            widget=None,
-            keymap="3D View Tool: Sculpt, Polyline Trim Add",
-            draw_settings=draw_settings,
-        )
 
     @ToolDef.from_fn
     def project_line():
@@ -3990,11 +3924,6 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
                 _defs_sculpt.trim_lasso,
                 _defs_sculpt.trim_line,
                 _defs_sculpt.trim_polyline,
-            ),
-            (
-                _defs_sculpt.trim_box_additive,
-                _defs_sculpt.trim_lasso_additive,
-                _defs_sculpt.trim_polyline_additive,
             ),
             _defs_sculpt.project_line,
             None,
