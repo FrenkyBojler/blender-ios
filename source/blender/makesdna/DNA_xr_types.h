@@ -131,14 +131,9 @@ struct XrSessionSettings {
   char controller_dominant_hand; /* #eXrSessionDominantHand */
 
   char viewfinder_enable;
-
-  /** Active/Selected Viewfinder button/mode, different paradigm as the rest of the Blender UI. */
-  char viewfinder_active_mode;            /* #eXrViewfinderMode */
-  char viewfinder_active_action_live;     /* #eXrViewfinderLiveAction */
-  char viewfinder_active_action_playback; /* #eXrViewfinderPlaybackAction */
-  char _pad2;
-
   float viewfinder_width;
+
+  int _pad2;
 
   /** Clipping distance. */
   float clip_start = 0, clip_end = 0;

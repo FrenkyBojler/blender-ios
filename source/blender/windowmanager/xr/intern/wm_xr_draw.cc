@@ -212,7 +212,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
   CameraParams cam_render_params;
   BKE_camera_params_init(&cam_render_params);
 
-  switch (settings->viewfinder_active_mode) {
+  switch (session_state->viewfinder.active_mode) {
     case XR_VIEWFINDER_MODE_LIVE: {
       const wmXrController *viewfinder_controller = get_viewfinder_controller(settings,
                                                                               session_state);
@@ -530,19 +530,17 @@ static ui::Layout &uiblock_prepare(ui::Block **block,
 }
 
 static ui::Block *viewfinder_action_label_ui_block(const bContext *C,
-                                                   const XrSessionSettings *settings)
+                                                   const wmXrSessionState *state)
 {
-  const char *active_action_prop = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                       "viewfinder_active_action_live" :
-                                       "viewfinder_active_action_playback";
-
-  /* XR Session settings RNA pointer. */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_XrSessionSettings, (void *)settings);
-  //  PropertyRNA *prop = RNA_struct_find_property(&ptr, active_action_prop);
+  const char *active_action_prop = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
+                                       "active_action_live" :
+                                       "active_action_playback";
 
   ui::Block *block = nullptr;
   ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::None);
 
+  PointerRNA ptr = RNA_pointer_create_discrete(
+      &CTX_wm_manager(C)->id, RNA_XrViewfinderState, (void *)&state->viewfinder);
   // TODO: Address the small menu down arrow that can be seen on the right side
   layout.prop(&ptr, active_action_prop, ui::ITEM_R_COMPACT | ui::ITEM_R_ICON_NEVER, "", ICON_NONE);
 
@@ -551,12 +549,12 @@ static ui::Block *viewfinder_action_label_ui_block(const bContext *C,
   return block;
 }
 
-static ui::Block *viewfinder_action_enum_ui_block(const bContext *C,
-                                                  const XrSessionSettings *settings)
+static ui::Block *viewfinder_action_enum_ui_block(const bContext *C, const wmXrSessionState *state)
 {
   /* XR Session settings RNA pointer. */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_XrSessionSettings, (void *)settings);
-  PropertyRNA *prop = RNA_struct_find_property(&ptr, "viewfinder_active_action_live");
+  PointerRNA ptr = RNA_pointer_create_discrete(
+      &CTX_wm_manager(C)->id, RNA_XrViewfinderState, (void *)&state->viewfinder);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "active_action_live");
 
   ui::Block *block = nullptr;
   ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
@@ -564,7 +562,7 @@ static ui::Block *viewfinder_action_enum_ui_block(const bContext *C,
 
   layout.scale_y_set(1.1f);
 
-  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE) {
+  if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE) {
     /* Live mode, display each property enum separately for the DoF controls to be marked
      * as disabled when DoF is disabled. */
     layout.ui_units_x_set(8.0f); /* Width hack. */
@@ -586,11 +584,8 @@ static ui::Block *viewfinder_action_enum_ui_block(const bContext *C,
     /* Playback mode, directly draw the full enum prop. */
     layout.scale_x_set(15.0f); /* Width hack. */
 
-    row.prop(&ptr,
-             "viewfinder_active_action_playback",
-             ui::ITEM_R_EXPAND | ui::ITEM_R_ICON_ONLY,
-             "",
-             ICON_NONE);
+    row.prop(
+        &ptr, "active_action_playback", ui::ITEM_R_EXPAND | ui::ITEM_R_ICON_ONLY, "", ICON_NONE);
   }
 
   ui::block_end_xr(C, block);
@@ -599,7 +594,7 @@ static ui::Block *viewfinder_action_enum_ui_block(const bContext *C,
 }
 
 static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
-                                                     const XrSessionSettings *settings)
+                                                     const wmXrSessionState *state)
 {
 
   ui::Block *block = nullptr;
@@ -618,7 +613,7 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
   const int landmark_idx = RNA_property_int_get(&scene_ptr, landmark_idx_prop);
 
   std::string settings_label;
-  switch (settings->viewfinder_active_mode) {
+  switch (state->viewfinder.active_mode) {
     case XR_VIEWFINDER_MODE_LIVE:
       settings_label = fmt::format("{}mm   DoF: {}   d: {:.1f}   f {:.1f}",
                                    cam->lens,
@@ -652,8 +647,7 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
   return block;
 }
 
-static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C,
-                                                const XrSessionSettings *settings)
+static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C, const wmXrSessionState *state)
 {
   ui::Block *block = ui::block_begin_xr(C, __func__, blender::ui::EmbossType::Emboss);
   ui::block_flag_enable(block, ui::BLOCK_LOOP | ui::BLOCK_KEEP_OPEN | ui::BLOCK_NO_WIN_CLIP);
@@ -672,8 +666,8 @@ static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C,
                              0,
                              0,
                              "");
-  button_func_pushed_state_set(but, [&settings](const ui::Button &) -> bool {
-    return settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE;
+  button_func_pushed_state_set(but, [&state](const ui::Button &) -> bool {
+    return state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE;
   });
 
   but = uiDefBut(block,
@@ -687,8 +681,8 @@ static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C,
                  0,
                  0,
                  "");
-  button_func_pushed_state_set(but, [&settings](const ui::Button &) -> bool {
-    return settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK;
+  button_func_pushed_state_set(but, [&state](const ui::Button &) -> bool {
+    return state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK;
   });
 
   ui::block_end_xr(C, block);
@@ -697,7 +691,7 @@ static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C,
 }
 
 static ui::Block *viewfinder_missing_captures_label_ui_block(const bContext *C,
-                                                             const XrSessionSettings *settings)
+                                                             const wmXrSessionState *state)
 {
   PointerRNA scene_ptr = RNA_id_pointer_create(&CTX_data_scene(C)->id);
   const bool empty_captures = RNA_collection_is_empty(&scene_ptr, "vr_landmarks");
@@ -705,7 +699,7 @@ static ui::Block *viewfinder_missing_captures_label_ui_block(const bContext *C,
   ui::Block *block = nullptr;
   ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
 
-  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
+  if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
     layout.label("No shots captured yet.", ICON_NONE);
   }
 
@@ -715,7 +709,7 @@ static ui::Block *viewfinder_missing_captures_label_ui_block(const bContext *C,
 }
 
 static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
-                                                        const XrSessionSettings *settings,
+                                                        const wmXrSessionState *state,
                                                         const rctf viewfinder_rect)
 {
   /* Create a fake context to trick the UI drawing code in drawing in places it shouldn't be. */
@@ -727,7 +721,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
     GPU_matrix_translate_3f(x_off, y_off, 0.0f);
     GPU_matrix_scale_1f(0.02f);
 
-    ui::Block *block = block_func(fake_C, settings);
+    ui::Block *block = block_func(fake_C, state);
     ui::block_draw_xr(fake_C, block); /* Stripped-down XR version of #UI_block_draw. */
 
     GPU_matrix_pop();
@@ -736,7 +730,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   const float mode_tabs_x = viewfinder_rect.xmin - 0.15f;
   const float mode_tabs_y = viewfinder_rect.ymax + 0.45f;
 
-  const float settings_label_x = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
+  const float settings_label_x = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
                                      viewfinder_rect.xmax - 3.4f :
                                      viewfinder_rect.xmax - 0.8f;
   const float settings_label_y = viewfinder_rect.ymax + 0.47f;
@@ -744,7 +738,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   const float action_label_x = viewfinder_rect.xmin - 0.1f;
   const float action_label_y = viewfinder_rect.ymin - 0.15f;
 
-  const float action_enum_x = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
+  const float action_enum_x = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
                                   viewfinder_rect.xmax - 1.6f :
                                   viewfinder_rect.xmax - 1.2f;
   const float action_enum_y = viewfinder_rect.ymin - 0.15f;
@@ -795,11 +789,11 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
   GPU_matrix_pop();
 }
 
-static void wm_xr_controller_viewfinder_draw_view_texture(const XrSessionSettings *settings,
+static void wm_xr_controller_viewfinder_draw_view_texture(const wmXrSessionState *state,
                                                           const rctf viewfinder_rect,
                                                           const bool empty_captures)
 {
-  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
+  if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
     return;
   }
 
@@ -831,11 +825,10 @@ static void wm_xr_controller_viewfinder_draw_view_texture(const XrSessionSetting
 }
 
 static void wm_xr_controller_viewfinder_draw_view_flash(wmXrSessionState *state,
-                                                        const XrSessionSettings *settings,
                                                         const rctf viewfinder_rect)
 {
   /* Do not apply the flash effect if we're in playback mode. */
-  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
+  if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
     state->viewfinder.runtime_capture_flash = 0.0f;
     return;
   }
@@ -910,11 +903,11 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   GPU_depth_mask(false);
 
   /* Viewfinder View texture and flash. */
-  wm_xr_controller_viewfinder_draw_view_texture(settings, viewfinder_rect, empty_captures);
-  wm_xr_controller_viewfinder_draw_view_flash(state, settings, viewfinder_rect);
+  wm_xr_controller_viewfinder_draw_view_texture(state, viewfinder_rect, empty_captures);
+  wm_xr_controller_viewfinder_draw_view_flash(state, viewfinder_rect);
 
   /* UI Widgets. */
-  wm_xr_controller_viewfinder_draw_ui_widgets(C, settings, viewfinder_rect);
+  wm_xr_controller_viewfinder_draw_ui_widgets(C, state, viewfinder_rect);
 
   GPU_depth_mask(true);
   GPU_depth_test(GPU_DEPTH_NONE);

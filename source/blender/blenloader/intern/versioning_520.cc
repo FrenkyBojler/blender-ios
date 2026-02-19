@@ -83,10 +83,6 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
       wm.xr.session_settings.viewfinder_enable = true;
       wm.xr.session_settings.viewfinder_width = 5.0f;
-
-      wm.xr.session_settings.viewfinder_active_mode = XR_VIEWFINDER_MODE_LIVE;
-      wm.xr.session_settings.viewfinder_active_action_live = XR_VIEWFINDER_ACTION_LIVE_LENS;
-      wm.xr.session_settings.viewfinder_active_action_playback = XR_VIEWFINDER_ACTION_PB_BROWSE;
     }
   }
   /**

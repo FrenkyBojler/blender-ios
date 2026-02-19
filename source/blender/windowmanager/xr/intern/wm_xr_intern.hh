@@ -30,6 +30,7 @@ struct wmXrActionSet;
 struct wmXrController;
 struct wmXrData;
 
+// TODO: eventually move to its own header file with its enums
 struct wmXrViewfinderState {
   float capture_position[3];
   float capture_orientation_quat[4];
@@ -44,7 +45,10 @@ struct wmXrViewfinderState {
   float capture_aperture_fstop;
   float capture_focus_distance;
 
-  // TODO: move member from settings in here.
+  /** Active/Selected Viewfinder button/mode, concept differs from the rest of the Blender UI. */
+  eXrViewfinderMode active_mode;
+  eXrViewfinderLiveAction active_action_live;
+  eXrViewfinderPlaybackAction active_action_playback;
 };
 
 struct wmXrSessionState {

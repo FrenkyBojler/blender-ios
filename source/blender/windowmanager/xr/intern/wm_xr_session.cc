@@ -584,6 +584,62 @@ void WM_xr_session_state_viewfinder_capture_focus_distance_set(wmXrData *xr, flo
   }
 }
 
+bool WM_xr_session_state_viewfinder_active_mode_get(const wmXrData *xr, eXrViewfinderMode *r_mode)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_mode = static_cast<eXrViewfinderMode>(0);
+    return false;
+  }
+
+  *r_mode = xr->runtime->session_state.viewfinder.active_mode;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_active_mode_set(wmXrData *xr, eXrViewfinderMode mode)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.active_mode = mode;
+  }
+}
+
+bool WM_xr_session_state_viewfinder_active_action_live_get(const wmXrData *xr,
+                                                           eXrViewfinderLiveAction *r_action)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_action = static_cast<eXrViewfinderLiveAction>(0);
+    return false;
+  }
+
+  *r_action = xr->runtime->session_state.viewfinder.active_action_live;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_active_action_live_set(wmXrData *xr,
+                                                           eXrViewfinderLiveAction action)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.active_action_live = action;
+  }
+}
+bool WM_xr_session_state_viewfinder_active_action_playback_get(
+    const wmXrData *xr, eXrViewfinderPlaybackAction *r_action)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_action = static_cast<eXrViewfinderPlaybackAction>(0);
+    return false;
+  }
+
+  *r_action = xr->runtime->session_state.viewfinder.active_action_playback;
+  return true;
+}
+void WM_xr_session_state_viewfinder_active_action_playback_set(wmXrData *xr,
+                                                               eXrViewfinderPlaybackAction action)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.active_action_playback = action;
+  }
+}
+
 bool WM_xr_session_state_viewer_pose_matrix_info_get(const wmXrData *xr,
                                                      float r_viewmat[4][4],
                                                      float *r_focal_len)
@@ -749,6 +805,10 @@ void WM_xr_session_state_navigation_reset(wmXrSessionState *state)
   state->viewfinder.capture_lens = 50.0f;
   state->viewfinder.capture_aperture_fstop = 2.8f;
   state->viewfinder.capture_focus_distance = 10.0f;
+
+  state->viewfinder.active_mode = XR_VIEWFINDER_MODE_LIVE;
+  state->viewfinder.active_action_live = XR_VIEWFINDER_ACTION_LIVE_LENS;
+  state->viewfinder.active_action_playback = XR_VIEWFINDER_ACTION_PB_BROWSE;
 }
 
 void WM_xr_session_state_vignette_activate(wmXrData *xr)

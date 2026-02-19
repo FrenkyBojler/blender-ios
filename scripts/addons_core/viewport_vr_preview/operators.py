@@ -297,15 +297,15 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
         landmarks = scene.vr_landmarks
 
         wm = context.window_manager
-        xr_state = wm.xr_session_state
+        xr_viewfinder = wm.xr_session_state.viewfinder
 
         lm = landmarks.add()
         lm.type = "CUSTOM"
         lm.name = "Viewfinder Landmark"
         scene.vr_landmarks_selected = len(landmarks) - 1
 
-        loc = xr_state.viewfinder.location
-        rot = xr_state.viewfinder.orientation
+        loc = xr_viewfinder.location
+        rot = xr_viewfinder.orientation
 
         lm.base_pose_location = loc  # Used as viewfinder position
         lm.base_pose_angle = rot.to_euler()[2]  # Only filled in for Landmark Viewport Feedback to work
@@ -317,7 +317,7 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
         lm.viewfinder_dof_dist = camera.dof.focus_distance
         lm.viewfinder_dof_fstop = camera.dof.aperture_fstop
 
-        xr_state.viewfinder.runtime_capture_flash = 1  # Internal value, setting to 1 will trigger a flash
+        xr_viewfinder.runtime_capture_flash = 1  # Internal value, setting to 1 will trigger a flash
 
         return {'FINISHED'}
 
@@ -344,18 +344,9 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
 
     def execute(self, context):
         wm = context.window_manager
-        xr_state = wm.xr_session_state
-        xr_settings = wm.xr_session_settings
+        xr_viewfinder = wm.xr_session_state.viewfinder
 
-        viewfinder = xr_state.viewfinder
-
-        viewfinder_mode = xr_settings.viewfinder_active_mode
-        active_live_action = xr_settings.viewfinder_active_action_live
-        active_playback_action = xr_settings.viewfinder_active_action_playback
-
-        if viewfinder_mode == "LIVE":
-            camera = context.scene.camera.data
-
+        if xr_viewfinder.active_mode == "LIVE":
             focal_map = (
                 18,
                 20,
@@ -414,19 +405,19 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
 
                 return next_idx
 
-            match active_live_action:
+            match xr_viewfinder.active_action_live:
                 # View Zoom Control
                 case "LENS":
-                    current_focal = viewfinder.capture_lens
+                    current_focal = xr_viewfinder.capture_lens
 
                     new_idx = get_next_in_map(current_focal, focal_map, self.action_up)
-                    viewfinder.capture_lens = focal_map[new_idx]
+                    xr_viewfinder.capture_lens = focal_map[new_idx]
 
                     return {'FINISHED'}
 
                 # Toggle DoF on/off
                 case "DOF":
-                    viewfinder.capture_use_dof = not viewfinder.capture_use_dof
+                    xr_viewfinder.capture_use_dof = not xr_viewfinder.capture_use_dof
 
                     return {'FINISHED'}
 
@@ -436,8 +427,8 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
                     depsgraph = context.evaluated_depsgraph_get()
 
                     # Cast a ray from the Viewfinder PoV to find the distance to the nearest object
-                    view_origin = xr_state.viewfinder.location
-                    view_quat = xr_state.viewfinder.orientation
+                    view_origin = xr_viewfinder.location
+                    view_quat = xr_viewfinder.orientation
 
                     direction = Vector((0.0, 0.0, -1.0))
                     world_dir = view_quat @ direction
@@ -448,27 +439,27 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
                     if hit_success:
                         distance = (hit_location - view_origin).length
                         # Set the DoF Focus Distance from the hit
-                        viewfinder.capture_focus_distance = distance
+                        xr_viewfinder.capture_focus_distance = distance
 
                     return {'FINISHED'}
 
                 # F-Stop control
                 case "APERTURE":
-                    current_fstop = viewfinder.capture_aperture_fstop
+                    current_fstop = xr_viewfinder.capture_aperture_fstop
 
                     new_idx = get_next_in_map(current_fstop, fstop_map, self.action_up)
-                    viewfinder.capture_aperture_fstop = fstop_map[new_idx]
+                    xr_viewfinder.capture_aperture_fstop = fstop_map[new_idx]
 
                     return {'FINISHED'}
 
-        if viewfinder_mode == "PLAYBACK":
+        if xr_viewfinder.active_mode == "PLAYBACK":
             # Playblack control
             scene = context.scene
             landmarks = scene.vr_landmarks
             if not landmarks:
                 return {'FINISHED'}
 
-            match active_playback_action:
+            match xr_viewfinder.active_action_playback:
                 # Browse shots left/right
                 case "BROWSE":
                     incr = 1 if self.action_up else -1

@@ -1790,28 +1790,35 @@ static void WM_OT_xr_navigation_reset(wmOperatorType *ot)
 static wmOperatorStatus wm_xr_viewfinder_cycle_action_exec(bContext *C, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  XrSessionSettings *settings = &wm->xr.session_settings;
-
-  char *active_action_prop = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                 &settings->viewfinder_active_action_live :
-                                 &settings->viewfinder_active_action_playback;
-
-  int enum_length = 0;
-  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE) {
-    /* If we're in live mode, disallow cycling to the DoF controls if DoF is not enabled. */
-    const Object *scene_cam = CTX_data_scene(C)->camera;
-    const Camera *cam_data = id_cast<const Camera *>(scene_cam->data);
-    const bool dof_enabled = cam_data->dof.flag & CAM_DOF_ENABLED;
-
-    enum_length = dof_enabled ? 4 : 2;
-  }
-  else {
-    enum_length = 3;
-  }
+  wmXrData *xr = &wm->xr;
 
   const bool cycle_left = RNA_boolean_get(op->ptr, "cycle_left");
   const int incr = cycle_left ? -1 : 1;
-  *active_action_prop = mod_i(*active_action_prop + incr, enum_length);
+
+  eXrViewfinderMode active_mode;
+  WM_xr_session_state_viewfinder_active_mode_get(xr, &active_mode);
+
+  if (active_mode == XR_VIEWFINDER_MODE_LIVE) {
+    /* If we're in live mode, disallow cycling to the DoF controls if DoF is not enabled. */
+    eXrViewfinderLiveAction active_live_action;
+    WM_xr_session_state_viewfinder_active_action_live_get(xr, &active_live_action);
+    bool use_dof;
+    WM_xr_session_state_viewfinder_capture_use_dof_get(xr, &use_dof);
+
+    const int enum_length = use_dof ? 4 : 2;
+    const eXrViewfinderLiveAction next_action = static_cast<eXrViewfinderLiveAction>(
+        mod_i(active_live_action + incr, enum_length));
+    WM_xr_session_state_viewfinder_active_action_live_set(xr, next_action);
+  }
+  else {
+    eXrViewfinderPlaybackAction active_playback_action;
+    WM_xr_session_state_viewfinder_active_action_playback_get(xr, &active_playback_action);
+    const int enum_length = 3;  // TODO: eventually make dynamic
+
+    const eXrViewfinderPlaybackAction next_action = static_cast<eXrViewfinderPlaybackAction>(
+        mod_i(active_playback_action + incr, enum_length));
+    WM_xr_session_state_viewfinder_active_action_playback_set(xr, next_action);
+  }
 
   return OPERATOR_FINISHED;
 }
@@ -1833,9 +1840,13 @@ static void WM_OT_xr_viewfinder_cycle_action(wmOperatorType *ot)
 static wmOperatorStatus wm_xr_viewfinder_cycle_mode_exec(bContext *C, wmOperator * /*op*/)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  XrSessionSettings *settings = &wm->xr.session_settings;
+  wmXrData *xr = &wm->xr;
 
-  settings->viewfinder_active_mode = (settings->viewfinder_active_mode + 1) % 2;
+  eXrViewfinderMode active_mode;
+  WM_xr_session_state_viewfinder_active_mode_get(xr, &active_mode);
+
+  eXrViewfinderMode next_mode = static_cast<eXrViewfinderMode>((active_mode + 1) % 2);
+  WM_xr_session_state_viewfinder_active_mode_set(xr, next_mode);
 
   return OPERATOR_FINISHED;
 }
