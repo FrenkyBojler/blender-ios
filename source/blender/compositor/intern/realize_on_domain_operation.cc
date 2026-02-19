@@ -43,10 +43,31 @@ static inline float2 compute_wh(const float3x3 &matrix)
   return float2{hypotf(matrix[0][0], matrix[1][0]), hypotf(matrix[0][1], matrix[1][1])};
 }
 
+struct RealizeOnDomainOperation::SamplerOptions {
+  math::Sampler sampler;
+  math::InterpWrapMode wrap_x;
+  math::InterpWrapMode wrap_y;
+  SamplerOptions(const Domain& domain) {
+    switch (domain.realization_options.interpolation) {
+      case Interpolation::Nearest:
+        sampler = math::Sampler::Nearest;
+        break;
+      default: /* case Interpolation::Bilinear: */
+        sampler = math::Sampler::Box;
+        break;
+      case Interpolation::Bicubic:
+        sampler = math::Sampler::Bspline;
+        break;
+    }
+    wrap_x = map_extension_mode_to_wrap_mode(domain.realization_options.extension_x);
+    wrap_y = map_extension_mode_to_wrap_mode(domain.realization_options.extension_y);
+  }
+};
+
 void RealizeOnDomainOperation::execute()
 {
   Result &input = this->get_input();
-  Domain::SamplerOptions options = input.domain().get_sampler_options();
+  SamplerOptions options(input.domain());
   const Domain domain = this->compute_domain();
 
   /* Translate the input such that it is centered in the virtual compositing space. */
@@ -122,7 +143,7 @@ void RealizeOnDomainOperation::execute()
 }
 
 void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
-                                                     const Domain::SamplerOptions &options,
+                                                     const SamplerOptions &options,
                                                      const float3x3 &inverse_transformation,
                                                      const float2 &wh)
 {
@@ -130,7 +151,6 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
 
   bool nearest = options.sampler == math::Sampler::Nearest;
   bool fast = (nearest || (options.sampler == math::Sampler::Bilinear));
-  bool anisotropic = options.sampler == math::Sampler::Anisotropic;
 
   const char *shader_name = nullptr;
   switch (input.type()) {
@@ -141,8 +161,6 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
     case ResultType::Float4:
       if (fast)
         shader_name = "compositor_realize_on_domain_float4";
-      else if (anisotropic)
-        shader_name = "compositor_realize_on_domain_anisotropic";
       else if (options.sampler == math::Sampler::Bspline)
         shader_name = "compositor_realize_on_domain_bspline_float4";
       else if (options.sampler == math::Sampler::Bilinear)
@@ -173,7 +191,7 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
   gpu::Shader *shader = this->context().get_shader(shader_name);
   GPU_shader_bind(shader);
 
-  if (fast || anisotropic) {
+  if (fast) {
     /* The matrix must produce uv coordinates */
     const float3x3 mat = math::from_scale<float3x3>(1.0f / float2(input.domain().data_size)) *
                          inverse_transformation;
@@ -184,13 +202,7 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
     GPU_shader_uniform_2fv(shader, "wh", wh);
   }
 
-  if (anisotropic) {
-    GPU_texture_mipmap_mode(input, true, true);
-    GPU_texture_anisotropic_filter(input, true);
-  }
-  else {
-    GPU_texture_filter_mode(input, !nearest);
-  }
+  GPU_texture_filter_mode(input, !nearest);
   GPU_texture_extend_mode_x(input, map_wrap_mode_to_extend_mode(options.wrap_x));
   GPU_texture_extend_mode_y(input, map_wrap_mode_to_extend_mode(options.wrap_y));
   input.bind_as_texture(shader, "input_tx");
@@ -228,7 +240,7 @@ static void realize_on_domain(const Result &input,
 }
 
 void RealizeOnDomainOperation::realize_on_domain_cpu(const int2 &size,
-                                                     const Domain::SamplerOptions &options,
+                                                     const SamplerOptions &options,
                                                      const float3x3 &inverse_transformation,
                                                      const float2 &wh)
 {
@@ -265,16 +277,6 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const int2 &size,
   const float2 dPdx(inverse_transformation[0].xy());
   const float2 dPdy(inverse_transformation[1].xy());
   const float2 translate(inverse_transformation[2].xy());
-
-  if (options.sampler == math::Sampler::Anisotropic) {
-    auto sample_area = math::sample_area(options.sampler, source);
-    parallel_for(size, [&](const int2 texel) {
-      float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
-      float4 sample = sample_area(source, uv, dPdx, dPdy);
-      output.store_pixel(texel, Color(sample));
-    });
-    return;
-  }
 
   // locate the optimized version of sample_rect
   auto sample_rect = math::sample_rect(options.sampler, source);

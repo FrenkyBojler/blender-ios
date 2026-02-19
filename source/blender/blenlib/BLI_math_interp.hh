@@ -81,9 +81,7 @@ enum class Sampler {
   /** Insersect rectangle with pixels. Same as bilinear for a size of 1 */
   Box,
   /** Only non-negative cubic. Same as Bicubic for a size of 1 */
-  Bspline,
-  /** EWA sampling. Same as Box for functions that don't have dPdx,dPdy arguments */
-  Anisotropic
+  Bspline
 };
 
 /** Emulation of BSL/GLSL object for sampling images.
@@ -522,22 +520,10 @@ void interpolate_cubic_mitchell_fl(
  * Filtered sampling based on derivatives of the sample location. For 90 degree rotations
  * \a wh is the absolute value of the horizontal and vertical derivatives. For rotations
  * the sample area must be approximated by this rectangle, hypot(dPdx,dPdy) is recommended.
- * Sampler::Anisotropic does Sampler::Box.
  */
 using SampleRect = float4 (*)(const sampler2D &source, const float2 &uv, const float2 &wh);
 /** Lookup optimized function to call for \a source and sampler. */
 SampleRect sample_rect(Sampler sampler, const sampler2D &source);
-
-/**
- * Filtered sampling based on derivatives of the sample location. Only Sampler::Anisotropic
- * does something different here, all others call sample_rect.
- */
-using SampleArea = float4 (*)(const sampler2D &source,
-                              const float2 &uv,
-                              const float2 &dPdx,
-                              const float2 &dPdy);
-/** Lookup optimized function to call for \a source. */
-SampleArea sample_area(Sampler sampler, const sampler2D &source);
 
 }  // namespace math
 

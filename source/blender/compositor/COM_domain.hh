@@ -171,13 +171,6 @@ class Domain {
   /* The options that describe how this domain prefer to be realized on some other domain. See the
    * RealizationOptions struct for more information. */
   RealizationOptions realization_options;
-  /* Convert realization_options to math:: */
-  struct SamplerOptions {
-    math::Sampler sampler;
-    math::InterpWrapMode wrap_x;
-    math::InterpWrapMode wrap_y;
-  };
-  SamplerOptions get_sampler_options() const;
 
   /* A size only constructor that sets the transformation to identity. */
   Domain(const int2 &size);
@@ -203,20 +196,6 @@ class Domain {
 /* Identical to the is_equal static method with zero epsilon. */
 bool operator==(const Domain &a, const Domain &b);
 bool operator!=(const Domain &a, const Domain &b);
-
-BLI_INLINE math::InterpWrapMode map_extension_mode_to_wrap_mode(Extension mode)
-{
-  switch (mode) {
-    case Extension::Clip:
-      return math::InterpWrapMode::Border;
-    case Extension::Repeat:
-      return math::InterpWrapMode::Repeat;
-    case Extension::Extend:
-      return math::InterpWrapMode::Extend;
-  }
-  BLI_assert_unreachable();
-  return math::InterpWrapMode::Border;
-}
 
 GPUSamplerExtendMode map_extension_mode_to_extend_mode(Extension mode);
 GPUSamplerExtendMode map_wrap_mode_to_extend_mode(math::InterpWrapMode mode);

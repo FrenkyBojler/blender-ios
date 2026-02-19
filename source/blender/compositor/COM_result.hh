@@ -662,6 +662,20 @@ BLI_INLINE int32_t wrap_coordinates(float u, int32_t size, const Extension exten
   }
 }
 
+BLI_INLINE math::InterpWrapMode map_extension_mode_to_wrap_mode(Extension mode)
+{
+  switch (mode) {
+    case Extension::Clip:
+      return math::InterpWrapMode::Border;
+    case Extension::Repeat:
+      return math::InterpWrapMode::Repeat;
+    case Extension::Extend:
+      return math::InterpWrapMode::Extend;
+  }
+  BLI_assert_unreachable();
+  return math::InterpWrapMode::Border;
+}
+
 template<typename T, bool CouldBeSingleValue>
 BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
                                    const Interpolation &interpolation,

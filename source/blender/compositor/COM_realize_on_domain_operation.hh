@@ -22,6 +22,8 @@ class RealizeOnDomainOperation : public SimpleOperation {
  private:
   /* The target domain to realize the input on. */
   Domain target_domain_;
+  /* Domain::RealizationOptions converted to math:: */
+  struct SamplerOptions;
 
  public:
   RealizeOnDomainOperation(Context &context, Domain target_domain, ResultType type);
@@ -59,11 +61,11 @@ class RealizeOnDomainOperation : public SimpleOperation {
 
  private:
   void realize_on_domain_gpu(const int2 &size,
-                             const Domain::SamplerOptions &options,
+                             const SamplerOptions &options,
                              const float3x3 &inverse_transformation,
                              const float2 &wh);
   void realize_on_domain_cpu(const int2 &size,
-                             const Domain::SamplerOptions &options,
+                             const SamplerOptions &options,
                              const float3x3 &inverse_transformation,
                              const float2 &wh);
 };

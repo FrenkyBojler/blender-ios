@@ -94,26 +94,4 @@ GPUSamplerExtendMode map_wrap_mode_to_extend_mode(math::InterpWrapMode mode)
   return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
 }
 
-Domain::SamplerOptions Domain::get_sampler_options() const
-{
-  Domain::SamplerOptions ret;
-  switch (realization_options.interpolation) {
-    case Interpolation::Nearest:
-      ret.sampler = math::Sampler::Nearest;
-      break;
-    default: /* case Interpolation::Bilinear: */
-      ret.sampler = math::Sampler::Box;
-      break;
-    case Interpolation::Bicubic:
-      ret.sampler = math::Sampler::Bspline;
-      break;
-    case Interpolation::Anisotropic:
-      ret.sampler = math::Sampler::Anisotropic;
-      break;
-  }
-  ret.wrap_x = map_extension_mode_to_wrap_mode(realization_options.extension_x);
-  ret.wrap_y = map_extension_mode_to_wrap_mode(realization_options.extension_y);
-  return ret;
-}
-
 }  // namespace blender::compositor

@@ -744,116 +744,6 @@ SampleRect sample_rect(Sampler sampler, const sampler2D &)
   }
 }
 
-BLI_INLINE float2 hypot(const float2 &a, const float2 &b)
-{
-  return float2{hypotf(a.x, b.x), hypotf(a.y, b.y)};
-}
-
-template<enum Sampler sampler>
-static float4 _sample_area(const sampler2D &source,
-                           const float2 &uv,
-                           const float2 &dPdx,
-                           const float2 &dPdy)
-{
-  return _sample_rect<sampler>(source, uv, hypot(dPdx, dPdy));
-}
-
-// specializations that skip unused computation of hypot
-template<>
-float4 _sample_area<Sampler::Nearest>(const sampler2D &source,
-                                      const float2 &uv,
-                                      const float2 &dPdx,
-                                      const float2 &)
-{
-  return _sample_rect<Sampler::Nearest>(source, uv, dPdx);
-}
-
-template<>
-float4 _sample_area<Sampler::Bilinear>(const sampler2D &source,
-                                       const float2 &uv,
-                                       const float2 &dPdx,
-                                       const float2 &)
-{
-  return _sample_rect<Sampler::Bilinear>(source, uv, dPdx);
-}
-
-BLI_INLINE int32_t wrap_coord_i(int32_t u, int32_t size, InterpWrapMode wrap)
-{
-  if (u >= 0) {
-    if (u < size) {
-      return u;
-    }
-    switch (wrap) {
-      default: /* case InterpWrapMode::Extend: */
-        return size - 1;
-      case InterpWrapMode::Repeat:
-        return u % size;
-      case InterpWrapMode::Border:
-        return -1;
-    }
-  }
-  switch (wrap) {
-    default: /* case InterpWrapMode::Extend: */
-      return 0;
-    case InterpWrapMode::Repeat: {
-      int32_t x = u % size;
-      return x ? x + size : 0;
-    }
-    case InterpWrapMode::Border:
-      return -1;
-  }
-}
-
-static void read_callback(void *userdata, int u, int v, float result[4])
-{
-  const sampler2D &source = *(sampler2D *)userdata;
-  int x = wrap_coord_i(u, source.width, source.wrap_x);
-  int y = wrap_coord_i(v, source.height, source.wrap_y);
-  if (x < 0 || y < 0) {
-    result[0] = result[1] = result[2] = result[3] = 0.0f;
-    return;
-  }
-  const float *data = source.row(y) + x * source.step;
-  memcpy(result, data, 4 * sizeof(float));
-}
-
-BLI_INLINE float4 sample_anisotropic(const sampler2D &source,
-                                     const float2 &uv,
-                                     const float2 &dPdx,
-                                     const float2 &dPdy)
-{
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  float2 scale = 1.0f / float2(float(source.width), float(source.height));
-  BLI_ewa_filter(source.width,
-                 source.height,
-                 false,
-                 true,
-                 uv * scale,
-                 dPdx * scale,
-                 dPdy * scale,
-                 read_callback,
-                 (void *)&source,
-                 pixel_value);
-  return pixel_value;
-}
-
-SampleArea sample_area(Sampler sampler, const sampler2D &)
-{
-  BLI_assert(source.components == 4);
-  switch (sampler) {
-    case Sampler::Nearest:
-      return _sample_area<Sampler::Nearest>;
-    case Sampler::Bilinear:
-      return _sample_area<Sampler::Bilinear>;
-    default: /* case Sampler::Box */
-      return _sample_area<Sampler::Box>;
-    case Sampler::Bspline:
-      return _sample_area<Sampler::Bspline>;
-    case Sampler::Anisotropic:
-      return sample_anisotropic;
-  }
-}
-
 }  // namespace math
 
 /**************************************************************************
@@ -996,7 +886,6 @@ void BLI_ewa_filter(const int width,
 
   ue = ff * sqrtf(C);
   ve = ff * sqrtf(A);
-
   d = float(EWA_MAXIDX + 1) / (F * ff2);
   A *= d;
   B *= d;

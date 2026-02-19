@@ -232,7 +232,6 @@ class ScaleOperation : public NodeOperation {
       case CMP_NODE_INTERPOLATION_BILINEAR:
         return Interpolation::Bilinear;
       case CMP_NODE_INTERPOLATION_ANISOTROPIC:
-        return Interpolation::Anisotropic;
       case CMP_NODE_INTERPOLATION_BICUBIC:
         return Interpolation::Bicubic;
     }
