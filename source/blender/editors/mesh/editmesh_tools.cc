@@ -1362,9 +1362,6 @@ static bool bm_vert_connect_pair(BMesh *bm, BMVert *v_a, BMVert *v_b)
   verts[0] = v_a;
   verts[1] = v_b;
 
-  BM_vert_normal_update(verts[0]);
-  BM_vert_normal_update(verts[1]);
-
   BMO_op_exec(bm, &bmop);
   BMO_slot_buffer_hflag_enable(bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
   BMO_op_finish(bm, &bmop);
@@ -1403,6 +1400,18 @@ static bool bm_vert_connect_select_history(BMesh *bm)
       /* all verts have faces , connect verts via faces! */
       if (tot == bm->totvertsel) {
         BMEditSelection *ese_last;
+
+        /* Connecting vertices can change the mesh normal state, which can break symmetry in cases
+         * where it is expected so we store the original normals to restore later before
+         * connecting. */
+        Map<BMVert *, float3> orig_normals;
+        for (ese_last = static_cast<BMEditSelection *>(bm->selected.first); ese_last;
+             ese_last = ese_last->next)
+        {
+          BMVert *v = reinterpret_cast<BMVert *>(ese_last->ele);
+          BM_vert_normal_update(v);
+          orig_normals.add(v, v->no);
+        }
         ese_last = static_cast<BMEditSelection *>(bm->selected.first);
         ese = ese_last->next;
 
@@ -1414,9 +1423,16 @@ static bool bm_vert_connect_select_history(BMesh *bm)
             /* pass, edge exists (and will be selected) */
           }
           else {
-            changed |= bm_vert_connect_pair(bm,
-                                            reinterpret_cast<BMVert *>(ese_last->ele),
-                                            reinterpret_cast<BMVert *>(ese->ele));
+            BMVert *v_last = reinterpret_cast<BMVert *>(ese_last->ele);
+            BMVert *v_curr = reinterpret_cast<BMVert *>(ese->ele);
+
+            if (orig_normals.contains(v_last)) {
+              copy_v3_v3(v_last->no, orig_normals.lookup(v_last));
+            }
+            if (orig_normals.contains(v_curr)) {
+              copy_v3_v3(v_curr->no, orig_normals.lookup(v_curr));
+            }
+            changed |= bm_vert_connect_pair(bm, v_last, v_curr);
           }
         } while ((void)(ese_last = ese), (ese = ese->next));
 
@@ -1428,12 +1444,14 @@ static bool bm_vert_connect_select_history(BMesh *bm)
       if (changed == false) {
         /* existing loops: close the selection */
         if (bm_vert_is_select_history_open(bm)) {
-          changed |= bm_vert_connect_pair(
-              bm,
-              reinterpret_cast<BMVert *>(
-                  (static_cast<BMEditSelection *>(bm->selected.first))->ele),
-              reinterpret_cast<BMVert *>(
-                  (static_cast<BMEditSelection *>(bm->selected.last))->ele));
+          BMVert *v_first = reinterpret_cast<BMVert *>(
+              (static_cast<BMEditSelection *>(bm->selected.first))->ele);
+          BMVert *v_last = reinterpret_cast<BMVert *>(
+              (static_cast<BMEditSelection *>(bm->selected.last))->ele);
+
+          BM_vert_normal_update(v_first);
+          BM_vert_normal_update(v_last);
+          changed |= bm_vert_connect_pair(bm, v_first, v_last);
 
           if (changed) {
             return true;
