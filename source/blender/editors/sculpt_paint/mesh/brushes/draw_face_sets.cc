@@ -57,7 +57,7 @@ BLI_NOINLINE static void apply_face_set(const int face_set_id,
   BLI_assert(face_indices.size() == factors.size());
 
   for (const int i : face_indices.index_range()) {
-    if (factors[i] > ed::sculpt_paint::face_set::FACE_SET_MIN_FADE) {
+    if (factors[i] > face_set::FACE_SET_MIN_FADE) {
       face_sets[face_indices[i]] = face_set_id;
     }
   }
@@ -82,8 +82,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.positions.resize(face_indices.size());
   const MutableSpan<float3> face_centers = tls.positions;
-  ed::sculpt_paint::face_set::calc_face_centers(
-      faces, corner_verts, positions_eval, face_indices, face_centers);
+  face_set::calc_face_centers(faces, corner_verts, positions_eval, face_indices, face_centers);
 
   tls.normals.resize(face_indices.size());
   const MutableSpan<float3> face_normals = tls.normals;
@@ -92,7 +91,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   tls.factors.resize(face_indices.size());
   const MutableSpan<float> factors = tls.factors;
 
-  ed::sculpt_paint::face_set::fill_factor_from_hide_and_mask(mesh, face_indices, factors);
+  face_set::fill_factor_from_hide_and_mask(mesh, face_indices, factors);
 
   filter_region_clip_factors(ss, face_centers, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
@@ -199,7 +198,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   tls.face_indices.resize(positions.size());
   MutableSpan<int> face_indices = tls.face_indices;
 
-  ed::sculpt_paint::face_set::calc_face_indices_grids(subdiv_ccg, grids, face_indices);
+  face_set::calc_face_indices_grids(subdiv_ccg, grids, face_indices);
   apply_face_set(face_set_id, face_indices, factors, face_sets);
 }
 
@@ -245,7 +244,7 @@ BLI_NOINLINE static void apply_face_set(const int face_set_id,
 {
   int i = 0;
   for (BMFace *face : faces) {
-    if (factors[i] > ed::sculpt_paint::face_set::FACE_SET_MIN_FADE) {
+    if (factors[i] > face_set::FACE_SET_MIN_FADE) {
       BM_ELEM_CD_SET_INT(face, cd_offset, face_set_id);
     }
     i++;
@@ -266,11 +265,11 @@ static void calc_bmesh(Object &object,
   const Set<BMFace *, 0> &faces = BKE_pbvh_bmesh_node_faces(&node);
   tls.positions.resize(faces.size());
   const MutableSpan<float3> positions = tls.positions;
-  ed::sculpt_paint::face_set::calc_face_centers(faces, positions);
+  face_set::calc_face_centers(faces, positions);
 
   tls.factors.resize(faces.size());
   const MutableSpan<float> factors = tls.factors;
-  ed::sculpt_paint::face_set::fill_factor_from_hide_and_mask(*ss.bm, faces, factors);
+  face_set::fill_factor_from_hide_and_mask(*ss.bm, faces, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
     calc_front_face(cache.view_normal_symm, faces, factors);

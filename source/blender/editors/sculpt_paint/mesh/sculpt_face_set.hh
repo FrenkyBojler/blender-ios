@@ -49,22 +49,22 @@ bool vert_has_unique_face_set(OffsetIndices<int> faces,
                               SubdivCCGCoord coord);
 bool vert_has_unique_face_set(int face_set_offset, const BMVert &vert);
 
-BLI_NOINLINE void fill_factor_from_hide_and_mask(const BMesh &bm,
-                                                 const Set<BMFace *, 0L> &faces,
-                                                 const MutableSpan<float> r_factors);
+void fill_factor_from_hide_and_mask(const BMesh &bm,
+                                    const Set<BMFace *, 0L> &faces,
+                                    const MutableSpan<float> r_factors);
 
-BLI_NOINLINE void fill_factor_from_hide_and_mask(const Mesh &mesh,
-                                                 const Span<int> face_indices,
-                                                 const MutableSpan<float> r_factors);
+void fill_factor_from_hide_and_mask(const Mesh &mesh,
+                                    const Span<int> face_indices,
+                                    const MutableSpan<float> r_factors);
 void calc_face_centers(const OffsetIndices<int> faces,
                        const Span<int> corner_verts,
                        const Span<float3> vert_positions,
                        const Span<int> face_indices,
                        const MutableSpan<float3> positions);
 void calc_face_centers(const Set<BMFace *, 0L> &faces, const MutableSpan<float3> centers);
-BLI_NOINLINE void calc_face_indices_grids(const SubdivCCG &subdiv_ccg,
-                                          const Span<int> grids,
-                                          const MutableSpan<int> &face_indices);
+void calc_face_indices_grids(const SubdivCCG &subdiv_ccg,
+                             const Span<int> grids,
+                             const MutableSpan<int> &face_indices);
 
 /**
  * Creates the sculpt face set attribute on the mesh if it doesn't exist.

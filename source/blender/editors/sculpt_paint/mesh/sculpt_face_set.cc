@@ -1653,9 +1653,9 @@ void SCULPT_OT_face_sets_edit(wmOperatorType *ot)
  * Operators that modify face sets based on a selected area.
  * \{ */
 
-BLI_NOINLINE void fill_factor_from_hide_and_mask(const BMesh &bm,
-                                                 const Set<BMFace *, 0L> &faces,
-                                                 const MutableSpan<float> r_factors)
+void fill_factor_from_hide_and_mask(const BMesh &bm,
+                                    const Set<BMFace *, 0L> &faces,
+                                    const MutableSpan<float> r_factors)
 {
   BLI_assert(faces.size() == r_factors.size());
 
@@ -1685,9 +1685,9 @@ BLI_NOINLINE void fill_factor_from_hide_and_mask(const BMesh &bm,
   }
 }
 
-BLI_NOINLINE void fill_factor_from_hide_and_mask(const Mesh &mesh,
-                                                 const Span<int> face_indices,
-                                                 const MutableSpan<float> r_factors)
+void fill_factor_from_hide_and_mask(const Mesh &mesh,
+                                    const Span<int> face_indices,
+                                    const MutableSpan<float> r_factors)
 {
   BLI_assert(face_indices.size() == r_factors.size());
 
@@ -1750,9 +1750,9 @@ void calc_face_centers(const Set<BMFace *, 0L> &faces, const MutableSpan<float3>
   }
 }
 
-BLI_NOINLINE void calc_face_indices_grids(const SubdivCCG &subdiv_ccg,
-                                          const Span<int> grids,
-                                          const MutableSpan<int> &face_indices)
+void calc_face_indices_grids(const SubdivCCG &subdiv_ccg,
+                             const Span<int> grids,
+                             const MutableSpan<int> &face_indices)
 {
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   BLI_assert(grids.size() * key.grid_area == face_indices.size());
