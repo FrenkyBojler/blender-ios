@@ -131,7 +131,7 @@ struct XrSessionSettings {
   char controller_dominant_hand; /* #eXrSessionDominantHand */
 
   char viewfinder_enable;
-  float viewfinder_width;
+  float viewfinder_scale;
 
   int _pad2;
 

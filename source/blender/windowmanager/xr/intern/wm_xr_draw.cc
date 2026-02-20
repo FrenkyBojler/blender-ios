@@ -886,11 +886,13 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   const float render_y = render_settings->ysch * render_settings->yasp;
   const float render_aspect_ratio = render_y / render_x;
 
-  const float viewfinder_height = settings->viewfinder_width * render_aspect_ratio;
+  constexpr float minimum_width = 4.3f;
+  const float viewfinder_width = minimum_width + settings->viewfinder_scale;
+  const float viewfinder_height = viewfinder_width * render_aspect_ratio;
   const float viewfinder_vertical_offset = 3.5f; /* Center of the viewfinder rectangle. */
 
   rctf viewfinder_rect = {};
-  BLI_rctf_resize(&viewfinder_rect, settings->viewfinder_width, viewfinder_height);
+  BLI_rctf_resize(&viewfinder_rect, viewfinder_width, viewfinder_height);
 
   /* Initial transform setup. */
   GPU_matrix_push();

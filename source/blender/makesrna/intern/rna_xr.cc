@@ -2287,8 +2287,10 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Enable Viewfinder", "Enable the Location Scouting Viewfinder");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
-  prop = RNA_def_property(srna, "viewfinder_width", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Viewfinder Width", "Width of the viewfinder");
+  prop = RNA_def_property(srna, "viewfinder_scale", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_range(prop, -3.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.001f, 3.0f, 0.01 * 100, 3);
+  RNA_def_property_ui_text(prop, "Viewfinder Scale", "Viewfinder size scale");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "clip_start", PROP_FLOAT, PROP_DISTANCE);

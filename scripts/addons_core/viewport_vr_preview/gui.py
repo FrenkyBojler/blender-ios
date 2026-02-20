@@ -132,7 +132,7 @@ class VIEW3D_PT_vr_viewfinder(Panel):
 
         layout.use_property_split = True
 
-        layout.prop(session_settings, "viewfinder_width", text="Zoom")
+        layout.prop(session_settings, "viewfinder_scale", text="Scale")
 
 
 # Landmarks.

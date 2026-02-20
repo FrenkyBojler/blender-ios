@@ -82,7 +82,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       wm.xr.session_settings.controller_dominant_hand = XR_CONTROLLER_DHAND_RIGHT;
 
       wm.xr.session_settings.viewfinder_enable = true;
-      wm.xr.session_settings.viewfinder_width = 5.0f;
+      wm.xr.session_settings.viewfinder_scale = 1.0f;
     }
   }
   /**
