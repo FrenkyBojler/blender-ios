@@ -804,9 +804,26 @@ static wmOperatorStatus undo_clear_history_exec(bContext *C, wmOperator *op)
   }
 
   BKE_undosys_stack_clear(undo_stack);
+
+  /* Exit object modes. */
+  for (Object &ob : bmain->objects) {
+    if (ob.mode != OB_MODE_OBJECT) {
+      ob.restore_mode = ob.mode;
+      ed::object::mode_generic_exit(bmain, CTX_data_depsgraph_pointer(C), CTX_data_scene(C), &ob);
+    }
+    else {
+      ob.restore_mode = OB_MODE_OBJECT;
+    }
+  }
   /* Add initial undo steps. */
   BKE_undosys_stack_init_from_main(undo_stack, bmain);
-  BKE_undosys_stack_init_from_context(undo_stack, C);
+
+  /* Restore object modes. */
+  for (Object &ob : bmain->objects) {
+    if (ob.restore_mode != OB_MODE_OBJECT) {
+      ed::object::mode_set_ex(C, eObjectMode(ob.restore_mode), true, nullptr);
+    }
+  }
 
   char data_size_str[15];
   BLI_str_format_byte_unit(data_size_str, data_size_all, true);
