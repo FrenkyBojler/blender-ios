@@ -273,9 +273,6 @@ static IDsByDomain get_transfer_attribute_ids(const AttributeAccessor attributes
     if (iter.storage_type == bke::AttrStorageType::Single) {
       return;
     }
-    if (iter.data_type == bke::AttrType::String) {
-      return;
-    }
     if (skip.contains(iter.name)) {
       return;
     }
@@ -290,9 +287,6 @@ static bool is_empty_domain(const AttributeAccessor attributes,
 {
   bool is_empty = true;
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.data_type == bke::AttrType::String) {
-      return;
-    }
     if (iter.domain != domain) {
       return;
     }
