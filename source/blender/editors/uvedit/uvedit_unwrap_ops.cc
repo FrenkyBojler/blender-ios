@@ -10,6 +10,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "xatlas.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_meshdata_types.h"
@@ -74,6 +76,8 @@
 #include "WM_types.hh"
 
 #include "uvedit_intern.hh"
+
+#include "bmesh.hh"
 
 namespace blender {
 
@@ -2047,8 +2051,83 @@ void UV_OT_pack_islands(wmOperatorType *ot)
 
 static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator * /*op*/)
 {
-  printf("xatlas unwrap: not implemented yet\n");
-  return OPERATOR_CANCELLED;
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+
+  xatlas::Atlas *atlas = xatlas::Create();
+
+  Vector<Vector<BMLoop *>> mesh_loops;
+
+  for (Object *obedit : objects) {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
+
+    Vector<float3> positions;
+    Vector<BMLoop *> loops;
+    Vector<uint32_t> indices;
+    Vector<uint8_t> face_vertex_counts;
+
+    BMFace *f;
+    BMIter fiter;
+    BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
+      face_vertex_counts.append(f->len);
+      BMLoop *l;
+      BMIter liter;
+      BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+        indices.append(positions.size());
+        positions.append(l->v->co);
+        loops.append(l);
+      }
+    }
+
+    xatlas::MeshDecl mesh_decl;
+    mesh_decl.vertexCount = positions.size();
+    mesh_decl.vertexPositionData = positions.data();
+    mesh_decl.vertexPositionStride = sizeof(float3);
+    mesh_decl.indexData = indices.data();
+    mesh_decl.indexCount = indices.size();
+    mesh_decl.indexFormat = xatlas::IndexFormat::UInt32;
+    mesh_decl.faceCount = face_vertex_counts.size();
+    mesh_decl.faceVertexCount = face_vertex_counts.data();
+
+    xatlas::AddMesh(atlas, mesh_decl);
+    mesh_loops.append(loops);
+  }
+
+  xatlas::PackOptions pack_options;
+  pack_options.padding = 0;
+  pack_options.bruteForce = true;
+  xatlas::Generate(atlas, xatlas::ChartOptions(), pack_options);
+
+  auto width = atlas->width;
+  auto height = atlas->height;
+
+  for (int mesh_index = 0; mesh_index < atlas->meshCount; mesh_index++) {
+    const auto &mesh = atlas->meshes[mesh_index];
+
+    Object *obedit = objects[mesh_index];
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_PROP_FLOAT2);
+
+    const auto& loops = mesh_loops[mesh_index];
+
+    for (uint32_t vi = 0; vi < mesh.vertexCount; vi++) {
+      const auto &vert = mesh.vertexArray[vi];
+      auto *loop_uv = BM_ELEM_CD_GET_FLOAT_P(loops[vert.xref], cd_loop_uv_offset);
+      loop_uv[0] = vert.uv[0] / width;
+      loop_uv[1] = vert.uv[1] / height;
+    }
+
+    DEG_id_tag_update(obedit->data, ID_RECALC_GEOMETRY);
+    WM_main_add_notifier(NC_GEOM | ND_DATA, obedit->data);
+  }
+
+  xatlas::Destroy(atlas);
+
+  return OPERATOR_FINISHED;
 }
 
 void UV_OT_xatlas_unwrap(wmOperatorType *ot)
