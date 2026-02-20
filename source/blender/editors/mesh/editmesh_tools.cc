@@ -1350,7 +1350,10 @@ static bool bm_vert_is_select_history_open(BMesh *bm)
   return false;
 }
 
-static bool bm_vert_connect_pair(BMesh *bm, BMVert *v_a, BMVert *v_b)
+static bool bm_vert_connect_pair(BMesh *bm,
+                                 BMVert *v_a,
+                                 BMVert *v_b,
+                                 const bool skip_normals = false)
 {
   BMOperator bmop;
   BMVert **verts;
@@ -1361,6 +1364,12 @@ static bool bm_vert_connect_pair(BMesh *bm, BMVert *v_a, BMVert *v_b)
   verts = static_cast<BMVert **>(BMO_slot_buffer_alloc(&bmop, bmop.slots_in, "verts", 2));
   verts[0] = v_a;
   verts[1] = v_b;
+
+  /* Note that normals may be overridden when connecting more than 2 vertices. */
+  if (!skip_normals) {
+    BM_vert_normal_update(verts[0]);
+    BM_vert_normal_update(verts[1]);
+  }
 
   BMO_op_exec(bm, &bmop);
   BMO_slot_buffer_hflag_enable(bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
@@ -1401,16 +1410,20 @@ static bool bm_vert_connect_select_history(BMesh *bm)
       if (tot == bm->totvertsel) {
         BMEditSelection *ese_last;
 
-        /* Connecting vertices can change the mesh normal state, which can break symmetry in cases
-         * where it is expected so we store the original normals to restore later before
-         * connecting. */
         Map<BMVert *, float3> orig_normals;
-        for (ese_last = static_cast<BMEditSelection *>(bm->selected.first); ese_last;
-             ese_last = ese_last->next)
-        {
-          BMVert *v = reinterpret_cast<BMVert *>(ese_last->ele);
-          BM_vert_normal_update(v);
-          orig_normals.add(v, v->no);
+        const bool is_multi_cut = (bm->totvertsel > 2);
+
+        if (is_multi_cut) {
+          /* Connecting more than 2 vertices can change the mesh normal state, which can break
+           * symmetry in cases where it is expected so we store the original normals to restore
+           * later before connecting. */
+          for (ese_last = static_cast<BMEditSelection *>(bm->selected.first); ese_last;
+               ese_last = ese_last->next)
+          {
+            BMVert *v = reinterpret_cast<BMVert *>(ese_last->ele);
+            BM_vert_normal_update(v);
+            orig_normals.add(v, v->no);
+          }
         }
         ese_last = static_cast<BMEditSelection *>(bm->selected.first);
         ese = ese_last->next;
@@ -1426,13 +1439,13 @@ static bool bm_vert_connect_select_history(BMesh *bm)
             BMVert *v_last = reinterpret_cast<BMVert *>(ese_last->ele);
             BMVert *v_curr = reinterpret_cast<BMVert *>(ese->ele);
 
-            if (orig_normals.contains(v_last)) {
+            if (is_multi_cut) {
+              BLI_assert(orig_normals.contains(v_last));
+              BLI_assert(orig_normals.contains(v_curr));
               copy_v3_v3(v_last->no, orig_normals.lookup(v_last));
-            }
-            if (orig_normals.contains(v_curr)) {
               copy_v3_v3(v_curr->no, orig_normals.lookup(v_curr));
             }
-            changed |= bm_vert_connect_pair(bm, v_last, v_curr);
+            changed |= bm_vert_connect_pair(bm, v_last, v_curr, is_multi_cut);
           }
         } while ((void)(ese_last = ese), (ese = ese->next));
 
@@ -1444,14 +1457,12 @@ static bool bm_vert_connect_select_history(BMesh *bm)
       if (changed == false) {
         /* existing loops: close the selection */
         if (bm_vert_is_select_history_open(bm)) {
-          BMVert *v_first = reinterpret_cast<BMVert *>(
-              (static_cast<BMEditSelection *>(bm->selected.first))->ele);
-          BMVert *v_last = reinterpret_cast<BMVert *>(
-              (static_cast<BMEditSelection *>(bm->selected.last))->ele);
-
-          BM_vert_normal_update(v_first);
-          BM_vert_normal_update(v_last);
-          changed |= bm_vert_connect_pair(bm, v_first, v_last);
+          changed |= bm_vert_connect_pair(
+              bm,
+              reinterpret_cast<BMVert *>(
+                  (static_cast<BMEditSelection *>(bm->selected.first))->ele),
+              reinterpret_cast<BMVert *>(
+                  (static_cast<BMEditSelection *>(bm->selected.last))->ele));
 
           if (changed) {
             return true;
