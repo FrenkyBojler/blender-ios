@@ -406,7 +406,6 @@ class IMAGE_MT_uvs_unwrap(Menu):
         layout.operator("uv.unwrap", text="Unwrap Angle Based").method = 'ANGLE_BASED'
         layout.operator("uv.unwrap", text="Unwrap Conformal").method = 'CONFORMAL'
         layout.operator("uv.unwrap", text="Unwrap Minimum Stretch").method = 'MINIMUM_STRETCH'
-        layout.operator("uv.xatlas_unwrap", text="Xatlas Unwrap")
 
         layout.separator()
 
@@ -414,6 +413,7 @@ class IMAGE_MT_uvs_unwrap(Menu):
         layout.operator("uv.smart_project", text="Smart UV Project...")
         layout.operator("uv.lightmap_pack", text="Lightmap Pack...")
         layout.operator("uv.follow_active_quads", text="Follow Active Quads...")
+        layout.operator("uv.xatlas_unwrap", text="Xatlas Unwrap")
 
         layout.separator()
 

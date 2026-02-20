@@ -77,8 +77,6 @@
 
 #include "uvedit_intern.hh"
 
-#include "bmesh.hh"
-
 namespace blender {
 
 using geometry::ParamHandle;
