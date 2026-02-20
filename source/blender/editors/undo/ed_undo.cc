@@ -14,6 +14,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -787,7 +788,7 @@ static wmOperatorStatus undo_clear_history_invoke(bContext *C,
                                 true);
 }
 
-static wmOperatorStatus undo_clear_history_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus undo_clear_history_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -795,10 +796,25 @@ static wmOperatorStatus undo_clear_history_exec(bContext *C, wmOperator * /*op*/
   if (!undo_stack) {
     return OPERATOR_CANCELLED;
   }
+
+  /* Compute the total size of all the undo steps. */
+  size_t data_size_all = 0;
+  for (UndoStep &us : undo_stack->steps) {
+    data_size_all += us.data_size;
+  }
+
   BKE_undosys_stack_clear(undo_stack);
   /* Add initial undo steps. */
   BKE_undosys_stack_init_from_main(undo_stack, bmain);
   BKE_undosys_stack_init_from_context(undo_stack, C);
+
+  char data_size_str[15];
+  BLI_str_format_byte_unit(data_size_str, data_size_all, true);
+  BKE_reportf(op->reports,
+              eReportType::RPT_INFO,
+              "Undo history cleared. Freed %s of memory.",
+              data_size_str);
+
   return OPERATOR_FINISHED;
 }
 
