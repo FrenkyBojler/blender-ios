@@ -1134,7 +1134,8 @@ struct UserDef {
   /** #eAutokey_Mode, auto-keying mode. */
   short autokey_mode = (AUTOKEY_MODE_NORMAL & ~AUTOKEY_ON);
   /** Flags for inserting keyframes. */
-  short keying_flag = KEYING_FLAG_XYZ2RGB | AUTOKEY_FLAG_INSERTNEEDED;
+  short keying_flag = KEYING_FLAG_XYZ2RGB | AUTOKEY_FLAG_INSERTNEEDED |
+                      AUTOKEY_FLAG_INSERTAVAILABLE;
   /** Flags for which channels to insert keys at. */
   short key_insert_channels = USER_ANIM_KEY_CHANNEL_LOCATION | USER_ANIM_KEY_CHANNEL_ROTATION |
                               USER_ANIM_KEY_CHANNEL_SCALE |
