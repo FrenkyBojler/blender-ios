@@ -1673,8 +1673,7 @@ void uvedit_select_prepare_sync_select(const Scene *scene, BMesh *bm)
   ED_uvedit_sync_uvselect_ensure_if_needed(scene->toolsettings, bm);
 }
 
-/* We may want to use this eventually. */
-void uvedit_select_prepare_UNUSED(const Scene *scene, BMesh *bm)
+void uvedit_select_prepare(const Scene *scene, BMesh *bm)
 {
   const ToolSettings *ts = scene->toolsettings;
   if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
@@ -6968,7 +6967,6 @@ finally:
 
 BMLoop **ED_uvedit_selected_verts(const Scene *scene, BMesh *bm, int len_max, int *r_verts_len)
 {
-  const ToolSettings *ts = scene->toolsettings;
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
   BLI_assert(offsets.uv >= 0);
 
@@ -6994,7 +6992,7 @@ BMLoop **ED_uvedit_selected_verts(const Scene *scene, BMesh *bm, int len_max, in
       BMLoop *l_iter;
       BM_ITER_ELEM (l_iter, &liter, f, BM_LOOPS_OF_FACE) {
         if (!BM_elem_flag_test(l_iter, BM_ELEM_TAG)) {
-          if (uvedit_vert_select_get_no_sync(ts, bm, l_iter)) {
+          if (uvedit_uv_select_test(scene, bm, l_iter, offsets)) {
             BM_elem_flag_enable(l_iter->v, BM_ELEM_TAG);
 
             verts[verts_len++] = l_iter;

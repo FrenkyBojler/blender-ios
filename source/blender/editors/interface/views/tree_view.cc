@@ -103,7 +103,7 @@ void TreeViewItemContainer::sort_alpha()
   std::ranges::sort(children_,
                     [](const std::unique_ptr<AbstractTreeViewItem> &a,
                        const std::unique_ptr<AbstractTreeViewItem> &b) {
-                      return a.get()->debug_name() < b.get()->debug_name();
+                      return a.get()->label() < b.get()->label();
                     });
 
   for (std::unique_ptr<AbstractTreeViewItem> &item : children_) {
@@ -279,11 +279,11 @@ void AbstractTreeView::get_hierarchy_lines(const ARegion &region,
 
 static ButtonViewItem *find_first_view_item_but(const Block &block, const AbstractTreeView &view)
 {
-  for (const std::unique_ptr<Button> &but : block.buttons) {
-    if (but->type != ButtonType::ViewItem) {
+  for (Button &but : block.buttons()) {
+    if (but.type != ButtonType::ViewItem) {
       continue;
     }
-    auto *view_item_but = static_cast<ButtonViewItem *>(but.get());
+    auto *view_item_but = static_cast<ButtonViewItem *>(&but);
     if (&view_item_but->view_item->get_view() == &view) {
       return view_item_but;
     }
@@ -834,6 +834,11 @@ void AbstractTreeViewItem::on_filter()
       item.set_collapsed(false);
     });
   }
+}
+
+StringRefNull AbstractTreeViewItem::label() const
+{
+  return label_;
 }
 
 /* ---------------------------------------------------------------------- */

@@ -323,6 +323,11 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_grease_pencil.py
 )
 
+add_blender_test(
+  script_pyapi_annotations
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_annotations.py
+)
+
 # ------------------------------------------------------------------------------
 # DATA MANAGEMENT TESTS
 # ------------------------------------------------------------------------------
@@ -909,7 +914,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
         endforeach()
       endif()
 
-      if(WITH_VULKAN_BACKEND AND (name STREQUAL "workbench" OR name STREQUAL "overlay" OR WITH_GPU_RENDER_TESTS_VULKAN)
+      if(WITH_VULKAN_BACKEND AND (name STREQUAL "overlay" OR WITH_GPU_RENDER_TESTS_VULKAN)
           AND (NOT (name STREQUAL "storm_hydra" OR name STREQUAL "storm_usd") OR WITH_STORM_TESTS_VULKAN))
         foreach(render_test ${render_tests})
           add_render_test(
@@ -1529,6 +1534,15 @@ if(TEST_SRC_DIR_EXISTS)
   # TODO: disabled for now after collection unification
   # add_subdirectory(view_layer)
 endif()
+
+# ------------------------------------------------------------------------------
+# Remote Asset Library tests
+# ------------------------------------------------------------------------------
+if(TEST_SRC_DIR_EXISTS)
+  add_subdirectory(assets)
+endif()
+
+
 
 # ------------------------------------------------------------------------------
 # Linux Release sanity checks
