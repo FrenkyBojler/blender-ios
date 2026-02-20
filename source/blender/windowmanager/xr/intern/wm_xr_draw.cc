@@ -608,19 +608,21 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
 
   std::string settings_label;
   switch (state->viewfinder.active_mode) {
+    /* \xe2\x80\x87 corresponds to a Unicode Figure Space (BLI_STR_UTF8_FIGURE_SPACE). */
     case XR_VIEWFINDER_MODE_LIVE:
-      settings_label = fmt::format("{}mm   DoF: {}   d: {:.1f}   f {:.1f}",
-                                   state->viewfinder.capture_lens,
-                                   state->viewfinder.capture_use_dof ? "on" : "off",
-                                   state->viewfinder.capture_focus_distance,
-                                   state->viewfinder.capture_aperture_fstop);
+      // TODO: Clean-up by moving DoF status to another label on the left side of the viewfinder.
+      settings_label = fmt::format(
+          "{:\xe2\x80\x87>3}mm DoF: {} d: {:\xe2\x80\x87<4.1f} f {:\xe2\x80\x87>3.1f}",
+          state->viewfinder.capture_lens,
+          state->viewfinder.capture_use_dof ? "on " : "off",
+          state->viewfinder.capture_focus_distance,
+          state->viewfinder.capture_aperture_fstop);
       break;
     case XR_VIEWFINDER_MODE_PLAYBACK:
       /* Current shot indicator (`current shot idx / all shots`). */
       if (landmark_len > 0) {
         const int width = landmark_len >= 10 ? 2 : 1;
         const char *pad_prefix = landmark_len < 10 ? "     " : "";
-        /* \xe2\x80\x87 corresponds to a Unicode Figure Space (BLI_STR_UTF8_FIGURE_SPACE). */
         settings_label = fmt::format("{}{:\xe2\x80\x87>{}} / {:\xe2\x80\x87>{}}",
                                      pad_prefix,
                                      landmark_idx + 1,
