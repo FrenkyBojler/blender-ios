@@ -2098,7 +2098,6 @@ static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator *op)
   chart_options.maxChartArea = RNA_float_get(op->ptr, "max_chart_area");
   chart_options.maxBoundaryLength = RNA_float_get(op->ptr, "max_boundary_length");
   chart_options.maxIterations = RNA_int_get(op->ptr, "max_iterations");
-  ;
 
   xatlas::PackOptions pack_options;
   pack_options.padding = RNA_int_get(op->ptr, "padding");
@@ -2124,8 +2123,7 @@ static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator *op)
 
     const auto &loops = mesh_loops[mesh_index];
 
-    for (int i = 0; i < mesh.vertexCount; i++) {
-      const auto &vert = mesh.vertexArray[i];
+    for (const auto &vert : Span(mesh.vertexArray, mesh.vertexCount)) {
       auto *loop_uv = BM_ELEM_CD_GET_FLOAT_P(loops[vert.xref], cd_loop_uv_offset);
       loop_uv[0] = vert.uv[0] / atlas->width;
       loop_uv[1] = vert.uv[1] / atlas->height;
@@ -2205,15 +2203,6 @@ void UV_OT_xatlas_unwrap(wmOperatorType *ot)
                 "Texels Per Unit",
                 "Unit to texel scale. e.g. a 1x1 quad with texelsPerUnit of 32 will take up "
                 "approximately 32x32 texels in the atlas",
-                0.0f,
-                FLT_MAX);
-  RNA_def_float(ot->srna,
-                "max_chart_area",
-                0.0f,
-                0.0f,
-                FLT_MAX,
-                "Max Chart Area",
-                "Maximum area of a chart (0 = no limit)",
                 0.0f,
                 FLT_MAX);
   RNA_def_float(ot->srna,
