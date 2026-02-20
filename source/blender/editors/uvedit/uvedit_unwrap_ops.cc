@@ -2049,10 +2049,23 @@ void UV_OT_pack_islands(wmOperatorType *ot)
                "");
 }
 
-static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  const int padding = RNA_int_get(op->ptr, "padding");
+  const float texels_per_unit = RNA_float_get(op->ptr, "texels_per_unit");
+  const int resolution = RNA_int_get(op->ptr, "resolution");
+  const bool bilinear = RNA_boolean_get(op->ptr, "bilinear");
+  const bool block_align = RNA_boolean_get(op->ptr, "block_align");
+  const bool brute_force = RNA_boolean_get(op->ptr, "brute_force");
+  const bool rotate_charts = RNA_boolean_get(op->ptr, "rotate_charts");
+  const bool rotate_charts_to_axis = RNA_boolean_get(op->ptr, "rotate_charts_to_axis");
+
+  const float max_chart_area = RNA_float_get(op->ptr, "max_chart_area");
+  const float max_boundary_length = RNA_float_get(op->ptr, "max_boundary_length");
+  const int max_iterations = RNA_int_get(op->ptr, "max_iterations");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
@@ -2097,10 +2110,22 @@ static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator * /*op*/)
     mesh_loops.append(loops);
   }
 
+  xatlas::ChartOptions chart_options;
+  chart_options.maxChartArea = max_chart_area;
+  chart_options.maxBoundaryLength = max_boundary_length;
+  chart_options.maxIterations = max_iterations;
+
   xatlas::PackOptions pack_options;
-  pack_options.padding = 0;
-  pack_options.bruteForce = true;
-  xatlas::Generate(atlas, xatlas::ChartOptions(), pack_options);
+  pack_options.padding = padding;
+  pack_options.texelsPerUnit = texels_per_unit;
+  pack_options.resolution = resolution;
+  pack_options.bilinear = bilinear;
+  pack_options.blockAlign = block_align;
+  pack_options.bruteForce = brute_force;
+  pack_options.rotateCharts = rotate_charts;
+  pack_options.rotateChartsToAxis = rotate_charts_to_axis;
+
+  xatlas::Generate(atlas, chart_options, pack_options);
 
   auto width = atlas->width;
   auto height = atlas->height;
@@ -2112,7 +2137,7 @@ static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator * /*op*/)
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_PROP_FLOAT2);
 
-    const auto& loops = mesh_loops[mesh_index];
+    const auto &loops = mesh_loops[mesh_index];
 
     for (uint32_t vi = 0; vi < mesh.vertexCount; vi++) {
       const auto &vert = mesh.vertexArray[vi];
@@ -2140,6 +2165,90 @@ void UV_OT_xatlas_unwrap(wmOperatorType *ot)
 
   ot->exec = xatlas_unwrap_exec;
   ot->poll = ED_operator_uvmap;
+
+  RNA_def_int(ot->srna,
+              "padding",
+              0,
+              0,
+              INT_MAX,
+              "Padding",
+              "Number of pixels to pad charts with",
+              0,
+              INT_MAX);
+  RNA_def_int(ot->srna,
+              "resolution",
+              0,
+              0,
+              INT_MAX,
+              "Resolution",
+              "Resolution of the generated atlas (uses texelsPerUnit if 0)",
+              0,
+              INT_MAX);
+  RNA_def_boolean(
+      ot->srna,
+      "bilinear",
+      true,
+      "Bilinear",
+      "Leave space around charts for texels that would be sampled by bilinear filtering");
+  RNA_def_boolean(ot->srna, "block_align", false, "Block Align", "Align charts to 4x4 blocks");
+  RNA_def_boolean(ot->srna,
+                  "brute_force",
+                  false,
+                  "Brute Force",
+                  "Use brute force packing. Slower, but gives the best result");
+  RNA_def_boolean(
+      ot->srna, "rotate_charts", true, "Rotate Charts", "Rotate charts to improve packing");
+  RNA_def_boolean(ot->srna,
+                  "rotate_charts_to_axis",
+                  true,
+                  "Rotate to Axis",
+                  "Rotate charts to the axis of their convex hull");
+  RNA_def_float(ot->srna,
+                "max_chart_area",
+                0.0f,
+                0.0f,
+                FLT_MAX,
+                "Max Chart Area",
+                "Don't grow charts to be larger than this. 0 means no limit",
+                0.0f,
+                FLT_MAX);
+  RNA_def_float(ot->srna,
+                "texels_per_unit",
+                0.0f,
+                0.0f,
+                FLT_MAX,
+                "Texels Per Unit",
+                "Unit to texel scale. e.g. a 1x1 quad with texelsPerUnit of 32 will take up "
+                "approximately 32x32 texels in the atlas",
+                0.0f,
+                FLT_MAX);
+  RNA_def_float(ot->srna,
+                "max_chart_area",
+                0.0f,
+                0.0f,
+                FLT_MAX,
+                "Max Chart Area",
+                "Maximum area of a chart (0 = no limit)",
+                0.0f,
+                FLT_MAX);
+  RNA_def_float(ot->srna,
+                "max_boundary_length",
+                0.0f,
+                0.0f,
+                FLT_MAX,
+                "Max Boundary Length",
+                "Maximum boundary length of a chart (0 = no limit)",
+                0.0f,
+                FLT_MAX);
+  RNA_def_int(ot->srna,
+              "max_iterations",
+              1,
+              0,
+              INT_MAX,
+              "Max Iterations",
+              "Number of iterations of the chart growing and seeding phases",
+              0,
+              INT_MAX);
 }
 
 /** \} */
