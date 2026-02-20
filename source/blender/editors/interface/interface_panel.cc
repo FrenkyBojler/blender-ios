@@ -874,6 +874,14 @@ static void ui_offset_panel_block(Block *block)
     but.rect.ymin += ofsy;
     but.rect.ymax += ofsy;
   }
+  for (LayoutPanelBody &body : block->panel->runtime->layout_panels.bodies) {
+    body.start_y -= style->panelspace;
+    body.end_y -= style->panelspace;
+  }
+  for (LayoutPanelHeader &headcer : block->panel->runtime->layout_panels.headers) {
+    headcer.start_y -= style->panelspace;
+    headcer.end_y -= style->panelspace;
+  }
 
   block->rect.xmax = block->panel->sizex;
   block->rect.ymax = block->panel->sizey;
@@ -1203,7 +1211,9 @@ void draw_layout_panels_backdrop(const ARegion *region,
   /* Draw backdrops for layout panels. */
   const float aspect = block_is_popup_any(panel->runtime->block) ? panel->runtime->block->aspect :
                                                                    1.0f;
-
+  const float scroll_pad = block_is_popup_any(panel->runtime->block) ?
+                               UI_MENU_SCROLL_PAD / aspect :
+                               0.0f;
   for (const LayoutPanelBody &body : panel->runtime->layout_panels.bodies) {
 
     rctf panel_blockspace = panel->runtime->block->rect;
@@ -1219,8 +1229,9 @@ void draw_layout_panels_backdrop(const ARegion *region,
       continue;
     }
     /* If the layout panel is at the end of the root panel, it's bottom corners are rounded. */
-    const bool is_main_panel_end = panel_blockspace.ymin - panel->runtime->block->rect.ymin <
-                                   (10.0f / aspect);
+    const bool is_main_panel_end = panel_blockspace.ymin -
+                                       (panel->runtime->block->rect.ymin + scroll_pad) <
+                                   (10.0f * UI_SCALE_FAC / aspect);
     if (is_main_panel_end) {
       panel_blockspace.ymin = panel->runtime->block->rect.ymin;
       draw_roundbox_corner_set(CNR_BOTTOM_RIGHT | CNR_BOTTOM_LEFT);
