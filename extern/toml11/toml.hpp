@@ -3883,7 +3883,7 @@ inline std::string show_char(const int c)
     {
         std::array<char, 5> buf;
         buf.fill('\0');
-        const auto r = std::snprintf(buf.data(), buf.size(), "0x%02x", c & 0xFF);
+        const auto r = std::snprintf(buf.data(), buf.size(), "0x%02x", static_cast<unsigned int>(c & 0xFF));
         assert(r == static_cast<int>(buf.size()) - 1);
         (void) r; // Unused variable warning
         auto in_hex = std::string(buf.data());
