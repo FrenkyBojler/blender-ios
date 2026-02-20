@@ -537,8 +537,8 @@ static bool action_copy_fcurves_by_basepath(const animrig::Action &src_action,
                                             const StringRef dst_basepath)
 {
   bool result = false;
-  /* Get a list of all F-Curves to copy. This is done in a separate step so we
-   * don't copy the curves while iterating over them at the same time. */
+  /* Store list of all F-Curves to copy so we don't copy the curves while iterating over them. The
+   * fcurve array of slot grows with each copy, invalidating the iterator. */
   Vector<const FCurve *> fcurves_to_copy;
   /* const_cast the src_action here because there is only a non-const fcurve iterator method.
    * We only use the fcurve as a const ref, there's no risk of modifying the data. */
