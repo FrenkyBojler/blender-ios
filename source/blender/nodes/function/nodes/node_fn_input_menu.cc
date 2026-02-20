@@ -54,7 +54,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, "FunctionNodeInputMenu");
+  fn_cmp_node_type_base(&ntype, "FunctionNodeInputMenu");
   ntype.ui_name = "Menu";
   ntype.ui_description = "Provide a menu value that can be connected to other nodes in the tree";
   ntype.nclass = NODE_CLASS_INPUT;
