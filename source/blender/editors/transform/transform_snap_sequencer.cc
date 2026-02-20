@@ -44,12 +44,15 @@
 namespace blender::ed::transform {
 
 struct TransSeqSnapData {
-  /* In timeline snapping, a channel of 0 indicates "snap applies for all channels". */
   Vector<float2> source_snap_points;
   Vector<float2> target_snap_points;
 
   MEM_CXX_CLASS_ALLOC_FUNCS("TransSeqSnapData")
 };
+
+/* In timeline snap data, a channel of 0 indicates "this snap type always applies to all channels",
+ * e.g. for snapping to frame ranges or markers, rather than individual strips.  */
+static constexpr int all_channels = 0;
 
 /* -------------------------------------------------------------------- */
 /** \name Snap sources
@@ -285,23 +288,23 @@ static void points_build_targets_timeline(const Scene *scene,
                                           const Span<Strip *> strip_targets)
 {
   if (snap_mode & SEQ_SNAP_TO_CURRENT_FRAME) {
-    snap_data->target_snap_points.append(float2(scene->r.cfra, 0));
+    snap_data->target_snap_points.append(float2(scene->r.cfra, all_channels));
   }
 
   if (snap_mode & SEQ_SNAP_TO_MARKERS) {
     for (TimeMarker &marker : scene->markers) {
-      snap_data->target_snap_points.append(float2(marker.frame, 0));
+      snap_data->target_snap_points.append(float2(marker.frame, all_channels));
     }
   }
 
   if (snap_mode & SEQ_SNAP_TO_FRAME_RANGE) {
-    snap_data->target_snap_points.append(float2(PSFRA, 0));
-    snap_data->target_snap_points.append(float2(PEFRA + 1, 0));
+    snap_data->target_snap_points.append(float2(PSFRA, all_channels));
+    snap_data->target_snap_points.append(float2(PEFRA + 1, all_channels));
     /* Also snap to meta-strip display range if we are in a meta-strip. */
     MetaStack *ms = seq::meta_stack_active_get(seq::editing_get(scene));
     if (ms != nullptr) {
-      snap_data->target_snap_points.append(float2(ms->disp_range[0], 0));
-      snap_data->target_snap_points.append(float2(ms->disp_range[1], 0));
+      snap_data->target_snap_points.append(float2(ms->disp_range[0], all_channels));
+      snap_data->target_snap_points.append(float2(ms->disp_range[1], all_channels));
     }
   }
 
@@ -526,14 +529,13 @@ static bool snap_calc_timeline(TransInfo *t, const TransSeqSnapData *snap_data)
   }
 
   const short snap_flag = seq::tool_settings_snap_flag_get(t->scene);
-  const bool ignore_other_channels = (snap_flag & SEQ_SNAP_IGNORE_OTHER_CHANNELS);
+  const bool ignore_other_channels = !(snap_flag & SEQ_SNAP_TO_ALL_CHANNEL_STRIPS);
 
   int best_dist = MAXFRAME, best_target_frame = 0, best_source_frame = 0;
 
   for (const float *snap_source_point : snap_data->source_snap_points) {
     for (const float *snap_target_point : snap_data->target_snap_points) {
-      /* Target channel of 0 indicates it applies to all channels. */
-      if (ignore_other_channels && snap_target_point[1] != 0 &&
+      if (ignore_other_channels && snap_target_point[1] != all_channels &&
           (snap_source_point[1] + round_fl_to_int(t->values[1])) != snap_target_point[1])
       {
         continue;
