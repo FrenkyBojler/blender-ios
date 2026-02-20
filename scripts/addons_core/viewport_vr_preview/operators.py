@@ -313,11 +313,10 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
         lm.base_pose_angle = rot.to_euler()[2]  # Only filled in for Landmark Viewport Feedback to work
         lm.viewfinder_quat = rot
 
-        camera = scene.camera.data
-        lm.viewfinder_lens = camera.lens
-        lm.viewfinder_use_dof = camera.dof.use_dof
-        lm.viewfinder_dof_dist = camera.dof.focus_distance
-        lm.viewfinder_dof_fstop = camera.dof.aperture_fstop
+        lm.viewfinder_lens = xr_viewfinder.capture_lens
+        lm.viewfinder_use_dof = xr_viewfinder.capture_use_dof
+        lm.viewfinder_dof_dist = xr_viewfinder.capture_focus_distance
+        lm.viewfinder_dof_fstop = xr_viewfinder.capture_aperture_fstop
 
         xr_viewfinder.runtime_capture_flash = 1  # Internal value, setting to 1 will trigger a flash
 
@@ -458,7 +457,7 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
             # Playblack control
             scene = context.scene
             landmarks = scene.vr_landmarks
-            if not landmarks:
+            if len(landmarks) == 0:
                 return {'FINISHED'}
 
             match xr_viewfinder.active_action_playback:
