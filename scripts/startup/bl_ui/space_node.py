@@ -446,6 +446,7 @@ class NODE_MT_node(Menu):
         props.NODE_OT_translate_attach.TRANSFORM_OT_translate.view2d_edge_pan = True
         props = layout.operator("node.duplicate_move_linked")
         props.NODE_OT_translate_attach.TRANSFORM_OT_translate.view2d_edge_pan = True
+        layout.operator("node.move_detach_links", text="Detach and Move")
 
         layout.separator()
         layout.operator("node.delete", icon='X')
