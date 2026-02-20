@@ -675,7 +675,7 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
           auto &array_dna = write_data.scope.construct<AttributeArray>();
           const Span runtime_data(static_cast<std::string *>(array_data.data), array_data.size);
           MutableSpan dna_data = write_data.scope.allocator().allocate_array<MStringProperty>(
-              array_dna.size);
+              array_data.size);
           threading::parallel_for(IndexRange(array_data.size), 1024, [&](const IndexRange range) {
             for (const int i : range) {
               dna_data[i].s_len = std::min(runtime_data[i].size(), sizeof(MStringProperty::s));
@@ -695,6 +695,7 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
          * array of character data. */
         const Span span(static_cast<const std::string *>(array_data.data), array_data.size);
         auto *offset_data = new ImplicitSharedValue<Array<int>>(array_data.size + 1);
+        write_data.scope.construct<ImplicitSharingPtr<>>(offset_data);
         threading::parallel_for(IndexRange(array_data.size), 4096, [&](const IndexRange range) {
           for (const int i : range) {
             offset_data->data[i] = span[i].size();
@@ -703,6 +704,7 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
         const OffsetIndices offsets = offset_indices::accumulate_counts_to_offsets(
             offset_data->data);
         auto *data = new ImplicitSharedValue<Array<char>>(offsets.total_size());
+        write_data.scope.construct<ImplicitSharingPtr<>>(data);
         threading::parallel_for(IndexRange(array_data.size), 4096, [&](const IndexRange range) {
           for (const int i : range) {
             data->data.as_mutable_span()
