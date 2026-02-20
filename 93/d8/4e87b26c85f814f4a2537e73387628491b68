@@ -1,3 +1,4 @@
 Referenced by issue #103400, Regression: Not possible to transfer Color Attributs Layer with "Transfer Mesh Data Layout"
 Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
 Referenced by pull request #154507, Fix #154462 : Mesh Data Transfer UI misses mapping options for colors
+Referenced by commit 09b68223c344001d8b11da734a4bf8d4390ad10d, Fix #154462 : Mesh Data Transfer UI misses mapping options for colors
