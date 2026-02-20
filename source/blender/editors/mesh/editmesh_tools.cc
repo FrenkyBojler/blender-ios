@@ -1409,7 +1409,6 @@ static bool bm_vert_connect_select_history(BMesh *bm)
       /* all verts have faces , connect verts via faces! */
       if (tot == bm->totvertsel) {
         BMEditSelection *ese_last;
-
         Map<BMVert *, float3> orig_normals;
 
         /* Connecting more than 2 vertices can change the mesh normal state, which can break
