@@ -1,2 +1,3 @@
 Referenced by issue #152537, Many tooltips are only translated when the 'Interface' checkbox is checked (not 'Tooltips')
 Referenced by commit c5593464ad5dc3882438e513d73dd167386ac475, Fix #152537: Tooltips are translated with wrong translation option
+Referenced by commit 4033f6e6dfcbb664de23ab87b0685d3cebffa54f, I18n: Translate tooltip with default context if description specified
