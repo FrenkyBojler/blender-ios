@@ -2045,6 +2045,24 @@ void UV_OT_pack_islands(wmOperatorType *ot)
                "");
 }
 
+static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator * /*op*/)
+{
+  printf("xatlas unwrap: not implemented yet\n");
+  return OPERATOR_CANCELLED;
+}
+
+void UV_OT_xatlas_unwrap(wmOperatorType *ot)
+{
+  ot->name = "xatlas Unwrap";
+  ot->idname = "UV_OT_xatlas_unwrap";
+  ot->description = "Unwrap using xatlas";
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  ot->exec = xatlas_unwrap_exec;
+  ot->poll = ED_operator_uvmap;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

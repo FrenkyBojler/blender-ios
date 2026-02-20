@@ -145,6 +145,7 @@ void UV_OT_cylinder_project(wmOperatorType *ot);
 void UV_OT_project_from_view(wmOperatorType *ot);
 void UV_OT_minimize_stretch(wmOperatorType *ot);
 void UV_OT_pack_islands(wmOperatorType *ot);
+void UV_OT_xatlas_unwrap(wmOperatorType *ot);
 void UV_OT_reset(wmOperatorType *ot);
 void UV_OT_sphere_project(wmOperatorType *ot);
 void UV_OT_unwrap(wmOperatorType *ot);
