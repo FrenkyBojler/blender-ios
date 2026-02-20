@@ -1998,6 +1998,33 @@ static int rna_NodesModifierWarning_type_get(PointerRNA *ptr)
   return int(warning->type);
 }
 
+static bool rna_NodesModifier_is_socket_visible(NodesModifierData *nmd, const char *identifier)
+{
+  if (nmd->node_group == nullptr)
+    return false;
+
+  if (nmd->runtime == nullptr) {
+    return true;
+  }
+  bNodeTree *ntree = nmd->node_group;
+
+  nmd->runtime->usage_cache.ensure(*nmd);
+  const auto &input_usages = nmd->runtime->usage_cache.inputs;
+  for (bNodeTreeInterfaceSocket *socket : ntree->interface_inputs()) {
+
+    if (STREQ(socket->identifier, identifier)) {
+      int bounds = ntree->interface_input_index(*socket);
+      if (bounds < input_usages.size()) {
+        return input_usages[ntree->interface_input_index(*socket)].is_visible;
+      }
+      else {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 static IDProperty **rna_NodesModifier_properties(PointerRNA *ptr)
 {
   NodesModifierData *nmd = static_cast<NodesModifierData *>(ptr->data);
@@ -8049,6 +8076,8 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
+  FunctionRNA *func;
+  PropertyRNA *parm;
 
   rna_def_modifier_nodes_data_block(brna);
 
@@ -8126,6 +8155,17 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "NodesModifierWarning");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_override_clear_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+
+  func = RNA_def_function(srna, "is_socket_visible", "rna_NodesModifier_is_socket_visible");
+  RNA_def_function_ui_description(
+      func,
+      "Check if a socket is currently visible based on modifier settings, "
+      "returns True if the socket is logically visible");
+  parm = RNA_def_string(
+      func, "identifier", "Identifier", 0, "", "The internal identifier of the socket");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_boolean(func, "result", false, "Result", "");
+  RNA_def_function_return(func, parm);
 
   rna_def_modifier_panel_open_prop(
       srna, "open_output_attributes_panel", NODES_MODIFIER_PANEL_OUTPUT_ATTRIBUTES);
