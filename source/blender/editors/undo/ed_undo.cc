@@ -778,8 +778,13 @@ static wmOperatorStatus undo_clear_history_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent * /*event*/)
 {
-  return WM_operator_confirm_ex(
-      C, op, IFACE_("Clear undo history?"), nullptr, IFACE_("Clear"), ui::AlertIcon::None, false);
+  return WM_operator_confirm_ex(C,
+                                op,
+                                IFACE_("Clear undo history?"),
+                                IFACE_("All undo steps will be deleted."),
+                                IFACE_("Clear"),
+                                ui::AlertIcon::Warning,
+                                true);
 }
 
 static wmOperatorStatus undo_clear_history_exec(bContext *C, wmOperator * /*op*/)
