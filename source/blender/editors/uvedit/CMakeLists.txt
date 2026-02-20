@@ -6,6 +6,7 @@ set(INC
   ../include
   ../../makesrna
   ../../../../intern/eigen
+  ../../../../extern/xatlas
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -42,6 +43,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::nodes
   PRIVATE bf::windowmanager
+  PRIVATE bf::extern::xatlas
 )
 
 if(WITH_UV_SLIM)
@@ -50,7 +52,6 @@ if(WITH_UV_SLIM)
   )
   add_definitions(-DWITH_UV_SLIM)
 endif()
-
 
 blender_add_lib(bf_editor_uvedit "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
