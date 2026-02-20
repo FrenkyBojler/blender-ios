@@ -617,7 +617,7 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
     case XR_VIEWFINDER_MODE_LIVE:
       // TODO: Clean-up by moving DoF status to another label on the left side of the viewfinder.
       settings_label = fmt::format(
-          "{:\xe2\x80\x87>3}mm DoF: {} d: {:\xe2\x80\x87<4.1f} f {:\xe2\x80\x87>3.1f}",
+          "{:\xe2\x80\x87>3}mm   DoF: {}   d: {:\xe2\x80\x87<4.1f}   f {:\xe2\x80\x87>3.1f}",
           state->viewfinder.capture_lens,
           state->viewfinder.capture_use_dof ? "on " : "off",
           state->viewfinder.capture_focus_distance,
@@ -732,7 +732,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   const float mode_tabs_y = viewfinder_rect.ymax + 0.45f;
 
   const float settings_label_x = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                     viewfinder_rect.xmax - 3.4f :
+                                     viewfinder_rect.xmax - 3.7f :
                                      viewfinder_rect.xmax - 0.8f;
   const float settings_label_y = viewfinder_rect.ymax + 0.47f;
 
