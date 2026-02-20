@@ -2346,7 +2346,7 @@ static wmOperatorStatus object_curves_empty_hair_add_exec(bContext *C, wmOperato
   }
 
   /* Add deformation modifier. */
-  ed::curves::ensure_surface_deformation_node_exists(*C, *curves_ob);
+  // ed::curves::ensure_surface_deformation_node_exists(*C, *curves_ob);
 
   /* Make sure the surface object has a rest position attribute which is necessary for
    * deformations. */
