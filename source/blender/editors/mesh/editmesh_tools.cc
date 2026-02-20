@@ -1411,12 +1411,12 @@ static bool bm_vert_connect_select_history(BMesh *bm)
         BMEditSelection *ese_last;
 
         Map<BMVert *, float3> orig_normals;
-        const bool is_multi_cut = (bm->totvertsel > 2);
 
+        /* Connecting more than 2 vertices can change the mesh normal state, which can break
+         * symmetry in cases where it is expected so we store the original normals to restore
+         * later before connecting. See #154197 */
+        const bool is_multi_cut = (bm->totvertsel > 2);
         if (is_multi_cut) {
-          /* Connecting more than 2 vertices can change the mesh normal state, which can break
-           * symmetry in cases where it is expected so we store the original normals to restore
-           * later before connecting. */
           for (ese_last = static_cast<BMEditSelection *>(bm->selected.first); ese_last;
                ese_last = ese_last->next)
           {
