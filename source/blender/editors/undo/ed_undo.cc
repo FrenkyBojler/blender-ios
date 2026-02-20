@@ -809,12 +809,7 @@ static wmOperatorStatus undo_clear_history_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  /* Compute the total size of all the undo steps. */
-  size_t data_size_all = 0;
-  for (UndoStep &us : undo_stack->steps) {
-    data_size_all += us.data_size;
-  }
-
+  const size_t data_size_before = ED_undosys_total_memory_calc(undo_stack);
   BKE_undosys_stack_clear(undo_stack);
 
   /* Exit object modes. */
@@ -837,8 +832,12 @@ static wmOperatorStatus undo_clear_history_exec(bContext *C, wmOperator *op)
     }
   }
 
+  const size_t data_size_after = ED_undosys_total_memory_calc(undo_stack);
+  const int64_t data_size_freed = math::max(int64_t(data_size_before) - int64_t(data_size_after),
+                                            0L);
+
   char data_size_str[15];
-  BLI_str_format_byte_unit(data_size_str, data_size_all, true);
+  BLI_str_format_byte_unit(data_size_str, data_size_freed, true);
   BKE_reportf(op->reports,
               eReportType::RPT_INFO,
               "Undo history cleared. Freed %s of memory.",
