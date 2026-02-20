@@ -16,14 +16,17 @@ Run checks without auto fixing:
 ./tools/utils_maintenance/clang_tidy.py check --config=safe -- source
 """
 
+__all__ = (
+    "main",
+)
+
 import argparse
+import contextlib
 import multiprocessing
 import pathlib
 import sys
 import subprocess
-from typing import (
-    Any,
-    Optional,
+from collections.abc import (
     Sequence,
 )
 from concurrent.futures import (
@@ -51,7 +54,6 @@ Checks: >
   readability-container-contains,
   readability-duplicate-include,
   readability-qualified-auto,
-  readability-redundant-casting,
   readability-redundant-inline-specifier
 """
 
@@ -103,32 +105,33 @@ configs = {
 def source_files_from_git(paths: Sequence[str]) -> list[str]:
     cmd = ("git", "ls-tree", "-r", "HEAD", *paths, "--name-only", "-z")
     try:
-        files = subprocess.check_output(cmd, cwd=base_dir).split(b"\0")
+        files_bytes = subprocess.check_output(cmd, cwd=base_dir).split(b"\0")
     except subprocess.CalledProcessError:
         return []
-    files = [f.decode("utf-8") for f in files if f]
+    files = [f.decode("utf-8") for f in files_bytes if f]
     return [f for f in files if f.endswith(extensions)]
 
 
 def process_file(
     file_path: str,
-    tidy_config: Optional[str],
+    tidy_config: str | None,
     fix: bool,
-    done: Any,
-    lock: Any,
-    total: int
+    compile_commands_dir: str,
+    done: multiprocessing.managers.ValueProxy[int],
+    lock: contextlib.AbstractContextManager[bool],
+    total: int,
 ) -> None:
-    # Progress display
-    progress_text = f"[{done.value}/{total}] {file_path}"
+    # Progress display.
     with lock:
         done.value += 1
+        progress_text = f"[{done.value}/{total}] {file_path}"
         if sys.stdout.isatty():
             sys.stdout.write(f"\r{progress_text}\033[K")
         else:
             sys.stdout.write(f"{progress_text}\n")
         sys.stdout.flush()
 
-    cmd = ["clang-tidy", "-p", "."]
+    cmd = ["clang-tidy", "-p", compile_commands_dir]
     if tidy_config:
         cmd.append(f"--config={tidy_config}")
     if fix:
@@ -143,46 +146,48 @@ def process_file(
             check=False,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            cwd=base_dir
+            cwd=base_dir,
         )
     else:
         subprocess.run(cmd, check=False, cwd=base_dir)
 
 
-def main():
-    # Check for compile_commands.json in the project root.
-    compile_commands = base_dir / "compile_commands.json"
-    if not compile_commands.exists():
-        sys.stderr.write(f"Error: {compile_commands} not found\n")
-        sys.stderr.write("Enable CMAKE_EXPORT_COMPILE_COMMANDS and link the file here\n")
-        sys.exit(1)
-
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run clang-tidy on files.",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    # Show full help instead of short usage on argument errors.
+    parser.print_usage = parser.print_help  # type: ignore[method-assign]
     parser.add_argument(
         "command",
         choices=["check", "fix"],
-        help="Check or auto-fix"
+        help="Check or auto-fix",
     )
     parser.add_argument(
         "--config",
         choices=configs.keys(),
         default="complete",
-        help="Config to use, see the descript for details"
+        help="Config to use, see the description for details",
+    )
+    parser.add_argument(
+        "--compile-commands-dir",
+        default=str(base_dir),
+        help="Directory containing compile_commands.json (default: project root)",
     )
     parser.add_argument(
         "paths",
         nargs="+",
-        help="Files or directories to process."
+        help="Files or directories to process.",
     )
 
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(1)
-
     args = parser.parse_args()
+
+    compile_commands = pathlib.Path(args.compile_commands_dir) / "compile_commands.json"
+    if not compile_commands.exists():
+        sys.stderr.write(f"Error: {compile_commands} not found\n")
+        sys.stderr.write("Enable CMAKE_EXPORT_COMPILE_COMMANDS or use --compile-commands-dir=/build/dir/\n")
+        sys.exit(1)
 
     if args.command == "fix" and args.config == "complete":
         parser.error("The 'complete' configuration cannot be used with the 'fix' command.")
@@ -206,9 +211,10 @@ def main():
                     f,
                     configs[args.config],
                     args.command == "fix",
+                    args.compile_commands_dir,
                     done,
                     lock,
-                    total_files
+                    total_files,
                 )
                 for f in files
             ]
