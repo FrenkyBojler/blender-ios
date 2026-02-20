@@ -2132,7 +2132,7 @@ static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator * /*op*/)
 
 void UV_OT_xatlas_unwrap(wmOperatorType *ot)
 {
-  ot->name = "xatlas Unwrap";
+  ot->name = "Xatlas Unwrap";
   ot->idname = "UV_OT_xatlas_unwrap";
   ot->description = "Unwrap using xatlas";
 

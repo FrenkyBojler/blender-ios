@@ -53,6 +53,7 @@ if(WITH_UV_SLIM)
   add_definitions(-DWITH_UV_SLIM)
 endif()
 
+
 blender_add_lib(bf_editor_uvedit "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 # RNA_prototypes.hh
