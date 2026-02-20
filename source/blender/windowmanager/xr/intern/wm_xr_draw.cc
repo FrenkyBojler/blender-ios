@@ -206,9 +206,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
 
   float viewfinder_render_viewmat[4][4] = {};
 
-  /* Hack: This should really be an allocated ID, but the rendering code this is passed to via a
-   *       shim object doesn't seem to care. */
-  Camera cam_render_data = {};
+  Camera *cam_render_data = session_state->viewfinder.runtime_cam_data_id;  /* Allocated ID. */
   CameraParams cam_render_params;
   BKE_camera_params_init(&cam_render_params);
 
@@ -271,9 +269,9 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       /* Parse live capture parameter for rendering. */
       cam_render_params.lens = session_state->viewfinder.capture_lens;
       SET_FLAG_FROM_TEST(
-          cam_render_data.dof.flag, session_state->viewfinder.capture_use_dof, CAM_DOF_ENABLED);
-      cam_render_data.dof.aperture_fstop = session_state->viewfinder.capture_aperture_fstop;
-      cam_render_data.dof.focus_distance = session_state->viewfinder.capture_focus_distance;
+          cam_render_data->dof.flag, session_state->viewfinder.capture_use_dof, CAM_DOF_ENABLED);
+      cam_render_data->dof.aperture_fstop = session_state->viewfinder.capture_aperture_fstop;
+      cam_render_data->dof.focus_distance = session_state->viewfinder.capture_focus_distance;
 
       break;
     }
@@ -324,10 +322,11 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       cam_render_params.lens = RNA_property_float_get(&current_landmark, lm_vf_lens_prop);
       const bool landmark_use_dof = RNA_property_boolean_get(&current_landmark,
                                                              lm_vf_use_dof_prop);
-      SET_FLAG_FROM_TEST(cam_render_data.dof.flag, landmark_use_dof, CAM_DOF_ENABLED);
-      cam_render_data.dof.focus_distance = RNA_property_float_get(&current_landmark,
+
+      SET_FLAG_FROM_TEST(cam_render_data->dof.flag, landmark_use_dof, CAM_DOF_ENABLED);
+      cam_render_data->dof.focus_distance = RNA_property_float_get(&current_landmark,
                                                                   lm_vf_dof_dist_prop);
-      cam_render_data.dof.aperture_fstop = RNA_property_float_get(&current_landmark,
+      cam_render_data->dof.aperture_fstop = RNA_property_float_get(&current_landmark,
                                                                   lm_vf_dof_fstop_prop);
       break;
     }
@@ -353,9 +352,10 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
   viewfinder_shading_settings.flag |= V3D_SHADING_DEPTH_OF_FIELD;
 
   /* Shim Viewfinder Camera Object to override the View3D with for rendering and pass it our
-   * cam_render_data settings. */
+   * cam_render_data ID. */
   Object viewfinder_cam_ob = {};
-  viewfinder_cam_ob.data = id_cast<ID *>(&cam_render_data);
+  viewfinder_cam_ob.type = OB_CAMERA;
+  viewfinder_cam_ob.data = id_cast<ID *>(cam_render_data);
 
   ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
                                   draw_data->scene,
@@ -611,7 +611,7 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
     case XR_VIEWFINDER_MODE_LIVE:
       settings_label = fmt::format("{}mm   DoF: {}   d: {:.1f}   f {:.1f}",
                                    state->viewfinder.capture_lens,
-                                   state->viewfinder.capture_use_dof,
+                                   state->viewfinder.capture_use_dof ? "on" : "off",
                                    state->viewfinder.capture_focus_distance,
                                    state->viewfinder.capture_aperture_fstop);
       break;

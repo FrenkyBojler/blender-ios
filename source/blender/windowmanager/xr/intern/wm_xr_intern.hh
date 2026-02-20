@@ -23,6 +23,7 @@ namespace blender {
 
 struct bContext;
 struct ARegion;
+struct Camera;
 struct Object;
 struct wmWindow;
 struct wmWindowManager;
@@ -36,6 +37,7 @@ struct wmXrViewfinderState {
   float capture_orientation_quat[4];
 
   /* Runtime values. */
+  Camera *runtime_cam_data_id;
   float runtime_capture_flash;
   double runtime_smoothing_delta_t;
 
