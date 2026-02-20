@@ -371,6 +371,13 @@ static PointerRNA rna_ID_original_get(PointerRNA *ptr)
   return RNA_id_pointer_create(DEG_get_original(id));
 }
 
+static PointerRNA rna_ID_owner_get(PointerRNA *ptr)
+{
+  ID *id = static_cast<ID *>(ptr->data);
+
+  return RNA_id_pointer_create(BKE_id_owner_get(id));
+}
+
 short RNA_type_to_ID_code(const StructRNA *type)
 {
   const StructRNA *base_type = RNA_struct_base_child_of(type, RNA_ID);
@@ -2381,6 +2388,14 @@ static void rna_def_ID(BlenderRNA *brna)
       "Original ID",
       "Actual data-block from .blend file (Main database) that generated that evaluated one");
   RNA_def_property_pointer_funcs(prop, "rna_ID_original_get", nullptr, nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_PTR_NO_OWNERSHIP);
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
+
+  prop = RNA_def_property(srna, "owner_id", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "ID");
+  RNA_def_property_ui_text(prop, "Owner ID", "The ID that own this ID, if any");
+  RNA_def_property_pointer_funcs(prop, "rna_ID_owner_get", nullptr, nullptr, nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_PTR_NO_OWNERSHIP);
   RNA_def_property_flag(prop, PROP_HIDDEN);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
