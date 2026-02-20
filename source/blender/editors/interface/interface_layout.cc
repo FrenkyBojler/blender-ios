@@ -290,7 +290,6 @@ struct LayoutItemPanelHeader : public Layout {
 
 struct LayoutItemPanelBody : public LayoutColumn {
   LayoutItemPanelBody() : LayoutColumn(ItemType::LayoutPanelBody, nullptr) {}
-  void estimate_impl() override;
   void resolve_impl() override;
 };
 
@@ -4063,20 +4062,16 @@ void LayoutItemPanelHeader::resolve_impl()
       {float(y_) - offset, float(y_ + h_) - offset, open_prop_owner, open_prop_name});
 }
 
-void LayoutItemPanelBody::estimate_impl()
-{
-  LayoutColumn::estimate_impl();
-}
-
 /* panel body layout */
 void LayoutItemPanelBody::resolve_impl()
 {
-  const float offset = style_get_dpi()->panelspace;
   Panel *panel = this->root_panel();
   LayoutColumn::resolve_impl();
+  const float offset = style_get_dpi()->panelspace;
+  const int space = LayoutInternal::layout_space_get(this->parent_);
   panel->runtime->layout_panels.bodies.append({
-      float(y_ - LayoutInternal::layout_space_get(this->parent_)) - offset,
-      float(y_ + h_ + LayoutInternal::layout_space_get(this->parent_)) - offset,
+      float(y_ - space) - offset,
+      float(y_ + h_ + space) - offset,
   });
 }
 
@@ -5965,8 +5960,7 @@ static void ui_paneltype_draw_impl(bContext *C, PanelType *pt, Layout *layout, b
   for (LinkData &link : pt->children) {
     PanelType *child_pt = static_cast<PanelType *>(link.data);
     if (child_pt->poll == nullptr || child_pt->poll(C, child_pt)) {
-      Layout *sub_col = body;
-      ui_paneltype_draw_impl(C, child_pt, sub_col, true);
+      ui_paneltype_draw_impl(C, child_pt, body, true);
     }
   }
 }
