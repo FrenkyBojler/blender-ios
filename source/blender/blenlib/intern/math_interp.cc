@@ -577,10 +577,14 @@ struct Fentry {
 template<enum Sampler sampler> BLI_INLINE float weight(float x);
 
 /* Sample orthogonal rectangle of size wh centered on uv.
- * Generic version works for any cubic filter (todo: fix for filters with negative weights)
+ * This is intended to work with any filter function.
+ * This does not integrate the filter function with the pixel, instead it assumes the value
+ * at the center of the pixel is correct. This results in a small sharpening effect that looks
+ * better, and is also simpler to calculate.
+ * todo: fix for filters with radius != 2
  */
 template<enum Sampler sampler>
-static float4 _sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
+float4 sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
 {
   const float2 w1 = max(wh, 1.0f);
   const float2 r = 2 * w1;
@@ -615,76 +619,11 @@ static float4 _sample_rect(const sampler2D &source, const float2 &uv, const floa
   return F4V(sum);
 }
 
-/* specialized as wh is ignored and it reads exactly one pixel */
+/* The Box filter is integrated with the pixel area as otherwise the aliasing is too visible.
+ * Fortunately it is pretty easy to calculate this integration, it results in a trapazoid.
+ */
 template<>
-float4 _sample_rect<Sampler::Nearest>(const sampler2D &source, const float2 &uv, const float2 &)
-{
-  const int x = wrap_coord(uv.x, source.width, source.wrap_x);
-  const int y = wrap_coord(uv.y, source.height, source.wrap_y);
-  if (x < 0 || y < 0) {
-    return float4(0.0f);
-  }
-  return *(float4 *)(source.row(y) + x * source.step);
-}
-
-/* specialized as wh is ignored and it reads exactly four pixels */
-template<>
-float4 _sample_rect<Sampler::Bilinear>(const sampler2D &source, const float2 &uv, const float2 &)
-{
-  const float x = uv.x - 0.5f; /* convert to pixel-center coordinates*/
-  const int x1 = wrap_coord(x, source.width, source.wrap_x);
-  const int x2 = wrap_coord(x + 1, source.width, source.wrap_x);
-
-  const float y = uv.y - 0.5f; /* convert to pixel-center coordinates*/
-  const int y1 = wrap_coord(y, source.height, source.wrap_y);
-  const int y2 = wrap_coord(y + 1, source.height, source.wrap_y);
-
-  const float *row1 = source.row(y1) + x1 * source.step;
-  const float *row2 = source.row(y2) + x1 * source.step;
-  const float *row3 = source.row(y1) + x2 * source.step;
-  const float *row4 = source.row(y2) + x2 * source.step;
-
-  static const float zeros[4] = {0.0f};
-  if (x1 < 0) {
-    if (x2 < 0)
-      return float4(0.0f);
-    row1 = row2 = zeros;
-    if (y1 < 0) {
-      if (y2 < 0)
-        return float4(0.0f);
-      row3 = zeros;
-    }
-    else if (y2 < 0) {
-      row4 = zeros;
-    }
-  }
-  else if (x2 < 0) {
-    row3 = row4 = zeros;
-    if (y1 < 0) {
-      if (y2 < 0)
-        return float4(0.0f);
-      row1 = zeros;
-    }
-    else if (y2 < 0) {
-      row2 = zeros;
-    }
-  }
-
-  float a = x - floorf(x);
-  float b = y - floorf(y);
-  float a_b = a * b;
-  float ma_b = (1.0f - a) * b;
-  float a_mb = a * (1.0f - b);
-  float ma_mb = (1.0f - a) * (1.0f - b);
-
-  F4 sum = F4ADD(F4ADD(F4MULC(F4P(row1), ma_mb), F4MULC(F4P(row2), ma_b)),
-                 F4ADD(F4MULC(F4P(row3), a_mb), F4MULC(F4P(row4), a_b)));
-  return F4V(sum);
-}
-
-/* specialized as r is smaller and weight function needs to know size of a pixel */
-template<>
-float4 _sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uv, const float2 &wh)
+float4 sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uv, const float2 &wh)
 {
   const float2 r = max((wh + 1.0f) / 2.0f, 1.0f);
   const float2 a = floor(uv - r + 0.5f) + 0.5f;  // first non-zero sample
@@ -724,25 +663,9 @@ template<> float weight<Sampler::Bspline>(float x)
   return x < 1.0f ? (0.5f * x - 1.0f) * x * x + 4.0f / 6.0f :
                     ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
 }
-
-/* Return the function to call to sample the given source. This depends on the
- * sampler. The source may also be used to specialize base on the wrapping or the
- * size or channels or type of the image (NYI).
- */
-SampleRect sample_rect(Sampler sampler, const sampler2D &)
-{
-  BLI_assert(source.components == 4);
-  switch (sampler) {
-    case Sampler::Nearest:
-      return _sample_rect<Sampler::Nearest>;
-    case Sampler::Bilinear:
-      return _sample_rect<Sampler::Bilinear>;
-    default: /* case Sampler::Box */
-      return _sample_rect<Sampler::Box>;
-    case Sampler::Bspline:
-      return _sample_rect<Sampler::Bspline>;
-  }
-}
+template float4 sample_rect<Sampler::Bspline>(const sampler2D &source,
+                                              const float2 &uv,
+                                              const float2 &wh);
 
 }  // namespace math
 

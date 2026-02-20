@@ -516,14 +516,46 @@ void interpolate_cubic_bspline_wrapmode_fl(const float *buffer,
 void interpolate_cubic_mitchell_fl(
     const float *buffer, float *output, int width, int height, int components, float u, float v);
 
+/* -------------------------------------------------------------------- */
+
 /**
- * Filtered sampling based on derivatives of the sample location. For 90 degree rotations
- * \a wh is the absolute value of the horizontal and vertical derivatives. For rotations
- * the sample area must be approximated by this rectangle, hypot(dPdx,dPdy) is recommended.
+ * New sampling api. Uses a template argument to choose the sampler and a "sampler2D"
+ * so cpu and gpu code can match. Takes derivatives so scales less than one work.
+ * All coordinates are in pixels with integers at pixel corners.
+ * If you have derivative vectors, use wh = hypot(dPdx,dPdy).
  */
-using SampleRect = float4 (*)(const sampler2D &source, const float2 &uv, const float2 &wh);
-/** Lookup optimized function to call for \a source and sampler. */
-SampleRect sample_rect(Sampler sampler, const sampler2D &source);
+template<enum Sampler sampler>
+extern float4 sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh);
+
+/* wh is ignored and it reads exactly one pixel */
+template<>
+inline float4 sample_rect<Sampler::Nearest>(const sampler2D &source,
+                                            const float2 &uv,
+                                            const float2 &)
+{
+  const int x = wrap_coord(uv.x, source.width, source.wrap_x);
+  const int y = wrap_coord(uv.y, source.height, source.wrap_y);
+  return (x < 0 || y < 0) ? float4(0.0f) : *(float4 *)(source.row(y) + x * source.step);
+}
+
+/* wh is ignored. Current version also ignores stride/step from sampler2D! */
+template<>
+inline float4 sample_rect<Sampler::Bilinear>(const sampler2D &source,
+                                             const float2 &uv,
+                                             const float2 &)
+{
+  float4 ret;
+  interpolate_bilinear_wrapmode_fl(source.buffer,
+                                   &ret[0],
+                                   source.width,
+                                   source.height,
+                                   source.components,
+                                   uv.x - 0.5f,
+                                   uv.y - 0.5f,
+                                   source.wrap_x,
+                                   source.wrap_y);
+  return ret;
+}
 
 }  // namespace math
 

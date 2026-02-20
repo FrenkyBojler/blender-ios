@@ -47,7 +47,8 @@ struct RealizeOnDomainOperation::SamplerOptions {
   math::Sampler sampler;
   math::InterpWrapMode wrap_x;
   math::InterpWrapMode wrap_y;
-  SamplerOptions(const Domain& domain) {
+  SamplerOptions(const Domain &domain)
+  {
     switch (domain.realization_options.interpolation) {
       case Interpolation::Nearest:
         sampler = math::Sampler::Nearest;
@@ -219,9 +220,9 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
 
 /* support for non-float types, does nearest sampling only. */
 template<typename T>
-static void realize_on_domain(const Result &input,
-                              Result &output,
-                              const float3x3 &inverse_transformation)
+BLI_INLINE void realize_on_domain(const Result &input,
+                                  Result &output,
+                                  const float3x3 &inverse_transformation)
 {
   const RealizationOptions realization_options = input.get_realization_options();
   const int2 input_size = input.domain().data_size;
@@ -236,6 +237,23 @@ static void realize_on_domain(const Result &input,
                                realization_options.extension_x,
                                realization_options.extension_y);
     output.store_pixel(texel, sample);
+  });
+}
+
+template<math::Sampler sampler>
+BLI_INLINE void realize_on_domain(const int2 &size,
+                                  math::sampler2D &source,
+                                  Result &output,
+                                  const float3x3 &inverse_transformation,
+                                  const float2 &wh)
+{
+  const float2 dPdx(inverse_transformation[0].xy());
+  const float2 dPdy(inverse_transformation[1].xy());
+  const float2 translate(inverse_transformation[2].xy());
+  parallel_for(size, [&](const int2 texel) {
+    float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
+    float4 sample = sample_rect<sampler>(source, uv, wh);
+    output.store_pixel(texel, Color(sample));
   });
 }
 
@@ -273,19 +291,20 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const int2 &size,
   math::sampler2D source{input.sampler2D()};
   source.wrap_x = options.wrap_x;
   source.wrap_y = options.wrap_y;
-
-  const float2 dPdx(inverse_transformation[0].xy());
-  const float2 dPdy(inverse_transformation[1].xy());
-  const float2 translate(inverse_transformation[2].xy());
-
-  // locate the optimized version of sample_rect
-  auto sample_rect = math::sample_rect(options.sampler, source);
-
-  parallel_for(size, [&](const int2 texel) {
-    float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
-    float4 sample = sample_rect(source, uv, wh);
-    output.store_pixel(texel, Color(sample));
-  });
+  switch (options.sampler) {
+    case math::Sampler::Nearest:
+      realize_on_domain<math::Sampler::Nearest>(size, source, output, inverse_transformation, wh);
+      break;
+    case math::Sampler::Bilinear:
+      realize_on_domain<math::Sampler::Bilinear>(size, source, output, inverse_transformation, wh);
+      break;
+    default:  // Sampler::Box
+      realize_on_domain<math::Sampler::Box>(size, source, output, inverse_transformation, wh);
+      break;
+    case math::Sampler::Bspline:
+      realize_on_domain<math::Sampler::Bspline>(size, source, output, inverse_transformation, wh);
+      break;
+  }
 }
 
 Domain RealizeOnDomainOperation::compute_domain()

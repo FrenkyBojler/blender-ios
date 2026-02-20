@@ -9,7 +9,14 @@ enum Sampler : uchar { Nearest, Bilinear, Box, Bspline, Anisotropic };
 template<enum Sampler sampler> static inline float weight(float x) {}
 
 /* Sample orthogonal rectangle of size wh centered on uv.
- * Generic version works for any cubic filter (todo: fix for filters with negative weights)
+ * This is intended to work with any filter function.
+ * This does not integrate the filter function with the pixel, instead it assumes the value
+ * at the center of the pixel is correct. This results in a small sharpening effect that looks
+ * better, and is also simpler to calculate.
+ * This differs from the C implementation in math_interp as it relies on texture() to do the
+ * wrapping and to bilinear sample 4 pixels at a time.
+ * todo: using bilinear sampling does not work if one of the samples is negative
+ * todo: fix for filters with radius != 2
  */
 template<enum Sampler sampler>
 float4 sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
@@ -89,8 +96,11 @@ float4 sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uv, cons
   return sum / (div * divx);
 }
 
-template<> static inline float weight<Sampler::Bspline>(float x)
+template<> float weight<Sampler::Bspline>(float x)
 {
-  return x < 1 ? (0.5 * x - 1) * x * x + 4.0 / 6 : ((-1 / 6.0 * x + 1) * x - 2) * x + 4.0 / 3;
+  return x < 1.0f ? (0.5f * x - 1.0f) * x * x + 4.0f / 6.0f :
+                    ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
 }
-template float4 sample_rect<Sampler::Bspline>(sampler2D source, float2 uv, float2 wh);
+template float4 sample_rect<Sampler::Bspline>(const sampler2D &source,
+                                              const float2 &uv,
+                                              const float2 &wh);
