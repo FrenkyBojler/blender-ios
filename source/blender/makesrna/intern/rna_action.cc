@@ -1913,12 +1913,6 @@ static void rna_def_action_layer(BlenderRNA *brna)
                                     nullptr);
   RNA_def_property_ui_text(prop, "Strips", "The list of strips that are on this animation layer");
 
-  prop = RNA_def_property(srna, "locked", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "layer_flags", int(animrig::Layer::Flags::Locked));
-  RNA_def_property_ui_text(prop, "Locked", "Locked layers cannot be edited");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_update_notifier(prop, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED);
-
   rna_def_ActionLayer_strips(brna, prop);
 }
 

@@ -44,9 +44,6 @@ void foreach_fcurve_in_action_slot_editable(Action &action,
                                             FunctionRef<void(FCurve &fcurve)> callback)
 {
   for (Layer *layer : action.layers()) {
-    if (layer->is_locked()) {
-      continue;
-    }
     for (Strip *strip : layer->strips()) {
       if (strip->type() != Strip::Type::Keyframe) {
         continue;
