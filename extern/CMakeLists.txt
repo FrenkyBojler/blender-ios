@@ -10,6 +10,8 @@ if(WITH_IO_FBX)
   add_subdirectory(ufbx)
 endif()
 
+add_subdirectory(xatlas)
+
 # Otherwise we get warnings here that we can't fix in external projects
 remove_strict_flags()
 
