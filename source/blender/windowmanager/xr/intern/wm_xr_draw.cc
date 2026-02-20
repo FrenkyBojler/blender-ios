@@ -96,15 +96,16 @@ void wm_xr_pose_scale_to_imat(const GHOST_XrPose *pose, float scale, float r_ima
 static wmXrController *get_viewfinder_controller(const XrSessionSettings *settings,
                                                  wmXrSessionState *state)
 {
+  // TODO: Automatically switch control scheme on hand change.
+
   const char *subaction_path;
 
-  switch (settings->controller_dominant_hand) {
-    /* Place the Viewfinder on the non-dominant hand (invert left/right). */
-    case XR_CONTROLLER_DHAND_LEFT:
-      subaction_path = "/user/hand/right";
-      break;
-    case XR_CONTROLLER_DHAND_RIGHT:
+  switch (settings->viewfinder_hand) {
+    case XR_VIEWFINDER_HAND_LEFT:
       subaction_path = "/user/hand/left";
+      break;
+    case XR_VIEWFINDER_HAND_RIGHT:
+      subaction_path = "/user/hand/right";
       break;
     default:
       BLI_assert_unreachable();

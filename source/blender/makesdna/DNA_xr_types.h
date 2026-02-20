@@ -30,10 +30,7 @@ enum eXrSessionControllerDrawStyle {
   XR_CONTROLLER_DRAW_LIGHT_RAY = 3,
 };
 
-enum eXrSessionControllerDominantHand {
-  XR_CONTROLLER_DHAND_LEFT = 0,
-  XR_CONTROLLER_DHAND_RIGHT = 1
-};
+enum eXrViewfinderHand { XR_VIEWFINDER_HAND_LEFT = 0, XR_VIEWFINDER_HAND_RIGHT = 1 };
 
 enum eXrViewfinderMode { XR_VIEWFINDER_MODE_LIVE = 0, XR_VIEWFINDER_MODE_PLAYBACK = 1 };
 
@@ -128,9 +125,9 @@ struct XrSessionSettings {
   char draw_flags = 0;
   /** Draw style for controller visualization. */
   char controller_draw_style = 0;
-  char controller_dominant_hand; /* #eXrSessionDominantHand */
 
   char viewfinder_enable;
+  char viewfinder_hand; /* #eXrViewfinderHand */
   float viewfinder_scale;
 
   int _pad2;
