@@ -1,0 +1,6 @@
+Project: xatlas
+URL: https://github.com/jpcy/xatlas
+License: MIT
+Upstream version: f700c7790aaa030e794b52ba7791a05c085faf0c
+Local modifications: Applied vertex-offset.patch
+Copyright: Copyright (c) 2018-2020 Jonathan Young
