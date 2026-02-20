@@ -162,7 +162,7 @@ static void material_free_data(ID *id)
 
   MEM_SAFE_DELETE(material->gp_style);
 
-  BKE_previewimg_free(&material->preview);
+  BKE_previewimg_id_free(&material->id);
 
   BKE_icon_id_delete(id_cast<ID *>(material));
 }
@@ -245,34 +245,34 @@ static void material_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_MA = {
-    /*id_code*/ Material::id_type,
-    /*id_filter*/ FILTER_ID_MA,
-    /*dependencies_id_types*/ FILTER_ID_TE | FILTER_ID_GR,
-    /*main_listbase_index*/ INDEX_ID_MA,
-    /*struct_size*/ sizeof(Material),
-    /*name*/ "Material",
-    /*name_plural*/ N_("materials"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_MATERIAL,
-    /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .id_code = Material::id_type,
+    .id_filter = FILTER_ID_MA,
+    .dependencies_id_types = FILTER_ID_TE | FILTER_ID_GR,
+    .main_listbase_index = INDEX_ID_MA,
+    .struct_size = sizeof(Material),
+    .name = "Material",
+    .name_plural = N_("materials"),
+    .translation_context = BLT_I18NCONTEXT_ID_MATERIAL,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ material_init_data,
-    /*copy_data*/ material_copy_data,
-    /*free_data*/ material_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ material_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ material_foreach_working_space_color,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = material_init_data,
+    .copy_data = material_copy_data,
+    .free_data = material_free_data,
+    .make_local = nullptr,
+    .foreach_id = material_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = material_foreach_working_space_color,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ material_blend_write,
-    /*blend_read_data*/ material_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = material_blend_write,
+    .blend_read_data = material_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 void BKE_gpencil_material_attr_init(Material *ma)
@@ -283,14 +283,12 @@ void BKE_gpencil_material_attr_init(Material *ma)
     MaterialGPencilStyle *gp_style = ma->gp_style;
     /* set basic settings */
     gp_style->stroke_rgba[3] = 1.0f;
-    gp_style->fill_rgba[3] = 1.0f;
+    gp_style->fill_rgba[3] = 0.0f;
     ARRAY_SET_ITEMS(gp_style->mix_rgba, 1.0f, 1.0f, 1.0f, 1.0f);
     ARRAY_SET_ITEMS(gp_style->texture_scale, 1.0f, 1.0f);
     gp_style->texture_offset[0] = -0.5f;
     gp_style->texture_pixsize = 100.0f;
     gp_style->mix_factor = 0.5f;
-
-    gp_style->flag |= GP_MATERIAL_STROKE_SHOW;
   }
 }
 

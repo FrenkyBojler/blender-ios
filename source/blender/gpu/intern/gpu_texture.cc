@@ -393,7 +393,8 @@ gpu::Texture *GPU_texture_create_compressed_2d(const char *name,
   if (data) {
     size_t ofs = 0;
     for (int mip = 0; mip < mip_len; mip++) {
-      int extent[3], offset[3] = {0, 0, 0};
+      int extent[3] = {1, 1, 1};
+      int offset[3] = {0, 0, 0};
       tex->mip_size_get(mip, extent);
 
       size_t size = ((extent[0] + 3) / 4) * ((extent[1] + 3) / 4) * to_block_size(tex_format);
@@ -481,6 +482,15 @@ gpu::Texture *GPU_texture_create_view(const char *name,
                   layer_len,
                   cube_as_array,
                   use_stencil);
+
+  /* On integer textures, disable filtering by default, as this is not guaranteed to be
+   * consistently supported across backends. */
+  if (GPU_texture_has_integer_format(view)) {
+    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_LINEAR, false);
+    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_MIPMAP, false);
+    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_ANISOTROPIC, false);
+  }
+
   return view;
 }
 

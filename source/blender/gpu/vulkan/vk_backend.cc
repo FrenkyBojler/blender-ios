@@ -152,10 +152,10 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   if (features.features.geometryShader == VK_FALSE) {
     missing_capabilities.append("geometry shaders");
   }
+#endif
   if (features.features.vertexPipelineStoresAndAtomics == VK_FALSE) {
     missing_capabilities.append("vertex pipeline stores and atomics");
   }
-#endif
   if (features.features.multiViewport == VK_FALSE) {
     missing_capabilities.append("multi viewport");
   }
@@ -364,7 +364,7 @@ static void init_device_list(GHOST_IContext *ghost_context)
     index++;
   }
 
-  std::sort(GPG.devices.begin(), GPG.devices.end(), [&](const GPUDevice &a, const GPUDevice &b) {
+  std::ranges::sort(GPG.devices, [&](const GPUDevice &a, const GPUDevice &b) {
     if (a.name == b.name) {
       return a.index < b.index;
     }

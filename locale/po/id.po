@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-26 11:28+0000\n"
+"POT-Creation-Date: 2026-02-16 10:28+0000\n"
 "PO-Revision-Date: 2025-12-23 20:36+0000\n"
 "Last-Translator: \"Adriel Y.\" <mixnblend@users.noreply.translate.blender.org>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -5516,6 +5516,14 @@ msgid "Factor of Simplify using adaptive algorithm"
 msgstr "Faktor Penyederhanaan menggunakan algoritma adaptif"
 
 
+msgid "Stroke"
+msgstr "Sapuan"
+
+
+msgid "Fill"
+msgstr "Isi"
+
+
 msgid "Active Layer"
 msgstr "Layer Aktif"
 
@@ -5668,16 +5676,8 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "Mendefinisikan bagaimana warna titik sudut mempengaruhi sapuan"
 
 
-msgid "Stroke"
-msgstr "Sapuan"
-
-
 msgid "Vertex Color affects to Stroke only"
 msgstr "Warna Titik Sudut hanya mempengaruhi Sapuan"
-
-
-msgid "Fill"
-msgstr "Isi"
 
 
 msgid "Vertex Color affects to Fill only"
@@ -10079,6 +10079,10 @@ msgid "Roughness"
 msgstr "Kekasaran"
 
 
+msgid "Sigma"
+msgstr "Sigma"
+
+
 msgid "Step Size"
 msgstr "Ukuran Langkah"
 
@@ -12302,10 +12306,6 @@ msgid "Accumulate"
 msgstr "Akumulasi"
 
 
-msgid "Airbrush"
-msgstr "Kuasudara"
-
-
 msgid "Affect only vertices that share face sets with the active vertex"
 msgstr "Hanya mempengaruhi titik-titik sudut yang membagikan set-set wajah dengan titik sudut aktif"
 
@@ -12658,10 +12658,6 @@ msgstr "Huruf Tebal Miring"
 
 msgid "Font Italic"
 msgstr "Font Italic"
-
-
-msgid "Textboxes"
-msgstr "Tekstur"
 
 
 msgid "Surface UV Map"
@@ -15699,24 +15695,36 @@ msgid "Sample"
 msgstr "Sampel"
 
 
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
-msgid "Instances"
-msgstr "Contoh-contoh"
+msgid "Metaball"
+msgstr "Metabola"
 
 
 msgid "Names"
 msgstr "Nama"
 
 
-msgid "Import"
-msgstr "Impor"
+msgid "Snap"
+msgstr "Jepret"
 
 
-msgid "Metaball"
-msgstr "Metabola"
+msgid "Layout"
+msgstr "Tata Letak"
+
+
+msgid "Mirror"
+msgstr "Cermin"
+
+
+msgid "Navigation"
+msgstr "Navigasi"
+
+
+msgid "Select Linked"
+msgstr "Seleksi yang Terhubung"
+
+
+msgid "Tracking"
+msgstr "Pelacakan"
 
 
 msgid "Utilities"
@@ -15727,42 +15735,6 @@ msgid "Math"
 msgstr "Matematika"
 
 
-msgid "Merge"
-msgstr "Menggabungkan"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Apply"
-msgstr "Tetapkan"
-
-
-msgid "Hooks"
-msgstr "Kait"
-
-
-msgid "Asset"
-msgstr "Aset"
-
-
-msgid "Track"
-msgstr "Lacak"
-
-
-msgid "Add Image"
-msgstr "Tambah Gambar"
-
-
-msgid "Layout"
-msgstr "Tata Letak"
-
-
-msgid "Light Probe"
-msgstr "Probe Cahaya"
-
-
 msgid "Assign Material"
 msgstr "Tugaskan Bahan"
 
@@ -15771,24 +15743,48 @@ msgid "Light"
 msgstr "Cahaya"
 
 
-msgid "Tracking"
-msgstr "Pelacakan"
+msgid "Light Probe"
+msgstr "Probe Cahaya"
 
 
-msgid "Select Linked"
-msgstr "Seleksi yang Terhubung"
+msgid "Add Image"
+msgstr "Tambah Gambar"
 
 
-msgid "Navigation"
-msgstr "Navigasi"
+msgid "Apply"
+msgstr "Tetapkan"
 
 
-msgid "Snap"
-msgstr "Jepret"
+msgid "Track"
+msgstr "Lacak"
 
 
-msgid "Mirror"
-msgstr "Cermin"
+msgid "Asset"
+msgstr "Aset"
+
+
+msgid "Hooks"
+msgstr "Kait"
+
+
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Contoh-contoh"
+
+
+msgid "Import"
+msgstr "Impor"
+
+
+msgid "Merge"
+msgstr "Menggabungkan"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Animals"
@@ -20693,10 +20689,6 @@ msgid "Add copied F-Modifiers to the selected F-Curves"
 msgstr "Tambah Pengubah-F yang tersalin ke Kurva-F yang terpilih"
 
 
-msgid "Sigma"
-msgstr "Sigma"
-
-
 msgctxt "Operator"
 msgid "Clear Ghost Curves"
 msgstr "Hapus"
@@ -21242,14 +21234,6 @@ msgstr "Atur objek sebagai induk"
 
 msgid "Add new circle-shaped spline"
 msgstr "Tambah spline berbentuk-lingkaran baru"
-
-
-msgid "Location of new circle"
-msgstr "Lokasi lingkaran baru"
-
-
-msgid "Size of new circle"
-msgstr "Ukuran lingkaran baru"
 
 
 msgid "Add new square-shaped spline"
@@ -22416,10 +22400,6 @@ msgstr "Pilih berdasarkan slot bahan aktif"
 msgctxt "Operator"
 msgid "Add Metaball"
 msgstr "Tambah Metabola"
-
-
-msgid "Add an metaball object to the scene"
-msgstr "Tambah objek metabola"
 
 
 msgid "Primitive"
@@ -24082,10 +24062,6 @@ msgstr "Gunakan Posisi Kursor"
 msgctxt "Operator"
 msgid "Jump to Strip"
 msgstr "Lompat ke Strip"
-
-
-msgid "Move frame to previous edit point"
-msgstr "Pindah frame ke titik edit sebelumnya"
 
 
 msgid "Use Strip Center"
@@ -27623,6 +27599,21 @@ msgstr "Koreksi untuk highlight"
 
 msgid "Mute this modifier"
 msgstr "Modus Pahat"
+
+
+msgctxt "Sequence"
+msgid "Color Balance"
+msgstr "Keseimbangan Warna"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Kurva"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "Keseimbangan Putih"
 
 
 msgid "Adaptation"
@@ -33690,21 +33681,6 @@ msgstr "Warna Standar"
 
 msgid "No border area selected"
 msgstr "Modus Sunting"
-
-
-msgctxt "Sequence"
-msgid "Color Balance"
-msgstr "Keseimbangan Warna"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Kurva"
-
-
-msgctxt "Sequence"
-msgid "White Balance"
-msgstr "Keseimbangan Putih"
 
 
 msgid "Strips must have the same number of inputs"

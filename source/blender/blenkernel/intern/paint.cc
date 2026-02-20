@@ -152,34 +152,34 @@ static void palette_undo_preserve(BlendLibReader * /*reader*/, ID *id_new, ID *i
 }
 
 IDTypeInfo IDType_ID_PAL = {
-    /*id_code*/ Palette::id_type,
-    /*id_filter*/ FILTER_ID_PAL,
-    /*dependencies_id_types*/ 0,
-    /*main_listbase_index*/ INDEX_ID_PAL,
-    /*struct_size*/ sizeof(Palette),
-    /*name*/ "Palette",
-    /*name_plural*/ N_("palettes"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_PALETTE,
-    /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA,
-    /*asset_type_info*/ nullptr,
+    .id_code = Palette::id_type,
+    .id_filter = FILTER_ID_PAL,
+    .dependencies_id_types = 0,
+    .main_listbase_index = INDEX_ID_PAL,
+    .struct_size = sizeof(Palette),
+    .name = "Palette",
+    .name_plural = N_("palettes"),
+    .translation_context = BLT_I18NCONTEXT_ID_PALETTE,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ palette_init_data,
-    /*copy_data*/ palette_copy_data,
-    /*free_data*/ palette_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ nullptr,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ palette_foreach_working_space_color,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = palette_init_data,
+    .copy_data = palette_copy_data,
+    .free_data = palette_free_data,
+    .make_local = nullptr,
+    .foreach_id = nullptr,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = palette_foreach_working_space_color,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ palette_blend_write,
-    /*blend_read_data*/ palette_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = palette_blend_write,
+    .blend_read_data = palette_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ palette_undo_preserve,
+    .blend_read_undo_preserve = palette_undo_preserve,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 static void paint_curve_copy_data(Main * /*bmain*/,
@@ -222,34 +222,34 @@ static void paint_curve_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_PC = {
-    /*id_code*/ PaintCurve::id_type,
-    /*id_filter*/ FILTER_ID_PC,
-    /*dependencies_id_types*/ 0,
-    /*main_listbase_index*/ INDEX_ID_PC,
-    /*struct_size*/ sizeof(PaintCurve),
-    /*name*/ "PaintCurve",
-    /*name_plural*/ N_("paint_curves"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_PAINTCURVE,
-    /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA,
-    /*asset_type_info*/ nullptr,
+    .id_code = PaintCurve::id_type,
+    .id_filter = FILTER_ID_PC,
+    .dependencies_id_types = 0,
+    .main_listbase_index = INDEX_ID_PC,
+    .struct_size = sizeof(PaintCurve),
+    .name = "PaintCurve",
+    .name_plural = N_("paint_curves"),
+    .translation_context = BLT_I18NCONTEXT_ID_PAINTCURVE,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ nullptr,
-    /*copy_data*/ paint_curve_copy_data,
-    /*free_data*/ paint_curve_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ nullptr,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = nullptr,
+    .copy_data = paint_curve_copy_data,
+    .free_data = paint_curve_free_data,
+    .make_local = nullptr,
+    .foreach_id = nullptr,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ paint_curve_blend_write,
-    /*blend_read_data*/ paint_curve_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = paint_curve_blend_write,
+    .blend_read_data = paint_curve_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 static ePaintOverlayControlFlags overlay_flags = ePaintOverlayControlFlags(0);
@@ -3024,14 +3024,22 @@ bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const RegionView3D *rv3d)
     return false;
   }
 
+  /* External render engines like Cycles do not have access to the pbvh::Tree
+   * like Eevee does, and need evaluated mesh geometry to render from. */
+  const bool external_engine = rv3d && rv3d->view_render != nullptr;
+
   if (pbvh->type() == bke::pbvh::Type::Mesh) {
-    /* Regular mesh only draws from pbvh::Tree without modifiers and shape keys, or for
-     * external engines that do not have access to the pbvh::Tree like Eevee does. */
-    const bool external_engine = rv3d && rv3d->view_render != nullptr;
+    /* Regular mesh only draws from pbvh::Tree without modifiers and shape keys,
+     * and without external render engine. */
     return !(ss->shapekey_active || ss->deform_modifiers_active || external_engine);
   }
 
-  /* Multires and dyntopo always draw directly from the pbvh::Tree. */
+  if (pbvh->type() == bke::pbvh::Type::BMesh) {
+    /* Dyntopo draws from pbvh::Tree, except for external render engines. */
+    return !external_engine;
+  }
+
+  /* Multires always draws directly from the pbvh::Tree. */
   return true;
 }
 

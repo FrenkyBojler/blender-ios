@@ -200,7 +200,7 @@ static float falloff_value_vertex_get(const SculptSession &ss,
     return expand_cache.vert_falloff[vert];
   }
 
-  float rgba[4];
+  float4 rgba;
   const float avg = BKE_brush_sample_tex_3d(
       expand_cache.paint, brush, mtex, position, rgba, 0, ss.tex_pool);
 
@@ -466,7 +466,7 @@ static IndexMask boundary_from_enabled(Object &object,
       const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
-      return IndexMask::from_predicate(enabled_mask, GrainSize(1024), memory, [&](const int vert) {
+      return IndexMask::from_predicate(enabled_mask, memory, [&](const int vert) {
         Vector<int> neighbors;
         for (const int neighbor : vert_neighbors_get_mesh(
                  faces, corner_verts, vert_to_face_map, hide_poly, vert, neighbors))
@@ -493,7 +493,7 @@ static IndexMask boundary_from_enabled(Object &object,
 
       const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-      return IndexMask::from_predicate(enabled_mask, GrainSize(1024), memory, [&](const int vert) {
+      return IndexMask::from_predicate(enabled_mask, memory, [&](const int vert) {
         const SubdivCCGCoord coord = SubdivCCGCoord::from_index(key, vert);
         SubdivCCGNeighbors neighbors;
         BKE_subdiv_ccg_neighbor_coords_get(subdiv_ccg, coord, false, neighbors);
@@ -517,7 +517,7 @@ static IndexMask boundary_from_enabled(Object &object,
       });
     }
     case bke::pbvh::Type::BMesh: {
-      return IndexMask::from_predicate(enabled_mask, GrainSize(1024), memory, [&](const int vert) {
+      return IndexMask::from_predicate(enabled_mask, memory, [&](const int vert) {
         BMVert *bm_vert = BM_vert_at_index(ss.bm, vert);
         BMeshNeighborVerts neighbors;
         for (const BMVert *neighbor : vert_neighbors_get_bmesh(*bm_vert, neighbors)) {
@@ -592,7 +592,7 @@ Vector<int> find_symm_verts_mesh(const Depsgraph &depsgraph,
     symm_verts.append(*nearest);
   }
 
-  std::sort(symm_verts.begin(), symm_verts.end());
+  std::ranges::sort(symm_verts);
   return symm_verts;
 }
 
@@ -625,7 +625,7 @@ Vector<int> find_symm_verts_grids(const Object &object,
     symm_verts.append(nearest->to_index(key));
   }
 
-  std::sort(symm_verts.begin(), symm_verts.end());
+  std::ranges::sort(symm_verts);
   return symm_verts;
 }
 
@@ -657,7 +657,7 @@ Vector<int> find_symm_verts_bmesh(const Object &object,
     symm_verts.append(BM_elem_index_get(*nearest));
   }
 
-  std::sort(symm_verts.begin(), symm_verts.end());
+  std::ranges::sort(symm_verts);
   return symm_verts;
 }
 
@@ -1958,9 +1958,11 @@ static void update_for_vert(bContext *C, Object &ob, const std::optional<int> ve
           Array<bool> node_changed(node_mask.min_array_size(), false);
 
           MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-          node_mask.foreach_index(GrainSize(1), [&](const int i) {
-            node_changed[i] = update_mask_grids(ss, enabled_verts, nodes[i], *ss.subdiv_ccg);
-          });
+          node_mask.foreach_index(
+              [&](const int i) {
+                node_changed[i] = update_mask_grids(ss, enabled_verts, nodes[i], *ss.subdiv_ccg);
+              },
+              exec_mode::grain_size(1));
 
           IndexMaskMemory memory;
           pbvh.tag_masks_changed(IndexMask::from_bools(node_changed, memory));
@@ -1972,9 +1974,11 @@ static void update_for_vert(bContext *C, Object &ob, const std::optional<int> ve
           MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
 
           Array<bool> node_changed(node_mask.min_array_size(), false);
-          node_mask.foreach_index(GrainSize(1), [&](const int i) {
-            node_changed[i] = update_mask_bmesh(ss, enabled_verts, mask_offset, &nodes[i]);
-          });
+          node_mask.foreach_index(
+              [&](const int i) {
+                node_changed[i] = update_mask_bmesh(ss, enabled_verts, mask_offset, &nodes[i]);
+              },
+              exec_mode::grain_size(1));
 
           IndexMaskMemory memory;
           pbvh.tag_masks_changed(IndexMask::from_bools(node_changed, memory));
@@ -2002,18 +2006,20 @@ static void update_for_vert(bContext *C, Object &ob, const std::optional<int> ve
       Array<bool> node_changed(node_mask.min_array_size(), false);
 
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        node_changed[i] = colors_update_task(depsgraph,
-                                             ob,
-                                             vert_positions,
-                                             faces,
-                                             corner_verts,
-                                             vert_to_face_map,
-                                             hide_vert,
-                                             mask,
-                                             &nodes[i],
-                                             color_attribute);
-      });
+      node_mask.foreach_index(
+          [&](const int i) {
+            node_changed[i] = colors_update_task(depsgraph,
+                                                 ob,
+                                                 vert_positions,
+                                                 faces,
+                                                 corner_verts,
+                                                 vert_to_face_map,
+                                                 hide_vert,
+                                                 mask,
+                                                 &nodes[i],
+                                                 color_attribute);
+          },
+          exec_mode::grain_size(1));
 
       IndexMaskMemory memory;
       pbvh.tag_attribute_changed(IndexMask::from_bools(node_changed, memory),
@@ -2211,7 +2217,7 @@ static bool set_initial_components_for_mouse(bContext *C,
   expand_cache.initial_active_vert = *initial_vert;
   expand_cache.initial_active_face_set = face_set::active_face_set_get(ob);
 
-  if (expand_cache.next_face_set == SCULPT_FACE_SET_NONE) {
+  if (expand_cache.next_face_set == face_set_none_id) {
     /* Only set the next face set once, otherwise this ID will constantly update to a new one each
      * time this function is called for using a new initial vertex from a different cursor
      * position. */
@@ -2277,12 +2283,12 @@ static int active_face_set_id_get(Object &object, Cache &expand_cache)
   switch (bke::object::pbvh_get(object)->type()) {
     case bke::pbvh::Type::Mesh:
       if (!ss.active_face_index) {
-        return SCULPT_FACE_SET_NONE;
+        return face_set_none_id;
       }
       return expand_cache.original_face_sets[*ss.active_face_index];
     case bke::pbvh::Type::Grids: {
       if (!ss.active_grid_index) {
-        return SCULPT_FACE_SET_NONE;
+        return face_set_none_id;
       }
       const int face_index = BKE_subdiv_ccg_grid_to_face_index(*ss.subdiv_ccg,
                                                                *ss.active_grid_index);
@@ -2293,7 +2299,7 @@ static int active_face_set_id_get(Object &object, Cache &expand_cache)
       BLI_assert(false);
     }
   }
-  return SCULPT_FACE_SET_NONE;
+  return face_set_none_id;
 }
 
 static void sculpt_expand_status(bContext *C, wmOperator *op, Cache *expand_cache)
@@ -2765,6 +2771,13 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
   }
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, needs_colors);
+
+  if (ss.expand_cache->target == TargetType::Mask) {
+    ed::sculpt_paint::mask_overlay_check(*C, *op);
+  }
+  else if (ss.expand_cache->target == TargetType::FaceSets) {
+    ed::sculpt_paint::face_set_overlay_check(*C, *op);
+  }
 
   /* Do nothing when the mesh has 0 vertices. */
   const int totvert = SCULPT_vertex_count_get(ob);
