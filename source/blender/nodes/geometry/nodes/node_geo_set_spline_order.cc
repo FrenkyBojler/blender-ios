@@ -60,6 +60,9 @@ static void set_grease_pencil_order(GreasePencil &grease_pencil,
     }
     bke::CurvesGeometry &curves = drawing->strokes_for_write();
     has_nurbs = curves.has_curve_with_type(CURVE_TYPE_NURBS);
+    if(!has_nurbs) {
+      continue;
+    }
     set_curve_order(
         curves,
         bke::GreasePencilLayerFieldContext(grease_pencil, AttrDomain::Curve, layer_index),
