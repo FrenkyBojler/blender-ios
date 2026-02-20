@@ -2125,8 +2125,8 @@ static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator *op)
 
   xatlas::Generate(atlas, chart_options, pack_options);
 
-  auto width = atlas->width;
-  auto height = atlas->height;
+  RNA_int_set(op->ptr, "width", atlas->width);
+  RNA_int_set(op->ptr, "height", atlas->height);
 
   for (int mesh_index = 0; mesh_index < atlas->meshCount; mesh_index++) {
     const auto &mesh = atlas->meshes[mesh_index];
@@ -2140,8 +2140,8 @@ static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator *op)
     for (uint32_t vi = 0; vi < mesh.vertexCount; vi++) {
       const auto &vert = mesh.vertexArray[vi];
       auto *loop_uv = BM_ELEM_CD_GET_FLOAT_P(loops[vert.xref], cd_loop_uv_offset);
-      loop_uv[0] = vert.uv[0] / width;
-      loop_uv[1] = vert.uv[1] / height;
+      loop_uv[0] = vert.uv[0] / atlas->width;
+      loop_uv[1] = vert.uv[1] / atlas->height;
     }
 
     DEG_id_tag_update(obedit->data, ID_RECALC_GEOMETRY);
@@ -2247,6 +2247,16 @@ void UV_OT_xatlas_unwrap(wmOperatorType *ot)
               "Number of iterations of the chart growing and seeding phases",
               0,
               INT_MAX);
+  {
+    PropertyRNA *prop = RNA_def_int(
+        ot->srna, "width", 0, 0, INT_MAX, "Width", "Width of the generated atlas", 0, INT_MAX);
+    RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  }
+  {
+    PropertyRNA *prop = RNA_def_int(
+        ot->srna, "height", 0, 0, INT_MAX, "Height", "Height of the generated atlas", 0, INT_MAX);
+    RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  }
 }
 
 /** \} */
