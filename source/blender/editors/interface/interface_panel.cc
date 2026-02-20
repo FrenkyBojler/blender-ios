@@ -1486,10 +1486,18 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
     rct->xmin = rct_xmin;
     rct->xmax = rct_xmax;
 
-    rct->ymin = v2d->mask.ymax - (y_ofs + category_width + (tab_v_pad_text * 2));
-    rct->ymax = v2d->mask.ymax - (y_ofs);
-
-    y_ofs += category_width + tab_v_pad + (tab_v_pad_text * 2);
+    if (category_width < category_tabs_width) {
+      rct->ymin = v2d->mask.ymax - (y_ofs + category_tabs_width + tab_v_pad_text);
+      rct->ymax = v2d->mask.ymax - (y_ofs);
+      y_ofs += category_tabs_width + tab_v_pad + tab_v_pad_text;
+      pc_dyn.rotate = false;
+    }
+    else {
+      rct->ymin = v2d->mask.ymax - (y_ofs + category_width + (tab_v_pad_text * 2));
+      rct->ymax = v2d->mask.ymax - (y_ofs);
+      y_ofs += category_width + tab_v_pad + (tab_v_pad_text * 2);
+      pc_dyn.rotate = true;
+    }
   }
 
   const int max_scroll = max_ii(y_ofs - BLI_rcti_size_y(&v2d->mask), 0);
@@ -1615,11 +1623,23 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
     /* Offset down as the font size increases. */
     const int text_size_offset = round_fl_to_int(fstyle_points * UI_SCALE_FAC * 0.35f);
 
-    BLF_position(fontid,
-                 is_left ? rct->xmax - text_v_ofs + text_size_offset :
-                           rct->xmin + text_v_ofs - text_size_offset,
-                 is_left ? rct->ymin + tab_v_pad_text : rct->ymax - tab_v_pad_text,
-                 0.0f);
+    if (pc_dyn.rotate) {
+      BLF_position(fontid,
+                   is_left ? rct->xmax - text_v_ofs + text_size_offset :
+                             rct->xmin + text_v_ofs - text_size_offset,
+                   is_left ? rct->ymin + tab_v_pad_text : rct->ymax - tab_v_pad_text,
+                   0.0f);
+    }
+    else {
+      const int width = round_fl_to_int(
+          BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
+      const int offset_h = (category_tabs_width - width) / 2;
+      BLF_position(fontid,
+                   rct->xmin + offset_h,
+                   rct->ymin + int(float(category_tabs_width) * 0.44f),
+                   0.0f);
+    }
+
     BLF_color3ubv(fontid, is_active ? theme_col_tab_text_sel : theme_col_tab_text);
 
     if (fstyle->shadow) {
@@ -1628,6 +1648,13 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
           fstyle->shadowcolor, fstyle->shadowcolor, fstyle->shadowcolor, fstyle->shadowalpha};
       BLF_shadow(fontid, FontShadowType(fstyle->shadow), shadow_color);
       BLF_shadow_offset(fontid, fstyle->shadx, fstyle->shady);
+    }
+
+    if (pc_dyn.rotate) {
+      BLF_enable(fontid, BLF_ROTATION);
+    }
+    else {
+      BLF_disable(fontid, BLF_ROTATION);
     }
 
     BLF_draw(fontid, category_id_draw, category_draw_len);

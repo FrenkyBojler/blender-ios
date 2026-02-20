@@ -2915,7 +2915,9 @@ void view3d_buttons_register(ARegionType *art)
   pt = MEM_new_zeroed<PanelType>("spacetype view3d panel object");
   STRNCPY_UTF8(pt->idname, "VIEW3D_PT_transform");
   STRNCPY_UTF8(pt->label, N_("Transform")); /* XXX C panels unavailable through RNA bpy.types! */
-  STRNCPY_UTF8(pt->category, "Item");
+  STRNCPY_UTF8(pt->category, "\ue428");
+  // STRNCPY_UTF8(pt->category, "移");
+  // STRNCPY_UTF8(pt->category, "T");
   STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->draw = view3d_panel_transform;
   pt->poll = view3d_panel_transform_poll;

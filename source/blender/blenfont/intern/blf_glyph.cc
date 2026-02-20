@@ -1214,6 +1214,25 @@ static bool blf_glyph_transform_spacing(FT_GlyphSlot glyph, float factor)
   return false;
 }
 
+static bool blf_glyph_transform_material_symbols(FontBLF *settings_font, FT_GlyphSlot glyph)
+{
+  float v_change = -0.2f;
+  if (glyph->format == FT_GLYPH_FORMAT_OUTLINE) {
+    if (!(settings_font->flags & BLF_MONOSPACED)) {
+      FT_Matrix transform = {to_16dot16(1.6f), 0, 0, to_16dot16(1.6f)};
+      FT_Outline_Transform(&glyph->outline, &transform);
+      v_change = -0.3f;
+    }
+    const FontBLF *font = (FontBLF *)glyph->face->generic.data;
+    const FT_Pos average_width = font->ft_size->metrics.height;
+    FT_Pos change = (FT_Pos)(float(average_width) * v_change);
+    FT_Outline_Translate(&glyph->outline, 0, change);
+    glyph->advance.x = FT_Pos(float(glyph->advance.x) * 1.6f);
+    return true;
+  }
+  return false;
+}
+
 /**
  * Transform glyph to fit nicely within a fixed column width. This conversion of
  * a proportional font glyph into a monospaced glyph only occurs when a mono font
@@ -1276,6 +1295,12 @@ static FT_GlyphSlot blf_glyph_render(FontBLF *settings_font,
   if (settings_font->flags & BLF_BOLD) {
     weight_target = std::min(weight_target + 300.0f, 900.0f);
   }
+
+  if (charcode >= 0xE000 && charcode <= 0xF8FF) {
+    /* Make Material Symbols slightly thinner. */
+    weight_target = 350;
+  }
+
   float slant_target = settings_font->char_slant;
   if (settings_font->flags & BLF_ITALIC) {
     slant_target = std::min(slant_target + 8.0f, 15.0f);
@@ -1326,6 +1351,11 @@ static FT_GlyphSlot blf_glyph_render(FontBLF *settings_font,
   }
   if (spacing != spacing_target) {
     blf_glyph_transform_spacing(glyph, spacing_target - spacing);
+  }
+
+  if (charcode >= 0xE000 && charcode <= 0xF8FF) {
+    /* Specific changes for Material Symbols. */
+    blf_glyph_transform_material_symbols(settings_font, glyph);
   }
 
   if (outline_only) {

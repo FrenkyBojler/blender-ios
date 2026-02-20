@@ -308,6 +308,7 @@ struct PanelCategoryDyn {
   struct PanelCategoryDyn *next = nullptr, *prev = nullptr;
   char idname[64] = "";
   rcti rect = {};
+  bool rotate = true;
 };
 
 /** Region stack of active tabs. */
