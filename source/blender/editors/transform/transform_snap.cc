@@ -344,11 +344,21 @@ void drawSnapping(TransInfo *t)
       }
     }
     else {
-      immRectf(pos,
-               t->tsnap.snap_target[0] - pixelx,
-               region->v2d.cur.ymax,
-               t->tsnap.snap_target[0] + pixelx,
-               region->v2d.cur.ymin);
+      const short snap_flag = seq::tool_settings_snap_flag_get(t->scene);
+      if (snap_flag & SEQ_SNAP_TO_ALL_CHANNEL_STRIPS) {
+        immRectf(pos,
+                 t->tsnap.snap_target[0] - pixelx,
+                 region->v2d.cur.ymax,
+                 t->tsnap.snap_target[0] + pixelx,
+                 region->v2d.cur.ymin);
+      }
+      else {
+        immRectf(pos,
+                 t->tsnap.snap_target[0] - pixelx,
+                 t->tsnap.snap_target[1] + 2,
+                 t->tsnap.snap_target[0] + pixelx,
+                 t->tsnap.snap_target[1] - 1);
+      }
     }
 
     immUnbindProgram();

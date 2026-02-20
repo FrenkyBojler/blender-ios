@@ -531,10 +531,12 @@ static bool snap_calc_timeline(TransInfo *t, const TransSeqSnapData *snap_data)
   const short snap_flag = seq::tool_settings_snap_flag_get(t->scene);
   const bool ignore_other_channels = !(snap_flag & SEQ_SNAP_TO_ALL_CHANNEL_STRIPS);
 
-  int best_dist = MAXFRAME, best_target_frame = 0, best_source_frame = 0;
+  int best_dist = MAXFRAME;
+  float2 best_target_point(0.0f);
+  float2 best_source_point(0.0f);
 
-  for (const float *snap_source_point : snap_data->source_snap_points) {
-    for (const float *snap_target_point : snap_data->target_snap_points) {
+  for (const float2 snap_source_point : snap_data->source_snap_points) {
+    for (const float2 snap_target_point : snap_data->target_snap_points) {
       if (ignore_other_channels && snap_target_point[1] != all_channels &&
           (snap_source_point[1] + round_fl_to_int(t->values[1])) != snap_target_point[1])
       {
@@ -549,8 +551,8 @@ static bool snap_calc_timeline(TransInfo *t, const TransSeqSnapData *snap_data)
       }
 
       best_dist = dist;
-      best_target_frame = snap_target_frame;
-      best_source_frame = snap_source_frame;
+      best_target_point = snap_target_point;
+      best_source_point = snap_source_point;
     }
   }
 
@@ -558,13 +560,13 @@ static bool snap_calc_timeline(TransInfo *t, const TransSeqSnapData *snap_data)
     return false;
   }
 
-  float2 best_offset(float(best_target_frame - best_source_frame), 0.0f);
+  float2 best_offset(float(best_target_point[0] - best_source_point[0]), 0.0f);
   if (transform_convert_sequencer_clamp(t, best_offset)) {
     return false;
   }
 
-  t->tsnap.snap_target[0] = best_target_frame;
-  t->tsnap.snap_source[0] = best_source_frame;
+  copy_v2_v2(t->tsnap.snap_target, best_target_point);
+  copy_v2_v2(t->tsnap.snap_source, best_source_point);
   return true;
 }
 
