@@ -2068,12 +2068,12 @@ static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
-  xatlas::Atlas *atlas = xatlas::Create();
+  auto *atlas = xatlas::Create();
 
   Vector<Vector<BMLoop *>> mesh_loops;
 
-  for (Object *obedit : objects) {
-    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+  for (Object *object : objects) {
+    BMEditMesh *em = BKE_editmesh_from_object(object);
     BMesh *bm = em->bm;
 
     Vector<float3> positions;
@@ -2131,21 +2131,21 @@ static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator *op)
   for (int mesh_index = 0; mesh_index < atlas->meshCount; mesh_index++) {
     const auto &mesh = atlas->meshes[mesh_index];
 
-    Object *obedit = objects[mesh_index];
-    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    Object *object = objects[mesh_index];
+    BMEditMesh *em = BKE_editmesh_from_object(object);
     const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_PROP_FLOAT2);
 
     const auto &loops = mesh_loops[mesh_index];
 
-    for (uint32_t vi = 0; vi < mesh.vertexCount; vi++) {
-      const auto &vert = mesh.vertexArray[vi];
+    for (int i = 0; i < mesh.vertexCount; i++) {
+      const auto &vert = mesh.vertexArray[i];
       auto *loop_uv = BM_ELEM_CD_GET_FLOAT_P(loops[vert.xref], cd_loop_uv_offset);
       loop_uv[0] = vert.uv[0] / atlas->width;
       loop_uv[1] = vert.uv[1] / atlas->height;
     }
 
-    DEG_id_tag_update(obedit->data, ID_RECALC_GEOMETRY);
-    WM_main_add_notifier(NC_GEOM | ND_DATA, obedit->data);
+    DEG_id_tag_update(object->data, ID_RECALC_GEOMETRY);
+    WM_main_add_notifier(NC_GEOM | ND_DATA, object->data);
   }
 
   xatlas::Destroy(atlas);
