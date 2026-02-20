@@ -4740,7 +4740,7 @@ static Map<const bNode *, const bNode *> find_menu_switch_sources_for_index_swit
   return result;
 }
 
-static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx, ARegion &region)
+static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx, bNodeTree &ntree, ARegion &region)
 {
   SpaceNode *snode = CTX_wm_space_node(&C);
   View2D &v2d = region.v2d;
@@ -5186,7 +5186,7 @@ void node_draw_space(const bContext &C, ARegion &region)
   if (ntree && !(snode.gizmo_flag & SNODE_GIZMO_HIDE) &&
       (snode.gizmo_flag & SNODE_GIZMO_SHOW_MINIMAP))
   {
-    draw_node_minimap(C, tree_draw_ctx, region);
+    draw_node_minimap(C, tree_draw_ctx, *ntree, region);
   }
 
   /* Scrollers. */
