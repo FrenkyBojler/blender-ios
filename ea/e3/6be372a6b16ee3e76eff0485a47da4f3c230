@@ -19,3 +19,4 @@ Referenced by issue #96209, Smear tool painting vertex colors  corrupts color in
 Referenced by issue #94428, Geometry Nodes - Vertex Color Issues
 Referenced by issue #154462, Mesh Data Transfer UI misses face corner / vertex mapping options for colors
 Referenced by pull request #154507, Fix #154462 : Mesh Data Transfer UI misses mapping options for colors
+Referenced by commit 09b68223c344001d8b11da734a4bf8d4390ad10d, Fix #154462 : Mesh Data Transfer UI misses mapping options for colors
