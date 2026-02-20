@@ -2051,20 +2051,6 @@ static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-
-  const int padding = RNA_int_get(op->ptr, "padding");
-  const float texels_per_unit = RNA_float_get(op->ptr, "texels_per_unit");
-  const int resolution = RNA_int_get(op->ptr, "resolution");
-  const bool bilinear = RNA_boolean_get(op->ptr, "bilinear");
-  const bool block_align = RNA_boolean_get(op->ptr, "block_align");
-  const bool brute_force = RNA_boolean_get(op->ptr, "brute_force");
-  const bool rotate_charts = RNA_boolean_get(op->ptr, "rotate_charts");
-  const bool rotate_charts_to_axis = RNA_boolean_get(op->ptr, "rotate_charts_to_axis");
-
-  const float max_chart_area = RNA_float_get(op->ptr, "max_chart_area");
-  const float max_boundary_length = RNA_float_get(op->ptr, "max_boundary_length");
-  const int max_iterations = RNA_int_get(op->ptr, "max_iterations");
-
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
@@ -2109,19 +2095,20 @@ static wmOperatorStatus xatlas_unwrap_exec(bContext *C, wmOperator *op)
   }
 
   xatlas::ChartOptions chart_options;
-  chart_options.maxChartArea = max_chart_area;
-  chart_options.maxBoundaryLength = max_boundary_length;
-  chart_options.maxIterations = max_iterations;
+  chart_options.maxChartArea = RNA_float_get(op->ptr, "max_chart_area");
+  chart_options.maxBoundaryLength = RNA_float_get(op->ptr, "max_boundary_length");
+  chart_options.maxIterations = RNA_int_get(op->ptr, "max_iterations");
+  ;
 
   xatlas::PackOptions pack_options;
-  pack_options.padding = padding;
-  pack_options.texelsPerUnit = texels_per_unit;
-  pack_options.resolution = resolution;
-  pack_options.bilinear = bilinear;
-  pack_options.blockAlign = block_align;
-  pack_options.bruteForce = brute_force;
-  pack_options.rotateCharts = rotate_charts;
-  pack_options.rotateChartsToAxis = rotate_charts_to_axis;
+  pack_options.padding = RNA_int_get(op->ptr, "padding");
+  pack_options.texelsPerUnit = RNA_float_get(op->ptr, "texels_per_unit");
+  pack_options.resolution = RNA_int_get(op->ptr, "resolution");
+  pack_options.bilinear = RNA_boolean_get(op->ptr, "bilinear");
+  pack_options.blockAlign = RNA_boolean_get(op->ptr, "block_align");
+  pack_options.bruteForce = RNA_boolean_get(op->ptr, "brute_force");
+  pack_options.rotateCharts = RNA_boolean_get(op->ptr, "rotate_charts");
+  pack_options.rotateChartsToAxis = RNA_boolean_get(op->ptr, "rotate_charts_to_axis");
 
   xatlas::Generate(atlas, chart_options, pack_options);
 
