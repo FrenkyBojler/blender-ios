@@ -335,9 +335,14 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       break;
   }
 
-  /* Compute obtained camera parameter from Live / Playback for render. */
-  // TODO: dummy 16:9 aspect ratio for now, make editable and save in shots.
-  BKE_camera_params_compute_viewplane(&cam_render_params, 1920, 1080, 1, 1);
+  /* Compute obtained camera parameter from Live / Playback for render, using scene render
+   * aspect ratio. */
+  const RenderData *render_settings = &draw_data->scene->r;
+  BKE_camera_params_compute_viewplane(&cam_render_params,
+                                      render_settings->xsch,
+                                      render_settings->ysch,
+                                      render_settings->xasp,
+                                      render_settings->yasp);
   BKE_camera_params_compute_matrix(&cam_render_params);
 
   float viewfinder_winmat[4][4];
@@ -874,8 +879,14 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
     return;
   }
 
-  /* Fixed 16:9 aspect ratio for now. */
-  const float viewfinder_height = settings->viewfinder_width * 9.0f / 16.0f;
+  /* Use scene render aspect ratio. */
+  // TODO: Viewfinder can currently clip controller on square ratios.
+  const RenderData *render_settings = &CTX_data_scene(C)->r;
+  const float render_x = render_settings->xsch * render_settings->xasp;
+  const float render_y = render_settings->ysch * render_settings->yasp;
+  const float render_aspect_ratio = render_y / render_x;
+
+  const float viewfinder_height = settings->viewfinder_width * render_aspect_ratio;
   const float viewfinder_vertical_offset = 3.5f; /* Center of the viewfinder rectangle. */
 
   rctf viewfinder_rect = {};
