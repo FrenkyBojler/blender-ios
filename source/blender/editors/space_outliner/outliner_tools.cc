@@ -3206,6 +3206,7 @@ static void actionset_id_fn(TreeElement * /*te*/,
   if (tselem->type == TSE_ANIM_DATA) {
     /* "animation" entries - action is child of this */
     BKE_animdata_set_action(nullptr, tselem->id, act);
+    DEG_id_tag_update(tselem->id, ID_RECALC_ANIMATION);
   }
   /* TODO: if any other "expander" channels which own actions need to support this menu,
    * add: tselem->type = ...
@@ -3213,6 +3214,7 @@ static void actionset_id_fn(TreeElement * /*te*/,
   else if (tsep && (tsep->type == TSE_ANIM_DATA)) {
     /* "animation" entries case again */
     BKE_animdata_set_action(nullptr, tsep->id, act);
+    DEG_id_tag_update(tsep->id, ID_RECALC_ANIMATION);
   }
   /* TODO: other cases not supported yet. */
 }
@@ -3247,7 +3249,6 @@ static wmOperatorStatus outliner_action_set_exec(bContext *C, wmOperator *op)
   }
 
   /* set notifier that things have changed */
-  DEG_id_tag_update(&act->id, ID_RECALC_ANIMATION);
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   ED_undo_push(C, "Set action");
