@@ -2832,7 +2832,7 @@ class VIEW3D_MT_object(Menu):
         layout.separator()
 
         layout.operator("object.shade_smooth")
-        if ob and ob.type == 'MESH':
+        if ob and ob.type in {'MESH', 'CURVE', 'FONT'}:
             layout.operator("object.shade_auto_smooth")
         layout.operator("object.shade_flat")
 
@@ -6833,6 +6833,7 @@ class VIEW3D_PT_shading_cavity(Panel):
     bl_region_type = 'HEADER'
     bl_label = "Cavity"
     bl_parent_id = "VIEW3D_PT_shading"
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -6847,8 +6848,9 @@ class VIEW3D_PT_shading_cavity(Panel):
         row = layout.row()
         row.active = not xray_active
         row.prop(shading, "show_cavity")
-        if shading.show_cavity:
-            row.prop(shading, "cavity_type", text="Type")
+        row = row.row()
+        row.active = shading.show_cavity
+        row.prop(shading, "cavity_type", text="Type")
 
     def draw(self, context):
         layout = self.layout
@@ -6856,27 +6858,26 @@ class VIEW3D_PT_shading_cavity(Panel):
         xray_active = shading.show_xray and shading.xray_alpha != 1
 
         col = layout.column()
-        col.active = not xray_active
+        col.active = not xray_active and shading.show_cavity
 
-        if shading.show_cavity:
-            if shading.cavity_type in {'WORLD', 'BOTH'}:
-                row = col.row()
-                row.label(text="World Space")
-                row.popover(
-                    panel="VIEW3D_PT_shading_options_ssao",
-                    icon='PREFERENCES',
-                    text="",
-                )
+        if shading.cavity_type in {'WORLD', 'BOTH'}:
+            row = col.row()
+            row.label(text="World Space")
+            row.popover(
+                panel="VIEW3D_PT_shading_options_ssao",
+                icon='PREFERENCES',
+                text="",
+            )
 
-                row = col.row()
-                row.prop(shading, "cavity_ridge_factor", text="Ridge")
-                row.prop(shading, "cavity_valley_factor", text="Valley")
+            row = col.row()
+            row.prop(shading, "cavity_ridge_factor", text="Ridge")
+            row.prop(shading, "cavity_valley_factor", text="Valley")
 
-            if shading.cavity_type in {'SCREEN', 'BOTH'}:
-                col.label(text="Screen Space")
-                row = col.row()
-                row.prop(shading, "curvature_ridge_factor", text="Ridge")
-                row.prop(shading, "curvature_valley_factor", text="Valley")
+        if shading.cavity_type in {'SCREEN', 'BOTH'}:
+            col.label(text="Screen Space")
+            row = col.row()
+            row.prop(shading, "curvature_ridge_factor", text="Ridge")
+            row.prop(shading, "curvature_valley_factor", text="Valley")
 
 
 class VIEW3D_PT_shading_render_pass(Panel):
@@ -7192,6 +7193,7 @@ class VIEW3D_PT_overlay_motion_tracking(Panel):
     bl_region_type = 'HEADER'
     bl_parent_id = "VIEW3D_PT_overlay"
     bl_label = "Motion Tracking"
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
         layout = self.layout
@@ -7205,27 +7207,23 @@ class VIEW3D_PT_overlay_motion_tracking(Panel):
         layout = self.layout
         view = context.space_data
         overlay = view.overlay
-        display_all = overlay.show_overlays
+        layout.active = overlay.show_overlays and view.show_reconstruction
 
         col = layout.column()
-        col.active = display_all
 
-        if view.show_reconstruction:
-            split = col.split()
+        split = col.split()
 
-            sub = split.column(align=True)
-            sub.active = view.show_reconstruction
-            sub.prop(view, "show_camera_path", text="Camera Path")
+        sub = split.column(align=True)
+        sub.prop(view, "show_camera_path", text="Camera Path")
 
-            sub = split.column()
-            sub.prop(view, "show_bundle_names", text="Marker Names")
+        sub = split.column()
+        sub.prop(view, "show_bundle_names", text="Marker Names")
 
-            col = layout.column()
-            col.active = display_all
-            col.label(text="Tracks")
-            row = col.row(align=True)
-            row.prop(view, "tracks_display_type", text="")
-            row.prop(view, "tracks_display_size", text="Size")
+        col = layout.column()
+        col.label(text="Tracks")
+        row = col.row(align=True)
+        row.prop(view, "tracks_display_type", text="")
+        row.prop(view, "tracks_display_size", text="Size")
 
 
 class VIEW3D_PT_overlay_edit_mesh(Panel):
@@ -8522,15 +8520,12 @@ class VIEW3D_PT_greasepencil_draw_context_menu(Panel):
         is_pin_vertex = gp_settings.brush_draw_mode == 'VERTEXCOLOR'
         is_vertex = settings.color_mode == 'VERTEXCOLOR' or brush.gpencil_brush_type == 'TINT' or is_pin_vertex
 
+        layout.prop(gp_settings, "stroke_type", expand=True)
+
         if brush.gpencil_brush_type not in {'ERASE', 'CUTTER', 'EYEDROPPER'} and is_vertex:
             split = layout.split(factor=0.1)
             split.prop(brush, "color", text="")
             split.template_color_picker(brush, "color", value_slider=True)
-
-            col = layout.column()
-            col.separator()
-            col.prop(gp_settings, "vertex_mode", text="")
-            col.separator()
 
         if brush.gpencil_brush_type not in {'FILL', 'CUTTER', 'ERASE'}:
             if brush.use_locked_size == 'VIEW':
@@ -8620,8 +8615,10 @@ class VIEW3D_PT_greasepencil_vertex_paint_context_menu(Panel):
 
         if brush.gpencil_vertex_brush_type in {'DRAW', 'REPLACE'}:
             split = layout.split(factor=0.1)
-            split.prop(settings.unified_paint_settings, "color", text="")
-            split.template_color_picker(settings.unified_paint_settings, "color", value_slider=True)
+            ups = settings.unified_paint_settings
+            prop_owner = ups if ups.use_unified_color else brush
+            split.prop(prop_owner, "color", text="")
+            split.template_color_picker(prop_owner, "color", value_slider=True)
 
             col = layout.column()
             col.separator()
@@ -9020,8 +9017,9 @@ class TOPBAR_PT_grease_pencil_vertex_color(Panel):
 
         gp_settings = brush.gpencil_settings
         if brush.gpencil_brush_type in {'DRAW', 'FILL'}:
-            row = layout.row(align=True)
-            row.prop(gp_settings, "vertex_mode", text="Mode")
+            if ob.mode == 'VERTEX_GREASE_PENCIL':
+                row = layout.row(align=True)
+                row.prop(gp_settings, "vertex_mode", text="Mode")
             row = layout.row(align=True)
             row.prop(gp_settings, "vertex_color_factor", slider=True, text="Mix Factor")
 
