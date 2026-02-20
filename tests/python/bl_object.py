@@ -19,7 +19,6 @@ class ClosestPointOnMeshTest(unittest.TestCase):
         self.assertEqual(ret_val[1], Vector((0.0, 0.0, 1.0)))
 
 
-
 if __name__ == '__main__':
     import sys
     sys.argv = [__file__] + (sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])

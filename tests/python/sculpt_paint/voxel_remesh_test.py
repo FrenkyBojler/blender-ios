@@ -7,21 +7,16 @@ __all__ = (
 )
 
 import os
-import math
 import unittest
 import sys
-import pathlib
-import numpy as np
 
 import bpy
 
 """
-blender -b --factory-startup --python tests/python/sculpt_paint/sculpt_brushes_test.py -- --testdir tests/files/mesh_paint/
+blender -b --factory-startup --python tests/python/sculpt_paint/voxel_remesh_test.py
 """
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
-
-args = None
 
 
 class RemeshTest(unittest.TestCase):
@@ -53,21 +48,7 @@ class RemeshTest(unittest.TestCase):
             bpy.ops.object.voxel_remesh()
 
 
-def main():
-    global args
-    import argparse
-
-    argv = [sys.argv[0]]
-    if '--' in sys.argv:
-        argv += sys.argv[sys.argv.index('--') + 1:]
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--testdir', required=True, type=pathlib.Path)
-
-    args, remaining = parser.parse_known_args(argv)
-
-    unittest.main(argv=remaining)
-
-
 if __name__ == "__main__":
-    main()
+    import sys
+    sys.argv = [__file__] + (sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
+    unittest.main()
