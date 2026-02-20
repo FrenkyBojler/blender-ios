@@ -31,18 +31,16 @@ def object_shader_nodes_poll(context):
 
 # only show nodes working in object material node trees
 def object_material_shader_nodes_poll(context):
-    # TODO: This should be owner_id, not active_object
-    ob = context.active_object
+    owner = context.space_data.edit_tree.owner_id
     return (object_shader_nodes_poll(context) and
-            ob and ob.type != 'LIGHT')
+            (owner is None or owner.id_type == 'MATERIAL'))
 
 
 # only show nodes working in object light node trees
 def object_light_shader_nodes_poll(context):
-    # TODO: This should be owner_id, not active_object
-    ob = context.active_object
+    owner = context.space_data.edit_tree.owner_id
     return (object_shader_nodes_poll(context) and
-            ob and ob.type == 'LIGHT')
+            (owner is None or owner.id_type == 'LIGHT'))
 
 
 def cycles_shader_nodes_poll(context):
