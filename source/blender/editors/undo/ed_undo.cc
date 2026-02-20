@@ -779,10 +779,22 @@ static wmOperatorStatus undo_clear_history_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent * /*event*/)
 {
+  wmWindowManager *wm = CTX_wm_manager(C);
+  UndoStack *undo_stack = wm->runtime->undo_stack;
+  if (!undo_stack) {
+    return OPERATOR_CANCELLED;
+  }
+  int step_count = 0;
+  for (UndoStep &us : undo_stack->steps) {
+    if (!us.skip) {
+      step_count++;
+    }
+  }
+  std::string message = fmt::format(N_("All {} undo steps will be deleted."), step_count);
   return WM_operator_confirm_ex(C,
                                 op,
                                 IFACE_("Clear undo history?"),
-                                IFACE_("All undo steps will be deleted."),
+                                message.c_str(),
                                 IFACE_("Clear"),
                                 ui::AlertIcon::Warning,
                                 true);
