@@ -775,7 +775,7 @@ def register_rna_properties() -> None:
 
     bpy.types.Armature.rigify_widgets_collection = PointerProperty(
         type=bpy.types.Collection,
-        name="Widgets Collection",
+        name="Widget Collection",
         description="Defines which collection to place widget objects in. If unset, a new one "
                     "will be created based on the name of the rig")
 

@@ -212,7 +212,7 @@ class DATA_PT_rigify_advanced(bpy.types.Panel):
         col.row().prop(armature_id_store, "rigify_force_widget_update")
         col.row().prop(armature_id_store, "rigify_mirror_widgets")
         col.separator()
-        col.row().prop(armature_id_store, "rigify_finalize_script", text="Run Script")
+        col.row().prop(armature_id_store, "rigify_finalize_script", text="Post Generation")
 
 
 # noinspection PyPep8Naming
