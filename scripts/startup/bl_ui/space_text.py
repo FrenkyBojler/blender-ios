@@ -283,14 +283,34 @@ class TEXT_MT_text(Menu):
 class TEXT_MT_templates_py(Menu):
     bl_label = "Python"
 
-    def draw(self, _context):
-        self.path_menu(
-            bpy.utils.script_paths(subdir="templates_py"),
-            "text.open",
-            props_default={"internal": True},
-            filter_ext=lambda ext: (ext.lower() == ".py"),
-            translate=False,
-        )
+    @staticmethod
+    def sort_func(file_path):
+        import re
+        return tuple(int(t) if t.isdigit() else t for t in re.split(r"(\d+)", file_path.lower()))
+
+    def draw(self, context):
+        import os
+
+        layout = self.layout
+        path = getattr(context, "script_path", bpy.utils.script_paths(subdir="templates_py")[0])
+
+        entries = [os.path.join(path, name) for name in os.listdir(path)]
+        subfolders = [fp for fp in entries if os.path.isdir(fp)]
+        scripts = [fp for fp in entries if os.path.isfile(fp) and fp.endswith(".py")]
+
+        for subfolder in sorted(subfolders, key=self.sort_func):
+            layout.context_string_set("script_path", subfolder)
+            layout.menu("TEXT_MT_templates_py", text=bpy.path.display_name(subfolder))
+
+        layout.separator()
+
+        for script in sorted(scripts, key=self.sort_func):
+            name = bpy.path.display_name(script)
+            parent_prefix = bpy.path.display_name(os.path.dirname(script)).title() + " "
+
+            props = layout.operator("text.open", text=name.removeprefix(parent_prefix), translate=False)
+            props.filepath = script
+            props.internal = True
 
 
 class TEXT_MT_templates_osl(Menu):
