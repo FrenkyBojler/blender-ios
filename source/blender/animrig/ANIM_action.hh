@@ -640,11 +640,29 @@ class Layer : public ActionLayer {
   enum class Flags : uint8_t {
     /* Set by default, cleared to mute. */
     Enabled = (1 << 0),
+    /* If set, a layer cannot be modified through the user interface. The python API shall still
+       modify the layer though. */
+    Locked = (1 << 1),
   };
 
   Flags flags() const
   {
     return static_cast<Flags>(this->layer_flags);
+  }
+
+  bool is_locked() const
+  {
+    return this->layer_flags & int(Flags::Locked);
+  }
+
+  void set_lock(const bool locked)
+  {
+    if (locked) {
+      this->layer_flags |= int(Flags::Locked);
+    }
+    else {
+      this->layer_flags |= int(Flags::Locked);
+    }
   }
 
   enum class MixMode : int8_t {

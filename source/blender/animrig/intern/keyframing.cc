@@ -114,6 +114,12 @@ void CombinedKeyingResult::generate_reports(ReportList *reports, const eReportTy
                     error_count));
   }
 
+  if (this->get_count(SingleKeyingResult::LAYER_LOCKED) > 0) {
+    const int error_count = this->get_count(SingleKeyingResult::LAYER_LOCKED);
+    errors.append(fmt::format(
+        fmt::runtime(RPT_("{:d} keys were not inserted because a layer is locked")), error_count));
+  }
+
   if (this->get_count(SingleKeyingResult::NO_KEY_NEEDED) > 0) {
     const int error_count = this->get_count(SingleKeyingResult::NO_KEY_NEEDED);
     errors.append(fmt::format(
@@ -709,8 +715,10 @@ static SingleKeyingResult insert_key_layer(Main *bmain,
                                            const KeyframeSettings &key_settings,
                                            const eInsertKeyFlags insert_key_flags)
 {
+  if (layer.is_locked()) {
+    return SingleKeyingResult::LAYER_LOCKED;
+  }
   assert_baklava_phase_1_invariants(layer);
-  BLI_assert(layer.strips().size() == 1);
 
   const bool do_cyclic = (insert_key_flags & INSERTKEY_CYCLE_AWARE) && action.is_cyclic();
 
