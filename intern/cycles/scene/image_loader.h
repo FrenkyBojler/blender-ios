@@ -70,9 +70,8 @@ class ImageLoader {
   virtual bool equals(const ImageLoader &other) const = 0;
   static bool equals(const ImageLoader *a, const ImageLoader *b);
 
+  /* Test if this loader will load NanoVDB. */
   virtual bool is_vdb_loader() const;
-
-  /* Work around for no RTTI. */
 };
 
 CCL_NAMESPACE_END

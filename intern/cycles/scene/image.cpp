@@ -41,12 +41,9 @@ ImageHandle::ImageHandle(const ImageHandle &other)
   }
 }
 
-ImageHandle::ImageHandle(ImageHandle &&other)
+ImageHandle::ImageHandle(ImageHandle &&other) noexcept
     : image_texture(other.image_texture), manager(other.manager)
 {
-  if (&other == this) {
-    abort();
-  }
   other.image_texture = nullptr;
   other.manager = nullptr;
 }
@@ -64,14 +61,15 @@ ImageHandle &ImageHandle::operator=(const ImageHandle &other)
   return *this;
 }
 
-ImageHandle &ImageHandle::operator=(ImageHandle &&other)
+ImageHandle &ImageHandle::operator=(ImageHandle &&other) noexcept
 {
-  clear();
-  image_texture = other.image_texture;
-  manager = other.manager;
-  other.image_texture = nullptr;
-  other.manager = nullptr;
-
+  if (this != &other) {
+    clear();
+    image_texture = other.image_texture;
+    manager = other.manager;
+    other.image_texture = nullptr;
+    other.manager = nullptr;
+  }
   return *this;
 }
 

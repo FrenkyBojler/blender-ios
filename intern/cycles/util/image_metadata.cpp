@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include <cassert>
 #include <cstdio>
 
 #include <OpenImageIO/filesystem.h>
@@ -66,6 +67,7 @@ TypeDesc ImageMetaData::typedesc() const
     case IMAGE_DATA_TYPE_NANOVDB_FP16:
     case IMAGE_DATA_TYPE_NANOVDB_EMPTY:
     case IMAGE_DATA_NUM_TYPES:
+      assert(!"Unknown data type");
       break;
   }
   return TypeUnknown;

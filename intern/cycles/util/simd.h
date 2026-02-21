@@ -397,7 +397,7 @@ __forceinline uint64_t bitscan(const uint64_t v)
 __forceinline uint32_t __bsf(const uint32_t x)
 {
   for (uint32_t i = 0; i < 32; i++) {
-    if (x & (1U << i)) {
+    if (x & (uint32_t(1) << i)) {
       return i;
     }
   }
@@ -407,7 +407,7 @@ __forceinline uint32_t __bsf(const uint32_t x)
 __forceinline uint32_t __bsr(const uint32_t x)
 {
   for (uint32_t i = 0; i < 32; i++) {
-    if (x & (1U << (31 - i))) {
+    if (x & (uint32_t(1) << (31 - i))) {
       return (31 - i);
     }
   }
@@ -416,14 +416,14 @@ __forceinline uint32_t __bsr(const uint32_t x)
 
 __forceinline uint32_t __btc(const uint32_t x, const uint32_t bit)
 {
-  const uint32_t mask = 1U << bit;
-  return x & (~mask);
+  const uint32_t mask = uint32_t(1) << bit;
+  return x ^ mask;
 }
 
 __forceinline uint32_t __bsf(const uint64_t x)
 {
   for (uint32_t i = 0; i < 64; i++) {
-    if (x & (uint32_t(1) << i)) {
+    if (x & (uint64_t(1) << i)) {
       return i;
     }
   }
@@ -433,7 +433,7 @@ __forceinline uint32_t __bsf(const uint64_t x)
 __forceinline uint32_t __bsr(const uint64_t x)
 {
   for (uint32_t i = 0; i < 64; i++) {
-    if (x & (uint32_t(1) << (63 - i))) {
+    if (x & (uint64_t(1) << (63 - i))) {
       return (63 - i);
     }
   }
@@ -443,27 +443,19 @@ __forceinline uint32_t __bsr(const uint64_t x)
 __forceinline uint64_t __btc(const uint64_t x, const uint32_t bit)
 {
   const uint64_t mask = uint64_t(1) << bit;
-  return x & (~mask);
+  return x ^ mask;
 }
 
 __forceinline uint32_t bitscan(const uint32_t value)
 {
   assert(value != 0);
-  uint32_t bit = 0;
-  while ((value & (1 << bit)) == 0) {
-    ++bit;
-  }
-  return bit;
+  return __bsf(value);
 }
 
 __forceinline uint64_t bitscan(const uint64_t value)
 {
   assert(value != 0);
-  uint64_t bit = 0;
-  while ((value & (uint64_t(1) << bit)) == 0) {
-    ++bit;
-  }
-  return bit;
+  return __bsf(value);
 }
 
 #endif /* Intrinsics */

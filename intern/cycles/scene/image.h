@@ -65,9 +65,9 @@ class ImageHandle {
   ImageHandle();
   ImageHandle(ImageTexture *image_texture, ImageManager *manager);
   ImageHandle(const ImageHandle &other);
-  ImageHandle(ImageHandle &&other);
+  ImageHandle(ImageHandle &&other) noexcept;
   ImageHandle &operator=(const ImageHandle &other);
-  ImageHandle &operator=(ImageHandle &&other);
+  ImageHandle &operator=(ImageHandle &&other) noexcept;
   ~ImageHandle();
 
   bool operator==(const ImageHandle &other) const;

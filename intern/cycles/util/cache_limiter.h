@@ -44,7 +44,7 @@ template<typename T> class CacheHandle {
 
   class Internal : public std::enable_shared_from_this<Internal> {
    public:
-    Internal(CacheLimiter<T> &limiter) : limiter_(limiter) {}
+    explicit Internal(CacheLimiter<T> &limiter) : limiter_(limiter) {}
 
     ~Internal()
     {
