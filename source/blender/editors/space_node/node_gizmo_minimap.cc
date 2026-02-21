@@ -13,6 +13,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_screen.hh"
 
 #include "DNA_screen_types.h"
