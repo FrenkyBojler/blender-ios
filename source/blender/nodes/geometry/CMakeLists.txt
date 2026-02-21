@@ -39,6 +39,7 @@ set(SRC
   nodes/node_geo_bounding_box.cc
   nodes/node_geo_camera_info.cc
   nodes/node_geo_closure.cc
+  nodes/node_geo_collection_children.cc
   nodes/node_geo_collection_info.cc
   nodes/node_geo_combine_bundle.cc
   nodes/node_geo_common.cc
@@ -352,14 +353,6 @@ if(WITH_BULLET)
   list(APPEND INC
     ../../../../intern/rigidbody
   )
-endif()
-
-if(WITH_TBB)
-  if(WIN32)
-    # TBB includes Windows.h which will define min/max macros
-    # that will collide with the STL versions.
-    add_definitions(-DNOMINMAX)
-  endif()
 endif()
 
 if(WITH_IMAGE_OPENEXR)

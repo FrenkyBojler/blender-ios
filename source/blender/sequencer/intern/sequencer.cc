@@ -900,6 +900,9 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
         case STRIP_TYPE_COLORMIX:
           writer->write_struct_cast<ColorMixVars>(strip->effectdata);
           break;
+        case STRIP_TYPE_COMPOSITOR:
+          writer->write_struct_cast<CompositorEffectVars>(strip->effectdata);
+          break;
       }
     }
 
@@ -998,6 +1001,9 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
       } break;
       case STRIP_TYPE_COLORMIX:
         BLO_read_struct(reader, ColorMixVars, &strip->effectdata);
+        break;
+      case STRIP_TYPE_COMPOSITOR:
+        BLO_read_struct(reader, CompositorEffectVars, &strip->effectdata);
         break;
       default:
         BLI_assert_unreachable();
@@ -1176,8 +1182,13 @@ static void seq_update_sound_strips(Scene *scene, Strip *strip)
 
   /* Ensure strip is playing correct sound. */
   if (BLI_listbase_is_empty(&strip->modifiers)) {
-    /* Just use playback handle from sound ID. */
-    BKE_sound_update_scene_sound(strip->runtime->scene_sound, strip->sound);
+    /* No modifiers: ensure we are playing the sound ID. However do not do this
+     * if we are pitch correcting, as the proper playback handle will be assigned there.
+     * Changing between original file sound and the pitch correction sound produces garbage
+     * audio in renders. */
+    if (strip->runtime->sound_time_stretch == nullptr) {
+      BKE_sound_update_scene_sound(strip->runtime->scene_sound, strip->sound);
+    }
   }
   else {
     /* Use Playback handle from sound ID as input for modifier stack. */
@@ -1290,9 +1301,16 @@ ListBaseT<SeqTimelineChannel> *Editing::current_channels() const
 
 bool Strip::is_effect() const
 {
-  return (this->type >= STRIP_TYPE_CROSS && this->type <= STRIP_TYPE_OVERDROP_REMOVED) ||
-         (this->type >= STRIP_TYPE_WIPE && this->type <= STRIP_TYPE_ADJUSTMENT) ||
-         (this->type >= STRIP_TYPE_GAUSSIAN_BLUR && this->type <= STRIP_TYPE_COLORMIX);
+  return blender::seq::strip_type_is_effect(StripType(this->type));
+}
+
+int Strip::effect_num_inputs_get() const
+{
+  /* Compositor can have varying amount of inputs; return based on assigned inputs. */
+  if (this->type == STRIP_TYPE_COMPOSITOR) {
+    return this->input1 && this->input2 ? 2 : this->input1 ? 1 : 0;
+  }
+  return blender::seq::effect_type_get_min_num_inputs(StripType(this->type));
 }
 
 }  // namespace blender
