@@ -16,25 +16,30 @@ static EnumPropertyItem space_items[] = {
      "LOCAL",
      0,
      N_("Local Space"),
-     N_("")},
+     N_("Output bounds in the local space of each instance's geometry")},
     {1,
      "WORLD",
      0,
      N_("World Space"),
-     N_("")},
+     N_("Output bounds in world space, taking the instance transform into account")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Menu>("Space").static_items(space_items).description("");
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_output<decl::Vector>("Min").field_source();
+  b.add_output<decl::Vector>("Max").field_source();
+  b.add_input<decl::Menu>("Space")
+      .static_items(space_items)
+      .optional_label()
+      .description("The space in which the bounds are output");
   b.add_input<decl::Bool>("Use Radius")
       .default_value(true)
       .description(
           "For curves, point clouds, and Grease Pencil, take the radius attribute into account "
           "when computing the bounds.");
-  b.add_output<decl::Vector>("Min").field_source();
-  b.add_output<decl::Vector>("Max").field_source();
 }
 
 class InstanceBoundsField final : public bke::InstancesFieldInput {
