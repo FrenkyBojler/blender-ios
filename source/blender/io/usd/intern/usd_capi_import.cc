@@ -51,7 +51,13 @@
 
 #include <fmt/core.h>
 
-namespace blender::io::usd {
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"io.usd"};
+
+namespace io::usd {
 
 static CacheArchiveHandle *handle_from_stage_reader(USDStageReader *reader)
 {
@@ -349,6 +355,8 @@ static void import_endjob(void *customdata)
 
     /* Sync and do the view layer operations. */
     BKE_view_layer_synced_ensure(scene, view_layer);
+    bool has_instantiated_object = false;
+    bool has_uninstantiated_object = false;
     for (const USDPrimReader *reader : data->archive->readers()) {
       Object *ob = reader->object();
       if (!ob) {
@@ -357,8 +365,10 @@ static void import_endjob(void *customdata)
       Base *base = BKE_view_layer_base_find(view_layer, ob);
       if (!base) {
         /* Object not instantiated in current viewlayer. */
+        has_uninstantiated_object = true;
         continue;
       }
+      has_instantiated_object = true;
       /* TODO: is setting active needed? */
       BKE_view_layer_base_select_and_set_active(view_layer, base);
 
@@ -367,6 +377,9 @@ static void import_endjob(void *customdata)
                            &ob->id,
                            ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION |
                                ID_RECALC_BASE_FLAGS);
+    }
+    if (has_instantiated_object && has_uninstantiated_object) {
+      CLOG_ERROR(&LOG, "Some imported objects were not instantiated, while others were");
     }
 
     DEG_id_tag_update(&data->scene->id, ID_RECALC_BASE_FLAGS);
@@ -634,4 +647,5 @@ void USD_get_transform(CacheReader *reader, float4x4 &r_mat_world, float time, f
   r_mat_world *= mat_local;
 }
 
-}  // namespace blender::io::usd
+}  // namespace io::usd
+}  // namespace blender
