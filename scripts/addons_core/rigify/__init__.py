@@ -761,7 +761,7 @@ def register_rna_properties() -> None:
                                               description="The selected rig type")
 
     bpy.types.Armature.rigify_force_widget_update = BoolProperty(
-        name="Overwrite Widget Meshes",
+        name="Overwrite Widgets",
         description="Forces Rigify to delete and rebuild all of the generated widget objects. "
                     "If disabled, widgets that already exist when regenerating will not be replaced "
                     "to facilitate manual editing",
