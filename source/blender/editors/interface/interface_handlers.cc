@@ -10629,14 +10629,9 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
   }
 
   /* Snap scroll to max scroll bounds. */
-  if (dy > 0) {
-    dy = std::min(block->handle->scrolloffset + dy, block->handle->scrollmax) -
-         block->handle->scrolloffset;
-  }
-  else {
-    dy = std::max(block->handle->scrolloffset + dy, block->handle->scrollmin) -
-         block->handle->scrolloffset;
-  }
+  dy = std::clamp(
+           block->handle->scrolloffset + dy, block->handle->scrollmin, block->handle->scrollmax) -
+       block->handle->scrolloffset;
 
   /* remember scroll offset for refreshes */
   block->handle->scrolloffset += dy;
