@@ -1183,11 +1183,16 @@ void uiTemplateImageViewSelector(ui::Layout *layout, bContext *C, Image *ima, Im
     Scene *scene = CTX_data_scene(C);
     RenderResult *rr = BKE_image_acquire_renderresult(scene, ima);
 
-    if (rr && BLI_listbase_count_at_most(&rr->views, 2) > 1 &&
-        ((!show_stereo) || !RE_RenderResult_is_stereo(rr)))
-    {
-      RenderView *rview = static_cast<RenderView *>(BLI_findlink(&rr->views, iuser->view));
-      display_name = rview ? rview->name : "";
+    if (rr && BLI_listbase_count_at_most(&rr->views, 2) > 1) {
+      const bool is_stereo_disabled = show_stereo && RE_RenderResult_is_stereo(rr);
+
+      if (is_stereo_disabled) {
+        display_name = IFACE_("View");
+      }
+      else {
+        RenderView *rview = static_cast<RenderView *>(BLI_findlink(&rr->views, iuser->view));
+        display_name = rview ? rview->name : "";
+      }
 
       ImageUI_Data *rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
       but = uiDefMenuBut(block,
@@ -1201,6 +1206,9 @@ void uiTemplateImageViewSelector(ui::Layout *layout, bContext *C, Image *ima, Im
                          TIP_("Render View"));
       button_funcN_set(but, image_multi_cb, rnd_pt, rr);
       button_type_set_menu_from_pulldown(but);
+      if (is_stereo_disabled) {
+        button_disable(but, TIP_("Image displayed in stereoscopy"));
+      }
     }
 
     BKE_image_release_renderresult(scene, ima, rr);

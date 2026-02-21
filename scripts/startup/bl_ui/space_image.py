@@ -891,21 +891,11 @@ class IMAGE_HT_header(Header):
 
         IMAGE_MT_editor_menus.draw_collapsible(context, layout)
 
-        IMAGE_HT_header.draw_xform_template(layout, context)
-
-        if not show_render:
-            layout.prop(sima, "use_image_pin", text="", emboss=False)
-
-        if show_uvedit:
-            mesh = context.edit_object.data
-            layout.prop_search(mesh.uv_layers, "active", mesh, "uv_layers", text="")
-
         layout.separator_spacer()
 
-        layout.template_ID(sima, "image", new="image.new", open="image.open")
+        IMAGE_HT_header.draw_xform_template(layout, context)
 
         if show_maskedit:
-            layout.template_ID(sima, "mask", new="mask.new")
             layout.prop(sima, "pivot_point", icon_only=True)
 
             row = layout.row(align=True)
@@ -920,16 +910,28 @@ class IMAGE_HT_header(Header):
                 panel="IMAGE_PT_proportional_edit",
             )
 
+        layout.template_ID(sima, "image", new="image.new", open="image.open")
+
         if ima:
             layout.template_image_layers(ima, iuser)
+
+        if not show_render:
+            layout.prop(sima, "use_image_pin", text="", emboss=False)
+
+        if show_maskedit:
+            layout.template_ID(sima, "mask", new="mask.new")
+
+        if show_uvedit:
+            mesh = context.edit_object.data
+            layout.prop_search(mesh.uv_layers, "active", mesh, "uv_layers", text="")
 
         layout.separator_spacer()
 
         if ima:
-            layout.template_image_view_selector(ima, iuser)
-            
+            row = layout.row(align=True)
             if ima.is_stereo_3d:
-                layout.prop(sima, "show_stereo_3d", text="")
+                row.prop(sima, "show_stereo_3d", text="")
+            row.template_image_view_selector(ima, iuser)
 
             row = layout.row()
             row.prop(sima, "display_channels", icon_only=True)
