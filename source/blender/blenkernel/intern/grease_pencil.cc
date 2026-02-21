@@ -288,14 +288,17 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
   using namespace blender::bke;
   GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(id);
 
+  const bool is_undo = BLO_write_is_undo(writer);
+
   ResourceScope scope;
 
   Vector<CustomDataLayer, 16> layers_data_layers;
+
   bke::AttributeStorage::BlendWriteData attribute_data{scope};
   attribute_storage_blend_write_prepare(
       grease_pencil->attribute_storage.wrap(),
-      !BLO_write_is_undo(writer),
-      !BLO_write_is_undo(writer),
+      !is_undo,
+      !is_undo,
       [&](const AttrDomain /*domain*/) { return grease_pencil->layers().size(); },
       attribute_data);
   grease_pencil->attribute_storage.dna_attributes = attribute_data.attributes.data();
