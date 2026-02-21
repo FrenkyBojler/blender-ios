@@ -462,27 +462,23 @@ static void project_on_mesh(BVHTree *bvh_tree,
     return;
   }
 
-  const float *rays[2] = {normal, nullptr};
-  float neg_normal[3];
-  negate_v3_v3(neg_normal, normal);
-  rays[1] = neg_normal;
+  float p2[3];
+  add_v3_v3v3(p2, center_pos, normal);
 
   float best_dist_sq = FLT_MAX;
   bool found = false;
 
   auto test_tri_fn = [&](BMVert *v1, BMVert *v2, BMVert *v3) {
-    for (int i = 0; i < 2; i++) {
-      float lambda;
-      float uv[2];
-      if (isect_ray_tri_v3(center_pos, rays[i], v1->co, v2->co, v3->co, &lambda, uv)) {
-        float hit_pos[3];
-        madd_v3_v3v3fl(hit_pos, center_pos, rays[i], lambda);
-        const float dist_sq = len_squared_v3v3(center_pos, hit_pos);
-        if (dist_sq < best_dist_sq) {
-          best_dist_sq = dist_sq;
-          copy_v3_v3(r_pos, hit_pos);
-          found = true;
-        }
+    float lambda;
+    float uv[2];
+    if (isect_line_tri_v3(center_pos, p2, v1->co, v2->co, v3->co, &lambda, uv)) {
+      float hit_pos[3];
+      madd_v3_v3v3fl(hit_pos, center_pos, normal, lambda);
+      const float dist_sq = len_squared_v3v3(center_pos, hit_pos);
+      if (dist_sq < best_dist_sq) {
+        best_dist_sq = dist_sq;
+        copy_v3_v3(r_pos, hit_pos);
+        found = true;
       }
     }
   };
