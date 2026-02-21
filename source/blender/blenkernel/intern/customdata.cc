@@ -515,12 +515,25 @@ static void layerInterp_propInt(const void **sources,
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Callbacks for (#MStringProperty, #CD_PROP_STRING)
+/** \name Callbacks for (#std::string, #CD_PROP_STRING)
  * \{ */
 
 static void layerCopy_propString(const void *source, void *dest, const int count)
 {
-  memcpy(dest, source, sizeof(MStringProperty) * count);
+  std::uninitialized_copy_n(
+      static_cast<const std::string *>(source), count, static_cast<std::string *>(dest));
+}
+
+static void layerFree_propString(void *data, const int count)
+{
+  for (std::string &str : MutableSpan(static_cast<std::string *>(data), count)) {
+    str.~basic_string();
+  }
+}
+
+static void layerConstruct_propString(void *data, const int count)
+{
+  std::uninitialized_default_construct_n(static_cast<std::string *>(data), count);
 }
 
 /** \} */
@@ -1628,12 +1641,15 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
     },
     /* 12: CD_PROP_STRING */
     {
-        .size = sizeof(MStringProperty),
-        .alignment = alignof(MStringProperty),
-        .structname = "MStringProperty",
+        /* NOTE: In files, this layer type is stored as #MStringProperty. `std::string` is only
+         * used at runtime in CustomData for BMesh. */
+        .size = sizeof(std::string),
+        .alignment = alignof(std::string),
         .structnum = 1,
         .defaultname = N_("String"),
         .copy = layerCopy_propString,
+        .free = layerFree_propString,
+        .construct = layerConstruct_propString,
     },
     /* 13: CD_ORIGSPACE */
     {
@@ -3888,45 +3904,6 @@ void CustomData_data_copy_value(const eCustomDataType type, const void *source, 
   }
 }
 
-void CustomData_data_copy_value_bmesh_to_mesh(const eCustomDataType type,
-                                              const void *source,
-                                              void *dest)
-{
-  const LayerTypeInfo *typeInfo = layerType_getInfo(type);
-
-  if (type == CD_PROP_STRING) {
-    const auto *source_str = static_cast<const MStringProperty *>(source);
-    auto *dest_str = static_cast<std::string *>(dest);
-    new (dest_str) std::string(source_str->s, source_str->s_len);
-  }
-  else if (typeInfo->copy) {
-    typeInfo->copy(source, dest, 1);
-  }
-  else {
-    memcpy(dest, source, typeInfo->size);
-  }
-}
-
-void CustomData_data_copy_value_mesh_to_bmesh(const eCustomDataType type,
-                                              const void *source,
-                                              void *dest)
-{
-  const LayerTypeInfo *typeInfo = layerType_getInfo(type);
-
-  if (type == CD_PROP_STRING) {
-    const auto *source_str = static_cast<const std::string *>(source);
-    auto *dest_str = static_cast<MStringProperty *>(dest);
-    dest_str->s_len = std::min(source_str->size(), sizeof(MStringProperty::s));
-    memcpy(dest_str->s, source_str->data(), dest_str->s_len);
-  }
-  else if (typeInfo->copy) {
-    typeInfo->copy(source, dest, 1);
-  }
-  else {
-    memcpy(dest, source, typeInfo->size);
-  }
-}
-
 void CustomData_data_mix_value(const eCustomDataType type,
                                const void *source,
                                void *dest,
@@ -4883,6 +4860,8 @@ static void blend_write_layer_data(BlendWriter *writer,
                                    const CustomDataLayer &layer,
                                    const int count)
 {
+  /* Attribute types should always be written by #AttributeStorage. */
+  BLI_assert((CD_TYPE_AS_MASK(eCustomDataType(layer.type)) & CD_MASK_PROP_ALL) == 0);
   switch (layer.type) {
     case CD_MDEFORMVERT:
       BKE_defvert_blend_write(writer, count, static_cast<const MDeformVert *>(layer.data));
@@ -5015,6 +4994,19 @@ static void blend_read_layer_data(BlendDataReader *reader, CustomDataLayer &laye
                         "bool type is expected to have the same size as uint8_t")
       BLO_read_uint8_array(reader, count, reinterpret_cast<uint8_t **>(&layer.data));
       break;
+    case CD_PROP_STRING: {
+      BLO_read_struct_array(
+          reader, MStringProperty, count, reinterpret_cast<MStringProperty **>(&layer.data));
+
+      /* Immediately convert from type used in older files to type used at runtime. */
+      auto *data = MEM_new_array<std::string>(count, __func__);
+      for (const int i : IndexRange(count)) {
+        const MStringProperty &src = static_cast<MStringProperty *>(layer.data)[i];
+        data[i] = std::string(src.s, src.s_len);
+      }
+      layer.data = data;
+      break;
+    }
     default: {
       const char *structname;
       int structnum;

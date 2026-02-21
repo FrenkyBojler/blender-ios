@@ -1216,8 +1216,8 @@ PyObject *BPy_BMLayerItem_GetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer)
       break;
     }
     case CD_PROP_STRING: {
-      MStringProperty *mstring = static_cast<MStringProperty *>(value);
-      ret = PyBytes_FromStringAndSize(mstring->s, mstring->s_len);
+      auto *mstring = static_cast<std::string *>(value);
+      ret = PyBytes_FromStringAndSize(mstring->c_str(), mstring->size());
       break;
     }
     case CD_PROP_FLOAT2: {
@@ -1316,7 +1316,7 @@ int BPy_BMLayerItem_SetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer, PyObj
       break;
     }
     case CD_PROP_STRING: {
-      MStringProperty *mstring = static_cast<MStringProperty *>(value);
+      auto *mstring = static_cast<std::string *>(value);
       char *tmp_val;
       Py_ssize_t tmp_val_len;
       if (UNLIKELY(PyBytes_AsStringAndSize(py_value, &tmp_val, &tmp_val_len) == -1)) {
@@ -1324,9 +1324,7 @@ int BPy_BMLayerItem_SetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer, PyObj
         ret = -1;
       }
       else {
-        tmp_val_len = std::min<ulong>(tmp_val_len, sizeof(mstring->s));
-        memcpy(mstring->s, tmp_val, tmp_val_len);
-        mstring->s_len = tmp_val_len;
+        *mstring = std::string(tmp_val, tmp_val_len);
       }
       break;
     }
