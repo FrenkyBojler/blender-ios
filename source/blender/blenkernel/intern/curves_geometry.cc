@@ -1964,14 +1964,12 @@ CurvesGeometry::BlendWriteData::BlendWriteData(ResourceScope &scope)
 }
 
 void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_data,
-                                         const bool use_5_0_compatibility,
-                                         const bool use_5_0_compatible_string_attributes)
+                                         const bool use_5_0_compatibility)
 {
   CustomData_reset(&this->curve_data_legacy);
   attribute_storage_blend_write_prepare(
       this->attribute_storage.wrap(),
       use_5_0_compatibility,
-      use_5_0_compatible_string_attributes,
       [&](const AttrDomain domain) { return this->attributes().domain_size(domain); },
       write_data.attribute_data);
   CustomData_blend_write_prepare(this->point_data,

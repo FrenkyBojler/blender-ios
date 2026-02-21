@@ -4999,10 +4999,11 @@ static void blend_read_layer_data(BlendDataReader *reader, CustomDataLayer &laye
           reader, MStringProperty, count, reinterpret_cast<MStringProperty **>(&layer.data));
 
       /* Immediately convert from type used in older files to type used at runtime. */
-      auto *data = MEM_new_array<std::string>(count, __func__);
+      auto *data = static_cast<std::string *>(MEM_new_array_uninitialized_aligned(
+          count, sizeof(std::string), alignof(std::string), __func__));
       for (const int i : IndexRange(count)) {
         const MStringProperty &src = static_cast<MStringProperty *>(layer.data)[i];
-        data[i] = std::string(src.s, src.s_len);
+        new (&data[i]) std::string(src.s, src.s_len);
       }
       layer.data = data;
       break;

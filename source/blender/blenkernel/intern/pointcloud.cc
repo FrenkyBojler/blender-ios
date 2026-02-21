@@ -114,15 +114,11 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   using namespace blender::bke;
   PointCloud *pointcloud = id_cast<PointCloud *>(id);
 
-  const bool is_undo = BLO_write_is_undo(writer);
-
   ResourceScope scope;
-
   bke::AttributeStorage::BlendWriteData attribute_data{scope};
   attribute_storage_blend_write_prepare(
       pointcloud->attribute_storage.wrap(),
-      !is_undo,
-      !is_undo,
+      !BLO_write_is_undo(writer),
       [&](const AttrDomain /*domain*/) { return pointcloud->totpoint; },
       attribute_data);
 

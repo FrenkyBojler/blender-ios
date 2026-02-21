@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <algorithm>
+
 #include "CLG_log.h"
 
 #include "BLI_array_utils.hh"
@@ -650,9 +652,15 @@ static void write_array_data(BlendWriter &writer,
   }
 }
 
+static bool string_attribute_has_string_longer_than_legacy(const Attribute::ArrayData &data)
+{
+  const Span strings(static_cast<const std::string *>(data.data), data.size);
+  return std::ranges::any_of(
+      strings, [](const std::string &str) { return str.size() > sizeof(MStringProperty::s); });
+}
+
 void attribute_storage_blend_write_prepare(AttributeStorage &data,
                                            const bool use_5_0_compatibility,
-                                           const bool use_5_0_compatible_string_attributes,
                                            FunctionRef<int(AttrDomain)> get_domain_size,
                                            AttributeStorage::BlendWriteData &write_data)
 {
@@ -670,7 +678,8 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
      * array for every storage type. */
     const auto create_dna_array = [&](const Attribute::ArrayData &array_data) -> void * {
       if (attr.data_type() == AttrType::String) {
-        if (use_5_0_compatible_string_attributes) {
+        if (!string_attribute_has_string_longer_than_legacy(array_data)) {
+          /* Write as forward compatible #MStringProperty if all the strings fit in that type. */
           attribute_dna.storage_type = int8_t(AttrStorageType::Array);
           auto &array_dna = write_data.scope.construct<AttributeArray>();
           const Span runtime_data(static_cast<std::string *>(array_data.data), array_data.size);
