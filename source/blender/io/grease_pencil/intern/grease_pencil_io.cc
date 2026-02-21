@@ -149,22 +149,24 @@ std::optional<Bounds<float2>> GreasePencilExporter::compute_screen_space_drawing
   const IndexMask visible_strokes = ed::greasepencil::retrieve_visible_strokes(
       object, drawing, memory);
 
-  visible_strokes.foreach_index(GrainSize(512), [&](const int curve_i) {
-    const IndexRange points = strokes.points_by_curve()[curve_i];
+  visible_strokes.foreach_index(
+      [&](const int curve_i) {
+        const IndexRange points = strokes.points_by_curve()[curve_i];
 
-    for (const int point_i : points) {
-      const float2 screen_co = this->project_to_screen(layer_to_world, positions[point_i]);
+        for (const int point_i : points) {
+          const float2 screen_co = this->project_to_screen(layer_to_world, positions[point_i]);
 
-      if (screen_co.x != V2D_IS_CLIPPED) {
-        const float3 world_pos = math::transform_point(layer_to_world, positions[point_i]);
-        const float pixels = radii[point_i] / ED_view3d_pixel_size(&rv3d, world_pos);
+          if (screen_co.x != V2D_IS_CLIPPED) {
+            const float3 world_pos = math::transform_point(layer_to_world, positions[point_i]);
+            const float pixels = radii[point_i] / ED_view3d_pixel_size(&rv3d, world_pos);
 
-        std::optional<Bounds<float2>> point_bounds = Bounds<float2>(screen_co);
-        point_bounds->pad(pixels);
-        drawing_bounds = bounds::merge(drawing_bounds, point_bounds);
-      }
-    }
-  });
+            std::optional<Bounds<float2>> point_bounds = Bounds<float2>(screen_co);
+            point_bounds->pad(pixels);
+            drawing_bounds = bounds::merge(drawing_bounds, point_bounds);
+          }
+        }
+      },
+      exec_mode::grain_size(512));
 
   return drawing_bounds;
 }
@@ -349,7 +351,7 @@ Vector<GreasePencilExporter::ObjectInfo> GreasePencilExporter::retrieve_objects(
   }
 
   /* Sort list of objects from point of view. */
-  std::sort(objects.begin(), objects.end(), [](const ObjectInfo &info1, const ObjectInfo &info2) {
+  std::ranges::sort(objects, [](const ObjectInfo &info1, const ObjectInfo &info2) {
     return info1.depth < info2.depth;
   });
 
@@ -423,7 +425,7 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
   }
 
   /* Iterate over all the curves and render the strokes (if shown). For fills, make sure that they
-   * are rendered when the first curve of the fill is encountered and don't rerender the same fill
+   * are rendered when the first curve of the fill is encountered and don't re-render the same fill
    * multiple times. */
   for (const int i_curve : curves.curves_range()) {
     /* Will be `-1` if not a fill. */

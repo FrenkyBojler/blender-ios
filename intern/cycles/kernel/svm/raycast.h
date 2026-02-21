@@ -99,12 +99,12 @@ ccl_device RaycastResult svm_raycast(KernelGlobals kg,
 
   /* Compute smooth normal. */
   if (shader & SHADER_SMOOTH_NORMAL) {
-    if (sd->type == PRIMITIVE_TRIANGLE) {
-      result.normal = triangle_smooth_normal(kg, Ng, prim, u, v);
+    if (isect.type == PRIMITIVE_TRIANGLE) {
+      result.normal = triangle_smooth_normal(kg, Ng, object, object_flag, prim, u, v);
     }
 #  ifdef __OBJECT_MOTION__
-    else if (sd->type == PRIMITIVE_MOTION_TRIANGLE) {
-      result.normal = motion_triangle_smooth_normal(kg, Ng, sd->object, prim, u, v, sd->time);
+    else if (isect.type == PRIMITIVE_MOTION_TRIANGLE) {
+      result.normal = motion_triangle_smooth_normal(kg, Ng, object, prim, u, v, sd->time);
     }
 #  endif /* __OBJECT_MOTION__ */
   }
@@ -114,7 +114,9 @@ ccl_device RaycastResult svm_raycast(KernelGlobals kg,
 
   /* Transform normals to world space. */
   if (!(object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
-    object_normal_transform(kg, sd, &result.normal);
+    Transform itfm;
+    object_fetch_transform_motion_test(kg, object, sd->time, &itfm);
+    result.normal = normalize(transform_direction_transposed(&itfm, result.normal));
   }
 
   return result;

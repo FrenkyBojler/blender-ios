@@ -344,11 +344,11 @@ static void init_sculpt_mode_session(Main &bmain, Depsgraph &depsgraph, Scene &s
   Mesh &mesh = *id_cast<Mesh *>(ob.data);
   if (mesh.attributes().contains(".sculpt_face_set")) {
     /* Here we can detect geometry that was just added to Sculpt Mode as it has the
-     * SCULPT_FACE_SET_NONE assigned, so we can create a new face set for it. */
-    /* In sculpt mode all geometry that is assigned to SCULPT_FACE_SET_NONE is considered as not
+     * face_set_none assigned, so we can create a new face set for it. */
+    /* In sculpt mode all geometry that is assigned to face_set_none is considered as not
      * initialized, which is used is some operators that modify the mesh topology to perform
      * certain actions in the new faces. After these operations are finished, all faces should have
-     * a valid face set ID assigned (different from SCULPT_FACE_SET_NONE) to manage their
+     * a valid face set ID assigned (different from face_set_none) to manage their
      * visibility correctly. */
     /* TODO(pablodp606): Based on this we can improve the UX in future tools for creating new
      * objects, like moving the transform pivot position to the new area or masking existing
@@ -626,7 +626,7 @@ static float color_delta_get(const float3 &color_a,
 {
   float len = math::distance(color_a, color_b);
   /* Normalize len to the (0, 1) range. */
-  len = len / math::numbers::sqrt3_v<float>;
+  len = len / std::numbers::sqrt3_v<float>;
 
   if (len < threshold - MASK_BY_COLOR_SLOPE) {
     len = 1.0f;
@@ -686,7 +686,7 @@ static void mask_by_color_contiguous_mesh(const Depsgraph &depsgraph,
     new_mask[to_v] = new_vertex_mask;
 
     float len = math::distance(current_color.xyz(), active_color.xyz());
-    len = len / math::numbers::sqrt3_v<float>;
+    len = len / std::numbers::sqrt3_v<float>;
     return len <= threshold;
   });
 
@@ -1052,20 +1052,22 @@ static void apply_mask_from_settings(const Depsgraph &depsgraph,
           ".sculpt_mask", bke::AttrDomain::Point);
       const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        LocalData &tls = all_tls.local();
-        apply_mask_mesh(depsgraph,
-                        object,
-                        hide_vert,
-                        automasking,
-                        mode,
-                        factor,
-                        invert_automask,
-                        nodes[i],
-                        tls,
-                        mask.span);
-        bke::pbvh::node_update_mask_mesh(mask.span, nodes[i]);
-      });
+      node_mask.foreach_index(
+          [&](const int i) {
+            LocalData &tls = all_tls.local();
+            apply_mask_mesh(depsgraph,
+                            object,
+                            hide_vert,
+                            automasking,
+                            mode,
+                            factor,
+                            invert_automask,
+                            nodes[i],
+                            tls,
+                            mask.span);
+            bke::pbvh::node_update_mask_mesh(mask.span, nodes[i]);
+          },
+          exec_mode::grain_size(1));
       mask.finish();
       break;
     }
@@ -1074,24 +1076,28 @@ static void apply_mask_from_settings(const Depsgraph &depsgraph,
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       MutableSpan<float> masks = subdiv_ccg.masks;
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        LocalData &tls = all_tls.local();
-        apply_mask_grids(
-            depsgraph, object, automasking, mode, factor, invert_automask, nodes[i], tls);
-        bke::pbvh::node_update_mask_grids(key, masks, nodes[i]);
-      });
+      node_mask.foreach_index(
+          [&](const int i) {
+            LocalData &tls = all_tls.local();
+            apply_mask_grids(
+                depsgraph, object, automasking, mode, factor, invert_automask, nodes[i], tls);
+            bke::pbvh::node_update_mask_grids(key, masks, nodes[i]);
+          },
+          exec_mode::grain_size(1));
       break;
     }
     case bke::pbvh::Type::BMesh: {
       const int mask_offset = CustomData_get_offset_named(
           &object.runtime->sculpt_session->bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        LocalData &tls = all_tls.local();
-        apply_mask_bmesh(
-            depsgraph, object, automasking, mode, factor, invert_automask, nodes[i], tls);
-        bke::pbvh::node_update_mask_bmesh(mask_offset, nodes[i]);
-      });
+      node_mask.foreach_index(
+          [&](const int i) {
+            LocalData &tls = all_tls.local();
+            apply_mask_bmesh(
+                depsgraph, object, automasking, mode, factor, invert_automask, nodes[i], tls);
+            bke::pbvh::node_update_mask_bmesh(mask_offset, nodes[i]);
+          },
+          exec_mode::grain_size(1));
       break;
     }
   }
