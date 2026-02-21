@@ -11,9 +11,23 @@
 
 namespace blender::nodes::node_geo_input_instance_bounds_cc {
 
+static EnumPropertyItem space_items[] = {
+    {0,
+     "LOCAL",
+     0,
+     N_("Local Space"),
+     N_("")},
+    {1,
+     "WORLD",
+     0,
+     N_("World Space"),
+     N_("")},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Bool>("Local Space").default_value(true);
+  b.add_input<decl::Menu>("Space").static_items(space_items).description("");
   b.add_input<decl::Bool>("Use Radius")
       .default_value(true)
       .description(
@@ -125,7 +139,7 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const bool local_space = params.extract_input<bool>("Local Space");
+  const bool local_space = params.extract_input<int>("Space") == 0;
   const bool use_radius = params.extract_input<bool>("Use Radius");
   params.set_output(
       "Min", Field<float3>(std::make_shared<InstanceBoundsField>(local_space, use_radius, false)));
