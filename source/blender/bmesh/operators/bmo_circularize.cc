@@ -493,14 +493,28 @@ static void project_on_mesh(BVHTree *bvh_tree,
     if (f->len < 3 || BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
       continue;
     }
-    BMLoop *l_start = f->l_first;
-    BMVert *v1 = l_start->prev->v;
-    BMVert *v2 = l_start->v;
-    BMVert *v3 = l_start->next->v;
-    test_tri_fn(v1, v2, v3);
-    if (f->len == 4) {
-      BMVert *v4 = l_start->next->next->v;
-      test_tri_fn(v1, v3, v4);
+    if (f->len == 3 || f->len == 4) {
+      BMLoop *l_start = f->l_first;
+      BMVert *v1 = l_start->prev->v;
+      BMVert *v2 = l_start->v;
+      BMVert *v3 = l_start->next->v;
+      test_tri_fn(v1, v2, v3);
+
+      if (f->len == 4) {
+        BMVert *v4 = l_start->next->next->v;
+        test_tri_fn(v1, v3, v4);
+      }
+    }
+    else {
+      const int tottri = f->len - 2;
+      Array<BMLoop *, BM_DEFAULT_NGON_STACK_SIZE> loops(f->len);
+      Array<std::array<uint, 3>, BM_DEFAULT_NGON_STACK_SIZE> index(tottri);
+
+      BM_face_calc_tessellation(
+          f, false, loops.data(), reinterpret_cast<uint(*)[3]>(index.data()));
+      for (int i = 0; i < tottri; i++) {
+        test_tri_fn(loops[index[i][0]]->v, loops[index[i][1]]->v, loops[index[i][2]]->v);
+      }
     }
   }
 
@@ -571,7 +585,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
   /* Builds a BVH tree when flatten is disabled. Without this we would have to iterate
    * over every face in the mesh for every vertex which is too slow.
    *
-   /* Note: There is the possibility of a feedback loop here, with the geometry
+   * Note: There is the possibility of a feedback loop here, with the geometry
    * being manipulated which is used in the BVH tree. However, in practice this
    * is an acceptable limitation that is unlikely to cause problems. */
   Vector<std::array<BMLoop *, 3>> looptris;
