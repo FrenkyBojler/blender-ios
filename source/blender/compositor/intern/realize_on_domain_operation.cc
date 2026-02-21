@@ -136,15 +136,14 @@ void RealizeOnDomainOperation::execute()
   this->get_result().allocate_texture(domain);
 
   if (this->context().use_gpu()) {
-    this->realize_on_domain_gpu(domain.data_size, options, inverse_transformation, wh);
+    this->realize_on_domain_gpu(options, inverse_transformation, wh);
   }
   else {
-    this->realize_on_domain_cpu(domain.data_size, options, inverse_transformation, wh);
+    this->realize_on_domain_cpu(options, inverse_transformation, wh);
   }
 }
 
-void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
-                                                     const SamplerOptions &options,
+void RealizeOnDomainOperation::realize_on_domain_gpu(const SamplerOptions &options,
                                                      const float3x3 &inverse_transformation,
                                                      const float2 &wh)
 {
@@ -211,10 +210,10 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
   Result &output = this->get_result();
   output.bind_as_image(shader, "domain_img");
 
-  compute_dispatch_threads_at_least(shader, size);
+  compute_dispatch_threads_at_least(shader, output.domain().data_size);
 
-  input.unbind_as_texture();
   output.unbind_as_image();
+  input.unbind_as_texture();
   GPU_shader_unbind();
 }
 
@@ -241,8 +240,7 @@ BLI_INLINE void realize_on_domain(const Result &input,
 }
 
 template<math::Sampler sampler>
-BLI_INLINE void realize_on_domain(const int2 &size,
-                                  math::sampler2D &source,
+BLI_INLINE void realize_on_domain(math::sampler2D &source,
                                   Result &output,
                                   const float3x3 &inverse_transformation,
                                   const float2 &wh)
@@ -250,15 +248,14 @@ BLI_INLINE void realize_on_domain(const int2 &size,
   const float2 dPdx(inverse_transformation[0].xy());
   const float2 dPdy(inverse_transformation[1].xy());
   const float2 translate(inverse_transformation[2].xy());
-  parallel_for(size, [&](const int2 texel) {
+  parallel_for(output.domain().data_size, [&](const int2 texel) {
     float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
     float4 sample = sample_rect<sampler>(source, uv, wh);
     output.store_pixel(texel, Color(sample));
   });
 }
 
-void RealizeOnDomainOperation::realize_on_domain_cpu(const int2 &size,
-                                                     const SamplerOptions &options,
+void RealizeOnDomainOperation::realize_on_domain_cpu(const SamplerOptions &options,
                                                      const float3x3 &inverse_transformation,
                                                      const float2 &wh)
 {
@@ -293,16 +290,16 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const int2 &size,
   source.wrap_y = options.wrap_y;
   switch (options.sampler) {
     case math::Sampler::Nearest:
-      realize_on_domain<math::Sampler::Nearest>(size, source, output, inverse_transformation, wh);
+      realize_on_domain<math::Sampler::Nearest>(source, output, inverse_transformation, wh);
       break;
     case math::Sampler::Bilinear:
-      realize_on_domain<math::Sampler::Bilinear>(size, source, output, inverse_transformation, wh);
+      realize_on_domain<math::Sampler::Bilinear>(source, output, inverse_transformation, wh);
       break;
     default:  // Sampler::Box
-      realize_on_domain<math::Sampler::Box>(size, source, output, inverse_transformation, wh);
+      realize_on_domain<math::Sampler::Box>(source, output, inverse_transformation, wh);
       break;
     case math::Sampler::Bspline:
-      realize_on_domain<math::Sampler::Bspline>(size, source, output, inverse_transformation, wh);
+      realize_on_domain<math::Sampler::Bspline>(source, output, inverse_transformation, wh);
       break;
   }
 }

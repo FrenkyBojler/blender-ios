@@ -60,12 +60,10 @@ class RealizeOnDomainOperation : public SimpleOperation {
   Domain compute_domain() override;
 
  private:
-  void realize_on_domain_gpu(const int2 &size,
-                             const SamplerOptions &options,
+  void realize_on_domain_gpu(const SamplerOptions &options,
                              const float3x3 &inverse_transformation,
                              const float2 &wh);
-  void realize_on_domain_cpu(const int2 &size,
-                             const SamplerOptions &options,
+  void realize_on_domain_cpu(const SamplerOptions &options,
                              const float3x3 &inverse_transformation,
                              const float2 &wh);
 };
