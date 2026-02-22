@@ -381,6 +381,10 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
       "start_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
   const VArray<int8_t> end_caps = *attributes.lookup_or_default<int8_t>(
       "end_cap", bke::AttrDomain::Curve, 0);
+  const VArray<bool> hide_stroke = *attributes.lookup_or_default<bool>(
+      "hide_stroke", bke::AttrDomain::Curve, false);
+  const VArray<int> fill_ids = *attributes.lookup_or_default<int>(
+      "fill_id", bke::AttrDomain::Curve, 0);
   const VArray<float> miter_angles = *attributes.lookup_or_default<float>(
       "miter_angle", bke::AttrDomain::Point, GP_STROKE_MITER_ANGLE_ROUND);
   /* Point attributes. */
@@ -485,6 +489,7 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
                                                          radii.slice(points)) :
                                                      std::nullopt;
       if (uniform_width) {
+        const bool is_cyclic = cyclic[i_curve];
         const GreasePencilStrokeCapType start_cap = GreasePencilStrokeCapType(start_caps[i_curve]);
         const GreasePencilStrokeCapType end_cap = GreasePencilStrokeCapType(end_caps[i_curve]);
         const bool round_cap = start_cap == GP_STROKE_CAP_TYPE_ROUND ||
@@ -492,7 +497,7 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
 
         /* Because the SVG file format only supports `linejoin` type per stroke. We use priority
          * system to decide what type to use.
-         * The order from lowest to highest is `Round`, `Bevel` then`Miter` */
+         * The order from lowest to highest is `Round`, `Bevel` then `Miter` */
         float miter_limit_angle = GP_STROKE_MITER_ANGLE_ROUND;
 
         /* Don't check the ends unless cyclical. */
