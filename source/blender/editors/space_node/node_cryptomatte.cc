@@ -595,7 +595,8 @@ void NODE_OT_cryptomatte_entry_remove(wmOperatorType *ot)
 {
   ot->name = "Remove Cryptomatte Entry";
   ot->idname = "NODE_OT_cryptomatte_entry_remove";
-  ot->description = "Remove object or material from matte, by picking a color from the Pick output";
+  ot->description =
+      "Remove object or material from matte, by picking a color from the Pick output";
 
   cryptomatte_entry_op_define(ot, false);
 }
