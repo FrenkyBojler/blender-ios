@@ -4,6 +4,8 @@
 
 /** \file
  * \ingroup bmesh
+ *
+ * Circularize selected boundary loops
  */
 #include "BLI_kdopbvh.hh"
 #include "BLI_math_geom.h"
