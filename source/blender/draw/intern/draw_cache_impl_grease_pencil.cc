@@ -1407,20 +1407,23 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       auto get_u_stroke = [&](const int i) {
         if (is_line) {
           const float u = i > 0 ? lengths[i - 1] : 0.0f;
-          const float u_stroke = u_scale * u + u_translation;
-          return u_stroke;
+          return u_scale * u + u_translation;
         }
         switch (gp_style->placement_mode) {
-          case GP_MATERIAL_PLACEMENT_SINGLE:
-          case GP_MATERIAL_PLACEMENT_SUBDIV:
-            return float(i);
-          case GP_MATERIAL_PLACEMENT_RADIUS:
-            return i > 0 ? radii_lengths[i - 1] : 0.0f;
+          case GP_MATERIAL_PLACEMENT_SINGLE: {
+            return float(i + int(u_translation));
+          }
+          case GP_MATERIAL_PLACEMENT_SUBDIV: {
+            return u_scale * float(i) + u_translation;
+          }
+          case GP_MATERIAL_PLACEMENT_RADIUS: {
+            const float u = i > 0 ? radii_lengths[i - 1] : 0.0f;
+            return u + u_translation;
+          }
           case GP_MATERIAL_PLACEMENT_DENSITY:
           default:
             const float u = i > 0 ? lengths[i - 1] : 0.0f;
-            const float u_stroke = u_scale * u + u_translation;
-            return u_stroke;
+            return u_scale * u + u_translation;
         }
       };
 
