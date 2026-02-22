@@ -682,7 +682,11 @@ const GeometryComponent *SampleIndexFunction::find_source_component(const Geomet
   /* Choose the other component based on a consistent order, rather than some more complicated
    * heuristic. This is the same order visible in the spreadsheet and used in the ray-cast node. */
   static const Array<GeometryComponent::Type> supported_types = {
-      GeometryComponent::Type::Mesh, GeometryComponent::Type::PointCloud};
+      GeometryComponent::Type::Mesh,
+      GeometryComponent::Type::PointCloud,
+      GeometryComponent::Type::Curve,
+      GeometryComponent::Type::Instance,
+      GeometryComponent::Type::GreasePencil};
   for (const GeometryComponent::Type src_type : supported_types) {
     if (component_is_available(geometry, src_type, domain)) {
       return geometry.get_component(src_type);
