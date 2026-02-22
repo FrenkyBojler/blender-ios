@@ -979,8 +979,6 @@ struct PopupBlockHandle {
 
   wmTimer *scrolltimer = nullptr;
   float scrolloffset = 0.0f;
-  float scrollmax = 0.0f;
-  float scrollmin = 0.0f;
 
   KeyNavLock keynav_state;
 

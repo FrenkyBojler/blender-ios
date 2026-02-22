@@ -10628,11 +10628,6 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
     }
   }
 
-  /* Snap scroll to max scroll bounds. */
-  dy = std::clamp(
-           block->handle->scrolloffset + dy, block->handle->scrollmin, block->handle->scrollmax) -
-       block->handle->scrolloffset;
-
   /* remember scroll offset for refreshes */
   block->handle->scrolloffset += dy;
   /* Apply popup scroll delta to layout panels too. */

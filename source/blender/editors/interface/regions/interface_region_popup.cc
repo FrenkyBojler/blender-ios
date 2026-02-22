@@ -877,8 +877,6 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
     const float scroll_min = std::min(block->rect.ymax - ymax - scroll_pad, 0.0f);
     const float scroll_max = std::max(block->rect.ymin - ymin + scroll_pad, 0.0f);
     handle->scrolloffset = std::clamp(handle->scrolloffset, scroll_min, scroll_max);
-    handle->scrollmax = scroll_max;
-    handle->scrollmin = scroll_min;
     /* apply scroll offset */
     if (handle->scrolloffset != 0.0f) {
       for (Button &bt : block->buttons()) {
