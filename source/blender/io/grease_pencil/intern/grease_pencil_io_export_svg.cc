@@ -481,7 +481,7 @@ pugi::xml_node SVGExporter::write_path(pugi::xml_node node,
         txt.append(coord_to_svg_string(screen_co));
       }
       /* Close path (cyclic). */
-      if (cyclic) {
+      if (cyclic[curve_i]) {
         txt.append("z");
       }
     }
@@ -512,7 +512,7 @@ pugi::xml_node SVGExporter::write_path(pugi::xml_node node,
       }
 
       /* Close path (cyclic). */
-      if (cyclic) {
+      if (cyclic[curve_i]) {
         const float2 screen_co_right = this->project_to_screen(transform, curve_pos_right.last());
         const float2 screen_co_left = this->project_to_screen(transform, curve_pos_left.first());
         const float2 screen_co = this->project_to_screen(transform, curve_pos.first());
