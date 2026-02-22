@@ -2000,28 +2000,21 @@ static int rna_NodesModifierWarning_type_get(PointerRNA *ptr)
 
 static bool rna_NodesModifier_is_socket_visible(NodesModifierData *nmd, const char *identifier)
 {
-  if (nmd->node_group == nullptr)
+  if (nmd->node_group == nullptr) {
     return false;
-
-  if (nmd->runtime == nullptr) {
-    return true;
   }
+
   bNodeTree *ntree = nmd->node_group;
 
   nmd->runtime->usage_cache.ensure(*nmd);
   const auto &input_usages = nmd->runtime->usage_cache.inputs;
-  for (bNodeTreeInterfaceSocket *socket : ntree->interface_inputs()) {
 
+  for (bNodeTreeInterfaceSocket *socket : ntree->interface_inputs()) {
     if (STREQ(socket->identifier, identifier)) {
-      int bounds = ntree->interface_input_index(*socket);
-      if (bounds < input_usages.size()) {
-        return input_usages[ntree->interface_input_index(*socket)].is_visible;
-      }
-      else {
-        return true;
-      }
+      return input_usages[ntree->interface_input_index(*socket)].is_visible;
     }
   }
+
   return false;
 }
 
@@ -8158,11 +8151,8 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
 
   func = RNA_def_function(srna, "is_socket_visible", "rna_NodesModifier_is_socket_visible");
   RNA_def_function_ui_description(
-      func,
-      "Check if a socket is currently visible based on modifier settings, "
-      "returns True if the socket is logically visible");
-  parm = RNA_def_string(
-      func, "identifier", "Identifier", 0, "", "The internal identifier of the socket");
+      func, "Check whether a socket is currently visible based on modifier settings.");
+  parm = RNA_def_string(func, "identifier", "Identifier", 0, "", "The identifier of the socket");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_boolean(func, "result", false, "Result", "");
   RNA_def_function_return(func, parm);
