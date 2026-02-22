@@ -24,6 +24,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_multi_value_map.hh"
@@ -291,14 +292,24 @@ void AbstractTreeView::draw_hierarchy_lines(const ARegion &region, const uiBlock
   GPU_line_width(1.0f / aspect);
   GPU_blend(GPU_BLEND_ALPHA);
 
+  rcti block_rect;
+  ui_but_to_pixelrect(&block_rect, &region, &block, nullptr);
+  const int scroll_pad = UI_MENU_SCROLL_MOUSE / block.aspect;
+  BLI_rcti_pad(&block_rect, 0, -scroll_pad);
+  Bounds<int> block_range{block_rect.ymin + scroll_pad, block_rect.ymax - scroll_pad};
+
   rcti first_item_but_pixel_rect;
   ui_but_to_pixelrect(&first_item_but_pixel_rect, &region, &block, first_item_but);
   int2 top_left{first_item_but_pixel_rect.xmin, first_item_but_pixel_rect.ymax};
-
   for (const auto &line : lines) {
+    Bounds<int> line_range{top_left.y - line.second.y, top_left.y - line.first.y};
+    auto intersection = blender::bounds::intersect(block_range, line_range);
+    if (!intersection) {
+      continue;
+    }
     immBegin(GPU_PRIM_LINES, 2);
-    immVertex2f(pos, top_left.x + line.first.x, top_left.y - line.first.y);
-    immVertex2f(pos, top_left.x + line.second.x, top_left.y - line.second.y);
+    immVertex2f(pos, top_left.x + line.first.x, intersection->min);
+    immVertex2f(pos, top_left.x + line.second.x, intersection->max);
     immEnd();
   }
   GPU_blend(GPU_BLEND_NONE);
