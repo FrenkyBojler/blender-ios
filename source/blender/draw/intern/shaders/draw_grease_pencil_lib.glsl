@@ -275,16 +275,21 @@ float4 discard_ndc()
   return float4(0.0, 0.0, -3e36, 0.0);
 }
 
+/**
+ * Calculate a shape that fully covers the segment.
+ *
+ * Will generate either a trapezoid or a rectangle depending on which has smaller area.
+ */
 float4 dot_segment(float2 xy, float4 ss1, float4 ss2, bool is_squares, float4 viewport_res)
 {
-  float2 local_x = safe_normalize(ss2.xy - ss1.xy);
-  /* Rotate 90 degrees counter-clockwise. */
-  float2 local_y = float2(-local_x.y, local_x.x);
+  float l = 0.0f;
+  float2 local_x = safe_normalize_and_get_length(ss2.xy - ss1.xy, l);
+  float2 local_y = orthogonal(local_x);
 
   float r1 = ss1.w;
   float r2 = ss2.w;
-  float l = length(ss1.xy - ss2.xy);
 
+  /* Scale each circle up by the diagonal of the square. */
   if (is_squares) {
     r1 *= M_SQRT2;
     r2 *= M_SQRT2;
@@ -306,6 +311,7 @@ float4 dot_segment(float2 xy, float4 ss1, float4 ss2, bool is_squares, float4 vi
 
   float2 local = float2(0.0, 0.0);
 
+  /* Check if one circle is inside the other. */
   if (abs(cos_theta) > 1.0) {
     if (r1 > r2) {
       local = xy * r1;
@@ -315,10 +321,12 @@ float4 dot_segment(float2 xy, float4 ss1, float4 ss2, bool is_squares, float4 vi
     }
   }
   else {
-    float area_tan_per_width = 0.5 * (r1 / tan_half_theta + r2 * tan_half_theta);
-    float area_non_per_width = max_r;
+    /* Calculate the area divided by the width */
+    float area_trapezoid = 0.5 * (r1 / tan_half_theta + r2 * tan_half_theta);
+    float area_rectangle = max_r;
 
-    if (area_tan_per_width < area_non_per_width) {
+    /* Determent if it is better to use a trapezoid or a rectangle. */
+    if (area_trapezoid < area_rectangle) {
       if (x == -1.0) {
         local.x += -r1;
         local.y += y * r1 / tan_half_theta;
@@ -342,11 +350,8 @@ float4 dot_segment(float2 xy, float4 ss1, float4 ss2, bool is_squares, float4 vi
 
   float2 ssp = ss1.xy + local.x * local_x + local.y * local_y;
 
-  /* TODO. */
-  // float t = local.x / l;
-
-  float t = 0.5f;
-  return screen_space_to_ndc(float4(ssp, mix(ss1.z, ss2.z, t), 0.0), viewport_res.xy);
+  float z_depth = mix(ss1.z, ss2.z, 0.5f);
+  return screen_space_to_ndc(float4(ssp, z_depth, 0.0), viewport_res.xy);
 }
 
 float2 get_rot(float4 viewport_res,
