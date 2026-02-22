@@ -96,12 +96,10 @@ float4 get_color(float2 uv)
   return col;
 }
 
-float2 rot_uv(float2 uv, float2 x_axis)
+float2 rotate_uv(float2 uv, float2 x_axis)
 {
-  /* Rotate 90 degrees counter-clockwise. */
-  float2 y_axis = -float2(-x_axis.y, x_axis.x);
-  uv = float2x2(x_axis, y_axis) * uv;
-  uv.y *= -1.0f;
+  float2 y_axis = orthogonal(x_axis);
+  uv = transpose(float2x2(x_axis, y_axis)) * uv;
 
   return uv;
 }
@@ -386,7 +384,7 @@ void main()
           float4 pos = to_cam(P1 + (P2 - P1) * t);
 
           float2 uv = (view_coord - pos.xy) / pos.w;
-          uv = rot_uv(uv, gp_interp_flat.aspect.zw);
+          uv = rotate_uv(uv, gp_interp_flat.aspect.zw);
 
           frag_color = alpha_over(get_color(uv * 0.5 + 0.5), frag_color);
 
@@ -401,7 +399,7 @@ void main()
 
         /* TEMP CODE */
         if (gl_FragCoord.x / viewport_size.x < 0.5) {
-          uv = rot_uv(uv, gp_interp_flat.aspect.zw);
+          uv = rotate_uv(uv, gp_interp_flat.aspect.zw);
 
           uv = uv * 0.5 + 0.5;
         }
