@@ -1362,8 +1362,7 @@ static void notification_region_layout_fn(const bContext *C, ARegion *region)
     pos_x = (win->sizex - (NOTIFICATION_MARGIN / 2)) - width;
   }
 
-  const int initial_y = (data->screen->flag & SCREEN_COLLAPSE_STATUSBAR) ? NOTIFICATION_MARGIN :
-                                                                           NOTIFICATION_INITIAL_Y;
+  const int initial_y = (data->screen->flag & SCREEN_COLLAPSE_STATUSBAR) ? NOTIFICATION_MARGIN : 0;
 
   region->winrct.xmin = pos_x;
   region->winrct.xmax = region->winrct.xmin + width;
