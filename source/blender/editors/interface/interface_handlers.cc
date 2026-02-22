@@ -10569,6 +10569,12 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
     }
   }
 
+  /* Popup scroll is clamped on refresh too, but clamping here prevents the popup content from
+   * jumping if there is over-scroll. */
+  dy = std::clamp(
+           block->handle->scrolloffset + dy, block->handle->scrollmin, block->handle->scrollmax) -
+       block->handle->scrolloffset;
+
   /* remember scroll offset for refreshes */
   block->handle->scrolloffset += dy;
   /* Apply popup scroll delta to layout panels too. */
