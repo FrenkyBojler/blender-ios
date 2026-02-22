@@ -824,17 +824,14 @@ void BlenderSync::sync_render_passes(blender::RenderLayer &b_rlay,
   }
 
   /* LPE (Light Path Expression) passes. */
-  BL::ViewLayer::lpes_iterator b_lpe_iter;
-  for (b_view_layer.lpes.begin(b_lpe_iter); b_lpe_iter != b_view_layer.lpes.end(); ++b_lpe_iter) {
-    BL::ViewLayerLPE b_lpe(*b_lpe_iter);
-
-    if (!b_lpe.is_valid()) {
-      LOG_WARNING << "Skipping invalid LPE pass: " << b_lpe.name();
+  for (blender::ViewLayerLPE &b_lpe : b_view_layer.lpes) {
+    if ((b_lpe.flag & blender::LPE_INVALID_EXPRESSION) != 0) {
+      LOG_WARNING << "Skipping invalid LPE pass: " << b_lpe.name;
       continue;
     }
 
-    const string name = b_lpe.name();
-    const string expression = b_lpe.expression();
+    const string name = b_lpe.name;
+    const string expression = b_lpe.expression;
 
     if (name.empty() || expression.empty()) {
       LOG_WARNING << "Skipping LPE pass with empty name or expression";
@@ -843,7 +840,6 @@ void BlenderSync::sync_render_passes(blender::RenderLayer &b_rlay,
 
     Pass *pass = pass_add(scene, PASS_LPE, name.c_str(), PassMode::NOISY);
     pass->set_lpe_expression(ustring(expression));
-    /* LPE ID will be assigned by Film::update_lpe_passes() based on expression */
     expected_passes.insert(name);
   }
 

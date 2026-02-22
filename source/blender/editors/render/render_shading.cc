@@ -6,6 +6,7 @@
  * \ingroup edrend
  */
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
@@ -25,6 +26,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_vector.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -1239,12 +1241,12 @@ static wmOperatorStatus view_layer_add_lpe_exec(bContext *C, wmOperator * /*op*/
 
   BKE_view_layer_add_lpe(view_layer, "LPE");
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
@@ -1281,12 +1283,12 @@ static wmOperatorStatus view_layer_remove_lpe_exec(bContext *C, wmOperator * /*o
 
   BKE_view_layer_remove_lpe(view_layer, view_layer->active_lpe);
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
@@ -1337,10 +1339,6 @@ static wmOperatorStatus view_layer_lpe_move_exec(bContext *C, wmOperator *op)
     }
     else {
       BLI_insertlinkafter(&view_layer->lpes, next, lpe);
-    }
-
-    if (scene->compositing_node_group) {
-      ntreeCompositUpdateRLayers(scene->compositing_node_group);
     }
 
     Main *bmain = CTX_data_main(C);
@@ -1398,31 +1396,21 @@ static wmOperatorStatus view_layer_lpe_sort_exec(bContext *C, wmOperator * /*op*
     return OPERATOR_CANCELLED;
   }
 
-  ViewLayerLPE **lpes_array = static_cast<ViewLayerLPE **>(
-      MEM_mallocN(sizeof(ViewLayerLPE *) * count, __func__));
-
-  int i = 0;
-  LISTBASE_FOREACH (ViewLayerLPE *, lpe, &view_layer->lpes) {
-    lpes_array[i++] = lpe;
+  blender::Vector<ViewLayerLPE *> lpes_array;
+  lpes_array.reserve(count);
+  for (ViewLayerLPE &lpe : view_layer->lpes) {
+    lpes_array.append(&lpe);
   }
 
-  /* Sort by name */
-  qsort(lpes_array, count, sizeof(ViewLayerLPE *), [](const void *a, const void *b) {
-    const ViewLayerLPE *lpe_a = *(const ViewLayerLPE **)a;
-    const ViewLayerLPE *lpe_b = *(const ViewLayerLPE **)b;
-    return strcmp(lpe_a->name, lpe_b->name);
+  /* Sort by name. */
+  std::sort(lpes_array.begin(), lpes_array.end(), [](const ViewLayerLPE *a, const ViewLayerLPE *b) {
+    return strcmp(a->name, b->name) < 0;
   });
 
-  /* Rebuild list */
+  /* Rebuild list. */
   BLI_listbase_clear(&view_layer->lpes);
-  for (i = 0; i < count; i++) {
-    BLI_addtail(&view_layer->lpes, lpes_array[i]);
-  }
-
-  MEM_freeN(lpes_array);
-
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
+  for (ViewLayerLPE *lpe : lpes_array) {
+    BLI_addtail(&view_layer->lpes, lpe);
   }
 
   Main *bmain = CTX_data_main(C);
@@ -1466,16 +1454,16 @@ static wmOperatorStatus view_layer_lpe_remove_all_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
-  LISTBASE_FOREACH_MUTABLE (ViewLayerLPE *, lpe, &view_layer->lpes) {
+  while (ViewLayerLPE *lpe = static_cast<ViewLayerLPE *>(view_layer->lpes.first)) {
     BKE_view_layer_remove_lpe(view_layer, lpe);
   }
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
@@ -1518,12 +1506,12 @@ static wmOperatorStatus view_layer_add_lpe_preset_exec(bContext *C, wmOperator *
     STRNCPY_UTF8(lpe->expression, expression);
   }
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;

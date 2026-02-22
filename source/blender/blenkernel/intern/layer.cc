@@ -2473,8 +2473,8 @@ void BKE_view_layer_blend_write(BlendWriter *writer, const Scene *scene, ViewLay
   for (ViewLayerLightgroup &lightgroup : view_layer->lightgroups) {
     writer->write_struct(&lightgroup);
   }
-  LISTBASE_FOREACH (ViewLayerLPE *, lpe, &view_layer->lpes) {
-    BLO_write_struct(writer, ViewLayerLPE, lpe);
+  for (ViewLayerLPE &lpe : view_layer->lpes) {
+    writer->write_struct(&lpe);
   }
   write_layer_collections(writer, &view_layer->layer_collections);
 }
@@ -2830,7 +2830,7 @@ static void viewlayer_lpe_make_name_unique(ViewLayer *view_layer, ViewLayerLPE *
 
 ViewLayerLPE *BKE_view_layer_add_lpe(ViewLayer *view_layer, const char *name)
 {
-  ViewLayerLPE *lpe = MEM_callocN<ViewLayerLPE>(__func__);
+  ViewLayerLPE *lpe = MEM_new<ViewLayerLPE>(__func__);
 
   STRNCPY_UTF8(lpe->name, (name && name[0]) ? name : DATA_("CustomLPE"));
   STRNCPY_UTF8(lpe->expression, "C[DS]*L"); /* Default LPE expression */
@@ -2867,9 +2867,9 @@ void BKE_view_layer_set_active_lpe(ViewLayer *view_layer, ViewLayerLPE *lpe)
 
 ViewLayer *BKE_view_layer_find_with_lpe(Scene *scene, ViewLayerLPE *lpe)
 {
-  LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-    if (BLI_findindex(&view_layer->lpes, lpe) != -1) {
-      return view_layer;
+  for (ViewLayer &view_layer : scene->view_layers) {
+    if (BLI_findindex(&view_layer.lpes, lpe) != -1) {
+      return &view_layer;
     }
   }
   return nullptr;
