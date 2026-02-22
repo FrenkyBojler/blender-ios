@@ -1026,7 +1026,7 @@ static ed::greasepencil::ExtensionData grease_pencil_fill_get_extension_data(
       const float length = op_data.extension_length;
 
       switch (op_data.extension_mode) {
-        case GP_FILL_EMODE_EXTEND:
+        case GP_FILL_EMODE_EXTEND: {
           extension_data.lines.starts.append(pos_head);
           extension_data.lines.ends.append(pos_head + dir_head * length);
           origin_drawings.append(i_drawing);
@@ -1039,46 +1039,45 @@ static ed::greasepencil::ExtensionData grease_pencil_fill_get_extension_data(
           origin_points.append(points.last() - 1);
 
           /* Find points of high curvature and extend them. */
-          float3 tan1, tan2;
-          float d1, d2;
-          for (int i = 1; i < points.size(); i++) {
-            const float3 pt1 = math::transform_point(layer_to_world, positions[points[i - 1]]);
-            const float3 pt2 = math::transform_point(layer_to_world, positions[points[i]]);
+          float3 pos_prev = math::transform_point(layer_to_world, positions[points[0]]);
+          float3 pos_next = math::transform_point(layer_to_world, positions[points[1]]);
+          float distance_prev;
+          float distance_next;
+          float3 tangent_prev;
+          float3 tangent_next = math::normalize_and_get_length(pos_next - pos_prev, distance_next);
+          for (const int i : points.index_range().drop_front(2)) {
+            tangent_prev = tangent_next;
+            distance_prev = distance_next;
+            pos_prev = pos_next;
 
-            if (i > 1) {
-              tan1 = tan2;
-              d1 = d2;
-            }
+            pos_next = math::transform_point(layer_to_world, positions[points[i]]);
+            tangent_next = math::normalize_and_get_length(pos_next - pos_prev, distance_next);
 
-            tan2 = pt2 - pt1;
-            d2 = math::length(tan2);
-            tan2 = math::normalize(tan2);
+            float curvature_length;
+            const float3 curvature = math::normalize_and_get_length(tangent_next - tangent_prev, curvature_length);
 
-            if (i > 1) {
-              float3 curvature = tan2 - tan1;
-              float k = math::length(curvature);
-              curvature = math::normalize(curvature);
-              k /= (d1 + d2) * 0.5f;
-              float radius_of_curvature = 1.0f / k;
+            /*
+             * The smaller the radius of curvature, the sharper the corner.
+             * The thicker the line, the larger the radius of curvature it
+             * takes to be visually indistinguishable from an endpoint.
+             */
+            const float stroke_radius = radii[points[i - 1]];
+            const float min_radius = stroke_radius;
 
-              /*
-               * The smaller the radius of curvature, the sharper the corner.
-               * The thicker the line, the larger the radius of curvature it
-               * takes to be visually indistinguishable from an endpoint.
-               */
-              float stroke_radius = radii[points[i - 1]];
-              float min_radius = stroke_radius;
-
-              if (radius_of_curvature < min_radius) {
-                /* Extend along direction of curvature. */
-                extension_data.lines.starts.append(pt1);
-                extension_data.lines.ends.append(pt1 + (-curvature * length));
-                origin_drawings.append(i_drawing);
-                origin_points.append(points[i - 1]);
-              }
+            /*
+             * Is the radius of curvature (1 / curvature_length) smaller than the
+             * minimum radius? Rearranged algebraically to avoid division by zero.
+             */
+            if (distance_prev + distance_next < 2.0f * curvature_length * min_radius) {
+              /* Extend along direction of curvature. */
+              extension_data.lines.starts.append(pos_prev);
+              extension_data.lines.ends.append(pos_prev + (-curvature * length));
+              origin_drawings.append(i_drawing);
+              origin_points.append(points[i - 1]);
             }
           }
           break;
+        }
         case GP_FILL_EMODE_RADIUS:
           extension_data.circles.centers.append(pos_head);
           extension_data.circles.radii.append(length);
