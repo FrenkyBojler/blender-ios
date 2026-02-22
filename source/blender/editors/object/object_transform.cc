@@ -2450,11 +2450,11 @@ enum eLightAxisLock {
 enum eLightOrbitAroundTargetModal {
   LIGHT_ORBIT_AROUND_TARGET_MODAL_CONFIRM = 1,
   LIGHT_ORBIT_AROUND_TARGET_MODAL_CANCEL,
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_SWITCH_TO_TARGET, /* T key - switch to target modal. */
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK,     /* Z key - axis lock. */
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK,   /* Shift+Z key - plane lock. */
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_MOVE_ALONG_LOCAL_Z,    /* M key - move along local Z. */
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_FLIP,              /* F key - 180° rotation around local Y. */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_SWITCH_TO_TARGET,   /* T key - switch to target modal. */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK,       /* Z key - axis lock. */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK,     /* Shift+Z key - plane lock. */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_MOVE_ALONG_LOCAL_Z, /* M key - move along local Z. */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_FLIP,               /* F key - 180° rotation around local Y. */
   LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY, /* S key - symmetry around intersection point. */
   LIGHT_ORBIT_AROUND_TARGET_MODAL_PRECISION_ENABLE,  /* Left Shift - enable precision mode. */
   LIGHT_ORBIT_AROUND_TARGET_MODAL_PRECISION_DISABLE, /* Left Shift release - disable precision
@@ -2711,7 +2711,11 @@ void light_orbit_around_target_modal_keymap(wmKeyConfig *keyconf)
        ""},
       {LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK, "AZIMUTH_LOCK", 0, "Axis", ""},
       {LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK, "ELEVATION_LOCK", 0, "Plane", ""},
-      {LIGHT_ORBIT_AROUND_TARGET_MODAL_MOVE_ALONG_LOCAL_Z, "MOVE_ALONG_LOCAL_Z", 0, "Move Along Local Z", ""},
+      {LIGHT_ORBIT_AROUND_TARGET_MODAL_MOVE_ALONG_LOCAL_Z,
+       "MOVE_ALONG_LOCAL_Z",
+       0,
+       "Move Along Local Z",
+       ""},
       {LIGHT_ORBIT_AROUND_TARGET_MODAL_FLIP, "FLIP", 0, "Flip", ""},
       {LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY, "SYMMETRY", 0, "Symmetry", ""},
       {LIGHT_ORBIT_AROUND_TARGET_MODAL_PRECISION_ENABLE,
