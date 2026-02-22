@@ -291,10 +291,9 @@ static IndexMask grease_pencil_get_editable_non_nurbs_curves(
   }
 
   const VArray<int8_t> types = curves.curve_types();
-  return IndexMask::from_predicate(
-      editable_strokes, GrainSize(4096), memory, [&](const int64_t curve) {
-        return types[curve] != CURVE_TYPE_NURBS;
-      });
+  return IndexMask::from_predicate(editable_strokes, memory, [&](const int64_t curve) {
+    return types[curve] != CURVE_TYPE_NURBS;
+  });
 }
 
 static IndexMask grease_pencil_get_visible_non_nurbs_curves(
@@ -309,10 +308,9 @@ static IndexMask grease_pencil_get_visible_non_nurbs_curves(
   }
 
   const VArray<int8_t> types = curves.curve_types();
-  return IndexMask::from_predicate(
-      visible_strokes, GrainSize(4096), memory, [&](const int64_t curve) {
-        return types[curve] != CURVE_TYPE_NURBS;
-      });
+  return IndexMask::from_predicate(visible_strokes, memory, [&](const int64_t curve) {
+    return types[curve] != CURVE_TYPE_NURBS;
+  });
 }
 
 static void index_buf_add_line_points(const bke::greasepencil::Drawing &drawing,
@@ -389,10 +387,9 @@ static IndexMask grease_pencil_get_editable_selected_nurbs_curves(
           object, drawing, layer_index, memory);
 
   const VArray<int8_t> types = curves.curve_types();
-  return IndexMask::from_predicate(
-      selected_editable_strokes, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        return types[curve_i] == CURVE_TYPE_NURBS;
-      });
+  return IndexMask::from_predicate(selected_editable_strokes, memory, [&](const int64_t curve_i) {
+    return types[curve_i] == CURVE_TYPE_NURBS;
+  });
 }
 
 static IndexMask grease_pencil_get_visible_nurbs_curves(Object &object,
@@ -410,10 +407,9 @@ static IndexMask grease_pencil_get_visible_nurbs_curves(Object &object,
       object, drawing, layer_index, memory);
 
   const VArray<int8_t> types = curves.curve_types();
-  return IndexMask::from_predicate(
-      selected_editable_strokes, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        return types[curve_i] == CURVE_TYPE_NURBS;
-      });
+  return IndexMask::from_predicate(selected_editable_strokes, memory, [&](const int64_t curve_i) {
+    return types[curve_i] == CURVE_TYPE_NURBS;
+  });
 }
 
 static void grease_pencil_cache_add_nurbs(const bke::greasepencil::Drawing &drawing,
@@ -748,39 +744,6 @@ static void index_buf_add_bezier_handle_lines(const IndexMask bezier_points,
   });
 
   *r_drawing_line_index = line_index;
-}
-
-static void index_buf_add_points(Object &object,
-                                 const bke::greasepencil::Drawing &drawing,
-                                 int layer_index,
-                                 IndexMaskMemory &memory,
-                                 MutableSpan<uint> points_data,
-                                 int *r_drawing_point_index,
-                                 int *r_drawing_start_offset)
-{
-  const bke::CurvesGeometry &curves = drawing.strokes();
-  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-
-  /* Fill point indices. */
-  const IndexMask selected_editable_strokes =
-      ed::greasepencil::retrieve_editable_and_selected_strokes(
-          object, drawing, layer_index, memory);
-
-  const IndexMask selected_editable_fill_strokes = bke::greasepencil::selected_mask_to_fills(
-      selected_editable_strokes, curves, bke::AttrDomain::Curve, memory);
-
-  const int offset = *r_drawing_start_offset;
-  int ibo_index = *r_drawing_point_index;
-
-  selected_editable_fill_strokes.foreach_index([&](const int curve_i) {
-    const IndexRange points = points_by_curve[curve_i];
-    for (const int point : points) {
-      points_data[ibo_index++] = point + offset;
-    }
-  });
-
-  *r_drawing_point_index = ibo_index;
-  *r_drawing_start_offset += curves.points_num();
 }
 
 static uint32_t bezier_data_value(int8_t handle_type, bool is_active)
