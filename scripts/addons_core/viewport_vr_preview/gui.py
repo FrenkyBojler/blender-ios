@@ -112,8 +112,8 @@ class VIEW3D_PT_vr_session_view_object_type_visibility(VIEW3D_PT_object_type_vis
         self.draw_ex(context, session_settings, False)  # Pass session settings instead of 3D view.
 
 
-# Viewfinder.
-class VIEW3D_PT_vr_viewfinder(Panel):
+# Location Scouting.
+class VIEW3D_PT_vr_location_scouting(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "VR"
@@ -123,7 +123,19 @@ class VIEW3D_PT_vr_viewfinder(Panel):
         layout = self.layout
         session_settings = context.window_manager.xr_session_settings
 
+        # TODO: Either move to Viewfinder settings or rename into a more generic location scouting flag.
         layout.prop(session_settings, "viewfinder_enable", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+
+class VIEW3D_PT_vr_viewfinder_settings(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "VR"
+    bl_label = "Viewfinder Settings"
+    bl_parent_id = "VIEW3D_PT_vr_location_scouting"
 
     def draw(self, context):
         layout = self.layout
@@ -284,7 +296,8 @@ classes = (
     VIEW3D_PT_vr_session,
     VIEW3D_PT_vr_session_view,
     VIEW3D_PT_vr_session_view_object_type_visibility,
-    VIEW3D_PT_vr_viewfinder,
+    VIEW3D_PT_vr_location_scouting,
+    VIEW3D_PT_vr_viewfinder_settings,
     VIEW3D_PT_vr_landmarks,
     VIEW3D_PT_vr_actionmaps,
     VIEW3D_PT_vr_viewport_feedback,
