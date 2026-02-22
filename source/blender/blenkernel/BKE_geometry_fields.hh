@@ -441,7 +441,6 @@ class SampleIndexFunction : public mf::MultiFunction {
   GeometrySet src_geometry_;
   fn::GField src_field_;
   AttrDomain domain_;
-  bool clamp_;
 
   mf::Signature signature_;
 
@@ -450,16 +449,13 @@ class SampleIndexFunction : public mf::MultiFunction {
   const GVArray *src_data_ = nullptr;
 
  public:
-  SampleIndexFunction(GeometrySet geometry,
-                      fn::GField src_field,
-                      const AttrDomain domain,
-                      const bool clamp);
+  SampleIndexFunction(GeometrySet geometry, fn::GField src_field, AttrDomain domain, bool clamp);
   void evaluate_field();
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override;
 
   static const GeometryComponent *find_source_component(const GeometrySet &geometry,
-                                                        const AttrDomain domain);
+                                                        AttrDomain domain);
 };
 
 class EvaluateOnDomainInput final : public bke::GeometryFieldInput {
