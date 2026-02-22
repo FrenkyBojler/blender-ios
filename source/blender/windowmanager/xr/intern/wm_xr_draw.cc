@@ -53,6 +53,7 @@ namespace blender {
 
 extern bContext *evil_main_C;
 static GPUOffScreen *g_viewfinder_offscreen;
+static constexpr float viewfinder_ui_scale_fac = 0.05f;
 
 void wm_xr_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4])
 {
@@ -94,7 +95,7 @@ void wm_xr_pose_scale_to_imat(const GHOST_XrPose *pose, float scale, float r_ima
 }
 
 static wmXrController *get_viewfinder_controller(const XrSessionSettings *settings,
-                                                 wmXrSessionState *state)
+                                                 const wmXrSessionState *state)
 {
   // TODO: Automatically switch control scheme on hand change.
 
@@ -113,12 +114,55 @@ static wmXrController *get_viewfinder_controller(const XrSessionSettings *settin
   }
 
   for (wmXrController &controller : state->controllers) {
-    if (STREQ(controller.subaction_path, subaction_path)) {
+    if (STREQ(controller.subaction_path, subaction_path) && controller.grip_active) {
       return &controller;
     }
   }
 
   return nullptr;
+}
+
+static rctf wm_xr_get_viewfinder_view_rect(const XrSessionSettings *settings,
+                                           const RenderData *scene_render_settings)
+{
+  /* Use scene render aspect ratio. */
+  const float render_x = scene_render_settings->xsch * scene_render_settings->xasp;
+  const float render_y = scene_render_settings->ysch * scene_render_settings->yasp;
+  const float render_aspect_ratio = render_y / render_x;
+
+  constexpr float minimum_width = 4.3f;
+  const float viewfinder_width = minimum_width + settings->viewfinder_scale;
+  const float viewfinder_height = viewfinder_width * render_aspect_ratio;
+
+  rctf viewfinder_rect = {};
+  BLI_rctf_resize(&viewfinder_rect, viewfinder_width, viewfinder_height);
+
+  return viewfinder_rect;
+}
+
+static bool wm_xr_get_viewfinder_capture_mat(const XrSessionSettings *settings,
+                                             const wmXrSessionState *state,
+                                             const float viewfinder_height,
+                                             float r_mat[4][4])
+{
+  const wmXrController *viewfinder_controller = get_viewfinder_controller(settings, state);
+  if (!viewfinder_controller) {
+    return false;
+  }
+
+  /* Compute vertical offset. */
+  constexpr float base_controller_offset = -0.1f;
+  const float height_offset = (viewfinder_height / 2) * viewfinder_ui_scale_fac * -1;
+  const float viewfinder_vertical_offset = base_controller_offset + height_offset;
+
+  /* Obtain viewfinder capture mat from the choosen controller grip mat. */
+  float viewfinder_mat[4][4];
+  copy_m4_m4(viewfinder_mat, viewfinder_controller->grip_mat);
+  translate_m4(viewfinder_mat, 0.0f, 0.0f, viewfinder_vertical_offset);
+  rotate_m4(viewfinder_mat, 'X', -M_PI_2);
+
+  copy_m4_m4(r_mat, viewfinder_mat);
+  return true;
 }
 
 static void wm_xr_draw_matrices_create(const wmXrDrawData *draw_data,
@@ -213,24 +257,19 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
 
   switch (session_state->viewfinder.active_mode) {
     case XR_VIEWFINDER_MODE_LIVE: {
-      const wmXrController *viewfinder_controller = get_viewfinder_controller(settings,
-                                                                              session_state);
-      if (!viewfinder_controller) {
+      const RenderData *scene_render_settings = &draw_data->scene->r; // TODO: Simplify once context is passed everywhere
+      const rctf viewfinder_rect = wm_xr_get_viewfinder_view_rect(settings, scene_render_settings);
+      const float viewfinder_height = BLI_rctf_size_y(&viewfinder_rect);
+
+      float raw_capture_mat[4][4];
+      if (!wm_xr_get_viewfinder_capture_mat(settings, session_state, viewfinder_height, raw_capture_mat)) {
         break;
       }
-
-      /* Note: View offsets can be configured using the Scene Camera Shift X/Y settings. */
-      // TODO: Move viewfinder capture matrix computation out of the drawing function.
-
-      /* Obtain raw viewfinder capture mat from the current controller grip mat. */
-      float viewfinder_raw_capture_mat[4][4];
-      copy_m4_m4(viewfinder_raw_capture_mat, viewfinder_controller->grip_mat);
-      rotate_m4(viewfinder_raw_capture_mat, 'X', -M_PI_2);
 
       float raw_capture_position[3];
       float raw_capture_orientation_quat[4];
       mat4_to_loc_quat(
-          raw_capture_position, raw_capture_orientation_quat, viewfinder_raw_capture_mat);
+          raw_capture_position, raw_capture_orientation_quat, raw_capture_mat);
 
       if (session_state->viewfinder.runtime_smoothing_delta_t > 0) {
         /* Apply exponential movement smoothing. */
@@ -791,10 +830,13 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
   GPU_matrix_pop();
 }
 
-static void wm_xr_controller_viewfinder_draw_view_texture(const wmXrSessionState *state,
-                                                          const rctf viewfinder_rect,
-                                                          const bool empty_captures)
+static void wm_xr_controller_viewfinder_draw_view_texture(const bContext *C,
+                                                          const wmXrSessionState *state,
+                                                          const rctf viewfinder_rect)
 {
+  PointerRNA scene_ptr = RNA_id_pointer_create(&CTX_data_scene(C)->id);
+  const bool empty_captures = RNA_collection_is_empty(&scene_ptr, "vr_landmarks");
+
   if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
     return;
   }
@@ -875,35 +917,19 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
     return;
   }
 
-  const wmXrController *viewfinder_controller = get_viewfinder_controller(settings, state);
-  if (!viewfinder_controller || !viewfinder_controller->grip_active) {
+  const RenderData *scene_render_settings = &CTX_data_scene(C)->r;
+  const rctf viewfinder_rect = wm_xr_get_viewfinder_view_rect(settings, scene_render_settings);
+
+  /* Initial transform setup. */
+  float viewfinder_mat[4][4];
+  const float viewfinder_height = BLI_rctf_size_y(&viewfinder_rect);
+  if (!wm_xr_get_viewfinder_capture_mat(settings, state, viewfinder_height, viewfinder_mat)) {
     return;
   }
 
-  /* Use scene render aspect ratio. */
-  // TODO: Viewfinder can currently clip controller on square ratios.
-  const RenderData *render_settings = &CTX_data_scene(C)->r;
-  const float render_x = render_settings->xsch * render_settings->xasp;
-  const float render_y = render_settings->ysch * render_settings->yasp;
-  const float render_aspect_ratio = render_y / render_x;
-
-  constexpr float minimum_width = 4.3f;
-  const float viewfinder_width = minimum_width + settings->viewfinder_scale;
-  const float viewfinder_height = viewfinder_width * render_aspect_ratio;
-  const float viewfinder_vertical_offset = 3.5f; /* Center of the viewfinder rectangle. */
-
-  rctf viewfinder_rect = {};
-  BLI_rctf_resize(&viewfinder_rect, viewfinder_width, viewfinder_height);
-
-  /* Initial transform setup. */
   GPU_matrix_push();
-  GPU_matrix_mul(viewfinder_controller->grip_mat);
-  GPU_matrix_scale_1f(0.05f);
-  GPU_matrix_translate_3f(0.0f, 0.0f, -viewfinder_vertical_offset);
-  GPU_matrix_rotate_3f(-90.0f, 1.0f, 0.0f, 0.0f);
-
-  PointerRNA scene_ptr = RNA_id_pointer_create(&CTX_data_scene(C)->id);
-  const bool empty_captures = RNA_collection_is_empty(&scene_ptr, "vr_landmarks");
+  GPU_matrix_mul(viewfinder_mat);
+  GPU_matrix_scale_1f(viewfinder_ui_scale_fac);
 
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
@@ -913,7 +939,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   GPU_depth_mask(false);
 
   /* Viewfinder View texture and flash. */
-  wm_xr_controller_viewfinder_draw_view_texture(state, viewfinder_rect, empty_captures);
+  wm_xr_controller_viewfinder_draw_view_texture(C, state, viewfinder_rect);
   wm_xr_controller_viewfinder_draw_view_flash(state, viewfinder_rect);
 
   /* UI Widgets. */
