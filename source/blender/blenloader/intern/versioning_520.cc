@@ -80,12 +80,19 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 4)) {
     for (Brush &brush : bmain->brushes) {
       if (brush.gpencil_settings != nullptr) {
+        brush.blend = 0;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 5)) {
+    for (Brush &brush : bmain->brushes) {
+      if (brush.gpencil_settings != nullptr) {
         brush.gpencil_settings->curve_type = CURVE_TYPE_POLY;
         brush.gpencil_settings->conversion_threshold = 0.001;
       }
     }
   }
-
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
