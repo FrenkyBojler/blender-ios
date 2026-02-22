@@ -28,6 +28,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Average concavity of the surface within the sampled radius. "
           "0.0 represents flat, value increases linearly with angle");
+  b.add_output<decl::Color>("Both"_ustr)
+      .description(
+          "Curvature values composited together with "
+          "convex values in the red channel, "
+          "and concave values in the green channel");
 
   b.add_input<decl::Float>("Radius"_ustr)
       .default_value(0.01f)

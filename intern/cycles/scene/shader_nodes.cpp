@@ -8018,6 +8018,8 @@ NODE_DEFINE(CurvatureNode)
 
   SOCKET_OUT_FLOAT(concavity, "Concavity");
 
+  SOCKET_OUT_COLOR(both, "Both");
+
   return type;
 }
 
@@ -8036,6 +8038,7 @@ void CurvatureNode::compile(SVMCompiler &compiler)
                         .out_curvature_offset = compiler.output("Curvature"),
                         .out_convexity_offset = compiler.output("Convexity"),
                         .out_concavity_offset = compiler.output("Concavity"),
+                        .out_both_offset = compiler.output("Both"),
                     });
 }
 

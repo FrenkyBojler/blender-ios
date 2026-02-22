@@ -219,6 +219,9 @@ ccl_device_noinline
   if (stack_valid(node.out_concavity_offset)) {
     stack_store_float(stack, node.out_concavity_offset, concavity);
   }
+  if (stack_valid(node.out_both_offset)) {
+    stack_store_float3(stack, node.out_both_offset, make_float3(convexity, concavity, 0.0f));
+  }
 }
 
 #endif /* __SHADER_RAYTRACE__ */

@@ -1253,7 +1253,8 @@ struct SVMNodeCurvature {
   SVMStackOffset out_curvature_offset;
   SVMStackOffset out_convexity_offset;
   SVMStackOffset out_concavity_offset;
-  uint8_t _pad[3];
+  SVMStackOffset out_both_offset;
+  uint8_t _pad[2];
 };
 static_assert(alignof(SVMNodeCurvature) <= alignof(uint));
 static_assert(sizeof(SVMNodeCurvature) % sizeof(uint) == 0);
