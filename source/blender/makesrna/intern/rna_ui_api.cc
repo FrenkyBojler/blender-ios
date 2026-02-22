@@ -363,7 +363,8 @@ static void rna_uiItemPointerR(Layout *layout,
                                bool translate,
                                int icon,
                                const bool results_are_suggestions,
-                               const char *item_searchpropname)
+                               const char *item_searchpropname,
+                               const char *placeholder)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
   if (!prop) {
@@ -394,9 +395,18 @@ static void rna_uiItemPointerR(Layout *layout,
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
+  std::optional<StringRefNull> placeholder_str = rna_translate_ui_text(
+      placeholder, text_ctxt, nullptr, prop, translate);
 
-  layout->prop_search(
-      ptr, prop, searchptr, searchprop, item_searchprop, text, icon, results_are_suggestions);
+  layout->prop_search(ptr,
+                      prop,
+                      searchptr,
+                      searchprop,
+                      item_searchprop,
+                      text,
+                      icon,
+                      results_are_suggestions,
+                      placeholder_str);
 }
 
 void rna_uiLayoutDecorator(Layout *layout, PointerRNA *ptr, const char *propname, int index)
@@ -1593,6 +1603,8 @@ void RNA_api_ui_layout(StructRNA *srna)
                         "",
                         "Identifier of the string property in each collection's items to use for "
                         "searching (defaults to the items' type 'name property')");
+  parm = RNA_def_string(
+      func, "placeholder", nullptr, 0, "", "Hint describing the expected value when empty");
 
   func = RNA_def_function(srna, "prop_decorator", "rna_uiLayoutDecorator");
   api_ui_item_rna_common(func);
