@@ -80,7 +80,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 4)) {
     for (wmWindowManager &wm : bmain->wm) {
       wm.xr.session_settings.viewfinder_enable = true;
-      wm.xr.session_settings.viewfinder_hand = XR_VIEWFINDER_HAND_RIGHT;
+      wm.xr.session_settings.viewfinder_hand = XR_VIEWFINDER_HAND_LEFT;
       wm.xr.session_settings.viewfinder_scale = 1.0f;
     }
   }
