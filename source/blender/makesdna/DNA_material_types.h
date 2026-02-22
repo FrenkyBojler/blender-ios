@@ -325,8 +325,13 @@ struct MaterialGPencilStyle {
   /** Rotation for texture for Dots and Squares. */
   float alignment_rotation = 0;
   /** Placement mode for Dots and Squares. */
-  int placement_mode;
-  char _pad3[4];
+  int placement_mode = 0;
+  /* Number of points per segment when placement mode is `GP_MATERIAL_PLACEMENT_SUBDIV` */
+  int placement_subdivisions = 0;
+  /* Point density per unit when placement mode is `GP_MATERIAL_PLACEMENT_DENSITY` */
+  float placement_density = 0;
+  /* Radius factor for points when placement mode is `GP_MATERIAL_PLACEMENT_RADIUS` */
+  float placement_radius_spacing = 0;
 };
 
 struct MaterialLineArt {

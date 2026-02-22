@@ -253,7 +253,26 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
     /* Dots or Squares rotation. */
     mat_data->alignment_rot[0] = cosf(gp_style->alignment_rotation);
     mat_data->alignment_rot[1] = sinf(gp_style->alignment_rotation);
-    mat_data->stroke_u_scale = 500.0f / gp_style->texture_pixsize;
+    if (gp_style->mode == GP_MATERIAL_MODE_LINE) {
+      mat_data->stroke_u_scale = 500.0f / gp_style->texture_pixsize;
+    }
+    else {
+      switch (gp_style->placement_mode) {
+        case GP_MATERIAL_PLACEMENT_RADIUS:
+          mat_data->stroke_u_scale = 50.0f / gp_style->placement_radius_spacing;
+          break;
+        case GP_MATERIAL_PLACEMENT_DENSITY:
+          mat_data->stroke_u_scale = gp_style->placement_density;
+          break;
+        case GP_MATERIAL_PLACEMENT_SUBDIV:
+          mat_data->stroke_u_scale = gp_style->placement_subdivisions;
+          break;
+        case GP_MATERIAL_PLACEMENT_SINGLE:
+        default:
+          mat_data->stroke_u_scale = 1.0f;
+          break;
+      }
+    }
 
     gp_style = gpencil_viewport_material_overrides(inst, ob, color_type, gp_style, lighting_mode);
 
