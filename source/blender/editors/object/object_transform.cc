@@ -2451,10 +2451,10 @@ enum eLightOrbitAroundTargetModal {
   LIGHT_ORBIT_AROUND_TARGET_MODAL_CONFIRM = 1,
   LIGHT_ORBIT_AROUND_TARGET_MODAL_CANCEL,
   LIGHT_ORBIT_AROUND_TARGET_MODAL_SWITCH_TO_TARGET, /* T key - switch to target modal. */
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK,     /* H key - horizontal lock. */
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK,   /* V key - vertical lock. */
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK,    /* Z key - distance lock. */
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT,           /* I key - 180° rotation around local Y. */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK,     /* Z key - axis lock. */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK,   /* Shift+Z key - plane lock. */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_MOVE_ALONG_LOCAL_Z,    /* M key - move along local Z. */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_FLIP,              /* F key - 180° rotation around local Y. */
   LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY, /* S key - symmetry around intersection point. */
   LIGHT_ORBIT_AROUND_TARGET_MODAL_PRECISION_ENABLE,  /* Left Shift - enable precision mode. */
   LIGHT_ORBIT_AROUND_TARGET_MODAL_PRECISION_DISABLE, /* Left Shift release - disable precision
@@ -2527,17 +2527,17 @@ static void light_orbit_around_target_update_status(bContext *C,
   status.opmodal(IFACE_("Confirm"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_CONFIRM);
   status.opmodal(
       IFACE_("Target Mode"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_SWITCH_TO_TARGET);
-  status.opmodal(IFACE_("Horizontal Lock"),
+  status.opmodal(IFACE_("Axis"),
                  op->type,
                  LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK,
                  lead->axis_lock == LIGHT_AXIS_LOCK_AZIMUTH);
-  status.opmodal(IFACE_("Vertical Lock"),
+  status.opmodal(IFACE_("Plane"),
                  op->type,
                  LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK,
                  lead->axis_lock == LIGHT_AXIS_LOCK_ELEVATION);
-  status.opmodal(IFACE_("Distance Lock"),
+  status.opmodal(IFACE_("Move Along Local Z"),
                  op->type,
-                 LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK,
+                 LIGHT_ORBIT_AROUND_TARGET_MODAL_MOVE_ALONG_LOCAL_Z,
                  lead->axis_lock == LIGHT_AXIS_LOCK_DISTANCE);
 
   /* Show direction inversion state for symmetry. */
@@ -2550,7 +2550,7 @@ static void light_orbit_around_target_update_status(bContext *C,
   }
   status.opmodal(
       IFACE_("Symmetry"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY, any_inverted);
-  status.opmodal(IFACE_("Invert Direction"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT);
+  status.opmodal(IFACE_("Flip"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_FLIP);
   status.opmodal(IFACE_("Precision Mode"),
                  op->type,
                  LIGHT_ORBIT_AROUND_TARGET_MODAL_PRECISION_ENABLE,
@@ -2709,10 +2709,10 @@ void light_orbit_around_target_modal_keymap(wmKeyConfig *keyconf)
        0,
        "Switch to Target mode",
        ""},
-      {LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK, "AZIMUTH_LOCK", 0, "Horizontal Lock", ""},
-      {LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK, "ELEVATION_LOCK", 0, "Vertical Lock", ""},
-      {LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK, "DISTANCE_LOCK", 0, "Distance Lock", ""},
-      {LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT, "INVERT", 0, "Invert Direction", ""},
+      {LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK, "AZIMUTH_LOCK", 0, "Axis", ""},
+      {LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK, "ELEVATION_LOCK", 0, "Plane", ""},
+      {LIGHT_ORBIT_AROUND_TARGET_MODAL_MOVE_ALONG_LOCAL_Z, "MOVE_ALONG_LOCAL_Z", 0, "Move Along Local Z", ""},
+      {LIGHT_ORBIT_AROUND_TARGET_MODAL_FLIP, "FLIP", 0, "Flip", ""},
       {LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY, "SYMMETRY", 0, "Symmetry", ""},
       {LIGHT_ORBIT_AROUND_TARGET_MODAL_PRECISION_ENABLE,
        "PRECISION_ENABLE",
@@ -3027,7 +3027,7 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C,
         return OPERATOR_RUNNING_MODAL;
       }
 
-      case LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK: {
+      case LIGHT_ORBIT_AROUND_TARGET_MODAL_MOVE_ALONG_LOCAL_Z: {
         /* Toggle distance lock (distance movement only). */
         if (loatd->axis_lock == LIGHT_AXIS_LOCK_DISTANCE) {
           loatd->axis_lock = LIGHT_AXIS_LOCK_NONE; /* Turn off lock. */
@@ -3046,7 +3046,7 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C,
         return OPERATOR_RUNNING_MODAL;
       }
 
-      case LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT: {
+      case LIGHT_ORBIT_AROUND_TARGET_MODAL_FLIP: {
         /* Invert light direction by rotating 180° around local Y axis. */
         for (LightOrbitAroundTargetData::LightData &light : loatd->lights) {
           /* Get current rotation matrix. */
