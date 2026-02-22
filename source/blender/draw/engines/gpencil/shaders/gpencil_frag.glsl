@@ -258,16 +258,6 @@ float2 uneven_capsule_intersection(float2 p0, float2 p1, float2 p2, float r1, fl
   return t;
 }
 
-int min_bound(float4 p1, float4 p2)
-{
-  return int(ceil(local_t_to_point_i(0.0, p1, p2)));
-}
-
-int max_bound(float4 p1, float4 p2)
-{
-  return int(ceil(local_t_to_point_i(1.0, p1, p2)));
-}
-
 int2 get_bounds(float2 p0, float4 p1, float4 p2)
 {
   uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
@@ -275,8 +265,8 @@ int2 get_bounds(float2 p0, float4 p1, float4 p2)
     return int2(0, 1);
   }
 
-  int min_lower = min_bound(p1, p2);
-  int max_upper = max_bound(p1, p2);
+  int min_lower = int(ceil(local_t_to_point_i(0.0, p1, p2)));
+  int max_upper = int(ceil(local_t_to_point_i(1.0, p1, p2)));
 
   if (!(p1.z > 0 && p2.z > 0)) {
     return int2(min_lower, max_upper);
