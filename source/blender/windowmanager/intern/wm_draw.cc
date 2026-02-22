@@ -859,16 +859,6 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
     return;
   }
 
-  /* Alpha is always 1, except when blend timer is running. */
-  float alpha = ED_region_blend_alpha(region);
-  if (alpha <= 0.0f) {
-    return;
-  }
-
-  if (!blend) {
-    alpha = 1.0f;
-  }
-
   /* #wmOrtho for the screen has this same offset. */
   const float halfx = GLA_PIXEL_OFS / (BLI_rcti_size_x(&region->winrct) + 1);
   const float halfy = GLA_PIXEL_OFS / (BLI_rcti_size_y(&region->winrct) + 1);
@@ -883,27 +873,40 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
   rect_tex.xmax = 1.0f + halfx;
   rect_tex.ymax = 1.0f + halfy;
 
-  float alpha_easing = 1.0f - alpha;
-  alpha_easing = 1.0f - alpha_easing * alpha_easing;
+  float alpha = 1.0f;
 
-  /* Slide panels. */
-  float ofs_x = BLI_rcti_size_x(&region->winrct) * (1.0f - alpha_easing);
-  float ofs_y = BLI_rcti_size_y(&region->winrct) * (1.0f - alpha_easing);
-  if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_RIGHT) {
-    rect_geo.xmin += ofs_x;
-    rect_tex.xmax *= alpha_easing;
-  }
-  else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_LEFT) {
-    rect_geo.xmax -= ofs_x;
-    rect_tex.xmin += 1.0f - alpha_easing;
-  }
-  else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_TOP) {
-    rect_geo.ymin += ofs_y;
-    rect_tex.ymax *= alpha_easing;
-  }
-  else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_BOTTOM) {
-    rect_geo.ymax -= ofs_y;
-    rect_tex.ymin += 1.0f - alpha_easing;
+  if (blend) {
+    float ofs_left = 0;
+    float ofs_right = 0;
+    float ofs_top = 0;
+    float ofs_bottom = 0;
+    ED_region_blend_animation(region, &alpha, &ofs_left, &ofs_right, &ofs_top, &ofs_bottom);
+
+    if (ofs_left != 0.0f && ofs_right == 0.0f) {
+      rect_geo.xmin += ofs_left;
+      rect_tex.xmax *= alpha;
+    }
+    else if (ofs_right != 0.0f && ofs_left == 0.0f) {
+      rect_geo.xmax -= ofs_right;
+      rect_tex.xmin += 1.0f - alpha;
+    }
+    else if (ofs_right != 0.0f && ofs_left != 0.0f) {
+      rect_geo.xmin += ofs_left;
+      rect_geo.xmax -= ofs_right;
+    }
+
+    if (ofs_top != 0.0f && ofs_bottom == 0.0f) {
+      rect_geo.ymax -= ofs_top;
+      rect_tex.ymin += 1.0f - alpha;
+    }
+    else if (ofs_bottom != 0.0f && ofs_top == 0.0f) {
+      rect_geo.ymin += ofs_bottom;
+      rect_tex.ymax *= alpha;
+    }
+    else if (ofs_bottom != 0.0f && ofs_top != 0.0f) {
+      rect_geo.ymax -= ofs_top;
+      rect_geo.ymin += ofs_bottom;
+    }
   }
 
   /* Not the same layout as #rctf/#rcti. */

@@ -167,6 +167,51 @@ void ED_region_visibility_change_update(bContext *C, ScrArea *area, ARegion *reg
  */
 void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARegion *region);
 
+#define ANIMATION_TIMESTEP (1.0f / 60.0f)
+#define ANIMATION_DURATION_REGION 0.22f
+#define ANIMATION_DURATION_MENU 0.15f
+#define ANIMATION_DURATION_SUBMENU 0.10f
+#define ANIMATION_DURATION_LARGE_DIALOG 0.3f
+#define ANIMATION_DURATION_SMALL_DIALOG 0.1f
+
+enum class RegionAnimationType : uint8_t {
+  Fade,
+  Slide,
+  Stretch,
+  Expand,
+  Shrink,
+};
+
+enum class RegionAnimationDirection : uint8_t {
+  None,
+  Up,
+  Down,
+  Left,
+  Right,
+};
+
+enum class RegionAnimationEase : uint8_t {
+  Linear,
+  Sine,
+  Quad,
+  Cubic,
+  Quart,
+  Quint,
+  Expo,
+  Circ,
+  Back,
+  Elastic,
+  Bounce,
+};
+
+void ED_region_add_animation_timer(bContext *C,
+                                   ScrArea *area,
+                                   ARegion *region,
+                                   float duration,
+                                   RegionAnimationType type,
+                                   RegionAnimationDirection direction,
+                                   RegionAnimationEase ease);
+
 void ED_region_clear(const bContext *C, const ARegion *region, int /*ThemeColorID*/ colorid);
 
 void ED_region_info_draw(ARegion *region,
@@ -179,7 +224,12 @@ void ED_region_info_draw_multiline(ARegion *region,
                                    bool full_redraw);
 void ED_region_image_metadata_panel_draw(ImBuf *ibuf, ui::Layout *layout);
 void ED_region_grid_draw(ARegion *region, float zoomx, float zoomy, float x0, float y0);
-float ED_region_blend_alpha(ARegion *region);
+void ED_region_blend_animation(ARegion *region,
+                               float *alpha,
+                               float *ofs_left,
+                               float *ofs_right,
+                               float *ofs_top,
+                               float *ofs_bottom);
 const rcti *ED_region_visible_rect(ARegion *region);
 /**
  * Overlapping regions only in the following restricted cases.

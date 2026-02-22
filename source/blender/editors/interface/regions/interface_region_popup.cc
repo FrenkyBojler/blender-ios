@@ -1007,6 +1007,48 @@ PopupBlockHandle *popup_block_create(bContext *C,
     type.listener = block_region_popup_window_listener;
   }
 
+  if (!(U.uiflag & USER_REDUCE_MOTION)) {
+    float duration = ANIMATION_DURATION_MENU;
+    RegionAnimationDirection dir;
+    RegionAnimationType anim_type;
+    RegionAnimationEase ease = RegionAnimationEase::Quad;
+
+    if (block->direction & UI_DIR_UP) {
+      dir = RegionAnimationDirection::Up;
+      anim_type = RegionAnimationType::Slide;
+      duration = ANIMATION_DURATION_MENU;
+    }
+    else if (block->direction & UI_DIR_DOWN) {
+      dir = RegionAnimationDirection::Down;
+      anim_type = RegionAnimationType::Slide;
+      duration = ANIMATION_DURATION_MENU;
+    }
+    else if (block->direction & UI_DIR_LEFT) {
+      dir = RegionAnimationDirection::Left;
+      anim_type = RegionAnimationType::Slide;
+      duration = ANIMATION_DURATION_SUBMENU;
+    }
+    else if (block->direction & UI_DIR_RIGHT) {
+      dir = RegionAnimationDirection::Right;
+      anim_type = RegionAnimationType::Slide;
+      duration = ANIMATION_DURATION_SUBMENU;
+    }
+    else {
+      dir = RegionAnimationDirection::None;
+      if (block->flag & BLOCK_MOVEMOUSE_QUIT) {
+        anim_type = RegionAnimationType::Fade;
+        duration = ANIMATION_DURATION_SMALL_DIALOG;
+      }
+      else {
+        anim_type = RegionAnimationType::Expand;
+        duration = ANIMATION_DURATION_LARGE_DIALOG;
+        ease = RegionAnimationEase::Back;
+      }
+    }
+
+    ED_region_add_animation_timer(C, handle->ctx_area, region, duration, anim_type, dir, ease);
+  }
+
   return handle;
 }
 
