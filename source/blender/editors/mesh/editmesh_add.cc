@@ -21,6 +21,8 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "UI_interface.hh"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -580,6 +582,8 @@ static wmOperatorStatus add_primitive_monkey_exec(bContext *C, wmOperator *op)
   }
 
   make_prim_finish(C, obedit, &creation_data, enter_editmode);
+
+  blender::ui::notification(CTX_wm_screen(C), "Oooh Oooh Oooh", ICON_MONKEY, RPT_INFO);
 
   return OPERATOR_FINISHED;
 }

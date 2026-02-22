@@ -247,6 +247,12 @@ class USERPREF_PT_interface_display(InterfacePanel, CenterAlignMixIn, Panel):
         col.prop(prefs, "use_recent_searches", text="Sort by Most Recent")
         col.prop(prefs, "show_hidden_ids", text="Show Hidden")
 
+        col.separator()
+
+        row = col.row()
+        row.prop(view, "notification_position", expand=True, text="Notifications")
+        col.prop(view, "notification_seconds", text="Duration")
+
 
 class USERPREF_PT_interface_text(InterfacePanel, CenterAlignMixIn, Panel):
     bl_label = "Text Rendering"
@@ -1247,6 +1253,11 @@ class USERPREF_PT_theme_interface_styles(ThemePanel, CenterAlignMixIn, Panel):
         col = flow.column(align=True)
         col.prop(ui, "menu_shadow_fac")
         col.prop(ui, "menu_shadow_width", text="Shadow Width")
+
+        flow.separator()
+
+        col = flow.column()
+        col.prop(ui, "notification_blend")
 
 
 class USERPREF_PT_theme_interface_transparent_checker(ThemePanel, CenterAlignMixIn, Panel):

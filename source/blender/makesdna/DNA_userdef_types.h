@@ -170,6 +170,13 @@ enum eUserpref_UI_Flag2 {
   USER_UIFLAG2_SHOW_ONLINE_ASSETS = (1 << 4),
 };
 
+/** #eUserpref_UI_Flag2.notification_position */
+enum eUserpref_NotificationPosition {
+  USER_NOTIFICATION_POS_LEFT = 0,
+  USER_NOTIFICATION_POS_CENTER = 1,
+  USER_NOTIFICATION_POS_RIGHT = 2,
+};
+
 /** #UserDef.gpu_flag */
 enum eUserpref_GPU_Flag {
   USER_GPU_FLAG_UNUSED_0 = (1 << 0), /* Unused. To be removed. */
@@ -921,7 +928,12 @@ struct UserDef {
   /** #eUserpref_UI_Flag2. */
   char uiflag2 = USER_REGION_OVERLAP | USER_UIFLAG2_SHOW_ONLINE_ASSETS;
   char gpu_flag = USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE | USER_GPU_FLAG_SUBDIVISION_EVALUATION;
-  char _pad8[6] = {};
+
+  /** eUserpref_NotificationPosition. */
+  char notification_position = USER_NOTIFICATION_POS_RIGHT;
+  char _pad8[1] = {};
+  float notification_seconds = 2.0f;
+
   /* Experimental flag for app-templates to make changes to behavior
    * which are outside the scope of typical preferences. */
   char app_flag = 0;

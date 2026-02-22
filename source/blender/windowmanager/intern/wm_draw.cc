@@ -1184,6 +1184,29 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
   wm_draw_callbacks(win);
   wmWindowViewport(win);
 
+  /* Draw toast notifications oldest to newest. */
+  for (ARegion &region : screen->regionbase.items_reversed_mutable()) {
+    if (!(region.flag & RGN_FLAG_NOTIFICATION)) {
+      continue;
+    }
+    if (region.flag & RGN_FLAG_HIDDEN) {
+      /* Expired so remove. */
+      wmWindow *win = CTX_wm_window(C);
+      if (win) {
+        wm_draw_region_clear(win, &region);
+      }
+      ED_region_exit(C, &region);
+      BKE_area_region_free(nullptr, &region);
+      BLI_freelinkN(&screen->regionbase, &region);
+      continue;
+    }
+
+    const wmWindow *win = CTX_wm_window(C);
+    wmViewport(&region.winrct);
+    region.runtime->type->draw_overlay(C, &region);
+    wmWindowViewport(win);
+  }
+
   /* Blend in floating regions (menus). */
   for (ARegion &region : screen->regionbase) {
     if (!region.runtime->visible) {

@@ -607,48 +607,16 @@ static wmOperatorStatus update_reports_display_invoke(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
+  ui::notification(CTX_wm_screen(C),
+                   report->message,
+                   ui::icon_from_report_type(report->type),
+                   eReportType(report->type));
+
   wmWindowManager *wm = CTX_wm_manager(C);
-  ReportTimerInfo *rti = static_cast<ReportTimerInfo *>(reports->reporttimer->customdata);
-  const float flash_timeout = FLASH_TIMEOUT;
-  bool send_notifier = false;
 
-  const float timeout = (report->type & RPT_ERROR_ALL) ? ERROR_TIMEOUT : INFO_TIMEOUT;
-  const float time_duration = float(reports->reporttimer->time_duration);
-
-  /* clear the report display after timeout */
-  if (time_duration > timeout) {
-    WM_event_timer_remove(wm, nullptr, reports->reporttimer);
-    reports->reporttimer = nullptr;
-
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, nullptr);
-
-    return (OPERATOR_FINISHED | OPERATOR_PASS_THROUGH);
-  }
-
-  if (rti->widthfac == 0.0f) {
-    rti->widthfac = 1.0f;
-  }
-
-  const float progress = powf(time_duration / timeout, 2.0f);
-  const float flash_progress = powf(time_duration / flash_timeout, 2.0);
-
-  /* save us from too many draws */
-  if (flash_progress <= 1.0f) {
-    /* Flash report briefly according to progress through fade-out duration. */
-    send_notifier = true;
-  }
-  rti->flash_progress = flash_progress;
-
-  /* collapse report at end of timeout */
-  if (progress * timeout > timeout - COLLAPSE_TIMEOUT) {
-    rti->widthfac = (progress * timeout - (timeout - COLLAPSE_TIMEOUT)) / COLLAPSE_TIMEOUT;
-    rti->widthfac = 1.0f - rti->widthfac;
-    send_notifier = true;
-  }
-
-  if (send_notifier) {
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, nullptr);
-  }
+  WM_event_timer_remove(wm, nullptr, reports->reporttimer);
+  reports->reporttimer = nullptr;
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, nullptr);
 
   return (OPERATOR_FINISHED | OPERATOR_PASS_THROUGH);
 }

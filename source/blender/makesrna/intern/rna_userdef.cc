@@ -2044,6 +2044,14 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Tab Colors", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
+  prop = RNA_def_property(srna, "notification_blend", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_ui_text(prop,
+                           "Notification Background Blend",
+                           "Mix the notification background with the report status color");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 0.5f, 0.1, 2);
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
   prop = RNA_def_property(srna, "menu_shadow_fac", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_ui_text(
       prop, "Panel/Menu Shadow Strength", "Blending factor for panel and menu shadows");
@@ -5041,6 +5049,28 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Developer Extras", "Display advanced settings and tools for developers");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  static const EnumPropertyItem notification_position_items[] = {
+      {USER_NOTIFICATION_POS_LEFT, "LEFT", 0, "Left", "Align toast notifications to the left"},
+      {USER_NOTIFICATION_POS_CENTER, "CENTER", 0, "Center", "Center-align toast notifications"},
+      {USER_NOTIFICATION_POS_RIGHT, "RIGHT", 0, "Right", "Align toast notifications to the right"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "notification_position", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, notification_position_items);
+  RNA_def_property_enum_sdna(prop, nullptr, "notification_position");
+  RNA_def_property_enum_default(prop, USER_NOTIFICATION_POS_RIGHT);
+  RNA_def_property_ui_text(
+      prop, "Notification Position", "Position of toast notifications relative to the window");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
+
+  prop = RNA_def_property(srna, "notification_seconds", PROP_FLOAT, PROP_TIME);
+  RNA_def_property_range(prop, 0.0f, 30.0f);
+  RNA_def_property_ui_range(prop, 2.0f, 20.0f, 100.0f, 1);
+  RNA_def_property_ui_text(
+      prop, "Notification Duration", "Minimum time in seconds to display notifications");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   prop = RNA_def_property(srna, "show_area_handle", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uiflag", USER_AREA_CORNER_HANDLE);

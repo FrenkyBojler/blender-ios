@@ -4329,6 +4329,14 @@ void wm_event_do_handlers(bContext *C)
         }
 #endif
 
+        for (ARegion &region : screen->regionbase) {
+          if ((region.flag & RGN_FLAG_NOTIFICATION) &&
+              BLI_rcti_isect_pt_v(&region.winrct, event->xy))
+          {
+            ui::notification_handler(C, &region, event);
+          }
+        }
+
         ED_screen_areas_iter (&win, screen, area) {
           /* After restoring a screen from SCREENMAXIMIZED we have to wait
            * with the screen handling till the region coordinates are updated. */
