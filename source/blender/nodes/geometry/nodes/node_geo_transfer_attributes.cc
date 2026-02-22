@@ -21,7 +21,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
 
   b.add_input<decl::Geometry>("Target");
-  b.add_output<decl::Geometry>("Target").align_with_previous();
+  b.add_output<decl::Geometry>("Target").align_with_previous().propagate_all();
   b.add_output<decl::Bool>("Success");
   b.add_input<decl::Int>("Target ID")
       .implicit_field(NODE_DEFAULT_INPUT_ID_INDEX_FIELD)
@@ -34,9 +34,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::String>("Names")
       .optional_label()
       .structure_type(StructureType::List)
-      .description("List of attribute names to transfer. A wildcard (*) at the end is allowed");
-
-  b.get_anonymous_attribute_relations().propagate_relations.append({0, 0});
+      .description(
+          "List of attribute names (not) to transfer. A wildcard (*) at the end is allowed");
+  b.add_input<decl::Bool>("Ignore Names").default_value(false);
 }
 
 class AttributeTransferer {
@@ -45,6 +45,7 @@ class AttributeTransferer {
   IndexMaskMemory mask_memory_;
   GeometrySet &dst_geo_;
   GeometrySet &src_geo_;
+  bool ignore_names_;
   const VectorSet<std::string> &attribute_patterns_;
   const Field<int> &dst_id_field_;
   const Field<int> &src_id_field_;
@@ -55,9 +56,11 @@ class AttributeTransferer {
                       GeometrySet &src_geo,
                       const VectorSet<std::string> &attribute_patterns,
                       const Field<int> &dst_id_field,
-                      const Field<int> &src_id_field)
+                      const Field<int> &src_id_field,
+                      const bool ignore_names)
       : dst_geo_(dst_geo),
         src_geo_(src_geo),
+        ignore_names_(ignore_names),
         attribute_patterns_(attribute_patterns),
         dst_id_field_(dst_id_field),
         src_id_field_(src_id_field)
@@ -153,7 +156,7 @@ class AttributeTransferer {
     };
     Vector<AttrItem> items;
     src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-      if (this->name_matches_any_pattern(iter.name)) {
+      if (this->should_transfer(iter.name)) {
         items.append({iter.name, iter.domain, iter.data_type});
       }
     });
@@ -247,6 +250,18 @@ class AttributeTransferer {
     }
   }
 
+  bool should_transfer(const StringRef name) const
+  {
+    if (ELEM(name, ".corner_vert", ".corner_edge", ".edge_verts")) {
+      return false;
+    }
+    const bool matches = this->name_matches_any_pattern(name);
+    if (ignore_names_) {
+      return !matches;
+    }
+    return matches;
+  }
+
   bool name_matches_any_pattern(const StringRef name) const
   {
     if (attribute_patterns_.contains_as(name)) {
@@ -271,6 +286,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const ListPtr attribute_patterns_list = params.extract_input<ListPtr>("Names");
   const Field<int> target_id = params.extract_input<Field<int>>("Target ID");
   const Field<int> source_id = params.extract_input<Field<int>>("Source ID");
+  const bool ignore_names = params.extract_input<bool>("Ignore Names");
 
   VectorSet<std::string> attribute_patterns;
   if (attribute_patterns_list) {
@@ -284,7 +300,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   bool success = false;
   if (!attribute_patterns.is_empty()) {
     AttributeTransferer transferer(
-        target_geo, source_geo, attribute_patterns, target_id, source_id);
+        target_geo, source_geo, attribute_patterns, target_id, source_id, ignore_names);
     success = transferer.do_transfer();
   }
   params.set_output("Target", std::move(target_geo));
