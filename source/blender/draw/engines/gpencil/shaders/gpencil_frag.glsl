@@ -125,7 +125,7 @@ float4 from_cam(float4 a)
   return a;
 }
 
-float i_to_t(float i, float4 p1, float4 p2)
+float point_i_to_local_t(float i, float4 p1, float4 p2)
 {
   float i_start = gp_interp_flat.point_length.x;
   float i_end = gp_interp_flat.point_length.y;
@@ -165,7 +165,7 @@ float i_to_t(float i, float4 p1, float4 p2)
   }
 }
 
-float t_to_i(float t, float4 p1, float4 p2)
+float local_t_to_point_i(float t, float4 p1, float4 p2)
 {
   float i_start = gp_interp_flat.point_length.x;
   float i_end = gp_interp_flat.point_length.y;
@@ -219,6 +219,10 @@ float screen_t_to_local_t(float screen_t, float z1, float z2)
   return local_t;
 }
 
+/**
+ * Calculate the `t` values for the two circles on a uneven capsule that intersection the point
+ * `p0`.
+ */
 float2 uneven_capsule_intersection(float2 p0, float2 p1, float2 p2, float r1, float r2)
 {
   float l = distance(p1, p2);
@@ -256,12 +260,12 @@ float2 uneven_capsule_intersection(float2 p0, float2 p1, float2 p2, float r1, fl
 
 int min_bound(float4 p1, float4 p2)
 {
-  return int(ceil(t_to_i(0.0, p1, p2)));
+  return int(ceil(local_t_to_point_i(0.0, p1, p2)));
 }
 
 int max_bound(float4 p1, float4 p2)
 {
-  return int(ceil(t_to_i(1.0, p1, p2)));
+  return int(ceil(local_t_to_point_i(1.0, p1, p2)));
 }
 
 int2 get_bounds(float2 p0, float4 p1, float4 p2)
@@ -274,9 +278,6 @@ int2 get_bounds(float2 p0, float4 p1, float4 p2)
   int min_lower = min_bound(p1, p2);
   int max_upper = max_bound(p1, p2);
 
-  int lower = 0;
-  int upper = 1000000000;
-
   if (!(p1.z > 0 && p2.z > 0)) {
     return int2(min_lower, max_upper);
   }
@@ -284,8 +285,8 @@ int2 get_bounds(float2 p0, float4 p1, float4 p2)
   float r1 = p1.w;
   float r2 = p2.w;
 
+  /* Scale each circle up by the diagonal of the square. */
   bool is_squares = !flag_test(gp_interp_flat.mat_flag, GP_STROKE_DOTS);
-
   if (is_squares) {
     r1 *= M_SQRT2;
     r2 *= M_SQRT2;
@@ -304,8 +305,8 @@ int2 get_bounds(float2 p0, float4 p1, float4 p2)
   float t_min = screen_t_to_local_t(saturate(ts.x), p1.z, p2.z);
   float t_max = screen_t_to_local_t(saturate(ts.y), p1.z, p2.z);
 
-  lower = int(floor(t_to_i(t_min, p1, p2)));
-  upper = int(ceil(t_to_i(t_max, p1, p2))) + 1;
+  int lower = int(floor(local_t_to_point_i(t_min, p1, p2)));
+  int upper = int(ceil(local_t_to_point_i(t_max, p1, p2))) + 1;
 
   lower = max(min_lower, lower);
   upper = min(max_upper, upper);
@@ -371,7 +372,7 @@ void main()
         frag_color = float4(0.0f);
         /* Loop through backwards so we can break early. */
         for (int i = upper - 1; i >= lower; i--) {
-          float t = i_to_t(i, p1, p2);
+          float t = point_i_to_local_t(i, p1, p2);
 
           float4 pos = to_cam(P1 + (P2 - P1) * t);
 
