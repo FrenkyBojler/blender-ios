@@ -60,13 +60,13 @@ float4 get_color(float2 uv)
   }
   else if (flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_USE)) {
     bool use_clip = flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_CLIP);
-    float2 uvs = (use_clip) ? clamp(uv, 0.0, 1.0) : uv;
+    float2 uvs = (use_clip) ? clamp(uv, 0.0f, 1.0f) : uv;
     bool premul = flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_PREMUL);
     col = texture_read_as_linearrgb(gp_fill_tx, premul, uvs);
   }
   else if (flag_test(gp_interp_flat.mat_flag, GP_FILL_GRADIENT_USE)) {
     bool radial = flag_test(gp_interp_flat.mat_flag, GP_FILL_GRADIENT_RADIAL);
-    float fac = clamp(radial ? length(uv * 2.0 - 1.0) : uv.x, 0.0, 1.0);
+    float fac = clamp(radial ? length(uv * 2.0f - 1.0f) : uv.x, 0.0f, 1.0f);
     uint matid = gp_interp_flat.mat_flag >> GPENCIl_MATID_SHIFT;
     col = mix(gp_materials[matid].fill_color, gp_materials[matid].fill_mix_color, fac);
   }
@@ -83,7 +83,7 @@ float4 get_color(float2 uv)
 
   if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT))  // dot and squares
   {
-    uv = uv * 2.0 - 1.0;
+    uv = uv * 2.0f - 1.0f;
     if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_DOTS)) {
       col *= gpencil_stroke_hardess_mask(length(uv), gp_interp_noperspective.hardness);
     }
@@ -140,20 +140,21 @@ float point_i_to_local_t(float i, float4 p1, float4 p2)
     float r1 = P1.w;
     float r2 = P2.w;
     float a = r2 - r1;
-    if (abs(a) < 0.001) {
+    if (abs(a) < 0.001f) {
       return (i / point_density - i_start) / i_delta;
     }
 
     float l = length(P1.xyz - P2.xyz);
     if (!drw_view_is_perspective()) {
       float b = 2.0f * log(a / r1 + 1.0f) / i_delta;
-      l = a * (exp(b) + 1) / (exp(b) - 1);
+      float exp_b = exp(b);
+      l = a * (exp_b + 1.0f) / (exp_b - 1.0f);
     }
 
     float E = (l + a) / (l - a);
-    float E_i = pow(E, (i / point_density - i_start) / 2.0);
+    float E_i = pow(E, (i / point_density - i_start) / 2.0f);
 
-    return r1 * (E_i - 1.0) / a;
+    return r1 * (E_i - 1.0f) / a;
   }
   else if (placement_mode == GP_DOTS_PLACEMENT_MODE_DENSITY ||
            placement_mode == GP_DOTS_PLACEMENT_MODE_SUBDIV)
@@ -161,7 +162,7 @@ float point_i_to_local_t(float i, float4 p1, float4 p2)
     return (i / point_density - i_start) / i_delta;
   }
   else { /* GP_DOTS_PLACEMENT_MODE_SINGLE */
-    return 0.0;
+    return 0.0f;
   }
 }
 
@@ -180,20 +181,21 @@ float local_t_to_point_i(float t, float4 p1, float4 p2)
     float r1 = P1.w;
     float r2 = P2.w;
     float a = r2 - r1;
-    if (abs(a) < 0.001) {
+    if (abs(a) < 0.001f) {
       return (t * i_delta + i_start) * point_density;
     }
 
     float l = length(P1.xyz - P2.xyz);
     if (!drw_view_is_perspective()) {
       float b = 2.0f * log(a / r1 + 1.0f) / i_delta;
-      l = a * (exp(b) + 1) / (exp(b) - 1);
+      float exp_b = exp(b);
+      l = a * (exp_b + 1.0f) / (exp_b - 1.0f);
     }
 
     float E = (l + a) / (l - a);
-    float E_i = t * a / r1 + 1.0;
+    float E_i = t * a / r1 + 1.0f;
 
-    return (2.0 * log(E_i) / log(E) + i_start) * point_density;
+    return (2.0f * log(E_i) / log(E) + i_start) * point_density;
   }
   else if (placement_mode == GP_DOTS_PLACEMENT_MODE_DENSITY ||
            placement_mode == GP_DOTS_PLACEMENT_MODE_SUBDIV)
@@ -201,7 +203,7 @@ float local_t_to_point_i(float t, float4 p1, float4 p2)
     return (t * i_delta + i_start) * point_density;
   }
   else { /* GP_DOTS_PLACEMENT_MODE_SINGLE */
-    return 0.0;
+    return 0.0f;
   }
 }
 
@@ -211,12 +213,9 @@ float screen_t_to_local_t(float screen_t, float z1, float z2)
     return screen_t;
   }
 
-  float f = (1.0 - screen_t);
-
-  float k = z2 / z1 - 1.0;
-  float local_t = screen_t / (k * f + 1.0);
-
-  return local_t;
+  float f = (1.0f - screen_t);
+  float k = z2 / z1 - 1.0f;
+  return screen_t / (k * f + 1.0f);
 }
 
 /**
@@ -233,25 +232,25 @@ float2 uneven_capsule_intersection(float2 p0, float2 p1, float2 p2, float r1, fl
   float Y = distance(p_t, p0);
 
   float a = l * l - (r2 - r1) * (r2 - r1);
-  float b = -2.0 * (r1 * (r2 - r1) + l * X);
+  float b = -2.0f * (r1 * (r2 - r1) + l * X);
   float c = Y * Y + X * X - r1 * r1;
 
-  float discriminant = b * b - 4.0 * a * c;
-  if (discriminant < 0.0) {
-    return float2(-1.0, -1.0);
+  float discriminant = b * b - 4.0f * a * c;
+  if (discriminant < 0.0f) {
+    return float2(-1.0f, -1.0f);
   }
 
   /* The quadratic equation. */
-  float2 t = (float2(-1.0, 1.0) * sqrt(discriminant) - b) / (2.0 * a);
+  float2 t = (float2(-1.0f, 1.0f) * sqrt(discriminant) - b) / (2.0f * a);
 
   if (r1 < r2) {
     if (l - r2 < -r1) {
-      return float2(t.x, 1.0);
+      return float2(t.x, 1.0f);
     }
   }
   else {
     if (l + r2 < r1) {
-      return float2(0.0, t.y);
+      return float2(0.0f, t.y);
     }
   }
 
@@ -265,10 +264,10 @@ int2 get_bounds(float2 p0, float4 p1, float4 p2)
     return int2(0, 1);
   }
 
-  int min_lower = int(ceil(local_t_to_point_i(0.0, p1, p2)));
-  int max_upper = int(ceil(local_t_to_point_i(1.0, p1, p2)));
+  int min_lower = int(ceil(local_t_to_point_i(0.0f, p1, p2)));
+  int max_upper = int(ceil(local_t_to_point_i(1.0f, p1, p2)));
 
-  if (!(p1.z > 0 && p2.z > 0)) {
+  if (!(p1.z > 0.0f && p2.z > 0.0f)) {
     return int2(min_lower, max_upper);
   }
 
@@ -284,11 +283,11 @@ int2 get_bounds(float2 p0, float4 p1, float4 p2)
 
   float2 ts = uneven_capsule_intersection(p0, p1.xy, p2.xy, r1, r2);
 
-  if (ts.x == -1 && ts.y == -1) {
+  if (ts.x == -1.0f && ts.y == -1.0f) {
     return int2(0, 0);
   }
 
-  if (ts.y < 0.0 || ts.x > 1.0) {
+  if (ts.y < 0.0f || ts.x > 1.0f) {
     return int2(0, 0);
   }
 
@@ -308,11 +307,11 @@ float3 ndc_to_view(float4 ndc)
 {
   if (drw_view_is_perspective()) {
     float3 view = (drw_view().wininv * ndc).xyz;
-    view.z *= -1.0;
+    view.z *= -1.0f;
     return view;
   }
   float aspect = viewport_size.x / viewport_size.y;
-  return float3(ndc.xy / float2(1.0, aspect), 1.0);
+  return float3(ndc.xy / float2(1.0f, aspect), 1.0f);
 }
 
 void main()
@@ -337,11 +336,11 @@ void main()
         float3 v1 = ndc_to_view(ndc1);
         float3 v2 = ndc_to_view(ndc2);
 
-        float3 view_dir = ndc_to_view(float4(gl_FragCoord.xy / viewport_size.xy, 0.0, 1.0) * 2.0 -
-                                      1.0);
+        float3 view_dir = ndc_to_view(
+            float4(gl_FragCoord.xy / viewport_size.xy, 0.0f, 1.0f) * 2.0f - 1.0f);
         float2 view_coord = view_dir.xy / view_dir.z;
 
-        float scale_fac = 2.0 / viewport_size.x;
+        float scale_fac = 2.0f / viewport_size.x;
         if (drw_view_is_perspective()) {
           scale_fac *= drw_view().wininv[0][0] / view_dir.z;
         }
@@ -366,10 +365,10 @@ void main()
           float2 uv = (view_coord - pos.xy) / pos.w;
           uv = rotate_uv(uv, gp_interp_flat.aspect.zw);
 
-          frag_color = alpha_over(get_color(uv * 0.5 + 0.5), frag_color);
+          frag_color = alpha_over(get_color(uv * 0.5f + 0.5f), frag_color);
 
           /* Break early if full opacity. */
-          if (frag_color.w > 0.999) {
+          if (frag_color.w > 0.999f) {
             break;
           }
         }

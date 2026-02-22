@@ -197,12 +197,12 @@ PointData decode_ma(int4 ma)
 
 float4 ndc_and_radius_to_screen_space(float4 ndc, float radius, float2 viewport_res)
 {
-  return float4(((ndc.xy / ndc.w) * 0.5 + 0.5) * viewport_res, ndc.w, radius / ndc.w);
+  return float4(((ndc.xy / ndc.w) * 0.5f + 0.5f) * viewport_res, ndc.w, radius / ndc.w);
 }
 
 float4 screen_space_to_ndc(float4 ss, float2 viewport_res)
 {
-  return float4((ss.xy / viewport_res - 0.5) * 2.0 * ss.z, 0, ss.z);
+  return float4((ss.xy / viewport_res - 0.5f) * 2.0f * ss.z, 0.0f, ss.z);
 }
 
 float screen_space_to_radius(float4 ss)
@@ -272,7 +272,7 @@ bool gpencil_is_stroke_vertex()
 float4 discard_ndc()
 {
   /* We set the vertex at the camera origin to generate 0 fragments. */
-  return float4(0.0, 0.0, -3e36, 0.0);
+  return float4(0.0f, 0.0f, -3e36f, 0.0f);
 }
 
 /**
@@ -301,33 +301,33 @@ float4 dot_segment(float2 xy, float4 ss1, float4 ss2, bool is_squares, float4 vi
   float max_r = max(r1, r2);
   float a = r2 - r1;
   float cos_theta = -a / l;
-  float sin_theta = sqrt(1 - cos_theta * cos_theta);
-  float tan_half_theta = (1.0 - cos_theta) / sin_theta;
+  float sin_theta = sqrt(1.0f - cos_theta * cos_theta);
+  float tan_half_theta = (1.0f - cos_theta) / sin_theta;
 
   /* Discard segments that are behind the camera. */
-  if (ss1.z < 0 || ss2.z < 0) {
+  if (ss1.z < 0.0f || ss2.z < 0.0f) {
     return discard_ndc();
   }
 
-  float2 local = float2(0.0, 0.0);
+  float2 local = float2(0.0f, 0.0f);
 
   /* Check if one circle is inside the other. */
-  if (abs(cos_theta) > 1.0) {
+  if (abs(cos_theta) > 1.0f) {
     if (r1 > r2) {
       local = xy * r1;
     }
     else {
-      local = xy * r2 + float2(l, 0.0);
+      local = xy * r2 + float2(l, 0.0f);
     }
   }
   else {
-    /* Calculate the area divided by the width */
-    float area_trapezoid = 0.5 * (r1 / tan_half_theta + r2 * tan_half_theta);
+    /* Calculate the area of both shapes divided by the width */
+    float area_trapezoid = 0.5f * (r1 / tan_half_theta + r2 * tan_half_theta);
     float area_rectangle = max_r;
 
     /* Determent if it is better to use a trapezoid or a rectangle. */
     if (area_trapezoid < area_rectangle) {
-      if (x == -1.0) {
+      if (x == -1.0f) {
         local.x += -r1;
         local.y += y * r1 / tan_half_theta;
       }
@@ -337,7 +337,7 @@ float4 dot_segment(float2 xy, float4 ss1, float4 ss2, bool is_squares, float4 vi
       }
     }
     else {
-      if (x == -1.0) {
+      if (x == -1.0f) {
         local.x -= r1;
         local.y += y * max_r;
       }
@@ -351,7 +351,7 @@ float4 dot_segment(float2 xy, float4 ss1, float4 ss2, bool is_squares, float4 vi
   float2 ssp = ss1.xy + local.x * local_x + local.y * local_y;
 
   float z_depth = mix(ss1.z, ss2.z, 0.5f);
-  return screen_space_to_ndc(float4(ssp, z_depth, 0.0), viewport_res.xy);
+  return screen_space_to_ndc(float4(ssp, z_depth, 0.0f), viewport_res.xy);
 }
 
 float2 get_rot(float4 viewport_res,
@@ -523,7 +523,7 @@ float4 gpencil_vertex(float4 viewport_res,
     float x = float(gl_VertexID & 1) * 2.0f - 1.0f; /* [-1..1] */
     float y = float(gl_VertexID & 2) - 1.0f;        /* [-1..1] */
 
-    bool use_curr = (is_dot && !is_multi_dot) || (x == -1.0);
+    bool use_curr = (is_dot && !is_multi_dot) || (x == -1.0f);
 
     float3 wpos0 = transform_point(drw_modelmat(), pos.xyz);
     float3 wpos1 = transform_point(drw_modelmat(), pos1.xyz);
@@ -601,7 +601,7 @@ float4 gpencil_vertex(float4 viewport_res,
     }
 
     /* z is calculated later. */
-    out_point_length = float3(uv1.z, uv2.z, 1.0);
+    out_point_length = float3(uv1.z, uv2.z, 1.0f);
 
     if (is_dot && is_multi_dot) {
       out_thickness.x = clamped_thickness / out_ndc.w;
@@ -654,7 +654,7 @@ float4 gpencil_vertex(float4 viewport_res,
       out_aspect.xy = 1.0f / out_aspect.xy;
 
       out_ndc.xy += (x * x_axis + y * y_axis) * viewport_res.zw * clamped_thickness;
-      out_sspos_0.xy = ss1.xy + x_axis * 0.5;
+      out_sspos_0.xy = ss1.xy + x_axis * 0.5f;
 
       out_thickness.x = (is_squares) ? 1e18f : (clamped_thickness / out_ndc.w);
       out_thickness.y = (is_squares) ? 1e18f : (thickness / out_ndc.w);
@@ -662,8 +662,8 @@ float4 gpencil_vertex(float4 viewport_res,
       out_thickness.w = MITER_LIMIT_TYPE_ROUND;
     }
     else {
-      bool is_stroke_start = (ma.x == -1 && x == -1);
-      bool is_stroke_end = (ma3.x == -1 && x == 1);
+      bool is_stroke_start = (ma.x == -1 && x == -1.0f);
+      bool is_stroke_end = (ma3.x == -1 && x == 1.0f);
 
       float miter_limit1 = gpencil_decode_miter_limit(point_data1.packed_data);
       float miter_limit2 = gpencil_decode_miter_limit(point_data2.packed_data);
@@ -737,7 +737,7 @@ float4 gpencil_vertex(float4 viewport_res,
     out_sspos_1 = float4(0.0f);
     out_sspos_2 = float4(0.0f);
     out_sspos_3 = float2(0.0f);
-    out_point_length = float3(0.0);
+    out_point_length = float3(0.0f);
 
     /* Flat normal following camera and object bounds. */
     float3 V = drw_world_incident_vector(drw_modelmat()[3].xyz);
