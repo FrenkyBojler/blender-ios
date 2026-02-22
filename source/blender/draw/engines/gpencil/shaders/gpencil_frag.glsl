@@ -96,15 +96,6 @@ float4 get_color(float2 uv)
   return col;
 }
 
-float4 get_dot_color(float2 uv, int i)
-{
-  float4 col = get_color(uv);
-  float rand = mod(sin(mod(i * 437.532124, 1.0) * 75.4368634), 1.0);
-  col.rgb *= rand * 0.8 + 0.2;
-
-  return col;
-}
-
 float2 rot_uv(float2 uv, float2 x_axis)
 {
   /* Rotate 90 degrees counter-clockwise. */
@@ -385,7 +376,7 @@ void main()
           float2 uv = (view_coord - pos.xy) / pos.w;
           uv = rot_uv(uv, gp_interp_flat.aspect.zw);
 
-          frag_color = alpha_over(get_dot_color(uv * 0.5 + 0.5, i), frag_color);
+          frag_color = alpha_over(get_color(uv * 0.5 + 0.5), frag_color);
 
           /* Break early if full opacity. */
           if (frag_color.w > 0.999) {
@@ -395,8 +386,6 @@ void main()
       }
       else {
         float2 uv = (gl_FragCoord.xy - gp_interp_flat.sspos_1.xy) / gp_interp_flat.sspos_1.w;
-
-        int i = int(gp_interp_flat.point_length.x);
 
         /* TEMP CODE */
         if (gl_FragCoord.x / viewport_size.x < 0.5) {
@@ -408,7 +397,7 @@ void main()
           uv = gp_interp.uv;
         }
 
-        frag_color = get_dot_color(uv, i);
+        frag_color = get_color(uv);
       }
     }
     else {  // line
