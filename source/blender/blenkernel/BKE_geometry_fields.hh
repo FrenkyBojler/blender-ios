@@ -441,6 +441,7 @@ class SampleIndexFunction : public mf::MultiFunction {
   GeometrySet src_geometry_;
   fn::GField src_field_;
   AttrDomain domain_;
+  bool clamp_;
 
   mf::Signature signature_;
 
