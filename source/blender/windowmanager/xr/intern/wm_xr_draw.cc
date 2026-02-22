@@ -386,8 +386,9 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
   float viewfinder_winmat[4][4];
   copy_m4_m4(viewfinder_winmat, cam_render_params.winmat);
 
-  const int viewfinder_display_flag = V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS |
-                                      V3D_OFSDRAW_SHOW_ANNOTATION | V3D_OFSDRAW_SHOW_GRIDFLOOR;
+  /* Set View3D display flags, always hide selection outlines in the viewfinder. */
+  int viewfinder_draw_flags = V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS | settings->draw_flags;
+  viewfinder_draw_flags &= ~V3D_OFSDRAW_SHOW_SELECTION;
 
   /* Always enable DoF in the View3D settings used by in the viewfinder rendered view
    * for Workbench. */
@@ -408,7 +409,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
                                   settings->object_type_exclude_select,
                                   draw_view->width,
                                   draw_view->height,
-                                  viewfinder_display_flag,
+                                  viewfinder_draw_flags,
                                   viewfinder_render_viewmat,
                                   viewfinder_winmat,
                                   settings->clip_start,
