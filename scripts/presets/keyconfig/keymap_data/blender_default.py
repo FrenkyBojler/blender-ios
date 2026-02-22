@@ -6074,6 +6074,27 @@ def km_eyedropper_modal_map(_params):
     return keymap
 
 
+def km_cryptomatte_pick_modal_map(_params):
+    items = []
+    keymap = (
+        "Cryptomatte Pick Modal Map",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
+        {"items": items},
+    )
+
+    items.extend([
+        ("CANCEL", {"type": 'ESC', "value": 'PRESS', "any": True}, None),
+        ("CANCEL", {"type": 'RIGHTMOUSE', "value": 'PRESS', "any": True}, None),
+        ("CONFIRM", {"type": 'RET', "value": 'RELEASE', "any": True}, None),
+        ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'RELEASE', "any": True}, None),
+        ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'RELEASE', "any": True}, None),
+        ("BEGIN", {"type": 'LEFTMOUSE', "value": 'PRESS', "any": True}, None),
+        ("RESET", {"type": 'SPACE', "value": 'RELEASE', "any": True}, None),
+    ])
+
+    return keymap
+
+
 def km_eyedropper_colorramp_pointsampling_map(_params):
     items = []
     keymap = (
@@ -8971,6 +8992,7 @@ def generate_keymaps(params=None):
 
         # Modal maps.
         km_eyedropper_modal_map(params),
+        km_cryptomatte_pick_modal_map(params),
         km_eyedropper_colorramp_pointsampling_map(params),
         km_transform_modal_map(params),
         km_view3d_interactive_add_tool_modal(params),

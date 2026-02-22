@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -60,12 +60,11 @@
 
 namespace blender::ed::space_node {
 
-/* Must match Eyedropper Modal Map values from interface_eyedropper.cc. */
 enum {
-  EYE_MODAL_CANCEL = 1,
-  EYE_MODAL_SAMPLE_CONFIRM,
-  EYE_MODAL_SAMPLE_BEGIN,
-  EYE_MODAL_SAMPLE_RESET,
+  CRYPTO_PICK_MODAL_CANCEL = 1,
+  CRYPTO_PICK_MODAL_CONFIRM,
+  CRYPTO_PICK_MODAL_BEGIN,
+  CRYPTO_PICK_MODAL_RESET,
 };
 
 struct CryptomattePicker {
@@ -502,24 +501,24 @@ static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, cons
 
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
-      case EYE_MODAL_CANCEL:
+      case CRYPTO_PICK_MODAL_CANCEL:
         cryptomatte_pick_exit(C, op);
         return OPERATOR_CANCELLED;
 
-      case EYE_MODAL_SAMPLE_BEGIN:
+      case CRYPTO_PICK_MODAL_BEGIN:
         picker->accum_start = true;
         cryptomatte_pick_sample_and_apply(C, picker, event->xy);
         cryptomatte_pick_sample_text_update(C, picker, event->xy);
         break;
 
-      case EYE_MODAL_SAMPLE_CONFIRM:
+      case CRYPTO_PICK_MODAL_CONFIRM:
         if (picker->accum_tot == 0) {
           cryptomatte_pick_sample_and_apply(C, picker, event->xy);
         }
         cryptomatte_pick_exit(C, op);
         return OPERATOR_FINISHED;
 
-      case EYE_MODAL_SAMPLE_RESET:
+      case CRYPTO_PICK_MODAL_RESET:
         break;
     }
   }
@@ -536,6 +535,36 @@ static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, cons
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Modal Keymap
+ * \{ */
+
+wmKeyMap *cryptomatte_pick_modal_keymap(wmKeyConfig *keyconf)
+{
+  static const EnumPropertyItem modal_items[] = {
+      {CRYPTO_PICK_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+      {CRYPTO_PICK_MODAL_CONFIRM, "CONFIRM", 0, "Confirm Picking", ""},
+      {CRYPTO_PICK_MODAL_BEGIN, "BEGIN", 0, "Start Picking", ""},
+      {CRYPTO_PICK_MODAL_RESET, "RESET", 0, "Reset Picking", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Cryptomatte Pick Modal Map");
+
+  if (keymap && keymap->modal_items) {
+    return nullptr;
+  }
+
+  keymap = WM_modalkeymap_ensure(keyconf, "Cryptomatte Pick Modal Map", modal_items);
+
+  WM_modalkeymap_assign(keymap, "NODE_OT_cryptomatte_entry_add");
+  WM_modalkeymap_assign(keymap, "NODE_OT_cryptomatte_entry_remove");
+
+  return keymap;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Operator Registration
  * \{ */
 
@@ -546,7 +575,7 @@ static void cryptomatte_entry_op_define(wmOperatorType *ot, bool is_add)
   ot->cancel = cryptomatte_pick_cancel;
   ot->poll = cryptomatte_pick_poll;
 
-  ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_INTERNAL;
+  ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
 
   PropertyRNA *prop = RNA_def_boolean(
       ot->srna, "is_add", is_add, "Is Add", "Whether to add or remove the entry");
@@ -557,7 +586,7 @@ void NODE_OT_cryptomatte_entry_add(wmOperatorType *ot)
 {
   ot->name = "Add Cryptomatte Entry";
   ot->idname = "NODE_OT_cryptomatte_entry_add";
-  ot->description = "Add an entry to the matte by picking from the compositor result";
+  ot->description = "Add object or material to matte, by picking a color from the Pick output";
 
   cryptomatte_entry_op_define(ot, true);
 }
@@ -566,7 +595,7 @@ void NODE_OT_cryptomatte_entry_remove(wmOperatorType *ot)
 {
   ot->name = "Remove Cryptomatte Entry";
   ot->idname = "NODE_OT_cryptomatte_entry_remove";
-  ot->description = "Remove an entry from the matte by picking from the compositor result";
+  ot->description = "Remove object or material from matte, by picking a color from the Pick output";
 
   cryptomatte_entry_op_define(ot, false);
 }

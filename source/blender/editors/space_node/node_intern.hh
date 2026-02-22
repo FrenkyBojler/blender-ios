@@ -548,6 +548,7 @@ void NODE_OT_cryptomatte_layer_add(wmOperatorType *ot);
 void NODE_OT_cryptomatte_layer_remove(wmOperatorType *ot);
 
 /* `node_cryptomatte.cc` */
+wmKeyMap *cryptomatte_pick_modal_keymap(wmKeyConfig *keyconf);
 void NODE_OT_cryptomatte_entry_add(wmOperatorType *ot);
 void NODE_OT_cryptomatte_entry_remove(wmOperatorType *ot);
 
