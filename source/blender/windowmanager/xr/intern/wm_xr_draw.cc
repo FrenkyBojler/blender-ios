@@ -231,7 +231,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
 {
   wmXrDrawData *draw_data = static_cast<wmXrDrawData *>(customdata);
   wmXrData *xr_data = draw_data->xr_data;
-  wmXrSessionState *session_state = &xr_data->runtime->session_state;
+  wmXrSessionState *state = &xr_data->runtime->session_state;
   XrSessionSettings *settings = &xr_data->session_settings;
 
   /* WIP Hack: Draw the viewfinder view here and pass it to wm_xr_controller_model_draw via a
@@ -251,67 +251,65 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
 
   float viewfinder_render_viewmat[4][4] = {};
 
-  Camera *cam_render_data = session_state->viewfinder.runtime_cam_data_id;  /* Allocated ID. */
+  Camera *cam_render_data = state->viewfinder.runtime_cam_data_id; /* Allocated ID. */
   CameraParams cam_render_params;
   BKE_camera_params_init(&cam_render_params);
 
-  switch (session_state->viewfinder.active_mode) {
+  switch (state->viewfinder.active_mode) {
     case XR_VIEWFINDER_MODE_LIVE: {
-      const RenderData *scene_render_settings = &draw_data->scene->r; // TODO: Simplify once context is passed everywhere
+      // TODO: Simplify viewfinder_height computation once context is passed everywhere
+      const RenderData *scene_render_settings = &draw_data->scene->r;
       const rctf viewfinder_rect = wm_xr_get_viewfinder_view_rect(settings, scene_render_settings);
       const float viewfinder_height = BLI_rctf_size_y(&viewfinder_rect);
 
       float raw_capture_mat[4][4];
-      if (!wm_xr_get_viewfinder_capture_mat(settings, session_state, viewfinder_height, raw_capture_mat)) {
+      if (!wm_xr_get_viewfinder_capture_mat(settings, state, viewfinder_height, raw_capture_mat)) {
         break;
       }
 
       float raw_capture_position[3];
       float raw_capture_orientation_quat[4];
-      mat4_to_loc_quat(
-          raw_capture_position, raw_capture_orientation_quat, raw_capture_mat);
+      mat4_to_loc_quat(raw_capture_position, raw_capture_orientation_quat, raw_capture_mat);
 
-      if (session_state->viewfinder.runtime_smoothing_delta_t > 0) {
+      if (state->viewfinder.runtime_smoothing_delta_t > 0) {
         /* Apply exponential movement smoothing. */
         constexpr float movement_smoothing_speed = 25.0f;
 
         const double current_time = BLI_time_now_seconds();
-        const float delta_t = float(current_time -
-                                    session_state->viewfinder.runtime_smoothing_delta_t);
+        const float delta_t = float(current_time - state->viewfinder.runtime_smoothing_delta_t);
         const float clamped_delta = min_ff(delta_t, 0.1f);
         const float factor = 1.0f - exp(-clamped_delta * movement_smoothing_speed);
 
-        interp_v3_v3v3(session_state->viewfinder.capture_position,
-                       session_state->viewfinder.capture_position,
+        interp_v3_v3v3(state->viewfinder.capture_position,
+                       state->viewfinder.capture_position,
                        raw_capture_position,
                        factor);
-        interp_qt_qtqt(session_state->viewfinder.capture_orientation_quat,
-                       session_state->viewfinder.capture_orientation_quat,
+        interp_qt_qtqt(state->viewfinder.capture_orientation_quat,
+                       state->viewfinder.capture_orientation_quat,
                        raw_capture_orientation_quat,
                        factor);
-        session_state->viewfinder.runtime_smoothing_delta_t = current_time;
+        state->viewfinder.runtime_smoothing_delta_t = current_time;
       }
       else {
         /* Initialization. */
-        copy_v3_v3(session_state->viewfinder.capture_position, raw_capture_position);
-        copy_qt_qt(session_state->viewfinder.capture_orientation_quat,
-                   raw_capture_orientation_quat);
-        session_state->viewfinder.runtime_smoothing_delta_t = BLI_time_now_seconds();
+        copy_v3_v3(state->viewfinder.capture_position, raw_capture_position);
+        copy_qt_qt(state->viewfinder.capture_orientation_quat, raw_capture_orientation_quat);
+        state->viewfinder.runtime_smoothing_delta_t = BLI_time_now_seconds();
       }
 
       /* Build final smoothed capture matrix for rendering. */
       float viewfinder_capture_mat[4][4];
-      quat_to_mat4(viewfinder_capture_mat, session_state->viewfinder.capture_orientation_quat);
-      copy_v3_v3(viewfinder_capture_mat[3], session_state->viewfinder.capture_position);
+      quat_to_mat4(viewfinder_capture_mat, state->viewfinder.capture_orientation_quat);
+      copy_v3_v3(viewfinder_capture_mat[3], state->viewfinder.capture_position);
 
       invert_m4_m4(viewfinder_render_viewmat, viewfinder_capture_mat);
 
       /* Parse live capture parameter for rendering. */
-      cam_render_params.lens = session_state->viewfinder.capture_lens;
+      cam_render_params.lens = state->viewfinder.capture_lens;
       SET_FLAG_FROM_TEST(
-          cam_render_data->dof.flag, session_state->viewfinder.capture_use_dof, CAM_DOF_ENABLED);
-      cam_render_data->dof.aperture_fstop = session_state->viewfinder.capture_aperture_fstop;
-      cam_render_data->dof.focus_distance = session_state->viewfinder.capture_focus_distance;
+          cam_render_data->dof.flag, state->viewfinder.capture_use_dof, CAM_DOF_ENABLED);
+      cam_render_data->dof.aperture_fstop = state->viewfinder.capture_aperture_fstop;
+      cam_render_data->dof.focus_distance = state->viewfinder.capture_focus_distance;
 
       break;
     }
@@ -365,9 +363,9 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
 
       SET_FLAG_FROM_TEST(cam_render_data->dof.flag, landmark_use_dof, CAM_DOF_ENABLED);
       cam_render_data->dof.focus_distance = RNA_property_float_get(&current_landmark,
-                                                                  lm_vf_dof_dist_prop);
+                                                                   lm_vf_dof_dist_prop);
       cam_render_data->dof.aperture_fstop = RNA_property_float_get(&current_landmark,
-                                                                  lm_vf_dof_fstop_prop);
+                                                                   lm_vf_dof_fstop_prop);
       break;
     }
     default:
