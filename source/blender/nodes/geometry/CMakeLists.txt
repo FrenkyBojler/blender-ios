@@ -233,6 +233,7 @@ set(SRC
   nodes/node_geo_separate_geometry.cc
   nodes/node_geo_set_curve_handles.cc
   nodes/node_geo_set_curve_normal.cc
+  nodes/node_geo_set_curve_order.cc
   nodes/node_geo_set_curve_radius.cc
   nodes/node_geo_set_curve_tilt.cc
   nodes/node_geo_set_geometry_bundle.cc
@@ -252,7 +253,6 @@ set(SRC
   nodes/node_geo_set_shade_smooth.cc
   nodes/node_geo_set_spline_cyclic.cc
   nodes/node_geo_set_spline_resolution.cc
-  nodes/node_geo_set_spline_order.cc
   nodes/node_geo_simulation.cc
   nodes/node_geo_sort_elements.cc
   nodes/node_geo_split_to_instances.cc
