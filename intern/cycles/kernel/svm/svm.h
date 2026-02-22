@@ -81,6 +81,7 @@
 #ifdef __SHADER_RAYTRACE__
 #  include "kernel/svm/ao.h"
 #  include "kernel/svm/bevel.h"
+#  include "kernel/svm/raycast.h"
 #endif
 
 CCL_NAMESPACE_BEGIN
@@ -116,13 +117,13 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       SVM_CASE(NODE_SHADER_JUMP)
       {
         if (type == SHADER_TYPE_SURFACE) {
-          offset = node.y;
+          offset = int(node.y);
         }
         else if (type == SHADER_TYPE_VOLUME) {
-          offset = node.z;
+          offset = int(node.z);
         }
         else if (type == SHADER_TYPE_DISPLACEMENT) {
-          offset = node.w;
+          offset = int(node.w);
         }
         else {
           return;
@@ -454,6 +455,9 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       break;
       SVM_CASE(NODE_AMBIENT_OCCLUSION)
       svm_node_ao<node_feature_mask>(kg, state, sd, stack, node);
+      break;
+      SVM_CASE(NODE_RAYCAST)
+      svm_node_raycast<node_feature_mask>(kg, state, sd, stack, node);
       break;
 #endif
       SVM_CASE(NODE_AOV_START)

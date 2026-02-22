@@ -47,7 +47,9 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_simulation_cc {
+namespace blender {
+
+namespace nodes::node_geo_simulation_cc {
 
 static bke::bake::BakeSocketConfig make_bake_socket_config(
     const Span<NodeSimulationItem> node_simulation_items)
@@ -171,10 +173,11 @@ static void draw_simulation_state(const bContext *C,
     socket_items::ui::draw_active_item_props<SimulationItemsAccessor>(
         ntree, output_node, [&](PointerRNA *item_ptr) {
           NodeSimulationItem &active_item = storage.items[storage.active_index];
+          const auto socket_type = eNodeSocketDatatype(active_item.socket_type);
           panel->use_property_split_set(true);
           panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          if (socket_type_supports_fields(eNodeSocketDatatype(active_item.socket_type))) {
+          if (socket_type_supports_attributes(socket_type)) {
             panel->prop(item_ptr, "attribute_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           }
         });
@@ -408,9 +411,9 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string identifier = SimulationItemsAccessor::socket_identifier_for_item(item);
     auto &input_decl = b.add_input(socket_type, name, identifier)
                            .socket_name_ptr(
-                               &node_tree->id, SimulationItemsAccessor::item_srna, &item, "name");
+                               &node_tree->id, *SimulationItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-    if (socket_type_supports_fields(socket_type)) {
+    if (socket_type_supports_attributes(socket_type)) {
       /* If it's below a geometry input it may be a field evaluated on that geometry. */
       input_decl.supports_field().structure_type(StructureType::Dynamic);
       output_decl.dependent_field({input_decl.index()});
@@ -424,7 +427,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySimulationInput *data = MEM_callocN<NodeGeometrySimulationInput>(__func__);
+  NodeGeometrySimulationInput *data = MEM_new<NodeGeometrySimulationInput>(__func__);
   /* Needs to be initialized for the node to work. */
   data->output_node_id = 0;
   node->storage = data;
@@ -450,7 +453,7 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeSimulationInput", GEO_NODE_SIMULATION_INPUT);
   ntype.ui_name = "Simulation Input";
   ntype.ui_description = "Input data for the simulation zone";
@@ -463,11 +466,11 @@ static void node_register()
   ntype.gather_link_search_ops = nullptr;
   ntype.no_muting = true;
   ntype.draw_buttons_ex = node_layout_ex;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometrySimulationInput",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
-  blender::bke::node_register_type(ntype);
+  bke::node_type_storage(ntype,
+                         "NodeGeometrySimulationInput",
+                         node_free_standard_storage,
+                         node_copy_standard_storage);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
@@ -744,9 +747,9 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string identifier = SimulationItemsAccessor::socket_identifier_for_item(item);
     auto &input_decl = b.add_input(socket_type, name, identifier)
                            .socket_name_ptr(
-                               &tree->id, SimulationItemsAccessor::item_srna, &item, "name");
+                               &tree->id, *SimulationItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-    if (socket_type_supports_fields(socket_type)) {
+    if (socket_type_supports_attributes(socket_type)) {
       /* If it's below a geometry input it may be a field evaluated on that geometry. */
       input_decl.supports_field().structure_type(StructureType::Dynamic);
       output_decl.dependent_field({input_decl.index()});
@@ -760,11 +763,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySimulationOutput *data = MEM_callocN<NodeGeometrySimulationOutput>(__func__);
+  NodeGeometrySimulationOutput *data = MEM_new<NodeGeometrySimulationOutput>(__func__);
 
   data->next_identifier = 0;
 
-  data->items = MEM_calloc_arrayN<NodeSimulationItem>(1, __func__);
+  data->items = MEM_new_array<NodeSimulationItem>(1, __func__);
   data->items[0].name = BLI_strdup(DATA_("Geometry"));
   data->items[0].socket_type = SOCK_GEOMETRY;
   data->items[0].identifier = data->next_identifier++;
@@ -776,13 +779,14 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<SimulationItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_delete(reinterpret_cast<NodeGeometrySimulationOutput *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometrySimulationOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_dupallocN<NodeGeometrySimulationOutput>(__func__, src_storage);
+  auto *dst_storage = MEM_new<NodeGeometrySimulationOutput>(__func__,
+                                                            dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<SimulationItemsAccessor>(*src_node, *dst_node);
@@ -869,7 +873,7 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSimulationOutput", GEO_NODE_SIMULATION_OUTPUT);
   ntype.ui_name = "Simulation Output";
@@ -887,17 +891,17 @@ static void node_register()
   ntype.get_extra_info = node_extra_info;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometrySimulationOutput", node_free_storage, node_copy_storage);
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
 }  // namespace sim_output_node
 
-}  // namespace blender::nodes::node_geo_simulation_cc
+}  // namespace nodes::node_geo_simulation_cc
 
-namespace blender::nodes {
+namespace nodes {
 
 std::unique_ptr<LazyFunction> get_simulation_input_lazy_function(
     const bNodeTree &node_tree,
@@ -952,8 +956,7 @@ void mix_baked_data_item(const eNodeSocketDatatype socket_type,
       void *prev_value = prev.get_single_ptr().get();
       const void *next_value = next_copy.get_single_ptr().get();
 
-      bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
-        using T = decltype(dummy);
+      bke::attribute_math::to_static_type(type, [&]<typename T>() {
         *static_cast<T *>(prev_value) = bke::attribute_math::mix2(
             factor, *static_cast<T *>(prev_value), *static_cast<const T *>(next_value));
       });
@@ -964,7 +967,7 @@ void mix_baked_data_item(const eNodeSocketDatatype socket_type,
   }
 }
 
-StructRNA *SimulationItemsAccessor::item_srna = &RNA_SimulationStateItem;
+StructRNA **SimulationItemsAccessor::item_srna = &RNA_SimulationStateItem;
 
 void SimulationItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -976,14 +979,16 @@ void SimulationItemsAccessor::blend_read_data_item(BlendDataReader *reader, Item
   BLO_read_string(reader, &item.name);
 }
 
-}  // namespace blender::nodes
+}  // namespace nodes
 
-blender::Span<NodeSimulationItem> NodeGeometrySimulationOutput::items_span() const
+Span<NodeSimulationItem> NodeGeometrySimulationOutput::items_span() const
 {
-  return blender::Span<NodeSimulationItem>(items, items_num);
+  return Span<NodeSimulationItem>(items, items_num);
 }
 
-blender::MutableSpan<NodeSimulationItem> NodeGeometrySimulationOutput::items_span()
+MutableSpan<NodeSimulationItem> NodeGeometrySimulationOutput::items_span()
 {
-  return blender::MutableSpan<NodeSimulationItem>(items, items_num);
+  return MutableSpan<NodeSimulationItem>(items, items_num);
 }
+
+}  // namespace blender

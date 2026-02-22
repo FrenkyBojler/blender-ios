@@ -312,6 +312,11 @@ class Instance : public DrawEngine {
     return is_light_bake;
   }
 
+  bool is_xr() const
+  {
+    return draw_ctx && draw_ctx->mode == DRWContext::VIEWPORT_XR;
+  }
+
   bool overlays_enabled() const
   {
     return overlays_enabled_;
@@ -352,7 +357,7 @@ class Instance : public DrawEngine {
     return ob_ref.recalc_flags(depsgraph_last_update_);
   }
 
-  int get_recalc_flags(const ::World &world)
+  int get_recalc_flags(const blender::World &world)
   {
     return world.last_update > depsgraph_last_update_ ? int(ID_RECALC_SHADING) : 0;
   }

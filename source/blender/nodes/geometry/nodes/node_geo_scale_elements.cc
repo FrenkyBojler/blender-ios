@@ -152,8 +152,8 @@ static Array<int> reverse_indices_in_groups(const Span<int> group_indices,
    * atomically by many threads in parallel. `calloc` can be measurably faster than a parallel fill
    * of zero. Alternatively the offsets could be copied and incremented directly, but the cost of
    * the copy is slightly higher than the cost of `calloc`. */
-  int *counts = MEM_calloc_arrayN<int>(offsets.size(), __func__);
-  BLI_SCOPED_DEFER([&]() { MEM_freeN(counts); })
+  int *counts = MEM_new_array_zeroed<int>(offsets.size(), __func__);
+  BLI_SCOPED_DEFER([&]() { MEM_delete(counts); })
   Array<int> results(group_indices.size());
   threading::parallel_for(group_indices.index_range(), 1024, [&](const IndexRange range) {
     for (const int64_t i : range) {
@@ -341,23 +341,27 @@ static int face_to_vert_islands(const Mesh &mesh,
   AtomicDisjointSet disjoint_set(vert_mask.size());
   const GroupedSpan<int> face_verts(mesh.faces(), mesh.corner_verts());
 
-  face_mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int face_i) {
-    const Span<int> verts = face_verts[face_i];
-    const int v1 = verts_pos[verts.first()];
-    for (const int vert_i : verts.drop_front(1)) {
-      const int v2 = verts_pos[vert_i];
-      disjoint_set.join(v1, v2);
-    }
-  });
+  face_mask.foreach_index_optimized<int>(
+      [&](const int face_i) {
+        const Span<int> verts = face_verts[face_i];
+        const int v1 = verts_pos[verts.first()];
+        for (const int vert_i : verts.drop_front(1)) {
+          const int v2 = verts_pos[vert_i];
+          disjoint_set.join(v1, v2);
+        }
+      },
+      exec_mode::grain_size(4096));
 
   disjoint_set.calc_reduced_ids(vert_island_indices);
 
-  face_mask.foreach_index(GrainSize(4096), [&](const int face_i, const int face_pos) {
-    const int face_vert_i = face_verts[face_i].first();
-    const int vert_pos = verts_pos[face_vert_i];
-    const int vert_island = vert_island_indices[vert_pos];
-    face_island_indices[face_pos] = vert_island;
-  });
+  face_mask.foreach_index(
+      [&](const int face_i, const int face_pos) {
+        const int face_vert_i = face_verts[face_i].first();
+        const int vert_pos = verts_pos[face_vert_i];
+        const int vert_island = vert_island_indices[vert_pos];
+        face_island_indices[face_pos] = vert_island;
+      },
+      exec_mode::grain_size(4096));
 
   return disjoint_set.count_sets();
 }
@@ -409,22 +413,26 @@ static int edge_to_vert_islands(const Mesh &mesh,
   AtomicDisjointSet disjoint_set(vert_mask.size());
   const Span<int2> edges = mesh.edges();
 
-  edge_mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int edge_i) {
-    const int2 edge = edges[edge_i];
-    const int v1 = verts_pos[edge[0]];
-    const int v2 = verts_pos[edge[1]];
-    disjoint_set.join(v1, v2);
-  });
+  edge_mask.foreach_index_optimized<int>(
+      [&](const int edge_i) {
+        const int2 edge = edges[edge_i];
+        const int v1 = verts_pos[edge[0]];
+        const int v2 = verts_pos[edge[1]];
+        disjoint_set.join(v1, v2);
+      },
+      exec_mode::grain_size(4096));
 
   disjoint_set.calc_reduced_ids(vert_island_indices);
 
-  edge_mask.foreach_index(GrainSize(4096), [&](const int edge_i, const int edge_pos) {
-    const int2 edge = edges[edge_i];
-    const int edge_vert_i = edge[0];
-    const int vert_pos = verts_pos[edge_vert_i];
-    const int vert_island = vert_island_indices[vert_pos];
-    edge_island_indices[edge_pos] = vert_island;
-  });
+  edge_mask.foreach_index(
+      [&](const int edge_i, const int edge_pos) {
+        const int2 edge = edges[edge_i];
+        const int edge_vert_i = edge[0];
+        const int vert_pos = verts_pos[edge_vert_i];
+        const int vert_island = vert_island_indices[vert_pos];
+        edge_island_indices[edge_pos] = vert_island;
+      },
+      exec_mode::grain_size(4096));
 
   return disjoint_set.count_sets();
 }
@@ -560,7 +568,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeScaleElements", GEO_NODE_SCALE_ELEMENTS);
   ntype.ui_name = "Scale Elements";
@@ -571,7 +579,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
