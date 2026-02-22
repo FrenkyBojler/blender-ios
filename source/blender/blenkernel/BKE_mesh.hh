@@ -444,6 +444,10 @@ void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
                                                 StringRef id,
                                                 AttrDomain domain,
                                                 bke::AttrType data_type);
+void mesh_ensure_default_uv_attribute_on_add(Mesh &mesh,
+                                             StringRef id,
+                                             AttrDomain domain,
+                                             bke::AttrType data_type);
 
 void mesh_data_update(Depsgraph &depsgraph,
                       const Scene &scene,
@@ -472,6 +476,12 @@ bool mesh_is_valid(const Mesh &mesh, bool verbose = true);
  * \return True if the indices were valid.
  */
 bool mesh_validate_material_indices(Mesh &mesh);
+
+/**
+ * Check whether faces contain duplicate vertex indices.
+ * \return a mask of all invalid faces.
+ */
+IndexMask mesh_find_faces_duplicate_verts(const Mesh &mesh, IndexMaskMemory &memory);
 
 void mesh_apply_spatial_organization(Mesh &mesh);
 const AttributeAccessorFunctions &mesh_attribute_accessor_functions();

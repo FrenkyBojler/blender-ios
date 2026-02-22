@@ -18,7 +18,9 @@
 #  include "eevee_shadow_shared.hh"
 #  include "eevee_uniform_infos.hh"
 #  include "eevee_volume_infos.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define CURVES_SHADER
 #  define DRW_HAIR_INFO
 
@@ -27,7 +29,6 @@
 
 #  define SHADOW_UPDATE_ATOMIC_RASTER
 #  define MAT_TRANSPARENT
-
 #endif
 
 #include "eevee_defines.hh"
@@ -36,6 +37,8 @@
 GPU_SHADER_CREATE_INFO(eevee_surf_depth)
 DEFINE("MAT_DEPTH")
 FRAGMENT_SOURCE("eevee_surf_depth_frag.glsl")
+FRAGMENT_OUT(PREPASS_FRAG_OUT_NORMAL, float4, out_normal)
+FRAGMENT_OUT(PREPASS_FRAG_OUT_OB_ID, uint, out_object_id)
 ADDITIONAL_INFO(eevee_global_ubo)
 ADDITIONAL_INFO(eevee_sampling_data)
 ADDITIONAL_INFO(eevee_utility_texture)

@@ -6,6 +6,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+namespace blender {
+
 /** \file
  * \ingroup bke
  */
@@ -18,7 +20,7 @@
  */
 
 /** Blender major and minor version. */
-#define BLENDER_VERSION 501
+#define BLENDER_VERSION 502
 /** Blender patch version for bug-fix releases. */
 #define BLENDER_VERSION_PATCH 0
 /** Blender release cycle stage: alpha/beta/rc/release. */
@@ -66,3 +68,5 @@ void BKE_blender_version_blendfile_string_from_values(char *str_buff,
                                                       const size_t str_buff_maxncpy,
                                                       const short file_version,
                                                       const short file_subversion);
+
+}  // namespace blender

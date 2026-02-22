@@ -127,11 +127,20 @@ void main()
   float clamp_indirect = uniform_buf.clamp.surface_indirect;
   out_direct = colorspace_brightness_clamp_max(out_direct, clamp_direct);
   out_indirect = colorspace_brightness_clamp_max(out_indirect, clamp_indirect);
+  /* Apply contribution scaling after clamping (compositing-equivalent). */
+  out_direct *= uniform_buf.clamp.direct_scale;
+  out_indirect *= uniform_buf.clamp.indirect_scale;
+
   /* TODO(@fclem): Shouldn't we clamp these relative the main clamp? */
   diffuse_direct = colorspace_brightness_clamp_max(diffuse_direct, clamp_direct);
   diffuse_indirect = colorspace_brightness_clamp_max(diffuse_indirect, clamp_indirect);
   specular_direct = colorspace_brightness_clamp_max(specular_direct, clamp_direct);
   specular_indirect = colorspace_brightness_clamp_max(specular_indirect, clamp_indirect);
+
+  diffuse_direct *= uniform_buf.clamp.direct_scale;
+  diffuse_indirect *= uniform_buf.clamp.indirect_scale;
+  specular_direct *= uniform_buf.clamp.direct_scale;
+  specular_indirect *= uniform_buf.clamp.indirect_scale;
 
   /* Light passes. */
   if (render_pass_diffuse_light_enabled) {

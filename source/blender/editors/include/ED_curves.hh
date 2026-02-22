@@ -21,6 +21,8 @@
 #include "ED_select_utils.hh"
 #include "ED_view3d.hh"
 
+namespace blender {
+
 struct bContext;
 struct Curves;
 struct UndoType;
@@ -30,12 +32,12 @@ struct wmKeyConfig;
 struct wmOperator;
 struct wmKeyMap;
 struct EnumPropertyItem;
-namespace blender::bke {
+namespace bke {
 enum class AttrDomain : int8_t;
 struct GSpanAttributeWriter;
-}  // namespace blender::bke
+}  // namespace bke
 
-namespace blender::ed::curves {
+namespace ed::curves {
 
 void operatortypes_curves();
 void operatormacros_curves();
@@ -230,6 +232,13 @@ void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
                                              TransVertStore *tvs,
                                              const bool skip_handles);
 
+/**
+ * Update original curve positions with transform changes.
+ */
+void transverts_update_curves(bke::CurvesGeometry &curves,
+                              const TransVertStore *tvs,
+                              bool skip_handles);
+
 /* -------------------------------------------------------------------- */
 /** \name Poll Functions
  * \{ */
@@ -263,7 +272,6 @@ void CURVES_OT_separate(wmOperatorType *ot);
  */
 IndexMask curve_mask_from_points(const bke::CurvesGeometry &curves,
                                  const IndexMask &point_mask,
-                                 const GrainSize grain_size,
                                  IndexMaskMemory &memory);
 
 /**
@@ -587,4 +595,5 @@ extern const EnumPropertyItem rna_enum_set_handle_type_items[];
 
 /** \} */
 
-}  // namespace blender::ed::curves
+}  // namespace ed::curves
+}  // namespace blender
