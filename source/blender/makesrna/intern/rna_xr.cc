@@ -2851,7 +2851,7 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
                               "rna_XrSessionState_viewfinder_active_action_live_set",
                               nullptr);
   RNA_def_property_enum_items(prop, viewfinder_live_actions);
-  RNA_def_property_ui_text(prop, "Viewfinder Live Button", "Active viewfinder live action");
+  RNA_def_property_ui_text(prop, "Viewfinder Live Action", "Active viewfinder live action");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "active_action_playback", PROP_ENUM, PROP_NONE);
@@ -2862,7 +2862,7 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
                               nullptr);
   RNA_def_property_enum_items(prop, viewfinder_playback_actions);
   RNA_def_property_ui_text(
-      prop, "Viewfinder Playback Button", "Active viewfinder playback action");
+      prop, "Viewfinder Playback Action", "Active viewfinder playback action");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 }
 
