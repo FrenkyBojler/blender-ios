@@ -235,9 +235,7 @@ void PDFExporter::write_path(const float4x4 &transform,
                              std::optional<float> width,
                              std::optional<float> miter_limit_angle)
 {
-  if (width) {
-    BLI_assert(miter_limit_angle);
-
+  if (miter_limit_angle) {
     if (*miter_limit_angle <= GP_STROKE_MITER_ANGLE_ROUND) {
       HPDF_Page_SetLineJoin(page_, HPDF_ROUND_JOIN);
     }
@@ -251,7 +249,9 @@ void PDFExporter::write_path(const float4x4 &transform,
       HPDF_Page_SetLineJoin(page_, HPDF_MITER_JOIN);
       HPDF_Page_SetMiterLimit(page_, miter_limit);
     }
+  }
 
+  if (width) {
     HPDF_Page_SetLineWidth(page_, std::max(*width, 1.0f));
   }
 
