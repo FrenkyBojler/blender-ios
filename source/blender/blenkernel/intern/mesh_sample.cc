@@ -404,7 +404,7 @@ NearestCornerFromPositionFn::NearestCornerFromPositionFn(GeometrySet geometry)
     mf::SignatureBuilder builder{"Nearest Weight from Position", signature};
     builder.single_input<float3>("Position");
     builder.single_input<int>("Triangle Index");
-    builder.single_output<float3>("Barycentric Weight");
+    builder.single_output<int>("Nearest Corner");
     return signature;
   }();
   this->set_signature(&signature);
