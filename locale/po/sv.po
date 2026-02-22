@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-02 14:51+0000\n"
+"POT-Creation-Date: 2026-02-16 10:28+0000\n"
 "PO-Revision-Date: 2025-11-18 20:05+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -2628,6 +2628,18 @@ msgid "Visual Aids"
 msgstr "Visuella hjälpmedel"
 
 
+msgid "Stroke"
+msgstr "Streck"
+
+
+msgid "Fill"
+msgstr "Fyll"
+
+
+msgid "Both"
+msgstr "Båda"
+
+
 msgid "Active Layer"
 msgstr "Aktivt lager"
 
@@ -2662,14 +2674,6 @@ msgstr "Använd tryck"
 
 msgid "Outline"
 msgstr "Kontur"
-
-
-msgid "Stroke"
-msgstr "Streck"
-
-
-msgid "Fill"
-msgstr "Fyll"
 
 
 msgid "Stroke & Fill"
@@ -9331,22 +9335,6 @@ msgid "Use Material Mask"
 msgstr "Använd materialmask"
 
 
-msgid "Math"
-msgstr "Matematik"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Metaball"
-msgstr "Metaboll"
-
-
-msgid "Show/Hide"
-msgstr "Visa/dölj"
-
-
 msgid "Read"
 msgstr "Läs"
 
@@ -9355,16 +9343,28 @@ msgid "Write"
 msgstr "Skriv"
 
 
-msgid "Names"
-msgstr "Namn"
+msgid "Clean Up"
+msgstr "Städa upp"
 
 
 msgid "Primitives"
 msgstr "Primitiver"
 
 
-msgid "Clean Up"
-msgstr "Städa upp"
+msgid "Show/Hide"
+msgstr "Visa/dölj"
+
+
+msgid "Special Characters"
+msgstr "Specialtecken"
+
+
+msgid "Metaball"
+msgstr "Metaboll"
+
+
+msgid "Names"
+msgstr "Namn"
 
 
 msgid "Pivot Point"
@@ -9373,6 +9373,10 @@ msgstr "Fast punkt"
 
 msgid "Snap"
 msgstr "Snäpp"
+
+
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Mirror"
@@ -9403,20 +9407,20 @@ msgid "Select More/Less"
 msgstr "Markera mera/mindre"
 
 
-msgid "Layout"
-msgstr "Layout"
-
-
 msgid "Adjust"
 msgstr "Justera"
 
 
-msgid "Assign Material"
-msgstr "Tilldela material"
-
-
 msgid "Utilities"
 msgstr "Verktyg"
+
+
+msgid "Math"
+msgstr "Matematik"
+
+
+msgid "Assign Material"
+msgstr "Tilldela material"
 
 
 msgid "Light"
@@ -9475,16 +9479,16 @@ msgid "Import"
 msgstr "Importera"
 
 
-msgid "Merge"
-msgstr "Sammanfoga"
-
-
 msgid "Deprecated"
 msgstr "Föråldrad"
 
 
-msgid "Special Characters"
-msgstr "Specialtecken"
+msgid "Merge"
+msgstr "Sammanfoga"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Animals"
@@ -11829,6 +11833,10 @@ msgstr "Till radianer"
 
 msgid "Mix two input colors"
 msgstr "Blanda två inputfärger"
+
+
+msgid "OpenGL"
+msgstr "OpenGL"
 
 
 msgid "Cycles"
@@ -15625,10 +15633,6 @@ msgid "Replace Existing"
 msgstr "Ersätt befintlig"
 
 
-msgid "Both"
-msgstr "Båda"
-
-
 msgctxt "Operator"
 msgid "Hide Curves"
 msgstr "Dölj kurvor"
@@ -16570,14 +16574,6 @@ msgid "Name of new mask"
 msgstr "Namn på ny mask"
 
 
-msgid "Location of new circle"
-msgstr "Position av ny cirkel"
-
-
-msgid "Size of new circle"
-msgstr "Storlek på ny cirkel"
-
-
 msgctxt "Operator"
 msgid "Add Square"
 msgstr "Lägg till kvadrat"
@@ -17216,10 +17212,6 @@ msgstr "Behåll skarpa kanter"
 msgctxt "Operator"
 msgid "Select Shortest Path"
 msgstr "Markera kortaste vägen"
-
-
-msgid "Selected shortest path between two vertices/edges/faces"
-msgstr "Markera den kortaste vägen mellan två vertex/kanter/ytor"
 
 
 msgid "Use Duplicates"
@@ -18362,10 +18354,6 @@ msgid "Add Metaball"
 msgstr "Lägg till metaboll"
 
 
-msgid "Add an metaball object to the scene"
-msgstr "Lägg till ett metaboll-objekt i scenen"
-
-
 msgid "Primitive"
 msgstr "Primitiv"
 
@@ -18852,10 +18840,6 @@ msgid "Open/Close"
 msgstr "Öppna/stäng"
 
 
-msgid "Toggle whether item under cursor is enabled or closed"
-msgstr "Växla om objektet under musen är aktiverat eller stängt"
-
-
 msgid "Close or open all items"
 msgstr "Stäng eller öppna alla objekt"
 
@@ -19203,10 +19187,6 @@ msgstr "Linje"
 msgctxt "Operator"
 msgid "Cancel Render View"
 msgstr "Avbryt renderingsvy"
-
-
-msgid "Cancel show render view"
-msgstr "Avbryt visning av renderingsvy"
 
 
 msgid "Toggle show render view"
@@ -20206,10 +20186,6 @@ msgid "Move"
 msgstr "Flytta"
 
 
-msgid "UP"
-msgstr "UPP"
-
-
 msgctxt "Operator"
 msgid "Press Button"
 msgstr "Tryck knapp"
@@ -20255,6 +20231,10 @@ msgstr "Välj alla"
 msgctxt "Operator"
 msgid "Jump to Target"
 msgstr "Hoppa till mål"
+
+
+msgid "UP"
+msgstr "UPP"
 
 
 msgctxt "Operator"
@@ -22554,10 +22534,6 @@ msgid "GPU backend to use (requires restarting Blender for changes to take effec
 msgstr "GPU-backend att använda (kräver att starta om Blender för att ändringen ska träda i kraft)"
 
 
-msgid "OpenGL"
-msgstr "OpenGL"
-
-
 msgid "Use OpenGL backend"
 msgstr "Använd OpenGL-backend"
 
@@ -24523,6 +24499,26 @@ msgstr "Använd anteckningar"
 
 msgid "Inverse Gain"
 msgstr "Invers nivå"
+
+
+msgctxt "Sequence"
+msgid "Brightness/Contrast"
+msgstr "Ljusstyrka/kontrast"
+
+
+msgctxt "Sequence"
+msgid "Color Balance"
+msgstr "Färgbalans"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Kurvor"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "Vitbalans"
 
 
 msgid "White Value"
@@ -30486,10 +30482,6 @@ msgid "Delete Modifier"
 msgstr "Ta bort modifierare"
 
 
-msgid "Coefficient"
-msgstr "Koefficient"
-
-
 msgctxt "Action"
 msgid "A"
 msgstr "A"
@@ -33517,26 +33509,6 @@ msgstr "Kameran \"%s\" är inte en flerbildskamera"
 
 msgid "%s: failed to load '%s'"
 msgstr "%s: misslyckades med att läsa in '%s'"
-
-
-msgctxt "Sequence"
-msgid "Brightness/Contrast"
-msgstr "Ljusstyrka/kontrast"
-
-
-msgctxt "Sequence"
-msgid "Color Balance"
-msgstr "Färgbalans"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Kurvor"
-
-
-msgctxt "Sequence"
-msgid "White Balance"
-msgstr "Vitbalans"
 
 
 msgctxt "Sequence"

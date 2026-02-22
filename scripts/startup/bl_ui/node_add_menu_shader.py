@@ -118,6 +118,7 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
             context, layout, "ShaderNodePointInfo",
             ["Position", "Radius", "Random"],
         )
+        self.node_operator(layout, "ShaderNodeRaycast")
         self.node_operator(layout, "ShaderNodeTangent")
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeTexCoord",
@@ -418,6 +419,7 @@ class NODE_MT_shader_node_utilities_base(node_add_menu.NodeMenu):
         layout.separator()
         self.repeat_zone(layout, label="Repeat")
         layout.separator()
+        self.node_operator(layout, "NodeImplicitConversion")
         self.closure_zone(layout, label="Closure")
         self.node_operator(layout, "NodeEvaluateClosure")
         self.node_operator(layout, "NodeCombineBundle")

@@ -620,6 +620,7 @@ set(GLSL_SRC
   shaders/common/gpu_shader_shared_exponent_lib.glsl
   shaders/common/gpu_shader_smaa_lib.glsl
   shaders/common/gpu_shader_test_lib.glsl
+  shaders/common/gpu_shader_tiled_image_lookup_lib.glsl
   shaders/common/gpu_shader_utildefines_lib.glsl
 
   shaders/material/gpu_shader_material_add_shader.glsl
@@ -650,6 +651,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_hair.glsl
   shaders/material/gpu_shader_material_holdout.glsl
   shaders/material/gpu_shader_material_hue_sat_val.glsl
+  shaders/material/gpu_shader_material_implicit_defaults.glsl
   shaders/material/gpu_shader_material_invert.glsl
   shaders/material/gpu_shader_material_layer_weight.glsl
   shaders/material/gpu_shader_material_light_falloff.glsl
@@ -669,6 +671,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_particle_info.glsl
   shaders/material/gpu_shader_material_point_info.glsl
   shaders/material/gpu_shader_material_principled.glsl
+  shaders/material/gpu_shader_material_raycast.glsl
   shaders/material/gpu_shader_material_ray_portal.glsl
   shaders/material/gpu_shader_material_refraction.glsl
   shaders/material/gpu_shader_material_repeat_zone.glsl
@@ -711,7 +714,6 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_volume_coefficients.glsl
   shaders/material/gpu_shader_material_voronoi.glsl
   shaders/material/gpu_shader_material_wireframe.glsl
-  shaders/material/gpu_shader_material_world_normals.glsl
 
   shaders/gpu_shader_gpencil_stroke_vert.glsl
   shaders/gpu_shader_gpencil_stroke_frag.glsl
@@ -886,10 +888,6 @@ target_link_libraries(bf_gpu PUBLIC
   bf_gpu_shaders
   bf_imbuf_opencolorio_shaders
 )
-
-if(WITH_OPENGL_BACKEND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_link_libraries(bf_gpu PUBLIC rt)
-endif()
 
 # If `execinfo.h` exists on a *BSD system then also link in `libexecinfo`.
 # Needed for `backtrace` / `backtrace_symbols` (GNU extensions)

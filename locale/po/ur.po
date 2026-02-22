@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-02 14:51+0000\n"
+"POT-Creation-Date: 2026-02-16 10:28+0000\n"
 "PO-Revision-Date: 2025-07-23 15:12+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Urdu <https://translate.blender.org/projects/blender-ui/ui/ur/>\n"
@@ -5424,6 +5424,18 @@ msgid "Factor of Simplify using adaptive algorithm"
 msgstr "ﺮﺼﻨﻋ ﺎﮐ ﮯﻧﺎﻨﺑ ﻥﺎﺳﺁ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﻢﮭﺗﺭﻮﮕﻟﺍ ﯽﻟﻮﮑﻧﺍ"
 
 
+msgid "Stroke"
+msgstr "ﮎﻭﺮﭩﺳﺍ"
+
+
+msgid "Fill"
+msgstr "ﺎﻧﺮﮭﺑ"
+
+
+msgid "Both"
+msgstr "ﮞﻮﻧﻭﺩ"
+
+
 msgid "Active Layer"
 msgstr "ﺕﺮﭘ ﻝﺎﻌﻓ"
 
@@ -5596,16 +5608,8 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "ﮯﮨ ﺎﺗﻮﮨ ﺯﺍﺪﻧﺍ ﺮﺛﺍ ﺮﭘ ﮎﻭﺮﭩﺳﺍ ﮓﻧﺭ ﯼﺩﻮﻤﻋ ﺡﺮﻃ ﺲﮐ ﮧﮐ ﮯﮨ ﺎﺗﺮﮐ ﺖﺣﺎﺿﻭ ﯽﮐ ﺱﺍ"
 
 
-msgid "Stroke"
-msgstr "ﮎﻭﺮﭩﺳﺍ"
-
-
 msgid "Vertex Color affects to Stroke only"
 msgstr "ﮯﮨ ﺎﺗﻮﮨ ﺯﺍﺪﻧﺍ ﺮﺛﺍ ﺮﭘ ﮎﻭﺮﭩﺳﺍ ﻑﺮﺻ ﮓﻧﺭ ﺲﮑﯿﭨﺭﻭ"
-
-
-msgid "Fill"
-msgstr "ﺎﻧﺮﮭﺑ"
 
 
 msgid "Vertex Color affects to Fill only"
@@ -23786,10 +23790,6 @@ msgid "Viewer Region"
 msgstr "ﮧﻗﻼ﻿ﻋ ﺎﮐ ﻦﯾﺮﻇﺎﻧ"
 
 
-msgid "Use boundaries for viewer nodes and composite backdrop"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺩﻭﺪﺣ ﮯﯿﻟ ﮯﮐ ﭖﺍﺭﮈ ﮏﯿﺑ ﭦﺯﻮﭙﻤﮐ ﺭﻭﺍ ﺱﮈﻮﻧ ﺭﻮﯾﻭ"
-
-
 msgid "Geometry Node Tree"
 msgstr "ﯼﺮﭨ ﮈﻮﻧ ﯼﺮﭩﯿﻣﻮﯿﺟ"
 
@@ -32636,22 +32636,6 @@ msgid "Editor menu containing buttons"
 msgstr "ﻮﻨﯿﻣ ﺮﭩﯾﮉﯾﺍ ﻞﻤﺘﺸﻣ ﺮﭘ ﮞﻮﻨﭩﺑ"
 
 
-msgid "Math"
-msgstr "ﯽﺿﺎﯾﺭ"
-
-
-msgid "UV"
-msgstr "ﯼﻭﻮﯾ"
-
-
-msgid "Metaball"
-msgstr "ﻝﺎﺑ ﺎﭩﯿﻣ"
-
-
-msgid "Show/Hide"
-msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ"
-
-
 msgid "Read"
 msgstr "ﮟﯿﮬﮍﭘ"
 
@@ -32664,20 +32648,36 @@ msgid "Sample"
 msgstr "ﮧﻧﻮﻤﻧ"
 
 
-msgid "Names"
-msgstr "ﻡﺎﻧ"
+msgid "Clean Up"
+msgstr "ﯽﺋﺎﻔﺻ"
 
 
 msgid "Primitives"
 msgstr "ﻢﯾﺪﻗ"
 
 
+msgid "Show/Hide"
+msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ"
+
+
+msgid "Special Characters"
+msgstr "ﺭﺍﺩﺮﮐ ﯽﺻﻮﺼﺧ"
+
+
+msgid "Kerning"
+msgstr "ﮓﻨﻧﺮﮐ"
+
+
+msgid "Metaball"
+msgstr "ﻝﺎﺑ ﺎﭩﯿﻣ"
+
+
+msgid "Names"
+msgstr "ﻡﺎﻧ"
+
+
 msgid "Bone Roll"
 msgstr "ﻝﻭﺭ ﻥﻮﺑ"
-
-
-msgid "Clean Up"
-msgstr "ﯽﺋﺎﻔﺻ"
 
 
 msgid "Pivot Point"
@@ -32706,6 +32706,10 @@ msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﭧﯿﺳ ﮯﮐ ﮮﺮ�
 
 msgid "Vertex Group Locks"
 msgstr "ﮎﻻ﻿ ﮦﻭﺮﮔ ﺲﮑﯿﭨﺭﻭ"
+
+
+msgid "Layout"
+msgstr "ﭦﺅﺁ ﮯﻟ"
 
 
 msgid "Mirror"
@@ -32744,8 +32748,8 @@ msgid "Select More/Less"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻢﮐ/ﮦﺩﺎﯾﺯ"
 
 
-msgid "Layout"
-msgstr "ﭦﺅﺁ ﮯﻟ"
+msgid "Adjust"
+msgstr "ﮟﯾﺮﮐ ﭧﺴﺟﮉﯾﺍ"
 
 
 msgid "Select Similar"
@@ -32756,32 +32760,32 @@ msgid "Select All by Trait"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﯽﮭﺒﺳ ﮯﺳ ﻅﺎﺤﻟ ﮯﮐ ﺖﯿﺻﻮﺼﺧ"
 
 
-msgid "Select Linked"
-msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﮉﮑﻨﻟ"
-
-
-msgid "Select Loops"
-msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﺲﭘﻮﻟ"
-
-
-msgid "Adjust"
-msgstr "ﮟﯾﺮﮐ ﭧﺴﺟﮉﯾﺍ"
-
-
-msgid "Assign Material"
-msgstr "ﮟﯾﺮﮐ ﺾﯾﻮﻔﺗ ﺩﺍﻮﻣ"
-
-
 msgid "Keying"
 msgstr "ﮓﻨﯿﻠﮐ"
+
+
+msgid "Select Linked"
+msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﮉﮑﻨﻟ"
 
 
 msgid "Tracking"
 msgstr "ﮓﻨﮑﯾﺮﭨ"
 
 
+msgid "Select Loops"
+msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﺲﭘﻮﻟ"
+
+
 msgid "Utilities"
 msgstr "ﺖﯾﺩﺎﻓﺍ"
+
+
+msgid "Math"
+msgstr "ﯽﺿﺎﯾﺭ"
+
+
+msgid "Assign Material"
+msgstr "ﮟﯾﺮﮐ ﺾﯾﻮﻔﺗ ﺩﺍﻮﻣ"
 
 
 msgid "Light"
@@ -32868,6 +32872,14 @@ msgid "Bone Collections"
 msgstr "ﮧﻋﻮﻤﺠﻣ ﺎﮐ ﮞﻮﯾﮉﮨ"
 
 
+msgid "Gizmo"
+msgstr "ﻮﻣﺰﯿﮔ"
+
+
+msgid "Instances"
+msgstr "ﮟﯿﻟﺎﺜﻣ"
+
+
 msgid "Toggle Bone Options"
 msgstr "ﮟﯾﺮﮐ ﻞﮔﻮﭨ ﻮﮐ ﺕﺍﺭﺎﯿﺘﺧﺍ ﮯﮐ ﯼﮉﮨ"
 
@@ -32880,20 +32892,16 @@ msgid "Disable Bone Options"
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻌﻓ ﺮﯿﻏ ﻮﮐ ﺕﺍﺭﺎﯿﺘﺧﺍ ﮯﮐ ﯼﮉﮨ"
 
 
+msgid "Import"
+msgstr "ﮟﯾﺮﮐ ﺪﻣﺁﺭﺩ"
+
+
 msgid "Mesh Select Mode"
 msgstr "ﮈﻮﻣ ﭧﮑﯿﻠﺳ ﺶﯿﻣ"
 
 
 msgid "Face Data"
 msgstr "ﺎﭩﯾﮈ ﺎﮐ ﮮﺮﮩﭼ"
-
-
-msgid "Gizmo"
-msgstr "ﻮﻣﺰﯿﮔ"
-
-
-msgid "Instances"
-msgstr "ﮟﯿﻟﺎﺜﻣ"
 
 
 msgid "Select by Face Strength"
@@ -32904,24 +32912,16 @@ msgid "Set Face Strength"
 msgstr "ﮟﯾﺮﮐ ﻦﯿﻌﺗ ﺎﮐ ﺖﻗﺎﻃ ﯽﮐ ﮮﺮﮩﭼ"
 
 
-msgid "Import"
-msgstr "ﮟﯾﺮﮐ ﺪﻣﺁﺭﺩ"
+msgid "Deprecated"
+msgstr "ﮦﺩﻮﺳﺮﻓ"
 
 
 msgid "Merge"
 msgstr "ﺎﻧﺮﮐ ﻢﺿ"
 
 
-msgid "Deprecated"
-msgstr "ﮦﺩﻮﺳﺮﻓ"
-
-
-msgid "Special Characters"
-msgstr "ﺭﺍﺩﺮﮐ ﯽﺻﻮﺼﺧ"
-
-
-msgid "Kerning"
-msgstr "ﮓﻨﻧﺮﮐ"
+msgid "UV"
+msgstr "ﯼﻭﻮﯾ"
 
 
 msgid "Keyframe Insert Pie"
@@ -46651,6 +46651,10 @@ msgid "Generate a perturbed normal from an RGB normal map image. Typically used 
 msgstr "ﮯﮨ ﺎﺗﺎﺟ ﺎﯿﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﺎﻨﺑ ﯽﻠﻌﺟ ﻮﮐ ﮞﻮﺤﻄﺳ ﯽﻠﯿﺼﻔﺗ ﯽﺋﺎﮩﺘﻧﺍ ﺮﭘ ﺭﻮﻃ ﻡﺎﻋ ﮟﯿﺋﺎﻨﺑ ﻞﻣﺭﺎﻧ ﻥﺎﺸﯾﺮﭘ ﮯﺳ ﺮﯾﻮﺼﺗ ﯽﮐ ﮧﺸﻘﻧ ﻞﻣﺭﺎﻧ ﯽﺒﯿﺟﺭﺁ"
 
 
+msgid "OpenGL"
+msgstr "ﻞﯾﺍ ﯽﺟ ﻦﭘﻭﺍ"
+
+
 msgid "Space of the input normal"
 msgstr "ﮯﮨ ﻞﻣﺭﺎﻧ ﮧﮕﺟ ﯽﮐ ﭧﭘ ﻥﺍ"
 
@@ -51942,10 +51946,6 @@ msgid "Select keyframe points using lasso selection"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﺲﭩﻨﺋﺍﻮﭘ ﻢﯾﺮﻓ ﯽﮐ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﻦﺸﮑﯿﻠﺳ ﻮﺳﻻ﻿"
 
 
-msgid "Higher values gives a smoother stroke"
-msgstr "ﮟﯿﮨ ﯽﺘﯾﺩ ﮎﻭﺮﭩﺳﺍ ﺭﺍﻮﻤﮨ ﮏﯾﺍ ﺭﺍﺪﻗﺍ ﯽﻠﻋﺍ"
-
-
 msgid "Minimum distance from last point before selection continues"
 msgstr "ﮧﻠﺻﺎﻓ ﻢﮐ ﺯﺍ ﻢﮐ ﮯﺳ ﮧﻄﻘﻧ ﯼﺮﺧﺁ ﮯﻠﮩﭘ ﮯﺳ ﮯﻨﮨﺭ ﯼﺭﺎﺟ ﺏﺎﺨﺘﻧﺍ"
 
@@ -53956,10 +53956,6 @@ msgid "Move layer in the list, layers further down the list will overwrite data 
 msgstr "ﯽﮔ ﮟﯾﺩ ﺮﮐ ﭧﺋﺍﺭ ﺭﻭﻭﺍ ﻮﮐ ﺎﭩﯾﮈ ﮯﺳ ﮞﻮﮩﺗ ﯽﮐ ﺮﭘﻭﺍ ﮟﯿﮩﺗ ﯽﮐ ﮯﭽﯿﻧ ﺪﯾﺰﻣ ﮟﯿﻣ ﺖﺳﺮﮩﻓ ،ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ ﻮﮐ ﺕﺮﭘ ﮟﯿﻣ ﺖﺳﺮﮩﻓ"
 
 
-msgid "Direction to move the active vertex group towards"
-msgstr "ﺖﻤﺳ ﯽﮐ ﮯﻧﺎﺟ ﮯﻟ ﻑﺮﻃ ﯽﮐ ﮦﻭﺮﮔ ﮯﻧﻮﮐ ﻝﺎﻌﻓ"
-
-
 msgid "Remove an override layer from the archive"
 msgstr "ﮟﯾﺩ ﺎﭩﮨ ﻮﮐ ﺕﺮﭘ ﮉﺋﺍﺭ ﺭﻭﻭﺍ ﮯﺳ ﻮﯿﺋﺎﮐﺭﺁ"
 
@@ -54665,14 +54661,6 @@ msgstr "ﮯﮨ ﺎﺗﮌﻮﺟ ﮯﺳ ﻞﺻﺍ ﮯﺳﺍ ﻮﺟ ﮯﮨ ﺮﭘ �
 
 msgid "Axis to use to align bundle along"
 msgstr "ﺭﻮﺤﻣ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﻻ﻿ ﮟﯿﻣ ﮪﺪﯿﺳ ﻮﮐ ﻝﮉﻨﺑ"
-
-
-msgid "Align bundle align X axis"
-msgstr "ﮟﯾﺮﮐ ﮪﺪﯿﺳ ﻮﮐ ﺭﻮﺤﻣ X ﮟﯾﺮﮐ ﮪﺪﯿﺳ ﻝﮉﻨﺑ"
-
-
-msgid "Align bundle align Y axis"
-msgstr "ﮟﯾﺮﮐ ﮪﺪﯿﺳ ﻮﮐ ﺭﻮﺤﻣ Y ﻝﮉﻨﺑ ﮪﺪﯿﺳ"
 
 
 msgctxt "Operator"
@@ -55581,10 +55569,6 @@ msgid "Toggle Cyclic"
 msgstr "ﮟﯾﺮﮐ ﻞﮔﻮﭨ ﻮﮐ ﮏﻠﮑﺋﺎﺳ"
 
 
-msgid "Make active curve closed/opened loop"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭖﻮﻟ ﯽﺋﻮﮨ ﯽﻠﮭﮐ/ﺪﻨﺑ ﻢﺧ ﻝﺎﻌﻓ"
-
-
 msgid "Remove selected control points or curves"
 msgstr "ﮟﯾﺩ ﺎﭩﮨ ﻮﮐ  ﮟﯿﻤﺧ ﺎﯾ ﺲﭩﻨﺋﺍﻮﭘ ﻝﻭﺮﭩﻨﮐ ﺐﺨﺘﻨﻣ"
 
@@ -55787,10 +55771,6 @@ msgid "Select Random"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﻡﮉﻨﯾﺭ"
 
 
-msgid "Randomizes existing selection or create new random selection"
-msgstr "ﮯﮨ ﺎﺗﺮﮐ ﻖﯿﻠﺨﺗ ﺏﺎﺨﺘﻧﺍ ﺐﯿﺗﺮﺗ ﮯﺑ ﺎﯿﻧ ﺎﯾ ﮯﮨ ﺎﺗﺎﻨﺑ ﺐﯿﺗﺮﺗ ﮯﺑ ﻮﮐ ﺏﺎﺨﺘﻧﺍ ﮦﺩﻮﺟﻮﻣ"
-
-
 msgid "Probability"
 msgstr "ﻥﺎﮑﻣﺍ"
 
@@ -55866,10 +55846,6 @@ msgstr "ﮟﯾﺮﮐ ﻑﺎﺻ ﺅﺎﮑﮭﺟ"
 
 msgid "Clear the tilt of selected control points"
 msgstr "ﮟﯾﺮﮐ ﻑﺎﺻ ﻮﮐ ﺅﺎﮑﮭﺟ ﮯﮐ ﺲﭩﻨﺋﺍﻮﭘ ﻝﻭﺮﭩﻨﮐ ﺐﺨﺘﻨﻣ"
-
-
-msgid "Make active spline closed/opened loop"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭖﻮﻟ ﯽﺋﻮﮨ ﯽﻠﮭﮐ/ﺪﻨﺑ ﻦﺋﻼ﻿ﭙﺳ ﻝﺎﻌﻓ"
 
 
 msgid "Direction to make surface cyclic in"
@@ -56558,10 +56534,6 @@ msgstr "ﮟﯾﺮﮐ ﻡﺪﻌﻟﺎﮐ ﻮﮐ ﯽﺋﺍﻭﺭﺭﺎﮐ ﯽﻠ�
 msgctxt "Operator"
 msgid "Undo History"
 msgstr "ﮟﯾﺮﮐ ﻡﺪﻌﻟﺎﮐ ﻮﮐ ﺖﺷﺰﮔﺮﺳ"
-
-
-msgid "Redo specific action in history"
-msgstr "ﮟﯾﺮﮐ ﮦﺭﺎﺑﻭﺩ ﻮﮐ ﯽﺋﺍﻭﺭﺭﺎﮐ ﺹﻮﺼﺨﻣ ﮟﯿﻣ ﺦﯾﺭﺎﺗ"
 
 
 msgid "Item"
@@ -59422,10 +59394,6 @@ msgid "Equalize selected keyframes' right handles"
 msgstr "ﮟﯾﺮﮐ ﺮﺑﺍﺮﺑ ﻮﮐ ﺰﻟﮉﻨﯿﮨ ﮟﯿﺋﺍﺩ ﮯﮐ ﺰﻤﯾﺮﻓ ﯽﮐ ﺐﺨﺘﻨﻣ"
 
 
-msgid "Both"
-msgstr "ﮞﻮﻧﻭﺩ"
-
-
 msgid "Equalize both of a keyframe's handles"
 msgstr "ﮟﯾﺮﮐ ﺮﺑﺍﺮﺑ ﻮﮐ ﺰﻟﮉﻨﯿﮨ ﮞﻮﻧﻭﺩ ﮯﮐ ﻢﯾﺮﻓ ﯼﺪﯿﻠﮐ"
 
@@ -61318,10 +61286,6 @@ msgid "Vertex Paint Set Color"
 msgstr "ﮓﻧﺭ ﺎﮐ ﭧﯿﺳ ﭧﻨﯿﭘ ﺲﮑﯿﭨﺭﻭ"
 
 
-msgid "Set active color to all selected vertex"
-msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﮓﻧﺭ ﻝﺎﻌﻓ ﺮﭘ ﯽﭨﻮﭼ ﺐﺨﺘﻨﻣ ﻡﺎﻤﺗ"
-
-
 msgctxt "Operator"
 msgid "Normalize Vertex Group"
 msgstr "ﮟﯿﺋﺎﻨﺑ ﻝﻮﻤﻌﻣ ﻮﮐ ﮦﻭﺮﮔ ﺲﮑﯿﭨﺭﻭ"
@@ -61814,10 +61778,6 @@ msgid "Match Movie Length"
 msgstr "ﮟﯾﺮﮐ ﭻﯿﻣ ﮯﺳ ﯽﺋﺎﺒﻤﻟ ﯽﮐ ﻢﻠﻓ"
 
 
-msgid "Set image's user's length to the one of this video"
-msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﺮﭘ ﮏﯾﺍ ﮯﺳ ﮟﯿﻣ ﻮﯾﮉﯾﻭ ﺱﺍ ﯽﺋﺎﺒﻤﻟ ﯽﮐ ﻑﺭﺎﺻ ﮯﮐ ﺮﯾﻮﺼﺗ"
-
-
 msgctxt "Operator"
 msgid "New Image"
 msgstr "ﺮﯾﻮﺼﺗ ﯽﺌﻧ"
@@ -62160,10 +62120,6 @@ msgstr "ﮟﯿﮭﮑﯾﺩ ﺮﯾﻮﺼﺗ ﯼﺭﻮﭘ"
 msgctxt "Operator"
 msgid "Cursor To Center View"
 msgstr "ﻮﯾﻭ ﺮﭩﻨﯿﺳ ﻮﭨ ﺮﺳﺮﮐ"
-
-
-msgid "Set 2D Cursor To Center View location"
-msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﺮﺳﺮﮐ 2D ﺮﭘ ﻦﺸﯿﮐﻮﻟ ﻮﯾﻭ ﺮﭩﻨﺳ"
 
 
 msgctxt "Operator"
@@ -62588,10 +62544,6 @@ msgid "Select mirrored lattice points"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﺲﭩﻨﺋﺍﻮﭘ ﯽﻟﺎﺟ ﺭﺍﺩ ﮧﻨﯿﺋﺁ"
 
 
-msgid "Select vertex directly linked to already selected ones"
-msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﯼﺩﻮﻤﻋ ﮏﻠﺴﻨﻣ ﺖﺳﺍﺭ ﮦﺍﺮﺑ ﮯﺳ ﮦﺩﺮﮐ ﺐﺨﺘﻨﻣ ﮯﺳ ﮯﻠﮩﭘ"
-
-
 msgid "Randomly select UVW control points"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﺲﭩﻨﺋﺍﻮﭘ ﻝﻭﺮﭩﻨﮐ W ﯼﻭﻮﯾ  ﺮﭘ ﺭﻮﻃ ﯽﻓﺩﺎﺼﺗ"
 
@@ -62891,14 +62843,6 @@ msgstr "ﮟﯾﺮﮐ ﮞﺎﭙﺴﭼ ﺰﻨﺋﻼ﻿ﭙﺳﺍ ﮯﺳ ﮈﺭﻮ�
 
 msgid "Add new circle-shaped spline"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﻦﺋﻼ﻿ﭙﺳﺍ ﺎﯿﻧ ﺎﮐ ﻞﮑﺷ ﯽﮐ ﮮﺮﺋﺍﺩ"
-
-
-msgid "Location of new circle"
-msgstr "ﻡﺎﻘﻣ ﺎﮐ ﮮﺮﺋﺍﺩ ﮯﺌﻧ"
-
-
-msgid "Size of new circle"
-msgstr "ﺰﺋﺎﺳ ﺎﮐ ﮮﺮﺋﺍﺩ ﮯﺌﻧ"
 
 
 msgctxt "Operator"
@@ -64813,10 +64757,6 @@ msgid "Minor Radius"
 msgstr "ﺱﺍﺩﺭ ﯽﻟﻮﻤﻌﻣ"
 
 
-msgid "Radius of the torus' cross section"
-msgstr "ﺱﺍﺩﺭ ﺎﮐ ﻦﺸﮑﯿﺳ ﺱﺍﺮﮐ ﮯﮐ ﺱﺭﻮﭨ"
-
-
 msgid "Minor Segments"
 msgstr "ﺕﺎﻘﺒﻃ ﯽﻟﻮﻤﻌﻣ"
 
@@ -64895,10 +64835,6 @@ msgstr "ﮟﯾﺮﮐ ﺮﮨﺎﻇ ﻮﮐ ﮞﻭﺮﮩﭼ ﺭﻭﺍ ﮞﻭﺭﺎ�
 msgctxt "Operator"
 msgid "Rip"
 msgstr "ﺎﻧﺮﯿﭼ"
-
-
-msgid "Disconnect vertex or edges from connected geometry"
-msgstr "ﮟﯾﺮﮐ ﻊﻄﻘﻨﻣ ﻮﮐ ﮞﻭﺭﺎﻨﮐ ﺎﯾ ﯼﺩﻮﻤﻋ ﮯﺳ ﯼﺮﭩﯿﻣﻮﯿﺟ ﮏﻠﺴﻨﻣ"
 
 
 msgctxt "Mesh"
@@ -65405,10 +65341,6 @@ msgid "Select Shortest Path"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﮧﺘﺳﺍﺭ ﻦﯾﺮﺗ ﺮﺼﺘﺨﻣ"
 
 
-msgid "Selected shortest path between two vertices/edges/faces"
-msgstr "ﺎﯿﮔ ﺎﯿﮐ ﺐﺨﺘﻨﻣ ﮧﺘﺳﺍﺭ ﻦﯾﺮﺗ ﺮﺼﺘﺨﻣ ﻥﺎﯿﻣﺭﺩ ﮯﮐ ﮞﻭﺮﮩﭼ/ﮞﻭﺭﺎﻨﮐ/ﮞﻮﯿﭨﻮﭼ ﻭﺩ"
-
-
 msgctxt "Operator"
 msgid "Smooth Normals Vectors"
 msgstr "ﺮﭩﮑﯾﻭ ﻞﻣﺭﺎﻧ ﺭﺍﻮﻤﮨ"
@@ -65700,10 +65632,6 @@ msgstr "ﮟﯾﮌﻮﺟ ﻮﮐ ﮞﻮﺼﺣ ﯼﺩﻮﻤﻋ ﺐﺨﺘﻨﻣ ﮯ�
 msgctxt "Operator"
 msgid "Split Concave Faces"
 msgstr "ﮟﯾﺮﮐ ﻢﯿﺴﻘﺗ ﻮﮐ ﮞﻭﺮﮩﭼ ﮯﮐ ﺮﻌﻘﻣ"
-
-
-msgid "Make all faces convex"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﺏﺪﺤﻣ ﻮﮐ ﮞﻭﺮﮩﭼ ﻡﺎﻤﺗ"
 
 
 msgctxt "Operator"
@@ -66092,10 +66020,6 @@ msgstr "ﮟﯾﺮﮐ ﻞﮔﻮﭨ ﺎﻧﺮﮐ ﺵﻮﻣﺎﺧ"
 
 msgid "Mute or un-mute selected strips"
 msgstr "ﮟﯾﺮﮐ ﺵﻮﻣﺎﺧ ﺮﯿﻏ ﺎﯾ ﺵﻮﻣﺎﺧ ﻮﮐ ﺲﭘﺮﭩﺳ ﺐﺨﺘﻨﻣ"
-
-
-msgid "Set Preview Range based on extends of selected strips"
-msgstr "ﮟﯾﺮﮐ ﺭﺮﻘﻣ ﺪﺣ ﯽﮐ ﻮﯾﻮﯾﺮﭘ  ﺮﭘ ﺩﺎﯿﻨﺑ ﯽﮐ ﻊﯿﺳﻮﺗ ﯽﮐ ﺲﭘﺮﭩﺳ ﺐﺨﺘﻨﻣ"
 
 
 msgid "Select or deselect all NLA-Strips"
@@ -67447,10 +67371,6 @@ msgstr "ﮟﯿﮑﺳ ﮫﮑﯾﺩ ﺱﮈﻮﻧ ﺐﺨﺘﻨﻣ ﭖﺁ ﮧﮐﺎ�
 msgctxt "Operator"
 msgid "Viewer Region"
 msgstr "ﮧﻗﻼ﻿ﻋ ﺎﮐ ﻦﯾﺮﻇﺎﻧ"
-
-
-msgid "Set the boundaries for viewer operations"
-msgstr "ﮟﯾﺮﮐ ﻦﯿﻌﺘﻣ ﺩﻭﺪﺣ ﮯﯿﻟ ﮯﮐ ﮞﻮﯿﺋﺍﻭﺭﺭﺎﮐ ﯽﮐ ﻦﯾﺮﻇﺎﻧ"
 
 
 msgctxt "Operator"
@@ -68899,10 +68819,6 @@ msgstr "ﮟﯿﮬﺪﻧﺎﺑ ﮯﺳ ﮮﺮﺠﻨﭘ ﻮﮐ ﻝﺎﺟ ﮟﯿﻣ 
 msgctxt "Operator"
 msgid "Add Metaball"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﻝﺎﺑ ﺎﭩﯿﻣ"
-
-
-msgid "Add an metaball object to the scene"
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮯﺷ ﻝﺎﺑ ﺎﭩﯿﻣ ﮟﯿﻣ ﺮﻈﻨﻣ"
 
 
 msgid "Primitive"
@@ -70629,6 +70545,10 @@ msgid "Move the active vertex group up/down in the list"
 msgstr "ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ ﮯﭽﯿﻧ/ﺮﭘﻭﺍ ﻮﮐ ﮦﻭﺮﮔ ﮯﻧﻮﮐ ﻝﺎﻌﻓ ﮟﯿﻣ ﺖﺳﺮﮩﻓ"
 
 
+msgid "Direction to move the active vertex group towards"
+msgstr "ﺖﻤﺳ ﯽﮐ ﮯﻧﺎﺟ ﮯﻟ ﻑﺮﻃ ﯽﮐ ﮦﻭﺮﮔ ﮯﻧﻮﮐ ﻝﺎﻌﻓ"
+
+
 msgid "Normalize weights of the active vertex group, so that the highest ones are now 1.0"
 msgstr "ﮞﻮﮨ 1.0 ﺏﺍ ﮦﺩﺎﯾﺯ ﮯﺳ ﺐﺳ ﮧﮐﺎﺗ ،ﮟﯿﺋﻻ﻿ ﺮﭘ ﻝﻮﻤﻌﻣ ﻮﮐ ﻥﺯﻭ ﮯﮐ ﮦﻭﺮﮔ ﮯﻧﻮﮐ ﻝﺎﻌﻓ"
 
@@ -71338,10 +71258,6 @@ msgstr "ﮟﯾﮌﻮﮭﭼ ﺮﮐ ﭧﯿﺴﮭﮔ ﮧﮕﺟ ﯼﺮﺳﻭﺩ ﯽ�
 msgctxt "Operator"
 msgid "Open/Close"
 msgstr "ﮟﯾﺮﮐ ﺪﻨﺑ/ﮟﯿﻟﻮﮭﮐ"
-
-
-msgid "Toggle whether item under cursor is enabled or closed"
-msgstr "ﮯﮨ ﺪﻨﺑ ﺎﯾ ﮯﮨ ﻝﺎﻌﻓ ﻢﭩﺋﺁ ﮯﭽﯿﻧ ﮯﮐ ﺮﺳﺮﮐ ﺎﯾﺁ ﮧﮐ ﮟﯾﺮﮐ ﻞﮔﻮﭨ"
 
 
 msgid "Close or open all items"
@@ -72697,10 +72613,6 @@ msgid "Remove Doubles"
 msgstr "ﮟﯾﺩ ﺎﭩﮨ ﻮﮐ ﺰﻠﺑﮈ"
 
 
-msgid "Remove selected particles close enough of others"
-msgstr "ﮟﯾﺩ ﺎﭩﮨ ﮯﺳ ﺐﯾﺮﻗ ﯽﻓﺎﮐ ﮯﮐ ﮞﻭﺮﺳﻭﺩ ﻮﮐ ﺕﺍﺭﺫ ﺐﺨﺘﻨﻣ"
-
-
 msgid "Threshold distance within which particles are removed"
 msgstr "ﮯﮨ ﺎﺗﺎﺟ ﺎﯾﺩ ﺎﭩﮨ ﻮﮐ ﺕﺍﺭﺫ ﺭﺪﻧﺍ ﮯﮐ ﺲﺟ ﮧﻠﺻﺎﻓ ﺎﮐ ﺪﺣ"
 
@@ -73356,10 +73268,6 @@ msgid "Select Connected"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﮏﻠﺴﻨﻣ"
 
 
-msgid "Select bones linked by parent/child connections under the mouse cursor"
-msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﮞﻮﯾﮉﮨ ﮏﻠﺴﻨﻣ ﮯﺳ ﻦﺸﮑﻨﮐ ﮯﮐ ﮞﻮﭽﺑ/ﻦﯾﺪﻟﺍﻭ ﮯﭽﯿﻧ ﮯﮐ ﺮﺳﺮﮐ ﺱﺅﺎﻣ"
-
-
 msgctxt "Operator"
 msgid "Select Parent Bone"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﯼﮉﮨ ﯽﮐ ﻦﯾﺪﻟﺍﻭ"
@@ -73863,10 +73771,6 @@ msgstr "ﻝﻮﮔ"
 msgctxt "Operator"
 msgid "Cancel Render View"
 msgstr "ﮟﯾﺮﮐ ﺥﻮﺴﻨﻣ ﻮﮐ ﻮﯾﻭ ﺭﮉﻨﯾﺭ"
-
-
-msgid "Cancel show render view"
-msgstr "ﮟﯾﺮﮐ ﺥﻮﺴﻨﻣ ﻮﮐﻮﯾﻭ ﺭﮉﻨﯾﺭ"
 
 
 msgctxt "Operator"
@@ -75001,6 +74905,10 @@ msgstr "ﮞﻮﮨ ﺐﯾﺮﻗ ﮯﮐ  ﮟﯿﻤﺧ ﮦﺩﺮﮐ ﺐﺨﺘﻨﻣ
 
 msgid "By how much to grow the selection"
 msgstr "ﮯﮨ ﺎﻧﺎﮬﮍﺑ ﺎﻨﺘﮐ ﻮﮐ ﻦﺸﮑﯿﻠﺳ"
+
+
+msgid "Randomizes existing selection or create new random selection"
+msgstr "ﮯﮨ ﺎﺗﺮﮐ ﻖﯿﻠﺨﺗ ﺏﺎﺨﺘﻧﺍ ﺐﯿﺗﺮﺗ ﮯﺑ ﺎﯿﻧ ﺎﯾ ﮯﮨ ﺎﺗﺎﻨﺑ ﺐﯿﺗﺮﺗ ﮯﺑ ﻮﮐ ﺏﺎﺨﺘﻧﺍ ﮦﺩﻮﺟﻮﻣ"
 
 
 msgid "Constant per Curve"
@@ -77030,10 +76938,6 @@ msgid "Jump to Strip"
 msgstr "ﮟﯿﺋﺎﺟ ﺮﭘ ﯽﭩﭘ"
 
 
-msgid "Move frame to previous edit point"
-msgstr "ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ ﺮﭘ ﻡﺎﻘﻣ ﯽﻤﯿﻣﺮﺗ ﮯﻠﮭﭽﭘ ﻮﮐ ﻢﯾﺮﻓ"
-
-
 msgid "Use Strip Center"
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺰﮐﺮﻣ ﯽﭩﭘ"
 
@@ -77492,17 +77396,9 @@ msgid "Add Surface Circle"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﻞﮐﺮﺳ ﺲﯿﻓﺮﺳ"
 
 
-msgid "Construct a Nurbs surface Circle"
-msgstr "Nurbs ﮟﯿﺋﺎﻨﺑ ﮦﺮﺋﺍﺩ ﺎﮐ ﺢﻄﺳ"
-
-
 msgctxt "Operator"
 msgid "Add Surface Curve"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ  ﮟﯿﻤﺧ ﺎﮐ ﺢﻄﺳ"
-
-
-msgid "Construct a Nurbs surface Curve"
-msgstr "ﺮﯿﻤﻌﺗ ﯽﮐ ﻞﺑ ﺢﻄﺳ ﺰﺑﺮﻧ ﮏﯾﺍ"
 
 
 msgctxt "Operator"
@@ -77510,17 +77406,9 @@ msgid "Add Surface Cylinder"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﺭﮉﻨﻠﺳ ﺎﮐ ﺢﻄﺳ"
 
 
-msgid "Construct a Nurbs surface Cylinder"
-msgstr "ﺮﯿﻤﻌﺗ ﯽﮐ ﺭﮉﻨﻠﺳ ﺢﻄﺳ ﺰﺑﺮﻧ ﮏﯾﺍ"
-
-
 msgctxt "Operator"
 msgid "Add Surface Sphere"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮦﺮﮐ ﺎﮐ ﺢﻄﺳ"
-
-
-msgid "Construct a Nurbs surface Sphere"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﮦﺮﺋﺍﺩ ﺎﮐ ﺢﻄﺳ ﺰﺑﺮﻧ"
 
 
 msgctxt "Operator"
@@ -77528,17 +77416,9 @@ msgid "Add Surface Patch"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﭻﯿﭘ ﯽﺤﻄﺳ"
 
 
-msgid "Construct a Nurbs surface Patch"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭻﯿﭘ ﺎﮐ ﺢﻄﺳ ﺰﺑﺮﻧ"
-
-
 msgctxt "Operator"
 msgid "Add Surface Torus"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﺱﺭﻮﭨ ﺲﯿﻓﺮﺳ"
-
-
-msgid "Construct a Nurbs surface Torus"
-msgstr "ﺮﯿﻤﻌﺗ ﯽﮐ ﺱﺭﻮﭨ ﺢﻄﺳ ﺰﺑﺮﻧ ﮏﯾﺍ"
 
 
 msgctxt "Operator"
@@ -77571,10 +77451,6 @@ msgstr "ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ ﮯﭽﯿﻧ ﺭﻭﺍ ﺮﭘﻭﺍ ﻮﮐ 
 msgctxt "Operator"
 msgid "Paste Texture Slot Settings"
 msgstr "ﮟﯾﺮﮐ ﭧﺴﯿﭘ ﺕﺎﺒﯿﺗﺮﺗ ﯽﮐ ﭦﻼ﻿ﺳ ﺮﭽﺴﮑﯿﭨ"
-
-
-msgid "Copy the texture settings and nodes"
-msgstr "ﮟﯾﺮﮐ ﯽﭘﺎﮐ ﺱﮈﻮﻧ ﺭﻭﺍ ﺕﺎﺒﯿﺗﺮﺗ ﯽﮐ ﺖﺧﺎﺳ"
 
 
 msgctxt "Operator"
@@ -78396,14 +78272,6 @@ msgid "Amount to warp about the cursor"
 msgstr "ﺭﺍﺪﻘﻣ ﯽﮐ ﮯﻧﺮﮐ ﭖﺭﺍﻭ ﮟﯿﻣ ﮮﺭﺎﺑ ﮯﮐ ﺮﺳﺮﮐ"
 
 
-msgid "UP"
-msgstr "ﯽﭘﻮﯾ"
-
-
-msgid "DOWN"
-msgstr "ﮯﭽﯿﻧ"
-
-
 msgctxt "Operator"
 msgid "Assign Value as Default"
 msgstr "ﮟﯾﺮﮐ ﺾﯾﻮﻔﺗ ﭧﻟﺎﻔﯾﮈ ﺭﻮﻄﺑ ﻮﮐ ﺭﺪﻗ"
@@ -78766,6 +78634,14 @@ msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﯼﺭ ﺮﭘ ﻮﯿﻠﯾﻭ ﭧﻟﺎﻔﯾﮈ 
 
 msgid "Add an entry to the list"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﺝﺍﺭﺪﻧﺍ ﮏﯾﺍ ﮟﯿﻣ ﺖﺳﺮﮩﻓ"
+
+
+msgid "UP"
+msgstr "ﯽﭘﻮﯾ"
+
+
+msgid "DOWN"
+msgstr "ﮯﭽﯿﻧ"
 
 
 msgctxt "Operator"
@@ -83934,6 +83810,10 @@ msgid "Guides"
 msgstr "ﺯﮉﯿﺋﺎﮔ"
 
 
+msgid "glTF Material Variants"
+msgstr "glTF ﮟﯿﺘﻟﺎﺣ ﻒﻠﺘﺨﻣ ﯽﮐ ﺩﺍﻮﻣ"
+
+
 msgid "Viewer Node"
 msgstr "ﮈﻮﻧ ﺮﻇﺎﻧ"
 
@@ -83954,8 +83834,8 @@ msgid "Curve Edit Mode"
 msgstr "ﮈﻮﻣ ﺎﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﻢﺧ"
 
 
-msgid "glTF Material Variants"
-msgstr "glTF ﮟﯿﺘﻟﺎﺣ ﻒﻠﺘﺨﻣ ﯽﮐ ﺩﺍﻮﻣ"
+msgid "glTF Animations"
+msgstr "glTF ﺮﯾﻭﺎﺼﺗ ﮎﺮﺤﺘﻣ"
 
 
 msgid "Transform Orientations"
@@ -83980,10 +83860,6 @@ msgstr "ﺪﻠﺟ ﯽﮐ ﺯﺎﯿﭘ"
 
 msgid "Stereoscopy"
 msgstr "ﯽﭘﻮﮑﺳﻮﯾﺮﯿﭩﺳ"
-
-
-msgid "glTF Animations"
-msgstr "glTF ﺮﯾﻭﺎﺼﺗ ﮎﺮﺤﺘﻣ"
 
 
 msgid "Multi Frame"
@@ -88302,10 +88178,6 @@ msgstr "GPU ﮉﻨﯾﺍ ﮏﯿﺑ"
 
 msgid "GPU backend to use (requires restarting Blender for changes to take effect)"
 msgstr "(ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﮯﻧﺮﮐ ﻉﻭﺮﺷ ﮦﺭﺎﺑﻭﺩ ﻮﮐ ﺭﮉﻨﯿﻠﺑ ﮯﯿﻟ ﮯﮐ ﮯﻧﻮﮨ ﺯﺍﺪﻧﺍ ﺮﺛﺍ ﻮﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ) ﺪﯾﺪﺴﭘ GPU ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ"
-
-
-msgid "OpenGL"
-msgstr "ﻞﯾﺍ ﯽﺟ ﻦﭘﻭﺍ"
 
 
 msgid "Use OpenGL backend"
@@ -99389,12 +99261,29 @@ msgid "Mute expanded settings for the modifier"
 msgstr "ﮟﯾﺮﮐ ﺵﻮﻣﺎﺧ ﻮﮐ ﺕﺎﺒﯿﺗﺮﺗ ﮦﺪﺷ ﻊﯿﺳﻮﺗ ﮯﯿﻟ ﮯﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ"
 
 
-msgid "Tone Map"
-msgstr "ﭗﯿﻣ ﻥﻮﭨ"
+msgctxt "Sequence"
+msgid "Brightness/Contrast"
+msgstr "ﭧﺳﺍﺮﭩﻨﮐ / ﮏﻤﭼ"
 
 
-msgid "Sound Equalizer"
-msgstr "ﺭﺰﺋﻼ﻿ﯾﻮﮑﯾﺍ ﮉﻧﺅﺎﺳ"
+msgctxt "Sequence"
+msgid "Color Balance"
+msgstr "ﻥﺯﺍﻮﺗ ﻦﯿﮕﻧﺭ"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "ﮟﯿﻤﺧ"
+
+
+msgctxt "Sequence"
+msgid "Hue Correct"
+msgstr "ﺖﺳﺭﺩ ﻮﯿﮨ"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "ﺲﻨﻠﯿﺑ ﭧﺋﺍﻭ"
 
 
 msgid "Bright/contrast modifier data for sequence strip"
@@ -102989,10 +102878,6 @@ msgid "Display Handles"
 msgstr "ﺰﻟﮉﻨﯿﮨ ﮯﻠﭙﺳﮈ"
 
 
-msgid "Limit the display of curve handles in edit mode"
-msgstr "ﮟﯾﺮﮐ ﺩﻭﺪﺤﻣ ﻮﮐ ﮯﻧﺎﮭﮐﺩ ﮯﮐ ﺰﻟﮉﻨﯿﮨ ﻞﺑ ﮟﯿﻣ ﺭﻮﻃ ﮯﮐ ﻢﯿﻣﺮﺗ"
-
-
 msgid "Strength of the fade effect"
 msgstr "ﺖﻗﺎﻃ ﯽﮐ ﺮﺛﺍ ﻻ﻿ﺪﻨﮬﺩ"
 
@@ -103139,10 +103024,6 @@ msgstr "3D ﮟﯾﺮﮐ ﮯﻧﺎﮭﮐﺩ ﮯﻟﺭﻭﻭﺍ ﺮﺳﺮﮐ"
 
 msgid "Draw Normals"
 msgstr "ﮟﯾﺮﮐ ﺍﺭﮈ ﻞﻣﺭﺎﻧ"
-
-
-msgid "Display 3D curve normals in editmode"
-msgstr "ﮟﯾﺮﮐ ﮯﻧﺎﮭﮐﺩ ﻞﻣﺭﺎﻧ ﻞﺑ 3D ﮟﯿﻣ ﺭﻮﻃ ﭧﯾﮉﯾﺍ"
 
 
 msgid "Display Bevel Weights"
@@ -114287,11 +114168,6 @@ msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﺎﭩﯾﮈ"
 
 
 msgctxt "Operator"
-msgid "Toggle Retiming Keys"
-msgstr "ﮟﯾﺮﮐ ﻞﮔﻮﭨ ﻮﮐ ﺰﯿﮐ ﮓﻨﻤﺋﺎﭨ ﯼﺭ"
-
-
-msgctxt "Operator"
 msgid "Slip Strip Contents"
 msgstr "ﺩﺍﻮﻣ ﯽﭩﭘ ﯽﭼﺮﭘ"
 
@@ -117039,10 +116915,6 @@ msgid "Close"
 msgstr "ﺪﻨﺑ"
 
 
-msgid "Toggle X-Ray"
-msgstr "ﮟﯾﺮﮐ ﻞﮔﻮﭨ ﻮﮐ ﮮﺭ ﺲﮑﯾﺍ"
-
-
 msgid "To 3D Cursor"
 msgstr "3D ﮏﺗ ﺮﺳﺮﮐ"
 
@@ -119341,10 +119213,6 @@ msgid "Delete envelope control point"
 msgstr "ﮟﯾﺮﮐ ﻑﺬﺣ ﻮﮐ ﭧﻨﺋﺍﻮﭘ ﻝﻭﺮﭩﻨﮐ ﮧﻓﺎﻔﻟ"
 
 
-msgid "Coefficient"
-msgstr "ﺩﺪﻋ"
-
-
 msgctxt "Action"
 msgid "A"
 msgstr "ﮮﺍ"
@@ -120116,10 +119984,6 @@ msgid "Eyes"
 msgstr "ﮟﯿﮭﮑﻧﺁ"
 
 
-msgid "Pupils"
-msgstr "ﺩﺮﮔﺎﺷ"
-
-
 msgid "Bake Object Transform to Grease Pencil"
 msgstr "Grease Pencil ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﮯﺷ ﮟﯿﻣ"
 
@@ -120150,6 +120014,10 @@ msgstr "ﮯﮨ ﺕﺮﭘ ﮏﯾﺍ ﻑﺮﺻ ﮟﯿﻣ ﭧﮑﯿﺠﺑﺁ"
 
 msgid "No Grease Pencil frame to draw on"
 msgstr "ﮟﯿﮩﻧ ﻢﯾﺮﻓ ﻞﺴﻨﭘ ﺲﯾﺮﮔ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﮯﻨﭽﻨﯿﮭﮐ"
+
+
+msgid "No active Grease Pencil layer"
+msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺕﺮﭘ ﻞﺴﻨﭘ ﯽﺋﺎﻨﮑﭼ ﻝﺎﻌﻓ ﯽﺋﻮﮐ"
 
 
 msgid "There is no layer '%s'"
@@ -120194,10 +120062,6 @@ msgstr "ﮯﮨ ﺎﯿﮔ ﺎﯾﺩ ﺮﮐ ﻑﺎﺻ ﮯﺳ ﺲﮑﯿﺑ ﺏﺍ �
 
 msgid "Baked strokes are cleared"
 msgstr "ﮟﯿﮨ ﮯﮨﺭ ﺮﮐ ﻑﺎﺻ ﮎﻭﺮﭩﺳ ﮉﮑﯿﺑ"
-
-
-msgid "No active Grease Pencil layer"
-msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺕﺮﭘ ﻞﺴﻨﭘ ﯽﺋﺎﻨﮑﭼ ﻝﺎﻌﻓ ﯽﺋﻮﮐ"
 
 
 msgid "Active layer is locked or hidden"
@@ -129028,10 +128892,6 @@ msgid "Topology Mapping"
 msgstr "ﮓﻨﭙﯿﻣ ﯽﺟﻮﻟﻮﭘﻮﭨ"
 
 
-msgid "Face Count: %d"
-msgstr "‬%d‪ :ﺩﺍﺪﻌﺗ ﯽﮐ ﮮﺮﮩﭼ"
-
-
 msgid "Modifier requires more than 3 input faces"
 msgstr "ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﮞﻭﺮﮩﭼ ﭧﭘ ﻥﺍ ﮦﺩﺎﯾﺯ ﮯﺳ 3 ﻮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ"
 
@@ -133081,26 +132941,6 @@ msgstr "‬%d‪ ﻞﻨﯿﭼ"
 
 
 msgctxt "Sequence"
-msgid "Brightness/Contrast"
-msgstr "ﭧﺳﺍﺮﭩﻨﮐ / ﮏﻤﭼ"
-
-
-msgctxt "Sequence"
-msgid "Color Balance"
-msgstr "ﻥﺯﺍﻮﺗ ﻦﯿﮕﻧﺭ"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "ﮟﯿﻤﺧ"
-
-
-msgctxt "Sequence"
-msgid "Hue Correct"
-msgstr "ﺖﺳﺭﺩ ﻮﯿﮨ"
-
-
-msgctxt "Sequence"
 msgid "Equalizer"
 msgstr "ﻻ﻿ﺍﻭ ﮯﻧﺮﮐ ﺮﺑﺍﺮﺑ"
 
@@ -133108,11 +132948,6 @@ msgstr "ﻻ﻿ﺍﻭ ﮯﻧﺮﮐ ﺮﺑﺍﺮﺑ"
 msgctxt "Sequence"
 msgid "Tonemap"
 msgstr "ﭗﯿﻣ ﻥﻮﭨ"
-
-
-msgctxt "Sequence"
-msgid "White Balance"
-msgstr "ﺲﻨﻠﯿﺑ ﭧﺋﺍﻭ"
 
 
 msgid "Strips must be the same length"
@@ -133204,10 +133039,6 @@ msgstr "ﺯﺮﺠﯿﻨﯿﻤـﻭﮉﻧﻭ"
 
 msgid "Dragging {} files"
 msgstr "ﺎﻨﭩﯿﺴﮭﮔ ﻮﮐ ﮞﻮﻠﺋﺎﻓ {}"
-
-
-msgid "Input pending "
-msgstr " ﮯﮨ ءﺍﻮﺘﻟﺍ ﺮﯾﺯ ﭧﭘ ﻥﺍ"
 
 
 msgid "Blender File View"
