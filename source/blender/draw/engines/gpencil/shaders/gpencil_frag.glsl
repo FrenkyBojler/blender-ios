@@ -351,13 +351,10 @@ void main()
                                       1.0);
         float2 view_coord = view_dir.xy / view_dir.z;
 
-        /* TODO. Calculate without finite deference. */
-        float dx = 15.0;
-        float3 dview_dir = ndc_to_view(
-            float4((gl_FragCoord.xy + float2(dx, 0.0)) / viewport_size.xy, 0.0, 1.0) * 2.0 - 1.0);
-        float2 dview_coord = dview_dir.xy / dview_dir.z;
-        float2 dv_dx = (dview_coord - view_coord) / dx;
-        float scale_fac = length(dv_dx);
+        float scale_fac = 2.0 / viewport_size.x;
+        if (drw_view_is_perspective()) {
+          scale_fac *= drw_view().wininv[0][0] / view_dir.z;
+        }
 
         float4 P1 = float4(v1, radius1 * scale_fac);
         float4 P2 = float4(v2, radius2 * scale_fac);
