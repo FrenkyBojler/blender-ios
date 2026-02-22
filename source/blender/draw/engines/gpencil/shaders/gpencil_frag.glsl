@@ -387,19 +387,7 @@ void main()
         }
       }
       else {
-        float2 uv = (gl_FragCoord.xy - gp_interp_flat.sspos_1.xy) / gp_interp_flat.sspos_1.w;
-
-        /* TEMP CODE */
-        if (gl_FragCoord.x / viewport_size.x < 0.5) {
-          uv = rotate_uv(uv, gp_interp_flat.aspect.zw);
-
-          uv = uv * 0.5 + 0.5;
-        }
-        else {
-          uv = gp_interp.uv;
-        }
-
-        frag_color = get_color(uv);
+        frag_color = get_color(gp_interp.uv);
       }
     }
     else {  // line
