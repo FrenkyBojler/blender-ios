@@ -928,8 +928,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
             SpaceNode *space_node = reinterpret_cast<SpaceNode *>(&space);
             space_node->minimap_aspect_ratio = 1.5f;
             space_node->minimap_scale = 1.5f;
-            space_node->gizmo_flag |= SNODE_GIZMO_SHOW_MINIMAP |
-                                      SNODE_GIZMO_MINIMAP_SHOW_NODES_IN_FRAME |
+            space_node->gizmo_flag |= SNODE_GIZMO_MINIMAP_SHOW_NODES_IN_FRAME |
                                       SNODE_GIZMO_MINIMAP_USE_FRAME_COLORS |
                                       SNODE_GIZMO_MINIMAP_USE_NODE_COLORS |
                                       SNODE_GIZMO_MINIMAP_MOVE_TO_TOP |
