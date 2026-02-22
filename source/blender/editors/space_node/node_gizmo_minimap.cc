@@ -149,9 +149,6 @@ static wmOperatorStatus gizmo_minimap_invoke(bContext *C, wmGizmo *gz, const wmE
   View2D v2d = region->v2d;
   SpaceNode *snode = CTX_wm_space_node(C);
 
-  if ((snode->gizmo_flag & SNODE_GIZMO_HIDE) && !(snode->gizmo_flag & SNODE_GIZMO_SHOW_MINIMAP)) {
-    return OPERATOR_CANCELLED;
-  }
   const rcti *rect_visible = ED_region_visible_rect(region);
   const float viewport_height = BLI_rcti_size_y(&v2d.mask);
   float tile_height = 0;

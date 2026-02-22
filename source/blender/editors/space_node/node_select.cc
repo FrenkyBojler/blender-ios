@@ -623,6 +623,41 @@ static bool node_mouse_select(bContext *C,
   float2 cursor;
   ui::view2d_region_to_view(&region.v2d, mval.x, mval.y, &cursor.x, &cursor.y);
 
+  /* Do minimap select. */
+  float minimap_overlay_scale = snode.minimap_scale;
+  float minimap_size = 150.0f * minimap_overlay_scale * UI_SCALE_FAC;
+  float padding = 10.0f * UI_SCALE_FAC;
+
+  float minimap_aspect_ratio = snode.minimap_aspect_ratio;
+
+  float minimap_width = minimap_size * minimap_aspect_ratio;
+  float minimap_height = minimap_size;
+  if (minimap_aspect_ratio > 1) {
+    minimap_width = minimap_size;
+    minimap_height = minimap_size / minimap_aspect_ratio;
+  }
+
+  const rcti *rect_visible = ED_region_visible_rect(&region);
+  const float viewport_height = BLI_rcti_size_y(&region.v2d.mask);
+  float viewport_width = BLI_rcti_size_x(&region.v2d.mask);
+  float tile_height = viewport_height - BLI_rcti_size_y(rect_visible);
+  float padding_top = padding;
+  if (snode.gizmo_flag & SNODE_GIZMO_MINIMAP_MOVE_TO_TOP) {
+    viewport_width = BLI_rcti_size_x(rect_visible);
+    tile_height = 0;
+    padding_top = viewport_height - minimap_height - padding;
+  }
+
+  rctf minimap_rect;
+  BLI_rctf_init(&minimap_rect,
+                viewport_width - padding - minimap_width,
+                viewport_width - padding,
+                padding_top + tile_height,
+                padding_top + minimap_height + tile_height);
+  if (BLI_rctf_isect_pt(&minimap_rect, mval.x, mval.y)) {
+    return false;
+  }
+
   /* First do socket selection, these generally overlap with nodes. */
   if (socket_select) {
     /* NOTE: unlike nodes #SelectPick_Params isn't fully supported. */

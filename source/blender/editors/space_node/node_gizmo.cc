@@ -1246,10 +1246,31 @@ struct NodeMinimapWidgetGroup {
 static bool WIDGETGROUP_node_minimap_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
+  ARegion *region = CTX_wm_region(C);
+  View2D v2d = region->v2d;
 
   if (snode && !(snode->gizmo_flag & SNODE_GIZMO_HIDE) &&
       snode->gizmo_flag & SNODE_GIZMO_SHOW_MINIMAP && snode->edittree)
   {
+    float min[2], max[2];
+    INIT_MINMAX2(min, max);
+    for (bNode &node : snode->edittree->nodes) {
+      float pos_min[2] = {node.runtime->draw_bounds.xmin, node.runtime->draw_bounds.ymin};
+      float pos_max[2] = {node.runtime->draw_bounds.xmax, node.runtime->draw_bounds.ymax};
+      minmax_v2v2_v2(min, max, pos_min);
+      minmax_v2v2_v2(min, max, pos_max);
+    }
+    rctf minimap_space;
+    BLI_rctf_init(&minimap_space, min[0], max[0], min[1], max[1]);
+    float minimap_space_width = BLI_rctf_size_x(&minimap_space);
+    float minimap_space_height = BLI_rctf_size_y(&minimap_space);
+    const float v2d_width = BLI_rctf_size_x(&v2d.cur);
+    const float v2d_height = BLI_rctf_size_y(&v2d.cur);
+    if (v2d_width >= minimap_space_width && v2d_height >= minimap_space_height &&
+        snode->gizmo_flag & SNODE_GIZMO_MINIMAP_AUTO_HIDE)
+    {
+      return false;
+    }
     return true;
   }
 

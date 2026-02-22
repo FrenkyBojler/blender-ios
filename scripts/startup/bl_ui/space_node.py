@@ -292,6 +292,7 @@ class NODE_PT_gizmo_display(Panel):
         col.prop(snode, "show_nodes_in_frame")
         col.separator()
         col.prop(snode, "minimap_top", text="Top placement")
+        col.prop(snode, "minimap_auto_hide", text="Auto Hide Minimap")
 
 
 class NODE_MT_editor_menus(Menu):

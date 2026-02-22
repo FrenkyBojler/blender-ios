@@ -4735,7 +4735,10 @@ static Map<const bNode *, const bNode *> find_menu_switch_sources_for_index_swit
   return result;
 }
 
-static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx, bNodeTree &ntree, ARegion &region)
+static void draw_node_minimap(const bContext &C,
+                              TreeDrawContext &tree_draw_ctx,
+                              bNodeTree &ntree,
+                              ARegion &region)
 {
   SpaceNode *snode = CTX_wm_space_node(&C);
   View2D &v2d = region.v2d;
@@ -4789,6 +4792,14 @@ static void draw_node_minimap(const bContext &C, TreeDrawContext &tree_draw_ctx,
   BLI_rctf_init(&minimap_space, min[0], max[0], min[1], max[1]);
   const float minimap_space_width = BLI_rctf_size_x(&minimap_space);
   const float minimap_space_height = BLI_rctf_size_y(&minimap_space);
+
+  /* Turn off minimap if big enough*/
+  if (BLI_rctf_size_x(&v2d.cur) >= minimap_space_width &&
+      BLI_rctf_size_y(&v2d.cur) >= minimap_space_height &&
+      snode->gizmo_flag & SNODE_GIZMO_MINIMAP_AUTO_HIDE)
+  {
+    return;
+  }
 
   rctf minimap_rect;
   BLI_rctf_init(&minimap_rect,
