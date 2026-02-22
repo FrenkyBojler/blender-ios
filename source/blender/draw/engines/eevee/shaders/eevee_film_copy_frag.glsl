@@ -58,8 +58,8 @@ void main()
     out_color.rgb *= uniform_buf.film.film_exposure;
     if (uniform_buf.film.use_camera_responsivity != 0) {
       float3x3 cam_to_sl = float3x3(uniform_buf.film.camera_to_scene_linear_row0.xyz,
-                                     uniform_buf.film.camera_to_scene_linear_row1.xyz,
-                                     uniform_buf.film.camera_to_scene_linear_row2.xyz);
+                                    uniform_buf.film.camera_to_scene_linear_row1.xyz,
+                                    uniform_buf.film.camera_to_scene_linear_row2.xyz);
       out_color.rgb = out_color.rgb * cam_to_sl;
     }
   }

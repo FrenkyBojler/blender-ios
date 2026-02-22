@@ -1232,7 +1232,7 @@ void RNA_def_camera(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "physical_shutter_speed", PROP_FLOAT, PROP_FRACTION);
   RNA_def_property_range(prop, 1e-6f, 3600.0f);
-  RNA_def_property_ui_range(prop, 0.00025f, 1.0f, 0.01f, 5);
+  RNA_def_property_ui_range(prop, 0.00025f, 3600.0f, 1.0f, 5);
   RNA_def_property_ui_text(prop, "Shutter Speed", "Exposure time in seconds");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 

@@ -3153,6 +3153,16 @@ void button_string_get_ex(Button *but,
           BLI_snprintf_utf8(str, str_maxncpy, "%.*f", std::max(0, prec - 2), value * 100);
         }
       }
+      else if (subtype == PROP_FRACTION && value > 0.0 && value < 1.0) {
+        const double denominator = 1.0 / value;
+        BLI_snprintf_utf8(str, str_maxncpy, "1/%.3f", denominator);
+        /* Strip trailing zeros and decimal point from the denominator. */
+        BLI_str_rstrip_float_zero(str, '\0');
+        const int len = strlen(str);
+        if (len > 0 && str[len - 1] == '.') {
+          str[len - 1] = '\0';
+        }
+      }
       else {
         const int int_digits_num = integer_digits_f(value);
         if (use_exp_float) {
@@ -3998,11 +4008,22 @@ static void ui_but_build_drawstr_float(Button *but, double value)
   }
   else if (subtype == PROP_FRACTION) {
     if (value >= 1.0) {
-      const int prec = ui_but_calc_float_precision(but, value);
-      but->drawstr = fmt::format("{}{:.{}f}", but->str, value, prec);
+      std::string val_str = fmt::format("{:.3f}", value);
+      if (val_str.find('.') != std::string::npos) {
+        val_str.erase(val_str.find_last_not_of('0') + 1);
+        val_str.erase(val_str.find_last_not_of('.') + 1);
+      }
+      but->drawstr = fmt::format("{}{}", but->str, val_str);
     }
     else if (value > 0.0) {
-      but->drawstr = fmt::format("{}1/{:.0f}", but->str, 1.0 / value);
+      const double denominator = 1.0 / value;
+      std::string denom_str = fmt::format("{:.3f}", denominator);
+      /* Strip trailing zeros after decimal point, and the point itself if unneeded. */
+      if (denom_str.find('.') != std::string::npos) {
+        denom_str.erase(denom_str.find_last_not_of('0') + 1);
+        denom_str.erase(denom_str.find_last_not_of('.') + 1);
+      }
+      but->drawstr = fmt::format("{}1/{}", but->str, denom_str);
     }
     else {
       but->drawstr = but->str + "0";
