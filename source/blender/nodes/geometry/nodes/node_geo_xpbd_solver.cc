@@ -88,6 +88,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(1 / 25.0f)
       .subtype(PROP_TIME_ABSOLUTE);
 
+  b.add_input<decl::String>("Filter").optional_label().description(
+      "Filters the geometry sets to process based on their tags");
+
   auto &panel = b.add_panel("Solver").default_closed(true);
   panel.add_input<decl::Int>("Substeps").default_value(10).min(1);
   panel.add_input<decl::Int>("Constraint Iterations").default_value(1).min(1);
@@ -526,6 +529,8 @@ class XpbdSolverStep {
   const float sub_delta_time_;
   float substep_compliance_factor_;
 
+  std::string geometry_tag_filter_;
+
   int constraint_iterations_;
 
   Geometries geometries_;
@@ -544,10 +549,12 @@ class XpbdSolverStep {
   XpbdSolverStep(Bundle &world,
                  const float total_delta_time,
                  const int substeps,
-                 const int constraint_iterations)
+                 const int constraint_iterations,
+                 const StringRef geometry_tag_filter)
       : world_(world),
         substeps_(substeps),
         sub_delta_time_(total_delta_time / substeps_),
+        geometry_tag_filter_(geometry_tag_filter),
         constraint_iterations_(constraint_iterations)
   {
     substep_compliance_factor_ = math::safe_rcp(pow2f(sub_delta_time_));
@@ -615,35 +622,35 @@ class XpbdSolverStep {
 
   void gather_from_world__geometries()
   {
-    /* Gather geometry bundle paths. */
+    /* Gather geometry sets to process from the world. */
     const Vector<std::string> paths = gather_bundle_paths_by_data_type(world_, SOCK_GEOMETRY);
-    const int num_geometry_sets = paths.size();
-    geometries_.geometry_sets.reinitialize(num_geometry_sets);
-
-    for (const int i : IndexRange(num_geometry_sets)) {
-      const StringRef path = paths[i];
-      GeometrySetData &geo_set_data = geometries_.geometry_sets[i];
+    for (const StringRef path : paths) {
+      GeometrySetData geo_set_data;
       geo_set_data.path = path;
       geo_set_data.geometry = std::move(*world_.lookup_path_for_write_ptr<GeometrySet>(path));
-      if (!geo_set_data.geometry.has_bundle()) {
-        continue;
-      }
-      const Bundle &bundle_in_geo = *geo_set_data.geometry.bundle();
-      if (const std::optional<ListPtr> tags_list_ptr = bundle_in_geo.lookup_path<ListPtr>("tags"))
-      {
-        if (*tags_list_ptr) {
-          const List &tags_list = **tags_list_ptr;
-          if (tags_list.cpp_type().is<std::string>()) {
-            tags_list.foreach<std::string>(
-                [&](const std::string &tag) { geo_set_data.tags.add(tag); });
+      if (geo_set_data.geometry.has_bundle()) {
+        const Bundle &bundle_in_geo = *geo_set_data.geometry.bundle();
+        if (const std::optional<ListPtr> tags_list_ptr = bundle_in_geo.lookup_path<ListPtr>(
+                "tags"))
+        {
+          if (*tags_list_ptr) {
+            const List &tags_list = **tags_list_ptr;
+            if (tags_list.cpp_type().is<std::string>()) {
+              tags_list.foreach<std::string>(
+                  [&](const std::string &tag) { geo_set_data.tags.add(tag); });
+            }
           }
         }
       }
+      if (!tag_filter_matches(geometry_tag_filter_, geo_set_data.tags)) {
+        continue;
+      }
+      geometries_.geometry_sets.append(std::move(geo_set_data));
     }
 
     /* Gather individual components that should be simulated. There may be more than geometry sets
      * because each geometry set could contain e.g. a mesh and curves. */
-    for (const int geo_bundle_i : IndexRange(num_geometry_sets)) {
+    for (const int geo_bundle_i : geometries_.geometry_sets.index_range()) {
       GeometrySetData &geo_set_data = geometries_.geometry_sets[geo_bundle_i];
       GeometrySet &geometry = geo_set_data.geometry;
       for (bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh,
@@ -2601,8 +2608,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int constraint_iterations = params.get_input<int>("Constraint Iterations");
   const float delta_time = std::max(0.0f, params.get_input<float>("Delta Time"));
   Bundle &world = world_ptr.ensure_mutable_inplace();
+  const std::string geometry_tag_filter = params.extract_input<std::string>("Filter");
 
-  XpbdSolverStep step(world, delta_time, substeps, constraint_iterations);
+  XpbdSolverStep step(world, delta_time, substeps, constraint_iterations, geometry_tag_filter);
   step.do_step();
 
   for (const StringRef warning : step.warnings()) {
