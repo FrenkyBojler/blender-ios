@@ -184,8 +184,8 @@ static std::optional<Array<int>> sorted_indices(const fn::FieldContext &field_co
   Array<int> indices(domain_size);
 
   array_utils::scatter<int>(gathered_indices, mask, indices);
-  unselected.foreach_index_optimized<int>(GrainSize(2048),
-                                          [&](const int index) { indices[index] = index; });
+  unselected.foreach_index_optimized<int>([&](const int index) { indices[index] = index; },
+                                          exec_mode::grain_size(4096));
 
   if (array_utils::indices_are_range(indices, indices.index_range())) {
     return std::nullopt;
@@ -296,7 +296,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSortElements", GEO_NODE_SORT_ELEMENTS);
   ntype.ui_name = "Sort Elements";
@@ -307,7 +307,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

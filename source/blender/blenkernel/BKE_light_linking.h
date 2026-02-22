@@ -12,6 +12,8 @@
 
 #include "DNA_collection_types.h" /* eCollectionLightLinkingState */
 
+namespace blender {
+
 struct ID;
 struct Main;
 struct Object;
@@ -20,10 +22,10 @@ struct ReportList;
 struct Scene;
 struct ViewLayer;
 
-typedef enum LightLinkingType {
+enum LightLinkingType {
   LIGHT_LINKING_RECEIVER,
   LIGHT_LINKING_BLOCKER,
-} LightLinkingType;
+};
 
 /**
  * Add an empty LightLinking data to an Object.
@@ -39,6 +41,21 @@ void BKE_light_linking_ensure(struct Object *object);
 void BKE_light_linking_copy(struct Object *object_dst,
                             const struct Object *object_src,
                             const int copy_flags);
+
+/**
+ * Copy receiver or blocker collection from the source to the destination object.
+ * Performa user counter, and dependency graph relations tagging.
+ */
+void BKE_light_linking_copy_collection(Main *bmain,
+                                       Object &object_dst,
+                                       const Object &object_src,
+                                       LightLinkingType link_type);
+void BKE_light_linking_copy_receiver_collection(Main *bmain,
+                                                Object &object_dst,
+                                                const Object &object_src);
+void BKE_light_linking_copy_blocker_collection(Main *bmain,
+                                               Object &object_dst,
+                                               const Object &object_src);
 
 /**
  * Free the LightLinking data from the object.
@@ -151,3 +168,5 @@ void BKE_light_linking_select_receivers_of_emitter(struct Scene *scene,
                                                    struct ViewLayer *view_layer,
                                                    struct Object *emitter,
                                                    LightLinkingType link_type);
+
+}  // namespace blender

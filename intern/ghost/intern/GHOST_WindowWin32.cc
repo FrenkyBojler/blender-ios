@@ -133,8 +133,8 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
     const char *title = "Blender - Unsupported Graphics Card Configuration";
     const char *text = "";
 #if defined(WIN32)
-    if (strncmp(BLI_getenv("PROCESSOR_IDENTIFIER"), "ARM", 3) == 0 &&
-        strstr(BLI_getenv("PROCESSOR_IDENTIFIER"), "Qualcomm") != NULL)
+    if (strncmp(blender::BLI_getenv("PROCESSOR_IDENTIFIER"), "ARM", 3) == 0 &&
+        strstr(blender::BLI_getenv("PROCESSOR_IDENTIFIER"), "Qualcomm") != NULL)
     {
       text =
           "A driver with support for OpenGL 4.3 or higher is required.\n\n"
@@ -324,11 +324,15 @@ void GHOST_WindowWin32::adjustWindowRectForClosestMonitor(LPRECT win_rect,
   GetMonitorInfo(hmonitor, &monitor);
 
   /* Constrain requested size and position to fit within this monitor. */
-  LONG width = min(monitor.rcWork.right - monitor.rcWork.left, win_rect->right - win_rect->left);
-  LONG height = min(monitor.rcWork.bottom - monitor.rcWork.top, win_rect->bottom - win_rect->top);
-  win_rect->left = min(max(monitor.rcWork.left, win_rect->left), monitor.rcWork.right - width);
+  LONG width = std::min(monitor.rcWork.right - monitor.rcWork.left,
+                        win_rect->right - win_rect->left);
+  LONG height = std::min(monitor.rcWork.bottom - monitor.rcWork.top,
+                         win_rect->bottom - win_rect->top);
+  win_rect->left = std::min(std::max(monitor.rcWork.left, win_rect->left),
+                            monitor.rcWork.right - width);
   win_rect->right = win_rect->left + width;
-  win_rect->top = min(max(monitor.rcWork.top, win_rect->top), monitor.rcWork.bottom - height);
+  win_rect->top = std::min(std::max(monitor.rcWork.top, win_rect->top),
+                           monitor.rcWork.bottom - height);
   win_rect->bottom = win_rect->top + height;
 
   /* With Windows 10 and newer we can adjust for chrome that differs with DPI and scale. */
@@ -350,7 +354,7 @@ void GHOST_WindowWin32::adjustWindowRectForClosestMonitor(LPRECT win_rect,
   }
 
   /* But never allow a top position that can hide part of the title bar. */
-  win_rect->top = max(monitor.rcWork.top, win_rect->top);
+  win_rect->top = std::max(monitor.rcWork.top, win_rect->top);
 }
 
 bool GHOST_WindowWin32::getValid() const
@@ -1037,7 +1041,7 @@ void GHOST_WindowWin32::updateDPI()
 
 uint16_t GHOST_WindowWin32::getDPIHint()
 {
-  if (user32_) {
+  if (user32_ && system_->native_pixel_) {
     GHOST_WIN32_GetDpiForWindow fpGetDpiForWindow = (GHOST_WIN32_GetDpiForWindow)::GetProcAddress(
         user32_, "GetDpiForWindow");
 

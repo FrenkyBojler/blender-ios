@@ -11,19 +11,12 @@
 #include "SEQ_channels.hh"
 #include "SEQ_render.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 
 #include "effects.hh"
 #include "render.hh"
 
 namespace blender::seq {
-
-/* No effect inputs for adjustment, we use #give_ibuf_seq. */
-static int num_inputs_adjustment()
-{
-  return 0;
-}
 
 static StripEarlyOut early_out_adjustment(const Strip * /*strip*/, float /*fac*/)
 {
@@ -38,15 +31,14 @@ static ImBuf *do_adjustment_impl(const RenderData *context,
   ImBuf *i = nullptr;
   Editing *ed = context->scene->ed;
 
-  ListBase *seqbasep = get_seqbase_by_strip(context->scene, strip);
-  ListBase *channels = get_channels_by_strip(ed, strip);
+  ListBaseT<Strip> *seqbasep = get_seqbase_by_strip(context->scene, strip);
+  ListBaseT<SeqTimelineChannel> *channels = get_channels_by_strip(ed, strip);
 
   /* Clamp timeline_frame to strip range so it behaves as if it had "still frame" offset (last
    * frame is static after end of strip). This is how most strips behave. This way transition
    * effects that doesn't overlap or speed effect can't fail rendering outside of strip range. */
-  timeline_frame = clamp_i(timeline_frame,
-                           time_left_handle_frame_get(context->scene, strip),
-                           time_right_handle_frame_get(context->scene, strip) - 1);
+  timeline_frame = clamp_i(
+      timeline_frame, strip->left_handle(), strip->right_handle(context->scene) - 1);
 
   if (strip->channel > 1) {
     i = seq_render_give_ibuf_seqbase(
@@ -87,7 +79,6 @@ static ImBuf *do_adjustment(const RenderData *context,
 
 void adjustment_effect_get_handle(EffectHandle &rval)
 {
-  rval.num_inputs = num_inputs_adjustment;
   rval.early_out = early_out_adjustment;
   rval.execute = do_adjustment;
 }
