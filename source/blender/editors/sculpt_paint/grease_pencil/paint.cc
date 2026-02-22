@@ -1712,7 +1712,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
                      material_index,
                      on_back);
     }
-    if ((settings->flag & GP_BRUSH_STROKE_TYPES) != GP_BRUSH_STROKE_TYPE_POLY) {
+    if (settings->curve_type != CURVE_TYPE_POLY) {
       const IndexMask selection = IndexRange::from_single(active_curve);
       bke::CurvesGeometry &curves = drawing.strokes_for_write();
 
@@ -1724,7 +1724,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
       curves = geometry::fit_poly_to_bezier_curves(
           curves, selection, thresholds, corners, geometry::FitMethod::Refit, {});
 
-      if ((settings->flag & GP_BRUSH_STROKE_TYPES) == GP_BRUSH_STROKE_TYPE_CATMULL_ROM) {
+      if (settings->curve_type == CURVE_TYPE_CATMULL_ROM) {
         geometry::ConvertCurvesOptions options;
         options.convert_bezier_handles_to_poly_points = false;
         options.convert_bezier_handles_to_catmull_rom_points = false;
@@ -1732,7 +1732,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
         options.keep_catmull_rom_shape_as_nurbs = true;
         curves = geometry::convert_curves(curves, selection, CURVE_TYPE_CATMULL_ROM, {}, options);
       }
-      else if ((settings->flag & GP_BRUSH_STROKE_TYPES) == GP_BRUSH_STROKE_TYPE_NURBS) {
+      else if (settings->curve_type == CURVE_TYPE_NURBS) {
         geometry::ConvertCurvesOptions options;
         options.convert_bezier_handles_to_poly_points = false;
         options.convert_bezier_handles_to_catmull_rom_points = false;
