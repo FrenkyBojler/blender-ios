@@ -318,7 +318,6 @@ static void node_geo_exec(GeoNodeExecParams params)
         params.error_message_add(NodeWarningType::Error, std::move(error_message));
         return;
       }
-      break;
       bke::SocketValueVariant sampled_atribute;
       if (!execute_multi_function_on_value_variant(
               std::make_shared<bke::mesh_surface_sample::BaryWeightSampleFn>(std::move(target),
