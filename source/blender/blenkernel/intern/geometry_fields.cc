@@ -676,8 +676,8 @@ static bool component_is_available(const GeometrySet &geometry,
   return component.attribute_domain_size(domain) != 0;
 }
 
-const GeometryComponent *find_source_component(const GeometrySet &geometry,
-                                               const AttrDomain domain)
+const GeometryComponent *SampleIndexFunction::find_source_component(const GeometrySet &geometry,
+                                                                    const AttrDomain domain)
 {
   /* Choose the other component based on a consistent order, rather than some more complicated
    * heuristic. This is the same order visible in the spreadsheet and used in the ray-cast node. */
