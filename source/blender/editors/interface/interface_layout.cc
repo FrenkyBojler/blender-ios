@@ -1933,7 +1933,7 @@ void Layout::prop(PointerRNA *ptr,
                   eUI_Item_Flag flag,
                   const std::optional<StringRef> name_opt,
                   int icon,
-                  const std::optional<StringRef> placeholder)
+                  const std::optional<StringRef> placeholder_opt)
 {
 
   Block *block = this->block();
@@ -2329,9 +2329,13 @@ void Layout::prop(PointerRNA *ptr,
   }
 
   if (but) {
-    if (placeholder) {
-      button_placeholder_set(but, *placeholder);
+    if (placeholder_opt) {
+      button_placeholder_set(but, *placeholder_opt);
     }
+    else if (name_opt && name_opt->is_empty()) {
+      button_placeholder_set(but, RNA_property_ui_name(prop));
+    }
+
     if (ELEM(but->type, ButtonType::Text) && (flag & ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)) {
       button_flag2_enable(but, BUT2_FORCE_SEMI_MODAL_ACTIVE);
     }
@@ -2392,7 +2396,8 @@ void Layout::prop(PointerRNA *ptr,
                   const StringRefNull propname,
                   const eUI_Item_Flag flag,
                   const std::optional<StringRef> name,
-                  int icon)
+                  int icon,
+                  const std::optional<StringRef> placeholder)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
 
@@ -2404,7 +2409,7 @@ void Layout::prop(PointerRNA *ptr,
     return;
   }
 
-  this->prop(ptr, prop, RNA_NO_INDEX, 0, flag, name, icon);
+  this->prop(ptr, prop, RNA_NO_INDEX, 0, flag, name, icon, placeholder);
 }
 
 void Layout::prop_with_popover(PointerRNA *ptr,
@@ -2737,7 +2742,8 @@ void Layout::prop_search(PointerRNA *ptr,
                          PropertyRNA *item_searchprop,
                          const std::optional<StringRefNull> name_opt,
                          int icon,
-                         bool results_are_suggestions)
+                         bool results_are_suggestions,
+                         const std::optional<StringRefNull> placeholder_opt)
 {
   const bool use_prop_sep = this->use_property_split();
   Block *block = this->block();
@@ -2804,6 +2810,14 @@ void Layout::prop_search(PointerRNA *ptr,
                                    ButtonType::SearchMenu,
                                    "UILayout.prop_search()");
   BLI_assert(but->type == ButtonType::SearchMenu);
+
+  if (placeholder_opt) {
+    button_placeholder_set(but, *placeholder_opt);
+  }
+  else if (name_opt && name_opt->is_empty()) {
+    button_placeholder_set(but, RNA_property_ui_name(prop));
+  }
+
   button_configure_search(
       but, ptr, prop, searchptr, searchprop, item_searchprop, results_are_suggestions);
 }
@@ -2813,7 +2827,8 @@ void Layout::prop_search(PointerRNA *ptr,
                          PointerRNA *searchptr,
                          const StringRefNull searchpropname,
                          const std::optional<StringRefNull> name,
-                         int icon)
+                         int icon,
+                         const std::optional<StringRefNull> placeholder)
 {
   /* validate arguments */
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
@@ -2831,7 +2846,7 @@ void Layout::prop_search(PointerRNA *ptr,
     return;
   }
 
-  this->prop_search(ptr, prop, searchptr, searchprop, nullptr, name, icon, false);
+  this->prop_search(ptr, prop, searchptr, searchprop, nullptr, name, icon, false, placeholder);
 }
 
 void item_menutype_func(bContext *C, Layout *layout, void *arg_mt)

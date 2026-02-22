@@ -572,7 +572,8 @@ struct Layout : public Item, NonCopyable, NonMovable {
             StringRefNull propname,
             eUI_Item_Flag flag,
             std::optional<StringRef> name,
-            int icon);
+            int icon,
+            std::optional<StringRef> placeholder = std::nullopt);
 
   void popover(const bContext *C, PanelType *pt, std::optional<StringRef> name_opt, int icon);
   void popover(const bContext *C,
@@ -641,7 +642,8 @@ struct Layout : public Item, NonCopyable, NonMovable {
                    PropertyRNA *item_searchpropname,
                    std::optional<StringRefNull> name,
                    int icon,
-                   bool results_are_suggestions);
+                   bool results_are_suggestions,
+                   std::optional<StringRefNull> placeholder = std::nullopt);
   /**
    * Adds a RNA enum/pointer/string/ property item, and exposes it into the layout. Button input
    * would suggest values from the search property collection, input must match a suggested value.
@@ -652,7 +654,8 @@ struct Layout : public Item, NonCopyable, NonMovable {
                    PointerRNA *searchptr,
                    StringRefNull searchpropname,
                    std::optional<StringRefNull> name,
-                   int icon);
+                   int icon,
+                   std::optional<StringRefNull> placeholder = std::nullopt);
 
   /**
    * Adds a RNA property item, and sets a custom popover to expose its value.
