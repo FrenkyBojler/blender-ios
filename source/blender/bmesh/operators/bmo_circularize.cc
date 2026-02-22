@@ -328,15 +328,20 @@ static void calculate_circle_inside_fit(Span<CircleVert> verts,
     r_center = *fixed_center;
   }
   else {
-    float2 min_co = verts[0].co_2d;
-    float2 max_co = verts[0].co_2d;
+    float total_edge_length = 0.0f;
+    r_center = float2(0.0f);
+    float2 prev_co = verts.last().co_2d;
 
     for (const CircleVert &cv : verts) {
-      min_co = math::min(min_co, cv.co_2d);
-      max_co = math::max(max_co, cv.co_2d);
+      const float2 &curr_co = cv.co_2d;
+      const float edge_length = math::distance(prev_co, curr_co);
+      r_center += (prev_co + curr_co) * edge_length;
+      total_edge_length += edge_length;
+      prev_co = curr_co;
     }
-
-    r_center = (min_co + max_co) * 0.5f;
+    if (total_edge_length != 0.0f) {
+      r_center *= (0.5f / total_edge_length);
+    }
   }
 
   *r_radius = FLT_MAX;
