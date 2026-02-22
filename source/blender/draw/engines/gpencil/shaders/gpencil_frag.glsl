@@ -205,14 +205,6 @@ float t_to_i(float t, float4 p1, float4 p2)
   }
 }
 
-int round_q(float fnum)
-{
-  if (mod(fnum, 1.0) < 0.0001) {
-    return int(floor(fnum));
-  }
-  return int(ceil(fnum));
-}
-
 float screen_t_to_local_t(float screen_t, float z1, float z2)
 {
   if (!drw_view_is_perspective()) {
@@ -264,12 +256,12 @@ float2 uneven_capsule_intersection(float2 p0, float2 p1, float2 p2, float r1, fl
 
 int min_bound(float4 p1, float4 p2)
 {
-  return round_q(t_to_i(0.0, p1, p2));
+  return int(ceil(t_to_i(0.0, p1, p2)));
 }
 
 int max_bound(float4 p1, float4 p2)
 {
-  return round_q(t_to_i(1.0, p1, p2));
+  return int(ceil(t_to_i(1.0, p1, p2)));
 }
 
 int2 get_bounds(float2 p0, float4 p1, float4 p2)
