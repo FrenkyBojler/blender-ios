@@ -302,7 +302,7 @@ void AbstractTreeView::draw_hierarchy_lines(const ARegion &region, const uiBlock
   int2 top_left{first_item_but_pixel_rect.xmin, first_item_but_pixel_rect.ymax};
   for (const auto &line : lines) {
     Bounds<int> line_range{top_left.y - line.second.y, top_left.y - line.first.y};
-    auto intersection = blender::bounds::intersect(block_range, line_range);
+    std::optional<Bounds<int>> intersection = bounds::intersect(block_range, line_range);
     if (!intersection) {
       continue;
     }
