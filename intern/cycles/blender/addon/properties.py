@@ -1093,6 +1093,17 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         description=adaptive_compile_description,
         default=False)
 
+    debug_texture_cache_eviction: BoolProperty(
+        name="Cache Eviction",
+        description="Evict unused tiles from the texture cache to free up memory",
+        default=True)
+
+    debug_texture_cache_preserve_unused: IntProperty(
+        name="Preserve Unused MB",
+        description="Preserve unused texture cache tiles up to this amount",
+        min=0,
+        default=0)
+
     @classmethod
     def register(cls):
         bpy.types.Scene.cycles = PointerProperty(
