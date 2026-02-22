@@ -537,8 +537,14 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode);
 /**
  * Find window that owns the animation timer.
  */
+wmWindow *ED_window_animation_playing_no_scrub(const wmWindowManager *wm);
 bScreen *ED_screen_animation_playing(const wmWindowManager *wm);
 bScreen *ED_screen_animation_no_scrub(const wmWindowManager *wm);
+
+/**
+ * Find the scene that is currently playing in a window/screen.
+ */
+Scene *ED_screen_find_playing_scene(const bScreen *screen, bool scrub = false);
 
 /* screen keymaps */
 /* called in `spacetypes.cc`. */
@@ -611,6 +617,7 @@ bool ED_operator_image_active(bContext *C);
 bool ED_operator_nla_active(bContext *C);
 bool ED_operator_info_active(bContext *C);
 bool ED_operator_console_active(bContext *C);
+bool ED_operator_preferences_active(bContext *C);
 
 /** Only check there is an active object (no visibility check). */
 bool ED_operator_object_active_only(bContext *C);

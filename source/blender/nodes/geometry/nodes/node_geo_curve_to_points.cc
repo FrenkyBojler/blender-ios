@@ -69,7 +69,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurveToPoints *data = MEM_new_for_free<NodeGeometryCurveToPoints>(__func__);
+  NodeGeometryCurveToPoints *data = MEM_new<NodeGeometryCurveToPoints>(__func__);
 
   data->mode = GEO_NODE_CURVE_RESAMPLE_COUNT;
   node->storage = data;
@@ -81,8 +81,11 @@ static void fill_rotation_attribute(const Span<float3> tangents,
 {
   threading::parallel_for(IndexRange(rotations.size()), 512, [&](IndexRange range) {
     for (const int i : range) {
-      rotations[i] = math::to_quaternion(
-          math::from_orthonormal_axes<float4x4>(normals[i], tangents[i]));
+      const float3 tangent = tangents[i];
+      BLI_assert(math::is_unit(tangent));
+      const float3 binormal = math::normalize(math::cross(tangent, normals[i]));
+      const float3 normal = math::cross(binormal, tangent);
+      rotations[i] = math::to_quaternion(float3x3{normal, binormal, tangent});
     }
   });
 }
@@ -163,19 +166,20 @@ static void layer_pointclouds_to_instances(const Span<PointCloud *> pointcloud_b
                                            GeometrySet &geometry)
 {
   if (!pointcloud_by_layer.is_empty()) {
-    bke::Instances *instances = new bke::Instances();
-    for (PointCloud *pointcloud : pointcloud_by_layer) {
+    auto instances = std::make_unique<bke::Instances>(pointcloud_by_layer.size());
+    MutableSpan<int> handles = instances->reference_handles_for_write();
+    instances->transforms_for_write().fill(float4x4::identity());
+    for (const int i : pointcloud_by_layer.index_range()) {
+      PointCloud *pointcloud = pointcloud_by_layer[i];
       if (!pointcloud) {
         /* Add an empty reference so the number of layers and instances match.
          * This makes it easy to reconstruct the layers afterwards and keep their
          * attributes. */
-        const int handle = instances->add_reference(bke::InstanceReference());
-        instances->add_instance(handle, float4x4::identity());
+        handles[i] = instances->add_reference(bke::InstanceReference());
         continue;
       }
       GeometrySet temp_set = GeometrySet::from_pointcloud(pointcloud);
-      const int handle = instances->add_reference(bke::InstanceReference{temp_set});
-      instances->add_instance(handle, float4x4::identity());
+      handles[i] = instances->add_reference(bke::InstanceReference{std::move(temp_set)});
     }
 
     bke::copy_attributes(geometry.get_grease_pencil()->attributes(),
@@ -186,7 +190,7 @@ static void layer_pointclouds_to_instances(const Span<PointCloud *> pointcloud_b
     InstancesComponent &dst_component = geometry.get_component_for_write<InstancesComponent>();
     GeometrySet new_instances = geometry::join_geometries(
         {GeometrySet::from_instances(dst_component.release()),
-         GeometrySet::from_instances(instances)},
+         GeometrySet::from_instances(std::move(instances))},
         attribute_filter);
     dst_component.replace(new_instances.get_component_for_write<InstancesComponent>().release());
   }

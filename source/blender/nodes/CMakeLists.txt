@@ -32,7 +32,7 @@ function(add_node_discovery
       ${sources}
       ${extra_args}
     DEPENDS
-      ${SRC}
+      ${sources}
       ${DISCOVER_NODES_PATH}
   )
   set_source_files_properties(${output_file} PROPERTIES GENERATED TRUE)
@@ -55,6 +55,8 @@ set(INC
   texture
   geometry/include
   ../animrig
+  ../compositor
+  ../compositor/cached_resources
   ../editors/include
   ../depsgraph
   ../makesrna
@@ -184,7 +186,6 @@ set(LIB
   bf_nodes_geometry
   bf_nodes_shader
   bf_nodes_texture
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
   PRIVATE bf::windowmanager
@@ -192,14 +193,6 @@ set(LIB
   PRIVATE bf::dependencies::optional::gmp
   PRIVATE bf::dependencies::optional::bullet
 )
-
-if(WITH_TBB)
-  if(WIN32)
-    # TBB includes Windows.h which will define min/max macros
-    # that will collide with the STL versions.
-    add_definitions(-DNOMINMAX)
-  endif()
-endif()
 
 if(WITH_IMAGE_OPENEXR)
   add_definitions(-DWITH_IMAGE_OPENEXR)
@@ -227,7 +220,8 @@ if(WITH_GTESTS)
     intern/node_iterator_tests.cc
   )
   set(TEST_LIB
+    ${LIB}
     bf_nodes
   )
-  blender_add_test_suite_lib(nodes "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB}")
+  blender_add_test_suite_lib(nodes "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
 endif()

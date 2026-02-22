@@ -1990,7 +1990,7 @@ static void rna_VertexGroup_vertex_add(ID *id,
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_main_add_notifier(NC_GEOM | ND_DATA, static_cast<ID *>(ob->data));
+  WM_main_add_notifier(NC_GEOM | ND_DATA, ob->data);
 }
 
 static void rna_VertexGroup_vertex_remove(
@@ -2009,7 +2009,7 @@ static void rna_VertexGroup_vertex_remove(
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_main_add_notifier(NC_GEOM | ND_DATA, static_cast<ID *>(ob->data));
+  WM_main_add_notifier(NC_GEOM | ND_DATA, ob->data);
 }
 
 static float rna_VertexGroup_weight(ID *id, bDeformGroup *dg, ReportList *reports, int index)
@@ -3724,6 +3724,7 @@ static void rna_def_object(BlenderRNA *brna)
                                 "rna_Object_lightgroup_set");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Lightgroup", "Lightgroup that the object belongs to");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update_draw");
 
   /* Light Linking. */
   prop = RNA_def_property(srna, "light_linking", PROP_POINTER, PROP_NONE);

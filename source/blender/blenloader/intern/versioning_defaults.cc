@@ -185,7 +185,8 @@ static void blo_update_defaults_screen(bScreen *screen,
                                     SEQ_TIMELINE_SHOW_STRIP_DURATION | SEQ_TIMELINE_SHOW_GRID |
                                     SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG |
                                     SEQ_TIMELINE_SHOW_STRIP_RETIMING |
-                                    SEQ_TIMELINE_WAVEFORMS_HALF | SEQ_TIMELINE_SHOW_THUMBNAILS;
+                                    SEQ_TIMELINE_WAVEFORMS_HALF |
+                                    SEQ_TIMELINE_STRIP_END_THUMBNAILS;
       seq->preview_overlay.flag |= SEQ_PREVIEW_SHOW_OUTLINE_SELECTED;
       seq->cache_overlay.flag = SEQ_CACHE_SHOW | SEQ_CACHE_SHOW_FINAL_OUT;
       seq->draw_flag |= SEQ_DRAW_TRANSFORM_PREVIEW;
@@ -274,7 +275,7 @@ static void blo_update_defaults_screen(bScreen *screen,
   }
 
   /* Show tool-header by default (for most cases at least, hide for others). */
-  const bool hide_image_tool_header = STREQ(workspace_name, "Rendering");
+  const bool hide_image_tool_header = STR_ELEM(workspace_name, "Rendering", "Compositing");
   for (ScrArea &area : screen->areabase) {
     for (SpaceLink &sl : area.spacedata) {
       ListBaseT<ARegion> *regionbase = (&sl == static_cast<SpaceLink *>(area.spacedata.first)) ?
@@ -429,7 +430,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   /* Don't enable compositing nodes. */
   if (scene->nodetree) {
     bke::node_tree_free_embedded_tree(scene->nodetree);
-    MEM_freeN(scene->nodetree);
+    MEM_delete(scene->nodetree);
     scene->nodetree = nullptr;
     scene->use_nodes = false;
   }

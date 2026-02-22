@@ -477,16 +477,24 @@ static void interpolate_curve_attributes(bke::CurvesGeometry &child_curves,
       return;
     }
 
-    if (iter.domain == AttrDomain::Curve) {
-      const GVArraySpan src_generic = *iter.get(AttrDomain::Curve, type);
+    const GVArray src_attr = *iter.get();
+    const CommonVArrayInfo info = src_attr.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const GPointer value(src_attr.type(), info.data);
+      if (children_attributes.add(iter.name, iter.domain, type, bke::AttributeInitValue(value))) {
+        return;
+      }
+    }
 
+    const GVArraySpan src_generic = src_attr;
+
+    if (iter.domain == AttrDomain::Curve) {
       GSpanAttributeWriter dst_generic = children_attributes.lookup_or_add_for_write_only_span(
           iter.name, AttrDomain::Curve, type);
       if (!dst_generic) {
         return;
       }
-      bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
-        using T = decltype(dummy);
+      bke::attribute_math::to_static_type(type, [&]<typename T>() {
         const Span<T> src = src_generic.typed<T>();
         MutableSpan<T> dst = dst_generic.span.typed<T>();
 
@@ -512,15 +520,13 @@ static void interpolate_curve_attributes(bke::CurvesGeometry &child_curves,
     }
     else {
       BLI_assert(iter.domain == AttrDomain::Point);
-      const GVArraySpan src_generic = *iter.get(AttrDomain::Point, type);
       GSpanAttributeWriter dst_generic = children_attributes.lookup_or_add_for_write_only_span(
           iter.name, AttrDomain::Point, type);
       if (!dst_generic) {
         return;
       }
 
-      bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
-        using T = decltype(dummy);
+      bke::attribute_math::to_static_type(type, [&]<typename T>() {
         const Span<T> src = src_generic.typed<T>();
         MutableSpan<T> dst = dst_generic.span.typed<T>();
 
@@ -778,7 +784,7 @@ static GeometrySet generate_interpolated_curves(
                           all_neighbor_weights);
 
   if (guide_curves_id.mat != nullptr) {
-    child_curves_id->mat = static_cast<Material **>(MEM_dupallocN(guide_curves_id.mat));
+    child_curves_id->mat = MEM_dupalloc(guide_curves_id.mat);
     child_curves_id->totcol = guide_curves_id.totcol;
   }
 
@@ -867,6 +873,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     new_curves.add(*curve_edit_data);
   }
   new_curves.name = guide_curves_geometry.name;
+  new_curves.copy_bundle_from(guide_curves_geometry);
 
   params.set_output("Curves", std::move(new_curves));
 }

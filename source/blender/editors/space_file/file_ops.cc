@@ -2072,7 +2072,7 @@ void file_external_operations_menu_register()
 {
   MenuType *mt;
 
-  mt = MEM_callocN<MenuType>("spacetype file menu file operations");
+  mt = MEM_new_zeroed<MenuType>("spacetype file menu file operations");
   STRNCPY_UTF8(mt->idname, "FILEBROWSER_MT_operations_menu");
   STRNCPY_UTF8(mt->label, N_("External"));
   STRNCPY_UTF8(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
@@ -2106,7 +2106,7 @@ static bool file_execute(bContext *C, SpaceFile *sfile)
                             sizeof(params->file));
     /* Update relpath with redirected filename as well so that the alternative
      * combination of params->dir + relpath remains valid as well. */
-    MEM_freeN(file->relpath);
+    MEM_delete(file->relpath);
     file->relpath = BLI_strdup(params->file);
   }
 
@@ -2922,7 +2922,7 @@ static bool can_create_dir_from_user_input(const char dir[FILE_MAX_LIBEXTRA])
   return true;
 }
 
-void file_directory_enter_handle(bContext *C, void * /*arg_unused*/, void * /*arg_but*/)
+void file_directory_enter_handle(bContext *C, void * /*arg_unused*/, void *arg_but)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
@@ -2931,7 +2931,7 @@ void file_directory_enter_handle(bContext *C, void * /*arg_unused*/, void * /*ar
   }
 
   const Main *bmain = CTX_data_main(C);
-  char old_dir[sizeof(params->dir)];
+  char old_dir[sizeof(params->dir)] = {0};
 
   STRNCPY(old_dir, params->dir);
 
@@ -2967,8 +2967,15 @@ void file_directory_enter_handle(bContext *C, void * /*arg_unused*/, void * /*ar
   BLI_path_normalize_dir(params->dir, sizeof(params->dir));
 
   if (filelist_is_dir(sfile->files, params->dir)) {
+    if (!STREQ(params->dir, filelist_dir(sfile->files))) {
+      /* Keep focus to allow Tab autocompletion. #150689. */
+      blender::ui::Button *but = static_cast<blender::ui::Button *>(arg_but);
+      textbutton_activate_but(C, but);
+      button_clear_selection(but);
+      ED_file_change_dir(C);
+    }
     /* Avoids flickering when nothing's changed. */
-    if (!STREQ(params->dir, old_dir)) {
+    else if (!STREQ(params->dir, old_dir)) {
       /* If directory exists, enter it immediately. */
       ED_file_change_dir(C);
     }

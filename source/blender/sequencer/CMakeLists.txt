@@ -59,6 +59,7 @@ set(SRC
   intern/effects/vse_effect_add_sub_mul.cc
   intern/effects/vse_effect_adjustment.cc
   intern/effects/vse_effect_blend.cc
+  intern/effects/vse_effect_compositor.cc
   intern/effects/vse_effect_cross.cc
   intern/effects/vse_effect_gaussian_blur.cc
   intern/effects/vse_effect_glow.cc
@@ -117,7 +118,6 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
@@ -130,6 +130,7 @@ set(LIB
   PRIVATE bf::windowmanager
   bf_compositor
   PRIVATE bf::dependencies::optional::audaspace
+  PRIVATE bf::dependencies::optional::fftw3
 )
 
 if(WITH_AUDASPACE)

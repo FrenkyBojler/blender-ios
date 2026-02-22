@@ -153,6 +153,16 @@ bNodeLink &version_node_add_link(
     bNodeTree &ntree, bNode &node_a, bNodeSocket &socket_a, bNode &node_b, bNodeSocket &socket_b);
 
 /**
+ * Returns true if the node has valid storage data.
+ * If the node does not have storage data then the node type is set to "Undefined" to prevent
+ * further access and the function returns false.
+ *
+ * Storage can get lost when saving nodes in older versions and then loading such files may contain
+ * nodes where storage is expected but does not exist (#154086).
+ */
+bool version_node_ensure_storage_or_invalidate(bNode &node);
+
+/**
  * Adjust animation data for newly added node sockets.
  *
  * Node sockets are addressed by their index (in their RNA path, and thus FCurves/drivers), and
@@ -287,7 +297,7 @@ static void adjust_fcurve_key_frame_values(FCurve *fcurve,
   }
 
   /* Recalculate the automatic handles of the FCurve after adjustments. */
-  BKE_fcurve_handles_recalc(fcurve);
+  BKE_fcurve_handles_recalc(*fcurve);
 }
 
 /* Gets the compositing node tree of the given scene. The deprecated node-tree member is returned

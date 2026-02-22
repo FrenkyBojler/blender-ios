@@ -205,7 +205,7 @@ static VectorSet<Strip *> query_snap_targets_timeline(Scene *scene,
                                                       const Span<Strip *> snap_sources,
                                                       const bool exclude_selected)
 {
-  Editing *ed = seq::editing_get(scene);
+  Editing *ed = seq::editing_ensure(scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
   const short snap_flag = seq::tool_settings_snap_flag_get(scene);
@@ -214,9 +214,8 @@ static VectorSet<Strip *> query_snap_targets_timeline(Scene *scene,
    * have to be selected. Remove such strips from `snap_targets` collection. */
   VectorSet effects_of_snap_sources = snap_sources;
   seq::iterator_set_expand(scene, seqbase, effects_of_snap_sources, query_strip_effects_fn);
-  effects_of_snap_sources.remove_if([&](Strip *strip) {
-    return strip->is_effect() && seq::effect_get_num_inputs(strip->type) == 0;
-  });
+  effects_of_snap_sources.remove_if(
+      [&](Strip *strip) { return strip->is_effect() && !strip->is_effect_with_inputs(); });
 
   VectorSet<Strip *> snap_targets;
   for (Strip &strip : *seqbase) {

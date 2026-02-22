@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'12e628ea43f8')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-12 15:09+0000\n"
+"POT-Creation-Date: 2026-02-16 10:28+0000\n"
 "PO-Revision-Date: 2025-11-18 20:05+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -2628,6 +2628,18 @@ msgid "Visual Aids"
 msgstr "Visuella hjälpmedel"
 
 
+msgid "Stroke"
+msgstr "Streck"
+
+
+msgid "Fill"
+msgstr "Fyll"
+
+
+msgid "Both"
+msgstr "Båda"
+
+
 msgid "Active Layer"
 msgstr "Aktivt lager"
 
@@ -2662,14 +2674,6 @@ msgstr "Använd tryck"
 
 msgid "Outline"
 msgstr "Kontur"
-
-
-msgid "Stroke"
-msgstr "Streck"
-
-
-msgid "Fill"
-msgstr "Fyll"
 
 
 msgid "Stroke & Fill"
@@ -6019,10 +6023,6 @@ msgid "Affect Alpha"
 msgstr "Påverka alfa"
 
 
-msgid "Anchored"
-msgstr "Förankrad"
-
-
 msgid "Use custom curve"
 msgstr "Använd anpassad kurva"
 
@@ -6299,10 +6299,6 @@ msgstr "Textstorlek"
 
 msgid "Small Caps"
 msgstr "Kapitäler"
-
-
-msgid "Textboxes"
-msgstr "Textrutor"
 
 
 msgid "Fast Editing"
@@ -9339,34 +9335,6 @@ msgid "Use Material Mask"
 msgstr "Använd materialmask"
 
 
-msgid "Show/Hide"
-msgstr "Visa/dölj"
-
-
-msgid "Special Characters"
-msgstr "Specialtecken"
-
-
-msgid "Math"
-msgstr "Matematik"
-
-
-msgid "Metaball"
-msgstr "Metaboll"
-
-
-msgid "Utilities"
-msgstr "Verktyg"
-
-
-msgid "Names"
-msgstr "Namn"
-
-
-msgid "Clean Up"
-msgstr "Städa upp"
-
-
 msgid "Read"
 msgstr "Läs"
 
@@ -9375,28 +9343,40 @@ msgid "Write"
 msgstr "Skriv"
 
 
-msgid "Pivot Point"
-msgstr "Fast punkt"
+msgid "Clean Up"
+msgstr "Städa upp"
 
 
 msgid "Primitives"
 msgstr "Primitiver"
 
 
+msgid "Show/Hide"
+msgstr "Visa/dölj"
+
+
+msgid "Special Characters"
+msgstr "Specialtecken"
+
+
+msgid "Metaball"
+msgstr "Metaboll"
+
+
+msgid "Names"
+msgstr "Namn"
+
+
+msgid "Pivot Point"
+msgstr "Fast punkt"
+
+
 msgid "Snap"
 msgstr "Snäpp"
 
 
-msgid "Instances"
-msgstr "Instanser"
-
-
-msgid "Import"
-msgstr "Importera"
-
-
-msgid "Deprecated"
-msgstr "Föråldrad"
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Mirror"
@@ -9415,10 +9395,6 @@ msgid "Navigation"
 msgstr "Navigering"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Align View"
 msgstr "Justera vy"
 
@@ -9429,6 +9405,18 @@ msgstr "Justera vy till aktiv"
 
 msgid "Select More/Less"
 msgstr "Markera mera/mindre"
+
+
+msgid "Adjust"
+msgstr "Justera"
+
+
+msgid "Utilities"
+msgstr "Verktyg"
+
+
+msgid "Math"
+msgstr "Matematik"
 
 
 msgid "Assign Material"
@@ -9479,20 +9467,28 @@ msgid "Link/Transfer Data"
 msgstr "Länka/överför data"
 
 
-msgid "Layout"
-msgstr "Layout"
-
-
-msgid "Adjust"
-msgstr "Justera"
-
-
 msgid "Propagate"
 msgstr "Propagera"
 
 
+msgid "Instances"
+msgstr "Instanser"
+
+
+msgid "Import"
+msgstr "Importera"
+
+
+msgid "Deprecated"
+msgstr "Föråldrad"
+
+
 msgid "Merge"
 msgstr "Sammanfoga"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Animals"
@@ -9704,34 +9700,6 @@ msgstr "Återställ"
 
 msgid "Help"
 msgstr "Hjälp"
-
-
-msgid ""
-"\n"
-"    UI button context menu definition. Scripts can append/prepend this to\n"
-"    add own operators to the context menu. They must check context though, so\n"
-"    their items only draw in a valid context and for the correct buttons.\n"
-"    "
-msgstr ""
-"\n"
-"    Definition av kontextmeny för UI-knapp. Skript kan lägga till/förbereda detta för att\n"
-"    lägga till egna operatörer i snabbmenyn. De måste dock kontrollera sammanhanget,\n"
-"    så att deras objekt bara ritas i ett giltigt sammanhang och för rätt knappar.\n"
-"    "
-
-
-msgid ""
-"\n"
-"    UI List item context menu definition. Scripts can append/prepend this to\n"
-"    add own operators to the context menu. They must check context though, so\n"
-"    their items only draw in a valid context and for the correct UI list.\n"
-"    "
-msgstr ""
-"\n"
-"    UI Definition av kontextmeny för listobjekt. Skript kan lägga till/förbereda detta för att\n"
-"    lägga till egna operatörer i snabbmenyn. De måste dock kontrollera sammanhanget,\n"
-"    så att deras objekt bara ritas i en giltig kontext och för rätt UI-lista.\n"
-"    "
 
 
 msgid "Add-ons Settings"
@@ -11163,6 +11131,10 @@ msgid "Retrieve values from a field on a different domain besides the domain fro
 msgstr "Hämta värden från ett fält på en annan domän förutom domänen från kontexten"
 
 
+msgid "Create a list of values"
+msgstr "Skapa en lista över värden"
+
+
 msgid "Fill Curve"
 msgstr "Fyll kurva"
 
@@ -11264,10 +11236,6 @@ msgstr "Sammanfoga geometri"
 
 msgid "Merge separately generated geometries into a single one"
 msgstr "Slå ihop separat genererade geometrier till en och samma"
-
-
-msgid "Create a list of values"
-msgstr "Skapa en lista över värden"
 
 
 msgid "Retrieve a value from a list"
@@ -11536,54 +11504,6 @@ msgstr "64-bitars heltal"
 
 msgid "Unknown"
 msgstr "Okänt"
-
-
-msgid "Align text to the center"
-msgstr "Justera text till mitten"
-
-
-msgid "Align text to the left and the right"
-msgstr "Justera text till vänster och höger"
-
-
-msgid "Align text to the left and the right, with equal character spacing"
-msgstr "Justera text till vänster och höger, med jämnt avstånd mellan tecken"
-
-
-msgid "Let the text use more space than the specified height"
-msgstr "Låt texten använda mer utrymme än den angivna höjden"
-
-
-msgid "Scale To Fit"
-msgstr "Skala för att passa"
-
-
-msgid "Scale the text size to fit inside the width and height"
-msgstr "Skala texten så att den passar inom bredden och höjden"
-
-
-msgid "Top Left"
-msgstr "Topp vänster"
-
-
-msgid "Top Center"
-msgstr "Topp mitten"
-
-
-msgid "Top Right"
-msgstr "Topp höger"
-
-
-msgid "Bottom Left"
-msgstr "Botten vänster"
-
-
-msgid "Bottom Center"
-msgstr "Botten mitten"
-
-
-msgid "Bottom Right"
-msgstr "Botten höger"
 
 
 msgid "Selection"
@@ -11913,6 +11833,10 @@ msgstr "Till radianer"
 
 msgid "Mix two input colors"
 msgstr "Blanda två inputfärger"
+
+
+msgid "OpenGL"
+msgstr "OpenGL"
 
 
 msgid "Cycles"
@@ -13071,10 +12995,6 @@ msgid "Uninstall"
 msgstr "Avinstallera"
 
 
-msgid "Upgrade all the extensions to their latest version for all the remote repositories"
-msgstr "Uppgradera alla tillägg till den senaste versionen för alla fjärrförråd"
-
-
 msgctxt "Operator"
 msgid "Install Available Updates"
 msgstr "Installera tillgängliga uppdateringar"
@@ -13220,11 +13140,6 @@ msgstr "Lägg till nod"
 msgctxt "Operator"
 msgid "New Item"
 msgstr "Nytt objekt"
-
-
-msgctxt "Operator"
-msgid "Remove Item"
-msgstr "Ta bort objekt"
 
 
 msgctxt "Operator"
@@ -15718,10 +15633,6 @@ msgid "Replace Existing"
 msgstr "Ersätt befintlig"
 
 
-msgid "Both"
-msgstr "Båda"
-
-
 msgctxt "Operator"
 msgid "Hide Curves"
 msgstr "Dölj kurvor"
@@ -15753,6 +15664,16 @@ msgstr "Ta bort aktiva nyckelbilder från alla lager"
 
 
 msgctxt "Operator"
+msgid "Erase"
+msgstr "Radera"
+
+
+msgctxt "Operator"
+msgid "Mask"
+msgstr "Maskera"
+
+
+msgctxt "Operator"
 msgid "Regular"
 msgstr "Vanlig"
 
@@ -15760,11 +15681,6 @@ msgstr "Vanlig"
 msgctxt "Operator"
 msgid "Invert"
 msgstr "Invertera"
-
-
-msgctxt "Operator"
-msgid "Erase"
-msgstr "Radera"
 
 
 msgid "Rounded"
@@ -16658,14 +16574,6 @@ msgid "Name of new mask"
 msgstr "Namn på ny mask"
 
 
-msgid "Location of new circle"
-msgstr "Position av ny cirkel"
-
-
-msgid "Size of new circle"
-msgstr "Storlek på ny cirkel"
-
-
 msgctxt "Operator"
 msgid "Add Square"
 msgstr "Lägg till kvadrat"
@@ -16976,10 +16884,6 @@ msgstr "Visa endast avståndsmått"
 
 msgid "Show just angle measurements"
 msgstr "Visa endast vinkelmått"
-
-
-msgid "Ring"
-msgstr "Ring"
 
 
 msgid "Merge selected vertices"
@@ -17310,10 +17214,6 @@ msgid "Select Shortest Path"
 msgstr "Markera kortaste vägen"
 
 
-msgid "Selected shortest path between two vertices/edges/faces"
-msgstr "Markera den kortaste vägen mellan två vertex/kanter/ytor"
-
-
 msgid "Use Duplicates"
 msgstr "Använd duplikat"
 
@@ -17558,6 +17458,11 @@ msgstr "Flytta objekt"
 
 msgid "Move direction"
 msgstr "Flytta riktning"
+
+
+msgctxt "Operator"
+msgid "Remove Item"
+msgstr "Ta bort objekt"
 
 
 msgctxt "Operator"
@@ -18449,10 +18354,6 @@ msgid "Add Metaball"
 msgstr "Lägg till metaboll"
 
 
-msgid "Add an metaball object to the scene"
-msgstr "Lägg till ett metaboll-objekt i scenen"
-
-
 msgid "Primitive"
 msgstr "Primitiv"
 
@@ -18939,10 +18840,6 @@ msgid "Open/Close"
 msgstr "Öppna/stäng"
 
 
-msgid "Toggle whether item under cursor is enabled or closed"
-msgstr "Växla om objektet under musen är aktiverat eller stängt"
-
-
 msgid "Close or open all items"
 msgstr "Stäng eller öppna alla objekt"
 
@@ -19290,10 +19187,6 @@ msgstr "Linje"
 msgctxt "Operator"
 msgid "Cancel Render View"
 msgstr "Avbryt renderingsvy"
-
-
-msgid "Cancel show render view"
-msgstr "Avbryt visning av renderingsvy"
 
 
 msgid "Toggle show render view"
@@ -20293,10 +20186,6 @@ msgid "Move"
 msgstr "Flytta"
 
 
-msgid "UP"
-msgstr "UPP"
-
-
 msgctxt "Operator"
 msgid "Press Button"
 msgstr "Tryck knapp"
@@ -20342,6 +20231,10 @@ msgstr "Välj alla"
 msgctxt "Operator"
 msgid "Jump to Target"
 msgstr "Hoppa till mål"
+
+
+msgid "UP"
+msgstr "UPP"
 
 
 msgctxt "Operator"
@@ -21585,11 +21478,6 @@ msgid "Clone"
 msgstr "Klona"
 
 
-msgctxt "Operator"
-msgid "Mask"
-msgstr "Maskera"
-
-
 msgid "Texture Mask"
 msgstr "Texturmask"
 
@@ -22646,10 +22534,6 @@ msgid "GPU backend to use (requires restarting Blender for changes to take effec
 msgstr "GPU-backend att använda (kräver att starta om Blender för att ändringen ska träda i kraft)"
 
 
-msgid "OpenGL"
-msgstr "OpenGL"
-
-
 msgid "Use OpenGL backend"
 msgstr "Använd OpenGL-backend"
 
@@ -23411,6 +23295,11 @@ msgstr "Osignerad"
 
 
 msgctxt "Unit"
+msgid "Mass"
+msgstr "Massa"
+
+
+msgctxt "Unit"
 msgid "Angle"
 msgstr "Vinkel"
 
@@ -23517,11 +23406,6 @@ msgstr "Område"
 msgctxt "Unit"
 msgid "Volume"
 msgstr "Volym"
-
-
-msgctxt "Unit"
-msgid "Mass"
-msgstr "Massa"
 
 
 msgctxt "Unit"
@@ -24617,6 +24501,26 @@ msgid "Inverse Gain"
 msgstr "Invers nivå"
 
 
+msgctxt "Sequence"
+msgid "Brightness/Contrast"
+msgstr "Ljusstyrka/kontrast"
+
+
+msgctxt "Sequence"
+msgid "Color Balance"
+msgstr "Färgbalans"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Kurvor"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "Vitbalans"
+
+
 msgid "White Value"
 msgstr "Vitvärde"
 
@@ -24756,16 +24660,16 @@ msgid "Theme settings for the Blender Preferences"
 msgstr "Tema-inställningar för Blender-inställningarna"
 
 
+msgid "Search Match"
+msgstr "Sökträff"
+
+
 msgid "Theme Properties"
 msgstr "Temaegenskaper"
 
 
 msgid "Theme settings for the Properties"
 msgstr "Temainställningar för egenskaperna"
-
-
-msgid "Search Match"
-msgstr "Sökträff"
 
 
 msgid "Preview Background"
@@ -25813,10 +25717,6 @@ msgstr "Föråldrat tillägg"
 msgctxt "Operator"
 msgid "Add Repository..."
 msgstr "Lägg till förråd..."
-
-
-msgid "Unlocked {:d} repos(s)"
-msgstr "Upplåsta {:d} förråd"
 
 
 msgid "Upgrade all the extensions to their latest version for the active repository"
@@ -30582,10 +30482,6 @@ msgid "Delete Modifier"
 msgstr "Ta bort modifierare"
 
 
-msgid "Coefficient"
-msgstr "Koefficient"
-
-
 msgctxt "Action"
 msgid "A"
 msgstr "A"
@@ -30779,10 +30675,6 @@ msgid "%d items"
 msgstr "%d objekt"
 
 
-msgid "Color Space: "
-msgstr "Färgrymd: "
-
-
 msgid "Red:"
 msgstr "Röd:"
 
@@ -30801,6 +30693,10 @@ msgstr "Värde:"
 
 msgid "Alpha:"
 msgstr "Alfa:"
+
+
+msgid "Color Space: "
+msgstr "Färgrymd: "
 
 
 msgid "RGB values"
@@ -30831,12 +30727,12 @@ msgid "No results found"
 msgstr "Inga resultat hittades"
 
 
-msgid "Internal error!"
-msgstr "Internt fel!"
-
-
 msgid "Python: {}"
 msgstr "Python: {}"
+
+
+msgid "Internal error!"
+msgstr "Internt fel!"
 
 
 msgid "Python: {}.{}"
@@ -31149,10 +31045,6 @@ msgstr "Idag"
 
 msgid "Yesterday"
 msgstr "Igår"
-
-
-msgid "Modified"
-msgstr "Ändrad"
 
 
 msgid "Stop animation playback"
@@ -31633,16 +31525,16 @@ msgid "Missing%s%s%s%s detected!"
 msgstr "Saknade%s%s%s%s upptäckta!"
 
 
+msgid "Unknown boolean error"
+msgstr "Okänt booleanskt fel"
+
+
 msgid "Palette created"
 msgstr "Palett skapad"
 
 
 msgid "Brush. Use Left Click to sample for palette instead"
 msgstr "Pensel. Använd vänsterklick för palettprov istället"
-
-
-msgid "Unknown boolean error"
-msgstr "Okänt booleanskt fel"
 
 
 msgid "Delete selected keyframes?"
@@ -31769,10 +31661,6 @@ msgid "No items"
 msgstr "Inga objekt"
 
 
-msgid "Link target"
-msgstr "Länka mål"
-
-
 msgid "This file is offline"
 msgstr "Den här filen är offline"
 
@@ -31783,14 +31671,6 @@ msgstr "Denna fil är skrivskyddad"
 
 msgid "This is a restricted system file"
 msgstr "Detta är en begränsad systemfil"
-
-
-msgid "seconds"
-msgstr "sekunder"
-
-
-msgid "bytes"
-msgstr "byte"
 
 
 msgid "Delete selected files?"
@@ -32250,6 +32130,10 @@ msgstr "Klass"
 
 msgid "(Geometry)"
 msgstr "(Geometri)"
+
+
+msgid "bytes"
+msgstr "byte"
 
 
 msgid "Delete active text file?"
@@ -33127,12 +33011,16 @@ msgid "YCbCr Key Channel"
 msgstr "YCbCr-nyckelkanal"
 
 
+msgid "Midtones"
+msgstr "Mellantoner"
+
+
 msgid "Limit Strength"
 msgstr "Begränsa styrka"
 
 
-msgid "Midtones"
-msgstr "Mellantoner"
+msgid "Cb"
+msgstr "Cb"
 
 
 msgid "Convert from display to scene linear instead. Not all view transforms can be inverted exactly, and the result may not match the original scene linear image"
@@ -33177,10 +33065,6 @@ msgstr "Eccentricitet"
 
 msgid "Offset Y"
 msgstr "Y-förskjutning"
-
-
-msgid "Cb"
-msgstr "Cb"
 
 
 msgid "Bitwise %s"
@@ -33483,6 +33367,14 @@ msgid "Limit Surface"
 msgstr "Begränsa yta"
 
 
+msgid "Bottom Left"
+msgstr "Botten vänster"
+
+
+msgid "Top Right"
+msgstr "Topp höger"
+
+
 msgid "Manage"
 msgstr "Hantera"
 
@@ -33620,26 +33512,6 @@ msgstr "%s: misslyckades med att läsa in '%s'"
 
 
 msgctxt "Sequence"
-msgid "Brightness/Contrast"
-msgstr "Ljusstyrka/kontrast"
-
-
-msgctxt "Sequence"
-msgid "Color Balance"
-msgstr "Färgbalans"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Kurvor"
-
-
-msgctxt "Sequence"
-msgid "White Balance"
-msgstr "Vitbalans"
-
-
-msgctxt "Sequence"
 msgid "Audio"
 msgstr "Ljud"
 
@@ -33731,6 +33603,10 @@ msgstr "Spara som..."
 
 msgid "Don't Save"
 msgstr "Spara inte"
+
+
+msgid "Modified"
+msgstr "Ändrad"
 
 
 msgid "unable to open the file"

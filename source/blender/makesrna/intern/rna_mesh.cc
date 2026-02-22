@@ -34,6 +34,63 @@ const EnumPropertyItem rna_enum_mesh_delimit_mode_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+const EnumPropertyItem rna_enum_mesh_walk_delimit_edge_loop_items[] = {
+    {BMW_DELIMIT_EDGE_MARK_SEAM, "SEAM", 0, "Seam", "Delimit edge loop selection at seams"},
+    {BMW_DELIMIT_EDGE_MARK_SHARP,
+     "SHARP",
+     0,
+     "Sharp",
+     "Delimit edge loop selection at sharp edges"},
+    {BMW_DELIMIT_EDGE_LOOP_NGONS, "NGONS", 0, "N-gons", "Stop boundary selection at n-gons"},
+    {BMW_DELIMIT_EDGE_LOOP_INNER_CORNERS,
+     "INNER_CORNERS",
+     0,
+     "Inner Corners",
+     "Stop boundary selection at vertices with more than three edges"},
+    {BMW_DELIMIT_EDGE_LOOP_OUTER_CORNERS,
+     "OUTER_CORNERS",
+     0,
+     "Outer Corners",
+     "Stop boundary selection at vertices with two edges when they share a face that is not an "
+     "n-gon"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+const EnumPropertyItem rna_enum_mesh_walk_delimit_edge_ring_items[] = {
+    {BMW_DELIMIT_EDGE_MARK_SEAM, "SEAM", 0, "Seam", "Delimit edge ring selection at seams"},
+    {BMW_DELIMIT_EDGE_MARK_SHARP,
+     "SHARP",
+     0,
+     "Sharp",
+     "Delimit edge ring selection at sharp edges"},
+    {BMW_DELIMIT_FACE_MARK_MATERIAL,
+     "MATERIAL",
+     0,
+     "Material",
+     "Delimit edge ring selection at material boundaries"},
+    {BMW_DELIMIT_EDGE_RING_NGONS,
+     "NGONS",
+     0,
+     "N-gons",
+     "Allow edge ring selection to step over n-gons with an even number of sides"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+const EnumPropertyItem rna_enum_mesh_walk_delimit_face_loop_items[] = {
+    {BMW_DELIMIT_EDGE_MARK_SEAM, "SEAM", 0, "Seam", "Delimit face loop selection at seams"},
+    {BMW_DELIMIT_EDGE_MARK_SHARP,
+     "SHARP",
+     0,
+     "Sharp",
+     "Delimit face loop selection at sharp edges"},
+    {BMW_DELIMIT_FACE_MARK_MATERIAL,
+     "MATERIAL",
+     0,
+     "Material",
+     "Delimit face loop selection at material boundaries"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static const EnumPropertyItem rna_enum_mesh_remesh_mode_items[] = {
     {REMESH_VOXEL, "VOXEL", 0, "Voxel", "Use the voxel remesher"},
     {REMESH_QUAD, "QUAD", 0, "Quad", "Use the quad remesher"},
@@ -799,7 +856,7 @@ static void rna_Mesh_uv_layer_clone_set(PointerRNA *ptr, PointerRNA value, Repor
 {
   Mesh *mesh = rna_mesh(ptr);
   const StringRefNull name = rna_Attribute_name_get(value);
-  MEM_SAFE_FREE(mesh->clone_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }
@@ -820,7 +877,7 @@ static int rna_Mesh_uv_layer_clone_index_get(PointerRNA *ptr)
 static void rna_Mesh_uv_layer_clone_index_set(PointerRNA *ptr, int value)
 {
   Mesh *mesh = rna_mesh(ptr);
-  MEM_SAFE_FREE(mesh->clone_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
   const VectorSet<StringRefNull> names = mesh->uv_map_names();
   if (!names.index_range().contains(value)) {
     return;
@@ -841,7 +898,7 @@ static void rna_Mesh_uv_layer_stencil_set(PointerRNA *ptr, PointerRNA value, Rep
 {
   Mesh *mesh = rna_mesh(ptr);
   const StringRefNull name = rna_Attribute_name_get(value);
-  MEM_SAFE_FREE(mesh->stencil_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->stencil_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }
@@ -862,7 +919,7 @@ static int rna_Mesh_uv_layer_stencil_index_get(PointerRNA *ptr)
 static void rna_Mesh_uv_layer_stencil_index_set(PointerRNA *ptr, int value)
 {
   Mesh *mesh = rna_mesh(ptr);
-  MEM_SAFE_FREE(mesh->stencil_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->stencil_uv_map_attribute);
   const VectorSet<StringRefNull> names = mesh->uv_map_names();
   if (!names.index_range().contains(value)) {
     return;
@@ -996,7 +1053,7 @@ static void rna_MeshUVLoopLayer_clone_set(PointerRNA *ptr, bool value)
   }
   Mesh *mesh = rna_mesh(ptr);
   const StringRefNull name = rna_Attribute_name_get(*ptr);
-  MEM_SAFE_FREE(mesh->clone_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }

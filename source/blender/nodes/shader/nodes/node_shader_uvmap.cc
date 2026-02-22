@@ -38,19 +38,19 @@ static void node_shader_buts_uvmap(ui::Layout &layout, bContext *C, PointerRNA *
 
       if (depsgraph) {
         Object *object_eval = DEG_get_evaluated(depsgraph, object);
-        PointerRNA dataptr = RNA_id_pointer_create(static_cast<ID *>(object_eval->data));
+        PointerRNA dataptr = RNA_id_pointer_create(object_eval->data);
         layout.prop_search(ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS);
         return;
       }
     }
 
-    layout.prop(ptr, "uv_map", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_GROUP_UVS);
+    layout.prop(ptr, "uv_map", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_GROUP_UVS);
   }
 }
 
 static void node_shader_init_uvmap(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderUVMap *attr = MEM_new_for_free<NodeShaderUVMap>("NodeShaderUVMap");
+  NodeShaderUVMap *attr = MEM_new<NodeShaderUVMap>("NodeShaderUVMap");
   node->storage = attr;
 }
 
