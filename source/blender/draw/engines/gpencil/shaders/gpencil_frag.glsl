@@ -139,13 +139,17 @@ float i_to_t(float i, float4 p1, float4 p2)
   if (placement_mode == GP_DOTS_PLACEMENT_MODE_RADIUS) {
     float4 P1 = from_cam(p1);
     float4 P2 = from_cam(p2);
-    float l = length(P1.xyz - P2.xyz);
-
     float r1 = P1.w;
     float r2 = P2.w;
     float a = r2 - r1;
     if (abs(a) < 0.001) {
-      return (i / point_density - i_start) * r1 / l;
+      return (i / point_density - i_start) / i_delta;
+    }
+
+    float l = length(P1.xyz - P2.xyz);
+    if (!drw_view_is_perspective()) {
+      float b = 2.0f * log(a / r1 + 1.0f) / i_delta;
+      l = a * (exp(b) + 1) / (exp(b) - 1);
     }
 
     float E = (l + a) / (l - a);
@@ -175,13 +179,17 @@ float t_to_i(float t, float4 p1, float4 p2)
   if (placement_mode == GP_DOTS_PLACEMENT_MODE_RADIUS) {
     float4 P1 = from_cam(p1);
     float4 P2 = from_cam(p2);
-    float l = length(P1.xyz - P2.xyz);
-
     float r1 = P1.w;
     float r2 = P2.w;
     float a = r2 - r1;
     if (abs(a) < 0.001) {
-      return (t * l / P1.w + i_start) * point_density;
+      return (t * i_delta + i_start) * point_density;
+    }
+
+    float l = length(P1.xyz - P2.xyz);
+    if (!drw_view_is_perspective()) {
+      float b = 2.0f * log(a / r1 + 1.0f) / i_delta;
+      l = a * (exp(b) + 1) / (exp(b) - 1);
     }
 
     float E = (l + a) / (l - a);
@@ -209,6 +217,10 @@ int round_q(float fnum)
 
 float screen_t_to_local_t(float screen_t, float z1, float z2)
 {
+  if (!drw_view_is_perspective()) {
+    return screen_t;
+  }
+
   float f = (1.0 - screen_t);
 
   float k = z2 / z1 - 1.0;
