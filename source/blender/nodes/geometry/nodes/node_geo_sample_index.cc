@@ -51,7 +51,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySampleIndex *data = MEM_new_for_free<NodeGeometrySampleIndex>(__func__);
+  NodeGeometrySampleIndex *data = MEM_new<NodeGeometrySampleIndex>(__func__);
   data->data_type = CD_PROP_FLOAT;
   data->domain = int8_t(AttrDomain::Point);
   data->clamp = 0;
@@ -114,10 +114,12 @@ void copy_with_clamped_indices(const VArray<T> &src,
 {
   const int last_index = src.index_range().last();
   devirtualize_varray2(src, indices, [&](const auto src, const auto indices) {
-    mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int i) {
-      const int index = indices[i];
-      dst[i] = src[std::clamp(index, 0, last_index)];
-    });
+    mask.foreach_index_optimized<int>(
+        [&](const int i) {
+          const int index = indices[i];
+          dst[i] = src[std::clamp(index, 0, last_index)];
+        },
+        exec_mode::grain_size(4096));
   });
 }
 
@@ -184,8 +186,7 @@ class SampleIndexFunction : public mf::MultiFunction {
     }
 
     if (clamp_) {
-      bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
-        using T = decltype(dummy);
+      bke::attribute_math::to_static_type(type, [&]<typename T>() {
         copy_with_clamped_indices(src_data_->typed<T>(), indices, mask, dst.typed<T>());
       });
     }

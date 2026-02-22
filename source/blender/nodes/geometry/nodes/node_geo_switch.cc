@@ -37,7 +37,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   auto &true_decl = b.add_input(socket_type, "True");
   auto &output_decl = b.add_output(socket_type, "Output");
 
-  if (socket_type_supports_fields(socket_type)) {
+  if (socket_type_supports_attributes(socket_type)) {
     switch_decl.supports_field();
     false_decl.supports_field();
     true_decl.supports_field();
@@ -63,7 +63,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeSwitch *data = MEM_new_for_free<NodeSwitch>(__func__);
+  NodeSwitch *data = MEM_new<NodeSwitch>(__func__);
   data->input_type = SOCK_FLOAT;
   node->storage = data;
 }
@@ -198,26 +198,20 @@ class LazyFunctionForSwitchNode : public LazyFunction {
   const MultiFunction &get_switch_multi_function() const
   {
     const MultiFunction *switch_multi_function = nullptr;
-    base_type_->to_static_type_tag<float,
-                                   int,
-                                   bool,
-                                   float3,
-                                   ColorGeometry4f,
-                                   std::string,
-                                   math::Quaternion,
-                                   float4x4,
-                                   MenuValue>([&](auto type_tag) {
-      using T = typename decltype(type_tag)::type;
-      if constexpr (std::is_void_v<T>) {
-        BLI_assert_unreachable();
-      }
-      else {
-        static auto switch_fn = mf::build::SI3_SO<bool, T, T, T>(
-            "Switch", [](const bool condition, const T &false_value, const T &true_value) {
-              return condition ? true_value : false_value;
-            });
-        switch_multi_function = &switch_fn;
-      }
+    base_type_->to_static_type<float,
+                               int,
+                               bool,
+                               float3,
+                               ColorGeometry4f,
+                               std::string,
+                               math::Quaternion,
+                               float4x4,
+                               MenuValue>([&]<typename T>() {
+      static auto switch_fn = mf::build::SI3_SO<bool, T, T, T>(
+          "Switch", [](const bool condition, const T &false_value, const T &true_value) {
+            return condition ? true_value : false_value;
+          });
+      switch_multi_function = &switch_fn;
     });
     BLI_assert(switch_multi_function != nullptr);
     return *switch_multi_function;

@@ -63,7 +63,7 @@ static void curves_copy_data(Main * /*bmain*/,
 {
   Curves *curves_dst = id_cast<Curves *>(id_dst);
   const Curves *curves_src = id_cast<const Curves *>(id_src);
-  curves_dst->mat = static_cast<Material **>(MEM_dupallocN(curves_src->mat));
+  curves_dst->mat = MEM_dupalloc(curves_src->mat);
 
   new (&curves_dst->geometry) bke::CurvesGeometry(curves_src->geometry.wrap());
 
@@ -83,8 +83,8 @@ static void curves_free_data(ID *id)
 
   BKE_curves_batch_cache_free(curves);
 
-  MEM_SAFE_FREE(curves->mat);
-  MEM_SAFE_FREE(curves->surface_uv_map);
+  MEM_SAFE_DELETE(curves->mat);
+  MEM_SAFE_DELETE(curves->surface_uv_map);
 }
 
 static void curves_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -112,7 +112,7 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   ResourceScope scope;
   bke::CurvesGeometry::BlendWriteData write_data(scope);
-  curves->geometry.wrap().blend_write_prepare(write_data);
+  curves->geometry.wrap().blend_write_prepare(write_data, !BLO_write_is_undo(writer));
 
   BLO_write_shared_tag(writer, curves->geometry.curve_offsets);
   BLO_write_shared_tag(writer, curves->geometry.custom_knots);
@@ -143,34 +143,34 @@ static void curves_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_CV = {
-    /*id_code*/ Curves::id_type,
-    /*id_filter*/ FILTER_ID_CV,
-    /*dependencies_id_types*/ FILTER_ID_MA | FILTER_ID_OB,
-    /*main_listbase_index*/ INDEX_ID_CV,
-    /*struct_size*/ sizeof(Curves),
-    /*name*/ "Curves",
-    /*name_plural*/ N_("hair_curves"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_CURVES,
-    /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .id_code = Curves::id_type,
+    .id_filter = FILTER_ID_CV,
+    .dependencies_id_types = FILTER_ID_MA | FILTER_ID_OB,
+    .main_listbase_index = INDEX_ID_CV,
+    .struct_size = sizeof(Curves),
+    .name = "Curves",
+    .name_plural = N_("hair_curves"),
+    .translation_context = BLT_I18NCONTEXT_ID_CURVES,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ curves_init_data,
-    /*copy_data*/ curves_copy_data,
-    /*free_data*/ curves_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ curves_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ curves_foreach_working_space_color,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = curves_init_data,
+    .copy_data = curves_copy_data,
+    .free_data = curves_free_data,
+    .make_local = nullptr,
+    .foreach_id = curves_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = curves_foreach_working_space_color,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ curves_blend_write,
-    /*blend_read_data*/ curves_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = curves_blend_write,
+    .blend_read_data = curves_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 Curves *BKE_curves_add(Main *bmain, const char *name)
@@ -309,14 +309,14 @@ Curves *curves_new_nomain(CurvesGeometry curves)
 void curves_copy_parameters(const Curves &src, Curves &dst)
 {
   dst.flag = src.flag;
-  MEM_SAFE_FREE(dst.mat);
-  dst.mat = MEM_malloc_arrayN<Material *>(size_t(src.totcol), __func__);
+  MEM_SAFE_DELETE(dst.mat);
+  dst.mat = MEM_new_array_uninitialized<Material *>(size_t(src.totcol), __func__);
   dst.totcol = src.totcol;
   MutableSpan(dst.mat, dst.totcol).copy_from(Span(src.mat, src.totcol));
   dst.symmetry = src.symmetry;
   dst.selection_domain = src.selection_domain;
   dst.surface = src.surface;
-  MEM_SAFE_FREE(dst.surface_uv_map);
+  MEM_SAFE_DELETE(dst.surface_uv_map);
   if (src.surface_uv_map != nullptr) {
     dst.surface_uv_map = BLI_strdup(src.surface_uv_map);
   }

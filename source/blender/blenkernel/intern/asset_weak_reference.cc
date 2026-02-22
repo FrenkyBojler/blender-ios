@@ -98,6 +98,10 @@ AssetWeakReference AssetWeakReference::make_reference(const asset_system::AssetL
 {
   AssetWeakReference weak_ref{};
 
+  BLI_assert_msg(
+      !(library.library_type() == ASSET_LIBRARY_CUSTOM && library.name().is_empty()),
+      "Custom asset libraries should have a name set, otherwise weak references will not work");
+
   weak_ref.asset_library_type = library.library_type();
   StringRefNull name = library.name();
   if (!name.is_empty()) {
@@ -138,7 +142,7 @@ ListBaseT<AssetCatalogPathLink> BKE_asset_catalog_path_list_duplicate(
   ListBaseT<AssetCatalogPathLink> duplicated_list = {nullptr};
 
   for (AssetCatalogPathLink &catalog_path : catalog_path_list) {
-    AssetCatalogPathLink *copied_path = MEM_new_for_free<AssetCatalogPathLink>(__func__);
+    AssetCatalogPathLink *copied_path = MEM_new<AssetCatalogPathLink>(__func__);
     copied_path->path = BLI_strdup(catalog_path.path);
 
     BLI_addtail(&duplicated_list, copied_path);
@@ -175,7 +179,7 @@ bool BKE_asset_catalog_path_list_has_path(const ListBaseT<AssetCatalogPathLink> 
 void BKE_asset_catalog_path_list_add_path(ListBaseT<AssetCatalogPathLink> &catalog_path_list,
                                           const char *catalog_path)
 {
-  AssetCatalogPathLink *new_path = MEM_new_for_free<AssetCatalogPathLink>(__func__);
+  AssetCatalogPathLink *new_path = MEM_new<AssetCatalogPathLink>(__func__);
   new_path->path = BLI_strdup(catalog_path);
   BLI_addtail(&catalog_path_list, new_path);
 }

@@ -39,10 +39,12 @@ set(SRC
   nodes/node_geo_bounding_box.cc
   nodes/node_geo_camera_info.cc
   nodes/node_geo_closure.cc
+  nodes/node_geo_collection_children.cc
   nodes/node_geo_collection_info.cc
   nodes/node_geo_combine_bundle.cc
   nodes/node_geo_common.cc
   nodes/node_geo_convex_hull.cc
+  nodes/node_geo_cube_grid_topology.cc
   nodes/node_geo_curve_endpoint_selection.cc
   nodes/node_geo_curve_fill.cc
   nodes/node_geo_curve_fillet.cc
@@ -101,13 +103,18 @@ set(SRC
   nodes/node_geo_gizmo_transform.cc
   nodes/node_geo_grease_pencil_to_curves.cc
   nodes/node_geo_grid_advect.cc
+  nodes/node_geo_grid_clip.cc
   nodes/node_geo_grid_curl.cc
+  nodes/node_geo_grid_dilate_erode.cc
   nodes/node_geo_grid_divergence.cc
   nodes/node_geo_grid_gradient.cc
   nodes/node_geo_grid_info.cc
   nodes/node_geo_grid_laplacian.cc
+  nodes/node_geo_grid_mean.cc
+  nodes/node_geo_grid_median.cc
   nodes/node_geo_grid_prune.cc
   nodes/node_geo_grid_to_mesh.cc
+  nodes/node_geo_grid_to_points.cc
   nodes/node_geo_grid_voxelize.cc
   nodes/node_geo_image.cc
   nodes/node_geo_image_info.cc
@@ -346,14 +353,6 @@ if(WITH_BULLET)
   list(APPEND INC
     ../../../../intern/rigidbody
   )
-endif()
-
-if(WITH_TBB)
-  if(WIN32)
-    # TBB includes Windows.h which will define min/max macros
-    # that will collide with the STL versions.
-    add_definitions(-DNOMINMAX)
-  endif()
 endif()
 
 if(WITH_IMAGE_OPENEXR)

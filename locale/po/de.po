@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'e3ae31b49e53')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-20 10:29+0000\n"
+"POT-Creation-Date: 2026-02-16 10:28+0000\n"
 "PO-Revision-Date: 2025-12-02 20:06+0000\n"
 "Last-Translator: Bastitron <bastitronhd@gmail.com>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
@@ -4163,6 +4163,18 @@ msgid "Factor of Simplify using adaptive algorithm"
 msgstr "Faktor der Vereinfachung mit adaptivem Algorithmus"
 
 
+msgid "Stroke"
+msgstr "Pinselstrich"
+
+
+msgid "Fill"
+msgstr "Füllen"
+
+
+msgid "Both"
+msgstr "Beides"
+
+
 msgid "Active Layer"
 msgstr "Aktive Ebene"
 
@@ -4311,16 +4323,8 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "Definiert, wie sich die Eckpunktfarbe auf die Striche auswirkt"
 
 
-msgid "Stroke"
-msgstr "Pinselstrich"
-
-
 msgid "Vertex Color affects to Stroke only"
 msgstr "Eckpunktfarbe wirkt sich nur auf Strich aus"
-
-
-msgid "Fill"
-msgstr "Füllen"
 
 
 msgid "Vertex Color affects to Fill only"
@@ -9383,6 +9387,14 @@ msgid "Scaling (in time) of the noise"
 msgstr "Seed des Rauschens"
 
 
+msgid "Filter Width"
+msgstr "Filterbreite"
+
+
+msgid "Sigma"
+msgstr "Sigma"
+
+
 msgid "Stepped Interpolation F-Modifier"
 msgstr "Interpolationsmodus"
 
@@ -12029,20 +12041,12 @@ msgid "Adaptive Spacing"
 msgstr "Aktiv"
 
 
-msgid "Airbrush"
-msgstr "Airbrush"
-
-
 msgid "Affect Alpha"
 msgstr "Alpha beeinflussen"
 
 
 msgid "When this is disabled, lock alpha while painting"
 msgstr "Bei deaktivieren wird während des Males das Alpha gesperrt"
-
-
-msgid "Anchored"
-msgstr "Verankert"
 
 
 msgid "Connected Only"
@@ -12135,10 +12139,6 @@ msgstr "Texturüberlagerung verwenden"
 
 msgid "Show texture in viewport"
 msgstr "Textur im Anzeigefenster zeigen"
-
-
-msgid "Restore Mesh"
-msgstr "Markierungen synchronisieren"
 
 
 msgid "Spacing Distance"
@@ -12695,10 +12695,6 @@ msgstr "Zeilenabstand"
 
 msgid "Spacing between words"
 msgstr "Abstand zwischen den Wörtern"
-
-
-msgid "Textboxes"
-msgstr "Textboxen"
 
 
 msgid "Underline Thickness"
@@ -18714,24 +18710,24 @@ msgid "Material slot name"
 msgstr "Materialsteckplatzname"
 
 
-msgid "Mesh Select Mode"
-msgstr "Maschenauswahlmodus"
+msgid "Read"
+msgstr "Lesen"
 
 
-msgid "Face Data"
-msgstr "Flächendaten"
+msgid "Write"
+msgstr "Schreiben"
 
 
-msgid "Math"
-msgstr "Mathematisch"
+msgid "Sample"
+msgstr "Beispiel"
 
 
 msgid "Clean Up"
 msgstr "Aufräumen"
 
 
-msgid "Merge"
-msgstr "Zusammenführen"
+msgid "Primitives"
+msgstr "Grundkörper"
 
 
 msgid "Show/Hide"
@@ -18750,28 +18746,8 @@ msgid "Metaball"
 msgstr "Metaball"
 
 
-msgid "Read"
-msgstr "Lesen"
-
-
 msgid "Names"
 msgstr "Namen"
-
-
-msgid "Sample"
-msgstr "Beispiel"
-
-
-msgid "Write"
-msgstr "Schreiben"
-
-
-msgid "Primitives"
-msgstr "Grundkörper"
-
-
-msgid "Instances"
-msgstr "Instanzen"
 
 
 msgid "Pivot Point"
@@ -18790,16 +18766,12 @@ msgid "Mask Edit"
 msgstr "Maskenbearbeitung"
 
 
-msgid "Import"
-msgstr "Importieren"
-
-
 msgid "Vertex Group Locks"
 msgstr "Punktgruppen sperren"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Mirror"
@@ -18842,12 +18814,24 @@ msgid "Select All by Trait"
 msgstr "Alles nach Merkmal auswählen"
 
 
+msgid "Keying"
+msgstr "Schlüsselbilder"
+
+
 msgid "Select Linked"
 msgstr "Verknüpfte auswählen"
 
 
+msgid "Tracking"
+msgstr "Verfolgen"
+
+
 msgid "Select Loops"
 msgstr "Schleifen auswählen"
+
+
+msgid "Math"
+msgstr "Mathematisch"
 
 
 msgid "Assign Material"
@@ -18872,10 +18856,6 @@ msgstr "Beziehungen"
 
 msgid "Rigid Body"
 msgstr "Rigid Body"
-
-
-msgid "Layout"
-msgstr "Layout"
 
 
 msgid "Apply"
@@ -18906,14 +18886,6 @@ msgid "Hooks"
 msgstr "Haken"
 
 
-msgid "Keying"
-msgstr "Schlüsselbilder"
-
-
-msgid "Tracking"
-msgstr "Verfolgen"
-
-
 msgid "Random Mask"
 msgstr "Zufällige Maske"
 
@@ -18926,6 +18898,10 @@ msgid "In-Betweens"
 msgstr "Dazwischen"
 
 
+msgid "Instances"
+msgstr "Instanzen"
+
+
 msgid "Toggle Bone Options"
 msgstr "Knochen-Optionen umschalten"
 
@@ -18936,6 +18912,26 @@ msgstr "Knochen-Optionen einschalten"
 
 msgid "Disable Bone Options"
 msgstr "Knochen-Optionen ausschalten"
+
+
+msgid "Import"
+msgstr "Importieren"
+
+
+msgid "Mesh Select Mode"
+msgstr "Maschenauswahlmodus"
+
+
+msgid "Face Data"
+msgstr "Flächendaten"
+
+
+msgid "Merge"
+msgstr "Zusammenführen"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Assets"
@@ -23502,6 +23498,10 @@ msgid "Join Geometry"
 msgstr "Geometrie verbinden"
 
 
+msgid "Single"
+msgstr "Einzelner"
+
+
 msgid "Material Selection"
 msgstr "Materialauswahl"
 
@@ -23697,10 +23697,6 @@ msgstr "Label-Schriftgröße"
 
 msgid "Font size to use for displaying the label"
 msgstr "Schriftgröße, die zum Anzeigen der Beschriftung verwendet wird"
-
-
-msgid "Single"
-msgstr "Einzelner"
 
 
 msgid "Group Input"
@@ -25783,10 +25779,6 @@ msgstr "Von aktuellem Frame"
 msgctxt "Operator"
 msgid "Lasso Select"
 msgstr "Lasso-Auswahl"
-
-
-msgid "Higher values gives a smoother stroke"
-msgstr "Höhere Werte ergeben einen glatteren Strich"
 
 
 msgctxt "Operator"
@@ -28193,10 +28185,6 @@ msgid "Undo History"
 msgstr "Verlauf rückgängig machen"
 
 
-msgid "Redo specific action in history"
-msgstr "Bestimmte Aktion im Verlauf wiederherstellen"
-
-
 msgid "Item"
 msgstr "Gegenstand"
 
@@ -29177,10 +29165,6 @@ msgid "Side"
 msgstr "Seite"
 
 
-msgid "Both"
-msgstr "Beides"
-
-
 msgctxt "Operator"
 msgid "Add F-Curve Modifier"
 msgstr "F-Kurven Modifikator hinzufügen"
@@ -29198,14 +29182,6 @@ msgstr "F-Modifikator einfügen"
 
 msgid "Place the cursor on the midpoint of selected keyframes"
 msgstr "Drehpunkt um den Mittelpunkt der ausgewählten Objekte"
-
-
-msgid "Filter Width"
-msgstr "Filterbreite"
-
-
-msgid "Sigma"
-msgstr "Sigma"
 
 
 msgctxt "Operator"
@@ -29313,11 +29289,6 @@ msgstr "Mit Wachsstift zeichnen"
 
 
 msgctxt "Operator"
-msgid "Invert"
-msgstr "Invertieren"
-
-
-msgctxt "Operator"
 msgid "Erase"
 msgstr "Radieren"
 
@@ -29325,6 +29296,11 @@ msgstr "Radieren"
 msgctxt "Operator"
 msgid "Mask"
 msgstr "Maskieren"
+
+
+msgctxt "Operator"
+msgid "Invert"
+msgstr "Invertieren"
 
 
 msgid "Flat"
@@ -30269,10 +30245,6 @@ msgid "Deselect vertices at the boundary of each selection region"
 msgstr "Punkte an der Begrenzung jeder ausgewählten Region abwählen"
 
 
-msgid "Select vertex directly linked to already selected ones"
-msgstr "Eckpunkt auswählen, der direkt mit bereits ausgewählten verknüpft ist"
-
-
 msgctxt "Operator"
 msgid "Select Ungrouped"
 msgstr "Ungruppiertes auswählen"
@@ -30837,14 +30809,6 @@ msgid "Remove from the selection"
 msgstr "Von Auswahl entfernen"
 
 
-msgid "Select Ring"
-msgstr "Ringauswahl"
-
-
-msgid "Select ring"
-msgstr "Ring auswählen"
-
-
 msgctxt "Operator"
 msgid "Select Sharp Edges"
 msgstr "Zeichensitzungen nutzen"
@@ -31054,11 +31018,6 @@ msgstr "Messungen"
 
 msgid "X-Ray"
 msgstr "Röntgen"
-
-
-msgctxt "Operator"
-msgid "Multi Select Loops"
-msgstr "Markierung löschen"
 
 
 msgctxt "Operator"
@@ -31349,10 +31308,6 @@ msgid "Minor Radius"
 msgstr "Nebenradius"
 
 
-msgid "Radius of the torus' cross section"
-msgstr "Radius des Torus-Querschnitts"
-
-
 msgid "Minor Segments"
 msgstr "Nebensegmente"
 
@@ -31391,10 +31346,6 @@ msgstr "Scharfe Kanten"
 msgctxt "Operator"
 msgid "Rip"
 msgstr "Zerreißen"
-
-
-msgid "Disconnect vertex or edges from connected geometry"
-msgstr "Punkt oder Kanten von der verbundenen Geometrie trennen"
 
 
 msgid "Fill the ripped region"
@@ -32960,10 +32911,6 @@ msgstr "Modifikator entfernen"
 msgctxt "Operator"
 msgid "Add Metaball"
 msgstr "Metaball hinzufügen"
-
-
-msgid "Add an metaball object to the scene"
-msgstr "Metaball Objekt zur Szene hinzufügen"
 
 
 msgid "Primitive"
@@ -34994,10 +34941,6 @@ msgid "Cancel Render View"
 msgstr "Renderansicht zeigen/verbergen"
 
 
-msgid "Cancel show render view"
-msgstr "Anzeige der Renderansicht abbrechen"
-
-
 msgctxt "Operator"
 msgid "Show/Hide Render View"
 msgstr "Renderansicht zeigen/verbergen"
@@ -36479,17 +36422,9 @@ msgid "Add Surface Circle"
 msgstr "Kreisoberfläche hinzufügen"
 
 
-msgid "Construct a Nurbs surface Circle"
-msgstr "NURBS-Kreis-Oberfläche erzeugen"
-
-
 msgctxt "Operator"
 msgid "Add Surface Curve"
 msgstr "Kurvenoberfläche hinzufügen"
-
-
-msgid "Construct a Nurbs surface Curve"
-msgstr "NURBS-Kurven-Oberfläche erzeugen"
 
 
 msgctxt "Operator"
@@ -36497,17 +36432,9 @@ msgid "Add Surface Cylinder"
 msgstr "Zylinderoberfläche hinzufügen"
 
 
-msgid "Construct a Nurbs surface Cylinder"
-msgstr "NURBS-Zylinder-Oberfläche erzeugen"
-
-
 msgctxt "Operator"
 msgid "Add Surface Sphere"
 msgstr "Kugeloberfläche hinzufügen"
-
-
-msgid "Construct a Nurbs surface Sphere"
-msgstr "NURBS-Kugel-Oberfläche erzeugen"
 
 
 msgctxt "Operator"
@@ -36515,17 +36442,9 @@ msgid "Add Surface Patch"
 msgstr "Kacheloberfläche hinzufügen"
 
 
-msgid "Construct a Nurbs surface Patch"
-msgstr "NURBS-Oberfläche erzeugen"
-
-
 msgctxt "Operator"
 msgid "Add Surface Torus"
 msgstr "Oberflächentorus hinzufügen"
-
-
-msgid "Construct a Nurbs surface Torus"
-msgstr "NURBS-Torus-Oberfläche erzeugen"
 
 
 msgctxt "Operator"
@@ -36558,10 +36477,6 @@ msgstr "Texturslots hoch und runter bewegen"
 msgctxt "Operator"
 msgid "Paste Texture Slot Settings"
 msgstr "Texturslot Einstellungen einfügen"
-
-
-msgid "Copy the texture settings and nodes"
-msgstr "Textureinstellungen und -knoten kopieren"
 
 
 msgctxt "Operator"
@@ -44108,10 +44023,6 @@ msgid "Snap to current frame"
 msgstr "Am aktuellen Einzelbild einrasten"
 
 
-msgid "Hold Offset"
-msgstr "Versatz halten"
-
-
 msgid "Markers"
 msgstr "Marker"
 
@@ -45582,10 +45493,6 @@ msgid "Stereo Mode"
 msgstr "Stereomodus"
 
 
-msgid "Y position of the sequence strip"
-msgstr "Y-Position des Sequenzstreifens"
-
-
 msgid "Strip Color"
 msgstr "Streifenfarbe"
 
@@ -45882,6 +45789,21 @@ msgid "Mute expanded settings for the modifier"
 msgstr "Themeneinstellungen für den Knoteneditor"
 
 
+msgctxt "Sequence"
+msgid "Color Balance"
+msgstr "Farbbalance"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Kurven"
+
+
+msgctxt "Sequence"
+msgid "Hue Correct"
+msgstr "Farbkorrektur"
+
+
 msgid "Bright/contrast modifier data for sequence strip"
 msgstr "RGB-Kurven-Modifikator für Sequenzstreifen"
 
@@ -46000,10 +45922,6 @@ msgstr "Name des Schlitzes"
 
 msgid "Text Box"
 msgstr "Textbox"
-
-
-msgid "Textbox X Offset"
-msgstr "Textbox-X-Versatz"
 
 
 msgid "Spacing between characters"
@@ -52327,6 +52245,16 @@ msgstr "Flache Flächen verbinden"
 
 
 msgctxt "Operator"
+msgid "Edge Loops"
+msgstr "Kantenschleife"
+
+
+msgctxt "Operator"
+msgid "Edge Rings"
+msgstr "Kantenring"
+
+
+msgctxt "Operator"
 msgid "Sharp Edges"
 msgstr "Scharfe Kanten"
 
@@ -52879,11 +52807,6 @@ msgstr "Flache Oberfläche"
 
 
 msgctxt "Operator"
-msgid "Edge Loops"
-msgstr "Kantenschleife"
-
-
-msgctxt "Operator"
 msgid "Bones"
 msgstr "Knochen"
 
@@ -52986,11 +52909,6 @@ msgstr "Cursor zentrieren und alles zeigen"
 msgctxt "Operator"
 msgid "Non Manifold"
 msgstr "Nicht Mehrfach"
-
-
-msgctxt "Operator"
-msgid "Edge Rings"
-msgstr "Kantenring"
 
 
 msgctxt "Operator"
@@ -53228,10 +53146,6 @@ msgstr "Inaktive Ebenen verbergen"
 msgctxt "Operator"
 msgid "Close"
 msgstr "Schließen"
-
-
-msgid "Toggle X-Ray"
-msgstr "X-Ray umschalten"
 
 
 msgid "To 3D Cursor"
@@ -54002,10 +53916,6 @@ msgid "Delete envelope control point"
 msgstr "Einhüllenden-Kontrollpunkt löschen"
 
 
-msgid "Coefficient"
-msgstr "Koeffizient"
-
-
 msgid "Keying set failed to insert any keyframes"
 msgstr "Schlüsselbildsatz konnte keine Schlüsselbilder einfügen"
 
@@ -54394,16 +54304,16 @@ msgid "%d items"
 msgstr "%d Gegenstände"
 
 
-msgid "Color Space: "
-msgstr "Farbraum: "
-
-
 msgid "Value:"
 msgstr "Wert:"
 
 
 msgid "Hex"
 msgstr "Hex"
+
+
+msgid "Color Space: "
+msgstr "Farbraum: "
 
 
 msgid "Lightness"
@@ -54842,10 +54752,6 @@ msgid "Yesterday"
 msgstr "Gestern"
 
 
-msgid "Modified"
-msgstr "Modifizieren"
-
-
 msgid "Anim Player"
 msgstr "Wiedergabe"
 
@@ -54977,6 +54883,10 @@ msgstr "Schnittflächentyp"
 
 msgid "Close"
 msgstr "Schließen"
+
+
+msgid "Select Ring"
+msgstr "Ringauswahl"
 
 
 msgid "Vertex select - Shift-Click for multiple modes, Ctrl-Click contracts selection"
@@ -55780,16 +55690,16 @@ msgid "Missing%s%s%s%s detected!"
 msgstr "Fehlende%s%s%s%s gefunden!"
 
 
-msgid "Palette created"
-msgstr "Palette erstellt"
-
-
 msgid "Mirror group is locked, aborting"
 msgstr "Spiegel Gruppe ist gesperrt, abbrechen"
 
 
 msgid "Multipaint group is locked, aborting"
 msgstr "Mulitfarben Gruppe ist gesperrt, abbrechen"
+
+
+msgid "Palette created"
+msgstr "Palette erstellt"
 
 
 msgid "Active F-Curve"
@@ -58000,21 +57910,6 @@ msgid "%s: failed to load '%s'"
 msgstr "%s: konnte nicht geladen werden '%s'"
 
 
-msgctxt "Sequence"
-msgid "Color Balance"
-msgstr "Farbbalance"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Kurven"
-
-
-msgctxt "Sequence"
-msgid "Hue Correct"
-msgstr "Farbkorrektur"
-
-
 msgid "Strips must be the same length"
 msgstr "Streifen muss die selbe Länge haben"
 
@@ -58043,10 +57938,6 @@ msgid "Wave Effect"
 msgstr "Welleneffekt"
 
 
-msgid "Input pending "
-msgstr "Eingabe ausstehend "
-
-
 msgid "Blender File View"
 msgstr "Blender-Dateibetrachter"
 
@@ -58065,6 +57956,10 @@ msgstr "Ausführung erlauben"
 
 msgid "Don't Save"
 msgstr "Nicht speichern"
+
+
+msgid "Modified"
+msgstr "Modifizieren"
 
 
 msgid "Reload file with execution of Python scripts enabled"
