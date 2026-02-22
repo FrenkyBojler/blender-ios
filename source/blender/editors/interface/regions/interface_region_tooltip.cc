@@ -219,12 +219,11 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   BLF_wordwrap(data->fstyle.uifont_id,
                data->wrap_width,
                BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
-
+  BLF_size(data->fstyle.uifont_id, data->fstyle.points * UI_SCALE_FAC);
   /* Wrap paths with path-specific wrapping with hard width limit. */
   BLF_wordwrap(blf_mono_font,
                data->wrap_width,
                BLFWrapMode(int(BLFWrapMode::Path) | int(BLFWrapMode::HardLimit)));
-  BLF_size(data->fstyle.uifont_id, data->fstyle.points * UI_SCALE_FAC);
   bbox.xmin += 0.5f * pad_x; /* add padding to the text */
   bbox.ymax -= 0.5f * pad_y;
   bbox.ymax -= BLF_descender(data->fstyle.uifont_id);
