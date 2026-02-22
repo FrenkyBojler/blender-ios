@@ -162,8 +162,16 @@ void PDFExporter::export_grease_pencil_layer(const Object &object,
                          const std::optional<float> miter_limit_angle,
                          const bool /*round_cap*/,
                          const bool /*is_outline*/) {
-    write_path(
-        layer_to_world, positions, points_by_curve, shape, cyclic, types, color, opacity, width);
+    write_path(layer_to_world,
+               positions,
+               points_by_curve,
+               shape,
+               cyclic,
+               types,
+               color,
+               opacity,
+               width,
+               miter_limit_angle);
   };
 
   foreach_shape_in_layer(object, layer, drawing, write_shape);
