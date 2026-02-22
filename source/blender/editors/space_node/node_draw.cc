@@ -5088,7 +5088,7 @@ void node_draw_space(const bContext &C, ARegion &region)
   ui::view2d_dot_grid_draw(&v2d, TH_GRID, NODE_GRID_STEP_SIZE, grid_levels);
 
   TreeDrawContext tree_draw_ctx;
-  bNodeTree *ntree;
+  bNodeTree *ntree = nullptr;
   /* Draw parent node trees. */
   if (snode.treepath.last) {
     bNodeTreePath *path = static_cast<bNodeTreePath *>(snode.treepath.last);
