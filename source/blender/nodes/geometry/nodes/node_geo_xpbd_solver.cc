@@ -1830,6 +1830,10 @@ class XpbdSolverStep {
       }
       for (const PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints)
       {
+        if (constraint_usage.points.is_empty()) {
+          /* If there is nothing pinned, these attributes don't need to exist. */
+          continue;
+        }
         const PinPositionConstraint &constraint =
             constraints_.pin_position_constraints[constraint_usage.constraint_i];
         if (bke::SpanAttributeWriter<bool> was_pinned_attr =
@@ -2001,6 +2005,10 @@ class XpbdSolverStep {
       }
       for (const PinRotationConstraintUsage &constraint_usage : geo_data.pin_rotation_constraints)
       {
+        if (constraint_usage.points.is_empty()) {
+          /* If there is nothing pinned, these attributes don't need to exist. */
+          continue;
+        }
         const PinRotationConstraint &constraint =
             constraints_.pin_rotation_constraints[constraint_usage.constraint_i];
         if (bke::SpanAttributeWriter<bool> was_pinned_attr =
