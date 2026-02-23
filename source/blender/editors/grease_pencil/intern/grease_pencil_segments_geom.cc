@@ -1468,15 +1468,15 @@ class WindingState {
     }
   }
 
-  bool is_in_shape(const int shape_id, const GroupedSpan<int> &shapes) const
+  bool is_in_fill(const int fill_id, const GroupedSpan<int> &fills) const
   {
-    if (shape_id == -1) {
+    if (fill_id == -1) {
       return false;
     }
     int winding = 0;
 
-    const Span<int> shape = shapes[shape_id];
-    for (const int curve_i : shape) {
+    const Span<int> fill = fills[fill_id];
+    for (const int curve_i : fill) {
       if (orders_per_curve_.contains(curve_i)) {
         winding += orders_per_curve_.lookup(curve_i);
       }
@@ -1485,22 +1485,22 @@ class WindingState {
     return winding % 2 != 0;
   }
 
-  bool is_in_shapes(const IndexMask &shapes_mask, const GroupedSpan<int> &shapes) const
+  bool is_in_fills(const IndexMask &fills_mask, const GroupedSpan<int> &fills) const
   {
-    if (orders_per_curve_.is_empty() || shapes_mask.is_empty()) {
+    if (orders_per_curve_.is_empty() || fills_mask.is_empty()) {
       return false;
     }
 
     return threading::parallel_reduce(
-        shapes_mask.index_range(),
+        fills_mask.index_range(),
         4096,
         false,
         [&](const IndexRange range, bool value) {
           if (value) {
             return value;
           }
-          shapes_mask.slice(range).foreach_index([&](const int shape_id) {
-            if (this->is_in_shape(shape_id, shapes)) {
+          fills_mask.slice(range).foreach_index([&](const int fill_id) {
+            if (this->is_in_fill(fill_id, fills)) {
               value = true;
               return;
             }
@@ -1512,12 +1512,12 @@ class WindingState {
 
   /* Returns true if the point exists for this boolean operation. */
   bool is_contributing(const CurveBooleanOpParameters op_params,
-                       const GroupedSpan<int> &shapes,
-                       const int subject_shape,
-                       const IndexMask &clipping_shapes) const
+                       const GroupedSpan<int> &fills,
+                       const int subject_fill,
+                       const IndexMask &clipping_fills) const
   {
-    const bool subj = this->is_in_shape(subject_shape, shapes);
-    const bool clip = this->is_in_shapes(clipping_shapes, shapes);
+    const bool subj = this->is_in_fill(subject_fill, fills);
+    const bool clip = this->is_in_fills(clipping_fills, fills);
 
     switch (op_params.boolean_mode) {
       case Operation::Intersect: {
@@ -1543,8 +1543,8 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
     const Segment &segment,
     const Span<float2> points,
     const OffsetIndices<int> points_by_curve,
-    const std::optional<GroupedSpan<int>> shapes,
-    const IndexMask &mask_shapes,
+    const std::optional<GroupedSpan<int>> fills,
+    const IndexMask &mask_fills,
     const VArray<int> &fill_id)
 {
   WindingState state_L;
@@ -1581,8 +1581,8 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
                                     segment.intersection_factor[Side::Start]);
   }
 
-  mask_shapes.foreach_index([&](const int shape_id) {
-    const Span<int> curves_j = (*shapes)[shape_id];
+  mask_fills.foreach_index([&](const int fill_i) {
+    const Span<int> curves_j = (*fills)[fill_i];
     for (const int curve_j : curves_j) {
       if (curve_j == curve_i) {
         return;
@@ -1604,11 +1604,11 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 static void check_segments(const CurveBooleanOpParameters &op_params,
                            const int curve_k,
                            const bool is_subj,
-                           const int subj_shape_id,
+                           const int subj_fill_id,
                            const Span<float2> points,
-                           const std::optional<GroupedSpan<int>> shapes,
+                           const std::optional<GroupedSpan<int>> fills,
                            const OffsetIndices<int> points_by_curve,
-                           const IndexMask &clipping_shapes,
+                           const IndexMask &clipping_fills,
                            const Span<Segment> all_segments,
                            const OffsetIndices<int> segments_by_curve,
                            const Span<IntersectionPoint> &intersections,
@@ -1623,25 +1623,25 @@ static void check_segments(const CurveBooleanOpParameters &op_params,
   }
 
   const Segment &first_segment = all_segments[segments.first()];
-  const IndexMask &mask_shapes = is_subj ? clipping_shapes :
-                                           (subj_shape_id == -1 ?
-                                                IndexRange(0) :
-                                                IndexRange::from_single(subj_shape_id));
+  const IndexMask &mask_fills = is_subj ?
+                                    clipping_fills :
+                                    (subj_fill_id == -1 ? IndexRange(0) :
+                                                          IndexRange::from_single(subj_fill_id));
   auto [state_L, state_R] = LR_states_from_segment(
-      first_segment, points, points_by_curve, shapes, mask_shapes, fill_id);
+      first_segment, points, points_by_curve, fills, mask_fills, fill_id);
 
   for (const int seg_i : segments) {
     const Segment &this_segment = all_segments[seg_i];
 
     if (fill_id[curve_k] != 0) {
       all_inside_left[seg_i] = state_L.is_contributing(
-          op_params, *shapes, subj_shape_id, clipping_shapes);
+          op_params, *fills, subj_fill_id, clipping_fills);
       all_inside_right[seg_i] = state_R.is_contributing(
-          op_params, *shapes, subj_shape_id, clipping_shapes);
+          op_params, *fills, subj_fill_id, clipping_fills);
     }
     else {
-      all_inside_left[seg_i] = state_L.is_in_shapes(clipping_shapes, *shapes);
-      all_inside_right[seg_i] = state_R.is_in_shapes(clipping_shapes, *shapes);
+      all_inside_left[seg_i] = state_L.is_in_fills(clipping_fills, *fills);
+      all_inside_right[seg_i] = state_R.is_in_fills(clipping_fills, *fills);
     }
 
     if (!this_segment.has_intersection(Side::End)) {
@@ -1672,9 +1672,9 @@ struct BooleanResult {
   Vector<bool> segment_reversed;
   Vector<int> segment_offsets;
   Vector<bool> cyclic;
-  Vector<int> shape_ids;
+  Vector<int> fill_ids;
 
-  void append_result(const BooleanResult &other_result, const int shape_id)
+  void append_result(const BooleanResult &other_result, const int fill_id)
   {
     if (other_result.segments.is_empty()) {
       return;
@@ -1685,7 +1685,7 @@ struct BooleanResult {
     }
     cyclic.extend(other_result.cyclic);
     segment_reversed.extend(other_result.segment_reversed);
-    shape_ids.append_n_times(shape_id, other_result.cyclic.size());
+    fill_ids.append_n_times(fill_id, other_result.cyclic.size());
 
     for (const int i : other_result.segments.index_range()) {
       segments.append(std::move(other_result.segments[i]));
@@ -1723,22 +1723,22 @@ static void find_intersections_between_curves(const Span<float2> points_i,
   }
 }
 
-static void find_intersections_between_shapes(const Span<float2> points,
-                                              const std::optional<GroupedSpan<int>> fills,
-                                              const IndexMask &curves_i,
-                                              const IndexMask &shapes_j,
-                                              const OffsetIndices<int> points_by_curve,
-                                              const VArray<bool> &cyclic,
-                                              const bool self_intersection,
-                                              Array<Vector<int>> &r_inters_per_curves,
-                                              Vector<IntersectionPoint> &r_intersections)
+static void find_intersections_between_fills(const Span<float2> points,
+                                             const std::optional<GroupedSpan<int>> fills,
+                                             const IndexMask &curves_i,
+                                             const IndexMask &fills_j,
+                                             const OffsetIndices<int> points_by_curve,
+                                             const VArray<bool> &cyclic,
+                                             const bool self_intersection,
+                                             Array<Vector<int>> &r_inters_per_curves,
+                                             Vector<IntersectionPoint> &r_intersections)
 {
   curves_i.foreach_index([&](const int curve_i) {
     const IndexRange points_i = points_by_curve[curve_i];
     const bool cyclic_i = cyclic[curve_i];
 
-    shapes_j.foreach_index([&](const int shape_j) {
-      const Span<int> curves_j = (*fills)[shape_j];
+    fills_j.foreach_index([&](const int fill_j) {
+      const Span<int> curves_j = (*fills)[fill_j];
       for (const int curve_j : curves_j) {
         if (self_intersection && curve_i >= curve_j) {
           return;
@@ -1844,12 +1844,12 @@ static void create_connections_from_intersection_points(
 }
 
 static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
-                                            const int subj_shape_id,
+                                            const int subj_fill_id,
                                             const int subj_curve_i,
                                             const Span<float2> points,
-                                            const std::optional<GroupedSpan<int>> shapes,
+                                            const std::optional<GroupedSpan<int>> fills,
                                             const OffsetIndices<int> points_by_curve,
-                                            const IndexMask &clipping_shapes,
+                                            const IndexMask &clipping_fills,
                                             const Span<IntersectionPoint> clipping_intersections,
                                             const VArray<int> &fill_id,
                                             const VArray<bool> &cyclic)
@@ -1866,18 +1866,18 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
     subj_curves = IndexMask(IndexRange::from_single(subj_curve_i));
   }
   else {
-    subj_curves = IndexMask::from_indices((*shapes)[subj_shape_id], memory);
+    subj_curves = IndexMask::from_indices((*fills)[subj_fill_id], memory);
   }
 
-  find_intersections_between_shapes(points,
-                                    shapes,
-                                    subj_curves,
-                                    clipping_shapes,
-                                    points_by_curve,
-                                    cyclic,
-                                    false,
-                                    inters_per_curves,
-                                    intersections);
+  find_intersections_between_fills(points,
+                                   fills,
+                                   subj_curves,
+                                   clipping_fills,
+                                   points_by_curve,
+                                   cyclic,
+                                   false,
+                                   inters_per_curves,
+                                   intersections);
 
   Vector<Segment> all_segments;
   Array<int> all_segment_offset_data(points_by_curve.size() + 1, 0);
@@ -1887,13 +1887,13 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
         subj_curve_i, inters_per_curves, points_by_curve, intersections, cyclic, all_segments);
   }
   else {
-    for (const int curve_i : (*shapes)[subj_shape_id]) {
+    for (const int curve_i : (*fills)[subj_fill_id]) {
       all_segment_offset_data[curve_i] = create_segments_from_intersections_single_curve(
           curve_i, inters_per_curves, points_by_curve, intersections, cyclic, all_segments);
     }
   }
-  clipping_shapes.foreach_index([&](const int clip_shape_id) {
-    const Span<int> curves_j = (*shapes)[clip_shape_id];
+  clipping_fills.foreach_index([&](const int clip_fill_id) {
+    const Span<int> curves_j = (*fills)[clip_fill_id];
     for (const int curve_j : curves_j) {
       all_segment_offset_data[curve_j] = create_segments_from_intersections_single_curve(
           curve_j, inters_per_curves, points_by_curve, intersections, cyclic, all_segments);
@@ -1911,11 +1911,11 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
     check_segments(op_params,
                    subj_curve_i,
                    true,
-                   subj_shape_id,
+                   subj_fill_id,
                    points,
-                   shapes,
+                   fills,
                    points_by_curve,
-                   clipping_shapes,
+                   clipping_fills,
                    all_segments,
                    segments_by_curve,
                    intersections,
@@ -1924,15 +1924,15 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
                    all_inside_right);
   }
   else {
-    for (const int curve_i : (*shapes)[subj_shape_id]) {
+    for (const int curve_i : (*fills)[subj_fill_id]) {
       check_segments(op_params,
                      curve_i,
                      true,
-                     subj_shape_id,
+                     subj_fill_id,
                      points,
-                     shapes,
+                     fills,
                      points_by_curve,
-                     clipping_shapes,
+                     clipping_fills,
                      all_segments,
                      segments_by_curve,
                      intersections,
@@ -1941,17 +1941,17 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
                      all_inside_right);
     }
   }
-  clipping_shapes.foreach_index([&](const int clip_shape_id) {
-    const Span<int> curves_j = (*shapes)[clip_shape_id];
+  clipping_fills.foreach_index([&](const int clip_fill_id) {
+    const Span<int> curves_j = (*fills)[clip_fill_id];
     for (const int curve_j : curves_j) {
       check_segments(op_params,
                      curve_j,
                      false,
-                     subj_shape_id,
+                     subj_fill_id,
                      points,
-                     shapes,
+                     fills,
                      points_by_curve,
-                     clipping_shapes,
+                     clipping_fills,
                      all_segments,
                      segments_by_curve,
                      intersections,
@@ -1997,7 +1997,7 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
 static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
                                      const Span<float2> points,
                                      const OffsetIndices<int> points_by_curve,
-                                     const IndexMask &clipping_shapes,
+                                     const IndexMask &clipping_fills,
                                      const std::optional<GroupedSpan<int>> fills,
                                      const VArray<int> &fill_ids,
                                      const VArray<bool> &is_cyclic)
@@ -2053,7 +2053,7 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
                                                           points,
                                                           fills,
                                                           points_by_curve,
-                                                          clipping_shapes,
+                                                          clipping_fills,
                                                           intersections,
                                                           fill_ids,
                                                           cyclic);
@@ -2329,7 +2329,7 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                   const bke::CurvesGeometry &curves,
                                   const std::optional<GroupedSpan<int>> fills,
                                   const Span<float4> normal_planes,
-                                  const IndexMask &clipping_shapes,
+                                  const IndexMask &clipping_fills,
                                   const float4x4 &layer_to_world,
                                   const ARegion &region,
                                   const bool keep_caps)
@@ -2347,7 +2347,7 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
   const BooleanResult result = execute_boolean(op_params,
                                                src_positions_2d,
                                                curves.points_by_curve(),
-                                               clipping_shapes,
+                                               clipping_fills,
                                                fills,
                                                fill_ids,
                                                curves.cyclic());
@@ -2374,8 +2374,8 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
   Array<int> dst_to_src_curves(dst_segments_by_curve.size());
   for (const int i : dst_segments_by_curve.index_range()) {
     const IndexRange segment_range = dst_segments_by_curve[i];
-    const int shape_id = result.shape_ids[i];
-    dst_to_src_curves[i] = shape_id;
+    const int fill_id = result.fill_ids[i];
+    dst_to_src_curves[i] = fill_id;
 
     /* Prioritize non-clipping curves. */
     for (const int seg_i : segment_range) {
