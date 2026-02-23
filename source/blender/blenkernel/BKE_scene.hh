@@ -195,6 +195,11 @@ float BKE_scene_frame_get(const Scene *scene);
  */
 void BKE_scene_frame_set(Scene *scene, float frame);
 
+/**
+ * Clamps the current frame to be between the playback bounds which can be the preview range.
+ */
+void BKE_scene_frame_clamp_to_playback(Scene *scene);
+
 TransformOrientationSlot *BKE_scene_orientation_slot_get_from_flag(Scene *scene, int flag);
 TransformOrientationSlot *BKE_scene_orientation_slot_get(Scene *scene, int slot_index);
 /**

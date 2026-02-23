@@ -547,25 +547,6 @@ static float apply_frame_snap(bContext *C, FrameChangeModalData &op_data, const 
   return frame;
 }
 
-static void clamp_scene_frame_to_playback_bounds(bContext *C, Scene *scene)
-{
-  bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C));
-  if (screen->animtimer) {
-    int2 range = {scene->r.sfra, scene->r.efra};
-    if (scene->r.flag & SCER_PRV_RANGE) {
-      range.x = scene->r.psfra;
-      range.y = scene->r.pefra;
-    }
-
-    if (scene->r.cfra < range.x || scene->r.cfra > range.y) {
-      /* Always set to the start frame if out of playback bounds. This is to avoid the flicker to
-       * the last frame. */
-      scene->r.cfra = range.x;
-    }
-  }
-  FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
-}
-
 /* Set the new frame number */
 static void change_frame_apply(bContext *C, wmOperator *op, const bool always_update)
 {
@@ -594,7 +575,11 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
     scene->r.cfra = round_fl_to_int(frame);
     scene->r.subframe = 0.0f;
   }
-  clamp_scene_frame_to_playback_bounds(C, scene);
+  bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C));
+  if (screen->animtimer) {
+    BKE_scene_frame_clamp_to_playback(scene);
+  }
+  FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
 
   ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 

@@ -2509,6 +2509,21 @@ void BKE_scene_frame_set(Scene *scene, float frame)
   scene->r.cfra = int(intpart);
 }
 
+void BKE_scene_frame_clamp_to_playback(Scene *scene)
+{
+  int2 range = {scene->r.sfra, scene->r.efra};
+  if (scene->r.flag & SCER_PRV_RANGE) {
+    range.x = scene->r.psfra;
+    range.y = scene->r.pefra;
+  }
+
+  if (scene->r.cfra < range.x || scene->r.cfra > range.y) {
+    /* Always set to the start frame if out of playback bounds. This is to avoid the flicker to
+     * the last frame. */
+    scene->r.cfra = range.x;
+  }
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Scene Orientation Slots
  * \{ */
