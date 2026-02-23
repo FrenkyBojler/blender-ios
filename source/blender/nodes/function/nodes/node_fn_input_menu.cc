@@ -2,10 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "node_function_util.hh"
+#include "node_shader_util.hh"
+
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
-
-#include "node_function_util.hh"
 
 namespace blender::nodes::node_fn_input_menu_cc {
 
@@ -56,7 +57,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  fn_cmp_node_type_base(&ntype, "FunctionNodeInputMenu");
+  common_node_type_base(&ntype, "FunctionNodeInputMenu");
   ntype.ui_name = "Menu";
   ntype.ui_description = "Provide a menu value that can be connected to other nodes in the tree";
   ntype.nclass = NODE_CLASS_INPUT;
