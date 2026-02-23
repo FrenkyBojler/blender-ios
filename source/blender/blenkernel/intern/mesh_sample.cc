@@ -6,6 +6,7 @@
 #include "BKE_bvhutils.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_sample.hh"
+#include "BLI_execution_mode.hh"
 
 #include "BLI_math_geom.h"
 #include "BLI_rand.hh"
@@ -19,9 +20,10 @@ BLI_NOINLINE static void sample_point_attribute(const Span<int> corner_verts,
                                                 const Span<float3> bary_coords,
                                                 const VArray<T> &src,
                                                 const IndexMask &mask,
+                                                const exec_mode::Mode mode,
                                                 const MutableSpan<T> dst)
 {
-  mask.foreach_index([&](const int i) {
+  mask.foreach_index(mode, [&](const int i) {
     const int3 &tri = corner_tris[tri_indices[i]];
     dst[i] = attribute_math::mix3(bary_coords[i],
                                   src[corner_verts[tri[0]]],
@@ -54,14 +56,21 @@ void sample_point_attribute(const Span<int> corner_verts,
                             const Span<float3> bary_coords,
                             const GVArray &src,
                             const IndexMask &mask,
+                            const exec_mode::Mode mode,
                             const GMutableSpan dst)
 {
   BLI_assert(src.type() == dst.type());
 
   const CPPType &type = src.type();
   attribute_math::to_static_type(type, [&]<typename T>() {
-    sample_point_attribute<T>(
-        corner_verts, corner_tris, tri_indices, bary_coords, src.typed<T>(), mask, dst.typed<T>());
+    sample_point_attribute<T>(corner_verts,
+                              corner_tris,
+                              tri_indices,
+                              bary_coords,
+                              src.typed<T>(),
+                              mask,
+                              mode,
+                              dst.typed<T>());
   });
 }
 
@@ -167,6 +176,48 @@ void sample_face_attribute(const Span<int> corner_tri_faces,
   attribute_math::to_static_type(type, [&]<typename T>() {
     sample_face_attribute<T>(corner_tri_faces, tri_indices, src.typed<T>(), mask, dst.typed<T>());
   });
+}
+
+template<bool check_indices = false>
+static void sample_barycentric_weights(const Span<float3> vert_positions,
+                                       const Span<int> corner_verts,
+                                       const Span<int3> corner_tris,
+                                       const Span<int> tri_indices,
+                                       const Span<float3> sample_positions,
+                                       const IndexMask &mask,
+                                       const exec_mode::Mode mode,
+                                       MutableSpan<float3> bary_coords)
+{
+  mask.foreach_index(mode, [&](const int i) {
+    if constexpr (check_indices) {
+      if (tri_indices[i] == -1) {
+        bary_coords[i] = {};
+        return;
+      }
+    }
+    const int3 &tri = corner_tris[tri_indices[i]];
+    bary_coords[i] = compute_bary_coord_in_triangle(
+        vert_positions, corner_verts, tri, sample_positions[i]);
+  });
+}
+
+void sample_barycentric_weights(const Span<float3> vert_positions,
+                                const Span<int> corner_verts,
+                                const Span<int3> corner_tris,
+                                const Span<int> tri_indices,
+                                const Span<float3> sample_positions,
+                                const IndexMask &mask,
+                                const exec_mode::Mode mode,
+                                MutableSpan<float3> bary_coords)
+{
+  sample_barycentric_weights<false>(vert_positions,
+                                    corner_verts,
+                                    corner_tris,
+                                    tri_indices,
+                                    sample_positions,
+                                    mask,
+                                    mode,
+                                    bary_coords);
 }
 
 template<bool check_indices = false>
@@ -403,6 +454,7 @@ void BaryWeightFromPositionFn::call(const IndexMask &mask,
                                    triangle_indices,
                                    sample_positions,
                                    mask,
+                                   exec_mode::serial,
                                    bary_weights);
 }
 

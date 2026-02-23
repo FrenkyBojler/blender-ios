@@ -8,6 +8,7 @@
  * \ingroup bke
  */
 
+#include "BLI_execution_mode.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_math_vector_types.hh"
@@ -35,6 +36,7 @@ void sample_point_attribute(Span<int> corner_verts,
                             Span<float3> bary_coords,
                             const GVArray &src,
                             const IndexMask &mask,
+                            exec_mode::Mode mode,
                             GMutableSpan dst);
 
 void sample_point_normals(Span<int> corner_verts,
@@ -125,27 +127,14 @@ float3 compute_bary_coord_in_triangle(Span<float3> vert_positions,
                                       const int3 &corner_tri,
                                       const float3 &position);
 
-template<bool check_indices = false>
-inline void sample_barycentric_weights(const Span<float3> vert_positions,
-                                       const Span<int> corner_verts,
-                                       const Span<int3> corner_tris,
-                                       const Span<int> tri_indices,
-                                       const Span<float3> sample_positions,
-                                       const IndexMask &mask,
-                                       MutableSpan<float3> bary_coords)
-{
-  mask.foreach_index([&](const int i) {
-    if constexpr (check_indices) {
-      if (tri_indices[i] == -1) {
-        bary_coords[i] = {};
-        return;
-      }
-    }
-    const int3 &tri = corner_tris[tri_indices[i]];
-    bary_coords[i] = compute_bary_coord_in_triangle(
-        vert_positions, corner_verts, tri, sample_positions[i]);
-  });
-}
+void sample_barycentric_weights(Span<float3> vert_positions,
+                                Span<int> corner_verts,
+                                Span<int3> corner_tris,
+                                Span<int> tri_indices,
+                                Span<float3> sample_positions,
+                                const IndexMask &mask,
+                                exec_mode::Mode mode,
+                                MutableSpan<float3> bary_coords);
 
 template<typename T>
 inline T sample_corner_attribute_with_bary_coords(const float3 &bary_weights,

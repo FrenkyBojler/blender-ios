@@ -261,6 +261,7 @@ BLI_NOINLINE static void interpolate_attribute(const Mesh &mesh,
                                                        bary_coords,
                                                        source_data,
                                                        IndexMask(output_data.size()),
+                                                       exec_mode::serial,
                                                        output_data);
       break;
     }

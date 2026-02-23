@@ -450,43 +450,54 @@ static void gather_attributes(const Span<StringRef> ids,
   }
 }
 
-static void sample_attributes(const Span<StringRef> ids,
-                              const AttrDomain domain,
-                              Span<int> corner_verts,
-                              Span<int3> corner_tris,
-                              Span<int> tri_indices,
-                              Span<float3> bary_coords,
-                              const AttributeAccessor src_attributes,
-                              MutableAttributeAccessor dst_attributes)
+static void sample_vertex_attributes(const Span<StringRef> ids,
+                                     Span<int> corner_verts,
+                                     Span<int3> corner_tris,
+                                     Span<int> tri_indices,
+                                     Span<float3> bary_coords,
+                                     const AttributeAccessor src_attributes,
+                                     MutableAttributeAccessor dst_attributes)
 {
   for (const StringRef id : ids) {
-    const GVArray src = *src_attributes.lookup(id, domain);
+    const GVArray src = *src_attributes.lookup(id, AttrDomain::Point);
     const AttrType type = cpp_type_to_attribute_type(src.type());
-    GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(id, domain, type);
-    switch (domain) {
-      case AttrDomain::Point:
-        mesh_surface_sample::sample_point_attribute(corner_verts,
-                                                    corner_tris,
-                                                    tri_indices,
-                                                    bary_coords,
-                                                    src,
-                                                    IndexMask(dst.span.size()),
-                                                    dst.span);
-        break;
-      case AttrDomain::Corner:
-        mesh_surface_sample::sample_corner_attribute(corner_verts,
-                                                     corner_tris,
-                                                     tri_indices,
-                                                     bary_coords,
-                                                     src,
-                                                     IndexMask(dst.span.size()),
-                                                     dst.span);
-        break;
-      default:
-        BLI_assert_unreachable();
-        break;
-    }
+    GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
+        id, AttrDomain::Point, type);
+    mesh_surface_sample::sample_point_attribute(corner_verts,
+                                                corner_tris,
+                                                tri_indices,
+                                                bary_coords,
+                                                src,
+                                                IndexMask(dst.span.size()),
+                                                exec_mode::parallel,
+                                                dst.span);
     dst.finish();
+  }
+}
+
+static void sample_corner_attributes(const Span<StringRef> ids,
+                                     Span<int> corner_verts,
+                                     Span<int3> corner_tris,
+                                     Span<int> tri_indices,
+                                     Span<float3> bary_coords,
+                                     const AttributeAccessor src_attributes,
+                                     MutableAttributeAccessor dst_attributes)
+{
+  for (const StringRef id : ids) {
+#if 0
+    const GVArray src = *src_attributes.lookup(id, AttrDomain::Corner);
+    const AttrType type = cpp_type_to_attribute_type(src.type());
+    GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(id, AttrDomain::Point, type);
+    mesh_surface_sample::sample_point_attribute(corner_verts,
+                                                corner_tris,
+                                                tri_indices,
+                                                bary_coords,
+                                                src,
+                                                IndexMask(dst.span.size()),
+                                                exec_mode::parallel,
+                                                dst.span);
+    dst.finish();
+#endif
   }
 }
 
@@ -571,6 +582,7 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
                                                     vert_nearest_tris,
                                                     dst_positions,
                                                     IndexMask(dst_positions.size()),
+                                                    exec_mode::parallel,
                                                     bary_coords);
 
     if (!point_ids.is_empty()) {
@@ -578,25 +590,23 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
        * and these would show up as regular attributes afterwards). "vertex_group_active_index" is
        * taken care of via #BKE_mesh_copy_parameters(). */
       BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
-      sample_attributes(point_ids,
-                        AttrDomain::Point,
-                        src_corner_verts,
-                        src_corner_tris,
-                        vert_nearest_tris,
-                        bary_coords,
-                        src_attributes,
-                        dst_attributes);
+      sample_vertex_attributes(point_ids,
+                               src_corner_verts,
+                               src_corner_tris,
+                               vert_nearest_tris,
+                               bary_coords,
+                               src_attributes,
+                               dst_attributes);
     }
 
     if (!corner_ids.is_empty()) {
-      sample_attributes(corner_ids,
-                        AttrDomain::Corner,
-                        dst_corner_verts,
-                        src_corner_tris,
-                        vert_nearest_tris,
-                        bary_coords,
-                        src_attributes,
-                        dst_attributes);
+      sample_corner_attributes(corner_ids,
+                               dst_corner_verts,
+                               src_corner_tris,
+                               vert_nearest_tris,
+                               bary_coords,
+                               src_attributes,
+                               dst_attributes);
     }
   }
 
