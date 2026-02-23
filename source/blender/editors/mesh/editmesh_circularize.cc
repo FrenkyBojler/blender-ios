@@ -172,7 +172,8 @@ void MESH_OT_circularize(wmOperatorType *ot)
                   "regular",
                   true,
                   "Space Evenly",
-                  "Distribute vertices at constant distances along the circle");
+                  "Distribute vertices at constant distances along the circle, otherwise "
+                  "preserves original spacing");
   RNA_def_float_factor(ot->srna,
                        "flatten",
                        1.0f,
