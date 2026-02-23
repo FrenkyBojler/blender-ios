@@ -6,8 +6,8 @@
 #include "BKE_bvhutils.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_sample.hh"
-#include "BLI_execution_mode.hh"
 
+#include "BLI_execution_mode.hh"
 #include "BLI_math_geom.h"
 #include "BLI_rand.hh"
 
