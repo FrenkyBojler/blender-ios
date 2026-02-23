@@ -1468,25 +1468,24 @@ class WindingState {
     }
   }
 
-  bool is_in_shape(const int shape_id, const Vector<IndexMask> &shapes) const
+  bool is_in_shape(const int shape_id, const GroupedSpan<int> &shapes) const
   {
     if (shape_id == -1) {
       return false;
     }
     int winding = 0;
 
-    const IndexMask &shape = shapes[shape_id];
-    shape.foreach_index([&](const int curve_i) {
+    const Span<int> shape = shapes[shape_id];
+    for (const int curve_i : shape) {
       if (orders_per_curve_.contains(curve_i)) {
         winding += orders_per_curve_.lookup(curve_i);
       }
-    });
-
+    }
     /* Odd-Even fill rule. */
     return winding % 2 != 0;
   }
 
-  bool is_in_shapes(const IndexMask &shapes_mask, const Vector<IndexMask> &shapes) const
+  bool is_in_shapes(const IndexMask &shapes_mask, const GroupedSpan<int> &shapes) const
   {
     if (orders_per_curve_.is_empty() || shapes_mask.is_empty()) {
       return false;
@@ -1513,7 +1512,7 @@ class WindingState {
 
   /* Returns true if the point exists for this boolean operation. */
   bool is_contributing(const CurveBooleanOpParameters op_params,
-                       const Vector<IndexMask> &shapes,
+                       const GroupedSpan<int> &shapes,
                        const int subject_shape,
                        const IndexMask &clipping_shapes) const
   {
@@ -1623,20 +1622,6 @@ static void check_segments(const CurveBooleanOpParameters &op_params,
     return;
   }
 
-  /* TODO. */
-  IndexMaskMemory memory;
-  Vector<IndexMask, 4> shapes_masks;
-  if (shapes) {
-    for (const int shape_index : shapes->index_range()) {
-      shapes_masks.append(IndexMask::from_indices((*shapes)[shape_index], memory));
-    }
-  }
-  else {
-    for (const int curve_i : points_by_curve.index_range()) {
-      shapes_masks.append(IndexRange::from_single(curve_i));
-    }
-  }
-
   const Segment &first_segment = all_segments[segments.first()];
   const IndexMask &mask_shapes = is_subj ? clipping_shapes :
                                            (subj_shape_id == -1 ?
@@ -1650,13 +1635,13 @@ static void check_segments(const CurveBooleanOpParameters &op_params,
 
     if (fill_id[curve_k] != 0) {
       all_inside_left[seg_i] = state_L.is_contributing(
-          op_params, shapes_masks, subj_shape_id, clipping_shapes);
+          op_params, *shapes, subj_shape_id, clipping_shapes);
       all_inside_right[seg_i] = state_R.is_contributing(
-          op_params, shapes_masks, subj_shape_id, clipping_shapes);
+          op_params, *shapes, subj_shape_id, clipping_shapes);
     }
     else {
-      all_inside_left[seg_i] = state_L.is_in_shapes(clipping_shapes, shapes_masks);
-      all_inside_right[seg_i] = state_R.is_in_shapes(clipping_shapes, shapes_masks);
+      all_inside_left[seg_i] = state_L.is_in_shapes(clipping_shapes, *shapes);
+      all_inside_right[seg_i] = state_R.is_in_shapes(clipping_shapes, *shapes);
     }
 
     if (!this_segment.has_intersection(Side::End)) {
@@ -2517,10 +2502,6 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
 
   Array<bool> is_src_curve_clipping(curves.curves_num(), false);
   for (const int curve_i : curves.curves_range()) {
-    /* TODO. */
-    // const int shape_id = shape_ids[curve_i];
-    // if (clipping_shapes.contains(shape_id)) {
-
     if (curve_i == curves.curves_range().last()) {
       is_src_curve_clipping[curve_i] = true;
     }
