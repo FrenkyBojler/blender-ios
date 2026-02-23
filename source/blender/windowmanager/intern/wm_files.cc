@@ -3645,7 +3645,8 @@ static void wm_block_save_modified_images_save(bContext *C, void *arg_block, voi
   wmWindow *win = CTX_wm_window(C);
   popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
 
-  if (bmain->save_modified_images_when_file_is_saved && ED_image_should_save_modified(bmain)) {
+  if (wm->runtime->save_modified_images_when_file_is_saved && ED_image_should_save_modified(bmain))
+  {
     ReportList *reports = CTX_wm_reports(C);
     bool is_successful = ED_image_save_all_modified(C, reports);
     if (!is_successful) {
@@ -3708,6 +3709,7 @@ static ui::Block *block_create_save_modified_images_dialog(bContext *C, ARegion 
 {
   wmGenericCallback *post_action = static_cast<wmGenericCallback *>(arg);
   Main *bmain = CTX_data_main(C);
+  wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
 
   ui::Block *block = block_begin(
       C, region, save_modified_images_dialog_name, ui::EmbossType::Emboss);
@@ -3739,7 +3741,7 @@ static ui::Block *block_create_save_modified_images_dialog(bContext *C, ARegion 
             0,
             0,
             UI_UNIT_Y,
-            &bmain->save_modified_images_when_file_is_saved,
+            &wm->runtime->save_modified_images_when_file_is_saved,
             0,
             0,
             "");

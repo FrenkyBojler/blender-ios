@@ -342,13 +342,6 @@ struct Main : NonCopyable, NonMovable {
   bool need_preview_render_restart = false;
 
   /**
-   * Determines if modified images will be saved when the blend file is saved. This flag can be
-   * toggled in the 'Save Modified Images' dialog, which appears when trying to save a Blend file
-   * that has images with unsaved changes.
-   */
-  char save_modified_images_when_file_is_saved = true;
-
-  /**
    * The blend-file thumbnail. If set, it will show as image preview of the blend-file in the
    * system's file-browser.
    */
