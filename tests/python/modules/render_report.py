@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import time
 import multiprocessing
+import traceback
 
 from pathlib import Path
 
@@ -113,6 +114,7 @@ class TestResult:
         self.filepath = filepath
         self.name = name
         self.error = None
+        self.stats = None
         self.tmp_out_img_base = os.path.join(report.output_dir, "tmp_" + name)
         self.tmp_out_img = self.tmp_out_img_base + '0001.png'
         self.old_img, self.ref_img, self.new_img, self.diff_color_img, self.diff_alpha_img = test_get_images(
@@ -141,12 +143,24 @@ def diff_output(test, oiiotool, fail_threshold, fail_percent, verbose, update):
             "--diff",
         )
         try:
-            subprocess.check_output(command)
+            output = subprocess.check_output(command)
             failed = False
         except subprocess.CalledProcessError as e:
+            output = e.output
             if verbose:
-                print_message(e.output.decode("utf-8", 'ignore'))
+                print_message(output.decode("utf-8", 'ignore'))
             failed = e.returncode != 0
+
+        try:
+            test.stats = output.decode("utf-8", 'ignore')
+            # Only retrieve max error and number of pixels over threshold.
+            lines = test.stats.splitlines()
+            lines = [lines[4].lstrip(), lines[6].lstrip()]
+            lines[0] = lines[0][:len("Max Error = 0.000")]
+            test.stats = '\n'.join(lines)
+        except Exception as e:
+            # The oiiotool formatting may have changed.
+            traceback.print_exc()
     else:
         if not update:
             test.error = "VERIFY"
@@ -488,7 +502,9 @@ class Report:
     def _write_test_html(self, test_category, test_result):
         name = test_result.name.replace('_', ' ')
 
-        status = test_result.error if test_result.error else ""
+        status = "<strong>" + test_result.error + "</strong><br>" if test_result.error else ""
+        if test_result.stats:
+            status += "<i>" + "<br>".join(test_result.stats.splitlines()) + "</i>"
         tr_style = """ class="table-danger" """ if test_result.error else ""
 
         new_url = self._relative_url(test_result.new_img)
