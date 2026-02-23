@@ -448,7 +448,6 @@ class NODE_MT_node(Menu):
         props.NODE_OT_translate_attach.TRANSFORM_OT_translate.view2d_edge_pan = True
         props = layout.operator("node.duplicate_move_linked")
         props.NODE_OT_translate_attach.TRANSFORM_OT_translate.view2d_edge_pan = True
-        layout.operator("node.move_detach_links", text="Detach and Move")
 
         layout.separator()
         layout.operator("node.delete", icon='X')
@@ -457,6 +456,7 @@ class NODE_MT_node(Menu):
         layout.separator()
         layout.operator("node.join", text="Join in New Frame")
         layout.operator("node.detach", text="Remove from Frame")
+        layout.operator("node.move_detach_links", text="Detach and Move")
         layout.operator("node.join_nodes", text="Join Group Inputs")
         layout.operator("node.join_named")
 
