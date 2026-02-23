@@ -266,7 +266,8 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
 
       float raw_capture_mat[4][4];
       if (!wm_xr_get_viewfinder_capture_mat(settings, state, viewfinder_height, raw_capture_mat)) {
-        break;
+        /* Invalid viewfinder capture matrix, cannot draw, early return. */
+        return;
       }
 
       float raw_capture_position[3];
