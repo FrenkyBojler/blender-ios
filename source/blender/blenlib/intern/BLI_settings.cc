@@ -116,22 +116,4 @@ void Settings::remove(const std::string &item)
   sec_tbl.erase(item);
 }
 
-void SettingsRoot::remove_section(const std::string &section) const
-{
-  std::lock_guard<Mutex> lock(settings_mutex);
-  if (settings_current.is_empty()) {
-    BLI_settings_init();
-  }
-
-  if (!settings_current.is_table()) {
-    return;
-  }
-
-  toml::table &root_tbl = settings_current.as_table();
-  root_tbl.erase(section);
-}
-
-/* Define the global root instance. */
-const SettingsRoot settings{};
-
 }  // namespace blender

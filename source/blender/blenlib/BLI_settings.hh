@@ -101,62 +101,6 @@ template<typename T> void Settings::set(const std::string &item, const T &value)
   settings_current[section][item] = value;
 }
 
-/* Global, ergonomic access: settings["Section"]["item"] */
-struct SettingsRoot {
-  struct ValueProxy {
-    std::string section;
-    std::string key;
-
-    ValueProxy(std::string section_, std::string key_)
-        : section(std::move(section_)), key(std::move(key_))
-    {
-    }
-
-    template<typename T> operator T() const
-    {
-      return Settings(section).get<T>(key);
-    }
-
-    template<typename T> ValueProxy &operator=(const T &value)
-    {
-      Settings(section).set<T>(key, value);
-      return *this;
-    }
-
-    /* Allow assignment from toml::value too (advanced use). */
-    ValueProxy &operator=(const toml::value &v)
-    {
-      Settings(section).set<toml::value>(key, v);
-      return *this;
-    }
-  };
-
-  struct SectionProxy {
-    std::string section;
-    SectionProxy(std::string s) : section(std::move(s)) {}
-    ValueProxy operator[](const std::string &key) const
-    {
-      return ValueProxy(section, key);
-    }
-    /* Remove a key from this section (in-memory only). */
-    void remove(const std::string &key) const
-    {
-      Settings(section).remove(key);
-    }
-  };
-
-  SectionProxy operator[](const std::string &section) const
-  {
-    return SectionProxy(section);
-  }
-
-  /* Remove a whole section (in-memory only). */
-  void remove_section(const std::string &section) const;
-};
-
-/* Global instance that can be used everywhere: settings["file_browser"]["width"]. */
-extern const SettingsRoot settings;
-
 /**********************************/
 
 /* Default settings. */

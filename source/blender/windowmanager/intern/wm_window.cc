@@ -474,7 +474,8 @@ static void save_window_bounds_settings(wmWindow *win)
       float(win->posy) * f / UI_SCALE_FAC,
       float(win->posy) * f / UI_SCALE_FAC + float(win->sizey) * f / UI_SCALE_FAC};
 
-  settings["window.dimensions"][win->runtime->settings_key] = bounds;
+  Settings settings("window.dimensions");
+  settings[win->runtime->settings_key] = bounds;
 }
 
 void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
@@ -1423,7 +1424,8 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
   eWindowAlignment align;
 
   std::string key = get_window_settings_key(eSpace_Type(space_type));
-  std::vector<float> bounds = settings["window.dimensions"][key];
+  Settings settings("window.dimensions");
+  std::vector<float> bounds = settings[key];
 
   const bool bounds_valid = (bounds.size() == 4 && (bounds[1] - bounds[0] > 150.0f) &&
                              (bounds[3] - bounds[2] > 100.0f));
