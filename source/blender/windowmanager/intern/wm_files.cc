@@ -3608,20 +3608,26 @@ void WM_OT_recover_auto_save(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Save Modified Images Dialog
+/** \name Popup Shared Utilities
  * \{ */
 
-static void free_post_file_close_action(void *arg)
+static void popup_block_wm_generic_callback_free(void *arg)
 {
   wmGenericCallback *action = static_cast<wmGenericCallback *>(arg);
   WM_generic_callback_free(action);
 }
 
-static void wm_free_operator_properties_callback(void *user_data)
+static void wm_generic_callback_free_user_data_idproperties(void *user_data)
 {
   IDProperty *properties = static_cast<IDProperty *>(user_data);
   IDP_FreeProperty(properties);
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Save Modified Images Dialog
+ * \{ */
 
 static void wm_block_save_modified_images_cancel(bContext *C, void *arg_block, void * /*arg_data*/)
 {
@@ -3792,8 +3798,10 @@ static ui::Block *block_create_save_modified_images_dialog(bContext *C, ARegion 
 static void wm_save_modified_images_dialog(bContext *C, wmGenericCallback *post_action)
 {
   if (!ui::popup_block_name_exists(CTX_wm_screen(C), save_modified_images_dialog_name)) {
-    ui::popup_block_invoke(
-        C, block_create_save_modified_images_dialog, post_action, free_post_file_close_action);
+    ui::popup_block_invoke(C,
+                           block_create_save_modified_images_dialog,
+                           post_action,
+                           popup_block_wm_generic_callback_free);
   }
   else {
     WM_generic_callback_free(post_action);
@@ -3807,7 +3815,7 @@ static void wm_operator_save_modified_images_dialog(bContext *C,
   wmGenericCallback *callback = MEM_new<wmGenericCallback>(__func__);
   callback->exec = post_action_fn;
   callback->user_data = IDP_CopyProperty(op->properties);
-  callback->free_user_data = wm_free_operator_properties_callback;
+  callback->free_user_data = wm_generic_callback_free_user_data_idproperties;
   wm_save_modified_images_dialog(C, callback);
 }
 
@@ -4826,10 +4834,12 @@ void wm_save_file_overwrite_dialog(bContext *C, wmOperator *op)
     wmGenericCallback *callback = MEM_new<wmGenericCallback>(__func__);
     callback->exec = nullptr;
     callback->user_data = IDP_CopyProperty(op->properties);
-    callback->free_user_data = wm_free_operator_properties_callback;
+    callback->free_user_data = wm_generic_callback_free_user_data_idproperties;
 
-    ui::popup_block_invoke(
-        C, block_create_save_file_overwrite_dialog, callback, free_post_file_close_action);
+    ui::popup_block_invoke(C,
+                           block_create_save_file_overwrite_dialog,
+                           callback,
+                           popup_block_wm_generic_callback_free);
   }
 }
 
@@ -5125,7 +5135,7 @@ void wm_close_file_dialog(bContext *C, wmGenericCallback *post_action)
     save_images_when_file_is_closed = true;
 
     ui::popup_block_invoke(
-        C, block_create__close_file_dialog, post_action, free_post_file_close_action);
+        C, block_create__close_file_dialog, post_action, popup_block_wm_generic_callback_free);
   }
   else {
     WM_generic_callback_free(post_action);
@@ -5142,7 +5152,7 @@ bool wm_operator_close_file_dialog_if_needed(bContext *C,
     wmGenericCallback *callback = MEM_new<wmGenericCallback>(__func__);
     callback->exec = post_action_fn;
     callback->user_data = IDP_CopyProperty(op->properties);
-    callback->free_user_data = wm_free_operator_properties_callback;
+    callback->free_user_data = wm_generic_callback_free_user_data_idproperties;
     wm_close_file_dialog(C, callback);
     return true;
   }
