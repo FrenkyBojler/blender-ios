@@ -692,6 +692,7 @@ bool isect_line_segment_tri_v3(const float p1[3],
 /**
  * Test if the line defined by p1 and p2 intersects the triangle v0..v2
  * return non zero if it does.
+ * Like #isect_line_segment_tri_v3, but without clipping.
  */
 bool isect_line_tri_v3(const float p1[3],
                        const float p2[3],
