@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2026 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_math_matrix.h"
@@ -28,6 +31,7 @@
 #include "WM_types.hh"
 
 #include "NOD_compositor_gizmos.hh" /* Own include. */
+
 namespace blender::nodes::gizmos {
 
 /* -------------------------------------------------------------------- */
@@ -45,30 +49,6 @@ static float2 node_gizmo_safe_calc_dims(const ImBuf *ibuf, const float2 &fallbac
   /* We typically want to divide by dims, so avoid returning zero here. */
   BLI_assert(!math::is_any_zero(fallback_dims));
   return fallback_dims;
-}
-
-static SpaceNode *find_active_node_editor(const bContext *C)
-{
-  wmWindowManager *window_manager = CTX_wm_manager(C);
-
-  for (wmWindow &window : window_manager->windows) {
-    bScreen *screen = WM_window_get_active_screen(&window);
-    for (ScrArea &area : screen->areabase) {
-      SpaceLink *space_link = static_cast<SpaceLink *>(area.spacedata.first);
-      if (!space_link || space_link->spacetype != SPACE_NODE) {
-        continue;
-      }
-      SpaceNode *snode = reinterpret_cast<SpaceNode *>(space_link);
-      if (snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
-        bNodeTreePath *path = static_cast<bNodeTreePath *>(snode->treepath.last);
-        if (snode->nodetree->active_viewer_key == path->parent_key) {
-          return snode;
-        }
-      }
-    }
-  }
-
-  return nullptr;
 }
 
 static void node_gizmo_calc_matrix_space_with_image_dims(const ARegion *region,
@@ -129,6 +109,30 @@ static bool image_gizmo_is_set_visible(const SpaceImage &sima)
   return true;
 }
 
+static SpaceNode *find_active_node_editor(const bContext *C)
+{
+  wmWindowManager *window_manager = CTX_wm_manager(C);
+
+  for (wmWindow &window : window_manager->windows) {
+    bScreen *screen = WM_window_get_active_screen(&window);
+    for (ScrArea &area : screen->areabase) {
+      SpaceLink *space_link = static_cast<SpaceLink *>(area.spacedata.first);
+      if (!space_link || space_link->spacetype != SPACE_NODE) {
+        continue;
+      }
+      SpaceNode *snode = reinterpret_cast<SpaceNode *>(space_link);
+      if (snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
+        bNodeTreePath *path = static_cast<bNodeTreePath *>(snode->treepath.last);
+        if (snode->nodetree->active_viewer_key == path->parent_key) {
+          return snode;
+        }
+      }
+    }
+  }
+
+  return nullptr;
+}
+
 /** \} */
 
 struct NodeBBoxWidgetGroup {
@@ -169,7 +173,20 @@ static bool show_box_mask_gizmo(const SpaceNode &snode)
   return false;
 }
 
-bool WIDGETGROUP_node_box_mask_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool box_mask_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+{
+  SpaceNode *snode = CTX_wm_space_node(C);
+  if (snode == nullptr) {
+    return false;
+  }
+  if (!node_gizmo_is_set_visible(*snode)) {
+    return false;
+  }
+
+  return show_box_mask_gizmo(*snode);
+}
+
+bool box_mask_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   const SpaceImage *sima = CTX_wm_space_image(C);
   if (sima == nullptr) {
@@ -188,20 +205,7 @@ bool WIDGETGROUP_node_box_mask_poll_space_image(const bContext *C, wmGizmoGroupT
   return show_box_mask_gizmo(*snode);
 }
 
-bool WIDGETGROUP_node_box_mask_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
-{
-  SpaceNode *snode = CTX_wm_space_node(C);
-  if (snode == nullptr) {
-    return false;
-  }
-  if (!node_gizmo_is_set_visible(*snode)) {
-    return false;
-  }
-
-  return show_box_mask_gizmo(*snode);
-}
-
-void WIDGETGROUP_node_box_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+void box_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   NodeBBoxWidgetGroup *mask_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
   mask_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
@@ -222,7 +226,7 @@ void WIDGETGROUP_node_box_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgro
   };
 }
 
-void WIDGETGROUP_bbox_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
+void bbox_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
 {
   ARegion *region = CTX_wm_region(C);
   wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
@@ -233,7 +237,7 @@ void WIDGETGROUP_bbox_draw_prepare_space_node(const bContext *C, wmGizmoGroup *g
       region, snode->zoom, float2{-snode->xof, -snode->yof}, gz->matrix_space);
 }
 
-void WIDGETGROUP_bbox_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup)
+void bbox_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup)
 {
   ARegion *region = CTX_wm_region(C);
   wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
@@ -337,7 +341,33 @@ static void gizmo_node_box_mask_prop_matrix_set(const wmGizmo *gz,
   gizmo_node_bbox_update(mask_group);
 }
 
-void WIDGETGROUP_bbox_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+static void gizmo_node_box_mask_foreach_rna_prop(
+    wmGizmoProperty *gz_prop,
+    const FunctionRef<void(PointerRNA &ptr, PropertyRNA *prop, int index)> callback)
+{
+  bNode *node = static_cast<bNode *>(gz_prop->custom_func.user_data);
+
+  bNodeSocket *position_socket = bke::node_find_socket(*node, SOCK_IN, "Position");
+  bNodeTree &node_tree = node->owner_tree();
+  PointerRNA position_ptr = RNA_pointer_create_discrete(
+      &node_tree.id, RNA_NodeSocket, position_socket);
+  PropertyRNA *position_prop = RNA_struct_find_property(&position_ptr, "default_value");
+
+  bNodeSocket *size_socket = bke::node_find_socket(*node, SOCK_IN, "Size");
+  PointerRNA size_ptr = RNA_pointer_create_discrete(&node_tree.id, RNA_NodeSocket, size_socket);
+  PropertyRNA *size_prop = RNA_struct_find_property(&size_ptr, "default_value");
+
+  bNodeSocket *rotation_socket = bke::node_find_socket(*node, SOCK_IN, "Rotation");
+  PointerRNA rotation_ptr = RNA_pointer_create_discrete(
+      &node_tree.id, RNA_NodeSocket, rotation_socket);
+  PropertyRNA *rotation_prop = RNA_struct_find_property(&position_ptr, "default_value");
+
+  callback(position_ptr, position_prop, -1);
+  callback(size_ptr, size_prop, -1);
+  callback(rotation_ptr, rotation_prop, 0);
+}
+
+void box_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
   NodeBBoxWidgetGroup *mask_group = static_cast<NodeBBoxWidgetGroup *>(gzgroup->customdata);
@@ -362,7 +392,6 @@ void WIDGETGROUP_bbox_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 
   const SpaceNode *snode = find_active_node_editor(C);
   BLI_assert(snode != nullptr);
-  BLI_assert(snode != nullptr);
 
   bNode *node = bke::node_get_active(*snode->edittree);
 
@@ -378,6 +407,7 @@ void WIDGETGROUP_bbox_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   params.value_set_fn = gizmo_node_box_mask_prop_matrix_set;
   params.range_get_fn = nullptr;
   params.user_data = node;
+  params.foreach_rna_prop_fn = gizmo_node_box_mask_foreach_rna_prop;
   WM_gizmo_target_property_def_func(gz, "matrix", &params);
 
   BKE_image_release_ibuf(ima, ibuf, lock);
@@ -525,7 +555,7 @@ static bool show_crop_gizmo(const SpaceNode &snode)
   return false;
 }
 
-bool WIDGETGROUP_node_crop_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool crop_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
@@ -538,7 +568,7 @@ bool WIDGETGROUP_node_crop_poll_space_node(const bContext *C, wmGizmoGroupType *
   return show_crop_gizmo(*snode);
 }
 
-bool WIDGETGROUP_node_crop_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool crop_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   const SpaceImage *sima = CTX_wm_space_image(C);
   if (sima == nullptr) {
@@ -557,7 +587,7 @@ bool WIDGETGROUP_node_crop_poll_space_image(const bContext *C, wmGizmoGroupType 
   return show_crop_gizmo(*snode);
 }
 
-void WIDGETGROUP_node_crop_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
+void crop_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
 {
   ARegion *region = CTX_wm_region(C);
   wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
@@ -567,7 +597,37 @@ void WIDGETGROUP_node_crop_draw_prepare_space_node(const bContext *C, wmGizmoGro
   node_gizmo_calc_matrix_space(region, snode->zoom, {-snode->xof, -snode->yof}, gz->matrix_space);
 }
 
-void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+static void gizmo_node_crop_foreach_rna_prop(
+    wmGizmoProperty *gz_prop,
+    const FunctionRef<void(PointerRNA &ptr, PropertyRNA *prop, int index)> callback)
+{
+  bNode *node = static_cast<bNode *>(gz_prop->custom_func.user_data);
+  bNodeTree &node_tree = node->owner_tree();
+
+  bNodeSocket *x_socket = bke::node_find_socket(*node, SOCK_IN, "X");
+  PointerRNA x_ptr = RNA_pointer_create_discrete(&node_tree.id, RNA_NodeSocket, x_socket);
+  PropertyRNA *x_prop = RNA_struct_find_property(&x_ptr, "default_value");
+
+  bNodeSocket *y_socket = bke::node_find_socket(*node, SOCK_IN, "Y");
+  PointerRNA y_ptr = RNA_pointer_create_discrete(&node_tree.id, RNA_NodeSocket, y_socket);
+  PropertyRNA *y_prop = RNA_struct_find_property(&y_ptr, "default_value");
+
+  bNodeSocket *width_socket = bke::node_find_socket(*node, SOCK_IN, "Width");
+  PointerRNA width_ptr = RNA_pointer_create_discrete(&node_tree.id, RNA_NodeSocket, width_socket);
+  PropertyRNA *width_prop = RNA_struct_find_property(&width_ptr, "default_value");
+
+  bNodeSocket *height_socket = bke::node_find_socket(*node, SOCK_IN, "Height");
+  PointerRNA height_ptr = RNA_pointer_create_discrete(
+      &node_tree.id, RNA_NodeSocket, height_socket);
+  PropertyRNA *height_prop = RNA_struct_find_property(&height_ptr, "default_value");
+
+  callback(x_ptr, x_prop, 0);
+  callback(y_ptr, y_prop, 0);
+  callback(width_ptr, width_prop, 0);
+  callback(height_ptr, height_prop, 0);
+}
+
+void crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
   const SpaceNode *snode = find_active_node_editor(C);
@@ -607,12 +667,13 @@ void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   params.value_set_fn = gizmo_node_crop_prop_matrix_set;
   params.range_get_fn = nullptr;
   params.user_data = node;
+  params.foreach_rna_prop_fn = gizmo_node_crop_foreach_rna_prop;
   WM_gizmo_target_property_def_func(gz, "matrix", &params);
 
   BKE_image_release_ibuf(ima, ibuf, lock);
 }
 
-void WIDGETGROUP_node_crop_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+void crop_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   NodeBBoxWidgetGroup *crop_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
   crop_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
@@ -620,6 +681,10 @@ void WIDGETGROUP_node_crop_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
   RNA_enum_set(crop_group->border->ptr,
                "transform",
                ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE | ED_GIZMO_CAGE_XFORM_FLAG_SCALE);
+  RNA_enum_set(crop_group->border->ptr,
+               "draw_options",
+               ED_GIZMO_CAGE_DRAW_FLAG_XFORM_CENTER_HANDLE |
+                   ED_GIZMO_CAGE_DRAW_FLAG_CORNER_HANDLES);
 
   gzgroup->customdata = crop_group;
   gzgroup->customdata_free = [](void *customdata) {
@@ -665,7 +730,38 @@ static bool show_glare_gizmo(const SpaceNode &snode)
   return true;
 }
 
-bool WIDGETGROUP_node_glare_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool glare_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+{
+  SpaceNode *snode = CTX_wm_space_node(C);
+  if (snode == nullptr) {
+    return false;
+  }
+  if (!node_gizmo_is_set_visible(*snode)) {
+    return false;
+  }
+
+  return show_glare_gizmo(*snode);
+}
+
+void glare_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup)
+{
+
+  NodeGlareWidgetGroup *glare_group = static_cast<NodeGlareWidgetGroup *>(gzgroup->customdata);
+  ARegion *region = CTX_wm_region(C);
+  wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
+
+  SpaceImage *sima = CTX_wm_space_image(C);
+  const float2 offset = float2{-sima->xof, -sima->yof} * sima->zoom;
+
+  node_gizmo_calc_matrix_space_with_image_dims(region,
+                                               sima->zoom,
+                                               offset,
+                                               glare_group->state.dims,
+                                               glare_group->state.offset,
+                                               gz->matrix_space);
+}
+
+bool glare_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   const SpaceImage *sima = CTX_wm_space_image(C);
   if (sima == nullptr) {
@@ -684,38 +780,7 @@ bool WIDGETGROUP_node_glare_poll_space_image(const bContext *C, wmGizmoGroupType
   return show_glare_gizmo(*snode);
 }
 
-void WIDGETGROUP_node_glare_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup)
-{
-
-  NodeGlareWidgetGroup *glare_group = static_cast<NodeGlareWidgetGroup *>(gzgroup->customdata);
-  ARegion *region = CTX_wm_region(C);
-  wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first);
-
-  SpaceImage *sima = CTX_wm_space_image(C);
-  const float2 offset = float2{-sima->xof, -sima->yof} * sima->zoom;
-
-  node_gizmo_calc_matrix_space_with_image_dims(region,
-                                               sima->zoom,
-                                               offset,
-                                               glare_group->state.dims,
-                                               glare_group->state.offset,
-                                               gz->matrix_space);
-}
-
-bool WIDGETGROUP_node_glare_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
-{
-  SpaceNode *snode = CTX_wm_space_node(C);
-  if (snode == nullptr) {
-    return false;
-  }
-  if (!node_gizmo_is_set_visible(*snode)) {
-    return false;
-  }
-
-  return show_glare_gizmo(*snode);
-}
-
-void WIDGETGROUP_node_glare_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
+void glare_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
 {
 
   NodeGlareWidgetGroup *glare_group = static_cast<NodeGlareWidgetGroup *>(gzgroup->customdata);
@@ -732,7 +797,7 @@ void WIDGETGROUP_node_glare_draw_prepare_space_node(const bContext *C, wmGizmoGr
                                                gz->matrix_space);
 }
 
-void WIDGETGROUP_node_glare_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+void glare_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   NodeGlareWidgetGroup *glare_group = MEM_new_uninitialized<NodeGlareWidgetGroup>(__func__);
 
@@ -746,7 +811,7 @@ void WIDGETGROUP_node_glare_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
   gzgroup->customdata = glare_group;
 }
 
-void WIDGETGROUP_node_glare_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+void glare_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
   NodeGlareWidgetGroup *glare_group = static_cast<NodeGlareWidgetGroup *>(gzgroup->customdata);
@@ -802,7 +867,7 @@ static bool show_corner_pin(const SpaceNode &snode)
   return false;
 }
 
-bool WIDGETGROUP_node_corner_pin_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool corner_pin_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
@@ -815,7 +880,26 @@ bool WIDGETGROUP_node_corner_pin_poll_space_node(const bContext *C, wmGizmoGroup
   return show_corner_pin(*snode);
 }
 
-void WIDGETGROUP_node_corner_pin_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
+bool corner_pin_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+{
+  const SpaceImage *sima = CTX_wm_space_image(C);
+  if (sima == nullptr) {
+    return false;
+  }
+
+  if (!image_gizmo_is_set_visible(*sima)) {
+    return false;
+  }
+
+  const SpaceNode *snode = find_active_node_editor(C);
+  if (snode == nullptr || snode->edittree == nullptr) {
+    return false;
+  }
+
+  return show_corner_pin(*snode);
+}
+
+void corner_pin_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup)
 {
   NodeCornerPinWidgetGroup *cpin_group = static_cast<NodeCornerPinWidgetGroup *>(
       gzgroup->customdata);
@@ -837,7 +921,7 @@ void WIDGETGROUP_node_corner_pin_draw_prepare_space_node(const bContext *C, wmGi
   }
 }
 
-void WIDGETGROUP_node_corner_pin_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup)
+void corner_pin_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup)
 {
 
   ARegion *region = CTX_wm_region(C);
@@ -858,26 +942,7 @@ void WIDGETGROUP_node_corner_pin_draw_prepare_space_image(const bContext *C, wmG
   }
 }
 
-bool WIDGETGROUP_node_corner_pin_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
-{
-  const SpaceImage *sima = CTX_wm_space_image(C);
-  if (sima == nullptr) {
-    return false;
-  }
-
-  if (!image_gizmo_is_set_visible(*sima)) {
-    return false;
-  }
-
-  const SpaceNode *snode = find_active_node_editor(C);
-  if (snode == nullptr || snode->edittree == nullptr) {
-    return false;
-  }
-
-  return show_corner_pin(*snode);
-}
-
-void WIDGETGROUP_node_corner_pin_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+void corner_pin_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   NodeCornerPinWidgetGroup *cpin_group = MEM_new_uninitialized<NodeCornerPinWidgetGroup>(__func__);
   const wmGizmoType *gzt_move_3d = WM_gizmotype_find("GIZMO_GT_move_3d", false);
@@ -894,7 +959,7 @@ void WIDGETGROUP_node_corner_pin_setup(const bContext * /*C*/, wmGizmoGroup *gzg
   gzgroup->customdata = cpin_group;
 }
 
-void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+void corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
   NodeCornerPinWidgetGroup *cpin_group = static_cast<NodeCornerPinWidgetGroup *>(
@@ -958,7 +1023,20 @@ static bool show_ellipse_mask_gizmo(const SpaceNode &snode)
   return false;
 }
 
-bool WIDGETGROUP_node_ellipse_mask_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool ellipse_mask_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+{
+  SpaceNode *snode = CTX_wm_space_node(C);
+  if (snode == nullptr) {
+    return false;
+  }
+  if (!node_gizmo_is_set_visible(*snode)) {
+    return false;
+  }
+
+  return show_ellipse_mask_gizmo(*snode);
+}
+
+bool ellipse_mask_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   const SpaceImage *sima = CTX_wm_space_image(C);
   if (sima == nullptr) {
@@ -977,20 +1055,7 @@ bool WIDGETGROUP_node_ellipse_mask_poll_space_image(const bContext *C, wmGizmoGr
   return show_ellipse_mask_gizmo(*snode);
 }
 
-bool WIDGETGROUP_node_ellipse_mask_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
-{
-  SpaceNode *snode = CTX_wm_space_node(C);
-  if (snode == nullptr) {
-    return false;
-  }
-  if (!node_gizmo_is_set_visible(*snode)) {
-    return false;
-  }
-
-  return show_ellipse_mask_gizmo(*snode);
-}
-
-void WIDGETGROUP_node_ellipse_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+void ellipse_mask_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   NodeBBoxWidgetGroup *mask_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
   mask_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
@@ -1009,6 +1074,27 @@ void WIDGETGROUP_node_ellipse_mask_setup(const bContext * /*C*/, wmGizmoGroup *g
   gzgroup->customdata_free = [](void *customdata) {
     MEM_delete(static_cast<NodeBBoxWidgetGroup *>(customdata));
   };
+}
+
+static void gizmo_node_split_foreach_rna_prop(
+    wmGizmoProperty *gz_prop,
+    const FunctionRef<void(PointerRNA &ptr, PropertyRNA *prop, int index)> callback)
+{
+  bNode *node = static_cast<bNode *>(gz_prop->custom_func.user_data);
+
+  bNodeSocket *position_socket = bke::node_find_socket(*node, SOCK_IN, "Position");
+  bNodeTree &node_tree = node->owner_tree();
+  PointerRNA position_ptr = RNA_pointer_create_discrete(
+      &node_tree.id, RNA_NodeSocket, position_socket);
+  PropertyRNA *position_prop = RNA_struct_find_property(&position_ptr, "default_value");
+
+  bNodeSocket *rotation_socket = bke::node_find_socket(*node, SOCK_IN, "Rotation");
+  PointerRNA rotation_ptr = RNA_pointer_create_discrete(
+      &node_tree.id, RNA_NodeSocket, rotation_socket);
+  PropertyRNA *rotation_prop = RNA_struct_find_property(&position_ptr, "default_value");
+
+  callback(position_ptr, position_prop, -1);
+  callback(rotation_ptr, rotation_prop, 0);
 }
 
 static void gizmo_node_split_prop_matrix_get(const wmGizmo *gz,
@@ -1091,7 +1177,7 @@ static bool show_split(const SpaceNode &snode)
   return false;
 }
 
-void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+void split_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
   NodeBBoxWidgetGroup *split_group = reinterpret_cast<NodeBBoxWidgetGroup *>(gzgroup->customdata);
@@ -1132,12 +1218,13 @@ void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   params.value_set_fn = gizmo_node_split_prop_matrix_set;
   params.range_get_fn = nullptr;
   params.user_data = node;
+  params.foreach_rna_prop_fn = gizmo_node_split_foreach_rna_prop;
   WM_gizmo_target_property_def_func(gz, "matrix", &params);
 
   BKE_image_release_ibuf(ima, ibuf, lock);
 }
 
-bool WIDGETGROUP_node_split_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool split_poll_space_node(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
@@ -1150,7 +1237,7 @@ bool WIDGETGROUP_node_split_poll_space_node(const bContext *C, wmGizmoGroupType 
   return show_split(*snode);
 }
 
-bool WIDGETGROUP_node_split_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool split_poll_space_image(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   const SpaceImage *sima = CTX_wm_space_image(C);
   if (sima == nullptr) {
@@ -1169,7 +1256,7 @@ bool WIDGETGROUP_node_split_poll_space_image(const bContext *C, wmGizmoGroupType
   return show_split(*snode);
 }
 
-void WIDGETGROUP_node_split_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+void split_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   NodeBBoxWidgetGroup *split_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
   split_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
@@ -1210,7 +1297,7 @@ static void gizmo_node_backdrop_prop_matrix_set(const wmGizmo * /*gz*/,
   snode->yof = matrix[3][1];
 }
 
-bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+bool transform_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
@@ -1229,7 +1316,7 @@ bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType * /*gzg
   return false;
 }
 
-void WIDGETGROUP_node_transform_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+void transform_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   wmGizmoWrapper *wwrapper = MEM_new_uninitialized<wmGizmoWrapper>(__func__);
 
@@ -1238,11 +1325,15 @@ void WIDGETGROUP_node_transform_setup(const bContext * /*C*/, wmGizmoGroup *gzgr
   RNA_enum_set(wwrapper->gizmo->ptr,
                "transform",
                ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE | ED_GIZMO_CAGE_XFORM_FLAG_SCALE_UNIFORM);
+  RNA_enum_set(wwrapper->gizmo->ptr,
+               "draw_options",
+               ED_GIZMO_CAGE_DRAW_FLAG_XFORM_CENTER_HANDLE |
+                   ED_GIZMO_CAGE_DRAW_FLAG_CORNER_HANDLES);
 
   gzgroup->customdata = wwrapper;
 }
 
-void WIDGETGROUP_node_transform_refresh(const bContext *C, wmGizmoGroup *gzgroup)
+void transform_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
   wmGizmo *cage = (static_cast<wmGizmoWrapper *>(gzgroup->customdata))->gizmo;

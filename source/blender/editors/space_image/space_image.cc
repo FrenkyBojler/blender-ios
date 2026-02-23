@@ -31,6 +31,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
+#include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "ED_asset_shelf.hh"
@@ -544,11 +545,11 @@ static void IMAGE_GGT_compositor_box_mask(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_box_mask_poll_space_image;
-  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_box_mask_setup;
+  gzgt->poll = nodes::gizmos::box_mask_poll_space_image;
+  gzgt->setup = nodes::gizmos::box_mask_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_image;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_bbox_mask_refresh;
+  gzgt->draw_prepare = nodes::gizmos::bbox_draw_prepare_space_image;
+  gzgt->refresh = nodes::gizmos::box_mask_refresh;
 }
 
 static void IMAGE_GGT_compositor_crop(wmGizmoGroupType *gzgt)
@@ -558,11 +559,11 @@ static void IMAGE_GGT_compositor_crop(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_crop_poll_space_image;
-  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_crop_setup;
+  gzgt->poll = nodes::gizmos::crop_poll_space_image;
+  gzgt->setup = nodes::gizmos::crop_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_image;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_crop_refresh;
+  gzgt->draw_prepare = nodes::gizmos::bbox_draw_prepare_space_image;
+  gzgt->refresh = nodes::gizmos::crop_refresh;
 }
 
 static void IMAGE_GGT_compositor_glare(wmGizmoGroupType *gzgt)
@@ -572,11 +573,11 @@ static void IMAGE_GGT_compositor_glare(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_glare_poll_space_image;
-  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_glare_setup;
+  gzgt->poll = nodes::gizmos::glare_poll_space_image;
+  gzgt->setup = nodes::gizmos::glare_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_node_glare_draw_prepare_space_image;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_glare_refresh;
+  gzgt->draw_prepare = nodes::gizmos::glare_draw_prepare_space_image;
+  gzgt->refresh = nodes::gizmos::glare_refresh;
 }
 
 static void IMAGE_GGT_compositor_corner_pin(wmGizmoGroupType *gzgt)
@@ -586,11 +587,11 @@ static void IMAGE_GGT_compositor_corner_pin(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_corner_pin_poll_space_image;
-  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_corner_pin_setup;
+  gzgt->poll = nodes::gizmos::corner_pin_poll_space_image;
+  gzgt->setup = nodes::gizmos::corner_pin_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_node_corner_pin_draw_prepare_space_image;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_corner_pin_refresh;
+  gzgt->draw_prepare = nodes::gizmos::corner_pin_draw_prepare_space_image;
+  gzgt->refresh = nodes::gizmos::corner_pin_refresh;
 }
 
 static void IMAGE_GGT_compositor_ellipse_mask(wmGizmoGroupType *gzgt)
@@ -600,11 +601,11 @@ static void IMAGE_GGT_compositor_ellipse_mask(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_ellipse_mask_poll_space_image;
-  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_ellipse_mask_setup;
+  gzgt->poll = nodes::gizmos::ellipse_mask_poll_space_image;
+  gzgt->setup = nodes::gizmos::ellipse_mask_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_image;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_bbox_mask_refresh;
+  gzgt->draw_prepare = nodes::gizmos::bbox_draw_prepare_space_image;
+  gzgt->refresh = nodes::gizmos::box_mask_refresh;
 }
 
 static void IMAGE_GGT_compositor_split(wmGizmoGroupType *gzgt)
@@ -614,11 +615,11 @@ static void IMAGE_GGT_compositor_split(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
 
-  gzgt->poll = nodes::gizmos::WIDGETGROUP_node_split_poll_space_image;
-  gzgt->setup = nodes::gizmos::WIDGETGROUP_node_split_setup;
+  gzgt->poll = nodes::gizmos::split_poll_space_image;
+  gzgt->setup = nodes::gizmos::split_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
-  gzgt->draw_prepare = nodes::gizmos::WIDGETGROUP_bbox_draw_prepare_space_image;
-  gzgt->refresh = nodes::gizmos::WIDGETGROUP_node_split_refresh;
+  gzgt->draw_prepare = nodes::gizmos::bbox_draw_prepare_space_image;
+  gzgt->refresh = nodes::gizmos::split_refresh;
 }
 
 static void image_widgets()
@@ -809,7 +810,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
      * the image is locked when calling #ED_space_image_acquire_buffer. */
     float zoomx, zoomy;
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
-    ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
+    ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0, false);
     if (ibuf) {
       int x, y;
       rctf frame;
@@ -939,6 +940,9 @@ static void image_main_region_listener(const wmRegionListenerParams *params)
       if (ELEM(wmn->data, ND_LAYER)) {
         ED_region_tag_redraw(region);
       }
+      if (wmn->action == NA_EDITED) {
+        ED_region_tag_redraw(region);
+      }
       break;
   }
 }
@@ -993,14 +997,14 @@ static void image_buttons_region_draw(const bContext *C, ARegion *region)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
   Scene *scene = CTX_data_scene(C);
-  void *lock;
-  /* TODO(lukas): Support tiles in scopes? */
-  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
   /* XXX performance regression if name of scopes category changes! */
   PanelCategoryStack *category = ui::panel_category_active_find(region, "Scopes");
 
   /* only update scopes if scope category is active */
   if (category) {
+    /* TODO(lukas): Support tiles in scopes? */
+    void *lock;
+    ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0, true);
     if (ibuf) {
       if (!sima->scopes.ok) {
         BKE_histogram_update_sample_line(
@@ -1013,8 +1017,8 @@ static void image_buttons_region_draw(const bContext *C, ARegion *region)
         ED_space_image_scopes_update(C, sima, ibuf, false);
       }
     }
+    ED_space_image_release_buffer(sima, ibuf, lock);
   }
-  ED_space_image_release_buffer(sima, ibuf, lock);
 
   /* Layout handles details. */
   ED_region_panels_draw(C, region);
