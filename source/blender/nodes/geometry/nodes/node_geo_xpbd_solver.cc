@@ -281,6 +281,7 @@ struct GeometryData {
   bke::MutableAttributeAccessor attributes;
   AttrDomain domain;
   int size;
+  bool uses_rotation = false;
   /** Easy access to curve data for curves and grease pencil layers. */
   bke::CurvesGeometry *curves = nullptr;
 
@@ -700,22 +701,25 @@ class XpbdSolverStep {
           geo_data.attributes, attribute_names::position, domain);
       geo_data.velocity_attr = this->ensure_attribute<float3>(
           geo_data.attributes, attribute_names::velocity, domain);
-      geo_data.rotation_attr = this->ensure_attribute<math::Quaternion>(
-          geo_data.attributes, attribute_names::rotation, domain);
-      geo_data.angular_velocity_attr = this->ensure_attribute<float3>(
-          geo_data.attributes, attribute_names::angular_velocity, domain);
       geo_data.external_force_attr = *geo_data.attributes.lookup_or_default<float3>(
           attribute_names::external_force, domain, float3(0, 0, 0));
-      geo_data.external_torque_attr = *geo_data.attributes.lookup_or_default<float3>(
-          attribute_names::external_torque, domain, float3(0, 0, 0));
       geo_data.static_frictions = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::static_friction, domain, 0.0f);
       geo_data.dynamic_frictions = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::dynamic_friction, domain, 0.0f);
       geo_data.masses = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::mass, domain, 1.0f);
-      geo_data.moments_of_inertia = *geo_data.attributes.lookup_or_default<float3>(
-          attribute_names::moment_of_inertia, domain, float3(1.0f));
+      if (geo_data.attributes.contains(attribute_names::rotation)) {
+        geo_data.uses_rotation = true;
+        geo_data.rotation_attr = this->ensure_attribute<math::Quaternion>(
+            geo_data.attributes, attribute_names::rotation, domain);
+        geo_data.angular_velocity_attr = this->ensure_attribute<float3>(
+            geo_data.attributes, attribute_names::angular_velocity, domain);
+        geo_data.external_torque_attr = *geo_data.attributes.lookup_or_default<float3>(
+            attribute_names::external_torque, domain, float3(0, 0, 0));
+        geo_data.moments_of_inertia = *geo_data.attributes.lookup_or_default<float3>(
+            attribute_names::moment_of_inertia, domain, float3(1.0f));
+      }
     }
   }
 
@@ -1334,6 +1338,9 @@ class XpbdSolverStep {
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
+      if (!geo_data.uses_rotation) {
+        continue;
+      }
       geo_data.inv_moments_of_inertia.reinitialize(geo_data.size);
       MutableSpan<float3> inv_moments_of_inertia = geo_data.inv_moments_of_inertia;
 
@@ -1356,11 +1363,7 @@ class XpbdSolverStep {
     TLS &tls = tls_.local();
     const Span<std::string> paths = nested_bundle_paths_.lookup(RodStretchShearBundle::name);
     for (const StringRef path : paths) {
-      const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
-      if (!bundle_ptr || !*bundle_ptr) {
-        continue;
-      }
-      const Bundle &bundle = **bundle_ptr;
+      const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
       RodStretchShearConstraint constraint;
       constraint.path = path;
       constraint.rest_length = this->get_field_or_constant<float>(bundle, "rest_length", 0.0f);
@@ -1375,6 +1378,9 @@ class XpbdSolverStep {
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
+        if (!geo_data.uses_rotation) {
+          continue;
+        }
         if (!geo_data.curves) {
           continue;
         }
@@ -1486,6 +1492,9 @@ class XpbdSolverStep {
 
       for (const int data_key_i : geometries_.data.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
+        if (!geo_data.uses_rotation) {
+          continue;
+        }
         if (!geo_data.curves) {
           continue;
         }
@@ -1677,12 +1686,14 @@ class XpbdSolverStep {
                   chunk.points_range,
                   linear_dampings.get_span_for_range(chunk.points_range),
                   constraint_usage.linear_damping_lambdas.slice(chunk.points_range)));
-          chunk_data.static_velocity_constraints.append(
-              &tls.scope.construct<xpbd::AngularDampingConstraintSet>(
-                  data_key_i,
-                  chunk.points_range,
-                  angular_dampings.get_span_for_range(chunk.points_range),
-                  constraint_usage.angular_damping_lambdas.slice(chunk.points_range)));
+          if (geo_data.uses_rotation) {
+            chunk_data.static_velocity_constraints.append(
+                &tls.scope.construct<xpbd::AngularDampingConstraintSet>(
+                    data_key_i,
+                    chunk.points_range,
+                    angular_dampings.get_span_for_range(chunk.points_range),
+                    constraint_usage.angular_damping_lambdas.slice(chunk.points_range)));
+          }
         }
       }
     }
@@ -1876,6 +1887,9 @@ class XpbdSolverStep {
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
+        if (!geo_data.uses_rotation) {
+          continue;
+        }
         if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
           geo_data.pin_rotation_constraints.append({constraint_i});
         }
@@ -2039,7 +2053,7 @@ class XpbdSolverStep {
         int solver_refs_i = 0;
         for (const int substep_i : IndexRange(substeps_)) {
           const SubstepInterval substep(substeps_, substep_i);
-          this->simulate__update_pin_positions__chunk(chunk_i, substep);
+          this->simulate__update_pins__chunk(chunk_i, substep);
           this->simulate__inertial_update__chunk(chunk_i, solver_refs_i);
           this->simulate__gather_dynamic_constraints__chunk(substep, chunk_i, solver_refs_i);
           this->simulate__reset_forces__chunk(chunk_i);
@@ -2064,7 +2078,7 @@ class XpbdSolverStep {
       for (const int substep_i : IndexRange(substeps_)) {
         const SubstepInterval substep(substeps_, substep_i);
         this->parallel_for_each_chunk(16, [&](const int chunk_i) {
-          this->simulate__update_pin_positions__chunk(chunk_i, substep);
+          this->simulate__update_pins__chunk(chunk_i, substep);
           this->simulate__inertial_update__chunk(chunk_i, solver_refs_i);
         });
         this->simulate__gather_dynamic_constraints(substep, solver_refs_i);
@@ -2106,27 +2120,32 @@ class XpbdSolverStep {
 
         if (direction == 0) {
           ref.positions = geo_data.temp_positions;
-          ref.rotations = geo_data.temp_rotations;
           ref.prev_positions = geo_data.position_attr.span;
-          ref.prev_rotations = geo_data.rotation_attr.span;
+          if (geo_data.uses_rotation) {
+            ref.rotations = geo_data.temp_rotations;
+            ref.prev_rotations = geo_data.rotation_attr.span;
+          }
         }
         else {
           ref.positions = geo_data.position_attr.span;
-          ref.rotations = geo_data.rotation_attr.span;
           ref.prev_positions = geo_data.temp_positions;
-          ref.prev_rotations = geo_data.temp_rotations;
+          if (geo_data.uses_rotation) {
+            ref.rotations = geo_data.rotation_attr.span;
+            ref.prev_rotations = geo_data.temp_rotations;
+          }
         }
-
         ref.velocities = geo_data.velocity_attr.span;
         ref.inv_masses = geo_data.inv_masses;
-        ref.angular_velocities = geo_data.angular_velocity_attr.span;
-        ref.moments_of_inertia = geo_data.moments_of_inertia;
-        ref.inv_moments_of_inertia = geo_data.inv_moments_of_inertia;
+        if (geo_data.uses_rotation) {
+          ref.angular_velocities = geo_data.angular_velocity_attr.span;
+          ref.moments_of_inertia = geo_data.moments_of_inertia;
+          ref.inv_moments_of_inertia = geo_data.inv_moments_of_inertia;
+        }
       }
     }
   }
 
-  void simulate__update_pin_positions__chunk(const int chunk_i, const SubstepInterval &substep)
+  void simulate__update_pins__chunk(const int chunk_i, const SubstepInterval &substep)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const int data_key_i = chunk.data_key_i;
@@ -2146,16 +2165,19 @@ class XpbdSolverStep {
         constraint_usage.current_positions[pin_i] = pin_pos;
       }
     }
-    for (const PinRotationConstraintChunkUsage &constraint_chunk_usage :
-         chunk_data.pin_rotation_constraints)
-    {
-      const PinRotationConstraintUsage &constraint_usage =
-          geo_data.pin_rotation_constraints[constraint_chunk_usage.constraint_usage_i];
-      for (const int pin_i : constraint_chunk_usage.pin_range) {
-        const math::Quaternion &begin_rot = constraint_usage.begin_rotations[pin_i];
-        const math::Quaternion &end_rot = constraint_usage.end_rotations[pin_i];
-        const math::Quaternion pin_rot = math::interpolate(begin_rot, end_rot, substep.end_factor);
-        constraint_usage.current_rotations[pin_i] = pin_rot;
+    if (geo_data.uses_rotation) {
+      for (const PinRotationConstraintChunkUsage &constraint_chunk_usage :
+           chunk_data.pin_rotation_constraints)
+      {
+        const PinRotationConstraintUsage &constraint_usage =
+            geo_data.pin_rotation_constraints[constraint_chunk_usage.constraint_usage_i];
+        for (const int pin_i : constraint_chunk_usage.pin_range) {
+          const math::Quaternion &begin_rot = constraint_usage.begin_rotations[pin_i];
+          const math::Quaternion &end_rot = constraint_usage.end_rotations[pin_i];
+          const math::Quaternion pin_rot = math::interpolate(
+              begin_rot, end_rot, substep.end_factor);
+          constraint_usage.current_rotations[pin_i] = pin_rot;
+        }
       }
     }
   }
@@ -2174,13 +2196,15 @@ class XpbdSolverStep {
                                       geo_data.velocity_attr.span.slice(points_range),
                                       geo_data.inv_masses.as_span().slice(points_range),
                                       geo_data.external_force_attr.slice(points_range));
-    this->integrate_angular_velocities(
-        sub_delta_time_,
-        ref.prev_rotations.slice(points_range),
-        ref.rotations.slice(points_range),
-        geo_data.angular_velocity_attr.span.slice(points_range),
-        geo_data.inv_moments_of_inertia.as_span().slice(points_range),
-        geo_data.external_torque_attr.slice(points_range));
+    if (geo_data.uses_rotation) {
+      this->integrate_angular_velocities(
+          sub_delta_time_,
+          ref.prev_rotations.slice(points_range),
+          ref.rotations.slice(points_range),
+          geo_data.angular_velocity_attr.span.slice(points_range),
+          geo_data.inv_moments_of_inertia.as_span().slice(points_range),
+          geo_data.external_torque_attr.slice(points_range));
+    }
   }
 
   void simulate__gather_dynamic_constraints(const SubstepInterval &substep,
@@ -2304,10 +2328,12 @@ class XpbdSolverStep {
                                    ref.prev_positions.slice(points_range),
                                    ref.positions.slice(points_range),
                                    geo_data.velocity_attr.span.slice(points_range));
-    this->update_angular_velocities(sub_delta_time_,
-                                    ref.prev_rotations.slice(points_range),
-                                    ref.rotations.slice(points_range),
-                                    geo_data.angular_velocity_attr.span.slice(points_range));
+    if (geo_data.uses_rotation) {
+      this->update_angular_velocities(sub_delta_time_,
+                                      ref.prev_rotations.slice(points_range),
+                                      ref.rotations.slice(points_range),
+                                      geo_data.angular_velocity_attr.span.slice(points_range));
+    }
   }
 
   void simulate__velocity_solve(const int solver_refs_i)
