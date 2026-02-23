@@ -537,7 +537,7 @@ static wmOperatorStatus wm_xr_navigation_grab_modal(bContext *C,
 
   //! very dubious 'fix' for entering this function with event->customdata null
   if (data == nullptr) {
-    return       return OPERATOR_RUNNING_MODAL;
+    return OPERATOR_RUNNING_MODAL;
   }
 
   WM_xr_session_state_vignette_activate(xr);
