@@ -228,7 +228,16 @@ static void vicon_rgb_text_draw(
   const float pos_x = x + (w - width) / 2.0f;
   const float pos_y = y + (h - height) / 2.0f;
   BLF_position(font_id, pos_x, pos_y, 0);
-  BLF_color4ubv(font_id, mono_rgba);
+
+  uchar color[4];
+  if (mono_rgba) {
+    copy_v4_v4_uchar(color, mono_rgba);
+  }
+  else {
+    theme::get_color_4ubv(TH_TEXT, color);
+  }
+  BLF_color4ubv(font_id, color);
+
   BLF_draw(font_id, str, len);
 }
 
