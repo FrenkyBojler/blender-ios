@@ -172,7 +172,7 @@ void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARe
 #define ANIMATION_DURATION_MENU 0.15f
 #define ANIMATION_DURATION_SUBMENU 0.10f
 #define ANIMATION_DURATION_LARGE_DIALOG 0.3f
-#define ANIMATION_DURATION_SMALL_DIALOG 0.1f
+#define ANIMATION_DURATION_SMALL_DIALOG 0.12f
 
 enum class RegionAnimationType : uint8_t {
   Fade,
