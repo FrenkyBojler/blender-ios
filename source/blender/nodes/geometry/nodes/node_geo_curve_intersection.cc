@@ -209,14 +209,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(pi_2_f)
       .description("Maximum shortest angle for intersections");
-
-  /* Panel for advanced settings or test options. */
-  PanelDeclarationBuilder &advanced = b.add_panel("Advanced").default_closed(true);
-  advanced.add_input<decl::Bool>("Use Unsorted Data")
-      .default_value(false)
-      .description(
-          "Turn off sorting for large data sets. This will provide faster operation at the "
-          "expense of unreliable IDs.");
 }
 
 /* Attribute outputs. */
@@ -1329,10 +1321,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
     /* Gather and sort data for attributes. */
     if (r_data.position.size() > 0) {
-      const bool unsorted = params.extract_input<bool>("Use Unsorted Data");
 
-      IntersectionData sorted_data = unsorted ? r_data :
-                                                sort_intersection_data(r_data, attribute_outputs);
+      IntersectionData sorted_data = sort_intersection_data(r_data, attribute_outputs);
 
       PointCloud *pointcloud = BKE_pointcloud_new_nomain(sorted_data.position.size());
       MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
