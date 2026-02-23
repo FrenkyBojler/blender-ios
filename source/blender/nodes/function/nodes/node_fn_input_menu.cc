@@ -26,8 +26,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       else {
         row.prop(&params.node_ptr, "value", UI_ITEM_NONE, "", ICON_NONE);
       }
+      return;
     }
-    else if (default_value->has_conflict()) {
+
+    if (default_value->has_conflict()) {
       row.label(IFACE_("Menu Error"), ICON_ERROR);
     }
     else {
