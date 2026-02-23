@@ -102,7 +102,8 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     }
 
     Array<int> cluster_ids(mask.min_array_size());
-    mask_to_fallback.foreach_index_optimized<int>([&](const int index) { cluster_ids[index] = index; }, exec_mode::parallel);
+    mask_to_fallback.foreach_index_optimized<int>(
+        [&](const int index) { cluster_ids[index] = index; }, exec_mode::parallel);
 
     if (distance_ == 0.0f) {
       /* TODO: Is this is really faster then explicit creation of groups for parallel processing
@@ -121,9 +122,12 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
         return VArray<int>::from_container(std::move(cluster_ids));
       }
 
-      mask_to_cluster.foreach_index([&](const int index) {
-        cluster_ids[index] = clusters.lookup(std::make_pair(positions[index], group_ids[index]));
-      }, exec_mode::parallel);
+      mask_to_cluster.foreach_index(
+          [&](const int index) {
+            cluster_ids[index] = clusters.lookup(
+                std::make_pair(positions[index], group_ids[index]));
+          },
+          exec_mode::parallel);
 
       return VArray<int>::from_container(std::move(cluster_ids));
     }
@@ -160,9 +164,11 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
         masked_cluster_ids(positions, group_indices, distance_, group_cluser_ids);
         group_indices.to_indices(mask_indices);
 
-        group_indices.foreach_index_optimized<int>([&](const int index, const int pos) {
+        group_indices.foreach_index_optimized<int>(
+            [&](const int index, const int pos) {
               cluster_ids[index] = mask_indices[group_cluser_ids[pos]];
-            }, exec_mode::parallel);
+            },
+            exec_mode::parallel);
       }
     });
 

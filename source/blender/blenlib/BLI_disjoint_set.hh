@@ -55,7 +55,7 @@ template<typename T = int64_t> class DisjointSet {
     if (ranks_[root1] == ranks_[root2]) {
       ranks_[root1]++;
     }
-    
+
     return root1;
   }
 
