@@ -361,48 +361,9 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
         xr_viewfinder = wm.xr_session_state.viewfinder
 
         if xr_viewfinder.active_mode == "LIVE":
-            focal_map = (
-                18,
-                20,
-                24,
-                28,
-                35,
-                50,
-                70,
-                85,
-                100,
-                135,
-                200,
-                300
-            )
-
-            fstop_map = (
-                0.1,
-                0.2,
-                0.4,
-                0.8,
-                1,
-                1.2,
-                1.4,
-                1.7,
-                2,
-                2.4,
-                2.8,
-                3.3,
-                4,
-                4.8,
-                5.6,
-                6.7,
-                8,
-                9.5,
-                11,
-                13,
-                16,
-                19,
-                22,
-                27,
-                32
-            )
+            focal_map = (18, 20, 24, 28, 35, 50, 70, 85, 100, 135, 200, 300)
+            fstop_map = (0.1, 0.2, 0.4, 0.8, 1, 1.2, 1.4, 1.7, 2, 2.4, 2.8, 3.3,
+                         4, 4.8, 5.6, 6.7, 8, 9.5, 11, 13, 16, 19, 22, 27, 32)
 
             def get_next_in_map(current, map_, up_dir) -> int:
                 # Find the closest map idx to the current
