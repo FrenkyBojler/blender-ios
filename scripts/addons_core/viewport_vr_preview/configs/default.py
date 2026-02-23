@@ -115,7 +115,7 @@ actionconfig_data = [
                     {
                         "type": 'FLOAT',
                         "user_paths": ['/user/hand/left'],
-                        "op": 'wm.xr_viewfinder_cycle_mode',
+                        "op": 'view3d.vr_location_scouting_viewfinder_cycle_mode',
                         "op_mode": 'PRESS',
                         "bimanual": 'False',
                         "haptic_name": 'haptic',
@@ -172,7 +172,7 @@ actionconfig_data = [
                     {
                         "type": 'FLOAT',
                         "user_paths": ['/user/hand/left'],
-                        "op": 'wm.xr_viewfinder_cycle_action',
+                        "op": 'view3d.vr_location_scouting_viewfinder_cycle_action',
                         "op_mode": 'PRESS',
                         "bimanual": 'False',
                         "haptic_name": 'haptic',
@@ -229,7 +229,7 @@ actionconfig_data = [
                     {
                         "type": 'FLOAT',
                         "user_paths": ['/user/hand/left'],
-                        "op": 'wm.xr_viewfinder_cycle_action',
+                        "op": 'view3d.vr_location_scouting_viewfinder_cycle_action',
                         "op_mode": 'PRESS',
                         "bimanual": 'False',
                         "haptic_name": 'haptic',

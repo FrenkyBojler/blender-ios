@@ -280,7 +280,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_capture"
     bl_label = "Viewfinder Capture"
     bl_description = "Create a VR Capture from the Location Scouting Viewfinder pose and mark it as selected"
-    bl_options = {'UNDO', 'REGISTER'}
+    bl_options = {'UNDO'}
 
     @classmethod
     def poll(cls, context):
@@ -338,9 +338,8 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
 
 class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_apply_action"
-    bl_label = "Apply Viewfinder Action"
+    bl_label = "Viewfinder Apply Action"
     bl_description = "Apply the currently selected Viewfinder action (Zoom Control/Playback selection for now)"
-    bl_options = {'REGISTER'}
 
     # Differentiate between an up and down action(two possible buttons)
     action_up: bpy.props.BoolProperty(
@@ -474,6 +473,62 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
                     return {'FINISHED'}
 
         return {'CANCELLED'}
+
+
+class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_mode(Operator):
+    bl_idname = "view3d.vr_location_scouting_viewfinder_cycle_mode"
+    bl_label = "Viewfinder Cycle Mode"
+    bl_description = "Cycle the currently active Viewfinder mode"
+
+    def execute(self, context):
+        xr_viewfinder = context.window_manager.xr_session_state.viewfinder
+
+        active_mode_rna_prop = xr_viewfinder.rna_type.properties['active_mode']
+        enum_values = active_mode_rna_prop.enum_items.keys()
+        current_mode_idx = enum_values.index(xr_viewfinder.active_mode)
+
+        xr_viewfinder.active_mode = enum_values[(current_mode_idx + 1) % len(enum_values)]
+
+        return {'FINISHED'}
+
+
+class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
+    bl_idname = "view3d.vr_location_scouting_viewfinder_cycle_action"
+    bl_label = "Viewfinder Cycle Action"
+    bl_description = "Cycle the currently active Viewfinder action left or right"
+
+    cycle_left: bpy.props.BoolProperty(
+        name="Cycle Left",
+        default=False,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+    def execute(self, context):
+        xr_viewfinder = context.window_manager.xr_session_state.viewfinder
+
+        increment = -1 if self.cycle_left else 1
+
+        match xr_viewfinder.active_mode:
+            case "LIVE":
+                action_rna_prop = xr_viewfinder.rna_type.properties['active_action_live']
+                enum_keys = action_rna_prop.enum_items.keys()
+                current_action_idx = enum_keys.index(xr_viewfinder.active_action_live)
+
+                # Special case: only allow cycling to non-DoF action if DoF is not enabled
+                enum_length = len(enum_keys) if xr_viewfinder.capture_use_dof else (enum_keys.index('DOF') + 1)
+                new_action_idx = (current_action_idx + increment) % enum_length
+
+                xr_viewfinder.active_action_live = enum_keys[new_action_idx]
+
+            case "PLAYBACK":
+                action_rna_prop = xr_viewfinder.rna_type.properties['active_action_playback']
+                enum_keys = action_rna_prop.enum_items.keys()
+                current_action_idx = enum_keys.index(xr_viewfinder.active_action_playback)
+                new_action_idx = (current_action_idx + increment) % len(enum_keys)
+
+                xr_viewfinder.active_action_playback = enum_keys[new_action_idx]
+
+        return {'FINISHED'}
 
 
 class VIEW3D_OT_vr_location_scouting_capture_remove(Operator):
@@ -745,6 +800,8 @@ classes = (
     VIEW3D_OT_vr_location_scouting_viewfinder_capture,
     VIEW3D_OT_vr_location_scouting_viewfinder_apply_action,
     VIEW3D_OT_vr_location_scouting_capture_remove,
+    VIEW3D_OT_vr_location_scouting_viewfinder_cycle_mode,
+    VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action,
 
     VIEW3D_GT_vr_camera_cone,
     VIEW3D_GT_vr_controller_grip,

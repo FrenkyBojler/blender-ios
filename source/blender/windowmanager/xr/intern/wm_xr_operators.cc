@@ -1784,88 +1784,6 @@ static void WM_OT_xr_navigation_reset(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name XR Viewfinder
- * \{ */
-
-static wmOperatorStatus wm_xr_viewfinder_cycle_action_exec(bContext *C, wmOperator *op)
-{
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmXrData *xr = &wm->xr;
-
-  const bool cycle_left = RNA_boolean_get(op->ptr, "cycle_left");
-  const int incr = cycle_left ? -1 : 1;
-
-  eXrViewfinderMode active_mode;
-  WM_xr_session_state_viewfinder_active_mode_get(xr, &active_mode);
-
-  if (active_mode == XR_VIEWFINDER_MODE_LIVE) {
-    /* If we're in live mode, disallow cycling to the DoF controls if DoF is not enabled. */
-    eXrViewfinderLiveAction active_live_action;
-    WM_xr_session_state_viewfinder_active_action_live_get(xr, &active_live_action);
-    bool use_dof;
-    WM_xr_session_state_viewfinder_capture_use_dof_get(xr, &use_dof);
-
-    const int enum_length = use_dof ? 4 : 2;
-    const eXrViewfinderLiveAction next_action = static_cast<eXrViewfinderLiveAction>(
-        mod_i(active_live_action + incr, enum_length));
-    WM_xr_session_state_viewfinder_active_action_live_set(xr, next_action);
-  }
-  else {
-    eXrViewfinderPlaybackAction active_playback_action;
-    WM_xr_session_state_viewfinder_active_action_playback_get(xr, &active_playback_action);
-    const int enum_length = 3;  // TODO: eventually make dynamic
-
-    const eXrViewfinderPlaybackAction next_action = static_cast<eXrViewfinderPlaybackAction>(
-        mod_i(active_playback_action + incr, enum_length));
-    WM_xr_session_state_viewfinder_active_action_playback_set(xr, next_action);
-  }
-
-  return OPERATOR_FINISHED;
-}
-
-static void WM_OT_xr_viewfinder_cycle_action(wmOperatorType *ot)
-{
-  /* Identifiers. */
-  ot->name = "XR Viewfinder Cycle Action";
-  ot->idname = "WM_OT_xr_viewfinder_cycle_action";
-  ot->description = "Cycle the active viewfinder action for the current mode";
-
-  /* Callbacks. */
-  ot->exec = wm_xr_viewfinder_cycle_action_exec;
-  ot->poll = wm_xr_operator_sessionactive;
-
-  RNA_def_boolean(ot->srna, "cycle_left", true, "Cycle Left", "");
-}
-
-static wmOperatorStatus wm_xr_viewfinder_cycle_mode_exec(bContext *C, wmOperator * /*op*/)
-{
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmXrData *xr = &wm->xr;
-
-  eXrViewfinderMode active_mode;
-  WM_xr_session_state_viewfinder_active_mode_get(xr, &active_mode);
-
-  eXrViewfinderMode next_mode = static_cast<eXrViewfinderMode>((active_mode + 1) % 2);
-  WM_xr_session_state_viewfinder_active_mode_set(xr, next_mode);
-
-  return OPERATOR_FINISHED;
-}
-
-static void WM_OT_xr_viewfinder_cycle_mode(wmOperatorType *ot)
-{
-  /* Identifiers. */
-  ot->name = "XR Viewfinder Cycle Mode";
-  ot->idname = "WM_OT_xr_viewfinder_cycle_mode";
-  ot->description = "Cycle the active viewfinder mode";
-
-  /* Callbacks. */
-  ot->exec = wm_xr_viewfinder_cycle_mode_exec;
-  ot->poll = wm_xr_operator_sessionactive;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name XR Navigation Swap Hands
  *
  * Resets XR navigation deltas relative to session base pose.
@@ -1936,8 +1854,6 @@ void wm_xr_operatortypes_register()
   WM_operatortype_append(WM_OT_xr_navigation_fly);
   WM_operatortype_append(WM_OT_xr_navigation_teleport);
   WM_operatortype_append(WM_OT_xr_navigation_reset);
-  WM_operatortype_append(WM_OT_xr_viewfinder_cycle_action);
-  WM_operatortype_append(WM_OT_xr_viewfinder_cycle_mode);
   WM_operatortype_append(WM_OT_xr_navigation_swap_hands);
 }
 
