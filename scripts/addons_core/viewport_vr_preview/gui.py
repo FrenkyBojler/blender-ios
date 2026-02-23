@@ -169,7 +169,7 @@ class VIEW3D_PT_vr_location_scouting_viewfinder_settings(VRButtonsPanel, Panel):
 
         layout.use_property_split = True
 
-        layout.prop(session_settings, "viewfinder_hand", text="Hand")
+        layout.prop(session_settings, "viewfinder_hand", text="Hand", expand=True)
         layout.prop(session_settings, "viewfinder_scale", text="Scale")
 
 
