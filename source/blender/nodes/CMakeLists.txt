@@ -70,6 +70,7 @@ set(INC_SYS
 )
 
 set(SRC
+  intern/compositor_nodes_caller_ui.cc
   intern/geometry_nodes_bundle.cc
   intern/geometry_nodes_caller_ui.cc
   intern/geometry_nodes_closure.cc
@@ -110,6 +111,7 @@ set(SRC
 
   NOD_common.hh
   NOD_composite.hh
+  NOD_compositor_nodes_caller_ui.hh
   NOD_defaults.hh
   NOD_geometry.hh
   NOD_geometry_exec.hh
@@ -190,6 +192,7 @@ set(LIB
   bf_nodes_texture
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
+  PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
   PRIVATE bf::intern::clog
   PRIVATE bf::dependencies::optional::gmp

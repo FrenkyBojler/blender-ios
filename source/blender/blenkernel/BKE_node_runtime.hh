@@ -163,6 +163,9 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   StructRNA *geometry_nodes_modifier_srna = nullptr;
   std::shared_ptr<nodes::GeneratedTreeSrnaData> geometry_nodes_srna_data;
 
+  StructRNA *compositor_nodes_modifier_srna = nullptr;
+  std::shared_ptr<nodes::GeneratedTreeSrnaData> compositor_nodes_srna_data;
+
   /** Information about how inputs and outputs of the node group interact with fields. */
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;
   /** Field status for every socket, accessed with #bNodeSocket::index_in_tree(). */

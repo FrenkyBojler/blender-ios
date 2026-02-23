@@ -25,6 +25,7 @@ struct MovieClip;
 struct Scene;
 struct VFont;
 struct bSound;
+struct SequencerCompositorModifierRuntime;
 
 namespace seq {
 struct FinalImageCache;
@@ -920,6 +921,8 @@ struct StripModifierData {
   uint16_t layout_panel_open_flag = 0;
   uint16_t ui_expand_flag = 0;
 
+  struct IDProperty *system_properties = nullptr;
+
   blender::seq::StripModifierDataRuntime *runtime = nullptr;
 };
 
@@ -971,6 +974,8 @@ struct SequencerTonemapModifierData {
 struct SequencerCompositorModifierData {
   StripModifierData modifier;
   struct bNodeTree *node_group = nullptr;
+
+  SequencerCompositorModifierRuntime *runtime = nullptr;
 };
 
 /** \} */

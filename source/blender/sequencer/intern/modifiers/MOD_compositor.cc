@@ -25,6 +25,8 @@
 
 #include "IMB_colormanagement.hh"
 
+#include "NOD_compositor_nodes_caller_ui.hh"
+
 #include "SEQ_modifier.hh"
 #include "SEQ_modifiertypes.hh"
 #include "SEQ_render.hh"
@@ -32,14 +34,29 @@
 #include "SEQ_transform.hh"
 
 #include "UI_interface.hh"
-#include "UI_interface_layout.hh"
 
 #include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "modifier.hh"
 #include "render.hh"
 
 namespace blender::seq {
+
+void MOD_nodes_update_interface(Scene *sequencer_scene, SequencerCompositorModifierData *cmd)
+{
+  if (!cmd->modifier.system_properties) {
+    cmd->modifier.system_properties =
+        bke::idprop::create_group("SequencerCompositorModifierProperties").release();
+  }
+  PointerRNA properties_ptr = RNA_pointer_create_discrete(
+      &sequencer_scene->id, RNA_SequencerCompositorModifierProperties, cmd);
+  RNA_sync_system_properties(properties_ptr, *cmd->modifier.system_properties);
+
+  // nmd->runtime->usage_cache.reset();
+
+  DEG_id_tag_update(&sequencer_scene->id, ID_RECALC_SEQUENCER_STRIPS);
+}
 
 class CompositorContext : public compositor::Context {
  private:
@@ -342,50 +359,20 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
   }
 }
 
+static PointerRNA *modifier_panel_get_property_pointers(Panel *panel)
+{
+  PointerRNA *ptr = ui::panel_custom_data_get(panel);
+  BLI_assert(!RNA_pointer_is_null(ptr));
+  BLI_assert(RNA_struct_is_a(ptr->type, RNA_StripModifier));
+  ui::panel_context_pointer_set(panel, "modifier", ptr);
+  return ptr;
+}
+
 static void compositor_modifier_panel_draw(const bContext *C, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
-  PointerRNA *ptr = ui::panel_custom_data_get(panel);
-
-  layout.use_property_split_set(true);
-
-  Scene *scene = CTX_data_sequencer_scene(C);
-  Strip *strip = seq::select_active_get(scene);
-  bool has_existing_group = false;
-  if (strip != nullptr) {
-    StripModifierData *smd = seq::modifier_get_active(strip);
-
-    if (smd && smd->type == eSeqModifierType_Compositor) {
-      SequencerCompositorModifierData *nmd = reinterpret_cast<SequencerCompositorModifierData *>(
-          smd);
-      if (nmd->node_group != nullptr) {
-        template_id(&layout,
-                    C,
-                    ptr,
-                    "node_group",
-                    "NODE_OT_duplicate_compositing_modifier_node_group",
-                    nullptr,
-                    nullptr);
-        has_existing_group = true;
-      }
-    }
-  }
-
-  if (!has_existing_group) {
-    template_id(&layout,
-                C,
-                ptr,
-                "node_group",
-                "NODE_OT_new_compositor_sequencer_node_group",
-                nullptr,
-                nullptr);
-  }
-
-  if (ui::Layout *mask_input_layout = layout.panel_prop(
-          C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))
-  {
-    draw_mask_input_type_settings(C, *mask_input_layout, ptr);
-  }
+  PointerRNA *modifier_ptr = modifier_panel_get_property_pointers(panel);
+  nodes::draw_compositor_nodes_modifier_ui(*C, modifier_ptr, layout);
 }
 
 static void compositor_modifier_register(ARegionType *region_type)

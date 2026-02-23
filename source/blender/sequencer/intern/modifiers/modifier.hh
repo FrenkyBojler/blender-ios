@@ -340,5 +340,9 @@ void apply_modifier_op(T &op, ImBuf *ibuf, const ImBuf *mask, const float3x3 &ma
   });
 }
 
+struct SequencerCompositorModifierRuntime {
+
+};
+
 }  // namespace seq
 }  // namespace blender
