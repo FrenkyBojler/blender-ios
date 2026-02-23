@@ -1,1 +1,2 @@
 Referenced by pull request #154761, Fix: BKE: icon buffer utility null check for ImBuf
+Referenced by commit 66b1a8356f11b92cfadce988e451da0b3b705029, Fix: BKE: icon buffer utility null check for ImBuf
