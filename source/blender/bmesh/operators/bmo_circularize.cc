@@ -209,14 +209,13 @@ static void bm_extract_input_loops_from_boundary_edges(BMesh *bm,
 static float3x3 calculate_plane_orientation(Span<BMVert *> loop, float3 &r_center)
 {
   r_center = float3(0.0f);
-  float3 normal = float3(0.0f);
-
   for (BMVert *v : loop) {
     r_center += float3(v->co);
   }
   r_center /= float(loop.size());
   BMVert *prev = loop.last();
 
+  float3 normal = float3(0.0f);
   /* Compute a best fit plane normal for the loop using Newell's method. */
   for (BMVert *curr : loop) {
     add_newell_cross_v3_v3v3(normal, prev->co, curr->co);
