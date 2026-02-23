@@ -11,6 +11,7 @@
 #include "NOD_geometry_nodes_srna.hh"
 
 #include "DNA_ID.h"
+#include "DNA_brush_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_node_types.h"
@@ -185,6 +186,14 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 1)) {
     for (Scene &scene : bmain->scenes) {
       scene.r.mode |= R_SAVE_OUTPUT;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 4)) {
+    for (Brush &brush : bmain->brushes) {
+      if (brush.gpencil_settings != nullptr) {
+        brush.blend = 0;
+      }
     }
   }
   /**
