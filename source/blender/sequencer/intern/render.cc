@@ -2077,17 +2077,14 @@ float get_render_scale_factor(const RenderData &context)
   return get_render_scale_factor(context.preview_render_size, context.scene->r.size);
 }
 
-void render_begin_gpu(const RenderData &rd)
+void render_begin_gpu(const RenderData &rd, bool use_secondary_context)
 {
-  if (rd.ghost_context != nullptr) {
-    /* Use explicitly set render context (e.g. for prefetching). */
-    WM_system_gpu_context_activate(rd.ghost_context);
-    if (rd.gpu_context == nullptr) {
-      /* GPU context needs to be created on the thread that will use it. */
-      rd.gpu_context = GPU_context_create(nullptr, rd.ghost_context);
-    }
+  if (use_secondary_context) {
+    BLI_assert(rd.gpu_context != nullptr);
+    gpu::GPUSecondaryContextData ctx{.ghost_context = rd.ghost_context,
+                                     .gpu_context = rd.gpu_context};
+    gpu::GPU_activate_secondary_context(ctx);
     GPU_render_begin();
-    GPU_context_active_set(rd.gpu_context);
   }
   else {
     GHOST_IContext *render_ghost_context = rd.render ? RE_system_gpu_context_get(rd.render) :
@@ -2106,13 +2103,14 @@ void render_begin_gpu(const RenderData &rd)
   }
 }
 
-void render_end_gpu(const RenderData &rd)
+void render_end_gpu(const RenderData &rd, bool use_secondary_context)
 {
-  if (rd.ghost_context != nullptr) {
-    /* Use explicitly set render context (e.g. for prefetching). */
-    GPU_context_active_set(nullptr);
+  if (use_secondary_context) {
+    BLI_assert(rd.gpu_context != nullptr);
+    gpu::GPUSecondaryContextData ctx{.ghost_context = rd.ghost_context,
+                                     .gpu_context = rd.gpu_context};
     GPU_render_end();
-    WM_system_gpu_context_release(rd.ghost_context);
+    gpu::GPU_deactivate_secondary_context(ctx);
   }
   else {
     GHOST_IContext *render_ghost_context = rd.render ? RE_system_gpu_context_get(rd.render) :

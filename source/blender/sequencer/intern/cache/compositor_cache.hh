@@ -13,9 +13,9 @@ namespace blender::seq {
 class CompositorCache {
  private:
   compositor::StaticCacheManager cache_manager;
-  bool last_evaluation_gpu = false;
+  bool last_evaluation_used_gpu = false;
   compositor::ResultPrecision last_evaluation_precision = compositor::ResultPrecision::Half;
-  GHOST_IContext *last_evaluation_context = nullptr;
+  GHOST_IContext *last_evaluation_ghost_context = nullptr;
 
  public:
   ~CompositorCache();

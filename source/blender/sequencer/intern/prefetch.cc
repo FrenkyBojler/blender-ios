@@ -45,9 +45,6 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 
-#include "WM_api.hh"
-#include "wm_window.hh"
-
 #include "prefetch.hh"
 #include "render.hh"
 
@@ -98,7 +95,7 @@ struct PrefetchJob {
   void init_depsgraph();
   void free_depsgraph();
 
-  void init_gpu_main();
+  void init_gpu();
   void free_gpu();
 };
 
@@ -272,27 +269,21 @@ void PrefetchJob::init_depsgraph()
   this->scene_eval->ed->cache_flag = 0;
 }
 
-void PrefetchJob::init_gpu_main()
+void PrefetchJob::init_gpu()
 {
-  this->context_cpy.ghost_context = WM_system_gpu_context_create();
-  wm_window_reset_drawable();
+  gpu::GPUSecondaryContextData ctx = gpu::GPU_create_secondary_context();
+  this->context_cpy.ghost_context = ctx.ghost_context;
+  this->context_cpy.gpu_context = ctx.gpu_context;
 }
 
 void PrefetchJob::free_gpu()
 {
-  if (this->context_cpy.gpu_context) {
-    WM_system_gpu_context_activate(this->context_cpy.ghost_context);
-    GPU_context_active_set(this->context_cpy.gpu_context);
-    GPU_context_discard(this->context_cpy.gpu_context);
-    this->context_cpy.gpu_context = nullptr;
-  }
-  if (this->context_cpy.ghost_context) {
-    WM_system_gpu_context_dispose(this->context_cpy.ghost_context);
+  gpu::GPUSecondaryContextData ctx{.ghost_context = this->context_cpy.ghost_context,
+                                   .gpu_context = this->context_cpy.gpu_context};
+  if (ctx.ghost_context && ctx.gpu_context) {
+    gpu::GPU_destroy_secondary_context(ctx);
     this->context_cpy.ghost_context = nullptr;
-
-    if (BLI_thread_is_main()) {
-      wm_window_reset_drawable();
-    }
+    this->context_cpy.gpu_context = nullptr;
   }
 }
 
@@ -631,7 +622,7 @@ static PrefetchJob *seq_prefetch_start_ex(const RenderData *context, float cfra)
     pfjob->bmain_eval = BKE_main_new();
     pfjob->scene = context->scene;
     pfjob->init_depsgraph();
-    pfjob->init_gpu_main();
+    pfjob->init_gpu();
   }
   pfjob->bmain = context->bmain;
 

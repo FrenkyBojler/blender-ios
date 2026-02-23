@@ -59,7 +59,7 @@ struct RenderData {
    * instead of regular GPU context. Primary case: prefetch job;
    * it is on another thread and can't use regular GPU context. */
   GHOST_IContext *ghost_context = nullptr;
-  mutable GPUContext *gpu_context = nullptr;
+  GPUContext *gpu_context = nullptr;
 };
 
 /**
@@ -94,8 +94,8 @@ bool render_is_muted(const ListBaseT<SeqTimelineChannel> *channels, const Strip 
 float get_render_scale_factor(eSpaceSeq_Proxy_RenderSize render_size, short scene_render_scale);
 float get_render_scale_factor(const RenderData &context);
 
-void render_begin_gpu(const RenderData &rd);
-void render_end_gpu(const RenderData &rd);
+void render_begin_gpu(const RenderData &rd, bool use_secondary_context);
+void render_end_gpu(const RenderData &rd, bool use_secondary_context);
 
 }  // namespace seq
 }  // namespace blender

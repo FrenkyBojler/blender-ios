@@ -17,6 +17,8 @@
 
 #include "DNA_sequence_types.h"
 
+#include "GPU_context.hh"
+
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 
@@ -324,15 +326,17 @@ static ImBuf *do_compositor_effect(const RenderData *context,
                                         *strip);
 
     const bool use_gpu = com_context.use_gpu();
+    const bool need_secondary_context = context->gpu_context != nullptr &&
+                                        !GPU_context_active_get();
     if (use_gpu) {
-      render_begin_gpu(*context);
+      render_begin_gpu(*context, need_secondary_context);
     }
     com_cache.recreate_if_needed(
         com_context.use_gpu(), com_context.get_precision(), context->ghost_context);
     com_context.evaluate();
     com_context.cache_manager().reset();
     if (use_gpu) {
-      render_end_gpu(*context);
+      render_end_gpu(*context, need_secondary_context);
     }
 
     if (linear_src1 != src1) {
