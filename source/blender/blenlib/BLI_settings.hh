@@ -8,13 +8,9 @@
 
 #pragma once
 
-#include "../../../extern/toml11/toml.hpp"
-
 #include "BLI_string_ref.hh"
 
 namespace blender {
-extern toml::value settings_current;
-extern toml::value settings_default;
 
 void BLI_settings_init();
 bool BLI_settings_save();
@@ -25,19 +21,14 @@ struct Settings {
   Settings(const StringRef &section) : section(section) {}
 
   template<typename T> T get(const StringRef &item) const;
-
   template<typename T> void set(const StringRef &item, const T &value);
-
   void remove(const StringRef &item);
 
   struct Proxy {
     StringRef section;
     StringRef key;
 
-    Proxy(StringRef section_, StringRef key_)
-        : section(section_), key(key_)
-    {
-    }
+    Proxy(StringRef section_, StringRef key_) : section(section_), key(key_) {}
 
     template<typename T> operator T() const
     {
@@ -49,23 +40,12 @@ struct Settings {
       Settings(section).set<T>(key, value);
       return *this;
     }
-
-    /* Allow assigning toml::value directly for advanced use. */
-    Proxy &operator=(const toml::value &v)
-    {
-      Settings(section).set<toml::value>(key, v);
-      return *this;
-    }
   };
 
   struct ConstProxy {
     StringRef section;
     StringRef key;
-
-    ConstProxy(StringRef section_, StringRef key_)
-        : section(section_), key(key_)
-    {
-    }
+    ConstProxy(StringRef section_, StringRef key_) : section(section_), key(key_) {}
 
     template<typename T> operator T() const
     {
@@ -73,35 +53,15 @@ struct Settings {
     }
   };
 
-  /* Return proxies that own the section string (cheap copy). */
   Proxy operator[](const StringRef &item)
   {
     return Proxy(section, item);
   }
-
   ConstProxy operator[](const StringRef &item) const
   {
     return ConstProxy(section, item);
   }
 };
-
-template<typename T> T Settings::get(const StringRef &item) const
-{
-  if (settings_current.is_empty()) {
-    BLI_settings_init();
-  }
-  const toml::value &cur = settings_current[section][item];
-  const toml::value &def = settings_default[section][item];
-  return toml::get_or(cur, toml::get_or(def, T{}));
-}
-
-template<typename T> void Settings::set(const StringRef &item, const T &value)
-{
-  if (settings_current.is_empty()) {
-    BLI_settings_init();
-  }
-  settings_current[section][item] = value;
-}
 
 /**********************************/
 
