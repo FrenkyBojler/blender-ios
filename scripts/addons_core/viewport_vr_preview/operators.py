@@ -274,6 +274,7 @@ class VIEW3D_OT_vr_landmark_activate(Operator):
 
         return {'FINISHED'}
 
+
 # Location Scouting
 class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_capture"

@@ -233,6 +233,7 @@ class VRCapture(PropertyGroup):
                      1) else captures[scene.vr_captures_selected]
         )
 
+
 classes = (
     VRLandmark,
     VRCapture,

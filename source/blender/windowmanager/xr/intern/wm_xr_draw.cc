@@ -11,8 +11,8 @@
  */
 
 #include <cstring>
-#include <optional>
 #include <fmt/format.h>
+#include <optional>
 
 #include "DNA_camera_types.h"
 #include "DNA_userdef_types.h"
@@ -70,7 +70,8 @@ struct XrLocationScoutingCapture {
   float dof_fstop;
 };
 
-static bool wm_xr_is_location_scouting_captures_empty(Scene *scene) {
+static bool wm_xr_is_location_scouting_captures_empty(Scene *scene)
+{
   PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
   PropertyRNA *captures_prop = RNA_struct_find_property(&scene_ptr, "vr_captures");
 
@@ -131,13 +132,12 @@ static std::optional<XrLocationScoutingCapture> wm_xr_get_active_location_scouti
   PropertyRNA *dof_dist_prop = RNA_struct_find_property(&current_capture, "dof_dist");
   PropertyRNA *dof_fstop_prop = RNA_struct_find_property(&current_capture, "dof_fstop");
 
-  XrLocationScoutingCapture capture {
+  XrLocationScoutingCapture capture = {
       .pose = capture_pose,
       .lens_focal = RNA_property_float_get(&current_capture, lens_focal_prop),
       .dof_enable = RNA_property_boolean_get(&current_capture, dof_enable_prop),
       .dof_dist = RNA_property_float_get(&current_capture, dof_dist_prop),
-      .dof_fstop = RNA_property_float_get(&current_capture, dof_fstop_prop)
-  };
+      .dof_fstop = RNA_property_float_get(&current_capture, dof_fstop_prop)};
 
   return std::make_optional(capture);
 }
@@ -437,7 +437,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
 
   /* Set viewfinder View3D draw flags, using base XR draw flags with some overriden exceptions. */
   int viewfinder_draw_flags = V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS | settings->draw_flags;
-  viewfinder_draw_flags &= ~V3D_OFSDRAW_SHOW_SELECTION; /* Always hide selection outlines. */
+  viewfinder_draw_flags &= ~V3D_OFSDRAW_SHOW_SELECTION;      /* Always hide selection outlines. */
   viewfinder_draw_flags &= ~V3D_OFSDRAW_XR_SHOW_CONTROLLERS; /* Always hide other XR controller. */
   viewfinder_draw_flags &= ~V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS; /* Always hide XR overlays. */
 

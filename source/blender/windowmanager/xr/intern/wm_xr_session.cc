@@ -813,7 +813,7 @@ void WM_xr_session_state_viewfinder_reset(wmXrSessionState *state)
 
   /* Capture settings. */
   state->viewfinder.capture_use_dof = false;
-  state->viewfinder.capture_lens = 60.0f;
+  state->viewfinder.capture_lens = 50.0f;
   state->viewfinder.capture_aperture_fstop = 2.8f;
   state->viewfinder.capture_focus_distance = 10.0f;
 
