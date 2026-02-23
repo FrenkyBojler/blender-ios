@@ -1427,7 +1427,8 @@ static int rct_fits(const rcti *rect, const eScreenAxis dir_axis, int size)
 
 /* *************************************************************** */
 
-/* Only for internal utilities that act before #ARegionRuntime.visible is updated. */
+/* Only for internal area management functions that act before #ARegionRuntime.visible is
+ * updated. */
 static bool region_is_hidden(const ARegion *region)
 {
   if (region->flag & RGN_FLAG_HIDDEN) {
