@@ -125,6 +125,9 @@ static void versioning_update_noise_texture_node(bNodeTree *ntree)
     if (node.type_legacy != SH_NODE_TEX_NOISE) {
       continue;
     }
+    if (!version_node_ensure_storage_or_invalidate(node)) {
+      continue;
+    }
 
     (static_cast<NodeTexNoise *>(node.storage))->type = SHD_NOISE_FBM;
 
@@ -186,15 +189,19 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
     if (node.type_legacy != SH_NODE_TEX_MUSGRAVE_DEPRECATED) {
       continue;
     }
+    if (!version_node_ensure_storage_or_invalidate(node)) {
+      continue;
+    }
 
     STRNCPY_UTF8(node.idname, "ShaderNodeTexNoise");
     node.type_legacy = SH_NODE_TEX_NOISE;
     NodeTexNoise *data = MEM_new<NodeTexNoise>(__func__);
-    data->base = (static_cast<NodeTexMusgrave *>(node.storage))->base;
-    data->dimensions = (static_cast<NodeTexMusgrave *>(node.storage))->dimensions;
+    NodeTexMusgrave *musgrave_data = static_cast<NodeTexMusgrave *>(node.storage);
+    data->base = musgrave_data->base;
+    data->dimensions = musgrave_data->dimensions;
     data->normalize = false;
-    data->type = (static_cast<NodeTexMusgrave *>(node.storage))->musgrave_type;
-    MEM_delete_void(node.storage);
+    data->type = musgrave_data->musgrave_type;
+    MEM_delete(musgrave_data);
     node.storage = data;
 
     bNodeLink *detail_link = nullptr;
@@ -1046,8 +1053,10 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_COMPOSIT) {
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == CMP_NODE_KEYING) {
-            NodeKeyingData &keying_data = *static_cast<NodeKeyingData *>(node.storage);
-            keying_data.edge_kernel_radius = max_ii(keying_data.edge_kernel_radius - 1, 0);
+            if (version_node_ensure_storage_or_invalidate(node)) {
+              NodeKeyingData &keying_data = *static_cast<NodeKeyingData *>(node.storage);
+              keying_data.edge_kernel_radius = max_ii(keying_data.edge_kernel_radius - 1, 0);
+            }
           }
         }
       }

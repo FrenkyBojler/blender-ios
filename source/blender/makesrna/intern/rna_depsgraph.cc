@@ -68,14 +68,6 @@ void **rna_DepsgraphIterator_instance(PointerRNA *ptr)
 }
 #  endif
 
-/* Temporary hack for Cycles until it is changed to work with the C API directly. */
-extern "C" DupliObject *rna_hack_DepsgraphObjectInstance_dupli_object_get(PointerRNA *ptr)
-{
-  RNA_DepsgraphIterator *di = static_cast<RNA_DepsgraphIterator *>(ptr->data);
-  DEGObjectIterData *deg_iter = static_cast<DEGObjectIterData *>(di->iter.data);
-  return deg_iter->dupli_object_current;
-}
-
 static PointerRNA rna_DepsgraphObjectInstance_object_get(PointerRNA *ptr)
 {
   RNA_DepsgraphIterator *di = static_cast<RNA_DepsgraphIterator *>(ptr->data);
@@ -346,12 +338,12 @@ static void rna_Depsgraph_objects_next(CollectionPropertyIterator *iter)
 
 static void rna_Depsgraph_objects_end(CollectionPropertyIterator *iter)
 {
-  DEGObjectIterData *data = static_cast<DEGObjectIterData *>(
-      (static_cast<BLI_Iterator *>(iter->internal.custom))->data);
-  DEG_iterator_objects_end(static_cast<BLI_Iterator *>(iter->internal.custom));
+  BLI_Iterator *bli_iter = static_cast<BLI_Iterator *>(iter->internal.custom);
+  DEGObjectIterData *data = static_cast<DEGObjectIterData *>(bli_iter->data);
+  DEG_iterator_objects_end(bli_iter);
   MEM_delete(data->settings);
   MEM_delete(data);
-  MEM_delete_void(iter->internal.custom);
+  MEM_delete(bli_iter);
 }
 
 static PointerRNA rna_Depsgraph_objects_get(CollectionPropertyIterator *iter)
@@ -476,9 +468,10 @@ static void rna_Depsgraph_ids_next(CollectionPropertyIterator *iter)
 
 static void rna_Depsgraph_ids_end(CollectionPropertyIterator *iter)
 {
-  DEG_iterator_ids_end(static_cast<BLI_Iterator *>(iter->internal.custom));
-  MEM_delete_void((static_cast<BLI_Iterator *>(iter->internal.custom))->data);
-  MEM_delete_void(iter->internal.custom);
+  BLI_Iterator *bli_iter = static_cast<BLI_Iterator *>(iter->internal.custom);
+  DEG_iterator_ids_end(bli_iter);
+  MEM_delete(static_cast<DEGIDIterData *>(bli_iter->data));
+  MEM_delete(bli_iter);
 }
 
 static PointerRNA rna_Depsgraph_ids_get(CollectionPropertyIterator *iter)
