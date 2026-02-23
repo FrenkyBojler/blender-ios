@@ -353,11 +353,12 @@ void drawSnapping(TransInfo *t)
                  region->v2d.cur.ymin);
       }
       else {
+        /* Extend line through the current channel, and half a channel above/below. */
         immRectf(pos,
                  t->tsnap.snap_target[0] - pixelx,
-                 t->tsnap.snap_target[1] + 2,
+                 t->tsnap.snap_target[1] + 1.5,
                  t->tsnap.snap_target[0] + pixelx,
-                 t->tsnap.snap_target[1] - 1);
+                 t->tsnap.snap_target[1] - 0.5);
       }
     }
 
