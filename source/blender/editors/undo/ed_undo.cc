@@ -812,7 +812,10 @@ static wmOperatorStatus undo_clear_history_exec(bContext *C, wmOperator *op)
   const size_t data_size_before = ED_undosys_total_memory_calc(undo_stack);
   BKE_undosys_stack_clear(undo_stack);
 
-  /* Exit object modes. */
+  /* Exit object modes.
+   * NOTE: This may lead to incorrect results since it may affect objects outside the active scene.
+   * The same issue may arise in #ED_editors_exit since it also iterates over all objects in
+   * `bmain. */
   for (Object &ob : bmain->objects) {
     if (ob.mode != OB_MODE_OBJECT) {
       ob.restore_mode = ob.mode;
