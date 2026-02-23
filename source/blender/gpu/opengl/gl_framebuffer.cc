@@ -507,7 +507,7 @@ void GLFrameBuffer::clear_attachment(GPUAttachmentType type, const double4 clear
   GPU_write_mask(write_mask);
 }
 
-void GLFrameBuffer::clear_multi(const Span<double4> clear_cols)
+void GLFrameBuffer::clear_multi(Span<double4> clear_cols)
 {
   int type = GPU_FB_COLOR_ATTACHMENT0;
   for (int i = 0; type < GPU_FB_MAX_ATTACHMENT; i++, type++) {

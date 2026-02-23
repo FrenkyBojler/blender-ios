@@ -358,7 +358,7 @@ void MTLFrameBuffer::clear(GPUFrameBufferBits buffers,
   }
 }
 
-void MTLFrameBuffer::clear_multi(const Span<double4> clear_cols)
+void MTLFrameBuffer::clear_multi(Span<double4> clear_cols)
 {
   /* If we had no previous clear pending, reset clear state. */
   if (!has_pending_clear_) {

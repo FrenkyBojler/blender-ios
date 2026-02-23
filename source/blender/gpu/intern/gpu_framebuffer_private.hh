@@ -110,7 +110,7 @@ class FrameBuffer {
                      const double4 clear_color,
                      float clear_depth,
                      uint clear_stencil) = 0;
-  virtual void clear_multi(const Span<double4> clear_cols) = 0;
+  virtual void clear_multi(Span<double4> clear_cols) = 0;
   virtual void clear_attachment(GPUAttachmentType type, const double4 clear_value) = 0;
 
   virtual void attachment_set_loadstore_op(GPUAttachmentType type, GPULoadStore ls) = 0;

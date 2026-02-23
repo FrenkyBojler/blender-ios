@@ -232,7 +232,7 @@ void VKFrameBuffer::clear(const GPUFrameBufferBits buffers,
   }
 }
 
-void VKFrameBuffer::clear_multi(const Span<double4> clear_cols)
+void VKFrameBuffer::clear_multi(Span<double4> clear_cols)
 {
   render_graph::VKClearAttachmentsNode::CreateInfo clear_attachments = {};
   render_area_update(clear_attachments.vk_clear_rect.rect);

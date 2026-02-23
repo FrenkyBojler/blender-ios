@@ -49,7 +49,7 @@ class VKFrameBuffer : public FrameBuffer {
              const double4 clear_color,
              float clear_depth,
              uint clear_stencil) override;
-  void clear_multi(const Span<double4> clear_cols) override;
+  void clear_multi(Span<double4> clear_cols) override;
   void clear_attachment(GPUAttachmentType type, const double4 clear_value) override;
 
   void attachment_set_loadstore_op(GPUAttachmentType type, GPULoadStore /*ls*/) override;
