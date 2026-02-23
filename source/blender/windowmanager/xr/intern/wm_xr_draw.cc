@@ -11,6 +11,7 @@
  */
 
 #include <cstring>
+#include <optional>
 #include <fmt/format.h>
 
 #include "DNA_camera_types.h"
@@ -56,6 +57,90 @@ static GPUOffScreen *g_viewfinder_offscreen;
 
 /* Factor used to size UI widgets in XR world space. Going from meters to UI units. */
 static constexpr float xr_ui_unit_fac = 0.05f;
+
+struct XrLocationScoutingCapture {
+  /* NOTE: Keep in sync with the Python VR Scene Inspection add-on VRCapture class.
+   *       See comment in #wm_xr_get_active_location_scouting_capture. */
+  GHOST_XrPose pose;
+
+  float lens_focal;
+
+  bool dof_enable;
+  float dof_dist;
+  float dof_fstop;
+};
+
+static bool wm_xr_is_location_scouting_captures_empty(Scene *scene) {
+  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
+  PropertyRNA *captures_prop = RNA_struct_find_property(&scene_ptr, "vr_captures");
+
+  if (captures_prop == nullptr) {
+    /* Capture collection wasn't found, VR add-on is probably not loaded. Shouldn't be possible. */
+    BLI_assert_unreachable();
+    return true;
+  }
+
+  if (RNA_property_collection_is_empty(&scene_ptr, captures_prop)) {
+    /* Empty capture collection. */
+    return true;
+  }
+
+  return false;
+}
+
+static std::optional<XrLocationScoutingCapture> wm_xr_get_active_location_scouting_capture(
+    Scene *scene)
+{
+  /* Workaround: To allow for conditionally registering the location scouting capture collection on
+   *             the Scene while not polluting the main DNA Scene struct, and generally keep the
+   *             definition simple and contained, the VRCapture collection is defined on the Python
+   *             add-on side. Values are then obtained back here via RNA introspection.
+   *
+   * NOTE: This functions thus *needs* be kept in sync with the VRCapture Python class. */
+
+  if (wm_xr_is_location_scouting_captures_empty(scene)) {
+    return std::nullopt;
+  }
+
+  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
+  PropertyRNA *captures_prop = RNA_struct_find_property(&scene_ptr, "vr_captures");
+
+  PropertyRNA *idx_prop = RNA_struct_find_property(&scene_ptr, "vr_captures_selected");
+  const int capture_idx = RNA_property_int_get(&scene_ptr, idx_prop);
+
+  PointerRNA current_capture;
+  RNA_property_collection_lookup_int(&scene_ptr, captures_prop, capture_idx, &current_capture);
+
+  /* Captured pose (location / orientation). */
+  PropertyRNA *location_prop = RNA_struct_find_property(&current_capture, "location");
+  PropertyRNA *orientation_prop = RNA_struct_find_property(&current_capture, "orientation");
+
+  float capture_location[3];
+  float capture_orientation[4];
+  RNA_property_float_get_array(&current_capture, location_prop, capture_location);
+  RNA_property_float_get_array(&current_capture, orientation_prop, capture_orientation);
+
+  GHOST_XrPose capture_pose;
+  capture_pose.is_active = true;
+  copy_v3_v3(capture_pose.position, capture_location);
+  copy_qt_qt(capture_pose.orientation_quat, capture_orientation);
+
+  /* Captured view settings (lens / DoF). */
+  PropertyRNA *lens_focal_prop = RNA_struct_find_property(&current_capture, "lens_focal");
+  PropertyRNA *dof_enable_prop = RNA_struct_find_property(&current_capture, "dof_enable");
+  PropertyRNA *dof_dist_prop = RNA_struct_find_property(&current_capture, "dof_dist");
+  PropertyRNA *dof_fstop_prop = RNA_struct_find_property(&current_capture, "dof_fstop");
+
+  XrLocationScoutingCapture capture {
+      .pose = capture_pose,
+      .lens_focal = RNA_property_float_get(&current_capture, lens_focal_prop),
+      .dof_enable = RNA_property_boolean_get(&current_capture, dof_enable_prop),
+      .dof_dist = RNA_property_float_get(&current_capture, dof_dist_prop),
+      .dof_fstop = RNA_property_float_get(&current_capture, dof_fstop_prop)
+  };
+
+  return std::make_optional(capture);
+}
 
 void wm_xr_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4])
 {
@@ -317,58 +402,19 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       break;
     }
     case XR_VIEWFINDER_MODE_PLAYBACK: {
-      PointerRNA scene_ptr = RNA_id_pointer_create(&draw_data->scene->id);
-
-      /* Note: unsafe, relies on the VR add-on to be loaded. */
-      PropertyRNA *landmarks_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks");
-      if (RNA_property_collection_is_empty(&scene_ptr, landmarks_prop)) {
+      auto capture = wm_xr_get_active_location_scouting_capture(draw_data->scene);
+      if (!capture.has_value()) {
         /* Nothing to draw, early return. */
         return;
       }
 
-      PropertyRNA *lm_idx_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks_selected");
-      const int landmark_idx = RNA_property_int_get(&scene_ptr, lm_idx_prop);
+      wm_xr_pose_to_imat(&capture->pose, viewfinder_render_viewmat);
+      cam_render_params.lens = capture->lens_focal;
 
-      /* Workaround: Doing some hardcore RNA introspection to obtain the values back. */
-      PointerRNA current_landmark;
-      RNA_property_collection_lookup_int(
-          &scene_ptr, landmarks_prop, landmark_idx, &current_landmark);
+      SET_FLAG_FROM_TEST(cam_render_data->dof.flag, capture->dof_enable, CAM_DOF_ENABLED);
+      cam_render_data->dof.focus_distance = capture->dof_dist;
+      cam_render_data->dof.aperture_fstop = capture->dof_fstop;
 
-      /* Captured pose (location / orientation). */
-      PropertyRNA *lm_vf_pos_prop = RNA_struct_find_property(&current_landmark,
-                                                             "base_pose_location");
-      PropertyRNA *lm_vf_quat_prop = RNA_struct_find_property(&current_landmark,
-                                                              "viewfinder_quat");
-      float landmark_viewfinder_pos[3];
-      float landmark_viewfinder_quat[4];
-      RNA_property_float_get_array(&current_landmark, lm_vf_pos_prop, landmark_viewfinder_pos);
-      RNA_property_float_get_array(&current_landmark, lm_vf_quat_prop, landmark_viewfinder_quat);
-
-      GHOST_XrPose viewfinder_pose;
-      copy_v3_v3(viewfinder_pose.position, landmark_viewfinder_pos);
-      copy_qt_qt(viewfinder_pose.orientation_quat, landmark_viewfinder_quat);
-
-      wm_xr_pose_to_imat(&viewfinder_pose, viewfinder_render_viewmat);
-
-      /* Captured view settings (lens / DoF). */
-      PropertyRNA *lm_vf_lens_prop = RNA_struct_find_property(&current_landmark,
-                                                              "viewfinder_lens");
-      PropertyRNA *lm_vf_use_dof_prop = RNA_struct_find_property(&current_landmark,
-                                                                 "viewfinder_use_dof");
-      PropertyRNA *lm_vf_dof_dist_prop = RNA_struct_find_property(&current_landmark,
-                                                                  "viewfinder_dof_dist");
-      PropertyRNA *lm_vf_dof_fstop_prop = RNA_struct_find_property(&current_landmark,
-                                                                   "viewfinder_dof_fstop");
-
-      cam_render_params.lens = RNA_property_float_get(&current_landmark, lm_vf_lens_prop);
-      const bool landmark_use_dof = RNA_property_boolean_get(&current_landmark,
-                                                             lm_vf_use_dof_prop);
-
-      SET_FLAG_FROM_TEST(cam_render_data->dof.flag, landmark_use_dof, CAM_DOF_ENABLED);
-      cam_render_data->dof.focus_distance = RNA_property_float_get(&current_landmark,
-                                                                   lm_vf_dof_dist_prop);
-      cam_render_data->dof.aperture_fstop = RNA_property_float_get(&current_landmark,
-                                                                   lm_vf_dof_fstop_prop);
       break;
     }
     default:
@@ -650,10 +696,10 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
   PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
 
   /* Note: unsafe, relies on the VR add-on being loaded. */
-  PropertyRNA *landmark_len_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks");
-  PropertyRNA *landmark_idx_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks_selected");
-  const int landmark_len = RNA_property_collection_length(&scene_ptr, landmark_len_prop);
-  const int landmark_idx = RNA_property_int_get(&scene_ptr, landmark_idx_prop);
+  PropertyRNA *captures_len_prop = RNA_struct_find_property(&scene_ptr, "vr_captures");
+  PropertyRNA *captures_idx_prop = RNA_struct_find_property(&scene_ptr, "vr_captures_selected");
+  const int captures_len = RNA_property_collection_length(&scene_ptr, captures_len_prop);
+  const int captures_idx = RNA_property_int_get(&scene_ptr, captures_idx_prop);
 
   std::string settings_label;
   switch (state->viewfinder.active_mode) {
@@ -669,14 +715,14 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
       break;
     case XR_VIEWFINDER_MODE_PLAYBACK:
       /* Current shot indicator (`current shot idx / all shots`). */
-      if (landmark_len > 0) {
-        const int width = landmark_len >= 10 ? 2 : 1;
-        const char *pad_prefix = landmark_len < 10 ? "     " : "";
+      if (captures_len > 0) {
+        const int width = captures_len >= 10 ? 2 : 1;
+        const char *pad_prefix = captures_len < 10 ? "     " : "";
         settings_label = fmt::format("{}{:\xe2\x80\x87>{}} / {:\xe2\x80\x87>{}}",
                                      pad_prefix,
-                                     landmark_idx + 1,
+                                     captures_idx + 1,
                                      width,
-                                     landmark_len,
+                                     captures_len,
                                      width);
       }
       break;
@@ -738,8 +784,7 @@ static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C, const wmXrSes
 static ui::Block *viewfinder_missing_captures_label_ui_block(const bContext *C,
                                                              const wmXrSessionState *state)
 {
-  PointerRNA scene_ptr = RNA_id_pointer_create(&CTX_data_scene(C)->id);
-  const bool empty_captures = RNA_collection_is_empty(&scene_ptr, "vr_landmarks");
+  const bool empty_captures = wm_xr_is_location_scouting_captures_empty(CTX_data_scene(C));
 
   ui::Block *block = nullptr;
   ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
@@ -839,7 +884,7 @@ static void wm_xr_controller_viewfinder_draw_view_texture(const bContext *C,
                                                           const rctf viewfinder_rect)
 {
   PointerRNA scene_ptr = RNA_id_pointer_create(&CTX_data_scene(C)->id);
-  const bool empty_captures = RNA_collection_is_empty(&scene_ptr, "vr_landmarks");
+  const bool empty_captures = wm_xr_is_location_scouting_captures_empty(CTX_data_scene(C));
 
   if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
     return;

@@ -169,9 +169,10 @@ class VIEW3D_OT_vr_landmark_remove(Operator):
         scene = context.scene
         landmarks = scene.vr_landmarks
 
-        if landmarks:
+        if len(landmarks) > 1:
             landmark_selected_idx = scene.vr_landmarks_selected
             landmarks.remove(landmark_selected_idx)
+
             scene.vr_landmarks_selected -= 1
 
         return {'FINISHED'}
@@ -273,13 +274,11 @@ class VIEW3D_OT_vr_landmark_activate(Operator):
 
         return {'FINISHED'}
 
-# Viewfinder.
-
-
-class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
-    bl_idname = "view3d.vr_viewfinder_capture_landmark"
-    bl_label = "Capture VR Landmark from Viewfinder"
-    bl_description = "Capture VR landmark from the Viewerfinder pose of the running VR session to the list and select it"
+# Location Scouting
+class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
+    bl_idname = "view3d.vr_location_scouting_viewfinder_capture"
+    bl_label = "Viewfinder Capture"
+    bl_description = "Create a VR Capture from the Location Scouting Viewfinder pose and mark it as selected"
     bl_options = {'UNDO', 'REGISTER'}
 
     @classmethod
@@ -296,36 +295,49 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
 
     def execute(self, context):
         scene = context.scene
-        landmarks = scene.vr_landmarks
+        captures = scene.vr_captures
 
         wm = context.window_manager
         xr_viewfinder = wm.xr_session_state.viewfinder
 
-        lm = landmarks.add()
-        lm.type = "CUSTOM"
-        lm.name = "Viewfinder Landmark"
-        scene.vr_landmarks_selected = len(landmarks) - 1
+        # Quick and dirty unique name function
+        # Returns the first available name in the style (Base 001, Base 002, Base 003, etc...)
+        def unique_name(col, base: str) -> str:
+            existing_indexes = set()
 
-        loc = xr_viewfinder.location
-        rot = xr_viewfinder.orientation
+            for item in col:
+                name = item.name
+                if name.startswith(base) and len(name) == len(base) + 4:
+                    suffix = name[len(base) + 1:]
+                    if suffix.isdigit():
+                        existing_indexes.add(int(suffix))
 
-        lm.base_pose_location = loc  # Used as viewfinder position
-        lm.base_pose_angle = rot.to_euler()[2]  # Only filled in for Landmark Viewport Feedback to work
-        lm.viewfinder_quat = rot
+            idx = 1
+            while idx in existing_indexes:
+                idx += 1
 
-        lm.viewfinder_lens = xr_viewfinder.capture_lens
-        lm.viewfinder_use_dof = xr_viewfinder.capture_use_dof
-        lm.viewfinder_dof_dist = xr_viewfinder.capture_focus_distance
-        lm.viewfinder_dof_fstop = xr_viewfinder.capture_aperture_fstop
+            return f"{base} {idx:03d}"
+
+        capture = captures.add()
+        captures[-1].name = unique_name(captures, "Capture")
+        scene.vr_captures_selected = len(captures) - 1
+
+        capture.location = xr_viewfinder.location
+        capture.orientation = xr_viewfinder.orientation
+
+        capture.lens_focal = xr_viewfinder.capture_lens
+        capture.dof_enable = xr_viewfinder.capture_use_dof
+        capture.dof_dist = xr_viewfinder.capture_focus_distance
+        capture.dof_fstop = xr_viewfinder.capture_aperture_fstop
 
         xr_viewfinder.runtime_capture_flash = 1  # Internal value, setting to 1 will trigger a flash
 
         return {'FINISHED'}
 
 
-class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
-    bl_idname = "view3d.vr_viewfinder_apply_action"
-    bl_label = "Viewfinder Action"
+class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
+    bl_idname = "view3d.vr_location_scouting_viewfinder_apply_action"
+    bl_label = "Apply Viewfinder Action"
     bl_description = "Apply the currently selected Viewfinder action (Zoom Control/Playback selection for now)"
     bl_options = {'REGISTER'}
 
@@ -456,23 +468,23 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
         if xr_viewfinder.active_mode == "PLAYBACK":
             # Playblack control
             scene = context.scene
-            landmarks = scene.vr_landmarks
-            if len(landmarks) == 0:
+            captures = scene.vr_captures
+            if len(captures) == 0:
                 return {'FINISHED'}
 
             match xr_viewfinder.active_action_playback:
                 # Browse shots left/right
                 case "BROWSE":
                     incr = 1 if self.action_up else -1
-                    scene.vr_landmarks_selected = (scene.vr_landmarks_selected + incr) % len(landmarks)
+                    scene.vr_captures_selected = (scene.vr_captures_selected + incr) % len(captures)
 
                     return {'FINISHED'}
 
-                # Preview the selected shot in space
+                # Preview the selected capture in space TODO: Remove in favor of gizmos
                 case "PREVIEW":
-                    current_landmark = landmarks[scene.vr_landmarks_selected]
+                    current_capture = captures[scene.vr_captures_selected]
 
-                    preview_cone_name = "ViewfinderPreviewCone"
+                    preview_cone_name = "CapturePreviewCone"
 
                     # Create a dummy cone (or fetch it if it already exists) to represent the captured point
                     if preview_cone_name in bpy.data.objects:
@@ -483,25 +495,42 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
                         cone = bpy.context.active_object
                         cone.name = preview_cone_name
 
-                    lm_pos = current_landmark.base_pose_location
-                    lm_quat = current_landmark.viewfinder_quat
-                    lm_lens = current_landmark.viewfinder_lens
-
-                    cone.location = lm_pos
+                    cone.location = current_capture.location
+                    cone.rotation_quaternion = current_capture.orientation
                     cone.rotation_mode = 'QUATERNION'
-                    cone.rotation_quaternion = lm_quat
-                    cone.scale.z = lm_lens / 50  # Scale on local Z to represent focal length, 50mm being 1.0 scale
+
+                    # Scale on local Z to represent focal length, 50mm being 1.0 scale
+                    cone.scale.z = current_capture.lens_focal / 50
 
                     return {'FINISHED'}
 
-                # Delete the selected shot (landmark)
+                # Delete the selected capture
                 case "DELETE":
-                    landmarks.remove(scene.vr_landmarks_selected)
-                    scene.vr_landmarks_selected = (scene.vr_landmarks_selected - 1) % len(landmarks)
+                    captures.remove(scene.vr_captures_selected)
+                    scene.vr_captures_selected -= 1
 
                     return {'FINISHED'}
 
         return {'CANCELLED'}
+
+
+class VIEW3D_OT_vr_location_scouting_capture_remove(Operator):
+    bl_idname = "view3d.vr_location_scouting_capture_remove"
+    bl_label = "Remove VR Capture"
+    bl_description = "Delete the selected VR capture from the list"
+    bl_options = {'UNDO', 'REGISTER'}
+
+    def execute(self, context):
+        scene = context.scene
+        captures = scene.vr_captures
+
+        capture_selected_idx = scene.vr_captures_selected
+        captures.remove(capture_selected_idx)
+
+        if scene.vr_captures_selected > 0:
+            scene.vr_captures_selected -= 1
+
+        return {'FINISHED'}
 
 
 # Gizmos.
@@ -751,8 +780,9 @@ classes = (
     VIEW3D_OT_cursor_to_vr_landmark,
     VIEW3D_OT_update_vr_landmark,
 
-    VIEW3D_OT_vr_viewfinder_capture_landmark,
-    VIEW3D_OT_vr_viewfinder_apply_action,
+    VIEW3D_OT_vr_location_scouting_viewfinder_capture,
+    VIEW3D_OT_vr_location_scouting_viewfinder_apply_action,
+    VIEW3D_OT_vr_location_scouting_capture_remove,
 
     VIEW3D_GT_vr_camera_cone,
     VIEW3D_GT_vr_controller_grip,

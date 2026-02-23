@@ -11,9 +11,12 @@ from bpy.app.handlers import persistent
 
 # Landmarks.
 @persistent
-def vr_ensure_empty_landmarks(context: bpy.context):
+def vr_ensure_default_landmark(context: bpy.context):
+    # Ensure there's a default landmark (scene camera by default).
     landmarks = bpy.context.scene.vr_landmarks
-    landmarks.clear()
+    if not landmarks:
+        landmarks.add()
+        landmarks[0].type = 'SCENE_CAMERA'
 
 
 def vr_landmark_active_type_update(self, context):
@@ -169,28 +172,6 @@ class VRLandmark(PropertyGroup):
         min=0.000001,
         update=vr_landmark_base_scale_update,
     )
-    viewfinder_quat: bpy.props.FloatVectorProperty(
-        name="Viewfinder Quaternion",
-        size=4,
-        subtype='QUATERNION',
-        default=(1, 0, 0, 0)
-    )
-    viewfinder_lens: bpy.props.FloatProperty(
-        name="Viewfinder Lens",
-        default=50
-    )
-    viewfinder_use_dof: bpy.props.BoolProperty(
-        name="Viewfinder Enable Depth of Field",
-        default=False
-    )
-    viewfinder_dof_dist: bpy.props.FloatProperty(
-        name="Viewfinder DoF Focus Distance",
-        default=10
-    )
-    viewfinder_dof_fstop: bpy.props.FloatProperty(
-        name="Viewfinder DoF F-Stop",
-        default=2.8
-    )
 
     @staticmethod
     def get_selected_landmark(context):
@@ -213,8 +194,48 @@ class VRLandmark(PropertyGroup):
         )
 
 
+class VRCapture(PropertyGroup):
+    # Note: This PropertyGroup needs to be kept in sync with the internal XrLocationScoutingCapture struct
+    #       and get_active_location_scouting_capture() function.
+    name: bpy.props.StringProperty(
+        name="VR Capture",
+        default="Capture"
+    )
+    location: bpy.props.FloatVectorProperty(
+        name="Capture Location",
+        subtype='TRANSLATION',
+    )
+    orientation: bpy.props.FloatVectorProperty(
+        name="Capture Orientation",
+        size=4,
+        subtype='QUATERNION',
+    )
+    lens_focal: bpy.props.FloatProperty(
+        name="Capture Focal Length",
+    )
+    dof_enable: bpy.props.BoolProperty(
+        name="Capture enable Depth of Field",
+    )
+    dof_dist: bpy.props.FloatProperty(
+        name="Capture DoF Focus Distance",
+    )
+    dof_fstop: bpy.props.FloatProperty(
+        name="Capture DoF F-Stop",
+    )
+
+    @staticmethod
+    def get_selected_capture(context):
+        scene = context.scene
+        captures = scene.vr_captures
+
+        return (
+            None if (len(captures) <
+                     1) else captures[scene.vr_captures_selected]
+        )
+
 classes = (
     VRLandmark,
+    VRCapture,
 )
 
 
@@ -233,7 +254,15 @@ def register():
         update=vr_landmark_active_update,
     )
 
-    bpy.app.handlers.load_post.append(vr_ensure_empty_landmarks)
+    bpy.types.Scene.vr_captures = bpy.props.CollectionProperty(
+        name="Location Scouting Captures",
+        type=VRCapture,
+    )
+    bpy.types.Scene.vr_captures_selected = bpy.props.IntProperty(
+        name="Selected Capture"
+    )
+
+    bpy.app.handlers.load_post.append(vr_ensure_default_landmark)
 
 
 def unregister():
@@ -244,4 +273,7 @@ def unregister():
     del bpy.types.Scene.vr_landmarks_selected
     del bpy.types.Scene.vr_landmarks_active
 
-    bpy.app.handlers.load_post.remove(vr_ensure_empty_landmarks)
+    del bpy.types.Scene.vr_captures
+    del bpy.types.Scene.vr_captures_selected
+
+    bpy.app.handlers.load_post.remove(vr_ensure_default_landmark)
