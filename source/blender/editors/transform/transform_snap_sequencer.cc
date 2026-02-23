@@ -736,7 +736,7 @@ bool snap_sequencer_calc_drag_drop(Scene *scene,
   return validSnap(&t);
 }
 
-void snap_sequencer_draw_drag_drop(ARegion *region, const float snap_point)
+void snap_sequencer_draw_drag_drop(Scene *scene, ARegion *region, const float snap_point)
 {
   /* Reuse the snapping drawing code from the transform system. */
   TransInfo t = {nullptr};
@@ -746,6 +746,7 @@ void snap_sequencer_draw_drag_drop(ARegion *region, const float snap_point)
   t.tsnap.flag = SCE_SNAP;
   t.tsnap.status = (SNAP_TARGET_FOUND | SNAP_SOURCE_FOUND);
   t.tsnap.snap_target[0] = snap_point;
+  t.scene = scene;
   t.region = region;
 
   drawSnapping(&t);

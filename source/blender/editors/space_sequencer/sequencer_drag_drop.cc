@@ -377,6 +377,9 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
     return;
   }
 
+  /* Needed to get user's snap settings later on when calculating drag and drop snaps. */
+  Scene *scene = CTX_data_sequencer_scene(C);
+
   ARegion *region = CTX_wm_region(C);
   int mval[2];
   /* Convert mouse coordinates to region local coordinates. */
@@ -396,7 +399,7 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
 
   if (coords->use_snapping) {
     ui::view2d_view_ortho(&region->v2d);
-    transform::snap_sequencer_draw_drag_drop(region, coords->snap_point_x);
+    transform::snap_sequencer_draw_drag_drop(scene, region, coords->snap_point_x);
     ui::view2d_view_restore(C);
   }
 

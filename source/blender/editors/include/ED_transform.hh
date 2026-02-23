@@ -222,7 +222,7 @@ bool snap_sequencer_calc_drag_drop(Scene *scene,
                                    int *r_snap_distance,
                                    float *r_snap_frame);
 
-void snap_sequencer_draw_drag_drop(ARegion *region, float snap_point);
+void snap_sequencer_draw_drag_drop(Scene *scene, ARegion *region, float snap_point);
 
 }  // namespace ed::transform
 }  // namespace blender
