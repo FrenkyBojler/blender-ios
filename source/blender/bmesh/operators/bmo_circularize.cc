@@ -5,7 +5,7 @@
 /** \file
  * \ingroup bmesh
  *
- * Circularize selected boundary loops.
+ * Circularize selected boundary chains.
  */
 #include "BLI_kdopbvh.hh"
 #include "BLI_math_geom.h"
@@ -44,10 +44,10 @@ struct CircleVert {
 };
 
 /** Stores the boundary geometry that defines the circle. */
-struct LoopData {
+struct VertChain {
   /** The ordered vertices that defines the circle's boundary. */
   Vector<BMVert *> verts;
-  /** This is true if the path forms a closed loop, for open chains it's false. */
+  /** This is true if the path forms a closed chain, for open chains it's false. */
   bool is_closed;
 };
 
@@ -99,16 +99,16 @@ static bool is_valid_boundary_edge(BMEdge *e, const char hflag, const bool check
 
 /* Traverses a connected path of boundary edges to form a continuous sequence of vertices.
  * This function handles two cases:
- * 1. Closed loops: walks until the traversal returns to the start vertex.
+ * 1. Closed chains: walks until the traversal returns to the start vertex.
  * 2. Open chains: walks in one direction until a dead end, then walks in the
  * opposite direction from the start edge and merges the results.
  */
-static std::optional<LoopData> walk_boundary_loop(BMEdge *start_edge,
-                                                  Set<BMEdge *> &visited,
-                                                  const char hflag,
-                                                  const bool check_axis[3])
+static std::optional<VertChain> walk_boundary_chain(BMEdge *start_edge,
+                                                    Set<BMEdge *> &visited,
+                                                    const char hflag,
+                                                    const bool check_axis[3])
 {
-  LoopData loop_data;
+  VertChain chain_data;
   /* Finds the next valid boundary edge that isn't visited. */
   auto get_next_edge_fn = [&](BMVert *v, BMEdge *exclude_e) -> BMEdge * {
     BMIter eiter;
@@ -140,51 +140,51 @@ static std::optional<LoopData> walk_boundary_loop(BMEdge *start_edge,
     }
   };
 
-  loop_data.verts.append(start_edge->v1);
-  loop_data.verts.append(start_edge->v2);
+  chain_data.verts.append(start_edge->v1);
+  chain_data.verts.append(start_edge->v2);
   visited.add(start_edge);
 
   /* The initial edge direction (v1 -> v2) is arbitrary.
    * We walk from v2 to extend this sequence. */
-  walk_fn(start_edge->v2, start_edge, loop_data.verts);
+  walk_fn(start_edge->v2, start_edge, chain_data.verts);
 
-  /* If the traversal forms a closed loop, the last vertex will match the first.
+  /* If the traversal forms a closed chain, the last vertex will match the first.
    * Remove the duplicate end vertex. */
-  if (loop_data.verts.size() > 2 && loop_data.verts.first() == loop_data.verts.last()) {
-    if (loop_data.verts.size() < 4) {
+  if (chain_data.verts.size() > 2 && chain_data.verts.first() == chain_data.verts.last()) {
+    if (chain_data.verts.size() < 4) {
       return std::nullopt;
     }
-    loop_data.verts.remove_last();
-    loop_data.is_closed = true;
-    return loop_data;
+    chain_data.verts.remove_last();
+    chain_data.is_closed = true;
+    return chain_data;
   }
 
-  /* If we are here, the loop is open.
+  /* If we are here, the chain is open.
    * We need to check the other direction from the start vertex. */
-  Vector<BMVert *> pre_loop;
-  walk_fn(start_edge->v1, start_edge, pre_loop);
+  Vector<BMVert *> pre_chain;
+  walk_fn(start_edge->v1, start_edge, pre_chain);
 
-  if (!pre_loop.is_empty()) {
-    std::reverse(pre_loop.begin(), pre_loop.end());
+  if (!pre_chain.is_empty()) {
+    std::reverse(pre_chain.begin(), pre_chain.end());
 
-    pre_loop.extend(loop_data.verts);
-    loop_data.verts = std::move(pre_loop);
+    pre_chain.extend(chain_data.verts);
+    chain_data.verts = std::move(pre_chain);
   }
 
-  loop_data.is_closed = false;
+  chain_data.is_closed = false;
 
-  if (loop_data.verts.size() < 3) {
+  if (chain_data.verts.size() < 3) {
     return std::nullopt;
   }
 
-  return loop_data;
+  return chain_data;
 }
 
-/* Collects all valid boundary edge loops from the current selection. */
-static void bm_extract_input_loops_from_boundary_edges(BMesh *bm,
-                                                       Vector<LoopData> &r_loops,
-                                                       const char hflag,
-                                                       const bool check_axis[3])
+/* Collects all valid boundary edge chains from the current selection. */
+static void bm_extract_input_chains_from_boundary_edges(BMesh *bm,
+                                                        Vector<VertChain> &r_chains,
+                                                        const char hflag,
+                                                        const bool check_axis[3])
 {
   Set<BMEdge *> visited;
   BMIter iter;
@@ -198,26 +198,26 @@ static void bm_extract_input_loops_from_boundary_edges(BMesh *bm,
       continue;
     }
 
-    std::optional<LoopData> ld = walk_boundary_loop(edge, visited, hflag, check_axis);
+    std::optional<VertChain> ld = walk_boundary_chain(edge, visited, hflag, check_axis);
     if (ld.has_value()) {
-      r_loops.append(*ld);
+      r_chains.append(*ld);
     }
   }
 }
 
-/* Computes the local coordinate system defining the 2D plane of the vertex loop. */
-static float3x3 calculate_plane_orientation(Span<BMVert *> loop, float3 &r_center)
+/* Computes the local coordinate system defining the 2D plane of the vertex chain. */
+static float3x3 calculate_plane_orientation(Span<BMVert *> chain, float3 &r_center)
 {
   r_center = float3(0.0f);
-  for (BMVert *v : loop) {
+  for (BMVert *v : chain) {
     r_center += float3(v->co);
   }
-  r_center /= float(loop.size());
-  BMVert *prev = loop.last();
+  r_center /= float(chain.size());
+  BMVert *prev = chain.last();
 
   float3 normal = float3(0.0f);
-  /* Compute a best fit plane normal for the loop using Newell's method. */
-  for (BMVert *curr : loop) {
+  /* Compute a best fit plane normal for the chain using Newell's method. */
+  for (BMVert *curr : chain) {
     add_newell_cross_v3_v3v3(normal, prev->co, curr->co);
     prev = curr;
   }
@@ -241,13 +241,13 @@ static float3x3 calculate_plane_orientation(Span<BMVert *> loop, float3 &r_cente
 }
 
 /* Projects 3D vertex coordinates onto a local 2D plane defined by the P and Q basis vectors. */
-static void project_loop_to_2d(Span<BMVert *> loop,
-                               const float3 &center,
-                               const float3x3 &mat,
-                               Vector<CircleVert> &r_2d_verts)
+static void project_chain_to_2d(Span<BMVert *> chain,
+                                const float3 &center,
+                                const float3x3 &mat,
+                                Vector<CircleVert> &r_2d_verts)
 {
-  r_2d_verts.reserve(loop.size());
-  for (BMVert *v : loop) {
+  r_2d_verts.reserve(chain.size());
+  for (BMVert *v : chain) {
     float3 vec = float3(v->co) - center;
     CircleVert cv{.v = v, .co_2d = {math::dot(vec, mat.x_axis()), math::dot(vec, mat.y_axis())}};
     r_2d_verts.append(cv);
@@ -368,9 +368,9 @@ static void calculate_target_locations(MutableSpan<CircleVert> verts,
     float total_angle = 2.0f * std::numbers::pi_v<float>;
     int divisions = verts.size();
 
-    /* For open loops, we calculate the total angle obtained by traversing
-     * the chain of vertices. Unlike closed loops whose total angle is 2*Pi,
-     * we cannot assume Pi for an open loop because it might span any amount
+    /* For open chains, we calculate the total angle obtained by traversing
+     * the vertices. Unlike closed chains whose total angle is 2*Pi,
+     * we cannot assume Pi for an open chain because it might span any amount
      * of the circle. */
     if (!is_closed && divisions > 1) {
       total_angle = 0.0f;
@@ -579,8 +579,8 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
   BMO_slot_buffer_hflag_enable(
       bm, op->slots_in, "geom", BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
 
-  Vector<LoopData> loops;
-  bm_extract_input_loops_from_boundary_edges(bm, loops, BM_ELEM_TAG, check_axis);
+  Vector<VertChain> chains;
+  bm_extract_input_chains_from_boundary_edges(bm, chains, BM_ELEM_TAG, check_axis);
 
   /* Builds a BVH tree when flatten is disabled. Without this we would have to iterate
    * over every face in the mesh for every vertex which is too slow.
@@ -608,18 +608,18 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     bvh_data.looptris = looptris;
   }
 
-  for (LoopData &loop_data : loops) {
-    const Vector<BMVert *> &loop = loop_data.verts;
+  for (VertChain &chain_data : chains) {
+    const Vector<BMVert *> &chain = chain_data.verts;
 
     float3 center_3d;
-    float3x3 mat = calculate_plane_orientation(loop, center_3d);
+    float3x3 mat = calculate_plane_orientation(chain, center_3d);
 
     bool is_mirrored = false;
     int mirror_axis = -1;
 
-    if (!loop_data.is_closed) {
-      BMVert *v_start = loop.first();
-      BMVert *v_end = loop.last();
+    if (!chain_data.is_closed) {
+      BMVert *v_start = chain.first();
+      BMVert *v_end = chain.last();
 
       for (int i = 0; i < 3; i++) {
         if (check_axis[i] && std::abs(v_start->co[i]) < MIRROR_LIMIT &&
@@ -631,11 +631,11 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       }
     }
 
-    /* For open loops on a symmetry plane, force the center to the midpoint of the endpoints
+    /* For open chains on a symmetry plane, force the center to the midpoint of the endpoints
      * to keep the circle aligned with the mirror plane. */
     if (is_mirrored) {
-      BMVert *v_start = loop.first();
-      BMVert *v_end = loop.last();
+      BMVert *v_start = chain.first();
+      BMVert *v_end = chain.last();
 
       center_3d = math::midpoint(float3(v_start->co), float3(v_end->co));
       float3 p = math::normalize(float3(v_start->co) - center_3d);
@@ -645,7 +645,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     }
 
     Vector<CircleVert> circle_verts;
-    project_loop_to_2d(loop, center_3d, mat, circle_verts);
+    project_chain_to_2d(chain, center_3d, mat, circle_verts);
 
     float2 circle_center_2d;
     float radius;
@@ -667,7 +667,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     }
 
     calculate_target_locations(
-        circle_verts, circle_center_2d, radius, regular, loop_data.is_closed, angle);
+        circle_verts, circle_center_2d, radius, regular, chain_data.is_closed, angle);
 
     for (const CircleVert &cv : circle_verts) {
       const float3 target_local(cv.target_2d.x, cv.target_2d.y, 0.0f);
@@ -679,13 +679,13 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
         interp_v3_v3v3(final_pos, projected_pos, final_pos, flatten);
       }
 
-      /* If this vertex is an endpoint of a mirrored loop, force it
+      /* If this vertex is an endpoint of a mirrored chain, force it
        * exactly to 0.0 on the mirror axis.
        * There are some cases where a slight floating point drift ends up being
        * produced which prevents the mirror modifier from merging vertices. */
       if (is_mirrored) {
         BLI_assert(mirror_axis != -1);
-        if (cv.v == loop.first() || cv.v == loop.last()) {
+        if (cv.v == chain.first() || cv.v == chain.last()) {
           final_pos[mirror_axis] = 0.0f;
         }
       }
