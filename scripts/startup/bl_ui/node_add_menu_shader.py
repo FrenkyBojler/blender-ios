@@ -79,7 +79,7 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeHairInfo",
             ["Is Strand", "Intercept", "Length", "Thickness", "Tangent Normal", "Random"],
-            poll=object_shader_nodes_poll(context)
+            poll=object_material_shader_nodes_poll(context)
         )
         self.node_operator(layout, "ShaderNodeFresnel", poll=object_material_shader_nodes_poll(context))
         self.node_operator_with_outputs(
@@ -129,14 +129,14 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeParticleInfo",
             ["Index", "Random", "Age", "Lifetime", "Location", "Size", "Velocity", "Angular Velocity"],
-            poll=object_shader_nodes_poll(context)
+            poll=object_material_shader_nodes_poll(context)
         )
         self.node_operator_with_outputs(
             context, layout, "ShaderNodePointInfo",
             ["Position", "Radius", "Random"],
-            poll=object_shader_nodes_poll(context)
+            poll=object_material_shader_nodes_poll(context)
         )
-        self.node_operator(layout, "ShaderNodeRaycast", poll=object_shader_nodes_poll(context))
+        self.node_operator(layout, "ShaderNodeRaycast", poll=object_material_shader_nodes_poll(context))
         self.node_operator(layout, "ShaderNodeTangent")
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeTexCoord",
