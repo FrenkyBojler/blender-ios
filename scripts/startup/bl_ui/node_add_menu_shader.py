@@ -70,6 +70,7 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeAmbientOcclusion", poll=object_material_shader_nodes_poll(context))
         self.node_operator(layout, "ShaderNodeAttribute")
         self.node_operator(layout, "ShaderNodeBevel", poll=object_material_shader_nodes_poll(context))
+        self.node_operator(layout, "FunctionNodeInputBool")
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeCameraData",
             ["View Vector", "View Z Depth", "View Distance"],
@@ -98,6 +99,7 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
                 "Random Per Island",
             ],
         )
+        self.node_operator(layout, "FunctionNodeInputInt")
         self.node_operator(layout, "ShaderNodeLayerWeight", poll=object_material_shader_nodes_poll(context))
         self.node_operator_with_outputs(
             context,
@@ -145,6 +147,7 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeUVAlongStroke", poll=line_style_shader_nodes_poll(context))
         self.node_operator(layout, "ShaderNodeUVMap", poll=object_material_shader_nodes_poll(context))
         self.node_operator(layout, "ShaderNodeValue")
+        self.node_operator(layout, "FunctionNodeInputVector")
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeVolumeInfo",
             ["Color", "Density", "Flame", "Temperature"],
