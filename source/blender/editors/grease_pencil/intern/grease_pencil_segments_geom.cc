@@ -567,14 +567,13 @@ static void store_segment_map_on_intersections(const Span<Segment> all_segments,
   }
 }
 
-static void create_segments_from_intersections_single_curve(
+static int create_segments_from_intersections_single_curve(
     const int curve_k,
     const Span<Vector<int>> inters_per_curves,
     const OffsetIndices<int> points_by_curve,
     const Span<IntersectionPoint> &intersections,
     const VArray<bool> &cyclic,
-    Vector<Segment> &all_segments,
-    MutableSpan<int> segments_num_per_curve)
+    Vector<Segment> &all_segments)
 {
   const IndexRange points_k = points_by_curve[curve_k];
   const Span<int> inters = inters_per_curves[curve_k];
@@ -583,9 +582,7 @@ static void create_segments_from_intersections_single_curve(
 
   if (inters.size() == 0) {
     all_segments.append(Segment::from_curve(curve_k, points_k, cyclic[curve_k]));
-    segments_num_per_curve[curve_k] = 1;
-
-    return;
+    return 1;
   }
 
   if (inters.size() == 1 && cyclic[curve_k]) {
@@ -602,9 +599,7 @@ static void create_segments_from_intersections_single_curve(
                                                     int_p,
                                                     int_p));
     all_segments.last().full_wrap_loop = true;
-    segments_num_per_curve[curve_k] = 1;
-
-    return;
+    return 1;
   }
 
   Array<int> inter_sorted_ids = Array<int>(inters.size());
@@ -683,7 +678,7 @@ static void create_segments_from_intersections_single_curve(
     }
   }
 
-  segments_num_per_curve[curve_k] = all_segments.size() - start_size;
+  return all_segments.size() - start_size;
 }
 
 static void create_segments_from_intersections(const Span<Vector<int>> inters_per_curves,
@@ -694,13 +689,8 @@ static void create_segments_from_intersections(const Span<Vector<int>> inters_pe
                                                MutableSpan<int> segments_num_per_curve)
 {
   for (const int curve_k : points_by_curve.index_range()) {
-    create_segments_from_intersections_single_curve(curve_k,
-                                                    inters_per_curves,
-                                                    points_by_curve,
-                                                    intersections,
-                                                    cyclic,
-                                                    all_segments,
-                                                    segments_num_per_curve);
+    segments_num_per_curve[curve_k] = create_segments_from_intersections_single_curve(
+        curve_k, inters_per_curves, points_by_curve, intersections, cyclic, all_segments);
   }
 }
 
@@ -2056,38 +2046,20 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
   Array<int> all_segment_offset_data(points_by_curve.size() + 1, 0);
 
   if (fill_id[subj_curve_i] == 0) {
-    create_segments_from_intersections_single_curve(
-        subj_curve_i,
-        inters_per_curves,
-        points_by_curve,
-        intersections,
-        cyclic,
-        all_segments,
-        all_segment_offset_data.as_mutable_span().drop_back(1));
+    all_segment_offset_data[subj_curve_i] = create_segments_from_intersections_single_curve(
+        subj_curve_i, inters_per_curves, points_by_curve, intersections, cyclic, all_segments);
   }
   else {
     for (const int curve_i : (*shapes)[subj_shape_id]) {
-      create_segments_from_intersections_single_curve(
-          curve_i,
-          inters_per_curves,
-          points_by_curve,
-          intersections,
-          cyclic,
-          all_segments,
-          all_segment_offset_data.as_mutable_span().drop_back(1));
+      all_segment_offset_data[curve_i] = create_segments_from_intersections_single_curve(
+          curve_i, inters_per_curves, points_by_curve, intersections, cyclic, all_segments);
     }
   }
   clipping_shapes.foreach_index([&](const int clip_shape_id) {
     const Span<int> curves_j = (*shapes)[clip_shape_id];
     for (const int curve_j : curves_j) {
-      create_segments_from_intersections_single_curve(
-          curve_j,
-          inters_per_curves,
-          points_by_curve,
-          intersections,
-          cyclic,
-          all_segments,
-          all_segment_offset_data.as_mutable_span().drop_back(1));
+      all_segment_offset_data[curve_j] = create_segments_from_intersections_single_curve(
+          curve_j, inters_per_curves, points_by_curve, intersections, cyclic, all_segments);
     }
   });
 
