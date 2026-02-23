@@ -294,7 +294,9 @@ void AbstractTreeView::draw_hierarchy_lines(const ARegion &region, const uiBlock
 
   rcti block_rect;
   ui_but_to_pixelrect(&block_rect, &region, &block, nullptr);
-  const int scroll_pad = UI_MENU_SCROLL_MOUSE / block.aspect;
+  const int scroll_pad = block.flag & (UI_BLOCK_CLIPTOP | UI_BLOCK_CLIPBOTTOM) ?
+                             (UI_MENU_SCROLL_MOUSE / block.aspect) :
+                             0;
   Bounds<int> block_range{block_rect.ymin + scroll_pad, block_rect.ymax - scroll_pad};
 
   rcti first_item_but_pixel_rect;
