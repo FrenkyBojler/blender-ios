@@ -53,7 +53,9 @@ namespace blender {
 
 extern bContext *evil_main_C;
 static GPUOffScreen *g_viewfinder_offscreen;
-static constexpr float viewfinder_ui_scale_fac = 0.05f;
+
+/* Factor used to size UI widgets in XR world space. Going from meters to UI units. */
+static constexpr float xr_ui_unit_fac = 0.05f;
 
 void wm_xr_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4])
 {
@@ -152,7 +154,7 @@ static bool wm_xr_get_viewfinder_capture_mat(const XrSessionSettings *settings,
 
   /* Compute vertical offset. */
   constexpr float base_controller_offset = -0.1f;
-  const float height_offset = (viewfinder_height / 2) * viewfinder_ui_scale_fac * -1;
+  const float height_offset = (viewfinder_height / 2) * xr_ui_unit_fac * -1;
   const float viewfinder_vertical_offset = base_controller_offset + height_offset;
 
   /* Obtain viewfinder capture mat from the choosen controller grip mat. */
@@ -386,7 +388,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
   float viewfinder_winmat[4][4];
   copy_m4_m4(viewfinder_winmat, cam_render_params.winmat);
 
-  /* Set View3D display flags, always hide selection outlines in the viewfinder. */
+  /* Set View3D draw flags, always hide selection outlines in the viewfinder. */
   int viewfinder_draw_flags = V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS | settings->draw_flags;
   viewfinder_draw_flags &= ~V3D_OFSDRAW_SHOW_SELECTION;
 
@@ -928,7 +930,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
 
   GPU_matrix_push();
   GPU_matrix_mul(viewfinder_mat);
-  GPU_matrix_scale_1f(viewfinder_ui_scale_fac);
+  GPU_matrix_scale_1f(xr_ui_unit_fac);
 
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
