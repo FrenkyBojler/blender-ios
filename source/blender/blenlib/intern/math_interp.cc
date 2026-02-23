@@ -536,25 +536,27 @@ void interpolate_cubic_mitchell_fl(
  * 2-pass sample filtering.
  ***************************************************************************/
 
-// some macros so code can work with float4 or __m128
-// I got a speed increase of about 17% from this
+/* Some macros so code can work with float4 or __m128
+ * In some examples I got a 17% speed increase, others though had zero increase.
+ * I believe the increase is mostly due to having more registers available.
+ */
 #if BLI_HAVE_SSE2
 #  define F4 __m128
-#  define F4C(c) _mm_set1_ps(c)
+#  define F4ZERO(c) _mm_setzero_ps()
 #  define F4P(p) _mm_loadu_ps(p)
-#  define F4ADD(a, b) _mm_add_ps(a, b)
-#  define F4MULC(a, c) _mm_mul_ps(a, _mm_set1_ps(c))
+#  define F4MADD(a, b, c) _mm_add_ps(_mm_mul_ps(a, _mm_set1_ps(b)), c);
+#  define F4DIV(a, b) _mm_div_ps(a, _mm_set1_ps(b))
 #  define F4V(a) *(float4 *)(&a)
 #else
 #  define F4 float4
-#  define F4C(c) float4(c)
-#  define F4P(p) *(float4 *)(p)
-#  define F4ADD(a, b) (a) + (b)
-#  define F4MULC(a, c) (a) * (c)
+#  define F4ZERO(c) float4(0.0f)
+#  define F4P(p) (*(float4 *)(p))
+#  define F4MADD(a, b, c) ((a) * (b) + (c))
+#  define F4DIV(a, b) ((a) / (b))
 #  define F4V(a) a
 #endif
 
-// Some missing math functions
+/* Some missing math functions */
 BLI_INLINE float2 max(const float2 &f, float v)
 {
   return {max(f.x, v), max(f.y, v)};
@@ -568,7 +570,7 @@ BLI_INLINE float2 floor(const float2 &f)
   return {floorf(f.x), floorf(f.y)};
 }
 
-// Offset from start of row and weight. Names are xy to match BSL code
+/* Offset from start of row and weight. Names are xy to match BSL code */
 struct Fentry {
   int32_t x;
   float y;
@@ -601,7 +603,7 @@ float4 sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
     if (xi >= 0)
       xfilter[nx++] = {xi * source.step, wt};
   }
-  F4 sum = F4C(0.0f);
+  F4 sum = F4ZERO();
   float div = 0.0f;
   for (float y = a.y - uv.y; y < r.y; y += d.y) {
     float wt = weight<sampler>(abs(y / w1.y));
@@ -609,13 +611,13 @@ float4 sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
     const int yi = wrap_coord(y + uv.y, source.height, source.wrap_y);
     if (yi >= 0) {
       const float *p = source.row(yi);
-      F4 sumx = F4C(0.0f);
+      F4 sumx = F4ZERO();
       for (int j = 0; j < nx; j++)
-        sumx = F4ADD(sumx, F4MULC(F4P(p + xfilter[j].x), xfilter[j].y));
-      sum = F4ADD(sum, F4MULC(sumx, wt));
+        sumx = F4MADD(F4P(p + xfilter[j].x), xfilter[j].y, sumx);
+      sum = F4MADD(sumx, wt, sum);
     }
   }
-  sum = F4MULC(sum, 1.0f / (div * divx));
+  sum = F4DIV(sum, div * divx);
   return F4V(sum);
 }
 
@@ -639,7 +641,7 @@ float4 sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uv, cons
     if (x1 >= 0)
       xfilter[nx++] = {x1 * source.step, wt};
   }
-  F4 sum = F4C(0.0f);
+  F4 sum = F4ZERO();
   float div = 0.0f;
   for (float y = a.y - uv.y; y < r.y; y += d.y) {
     float wt = min(r.y - abs(y), 1.0f);
@@ -647,14 +649,14 @@ float4 sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uv, cons
     const int yi = wrap_coord(y + uv.y, source.height, source.wrap_y);
     if (yi >= 0) {
       const float *p = source.row(yi);
-      F4 sumx = F4C(0.0f);
+      F4 sumx = F4ZERO();
       for (int j = 0; j < nx; j++) {
-        sumx = F4ADD(sumx, F4MULC(F4P(p + xfilter[j].x), xfilter[j].y));
+        sumx = F4MADD(F4P(p + xfilter[j].x), xfilter[j].y, sumx);
       }
-      sum = F4ADD(sum, F4MULC(sumx, wt));
+      sum = F4MADD(sumx, wt, sum);
     }
   }
-  sum = F4MULC(sum, 1.0f / (div * divx));
+  sum = F4DIV(sum, div * divx);
   return F4V(sum);
 }
 
