@@ -324,7 +324,7 @@ struct NodeTreeRelations {
           const SequencerCompositorModifierData *modifier_data =
               reinterpret_cast<SequencerCompositorModifierData *>(&modifier);
           if (modifier_data->node_group != nullptr) {
-            strip_modifier_users_.add(modifier_data->node_group, {{&scene, strip}, &modifier});
+            strip_modifier_users_->add(modifier_data->node_group, {{&scene, strip}, &modifier});
           }
         }
       }

@@ -18,6 +18,7 @@
 #include "DNA_sequence_types.h"
 
 #include "BKE_context.hh"
+#include "BKE_idprop.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
