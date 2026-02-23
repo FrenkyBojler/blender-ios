@@ -389,9 +389,11 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
   float viewfinder_winmat[4][4];
   copy_m4_m4(viewfinder_winmat, cam_render_params.winmat);
 
-  /* Set View3D draw flags, always hide selection outlines in the viewfinder. */
+  /* Set viewfinder View3D draw flags, using base XR draw flags with some overriden exceptions. */
   int viewfinder_draw_flags = V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS | settings->draw_flags;
-  viewfinder_draw_flags &= ~V3D_OFSDRAW_SHOW_SELECTION;
+  viewfinder_draw_flags &= ~V3D_OFSDRAW_SHOW_SELECTION; /* Always hide selection outlines. */
+  viewfinder_draw_flags &= ~V3D_OFSDRAW_XR_SHOW_CONTROLLERS; /* Always hide other XR controller. */
+  viewfinder_draw_flags &= ~V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS; /* Always hide XR overlays. */
 
   /* Always enable DoF in the View3D settings used by in the viewfinder rendered view
    * for Workbench. */
