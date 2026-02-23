@@ -80315,11 +80315,11 @@ msgstr "Captura las dinámicas"
 
 
 msgctxt "Operator"
-msgid "Bake All Physics"
+msgid "Bake All Dynamics"
 msgstr "Capturar todas las dinámicas"
 
 
-msgid "Bake all physics"
+msgid "Bake all dynamics"
 msgstr "Captura todas las dinámicas"
 
 

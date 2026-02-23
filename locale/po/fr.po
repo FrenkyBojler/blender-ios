@@ -80212,11 +80212,11 @@ msgstr "Précalculer la physique"
 
 
 msgctxt "Operator"
-msgid "Bake All Physics"
+msgid "Bake All Dynamics"
 msgstr "Précalculer toutes les physiques"
 
 
-msgid "Bake all physics"
+msgid "Bake all dynamics"
 msgstr "Précalculer toutes les physiques"
 
 

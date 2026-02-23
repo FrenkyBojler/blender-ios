@@ -11439,11 +11439,11 @@ msgstr "Fizikai szimuláció kisütése"
 
 
 msgctxt "Operator"
-msgid "Bake All Physics"
+msgid "Bake All Dynamics"
 msgstr "Minden fizikai szimuláció kisütése"
 
 
-msgid "Bake all physics"
+msgid "Bake all dynamics"
 msgstr "Minden fizikai szimuláció kisütése"
 
 

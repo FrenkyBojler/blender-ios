@@ -80491,11 +80491,11 @@ msgstr "Gera e grava as físicas."
 
 
 msgctxt "Operator"
-msgid "Bake All Physics"
+msgid "Bake All Dynamics"
 msgstr "Gerar e gravar todas as físicas"
 
 
-msgid "Bake all physics"
+msgid "Bake all dynamics"
 msgstr "Gera e grava todas as físicas."
 
 

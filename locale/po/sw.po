@@ -63911,11 +63911,11 @@ msgstr "Fizikia ya kuoka"
 
 
 msgctxt "Operator"
-msgid "Bake All Physics"
+msgid "Bake All Dynamics"
 msgstr "Oka Fizikia Yote"
 
 
-msgid "Bake all physics"
+msgid "Bake all dynamics"
 msgstr "Oka fizikia yote"
 
 

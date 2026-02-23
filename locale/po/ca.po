@@ -80484,12 +80484,12 @@ msgstr "[Bake Physics]: Precuina comportaments físics"
 
 
 msgctxt "Operator"
-msgid "Bake All Physics"
+msgid "Bake All Dynamics"
 msgstr "Precuinar tot el físic"
 
 
-msgid "Bake all physics"
-msgstr "[Bake All Physics]: Precuina tot el que es comporta de manera física"
+msgid "Bake all dynamics"
+msgstr "[Bake All Dynamics]: Precuina tot el que es comporta de manera física"
 
 
 msgctxt "Operator"

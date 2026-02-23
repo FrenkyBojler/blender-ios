@@ -26987,11 +26987,11 @@ msgstr "Bake Fyziku"
 
 
 msgctxt "Operator"
-msgid "Bake All Physics"
+msgid "Bake All Dynamics"
 msgstr "Bake Všechnu Fyziku"
 
 
-msgid "Bake all physics"
+msgid "Bake all dynamics"
 msgstr "Bake všechnu fyziku"
 
 

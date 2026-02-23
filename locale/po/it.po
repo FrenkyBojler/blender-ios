@@ -45433,11 +45433,11 @@ msgstr "Precalcolo della fisica"
 
 
 msgctxt "Operator"
-msgid "Bake All Physics"
+msgid "Bake All Dynamics"
 msgstr "Precalcola Tutta la Fisica"
 
 
-msgid "Bake all physics"
+msgid "Bake all dynamics"
 msgstr "Precalcolo di tutta la fisica"
 
 
