@@ -1603,13 +1603,13 @@ static void check_segments(const CurveBooleanOpParameters &op_params,
                            const OffsetIndices<int> points_by_curve,
                            const IndexMask &clipping_shapes,
                            const Span<Segment> all_segments,
-                           const Span<IndexRange> all_segments_by_curve,
+                           const OffsetIndices<int> segments_by_curve,
                            const Span<IntersectionPoint> &intersections,
                            const VArray<int> &fill_id,
                            MutableSpan<bool> all_inside_left,
                            MutableSpan<bool> all_inside_right)
 {
-  const IndexRange segments = all_segments_by_curve[curve_k];
+  const IndexRange segments = segments_by_curve[curve_k];
 
   if (segments.is_empty()) {
     return;
@@ -1776,7 +1776,7 @@ static void add_segments(const int curve_k,
                          const Span<IntersectionPoint> &intersections,
                          const VArray<bool> &cyclic,
                          Vector<Segment> &all_segments,
-                         MutableSpan<IndexRange> all_segments_by_curve)
+                         MutableSpan<int> segments_num_per_curve)
 {
   const IndexRange points_k = points_by_curve[curve_k];
   const Span<int> new_inters = inters_per_curves[curve_k];
@@ -1785,7 +1785,7 @@ static void add_segments(const int curve_k,
 
   if (new_inters.size() == 0) {
     all_segments.append(Segment::from_curve(curve_k, points_k, cyclic[curve_k]));
-    all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
+    segments_num_per_curve[curve_k] = 1;
 
     return;
   }
@@ -1860,7 +1860,7 @@ static void add_segments(const int curve_k,
                                                     std::nullopt));
   }
 
-  all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
+  segments_num_per_curve[curve_k] = all_segments.size() - start_size;
 }
 
 static BooleanResult results_follow_segment_connections(const Span<Segment> all_segments,
@@ -2129,7 +2129,7 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
                                     intersections);
 
   Vector<Segment> all_segments;
-  Array<IndexRange> all_segments_by_curve(points_by_curve.size());
+  Array<int> all_segment_offset_data(points_by_curve.size() + 1, 0);
 
   if (fill_id[subj_curve_i] == 0) {
     add_segments(subj_curve_i,
@@ -2138,7 +2138,7 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
                  intersections,
                  cyclic,
                  all_segments,
-                 all_segments_by_curve);
+                 all_segment_offset_data.as_mutable_span().drop_back(1));
   }
   else {
     for (const int curve_i : (*shapes)[subj_shape_id]) {
@@ -2148,7 +2148,7 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
                    intersections,
                    cyclic,
                    all_segments,
-                   all_segments_by_curve);
+                   all_segment_offset_data.as_mutable_span().drop_back(1));
     }
   }
   clipping_shapes.foreach_index([&](const int clip_shape_id) {
@@ -2160,11 +2160,13 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
                    intersections,
                    cyclic,
                    all_segments,
-                   all_segments_by_curve);
+                   all_segment_offset_data.as_mutable_span().drop_back(1));
     }
   });
 
   store_segment_map_on_intersections(all_segments, intersections);
+  const OffsetIndices<int> segments_by_curve = offset_indices::accumulate_counts_to_offsets(
+      all_segment_offset_data);
 
   Array<bool> all_inside_left(all_segments.size());
   Array<bool> all_inside_right(all_segments.size());
@@ -2179,7 +2181,7 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
                    points_by_curve,
                    clipping_shapes,
                    all_segments,
-                   all_segments_by_curve,
+                   segments_by_curve,
                    intersections,
                    fill_id,
                    all_inside_left,
@@ -2196,7 +2198,7 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
                      points_by_curve,
                      clipping_shapes,
                      all_segments,
-                     all_segments_by_curve,
+                     segments_by_curve,
                      intersections,
                      fill_id,
                      all_inside_left,
@@ -2215,7 +2217,7 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
                      points_by_curve,
                      clipping_shapes,
                      all_segments,
-                     all_segments_by_curve,
+                     segments_by_curve,
                      intersections,
                      fill_id,
                      all_inside_left,
