@@ -26,6 +26,8 @@ struct Settings {
 
   template<typename T> void set(const std::string &item, const T &value);
 
+  void remove(const std::string &item);
+
   struct Proxy {
     std::string section;
     std::string key;
@@ -136,12 +138,20 @@ struct SettingsRoot {
     {
       return ValueProxy(section, key);
     }
+    /* Remove a key from this section (in-memory only). */
+    void remove(const std::string &key) const
+    {
+      Settings(section).remove(key);
+    }
   };
 
   SectionProxy operator[](const std::string &section) const
   {
     return SectionProxy(section);
   }
+
+  /* Remove a whole section (in-memory only). */
+  void remove_section(const std::string &section) const;
 };
 
 /* Global instance that can be used everywhere: settings["file_browser"]["width"]. */
