@@ -9,6 +9,8 @@
 
 #include "../../../extern/toml11/toml.hpp"
 
+#include <mutex> /* std::once_flag, std::call_once */
+
 #include "BKE_appdir.hh"
 
 #include "BLI_fileops.h"
@@ -21,10 +23,22 @@ namespace blender {
 constexpr toml::spec version = toml::spec::v(1, 1, 0);
 #define BLI_SETTINGS_FILE_NAME "settings.toml"
 
-toml::value settings_current;
-toml::value settings_default;
+/* Lazy (first-use) storage for toml values.. */
+static toml::value &BLI_settings_current()
+{
+  static toml::value v;
+  return v;
+}
+static toml::value &BLI_settings_default()
+{
+  static toml::value v;
+  return v;
+}
 
 static Mutex settings_mutex;
+
+/* Ensure bli_settings_init() runs once, thread-safely, on first use. */
+static std::once_flag settings_init_once;
 
 static std::string settings_file_path()
 {
@@ -43,13 +57,13 @@ static void bli_settings_print_errors(std::vector<toml::error_info> errors)
   }
 }
 
-void BLI_settings_init()
+static void bli_settings_init()
 {
   /* Load default settings. */
   toml::result result = toml::try_parse_str(default_settings_toml, version);
   if (result.is_ok()) {
     std::lock_guard<Mutex> lock(settings_mutex);
-    settings_default = result.unwrap();
+    BLI_settings_default() = result.unwrap();
   }
   else {
     bli_settings_print_errors(result.unwrap_err());
@@ -61,7 +75,7 @@ void BLI_settings_init()
     toml::result result = toml::try_parse(settings_file_path(), version);
     if (result.is_ok()) {
       std::lock_guard<Mutex> lock(settings_mutex);
-      settings_current = result.unwrap();
+      BLI_settings_current() = result.unwrap();
     }
     else {
       bli_settings_print_errors(result.unwrap_err());
@@ -71,9 +85,8 @@ void BLI_settings_init()
     /* Create a new settings file from defaults. */
     {
       std::lock_guard<Mutex> lock(settings_mutex);
-      settings_current = settings_default;
+      BLI_settings_current() = BLI_settings_default();
     }
-    settings_current = settings_default;
     BLI_settings_save();
   }
 }
@@ -81,10 +94,10 @@ void BLI_settings_init()
 bool BLI_settings_save()
 {
   std::lock_guard<Mutex> lock(settings_mutex);
-  if (settings_current.is_empty()) {
+  if (BLI_settings_current().is_empty()) {
     return false;
   }
-  std::string s = toml::format(settings_current, version);
+  std::string s = toml::format(BLI_settings_current(), version);
   FILE *fp = BLI_fopen(settings_file_path().c_str(), "w");
   fputs(s.c_str(), fp);
   fclose(fp);
@@ -93,17 +106,15 @@ bool BLI_settings_save()
 
 void Settings::remove(const StringRef &item)
 {
+  std::call_once(settings_init_once, bli_settings_init);
   std::lock_guard<Mutex> lock(settings_mutex);
-  if (settings_current.is_empty()) {
-    BLI_settings_init();
-  }
 
   /* Ensure the root is a table and the section exists as a table. */
-  if (!settings_current.is_table()) {
+  if (!BLI_settings_current().is_table()) {
     return;
   }
 
-  auto &root_tbl = settings_current.as_table();
+  auto &root_tbl = BLI_settings_current().as_table();
   auto section_it = root_tbl.find(section);
   if (section_it == root_tbl.end()) {
     return;
@@ -120,40 +131,34 @@ void Settings::remove(const StringRef &item)
 
 void Settings::remove_section()
 {
+  std::call_once(settings_init_once, bli_settings_init);
   std::lock_guard<Mutex> lock(settings_mutex);
-  if (settings_current.is_empty()) {
-    BLI_settings_init();
-  }
 
-  if (!settings_current.is_table()) {
+  if (!BLI_settings_current().is_table()) {
     return;
   }
 
-  toml::table &root_tbl = settings_current.as_table();
+  toml::table &root_tbl = BLI_settings_current().as_table();
   root_tbl.erase(section);
 }
 
 template<typename T> T Settings::get(const StringRef &item) const
 {
+  std::call_once(settings_init_once, bli_settings_init);
   std::lock_guard<Mutex> lock(settings_mutex);
-  if (settings_current.is_empty()) {
-    BLI_settings_init();
-  }
   const std::string sec = section;
   const std::string key = item;
 
-  const toml::value &cur = settings_current[sec][key];
-  const toml::value &def = settings_default[sec][key];
+  const toml::value &cur = BLI_settings_current()[sec][key];
+  const toml::value &def = BLI_settings_default()[sec][key];
   return toml::get_or(cur, toml::get_or(def, T{}));
 }
 
 template<typename T> void Settings::set(const StringRef &item, const T &value)
 {
+  std::call_once(settings_init_once, bli_settings_init);
   std::lock_guard<Mutex> lock(settings_mutex);
-  if (settings_current.is_empty()) {
-    BLI_settings_init();
-  }
-  settings_current[section][item] = value;
+  BLI_settings_current()[section][item] = value;
 }
 
 template char Settings::get<char>(const StringRef &item) const;

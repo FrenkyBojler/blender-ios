@@ -12,7 +12,6 @@
 
 namespace blender {
 
-void BLI_settings_init();
 bool BLI_settings_save();
 
 struct Settings {
