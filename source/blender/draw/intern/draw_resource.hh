@@ -66,20 +66,7 @@ inline void ObjectInfos::sync()
 {
   object_attrs_len = 0;
   object_attrs_offset = 0;
-#ifndef NDEBUG
-  /* Initialize to NaN for easier debugging of uninitialized data usage. */
-  orco_add = float3(NAN_FLT);
-  orco_mul = float3(NAN_FLT);
-  ob_color = float4(NAN_FLT);
-  index = UINT32_MAX;
-  light_and_shadow_set_membership = UINT32_MAX;
-  random = NAN_FLT;
-  flag = eObjectInfoFlag::OBJECT_NO_INFO;
-  shadow_terminator_normal_offset = NAN_FLT;
-  shadow_terminator_geometry_offset = NAN_FLT;
-#else
-  /* Zero-Initialize since this data might still be accesible even if it shouldn't.
-   * (See #154105). */
+  /* Zero-Initialize since this data might still be accesible (See #154105). */
   orco_add = float3(0.0f);
   orco_mul = float3(0.0f);
   ob_color = float4(0.0f);
@@ -89,7 +76,6 @@ inline void ObjectInfos::sync()
   flag = eObjectInfoFlag::OBJECT_NO_INFO;
   shadow_terminator_normal_offset = 0.0f;
   shadow_terminator_geometry_offset = 0.0f;
-#endif
 }
 
 inline void ObjectInfos::sync(const draw::ObjectRef ref,
@@ -212,12 +198,6 @@ inline void ObjectBounds::sync()
   bounding_corners[2] = float4(NAN_FLT);
   bounding_corners[3] = float4(NAN_FLT);
   bounding_sphere = float4(NAN_FLT);
-#else
-  bounding_corners[0] = float4(0.0f);
-  bounding_corners[1] = float4(0.0f);
-  bounding_corners[2] = float4(0.0f);
-  bounding_corners[3] = float4(0.0f);
-  bounding_sphere = float4(0.0f);
 #endif
   bounding_sphere.w = -1.0f; /* Disable test. */
 }
