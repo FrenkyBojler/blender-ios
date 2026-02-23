@@ -23,13 +23,37 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Target");
   b.add_output<decl::Geometry>("Target").align_with_previous().propagate_all();
   b.add_output<decl::Bool>("Success");
-  b.add_input<decl::Int>("Target ID")
-      .implicit_field(NODE_DEFAULT_INPUT_ID_INDEX_FIELD)
-      .structure_type(StructureType::Field);
+  {
+    auto &p = b.add_panel("Target IDs").default_closed(true);
+    Vector<BaseSocketDeclarationBuilder *> sockets;
+    sockets.append(&p.add_input<decl::Int>("Target Point ID"));
+    sockets.append(&p.add_input<decl::Int>("Target Edge ID"));
+    sockets.append(&p.add_input<decl::Int>("Target Face ID"));
+    sockets.append(&p.add_input<decl::Int>("Target Corner ID"));
+    sockets.append(&p.add_input<decl::Int>("Target Curve ID"));
+    sockets.append(&p.add_input<decl::Int>("Target Instance ID"));
+
+    for (BaseSocketDeclarationBuilder *socket : sockets) {
+      socket->implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD);
+      socket->structure_type(StructureType::Field);
+    }
+  }
   b.add_input<decl::Geometry>("Source");
-  b.add_input<decl::Int>("Source ID")
-      .implicit_field(NODE_DEFAULT_INPUT_ID_INDEX_FIELD)
-      .structure_type(StructureType::Field);
+  {
+    auto &p = b.add_panel("Source IDs").default_closed(true);
+    Vector<BaseSocketDeclarationBuilder *> sockets;
+    sockets.append(&p.add_input<decl::Int>("Source Point ID"));
+    sockets.append(&p.add_input<decl::Int>("Source Edge ID"));
+    sockets.append(&p.add_input<decl::Int>("Source Face ID"));
+    sockets.append(&p.add_input<decl::Int>("Source Corner ID"));
+    sockets.append(&p.add_input<decl::Int>("Source Curve ID"));
+    sockets.append(&p.add_input<decl::Int>("Source Instance ID"));
+
+    for (BaseSocketDeclarationBuilder *socket : sockets) {
+      socket->implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD);
+      socket->structure_type(StructureType::Field);
+    }
+  }
 
   b.add_input<decl::String>("Names")
       .optional_label()
@@ -47,23 +71,23 @@ class AttributeTransferer {
   GeometrySet &src_geo_;
   bool ignore_names_;
   const VectorSet<std::string> &attribute_patterns_;
-  const Field<int> &dst_id_field_;
-  const Field<int> &src_id_field_;
+  const Map<bke::AttrDomain, Field<int>> &dst_id_fields_;
+  const Map<bke::AttrDomain, Field<int>> &src_id_fields_;
   bool any_transferred_ = false;
 
  public:
   AttributeTransferer(GeometrySet &dst_geo,
                       GeometrySet &src_geo,
                       const VectorSet<std::string> &attribute_patterns,
-                      const Field<int> &dst_id_field,
-                      const Field<int> &src_id_field,
+                      const Map<bke::AttrDomain, Field<int>> &dst_id_fields,
+                      const Map<bke::AttrDomain, Field<int>> &src_id_fields,
                       const bool ignore_names)
       : dst_geo_(dst_geo),
         src_geo_(src_geo),
         ignore_names_(ignore_names),
         attribute_patterns_(attribute_patterns),
-        dst_id_field_(dst_id_field),
-        src_id_field_(src_id_field)
+        dst_id_fields_(dst_id_fields),
+        src_id_fields_(src_id_fields)
   {
   }
 
@@ -174,8 +198,11 @@ class AttributeTransferer {
       }
       ids.emplace();
 
-      if (dynamic_cast<const fn::IndexFieldInput *>(&src_id_field_.node()) &&
-          dynamic_cast<const fn::IndexFieldInput *>(&dst_id_field_.node()))
+      const Field<int> &src_id_field = src_id_fields_.lookup(item.domain);
+      const Field<int> &dst_id_field = dst_id_fields_.lookup(item.domain);
+
+      if (dynamic_cast<const fn::IndexFieldInput *>(&src_id_field.node()) &&
+          dynamic_cast<const fn::IndexFieldInput *>(&dst_id_field.node()))
       {
         ids->transfer_by_index = true;
         continue;
@@ -187,14 +214,14 @@ class AttributeTransferer {
       fn::FieldContext &src_field_context = create_src_field_context(item.domain);
       fn::FieldEvaluator &src_evaluator = scope_.construct<fn::FieldEvaluator>(src_field_context,
                                                                                src_size);
-      src_evaluator.add(src_id_field_);
+      src_evaluator.add(src_id_field);
       src_evaluator.evaluate();
       const VArraySpan<int> src_ids = src_evaluator.get_evaluated<int>(0);
 
       fn::FieldContext &dst_field_context = create_dst_field_context(item.domain);
       fn::FieldEvaluator &dst_evaluator = scope_.construct<fn::FieldEvaluator>(dst_field_context,
                                                                                dst_size);
-      dst_evaluator.add(dst_id_field_);
+      dst_evaluator.add(dst_id_field);
       dst_evaluator.evaluate();
       const VArraySpan<int> dst_ids = dst_evaluator.get_evaluated<int>(0);
 
@@ -284,9 +311,25 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet target_geo = params.extract_input<GeometrySet>("Target");
   GeometrySet source_geo = params.extract_input<GeometrySet>("Source");
   const ListPtr attribute_patterns_list = params.extract_input<ListPtr>("Names");
-  const Field<int> target_id = params.extract_input<Field<int>>("Target ID");
-  const Field<int> source_id = params.extract_input<Field<int>>("Source ID");
   const bool ignore_names = params.extract_input<bool>("Ignore Names");
+
+  Map<bke::AttrDomain, Field<int>> dst_id_fields;
+  dst_id_fields.add_new(AttrDomain::Point, params.extract_input<Field<int>>("Target Point ID"));
+  dst_id_fields.add_new(AttrDomain::Edge, params.extract_input<Field<int>>("Target Edge ID"));
+  dst_id_fields.add_new(AttrDomain::Face, params.extract_input<Field<int>>("Target Face ID"));
+  dst_id_fields.add_new(AttrDomain::Corner, params.extract_input<Field<int>>("Target Corner ID"));
+  dst_id_fields.add_new(AttrDomain::Curve, params.extract_input<Field<int>>("Target Curve ID"));
+  dst_id_fields.add_new(AttrDomain::Instance,
+                        params.extract_input<Field<int>>("Target Instance ID"));
+
+  Map<bke::AttrDomain, Field<int>> src_id_fields;
+  src_id_fields.add_new(AttrDomain::Point, params.extract_input<Field<int>>("Source Point ID"));
+  src_id_fields.add_new(AttrDomain::Edge, params.extract_input<Field<int>>("Source Edge ID"));
+  src_id_fields.add_new(AttrDomain::Face, params.extract_input<Field<int>>("Source Face ID"));
+  src_id_fields.add_new(AttrDomain::Corner, params.extract_input<Field<int>>("Source Corner ID"));
+  src_id_fields.add_new(AttrDomain::Curve, params.extract_input<Field<int>>("Source Curve ID"));
+  src_id_fields.add_new(AttrDomain::Instance,
+                        params.extract_input<Field<int>>("Source Instance ID"));
 
   VectorSet<std::string> attribute_patterns;
   if (attribute_patterns_list) {
@@ -300,7 +343,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   bool success = false;
   if (!attribute_patterns.is_empty()) {
     AttributeTransferer transferer(
-        target_geo, source_geo, attribute_patterns, target_id, source_id, ignore_names);
+        target_geo, source_geo, attribute_patterns, dst_id_fields, src_id_fields, ignore_names);
     success = transferer.do_transfer();
   }
   params.set_output("Target", std::move(target_geo));
