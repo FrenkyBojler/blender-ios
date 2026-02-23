@@ -414,11 +414,11 @@ static void calculate_target_locations(MutableSpan<CircleVert> verts,
     float angle;
 
     if (is_regular) {
-      angle = start_angle + step * i + rotation_angle;
+      angle = start_angle + step * i - rotation_angle;
     }
     else {
       float2 vec = verts[i].co_2d - center;
-      angle = atan2f(vec.y, vec.x) + rotation_angle;
+      angle = atan2f(vec.y, vec.x) - rotation_angle;
     }
 
     verts[i].target_2d.x = center.x + cosf(angle) * radius;
@@ -609,10 +609,19 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
   }
 
   for (VertChain &chain_data : chains) {
-    const Vector<BMVert *> &chain = chain_data.verts;
-
+    Vector<BMVert *> &chain = chain_data.verts;
+    float3 normal_accum = float3(0.0f);
+    for (BMVert *v : chain) {
+      normal_accum += float3(v->no);
+    }
     float3 center_3d;
     float3x3 mat = calculate_plane_orientation(chain, center_3d);
+
+    /* Reverse the chain winding if the Newell normal opposes the cumulative vertex normal. */
+    if (math::dot(mat.z_axis(), normal_accum) < 0.0f) {
+      std::reverse(chain.begin(), chain.end());
+      mat = calculate_plane_orientation(chain, center_3d);
+    }
 
     bool is_mirrored = false;
     int mirror_axis = -1;
