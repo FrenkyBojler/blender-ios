@@ -29,17 +29,22 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const Field<float> weight = params.extract_input<Field<float>>("Weight");
 
+  std::atomic<bool> has_nurbs = false;
+
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (Curves *curves_id = geometry_set.get_curves_for_write()) {
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
       const bke::CurvesFieldContext field_context(*curves_id, AttrDomain::Point);
 
-      bke::try_capture_field_on_geometry(curves.attributes_for_write(),
-                                         field_context,
-                                         "nurbs_weight",
-                                         bke::AttrDomain::Point,
-                                         selection,
-                                         weight);
+      if (curves.has_curve_with_type(CURVE_TYPE_NURBS)) {
+        bke::try_capture_field_on_geometry(curves.attributes_for_write(),
+                                           field_context,
+                                           "nurbs_weight",
+                                           bke::AttrDomain::Point,
+                                           selection,
+                                           weight);
+        has_nurbs = true;
+      }
     }
     if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
       using namespace blender::bke::greasepencil;
@@ -48,16 +53,25 @@ static void node_geo_exec(GeoNodeExecParams params)
         if (drawing == nullptr) {
           continue;
         }
-        bke::try_capture_field_on_geometry(
-            drawing->strokes_for_write().attributes_for_write(),
-            bke::GreasePencilLayerFieldContext(*grease_pencil, AttrDomain::Point, layer_index),
-            "nurbs_weight",
-            bke::AttrDomain::Point,
-            selection,
-            weight);
+
+        bke::CurvesGeometry &curves = drawing->strokes_for_write();
+        if (curves.has_curve_with_type(CURVE_TYPE_NURBS)) {
+          has_nurbs = true;
+          bke::try_capture_field_on_geometry(
+              curves.attributes_for_write(),
+              bke::GreasePencilLayerFieldContext(*grease_pencil, AttrDomain::Point, layer_index),
+              "nurbs_weight",
+              bke::AttrDomain::Point,
+              selection,
+              weight);
+        }
       }
-    }
+    };
   });
+
+  if (!has_nurbs) {
+    params.error_message_add(NodeWarningType::Info, TIP_("Input curves do not have NURBS type"));
+  }
 
   params.set_output("Curves", std::move(geometry_set));
 }
@@ -69,7 +83,7 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeSetCurveWeight");
   ntype.ui_name = "Set Curve Weight";
   ntype.ui_description =
-      "Control the influence of each control point on the curve by changing the "
+      "Control the influence of each NURBS control point on the curve by changing the "
       "\"nurbs_weight\" attribute";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
