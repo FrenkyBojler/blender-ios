@@ -127,14 +127,12 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
   const std::optional<GroupedSpan<int>> fills = drawing_temp.fills();
   const int num_fills = fills.has_value() ? fills->size() : drawing_temp.strokes().curves_num();
 
-  const IndexRange fill_mask = IndexRange(num_fills);
   const IndexRange clipping_fills = IndexRange::from_single(num_fills - 1);
 
   bke::CurvesGeometry carved_strokes = carver::curve_boolean(op_params,
                                                              drawing_temp.strokes(),
                                                              fills,
                                                              normal_planes,
-                                                             fill_mask,
                                                              clipping_fills,
                                                              layer_to_world,
                                                              region,
