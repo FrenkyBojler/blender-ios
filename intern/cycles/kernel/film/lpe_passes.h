@@ -53,6 +53,7 @@ CCL_NAMESPACE_BEGIN
 #define LPE_EVENT_GLOSSY 'G'
 #define LPE_EVENT_SINGULAR 'S'
 #define LPE_EVENT_STRAIGHT 's'
+#define LPE_EVENT_ALBEDO 'A'
 
 /* Helper functions to access chunked lpe_events array */
 ccl_device_inline uint64_t kernel_lpe_get_chunk(ccl_global IntegratorState state, int chunk_idx)
@@ -1042,7 +1043,7 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
         first_pattern = false;
       }
       else {
-        if (last_operator == '|') {
+        if (last_operator == '|' || last_operator == '+') {
           result = result || paren_result;
         }
         else if (last_operator == '-') {
@@ -1053,7 +1054,7 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
       /* Check if there's an operator after the closing paren */
       if (pattern[pos] == ' ' && pattern[pos + 1] != '\0' && pattern[pos + 2] == ' ') {
         char op = pattern[pos + 1];
-        if (op == '|' || op == '-') {
+        if (op == '|' || op == '-' || op == '+') {
           last_operator = op;
           pos += 3;
         }
@@ -1062,12 +1063,12 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
       continue;
     }
 
-    /* Check for operator with spaces: " | " or " - " (only outside parentheses) */
+    /* Check for operator with spaces: " | ", " - ", or " + " (only outside parentheses) */
     if (paren_depth == 0 && pattern[pos] == ' ' && pattern[pos + 1] != '\0' &&
         pattern[pos + 2] == ' ')
     {
       char op = pattern[pos + 1];
-      if (op == '|' || op == '-') {
+      if (op == '|' || op == '-' || op == '+') {
         /* Terminate current sub-pattern */
         sub_pattern[sub_pos] = '\0';
 
@@ -1082,7 +1083,7 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
             first_pattern = false;
           }
           else {
-            if (last_operator == '|') {
+            if (last_operator == '|' || last_operator == '+') {
               result = result || current; /* Union */
             }
             else if (last_operator == '-') {
@@ -1125,7 +1126,7 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
       result = current;
     }
     else {
-      if (last_operator == '|') {
+      if (last_operator == '|' || last_operator == '+') {
         result = result || current;
       }
       else if (last_operator == '-') {

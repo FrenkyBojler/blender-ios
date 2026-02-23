@@ -90,6 +90,15 @@ class CYCLES_PT_lpe_presets(CyclesPresetPanel):
             "Background_Indirect.py",
         ]
 
+        color_presets = [
+            "Diffuse_Color.py",
+            "Glossy_Color.py",
+            "Transmission_Color.py",
+            "Total_Color.py",
+            "Diffuse_Direct_and_Color.py",
+            "Diffuse_and_Glossy_Color.py",
+        ]
+
         advanced_presets = [
             "Caustics.py",
             "All_Paths.py",
@@ -100,6 +109,7 @@ class CYCLES_PT_lpe_presets(CyclesPresetPanel):
         # Sort each preset category alphabetically
         direct_presets.sort()
         indirect_presets.sort()
+        color_presets.sort()
         advanced_presets.sort()
 
         preset_paths = bpy.utils.preset_paths(self.preset_subdir)
@@ -131,6 +141,13 @@ class CYCLES_PT_lpe_presets(CyclesPresetPanel):
 
         layout.separator()
         col = layout.column()
+        col.label(text="Color (Albedo)")
+        for full_path, filename in all_presets:
+            if filename in color_presets:
+                self.draw_preset_item(layout, full_path, filename)
+
+        layout.separator()
+        col = layout.column()
         col.label(text="Advanced Patterns")
         for full_path, filename in all_presets:
             if filename in advanced_presets:
@@ -140,7 +157,7 @@ class CYCLES_PT_lpe_presets(CyclesPresetPanel):
         col = layout.column()
         col.label(text="Custom")
         for full_path, filename in all_presets:
-            if filename not in direct_presets + indirect_presets + advanced_presets:
+            if filename not in direct_presets + indirect_presets + color_presets + advanced_presets:
                 self.draw_preset_item(layout, full_path, filename)
 
         layout.separator()

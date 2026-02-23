@@ -29,6 +29,85 @@
 
 CCL_NAMESPACE_BEGIN
 
+/* Get surface albedo for the given event type (D/G/T or total). */
+ccl_device_inline Spectrum kernel_lpe_get_albedo_for_event(
+    KernelGlobals kg, const ccl_private ShaderData *sd, char event)
+{
+  switch (event) {
+    case LPE_EVENT_DIFFUSE:
+      return surface_shader_diffuse(kg, sd);
+    case LPE_EVENT_GLOSSY:
+      return surface_shader_glossy(kg, sd);
+    case LPE_EVENT_TRANSMISSION:
+      return surface_shader_transmission(kg, sd);
+    default:
+      return surface_shader_diffuse(kg, sd) + surface_shader_glossy(kg, sd) +
+             surface_shader_transmission(kg, sd);
+  }
+}
+
+/* Write LPE albedo passes at surface hit. Matches expressions ending with 'A' event. */
+ccl_device_inline void kernel_lpe_write_albedo_pass(KernelGlobals kg,
+                                                     ccl_global IntegratorState state,
+                                                     ccl_global float *ccl_restrict render_buffer,
+                                                     const ccl_private ShaderData *sd)
+{
+  if (kernel_data.film.pass_lpe == PASS_UNUSED || kernel_data.film.num_lpe_passes == 0) {
+    return;
+  }
+
+  /* Save current event state to restore later. */
+  uint64_t saved_events[LPE_EVENT_CHUNKS];
+  for (int i = 0; i < LPE_EVENT_CHUNKS; i++) {
+    saved_events[i] = kernel_lpe_get_chunk(state, i);
+  }
+  const uint8_t saved_count = INTEGRATOR_STATE(state, path, lpe_event_count);
+
+  /* Add Albedo as terminal event. */
+  kernel_lpe_add_event(state, LPE_EVENT_ALBEDO);
+
+  /* Extract path string with A included. */
+  char path_str[LPE_MAX_EVENTS + 1];
+  kernel_lpe_extract_path(state, path_str, LPE_MAX_EVENTS + 1);
+
+  ccl_global float *buffer = film_pass_pixel_render_buffer(kg, state, render_buffer);
+  const int lpe_offset = kernel_data.film.lpe_expressions_offset;
+
+  const uint16_t lightgroup_id = INTEGRATOR_STATE(state, path, lpe_lightgroup_id);
+  const int object_id = INTEGRATOR_STATE(state, path, lpe_object_id);
+  const int material_id = INTEGRATOR_STATE(state, path, lpe_material_id);
+
+  const Spectrum throughput = INTEGRATOR_STATE(state, path, throughput);
+
+  int current_lpe_offset = kernel_data.film.pass_lpe;
+
+  for (int pass_id = 0; pass_id < kernel_data.film.num_lpe_passes; pass_id++) {
+    ccl_global const float *lpe_data = &kernel_data_fetch(
+        lookup_table, lpe_offset + pass_id * LPE_MAX_EXPRESSION_LENGTH / 4);
+
+    char expression[LPE_MAX_EXPRESSION_LENGTH];
+    kernel_lpe_decompress_expression(lpe_data, expression);
+
+    if (kernel_lpe_matches_with_operators(
+            path_str, expression, lightgroup_id, object_id, material_id))
+    {
+      /* Determine albedo type from the event before A in the path. */
+      const int path_len = saved_count + 1;
+      const char prev_event = (path_len >= 2) ? path_str[path_len - 2] : '\0';
+      const Spectrum albedo = kernel_lpe_get_albedo_for_event(kg, sd, prev_event) * throughput;
+      film_write_pass_spectrum(buffer + current_lpe_offset, albedo);
+    }
+
+    current_lpe_offset += 3;
+  }
+
+  /* Restore original event state. */
+  for (int i = 0; i < LPE_EVENT_CHUNKS; i++) {
+    kernel_lpe_set_chunk(state, i, saved_events[i]);
+  }
+  INTEGRATOR_STATE_WRITE(state, path, lpe_event_count) = saved_count;
+}
+
 ccl_device_forceinline void integrate_surface_shader_setup(KernelGlobals kg,
                                                            ConstIntegratorState state,
                                                            ccl_private ShaderData *sd)
@@ -905,6 +984,9 @@ ccl_device int integrate_surface(KernelGlobals kg,
       PROFILING_EVENT(PROFILING_SHADE_SURFACE_PASSES);
       film_write_data_passes(kg, state, &sd, render_buffer);
 #endif
+
+      /* Write LPE albedo passes (A event) at surface hit. */
+      kernel_lpe_write_albedo_pass(kg, state, render_buffer, &sd);
 
 #ifdef __DENOISING_FEATURES__
       film_write_denoising_features_surface(kg, state, &sd, render_buffer);

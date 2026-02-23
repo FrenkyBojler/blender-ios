@@ -44,9 +44,9 @@ bool LPEParser::compile(const string &expression)
     /* Check for operator with spaces: " | " or " - " */
     if (*ptr == ' ' && *(ptr + 1) != '\0' && *(ptr + 2) == ' ') {
       char op = *(ptr + 1);
-      if (op == '|' || op == '-') {
+      if (op == '|' || op == '-' || op == '+') {
         parts.push_back(current);
-        operators_.push_back(op == '|' ? LPE_OP_OR : LPE_OP_SUBTRACT);
+        operators_.push_back(op == '-' ? LPE_OP_SUBTRACT : LPE_OP_OR);
         current.clear();
         ptr += 3; /* Skip " op " */
         continue;
@@ -192,7 +192,8 @@ bool LPEParser::parse_pattern(const string &pattern_str, LPEPattern &pattern)
                                     (1 << 8) |  /* D */
                                     (1 << 9) |  /* G */
                                     (1 << 10) | /* S */
-                                    (1 << 11);  /* s */
+                                    (1 << 11) | /* s */
+                                    (1 << 12);  /* A */
         token.event_mask = all_events_mask;
         token.is_negated = false; /* Negation is on the tag, not the event mask */
       }
@@ -220,7 +221,8 @@ bool LPEParser::parse_pattern(const string &pattern_str, LPEPattern &pattern)
                                       (1 << 8) |  /* D */
                                       (1 << 9) |  /* G */
                                       (1 << 10) | /* S */
-                                      (1 << 11);  /* s */
+                                      (1 << 11) | /* s */
+                                      (1 << 12);  /* A */
           token.event_mask = all_events_mask & ~token.event_mask;
         }
       }
@@ -339,6 +341,8 @@ int LPEParser::char_to_event(char c) const
       return 10; /* Singular scatter */
     case 's':
       return 11; /* Straight/transparent transmission */
+    case 'A':
+      return 12; /* Albedo */
     default:
       return -1;
   }
