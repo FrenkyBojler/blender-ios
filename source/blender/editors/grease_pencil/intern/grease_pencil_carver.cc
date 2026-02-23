@@ -119,18 +119,18 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
   carver::CurveBooleanOpParameters op_params;
   op_params.boolean_mode = carver::Operation::Difference;
 
-  /* TODO. */
-  bke::greasepencil::Drawing drawing_temp(drawing);
-  drawing_temp.strokes_for_write() = std::move(input_curves);
-  drawing_temp.tag_topology_changed();
+  bke::greasepencil::Drawing drawing_with_stroke(drawing);
+  drawing_with_stroke.strokes_for_write() = std::move(input_curves);
+  drawing_with_stroke.tag_topology_changed();
 
-  const std::optional<GroupedSpan<int>> fills = drawing_temp.fills();
-  const int num_fills = fills.has_value() ? fills->size() : drawing_temp.strokes().curves_num();
+  const std::optional<GroupedSpan<int>> fills = drawing_with_stroke.fills();
+  const int num_fills = fills.has_value() ? fills->size() :
+                                            drawing_with_stroke.strokes().curves_num();
 
   const IndexRange clipping_fills = IndexRange::from_single(num_fills - 1);
 
   bke::CurvesGeometry carved_strokes = carver::curve_boolean(op_params,
-                                                             drawing_temp.strokes(),
+                                                             drawing_with_stroke.strokes(),
                                                              fills,
                                                              normal_planes,
                                                              clipping_fills,

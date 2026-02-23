@@ -1353,6 +1353,7 @@ static int intersect(const float2 &P1,
   return val;
 }
 
+/* Calculate the winding order of a point when compared against a triangle. */
 static float point_in_tri_winding(const float2 pt,
                                   const float2 v1,
                                   const float2 v2,
@@ -1394,7 +1395,7 @@ static int edge_in_polygon_winding_twice(const int edge_id, const Span<float2> p
   /* Double and store as a int to avoid float rounding. */
   int twice_winding = 0;
 
-  /**/
+  /* We are on the edge so add one half. */
   twice_winding += 1;
 
   const float2 &point = poly[edge_id];
@@ -1431,6 +1432,9 @@ static int point_in_polygon_winding_int(const float2 &point, const Span<float2> 
   return int(twice_winding / 2);
 }
 
+/**
+ * The Winding State is a sparse way to store what curves a point is inside.
+ */
 class WindingState {
  private:
   /* Winding order of each curve. */
@@ -1461,17 +1465,16 @@ class WindingState {
     if (shape_id == -1) {
       return false;
     }
-
-    const IndexMask &shape = shapes[shape_id];
-
     int winding = 0;
 
+    const IndexMask &shape = shapes[shape_id];
     shape.foreach_index([&](const int curve_i) {
       if (orders_per_curve_.contains(curve_i)) {
         winding += orders_per_curve_.lookup(curve_i);
       }
     });
 
+    /* Odd-Even fill rule. */
     return winding % 2 != 0;
   }
 
@@ -1500,6 +1503,7 @@ class WindingState {
         std::logical_or());
   }
 
+  /* Returns true if the point exists for this boolean operation. */
   bool is_contributing(const CurveBooleanOpParameters op_params,
                        const Vector<IndexMask> &shapes,
                        const int subject_shape,
@@ -1527,6 +1531,7 @@ class WindingState {
   }
 };
 
+/* Calculate the winding states for left and right of the segment. */
 static std::pair<WindingState, WindingState> LR_states_from_segment(
     const Segment &segment,
     const Span<float2> points,
@@ -1569,25 +1574,9 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
                                     segment.intersection_factor[Side::Start]);
   }
 
-  if (shapes) {
-    mask_shapes.foreach_index([&](const int shape_id) {
-      const Span<int> curves_j = (*shapes)[shape_id];
-      for (const int curve_j : curves_j) {
-        if (curve_j == curve_i) {
-          return;
-        }
-
-        if (fill_id[curve_j] != 0) {
-          const Span<float2> poly_j = points.slice(points_by_curve[curve_j]);
-          const int winding_j = point_in_polygon_winding_int(first_point, poly_j);
-          state_L.add_to_curve(curve_j, winding_j);
-          state_R.add_to_curve(curve_j, winding_j);
-        }
-      }
-    });
-  }
-  else {
-    mask_shapes.foreach_index([&](const int curve_j) {
+  mask_shapes.foreach_index([&](const int shape_id) {
+    const Span<int> curves_j = (*shapes)[shape_id];
+    for (const int curve_j : curves_j) {
       if (curve_j == curve_i) {
         return;
       }
@@ -1598,12 +1587,13 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
         state_L.add_to_curve(curve_j, winding_j);
         state_R.add_to_curve(curve_j, winding_j);
       }
-    });
-  }
+    }
+  });
 
   return {state_L, state_R};
 }
 
+/* Check the left and right of a curve `k` */
 static void check_segments(const CurveBooleanOpParameters &op_params,
                            const int curve_k,
                            const bool is_subj,
@@ -1779,6 +1769,7 @@ static void find_intersections_between_shapes(const Span<float2> points,
   });
 }
 
+/* Create all the segments for a curve `k`. */
 static void add_segments(const int curve_k,
                          const Span<Vector<int>> inters_per_curves,
                          const OffsetIndices<int> points_by_curve,
@@ -2020,6 +2011,87 @@ static BooleanResult results_follow_segment_connections(const Span<Segment> all_
   return result;
 }
 
+static void create_connections_from_intersection_points(
+    const Span<IntersectionPoint> &intersections,
+    const Span<bool> &segments_to_keep,
+    MutableSpan<SegmentConnections> segment_connections)
+{
+  auto connect = [&](const EncodedConnection point_1, const EncodedConnection point_2) {
+    segment_connections[decode_index(point_1)][decode_side(point_1)] = encode_index_and_side(
+        decode_index(point_2), decode_side(point_2));
+    segment_connections[decode_index(point_2)][decode_side(point_2)] = encode_index_and_side(
+        decode_index(point_1), decode_side(point_1));
+  };
+
+  for (const int inter_id : intersections.index_range()) {
+    const IntersectionPoint &inter = intersections[inter_id];
+
+    const EncodedConnection start_a = encode_index_and_side(inter.segment_index_i[Side::Start],
+                                                            Side::End);
+    const EncodedConnection end_a = encode_index_and_side(inter.segment_index_i[Side::End],
+                                                          Side::Start);
+    const EncodedConnection start_b = encode_index_and_side(inter.segment_index_j[Side::Start],
+                                                            Side::End);
+    const EncodedConnection end_b = encode_index_and_side(inter.segment_index_j[Side::End],
+                                                          Side::Start);
+    const bool is_start_a = start_a == SEGMENT_CONNECTION_NULL ?
+                                false :
+                                segments_to_keep[decode_index(start_a)];
+    const bool is_end_a = end_a == SEGMENT_CONNECTION_NULL ? false :
+                                                             segments_to_keep[decode_index(end_a)];
+    const bool is_start_b = start_b == SEGMENT_CONNECTION_NULL ?
+                                false :
+                                segments_to_keep[decode_index(start_b)];
+    const bool is_end_b = end_b == SEGMENT_CONNECTION_NULL ? false :
+                                                             segments_to_keep[decode_index(end_b)];
+
+    if (is_start_a && is_end_a && is_start_b && is_end_b) {
+      connect(start_a, end_a);
+      connect(start_b, end_b);
+    }
+    else if (is_start_a && is_end_a && is_start_b && !is_end_b) {
+      connect(start_a, end_a);
+    }
+    else if (is_start_a && is_end_a && !is_start_b && is_end_b) {
+      connect(start_a, end_a);
+    }
+    else if (is_start_a && is_end_a && !is_start_b && !is_end_b) {
+      connect(start_a, end_a);
+    }
+    else if (is_start_a && !is_end_a && is_start_b && is_end_b) {
+      connect(start_b, end_b);
+    }
+    else if (is_start_a && !is_end_a && is_start_b && !is_end_b) {
+      connect(start_a, start_b);
+    }
+    else if (is_start_a && !is_end_a && !is_start_b && is_end_b) {
+      connect(start_a, end_b);
+    }
+    else if (is_start_a && !is_end_a && !is_start_b && !is_end_b) {
+    }
+    else if (!is_start_a && is_end_a && is_start_b && is_end_b) {
+      connect(start_b, end_b);
+    }
+    else if (!is_start_a && is_end_a && is_start_b && !is_end_b) {
+      connect(end_a, start_b);
+    }
+    else if (!is_start_a && is_end_a && !is_start_b && is_end_b) {
+      connect(end_a, end_b);
+    }
+    else if (!is_start_a && is_end_a && !is_start_b && !is_end_b) {
+    }
+    else if (!is_start_a && !is_end_a && is_start_b && is_end_b) {
+      connect(start_b, end_b);
+    }
+    else if (!is_start_a && !is_end_a && is_start_b && !is_end_b) {
+    }
+    else if (!is_start_a && !is_end_a && !is_start_b && is_end_b) {
+    }
+    else if (!is_start_a && !is_end_a && !is_start_b && !is_end_b) {
+    }
+  }
+}
+
 static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
                                             const int subj_shape_id,
                                             const int subj_curve_i,
@@ -2056,12 +2128,8 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
                                     inters_per_curves,
                                     intersections);
 
-  /* -------------------- */
-
   Vector<Segment> all_segments;
   Array<IndexRange> all_segments_by_curve(points_by_curve.size());
-
-  /* -------------------- */
 
   if (fill_id[subj_curve_i] == 0) {
     add_segments(subj_curve_i,
@@ -2096,11 +2164,7 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
     }
   });
 
-  /* -------------------- */
-
   store_segment_map_on_intersections(all_segments, intersections);
-
-  /* -------------------- */
 
   Array<bool> all_inside_left(all_segments.size());
   Array<bool> all_inside_right(all_segments.size());
@@ -2159,8 +2223,6 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
     }
   });
 
-  /* -------------------- */
-
   Array<bool> segments_to_keep(all_segments.size(), true);
   for (const int segment_i : all_segments.index_range()) {
     const Segment &segment = all_segments[segment_i];
@@ -2177,93 +2239,10 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
     }
   }
 
-  /* -------------------- */
-
-  Array<int2> segment_connections(all_segments.size(), int2(SEGMENT_CONNECTION_NULL));
-
-  for (const int inter_id : intersections.index_range()) {
-    const IntersectionPoint &inter = intersections[inter_id];
-
-    const EncodedConnection start_a = encode_index_and_side(inter.segment_index_i[Side::Start],
-                                                            Side::End);
-    const EncodedConnection end_a = encode_index_and_side(inter.segment_index_i[Side::End],
-                                                          Side::Start);
-    const EncodedConnection start_b = encode_index_and_side(inter.segment_index_j[Side::Start],
-                                                            Side::End);
-    const EncodedConnection end_b = encode_index_and_side(inter.segment_index_j[Side::End],
-                                                          Side::Start);
-    const bool is_start_a = start_a == SEGMENT_CONNECTION_NULL ?
-                                false :
-                                segments_to_keep[decode_index(start_a)];
-    const bool is_end_a = end_a == SEGMENT_CONNECTION_NULL ? false :
-                                                             segments_to_keep[decode_index(end_a)];
-    const bool is_start_b = start_b == SEGMENT_CONNECTION_NULL ?
-                                false :
-                                segments_to_keep[decode_index(start_b)];
-    const bool is_end_b = end_b == SEGMENT_CONNECTION_NULL ? false :
-                                                             segments_to_keep[decode_index(end_b)];
-
-    auto connect = [&](const EncodedConnection point_1, const EncodedConnection point_2) {
-      BLI_assert(all_segments[decode_index(point_1)].intersection_index[decode_side(point_1)] ==
-                 all_segments[decode_index(point_2)].intersection_index[decode_side(point_2)]);
-
-      segment_connections[decode_index(point_1)][decode_side(point_1)] = encode_index_and_side(
-          decode_index(point_2), decode_side(point_2));
-      segment_connections[decode_index(point_2)][decode_side(point_2)] = encode_index_and_side(
-          decode_index(point_1), decode_side(point_1));
-    };
-
-    /* TODO: Use left and right. */
-    if (is_start_a && is_end_a && is_start_b && is_end_b) {
-      connect(start_a, end_a);
-      connect(start_b, end_b);
-    }
-    else if (is_start_a && is_end_a && is_start_b && !is_end_b) {
-      connect(start_a, end_a);
-    }
-    else if (is_start_a && is_end_a && !is_start_b && is_end_b) {
-      connect(start_a, end_a);
-    }
-    else if (is_start_a && is_end_a && !is_start_b && !is_end_b) {
-      connect(start_a, end_a);
-    }
-
-    else if (is_start_a && !is_end_a && is_start_b && is_end_b) {
-      connect(start_b, end_b);
-    }
-    else if (is_start_a && !is_end_a && is_start_b && !is_end_b) {
-      connect(start_a, start_b);
-    }
-    else if (is_start_a && !is_end_a && !is_start_b && is_end_b) {
-      connect(start_a, end_b);
-    }
-    else if (is_start_a && !is_end_a && !is_start_b && !is_end_b) {
-    }
-
-    else if (!is_start_a && is_end_a && is_start_b && is_end_b) {
-      connect(start_b, end_b);
-    }
-    else if (!is_start_a && is_end_a && is_start_b && !is_end_b) {
-      connect(end_a, start_b);
-    }
-    else if (!is_start_a && is_end_a && !is_start_b && is_end_b) {
-      connect(end_a, end_b);
-    }
-    else if (!is_start_a && is_end_a && !is_start_b && !is_end_b) {
-    }
-
-    else if (!is_start_a && !is_end_a && is_start_b && is_end_b) {
-      connect(start_b, end_b);
-    }
-    else if (!is_start_a && !is_end_a && is_start_b && !is_end_b) {
-    }
-    else if (!is_start_a && !is_end_a && !is_start_b && is_end_b) {
-    }
-    else if (!is_start_a && !is_end_a && !is_start_b && !is_end_b) {
-    }
-  }
-
-  /* -------------------- */
+  Array<SegmentConnections> segment_connections(all_segments.size(),
+                                                SegmentConnections(SEGMENT_CONNECTION_NULL));
+  create_connections_from_intersection_points(
+      intersections, segments_to_keep, segment_connections);
 
   const BooleanResult result = results_follow_segment_connections(
       all_segments, segments_to_keep, segment_connections);
@@ -2284,9 +2263,6 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
     return is_cyclic[index] || (fill_ids[index] != 0);
   });
 
-  IndexMaskMemory memory;
-  Vector<IntersectionPoint> intersections;
-
   BooleanResult results_all;
   results_all.segment_offsets.append(0);
 
@@ -2294,16 +2270,7 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
     return results_all;
   }
 
-  IndexMask subject_shapes;
-  if (fills) {
-    subject_shapes = clipping_shapes.complement(fills->index_range(), memory);
-  }
-  else {
-    subject_shapes = clipping_shapes.complement(points_by_curve.index_range(), memory);
-  }
-
   int fill_index = 0;
-
   Array<int> fill_index_by_curves(points_by_curve.size(), -1);
   Array<int> first_curves(points_by_curve.size());
   array_utils::fill_index_range<int>(first_curves);
@@ -2312,7 +2279,7 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
     const bool is_filled = fill_ids[curve_i] != 0;
     const bool active_filled = is_filled && (fill_index_by_curves[curve_i] == -1);
 
-    /* Keep track of already rendered fills. */
+    /* Keep track of already included fills. */
     if (active_filled) {
       const Span<int> fill = (*fills)[fill_index];
       const int first_curve = fill.first();
@@ -2325,6 +2292,8 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
       fill_index++;
     }
   }
+
+  Vector<IntersectionPoint> intersections;
 
   for (const int curve_i : points_by_curve.index_range().drop_back(1)) {
     /* Will be `-1` if not a fill. */
