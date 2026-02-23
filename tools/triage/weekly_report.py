@@ -336,7 +336,7 @@ def report_personal_weekly_get(
         if pull_events:
             pull_data = gitea_json_issue_get_cached(pull)
             if pull_data["user"]["login"] != username:
-                pulls_reviewed.append(pull)
+                pulls_reviewed.add(pull)
 
     # Print triaging stats
 
