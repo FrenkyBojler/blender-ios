@@ -100,7 +100,7 @@ static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectPara
 
 static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 {
-  Settings settings("file_browser");
+  Settings settings("asset_browser");
 
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_ASSETS);
   BLI_assert(sfile->op == nullptr);
@@ -119,7 +119,7 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
   FileSelectParams *base_params = &asset_params->base_params;
   base_params->file[0] = '\0';
   base_params->filter_glob[0] = '\0';
-  base_params->flag |= int16_t(settings["flag"]);
+  base_params->flag |= int16_t(settings["flag"]) | FILE_ASSETS_ONLY | FILE_FILTER;
   base_params->flag &= ~FILE_DIRSEL_ONLY;
   base_params->filter |= FILE_TYPE_BLENDERLIB;
   base_params->filter_id = FILTER_ID_ALL;
@@ -700,7 +700,8 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
 void ED_fileselect_params_to_userdef(SpaceFile *sfile)
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
-  Settings settings("file_browser");
+  Settings settings(sfile->browse_mode == FILE_BROWSE_MODE_ASSETS ? "asset_browser" :
+                                                                    "file_browser");
 
   settings["thumbnail_size"] = params->thumbnail_size;
   settings["details_flags"] = params->details_flags;
@@ -1326,8 +1327,10 @@ void ED_fileselect_exit(wmWindowManager *wm, SpaceFile *sfile)
   if (!sfile) {
     return;
   }
+
+  ED_fileselect_params_to_userdef(sfile);
+
   if (sfile->op) {
-    ED_fileselect_params_to_userdef(sfile);
     WM_event_fileselect_event(wm, sfile->op, EVT_FILESELECT_EXTERNAL_CANCEL);
     sfile->op = nullptr;
   }
