@@ -477,6 +477,7 @@ class NODE_MT_gn_mesh_read_base(node_add_menu.NodeMenu):
 
     def draw(self, context):
         layout = self.layout
+        self.node_operator(layout, "GeometryNodeInputMeshCluster")
         self.node_operator(layout, "GeometryNodeInputMeshEdgeAngle")
         self.node_operator(layout, "GeometryNodeInputMeshEdgeNeighbors")
         self.node_operator(layout, "GeometryNodeInputMeshEdgeVertices")

@@ -73,16 +73,15 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
   r_roots.as_mutable_span().fill(-1);
 #endif
 
-  unselected.foreach_index_optimized<int>(GrainSize(1024),
-                                          [&](const int index) { r_roots[index] = index; });
+  unselected.foreach_index_optimized<int>([&](const int index) { r_roots[index] = index; }, exec_mode::parallel);
   if (group_id_to_root.size() == 1) {
     BLI_assert(group_id_to_root.lookup(group_id[selection.first()]) == selection.first());
     index_mask::masked_fill<int>(r_roots.as_mutable_span(), selection.first(), selection);
   }
   else {
-    selection.foreach_index_optimized<int>(GrainSize(1024), [&](const int index) {
+    selection.foreach_index_optimized<int>([&](const int index) {
       r_roots[index] = group_id_to_root.lookup(group_id[index]);
-    });
+    }, exec_mode::parallel);
   }
 
   BLI_assert(!r_roots.as_span().contains(-1));

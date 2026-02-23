@@ -10298,6 +10298,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeInputInstanceScale");
   define("GeometryNode", "GeometryNodeInputMaterial", def_geo_input_material);
   define("GeometryNode", "GeometryNodeInputMaterialIndex");
+  define("GeometryNode", "GeometryNodeInputMeshCluster");
   define("GeometryNode", "GeometryNodeInputMeshEdgeAngle");
   define("GeometryNode", "GeometryNodeInputMeshEdgeNeighbors");
   define("GeometryNode", "GeometryNodeInputMeshEdgeVertices");

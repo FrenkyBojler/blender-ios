@@ -97,15 +97,12 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
         (index_mask::ExprBuilder{}).subtract(&mask, {&selection}), memory);
 
     if (mask_to_cluster.is_empty()) {
-      Array<int> cluster_ids(mask.min_array_size());
-      array_utils::fill_index_range(cluster_ids.as_mutable_span());
       /* TODO: VArray from index range. */
-      return VArray<int>::from_container(std::move(cluster_ids));
+      return VArray<int>::from_func(mask.min_array_size(), [](int i) { return i; });
     }
 
     Array<int> cluster_ids(mask.min_array_size());
-    mask_to_fallback.foreach_index_optimized<int>(
-        GrainSize(1024), [&](const int index) { cluster_ids[index] = index; });
+    mask_to_fallback.foreach_index_optimized<int>([&](const int index) { cluster_ids[index] = index; }, exec_mode::parallel);
 
     if (distance_ == 0.0f) {
       /* TODO: Is this is really faster then explicit creation of groups for parallel processing
@@ -124,9 +121,9 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
         return VArray<int>::from_container(std::move(cluster_ids));
       }
 
-      mask_to_cluster.foreach_index(GrainSize(1024), [&](const int index) {
+      mask_to_cluster.foreach_index([&](const int index) {
         cluster_ids[index] = clusters.lookup(std::make_pair(positions[index], group_ids[index]));
-      });
+      }, exec_mode::parallel);
 
       return VArray<int>::from_container(std::move(cluster_ids));
     }
@@ -163,10 +160,9 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
         masked_cluster_ids(positions, group_indices, distance_, group_cluser_ids);
         group_indices.to_indices(mask_indices);
 
-        group_indices.foreach_index_optimized<int>(
-            GrainSize(2048), [&](const int index, const int pos) {
+        group_indices.foreach_index_optimized<int>([&](const int index, const int pos) {
               cluster_ids[index] = mask_indices[group_cluser_ids[pos]];
-            });
+            }, exec_mode::parallel);
       }
     });
 
