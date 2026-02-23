@@ -151,9 +151,9 @@ BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
   IndexMaskMemory memory;
   const IndexMask index_mask = IndexMask::from_predicate(
       IndexRange(grid::LeafNodeMask::SIZE),
-      GrainSize(grid::LeafNodeMask::SIZE),
       memory,
-      [&](const int64_t i) { return leaf_node_mask.isOn(i); });
+      [&](const int64_t i) { return leaf_node_mask.isOn(i); },
+      exec_mode::serial);
 
   const openvdb::Coord any_voxel_in_leaf = leaf_bbox.min();
   MutableSpan<openvdb::Coord> voxels = scope.allocator().allocate_array<openvdb::Coord>(
@@ -359,7 +359,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<ItemsAccessor>(*node);
-  MEM_delete_void(node->storage);
+  MEM_delete(static_cast<GeometryNodeFieldToGrid *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)

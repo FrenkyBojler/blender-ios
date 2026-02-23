@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include "scene/shader.h"
+#include "kernel/svm/types.h"
 #include "scene/background.h"
 #include "scene/integrator.h"
 #include "scene/light.h"
@@ -358,9 +359,24 @@ static ShaderNode *add_node(Scene *scene,
     color->set_value(get_node_output_rgba(b_node, "Color"));
     node = color;
   }
+  else if (b_node.is_type("FunctionNodeInputVector")) {
+    ColorNode *color = graph->create_node<ColorNode>();
+    color->set_value(get_node_output_vector(b_node, "Vector"));
+    node = color;
+  }
   else if (b_node.is_type("ShaderNodeValue")) {
     ValueNode *value = graph->create_node<ValueNode>();
     value->set_value(get_node_output_value(b_node, "Value"));
+    node = value;
+  }
+  else if (b_node.is_type("FunctionNodeInputBool")) {
+    ValueNode *value = graph->create_node<ValueNode>();
+    value->set_value(get_node_output_value(b_node, "Boolean"));
+    node = value;
+  }
+  else if (b_node.is_type("FunctionNodeInputInt")) {
+    ValueNode *value = graph->create_node<ValueNode>();
+    value->set_value(get_node_output_value(b_node, "Integer"));
     node = value;
   }
   else if (b_node.is_type("ShaderNodeCameraData")) {
@@ -1053,6 +1069,7 @@ static ShaderNode *add_node(Scene *scene,
     NormalMapNode *nmap = graph->create_node<NormalMapNode>();
     nmap->set_space((NodeNormalMapSpace)storage.space);
     nmap->set_attribute(ustring(storage.uv_map));
+    nmap->set_convention((NodeNormalMapConvention)storage.convention);
     node = nmap;
   }
   else if (b_node.is_type("ShaderNodeRadialTiling")) {
@@ -1097,6 +1114,11 @@ static ShaderNode *add_node(Scene *scene,
     OutputAOVNode *aov = graph->create_node<OutputAOVNode>();
     aov->set_name(ustring(storage.name));
     node = aov;
+  }
+  else if (b_node.is_type("ShaderNodeRaycast")) {
+    RaycastNode *raycast = graph->create_node<RaycastNode>();
+    raycast->set_only_local(b_node.custom1);
+    node = raycast;
   }
 
   if (node) {

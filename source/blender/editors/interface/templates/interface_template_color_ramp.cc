@@ -104,7 +104,6 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
                                    UI_UNIT_Y,
                                    nullptr,
                                    "");
-    button_retval_set(but, 1);
     button_func_set(but, [coba, cb](bContext &C) {
       colorband_flip(&C, coba);
       ED_region_tag_redraw(CTX_wm_region(&C));
@@ -122,7 +121,6 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
                                    UI_UNIT_Y,
                                    nullptr,
                                    "");
-    button_retval_set(but, 1);
     button_func_set(but, [coba, cb](bContext &C) {
       colorband_distribute(&C, coba, false);
       ED_region_tag_redraw(CTX_wm_region(&C));
@@ -140,7 +138,6 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
                                    UI_UNIT_Y,
                                    nullptr,
                                    "");
-    button_retval_set(but, 1);
     button_func_set(but, [coba, cb](bContext &C) {
       colorband_distribute(&C, coba, true);
       ED_region_tag_redraw(CTX_wm_region(&C));
@@ -165,7 +162,6 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
                                    UI_UNIT_Y,
                                    nullptr,
                                    "");
-    button_retval_set(but, 1);
     button_func_set(but, [coba, cb](bContext &C) {
       BKE_colorband_init(coba, true);
       ED_undo_push(&C, "Reset Color Ramp");
@@ -357,18 +353,17 @@ static void colorband_buttons_layout(Layout &layout,
     }
 
     /* Some special (rather awkward) treatment to update UI state on certain property changes. */
-    for (int i = block->buttons.size() - 1; i >= 0; i--) {
-      Button *but = block->buttons[i].get();
-      if (but->rnapoin.data != ptr.data) {
+    for (Button &but : block->buttons() | std::views::reverse) {
+      if (but.rnapoin.data != ptr.data) {
         continue;
       }
-      if (!but->rnaprop) {
+      if (!but.rnaprop) {
         continue;
       }
 
-      const char *prop_identifier = RNA_property_identifier(but->rnaprop);
+      const char *prop_identifier = RNA_property_identifier(but.rnaprop);
       if (STREQ(prop_identifier, "position")) {
-        button_func_set(but, colorband_update_cb, but, coba);
+        button_func_set(&but, colorband_update_cb, &but, coba);
       }
 
       if (STREQ(prop_identifier, "color")) {

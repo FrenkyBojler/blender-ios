@@ -93,6 +93,7 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/ramp_util.h
   svm/radial_tiling.h
   svm/radial_tiling_shared.h
+  svm/raycast.h
   svm/sepcomb_color.h
   svm/sepcomb_vector.h
   svm/sky.h
@@ -116,6 +117,7 @@ if(WITH_CYCLES_OSL)
     osl/closures_setup.h
     osl/closures_template.h
     osl/services_gpu.h
+    osl/strings.h
     osl/types.h
   )
 endif()
@@ -304,6 +306,7 @@ set(SRC_UTIL_HEADERS
   ../util/types_int3.h
   ../util/types_int4.h
   ../util/types_int8.h
+  ../util/types_normal.h
   ../util/types_spectrum.h
   ../util/types_rgbe.h
   ../util/types_uchar2.h
@@ -420,10 +423,12 @@ add_subdirectory(device/metal)
 add_subdirectory(device/oneapi)
 add_subdirectory(device/optix)
 
-target_link_libraries(cycles_kernel INTERFACE cycles_kernel_cpu)
+target_link_libraries(cycles_kernel
+  INTERFACE cycles_kernel_cpu
+)
 
 if(NOT WITH_CYCLES_PARALLEL_DEVICE_KERNEL_BUILD)
-  set(_cycles_prev_gpu_kernel_target)
+  set(_cycles_prev_gpu_kernel_target "")
   macro(cycles_add_gpu_kernel_dependencies GPU_KERNEL_TARGET)
     if(TARGET ${GPU_KERNEL_TARGET})
       if(_cycles_prev_gpu_kernel_target)
