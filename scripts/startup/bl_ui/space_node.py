@@ -438,6 +438,8 @@ class NODE_MT_node(Menu):
         layout.operator("transform.resize")
 
         layout.separator()
+        layout.operator("node.delete_copy_reconnect", text="Cut")
+        layout.operator_context = 'EXEC_DEFAULT'
         layout.operator("node.clipboard_copy", text="Copy", icon='COPYDOWN')
         layout.operator_context = 'EXEC_DEFAULT'
         layout.operator("node.clipboard_paste", text="Paste", icon='PASTEDOWN')
@@ -731,6 +733,7 @@ class NODE_MT_context_menu(Menu):
 
             layout.separator()
 
+        layout.operator("node.delete_copy_reconnect", text="Cut")
         layout.operator("node.clipboard_copy", text="Copy", icon='COPYDOWN')
         layout.operator("node.clipboard_paste", text="Paste", icon='PASTEDOWN')
 
