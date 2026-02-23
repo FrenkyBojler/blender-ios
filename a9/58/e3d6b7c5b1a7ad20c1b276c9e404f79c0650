@@ -14,3 +14,4 @@ Referenced by pull request #154190, Fix #154189: Transfer Mesh Data UVs are not 
 Referenced by pull request #154196, Fix #154133: UVs from Store Named Attributes node missing
 Referenced by commit c02e53ff487d39f614f09de13e76696dbeac4f98, Fix #154189: Transfer Mesh Data UVs are not set active
 Referenced by issue #154706, Imported OBJs will have their UV maps disabled in 5.1
+Referenced by pull request #154735, Fix #154706: OBJ import UV maps are not active
