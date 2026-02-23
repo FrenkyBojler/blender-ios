@@ -20,7 +20,7 @@ BLI_NOINLINE static void sample_point_attribute(const Span<int> corner_verts,
                                                 const Span<float3> bary_coords,
                                                 const VArray<T> &src,
                                                 const IndexMask &mask,
-                                                const exec_mode::Mode mode,
+                                                const exec_mode::Mode /*mode*/,
                                                 const MutableSpan<T> dst)
 {
   mask.foreach_index([&](const int i) {
@@ -29,7 +29,7 @@ BLI_NOINLINE static void sample_point_attribute(const Span<int> corner_verts,
                                   src[corner_verts[tri[0]]],
                                   src[corner_verts[tri[1]]],
                                   src[corner_verts[tri[2]]]);
-  }, mode);
+  });
 }
 
 void sample_point_normals(const Span<int> corner_verts,
@@ -187,7 +187,7 @@ static void sample_barycentric_weights(const Span<float3> vert_positions,
                                        const Span<int> tri_indices,
                                        const Span<float3> sample_positions,
                                        const IndexMask &mask,
-                                       const exec_mode::Mode mode,
+                                       const exec_mode::Mode /*mode*/,
                                        MutableSpan<float3> bary_coords)
 {
   mask.foreach_index([&](const int i) {
@@ -200,7 +200,7 @@ static void sample_barycentric_weights(const Span<float3> vert_positions,
     const int3 &tri = corner_tris[tri_indices[i]];
     bary_coords[i] = compute_bary_coord_in_triangle(
         vert_positions, corner_verts, tri, sample_positions[i]);
-  }, mode);
+  });
 }
 
 void sample_barycentric_weights(const Span<float3> vert_positions,
