@@ -1910,7 +1910,7 @@ bool supports_smooth_stroke(const Brush &brush)
 bool supports_space_attenuation(const Brush &brush)
 {
   return ELEM(brush.stroke_method, BRUSH_STROKE_SPACE, BRUSH_STROKE_LINE, BRUSH_STROKE_CURVE) &&
-         !ELEM(is_grab_tool(brush);
+         !is_grab_tool(brush);
 }
 bool supports_strength_pressure(const Brush &brush)
 {
