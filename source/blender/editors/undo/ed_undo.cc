@@ -836,7 +836,7 @@ static wmOperatorStatus undo_clear_history_exec(bContext *C, wmOperator *op)
   const int64_t data_size_freed = math::max(int64_t(data_size_before) - int64_t(data_size_after),
                                             0L);
 
-  char data_size_str[15];
+  char data_size_str[BLI_STR_FORMAT_INT64_BYTE_UNIT_SIZE];
   BLI_str_format_byte_unit(data_size_str, data_size_freed, true);
   BKE_reportf(op->reports,
               eReportType::RPT_INFO,
