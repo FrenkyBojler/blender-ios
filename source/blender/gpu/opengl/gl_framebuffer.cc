@@ -471,30 +471,37 @@ void GLFrameBuffer::clear_attachment(GPUAttachmentType type, const double4 clear
 {
   BLI_assert(GLContext::get() == context_);
   BLI_assert(context_->active_fb == this);
-  BLI_assert(type >= GPU_FB_COLOR_ATTACHMENT0);
 
   /* Save and restore the state. */
   GPUWriteMask write_mask = GPU_write_mask_get();
+
+  GPU_depth_mask(true);
   GPU_color_mask(true, true, true, true);
 
   context_->state_manager->apply_state();
 
-  int slot = type - GPU_FB_COLOR_ATTACHMENT0;
-  GPUTextureFormatFlag flag = attachments_[type].tex->format_flag_get();
-  if (flag & GPU_FORMAT_FLOAT || flag & GPU_FORMAT_NORMALIZED_INTEGER) {
-    float4 data = float4(clear_value);
-    glClearBufferfv(GL_COLOR, slot, &data.x);
-  }
-  else if (flag & GPU_FORMAT_INTEGER && flag & GPU_FORMAT_SIGNED) {
-    int4 data = int4(clear_value);
-    glClearBufferiv(GL_COLOR, slot, &data.x);
-  }
-  else if (flag & GPU_FORMAT_INTEGER && !(flag & GPU_FORMAT_SIGNED)) {
-    uint4 data = uint4(clear_value);
-    glClearBufferuiv(GL_COLOR, slot, &data.x);
+  if (ELEM(type, GPU_FB_DEPTH_ATTACHMENT, GPU_FB_DEPTH_STENCIL_ATTACHMENT)) {
+    glClearDepth(float(clear_value.x));
+    glClear(to_gl(GPU_DEPTH_BIT));
   }
   else {
-    BLI_assert_msg(0, "Unhandled data format");
+    int slot = type - GPU_FB_COLOR_ATTACHMENT0;
+    GPUTextureFormatFlag flag = attachments_[type].tex->format_flag_get();
+    if (flag & GPU_FORMAT_FLOAT || flag & GPU_FORMAT_NORMALIZED_INTEGER) {
+      float4 data = float4(clear_value);
+      glClearBufferfv(GL_COLOR, slot, &data.x);
+    }
+    else if (flag & GPU_FORMAT_INTEGER && flag & GPU_FORMAT_SIGNED) {
+      int4 data = int4(clear_value);
+      glClearBufferiv(GL_COLOR, slot, &data.x);
+    }
+    else if (flag & GPU_FORMAT_INTEGER && !(flag & GPU_FORMAT_SIGNED)) {
+      uint4 data = uint4(clear_value);
+      glClearBufferuiv(GL_COLOR, slot, &data.x);
+    }
+    else {
+      BLI_assert_msg(0, "Unhandled data format");
+    }
   }
 
   GPU_write_mask(write_mask);
