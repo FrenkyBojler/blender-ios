@@ -147,7 +147,7 @@ def report_personal_weekly_get(
     issues_commented: set[str] = set()
     issues_created: set[str] = set()
 
-    pulls_reviewed: set[str] = []
+    pulls_reviewed: set[str] = set()
 
     issues_confirmed: list[str] = []
     issues_needing_user_info: list[str] = []
