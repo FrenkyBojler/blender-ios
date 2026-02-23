@@ -292,7 +292,7 @@ void PTCACHE_OT_bake_all(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Bake All Dynamics";
-  ot->description = "Bake all dynamics";
+  ot->description = "Bake all physics simulations in the current scene";
   ot->idname = "PTCACHE_OT_bake_all";
 
   /* API callbacks. */
