@@ -1998,7 +1998,9 @@ static int rna_NodesModifierWarning_type_get(PointerRNA *ptr)
   return int(warning->type);
 }
 
-static bool rna_NodesModifier_is_input_visible(NodesModifierData *nmd, const char *identifier)
+static bool rna_NodesModifier_is_input_visible(NodesModifierData *nmd,
+                                               ReportList *reports,
+                                               const char *identifier)
 {
   bNodeTree *ntree = nmd->node_group;
 
@@ -2015,10 +2017,13 @@ static bool rna_NodesModifier_is_input_visible(NodesModifierData *nmd, const cha
     }
   }
 
+  BKE_reportf(reports, RPT_ERROR, "Input '%s' not found", identifier);
   return false;
 }
 
-static bool rna_NodesModifier_is_input_used(NodesModifierData *nmd, const char *identifier)
+static bool rna_NodesModifier_is_input_used(NodesModifierData *nmd,
+                                            ReportList *reports,
+                                            const char *identifier)
 {
   bNodeTree *ntree = nmd->node_group;
 
@@ -2035,6 +2040,7 @@ static bool rna_NodesModifier_is_input_used(NodesModifierData *nmd, const char *
     }
   }
 
+  BKE_reportf(reports, RPT_ERROR, "Input '%s' not found", identifier);
   return false;
 }
 
@@ -8170,6 +8176,7 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   RNA_def_property_override_clear_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
 
   func = RNA_def_function(srna, "is_input_visible", "rna_NodesModifier_is_input_visible");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
   RNA_def_function_ui_description(
       func, "Check whether an input is currently visible based on modifier settings.");
   parm = RNA_def_string(func, "identifier", "Identifier", 0, "", "The identifier of the input");
@@ -8178,6 +8185,7 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "is_input_used", "rna_NodesModifier_is_input_used");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
   RNA_def_function_ui_description(
       func, "Check whether an input is currently used based on modifier settings.");
   parm = RNA_def_string(func, "identifier", "Identifier", 0, "", "The identifier of the input");
