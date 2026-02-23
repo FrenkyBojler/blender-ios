@@ -119,6 +119,12 @@ void VKTexture::clear(const double4 data)
 {
   eGPUDataFormat data_format = to_texture_data_format(format_);
 
+  /* Relay depth/stencil clearing to clear_depth_stencil. This branch can be used by pyGPU. */
+  if (format_flag_ & GPU_FORMAT_DEPTH) {
+    clear_depth_stencil(GPU_DEPTH_BIT, data.x, 0u, std::nullopt);
+    return;
+  }
+
   render_graph::VKClearColorImageNode::CreateInfo clear_color_image = {};
   clear_color_image.vk_clear_color_value = to_vk_clear_color_value(data_format, data);
   clear_color_image.vk_image = vk_image_handle();
