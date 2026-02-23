@@ -217,8 +217,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Turn off sorting for large data sets. This will provide faster operation at the "
           "expense of unreliable IDs.");
-  advanced.add_output<decl::Float>("Lambda").field_on_all().description(
-      "The intersection factor on the segment");
 }
 
 /* Attribute outputs. */
@@ -233,7 +231,6 @@ struct AttributeOutputs {
   std::optional<std::string> pair;
   std::optional<std::string> pair_id;
   std::optional<std::string> hash;
-  std::optional<std::string> lambda;
   bool id;
 };
 
@@ -1217,8 +1214,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     attribute_outputs.pair_id = params.get_output_anonymous_attribute_id_if_needed("Pair ID");
   }
 
-  attribute_outputs.lambda = params.get_output_anonymous_attribute_id_if_needed("Lambda");
-
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (!geometry_set.has_curves()) {
       geometry_set.clear();
@@ -1437,13 +1432,6 @@ static void node_geo_exec(GeoNodeExecParams params)
             *attribute_outputs.pair_id, AttrDomain::Point);
         pair_id.span.copy_from(sorted_data.pair_id);
         pair_id.finish();
-      }
-
-      if (attribute_outputs.lambda) {
-        SpanAttributeWriter<float> lambda = attributes.lookup_or_add_for_write_only_span<float>(
-            *attribute_outputs.lambda, AttrDomain::Point);
-        lambda.span.copy_from(sorted_data.lambda);
-        lambda.finish();
       }
 
       geometry_set.clear();
