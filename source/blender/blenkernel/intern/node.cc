@@ -37,7 +37,6 @@
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
-#include "BLI_math_rotation.hh"
 #include "BLI_math_rotation_types.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
@@ -3984,15 +3983,7 @@ static void *node_static_value_storage_for(bNode &node, const bNodeSocket &socke
       return &reinterpret_cast<NodeInputVector *>(node.storage)->vector;
     case FN_NODE_INPUT_COLOR:
       return &reinterpret_cast<NodeInputColor *>(node.storage)->color;
-    case FN_NODE_INPUT_ROTATION:
-      return &reinterpret_cast<NodeInputRotation *>(node.storage)->rotation_euler;
-    case FN_NODE_INPUT_STRING:
-      /* Handled separately for string copies. */
-      return nullptr;
     case GEO_NODE_IMAGE:
-    case GEO_NODE_INPUT_COLLECTION:
-    case GEO_NODE_INPUT_MATERIAL:
-    case GEO_NODE_INPUT_OBJECT:
       return &node.id;
     default:
       break;
@@ -4048,7 +4039,7 @@ static void *socket_value_storage(bNodeSocket &socket)
       /* Matrix sockets currently have no default value. */
       return nullptr;
     case SOCK_STRING:
-      /* Handled separately for string copies. */
+      /* We don't want do this now! */
       return nullptr;
     case SOCK_CUSTOM:
     case SOCK_SHADER:
@@ -4110,13 +4101,6 @@ void node_socket_move_default_value(Main & /*bmain*/,
   if (!src_value) {
     return;
   }
-  /* Special handling for rotation because the CPPType is a quaternion but values are stored as
-   * Euler angles. */
-  math::Quaternion src_rotation_value;
-  if (src.type == SOCK_ROTATION) {
-    src_rotation_value = math::to_quaternion(math::EulerXYZ(*static_cast<float3 *>(src_value)));
-    src_value = &src_rotation_value;
-  }
 
   BUFFER_FOR_CPP_TYPE_VALUE(dst_type, dst_buffer);
   convert.convert_to_uninitialized(src_type, dst_type, src_value, dst_buffer);
@@ -4131,12 +4115,6 @@ void node_socket_move_default_value(Main & /*bmain*/,
 
   void *dst_value = node_static_value_storage_for(dst_node, dst);
   if (!dst_value) {
-    return;
-  }
-
-  if (dst.type == SOCK_ROTATION) {
-    *static_cast<float3 *>(dst_value) = float3(
-        math::to_euler(*static_cast<math::Quaternion *>(dst_buffer)).xyz());
     return;
   }
 
