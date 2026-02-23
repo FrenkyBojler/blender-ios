@@ -555,7 +555,6 @@ static bool action_copy_fcurves_by_basepath(const animrig::Action &src_action,
           result = true;
         }
       });
-
   for (const FCurve *fcurve : fcurves_to_copy) {
     std::optional<StringRefNull> group_name;
     if (fcurve->grp) {
