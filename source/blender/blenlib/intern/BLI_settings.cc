@@ -118,6 +118,21 @@ void Settings::remove(const StringRef &item)
   sec_tbl.erase(item);
 }
 
+void Settings::remove_section()
+{
+  std::lock_guard<Mutex> lock(settings_mutex);
+  if (settings_current.is_empty()) {
+    BLI_settings_init();
+  }
+
+  if (!settings_current.is_table()) {
+    return;
+  }
+
+  toml::table &root_tbl = settings_current.as_table();
+  root_tbl.erase(section);
+}
+
 template<typename T> T Settings::get(const StringRef &item) const
 {
   std::lock_guard<Mutex> lock(settings_mutex);

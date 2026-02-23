@@ -21,8 +21,11 @@ struct Settings {
   Settings(const StringRef &section) : section(section) {}
 
   template<typename T> T get(const StringRef &item) const;
+
   template<typename T> void set(const StringRef &item, const T &value);
+
   void remove(const StringRef &item);
+  void remove_section();
 
   struct Proxy {
     StringRef section;
@@ -57,6 +60,7 @@ struct Settings {
   {
     return Proxy(section, item);
   }
+
   ConstProxy operator[](const StringRef &item) const
   {
     return ConstProxy(section, item);
