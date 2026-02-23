@@ -31,8 +31,12 @@
 namespace blender {
 
 static const EnumPropertyItem prop_fit_method_items[] = {
-    {0, "BEST", 0, "Best Fit", "Non-linear least squares"},
-    {1, "INSIDE", 0, "Fit Inside", "Only move vertices towards the center"},
+    {0,
+     "LEAST_SQUARE",
+     0,
+     "Best Fit",
+     "Calculate a best-fit circle using non-linear least squares"},
+    {1, "CONTRACT", 0, "Interior Fit", "Only move vertices towards the center"},
     {0, nullptr},
 };
 
