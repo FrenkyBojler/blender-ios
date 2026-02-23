@@ -72,6 +72,7 @@ set(INC_SYS
 set(SRC
   intern/compositor_gizmos.cc
   intern/compositor_nodes_caller_ui.cc
+  intern/compositor_nodes_srna.cc
   intern/geometry_nodes_bundle.cc
   intern/geometry_nodes_caller_ui.cc
   intern/geometry_nodes_closure.cc
@@ -114,6 +115,7 @@ set(SRC
   NOD_composite.hh
   NOD_compositor_gizmos.hh
   NOD_compositor_nodes_caller_ui.hh
+  NOD_compositor_nodes_srna.hh
   NOD_defaults.hh
   NOD_geometry.hh
   NOD_geometry_exec.hh
@@ -146,6 +148,7 @@ set(SRC
   NOD_node_declaration.hh
   NOD_node_extra_info.hh
   NOD_node_in_compute_context.hh
+  NOD_nodes_srna.hh
   NOD_partial_eval.hh
   NOD_register.hh
   NOD_rna_define.hh

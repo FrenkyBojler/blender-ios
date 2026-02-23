@@ -135,6 +135,7 @@ BLI_INLINE void rna_pointer_refine(PointerRNA &r_ptr)
 {
   while (r_ptr.type->refine) {
     StructRNA *type = r_ptr.type->refine(&r_ptr);
+    BLI_assert(type != nullptr);
     if (type == r_ptr.type) {
       break;
     }

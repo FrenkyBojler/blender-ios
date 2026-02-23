@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "BLI_resource_scope.hh"
+#include "NOD_nodes_srna.hh"
 
 #include "RNA_types.hh"
 
@@ -29,11 +29,6 @@ extern const EnumPropertyItem geometry_nodes_input_type_items_fallback[];
 extern const EnumPropertyItem geometry_nodes_input_type_items_value[];
 extern const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute[];
 extern const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute_or_layer[];
-
-struct GeneratedTreeSrnaData {
-  ResourceScope scope;
-  Vector<StructRNA *> structs;
-};
 
 StructRNA *get_geometry_nodes_interface_srna_for_modifier(const bNodeTree &tree,
                                                           GeneratedTreeSrnaData &r_generated);

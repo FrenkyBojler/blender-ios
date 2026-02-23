@@ -1910,28 +1910,32 @@ static void rna_CompositorModifier_node_group_update(Main *bmain, Scene *scene, 
   strip_compositor_node_group_update(bmain, ptr);
 }
 
-static StructRNA *rna_CompositorModifierProperties_refine(PointerRNA *ptr)
+static StructRNA *rna_SequencerCompositorModifierProperties_refine(PointerRNA *ptr)
 {
   auto *cmd = ptr->data_as<SequencerCompositorModifierData>();
   if (!cmd->node_group) {
-    return nullptr;
+    return RNA_SequencerCompositorModifierProperties;
+  }
+  if (!cmd->node_group->runtime->compositor_nodes_modifier_srna) {
+    return RNA_SequencerCompositorModifierProperties;
   }
   return cmd->node_group->runtime->compositor_nodes_modifier_srna;
 }
 
-static std::optional<std::string> rna_CompositorModifierProperties_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_SequencerCompositorModifierProperties_path(
+    const PointerRNA *ptr)
 {
   const auto *cmd = ptr->data_as<SequencerCompositorModifierData>();
   return fmt::format("modifiers[\"{}\"].properties", BLI_str_escape(cmd->modifier.name));
 }
 
-static IDProperty **rna_CompositorModifier_idprops(PointerRNA *ptr)
+static IDProperty **rna_SequencerCompositorModifier_idprops(PointerRNA *ptr)
 {
   auto *md = ptr->data_as<StripModifierData>();
   return &md->system_properties;
 }
 
-static PointerRNA rna_CompositorModifierProperties_get(PointerRNA *ptr)
+static PointerRNA rna_SequencerCompositorModifierProperties_get(PointerRNA *ptr)
 {
   auto *cmd = ptr->data_as<SequencerCompositorModifierData>();
   if (!cmd->node_group) {
@@ -4370,10 +4374,10 @@ static void rna_def_compositor_modifier_nodes_properties(BlenderRNA *brna)
   StructRNA *srna;
 
   srna = RNA_def_struct(brna, "SequencerCompositorModifierProperties", nullptr);
-  RNA_def_struct_ui_text(srna, "Compositor Modifier Properties", "");
-  RNA_def_struct_refine_func(srna, "rna_CompositorModifierProperties_refine");
-  RNA_def_struct_system_idprops_func(srna, "rna_CompositorModifier_idprops");
-  RNA_def_struct_path_func(srna, "rna_CompositorModifierProperties_path");
+  RNA_def_struct_ui_text(srna, "Sequencer Compositor Modifier Properties", "");
+  RNA_def_struct_refine_func(srna, "rna_SequencerCompositorModifierProperties_refine");
+  RNA_def_struct_system_idprops_func(srna, "rna_SequencerCompositorModifier_idprops");
+  RNA_def_struct_path_func(srna, "rna_SequencerCompositorModifierProperties_path");
 }
 
 static void rna_def_compositor_modifier(BlenderRNA *brna)
@@ -4401,7 +4405,7 @@ static void rna_def_compositor_modifier(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "SequencerCompositorModifierProperties");
   RNA_def_property_ui_text(prop, "Properties", "");
   RNA_def_property_pointer_funcs(
-      prop, "rna_CompositorModifierProperties_get", nullptr, nullptr, nullptr);
+      prop, "rna_SequencerCompositorModifierProperties_get", nullptr, nullptr, nullptr);
 }
 
 static void rna_def_modifiers(BlenderRNA *brna)

@@ -34,6 +34,7 @@
 
 #include "MOD_nodes.hh"
 
+#include "NOD_compositor_nodes_srna.hh"
 #include "NOD_geo_viewer.hh"
 #include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
@@ -660,6 +661,23 @@ class NodeTreeMainUpdater {
       ntree.runtime->geometry_nodes_modifier_srna =
           nodes::get_geometry_nodes_interface_srna_for_modifier(
               ntree, *ntree.runtime->geometry_nodes_srna_data);
+    }
+    if (result.interface_changed && ntree.type == NTREE_COMPOSIT) {
+      if (ntree.runtime->compositor_nodes_srna_data) {
+        for (StructRNA *srna : ntree.runtime->compositor_nodes_srna_data->structs) {
+          /* Avoids warning when freeing the #StructRNA. */
+          RNA_struct_py_type_set(srna, nullptr);
+          RNA_struct_free(&RNA_blender_rna_get(), srna);
+        }
+        /* TODO: Need to check that no one else is referencing this data still? */
+        ntree.runtime->compositor_nodes_srna_data->structs.clear();
+        ntree.runtime->compositor_nodes_srna_data.reset();
+        ntree.runtime->compositor_nodes_modifier_srna = nullptr;
+      }
+      ntree.runtime->compositor_nodes_srna_data = std::make_unique<GeneratedTreeSrnaData>();
+      ntree.runtime->compositor_nodes_modifier_srna =
+          nodes::get_compositor_nodes_interface_srna_for_strip_modifier(
+              ntree, *ntree.runtime->compositor_nodes_srna_data);
     }
 
 #ifndef NDEBUG
