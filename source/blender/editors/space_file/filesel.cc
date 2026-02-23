@@ -100,12 +100,12 @@ static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectPara
 
 static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 {
+  Settings settings("file_browser");
+
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_ASSETS);
   BLI_assert(sfile->op == nullptr);
 
   FileAssetSelectParams *asset_params = sfile->asset_params;
-
-  Settings settings("file_browser");
 
   if (!asset_params) {
     asset_params = sfile->asset_params = MEM_new<FileAssetSelectParams>("FileAssetSelectParams");
@@ -146,12 +146,11 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 {
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_FILES);
 
+  Settings settings("file_browser");
   FileSelectParams *params;
   wmOperator *op = sfile->op;
 
   const char *blendfile_path = BKE_main_blendfile_path_from_global();
-
-  Settings settings("file_browser");
 
   /* create new parameters if necessary */
   if (!sfile->params) {
@@ -670,6 +669,7 @@ static bool file_select_use_default_sort_type(const SpaceFile *sfile)
 void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
 {
   wmOperator *op = sfile->op;
+  Settings settings("file_browser");
 
   sfile->browse_mode = FILE_BROWSE_MODE_FILES;
 
@@ -678,14 +678,14 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
     return;
   }
 
-  Settings settings("file_browser");
-
   params->thumbnail_size = settings["thumbnail_size"];
   params->details_flags = settings["details_flags"];
   params->filter_id = settings["filter_id"];
+
   /* Combine flags we take from params with the flags we take from userdef. */
   params->flag = (params->flag & ~PARAMS_FLAGS_REMEMBERED) |
                  (uint16_t(settings["flag"]) & PARAMS_FLAGS_REMEMBERED);
+
   if (file_select_use_default_display_type(sfile)) {
     params->display = settings["display_type"];
   }
@@ -700,7 +700,6 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
 void ED_fileselect_params_to_userdef(SpaceFile *sfile)
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
-
   Settings settings("file_browser");
 
   settings["thumbnail_size"] = params->thumbnail_size;

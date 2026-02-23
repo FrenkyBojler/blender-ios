@@ -173,6 +173,14 @@ display_type = 1
 sort_type = 1
 flag = 0
 
+["asset_browser"]
+details_flags = 3
+thumbnail_size = 96
+filter_id = 0
+display_type = 1
+sort_type = 1
+flag = 0
+
 ["file_browser.panels"]
 bookmarks_index = 0
 system_index = 1
