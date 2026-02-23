@@ -32,9 +32,11 @@ class VRActionRegistry:
         if self._initialized:
             return
         self._initialized = True
+        self.reset()
+
+    def reset(self):
         self.actions = {}
         self.profiles = {}
-        self.dirty = True
 
     def register_action(self, action):
         bucket = self.actions.get(action.name)
@@ -42,29 +44,11 @@ class VRActionRegistry:
             self.actions[action.name] = [action]
         else:
             bucket.append(action)
-        self.dirty = True
 
     def register_profile(self, profile):
         if profile.name in self.profiles:
             return
         self.profiles[profile.name] = profile
-        self.dirty = True
-
-    def ensure_actionmaps(self, session_state):
-        if not session_state:
-            return False
-        needs_build = self.dirty
-
-        # TODO: Remove this for loop once we confirm it's no longer needed
-        for name in (VRDefaultActionmaps.DEFAULT.value, VRDefaultActionmaps.GAMEPAD.value):
-            idx = session_state.actionmaps.find(session_state, name)
-            if idx is None or idx < 0:
-                needs_build = True
-        if needs_build:
-            self.build_actionmaps(session_state)
-            self.build_profile_settings()
-            self.dirty = False
-        return True
 
     def build_actionmaps(self, session_state):
         self._remove_actionmap(session_state, VRDefaultActionmaps.DEFAULT.value)
@@ -159,13 +143,8 @@ class VRActionRegistry:
         idx = actionmaps.find(session_state, name)
         if idx is None or idx < 0:
             return
-        try:
-            actionmaps.remove(idx)
-        except Exception:
-            try:
-                actionmaps.remove(actionmaps[idx])
-            except Exception:
-                pass
+        
+        actionmaps.remove(idx)
 
     def _collect_action_names(self, profile_names):
         action_names = []
@@ -249,5 +228,6 @@ def register():
 
 
 def unregister():
-    #TODO: Clean up action registry
-    pass
+    #TODO: Destroys data in the action registry.
+    registry = VRActionRegistry()
+    registry.reset()

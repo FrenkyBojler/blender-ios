@@ -50,9 +50,8 @@ def vr_create_actions(context: bpy.context):
 
     # Ensure default action maps.
     registry = action_registry.VRActionRegistry()
-    if not registry.ensure_actionmaps(session_state):
-        return
-    
+    registry.build_actionmaps(session_state)
+
     for am in session_state.actionmaps:
         if len(am.actionmap_items) < 1:
             continue
