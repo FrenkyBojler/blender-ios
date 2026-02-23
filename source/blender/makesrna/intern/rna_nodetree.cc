@@ -4956,6 +4956,7 @@ static void def_fn_input_menu(BlenderRNA * /*brna*/, StructRNA *srna)
   prop = RNA_def_property(srna, "value", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_dummy_NULL_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_NodeInputMenu_menu_itemf");
+  RNA_def_property_ui_text(prop, "Menu", "Value of the output socket");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
