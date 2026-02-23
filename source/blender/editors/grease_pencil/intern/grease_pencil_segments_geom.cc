@@ -2397,16 +2397,6 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                                                dst_segments_by_curve,
                                                                is_point_clipping);
 
-  bke::SpanAttributeWriter shape_ids =
-      dst_curves.attributes_for_write().lookup_or_add_for_write_span<int>("shape_id",
-                                                                          bke::AttrDomain::Curve);
-
-  for (const int i : result.shape_ids.index_range()) {
-    shape_ids.span[i] = result.shape_ids[i] + 1;
-  }
-
-  shape_ids.finish();
-
   const VArray<float2> dst_positions_2d_attribute = *dst_curves.attributes().lookup<float2>(
       ".positions_2d", bke::AttrDomain::Point);
 
