@@ -4180,7 +4180,10 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "autokey_mode");
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_enum_items(prop, auto_key_items);
-  RNA_def_property_ui_text(prop, "Auto-Keying Mode", "Mode for auto keying");
+  RNA_def_property_ui_text(
+      prop,
+      "Auto-Keying Mode",
+      "Can add additional constraints on when auto keying can insert keyframes");
 
   prop = RNA_def_property(srna, "use_record_with_nla", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "keying_flag", AUTOKEY_FLAG_LAYERED_RECORD);
