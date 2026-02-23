@@ -72,15 +72,12 @@ static void test_framebuffer_clear_color_multiple_attachments()
   }
   MEM_delete(read_data1);
 
-#ifndef __APPLE__ /* FIXME: Behavior is not the same on all backend. \
-                   * Current expected value is broken. */
   uint4 *read_data2 = static_cast<uint4 *>(GPU_texture_read(texture2, GPU_DATA_UINT, 0));
-  uint4 clear_color_uint(1036831949, 1045220557, 1056964608, 1065353216);
+  uint4 clear_color_uint(0, 0, 0, 1);
   for (uint4 pixel_color : Span<uint4>(read_data2, size.x * size.y)) {
     EXPECT_EQ(clear_color_uint, pixel_color);
   }
   MEM_delete(read_data2);
-#endif
 
   GPU_framebuffer_free(framebuffer);
   GPU_texture_free(texture1);

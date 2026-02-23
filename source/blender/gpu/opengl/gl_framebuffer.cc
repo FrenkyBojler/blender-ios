@@ -435,8 +435,12 @@ void GLFrameBuffer::clear(GPUFrameBufferBits buffers,
   GPUStencilTest stencil_test = GPU_stencil_test_get();
 
   if (buffers & GPU_COLOR_BIT) {
-    GPU_color_mask(true, true, true, true);
-    glClearColor(clear_col[0], clear_col[1], clear_col[2], clear_col[3]);
+    int type = GPU_FB_COLOR_ATTACHMENT0;
+    for (int i = 0; type < GPU_FB_MAX_ATTACHMENT; i++, type++) {
+      if (attachments_[type].tex != nullptr) {
+        this->clear_attachment(GPU_FB_COLOR_ATTACHMENT0 + i, clear_col);
+      }
+    }
   }
   if (buffers & GPU_DEPTH_BIT) {
     GPU_depth_mask(true);
@@ -450,7 +454,8 @@ void GLFrameBuffer::clear(GPUFrameBufferBits buffers,
 
   context_->state_manager->apply_state();
 
-  GLbitfield mask = to_gl(buffers);
+  /* Clear remaining buffers (stencil and depth). */
+  GLbitfield mask = to_gl(buffers & ~GPU_COLOR_BIT);
   glClear(mask);
 
   if (buffers & (GPU_COLOR_BIT | GPU_DEPTH_BIT)) {
