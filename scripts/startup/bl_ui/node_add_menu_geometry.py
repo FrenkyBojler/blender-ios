@@ -97,6 +97,7 @@ class NODE_MT_gn_curve_write_base(node_add_menu.NodeMenu):
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeSetCurveNormal")
+        self.node_operator(layout, "GeometryNodeSetCurveOrder")
         self.node_operator(layout, "GeometryNodeSetCurveRadius")
         self.node_operator(layout, "GeometryNodeSetCurveTilt")
         self.node_operator(layout, "GeometryNodeSetCurveHandlePositions")
@@ -703,6 +704,7 @@ class NODE_MT_gn_utilities_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, path="Utilities/Matrix")
         self.draw_menu(layout, path="Utilities/Rotation")
         layout.separator()
+        self.node_operator(layout, "NodeImplicitConversion")
         self.for_each_element_zone(layout, label="For Each Element")
         self.node_operator(layout, "GeometryNodeIndexSwitch")
         self.node_operator(layout, "GeometryNodeMenuSwitch")

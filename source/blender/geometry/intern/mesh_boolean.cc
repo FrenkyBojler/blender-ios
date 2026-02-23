@@ -243,17 +243,19 @@ void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
               const bool need_flip = face_is_flipped && is_normal_attribute[attr_index];
               const CPPType &type = dst.type();
               bke::attribute_math::to_static_type(type, [&]<typename T>() {
-                const Span<T> src_typed = src.typed<T>();
-                MutableSpan<T> dst_typed = dst.typed<T>();
-                bke::attribute_math::DefaultMixer<T> mixer{MutableSpan(&dst_typed[out_c], 1)};
-                for (const int i : in_face.index_range()) {
-                  mixer.mix_in(0, src_typed[in_face[i]], weights[i]);
-                }
-                mixer.finalize();
-                if (need_flip) {
-                  /* The joined mesh has converted custom normals to float3. */
-                  if (type.is<float3>()) {
-                    dst.typed<float3>()[out_c] = -dst.typed<float3>()[out_c];
+                if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+                  const Span<T> src_typed = src.typed<T>();
+                  MutableSpan<T> dst_typed = dst.typed<T>();
+                  bke::attribute_math::DefaultMixer<T> mixer{MutableSpan(&dst_typed[out_c], 1)};
+                  for (const int i : in_face.index_range()) {
+                    mixer.mix_in(0, src_typed[in_face[i]], weights[i]);
+                  }
+                  mixer.finalize();
+                  if (need_flip) {
+                    /* The joined mesh has converted custom normals to float3. */
+                    if (type.is<float3>()) {
+                      dst.typed<float3>()[out_c] = -dst.typed<float3>()[out_c];
+                    }
                   }
                 }
               });
@@ -1227,7 +1229,7 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
 #endif
   switch (solver) {
     case Solver::Float:
-      *r_error = BooleanError::NoError;
+      r_error->type = BooleanErrorType::NoError;
       ans = mesh_boolean_float(meshes,
                                transforms,
                                material_remaps,
@@ -1236,7 +1238,7 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
       break;
     case Solver::MeshArr:
 #ifdef WITH_GMP
-      *r_error = BooleanError::NoError;
+      r_error->type = BooleanErrorType::NoError;
       ans = mesh_boolean_mesh_arr(meshes,
                                   transforms,
                                   material_remaps,
@@ -1245,7 +1247,7 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
                                   operation_to_mesh_arr_mode(op_params.boolean_mode),
                                   r_intersecting_edges);
 #else
-      *r_error = BooleanError::SolverNotAvailable;
+      r_error->type = BooleanErrorType::SolverNotAvailable;
 #endif
       break;
     case Solver::Manifold:
@@ -1253,7 +1255,7 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
       ans = mesh_boolean_manifold(
           meshes, transforms, material_remaps, op_params, r_intersecting_edges, r_error);
 #else
-      *r_error = BooleanError::SolverNotAvailable;
+      r_error->type = BooleanErrorType::SolverNotAvailable;
 #endif
       break;
     default:
