@@ -8868,9 +8868,7 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
         if (but->block->auto_open == true) { /* test for toolbox */
           time = 1;
         }
-        else if ((but->block->flag & BLOCK_LOOP && but->type != ButtonType::Block) ||
-                 (but->block->auto_open == true))
-        {
+        else if (but->block->flag & BLOCK_LOOP && but->type == ButtonType::Pulldown) {
           time = 5 * U.menuthreshold2;
         }
         else if (U.uiflag & USER_MENUOPENAUTO) {
@@ -10231,7 +10229,7 @@ static int ui_handle_list_event(bContext *C,
 
         Button *but = button_first(listbox->block);
         if (but && but->type == ButtonType::ListRow) {
-          ui_apply_but_undo(but);
+          ED_undo_grouped_push(C, but->tip.data());
         }
 
         ui_list->flag |= UILST_SCROLL_TO_ACTIVE_ITEM;
