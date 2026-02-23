@@ -99,7 +99,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     set_is_active_fn([interface, &socket]() { return interface.active_item() == &socket.item; });
     set_on_activate_fn([&interface](bContext & /*C*/, BasicTreeViewItem &new_active) {
       NodeSocketViewItem &self = static_cast<NodeSocketViewItem &>(new_active);
-      interface.active_item_set(&self.socket_.item);
+      interface.active_item_set(&self.socket_.item, false);
     });
   }
 
@@ -162,7 +162,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
   }
   bool rename(const bContext &C, StringRefNull new_name) override
   {
-    MEM_SAFE_FREE(socket_.name);
+    MEM_SAFE_DELETE(socket_.name);
 
     socket_.name = BLI_strdup(new_name.c_str());
     nodetree_.tree_interface.tag_item_property_changed();
@@ -203,7 +203,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
     set_is_active_fn([interface, &panel]() { return interface.active_item() == &panel.item; });
     set_on_activate_fn([&interface](bContext & /*C*/, BasicTreeViewItem &new_active) {
       NodePanelViewItem &self = static_cast<NodePanelViewItem &>(new_active);
-      interface.active_item_set(&self.panel_.item);
+      interface.active_item_set(&self.panel_.item, false);
     });
     toggle_ = panel.header_toggle_socket();
     is_always_collapsible_ = true;
@@ -438,13 +438,13 @@ void *NodeTreeInterfaceDragController::create_drag_data() const
   Vector<bNodeTreeInterfaceItem *> drag_items;
   gather_drag_items_recursive(tree_.tree_interface.root_panel, drag_items, false);
 
-  bNodeTreeInterfaceItemReference *drag_data = MEM_callocN<bNodeTreeInterfaceItemReference>(
+  bNodeTreeInterfaceItemReference *drag_data = MEM_new_zeroed<bNodeTreeInterfaceItemReference>(
       __func__);
   drag_data->item = &item_;
   drag_data->tree = &tree_;
   drag_data->items_count = drag_items.size();
-  drag_data->items = MEM_calloc_arrayN<bNodeTreeInterfaceItem *>(drag_data->items_count,
-                                                                 "drag items");
+  drag_data->items = MEM_new_array_zeroed<bNodeTreeInterfaceItem *>(drag_data->items_count,
+                                                                    "drag items");
   std::copy(drag_items.begin(), drag_items.end(), drag_data->items);
   return drag_data;
 }

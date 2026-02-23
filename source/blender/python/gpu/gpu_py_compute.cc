@@ -30,13 +30,13 @@ PyDoc_STRVAR(
     "\n"
     "   Dispatches GPU compute.\n"
     "\n"
-    "   :arg shader: The shader that you want to dispatch.\n"
+    "   :param shader: The shader that you want to dispatch.\n"
     "   :type shader: :class:`gpu.types.GPUShader`\n"
-    "   :arg groups_x_len: Int for group x length:\n"
+    "   :param groups_x_len: Int for group x length:\n"
     "   :type groups_x_len: int\n"
-    "   :arg groups_y_len: Int for group y length:\n"
+    "   :param groups_y_len: Int for group y length:\n"
     "   :type groups_y_len: int\n"
-    "   :arg groups_z_len: Int for group z length:\n"
+    "   :param groups_z_len: Int for group z length:\n"
     "   :type groups_z_len: int\n");
 static PyObject *pygpu_compute_dispatch(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
@@ -50,15 +50,14 @@ static PyObject *pygpu_compute_dispatch(PyObject * /*self*/, PyObject *args, PyO
   static const char *_keywords[] = {
       "shader", "groups_x_len", "groups_y_len", "groups_z_len", nullptr};
   static _PyArg_Parser _parser = {
-        PY_ARG_PARSER_HEAD_COMPAT()
-        "O" /* `shader` */
-        "i" /* `groups_x_len` */
-        "i" /* `groups_y_len` */
-        "i" /* `groups_z_len` */
-        ":dispatch",
-        _keywords,
-        nullptr,
-    };
+      "O" /* `shader` */
+      "i" /* `groups_x_len` */
+      "i" /* `groups_y_len` */
+      "i" /* `groups_z_len` */
+      ":dispatch",
+      _keywords,
+      nullptr,
+  };
   if (_PyArg_ParseTupleAndKeywordsFast(
           args, kwds, &_parser, &py_shader, &groups_x_len, &groups_y_len, &groups_z_len))
   {

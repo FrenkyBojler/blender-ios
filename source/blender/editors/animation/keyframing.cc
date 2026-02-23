@@ -129,7 +129,7 @@ void ED_keyframes_add(FCurve *fcu, int num_keys_to_add)
   }
 
   fcu->bezt = static_cast<BezTriple *>(
-      MEM_recallocN(fcu->bezt, sizeof(BezTriple) * (fcu->totvert + num_keys_to_add)));
+      MEM_realloc_zeroed(fcu->bezt, sizeof(BezTriple) * (fcu->totvert + num_keys_to_add)));
   BezTriple *bezt = fcu->bezt + fcu->totvert; /* Pointer to the first new one. */
 
   fcu->totvert += num_keys_to_add;
@@ -321,8 +321,10 @@ static bool get_selection(bContext *C, Vector<PointerRNA> *r_selection)
   if (area && area->spacetype == SPACE_SEQ) {
     VectorSet<Strip *> strips = ed::vse::selected_strips_from_context(C);
     for (Strip *strip : strips) {
+      const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+      Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
       PointerRNA ptr;
-      ptr = RNA_pointer_create_discrete(&CTX_data_scene(C)->id, RNA_Strip, strip);
+      ptr = RNA_pointer_create_discrete(&scene->id, RNA_Strip, strip);
       r_selection->append(ptr);
     }
     return true;
@@ -359,7 +361,8 @@ static wmOperatorStatus insert_key(bContext *C, wmOperator *op)
   }
 
   Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   const float scene_frame = BKE_scene_frame_get(scene);
 
   const eInsertKeyFlags insert_key_flags = animrig::get_keyframing_flags(scene);
@@ -563,7 +566,7 @@ static wmOperatorStatus insert_key_menu_invoke(bContext *C,
   }
 
   if (free) {
-    MEM_freeN(item_array);
+    MEM_delete(item_array);
   }
 
   popup_menu_end(C, pup);
@@ -768,7 +771,7 @@ static wmOperatorStatus clear_anim_v3d_exec(bContext *C, wmOperator * /*op*/)
 
       Action &action = dna_action->wrap();
       Vector<FCurve *> fcurves_to_delete;
-      foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
+      foreach_fcurve_in_action_slot_editable(action, adt->slot_handle, [&](FCurve &fcurve) {
         if (can_delete_fcurve(&fcurve, ob)) {
           fcurves_to_delete.append(&fcurve);
         }
@@ -882,7 +885,7 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
 
   Action &action = dna_action->wrap();
   Vector<FCurve *> fcurves_to_delete;
-  foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
+  foreach_fcurve_in_action_slot_editable(action, adt->slot_handle, [&](FCurve &fcurve) {
     for (const std::string &strip_path : selected_strips_rna_paths) {
       if (fcurve_belongs_to_strip(fcurve, strip_path)) {
         fcurves_to_delete.append(&fcurve);
@@ -945,7 +948,7 @@ void ANIM_OT_keyframe_clear_vse(wmOperatorType *ot)
 static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
 {
   /* don't touch protected F-Curves */
-  if (BKE_fcurve_is_protected(fcu)) {
+  if (!fcu || BKE_fcurve_is_protected(*fcu)) {
     BKE_reportf(reports,
                 RPT_WARNING,
                 "Not deleting keyframe for locked F-Curve '%s', object '%s'",
@@ -987,7 +990,7 @@ static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
 static bool can_delete_scene_key(FCurve *fcu, Scene *scene, wmOperator *op)
 {
   /* Don't touch protected F-Curves. */
-  if (BKE_fcurve_is_protected(fcu)) {
+  if (!fcu || BKE_fcurve_is_protected(*fcu)) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
                 "Not deleting keyframe for locked F-Curve '%s', scene '%s'",
@@ -1029,7 +1032,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   VectorSet<std::string> modified_strips;
   Vector<FCurve *> modified_fcurves;
 
-  foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
+  foreach_fcurve_in_action_slot_editable(action, adt->slot_handle, [&](FCurve &fcurve) {
     std::string changed_strip;
     for (const std::string &strip_path : selected_strips_rna_paths) {
       if (fcurve_belongs_to_strip(fcurve, strip_path)) {
@@ -1157,7 +1160,7 @@ static wmOperatorStatus delete_key_v3d_without_keying_set(bContext *C, wmOperato
 
       Action &action = act->wrap();
       Vector<FCurve *> modified_fcurves;
-      foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
+      foreach_fcurve_in_action_slot_editable(action, adt->slot_handle, [&](FCurve &fcurve) {
         if (!can_delete_key(&fcurve, ob, op->reports)) {
           return;
         }
@@ -1453,7 +1456,7 @@ static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
       FCurve *fcu = BKE_fcurve_find(&strip->fcurves, RNA_property_identifier(prop), 0);
 
       if (fcu) {
-        if (BKE_fcurve_is_protected(fcu)) {
+        if (BKE_fcurve_is_protected(*fcu)) {
           BKE_reportf(
               op->reports,
               RPT_WARNING,
@@ -1475,7 +1478,7 @@ static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
           if (found) {
             /* delete the key at the index (will sanity check + do recalc afterwards) */
             BKE_fcurve_delete_key(fcu, i);
-            BKE_fcurve_handles_recalc(fcu);
+            BKE_fcurve_handles_recalc(*fcu);
             changed = true;
           }
         }

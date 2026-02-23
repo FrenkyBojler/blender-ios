@@ -31,6 +31,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
+#include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "ED_asset_shelf.hh"
@@ -103,7 +104,7 @@ static SpaceLink *image_create(const ScrArea * /*area*/, const Scene * /*scene*/
   ARegion *region;
   SpaceImage *simage;
 
-  simage = MEM_new_for_free<SpaceImage>("initimage");
+  simage = MEM_new<SpaceImage>("initimage");
   simage->spacetype = SPACE_IMAGE;
   simage->zoom = 1.0f;
   simage->lock = true;
@@ -201,7 +202,7 @@ static void image_init(wmWindowManager * /*wm*/, ScrArea *area)
 
 static SpaceLink *image_duplicate(SpaceLink *sl)
 {
-  SpaceImage *simagen = static_cast<SpaceImage *>(MEM_dupallocN(sl));
+  SpaceImage *simagen = MEM_dupalloc(reinterpret_cast<SpaceImage *>(sl));
 
   /* clear or remove stuff from old */
 
@@ -714,7 +715,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
      * the image is locked when calling #ED_space_image_acquire_buffer. */
     float zoomx, zoomy;
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
-    ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
+    ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0, false);
     if (ibuf) {
       int x, y;
       rctf frame;
@@ -838,6 +839,9 @@ static void image_main_region_listener(const wmRegionListenerParams *params)
       if (ELEM(wmn->data, ND_LAYER)) {
         ED_region_tag_redraw(region);
       }
+      if (wmn->action == NA_EDITED) {
+        ED_region_tag_redraw(region);
+      }
       break;
   }
 }
@@ -892,14 +896,14 @@ static void image_buttons_region_draw(const bContext *C, ARegion *region)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
   Scene *scene = CTX_data_scene(C);
-  void *lock;
-  /* TODO(lukas): Support tiles in scopes? */
-  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
   /* XXX performance regression if name of scopes category changes! */
   PanelCategoryStack *category = ui::panel_category_active_find(region, "Scopes");
 
   /* only update scopes if scope category is active */
   if (category) {
+    /* TODO(lukas): Support tiles in scopes? */
+    void *lock;
+    ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0, true);
     if (ibuf) {
       if (!sima->scopes.ok) {
         BKE_histogram_update_sample_line(
@@ -912,8 +916,8 @@ static void image_buttons_region_draw(const bContext *C, ARegion *region)
         ED_space_image_scopes_update(C, sima, ibuf, false);
       }
     }
+    ED_space_image_release_buffer(sima, ibuf, lock);
   }
-  ED_space_image_release_buffer(sima, ibuf, lock);
 
   /* Layout handles details. */
   ED_region_panels_draw(C, region);
@@ -1253,7 +1257,7 @@ void ED_spacetype_image()
   st->blend_write = image_space_blend_write;
 
   /* regions: main window */
-  art = MEM_callocN<ARegionType>("spacetype image region");
+  art = MEM_new_zeroed<ARegionType>("spacetype image region");
   art->regionid = RGN_TYPE_WINDOW;
   art->keymapflag = ED_KEYMAP_GIZMO | ED_KEYMAP_TOOL | ED_KEYMAP_FRAMES | ED_KEYMAP_GPENCIL;
   art->init = image_main_region_init;
@@ -1263,7 +1267,7 @@ void ED_spacetype_image()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: list-view/buttons/scopes */
-  art = MEM_callocN<ARegionType>("spacetype image region");
+  art = MEM_new_zeroed<ARegionType>("spacetype image region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
@@ -1279,7 +1283,7 @@ void ED_spacetype_image()
   image_buttons_register(art);
 
   /* regions: tool(bar) */
-  art = MEM_callocN<ARegionType>("spacetype image region");
+  art = MEM_new_zeroed<ARegionType>("spacetype image region");
   art->regionid = RGN_TYPE_TOOLS;
   art->prefsizex = int(UI_TOOLBAR_WIDTH);
   art->prefsizey = 50; /* XXX */
@@ -1292,7 +1296,7 @@ void ED_spacetype_image()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: tool header */
-  art = MEM_callocN<ARegionType>("spacetype image tool header region");
+  art = MEM_new_zeroed<ARegionType>("spacetype image tool header region");
   art->regionid = RGN_TYPE_TOOL_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
@@ -1303,7 +1307,7 @@ void ED_spacetype_image()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = MEM_callocN<ARegionType>("spacetype image region");
+  art = MEM_new_zeroed<ARegionType>("spacetype image region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
@@ -1314,7 +1318,7 @@ void ED_spacetype_image()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: asset shelf */
-  art = MEM_callocN<ARegionType>("spacetype image asset shelf region");
+  art = MEM_new_zeroed<ARegionType>("spacetype image asset shelf region");
   art->regionid = RGN_TYPE_ASSET_SHELF;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_ASSET_SHELF | ED_KEYMAP_FRAMES;
   art->duplicate = asset::shelf::region_duplicate;
@@ -1332,7 +1336,7 @@ void ED_spacetype_image()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: asset shelf header */
-  art = MEM_callocN<ARegionType>("spacetype image asset shelf header region");
+  art = MEM_new_zeroed<ARegionType>("spacetype image asset shelf header region");
   art->regionid = RGN_TYPE_ASSET_SHELF_HEADER;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_ASSET_SHELF | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
   art->init = asset::shelf::header_region_init;
