@@ -450,41 +450,39 @@ static void nearest_tri_cb(void *userdata, int index, const float co[3], BVHTree
 static void project_on_mesh(BVHTree *bvh_tree,
                             NearestTriUserData *bvh_data,
                             BMVert *v,
-                            const float center_pos[3],
-                            const float normal[3],
-                            float r_pos[3])
+                            const float3 &center_pos,
+                            const float3 &normal,
+                            float3 &r_pos)
 {
-  float vec[3];
-  sub_v3_v3v3(vec, center_pos, v->co);
+  float3 vec = center_pos - float3(v->co);
+  float length;
+  vec = math::normalize_and_get_length(vec, length);
   /* If vertices are too close, normalization can fail. */
-  if (normalize_v3(vec) == 0.0f) {
-    copy_v3_v3(r_pos, center_pos);
+  if (length == 0.0f) {
+    r_pos = center_pos;
     return;
   }
   const float angle = angle_normalized_v3v3(vec, normal);
   if (std::abs(angle) < CIRCULARIZE_EPSILON ||
       std::abs(std::numbers::pi_v<float> - angle) < CIRCULARIZE_EPSILON)
   {
-    copy_v3_v3(r_pos, v->co);
+    r_pos = float3(v->co);
     return;
   }
 
-  float p2[3];
-  add_v3_v3v3(p2, center_pos, normal);
-
+  float3 p2 = center_pos + normal;
   float best_dist_sq = FLT_MAX;
   bool found = false;
 
   auto test_tri_fn = [&](BMVert *v1, BMVert *v2, BMVert *v3) {
     float lambda;
-    float uv[2];
+    float2 uv;
     if (isect_line_tri_v3(center_pos, p2, v1->co, v2->co, v3->co, &lambda, uv)) {
-      float hit_pos[3];
-      madd_v3_v3v3fl(hit_pos, center_pos, normal, lambda);
-      const float dist_sq = len_squared_v3v3(center_pos, hit_pos);
+      float3 hit_pos = center_pos + normal * lambda;
+      const float dist_sq = math::distance_squared(center_pos, hit_pos);
       if (dist_sq < best_dist_sq) {
         best_dist_sq = dist_sq;
-        copy_v3_v3(r_pos, hit_pos);
+        r_pos = hit_pos;
         found = true;
       }
     }
@@ -528,14 +526,14 @@ static void project_on_mesh(BVHTree *bvh_tree,
   BMIter eiter;
   BMEdge *e;
   BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
-    float closest[3];
+    float3 closest;
     closest_to_line_v3(closest, center_pos, e->v1->co, e->v2->co);
     const float fac = line_point_factor_v3(closest, e->v1->co, e->v2->co);
     if (fac > CIRCULARIZE_EPSILON && fac < 1.0f - CIRCULARIZE_EPSILON) {
-      const float dist_sq = len_squared_v3v3(center_pos, closest);
+      const float dist_sq = math::distance_squared(center_pos, closest);
       if (dist_sq < best_dist_sq) {
         best_dist_sq = dist_sq;
-        copy_v3_v3(r_pos, closest);
+        r_pos = closest;
         found = true;
       }
     }
@@ -551,12 +549,12 @@ static void project_on_mesh(BVHTree *bvh_tree,
     nearest.index = -1;
     BLI_bvhtree_find_nearest(bvh_tree, center_pos, &nearest, nearest_tri_cb, bvh_data);
     if (nearest.index != -1) {
-      copy_v3_v3(r_pos, nearest.co);
+      r_pos = float3(nearest.co);
       return;
     }
   }
 
-  copy_v3_v3(r_pos, center_pos);
+  r_pos = center_pos;
 }
 
 void bmo_circularize_exec(BMesh *bm, BMOperator *op)
@@ -677,7 +675,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       float3 final_pos = center_3d + mat * target_local;
 
       if (flatten < 1.0f) {
-        float projected_pos[3];
+        float3 projected_pos;
         project_on_mesh(bvh_tree, &bvh_data, cv.v, final_pos, mat.z_axis(), projected_pos);
         interp_v3_v3v3(final_pos, projected_pos, final_pos, flatten);
       }

@@ -510,7 +510,7 @@ static BMOpDefine bmo_circularize_def = {
     {
         /* Input geometry. */
         {"geom", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BM_EDGE | BM_FACE}},
-        /* Influence factor, spans from 0.0 to 1.0. */
+        /* Influence factor: spans from 0.0 to 1.0. */
         {"factor", BMO_OP_SLOT_FLT},
         /* Custom radius. */
         {"custom_radius", BMO_OP_SLOT_FLT},
@@ -518,9 +518,9 @@ static BMOpDefine bmo_circularize_def = {
         {"angle", BMO_OP_SLOT_FLT},
         /* Method to fit the circle. */
         {"fit_method", BMO_OP_SLOT_INT},
-        /* Flatten factor, 0.0 projects on the mesh, 1.0 flattens on the optimal plane. */
+        /* Flatten factor: 0.0 projects onto the mesh, 1.0 flattens on the optimal plane. */
         {"flatten", BMO_OP_SLOT_FLT},
-        /* Distributes vertices at constant distances, otherwise preserves original spacing . */
+        /* Distributes vertices at constant distances, otherwise preserves original spacing. */
         {"regular", BMO_OP_SLOT_BOOL},
         /* Lock X-axis editing. */
         {"lock_x", BMO_OP_SLOT_BOOL},
