@@ -10,6 +10,8 @@
 
 #include "../../../extern/toml11/toml.hpp"
 
+#include "BLI_string_ref.hh"
+
 namespace blender {
 extern toml::value settings_current;
 extern toml::value settings_default;
@@ -18,22 +20,22 @@ void BLI_settings_init();
 bool BLI_settings_save();
 
 struct Settings {
-  std::string section;
+  StringRef section;
 
-  Settings(const std::string &section) : section(section) {}
+  Settings(const StringRef &section) : section(section) {}
 
-  template<typename T> T get(const std::string &item) const;
+  template<typename T> T get(const StringRef &item) const;
 
-  template<typename T> void set(const std::string &item, const T &value);
+  template<typename T> void set(const StringRef &item, const T &value);
 
-  void remove(const std::string &item);
+  void remove(const StringRef &item);
 
   struct Proxy {
-    std::string section;
-    std::string key;
+    StringRef section;
+    StringRef key;
 
-    Proxy(std::string section_, std::string key_)
-        : section(std::move(section_)), key(std::move(key_))
+    Proxy(StringRef section_, StringRef key_)
+        : section(section_), key(key_)
     {
     }
 
@@ -57,11 +59,11 @@ struct Settings {
   };
 
   struct ConstProxy {
-    std::string section;
-    std::string key;
+    StringRef section;
+    StringRef key;
 
-    ConstProxy(std::string section_, std::string key_)
-        : section(std::move(section_)), key(std::move(key_))
+    ConstProxy(StringRef section_, StringRef key_)
+        : section(section_), key(key_)
     {
     }
 
@@ -72,18 +74,18 @@ struct Settings {
   };
 
   /* Return proxies that own the section string (cheap copy). */
-  Proxy operator[](const std::string &item)
+  Proxy operator[](const StringRef &item)
   {
     return Proxy(section, item);
   }
 
-  ConstProxy operator[](const std::string &item) const
+  ConstProxy operator[](const StringRef &item) const
   {
     return ConstProxy(section, item);
   }
 };
 
-template<typename T> T Settings::get(const std::string &item) const
+template<typename T> T Settings::get(const StringRef &item) const
 {
   if (settings_current.is_empty()) {
     BLI_settings_init();
@@ -93,7 +95,7 @@ template<typename T> T Settings::get(const std::string &item) const
   return toml::get_or(cur, toml::get_or(def, T{}));
 }
 
-template<typename T> void Settings::set(const std::string &item, const T &value)
+template<typename T> void Settings::set(const StringRef &item, const T &value)
 {
   if (settings_current.is_empty()) {
     BLI_settings_init();

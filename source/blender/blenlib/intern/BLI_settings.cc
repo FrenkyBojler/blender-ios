@@ -89,7 +89,7 @@ bool BLI_settings_save()
   return true;
 }
 
-void Settings::remove(const std::string &item)
+void Settings::remove(const StringRef &item)
 {
   std::lock_guard<Mutex> lock(settings_mutex);
   if (settings_current.is_empty()) {
