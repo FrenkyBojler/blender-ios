@@ -599,6 +599,8 @@ void WM_main(bContext *C)
    * This ensures we don't run operators before the depsgraph has been evaluated. */
   wm_event_do_refresh_wm_and_depsgraph(C);
 
+  //int frame = 0;
+
   while (true) {
 
     /* Get events from ghost, handle window events, add to window queues. */
@@ -612,6 +614,8 @@ void WM_main(bContext *C)
 
     /* Execute cached changes draw. */
     wm_draw_update(C);
+
+    //printf("---------- frame %d\n", frame++);
   }
 }
 

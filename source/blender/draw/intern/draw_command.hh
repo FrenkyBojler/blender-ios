@@ -654,9 +654,9 @@ class DrawMultiBuf {
   {
     group_buf_.trim_to_next_power_of_2(group_count_);
     /* Two commands per group (inverted and non-inverted scale). */
-    command_buf_.trim_to_next_power_of_2(group_count_ * 2);
+    command_buf_.trim_to_next_power_of_2(group_count_ * 4);
     prototype_buf_.trim_to_next_power_of_2(prototype_count_);
-    resource_id_buf_.trim_to_next_power_of_2(resource_id_count_);
+    resource_id_buf_.trim_to_next_power_of_2(resource_id_count_ * 4);
     header_id_counter_ = 0;
     group_count_ = 0;
     prototype_count_ = 0;

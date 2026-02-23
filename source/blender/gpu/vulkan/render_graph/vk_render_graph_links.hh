@@ -77,9 +77,9 @@ struct VKRenderGraphLink {
  */
 struct VKRenderGraphNodeLinks {
   /** All links to resources that a node reads from. */
-  Vector<VKRenderGraphLink> inputs;
+  Vector<VKRenderGraphLink, 16> inputs;
   /** All links to resources that a node writes to. */
-  Vector<VKRenderGraphLink> outputs;
+  Vector<VKRenderGraphLink, 16> outputs;
 
   void debug_print(const VKResourceStateTracker &resources) const;
 };
