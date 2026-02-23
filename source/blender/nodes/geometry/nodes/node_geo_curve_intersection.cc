@@ -37,7 +37,6 @@ constexpr float pi_2_f_eps = pi_2_f - min_angle_eps;
 enum class PairData {
   PointsOnly = 0,
   FullPair = 1,
-  HalfPair = 2,
 };
 
 enum class IntersectionMode {
@@ -77,12 +76,6 @@ static EnumPropertyItem pair_data_mode_items[] = {
      0,
      "Points Only",
      "Return intersection points only"},
-    {int16_t(PairData::HalfPair),
-     "HALF_PAIR",
-     0,
-     "Half Data",
-     "Return first intersection of a pair, weighted to lowest curve id and corresponding pair "
-     "data"},
     {int16_t(PairData::FullPair),
      "FULL_PAIR",
      0,
@@ -95,8 +88,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   auto enable_output =
       [](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
-    return params.menu_input_may_be("Paired Data Mode", int16_t(PairData::HalfPair)) ||
-           params.menu_input_may_be("Paired Data Mode", int16_t(PairData::FullPair)) ||
+    return params.menu_input_may_be("Paired Data Mode", int16_t(PairData::FullPair)) ||
            params.menu_input_may_be("Mode", int16_t(IntersectionMode::Plane)) ||
            params.menu_input_may_be("Mode", int16_t(IntersectionMode::Surface));
   };
@@ -143,13 +135,11 @@ static void node_declare(NodeDeclarationBuilder &b)
                                            .description("Panel contains outputs for pair data");
   pair_data.add_output<decl::Vector>("Pair Position")
       .field_on_all()
-      .usage_by_menu("Paired Data Mode",
-                     {int16_t(PairData::FullPair), int16_t(PairData::HalfPair)})
+      .usage_by_menu("Paired Data Mode", {int16_t(PairData::FullPair)})
       .description("Position of the oppposing pair point");
   pair_data.add_output<decl::Vector>("Pair Direction")
       .field_on_all()
-      .usage_by_menu("Paired Data Mode",
-                     {int16_t(PairData::FullPair), int16_t(PairData::HalfPair)})
+      .usage_by_menu("Paired Data Mode", {int16_t(PairData::FullPair)})
       .description(
           "Direction of the oppposing pair point. For project mode, this is the "
           "projected direction");
@@ -1171,7 +1161,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   const auto mode = params.extract_input<IntersectionMode>("Mode");
   const auto pair_data_mode = params.extract_input<PairData>("Paired Data Mode");
   const bool curve_mode = ELEM(mode, IntersectionMode::Curve, IntersectionMode::Curve_Project);
-  const bool use_paired_data = ELEM(pair_data_mode, PairData::FullPair, PairData::HalfPair);
   const bool points_only_mode = curve_mode && pair_data_mode == PairData::PointsOnly;
 
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
@@ -1194,14 +1183,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     attribute_outputs.hash = "Hash";
   }
 
-  if (curve_mode && use_paired_data) {
+  if (curve_mode && pair_data_mode == PairData::FullPair) {
     attribute_outputs.pair_position = params.get_output_anonymous_attribute_id_if_needed(
         "Pair Position");
     attribute_outputs.pair_direction = params.get_output_anonymous_attribute_id_if_needed(
         "Pair Direction");
-  }
-
-  if (curve_mode && pair_data_mode == PairData::FullPair) {
     attribute_outputs.pair = params.get_output_anonymous_attribute_id_if_needed("Pair");
     attribute_outputs.pair_id = params.get_output_anonymous_attribute_id_if_needed("Pair ID");
   }
@@ -1394,7 +1380,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         length.finish();
       }
 
-      if (attribute_outputs.pair_position) {
+      if (attribute_outputs.pair_position && pair_data_mode == PairData::FullPair) {
         SpanAttributeWriter<float3> pair_position =
             attributes.lookup_or_add_for_write_only_span<float3>(*attribute_outputs.pair_position,
                                                                  AttrDomain::Point);
@@ -1402,7 +1388,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         pair_position.finish();
       }
 
-      if (attribute_outputs.pair_direction) {
+      if (attribute_outputs.pair_direction && pair_data_mode == PairData::FullPair) {
         SpanAttributeWriter<float3> pair_direction =
             attributes.lookup_or_add_for_write_only_span<float3>(*attribute_outputs.pair_direction,
                                                                  AttrDomain::Point);
