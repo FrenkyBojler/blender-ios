@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-02 14:51+0000\n"
+"POT-Creation-Date: 2026-02-16 10:28+0000\n"
 "PO-Revision-Date: 2026-02-01 08:12+0000\n"
 "Last-Translator: Banditer1483 <pleum.wongvarit@gmail.com>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
@@ -4953,14 +4953,6 @@ msgid "Mix Color"
 msgstr "ผสมสี"
 
 
-msgid "Math"
-msgstr "คณิตศาสตร์"
-
-
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Metaball"
 msgstr "เมตาบอล"
 
@@ -4983,6 +4975,10 @@ msgstr "แก้ไข"
 
 msgid "Mask Edit"
 msgstr "การแก้ไขหน้ากาก"
+
+
+msgid "Layout"
+msgstr "เค้าโครง"
 
 
 msgid "Mirror"
@@ -5013,12 +5009,12 @@ msgid "View Regions"
 msgstr "ขอบเขตมุมมอง"
 
 
-msgid "Layout"
-msgstr "เค้าโครง"
-
-
 msgid "Keying"
 msgstr "คีย์"
+
+
+msgid "Math"
+msgstr "คณิตศาสตร์"
 
 
 msgid "Light"
@@ -5041,16 +5037,20 @@ msgid "Hooks"
 msgstr "ตะขอ"
 
 
-msgid "Face Data"
-msgstr "ข้อมูลด้าน"
-
-
 msgid "Import"
 msgstr "นำเข้า"
 
 
+msgid "Face Data"
+msgstr "ข้อมูลด้าน"
+
+
 msgid "Merge"
 msgstr "ผสาน"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Zoom"

@@ -48,23 +48,8 @@ std::unique_ptr<Config> LibOCIOConfig::create_from_environment()
   return nullptr;
 }
 
-std::unique_ptr<Config> LibOCIOConfig::create_from_file(const StringRefNull filename)
-{
-  try {
-    OCIO_NAMESPACE::ConstConfigRcPtr ocio_config = OCIO_NAMESPACE::Config::CreateFromFile(
-        filename.c_str());
-    if (!ocio_config) {
-      return nullptr;
-    }
-
-    return std::unique_ptr<LibOCIOConfig>(new LibOCIOConfig(ocio_config));
-  }
-  catch (OCIO_NAMESPACE::Exception &exception) {
-    report_exception(exception);
-  }
-
-  return nullptr;
-}
+/* Note there is no CreateFromFile based method here, as it has issues with paths
+ * containing "$" due to the variable expansion feature. */
 
 LibOCIOConfig::LibOCIOConfig(const OCIO_NAMESPACE::ConstConfigRcPtr &ocio_config)
 {
@@ -122,7 +107,7 @@ void LibOCIOConfig::initialize_active_color_spaces()
   /* Create index array for access to the color space in alphabetic order. */
   sorted_color_space_index_.resize(num_color_spaces);
   std::iota(sorted_color_space_index_.begin(), sorted_color_space_index_.end(), 0);
-  std::sort(sorted_color_space_index_.begin(), sorted_color_space_index_.end(), [&](int a, int b) {
+  std::ranges::sort(sorted_color_space_index_, [&](int a, int b) {
     return color_spaces_[a].name() < color_spaces_[b].name();
   });
 }

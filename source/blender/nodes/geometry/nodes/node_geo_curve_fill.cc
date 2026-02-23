@@ -15,6 +15,7 @@
 #include "BLI_task.hh"
 
 #include "GEO_foreach_geometry.hh"
+#include "GEO_join_geometries.hh"
 
 #include "node_geometry_util.hh"
 
@@ -119,15 +120,17 @@ static meshintersect::CDT_result<double> do_cdt_with_mask(const bke::CurvesGeome
       points_by_curve, mask, offsets_data);
 
   Array<double2> positions_2d(points_by_curve_masked.total_size());
-  mask.foreach_index(GrainSize(1024), [&](const int src_curve, const int dst_curve) {
-    const IndexRange src_points = points_by_curve[src_curve];
-    const IndexRange dst_points = points_by_curve_masked[dst_curve];
-    for (const int i : src_points.index_range()) {
-      const int src = src_points[i];
-      const int dst = dst_points[i];
-      positions_2d[dst] = double2(positions[src].x, positions[src].y);
-    }
-  });
+  mask.foreach_index(
+      [&](const int src_curve, const int dst_curve) {
+        const IndexRange src_points = points_by_curve[src_curve];
+        const IndexRange dst_points = points_by_curve_masked[dst_curve];
+        for (const int i : src_points.index_range()) {
+          const int src = src_points[i];
+          const int dst = dst_points[i];
+          positions_2d[dst] = double2(positions[src].x, positions[src].y);
+        }
+      },
+      exec_mode::grain_size(1024));
 
   Array<Vector<int>> faces(points_by_curve_masked.size());
   fill_curve_vert_indices(points_by_curve_masked, faces);
@@ -329,26 +332,27 @@ static void curve_fill_calculate(GeometrySet &geometry_set,
       mesh_by_layer[layer_index] = cdts_to_mesh(results);
     }
     if (!mesh_by_layer.is_empty()) {
-      InstancesComponent &instances_component =
-          geometry_set.get_component_for_write<InstancesComponent>();
-      bke::Instances *instances = instances_component.get_for_write();
-      if (instances == nullptr) {
-        instances = new bke::Instances();
-        instances_component.replace(instances);
-      }
-      for (Mesh *mesh : mesh_by_layer) {
+      auto instances = std::make_unique<bke::Instances>(mesh_by_layer.size());
+      MutableSpan<int> handles = instances->reference_handles_for_write();
+      instances->transforms_for_write().fill(float4x4::identity());
+      for (const int i : mesh_by_layer.index_range()) {
+        Mesh *mesh = mesh_by_layer[i];
         if (!mesh) {
           /* Add an empty reference so the number of layers and instances match.
            * This makes it easy to reconstruct the layers afterwards and keep their attributes.
            * Although in this particular case we don't propagate the attributes. */
-          const int handle = instances->add_reference(bke::InstanceReference());
-          instances->add_instance(handle, float4x4::identity());
+          handles[i] = instances->add_reference(bke::InstanceReference());
           continue;
         }
         GeometrySet temp_set = GeometrySet::from_mesh(mesh);
-        const int handle = instances->add_reference(bke::InstanceReference{temp_set});
-        instances->add_instance(handle, float4x4::identity());
+        handles[i] = instances->add_reference(bke::InstanceReference{temp_set});
       }
+      auto &dst_component = geometry_set.get_component_for_write<InstancesComponent>();
+      GeometrySet new_instances = geometry::join_geometries(
+          {GeometrySet::from_instances(dst_component.release()),
+           GeometrySet::from_instances(std::move(instances))},
+          {});
+      dst_component.replace(new_instances.get_component_for_write<InstancesComponent>().release());
     }
     geometry_set.replace_grease_pencil(nullptr);
   }

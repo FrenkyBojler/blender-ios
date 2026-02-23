@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-02 14:51+0000\n"
+"POT-Creation-Date: 2026-02-16 10:28+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -708,6 +708,10 @@ msgstr "छटा"
 
 msgid "Fill"
 msgstr "भरण"
+
+
+msgid "Both"
+msgstr "दोनों"
 
 
 msgid "Background Image"
@@ -2068,10 +2072,6 @@ msgid "Nodes"
 msgstr "ग्रन्थि्"
 
 
-msgid "Use boundaries for viewer nodes and composite backdrop"
-msgstr "दर्शक नोड्स और मिश्रित पृष्ठभूमि के लिए सीमाओं का उपयोग करें"
-
-
 msgid "Edit"
 msgstr "संपादन"
 
@@ -2585,14 +2585,6 @@ msgid "Dots"
 msgstr "बिन्दु्"
 
 
-msgid "Math"
-msgstr "गणित"
-
-
-msgid "UV"
-msgstr "यूवी"
-
-
 msgid "Show/Hide"
 msgstr "छुपाएँ / दिखाएँ"
 
@@ -2615,6 +2607,10 @@ msgstr "दर्पण"
 
 msgid "Keying"
 msgstr "कुंजीयन"
+
+
+msgid "Math"
+msgstr "गणित"
 
 
 msgid "Light"
@@ -2659,6 +2655,10 @@ msgstr "आयात करें"
 
 msgid "Merge"
 msgstr "विलय करें"
+
+
+msgid "UV"
+msgstr "यूवी"
 
 
 msgid "Basic"
@@ -3610,10 +3610,6 @@ msgid "Side"
 msgstr "किनारा"
 
 
-msgid "Both"
-msgstr "दोनों"
-
-
 msgid "Next Keyframe"
 msgstr "अगले अनुबोधक चिन्ह"
 
@@ -3843,10 +3839,6 @@ msgstr "निर्गम"
 
 msgid "Current"
 msgstr "वर्तमान"
-
-
-msgid "Set the boundaries for viewer operations"
-msgstr "दर्शक संचालन के लिए सीमाएँ सेट करें"
 
 
 msgctxt "Operator"

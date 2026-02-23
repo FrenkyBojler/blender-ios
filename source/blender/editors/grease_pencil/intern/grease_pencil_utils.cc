@@ -24,7 +24,6 @@
 #include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
-#include "BLI_math_numbers.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_vector_set.hh"
 
@@ -406,6 +405,13 @@ float3 DrawingPlacement::place(const float2 co, const float depth) const
 {
   float3 loc;
   ED_view3d_unproject_v3(region_, co.x, co.y, depth, loc);
+
+  if (depth_ == DrawingPlacementDepth::Surface) {
+    float3 view_normal;
+    ED_view3d_win_to_vector(region_, co, view_normal);
+    loc -= view_normal * surface_offset_;
+  }
+
   return math::transform_point(world_space_to_layer_space_, loc);
 }
 
@@ -974,10 +980,9 @@ IndexMask retrieve_editable_strokes(Object &object,
     return curves_range;
   }
   /* Get all the strokes that have their material unlocked. */
-  return IndexMask::from_predicate(
-      curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        return !locked_material_indices.contains(materials[curve_i]);
-      });
+  return IndexMask::from_predicate(curves_range, memory, [&](const int64_t curve_i) {
+    return !locked_material_indices.contains(materials[curve_i]);
+  });
 }
 
 IndexMask retrieve_editable_fill_strokes(Object &object,
@@ -1001,9 +1006,7 @@ IndexMask retrieve_editable_fill_strokes(Object &object,
     return {};
   }
   const IndexMask fill_strokes = IndexMask::from_predicate(
-      curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        return fill_ids[curve_i] != 0;
-      });
+      curves_range, memory, [&](const int64_t curve_i) { return fill_ids[curve_i] != 0; });
   return IndexMask::from_intersection(editable_strokes, fill_strokes, memory);
 }
 
@@ -1030,14 +1033,13 @@ IndexMask retrieve_editable_strokes_by_material(Object &object,
     return curves_range;
   }
   /* Get all the strokes that share the same material and have it unlocked. */
-  return IndexMask::from_predicate(
-      curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        const int material_index = materials[curve_i];
-        if (material_index == mat_i) {
-          return !locked_material_indices.contains(material_index);
-        }
-        return false;
-      });
+  return IndexMask::from_predicate(curves_range, memory, [&](const int64_t curve_i) {
+    const int material_index = materials[curve_i];
+    if (material_index == mat_i) {
+      return !locked_material_indices.contains(material_index);
+    }
+    return false;
+  });
 }
 
 IndexMask retrieve_editable_points(Object &object,
@@ -1078,10 +1080,9 @@ IndexMask retrieve_editable_points(Object &object,
     return points_range;
   }
   /* Get all the points that are part of a stroke with an unlocked material. */
-  return IndexMask::from_predicate(
-      points_range, GrainSize(4096), memory, [&](const int64_t point_i) {
-        return !locked_material_indices.contains(materials[point_i]);
-      });
+  return IndexMask::from_predicate(points_range, memory, [&](const int64_t point_i) {
+    return !locked_material_indices.contains(materials[point_i]);
+  });
 }
 
 IndexMask retrieve_editable_elements(Object &object,
@@ -1118,11 +1119,10 @@ IndexMask retrieve_visible_strokes(Object &object,
   /* Get all the strokes that have their material visible. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
       "material_index", bke::AttrDomain::Curve, 0);
-  return IndexMask::from_predicate(
-      curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        const int material_index = materials[curve_i];
-        return !hidden_material_indices.contains(material_index);
-      });
+  return IndexMask::from_predicate(curves_range, memory, [&](const int64_t curve_i) {
+    const int material_index = materials[curve_i];
+    return !hidden_material_indices.contains(material_index);
+  });
 }
 
 IndexMask retrieve_visible_points(Object &object,
@@ -1151,11 +1151,10 @@ IndexMask retrieve_visible_points(Object &object,
   }
 
   /* Get all the points that are part of a stroke with a visible material. */
-  return IndexMask::from_predicate(
-      points_range, GrainSize(4096), memory, [&](const int64_t point_i) {
-        const int material_index = materials[point_i];
-        return !hidden_material_indices.contains(material_index);
-      });
+  return IndexMask::from_predicate(points_range, memory, [&](const int64_t point_i) {
+    const int material_index = materials[point_i];
+    return !hidden_material_indices.contains(material_index);
+  });
 }
 
 IndexMask retrieve_visible_bezier_strokes(Object &object,
@@ -1245,13 +1244,12 @@ IndexMask retrieve_visible_fills(Object &object,
   /* Get all the fills that have their first curve's material visible. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
       "material_index", bke::AttrDomain::Curve, 0);
-  return IndexMask::from_predicate(
-      fills->index_range(), GrainSize(4096), memory, [&](const int64_t fill_index) {
-        const Span<int> fill = (*fills)[fill_index];
-        const int curve_i = fill.first();
-        const int material_index = materials[curve_i];
-        return !hidden_material_indices.contains(material_index);
-      });
+  return IndexMask::from_predicate(fills->index_range(), memory, [&](const int64_t fill_index) {
+    const Span<int> fill = (*fills)[fill_index];
+    const int curve_i = fill.first();
+    const int material_index = materials[curve_i];
+    return !hidden_material_indices.contains(material_index);
+  });
 }
 
 IndexMask retrieve_visible_bezier_handle_points(Object &object,
@@ -1288,7 +1286,7 @@ IndexMask retrieve_visible_bezier_handle_points(Object &object,
       object, drawing, layer_index, memory);
 
   const IndexMask selected_points = IndexMask::from_predicate(
-      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
+      curves.points_range(), memory, [&](const int64_t point_i) {
         const bool is_selected = selected_point[point_i] || selected_left[point_i] ||
                                  selected_right[point_i];
         const bool is_bezier = types[point_to_curve_map[point_i]] == CURVE_TYPE_BEZIER;
@@ -1616,7 +1614,7 @@ static float pixel_radius_to_world_space_radius(const RegionView3D *rv3d,
   ED_view3d_win_to_delta(region, xy_delta, zfac, delta);
 
   const float scale = math::length(
-      math::transform_direction(to_world, float3(math::numbers::inv_sqrt3)));
+      math::transform_direction(to_world, float3(std::numbers::inv_sqrt3)));
 
   return math::safe_divide(math::length(delta), scale);
 }
@@ -2158,14 +2156,18 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
   AttributeAccessor src_attributes = merged_layers_grease_pencil.attributes();
   MutableAttributeAccessor dst_attributes = orig_grease_pencil.attributes_for_write();
   src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    /* Anonymous attributes shouldn't be available on original geometry. */
-    if (attribute_name_is_anonymous(iter.name)) {
-      return;
-    }
     if (iter.data_type == bke::AttrType::String) {
       return;
     }
-    const GVArraySpan src = *iter.get(AttrDomain::Layer);
+    const GVArray src_attr = *iter.get(AttrDomain::Layer);
+    const CommonVArrayInfo info = src_attr.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const bke::AttributeInitValue init(GPointer(src_attr.type(), info.data));
+      if (dst_attributes.add(iter.name, iter.domain, iter.data_type, init)) {
+        return;
+      }
+    }
+    const GVArraySpan src = src_attr;
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, AttrDomain::Layer, iter.data_type);
     if (!dst) {
