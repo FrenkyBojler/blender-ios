@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup cmpnodes
- */
-
 #include "BLI_math_color.h"
 #include "BLI_math_vector_types.hh"
 
@@ -25,7 +21,7 @@
 
 namespace blender::nodes::node_composite_keying_cc {
 
-static void cmp_node_keying_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
@@ -158,10 +154,10 @@ static void cmp_node_keying_declare(NodeDeclarationBuilder &b)
           "of the two is used, while 1 means the former of the two is used");
 }
 
-static void node_composit_init_keying(bNodeTree * /*ntree*/, bNode *node)
+static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, only kept for forward compatibility. */
-  NodeKeyingData *data = MEM_new_for_free<NodeKeyingData>(__func__);
+  NodeKeyingData *data = MEM_new<NodeKeyingData>(__func__);
   node->storage = data;
 }
 
@@ -241,7 +237,7 @@ class KeyingOperation : public NodeOperation {
 
     Result blurred_chroma = context().create_result(ResultType::Color);
     symmetric_separable_blur(
-        context(), chroma, blurred_chroma, float2(blur_size) / 2, R_FILTER_BOX);
+        context(), chroma, blurred_chroma, float2(blur_size) / 2, math::FilterKernel::Box);
     chroma.release();
 
     Result blurred_input = replace_input_chroma(blurred_chroma);
@@ -661,7 +657,7 @@ class KeyingOperation : public NodeOperation {
 
     Result blurred_matte = context().create_result(ResultType::Float);
     symmetric_separable_blur(
-        context(), input_matte, blurred_matte, float2(blur_size) / 2, R_FILTER_BOX);
+        context(), input_matte, blurred_matte, float2(blur_size) / 2, math::FilterKernel::Box);
 
     return blurred_matte;
   }
@@ -811,18 +807,14 @@ class KeyingOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new KeyingOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_keying_cc
-
-static void register_node_type_cmp_keying()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_composite_keying_cc;
-
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeKeying", CMP_NODE_KEYING);
   ntype.ui_name = "Keying";
@@ -831,13 +823,15 @@ static void register_node_type_cmp_keying()
       "from the backdrop)";
   ntype.enum_name_legacy = "KEYING";
   ntype.nclass = NODE_CLASS_MATTE;
-  ntype.declare = file_ns::cmp_node_keying_declare;
-  ntype.initfunc = file_ns::node_composit_init_keying;
-  blender::bke::node_type_storage(
+  ntype.declare = node_declare;
+  ntype.initfunc = node_init;
+  bke::node_type_storage(
       ntype, "NodeKeyingData", node_free_standard_storage, node_copy_standard_storage);
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
-  blender::bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
+  ntype.get_compositor_operation = get_compositor_operation;
+  bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_keying)
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_composite_keying_cc

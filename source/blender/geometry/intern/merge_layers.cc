@@ -29,7 +29,7 @@ static bke::CurvesGeometry join_curves(const GreasePencil &src_grease_pencil,
     const float4x4 &transform = transforms_to_apply[src_curves_i];
     src_curves.transform(transform);
     Curves *src_curves_id = bke::curves_new_nomain(std::move(src_curves));
-    src_curves_id->mat = static_cast<Material **>(MEM_dupallocN(src_grease_pencil.material_array));
+    src_curves_id->mat = MEM_dupalloc(src_grease_pencil.material_array);
     src_curves_id->totcol = src_grease_pencil.material_array_num;
     src_geometries[src_curves_i].replace_curves(src_curves_id);
   }
@@ -124,21 +124,22 @@ GreasePencil *merge_layers(const GreasePencil &src_grease_pencil,
 
     const CPPType &type = new_attribute.span.type();
 
-    bke::attribute_math::convert_to_static_type(type, [&](auto type) {
-      using T = decltype(type);
-      const VArraySpan<T> src_span = src_attribute.varray.typed<T>();
-      MutableSpan<T> new_span = new_attribute.span.typed<T>();
+    bke::attribute_math::to_static_type(type, [&]<typename T>() {
+      if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+        const VArraySpan<T> src_span = src_attribute.varray.typed<T>();
+        MutableSpan<T> new_span = new_attribute.span.typed<T>();
 
-      bke::attribute_math::DefaultMixer<T> mixer(new_span);
-      for (const int new_layer_i : IndexRange(new_layers_num)) {
-        const Span<int> src_layer_indices = layers_to_merge[new_layer_i];
-        for (const int src_layer_i : src_layer_indices) {
-          const T &src_value = src_span[src_layer_i];
-          mixer.mix_in(new_layer_i, src_value);
+        bke::attribute_math::DefaultMixer<T> mixer(new_span);
+        for (const int new_layer_i : IndexRange(new_layers_num)) {
+          const Span<int> src_layer_indices = layers_to_merge[new_layer_i];
+          for (const int src_layer_i : src_layer_indices) {
+            const T &src_value = src_span[src_layer_i];
+            mixer.mix_in(new_layer_i, src_value);
+          }
         }
-      }
 
-      mixer.finalize();
+        mixer.finalize();
+      }
     });
 
     new_attribute.finish();

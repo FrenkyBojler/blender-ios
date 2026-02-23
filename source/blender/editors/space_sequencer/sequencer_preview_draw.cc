@@ -306,7 +306,7 @@ static void sequencer_stop_running_jobs(const bContext *C, Scene *scene)
 
 static void sequencer_preview_clear()
 {
-  blender::ui::theme::frame_buffer_clear(TH_SEQ_PREVIEW);
+  ui::theme::frame_buffer_clear(TH_SEQ_PREVIEW);
 }
 
 /* Semantic utility to get a rectangle with positions that correspond to a full frame drawn in the
@@ -706,10 +706,10 @@ static void sequencer_draw_scopes(Scene *scene,
   GPU_debug_group_begin(get_scope_debug_name(eSpaceSeq_RegionType(space_sequencer.mainb)));
 
   gpu::Texture *input_texture = seq::preview_cache_get_gpu_display_texture(
-      scene, timeline_frame, 0);
+      scene, timeline_frame, 0, image_width, image_height);
   if (input_texture == nullptr) {
     input_texture = seq::preview_cache_get_gpu_texture(
-        scene, timeline_frame, space_sequencer.chanshown);
+        scene, timeline_frame, space_sequencer.chanshown, image_width, image_height);
   }
 
   SeqQuadsBatch quads;
@@ -773,6 +773,10 @@ static void sequencer_draw_scopes(Scene *scene,
       GPU_viewport_size_get_i(viewport_size_i);
       const int2 viewport_size = int2(viewport_size_i[2], viewport_size_i[3]);
       const int2 image_size = int2(image_width, image_height);
+      const eSpaceSeq_Proxy_RenderSize render_size_mode = eSpaceSeq_Proxy_RenderSize(
+          space_sequencer.render_size);
+      const float render_scale = seq::get_render_scale_factor(render_size_mode, scene->r.size);
+
       gpu::StorageBuf *raster_ssbo = GPU_storagebuf_create_ex(viewport_size.x * viewport_size.y *
                                                                   sizeof(SeqScopeRasterData),
                                                               nullptr,
@@ -798,6 +802,7 @@ static void sequencer_draw_scopes(Scene *scene,
         GPU_shader_uniform_1i(shader, "image_width", image_width);
         GPU_shader_uniform_1i(shader, "image_height", image_height);
         GPU_shader_uniform_1i(shader, "scope_mode", space_sequencer.mainb);
+        GPU_shader_uniform_1f(shader, "inv_render_scale", 1.0f / render_scale);
 
         const int2 groups_to_dispatch = math::divide_ceil(image_size, int2(16));
         GPU_compute_dispatch(shader, groups_to_dispatch.x, groups_to_dispatch.y, 1);
@@ -886,15 +891,15 @@ static void update_gpu_scopes(const ImBuf *input_ibuf,
   }
 
   /* Display space GPU texture is already calculated. */
+  const int width = GPU_texture_width(input_texture);
+  const int height = GPU_texture_height(input_texture);
   gpu::Texture *display_texture = seq::preview_cache_get_gpu_display_texture(
-      scene, timeline_frame, space_sequencer.chanshown);
+      scene, timeline_frame, space_sequencer.chanshown, width, height);
   if (display_texture != nullptr) {
     return;
   }
 
   /* Create GPU texture. */
-  const int width = GPU_texture_width(input_texture);
-  const int height = GPU_texture_height(input_texture);
   const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
   const gpu::TextureFormat format = gpu::TextureFormat::SFLOAT_16_16_16_16;
   display_texture = GPU_texture_create_2d(
@@ -1064,7 +1069,7 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
 static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
 {
   const TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  const TextVarsRuntime *text = data->runtime;
+  const seq::TextVarsRuntime *text = data->runtime;
   const Scene *scene = CTX_data_sequencer_scene(C);
 
   if (data->selection_start_offset == -1 || strip_text_selection_range_get(data).is_empty()) {
@@ -1132,7 +1137,7 @@ static float2 coords_region_view_align(const View2D *v2d, const float2 coords)
 static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint pos)
 {
   const TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  const TextVarsRuntime *text = data->runtime;
+  const seq::TextVarsRuntime *text = data->runtime;
   const Scene *scene = CTX_data_sequencer_scene(C);
 
   const float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
@@ -1373,7 +1378,7 @@ static void preview_draw_all_image_overlays(const bContext *C,
     return;
   }
 
-  ListBase *channels = seq::channels_displayed_get(&editing);
+  ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(&editing);
   VectorSet strips = seq::query_rendered_strips(
       scene, channels, editing.current_strips(), timeline_frame, 0);
   Strip *active_seq = seq::select_active_get(scene);
@@ -1761,7 +1766,9 @@ static void sequencer_preview_draw_overlays(const bContext *C,
   }
 
   /* FPS counter. */
-  if ((U.uiflag & USER_SHOW_FPS) && ED_screen_animation_no_scrub(&wm)) {
+  if ((U.uiflag & USER_SHOW_FPS) && (space_sequencer.flag & SEQ_SHOW_OVERLAY) &&
+      (CTX_wm_screen(C)->state != SCREENFULL) && ED_screen_animation_no_scrub(&wm))
+  {
     const rcti *rect = ED_region_visible_rect(&region);
     int xoffset = rect->xmin + U.widget_unit;
     int yoffset = rect->ymax;
@@ -1849,7 +1856,7 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
         C, timeline_frame, view_names[space_sequencer.multiview_eye]);
     if (use_gpu_texture && current_ibuf) {
       current_texture = seq::preview_cache_get_gpu_texture(
-          scene, timeline_frame, space_sequencer.chanshown);
+          scene, timeline_frame, space_sequencer.chanshown, current_ibuf->x, current_ibuf->y);
       if (current_texture == nullptr) {
         current_texture = create_texture(*current_ibuf);
         seq::preview_cache_set_gpu_texture(

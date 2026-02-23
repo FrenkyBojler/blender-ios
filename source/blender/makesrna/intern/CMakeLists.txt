@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-if(CMAKE_COMPILER_IS_GNUCC)
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   # add here so we fail early.
   string(APPEND CMAKE_C_FLAGS " -Werror=implicit-function-declaration")
 endif()
@@ -159,10 +159,10 @@ set_source_files_properties(${GENSRC} PROPERTIES GENERATED TRUE)
 # CFLAGS for Generated Files
 #
 # less strict flags for generated source
-set(GENSRC_FLAGS)
-set(GENSRC_CFLAGS)
-set(GENSRC_CXXFLAGS)
-if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
+set(GENSRC_FLAGS "")
+set(GENSRC_CFLAGS "")
+set(GENSRC_CXXFLAGS "")
+if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
   set(GENSRC_CFLAGS "-Wno-missing-prototypes")
   set(GENSRC_CXXFLAGS "-Wno-missing-declarations")
 endif()
@@ -273,7 +273,6 @@ set(INC
 )
 
 set(INC_SYS
-  ../../../../extern/fmtlib/include
 )
 
 if(WITH_CYCLES)
@@ -301,19 +300,6 @@ endif()
 
 if(WITH_IMAGE_WEBP)
   add_definitions(-DWITH_IMAGE_WEBP)
-endif()
-
-if(WITH_AUDASPACE)
-  list(APPEND INC_SYS
-    ${AUDASPACE_C_INCLUDE_DIRS}
-  )
-  if(WITH_SYSTEM_AUDASPACE)
-    list(APPEND LIB
-      ${AUDASPACE_C_LIBRARIES}
-      ${AUDASPACE_PY_LIBRARIES}
-    )
-  endif()
-  add_definitions(-DWITH_AUDASPACE)
 endif()
 
 if(WITH_CODEC_FFMPEG)
@@ -427,12 +413,8 @@ target_link_libraries(makesrna PRIVATE bf::intern::guardedalloc)
 target_link_libraries(makesrna PRIVATE bf_dna_blenlib)
 target_link_libraries(makesrna PRIVATE bf_dna_defaults)
 target_link_libraries(makesrna PRIVATE bf::dependencies::optional::tbb)
-
-if(WIN32 AND NOT UNIX)
-  if(DEFINED PTHREADS_LIBRARIES)
-    target_link_libraries(makesrna PRIVATE ${PTHREADS_LIBRARIES})
-  endif()
-endif()
+target_link_libraries(makesrna PRIVATE bf::dependencies::pthreads)
+target_link_libraries(makesrna PRIVATE bf::dependencies::fmt)
 
 # Output `rna_*_gen.cc`.
 # NOTE: (Linux only): with crashes try add this after COMMAND:
@@ -465,9 +447,6 @@ set(SRC
 set(LIB
   PRIVATE bf::animrig
   PRIVATE bf::dna
-  PRIVATE bf::dependencies::optional::openvdb
-  PRIVATE bf::dependencies::optional::tbb
-  PRIVATE extern_fmtlib
   bf_editor_space_api
 
   bf_editor_animation
@@ -489,6 +468,10 @@ set(LIB
   bf_editor_transform
   bf_editor_undo
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::dependencies::optional::openvdb
+  PRIVATE bf::dependencies::optional::tbb
+  PRIVATE bf::dependencies::optional::audaspace
+  PUBLIC bf::dependencies::fmt
 )
 
 blender_add_lib(bf_rna "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

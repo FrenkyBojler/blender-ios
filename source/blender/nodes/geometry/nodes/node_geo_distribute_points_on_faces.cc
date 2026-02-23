@@ -299,13 +299,13 @@ BLI_NOINLINE static void propagate_existing_attributes(
   MutableAttributeAccessor point_attributes = points.attributes_for_write();
 
   for (const int i : attributes.names.index_range()) {
-    const StringRef attribute_id = attributes.names[i];
+    const StringRef name = attributes.names[i];
     const bke::AttrType output_data_type = attributes.kinds[i].data_type;
-    if (attribute_id == "position") {
+    if (name == "position") {
       continue;
     }
 
-    GAttributeReader src = mesh_attributes.lookup(attribute_id);
+    GAttributeReader src = mesh_attributes.lookup(name);
     if (!src) {
       continue;
     }
@@ -314,7 +314,7 @@ BLI_NOINLINE static void propagate_existing_attributes(
     }
 
     GSpanAttributeWriter dst = point_attributes.lookup_or_add_for_write_only_span(
-        attribute_id, AttrDomain::Point, output_data_type);
+        name, AttrDomain::Point, output_data_type);
     if (!dst) {
       continue;
     }
@@ -608,7 +608,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(
       &ntype, "GeometryNodeDistributePointsOnFaces", GEO_NODE_DISTRIBUTE_POINTS_ON_FACES);
@@ -616,12 +616,12 @@ static void node_register()
   ntype.ui_description = "Generate points spread out on the surface of a mesh";
   ntype.enum_name_legacy = "DISTRIBUTE_POINTS_ON_FACES";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  blender::bke::node_type_size(ntype, 170, 100, 320);
+  bke::node_type_size(ntype, 170, 100, 320);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

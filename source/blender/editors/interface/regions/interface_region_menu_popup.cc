@@ -126,15 +126,15 @@ static Button *ui_popup_menu_memory__internal(Block *block, Button *but)
   }
 
   /* get */
-  for (const std::unique_ptr<Button> &but_iter : block->buttons) {
+  for (Button &but_iter : block->buttons()) {
     /* Prevent labels (typically headings), from being returned in the case the text
      * happens to matches one of the menu items.
      * Skip separators too as checking them is redundant. */
-    if (ELEM(but_iter->type, ButtonType::Label, ButtonType::Sepr, ButtonType::SeprLine)) {
+    if (ELEM(but_iter.type, ButtonType::Label, ButtonType::Sepr, ButtonType::SeprLine)) {
       continue;
     }
-    if (mem[hash_mod] == ui_popup_string_hash(but_iter->str, but_iter->flag & BUT_HAS_SEP_CHAR)) {
-      return but_iter.get();
+    if (mem[hash_mod] == ui_popup_string_hash(but_iter.str, but_iter.flag & BUT_HAS_SEP_CHAR)) {
+      return &but_iter;
     }
   }
 
@@ -322,16 +322,16 @@ static Block *block_func_POPUP(bContext *C, PopupBlockHandle *handle, void *arg_
         /* position mouse at 0.8*width of the button and below the tile
          * on the first item */
         offset[0] = 0;
-        for (const std::unique_ptr<Button> &but_iter : block->buttons) {
+        for (const Button &but_iter : block->buttons()) {
           offset[0] = min_ii(offset[0],
-                             -(but_iter->rect.xmin + 0.8f * BLI_rctf_size_x(&but_iter->rect)));
+                             -(but_iter.rect.xmin + 0.8f * BLI_rctf_size_x(&but_iter.rect)));
         }
 
         offset[1] = 2.1 * UI_UNIT_Y;
 
-        for (const std::unique_ptr<Button> &but_iter : block->buttons) {
-          if (button_is_editable(but_iter.get())) {
-            but_activate = but_iter.get();
+        for (Button &but_iter : block->buttons()) {
+          if (button_is_editable(&but_iter)) {
+            but_activate = &but_iter;
             break;
           }
         }
@@ -558,17 +558,17 @@ void popup_menu_reports(bContext *C, ReportList *reports)
 
   BKE_reports_lock(reports);
 
-  LISTBASE_FOREACH (Report *, report, &reports->list) {
+  for (Report &report : reports->list) {
     int icon;
     const char *msg, *msg_next;
 
-    if (report->type < reports->printlevel) {
+    if (report.type < reports->printlevel) {
       continue;
     }
 
     if (pup == nullptr) {
       char title[UI_MAX_DRAW_STR];
-      SNPRINTF_UTF8(title, "%s: %s", RPT_("Report"), report->typestr);
+      SNPRINTF_UTF8(title, "%s: %s", RPT_("Report"), report.typestr);
       /* popup_menu stuff does just what we need (but pass meaningful block name) */
       pup = popup_menu_begin_ex(C, title, __func__, ICON_NONE);
       layout = popup_menu_layout(pup);
@@ -578,8 +578,8 @@ void popup_menu_reports(bContext *C, ReportList *reports)
     }
 
     /* split each newline into a label */
-    msg = report->message;
-    icon = icon_from_report_type(report->type);
+    msg = report.message;
+    icon = icon_from_report_type(report.type);
     do {
       char buf[UI_MAX_DRAW_STR];
       msg_next = strchr(msg, '\n');
@@ -723,7 +723,7 @@ void popup_block_ex(bContext *C,
 
 static void popup_block_template_close_cb(bContext *C, void *arg1, void * /*arg2*/)
 {
-  Block *block = (Block *)arg1;
+  Block *block = static_cast<Block *>(arg1);
 
   PopupBlockHandle *handle = block->handle;
   if (handle == nullptr) {
@@ -815,10 +815,10 @@ void popup_block_template_confirm_op(Layout *layout,
     const Button *but_ref = block->last_but();
     *r_ptr = row.op(ot, confirm_text, icon, row.operator_context(), UI_ITEM_NONE);
 
-    if (block->buttons.is_empty() || but_ref == block->buttons.last().get()) {
+    if (block->buttons_ptrs.is_empty() || but_ref == block->buttons_ptrs.last().get()) {
       return nullptr;
     }
-    return block->buttons.last().get();
+    return block->buttons_ptrs.last().get();
   };
 
   auto cancel_fn = [&row, &cancel_text, &show_cancel]() -> Button * {
@@ -878,8 +878,8 @@ void popup_block_close(bContext *C, wmWindow *win, Block *block)
 
       /* In the case we have nested popups,
        * closing one may need to redraw another, see: #48874 */
-      LISTBASE_FOREACH (ARegion *, region, &screen->regionbase) {
-        ED_region_tag_refresh_ui(region);
+      for (ARegion &region : screen->regionbase) {
+        ED_region_tag_refresh_ui(&region);
       }
     }
   }
@@ -889,9 +889,9 @@ void popup_block_close(bContext *C, wmWindow *win, Block *block)
 
 bool popup_block_name_exists(const bScreen *screen, const StringRef name)
 {
-  LISTBASE_FOREACH (const ARegion *, region, &screen->regionbase) {
-    LISTBASE_FOREACH (const Block *, block, &region->runtime->uiblocks) {
-      if (block->name == name) {
+  for (const ARegion &region : screen->regionbase) {
+    for (const Block &block : region.runtime->uiblocks) {
+      if (block.name == name) {
         return true;
       }
     }

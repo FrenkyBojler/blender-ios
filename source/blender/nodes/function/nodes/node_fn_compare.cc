@@ -76,7 +76,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeFunctionCompare *data = MEM_new_for_free<NodeFunctionCompare>(__func__);
+  NodeFunctionCompare *data = MEM_new<NodeFunctionCompare>(__func__);
   data->operation = NODE_COMPARE_GREATER_THAN;
   data->data_type = SOCK_FLOAT;
   data->mode = NODE_COMPARE_MODE_ELEMENT;
@@ -157,7 +157,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     }
   }
 
-  if (params.in_out() != SOCK_IN && type != SOCK_STRING) {
+  if (params.in_out() == SOCK_IN && type != SOCK_STRING) {
     params.add_item(
         IFACE_("Angle"),
         SocketSearchOp{
@@ -712,7 +712,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   fn_node_type_base(&ntype, "FunctionNodeCompare", FN_NODE_COMPARE);
   ntype.ui_name = "Compare";
   ntype.ui_description = "Perform a comparison operation on the two given inputs";
@@ -721,12 +721,12 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeFunctionCompare", node_free_standard_storage, node_copy_standard_storage);
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

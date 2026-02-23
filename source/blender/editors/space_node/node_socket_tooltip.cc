@@ -29,9 +29,11 @@
 
 #include "node_intern.hh"
 
-namespace geo_log = blender::nodes::geo_eval_log;
+namespace blender {
 
-namespace blender::ed::space_node {
+namespace geo_log = nodes::geo_eval_log;
+
+namespace ed::space_node {
 
 class SocketTooltipBuilder {
  private:
@@ -560,7 +562,7 @@ class SocketTooltipBuilder {
     if (base_type.is<float>()) {
       return TIP_("Float Field");
     }
-    if (base_type.is<blender::float3>()) {
+    if (base_type.is<float3>()) {
       return TIP_("3D Float Vector Field");
     }
     if (base_type.is<bool>()) {
@@ -569,13 +571,13 @@ class SocketTooltipBuilder {
     if (base_type.is<std::string>()) {
       return TIP_("String Field");
     }
-    if (base_type.is<blender::ColorGeometry4f>()) {
+    if (base_type.is<ColorGeometry4f>()) {
       return TIP_("Color Field");
     }
     if (base_type.is<math::Quaternion>()) {
       return TIP_("Rotation Field");
     }
-    if (base_type.is<blender::float4x4>()) {
+    if (base_type.is<float4x4>()) {
       return TIP_("Matrix Field");
     }
     BLI_assert_unreachable();
@@ -704,7 +706,7 @@ class SocketTooltipBuilder {
     else {
       this->add_text_field_mono(TIP_("Values:"));
       Vector<geo_log::BundleValueLog::Item> sorted_items = bundle_log.items;
-      std::sort(sorted_items.begin(), sorted_items.end(), [](const auto &a, const auto &b) {
+      std::ranges::sort(sorted_items, [](const auto &a, const auto &b) {
         return BLI_strcasecmp_natural(a.key.c_str(), b.key.c_str()) < 0;
       });
       for (const geo_log::BundleValueLog::Item &item : sorted_items) {
@@ -910,4 +912,6 @@ void build_socket_tooltip(ui::TooltipData &tip_data,
   builder.build();
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+
+}  // namespace blender

@@ -18,12 +18,6 @@
 
 namespace blender::seq {
 
-/* No effect inputs for adjustment, we use #give_ibuf_seq. */
-static int num_inputs_adjustment()
-{
-  return 0;
-}
-
 static StripEarlyOut early_out_adjustment(const Strip * /*strip*/, float /*fac*/)
 {
   return StripEarlyOut::NoInput;
@@ -37,8 +31,8 @@ static ImBuf *do_adjustment_impl(const RenderData *context,
   ImBuf *i = nullptr;
   Editing *ed = context->scene->ed;
 
-  ListBase *seqbasep = get_seqbase_by_strip(context->scene, strip);
-  ListBase *channels = get_channels_by_strip(ed, strip);
+  ListBaseT<Strip> *seqbasep = get_seqbase_by_strip(context->scene, strip);
+  ListBaseT<SeqTimelineChannel> *channels = get_channels_by_strip(ed, strip);
 
   /* Clamp timeline_frame to strip range so it behaves as if it had "still frame" offset (last
    * frame is static after end of strip). This is how most strips behave. This way transition
@@ -85,7 +79,6 @@ static ImBuf *do_adjustment(const RenderData *context,
 
 void adjustment_effect_get_handle(EffectHandle &rval)
 {
-  rval.num_inputs = num_inputs_adjustment;
   rval.early_out = early_out_adjustment;
   rval.execute = do_adjustment;
 }

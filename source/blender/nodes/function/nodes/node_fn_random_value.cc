@@ -66,7 +66,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void fn_node_random_value_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeRandomValue *data = MEM_new_for_free<NodeRandomValue>(__func__);
+  NodeRandomValue *data = MEM_new<NodeRandomValue>(__func__);
   data->data_type = CD_PROP_FLOAT;
   node->storage = data;
 }
@@ -186,7 +186,7 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   fn_node_type_base(&ntype, "FunctionNodeRandomValue", FN_NODE_RANDOM_VALUE);
   ntype.ui_name = "Random Value";
@@ -198,9 +198,9 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeRandomValue", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -1092,7 +1092,7 @@ void widgetbase_draw_cache_flush()
   else {
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE_INST);
     GPU_batch_uniform_4fv_array(batch,
-                                "parameters",
+                                "parameters_inst",
                                 MAX_WIDGET_PARAMETERS * MAX_WIDGET_BASE_BATCH,
                                 (float (*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
@@ -2335,23 +2335,23 @@ static void widget_draw_extra_icons(const uiWidgetColors *wcol,
   }
 
   /* Inverse order, from right to left. */
-  LISTBASE_FOREACH_BACKWARD (ButtonExtraOpIcon *, op_icon, &but->extra_op_icons) {
+  for (ButtonExtraOpIcon &op_icon : but->extra_op_icons.items_reversed()) {
     rcti temp = *rect;
     float alpha_this = alpha;
 
     temp.xmin = temp.xmax - icon_size;
 
-    if (op_icon->disabled) {
+    if (op_icon.disabled) {
       alpha_this *= 0.4f;
     }
-    else if (!op_icon->highlighted) {
+    else if (!op_icon.highlighted) {
       alpha_this *= 0.75f;
     }
 
     /* Draw the icon at the center, and restore the flags after. */
     const int old_drawflags = but->drawflag;
     button_drawflag_disable(but, BUT_ICON_LEFT);
-    widget_draw_icon(but, op_icon->icon, alpha_this, &temp, wcol->text);
+    widget_draw_icon(but, op_icon.icon, alpha_this, &temp, wcol->text);
     but->drawflag = old_drawflags;
 
     rect->xmax -= icon_size;
@@ -2375,7 +2375,7 @@ static void widget_draw_node_link_socket(const uiWidgetColors *wcol,
     widgetbase_draw_cache_flush();
     GPU_blend(GPU_BLEND_NONE);
 
-    blender::ed::space_node::node_socket_draw(
+    ed::space_node::node_socket_draw(
         static_cast<bNodeSocket *>(but->custom_data), rect, col, scale);
   }
   else {
@@ -3395,7 +3395,7 @@ void hsvcube_pos_from_vals(
 
 static void ui_draw_but_HSVCUBE(Button *but, const rcti *rect)
 {
-  const ButtonHSVCube *hsv_but = (ButtonHSVCube *)but;
+  const ButtonHSVCube *hsv_but = static_cast<ButtonHSVCube *>(but);
   float rgb[3], rgb_perceptual[3];
   float x = 0.0f, y = 0.0f;
   const ColorManagedDisplay *display = block_cm_display_get(but->block);
@@ -3473,7 +3473,7 @@ static void ui_draw_but_HSVCUBE(Button *but, const rcti *rect)
 /* vertical 'value' slider, using new widget code */
 static void ui_draw_but_HSV_v(Button *but, const rcti *rect)
 {
-  const ButtonHSVCube *hsv_but = (ButtonHSVCube *)but;
+  const ButtonHSVCube *hsv_but = static_cast<ButtonHSVCube *>(but);
   float rgb[3], hsv[3], v;
 
   button_v3_get(but, rgb);
@@ -4023,12 +4023,12 @@ static void widget_nodesocket(Button *but,
   widgetbase_draw_cache_flush();
   GPU_blend(GPU_BLEND_NONE);
 
-  blender::ed::space_node::node_draw_nodesocket(&socket_rect,
-                                                socket_color,
-                                                outline_color,
-                                                U.pixelsize,
-                                                SOCK_DISPLAY_SHAPE_CIRCLE,
-                                                1.0f / zoom);
+  ed::space_node::node_draw_nodesocket(&socket_rect,
+                                       socket_color,
+                                       outline_color,
+                                       U.pixelsize,
+                                       SOCK_DISPLAY_SHAPE_CIRCLE,
+                                       1.0f / zoom);
 }
 
 static void widget_numslider(Button *but,
@@ -4156,7 +4156,7 @@ static void widget_swatch(Button *but,
                           const float zoom)
 {
   BLI_assert(but->type == ButtonType::Color);
-  ButtonColor *color_but = (ButtonColor *)but;
+  ButtonColor *color_but = static_cast<ButtonColor *>(but);
   float col[4];
 
   col[3] = 1.0f;
@@ -4211,7 +4211,7 @@ static void widget_swatch(Button *but,
 
   widgetbase_draw_color(&wtb, wcol, col, show_alpha_checkers);
   if (color_but->is_pallete_color &&
-      ((Palette *)but->rnapoin.owner_id)->active_color == color_but->palette_color_index)
+      (id_cast<Palette *>(but->rnapoin.owner_id))->active_color == color_but->palette_color_index)
   {
     const float width = rect->xmax - rect->xmin;
     const float height = rect->ymax - rect->ymin;
@@ -4396,7 +4396,7 @@ static void widget_menu_pie_itembut(Button *but,
                                     int /*roundboxalign*/,
                                     const float zoom)
 {
-  const float fac = but->block->pie_data.alphafac;
+  const float fac = but->block->pie_data ? but->block->pie_data->alphafac : 1.0f;
 
   WidgetBase wtb;
   widget_init(&wtb);
@@ -5049,6 +5049,9 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
   /* handle menus separately */
   if (but->emboss == EmbossType::Pulldown) {
     switch (but->type) {
+      case ButtonType::Color:
+        wt = widget_type(UI_WTYPE_SWATCH);
+        break;
       case ButtonType::Label:
         widget_draw_text_icon(&style->widget, &tui->wcol_menu_back, but, rect);
         break;
@@ -5236,7 +5239,7 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
         break;
 
       case ButtonType::HsvCube: {
-        const ButtonHSVCube *hsv_but = (ButtonHSVCube *)but;
+        const ButtonHSVCube *hsv_but = static_cast<ButtonHSVCube *>(but);
 
         if (ELEM(hsv_but->gradient_type, GRAD_V_ALT, GRAD_L_ALT)) {
           /* vertical V slider, uses new widget draw now */
@@ -5621,10 +5624,10 @@ static void draw_disk_shaded(float start,
 void draw_pie_center(Block *block)
 {
   bTheme *btheme = theme::theme_get();
-  const float cx = block->pie_data.pie_center_spawned[0];
-  const float cy = block->pie_data.pie_center_spawned[1];
+  const float cx = block->pie_data->pie_center_spawned[0];
+  const float cy = block->pie_data->pie_center_spawned[1];
 
-  const float *pie_dir = block->pie_data.pie_dir;
+  const float *pie_dir = block->pie_data->pie_dir;
 
   const float pie_radius_internal = UI_SCALE_FAC * U.pie_menu_threshold;
   const float pie_radius_external = UI_SCALE_FAC * (U.pie_menu_threshold + 7.0f);
@@ -5633,8 +5636,8 @@ void draw_pie_center(Block *block)
 
   const float angle = atan2f(pie_dir[1], pie_dir[0]);
   /* Use a smaller range if there are both axis aligned & diagonal buttons. */
-  const bool has_aligned = (block->pie_data.pie_dir_mask & UI_RADIAL_MASK_ALL_AXIS_ALIGNED) != 0;
-  const bool has_diagonal = (block->pie_data.pie_dir_mask & UI_RADIAL_MASK_ALL_DIAGONAL) != 0;
+  const bool has_aligned = (block->pie_data->pie_dir_mask & UI_RADIAL_MASK_ALL_AXIS_ALIGNED) != 0;
+  const bool has_diagonal = (block->pie_data->pie_dir_mask & UI_RADIAL_MASK_ALL_DIAGONAL) != 0;
   const float range = (has_aligned && has_diagonal) ? M_PI_4 : M_PI_2;
 
   GPU_matrix_push();
@@ -5662,7 +5665,7 @@ void draw_pie_center(Block *block)
                      false);
   }
 
-  if (!(block->pie_data.flags & PIE_INVALID_DIR)) {
+  if (!(block->pie_data->flags & PIE_INVALID_DIR)) {
     if (btheme->tui.wcol_pie_menu.shaded) {
       uchar col1[4], col2[4];
       shadecolors4(btheme->tui.wcol_pie_menu.inner_sel,
@@ -5701,7 +5704,7 @@ void draw_pie_center(Block *block)
 
   immUnbindProgram();
 
-  if (U.pie_menu_confirm > 0 && !(block->pie_data.flags & (PIE_INVALID_DIR | PIE_CLICK_STYLE))) {
+  if (U.pie_menu_confirm > 0 && !(block->pie_data->flags & (PIE_INVALID_DIR | PIE_CLICK_STYLE))) {
     const float pie_confirm_radius = UI_SCALE_FAC * (pie_radius_internal + U.pie_menu_confirm);
     const float pie_confirm_external = UI_SCALE_FAC *
                                        (pie_radius_internal + U.pie_menu_confirm + 7.0f);
