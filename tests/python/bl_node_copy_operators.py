@@ -402,7 +402,7 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
         self.assertTrue(args.testdir.exists(),
                         'Test dir {0} should exist'.format(args.testdir))
         open_test_file()
-        self.assertEqual(bpy.data.version, (5, 1, 27))
+        self.assertEqual(bpy.data.version, (5, 2, 5))
 
     def tearDown(self):
         self._tempdir.cleanup()
@@ -429,6 +429,7 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
             self.assertEqual(test_socket.type, expected_socket.type)
             self.assertEqual(test_socket.description, expected_socket.description)
             self.assertEqual(test_socket.is_output, expected_socket.is_output)
+            self.assertEqual(test_socket.hide, expected_socket.hide)
 
             # Input value
             if not expected_socket.is_output:

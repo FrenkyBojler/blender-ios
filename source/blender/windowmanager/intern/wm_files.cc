@@ -668,8 +668,6 @@ static void wm_file_read_pre(bool use_data, bool /*use_userdef*/)
   /* Always do this as both startup and preferences may have loaded in many font's
    * at a different zoom level to the file being loaded. */
   ui::view2d_zoom_cache_reset();
-
-  ED_preview_restart_queue_free();
 }
 
 /**
@@ -2126,7 +2124,7 @@ static bool wm_file_write(bContext *C,
   BKE_callback_exec_string(bmain, filepath, BKE_CB_EVT_SAVE_PRE);
 
   /* Check if file write permission is OK. */
-  if (const int st_mode = BLI_exists(filepath)) {
+  if (const int st_mode = BLI_file_stat_mode(filepath)) {
     bool ok = true;
 
     if (!BLI_file_is_writable(filepath)) {
@@ -2242,7 +2240,13 @@ static bool wm_file_write(bContext *C,
     /* Run this function after because the file can't be written before the blend is. */
     if (ibuf_thumb) {
       IMB_thumb_delete(filepath, THB_FAIL); /* Without this a failed thumb overrides. */
-      ibuf_thumb = IMB_thumb_create(filepath, THB_LARGE, THB_SOURCE_BLEND, ibuf_thumb);
+      /* `IMB_thumb_create()` may return nullptr, `ibuf_thumb` may then leak that buffers' memory.
+       */
+      ImBuf *saved_ibuf_thumb = IMB_thumb_create(
+          filepath, THB_LARGE, THB_SOURCE_BLEND, ibuf_thumb);
+      if (saved_ibuf_thumb) {
+        ibuf_thumb = saved_ibuf_thumb;
+      }
     }
   }
 

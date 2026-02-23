@@ -363,11 +363,11 @@ static const EnumPropertyItem rna_enum_media_type_image_items[] = {
 
 #define IMAGE_TYPE_ITEMS_IMAGE \
   /* DDS save not supported yet R_IMF_ENUM_DDS */ \
+  R_IMF_ENUM_AVIF \
   R_IMF_ENUM_JPEG \
   R_IMF_ENUM_EXR \
   R_IMF_ENUM_PNG \
   R_IMF_ENUM_WEBP \
-  R_IMF_ENUM_AVIF \
   RNA_ENUM_ITEM_SEPR, \
       R_IMF_ENUM_BMP R_IMF_ENUM_CINEON R_IMF_ENUM_DPX R_IMF_ENUM_IRIS R_IMF_ENUM_JPEG2K \
           R_IMF_ENUM_HDR R_IMF_ENUM_TAGA R_IMF_ENUM_TAGA_RAW R_IMF_ENUM_TIFF
@@ -4024,7 +4024,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(
       prop, "Surface Offset", "Offset along the normal when drawing on surfaces");
-  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1f, 3);
   RNA_def_property_float_default(prop, 0.150f);
 
@@ -7282,6 +7282,12 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_overwrite", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "mode", R_NO_OVERWRITE);
   RNA_def_property_ui_text(prop, "Overwrite", "Overwrite existing files while rendering");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "save_output", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "mode", R_SAVE_OUTPUT);
+  RNA_def_property_ui_text(prop, "Save Output", "Write frames to disk for animation renders");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "use_compositing", PROP_BOOLEAN, PROP_NONE);
