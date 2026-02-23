@@ -112,5 +112,8 @@ void modifier_type_panel_id(eStripModifierType type, char *r_idname);
 /* Iterate over all the modifiers and call the callback function for every referenced ID. */
 void foreach_strip_modifier_id(Strip *strip, const FunctionRef<void(ID *)> fn);
 
+void compositor_nodes_update_interface(Scene &sequencer_scene,
+                                       SequencerCompositorModifierData &cmd);
+
 }  // namespace seq
 }  // namespace blender

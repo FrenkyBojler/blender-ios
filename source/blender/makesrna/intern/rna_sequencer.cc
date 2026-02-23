@@ -1884,14 +1884,18 @@ static void strip_compositor_node_group_update(Main *bmain, PointerRNA *ptr)
 
   /* Strips from other scenes could be modified, so use the scene of the strip as opposed to the
    * active scene argument. */
-  Scene *strip_scene = reinterpret_cast<Scene *>(ptr->owner_id);
-  Editing *ed = seq::editing_get(strip_scene);
+  Scene *sequencer_scene = reinterpret_cast<Scene *>(ptr->owner_id);
+  Editing *ed = seq::editing_get(sequencer_scene);
+  if (!ed) {
+    return;
+  }
 
   /* The sequencer stores a cached mapping between compositor node trees and strips that use them,
    * so we need to invalidate the cache since the node tree changed. */
   seq::strip_lookup_invalidate(ed);
 
-  strip_compositor_nodes_update_interface(object, nmd);
+  auto *cmd = ptr->data_as<SequencerCompositorModifierData>();
+  seq::compositor_nodes_update_interface(*sequencer_scene, *cmd);
 }
 
 static void rna_CompositorEffect_node_group_update(Main *bmain, Scene *scene, PointerRNA *ptr)

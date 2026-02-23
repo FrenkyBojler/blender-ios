@@ -18,6 +18,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
+#include "DNA_sequence_types.h"
 
 #include "BKE_anim_data.hh"
 #include "BKE_image.hh"
@@ -50,6 +51,10 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+
+#include "SEQ_iterator.hh"
+#include "SEQ_modifier.hh"
+#include "SEQ_sequencer.hh"
 
 namespace blender {
 
@@ -207,9 +212,15 @@ static bool is_tree_changed(const bNodeTree &tree)
          tree.tree_interface.requires_dependent_tree_updates();
 }
 
+struct StripModifierOwner {
+  Scene *scene;
+  Strip *strip;
+};
+
 using TreeNodePair = std::pair<bNodeTree *, bNode *>;
 using ObjectModifierPair = std::pair<Object *, ModifierData *>;
 using NodeSocketPair = std::pair<bNode *, bNodeSocket *>;
+using StripModifierPair = std::pair<StripModifierOwner, StripModifierData *>;
 
 /**
  * Cache common data about node trees from the #Main database that is expensive to retrieve on
@@ -221,6 +232,7 @@ struct NodeTreeRelations {
   std::optional<Vector<bNodeTree *>> all_trees_;
   std::optional<MultiValueMap<bNodeTree *, TreeNodePair>> group_node_users_;
   std::optional<MultiValueMap<bNodeTree *, ObjectModifierPair>> modifiers_users_;
+  std::optional<MultiValueMap<bNodeTree *, StripModifierPair>> strip_modifier_users_;
 
  public:
   NodeTreeRelations(Main *bmain) : bmain_(bmain) {}
@@ -289,10 +301,46 @@ struct NodeTreeRelations {
     }
   }
 
+  void ensure_strip_modifier_users()
+  {
+    if (strip_modifier_users_.has_value()) {
+      return;
+    }
+    strip_modifier_users_.emplace();
+    if (bmain_ == nullptr) {
+      return;
+    }
+
+    for (Scene &scene : bmain_->scenes) {
+      Editing *ed = seq::editing_get(&scene);
+      if (!ed) {
+        continue;
+      }
+      for (Strip *strip : seq::query_all_strips_recursive(&ed->seqbase)) {
+        for (StripModifierData &modifier : strip->modifiers) {
+          if (modifier.type != eSeqModifierType_Compositor) {
+            continue;
+          }
+          const SequencerCompositorModifierData *modifier_data =
+              reinterpret_cast<SequencerCompositorModifierData *>(&modifier);
+          if (modifier_data->node_group != nullptr) {
+            strip_modifier_users_.add(modifier_data->node_group, {{&scene, strip}, &modifier});
+          }
+        }
+      }
+    }
+  }
+
   Span<ObjectModifierPair> get_modifier_users(bNodeTree *ntree)
   {
     BLI_assert(modifiers_users_.has_value());
     return modifiers_users_->lookup(ntree);
+  }
+
+  Span<StripModifierPair> get_strip_modifier_users(bNodeTree *ntree)
+  {
+    BLI_assert(strip_modifier_users_.has_value());
+    return strip_modifier_users_->lookup(ntree);
   }
 
   Span<TreeNodePair> get_group_node_users(bNodeTree *ntree)
@@ -399,6 +447,18 @@ class NodeTreeMainUpdater {
 
             if (md->type == eModifierType_Nodes) {
               MOD_nodes_update_interface(object, reinterpret_cast<NodesModifierData *>(md));
+            }
+          }
+        }
+        if (ntree->type == NTREE_COMPOSIT) {
+          relations_.ensure_strip_modifier_users();
+          for (const StripModifierPair &pair : relations_.get_strip_modifier_users(ntree)) {
+            StripModifierOwner owner = pair.first;
+            StripModifierData *md = pair.second;
+
+            if (md->type == eSeqModifierType_Compositor) {
+              seq::compositor_nodes_update_interface(
+                  *owner.scene, *reinterpret_cast<SequencerCompositorModifierData *>(md));
             }
           }
         }
@@ -943,9 +1003,9 @@ class NodeTreeMainUpdater {
 
   void update_from_field_inference(bNodeTree &ntree)
   {
-    /* Automatically tag a bake item as attribute when the input is a field. The flag should not be
-     * removed automatically even when the field input is disconnected because the baked data may
-     * still contain attribute data instead of a single value. */
+    /* Automatically tag a bake item as attribute when the input is a field. The flag should not
+     * be removed automatically even when the field input is disconnected because the baked data
+     * may still contain attribute data instead of a single value. */
     for (bNode *node : ntree.nodes_by_type("GeometryNodeBake")) {
       NodeGeometryBake &storage = *static_cast<NodeGeometryBake *>(node->storage);
       for (const int i : IndexRange(storage.items_num)) {
@@ -1074,7 +1134,8 @@ class NodeTreeMainUpdater {
           break;
         }
         default: {
-          /* For other nodes we just use the static structure types defined in the declaration. */
+          /* For other nodes we just use the static structure types defined in the declaration.
+           */
           for (bNodeSocket *socket : node->input_sockets()) {
             socket->display_shape = get_socket_shape(*socket);
           }
@@ -1502,8 +1563,8 @@ class NodeTreeMainUpdater {
     const nodes::StructureType from_inferred_type =
         link.fromsock->runtime->inferred_structure_type;
     if (from_inferred_type == StructureType::Dynamic) {
-      /* Showing errors in this case results in many false positives in cases where Blender is not
-       * sure what the actual type is. */
+      /* Showing errors in this case results in many false positives in cases where Blender is
+       * not sure what the actual type is. */
       return nullptr;
     }
     const int from_shape = link.fromsock->display_shape;
@@ -1571,8 +1632,8 @@ class NodeTreeMainUpdater {
        * be used without causing updates all the time currently. In the future we could try to
        * handle other drivers better as well.
        * Note that this optimization only works in practice when the depsgraph didn't also get a
-       * copy-on-evaluation tag for the node tree (which happens when changing node properties). It
-       * does work in a few situations like adding reroutes and duplicating nodes though. */
+       * copy-on-evaluation tag for the node tree (which happens when changing node properties).
+       * It does work in a few situations like adding reroutes and duplicating nodes though. */
       for (const FCurve &fcurve : adt->drivers) {
         const ChannelDriver *driver = fcurve.driver;
         const StringRef expression = driver->expression;
@@ -1858,8 +1919,8 @@ class NodeTreeMainUpdater {
             }
           }
         }
-        /* Zones may propagate changes from the input node to the output node even though there is
-         * no explicit link. */
+        /* Zones may propagate changes from the input node to the output node even though there
+         * is no explicit link. */
         switch (node.type_legacy) {
           case GEO_NODE_REPEAT_OUTPUT:
           case GEO_NODE_SIMULATION_OUTPUT:

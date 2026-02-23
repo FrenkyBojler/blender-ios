@@ -43,19 +43,18 @@
 
 namespace blender::seq {
 
-void MOD_nodes_update_interface(Scene *sequencer_scene, SequencerCompositorModifierData *cmd)
+void compositor_nodes_update_interface(Scene &sequencer_scene,
+                                       SequencerCompositorModifierData &cmd)
 {
-  if (!cmd->modifier.system_properties) {
-    cmd->modifier.system_properties =
+  if (!cmd.modifier.system_properties) {
+    cmd.modifier.system_properties =
         bke::idprop::create_group("SequencerCompositorModifierProperties").release();
   }
   PointerRNA properties_ptr = RNA_pointer_create_discrete(
-      &sequencer_scene->id, RNA_SequencerCompositorModifierProperties, cmd);
-  RNA_sync_system_properties(properties_ptr, *cmd->modifier.system_properties);
+      &sequencer_scene.id, RNA_SequencerCompositorModifierProperties, &cmd);
+  RNA_sync_system_properties(properties_ptr, *cmd.modifier.system_properties);
 
-  // nmd->runtime->usage_cache.reset();
-
-  DEG_id_tag_update(&sequencer_scene->id, ID_RECALC_SEQUENCER_STRIPS);
+  DEG_id_tag_update(&sequencer_scene.id, ID_RECALC_SEQUENCER_STRIPS);
 }
 
 class CompositorContext : public compositor::Context {
