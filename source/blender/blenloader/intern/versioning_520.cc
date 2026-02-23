@@ -57,8 +57,6 @@ static void version_geometry_nodes_properties(Main &bmain, Object &object, Nodes
   IDProperty *inputs = bke::idprop::create_group("inputs").release();
   IDP_AddToGroup(system_props, inputs);
 
-  Vector<AnimationBasePathChange> basepaths;
-
   const std::string inputs_path_prefix = fmt::format("modifiers[\"{}\"]", nmd.modifier.name);
   for (const bNodeTreeInterfaceSocket *input : ntree.interface_inputs()) {
     const StringRefNull identifier = input->identifier;
@@ -88,19 +86,16 @@ static void version_geometry_nodes_properties(Main &bmain, Object &object, Nodes
     STRNCPY(new_value_prop->name, "value");
     IDP_AddToGroup(group, new_value_prop);
 
-    // const std::string old_value_path = fmt::format("[\"{}\"]", identifier);
-    // const std::string new_value_path = fmt::format("inputs.{}.value", identifier);
-    // BKE_animdata_fix_paths_rename_all_ex(&bmain,
-    //                                      &object.id,
-    //                                      inputs_path_prefix.c_str(),
-    //                                      old_value_path.c_str(),
-    //                                      new_value_path.c_str(),
-    //                                      0,
-    //                                      0,
-    //                                      false);
-    basepaths.append(
-        {fmt::format("modifiers[{}][\"{}\"]", nmd.modifier.name, identifier),
-         fmt::format("modifiers[{}].properties.inputs.{}.value", nmd.modifier.name, identifier)});
+    const std::string old_value_path = fmt::format("[\"{}\"]", identifier);
+    const std::string new_value_path = fmt::format("inputs.{}.value", identifier);
+    BKE_animdata_fix_paths_rename_all_ex(&bmain,
+                                         &object.id,
+                                         inputs_path_prefix.c_str(),
+                                         old_value_path.c_str(),
+                                         new_value_path.c_str(),
+                                         0,
+                                         0,
+                                         false);
 
     bool use_attribute = false;
     if (const IDProperty *use_attribute_prop = IDP_GetPropertyFromGroup(
@@ -128,8 +123,6 @@ static void version_geometry_nodes_properties(Main &bmain, Object &object, Nodes
     }();
     IDP_AddToGroup(group, bke::idprop::create("attribute_name", attribute_name).release());
   }
-
-  BKE_animdata_copy_by_basepath(bmain, object.id, object.id, basepaths);
 
   IDProperty *outputs = bke::idprop::create_group("outputs").release();
   IDP_AddToGroup(system_props, outputs);
