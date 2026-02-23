@@ -576,6 +576,14 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
     scene->r.subframe = 0.0f;
   }
   FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
+  bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C));
+  if (screen->animtimer) {
+    /* Always set to the start frame if out of playback bounds. This is to avoid the flicker to the
+     * last frame. */
+    if (scene->r.cfra < scene->r.sfra || scene->r.cfra > scene->r.efra) {
+      scene->r.cfra = scene->r.sfra;
+    }
+  }
 
   ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
