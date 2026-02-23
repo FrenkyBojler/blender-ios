@@ -179,16 +179,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .usage_by_menu("Mode",
                      {int16_t(IntersectionMode::Curve), int16_t(IntersectionMode::Curve_Project)})
       .description("Include all intersections except self intersections");
-  b.add_input<decl::Bool>("Use Radius")
-      .default_value(false)
-      .usage_by_menu("Mode",
-                     {int16_t(IntersectionMode::Curve), int16_t(IntersectionMode::Curve_Project)})
-      .description(
-          "Use curve radius for calculating distance between intersections based on the curve "
-          "center line.");
   b.add_input<decl::Float>("Distance")
       .subtype(PROP_DISTANCE)
       .min(0.0f)
+      .supports_field()
       .usage_by_menu("Mode",
                      {int16_t(IntersectionMode::Curve), int16_t(IntersectionMode::Curve_Project)})
       .description("Maximum distance between intersections");
@@ -528,12 +522,13 @@ static float3 project_v3_plane(const float3 vector, const float3 direction)
   return vector - math::project(vector, direction);
 }
 
-static Array<float> get_evaluated_radii(const bke::CurvesGeometry &src_curves)
+static Array<float> get_evaluated_radii(const bke::CurvesGeometry &src_curves,
+                                        const VArray<float> radius)
 {
-  const VArray<float> radius = src_curves.radius();
+  // const VArray<float> radius = src_curves.radius();
   Array<float> radii_eval(src_curves.evaluated_points_num());
-  if (const std::optional radius_single = radius.get_if_single()) {
-    radii_eval.fill(0.05f);
+  if (const std::optional<float> radius_single = radius.get_if_single()) {
+    radii_eval.fill(radius_single.value_or(0.05f));
     BLI_assert(radii_eval.size() == src_curves.evaluated_points_num());
     return radii_eval;
   }
@@ -549,6 +544,7 @@ static Array<float> get_evaluated_radii(const bke::CurvesGeometry &src_curves)
 
 /* Build curve segment bvh. */
 static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curves,
+                                             const VArray<float> radius,
                                              const VArray<int> &ids,
                                              Vector<Segment> *r_curve_segments,
                                              const float2 min_max_angle,
@@ -563,7 +559,7 @@ static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curv
   BVHTree *bvhtree = BLI_bvhtree_new(bvh_points_num, curve_isect_eps, 8, 8);
   const VArray<bool> cyclic = src_curves.cyclic();
   const OffsetIndices evaluated_points_by_curve = src_curves.evaluated_points_by_curve();
-  const Array<float> radii = get_evaluated_radii(src_curves);
+  const Array<float> radii = get_evaluated_radii(src_curves, radius);
   const bool use_direction_data = min_max_angle.x > 0.0f || min_max_angle.y < pi_2_f ||
                                   attribute_outputs.direction || attribute_outputs.pair_direction;
 
@@ -680,12 +676,13 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
                                           const AttributeOutputs &attribute_outputs,
                                           IntersectionData &r_data)
 {
+  const VArray<float> radius = src_curves.radius();
   const VArray<bool> cyclic = src_curves.cyclic();
   const OffsetIndices evaluated_points_by_curve = src_curves.evaluated_points_by_curve();
   src_curves.ensure_evaluated_lengths();
   const bool use_angle = min_max_angle.x > 0.0f || min_max_angle.y < pi_2_f;
   const bool use_direction_data = attribute_outputs.direction || attribute_outputs.pair_direction;
-  const Array<float> radii = get_evaluated_radii(src_curves);
+  const Array<float> radii = get_evaluated_radii(src_curves, radius);
 
   /* Loop each curve for intersections. */
   ThreadLocalData thread_storage;
@@ -791,8 +788,14 @@ static void set_curve_intersections_mesh(GeometrySet &mesh_set,
 {
   /* Build bvh. */
   Vector<Segment> curve_segments;
-  BVHTree *bvhtree = create_curve_segment_bvhtree(
-      src_curves, ids, &curve_segments, min_max_angle, false, float3(0.0f), attribute_outputs);
+  BVHTree *bvhtree = create_curve_segment_bvhtree(src_curves,
+                                                  src_curves.radius(),
+                                                  ids,
+                                                  &curve_segments,
+                                                  min_max_angle,
+                                                  false,
+                                                  float3(0.0f),
+                                                  attribute_outputs);
   BLI_SCOPED_DEFER([&]() { BLI_bvhtree_free(bvhtree); });
   const bool use_angle = min_max_angle.x > 0.0f || min_max_angle.y < pi_2_f;
   const bool use_normal = use_angle || attribute_outputs.normal;
@@ -889,11 +892,10 @@ static void set_curve_intersections_mesh(GeometrySet &mesh_set,
 
 /* Calculate intersections between 3d curves, optionally projected onto 2d plane. */
 static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
+                                    const Field<float> distance_field,
                                     const VArray<int> &ids,
                                     const bool self_intersect,
                                     const bool all_intersect,
-                                    const bool use_radius,
-                                    const float distance,
                                     const float2 min_max_angle,
                                     const bool project,
                                     const float3 direction,
@@ -901,10 +903,25 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
                                     const AttributeOutputs &attribute_outputs,
                                     IntersectionData &r_data)
 {
+  const bke::GeometryFieldContext field_context{src_curves, AttrDomain::Point};
+  fn::FieldEvaluator data_evaluator{field_context, src_curves.evaluated_points_num()};
+  data_evaluator.add(distance_field);
+  data_evaluator.evaluate();
+  const VArray<float> radius = data_evaluator.get_evaluated<float>(0);
+  const bool use_radius = !radius.is_single();
+  const std::optional<float> distance_value = radius.get_if_single();
+  const float distance = distance_value.value_or(0.0f);
+
   /* Build bvh. */
   Vector<Segment> curve_segments;
-  BVHTree *bvhtree = create_curve_segment_bvhtree(
-      src_curves, ids, &curve_segments, min_max_angle, project, direction, attribute_outputs);
+  BVHTree *bvhtree = create_curve_segment_bvhtree(src_curves,
+                                                  use_radius ? radius : src_curves.radius(),
+                                                  ids,
+                                                  &curve_segments,
+                                                  min_max_angle,
+                                                  project,
+                                                  direction,
+                                                  attribute_outputs);
   BLI_SCOPED_DEFER([&]() { BLI_bvhtree_free(bvhtree); });
 
   const int segment_count = curve_segments.size();
@@ -912,7 +929,7 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
   float max_search_distance = math::max(curve_isect_eps, distance);
   if (use_radius) {
     max_search_distance = curve_isect_eps;
-    const Array<float> radii = get_evaluated_radii(src_curves);
+    const Array<float> radii = get_evaluated_radii(src_curves, radius);
     for (const int i : radii.index_range()) {
       max_search_distance = math::max(max_search_distance, radii[i] * 2.0f);
     }
@@ -1232,17 +1249,16 @@ static void node_geo_exec(GeoNodeExecParams params)
           geometry_set.clear();
           return;
         }
-        const bool use_radius = params.extract_input<bool>("Use Radius");
-        const float distance = params.extract_input<float>("Distance");
+
+        const Field<float> distance_field = params.extract_input<Field<float>>("Distance");
         const float min_angle = params.extract_input<float>("Min Angle");
         const float max_angle = params.extract_input<float>("Max Angle");
         set_curve_intersections(
             src_curves,
+            distance_field,
             ids,
             self,
             all,
-            use_radius,
-            distance,
             math::clamp(float2(min_angle, max_angle), min_angle_eps, pi_2_f_eps),
             false,
             float3(0.0f),
@@ -1258,18 +1274,17 @@ static void node_geo_exec(GeoNodeExecParams params)
           geometry_set.clear();
           return;
         }
-        const bool use_radius = params.extract_input<bool>("Use Radius");
-        const float distance = params.extract_input<float>("Distance");
+        const Field<float> distance_field = params.extract_input<Field<float>>("Distance");
         const float3 direction = params.extract_input<float3>("Direction");
         const float min_angle = params.extract_input<float>("Min Angle");
         const float max_angle = params.extract_input<float>("Max Angle");
+        const VArray<float> radius = src_curves.radius();
         set_curve_intersections(
             src_curves,
+            distance_field,
             ids,
             self,
             all,
-            use_radius,
-            distance,
             math::clamp(float2(min_angle, max_angle), min_angle_eps, pi_2_f_eps),
             true,
             direction,
