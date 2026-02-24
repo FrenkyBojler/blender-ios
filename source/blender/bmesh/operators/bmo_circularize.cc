@@ -353,9 +353,7 @@ static void calculate_circle_inside_fit(Span<CircleVert> verts,
   float radius = FLT_MAX;
   for (const CircleVert &cv : verts) {
     const float dist = math::distance_squared(center, cv.co_2d);
-    if (dist < radius) {
-      radius = dist;
-    }
+    radius = std::min(radius, dist);
   }
 
   r_center = center;
