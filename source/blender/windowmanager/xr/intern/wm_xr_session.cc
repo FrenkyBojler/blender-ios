@@ -96,7 +96,7 @@ static void wm_xr_session_controller_data_free(wmXrSessionState *state)
 void wm_xr_session_data_free(wmXrSessionState *state)
 {
   wm_xr_session_controller_data_free(state);
-  BKE_id_delete(G_MAIN, id_cast<ID *>(state->viewfinder.runtime_cam_data_id));
+  BKE_id_free(nullptr, id_cast<ID *>(state->viewfinder.runtime_cam_data_id));
 }
 
 static void wm_xr_session_exit_cb(void *customdata)
@@ -804,11 +804,10 @@ void WM_xr_session_state_viewfinder_reset(wmXrSessionState *state)
   /* Runtime values. */
   state->viewfinder.runtime_smoothing_delta_t = 0.0f;
   state->viewfinder.runtime_capture_flash = 0.0f;
-  /* Workaround: We need to allocate a Camera data ID to override the View3D camera with, and set
-   *             render parameters such as DoF. This ID is freed in #wm_xr_session_data_free. */
+  /* Create a Camera data ID to override the View3D camera (for setting parameters such as DoF).
+   * This ID is freed in #wm_xr_session_data_free. */
   if (state->viewfinder.runtime_cam_data_id == nullptr) {
-    state->viewfinder.runtime_cam_data_id = static_cast<Camera *>(
-        BKE_object_obdata_add_from_type(G_MAIN, OB_CAMERA, nullptr));
+    state->viewfinder.runtime_cam_data_id = BKE_id_new_nomain<Camera>("ViewfinderCamera");
   }
 
   /* Capture settings. */
