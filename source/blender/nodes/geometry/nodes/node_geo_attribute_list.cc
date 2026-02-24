@@ -22,7 +22,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Geometry");
   b.add_output<decl::String>("Names").structure_type(StructureType::List);
-  b.add_input<decl::Bool>("Filter").default_value(true);
+  b.add_input<decl::Bool>("Filter Data Type").default_value(true);
+  b.add_input<decl::Bool>("Filter Domain").default_value(true);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -75,7 +76,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bNode &node = params.node();
 
   const GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const bool filter = params.extract_input<bool>("Filter");
+  const bool filter_type = params.extract_input<bool>("Filter Data Type");
+  const bool filter_domain = params.extract_input<bool>("Filter Domain");
   const eCustomDataType data_type = eCustomDataType(node.custom1);
   const AttrDomain domain = AttrDomain(node.custom2);
 
@@ -89,11 +91,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   Vector<std::string> names;
 
   attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (filter) {
+    if (filter_domain) {
       if (iter.domain != domain) {
         return;
       }
+    }
 
+    if (filter_type) {
       if (iter.data_type != bke::custom_data_type_to_attr_type(data_type)) {
         return;
       }
