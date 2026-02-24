@@ -8,7 +8,14 @@
 
 #pragma once
 
+#include <optional>
+
+#include "BLI_math_vector_types.hh"
+#include "BLI_span.hh"
+
 #include "BKE_customdata.hh"
+
+#include "ED_uvedit.hh"
 
 namespace blender {
 
@@ -16,6 +23,7 @@ struct BMVert;
 struct BMEdge;
 struct BMFace;
 struct BMLoop;
+struct BMesh;
 struct Object;
 struct Scene;
 struct SpaceImage;
@@ -135,7 +143,14 @@ void uvedit_face_select_set_no_sync(const ToolSettings *ts,
 
 /* utility tool functions */
 
-void uvedit_live_unwrap_update(SpaceImage *sima, Scene *scene, Object *obedit);
+/**
+ * \return #UVLiveUnwrapPre if needed, otherwise `std::nullopt`.
+ */
+std::optional<UVLiveUnwrapPre> uvedit_live_unwrap_uv_space_prepare(Scene *scene, Object *obedit);
+void uvedit_live_unwrap_update(SpaceImage *sima,
+                               Scene *scene,
+                               Object *obedit,
+                               std::optional<UVLiveUnwrapPre> uv_pre = std::nullopt);
 
 /* operators */
 

@@ -450,6 +450,9 @@ class IMAGE_MT_uvs(Menu):
         layout.separator()
 
         layout.prop(uv, "use_live_unwrap")
+        sub = layout.row()
+        sub.active = uv.use_live_unwrap
+        sub.prop(context.tool_settings, "use_uv_live_unwrap_uv_space")
         layout.menu("IMAGE_MT_uvs_unwrap")
 
         layout.separator()

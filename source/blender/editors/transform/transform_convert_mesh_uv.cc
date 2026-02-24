@@ -386,8 +386,9 @@ static void createTransUVs(bContext *C, TransInfo *t)
     }
 
     if (sima->flag & SI_LIVE_UNWRAP) {
+      /* Note that `uv_pre` isn't needed here because the UV's have not yet been transformed. */
       wmWindow *win_modal = CTX_wm_window(C);
-      ED_uvedit_live_unwrap_begin(t->scene, tc->obedit, win_modal);
+      ED_uvedit_live_unwrap_begin(t->scene, tc->obedit, win_modal, std::nullopt);
     }
 
   finally:

@@ -63,6 +63,12 @@ class ParamHandle {
 
   float aspect_y = 1.0f;
 
+  /** When true, skip solving charts that have only a single pin.
+   * LSCM can't constrain rotation with 1 pin, so in UV-space mode
+   * (where the input is already a valid UV layout) we skip rather
+   * than producing a rotated result. */
+  bool skip_single_pin = false;
+
   RNG *rng = nullptr;
   float blend = 0.0f;
 

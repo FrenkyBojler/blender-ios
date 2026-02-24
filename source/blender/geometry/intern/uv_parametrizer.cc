@@ -4094,6 +4094,22 @@ void uv_parametrizer_lscm_solve(ParamHandle *phandle, int *count_changed, int *c
     if (!chart->context) {
       continue;
     }
+
+    /* LSCM can't constrain rotation with only 1 pin. In UV-space mode the
+     * vertex coordinates are the original UVs, so skip the solve and only
+     * translate the island to follow the pinned vertex. */
+    if (chart->single_pin && phandle->skip_single_pin) {
+      PVert *pin = chart->single_pin;
+      p_vert_load_pin_select_uvs(phandle, pin);
+      const float offset[2] = {pin->uv[0] - pin->co[0], pin->uv[1] - pin->co[1]};
+      /* Reset all verts to their original UVs (stored as co), then offset. */
+      for (PVert *v = chart->verts; v; v = v->nextlink) {
+        v->uv[0] = v->co[0] + offset[0];
+        v->uv[1] = v->co[1] + offset[1];
+      }
+      continue;
+    }
+
     const bool result = p_chart_lscm_solve(phandle, chart);
 
     if (result && !chart->has_pins) {

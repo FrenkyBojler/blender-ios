@@ -2185,6 +2185,8 @@ struct ToolSettings {
   char uv_flag = UV_FLAG_SELECT_SYNC;
   char uv_selectmode = UV_SELECT_VERT;
   char uv_sticky = 0;
+  char uv_live_unwrap_uv_space = 0;
+  char _pad9[7] = {};
 
   rctf uv_custom_region = {};
 

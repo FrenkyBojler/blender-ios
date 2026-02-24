@@ -8,9 +8,14 @@
 
 #pragma once
 
+#include <optional>
+
 #include "DNA_listBase.h"
 
+#include "BLI_array.hh"
 #include "BLI_function_ref.hh"
+#include "BLI_math_vector_types.hh"
+#include "BLI_utility_mixins.hh"
 #include "BLI_vector_list.hh"
 
 #include "BKE_customdata.hh"
@@ -341,13 +346,27 @@ void ED_uvedit_get_aspect_from_material(Object *ob,
                                         float *r_aspx,
                                         float *r_aspy);
 
+/**
+ * Opaque snapshot before manipulating UV's.
+ *
+ * Passed to #ED_uvedit_live_unwrap_begin, needed for the UV-space solver.
+ */
+struct UVLiveUnwrapPre : NonCopyable {
+  Array<float3> uv_snapshot;
+};
+
 /** Return true if the timer is managed by live-unwrap. */
 bool ED_uvedit_live_unwrap_timer_check(const wmTimer *timer);
 
 /**
  * \param win_modal: Support interactive (modal) unwrapping that updates with a timer.
+ * \param uv_pre: Pre-operation UV snapshot for UV-space live unwrap (single iteration path).
+ * Must be provided when UV-space mode is active and \a win_modal is null.
  */
-void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit, struct wmWindow *win_modal);
+void ED_uvedit_live_unwrap_begin(Scene *scene,
+                                 Object *obedit,
+                                 struct wmWindow *win_modal,
+                                 std::optional<UVLiveUnwrapPre> uv_pre);
 void ED_uvedit_live_unwrap_re_solve();
 void ED_uvedit_live_unwrap_end(bool cancel);
 

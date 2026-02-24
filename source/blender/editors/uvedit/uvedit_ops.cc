@@ -169,10 +169,13 @@ void ED_object_assign_active_image(Main *bmain, Object *ob, int mat_nr, Image *i
 /** \name Live Unwrap Utilities
  * \{ */
 
-void uvedit_live_unwrap_update(SpaceImage *sima, Scene *scene, Object *obedit)
+void uvedit_live_unwrap_update(SpaceImage *sima,
+                               Scene *scene,
+                               Object *obedit,
+                               std::optional<UVLiveUnwrapPre> uv_pre)
 {
   if (sima && (sima->flag & SI_LIVE_UNWRAP)) {
-    ED_uvedit_live_unwrap_begin(scene, obedit, nullptr);
+    ED_uvedit_live_unwrap_begin(scene, obedit, nullptr, std::move(uv_pre));
     ED_uvedit_live_unwrap_re_solve();
     ED_uvedit_live_unwrap_end(false);
   }
@@ -370,6 +373,7 @@ static wmOperatorStatus uv_move_on_axis_exec(bContext *C, wmOperator *op)
       continue;
     }
 
+    std::optional<UVLiveUnwrapPre> uv_pre = uvedit_live_unwrap_uv_space_prepare(scene, obedit);
     ED_uvedit_foreach_uv(
         scene, em->bm, true, true, [&axis, &distance_final, &changed](float luv[2]) {
           luv[int(axis)] += distance_final;
@@ -377,7 +381,7 @@ static wmOperatorStatus uv_move_on_axis_exec(bContext *C, wmOperator *op)
         });
 
     if (changed) {
-      uvedit_live_unwrap_update(sima, scene, obedit);
+      uvedit_live_unwrap_update(sima, scene, obedit, std::move(uv_pre));
       DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
@@ -622,6 +626,7 @@ static bool uvedit_uv_straighten(Scene *scene, BMesh *bm, eUVWeldAlign tool)
   BM_uv_element_map_free(element_map);
   return changed;
 }
+
 enum class UVAlignInitialPosition {
   BoundingBox = 0,
   UVTileGrid = 1,
@@ -784,8 +789,9 @@ static wmOperatorStatus uv_arrange_islands_exec(bContext *C, wmOperator *op)
     if (em->bm->totvertsel == 0) {
       continue;
     }
+    std::optional<UVLiveUnwrapPre> uv_pre = uvedit_live_unwrap_uv_space_prepare(scene, obedit);
     if (uvedit_uv_islands_arrange(scene, em->bm, axis, align, order, margin, position)) {
-      uvedit_live_unwrap_update(sima, scene, obedit);
+      uvedit_live_unwrap_update(sima, scene, obedit, std::move(uv_pre));
       DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
@@ -914,10 +920,11 @@ static void uv_weld(bContext *C)
       continue;
     }
 
+    std::optional<UVLiveUnwrapPre> uv_pre = uvedit_live_unwrap_uv_space_prepare(scene, obedit);
     changed |= uvedit_uv_align_weld(scene, em->bm, UV_WELD, cent);
 
     if (changed) {
-      uvedit_live_unwrap_update(sima, scene, obedit);
+      uvedit_live_unwrap_update(sima, scene, obedit, std::move(uv_pre));
       DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
@@ -967,6 +974,8 @@ static void uv_align(bContext *C, eUVWeldAlign tool, UVAlignPositionMode positio
       continue;
     }
 
+    std::optional<UVLiveUnwrapPre> uv_pre = uvedit_live_unwrap_uv_space_prepare(scene, obedit);
+
     if (ELEM(tool, UV_ALIGN_AUTO, UV_ALIGN_X, UV_ALIGN_Y)) {
       changed |= uvedit_uv_align_weld(scene, em->bm, tool, pos);
     }
@@ -976,7 +985,7 @@ static void uv_align(bContext *C, eUVWeldAlign tool, UVAlignPositionMode positio
     }
 
     if (changed) {
-      uvedit_live_unwrap_update(sima, scene, obedit);
+      uvedit_live_unwrap_update(sima, scene, obedit, std::move(uv_pre));
       DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
@@ -1146,6 +1155,12 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     }
     MEM_delete(uv_duplicate_count);
 
+    /* Snapshot UV-space state before modifying UVs. */
+    Vector<std::optional<UVLiveUnwrapPre>> uv_pres(objects.size());
+    for (const int i : objects.index_range()) {
+      uv_pres[i] = uvedit_live_unwrap_uv_space_prepare(scene, objects[i]);
+    }
+
     /* Update duplicated uvs. */
     uint ob_index = 0;
     for (int i = 0; i < uv_map_count; i++) {
@@ -1167,7 +1182,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     for (ob_index = 0; ob_index < objects.size(); ob_index++) {
       if (changed[ob_index]) {
         Object *obedit = objects[ob_index];
-        uvedit_live_unwrap_update(sima, scene, obedit);
+        uvedit_live_unwrap_update(sima, scene, obedit, std::move(uv_pres[ob_index]));
         DEG_id_tag_update(obedit->data, 0);
         WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
       }
@@ -1217,6 +1232,7 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
   for (Object *obedit : objects) {
     bool changed = false;
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    std::optional<UVLiveUnwrapPre> uv_pre = uvedit_live_unwrap_uv_space_prepare(scene, obedit);
     ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
       KDTreeNearest_2d nearest;
       const int i = kdtree_2d_find_nearest(tree, luv, &nearest);
@@ -1228,7 +1244,7 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
     });
 
     if (changed) {
-      uvedit_live_unwrap_update(sima, scene, obedit);
+      uvedit_live_unwrap_update(sima, scene, obedit, std::move(uv_pre));
       DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
@@ -1265,6 +1281,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C,
     uvs.reserve(32);
     bool changed = false;
 
+    std::optional<UVLiveUnwrapPre> uv_pre = uvedit_live_unwrap_uv_space_prepare(scene, obedit);
     BM_ITER_MESH (v, &viter, em->bm, BM_VERTS_OF_MESH) {
 
       BLI_assert(uvs.size() == 0);
@@ -1340,7 +1357,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C,
       uvs.clear();
     }
     if (changed) {
-      uvedit_live_unwrap_update(sima, scene, obedit);
+      uvedit_live_unwrap_update(sima, scene, obedit, std::move(uv_pre));
       DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
@@ -1643,6 +1660,7 @@ static wmOperatorStatus uv_snap_selection_exec(bContext *C, wmOperator *op)
       continue;
     }
 
+    std::optional<UVLiveUnwrapPre> uv_pre = uvedit_live_unwrap_uv_space_prepare(scene, obedit);
     bool changed = false;
     switch (target) {
       case 0:
@@ -1661,7 +1679,7 @@ static wmOperatorStatus uv_snap_selection_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       changed_multi = true;
-      uvedit_live_unwrap_update(sima, scene, obedit);
+      uvedit_live_unwrap_update(sima, scene, obedit, std::move(uv_pre));
       DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }

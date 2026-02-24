@@ -20,6 +20,7 @@
 #include "BKE_global.hh"
 
 #include "BLI_array.hh"
+#include "BLI_function_ref.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
@@ -210,6 +211,15 @@ struct UnwrapOptions {
 
   ParamSlimOptions slim;
   char weight_group[MAX_VGROUP_NAME];
+
+  /** Optional per-loop coordinate override. When set, used instead of `l->v->co`. */
+  FunctionRef<const float *(const BMLoop *l)> loop_co_fn = {};
+
+  /** Optional per-loop pin override. When set, used instead of reading the pin CD layer. */
+  FunctionRef<bool(const BMLoop *l)> is_pinned_fn = {};
+
+  /** Use UV coordinates as vertex positions instead of 3D positions. */
+  bool use_uv_space = false;
 };
 
 void geometry::UVPackIsland_Params::setFromUnwrapOptions(const UnwrapOptions &options)
@@ -569,10 +579,21 @@ static void uvedit_prepare_pinned_indices(ParamHandle *handle,
   BMIter liter;
   BMLoop *l;
   BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-    bool pin = BM_ELEM_CD_GET_BOOL(l, offsets.pin);
+    bool pin = options->is_pinned_fn ? options->is_pinned_fn(l) :
+                                       BM_ELEM_CD_GET_BOOL(l, offsets.pin);
+    if (options->use_uv_space && !pin) {
+      /* In UV-space mode, register all loops (not just pinned ones).
+       * Normally only pinned loops need unique keys, because all loops of a BMVert
+       * share the same 3D position (`l->v->co`). In UV-space mode positions differ
+       * per-loop (each side of a seam has its own UV), so without unique keys both
+       * sides share one parametrizer vertex and only one position survives. */
+      pin = true;
+    }
+
     if (options->pin_unselected && !pin) {
       pin = !uvedit_uv_select_test(scene, bm, l, offsets);
     }
+
     if (pin) {
       int bmvertindex = BM_elem_index_get(l->v);
       const float *luv = BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
@@ -609,9 +630,10 @@ static void construct_param_handle_face_add(ParamHandle *handle,
     float *luv = BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
 
     vkeys[i] = geometry::uv_find_pin_index(handle, BM_elem_index_get(l->v), luv);
-    co[i] = l->v->co;
+    co[i] = options->loop_co_fn ? options->loop_co_fn(l) : l->v->co;
     uv[i] = luv;
-    pin[i] = BM_ELEM_CD_GET_BOOL(l, offsets.pin);
+    pin[i] = options->is_pinned_fn ? options->is_pinned_fn(l) :
+                                     BM_ELEM_CD_GET_BOOL(l, offsets.pin);
     select[i] = uvedit_uv_select_test(scene, bm, l, offsets);
     if (options->pin_unselected && !select[i]) {
       pin[i] = true;
@@ -2124,6 +2146,32 @@ static struct {
   wmTimer *timer;
 } g_live_unwrap = {nullptr};
 
+std::optional<UVLiveUnwrapPre> uvedit_live_unwrap_uv_space_prepare(Scene *scene, Object *obedit)
+{
+  if (!scene->toolsettings->uv_live_unwrap_uv_space) {
+    return std::nullopt;
+  }
+  BMEditMesh *em = BKE_editmesh_from_object(obedit);
+  if (!em || !em->bm) {
+    return std::nullopt;
+  }
+  BMesh *bm = em->bm;
+  BM_mesh_elem_index_ensure(bm, BM_LOOP);
+  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+  UVLiveUnwrapPre result;
+  result.uv_snapshot.reinitialize(bm->totloop);
+  BMIter fiter, liter;
+  BMFace *efa;
+  BMLoop *l;
+  BM_ITER_MESH (efa, &fiter, bm, BM_FACES_OF_MESH) {
+    BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+      const float *luv = BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
+      result.uv_snapshot[BM_elem_index_get(l)] = float3(luv[0], luv[1], 0.0f);
+    }
+  }
+  return result;
+}
+
 bool ED_uvedit_live_unwrap_timer_check(const wmTimer *timer)
 {
   /* NOTE: don't validate the timer, assume the timer passed in is valid. */
@@ -2148,7 +2196,10 @@ static bool uvedit_live_unwrap_timer_validate(const wmWindowManager *wm)
   return true;
 }
 
-void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit, wmWindow *win_modal)
+void ED_uvedit_live_unwrap_begin(Scene *scene,
+                                 Object *obedit,
+                                 wmWindow *win_modal,
+                                 std::optional<UVLiveUnwrapPre> uv_pre)
 {
   ParamHandle *handle = nullptr;
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -2162,11 +2213,67 @@ void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit, wmWindow *win_mod
   options.only_selected_faces = false;
   options.only_selected_uvs = false;
 
+  const bool use_uv_space = scene->toolsettings->uv_live_unwrap_uv_space && !options.use_subsurf;
+
+  /* Lambdas must be defined at function scope (not inside the `if` block)
+   * so their lifetime covers the `construct_param_handle` call where `FunctionRef` is used. */
+  Array<float3> uv_snapshot;
+  BMUVOffsets uv_space_offsets = {};
+  auto loop_co_from_uvs_fn = [&](const BMLoop *l) -> const float * {
+    return uv_snapshot[BM_elem_index_get(l)];
+  };
+  /* Treat selected UVs as pinned so they act as anchors during UV-space live unwrap.
+   * Without this, the solver has no fixed reference points and selected UVs
+   * would be free to move, producing unstable results. */
+  const bool use_select_as_pin = true;
+  auto is_pinned_fn = [&](const BMLoop *l) -> bool {
+    if (BM_ELEM_CD_GET_BOOL(l, uv_space_offsets.pin)) {
+      return true;
+    }
+    return use_select_as_pin && uvedit_uv_select_test(scene, em->bm, l, uv_space_offsets);
+  };
+  if (use_uv_space) {
+    BMesh *bm = em->bm;
+    BM_mesh_elem_index_ensure(bm, BM_LOOP);
+    uv_space_offsets = BM_uv_map_offsets_get(bm);
+
+    if (uv_pre.has_value()) {
+      /* One-shot path: use the pre-operation snapshot taken before UVs were modified. */
+      uv_snapshot = std::move(uv_pre->uv_snapshot);
+    }
+    else if (win_modal != nullptr) {
+      /* Transform path: snapshot current UVs (begin is called before any modification). */
+      uv_snapshot.reinitialize(bm->totloop);
+      BMIter fiter, liter;
+      BMFace *efa;
+      BMLoop *l;
+      BM_ITER_MESH (efa, &fiter, bm, BM_FACES_OF_MESH) {
+        BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+          const float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_space_offsets.uv);
+          uv_snapshot[BM_elem_index_get(l)] = float3(luv[0], luv[1], 0.0f);
+        }
+      }
+    }
+    else {
+      /* One-shot path without a pre-operation snapshot: caller forgot to pass one. */
+      BLI_assert_unreachable();
+    }
+    options.use_uv_space = true;
+    options.use_abf = true;
+    options.correct_aspect = true;
+    options.loop_co_fn = loop_co_from_uvs_fn;
+    options.is_pinned_fn = is_pinned_fn;
+  }
+
   if (options.use_subsurf) {
     handle = construct_param_handle_subsurfed(scene, obedit, em, &options, nullptr);
   }
   else {
     handle = construct_param_handle(scene, obedit, em->bm, &options, nullptr);
+  }
+
+  if (use_uv_space) {
+    handle->skip_single_pin = true;
   }
 
   if (options.use_slim) {

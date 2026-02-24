@@ -4298,6 +4298,13 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       prop, "UV Local View", "Display only faces with the currently displayed image assigned");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
 
+  prop = RNA_def_property(srna, "use_uv_live_unwrap_uv_space", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uv_live_unwrap_uv_space", 1);
+  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
+  RNA_def_property_ui_text(
+      prop, "UV Space Live Unwrap", "Use UV coordinates instead of 3D positions for live unwrap");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+
   prop = RNA_def_property(srna, "use_uv_custom_region", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_CUSTOM_REGION);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
