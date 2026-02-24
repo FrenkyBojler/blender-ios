@@ -87,7 +87,7 @@ static void version_geometry_nodes_properties(Main &bmain, Object &object, Nodes
     IDP_AddToGroup(group, new_value_prop);
 
     const std::string old_value_path = fmt::format("[\"{}\"]", identifier);
-    const std::string new_value_path = fmt::format("inputs.{}.value", identifier);
+    const std::string new_value_path = fmt::format(".properties.inputs.{}.value", identifier);
     BKE_animdata_fix_paths_rename_all_ex(&bmain,
                                          &object.id,
                                          inputs_path_prefix.c_str(),
@@ -95,6 +95,7 @@ static void version_geometry_nodes_properties(Main &bmain, Object &object, Nodes
                                          new_value_path.c_str(),
                                          0,
                                          0,
+                                         false,
                                          false);
 
     bool use_attribute = false;
