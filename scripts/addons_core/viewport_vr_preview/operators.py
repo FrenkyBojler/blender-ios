@@ -576,6 +576,9 @@ class VIEW3D_OT_vr_location_scouting_active_camera_to_capture(Operator):
         cam.data.shift_x = 0
         cam.data.shift_y = 0
 
+        cam.data.sensor_fit = 'AUTO'
+        cam.data.sensor_width = 36
+
         cam.data.lens = capture.lens_focal
         cam.data.dof.use_dof = capture.dof_enable
         cam.data.dof.focus_distance = capture.dof_dist
@@ -908,7 +911,8 @@ class VIEW3D_GGT_vr_captures(GizmoGroup):
         for idx, capture in enumerate(scene.vr_captures):
             gizmo = self.gizmos.new(VIEW3D_GT_vr_camera_cone.bl_idname)
             gizmo.aspect = self.compute_aspect(scene.render)
-            gizmo.focal = capture.lens_focal / 72
+            sensor_fit_fac = 36 * 2  # Twice the Blender default Camera sensor fit value (36mm)
+            gizmo.focal = capture.lens_focal / sensor_fit_fac
 
             is_active_capture = (idx == scene.vr_captures_selected)
             color = self.get_selection_color(context, is_active_capture)
