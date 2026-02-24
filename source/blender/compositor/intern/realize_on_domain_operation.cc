@@ -40,29 +40,35 @@ RealizeOnDomainOperation::RealizeOnDomainOperation(Context &context,
 
 void RealizeOnDomainOperation::execute()
 {
-  /* Translate the input such that it is centered in the virtual compositing space. Adding any
-   * corrective translation if necessary. */
-  const float2 input_center_translation = float2(-float2(this->get_input().domain().display_size) /
-                                                 2.0f);
-  const float3x3 input_transformation = math::translate(
-      this->get_input().domain().transformation,
-      input_center_translation + this->compute_corrective_translation() +
-          float2(this->get_input().domain().data_offset));
+  const Domain input_domain = this->get_input().domain();
+  const Domain output_domain = target_domain_;
 
-  /* Translate the output such that it is centered in the virtual compositing space. */
-  const float2 output_center_translation = -float2(this->compute_domain().display_size) / 2.0f;
-  const float3x3 output_transformation = math::translate(this->compute_domain().transformation,
-                                                         output_center_translation);
+  /* Create a transformation matrix that transforms the pixels in the data window from the data
+   * space to the virtual compositing space. This is done by first adding the data offset to go
+   * from the data space to the display space, then subtracting the center of the display window to
+   * go from the display space to the virtual compositing space. See the corrective translation
+   * function for more information on its function. */
+  const float2 input_center = float2(input_domain.display_size) / 2.0f;
+  const float2 input_translation = float2(input_domain.data_offset) - input_center +
+                                   this->compute_corrective_translation();
+  const float3x3 input_data_to_virtual = math::translate(input_domain.transformation,
+                                                         input_translation);
 
-  /* Get the transformation from the output space to the input space */
-  const float3x3 inverse_transformation = math::invert(input_transformation) *
-                                          output_transformation;
+  /* Same as above but for the output domain. */
+  const float2 output_center = float2(output_domain.display_size) / 2.0f;
+  const float2 output_translation = float2(output_domain.data_offset) - output_center;
+  const float3x3 output_data_to_virtual = math::translate(output_domain.transformation,
+                                                          output_translation);
+
+  /* Create a transformation matrix from the output data space to the input data space */
+  const float3x3 virtual_to_input_data = math::invert(input_data_to_virtual);
+  const float3x3 output_data_to_input_data = virtual_to_input_data * output_data_to_virtual;
 
   if (this->context().use_gpu()) {
-    this->realize_on_domain_gpu(inverse_transformation);
+    this->realize_on_domain_gpu(output_data_to_input_data);
   }
   else {
-    this->realize_on_domain_cpu(inverse_transformation);
+    this->realize_on_domain_cpu(output_data_to_input_data);
   }
 }
 
@@ -85,12 +91,12 @@ float2 RealizeOnDomainOperation::compute_corrective_translation()
                 ((input_size[1] ^ output_size[1]) & 1) ? -0.5f : 0.0f);
 }
 
-void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_transformation)
+void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &transformation)
 {
   gpu::Shader *shader = this->context().get_shader(this->get_realization_shader_name());
   GPU_shader_bind(shader);
 
-  GPU_shader_uniform_mat3_as_mat4(shader, "inverse_transformation", inverse_transformation.ptr());
+  GPU_shader_uniform_mat3_as_mat4(shader, "transformation", transformation.ptr());
 
   Result &input = this->get_input();
   const RealizationOptions realization_options = input.get_realization_options();
@@ -188,22 +194,15 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
 }
 
 template<typename T>
-static void realize_on_domain(const Result &input,
-                              Result &output,
-                              const float3x3 &inverse_transformation)
+static void realize_on_domain(const Result &input, Result &output, const float3x3 &transformation)
 {
   const RealizationOptions realization_options = input.get_realization_options();
   const int2 input_size = input.domain().data_size;
   const int2 output_size = output.domain().data_size;
   parallel_for(output_size, [&](const int2 texel) {
     const float2 texel_coordinates = float2(texel) + float2(0.5f);
-
-    /* Transform the input image by transforming the domain coordinates with the inverse of input
-     * image's transformation. The inverse transformation is an affine matrix and thus the
-     * coordinates should be in homogeneous coordinates. */
-    const float2 transformed_coordinates =
-        (inverse_transformation * float3(texel_coordinates, 1.0f)).xy();
-
+    const float2 transformed_coordinates = math::transform_point(transformation,
+                                                                 texel_coordinates);
     const float2 normalized_coordinates = transformed_coordinates / float2(input_size);
     T sample = input.sample<T>(normalized_coordinates,
                                realization_options.interpolation,
@@ -213,7 +212,7 @@ static void realize_on_domain(const Result &input,
   });
 }
 
-void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &inverse_transformation)
+void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &transformation)
 {
   Result &input = this->get_input();
   Result &output = this->get_result();
@@ -223,7 +222,7 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &inverse_tra
 
   input.get_cpp_type()
       .to_static_type<float, float2, float3, float4, Color, int32_t, int2, bool, nodes::MenuValue>(
-          [&]<typename T>() { realize_on_domain<T>(input, output, inverse_transformation); });
+          [&]<typename T>() { realize_on_domain<T>(input, output, transformation); });
 }
 
 Domain RealizeOnDomainOperation::compute_domain()
