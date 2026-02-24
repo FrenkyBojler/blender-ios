@@ -271,19 +271,14 @@ void PrefetchJob::init_depsgraph()
 
 void PrefetchJob::init_gpu()
 {
-  gpu::GPUSecondaryContextData ctx = gpu::GPU_create_secondary_context();
-  this->context_cpy.ghost_context = ctx.ghost_context;
-  this->context_cpy.gpu_context = ctx.gpu_context;
+  this->context_cpy.gpu_context = gpu::GPU_create_secondary_context();
 }
 
 void PrefetchJob::free_gpu()
 {
-  gpu::GPUSecondaryContextData ctx{.ghost_context = this->context_cpy.ghost_context,
-                                   .gpu_context = this->context_cpy.gpu_context};
-  if (ctx.ghost_context && ctx.gpu_context) {
-    gpu::GPU_destroy_secondary_context(ctx);
-    this->context_cpy.ghost_context = nullptr;
-    this->context_cpy.gpu_context = nullptr;
+  if (this->context_cpy.gpu_context.ghost_context != nullptr) {
+    gpu::GPU_destroy_secondary_context(this->context_cpy.gpu_context);
+    this->context_cpy.gpu_context = {};
   }
 }
 

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "COM_static_cache_manager.hh"
+#include "GPU_context.hh"
 
 class GHOST_IContext;
 
@@ -15,7 +16,7 @@ class CompositorCache {
   compositor::StaticCacheManager cache_manager;
   bool last_evaluation_used_gpu = false;
   compositor::ResultPrecision last_evaluation_precision = compositor::ResultPrecision::Half;
-  GHOST_IContext *last_evaluation_ghost_context = nullptr;
+  gpu::GPUSecondaryContextData last_evaluation_gpu_context = {};
 
  public:
   ~CompositorCache();
@@ -27,7 +28,7 @@ class CompositorCache {
 
   void recreate_if_needed(bool gpu,
                           compositor::ResultPrecision precision,
-                          GHOST_IContext *ghost_context);
+                          const gpu::GPUSecondaryContextData &gpu_context);
 };
 
 }  // namespace blender::seq

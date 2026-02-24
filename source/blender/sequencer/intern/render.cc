@@ -2077,54 +2077,48 @@ float get_render_scale_factor(const RenderData &context)
   return get_render_scale_factor(context.preview_render_size, context.scene->r.size);
 }
 
-void render_begin_gpu(const RenderData &rd, bool use_secondary_context)
+void render_begin_gpu(const RenderData &rd)
 {
-  if (use_secondary_context) {
-    BLI_assert(rd.gpu_context != nullptr);
-    gpu::GPUSecondaryContextData ctx{.ghost_context = rd.ghost_context,
-                                     .gpu_context = rd.gpu_context};
-    gpu::GPU_activate_secondary_context(ctx);
+  if (rd.gpu_context.ghost_context != nullptr) {
+    /* Use GPU context from VSE render data. */
+    gpu::GPU_activate_secondary_context(rd.gpu_context);
     GPU_render_begin();
   }
+  else if (BLI_thread_is_main()) {
+    /* Use main GPU context. */
+    DRW_gpu_context_enable();
+  }
   else {
-    GHOST_IContext *render_ghost_context = rd.render ? RE_system_gpu_context_get(rd.render) :
-                                                       nullptr;
-    if (BLI_thread_is_main() || render_ghost_context == nullptr) {
-      /* Use main GPU context. */
-      DRW_gpu_context_enable();
-    }
-    else {
-      /* Use GPU context from Render. */
-      WM_system_gpu_context_activate(render_ghost_context);
-      void *render_gpu_context = RE_blender_gpu_context_ensure(rd.render);
-      GPU_render_begin();
-      GPU_context_active_set(static_cast<GPUContext *>(render_gpu_context));
-    }
+    /* Use GPU context from Render. */
+    BLI_assert(rd.render != nullptr);
+    GHOST_IContext *render_ghost_context = RE_system_gpu_context_get(rd.render);
+    BLI_assert(render_ghost_context != nullptr);
+    WM_system_gpu_context_activate(render_ghost_context);
+    void *render_gpu_context = RE_blender_gpu_context_ensure(rd.render);
+    GPU_render_begin();
+    GPU_context_active_set(static_cast<GPUContext *>(render_gpu_context));
   }
 }
 
-void render_end_gpu(const RenderData &rd, bool use_secondary_context)
+void render_end_gpu(const RenderData &rd)
 {
-  if (use_secondary_context) {
-    BLI_assert(rd.gpu_context != nullptr);
-    gpu::GPUSecondaryContextData ctx{.ghost_context = rd.ghost_context,
-                                     .gpu_context = rd.gpu_context};
+  if (rd.gpu_context.ghost_context != nullptr) {
+    /* Use GPU context from VSE render data. */
     GPU_render_end();
-    gpu::GPU_deactivate_secondary_context(ctx);
+    gpu::GPU_deactivate_secondary_context(rd.gpu_context);
+  }
+  else if (BLI_thread_is_main()) {
+    /* Use main GPU context. */
+    DRW_gpu_context_disable();
   }
   else {
-    GHOST_IContext *render_ghost_context = rd.render ? RE_system_gpu_context_get(rd.render) :
-                                                       nullptr;
-    if (BLI_thread_is_main() || render_ghost_context == nullptr) {
-      /* Use main GPU context. */
-      DRW_gpu_context_disable();
-    }
-    else {
-      /* Use GPU context from Render. */
-      GPU_context_active_set(nullptr);
-      GPU_render_end();
-      WM_system_gpu_context_release(render_ghost_context);
-    }
+    /* Use GPU context from Render. */
+    BLI_assert(rd.render != nullptr);
+    GHOST_IContext *render_ghost_context = RE_system_gpu_context_get(rd.render);
+    BLI_assert(render_ghost_context != nullptr);
+    GPU_context_active_set(nullptr);
+    GPU_render_end();
+    WM_system_gpu_context_release(render_ghost_context);
   }
 }
 

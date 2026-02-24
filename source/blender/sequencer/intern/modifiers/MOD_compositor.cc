@@ -23,8 +23,6 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "GPU_context.hh"
-
 #include "IMB_colormanagement.hh"
 
 #include "SEQ_modifier.hh"
@@ -345,19 +343,16 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
   //@TODO: check what is needed to get half-precision working on GPU.
 
   const bool use_gpu = com_mod_context.use_gpu();
-  const bool need_secondary_context = context.render_data.gpu_context != nullptr &&
-                                      !GPU_context_active_get();
   if (use_gpu) {
-    render_begin_gpu(context.render_data, need_secondary_context);
+    render_begin_gpu(context.render_data);
   }
 
-  com_cache.recreate_if_needed(com_mod_context.use_gpu(),
-                               com_mod_context.get_precision(),
-                               context.render_data.ghost_context);
+  com_cache.recreate_if_needed(
+      com_mod_context.use_gpu(), com_mod_context.get_precision(), context.render_data.gpu_context);
   com_mod_context.evaluate();
   com_mod_context.cache_manager().reset();
   if (use_gpu) {
-    render_end_gpu(context.render_data, need_secondary_context);
+    render_end_gpu(context.render_data);
   }
 
   context.result_translation += com_mod_context.get_result_translation();

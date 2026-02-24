@@ -5,7 +5,6 @@
 #include "BLI_threads.h"
 #include "COM_result.hh"
 #include "DRW_engine.hh"
-#include "WM_api.hh"
 
 #include "compositor_cache.hh"
 
@@ -17,12 +16,13 @@ CompositorCache::~CompositorCache()
   if (this->last_evaluation_used_gpu) {
     /* Free resources with GPU context enabled. Cleanup may happen from the main thread, and we
      * must use the main context there. */
-    use_main_context = BLI_thread_is_main() || this->last_evaluation_ghost_context == nullptr;
+    BLI_assert(BLI_thread_is_main() || this->last_evaluation_gpu_context.ghost_context != nullptr);
+    use_main_context = BLI_thread_is_main();
     if (use_main_context) {
       DRW_gpu_context_enable();
     }
     else {
-      WM_system_gpu_context_activate(last_evaluation_ghost_context);
+      gpu::GPU_activate_secondary_context(this->last_evaluation_gpu_context);
     }
   }
 
@@ -34,16 +34,16 @@ CompositorCache::~CompositorCache()
       DRW_gpu_context_disable();
     }
     else {
-      WM_system_gpu_context_release(last_evaluation_ghost_context);
+      gpu::GPU_deactivate_secondary_context(this->last_evaluation_gpu_context);
     }
   }
 }
 
 void CompositorCache::recreate_if_needed(bool gpu,
                                          compositor::ResultPrecision precision,
-                                         GHOST_IContext *ghost_context)
+                                         const gpu::GPUSecondaryContextData &gpu_context)
 {
-  this->last_evaluation_ghost_context = gpu ? ghost_context : nullptr;
+  this->last_evaluation_gpu_context = gpu ? gpu_context : gpu::GPUSecondaryContextData();
 
   if (this->last_evaluation_used_gpu == gpu && this->last_evaluation_precision == precision) {
     return;
