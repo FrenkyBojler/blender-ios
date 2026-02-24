@@ -582,7 +582,6 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
                                                     vert_nearest_tris,
                                                     dst_positions,
                                                     IndexMask(dst_positions.size()),
-                                                    exec_mode::parallel,
                                                     bary_coords);
 
     if (!point_ids.is_empty()) {

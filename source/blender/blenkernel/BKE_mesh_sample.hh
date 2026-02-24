@@ -8,7 +8,6 @@
  * \ingroup bke
  */
 
-#include "BLI_execution_mode.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_math_vector_types.hh"
@@ -36,7 +35,6 @@ void sample_point_attribute(Span<int> corner_verts,
                             Span<float3> bary_coords,
                             const GVArray &src,
                             const IndexMask &mask,
-                            exec_mode::Mode mode,
                             GMutableSpan dst);
 
 void sample_point_normals(Span<int> corner_verts,
@@ -133,7 +131,6 @@ void sample_barycentric_weights(Span<float3> vert_positions,
                                 Span<int> tri_indices,
                                 Span<float3> sample_positions,
                                 const IndexMask &mask,
-                                exec_mode::Mode mode,
                                 MutableSpan<float3> bary_coords);
 
 template<typename T>

@@ -7,7 +7,6 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_sample.hh"
 
-#include "BLI_execution_mode.hh"
 #include "BLI_math_geom.h"
 #include "BLI_rand.hh"
 
@@ -20,7 +19,6 @@ BLI_NOINLINE static void sample_point_attribute(const Span<int> corner_verts,
                                                 const Span<float3> bary_coords,
                                                 const VArray<T> &src,
                                                 const IndexMask &mask,
-                                                const exec_mode::Mode /*mode*/,
                                                 const MutableSpan<T> dst)
 {
   mask.foreach_index([&](const int i) {
@@ -56,7 +54,6 @@ void sample_point_attribute(const Span<int> corner_verts,
                             const Span<float3> bary_coords,
                             const GVArray &src,
                             const IndexMask &mask,
-                            const exec_mode::Mode mode,
                             const GMutableSpan dst)
 {
   BLI_assert(src.type() == dst.type());
@@ -70,7 +67,6 @@ void sample_point_attribute(const Span<int> corner_verts,
                                 bary_coords,
                                 src.typed<T>(),
                                 mask,
-                                mode,
                                 dst.typed<T>());
     }
   });
@@ -187,7 +183,6 @@ static void sample_barycentric_weights(const Span<float3> vert_positions,
                                        const Span<int> tri_indices,
                                        const Span<float3> sample_positions,
                                        const IndexMask &mask,
-                                       const exec_mode::Mode /*mode*/,
                                        MutableSpan<float3> bary_coords)
 {
   mask.foreach_index([&](const int i) {
@@ -209,7 +204,6 @@ void sample_barycentric_weights(const Span<float3> vert_positions,
                                 const Span<int> tri_indices,
                                 const Span<float3> sample_positions,
                                 const IndexMask &mask,
-                                const exec_mode::Mode mode,
                                 MutableSpan<float3> bary_coords)
 {
   sample_barycentric_weights<false>(vert_positions,
@@ -218,7 +212,6 @@ void sample_barycentric_weights(const Span<float3> vert_positions,
                                     tri_indices,
                                     sample_positions,
                                     mask,
-                                    mode,
                                     bary_coords);
 }
 
@@ -455,7 +448,6 @@ void BaryWeightFromPositionFn::call(const IndexMask &mask,
                                    triangle_indices,
                                    sample_positions,
                                    mask,
-                                   exec_mode::serial,
                                    bary_weights);
 }
 
