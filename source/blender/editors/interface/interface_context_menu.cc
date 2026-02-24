@@ -565,9 +565,10 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
     const bool is_array_component = (is_array && but->rnaindex != -1);
     const bool is_whole_array = (is_array && but->rnaindex == -1);
 
-    const uint override_status = RNA_property_override_library_status(
-        CTX_data_main(C), ptr, prop, -1);
-    const bool is_overridable = (override_status & RNA_OVERRIDE_STATUS_OVERRIDABLE) != 0;
+    const uint override_status = RNA_property_override_status(CTX_data_main(C), ptr, prop, -1);
+    const bool is_overridable = (override_status & RNA_LIBOVERRIDE_STATUS_OVERRIDABLE) != 0;
+    const bool is_dynamic_overridable = (override_status & RNA_DYNOVERRIDE_STATUS_OVERRIDABLE) !=
+                                        0;
 
     /* Set the (button_pointer, button_prop)
      * and pointer data for Python access to the hovered UI element. */
@@ -804,6 +805,26 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
         layout.op("ANIM_OT_keyingset_button_remove",
                   CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove from Keying Set"),
                   ICON_NONE);
+      }
+    }
+
+    if (is_dynamic_overridable) {
+      wmOperatorType *ot;
+      PointerRNA op_ptr;
+      /* Override Operators */
+      layout.separator();
+
+      if (but->flag & BUT_DYNAMIC_OVERRIDDEN) {
+        /* TODO not yet implemented. */
+      }
+      else {
+        ot = WM_operatortype_find("UI_OT_dynamic_override_add_button", false);
+        op_ptr = layout.op(ot,
+                           CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add Dynamic Override"),
+                           ICON_NONE,
+                           wm::OpCallContext::InvokeDefault,
+                           UI_ITEM_NONE);
+        RNA_boolean_set(&op_ptr, "all", true);
       }
     }
 

@@ -442,6 +442,12 @@ bool RNA_property_overridable_get(const PointerRNA *ptr, PropertyRNA *prop);
 bool RNA_property_overridable_library_set(PointerRNA *ptr, PropertyRNA *prop, bool is_overridable);
 bool RNA_property_overridden(PointerRNA *ptr, PropertyRNA *prop);
 bool RNA_property_comparable(PointerRNA *ptr, PropertyRNA *prop);
+
+/**
+ * Whether the given RNA property can be dynamically overridden or not.
+ */
+bool RNA_property_dynamic_overridable_get(const PointerRNA *ptr, PropertyRNA *prop);
+
 /**
  * This function is to check if its possible to create a valid path from the ID
  * its slow so don't call in a loop.
@@ -994,14 +1000,19 @@ enum eRNAOverrideMatchResult {
 ENUM_OPERATORS(eRNAOverrideMatchResult)
 
 enum eRNAOverrideStatus {
-  /** The property is overridable. */
-  RNA_OVERRIDE_STATUS_OVERRIDABLE = 1 << 0,
-  /** The property is overridden. */
-  RNA_OVERRIDE_STATUS_OVERRIDDEN = 1 << 1,
-  /** Overriding this property is mandatory when creating an override. */
-  RNA_OVERRIDE_STATUS_MANDATORY = 1 << 2,
-  /** The override status of this property is locked. */
-  RNA_OVERRIDE_STATUS_LOCKED = 1 << 3,
+  /** The property is library overridable. */
+  RNA_LIBOVERRIDE_STATUS_OVERRIDABLE = 1 << 0,
+  /** The property is library overridden. */
+  RNA_LIBOVERRIDE_STATUS_OVERRIDDEN = 1 << 1,
+  /** Overriding this property is mandatory when creating a library override. */
+  RNA_LIBOVERRIDE_STATUS_MANDATORY = 1 << 2,
+  /** The library override status of this property is locked. */
+  RNA_LIBOVERRIDE_STATUS_LOCKED = 1 << 3,
+
+  /** The property is dynamic overridable. */
+  RNA_DYNOVERRIDE_STATUS_OVERRIDABLE = 1 << 8,
+  /** The property is dynamic overridden. */
+  RNA_DYNOVERRIDE_STATUS_OVERRIDDEN = 1 << 9,
 };
 ENUM_OPERATORS(eRNAOverrideStatus)
 
@@ -1084,10 +1095,10 @@ IDOverrideLibraryPropertyOperation *RNA_property_override_property_operation_get
                                                                                  bool *r_strict,
                                                                                  bool *r_created);
 
-eRNAOverrideStatus RNA_property_override_library_status(Main *bmain,
-                                                        PointerRNA *ptr,
-                                                        PropertyRNA *prop,
-                                                        int index);
+eRNAOverrideStatus RNA_property_override_status(Main *bmain,
+                                                PointerRNA *ptr,
+                                                PropertyRNA *prop,
+                                                int index);
 
 void RNA_struct_state_owner_set(const char *name);
 const char *RNA_struct_state_owner_get();

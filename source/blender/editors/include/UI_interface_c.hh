@@ -229,7 +229,11 @@ enum ButtonFlag {
   BUT_INACTIVE = 1 << 18,
   BUT_LAST_ACTIVE = 1 << 19,
   BUT_UNDO = 1 << 20,
-  /* UNUSED = 1 << 21, */
+
+  /** Property has some dynamic overrides applied to it. */
+  /* FIXME: Need to move some of these flags into a new set of bitflags! */
+  BUT_DYNAMIC_OVERRIDDEN = 1 << 21,
+
   BUT_NO_UTF8 = 1 << 22,
 
   /** For popups, pressing return activates this button, overriding the highlighted button.

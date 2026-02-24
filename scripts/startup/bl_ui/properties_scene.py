@@ -62,6 +62,32 @@ class SCENE_PT_scene(SceneButtonsPanel, Panel):
         layout.template_ID(scene, "dynamic_override", new="dynamic_override.new")
 
 
+class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
+    bl_label = "Scene"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        scene = context.scene
+
+        layout.template_ID(scene, "dynamic_override", new="dynamic_override.new")
+
+        dynoverride = scene.dynamic_override
+        if not dynoverride:
+            return
+
+        for rule in dynoverride.rules:
+            if not hasattr(rule, "owner_id"):
+                continue
+            layout.label(text=f"Properties for {rule.owner_id.name}...")
+            for prop in rule.properties:
+                layout.label(text=f"\t\t{prop.rna_path}:")
+                layout.prop(prop, "original_value")
+                layout.prop(prop, "override_value")
+
+
 class SCENE_PT_unit(SceneButtonsPanel, Panel):
     bl_label = "Units"
     bl_options = {'DEFAULT_CLOSED'}
@@ -474,6 +500,7 @@ classes = (
     SCENE_UL_keying_set_paths,
     SCENE_PT_context_scene,
     SCENE_PT_scene,
+    SCENE_PT_scene_dynamic_override,
     SCENE_PT_unit,
     SCENE_PT_physics,
     SCENE_PT_simulation,
