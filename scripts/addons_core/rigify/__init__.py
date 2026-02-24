@@ -794,13 +794,13 @@ def register_rna_properties() -> None:
         type=bpy.types.Object,
         name="Rigify Target Rig",
         description="Defines which armature object to overwrite. If unset, a new one will be created with "
-                    "name based on the Rig Name option or the name of the metarig",
+                    "a name based on the Rig Name option or the name of the metarig",
         poll=lambda self, obj: obj.type == 'ARMATURE' and obj.data is not self)
 
     bpy.types.Armature.rigify_rig_ui = PointerProperty(
         type=bpy.types.Text,
         name="Rigify Target Rig UI",
-        description="Defines the text file to overwrite. If unset, a new one will be created and named "
+        description="Defines the text data-block to overwrite. If unset, a new one will be created and named "
                     "based on the name of the rig")
 
     bpy.types.Armature.rigify_finalize_script = PointerProperty(
