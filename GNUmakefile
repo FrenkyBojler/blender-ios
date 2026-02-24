@@ -120,6 +120,10 @@ Utilities
    * source_archive_complete:
      Create a compressed archive of the source code and all the libraries of dependencies.
 
+   * release_info:
+	 Create a file with the release information, such as the version and the logline.
+	 This is used for the release process as part of the update notification pipeline.
+
    * update:
      Update blender repository and libraries.
 
@@ -608,6 +612,9 @@ source_archive_complete: .FORCE
 	@$(PYTHON) ./build_files/utils/make_source_archive.py --include-packages "$(BUILD_DIR)/source_archive/packages"
 # We assume that the tests will not change for minor releases so only package them for major versions
 	@$(PYTHON) ./build_files/utils/make_source_archive.py --package-test-data
+
+release_info: .FORCE
+	@$(PYTHON) ./build_files/utils/make_release_info.py
 
 icons_geom: .FORCE
 	@BLENDER_BIN=$(BLENDER_BIN) \
