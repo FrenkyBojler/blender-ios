@@ -92,11 +92,6 @@ class CompositorContext : public compositor::Context {
     return true;
   }
 
-  bool use_compositing_domain_for_input_output() const override
-  {
-    return false;
-  }
-
   compositor::Domain get_compositing_domain() const override
   {
     return compositor::Domain(int2(image_buffer_->x, image_buffer_->y));
@@ -115,24 +110,46 @@ class CompositorContext : public compositor::Context {
     }
 
     result_translation_ = result.domain().transformation.location();
-    const int2 size = result.domain().data_size;
-    if (size != int2(image_buffer_->x, image_buffer_->y)) {
+    const int output_size_x = result.domain().data_size.x;
+    const int output_size_y = result.domain().data_size.y;
+    if (output_size_x != image_buffer_->x || output_size_y != image_buffer_->y) {
       /* Output size is different (e.g. image is blurred with expanded bounds);
        * need to allocate appropriately sized buffer. */
       IMB_free_all_data(image_buffer_);
-      image_buffer_->x = size.x;
-      image_buffer_->y = size.y;
+      image_buffer_->x = output_size_x;
+      image_buffer_->y = output_size_y;
       IMB_alloc_float_pixels(image_buffer_, 4, false);
     }
     std::memcpy(image_buffer_->float_buffer.data,
                 result.cpu_data().data(),
-                sizeof(float) * 4 * size.x * size.y);
+                IMB_get_pixel_count(image_buffer_) * sizeof(float) * 4);
   }
 
-  void write_viewer(const compositor::Result &result) override
+  void write_viewer(compositor::Result &viewer_result) override
   {
-    /* Within compositor modifier, output and viewer output function the same. */
-    this->write_output(result);
+    using namespace compositor;
+
+    /* Realize the transforms if needed. */
+    const InputDescriptor input_descriptor = {ResultType::Color,
+                                              InputRealizationMode::OperationDomain};
+    SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
+        *this, viewer_result, input_descriptor, viewer_result.domain());
+
+    if (realization_operation) {
+      Result realize_input = this->create_result(ResultType::Color, viewer_result.precision());
+      realize_input.wrap_external(viewer_result);
+      realization_operation->map_input_to_result(&realize_input);
+      realization_operation->evaluate();
+
+      Result &realized_viewer_result = realization_operation->get_result();
+      this->write_output(realized_viewer_result);
+      realized_viewer_result.release();
+      viewer_was_written_ = true;
+      delete realization_operation;
+      return;
+    }
+
+    this->write_output(viewer_result);
     viewer_was_written_ = true;
   }
 

@@ -116,7 +116,7 @@ static void applySeqSlide(TransInfo *t)
 
 static void initSeqSlide(TransInfo *t, wmOperator *op)
 {
-  blender::seq::SeqSlideParams *ssp = MEM_callocN<blender::seq::SeqSlideParams>(__func__);
+  SeqSlideParams *ssp = MEM_new_zeroed<SeqSlideParams>(__func__);
   t->custom.mode.data = ssp;
   t->custom.mode.use_free = true;
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_restore_handle_selection");

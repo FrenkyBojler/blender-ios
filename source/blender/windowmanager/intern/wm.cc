@@ -118,7 +118,7 @@ static void window_manager_blend_write(BlendWriter *writer, ID *id, const void *
 
   wm->runtime = nullptr;
 
-  BLO_write_id_struct(writer, wmWindowManager, id_address, &wm->id);
+  writer->write_id_struct(id_address, wm);
   BKE_id_blend_write(writer, &wm->id);
   write_wm_xr_data(writer, &wm->xr);
 
@@ -216,35 +216,35 @@ static void window_manager_blend_read_after_liblink(BlendLibReader *reader, ID *
 }
 
 IDTypeInfo IDType_ID_WM = {
-    /*id_code*/ wmWindowManager::id_type,
-    /*id_filter*/ FILTER_ID_WM,
-    /*dependencies_id_types*/ FILTER_ID_SCE | FILTER_ID_WS,
-    /*main_listbase_index*/ INDEX_ID_WM,
-    /*struct_size*/ sizeof(wmWindowManager),
-    /*name*/ "WindowManager",
-    /*name_plural*/ N_("window_managers"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-    /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_ANIMDATA |
-        IDTYPE_FLAGS_NO_MEMFILE_UNDO | IDTYPE_FLAGS_NEVER_UNUSED,
-    /*asset_type_info*/ nullptr,
+    .id_code = wmWindowManager::id_type,
+    .id_filter = FILTER_ID_WM,
+    .dependencies_id_types = FILTER_ID_SCE | FILTER_ID_WS,
+    .main_listbase_index = INDEX_ID_WM,
+    .struct_size = sizeof(wmWindowManager),
+    .name = "WindowManager",
+    .name_plural = N_("window_managers"),
+    .translation_context = BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+    .flags = IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_ANIMDATA |
+             IDTYPE_FLAGS_NO_MEMFILE_UNDO | IDTYPE_FLAGS_NEVER_UNUSED,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*free_data*/ window_manager_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ window_manager_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = nullptr,
+    .copy_data = nullptr,
+    .free_data = window_manager_free_data,
+    .make_local = nullptr,
+    .foreach_id = window_manager_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ window_manager_blend_write,
-    /*blend_read_data*/ window_manager_blend_read_data,
-    /*blend_read_after_liblink*/ window_manager_blend_read_after_liblink,
+    .blend_write = window_manager_blend_write,
+    .blend_read_data = window_manager_blend_read_data,
+    .blend_read_after_liblink = window_manager_blend_read_after_liblink,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 #define MAX_OP_REGISTERED 32
@@ -270,7 +270,7 @@ void WM_operator_free(wmOperator *op)
 
   if (op->reports && (op->reports->flag & RPT_FREE)) {
     BKE_reports_free(op->reports);
-    MEM_freeN(op->reports);
+    MEM_delete(op->reports);
   }
 
   if (op->macro.first) {
@@ -281,7 +281,7 @@ void WM_operator_free(wmOperator *op)
     }
   }
 
-  MEM_freeN(op);
+  MEM_delete(op);
 }
 
 void WM_operator_free_all_after(wmWindowManager *wm, wmOperator *op)

@@ -711,9 +711,8 @@ static ImBuf *seq_render_preprocess_ibuf(const RenderData *context,
   }
 
   /* Proxies and non-generator effect strips are not stored in cache. */
-  const bool is_effect_with_inputs = strip->is_effect() &&
-                                     (effect_get_num_inputs(strip->type) != 0 ||
-                                      (strip->type == STRIP_TYPE_ADJUSTMENT));
+  const bool is_effect_with_inputs = strip->is_effect_with_inputs() ||
+                                     strip->type == STRIP_TYPE_ADJUSTMENT;
   if (!is_proxy_image && !is_effect_with_inputs) {
     Scene *orig_scene = prefetch_get_original_scene(context);
     if (orig_scene->ed->cache_flag & SEQ_CACHE_STORE_RAW) {
@@ -783,7 +782,7 @@ static ImBuf *seq_render_effect_strip_impl(const RenderData *context,
         }
       }
 
-      if (ibuf[0] && (ibuf[1] || effect_get_num_inputs(strip->type) == 1)) {
+      if (ibuf[0] && (ibuf[1] || strip->effect_num_inputs_get() == 1)) {
         out = sh.execute(context, state, strip, timeline_frame, fac, ibuf[0], ibuf[1]);
       }
       break;
@@ -824,7 +823,8 @@ void convert_multilayer_ibuf(ImBuf *ibuf)
   /* Combined layer might be non-4 channels, however the rest
    * of sequencer assumes RGBA everywhere. Convert to 4 channel if needed. */
   if (ibuf->float_buffer.data != nullptr && ibuf->channels != 4) {
-    float *dst = MEM_malloc_arrayN<float>(4 * size_t(ibuf->x) * size_t(ibuf->y), __func__);
+    float *dst = MEM_new_array_uninitialized<float>(4 * size_t(ibuf->x) * size_t(ibuf->y),
+                                                    __func__);
     IMB_buffer_float_from_float_threaded(dst,
                                          ibuf->float_buffer.data,
                                          ibuf->channels,
@@ -1270,7 +1270,7 @@ ImBuf *seq_render_mask(Depsgraph *depsgraph,
       depsgraph, mask->sfra + frame_index);
   BKE_animsys_evaluate_animdata(&mask_temp->id, adt, &anim_eval_context, ADT_RECALC_ANIM, false);
 
-  maskbuf = MEM_malloc_arrayN<float>(size_t(width) * size_t(height), __func__);
+  maskbuf = MEM_new_array_uninitialized<float>(size_t(width) * size_t(height), __func__);
 
   mr_handle = BKE_maskrasterize_handle_new();
 
@@ -1319,7 +1319,7 @@ ImBuf *seq_render_mask(Depsgraph *depsgraph,
     }
   }
 
-  MEM_freeN(maskbuf);
+  MEM_delete(maskbuf);
 
   return ibuf;
 }

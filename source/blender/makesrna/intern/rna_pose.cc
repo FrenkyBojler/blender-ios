@@ -107,7 +107,7 @@ static void rna_PoseBone_visibility_update(Main * /* bmain */,
                                            PointerRNA *ptr)
 {
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
-  WM_main_add_notifier(NC_OBJECT | ND_POSE, ptr->owner_id);
+  WM_main_add_notifier(NC_OBJECT | ND_BONE_SELECT, ptr->owner_id);
 }
 
 static void rna_Pose_dependency_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
@@ -169,7 +169,7 @@ void rna_ActionGroup_colorset_set(PointerRNA *ptr, int value)
     grp->customCol = value;
 
     /* sync colors stored with theme colors based on the index specified */
-    action_group_colors_sync(grp, nullptr);
+    action_group_colors_sync(grp);
   }
 }
 
@@ -199,10 +199,7 @@ static void rna_Pose_ik_solver_set(PointerRNA *ptr, int value)
   if (pose->iksolver != value) {
     /* the solver has changed, must clean any temporary structures */
     BIK_clear_data(pose);
-    if (pose->ikparam) {
-      MEM_freeN(pose->ikparam);
-      pose->ikparam = nullptr;
-    }
+    MEM_SAFE_DELETE(pose->ikparam);
     pose->iksolver = value;
     BKE_pose_ikparam_init(pose);
   }
@@ -254,7 +251,7 @@ static void rna_PoseChannel_rotation_mode_set(PointerRNA *ptr, int value)
       pchan->quat, pchan->eul, pchan->rotAxis, &pchan->rotAngle, pchan->rotmode, short(value));
 
   /* finally, set the new rotation type */
-  pchan->rotmode = value;
+  pchan->rotmode = clamp_i(value, ROT_MODE_MIN, ROT_MODE_MAX);
 }
 
 static float rna_PoseChannel_length_get(PointerRNA *ptr)
@@ -297,7 +294,7 @@ static PointerRNA rna_PoseChannel_bone_get(PointerRNA *ptr)
   PointerRNA tmp_ptr = *ptr;
 
   /* Replace the id_data pointer with the Armature ID. */
-  tmp_ptr.owner_id = static_cast<ID *>(ob->data);
+  tmp_ptr.owner_id = ob->data;
 
   return RNA_pointer_create_with_parent(tmp_ptr, RNA_Bone, pchan->bone);
 }
@@ -1263,7 +1260,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   /* When changing the upper limit of the range, also adjust the WIRE_WIDTH_COMPRESSION in
    * overlay_shader_shared.hh */
   RNA_def_property_range(prop, 1.0f, 16.0f);
-  RNA_def_property_ui_range(prop, 1.0f, 10.0f, 1, 1);
+  RNA_def_property_ui_range(prop, 1.0f, 10.0f, 1, 2);
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   prop = RNA_def_property(srna, "color", PROP_POINTER, PROP_NONE);

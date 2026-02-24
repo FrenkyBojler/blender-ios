@@ -80,9 +80,9 @@ namespace blender {
 
 static CLG_LogRef LOG = {"rna.node"};
 
-extern FunctionRNA rna_NodeSocket_draw_func;
-extern FunctionRNA rna_NodeSocket_draw_color_func;
-extern FunctionRNA rna_NodeSocket_draw_color_simple_func;
+extern FunctionRNA *rna_NodeSocket_draw_func;
+extern FunctionRNA *rna_NodeSocket_draw_color_func;
+extern FunctionRNA *rna_NodeSocket_draw_color_simple_func;
 
 /* ******** Node Socket ******** */
 
@@ -93,7 +93,7 @@ static void rna_NodeSocket_draw(
   ParameterList list;
   FunctionRNA *func;
 
-  func = &rna_NodeSocket_draw_func; /* RNA_struct_find_function(&ptr, "draw"); */
+  func = rna_NodeSocket_draw_func; /* RNA_struct_find_function(&ptr, "draw"); */
 
   RNA_parameter_list_create(&list, ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
@@ -117,7 +117,7 @@ static void rna_NodeSocket_draw_color(bContext *C,
   FunctionRNA *func;
   void *ret;
 
-  func = &rna_NodeSocket_draw_color_func; /* RNA_struct_find_function(&ptr, "draw_color"); */
+  func = rna_NodeSocket_draw_color_func; /* RNA_struct_find_function(&ptr, "draw_color"); */
 
   RNA_parameter_list_create(&list, ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
@@ -137,8 +137,8 @@ static void rna_NodeSocket_draw_color_simple(const bke::bNodeSocketType *socket_
   FunctionRNA *func;
   void *ret;
 
-  func = &rna_NodeSocket_draw_color_simple_func; /* RNA_struct_find_function(&ptr,
-                                                  * "draw_color_simple"); */
+  func = rna_NodeSocket_draw_color_simple_func; /* RNA_struct_find_function(&ptr,
+                                                 * "draw_color_simple"); */
 
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, socket_type->ext_socket.srna, nullptr);
   RNA_parameter_list_create(&list, &ptr, func);
@@ -1710,6 +1710,8 @@ static void rna_def_node_socket_image(BlenderRNA *brna, const char *identifier)
       prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_and_relation_update");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT | PROP_CONTEXT_UPDATE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_Image_no_renderresult_or_viewer_poll");
 }
 
 static void rna_def_node_socket_interface_image(BlenderRNA *brna, const char *identifier)
@@ -1730,6 +1732,8 @@ static void rna_def_node_socket_interface_image(BlenderRNA *brna, const char *id
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_Image_no_renderresult_or_viewer_poll");
 
   rna_def_node_tree_interface_socket_builtin(srna);
 }

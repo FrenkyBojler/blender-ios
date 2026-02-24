@@ -67,7 +67,7 @@ static void version_bonecollection_anim(FCurve *fcurve)
   }
 
   const std::string path_remainder(rna_path.drop_known_prefix(rna_path_prefix));
-  MEM_freeN(fcurve->rna_path);
+  MEM_delete(fcurve->rna_path);
   fcurve->rna_path = BLI_sprintfN("collections_all[%s", path_remainder.c_str());
 }
 
@@ -629,8 +629,10 @@ static void versioning_node_hue_correct_set_wrappng(bNodeTree *ntree)
     for (bNode &node : ntree->nodes.items_mutable()) {
 
       if (node.type_legacy == CMP_NODE_HUECORRECT) {
-        CurveMapping *cumap = static_cast<CurveMapping *>(node.storage);
-        hue_correct_set_wrapping(cumap);
+        if (version_node_ensure_storage_or_invalidate(node)) {
+          CurveMapping *cumap = static_cast<CurveMapping *>(node.storage);
+          hue_correct_set_wrapping(cumap);
+        }
       }
     }
   }
@@ -651,7 +653,7 @@ static void add_image_editor_asset_shelf(Main &bmain)
         if (ARegion *new_shelf_region = do_versions_add_region_if_not_found(
                 regionbase, RGN_TYPE_ASSET_SHELF, __func__, RGN_TYPE_TOOL_HEADER))
         {
-          new_shelf_region->regiondata = MEM_new_for_free<RegionAssetShelf>(__func__);
+          new_shelf_region->regiondata = MEM_new<RegionAssetShelf>(__func__);
           new_shelf_region->alignment = RGN_ALIGN_BOTTOM;
           new_shelf_region->flag |= RGN_FLAG_HIDDEN;
         }
@@ -987,6 +989,9 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node.type_legacy != CMP_NODE_BLUR) {
           continue;
         }
+        if (!version_node_ensure_storage_or_invalidate(node)) {
+          continue;
+        }
 
         NodeBlurData &blur_data = *static_cast<NodeBlurData *>(node.storage);
 
@@ -1278,13 +1283,16 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node.type_legacy != GEO_NODE_CAPTURE_ATTRIBUTE) {
           continue;
         }
+        if (!version_node_ensure_storage_or_invalidate(node)) {
+          continue;
+        }
         NodeGeometryAttributeCapture *storage = static_cast<NodeGeometryAttributeCapture *>(
             node.storage);
         if (storage->next_identifier > 0) {
           continue;
         }
         storage->capture_items_num = 1;
-        storage->capture_items = MEM_new_array_for_free<NodeGeometryAttributeCaptureItem>(
+        storage->capture_items = MEM_new_array<NodeGeometryAttributeCaptureItem>(
             storage->capture_items_num, __func__);
         NodeGeometryAttributeCaptureItem &item = storage->capture_items[0];
         item.data_type = storage->data_type_legacy;
@@ -1314,6 +1322,9 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
       }
       for (bNode &node : ntree->nodes) {
         if (node.type_legacy != CMP_NODE_CURVE_RGB) {
+          continue;
+        }
+        if (!version_node_ensure_storage_or_invalidate(node)) {
           continue;
         }
 
@@ -1393,7 +1404,7 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
              * be needed for future versioning (before linking), see
              * #do_version_denoise_menus_to_inputs so we set a valid storage at this stage such
              * that the node becomes well defined. */
-            NodeDenoise *ndg = MEM_new_for_free<NodeDenoise>(__func__);
+            NodeDenoise *ndg = MEM_new<NodeDenoise>(__func__);
             ndg->hdr = true;
             ndg->prefilter = CMP_NODE_DENOISE_PREFILTER_ACCURATE;
             node.storage = ndg;
