@@ -680,6 +680,10 @@ class NodeTreeMainUpdater {
               ntree, *ntree.runtime->compositor_nodes_srna_data);
     }
 
+    if (result.interface_changed && ntree.type == NTREE_COMPOSIT) {
+      this->update_compositor_image_input_modifier_visibility(ntree);
+    }
+
 #ifndef NDEBUG
     /* Check the uniqueness of node identifiers. */
     Set<int32_t> node_identifiers;
@@ -2132,6 +2136,21 @@ class NodeTreeMainUpdater {
       }
     }
     return changed;
+  }
+
+  void update_compositor_image_input_modifier_visibility(bNodeTree &ntree)
+  {
+    /* Hides the first color input in the modifier interface. This input is always implicitly used
+     * as the strip input. */
+    bool found_first_image_input = false;
+    for (bNodeTreeInterfaceSocket *input_socket : ntree.interface_inputs()) {
+      const bke::bNodeSocketType *typeinfo = input_socket->socket_typeinfo();
+      const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+      if (!found_first_image_input && socket_type == SOCK_RGBA) {
+        input_socket->flag |= NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER;
+        found_first_image_input = true;
+      }
+    }
   }
 };
 
