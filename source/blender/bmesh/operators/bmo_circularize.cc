@@ -394,6 +394,9 @@ static void calculate_target_locations(MutableSpan<CircleVert> verts,
         total_angle -= angle_signed_v2v2(vec_prev, vec_curr);
         vec_prev = vec_curr;
       }
+      /* In case the angle exceeds a full revolution, clamp it to the max angle. */
+      const float max_angle = 2.0f * std::numbers::pi_v<float>;
+      total_angle = std::clamp(total_angle, -max_angle, max_angle);
     }
 
     step = total_angle / divisions;
