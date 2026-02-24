@@ -44,6 +44,10 @@ class bNodeTreeInterfaceRuntime {
   /* Socket-only lists for input/output access by index. */
   VectorSet<bNodeTreeInterfaceSocket *> inputs_;
   VectorSet<bNodeTreeInterfaceSocket *> outputs_;
+
+  /** Only valid when the item cache is built. */
+  Map<StringRefNull, bNodeTreeInterfaceSocket *> inputs_by_identifier;
+  Map<StringRefNull, bNodeTreeInterfaceSocket *> outputs_by_identifier;
 };
 
 namespace node_interface {
