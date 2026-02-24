@@ -258,7 +258,6 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
     dump_source_to_disk(
         this->name_get(), this->entry_point_name_get(stage) + ".expanded", ".msl", concat_source);
   }
-  return nil;
 
   {
     ::MTLCompileOptions *options = get_compile_options(
@@ -1073,7 +1072,8 @@ MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
 /** \name MTLShaderCompiler
  * \{ */
 
-MTLShaderCompiler::MTLShaderCompiler() : ShaderCompiler(1, GPUWorker::ContextType::PerThread, true)
+MTLShaderCompiler::MTLShaderCompiler()
+    : ShaderCompiler(GPU_max_parallel_compilations(), GPUWorker::ContextType::PerThread, true)
 {
 }
 
