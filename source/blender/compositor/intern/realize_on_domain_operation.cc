@@ -64,11 +64,21 @@ void RealizeOnDomainOperation::execute()
   const float3x3 virtual_to_input_data = math::invert(input_data_to_virtual);
   const float3x3 output_data_to_input_data = virtual_to_input_data * output_data_to_virtual;
 
+  /* Create a transformation matrix from the output integer texel to the input normalized sampler
+   * coordinates. This is done by adding 0.5 to evaluate the output at the center if pixels and
+   * dividing by the input size to get normalized coordinates. */
+  const float3x3 output_texel_to_output_data = math::from_location<float3x3>(float2(0.5f));
+  const float3x3 input_data_to_input_sampler = math::from_scale<float3x3, 2>(
+      1.0f / float2(input_domain.data_size));
+  const float3x3 output_texel_to_input_sampler = input_data_to_input_sampler *
+                                                 output_data_to_input_data *
+                                                 output_texel_to_output_data;
+
   if (this->context().use_gpu()) {
-    this->realize_on_domain_gpu(output_data_to_input_data);
+    this->realize_on_domain_gpu(output_texel_to_input_sampler);
   }
   else {
-    this->realize_on_domain_cpu(output_data_to_input_data);
+    this->realize_on_domain_cpu(output_texel_to_input_sampler);
   }
 }
 
@@ -197,14 +207,9 @@ template<typename T>
 static void realize_on_domain(const Result &input, Result &output, const float3x3 &transformation)
 {
   const RealizationOptions realization_options = input.get_realization_options();
-  const int2 input_size = input.domain().data_size;
-  const int2 output_size = output.domain().data_size;
-  parallel_for(output_size, [&](const int2 texel) {
-    const float2 texel_coordinates = float2(texel) + float2(0.5f);
-    const float2 transformed_coordinates = math::transform_point(transformation,
-                                                                 texel_coordinates);
-    const float2 normalized_coordinates = transformed_coordinates / float2(input_size);
-    T sample = input.sample<T>(normalized_coordinates,
+  parallel_for(output.domain().data_size, [&](const int2 texel) {
+    const float2 coordinates = math::transform_point(transformation, float2(texel));
+    T sample = input.sample<T>(coordinates,
                                realization_options.interpolation,
                                realization_options.extension_x,
                                realization_options.extension_y);

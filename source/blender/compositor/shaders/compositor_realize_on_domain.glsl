@@ -13,10 +13,6 @@ COMPUTE_SHADER_CREATE_INFO(compositor_realize_on_domain_bicubic_float)
 void main()
 {
   const int2 texel = int2(gl_GlobalInvocationID.xy);
-
-  const float2 texel_coordinates = float2(texel) + float2(0.5f);
-  const float2 transformed_coordinates = transform_point(to_float3x3(transformation),
-                                                         texel_coordinates);
-  const float2 normalized_coordinates = transformed_coordinates / float2(texture_size(input_tx));
-  imageStore(domain_img, texel, SAMPLER_FUNCTION(input_tx, normalized_coordinates));
+  const float2 coordinates = transform_point(to_float3x3(transformation), float2(texel));
+  imageStore(domain_img, texel, SAMPLER_FUNCTION(input_tx, coordinates));
 }
