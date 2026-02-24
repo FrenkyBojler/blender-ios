@@ -79,14 +79,9 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 4)) {
     for (wmWindowManager &wm : bmain->wm) {
-      wm.xr.session_settings.controller_dominant_hand = XR_CONTROLLER_DHAND_RIGHT;
-
       wm.xr.session_settings.viewfinder_enable = true;
-      wm.xr.session_settings.viewfinder_width = 5.0f;
-
-      wm.xr.session_settings.viewfinder_active_mode = XR_VIEWFINDER_MODE_LIVE;
-      wm.xr.session_settings.viewfinder_active_action_live = XR_VIEWFINDER_ACTION_LIVE_LENS;
-      wm.xr.session_settings.viewfinder_active_action_playback = XR_VIEWFINDER_ACTION_PB_BROWSE;
+      wm.xr.session_settings.viewfinder_hand = XR_VIEWFINDER_HAND_LEFT;
+      wm.xr.session_settings.viewfinder_scale = 1.0f;
     }
   }
   /**

@@ -10,7 +10,9 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_object.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 
@@ -70,6 +72,7 @@ static void wm_xr_session_create_cb()
 
   /* Initialize navigation. */
   WM_xr_session_state_navigation_reset(state);
+  WM_xr_session_state_viewfinder_reset(state);
   if (settings->base_scale < FLT_EPSILON) {
     settings->base_scale = 1.0f;
   }
@@ -100,6 +103,7 @@ static void wm_xr_session_controller_data_free(wmXrSessionState *state)
 void wm_xr_session_data_free(wmXrSessionState *state)
 {
   wm_xr_session_controller_data_free(state);
+  BKE_id_free(nullptr, id_cast<ID *>(state->viewfinder.runtime_cam_data_id));
 }
 
 static void wm_xr_session_exit_cb(void *customdata)
@@ -330,6 +334,7 @@ void wm_xr_session_draw_data_update(wmXrSessionState *state,
       }
       /* Reset navigation. */
       WM_xr_session_state_navigation_reset(state);
+      WM_xr_session_state_viewfinder_reset(state);
       break;
     case SESSION_STATE_EVENT_POSITION_TRACKING_TOGGLE:
       if (use_position_tracking) {
@@ -441,6 +446,11 @@ wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr)
   return xr->runtime ? &xr->runtime->session_state : nullptr;
 }
 
+wmXrViewfinderState *WM_xr_session_state_viewfinder_handle_get(const wmXrData *xr)
+{
+  return xr->runtime ? &xr->runtime->session_state.viewfinder : nullptr;
+}
+
 ScrArea *WM_xr_session_area_get(const wmXrData *xr)
 {
   return xr->runtime ? xr->runtime->area : nullptr;
@@ -475,37 +485,167 @@ bool WM_xr_session_state_viewfinder_location_get(const wmXrData *xr, float r_loc
     return false;
   }
 
-  copy_v3_v3(r_location, xr->runtime->session_state.viewfinder_capture_position);
+  copy_v3_v3(r_location, xr->runtime->session_state.viewfinder.capture_position);
   return true;
 }
 
-bool WM_xr_session_state_viewfinder_rotation_get(const wmXrData *xr, float r_rotation[4])
+bool WM_xr_session_state_viewfinder_orientation_get(const wmXrData *xr, float r_rotation[4])
 {
   if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
     unit_qt(r_rotation);
     return false;
   }
 
-  copy_v4_v4(r_rotation, xr->runtime->session_state.viewfinder_capture_orientation_quat);
+  copy_v4_v4(r_rotation, xr->runtime->session_state.viewfinder.capture_orientation_quat);
   return true;
 }
 
-bool WM_xr_session_state_viewfinder_capture_flash_get(const wmXrData *xr, float *r_flash)
+bool WM_xr_session_state_viewfinder_runtime_capture_flash_get(const wmXrData *xr, float *r_flash)
 {
   if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
     *r_flash = 1.0f;
     return false;
   }
 
-  *r_flash = xr->runtime->session_state.viewfinder_capture_flash;
+  *r_flash = xr->runtime->session_state.viewfinder.runtime_capture_flash;
   return true;
 }
 
-void WM_xr_session_state_viewfinder_capture_flash_set(wmXrData *xr, float flash)
+void WM_xr_session_state_viewfinder_runtime_capture_flash_set(wmXrData *xr, float flash)
 {
   if (WM_xr_session_exists(xr)) {
     CLAMP(flash, 0.0f, 1.0f);
-    xr->runtime->session_state.viewfinder_capture_flash = flash;
+    xr->runtime->session_state.viewfinder.runtime_capture_flash = flash;
+  }
+}
+
+bool WM_xr_session_state_viewfinder_capture_use_dof_get(const wmXrData *xr, bool *r_use_dof)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_use_dof = 0.0f;
+    return false;
+  }
+
+  *r_use_dof = xr->runtime->session_state.viewfinder.capture_use_dof;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_capture_use_dof_set(wmXrData *xr, bool use_dof)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.capture_use_dof = use_dof;
+  }
+}
+
+bool WM_xr_session_state_viewfinder_capture_lens_get(const wmXrData *xr, float *r_lens)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_lens = 1.0f;
+    return false;
+  }
+
+  *r_lens = xr->runtime->session_state.viewfinder.capture_lens;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_capture_lens_set(wmXrData *xr, float lens)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.capture_lens = lens;
+  }
+}
+
+bool WM_xr_session_state_viewfinder_capture_aperture_fstop_get(const wmXrData *xr,
+                                                               float *r_aperture_fstop)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_aperture_fstop = 1.0f;
+    return false;
+  }
+
+  *r_aperture_fstop = xr->runtime->session_state.viewfinder.capture_aperture_fstop;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_capture_aperture_fstop_set(wmXrData *xr, float aperture_fstop)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.capture_aperture_fstop = aperture_fstop;
+  }
+}
+
+bool WM_xr_session_state_viewfinder_capture_focus_distance_get(const wmXrData *xr,
+                                                               float *r_focus_distance)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_focus_distance = 1.0f;
+    return false;
+  }
+
+  *r_focus_distance = xr->runtime->session_state.viewfinder.capture_focus_distance;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_capture_focus_distance_set(wmXrData *xr, float focus_distance)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.capture_focus_distance = focus_distance;
+  }
+}
+
+bool WM_xr_session_state_viewfinder_active_mode_get(const wmXrData *xr, eXrViewfinderMode *r_mode)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_mode = static_cast<eXrViewfinderMode>(0);
+    return false;
+  }
+
+  *r_mode = xr->runtime->session_state.viewfinder.active_mode;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_active_mode_set(wmXrData *xr, eXrViewfinderMode mode)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.active_mode = mode;
+  }
+}
+
+bool WM_xr_session_state_viewfinder_active_action_live_get(const wmXrData *xr,
+                                                           eXrViewfinderLiveAction *r_action)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_action = static_cast<eXrViewfinderLiveAction>(0);
+    return false;
+  }
+
+  *r_action = xr->runtime->session_state.viewfinder.active_action_live;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_active_action_live_set(wmXrData *xr,
+                                                           eXrViewfinderLiveAction action)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.active_action_live = action;
+  }
+}
+bool WM_xr_session_state_viewfinder_active_action_playback_get(
+    const wmXrData *xr, eXrViewfinderPlaybackAction *r_action)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_action = static_cast<eXrViewfinderPlaybackAction>(0);
+    return false;
+  }
+
+  *r_action = xr->runtime->session_state.viewfinder.active_action_playback;
+  return true;
+}
+void WM_xr_session_state_viewfinder_active_action_playback_set(wmXrData *xr,
+                                                               eXrViewfinderPlaybackAction action)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.active_action_playback = action;
   }
 }
 
@@ -664,7 +804,29 @@ void WM_xr_session_state_navigation_reset(wmXrSessionState *state)
   state->nav_scale = 1.0f;
   state->is_navigation_dirty = true;
   state->swap_hands = false;
-  state->viewfinder_capture_flash = 0.0f;
+}
+
+void WM_xr_session_state_viewfinder_reset(wmXrSessionState *state)
+{
+  /* Runtime values. */
+  state->viewfinder.runtime_smoothing_delta_t = 0.0f;
+  state->viewfinder.runtime_capture_flash = 0.0f;
+  /* Create a Camera data ID to override the View3D camera (for setting parameters such as DoF).
+   * This ID is freed in #wm_xr_session_data_free. */
+  if (state->viewfinder.runtime_cam_data_id == nullptr) {
+    state->viewfinder.runtime_cam_data_id = BKE_id_new_nomain<Camera>("ViewfinderCamera");
+  }
+
+  /* Capture settings. */
+  state->viewfinder.capture_use_dof = false;
+  state->viewfinder.capture_lens = 50.0f;
+  state->viewfinder.capture_aperture_fstop = 2.8f;
+  state->viewfinder.capture_focus_distance = 10.0f;
+
+  /* Active modes. */
+  state->viewfinder.active_mode = XR_VIEWFINDER_MODE_LIVE;
+  state->viewfinder.active_action_live = XR_VIEWFINDER_ACTION_LIVE_LENS;
+  state->viewfinder.active_action_playback = XR_VIEWFINDER_ACTION_PB_BROWSE;
 }
 
 void WM_xr_session_state_vignette_activate(wmXrData *xr)

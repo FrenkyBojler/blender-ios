@@ -25,6 +25,7 @@ namespace blender {
 
 struct bContext;
 struct ARegion;
+struct Camera;
 struct Object;
 struct wmWindow;
 struct wmWindowManager;
@@ -35,6 +36,28 @@ struct wmXrData;
 namespace gpu {
 class Texture;
 }
+
+// TODO: eventually move to its own header file with its enums
+struct wmXrViewfinderState {
+  float capture_position[3];
+  float capture_orientation_quat[4];
+
+  /* Runtime values. */
+  Camera *runtime_cam_data_id;
+  float runtime_capture_flash;
+  double runtime_smoothing_delta_t;
+
+  /* Capture settings. */
+  bool capture_use_dof;
+  float capture_lens;
+  float capture_aperture_fstop;
+  float capture_focus_distance;
+
+  /** Active modes, concept differs from the rest of the Blender UI. */
+  eXrViewfinderMode active_mode;
+  eXrViewfinderLiveAction active_action_live;
+  eXrViewfinderPlaybackAction active_action_playback;
+};
 
 struct wmXrSessionState {
   bool is_started;
@@ -47,10 +70,7 @@ struct wmXrSessionState {
   float viewer_mat_base[4][4];
   float focal_len;
 
-  float viewfinder_capture_position[3];
-  float viewfinder_capture_orientation_quat[4];
-  float viewfinder_capture_flash;
-  double viewfinder_smoothing_delta_t;
+  wmXrViewfinderState viewfinder;
 
   /** Copy of XrSessionSettings.base_pose_ data to detect changes that need
    * resetting to base pose. */

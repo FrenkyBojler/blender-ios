@@ -12,6 +12,7 @@
 
 #include <cstring>
 #include <fmt/format.h>
+#include <optional>
 
 #include "DNA_camera_types.h"
 #include "DNA_userdef_types.h"
@@ -60,6 +61,93 @@ namespace blender {
 extern bContext *evil_main_C;
 static GPUOffScreen *g_viewfinder_offscreen;
 
+/* Factor used to size UI widgets in XR world space. Going from meters to UI units. */
+static constexpr float xr_ui_unit_fac = 0.05f;
+
+struct XrLocationScoutingCapture {
+  /* NOTE: Keep in sync with the Python VR Scene Inspection add-on VRCapture class.
+   *       See comment in #wm_xr_get_active_location_scouting_capture. */
+  GHOST_XrPose pose;
+
+  float lens_focal;
+
+  bool dof_enable;
+  float dof_dist;
+  float dof_fstop;
+};
+
+static bool wm_xr_is_location_scouting_captures_empty(Scene *scene)
+{
+  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
+  PropertyRNA *captures_prop = RNA_struct_find_property(&scene_ptr, "vr_captures");
+
+  if (captures_prop == nullptr) {
+    /* Capture collection wasn't found, VR add-on is probably not loaded. Shouldn't be possible. */
+    BLI_assert_unreachable();
+    return true;
+  }
+
+  if (RNA_property_collection_is_empty(&scene_ptr, captures_prop)) {
+    /* Empty capture collection. */
+    return true;
+  }
+
+  return false;
+}
+
+static std::optional<XrLocationScoutingCapture> wm_xr_get_active_location_scouting_capture(
+    Scene *scene)
+{
+  /* Workaround: To allow for conditionally registering the location scouting capture collection on
+   *             the Scene while not polluting the main DNA Scene struct, and generally keep the
+   *             definition simple and contained, the VRCapture collection is defined on the Python
+   *             add-on side. Values are then obtained back here via RNA introspection.
+   *
+   * NOTE: This functions thus *needs* be kept in sync with the VRCapture Python class. */
+
+  if (wm_xr_is_location_scouting_captures_empty(scene)) {
+    return std::nullopt;
+  }
+
+  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
+  PropertyRNA *captures_prop = RNA_struct_find_property(&scene_ptr, "vr_captures");
+
+  PropertyRNA *idx_prop = RNA_struct_find_property(&scene_ptr, "vr_captures_selected");
+  const int capture_idx = RNA_property_int_get(&scene_ptr, idx_prop);
+
+  PointerRNA current_capture;
+  RNA_property_collection_lookup_int(&scene_ptr, captures_prop, capture_idx, &current_capture);
+
+  /* Captured pose (location / orientation). */
+  PropertyRNA *location_prop = RNA_struct_find_property(&current_capture, "location");
+  PropertyRNA *orientation_prop = RNA_struct_find_property(&current_capture, "orientation");
+
+  float capture_location[3];
+  float capture_orientation[4];
+  RNA_property_float_get_array(&current_capture, location_prop, capture_location);
+  RNA_property_float_get_array(&current_capture, orientation_prop, capture_orientation);
+
+  GHOST_XrPose capture_pose;
+  capture_pose.is_active = true;
+  copy_v3_v3(capture_pose.position, capture_location);
+  copy_qt_qt(capture_pose.orientation_quat, capture_orientation);
+
+  /* Captured view settings (lens / DoF). */
+  PropertyRNA *lens_focal_prop = RNA_struct_find_property(&current_capture, "lens_focal");
+  PropertyRNA *dof_enable_prop = RNA_struct_find_property(&current_capture, "dof_enable");
+  PropertyRNA *dof_dist_prop = RNA_struct_find_property(&current_capture, "dof_dist");
+  PropertyRNA *dof_fstop_prop = RNA_struct_find_property(&current_capture, "dof_fstop");
+
+  XrLocationScoutingCapture capture = {
+      .pose = capture_pose,
+      .lens_focal = RNA_property_float_get(&current_capture, lens_focal_prop),
+      .dof_enable = RNA_property_boolean_get(&current_capture, dof_enable_prop),
+      .dof_dist = RNA_property_float_get(&current_capture, dof_dist_prop),
+      .dof_fstop = RNA_property_float_get(&current_capture, dof_fstop_prop)};
+
+  return std::make_optional(capture);
+}
+
 void wm_xr_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4])
 {
   quat_to_mat4(r_mat, pose->orientation_quat);
@@ -100,17 +188,18 @@ void wm_xr_pose_scale_to_imat(const GHOST_XrPose *pose, float scale, float r_ima
 }
 
 static wmXrController *get_viewfinder_controller(const XrSessionSettings *settings,
-                                                 wmXrSessionState *state)
+                                                 const wmXrSessionState *state)
 {
+  // TODO: Automatically switch control scheme on hand change.
+
   const char *subaction_path;
 
-  switch (settings->controller_dominant_hand) {
-    /* Place the Viewfinder on the non-dominant hand (invert left/right). */
-    case XR_CONTROLLER_DHAND_LEFT:
-      subaction_path = "/user/hand/right";
-      break;
-    case XR_CONTROLLER_DHAND_RIGHT:
+  switch (settings->viewfinder_hand) {
+    case XR_VIEWFINDER_HAND_LEFT:
       subaction_path = "/user/hand/left";
+      break;
+    case XR_VIEWFINDER_HAND_RIGHT:
+      subaction_path = "/user/hand/right";
       break;
     default:
       BLI_assert_unreachable();
@@ -118,12 +207,55 @@ static wmXrController *get_viewfinder_controller(const XrSessionSettings *settin
   }
 
   for (wmXrController &controller : state->controllers) {
-    if (STREQ(controller.subaction_path, subaction_path)) {
+    if (STREQ(controller.subaction_path, subaction_path) && controller.grip_active) {
       return &controller;
     }
   }
 
   return nullptr;
+}
+
+static rctf wm_xr_get_viewfinder_view_rect(const XrSessionSettings *settings,
+                                           const RenderData *scene_render_settings)
+{
+  /* Use scene render aspect ratio. */
+  const float render_x = scene_render_settings->xsch * scene_render_settings->xasp;
+  const float render_y = scene_render_settings->ysch * scene_render_settings->yasp;
+  const float render_aspect_ratio = render_y / render_x;
+
+  constexpr float minimum_width = 4.3f;
+  const float viewfinder_width = minimum_width + settings->viewfinder_scale;
+  const float viewfinder_height = viewfinder_width * render_aspect_ratio;
+
+  rctf viewfinder_rect = {};
+  BLI_rctf_resize(&viewfinder_rect, viewfinder_width, viewfinder_height);
+
+  return viewfinder_rect;
+}
+
+static bool wm_xr_get_viewfinder_capture_mat(const XrSessionSettings *settings,
+                                             const wmXrSessionState *state,
+                                             const float viewfinder_height,
+                                             float r_mat[4][4])
+{
+  const wmXrController *viewfinder_controller = get_viewfinder_controller(settings, state);
+  if (!viewfinder_controller) {
+    return false;
+  }
+
+  /* Compute vertical offset. */
+  constexpr float base_controller_offset = -0.1f;
+  const float height_offset = (viewfinder_height / 2) * xr_ui_unit_fac * -1;
+  const float viewfinder_vertical_offset = base_controller_offset + height_offset;
+
+  /* Obtain viewfinder capture mat from the choosen controller grip mat. */
+  float viewfinder_mat[4][4];
+  copy_m4_m4(viewfinder_mat, viewfinder_controller->grip_mat);
+  translate_m4(viewfinder_mat, 0.0f, 0.0f, viewfinder_vertical_offset);
+  rotate_m4(viewfinder_mat, 'X', -M_PI_2);
+
+  copy_m4_m4(r_mat, viewfinder_mat);
+  return true;
 }
 
 static void wm_xr_draw_matrices_create(const wmXrDrawData *draw_data,
@@ -192,7 +324,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
 {
   wmXrDrawData *draw_data = static_cast<wmXrDrawData *>(customdata);
   wmXrData *xr_data = draw_data->xr_data;
-  wmXrSessionState *session_state = &xr_data->runtime->session_state;
+  wmXrSessionState *state = &xr_data->runtime->session_state;
   XrSessionSettings *settings = &xr_data->session_settings;
 
   /* WIP Hack: Draw the viewfinder view here and pass it to wm_xr_controller_model_draw via a
@@ -210,137 +342,85 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
   }
   static GPUViewport *gpu_viewport = GPU_viewport_create();
 
-  Scene *scene = draw_data->scene;
-  Object *camera_ob = scene->camera; /* Active scene camera. */
-  Camera *camera_data = id_cast<Camera *>(camera_ob->data);
+  float viewfinder_render_viewmat[4][4] = {};
 
-  /* Hack: The DoF live DoF settings need to be overriden during playback to display
-   * the DoF of the captured shot. Circumvent this by storing the live DoF settings
-   * when entering playback and restoring them when going back to live. */
-  static bool dirty_dof_settings = false;
-  static CameraDOFSettings live_dof_settings = camera_data->dof;
+  Camera *cam_render_data = state->viewfinder.runtime_cam_data_id; /* Allocated ID. */
+  CameraParams cam_render_params;
+  BKE_camera_params_init(&cam_render_params);
 
-  float viewfinder_capture_viewmat[4][4] = {};
-  float current_landmark_vf_lens = 0.0f;
-  switch (settings->viewfinder_active_mode) {
+  switch (state->viewfinder.active_mode) {
     case XR_VIEWFINDER_MODE_LIVE: {
-      const wmXrController *viewfinder_controller = get_viewfinder_controller(settings,
-                                                                              session_state);
-      if (!viewfinder_controller) {
-        break;
+      // TODO: Simplify viewfinder_height computation once context is passed everywhere
+      const RenderData *scene_render_settings = &draw_data->scene->r;
+      const rctf viewfinder_rect = wm_xr_get_viewfinder_view_rect(settings, scene_render_settings);
+      const float viewfinder_height = BLI_rctf_size_y(&viewfinder_rect);
+
+      float raw_capture_mat[4][4];
+      if (!wm_xr_get_viewfinder_capture_mat(settings, state, viewfinder_height, raw_capture_mat)) {
+        /* Invalid viewfinder capture matrix, cannot draw, early return. */
+        return;
       }
-
-      if (dirty_dof_settings) {
-        camera_data->dof = live_dof_settings;
-        dirty_dof_settings = false;
-      }
-
-      /* Note: View offsets can be configured using the Scene Camera Shift X/Y settings. */
-      // TODO: Move viewfinder capture matrix computation out of the drawing function.
-
-      /* Obtain raw viewfinder capture mat from the current controller grip mat. */
-      float viewfinder_raw_capture_mat[4][4];
-      copy_m4_m4(viewfinder_raw_capture_mat, viewfinder_controller->grip_mat);
-      rotate_m4(viewfinder_raw_capture_mat, 'X', -M_PI_2);
 
       float raw_capture_position[3];
       float raw_capture_orientation_quat[4];
-      mat4_to_loc_quat(
-          raw_capture_position, raw_capture_orientation_quat, viewfinder_raw_capture_mat);
+      mat4_to_loc_quat(raw_capture_position, raw_capture_orientation_quat, raw_capture_mat);
 
-      if (session_state->viewfinder_smoothing_delta_t > 0) {
+      if (state->viewfinder.runtime_smoothing_delta_t > 0) {
         /* Apply exponential movement smoothing. */
-        constexpr float movement_smoothing_speed = 15.0f;
+        constexpr float movement_smoothing_speed = 25.0f;
 
         const double current_time = BLI_time_now_seconds();
-        const float delta_t = float(current_time - session_state->viewfinder_smoothing_delta_t);
+        const float delta_t = float(current_time - state->viewfinder.runtime_smoothing_delta_t);
         const float clamped_delta = min_ff(delta_t, 0.1f);
         const float factor = 1.0f - exp(-clamped_delta * movement_smoothing_speed);
 
-        interp_v3_v3v3(session_state->viewfinder_capture_position,
-                       session_state->viewfinder_capture_position,
+        interp_v3_v3v3(state->viewfinder.capture_position,
+                       state->viewfinder.capture_position,
                        raw_capture_position,
                        factor);
-        interp_qt_qtqt(session_state->viewfinder_capture_orientation_quat,
-                       session_state->viewfinder_capture_orientation_quat,
+        interp_qt_qtqt(state->viewfinder.capture_orientation_quat,
+                       state->viewfinder.capture_orientation_quat,
                        raw_capture_orientation_quat,
                        factor);
-        session_state->viewfinder_smoothing_delta_t = current_time;
+        state->viewfinder.runtime_smoothing_delta_t = current_time;
       }
       else {
-        /* First initialization. */
-        copy_v3_v3(session_state->viewfinder_capture_position, raw_capture_position);
-        copy_qt_qt(session_state->viewfinder_capture_orientation_quat,
-                   raw_capture_orientation_quat);
-        session_state->viewfinder_smoothing_delta_t = BLI_time_now_seconds();
+        /* Initialization. */
+        copy_v3_v3(state->viewfinder.capture_position, raw_capture_position);
+        copy_qt_qt(state->viewfinder.capture_orientation_quat, raw_capture_orientation_quat);
+        state->viewfinder.runtime_smoothing_delta_t = BLI_time_now_seconds();
       }
 
       /* Build final smoothed capture matrix for rendering. */
       float viewfinder_capture_mat[4][4];
-      quat_to_mat4(viewfinder_capture_mat, session_state->viewfinder_capture_orientation_quat);
-      copy_v3_v3(viewfinder_capture_mat[3], session_state->viewfinder_capture_position);
+      quat_to_mat4(viewfinder_capture_mat, state->viewfinder.capture_orientation_quat);
+      copy_v3_v3(viewfinder_capture_mat[3], state->viewfinder.capture_position);
 
-      invert_m4_m4(viewfinder_capture_viewmat, viewfinder_capture_mat);
+      invert_m4_m4(viewfinder_render_viewmat, viewfinder_capture_mat);
+
+      /* Parse live capture parameter for rendering. */
+      cam_render_params.lens = state->viewfinder.capture_lens;
+      SET_FLAG_FROM_TEST(
+          cam_render_data->dof.flag, state->viewfinder.capture_use_dof, CAM_DOF_ENABLED);
+      cam_render_data->dof.aperture_fstop = state->viewfinder.capture_aperture_fstop;
+      cam_render_data->dof.focus_distance = state->viewfinder.capture_focus_distance;
 
       break;
     }
     case XR_VIEWFINDER_MODE_PLAYBACK: {
-      if (!dirty_dof_settings) {
-        live_dof_settings = camera_data->dof;
-        dirty_dof_settings = true;
-      }
-
-      PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
-
-      /* Note: unsafe, relies on the VR add-on to be loaded. */
-      PropertyRNA *landmarks_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks");
-      if (RNA_property_collection_is_empty(&scene_ptr, landmarks_prop)) {
+      auto capture = wm_xr_get_active_location_scouting_capture(draw_data->scene);
+      if (!capture.has_value()) {
         /* Nothing to draw, early return. */
         return;
       }
 
-      PropertyRNA *lm_idx_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks_selected");
-      const int landmark_idx = RNA_property_int_get(&scene_ptr, lm_idx_prop);
+      wm_xr_pose_to_imat(&capture->pose, viewfinder_render_viewmat);
+      cam_render_params.lens = capture->lens_focal;
 
-      /* Workaround: Doing some hardcore RNA introspection to obtain the values back. */
-      PointerRNA current_landmark;
-      RNA_property_collection_lookup_int(
-          &scene_ptr, landmarks_prop, landmark_idx, &current_landmark);
+      SET_FLAG_FROM_TEST(cam_render_data->dof.flag, capture->dof_enable, CAM_DOF_ENABLED);
+      cam_render_data->dof.focus_distance = capture->dof_dist;
+      cam_render_data->dof.aperture_fstop = capture->dof_fstop;
 
-      /* Captured pose (location / orientation). */
-      PropertyRNA *lm_vf_pos_prop = RNA_struct_find_property(&current_landmark,
-                                                             "base_pose_location");
-      PropertyRNA *lm_vf_quat_prop = RNA_struct_find_property(&current_landmark,
-                                                              "viewfinder_quat");
-      float landmark_viewfinder_pos[3];
-      float landmark_viewfinder_quat[4];
-      RNA_property_float_get_array(&current_landmark, lm_vf_pos_prop, landmark_viewfinder_pos);
-      RNA_property_float_get_array(&current_landmark, lm_vf_quat_prop, landmark_viewfinder_quat);
-
-      GHOST_XrPose viewfinder_pose;
-      copy_v3_v3(viewfinder_pose.position, landmark_viewfinder_pos);
-      copy_qt_qt(viewfinder_pose.orientation_quat, landmark_viewfinder_quat);
-
-      wm_xr_pose_to_imat(&viewfinder_pose, viewfinder_capture_viewmat);
-
-      /* Captured view settings (lens / DoF). */
-      PropertyRNA *lm_vf_lens_prop = RNA_struct_find_property(&current_landmark,
-                                                              "viewfinder_lens");
-      PropertyRNA *lm_vf_use_dof_prop = RNA_struct_find_property(&current_landmark,
-                                                                 "viewfinder_use_dof");
-      PropertyRNA *lm_vf_dof_dist_prop = RNA_struct_find_property(&current_landmark,
-                                                                  "viewfinder_dof_dist");
-      PropertyRNA *lm_vf_dof_fstop_prop = RNA_struct_find_property(&current_landmark,
-                                                                   "viewfinder_dof_fstop");
-
-      current_landmark_vf_lens = RNA_property_float_get(&current_landmark, lm_vf_lens_prop);
-      const bool landmark_use_dof = RNA_property_boolean_get(&current_landmark,
-                                                             lm_vf_use_dof_prop);
-      SET_FLAG_FROM_TEST(camera_data->dof.flag, landmark_use_dof, CAM_DOF_ENABLED);
-      camera_data->dof.focus_distance = RNA_property_float_get(&current_landmark,
-                                                               lm_vf_dof_dist_prop);
-      camera_data->dof.aperture_fstop = RNA_property_float_get(&current_landmark,
-                                                               lm_vf_dof_fstop_prop);
       break;
     }
     default:
@@ -348,31 +428,35 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       break;
   }
 
-  CameraParams params;
-  BKE_camera_params_init(&params);
-  BKE_camera_params_from_object(&params, camera_ob);
-
-  /* In Playback mode, override the lens with the value stored in the landmark.
-   * Note: Only the lens and DoF are restored, tweaking the Shift X/Y and other Camera settings
-   *       between captures will cause inconsistencies. */
-  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
-    params.lens = current_landmark_vf_lens;
-  }
-
-  BKE_camera_params_compute_viewplane(
-      &params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
-  BKE_camera_params_compute_matrix(&params);
+  /* Compute obtained camera parameter from Live / Playback for render, using scene render
+   * aspect ratio. */
+  const RenderData *render_settings = &draw_data->scene->r;
+  BKE_camera_params_compute_viewplane(&cam_render_params,
+                                      render_settings->xsch,
+                                      render_settings->ysch,
+                                      render_settings->xasp,
+                                      render_settings->yasp);
+  BKE_camera_params_compute_matrix(&cam_render_params);
 
   float viewfinder_winmat[4][4];
-  copy_m4_m4(viewfinder_winmat, params.winmat);
+  copy_m4_m4(viewfinder_winmat, cam_render_params.winmat);
 
-  const int viewfinder_display_flag = V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS |
-                                      V3D_OFSDRAW_SHOW_ANNOTATION | V3D_OFSDRAW_SHOW_GRIDFLOOR;
+  /* Set viewfinder View3D draw flags, using base XR draw flags with some overriden exceptions. */
+  int viewfinder_draw_flags = V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS | settings->draw_flags;
+  viewfinder_draw_flags &= ~V3D_OFSDRAW_SHOW_SELECTION;      /* Always hide selection outlines. */
+  viewfinder_draw_flags &= ~V3D_OFSDRAW_XR_SHOW_CONTROLLERS; /* Always hide other XR controller. */
+  viewfinder_draw_flags &= ~V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS; /* Always hide XR overlays. */
 
   /* Always enable DoF in the View3D settings used by in the viewfinder rendered view
    * for Workbench. */
   View3DShading viewfinder_shading_settings = settings->shading;
   viewfinder_shading_settings.flag |= V3D_SHADING_DEPTH_OF_FIELD;
+
+  /* Shim Viewfinder Camera Object to override the View3D with for rendering and pass it our
+   * cam_render_data ID. */
+  Object viewfinder_cam_ob = {};
+  viewfinder_cam_ob.type = OB_CAMERA;
+  viewfinder_cam_ob.data = id_cast<ID *>(cam_render_data);
 
   ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
                                   draw_data->scene,
@@ -382,8 +466,8 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
                                   settings->object_type_exclude_select,
                                   draw_view->width,
                                   draw_view->height,
-                                  viewfinder_display_flag,
-                                  viewfinder_capture_viewmat,
+                                  viewfinder_draw_flags,
+                                  viewfinder_render_viewmat,
                                   viewfinder_winmat,
                                   settings->clip_start,
                                   settings->clip_end,
@@ -393,7 +477,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
                                   true,
                                   nullptr,
                                   true,
-                                  true,
+                                  &viewfinder_cam_ob,
                                   g_viewfinder_offscreen,
                                   gpu_viewport);
 }
@@ -451,7 +535,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
                                   true,
                                   nullptr,
                                   false,
-                                  false,
+                                  nullptr,
                                   vp->offscreen,
                                   vp->viewport);
 
@@ -547,19 +631,17 @@ static ui::Layout &uiblock_prepare(ui::Block **block,
 }
 
 static ui::Block *viewfinder_action_label_ui_block(const bContext *C,
-                                                   const XrSessionSettings *settings)
+                                                   const wmXrSessionState *state)
 {
-  const char *active_action_prop = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                       "viewfinder_active_action_live" :
-                                       "viewfinder_active_action_playback";
-
-  /* XR Session settings RNA pointer. */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_XrSessionSettings, (void *)settings);
-  //  PropertyRNA *prop = RNA_struct_find_property(&ptr, active_action_prop);
+  const char *active_action_prop = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
+                                       "active_action_live" :
+                                       "active_action_playback";
 
   ui::Block *block = nullptr;
   ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::None);
 
+  PointerRNA ptr = RNA_pointer_create_discrete(
+      &CTX_wm_manager(C)->id, RNA_XrViewfinderState, (void *)&state->viewfinder);
   // TODO: Address the small menu down arrow that can be seen on the right side
   layout.prop(&ptr, active_action_prop, ui::ITEM_R_COMPACT | ui::ITEM_R_ICON_NEVER, "", ICON_NONE);
 
@@ -568,12 +650,12 @@ static ui::Block *viewfinder_action_label_ui_block(const bContext *C,
   return block;
 }
 
-static ui::Block *viewfinder_action_enum_ui_block(const bContext *C,
-                                                  const XrSessionSettings *settings)
+static ui::Block *viewfinder_action_enum_ui_block(const bContext *C, const wmXrSessionState *state)
 {
   /* XR Session settings RNA pointer. */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_XrSessionSettings, (void *)settings);
-  PropertyRNA *prop = RNA_struct_find_property(&ptr, "viewfinder_active_action_live");
+  PointerRNA ptr = RNA_pointer_create_discrete(
+      &CTX_wm_manager(C)->id, RNA_XrViewfinderState, (void *)&state->viewfinder);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "active_action_live");
 
   ui::Block *block = nullptr;
   ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
@@ -581,7 +663,7 @@ static ui::Block *viewfinder_action_enum_ui_block(const bContext *C,
 
   layout.scale_y_set(1.1f);
 
-  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE) {
+  if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE) {
     /* Live mode, display each property enum separately for the DoF controls to be marked
      * as disabled when DoF is disabled. */
     layout.ui_units_x_set(8.0f); /* Width hack. */
@@ -590,12 +672,9 @@ static ui::Block *viewfinder_action_enum_ui_block(const bContext *C,
     sub1.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_LENS, "", ICON_NONE);
     sub1.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_DOF, "", ICON_NONE);
 
-    const Object *scene_cam = CTX_data_scene(C)->camera;
-    const Camera *cam_data = id_cast<const Camera *>(scene_cam->data);
-
     ui::Layout &sub2 = row.row(true);
     /* Show these controls greyed-out if DoF is disabled. */
-    sub2.enabled_set(cam_data->dof.flag & CAM_DOF_ENABLED);
+    sub2.enabled_set(state->viewfinder.capture_use_dof);
     sub2.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_FOCUS, "", ICON_NONE);
     sub2.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_APERTURE, "", ICON_NONE);
   }
@@ -603,11 +682,8 @@ static ui::Block *viewfinder_action_enum_ui_block(const bContext *C,
     /* Playback mode, directly draw the full enum prop. */
     layout.scale_x_set(15.0f); /* Width hack. */
 
-    row.prop(&ptr,
-             "viewfinder_active_action_playback",
-             ui::ITEM_R_EXPAND | ui::ITEM_R_ICON_ONLY,
-             "",
-             ICON_NONE);
+    row.prop(
+        &ptr, "active_action_playback", ui::ITEM_R_EXPAND | ui::ITEM_R_ICON_ONLY, "", ICON_NONE);
   }
 
   ui::block_end_xr(C, block);
@@ -616,44 +692,43 @@ static ui::Block *viewfinder_action_enum_ui_block(const bContext *C,
 }
 
 static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
-                                                     const XrSessionSettings *settings)
+                                                     const wmXrSessionState *state)
 {
 
   ui::Block *block = nullptr;
   ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
 
   Scene *scene = CTX_data_scene(C);
-  const Object *cam_ob = scene->camera;
-  const Camera *cam = id_cast<const Camera *>(cam_ob->data);
-
   PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
 
   /* Note: unsafe, relies on the VR add-on being loaded. */
-  PropertyRNA *landmark_len_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks");
-  PropertyRNA *landmark_idx_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks_selected");
-  const int landmark_len = RNA_property_collection_length(&scene_ptr, landmark_len_prop);
-  const int landmark_idx = RNA_property_int_get(&scene_ptr, landmark_idx_prop);
+  PropertyRNA *captures_len_prop = RNA_struct_find_property(&scene_ptr, "vr_captures");
+  PropertyRNA *captures_idx_prop = RNA_struct_find_property(&scene_ptr, "vr_captures_selected");
+  const int captures_len = RNA_property_collection_length(&scene_ptr, captures_len_prop);
+  const int captures_idx = RNA_property_int_get(&scene_ptr, captures_idx_prop);
 
   std::string settings_label;
-  switch (settings->viewfinder_active_mode) {
+  switch (state->viewfinder.active_mode) {
+    /* \xe2\x80\x87 corresponds to a Unicode Figure Space (BLI_STR_UTF8_FIGURE_SPACE). */
     case XR_VIEWFINDER_MODE_LIVE:
-      settings_label = fmt::format("{}mm   DoF: {}   d: {:.1f}   f {:.1f}",
-                                   cam->lens,
-                                   (cam->dof.flag & CAM_DOF_ENABLED) ? "on" : "off",
-                                   cam->dof.focus_distance,
-                                   cam->dof.aperture_fstop);
+      // TODO: Clean-up by moving DoF status to another label on the left side of the viewfinder.
+      settings_label = fmt::format(
+          "{:\xe2\x80\x87>3}mm   DoF: {}   d: {:\xe2\x80\x87<4.1f}   f {:\xe2\x80\x87>3.1f}",
+          state->viewfinder.capture_lens,
+          state->viewfinder.capture_use_dof ? "on " : "off",
+          state->viewfinder.capture_focus_distance,
+          state->viewfinder.capture_aperture_fstop);
       break;
     case XR_VIEWFINDER_MODE_PLAYBACK:
       /* Current shot indicator (`current shot idx / all shots`). */
-      if (landmark_len > 0) {
-        const int width = landmark_len >= 10 ? 2 : 1;
-        const char *pad_prefix = landmark_len < 10 ? "     " : "";
-        /* \xe2\x80\x87 corresponds to a Unicode Figure Space (BLI_STR_UTF8_FIGURE_SPACE). */
+      if (captures_len > 0) {
+        const int width = captures_len >= 10 ? 2 : 1;
+        const char *pad_prefix = captures_len < 10 ? "     " : "";
         settings_label = fmt::format("{}{:\xe2\x80\x87>{}} / {:\xe2\x80\x87>{}}",
                                      pad_prefix,
-                                     landmark_idx + 1,
+                                     captures_idx + 1,
                                      width,
-                                     landmark_len,
+                                     captures_len,
                                      width);
       }
       break;
@@ -669,8 +744,7 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
   return block;
 }
 
-static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C,
-                                                const XrSessionSettings *settings)
+static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C, const wmXrSessionState *state)
 {
   ui::Block *block = ui::block_begin_xr(C, __func__, blender::ui::EmbossType::Emboss);
   ui::block_flag_enable(block, ui::BLOCK_LOOP | ui::BLOCK_KEEP_OPEN | ui::BLOCK_NO_WIN_CLIP);
@@ -689,8 +763,8 @@ static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C,
                              0,
                              0,
                              "");
-  button_func_pushed_state_set(but, [&settings](const ui::Button &) -> bool {
-    return settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE;
+  button_func_pushed_state_set(but, [&state](const ui::Button &) -> bool {
+    return state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE;
   });
 
   but = uiDefBut(block,
@@ -704,8 +778,8 @@ static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C,
                  0,
                  0,
                  "");
-  button_func_pushed_state_set(but, [&settings](const ui::Button &) -> bool {
-    return settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK;
+  button_func_pushed_state_set(but, [&state](const ui::Button &) -> bool {
+    return state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK;
   });
 
   ui::block_end_xr(C, block);
@@ -714,15 +788,14 @@ static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C,
 }
 
 static ui::Block *viewfinder_missing_captures_label_ui_block(const bContext *C,
-                                                             const XrSessionSettings *settings)
+                                                             const wmXrSessionState *state)
 {
-  PointerRNA scene_ptr = RNA_id_pointer_create(&CTX_data_scene(C)->id);
-  const bool empty_captures = RNA_collection_is_empty(&scene_ptr, "vr_landmarks");
+  const bool empty_captures = wm_xr_is_location_scouting_captures_empty(CTX_data_scene(C));
 
   ui::Block *block = nullptr;
   ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
 
-  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
+  if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
     layout.label("No shots captured yet.", ICON_NONE);
   }
 
@@ -732,7 +805,7 @@ static ui::Block *viewfinder_missing_captures_label_ui_block(const bContext *C,
 }
 
 static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
-                                                        const XrSessionSettings *settings,
+                                                        const wmXrSessionState *state,
                                                         const rctf viewfinder_rect)
 {
   /* Create a fake context to trick the UI drawing code in drawing in places it shouldn't be. */
@@ -744,7 +817,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
     GPU_matrix_translate_3f(x_off, y_off, 0.0f);
     GPU_matrix_scale_1f(0.02f);
 
-    ui::Block *block = block_func(fake_C, settings);
+    ui::Block *block = block_func(fake_C, state);
     ui::block_draw_xr(fake_C, block); /* Stripped-down XR version of #UI_block_draw. */
 
     GPU_matrix_pop();
@@ -753,15 +826,15 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   const float mode_tabs_x = viewfinder_rect.xmin - 0.15f;
   const float mode_tabs_y = viewfinder_rect.ymax + 0.45f;
 
-  const float settings_label_x = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                     viewfinder_rect.xmax - 3.4f :
+  const float settings_label_x = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
+                                     viewfinder_rect.xmax - 3.7f :
                                      viewfinder_rect.xmax - 0.8f;
   const float settings_label_y = viewfinder_rect.ymax + 0.47f;
 
   const float action_label_x = viewfinder_rect.xmin - 0.1f;
   const float action_label_y = viewfinder_rect.ymin - 0.15f;
 
-  const float action_enum_x = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
+  const float action_enum_x = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
                                   viewfinder_rect.xmax - 1.6f :
                                   viewfinder_rect.xmax - 1.2f;
   const float action_enum_y = viewfinder_rect.ymin - 0.15f;
@@ -778,9 +851,10 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
 
 static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect)
 {
-  /* Colors TODO: Dynamically get these from the current theme. */
-  const float background_col[4] = {0.188f, 0.188f, 0.188f, 1.0f};
-  const float outline_col[4] = {0.26f, 0.26f, 0.26f, 1.0f};
+  float background_col[3];
+  ui::theme::get_color_3fv(TH_TAB_ACTIVE, background_col);
+
+  const float outline_col[4] = {0.26f, 0.26f, 0.26f, 0.2f};
 
   rctf background_rect = viewfinder_rect;
   BLI_rctf_pad(&background_rect, 0.2f, 0.6f);
@@ -798,25 +872,28 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
   /* Workaround: regain precision on the rect side by a factor of 100. */
   GPU_matrix_scale_1f(0.01f);
   BLI_rctf_mul(&background_rect, 100);
-  BLI_rctf_mul(&outline_rect, 100);
   BLI_rctf_mul(&tabs_bg_rect, 100);
+  BLI_rctf_mul(&outline_rect, 100);
 
   GPU_polygon_offset(-1.0f, -1.0f);
   ui::draw_roundbox_3fv_alpha(&background_rect, true, 16, background_col, 1.0f);
   GPU_matrix_translate_3f(0.0f, 0.0f, 0.01f);
   ui::draw_roundbox_3fv_alpha(&tabs_bg_rect, true, 16, background_col, 1.0f);
   GPU_matrix_translate_3f(0.0f, 0.0f, 0.01f);
-  ui::draw_roundbox_3fv_alpha(&outline_rect, true, 16, outline_col, 0.2f);
+  ui::draw_roundbox_4fv(&outline_rect, true, 0, outline_col);
   GPU_polygon_offset(0.0f, 0.0f);
 
   GPU_matrix_pop();
 }
 
-static void wm_xr_controller_viewfinder_draw_view_texture(const XrSessionSettings *settings,
-                                                          const rctf viewfinder_rect,
-                                                          const bool empty_captures)
+static void wm_xr_controller_viewfinder_draw_view_texture(const bContext *C,
+                                                          const wmXrSessionState *state,
+                                                          const rctf viewfinder_rect)
 {
-  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
+  PointerRNA scene_ptr = RNA_id_pointer_create(&CTX_data_scene(C)->id);
+  const bool empty_captures = wm_xr_is_location_scouting_captures_empty(CTX_data_scene(C));
+
+  if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
     return;
   }
 
@@ -848,12 +925,11 @@ static void wm_xr_controller_viewfinder_draw_view_texture(const XrSessionSetting
 }
 
 static void wm_xr_controller_viewfinder_draw_view_flash(wmXrSessionState *state,
-                                                        const XrSessionSettings *settings,
                                                         const rctf viewfinder_rect)
 {
   /* Do not apply the flash effect if we're in playback mode. */
-  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
-    state->viewfinder_capture_flash = 0.0f;
+  if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
+    state->viewfinder.runtime_capture_flash = 0.0f;
     return;
   }
 
@@ -862,9 +938,9 @@ static void wm_xr_controller_viewfinder_draw_view_flash(wmXrSessionState *state,
   constexpr float full_flash_alpha = 0.3f;
 
   static double last_flash_time;
-  if (state->viewfinder_capture_flash != 0.0f) {
+  if (state->viewfinder.runtime_capture_flash != 0.0f) {
     last_flash_time = BLI_time_now_seconds();
-    state->viewfinder_capture_flash = 0.0f;
+    state->viewfinder.runtime_capture_flash = 0.0f;
   }
 
   const float last_flash_delta = BLI_time_now_seconds() - last_flash_time;
@@ -890,7 +966,6 @@ static void wm_xr_controller_viewfinder_draw_view_flash(wmXrSessionState *state,
 }
 
 static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
-                                             GHOST_IXrContext * /*xr_context*/,
                                              wmXrSessionState *state,
                                              const bContext *C)
 {
@@ -898,27 +973,19 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
     return;
   }
 
-  const wmXrController *viewfinder_controller = get_viewfinder_controller(settings, state);
-  if (!viewfinder_controller || !viewfinder_controller->grip_active) {
+  const RenderData *scene_render_settings = &CTX_data_scene(C)->r;
+  const rctf viewfinder_rect = wm_xr_get_viewfinder_view_rect(settings, scene_render_settings);
+
+  /* Initial transform setup. */
+  float viewfinder_mat[4][4];
+  const float viewfinder_height = BLI_rctf_size_y(&viewfinder_rect);
+  if (!wm_xr_get_viewfinder_capture_mat(settings, state, viewfinder_height, viewfinder_mat)) {
     return;
   }
 
-  /* Fixed 16:9 aspect ratio for now. */
-  const float viewfinder_height = settings->viewfinder_width * 9.0f / 16.0f;
-  const float viewfinder_vertical_offset = 3.5f; /* Center of the viewfinder rectangle. */
-
-  rctf viewfinder_rect = {};
-  BLI_rctf_resize(&viewfinder_rect, settings->viewfinder_width, viewfinder_height);
-
-  /* Initial transform setup. */
   GPU_matrix_push();
-  GPU_matrix_mul(viewfinder_controller->grip_mat);
-  GPU_matrix_scale_1f(0.05f);
-  GPU_matrix_translate_3f(0.0f, 0.0f, -viewfinder_vertical_offset);
-  GPU_matrix_rotate_3f(-90.0f, 1.0f, 0.0f, 0.0f);
-
-  PointerRNA scene_ptr = RNA_id_pointer_create(&CTX_data_scene(C)->id);
-  const bool empty_captures = RNA_collection_is_empty(&scene_ptr, "vr_landmarks");
+  GPU_matrix_mul(viewfinder_mat);
+  GPU_matrix_scale_1f(xr_ui_unit_fac);
 
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
@@ -928,11 +995,11 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   GPU_depth_mask(false);
 
   /* Viewfinder View texture and flash. */
-  wm_xr_controller_viewfinder_draw_view_texture(settings, viewfinder_rect, empty_captures);
-  wm_xr_controller_viewfinder_draw_view_flash(state, settings, viewfinder_rect);
+  wm_xr_controller_viewfinder_draw_view_texture(C, state, viewfinder_rect);
+  wm_xr_controller_viewfinder_draw_view_flash(state, viewfinder_rect);
 
   /* UI Widgets. */
-  wm_xr_controller_viewfinder_draw_ui_widgets(C, settings, viewfinder_rect);
+  wm_xr_controller_viewfinder_draw_ui_widgets(C, state, viewfinder_rect);
 
   GPU_depth_mask(true);
   GPU_depth_test(GPU_DEPTH_NONE);
@@ -1077,7 +1144,7 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
     }
   }
 
-  wm_xr_controller_viewfinder_draw(settings, xr_context, state, C);
+  wm_xr_controller_viewfinder_draw(settings, state, C);
 }
 
 static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSessionState *state)
