@@ -469,6 +469,13 @@ IndexMask curve_to_point_selection(OffsetIndices<int> points_by_curve,
                                    const IndexMask &curve_selection,
                                    IndexMaskMemory &memory);
 
+/**
+ * Create a mask for all curves that have at least one point in the point mask.
+ */
+IndexMask point_to_curve_selection(OffsetIndices<int> points_by_curve,
+                                   const IndexMask &point_mask,
+                                   IndexMaskMemory &memory);
+
 IndexMask curve_type_point_selection(const bke::CurvesGeometry &curves,
                                      CurveType curve_type,
                                      IndexMaskMemory &memory);
