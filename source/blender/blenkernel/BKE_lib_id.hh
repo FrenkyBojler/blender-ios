@@ -1036,7 +1036,7 @@ Vector<ID *> BKE_id_ordered_list(const ListBaseT<ID> *lb);
  */
 void BKE_id_reorder(const ListBaseT<ID> *lb, ID *id, ID *relative, bool after);
 
-void BKE_id_blend_write(BlendWriter *writer, ID *id);
+int BKE_id_blend_write(BlendWriter *writer, ID *id);
 
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & ID_TAG_DOIT))
 

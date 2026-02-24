@@ -1111,12 +1111,12 @@ static void write_node_socket_default_value(BlendWriter *writer, const bNodeSock
   }
 }
 
-static void write_node_socket(BlendWriter *writer, const bNodeSocket *sock)
+static void write_node_socket(BlendWriter *writer, const bNodeSocket *sock, int &n)
 {
   writer->write_struct(sock);
 
   if (sock->prop) {
-    IDP_BlendWrite(writer, sock->prop);
+    n += IDP_BlendWrite(writer, sock->prop);
   }
 
   /* This property should only be used for group node "interface" sockets. */
@@ -1226,7 +1226,8 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
 
 void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
 {
-  BKE_id_blend_write(writer, &ntree->id);
+  int n = 0;
+  n += BKE_id_blend_write(writer, &ntree->id);
   BLO_write_string(writer, ntree->description);
 
   /* Restore IDs overridden for forward compatibility. Otherwise their user count becomes wrong. */
@@ -1248,10 +1249,10 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
     writer->write_struct(node);
 
     if (node->prop) {
-      IDP_BlendWrite(writer, node->prop);
+      n += IDP_BlendWrite(writer, node->prop);
     }
     if (node->system_properties) {
-      IDP_BlendWrite(writer, node->system_properties);
+      n += IDP_BlendWrite(writer, node->system_properties);
     }
 
     if (!BLO_write_is_undo(writer)) {
@@ -1259,10 +1260,10 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
     }
 
     for (bNodeSocket &sock : node->inputs) {
-      write_node_socket(writer, &sock);
+      write_node_socket(writer, &sock, n);
     }
     for (bNodeSocket &sock : node->outputs) {
-      write_node_socket(writer, &sock);
+      write_node_socket(writer, &sock, n);
     }
     writer->write_struct_array(node->num_panel_states, node->panel_states_array);
 
@@ -1304,6 +1305,10 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
     for (const auto &item : ids_to_restore.items()) {
       *item.key = item.value;
     }
+  }
+
+  if (n > 1000) {
+    printf("%s: Written %d idprops for this ID\n", ntree->id.name, n);
   }
 }
 

@@ -1319,7 +1319,8 @@ void IDP_foreach_property(IDProperty *id_property_root,
   }
 }
 
-void IDP_WriteProperty_OnlyData(const IDProperty *prop, BlendWriter *writer);
+void IDP_WriteProperty_OnlyData(const IDProperty *prop, BlendWriter *writer, int &num_idprops);
+static void IDP_BlendWrite(BlendWriter *writer, const IDProperty *prop, int &num_idprops);
 
 static void write_ui_data(const IDProperty *prop, BlendWriter *writer)
 {
@@ -1381,7 +1382,7 @@ static void write_ui_data(const IDProperty *prop, BlendWriter *writer)
   }
 }
 
-static void IDP_WriteArray(const IDProperty *prop, BlendWriter *writer)
+static void IDP_WriteArray(const IDProperty *prop, BlendWriter *writer, int &num_idprops)
 {
   /* Remember to set #IDProperty.totallen to len in the linking code! */
   if (prop->data.pointer) {
@@ -1393,7 +1394,7 @@ static void IDP_WriteArray(const IDProperty *prop, BlendWriter *writer)
 
         IDProperty **array = static_cast<IDProperty **>(prop->data.pointer);
         for (int i = 0; i < prop->len; i++) {
-          IDP_BlendWrite(writer, array[i]);
+          IDP_BlendWrite(writer, array[i], num_idprops);
         }
         break;
       }
@@ -1422,7 +1423,7 @@ static void IDP_WriteArray(const IDProperty *prop, BlendWriter *writer)
   }
 }
 
-static void IDP_WriteIDPArray(const IDProperty *prop, BlendWriter *writer)
+static void IDP_WriteIDPArray(const IDProperty *prop, BlendWriter *writer, int &num_idprops)
 {
   /* Remember to set #IDProperty.totallen to len in the linking code! */
   if (prop->data.pointer) {
@@ -1431,7 +1432,7 @@ static void IDP_WriteIDPArray(const IDProperty *prop, BlendWriter *writer)
     writer->write_struct_array(prop->len, array);
 
     for (int a = 0; a < prop->len; a++) {
-      IDP_WriteProperty_OnlyData(&array[a], writer);
+      IDP_WriteProperty_OnlyData(&array[a], writer, num_idprops);
     }
   }
 }
@@ -1444,39 +1445,51 @@ static void IDP_WriteString(const IDProperty *prop, BlendWriter *writer)
   BLO_write_char_array(writer, uint(prop->len), static_cast<char *>(prop->data.pointer));
 }
 
-static void IDP_WriteGroup(const IDProperty *prop, BlendWriter *writer)
+static void IDP_WriteGroup(const IDProperty *prop, BlendWriter *writer, int &num_idprops)
 {
   for (IDProperty &loop : prop->data.group) {
-    IDP_BlendWrite(writer, &loop);
+    IDP_BlendWrite(writer, &loop, num_idprops);
   }
 }
 
 /* Functions to read/write ID Properties */
-void IDP_WriteProperty_OnlyData(const IDProperty *prop, BlendWriter *writer)
+void IDP_WriteProperty_OnlyData(const IDProperty *prop, BlendWriter *writer, int &num_idprops)
 {
   switch (prop->type) {
     case IDP_GROUP:
-      IDP_WriteGroup(prop, writer);
+      IDP_WriteGroup(prop, writer, num_idprops);
       break;
     case IDP_STRING:
       IDP_WriteString(prop, writer);
       break;
     case IDP_ARRAY:
-      IDP_WriteArray(prop, writer);
+      IDP_WriteArray(prop, writer, num_idprops);
       break;
     case IDP_IDPARRAY:
-      IDP_WriteIDPArray(prop, writer);
+      IDP_WriteIDPArray(prop, writer, num_idprops);
       break;
   }
+  num_idprops++;
   if (prop->ui_data != nullptr) {
     write_ui_data(prop, writer);
   }
 }
 
-void IDP_BlendWrite(BlendWriter *writer, const IDProperty *prop)
+static void IDP_BlendWrite(BlendWriter *writer, const IDProperty *prop, int &num_idprops)
 {
   writer->write_struct(prop);
-  IDP_WriteProperty_OnlyData(prop, writer);
+  IDP_WriteProperty_OnlyData(prop, writer, num_idprops);
+}
+
+int IDP_BlendWrite(BlendWriter *writer, const IDProperty *prop)
+{
+  static int tot_calls = 0;
+  static int tot_num_idprops = 0;
+  int num_idprops = 0;
+  IDP_BlendWrite(writer, prop, num_idprops);
+  tot_calls++;
+  tot_num_idprops += num_idprops;
+  return num_idprops;
 }
 
 static void IDP_DirectLinkProperty(IDProperty *prop, BlendDataReader *reader);

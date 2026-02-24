@@ -1832,6 +1832,7 @@ static bool write_file_handle(Main *mainvar,
   }
 
   /* Actually write local data-blocks to the file. */
+  printf("Writing %d local IDs\n", local_ids_to_write.size());
   for (ID *id : local_ids_to_write) {
     write_id(wd, id);
   }

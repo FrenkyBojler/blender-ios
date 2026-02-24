@@ -614,6 +614,7 @@ static void object_foreach_working_space_color(ID *id,
 
 static void object_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
+  int n = 0;
   Object *ob = id_cast<Object *>(id);
 
   const bool is_undo = BLO_write_is_undo(writer);
@@ -629,7 +630,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   /* write LibData */
   writer->write_id_struct(id_address, ob);
-  BKE_id_blend_write(writer, &ob->id);
+  n += BKE_id_blend_write(writer, &ob->id);
 
   /* direct data */
   BLO_write_pointer_array(writer, ob->totcol, ob->mat);
@@ -637,7 +638,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   if (ob->pose) {
     BLI_assert(ob->type == OB_ARMATURE);
-    BKE_pose_blend_write(writer, ob->pose);
+    n += BKE_pose_blend_write(writer, ob->pose);
   }
   BKE_constraint_blend_write(writer, &ob->constraints);
   animviz_motionpath_blend_write(writer, ob->mpath);
@@ -683,6 +684,10 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   if (ob->lightprobe_cache) {
     writer->write_struct(ob->lightprobe_cache);
     BKE_lightprobe_cache_blend_write(writer, ob->lightprobe_cache);
+  }
+
+  if (n > 1000) {
+    printf("%s: Written %d idprops for this ID\n", id->name, n);
   }
 }
 

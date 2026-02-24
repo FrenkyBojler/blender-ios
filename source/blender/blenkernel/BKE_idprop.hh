@@ -414,7 +414,7 @@ void IDP_print(const IDProperty *prop);
 const char *IDP_type_str(eIDPropertyType type, short sub_type);
 const char *IDP_type_str(const IDProperty *prop);
 
-void IDP_BlendWrite(BlendWriter *writer, const IDProperty *prop);
+int IDP_BlendWrite(BlendWriter *writer, const IDProperty *prop);
 void IDP_BlendReadData_impl(BlendDataReader *reader,
                             IDProperty **prop,
                             const char *caller_func_id);

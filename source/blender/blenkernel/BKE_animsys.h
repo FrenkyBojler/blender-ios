@@ -383,7 +383,7 @@ void BKE_animsys_update_driver_array(struct ID *id);
 
 /* ************************************* */
 
-void BKE_time_markers_blend_write(BlendWriter *writer, ListBaseT<TimeMarker> &markers);
+int BKE_time_markers_blend_write(BlendWriter *writer, ListBaseT<TimeMarker> &markers);
 void BKE_time_markers_blend_read(BlendDataReader *reader, ListBaseT<TimeMarker> &markers);
 
 /**

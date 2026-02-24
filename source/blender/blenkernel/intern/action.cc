@@ -489,6 +489,8 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 {
   animrig::Action &action = reinterpret_cast<bAction *>(id)->wrap();
 
+  int n = 0;
+
   /* Create legacy data for Layered Actions: the F-Curves from the first Slot,
    * bottom layer, first Keyframe strip. */
   const bool do_write_forward_compat = !BLO_write_is_undo(writer) && action.slot_array_num > 0;
@@ -561,9 +563,13 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     writer->write_struct(&grp);
   }
 
-  BKE_time_markers_blend_write(writer, action.markers);
+  n += BKE_time_markers_blend_write(writer, action.markers);
 
   BKE_previewimg_blend_write(writer, action.preview);
+
+  if (n > 1000) {
+    printf("%s: Written %d idprops for this ID\n", id->name, n);
+  }
 }
 
 static void read_channelbag(BlendDataReader *reader, animrig::Channelbag &channelbag)
@@ -1831,21 +1837,22 @@ void BKE_pose_check_uids_unique_and_report(const bPose *pose)
   }
 }
 
-void BKE_pose_blend_write(BlendWriter *writer, bPose *pose)
+int BKE_pose_blend_write(BlendWriter *writer, bPose *pose)
 {
 #ifndef __GNUC__
   BLI_assert(pose != nullptr);
 #endif
 
   /* Write channels */
+  int n = 0;
   for (bPoseChannel &chan : pose->chanbase) {
     /* Write ID Properties -- and copy this comment EXACTLY for easy finding
      * of library blocks that implement this. */
     if (chan.prop) {
-      IDP_BlendWrite(writer, chan.prop);
+      n += IDP_BlendWrite(writer, chan.prop);
     }
     if (chan.system_properties) {
-      IDP_BlendWrite(writer, chan.system_properties);
+      n += IDP_BlendWrite(writer, chan.system_properties);
     }
 
     BKE_constraint_blend_write(writer, &chan.constraints);
@@ -1870,6 +1877,8 @@ void BKE_pose_blend_write(BlendWriter *writer, bPose *pose)
 
   /* Write this pose */
   writer->write_struct(pose);
+
+  return n;
 }
 
 void BKE_pose_blend_read_data(BlendDataReader *reader, ID *id_owner, bPose *pose)

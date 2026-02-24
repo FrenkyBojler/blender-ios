@@ -284,7 +284,7 @@ static void armature_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
-static void write_bone(BlendWriter *writer, Bone *bone)
+static void write_bone(BlendWriter *writer, Bone *bone, int &n)
 {
   /* PATCH for upward compatibility after 2.37+ armature recode */
   bone->size[0] = bone->size[1] = bone->size[2] = 1.0f;
@@ -298,19 +298,19 @@ static void write_bone(BlendWriter *writer, Bone *bone)
   /* Write ID Properties -- and copy this comment EXACTLY for easy finding
    * of library blocks that implement this. */
   if (bone->prop) {
-    IDP_BlendWrite(writer, bone->prop);
+    n += IDP_BlendWrite(writer, bone->prop);
   }
   if (bone->system_properties) {
-    IDP_BlendWrite(writer, bone->system_properties);
+    n += IDP_BlendWrite(writer, bone->system_properties);
   }
 
   /* Write Children */
   for (Bone &cbone : bone->childbase) {
-    write_bone(writer, &cbone);
+    write_bone(writer, &cbone, n);
   }
 }
 
-static void write_bone_collection(BlendWriter *writer, BoneCollection *bcoll)
+static void write_bone_collection(BlendWriter *writer, BoneCollection *bcoll, int &n)
 {
   /* Write this bone collection. */
   writer->write_struct(bcoll);
@@ -318,10 +318,10 @@ static void write_bone_collection(BlendWriter *writer, BoneCollection *bcoll)
   /* Write ID Properties -- and copy this comment EXACTLY for easy finding
    * of library blocks that implement this. */
   if (bcoll->prop) {
-    IDP_BlendWrite(writer, bcoll->prop);
+    n += IDP_BlendWrite(writer, bcoll->prop);
   }
   if (bcoll->system_properties) {
-    IDP_BlendWrite(writer, bcoll->system_properties);
+    n += IDP_BlendWrite(writer, bcoll->system_properties);
   }
 
   writer->write_struct_list(&bcoll->bones);
@@ -330,6 +330,8 @@ static void write_bone_collection(BlendWriter *writer, BoneCollection *bcoll)
 static void armature_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   bArmature *arm = id_cast<bArmature *>(id);
+
+  int n = 0;
 
   /* Clean up, important in undo case to reduce false detection of changed datablocks. */
   arm->bonehash = nullptr;
@@ -354,15 +356,15 @@ static void armature_blend_write(BlendWriter *writer, ID *id, const void *id_add
   }
 
   writer->write_id_struct(id_address, arm);
-  BKE_id_blend_write(writer, &arm->id);
+  n += BKE_id_blend_write(writer, &arm->id);
 
   /* Direct data */
   for (Bone &bone : arm->bonebase) {
-    write_bone(writer, &bone);
+    write_bone(writer, &bone, n);
   }
 
   for (BoneCollection &bcoll : arm->collections_legacy) {
-    write_bone_collection(writer, &bcoll);
+    write_bone_collection(writer, &bcoll, n);
   }
 
   /* Restore the BoneCollection array and clear the listbase. */
@@ -374,6 +376,10 @@ static void armature_blend_write(BlendWriter *writer, ID *id, const void *id_add
   BLI_listbase_clear(&arm->collections_legacy);
 
   arm->runtime = runtime_backup;
+
+  if (n > 1000) {
+    printf("%s: Written %d idprops for this ID\n", id->name, n);
+  }
 }
 
 static void direct_link_bones(BlendDataReader *reader, Bone *bone)

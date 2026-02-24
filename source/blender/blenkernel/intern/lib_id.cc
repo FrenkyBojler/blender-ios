@@ -2633,8 +2633,10 @@ void BKE_id_reorder(const ListBaseT<ID> *lb, ID *id, ID *relative, bool after)
   }
 }
 
-void BKE_id_blend_write(BlendWriter *writer, ID *id)
+int BKE_id_blend_write(BlendWriter *writer, ID *id)
 {
+  int n = 0;
+
   if (id->asset_data) {
     BKE_asset_metadata_write(writer, id->asset_data);
   }
@@ -2645,12 +2647,12 @@ void BKE_id_blend_write(BlendWriter *writer, ID *id)
 
   /* ID_WM's id->properties are considered runtime only, and never written in .blend file. */
   if (id->properties && !ELEM(GS(id->name), ID_WM)) {
-    IDP_BlendWrite(writer, id->properties);
+    n += IDP_BlendWrite(writer, id->properties);
   }
   /* ID_WM's id->system_properties are considered runtime only, and never written in .blend file.
    */
   if (id->system_properties && !ELEM(GS(id->name), ID_WM)) {
-    IDP_BlendWrite(writer, id->system_properties);
+    n += IDP_BlendWrite(writer, id->system_properties);
   }
 
   BKE_animdata_blend_write(writer, id);
@@ -2673,6 +2675,7 @@ void BKE_id_blend_write(BlendWriter *writer, ID *id)
       }
     }
   }
+  return n;
 }
 
 struct SomeTypeWithIDMember {

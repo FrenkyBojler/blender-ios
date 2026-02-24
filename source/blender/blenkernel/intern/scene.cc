@@ -1124,6 +1124,8 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   Scene *sce = id_cast<Scene *>(id);
   const bool is_write_undo = BLO_write_is_undo(writer);
 
+  int n = 0;
+
   if (is_write_undo) {
     /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
     /* XXX This UI data should not be stored in Scene at all... */
@@ -1149,7 +1151,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* write LibData */
   writer->write_id_struct(id_address, sce);
-  BKE_id_blend_write(writer, &sce->id);
+  n += BKE_id_blend_write(writer, &sce->id);
 
   BKE_keyingsets_blend_write(writer, &sce->keyingsets);
 
@@ -1249,7 +1251,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   /* writing dynamic list of TimeMarkers to the blend file */
-  BKE_time_markers_blend_write(writer, sce->markers);
+  n += BKE_time_markers_blend_write(writer, sce->markers);
 
   /* writing dynamic list of TransformOrientations to the blend file */
   for (TransformOrientation &ts : sce->transform_spaces) {
@@ -1300,6 +1302,10 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* Freed on `do_versions()`. */
   BLI_assert(sce->layer_properties == nullptr);
+
+  if (n > 1000) {
+    printf("%s: Written %d idprops for this ID\n", id->name, n);
+  }
 }
 
 static void direct_link_paint_helper(BlendDataReader *reader, const Scene *scene, Paint **paint)

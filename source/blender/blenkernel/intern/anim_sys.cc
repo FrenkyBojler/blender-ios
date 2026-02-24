@@ -4197,15 +4197,17 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
   }
 }
 
-void BKE_time_markers_blend_write(BlendWriter *writer, ListBaseT<TimeMarker> &markers)
+int BKE_time_markers_blend_write(BlendWriter *writer, ListBaseT<TimeMarker> &markers)
 {
+  int n = 0;
   for (TimeMarker &marker : markers) {
     writer->write_struct(&marker);
 
     if (marker.prop != nullptr) {
-      IDP_BlendWrite(writer, marker.prop);
+      n += IDP_BlendWrite(writer, marker.prop);
     }
   }
+  return n;
 }
 
 void BKE_time_markers_blend_read(BlendDataReader *reader, ListBaseT<TimeMarker> &markers)
