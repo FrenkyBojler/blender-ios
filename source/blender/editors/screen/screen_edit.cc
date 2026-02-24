@@ -1970,7 +1970,7 @@ void ED_screen_animation_timer(
       }
     }
     else {
-      BKE_scene_frame_clamp_to_playback(scene);
+      BKE_scene_frame_clamp_to_playback_range(scene);
     }
     if (scene->r.cfra != sad->sfra) {
       sad->flag |= ANIMPLAY_FLAG_JUMPED;

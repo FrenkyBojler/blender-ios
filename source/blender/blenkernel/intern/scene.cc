@@ -2519,7 +2519,7 @@ int2 BKE_scene_get_playback_range(const Scene *scene)
   return range;
 }
 
-void BKE_scene_frame_clamp_to_playback(Scene *scene)
+void BKE_scene_frame_clamp_to_playback_range(Scene *scene)
 {
   const int2 range = BKE_scene_get_playback_range(scene);
 
