@@ -637,21 +637,18 @@ bool Scene::update(Progress &progress)
 
 bool Scene::update_camera_resolution(Progress &progress, int width, int height)
 {
-  const bool use_jitter = integrator->get_use_jitter();
+  bool update_data = false;
 
   if (camera->set_screen_size(width, height)) {
     camera->device_update(device, &dscene, this);
-  }
-  else if (!use_jitter) {
-    return false;
+    update_data = true;
   }
 
-  if (use_jitter) {
-    const int frame = integrator->get_frame() + 1;
-    integrator->set_seed(hash_uint2(integrator->get_seed(), frame));
-    integrator->set_frame(frame);
+  if (integrator->get_use_jitter()) {
+    integrator->set_frame(integrator->get_frame() + 1);
 
     integrator->device_update(device, &dscene, this);
+    update_data = true;
 
     // Reset motion for next frame
     array<Transform> motion;
@@ -663,9 +660,11 @@ bool Scene::update_camera_resolution(Progress &progress, int width, int height)
     camera->set_viewplane_pre_bottom(camera->get_viewplane_bottom());
   }
 
-  progress.set_status("Updating Device", "Writing constant memory");
-  device->const_copy_to("data", &dscene.data, sizeof(dscene.data));
-  return true;
+  if (update_data) {
+    progress.set_status("Updating Device", "Writing constant memory");
+    device->const_copy_to("data", &dscene.data, sizeof(dscene.data));
+  }
+  return update_data;
 }
 
 static void log_kernel_features(const uint features)
