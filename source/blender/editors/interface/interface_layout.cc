@@ -4824,7 +4824,6 @@ PanelLayout Layout::panel_prop(const bContext *C,
     header_litem->open_prop_name = open_prop_name;
 
     Layout *row = &header_litem->row(true);
-    row->ui_units_y_set(1.2f);
 
     Block *block = row->block();
     const int icon = is_open ? ICON_DOWNARROW_HLT : ICON_RIGHTARROW;
