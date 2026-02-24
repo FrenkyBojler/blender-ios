@@ -441,37 +441,11 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
 
   integrator->set_sampling_pattern(sampling_pattern);
 
-  DenoiseParams denoise_params = get_denoise_params(
-      *b_scene, &b_view_layer, background, denoise_device_info);
-
-  /* No denoising support for vertex color baking, vertices packed into image
-   * buffer have no relation to neighbors. */
-  if (is_vertex_baking) {
-    denoise_params.use = false;
-  }
-
-  integrator->set_use_denoise(denoise_params.use);
-
-  /* Only update denoiser parameters if the denoiser is actually used. This allows to tweak
-   * denoiser parameters before enabling it without render resetting on every change. The downside
-   * is that the interface and the integrator are technically out of sync. */
-  if (denoise_params.use) {
-    integrator->set_denoiser_type(denoise_params.type);
-    integrator->set_denoise_use_gpu(denoise_params.use_gpu);
-    integrator->set_denoise_start_sample(denoise_params.start_sample);
-    integrator->set_use_denoise_pass_albedo(denoise_params.use_pass_albedo);
-    integrator->set_use_denoise_pass_normal(denoise_params.use_pass_normal);
-    integrator->set_denoiser_prefilter(denoise_params.prefilter);
-    integrator->set_denoiser_quality(denoise_params.quality);
-    integrator->set_denoiser_upscale_factor(denoise_params.upscale_factor);
-  }
-
   int samples = 1;
   bool use_adaptive_sampling = false;
   if (preview) {
     samples = get_int(cscene, "preview_samples");
-    use_adaptive_sampling = RNA_boolean_get(&cscene, "use_preview_adaptive_sampling") &&
-                            !(denoise_params.use && denoise_params.type == DENOISER_DLSS);
+    use_adaptive_sampling = RNA_boolean_get(&cscene, "use_preview_adaptive_sampling");
     integrator->set_use_adaptive_sampling(use_adaptive_sampling);
     integrator->set_adaptive_threshold(get_float(cscene, "preview_adaptive_threshold"));
     integrator->set_adaptive_min_samples(get_int(cscene, "preview_adaptive_min_samples"));
@@ -517,9 +491,6 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
   }
   integrator->set_scrambling_distance(scrambling_distance);
 
-  integrator->set_use_jitter(denoise_params.use && denoise_params.type == DENOISER_DLSS);
-  integrator->set_frame(b_scene->r.cfra);
-
   if (get_boolean(cscene, "use_fast_gi")) {
     if (preview) {
       integrator->set_ao_bounces(get_int(cscene, "ao_bounces"));
@@ -560,6 +531,34 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
     integrator->set_guiding_directional_sampling_type(guiding_directional_sampling_type);
     integrator->set_guiding_roughness_threshold(get_float(cscene, "guiding_roughness_threshold"));
   }
+
+  DenoiseParams denoise_params = get_denoise_params(
+      *b_scene, &b_view_layer, background, denoise_device_info);
+
+  /* No denoising support for vertex color baking, vertices packed into image
+   * buffer have no relation to neighbors. */
+  if (is_vertex_baking) {
+    denoise_params.use = false;
+  }
+
+  integrator->set_use_denoise(denoise_params.use);
+
+  /* Only update denoiser parameters if the denoiser is actually used. This allows to tweak
+   * denoiser parameters before enabling it without render resetting on every change. The downside
+   * is that the interface and the integrator are technically out of sync. */
+  if (denoise_params.use) {
+    integrator->set_denoiser_type(denoise_params.type);
+    integrator->set_denoise_use_gpu(denoise_params.use_gpu);
+    integrator->set_denoise_start_sample(denoise_params.start_sample);
+    integrator->set_use_denoise_pass_albedo(denoise_params.use_pass_albedo);
+    integrator->set_use_denoise_pass_normal(denoise_params.use_pass_normal);
+    integrator->set_denoiser_prefilter(denoise_params.prefilter);
+    integrator->set_denoiser_quality(denoise_params.quality);
+    integrator->set_denoiser_upscale_factor(denoise_params.upscale_factor);
+  }
+
+  integrator->set_use_jitter(denoise_params.use && denoise_params.type == DENOISER_DLSS);
+  integrator->set_frame(b_scene->r.cfra);
 
   /* UPDATE_NONE as we don't want to tag the integrator as modified (this was done by the
    * set calls above), but we need to make sure that the dependent things are tagged. */
