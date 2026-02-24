@@ -339,15 +339,6 @@ if(WITH_DLSS)
   endif()
 endif()
 
-if(WITH_DLSS)
-  find_package(DLSS)
-  if(DLSS_FOUND)
-    add_definitions(-DWITH_DLSS)
-  else()
-    set_and_warn_library_found("DLSS" DLSS_FOUND WITH_DLSS)
-  endif()
-endif()
-
 # Includes that might be overridden by USD last, to avoid compiling
 # against the wrong versions of other libraries.
 include_directories(
