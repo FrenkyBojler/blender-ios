@@ -21,6 +21,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "ED_gizmo_library.hh"
+#include "ED_image.hh"
 
 #include "IMB_imbuf_types.hh"
 
@@ -103,6 +104,11 @@ static bool image_gizmo_is_set_visible(const SpaceImage &sima)
   }
 
   if (sima.gizmo_flag & SI_GIZMO_HIDE_ACTIVE_NODE) {
+    return false;
+  }
+
+  Image *image = ED_space_image(&sima);
+  if (!(image && image->source == IMA_SRC_VIEWER && image->type == IMA_TYPE_COMPOSITE)) {
     return false;
   }
 
