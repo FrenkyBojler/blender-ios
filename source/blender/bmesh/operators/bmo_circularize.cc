@@ -352,14 +352,14 @@ static void calculate_circle_inside_fit(Span<CircleVert> verts,
 
   float radius = FLT_MAX;
   for (const CircleVert &cv : verts) {
-    const float dist = math::distance(center, cv.co_2d);
+    const float dist = math::distance_squared(center, cv.co_2d);
     if (dist < radius) {
       radius = dist;
     }
   }
 
   r_center = center;
-  *r_radius = radius;
+  *r_radius = math::sqrt(radius);
 }
 
 static void calculate_target_locations(MutableSpan<CircleVert> verts,
