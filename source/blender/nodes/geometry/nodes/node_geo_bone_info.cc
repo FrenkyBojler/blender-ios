@@ -21,6 +21,9 @@ namespace blender::nodes::node_geo_bone_info_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+
   b.add_input<decl::Object>("Armature")
       .optional_label()
       .description("Armature object to retrieve the bone information from");
@@ -37,9 +40,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Matrix>("Rest Pose")
       .description("Original transform of the bone in armature space, defined in edit mode");
   b.add_output<decl::Float>("Rest Length").description("Original length of the bone");
-  b.add_output<decl::Float>("Envelope").description("Envelope distance of the bone");
-  b.add_output<decl::Float>("Radius Head").description("Radius of the head of the bone");
-  b.add_output<decl::Float>("Radius Tail").description("Radius of the tail of the bone");
+  {
+    auto &p = b.add_panel("Envelope").default_closed(true);
+    p.add_output<decl::Float>("Envelope").description("Envelope distance of the bone");
+    p.add_output<decl::Float>("Radius Head").description("Radius of the head of the bone");
+    p.add_output<decl::Float>("Radius Tail").description("Radius of the tail of the bone");
+  }
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
