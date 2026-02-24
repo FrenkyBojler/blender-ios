@@ -51,11 +51,13 @@ struct VertChain {
   bool is_closed;
 };
 
-/* Detects whether an edge should be considered a valid boundary
+/**
+ * Detects whether an edge should be considered a valid boundary
  * edge for circularization.
  * Valid boundary edges are edges that are selected, not hidden
  * and are not interior. They lie on the boundary between a selected
- * face and an unselected face and do not lie on the mirror plane. */
+ * face and an unselected face and do not lie on the mirror plane.
+ */
 static bool is_valid_boundary_edge(BMEdge *e, const char hflag, const bool check_axis[3])
 {
   if (!BM_elem_flag_test(e, hflag) || BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
@@ -97,10 +99,11 @@ static bool is_valid_boundary_edge(BMEdge *e, const char hflag, const bool check
   return true;
 }
 
-/* Traverses a connected path of boundary edges to form a continuous sequence of vertices.
+/**
+ * Traverses a connected path of boundary edges to form a continuous sequence of vertices.
  * This function handles two cases:
- * 1. Closed chains: walks until the traversal returns to the start vertex.
- * 2. Open chains: walks in one direction until a dead end, then walks in the
+ * Closed chains: walks until the traversal returns to the start vertex.
+ * Open chains: walks in one direction until a dead end, then walks in the
  * opposite direction from the start edge and merges the results.
  */
 static std::optional<VertChain> walk_boundary_chain(BMEdge *start_edge,
@@ -180,7 +183,7 @@ static std::optional<VertChain> walk_boundary_chain(BMEdge *start_edge,
   return chain_data;
 }
 
-/* Collects all valid boundary edge chains from the current selection. */
+/** Collects all valid boundary edge chains from the current selection. */
 static void bm_extract_input_chains_from_boundary_edges(BMesh *bm,
                                                         Vector<VertChain> &r_chains,
                                                         const char hflag,
@@ -205,7 +208,7 @@ static void bm_extract_input_chains_from_boundary_edges(BMesh *bm,
   }
 }
 
-/* Computes the local coordinate system defining the 2D plane of the vertex chain. */
+/** Computes the local coordinate system defining the 2D plane of the vertex chain. */
 static float3x3 calculate_plane_orientation(Span<BMVert *> chain, float3 &r_center)
 {
   r_center = float3(0.0f);
@@ -240,7 +243,7 @@ static float3x3 calculate_plane_orientation(Span<BMVert *> chain, float3 &r_cent
   return mat;
 }
 
-/* Projects 3D vertex coordinates onto a local 2D plane defined by the P and Q basis vectors. */
+/** Projects 3D vertex coordinates onto a local 2D plane defined by the P and Q basis vectors. */
 static void project_chain_to_2d(Span<BMVert *> chain,
                                 const float3 &center,
                                 const float3x3 &mat,
@@ -430,7 +433,7 @@ struct NearestTriUserData {
   Span<std::array<BMLoop *, 3>> looptris;
 };
 
-/* Callback for BLI_bvhtree_find_nearest. Finds the closest point on the given triangle. */
+/** Callback for BLI_bvhtree_find_nearest. Finds the closest point on the given triangle. */
 static void nearest_tri_cb(void *userdata, int index, const float co[3], BVHTreeNearest *nearest)
 {
   const NearestTriUserData *data = static_cast<const NearestTriUserData *>(userdata);
