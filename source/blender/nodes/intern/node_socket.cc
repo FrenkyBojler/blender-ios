@@ -34,6 +34,7 @@
 #include "DNA_collection_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_material_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_text_types.h"
 #include "DNA_vfont_types.h"
@@ -45,12 +46,20 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "NOD_compositor_nodes_srna.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_srna.hh"
 #include "NOD_menu_value.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
+
+#include "SEQ_iterator.hh"
+#include "SEQ_modifier.hh"
+#include "SEQ_relations.hh"
+#include "SEQ_sequencer.hh"
+
+#include "WM_types.hh"
 
 namespace blender {
 
@@ -1052,6 +1061,54 @@ static void make_common_type_prop(StructRNA &srna,
       "");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
+static void make_common_type_prop(StructRNA &srna,
+                                  const bNodeTreeInterfaceSocket &socket,
+                                  const EnumPropertyItem *items,
+                                  const nodes::CompositorNodesInputType default_type,
+                                  nodes::GeneratedTreeSrnaData &r_generated)
+{
+  PropertyRNA *prop = RNA_def_enum(
+      &srna,
+      "type",
+      items,
+      int(default_type),
+      r_generated.scope.add_value(fmt::format("{} {}", TIP_("Type for"), socket.name)).c_str(),
+      "");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+static PointerRNA find_compositor_modifier(PointerRNA *ptr)
+{
+  for (const AncestorPointerRNA &ancestor : ptr->ancestors) {
+    if (RNA_struct_is_a(ancestor.type, RNA_SequencerCompositorModifierProperties)) {
+      return PointerRNA(ptr->owner_id, ancestor.type, ancestor.data);
+    }
+  }
+  return PointerRNA_NULL;
+}
+static void set_common_sequencer_update_function(PropertyRNA *prop)
+{
+  RNA_def_property_update_runtime(prop, [](Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr) {
+    Scene *sequencer_scene = reinterpret_cast<Scene *>(ptr->owner_id);
+    Editing *ed = seq::editing_get(sequencer_scene);
+    if (!ed) {
+      return;
+    }
+    PointerRNA cmd_ptr = find_compositor_modifier(ptr);
+    auto *cmd = cmd_ptr.data_as<SequencerCompositorModifierData>();
+
+    /* TODO: Should be in ancestors?? */
+    Strip *modifier_strip = nullptr;
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      if (BLI_findindex(&strip->modifiers, cmd) != -1) {
+        modifier_strip = strip;
+        return false;
+      }
+      return true;
+    });
+    seq::relations_invalidate_cache(sequencer_scene, modifier_strip);
+  });
+  RNA_def_property_update_notifier(prop, NC_SCENE | ND_SEQUENCER);
+}
 
 static void make_common_attribute_name_prop(StructRNA &srna,
                                             const bNodeTreeInterfaceSocket &socket,
@@ -1141,12 +1198,14 @@ static bke::bNodeSocketType *make_socket_type_bool()
                                                   const bNodeTreeInterfaceSocket &socket,
                                                   nodes::GeneratedTreeSrnaData &r_generated) {
     const auto *data = static_cast<const bNodeSocketValueBoolean *>(socket.socket_data);
-    RNA_def_boolean(&srna, "value", data->value, socket.name, socket.description);
-    // make_common_type_prop(srna,
-    //                       socket,
-    //                       nodes::geometry_nodes_input_type_items_value_or_attribute_or_layer,
-    //                       nodes::GeometryNodesInputType::Value,
-    //                       r_generated);
+    PropertyRNA *prop = RNA_def_boolean(
+        &srna, "value", data->value, socket.name, socket.description);
+    set_common_sequencer_update_function(prop);
+    make_common_type_prop(srna,
+                          socket,
+                          nodes::compositor_nodes_input_type_items_value,
+                          nodes::CompositorNodesInputType::Value,
+                          r_generated);
   };
   return socktype;
 }
@@ -1302,6 +1361,12 @@ static bke::bNodeSocketType *make_socket_type_float(PropertySubType subtype)
                          data->min,
                          data->max);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
+    set_common_sequencer_update_function(prop);
+    make_common_type_prop(srna,
+                          socket,
+                          nodes::compositor_nodes_input_type_items_value,
+                          nodes::CompositorNodesInputType::Value,
+                          r_generated);
   };
   return socktype;
 }
@@ -1416,16 +1481,22 @@ static bke::bNodeSocketType *make_socket_type_rgba()
                                                   const bNodeTreeInterfaceSocket &socket,
                                                   nodes::GeneratedTreeSrnaData &r_generated) {
     const auto *data = static_cast<const bNodeSocketValueRGBA *>(socket.socket_data);
-    RNA_def_float_color(&srna,
-                        "value",
-                        4,
-                        data->value,
-                        -FLT_MAX,
-                        FLT_MAX,
-                        socket.name,
-                        socket.description,
-                        -FLT_MAX,
-                        FLT_MAX);
+    PropertyRNA *prop = RNA_def_float_color(&srna,
+                                            "value",
+                                            4,
+                                            data->value,
+                                            -FLT_MAX,
+                                            FLT_MAX,
+                                            socket.name,
+                                            socket.description,
+                                            -FLT_MAX,
+                                            FLT_MAX);
+    set_common_sequencer_update_function(prop);
+    make_common_type_prop(srna,
+                          socket,
+                          nodes::compositor_nodes_input_type_items_value,
+                          nodes::CompositorNodesInputType::Value,
+                          r_generated);
   };
   return socktype;
 }

@@ -6,6 +6,8 @@
  * \ingroup sequencer
  */
 
+#include "BLI_math_rotation.hh"
+
 #include "BLT_translation.hh"
 
 #include "COM_context.hh"
@@ -27,6 +29,7 @@
 #include "IMB_colormanagement.hh"
 
 #include "NOD_compositor_nodes_caller_ui.hh"
+#include "NOD_compositor_nodes_srna.hh"
 
 #include "SEQ_modifier.hh"
 #include "SEQ_modifiertypes.hh"
@@ -58,6 +61,101 @@ void compositor_nodes_update_interface(Scene &sequencer_scene,
   DEG_id_tag_update(&sequencer_scene.id, ID_RECALC_SEQUENCER_STRIPS);
 }
 
+static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
+                                            const eNodeSocketDatatype socket_type,
+                                            compositor::Result &result)
+{
+  using namespace nodes;
+  switch (socket_type) {
+    case SOCK_FLOAT: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const float value = RNA_float_get(input_props_ptr, "value");
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_VECTOR: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        float3 value;
+        RNA_float_get_array(input_props_ptr, "value", value);
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_RGBA: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        ColorGeometry4f value;
+        RNA_float_get_array(input_props_ptr, "value", value);
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_BOOLEAN: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const bool value = RNA_boolean_get(input_props_ptr, "value");
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_INT: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const int value = RNA_int_get(input_props_ptr, "value");
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_ROTATION: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        float3 value_euler;
+        RNA_float_get_array(input_props_ptr, "value", value_euler);
+        math::Quaternion value_rotation = math::to_quaternion(math::EulerXYZ(value_euler));
+        result.set_single_value(
+            float4(value_rotation.x, value_rotation.y, value_rotation.z, value_rotation.w));
+      }
+      break;
+    }
+    case SOCK_MENU: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const int value = RNA_enum_get(input_props_ptr, "value");
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_STRING: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const std::string value = RNA_string_get(input_props_ptr, "value");
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_OBJECT:
+    case SOCK_IMAGE:
+    case SOCK_COLLECTION:
+    case SOCK_TEXTURE:
+    case SOCK_MATERIAL:
+    case SOCK_FONT:
+    case SOCK_SCENE:
+    case SOCK_TEXT_ID:
+    case SOCK_MASK:
+    case SOCK_SOUND:
+    case SOCK_GEOMETRY:
+    case SOCK_MATRIX:
+    case SOCK_BUNDLE:
+    case SOCK_CLOSURE:
+    case SOCK_SHADER:
+    case SOCK_CUSTOM:
+      break;
+  }
+}
+
 class CompositorContext : public compositor::Context {
  private:
   const RenderData &render_data_;
@@ -68,6 +166,7 @@ class CompositorContext : public compositor::Context {
   float3x3 xform_;
   float2 result_translation_ = float2(0, 0);
   const Strip *strip_;
+  PointerRNA properties_ptr_;
 
   /* Identified if the output of the viewer was written. */
   bool viewer_was_written_ = false;
@@ -75,7 +174,7 @@ class CompositorContext : public compositor::Context {
  public:
   CompositorContext(compositor::StaticCacheManager &cache_manager,
                     const RenderData &render_data,
-                    const SequencerCompositorModifierData *modifier_data,
+                    SequencerCompositorModifierData *modifier_data,
                     ImBuf *image_buffer,
                     ImBuf *mask_buffer,
                     const Strip &strip)
@@ -92,6 +191,11 @@ class CompositorContext : public compositor::Context {
        * space is not from the image corner, but rather centered on the image. */
       xform_ = math::invert(image_transform_matrix_get(render_data.scene, &strip));
     }
+
+    PointerRNA ptr = RNA_pointer_create_discrete(const_cast<ID *>(&render_data.scene->id),
+                                                 RNA_SequencerCompositorModifierData,
+                                                 modifier_data);
+    properties_ptr_ = RNA_pointer_get(&ptr, "properties");
   }
 
   float2 get_result_translation() const
@@ -205,27 +309,51 @@ class CompositorContext : public compositor::Context {
      * while the rest are ignored. */
     node_group.ensure_interface_cache();
     for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
-      const bool is_fisrt_output = output_socket == node_group.interface_outputs().first();
+      const bool is_first_output = output_socket == node_group.interface_outputs().first();
       Result &output_result = node_group_operation.get_result(output_socket->identifier);
       const bool is_color = output_result.type() == ResultType::Color;
-      output_result.set_reference_count(is_fisrt_output && is_color ? 1 : 0);
+      output_result.set_reference_count(is_first_output && is_color ? 1 : 0);
     }
+
+    node_group.ensure_topology_cache();
+    PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr_, "inputs");
+    BLI_assert(inputs_ptr.data != nullptr);
 
     /* Map the inputs to the operation. */
     Vector<std::unique_ptr<Result>> inputs;
+    bool found_image_input = false;
+    bool found_mask_input = false;
     for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
+      const bke::bNodeSocketType *typeinfo = input_socket->socket_typeinfo();
+      const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+      const std::optional<ResultType> result_type = Result::from_socket_data_type(socket_type);
       Result *input_result = new Result(
-          this->create_result(ResultType::Color, ResultPrecision::Full));
-      if (input_socket == node_group.interface_inputs()[0]) {
-        /* First socket is the image input. */
-        input_result->wrap_external(image_buffer_->float_buffer.data,
-                                    int2(image_buffer_->x, image_buffer_->y));
-      }
-      else if (mask_buffer_ && input_socket == node_group.interface_inputs()[1]) {
-        /* Second socket is the mask input. */
-        input_result->wrap_external(mask_buffer_->float_buffer.data,
-                                    int2(mask_buffer_->x, mask_buffer_->y));
-        input_result->set_transformation(xform_);
+          this->create_result(result_type.value_or(ResultType::Color), ResultPrecision::Full));
+      if (result_type) {
+        if (!found_image_input && socket_type == SOCK_RGBA) {
+          /* First color socket is the image input. */
+          input_result->wrap_external(image_buffer_->float_buffer.data,
+                                      int2(image_buffer_->x, image_buffer_->y));
+          found_image_input = true;
+        }
+        else if (mask_buffer_ && !found_mask_input && socket_type == SOCK_RGBA) {
+          if (mask_buffer_) {
+            /* Second color socket is the mask input. */
+            input_result->wrap_external(mask_buffer_->float_buffer.data,
+                                        int2(mask_buffer_->x, mask_buffer_->y));
+            input_result->set_transformation(xform_);
+
+            found_mask_input = true;
+          }
+          else {
+            input_result->allocate_invalid();
+          }
+        }
+        else {
+          PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, input_socket->identifier);
+          input_result->allocate_single_value();
+          set_single_input_from_rna_value(&input_props_ptr, socket_type, *input_result);
+        }
       }
       else {
         /* The rest of the sockets are not supported. */
@@ -313,7 +441,7 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
                                       StripModifierData *strip_modifier_data,
                                       ImBuf *mask)
 {
-  const SequencerCompositorModifierData *modifier_data =
+  SequencerCompositorModifierData *modifier_data =
       reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
   if (!modifier_data->node_group) {
     return;
