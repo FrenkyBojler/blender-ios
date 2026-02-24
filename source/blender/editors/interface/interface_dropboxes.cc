@@ -9,7 +9,11 @@
 #include <fmt/format.h>
 
 #include "BKE_context.hh"
+#include "BKE_global.hh"
+
 #include "BKE_library.hh"
+
+#include "BLI_listbase_iterator.hh"
 
 #include "BLT_translation.hh"
 
@@ -50,6 +54,28 @@ static bool ui_view_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
   return can_drop;
 }
 
+static void ui_view_drop_cancel(blender::Main *bmain,
+                                blender::wmDrag *drag,
+                                blender::wmDropBox * /*drop*/)
+{
+  if (!drag->timer) {
+    return;
+  }
+  for (wmWindowManager &wm : bmain->wm) {
+    for (wmWindow &win : wm.windows) {
+      if (&win == drag->timer->win) {
+        WM_event_timer_remove(&wm, &win, drag->timer);
+      }
+    }
+  }
+  drag->timer = nullptr;
+}
+
+static void ui_view_drop_exit(wmDropBox *drop, wmDrag *drag)
+{
+  ui_view_drop_cancel(G_MAIN, drag, drop);
+}
+
 static std::string ui_view_drop_tooltip(bContext *C,
                                         wmDrag *drag,
                                         const int xy[2],
@@ -58,11 +84,6 @@ static std::string ui_view_drop_tooltip(bContext *C,
   const wmWindow *win = CTX_wm_window(C);
   const ARegion *region = CTX_wm_region(C);
   std::unique_ptr<DropTargetInterface> drop_target = region_views_find_drop_target_at(region, xy);
-
-  if (drag->timer != nullptr) {
-    /* Skip drawing tooltip during auto scroll near edges. */
-    return {};
-  }
 
   if (drop_target == nullptr) {
     return {};
@@ -168,10 +189,14 @@ void dropboxes_ui()
 {
   ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
-  wmDropBox *dropbox = WM_dropbox_add(
-      lb, "UI_OT_view_drop", ui_view_drop_poll, nullptr, nullptr, ui_view_drop_tooltip);
+  wmDropBox *dropbox = WM_dropbox_add(lb,
+                                      "UI_OT_view_drop",
+                                      ui_view_drop_poll,
+                                      nullptr,
+                                      ui_view_drop_cancel,
+                                      ui_view_drop_tooltip);
   dropbox->on_hover_event = region_view_scroll_at_borders;
-
+  dropbox->on_exit = ui_view_drop_exit;
   WM_dropbox_add(lb,
                  "UI_OT_drop_name",
                  ui_drop_name_poll,

@@ -555,7 +555,7 @@ static wmDropBox *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *ev
   drag->drop_state.disabled_info = std::nullopt;
 
   if (area) {
-    ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_ANY, event->xy);
+    ARegion *region = ED_area_find_region_xy_visual(area, RGN_TYPE_ANY, event->xy);
     if (region) {
       drop = dropbox_active(C, &region->runtime->handlers, drag, event);
     }
@@ -635,10 +635,34 @@ void wm_drop_end(bContext *C, wmDrag * /*drag*/, wmDropBox * /*drop*/)
 
 void wm_drags_handle_events(bContext *C, const wmEvent *event)
 {
+  if (!ELEM(event->type, TIMER, MOUSEMOVE, EVT_DROP)) {
+    return;
+  }
   wmWindowManager *wm = CTX_wm_manager(C);
-  /* Set this boolean to true during timer event so that modal cursor won't be changed at the
-   * bottom of the function. */
-  bool any_active = event->type == TIMER;
+  /* Make sure the drag's timer and we are handling on the active region, otherwise drag could be
+   * erratic by handling #wm_event_always_pass events. */
+  if (event->type == TIMER) {
+    bool is_drag_timer = false;
+    for (wmDrag &drag : wm->runtime->drags) {
+      is_drag_timer |= drag.timer != nullptr;
+    }
+    if (!is_drag_timer) {
+      return;
+    }
+    bScreen *screen = CTX_wm_screen(C);
+    ScrArea *area = CTX_wm_area(C);
+    ARegion *region = CTX_wm_region(C);
+
+    ScrArea *hover_area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->xy);
+    ARegion *hover_region = hover_area ? ED_area_find_region_xy_visual(
+                                             hover_area, SPACE_TYPE_ANY, event->xy) :
+                                         nullptr;
+    if (hover_area != area || region != hover_region) {
+      return;
+    }
+  }
+
+  bool any_active = false;
 
   for (wmDrag &drag : wm->runtime->drags) {
     wm_drop_update_active(C, &drag, event);

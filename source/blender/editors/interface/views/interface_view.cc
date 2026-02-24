@@ -239,6 +239,9 @@ void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const wmEvent *eve
   ARegion *region = CTX_wm_region(C);
   wmWindow *window = CTX_wm_window(C);
   wmWindowManager *wm = CTX_wm_manager(C);
+  if (!ELEM(event->type, MOUSEMOVE, TIMER, EVT_DROP)) {
+    return;
+  }
   AbstractView *view = region_view_find_at(region, event->xy, UI_UNIT_Y, &block);
   if (view == nullptr) {
     WM_event_timer_remove(wm, window, drag.timer);
@@ -278,13 +281,14 @@ void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const wmEvent *eve
   if (drag.timer) {
     if ((event->type == TIMER) && (event->customdata == drag.timer)) {
       view->scroll(scroll_dir.value());
+      ED_region_tag_redraw(region);
+      return;
     }
   }
   else {
     drag.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
   }
-
-  ED_region_tag_redraw(region);
+  return;
 }
 
 AbstractViewItem *region_views_find_item_at(const ARegion &region, const int xy[2])
