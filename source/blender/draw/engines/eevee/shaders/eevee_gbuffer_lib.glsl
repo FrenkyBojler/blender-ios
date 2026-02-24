@@ -176,24 +176,26 @@ float ior_unpack(float ior_packed)
   return (ior_packed > 0.5f) ? (0.5f / (1.0f - ior_packed)) : (2.0f * ior_packed);
 }
 
-float thickness_pack(float thickness)
+float thickness_pack(Thickness thickness)
 {
   /* TODO(fclem): If needed, we could increase precision by defining a ceiling value like the view
    * distance and remap to it. Or tweak the hyperbole equality. */
   /* NOTE: Sign encodes the thickness mode. */
   /* Remap [0..+inf) to [0..1/2]. */
-  float thickness_packed = abs(thickness) / (1.0f + 2.0f * abs(thickness));
+  float thickness_packed = thickness.value / (1.0f + 2.0f * thickness.value);
   /* Mirror the negative from [0..1/2] to [1..1/2]. O is mapped to 0 for precision. */
-  return (thickness < 0.0f) ? 1.0f - thickness_packed : thickness_packed;
+  return (thickness.mode == THICKNESS_MODE_SPHERE) ? 1.0f - thickness_packed : thickness_packed;
 }
-float thickness_unpack(float thickness_packed)
+
+Thickness thickness_unpack(float thickness_packed)
 {
   /* Undo mirroring. */
   float thickness = (thickness_packed > 0.5f) ? 1.0f - thickness_packed : thickness_packed;
   /* Remap [0..1/2] to [0..+inf). */
   thickness = thickness / (1.0f - 2.0f * thickness);
-  /* Retrieve sign. */
-  return (thickness_packed > 0.5f) ? -thickness : thickness;
+  /* Retrieve mode. */
+  return (thickness_packed > 0.5f) ? Thickness{thickness, THICKNESS_MODE_SPHERE} :
+                                     Thickness{thickness, THICKNESS_MODE_SLAB};
 }
 
 /**
@@ -488,16 +490,16 @@ struct Header {
 
 /* Added data inside the Tangent Space layers. */
 struct AdditionalInfo {
-  float thickness;
+  Thickness thickness;
 
-  static float2 pack(float thickness)
+  static float2 pack(Thickness thickness)
   {
     return float2(thickness_pack(thickness), 0.0f /* UNUSED */);
   }
 
   static AdditionalInfo unpack(float2 data)
   {
-    return {thickness_unpack(data.x)};
+    return AdditionalInfo{thickness_unpack(data.x)};
   }
 };
 

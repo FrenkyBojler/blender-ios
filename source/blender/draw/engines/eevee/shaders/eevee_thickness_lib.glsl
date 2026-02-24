@@ -43,10 +43,10 @@ ThicknessIsect thickness_plane_intersect(float plane_distance, float3 N, float3 
   return isect;
 }
 
-ThicknessIsect thickness_shape_intersect(float thickness, float3 N, float3 L)
+ThicknessIsect thickness_shape_intersect(Thickness thickness, float3 N, float3 L)
 {
-  if (thickness < 0.0f) {
-    return thickness_plane_intersect(-thickness, N, L);
+  if (thickness.mode == THICKNESS_MODE_SPHERE) {
+    return thickness_sphere_intersect(thickness.value, N, L);
   }
-  return thickness_sphere_intersect(thickness, N, L);
+  return thickness_plane_intersect(thickness.value, N, L);
 }

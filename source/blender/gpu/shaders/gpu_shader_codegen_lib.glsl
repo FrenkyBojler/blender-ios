@@ -56,7 +56,6 @@ float2 calc_barycentric_co(int vertid)
 #  define FrontFacing true
 #endif
 
-/* Can't use enum here because not a header file. But would be great to do. */
 enum ClosureType : uchar {
   CLOSURE_NONE_ID = 0u,
   /* Diffuse */
@@ -210,6 +209,19 @@ ClosureRefraction to_closure_refraction(ClosureUndetermined cl)
   closure.ior = cl.data.y;
   return closure;
 }
+
+enum ThicknessMode : bool { THICKNESS_MODE_SLAB = false, THICKNESS_MODE_SPHERE = true };
+
+/* Storage for object thickness, with attached slab/sphere model selection. */
+struct Thickness {
+  float value;
+  ThicknessMode mode;
+
+  static Thickness zero()
+  {
+    return {.value = 0.0f, .mode = THICKNESS_MODE_SLAB};
+  }
+};
 
 struct GlobalData {
   /** World position. */
