@@ -8,6 +8,7 @@
  * Circularize selected boundary chains.
  */
 #include "BLI_kdopbvh.hh"
+#include "BLI_map.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
@@ -452,12 +453,15 @@ static void nearest_tri_cb(void *userdata, int index, const float co[3], BVHTree
   }
 }
 
+using FaceTessellationCache = Map<BMFace *, Array<std::array<BMVert *, 3>>>;
+
 static void project_on_mesh(BVHTree *bvh_tree,
                             NearestTriUserData *bvh_data,
                             BMVert *v,
                             const float3 &center_pos,
                             const float3 &normal,
-                            float3 &r_pos)
+                            float3 &r_pos,
+                            FaceTessellationCache &tess_cache)
 {
   float3 vec = center_pos - float3(v->co);
   float length;
@@ -512,14 +516,20 @@ static void project_on_mesh(BVHTree *bvh_tree,
       }
     }
     else {
-      const int tottri = f->len - 2;
-      Array<BMLoop *, BM_DEFAULT_NGON_STACK_SIZE> loops(f->len);
-      Array<std::array<uint, 3>, BM_DEFAULT_NGON_STACK_SIZE> index(tottri);
-
-      BM_face_calc_tessellation(
-          f, false, loops.data(), reinterpret_cast<uint(*)[3]>(index.data()));
-      for (int i = 0; i < tottri; i++) {
-        test_tri_fn(loops[index[i][0]]->v, loops[index[i][1]]->v, loops[index[i][2]]->v);
+      const Array<std::array<BMVert *, 3>> &cached = tess_cache.lookup_or_add_cb(f, [&]() {
+        const int tottri = f->len - 2;
+        Array<BMLoop *, BM_DEFAULT_NGON_STACK_SIZE> loops(f->len);
+        Array<std::array<uint, 3>, BM_DEFAULT_NGON_STACK_SIZE> index(tottri);
+        BM_face_calc_tessellation(
+            f, false, loops.data(), reinterpret_cast<uint(*)[3]>(index.data()));
+        Array<std::array<BMVert *, 3>> tris(tottri);
+        for (int i = 0; i < tottri; i++) {
+          tris[i] = {loops[index[i][0]]->v, loops[index[i][1]]->v, loops[index[i][2]]->v};
+        }
+        return tris;
+      });
+      for (const std::array<BMVert *, 3> &tri : cached) {
+        test_tri_fn(tri[0], tri[1], tri[2]);
       }
     }
   }
@@ -597,6 +607,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
   Vector<std::array<BMLoop *, 3>> looptris;
   BVHTree *bvh_tree = nullptr;
   NearestTriUserData bvh_data = {};
+  FaceTessellationCache tess_cache;
 
   if (flatten < 1.0f) {
     const int tot_tri = poly_to_tri_count(bm->totface, bm->totloop);
@@ -690,7 +701,8 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
 
       if (flatten < 1.0f) {
         float3 projected_pos;
-        project_on_mesh(bvh_tree, &bvh_data, cv.v, final_pos, mat.z_axis(), projected_pos);
+        project_on_mesh(
+            bvh_tree, &bvh_data, cv.v, final_pos, mat.z_axis(), projected_pos, tess_cache);
         interp_v3_v3v3(final_pos, projected_pos, final_pos, flatten);
       }
 
