@@ -429,6 +429,13 @@ static wmOperatorStatus image_view_pan_exec(bContext *C, wmOperator *op)
 
   ED_region_tag_redraw(CTX_wm_region(C));
 
+  Image *ima = ED_space_image(sima);
+  if (ima) {
+    ima->runtime->view_offset[0] = sima->xof;
+    ima->runtime->view_offset[1] = sima->yof;
+    ima->runtime->view_zoom = sima->zoom;
+  }
+
   return OPERATOR_FINISHED;
 }
 
