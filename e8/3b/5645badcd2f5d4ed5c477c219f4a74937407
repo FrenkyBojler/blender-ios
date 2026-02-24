@@ -2,3 +2,4 @@ Referenced by pull request #154374, Fix: FBX import sets last UV map as active i
 Referenced by commit 8c0b9aefe2aaefcaed33882ed9145ba4d8673ba5, Fix: FBX import sets last UV map as active instead of first
 Referenced by issue #154706, Imported OBJs will have their UV maps disabled in 5.1
 Referenced by pull request #154735, Fix #154706: OBJ import UV maps are not active
+Referenced by commit 0319a9d231d9a22fc38ae767043d86037380cc67, Fix #154706: OBJ import UV maps are not active
