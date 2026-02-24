@@ -227,11 +227,11 @@ DLSSDenoiser::~DLSSDenoiser()
   const CUDAContextScope scope(cuda_device);
 
   tex_color_.destroy();
+  tex_depth_.destroy();
   tex_diffuse_albedo_.destroy();
   tex_specular_albedo_.destroy();
   tex_normal_roughness_.destroy();
   tex_motion_.destroy();
-  tex_depth_.destroy();
   tex_output_.destroy();
 
   if (!NVSDK_NGX_CUDA) {
@@ -340,11 +340,11 @@ bool DLSSDenoiser::denoise_create_if_needed(DenoiseContext &context)
   }
 
   tex_color_.destroy();
+  tex_depth_.destroy();
   tex_diffuse_albedo_.destroy();
   tex_specular_albedo_.destroy();
   tex_normal_roughness_.destroy();
   tex_motion_.destroy();
-  tex_depth_.destroy();
   tex_output_.destroy();
 
   if (context.buffer_params.width <= 128 || context.buffer_params.height <= 96) {
@@ -402,6 +402,7 @@ bool DLSSDenoiser::denoise_create_if_needed(DenoiseContext &context)
   }
 
   tex_color_.init(cuda_device, context.buffer_params.width, context.buffer_params.height, 4);
+  tex_depth_.init(cuda_device, context.buffer_params.width, context.buffer_params.height, 1);
   tex_diffuse_albedo_.init(
       cuda_device, context.buffer_params.width, context.buffer_params.height, 4);
   tex_specular_albedo_.init(
@@ -409,7 +410,6 @@ bool DLSSDenoiser::denoise_create_if_needed(DenoiseContext &context)
   tex_normal_roughness_.init(
       cuda_device, context.buffer_params.width, context.buffer_params.height, 4);
   tex_motion_.init(cuda_device, context.buffer_params.width, context.buffer_params.height, 2);
-  tex_depth_.init(cuda_device, context.buffer_params.width, context.buffer_params.height, 1);
 
   tex_output_.init(
       cuda_device, context.denoised_buffer_params.width, context.denoised_buffer_params.height, 4);
@@ -498,7 +498,7 @@ bool DLSSDenoiser::denoise_filter_guiding_preprocess(DenoiseContext &context)
   const int pass_depth = context.buffer_params.get_pass_offset(PASS_DENOISING_DEPTH);
   const int pass_specular_albedo = context.buffer_params.get_pass_offset(
       PASS_DENOISING_SPECULAR_ALBEDO);
-  const int pass_roughness = context.buffer_params.get_pass_offset(PASS_ROUGHNESS);
+  const int pass_roughness = context.buffer_params.get_pass_offset(PASS_DENOISING_ROUGHNESS);
 
   const DeviceKernelArguments args(&tex_depth_.surface_handle,
                                    &tex_diffuse_albedo_.surface_handle,

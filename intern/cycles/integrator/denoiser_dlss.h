@@ -51,11 +51,11 @@ class DLSSDenoiser : public DenoiserGPU {
     uint64_t surface_handle = 0;
   };
   CUDATexture tex_color_;
+  CUDATexture tex_depth_;
   CUDATexture tex_diffuse_albedo_;
   CUDATexture tex_specular_albedo_;
   CUDATexture tex_normal_roughness_;
   CUDATexture tex_motion_;
-  CUDATexture tex_depth_;
   CUDATexture tex_output_;
 
   int last_width_ = 0;

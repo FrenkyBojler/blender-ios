@@ -82,37 +82,43 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
     alpha /= sum_weight;
   }
 
-  if (!(sd->flag & (SD_TRANSPARENT | SD_RAY_PORTAL)) &&
-      kernel_data.film.pass_denoising_specular_albedo != PASS_UNUSED)
-  {
-    const Spectrum denoising_feature_throughput = INTEGRATOR_STATE(
-        state, path, denoising_feature_throughput);
+  if (!(path_flag & PATH_RAY_SINGLE_PASS_DONE) && !(sd->flag & (SD_TRANSPARENT | SD_RAY_PORTAL))) {
+    if (kernel_data.film.pass_denoising_roughness != PASS_UNUSED) {
+      const float denoising_roughness = surface_shader_average_roughness(sd);
+      film_write_pass_float(buffer + kernel_data.film.pass_denoising_roughness,
+                            denoising_roughness);
+    }
 
-    /* Approximation of specular BRDF integral, see equation 4 in Ray Tracing Gems chapter 32. */
-    const float alpha2 = alpha * alpha;
-    const float alpha3 = alpha2 * alpha;
-    const float omega = fabsf(dot(-sd->wi, normal));
-    const float omega2 = omega * omega;
-    const float omega3 = omega2 * omega;
+    if (kernel_data.film.pass_denoising_specular_albedo != PASS_UNUSED) {
+      const Spectrum denoising_feature_throughput = INTEGRATOR_STATE(
+          state, path, denoising_feature_throughput);
 
-    float bias = max(0.0f,
-                     ((0.99044f + -1.28514f * omega) + (1.29678f + -0.755907f * omega) * alpha) /
-                         ((1.0f + 2.92338f * omega + 59.4188f * omega3) +
-                          (20.3225f + -27.0302f * omega + 222.592f * omega3) * alpha +
-                          (121.563f + 626.13f * omega + 316.627f * omega3) * alpha3));
-    float scale = max(0.0f,
-                      ((0.0365463f + 3.32707f * omega) + (9.0632f + -9.04756f * omega) * alpha) /
-                          ((1.0f + 3.59685f * omega2 + -1.36772f * omega3) +
-                           (9.04401f + -16.3174f * omega2 + 9.22949f * omega3) * alpha +
-                           (5.56589f + 19.7886f * omega2 + -20.2123f * omega3) * alpha3));
+      /* Approximation of specular BRDF integral, see equation 4 in Ray Tracing Gems chapter 32. */
+      const float alpha2 = alpha * alpha;
+      const float alpha3 = alpha2 * alpha;
+      const float omega = fabsf(dot(-sd->wi, normal));
+      const float omega2 = omega * omega;
+      const float omega3 = omega2 * omega;
 
-    /* This is a hack for specular reflectance of zero. */
-    bias *= saturate(specular_albedo * 50).y;
+      float bias = max(0.0f,
+                       ((0.99044f + -1.28514f * omega) + (1.29678f + -0.755907f * omega) * alpha) /
+                           ((1.0f + 2.92338f * omega + 59.4188f * omega3) +
+                            (20.3225f + -27.0302f * omega + 222.592f * omega3) * alpha +
+                            (121.563f + 626.13f * omega + 316.627f * omega3) * alpha3));
+      float scale = max(0.0f,
+                        ((0.0365463f + 3.32707f * omega) + (9.0632f + -9.04756f * omega) * alpha) /
+                            ((1.0f + 3.59685f * omega2 + -1.36772f * omega3) +
+                             (9.04401f + -16.3174f * omega2 + 9.22949f * omega3) * alpha +
+                             (5.56589f + 19.7886f * omega2 + -20.2123f * omega3) * alpha3));
 
-    const Spectrum denoising_specular_albedo = ensure_finite(
-        denoising_feature_throughput * (specular_albedo * scale + make_float3(bias)));
-    film_write_pass_spectrum(buffer + kernel_data.film.pass_denoising_specular_albedo,
-                             denoising_specular_albedo);
+      /* This is a hack for specular reflectance of zero. */
+      bias *= saturate(specular_albedo * 50).y;
+
+      const Spectrum denoising_specular_albedo = ensure_finite(
+          denoising_feature_throughput * (specular_albedo * scale + make_float3(bias)));
+      film_write_pass_spectrum(buffer + kernel_data.film.pass_denoising_specular_albedo,
+                               denoising_specular_albedo);
+    }
   }
 
   /* Wait for next bounce if 75% or more sample weight belongs to specular-like closures. */
