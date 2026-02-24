@@ -359,7 +359,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
         wm = context.window_manager
         xr_viewfinder = wm.xr_session_state.viewfinder
 
-        if xr_viewfinder.active_mode == "LIVE":
+        if xr_viewfinder.active_mode == 'LIVE':
             focal_map = (18, 20, 24, 28, 35, 50, 70, 85, 100, 135, 200, 300)
             fstop_map = (0.1, 0.2, 0.4, 0.8, 1, 1.2, 1.4, 1.7, 2, 2.4, 2.8, 3.3,
                          4, 4.8, 5.6, 6.7, 8, 9.5, 11, 13, 16, 19, 22, 27, 32)
@@ -381,7 +381,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
 
             match xr_viewfinder.active_action_live:
                 # View Zoom Control
-                case "LENS":
+                case 'LENS':
                     current_focal = xr_viewfinder.capture_lens
 
                     new_idx = get_next_in_map(current_focal, focal_map, self.action_up)
@@ -390,13 +390,13 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
                     return {'FINISHED'}
 
                 # Toggle DoF on/off
-                case "DOF":
+                case 'DOF':
                     xr_viewfinder.capture_use_dof = not xr_viewfinder.capture_use_dof
 
                     return {'FINISHED'}
 
                 # Focus distance control (ray-cast autofocus)
-                case "FOCUS":
+                case 'FOCUS':
                     scene = context.scene
                     depsgraph = context.evaluated_depsgraph_get()
 
@@ -418,7 +418,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
                     return {'FINISHED'}
 
                 # F-Stop control
-                case "APERTURE":
+                case 'APERTURE':
                     current_fstop = xr_viewfinder.capture_aperture_fstop
 
                     new_idx = get_next_in_map(current_fstop, fstop_map, self.action_up)
@@ -426,7 +426,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
 
                     return {'FINISHED'}
 
-        if xr_viewfinder.active_mode == "PLAYBACK":
+        if xr_viewfinder.active_mode == 'PLAYBACK':
             # Playblack control
             scene = context.scene
             captures = scene.vr_captures
@@ -435,14 +435,14 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
 
             match xr_viewfinder.active_action_playback:
                 # Browse shots left/right
-                case "BROWSE":
+                case 'BROWSE':
                     incr = 1 if self.action_up else -1
                     scene.vr_captures_selected = (scene.vr_captures_selected + incr) % len(captures)
 
                     return {'FINISHED'}
 
                 # Preview the selected capture in space TODO: Remove in favor of gizmos
-                case "PREVIEW":
+                case 'PREVIEW':
                     current_capture = captures[scene.vr_captures_selected]
 
                     preview_cone_name = "CapturePreviewCone"
@@ -452,7 +452,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
                         cone = bpy.data.objects[preview_cone_name]
                     else:
                         # Create a new cone
-                        bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=0.25, depth=0.5, end_fill_type="NOTHING")
+                        bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=0.25, depth=0.5, end_fill_type='NOTHING')
                         cone = bpy.context.active_object
                         cone.name = preview_cone_name
 
@@ -466,7 +466,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
                     return {'FINISHED'}
 
                 # Delete the selected capture
-                case "DELETE":
+                case 'DELETE':
                     captures.remove(scene.vr_captures_selected)
                     scene.vr_captures_selected -= 1
 
@@ -509,8 +509,8 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
         increment = -1 if self.cycle_left else 1
 
         match xr_viewfinder.active_mode:
-            case "LIVE":
-                action_rna_prop = xr_viewfinder.rna_type.properties['active_action_live']
+            case 'LIVE':
+                action_rna_prop = xr_viewfinder.rna_type.properties["active_action_live"]
                 enum_keys = action_rna_prop.enum_items.keys()
                 current_action_idx = enum_keys.index(xr_viewfinder.active_action_live)
 
@@ -520,8 +520,8 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
 
                 xr_viewfinder.active_action_live = enum_keys[new_action_idx]
 
-            case "PLAYBACK":
-                action_rna_prop = xr_viewfinder.rna_type.properties['active_action_playback']
+            case 'PLAYBACK':
+                action_rna_prop = xr_viewfinder.rna_type.properties["active_action_playback"]
                 enum_keys = action_rna_prop.enum_items.keys()
                 current_action_idx = enum_keys.index(xr_viewfinder.active_action_playback)
                 new_action_idx = (current_action_idx + increment) % len(enum_keys)
@@ -541,14 +541,14 @@ class VIEW3D_OT_vr_location_scouting_add_camera_from_capture(Operator):
         scene = context.scene
         capture = properties.VRCapture.get_selected_capture(context)
 
-        cam = bpy.data.cameras.new(data_("Camera") + "_" + capture.name) # TODO: Naming needs improvements
+        cam = bpy.data.cameras.new(data_("Camera") + "_" + capture.name)  # TODO: Naming needs improvements
         new_cam = bpy.data.objects.new(data_("Camera") + "_" + capture.name, cam)
         scene.collection.objects.link(new_cam)
 
         new_cam.location = capture.location
-        new_cam.rotation_mode = "QUATERNION"
+        new_cam.rotation_mode = 'QUATERNION'
         new_cam.rotation_quaternion = capture.orientation
-        new_cam.rotation_mode = "XYZ"
+        new_cam.rotation_mode = 'XYZ'
 
         new_cam.data.lens = capture.lens_focal
         new_cam.data.dof.use_dof = capture.dof_enable
@@ -569,9 +569,9 @@ class VIEW3D_OT_vr_location_scouting_active_camera_to_capture(Operator):
 
         cam = context.scene.camera
         cam.location = capture.location
-        cam.rotation_mode = "QUATERNION"
+        cam.rotation_mode = 'QUATERNION'
         cam.rotation_quaternion = capture.orientation
-        cam.rotation_mode = "XYZ"
+        cam.rotation_mode = 'XYZ'
 
         cam.data.shift_x = 0
         cam.data.shift_y = 0

@@ -119,7 +119,7 @@ class VIEW3D_UL_vr_captures(UIList):
 
         layout.emboss = 'NONE'
 
-        layout.label(icon="OUTLINER_OB_CAMERA")
+        layout.label(icon='OUTLINER_OB_CAMERA')
         layout.prop(capture, "name", text="")
 
 
