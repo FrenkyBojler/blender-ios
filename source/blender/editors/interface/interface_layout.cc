@@ -4828,6 +4828,7 @@ PanelLayout Layout::panel_prop(const bContext *C,
 
     const bool in_popup = block_is_popup_any(this->block());
     bool inside_layout_panel = false;
+
     if (in_popup) {
       Layout *parent = this;
       while (parent) {
@@ -4838,6 +4839,7 @@ PanelLayout Layout::panel_prop(const bContext *C,
         }
       }
     }
+
     if (inside_layout_panel) {
       uiDefBut(
           this->block(), ButtonType::Sepr, "", 0, 0, UI_UNIT_X * 0.5, 0, nullptr, 0.0, 0.0, "");
