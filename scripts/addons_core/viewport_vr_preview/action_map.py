@@ -5,10 +5,10 @@
 if "bpy" in locals():
     import importlib
     importlib.reload(action_registry)
-    importlib.reload(defaults)
+    importlib.reload(action_profile)
     importlib.reload(properties)
 else:
-    from . import action_map_io, action_registry, defaults, properties
+    from . import action_profile, action_registry, properties
 
 import bpy
 from bpy.app.handlers import persistent
@@ -25,8 +25,8 @@ def vr_actionset_active_update(context):
     scene = context.scene
 
     if scene.vr_actions_use_gamepad and session_state.actionmaps.find(
-            session_state, defaults.VRDefaultActionmaps.GAMEPAD.value):
-        session_state.active_action_set_set(context, defaults.VRDefaultActionmaps.GAMEPAD.value)
+            session_state, action_profile.VRDefaultActionmaps.GAMEPAD.value):
+        session_state.active_action_set_set(context, action_profile.VRDefaultActionmaps.GAMEPAD.value)
     else:
         # Use first action map.
         session_state.active_action_set_set(context, session_state.actionmaps[0].name)
