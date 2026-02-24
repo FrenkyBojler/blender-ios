@@ -1648,7 +1648,6 @@ bool isect_line_tri_v3(const float p1[3],
                        float *r_lambda,
                        float r_uv[2])
 {
-
   float p[3], s[3], d[3], e1[3], e2[3], q[3];
   float a, f, u, v;
 
