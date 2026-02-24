@@ -73,8 +73,8 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
 
     if (!EDBM_op_callf(em,
                        op,
-                       "circularize geom=%hvef factor=%f flatten=%f regular=%b fit_method=%i"
-                       "custom_radius=%f angle=%f lock_x=%b lock_y=%b lock_z=%b mirror_x=%b"
+                       "circularize geom=%hvef factor=%f flatten=%f regular=%b fit_method=%i "
+                       "custom_radius=%f angle=%f lock_x=%b lock_y=%b lock_z=%b mirror_x=%b "
                        "mirror_y=%b mirror_z=%b",
                        BM_ELEM_SELECT,
                        factor,
