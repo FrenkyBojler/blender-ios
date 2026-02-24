@@ -818,6 +818,19 @@ class USERPREF_PT_system_network(SystemPanel, CenterAlignMixIn, Panel):
         layout.row().prop(system, "network_connection_limit", text="Connection Limit")
 
 
+class USERPREF_PT_system_blender_updates(SystemPanel, CenterAlignMixIn, Panel):
+    bl_label = "Update Notifications"
+    bl_parent_id = "USERPREF_PT_system_network"
+
+    def draw_centered(self, context, layout):
+        prefs = context.preferences
+        system = prefs.system
+        layout.active = system.use_online_access
+        layout.prop(system, "latest_release", text=iface_("Latest Release"))
+        layout.prop(system, "latest_lts_release", text=iface_("Latest LTS Release"))
+        layout.prop(system, "current_release", text=iface_("Current Release"))
+
+
 class USERPREF_PT_system_memory(SystemPanel, CenterAlignMixIn, Panel):
     bl_label = "Memory & Limits"
 
@@ -1478,6 +1491,7 @@ class ThemeGenericClassGenerator:
             ("Menu Background", "wcol_menu_back"),
             ("Menu Item", "wcol_menu_item"),
             ("Number Field", "wcol_num"),
+            ("Link Item", "wcol_link"),
             ("Option", "wcol_option"),
             ("Pie Menu", "wcol_pie_menu"),
             ("Progress Bar", "wcol_progress"),
@@ -3150,6 +3164,7 @@ classes = (
     USERPREF_PT_system_display_graphics,
     USERPREF_PT_system_os_settings,
     USERPREF_PT_system_network,
+    USERPREF_PT_system_blender_updates,
     USERPREF_PT_system_memory,
     USERPREF_PT_system_video_sequencer,
     USERPREF_PT_system_sound,

@@ -27,6 +27,8 @@
 #include "WM_message.hh"
 #include "WM_types.hh"
 
+#include "statusbar_intern.hh"
+
 namespace blender {
 
 /* ******************** default callbacks for statusbar space ******************** */
@@ -158,6 +160,8 @@ void ED_spacetype_statusbar()
   art->listener = statusbar_header_region_listener;
   art->message_subscribe = statusbar_header_region_message_subscribe;
   BLI_addhead(&st->regiontypes, art);
+
+  panel_blender_updates_register(art);
 
   BKE_spacetype_register(std::move(st));
 }

@@ -15,6 +15,9 @@ set(INC_SYS
 
 set(SRC
   space_statusbar.cc
+  statusbar_panels.cc
+
+  statusbar_intern.hh
 )
 
 set(LIB

@@ -1974,6 +1974,11 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Number Widget Colors", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
+  prop = RNA_def_property(srna, "wcol_link", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_ui_text(prop, "Link Widget Colors", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
   prop = RNA_def_property(srna, "wcol_numslider", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_ui_text(prop, "Slider Widget Colors", "");
@@ -5486,6 +5491,14 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Show Version", "Show Blender version string");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO, "rna_userdef_update");
 
+  prop = RNA_def_property(srna, "show_statusbar_blender_updates_dialog", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "statusbar_flag", STATUSBAR_SHOW_BLENDER_UPDATES_DIALOG);
+  RNA_def_property_ui_text(prop,
+                           "Show available Blender updates",
+                           "Show available Blender updates notification dialog");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO, "rna_userdef_update");
+
   prop = RNA_def_property(srna, "show_statusbar_stats", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "statusbar_flag", STATUSBAR_SHOW_STATS);
   RNA_def_property_ui_text(prop, "Show Statistics", "Show scene statistics");
@@ -6313,7 +6326,26 @@ static void rna_def_userdef_system(BlenderRNA *brna)
       "Limit the number of simultaneous internet connections online operations may make at once. "
       "Zero disables the limit.");
 
-  /* Audio */
+  prop = RNA_def_property(srna, "latest_lts_release", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_BLENDER_UPDATE_LATEST_LTS_RELEASE);
+  RNA_def_property_ui_text(prop,
+                           "Checks the latest LTS release",
+                           "Allow Blender to access the internet to check for any new update "
+                           "available for the latest LTS release");
+
+  prop = RNA_def_property(srna, "latest_release", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_BLENDER_UPDATE_LATEST_RELEASE);
+  RNA_def_property_ui_text(prop,
+                           "Checks the latest release",
+                           "Allow Blender to access the internet to check for any new update "
+                           "available for the latest release");
+
+  prop = RNA_def_property(srna, "current_release", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_BLENDER_UPDATE_CURRENT_RELEASE);
+  RNA_def_property_ui_text(prop,
+                           "Checks current release updates",
+                           "Allow Blender to access the internet to check for any new update "
+                           "available for the current release");
 
   prop = RNA_def_property(srna, "audio_mixing_buffer", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "mixbufsize");

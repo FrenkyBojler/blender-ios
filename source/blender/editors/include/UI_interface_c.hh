@@ -465,6 +465,7 @@ enum class ButtonType : int8_t {
   Decorator,
   /** An item a view (see #ui::AbstractViewItem). */
   ViewItem,
+  Link,
 };
 
 inline char but_pointer_bit_max_index(ButPointerType pointer_type)

@@ -1,0 +1,209 @@
+/* SPDX-FileCopyrightText: 2026 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "BKE_idprop.hh"
+#include "BKE_screen.hh"
+
+#include "BLI_listbase.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
+#include "BLI_vector.hh"
+
+#include "BLT_translation.hh"
+
+#include "UI_interface.hh"
+#include "UI_interface_c.hh"
+#include "UI_interface_layout.hh"
+
+#include "WM_api.hh"
+
+#include "RNA_access.hh"
+
+#include <fmt/format.h>
+#include <string>
+
+#include "statusbar_intern.hh"
+
+namespace blender {
+
+struct VersionUpdateInfo {
+  std::string commit_hash;
+  std::string version;
+  bool is_lts;
+  std::string description;
+  std::string release_notes_url;
+  std::string download_url;
+};
+
+static Vector<VersionUpdateInfo> &blender_available_updates()
+{
+  static Vector<VersionUpdateInfo> updates = {
+      {
+          .commit_hash = "3cfed7c6ecab",
+          .version = "5.0.1",
+          .is_lts = false,
+          .description = "Over 100 bug fixes, it is highly recomended to update.",
+          .release_notes_url = "https://www.blender.org/download/releases/5-0/",
+          .download_url = "https://www.blender.org/download/",
+      },
+      {
+          .commit_hash = "2cfed7c6ecab",
+          .version = "5.1.1",
+          .is_lts = false,
+          .description = "Over 45 bug fixes, it is highly recomended to update.",
+          .release_notes_url = "https://www.blender.org/download/releases/5-0/",
+          .download_url = "https://www.blender.org/download/",
+      },
+      {
+          .commit_hash = "1cfed7c6ecab",
+          .version = "5.2.0",
+          .is_lts = true,
+          .description = "New LTS major release is available.",
+          .release_notes_url = "https://www.blender.org/download/releases/5-0/",
+          .download_url = "https://www.blender.org/download/",
+      },
+  };
+  return updates;
+}
+
+static void version_update_draw_body(VersionUpdateInfo &update, ui::Layout &layout)
+{
+  ui::Layout &row = layout.row(true);
+  row.emboss_set(ui::EmbossType::None);
+  row.alignment_set(ui::LayoutAlign::Expand);
+  row.label(update.description, ICON_NONE);
+  layout.column(true).alignment_set(ui::LayoutAlign::Left);
+  ui::Button *but = uiDefButO_ptr(layout.block(),
+                                  ui::ButtonType::Link,
+                                  WM_operatortype_find("WM_OT_url_open", true),
+                                  wm::OpCallContext::ExecDefault,
+                                  "Whats new",
+                                  0,
+                                  0,
+                                  UI_UNIT_X * 3.3f,
+                                  UI_UNIT_Y,
+                                  std::nullopt);
+  button_drawflag_enable(but, ui::BUT_HAS_QUICK_TOOLTIP);
+  ui::button_func_quick_tooltip_set(
+      but, [release_notes_url = update.release_notes_url](const ui::Button * /*but*/) {
+        return release_notes_url;
+      });
+  ui::button_func_tooltip_custom_set(
+      but,
+      [](bContext & /*C*/, ui::TooltipData &data, ui::Button * /*but*/, void *argN) {
+        tooltip_text_field_add(data,
+                               static_cast<const char *>(argN),
+                               {},
+                               ui::TIP_STYLE_HEADER,
+                               ui::TIP_LC_NORMAL,
+                               false);
+      },
+      BLI_strdup(update.release_notes_url.c_str()),
+      MEM_delete_void);
+
+  PointerRNA *opptr = button_operator_ptr_ensure(but);
+  opptr->data = bke::idprop::create_group("wmOperatorProperties").release();
+
+  RNA_string_set(opptr, "url", update.release_notes_url.c_str());
+
+  ui::button_drawflag_enable(but, ui::BUT_TEXT_LEFT | ui::BUT_NO_TEXT_PADDING);
+
+  ui::Layout &buttons_row = layout.row(true);
+
+  ui::Layout &left_row = buttons_row.row(false);
+  left_row.alignment_set(ui::LayoutAlign::Left);
+  ui::Button *button = uiDefBut(layout.block(),
+                                ui::ButtonType::But,
+                                "Skip " + update.version,
+                                0,
+                                0,
+                                5.0f * UI_UNIT_X,
+                                UI_UNIT_Y,
+                                nullptr,
+                                0,
+                                0,
+                                "");
+  ui::button_func_set(button, [commit_hash = update.commit_hash](blender::bContext & /*C*/) {
+    blender_available_updates().remove_if(
+        [&](const VersionUpdateInfo &update) { return update.commit_hash == commit_hash; });
+  });
+  ui::Layout &right_row = buttons_row.row(false);
+  right_row.alignment_set(ui::LayoutAlign::Right);
+  PointerRNA op_ptr = right_row.op("WM_OT_url_open", "Download", ICON_IMPORT);
+  RNA_string_set(&op_ptr, "url", update.download_url.c_str());
+};
+
+static void panel_blender_updates_draw(const bContext *C, Panel *panel)
+{
+  ui::Layout &layout = *panel->layout;
+
+  Vector<VersionUpdateInfo> &available_updates = blender_available_updates();
+  if (available_updates.is_empty()) {
+    ui::Layout &header = layout.row(true);
+    header.label(IFACE_("No updates available"), ICON_NONE);
+    return;
+  }
+  if (available_updates.size() == 1) {
+    ui::Layout &header = layout.row(true);
+    header.label(
+        fmt::format(fmt::runtime(IFACE_("Update Blender from {} to {}?")), "5.1.2", "5.2.2 LTS"),
+        ICON_NONE);
+    version_update_draw_body(available_updates[0], layout.column(false));
+    return;
+  }
+
+  ui::Layout &header = layout.row(true);
+  header.label("New Blender Updates Available", ICON_NONE);
+
+  ui::Layout &skip_all_row = header.row(true);
+  skip_all_row.alignment_set(ui::LayoutAlign::Right);
+  ui::Button *button = uiDefBut(layout.block(),
+                                ui::ButtonType::But,
+                                "Skip All",
+                                0,
+                                0,
+                                5 * UI_UNIT_X,
+                                UI_UNIT_Y,
+                                nullptr,
+                                0,
+                                0,
+                                "");
+  ui::button_func_set(button,
+                      [](blender::bContext & /*C*/) { blender_available_updates().clear(); });
+  ui::button_drawflag_disable(button, ui::BUT_TEXT_RIGHT);
+  for (VersionUpdateInfo &update : available_updates) {
+    ui::PanelLayout panel_layout = layout.panel(C, "Update_" + update.version, false);
+    panel_layout.header->label(update.version, ICON_NONE);
+    ui::Layout *body = panel_layout.body;
+    if (!body) {
+      continue;
+    }
+    version_update_draw_body(update, body->column(false));
+  }
+}
+
+static bool panel_blender_updates_poll(const blender::bContext * /*C*/,
+                                       blender::PanelType * /*pt*/)
+{
+  return !blender_available_updates().is_empty();
+}
+
+void panel_blender_updates_register(ARegionType *region_type)
+{
+
+  PanelType *pt = MEM_new_zeroed<PanelType>(__func__);
+  STRNCPY_UTF8(pt->idname, "STATUS_PT_blender_updates");
+  STRNCPY_UTF8(pt->label, N_("Updates Available"));
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  pt->description = N_("Display availble Blender updates in a popover panel");
+  pt->draw = panel_blender_updates_draw;
+  pt->poll = panel_blender_updates_poll;
+  pt->region_type = RGN_TYPE_HEADER;
+  pt->space_type = SPACE_INFO;
+  pt->ui_units_x = 16;
+  BLI_addtail(&region_type->paneltypes, pt);
+  WM_paneltype_add(pt);
+}
+
+}  // namespace blender

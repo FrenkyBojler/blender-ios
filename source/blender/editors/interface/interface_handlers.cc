@@ -2377,6 +2377,7 @@ static void ui_apply_but(
   /* handle different types */
   switch (but_type) {
     case ButtonType::But:
+    case ButtonType::Link:
     case ButtonType::Decorator:
     case ButtonType::PreviewTile:
       ui_apply_but_BUT(C, but, data);
@@ -2933,7 +2934,7 @@ static bool ui_but_copy(bContext *C, Button *but, const bool copy_array)
     case ButtonType::CurveProfile:
       ui_but_copy_CurveProfile(but);
       break;
-
+    case ButtonType::Link:
     case ButtonType::But:
       if (!but->optype) {
         break;
@@ -8557,6 +8558,7 @@ static int ui_do_button(bContext *C, Block *block, Button *but, const wmEvent *e
 
   switch (but->type) {
     case ButtonType::But:
+    case ButtonType::Link:
     case ButtonType::Decorator:
       retval = ui_do_but_BUT(C, but, data, event);
       break;
@@ -11268,6 +11270,7 @@ static int ui_handle_menu_event(bContext *C,
               }
               else if (ELEM(but.type,
                             ButtonType::But,
+                            ButtonType::Link,
                             ButtonType::ButMenu,
                             ButtonType::Menu,
                             ButtonType::Block,

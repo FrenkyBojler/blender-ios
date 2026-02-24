@@ -450,26 +450,6 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
     }
 
     if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
-      if (has_status_info) {
-        row.separator(-0.5f);
-        row.label("|", ICON_NONE);
-        row.separator(-0.5f);
-      }
-
-      if ((G.f & G_FLAG_INTERNET_OVERRIDE_PREF_OFFLINE) != 0) {
-        row.label("", ICON_INTERNET_OFFLINE);
-      }
-      else {
-        row.emboss_set(EmbossType::None);
-        row.op("EXTENSIONS_OT_userpref_show_online", "", ICON_INTERNET_OFFLINE);
-        Button *but = layout->block()->buttons_ptrs.last().get();
-        uchar color[4];
-        theme::get_color_4ubv(TH_TEXT, color);
-        copy_v4_v4_uchar(but->col, color);
-      }
-
-      row.separator(1.0f);
-      has_status_info = true;
     }
     else if ((wm->extensions_updates > 0) ||
              (wm->extensions_updates == WM_EXTENSIONS_UPDATE_CHECKING))
@@ -500,6 +480,32 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
       has_status_info = true;
     }
   }
+  if (U.statusbar_flag &
+      (STATUSBAR_SHOW_EXTENSIONS_UPDATES | STATUSBAR_SHOW_BLENDER_UPDATES_DIALOG))
+  {
+    if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
+      if (has_status_info) {
+        row.separator(-0.5f);
+        row.label("|", ICON_NONE);
+        row.separator(-0.5f);
+      }
+
+      if ((G.f & G_FLAG_INTERNET_OVERRIDE_PREF_OFFLINE) != 0) {
+        row.label("", ICON_INTERNET_OFFLINE);
+      }
+      else {
+        row.emboss_set(EmbossType::None);
+        row.op("EXTENSIONS_OT_userpref_show_online", "", ICON_INTERNET_OFFLINE);
+        Button *but = layout->block()->buttons_ptrs.last().get();
+        uchar color[4];
+        theme::get_color_4ubv(TH_TEXT, color);
+        copy_v4_v4_uchar(but->col, color);
+      }
+
+      row.separator(1.0f);
+      has_status_info = true;
+    }
+  }
 
   if (!BKE_main_has_issues(bmain)) {
     if (U.statusbar_flag & STATUSBAR_SHOW_VERSION) {
@@ -511,6 +517,42 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
       const char *status_info_d_txt = ED_info_statusbar_string_ex(
           bmain, scene, view_layer, STATUSBAR_SHOW_VERSION);
       row.label(status_info_d_txt, ICON_NONE);
+    }
+    if (U.statusbar_flag & STATUSBAR_SHOW_BLENDER_UPDATES_DIALOG) {
+      if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
+      }
+      else if ((U.flag &
+                (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
+                 USER_BLENDER_UPDATE_CURRENT_RELEASE)) == 0)
+      {
+        if (has_status_info) {
+          row.separator(-0.5f);
+          row.label("|", ICON_NONE);
+          row.separator(-0.5f);
+        }
+        row.emboss_set(EmbossType::Emboss);
+        row.op("EXTENSIONS_OT_userpref_show_online", "", ICON_INTERNET_OFFLINE);
+        Button *but = layout->block()->buttons_ptrs.last().get();
+        uchar color[4];
+        but->tip =
+            "Show system preferences \"Network\" panel to allow Blender updates notifications.";
+        theme::get_color_4ubv(TH_TEXT, color);
+        copy_v4_v4_uchar(but->col, color);
+        row.separator(1.0f);
+        has_status_info = true;
+      }
+      else if (U.flag &
+               (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
+                USER_BLENDER_UPDATE_CURRENT_RELEASE))
+      {
+        if (has_status_info) {
+          row.separator(-0.5f);
+          row.label("|", ICON_NONE);
+          row.separator(-0.5f);
+        }
+        row.popover(C, "STATUS_PT_blender_updates", IFACE_("Updates Available"), ICON_IMPORT);
+        has_status_info = true;
+      }
     }
     return;
   }

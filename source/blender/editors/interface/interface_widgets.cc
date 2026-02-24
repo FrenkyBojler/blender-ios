@@ -76,6 +76,7 @@ enum WidgetTypeEnum {
   UI_WTYPE_CHECKBOX,
   UI_WTYPE_RADIO,
   UI_WTYPE_NUMBER,
+  UI_WTYPE_LINK,
   UI_WTYPE_SLIDER,
   UI_WTYPE_EXEC,
   UI_WTYPE_TOOLBAR_ITEM,
@@ -2233,6 +2234,12 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   }
 #endif
 
+  if (but->type == ButtonType::Link && but->active) {
+    float4 color;
+    rgba_uchar_to_float(color, wcol->text);
+    int width = BLF_width(fstyle->uifont_id, drawstr, drawstr_left_len);
+    draw_text_underline(rect->xmin, rect->ymin + 6 * U.pixelsize, width, 1, color);
+  }
   if (!use_right_only) {
     /* for underline drawing */
     int font_xofs, font_yofs;
@@ -4798,6 +4805,9 @@ static WidgetType *widget_type(WidgetTypeEnum type)
       wt.wcol_theme = &btheme->tui.wcol_num;
       wt.custom = widget_numbut;
       break;
+    case UI_WTYPE_LINK:
+      wt.wcol_theme = &btheme->tui.wcol_link;
+      break;
 
     case UI_WTYPE_SLIDER:
       wt.wcol_theme = &btheme->tui.wcol_numslider;
@@ -5147,6 +5157,9 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
         wt = widget_type(UI_WTYPE_NUMBER);
         break;
 
+      case ButtonType::Link:
+        wt = widget_type(UI_WTYPE_LINK);
+        break;
       case ButtonType::NumSlider:
         wt = widget_type(UI_WTYPE_SLIDER);
         break;
