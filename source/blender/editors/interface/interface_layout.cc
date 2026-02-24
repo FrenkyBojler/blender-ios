@@ -4840,7 +4840,7 @@ PanelLayout Layout::panel_prop(const bContext *C,
       }
     }
 
-    if (inside_layout_panel) {
+    if (!in_popup || inside_layout_panel) {
       uiDefBut(
           this->block(), ButtonType::Sepr, "", 0, 0, UI_UNIT_X * 0.5, 0, nullptr, 0.0, 0.0, "");
     }
