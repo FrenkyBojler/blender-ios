@@ -209,7 +209,7 @@ static void bm_vert_chain_extract_from_boundary_edges(BMesh *bm,
 }
 
 /** Computes the local coordinate system defining the 2D plane of the vertex chain. */
-static float3x3 calculate_plane_orientation(Span<BMVert *> chain, float3 &r_center)
+static float3x3 bm_vert_chain_orientation_matrix_calc(Span<BMVert *> chain, float3 &r_center)
 {
   r_center = float3(0.0f);
   for (BMVert *v : chain) {
@@ -618,12 +618,12 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       normal_accum += float3(v->no);
     }
     float3 center_3d;
-    float3x3 mat = calculate_plane_orientation(chain, center_3d);
+    float3x3 mat = bm_vert_chain_orientation_matrix_calc(chain, center_3d);
 
     /* Reverse the chain winding if the Newell normal opposes the cumulative vertex normal. */
     if (math::dot(mat.z_axis(), normal_accum) < 0.0f) {
       std::reverse(chain.begin(), chain.end());
-      mat = calculate_plane_orientation(chain, center_3d);
+      mat = bm_vert_chain_orientation_matrix_calc(chain, center_3d);
     }
 
     bool is_mirrored = false;
