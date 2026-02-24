@@ -291,31 +291,33 @@ void AbstractTreeView::draw_hierarchy_lines(const ARegion &region, const uiBlock
 
   GPU_line_width(1.0f / aspect);
   GPU_blend(GPU_BLEND_ALPHA);
+  int scissor[4];
+  GPU_scissor_get(scissor);
 
-  rcti block_rect;
-  ui_but_to_pixelrect(&block_rect, &region, &block, nullptr);
-  const int scroll_pad = block.flag & (UI_BLOCK_CLIPTOP | UI_BLOCK_CLIPBOTTOM) ?
-                             (UI_MENU_SCROLL_MOUSE / block.aspect) :
-                             0;
-  Bounds<int> block_range{block_rect.ymin + scroll_pad, block_rect.ymax - scroll_pad};
+  if (block.flag & (UI_BLOCK_CLIPTOP | UI_BLOCK_CLIPBOTTOM)) {
+    rcti block_rect;
+    ui_but_to_pixelrect(&block_rect, &region, &block, nullptr);
+    const int arrow_size = UI_MENU_SCROLL_MOUSE / block.aspect;
+    const int ymax = block_rect.ymax - ((block.flag & UI_BLOCK_CLIPTOP) ? arrow_size : 0.0f);
+    const int ymin = block_rect.ymin + ((block.flag & UI_BLOCK_CLIPBOTTOM) ? arrow_size : 0.0f);
+    GPU_scissor(block_rect.xmin, ymin, BLI_rcti_size_x(&block_rect), ymax - ymin);
+  }
 
   rcti first_item_but_pixel_rect;
   ui_but_to_pixelrect(&first_item_but_pixel_rect, &region, &block, first_item_but);
   int2 top_left{first_item_but_pixel_rect.xmin, first_item_but_pixel_rect.ymax};
+
   for (const auto &line : lines) {
-    Bounds<int> line_range{top_left.y - line.second.y, top_left.y - line.first.y};
-    std::optional<Bounds<int>> intersection = bounds::intersect(block_range, line_range);
-    if (!intersection) {
-      continue;
-    }
     immBegin(GPU_PRIM_LINES, 2);
-    immVertex2f(pos, top_left.x + line.first.x, intersection->min);
-    immVertex2f(pos, top_left.x + line.second.x, intersection->max);
+    immVertex2f(pos, top_left.x + line.first.x, top_left.y - line.first.y);
+    immVertex2f(pos, top_left.x + line.second.x, top_left.y - line.second.y);
     immEnd();
   }
   GPU_blend(GPU_BLEND_NONE);
 
   immUnbindProgram();
+
+  GPU_scissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 }
 
 void AbstractTreeView::draw_overlays(const ARegion &region, const uiBlock &block) const
