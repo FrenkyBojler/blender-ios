@@ -15,3 +15,4 @@ Referenced by commit 176482edcc495fb7d4b309349836cd32cce702f9, Tests: glTF: Add 
 Referenced by issue #154198, Objects with custom normals are different in 5.1
 Referenced by issue #154600, Deleting UV layers reorders UV layers lower in the list
 Referenced by pull request #154775, Fix: Mesh: Active/default color attribute and UV map not set when created via Python
+Referenced by commit ca0884abb08e02d0350ea3d03f30cab1b28641b1, Fix: Mesh: Active/default color attribute and UV map not set when created via Python
