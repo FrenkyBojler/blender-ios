@@ -475,7 +475,6 @@ static void sample_vertex_attributes(const Span<StringRef> ids,
 }
 
 static void sample_corner_attributes(const Span<StringRef> ids,
-                                     Span<int> corner_verts,
                                      Span<int3> corner_tris,
                                      Span<int> tri_indices,
                                      Span<float3> bary_coords,
@@ -483,6 +482,16 @@ static void sample_corner_attributes(const Span<StringRef> ids,
                                      MutableAttributeAccessor dst_attributes)
 {
   for (const StringRef id : ids) {
+    const GVArray src = *src_attributes.lookup(id, AttrDomain::Corner);
+    const AttrType type = cpp_type_to_attribute_type(src.type());
+
+    GArray<> dst_point(src.type(), bary_coords.size());
+    mesh_surface_sample::sample_corner_attribute(
+        corner_tris, tri_indices, bary_coords, src, IndexMask(dst_point.size()), dst_point);
+
+    GVArray dst_corner = dst_attributes.adapt_domain(
+        GVArray::from_span(dst_point.as_span()), AttrDomain::Point, AttrDomain::Corner);
+    dst_attributes.add(id, AttrDomain::Corner, type, AttributeInitVArray(dst_corner));
   }
 }
 
@@ -585,7 +594,6 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
 
     if (!corner_ids.is_empty()) {
       sample_corner_attributes(corner_ids,
-                               dst_corner_verts,
                                src_corner_tris,
                                vert_nearest_tris,
                                bary_coords,
