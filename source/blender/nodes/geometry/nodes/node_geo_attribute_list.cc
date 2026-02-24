@@ -22,8 +22,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Geometry");
   b.add_output<decl::String>("Names").structure_type(StructureType::List);
-  b.add_input<decl::Bool>("Filter Data Type").default_value(true);
-  b.add_input<decl::Bool>("Filter Domain").default_value(true);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -76,8 +74,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bNode &node = params.node();
 
   const GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const bool filter_type = params.extract_input<bool>("Filter Data Type");
-  const bool filter_domain = params.extract_input<bool>("Filter Domain");
   const eCustomDataType data_type = eCustomDataType(node.custom1);
   const AttrDomain domain = AttrDomain(node.custom2);
 
@@ -91,14 +87,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   Vector<std::string> names;
 
   attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (filter_domain) {
-      if (iter.domain != domain) {
+    if (data_type != CD_AUTO_FROM_NAME) {
+      if (iter.data_type != bke::custom_data_type_to_attr_type(data_type)) {
         return;
       }
     }
 
-    if (filter_type) {
-      if (iter.data_type != bke::custom_data_type_to_attr_type(data_type)) {
+    if (domain != AttrDomain::Auto) {
+      if (iter.domain != domain) {
         return;
       }
     }
@@ -122,27 +118,21 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_rna(StructRNA *srna)
 {
-  RNA_def_node_enum(
-      srna,
-      "data_type",
-      "Data Type",
-      "Type of attribute data to filter",
-      rna_enum_attribute_type_items,
-      NOD_inline_enum_accessors(custom1),
-      CD_PROP_FLOAT,
-      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
-        *r_free = true;
-        return enum_items_filter(rna_enum_attribute_type_items,
-                                 enums::generic_attribute_type_supported);
-      });
+  RNA_def_node_enum(srna,
+                    "data_type",
+                    "Data Type",
+                    "Type of attribute data to filter",
+                    rna_enum_attribute_type_with_auto_items,
+                    NOD_inline_enum_accessors(custom1),
+                    CD_PROP_FLOAT);
 
   RNA_def_node_enum(srna,
                     "domain",
                     "Domain",
                     "Which attribute to filter",
-                    rna_enum_attribute_domain_items,
+                    rna_enum_attribute_domain_with_auto_items,
                     NOD_inline_enum_accessors(custom2),
-                    int(AttrDomain::Point));
+                    int8_t(AttrDomain::Point));
 }
 
 static void node_register()
