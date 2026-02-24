@@ -109,12 +109,17 @@ void Settings::remove(const StringRef &item)
   std::call_once(settings_init_once, bli_settings_init);
   std::lock_guard<Mutex> lock(settings_mutex);
 
-  /* Ensure the root is a table and the section exists as a table. */
   if (!BLI_settings_current().is_table()) {
     return;
   }
 
-  auto &root_tbl = BLI_settings_current().as_table();
+  toml::table &root_tbl = BLI_settings_current().as_table();
+
+  if (section.is_empty()) {
+    root_tbl.erase(item);
+    return;
+  }
+
   auto section_it = root_tbl.find(section);
   if (section_it == root_tbl.end()) {
     return;
@@ -133,11 +138,9 @@ void Settings::remove_section()
 {
   std::call_once(settings_init_once, bli_settings_init);
   std::lock_guard<Mutex> lock(settings_mutex);
-
-  if (!BLI_settings_current().is_table()) {
+  if (section.is_empty() || !BLI_settings_current().is_table()) {
     return;
   }
-
   toml::table &root_tbl = BLI_settings_current().as_table();
   root_tbl.erase(section);
 }
@@ -148,9 +151,10 @@ template<typename T> T Settings::get(const StringRef &item) const
   std::lock_guard<Mutex> lock(settings_mutex);
   const std::string sec = section;
   const std::string key = item;
-
-  const toml::value &cur = BLI_settings_current()[sec][key];
-  const toml::value &def = BLI_settings_default()[sec][key];
+  const toml::value &cur = sec.empty() ? BLI_settings_current()[key] :
+                                         BLI_settings_current()[sec][key];
+  const toml::value &def = sec.empty() ? BLI_settings_default()[key] :
+                                         BLI_settings_default()[sec][key];
   return toml::get_or(cur, toml::get_or(def, T{}));
 }
 
@@ -158,8 +162,16 @@ template<typename T> void Settings::set(const StringRef &item, const T &value)
 {
   std::call_once(settings_init_once, bli_settings_init);
   std::lock_guard<Mutex> lock(settings_mutex);
-  BLI_settings_current()[section][item] = value;
+  if (section.is_empty()) {
+    BLI_settings_current()[item] = value;
+  }
+  else {
+    BLI_settings_current()[section][item] = value;
+  }
 }
+
+template std::string Settings::get<std::string>(const StringRef &item) const;
+template void Settings::set<std::string>(const StringRef &item, const std::string &value);
 
 template char Settings::get<char>(const StringRef &item) const;
 template void Settings::set<char>(const StringRef &item, const char &value);

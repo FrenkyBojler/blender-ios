@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "BLI_string_ref.hh"
 
 namespace blender {
@@ -37,9 +39,30 @@ struct Settings {
       return Settings(section).get<T>(key);
     }
 
+    /* Prefer std::string for text retrievals (avoids instantiating get<StringRef>). */
+    operator std::string() const
+    {
+      return Settings(section).get<std::string>(key);
+    }
+
     template<typename T> Proxy &operator=(const T &value)
     {
       Settings(section).set<T>(key, value);
+      return *this;
+    }
+
+    /* Provide non-template overloads for strings so string-literals (char[N])
+     * don't force a Settings::set<char[N]> instantiation (causing the unresolved
+     * external). These take precedence over the template operator=. */
+    Proxy &operator=(const std::string &s)
+    {
+      Settings(section).set(key, s);
+      return *this;
+    }
+
+    Proxy &operator=(const char *s)
+    {
+      Settings(section).set(key, std::string(s));
       return *this;
     }
   };
@@ -53,13 +76,16 @@ struct Settings {
     {
       return Settings(section).get<T>(key);
     }
+    operator std::string() const
+    {
+      return Settings(section).get<std::string>(key);
+    }
   };
 
   Proxy operator[](const StringRef &item)
   {
     return Proxy(section, item);
   }
-
   ConstProxy operator[](const StringRef &item) const
   {
     return ConstProxy(section, item);

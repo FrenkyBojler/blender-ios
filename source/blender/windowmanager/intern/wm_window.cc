@@ -476,6 +476,9 @@ static void save_window_bounds_settings(wmWindow *win)
 
   Settings settings("window.dimensions");
   settings[win->runtime->settings_key] = bounds;
+
+  settings.section = "";
+  settings["test"] = "Harley";
 }
 
 void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
