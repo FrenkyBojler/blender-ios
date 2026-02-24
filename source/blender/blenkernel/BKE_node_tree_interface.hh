@@ -386,16 +386,17 @@ struct bNodeTreeInterfaceItemReference {
   int items_count;
 };
 
-using ConstInputCreateFn = FunctionRef<bNode *(bContext &C, bNodeTree &tree, const void *value)>;
-using ImplicitInputCreateFn = FunctionRef<bNode *(bContext &C, bNodeTree &tree)>;
-using ConverterNodeCreateFn =
-    std::function<bNode *(bContext &C, bNodeTree &tree, const void *value)>;
-using SocketValueCopyFn = FunctionRef<void(const void *from_data, void *to_data)>;
-
 /**
- * Returns a function creating a proxy node that outputs a constant value.
+ * True if a constant value node can be created for the socket type.
  */
-ConstInputCreateFn find_proxy_const_input_node_function(eNodeSocketDatatype socket_type);
+bool has_proxy_const_input_node(eNodeSocketDatatype socket_type);
+/**
+ * Create a constant value node for the socket type.
+ */
+bNode *try_create_proxy_const_input_node(eNodeSocketDatatype socket_type,
+                                         bContext &C,
+                                         bNodeTree &tree,
+                                         const void *value);
 
 /**
  * Get animdata paths for the socket value and the matching constant value of an input node.
@@ -408,15 +409,25 @@ get_proxy_const_input_node_animdata_path_mapping(const bNodeTree &tree_of_value_
                                                  const bNodeSocket &socket);
 
 /**
- * Returns a function creating a proxy node that outputs an implicit value.
+ * True if an implicit input node can be created for the socket type.
  */
-ImplicitInputCreateFn find_proxy_implicit_input_node_function(eNodeSocketDatatype socket_type,
-                                                              NodeDefaultInputType default_input);
+bool has_proxy_implicit_input_node(eNodeSocketDatatype socket_type,
+                                   NodeDefaultInputType default_input);
+/**
+ * Create an implicit input node for the socket type.
+ */
+bNode *try_create_proxy_implicit_input_node(eNodeSocketDatatype socket_type,
+                                            NodeDefaultInputType default_input,
+                                            bContext &C,
+                                            bNodeTree &tree);
 
 /**
- * Returns a function creating a proxy node that converts a value to the given type.
+ * Create a type conversion node for the socket type.
  */
-ConverterNodeCreateFn find_proxy_converter_node_function(eNodeSocketDatatype socket_type);
+bNode *create_proxy_converter_node(eNodeSocketDatatype socket_type,
+                                   bContext &C,
+                                   bNodeTree &tree,
+                                   const void *value);
 
 }  // namespace node_interface
 

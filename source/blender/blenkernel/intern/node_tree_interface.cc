@@ -1416,11 +1416,11 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(
   return iosock;
 }
 
+using ConstInputCreateFn = FunctionRef<bNode *(bContext &C, bNodeTree &tree, const void *value)>;
 using ConstInputProxyFnMap = Map<eNodeSocketDatatype, ConstInputCreateFn>;
+using ImplicitInputCreateFn = FunctionRef<bNode *(bContext &C, bNodeTree &tree)>;
 using ImplicitInputProxyFnMap =
     Map<std::pair<eNodeSocketDatatype, NodeDefaultInputType>, ImplicitInputCreateFn>;
-using SocketValueCopyFnMap =
-    Map<std::pair<eNodeSocketDatatype, eNodeSocketDatatype>, SocketValueCopyFn>;
 
 static ConstInputProxyFnMap create_proxy_const_input_node_functions()
 {
@@ -1513,6 +1513,12 @@ static ConstInputProxyFnMap create_proxy_const_input_node_functions()
   return result;
 }
 
+static const ConstInputProxyFnMap &get_proxy_const_input_node_functions()
+{
+  static ConstInputProxyFnMap functions = create_proxy_const_input_node_functions();
+  return functions;
+}
+
 static ImplicitInputProxyFnMap create_proxy_implicit_input_node_functions()
 {
   ImplicitInputProxyFnMap result;
@@ -1556,19 +1562,26 @@ static ImplicitInputProxyFnMap create_proxy_implicit_input_node_functions()
   return result;
 }
 
-template<typename SocketValueType> SocketValueCopyFn copy_socket_value_identity_fn()
+static const ImplicitInputProxyFnMap &get_proxy_implicit_input_node_functions()
 {
-  return [](const void *from_vdata, void *to_vdata) {
-    const auto &from_data = *static_cast<const SocketValueType *>(from_vdata);
-    auto &to_data = *static_cast<SocketValueType *>(to_vdata);
-    to_data = from_data;
-  };
+  static ImplicitInputProxyFnMap functions = create_proxy_implicit_input_node_functions();
+  return functions;
 }
 
-ConstInputCreateFn find_proxy_const_input_node_function(const eNodeSocketDatatype socket_type)
+bool has_proxy_const_input_node(const eNodeSocketDatatype socket_type)
 {
-  static ConstInputProxyFnMap functions = create_proxy_const_input_node_functions();
-  return functions.lookup_default({socket_type}, {});
+  return get_proxy_const_input_node_functions().contains(socket_type);
+}
+
+bNode *try_create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
+                                         bContext &C,
+                                         bNodeTree &tree,
+                                         const void *value)
+{
+  if (const std::optional fn = get_proxy_const_input_node_functions().lookup_try(socket_type)) {
+    return (*fn)(C, tree, value);
+  }
+  return nullptr;
 }
 
 static std::string get_node_property_path(const bNodeTree &tree,
@@ -1659,35 +1672,49 @@ get_proxy_const_input_node_animdata_path_mapping(const bNodeTree &tree_of_value_
   return {};
 }
 
-ImplicitInputCreateFn find_proxy_implicit_input_node_function(
-    const eNodeSocketDatatype socket_type, const NodeDefaultInputType default_input)
+bool has_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
+                                   const NodeDefaultInputType default_input)
 {
-  static ImplicitInputProxyFnMap functions = create_proxy_implicit_input_node_functions();
-  return functions.lookup_default({socket_type, default_input}, {});
+  return get_proxy_implicit_input_node_functions().contains({socket_type, default_input});
 }
 
-ConverterNodeCreateFn find_proxy_converter_node_function(const eNodeSocketDatatype socket_type)
+bNode *try_create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
+                                            const NodeDefaultInputType default_input,
+                                            bContext &C,
+                                            bNodeTree &tree)
+{
+  if (const std::optional fn = get_proxy_implicit_input_node_functions().lookup_try(
+          {socket_type, default_input}))
+  {
+    return (*fn)(C, tree);
+  }
+  return nullptr;
+}
+
+bNode *create_proxy_converter_node(const eNodeSocketDatatype socket_type,
+                                   bContext &C,
+                                   bNodeTree &tree,
+                                   const void *value)
 {
   const bNodeSocketType *socket_typeinfo = bke::node_socket_type_find_static(socket_type);
   if (!socket_typeinfo) {
-    return {};
+    return nullptr;
   }
 
   std::string socket_idname = socket_typeinfo->idname;
-  return [socket_idname](bContext &C, bNodeTree &tree, const void *value) {
-    bNode *node = bke::node_add_node(&C, tree, "NodeImplicitConversion");
-    auto &data = *static_cast<NodeImplicitConversion *>(node->storage);
-    BLI_strncpy(data.type_idname, socket_idname.c_str(), sizeof(data.type_idname));
-    BKE_ntree_update_tag_node_property(&tree, node);
-    BKE_ntree_update_after_single_tree_change(*CTX_data_main(&C), tree);
 
-    bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
-    node_socket_copy_default_value_data(
-        eNodeSocketDatatype(socket->type), socket->default_value, value);
+  bNode *node = bke::node_add_node(&C, tree, "NodeImplicitConversion");
+  auto &data = *static_cast<NodeImplicitConversion *>(node->storage);
+  BLI_strncpy(data.type_idname, socket_idname.c_str(), sizeof(data.type_idname));
+  BKE_ntree_update_tag_node_property(&tree, node);
+  BKE_ntree_update_after_single_tree_change(*CTX_data_main(&C), tree);
 
-    node->flag |= NODE_COLLAPSED;
-    return node;
-  };
+  bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
+  node_socket_copy_default_value_data(
+      eNodeSocketDatatype(socket->type), socket->default_value, value);
+
+  node->flag |= NODE_COLLAPSED;
+  return node;
 }
 
 static bNodeTreeInterfacePanel *make_panel(const int uid,

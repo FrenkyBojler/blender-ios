@@ -878,19 +878,15 @@ static void replace_interface_socket(
 {
   const eNodeSocketDatatype socket_type = bke::node_socket_type_find(io_socket.socket_type)->type;
   const bool is_input = io_socket.flag & NODE_INTERFACE_SOCKET_INPUT;
+  const NodeDefaultInputType default_input_type = NodeDefaultInputType(io_socket.default_input);
+  const bool has_const_input = bke::node_interface::has_proxy_const_input_node(socket_type);
+  const bool has_implicit_input = bke::node_interface::has_proxy_implicit_input_node(
+      socket_type, default_input_type);
 
   /* If there are no output connections the socket is unused and can be discarded. */
   if (outgoing_links.is_empty()) {
     return;
   }
-
-  const bke::node_interface::ConverterNodeCreateFn converter_fn =
-      bke::node_interface::find_proxy_converter_node_function(socket_type);
-  const bke::node_interface::ConstInputCreateFn const_input_fn =
-      bke::node_interface::find_proxy_const_input_node_function(socket_type);
-  const bke::node_interface::ImplicitInputCreateFn implicit_input_fn =
-      bke::node_interface::find_proxy_implicit_input_node_function(
-          socket_type, NodeDefaultInputType(io_socket.default_input));
 
   /* Find the socket input value to use, if available. */
   const bNodeTree &group_tree = *id_cast<bNodeTree *>(group_node->id);
@@ -913,7 +909,7 @@ static void replace_interface_socket(
   if (incoming_links.is_empty()) {
     /* The socket has no incoming links, a proxy is needed if a socket value needs to be stored or
      * a default input node must be used. */
-    if (socket_value || implicit_input_fn) {
+    if (socket_value || has_implicit_input) {
       needs_proxy = true;
       use_default_value_or_input = true;
     }
@@ -932,11 +928,15 @@ static void replace_interface_socket(
   bNode *proxy_node = nullptr;
   if (needs_proxy) {
     if (use_default_value_or_input) {
-      if (implicit_input_fn) {
-        proxy_node = implicit_input_fn(C, dst_tree);
+      if (has_implicit_input) {
+        proxy_node = bke::node_interface::try_create_proxy_implicit_input_node(
+            socket_type, default_input_type, C, dst_tree);
+        BLI_assert(proxy_node);
       }
-      else if (const_input_fn) {
-        proxy_node = const_input_fn(C, dst_tree, socket_value);
+      else if (has_const_input) {
+        proxy_node = bke::node_interface::try_create_proxy_const_input_node(
+            socket_type, C, dst_tree, socket_value);
+        BLI_assert(proxy_node);
         if (value_source_socket) {
           const std::optional<std::pair<std::string, std::string>> proxy_path_mapping =
               bke::node_interface::get_proxy_const_input_node_animdata_path_mapping(
@@ -949,14 +949,14 @@ static void replace_interface_socket(
       }
     }
     else {
-      if (converter_fn) {
-        proxy_node = converter_fn(C, dst_tree, socket_value);
-        if (value_source_socket) {
-          const auto [proxy_input, proxy_output] = find_proxy_node_sockets(*proxy_node);
-          if (proxy_input) {
-            anim_basepaths.append({socket_basepath(value_source_tree, *value_source_socket),
-                                   socket_basepath(dst_tree, proxy_input->find_socket())});
-          }
+      proxy_node = bke::node_interface::create_proxy_converter_node(
+          socket_type, C, dst_tree, socket_value);
+      BLI_assert(proxy_node);
+      if (value_source_socket) {
+        const auto [proxy_input, proxy_output] = find_proxy_node_sockets(*proxy_node);
+        if (proxy_input) {
+          anim_basepaths.append({socket_basepath(value_source_tree, *value_source_socket),
+                                 socket_basepath(dst_tree, proxy_input->find_socket())});
         }
       }
     }
