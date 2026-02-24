@@ -5020,12 +5020,11 @@ static int ui_do_but_TEX(
       }
     }
     else if (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_CTRL)) {
-      if ((but->type == ButtonType::SearchMenu) && but->func_argN &&
-          (static_cast<ButtonSearch *>(but)->arg == but->func_argN))
-      {
-        /* Disable value cycling for search buttons with an allocated search data argument. This
-         * causes issues because the search data is moved to the "afterfuncs", but search updating
-         * requires it again. See #147539. */
+      if (but->type == ButtonType::SearchMenu) {
+        /* Disable value cycling for search buttons. This causes issues because the search data is
+         * moved to the "afterfuncs", but search updating requires it again or somethimes this
+         * event can be triguered twice in row without the button being refreshed. See #147539 and
+         * #152976. */
       }
       else {
         const int inc_value = (event->type == WHEELUPMOUSE) ? 1 : -1;
@@ -10171,7 +10170,7 @@ static int ui_handle_list_event(bContext *C,
 
         Button *but = button_first(listbox->block);
         if (but && but->type == ButtonType::ListRow) {
-          ui_apply_but_undo(but);
+          ED_undo_grouped_push(C, but->tip.data());
         }
 
         ui_list->flag |= UILST_SCROLL_TO_ACTIVE_ITEM;

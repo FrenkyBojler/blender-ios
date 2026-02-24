@@ -590,7 +590,7 @@ static void GREASE_PENCIL_OT_delete(wmOperatorType *ot)
        0,
        "Only Strokes",
        "Delete only strokes and not fills"},
-      {int(DeleteMode::OnlyFills), "FILLS", 0, "Only Fills", "Delte only fills and not strokes"},
+      {int(DeleteMode::OnlyFills), "FILLS", 0, "Only Fills", "Delete only fills and not strokes"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -5133,6 +5133,7 @@ static void GREASE_PENCIL_OT_set_stroke_type(wmOperatorType *ot)
 
   ot->prop = RNA_def_enum(
       ot->srna, "type", prop_stroke_type_types, int(StrokeType::Stroke), "Type", "");
+  RNA_def_property_translation_context(ot->prop, BLT_I18NCONTEXT_ID_GPENCIL);
 }
 
 /** \} */
