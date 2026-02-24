@@ -7,6 +7,7 @@ set(INC
   ..
   include
   ../intern
+  ../shader
   ../../editors/include
   ../../makesrna
   # RNA_prototypes.hh
@@ -45,6 +46,7 @@ set(SRC
   nodes/node_fn_match_string.cc
   nodes/node_fn_matrix_determinant.cc
   nodes/node_fn_matrix_multiply.cc
+  nodes/node_fn_matrix_svd.cc
   nodes/node_fn_project_point.cc
   nodes/node_fn_quaternion_to_rotation.cc
   nodes/node_fn_random_value.cc
@@ -80,6 +82,7 @@ set(LIB
   PRIVATE bf::blenloader
   PRIVATE bf::dna
   PRIVATE bf::functions
+  PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
