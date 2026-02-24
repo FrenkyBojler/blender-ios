@@ -4791,8 +4791,9 @@ void BKE_object_get_mirror_axes(const Object *ob, bool r_axis[3])
   for (ModifierData &md : ob->modifiers) {
     if (md.type == eModifierType_Mirror && (md.mode & eModifierMode_Realtime)) {
       const MirrorModifierData *mmd = reinterpret_cast<MirrorModifierData *>(&md);
-      /* Only consider the mirror axes when merging is enabled. */
-      if (!(mmd->flag & MOD_MIR_NO_MERGE)) {
+      /* Only consider the mirror axes when merging is enabled and there's no
+       * mirror object set. */
+      if (!(mmd->flag & MOD_MIR_NO_MERGE && mmd->mirror_ob == nullptr)) {
         if (mmd->flag & MOD_MIR_AXIS_X) {
           r_axis[0] = true;
         }
