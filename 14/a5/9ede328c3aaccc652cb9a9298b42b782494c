@@ -1,1 +1,2 @@
 Referenced by issue #133176, Regression: use-after free when removing modifiers
+Referenced by issue #132902, Asset Shelf: heap-use-after-free crash when undo'ing in pose mode
