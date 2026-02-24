@@ -553,7 +553,7 @@ void GRAPH_OT_ghost_curves_clear(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static uint free_localview_bit(Main *bmain)
+static uint find_free_localview_bit(Main *bmain)
 {
   ushort local_view_bits = 0;
 
@@ -580,7 +580,7 @@ static uint free_localview_bit(Main *bmain)
   return 0;
 }
 
-static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphview_fcurves_isolate_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
@@ -610,7 +610,7 @@ static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator * 
 
   if (enter_local_view) {
     /* Find a bit and set local view for graph editor in current context */
-    sipo->local_view_bits = free_localview_bit(CTX_data_main(C));
+    sipo->local_view_bits = find_free_localview_bit(CTX_data_main(C));
     sipo->cur = ac.region->v2d.cur;
   }
 
@@ -658,12 +658,12 @@ static wmOperatorStatus graphview_curves_isolate_exec(bContext *C, wmOperator * 
 void GRAPH_OT_isolate(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Isolate Curves";
+  ot->name = "Isolate F-Curves";
   ot->idname = "GRAPH_OT_isolate";
-  ot->description = "Isolate selected curves in Graph Editor view";
+  ot->description = "Isolate selected F-Curves in Graph Editor view";
 
   /* API callbacks. */
-  ot->exec = graphview_curves_isolate_exec;
+  ot->exec = graphview_fcurves_isolate_exec;
   ot->poll = ED_operator_graphedit_active;
 
   /* flags */
