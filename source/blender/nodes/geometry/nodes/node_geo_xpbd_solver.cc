@@ -963,14 +963,14 @@ class XpbdSolverStep {
       const float3 collision_axis = contact->is_inside_without_radius ?
                                         contact_pos_local - pos_local :
                                         pos_local - contact_pos_local;
-      const float3 separating_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
-                                                         math::transpose(float3x3(local_to_mesh)) *
-                                                             contact->nearest_pos :
-                                                         collision_axis);
+      const float3 valid_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
+                                                    math::transpose(float3x3(local_to_mesh)) *
+                                                        contact->nearest_pos :
+                                                    collision_axis);
       const int contact_i = r_contacts.points.append_and_get_index(point_i);
-      r_contacts.positions_on_plane.append(contact_pos_local + radius * separating_axis);
+      r_contacts.positions_on_plane.append(contact_pos_local + radius * valid_axis);
       r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
-      r_contacts.separating_axes.append(separating_axis);
+      r_contacts.separating_axes.append(valid_axis);
       r_contacts.static_frictions.append(static_friction);
       r_contacts.dynamic_frictions.append(dynamic_friction);
       r_contacts.compliance_terms.append(
@@ -1042,14 +1042,14 @@ class XpbdSolverStep {
       const float3 collision_axis = contact->is_inside_without_radius ?
                                         contact_pos_local - pos_local :
                                         pos_local - contact_pos_local;
-      const float3 separating_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
-                                                         math::transpose(float3x3(local_to_mesh)) *
-                                                             contact->nearest_pos :
-                                                         collision_axis);
+      const float3 valid_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
+                                                    math::transpose(float3x3(local_to_mesh)) *
+                                                        contact->nearest_pos :
+                                                    collision_axis);
       const int contact_i = r_contacts.points.append_and_get_index(point_i);
-      r_contacts.positions_on_plane.append(contact_pos_local + radius * separating_axis);
+      r_contacts.positions_on_plane.append(contact_pos_local + radius * valid_axis);
       r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
-      r_contacts.separating_axes.append(separating_axis);
+      r_contacts.separating_axes.append(valid_axis);
       r_contacts.static_frictions.append(static_friction);
       r_contacts.dynamic_frictions.append(dynamic_friction);
       r_contacts.compliance_terms.append(
@@ -1101,7 +1101,7 @@ class XpbdSolverStep {
     if (this->is_bary_coord_close_to_edge(bary_coords)) {
       /* The nearest point is on an edge, so its normal is unreliable, use a more robust test. */
       is_inside_without_radius = this->test_is_inside_ray_using_rays(
-          contact_pos, corner_tris_bvh, direction_to_mesh);
+          sample_pos, corner_tris_bvh, direction_to_mesh);
     }
     else {
       is_inside_without_radius = math::dot(direction_to_mesh, float3(nearest.no)) > 0.0f;
