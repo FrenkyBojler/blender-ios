@@ -266,11 +266,12 @@ static void calculate_circle_best_fit(Span<CircleVert> verts,
    * is simply the average radius. */
   if (fixed_center.has_value()) {
     r_center = *fixed_center;
-    *r_radius = 0.0f;
+    float radius = 0.0f;
     for (const CircleVert &cv : verts) {
-      *r_radius += math::length(cv.co_2d);
+      radius += math::length(cv.co_2d);
     }
-    *r_radius /= verts.size();
+    radius /= verts.size();
+    *r_radius = radius;
     return;
   }
 
@@ -328,33 +329,37 @@ static void calculate_circle_inside_fit(Span<CircleVert> verts,
                                         float2 &r_center,
                                         float *r_radius)
 {
+  float2 center;
   if (fixed_center.has_value()) {
-    r_center = *fixed_center;
+    center = *fixed_center;
   }
   else {
     float total_edge_length = 0.0f;
-    r_center = float2(0.0f);
+    center = float2(0.0f);
     float2 prev_co = verts.last().co_2d;
 
     for (const CircleVert &cv : verts) {
       const float2 &curr_co = cv.co_2d;
       const float edge_length = math::distance(prev_co, curr_co);
-      r_center += (prev_co + curr_co) * edge_length;
+      center += (prev_co + curr_co) * edge_length;
       total_edge_length += edge_length;
       prev_co = curr_co;
     }
     if (total_edge_length != 0.0f) {
-      r_center *= (0.5f / total_edge_length);
+      center *= (0.5f / total_edge_length);
     }
   }
 
-  *r_radius = FLT_MAX;
+  float radius = FLT_MAX;
   for (const CircleVert &cv : verts) {
-    const float dist = math::distance(r_center, cv.co_2d);
-    if (dist < *r_radius) {
-      *r_radius = dist;
+    const float dist = math::distance(center, cv.co_2d);
+    if (dist < radius) {
+      radius = dist;
     }
   }
+
+  r_center = center;
+  *r_radius = radius;
 }
 
 static void calculate_target_locations(MutableSpan<CircleVert> verts,
