@@ -861,9 +861,7 @@ find_proxy_node_sockets(bNode &proxy_node)
 
 using UniqueLinkSet = Set<std::pair<MutableNodeAndSocket, MutableNodeAndSocket>>;
 
-/* Replace an interface socket by adding proxy nodes and/or storing the input value directly in
- * connected socket values.
- */
+/* Replace an interface socket by adding proxy nodes. */
 static void replace_interface_socket(
     bContext &C,
     bNodeTree &dst_tree,

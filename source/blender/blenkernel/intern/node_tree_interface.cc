@@ -17,7 +17,6 @@
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
 #include "BLI_string.h"
-#include "BLI_string_utf8.h"
 
 #include "BLO_read_write.hh"
 
