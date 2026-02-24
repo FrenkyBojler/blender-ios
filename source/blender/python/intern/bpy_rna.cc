@@ -6127,7 +6127,14 @@ PyDoc_STRVAR(
     pyrna_prop_collection_foreach_get_doc,
     ".. method:: foreach_get(attr, seq)\n"
     "\n"
-    "   This is a function to give fast access to attributes within a collection.\n");
+    "   Fast access to a basic-type attribute within a collection.\n"
+    "\n"
+    "   :param attr: Name of the item attribute to read (for example ``co``, ``normal`` or\n"
+    "      ``select``). The attribute must be a basic type (bool, int or float).\n"
+    "   :type attr: str\n"
+    "   :param seq: Writable sequence or buffer receiving flattened values.\n"
+    "      For array attributes, the length must be ``len(collection) * array_length``.\n"
+    "   :type seq: Sequence[bool | int | float] | buffer\n");
 static PyObject *pyrna_prop_collection_foreach_get(BPy_PropertyRNA *self, PyObject *args)
 {
   PYRNA_PROP_CHECK_OBJ(self);
@@ -6140,7 +6147,19 @@ PyDoc_STRVAR(
     pyrna_prop_collection_foreach_set_doc,
     ".. method:: foreach_set(attr, seq)\n"
     "\n"
-    "   This is a function to give fast access to attributes within a collection.\n");
+    "   Fast access to a basic-type attribute within a collection.\n"
+    "\n"
+    "   :param attr: Name of the item attribute to write (for example ``co``, ``normal`` or\n"
+    "      ``select``). The attribute must be a basic type (bool, int or float).\n"
+    "      If unsure, inspect the available properties on the collection item type.\n"
+    "      For ``Attribute.data`` collections, common mappings are:\n"
+    "      ``FLOAT``, ``INT``, ``BOOLEAN``, ``INT32_2D``, ``QUATERNION`` and ``FLOAT4X4``\n"
+    "      use ``value``; ``FLOAT_VECTOR``, ``FLOAT2`` and ``FLOAT4`` use ``vector``;\n"
+    "      ``FLOAT_COLOR`` and ``BYTE_COLOR`` use ``color``.\n"
+    "   :type attr: str\n"
+    "   :param seq: Sequence or buffer containing flattened values.\n"
+    "      For array attributes, the length must be ``len(collection) * array_length``.\n"
+    "   :type seq: Sequence[bool | int | float] | buffer\n");
 static PyObject *pyrna_prop_collection_foreach_set(BPy_PropertyRNA *self, PyObject *args)
 {
   PYRNA_PROP_CHECK_OBJ(self);
