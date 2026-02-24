@@ -12,15 +12,16 @@
 
 #pragma once
 
-#include "GHOST_Types.h"
+#include "GHOST_Types.hh"
+
+struct GPUContext;
+namespace blender {
 
 struct bContext;
-struct GPUContext;
-
 struct wmSurface {
   wmSurface *next, *prev;
 
-  GHOST_ContextHandle system_gpu_context;
+  GHOST_IContext *system_gpu_context;
   GPUContext *blender_gpu_context;
 
   void *customdata;
@@ -57,3 +58,5 @@ void wm_surface_make_drawable(wmSurface *surface);
 void wm_surface_clear_drawable();
 void wm_surface_set_drawable(wmSurface *surface, bool activate);
 void wm_surface_reset_drawable();
+
+}  // namespace blender

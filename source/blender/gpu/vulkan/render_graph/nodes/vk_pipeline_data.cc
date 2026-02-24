@@ -10,6 +10,8 @@
 #include "render_graph/vk_command_buffer_wrapper.hh"
 #include "render_graph/vk_render_graph_links.hh"
 
+#include "vk_backend.hh"
+
 namespace blender::gpu::render_graph {
 void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src)
 {
@@ -17,7 +19,7 @@ void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src)
   dst.push_constants_size = src.push_constants_size;
   if (src.push_constants_size) {
     BLI_assert(src.push_constants_data);
-    void *data = MEM_mallocN(src.push_constants_size, __func__);
+    void *data = MEM_new_uninitialized(src.push_constants_size, __func__);
     memcpy(data, src.push_constants_data, src.push_constants_size);
     dst.push_constants_data = data;
   }
@@ -47,6 +49,16 @@ void vk_pipeline_dynamic_graphics_build_commands(VKCommandBufferInterface &comma
   if (assign_if_different(r_bound_pipelines.graphics.front_face, graphics.front_face)) {
     if (graphics.front_face.has_value()) {
       command_buffer.set_front_face(*graphics.front_face);
+    }
+  }
+  if (assign_if_different(r_bound_pipelines.graphics.vertex_input_description,
+                          graphics.vertex_input_description))
+  {
+    if (graphics.vertex_input_description.has_value()) {
+      VKDevice &device = VKBackend::get().device;
+      const VKVertexInputDescription &description = device.vertex_input_descriptions.get(
+          *graphics.vertex_input_description);
+      command_buffer.set_vertex_input(description.bindings, description.attributes);
     }
   }
 }
@@ -85,7 +97,7 @@ void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
 void vk_pipeline_data_free(VKPipelineData &data)
 {
   if (data.push_constants_data) {
-    MEM_freeN(const_cast<void *>(data.push_constants_data));
+    MEM_delete_void(const_cast<void *>(data.push_constants_data));
     data.push_constants_data = nullptr;
   }
 }
