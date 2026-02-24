@@ -911,7 +911,10 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
   const float rectg[4] = {
       float(rect_geo.xmin), float(rect_geo.ymin), float(rect_geo.xmax), float(rect_geo.ymax)};
 
-  GPU_blend(GPU_BLEND_ALPHA_PREMULT);
+  if (blend) {
+    /* Regions drawn off-screen have pre-multiplied alpha. */
+    GPU_blend(GPU_BLEND_ALPHA_PREMULT);
+  }
 
   /* Setup actual texture. */
   gpu::Texture *texture = wm_draw_region_texture(region, view);
