@@ -23,7 +23,7 @@ from . import global_report
 from .colored_print import (print_message, use_message_colors)
 
 
-def blend_list(dirpath, blocklist, filter):
+def file_list(dirpath, blocklist, filter, extension):
     import re
 
     positive_patterns = []
@@ -41,7 +41,7 @@ def blend_list(dirpath, blocklist, filter):
 
     for root, dirs, files in os.walk(dirpath):
         for filename in files:
-            if not filename.lower().endswith(".blend"):
+            if not filename.lower().endswith(extension):
                 continue
 
             skip = False
@@ -247,9 +247,10 @@ class Report:
         'compare_tests',
         'compare_engine',
         'blocklist',
+        'extension'
     )
 
-    def __init__(self, title, output_dir, oiiotool, variation=None, blocklist=[]):
+    def __init__(self, title, output_dir, oiiotool, variation=None, blocklist=[], extension=".blend"):
         self.title = title
 
         # Normalize the path to avoid output_dir and global_dir being the same when a directory
@@ -265,6 +266,7 @@ class Report:
         self.fail_percent = 1
         self.engine_name = self.title.lower().replace(" ", "_")
         self.blocklist = [] if os.getenv('BLENDER_TEST_IGNORE_BLOCKLIST') is not None else blocklist
+        self.extension = extension
 
         if variation:
             self.title = self._engine_title(title, variation)
@@ -543,7 +545,7 @@ class Report:
         return []
 
     def _get_filepath_tests(self, filepath):
-        list_filepath = filepath.replace('.blend', '_permutations.txt')
+        list_filepath = filepath.replace(self.extension, '_permutations.txt')
         if os.path.exists(list_filepath):
             with open(list_filepath, 'r') as file:
                 return [TestResult(self, filepath, testname.rstrip('\n')) for testname in file]
@@ -690,9 +692,9 @@ class Report:
         passed_tests = []
         failed_tests = []
         silently_failed_tests = []
-        all_files = list(blend_list(dirpath, self.blocklist, self.filter))
+        all_files = list(file_list(dirpath, self.blocklist, self.filter, self.extension))
         all_files.sort()
-        if not list(blend_list(dirpath, [], "")):
+        if not list(file_list(dirpath, [], "", self.extension)):
             print_message("No .blend files found in '{}'!".format(dirpath), 'FAILURE', 'FAILED')
             return False
 

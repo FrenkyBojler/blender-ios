@@ -4,57 +4,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+
 import os
 import sys
+from pathlib import Path
 
 
-def render_font_test():
-    """Render the font test and save to output_path."""
+def get_test_script_dir():
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    test_scripts = os.path.join(current_dir, "bf_render_tests")
+    return test_scripts
 
-    # Import BLF and image buffer utilities only when running inside Blender
-    import blf
-    import imbuf
-
-    output_path = sys.argv[sys.argv.index("--") + 1]
-
-    # Simple hardcoded configuration
-    image_size = (512, 128)
-    font_size = 24
-    text = "The quick brown fox jumps over the lazy dog."
-    text_position = (10, 90)
-
-    # Create image buffer
-    ibuf = imbuf.new(image_size)
-
-    # Use default built-in font
-    font_id = 0
-
-    # Configure font
-    blf.color(font_id, 0.3, 0.3, 0.3, 1.0)  # Grey Text (readable on black and white background)
-    blf.size(font_id, font_size)
-    blf.position(font_id, text_position[0], text_position[1], 0)
-    blf.disable(font_id, blf.WORD_WRAP)
-
-    with blf.bind_imbuf(font_id, ibuf, display_name="sRGB"):
-        blf.draw_buffer(font_id, text)
-
-    print(f"Saving image to: {output_path}")
-    imbuf.write(ibuf, filepath=output_path)
-
-    bpy.ops.wm.quit_blender()
-
-
-# When run from inside Blender, render and exit.
-try:
-    import bpy
-    inside_blender = True
-except Exception:
-    inside_blender = False
-
-
-if inside_blender:
-    render_font_test()
-    sys.exit(0)
 
 def get_arguments(filepath, output_filepath):
     """Get command line arguments for rendering font test.
@@ -62,6 +22,20 @@ def get_arguments(filepath, output_filepath):
     Args:
         output_filepath: Where to save the rendered PNG
     """
+  
+    # Windows separators get messed up when passing them inside the python expression
+    output_filepath = output_filepath.replace("\\", "/")
+
+    script_name = Path(filepath).stem + ".py"
+    script_filepath = os.path.join(get_test_script_dir(), script_name)
+
+    # build an expression which sets sys.argv and runs the file directly.
+    # Allows for multiple tests in same Blender session via render_report.Report
+    expr = (
+        "import runpy, sys;"
+        f"sys.argv=['{script_filepath}','--','{output_filepath}0001.png'];"
+        "runpy.run_path(sys.argv[0], run_name='__main__')"
+    )
 
     return [
         "--background",
@@ -69,9 +43,7 @@ def get_arguments(filepath, output_filepath):
         "--enable-autoexec",
         "--debug-memory",
         "--debug-exit-on-error",
-        "--python", os.path.realpath(__file__),
-        "--",
-        output_filepath + "0001.png",
+        "--python-expr", expr,
     ]
 
 def create_argparse():
@@ -92,11 +64,12 @@ def main():
     args = parser.parse_args()
 
     from modules import render_report
-
-    report = render_report.Report("BLF Font Rendering", args.outdir, args.oiiotool)
-    report.set_reference_dir("blf_renders")
-
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
+    
+    report = render_report.Report("BLF Font Rendering", args.outdir, args.oiiotool, extension=".py")
+    report.set_reference_override_dir(Path(args.testdir) / "blf_renders") # Where test reference images are stored
+    
+    test_scripts = get_test_script_dir()
+    ok = report.run(test_scripts, args.blender, get_arguments, batch=args.batch)
     sys.exit(not ok)
 
 
