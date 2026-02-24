@@ -66,6 +66,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
                                            const grid::GetVoxelsFn get_voxels_fn)
 {
   /* Create an index mask for all the active voxels in the leaf. */
+
   IndexMaskMemory memory;
   const IndexMask index_mask = IndexMask::from_predicate(
       IndexRange(grid::LeafNodeMask::SIZE),
