@@ -493,7 +493,7 @@ void VKCommandBuilder::add_buffer_read_barriers(VKRenderGraph &render_graph,
                                                 Barrier &r_barrier)
 {
   for (const VKRenderGraphBuffer &link : render_graph.linked_buffers(node_handle)) {
-    if (link.is_output()) {
+    if (link.has_write_access()) {
       continue;
     }
     const ResourceWithStamp &versioned_resource = link.resource;
@@ -535,7 +535,7 @@ void VKCommandBuilder::add_buffer_write_barriers(VKRenderGraph &render_graph,
                                                  Barrier &r_barrier)
 {
   for (const VKRenderGraphBuffer &link : render_graph.linked_buffers(node_handle)) {
-    if (!link.is_output()) {
+    if (!link.has_write_access()) {
       continue;
     }
     const ResourceWithStamp &versioned_resource = link.resource;
@@ -617,7 +617,7 @@ void VKCommandBuilder::add_image_read_barriers(VKRenderGraph &render_graph,
                                                bool within_rendering)
 {
   for (const VKRenderGraphImage &link : render_graph.linked_images(node_handle)) {
-    if (link.is_output()) {
+    if (link.has_write_access()) {
       continue;
     }
     const ResourceWithStamp &versioned_resource = link.resource;
@@ -687,7 +687,7 @@ void VKCommandBuilder::add_image_write_barriers(VKRenderGraph &render_graph,
                                                 bool within_rendering)
 {
   for (const VKRenderGraphImage &link : render_graph.linked_images(node_handle)) {
-    if (!link.is_output()) {
+    if (!link.has_write_access()) {
       continue;
     }
     const ResourceWithStamp &versioned_resource = link.resource;

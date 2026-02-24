@@ -25,7 +25,7 @@ void VKRenderGraph::reset()
   for (VKRenderGraphNode &node : nodes_) {
     node.free_data();
   }
-  nodes_.clear_and_shrink();
+  nodes_.clear();
   storage_.reset();
 
   debug_.node_group_map.clear();

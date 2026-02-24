@@ -44,15 +44,13 @@ struct VKRenderGraphResource {
    */
   VkAccessFlags vk_access_flags;
 
-  bool is_output() const
+  bool has_write_access() const
   {
     return vk_access_flags & VK_ACCESS_WRITE_MASK;
   }
 };
 
-struct VKRenderGraphBuffer : public VKRenderGraphResource {
-  void debug_print(std::ostream &ss, const VKResourceStateTracker &resources) const;
-};
+struct VKRenderGraphBuffer : public VKRenderGraphResource {};
 
 struct VKRenderGraphImage : public VKRenderGraphResource {
   /**
@@ -74,8 +72,6 @@ struct VKRenderGraphImage : public VKRenderGraphResource {
    * Used when layer_tracking will be enabled to transit the layout of these layers only.
    */
   VKSubImageRange subimage;
-
-  void debug_print(std::ostream &ss, const VKResourceStateTracker &resources) const;
 };
 
 struct VKRenderGraphLinks {
@@ -98,7 +94,6 @@ struct VKRenderGraphLinks {
     buffers.clear();
     images.clear();
   }
-
 };
 
 }  // namespace blender::gpu::render_graph
