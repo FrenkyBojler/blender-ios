@@ -1982,11 +1982,13 @@ static void rna_SpaceImageEditor_image_set(PointerRNA *ptr,
   BLI_assert(BKE_id_is_in_global_main(static_cast<ID *>(value.data)));
   SpaceImage *sima = static_cast<SpaceImage *>(ptr->data);
   Image *ima = static_cast<Image *>(value.data);
-  const float x = ima->runtime->view_offset[0];
-  const float y = ima->runtime->view_offset[1];
-  sima->xof = x;
-  sima->yof = y;
-  sima->zoom = ima->runtime->view_zoom;
+  if (ima) {
+    const float x = ima->runtime->view_offset[0];
+    const float y = ima->runtime->view_offset[1];
+    sima->xof = x;
+    sima->yof = y;
+    sima->zoom = ima->runtime->view_zoom;
+  }
   ED_space_image_set(G_MAIN, sima, ima, false);
 }
 
