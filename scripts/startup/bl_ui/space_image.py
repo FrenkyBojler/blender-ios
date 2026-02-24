@@ -1600,8 +1600,9 @@ class IMAGE_PT_gizmo_display(Panel):
         colsub = col.column()
         colsub.prop(view, "show_gizmo_navigate", text="Navigate")
 
-        show_compositor_gizmos = (view.image and view.image.type == 'COMPOSITING' and
-                                  view.ui_mode == 'VIEW' or view.ui_mode == 'MASK')
+        image = view.image
+        show_compositor_gizmos = (image is not None and image.type == 'COMPOSITING' and
+                                  view.ui_mode in ('VIEW', 'MASK'))
         if show_compositor_gizmos:
             colsub = col.column()
             colsub.prop(view, "show_gizmo_active_node")
