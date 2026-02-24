@@ -491,7 +491,7 @@ static void sample_corner_attributes(const Span<StringRef> ids,
 
     GVArray dst_corner = dst_attributes.adapt_domain(
         GVArray::from_span(dst_point.as_span()), AttrDomain::Point, AttrDomain::Corner);
-    dst_attributes.add(id, AttrDomain::Corner, type, AttributeInitVArray(dst_corner));
+    dst_attributes.add(id, AttrDomain::Corner, type, AttributeInitVArray(std::move(dst_corner)));
   }
 }
 

@@ -22,7 +22,7 @@ from modules.mesh_test import RunTest, SpecMeshTest, OperatorSpec
 
 def main():
     tests = [
-        SpecMeshTest("Color Interpolation", "testPlane", "expectedPlane",
+        SpecMeshTest("Color Interpolation", "testCube", "expectedCube",
                      [
                          OperatorSpec('SCULPT', 'ed.undo_push', {}),
                          OperatorSpec('SCULPT', 'object.voxel_remesh', {}),
