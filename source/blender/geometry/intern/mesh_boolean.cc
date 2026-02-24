@@ -144,7 +144,7 @@ void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
     const CommonVArrayInfo info = reader.varray.common_info();
     if (info.type == CommonVArrayInfo::Type::Single) {
       const bke::AttributeInitValue init(GPointer(reader.varray.type(), info.data));
-      output_attrs.add(iter.name, bke::AttrDomain::Point, iter.data_type, init);
+      output_attrs.add(iter.name, iter.domain, iter.data_type, init);
       return;
     }
 
@@ -705,6 +705,12 @@ static void gather_attributes_with_check(const bke::AttributeAccessor src_attrib
       return;
     }
     const bke::GAttributeReader src = iter.get(src_domain);
+    const CommonVArrayInfo info = src.varray.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const bke::AttributeInitValue init(GPointer(src.varray.type(), info.data));
+      dst_attributes.add(iter.name, iter.domain, iter.data_type, init);
+      return;
+    }
     bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, dst_domain, iter.data_type);
     if (!dst) {
@@ -1221,7 +1227,7 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
 #endif
   switch (solver) {
     case Solver::Float:
-      *r_error = BooleanError::NoError;
+      r_error->type = BooleanErrorType::NoError;
       ans = mesh_boolean_float(meshes,
                                transforms,
                                material_remaps,
@@ -1230,7 +1236,7 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
       break;
     case Solver::MeshArr:
 #ifdef WITH_GMP
-      *r_error = BooleanError::NoError;
+      r_error->type = BooleanErrorType::NoError;
       ans = mesh_boolean_mesh_arr(meshes,
                                   transforms,
                                   material_remaps,
@@ -1239,7 +1245,7 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
                                   operation_to_mesh_arr_mode(op_params.boolean_mode),
                                   r_intersecting_edges);
 #else
-      *r_error = BooleanError::SolverNotAvailable;
+      r_error->type = BooleanErrorType::SolverNotAvailable;
 #endif
       break;
     case Solver::Manifold:
@@ -1247,7 +1253,7 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
       ans = mesh_boolean_manifold(
           meshes, transforms, material_remaps, op_params, r_intersecting_edges, r_error);
 #else
-      *r_error = BooleanError::SolverNotAvailable;
+      r_error->type = BooleanErrorType::SolverNotAvailable;
 #endif
       break;
     default:

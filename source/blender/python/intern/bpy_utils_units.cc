@@ -148,7 +148,7 @@ static bool bpyunits_validate(const char *usys_str, const char *ucat_str, int *r
 PyDoc_STRVAR(
     /* Wrap. */
     bpyunits_to_value_doc,
-    ".. method:: to_value(unit_system, unit_category, str_input, *, str_ref_unit=None)\n"
+    ".. function:: to_value(unit_system, unit_category, str_input, *, str_ref_unit=None)\n"
     "\n"
     "   Convert a given input string into a float value.\n"
     "\n"
@@ -230,7 +230,7 @@ static PyObject *bpyunits_to_value(PyObject * /*self*/, PyObject *args, PyObject
 PyDoc_STRVAR(
     /* Wrap. */
     bpyunits_to_string_doc,
-    ".. method:: to_string(unit_system, unit_category, value, *, precision=3, "
+    ".. function:: to_string(unit_system, unit_category, value, *, precision=3, "
     "split_unit=False, compatible_unit=False)\n"
     "\n"
     "   Convert a given input float value into a string with units.\n"
@@ -243,7 +243,7 @@ PyDoc_STRVAR(
     "   :type unit_category: str\n"
     "   :param value: The value to convert to a string.\n"
     "   :type value: float\n"
-    "   :param precision: Number of digits after the comma.\n"
+    "   :param precision: Number of digits after the decimal point.\n"
     "   :type precision: int\n"
     "   :param split_unit: Whether to use several units if needed (1m1cm), or always only "
     "one (1.01m).\n"
