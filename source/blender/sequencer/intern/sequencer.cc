@@ -54,6 +54,7 @@
 #include "SEQ_sound.hh"
 #include "SEQ_thumbnail_cache.hh"
 #include "SEQ_transform.hh"
+#include "SEQ_captions.hh"
 #include "SEQ_utils.hh"
 
 #include "BLO_read_write.hh"
@@ -284,7 +285,10 @@ Editing *editing_ensure(Scene *scene)
     ed->cache_flag = (SEQ_CACHE_PREFETCH_ENABLE | SEQ_CACHE_STORE_FINAL_OUT | SEQ_CACHE_STORE_RAW);
     ed->show_missing_media_flag = SEQ_EDIT_SHOW_MISSING_MEDIA;
     channels_ensure(&ed->channels);
+
+    /* Making sure that Captions Style is exists */
   }
+  captions_style_ensure(ed);
 
   return scene->ed;
 }

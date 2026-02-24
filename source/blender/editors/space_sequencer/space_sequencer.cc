@@ -42,6 +42,8 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
+#include "SEQ_select.hh"
+#include "SEQ_captions.hh"
 #include "SEQ_utils.hh"
 
 #include "UI_interface.hh"
@@ -273,11 +275,98 @@ static SpaceLink *sequencer_duplicate(SpaceLink *sl)
   return reinterpret_cast<SpaceLink *>(sseqn);
 }
 
+static void handle_captions_listener(const wmSpaceTypeListenerParams *params)
+{
+  ScrArea *area = params->area;
+  const wmNotifier *wmn = params->notifier;
+
+  /* Only care about scene + sequencer notifications */
+  if (wmn->category == NC_SCENE && wmn->data == ND_SEQUENCER) {
+
+    switch (wmn->action) {
+
+      case NA_ADDED:
+      case NA_REMOVED:
+      case NA_EDITED: {
+        Scene *scene = static_cast<Scene *>(wmn->reference);
+        if (scene == nullptr) {
+       ///   tag_redraw(region, nullptr);
+          return;
+        }
+
+        Editing *ed = seq::editing_get(scene);
+        if (ed == nullptr) {
+       //   tag_redraw(region, scene);
+          return;
+        }
+
+        Strip *active_strip = seq::select_active_get(scene);
+
+        const bool is_added   = (wmn->action == NA_ADDED);
+        const bool is_removed = (wmn->action == NA_REMOVED);
+        const bool is_edited  = (wmn->action == NA_EDITED);
+
+        /* Have to be here in case the strip is removed... */
+        bool changed = false;
+
+        if (active_strip != nullptr) {
+          if (ed->captions_act_channel == nullptr) {
+            captions_update_active_channel(ed);
+          }
+          
+          const bool in_active_channel =
+          (ed->captions_act_channel != nullptr &&
+            active_strip->channel == ed->captions_act_channel->index);
+            
+          if (in_active_channel) {
+
+            if (active_strip->type == STRIP_TYPE_TEXT) {
+              ed->captions_cache_dirty = true;
+              changed = true;
+            }
+
+            if (is_added) {
+              captions_update_strips_style(scene);
+              changed = true;
+            }
+          }
+          else if (is_edited) {
+            /* Strip may have moved out of active channel */
+            ed->captions_cache_dirty = true;
+            changed = true;
+          }
+        }
+        else if (is_removed) {
+          ed->captions_cache_dirty = true;
+          changed = true;
+        }
+
+        if(changed) {
+          if (ed->captions_cache_dirty) {
+            /* That's the simplest way to update the cache, will be moved to on draw or RNA later. Also, maybe trying to figure out which strips are changed and update just them is a good idea, but might be more complex and heavier than simply update them all. */
+            seq::captions_update_strips(scene);
+          }
+        }
+
+       // tag_redraw(region, scene);
+        break;
+      }
+
+      default:
+       // tag_redraw(region, nullptr);
+        break;
+    }
+
+    return;
+  }
+}
+
 static void sequencer_listener(const wmSpaceTypeListenerParams *params)
 {
   ScrArea *area = params->area;
   const wmNotifier *wmn = params->notifier;
 
+  handle_captions_listener(params);
   /* Context changes. */
   switch (wmn->category) {
     case NC_SCENE:

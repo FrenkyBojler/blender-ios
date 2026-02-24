@@ -41,14 +41,12 @@ struct Scopes;
 struct Script;
 struct SpaceGraph;
 struct Text;
-struct Captions;
 struct bDopeSheet;
 struct bGPdata;
 struct bNodeTree;
 struct wmOperator;
 struct wmTimer;
 struct SeqTimelineChannel;
-struct CaptionsStripRef;
 
 namespace asset_system {
 class AssetRepresentation;
@@ -73,9 +71,6 @@ namespace ed::text {
 
 struct SpaceText_Runtime;
 }  // namespace ed::text
-
-/** Defined in `captions_intern.hh */
-struct SpaceCaptions_Runtime;
 
 namespace ed::spreadsheet {
 struct SpaceSpreadsheet_Runtime;
@@ -798,28 +793,6 @@ struct SpaceScript {
   void *but_refs = nullptr;
 };
 
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Captions Editor
- * \{ */
-
-/* Captions Editor. */
-typedef struct SpaceCaptions {
-  SpaceLink *next, *prev;
-  /** Storage of regions for inactive spaces. */
-  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
-  char spacetype = 0;
-  char link_flag = 0;
-  char _pad0[6] = {};
-  /* End 'SpaceLink' header. */
-
-  short flags = 0;
-  char _pad1[6];
-
-  /** Keep last. */
-  SpaceCaptions_Runtime *runtime = nullptr;
-} SpaceCaptions;
 /** \} */
 
 /* -------------------------------------------------------------------- */

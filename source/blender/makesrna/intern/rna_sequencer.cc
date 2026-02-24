@@ -10,7 +10,6 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_captions_types.h"
 
 #include "BLI_math_rotation.h"
 #include "BLI_string_utf8_symbols.h"
@@ -29,6 +28,7 @@
 #include "SEQ_effects.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_sound.hh"
+#include "SEQ_captions.hh"
 
 #include "WM_types.hh"
 
@@ -258,13 +258,14 @@ static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
     seq::relations_invalidate_cache_raw(scene, strip);
   }
 
-  /* Check whether should update caption strips */
-  if(area->spacetype == SPACE_CAPTIONS) {
-      WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CAPTIONS | NA_EDITED, scene);
+  /* Check whether should update caption strips. TODO: Currently it make it rebuild the entire collection, should be changed */
+  //TODO: ;;GD Make this work with the panel, maybe check for region somehow?
+  /*if(area->spacetype == SPACE_CAPTIONS) {
+      WM_event_add_notifier(C, NC_SPACE | ND_SEQUENCER | NA_EDITED, scene);
   } else {
-    CaptionsStripRef *ref = get_ref_by_strip(ed ,strip);
-    mark_ref_style_custom(ref, true);
-  }
+    CaptionsStripRef *ref = captions_get_ref_by_strip(ed ,strip);
+    captions_mark_ref_style_custom(ref, true);
+  }*/
 }
 
 static void UNUSED_FUNCTION(rna_Strip_invalidate_composite_update)(Main * /*bmain*/,
@@ -1452,7 +1453,7 @@ static void rna_SequenceEditor_captions_strips_begin(CollectionPropertyIterator 
 {
   Editing *ed = (Editing *)ptr->data;
   
-   // TODO: For some reason, handling cache update here makes the fancy UI Animations disapper.
+   // TODO: For some reason, handling cache update here makes the fancy UI Animations disapper, also it's currently not working and should be here, BTW is it the right place for that at all?
   if (ed->captions_cache_dirty) {
    // blender::update_current_strips(ed->seq_scene); TODO: FIND THE RIGHT WAY TO GET SCENE
   }

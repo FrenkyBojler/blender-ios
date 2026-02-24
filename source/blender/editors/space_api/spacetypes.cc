@@ -79,7 +79,6 @@ void ED_spacetypes_init()
   ED_spacetype_nla();
   ED_spacetype_script();
   ED_spacetype_text();
-  ED_spacetype_captions();
   vse::ED_spacetype_sequencer();
   ED_spacetype_console();
   ED_spacetype_userpref();

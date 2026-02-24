@@ -33,8 +33,6 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_captions_types.h"
-
 
 #include "RNA_define.hh"
 
@@ -152,11 +150,6 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
      "Status Bar",
      "Global bar at the bottom of the "
      "screen for general status information"},
-    {SPACE_CAPTIONS,
-     "CAPTIONS_EDITOR",
-     ICON_FILE_TEXT,
-     "Captions Editor",
-     "Captions Editor for the Video Sequencer"},
 
     /* Data. */
     RNA_ENUM_ITEM_HEADING(N_("Data"), nullptr),
@@ -742,9 +735,7 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
       return RNA_SpaceSequenceEditor;
     case SPACE_TEXT:
       return RNA_SpaceTextEditor;
-    case SPACE_CAPTIONS:
-      return RNA_SpaceCaptionsEditor;
-      case SPACE_ACTION:
+    case SPACE_ACTION:
       return RNA_SpaceDopeSheetEditor;
     case SPACE_NLA:
       return RNA_SpaceNLA;
@@ -6872,19 +6863,6 @@ static void rna_def_space_text(BlenderRNA *brna)
   RNA_api_space_text(srna);
 }
 
-  static void rna_def_space_captions(BlenderRNA *brna)
-  {
-    StructRNA *srna;
-    //PropertyRNA *prop;
-    //FunctionRNA *func;
-
-    srna = RNA_def_struct(brna, "SpaceCaptionsEditor", "Space");
-    RNA_def_struct_sdna(srna, "SpaceCaptions");
-    RNA_def_struct_ui_text(srna, "Space Captions Editor", "Captions editor space data");  
-
-  rna_def_space_generic_show_region_toggles(srna, (1 << RGN_TYPE_UI));
-}
-
 static void rna_def_space_dopesheet_overlays(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -9220,7 +9198,6 @@ void RNA_def_space(BlenderRNA *brna)
   rna_def_space_image(brna);
   rna_def_space_sequencer(brna);
   rna_def_space_text(brna);
-  rna_def_space_captions(brna);
   rna_def_fileselect_entry(brna);
   rna_def_fileselect_params(brna);
   rna_def_fileselect_asset_params(brna);

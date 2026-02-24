@@ -51,6 +51,7 @@
 #include "SEQ_thumbnail_cache.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
+#include "SEQ_captions.hh"
 #include "SEQ_utils.hh"
 
 #include "ANIM_animdata.hh"
@@ -4213,6 +4214,119 @@ void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+    static int get_extend_right(int start_frame, int channel, ListBaseT<struct CaptionsStripRef> *refs, int max_extend) {
+        
+        int next_strip_start = start_frame + max_extend;
+        for (CaptionsStripRef &ref : *refs) {
+            Strip *strip = ref.strip;
+
+            /* Only check strips on the same channel */
+            if (strip->channel != channel) {
+                continue;
+            }
+
+            float other_start = strip->left_handle();
+            if (other_start >= start_frame && other_start < next_strip_start) {
+                next_strip_start = other_start;
+            }
+        }
+
+        return next_strip_start - start_frame;
+    }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Add Caption Operator
+  * \{ */
+
+static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
+{
+    seq::LoadData load_data;
+    memset(&load_data, 0, sizeof(load_data));
+    Scene *scene = CTX_data_sequencer_scene(C);
+    Editing *ed = seq::editing_ensure(scene);
+
+    int start_frame = scene->r.cfra;
+    int channel = ed->captions_act_channel->index;
+
+    /* Maybe add RNA option for that */
+    load_data.start_frame = start_frame;
+    load_data.channel = channel;
+    load_data.effect.type = STRIP_TYPE_TEXT;
+
+    int length = 100; // TODO: change to DEFAULT_IMG_STRIP_LENGTH 
+    if (RNA_struct_find_property(op->ptr, "length")) {
+        length = RNA_int_get(op->ptr, "length");
+    }
+    length = get_extend_right(start_frame, channel, &ed->captions_strips, length);
+
+    load_data.effect.length = length;
+
+    Strip *strip = seq::add_effect_strip(scene, &ed->seqbase, &load_data);
+
+    DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
+
+    ed->captions_cache_dirty = true;
+//    tag_redraw(CTX_wm_region(C), scene);
+
+    WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
+
+    return OPERATOR_FINISHED;
+}
+
+static bool captions_add_poll(bContext *C)
+{
+    Scene *scene = CTX_data_sequencer_scene(C);
+    if(scene == nullptr) {
+      return false;
+    }
+    const int cfra = scene->r.cfra;
+    Editing *ed = seq::editing_ensure(scene);
+
+    if(ed -> captions_cache_dirty) {
+        seq::captions_update_strips(scene);
+    }
+
+    for (CaptionsStripRef &ref : ed->captions_strips) {
+        Strip *strip = ref.strip;
+        if (strip->intersects_frame(scene, cfra)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void SEQUENCER_OT_caption_add(wmOperatorType *ot)
+{
+    /* Identifiers. */
+    ot->name = "Add Caption";
+    ot->idname = "SEQUENCER_OT_caption_add";
+    ot->description = "Add a new caption at the current frame";
+
+    /* API callbacks. */
+    //  ot->invoke = sequencer_snap_invoke;
+    ot->exec = captions_add_exec;
+    ot->poll = captions_add_poll; // TODO: Make it check for intersection with strip and for active space, I guess.
+
+    /* Flags. */
+    ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+    /* Properties. */
+    PropertyRNA *prop = RNA_def_int(ot->srna,
+                      "length",
+                      100,  // TODO: change to DEFAULT_IMG_STRIP_LENGTH
+                      MINAFRAME,
+                      MAXFRAME,
+                      "Length",
+                      "Length of the caption strip in frames",
+                      1,
+                      500);
+    RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
 }
 
 /** \} */

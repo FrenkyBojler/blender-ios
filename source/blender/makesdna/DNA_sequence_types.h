@@ -15,7 +15,6 @@
 #pragma once
 
 #include "DNA_color_types.h"
-#include "DNA_captions_types.h"
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h" /* for #rctf */
@@ -641,7 +640,7 @@ struct Editing {
   seq::PrefetchJob *prefetch_job = nullptr;
 
   /* Captions Data*/
-  ListBaseT<CaptionsStripRef> captions_strips = {nullptr, nullptr};
+  ListBaseT<struct CaptionsStripRef> captions_strips = {nullptr, nullptr};
   SeqTimelineChannel *captions_act_channel = nullptr;
   struct TextVars *captions_style = nullptr;
   char captions_cache_dirty = 0;

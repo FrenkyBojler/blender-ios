@@ -1122,9 +1122,8 @@ enum eSpace_Type {
   SPACE_TOPBAR = 21,
   SPACE_STATUSBAR = 22,
   SPACE_SPREADSHEET = 23,
-  SPACE_CAPTIONS = 24
 
-#define SPACE_TYPE_NUM (SPACE_CAPTIONS   + 1)
+#define SPACE_TYPE_NUM (SPACE_SPREADSHEET   + 1)
 };
 
 /* use for function args */

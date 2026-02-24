@@ -42,6 +42,7 @@ set(SRC
   SEQ_thumbnail_cache.hh
   SEQ_time.hh
   SEQ_transform.hh
+  SEQ_captions.hh
   SEQ_utils.hh
 
   intern/animation.cc
@@ -105,6 +106,7 @@ set(SRC
   intern/strip_time.cc
   intern/strip_time.hh
   intern/strip_transform.cc
+  intern/captions.cc
   intern/utils.cc
   intern/utils.hh
 )

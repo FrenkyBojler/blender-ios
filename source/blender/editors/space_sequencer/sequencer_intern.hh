@@ -258,6 +258,8 @@ void SEQUENCER_OT_strip_color_tag_set(wmOperatorType *ot);
 void SEQUENCER_OT_cursor_set(wmOperatorType *ot);
 void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot);
 
+void SEQUENCER_OT_caption_add(wmOperatorType *ot);
+
 /* `sequencer_select.cc` */
 
 /**
@@ -432,6 +434,10 @@ wmOperatorStatus sequencer_clipboard_paste_invoke(bContext *C,
 MenuType add_catalog_assets_menu_type();
 MenuType add_unassigned_assets_menu_type();
 MenuType add_scene_menu_type();
+
+/* captions.cc */
+void captions_update_active_channel(Editing *ed);
+void captions_update_strips_style(Scene *scene);
 
 }  // namespace ed::vse
 }  // namespace blender

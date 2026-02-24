@@ -3024,7 +3024,6 @@ static void legacy_gpencil_sanitize_annotations(Main &bmain)
           case SPACE_FILE:
           case SPACE_INFO:
           case SPACE_TEXT:
-          case SPACE_CAPTIONS:
           case SPACE_ACTION:
           case SPACE_NLA:
           case SPACE_SCRIPT:

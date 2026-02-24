@@ -26,7 +26,7 @@ class CAPTIONS_PT_style(bpy.types.Panel):
     bl_space_type = 'CAPTIONS_EDITOR'
     bl_region_type = 'WINDOW'
     bl_parent_id = "CAPTIONS_PT_main"
-    #bl_options = {'HIDE_HEADER'}
+    bl_options = {'DEFAULT_CLOSED'}
     bl_order = 0
     
     def draw(self, context):
@@ -41,7 +41,7 @@ class CAPTIONS_PT_style(bpy.types.Panel):
             return
         
         layout = self.layout
-         
+        
         # Draw the style as a strip properties, works becuase they're both using TextVars data, but it's hacky.
         from bpy.types import (
             STRIP_PT_effect_text_style,
@@ -103,7 +103,7 @@ class CAPTIONS_PT_list(bpy.types.Panel):
         for strip in strips:
             self.draw_caption(layout, strip)
         
-        layout.operator("captions.caption_add", text="Add", icon='ADD')
+        layout.operator("sequencer.caption_add", text="Add", icon='ADD')
         
 class CAPTIONS_HT_header(Header):
     bl_space_type = 'CAPTIONS_EDITOR'
@@ -135,4 +135,5 @@ def unregister():
         bpy.utils.unregister_class(cls)
         
 if __name__ == "__main__":
-    register()
+    pass
+    #register()

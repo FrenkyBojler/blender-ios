@@ -223,7 +223,6 @@ ReportList *CTX_wm_reports(const bContext *C);
 View3D *CTX_wm_view3d(const bContext *C);
 RegionView3D *CTX_wm_region_view3d(const bContext *C);
 SpaceText *CTX_wm_space_text(const bContext *C);
-SpaceCaptions *CTX_wm_space_captions(const bContext *C);
 SpaceImage *CTX_wm_space_image(const bContext *C);
 SpaceConsole *CTX_wm_space_console(const bContext *C);
 SpaceProperties *CTX_wm_space_properties(const bContext *C);

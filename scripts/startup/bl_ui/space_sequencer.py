@@ -2024,6 +2024,105 @@ class SEQUENCER_PT_sequencer_snapping(Panel):
         col.prop(sequencer_tool_settings, "snap_ignore_sound", text="Sound Strips")
 
 
+'''class SEQUENCER_PT_captions(bpy.types.Panel):
+    bl_idname = "SEQUENCER_PT_captions"
+    bl_label = "Captions"
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Captions"
+    
+    def draw(self, context):
+        pass'''
+    
+class SEQUENCER_PT_captions_style(bpy.types.Panel):
+    bl_idname = "SEQUENCER_PT_captions_style"
+    bl_label = "Style Options"
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'UI'
+   # bl_parent_id = "CAPTIONS_PT_main"
+    bl_category = "Captions"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_order = 0
+    
+    def draw(self, context):
+        # TODO: Add style options for captions here
+        space = context.space_data
+        scene = context.scene
+        editor = scene.sequence_editor
+        strips = editor.captions_strips
+        
+        style = editor.captions_style
+        if(style is None):
+            return
+        
+        layout = self.layout
+        
+        # Draw the style as a strip properties, works becuase they're both using TextVars data, but it's hacky.
+        from bpy.types import (
+            STRIP_PT_effect_text_style,
+            STRIP_PT_effect_text_outline,
+            STRIP_PT_effect_text_shadow,
+            STRIP_PT_effect_text_box,
+            STRIP_PT_effect_text_layout
+        )
+        
+        STRIP_PT_effect_text_style.draw_effect_text_style(style, layout)
+        
+        header, body = layout.panel("outline", default_closed=True)
+        header.label(text="Outline")
+        header.prop(style, "use_outline", text="")
+        if body:
+            STRIP_PT_effect_text_outline.draw_effect_text_outline(style, body)
+        
+        header, body = layout.panel("shadow", default_closed=True)
+        header.label(text="Shadow")
+        header.prop(style, "use_shadow", text="")
+        if body:
+            STRIP_PT_effect_text_shadow.draw_effect_text_shadow(style, body)
+        
+        header, body = layout.panel("box", default_closed=True)
+        header.label(text="Box")
+        header.prop(style, "use_box", text="")
+        if body:
+            STRIP_PT_effect_text_box.draw_effect_text_box(style, body)  
+           
+        header, body = layout.panel("layout", default_closed=True)
+        header.label(text="Layout")
+        if body:
+            STRIP_PT_effect_text_layout.draw_effect_text_layout(style, body)
+        
+class SEQUENCER_PT_captions_editor(bpy.types.Panel):
+    bl_idname = "SEQUENCER_PT_captions_editor"
+    bl_label = "Captions Editor"
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'UI'
+   # bl_parent_id = "CAPTIONS_PT_main"
+    bl_category = "Captions"
+    bl_order = 0
+
+    def draw_caption(self, layout, item):
+        split = layout.split(factor=0.35)
+        col1 = split.column(align=True)
+        col1.prop(item, "frame_start", text="")
+        col1.prop(item, "frame_final_end", text="")
+        
+        col2 = split.column()
+        col2.scale_y = 2
+        col2.prop(item, "text", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        space = context.space_data
+        strips = context.scene.sequence_editor.captions_strips
+        
+        for strip in strips:
+            if strip:
+                self.draw_caption(layout, strip)
+        
+        layout.operator("sequencer.caption_add", text="Add", icon='ADD')
+        
+
+
 classes = (
     SEQUENCER_MT_change,
     SEQUENCER_HT_tool_header,
@@ -2097,6 +2196,9 @@ classes = (
     SEQUENCER_PT_snapping,
     SEQUENCER_PT_preview_snapping,
     SEQUENCER_PT_sequencer_snapping,
+    
+    SEQUENCER_PT_captions_style,
+    SEQUENCER_PT_captions_editor,
 )
 
 if __name__ == "__main__":  # only for live edit.

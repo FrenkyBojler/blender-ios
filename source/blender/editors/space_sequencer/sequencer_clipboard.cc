@@ -46,6 +46,7 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
+#include "SEQ_captions.hh"
 #include "SEQ_utils.hh"
 
 #include "DEG_depsgraph.hh"
@@ -171,6 +172,11 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
                                    0);
 
   BLI_duplicatelist(&scene_dst->ed->channels, &scene_src->ed->channels);
+
+  /* Handle Captions */
+  // TODO: Add here also caption refs copy
+  scene_dst->ed->captions_style = scene_src->ed->captions_style;
+  seq::captions_style_ensure(scene_dst->ed);
 
   /* Save current frame and active strip. */
   scene_dst->r.cfra = scene_src->r.cfra;

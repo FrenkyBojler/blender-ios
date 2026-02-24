@@ -1029,15 +1029,6 @@ SpaceText *CTX_wm_space_text(const bContext *C)
   return nullptr;
 }
 
-SpaceCaptions *CTX_wm_space_captions(const bContext *C)
-{
-  ScrArea *area = CTX_wm_area(C);
-  if (area && area->spacetype == SPACE_CAPTIONS) {
-    return static_cast<SpaceCaptions *>(area->spacedata.first);
-  }
-  return nullptr;
-}
-
 SpaceConsole *CTX_wm_space_console(const bContext *C)
 {
   ScrArea *area = CTX_wm_area(C);
