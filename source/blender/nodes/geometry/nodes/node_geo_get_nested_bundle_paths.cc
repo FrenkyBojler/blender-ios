@@ -84,6 +84,9 @@ static void node_geo_exec(GeoNodeExecParams params)
       break;
   }
 
+  /* Make sure the order is deterministic and doesn't depend on hash tables in the bundle. */
+  std::ranges::sort(paths);
+
   params.set_output("Paths", List::from_container(std::move(paths)));
 }
 

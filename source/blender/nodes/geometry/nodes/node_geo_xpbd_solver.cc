@@ -619,12 +619,18 @@ class XpbdSolverStep {
                                  }
                                  nested_bundle_paths_.add_as(*type, Bundle::combine_path(path));
                                });
+    /* Ensure the order is deterministic. */
+    for (MutableSpan<std::string> paths : nested_bundle_paths_.values()) {
+      std::ranges::sort(paths);
+    }
   }
 
   void gather_from_world__geometries()
   {
     /* Gather geometry sets to process from the world. */
-    const Vector<std::string> paths = gather_bundle_paths_by_data_type(world_, SOCK_GEOMETRY);
+    Vector<std::string> paths = gather_bundle_paths_by_data_type(world_, SOCK_GEOMETRY);
+    /* Ensure the order is deterministic. */
+    std::ranges::sort(paths);
     for (const StringRef path : paths) {
       GeometrySetData geo_set_data;
       geo_set_data.path = path;
