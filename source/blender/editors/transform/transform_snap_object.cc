@@ -57,7 +57,7 @@ static float4 occlusion_plane_create(float3 ray_start,
   }
 
   /* Small offset to simulate a kind of volume for edges and vertices.
-   * Note: The offset added to plane[3] was previously hardcoded as 0.01f
+   * NOTE: The offset added to plane[3] was previously hardcoded as 0.01f
    * but that caused snapping to pass through occluding geometry at small
    * scales, so scale it by the view depth instead. See: #154426. */
   const float depth = math::dot(ray_co - ray_start, ray_dir);
