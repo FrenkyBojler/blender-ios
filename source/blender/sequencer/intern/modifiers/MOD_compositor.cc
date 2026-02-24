@@ -123,7 +123,7 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
     case SOCK_MENU: {
       const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == CompositorNodesInputType::Value) {
-        const int value = RNA_enum_get(input_props_ptr, "value");
+        const MenuValue value = MenuValue(RNA_enum_get(input_props_ptr, "value"));
         result.set_single_value(value);
       }
       break;
