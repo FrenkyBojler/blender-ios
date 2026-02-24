@@ -391,7 +391,7 @@ static void calculate_target_locations(MutableSpan<CircleVert> verts,
         float2 vec_curr = verts[i].co_2d - center;
         vec_curr = math::normalize(vec_curr);
 
-        total_angle += angle_normalized_v2v2(vec_prev, vec_curr);
+        total_angle -= angle_signed_v2v2(vec_prev, vec_curr);
         vec_prev = vec_curr;
       }
     }
