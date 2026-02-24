@@ -9,6 +9,7 @@
 #include <limits>
 
 #include "util/defines.h"
+#include "util/optimization.h"
 
 /* SSE Intrinsics includes
  *
@@ -47,7 +48,7 @@
 #    define SIMD_GET_FLUSH_TO_ZERO get_fz(_MM_FLUSH_ZERO_ON)
 #  else
 #    define _MM_FLUSH_ZERO_ON 24
-#    define __get_fpcr(__fpcr) _ReadStatusReg(__fpcr)
+#    define __get_fpcr(__fpcr) __fpcr = _ReadStatusReg(0x5A20)
 #    define __set_fpcr(__fpcr) _WriteStatusReg(0x5A20, __fpcr)
 #    define SIMD_SET_FLUSH_TO_ZERO set_fz(_MM_FLUSH_ZERO_ON);
 #    define SIMD_GET_FLUSH_TO_ZERO get_fz(_MM_FLUSH_ZERO_ON)
