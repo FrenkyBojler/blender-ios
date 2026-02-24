@@ -18,7 +18,7 @@ from bpy.types import (
 )
 import math
 from math import radians
-from mathutils import Euler, Matrix, Quaternion, Vector
+from mathutils import Color, Euler, Matrix, Quaternion, Vector
 
 
 # Landmarks.
@@ -555,17 +555,18 @@ class VIEW3D_GT_vr_camera_cone(Gizmo):
     bl_idname = "VIEW_3D_GT_vr_camera_cone"
 
     aspect = 1.0, 1.0
+    focal = 1.0
 
     def draw(self, context):
         if not hasattr(self, "frame_shape"):
             aspect = self.aspect
 
             frame_shape_verts = (
-                (-aspect[0], -aspect[1], -1.0),
-                (aspect[0], -aspect[1], -1.0),
-                (aspect[0], aspect[1], -1.0),
-                (-aspect[0], aspect[1], -1.0),
-                (-aspect[0], -aspect[1], -1.0),
+                (-aspect[0], -aspect[1], -self.focal),
+                (aspect[0], -aspect[1], -self.focal),
+                (aspect[0], aspect[1], -self.focal),
+                (-aspect[0], aspect[1], -self.focal),
+                (-aspect[0], -aspect[1], -self.focal),
             )
             lines_shape_verts = (
                 (0.0, 0.0, 0.0),
@@ -583,10 +584,17 @@ class VIEW3D_GT_vr_camera_cone(Gizmo):
             self.lines_shape = self.new_custom_shape(
                 'LINES', lines_shape_verts)
 
-        # Ensure correct GL state (otherwise other gizmos might mess that up)
-        gpu.state.line_width_set(1.0)
-        gpu.state.blend_set('ALPHA')
+        line_width = 2
 
+        shader = gpu.shader.from_builtin('POLYLINE_UNIFORM_COLOR')
+        shader.uniform_float("viewportSize", gpu.state.viewport_get()[2:])
+        shader.uniform_float("lineWidth", line_width * gpu.state.line_width_get())
+
+        # Override default shader given by new_custom_shape()
+        self.frame_shape = (self.frame_shape[0], shader)
+        self.lines_shape = (self.lines_shape[0], shader)
+
+        gpu.state.blend_set('ALPHA')
         self.draw_custom_shape(self.frame_shape)
         self.draw_custom_shape(self.lines_shape)
 
@@ -785,6 +793,82 @@ class VIEW3D_GGT_vr_landmarks(GizmoGroup):
             self.gizmo.matrix_basis = lm_mat
 
 
+class VIEW3D_GGT_vr_captures(GizmoGroup):
+    bl_idname = "VIEW3D_GGT_vr_captures"
+    bl_label = "VR Location Scouting Captures Indicators"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'WINDOW'
+    bl_options = {'3D', 'DEPTH_3D', 'PERSISTENT', 'SCALE', 'VR_REDRAWS'}
+
+    @staticmethod
+    def compute_aspect(render_settings) -> tuple[float, float]:
+        render_x = render_settings.resolution_x * render_settings.pixel_aspect_x
+        render_y = render_settings.resolution_y * render_settings.pixel_aspect_y
+
+        aspect_x = render_x / render_y if render_x < render_y else 1
+        aspect_y = render_y / render_x if render_x > render_y else 1
+
+        # Base apsect to match native Blender Camera Gizmo (using Auto Sensor Fit)
+        base_aspect = 1 / 4
+        return aspect_x * base_aspect, aspect_y * base_aspect
+
+    @staticmethod
+    def get_selection_color(context, is_active_capture) -> tuple[float, float, float]:
+        theme = context.preferences.themes[0]
+        selection_color = Color(theme.view_3d.object_active)
+
+        # Shift the hue of the base theme selection color, decrease its saturation/value further for inactive captures
+        selection_color.h += 0.45
+        selection_color.s -= 0.1
+        if not is_active_capture:
+            selection_color.s += 0.2
+            selection_color.v -= 0.5
+
+        return selection_color[:3]
+
+    @staticmethod
+    def get_transform_matrix(capture):
+        rot_mat = Matrix.Identity(3)
+        rot_mat.rotate(capture.orientation)
+        rot_mat.resize_4x4()
+        loc_mat = Matrix.Translation(capture.location)
+
+        return loc_mat @ rot_mat
+
+    @classmethod
+    def poll(cls, context):
+        view3d = context.space_data
+        # TODO: Might require some optimizations due to the use of VR_REDRAWS
+        return view3d.shading.vr_show_captures
+
+    def setup(self, context):
+        pass
+
+    def draw_prepare(self, context):
+        # TODO: Make this gizmo visible from inside the XR view (might need to create a separate gizmo)
+        #       Could also handle viewport selection, but that might be more confusing than anything.
+        for g in self.gizmos:
+            self.gizmos.remove(g)
+
+        scene = context.scene
+
+        for idx, capture in enumerate(scene.vr_captures):
+            gizmo = self.gizmos.new(VIEW3D_GT_vr_camera_cone.bl_idname)
+            gizmo.aspect = self.compute_aspect(scene.render)
+            gizmo.focal = capture.lens_focal / 72
+
+            is_active_capture = (idx == scene.vr_captures_selected)
+            color = self.get_selection_color(context, is_active_capture)
+
+            gizmo.color = color
+            gizmo.color_highlight = color
+            gizmo.alpha = 1.0
+
+            gizmo.matrix_basis = self.get_transform_matrix(capture)
+
+            self.gizmo = gizmo
+
+
 classes = (
     VIEW3D_OT_vr_landmark_add,
     VIEW3D_OT_vr_landmark_remove,
@@ -809,6 +893,7 @@ classes = (
     VIEW3D_GGT_vr_viewer_pose,
     VIEW3D_GGT_vr_controller_poses,
     VIEW3D_GGT_vr_landmarks,
+    VIEW3D_GGT_vr_captures,
 )
 
 

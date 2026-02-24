@@ -152,6 +152,9 @@ class VIEW3D_PT_vr_location_scouting_captures(VRButtonsPanel, Panel):
         col = row.column(align=True)
         col.operator("view3d.vr_location_scouting_capture_remove", icon='REMOVE', text="")
 
+        view3d = context.space_data
+        layout.prop(view3d.shading, "vr_show_captures", text="Show Captures in Viewport")
+
         # TODO: Implement:
         #   - Show selected capture gizmo
         #   - Show all captures gizmo
@@ -338,6 +341,10 @@ def register():
     bpy.types.View3DShading.vr_show_landmarks = bpy.props.BoolProperty(
         name="Show Landmarks"
     )
+    bpy.types.View3DShading.vr_show_captures = bpy.props.BoolProperty(
+        name="Show Location Scouting Captures",
+        default=True
+    )
 
 
 def unregister():
@@ -347,3 +354,4 @@ def unregister():
     del bpy.types.View3DShading.vr_show_virtual_camera
     del bpy.types.View3DShading.vr_show_controllers
     del bpy.types.View3DShading.vr_show_landmarks
+    del bpy.types.View3DShading.vr_show_captures
