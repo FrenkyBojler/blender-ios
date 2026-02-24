@@ -139,7 +139,7 @@ struct TrimJoinOperation {
   ExtrudeMode extrude_mode;
 };
 
-/* Recalculate the mesh normals for the generated trim mesh. */
+/* Recalculate the mesh normals for the generated trim/join mesh. */
 static void update_normals(gesture::GestureData &gesture_data)
 {
   TrimJoinOperation *trim_join_operation = reinterpret_cast<TrimJoinOperation *>(
@@ -620,7 +620,7 @@ static void gesture_end(bContext & /*C*/, gesture::GestureData &gesture_data)
   Object *object = gesture_data.vc.obact;
   Mesh *mesh = id_cast<Mesh *>(object->data);
 
-  /* Assign a new face set ID to the new faces created by the trim operation. */
+  /* Assign a new face set ID to the new faces created by the trim/join operation. */
   const int next_face_set_id = face_set::find_next_available_id(*object);
   face_set::initialize_none_to_id(mesh, next_face_set_id);
 
@@ -792,7 +792,7 @@ static bool can_exec(const bContext &C, ReportList &reports)
   }
 
   if (id_cast<const Mesh *>(object.data)->faces_num == 0) {
-    /* No geometry to trim or to detect a valid position for the trimming shape. */
+    /* No geometry to trim/join or to detect a valid position for the trimming shape. */
     return false;
   }
 
