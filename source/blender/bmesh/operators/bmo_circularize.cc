@@ -184,10 +184,10 @@ static std::optional<VertChain> walk_boundary_chain(BMEdge *start_edge,
 }
 
 /** Collects all valid boundary edge chains from the current selection. */
-static void bm_extract_input_chains_from_boundary_edges(BMesh *bm,
-                                                        Vector<VertChain> &r_chains,
-                                                        const char hflag,
-                                                        const bool check_axis[3])
+static void bm_vert_chain_extract_from_boundary_edges(BMesh *bm,
+                                                      Vector<VertChain> &r_chains,
+                                                      const char hflag,
+                                                      const bool check_axis[3])
 {
   Set<BMEdge *> visited;
   BMIter iter;
@@ -583,7 +583,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       bm, op->slots_in, "geom", BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
 
   Vector<VertChain> chains;
-  bm_extract_input_chains_from_boundary_edges(bm, chains, BM_ELEM_TAG, check_axis);
+  bm_vert_chain_extract_from_boundary_edges(bm, chains, BM_ELEM_TAG, check_axis);
 
   /* Builds a BVH tree when flatten is disabled. Without this we would have to iterate
    * over every face in the mesh for every vertex which is too slow.
