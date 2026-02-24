@@ -846,15 +846,7 @@ inline void IndexMask::foreach_index(Fn &&fn, const Mode mode) const
   if constexpr (mode.is_parallel) {
     threading::parallel_for(
         this->index_range(), mode.grain_size(4096), [&](const IndexRange range) {
-          const IndexMask sub_mask = this->slice(range);
-          sub_mask.foreach_index([&](const int64_t i, [[maybe_unused]] const int64_t index_pos) {
-            if constexpr (std::is_invocable_r_v<void, Fn, int64_t, int64_t>) {
-              fn(i, index_pos + range.start());
-            }
-            else {
-              fn(i);
-            }
-          });
+          this->slice(range).foreach_index(fn, exec_mode::serial);
         });
   }
   else {
@@ -928,16 +920,7 @@ inline void IndexMask::foreach_index_optimized(Fn &&fn, Mode mode) const
   if constexpr (mode.is_parallel) {
     threading::parallel_for(
         this->index_range(), mode.grain_size(4096), [&](const IndexRange range) {
-          const IndexMask sub_mask = this->slice(range);
-          sub_mask.foreach_segment([&](const IndexMaskSegment segment,
-                                       [[maybe_unused]] const int64_t segment_pos) {
-            if constexpr (IndexPosFn<Fn>) {
-              optimized_foreach_index_with_pos<IndexT>(segment, segment_pos + range.start(), fn);
-            }
-            else {
-              optimized_foreach_index<IndexT>(segment, fn);
-            }
-          });
+          this->slice(range).foreach_index_optimized<IndexT>(fn, exec_mode::serial);
         });
   }
   else {
@@ -959,17 +942,7 @@ inline void IndexMask::foreach_segment_optimized(Fn &&fn, Mode mode) const
   if constexpr (mode.is_parallel) {
     threading::parallel_for(
         this->index_range(), mode.grain_size(4096), [&](const IndexRange range) {
-          const IndexMask sub_mask = this->slice(range);
-          sub_mask.foreach_segment_optimized(
-              [&fn, range_start = range.start()](
-                  const auto segment, [[maybe_unused]] const int64_t start_segment_pos) {
-                if constexpr (SegmentOrRangePosFn<Fn>) {
-                  fn(segment, start_segment_pos + range_start);
-                }
-                else {
-                  fn(segment);
-                }
-              });
+          this->slice(range).foreach_segment_optimized(fn, exec_mode::serial);
         });
   }
   else {
@@ -1003,17 +976,7 @@ inline void IndexMask::foreach_segment(Fn &&fn, const exec_mode::Tag auto mode) 
   if constexpr (mode.is_parallel) {
     threading::parallel_for(
         this->index_range(), mode.grain_size(256), [&](const IndexRange range) {
-          const IndexMask sub_mask = this->slice(range);
-          sub_mask.foreach_segment(
-              [&fn, range_start = range.start()](const IndexMaskSegment mask_segment,
-                                                 [[maybe_unused]] const int64_t segment_pos) {
-                if constexpr (SegmentPosFn<Fn>) {
-                  fn(mask_segment, segment_pos + range_start);
-                }
-                else {
-                  fn(mask_segment);
-                }
-              });
+          this->slice(range).foreach_segment(fn, exec_mode::serial);
         });
   }
   else {
