@@ -1738,9 +1738,9 @@ class _defs_sculpt:
     def trim_box():
         def draw_settings(_context, layout, tool):
             props = tool.operator_properties("sculpt.trim_box_gesture")
-            layout.prop(props, "trim_solver", expand=False)
-            layout.prop(props, "trim_orientation", expand=False)
-            layout.prop(props, "trim_extrude_mode", expand=False)
+            layout.prop(props, "solver", expand=False)
+            layout.prop(props, "orientation", expand=False)
+            layout.prop(props, "extrude_mode", expand=False)
             layout.prop(props, "use_cursor_depth", expand=False)
         return dict(
             idname="builtin.box_trim",
@@ -1758,9 +1758,9 @@ class _defs_sculpt:
             props = tool.operator_properties("sculpt.trim_lasso_gesture")
 
             if not extra:
-                layout.prop(props, "trim_solver", expand=False)
-                layout.prop(props, "trim_orientation", expand=False)
-                layout.prop(props, "trim_extrude_mode", expand=False)
+                layout.prop(props, "solver", expand=False)
+                layout.prop(props, "orientation", expand=False)
+                layout.prop(props, "extrude_mode", expand=False)
                 layout.prop(props, "use_cursor_depth", expand=False)
                 region_is_header = bpy.context.region.type == 'TOOL_HEADER'
                 if region_is_header:
@@ -1783,9 +1783,9 @@ class _defs_sculpt:
     def trim_line():
         def draw_settings(_context, layout, tool):
             props = tool.operator_properties("sculpt.trim_line_gesture")
-            layout.prop(props, "trim_solver", expand=False)
-            layout.prop(props, "trim_orientation", expand=False)
-            layout.prop(props, "trim_extrude_mode", expand=False)
+            layout.prop(props, "solver", expand=False)
+            layout.prop(props, "orientation", expand=False)
+            layout.prop(props, "extrude_mode", expand=False)
             layout.prop(props, "use_cursor_depth", expand=False)
             layout.prop(props, "use_limit_to_segment", expand=False)
         return dict(
@@ -1801,9 +1801,9 @@ class _defs_sculpt:
     def trim_polyline():
         def draw_settings(_context, layout, tool):
             props = tool.operator_properties("sculpt.trim_polyline_gesture")
-            layout.prop(props, "trim_solver", expand=False)
-            layout.prop(props, "trim_orientation", expand=False)
-            layout.prop(props, "trim_extrude_mode", expand=False)
+            layout.prop(props, "solver", expand=False)
+            layout.prop(props, "orientation", expand=False)
+            layout.prop(props, "extrude_mode", expand=False)
             layout.prop(props, "use_cursor_depth", expand=False)
 
         return dict(

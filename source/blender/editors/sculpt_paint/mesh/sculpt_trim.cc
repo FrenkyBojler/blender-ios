@@ -641,18 +641,18 @@ static void init_operation(gesture::GestureData &gesture_data, wmOperator &op)
   trim_join_operation->op.apply_for_symmetry_pass = gesture_apply_for_symmetry_pass;
   trim_join_operation->op.end = gesture_end;
 
-  /* Check if trim_mode property exists (join/union), otherwise default to Difference. */
-  if (RNA_struct_find_property(op.ptr, "trim_mode")) {
-    trim_join_operation->mode = OperationType(RNA_enum_get(op.ptr, "trim_mode"));
+  /* Check if join_mode property exists (join/union), otherwise default to Difference. */
+  if (RNA_struct_find_property(op.ptr, "join_mode")) {
+    trim_join_operation->mode = OperationType(RNA_enum_get(op.ptr, "join_mode"));
   }
   else {
     trim_join_operation->mode = OperationType::Difference;
   }
+
   trim_join_operation->use_cursor_depth = RNA_boolean_get(op.ptr, "use_cursor_depth");
-  trim_join_operation->orientation = OrientationType(RNA_enum_get(op.ptr, "trim_orientation"));
-  trim_join_operation->extrude_mode = ExtrudeMode(RNA_enum_get(op.ptr, "trim_extrude_mode"));
-  trim_join_operation->solver_mode = geometry::boolean::Solver(
-      RNA_enum_get(op.ptr, "trim_solver"));
+  trim_join_operation->orientation = OrientationType(RNA_enum_get(op.ptr, "orientation"));
+  trim_join_operation->extrude_mode = ExtrudeMode(RNA_enum_get(op.ptr, "extrude_mode"));
+  trim_join_operation->solver_mode = geometry::boolean::Solver(RNA_enum_get(op.ptr, "solver"));
 
   /* If the cursor was not over the mesh, force the orientation to view. */
   if (!trim_join_operation->initial_hit) {
@@ -688,69 +688,16 @@ static void operator_properties(wmOperatorType *ot)
       "Use Cursor for Depth",
       "Use cursor location and radius for the dimensions and position of the trimming shape");
   RNA_def_enum(ot->srna,
-               "trim_orientation",
+               "orientation",
                orientation_types,
                int(OrientationType::View),
                "Shape Orientation",
                nullptr);
-  RNA_def_enum(ot->srna,
-               "trim_extrude_mode",
-               extrude_modes,
-               int(ExtrudeMode::Fixed),
-               "Extrude Mode",
-               nullptr);
+  RNA_def_enum(
+      ot->srna, "extrude_mode", extrude_modes, int(ExtrudeMode::Fixed), "Extrude Mode", nullptr);
 
   RNA_def_enum(ot->srna,
-               "trim_solver",
-               solver_items,
-               int(geometry::boolean::Solver::Manifold),
-               "Solver",
-               nullptr);
-}
-
-static void operator_properties_join(wmOperatorType *ot)
-{
-  PropertyRNA *prop;
-
-  prop = RNA_def_int_vector(ot->srna,
-                            "location",
-                            2,
-                            nullptr,
-                            INT_MIN,
-                            INT_MAX,
-                            "Location",
-                            "Mouse location",
-                            INT_MIN,
-                            INT_MAX);
-  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-
-  RNA_def_enum(ot->srna,
-               "trim_mode",
-               operation_types_join,
-               int(OperationType::Union),
-               "Trim Mode",
-               nullptr);
-  RNA_def_boolean(
-      ot->srna,
-      "use_cursor_depth",
-      false,
-      "Use Cursor for Depth",
-      "Use cursor location and radius for the dimensions and position of the joining shape");
-  RNA_def_enum(ot->srna,
-               "trim_orientation",
-               orientation_types,
-               int(OrientationType::View),
-               "Shape Orientation",
-               nullptr);
-  RNA_def_enum(ot->srna,
-               "trim_extrude_mode",
-               extrude_modes,
-               int(ExtrudeMode::Fixed),
-               "Extrude Mode",
-               nullptr);
-
-  RNA_def_enum(ot->srna,
-               "trim_solver",
+               "solver",
                solver_items,
                int(geometry::boolean::Solver::Manifold),
                "Solver",
@@ -1032,6 +979,16 @@ void SCULPT_OT_trim_polyline_gesture(wmOperatorType *ot)
   operator_properties(ot);
 }
 
+void operator_properties_join_mode(wmOperatorType *ot)
+{
+  RNA_def_enum(ot->srna,
+               "join_mode",
+               operation_types_join,
+               int(OperationType::Union),
+               "Join Mode",
+               nullptr);
+}
+
 void SCULPT_OT_join_box_gesture(wmOperatorType *ot)
 {
   ot->name = "Box Join";
@@ -1050,7 +1007,8 @@ void SCULPT_OT_join_box_gesture(wmOperatorType *ot)
   WM_operator_properties_border(ot);
   gesture::operator_properties(ot, gesture::ShapeType::Box);
 
-  operator_properties_join(ot);
+  operator_properties(ot);
+  operator_properties_join_mode(ot);
 }
 
 void SCULPT_OT_join_lasso_gesture(wmOperatorType *ot)
@@ -1071,7 +1029,8 @@ void SCULPT_OT_join_lasso_gesture(wmOperatorType *ot)
   WM_operator_properties_gesture_lasso(ot);
   gesture::operator_properties(ot, gesture::ShapeType::Lasso);
 
-  operator_properties_join(ot);
+  operator_properties(ot);
+  operator_properties_join_mode(ot);
 }
 
 void SCULPT_OT_join_polyline_gesture(wmOperatorType *ot)
@@ -1092,6 +1051,7 @@ void SCULPT_OT_join_polyline_gesture(wmOperatorType *ot)
   WM_operator_properties_gesture_polyline(ot);
   gesture::operator_properties(ot, gesture::ShapeType::Lasso);
 
-  operator_properties_join(ot);
+  operator_properties(ot);
+  operator_properties_join_mode(ot);
 }
 }  // namespace blender::ed::sculpt_paint::trim
