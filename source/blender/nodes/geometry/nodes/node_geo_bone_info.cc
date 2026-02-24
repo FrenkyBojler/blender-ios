@@ -24,13 +24,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_input<decl::Object>("Armature")
-      .optional_label()
-      .description("Armature object to retrieve the bone information from");
-  b.add_input<decl::String>("Bone Name")
-      .optional_label()
-      .description("Name of the bone to retrieve");
-
   b.add_output<decl::Matrix>("Pose").description(
       "Evaluated final transform of the bone in armature space");
   b.add_output<decl::Matrix>("Local Pose")
@@ -46,6 +39,13 @@ static void node_declare(NodeDeclarationBuilder &b)
     p.add_output<decl::Float>("Radius Head").description("Radius of the head of the bone");
     p.add_output<decl::Float>("Radius Tail").description("Radius of the tail of the bone");
   }
+
+  b.add_input<decl::Object>("Armature")
+      .optional_label()
+      .description("Armature object to retrieve the bone information from");
+  b.add_input<decl::String>("Bone Name")
+      .optional_label()
+      .description("Name of the bone to retrieve");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
