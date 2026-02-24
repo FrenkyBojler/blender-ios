@@ -45,14 +45,6 @@ void sample_point_normals(Span<int> corner_verts,
                           IndexMask mask,
                           MutableSpan<float3> dst);
 
-void sample_corner_attribute(Span<int> corner_verts,
-                             Span<int3> corner_tris,
-                             Span<int> tri_indices,
-                             Span<float3> bary_coords,
-                             const GVArray &src,
-                             const IndexMask &mask,
-                             GMutableSpan dst);
-
 void sample_corner_attribute(Span<int3> corner_tris,
                              Span<int> tri_indices,
                              Span<float3> bary_coords,
