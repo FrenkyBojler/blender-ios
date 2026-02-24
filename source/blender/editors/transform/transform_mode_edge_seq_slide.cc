@@ -29,8 +29,6 @@
 
 #include "ED_sequencer.hh"
 
-#include "SEQ_transform.hh"
-
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_mode.hh"
@@ -114,6 +112,10 @@ static void applySeqSlide(TransInfo *t)
   ED_area_status_text(t->area, str);
 }
 
+struct SeqSlideParams {
+  bool use_restore_handle_selection;
+};
+
 static void initSeqSlide(TransInfo *t, wmOperator *op)
 {
   SeqSlideParams *ssp = MEM_new_zeroed<SeqSlideParams>(__func__);
@@ -150,12 +152,13 @@ static void initSeqSlide(TransInfo *t, wmOperator *op)
 
 bool transform_mode_edge_seq_slide_use_restore_handle_selection(const TransInfo *t)
 {
-  blender::seq::SeqSlideParams *ssp = static_cast<blender::seq::SeqSlideParams *>(t->custom.mode.data);
+  SeqSlideParams *ssp = static_cast<SeqSlideParams *>(t->custom.mode.data);
   if (ssp == nullptr) {
     return false;
   }
   return ssp->use_restore_handle_selection;
 }
+
 /** \} */
 
 TransModeInfo TransMode_seqslide = {
