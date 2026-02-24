@@ -576,7 +576,8 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
     scene->r.subframe = 0.0f;
   }
   bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C));
-  if (screen->animtimer) {
+  if (screen->animtimer && !(scene->r.flag & SCER_ALLOW_PREROLL)) {
+    /* While playing back, the playhead should not leave the playback range. */
     BKE_scene_frame_clamp_to_playback(scene);
   }
   FRAMENUMBER_MIN_CLAMP(scene->r.cfra);

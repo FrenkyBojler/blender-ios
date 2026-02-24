@@ -6448,7 +6448,7 @@ static wmOperatorStatus start_playback(bContext *C, int sync, int mode)
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
-  BKE_scene_frame_clamp_to_playback(scene);
+
   ViewLayer *view_layer = is_sequencer ? BKE_view_layer_default_render(scene) :
                                          CTX_data_view_layer(C);
   Depsgraph *depsgraph = is_sequencer ? BKE_scene_ensure_depsgraph(bmain, scene, view_layer) :

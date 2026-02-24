@@ -196,6 +196,10 @@ float BKE_scene_frame_get(const Scene *scene);
 void BKE_scene_frame_set(Scene *scene, float frame);
 
 /**
+ * Returns the current playback range, which is either the scene range or the playback range.
+ */
+int2 BKE_scene_get_playback_range(const Scene *scene);
+/**
  * Clamps the current frame to be between the playback bounds which can be the preview range.
  */
 void BKE_scene_frame_clamp_to_playback(Scene *scene);
