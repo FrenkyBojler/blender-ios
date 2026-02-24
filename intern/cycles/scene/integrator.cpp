@@ -397,6 +397,11 @@ AdaptiveSampling Integrator::get_adaptive_sampling() const
 
   adaptive_sampling.use = use_adaptive_sampling;
 
+  /* Disable sample count pass with upscaling. */
+  if (use_denoise && denoiser_upscale_factor != 1.0f) {
+    adaptive_sampling.use = false;
+  }
+
   if (!adaptive_sampling.use) {
     return adaptive_sampling;
   }
