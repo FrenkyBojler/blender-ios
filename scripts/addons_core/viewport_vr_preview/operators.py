@@ -531,6 +531,59 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
         return {'FINISHED'}
 
 
+class VIEW3D_OT_vr_location_scouting_add_camera_from_capture(Operator):
+    bl_idname = "view3d.vr_location_scouting_add_camera_from_capture"
+    bl_label = "Add Camera from VR Capture"
+    bl_description = "Create a new Camera from the selected VR Capture"
+    bl_options = {'UNDO', 'REGISTER'}
+
+    def execute(self, context):
+        scene = context.scene
+        capture = properties.VRCapture.get_selected_capture(context)
+
+        cam = bpy.data.cameras.new(data_("Camera") + "_" + capture.name) # TODO: Naming needs improvements
+        new_cam = bpy.data.objects.new(data_("Camera") + "_" + capture.name, cam)
+        scene.collection.objects.link(new_cam)
+
+        new_cam.location = capture.location
+        new_cam.rotation_mode = "QUATERNION"
+        new_cam.rotation_quaternion = capture.orientation
+        new_cam.rotation_mode = "XYZ"
+
+        new_cam.data.lens = capture.lens_focal
+        new_cam.data.dof.use_dof = capture.dof_enable
+        new_cam.data.dof.focus_distance = capture.dof_dist
+        new_cam.data.dof.aperture_fstop = capture.dof_fstop
+
+        return {'FINISHED'}
+
+
+class VIEW3D_OT_vr_location_scouting_active_camera_to_capture(Operator):
+    bl_idname = "view3d.vr_location_scouting_active_camera_to_capture"
+    bl_label = "Set Camera settings from VR Capture"
+    bl_description = "Set the active Scene Camera settings from the selected VR Capture"
+    bl_options = {'UNDO', 'REGISTER'}
+
+    def execute(self, context):
+        capture = properties.VRCapture.get_selected_capture(context)
+
+        cam = context.scene.camera
+        cam.location = capture.location
+        cam.rotation_mode = "QUATERNION"
+        cam.rotation_quaternion = capture.orientation
+        cam.rotation_mode = "XYZ"
+
+        cam.data.shift_x = 0
+        cam.data.shift_y = 0
+
+        cam.data.lens = capture.lens_focal
+        cam.data.dof.use_dof = capture.dof_enable
+        cam.data.dof.focus_distance = capture.dof_dist
+        cam.data.dof.aperture_fstop = capture.dof_fstop
+
+        return {'FINISHED'}
+
+
 class VIEW3D_OT_vr_location_scouting_capture_remove(Operator):
     bl_idname = "view3d.vr_location_scouting_capture_remove"
     bl_label = "Remove VR Capture"
@@ -883,6 +936,8 @@ classes = (
 
     VIEW3D_OT_vr_location_scouting_viewfinder_capture,
     VIEW3D_OT_vr_location_scouting_viewfinder_apply_action,
+    VIEW3D_OT_vr_location_scouting_add_camera_from_capture,
+    VIEW3D_OT_vr_location_scouting_active_camera_to_capture,
     VIEW3D_OT_vr_location_scouting_capture_remove,
     VIEW3D_OT_vr_location_scouting_viewfinder_cycle_mode,
     VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action,

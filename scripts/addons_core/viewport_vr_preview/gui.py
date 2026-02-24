@@ -151,15 +151,13 @@ class VIEW3D_PT_vr_location_scouting_captures(VRButtonsPanel, Panel):
 
         col = row.column(align=True)
         col.operator("view3d.vr_location_scouting_capture_remove", icon='REMOVE', text="")
+        col.separator()
+
+        col.operator("view3d.vr_location_scouting_add_camera_from_capture", icon='OUTLINER_OB_CAMERA', text="")
+        col.operator("view3d.vr_location_scouting_active_camera_to_capture", icon='HIDE_OFF', text="")
 
         view3d = context.space_data
         layout.prop(view3d.shading, "vr_show_captures", text="Show Captures in Viewport")
-
-        # TODO: Implement:
-        #   - Show selected capture gizmo
-        #   - Show all captures gizmo
-        #   - Add camera for capture operator
-        #   - Set current camera to capture operator
 
 
 class VIEW3D_PT_vr_location_scouting_viewfinder_settings(VRButtonsPanel, Panel):
