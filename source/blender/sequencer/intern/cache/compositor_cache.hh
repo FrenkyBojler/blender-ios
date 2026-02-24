@@ -16,7 +16,7 @@ class CompositorCache {
   compositor::StaticCacheManager cache_manager;
   bool last_evaluation_used_gpu = false;
   compositor::ResultPrecision last_evaluation_precision = compositor::ResultPrecision::Half;
-  gpu::GPUSecondaryContextData last_evaluation_gpu_context = {};
+  gpu::GPUSecondaryContextData secondary_gpu_context = {};
 
  public:
   ~CompositorCache();
