@@ -18,6 +18,7 @@ namespace blender {
 
 /** #CustomDataLayer.type */
 enum eCustomDataType {
+  CD_ALL = -2,
   /**
    * Used by GPU attributes in the cases when we don't know which layer
    * we are addressing in advance.

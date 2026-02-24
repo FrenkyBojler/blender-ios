@@ -87,13 +87,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   Vector<std::string> names;
 
   attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (data_type != CD_AUTO_FROM_NAME) {
+    if (data_type != CD_ALL) {
       if (iter.data_type != bke::custom_data_type_to_attr_type(data_type)) {
         return;
       }
     }
 
-    if (domain != AttrDomain::Auto) {
+    if (domain != AttrDomain::All) {
       if (iter.domain != domain) {
         return;
       }
@@ -122,7 +122,7 @@ static void node_rna(StructRNA *srna)
                     "data_type",
                     "Data Type",
                     "Type of attribute data to filter",
-                    rna_enum_attribute_type_with_auto_items,
+                    rna_enum_attribute_type_with_all_items,
                     NOD_inline_enum_accessors(custom1),
                     CD_PROP_FLOAT);
 
@@ -130,7 +130,7 @@ static void node_rna(StructRNA *srna)
                     "domain",
                     "Domain",
                     "Which attribute to filter",
-                    rna_enum_attribute_domain_with_auto_items,
+                    rna_enum_attribute_domain_with_all_items,
                     NOD_inline_enum_accessors(custom2),
                     int8_t(AttrDomain::Point));
 }
