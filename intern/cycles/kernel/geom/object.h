@@ -99,7 +99,7 @@ ccl_device_inline Transform object_fetch_transform_motion_test(KernelGlobals kg,
 /* Get transform matrix for shading point. */
 
 ccl_device_inline Transform object_get_transform(KernelGlobals kg,
-                                                 const ccl_private ShaderData *sd)
+                                                 const ccl_private ShaderDataBase *sd)
 {
 #ifdef __OBJECT_MOTION__
   return (sd->object_flag & SD_OBJECT_MOTION) ?
@@ -110,8 +110,14 @@ ccl_device_inline Transform object_get_transform(KernelGlobals kg,
 #endif
 }
 
+ccl_device_inline Transform object_get_transform(KernelGlobals kg,
+                                                 const ccl_private ShaderData *sd)
+{
+  return object_get_transform(kg, (ShaderDataBase *)sd);
+}
+
 ccl_device_inline Transform object_get_inverse_transform(KernelGlobals kg,
-                                                         const ccl_private ShaderData *sd)
+                                                         const ccl_private ShaderDataBase *sd)
 {
 #ifdef __OBJECT_MOTION__
   return (sd->object_flag & SD_OBJECT_MOTION) ?
@@ -120,6 +126,12 @@ ccl_device_inline Transform object_get_inverse_transform(KernelGlobals kg,
 #else
   return object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM);
 #endif
+}
+
+ccl_device_inline Transform object_get_inverse_transform(KernelGlobals kg,
+                                                         const ccl_private ShaderData *sd)
+{
+  return object_get_inverse_transform(kg, (ShaderDataBase *)sd);
 }
 
 ccl_device_inline Transform lamp_get_inverse_transform(KernelGlobals kg,
@@ -132,7 +144,7 @@ ccl_device_inline Transform lamp_get_inverse_transform(KernelGlobals kg,
 
 template<class T>
 ccl_device_inline void object_position_transform(KernelGlobals kg,
-                                                 const ccl_private ShaderData *sd,
+                                                 const ccl_private ShaderDataBase *sd,
                                                  ccl_private T *P)
 {
 #ifdef __OBJECT_MOTION__
@@ -144,6 +156,14 @@ ccl_device_inline void object_position_transform(KernelGlobals kg,
 
   const Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM);
   *P = transform_point(&tfm, *P);
+}
+
+template<class T>
+ccl_device_inline void object_position_transform(KernelGlobals kg,
+                                                 const ccl_private ShaderData *sd,
+                                                 ccl_private T *P)
+{
+  object_position_transform(kg, (ShaderDataBase *)sd, P);
 }
 
 /* Transform position from world to object space */
@@ -187,7 +207,7 @@ ccl_device_inline void object_inverse_normal_transform(KernelGlobals kg,
 /* Transform normal from object to world space */
 
 ccl_device_inline void object_normal_transform(KernelGlobals kg,
-                                               const ccl_private ShaderData *sd,
+                                               const ccl_private ShaderDataBase *sd,
                                                ccl_private float3 *N)
 {
 #ifdef __OBJECT_MOTION__
@@ -203,6 +223,13 @@ ccl_device_inline void object_normal_transform(KernelGlobals kg,
   }
 }
 
+ccl_device_inline void object_normal_transform(KernelGlobals kg,
+                                               const ccl_private ShaderData *sd,
+                                               ccl_private float3 *N)
+{
+  object_normal_transform(kg, (ShaderDataBase *)sd, N);
+}
+
 ccl_device_inline bool object_negative_scale_applied(const uint object_flag)
 {
   return ((object_flag & SD_OBJECT_NEGATIVE_SCALE) && (object_flag & SD_OBJECT_TRANSFORM_APPLIED));
@@ -211,7 +238,7 @@ ccl_device_inline bool object_negative_scale_applied(const uint object_flag)
 /* Transform direction vector from object to world space */
 
 ccl_device_inline void object_dir_transform(KernelGlobals kg,
-                                            const ccl_private ShaderData *sd,
+                                            const ccl_private ShaderDataBase *sd,
                                             ccl_private float3 *D)
 {
 #ifdef __OBJECT_MOTION__
@@ -223,6 +250,13 @@ ccl_device_inline void object_dir_transform(KernelGlobals kg,
 
   const Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM);
   *D = transform_direction(&tfm, *D);
+}
+
+ccl_device_inline void object_dir_transform(KernelGlobals kg,
+                                            const ccl_private ShaderData *sd,
+                                            ccl_private float3 *D)
+{
+  object_dir_transform(kg, (ShaderDataBase *)sd, D);
 }
 
 /* Transform direction vector from world to object space */

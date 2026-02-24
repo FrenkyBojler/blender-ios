@@ -90,7 +90,7 @@ ccl_device_forceinline bool point_intersect(KernelGlobals kg,
 }
 
 ccl_device_inline void point_shader_setup(KernelGlobals kg,
-                                          ccl_private ShaderData *sd,
+                                          ccl_private ShaderDataBase *sd,
                                           const ccl_private Intersection *isect,
                                           const ccl_private Ray *ray)
 {
@@ -120,6 +120,14 @@ ccl_device_inline void point_shader_setup(KernelGlobals kg,
   sd->dPdu = make_float3(0.0f, 0.0f, 0.0f);
   sd->dPdv = make_float3(0.0f, 0.0f, 0.0f);
 #  endif
+}
+
+ccl_device_inline void point_shader_setup(KernelGlobals kg,
+                                          ccl_private ShaderData *sd,
+                                          const ccl_private Intersection *isect,
+                                          const ccl_private Ray *ray)
+{
+  point_shader_setup(kg, (ShaderDataBase *)sd, isect, ray);
 }
 
 #endif

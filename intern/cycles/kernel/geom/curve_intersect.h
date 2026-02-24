@@ -862,7 +862,7 @@ ccl_device_forceinline bool curve_intersect(KernelGlobals kg,
 }
 
 ccl_device_inline void curve_shader_setup(KernelGlobals kg,
-                                          ccl_private ShaderData *sd,
+                                          ccl_private ShaderDataBase *sd,
                                           float3 P,
                                           float3 D,
                                           float t,
@@ -949,6 +949,16 @@ ccl_device_inline void curve_shader_setup(KernelGlobals kg,
   sd->Ng = ((sd->type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_RIBBON) ? sd->wi : sd->N;
   sd->dPdv = cross(sd->dPdu, sd->Ng);
   sd->shader = kernel_data_fetch(curves, sd->prim).shader_id;
+}
+
+ccl_device_inline void curve_shader_setup(KernelGlobals kg,
+                                          ccl_private ShaderData *sd,
+                                          float3 P,
+                                          float3 D,
+                                          float t,
+                                          const int isect_prim)
+{
+  curve_shader_setup(kg, (ShaderDataBase *)sd, P, D, t, isect_prim);
 }
 
 #endif

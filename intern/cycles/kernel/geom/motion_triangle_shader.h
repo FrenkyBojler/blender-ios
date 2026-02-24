@@ -29,7 +29,8 @@ CCL_NAMESPACE_BEGIN
  * normals */
 
 /* return 3 triangle vertex normals */
-ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals kg, ccl_private ShaderData *sd)
+ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals kg,
+                                                      ccl_private ShaderDataBase *sd)
 {
   /* Get shader. */
   sd->shader = kernel_data_fetch(tri_shader, sd->prim);
@@ -68,6 +69,11 @@ ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals kg, ccl_priv
     sd->N = motion_triangle_smooth_normal(
         kg, Ng, sd->object, sd->prim, tri_vindex, numsteps, step, t, sd->u, sd->v);
   }
+}
+
+ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals kg, ccl_private ShaderData *sd)
+{
+  motion_triangle_shader_setup(kg, (ShaderDataBase *)sd);
 }
 
 CCL_NAMESPACE_END
