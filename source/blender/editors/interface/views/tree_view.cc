@@ -24,7 +24,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_multi_value_map.hh"
