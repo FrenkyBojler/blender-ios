@@ -4554,7 +4554,6 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
 
-            col.operator("mesh.circularize", text="To Circle")
             col.separator()
 
             col.operator("mesh.extrude_vertices_move", text="Extrude Vertices")
@@ -4605,7 +4604,6 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
-            col.operator("mesh.circularize", text="To Circle")
 
             col.separator()
 
@@ -4676,7 +4674,6 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
-            col.operator("mesh.circularize", text="To Circle")
 
             col.separator()
 
