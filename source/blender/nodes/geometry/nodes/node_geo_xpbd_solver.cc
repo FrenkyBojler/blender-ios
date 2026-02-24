@@ -47,6 +47,7 @@ constexpr StringRefNull mass = "mass";
 constexpr StringRefNull moment_of_inertia = "moment_of_inertia";
 constexpr StringRefNull static_friction = "static_friction";
 constexpr StringRefNull dynamic_friction = "dynamic_friction";
+constexpr StringRefNull radius = "radius";
 
 }  // namespace attribute_names
 
@@ -310,9 +311,13 @@ struct GeometryData {
   VArray<float> dynamic_frictions;
   VArray<float> masses;
   VArraySpan<float3> moments_of_inertia;
+  VArray<float> collision_radii;
+  VArray<float> prev_collision_radii;
 
   Array<float> inv_masses;
   Array<float3> inv_moments_of_inertia;
+
+  Array<bool> is_hard_pinned;
 
   Vector<DampingConstraintUsage> damping_constraints;
   Vector<PinPositionConstraintUsage> pin_position_constraints;
@@ -715,6 +720,11 @@ class XpbdSolverStep {
           attribute_names::dynamic_friction, domain, 0.0f);
       geo_data.masses = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::mass, domain, 1.0f);
+      geo_data.collision_radii = *geo_data.attributes.lookup_or_default<float>(
+          attribute_names::radius, domain, 0.0f);
+      geo_data.prev_collision_radii = geo_data.collision_radii;
+      geo_data.is_hard_pinned.reinitialize(geo_data.size);
+      geo_data.is_hard_pinned.fill(false);
       if (geo_data.attributes.contains(attribute_names::rotation)) {
         geo_data.uses_rotation = true;
         geo_data.rotation_attr = this->ensure_attribute<math::Quaternion>(
@@ -788,8 +798,11 @@ class XpbdSolverStep {
           collider.begin_normal, collider.end_normal, substep.end_factor);
       for (const int point_i : chunk.points_range) {
         const float3 &position = positions[point_i];
+        const float radius = math::interpolate(geo_data.prev_collision_radii[point_i],
+                                               geo_data.collision_radii[point_i],
+                                               substep.end_factor);
 
-        const float distance = math::dot(position - collider_position, collider_normal);
+        const float distance = math::dot(position - collider_position, collider_normal) - radius;
         if (distance >= max_distance) {
           continue;
         }
@@ -873,6 +886,7 @@ class XpbdSolverStep {
         this->gather_contacts__mesh_collider__static(chunk_i,
                                                      max_distance,
                                                      solver_refs_i,
+                                                     substep,
                                                      collider,
                                                      collider_usage,
                                                      *static_mesh,
@@ -902,6 +916,7 @@ class XpbdSolverStep {
   void gather_contacts__mesh_collider__static(const int chunk_i,
                                               const float max_distance,
                                               const int solver_refs_i,
+                                              const SubstepInterval &substep,
                                               const MeshCollider &collider,
                                               const MeshColliderUsage &collider_usage,
                                               const StaticMeshInfo &static_mesh,
@@ -923,10 +938,17 @@ class XpbdSolverStep {
         geometries_.solver_refs[solver_refs_i][chunk.data_key_i].positions;
 
     for (const int point_i : chunk.points_range) {
+      if (geo_data.is_hard_pinned[point_i]) {
+        continue;
+      }
+
       const float3 &pos_local = positions[point_i];
+      const float radius = math::interpolate(geo_data.prev_collision_radii[point_i],
+                                             geo_data.collision_radii[point_i],
+                                             substep.end_factor);
       const float3 pos_mesh = math::transform_point(local_to_mesh, pos_local);
       const std::optional<ClosestMeshContact> contact = this->get_closest_mesh_contact(
-          pos_mesh, bvh, corner_tris, corner_verts, vert_positions, max_distance);
+          pos_mesh, radius, bvh, corner_tris, corner_verts, vert_positions, max_distance);
       if (!contact) {
         continue;
       }
@@ -938,16 +960,17 @@ class XpbdSolverStep {
       const float3 prev_contact_pos_local = math::transform_point(prev_mesh_to_local,
                                                                   contact->nearest_pos);
       /* Separating axis to move self out of penetration. */
-      const float3 collision_axis = contact->is_inside ? contact_pos_local - pos_local :
-                                                         pos_local - contact_pos_local;
-      const float3 valid_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
-                                                    math::transpose(float3x3(local_to_mesh)) *
-                                                        contact->nearest_pos :
-                                                    collision_axis);
+      const float3 collision_axis = contact->is_inside_without_radius ?
+                                        contact_pos_local - pos_local :
+                                        pos_local - contact_pos_local;
+      const float3 separating_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
+                                                         math::transpose(float3x3(local_to_mesh)) *
+                                                             contact->nearest_pos :
+                                                         collision_axis);
       const int contact_i = r_contacts.points.append_and_get_index(point_i);
-      r_contacts.positions_on_plane.append(contact_pos_local);
+      r_contacts.positions_on_plane.append(contact_pos_local + radius * separating_axis);
       r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
-      r_contacts.separating_axes.append(valid_axis);
+      r_contacts.separating_axes.append(separating_axis);
       r_contacts.static_frictions.append(static_friction);
       r_contacts.dynamic_frictions.append(dynamic_friction);
       r_contacts.compliance_terms.append(
@@ -988,10 +1011,18 @@ class XpbdSolverStep {
                            deforming_mesh.substep_meshes[substep.current_i - 1]->vert_positions();
 
     for (const int point_i : chunk.points_range) {
+      if (geo_data.is_hard_pinned[point_i]) {
+        continue;
+      }
+
       const float3 &pos_local = positions[point_i];
+      // TODO: transform radius into mesh space
+      const float radius = math::interpolate(geo_data.prev_collision_radii[point_i],
+                                             geo_data.collision_radii[point_i],
+                                             substep.end_factor);
       const float3 pos_mesh = math::transform_point(local_to_mesh, pos_local);
       const std::optional<ClosestMeshContact> contact = this->get_closest_mesh_contact(
-          pos_mesh, bvh, corner_tris, corner_verts, vert_positions, max_distance);
+          pos_mesh, radius, bvh, corner_tris, corner_verts, vert_positions, max_distance);
       if (!contact) {
         continue;
       }
@@ -1008,16 +1039,17 @@ class XpbdSolverStep {
           prev_vert_positions[corner_verts[tri[2]]]);
       const float3 prev_contact_pos_local = math::transform_point(prev_mesh_to_local,
                                                                   prev_contact_pos_mesh);
-      const float3 collision_axis = contact->is_inside ? contact_pos_local - pos_local :
-                                                         pos_local - contact_pos_local;
-      const float3 valid_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
-                                                    math::transpose(float3x3(local_to_mesh)) *
-                                                        contact->nearest_pos :
-                                                    collision_axis);
+      const float3 collision_axis = contact->is_inside_without_radius ?
+                                        contact_pos_local - pos_local :
+                                        pos_local - contact_pos_local;
+      const float3 separating_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
+                                                         math::transpose(float3x3(local_to_mesh)) *
+                                                             contact->nearest_pos :
+                                                         collision_axis);
       const int contact_i = r_contacts.points.append_and_get_index(point_i);
-      r_contacts.positions_on_plane.append(contact_pos_local);
+      r_contacts.positions_on_plane.append(contact_pos_local + radius * separating_axis);
       r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
-      r_contacts.separating_axes.append(valid_axis);
+      r_contacts.separating_axes.append(separating_axis);
       r_contacts.static_frictions.append(static_friction);
       r_contacts.dynamic_frictions.append(dynamic_friction);
       r_contacts.compliance_terms.append(
@@ -1031,14 +1063,17 @@ class XpbdSolverStep {
   }
 
   struct ClosestMeshContact {
+    /** The nearest position exactly on the mesh surface. */
     float3 nearest_pos;
     float3 bary_coords;
-    bool is_inside;
+    bool is_inside_without_radius;
+    bool is_inside_with_radius;
     int tri_i;
   };
 
   std::optional<ClosestMeshContact> get_closest_mesh_contact(
       const float3 &sample_pos,
+      const float radius,
       const bke::BVHTreeFromMesh &corner_tris_bvh,
       const Span<int3> corner_tris,
       const Span<int> corner_verts,
@@ -1047,7 +1082,7 @@ class XpbdSolverStep {
   {
     BVHTreeNearest nearest{};
     nearest.index = -1;
-    nearest.dist_sq = pow2f(max_distance);
+    nearest.dist_sq = pow2f(radius + max_distance);
     BLI_bvhtree_find_nearest(corner_tris_bvh.tree,
                              sample_pos,
                              &nearest,
@@ -1062,16 +1097,28 @@ class XpbdSolverStep {
     const float3 bary_coords = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
         vert_positions, corner_verts, tri, contact_pos);
     const float3 direction_to_mesh = contact_pos - sample_pos;
-    bool is_inside;
+    bool is_inside_without_radius;
     if (this->is_bary_coord_close_to_edge(bary_coords)) {
       /* The nearest point is on an edge, so its normal is unreliable, use a more robust test. */
-      is_inside = this->test_is_inside_ray_using_rays(
-          sample_pos, corner_tris_bvh, direction_to_mesh);
+      is_inside_without_radius = this->test_is_inside_ray_using_rays(
+          contact_pos, corner_tris_bvh, direction_to_mesh);
     }
     else {
-      is_inside = math::dot(direction_to_mesh, float3(nearest.no)) > 0.0f;
+      is_inside_without_radius = math::dot(direction_to_mesh, float3(nearest.no)) > 0.0f;
     }
-    return ClosestMeshContact{contact_pos, bary_coords, is_inside, tri_i};
+    bool is_inside_with_radius;
+    const float distance_to_mesh = math::length(direction_to_mesh);
+    if (distance_to_mesh < radius) {
+      /* If the mesh is closer than the radius, the point is definitely inside. */
+      is_inside_with_radius = true;
+    }
+    else {
+      /* If the mesh is further away, the radius does not have to be taken into account to
+       * determine if the point is inside. */
+      is_inside_with_radius = is_inside_without_radius;
+    }
+    return ClosestMeshContact{
+        contact_pos, bary_coords, is_inside_without_radius, is_inside_with_radius, tri_i};
   }
 
   bool is_bary_coord_close_to_edge(const float3 &bary_coords) const
@@ -1776,6 +1823,9 @@ class XpbdSolverStep {
         constraint_usage.compliances = compliances;
 
         pin_mask.to_indices(points);
+        for (const int point_i : points) {
+          geo_data.is_hard_pinned[point_i] = true;
+        }
         constraint_usage.positions_varray.materialize_compressed_to_uninitialized(pin_mask,
                                                                                   end_positions);
         constraint_usage.compliances_varray.materialize_compressed_to_uninitialized(pin_mask,
