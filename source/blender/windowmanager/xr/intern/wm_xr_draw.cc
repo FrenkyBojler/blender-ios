@@ -845,9 +845,10 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
 
 static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect)
 {
-  /* Colors TODO: Dynamically get these from the current theme. */
-  const float background_col[4] = {0.188f, 0.188f, 0.188f, 1.0f};
-  const float outline_col[4] = {0.26f, 0.26f, 0.26f, 1.0f};
+  float background_col[3];
+  ui::theme::get_color_3fv(TH_TAB_ACTIVE, background_col);
+
+  const float outline_col[4] = {0.26f, 0.26f, 0.26f, 0.2f};
 
   rctf background_rect = viewfinder_rect;
   BLI_rctf_pad(&background_rect, 0.2f, 0.6f);
@@ -865,15 +866,15 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
   /* Workaround: regain precision on the rect side by a factor of 100. */
   GPU_matrix_scale_1f(0.01f);
   BLI_rctf_mul(&background_rect, 100);
-  BLI_rctf_mul(&outline_rect, 100);
   BLI_rctf_mul(&tabs_bg_rect, 100);
+  BLI_rctf_mul(&outline_rect, 100);
 
   GPU_polygon_offset(-1.0f, -1.0f);
   ui::draw_roundbox_3fv_alpha(&background_rect, true, 16, background_col, 1.0f);
   GPU_matrix_translate_3f(0.0f, 0.0f, 0.01f);
   ui::draw_roundbox_3fv_alpha(&tabs_bg_rect, true, 16, background_col, 1.0f);
   GPU_matrix_translate_3f(0.0f, 0.0f, 0.01f);
-  ui::draw_roundbox_3fv_alpha(&outline_rect, true, 16, outline_col, 0.2f);
+  ui::draw_roundbox_4fv(&outline_rect, true, 0, outline_col);
   GPU_polygon_offset(0.0f, 0.0f);
 
   GPU_matrix_pop();
