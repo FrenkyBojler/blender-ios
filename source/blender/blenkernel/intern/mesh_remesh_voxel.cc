@@ -469,7 +469,6 @@ static void sample_vertex_attributes(const Span<StringRef> ids,
                                                 bary_coords,
                                                 src,
                                                 IndexMask(dst.span.size()),
-                                                exec_mode::parallel,
                                                 dst.span);
     dst.finish();
   }
@@ -484,20 +483,6 @@ static void sample_corner_attributes(const Span<StringRef> ids,
                                      MutableAttributeAccessor dst_attributes)
 {
   for (const StringRef id : ids) {
-#if 0
-    const GVArray src = *src_attributes.lookup(id, AttrDomain::Corner);
-    const AttrType type = cpp_type_to_attribute_type(src.type());
-    GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(id, AttrDomain::Point, type);
-    mesh_surface_sample::sample_point_attribute(corner_verts,
-                                                corner_tris,
-                                                tri_indices,
-                                                bary_coords,
-                                                src,
-                                                IndexMask(dst.span.size()),
-                                                exec_mode::parallel,
-                                                dst.span);
-    dst.finish();
-#endif
   }
 }
 

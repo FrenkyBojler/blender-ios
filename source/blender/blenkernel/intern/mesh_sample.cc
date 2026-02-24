@@ -174,13 +174,8 @@ void sample_barycentric_weights(const Span<float3> vert_positions,
                                 const IndexMask &mask,
                                 MutableSpan<float3> bary_coords)
 {
-  sample_barycentric_weights<false>(vert_positions,
-                                    corner_verts,
-                                    corner_tris,
-                                    tri_indices,
-                                    sample_positions,
-                                    mask,
-                                    bary_coords);
+  sample_barycentric_weights<false>(
+      vert_positions, corner_verts, corner_tris, tri_indices, sample_positions, mask, bary_coords);
 }
 
 template<bool check_indices = false>
