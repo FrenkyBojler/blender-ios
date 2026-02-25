@@ -468,7 +468,8 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
                 # Delete the selected capture
                 case 'DELETE':
                     captures.remove(scene.vr_captures_selected)
-                    scene.vr_captures_selected -= 1
+                    if scene.vr_captures_selected > 0:
+                        scene.vr_captures_selected -= 1
 
                     return {'FINISHED'}
 
