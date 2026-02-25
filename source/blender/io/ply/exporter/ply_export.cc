@@ -7,14 +7,13 @@
  */
 
 #include "BKE_context.hh"
-#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_multires.hh"
-#include "BKE_paint.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 
 #include "DEG_depsgraph_query.hh"
+
+#include "ED_util.hh"
 
 #include "IO_ply.hh"
 
@@ -42,9 +41,7 @@ void exporter_main(bContext *C, const PLYExportParams &export_params)
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
-  Object *ob = BKE_view_layer_active_object_get(view_layer);
-  multires_flush_sculpt_updates(ob);
-  BKE_sculptsession_bm_to_me_for_render(ob);
+  ED_editors_flush_edits(bmain);
 
   Depsgraph *depsgraph = DEG_graph_new(bmain, scene, view_layer, DAG_EVAL_RENDER);
 

@@ -17,17 +17,16 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_multires.hh"
-#include "BKE_paint.hh"
 #include "BKE_scene.hh"
 
 #include "BLI_fileops.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_timeit.hh"
+
+#include "ED_util.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -211,9 +210,6 @@ bool ABC_export(Scene *scene,
                 bool as_background_job)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  Object *ob = BKE_view_layer_active_object_get(view_layer);
-  multires_flush_sculpt_updates(ob);
-  BKE_sculptsession_bm_to_me_for_render(ob);
 
   ExportJobData *job = MEM_new<ExportJobData>("ExportJobData");
 
@@ -221,6 +217,8 @@ bool ABC_export(Scene *scene,
   job->wm = CTX_wm_manager(C);
   job->export_ok = false;
   STRNCPY(job->filepath, filepath);
+
+  ED_editors_flush_edits(job->bmain);
 
   job->depsgraph = DEG_graph_new(job->bmain, scene, view_layer, params->evaluation_mode);
   job->params = *params;

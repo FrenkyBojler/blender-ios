@@ -9,12 +9,9 @@
 #include <memory>
 
 #include "BKE_context.hh"
-#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh_wrapper.hh"
-#include "BKE_multires.hh"
 #include "BKE_object.hh"
-#include "BKE_paint.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 
@@ -26,6 +23,8 @@
 #include "DNA_layer_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
+
+#include "ED_util.hh"
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -166,12 +165,9 @@ void exporter_main(const bContext *C, const STLExportParams &export_params)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-
-  Object *ob = BKE_view_layer_active_object_get(view_layer);
-  multires_flush_sculpt_updates(ob);
-  BKE_sculptsession_bm_to_me_for_render(ob);
-
   Depsgraph *depsgraph = depsgraph = DEG_graph_new(bmain, scene, view_layer, DAG_EVAL_RENDER);
+
+  ED_editors_flush_edits(bmain);
 
   if (export_params.collection[0]) {
     Collection *collection = reinterpret_cast<Collection *>(

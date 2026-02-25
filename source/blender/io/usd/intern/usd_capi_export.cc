@@ -41,10 +41,7 @@
 #include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_save.hh"
-#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_multires.hh"
-#include "BKE_paint.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 
@@ -56,6 +53,8 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_timeit.hh"
+
+#include "ED_util.hh"
 
 #include <IMB_imbuf.hh>
 #include <IMB_imbuf_types.hh>
@@ -809,10 +808,6 @@ bool USD_export(const bContext *C,
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Scene *scene = CTX_data_scene(C);
 
-  Object *ob = BKE_view_layer_active_object_get(view_layer);
-  multires_flush_sculpt_updates(ob);
-  BKE_sculptsession_bm_to_me_for_render(ob);
-
   io::usd::ExportJobData *job = MEM_new<io::usd::ExportJobData>("ExportJobData");
 
   job->bmain = CTX_data_main(C);
@@ -820,6 +815,8 @@ bool USD_export(const bContext *C,
   job->scene = scene;
   job->export_ok = false;
   set_job_filepath(job, filepath);
+
+  ED_editors_flush_edits(job->bmain);
 
   job->depsgraph = DEG_graph_new(job->bmain, scene, view_layer, params->evaluation_mode);
   job->params = *params;
