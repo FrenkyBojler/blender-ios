@@ -156,9 +156,14 @@ def diff_output(test, oiiotool, fail_threshold, fail_percent, verbose, update):
             output = output.decode("utf-8", 'ignore')
             # Only print max error and number of pixels over threshold.
             # Max error is not present if the images are a perfect match.
-            if "Max error" in output:
-                test.stats = (re.search(r"Max error *= *\d+\.\d{1,3}", output).group() +
-                              "\n" + re.findall(r"\S+ pixels .* over \S+", output)[-1])
+            max_error = re.search(r"Max error *= *(\S+)", output)
+            over_threshold = re.findall(r"\S+ pixels .* over \S+", output)
+            if max_error or over_threshold:
+                test.stats = ""
+                if max_error:
+                    test.stats += "Max error = {:.3f}\n".format(float(max_error.group(1)))
+                if over_threshold:
+                    test.stats += over_threshold[-1]
         except Exception as e:
             print("Error parsing oiiotool output: \n", output, "\n", traceback.format_exc())
             test.error = "STATS ERROR"
