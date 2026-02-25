@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -497,7 +497,7 @@ static float3 project_v3_plane(const float3 vector, const float3 direction)
 
 /* Build curve segment bvh. */
 static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curves,
-                                             const std::optional<VArray<float>> distances,
+                                             const std::optional<VArray<float>> &distances,
                                              const VArray<int> &ids,
                                              Vector<Segment> *r_curve_segments,
                                              const float2 min_max_angle,
@@ -1403,7 +1403,6 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeCurveIntersections");
   ntype.ui_name = "Curve Intersections";
   ntype.ui_description = "Calculate and output curve intersections as a point cloud";
-  ntype.enum_name_legacy = "CURVE_INTERSECTIONS";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
