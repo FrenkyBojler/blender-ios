@@ -4052,16 +4052,16 @@ static void init_scene_project_brush_targets(const bContext *C,
   View3D *v3d = CTX_wm_view3d(C);
   cache.project_targets.clear();
 
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    const bool is_active_object = base->object == &active_object;
-    const bool is_hidden = !BKE_base_is_visible(v3d, base);
-    Object *object = DEG_get_evaluated(&depsgraph, base->object);
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    const bool is_active_object = base.object == &active_object;
+    const bool is_hidden = !BKE_base_is_visible(v3d, &base);
+    Object *object = DEG_get_evaluated(&depsgraph, base.object);
 
     if (is_active_object || object->type != OB_MESH || is_hidden) {
       continue;
     }
 
-    const Mesh &mesh = *static_cast<Mesh *>(object->data);
+    const Mesh &mesh = *id_cast<const Mesh *>(object->data);
     bke::BVHTreeFromMesh tree_data = mesh.bvh_corner_tris();
 
     if (tree_data.tree == nullptr) {
@@ -5643,7 +5643,7 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
   }
 
   if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_SCENE_PROJECT) {
-    init_scene_project_brush_targets(C, ob, *cache);
+    init_scene_project_brush_targets(this->evil_C, ob, *cache);
   }
 
   /* Not very nice, but with current events system implementation
@@ -5675,7 +5675,6 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
       ob.world_to_object() * float4x4(cache->vc->rv3d->viewinv), z_axis));
   cache->view_origin = math::transform_point(ob.world_to_object(),
                                              float3(cache->vc->rv3d->viewinv[3]));
-
 
   cache->supports_gravity = bke::brush::supports_gravity(*brush) && sculpt_->gravity_factor > 0.0f;
   /* Get gravity vector in world space. */

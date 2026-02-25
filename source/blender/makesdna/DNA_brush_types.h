@@ -409,9 +409,9 @@ struct Brush {
   int slide_deform_type = 0;
 
   /* Scene Project brush */
-  int8_t project_ray_direction_type;
-  char _pad2[3];
-  float minimum_distance;
+  int8_t project_ray_direction_type = BRUSH_PROJECT_RAY_DIRECTION_VIEW_NORMAL;
+  char _pad2[3] = {};
+  float minimum_distance = 0.0f;
 
   /* overlay */
   int texture_overlay_alpha = 33;
