@@ -765,6 +765,28 @@ struct UserDef_SpaceData {
   char _pad0[6] = {};
 };
 
+/* Deprecated: Leave in until 6.0. */
+struct UserDef_FileSpaceData {
+  int display_type = FILE_VERTICALDISPLAY; /* FileSelectParams.display */
+  int thumbnail_size = 96;                 /* FileSelectParams.thumbnail_size */
+  int sort_type = FILE_SORT_ALPHA;         /* FileSelectParams.sort */
+  int details_flags = FILE_DETAILS_SIZE |
+                      FILE_DETAILS_DATETIME; /* FileSelectParams.details_flags */
+  int flag = FILE_HIDE_DOT;                  /* FileSelectParams.flag */
+  int _pad0 = {};
+  uint64_t filter_id = FILTER_ID_ALL; /* FileSelectParams.filter_id */
+};
+
+/* Deprecated: Leave in until 6.0. */
+struct UserDef_TempWinBounds {
+  rctf file = {100.0f, 1160.0f, 350.0f, 950.0f};
+  rctf userpref = {100.0f, 940.0f, 350.0f, 900.0f};
+  rctf image = {50.0f, 1360.0f, 50.0f, 830.0f};
+  rctf graph = {50.0f, 950.0f, 200.0f, 780.0f};
+  rctf info = {100.0f, 1000.0f, 300.0f, 880.0f};
+  rctf outliner = {100.0f, 550.0f, 350.0f, 800.0f};
+};
+
 /**
  * Checking experimental members must use either the #USER_EXPERIMENTAL_TEST() macro
  * or the #USER_DEVELOPER_TOOL_TEST() macro.
@@ -1196,6 +1218,9 @@ struct UserDef {
 
   /** The UI for the user preferences. */
   UserDef_SpaceData space_data;
+  UserDef_FileSpaceData file_space_data;
+
+  UserDef_TempWinBounds stored_bounds;
 
   UserDef_Experimental experimental;
 

@@ -232,6 +232,7 @@ void WM_init(bContext *C, int argc, const char **argv)
   ED_node_init_butfuncs();
 
   BLF_init();
+  BLI_settings_init_async();
 
   BLT_lang_init();
   /* Must call first before doing any `.blend` file reading,

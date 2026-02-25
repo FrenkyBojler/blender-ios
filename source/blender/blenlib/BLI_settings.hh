@@ -14,6 +14,7 @@
 
 namespace blender {
 
+void BLI_settings_init_async();
 bool BLI_settings_save();
 
 struct Settings {
@@ -51,7 +52,7 @@ struct Settings {
       return *this;
     }
 
-    /* Provide non-template overloads for strings so string-literals (char[N])
+    /* Non-template overloads for strings so string-literals (char[N])
      * don't force a Settings::set<char[N]> instantiation (causing the unresolved
      * external). These take precedence over the template operator=. */
     Proxy &operator=(const std::string &s)

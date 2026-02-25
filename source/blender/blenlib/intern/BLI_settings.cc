@@ -9,7 +9,10 @@
 
 #include "../../../extern/toml11/toml.hpp"
 
-#include <mutex> /* std::once_flag, std::call_once */
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 
 #include "BKE_appdir.hh"
 
@@ -23,21 +26,13 @@ namespace blender {
 constexpr toml::spec version = toml::spec::v(1, 1, 0);
 #define BLI_SETTINGS_FILE_NAME "settings.toml"
 
-/* Lazy (first-use) storage for toml values.. */
-static toml::value &BLI_settings_current()
-{
-  static toml::value v;
-  return v;
-}
-static toml::value &BLI_settings_default()
-{
-  static toml::value v;
-  return v;
-}
+toml::value settings_current;
+toml::value settings_default;
 
 static Mutex settings_mutex;
-
-/* Ensure bli_settings_init() runs once, thread-safely, on first use. */
+static Mutex settings_init_mutex;
+static std::atomic<bool> settings_ready{false};
+static std::condition_variable_any settings_init_cv;
 static std::once_flag settings_init_once;
 
 static std::string settings_file_path()
@@ -63,7 +58,7 @@ static void bli_settings_init()
   toml::result result = toml::try_parse_str(default_settings_toml, version);
   if (result.is_ok()) {
     std::lock_guard<Mutex> lock(settings_mutex);
-    BLI_settings_default() = result.unwrap();
+    settings_default = result.unwrap();
   }
   else {
     bli_settings_print_errors(result.unwrap_err());
@@ -75,7 +70,7 @@ static void bli_settings_init()
     toml::result result = toml::try_parse(settings_file_path(), version);
     if (result.is_ok()) {
       std::lock_guard<Mutex> lock(settings_mutex);
-      BLI_settings_current() = result.unwrap();
+      settings_current = result.unwrap();
     }
     else {
       bli_settings_print_errors(result.unwrap_err());
@@ -85,20 +80,46 @@ static void bli_settings_init()
     /* Create a new settings file from defaults. */
     {
       std::lock_guard<Mutex> lock(settings_mutex);
-      BLI_settings_current() = BLI_settings_default();
+      settings_current = settings_default;
     }
     BLI_settings_save();
   }
+
+  /* Mark ready and wake any waiters (covers both sync and async init). */
+  settings_ready.store(true, std::memory_order_release);
+  settings_init_cv.notify_all();
+}
+
+void BLI_settings_init_async()
+{
+  /* Ensure we only start one background init thread. `bli_settings_init()`
+   * itself sets `settings_ready` and notifies waiters. */
+  std::call_once(settings_init_once,
+                 []() { std::thread([]() { bli_settings_init(); }).detach(); });
+}
+
+static void bli_settings_ensure_init()
+{
+  if (settings_ready.load(std::memory_order_acquire)) {
+    return;
+  }
+
+  printf("WARNING: Waiting for BLI_settings_init_async() to complete.\n");
+  std::unique_lock<Mutex> lock(settings_init_mutex);
+  settings_init_cv.wait(lock, [] { return settings_ready.load(std::memory_order_acquire); });
 }
 
 bool BLI_settings_save()
 {
   std::lock_guard<Mutex> lock(settings_mutex);
-  if (BLI_settings_current().is_empty()) {
+  if (settings_current.is_empty()) {
     return false;
   }
-  std::string s = toml::format(BLI_settings_current(), version);
+  std::string s = toml::format(settings_current, version);
   FILE *fp = BLI_fopen(settings_file_path().c_str(), "w");
+  if (fp == nullptr) {
+    return false;
+  }
   fputs(s.c_str(), fp);
   fclose(fp);
   return true;
@@ -106,14 +127,14 @@ bool BLI_settings_save()
 
 void Settings::remove(const StringRef item)
 {
-  std::call_once(settings_init_once, bli_settings_init);
+  bli_settings_ensure_init();
   std::lock_guard<Mutex> lock(settings_mutex);
 
-  if (!BLI_settings_current().is_table()) {
+  if (!settings_current.is_table()) {
     return;
   }
 
-  toml::table &root_tbl = BLI_settings_current().as_table();
+  toml::table &root_tbl = settings_current.as_table();
 
   if (section.is_empty()) {
     root_tbl.erase(item);
@@ -136,37 +157,35 @@ void Settings::remove(const StringRef item)
 
 void Settings::remove_section()
 {
-  std::call_once(settings_init_once, bli_settings_init);
+  bli_settings_ensure_init();
   std::lock_guard<Mutex> lock(settings_mutex);
-  if (section.is_empty() || !BLI_settings_current().is_table()) {
+  if (section.is_empty() || !settings_current.is_table()) {
     return;
   }
-  toml::table &root_tbl = BLI_settings_current().as_table();
+  toml::table &root_tbl = settings_current.as_table();
   root_tbl.erase(section);
 }
 
 template<typename T> T Settings::get(const StringRef item) const
 {
-  std::call_once(settings_init_once, bli_settings_init);
+  bli_settings_ensure_init();
   std::lock_guard<Mutex> lock(settings_mutex);
   const std::string sec = section;
   const std::string key = item;
-  const toml::value &cur = sec.empty() ? BLI_settings_current()[key] :
-                                         BLI_settings_current()[sec][key];
-  const toml::value &def = sec.empty() ? BLI_settings_default()[key] :
-                                         BLI_settings_default()[sec][key];
+  const toml::value &cur = sec.empty() ? settings_current[key] : settings_current[sec][key];
+  const toml::value &def = sec.empty() ? settings_default[key] : settings_default[sec][key];
   return toml::get_or(cur, toml::get_or(def, T{}));
 }
 
 template<typename T> void Settings::set(const StringRef item, const T &value)
 {
-  std::call_once(settings_init_once, bli_settings_init);
+  bli_settings_ensure_init();
   std::lock_guard<Mutex> lock(settings_mutex);
   if (section.is_empty()) {
-    BLI_settings_current()[item] = value;
+    settings_current[item] = value;
   }
   else {
-    BLI_settings_current()[section][item] = value;
+    settings_current[section][item] = value;
   }
 }
 
@@ -203,12 +222,8 @@ template void Settings::set<float>(const StringRef item, const float &value);
 template double Settings::get<double>(const StringRef item) const;
 template void Settings::set<double>(const StringRef item, const double &value);
 
-template std::string Settings::get<std::string>(const StringRef item) const;
-template void Settings::set<std::string>(const StringRef item, const std::string &value);
-
 template std::vector<int> Settings::get<std::vector<int>>(const StringRef item) const;
-template void Settings::set<std::vector<int>>(const StringRef item,
-                                              const std::vector<int> &value);
+template void Settings::set<std::vector<int>>(const StringRef item, const std::vector<int> &value);
 
 template std::vector<double> Settings::get<std::vector<double>>(const StringRef item) const;
 template void Settings::set<std::vector<double>>(const StringRef item,
