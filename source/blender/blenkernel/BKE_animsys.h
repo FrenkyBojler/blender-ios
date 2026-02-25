@@ -14,10 +14,9 @@
 #include "BLI_span.hh"
 #include "BLI_sys_types.h" /* for bool */
 
-#include <string>
-
 namespace blender {
 
+struct AnimationBasePathChange;
 struct AnimData;
 struct BlendDataReader;
 struct BlendWriter;
@@ -216,11 +215,6 @@ bool BKE_animdata_drivers_remove_for_rna_struct(struct ID &owner_id,
                                                 void *data);
 
 /* -------------------------------------- */
-
-struct AnimationBasePathChange {
-  std::string src_basepath;
-  std::string dst_basepath;
-};
 
 /**
  * Copy any animation data under the base paths from the #src_id animation data to the #dst_id

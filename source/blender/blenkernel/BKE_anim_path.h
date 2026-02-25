@@ -7,6 +7,8 @@
  * \ingroup bke
  */
 
+#include <string>
+
 namespace blender {
 
 struct CurveCache;
@@ -40,5 +42,10 @@ bool BKE_where_on_path(const struct Object *ob,
                        float r_quat[4],
                        float *r_radius,
                        float *r_weight);
+
+struct AnimationBasePathChange {
+  std::string src_basepath;
+  std::string dst_basepath;
+};
 
 }  // namespace blender
