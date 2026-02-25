@@ -54,6 +54,7 @@
 #ifdef WITH_INPUT_IME
 #  include "WM_types.hh"
 #endif
+#include "WM_api.hh"
 
 namespace blender::ui {
 
@@ -75,7 +76,6 @@ enum WidgetTypeEnum {
   UI_WTYPE_TOGGLE,
   UI_WTYPE_CHECKBOX,
   UI_WTYPE_RADIO,
-  UI_WTYPE_LINK,
   UI_WTYPE_NUMBER,
   UI_WTYPE_SLIDER,
   UI_WTYPE_EXEC,
@@ -2234,7 +2234,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   }
 #endif
   /* Draw text underline when the link button is active. */
-  if (but->type == ButtonType::Link && but->active) {
+  if (but->drawflag & BUT_LINK && but->active) {
     float4 color;
     rgba_uchar_to_float(color, wcol->text);
     int width = BLF_width(fstyle->uifont_id, drawstr, drawstr_left_len);
@@ -2674,7 +2674,10 @@ static void widget_state(WidgetType *wt, const WidgetStateInfo *state, EmbossTyp
   }
 
   wt->wcol = *(wt->wcol_theme);
-
+  if (state->but_drawflag & BUT_LINK) {
+    theme::get_color_4ubv(TH_LINK, wt->wcol.text);
+    theme::get_color_4ubv(TH_LINK, wt->wcol.text_sel);
+  }
   const uchar *color_blend = widget_color_blend_from_flags(wcol_state, state, emboss);
 
   if (state->but_flag & UI_SELECT) {
@@ -4846,9 +4849,6 @@ static WidgetType *widget_type(WidgetTypeEnum type)
       wt.draw = widget_textbut;
       break;
 
-    case UI_WTYPE_LINK:
-      wt.wcol_theme = &btheme->tui.wcol_link;
-      break;
     case UI_WTYPE_NAME_LINK:
       break;
 
@@ -5159,9 +5159,10 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
 #else
         wt = widget_type(UI_WTYPE_EXEC);
 #endif
-        break;
-      case ButtonType::Link:
-        wt = widget_type(UI_WTYPE_LINK);
+        if (but->drawflag & BUT_LINK) {
+          wt->draw = nullptr;
+          wt->custom = nullptr;
+        }
         break;
 
       case ButtonType::Num:
@@ -5748,12 +5749,6 @@ void draw_pie_center(Block *block)
 const uiWidgetColors *tooltip_get_theme()
 {
   WidgetType *wt = widget_type(UI_WTYPE_TOOLTIP);
-  return wt->wcol_theme;
-}
-
-const uiWidgetColors *link_get_theme()
-{
-  WidgetType *wt = widget_type(UI_WTYPE_LINK);
   return wt->wcol_theme;
 }
 

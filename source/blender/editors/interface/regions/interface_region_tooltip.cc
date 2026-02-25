@@ -169,7 +169,6 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   const float pad_x = data->lineh * TIP_PADDING_X;
   const float pad_y = data->lineh * TIP_PADDING_Y;
   const uiWidgetColors *theme = tooltip_get_theme();
-  const uiWidgetColors *link_theme = link_get_theme();
   rcti bbox = data->bbox;
   float tip_colors[TIP_LC_MAX][3];
   uchar drawcol[4] = {0, 0, 0, 255}; /* to store color in while drawing (alpha is always 255) */
@@ -182,7 +181,6 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   float *python_color = tip_colors[TIP_LC_PYTHON];
   float *alert_color = tip_colors[TIP_LC_ALERT];
   float *link_color = tip_colors[TIP_LC_LINK];
-
 
   float background_color[3];
 
@@ -198,7 +196,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   rgb_uchar_to_float(main_color, theme->text);
   copy_v3_v3(normal_color, main_color);
 
-  rgb_uchar_to_float(link_color, link_theme->text);
+  theme::get_color_4fv(TH_LINK, link_color);
 
   /* `value_color` mixes with some background for less strength. */
   copy_v3_v3(value_color, main_color);

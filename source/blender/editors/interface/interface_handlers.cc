@@ -2379,7 +2379,6 @@ static void ui_apply_but(
   switch (but_type) {
     case ButtonType::But:
     case ButtonType::Decorator:
-    case ButtonType::Link:
     case ButtonType::PreviewTile:
       ui_apply_but_BUT(C, but, data);
       break;
@@ -2937,7 +2936,6 @@ static bool ui_but_copy(bContext *C, Button *but, const bool copy_array)
       break;
 
     case ButtonType::But:
-    case ButtonType::Link:
       if (!but->optype) {
         break;
       }
@@ -4816,7 +4814,7 @@ static int ui_do_but_BUT(bContext *C, Button *but, HandleButtonData *data, const
     }
   }
 #endif
-  if (but->type == ButtonType::Link) {
+  if (but->drawflag & BUT_LINK) {
     if (!data->changed_cursor) {
       WM_cursor_set(data->window, WM_CURSOR_HAND_POINT);
       data->changed_cursor = true;
@@ -8569,7 +8567,6 @@ static int ui_do_button(bContext *C, Block *block, Button *but, const wmEvent *e
   switch (but->type) {
     case ButtonType::But:
     case ButtonType::Decorator:
-    case ButtonType::Link:
       retval = ui_do_but_BUT(C, but, data, event);
       break;
     case ButtonType::KeyEvent:
@@ -11284,7 +11281,6 @@ static int ui_handle_menu_event(bContext *C,
               else if (ELEM(but.type,
                             ButtonType::But,
                             ButtonType::ButMenu,
-                            ButtonType::Link,
                             ButtonType::Menu,
                             ButtonType::Block,
                             ButtonType::Pulldown) &&

@@ -1473,7 +1473,6 @@ class ThemeGenericClassGenerator:
         wcols = [
             ("Box", "wcol_box"),
             ("Curve", "wcol_curve"),
-            ("Link Item", "wcol_link"),
             ("List Item", "wcol_list_item"),
             ("Menu", "wcol_menu"),
             ("Menu Background", "wcol_menu_back"),

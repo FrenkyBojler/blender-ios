@@ -221,7 +221,7 @@ typedef struct ThemeUI {
   uiWidgetColors wcol_num, wcol_numslider, wcol_tab, wcol_curve;
   uiWidgetColors wcol_menu, wcol_pulldown, wcol_menu_back, wcol_menu_item, wcol_tooltip;
   uiWidgetColors wcol_box, wcol_scroll, wcol_progress, wcol_list_item, wcol_pie_menu;
-  uiWidgetColors wcol_link;
+
   uiWidgetStateColors wcol_state;
 
   unsigned char widget_emboss[4];
@@ -237,7 +237,8 @@ typedef struct ThemeUI {
   /* Transparent Grid */
   unsigned char transparent_checker_primary[4], transparent_checker_secondary[4];
   unsigned char transparent_checker_size;
-  char _pad1[5];
+  unsigned char link[4];
+  char _pad1[1];
 
   float icon_alpha;
   float icon_saturation;
