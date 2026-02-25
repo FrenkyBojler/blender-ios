@@ -98,7 +98,7 @@ set(SRC_GLSL_COMP
   eevee_horizon_denoise_comp.glsl
   eevee_horizon_resolve_comp.glsl
   eevee_horizon_scan_comp.glsl
-  eevee_horizon_setup_comp.glsl
+  eevee_horizon_setup_comp.bsl.hh
   eevee_light_culling_select_comp.glsl
   eevee_light_culling_sort_comp.glsl
   eevee_light_culling_tile_comp.glsl
