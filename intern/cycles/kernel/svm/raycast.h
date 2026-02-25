@@ -85,9 +85,10 @@ ccl_device RaycastResult svm_raycast(KernelGlobals kg,
   result.distance = isect.t;
   result.self_hit = isect.object == sd->object;
 
-  ShaderData hit_sd;
-  shader_setup_from_ray(kg, &hit_sd, &ray, &isect);
-  result.normal = hit_sd.N;
+  ShaderDataTinyStorage hit_sd_storage;
+  ccl_private ShaderData *hit_sd = AS_SHADER_DATA(&hit_sd_storage);
+  shader_setup_from_ray(kg, hit_sd, &ray, &isect);
+  result.normal = hit_sd->N;
 
   return result;
 }
