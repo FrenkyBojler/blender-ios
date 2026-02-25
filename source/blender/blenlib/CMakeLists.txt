@@ -33,7 +33,7 @@ set(SRC
   intern/BLI_memiter.cc
   intern/BLI_mempool.cc
   intern/BLI_mmap.cc
-  intern/BLI_settings.cc
+  intern/BLI_uistate.cc
   intern/BLI_subprocess.cc
   intern/BLI_timer.cc
   intern/array_store.cc
@@ -360,7 +360,7 @@ set(SRC
   BLI_scanfill.h
   BLI_serialize.hh
   BLI_session_uid.h
-  BLI_settings.hh
+  BLI_uistate.hh
   BLI_set.hh
   BLI_set_slots.hh
   BLI_shared_cache.hh

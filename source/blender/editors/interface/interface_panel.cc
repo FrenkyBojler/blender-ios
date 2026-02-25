@@ -19,10 +19,10 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_settings.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_time.h"
+#include "BLI_uistate.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"

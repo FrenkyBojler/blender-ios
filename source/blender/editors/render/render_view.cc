@@ -12,7 +12,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
-#include "BLI_settings.hh"
+#include "BLI_uistate.hh"
 
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
@@ -191,7 +191,7 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
       return nullptr;
     }
 
-    win->runtime->settings_key = key;
+    win->runtime->uistate_key = key;
 
     area = CTX_wm_area(C);
     if (BLI_listbase_is_single(&area->spacedata) == false) {

@@ -40,11 +40,11 @@
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
-#include "BLI_settings.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
+#include "BLI_uistate.hh"
 
 #include "BLT_translation.hh"
 
@@ -460,7 +460,7 @@ void wm_quit_with_optional_confirmation_prompt(bContext *C, wmWindow *win)
 
 static void save_window_bounds_settings(wmWindow *win)
 {
-  if (win->runtime->settings_key.empty()) {
+  if (win->runtime->uistate_key.empty()) {
     return;
   }
 
@@ -475,14 +475,14 @@ static void save_window_bounds_settings(wmWindow *win)
       float(win->posy) * f / UI_SCALE_FAC + float(win->sizey) * f / UI_SCALE_FAC};
 
   UIState uistate("window.dimensions");
-  uistate[win->runtime->settings_key] = bounds;
+  uistate[win->runtime->uistate_key] = bounds;
 }
 
 void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 {
   bScreen *screen = WM_window_get_active_screen(win);
 
-  if (!win->runtime->settings_key.empty() && !WM_window_is_maximized(win)) {
+  if (!win->runtime->uistate_key.empty() && !WM_window_is_maximized(win)) {
     save_window_bounds_settings(win);
   }
 
@@ -1394,7 +1394,7 @@ wmWindow *WM_window_open(bContext *C,
   return nullptr;
 }
 
-static std::string get_window_settings_key(eSpace_Type space_type)
+static std::string get_window_uistate_key(eSpace_Type space_type)
 {
   if (space_type == SPACE_IMAGE) {
     return "image";
@@ -1423,7 +1423,7 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
   WM_window_dpi_set_userdef(CTX_wm_window(C));
   eWindowAlignment align;
 
-  std::string key = get_window_settings_key(eSpace_Type(space_type));
+  std::string key = get_window_uistate_key(eSpace_Type(space_type));
   UIState uistate("window.dimensions");
   std::vector<float> bounds = uistate[key];
 
@@ -1454,7 +1454,7 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
   wmWindow *win = WM_window_open(
       C, title, &rect, space_type, false, dialog, true, align, nullptr, nullptr);
 
-  win->runtime->settings_key = key;
+  win->runtime->uistate_key = key;
   return win;
 }
 

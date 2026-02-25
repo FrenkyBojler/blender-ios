@@ -24,11 +24,11 @@
 #include "BLI_listbase.h"
 #include "BLI_memory_cache.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_settings.hh"
 #include "BLI_string.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_timer.h"
+#include "BLI_uistate.hh"
 #include "BLI_utildefines.h"
 
 #include "BLO_undofile.hh"
