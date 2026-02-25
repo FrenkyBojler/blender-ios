@@ -216,11 +216,11 @@ class VRCapture(PropertyGroup):
     dof_enabled: bpy.props.BoolProperty(
         name="Capture DoF Enabled",
     )
-    dof_dist: bpy.props.FloatProperty(
+    dof_distance: bpy.props.FloatProperty(
         name="Capture DoF Focus Distance",
     )
     dof_fstop: bpy.props.FloatProperty(
-        name="Capture DoF F-Stop",
+        name="Capture DoF Aperture F-Stop",
     )
 
     @staticmethod

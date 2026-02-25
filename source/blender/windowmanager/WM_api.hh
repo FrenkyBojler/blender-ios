@@ -2292,16 +2292,16 @@ bool WM_xr_session_state_viewfinder_orientation_get(const wmXrData *xr, float r_
 bool WM_xr_session_state_viewfinder_runtime_capture_flash_get(const wmXrData *xr, float *r_flash);
 void WM_xr_session_state_viewfinder_runtime_capture_flash_set(wmXrData *xr, float flash);
 
-bool WM_xr_session_state_viewfinder_capture_use_dof_get(const wmXrData *xr, bool *r_use_dof);
-void WM_xr_session_state_viewfinder_capture_use_dof_set(wmXrData *xr, bool use_dof);
-bool WM_xr_session_state_viewfinder_capture_lens_get(const wmXrData *xr, float *r_lens);
-void WM_xr_session_state_viewfinder_capture_lens_set(wmXrData *xr, float lens);
-bool WM_xr_session_state_viewfinder_capture_aperture_fstop_get(const wmXrData *xr,
-                                                               float *r_aperture_fstop);
-void WM_xr_session_state_viewfinder_capture_aperture_fstop_set(wmXrData *xr, float aperture_fstop);
-bool WM_xr_session_state_viewfinder_capture_focus_distance_get(const wmXrData *xr,
-                                                               float *r_focus_distance);
-void WM_xr_session_state_viewfinder_capture_focus_distance_set(wmXrData *xr, float focus_distance);
+bool WM_xr_session_state_viewfinder_capture_dof_enabled_get(const wmXrData *xr, bool *r_dof_enabled);
+void WM_xr_session_state_viewfinder_capture_dof_enabled_set(wmXrData *xr, bool dof_enabled);
+bool WM_xr_session_state_viewfinder_capture_lens_focal_get(const wmXrData *xr, float *r_lens_focal);
+void WM_xr_session_state_viewfinder_capture_lens_focal_set(wmXrData *xr, float lens_focal);
+bool WM_xr_session_state_viewfinder_capture_dof_fstop_get(const wmXrData *xr,
+                                                               float *r_dof_fstop);
+void WM_xr_session_state_viewfinder_capture_dof_fstop_set(wmXrData *xr, float dof_fstop);
+bool WM_xr_session_state_viewfinder_capture_dof_distance_get(const wmXrData *xr,
+                                                               float *r_dof_distance);
+void WM_xr_session_state_viewfinder_capture_dof_distance_set(wmXrData *xr, float dof_distance);
 
 bool WM_xr_session_state_viewfinder_active_mode_get(const wmXrData *xr, eXrViewfinderMode *r_mode);
 void WM_xr_session_state_viewfinder_active_mode_set(wmXrData *xr, eXrViewfinderMode mode);

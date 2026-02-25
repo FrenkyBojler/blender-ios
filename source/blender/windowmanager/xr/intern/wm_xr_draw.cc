@@ -66,7 +66,7 @@ struct XrLocationScoutingCapture {
   float lens_focal;
 
   bool dof_enabled;
-  float dof_dist;
+  float dof_distance;
   float dof_fstop;
 };
 
@@ -129,14 +129,14 @@ static std::optional<XrLocationScoutingCapture> wm_xr_get_active_location_scouti
   /* Captured view settings (lens / DoF). */
   PropertyRNA *lens_focal_prop = RNA_struct_find_property(&current_capture, "lens_focal");
   PropertyRNA *dof_enabled_prop = RNA_struct_find_property(&current_capture, "dof_enabled");
-  PropertyRNA *dof_dist_prop = RNA_struct_find_property(&current_capture, "dof_dist");
+  PropertyRNA *dof_distance_prop = RNA_struct_find_property(&current_capture, "dof_distance");
   PropertyRNA *dof_fstop_prop = RNA_struct_find_property(&current_capture, "dof_fstop");
 
   XrLocationScoutingCapture capture = {
       .pose = capture_pose,
       .lens_focal = RNA_property_float_get(&current_capture, lens_focal_prop),
       .dof_enabled = RNA_property_boolean_get(&current_capture, dof_enabled_prop),
-      .dof_dist = RNA_property_float_get(&current_capture, dof_dist_prop),
+      .dof_distance = RNA_property_float_get(&current_capture, dof_distance_prop),
       .dof_fstop = RNA_property_float_get(&current_capture, dof_fstop_prop)};
 
   return std::make_optional(capture);
@@ -393,11 +393,11 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       invert_m4_m4(viewfinder_render_viewmat, viewfinder_capture_mat);
 
       /* Parse live capture parameter for rendering. */
-      cam_render_params.lens = state->viewfinder.capture_lens;
+      cam_render_params.lens = state->viewfinder.capture_lens_focal;
       SET_FLAG_FROM_TEST(
-          cam_render_data->dof.flag, state->viewfinder.capture_use_dof, CAM_DOF_ENABLED);
-      cam_render_data->dof.aperture_fstop = state->viewfinder.capture_aperture_fstop;
-      cam_render_data->dof.focus_distance = state->viewfinder.capture_focus_distance;
+          cam_render_data->dof.flag, state->viewfinder.capture_dof_enabled, CAM_DOF_ENABLED);
+      cam_render_data->dof.aperture_fstop = state->viewfinder.capture_dof_fstop;
+      cam_render_data->dof.focus_distance = state->viewfinder.capture_dof_distance;
 
       break;
     }
@@ -412,7 +412,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       cam_render_params.lens = capture->lens_focal;
 
       SET_FLAG_FROM_TEST(cam_render_data->dof.flag, capture->dof_enabled, CAM_DOF_ENABLED);
-      cam_render_data->dof.focus_distance = capture->dof_dist;
+      cam_render_data->dof.focus_distance = capture->dof_distance;
       cam_render_data->dof.aperture_fstop = capture->dof_fstop;
 
       break;
@@ -668,7 +668,7 @@ static ui::Block *viewfinder_action_enum_ui_block(const bContext *C, const wmXrS
 
     ui::Layout &sub2 = row.row(true);
     /* Show these controls greyed-out if DoF is disabled. */
-    sub2.enabled_set(state->viewfinder.capture_use_dof);
+    sub2.enabled_set(state->viewfinder.capture_dof_enabled);
     sub2.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_FOCUS, "", ICON_NONE);
     sub2.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_APERTURE, "", ICON_NONE);
   }
@@ -708,10 +708,10 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
       // TODO: Clean-up by moving DoF status to another label on the left side of the viewfinder.
       settings_label = fmt::format(
           "{:\xe2\x80\x87>3}mm   DoF: {}   d: {:\xe2\x80\x87<4.1f}   f {:\xe2\x80\x87>3.1f}",
-          state->viewfinder.capture_lens,
-          state->viewfinder.capture_use_dof ? "on " : "off",
-          state->viewfinder.capture_focus_distance,
-          state->viewfinder.capture_aperture_fstop);
+          state->viewfinder.capture_lens_focal,
+          state->viewfinder.capture_dof_enabled ? "on " : "off",
+          state->viewfinder.capture_dof_distance,
+          state->viewfinder.capture_dof_fstop);
       break;
     case XR_VIEWFINDER_MODE_PLAYBACK:
       /* Current shot indicator (`current shot idx / all shots`). */

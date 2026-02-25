@@ -326,10 +326,10 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
         capture.location = xr_viewfinder.location
         capture.orientation = xr_viewfinder.orientation
 
-        capture.lens_focal = xr_viewfinder.capture_lens
-        capture.dof_enabled = xr_viewfinder.capture_use_dof
-        capture.dof_dist = xr_viewfinder.capture_focus_distance
-        capture.dof_fstop = xr_viewfinder.capture_aperture_fstop
+        capture.lens_focal = xr_viewfinder.capture_lens_focal
+        capture.dof_enabled = xr_viewfinder.capture_dof_enabled
+        capture.dof_distance = xr_viewfinder.capture_dof_distance
+        capture.dof_fstop = xr_viewfinder.capture_dof_fstop
 
         xr_viewfinder.runtime_capture_flash = 1  # Internal value, setting to 1 will trigger a flash
 
@@ -382,16 +382,16 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
             match xr_viewfinder.active_action_live:
                 # View Zoom Control
                 case 'LENS':
-                    current_focal = xr_viewfinder.capture_lens
+                    current_focal = xr_viewfinder.capture_lens_focal
 
                     new_idx = get_next_in_map(current_focal, focal_map, self.action_up)
-                    xr_viewfinder.capture_lens = focal_map[new_idx]
+                    xr_viewfinder.capture_lens_focal = focal_map[new_idx]
 
                     return {'FINISHED'}
 
                 # Toggle DoF on/off
                 case 'DOF':
-                    xr_viewfinder.capture_use_dof = not xr_viewfinder.capture_use_dof
+                    xr_viewfinder.capture_dof_enabled = not xr_viewfinder.capture_dof_enabled
 
                     return {'FINISHED'}
 
@@ -413,16 +413,16 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
                     if hit_success:
                         distance = (hit_location - view_origin).length
                         # Set the DoF Focus Distance from the hit
-                        xr_viewfinder.capture_focus_distance = distance
+                        xr_viewfinder.capture_dof_distance = distance
 
                     return {'FINISHED'}
 
                 # F-Stop control
                 case 'APERTURE':
-                    current_fstop = xr_viewfinder.capture_aperture_fstop
+                    current_fstop = xr_viewfinder.capture_dof_fstop
 
                     new_idx = get_next_in_map(current_fstop, fstop_map, self.action_up)
-                    xr_viewfinder.capture_aperture_fstop = fstop_map[new_idx]
+                    xr_viewfinder.capture_dof_fstop = fstop_map[new_idx]
 
                     return {'FINISHED'}
 
@@ -515,7 +515,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
                 current_action_idx = enum_keys.index(xr_viewfinder.active_action_live)
 
                 # Special case: only allow cycling to non-DoF action if DoF is not enabled
-                enum_length = len(enum_keys) if xr_viewfinder.capture_use_dof else (enum_keys.index('DOF') + 1)
+                enum_length = len(enum_keys) if xr_viewfinder.capture_dof_enabled else (enum_keys.index('DOF') + 1)
                 new_action_idx = (current_action_idx + increment) % enum_length
 
                 xr_viewfinder.active_action_live = enum_keys[new_action_idx]
@@ -552,7 +552,7 @@ class VIEW3D_OT_vr_location_scouting_add_camera_from_capture(Operator):
 
         new_cam.data.lens = capture.lens_focal
         new_cam.data.dof.use_dof = capture.dof_enabled
-        new_cam.data.dof.focus_distance = capture.dof_dist
+        new_cam.data.dof.focus_distance = capture.dof_distance
         new_cam.data.dof.aperture_fstop = capture.dof_fstop
 
         return {'FINISHED'}
@@ -581,7 +581,7 @@ class VIEW3D_OT_vr_location_scouting_active_camera_to_capture(Operator):
 
         cam.data.lens = capture.lens_focal
         cam.data.dof.use_dof = capture.dof_enabled
-        cam.data.dof.focus_distance = capture.dof_dist
+        cam.data.dof.focus_distance = capture.dof_distance
         cam.data.dof.aperture_fstop = capture.dof_fstop
 
         return {'FINISHED'}

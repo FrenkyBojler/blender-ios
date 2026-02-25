@@ -42,10 +42,10 @@ struct wmXrViewfinderState {
   double runtime_smoothing_delta_t;
 
   /* Capture settings. */
-  bool capture_use_dof;
-  float capture_lens;
-  float capture_aperture_fstop;
-  float capture_focus_distance;
+  bool capture_dof_enabled;
+  float capture_lens_focal;
+  float capture_dof_distance;
+  float capture_dof_fstop;
 
   /** Active modes, concept differs from the rest of the Blender UI. */
   eXrViewfinderMode active_mode;
