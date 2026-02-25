@@ -236,6 +236,8 @@ struct SelectMap {
       case GPU_SELECT_ALL:
         info_buf.mode = SelectType::SELECT_ALL;
         if (info_buf.radius == 0) {
+          /* For box select to work, this has to stay in place, however for circle select the
+           * cursor value needs to be set correctly. */
           info_buf.cursor = int2(0);
         }
         else {
