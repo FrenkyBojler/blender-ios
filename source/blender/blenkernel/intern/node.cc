@@ -4002,6 +4002,12 @@ static void *node_static_value_storage_for(bNode &node, const bNodeSocket &socke
     default:
       break;
   }
+  if (STREQ(node.idname, "GeometryNodeInputFont")) {
+    return &node.id;
+  }
+  if (STREQ(node.idname, "FunctionNodeInputMenu")) {
+    return &reinterpret_cast<NodeInputMenu *>(node.storage)->value;
+  }
 
   return nullptr;
 }
