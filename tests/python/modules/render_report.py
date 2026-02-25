@@ -17,6 +17,7 @@ import subprocess
 import time
 import multiprocessing
 import traceback
+import re
 
 from pathlib import Path
 
@@ -152,12 +153,12 @@ def diff_output(test, oiiotool, fail_threshold, fail_percent, verbose, update):
             failed = e.returncode != 0
 
         try:
-            test.stats = output.decode("utf-8", 'ignore')
-            # Only retrieve max error and number of pixels over threshold.
-            lines = test.stats.splitlines()
-            lines = [lines[4].lstrip(), lines[6].lstrip()]
-            lines[0] = lines[0][:len("Max Error = 0.000")]
-            test.stats = '\n'.join(lines)
+            output = output.decode("utf-8", 'ignore')
+            # Only print max error and number of pixels over threshold.
+            # Max error is not present if the images are a perfect match.
+            if "Max error" in output:
+                test.stats = (re.search(r"Max error *= *\d+\.\d{1,3}", output).group() +
+                              "\n" + re.findall(r"\S+ pixels .* over \S+", output)[-1])
         except Exception as e:
             # The oiiotool formatting may have changed.
             traceback.print_exc()
