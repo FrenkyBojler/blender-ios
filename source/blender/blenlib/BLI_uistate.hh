@@ -97,7 +97,7 @@ struct UIState {
 
 /* Default UI state settings. */
 
-const std::string default_uistate_toml = R"_delim_(
+const StringRef default_uistate_toml = R"_delim_(
 title = "Saved UI State Settings"
 name = "Blender"
 
