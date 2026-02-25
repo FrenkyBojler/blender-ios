@@ -98,6 +98,21 @@ static void version_geometry_nodes_properties(Main &bmain, Object &object, Nodes
                                          false,
                                          false);
 
+    if (IDOverrideLibrary *override_library = object.id.override_library) {
+      for (IDOverrideLibraryProperty &prop : override_library->properties) {
+        const StringRef path = prop.rna_path;
+        const int64_t i = path.find(inputs_path_prefix);
+        if (i == StringRef::not_found) {
+          continue;
+        }
+        if (path.drop_known_prefix(inputs_path_prefix) != old_value_path) {
+          continue;
+        }
+        MEM_delete(prop.rna_path);
+        prop.rna_path = BLI_sprintfN("%s%s", inputs_path_prefix.c_str(), new_value_path.c_str());
+      }
+    }
+
     bool use_attribute = false;
     if (const IDProperty *use_attribute_prop = IDP_GetPropertyFromGroup(
             old_props, identifier + "_use_attribute"))
