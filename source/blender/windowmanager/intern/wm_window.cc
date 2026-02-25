@@ -519,11 +519,10 @@ void wm_window_close_request(bContext *C, wmWindowManager *wm, wmWindow *win)
         GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
         const float fac = ghost_window->getNativePixelSize() / UI_SCALE_FAC;
 
-	      std::vector<float> bounds = {
-            float(win->posx) * fac,
-            float(win->posx) * fac + float(win->sizex) * fac,
-            float(win->posy) * fac,
-            float(win->posy) * fac + float(win->sizey) * fac};
+        std::vector<float> bounds = {float(win->posx) * fac,
+                                     float(win->posx) * fac + float(win->sizex) * fac,
+                                     float(win->posy) * fac,
+                                     float(win->posy) * fac + float(win->sizey) * fac};
         UIState uistate("window.dimensions");
         uistate[win->runtime->uistate_key] = bounds;
       }
