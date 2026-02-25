@@ -163,6 +163,16 @@ const EnumPropertyItem rna_enum_voiceover_sample_rate_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+const EnumPropertyItem rna_enum_voiceover_bitrate_items[] = {
+    {32, "RATE_32", 0, "32 kbps", ""},
+    {64, "RATE_64", 0, "64 kbps", ""},
+    {128, "RATE_128", 0, "128 kbps", ""},
+    {256, "RATE_256", 0, "256 kbps", ""},
+    {512, "RATE_512", 0, "512 kbps", ""},
+    {1024, "RATE_1024", 0, "1024 kbps", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 const EnumPropertyItem rna_enum_voiceover_input_device_items[] = {
     {0, "NONE", 0, "None", "No audio capture devices are available"},
     {0, nullptr, 0, nullptr, nullptr},
@@ -3190,9 +3200,9 @@ static void rna_def_editor(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_voiceover_sample_rate_items);
   RNA_def_property_ui_text(prop, "Sample Rate", "Sample rate for recorded audio");
 
-  prop = RNA_def_property(srna, "voiceover_bitrate", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, nullptr, "voiceover_bitrate");
-  RNA_def_property_range(prop, 32, 1024);
+  prop = RNA_def_property(srna, "voiceover_bitrate", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "voiceover_bitrate");
+  RNA_def_property_enum_items(prop, rna_enum_voiceover_bitrate_items);
   RNA_def_property_ui_text(prop, "Bitrate", "Target bitrate in kbps for encoded recordings");
 
   prop = RNA_def_property(srna, "voiceover_is_recording", PROP_BOOLEAN, PROP_NONE);
