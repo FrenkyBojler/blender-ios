@@ -26,4 +26,17 @@ enum VolumeGridType : int8_t {
   VOLUME_GRID_POINTS,
 };
 
+namespace bke {
+
+enum class RasterizePointsWeighting {
+  /* Sum of values in each voxel (multiplied by kernel factor). */
+  Sum,
+  /* Sum of values divided by total value in a voxel. */
+  Average,
+  /* Sum of values multiplied by mass and divided by total mass in a voxel. */
+  WeightedAverage,
+};
+
+}
+
 }  // namespace blender
