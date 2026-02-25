@@ -1568,15 +1568,10 @@ static const ImplicitInputProxyFnMap &get_proxy_implicit_input_node_functions()
   return functions;
 }
 
-bool has_proxy_const_input_node(const eNodeSocketDatatype socket_type)
-{
-  return get_proxy_const_input_node_functions().contains(socket_type);
-}
-
-bNode *try_create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
-                                         bContext &C,
-                                         bNodeTree &tree,
-                                         const void *value)
+bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
+                                     bContext &C,
+                                     bNodeTree &tree,
+                                     const void *value)
 {
   if (const std::optional fn = get_proxy_const_input_node_functions().lookup_try(socket_type)) {
     return (*fn)(C, tree, value);
@@ -1672,16 +1667,10 @@ get_proxy_const_input_node_animdata_path_mapping(const bNodeTree &tree_of_value_
   return {};
 }
 
-bool has_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
-                                   const NodeDefaultInputType default_input)
-{
-  return get_proxy_implicit_input_node_functions().contains({socket_type, default_input});
-}
-
-bNode *try_create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
-                                            const NodeDefaultInputType default_input,
-                                            bContext &C,
-                                            bNodeTree &tree)
+bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
+                                        const NodeDefaultInputType default_input,
+                                        bContext &C,
+                                        bNodeTree &tree)
 {
   if (const std::optional fn = get_proxy_implicit_input_node_functions().lookup_try(
           {socket_type, default_input}))

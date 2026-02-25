@@ -387,16 +387,13 @@ struct bNodeTreeInterfaceItemReference {
 };
 
 /**
- * True if a constant value node can be created for the socket type.
- */
-bool has_proxy_const_input_node(eNodeSocketDatatype socket_type);
-/**
  * Create a constant value node for the socket type.
+ * \return Constant value input node or null if the socket type is not supported.
  */
-bNode *try_create_proxy_const_input_node(eNodeSocketDatatype socket_type,
-                                         bContext &C,
-                                         bNodeTree &tree,
-                                         const void *value);
+bNode *create_proxy_const_input_node(eNodeSocketDatatype socket_type,
+                                     bContext &C,
+                                     bNodeTree &tree,
+                                     const void *value);
 
 /**
  * Get animdata paths for the socket value and the matching constant value of an input node.
@@ -409,20 +406,17 @@ get_proxy_const_input_node_animdata_path_mapping(const bNodeTree &tree_of_value_
                                                  const bNodeSocket &socket);
 
 /**
- * True if an implicit input node can be created for the socket type.
- */
-bool has_proxy_implicit_input_node(eNodeSocketDatatype socket_type,
-                                   NodeDefaultInputType default_input);
-/**
  * Create an implicit input node for the socket type.
+ * \return Implicit input field node or null if the socket type or default input is not supported.
  */
-bNode *try_create_proxy_implicit_input_node(eNodeSocketDatatype socket_type,
-                                            NodeDefaultInputType default_input,
-                                            bContext &C,
-                                            bNodeTree &tree);
+bNode *create_proxy_implicit_input_node(eNodeSocketDatatype socket_type,
+                                        NodeDefaultInputType default_input,
+                                        bContext &C,
+                                        bNodeTree &tree);
 
 /**
  * Create a type conversion node for the socket type.
+ * \return Converter node or null if the socket type is not supported.
  */
 bNode *create_proxy_converter_node(eNodeSocketDatatype socket_type,
                                    bContext &C,

@@ -861,6 +861,77 @@ find_proxy_node_sockets(bNode &proxy_node)
 
 using UniqueLinkSet = Set<std::pair<MutableNodeAndSocket, MutableNodeAndSocket>>;
 
+/* Create a constant value or field input proxy node, using the source socket value. */
+static bNode *create_proxy_input_node(const bNodeTreeInterfaceSocket &io_socket,
+                                      const bNodeTree &src_tree,
+                                      const bNodeSocket *src_socket,
+                                      bContext &C,
+                                      bNodeTree &dst_tree,
+                                      Vector<AnimationBasePathChange> &anim_basepaths)
+{
+  const eNodeSocketDatatype socket_type = bke::node_socket_type_find(io_socket.socket_type)->type;
+  const NodeDefaultInputType default_input_type = NodeDefaultInputType(io_socket.default_input);
+  const void *src_value = src_socket ? src_socket->default_value : nullptr;
+
+  if (bNode *proxy_node = bke::node_interface::create_proxy_implicit_input_node(
+          socket_type, default_input_type, C, dst_tree))
+  {
+    return proxy_node;
+  }
+
+  if (!src_value) {
+    /* No proxy needed if the socket type does not have input values. */
+    return nullptr;
+  }
+
+  if (bNode *proxy_node = bke::node_interface::create_proxy_const_input_node(
+          socket_type, C, dst_tree, src_value))
+  {
+    /* Add animation path mapping to the const input node. */
+    if (proxy_node && src_socket) {
+      const std::optional<std::pair<std::string, std::string>> proxy_path_mapping =
+          bke::node_interface::get_proxy_const_input_node_animdata_path_mapping(
+              dst_tree, *proxy_node, src_tree, *src_socket);
+      if (proxy_path_mapping) {
+        const auto [proxy_node_anim_path, value_anim_path] = *proxy_path_mapping;
+        anim_basepaths.append({value_anim_path, proxy_node_anim_path});
+      }
+    }
+    return proxy_node;
+  }
+
+  /* Fall back to reroute node. */
+  return bke::node_add_static_node(&C, dst_tree, NODE_REROUTE);
+}
+
+/* Create a converter proxy node for the interface socket. */
+static bNode *create_proxy_converter_node(const bNodeTreeInterfaceSocket &io_socket,
+                                          const bNodeTree &src_tree,
+                                          const bNodeSocket *src_socket,
+                                          bContext &C,
+                                          bNodeTree &dst_tree,
+                                          Vector<AnimationBasePathChange> &anim_basepaths)
+{
+  const eNodeSocketDatatype socket_type = bke::node_socket_type_find(io_socket.socket_type)->type;
+  const void *src_value = src_socket ? src_socket->default_value : nullptr;
+
+  if (bNode *proxy_node = bke::node_interface::create_proxy_converter_node(
+          socket_type, C, dst_tree, src_value))
+  {
+    if (src_socket) {
+      const auto [proxy_input, proxy_output] = find_proxy_node_sockets(*proxy_node);
+      if (proxy_input) {
+        anim_basepaths.append({socket_basepath(src_tree, *src_socket),
+                               socket_basepath(dst_tree, proxy_input->find_socket())});
+      }
+    }
+    return proxy_node;
+  }
+
+  /* Fall back to reroute node. */
+  return bke::node_add_static_node(&C, dst_tree, NODE_REROUTE);
+}
+
 /* Replace an interface socket by adding proxy nodes. */
 static void replace_interface_socket(
     bContext &C,
@@ -876,13 +947,6 @@ static void replace_interface_socket(
     Vector<AnimationBasePathChange> &anim_basepaths_for_dst_tree,
     Vector<AnimationBasePathChange> &anim_basepaths_for_group_tree)
 {
-  const eNodeSocketDatatype socket_type = bke::node_socket_type_find(io_socket.socket_type)->type;
-  const bool is_input = io_socket.flag & NODE_INTERFACE_SOCKET_INPUT;
-  const NodeDefaultInputType default_input_type = NodeDefaultInputType(io_socket.default_input);
-  const bool has_const_input = bke::node_interface::has_proxy_const_input_node(socket_type);
-  const bool has_implicit_input = bke::node_interface::has_proxy_implicit_input_node(
-      socket_type, default_input_type);
-
   /* If there are no output connections the socket is unused and can be discarded. */
   if (outgoing_links.is_empty()) {
     return;
@@ -892,27 +956,22 @@ static void replace_interface_socket(
   const bNodeTree &group_tree = *id_cast<bNodeTree *>(group_node->id);
   const bNode *group_output_node = group_tree.group_output_node();
   /* The source for inputs is the group node, for constant outputs is the group output node. */
-  const bNodeTree &value_source_tree = is_input ? dst_tree : group_tree;
+  const bool is_input = io_socket.flag & NODE_INTERFACE_SOCKET_INPUT;
   Vector<AnimationBasePathChange> &anim_basepaths = is_input ? anim_basepaths_for_dst_tree :
                                                                anim_basepaths_for_group_tree;
-  const bNode *value_source_node = is_input ? group_node : group_output_node;
-  const bNodeSocket *value_source_socket = value_source_node ?
-                                               bke::node_find_socket(*value_source_node,
-                                                                     SOCK_IN,
-                                                                     io_socket.identifier) :
-                                               nullptr;
-  const void *socket_value = value_source_socket ? value_source_socket->default_value : nullptr;
+  const bNodeTree &src_tree = is_input ? dst_tree : group_tree;
+  const bNode *src_node = is_input ? group_node : group_output_node;
+  const bNodeSocket *src_socket = src_node ? bke::node_find_socket(
+                                                 *src_node, SOCK_IN, io_socket.identifier) :
+                                             nullptr;
 
-  /* Determine if the socket input value is used and whether a proxy node is needed. */
-  bool needs_proxy = false;
-  bool use_default_value_or_input = false;
+  /* Create a proxy node if necessary. */
+  bNode *proxy_node = nullptr;
   if (incoming_links.is_empty()) {
-    /* The socket has no incoming links, a proxy is needed if a socket value needs to be stored or
-     * a default input node must be used. */
-    if (socket_value || has_implicit_input) {
-      needs_proxy = true;
-      use_default_value_or_input = true;
-    }
+    /* The socket has no incoming links. A proxy is needed if the socket value needs to be stored
+     * or if the socket uses a default input field. */
+    proxy_node = create_proxy_input_node(
+        io_socket, src_tree, src_socket, C, dst_tree, anim_basepaths);
   }
   else {
     /* A proxy is needed if any internal internal or external connection has a different type
@@ -920,49 +979,12 @@ static void replace_interface_socket(
     if (any_link_need_conversion(incoming_links, io_socket) &&
         any_link_need_conversion(outgoing_links, io_socket))
     {
-      needs_proxy = true;
+      proxy_node = create_proxy_converter_node(
+          io_socket, src_tree, src_socket, C, dst_tree, anim_basepaths);
     }
   }
 
-  /* Create a proxy node if necessary. */
-  bNode *proxy_node = nullptr;
-  if (needs_proxy) {
-    if (use_default_value_or_input) {
-      if (has_implicit_input) {
-        proxy_node = bke::node_interface::try_create_proxy_implicit_input_node(
-            socket_type, default_input_type, C, dst_tree);
-        BLI_assert(proxy_node);
-      }
-      else if (has_const_input) {
-        proxy_node = bke::node_interface::try_create_proxy_const_input_node(
-            socket_type, C, dst_tree, socket_value);
-        BLI_assert(proxy_node);
-        if (value_source_socket) {
-          const std::optional<std::pair<std::string, std::string>> proxy_path_mapping =
-              bke::node_interface::get_proxy_const_input_node_animdata_path_mapping(
-                  dst_tree, *proxy_node, value_source_tree, *value_source_socket);
-          if (proxy_path_mapping) {
-            const auto [proxy_node_anim_path, value_anim_path] = *proxy_path_mapping;
-            anim_basepaths.append({value_anim_path, proxy_node_anim_path});
-          }
-        }
-      }
-    }
-    else {
-      proxy_node = bke::node_interface::create_proxy_converter_node(
-          socket_type, C, dst_tree, socket_value);
-      BLI_assert(proxy_node);
-      if (value_source_socket) {
-        const auto [proxy_input, proxy_output] = find_proxy_node_sockets(*proxy_node);
-        if (proxy_input) {
-          anim_basepaths.append({socket_basepath(value_source_tree, *value_source_socket),
-                                 socket_basepath(dst_tree, proxy_input->find_socket())});
-        }
-      }
-    }
-    if (!proxy_node) {
-      proxy_node = bke::node_add_static_node(&C, dst_tree, NODE_REROUTE);
-    }
+  if (proxy_node) {
     BLI_assert(proxy_node);
     BLI_strncpy(proxy_node->label, io_socket.name, sizeof(proxy_node->label));
 
@@ -980,10 +1002,8 @@ static void replace_interface_socket(
     }
 
     interface_proxies.add_new(io_socket.identifier, proxy_node);
-  }
 
-  /* Connect incoming to outgoing sockets, via the proxy node if it exists. */
-  if (proxy_node) {
+    /* Connect incoming to outgoing sockets via the proxy node. */
     const auto [proxy_input, proxy_output] = find_proxy_node_sockets(*proxy_node);
     BLI_assert(proxy_input || incoming_links.is_empty());
     BLI_assert(proxy_output || outgoing_links.is_empty());
@@ -995,8 +1015,8 @@ static void replace_interface_socket(
     }
   }
   else {
-    BLI_assert(!use_default_value_or_input || !socket_value);
-    /* N-to-M links (in practice N is usually 0 or 1). */
+    /* Connect incoming to outgoing sockets directly.
+     * Creates N * M links, in practice N is usually 1. */
     for (const MutableNodeAndSocket &from_socket : incoming_links) {
       for (const MutableNodeAndSocket &to_socket : outgoing_links) {
         unique_links.add({from_socket, to_socket});
