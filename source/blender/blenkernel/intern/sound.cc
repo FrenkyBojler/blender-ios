@@ -19,6 +19,7 @@
 
 #include "BLI_build_config.h"
 #include "BLI_enum_flags.hh"
+#include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
@@ -46,6 +47,7 @@
 
 #  include <Exception.h>
 #  include <IReader.h>
+#  include <devices/CaptureDevice.h>
 #  include <devices/DeviceManager.h>
 #  include <devices/IDeviceFactory.h>
 #  include <devices/IHandle.h>
@@ -82,6 +84,7 @@
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_packedFile.hh"
+#include "BKE_report.hh"
 #include "BKE_scene_runtime.hh"
 #include "BKE_sound.hh"
 
@@ -265,6 +268,15 @@ IDTypeInfo IDType_ID_SO = {
 #ifdef WITH_AUDASPACE
 /* evil globals ;-) */
 static char **audio_device_names = nullptr;
+static char **capture_device_names = nullptr;
+
+struct SoundVoiceoverSession {
+  std::unique_ptr<aud::CaptureDevice> capture_device;
+  std::shared_ptr<aud::IWriter> writer;
+  aud::DeviceSpecs specs;
+  std::string filepath;
+  float gain = 1.0f;
+};
 #endif
 
 BLI_INLINE void sound_verify_evaluated_id(const ID *id)
@@ -601,6 +613,15 @@ void BKE_sound_exit_once()
     }
     free(audio_device_names);
     audio_device_names = nullptr;
+  }
+
+  if (capture_device_names != nullptr) {
+    int i;
+    for (i = 0; capture_device_names[i]; i++) {
+      free(capture_device_names[i]);
+    }
+    free(capture_device_names);
+    capture_device_names = nullptr;
   }
 }
 
@@ -1483,6 +1504,142 @@ char **BKE_sound_get_device_names()
 
   return audio_device_names;
 }
+// voiceover: this functions is weired, shows all devices(input and output)
+char **BKE_sound_get_capture_device_names()
+{
+  if (capture_device_names != nullptr) {
+    for (int i = 0; capture_device_names[i]; i++) {
+      free(capture_device_names[i]);
+    }
+    free(capture_device_names);
+    capture_device_names = nullptr;
+  }
+
+  std::vector<std::string> v_names = aud::CaptureDevice::getAvailableInputDeviceNames();
+  const int names_count = int(v_names.size());
+  char **names = static_cast<char **>(malloc(sizeof(char *) * (names_count + 1)));
+
+  for (int i = 0; i < names_count; i++) {
+    const std::string &name = v_names[i];
+    names[i] = static_cast<char *>(malloc(sizeof(char) * (name.length() + 1)));
+    strcpy(names[i], name.c_str());
+  }
+  names[names_count] = nullptr;
+  capture_device_names = names;
+
+  return capture_device_names;
+}
+
+static aud::SampleFormat sound_voiceover_sample_format_ensure(const int sample_format)
+{
+  switch (sample_format) {
+    case int(aud::FORMAT_U8):
+    case int(aud::FORMAT_S16):
+    case int(aud::FORMAT_S24):
+    case int(aud::FORMAT_S32):
+    case int(aud::FORMAT_FLOAT32):
+    case int(aud::FORMAT_FLOAT64):
+      return aud::SampleFormat(sample_format);
+    default:
+      return aud::FORMAT_FLOAT32;
+  }
+}
+
+SoundVoiceoverSession *BKE_sound_voiceover_session_start(const SoundVoiceoverSettings *settings,
+                                                         ReportList *reports)
+{
+  if (settings == nullptr || settings->filepath == nullptr || settings->filepath[0] == '\0') {
+    BKE_report(reports, RPT_ERROR, "Invalid voiceover output filepath");
+    return nullptr;
+  }
+
+  SoundVoiceoverSession *session = MEM_new<SoundVoiceoverSession>(__func__);
+  session->specs.channels = aud::Channels(settings->channels);
+  session->specs.rate = aud::SampleRate(settings->sample_rate);
+  session->specs.format = sound_voiceover_sample_format_ensure(settings->sample_format);
+  session->filepath = settings->filepath;
+  session->gain = max_ff(0.0f, settings->gain);
+
+  try {
+    const std::string device_name = (settings->device_name != nullptr) ? settings->device_name :
+                                                                         "";
+    session->capture_device = std::make_unique<aud::CaptureDevice>(device_name, session->specs);
+    session->writer = aud::FileWriter::createWriter(session->filepath,
+                                                    session->specs,
+                                                    aud::Container(settings->container),
+                                                    aud::Codec(settings->codec),
+                                                    settings->bitrate * 1000); /* kbps to bps. */
+  }
+  catch (const aud::Exception &e) {
+    BKE_reportf(reports, RPT_ERROR, "Failed to start voiceover capture: %s", e.what());
+    MEM_delete(session);
+    return nullptr;
+  }
+
+  return session;
+}
+
+//voiceover: gain set?
+bool BKE_sound_voiceover_session_update(SoundVoiceoverSession *session, ReportList *reports)
+{
+  if (session == nullptr || !session->capture_device || !session->writer) {
+    BKE_report(reports, RPT_ERROR, "Invalid voiceover session");
+    return false;
+  }
+
+  int available = session->capture_device->getAvailableSamples();
+  if (available <= 0) {
+    return true;
+  }
+
+  std::vector<aud::sample_t> samples(size_t(available) * size_t(session->specs.channels));
+  const int read_samples = session->capture_device->readSamples(available, samples.data());
+  if (read_samples <= 0) {
+    return true;
+  }
+
+  if (session->gain != 1.0f) {
+    const int sample_count = read_samples * int(session->specs.channels);
+    for (int i = 0; i < sample_count; i++) {
+      samples[i] *= session->gain;
+    }
+  }
+
+  session->writer->write(read_samples, samples.data());
+  return true;
+}
+
+bool BKE_sound_voiceover_session_stop(SoundVoiceoverSession *session,
+                                      const bool cancel,
+                                      ReportList *reports)
+{
+  if (session == nullptr) {
+    return false;
+  }
+
+  if (!cancel) {
+    BKE_sound_voiceover_session_update(session, reports);
+  }
+
+  session->writer.reset();
+  session->capture_device.reset();
+
+  if (cancel) {
+    if (BLI_exists(session->filepath.c_str())) {
+      BLI_delete(session->filepath.c_str(), false, false);
+    }
+  }
+
+  return true;
+}
+
+void BKE_sound_voiceover_session_free(SoundVoiceoverSession *session)
+{
+  if (session == nullptr) {
+    return;
+  }
+  MEM_delete(session);
+}
 
 bool BKE_sound_info_get(Main *main, bSound *sound, SoundInfo *sound_info)
 {
@@ -1915,6 +2072,32 @@ char **BKE_sound_get_device_names()
   static char *names[1] = {nullptr};
   return names;
 }
+
+char **BKE_sound_get_capture_device_names()
+{
+  static char *names[1] = {nullptr};
+  return names;
+}
+
+SoundVoiceoverSession *BKE_sound_voiceover_session_start(
+    const SoundVoiceoverSettings * /*settings*/, ReportList *reports)
+{
+  BKE_report(reports, RPT_ERROR, "Blender compiled without Audaspace support");
+  return nullptr;
+}
+bool BKE_sound_voiceover_session_update(SoundVoiceoverSession * /*session*/, ReportList *reports)
+{
+  BKE_report(reports, RPT_ERROR, "Blender compiled without Audaspace support");
+  return false;
+}
+bool BKE_sound_voiceover_session_stop(SoundVoiceoverSession * /*session*/,
+                                      bool /*cancel*/,
+                                      ReportList *reports)
+{
+  BKE_report(reports, RPT_ERROR, "Blender compiled without Audaspace support");
+  return false;
+}
+void BKE_sound_voiceover_session_free(SoundVoiceoverSession * /*session*/) {}
 
 bool BKE_sound_info_get(Main * /*main*/, bSound * /*sound*/, SoundInfo * /*sound_info*/)
 {

@@ -593,6 +593,50 @@ enum eEditingCacheFlag {
   SEQ_CACHE_UNUSED_11 = (1 << 11), /* Was SEQ_CACHE_DISK_CACHE_ENABLE */
 };
 
+enum eEditingRuntimeFlag {
+  SEQ_SHOW_TRANSFORM_PREVIEW = (1 << 0),
+  SEQ_EDIT_VOICEOVER_RECORDING = (1 << 1),
+  SEQ_EDIT_VOICEOVER_COUNTDOWN_SHIFT = 8,
+  SEQ_EDIT_VOICEOVER_COUNTDOWN_MASK = (0xFF << SEQ_EDIT_VOICEOVER_COUNTDOWN_SHIFT),
+};
+
+enum eEditingVoiceoverOverrideFlag {
+  SEQ_EDIT_VOICEOVER_OVERRIDE_INPUT_DEVICE = (1 << 0),
+  SEQ_EDIT_VOICEOVER_OVERRIDE_GAIN = (1 << 1),
+  SEQ_EDIT_VOICEOVER_OVERRIDE_PRE_ROLL = (1 << 2),
+  SEQ_EDIT_VOICEOVER_OVERRIDE_CHANNEL = (1 << 3),
+  SEQ_EDIT_VOICEOVER_OVERRIDE_MUTE_SOUND = (1 << 4),
+  SEQ_EDIT_VOICEOVER_OVERRIDE_DIRECTORY = (1 << 5),
+  SEQ_EDIT_VOICEOVER_OVERRIDE_FILENAME = (1 << 6),
+  SEQ_EDIT_VOICEOVER_OVERRIDE_CONTAINER = (1 << 7),
+  SEQ_EDIT_VOICEOVER_OVERRIDE_CODEC = (1 << 8),
+  SEQ_EDIT_VOICEOVER_OVERRIDE_AUDIO_CHANNELS = (1 << 9),
+  SEQ_EDIT_VOICEOVER_OVERRIDE_SAMPLE_RATE = (1 << 10),
+  SEQ_EDIT_VOICEOVER_OVERRIDE_BITRATE = (1 << 11),
+};
+
+enum eEditingVoiceoverContainer {
+  SEQ_EDIT_VOICEOVER_CONTAINER_AC3 = 1,
+  SEQ_EDIT_VOICEOVER_CONTAINER_FLAC = 2,
+  SEQ_EDIT_VOICEOVER_CONTAINER_MATROSKA = 3,
+  SEQ_EDIT_VOICEOVER_CONTAINER_MP2 = 4,
+  SEQ_EDIT_VOICEOVER_CONTAINER_MP3 = 5,
+  SEQ_EDIT_VOICEOVER_CONTAINER_OGG = 6,
+  SEQ_EDIT_VOICEOVER_CONTAINER_WAV = 7,
+  SEQ_EDIT_VOICEOVER_CONTAINER_AAC = 8,
+};
+
+enum eEditingVoiceoverCodec {
+  SEQ_EDIT_VOICEOVER_CODEC_AAC = 1,
+  SEQ_EDIT_VOICEOVER_CODEC_AC3 = 2,
+  SEQ_EDIT_VOICEOVER_CODEC_FLAC = 3,
+  SEQ_EDIT_VOICEOVER_CODEC_MP2 = 4,
+  SEQ_EDIT_VOICEOVER_CODEC_MP3 = 5,
+  SEQ_EDIT_VOICEOVER_CODEC_PCM = 6,
+  SEQ_EDIT_VOICEOVER_CODEC_VORBIS = 7,
+  SEQ_EDIT_VOICEOVER_CODEC_OPUS = 8,
+};
+
 struct Editing {
   /**
    * The current meta-strip being edited and/or viewed, may be null, in which case the top-most
@@ -616,6 +660,20 @@ struct Editing {
 
   int show_missing_media_flag = 0; /* eEditingShowMissingMediaFlag */
   int cache_flag = 0;              /* eEditingCacheFlag */
+  int voiceover_override_flags = 0; /* eEditingVoiceoverOverrideFlag */
+  int voiceover_pre_roll = 3;
+  int voiceover_channel = 1;
+  int voiceover_mute_sound = 1;
+  float voiceover_gain = 1.0f;
+  int voiceover_container = SEQ_EDIT_VOICEOVER_CONTAINER_WAV;
+  int voiceover_codec = SEQ_EDIT_VOICEOVER_CODEC_PCM;
+  int voiceover_audio_channels = 2;
+  int voiceover_sample_rate = 48000;
+  int voiceover_bitrate = 256;
+  int voiceover_input_device = 0;
+  char voiceover_directory[/*FILE_MAXDIR*/ 768] = "//";
+  char voiceover_filename[256] = "voiceover"; /* initial base name+timestamp */
+  char _pad_voiceover[4] = {}; //unused but removing fails to build?
 
   seq::EditingRuntime *runtime = nullptr;
 

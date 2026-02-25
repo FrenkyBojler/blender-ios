@@ -77,6 +77,20 @@ struct SoundStreamInfo {
   double start;
 };
 
+struct SoundVoiceoverSettings {
+  const char *device_name;
+  const char *filepath;
+  int channels;
+  int sample_rate;
+  int sample_format;
+  int container;
+  int codec;
+  int bitrate;
+  float gain;
+};
+
+struct SoundVoiceoverSession;
+
 /**
  * Get information about given sound.
  *
@@ -193,6 +207,15 @@ AUD_Sound BKE_sound_get_factory(void *sound);
 float BKE_sound_get_length(Main *bmain, bSound *sound);
 
 char **BKE_sound_get_device_names();
+char **BKE_sound_get_capture_device_names();
+
+SoundVoiceoverSession *BKE_sound_voiceover_session_start(const SoundVoiceoverSettings *settings,
+                                                         ReportList *reports);
+bool BKE_sound_voiceover_session_update(SoundVoiceoverSession *session, ReportList *reports);
+bool BKE_sound_voiceover_session_stop(SoundVoiceoverSession *session,
+                                      bool cancel,
+                                      ReportList *reports);
+void BKE_sound_voiceover_session_free(SoundVoiceoverSession *session);
 
 typedef void (*SoundJackSyncCallback)(Main *bmain, int mode, double time);
 
