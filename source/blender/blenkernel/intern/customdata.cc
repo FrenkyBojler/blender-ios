@@ -1642,7 +1642,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
     /* 12: CD_PROP_STRING */
     {
         /* NOTE: In files, this layer type is stored as #MStringProperty. `std::string` is only
-         * used at runtime in CustomData for BMesh. */
+         * used at runtime in CustomData for BMesh, otherwise #AttributeStorage is used. */
         .size = sizeof(std::string),
         .alignment = alignof(std::string),
         .structnum = 1,

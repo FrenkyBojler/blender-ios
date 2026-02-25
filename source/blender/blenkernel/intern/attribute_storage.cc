@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <algorithm>
+#include <iostream>
 
 #include "CLG_log.h"
 
@@ -440,10 +441,19 @@ static void read_array_data(BlendDataReader &reader,
     case int8_t(AttrType::Quaternion):
       BLO_read_float_array(&reader, size * 4, reinterpret_cast<float **>(data));
       return;
-    case int8_t(AttrType::String):
-      BLO_read_struct_array(
-          &reader, MStringProperty, size, reinterpret_cast<MStringProperty **>(data));
+    case int8_t(AttrType::String): {
+      auto *file_data = reinterpret_cast<MStringProperty **>(data);
+      BLO_read_struct_array(&reader, MStringProperty, size, file_data);
+      auto *runtime_data = static_cast<std::string *>(MEM_new_array_uninitialized_aligned(
+          size, sizeof(std::string), alignof(std::string), __func__));
+      for (const int i : IndexRange(size)) {
+        const MStringProperty &src = (*file_data)[i];
+        new (&runtime_data[i]) std::string(src.s, src.s_len);
+      }
+      MEM_delete(*file_data);
+      *data = runtime_data;
       return;
+    }
     case int8_t(AttrType::Float4):
       BLO_read_float_array(&reader, size * 4, reinterpret_cast<float **>(data));
       return;
@@ -477,7 +487,7 @@ static OffsetIndices<int> read_offsets(BlendDataReader &reader,
 {
   *sharing_info = BLO_read_shared(&reader, data, [&]() -> const ImplicitSharingInfo * {
     BLO_read_int32_array(&reader, size + 1, data);
-    return implicit_sharing::info_for_mem_free(data);
+    return implicit_sharing::info_for_mem_free(*data);
   });
   return OffsetIndices(Span(*data, size + 1));
 }
@@ -522,7 +532,7 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
             BLO_read_char_array(&reader, offsets.total_size(), &data.data);
             return implicit_sharing::info_for_mem_free(data.data);
           });
-      const GroupedSpan<char> offset_data(offsets, Span<char>(data.data, data.size));
+      const GroupedSpan<char> offset_data(offsets, Span<char>(data.data, offsets.total_size()));
 
       /* This storage type is currently not used at runtime; convert to regular array storage. */
       Array<std::string> array_data(offset_data.size(), NoInitialization());
@@ -531,6 +541,8 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
           new (&array_data[i]) std::string(offset_data[i].begin(), offset_data[i].end());
         }
       });
+      data.data_sharing_info->remove_user_and_delete_if_last();
+      data.offsets_sharing_info->remove_user_and_delete_if_last();
       return Attribute::ArrayData::from_container(std::move(array_data));
     }
     default:
@@ -703,7 +715,6 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
           });
           array_dna.data = dna_data.data();
           array_dna.sharing_info = nullptr;
-          array_dna.is_single = 0;
           array_dna.size = array_data.size;
           return &array_dna;
         }
@@ -765,6 +776,7 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
         static_cast<AttributeArray *>(attribute_dna.data)->is_single = true;
       }
       else {
+        // TODO: NOT WORKING FOR STRING ATTRIBUTES
         attribute_dna.storage_type = int8_t(AttrStorageType::Single);
         auto &single_dna = write_data.scope.construct<blender::AttributeSingle>();
         single_dna.data = data->value;
@@ -824,10 +836,10 @@ void AttributeStorage::blend_write(BlendWriter &writer,
       }
       case ATTR_STORAGE_TYPE_STRING_OFFSETS: {
         auto *data_dna = static_cast<blender::AttributeStringOffsets *>(attr_dna.data);
-        const OffsetIndices offsets(Span(data_dna->offsets, data_dna->size));
+        const OffsetIndices offsets(Span(data_dna->offsets, data_dna->size + 1));
         BLO_write_shared(
             &writer,
-            data_dna->data,
+            data_dna->offsets,
             sizeof(int) * (data_dna->size + 1),
             data_dna->offsets_sharing_info,
             [&]() { BLO_write_int32_array(&writer, data_dna->size + 1, data_dna->offsets); });
@@ -837,6 +849,7 @@ void AttributeStorage::blend_write(BlendWriter &writer,
             sizeof(char) * offsets.total_size(),
             data_dna->data_sharing_info,
             [&]() { BLO_write_char_array(&writer, offsets.total_size(), data_dna->data); });
+        writer.write_struct(data_dna);
         break;
       }
     }
