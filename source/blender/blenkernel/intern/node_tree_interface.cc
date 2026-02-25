@@ -1468,8 +1468,6 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
       *socket->default_value_typed<bNodeSocketValueFloat>() =
           *static_cast<const bNodeSocketValueFloat *>(value);
-      /* Special case: the "Float" value node is the only one using the output socket value
-       * instead of its own storage data.*/
       anim_basepaths.append(
           {src_property_path, get_socket_property_path(dst_tree, *socket, "default_value")});
       return node;
@@ -1485,11 +1483,35 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       return node;
     }
     case SOCK_RGBA: {
-      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputColor");
-      auto &node_storage = *static_cast<NodeInputColor *>(node->storage);
-      copy_v4_v4(node_storage.color, static_cast<const bNodeSocketValueRGBA *>(value)->value);
-      anim_basepaths.append({src_property_path, get_node_property_path(dst_tree, *node, "value")});
-      return node;
+      switch (dst_tree.type) {
+        case NTREE_COMPOSIT: {
+          bNode *node = bke::node_add_node(&C, dst_tree, "CompositorNodeRGB");
+          bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
+          *socket->default_value_typed<bNodeSocketValueFloat>() =
+              *static_cast<const bNodeSocketValueFloat *>(value);
+          anim_basepaths.append(
+              {src_property_path, get_socket_property_path(dst_tree, *socket, "default_value")});
+          return node;
+        }
+        case NTREE_SHADER: {
+          bNode *node = bke::node_add_node(&C, dst_tree, "ShaderNodeRGB");
+          bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
+          *socket->default_value_typed<bNodeSocketValueFloat>() =
+              *static_cast<const bNodeSocketValueFloat *>(value);
+          anim_basepaths.append(
+              {src_property_path, get_socket_property_path(dst_tree, *socket, "default_value")});
+          return node;
+        }
+        case NTREE_GEOMETRY: {
+          bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputColor");
+          auto &node_storage = *static_cast<NodeInputColor *>(node->storage);
+          copy_v4_v4(node_storage.color, static_cast<const bNodeSocketValueRGBA *>(value)->value);
+          anim_basepaths.append(
+              {src_property_path, get_node_property_path(dst_tree, *node, "value")});
+          return node;
+        }
+      }
+      return nullptr;
     }
     case SOCK_BOOLEAN: {
       bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputBool");
