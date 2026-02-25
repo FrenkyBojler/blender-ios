@@ -3254,9 +3254,10 @@ void Layout::link(const StringRef url, const StringRef name, int icon)
   /* Show only URL in the tooltip. */
   ui::button_func_tooltip_custom_set(
       button,
-      [](bContext & /*C*/, ui::TooltipData &data, ui::Button * /*but*/, void *argN) {
-        tooltip_text_field_add(
-            data, static_cast<const char *>(argN), {}, ui::TIP_STYLE_MONO, ui::TIP_LC_LINK, false);
+      [](bContext & /*C*/, ui::TooltipData &data, ui::Button *but, void *argN) {
+        tooltip_text_field_add(data, but->str, {}, ui::TIP_STYLE_HEADER, ui::TIP_LC_NORMAL, false);
+        const char *url = static_cast<const char *>(argN);
+        tooltip_text_field_add(data, url, {}, ui::TIP_STYLE_NORMAL, ui::TIP_LC_LINK, false);
       },
       BLI_strdup(url.data()),
       MEM_delete_void);
