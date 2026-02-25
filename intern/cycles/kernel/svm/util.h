@@ -34,30 +34,6 @@ ccl_device_inline void stack_store_float3(ccl_private float *stack, const uint a
   copy_v3_v3(stack + a, f);
 }
 
-ccl_device_inline dual3 stack_load_float3(const ccl_private float *stack,
-                                          const uint a,
-                                          const bool derivative)
-{
-  dual3 result(stack_load_float3(stack, a));
-  if (derivative) {
-    result.dx = stack_load_float3(stack, a + 3);
-    result.dy = stack_load_float3(stack, a + 6);
-  }
-  return result;
-}
-
-ccl_device_inline void stack_store_float3(ccl_private float *stack,
-                                          const uint a,
-                                          const dual3 f,
-                                          const bool derivative)
-{
-  stack_store_float3(stack, a, f.val);
-  if (derivative) {
-    stack_store_float3(stack, a + 3, f.dx);
-    stack_store_float3(stack, a + 6, f.dy);
-  }
-}
-
 ccl_device_inline float stack_load_float(const ccl_private float *stack, const uint a)
 {
   kernel_assert(a < SVM_STACK_SIZE);
@@ -86,28 +62,60 @@ ccl_device_inline void stack_store_float(ccl_private float *stack, const uint a,
   stack[a] = f;
 }
 
-ccl_device_inline dual1 stack_load_float(const ccl_private float *stack,
-                                         const uint a,
-                                         const bool derivative)
+/* Type-based stack load. T can be float, float3, dual1, or dual3.
+ * When T is a dual type, derivatives are loaded from adjacent stack slots. */
+
+template<typename T> ccl_device_inline T stack_load(const ccl_private float *stack, const uint a);
+
+ccl_device_template_spec float stack_load(const ccl_private float *stack, const uint a)
 {
-  dual1 result(stack_load_float(stack, a));
-  if (derivative) {
-    result.dx = stack_load_float(stack, a + 1);
-    result.dy = stack_load_float(stack, a + 2);
-  }
-  return result;
+  return stack_load_float(stack, a);
 }
 
-ccl_device_inline void stack_store_float(ccl_private float *stack,
-                                         const uint a,
-                                         const dual1 f,
-                                         const bool derivative)
+ccl_device_template_spec float3 stack_load(const ccl_private float *stack, const uint a)
+{
+  return stack_load_float3(stack, a);
+}
+
+ccl_device_template_spec dual1 stack_load(const ccl_private float *stack, const uint a)
+{
+  return {stack_load_float(stack, a),
+          stack_load_float(stack, a + 1),
+          stack_load_float(stack, a + 2)};
+}
+
+ccl_device_template_spec dual3 stack_load(const ccl_private float *stack, const uint a)
+{
+  return {stack_load_float3(stack, a),
+          stack_load_float3(stack, a + 3),
+          stack_load_float3(stack, a + 6)};
+}
+
+/* Type-based stack store. Overloaded for plain and dual types.
+ * For dual types, derivatives are stored in adjacent stack slots. */
+
+ccl_device_inline void stack_store(ccl_private float *stack, const uint a, const float f)
+{
+  stack_store_float(stack, a, f);
+}
+
+ccl_device_inline void stack_store(ccl_private float *stack, const uint a, const float3 f)
+{
+  stack_store_float3(stack, a, f);
+}
+
+ccl_device_inline void stack_store(ccl_private float *stack, const uint a, const dual1 f)
 {
   stack_store_float(stack, a, f.val);
-  if (derivative) {
-    stack_store_float(stack, a + 1, f.dx);
-    stack_store_float(stack, a + 2, f.dy);
-  }
+  stack_store_float(stack, a + 1, f.dx);
+  stack_store_float(stack, a + 2, f.dy);
+}
+
+ccl_device_inline void stack_store(ccl_private float *stack, const uint a, const dual3 f)
+{
+  stack_store_float3(stack, a, f.val);
+  stack_store_float3(stack, a + 3, f.dx);
+  stack_store_float3(stack, a + 6, f.dy);
 }
 
 ccl_device_inline int stack_load_int(const ccl_private float *stack, const uint a)
@@ -205,26 +213,38 @@ ccl_device_forceinline float3 dPdy(const ccl_private ShaderData *sd)
   return sd->dPdu * sd->du.dy + sd->dPdv * sd->dv.dy;
 }
 
-ccl_device_inline dual3 shading_position(const ccl_private ShaderData *sd, const bool derivative)
+/* Shading position, returns T = float3 (no derivatives) or dual3 (with derivatives). */
+
+template<typename T>
+ccl_device_inline T shading_position(const ccl_private ShaderData *sd)
 {
-  dual3 P(sd->P);
-  if (derivative) {
+  if constexpr (is_dual_v(T)) {
+    dual3 P(sd->P);
     P.dx = dPdx(sd);
     P.dy = dPdy(sd);
+    return P;
   }
-  return P;
+  else {
+    return sd->P;
+  }
 }
 
-ccl_device_inline dual3 shading_incoming(const ccl_private ShaderData *sd, const bool derivative)
+/* Shading incoming direction, returns T = float3 or dual3. */
+
+template<typename T>
+ccl_device_inline T shading_incoming(const ccl_private ShaderData *sd)
 {
-  dual3 I(sd->wi);
-  if (derivative) {
+  if constexpr (is_dual_v(T)) {
+    dual3 I(sd->wi);
     float3 dIdx, dIdy;
     make_orthonormals(sd->wi, &dIdx, &dIdy);
     I.dx = sd->dI * dIdx;
     I.dy = sd->dI * dIdy;
+    return I;
   }
-  return I;
+  else {
+    return sd->wi;
+  }
 }
 
 CCL_NAMESPACE_END

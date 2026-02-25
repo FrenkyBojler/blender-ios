@@ -10,20 +10,20 @@ CCL_NAMESPACE_BEGIN
 
 /* Value Nodes */
 
+template<typename S>
 ccl_device void svm_node_value_f(ccl_private float *stack,
                                  const uint ivalue,
-                                 const uint out_offset,
-                                 const bool derivative)
+                                 const uint out_offset)
 {
   /* Derivative of a constant is zero. */
-  stack_store_float(stack, out_offset, dual1(__uint_as_float(ivalue)), derivative);
+  stack_store(stack, out_offset, S(__uint_as_float(ivalue)));
 }
 
+template<typename T>
 ccl_device int svm_node_value_v(KernelGlobals kg,
                                 ccl_private float *stack,
                                 const uint out_offset,
-                                int offset,
-                                const bool derivative)
+                                int offset)
 {
   /* read extra data */
   const uint4 node1 = read_node(kg, &offset);
@@ -31,7 +31,7 @@ ccl_device int svm_node_value_v(KernelGlobals kg,
       __uint_as_float(node1.y), __uint_as_float(node1.z), __uint_as_float(node1.w));
 
   /* Derivative of a constant is zero. */
-  stack_store_float3(stack, out_offset, dual3(p), derivative);
+  stack_store(stack, out_offset, T(p));
   return offset;
 }
 

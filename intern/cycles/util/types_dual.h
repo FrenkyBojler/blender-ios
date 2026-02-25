@@ -106,6 +106,50 @@ using dual2 = dual<float2>;
 using dual3 = dual<float3>;
 using dual4 = dual<float4>;
 
+/* Type traits. */
+
+template<bool B, typename T, typename F> struct ccl_conditional {
+  using type = T;
+};
+template<typename T, typename F> struct ccl_conditional<false, T, F> {
+  using type = F;
+};
+template<bool B, typename T, typename F>
+using ccl_conditional_t = typename ccl_conditional<B, T, F>::type;
+
+/* Dual type traits. */
+
+template<typename T> struct is_dual {
+  enum { value = 0 };
+};
+template<typename U> struct is_dual<dual<U>> {
+  enum { value = 1 };
+};
+#define is_dual_v(T) (is_dual<T>::value)
+
+/* Base (non-dual) type. E.g. base_t<dual3> = float3, base_t<float3> = float3. */
+
+template<typename T> struct base_type {
+  using type = T;
+};
+template<typename U> struct base_type<dual<U>> {
+  using type = U;
+};
+template<typename T> using base_t = typename base_type<T>::type;
+
+/* Scalar type corresponding to a vector type. */
+
+template<typename T> struct scalar_type {
+  using type = T;
+};
+template<> struct scalar_type<float3> {
+  using type = float;
+};
+template<> struct scalar_type<dual3> {
+  using type = dual1;
+};
+template<typename T> using scalar_t = typename scalar_type<T>::type;
+
 ccl_device_inline dual2 make_float2(const dual3 a)
 {
   return {make_float2(a.val), make_float2(a.dx), make_float2(a.dy)};

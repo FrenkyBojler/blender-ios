@@ -12,13 +12,14 @@ CCL_NAMESPACE_BEGIN
 
 /* Conversion Nodes */
 
-ccl_device_noinline void svm_node_convert(KernelGlobals kg,
-                                          ccl_private float *stack,
-                                          const uint type,
-                                          const uint from,
-                                          const uint to,
-                                          const bool derivative)
+template<bool derivative>
+ccl_device_noinline void svm_node_convert(
+    KernelGlobals kg, ccl_private float *stack, const uint type, const uint from, const uint to)
 {
+  /* Conditional types: use plain types when derivative=false, dual when derivative=true. */
+  using F = ccl_conditional_t<derivative, dual1, float>;
+  using V = ccl_conditional_t<derivative, dual3, float3>;
+
   switch ((NodeConvert)type) {
     case NODE_CONVERT_FI: {
       /* TODO(weizhen): should actually store 0 for int, but none of the nodes that we compute
@@ -28,15 +29,15 @@ ccl_device_noinline void svm_node_convert(KernelGlobals kg,
       break;
     }
     case NODE_CONVERT_FV: {
-      const dual1 f = stack_load_float(stack, from, derivative);
-      stack_store_float3(stack, to, make_float3(f, f, f), derivative);
+      const F f = stack_load<F>(stack, from);
+      stack_store(stack, to, make_float3(f, f, f));
       break;
     }
     case NODE_CONVERT_CF: {
-      if (derivative) {
-        const dual3 f = stack_load_float3(stack, from, derivative);
+      if constexpr (derivative) {
+        const dual3 f = stack_load<dual3>(stack, from);
         const dual1 g = linear_rgb_to_gray(kg, f);
-        stack_store_float(stack, to, g, derivative);
+        stack_store(stack, to, g);
       }
       else {
         const float3 f = stack_load_float3(stack, from);
@@ -52,9 +53,16 @@ ccl_device_noinline void svm_node_convert(KernelGlobals kg,
       break;
     }
     case NODE_CONVERT_VF: {
-      const dual3 f = stack_load_float3(stack, from, derivative);
-      const dual1 g = average(f);
-      stack_store_float(stack, to, g, derivative);
+      if constexpr (derivative) {
+        const dual3 f = stack_load<dual3>(stack, from);
+        const dual1 g = average(f);
+        stack_store(stack, to, g);
+      }
+      else {
+        const float3 f = stack_load_float3(stack, from);
+        const float g = average(f);
+        stack_store_float(stack, to, g);
+      }
       break;
     }
     case NODE_CONVERT_VI: {
@@ -65,12 +73,12 @@ ccl_device_noinline void svm_node_convert(KernelGlobals kg,
     }
     case NODE_CONVERT_IF: {
       const float f = (float)stack_load_int(stack, from);
-      stack_store_float(stack, to, dual1(f), derivative);
+      stack_store(stack, to, F(f));
       break;
     }
     case NODE_CONVERT_IV: {
       const float f = (float)stack_load_int(stack, from);
-      stack_store_float3(stack, to, dual3(make_float3(f, f, f)), derivative);
+      stack_store(stack, to, V(make_float3(f, f, f)));
       break;
     }
     default:

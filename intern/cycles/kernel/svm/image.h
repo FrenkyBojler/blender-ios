@@ -69,12 +69,12 @@ ccl_device_noinline void svm_node_tex_image(KernelGlobals kg,
 
   dual2 tex_co;
   if (derivative) {
-    const dual3 co = stack_load_float3(stack, co_offset, derivative);
+    const dual3 co = stack_load<dual3>(stack, co_offset);
     tex_co = svm_node_tex_image_mapping(co, node.w);
   }
   else {
     const float3 co = stack_load_float3(stack, co_offset);
-    tex_co.val = svm_node_tex_image_mapping(co, node.w);
+    tex_co = dual2(svm_node_tex_image_mapping(co, node.w));
   }
 
   const int id = node.y;
@@ -166,10 +166,11 @@ ccl_device_noinline void svm_node_tex_image_box(KernelGlobals kg,
   uint flags;
   svm_unpack_node_uchar4(node.z, &co_offset, &out_offset, &alpha_offset, &flags);
 
-  const dual3 co = stack_load_float3(stack, co_offset, derivative);
   const uint id = node.y;
-
   float4 f = zero_float4();
+
+  const dual3 co = (derivative) ? stack_load<dual3>(stack, co_offset) :
+                                  dual3(stack_load_float3(stack, co_offset));
 
   /* Map so that no textures are flipped, rotation is somewhat arbitrary. */
   if (weight.x > 0.0f) {
@@ -218,12 +219,12 @@ ccl_device_noinline void svm_node_tex_environment(KernelGlobals kg,
 
   dual2 uv;
   if (derivative) {
-    const dual3 co = stack_load_float3(stack, co_offset, derivative);
+    const dual3 co = stack_load<dual3>(stack, co_offset);
     uv = svm_node_tex_environment_projection(co, node.w);
   }
   else {
     const float3 co = stack_load_float3(stack, co_offset);
-    uv.val = svm_node_tex_environment_projection(co, node.w);
+    uv = dual2(svm_node_tex_environment_projection(co, node.w));
   }
 
   const float4 f = svm_image_texture(kg, sd, id, uv, flags);
