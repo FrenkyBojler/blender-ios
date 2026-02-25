@@ -464,7 +464,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_horizon_resolve_comp.glsl
   engines/eevee/shaders/eevee_horizon_scan_eval_lib.glsl
   engines/eevee/shaders/eevee_horizon_scan_comp.glsl
-  engines/eevee/shaders/eevee_horizon_scan_lib.glsl
+  engines/eevee/shaders/eevee_horizon_scan_lib.bsl.hh
   engines/eevee/shaders/eevee_horizon_setup_comp.bsl.hh
   engines/eevee/shaders/eevee_light_culling_debug_frag.glsl
   engines/eevee/shaders/eevee_light_culling_select_comp.glsl
