@@ -1485,10 +1485,14 @@ int IDP_BlendWrite(BlendWriter *writer, const IDProperty *prop)
 {
   static int tot_calls = 0;
   static int tot_num_idprops = 0;
+  int prev_tot_num_idprops = tot_num_idprops;
   int num_idprops = 0;
   IDP_BlendWrite(writer, prop, num_idprops);
   tot_calls++;
   tot_num_idprops += num_idprops;
+  if ((tot_num_idprops / 100000) != (prev_tot_num_idprops / 100000)) {
+    printf("Written %d idprops so far...\n", tot_num_idprops);
+  }
   return num_idprops;
 }
 
