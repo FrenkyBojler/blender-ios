@@ -19,13 +19,13 @@ bool BLI_settings_save();
 struct Settings {
   StringRef section;
 
-  Settings(const StringRef &section) : section(section) {}
+  Settings(const StringRef section) : section(section) {}
 
-  template<typename T> T get(const StringRef &item) const;
+  template<typename T> T get(const StringRef item) const;
 
-  template<typename T> void set(const StringRef &item, const T &value);
+  template<typename T> void set(const StringRef item, const T &value);
 
-  void remove(const StringRef &item);
+  void remove(const StringRef item);
   void remove_section();
 
   struct Proxy {
@@ -82,11 +82,11 @@ struct Settings {
     }
   };
 
-  Proxy operator[](const StringRef &item)
+  Proxy operator[](const StringRef item)
   {
     return Proxy(section, item);
   }
-  ConstProxy operator[](const StringRef &item) const
+  ConstProxy operator[](const StringRef item) const
   {
     return ConstProxy(section, item);
   }
