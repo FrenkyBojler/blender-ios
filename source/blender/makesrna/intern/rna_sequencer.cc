@@ -138,6 +138,36 @@ const EnumPropertyItem rna_enum_pitch_quality_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+const EnumPropertyItem rna_enum_voiceover_audio_codec_preset_items[] = {
+    {0, "WAV_PCM", 0, "WAV (PCM)", "Uncompressed PCM audio in WAV container"},
+    {1, "FLAC", 0, "FLAC", "Lossless FLAC audio"},
+    {2, "MP3", 0, "MP3", "MPEG Layer III audio"},
+    {3, "OGG_VORBIS", 0, "Ogg Vorbis", "Vorbis audio in Ogg container"},
+    {4, "OGG_OPUS", 0, "Ogg Opus", "Opus audio in Ogg container"},
+    {5, "AAC", 0, "AAC", "AAC audio"},
+    {6, "AC3", 0, "AC3", "Dolby AC-3 audio"},
+    {7, "MP2", 0, "MP2", "MPEG Layer II audio"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+const EnumPropertyItem rna_enum_voiceover_audio_channel_items[] = {
+    {1, "MONO", 0, "Mono", ""},
+    {2, "STEREO", 0, "Stereo", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+const EnumPropertyItem rna_enum_voiceover_sample_rate_items[] = {
+    {44100, "RATE_44100", 0, "44.1 kHz", ""},
+    {48000, "RATE_48000", 0, "48 kHz", ""},
+    {96000, "RATE_96000", 0, "96 kHz", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+const EnumPropertyItem rna_enum_voiceover_input_device_items[] = {
+    {0, "NONE", 0, "None", "No audio capture devices are available"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 }  // namespace blender
 
 #ifdef RNA_RUNTIME
@@ -160,6 +190,7 @@ const EnumPropertyItem rna_enum_pitch_quality_items[] = {
 #  include "BKE_context.hh"
 #  include "BKE_global.hh"
 #  include "BKE_report.hh"
+#  include "BKE_sound.hh"
 
 #  include "WM_api.hh"
 
@@ -382,6 +413,103 @@ static void rna_SequenceEditor_cache_settings_changed(Main * /*bmain*/,
                                                       PointerRNA * /*ptr*/)
 {
   seq::cache_settings_changed(scene);
+}
+
+static const EnumPropertyItem *rna_SequenceEditor_voiceover_input_device_itemf(
+    bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
+{
+  int totitem = 0;
+  EnumPropertyItem *item = nullptr;
+  char **names = BKE_sound_get_capture_device_names();
+
+  if (names != nullptr) {
+    for (int i = 0; names[i]; i++) {
+      EnumPropertyItem new_item = {i, names[i], 0, names[i], names[i]};
+      RNA_enum_item_add(&item, &totitem, &new_item);
+    }
+  }
+  if (totitem == 0) {
+    EnumPropertyItem new_item = {0, "NONE", 0, "None", "No audio capture devices are available"};
+    RNA_enum_item_add(&item, &totitem, &new_item);
+  }
+
+  RNA_enum_item_end(&item, &totitem);
+  *r_free = true;
+  return item;
+}
+
+static bool rna_SequenceEditor_voiceover_is_recording_get(PointerRNA *ptr)
+{
+  Editing *ed = static_cast<Editing *>(ptr->data);
+  return (ed->runtime.flag & SEQ_EDIT_VOICEOVER_RECORDING) != 0;
+}
+
+static int rna_SequenceEditor_voiceover_countdown_get(PointerRNA *ptr)
+{
+  Editing *ed = static_cast<Editing *>(ptr->data);
+  return int((ed->runtime.flag & SEQ_EDIT_VOICEOVER_COUNTDOWN_MASK) >>
+             SEQ_EDIT_VOICEOVER_COUNTDOWN_SHIFT);
+}
+
+struct VoiceoverCodecPresetMap {
+  int preset;
+  int container;
+  int codec;
+};
+
+static constexpr VoiceoverCodecPresetMap rna_voiceover_codec_preset_map[] = {
+    {0, SEQ_EDIT_VOICEOVER_CONTAINER_WAV, SEQ_EDIT_VOICEOVER_CODEC_PCM},
+    {1, SEQ_EDIT_VOICEOVER_CONTAINER_FLAC, SEQ_EDIT_VOICEOVER_CODEC_FLAC},
+    {2, SEQ_EDIT_VOICEOVER_CONTAINER_MP3, SEQ_EDIT_VOICEOVER_CODEC_MP3},
+    {3, SEQ_EDIT_VOICEOVER_CONTAINER_OGG, SEQ_EDIT_VOICEOVER_CODEC_VORBIS},
+    {4, SEQ_EDIT_VOICEOVER_CONTAINER_OGG, SEQ_EDIT_VOICEOVER_CODEC_OPUS},
+    {5, SEQ_EDIT_VOICEOVER_CONTAINER_AAC, SEQ_EDIT_VOICEOVER_CODEC_AAC},
+    {6, SEQ_EDIT_VOICEOVER_CONTAINER_AC3, SEQ_EDIT_VOICEOVER_CODEC_AC3},
+    {7, SEQ_EDIT_VOICEOVER_CONTAINER_MP2, SEQ_EDIT_VOICEOVER_CODEC_MP2},
+};
+
+static const VoiceoverCodecPresetMap *rna_voiceover_codec_map_find_by_pair(const int container,
+                                                                           const int codec)
+{
+  for (const VoiceoverCodecPresetMap &item : rna_voiceover_codec_preset_map) {
+    if (item.container == container && item.codec == codec) {
+      return &item;
+    }
+  }
+  return nullptr;
+}
+
+static const VoiceoverCodecPresetMap *rna_voiceover_codec_map_find_by_preset(const int preset)
+{
+  for (const VoiceoverCodecPresetMap &item : rna_voiceover_codec_preset_map) {
+    if (item.preset == preset) {
+      return &item;
+    }
+  }
+  return nullptr;
+}
+
+static int rna_SequenceEditor_voiceover_audio_codec_get(PointerRNA *ptr)
+{
+  Editing *ed = static_cast<Editing *>(ptr->data);
+  if (const VoiceoverCodecPresetMap *item = rna_voiceover_codec_map_find_by_pair(
+          ed->voiceover_container, ed->voiceover_codec))
+  {
+    return item->preset;
+  }
+
+  return 0;
+}
+
+static void rna_SequenceEditor_voiceover_audio_codec_set(PointerRNA *ptr, const int value)
+{
+  Editing *ed = static_cast<Editing *>(ptr->data);
+  const VoiceoverCodecPresetMap *item = rna_voiceover_codec_map_find_by_preset(value);
+  if (item == nullptr) {
+    item = &rna_voiceover_codec_preset_map[0];
+  }
+  ed->voiceover_container = item->container;
+  ed->voiceover_codec = item->codec;
 }
 
 /* internal use */
@@ -2944,6 +3072,139 @@ static void rna_def_editor(BlenderRNA *brna)
   RNA_def_property_int_funcs(prop, "rna_SequenceEditor_get_cache_final_size", nullptr, nullptr);
   RNA_def_property_ui_text(
       prop, "Final Cache Size", "Size of final rendered images cache in megabytes");
+
+  prop = RNA_def_property(srna, "voiceover_override_input_device", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "voiceover_override_flags", SEQ_EDIT_VOICEOVER_OVERRIDE_INPUT_DEVICE);
+  RNA_def_property_ui_text(
+      prop, "Override Input Device", "Override global voiceover input device");
+
+  prop = RNA_def_property(srna, "voiceover_override_gain", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "voiceover_override_flags", SEQ_EDIT_VOICEOVER_OVERRIDE_GAIN);
+  RNA_def_property_ui_text(prop, "Override Gain", "Override global voiceover gain");
+
+  prop = RNA_def_property(srna, "voiceover_override_pre_roll", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "voiceover_override_flags", SEQ_EDIT_VOICEOVER_OVERRIDE_PRE_ROLL);
+  RNA_def_property_ui_text(prop, "Override Pre-roll", "Override global voiceover pre-roll");
+
+  prop = RNA_def_property(srna, "voiceover_override_channel", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "voiceover_override_flags", SEQ_EDIT_VOICEOVER_OVERRIDE_CHANNEL);
+  RNA_def_property_ui_text(prop, "Override Channel", "Override global voiceover channel");
+
+  prop = RNA_def_property(srna, "voiceover_override_mute_sound", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "voiceover_override_flags", SEQ_EDIT_VOICEOVER_OVERRIDE_MUTE_SOUND);
+  RNA_def_property_ui_text(
+      prop, "Override Mute During Recording", "Override global mute while recording option");
+
+  prop = RNA_def_property(srna, "voiceover_override_directory", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "voiceover_override_flags", SEQ_EDIT_VOICEOVER_OVERRIDE_DIRECTORY);
+  RNA_def_property_ui_text(prop, "Override Output Directory", "Override global output directory");
+
+  prop = RNA_def_property(srna, "voiceover_override_filename", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "voiceover_override_flags", SEQ_EDIT_VOICEOVER_OVERRIDE_FILENAME);
+  RNA_def_property_ui_text(prop, "Override File Name", "Override global output file name");
+
+  prop = RNA_def_property(srna, "voiceover_override_container", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "voiceover_override_flags", SEQ_EDIT_VOICEOVER_OVERRIDE_CONTAINER);
+  RNA_def_property_ui_text(prop, "Override Container", "Override global output container");
+
+  prop = RNA_def_property(srna, "voiceover_override_codec", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "voiceover_override_flags", SEQ_EDIT_VOICEOVER_OVERRIDE_CODEC);
+  RNA_def_property_ui_text(prop, "Override Codec", "Override global output codec");
+
+  prop = RNA_def_property(srna, "voiceover_override_audio_channels", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "voiceover_override_flags", SEQ_EDIT_VOICEOVER_OVERRIDE_AUDIO_CHANNELS);
+  RNA_def_property_ui_text(prop, "Override Audio Channels", "Override global output channels");
+
+  prop = RNA_def_property(srna, "voiceover_override_sample_rate", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "voiceover_override_flags", SEQ_EDIT_VOICEOVER_OVERRIDE_SAMPLE_RATE);
+  RNA_def_property_ui_text(prop, "Override Sample Rate", "Override global sample rate");
+
+  prop = RNA_def_property(srna, "voiceover_override_bitrate", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "voiceover_override_flags", SEQ_EDIT_VOICEOVER_OVERRIDE_BITRATE);
+  RNA_def_property_ui_text(prop, "Override Bitrate", "Override global bitrate");
+
+  prop = RNA_def_property(srna, "voiceover_pre_roll", PROP_INT, PROP_TIME);
+  RNA_def_property_int_sdna(prop, nullptr, "voiceover_pre_roll");
+  RNA_def_property_range(prop, 0, 30);
+  RNA_def_property_ui_text(prop, "Pre-roll", "Number of seconds to play before recording starts");
+
+  prop = RNA_def_property(srna, "voiceover_mute_sound", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "voiceover_mute_sound", 1);
+  RNA_def_property_ui_text(
+      prop, "Mute Sound While Recording", "Mute playback sound strips while recording");
+
+  prop = RNA_def_property(srna, "voiceover_channel", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "voiceover_channel");
+  RNA_def_property_range(prop, 1, seq::MAX_CHANNELS);
+  RNA_def_property_ui_text(prop, "Channel", "Target channel for recorded voiceover strip");
+
+  prop = RNA_def_property(srna, "voiceover_input_device", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "voiceover_input_device");
+  RNA_def_property_enum_items(prop, rna_enum_voiceover_input_device_items);
+  RNA_def_property_enum_funcs(
+      prop, nullptr, nullptr, "rna_SequenceEditor_voiceover_input_device_itemf");
+  RNA_def_property_ui_text(prop, "Audio Input", "Audio input device for voiceover recording");
+
+  prop = RNA_def_property(srna, "voiceover_gain", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "voiceover_gain");
+  RNA_def_property_range(prop, 0.0f, 16.0f);
+  RNA_def_property_ui_text(prop, "Gain", "Gain multiplier for captured audio");
+
+  prop = RNA_def_property(srna, "voiceover_directory", PROP_STRING, PROP_DIRPATH);
+  RNA_def_property_string_sdna(prop, nullptr, "voiceover_directory");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
+  RNA_def_property_ui_text(prop, "Directory", "Output directory for recorded voiceover files");
+
+  prop = RNA_def_property(srna, "voiceover_filename", PROP_STRING, PROP_FILENAME);
+  RNA_def_property_string_sdna(prop, nullptr, "voiceover_filename");
+  RNA_def_property_ui_text(prop, "File Name", "File name prefix for recorded voiceover files");
+
+  prop = RNA_def_property(srna, "voiceover_audio_codec", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_voiceover_audio_codec_preset_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_SequenceEditor_voiceover_audio_codec_get",
+                              "rna_SequenceEditor_voiceover_audio_codec_set",
+                              nullptr);
+  RNA_def_property_ui_text(
+      prop, "Audio Codec", "Output format preset with a compatible container and codec pair");
+
+  prop = RNA_def_property(srna, "voiceover_audio_channels", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "voiceover_audio_channels");
+  RNA_def_property_enum_items(prop, rna_enum_voiceover_audio_channel_items);
+  RNA_def_property_ui_text(prop, "Audio Channels", "Number of channels in recorded audio");
+
+  prop = RNA_def_property(srna, "voiceover_sample_rate", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "voiceover_sample_rate");
+  RNA_def_property_enum_items(prop, rna_enum_voiceover_sample_rate_items);
+  RNA_def_property_ui_text(prop, "Sample Rate", "Sample rate for recorded audio");
+
+  prop = RNA_def_property(srna, "voiceover_bitrate", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "voiceover_bitrate");
+  RNA_def_property_range(prop, 32, 1024);
+  RNA_def_property_ui_text(prop, "Bitrate", "Target bitrate in kbps for encoded recordings");
+
+  prop = RNA_def_property(srna, "voiceover_is_recording", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
+  RNA_def_property_boolean_funcs(prop, "rna_SequenceEditor_voiceover_is_recording_get", nullptr);
+  RNA_def_property_ui_text(prop, "Voiceover Recording", "Whether voiceover recording is active");
+
+  prop = RNA_def_property(srna, "voiceover_countdown", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
+  RNA_def_property_int_funcs(prop, "rna_SequenceEditor_voiceover_countdown_get", nullptr, nullptr);
+  RNA_def_property_ui_text(
+      prop, "Voiceover Countdown", "Remaining seconds before voiceover recording starts");
 
   /* functions */
 
