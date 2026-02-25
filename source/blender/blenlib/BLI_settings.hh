@@ -14,13 +14,13 @@
 
 namespace blender {
 
-void BLI_settings_init_async();
-bool BLI_settings_save();
+void BLI_uistate_init_async();
+bool BLI_uistate_save();
 
-struct Settings {
+struct UIState {
   StringRef section;
 
-  Settings(const StringRef section) : section(section) {}
+  UIState(const StringRef section) : section(section) {}
 
   template<typename T> T get(const StringRef item) const;
 
@@ -37,33 +37,33 @@ struct Settings {
 
     template<typename T> operator T() const
     {
-      return Settings(section).get<T>(key);
+      return UIState(section).get<T>(key);
     }
 
     /* Prefer std::string for text retrievals (avoids instantiating get<StringRef>). */
     operator std::string() const
     {
-      return Settings(section).get<std::string>(key);
+      return UIState(section).get<std::string>(key);
     }
 
     template<typename T> Proxy &operator=(const T &value)
     {
-      Settings(section).set<T>(key, value);
+      UIState(section).set<T>(key, value);
       return *this;
     }
 
     /* Non-template overloads for strings so string-literals (char[N])
-     * don't force a Settings::set<char[N]> instantiation (causing the unresolved
+     * don't force a UIState::set<char[N]> instantiation (causing the unresolved
      * external). These take precedence over the template operator=. */
     Proxy &operator=(const std::string &s)
     {
-      Settings(section).set(key, s);
+      UIState(section).set(key, s);
       return *this;
     }
 
     Proxy &operator=(const char *s)
     {
-      Settings(section).set(key, std::string(s));
+      UIState(section).set(key, std::string(s));
       return *this;
     }
   };
@@ -75,11 +75,11 @@ struct Settings {
 
     template<typename T> operator T() const
     {
-      return Settings(section).get<T>(key);
+      return UIState(section).get<T>(key);
     }
     operator std::string() const
     {
-      return Settings(section).get<std::string>(key);
+      return UIState(section).get<std::string>(key);
     }
   };
 
@@ -95,10 +95,10 @@ struct Settings {
 
 /**********************************/
 
-/* Default settings. */
+/* Default UI state settings. */
 
-const std::string default_settings_toml = R"_delim_(
-title = "Settings"
+const std::string default_uistate_toml = R"_delim_(
+title = "Saved UI State Settings"
 name = "Blender"
 
 ["file_browser"]

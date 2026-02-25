@@ -24,27 +24,27 @@
 namespace blender {
 
 constexpr toml::spec version = toml::spec::v(1, 1, 0);
-#define BLI_SETTINGS_FILE_NAME "settings.toml"
+#define BLI_UISTATE_FILE_NAME "uistate.toml"
 
-toml::value settings_current;
-toml::value settings_default;
+toml::value uistate_current;
+toml::value uistate_default;
 
-static Mutex settings_mutex;
-static Mutex settings_init_mutex;
-static std::atomic<bool> settings_ready{false};
-static std::condition_variable_any settings_init_cv;
-static std::once_flag settings_init_once;
+static Mutex uistate_mutex;
+static Mutex uistate_init_mutex;
+static std::atomic<bool> uistate_ready{false};
+static std::condition_variable_any uistate_init_cv;
+static std::once_flag uistate_init_once;
 
-static std::string settings_file_path()
+static std::string uistate_file_path()
 {
   std::optional<std::string> datafiles_path = BKE_appdir_folder_id(BLENDER_USER_CONFIG, "");
   if (datafiles_path.has_value()) {
-    return *datafiles_path + SEP + BLI_SETTINGS_FILE_NAME;
+    return *datafiles_path + SEP + BLI_UISTATE_FILE_NAME;
   }
   return {};
 }
 
-static void bli_settings_print_errors(std::vector<toml::error_info> errors)
+static void bli_uistate_print_errors(std::vector<toml::error_info> errors)
 {
   for (auto error : errors) {
     std::string msg = toml::format_error(error);
@@ -52,71 +52,70 @@ static void bli_settings_print_errors(std::vector<toml::error_info> errors)
   }
 }
 
-static void bli_settings_init()
+static void bli_uistate_init()
 {
-  /* Load default settings. */
-  toml::result result = toml::try_parse_str(default_settings_toml, version);
+  /* Load defaults. */
+  toml::result result = toml::try_parse_str(default_uistate_toml, version);
   if (result.is_ok()) {
-    std::lock_guard<Mutex> lock(settings_mutex);
-    settings_default = result.unwrap();
+    std::lock_guard<Mutex> lock(uistate_mutex);
+    uistate_default = result.unwrap();
   }
   else {
-    bli_settings_print_errors(result.unwrap_err());
+    bli_uistate_print_errors(result.unwrap_err());
   }
 
-  /* Load settings from on-disk file if found. */
-  if (BLI_exists(settings_file_path().c_str())) {
-    /* Read existing settings file. */
-    toml::result result = toml::try_parse(settings_file_path(), version);
+  /* Load from on-disk file if found. */
+  if (BLI_exists(uistate_file_path().c_str())) {
+    /* Read existing uistate file. */
+    toml::result result = toml::try_parse(uistate_file_path(), version);
     if (result.is_ok()) {
-      std::lock_guard<Mutex> lock(settings_mutex);
-      settings_current = result.unwrap();
+      std::lock_guard<Mutex> lock(uistate_mutex);
+      uistate_current = result.unwrap();
     }
     else {
-      bli_settings_print_errors(result.unwrap_err());
+      bli_uistate_print_errors(result.unwrap_err());
     }
   }
   else {
-    /* Create a new settings file from defaults. */
+    /* Create a new uistate file from defaults. */
     {
-      std::lock_guard<Mutex> lock(settings_mutex);
-      settings_current = settings_default;
+      std::lock_guard<Mutex> lock(uistate_mutex);
+      uistate_current = uistate_default;
     }
-    BLI_settings_save();
+    BLI_uistate_save();
   }
 
   /* Mark ready and wake any waiters (covers both sync and async init). */
-  settings_ready.store(true, std::memory_order_release);
-  settings_init_cv.notify_all();
+  uistate_ready.store(true, std::memory_order_release);
+  uistate_init_cv.notify_all();
 }
 
-void BLI_settings_init_async()
+void BLI_uistate_init_async()
 {
-  /* Ensure we only start one background init thread. `bli_settings_init()`
-   * itself sets `settings_ready` and notifies waiters. */
-  std::call_once(settings_init_once,
-                 []() { std::thread([]() { bli_settings_init(); }).detach(); });
+  /* Ensure we only start one background init thread. `bli_uistate_init()`
+   * itself sets `uistate_ready` and notifies waiters. */
+  std::call_once(uistate_init_once, []() { std::thread([]() { bli_uistate_init(); }).detach(); });
 }
 
-static void bli_settings_ensure_init()
+static void bli_uistate_ensure_init()
 {
-  if (settings_ready.load(std::memory_order_acquire)) {
+  if (uistate_ready.load(std::memory_order_acquire)) {
     return;
   }
 
-  printf("WARNING: Waiting for BLI_settings_init_async() to complete.\n");
-  std::unique_lock<Mutex> lock(settings_init_mutex);
-  settings_init_cv.wait(lock, [] { return settings_ready.load(std::memory_order_acquire); });
+  printf("WARNING: Waiting for BLI_uistate_init_async() to complete.\n");
+  std::unique_lock<Mutex> lock(uistate_init_mutex);
+  uistate_init_cv.wait(lock, [] { return uistate_ready.load(std::memory_order_acquire); });
 }
 
-bool BLI_settings_save()
+bool BLI_uistate_save()
 {
-  std::lock_guard<Mutex> lock(settings_mutex);
-  if (settings_current.is_empty()) {
+  std::lock_guard<Mutex> lock(uistate_mutex);
+  if (uistate_current.is_empty()) {
     return false;
   }
-  std::string s = toml::format(settings_current, version);
-  FILE *fp = BLI_fopen(settings_file_path().c_str(), "w");
+  std::string s = toml::format(uistate_current, version);
+  FILE *fp = BLI_fopen(uistate_file_path().c_str(), "w");
   if (fp == nullptr) {
     return false;
   }
@@ -125,17 +124,16 @@ bool BLI_settings_save()
   return true;
 }
 
-void Settings::remove(const StringRef item)
+void UIState::remove(const StringRef item)
 {
-  bli_settings_ensure_init();
-  std::lock_guard<Mutex> lock(settings_mutex);
+  bli_uistate_ensure_init();
+  std::lock_guard<Mutex> lock(uistate_mutex);
 
-  if (!settings_current.is_table()) {
+  if (!uistate_current.is_table()) {
     return;
   }
 
-  toml::table &root_tbl = settings_current.as_table();
-
+  toml::table &root_tbl = uistate_current.as_table();
   if (section.is_empty()) {
     root_tbl.erase(item);
     return;
@@ -155,82 +153,81 @@ void Settings::remove(const StringRef item)
   sec_tbl.erase(item);
 }
 
-void Settings::remove_section()
+void UIState::remove_section()
 {
-  bli_settings_ensure_init();
-  std::lock_guard<Mutex> lock(settings_mutex);
-  if (section.is_empty() || !settings_current.is_table()) {
+  bli_uistate_ensure_init();
+  std::lock_guard<Mutex> lock(uistate_mutex);
+  if (section.is_empty() || !uistate_current.is_table()) {
     return;
   }
-  toml::table &root_tbl = settings_current.as_table();
+  toml::table &root_tbl = uistate_current.as_table();
   root_tbl.erase(section);
 }
 
-template<typename T> T Settings::get(const StringRef item) const
+template<typename T> T UIState::get(const StringRef item) const
 {
-  bli_settings_ensure_init();
-  std::lock_guard<Mutex> lock(settings_mutex);
+  bli_uistate_ensure_init();
+  std::lock_guard<Mutex> lock(uistate_mutex);
   const std::string sec = section;
   const std::string key = item;
-  const toml::value &cur = sec.empty() ? settings_current[key] : settings_current[sec][key];
-  const toml::value &def = sec.empty() ? settings_default[key] : settings_default[sec][key];
+  const toml::value &cur = sec.empty() ? uistate_current[key] : uistate_current[sec][key];
+  const toml::value &def = sec.empty() ? uistate_default[key] : uistate_default[sec][key];
   return toml::get_or(cur, toml::get_or(def, T{}));
 }
 
-template<typename T> void Settings::set(const StringRef item, const T &value)
+template<typename T> void UIState::set(const StringRef item, const T &value)
 {
-  bli_settings_ensure_init();
-  std::lock_guard<Mutex> lock(settings_mutex);
+  bli_uistate_ensure_init();
+  std::lock_guard<Mutex> lock(uistate_mutex);
   if (section.is_empty()) {
-    settings_current[item] = value;
+    uistate_current[item] = value;
   }
   else {
-    settings_current[section][item] = value;
+    uistate_current[section][item] = value;
   }
 }
 
-template std::string Settings::get<std::string>(const StringRef item) const;
-template void Settings::set<std::string>(const StringRef item, const std::string &value);
+template std::string UIState::get<std::string>(const StringRef item) const;
+template void UIState::set<std::string>(const StringRef item, const std::string &value);
 
-template char Settings::get<char>(const StringRef item) const;
-template void Settings::set<char>(const StringRef item, const char &value);
+template char UIState::get<char>(const StringRef item) const;
+template void UIState::set<char>(const StringRef item, const char &value);
+template bool UIState::get<bool>(const StringRef item) const;
+template void UIState::set<bool>(const StringRef item, const bool &value);
 
-template bool Settings::get<bool>(const StringRef item) const;
-template void Settings::set<bool>(const StringRef item, const bool &value);
+template int16_t UIState::get<int16_t>(const StringRef item) const;
+template void UIState::set<int16_t>(const StringRef item, const int16_t &value);
 
-template int16_t Settings::get<int16_t>(const StringRef item) const;
-template void Settings::set<int16_t>(const StringRef item, const int16_t &value);
+template uint16_t UIState::get<uint16_t>(const StringRef item) const;
+template void UIState::set<uint16_t>(const StringRef item, const uint16_t &value);
 
-template uint16_t Settings::get<uint16_t>(const StringRef item) const;
-template void Settings::set<uint16_t>(const StringRef item, const uint16_t &value);
+template int32_t UIState::get<int32_t>(const StringRef item) const;
+template void UIState::set<int32_t>(const StringRef item, const int32_t &value);
 
-template int32_t Settings::get<int32_t>(const StringRef item) const;
-template void Settings::set<int32_t>(const StringRef item, const int32_t &value);
+template uint32_t UIState::get<uint32_t>(const StringRef item) const;
+template void UIState::set<uint32_t>(const StringRef item, const uint32_t &value);
 
-template uint32_t Settings::get<uint32_t>(const StringRef item) const;
-template void Settings::set<uint32_t>(const StringRef item, const uint32_t &value);
+template int64_t UIState::get<int64_t>(const StringRef item) const;
+template void UIState::set<int64_t>(const StringRef item, const int64_t &value);
 
-template int64_t Settings::get<int64_t>(const StringRef item) const;
-template void Settings::set<int64_t>(const StringRef item, const int64_t &value);
+template uint64_t UIState::get<uint64_t>(const StringRef item) const;
+template void UIState::set<uint64_t>(const StringRef item, const uint64_t &value);
 
-template uint64_t Settings::get<uint64_t>(const StringRef item) const;
-template void Settings::set<uint64_t>(const StringRef item, const uint64_t &value);
+template float UIState::get<float>(const StringRef item) const;
+template void UIState::set<float>(const StringRef item, const float &value);
 
-template float Settings::get<float>(const StringRef item) const;
-template void Settings::set<float>(const StringRef item, const float &value);
+template double UIState::get<double>(const StringRef item) const;
+template void UIState::set<double>(const StringRef item, const double &value);
 
-template double Settings::get<double>(const StringRef item) const;
-template void Settings::set<double>(const StringRef item, const double &value);
+template std::vector<int> UIState::get<std::vector<int>>(const StringRef item) const;
+template void UIState::set<std::vector<int>>(const StringRef item, const std::vector<int> &value);
 
-template std::vector<int> Settings::get<std::vector<int>>(const StringRef item) const;
-template void Settings::set<std::vector<int>>(const StringRef item, const std::vector<int> &value);
+template std::vector<double> UIState::get<std::vector<double>>(const StringRef item) const;
+template void UIState::set<std::vector<double>>(const StringRef item,
+                                                const std::vector<double> &value);
 
-template std::vector<double> Settings::get<std::vector<double>>(const StringRef item) const;
-template void Settings::set<std::vector<double>>(const StringRef item,
-                                                 const std::vector<double> &value);
-
-template std::vector<float> Settings::get<std::vector<float>>(const StringRef item) const;
-template void Settings::set<std::vector<float>>(const StringRef item,
-                                                const std::vector<float> &value);
+template std::vector<float> UIState::get<std::vector<float>>(const StringRef item) const;
+template void UIState::set<std::vector<float>>(const StringRef item,
+                                               const std::vector<float> &value);
 
 }  // namespace blender
