@@ -1197,7 +1197,7 @@ void alert(bContext *C,
 #define NOTIFICATION_SECONDS_PER_CHAR 0.05f
 
 #define NOTIFICATION_HEIGHT (1.4f * UI_UNIT_Y)
-/* Vertical distance separateing notifications. */
+/* Vertical distance separating notifications. */
 #define NOTIFICATION_MARGIN (0.2f * UI_UNIT_X)
 /* Padding inside the notification box. */
 #define NOTIFICATION_PADDING (0.5f * UI_UNIT_X)

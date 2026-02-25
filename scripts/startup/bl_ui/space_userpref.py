@@ -247,11 +247,11 @@ class USERPREF_PT_interface_display(InterfacePanel, CenterAlignMixIn, Panel):
         col.prop(prefs, "use_recent_searches", text="Sort by Most Recent")
         col.prop(prefs, "show_hidden_ids", text="Show Hidden")
 
-        col.separator()
-
-        row = col.row()
-        row.prop(view, "notification_position", expand=True, text="Notifications")
-        col.prop(view, "notification_seconds", text="Duration")
+        if prefs.experimental.use_toast_notifications:
+            col.separator()
+            row = col.row()
+            row.prop(view, "notification_position", expand=True, text="Notifications")
+            col.prop(view, "notification_seconds", text="Duration")
 
 
 class USERPREF_PT_interface_text(InterfacePanel, CenterAlignMixIn, Panel):
@@ -1254,10 +1254,10 @@ class USERPREF_PT_theme_interface_styles(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(ui, "menu_shadow_fac")
         col.prop(ui, "menu_shadow_width", text="Shadow Width")
 
-        flow.separator()
-
-        col = flow.column()
-        col.prop(ui, "notification_blend")
+        if context.preferences.experimental.use_toast_notifications:
+            flow.separator()
+            col = flow.column()
+            col.prop(ui, "notification_blend")
 
 
 class USERPREF_PT_theme_interface_transparent_checker(ThemePanel, CenterAlignMixIn, Panel):
@@ -3076,6 +3076,7 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                 ({"property": "use_geometry_nodes_lists"}, ("blender/blender/issues/140918", "#140918")),
                 ({"property": "use_geometry_bundle"}, ("blender/blender/issues/150574", "#150574")),
                 ({"property": "use_remote_asset_libraries"}, ("blender/blender/issues/134495", "#134495")),
+                ({"property": "use_toast_notifications"}, ("blender/blender/pulls/149609", "#149609")),
             ),
         )
 
