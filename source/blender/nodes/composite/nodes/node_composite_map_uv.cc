@@ -241,7 +241,6 @@ class MapUVOperation : public NodeOperation {
      * vertically across the 2x2 block such that odd texels use a forward finite difference
      * equation while even invocations use a backward finite difference equation. */
     const int2 size = domain.data_size;
-    const int2 uv_size = input_uv.domain().data_size;
     parallel_for(math::divide_ceil(size, int2(2)), [&](const int2 base_texel) {
       const int x = base_texel.x * 2;
       const int y = base_texel.y * 2;
@@ -256,12 +255,11 @@ class MapUVOperation : public NodeOperation {
       const float2 upper_left_uv = input_uv.load_pixel_extended<float3>(upper_left_texel).xy();
       const float2 upper_right_uv = input_uv.load_pixel_extended<float3>(upper_right_texel).xy();
 
-      /* Compute the partial derivatives using finite difference. Divide by the input size since
-       * sample_ewa_zero assumes derivatives with respect to texel coordinates. */
-      const float2 lower_x_gradient = (lower_right_uv - lower_left_uv) / uv_size.x;
-      const float2 left_y_gradient = (upper_left_uv - lower_left_uv) / uv_size.y;
-      const float2 right_y_gradient = (upper_right_uv - lower_right_uv) / uv_size.y;
-      const float2 upper_x_gradient = (upper_right_uv - upper_left_uv) / uv_size.x;
+      /* Compute the partial derivatives using finite difference. */
+      const float2 lower_x_gradient = lower_right_uv - lower_left_uv;
+      const float2 left_y_gradient = upper_left_uv - lower_left_uv;
+      const float2 right_y_gradient = upper_right_uv - lower_right_uv;
+      const float2 upper_x_gradient = upper_right_uv - upper_left_uv;
 
       /* Computes one of the 2x2 pixels given its texel location, coordinates, and gradients. */
       auto compute_pixel = [&](const int2 &texel,

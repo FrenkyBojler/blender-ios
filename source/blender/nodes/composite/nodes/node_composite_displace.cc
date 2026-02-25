@@ -210,12 +210,11 @@ class DisplaceOperation : public NodeOperation {
       const float2 upper_right_coordinates = this->compute_coordinates(
           upper_right_texel, size, displacement);
 
-      /* Compute the partial derivatives using finite difference. Divide by the input size since
-       * sample_ewa_zero assumes derivatives with respect to texel coordinates. */
-      const float2 lower_x_gradient = (lower_right_coordinates - lower_left_coordinates) / size.x;
-      const float2 left_y_gradient = (upper_left_coordinates - lower_left_coordinates) / size.y;
-      const float2 right_y_gradient = (upper_right_coordinates - lower_right_coordinates) / size.y;
-      const float2 upper_x_gradient = (upper_right_coordinates - upper_left_coordinates) / size.x;
+      /* Compute the partial derivatives using finite difference. */
+      const float2 lower_x_gradient = lower_right_coordinates - lower_left_coordinates;
+      const float2 left_y_gradient = upper_left_coordinates - lower_left_coordinates;
+      const float2 right_y_gradient = upper_right_coordinates - lower_right_coordinates;
+      const float2 upper_x_gradient = upper_right_coordinates - upper_left_coordinates;
 
       /* Computes one of the 2x2 pixels given its texel location, coordinates, and gradients. */
       auto compute_anisotropic_pixel = [&](const int2 &texel,

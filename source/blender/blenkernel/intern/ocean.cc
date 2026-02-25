@@ -1231,8 +1231,6 @@ void BKE_ocean_free_cache(OceanCache *och)
 
 void BKE_ocean_cache_eval_uv(OceanCache *och, OceanResult *ocr, int f, float u, float v)
 {
-  int res_x = och->resolution_x;
-  int res_y = och->resolution_y;
   float result[4];
 
   u = fmod(u, 1.0);
@@ -1246,28 +1244,27 @@ void BKE_ocean_cache_eval_uv(OceanCache *och, OceanResult *ocr, int f, float u, 
   }
 
   if (och->ibufs_disp[f]) {
-    ibuf_sample(och->ibufs_disp[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    ibuf_sample(och->ibufs_disp[f], u, v, 1.0f, 1.0f, result);
     copy_v3_v3(ocr->disp, result);
   }
 
   if (och->ibufs_foam[f]) {
-    ibuf_sample(och->ibufs_foam[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    ibuf_sample(och->ibufs_foam[f], u, v, 1.0f, 1.0f, result);
     ocr->foam = result[0];
   }
 
   if (och->ibufs_spray[f]) {
-    ibuf_sample(och->ibufs_spray[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    ibuf_sample(och->ibufs_spray[f], u, v, 1.0f, 1.0f, result);
     copy_v3_v3(ocr->Eplus, result);
   }
 
   if (och->ibufs_spray_inverse[f]) {
-    ibuf_sample(
-        och->ibufs_spray_inverse[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    ibuf_sample(och->ibufs_spray_inverse[f], u, v, 1.0f, 1.0f, result);
     copy_v3_v3(ocr->Eminus, result);
   }
 
   if (och->ibufs_norm[f]) {
-    ibuf_sample(och->ibufs_norm[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    ibuf_sample(och->ibufs_norm[f], u, v, 1.0f, 1.0f, result);
     copy_v3_v3(ocr->normal, result);
   }
 }
