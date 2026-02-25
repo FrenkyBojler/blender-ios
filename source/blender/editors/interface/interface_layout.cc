@@ -1356,7 +1356,8 @@ static Button *uiItemFullO_ptr_ex(Layout *layout,
                                   int icon,
                                   const wm::OpCallContext context,
                                   const eUI_Item_Flag flag,
-                                  PointerRNA *r_opptr)
+                                  PointerRNA *r_opptr,
+                                  const ButtonType button_type = ButtonType::But)
 {
   /* Take care to fill 'r_opptr' whatever happens. */
   Block *block = layout->block();
@@ -1379,7 +1380,7 @@ static Button *uiItemFullO_ptr_ex(Layout *layout,
   block_layout_set_current(block, layout);
   block_new_button_group(block, ButtonGroupFlag(0));
 
-  const int w = ui_text_icon_width(layout, *name, icon, false);
+  const int w = ui_text_icon_width(layout, *name, icon, button_type == ButtonType::But);
 
   const EmbossType prev_emboss = layout->emboss_or_undefined();
   if (flag & ITEM_R_NO_BG) {
@@ -1391,16 +1392,15 @@ static Button *uiItemFullO_ptr_ex(Layout *layout,
   if (icon) {
     if (!name->is_empty()) {
       but = uiDefIconTextButO_ptr(
-          block, ButtonType::But, ot, context, icon, *name, 0, 0, w, UI_UNIT_Y, std::nullopt);
+          block, button_type, ot, context, icon, *name, 0, 0, w, UI_UNIT_Y, std::nullopt);
     }
     else {
       but = uiDefIconButO_ptr(
-          block, ButtonType::But, ot, context, icon, 0, 0, w, UI_UNIT_Y, std::nullopt);
+          block, button_type, ot, context, icon, 0, 0, w, UI_UNIT_Y, std::nullopt);
     }
   }
   else {
-    but = uiDefButO_ptr(
-        block, ButtonType::But, ot, context, *name, 0, 0, w, UI_UNIT_Y, std::nullopt);
+    but = uiDefButO_ptr(block, button_type, ot, context, *name, 0, 0, w, UI_UNIT_Y, std::nullopt);
   }
 
   BLI_assert(but->optype != nullptr);
@@ -3205,6 +3205,62 @@ Button *uiItemL_ex(
 void Layout::label(const StringRef name, int icon)
 {
   uiItem_simple(this, name, icon);
+}
+
+void Layout::link(const StringRef url, const StringRef name, int icon)
+{
+  wmOperatorType *ot = WM_operatortype_find("WM_OT_url_open", false); /* print error next */
+
+  if (!ot || !ot->srna) {
+    ui_item_disabled(this, "WM_OT_url_open");
+    RNA_warning_bare("UILayout::link(): %s '%s'",
+                     ot ? "operator missing srna" : "unknown operator",
+                     "WM_OT_url_open");
+    return;
+  }
+  if (name.is_empty()) {
+    ui_item_disabled(this, "WM_OT_url_open");
+    RNA_warning_bare("UILayout::link(): missing link name");
+    return;
+  }
+
+  PointerRNA opptr;
+
+  Layout *layout = this;
+
+  /* Force the button to not be expanded full width. */
+  layout = &this->row(false);
+  layout->alignment_set(this->alignment());
+  layout = &layout->row(false);
+  layout->alignment_set(LayoutAlign::Center);
+
+  Button *button = uiItemFullO_ptr_ex(layout,
+                                      ot,
+                                      name,
+                                      icon,
+                                      wm::OpCallContext::InvokeDefault,
+                                      eUI_Item_Flag(0),
+                                      &opptr,
+                                      ButtonType::Link);
+
+  if (this->alignment() == LayoutAlign::Right) {
+    button->drawflag &= ~BUT_TEXT_LEFT;
+    button->drawflag |= BUT_TEXT_RIGHT;
+  }
+  else if (this->alignment() == LayoutAlign::Left) {
+    button->drawflag &= ~BUT_TEXT_RIGHT;
+    button->drawflag |= BUT_TEXT_LEFT;
+  }
+  /* Show only URL in the tooltip. */
+  ui::button_func_tooltip_custom_set(
+      button,
+      [](bContext & /*C*/, ui::TooltipData &data, ui::Button * /*but*/, void *argN) {
+        tooltip_text_field_add(
+            data, static_cast<const char *>(argN), {}, ui::TIP_STYLE_MONO, ui::TIP_LC_LINK, false);
+      },
+      BLI_strdup(url.data()),
+      MEM_delete_void);
+  RNA_string_set(&opptr, "url", url.data());
 }
 
 PropertySplitWrapper uiItemPropertySplitWrapperCreate(Layout *parent_layout)

@@ -75,6 +75,7 @@ enum WidgetTypeEnum {
   UI_WTYPE_TOGGLE,
   UI_WTYPE_CHECKBOX,
   UI_WTYPE_RADIO,
+  UI_WTYPE_LINK,
   UI_WTYPE_NUMBER,
   UI_WTYPE_SLIDER,
   UI_WTYPE_EXEC,
@@ -2232,7 +2233,21 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     }
   }
 #endif
-
+  /* Draw text underline when the link button is active. */
+  if (but->type == ButtonType::Link && but->active) {
+    float4 color;
+    rgba_uchar_to_float(color, wcol->text);
+    int width = BLF_width(fstyle->uifont_id, drawstr, drawstr_left_len);
+    int xmin = rect->xmin;
+    if (align == UI_STYLE_TEXT_RIGHT) {
+      xmin = rect->xmax - width;
+    }
+    else if (align == UI_STYLE_TEXT_CENTER) {
+      const int rect_width = BLI_rcti_size_x(rect);
+      xmin = rect->xmin + std::round(float(rect_width - width + 1) / 2.0f);
+    }
+    draw_text_underline(xmin, rect->ymin + 6 * U.pixelsize, width, 1, color);
+  }
   if (!use_right_only) {
     /* for underline drawing */
     int font_xofs, font_yofs;
@@ -4831,6 +4846,9 @@ static WidgetType *widget_type(WidgetTypeEnum type)
       wt.draw = widget_textbut;
       break;
 
+    case UI_WTYPE_LINK:
+      wt.wcol_theme = &btheme->tui.wcol_link;
+      break;
     case UI_WTYPE_NAME_LINK:
       break;
 
@@ -5141,6 +5159,9 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
 #else
         wt = widget_type(UI_WTYPE_EXEC);
 #endif
+        break;
+      case ButtonType::Link:
+        wt = widget_type(UI_WTYPE_LINK);
         break;
 
       case ButtonType::Num:
@@ -5727,6 +5748,12 @@ void draw_pie_center(Block *block)
 const uiWidgetColors *tooltip_get_theme()
 {
   WidgetType *wt = widget_type(UI_WTYPE_TOOLTIP);
+  return wt->wcol_theme;
+}
+
+const uiWidgetColors *link_get_theme()
+{
+  WidgetType *wt = widget_type(UI_WTYPE_LINK);
   return wt->wcol_theme;
 }
 

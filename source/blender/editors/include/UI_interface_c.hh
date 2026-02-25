@@ -465,6 +465,7 @@ enum class ButtonType : int8_t {
   Decorator,
   /** An item a view (see #ui::AbstractViewItem). */
   ViewItem,
+  Link,
 };
 
 inline char but_pointer_bit_max_index(ButPointerType pointer_type)
@@ -1898,7 +1899,9 @@ enum TooltipColorID {
   TIP_LC_NORMAL,   /* Color of regular text. */
   TIP_LC_PYTHON,   /* Color of python snippets. */
   TIP_LC_ALERT,    /* Warning text color, eg: why operator can't run. */
-  TIP_LC_MAX
+  TIP_LC_LINK,     /* Color of urls. */
+  TIP_LC_MAX,
+
 };
 
 enum class TooltipImageBackground {

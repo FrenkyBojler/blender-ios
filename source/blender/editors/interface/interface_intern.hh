@@ -1338,6 +1338,7 @@ void draw_menu_back(uiStyle *style, Block *block, const rcti *rect);
 void draw_popover_back(ARegion *region, uiStyle *style, Block *block, const rcti *rect);
 void draw_pie_center(Block *block);
 const uiWidgetColors *tooltip_get_theme();
+const uiWidgetColors *link_get_theme();
 
 void draw_widget_menu_back_color(const rcti *rect, bool use_shadow, const float color[4]);
 void draw_widget_menu_back(const rcti *rect, bool use_shadow);

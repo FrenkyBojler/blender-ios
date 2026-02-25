@@ -426,6 +426,19 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   if (!USER_VERSION_ATLEAST(501, 26)) {
     FROM_DEFAULT_V4_UCHAR(space_view3d.grid_major);
   }
+  if (!USER_VERSION_ATLEAST(502, 6)) {
+    copy_v4_v4_uchar(btheme->tui.wcol_link.outline, U_theme_default.tui.wcol_box.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_link.outline_sel, U_theme_default.tui.wcol_box.outline_sel);
+    copy_v4_v4_uchar(btheme->tui.wcol_link.inner, U_theme_default.tui.wcol_box.inner);
+    copy_v4_v4_uchar(btheme->tui.wcol_link.inner_sel, U_theme_default.tui.wcol_box.inner_sel);
+    copy_v4_v4_uchar(btheme->tui.wcol_link.item, U_theme_default.tui.wcol_box.item);
+    copy_v4_v4_uchar(btheme->tui.wcol_link.text, U_theme_default.tui.wcol_box.text);
+    copy_v4_v4_uchar(btheme->tui.wcol_link.text_sel, U_theme_default.tui.wcol_box.text_sel);
+    btheme->tui.wcol_link.shaded = U_theme_default.tui.wcol_box.shaded;
+    btheme->tui.wcol_link.shadetop = U_theme_default.tui.wcol_box.shadetop;
+    btheme->tui.wcol_link.shadedown = U_theme_default.tui.wcol_box.shadedown;
+    btheme->tui.wcol_link.roundness = U_theme_default.tui.wcol_box.roundness;
+  }
 
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning

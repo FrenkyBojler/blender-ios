@@ -407,6 +407,11 @@ struct Layout : public Item, NonCopyable, NonMovable {
   void label(StringRef name, int icon);
 
   /**
+   * Adds clickable link item, that will open an url in the system's default web browser on click.
+   */
+  void link(StringRef url, StringRef name, int icon);
+
+  /**
    * Adds a menu item, which is a button that when active will display a menu.
    * If menu fails to poll with `WM_menutype_poll` it will not be added into the layout.
    */
