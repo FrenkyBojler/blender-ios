@@ -284,12 +284,12 @@ bool contains(const VArray<bool> &varray, const IndexMask &indices_to_check, con
       std::logical_or());
 }
 
-IndexMask indices_positive(const IndexMask &universe,
-                           const Span<int> values,
-                           LinearAllocator<> &memory)
+IndexMask indices_non_negative(const IndexMask &universe,
+                               const Span<int> values,
+                               LinearAllocator<> &memory)
 {
   return IndexMask::from_predicate(
-      universe, memory, [&](const int i) { return values[i] > -1; }, exec_mode::grain_size(4096));
+      universe, memory, [&](const int i) { return values[i] >= 0; }, exec_mode::grain_size(4096));
 }
 
 IndexMask indices_in_range(const IndexMask &universe,

@@ -92,7 +92,7 @@ void copy_attribute_using_map(const GSpan src, const Span<int> out_to_in_map, GM
 {
   const CPPType &type = dst.type();
   IndexMaskMemory memory;
-  const IndexMask valid_mask = array_utils::indices_positive(
+  const IndexMask valid_mask = array_utils::indices_non_negative(
       IndexRange(dst.size()), out_to_in_map, memory);
   bke::attribute_math::gather(src, out_to_in_map, valid_mask, dst);
   type.value_initialize_indices(dst.data(), valid_mask.complement(IndexRange(dst.size()), memory));

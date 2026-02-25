@@ -27,7 +27,7 @@ static IndexMask calc_vert_visibility_mesh(const MeshRenderData &mr,
   if (mr.orig_index_vert != nullptr) {
     const int *orig_index = mr.orig_index_vert;
     static_assert(ORIGINDEX_NONE == -1);
-    visible = array_utils::indices_positive(visible, Span(orig_index, mr.verts_num), memory);
+    visible = array_utils::indices_non_negative(visible, Span(orig_index, mr.verts_num), memory);
   }
   return visible;
 }
