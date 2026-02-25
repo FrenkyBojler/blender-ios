@@ -456,7 +456,7 @@ struct FinishCallChecker {
   {
     if (!this->finish_called) {
       std::cerr << "Forgot to call `finish()` for '" << this->name << "'.\n";
-      BLI_assert(0);
+      BLI_assert_unreachable();
     }
   }
 };
