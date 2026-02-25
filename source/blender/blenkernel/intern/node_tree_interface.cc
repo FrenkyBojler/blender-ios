@@ -4,7 +4,6 @@
 
 #include <queue>
 
-#include "BKE_animsys.h"
 #include "BKE_context.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
@@ -13,6 +12,7 @@
 #include "BKE_node_enum.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_interface.hh"
+#include "BKE_node_tree_interface_convert.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "BLI_math_vector.h"

@@ -28,6 +28,7 @@
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_node_tree_interface_convert.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "ANIM_action.hh"

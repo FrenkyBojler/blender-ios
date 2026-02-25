@@ -320,7 +320,6 @@ set(SRC
   BKE_anim_path.h
   BKE_anim_visualization.h
   BKE_animsys.h
-  BKE_animsys_fwd.h
   BKE_anonymous_attribute_id.hh
   BKE_anonymous_attribute_make.hh
   BKE_appdir.hh
@@ -474,6 +473,7 @@ set(SRC
   BKE_node_socket_value_fwd.hh
   BKE_node_tree_dot_export.hh
   BKE_node_tree_interface.hh
+  BKE_node_tree_interface_convert.hh
   BKE_node_tree_reference_lifetimes.hh
   BKE_node_tree_update.hh
   BKE_node_tree_zones.hh
