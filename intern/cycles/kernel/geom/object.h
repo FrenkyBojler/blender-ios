@@ -164,18 +164,14 @@ ccl_device_inline void object_inverse_position_transform(KernelGlobals kg,
   *P = transform_point(&tfm, *P);
 }
 
-ccl_device_inline void object_inverse_position_transform(KernelGlobals kg,
-                                                         const ccl_private ShaderData *sd,
-                                                         ccl_private dual3 *P,
-                                                         const bool derivative)
+/* Convenience wrapper that checks for OBJECT_NONE before transforming.
+ * Works with both plain types (float3) and dual types (dual3). */
+template<class Float3Type>
+ccl_device_inline void object_inverse_position_transform_if_object(
+    KernelGlobals kg, const ccl_private ShaderData *sd, ccl_private Float3Type *P)
 {
   if (sd->object != OBJECT_NONE) {
-    if (derivative) {
-      object_inverse_position_transform(kg, sd, P);
-    }
-    else {
-      object_inverse_position_transform(kg, sd, &(P->val));
-    }
+    object_inverse_position_transform(kg, sd, P);
   }
 }
 

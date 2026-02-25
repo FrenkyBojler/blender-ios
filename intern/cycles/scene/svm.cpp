@@ -413,24 +413,42 @@ void SVMCompiler::add_node(ShaderNodeType type, const int a, int b, const int c)
   svm_node_types_used[type] = true;
   current_svm_nodes.push_back_slow(make_int4(type, a, b, c));
 }
-void SVMCompiler::add_node_derivative(
-    const ShaderNodeType type, const uint derivative_bit, const int a, const int b, const int c)
+static ShaderNodeType svm_node_type_with_derivatives(ShaderNodeType type)
 {
-  svm_node_types_used[type] = true;
-  add_node(type | derivative_bit, a, b, c);
+  switch (type) {
+#define SHADER_NODE_TYPE_DERIVATIVE(name) \
+  case name: \
+    return name##_DERIVATIVE;
+#include "kernel/svm/node_types_template.h"
+    default:
+      break;
+  }
+
+  return type;
+}
+
+void SVMCompiler::add_node_derivative(
+    const ShaderNodeType type, const bool need_derivatives, const int a, const int b, const int c)
+{
+  /* Only support derivatives for surface for now. */
+  const ShaderNodeType node_x = (need_derivatives && current_type != SHADER_TYPE_VOLUME) ?
+                                    svm_node_type_with_derivatives(type) :
+                                    type;
+  svm_node_types_used[node_x] = true;
+  add_node(node_x, a, b, c);
 }
 
 void SVMCompiler::add_node(const ShaderNode *node, const int a, int b, const int c)
 {
   const ShaderNodeType type = node->shader_node_type();
   assert(type != NODE_NONE);
-  add_node_derivative(type, node->derivative_bit(), a, b, c);
+  add_node_derivative(type, node->need_derivatives(), a, b, c);
 }
 
-void SVMCompiler::add_node(const ShaderNodeType type, const float3 &f, const uint derivative_bit)
+void SVMCompiler::add_node(const ShaderNodeType type, const float3 &f, const bool need_derivatives)
 {
   add_node_derivative(
-      type, derivative_bit, __float_as_int(f.x), __float_as_int(f.y), __float_as_int(f.z));
+      type, need_derivatives, __float_as_int(f.x), __float_as_int(f.y), __float_as_int(f.z));
 }
 
 void SVMCompiler::add_node(const float4 &f)
@@ -441,16 +459,15 @@ void SVMCompiler::add_node(const float4 &f)
 
 void SVMCompiler::add_value_node(const ShaderNode *node, const int value, const int stack_offset)
 {
-  add_node_derivative(NODE_VALUE_F, node->derivative_bit(), value, stack_offset);
+  add_node_derivative(NODE_VALUE_F, node->need_derivatives(), value, stack_offset);
 }
 
 void SVMCompiler::add_value_node(const ShaderNode *node,
                                  const float3 &value,
                                  const int stack_offset)
 {
-  const uint derivative_bit = node->derivative_bit();
-  add_node_derivative(NODE_VALUE_V, derivative_bit, stack_offset);
-  add_node(NODE_VALUE_V, value, derivative_bit);
+  add_node_derivative(NODE_VALUE_V, node->need_derivatives(), stack_offset);
+  add_node(NODE_VALUE_V, value, node->need_derivatives());
 }
 
 uint SVMCompiler::attribute(ustring name)

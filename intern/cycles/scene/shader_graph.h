@@ -7,6 +7,7 @@
 #include "graph/node.h"
 #include "graph/node_type.h"
 
+#include "kernel/svm/types.h"
 #include "kernel/types.h"
 
 #include "util/map.h"
@@ -222,10 +223,6 @@ class ShaderNode : public Node {
   void set_need_derivatives(const bool need_derivatives = true)
   {
     need_derivatives_ = need_derivatives;
-  }
-  uint derivative_bit() const
-  {
-    return uint(need_derivatives_) << DERIVATIVE_BIT;
   }
 
   unique_ptr_vector<ShaderInput> inputs;

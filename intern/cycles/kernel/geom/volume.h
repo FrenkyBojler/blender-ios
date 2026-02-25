@@ -26,23 +26,18 @@ CCL_NAMESPACE_BEGIN
 
 /* Return position normalized to 0..1 in mesh bounds */
 
-ccl_device_inline dual3 volume_normalized_position(KernelGlobals kg,
-                                                   const ccl_private ShaderData *sd,
-                                                   dual3 P,
-                                                   const bool derivative)
+template<typename Float3Type>
+ccl_device_inline Float3Type volume_normalized_position(KernelGlobals kg,
+                                                        const ccl_private ShaderData *sd,
+                                                        Float3Type P)
 {
   const AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_GENERATED_TRANSFORM);
 
-  object_inverse_position_transform(kg, sd, &P, derivative);
+  object_inverse_position_transform_if_object(kg, sd, &P);
 
   if (desc.offset != ATTR_STD_NOT_FOUND) {
     const Transform tfm = primitive_attribute_matrix(kg, desc);
-    if (derivative) {
-      P = transform_point(&tfm, P);
-    }
-    else {
-      P.val = transform_point(&tfm, P.val);
-    }
+    P = transform_point(&tfm, P);
   }
 
   return P;

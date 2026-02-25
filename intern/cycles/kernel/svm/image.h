@@ -37,12 +37,13 @@ ccl_device float4 svm_image_texture(
 }
 
 /* Remap coordinate from 0..1 box to -1..-1 */
-template<class T> ccl_device_inline T texco_remap_square(const T co)
+template<class Float3Type> ccl_device_inline Float3Type texco_remap_square(const Float3Type co)
 {
   return (co - make_float3(0.5f, 0.5f, 0.5f)) * 2.0f;
 }
 
-template<class T> ccl_device_inline auto svm_node_tex_image_mapping(const T co, const uint proj)
+template<class Float3Type>
+ccl_device_inline auto svm_node_tex_image_mapping(const Float3Type co, const uint proj)
 {
   if (proj == NODE_IMAGE_PROJ_SPHERE) {
     return map_to_sphere(texco_remap_square(co));
@@ -69,12 +70,12 @@ ccl_device_noinline void svm_node_tex_image(KernelGlobals kg,
 
   dual2 tex_co;
   if (derivative) {
-    const dual3 co = stack_load_float3(stack, co_offset, derivative);
+    const dual3 co = stack_load<dual3>(stack, co_offset);
     tex_co = svm_node_tex_image_mapping(co, node.w);
   }
   else {
     const float3 co = stack_load_float3(stack, co_offset);
-    tex_co.val = svm_node_tex_image_mapping(co, node.w);
+    tex_co = dual2(svm_node_tex_image_mapping(co, node.w));
   }
 
   const int id = node.y;
@@ -166,10 +167,11 @@ ccl_device_noinline void svm_node_tex_image_box(KernelGlobals kg,
   uint flags;
   svm_unpack_node_uchar4(node.z, &co_offset, &out_offset, &alpha_offset, &flags);
 
-  const dual3 co = stack_load_float3(stack, co_offset, derivative);
   const uint id = node.y;
-
   float4 f = zero_float4();
+
+  const dual3 co = (derivative) ? stack_load<dual3>(stack, co_offset) :
+                                  dual3(stack_load_float3(stack, co_offset));
 
   /* Map so that no textures are flipped, rotation is somewhat arbitrary. */
   if (weight.x > 0.0f) {
@@ -193,7 +195,8 @@ ccl_device_noinline void svm_node_tex_image_box(KernelGlobals kg,
   }
 }
 
-template<class T> ccl_device_inline auto svm_node_tex_environment_projection(T co, const uint proj)
+template<class Float3Type>
+ccl_device_inline auto svm_node_tex_environment_projection(Float3Type co, const uint proj)
 {
   co = safe_normalize(co);
   if (proj == 0) {
@@ -218,12 +221,12 @@ ccl_device_noinline void svm_node_tex_environment(KernelGlobals kg,
 
   dual2 uv;
   if (derivative) {
-    const dual3 co = stack_load_float3(stack, co_offset, derivative);
+    const dual3 co = stack_load<dual3>(stack, co_offset);
     uv = svm_node_tex_environment_projection(co, node.w);
   }
   else {
     const float3 co = stack_load_float3(stack, co_offset);
-    uv.val = svm_node_tex_environment_projection(co, node.w);
+    uv = dual2(svm_node_tex_environment_projection(co, node.w));
   }
 
   const float4 f = svm_image_texture(kg, sd, id, uv, flags);

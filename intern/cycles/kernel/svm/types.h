@@ -17,10 +17,14 @@ CCL_NAMESPACE_BEGIN
 #define SVM_BUMP_EVAL_STATE_SIZE 10
 // NOLINTEND
 
+/* Derivative node types are right after the regular type. */
+#define SVM_DERIVATIVE_OFFSET 1
+
 /* Nodes */
 
 enum ShaderNodeType {
 #define SHADER_NODE_TYPE(name) name,
+#define SHADER_NODE_TYPE_DERIVATIVE(name) name, name##_DERIVATIVE,
 #include "node_types_template.h"
 
   NODE_NUM

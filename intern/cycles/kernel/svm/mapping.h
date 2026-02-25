@@ -11,11 +11,11 @@ CCL_NAMESPACE_BEGIN
 
 /* Mapping Node */
 
+template<typename Float3Type>
 ccl_device_noinline void svm_node_mapping(ccl_private float *stack,
                                           const uint type,
                                           const uint inputs_stack_offsets,
-                                          const uint result_stack_offset,
-                                          const bool derivative)
+                                          const uint result_stack_offset)
 {
   uint vector_stack_offset;
   uint location_stack_offset;
@@ -31,16 +31,9 @@ ccl_device_noinline void svm_node_mapping(ccl_private float *stack,
   const float3 rotation = stack_load_float3(stack, rotation_stack_offset);
   const float3 scale = stack_load_float3(stack, scale_stack_offset);
 
-  if (derivative) {
-    const dual3 vector = stack_load_float3(stack, vector_stack_offset, derivative);
-    const dual3 result = svm_mapping((NodeMappingType)type, vector, location, rotation, scale);
-    stack_store_float3(stack, result_stack_offset, result, derivative);
-  }
-  else {
-    const float3 vector = stack_load_float3(stack, vector_stack_offset);
-    const float3 result = svm_mapping((NodeMappingType)type, vector, location, rotation, scale);
-    stack_store_float3(stack, result_stack_offset, result);
-  }
+  const Float3Type vector = stack_load<Float3Type>(stack, vector_stack_offset);
+  const Float3Type result = svm_mapping((NodeMappingType)type, vector, location, rotation, scale);
+  stack_store(stack, result_stack_offset, result);
 }
 
 /* Texture Mapping */

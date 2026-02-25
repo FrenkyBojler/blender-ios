@@ -106,6 +106,49 @@ using dual2 = dual<float2>;
 using dual3 = dual<float3>;
 using dual4 = dual<float4>;
 
+/* Dual type traits. */
+
+/* Use enum on GPU to avoid Metal problems with static constexpr,
+ * and static constexpr bool on CPU to avoid enum-to-bool warnings. */
+template<typename T> struct is_dual {
+#ifdef __KERNEL_GPU__
+  enum { value = 0 };
+#else
+  static constexpr bool value = false;
+#endif
+};
+template<typename U> struct is_dual<dual<U>> {
+#ifdef __KERNEL_GPU__
+  enum { value = 1 };
+#else
+  static constexpr bool value = true;
+#endif
+};
+#define is_dual_v(T) (is_dual<T>::value)
+
+/* Base (non-dual) type. E.g. dual_base_t<dual3> = float3, dual_base_t<float3> = float3. */
+
+template<typename T> struct dual_base_type {
+  using type = T;
+};
+template<typename U> struct dual_base_type<dual<U>> {
+  using type = U;
+};
+template<typename T> using dual_base_t = typename dual_base_type<T>::type;
+
+/* Scalar type corresponding to a vector type. */
+
+template<typename T> struct dual_scalar_type {
+  using type = T;
+};
+template<> struct dual_scalar_type<float3> {
+  using type = float;
+};
+template<> struct dual_scalar_type<dual3> {
+  using type = dual1;
+};
+template<typename T> using dual_scalar_t = typename dual_scalar_type<T>::type;
+
 ccl_device_inline dual2 make_float2(const dual3 a)
 {
   return {make_float2(a.val), make_float2(a.dx), make_float2(a.dy)};
