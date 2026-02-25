@@ -368,20 +368,25 @@ void ImageTextureNode::attributes(Shader *shader, AttributeRequestSet *attribute
   ShaderNode::attributes(shader, attributes);
 }
 
+void ImageTextureNode::update_images(const SVMCompiler &compiler)
+{
+  if (handle.empty()) {
+    cull_tiles(compiler.scene, compiler.current_graph);
+    ImageManager *image_manager = compiler.scene->image_manager.get();
+    handle = image_manager->add_image(filename.string(), image_params(), tiles);
+  }
+}
+
 void ImageTextureNode::compile(SVMCompiler &compiler)
 {
   ShaderInput *vector_in = input("Vector");
   ShaderOutput *color_out = output("Color");
   ShaderOutput *alpha_out = output("Alpha");
 
-  if (handle.empty()) {
-    cull_tiles(compiler.scene, compiler.current_graph);
-    ImageManager *image_manager = compiler.scene->image_manager.get();
-    handle = image_manager->add_image(filename.string(), image_params(), tiles);
-  }
+  update_images(compiler);
 
   /* All tiles have the same metadata. */
-  const ImageMetaData metadata = handle.metadata();
+  const ImageMetaData metadata = handle.metadata(compiler.progress);
   const bool compress_as_srgb = metadata.is_compressible_as_srgb;
 
   const int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
@@ -401,44 +406,17 @@ void ImageTextureNode::compile(SVMCompiler &compiler)
   }
 
   if (projection != NODE_IMAGE_PROJ_BOX) {
-    /* If there only is one image (a very common case), we encode it as a negative value. */
-    int num_nodes;
-    if (handle.num_tiles() == 0) {
-      num_nodes = -handle.svm_slot();
-    }
-    else {
-      num_nodes = divide_up(handle.num_tiles(), 2);
-    }
-
     compiler.add_node(NODE_TEX_IMAGE,
-                      num_nodes,
+                      handle.kernel_id(),
                       compiler.encode_uchar4(vector_offset,
                                              compiler.stack_assign_if_linked(color_out),
                                              compiler.stack_assign_if_linked(alpha_out),
                                              flags),
                       projection);
-
-    if (num_nodes > 0) {
-      for (int i = 0; i < num_nodes; i++) {
-        int4 node;
-        node.x = tiles[2 * i];
-        node.y = handle.svm_slot(2 * i);
-        if (2 * i + 1 < tiles.size()) {
-          node.z = tiles[2 * i + 1];
-          node.w = handle.svm_slot(2 * i + 1);
-        }
-        else {
-          node.z = -1;
-          node.w = -1;
-        }
-        compiler.add_node(node.x, node.y, node.z, node.w);
-      }
-    }
   }
   else {
-    assert(handle.num_svm_slots() == 1);
     compiler.add_node(NODE_TEX_IMAGE_BOX,
-                      handle.svm_slot(),
+                      handle.kernel_id(),
                       compiler.encode_uchar4(vector_offset,
                                              compiler.stack_assign_if_linked(color_out),
                                              compiler.stack_assign_if_linked(alpha_out),
@@ -460,12 +438,12 @@ void ImageTextureNode::compile(OSLCompiler &compiler)
     handle = image_manager->add_image(filename.string(), image_params());
   }
 
-  const ImageMetaData metadata = handle.metadata();
+  const ImageMetaData metadata = handle.metadata(compiler.progress);
   const bool is_float = metadata.is_float();
   const bool compress_as_srgb = metadata.is_compressible_as_srgb;
   const ustring known_colorspace = metadata.colorspace;
 
-  if (handle.svm_slot() == -1) {
+  if (handle.kernel_id() == KERNEL_IMAGE_NONE) {
     compiler.parameter_texture(
         "filename", filename, compress_as_srgb ? u_colorspace_scene_linear : known_colorspace);
   }
@@ -571,18 +549,23 @@ void EnvironmentTextureNode::attributes(Shader *shader, AttributeRequestSet *att
   ShaderNode::attributes(shader, attributes);
 }
 
+void EnvironmentTextureNode::update_images(const SVMCompiler &compiler)
+{
+  if (handle.empty()) {
+    ImageManager *image_manager = compiler.scene->image_manager.get();
+    handle = image_manager->add_image(filename.string(), image_params());
+  }
+}
+
 void EnvironmentTextureNode::compile(SVMCompiler &compiler)
 {
   ShaderInput *vector_in = input("Vector");
   ShaderOutput *color_out = output("Color");
   ShaderOutput *alpha_out = output("Alpha");
 
-  if (handle.empty()) {
-    ImageManager *image_manager = compiler.scene->image_manager.get();
-    handle = image_manager->add_image(filename.string(), image_params());
-  }
+  update_images(compiler);
 
-  const ImageMetaData metadata = handle.metadata();
+  const ImageMetaData metadata = handle.metadata(compiler.progress);
   const bool compress_as_srgb = metadata.is_compressible_as_srgb;
 
   const int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
@@ -593,7 +576,7 @@ void EnvironmentTextureNode::compile(SVMCompiler &compiler)
   }
 
   compiler.add_node(NODE_TEX_ENVIRONMENT,
-                    handle.svm_slot(),
+                    handle.kernel_id(),
                     compiler.encode_uchar4(vector_offset,
                                            compiler.stack_assign_if_linked(color_out),
                                            compiler.stack_assign_if_linked(alpha_out),
@@ -612,12 +595,12 @@ void EnvironmentTextureNode::compile(OSLCompiler &compiler)
 
   tex_mapping.compile(compiler);
 
-  const ImageMetaData metadata = handle.metadata();
+  const ImageMetaData metadata = handle.metadata(compiler.progress);
   const bool is_float = metadata.is_float();
   const bool compress_as_srgb = metadata.is_compressible_as_srgb;
   const ustring known_colorspace = metadata.colorspace;
 
-  if (handle.svm_slot() == -1) {
+  if (handle.kernel_id() == KERNEL_IMAGE_NONE) {
     compiler.parameter_texture(
         "filename", filename, compress_as_srgb ? u_colorspace_scene_linear : known_colorspace);
   }
@@ -928,6 +911,10 @@ void SkyTextureNode::simplify_settings(Scene * /* scene */)
 
   sun_elevation = new_sun_elevation;
   sun_rotation = new_sun_rotation;
+
+  if (is_modified()) {
+    handle.clear();
+  }
 }
 
 void SkyTextureNode::compile(SVMCompiler &compiler)
@@ -1023,7 +1010,7 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
     compiler.add_node(__float_as_uint(sunsky.nishita_data[8]),
                       __float_as_uint(sunsky.nishita_data[9]),
                       __float_as_uint(sunsky.nishita_data[10]),
-                      handle.svm_slot());
+                      handle.kernel_id());
   }
 
   tex_mapping.compile_end(compiler, vector_in, vector_offset);
@@ -7592,8 +7579,8 @@ NODE_DEFINE(NormalMapNode)
   SOCKET_ENUM(space, "Space", space_enum, NODE_NORMAL_MAP_TANGENT);
 
   static NodeEnum convention_enum;
-  convention_enum.insert("opengl", 0);
-  convention_enum.insert("directx", 1);
+  convention_enum.insert("opengl", NODE_NORMAL_MAP_CONVENTION_OPENGL);
+  convention_enum.insert("directx", NODE_NORMAL_MAP_CONVENTION_DIRECTX);
   SOCKET_ENUM(convention, "Convention", convention_enum, NODE_NORMAL_MAP_CONVENTION_OPENGL);
 
   SOCKET_STRING(attribute, "Attribute", ustring());
@@ -7650,13 +7637,19 @@ void NormalMapNode::compile(SVMCompiler &compiler)
     }
   }
 
+  /* Pack space and convention into byte. */
+  int flags = space;
+  if (convention == NODE_NORMAL_MAP_CONVENTION_DIRECTX) {
+    flags |= NODE_NORMAL_MAP_FLAG_DIRECTX;
+  }
+
   compiler.add_node(NODE_NORMAL_MAP,
                     compiler.encode_uchar4(compiler.stack_assign(color_in),
                                            compiler.stack_assign(strength_in),
                                            compiler.stack_assign(normal_out),
-                                           space),
+                                           flags),
                     attr,
-                    attr_sign | (convention == 1 ? NODE_NORMAL_MAP_CONVENTION_DIRECTX : 0));
+                    attr_sign);
 }
 
 void NormalMapNode::compile(OSLCompiler &compiler)

@@ -74,8 +74,7 @@ static std::unique_ptr<bke::Instances> add_instances_from_component(
     return {};
   }
 
-  auto dst_component = std::make_unique<bke::Instances>();
-  dst_component->resize(selection.size());
+  auto dst_component = std::make_unique<bke::Instances>(selection.size());
 
   MutableSpan<int> dst_handles = dst_component->reference_handles_for_write();
   MutableSpan<float4x4> dst_transforms = dst_component->transforms_for_write();
@@ -103,39 +102,41 @@ static std::unique_ptr<bke::Instances> add_instances_from_component(
   /* Add this reference last, because it is the most likely one to be removed later on. */
   const int empty_reference_handle = dst_component->add_reference(bke::InstanceReference());
 
-  selection.foreach_index(GrainSize(1024), [&](const int64_t i, const int64_t range_i) {
-    /* Compute base transform for every instances. */
-    float4x4 &dst_transform = dst_transforms[range_i];
-    dst_transform = math::from_loc_rot_scale<float4x4>(positions[i], rotations[i], scales[i]);
+  selection.foreach_index(
+      [&](const int64_t i, const int64_t range_i) {
+        /* Compute base transform for every instances. */
+        float4x4 &dst_transform = dst_transforms[range_i];
+        dst_transform = math::from_loc_rot_scale<float4x4>(positions[i], rotations[i], scales[i]);
 
-    /* Reference that will be used by this new instance. */
-    int dst_handle = empty_reference_handle;
+        /* Reference that will be used by this new instance. */
+        int dst_handle = empty_reference_handle;
 
-    const bool use_individual_instance = pick_instance[i];
-    if (use_individual_instance) {
-      if (src_instances != nullptr) {
-        const int src_instances_num = src_instances->instances_num();
-        const int original_index = indices[i];
-        /* Use #mod_i instead of `%` to get the desirable wrap around behavior where -1
-         * refers to the last element. */
-        const int index = mod_i(original_index, std::max(src_instances_num, 1));
-        if (index < src_instances_num) {
-          /* Get the reference to the source instance. */
-          const int src_handle = src_instances->reference_handles()[index];
-          dst_handle = handle_mapping[src_handle];
+        const bool use_individual_instance = pick_instance[i];
+        if (use_individual_instance) {
+          if (src_instances != nullptr) {
+            const int src_instances_num = src_instances->instances_num();
+            const int original_index = indices[i];
+            /* Use #mod_i instead of `%` to get the desirable wrap around behavior where -1
+             * refers to the last element. */
+            const int index = mod_i(original_index, std::max(src_instances_num, 1));
+            if (index < src_instances_num) {
+              /* Get the reference to the source instance. */
+              const int src_handle = src_instances->reference_handles()[index];
+              dst_handle = handle_mapping[src_handle];
 
-          /* Take transforms of the source instance into account. */
-          mul_m4_m4_post(dst_transform.ptr(), src_instances->transforms()[index].ptr());
+              /* Take transforms of the source instance into account. */
+              mul_m4_m4_post(dst_transform.ptr(), src_instances->transforms()[index].ptr());
+            }
+          }
         }
-      }
-    }
-    else {
-      /* Use entire source geometry as instance. */
-      dst_handle = full_instance_handle;
-    }
-    /* Set properties of new instance. */
-    dst_handles[range_i] = dst_handle;
-  });
+        else {
+          /* Use entire source geometry as instance. */
+          dst_handle = full_instance_handle;
+        }
+        /* Set properties of new instance. */
+        dst_handles[range_i] = dst_handle;
+      },
+      exec_mode::grain_size(1024));
 
   if (pick_instance.is_single()) {
     if (pick_instance.get_internal_single()) {
@@ -206,7 +207,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         if (std::unique_ptr<bke::Instances> instances = add_instances_from_component(
                 *component.attributes(), instance, field_context, params, attribute_filter))
         {
-          component_instances.append(GeometrySet::from_instances(instances.release()));
+          component_instances.append(GeometrySet::from_instances(std::move(instances)));
         }
       }
     }
@@ -214,6 +215,9 @@ static void node_geo_exec(GeoNodeExecParams params)
       using namespace bke::greasepencil;
       const GreasePencil &grease_pencil = *geometry_set.get_grease_pencil();
       auto instances_per_layer = std::make_unique<bke::Instances>();
+
+      Vector<int> handles;
+      Vector<float4x4> transforms;
       for (const int layer_index : grease_pencil.layers().index_range()) {
         const Layer &layer = grease_pencil.layer(layer_index);
         const Drawing *drawing = grease_pencil.get_eval_drawing(layer);
@@ -226,8 +230,8 @@ static void node_geo_exec(GeoNodeExecParams params)
           /* Add an empty reference so the number of layers and instances match.
            * This makes it easy to reconstruct the layers afterwards and keep their attributes.
            * Although in this particular case we don't propagate the attributes. */
-          const int handle = instances_per_layer->add_reference(bke::InstanceReference());
-          instances_per_layer->add_instance(handle, layer_transform);
+          handles.append(instances_per_layer->add_reference(bke::InstanceReference()));
+          transforms.append(layer_transform);
           continue;
         }
         /* TODO: Attributes are not propagating from the curves or the points. */
@@ -236,11 +240,15 @@ static void node_geo_exec(GeoNodeExecParams params)
         if (std::unique_ptr<bke::Instances> layer_instances = add_instances_from_component(
                 src_curves.attributes(), instance, field_context, params, attribute_filter))
         {
-          GeometrySet temp_set = GeometrySet::from_instances(layer_instances.release());
-          const int handle = instances_per_layer->add_reference(bke::InstanceReference{temp_set});
-          instances_per_layer->add_instance(handle, layer_transform);
+          GeometrySet temp_set = GeometrySet::from_instances(std::move(layer_instances));
+          handles.append(instances_per_layer->add_reference(bke::InstanceReference{temp_set}));
+          transforms.append(layer_transform);
         }
       }
+
+      instances_per_layer->resize(handles.size());
+      instances_per_layer->reference_handles_for_write().copy_from(handles);
+      instances_per_layer->transforms_for_write().copy_from(transforms);
 
       bke::copy_attributes(geometry_set.get_grease_pencil()->attributes(),
                            bke::AttrDomain::Layer,
@@ -248,7 +256,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                            attribute_filter,
                            instances_per_layer->attributes_for_write());
 
-      component_instances.append(GeometrySet::from_instances(instances_per_layer.release()));
+      component_instances.append(GeometrySet::from_instances(std::move(instances_per_layer)));
     }
 
     GeometrySet dst_instances = geometry::join_geometries(component_instances, attribute_filter);

@@ -1119,8 +1119,7 @@ static void execute_instances_tasks(
   }
   const OffsetIndices offsets = offset_indices::accumulate_counts_to_offsets(offsets_data);
 
-  std::unique_ptr<bke::Instances> dst_instances = std::make_unique<bke::Instances>();
-  dst_instances->resize(offsets.total_size());
+  auto dst_instances = std::make_unique<bke::Instances>(offsets.total_size());
   bke::MutableAttributeAccessor dst_attributes = dst_instances->attributes_for_write();
 
   MutableSpan<float4x4> all_transforms = dst_instances->transforms_for_write();
@@ -1200,7 +1199,7 @@ static void execute_instances_tasks(
       else {
         const void *fallback = fallbacks[attribute_index] ? fallbacks[attribute_index] :
                                                             cpp_type.default_value();
-        threaded_fill({cpp_type, fallback}, dst_span);
+        threaded_fill({cpp_type, fallback}, dst_span.slice(dst_range));
       }
 
       write_attribute.finish();
