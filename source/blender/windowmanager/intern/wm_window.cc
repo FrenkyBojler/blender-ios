@@ -458,25 +458,25 @@ void wm_quit_with_optional_confirmation_prompt(bContext *C, wmWindow *win)
 /** \name Window Close
  * \{ */
 
-static std::string get_window_uistate_key(eSpace_Type space_type)
+static StringRef get_window_uistate_key(eSpace_Type space_type)
 {
+  if (space_type == SPACE_FILE) {
+    return "file";
+  }
+  if (space_type == SPACE_USERPREF) {
+    return "userpref";
+  }
   if (space_type == SPACE_IMAGE) {
     return "image";
   }
-  else if (space_type == SPACE_USERPREF) {
-    return "userpref";
-  }
-  else if (space_type == SPACE_GRAPH) {
+  if (space_type == SPACE_GRAPH) {
     return "graph";
   }
-  else if (space_type == SPACE_INFO) {
+  if (space_type == SPACE_INFO) {
     return "info";
   }
-  else if (space_type == SPACE_OUTLINER) {
+  if (space_type == SPACE_OUTLINER) {
     return "outliner";
-  }
-  else if (space_type == SPACE_FILE) {
-    return "file";
   }
   return {};
 }
@@ -1433,7 +1433,7 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
   rcti rect;
   WM_window_dpi_set_userdef(CTX_wm_window(C));
   eWindowAlignment align;
-  std::string key = get_window_uistate_key(eSpace_Type(space_type));
+  StringRef key = get_window_uistate_key(eSpace_Type(space_type));
   UIState uistate("window.dimensions");
   std::vector<float> bounds = uistate[key];
   const bool bounds_valid = (bounds.size() == 4 && (bounds[1] - bounds[0] > 150.0f) &&
