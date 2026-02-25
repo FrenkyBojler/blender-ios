@@ -1,3 +1,4 @@
 Referenced by pull request #153973, Fix: Invalid bitwise check for enum value
 Referenced by commit 1e34da8803864673f5a0701f0bfbb2e1872c62a2, Fix: Invalid bitwise check for enum value
 Referenced by issue #154877, Stabilize Stroke Issue
+Referenced by pull request #154883, Fix #154877: Stabilize Stroke can draw with Line stroke method
