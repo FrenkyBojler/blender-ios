@@ -366,7 +366,7 @@ IndexMask indices_non_negative(const IndexMask &universe,
 /** Return indices in the mask that are not negative and less than the given size. */
 IndexMask indices_in_range(const IndexMask &universe,
                            Span<int> values,
-                           int size,
+                           IndexRange range,
                            LinearAllocator<> &memory);
 
 /**

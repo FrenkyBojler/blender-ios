@@ -294,13 +294,13 @@ IndexMask indices_non_negative(const IndexMask &universe,
 
 IndexMask indices_in_range(const IndexMask &universe,
                            const Span<int> values,
-                           const int size,
+                           const IndexRange range,
                            LinearAllocator<> &memory)
 {
   return IndexMask::from_predicate(
       universe,
       memory,
-      [&](const int i) { return values[i] >= 0 && values[i] < size; },
+      [&](const int i) { return range.contains(values[i]); },
       exec_mode::grain_size(4096));
 }
 

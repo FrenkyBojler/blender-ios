@@ -107,11 +107,9 @@ class SampleIndexFunction : public mf::MultiFunction {
     const VArraySpan<int> indices = params.readonly_single_input<int>(0, "Index");
     GMutableSpan dst = params.uninitialized_single_output(1, "Value");
 
-    const IndexRange list_range(list_->size());
-
     IndexMaskMemory memory;
     const IndexMask valid_indices = array_utils::indices_in_range(
-        mask, indices, list_->size(), memory);
+        mask, indices, IndexRange(list_->size()), memory);
 
     if (valid_indices.size() != mask.size()) {
       const IndexMask invalid_indices = valid_indices.complement(mask, memory);
