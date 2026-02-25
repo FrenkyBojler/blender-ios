@@ -10,6 +10,8 @@
 
 #include "BKE_icons.hh"
 
+#include "WM_api.hh"
+
 #include "RNA_define.hh"
 
 #include "rna_internal.hh"
@@ -109,6 +111,21 @@ static void rna_DynamicOverride_rule_property_override_value_float_array_set(Poi
 {
   DynamicOverrideRuleProperty *rule_prop = ptr->data_as<DynamicOverrideRuleProperty>();
   rna_DynamicOverride_rule_property_float_array_set(ptr, values, rule_prop->new_value);
+}
+
+static void rna_DynamicOverride_rule_property_override_value_float_array_update(Main *bmain,
+                                                                                Scene *,
+                                                                                PointerRNA *ptr)
+{
+  std::optional<AncestorPointerRNA> rule_ancestor_ptr = RNA_struct_search_closest_ancestor_by_type(
+      ptr, RNA_DynamicOverrideRuleIDData);
+  if (!rule_ancestor_ptr) {
+    return;
+  }
+
+  DynamicOverrideRuleIDData *rule = static_cast<DynamicOverrideRuleIDData *>(
+      rule_ancestor_ptr->data);
+  DEG_id_tag_update(rule->owner_id, ID_RECALC_DYNAMIC_OVERRIDE);
 }
 
 static int rna_DynamicOverride_rule_property_original_value_float_array_get_length(
@@ -259,6 +276,9 @@ static void rna_def_dynamic_override_rule_property_float_array(BlenderRNA *brna)
                                nullptr);
   RNA_def_property_ui_text(
       prop, "Override Value", "Array of floats defining the overridden value");
+  RNA_def_property_update(prop,
+                          NC_ID | NA_EDITED,
+                          "rna_DynamicOverride_rule_property_override_value_float_array_update");
 
   prop = RNA_def_property(srna, "original_value", PROP_FLOAT, PROP_NONE);
   RNA_def_property_flag(prop, PROP_DYNAMIC);
@@ -397,7 +417,7 @@ static void rna_def_dynamic_override(BlenderRNA *brna)
 
   prop = RNA_def_collection(
       srna, "rules", "DynamicOverrideRule", "Rules", "List of dynamic override rules");
-  // RNA_def_property_update(prop, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
+  RNA_def_property_update(prop, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
   rna_def_dynamic_override_rules(brna, prop);
 }
 

@@ -119,7 +119,7 @@ void AbstractBuilderPipeline::build_step_sanity_check()
 void AbstractBuilderPipeline::build_step_dynamic_overrides()
 {
   /* Find which IDs are affected by the active dynamic overrides. */
-  dynamic_override_ctx_->gather_id_targets();
+  dynamic_override_ctx_->gather_id_targets(true);
 }
 
 void AbstractBuilderPipeline::build_step_nodes()

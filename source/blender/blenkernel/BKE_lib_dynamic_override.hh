@@ -90,12 +90,12 @@ class DynamicOverrideDepsgraphCtx {
   /**
    * Gather all active DynamicOverride IDs for the current scene & view layer.
    */
-  void gather_dynamic_overrides();
+  void gather_dynamic_overrides(bool force_reset);
 
   /**
    * Gather all affected (overridden) IDs from the list of active dynamic overrides.
    */
-  void gather_id_targets();
+  void gather_id_targets(bool force_reset);
 
   /* ----------
    * Querying API.
