@@ -52,6 +52,7 @@ function(add_blender_test testname)
     ""
     "${TEST_BLENDER_EXE}"
     ${TEST_BLENDER_EXE_PARAMS}
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
     ${ARGN}
   )
 endfunction()
@@ -66,6 +67,7 @@ function(add_blender_test_allow_error testname)
     ""
     "${TEST_BLENDER_EXE}"
     ${EXE_PARAMS}
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
     ${ARGN}
   )
 endfunction()
@@ -124,7 +126,10 @@ if(WITH_UI_TESTS)
       --no-window-frame
       -p 0 0 800 600
       --gpu-backend ${backend}
+      # Log operator calls at a debug level so it is easier to debug runs on the buildbot that fail
+      --log "operator" --log-level "debug"
       "${EXE_PARAMS}"
+      "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
       "${ARGN}"
     )
   endfunction()
@@ -318,6 +323,11 @@ add_blender_test(
 add_blender_test(
   script_pyapi_grease_pencil
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_grease_pencil.py
+)
+
+add_blender_test(
+  script_pyapi_annotations
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_annotations.py
 )
 
 # ------------------------------------------------------------------------------
@@ -604,6 +614,11 @@ add_blender_test(
 add_blender_test(
   bl_animation_bake
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_bake.py
+)
+
+add_blender_test(
+  bl_animation_rename
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_rename.py
 )
 
 add_blender_test(
@@ -901,7 +916,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
         endforeach()
       endif()
 
-      if(WITH_VULKAN_BACKEND AND (name STREQUAL "workbench" OR name STREQUAL "overlay" OR WITH_GPU_RENDER_TESTS_VULKAN)
+      if(WITH_VULKAN_BACKEND AND (name STREQUAL "overlay" OR WITH_GPU_RENDER_TESTS_VULKAN)
           AND (NOT (name STREQUAL "storm_hydra" OR name STREQUAL "storm_usd") OR WITH_STORM_TESTS_VULKAN))
         foreach(render_test ${render_tests})
           add_render_test(
@@ -928,6 +943,15 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
       add_gpu_render_tests(storm_usd "storm_render_tests.py" "${gpu_render_tests}" --export_method "USD")
     endif()
   endif()
+endif()
+
+if(WITH_CYCLES AND WITH_CYCLES_OSL)
+  add_blender_test(
+    cycles_osl_compile_test
+    --python ${CMAKE_CURRENT_LIST_DIR}/cycles_osl_compile_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/render"
+  )
 endif()
 
 # ------------------------------------------------------------------------------
@@ -1369,6 +1393,11 @@ endif()
 
 if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
+    bl_voxel_remesh
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/voxel_remesh_test.py
+  )
+
+  add_blender_test(
     bl_sculpt_mask
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mask_test.py
     --
@@ -1392,6 +1421,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_sculpt_mesh_filter
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mesh_filter_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/sculpting"
+  )
+
+  add_blender_test(
+    bl_sculpt_automasking
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/automask_test.py
     --
     --testdir "${TEST_SRC_DIR}/sculpting"
   )
@@ -1509,6 +1545,15 @@ if(TEST_SRC_DIR_EXISTS)
   # TODO: disabled for now after collection unification
   # add_subdirectory(view_layer)
 endif()
+
+# ------------------------------------------------------------------------------
+# Remote Asset Library tests
+# ------------------------------------------------------------------------------
+if(TEST_SRC_DIR_EXISTS)
+  add_subdirectory(assets)
+endif()
+
+
 
 # ------------------------------------------------------------------------------
 # Linux Release sanity checks
