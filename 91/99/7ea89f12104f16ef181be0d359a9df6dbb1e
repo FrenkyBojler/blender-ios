@@ -4,3 +4,4 @@ Referenced by commit c73cc43eb264b85ae75aec9e70a28d6ac6814d3e, Fix #148479: Allo
 Referenced by issue #150685, Can't Open Save/Load Window
 Referenced by issue #152944, Crash: repeatedly opening a Blender Render window and closing it crashes Blender when using OpenGL
 Referenced by commit acbefe4ceeedcab6aabffc09102ac848a9498e4e, Fix #152944: Crash when GHOST failed to initialize a window
+Referenced by pull request #154846, Fix #152944:  Crash: repeatedly opening a Blender Render window and closing it crashes Blender when using OpenGL
