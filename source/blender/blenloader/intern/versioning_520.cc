@@ -9,6 +9,7 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_ID.h"
+#include "DNA_brush_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_xr_types.h"
 
@@ -78,6 +79,26 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 4)) {
+    for (Brush &brush : bmain->brushes) {
+      if (brush.gpencil_settings != nullptr) {
+        brush.blend = 0;
+      }
+    }
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 5)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
+      for (bNode &node : node_tree->nodes) {
+        if (node.type_legacy == FN_NODE_INPUT_VECTOR) {
+          auto &data = *static_cast<NodeInputVector *>(node.storage);
+          data.vector[3] = 0.0f;
+          data.dimensions = 3;
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 6)) {
     for (wmWindowManager &wm : bmain->wm) {
       wm.xr.session_settings.viewfinder_enable = true;
       wm.xr.session_settings.viewfinder_hand = XR_VIEWFINDER_HAND_LEFT;
