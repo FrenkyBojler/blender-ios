@@ -127,13 +127,6 @@ class VIEW3D_PT_vr_location_scouting(VRButtonsPanel, Panel):
     bl_label = "Location Scouting"
     bl_options = {'DEFAULT_CLOSED'}
 
-    def draw_header(self, context):
-        layout = self.layout
-        session_settings = context.window_manager.xr_session_settings
-
-        # TODO: Either move to Viewfinder settings or rename into a more generic location scouting flag.
-        layout.prop(session_settings, "viewfinder_enable", text="")
-
     def draw(self, context):
         pass
 
@@ -157,12 +150,21 @@ class VIEW3D_PT_vr_location_scouting_captures(VRButtonsPanel, Panel):
         col.operator("view3d.vr_location_scouting_active_camera_to_capture", icon='HIDE_OFF', text="")
 
 
-class VIEW3D_PT_vr_location_scouting_viewfinder_settings(VRButtonsPanel, Panel):
-    bl_label = "Viewfinder Settings"
+class VIEW3D_PT_vr_location_scouting_viewfinder(VRButtonsPanel, Panel):
+    bl_label = "VR Viewfinder"
     bl_parent_id = "VIEW3D_PT_vr_location_scouting"
+
+    def draw_header(self, context):
+        layout = self.layout
+        session_settings = context.window_manager.xr_session_settings
+
+        layout.prop(session_settings, "viewfinder_enable", text="")
 
     def draw(self, context):
         layout = self.layout
+        session_settings = context.window_manager.xr_session_settings
+
+        layout.enabled = session_settings.viewfinder_enable
         session_settings = context.window_manager.xr_session_settings
 
         layout.use_property_split = True
@@ -310,7 +312,7 @@ classes = (
     VIEW3D_PT_vr_session_view_object_type_visibility,
     VIEW3D_PT_vr_location_scouting,
     VIEW3D_PT_vr_location_scouting_captures,
-    VIEW3D_PT_vr_location_scouting_viewfinder_settings,
+    VIEW3D_PT_vr_location_scouting_viewfinder,
     VIEW3D_PT_vr_landmarks,
     VIEW3D_PT_vr_actionmaps,
     VIEW3D_PT_vr_viewport_feedback,
