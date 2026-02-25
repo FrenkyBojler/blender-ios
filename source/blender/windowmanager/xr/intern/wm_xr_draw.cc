@@ -252,6 +252,46 @@ static bool wm_xr_get_viewfinder_capture_mat(const XrSessionSettings *settings,
   return true;
 }
 
+static void wm_xr_viewfinder_update_transform_smoothed(wmXrSessionState *state,
+                                                       float raw_capture_mat[4][4],
+                                                       float r_smoothed_mat[4][4])
+{
+  /* Take the raw capture matrix, apply movement smoothing from stored state position/orientation
+   * while also updating them, and return the resulting smoothed viewfinder transform matrix. */
+  float raw_capture_position[3];
+  float raw_capture_orientation_quat[4];
+  mat4_to_loc_quat(raw_capture_position, raw_capture_orientation_quat, raw_capture_mat);
+
+  if (state->viewfinder.runtime_smoothing_delta_t > 0) {
+    /* Apply exponential movement smoothing. */
+    constexpr float movement_smoothing_speed = 25.0f;
+
+    const double current_time = BLI_time_now_seconds();
+    const float delta_t = float(current_time - state->viewfinder.runtime_smoothing_delta_t);
+    const float clamped_delta = min_ff(delta_t, 0.1f);
+    const float factor = 1.0f - exp(-clamped_delta * movement_smoothing_speed);
+
+    interp_v3_v3v3(state->viewfinder.capture_position,
+                   state->viewfinder.capture_position,
+                   raw_capture_position,
+                   factor);
+    interp_qt_qtqt(state->viewfinder.capture_orientation_quat,
+                   state->viewfinder.capture_orientation_quat,
+                   raw_capture_orientation_quat,
+                   factor);
+    state->viewfinder.runtime_smoothing_delta_t = current_time;
+  }
+  else {
+    /* Initialization. */
+    copy_v3_v3(state->viewfinder.capture_position, raw_capture_position);
+    copy_qt_qt(state->viewfinder.capture_orientation_quat, raw_capture_orientation_quat);
+    state->viewfinder.runtime_smoothing_delta_t = BLI_time_now_seconds();
+  }
+
+  quat_to_mat4(r_smoothed_mat, state->viewfinder.capture_orientation_quat);
+  copy_v3_v3(r_smoothed_mat[3], state->viewfinder.capture_position);
+}
+
 static void wm_xr_draw_matrices_create(const wmXrDrawData *draw_data,
                                        const GHOST_XrDrawViewInfo *draw_view,
                                        const XrSessionSettings *session_settings,
@@ -355,44 +395,11 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
         return;
       }
 
-      float raw_capture_position[3];
-      float raw_capture_orientation_quat[4];
-      mat4_to_loc_quat(raw_capture_position, raw_capture_orientation_quat, raw_capture_mat);
-
-      if (state->viewfinder.runtime_smoothing_delta_t > 0) {
-        /* Apply exponential movement smoothing. */
-        constexpr float movement_smoothing_speed = 25.0f;
-
-        const double current_time = BLI_time_now_seconds();
-        const float delta_t = float(current_time - state->viewfinder.runtime_smoothing_delta_t);
-        const float clamped_delta = min_ff(delta_t, 0.1f);
-        const float factor = 1.0f - exp(-clamped_delta * movement_smoothing_speed);
-
-        interp_v3_v3v3(state->viewfinder.capture_position,
-                       state->viewfinder.capture_position,
-                       raw_capture_position,
-                       factor);
-        interp_qt_qtqt(state->viewfinder.capture_orientation_quat,
-                       state->viewfinder.capture_orientation_quat,
-                       raw_capture_orientation_quat,
-                       factor);
-        state->viewfinder.runtime_smoothing_delta_t = current_time;
-      }
-      else {
-        /* Initialization. */
-        copy_v3_v3(state->viewfinder.capture_position, raw_capture_position);
-        copy_qt_qt(state->viewfinder.capture_orientation_quat, raw_capture_orientation_quat);
-        state->viewfinder.runtime_smoothing_delta_t = BLI_time_now_seconds();
-      }
-
       /* Build final smoothed capture matrix for rendering. */
       float viewfinder_capture_mat[4][4];
-      quat_to_mat4(viewfinder_capture_mat, state->viewfinder.capture_orientation_quat);
-      copy_v3_v3(viewfinder_capture_mat[3], state->viewfinder.capture_position);
-
+      wm_xr_viewfinder_update_transform_smoothed(state, raw_capture_mat, viewfinder_capture_mat);
       invert_m4_m4(viewfinder_render_viewmat, viewfinder_capture_mat);
 
-      /* Parse live capture parameter for rendering. */
       cam_render_params.lens = state->viewfinder.capture_lens_focal;
       SET_FLAG_FROM_TEST(
           cam_render_data->dof.flag, state->viewfinder.capture_dof_enabled, CAM_DOF_ENABLED);
