@@ -1774,26 +1774,28 @@ void bNodeTreeInterface::ensure_items_cache() const
   });
 }
 
-int bNodeTreeInterface::input_index_by_identifier(StringRef identifier) const
+int bNodeTreeInterface::input_index_by_identifier(const StringRef identifier) const
 {
-  this->ensure_items_cache();
+  BLI_assert(this->items_cache_is_available());
 
-  if (!this->runtime->inputs_.contains_as(identifier)) {
-    return -1;
+  std::optional<int> index_opt = this->runtime->inputs_.index_of_try_as(identifier);
+
+  if (index_opt.has_value()) {
+    return index_opt.value();
   }
-
-  return this->runtime->inputs_.index_of_as(identifier);
+  return -1;
 }
 
-int bNodeTreeInterface::output_index_by_identifier(StringRef identifier) const
+int bNodeTreeInterface::output_index_by_identifier(const StringRef identifier) const
 {
-  this->ensure_items_cache();
+  BLI_assert(this->items_cache_is_available());
 
-  if (!this->runtime->outputs_.contains_as(identifier)) {
-    return -1;
+  std::optional<int> index_opt = this->runtime->outputs_.index_of_try_as(identifier);
+
+  if (index_opt.has_value()) {
+    return index_opt.value();
   }
-
-  return this->runtime->outputs_.index_of_as(identifier);
+  return -1;
 }
 
 void bNodeTreeInterface::tag_interface_changed()

@@ -719,12 +719,12 @@ inline int bNodeTree::interface_item_index(const bNodeTreeInterfaceItem &io_item
   return this->tree_interface.runtime->items_.index_of_as(&io_item);
 }
 
-inline int bNodeTree::interface_input_index_by_identifier(StringRef identifier) const
+inline int bNodeTree::interface_input_index_by_identifier(const StringRef identifier) const
 {
   return this->tree_interface.input_index_by_identifier(identifier);
 }
 
-inline int bNodeTree::interface_output_index_by_identifier(StringRef identifier) const
+inline int bNodeTree::interface_output_index_by_identifier(const StringRef identifier) const
 {
   return this->tree_interface.output_index_by_identifier(identifier);
 }

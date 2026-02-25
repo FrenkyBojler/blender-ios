@@ -2014,7 +2014,7 @@ static bool rna_NodesModifier_is_input_visible(NodesModifierData *nmd,
   nmd->runtime->usage_cache.ensure(*nmd);
   const auto &input_usages = nmd->runtime->usage_cache.inputs;
 
-  int index = ntree->interface_input_index_by_identifier(identifier);
+  const int index = ntree->interface_input_index_by_identifier(identifier);
   if (index != -1) {
     return input_usages[index].is_visible;
   }
@@ -2036,7 +2036,7 @@ static bool rna_NodesModifier_is_input_used(NodesModifierData *nmd,
   nmd->runtime->usage_cache.ensure(*nmd);
   const auto &input_usages = nmd->runtime->usage_cache.inputs;
 
-  int index = ntree->interface_input_index_by_identifier(identifier);
+  const int index = ntree->interface_input_index_by_identifier(identifier);
   if (index != -1) {
     return input_usages[index].is_used;
   }
