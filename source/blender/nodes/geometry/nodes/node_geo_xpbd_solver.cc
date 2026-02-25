@@ -391,18 +391,19 @@ static const Field<bool> &get_constant_true_field()
 }
 
 struct SubstepInterval {
+  int current_i;
   float begin_factor;
   float end_factor;
   bool is_first;
   bool is_last;
-  int current_i;
 
   SubstepInterval(const int substeps, const int current_i)
-      : begin_factor(float(current_i) / substeps),
+      : current_i(current_i),
+        begin_factor(float(current_i) / substeps),
         end_factor(float(current_i + 1) / substeps),
         is_first(current_i == 0),
-        is_last(current_i == substeps - 1),
-        current_i(current_i)
+        is_last(current_i == substeps - 1)
+
   {
   }
 };
