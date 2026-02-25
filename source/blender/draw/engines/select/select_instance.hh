@@ -251,6 +251,7 @@ struct SelectMap {
         GPU_storagebuf_clear(select_output_buf, 0xFFFFFFFFu);
         break;
     }
+    info_buf.radius = gpu_select_next_get_radius();
     info_buf.push_update();
   }
 

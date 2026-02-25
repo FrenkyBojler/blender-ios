@@ -21,7 +21,7 @@ enum [[host_shared]] SelectType : uint32_t {
 struct [[host_shared]] SelectInfoData {
   int2 cursor;
   enum SelectType mode;
-  uint _pad0;
+  uint radius;
 };
 
 #ifndef GPU_SHADER
