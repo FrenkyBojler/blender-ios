@@ -139,6 +139,7 @@ static void rna_gizmo_target_set_prop(wmGizmo *gz,
     return;
   }
 
+  gz->flag |= WM_GIZMO_NEEDS_UNDO;
   WM_gizmo_target_property_def_rna_ptr(gz, gz_prop_type, ptr, prop, index);
 }
 
