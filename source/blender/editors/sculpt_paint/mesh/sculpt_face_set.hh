@@ -17,10 +17,10 @@
 
 namespace blender {
 
-struct Mesh;
 struct BMesh;
 struct BMFace;
 struct BMVert;
+struct Mesh;
 struct Object;
 struct SubdivCCG;
 struct SubdivCCGCoord;
