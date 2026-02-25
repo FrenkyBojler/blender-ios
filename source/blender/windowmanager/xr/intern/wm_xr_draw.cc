@@ -371,7 +371,7 @@ static void wm_xr_draw_viewfinder_view_texture(const GHOST_XrDrawViewInfo *draw_
     g_viewfinder_offscreen = GPU_offscreen_create(draw_view->width,
                                                   draw_view->height,
                                                   true,
-                                                  blender::gpu::TextureFormat::UNORM_8_8_8_8,
+                                                  gpu::TextureFormat::UNORM_8_8_8_8,
                                                   GPU_TEXTURE_USAGE_SHADER_READ |
                                                       GPU_TEXTURE_USAGE_MEMORY_EXPORT,
                                                   false,
@@ -610,9 +610,7 @@ static gpu::Batch *wm_xr_controller_model_batch_create(GHOST_IXrContext *xr_cont
   return GPU_batch_create_ex(GPU_PRIM_TRIS, vbo, ibo, GPU_BATCH_OWNS_VBO | GPU_BATCH_OWNS_INDEX);
 }
 
-static ui::Layout &uiblock_prepare(ui::Block **block,
-                                   const bContext *C,
-                                   blender::ui::EmbossType emboss)
+static ui::Layout &uiblock_prepare(ui::Block **block, const bContext *C, ui::EmbossType emboss)
 {
   const uiStyle *style = ui::style_get_dpi();
   const int viewfinder_width = style->widget.points * 50 * UI_SCALE_FAC;
@@ -642,7 +640,7 @@ static ui::Block *viewfinder_action_label_ui_block(const bContext *C,
                                        "active_action_playback";
 
   ui::Block *block = nullptr;
-  ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::None);
+  ui::Layout &layout = uiblock_prepare(&block, C, ui::EmbossType::None);
 
   PointerRNA ptr = RNA_pointer_create_discrete(
       &CTX_wm_manager(C)->id, RNA_XrViewfinderState, (void *)&state->viewfinder);
@@ -662,7 +660,7 @@ static ui::Block *viewfinder_action_enum_ui_block(const bContext *C, const wmXrS
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "active_action_live");
 
   ui::Block *block = nullptr;
-  ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
+  ui::Layout &layout = uiblock_prepare(&block, C, ui::EmbossType::Emboss);
   ui::Layout &row = layout.row(true);
 
   layout.scale_y_set(1.1f);
@@ -700,7 +698,7 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
 {
 
   ui::Block *block = nullptr;
-  ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
+  ui::Layout &layout = uiblock_prepare(&block, C, ui::EmbossType::Emboss);
 
   Scene *scene = CTX_data_scene(C);
   PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
@@ -750,7 +748,7 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
 
 static ui::Block *viewfinder_mode_tabs_ui_block(const bContext *C, const wmXrSessionState *state)
 {
-  ui::Block *block = ui::block_begin_xr(C, __func__, blender::ui::EmbossType::Emboss);
+  ui::Block *block = ui::block_begin_xr(C, __func__, ui::EmbossType::Emboss);
   ui::block_flag_enable(block, ui::BLOCK_LOOP | ui::BLOCK_KEEP_OPEN | ui::BLOCK_NO_WIN_CLIP);
   ui::block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
 
@@ -797,7 +795,7 @@ static ui::Block *viewfinder_missing_captures_label_ui_block(const bContext *C,
   const bool empty_captures = wm_xr_is_location_scouting_captures_empty(CTX_data_scene(C));
 
   ui::Block *block = nullptr;
-  ui::Layout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
+  ui::Layout &layout = uiblock_prepare(&block, C, ui::EmbossType::Emboss);
 
   if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
     layout.label("No shots captured yet.", ICON_NONE);
@@ -930,7 +928,7 @@ static void wm_xr_controller_viewfinder_draw_view(const bContext *C,
   }
 
   /* Obtain the Viewfinder view texture we computed in `wm_xr_draw_view()`. */
-  blender::gpu::Texture *view_tex = GPU_offscreen_color_texture(g_viewfinder_offscreen);
+  gpu::Texture *view_tex = GPU_offscreen_color_texture(g_viewfinder_offscreen);
 
   const rctf tex_uv = {0.0f, 1.0f, 0.0f, 1.0f};
   const float tex_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -983,8 +981,7 @@ static void wm_xr_controller_viewfinder_draw_capture_flash(wmXrSessionState *sta
     const float flash_alpha = interpf(0.0f, full_flash_alpha, flash_progress);
 
     GPUVertFormat *flash_format = immVertexFormat();
-    uint flash_pos = GPU_vertformat_attr_add(
-        flash_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    uint flash_pos = GPU_vertformat_attr_add(flash_format, "pos", gpu::VertAttrType::SFLOAT_32_32);
 
     GPU_blend(GPU_BLEND_ALPHA);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
