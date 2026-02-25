@@ -615,14 +615,16 @@ class VIEW3D_GT_vr_camera_cone(Gizmo):
 
     def draw(self, context):
         if not hasattr(self, "frame_shape"):
-            aspect = self.aspect
+            ui_scale = context.preferences.view.ui_scale
+            aspect = tuple(a / ui_scale for a in self.aspect)
+            focal = self.focal / ui_scale
 
             frame_shape_verts = (
-                (-aspect[0], -aspect[1], -self.focal),
-                (aspect[0], -aspect[1], -self.focal),
-                (aspect[0], aspect[1], -self.focal),
-                (-aspect[0], aspect[1], -self.focal),
-                (-aspect[0], -aspect[1], -self.focal),
+                (-aspect[0], -aspect[1], -focal),
+                (aspect[0], -aspect[1], -focal),
+                (aspect[0], aspect[1], -focal),
+                (-aspect[0], aspect[1], -focal),
+                (-aspect[0], -aspect[1], -focal),
             )
             lines_shape_verts = (
                 (0.0, 0.0, 0.0),
