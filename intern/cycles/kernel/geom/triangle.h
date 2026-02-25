@@ -27,16 +27,16 @@ triangle_interpolate(const float u, const float v, const T f0, const T f1, const
 }
 
 /* Normal on triangle. */
-ccl_device_inline float3 triangle_normal(KernelGlobals kg, int prim, uint object_flag)
+ccl_device_inline float3 triangle_normal(KernelGlobals kg, ccl_private ShaderData *sd)
 {
   /* load triangle vertices */
-  const uint3 tri_vindex = kernel_data_fetch(tri_vindex, prim);
+  const uint3 tri_vindex = kernel_data_fetch(tri_vindex, sd->prim);
   const float3 v0 = kernel_data_fetch(tri_verts, tri_vindex.x);
   const float3 v1 = kernel_data_fetch(tri_verts, tri_vindex.y);
   const float3 v2 = kernel_data_fetch(tri_verts, tri_vindex.z);
 
   /* return normal */
-  if (object_negative_scale_applied(object_flag)) {
+  if (object_negative_scale_applied(sd->object_flag)) {
     return normalize(cross(v2 - v0, v1 - v0));
   }
   return normalize(cross(v1 - v0, v2 - v0));

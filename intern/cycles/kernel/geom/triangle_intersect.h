@@ -120,7 +120,7 @@ ccl_device_inline bool triangle_intersect_local(KernelGlobals kg,
  * Use the barycentric coordinates to get the intersection location
  */
 ccl_device_inline float3 triangle_point_from_uv(KernelGlobals kg,
-                                                ccl_private ShaderDataBase *sd,
+                                                ccl_private ShaderData *sd,
                                                 const int isect_prim,
                                                 const float u,
                                                 const float v)
@@ -141,21 +141,12 @@ ccl_device_inline float3 triangle_point_from_uv(KernelGlobals kg,
   return P;
 }
 
-ccl_device_inline float3 triangle_point_from_uv(KernelGlobals kg,
-                                                ccl_private ShaderData *sd,
-                                                const int isect_prim,
-                                                const float u,
-                                                const float v)
-{
-  return triangle_point_from_uv(kg, (ShaderDataBase *)sd, isect_prim, u, v);
-}
-
 /**
  * Use the barycentric coordinates to get the intersection location,
  * but with vertex coordinates specified.
  */
 ccl_device_inline float3 triangle_point_from_uv_and_verts(KernelGlobals kg,
-                                                          ccl_private ShaderDataBase *sd,
+                                                          ccl_private ShaderData *sd,
                                                           const float u,
                                                           const float v,
                                                           const float3 verts[3])
@@ -171,23 +162,14 @@ ccl_device_inline float3 triangle_point_from_uv_and_verts(KernelGlobals kg,
   return P;
 }
 
-ccl_device_inline float3 triangle_point_from_uv_and_verts(KernelGlobals kg,
-                                                          ccl_private ShaderData *sd,
-                                                          const float u,
-                                                          const float v,
-                                                          const float3 verts[3])
-{
-  return triangle_point_from_uv_and_verts(kg, (ShaderDataBase *)sd, u, v, verts);
-}
-
-ccl_device_inline void triangle_shader_setup(KernelGlobals kg, ccl_private ShaderDataBase *sd)
+ccl_device_inline void triangle_shader_setup(KernelGlobals kg, ccl_private ShaderData *sd)
 {
   sd->shader = kernel_data_fetch(tri_shader, sd->prim);
 
   sd->P = triangle_point_from_uv(kg, sd, sd->prim, sd->u, sd->v);
 
   /* Normals. */
-  const float3 Ng = triangle_normal(kg, sd->prim, sd->object_flag);
+  const float3 Ng = triangle_normal(kg, sd);
   sd->Ng = Ng;
   sd->N = Ng;
 
@@ -200,11 +182,6 @@ ccl_device_inline void triangle_shader_setup(KernelGlobals kg, ccl_private Shade
   /* dPdu/dPdv */
   triangle_dPdudv(kg, sd->prim, &sd->dPdu, &sd->dPdv);
 #endif
-}
-
-ccl_device_inline void triangle_shader_setup(KernelGlobals kg, ccl_private ShaderData *sd)
-{
-  triangle_shader_setup(kg, (ShaderDataBase *)sd);
 }
 
 CCL_NAMESPACE_END

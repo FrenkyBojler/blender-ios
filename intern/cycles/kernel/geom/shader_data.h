@@ -23,7 +23,7 @@ CCL_NAMESPACE_BEGIN
 /* ShaderData setup from incoming ray */
 
 ccl_device void shader_setup_object_transforms(KernelGlobals kg,
-                                               ccl_private ShaderDataBase *ccl_restrict sd,
+                                               ccl_private ShaderData *ccl_restrict sd,
                                                const float time)
 {
 #ifdef __OBJECT_MOTION__
@@ -34,17 +34,10 @@ ccl_device void shader_setup_object_transforms(KernelGlobals kg,
 #endif
 }
 
-ccl_device void shader_setup_object_transforms(KernelGlobals kg,
-                                               ccl_private ShaderData *ccl_restrict sd,
-                                               const float time)
-{
-  shader_setup_object_transforms(kg, (ShaderDataBase *)sd, time);
-}
-
 /* TODO: break this up if it helps reduce register pressure to load data from
  * global memory as we write it to shader-data. */
 ccl_device_inline void shader_setup_from_ray(KernelGlobals kg,
-                                             ccl_private ShaderDataBase *ccl_restrict sd,
+                                             ccl_private ShaderData *ccl_restrict sd,
                                              const ccl_private Ray *ccl_restrict ray,
                                              const ccl_private Intersection *ccl_restrict isect)
 {
@@ -55,10 +48,12 @@ ccl_device_inline void shader_setup_from_ray(KernelGlobals kg,
    * shader evaluation. */
   sd->u = isect->u;
   sd->v = isect->v;
+  sd->ray_length = isect->t;
   sd->type = isect->type;
   sd->object = isect->object;
   sd->object_flag = kernel_data_fetch(object_flag, sd->object);
   sd->prim = isect->prim;
+  sd->flag = 0;
 
   /* Read matrices and time. */
   sd->time = ray->time;
@@ -107,27 +102,6 @@ ccl_device_inline void shader_setup_from_ray(KernelGlobals kg,
     }
   }
 
-  /* backfacing test */
-  const bool backfacing = (dot(sd->Ng, sd->wi) < 0.0f);
-
-  if (backfacing) {
-    sd->Ng = -sd->Ng;
-    sd->N = -sd->N;
-#ifdef __DPDU__
-    sd->dPdu = -sd->dPdu;
-    sd->dPdv = -sd->dPdv;
-#endif
-  }
-}
-
-ccl_device_inline void shader_setup_from_ray(KernelGlobals kg,
-                                             ccl_private ShaderData *ccl_restrict sd,
-                                             const ccl_private Ray *ccl_restrict ray,
-                                             const ccl_private Intersection *ccl_restrict isect)
-{
-  shader_setup_from_ray(kg, (ShaderDataBase *)sd, ray, isect);
-
-  sd->ray_length = isect->t;
   sd->flag = kernel_data_fetch(shaders, (sd->shader & SHADER_MASK)).flags;
 
   /* backfacing test */
@@ -135,6 +109,12 @@ ccl_device_inline void shader_setup_from_ray(KernelGlobals kg,
 
   if (backfacing) {
     sd->flag |= SD_BACKFACING;
+    sd->Ng = -sd->Ng;
+    sd->N = -sd->N;
+#ifdef __DPDU__
+    sd->dPdu = -sd->dPdu;
+    sd->dPdv = -sd->dPdv;
+#endif
   }
 
 #ifdef __RAY_DIFFERENTIALS__

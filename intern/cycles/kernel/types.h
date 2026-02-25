@@ -960,68 +960,42 @@ enum ShaderDataObjectFlag : uint {
                      SD_OBJECT_HAS_VOLUME_MOTION | SD_OBJECT_HAS_CORNER_NORMALS)
 };
 
-#define SHADER_DATA_BASE \
-  /* position */ \
-  float3 P; \
-  /* smooth normal for shading */ \
-  float3 N; \
-  /* true geometric normal */ \
-  float3 Ng; \
-  /* view/incoming direction */ \
-  float3 wi; \
-  /* combined type and curve segment for hair */ \
-  int type; \
-  /* shader id */ \
-  int shader; \
-  /* booleans describing object of the shader, see ShaderDataObjectFlag */ \
-  uint object_flag; \
-  /* primitive id if there is one, ~0 otherwise */ \
-  int prim; \
-  /* parametric coordinates - barycentric weights for triangles */ \
-  float u; \
-  float v; \
-  /* object id if there is one, ~0 otherwise */ \
-  int object; \
-  /* motion blur sample time */ \
-  float time;
-
-#ifdef __OBJECT_MOTION__
-#  define SHADER_DATA_BASE_OBJECT_MOTION \
-    /* Object <-> world space transformations for motion blur, \
-     * cached to avoid re-interpolating them constantly for shading. */ \
-    Transform ob_tfm_motion; \
-    Transform ob_itfm_motion;
-#else
-#  define SHADER_DATA_BASE_OBJECT_MOTION
-#endif
-
-#ifdef __DPDU__
-#  define SHADER_DATA_BASE_DPDU \
-    /* differential of P w.r.t. parametric coordinates. note that dPdu is \
-     * not readily suitable as a tangent for shading on triangles. */ \
-    float3 dPdu; \
-    float3 dPdv;
-#else
-#  define SHADER_DATA_BASE_DPDU
-#endif
-
-struct ccl_align(16) ShaderDataBase {
-  SHADER_DATA_BASE
-  SHADER_DATA_BASE_OBJECT_MOTION
-  SHADER_DATA_BASE_DPDU
-};
-
 struct ccl_align(16) ShaderData {
-  SHADER_DATA_BASE
-  SHADER_DATA_BASE_OBJECT_MOTION
-  SHADER_DATA_BASE_DPDU
+  /* position */
+  float3 P;
+  /* smooth normal for shading */
+  float3 N;
+  /* true geometric normal */
+  float3 Ng;
+  /* view/incoming direction */
+  float3 wi;
 
+  /* combined type and curve segment for hair */
+  int type;
+
+  /* shader id */
+  int shader;
   /* booleans describing shader, see ShaderDataFlag */
   int flag;
+  /* booleans describing object of the shader, see ShaderDataObjectFlag */
+  uint object_flag;
 
   /* Closure data, we store a fixed array of closures */
   int num_closure;
   int num_closure_left;
+
+  /* primitive id if there is one, ~0 otherwise */
+  int prim;
+
+  /* parametric coordinates
+   * - barycentric weights for triangles */
+  float u;
+  float v;
+  /* object id if there is one, ~0 otherwise */
+  int object;
+
+  /* motion blur sample time */
+  float time;
 
   /* length of the ray being shaded */
   float ray_length;
@@ -1034,6 +1008,19 @@ struct ccl_align(16) ShaderData {
   /* differential of u, v */
   differential du;
   differential dv;
+#endif
+#ifdef __DPDU__
+  /* differential of P w.r.t. parametric coordinates. note that dPdu is
+   * not readily suitable as a tangent for shading on triangles. */
+  float3 dPdu;
+  float3 dPdv;
+#endif
+
+#ifdef __OBJECT_MOTION__
+  /* Object <-> world space transformations for motion blur, cached to avoid
+   * re-interpolating them constantly for shading. */
+  Transform ob_tfm_motion;
+  Transform ob_itfm_motion;
 #endif
 
   /* ray start position, only set for backgrounds */
