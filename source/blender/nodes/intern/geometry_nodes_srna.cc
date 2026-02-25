@@ -169,6 +169,7 @@ static StructRNA *create_outputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDa
     RNA_def_struct_path_func_runtime(output_srna, rna_NodesModifierPropertyOutput_path);
     RNA_def_pointer_runtime(srna, identifier.c_str(), output_srna, name.c_str(), "");
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
+    RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   }
 
   return srna;
