@@ -822,8 +822,8 @@ static bool socket_types_need_conversion(const StringRef from_type, const String
 static bool any_link_need_conversion(const Span<MutableNodeAndSocket> links,
                                      const bNodeTreeInterfaceSocket &io_socket)
 {
-  /* A proxy is needed if any internal internal or external connection has a different type and
-   * therefore cannot directly be connected without loss of conversion. */
+  /* A proxy is needed if any internal or external connection has a different type and therefore
+   * cannot directly be connected without loss of conversion. */
   for (const MutableNodeAndSocket &in_link : links) {
     const bNodeSocket &in_socket = in_link.find_socket();
     if (socket_types_need_conversion(in_socket.idname, io_socket.socket_type)) {
