@@ -235,26 +235,19 @@ struct SelectMap {
         break;
       case GPU_SELECT_ALL:
         info_buf.mode = SelectType::SELECT_ALL;
-        if (info_buf.radius == 0) {
-          /* For box select to work, this has to stay in place, however for circle select the
-           * cursor value needs to be set correctly. */
-          info_buf.cursor = int2(0);
-        }
-        else {
-          info_buf.cursor = int2(gpu_select_next_get_pick_area_center());
-        }
+        info_buf.cursor = gpu_select_next_get_pick_area_center();
         /* This mode uses atomicOr and store result as a bitmap. Clear to 0 (no selection). */
         GPU_storagebuf_clear(select_output_buf, 0);
         break;
       case GPU_SELECT_PICK_ALL:
         info_buf.mode = SelectType::SELECT_PICK_ALL;
-        info_buf.cursor = int2(gpu_select_next_get_pick_area_center());
+        info_buf.cursor = gpu_select_next_get_pick_area_center();
         /* Mode uses atomicMin. Clear to UINT_MAX. */
         GPU_storagebuf_clear(select_output_buf, 0xFFFFFFFFu);
         break;
       case GPU_SELECT_PICK_NEAREST:
         info_buf.mode = SelectType::SELECT_PICK_NEAREST;
-        info_buf.cursor = int2(gpu_select_next_get_pick_area_center());
+        info_buf.cursor = gpu_select_next_get_pick_area_center();
         /* Mode uses atomicMin. Clear to UINT_MAX. */
         GPU_storagebuf_clear(select_output_buf, 0xFFFFFFFFu);
         break;

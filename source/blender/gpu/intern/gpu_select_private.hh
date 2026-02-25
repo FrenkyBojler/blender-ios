@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "BLI_math_vector_types.hh"
 #include "GPU_select.hh"
 
 namespace blender {
@@ -45,8 +46,7 @@ void gpu_select_next_begin(GPUSelectBuffer *buffer,
                            GPUSelectMode mode);
 uint gpu_select_next_end();
 
-/* Return a single offset since picking uses squared viewport. */
-int gpu_select_next_get_pick_area_center();
+int2 gpu_select_next_get_pick_area_center();
 GPUSelectMode gpu_select_next_get_mode();
 uint gpu_select_next_get_radius();
 void gpu_select_next_set_result(GPUSelectResult *hit_buf, uint hit_len);

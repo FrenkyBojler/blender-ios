@@ -43,10 +43,9 @@ void gpu_select_next_begin(GPUSelectBuffer *buffer,
   g_state.radius = radius;
 }
 
-int gpu_select_next_get_pick_area_center()
+int2 gpu_select_next_get_pick_area_center()
 {
-  BLI_assert(BLI_rcti_size_x(&g_state.rect) == BLI_rcti_size_y(&g_state.rect));
-  return BLI_rcti_size_x(&g_state.rect) / 2;
+  return int2(BLI_rcti_size_x(&g_state.rect) / 2, BLI_rcti_size_y(&g_state.rect) / 2);
 }
 
 GPUSelectMode gpu_select_next_get_mode()
