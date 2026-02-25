@@ -27,61 +27,57 @@ SHADER_LIBRARY_CREATE_INFO(eevee_horizon_scan)
 #include "eevee_spherical_harmonics_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
 
-#ifdef HORIZON_OCCLUSION
-/* Do nothing. */
-#elif defined(MAT_DEFERRED) || defined(MAT_FORWARD)
-/* Enable AO node computation for material shaders. */
-#  define HORIZON_OCCLUSION
-#else
-#  define HORIZON_CLOSURE
-#endif
+namespace eevee::horizon {
 
-float3 horizon_scan_sample_radiance(float2 uv)
+template<typename T> float3 sample_radiance(float2 uv)
 {
-#ifndef HORIZON_OCCLUSION
+  return float3(0.0f);
+}
+template<typename T> float3 sample_normal(float2 uv)
+{
+  return float3(0.0f);
+}
+template<typename T> T select_result(float occlusion, SphericalHarmonicL1 sh)
+{
+  return T(0.0f);
+}
+
+template float3 sample_radiance<float>(float2 uv);
+template float3 sample_normal<float>(float2 uv);
+template float select_result<float>(float occlusion, SphericalHarmonicL1 sh);
+
+template<> float3 sample_radiance<SphericalHarmonicL1>(float2 uv)
+{
   return texture(screen_radiance_tx, uv).rgb;
-#else
-  return float3(0.0f);
-#endif
 }
-
-float3 horizon_scan_sample_normal(float2 uv)
+template<> float3 sample_normal<SphericalHarmonicL1>(float2 uv)
 {
-#ifndef HORIZON_OCCLUSION
   return texture(screen_normal_tx, uv).rgb * 2.0f - 1.0f;
-#else
-  return float3(0.0f);
-#endif
 }
-
-#ifdef HORIZON_OCCLUSION
-struct HorizonScanResult {
-  float result;
-};
-#endif
-#ifdef HORIZON_CLOSURE
-struct HorizonScanResult {
-  SphericalHarmonicL1 result;
-};
-#endif
+template<>
+SphericalHarmonicL1 select_result<SphericalHarmonicL1>(float occlusion, SphericalHarmonicL1 sh)
+{
+  return sh;
+}
 
 /**
  * Scans the horizon in many directions and returns the indirect lighting radiance.
  * Returned lighting is stored inside the context in `_accum` members already normalized.
  * If `reversed` is set to true, the input normal must be negated.
  */
-HorizonScanResult horizon_scan_eval(float3 vP,
-                                    float3 vN,
-                                    float4 noise,
-                                    float2 pixel_size,
-                                    float search_distance,
-                                    float thickness_near,
-                                    float thickness_far,
-                                    float angle_bias,
-                                    const int slice_count,
-                                    const int sample_count,
-                                    const bool reversed,
-                                    const bool ao_only)
+template<typename ResultT>
+ResultT eval(float3 vP,
+             float3 vN,
+             float4 noise,
+             float2 pixel_size,
+             float search_distance,
+             float thickness_near,
+             float thickness_far,
+             float angle_bias,
+             const int slice_count,
+             const int sample_count,
+             const bool reversed,
+             const bool ao_only)
 {
   float3 vV = drw_view_incident_vector(vP);
 
@@ -92,12 +88,10 @@ HorizonScanResult horizon_scan_eval(float3 vP,
   }
 
   float weight_accum = 0.0f;
-#ifdef HORIZON_OCCLUSION
   float occlusion_accum = 0.0f;
-#endif
   SphericalHarmonicL1 sh_accum = spherical_harmonics_L1_new();
 
-#if defined(GPU_METAL) && defined(GPU_APPLE)
+#if defined(GPU_METAL)
 /* NOTE: Full loop unroll hint increases performance on Apple Silicon. */
 #  pragma clang loop unroll(full)
 #endif
@@ -119,7 +113,7 @@ HorizonScanResult horizon_scan_eval(float3 vP,
     /* Length of vN projected onto the horizon slice plane. */
     float vN_length;
 
-    horizon_scan_projected_normal_to_plane_angle_and_length(vN, vV, vT, vB, vN_length, vN_angle);
+    projected_normal_to_plane_angle_and_length(vN, vV, vT, vB, vN_length, vN_angle);
 
     vN_angle += (noise.z - 0.5f) * (M_PI / 32.0f) * angle_bias;
 
@@ -181,34 +175,31 @@ HorizonScanResult horizon_scan_eval(float3 vP,
         /* If we are tracing backward, the angles are negative. Swizzle to keep correct order. */
         theta = (side == 0) ? theta.xy : -theta.yx;
 
-        float3 sample_radiance = ao_only ? float3(0.0f) : horizon_scan_sample_radiance(sample_uv);
+        float3 radiance = sample_radiance<ResultT>(sample_uv) * float(!ao_only);
         /* Take emitter surface normal into consideration. */
-        float3 sample_normal = horizon_scan_sample_normal(sample_uv);
+        float3 normal = sample_normal<ResultT>(sample_uv);
         /* Discard back-facing samples.
          * The 2 factor is to avoid loosing too much energy v(which is something not
          * explained in the paper...). Likely to be wrong, but we need a soft falloff. */
-        float facing_weight = saturate(-dot(sample_normal, vL_front) * 2.0f);
+        float facing_weight = saturate(-dot(normal, vL_front) * 2.0f);
 
         /* Angular bias shrinks the visibility bitmask around the projected normal. */
         float2 biased_theta = (theta - vN_angle) * angle_bias;
-        uint sample_bitmask = horizon_scan_angles_to_bitmask(biased_theta);
-        float weight_bitmask = horizon_scan_bitmask_to_visibility_uniform(sample_bitmask &
-                                                                          ~slice_bitmask);
+        uint sample_bitmask = angles_to_bitmask(biased_theta);
+        float weight_bitmask = bitmask_to_visibility_uniform(sample_bitmask & ~slice_bitmask);
 
-        sample_radiance *= facing_weight * weight_bitmask;
+        radiance *= facing_weight * weight_bitmask;
         spherical_harmonics_encode_signal_sample(
-            vL_front, float4(sample_radiance, weight_bitmask), sh_slice);
+            vL_front, float4(radiance, weight_bitmask), sh_slice);
 
         slice_bitmask |= sample_bitmask;
       }
     }
 
-#ifdef HORIZON_OCCLUSION
-    float occlusion_slice = horizon_scan_bitmask_to_occlusion_cosine(slice_bitmask);
-
+    float occlusion_slice = bitmask_to_occlusion_cosine(slice_bitmask);
     /* Correct normal not on plane (Eq. 8 of GTAO paper). */
     occlusion_accum += occlusion_slice * vN_length;
-#endif
+
     /* Use uniform visibility since this is what we use for near field lighting. */
     sh_accum = spherical_harmonics_madd(sh_slice, vN_length, sh_accum);
 
@@ -220,13 +211,15 @@ HorizonScanResult horizon_scan_eval(float3 vP,
 
   float weight_rcp = safe_rcp(weight_accum);
 
-  HorizonScanResult res;
-#ifdef HORIZON_OCCLUSION
-  res.result = occlusion_accum * weight_rcp;
-#endif
-#ifdef HORIZON_CLOSURE
   /* Weight by area of the sphere. This is expected for correct SH evaluation. */
-  res.result = spherical_harmonics_mul(sh_accum, weight_rcp * 4.0f * M_PI);
-#endif
-  return res;
+  sh_accum = spherical_harmonics_mul(sh_accum, weight_rcp * 4.0f * M_PI);
+  occlusion_accum *= weight_rcp;
+  return select_result<ResultT>(occlusion_accum, sh_accum);
 }
+
+template float eval<float>(
+    float3, float3, float4, float2, float, float, float, float, int, int, bool, bool);
+template SphericalHarmonicL1 eval<SphericalHarmonicL1>(
+    float3, float3, float4, float2, float, float, float, float, int, int, bool, bool);
+
+}  // namespace eevee::horizon

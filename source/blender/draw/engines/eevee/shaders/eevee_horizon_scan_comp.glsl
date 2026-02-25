@@ -45,28 +45,29 @@ void main()
   float2 uv = (float2(texel_fullres) + 0.5f) * uniform_buf.raytrace.full_resolution_inv;
   float depth = texelFetch(hiz_tx, texel_fullres, 0).r;
   float3 vP = drw_point_screen_to_view(float3(uv, depth));
-  float3 vN = horizon_scan_sample_normal(uv);
+  float3 vN = eevee::horizon::sample_normal<SphericalHarmonicL1>(uv);
 
   float4 noise = utility_tx_fetch(utility_tx, float2(texel), UTIL_BLUE_NOISE_LAYER);
   noise = fract(noise + sampling_rng_3D_get(SAMPLING_AO_U).xyzx);
 
-  HorizonScanResult scan = horizon_scan_eval(vP,
-                                             vN,
-                                             noise,
-                                             uniform_buf.ao.pixel_size,
-                                             uniform_buf.ao.gi_distance,
-                                             uniform_buf.ao.thickness_near,
-                                             uniform_buf.ao.thickness_far,
-                                             uniform_buf.ao.angle_bias,
-                                             fast_gi_slice_count,
-                                             fast_gi_step_count,
-                                             false,
-                                             fast_gi_ao_only);
+  SphericalHarmonicL1 result = eevee::horizon::eval<SphericalHarmonicL1>(
+      vP,
+      vN,
+      noise,
+      uniform_buf.ao.pixel_size,
+      uniform_buf.ao.gi_distance,
+      uniform_buf.ao.thickness_near,
+      uniform_buf.ao.thickness_far,
+      uniform_buf.ao.angle_bias,
+      fast_gi_slice_count,
+      fast_gi_step_count,
+      false,
+      fast_gi_ao_only);
 
-  scan.result = spherical_harmonics_compress(scan.result);
+  result = spherical_harmonics_compress(result);
 
-  imageStore(horizon_radiance_0_img, texel, scan.result.L0.M0);
-  imageStore(horizon_radiance_1_img, texel, scan.result.L1.Mn1);
-  imageStore(horizon_radiance_2_img, texel, scan.result.L1.M0);
-  imageStore(horizon_radiance_3_img, texel, scan.result.L1.Mp1);
+  imageStore(horizon_radiance_0_img, texel, result.L0.M0);
+  imageStore(horizon_radiance_1_img, texel, result.L1.Mn1);
+  imageStore(horizon_radiance_2_img, texel, result.L1.M0);
+  imageStore(horizon_radiance_3_img, texel, result.L1.Mp1);
 }

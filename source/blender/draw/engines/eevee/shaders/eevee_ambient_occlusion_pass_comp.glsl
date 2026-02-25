@@ -34,7 +34,7 @@ void main()
   float4 noise = utility_tx_fetch(lut_tx, float2(texel), UTIL_BLUE_NOISE_LAYER);
   noise = fract(noise + sampling_rng_3D_get(SAMPLING_AO_U).xyzx);
 
-  HorizonScanResult scan = horizon_scan_eval(vP,
+  float result = eevee::horizon::eval<float>(vP,
                                              vN,
                                              noise,
                                              uniform_buf.ao.pixel_size,
@@ -47,5 +47,5 @@ void main()
                                              false,
                                              true);
 
-  imageStoreFast(out_ao_img, int3(texel, out_ao_img_layer_index), float4(saturate(scan.result)));
+  imageStoreFast(out_ao_img, int3(texel, out_ao_img_layer_index), float4(saturate(result)));
 }
