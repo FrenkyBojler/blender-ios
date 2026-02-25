@@ -19,16 +19,6 @@
 
 namespace blender {
 
-static float euclidean_norm(const float3x3 mat)
-{
-  Span<float> values(mat.base_ptr(), 9);
-  float sum = 0.0f;
-  for (int i = 0; i < 9; i++) {
-    sum += values[i] * values[i];
-  }
-  return sqrt(sum);
-}
-
 BLI_INLINE void BKE_multires_construct_tangent_matrix(float3x3 &tangent_matrix,
                                                       const float3 &dPdu,
                                                       const float3 &dPdv,
@@ -101,14 +91,6 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(float3x3 &tangent_matrix,
   tangent_matrix.x_axis() = tangent_matrix.x_axis();
   tangent_matrix.y_axis() = tangent_matrix.y_axis();
   tangent_matrix.z_axis() = math::normalize(N) * geometric_mean;
-
-  const float3x3 inv_mat = math::invert(tangent_matrix);
-  const float condition_number = euclidean_norm(tangent_matrix) * euclidean_norm(inv_mat);
-  /* This is a pretty aggressive number, but the vast majority (99%) of the vertices on a human
-   * mesh have a value close to 3.0 */
-  if (condition_number > 10.0f) {
-    tangent_matrix = float3x3::zero();
-  }
 }
 
 BLI_INLINE void BKE_multires_construct_tangent_matrix_for_versioning(float3x3 &tangent_matrix,
