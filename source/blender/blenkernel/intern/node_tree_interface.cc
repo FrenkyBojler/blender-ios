@@ -1754,9 +1754,6 @@ void bNodeTreeInterface::ensure_items_cache() const
     runtime.inputs_.clear();
     runtime.outputs_.clear();
 
-    runtime.inputs_by_identifier.clear();
-    runtime.outputs_by_identifier.clear();
-
     /* Items in the cache are mutable pointers, but node tree update considers ID data to be
      * immutable when caching. DNA ListBaseT pointers can be mutable even if their container is
      * const, but the items returned by #foreach_item inherit qualifiers from the container. */
@@ -1767,11 +1764,9 @@ void bNodeTreeInterface::ensure_items_cache() const
       if (bNodeTreeInterfaceSocket *socket = get_item_as<bNodeTreeInterfaceSocket>(&item)) {
         if (socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
           runtime.inputs_.add_new(socket);
-          runtime.inputs_by_identifier.add_new(socket->identifier, socket);
         }
         if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
           runtime.outputs_.add_new(socket);
-          runtime.outputs_by_identifier.add_new(socket->identifier, socket);
         }
       }
       return true;
@@ -1779,17 +1774,26 @@ void bNodeTreeInterface::ensure_items_cache() const
   });
 }
 
-const bNodeTreeInterfaceSocket *bNodeTreeInterface::input_by_identifier(StringRef identifier) const
+int bNodeTreeInterface::input_index_by_identifier(StringRef identifier) const
 {
   this->ensure_items_cache();
-  return this->runtime->inputs_by_identifier.lookup_default_as(identifier, nullptr);
+
+  if (!this->runtime->inputs_.contains_as(identifier)) {
+    return -1;
+  }
+
+  return this->runtime->inputs_.index_of_as(identifier);
 }
 
-const bNodeTreeInterfaceSocket *bNodeTreeInterface::output_by_identifier(
-    StringRef identifier) const
+int bNodeTreeInterface::output_index_by_identifier(StringRef identifier) const
 {
   this->ensure_items_cache();
-  return this->runtime->outputs_by_identifier.lookup_default_as(identifier, nullptr);
+
+  if (!this->runtime->outputs_.contains_as(identifier)) {
+    return -1;
+  }
+
+  return this->runtime->outputs_.index_of_as(identifier);
 }
 
 void bNodeTreeInterface::tag_interface_changed()

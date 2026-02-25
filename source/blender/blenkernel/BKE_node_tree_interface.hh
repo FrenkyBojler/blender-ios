@@ -41,13 +41,17 @@ class bNodeTreeInterfaceRuntime {
 
   /* Runtime topology cache for linear access to items. */
   VectorSet<bNodeTreeInterfaceItem *> items_;
-  /* Socket-only lists for input/output access by index. */
-  VectorSet<bNodeTreeInterfaceSocket *> inputs_;
-  VectorSet<bNodeTreeInterfaceSocket *> outputs_;
 
-  /** Only valid when the item cache is built. */
-  Map<StringRefNull, bNodeTreeInterfaceSocket *> inputs_by_identifier;
-  Map<StringRefNull, bNodeTreeInterfaceSocket *> outputs_by_identifier;
+  struct SocketIdentifierGetter {
+    StringRef operator()(const bNodeTreeInterfaceSocket *socket) const
+    {
+      return socket->identifier;
+    }
+  };
+
+  /* Socket-only lists for input/output access by index. */
+  CustomIDVectorSet<bNodeTreeInterfaceSocket *, SocketIdentifierGetter> inputs_;
+  CustomIDVectorSet<bNodeTreeInterfaceSocket *, SocketIdentifierGetter> outputs_;
 };
 
 namespace node_interface {

@@ -2016,8 +2016,8 @@ struct bNodeTree {
   int interface_output_index(const bNodeTreeInterfaceSocket &io_socket) const;
   int interface_item_index(const bNodeTreeInterfaceItem &io_item) const;
 
-  const bNodeTreeInterfaceSocket *interface_input_by_identifier(StringRef identifier) const;
-  const bNodeTreeInterfaceSocket *interface_output_by_identifier(StringRef identifier) const;
+  int interface_input_index_by_identifier(StringRef identifier) const;
+  int interface_output_index_by_identifier(StringRef identifier) const;
 #endif
 };
 
