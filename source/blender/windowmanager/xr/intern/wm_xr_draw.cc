@@ -853,7 +853,8 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   draw_block(viewfinder_missing_captures_label_ui_block, captures_label_x, captures_label_y);
 }
 
-// TODO: Remove from global scope once the outline color is more dynamic and this is just used for the logo.
+// TODO: Remove from global scope once the outline color is more dynamic and this is just used for
+// the logo.
 static constexpr float viewfinder_outline_color[4] = {0.26f, 0.26f, 0.26f, 0.2f};
 
 static void wm_xr_controller_viewfinder_draw_overlays(const rctf &viewfinder_rect)

@@ -32,7 +32,7 @@ struct wmXrController;
 struct wmXrData;
 
 namespace gpu {
-  class Texture;
+class Texture;
 }
 
 // TODO: eventually move to its own header file with its enums

@@ -520,7 +520,8 @@ void WM_xr_session_state_viewfinder_runtime_capture_flash_set(wmXrData *xr, floa
   }
 }
 
-bool WM_xr_session_state_viewfinder_capture_dof_enabled_get(const wmXrData *xr, bool *r_dof_enabled)
+bool WM_xr_session_state_viewfinder_capture_dof_enabled_get(const wmXrData *xr,
+                                                            bool *r_dof_enabled)
 {
   if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
     *r_dof_enabled = 0.0f;
@@ -556,8 +557,7 @@ void WM_xr_session_state_viewfinder_capture_lens_focal_set(wmXrData *xr, float l
   }
 }
 
-bool WM_xr_session_state_viewfinder_capture_dof_fstop_get(const wmXrData *xr,
-                                                               float *r_dof_fstop)
+bool WM_xr_session_state_viewfinder_capture_dof_fstop_get(const wmXrData *xr, float *r_dof_fstop)
 {
   if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
     *r_dof_fstop = 1.0f;
@@ -576,7 +576,7 @@ void WM_xr_session_state_viewfinder_capture_dof_fstop_set(wmXrData *xr, float do
 }
 
 bool WM_xr_session_state_viewfinder_capture_dof_distance_get(const wmXrData *xr,
-                                                               float *r_dof_distance)
+                                                             float *r_dof_distance)
 {
   if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
     *r_dof_distance = 1.0f;
