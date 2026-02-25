@@ -2,3 +2,4 @@ Referenced by issue #133176, Regression: use-after free when removing modifiers
 Referenced by issue #132902, Asset Shelf: heap-use-after-free crash when undo'ing in pose mode
 Referenced by issue #132570, EEVEE: runtime error: division by zero when viewing empty Volume objects
 Referenced by issue #154833, Title bar colors are broken on Linux
+Referenced by pull request #154840, Fix #154833: Title bar colors are broken on Linux
