@@ -1519,6 +1519,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputObject");
       Object *ptr = static_cast<const bNodeSocketValueObject *>(value)->value;
       node->id = ptr ? &ptr->id : nullptr;
+      id_us_plus(node->id);
       anim_basepaths.append(
           {src_property_path, get_node_property_path(dst_tree, *node, "object")});
       return node;
@@ -1527,6 +1528,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputImage");
       Image *ptr = static_cast<const bNodeSocketValueImage *>(value)->value;
       node->id = ptr ? &ptr->id : nullptr;
+      id_us_plus(node->id);
       anim_basepaths.append({src_property_path, get_node_property_path(dst_tree, *node, "image")});
       return node;
     }
@@ -1534,6 +1536,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputCollection");
       Collection *ptr = static_cast<const bNodeSocketValueCollection *>(value)->value;
       node->id = ptr ? &ptr->id : nullptr;
+      id_us_plus(node->id);
       anim_basepaths.append(
           {src_property_path, get_node_property_path(dst_tree, *node, "collection")});
       return node;
@@ -1542,6 +1545,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputMaterial");
       Material *ptr = static_cast<const bNodeSocketValueMaterial *>(value)->value;
       node->id = ptr ? &ptr->id : nullptr;
+      id_us_plus(node->id);
       anim_basepaths.append(
           {src_property_path, get_node_property_path(dst_tree, *node, "material")});
       return node;
@@ -1567,6 +1571,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputFont");
       VFont *ptr = static_cast<const bNodeSocketValueFont *>(value)->value;
       node->id = ptr ? &ptr->id : nullptr;
+      id_us_plus(node->id);
       anim_basepaths.append({src_property_path, get_node_property_path(dst_tree, *node, "font")});
       return node;
     }
