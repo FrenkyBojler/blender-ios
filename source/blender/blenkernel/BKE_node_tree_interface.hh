@@ -11,12 +11,12 @@
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_node_types.h"
 
+#include "BKE_animsys.h"
 #include "BKE_node.hh"
 
 #include <type_traits>
 
 #include "BLI_cache_mutex.hh"
-#include "BLI_parameter_pack_utils.hh"
 #include "BLI_vector_set.hh"
 
 namespace blender::bke {
@@ -391,19 +391,11 @@ struct bNodeTreeInterfaceItemReference {
  * \return Constant value input node or null if the socket type is not supported.
  */
 bNode *create_proxy_const_input_node(eNodeSocketDatatype socket_type,
+                                     const bNodeTree &src_tree,
+                                     const bNodeSocket *src_socket,
                                      bContext &C,
-                                     bNodeTree &tree,
-                                     const void *value);
-
-/**
- * Get animdata paths for the socket value and the matching constant value of an input node.
- * This can be used to move animdata from a socket to a constant input node and vice versa.
- */
-std::optional<std::pair<std::string, std::string>>
-get_proxy_const_input_node_animdata_path_mapping(const bNodeTree &tree_of_value_node,
-                                                 const bNode &value_node,
-                                                 const bNodeTree &tree_of_socket,
-                                                 const bNodeSocket &socket);
+                                     bNodeTree &dst_tree,
+                                     Vector<AnimationBasePathChange> &anim_basepaths);
 
 /**
  * Create an implicit input node for the socket type.
@@ -419,9 +411,11 @@ bNode *create_proxy_implicit_input_node(eNodeSocketDatatype socket_type,
  * \return Converter node or null if the socket type is not supported.
  */
 bNode *create_proxy_converter_node(eNodeSocketDatatype socket_type,
+                                   const bNodeTree &src_tree,
+                                   const bNodeSocket *src_socket,
                                    bContext &C,
-                                   bNodeTree &tree,
-                                   const void *value);
+                                   bNodeTree &dst_tree,
+                                   Vector<AnimationBasePathChange> &anim_basepaths);
 
 }  // namespace node_interface
 

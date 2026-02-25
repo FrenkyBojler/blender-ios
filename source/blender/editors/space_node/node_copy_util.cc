@@ -269,13 +269,6 @@ static std::string node_basepath(const bNodeTree &tree, const bNode &node)
   return *RNA_path_from_ID_to_struct(&ptr);
 }
 
-static std::string socket_basepath(const bNodeTree &tree, const bNodeSocket &socket)
-{
-  const PointerRNA ptr = RNA_pointer_create_discrete(
-      &const_cast<bNodeTree &>(tree).id, RNA_NodeSocket, &const_cast<bNodeSocket &>(socket));
-  return *RNA_path_from_ID_to_struct(&ptr);
-}
-
 /* Maps old to new identifiers for simulation input node pairing. */
 static void remap_pairing(bNodeTree &dst_tree,
                           Span<bNode *> nodes,
@@ -871,7 +864,6 @@ static bNode *create_proxy_input_node(const bNodeTreeInterfaceSocket &io_socket,
 {
   const eNodeSocketDatatype socket_type = bke::node_socket_type_find(io_socket.socket_type)->type;
   const NodeDefaultInputType default_input_type = NodeDefaultInputType(io_socket.default_input);
-  const void *src_value = src_socket ? src_socket->default_value : nullptr;
 
   if (bNode *proxy_node = bke::node_interface::create_proxy_implicit_input_node(
           socket_type, default_input_type, C, dst_tree))
@@ -879,24 +871,14 @@ static bNode *create_proxy_input_node(const bNodeTreeInterfaceSocket &io_socket,
     return proxy_node;
   }
 
-  if (!src_value) {
+  if (!src_socket || !src_socket->default_value) {
     /* No proxy needed if the socket type does not have input values. */
     return nullptr;
   }
 
   if (bNode *proxy_node = bke::node_interface::create_proxy_const_input_node(
-          socket_type, C, dst_tree, src_value))
+          socket_type, src_tree, src_socket, C, dst_tree, anim_basepaths))
   {
-    /* Add animation path mapping to the const input node. */
-    if (proxy_node && src_socket) {
-      const std::optional<std::pair<std::string, std::string>> proxy_path_mapping =
-          bke::node_interface::get_proxy_const_input_node_animdata_path_mapping(
-              dst_tree, *proxy_node, src_tree, *src_socket);
-      if (proxy_path_mapping) {
-        const auto [proxy_node_anim_path, value_anim_path] = *proxy_path_mapping;
-        anim_basepaths.append({value_anim_path, proxy_node_anim_path});
-      }
-    }
     return proxy_node;
   }
 
@@ -913,18 +895,10 @@ static bNode *create_proxy_converter_node(const bNodeTreeInterfaceSocket &io_soc
                                           Vector<AnimationBasePathChange> &anim_basepaths)
 {
   const eNodeSocketDatatype socket_type = bke::node_socket_type_find(io_socket.socket_type)->type;
-  const void *src_value = src_socket ? src_socket->default_value : nullptr;
 
   if (bNode *proxy_node = bke::node_interface::create_proxy_converter_node(
-          socket_type, C, dst_tree, src_value))
+          socket_type, src_tree, src_socket, C, dst_tree, anim_basepaths))
   {
-    if (src_socket) {
-      const auto [proxy_input, proxy_output] = find_proxy_node_sockets(*proxy_node);
-      if (proxy_input) {
-        anim_basepaths.append({socket_basepath(src_tree, *src_socket),
-                               socket_basepath(dst_tree, proxy_input->find_socket())});
-      }
-    }
     return proxy_node;
   }
 
