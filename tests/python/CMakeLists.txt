@@ -126,6 +126,8 @@ if(WITH_UI_TESTS)
       --no-window-frame
       -p 0 0 800 600
       --gpu-backend ${backend}
+      # Log operator calls at a debug level so it is easier to debug runs on the buildbot that fail
+      --log "operator" --log-level "debug"
       "${EXE_PARAMS}"
       "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
       "${ARGN}"
@@ -943,6 +945,15 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
   endif()
 endif()
 
+if(WITH_CYCLES AND WITH_CYCLES_OSL)
+  add_blender_test(
+    cycles_osl_compile_test
+    --python ${CMAKE_CURRENT_LIST_DIR}/cycles_osl_compile_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/render"
+  )
+endif()
+
 # ------------------------------------------------------------------------------
 # COMPOSITOR TESTS
 # ------------------------------------------------------------------------------
@@ -1382,6 +1393,17 @@ endif()
 
 if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
+    bl_voxel_remesh
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/voxel_remesh_test.py
+  )
+
+  add_blender_test(
+    bl_voxel_remesh_compare
+    ${TEST_SRC_DIR}/sculpting/voxel_remesh_compare.blend
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/voxel_remesh_compare_test.py
+  )
+
+  add_blender_test(
     bl_sculpt_mask
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mask_test.py
     --
@@ -1405,6 +1427,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_sculpt_mesh_filter
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mesh_filter_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/sculpting"
+  )
+
+  add_blender_test(
+    bl_sculpt_automasking
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/automask_test.py
     --
     --testdir "${TEST_SRC_DIR}/sculpting"
   )

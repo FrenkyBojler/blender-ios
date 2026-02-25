@@ -2137,6 +2137,13 @@ struct NodeReroute {
   char type_idname[64] = "";
 };
 
+struct NodeImplicitConversion {
+  DNA_DEFINE_CXX_METHODS(NodeImplicitConversion)
+
+  /** Name of the socket type (e.g. `NodeSocketFloat`). */
+  char type_idname[64] = "";
+};
+
 /** \note This one has been replaced with #ImageUser, keep it for do_versions(). */
 struct NodeImageAnim {
   DNA_DEFINE_CXX_METHODS(NodeImageAnim)
@@ -2971,6 +2978,13 @@ struct NodeInputInt {
   int integer = 0;
 };
 
+struct NodeInputMenu {
+  DNA_DEFINE_CXX_METHODS(NodeInputMenu)
+
+  /* Note: enum items are determined by the node output socket. */
+  int value = 0;
+};
+
 struct NodeInputRotation {
   DNA_DEFINE_CXX_METHODS(NodeInputRotation)
 
@@ -2980,7 +2994,8 @@ struct NodeInputRotation {
 struct NodeInputVector {
   DNA_DEFINE_CXX_METHODS(NodeInputVector)
 
-  float vector[3] = {};
+  float vector[4] = {};
+  int dimensions = 3;
 };
 
 struct NodeInputColor {
