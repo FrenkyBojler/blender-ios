@@ -8,6 +8,8 @@
  * \ingroup bke
  */
 
+#include "BKE_animsys_fwd.h"
+
 #include "DNA_listBase.h"
 
 #include "BLI_bit_vector.hh"
@@ -16,7 +18,6 @@
 
 namespace blender {
 
-struct AnimationBasePathChange;
 struct AnimData;
 struct BlendDataReader;
 struct BlendWriter;

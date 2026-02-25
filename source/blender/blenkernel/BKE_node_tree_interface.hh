@@ -11,7 +11,7 @@
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_node_types.h"
 
-#include "BKE_anim_path.h"
+#include "BKE_animsys_fwd.h"
 #include "BKE_node.hh"
 
 #include <type_traits>
