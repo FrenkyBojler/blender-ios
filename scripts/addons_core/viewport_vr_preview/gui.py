@@ -156,9 +156,6 @@ class VIEW3D_PT_vr_location_scouting_captures(VRButtonsPanel, Panel):
         col.operator("view3d.vr_location_scouting_add_camera_from_capture", icon='OUTLINER_OB_CAMERA', text="")
         col.operator("view3d.vr_location_scouting_active_camera_to_capture", icon='HIDE_OFF', text="")
 
-        view3d = context.space_data
-        layout.prop(view3d.shading, "vr_show_captures", text="Show Captures in Viewport")
-
 
 class VIEW3D_PT_vr_location_scouting_viewfinder_settings(VRButtonsPanel, Panel):
     bl_label = "Viewfinder Settings"
@@ -277,7 +274,6 @@ class VIEW3D_PT_vr_viewport_feedback(VRButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
         view3d = context.space_data
-        session_settings = context.window_manager.xr_session_settings
 
         col = layout.column(align=True)
         col.label(icon='ERROR', text="Note:")
@@ -289,6 +285,7 @@ class VIEW3D_PT_vr_viewport_feedback(VRButtonsPanel, Panel):
         layout.prop(view3d.shading, "vr_show_virtual_camera")
         layout.prop(view3d.shading, "vr_show_controllers")
         layout.prop(view3d.shading, "vr_show_landmarks")
+        layout.prop(view3d.shading, "vr_show_captures")
         layout.prop(view3d, "mirror_xr_session")
 
 
@@ -331,13 +328,16 @@ def register():
     # View3DShading is the only per 3D-View struct with custom property
     # support, so "abusing" that to get a per 3D-View option.
     bpy.types.View3DShading.vr_show_virtual_camera = bpy.props.BoolProperty(
-        name="Show VR Camera"
+        name="Show VR Camera",
+        default=False
     )
     bpy.types.View3DShading.vr_show_controllers = bpy.props.BoolProperty(
-        name="Show VR Controllers"
+        name="Show VR Controllers",
+        default=False
     )
     bpy.types.View3DShading.vr_show_landmarks = bpy.props.BoolProperty(
-        name="Show Landmarks"
+        name="Show Landmarks",
+        default=False
     )
     bpy.types.View3DShading.vr_show_captures = bpy.props.BoolProperty(
         name="Show Location Scouting Captures",
