@@ -3033,5 +3033,6 @@ AbstractViewItem *region_views_find_active_item(const ARegion *region);
 Button *region_views_find_active_item_but(const ARegion *region);
 void region_views_clear_search_highlight(const ARegion *region);
 
+bool region_panels_fits_only_categories(const ARegion *region);
 }  // namespace ui
 }  // namespace blender

@@ -391,6 +391,12 @@ bool BKE_regiontype_uses_panel_categories_search(const ARegionType *region_type)
   return bool(region_type->flag & ARegionTypeFlag::UsePanelCategoriesSearch);
 }
 
+bool BKE_region_panel_categories_search_filter_visible(const ARegion *region)
+{
+  return BKE_regiontype_uses_panel_categories_search(region->runtime->type) &&
+         region->flag & RGN_FLAG_SEARCH_FILTER_SHOW;
+};
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

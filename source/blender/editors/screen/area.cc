@@ -3281,7 +3281,7 @@ void side_region_property_search(const bContext *C, ARegion *region);
 static void side_region_search_move_next_category_with_result(const bContext * /*C*/,
                                                               ARegion *region)
 {
-  if (!BKE_regiontype_uses_panel_categories_search(region->runtime->type)) {
+  if (!BKE_region_panel_categories_search_filter_visible(region)) {
     return;
   }
   if (!bool(region->flag & RGN_FLAG_SEARCH_FILTER_UPDATE)) {
@@ -3564,7 +3564,7 @@ void ED_region_draw_overflow_indication(const ScrArea *area,
       width -= (2 * UI_PANEL_MARGIN_X);
     }
   }
-  if (BKE_regiontype_uses_panel_categories_search(region->runtime->type)) {
+  if (BKE_region_panel_categories_search_filter_visible(region)) {
     const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                          (BLI_rcti_size_y(&region->v2d.mask) + 1);
     height -= UI_PANEL_SEARCH_BLOCK_MARGIN_HEIGHT / aspect;
@@ -3640,7 +3640,7 @@ void ED_region_panels_layout(const bContext *C, ARegion *region)
 
 static void side_panel_draw_search_block(const bContext *C, ARegion *region)
 {
-  if (!BKE_regiontype_uses_panel_categories_search(region->runtime->type)) {
+  if (!BKE_region_panel_categories_search_filter_visible(region)) {
     return;
   }
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
@@ -3652,9 +3652,7 @@ static void side_panel_draw_search_block(const bContext *C, ARegion *region)
   else {
     immUniformThemeColor(TH_BACK);
   }
-  const float categories_width = ui::panel_category_tabs_is_visible(region) ?
-                                     UI_PANEL_CATEGORY_MARGIN_WIDTH :
-                                     0.0f;
+
   immRectf(pos,
            region->v2d.cur.xmin,
            region->v2d.cur.ymax - UI_PANEL_SEARCH_BLOCK_MARGIN_HEIGHT,
@@ -3662,21 +3660,24 @@ static void side_panel_draw_search_block(const bContext *C, ARegion *region)
            region->v2d.cur.ymax);
   immUnbindProgram();
 
+  const float categories_width = ui::panel_category_tabs_is_visible(region) ?
+                                     UI_PANEL_CATEGORY_MARGIN_WIDTH :
+                                     0.0f;
   const uiStyle *style = ui::style_get_dpi();
 
   ui::Block *block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
   const int em = (region->runtime->type->prefsizex) ? 10 : 20;
-
-  ui::Layout &layout = ui::block_layout(
-      block,
-      ui::LayoutDirection::Vertical,
-      ui::LayoutType::Header,
-      0,
-      0,
-      round_fl_to_int(BLI_rctf_size_x(&region->v2d.cur) - categories_width),
-      em,
-      5,
-      style);
+  const int w = round_fl_to_int(BLI_rctf_size_x(&region->v2d.cur) - categories_width -
+                                2.0f * float(style->panelspace));
+  ui::Layout &layout = ui::block_layout(block,
+                                        ui::LayoutDirection::Vertical,
+                                        ui::LayoutType::Panel,
+                                        style->panelspace,
+                                        0,
+                                        w,
+                                        em,
+                                        0,
+                                        style);
 
   PointerRNA ptr = RNA_pointer_create_discrete(
       id_cast<ID *>(CTX_wm_screen(C)), RNA_Region, region);
@@ -3884,6 +3885,10 @@ static bool side_region_search_for_context(const bContext *C, ARegion *region, S
 
 static void side_region_search_all_categories(const bContext *C, ARegion *region_original)
 {
+  /* Avoid searching properties when region is almost collapsed. */
+  if (ui::region_panels_fits_only_categories(region_original)) {
+    return;
+  }
   /* Use local copies of the area and duplicate the region as a mainly-paranoid protection
    * against changing any of the space / region data while running the search. */
   ScrArea *area_original = CTX_wm_area(C);
@@ -3932,7 +3937,7 @@ static void side_region_search_all_categories(const bContext *C, ARegion *region
 
 void side_region_property_search(const bContext *C, ARegion *region)
 {
-  if (!(BKE_regiontype_uses_panel_categories_search(region->runtime->type) &&
+  if (!(BKE_region_panel_categories_search_filter_visible(region) &&
         region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE))
   {
     return;

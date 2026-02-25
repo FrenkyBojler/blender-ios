@@ -777,6 +777,7 @@ void BKE_spacetypes_free();
 bool BKE_regiontype_uses_categories(const ARegionType *region_type);
 bool BKE_regiontype_uses_category_tabs(const ARegionType *region_type);
 bool BKE_regiontype_uses_panel_categories_search(const ARegionType *region_type);
+bool BKE_region_panel_categories_search_filter_visible(const ARegion *region);
 
 /* Space-data. */
 

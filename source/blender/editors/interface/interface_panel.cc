@@ -1844,7 +1844,7 @@ static bool uiAlignPanelStep(ARegion *region, const float factor, const bool dra
 
   /* Y offset. */
   int y = 0;
-  if (BKE_regiontype_uses_panel_categories_search(region->runtime->type)) {
+  if (BKE_region_panel_categories_search_filter_visible(region)) {
     y = -UI_PANEL_SEARCH_BLOCK_MARGIN_HEIGHT;
   }
   for (PanelSort &ps : panel_sort) {
@@ -2569,7 +2569,7 @@ static int ui_handle_panel_category_cycling(const wmEvent *event,
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static void ui_panel_region_width_set(ARegion *region, const float aspect, int unscaled_size)
+void ui_panel_region_width_set(ARegion *region, const float aspect, int unscaled_size)
 {
   const float size_new = unscaled_size / aspect;
   if (region->alignment & RGN_ALIGN_RIGHT) {
@@ -2925,6 +2925,31 @@ void panel_stop_animation(const bContext *C, Panel *panel)
   if (panel->activedata) {
     panel_activate_state(C, panel, PANEL_STATE_EXIT);
   }
+}
+
+bool region_panels_fits_only_categories(const ARegion *region)
+{
+  const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
+  return BLI_rcti_size_x(&region->winrct) <=
+         int(std::ceil(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect));
+}
+
+void region_panels_sort_for_search_filter_visivility_change(bContext *C, const ARegion *region)
+{
+  Vector<PanelSort> panel_sort;
+  for (Panel &panel : region->panels) {
+    if (panel.runtime_flag & PANEL_ACTIVE) {
+      /* These panels should have types since they are currently displayed to the user. */
+      BLI_assert(panel.type != nullptr);
+      panel_sort.append({&panel, 0, 0});
+    }
+  }
+  if (panel_sort.is_empty()) {
+    return;
+  }
+  std::stable_sort(panel_sort.begin(), panel_sort.end(), find_highest_panel);
+  panel_activate_state(C, panel_sort.first().panel, PANEL_STATE_ANIMATION);
 }
 
 /** \} */

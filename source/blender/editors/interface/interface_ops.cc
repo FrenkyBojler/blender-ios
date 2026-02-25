@@ -3008,7 +3008,21 @@ static void UI_OT_drop_material(wmOperatorType *ot)
 static wmOperatorStatus region_start_filter_exec(bContext *C, wmOperator * /*op*/)
 {
   ARegion *region = CTX_wm_region(C);
+  if (!(region->flag & RGN_FLAG_SEARCH_FILTER_SHOW)) {
+    region->flag |= RGN_FLAG_SEARCH_FILTER_SHOW;
+    region_panels_sort_for_search_filter_visivility_change(C, region);
+  }
+  if (region_panels_fits_only_categories(region)) {
+    /* Enlarge region to show content to filter. */
+    const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                         (BLI_rcti_size_y(&region->v2d.mask) + 1);
+    const int new_width = region->runtime->type->prefsizex ? region->runtime->type->prefsizex :
+                                                             250;
+    ui_panel_region_width_set(region, aspect, new_width);
+    WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+  }
   ui::textbutton_activate_rna(C, region, region, "search_filter");
+  ED_region_tag_redraw(region);
   return OPERATOR_FINISHED;
 }
 
@@ -3020,8 +3034,8 @@ static bool region_start_filter_poll(blender::bContext *C)
 
 static void UI_OT_region_start_filter(wmOperatorType *ot)
 {
-  ot->name = "Filter";
-  ot->description = "Start entering filter text";
+  ot->name = "Show Filter";
+  ot->description = "Shows and starts entering region filter text";
   ot->idname = "UI_OT_region_start_filter";
   ot->exec = region_start_filter_exec;
   ot->poll = region_start_filter_poll;
@@ -3034,25 +3048,21 @@ static wmOperatorStatus region_clear_filter_exec(bContext *C, wmOperator * /*op*
   region->runtime->categories_search_match.clear();
   ED_region_search_filter_update(CTX_wm_area(C), region);
   ED_region_tag_redraw(region);
+  region->flag &= ~RGN_FLAG_SEARCH_FILTER_SHOW;
+  region_panels_sort_for_search_filter_visivility_change(C, region);
   return OPERATOR_FINISHED;
 }
 
 static bool reion_clear_filter_poll(blender::bContext *C)
 {
-  if (!region_start_filter_poll(C)) {
-    return false;
-  }
   ARegion *region = CTX_wm_region(C);
-  if (region->runtime->search_filter == "") {
-    return false;
-  }
-  return true;
+  return region && BKE_region_panel_categories_search_filter_visible(region);
 }
 
 static void UI_OT_region_clear_filter(wmOperatorType *ot)
 {
-  ot->name = "Clear Filter";
-  ot->description = "Clear the search filter";
+  ot->name = "Clear and Hide Filter";
+  ot->description = "Clear and hide the region search filter";
   ot->idname = "UI_OT_region_clear_filter";
   ot->exec = region_clear_filter_exec;
   ot->poll = reion_clear_filter_poll;
