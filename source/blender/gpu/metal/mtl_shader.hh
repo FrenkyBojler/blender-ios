@@ -153,22 +153,18 @@ class MTLShader : public Shader {
    * which contribute to instantiation of a unique PSO. */
   MTLRenderPipelineStateDescriptor current_pipeline_state_;
   /* Cache of compiled PipelineStateObjects. */
-  blender::Map<MTLRenderPipelineStateDescriptor, MTLRenderPipelineStateInstance *> pso_cache_;
+  Map<MTLRenderPipelineStateDescriptor, MTLRenderPipelineStateInstance *> pso_cache_;
   std::mutex pso_cache_lock_;
 
   /** Compute pipeline state and Compute PSO caching. */
   MTLComputePipelineStateCommon compute_pso_common_state_;
-  blender::Map<MTLComputePipelineStateDescriptor, MTLComputePipelineStateInstance *>
-      compute_pso_cache_;
-
-  /* Set to true when batch compiling */
-  bool async_compilation_ = false;
+  Map<MTLComputePipelineStateDescriptor, MTLComputePipelineStateInstance *> compute_pso_cache_;
 
  public:
   MTLShader(MTLContext *ctx, const char *name);
   ~MTLShader();
 
-  void init(const shader::ShaderCreateInfo & /*info*/, bool is_batch_compilation) override;
+  void init(const shader::ShaderCreateInfo & /*info*/, bool /*is_codegen_only*/) override {};
 
   /* Patch create infos for any additional resources that could be needed. */
   const shader::ShaderCreateInfo &patch_create_info(
@@ -285,7 +281,7 @@ class MTLShaderCompiler : public ShaderCompiler {
   MTLShaderCompiler();
 
   Shader *compile_shader(const shader::ShaderCreateInfo &info) override;
-  void specialize_shader(ShaderSpecialization &specialization) override;
+  void specialize_shader(const ShaderSpecialization &specialization) override;
 };
 
 /* Vertex format conversion.

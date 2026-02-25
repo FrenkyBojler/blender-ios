@@ -12,11 +12,12 @@
 #include "mtl_backend.hh"
 #include "mtl_shader_generate.hh"
 
-using namespace blender;
+namespace blender {
+
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
 
-namespace blender::gpu {
+namespace gpu {
 
 struct Separator {};
 
@@ -497,7 +498,7 @@ static void generate_uniforms(GeneratedStreams &generated,
     auto &out = generated.wrapper_class_members;
     out << "  struct PushConstantBlock {\n";
     for (const ShaderCreateInfo::PushConst &uni : uniforms) {
-      /* Subtile workaround to follow sane alignment rules.
+      /* Subtle workaround to follow sane alignment rules.
        * Always use 4 bytes boolean like in GLSL. */
       Type type = (uni.type == Type::bool_t) ? Type::int_t : uni.type;
       out << "    " << type << " " << uni.name << uni.array_str() << ";\n";
@@ -537,7 +538,7 @@ static void generate_uniforms(GeneratedStreams &generated,
 
 static void generate_buffer(GeneratedStreams &generated,
                             const bool writeable,
-                            StringRefNull type,
+                            std::string type,
                             ResourceString name,
                             int slot,
                             const ShaderStage stage)
@@ -703,6 +704,7 @@ static void generate_texture(GeneratedStreams &generated,
 static void generate_resource(GeneratedStreams &generated,
                               const ShaderCreateInfo::Resource &res,
                               const ShaderStage stage,
+                              const ShaderCreateInfo &info,
                               const bool use_sampler_argument_buffer)
 {
   switch (res.bind_type) {
@@ -728,7 +730,7 @@ static void generate_resource(GeneratedStreams &generated,
     case ShaderCreateInfo::Resource::BindType::UNIFORM_BUFFER:
       generate_buffer(generated,
                       false,
-                      res.uniformbuf.type_name,
+                      info.buffer_typename(res.uniformbuf.type_name, true),
                       res.uniformbuf.name,
                       MTL_UBO_SLOT_OFFSET + res.slot,
                       stage);
@@ -736,7 +738,7 @@ static void generate_resource(GeneratedStreams &generated,
     case ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
       generate_buffer(generated,
                       bool(res.storagebuf.qualifiers & shader::Qualifier::write),
-                      res.storagebuf.type_name,
+                      info.buffer_typename(res.storagebuf.type_name),
                       res.storagebuf.name,
                       MTL_SSBO_SLOT_OFFSET + res.slot,
                       stage);
@@ -750,7 +752,7 @@ static void generate_compilation_constant(GeneratedStreams &generated,
   /* Global scope definition before the wrapper class. */
   auto &out = generated.wrapper_class_prefix;
   out << "constant " << constant.type << " " << constant.name;
-  out << " = " << to_string(constant.type, constant.value) << ";\n";
+  out << " [[maybe_unused]] = " << to_string(constant.type, constant.value) << ";\n";
 }
 
 static void generate_specialization_constant(GeneratedStreams &generated,
@@ -831,13 +833,13 @@ void generate_resources(GeneratedStreams &generated,
   }
 
   for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
-    generate_resource(generated, res, stage, use_sampler_argument_buffer);
+    generate_resource(generated, res, stage, info, use_sampler_argument_buffer);
   }
   for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
-    generate_resource(generated, res, stage, use_sampler_argument_buffer);
+    generate_resource(generated, res, stage, info, use_sampler_argument_buffer);
   }
   for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
-    generate_resource(generated, res, stage, use_sampler_argument_buffer);
+    generate_resource(generated, res, stage, info, use_sampler_argument_buffer);
   }
 
   if (use_sampler_argument_buffer) {
@@ -1003,7 +1005,6 @@ static void generate_vertex_out(GeneratedStreams &generated,
     out << "  struct " << out_class_local << " {\n";
     out << builtins_decl;
     for (const StageInterfaceInfo *iface : info.vertex_out_interfaces_) {
-      out << "    /* " << iface->name << " */\n";
       for (const StageInterfaceInfo::InOut &inout : iface->inouts) {
         generate_inout(out, iface->instance_name, inout);
       }
@@ -1360,18 +1361,13 @@ std::pair<std::string, std::string> generate_entry_point(const ShaderCreateInfo 
    * case they are used inside resources declaration. */
   out << "#undef color\n";
   out << "#undef user\n";
+  out << "#pragma blender dead_code_elimination off\n";
 
   out << generated.wrapper_class_members.str();
   out << "\n";
   out << "  " << stage_class_name << "(";
-  if (stage == ShaderStage::COMPUTE) {
-    out << "MSL_SHARED_VARS_ARGS\n"; /* TODO(fclem): Replace by interface. */
-  }
   out << generated.wrapper_constructor_parameters.str() << "\n";
   out << "  ) " << (generated.wrapper_constructor_assign.is_first_arg ? "" : ":");
-  if (stage == ShaderStage::COMPUTE) {
-    out << "MSL_SHARED_VARS_ASSIGN\n"; /* TODO(fclem): Replace by interface. */
-  }
   out << generated.wrapper_constructor_assign.str();
   out << " {}\n";
   out << "};\n\n";
@@ -1400,16 +1396,9 @@ std::pair<std::string, std::string> generate_entry_point(const ShaderCreateInfo 
     out << LINE;
     out << generated.entry_point_start.str();
 
-    if (stage == ShaderStage::COMPUTE) {
-      out << "MSL_SHARED_VARS_DECLARE\n"; /* TODO(fclem): Replace by interface. */
-    }
-
     out << LINE;
     out << "  " << stage_class_name << " " << stage_inst_name;
     out << "  {";
-    if (stage == ShaderStage::COMPUTE) {
-      out << "MSL_SHARED_VARS_PASS\n"; /* TODO(fclem): Replace by interface. */
-    }
     out << generated.wrapper_instance_init.str() << "\n";
     out << "  };\n\n";
 
@@ -1528,4 +1517,5 @@ void patch_create_info_atomic_workaround(std::unique_ptr<PatchedShaderCreateInfo
   }
 }
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

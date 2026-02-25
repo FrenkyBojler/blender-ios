@@ -15,8 +15,8 @@ class NODE_MT_compositor_node_input_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.draw_menu(layout, path="Input/Constant")
         layout.separator()
-        self.node_operator(layout, "NodeGroupInput")
         self.node_operator(layout, "CompositorNodeBokehImage")
+        self.node_operator(layout, "NodeGroupInput")
         self.node_operator(layout, "CompositorNodeImage")
         self.node_operator(layout, "CompositorNodeImageInfo")
         self.node_operator(layout, "CompositorNodeImageCoordinates")
@@ -33,13 +33,18 @@ class NODE_MT_compositor_node_input_base(node_add_menu.NodeMenu):
 
 class NODE_MT_compositor_node_input_constant_base(node_add_menu.NodeMenu):
     bl_label = "Constant"
+    bl_translation_context = i18n_contexts.id_nodetree
     menu_path = "Input/Constant"
 
     def draw(self, _context):
         layout = self.layout
+        self.node_operator(layout, "FunctionNodeInputBool")
         self.node_operator(layout, "CompositorNodeRGB")
-        self.node_operator(layout, "ShaderNodeValue")
+        self.node_operator(layout, "FunctionNodeInputInt")
+        self.node_operator(layout, "FunctionNodeInputMenu")
         self.node_operator(layout, "CompositorNodeNormal")
+        self.node_operator(layout, "ShaderNodeValue")
+        self.node_operator(layout, "FunctionNodeInputVector")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -144,6 +149,7 @@ class NODE_MT_compositor_node_filter_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodeDespeckle")
         layout.separator()
         self.node_operator(layout, "CompositorNodeDilateErode")
+        self.node_operator(layout, "CompositorNodeMaskToSDF")
         self.node_operator(layout, "CompositorNodeInpaint")
         layout.separator()
         self.node_operator_with_searchable_enum_socket(
@@ -278,6 +284,7 @@ class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodeLevels")
         self.node_operator(layout, "CompositorNodeNormalize")
         layout.separator()
+        self.node_operator(layout, "NodeImplicitConversion")
         self.node_operator(layout, "CompositorNodeSplit")
         self.node_operator(layout, "CompositorNodeSwitch")
         self.node_operator(layout, "GeometryNodeIndexSwitch")

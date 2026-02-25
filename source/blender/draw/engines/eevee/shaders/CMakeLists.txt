@@ -29,6 +29,7 @@ set(SRC_GLSL_VERT
   eevee_display_lightprobe_planar_vert.glsl
   eevee_display_lightprobe_sphere_vert.glsl
   eevee_display_lightprobe_volume_vert.glsl
+  eevee_fullscreen_vert.glsl
   eevee_geom_curves_vert.glsl
   eevee_geom_mesh_vert.glsl
   eevee_geom_pointcloud_vert.glsl
@@ -73,6 +74,7 @@ set(SRC_GLSL_FRAG
   eevee_surf_shadow_frag.glsl
   eevee_surf_volume_frag.glsl
   eevee_surf_world_frag.glsl
+  eevee_transparency_resolve_frag.glsl
   eevee_volume_resolve_frag.glsl
 )
 
@@ -112,6 +114,7 @@ set(SRC_GLSL_COMP
   eevee_lightprobe_volume_offset_comp.glsl
   eevee_lightprobe_volume_ray_comp.glsl
   eevee_lightprobe_volume_world_comp.glsl
+  eevee_lookdev_copy_world_comp.glsl
   eevee_lut_comp.glsl
   eevee_motion_blur_dilate_comp.glsl
   eevee_motion_blur_flatten_comp.glsl
@@ -126,10 +129,10 @@ set(SRC_GLSL_COMP
   eevee_ray_trace_planar_comp.glsl
   eevee_ray_trace_screen_comp.glsl
   eevee_shadow_clipmap_clear_comp.glsl
-  eevee_shadow_page_allocate_comp.glsl
+  eevee_shadow_page_allocate.bsl.hh
   eevee_shadow_page_clear_comp.glsl
-  eevee_shadow_page_defrag_comp.glsl
-  eevee_shadow_page_free_comp.glsl
+  eevee_shadow_page_defrag.bsl.hh
+  eevee_shadow_page_free.bsl.hh
   eevee_shadow_page_mask_comp.glsl
   eevee_shadow_tag_update_comp.glsl
   eevee_shadow_tag_usage_comp.glsl
@@ -199,7 +202,7 @@ set(SRC_GLSL_LIB
   eevee_reverse_z_lib.glsl
   eevee_sampling_lib.glsl
   eevee_shadow_lib.glsl
-  eevee_shadow_page_ops_lib.glsl
+  eevee_shadow_page_ops.bsl.hh
   eevee_shadow_tag_usage_lib.glsl
   eevee_shadow_tilemap_lib.glsl
   eevee_shadow_tracing_lib.glsl
