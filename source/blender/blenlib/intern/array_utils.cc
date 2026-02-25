@@ -286,7 +286,7 @@ bool contains(const VArray<bool> &varray, const IndexMask &indices_to_check, con
 
 IndexMask indices_positive(const IndexMask &universe,
                            const Span<int> values,
-                           IndexMaskMemory &memory)
+                           LinearAllocator<> &memory)
 {
   return IndexMask::from_predicate(
       universe, memory, [&](const int i) { return values[i] > -1; }, exec_mode::grain_size(4096));
@@ -295,7 +295,7 @@ IndexMask indices_positive(const IndexMask &universe,
 IndexMask indices_in_range(const IndexMask &universe,
                            const Span<int> values,
                            const int size,
-                           IndexMaskMemory &memory)
+                           LinearAllocator<> &memory)
 {
   return IndexMask::from_predicate(
       universe,
