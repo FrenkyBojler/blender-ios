@@ -24,7 +24,7 @@
 namespace blender {
 
 constexpr toml::spec version = toml::spec::v(1, 1, 0);
-#define BLI_UISTATE_FILE_NAME "uistate.toml"
+#define UISTATE_FILE_NAME "uistate.toml"
 
 toml::value uistate_current;
 toml::value uistate_default;
@@ -39,12 +39,12 @@ static std::string uistate_file_path()
 {
   std::optional<std::string> datafiles_path = BKE_appdir_folder_id(BLENDER_USER_CONFIG, "");
   if (datafiles_path.has_value()) {
-    return *datafiles_path + SEP + BLI_UISTATE_FILE_NAME;
+    return *datafiles_path + SEP + UISTATE_FILE_NAME;
   }
   return {};
 }
 
-static void bli_uistate_print_errors(std::vector<toml::error_info> errors)
+static void uistate_print_errors(std::vector<toml::error_info> errors)
 {
   for (auto error : errors) {
     std::string msg = toml::format_error(error);
@@ -52,7 +52,7 @@ static void bli_uistate_print_errors(std::vector<toml::error_info> errors)
   }
 }
 
-static void bli_uistate_init()
+static void uistate_init()
 {
   /* Load defaults. */
   toml::result result = toml::try_parse_str(default_uistate_toml, version);
@@ -61,7 +61,7 @@ static void bli_uistate_init()
     uistate_default = result.unwrap();
   }
   else {
-    bli_uistate_print_errors(result.unwrap_err());
+    uistate_print_errors(result.unwrap_err());
   }
 
   /* Load from on-disk file if found. */
@@ -73,7 +73,7 @@ static void bli_uistate_init()
       uistate_current = result.unwrap();
     }
     else {
-      bli_uistate_print_errors(result.unwrap_err());
+      uistate_print_errors(result.unwrap_err());
     }
   }
   else {
@@ -82,7 +82,7 @@ static void bli_uistate_init()
       std::lock_guard<Mutex> lock(uistate_mutex);
       uistate_current = uistate_default;
     }
-    BLI_uistate_save();
+    uistate_save();
   }
 
   /* Mark ready and wake any waiters (covers both sync and async init). */
@@ -90,25 +90,25 @@ static void bli_uistate_init()
   uistate_init_cv.notify_all();
 }
 
-void BLI_uistate_init_async()
+void uistate_init_async()
 {
-  /* Ensure we only start one background init thread. `bli_uistate_init()`
+  /* Ensure we only start one background init thread. `uistate_init()`
    * itself sets `uistate_ready` and notifies waiters. */
-  std::call_once(uistate_init_once, []() { std::thread([]() { bli_uistate_init(); }).detach(); });
+  std::call_once(uistate_init_once, []() { std::thread([]() { uistate_init(); }).detach(); });
 }
 
-static void bli_uistate_ensure_init()
+static void uistate_ensure_init()
 {
   if (uistate_ready.load(std::memory_order_acquire)) {
     return;
   }
 
-  printf("WARNING: Waiting for BLI_uistate_init_async() to complete.\n");
+  printf("WARNING: Waiting for uistate_init_async() to complete.\n");
   std::unique_lock<Mutex> lock(uistate_init_mutex);
   uistate_init_cv.wait(lock, [] { return uistate_ready.load(std::memory_order_acquire); });
 }
 
-bool BLI_uistate_save()
+bool uistate_save()
 {
   std::lock_guard<Mutex> lock(uistate_mutex);
   if (uistate_current.is_empty()) {
@@ -126,7 +126,7 @@ bool BLI_uistate_save()
 
 void UIState::remove(const StringRef item)
 {
-  bli_uistate_ensure_init();
+  uistate_ensure_init();
   std::lock_guard<Mutex> lock(uistate_mutex);
 
   if (!uistate_current.is_table()) {
@@ -155,7 +155,7 @@ void UIState::remove(const StringRef item)
 
 void UIState::remove_section()
 {
-  bli_uistate_ensure_init();
+  uistate_ensure_init();
   std::lock_guard<Mutex> lock(uistate_mutex);
   if (section.is_empty() || !uistate_current.is_table()) {
     return;
@@ -166,7 +166,7 @@ void UIState::remove_section()
 
 template<typename T> T UIState::get(const StringRef item) const
 {
-  bli_uistate_ensure_init();
+  uistate_ensure_init();
   std::lock_guard<Mutex> lock(uistate_mutex);
   const std::string sec = section;
   const std::string key = item;
@@ -177,7 +177,7 @@ template<typename T> T UIState::get(const StringRef item) const
 
 template<typename T> void UIState::set(const StringRef item, const T &value)
 {
-  bli_uistate_ensure_init();
+  uistate_ensure_init();
   std::lock_guard<Mutex> lock(uistate_mutex);
   if (section.is_empty()) {
     uistate_current[item] = value;

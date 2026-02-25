@@ -14,8 +14,8 @@
 
 namespace blender {
 
-void BLI_uistate_init_async();
-bool BLI_uistate_save();
+void uistate_init_async();
+bool uistate_save();
 
 struct UIState {
   StringRef section;
