@@ -53,12 +53,12 @@ enum class OperationType {
 };
 
 static EnumPropertyItem operation_types_join[] = {
-    {int(OperationType::Union), "UNION", 0, "Union", "Use a union boolean operation"},
     {int(OperationType::Join),
      "JOIN",
      0,
      "Join",
      "Join the new mesh as separate geometry, without performing any boolean operation"},
+    {int(OperationType::Union), "UNION", 0, "Union", "Use a union boolean operation"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -139,14 +139,14 @@ struct TrimJoinOperation {
   ExtrudeMode extrude_mode;
 };
 
-/* Recalculate the mesh normals for the generated trim/join mesh. */
+/* Recalculate the mesh normals for the generated input mesh. */
 static void update_normals(gesture::GestureData &gesture_data)
 {
   TrimJoinOperation *trim_join_operation = reinterpret_cast<TrimJoinOperation *>(
       gesture_data.operation);
-  Mesh *trim_mesh = trim_join_operation->mesh;
+  Mesh *operation_mesh = trim_join_operation->mesh;
 
-  const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(trim_mesh);
+  const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(operation_mesh);
 
   BMeshCreateParams bm_create_params{};
   bm_create_params.use_toolflags = true;
@@ -155,7 +155,7 @@ static void update_normals(gesture::GestureData &gesture_data)
   BMeshFromMeshParams bm_from_me_params{};
   bm_from_me_params.calc_face_normal = true;
   bm_from_me_params.calc_vert_normal = true;
-  BM_mesh_bm_from_me(bm, trim_mesh, &bm_from_me_params);
+  BM_mesh_bm_from_me(bm, operation_mesh, &bm_from_me_params);
 
   BM_mesh_elem_hflag_enable_all(bm, BM_FACE, BM_ELEM_TAG, false);
   BMO_op_callf(bm,
@@ -166,10 +166,10 @@ static void update_normals(gesture::GestureData &gesture_data)
 
   BMeshToMeshParams convert_params{};
   convert_params.calc_object_remap = false;
-  Mesh *result = BKE_mesh_from_bmesh_nomain(bm, &convert_params, trim_mesh);
+  Mesh *result = BKE_mesh_from_bmesh_nomain(bm, &convert_params, operation_mesh);
 
   BM_mesh_free(bm);
-  BKE_id_free(nullptr, trim_mesh);
+  BKE_id_free(nullptr, operation_mesh);
   trim_join_operation->mesh = result;
 }
 
@@ -524,23 +524,23 @@ static void gesture_begin(bContext &C, wmOperator &op, gesture::GestureData &ges
   undo::geometry_begin(scene, *gesture_data.vc.obact, &op);
 }
 
-static void apply_join_operation(Object &object, Mesh &sculpt_mesh, Mesh &trim_mesh)
+static void apply_join_operation(Object &object, Mesh &sculpt_mesh, Mesh &operation_mesh)
 {
   bke::GeometrySet joined = geometry::join_geometries(
       {bke::GeometrySet::from_mesh(&sculpt_mesh, bke::GeometryOwnershipType::ReadOnly),
-       bke::GeometrySet::from_mesh(&trim_mesh, bke::GeometryOwnershipType::ReadOnly)},
+       bke::GeometrySet::from_mesh(&operation_mesh, bke::GeometryOwnershipType::ReadOnly)},
       {});
   Mesh *result = joined.get_component_for_write<bke::MeshComponent>().release();
   BKE_mesh_nomain_to_mesh(result, &sculpt_mesh, &object);
 }
 
-static void apply_join_trim(gesture::GestureData &gesture_data)
+static void apply(gesture::GestureData &gesture_data)
 {
   TrimJoinOperation *trim_join_operation = reinterpret_cast<TrimJoinOperation *>(
       gesture_data.operation);
   Object *object = gesture_data.vc.obact;
   Mesh &sculpt_mesh = *id_cast<Mesh *>(object->data);
-  Mesh &trim_mesh = *trim_join_operation->mesh;
+  Mesh &operation_mesh = *trim_join_operation->mesh;
 
   geometry::boolean::Operation boolean_op;
   switch (trim_join_operation->mode) {
@@ -554,7 +554,7 @@ static void apply_join_trim(gesture::GestureData &gesture_data)
       boolean_op = geometry::boolean::Operation::Union;
       break;
     case OperationType::Join:
-      apply_join_operation(*object, sculpt_mesh, trim_mesh);
+      apply_join_operation(*object, sculpt_mesh, operation_mesh);
       return;
   }
 
@@ -564,7 +564,7 @@ static void apply_join_trim(gesture::GestureData &gesture_data)
   op_params.watertight = false;
   op_params.no_nested_components = true;
   geometry::boolean::BooleanError error;
-  Mesh *result = geometry::boolean::mesh_boolean({&sculpt_mesh, &trim_mesh},
+  Mesh *result = geometry::boolean::mesh_boolean({&sculpt_mesh, &operation_mesh},
                                                  {float4x4::identity(), float4x4::identity()},
                                                  {Array<short>(), Array<short>()},
                                                  op_params,
@@ -598,13 +598,13 @@ static void gesture_apply_for_symmetry_pass(bContext & /*C*/, gesture::GestureDa
 {
   TrimJoinOperation *trim_join_operation = reinterpret_cast<TrimJoinOperation *>(
       gesture_data.operation);
-  Mesh *trim_mesh = trim_join_operation->mesh;
-  MutableSpan<float3> positions = trim_mesh->vert_positions_for_write();
-  for (int i = 0; i < trim_mesh->verts_num; i++) {
+  Mesh *operation_mesh = trim_join_operation->mesh;
+  MutableSpan<float3> positions = operation_mesh->vert_positions_for_write();
+  for (int i = 0; i < operation_mesh->verts_num; i++) {
     positions[i] = symmetry_flip(trim_join_operation->true_mesh_co[i], gesture_data.symmpass);
   }
   update_normals(gesture_data);
-  apply_join_trim(gesture_data);
+  apply(gesture_data);
 }
 
 static void free_geometry(gesture::GestureData &gesture_data)
@@ -979,14 +979,10 @@ void SCULPT_OT_trim_polyline_gesture(wmOperatorType *ot)
   operator_properties(ot);
 }
 
-void operator_properties_join_mode(wmOperatorType *ot)
+static void operator_properties_join_mode(wmOperatorType *ot)
 {
-  RNA_def_enum(ot->srna,
-               "join_mode",
-               operation_types_join,
-               int(OperationType::Union),
-               "Join Mode",
-               nullptr);
+  RNA_def_enum(
+      ot->srna, "join_mode", operation_types_join, int(OperationType::Join), "Join Mode", nullptr);
 }
 
 void SCULPT_OT_join_box_gesture(wmOperatorType *ot)
