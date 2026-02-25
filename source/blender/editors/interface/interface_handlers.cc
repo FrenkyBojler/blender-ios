@@ -1205,7 +1205,8 @@ static void ui_apply_but_funcs_after(bContext *C)
       WM_operator_stack_clear(CTX_wm_manager(C));
       if (after.use_undo_grouped) {
         ED_undo_grouped_push(C, after.undostr);
-      } else {
+      }
+      else {
         ED_undo_push(C, after.undostr);
       }
     }
