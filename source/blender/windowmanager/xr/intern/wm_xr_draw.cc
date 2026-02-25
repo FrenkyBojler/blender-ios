@@ -39,6 +39,8 @@
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"
 
+#include "IMB_imbuf.hh"
+
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
@@ -354,7 +356,8 @@ static void wm_xr_draw_viewport_buffers_to_active_framebuffer(
   GPU_viewport_draw_to_screen_ex(vp->viewport, 0, &rect, draw_view->expects_srgb_buffer, true);
 }
 
-static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
+static void wm_xr_draw_viewfinder_view_texture(const GHOST_XrDrawViewInfo *draw_view,
+                                               void *customdata)
 {
   wmXrDrawData *draw_data = static_cast<wmXrDrawData *>(customdata);
   wmXrData *xr_data = draw_data->xr_data;
@@ -514,7 +517,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   /* Some systems have drawing glitches without this. */
   GPU_clear_depth(1.0f);
 
-  wm_xr_draw_viewfinder_texture(draw_view, customdata);
+  wm_xr_draw_viewfinder_view_texture(draw_view, customdata);
 
   /* Draws the view into the surface_data->viewport's frame-buffers. */
   ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
@@ -807,7 +810,7 @@ static ui::Block *viewfinder_missing_captures_label_ui_block(const bContext *C,
 
 static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
                                                         const wmXrSessionState *state,
-                                                        const rctf viewfinder_rect)
+                                                        const rctf &viewfinder_rect)
 {
   /* Create a fake context to trick the UI drawing code in drawing in places it shouldn't be. */
   bContext *fake_C = CTX_copy(C);
@@ -850,12 +853,13 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   draw_block(viewfinder_missing_captures_label_ui_block, captures_label_x, captures_label_y);
 }
 
-static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect)
+// TODO: Remove from global scope once the outline color is more dynamic and this is just used for the logo.
+static constexpr float viewfinder_outline_color[4] = {0.26f, 0.26f, 0.26f, 0.2f};
+
+static void wm_xr_controller_viewfinder_draw_overlays(const rctf &viewfinder_rect)
 {
   float background_col[3];
   ui::theme::get_color_3fv(TH_TAB_ACTIVE, background_col);
-
-  const float outline_col[4] = {0.26f, 0.26f, 0.26f, 0.2f};
 
   rctf background_rect = viewfinder_rect;
   BLI_rctf_pad(&background_rect, 0.2f, 0.6f);
@@ -885,14 +889,37 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
 
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
   GPU_matrix_translate_3f(0.0f, 0.0f, 0.5f);
-  ui::draw_roundbox_4fv(&outline_rect, true, 0, outline_col);
+  ui::draw_roundbox_4fv(&outline_rect, true, 0, viewfinder_outline_color);
 
   GPU_matrix_pop();
 }
 
-static void wm_xr_controller_viewfinder_draw_view_texture(const bContext *C,
-                                                          const wmXrSessionState *state,
-                                                          const rctf viewfinder_rect)
+static void wm_xr_controller_viewfinder_draw_texture(gpu::Texture *texture,
+                                                     const rctf &rect,
+                                                     const rctf &uv,
+                                                     const float color[4])
+{
+  GPUVertFormat *format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
+  uint texco = GPU_vertformat_attr_add(format, "texCoord", gpu::VertAttrType::SFLOAT_32_32);
+
+  GPU_blend(GPU_BLEND_ALPHA_PREMULT);
+  immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
+
+  immUniformColor4fv(color);
+
+  GPUSamplerExtendMode extend = GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
+  immBindTextureSampler("image", texture, {GPU_SAMPLER_FILTERING_LINEAR, extend, extend});
+
+  immRectf_with_texco(pos, texco, rect, uv);
+
+  GPU_blend(GPU_BLEND_NONE);
+  immUnbindProgram();
+}
+
+static void wm_xr_controller_viewfinder_draw_view(const bContext *C,
+                                                  const wmXrSessionState *state,
+                                                  const rctf &viewfinder_rect)
 {
   PointerRNA scene_ptr = RNA_id_pointer_create(&CTX_data_scene(C)->id);
   const bool empty_captures = wm_xr_is_location_scouting_captures_empty(CTX_data_scene(C));
@@ -904,32 +931,33 @@ static void wm_xr_controller_viewfinder_draw_view_texture(const bContext *C,
   /* Obtain the Viewfinder view texture we computed in `wm_xr_draw_view()`. */
   blender::gpu::Texture *view_tex = GPU_offscreen_color_texture(g_viewfinder_offscreen);
 
-  GPUVertFormat *view_text_format = immVertexFormat();
-  uint view_tex_pos = GPU_vertformat_attr_add(
-      view_text_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-  uint view_tex_coord = GPU_vertformat_attr_add(
-      view_text_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
-
-  GPU_blend(GPU_BLEND_ALPHA_PREMULT);
-
-  immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
-
+  const rctf tex_uv = {0.0f, 1.0f, 0.0f, 1.0f};
   const float tex_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-  immUniformColor4fv(tex_color);
 
-  GPUSamplerExtendMode extend_mode = GPU_SAMPLER_EXTEND_MODE_REPEAT;
-  immBindTextureSampler(
-      "image", view_tex, {GPU_SAMPLER_FILTERING_LINEAR, extend_mode, extend_mode});
-
-  immRectf_with_texco(view_tex_pos, view_tex_coord, viewfinder_rect, rctf{0.0f, 1.0f, 0.0f, 1.0f});
-
-  GPU_blend(GPU_BLEND_NONE);
-
-  immUnbindProgram();
+  wm_xr_controller_viewfinder_draw_texture(view_tex, viewfinder_rect, tex_uv, tex_color);
 }
 
-static void wm_xr_controller_viewfinder_draw_view_flash(wmXrSessionState *state,
-                                                        const rctf viewfinder_rect)
+static void wm_xr_controller_viewfinder_draw_backside_logo(const wmXrSessionState *state,
+                                                           const rctf &viewfinder_rect)
+{
+  gpu::Texture *logo_tex = state->viewfinder.runtime_blender_logo_tex;
+
+  /* Fit logo within viewfinder while maintaining aspect ratio. */
+  const float logo_aspect = GPU_texture_width(logo_tex) / GPU_texture_height(logo_tex);
+  const float logo_width = BLI_rctf_size_x(&viewfinder_rect);
+  const float logo_height = BLI_rctf_size_y(&viewfinder_rect);
+  const float width = min_ff(logo_width, logo_height * logo_aspect);
+
+  rctf logo_rect = viewfinder_rect;
+  BLI_rctf_resize(&logo_rect, width, width / logo_aspect);
+
+  /* Flip UV coords for horizontal mirror to draw on the backside of the viewfinder. */
+  const rctf tex_uv = {1.0f, 0.0f, 0.0f, 1.0f};
+  wm_xr_controller_viewfinder_draw_texture(logo_tex, logo_rect, tex_uv, viewfinder_outline_color);
+}
+
+static void wm_xr_controller_viewfinder_draw_capture_flash(wmXrSessionState *state,
+                                                           const rctf &viewfinder_rect)
 {
   /* Do not apply the flash effect if we're in playback mode. */
   if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
@@ -991,19 +1019,22 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   GPU_matrix_mul(viewfinder_mat);
   GPU_matrix_scale_1f(xr_ui_unit_fac);
 
-  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
-
   /* Main background overlays. */
   wm_xr_controller_viewfinder_draw_overlays(viewfinder_rect);
 
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
   GPU_depth_mask(false);
 
   /* Viewfinder View texture and flash. */
-  wm_xr_controller_viewfinder_draw_view_texture(C, state, viewfinder_rect);
-  wm_xr_controller_viewfinder_draw_view_flash(state, viewfinder_rect);
+  wm_xr_controller_viewfinder_draw_view(C, state, viewfinder_rect);
+  wm_xr_controller_viewfinder_draw_capture_flash(state, viewfinder_rect);
 
   /* UI Widgets. */
   wm_xr_controller_viewfinder_draw_ui_widgets(C, state, viewfinder_rect);
+
+  /* Blender logo on the back side of the viewfinder. */
+  GPU_matrix_translate_3f(0.0f, 0.0f, -0.2f);
+  wm_xr_controller_viewfinder_draw_backside_logo(state, viewfinder_rect);
 
   GPU_depth_mask(true);
   GPU_depth_test(GPU_DEPTH_NONE);

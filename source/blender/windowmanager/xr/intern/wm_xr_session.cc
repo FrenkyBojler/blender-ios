@@ -39,6 +39,11 @@
 #include "GPU_batch.hh"
 #include "GPU_viewport.hh"
 
+#include "IMB_imbuf.hh"
+
+#include "UI_interface_icons.hh"
+#include "UI_resources.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "WM_api.hh"
@@ -97,6 +102,9 @@ void wm_xr_session_data_free(wmXrSessionState *state)
 {
   wm_xr_session_controller_data_free(state);
   BKE_id_free(nullptr, id_cast<ID *>(state->viewfinder.runtime_cam_data_id));
+  if (state->viewfinder.runtime_blender_logo_tex != nullptr) {
+    GPU_texture_free(state->viewfinder.runtime_blender_logo_tex);
+  }
 }
 
 static void wm_xr_session_exit_cb(void *customdata)
@@ -808,6 +816,15 @@ void WM_xr_session_state_viewfinder_reset(wmXrSessionState *state)
    * This ID is freed in #wm_xr_session_data_free. */
   if (state->viewfinder.runtime_cam_data_id == nullptr) {
     state->viewfinder.runtime_cam_data_id = BKE_id_new_nomain<Camera>("ViewfinderCamera");
+  }
+  /* Create a Blender logo texture to draw on the backside of the viewfinder. */
+  if (state->viewfinder.runtime_blender_logo_tex == nullptr) {
+    ImBuf *ibuf = ui::svg_icon_bitmap(ICON_BLENDER, 256.0f, false);
+    if (ibuf) {
+      state->viewfinder.runtime_blender_logo_tex = IMB_create_gpu_texture(
+          "viewfinder_backside_logo", ibuf, false, true);
+    }
+    IMB_freeImBuf(ibuf);
   }
 
   /* Capture settings. */

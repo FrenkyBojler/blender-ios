@@ -31,6 +31,10 @@ struct wmXrActionSet;
 struct wmXrController;
 struct wmXrData;
 
+namespace gpu {
+  class Texture;
+}
+
 // TODO: eventually move to its own header file with its enums
 struct wmXrViewfinderState {
   float capture_position[3];
@@ -38,6 +42,7 @@ struct wmXrViewfinderState {
 
   /* Runtime values. */
   Camera *runtime_cam_data_id;
+  gpu::Texture *runtime_blender_logo_tex;
   float runtime_capture_flash;
   double runtime_smoothing_delta_t;
 
