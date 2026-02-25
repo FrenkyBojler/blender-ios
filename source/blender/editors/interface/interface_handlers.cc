@@ -4815,7 +4815,10 @@ static int ui_do_but_BUT(bContext *C, Button *but, HandleButtonData *data, const
     }
   }
 #endif
-
+  if (!data->changed_cursor && but->type == ButtonType::Link) {
+    WM_cursor_set(data->window, WM_CURSOR_HAND_POINT);
+    data->changed_cursor = true;
+  }
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
       button_activate_state(C, but, BUTTON_STATE_WAIT_RELEASE);

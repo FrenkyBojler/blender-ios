@@ -1684,7 +1684,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
 
   func = RNA_def_function(srna, "link", "rna_layout_link");
-  RNA_def_function_ui_description(func, "Item. Displays a click-able link in the layout.");
+  RNA_def_function_ui_description(func, "Item. Displays a url that can be clicked in the layout.");
   prop = RNA_def_string(func, "url", nullptr, 0, "", "");
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   prop = RNA_def_string(func, "text", nullptr, 0, "", "Override automatic text of the item");

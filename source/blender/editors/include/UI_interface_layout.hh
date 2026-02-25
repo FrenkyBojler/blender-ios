@@ -407,7 +407,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
   void label(StringRef name, int icon);
 
   /**
-   * Adds clickable link item, that will open an url in the system's default web browser on click.
+   * Adds link item, displays a url that can be clicked in the layout.
    */
   void link(StringRef url, StringRef name, int icon);
 
