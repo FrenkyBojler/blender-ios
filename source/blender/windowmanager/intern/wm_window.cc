@@ -458,49 +458,84 @@ void wm_quit_with_optional_confirmation_prompt(bContext *C, wmWindow *win)
 /** \name Window Close
  * \{ */
 
-static void save_window_bounds_settings(wmWindow *win)
+static std::string get_window_uistate_key(eSpace_Type space_type)
 {
-  if (win->runtime->uistate_key.empty()) {
+  if (space_type == SPACE_IMAGE) {
+    return "image";
+  }
+  else if (space_type == SPACE_USERPREF) {
+    return "userpref";
+  }
+  else if (space_type == SPACE_GRAPH) {
+    return "graph";
+  }
+  else if (space_type == SPACE_INFO) {
+    return "info";
+  }
+  else if (space_type == SPACE_OUTLINER) {
+    return "outliner";
+  }
+  else if (space_type == SPACE_FILE) {
+    return "file";
+  }
+  return {};
+}
+
+static bool wm_window_is_last_main_window(wmWindowManager *wm, wmWindow *win)
+{
+  if (win->parent) {
+    return false;
+  }
+  wmWindow *win_other;
+  for (win_other = static_cast<wmWindow *>(wm->windows.first); win_other;
+       win_other = win_other->next)
+  {
+    if (win_other != win && win_other->parent == nullptr && !WM_window_is_temp_screen(win_other)) {
+      return false;
+    }
+  }
+  /* This window is the last. */
+  return true;
+}
+
+void wm_window_close_request(bContext *C, wmWindowManager *wm, wmWindow *win)
+{
+  /* First check if there is another main window remaining. */
+  if (wm_window_is_last_main_window(wm, win)) {
+    wm_quit_with_optional_confirmation_prompt(C, win);
     return;
   }
 
-  /* Get DPI and scale from parent window, if there is one. */
-  WM_window_dpi_set_userdef(win->parent ? win->parent : win);
-  GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
-  const float f = ghost_window->getNativePixelSize();
-  std::vector<float> bounds = {
-      float(win->posx) * f / UI_SCALE_FAC,
-      float(win->posx) * f / UI_SCALE_FAC + float(win->sizex) * f / UI_SCALE_FAC,
-      float(win->posy) * f / UI_SCALE_FAC,
-      float(win->posy) * f / UI_SCALE_FAC + float(win->sizey) * f / UI_SCALE_FAC};
+  if (!(WM_window_is_maximized(win) || WM_window_is_fullscreen(win)) &&
+      /* While unlikely, don't crash if the window wasn't initialized properly. */
+      (win->runtime->ghostwin != nullptr))
+  {
+    bScreen *screen = WM_window_get_active_screen(win);
+    if (screen && screen->temp && BLI_listbase_is_single(&screen->areabase)) {
+      if (!win->runtime->uistate_key.empty()) {
+        /* Get DPI and scale from parent window, if there is one. */
+        WM_window_dpi_set_userdef(win->parent ? win->parent : win);
 
-  UIState uistate("window.dimensions");
-  uistate[win->runtime->uistate_key] = bounds;
+        GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
+        const float fac = ghost_window->getNativePixelSize() / UI_SCALE_FAC;
+
+	      std::vector<float> bounds = {
+            float(win->posx) * fac,
+            float(win->posx) * fac + float(win->sizex) * fac,
+            float(win->posy) * fac,
+            float(win->posy) * fac + float(win->sizey) * fac};
+        UIState uistate("window.dimensions");
+        uistate[win->runtime->uistate_key] = bounds;
+      }
+    }
+  }
+
+  wm_window_close(C, wm, win);
 }
 
 void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 {
   bScreen *screen = WM_window_get_active_screen(win);
-
-  if (!win->runtime->uistate_key.empty() && !WM_window_is_maximized(win)) {
-    save_window_bounds_settings(win);
-  }
-
-  wmWindow *win_other;
-
-  /* First check if there is another main window remaining. */
-  for (win_other = static_cast<wmWindow *>(wm->windows.first); win_other;
-       win_other = win_other->next)
-  {
-    if (win_other != win && win_other->parent == nullptr && !WM_window_is_temp_screen(win_other)) {
-      break;
-    }
-  }
-
-  if (win->parent == nullptr && win_other == nullptr) {
-    wm_quit_with_optional_confirmation_prompt(C, win);
-    return;
-  }
 
   /* Close child windows. */
   for (wmWindow &iter_win : wm->windows.items_mutable()) {
@@ -1394,43 +1429,17 @@ wmWindow *WM_window_open(bContext *C,
   return nullptr;
 }
 
-static std::string get_window_uistate_key(eSpace_Type space_type)
-{
-  if (space_type == SPACE_IMAGE) {
-    return "image";
-  }
-  else if (space_type == SPACE_USERPREF) {
-    return "userpref";
-  }
-  else if (space_type == SPACE_GRAPH) {
-    return "graph";
-  }
-  else if (space_type == SPACE_INFO) {
-    return "info";
-  }
-  else if (space_type == SPACE_OUTLINER) {
-    return "outliner";
-  }
-  else if (space_type == SPACE_FILE) {
-    return "file";
-  }
-  return {};
-}
-
 wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bool dialog)
 {
   rcti rect;
   WM_window_dpi_set_userdef(CTX_wm_window(C));
   eWindowAlignment align;
-
   std::string key = get_window_uistate_key(eSpace_Type(space_type));
   UIState uistate("window.dimensions");
   std::vector<float> bounds = uistate[key];
-
   const bool bounds_valid = (bounds.size() == 4 && (bounds[1] - bounds[0] > 150.0f) &&
                              (bounds[3] - bounds[2] > 100.0f));
   const bool mm_placement = WM_capabilities_flag() & WM_CAPABILITY_MULTIMONITOR_PLACEMENT;
-
   if (bounds_valid && mm_placement) {
     rect.xmin = int(bounds[0] * UI_SCALE_FAC);
     rect.xmax = int(bounds[1] * UI_SCALE_FAC);
@@ -1453,7 +1462,6 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
 
   wmWindow *win = WM_window_open(
       C, title, &rect, space_type, false, dialog, true, align, nullptr, nullptr);
-
   win->runtime->uistate_key = key;
   return win;
 }
@@ -1468,7 +1476,7 @@ wmOperatorStatus wm_window_close_exec(bContext *C, wmOperator * /*op*/)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
-  wm_window_close(C, wm, win);
+  wm_window_close_request(C, wm, win);
   return OPERATOR_FINISHED;
 }
 
@@ -1848,7 +1856,7 @@ static bool ghost_event_proc(const GHOST_IEvent *ghost_event, GHOST_TUserDataPtr
       break;
     }
     case GHOST_kEventWindowClose: {
-      wm_window_close(C, wm, win);
+      wm_window_close_request(C, wm, win);
       break;
     }
     case GHOST_kEventWindowUpdate: {
