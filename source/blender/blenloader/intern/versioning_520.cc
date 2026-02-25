@@ -83,8 +83,19 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
   }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 5)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
+      for (bNode &node : node_tree->nodes) {
+        if (node.type_legacy == FN_NODE_INPUT_VECTOR) {
+          auto &data = *static_cast<NodeInputVector *>(node.storage);
+          data.vector[3] = 0.0f;
+          data.dimensions = 3;
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 6)) {
     for (Material &materials : bmain->materials) {
       if (materials.gp_style != nullptr) {
         materials.gp_style->placement_mode = GP_MATERIAL_PLACEMENT_SINGLE;
