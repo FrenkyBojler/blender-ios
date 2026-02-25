@@ -105,6 +105,18 @@ class SEQUENCER_HT_header(Header):
         if sequencer_tool_settings and st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
             row = layout.row(align=True)
             row.prop(sequencer_tool_settings, "overlap_mode", text="")
+            sequence_editor = context.sequencer_scene.sequence_editor if context.sequencer_scene else None
+            if sequence_editor:
+                icon = 'REC'
+                text = "Start Recording"
+                if sequence_editor.voiceover_is_recording:
+                    icon = 'SNAP_FACE'
+                    text = (
+                        str(sequence_editor.voiceover_countdown)
+                        if sequence_editor.voiceover_countdown > 0
+                        else "Stop Recording"
+                    )
+                row.operator("sequencer.voiceover_record", text=text, icon=icon)
 
         if tool_settings:
             row = layout.row(align=True)
@@ -1594,6 +1606,77 @@ class SEQUENCER_MT_color_tag_picker(SequencerColorTagPicker, Menu):
         row.operator_enum("sequencer.strip_color_tag_set", "color", icon_only=True)
 
 
+class SEQUENCER_PT_voiceover(SequencerButtonsPanel, Panel):
+    bl_label = "Voiceover"
+    bl_category = "Voiceover"
+
+    @classmethod
+    def poll(cls, context):
+        return cls.has_sequencer(context) and context.sequencer_scene and context.sequencer_scene.sequence_editor
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        ed = context.sequencer_scene.sequence_editor
+        icon = 'REC'
+        text = "Start Recording"
+        if ed.voiceover_is_recording:
+            icon = 'SNAP_FACE'
+            text = str(ed.voiceover_countdown) if ed.voiceover_countdown > 0 else "Stop Recording"
+        layout.operator("sequencer.voiceover_record", text=text, icon=icon)
+
+        col = layout.column()
+        col.prop(ed, "voiceover_mute_sound")
+        col.prop(ed, "voiceover_pre_roll")
+        col.prop(ed, "voiceover_channel")
+
+
+class SEQUENCER_PT_voiceover_input(SequencerButtonsPanel, Panel):
+    bl_label = "Input"
+    bl_category = "Voiceover"
+    bl_parent_id = "SEQUENCER_PT_voiceover"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return cls.has_sequencer(context) and context.sequencer_scene and context.sequencer_scene.sequence_editor
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        ed = context.sequencer_scene.sequence_editor
+        layout.prop(ed, "voiceover_input_device")
+        layout.prop(ed, "voiceover_gain")
+
+
+class SEQUENCER_PT_voiceover_output(SequencerButtonsPanel, Panel):
+    bl_label = "Output"
+    bl_category = "Voiceover"
+    bl_parent_id = "SEQUENCER_PT_voiceover"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return cls.has_sequencer(context) and context.sequencer_scene and context.sequencer_scene.sequence_editor
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        ed = context.sequencer_scene.sequence_editor
+        layout.prop(ed, "voiceover_directory")
+        layout.prop(ed, "voiceover_filename")
+        layout.prop(ed, "voiceover_audio_codec")
+        layout.prop(ed, "voiceover_audio_channels")
+        layout.prop(ed, "voiceover_sample_rate")
+        layout.prop(ed, "voiceover_bitrate")
+
+
 class SEQUENCER_PT_cache_settings(SequencerButtonsPanel, Panel):
     bl_label = "Cache Settings"
     bl_category = "Cache"
@@ -2110,6 +2193,9 @@ classes = (
     SEQUENCER_PT_sequencer_overlay_thumbnails,
     SEQUENCER_PT_sequencer_overlay_waveforms,
 
+    SEQUENCER_PT_voiceover,
+    SEQUENCER_PT_voiceover_input,
+    SEQUENCER_PT_voiceover_output,
 
     SEQUENCER_PT_cache_settings,
     SEQUENCER_PT_cache_view_settings,

@@ -36,6 +36,7 @@ set(SRC
   sequencer_text_edit.cc
   sequencer_thumbnails.cc
   sequencer_timeline_draw.cc
+  sequencer_voiceover.cc
   sequencer_view.cc
   space_sequencer.cc
 
