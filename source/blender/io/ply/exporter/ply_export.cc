@@ -61,8 +61,7 @@ void exporter_main(bContext *C, const PLYExportParams &export_params)
   else {
     DEG_graph_build_from_view_layer(depsgraph);
   }
-
-  BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   load_plydata(*plyData, depsgraph, export_params);
 

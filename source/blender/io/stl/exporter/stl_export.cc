@@ -185,7 +185,7 @@ void exporter_main(const bContext *C, const STLExportParams &export_params)
   else {
     DEG_graph_build_from_view_layer(depsgraph);
   }
-  BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   float scene_unit_scale = 1.0f;
   if ((scene->unit.system != USER_UNIT_NONE) && export_params.use_scene_unit) {
