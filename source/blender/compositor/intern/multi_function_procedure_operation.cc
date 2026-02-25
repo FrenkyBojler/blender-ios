@@ -11,6 +11,7 @@
 #include "BLI_index_mask.hh"
 #include "BLI_map.hh"
 #include "BLI_math_base.hh"
+#include "BLI_math_euler.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -281,6 +282,14 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(
     case SOCK_STRING: {
       const std::string value = input.default_value_typed<bNodeSocketValueString>()->value;
       constant_function = &procedure_.construct_function<mf::CustomMF_Constant<std::string>>(
+          value);
+      break;
+    }
+    case SOCK_ROTATION: {
+      const bNodeSocketValueRotation *vec = input.default_value_typed<bNodeSocketValueRotation>();
+      const math::EulerXYZ euler(float3(vec->value_euler));
+      const math::Quaternion value = math::to_quaternion(euler);
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<math::Quaternion>>(
           value);
       break;
     }

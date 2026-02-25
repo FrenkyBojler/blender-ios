@@ -51,17 +51,22 @@ class AxesToRotationFunction : public mf::MultiFunction {
   math::Axis primary_axis_;
   math::Axis secondary_axis_;
   math::Axis tertiary_axis_;
+  bool use_identity_;
 
  public:
-  AxesToRotationFunction(const math::Axis primary_axis, const math::Axis secondary_axis)
-      : primary_axis_(primary_axis), secondary_axis_(secondary_axis)
+  AxesToRotationFunction(const math::Axis primary_axis,
+                         const math::Axis secondary_axis,
+                         const bool use_identity = false)
+      : primary_axis_(primary_axis), secondary_axis_(secondary_axis), use_identity_(use_identity)
   {
-    BLI_assert(primary_axis_ != secondary_axis_);
+    BLI_assert(use_identity_ || primary_axis_ != secondary_axis_);
 
     /* Through cancellation this will set the last axis to be the one that's neither the primary
      * nor secondary axis. */
-    tertiary_axis_ = math::Axis::from_int((0 + 1 + 2) - primary_axis.as_int() -
-                                          secondary_axis.as_int());
+    if (!use_identity_) {
+      tertiary_axis_ = math::Axis::from_int((0 + 1 + 2) - primary_axis.as_int() -
+                                            secondary_axis.as_int());
+    }
 
     static const mf::Signature signature = []() {
       mf::Signature signature;
@@ -76,9 +81,15 @@ class AxesToRotationFunction : public mf::MultiFunction {
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
+    MutableSpan r_rotations = params.uninitialized_single_output<math::Quaternion>(2, "Rotation");
+
+    if (use_identity_) {
+      mask.foreach_index([&](const int64_t i) { r_rotations[i] = math::Quaternion::identity(); });
+      return;
+    }
+
     const VArray<float3> primaries = params.readonly_single_input<float3>(0, "Primary");
     const VArray<float3> secondaries = params.readonly_single_input<float3>(1, "Secondary");
-    MutableSpan r_rotations = params.uninitialized_single_output<math::Quaternion>(2, "Rotation");
 
     /* Might have to invert the axis to make sure that the created matrix has determinant 1. */
     const bool invert_tertiary = (secondary_axis_.as_int() + 1) % 3 == primary_axis_.as_int();
@@ -131,10 +142,13 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   const bNode &node = builder.node();
   if (node.custom1 == node.custom2) {
-    return;
+    builder.construct_and_set_matching_fn<AxesToRotationFunction>(
+        math::Axis::from_int(node.custom1), math::Axis::from_int(node.custom2), true);
   }
-  builder.construct_and_set_matching_fn<AxesToRotationFunction>(
-      math::Axis::from_int(node.custom1), math::Axis::from_int(node.custom2));
+  else {
+    builder.construct_and_set_matching_fn<AxesToRotationFunction>(
+        math::Axis::from_int(node.custom1), math::Axis::from_int(node.custom2));
+  }
 }
 
 static void node_extra_info(NodeExtraInfoParams &params)
@@ -175,7 +189,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  fn_node_type_base(&ntype, "FunctionNodeAxesToRotation", FN_NODE_AXES_TO_ROTATION);
+  fn_cmp_node_type_base(&ntype, "FunctionNodeAxesToRotation", FN_NODE_AXES_TO_ROTATION);
   ntype.ui_name = "Axes to Rotation";
   ntype.ui_description =
       "Create a rotation from a primary and (ideally orthogonal) secondary axis";
