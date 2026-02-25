@@ -392,7 +392,7 @@ struct bNodeTreeInterfaceItemReference {
  */
 bNode *create_proxy_const_input_node(eNodeSocketDatatype socket_type,
                                      const bNodeTree &src_tree,
-                                     const bNodeSocket *src_socket,
+                                     const bNodeSocket &src_socket,
                                      bContext &C,
                                      bNodeTree &dst_tree,
                                      Vector<AnimationBasePathChange> &anim_basepaths);

@@ -877,7 +877,7 @@ static bNode *create_proxy_input_node(const bNodeTreeInterfaceSocket &io_socket,
   }
 
   if (bNode *proxy_node = bke::node_interface::create_proxy_const_input_node(
-          socket_type, src_tree, src_socket, C, dst_tree, anim_basepaths))
+          socket_type, src_tree, *src_socket, C, dst_tree, anim_basepaths))
   {
     return proxy_node;
   }
