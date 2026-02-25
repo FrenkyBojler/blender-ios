@@ -21,6 +21,7 @@
 #include "BLI_task.hh"
 
 #include "GEO_foreach_geometry.hh"
+#include "GEO_resample_curves.hh"
 
 #include "NOD_socket_usage_inference.hh"
 
@@ -222,8 +223,6 @@ struct IntersectingLineInfo {
   float3 closest_cd;
   float lambda_ab;
   float lambda_cd;
-  float radius_ab;
-  float radius_cd;
   float distance;
   bool is_intersection;
 };
@@ -235,12 +234,12 @@ struct Segment {
   float3 orig_start;
   float3 orig_end;
   float3 direction;
-  float radius_start;
-  float radius_end;
+  float dist_start;
+  float dist_end;
   float len_start;
   float len_end;
   float curve_length;
-  int pos_index;
+  int2 pos_index;
   int seg_index;
   int curve_id;
   int curve_index;
@@ -254,7 +253,6 @@ struct IntersectionData {
   Vector<int> pos_index_b;
   Vector<float> lambda;
   Vector<float3> position;
-  Vector<float> radius;
   Vector<int> curve_index;
   Vector<float3> direction;
   Vector<float> factor;
@@ -273,7 +271,6 @@ static void add_intersection_data(IntersectionData &data,
                                   const int2 pos_index,
                                   const float lambda,
                                   const float3 position,
-                                  const float radius,
                                   const int curve_index,
                                   const float3 direction,
                                   const float length,
@@ -291,7 +288,6 @@ static void add_intersection_data(IntersectionData &data,
   const float sortkey = float(curve_index * 2) + factor;
   data.sortkey.append(sortkey);
   data.position.append(position);
-  data.radius.append(radius);
 
   data.pos_index_a.append(pos_index.x);
   data.pos_index_b.append(pos_index.y);
@@ -339,7 +335,6 @@ static void gather_thread_storage(ThreadLocalData &thread_storage,
     const int64_t local_size = local_data.position.size();
     BLI_assert(local_data.sortkey.size() == local_size);
     BLI_assert(attribute_outputs.curve_index && local_data.curve_index.size() == local_size);
-    BLI_assert(local_data.position.size() == local_data.radius.size());
     BLI_assert(attribute_outputs.hash && local_data.hash.size() == local_size);
     BLI_assert(attribute_outputs.factor && local_data.factor.size() == local_size);
     BLI_assert(attribute_outputs.length && local_data.length.size() == local_size);
@@ -354,7 +349,6 @@ static void gather_thread_storage(ThreadLocalData &thread_storage,
   const int64_t start_index = r_data.position.size();
   const int64_t new_size = start_index + total_intersections;
   r_data.position.reserve(new_size);
-  r_data.radius.reserve(new_size);
   r_data.sortkey.reserve(new_size);
 
   r_data.pos_index_a.reserve(new_size);
@@ -394,7 +388,6 @@ static void gather_thread_storage(ThreadLocalData &thread_storage,
 
   for (IntersectionData &local_data : thread_storage) {
     r_data.position.extend(local_data.position);
-    r_data.radius.extend(local_data.radius);
     r_data.sortkey.extend(local_data.sortkey);
 
     r_data.pos_index_a.extend(local_data.pos_index_a);
@@ -450,7 +443,7 @@ static bool discard_angle(const float3 an,
 static IntersectingLineInfo intersecting_lines(const Segment &ab,
                                                const Segment &cd,
                                                const float distance,
-                                               const bool use_radius)
+                                               const bool use_distance_field)
 {
   IntersectingLineInfo isectinfo{};
   isectinfo.is_intersection = false;
@@ -481,14 +474,15 @@ static IntersectingLineInfo intersecting_lines(const Segment &ab,
 
     isectinfo.lambda_ab = math::clamp(isectinfo.lambda_ab, 0.0f, 1.0f);
     isectinfo.lambda_cd = math::clamp(isectinfo.lambda_cd, 0.0f, 1.0f);
-    isectinfo.radius_ab = math::interpolate(ab.radius_start, ab.radius_end, isectinfo.lambda_ab);
-    isectinfo.radius_cd = math::interpolate(cd.radius_start, cd.radius_end, isectinfo.lambda_cd);
     isectinfo.closest_ab = math::interpolate(ab.orig_start, ab.orig_end, isectinfo.lambda_ab);
     isectinfo.closest_cd = math::interpolate(cd.orig_start, cd.orig_end, isectinfo.lambda_cd);
     isectinfo.distance = math::distance(isectinfo.closest_ab, isectinfo.closest_cd);
-    const float radius_distance = use_radius ? isectinfo.radius_ab + isectinfo.radius_cd :
-                                               distance;
-    if (isectinfo.distance <= radius_distance) {
+    const float actual_distance =
+        use_distance_field ?
+            math::interpolate(ab.dist_start, ab.dist_end, isectinfo.lambda_ab) +
+                math::interpolate(cd.dist_start, cd.dist_end, isectinfo.lambda_cd) :
+            distance;
+    if (isectinfo.distance <= actual_distance) {
       isectinfo.is_intersection = true;
       return isectinfo;
     }
@@ -501,29 +495,9 @@ static float3 project_v3_plane(const float3 vector, const float3 direction)
   return vector - math::project(vector, direction);
 }
 
-static Array<float> get_evaluated_radii(const bke::CurvesGeometry &src_curves,
-                                        const VArray<float> radius)
-{
-  // const VArray<float> radius = src_curves.radius();
-  Array<float> radii_eval(src_curves.evaluated_points_num());
-  if (const std::optional<float> radius_single = radius.get_if_single()) {
-    radii_eval.fill(radius_single.value_or(0.05f));
-    BLI_assert(radii_eval.size() == src_curves.evaluated_points_num());
-    return radii_eval;
-  }
-  const Span<float> radius_span = radius.get_internal_span();
-  if (src_curves.is_single_type(CURVE_TYPE_POLY)) {
-    return radius_span;
-  }
-  src_curves.ensure_can_interpolate_to_evaluated();
-  src_curves.interpolate_to_evaluated(radius_span, radii_eval.as_mutable_span());
-  BLI_assert(radii_eval.size() == src_curves.evaluated_points_num());
-  return radii_eval;
-}
-
 /* Build curve segment bvh. */
 static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curves,
-                                             const VArray<float> radius,
+                                             const std::optional<VArray<float>> distances,
                                              const VArray<int> &ids,
                                              Vector<Segment> *r_curve_segments,
                                              const float2 min_max_angle,
@@ -538,27 +512,36 @@ static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curv
   BVHTree *bvhtree = BLI_bvhtree_new(bvh_points_num, curve_isect_eps, 8, 8);
   const VArray<bool> cyclic = src_curves.cyclic();
   const OffsetIndices evaluated_points_by_curve = src_curves.evaluated_points_by_curve();
-  const Array<float> radii = get_evaluated_radii(src_curves, radius);
+  const bool use_distance_field = distances.has_value();
+  Array<float> distance_values;
+  if (use_distance_field) {
+    distance_values = distances.value().get_internal_span();
+  }
   const bool use_direction_data = min_max_angle.x > 0.0f || min_max_angle.y < pi_2_f ||
                                   attribute_outputs.direction || attribute_outputs.pair_direction;
 
   /* Preprocess curve segments for each curve. */
+
   for (const int64_t curve_i : src_curves.curves_range()) {
     const IndexRange points = evaluated_points_by_curve[curve_i];
+    const int curve_start_index = points.start();
     const Span<float3> positions = src_curves.evaluated_positions().slice(points);
-    const Span<float> radii_by_curve = radii.as_span().slice(points);
+    Span<float> dist_by_curve;
+    if (use_distance_field) {
+      dist_by_curve = distance_values.as_span().slice(points);
+    }
     const Span<float> lengths = src_curves.evaluated_lengths_for_curve(curve_i, cyclic[curve_i]);
     const float curve_length = src_curves.evaluated_length_total_for_curve(curve_i,
                                                                            cyclic[curve_i]);
     const int segment_count = positions.size() - 1;
 
     auto add_segment = [&](const bool is_cyclic,
-                           const int pos_index,
+                           const int2 pos_index,
                            const int index,
                            const float3 start,
                            const float3 end,
-                           const float radius_start,
-                           const float radius_end,
+                           const float dist_start,
+                           const float dist_end,
                            const float len_start,
                            const float len_end) {
       Segment segment;
@@ -572,8 +555,8 @@ static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curv
       segment.curve_id = attribute_outputs.id ? ids[curve_i] : curve_i;
       segment.curve_index = curve_i;
       segment.curve_length = curve_length;
-      segment.radius_start = radius_start;
-      segment.radius_end = radius_end;
+      segment.dist_start = dist_start;
+      segment.dist_end = dist_end;
       segment.start = project ? project_v3_plane(start, project_axis) : start;
       segment.end = project ? project_v3_plane(end, project_axis) : end;
       segment.direction = use_direction_data ? math::normalize(segment.end - segment.start) :
@@ -585,27 +568,34 @@ static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curv
     for (const int index : IndexRange(positions.size()).drop_back(1)) {
       const float3 start = positions[index];
       const float3 end = positions[1 + index];
-      const float radius_start = radii_by_curve[index];
-      const float radius_end = radii_by_curve[1 + index];
+      const float dist_start = use_distance_field ? dist_by_curve[index] : 0.0f;
+      const float dist_end = use_distance_field ? dist_by_curve[1 + index] : 0.0f;
       const float len_start = (index == 0) ? 0.0f : lengths[index - 1];
       const float len_end = lengths[index];
-      add_segment(
-          false, points.first(), index, start, end, radius_start, radius_end, len_start, len_end);
+      add_segment(false,
+                  int2(index + curve_start_index, 1 + index + curve_start_index),
+                  index,
+                  start,
+                  end,
+                  dist_start,
+                  dist_end,
+                  len_start,
+                  len_end);
     }
     if (cyclic[curve_i]) {
       const float3 start = positions.last();
       const float3 end = positions.first();
-      const float radius_start = radii_by_curve.last();
-      const float radius_end = radii_by_curve.first();
+      const float dist_start = use_distance_field ? dist_by_curve.last() : 0.0f;
+      const float dist_end = use_distance_field ? dist_by_curve.first() : 0.0f;
       const float len_start = lengths[segment_count - 1];
       const float len_end = curve_length;
       add_segment(true,
-                  points.last(),
+                  int2(curve_start_index + segment_count, curve_start_index),
                   segment_count,
                   start,
                   end,
-                  radius_start,
-                  radius_end,
+                  dist_start,
+                  dist_end,
                   len_start,
                   len_end);
     }
@@ -655,13 +645,11 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
                                           const AttributeOutputs &attribute_outputs,
                                           IntersectionData &r_data)
 {
-  const VArray<float> radius = src_curves.radius();
   const VArray<bool> cyclic = src_curves.cyclic();
   const OffsetIndices evaluated_points_by_curve = src_curves.evaluated_points_by_curve();
   src_curves.ensure_evaluated_lengths();
   const bool use_angle = min_max_angle.x > 0.0f || min_max_angle.y < pi_2_f;
   const bool use_direction_data = attribute_outputs.direction || attribute_outputs.pair_direction;
-  const Array<float> radii = get_evaluated_radii(src_curves, radius);
 
   /* Loop each curve for intersections. */
   ThreadLocalData thread_storage;
@@ -670,8 +658,8 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
     threading::isolate_task([&]() {
       for (const int64_t curve_i : curve_range) {
         const IndexRange points = evaluated_points_by_curve[curve_i];
+        const int curve_start_index = points.start();
         const Span<float3> positions = src_curves.evaluated_positions().slice(points);
-        const Span<float> radii_by_curve = radii.as_span().slice(points);
         if (positions.size() <= 1) {
           continue;
         }
@@ -685,8 +673,6 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
                                const float3 b,
                                const float len_start,
                                const float len_end,
-                               const float radius_start,
-                               const float radius_end,
                                const float curve_length) {
           const float3 segment_direction = use_direction_data || use_angle ?
                                                math::normalize(b - a) :
@@ -704,7 +690,6 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
                                   pos_index,
                                   lambda,
                                   closest,
-                                  math::interpolate(radius_start, radius_end, lambda),
                                   curve_i,
                                   segment_direction,
                                   math::interpolate(len_start, len_end, lambda),
@@ -719,20 +704,17 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
         };
 
         /* Loop segments from start until we have an intersection. */
+        const int segment_count = positions.size() - 1;
         for (const int index : IndexRange(positions.size()).drop_back(1)) {
           const float3 a = positions[index];
           const float3 b = positions[1 + index];
           const float len_start = (index == 0) ? 0.0f : lengths[index - 1];
           const float len_end = lengths[index];
-          const float radius_start = radii_by_curve[index];
-          const float radius_end = radii_by_curve[1 + index];
-          add_closest(int2(index, 1 + index),
+          add_closest(int2(index + curve_start_index, 1 + index + curve_start_index),
                       a,
                       b,
                       len_start,
                       len_end,
-                      radius_start,
-                      radius_end,
                       curve_length);
         }
         if (cyclic[curve_i]) {
@@ -740,15 +722,11 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
           const float3 b = positions.first();
           const float len_start = lengths.last();
           const float len_end = curve_length;
-          const float radius_start = radii_by_curve.last();
-          const float radius_end = radii_by_curve.first();
-          add_closest(int2(positions.size() - 1, 0),
+          add_closest(int2(curve_start_index + segment_count, curve_start_index),
                       a,
                       b,
                       len_start,
                       len_end,
-                      radius_start,
-                      radius_end,
                       curve_length);
         }
       }
@@ -768,7 +746,7 @@ static void set_curve_intersections_mesh(GeometrySet &mesh_set,
   /* Build bvh. */
   Vector<Segment> curve_segments;
   BVHTree *bvhtree = create_curve_segment_bvhtree(src_curves,
-                                                  src_curves.radius(),
+                                                  std::nullopt,
                                                   ids,
                                                   &curve_segments,
                                                   min_max_angle,
@@ -841,25 +819,21 @@ static void set_curve_intersections_mesh(GeometrySet &mesh_set,
                                                       curve_isect_eps))
                 {
                   const float len_at_isect = math::interpolate(seg.len_start, seg.len_end, lambda);
-                  const float radius_at_isect = math::interpolate(
-                      seg.radius_start, seg.radius_end, lambda);
                   const float3 closest_position = math::interpolate(seg.start, seg.end, lambda);
-                  add_intersection_data(
-                      local_data,
-                      int2(seg.pos_index, seg.is_cyclic_segment ? 0 : 1 + seg.pos_index),
-                      lambda,
-                      closest_position,
-                      radius_at_isect,
-                      seg.curve_index,
-                      seg.direction,
-                      len_at_isect,
-                      seg.curve_length,
-                      normal,
-                      float3(0.0f),
-                      float3(0.0f),
-                      false,
-                      0,
-                      attribute_outputs);
+                  add_intersection_data(local_data,
+                                        seg.pos_index,
+                                        lambda,
+                                        closest_position,
+                                        seg.curve_index,
+                                        seg.direction,
+                                        len_at_isect,
+                                        seg.curve_length,
+                                        normal,
+                                        float3(0.0f),
+                                        float3(0.0f),
+                                        false,
+                                        0,
+                                        attribute_outputs);
                 }
               });
         }
@@ -886,15 +860,20 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
   fn::FieldEvaluator data_evaluator{field_context, src_curves.evaluated_points_num()};
   data_evaluator.add(distance_field);
   data_evaluator.evaluate();
-  const VArray<float> radius = data_evaluator.get_evaluated<float>(0);
-  const bool use_radius = !radius.is_single();
-  const std::optional<float> distance_value = radius.get_if_single();
+  const VArray<float> distance_field_values = data_evaluator.get_evaluated<float>(0);
+  const bool use_distance_field = !distance_field_values.is_single();
+  const std::optional<float> distance_value = distance_field_values.get_if_single();
   const float distance = distance_value.value_or(0.0f);
+
+  std::optional<VArray<float>> distances;
+  if (use_distance_field) {
+    distances = distance_field_values;
+  }
 
   /* Build bvh. */
   Vector<Segment> curve_segments;
   BVHTree *bvhtree = create_curve_segment_bvhtree(src_curves,
-                                                  use_radius ? radius : src_curves.radius(),
+                                                  distances,
                                                   ids,
                                                   &curve_segments,
                                                   min_max_angle,
@@ -906,11 +885,11 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
   const int segment_count = curve_segments.size();
   const int curve_count = src_curves.curves_range().size();
   float max_search_distance = math::max(curve_isect_eps, distance);
-  if (use_radius) {
+  if (use_distance_field) {
     max_search_distance = curve_isect_eps;
-    const Array<float> radii = get_evaluated_radii(src_curves, radius);
-    for (const int i : radii.index_range()) {
-      max_search_distance = math::max(max_search_distance, radii[i] * 2.0f);
+    const Array<float> distance_values = distances.value().get_internal_span();
+    for (const int i : distance_values.index_range()) {
+      max_search_distance = math::max(max_search_distance, distance_values[i] * 2.0f);
     }
   }
 
@@ -951,7 +930,7 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
 
               if (calc_all || calc_self) {
                 const IntersectingLineInfo isectinfo = intersecting_lines(
-                    ab, cd, max_search_distance, use_radius);
+                    ab, cd, max_search_distance, use_distance_field);
 
                 if (isectinfo.is_intersection) {
                   const bool pair_weight = ab.curve_index > cd.curve_index;
@@ -962,10 +941,9 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
                   }
                   add_intersection_data(
                       local_data,
-                      int2(ab.pos_index, ab.is_cyclic_segment ? 0 : 1 + ab.pos_index),
+                      ab.pos_index,
                       isectinfo.lambda_ab,
                       isectinfo.closest_ab,
-                      isectinfo.radius_ab,
                       ab.curve_index,
                       ab.direction,
                       math::interpolate(ab.len_start, ab.len_end, isectinfo.lambda_ab),
@@ -984,10 +962,9 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
                   {
                     add_intersection_data(
                         local_data,
-                        int2(cd.pos_index, cd.is_cyclic_segment ? 0 : 1 + cd.pos_index),
+                        cd.pos_index,
                         isectinfo.lambda_cd,
                         isectinfo.closest_cd,
-                        isectinfo.radius_cd,
                         cd.curve_index,
                         cd.direction,
                         math::interpolate(cd.len_start, cd.len_end, isectinfo.lambda_cd),
@@ -1030,7 +1007,6 @@ static IntersectionData sort_intersection_data(IntersectionData &data,
   /* Ignore sortdata for return data. */
   IntersectionData r_data;
   r_data.position.reserve(data_size);
-  r_data.radius.reserve(data_size);
 
   r_data.pos_index_a.reserve(data_size);
   r_data.pos_index_b.reserve(data_size);
@@ -1087,7 +1063,6 @@ static IntersectionData sort_intersection_data(IntersectionData &data,
     }
 
     r_data.position.append(data.position[key_index]);
-    r_data.radius.append(data.radius[key_index]);
 
     r_data.pos_index_a.append(data.pos_index_a[key_index]);
     r_data.pos_index_b.append(data.pos_index_b[key_index]);
@@ -1145,13 +1120,16 @@ static void calc_attributes(const AttributeAccessor src_attributes,
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
+
     const GAttributeReader src = iter.get(src_domain);
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, dst_domain, iter.data_type);
     if (!dst) {
       return;
     }
+
     bke::attribute_math::gather_mix(src.varray, indices_a, indices_b, factors, dst.span);
+
     dst.finish();
   });
 }
@@ -1204,10 +1182,15 @@ static void node_geo_exec(GeoNodeExecParams params)
       return;
     }
 
+    bke::CurvesGeometry eval_curves = geometry::resample_to_evaluated(
+        src_curves,
+        bke::CurvesFieldContext(src_curves_id, AttrDomain::Point),
+        fn::make_constant_field<bool>(true));
+
     IntersectionData r_data;
 
-    VArray<int> ids = *src_curves.attributes().lookup<int>("id", bke::AttrDomain::Curve);
-    if (ids.size() == src_curves.curves_range().size()) {
+    VArray<int> ids = *eval_curves.attributes().lookup<int>("id", bke::AttrDomain::Curve);
+    if (ids.size() == eval_curves.curves_range().size()) {
       attribute_outputs.id = true;
     }
     else {
@@ -1222,12 +1205,11 @@ static void node_geo_exec(GeoNodeExecParams params)
           geometry_set.clear();
           return;
         }
-
         const Field<float> distance_field = params.extract_input<Field<float>>("Distance");
         const float min_angle = params.extract_input<float>("Min Angle");
         const float max_angle = params.extract_input<float>("Max Angle");
         set_curve_intersections(
-            src_curves,
+            eval_curves,
             distance_field,
             ids,
             self,
@@ -1251,9 +1233,8 @@ static void node_geo_exec(GeoNodeExecParams params)
         const float3 direction = params.extract_input<float3>("Direction");
         const float min_angle = params.extract_input<float>("Min Angle");
         const float max_angle = params.extract_input<float>("Max Angle");
-        const VArray<float> radius = src_curves.radius();
         set_curve_intersections(
-            src_curves,
+            eval_curves,
             distance_field,
             ids,
             self,
@@ -1272,7 +1253,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         const float min_angle = params.extract_input<float>("Min Angle");
         const float max_angle = params.extract_input<float>("Max Angle");
         set_curve_intersections_plane(
-            src_curves,
+            eval_curves,
             plane_center,
             math::normalize(direction),
             math::clamp(float2(min_angle, max_angle), min_angle_eps, pi_2_f_eps),
@@ -1287,7 +1268,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         if (mesh_set.has_mesh()) {
           set_curve_intersections_mesh(
               mesh_set,
-              src_curves,
+              eval_curves,
               ids,
               math::clamp(float2(min_angle, max_angle), min_angle_eps, pi_2_f_eps),
               attribute_outputs,
@@ -1319,17 +1300,11 @@ static void node_geo_exec(GeoNodeExecParams params)
       point_positions.span.copy_from(sorted_data.position);
       point_positions.finish();
 
-      SpanAttributeWriter<float> point_radii = attributes.lookup_or_add_for_write_only_span<float>(
-          "radius", AttrDomain::Point);
-      point_radii.span.copy_from(sorted_data.radius);
-      point_radii.finish();
-
       /* Gather and copy attributes. */
-      calc_attributes(src_curves.attributes(),
+      calc_attributes(eval_curves.attributes(),
                       AttrDomain::Point,
                       AttrDomain::Point,
                       bke::attribute_filter_from_skip_ref({"position",
-                                                           "radius",
                                                            "handle_left",
                                                            "handle_right",
                                                            "handle_type_left",
