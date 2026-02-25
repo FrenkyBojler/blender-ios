@@ -289,10 +289,10 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
         xr_settings = context.window_manager.xr_session_settings
         xr_viewfinder = context.window_manager.xr_session_state.viewfinder
 
-        viewfinder_enable = xr_settings.viewfinder_enable
+        viewfinder_enabled = xr_settings.viewfinder_enabled
         viewfinder_in_live_mode = xr_viewfinder.active_mode == "LIVE"
 
-        return session_is_running and viewfinder_enable and viewfinder_in_live_mode
+        return session_is_running and viewfinder_enabled and viewfinder_in_live_mode
 
     def execute(self, context):
         scene = context.scene
@@ -327,7 +327,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
         capture.orientation = xr_viewfinder.orientation
 
         capture.lens_focal = xr_viewfinder.capture_lens
-        capture.dof_enable = xr_viewfinder.capture_use_dof
+        capture.dof_enabled = xr_viewfinder.capture_use_dof
         capture.dof_dist = xr_viewfinder.capture_focus_distance
         capture.dof_fstop = xr_viewfinder.capture_aperture_fstop
 
@@ -351,9 +351,9 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
     def poll(cls, context):
         session_is_running = bpy.types.XrSessionState.is_running(context)
         has_scene_camera = context.scene.camera is not None
-        viewfinder_enable = context.window_manager.xr_session_settings.viewfinder_enable
+        viewfinder_enabled = context.window_manager.xr_session_settings.viewfinder_enabled
 
-        return session_is_running and has_scene_camera and viewfinder_enable
+        return session_is_running and has_scene_camera and viewfinder_enabled
 
     def execute(self, context):
         wm = context.window_manager
@@ -551,7 +551,7 @@ class VIEW3D_OT_vr_location_scouting_add_camera_from_capture(Operator):
         new_cam.rotation_mode = 'XYZ'
 
         new_cam.data.lens = capture.lens_focal
-        new_cam.data.dof.use_dof = capture.dof_enable
+        new_cam.data.dof.use_dof = capture.dof_enabled
         new_cam.data.dof.focus_distance = capture.dof_dist
         new_cam.data.dof.aperture_fstop = capture.dof_fstop
 
@@ -580,7 +580,7 @@ class VIEW3D_OT_vr_location_scouting_active_camera_to_capture(Operator):
         cam.data.sensor_width = 36
 
         cam.data.lens = capture.lens_focal
-        cam.data.dof.use_dof = capture.dof_enable
+        cam.data.dof.use_dof = capture.dof_enabled
         cam.data.dof.focus_distance = capture.dof_dist
         cam.data.dof.aperture_fstop = capture.dof_fstop
 

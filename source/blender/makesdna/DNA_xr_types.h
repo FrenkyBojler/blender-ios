@@ -126,7 +126,7 @@ struct XrSessionSettings {
   /** Draw style for controller visualization. */
   char controller_draw_style = 0;
 
-  char viewfinder_enable;
+  char viewfinder_enabled;
   char viewfinder_hand; /* #eXrViewfinderHand */
   float viewfinder_scale;
 

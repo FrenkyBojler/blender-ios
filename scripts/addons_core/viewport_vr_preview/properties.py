@@ -213,8 +213,8 @@ class VRCapture(PropertyGroup):
     lens_focal: bpy.props.FloatProperty(
         name="Capture Focal Length",
     )
-    dof_enable: bpy.props.BoolProperty(
-        name="Capture enable Depth of Field",
+    dof_enabled: bpy.props.BoolProperty(
+        name="Capture DoF Enabled",
     )
     dof_dist: bpy.props.FloatProperty(
         name="Capture DoF Focus Distance",

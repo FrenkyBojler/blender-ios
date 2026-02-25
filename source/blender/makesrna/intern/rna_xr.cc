@@ -2275,9 +2275,9 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
-  prop = RNA_def_property(srna, "viewfinder_enable", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "viewfinder_enabled", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop, "Enable Viewfinder", "Enable the Location Scouting Viewfinder");
+  RNA_def_property_ui_text(prop, "Viewfinder Enabled", "Enable the Location Scouting Viewfinder");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "viewfinder_hand", PROP_ENUM, PROP_NONE);

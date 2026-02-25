@@ -65,7 +65,7 @@ struct XrLocationScoutingCapture {
 
   float lens_focal;
 
-  bool dof_enable;
+  bool dof_enabled;
   float dof_dist;
   float dof_fstop;
 };
@@ -128,14 +128,14 @@ static std::optional<XrLocationScoutingCapture> wm_xr_get_active_location_scouti
 
   /* Captured view settings (lens / DoF). */
   PropertyRNA *lens_focal_prop = RNA_struct_find_property(&current_capture, "lens_focal");
-  PropertyRNA *dof_enable_prop = RNA_struct_find_property(&current_capture, "dof_enable");
+  PropertyRNA *dof_enabled_prop = RNA_struct_find_property(&current_capture, "dof_enabled");
   PropertyRNA *dof_dist_prop = RNA_struct_find_property(&current_capture, "dof_dist");
   PropertyRNA *dof_fstop_prop = RNA_struct_find_property(&current_capture, "dof_fstop");
 
   XrLocationScoutingCapture capture = {
       .pose = capture_pose,
       .lens_focal = RNA_property_float_get(&current_capture, lens_focal_prop),
-      .dof_enable = RNA_property_boolean_get(&current_capture, dof_enable_prop),
+      .dof_enabled = RNA_property_boolean_get(&current_capture, dof_enabled_prop),
       .dof_dist = RNA_property_float_get(&current_capture, dof_dist_prop),
       .dof_fstop = RNA_property_float_get(&current_capture, dof_fstop_prop)};
 
@@ -411,7 +411,7 @@ static void wm_xr_draw_viewfinder_texture(const GHOST_XrDrawViewInfo *draw_view,
       wm_xr_pose_to_imat(&capture->pose, viewfinder_render_viewmat);
       cam_render_params.lens = capture->lens_focal;
 
-      SET_FLAG_FROM_TEST(cam_render_data->dof.flag, capture->dof_enable, CAM_DOF_ENABLED);
+      SET_FLAG_FROM_TEST(cam_render_data->dof.flag, capture->dof_enabled, CAM_DOF_ENABLED);
       cam_render_data->dof.focus_distance = capture->dof_dist;
       cam_render_data->dof.aperture_fstop = capture->dof_fstop;
 
@@ -963,7 +963,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
                                              wmXrSessionState *state,
                                              const bContext *C)
 {
-  if (!settings->viewfinder_enable) {
+  if (!settings->viewfinder_enabled) {
     return;
   }
 

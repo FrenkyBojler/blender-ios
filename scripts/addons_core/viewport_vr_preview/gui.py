@@ -158,13 +158,13 @@ class VIEW3D_PT_vr_location_scouting_viewfinder(VRButtonsPanel, Panel):
         layout = self.layout
         session_settings = context.window_manager.xr_session_settings
 
-        layout.prop(session_settings, "viewfinder_enable", text="")
+        layout.prop(session_settings, "viewfinder_enabled", text="")
 
     def draw(self, context):
         layout = self.layout
         session_settings = context.window_manager.xr_session_settings
 
-        layout.enabled = session_settings.viewfinder_enable
+        layout.enabled = session_settings.viewfinder_enabled
         session_settings = context.window_manager.xr_session_settings
 
         layout.use_property_split = True
