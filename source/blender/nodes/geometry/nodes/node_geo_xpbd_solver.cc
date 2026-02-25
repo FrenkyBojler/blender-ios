@@ -254,8 +254,12 @@ struct StaticMeshInfo {
 };
 
 struct DeformingMeshInfo {
-  const Mesh *prev_mesh;
+  /** This is one longer than the number of substeps because it also contains the initial mesh. */
   Vector<const Mesh *> substep_meshes;
+  /**
+   * This contains one bvh tree per substep. A future optimization could be to not build
+   * independent BVH trees for each mesh because the are usually very similar.
+   */
   Vector<bke::BVHTreeFromMesh> substep_bvh_trees;
 };
 
@@ -1010,13 +1014,12 @@ class XpbdSolverStep {
     const Span<float3> positions =
         geometries_.solver_refs[solver_refs_i][chunk.data_key_i].positions;
 
-    const Mesh &mesh = *deforming_mesh.substep_meshes[substep.current_i];
+    const Mesh &mesh = *deforming_mesh.substep_meshes[substep.current_i + 1];
     const Span<int3> corner_tris = mesh.corner_tris();
     const Span<int> corner_verts = mesh.corner_verts();
     const Span<float3> vert_positions = mesh.vert_positions();
     const Span<float3> prev_vert_positions =
-        substep.is_first ? deforming_mesh.prev_mesh->vert_positions() :
-                           deforming_mesh.substep_meshes[substep.current_i - 1]->vert_positions();
+        deforming_mesh.substep_meshes[substep.current_i]->vert_positions();
 
     for (const int point_i : chunk.points_range) {
       if (geo_data.is_hard_pinned[point_i]) {
@@ -1253,7 +1256,7 @@ class XpbdSolverStep {
     }
     const int verts_num = mesh.verts_num;
     DeformingMeshInfo result;
-    result.substep_meshes.resize(substeps_);
+    result.substep_meshes.resize(substeps_ + 1);
     result.substep_bvh_trees.resize(substeps_);
 
     const Span<float3> begin_positions = prev_mesh->vert_positions();
@@ -1274,12 +1277,12 @@ class XpbdSolverStep {
                   begin_positions[i], end_positions[i], substep.end_factor);
             }
             substep_mesh->tag_positions_changed();
-            result.substep_meshes[substep_i] = substep_mesh;
+            result.substep_meshes[substep_i + 1] = substep_mesh;
             result.substep_bvh_trees[substep_i] = substep_mesh->bvh_corner_tris();
           }
         });
 
-    result.prev_mesh = prev_mesh;
+    result.substep_meshes.first() = prev_mesh;
     result.substep_meshes.last() = &mesh;
     result.substep_bvh_trees.last() = mesh.bvh_corner_tris();
     return result;
