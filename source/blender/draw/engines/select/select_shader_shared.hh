@@ -21,6 +21,7 @@ enum [[host_shared]] SelectType : uint32_t {
 struct [[host_shared]] SelectInfoData {
   int2 cursor;
   enum SelectType mode;
+  /* Circular radius around cursor. 0 for no radius check. */
   uint radius;
 };
 
