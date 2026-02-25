@@ -247,6 +247,7 @@ void Instance::begin_sync()
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
   {
+    /* Merges the object's depth to the viewport compositor depth pass. */
     PassSimple &pass = this->merge_depth_pass_ps;
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR);

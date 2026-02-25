@@ -2,6 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/* Used to merge the object's depth to the viewport compositor depth pass. This is essentially the
+ * same as the gpencil_depth_merge_frag.glsl shader but writes to the pass as an image output
+ * instead of a depth frame buffer. However, it actually writes scene linear depth with manual
+ * depth comparison. */
+
 #include "infos/gpencil_infos.hh"
 
 #include "draw_view_lib.glsl"
