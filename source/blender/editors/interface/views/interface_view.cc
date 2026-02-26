@@ -233,7 +233,7 @@ AbstractView *region_view_find_at(const ARegion *region,
   return nullptr;
 }
 
-void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const wmEvent *event)
+void region_view_scroll_at_borders(bContext *C, wmDropBox &dropbox, const wmEvent *event)
 {
   Block *block = nullptr;
   ARegion *region = CTX_wm_region(C);
@@ -244,8 +244,8 @@ void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const wmEvent *eve
   }
   AbstractView *view = region_view_find_at(region, event->xy, UI_UNIT_Y, &block);
   if (view == nullptr) {
-    WM_event_timer_remove(wm, window, drag.timer);
-    drag.timer = nullptr;
+    WM_event_timer_remove(wm, window, dropbox.timer);
+    dropbox.timer = nullptr;
     return;
   }
 
@@ -273,20 +273,20 @@ void region_view_scroll_at_borders(bContext *C, wmDrag &drag, const wmEvent *eve
   }();
 
   if (!scroll_dir.has_value()) {
-    WM_event_timer_remove(wm, window, drag.timer);
-    drag.timer = nullptr;
+    WM_event_timer_remove(wm, window, dropbox.timer);
+    dropbox.timer = nullptr;
     return;
   }
 
-  if (drag.timer) {
-    if ((event->type == TIMER) && (event->customdata == drag.timer)) {
+  if (dropbox.timer) {
+    if ((event->type == TIMER) && (event->customdata == dropbox.timer)) {
       view->scroll(scroll_dir.value());
       ED_region_tag_redraw(region);
       return;
     }
   }
   else {
-    drag.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
+    dropbox.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
   }
   return;
 }

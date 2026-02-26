@@ -54,28 +54,6 @@ static bool ui_view_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
   return can_drop;
 }
 
-static void ui_view_drop_cancel(blender::Main *bmain,
-                                blender::wmDrag *drag,
-                                blender::wmDropBox * /*drop*/)
-{
-  if (!drag->timer) {
-    return;
-  }
-  for (wmWindowManager &wm : bmain->wm) {
-    for (wmWindow &win : wm.windows) {
-      if (&win == drag->timer->win) {
-        WM_event_timer_remove(&wm, &win, drag->timer);
-      }
-    }
-  }
-  drag->timer = nullptr;
-}
-
-static void ui_view_drop_exit(wmDropBox *drop, wmDrag *drag)
-{
-  ui_view_drop_cancel(G_MAIN, drag, drop);
-}
-
 static std::string ui_view_drop_tooltip(bContext *C,
                                         wmDrag *drag,
                                         const int xy[2],
@@ -193,10 +171,10 @@ void dropboxes_ui()
                                       "UI_OT_view_drop",
                                       ui_view_drop_poll,
                                       nullptr,
-                                      ui_view_drop_cancel,
+                                      nullptr,
                                       ui_view_drop_tooltip);
   dropbox->on_hover_event = region_view_scroll_at_borders;
-  dropbox->on_exit = ui_view_drop_exit;
+
   WM_dropbox_add(lb,
                  "UI_OT_drop_name",
                  ui_drop_name_poll,

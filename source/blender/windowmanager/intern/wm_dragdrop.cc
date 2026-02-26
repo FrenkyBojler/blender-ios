@@ -593,9 +593,12 @@ static void wm_drop_update_active(bContext *C, wmDrag *drag, const wmEvent *even
   wmDropBox *drop_prev = drag->drop_state.active_dropbox;
   wmDropBox *drop = wm_dropbox_active(C, drag, event);
   if (drop != drop_prev) {
-    if (drop_prev && drop_prev->on_exit) {
-      drop_prev->on_exit(drop_prev, drag);
-      BLI_assert(drop_prev->draw_data == nullptr);
+    if (drop_prev) {
+      WM_event_timer_remove(CTX_wm_manager(C), nullptr, drop_prev->timer);
+      if (drop_prev->on_exit) {
+        drop_prev->on_exit(drop_prev, drag);
+        BLI_assert(drop_prev->draw_data == nullptr);
+      }
     }
     if (drop && drop->on_enter) {
       drop->on_enter(drop, drag);
@@ -644,7 +647,9 @@ void wm_drags_handle_events(bContext *C, const wmEvent *event)
   if (event->type == TIMER) {
     bool is_drag_timer = false;
     for (wmDrag &drag : wm->runtime->drags) {
-      is_drag_timer |= drag.timer != nullptr;
+      if (drag.drop_state.active_dropbox) {
+        is_drag_timer |= drag.drop_state.active_dropbox->timer != nullptr;
+      }
     }
     if (!is_drag_timer) {
       return;
@@ -667,10 +672,10 @@ void wm_drags_handle_events(bContext *C, const wmEvent *event)
   for (wmDrag &drag : wm->runtime->drags) {
     wm_drop_update_active(C, &drag, event);
 
-    if (drag.drop_state.active_dropbox) {
+    if (wmDropBox *dropbox = drag.drop_state.active_dropbox) {
       any_active = true;
-      if (drag.drop_state.active_dropbox->on_hover_event) {
-        drag.drop_state.active_dropbox->on_hover_event(C, drag, event);
+      if (dropbox->on_hover_event) {
+        dropbox->on_hover_event(C, *dropbox, event);
       }
     }
   }

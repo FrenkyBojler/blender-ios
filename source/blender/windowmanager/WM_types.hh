@@ -1386,7 +1386,6 @@ struct wmDrag {
   ListBaseT<wmDragID> ids;
   /** List of `wmDragAssetListItem`s. */
   ListBaseT<wmDragAssetListItem> asset_items;
-  wmTimer *timer;
 };
 
 /**
@@ -1441,7 +1440,7 @@ struct wmDropBox {
   void (*draw_in_view)(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2]);
 
   /* Callback to scroll the view when mouse is near edge (currently used for tree view). */
-  void (*on_hover_event)(bContext *C, wmDrag &drag, const wmEvent *event);
+  void (*on_hover_event)(bContext *C, wmDropBox &dropbox, const wmEvent *event);
   /** Custom data for drawing. */
   void *draw_data;
 
@@ -1462,6 +1461,7 @@ struct wmDropBox {
   IDProperty *properties;
   /** RNA pointer to access properties. */
   PointerRNA *ptr;
+  wmTimer *timer;
 };
 
 /**
