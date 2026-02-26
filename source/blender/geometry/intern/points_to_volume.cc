@@ -238,8 +238,7 @@ MappedPointDataGrid points_to_point_data_grid(const Span<float3> positions,
   Vector<std::pair<std::string, std::string>> attribute_map;
   for (const PointDataGridAttributeInfo &info : attributes) {
     const CPPType &cpp_type = info.data.type();
-    bke::attribute_math::convert_to_static_type(cpp_type, [&](auto dummy) {
-      using ValueT = decltype(dummy);
+    bke::attribute_math::to_static_type(cpp_type, [&]<typename ValueT>() {
       using type_traits = typename bke::VolumeGridTraits<ValueT>;
 
       if constexpr (!std::is_same_v<typename type_traits::TreeType, void>) {
@@ -596,18 +595,18 @@ static bke::VolumeGrid<GridValueT> points_rasterize_with_kernel(
   typename std::shared_ptr<GridType> dst_grid = prepare_destination_grid<GridType, kernel_type>(
       point_data_grid, transform);
 
-  const auto filter = openvdb::points::NullFilter();
-  auto interrupter = openvdb::util::NullInterrupter();
+  // const auto filter = openvdb::points::NullFilter();
+  // auto interrupter = openvdb::util::NullInterrupter();
   if (value_attribute.is_empty()) {
     BLI_assert(attribute_info.weighting == RasterizePointsWeighting::Sum);
     if constexpr (std::is_same_v<GridValueT, float>) {
       if (mass_attribute.is_empty()) {
         KernelSumTransfer<kernel_type, false> transfer(point_data_grid, *dst_grid);
-        openvdb::points::rasterize(point_data_grid, transfer, filter, &interrupter);
+        openvdb::points::rasterize(point_data_grid, transfer);
       }
       else {
         KernelSumTransfer<kernel_type, true> transfer(point_data_grid, *dst_grid, mass_attribute);
-        openvdb::points::rasterize(point_data_grid, transfer, filter, &interrupter);
+        openvdb::points::rasterize(point_data_grid, transfer);
       }
     }
     else {
@@ -618,12 +617,12 @@ static bke::VolumeGrid<GridValueT> points_rasterize_with_kernel(
     if (mass_attribute.is_empty()) {
       ValueSumTransfer<AttributeT, GridValueT, kernel_type, false> transfer(
           point_data_grid, *dst_grid, value_attribute);
-      openvdb::points::rasterize(point_data_grid, transfer, filter, &interrupter);
+      openvdb::points::rasterize(point_data_grid, transfer);
     }
     else {
       ValueSumTransfer<AttributeT, GridValueT, kernel_type, true> transfer(
           point_data_grid, *dst_grid, value_attribute, mass_attribute);
-      openvdb::points::rasterize(point_data_grid, transfer, filter, &interrupter);
+      openvdb::points::rasterize(point_data_grid, transfer);
     }
   }
 
@@ -747,8 +746,7 @@ static bke::GVolumeGrid points_attribute_rasterize(
     const float4x4 &transform)
 {
   bke::GVolumeGrid result;
-  bke::attribute_math::convert_to_static_type(attribute_info.type, [&](auto dummy) {
-    using T = decltype(dummy);
+  bke::attribute_math::to_static_type(attribute_info.type, [&]<typename T>() {
     using TreeType = typename bke::VolumeGridTraits<T>::TreeType;
     if constexpr (std::is_same_v<TreeType, void>) {
       BLI_assert_unreachable();

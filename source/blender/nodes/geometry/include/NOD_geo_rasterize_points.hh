@@ -15,7 +15,7 @@ namespace blender::nodes {
  * grid items.
  */
 struct RasterizePointsItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
-  using ItemT = NodeRasterizePointsItem;
+  using ItemT = NodeGeometryRasterizePointsItem;
   static StructRNA **item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "GeometryNodeRasterizePoints";
@@ -34,19 +34,21 @@ struct RasterizePointsItemsAccessor : public socket_items::SocketItemsAccessorDe
     static constexpr StringRefNull active_index = "active_index";
   };
 
-  static socket_items::SocketItemsRef<NodeRasterizePointsItem> get_items_from_node(bNode &node)
+  static socket_items::SocketItemsRef<NodeGeometryRasterizePointsItem> get_items_from_node(
+      bNode &node)
   {
     auto *storage = static_cast<NodeGeometryRasterizePoints *>(node.storage);
     return {&storage->items, &storage->items_num, &storage->active_index};
   }
 
-  static void copy_item(const NodeRasterizePointsItem &src, NodeRasterizePointsItem &dst)
+  static void copy_item(const NodeGeometryRasterizePointsItem &src,
+                        NodeGeometryRasterizePointsItem &dst)
   {
     dst = src;
     dst.name = BLI_strdup_null(dst.name);
   }
 
-  static void destruct_item(NodeRasterizePointsItem *item)
+  static void destruct_item(NodeGeometryRasterizePointsItem *item)
   {
     MEM_SAFE_DELETE(item->name);
   }
@@ -54,13 +56,13 @@ struct RasterizePointsItemsAccessor : public socket_items::SocketItemsAccessorDe
   static void blend_write_item(BlendWriter *writer, const ItemT &item);
   static void blend_read_data_item(BlendDataReader *reader, ItemT &item);
 
-  static char **get_name(NodeRasterizePointsItem &item)
+  static char **get_name(NodeGeometryRasterizePointsItem &item)
   {
     return &item.name;
   }
 
   static void init_with_socket_type_and_name(bNode &node,
-                                             NodeRasterizePointsItem &item,
+                                             NodeGeometryRasterizePointsItem &item,
                                              const eNodeSocketDatatype socket_type,
                                              const char *name)
   {
@@ -70,7 +72,7 @@ struct RasterizePointsItemsAccessor : public socket_items::SocketItemsAccessorDe
     socket_items::set_item_name_and_make_unique<RasterizePointsItemsAccessor>(node, item, name);
   }
 
-  static std::string socket_identifier_for_item(const NodeRasterizePointsItem &item)
+  static std::string socket_identifier_for_item(const NodeGeometryRasterizePointsItem &item)
   {
     return "Item_" + std::to_string(item.identifier);
   }

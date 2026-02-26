@@ -37,6 +37,10 @@ bke::VolumeGridData *fog_volume_grid_add_from_points(Volume *volume,
 bke::VolumeGrid<float> points_to_sdf_grid(Span<float3> positions,
                                           Span<float> radii,
                                           float voxel_size);
+
+/** True for data types that can be stored as point data grid attributes. */
+bool is_point_attribute_grid_supported(const CPPType &cpp_type);
+
 /**
  * Description of an attribute array to store in a point data grid.
  */

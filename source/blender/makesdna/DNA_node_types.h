@@ -3762,7 +3762,7 @@ struct NodeGeometryDistributePointsInVolume {
   uint8_t mode = 0;
 };
 
-typedef struct NodeRasterizePointsItem {
+typedef struct NodeGeometryRasterizePointsItem {
   char *name;
   /** #eNodeSocketDatatype */
   short socket_type;
@@ -3776,17 +3776,19 @@ typedef struct NodeRasterizePointsItem {
   /** #NodeGridItemFlag */
   int flag;
   char _pad[4];
-} NodeRasterizePointsItem;
+} NodeGeometryRasterizePointsItem;
 
-typedef enum NodeRasterizePointsItemFlag {
+typedef enum NodeGeometryRasterizePointsItemFlag {
   /* Store a staggered vector grid. */
   GEO_NODE_RASTERIZE_POINTS_ITEM_VECTOR_STAGGERED = 1 << 0,
   /* Vector attribute with additional affine transformation. */
   GEO_NODE_RASTERIZE_POINTS_ITEM_AFFINE_VECTOR = 1 << 1,
-} NodeRasterizePointsItemFlag;
+} NodeGeometryRasterizePointsItemFlag;
 
 typedef struct NodeGeometryRasterizePoints {
-  NodeRasterizePointsItem *items;
+  DNA_DEFINE_CXX_METHODS(NodeGeometryRasterizePoints)
+
+  NodeGeometryRasterizePointsItem *items;
   int items_num;
   int active_index;
   /** Identifier to give to the next repeat item. */
@@ -3794,8 +3796,8 @@ typedef struct NodeGeometryRasterizePoints {
   char _pad[4];
 
 #ifdef __cplusplus
-  blender::Span<NodeRasterizePointsItem> items_span() const;
-  blender::MutableSpan<NodeRasterizePointsItem> items_span();
+  blender::Span<NodeGeometryRasterizePointsItem> items_span() const;
+  blender::MutableSpan<NodeGeometryRasterizePointsItem> items_span();
 #endif
 } NodeGeometryRasterizePoints;
 

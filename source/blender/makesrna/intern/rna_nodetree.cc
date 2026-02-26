@@ -581,6 +581,21 @@ const EnumPropertyItem rna_enum_node_compositor_interpolation_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+const EnumPropertyItem rna_enum_geometry_nodes_rasterize_points_weighting_items[] = {
+    {int(blender::bke::RasterizePointsWeighting::Sum), "SUM", 0, "Sum", "Sum of point values"},
+    {int(blender::bke::RasterizePointsWeighting::Average),
+     "AVERAGE",
+     0,
+     "Average",
+     "Average point value"},
+    {int(blender::bke::RasterizePointsWeighting::WeightedAverage),
+     "WEIGHTED_AVERAGE",
+     0,
+     "Weighted Average",
+     "Average point value weighted by mass"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 #ifndef RNA_RUNTIME
 
 static const EnumPropertyItem prop_shader_output_target_items[] = {
@@ -598,21 +613,6 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
     {0, "CryptoObject", 0, "Object", "Use Object layer"},
     {1, "CryptoMaterial", 0, "Material", "Use Material layer"},
     {2, "CryptoAsset", 0, "Asset", "Use Asset layer"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
-const EnumPropertyItem rna_enum_geometry_nodes_rasterize_points_weighting_items[] = {
-    {int(blender::bke::RasterizePointsWeighting::Sum), "SUM", 0, "Sum", "Sum of point values"},
-    {int(blender::bke::RasterizePointsWeighting::Average),
-     "AVERAGE",
-     0,
-     "Average",
-     "Average point value"},
-    {int(blender::bke::RasterizePointsWeighting::WeightedAverage),
-     "WEIGHTED_AVERAGE",
-     0,
-     "Weighted Average",
-     "Average point value weighted by mass"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -667,7 +667,7 @@ const EnumPropertyItem rna_enum_geometry_nodes_rasterize_points_weighting_items[
 #  include "NOD_geo_foreach_geometry_element.hh"
 #  include "NOD_geo_index_switch.hh"
 #  include "NOD_geo_menu_switch.hh"
-#  include "NOD_geo_points_to_grid.hh"
+#  include "NOD_geo_rasterize_points.hh"
 #  include "NOD_geo_repeat.hh"
 #  include "NOD_geo_simulation.hh"
 #  include "NOD_geo_viewer.hh"
@@ -709,6 +709,7 @@ using nodes::FormatStringItemsAccessor;
 using nodes::GeoViewerItemsAccessor;
 using nodes::IndexSwitchItemsAccessor;
 using nodes::MenuSwitchItemsAccessor;
+using nodes::RasterizePointsItemsAccessor;
 using nodes::RepeatItemsAccessor;
 using nodes::SeparateBundleItemsAccessor;
 using nodes::SimulationItemsAccessor;
@@ -8114,7 +8115,7 @@ static void rna_def_rasterize_points_item(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "NodeGeometryRasterizePointsItem", nullptr);
   RNA_def_struct_ui_text(srna, "Rasterize Points Item", "");
-  RNA_def_struct_sdna(srna, "NodeRasterizePointsItem");
+  RNA_def_struct_sdna(srna, "NodeGeometryRasterizePointsItem");
 
   rna_def_node_item_array_socket_item_common(srna, "RasterizePointsItemsAccessor", true);
 
@@ -8165,7 +8166,7 @@ static void def_geo_rasterize_points(BlenderRNA *brna, StructRNA *srna)
   rna_def_rasterize_points_item(brna);
   rna_def_geo_rasterize_points_items(brna);
 
-  RNA_def_struct_sdna_from(srna, "NodeGeometryPointsToDensityGrid", "storage");
+  RNA_def_struct_sdna_from(srna, "NodeGeometryRasterizePoints", "storage");
 
   prop = RNA_def_property(srna, "rasterize_items", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "items", "items_num");
@@ -8181,7 +8182,7 @@ static void def_geo_rasterize_points(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE, nullptr);
 
   prop = RNA_def_property(srna, "active_item", PROP_POINTER, PROP_NONE);
-  RNA_def_property_struct_type(prop, "NodeRasterizePointsItem");
+  RNA_def_property_struct_type(prop, "NodeGeometryRasterizePointsItem");
   RNA_def_property_pointer_funcs(prop,
                                  "rna_Node_ItemArray_active_get<RasterizePointsItemsAccessor>",
                                  "rna_Node_ItemArray_active_set<RasterizePointsItemsAccessor>",

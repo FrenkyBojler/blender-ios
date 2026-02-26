@@ -13,7 +13,7 @@
 
 #include "GEO_points_to_volume.hh"
 
-#include "NOD_geo_points_to_grid.hh"
+#include "NOD_geo_rasterize_points.hh"
 #include "NOD_socket.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
@@ -32,7 +32,7 @@ namespace blender::nodes::node_geo_points_to_density_grid_cc {
 
 using bke::RasterizePointsWeighting;
 
-NODE_STORAGE_FUNCS(NodeGeometryPointsToDensityGrid)
+NODE_STORAGE_FUNCS(NodeGeometryRasterizePoints)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -49,20 +49,23 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
   if (node && tree) {
-    const NodeGeometryPointsToDensityGrid &storage = node_storage(*node);
+    const NodeGeometryRasterizePoints &storage = node_storage(*node);
     for (const int i : IndexRange(storage.items_num)) {
-      const NodeGridItem &item = storage.items[i];
+      const NodeGeometryRasterizePointsItem &item = storage.items[i];
       const StringRef name = item.name ? item.name : "";
-      const std::string identifier = GridItemsAccessor::socket_identifier_for_item(item);
+      const std::string identifier = RasterizePointsItemsAccessor::socket_identifier_for_item(
+          item);
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
 
       auto &input_decl = b.add_input(socket_type, name, identifier);
-      input_decl.socket_name_ptr(&tree->id, GridItemsAccessor::item_srna, &item, "name");
+      input_decl.socket_name_ptr(
+          &tree->id, *RasterizePointsItemsAccessor::item_srna, &item, "name");
       input_decl.supports_field();
 
       eNodeSocketDatatype output_socket_type = socket_type;
       /* Special case: affine transform attribute is converted to vector grid. */
-      if (socket_type == SOCK_MATRIX && (item.flag & GEO_NODE_GRID_ITEM_AFFINE_VECTOR)) {
+      if (socket_type == SOCK_MATRIX && (item.flag & GEO_NODE_RASTERIZE_POINTS_ITEM_AFFINE_VECTOR))
+      {
         output_socket_type = SOCK_VECTOR;
       }
       b.add_output(output_socket_type, name, identifier)
@@ -76,7 +79,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryPointsToDensityGrid *data = MEM_callocN<NodeGeometryPointsToDensityGrid>(__func__);
+  NodeGeometryRasterizePoints *data = MEM_new<NodeGeometryRasterizePoints>(__func__);
   data->next_identifier = 0;
 
   data->items = nullptr;
@@ -87,39 +90,42 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void node_free_storage(bNode *node)
 {
-  socket_items::destruct_array<GridItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  socket_items::destruct_array<RasterizePointsItemsAccessor>(*node);
+  MEM_delete(reinterpret_cast<NodeGeometryRasterizePoints *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
-  const NodeGeometryPointsToDensityGrid &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_dupallocN<NodeGeometryPointsToDensityGrid>(__func__, src_storage);
+  const NodeGeometryRasterizePoints &src_storage = node_storage(*src_node);
+  auto *dst_storage = MEM_new<NodeGeometryRasterizePoints>(__func__,
+                                                           dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
-  socket_items::copy_array<GridItemsAccessor>(*src_node, *dst_node);
+  socket_items::copy_array<RasterizePointsItemsAccessor>(*src_node, *dst_node);
 }
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
-  return socket_items::try_add_item_via_any_extend_socket<GridItemsAccessor>(
+  return socket_items::try_add_item_via_any_extend_socket<RasterizePointsItemsAccessor>(
       params.ntree, params.node, params.node, params.link);
 }
 
 static void node_operators()
 {
-  socket_items::ops::make_common_operators<GridItemsAccessor>();
+  socket_items::ops::make_common_operators<RasterizePointsItemsAccessor>();
 }
 
-static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
-  if (uiLayout *panel = layout->panel(C, "grid_items", false, IFACE_("Items"))) {
-    socket_items::ui::draw_items_list_with_operators<GridItemsAccessor>(C, panel, ntree, node);
-    socket_items::ui::draw_active_item_props<GridItemsAccessor>(
+  if (ui::Layout *panel = layout.panel(C, "grid_items", false, IFACE_("Items"))) {
+    socket_items::ui::draw_items_list_with_operators<RasterizePointsItemsAccessor>(
+        C, panel, ntree, node);
+    socket_items::ui::draw_active_item_props<RasterizePointsItemsAccessor>(
         ntree, node, [&](PointerRNA *item_ptr) {
-          const NodeGridItem &item = *item_ptr->data_as<NodeGridItem>();
+          const NodeGeometryRasterizePointsItem &item =
+              *item_ptr->data_as<NodeGeometryRasterizePointsItem>();
           const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
 
           panel->use_property_split_set(true);
@@ -141,7 +147,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 #ifdef WITH_OPENVDB
   constexpr StringRef mass_attribute = "mass";
 
-  const NodeGeometryPointsToDensityGrid &storage = node_storage(params.node());
+  const NodeGeometryRasterizePoints &storage = node_storage(params.node());
   const geometry::KernelType kernel_type = geometry::KernelType::Cubic;
 
   const float voxel_size = params.extract_input<float>("Voxel Size");
@@ -181,12 +187,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   Vector<geometry::PointRasterizeAttributeInfo> point_rasterize_attributes;
   point_data_grid_attributes.append({mass_attribute, masses.as_span()});
   for (const int i : IndexRange(storage.items_num)) {
-    const NodeGridItem &item = storage.items[i];
+    const NodeGeometryRasterizePointsItem &item = storage.items[i];
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
     const RasterizePointsWeighting rasterize_weighting = RasterizePointsWeighting(item.weighting);
     const CPPType &cpptype = *bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
-    const bool use_staggered_vector = (item.flag & GEO_NODE_GRID_ITEM_VECTOR_STAGGERED);
-    const bool use_affine_vector = (item.flag & GEO_NODE_GRID_ITEM_AFFINE_VECTOR);
+    const bool use_staggered_vector = (item.flag &
+                                       GEO_NODE_RASTERIZE_POINTS_ITEM_VECTOR_STAGGERED);
+    const bool use_affine_vector = (item.flag & GEO_NODE_RASTERIZE_POINTS_ITEM_AFFINE_VECTOR);
 
     value_buffers[i] = GArray<>(cpptype, points_num);
     /* Note: Item name is unique and can be used as an attribute identifier. */
@@ -208,8 +215,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     evaluator.add_with_destination(position_field, positions.as_mutable_span().slice(points));
     evaluator.add_with_destination(mass_field, masses.as_mutable_span().slice(points));
     for (const int i : IndexRange(storage.items_num)) {
-      const NodeGridItem &item = storage.items[i];
-      const std::string identifier = GridItemsAccessor::socket_identifier_for_item(item);
+      const NodeGeometryRasterizePointsItem &item = storage.items[i];
+      const std::string identifier = RasterizePointsItemsAccessor::socket_identifier_for_item(
+          item);
 
       evaluator.add_with_destination(params.extract_input<GField>(identifier),
                                      value_buffers[i].as_mutable_span().slice(points));
@@ -236,8 +244,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_output("Mass", std::move(*output_mass_grid));
   }
   for (const int i : IndexRange(storage.items_num)) {
-    const NodeGridItem &item = storage.items[i];
-    const std::string identifier = GridItemsAccessor::socket_identifier_for_item(item);
+    const NodeGeometryRasterizePointsItem &item = storage.items[i];
+    const std::string identifier = RasterizePointsItemsAccessor::socket_identifier_for_item(item);
     BLI_assert(output_attribute_grids[i]);
     params.set_output(identifier, std::move(output_attribute_grids[i]));
   }
@@ -249,19 +257,19 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
 {
-  socket_items::blend_write<GridItemsAccessor>(&writer, node);
+  socket_items::blend_write<RasterizePointsItemsAccessor>(&writer, node);
 }
 
 static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
 {
-  socket_items::blend_read_data<GridItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<RasterizePointsItemsAccessor>(&reader, node);
 }
 
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodePointsToDensityGrid", GEO_NODE_POINTS_TO_DENSITY_GRID);
+  geo_node_type_base(&ntype, "GeometryNodePointsToDensityGrid", GEO_NODE_RASTERIZE_POINTS);
   ntype.ui_name = "Points to Density Grid";
   ntype.ui_description = "Create volume grids from points with a weighted sum";
   ntype.nclass = NODE_CLASS_GEOMETRY;
@@ -271,9 +279,9 @@ static void node_register()
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
   blender::bke::node_type_storage(
-      ntype, "NodeGeometryPointsToDensityGrid", node_free_storage, node_copy_storage);
+      ntype, "NodeGeometryRasterizePoints", node_free_storage, node_copy_storage);
   ntype.insert_link = node_insert_link;
-  ntype.gather_link_search_ops = search_link_ops_for_volume_grid_node;
+  // ntype.gather_link_search_ops = search_link_ops_for_volume_grid_node;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
   ntype.geometry_node_execute = node_geo_exec;
@@ -285,21 +293,21 @@ NOD_REGISTER_NODE(node_register)
 
 namespace blender::nodes {
 
-StructRNA *GridItemsAccessor::item_srna = &RNA_NodeGridItem;
-int GridItemsAccessor::node_type = GEO_NODE_POINTS_TO_DENSITY_GRID;
+StructRNA **RasterizePointsItemsAccessor::item_srna = &RNA_NodeGeometryRasterizePointsItem;
 
-void GridItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
+void RasterizePointsItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
   BLO_write_string(writer, item.name);
 }
 
-void GridItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
+void RasterizePointsItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
 {
   BLO_read_string(reader, &item.name);
 }
 
 // TODO
-// std::string GridItemsAccessor::custom_initial_name(const bNode &node, StringRef src_name)
+// std::string RasterizePointsItemsAccessor::custom_initial_name(const bNode &node, StringRef
+// src_name)
 // {
 //   /* The goal is to find a single-letter name that is not used already. Ideally, it starts with
 //   the
@@ -334,7 +342,7 @@ void GridItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &ite
 //   return src_name;
 // }
 
-// std::string GridItemsAccessor::validate_name(const StringRef name)
+// std::string RasterizePointsItemsAccessor::validate_name(const StringRef name)
 // {
 //   /* The name has to start with a letter or underscore. The remaining letters may additionally
 //   be
@@ -361,12 +369,16 @@ void GridItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &ite
 
 }  // namespace blender::nodes
 
-blender::Span<NodeGridItem> NodeGeometryPointsToDensityGrid::items_span() const
+namespace blender {
+
+blender::Span<NodeGeometryRasterizePointsItem> NodeGeometryRasterizePoints::items_span() const
 {
-  return blender::Span<NodeGridItem>(items, items_num);
+  return blender::Span<NodeGeometryRasterizePointsItem>(items, items_num);
 }
 
-blender::MutableSpan<NodeGridItem> NodeGeometryPointsToDensityGrid::items_span()
+blender::MutableSpan<NodeGeometryRasterizePointsItem> NodeGeometryRasterizePoints::items_span()
 {
-  return blender::MutableSpan<NodeGridItem>(items, items_num);
+  return blender::MutableSpan<NodeGeometryRasterizePointsItem>(items, items_num);
 }
+
+}  // namespace blender
