@@ -428,22 +428,18 @@ void OneapiDevice::mem_alloc(device_memory &mem)
     assert(!"mem_alloc not supported for global memory.");
   }
   else {
-    if (mem.name) {
-      LOG_TRACE << "OneapiDevice::mem_alloc: \"" << mem.name << "\", "
-                << string_human_readable_number(mem.memory_size()) << " bytes. ("
-                << string_human_readable_size(mem.memory_size()) << ")";
-    }
+    LOG_TRACE << "OneapiDevice::mem_alloc: \"" << mem.log_name() << "\", "
+              << string_human_readable_number(mem.memory_size()) << " bytes. ("
+              << string_human_readable_size(mem.memory_size()) << ")";
     generic_alloc(mem);
   }
 }
 
 void OneapiDevice::mem_copy_to(device_memory &mem)
 {
-  if (mem.name) {
-    LOG_TRACE << "OneapiDevice::mem_copy_to: \"" << mem.name << "\", "
-              << string_human_readable_number(mem.memory_size()) << " bytes. ("
-              << string_human_readable_size(mem.memory_size()) << ")";
-  }
+  LOG_TRACE << "OneapiDevice::mem_copy_to: \"" << mem.log_name() << "\", "
+            << string_human_readable_number(mem.memory_size()) << " bytes. ("
+            << string_human_readable_size(mem.memory_size()) << ")";
 
   /* After getting runtime errors we need to avoid performing oneAPI runtime operations
    * because the associated GPU context may be in an invalid state at this point. */
@@ -467,11 +463,9 @@ void OneapiDevice::mem_copy_to(device_memory &mem)
 
 void OneapiDevice::mem_move_to_host(device_memory &mem)
 {
-  if (mem.name) {
-    LOG_TRACE << "OneapiDevice::mem_move_to_host: \"" << mem.name << "\", "
-              << string_human_readable_number(mem.memory_size()) << " bytes. ("
-              << string_human_readable_size(mem.memory_size()) << ")";
-  }
+  LOG_TRACE << "OneapiDevice::mem_move_to_host: \"" << mem.log_name() << "\", "
+            << string_human_readable_number(mem.memory_size()) << " bytes. ("
+            << string_human_readable_size(mem.memory_size()) << ")";
 
   /* After getting runtime errors we need to avoid performing oneAPI runtime operations
    * because the associated GPU context may be in an invalid state at this point. */
@@ -502,12 +496,10 @@ void OneapiDevice::mem_copy_from(
     const size_t size = (w > 0 || h > 0 || elem > 0) ? (elem * w * h) : mem.memory_size();
     const size_t offset = elem * y * w;
 
-    if (mem.name) {
-      LOG_TRACE << "OneapiDevice::mem_copy_from: \"" << mem.name << "\" object of "
-                << string_human_readable_number(mem.memory_size()) << " bytes. ("
-                << string_human_readable_size(mem.memory_size()) << ") from offset " << offset
-                << " data " << size << " bytes";
-    }
+    LOG_TRACE << "OneapiDevice::mem_copy_from: \"" << mem.log_name() << "\" object of "
+              << string_human_readable_number(mem.memory_size()) << " bytes. ("
+              << string_human_readable_size(mem.memory_size()) << ") from offset " << offset
+              << " data " << size << " bytes";
 
     /* After getting runtime errors we need to avoid performing oneAPI runtime operations
      * because the associated GPU context may be in an invalid state at this point. */
@@ -532,11 +524,9 @@ void OneapiDevice::mem_copy_from(
 
 void OneapiDevice::mem_zero(device_memory &mem)
 {
-  if (mem.name) {
-    LOG_TRACE << "OneapiDevice::mem_zero: \"" << mem.name << "\", "
-              << string_human_readable_number(mem.memory_size()) << " bytes. ("
-              << string_human_readable_size(mem.memory_size()) << ")\n";
-  }
+  LOG_TRACE << "OneapiDevice::mem_zero: \"" << mem.log_name() << "\", "
+            << string_human_readable_number(mem.memory_size()) << " bytes. ("
+            << string_human_readable_size(mem.memory_size()) << ")";
 
   /* After getting runtime errors we need to avoid performing oneAPI runtime operations
    * because the associated GPU context may be in an invalid state at this point. */
@@ -562,11 +552,9 @@ void OneapiDevice::mem_zero(device_memory &mem)
 
 void OneapiDevice::mem_free(device_memory &mem)
 {
-  if (mem.name) {
-    LOG_TRACE << "OneapiDevice::mem_free: \"" << mem.name << "\", "
-              << string_human_readable_number(mem.device_size) << " bytes. ("
-              << string_human_readable_size(mem.device_size) << ")\n";
-  }
+  LOG_TRACE << "OneapiDevice::mem_free: \"" << mem.log_name() << "\", "
+            << string_human_readable_number(mem.device_size) << " bytes. ("
+            << string_human_readable_size(mem.device_size) << ")";
 
   if (mem.type == MEM_GLOBAL) {
     global_free(mem);
@@ -638,17 +626,15 @@ void OneapiDevice::const_copy_to(const char *name, void *host, const size_t size
 
 void OneapiDevice::global_alloc(device_memory &mem)
 {
-  assert(mem.name);
-
   size_t size = mem.memory_size();
-  LOG_TRACE << "OneapiDevice::global_alloc \"" << mem.name << "\" object "
+  LOG_TRACE << "OneapiDevice::global_alloc \"" << mem.log_name() << "\" object "
             << string_human_readable_number(size) << " bytes. ("
             << string_human_readable_size(size) << ")";
 
   generic_alloc(mem);
   generic_copy_to(mem);
 
-  set_global_memory(device_queue_, kg_memory_, mem.name, (void *)mem.device_pointer);
+  set_global_memory(device_queue_, kg_memory_, mem.global_name(), (void *)mem.device_pointer);
 
   usm_memcpy(device_queue_, kg_memory_device_, kg_memory_, kg_memory_size_);
 }
@@ -689,7 +675,9 @@ static sycl::ext::oneapi::experimental::image_descriptor image_desc(const device
       channel_type = sycl::image_channel_type::fp16;
       break;
     default:
+      channel_type = sycl::image_channel_type::unorm_int8;
       assert(0);
+      break;
   }
 
   sycl::ext::oneapi::experimental::image_descriptor param;
@@ -784,7 +772,7 @@ void OneapiDevice::image_alloc(device_image &mem)
       desc = sycl::ext::oneapi::experimental::image_descriptor(
           {mem.data_width, mem.data_height, 0}, mem.data_elements, channel_type);
 
-      LOG_DEBUG << "Array 2D/3D allocate: " << mem.name << ", "
+      LOG_DEBUG << "Array 2D/3D allocate: " << mem.log_name() << ", "
                 << string_human_readable_number(mem.memory_size()) << " bytes. ("
                 << string_human_readable_size(mem.memory_size()) << ")";
 
@@ -853,12 +841,12 @@ void OneapiDevice::image_alloc(device_image &mem)
     {
       /* Update image info. */
       thread_scoped_lock lock(image_info_mutex);
-      const uint slot = mem.slot;
-      if (slot >= image_info.size()) {
-        /* Allocate some slots in advance, to reduce amount of re-allocations. */
-        image_info.resize(slot + 128);
+      const uint image_info_id = mem.image_info_id;
+      if (image_info_id >= image_info.size()) {
+        /* Allocate some image_info_ids in advance, to reduce amount of re-allocations. */
+        image_info.resize(image_info_id + 128);
       }
-      image_info[slot] = tex_info;
+      image_info[image_info_id] = tex_info;
       need_image_info = true;
     }
   }
@@ -1011,11 +999,7 @@ void OneapiDevice::check_usm(SyclQueue *queue_, const void *usm_ptr, bool allow_
       queue->get_device().get_info<sycl::info::device::device_type>();
   sycl::usm::alloc usm_type = get_pointer_type(usm_ptr, queue->get_context());
   (void)usm_type;
-#    ifndef WITH_ONEAPI_SYCL_HOST_TASK
   const sycl::usm::alloc main_memory_type = sycl::usm::alloc::device;
-#    else
-  const sycl::usm::alloc main_memory_type = sycl::usm::alloc::host;
-#    endif
   assert(usm_type == main_memory_type ||
          (usm_type == sycl::usm::alloc::host &&
           (allow_host || device_type == sycl::info::device_type::cpu)) ||
@@ -1111,11 +1095,7 @@ void *OneapiDevice::usm_alloc_device(SyclQueue *queue_, size_t memory_size)
    * two different pointer for host activity and device activity, and also has to perform all
    * needed memory transfer operations. So, USM device memory type has been used for oneAPI device
    * in order to better fit in Cycles architecture. */
-#  ifndef WITH_ONEAPI_SYCL_HOST_TASK
   return sycl::malloc_device(memory_size, *queue);
-#  else
-  return sycl::malloc_host(memory_size, *queue);
-#  endif
 }
 
 void OneapiDevice::usm_free(SyclQueue *queue_, void *usm_ptr)
@@ -1366,27 +1346,16 @@ void OneapiDevice::get_adjusted_global_and_local_sizes(SyclQueue *queue,
    * we extend work size to fit uniformity requirements. */
   kernel_global_size = round_up(kernel_global_size, kernel_local_size);
 
-#  ifdef WITH_ONEAPI_SYCL_HOST_TASK
-  /* Kernels listed below need a specific number of work groups. */
-  if (kernel == DEVICE_KERNEL_INTEGRATOR_ACTIVE_PATHS_ARRAY ||
-      kernel == DEVICE_KERNEL_INTEGRATOR_QUEUED_PATHS_ARRAY ||
-      kernel == DEVICE_KERNEL_INTEGRATOR_QUEUED_SHADOW_PATHS_ARRAY ||
-      kernel == DEVICE_KERNEL_INTEGRATOR_TERMINATED_PATHS_ARRAY ||
-      kernel == DEVICE_KERNEL_INTEGRATOR_TERMINATED_SHADOW_PATHS_ARRAY ||
-      kernel == DEVICE_KERNEL_INTEGRATOR_COMPACT_PATHS_ARRAY ||
-      kernel == DEVICE_KERNEL_INTEGRATOR_COMPACT_SHADOW_PATHS_ARRAY)
-  {
-    /* Path array implementation is serial in case of SYCL Host Task execution. */
-    kernel_global_size = 1;
-    kernel_local_size = 1;
-  }
-#  endif
-
   assert(kernel_global_size % kernel_local_size == 0);
 }
 
 /* Compute-runtime (ie. NEO) version is what gets returned by sycl/L0 on Windows
  * since Windows driver 101.3268. */
+/* IMPORTANT: ocloc 101.8424 (compute-runtime version 36246) generates
+ * AoT binaries that have been manually verified compatible down to
+ * driver 101.8306 by Intel, matching lowest_supported_driver_version_win.
+ * If ocloc is upgraded again in future, this compatibility must be re-verified
+ * or the minimum version bumped. */
 static const int lowest_supported_driver_version_win = 1018306;
 #  ifdef _WIN32
 /* For Windows driver 101.8331, compute-runtime version is 35716.
@@ -1676,11 +1645,7 @@ char *OneapiDevice::device_capabilities()
 
   const std::vector<sycl::device> &oneapi_devices = available_sycl_devices();
   for (const sycl::device &device : oneapi_devices) {
-#  ifndef WITH_ONEAPI_SYCL_HOST_TASK
     const std::string &name = device.get_info<sycl::info::device::name>();
-#  else
-    const std::string &name = "SYCL Host Task (Debug)";
-#  endif
 
     capabilities << std::string("\t") << name << "\n";
     capabilities << "\t\tsycl::info::platform::name\t\t\t"
@@ -1797,11 +1762,7 @@ void OneapiDevice::iterate_devices(OneAPIDeviceIteratorCallback cb, void *user_p
   for (sycl::device &device : devices) {
     const std::string &platform_name =
         device.get_platform().get_info<sycl::info::platform::name>();
-#  ifndef WITH_ONEAPI_SYCL_HOST_TASK
     std::string name = device.get_info<sycl::info::device::name>();
-#  else
-    std::string name = "SYCL Host Task (Debug)";
-#  endif
 #  ifdef WITH_EMBREE_GPU
     bool hwrt_support = rtcIsSYCLDeviceSupported(device);
 #  else

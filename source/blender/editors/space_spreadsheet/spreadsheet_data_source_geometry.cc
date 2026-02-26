@@ -361,7 +361,12 @@ std::unique_ptr<ColumnValues> GeometryDataSource::get_column_values(
     column_display_name = "Viewer";
   }
 
-  return std::make_unique<ColumnValues>(column_display_name, std::move(varray));
+  StringRef description;
+  if (varray.is_single()) {
+    description = TIP_("Stored as single value");
+  }
+
+  return std::make_unique<ColumnValues>(column_display_name, std::move(varray), description);
 }
 
 int GeometryDataSource::tot_rows() const
@@ -413,7 +418,7 @@ bool GeometryDataSource::has_selection_filter() const
 
 static IndexMask calc_mesh_selection_mask_faces(const Mesh &mesh_eval,
                                                 const Mesh &mesh_orig,
-                                                IndexMaskMemory &memory)
+                                                LinearAllocator<> &memory)
 {
   const bke::AttributeAccessor attributes_eval = mesh_eval.attributes();
   const IndexRange range(attributes_eval.domain_size(bke::AttrDomain::Face));
@@ -421,7 +426,7 @@ static IndexMask calc_mesh_selection_mask_faces(const Mesh &mesh_eval,
 
   BM_mesh_elem_table_ensure(bm, BM_FACE);
   if (mesh_eval.faces_num == bm->totface) {
-    return IndexMask::from_predicate(range, GrainSize(4096), memory, [&](const int i) {
+    return IndexMask::from_predicate(range, memory, [&](const int i) {
       const BMFace *face = BM_face_at_index(bm, i);
       return BM_elem_flag_test_bool(face, BM_ELEM_SELECT);
     });
@@ -429,7 +434,7 @@ static IndexMask calc_mesh_selection_mask_faces(const Mesh &mesh_eval,
   if (const int *orig_indices = static_cast<const int *>(
           CustomData_get_layer(&mesh_eval.face_data, CD_ORIGINDEX)))
   {
-    return IndexMask::from_predicate(range, GrainSize(2048), memory, [&](const int i) {
+    return IndexMask::from_predicate(range, memory, [&](const int i) {
       const int orig = orig_indices[i];
       if (orig == -1) {
         return false;
@@ -444,7 +449,7 @@ static IndexMask calc_mesh_selection_mask_faces(const Mesh &mesh_eval,
 static IndexMask calc_mesh_selection_mask(const Mesh &mesh_eval,
                                           const Mesh &mesh_orig,
                                           const bke::AttrDomain domain,
-                                          IndexMaskMemory &memory)
+                                          LinearAllocator<> &memory)
 {
   const bke::AttributeAccessor attributes_eval = mesh_eval.attributes();
   const IndexRange range(attributes_eval.domain_size(domain));
@@ -454,7 +459,7 @@ static IndexMask calc_mesh_selection_mask(const Mesh &mesh_eval,
     case bke::AttrDomain::Point: {
       BM_mesh_elem_table_ensure(bm, BM_VERT);
       if (mesh_eval.verts_num == bm->totvert) {
-        return IndexMask::from_predicate(range, GrainSize(4096), memory, [&](const int i) {
+        return IndexMask::from_predicate(range, memory, [&](const int i) {
           const BMVert *vert = BM_vert_at_index(bm, i);
           return BM_elem_flag_test_bool(vert, BM_ELEM_SELECT);
         });
@@ -462,7 +467,7 @@ static IndexMask calc_mesh_selection_mask(const Mesh &mesh_eval,
       if (const int *orig_indices = static_cast<const int *>(
               CustomData_get_layer(&mesh_eval.vert_data, CD_ORIGINDEX)))
       {
-        return IndexMask::from_predicate(range, GrainSize(2048), memory, [&](const int i) {
+        return IndexMask::from_predicate(range, memory, [&](const int i) {
           const int orig = orig_indices[i];
           if (orig == -1) {
             return false;
@@ -476,7 +481,7 @@ static IndexMask calc_mesh_selection_mask(const Mesh &mesh_eval,
     case bke::AttrDomain::Edge: {
       BM_mesh_elem_table_ensure(bm, BM_EDGE);
       if (mesh_eval.edges_num == bm->totedge) {
-        return IndexMask::from_predicate(range, GrainSize(4096), memory, [&](const int i) {
+        return IndexMask::from_predicate(range, memory, [&](const int i) {
           const BMEdge *edge = BM_edge_at_index(bm, i);
           return BM_elem_flag_test_bool(edge, BM_ELEM_SELECT);
         });
@@ -484,7 +489,7 @@ static IndexMask calc_mesh_selection_mask(const Mesh &mesh_eval,
       if (const int *orig_indices = static_cast<const int *>(
               CustomData_get_layer(&mesh_eval.edge_data, CD_ORIGINDEX)))
       {
-        return IndexMask::from_predicate(range, GrainSize(2048), memory, [&](const int i) {
+        return IndexMask::from_predicate(range, memory, [&](const int i) {
           const int orig = orig_indices[i];
           if (orig == -1) {
             return false;
@@ -522,7 +527,7 @@ static IndexMask calc_mesh_selection_mask(const Mesh &mesh_eval,
   }
 }
 
-IndexMask GeometryDataSource::apply_selection_filter(IndexMaskMemory &memory) const
+IndexMask GeometryDataSource::apply_selection_filter(LinearAllocator<> &memory) const
 {
   std::lock_guard lock{mutex_};
   const IndexMask full_range(this->tot_rows());
@@ -681,6 +686,7 @@ std::unique_ptr<ColumnValues> VolumeDataSource::get_column_values(
             [volume](const int64_t index) {
               return BKE_volume_grid_get(volume, index)->size_in_bytes();
             }),
+        "",
         ColumnValueDisplayHint::Bytes);
   }
   if (STREQ(column_id.name, "Voxel Extent")) {
@@ -773,7 +779,7 @@ std::unique_ptr<ColumnValues> VolumeGridDataSource::get_column_values(
   if (STREQ(column_id.name, "Size")) {
     const int64_t size = grid.size_in_bytes();
     return std::make_unique<ColumnValues>(
-        IFACE_("Size"), VArray<int64_t>::from_single(size, 1), ColumnValueDisplayHint::Bytes);
+        IFACE_("Size"), VArray<int64_t>::from_single(size, 1), "", ColumnValueDisplayHint::Bytes);
   }
   if (STREQ(column_id.name, "Voxel Extent")) {
     const int3 extent = int3(grid.active_bounds().dim().asPointer());
@@ -1177,6 +1183,9 @@ bke::SocketValueVariant root_display_data_get(const SpaceSpreadsheet *sspreadshe
     return lookup_bundle_path(bundle, table_id.viewer_item_bundle_path);
   }
   if (value.is_list()) {
+    return value;
+  }
+  if (value.is_volume_grid()) {
     return value;
   }
   return {};
