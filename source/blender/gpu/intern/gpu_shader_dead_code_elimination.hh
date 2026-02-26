@@ -10,7 +10,6 @@
 #include "BLI_set.hh"
 #include "BLI_vector.hh"
 
-#include "lazy_string_builder.hh"
 #include "shader_tool/lexit/lexit.hh"
 
 namespace blender::gpu {
@@ -21,12 +20,17 @@ namespace blender::gpu {
 
 /* Token stream that parses (some) symbols definitions, build a graph of usage and then prune
  * unused definitions for a given set of entry point functions. */
-struct DCEStream : private LazyStringBuilder {
+struct DCEStream {
   using Token = lexit::Token;
   using TokenType = lexit::TokenType;
   using TokenAtom = lexit::TokenAtom;
 
  private:
+  /* Data to output. Think of it as a lazy string builder. */
+  Vector<StringRef> stream;
+  /* Total output length. */
+  size_t total_length = 0;
+  /* Ranges of character in the stream to remove when constructing the result. */
   Vector<std::pair<int32_t, int32_t>> removals;
 
   /* Simple circular buffer to access last few token data. */
@@ -103,9 +107,31 @@ struct DCEStream : private LazyStringBuilder {
     enabled_ = value;
   }
 
+  /**
+   * Checks if str is a contiguous continuation of the last inserted string ref.
+   * If yes, merge it; else append str to the stream.
+   */
   DCEStream &operator<<(StringRef str)
   {
-    *static_cast<LazyStringBuilder *>(this) << str;
+    if (str.is_empty()) {
+      return *this;
+    }
+
+    if (!stream.is_empty()) {
+      StringRef &last = stream.last();
+      /* Check if the memory addresses are contiguous */
+      if (last.data() + last.size() == str.data()) {
+        last = StringRef(last.data(), last.size() + str.size());
+      }
+      else {
+        stream.append(str);
+      }
+    }
+    else {
+      stream.append(str);
+    }
+
+    total_length += str.size();
     return *this;
   }
 
