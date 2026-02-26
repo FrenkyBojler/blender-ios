@@ -734,7 +734,7 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
     case XR_VIEWFINDER_MODE_LIVE:
       // TODO: Clean-up by moving DoF status to another label on the left side of the viewfinder.
       settings_label = fmt::format(
-          "{:\xe2\x80\x87>3}mm   DoF: {}   d: {:\xe2\x80\x87<4.1f}   f {:\xe2\x80\x87>3.1f}",
+          "{:\xe2\x80\x87>3}mm   DoF: {}   d: {:\xe2\x80\x87<4.1f}   f {:\xe2\x80\x87<3.1f}",
           state->viewfinder.capture_lens_focal,
           state->viewfinder.capture_dof_enabled ? "on " : "off",
           state->viewfinder.capture_dof_distance,
@@ -870,9 +870,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   draw_block(viewfinder_missing_captures_label_ui_block, captures_label_x, captures_label_y);
 }
 
-// TODO: Remove from global scope once the outline color is more dynamic and this is just used for
-// the logo.
-static constexpr float viewfinder_outline_color[4] = {0.26f, 0.26f, 0.26f, 0.2f};
+static constexpr float viewfinder_alpha_accent_color[4] = {0.26f, 0.26f, 0.26f, 0.2f};
 
 static void wm_xr_controller_viewfinder_draw_background(const rctf &viewfinder_rect)
 {
@@ -907,7 +905,7 @@ static void wm_xr_controller_viewfinder_draw_background(const rctf &viewfinder_r
 
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
   GPU_matrix_translate_3f(0.0f, 0.0f, 0.5f);
-  ui::draw_roundbox_4fv(&outline_rect, true, 0, viewfinder_outline_color);
+  ui::draw_roundbox_4fv(&outline_rect, true, 0, viewfinder_alpha_accent_color);
 
   GPU_matrix_pop();
 }
@@ -1034,7 +1032,7 @@ static void wm_xr_controller_viewfinder_draw_backside_logo(const wmXrSessionStat
   /* Flip UV coords for horizontal mirror to draw on the backside of the viewfinder. */
   const rctf tex_uv = {1.0f, 0.0f, 0.0f, 1.0f};
   GPU_matrix_translate_3f(0.0f, 0.0f, -0.05f);
-  wm_xr_controller_viewfinder_draw_texture(logo_tex, logo_rect, tex_uv, viewfinder_outline_color);
+  wm_xr_controller_viewfinder_draw_texture(logo_tex, logo_rect, tex_uv, viewfinder_alpha_accent_color);
 }
 
 static void wm_xr_controller_viewfinder_draw_capture_flash(wmXrSessionState *state,
