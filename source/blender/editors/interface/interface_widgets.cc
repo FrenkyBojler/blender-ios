@@ -1667,7 +1667,8 @@ float text_clip_middle_ex(const uiFontStyle *fstyle,
 static void ui_text_clip_middle(const uiFontStyle *fstyle, Button *but, const rcti *rect)
 {
   /* No margin for labels! */
-  const int border = ELEM(but->type, ButtonType::Label, ButtonType::Menu, ButtonType::Popover) ?
+  const int border = (ELEM(but->type, ButtonType::Label, ButtonType::Menu, ButtonType::Popover) ||
+                      (but->sub_style == ButtonSubStyle::Link && !(but->flag & UI_HAS_ICON))) ?
                          0 :
                          int(UI_TEXT_CLIP_MARGIN + 0.5f);
   const float okwidth = float(max_ii(BLI_rcti_size_x(rect) - border, 0));
@@ -1693,7 +1694,8 @@ static void ui_text_clip_middle_protect_right(const uiFontStyle *fstyle,
                                               const char rsep)
 {
   /* No margin for labels! */
-  const int border = ELEM(but->type, ButtonType::Label, ButtonType::Menu, ButtonType::Popover) ?
+  const int border = (ELEM(but->type, ButtonType::Label, ButtonType::Menu, ButtonType::Popover) ||
+                      (but->sub_style == ButtonSubStyle::Link && !(but->flag & UI_HAS_ICON))) ?
                          0 :
                          int(UI_TEXT_CLIP_MARGIN + 0.5f);
   const float okwidth = float(max_ii(BLI_rcti_size_x(rect) - border, 0));
@@ -5165,6 +5167,9 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
         if (but->sub_style == ButtonSubStyle::Link) {
           wt->draw = nullptr;
           wt->custom = nullptr;
+          if (!(but->flag & UI_HAS_ICON)) {
+            but->drawflag |= BUT_NO_TEXT_PADDING;
+          }
         }
         break;
 

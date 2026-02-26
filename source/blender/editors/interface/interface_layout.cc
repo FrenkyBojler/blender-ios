@@ -3224,18 +3224,39 @@ void Layout::link(const StringRef url, const StringRef name, int icon)
     return;
   }
 
-  PointerRNA opptr;
-
-  Layout *layout = this;
-
   /* Force the button to not be expanded full width. */
-  layout = &this->row(false);
+  Layout *layout = &this->row(false);
   layout->alignment_set(this->alignment());
   layout = &layout->row(false);
   layout->alignment_set(LayoutAlign::Center);
 
-  Button *button = uiItemFullO_ptr_ex(
-      layout, ot, name, icon, wm::OpCallContext::InvokeDefault, eUI_Item_Flag(0), &opptr);
+  if (this->root()->type == LayoutType::Menu && !icon) {
+    icon = ICON_BLANK1;
+  }
+  Block *block = layout->block();
+  block_layout_set_current(block, layout);
+  block_new_button_group(block, ButtonGroupFlag(0));
+
+  /* Match button width to label items. */
+  const int w = ui_text_icon_width_ex(layout, name, icon, ui_text_pad_none, UI_FSTYLE_WIDGET);
+
+  /* Create the button. */
+  Button *button;
+  wm::OpCallContext context = wm::OpCallContext::InvokeDefault;
+  if (icon) {
+    button = uiDefIconTextButO_ptr(
+        block, ButtonType::But, ot, context, icon, name, 0, 0, w, UI_UNIT_Y, std::nullopt);
+  }
+  else {
+    button = uiDefButO_ptr(
+        block, ButtonType::But, ot, context, name, 0, 0, w, UI_UNIT_Y, std::nullopt);
+  }
+
+  if (layout->red_alert()) {
+    button_flag_enable(button, BUT_REDALERT);
+  }
+  PointerRNA *opptr = button_operator_ptr_ensure(button);
+  opptr->data = bke::idprop::create_group("wmOperatorProperties").release();
 
   button->sub_style = ButtonSubStyle::Link;
 
@@ -3261,7 +3282,7 @@ void Layout::link(const StringRef url, const StringRef name, int icon)
       },
       nullptr,
       nullptr);
-  RNA_string_set(&opptr, "url", url.data());
+  RNA_string_set(opptr, "url", url.data());
 }
 
 PropertySplitWrapper uiItemPropertySplitWrapperCreate(Layout *parent_layout)
