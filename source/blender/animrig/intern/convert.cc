@@ -6,19 +6,19 @@
 #include "RNA_prototypes.hh"
 
 #include "BLI_math_rotation.h"
-#include "BLI_set.hh"
 #include "BLI_math_vector.h"
+#include "BLI_set.hh"
 
 #include "BKE_fcurve.hh"
 
-#include "ANIM_rna.hh"
-#include "ANIM_fcurve.hh"
-#include "ANIM_convert.hh"
 #include "ANIM_action.hh"
+#include "ANIM_convert.hh"
+#include "ANIM_fcurve.hh"
+#include "ANIM_rna.hh"
 
-namespace blender::animrig{
+namespace blender::animrig {
 
-    /* Builds a set of frames where at least one of the given FCurves has a key. This uses int instead
+/* Builds a set of frames where at least one of the given FCurves has a key. This uses int instead
  * of float to avoid precision issues. The maximum subframe resolution is dicated by
  * BEZT_BINARYSEARCH_THRESH so this is used to convert to a unique integer. */
 static Set<int64_t> build_keyframe_ids(FCurve *fcurves[4])
@@ -36,7 +36,7 @@ static Set<int64_t> build_keyframe_ids(FCurve *fcurves[4])
   return keyframe_ids;
 }
 
-    static void rotation_values_to_matrix(const float rotation_values[4],
+static void rotation_values_to_matrix(const float rotation_values[4],
                                       const eRotationModes mode,
                                       float r_matrix[3][3])
 {
@@ -94,10 +94,10 @@ static void get_rotation_values(const bPoseChannel &pose_bone, float rotation_va
 }
 
 void convert_pose_bone_rotation_keys(Main *bmain,
-                                            Object &ob,
-                                            bPoseChannel &pchan,
-                                            RNAPathFCurveMap &fcurves_by_rna_path,
-                                            const eRotationModes to_mode)
+                                     Object &ob,
+                                     bPoseChannel &pchan,
+                                     RNAPathFCurveMap &fcurves_by_rna_path,
+                                     const eRotationModes to_mode)
 {
   PointerRNA ptr = RNA_pointer_create_discrete(&ob.id, RNA_PoseBone, &pchan);
   const std::optional<std::string> pchan_path = RNA_path_from_ID_to_struct(&ptr);
@@ -187,8 +187,7 @@ void convert_pose_bone_rotation_keys(Main *bmain,
         /* Insert a key */
         FCurve *fcurve = insertion_buffer[i];
         BLI_assert_msg(fcurve, "For insertion all FCurves are expected to be created before");
-        insert_vert_fcurve(
-            fcurve, {frame, converted_rotation[i]}, settings, eInsertKeyFlags(0));
+        insert_vert_fcurve(fcurve, {frame, converted_rotation[i]}, settings, eInsertKeyFlags(0));
       }
 
       std::swap(converted_rotation, previous_conversion);
@@ -209,4 +208,4 @@ void convert_pose_bone_rotation_keys(Main *bmain,
     }
   }
 }
-}
+}  // namespace blender::animrig

@@ -10,8 +10,7 @@
 
 #include "BLI_map.hh"
 
-
-namespace blender{
+namespace blender {
 struct FCurve;
 struct Object;
 struct bPoseChannel;
@@ -28,12 +27,12 @@ using ChannelbagFCurveMap = Map<Channelbag *, RotationFCurves>;
 using RNAPathFCurveMap = Map<StringRef, ChannelbagFCurveMap>;
 
 /**
- * 
+ *
  */
 void convert_pose_bone_rotation_keys(Main *bmain,
-                                        Object &ob,
-                                        bPoseChannel &pchan,
-                                        RNAPathFCurveMap &fcurves_by_rna_path,
-                                        eRotationModes to_mode);
-}
-}
+                                     Object &ob,
+                                     bPoseChannel &pchan,
+                                     RNAPathFCurveMap &fcurves_by_rna_path,
+                                     eRotationModes to_mode);
+}  // namespace animrig
+}  // namespace blender
