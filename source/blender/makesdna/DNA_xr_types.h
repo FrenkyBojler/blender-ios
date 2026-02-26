@@ -126,14 +126,14 @@ struct XrSessionSettings {
   /** Draw style for controller visualization. */
   char controller_draw_style = 0;
 
-  char viewfinder_enabled;
-  char viewfinder_crosshair_enabled;
-  char viewfinder_hand; /* #eXrViewfinderHand */
+  char viewfinder_enabled = 0;
+  char viewfinder_crosshair_enabled = 0;
+  char viewfinder_hand = 0; /* #eXrViewfinderHand */
   char _pad2[3];
 
-  float viewfinder_scale;
-  float viewfinder_passepartout_overscan;
-  float viewfinder_passepartout_opacity;
+  float viewfinder_scale = 1.0f;
+  float viewfinder_passepartout_overscan = 0.5f;
+  float viewfinder_passepartout_opacity = 0.5f;
 
   /** Clipping distance. */
   float clip_start = 0, clip_end = 0;

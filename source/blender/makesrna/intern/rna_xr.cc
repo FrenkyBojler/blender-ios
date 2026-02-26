@@ -2301,11 +2301,13 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "viewfinder_enabled", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(prop, "Viewfinder Enabled", "Enable the Location Scouting Viewfinder");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "viewfinder_hand", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_default(prop, XR_VIEWFINDER_HAND_LEFT);
   RNA_def_property_enum_items(prop, viewfinder_hands);
   RNA_def_property_ui_text(
       prop, "Viewfinder Hand", "Hand on which to place the Location Scouting Viewfinder");
@@ -2320,13 +2322,13 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "viewfinder_crosshair_enabled", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
       prop, "Viewfinder Crosshair Enabled", "Enable the Viewfinder Crosshair");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "viewfinder_passepartout_overscan", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_float_default(prop, 0.5f);
   RNA_def_property_ui_text(prop,
                            "Viewfinder Passepartout Overscan",
                            "Border size of the Viewfinder Passepartout overlay");
@@ -2334,7 +2336,6 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "viewfinder_passepartout_opacity", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_float_default(prop, 0.5f);
   RNA_def_property_ui_text(prop,
                            "Viewfinder Passepartout Opacity",
                            "Opacity of the darkened Viewfinder Passepartout overlay");

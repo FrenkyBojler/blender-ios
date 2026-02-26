@@ -106,8 +106,8 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       wm.xr.session_settings.viewfinder_hand = XR_VIEWFINDER_HAND_LEFT;
       wm.xr.session_settings.viewfinder_scale = 1.0f;
 
-      wm.xr.session_settings.viewfinder_passepartout_overscan = 0.5;
-      wm.xr.session_settings.viewfinder_passepartout_opacity = 0.5;
+      wm.xr.session_settings.viewfinder_passepartout_overscan = 0.5f;
+      wm.xr.session_settings.viewfinder_passepartout_opacity = 0.5f;
     }
   }
   /**
