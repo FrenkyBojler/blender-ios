@@ -220,6 +220,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   BLF_wordwrap(data->fstyle.uifont_id,
                data->wrap_width,
                BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
+
   /* Wrap paths with path-specific wrapping with hard width limit. */
   BLF_wordwrap(blf_mono_font,
                data->wrap_width,
