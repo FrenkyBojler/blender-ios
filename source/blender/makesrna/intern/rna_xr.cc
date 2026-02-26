@@ -2294,6 +2294,27 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Viewfinder Scale", "Location Scouting Viewfinder size scale");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
+  prop = RNA_def_property(srna, "viewfinder_passepartout_enabled", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Viewfinder Passepartout Enabled", "Enable the Viewfinder Passepartout");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "viewfinder_passepartout_overscan", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_float_default(prop, 0.5f);
+  RNA_def_property_ui_text(prop,
+                           "Viewfinder Passepartout Overscan",
+                           "Border size of the Viewfinder Passepartout overlay");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "viewfinder_passepartout_opacity", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_float_default(prop, 0.5f);
+  RNA_def_property_ui_text(prop,
+                           "Viewfinder Passepartout Opacity",
+                           "Opacity of the darkened Viewfinder Passepartout overlay");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
   prop = RNA_def_property(srna, "clip_start", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_range(prop, 1e-6f, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.001f, FLT_MAX, 0.1 * 100, 3);

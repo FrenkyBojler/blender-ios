@@ -130,7 +130,10 @@ struct XrSessionSettings {
   char viewfinder_hand; /* #eXrViewfinderHand */
   float viewfinder_scale;
 
-  int _pad2;
+  char _pad2[3];
+  char viewfinder_passepartout_enabled;
+  float viewfinder_passepartout_overscan;
+  float viewfinder_passepartout_opacity;
 
   /** Clipping distance. */
   float clip_start = 0, clip_end = 0;

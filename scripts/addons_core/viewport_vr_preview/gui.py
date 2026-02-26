@@ -172,6 +172,28 @@ class VIEW3D_PT_vr_location_scouting_viewfinder(VRButtonsPanel, Panel):
         layout.prop(session_settings, "viewfinder_hand", text="Hand", expand=True)
         layout.prop(session_settings, "viewfinder_scale", text="Scale")
 
+class VIEW3D_PT_vr_location_scouting_viewfinder_passepartout(VRButtonsPanel, Panel):
+    bl_label = "Passepartout"
+    bl_parent_id = "VIEW3D_PT_vr_location_scouting_viewfinder"
+
+    def draw_header(self, context):
+        layout = self.layout
+        session_settings = context.window_manager.xr_session_settings
+
+        layout.prop(session_settings, "viewfinder_passepartout_enabled", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        session_settings = context.window_manager.xr_session_settings
+
+        layout.enabled = session_settings.viewfinder_enabled
+        session_settings = context.window_manager.xr_session_settings
+
+        layout.use_property_split = True
+
+        layout.prop(session_settings, "viewfinder_passepartout_overscan", text="Overscan")
+        layout.prop(session_settings, "viewfinder_passepartout_opacity", text="Opacity")
+
 
 # Landmarks.
 class VIEW3D_MT_vr_landmark_menu(Menu):
@@ -313,6 +335,7 @@ classes = (
     VIEW3D_PT_vr_location_scouting,
     VIEW3D_PT_vr_location_scouting_captures,
     VIEW3D_PT_vr_location_scouting_viewfinder,
+    VIEW3D_PT_vr_location_scouting_viewfinder_passepartout,
     VIEW3D_PT_vr_landmarks,
     VIEW3D_PT_vr_actionmaps,
     VIEW3D_PT_vr_viewport_feedback,

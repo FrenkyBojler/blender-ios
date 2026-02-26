@@ -229,6 +229,12 @@ static rctf wm_xr_get_viewfinder_view_rect(const XrSessionSettings *settings,
   return viewfinder_rect;
 }
 
+static float wm_xr_get_viewfinder_passepartout_overscan(const XrSessionSettings *settings)
+{
+  /* Turn the user-facing 0 -> 1 factor into a 1 -> 1.5 factor. */
+  return (settings->viewfinder_passepartout_overscan * 0.5) + 1.0f;
+}
+
 static bool wm_xr_get_viewfinder_capture_mat(const XrSessionSettings *settings,
                                              const wmXrSessionState *state,
                                              const float viewfinder_height,
@@ -440,6 +446,14 @@ static void wm_xr_draw_viewfinder_view_texture(const GHOST_XrDrawViewInfo *draw_
                                       render_settings->ysch,
                                       render_settings->xasp,
                                       render_settings->yasp);
+  /* In Live mode, scale viewplane by passepartout overscan if enabled. */
+  if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE &&
+      settings->viewfinder_passepartout_enabled)
+  {
+    BLI_rctf_mul(&cam_render_params.viewplane,
+                 wm_xr_get_viewfinder_passepartout_overscan(settings));
+  }
+
   BKE_camera_params_compute_matrix(&cam_render_params);
 
   float viewfinder_winmat[4][4];
@@ -654,7 +668,6 @@ static ui::Block *viewfinder_action_label_ui_block(const bContext *C,
 
 static ui::Block *viewfinder_action_enum_ui_block(const bContext *C, const wmXrSessionState *state)
 {
-  /* XR Session settings RNA pointer. */
   PointerRNA ptr = RNA_pointer_create_discrete(
       &CTX_wm_manager(C)->id, RNA_XrViewfinderState, (void *)&state->viewfinder);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "active_action_live");
@@ -912,8 +925,8 @@ static void wm_xr_controller_viewfinder_draw_texture(gpu::Texture *texture,
 
   immRectf_with_texco(pos, texco, rect, uv);
 
-  GPU_blend(GPU_BLEND_NONE);
   immUnbindProgram();
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void wm_xr_controller_viewfinder_draw_view(const bContext *C,
@@ -927,13 +940,53 @@ static void wm_xr_controller_viewfinder_draw_view(const bContext *C,
     return;
   }
 
-  /* Obtain the Viewfinder view texture we computed in `wm_xr_draw_view()`. */
+  /* Obtain the Viewfinder view texture we computed in #wm_xr_draw_view. */
   gpu::Texture *view_tex = GPU_offscreen_color_texture(g_viewfinder_offscreen);
 
   const rctf tex_uv = {0.0f, 1.0f, 0.0f, 1.0f};
   const float tex_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
   wm_xr_controller_viewfinder_draw_texture(view_tex, viewfinder_rect, tex_uv, tex_color);
+}
+
+static void wm_xr_controller_viewfinder_draw_capture_passepartout(
+    const XrSessionSettings *settings, const wmXrSessionState *state, const rctf &vf_rect)
+{
+  if (!settings->viewfinder_passepartout_enabled ||
+      state->viewfinder.active_mode != XR_VIEWFINDER_MODE_LIVE)
+  {
+    return;
+  }
+
+  rctf capture_rect = vf_rect;
+  BLI_rctf_resize(&capture_rect,
+                  BLI_rctf_size_x(&vf_rect) / wm_xr_get_viewfinder_passepartout_overscan(settings),
+                  BLI_rctf_size_y(&vf_rect) / wm_xr_get_viewfinder_passepartout_overscan(settings));
+
+  GPUVertFormat *format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
+
+  GPU_blend(GPU_BLEND_ALPHA);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  immUniformColor4f(0.0f, 0.0f, 0.0f, settings->viewfinder_passepartout_opacity);
+
+  /* Main passepartout dark border strips. */
+  immRectf(pos, vf_rect.xmin, capture_rect.ymax, vf_rect.xmax, vf_rect.ymax);
+  immRectf(pos, vf_rect.xmin, vf_rect.ymin, vf_rect.xmax, capture_rect.ymin);
+  immRectf(pos, vf_rect.xmin, capture_rect.ymin, capture_rect.xmin, capture_rect.ymax);
+  immRectf(pos, capture_rect.xmax, capture_rect.ymin, vf_rect.xmax, capture_rect.ymax);
+
+  /* White wire frame around capture area for the passepartout to be visible at 0 opacity. */
+  immUniformColor4f(1.0f, 1.0f, 1.0f, 0.2f);
+  immBegin(GPU_PRIM_LINE_LOOP, 4);
+  immVertex2f(pos, capture_rect.xmin, capture_rect.ymin);
+  immVertex2f(pos, capture_rect.xmax, capture_rect.ymin);
+  immVertex2f(pos, capture_rect.xmax, capture_rect.ymax);
+  immVertex2f(pos, capture_rect.xmin, capture_rect.ymax);
+  immEnd();
+
+  immUnbindProgram();
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void wm_xr_controller_viewfinder_draw_backside_logo(const wmXrSessionState *state,
@@ -1025,6 +1078,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
 
   /* Viewfinder View texture and flash. */
   wm_xr_controller_viewfinder_draw_view(C, state, viewfinder_rect);
+  wm_xr_controller_viewfinder_draw_capture_passepartout(settings, state, viewfinder_rect);
   wm_xr_controller_viewfinder_draw_capture_flash(state, viewfinder_rect);
 
   /* UI Widgets. */
