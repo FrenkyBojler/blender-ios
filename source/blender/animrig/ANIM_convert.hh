@@ -27,13 +27,15 @@ struct RotationFCurves {
 
 /* Rotation FCurves sorted by the channelbag which they are in. */
 using ChannelbagFCurveMap = Map<Channelbag *, RotationFCurves>;
-/* FCurves sorted by RNA path. */
+/* FCurves sorted by their RNA path. */
 using RNAPathFCurveMap = Map<StringRef, ChannelbagFCurveMap>;
 
 /**
+ * Convert any keyframe data for the given bone to the given rotation mode.
  *
+ * \returns true if any animation data was modified.
  */
-void convert_pose_bone_rotation_keys(Main *bmain,
+bool convert_pose_bone_rotation_keys(Main *bmain,
                                      ID &owner_id,
                                      bPoseChannel &pchan,
                                      const RNAPathFCurveMap &fcurves_by_rna_path,

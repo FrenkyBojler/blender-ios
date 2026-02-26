@@ -93,7 +93,7 @@ static void get_rotation_values(const bPoseChannel &pose_bone, float rotation_va
   }
 }
 
-void convert_pose_bone_rotation_keys(Main *bmain,
+bool convert_pose_bone_rotation_keys(Main *bmain,
                                      ID &owner_id,
                                      bPoseChannel &pchan,
                                      const RNAPathFCurveMap &fcurves_by_rna_path,
@@ -102,7 +102,7 @@ void convert_pose_bone_rotation_keys(Main *bmain,
   PointerRNA ptr = RNA_pointer_create_discrete(&owner_id, RNA_PoseBone, &pchan);
   const std::optional<std::string> pchan_path = RNA_path_from_ID_to_struct(&ptr);
   if (!pchan_path) {
-    return;
+    return false;
   }
   const StringRef rotation_mode = get_rotation_mode_path(eRotationModes(pchan.rotmode));
   /* This is the current rotation mode path. */
@@ -111,7 +111,7 @@ void convert_pose_bone_rotation_keys(Main *bmain,
       current_rotation_path);
   if (!channelbag_map) {
     /* No rotation fcurves for that bone. */
-    return;
+    return false;
   }
 
   const StringRef rotation_mode_name = get_rotation_mode_path(to_mode);
@@ -206,6 +206,7 @@ void convert_pose_bone_rotation_keys(Main *bmain,
       }
     }
   }
+  return true;
 }
 
 static bool is_rotation_path(const StringRefNull rna_path)

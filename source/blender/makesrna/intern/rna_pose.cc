@@ -259,13 +259,15 @@ static void rna_PoseChannel_rotation_mode_set(PointerRNA *ptr, int value)
   pchan->rotmode = clamp_i(value, ROT_MODE_MIN, ROT_MODE_MAX);
 }
 
-static void rna_PoseChannel_convert_rotation_mode(ID *id,
-                                                  bPoseChannel *pchan,
-                                                  Main *main,
-                                                  short rotation_mode)
+static void rna_PoseChannel_convert_rotation_mode(
+    ID *id, bPoseChannel *pchan, Main *main, bContext *C, short rotation_mode)
 {
   /* Already in the correct mode. */
   if (pchan->rotmode == rotation_mode) {
+    return;
+  }
+
+  if (rotation_mode < ROT_MODE_MIN || rotation_mode > ROT_MODE_MAX) {
     return;
   }
 
@@ -273,9 +275,22 @@ static void rna_PoseChannel_convert_rotation_mode(ID *id,
   if (adt && adt->action && adt->slot_handle != animrig::Slot::unassigned) {
     animrig::RNAPathFCurveMap fcurves_by_rna_path;
     animrig::build_rotation_fcurve_map(fcurves_by_rna_path, adt->action->wrap(), adt->slot_handle);
-    animrig::convert_pose_bone_rotation_keys(
+    const bool converted = animrig::convert_pose_bone_rotation_keys(
         main, *id, *pchan, fcurves_by_rna_path, eRotationModes(rotation_mode));
-    DEG_id_tag_update(&adt->action->id, ID_RECALC_ANIMATION);
+    if (converted) {
+      DEG_id_tag_update(&adt->action->id, ID_RECALC_ANIMATION);
+      DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+      WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, id);
+      WM_event_add_notifier(C, NC_OBJECT | ND_POSE, id);
+    }
+    else {
+      BKE_rotMode_change_values(pchan->quat,
+                                pchan->eul,
+                                pchan->rotAxis,
+                                &pchan->rotAngle,
+                                pchan->rotmode,
+                                rotation_mode);
+    }
   }
 
   pchan->rotmode = rotation_mode;
@@ -977,7 +992,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
       srna, "convert_rotation_mode", "rna_PoseChannel_convert_rotation_mode");
   RNA_def_function_ui_description(
       func, "Changes the rotation mode and converts all animation to match that new mode");
-  RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_SELF_ID);
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_MAIN | FUNC_USE_SELF_ID);
   PropertyRNA *parm = RNA_def_enum(func,
                                    "rotation_mode",
                                    rna_enum_object_rotation_mode_items,
