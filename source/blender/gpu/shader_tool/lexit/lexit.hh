@@ -12,6 +12,7 @@
 #pragma once
 
 #include <cassert>
+#include <climits>
 #include <cstdint>
 #include <iostream>
 #include <iterator>
@@ -133,11 +134,14 @@ struct TokenBuffer {
     process(str, char_class_table);
   }
 
+  /*
+   * The given string lifetime should outlive the #TokenBuffer. No copy is done.
+   */
   void process(const std::string_view str, const CharClass char_class_table[128])
   {
+    assert(str.size() < UINT_MAX);
     str_ = str;
     clear();
-    reserve(str.size());
     tokenize(char_class_table);
     compute_lengths();
   }
@@ -164,6 +168,9 @@ struct TokenBuffer {
    * Only characters with the #CanMerge flag are merged together.
    * Characters with a class greater than #ClassToTypeThreshold will just be assigned their class
    * as #TokenType. Otherwise, the first character of the token will be used as #TokenType.
+   *
+   * If the input string contains characters that are not inside the ASCII range, the result of
+   * the operation is undefined and might cause segmentation fault.
    *
    * @param char_class_table  A lookup table mapping ASCII values (0-127) to an 8-bit CharClass.
    */

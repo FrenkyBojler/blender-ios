@@ -95,20 +95,6 @@ struct MutableString {
   {
     return substr_range_inclusive_view(start.str_index_start(), end.str_index_last());
   }
-  /* Access internal string without applying pending mutations. */
-  std::string_view substr_range_inclusive_view(lexit::Token start, lexit::Token end)
-  {
-    const char *str = this->str_.data();
-    return substr_range_inclusive_view(start.str().data() - str, end.str().end() - str - 1);
-  }
-  /* Access internal string without applying pending mutations. */
-  std::string_view substr_range_inclusive_view_with_whitespace(lexit::Token start,
-                                                               lexit::Token end)
-  {
-    const char *str = this->str_.data();
-    return substr_range_inclusive_view(start.str_with_whitespace().data() - str,
-                                       end.str_with_whitespace().end() - str - 1);
-  }
 
   /* Replace everything from `from` to `to` (inclusive).
    * Return true on success. */

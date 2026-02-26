@@ -490,7 +490,7 @@ Directive AtomicLexer::directive(int index) const
   return Directive(this, index);
 }
 
-struct Stream {
+struct TokenStream {
   /* Ensure to add a Space after the previous token. */
   struct Space {};
   /* Will paste a "1" token in the stream. */
@@ -513,7 +513,7 @@ struct Stream {
   std::string result_buf_;
 
  public:
-  explicit Stream(AtomicLexer &lex) : lex_(lex) {};
+  explicit TokenStream(AtomicLexer &lex) : lex_(lex) {};
 
   /* Set size to 0. Doesn't reallocate. */
   void clear()
@@ -521,13 +521,13 @@ struct Stream {
     tokens.clear();
   }
 
-  Stream &operator<<(const Stream &stream)
+  TokenStream &operator<<(const TokenStream &stream)
   {
     tokens.extend(stream.tokens);
     return *this;
   }
 
-  Stream &operator<<(Token tok)
+  TokenStream &operator<<(Token tok)
   {
     bool followed_by_space = tok.followed_by_whitespace();
     if (UNLIKELY(concat_next_)) {
@@ -543,19 +543,19 @@ struct Stream {
     return *this;
   }
   /* NOTE: Not compatible with concatenation. */
-  Stream &operator<<(True /*tok*/)
+  TokenStream &operator<<(True /*tok*/)
   {
     tokens.append(paste_token("1", "", false));
     return *this;
   }
   /* NOTE: Not compatible with concatenation. */
-  Stream &operator<<(False /*tok*/)
+  TokenStream &operator<<(False /*tok*/)
   {
     tokens.append(paste_token("0", "", false));
     return *this;
   }
 
-  template<typename IToken> Stream &operator<<(const TokenRange<IToken> &stream)
+  template<typename IToken> TokenStream &operator<<(const TokenRange<IToken> &stream)
   {
     for (IToken tok = stream.begin; tok != stream.end; tok = tok.next()) {
       *this << tok;
@@ -565,14 +565,14 @@ struct Stream {
     return *this;
   }
 
-  Stream &operator<<(const Concatenate /*concat*/)
+  TokenStream &operator<<(const Concatenate /*concat*/)
   {
     /* Don't concat if there is nothing to concatenate. */
     concat_next_ = !tokens.is_empty();
     return *this;
   }
 
-  Stream &operator<<(Space /*space*/)
+  TokenStream &operator<<(Space /*space*/)
   {
     if (!tokens.is_empty()) {
       tokens.last().flag = true;
@@ -596,10 +596,10 @@ struct Stream {
 
   /* Wrapper to allow the same interface as a Token on a Token pointer. */
   struct Iterator {
-    const Stream *stream;
+    const TokenStream *stream;
     const Token *tok;
 
-    Iterator(const Stream &stream, const Token *tok) : stream(&stream), tok(tok) {}
+    Iterator(const TokenStream &stream, const Token *tok) : stream(&stream), tok(tok) {}
     Iterator(const Iterator &other) = default;
 
     bool is_valid() const
@@ -676,7 +676,7 @@ struct Stream {
     }
   };
 
-  Stream &operator<<(const Iterator &it)
+  TokenStream &operator<<(const Iterator &it)
   {
     *this << *it.tok;
     tokens.last().flag = it.followed_by_whitespace();
@@ -710,7 +710,7 @@ struct Stream {
   }
 };
 
-inline DCEStream &operator<<(DCEStream &dst, const Stream &src)
+inline DCEStream &operator<<(DCEStream &dst, const TokenStream &src)
 {
   for (const auto tok : src.tokens) {
     dst.parse_token(tok);
@@ -756,25 +756,25 @@ struct Preprocessor {
   ExpressionLexer expression_lexer;
   ExpressionParser expression_parser = ExpressionParser(expression_lexer);
 
-  struct StreamPool {
+  struct TokenStreamPool {
     /* Reference to lexer only for atom value lookups. */
     AtomicLexer &lex_;
     int allocated = 0;
     int used = 0;
-    std::deque<Stream> pool;
+    std::deque<TokenStream> pool;
     std::vector<int> free_indices;
 
     struct Deleter {
-      StreamPool *stack;
+      TokenStreamPool *stack;
       int index;
 
-      void operator()(Stream * /*stream*/)
+      void operator()(TokenStream * /*stream*/)
       {
         stack->free_indices.push_back(index);
       }
     };
 
-    using Ptr = std::unique_ptr<Stream, Deleter>;
+    using Ptr = std::unique_ptr<TokenStream, Deleter>;
 
     Ptr alloc()
     {
@@ -788,17 +788,17 @@ struct Preprocessor {
         free_indices.pop_back();
       }
 
-      Stream &s = pool[target_idx];
+      TokenStream &s = pool[target_idx];
       s.clear();
       return Ptr(&s, Deleter{this, target_idx});
     }
   };
 
-  using StreamPtr = StreamPool::Ptr;
+  using TokenStreamPtr = TokenStreamPool::Ptr;
 
   struct Macro {
     Directive id;
-    StreamPtr definition;
+    TokenStreamPtr definition;
     Vector<TokenAtom> params;
     bool is_function = false;
     bool contains_concat = false;
@@ -815,7 +815,7 @@ struct Preprocessor {
    * the matching #endif. */
   Vector<Directive, 8> jump_stack;
   /* Own stack to avoid memory allocation during recursive expansion parsing. */
-  StreamPool stream_pool = {lex_};
+  TokenStreamPool stream_pool = {lex_};
   /* Set of visited macros during recursion (blue painting stack). Using a vector for speed. */
   Vector<Directive> visited_macros;
 
@@ -1020,9 +1020,10 @@ struct Preprocessor {
     return macro_parameters;
   }
 
-  BLI_NOINLINE StreamPtr parse_macro_definition(Token definition_start_tok, bool &contains_concat)
+  BLI_NOINLINE TokenStreamPtr parse_macro_definition(Token definition_start_tok,
+                                                     bool &contains_concat)
   {
-    StreamPtr definition = stream_pool.alloc();
+    TokenStreamPtr definition = stream_pool.alloc();
 
     Token tok = definition_start_tok;
     while (true) {
@@ -1034,7 +1035,7 @@ struct Preprocessor {
         /* Preprocessor new line. Skip and continue. */
         tok = tok.next(2);
         /* Still insert a space to avoid merging tokens. */
-        *definition << Stream::Space{};
+        *definition << TokenStream::Space{};
         continue;
       }
       if (tok == Hash && tok_next == Hash) {
@@ -1176,7 +1177,7 @@ struct Preprocessor {
   bool evaluate_expression(const Token start, const Token end)
   {
     /* Expand expression into integer ops string. */
-    StreamPtr expand = expand_expression(start, end);
+    TokenStreamPtr expand = expand_expression(start, end);
 
     /* Early out simple cases. */
     if (expand->tokens.size() == 1) {
@@ -1280,7 +1281,7 @@ struct Preprocessor {
   }
 
   /* Parse and expand with the current set of macro identifier. */
-  BLI_NOINLINE StreamPtr parse_and_expand(const Stream &tok_stream)
+  BLI_NOINLINE TokenStreamPtr parse_and_expand(const TokenStream &tok_stream)
   {
     auto result = stream_pool.alloc();
 
@@ -1303,7 +1304,7 @@ struct Preprocessor {
 
   template<typename IToken> struct ExpandedResult {
     /* Replacement content. */
-    StreamPtr output;
+    TokenStreamPtr output;
     /* End of range to replace. */
     IToken end_of_expansion;
   };
@@ -1351,13 +1352,13 @@ struct Preprocessor {
   }
 
   template<typename IToken>
-  BLI_NOINLINE StreamPtr expand_macro_args(const Macro &macro,
-                                           const Vector<TokenRange<IToken>> &macro_args)
+  BLI_NOINLINE TokenStreamPtr expand_macro_args(const Macro &macro,
+                                                const Vector<TokenRange<IToken>> &macro_args)
   {
-    StreamPtr ts = stream_pool.alloc();
+    TokenStreamPtr ts = stream_pool.alloc();
     for (const auto &def_tok : *macro.definition) {
       if (def_tok.type() == Hash) {
-        *ts << Stream::Concatenate{};
+        *ts << TokenStream::Concatenate{};
         continue;
       }
       if (def_tok.type() == Word && !macro_args.is_empty()) {
@@ -1372,14 +1373,14 @@ struct Preprocessor {
           }
           else {
             /* Expand argument. Can expand to the same macro (finite recursion). */
-            StreamPtr stream = stream_pool.alloc();
+            TokenStreamPtr stream = stream_pool.alloc();
             *stream << macro_value;
             *ts << *parse_and_expand(*stream);
           }
 
           if (def_tok.followed_by_whitespace()) {
             /* Don't lose whitespace after macro token. */
-            *ts << Stream::Space{};
+            *ts << TokenStream::Space{};
           }
           continue;
         }
@@ -1396,7 +1397,7 @@ struct Preprocessor {
       /* Recursion. Do not expand. */
       /* Currently still replace by the original token (noop).
        * Would be better to not bypass replacement alltogether. */
-      StreamPtr expanded = stream_pool.alloc();
+      TokenStreamPtr expanded = stream_pool.alloc();
       *expanded << expanded_tok;
       return {std::move(expanded), expanded_tok};
     }
@@ -1411,7 +1412,7 @@ struct Preprocessor {
         /* Macro doesn't have parameters. It should not expand. */
         /* Currently still replace by the original token (noop).
          * Would be better to bypass replacement alltogether. */
-        StreamPtr expanded = stream_pool.alloc();
+        TokenStreamPtr expanded = stream_pool.alloc();
         *expanded << expanded_tok;
         return {std::move(expanded), expanded_tok};
       }
@@ -1423,11 +1424,11 @@ struct Preprocessor {
 
     if (macro.is_empty()) {
       /* Empty definition. */
-      StreamPtr expanded = stream_pool.alloc();
+      TokenStreamPtr expanded = stream_pool.alloc();
       return {std::move(expanded), end_of_expansion};
     }
 
-    StreamPtr result;
+    TokenStreamPtr result;
 
     if (!macro.is_function && !macro.contains_concat) {
       /* Fast Path. */
@@ -1436,7 +1437,7 @@ struct Preprocessor {
       visited_macros.pop_last();
     }
     else {
-      StreamPtr expanded = expand_macro_args(macro, fn_arguments);
+      TokenStreamPtr expanded = expand_macro_args(macro, fn_arguments);
       /* Add to the set to avoid infinite recursion. */
       visited_macros.append(macro.id);
       result = parse_and_expand(*expanded);
@@ -1444,16 +1445,16 @@ struct Preprocessor {
     }
 
     if (end_of_expansion.followed_by_whitespace()) {
-      *result << Stream::Space{};
+      *result << TokenStream::Space{};
     }
 
     return {std::move(result), end_of_expansion};
   }
 
   /* Expand token range for condition evaluation (e.g. '#if'). */
-  StreamPtr expand_expression(const Token start, const Token end)
+  TokenStreamPtr expand_expression(const Token start, const Token end)
   {
-    StreamPtr result = stream_pool.alloc();
+    TokenStreamPtr result = stream_pool.alloc();
 
     Token tok = start;
     while (true) {
@@ -1484,10 +1485,10 @@ struct Preprocessor {
           BLI_assert(tok == Word);
         }
         if (defines.contains(tok.atom())) {
-          *result << Stream::True{};
+          *result << TokenStream::True{};
         }
         else {
-          *result << Stream::False{};
+          *result << TokenStream::False{};
         }
         if (is_function) {
           /* End parenthesis. */

@@ -466,6 +466,7 @@ inline void TokenBuffer::tokenize_scalar(uint32_t &__restrict offset,
       token_str_debug_.emplace_back(str_.data() + start, end - start);
     }
 #endif
+
     cursor_begin += emit_start;
     cursor_end += emit_end;
   }
@@ -473,6 +474,10 @@ inline void TokenBuffer::tokenize_scalar(uint32_t &__restrict offset,
 
 void TokenBuffer::tokenize(const CharClass char_class_table[128])
 {
+  /* Ensure enough space for the worse scenario, which is one token per character.
+   * This is done in order to avoid allocation and check inside the hot loop. */
+  reserve(str_.size());
+
   if (str_.size() == 0) {
     size_ = 0;
     types_[0] = EndOfFile;
