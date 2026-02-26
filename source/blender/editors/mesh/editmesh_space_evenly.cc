@@ -42,9 +42,9 @@ static wmOperatorStatus edbm_space_exec(bContext *C, wmOperator *op)
   const float influence = RNA_float_get(op->ptr, "influence");
   const int interpolation = RNA_enum_get(op->ptr, "interpolation");
   const bool use_parallel = RNA_boolean_get(op->ptr, "use_parallel");
-  const bool lock_x = RNA_boolean_get(op->ptr, "lock_x");
-  const bool lock_y = RNA_boolean_get(op->ptr, "lock_y");
-  const bool lock_z = RNA_boolean_get(op->ptr, "lock_z");
+  bool lock[3];
+  RNA_boolean_get_array(op->ptr, "lock", lock);
+  bool changed = false;
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
@@ -56,27 +56,28 @@ static wmOperatorStatus edbm_space_exec(bContext *C, wmOperator *op)
     if (bm->totvert < 3) {
       continue;
     }
-
-    BMO_op_callf(
-        bm,
-        BMO_FLAG_DEFAULTS,
-        "space_evenly geom=%hvef interpolation=%i input=%i factor=%f lock_x=%b lock_y=%b lock_z=%b",
-        BM_ELEM_SELECT,
-        interpolation,
-        use_parallel ? 1 : 0,
-        influence,
-        lock_x,
-        lock_y,
-        lock_z);
-
+    if (!EDBM_op_callf(em,
+                       op,
+                       "space_evenly geom=%hvef interpolation=%i use_parallel=%b factor=%f "
+                       "lock_x=%b lock_y=%b lock_z=%b",
+                       BM_ELEM_SELECT,
+                       interpolation,
+                       use_parallel,
+                       influence,
+                       lock[0],
+                       lock[1],
+                       lock[2]))
+    {
+      continue;
+    }
+    changed = true;
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = true;
-    params.is_destructive = true;
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
   }
 
-  return OPERATOR_FINISHED;
+  return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 static void edbm_space_ui(bContext * /*C*/, wmOperator *op)
@@ -88,9 +89,10 @@ static void edbm_space_ui(bContext * /*C*/, wmOperator *op)
   layout.prop(op->ptr, "use_parallel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   ui::Layout &lock_row = layout.row(true, IFACE_("Lock"));
-  lock_row.prop(op->ptr, "lock_x", ui::ITEM_R_TOGGLE, "X", ICON_NONE);
-  lock_row.prop(op->ptr, "lock_y", ui::ITEM_R_TOGGLE, "Y", ICON_NONE);
-  lock_row.prop(op->ptr, "lock_z", ui::ITEM_R_TOGGLE, "Z", ICON_NONE);
+  PropertyRNA *lock_prop = RNA_struct_find_property(op->ptr, "lock");
+  lock_row.prop(op->ptr, lock_prop, 0, 0, ui::ITEM_R_TOGGLE, "X", ICON_NONE);
+  lock_row.prop(op->ptr, lock_prop, 1, 0, ui::ITEM_R_TOGGLE, "Y", ICON_NONE);
+  lock_row.prop(op->ptr, lock_prop, 2, 0, ui::ITEM_R_TOGGLE, "Z", ICON_NONE);
 
   layout.prop(op->ptr, "interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
@@ -118,11 +120,7 @@ void MESH_OT_space_evenly(wmOperatorType *ot)
                   true,
                   "Parallel Loops",
                   "Also use non-selected parallel loops as input");
-
-  RNA_def_boolean(ot->srna, "lock_x", false, "Lock X", "Lock editing of the X-coordinate");
-  RNA_def_boolean(ot->srna, "lock_y", false, "Lock Y", "Lock editing of the Y-coordinate");
-  RNA_def_boolean(ot->srna, "lock_z", false, "Lock Z", "Lock editing of the Z-coordinate");
-
+  RNA_def_boolean_array(ot->srna, "lock", 3, nullptr, "Lock", "Lock editing of the axis");
   RNA_def_enum(ot->srna,
                "interpolation",
                prop_interpolation_items,

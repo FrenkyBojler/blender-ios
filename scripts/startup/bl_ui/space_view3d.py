@@ -4553,7 +4553,6 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
-            col.operator("mesh.space_evenly", text="Space Evenly")
 
             col.separator()
 
@@ -4605,7 +4604,6 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
-            col.operator("mesh.space_evenly", text="Space Evenly")
 
             col.separator()
 
@@ -4676,7 +4674,6 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
-            col.operator("mesh.space_evenly", text="Space Evenly")
 
             col.separator()
 
