@@ -178,6 +178,7 @@ class VIEW3D_PT_vr_location_scouting_viewfinder(VRButtonsPanel, Panel):
 class VIEW3D_PT_vr_location_scouting_viewfinder_passepartout(VRButtonsPanel, Panel):
     bl_label = "Passepartout"
     bl_parent_id = "VIEW3D_PT_vr_location_scouting_viewfinder"
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
         layout = self.layout
