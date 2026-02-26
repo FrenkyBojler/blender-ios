@@ -1097,13 +1097,13 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   GPU_matrix_mul(viewfinder_mat);
   GPU_matrix_scale_1f(xr_ui_unit_fac);
 
-  /* Main background overlays. */
+  /* Main background elements. */
   wm_xr_controller_viewfinder_draw_background(viewfinder_rect);
 
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
   GPU_depth_mask(false);
 
-  /* Viewfinder View texture and flash. */
+  /* Viewfinder view, capture flash and overlays. */
   wm_xr_controller_viewfinder_draw_view(C, state, viewfinder_rect);
   wm_xr_controller_viewfinder_draw_capture_overlays(settings, state, viewfinder_rect);
   wm_xr_controller_viewfinder_draw_capture_flash(state, viewfinder_rect);
@@ -1111,7 +1111,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   /* UI Widgets. */
   wm_xr_controller_viewfinder_draw_ui_widgets(C, state, viewfinder_rect);
 
-  /* Blender logo on the back side of the viewfinder. */
+  /* Logo on the back side of the viewfinder. */
   wm_xr_controller_viewfinder_draw_backside_logo(state, viewfinder_rect);
 
   GPU_depth_mask(true);
