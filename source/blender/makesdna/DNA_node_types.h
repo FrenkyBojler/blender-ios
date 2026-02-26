@@ -3766,8 +3766,7 @@ typedef struct NodeGeometryRasterizePointsItem {
   char *name;
   /** #eNodeSocketDatatype */
   short socket_type;
-  /** #RasterizePointsWeighting. */
-  short weighting;
+  char _pad1[2];
   /**
    * Generated unique identifier for sockets which stays the same even when the item order or
    * names change.
@@ -3775,14 +3774,16 @@ typedef struct NodeGeometryRasterizePointsItem {
   int identifier;
   /** #NodeGridItemFlag */
   int flag;
-  char _pad[4];
+  char _pad2[4];
 } NodeGeometryRasterizePointsItem;
 
 typedef enum NodeGeometryRasterizePointsItemFlag {
-  /* Store a staggered vector grid. */
-  GEO_NODE_RASTERIZE_POINTS_ITEM_VECTOR_STAGGERED = 1 << 0,
-  /* Vector attribute with additional affine transformation. */
-  GEO_NODE_RASTERIZE_POINTS_ITEM_AFFINE_VECTOR = 1 << 1,
+  /* Divide the result by the total weight in each voxel. */
+  GEO_NODE_RASTERIZE_POINTS_ITEM_NORMALIZE = 1 << 0,
+  /* Classify the output as a staggered vector grid. */
+  GEO_NODE_RASTERIZE_POINTS_ITEM_VECTOR_STAGGERED = 1 << 1,
+  /* Read matrix attribute as an vector with an additional affine transform. */
+  GEO_NODE_RASTERIZE_POINTS_ITEM_AFFINE_VECTOR = 1 << 2,
 } NodeGeometryRasterizePointsItemFlag;
 
 typedef struct NodeGeometryRasterizePoints {

@@ -30,8 +30,6 @@
 
 namespace blender::nodes::node_geo_points_to_density_grid_cc {
 
-using bke::RasterizePointsWeighting;
-
 NODE_STORAGE_FUNCS(NodeGeometryRasterizePoints)
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -131,7 +129,6 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
           panel->use_property_split_set(true);
           panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          panel->prop(item_ptr, "weighting", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           if (socket_type == SOCK_VECTOR) {
             panel->prop(item_ptr, "use_staggered_vector", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           }
@@ -145,8 +142,6 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
-  constexpr StringRef mass_attribute = "mass";
-
   const NodeGeometryRasterizePoints &storage = node_storage(params.node());
   const geometry::KernelType kernel_type = geometry::KernelType::Cubic;
 
@@ -181,16 +176,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   Array<float3> positions(points_num);
-  Array<float> masses(points_num);
   Array<GArray<>> value_buffers(storage.items_num);
   Vector<geometry::PointDataGridAttributeInfo> point_data_grid_attributes;
   Vector<geometry::PointRasterizeAttributeInfo> point_rasterize_attributes;
-  point_data_grid_attributes.append({mass_attribute, masses.as_span()});
   for (const int i : IndexRange(storage.items_num)) {
     const NodeGeometryRasterizePointsItem &item = storage.items[i];
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-    const RasterizePointsWeighting rasterize_weighting = RasterizePointsWeighting(item.weighting);
     const CPPType &cpptype = *bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
+    const bool use_normalization = (item.flag & GEO_NODE_RASTERIZE_POINTS_ITEM_NORMALIZE);
     const bool use_staggered_vector = (item.flag &
                                        GEO_NODE_RASTERIZE_POINTS_ITEM_VECTOR_STAGGERED);
     const bool use_affine_vector = (item.flag & GEO_NODE_RASTERIZE_POINTS_ITEM_AFFINE_VECTOR);
@@ -199,7 +192,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     /* Note: Item name is unique and can be used as an attribute identifier. */
     point_data_grid_attributes.append({item.name, value_buffers[i].as_span()});
     point_rasterize_attributes.append(
-        {item.name, cpptype, rasterize_weighting, use_staggered_vector, use_affine_vector});
+        {item.name, cpptype, use_normalization, use_staggered_vector, use_affine_vector});
   }
 
   for (const int component_i : component_types.index_range()) {
@@ -213,7 +206,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     const bke::GeometryFieldContext field_context{*component, AttrDomain::Point};
     fn::FieldEvaluator evaluator{field_context, points.size()};
     evaluator.add_with_destination(position_field, positions.as_mutable_span().slice(points));
-    evaluator.add_with_destination(mass_field, masses.as_mutable_span().slice(points));
     for (const int i : IndexRange(storage.items_num)) {
       const NodeGeometryRasterizePointsItem &item = storage.items[i];
       const std::string identifier = RasterizePointsItemsAccessor::socket_identifier_for_item(
@@ -235,7 +227,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   Array<bke::GVolumeGrid> output_attribute_grids(storage.items_num);
   geometry::points_rasterize(point_data_grid,
                              kernel_type,
-                             mass_attribute,
                              point_rasterize_attributes,
                              grid_transform,
                              output_mass_grid,

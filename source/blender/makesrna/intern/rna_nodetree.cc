@@ -581,21 +581,6 @@ const EnumPropertyItem rna_enum_node_compositor_interpolation_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-const EnumPropertyItem rna_enum_geometry_nodes_rasterize_points_weighting_items[] = {
-    {int(blender::bke::RasterizePointsWeighting::Sum), "SUM", 0, "Sum", "Sum of point values"},
-    {int(blender::bke::RasterizePointsWeighting::Average),
-     "AVERAGE",
-     0,
-     "Average",
-     "Average point value"},
-    {int(blender::bke::RasterizePointsWeighting::WeightedAverage),
-     "WEIGHTED_AVERAGE",
-     0,
-     "Weighted Average",
-     "Average point value weighted by mass"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 #ifndef RNA_RUNTIME
 
 static const EnumPropertyItem prop_shader_output_target_items[] = {
@@ -8119,10 +8104,10 @@ static void rna_def_rasterize_points_item(BlenderRNA *brna)
 
   rna_def_node_item_array_socket_item_common(srna, "RasterizePointsItemsAccessor", true);
 
-  prop = RNA_def_property(srna, "weighting", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_geometry_nodes_rasterize_points_weighting_items);
-  RNA_def_property_ui_text(prop, "Weighting", "");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  prop = RNA_def_property(srna, "use_weighted_average", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GEO_NODE_RASTERIZE_POINTS_ITEM_NORMALIZE);
+  RNA_def_property_ui_text(
+      prop, "Normalize", "Divide the result by the total weight in each voxel");
   RNA_def_property_update(
       prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<RasterizePointsItemsAccessor>");
 
