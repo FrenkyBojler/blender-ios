@@ -1318,7 +1318,7 @@ static void rna_def_gizmo(BlenderRNA *brna, PropertyRNA *cprop)
   prop = RNA_def_property(srna, "use_undo", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(
       prop, "rna_Gizmo_flag_use_undo_get", "rna_Gizmo_flag_use_undo_set");
-  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_boolean_default(prop, false);
   RNA_def_property_ui_text(prop, "Use Undo", "Push an undo step after each use of the gizmo");
   /* No update needed. */
 
