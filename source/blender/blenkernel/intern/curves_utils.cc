@@ -17,7 +17,7 @@ namespace blender::bke::curves {
 
 IndexMask point_to_curve_selection(OffsetIndices<int> points_by_curve,
                                    const IndexMask &point_mask,
-                                   IndexMaskMemory &memory)
+                                   LinearAllocator<> &memory)
 {
   BitVector<1024> selected(points_by_curve.total_size());
   point_mask.to_bits(selected);
