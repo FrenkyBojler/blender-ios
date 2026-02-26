@@ -338,13 +338,10 @@ struct DCEStream {
    * graph. Does nothing if the function is not defined. */
   void register_function_call(Token name_tok)
   {
-    int fn_id = graph.names.lookup_default(name_tok.atom(), -1);
-    /* TODO(fclem): On Metal, the function prototypes are removed, which means they can be defined
-     * later on.  */
-    if (fn_id == -1) {
-      /* Functions is not defined. Can be builtin function. */
-      return;
-    }
+    /* On Metal, the function prototypes are removed, which means they can be defined later on.
+     * For this reason we always add the symbol to the graph. */
+    int fn_id = graph.names.lookup_or_add_cb(name_tok.atom(),
+                                             [this]() { return graph.counter++; });
     graph.edges.append_as(current_fn_id, fn_id);
   }
 
