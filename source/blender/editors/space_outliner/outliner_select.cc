@@ -1286,6 +1286,11 @@ static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreE
       case ID_LA:
       case ID_CA:
       case ID_KE:
+        context = BCONTEXT_DATA;
+        if (te->parent && te->parent->store_elem && te->parent->store_elem->id) {
+          ptr = RNA_id_pointer_create(te->parent->store_elem->id);
+        }
+        break;
       case ID_SPK:
       case ID_AR:
       case ID_GD_LEGACY:
@@ -1437,8 +1442,8 @@ static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreE
         context = BCONTEXT_COLLECTION;
         break;
     }
-  }
 
+  }
   if (ptr.data) {
     outliner_sync_to_properties_editors(C, &ptr, context);
   }
