@@ -347,6 +347,38 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
         options={'HIDDEN'},
     )
 
+    @staticmethod
+    def get_next_in_map(current, map_, up_dir) -> int:
+        # Find the closest map idx to the current
+        diff_list = [abs(elem - current) for elem in map_]
+        current_idx = diff_list.index(min(diff_list))
+
+        # Find the next element going up or down, clamping at bounds
+        if up_dir:
+            # Zoom in
+            next_idx = min(current_idx + 1, len(map_) - 1)
+        else:
+            # Zoom out
+            next_idx = max(current_idx - 1, 0)
+
+        return next_idx
+
+    @staticmethod
+    def focus_distance_raycast(context, view_origin, view_quat):
+        scene = context.scene
+        depsgraph = context.evaluated_depsgraph_get()
+
+        direction = Vector((0.0, 0.0, -1.0))
+        world_dir = view_quat @ direction
+        world_dir.normalize()
+
+        hit_success, hit_location, _, _, _, _ = scene.ray_cast(depsgraph, view_origin, world_dir)
+
+        if hit_success:
+            return (hit_location - view_origin).length
+
+        return None
+
     @classmethod
     def poll(cls, context):
         session_is_running = bpy.types.XrSessionState.is_running(context)
@@ -364,27 +396,12 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
             fstop_map = (0.1, 0.2, 0.4, 0.8, 1, 1.2, 1.4, 1.7, 2, 2.4, 2.8, 3.3,
                          4, 4.8, 5.6, 6.7, 8, 9.5, 11, 13, 16, 19, 22, 27, 32)
 
-            def get_next_in_map(current, map_, up_dir) -> int:
-                # Find the closest map idx to the current
-                diff_list = [abs(elem - current) for elem in map_]
-                current_idx = diff_list.index(min(diff_list))
-
-                # Find the next element going up or down, clamping at bounds
-                if up_dir:
-                    # Zoom in
-                    next_idx = min(current_idx + 1, len(map_) - 1)
-                else:
-                    # Zoom out
-                    next_idx = max(current_idx - 1, 0)
-
-                return next_idx
-
             match xr_viewfinder.active_action_live:
                 # View Zoom Control
                 case 'LENS':
                     current_focal = xr_viewfinder.capture_lens_focal
 
-                    new_idx = get_next_in_map(current_focal, focal_map, self.action_up)
+                    new_idx = self.get_next_in_map(current_focal, focal_map, self.action_up)
                     xr_viewfinder.capture_lens_focal = focal_map[new_idx]
 
                     return {'FINISHED'}
@@ -397,23 +414,12 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
 
                 # Focus distance control (ray-cast autofocus)
                 case 'FOCUS':
-                    scene = context.scene
-                    depsgraph = context.evaluated_depsgraph_get()
+                    raycast_hit = self.focus_distance_raycast(context,
+                                                               xr_viewfinder.location,
+                                                               xr_viewfinder.orientation)
 
-                    # Cast a ray from the Viewfinder PoV to find the distance to the nearest object
-                    view_origin = xr_viewfinder.location
-                    view_quat = xr_viewfinder.orientation
-
-                    direction = Vector((0.0, 0.0, -1.0))
-                    world_dir = view_quat @ direction
-                    world_dir.normalize()
-
-                    hit_success, hit_location, _, _, _, _ = scene.ray_cast(depsgraph, view_origin, world_dir)
-
-                    if hit_success:
-                        distance = (hit_location - view_origin).length
-                        # Set the DoF Focus Distance from the hit
-                        xr_viewfinder.capture_dof_distance = distance
+                    if raycast_hit is not None:
+                        xr_viewfinder.capture_dof_distance = raycast_hit
 
                     return {'FINISHED'}
 
@@ -421,7 +427,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
                 case 'APERTURE':
                     current_fstop = xr_viewfinder.capture_dof_fstop
 
-                    new_idx = get_next_in_map(current_fstop, fstop_map, self.action_up)
+                    new_idx = self.get_next_in_map(current_fstop, fstop_map, self.action_up)
                     xr_viewfinder.capture_dof_fstop = fstop_map[new_idx]
 
                     return {'FINISHED'}
