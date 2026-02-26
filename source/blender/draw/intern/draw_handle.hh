@@ -287,18 +287,18 @@ class ObjectRef {
     return dupli_parent_ ? dupli_parent_->light_linking : object->light_linking;
   }
 
-  int recalc_flags(uint64_t last_update) const
+  uint recalc_flags(uint64_t last_update) const
   {
     /* TODO: There should also be a way to get the min last_update for all objects in the range. */
     auto get_flags = [&](const bke::ObjectRuntime &runtime) {
-      int flags = 0;
+      uint flags = 0;
       SET_FLAG_FROM_TEST(flags, runtime.last_update_transform > last_update, ID_RECALC_TRANSFORM);
       SET_FLAG_FROM_TEST(flags, runtime.last_update_geometry > last_update, ID_RECALC_GEOMETRY);
       SET_FLAG_FROM_TEST(flags, runtime.last_update_shading > last_update, ID_RECALC_SHADING);
       return flags;
     };
 
-    int flags = get_flags(*object->runtime);
+    uint flags = get_flags(*object->runtime);
     if (dupli_parent_) {
       flags |= get_flags(*dupli_parent_->runtime);
     }
@@ -426,12 +426,14 @@ class ObjectKey {
  public:
   ObjectKey() = default;
 
-  ObjectKey(const ObjectRef &ob_ref, int sub_key = 0)
+  ObjectKey(const ObjectRef &ob_ref, int instance_index, int sub_key)
   {
     ob_ = DEG_get_original(ob_ref.object);
     hash_value_ = get_default_hash(ob_);
 
-    if (DupliObject *dupli = ob_ref.dupli_object_) {
+    if (DupliObject *dupli = instance_index ? (*ob_ref.duplis_)[instance_index] :
+                                              ob_ref.dupli_object_)
+    {
       parent_ = ob_ref.dupli_parent_;
       hash_value_ = get_default_hash(hash_value_, get_default_hash(parent_));
       for (int i : IndexRange(MAX_DUPLI_RECUR)) {
@@ -447,6 +449,11 @@ class ObjectKey {
       sub_key_ = sub_key;
       hash_value_ = get_default_hash(hash_value_, get_default_hash(sub_key_));
     }
+  }
+
+  ObjectKey(const ObjectRef &ob_ref) : ObjectKey(ob_ref, 0, 0)
+  {
+    BLI_assert(!ob_ref.is_range());
   }
 
   /* Special handles that will have nullptr object.

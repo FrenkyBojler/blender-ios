@@ -77,21 +77,18 @@ static void step_object_sync_render(Instance &inst, ObjectRef &ob_ref)
 
   /* NOTE: Dummy resource handle since this won't be used for drawing. */
   ResourceHandleRange resource_handle = {};
-  ObjectHandle &ob_handle = inst.sync.sync_object(ob_ref);
+  ObjectHandle ob_handle = inst.sync.sync_object(ob_ref);
 
   if (partsys_is_visible) {
-    auto sync_hair = [&](ObjectHandle hair_handle,
-                         ModifierData &md,
-                         ParticleSystem &particle_sys) {
-      inst.velocity.step_object_sync(
-          hair_handle.object_key, ob_ref, hair_handle.recalc, resource_handle, &md, &particle_sys);
-    };
-    foreach_hair_particle_handle(inst, ob_ref, ob_handle, sync_hair);
+    auto sync_hair =
+        [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
+          inst.velocity.step_object_sync(hair_handle, resource_handle, &md, &particle_sys);
+        };
+    foreach_hair_particle_handle(inst, ob_ref, 0, sync_hair);
   };
 
   if (object_is_visible) {
-    inst.velocity.step_object_sync(
-        ob_handle.object_key, ob_ref, ob_handle.recalc, resource_handle);
+    inst.velocity.step_object_sync(ob_handle, resource_handle);
   }
 }
 
@@ -123,18 +120,16 @@ void VelocityModule::step_camera_sync()
   }
 }
 
-bool VelocityModule::step_object_sync(ObjectKey &object_key,
-                                      const ObjectRef &object_ref,
-                                      int /*IDRecalcFlag*/ recalc,
+bool VelocityModule::step_object_sync(const ObjectHandle &ob_handle,
                                       ResourceHandleRange resource_handle,
                                       ModifierData *modifier_data /*=nullptr*/,
                                       ParticleSystem *particle_sys /*=nullptr*/)
 {
-  Object *ob = object_ref.object;
-  bool has_motion = object_has_velocity(ob) || (recalc & ID_RECALC_TRANSFORM);
+  Object *ob = ob_handle.ref.object;
+  bool has_motion = object_has_velocity(ob) || (ob_handle.recalc & ID_RECALC_TRANSFORM);
   /* NOTE: Fragile. This will only work with 1 frame of lag since we can't record every geometry
    * just in case there might be an update the next frame. */
-  bool has_deform = object_is_deform(ob) || (recalc & ID_RECALC_GEOMETRY);
+  bool has_deform = object_is_deform(ob) || (ob_handle.recalc & ID_RECALC_GEOMETRY);
 
   if (!has_motion && !has_deform) {
     return false;
@@ -172,16 +167,18 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
 
   bool any_have_motion = false;
 
-  for (ResourceIndex ressource_index : resource_handle.index_range()) {
+  int instance_index = 0;
+  for (ResourceIndex resource_index : resource_handle.index_range()) {
     /* Object motion. */
     /* FIXME(fclem) As we are using original objects pointers, there is a chance the previous
      * object key matches a totally different object if the scene was changed by user or python
      * callback. In this case, we cannot correctly match objects between updates.
      * What this means is that there will be incorrect motion vectors for these objects.
      * We live with that until we have a correct way of identifying new objects. */
-    VelocityObjectData &vel = velocity_map.lookup_or_add_default(object_key);
+    VelocityObjectData &vel = velocity_map.lookup_or_add_default(
+        ObjectKey(ob_handle.ref, instance_index++, 0));
     vel.obj.ofs[step_] = object_steps_usage[step_]++;
-    vel.obj.resource_id = ressource_index.resource_index();
+    vel.obj.resource_id = resource_index.resource_index();
     vel.id = velocity_id;
     object_steps[step_]->get_or_resize(vel.obj.ofs[step_]) = ob->object_to_world();
     if (step_ == STEP_CURRENT) {

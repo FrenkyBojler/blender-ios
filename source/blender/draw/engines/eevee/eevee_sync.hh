@@ -35,7 +35,8 @@ struct BaseHandle {
 };
 
 struct ObjectHandle : BaseHandle {
-  ObjectKey object_key;
+  const ObjectRef &ref;
+  uint sub_key = 0;
 };
 
 struct WorldHandle : public BaseHandle {};
@@ -46,13 +47,11 @@ class SyncModule {
  private:
   Instance &inst_;
 
-  Map<ObjectKey, ObjectHandle> ob_handles = {};
-
  public:
   SyncModule(Instance &inst) : inst_(inst) {};
   ~SyncModule() {};
 
-  ObjectHandle &sync_object(const ObjectRef &ob_ref);
+  ObjectHandle sync_object(const ObjectRef &ob_ref);
   WorldHandle sync_world(const blender::World &world);
 
   void sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref);
@@ -70,7 +69,7 @@ class SyncModule {
 using HairHandleCallback = FunctionRef<void(ObjectHandle, ModifierData &, ParticleSystem &)>;
 void foreach_hair_particle_handle(Instance &inst,
                                   ObjectRef &ob_ref,
-                                  ObjectHandle ob_handle,
+                                  int instance_index,
                                   HairHandleCallback callback);
 
 /** \} */

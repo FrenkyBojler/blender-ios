@@ -764,40 +764,35 @@ void ShadowModule::sync_object(const Object *ob,
     return;
   }
 
-  /* TODO: Use one key/item per handle in range for more granular updates? */
-  ShadowObject &shadow_ob = objects_.lookup_or_add_default(handle.object_key);
-  shadow_ob.used = true;
-
-  const bool is_initialized = shadow_ob.resource_handle.is_valid();
-  const bool has_jittered_transparency = has_transparent_shadows && data_.use_jitter;
-  const bool updated = is_shadow_caster &&
-                       (handle.recalc || !is_initialized || has_jittered_transparency);
-
-  if (updated && handle.recalc && is_initialized) {
-    for (ResourceIndex resource_index : shadow_ob.resource_handle.index_range()) {
-      past_casters_updated_.append(resource_index.raw);
-    }
-  }
-
-  shadow_ob.resource_handle = resource_handle;
-
+  int instance_index = 0;
+  int sub_key = 0; /* TODO? */
   for (ResourceIndex resource_index : resource_handle.index_range()) {
-    if (updated) {
+    ShadowObject &shadow_ob = objects_.lookup_or_add_default(
+        ObjectKey(handle.ref, instance_index++, sub_key));
+    shadow_ob.used = true;
+    const bool is_initialized = shadow_ob.resource_handle.raw != 0;
+    const bool has_jittered_transparency = has_transparent_shadows && data_.use_jitter;
+    if (is_shadow_caster && (handle.recalc || !is_initialized || has_jittered_transparency)) {
+      if (handle.recalc && is_initialized) {
+        past_casters_updated_.append(shadow_ob.resource_handle.resource_index());
+      }
+
       if (has_jittered_transparency) {
-        jittered_transparent_casters_.append(resource_index.raw);
+        jittered_transparent_casters_.append(resource_index.resource_index());
       }
       else {
-        curr_casters_updated_.append(resource_index.raw);
+        curr_casters_updated_.append(resource_index.resource_index());
       }
     }
+    shadow_ob.resource_handle = resource_index;
 
     if (is_shadow_caster) {
-      curr_casters_.append(resource_index.raw);
+      curr_casters_.append(resource_index.resource_index());
     }
-  }
 
-  if (is_alpha_blend && !inst_.is_baking()) {
-    tilemap_usage_transparent_ps_->draw(box_batch_, resource_handle);
+    if (is_alpha_blend && !inst_.is_baking()) {
+      tilemap_usage_transparent_ps_->draw(box_batch_, resource_handle);
+    }
   }
 }
 
@@ -842,9 +837,7 @@ void ShadowModule::end_sync()
     /* Do not discard casters in baking mode. See WORKAROUND in `surfels_create`. */
     if (!shadow_ob.used && !inst_.is_baking()) {
       /* May not be a caster, but it does not matter, be conservative. */
-      for (ResourceIndex resource_index : shadow_ob.resource_handle.index_range()) {
-        past_casters_updated_.append(resource_index.raw);
-      }
+      past_casters_updated_.append(shadow_ob.resource_handle.resource_index());
       objects_.remove(it);
     }
     else {

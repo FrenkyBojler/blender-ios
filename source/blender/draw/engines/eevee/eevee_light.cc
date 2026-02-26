@@ -434,7 +434,7 @@ void LightModule::sync_light(const Object *ob, ObjectHandle &handle)
     }
   }
 
-  Light &light = light_map_.lookup_or_add_default(handle.object_key);
+  Light &light = light_map_.lookup_or_add_default(ObjectKey(handle.ref));
   light.used = true;
   if (handle.recalc != 0 || !light.initialized) {
     light.initialized = true;

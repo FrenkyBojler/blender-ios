@@ -391,16 +391,16 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
     return;
   }
 
-  ObjectHandle &ob_handle = sync.sync_object(ob_ref);
+  ObjectHandle ob_handle = sync.sync_object(ob_ref);
 
   if (partsys_is_visible && ob != draw_ctx->object_edit) {
     auto sync_hair =
         [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
-          ResourceHandleRange _res_handle = manager->resource_handle_for_psys(
-              ob_ref, ob->object_to_world());
+          ResourceHandle _res_handle = manager->resource_handle_for_psys(ob_ref,
+                                                                         ob->object_to_world());
           sync.sync_curves(ob, hair_handle, ob_ref, _res_handle, &md, &particle_sys);
         };
-    foreach_hair_particle_handle(*this, ob_ref, ob_handle, sync_hair);
+    foreach_hair_particle_handle(*this, ob_ref, 0, sync_hair);
   }
 
   if (object_is_visible) {

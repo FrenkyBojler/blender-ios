@@ -72,7 +72,7 @@ void LightProbeModule::begin_sync()
 
 void LightProbeModule::sync_volume(const Object *ob, ObjectHandle &handle)
 {
-  VolumeProbe &grid = volume_map_.lookup_or_add_default(handle.object_key);
+  VolumeProbe &grid = volume_map_.lookup_or_add_default(ObjectKey(handle.ref));
   grid.used = true;
   if (handle.recalc != 0 || grid.initialized == false) {
     const blender::LightProbe &lightprobe =
@@ -112,7 +112,7 @@ void LightProbeModule::sync_volume(const Object *ob, ObjectHandle &handle)
 
 void LightProbeModule::sync_sphere(const Object *ob, ObjectHandle &handle)
 {
-  SphereProbe &cube = sphere_map_.lookup_or_add_default(handle.object_key);
+  SphereProbe &cube = sphere_map_.lookup_or_add_default(ObjectKey(handle.ref));
   cube.used = true;
   if (handle.recalc != 0 || cube.initialized == false) {
     const blender::LightProbe &light_probe = DRW_object_get_data_for_drawing<blender::LightProbe>(
@@ -167,7 +167,7 @@ void LightProbeModule::sync_sphere(const Object *ob, ObjectHandle &handle)
 
 void LightProbeModule::sync_planar(const Object *ob, ObjectHandle &handle)
 {
-  PlanarProbe &plane = planar_map_.lookup_or_add_default(handle.object_key);
+  PlanarProbe &plane = planar_map_.lookup_or_add_default(ObjectKey(handle.ref));
   plane.used = true;
   if (handle.recalc != 0 || plane.initialized == false) {
     const blender::LightProbe &light_probe = DRW_object_get_data_for_drawing<blender::LightProbe>(

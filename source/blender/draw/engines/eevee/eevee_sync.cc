@@ -29,26 +29,14 @@ namespace blender::eevee {
  *
  * \{ */
 
-ObjectHandle &SyncModule::sync_object(const ObjectRef &ob_ref)
+ObjectHandle SyncModule::sync_object(const ObjectRef &ob_ref)
 {
-  ObjectKey key(ob_ref);
-
-  ObjectHandle &handle = ob_handles.lookup_or_add_cb(key, [&]() {
-    ObjectHandle new_handle;
-    new_handle.object_key = key;
-    return new_handle;
-  });
-
-  handle.recalc = inst_.get_recalc_flags(ob_ref);
-
-  return handle;
+  return ObjectHandle{inst_.get_recalc_flags(ob_ref), ob_ref};
 }
 
 WorldHandle SyncModule::sync_world(const blender::World &world)
 {
-  WorldHandle handle;
-  handle.recalc = inst_.get_recalc_flags(world);
-  return handle;
+  return WorldHandle{inst_.get_recalc_flags(world)};
 }
 
 /** \} */
@@ -99,8 +87,7 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
 
   ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);
 
-  bool has_motion = inst_.velocity.step_object_sync(
-      ob_handle.object_key, ob_ref, ob_handle.recalc, res_handle);
+  bool has_motion = inst_.velocity.step_object_sync(ob_handle, res_handle);
 
   MaterialArray &material_array = inst_.materials.material_array_get(ob, has_motion);
 
@@ -258,8 +245,7 @@ void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const Obje
 
   ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);
 
-  bool has_motion = inst_.velocity.step_object_sync(
-      ob_handle.object_key, ob_ref, ob_handle.recalc, res_handle);
+  bool has_motion = inst_.velocity.step_object_sync(ob_handle, res_handle);
 
   Material &material = inst_.materials.material_get(
       ob, has_motion, material_slot - 1, MAT_GEOM_POINTCLOUD);
@@ -418,7 +404,7 @@ void SyncModule::sync_curves(Object *ob,
   }
 
   bool has_motion = inst_.velocity.step_object_sync(
-      ob_handle.object_key, ob_ref, ob_handle.recalc, res_handle, modifier_data, particle_sys);
+      ob_handle, res_handle, modifier_data, particle_sys);
   Material &material = inst_.materials.material_get(ob, has_motion, mat_nr - 1, MAT_GEOM_CURVES);
 
   auto drawcall_add = [&](MaterialPass &matpass) {
@@ -488,10 +474,10 @@ void SyncModule::sync_curves(Object *ob,
 
 void foreach_hair_particle_handle(Instance &inst,
                                   ObjectRef &ob_ref,
-                                  ObjectHandle ob_handle,
+                                  int instance_index,
                                   HairHandleCallback callback)
 {
-  int sub_key = 1;
+  uint sub_key = 1;
 
   for (ModifierData &md : ob_ref.object->modifiers) {
     if (md.type == eModifierType_ParticleSystem) {
@@ -507,9 +493,7 @@ void foreach_hair_particle_handle(Instance &inst,
         continue;
       }
 
-      ObjectHandle particle_sys_handle = ob_handle;
-      particle_sys_handle.object_key = ObjectKey(ob_ref, sub_key++);
-      particle_sys_handle.recalc = particle_sys->recalc;
+      ObjectHandle particle_sys_handle = {uint(particle_sys->recalc), ob_ref, sub_key++};
 
       callback(particle_sys_handle, md, *particle_sys);
     }
