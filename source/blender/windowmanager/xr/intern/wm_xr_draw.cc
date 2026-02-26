@@ -183,8 +183,8 @@ void wm_xr_pose_scale_to_imat(const GHOST_XrPose *pose, float scale, float r_ima
   translate_m4(r_imat, -pose->position[0], -pose->position[1], -pose->position[2]);
 }
 
-static wmXrController *get_viewfinder_controller(const XrSessionSettings *settings,
-                                                 const wmXrSessionState *state)
+static wmXrController *wm_xr_viewfinder_get_controller(const XrSessionSettings *settings,
+                                                       const wmXrSessionState *state)
 {
   // TODO: Automatically switch control scheme on hand change.
 
@@ -211,8 +211,8 @@ static wmXrController *get_viewfinder_controller(const XrSessionSettings *settin
   return nullptr;
 }
 
-static rctf wm_xr_get_viewfinder_view_rect(const XrSessionSettings *settings,
-                                           const RenderData *scene_render_settings)
+static rctf wm_xr_viewfinder_get_rect(const XrSessionSettings *settings,
+                                      const RenderData *scene_render_settings)
 {
   /* Use scene render aspect ratio. */
   const float render_x = scene_render_settings->xsch * scene_render_settings->xasp;
@@ -229,18 +229,18 @@ static rctf wm_xr_get_viewfinder_view_rect(const XrSessionSettings *settings,
   return viewfinder_rect;
 }
 
-static float wm_xr_get_viewfinder_passepartout_overscan(const XrSessionSettings *settings)
+static float wm_xr_viewfinder_get_pp_overscan(const XrSessionSettings *settings)
 {
   /* Turn the user-facing 0 -> 1 factor into a 1 -> 1.5 factor. */
   return (settings->viewfinder_passepartout_overscan * 0.5) + 1.0f;
 }
 
-static bool wm_xr_get_viewfinder_capture_mat(const XrSessionSettings *settings,
+static bool wm_xr_viewfinder_get_capture_mat(const XrSessionSettings *settings,
                                              const wmXrSessionState *state,
                                              const float viewfinder_height,
                                              float r_mat[4][4])
 {
-  const wmXrController *viewfinder_controller = get_viewfinder_controller(settings, state);
+  const wmXrController *viewfinder_controller = wm_xr_viewfinder_get_controller(settings, state);
   if (!viewfinder_controller) {
     return false;
   }
@@ -395,11 +395,11 @@ static void wm_xr_draw_viewfinder_view_texture(const GHOST_XrDrawViewInfo *draw_
     case XR_VIEWFINDER_MODE_LIVE: {
       // TODO: Simplify viewfinder_height computation once context is passed everywhere
       const RenderData *scene_render_settings = &draw_data->scene->r;
-      const rctf viewfinder_rect = wm_xr_get_viewfinder_view_rect(settings, scene_render_settings);
+      const rctf viewfinder_rect = wm_xr_viewfinder_get_rect(settings, scene_render_settings);
       const float viewfinder_height = BLI_rctf_size_y(&viewfinder_rect);
 
       float raw_capture_mat[4][4];
-      if (!wm_xr_get_viewfinder_capture_mat(settings, state, viewfinder_height, raw_capture_mat)) {
+      if (!wm_xr_viewfinder_get_capture_mat(settings, state, viewfinder_height, raw_capture_mat)) {
         /* Invalid viewfinder capture matrix, cannot draw, early return. */
         return;
       }
@@ -450,8 +450,7 @@ static void wm_xr_draw_viewfinder_view_texture(const GHOST_XrDrawViewInfo *draw_
   if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE &&
       settings->viewfinder_passepartout_enabled)
   {
-    BLI_rctf_mul(&cam_render_params.viewplane,
-                 wm_xr_get_viewfinder_passepartout_overscan(settings));
+    BLI_rctf_mul(&cam_render_params.viewplane, wm_xr_viewfinder_get_pp_overscan(settings));
   }
 
   BKE_camera_params_compute_matrix(&cam_render_params);
@@ -967,8 +966,8 @@ static void wm_xr_controller_viewfinder_draw_capture_overlays(const XrSessionSet
 
   rctf capture_rect = vf_rect;
   BLI_rctf_resize(&capture_rect,
-                  BLI_rctf_size_x(&vf_rect) / wm_xr_get_viewfinder_passepartout_overscan(settings),
-                  BLI_rctf_size_y(&vf_rect) / wm_xr_get_viewfinder_passepartout_overscan(settings));
+                  BLI_rctf_size_x(&vf_rect) / wm_xr_viewfinder_get_pp_overscan(settings),
+                  BLI_rctf_size_y(&vf_rect) / wm_xr_viewfinder_get_pp_overscan(settings));
 
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
@@ -1084,12 +1083,12 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   }
 
   const RenderData *scene_render_settings = &CTX_data_scene(C)->r;
-  const rctf viewfinder_rect = wm_xr_get_viewfinder_view_rect(settings, scene_render_settings);
+  const rctf viewfinder_rect = wm_xr_viewfinder_get_rect(settings, scene_render_settings);
 
   /* Initial transform setup. */
   float viewfinder_mat[4][4];
   const float viewfinder_height = BLI_rctf_size_y(&viewfinder_rect);
-  if (!wm_xr_get_viewfinder_capture_mat(settings, state, viewfinder_height, viewfinder_mat)) {
+  if (!wm_xr_viewfinder_get_capture_mat(settings, state, viewfinder_height, viewfinder_mat)) {
     return;
   }
 
