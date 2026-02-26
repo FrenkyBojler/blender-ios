@@ -6283,6 +6283,10 @@ void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
   Set<IDProperty *> used_props;
   StructRNA &srna = *ptr.type;
   for (PropertyRNA &rna_prop : *RNA_struct_type_properties(&srna)) {
+    if (RNA_property_builtin(&rna_prop)) {
+      continue;
+    }
+
     const StringRefNull identifier = RNA_property_identifier(&rna_prop);
     IDProperty *idprop = IDP_GetPropertyFromGroup(&idprops, identifier.c_str());
     if (!idprop) {
