@@ -269,7 +269,8 @@ int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
 
   /* Increasing the state count doesn't notably benefit M1-family systems. */
   if (MetalInfo::get_apple_gpu_architecture(metal_device_->mtlDevice) != APPLE_M1) {
-    size_t max_recommended_working_set = [metal_device_->mtlDevice recommendedMaxWorkingSetSize];
+    const size_t max_recommended_working_set =
+        [metal_device_->mtlDevice recommendedMaxWorkingSetSize];
 
     /* Only use 90% of available working set for safety. */
     int percent = 90;
@@ -277,11 +278,11 @@ int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
       percent = atoi(str);
     }
 
-    size_t max_working_set = (max_recommended_working_set * percent) / 100;
+    const size_t max_working_set = (max_recommended_working_set * percent) / 100;
     int max_safe_state_count = 0;
 
     if (stats_.mem_used < max_working_set) {
-      size_t headroom = max_working_set - stats_.mem_used;
+      const size_t headroom = max_working_set - stats_.mem_used;
       max_safe_state_count = headroom / state_size;
     }
 
@@ -298,13 +299,14 @@ int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
       }
       else {
         /* Limit to two "doublings" - we see diminishing returns after that. */
-        for (int i=0; i<2; i++) {
-          /* Determine whether we can double the state count, and leave enough GPU-available memory.
-           * Enlarging the state size allows us to keep dispatch sizes high and minimize work
-           * submission overheads. */
+        for (int i = 0; i < 2; i++) {
+          /* Determine whether we can double the state count, and leave enough GPU-available
+           * memory. Enlarging the state size allows us to keep dispatch sizes high and minimize
+           * work submission overheads. */
           if (max_safe_state_count > state_count * 2) {
             state_count *= 2;
-            metal_printf("Doubling state count to exploit available RAM (new size = %d)", state_count);
+            metal_printf("Doubling state count to exploit available RAM (new size = %d)",
+                         state_count);
           }
         }
       }
