@@ -3693,7 +3693,6 @@ static void side_panel_draw_search_block(const bContext *C, ARegion *region)
   block_end(C, block);
   block_translate(block, 0, region->v2d.cur.ymax - region->v2d.tot.ymax);
   block_draw(C, block);
-  region->runtime->search_block = block;
 }
 
 void ED_region_panels_draw(const bContext *C, ARegion *region)

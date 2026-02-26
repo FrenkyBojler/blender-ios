@@ -575,7 +575,6 @@ struct ARegionRuntime {
 
   std::string search_filter;
   Set<std::string> categories_search_match;
-  ui::Block *search_block = nullptr;
 };
 
 }  // namespace bke
