@@ -3911,11 +3911,11 @@ static void wm_paintcursor_test(bContext *C, const wmEvent *event)
 static void wm_dragdrop_free_timer(wmWindowManager *wm, wmWindow *win)
 {
   for (wmDrag &drag : wm->runtime->drags) {
-   if (wmDropBox *dropbox = drag.drop_state.active_dropbox) {
-     WM_event_timer_remove(wm, win, dropbox->timer);
-     dropbox->timer = nullptr;
-   }
- }
+    if (wmDropBox *dropbox = drag.drop_state.active_dropbox) {
+      WM_event_timer_remove(wm, win, dropbox->timer);
+      dropbox->timer = nullptr;
+    }
+  }
 }
 
 static eHandlerActionFlag wm_event_drag_and_drop_test(wmWindowManager *wm,

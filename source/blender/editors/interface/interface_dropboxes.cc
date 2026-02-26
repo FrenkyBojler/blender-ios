@@ -167,12 +167,8 @@ void dropboxes_ui()
 {
   ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
-  wmDropBox *dropbox = WM_dropbox_add(lb,
-                                      "UI_OT_view_drop",
-                                      ui_view_drop_poll,
-                                      nullptr,
-                                      nullptr,
-                                      ui_view_drop_tooltip);
+  wmDropBox *dropbox = WM_dropbox_add(
+      lb, "UI_OT_view_drop", ui_view_drop_poll, nullptr, nullptr, ui_view_drop_tooltip);
   dropbox->on_hover_event = region_view_scroll_at_borders;
 
   WM_dropbox_add(lb,
