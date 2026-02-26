@@ -92,6 +92,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::String>("Filter").optional_label().description(
       "Filters the geometry sets to process based on their tags");
 
+  b.add_input<decl::Matrix>("Simulation to World");
+
   {
     auto &solver_panel = b.add_panel("Solver").default_closed(true);
     solver_panel.add_input<decl::Int>("Substeps").default_value(10).min(1);
@@ -543,6 +545,9 @@ class XpbdSolverStep {
   const float sub_delta_time_;
   float substep_compliance_factor_;
 
+  const float4x4 simulation_to_world_;
+  const float4x4 world_to_simulation_;
+
   std::string geometry_tag_filter_;
 
   int constraint_iterations_;
@@ -564,10 +569,13 @@ class XpbdSolverStep {
                  const float total_delta_time,
                  const int substeps,
                  const int constraint_iterations,
-                 const StringRef geometry_tag_filter)
+                 const StringRef geometry_tag_filter,
+                 const float4x4 &simulation_to_world)
       : world_(world),
         substeps_(substeps),
         sub_delta_time_(total_delta_time / substeps_),
+        simulation_to_world_(simulation_to_world),
+        world_to_simulation_(math::invert(simulation_to_world)),
         geometry_tag_filter_(geometry_tag_filter),
         constraint_iterations_(constraint_iterations)
   {
@@ -756,27 +764,36 @@ class XpbdSolverStep {
         continue;
       }
       const Bundle &bundle = **bundle_ptr;
-      const std::optional<float3> position = bundle.lookup<float3>("position");
-      const std::optional<float3> normal = bundle.lookup<float3>("normal");
+      /* Retrieve collision plane in world space. */
+      const std::optional<float3> position_wo = bundle.lookup<float3>("position");
+      const std::optional<float3> normal_wo = bundle.lookup<float3>("normal");
       const float friction = bundle.lookup<float>("friction").value_or(0.0f);
-      if (!position || !normal) {
+      if (!position_wo || !normal_wo) {
         continue;
       }
-      if (math::is_zero(*normal)) {
-        continue;
+      const float3 prev_position_wo =
+          bundle.lookup<float3>("prev_position").value_or(*position_wo);
+      float3 prev_normal_wo = bundle.lookup<float3>("prev_normal").value_or(*normal_wo);
+      if (math::is_zero(prev_normal_wo)) {
+        prev_normal_wo = *normal_wo;
       }
-      const float3 prev_position = bundle.lookup<float3>("prev_position").value_or(*position);
-      float3 prev_normal = bundle.lookup<float3>("prev_normal").value_or(*normal);
-      if (math::is_zero(prev_normal)) {
-        prev_normal = *normal;
+      /* Convert to simulation space. */
+      const float3 position_sim = math::transform_point(world_to_simulation_, *position_wo);
+      const float3 prev_position_sim = math::transform_point(world_to_simulation_,
+                                                             prev_position_wo);
+      const float3 normal_sim = math::transform_direction(world_to_simulation_, *normal_wo);
+      const float3 prev_normal_sim = math::transform_direction(world_to_simulation_,
+                                                               prev_normal_wo);
+      if (math::is_zero(normal_sim) || math::is_zero(prev_normal_sim)) {
+        continue;
       }
 
       const int collider_i = constraints_.infinite_plane_colliders.append_and_get_index(
           {path,
-           *position,
-           math::normalize(*normal),
-           prev_position,
-           math::normalize(prev_normal),
+           position_sim,
+           math::normalize(normal_sim),
+           prev_position_sim,
+           math::normalize(prev_normal_sim),
            friction});
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
@@ -860,8 +877,8 @@ class XpbdSolverStep {
       }
       Vector<int> instance_id_stack;
       this->gather_colliders_in_geometry(path,
-                                         float4x4::identity(),
-                                         float4x4::identity(),
+                                         world_to_simulation_,
+                                         world_to_simulation_,
                                          *geometry,
                                          prev_geometry,
                                          friction,
@@ -2702,8 +2719,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float delta_time = std::max(0.0f, params.get_input<float>("Delta Time"));
   Bundle &world = world_ptr.ensure_mutable_inplace();
   const std::string geometry_tag_filter = params.extract_input<std::string>("Filter");
+  const float4x4 simulation_to_world = params.extract_input<float4x4>("Simulation to World");
 
-  XpbdSolverStep step(world, delta_time, substeps, constraint_iterations, geometry_tag_filter);
+  XpbdSolverStep step(world,
+                      delta_time,
+                      substeps,
+                      constraint_iterations,
+                      geometry_tag_filter,
+                      simulation_to_world);
   step.do_step();
 
   for (const StringRef warning : step.warnings()) {
