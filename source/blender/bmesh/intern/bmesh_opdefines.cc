@@ -2748,8 +2748,7 @@ static BMOpDefine bmo_space_def = {
         {"geom", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BM_EDGE | BM_FACE}},
         /* Method used for interpolation. */
         {"interpolation", BMO_OP_SLOT_INT},
-        /* If true, space parallel loops across even-sided faces. If false, only use tagged edges.
-         */
+        /* If true, space parallel loops across even-sided faces. If false, only use tagged edges.*/
         {"use_parallel", BMO_OP_SLOT_BOOL},
         /* Influence factor: spans from 0.0 to 1.0. */
         {"factor", BMO_OP_SLOT_FLT},
