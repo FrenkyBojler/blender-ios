@@ -196,7 +196,6 @@ struct Button : NonMovable {
   char flag2 = 0;
 
   ButtonType type = ButtonType(0);
-  ButtonSubStyle sub_style = ButtonSubStyle::Default;
   ButPointerType pointype = ButPointerType::None;
   bool bit = 0;
   /* 0-31 bit index. */
@@ -366,6 +365,11 @@ struct Button : NonMovable {
   Button &operator=(const Button &other) = delete;
 
   virtual ~Button() = default;
+};
+
+/** Derived struct for #ButtonType::But */
+struct ButtonPush : public Button {
+  bool draw_as_link = false;
 };
 
 /** Derived struct for #ButtonType::Num */
@@ -1589,6 +1593,7 @@ Button *button_prev(Button *but) ATTR_WARN_UNUSED_RESULT;
 Button *button_next(Button *but) ATTR_WARN_UNUSED_RESULT;
 Button *button_first(Block *block) ATTR_WARN_UNUSED_RESULT;
 Button *button_last(Block *block) ATTR_WARN_UNUSED_RESULT;
+bool button_draw_as_link(const Button *button);
 
 Button *block_active_but_get(const Block *block);
 bool block_is_menu(const Block *block) ATTR_WARN_UNUSED_RESULT;

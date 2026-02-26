@@ -3258,7 +3258,7 @@ void Layout::link(const StringRef url, const StringRef name, int icon)
   PointerRNA *opptr = button_operator_ptr_ensure(button);
   opptr->data = bke::idprop::create_group("wmOperatorProperties").release();
 
-  button->sub_style = ButtonSubStyle::Link;
+  static_cast<ButtonPush *>(button)->draw_as_link = true;
 
   if (this->alignment() == LayoutAlign::Right) {
     button->drawflag &= ~BUT_TEXT_LEFT;

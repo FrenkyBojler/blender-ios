@@ -4288,6 +4288,9 @@ static std::unique_ptr<Button> ui_but_new(const ButtonType type)
     case ButtonType::Scroll:
       but = std::make_unique<ButtonScrollBar>();
       break;
+    case ButtonType::But:
+      but = std::make_unique<ButtonPush>();
+      break;
     default:
       but = std::make_unique<Button>();
       break;

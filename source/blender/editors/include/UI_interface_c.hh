@@ -467,13 +467,6 @@ enum class ButtonType : int8_t {
   ViewItem,
 };
 
-enum class ButtonSubStyle : int8_t {
-  /** Default button style. */
-  Default,
-  /** Link Style for #ButtonType::But buttons. */
-  Link,
-};
-
 inline char but_pointer_bit_max_index(ButPointerType pointer_type)
 {
   switch (pointer_type) {
