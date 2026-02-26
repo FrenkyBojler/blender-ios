@@ -181,12 +181,6 @@ class VIEW3D_PT_vr_location_scouting_viewfinder_passepartout(VRButtonsPanel, Pan
     bl_parent_id = "VIEW3D_PT_vr_location_scouting_viewfinder"
     bl_options = {'DEFAULT_CLOSED'}
 
-    def draw_header(self, context):
-        layout = self.layout
-        session_settings = context.window_manager.xr_session_settings
-
-        layout.prop(session_settings, "viewfinder_passepartout_enabled", text="")
-
     def draw(self, context):
         layout = self.layout
         session_settings = context.window_manager.xr_session_settings

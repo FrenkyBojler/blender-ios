@@ -528,9 +528,8 @@ static void wm_xr_draw_viewfinder_view_texture(const GHOST_XrDrawViewInfo *draw_
                                       render_settings->ysch,
                                       render_settings->xasp,
                                       render_settings->yasp);
-  /* In Live mode, scale viewplane by passepartout overscan if enabled. */
-  if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE &&
-      settings->viewfinder_passepartout_enabled)
+  /* In Live mode, scale viewplane by passepartout overscan. */
+  if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE)
   {
     BLI_rctf_mul(&cam_render_params.viewplane, wm_xr_viewfinder_get_pp_overscan(settings));
   }
@@ -1042,10 +1041,6 @@ static void wm_xr_controller_viewfinder_draw_capture_overlays(const XrSessionSet
   if (state->viewfinder.active_mode != XR_VIEWFINDER_MODE_LIVE) {
     return;
   }
-  if (!settings->viewfinder_passepartout_enabled && !settings->viewfinder_crosshair_enabled) {
-    return;
-  }
-
   rctf capture_rect = vf_rect;
   BLI_rctf_resize(&capture_rect,
                   BLI_rctf_size_x(&vf_rect) / wm_xr_viewfinder_get_pp_overscan(settings),
@@ -1057,25 +1052,25 @@ static void wm_xr_controller_viewfinder_draw_capture_overlays(const XrSessionSet
   GPU_blend(GPU_BLEND_ALPHA);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-  if (settings->viewfinder_passepartout_enabled) {
-    immUniformColor4f(0.0f, 0.0f, 0.0f, settings->viewfinder_passepartout_opacity);
+  /* Passepartout. */
+  immUniformColor4f(0.0f, 0.0f, 0.0f, settings->viewfinder_passepartout_opacity);
 
-    /* Main passepartout dark border strips. */
-    immRectf(pos, vf_rect.xmin, capture_rect.ymax, vf_rect.xmax, vf_rect.ymax);
-    immRectf(pos, vf_rect.xmin, vf_rect.ymin, vf_rect.xmax, capture_rect.ymin);
-    immRectf(pos, vf_rect.xmin, capture_rect.ymin, capture_rect.xmin, capture_rect.ymax);
-    immRectf(pos, capture_rect.xmax, capture_rect.ymin, vf_rect.xmax, capture_rect.ymax);
+  /* Main passepartout dark border strips. */
+  immRectf(pos, vf_rect.xmin, capture_rect.ymax, vf_rect.xmax, vf_rect.ymax);
+  immRectf(pos, vf_rect.xmin, vf_rect.ymin, vf_rect.xmax, capture_rect.ymin);
+  immRectf(pos, vf_rect.xmin, capture_rect.ymin, capture_rect.xmin, capture_rect.ymax);
+  immRectf(pos, capture_rect.xmax, capture_rect.ymin, vf_rect.xmax, capture_rect.ymax);
 
-    /* White wire frame around capture area for the passepartout to be visible at 0 opacity. */
-    immUniformColor4f(1.0f, 1.0f, 1.0f, 0.2f);
-    immBegin(GPU_PRIM_LINE_LOOP, 4);
-    immVertex2f(pos, capture_rect.xmin, capture_rect.ymin);
-    immVertex2f(pos, capture_rect.xmax, capture_rect.ymin);
-    immVertex2f(pos, capture_rect.xmax, capture_rect.ymax);
-    immVertex2f(pos, capture_rect.xmin, capture_rect.ymax);
-    immEnd();
-  }
+  /* White wire frame around capture area for the passepartout to be visible at 0 opacity. */
+  immUniformColor4f(1.0f, 1.0f, 1.0f, 0.2f);
+  immBegin(GPU_PRIM_LINE_LOOP, 4);
+  immVertex2f(pos, capture_rect.xmin, capture_rect.ymin);
+  immVertex2f(pos, capture_rect.xmax, capture_rect.ymin);
+  immVertex2f(pos, capture_rect.xmax, capture_rect.ymax);
+  immVertex2f(pos, capture_rect.xmin, capture_rect.ymax);
+  immEnd();
 
+  /* Crosshair. */
   if (settings->viewfinder_crosshair_enabled) {
     const float center_x = BLI_rctf_cent_x(&capture_rect);
     const float center_y = BLI_rctf_cent_y(&capture_rect);

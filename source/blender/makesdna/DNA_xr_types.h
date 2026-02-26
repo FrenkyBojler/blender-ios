@@ -128,9 +128,8 @@ struct XrSessionSettings {
 
   char viewfinder_enabled;
   char viewfinder_crosshair_enabled;
-  char viewfinder_passepartout_enabled;
   char viewfinder_hand; /* #eXrViewfinderHand */
-  char _pad2[2];
+  char _pad2[3];
 
   float viewfinder_scale;
   float viewfinder_passepartout_overscan;
