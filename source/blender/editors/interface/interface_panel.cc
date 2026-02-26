@@ -704,7 +704,7 @@ Panel *panel_begin(
     }
 
     /* Initialize File Browser panels from preferences. */
-    UIState uistate("file_browser.panels");
+    MemorySection uistate = memory.open("file_browser.panels");
 
     if (region->regiontype == RGN_TYPE_TOOLS && STRPREFIX(pt->idname, "FILEBROWSER_PT_")) {
       if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_favorites")) {

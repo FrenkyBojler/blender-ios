@@ -4,98 +4,115 @@
 
 /** \file
  * \ingroup bli
+ *
+ * MemoryFile / MemorySection API for persisted UI state.
  */
 
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "BLI_string_ref.hh"
 
 namespace blender {
 
-void uistate_init_async();
-bool uistate_save();
+struct MemorySection {
+  std::string section;
 
-struct UIState {
-  StringRef section;
-
-  UIState(const StringRef section) : section(section) {}
+  MemorySection() = default;
+  MemorySection(const StringRef sec) : section(sec.data(), sec.size()) {}
+  MemorySection(const std::string &sec) : section(sec) {}
+  MemorySection(const char *sec) : section(sec) {}
 
   template<typename T> T get(const StringRef item) const;
-
   template<typename T> void set(const StringRef item, const T &value);
 
   void remove(const StringRef item);
   void remove_section();
 
   struct Proxy {
-    StringRef section;
-    StringRef key;
+    std::string *section_ptr;
+    std::string key; /* Owning copy of the key */
 
-    Proxy(StringRef section_, StringRef key_) : section(section_), key(key_) {}
+    Proxy(std::string *section_p, const StringRef key_)
+        : section_ptr(section_p), key(key_.data(), key_.size())
+    {
+    }
 
     template<typename T> operator T() const
     {
-      return UIState(section).get<T>(key);
+      return MemorySection(*section_ptr).get<T>(StringRef(key));
     }
 
-    /* Prefer std::string for text retrievals (avoids instantiating get<StringRef>). */
     operator std::string() const
     {
-      return UIState(section).get<std::string>(key);
+      return MemorySection(*section_ptr).get<std::string>(StringRef(key));
     }
 
     template<typename T> Proxy &operator=(const T &value)
     {
-      UIState(section).set<T>(key, value);
+      MemorySection(*section_ptr).set(StringRef(key), value);
       return *this;
     }
 
-    /* Non-template overloads for strings so string-literals (char[N])
-     * don't force a UIState::set<char[N]> instantiation (causing the unresolved
-     * external). These take precedence over the template operator=. */
     Proxy &operator=(const std::string &s)
     {
-      UIState(section).set(key, s);
+      MemorySection(*section_ptr).set(StringRef(key), s);
       return *this;
     }
 
     Proxy &operator=(const char *s)
     {
-      UIState(section).set(key, std::string(s));
+      MemorySection(*section_ptr).set(StringRef(key), std::string(s));
       return *this;
     }
   };
 
   struct ConstProxy {
-    StringRef section;
-    StringRef key;
-    ConstProxy(StringRef section_, StringRef key_) : section(section_), key(key_) {}
+    std::string *section_ptr;
+    std::string key;
+
+    ConstProxy(std::string *section_p, const StringRef key_)
+        : section_ptr(section_p), key(key_.data(), key_.size())
+    {
+    }
 
     template<typename T> operator T() const
     {
-      return UIState(section).get<T>(key);
+      return MemorySection(*section_ptr).get<T>(StringRef(key));
     }
     operator std::string() const
     {
-      return UIState(section).get<std::string>(key);
+      return MemorySection(*section_ptr).get<std::string>(StringRef(key));
     }
   };
 
   Proxy operator[](const StringRef item)
   {
-    return Proxy(section, item);
+    return Proxy(&section, item);
   }
   ConstProxy operator[](const StringRef item) const
   {
-    return ConstProxy(section, item);
+    return ConstProxy(const_cast<std::string *>(&section), item);
   }
 };
 
-/**********************************/
+struct MemoryFile {
+  void init_async();
+  void ensure_init();
+  bool save() const;
+  /* Open a section handle. */
+  MemorySection open(const StringRef section) const
+  {
+    return MemorySection(section);
+  }
+};
 
-/* Default UI state settings. */
+/* Global instance used by callers. */
+extern MemoryFile memory;
+
+/**********************************/
 
 const StringRef default_uistate_toml = R"_delim_(
 title = "Saved UI State Settings"

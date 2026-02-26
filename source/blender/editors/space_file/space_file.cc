@@ -778,7 +778,7 @@ static void file_tools_region_exit(wmWindowManager * /*wm*/, ARegion *region)
     return a->sortorder < b->sortorder;
   });
 
-  UIState uistate("file_browser.panels");
+  MemorySection uistate = memory.open("file_browser.panels");
 
   for (const int i : panels.index_range()) {
     Panel *panel = panels[i];

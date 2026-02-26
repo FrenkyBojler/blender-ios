@@ -5,6 +5,7 @@
 /** \file
  * \ingroup bli
  *
+ * Implementation of MemoryFile / MemorySection backed by TOML.
  */
 
 #include "../../../extern/toml11/toml.hpp"
@@ -12,7 +13,9 @@
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
+#include <optional>
 #include <thread>
+#include <vector>
 
 #include "BKE_appdir.hh"
 
@@ -26,11 +29,12 @@ namespace blender {
 constexpr toml::spec version = toml::spec::v(1, 1, 0);
 #define UISTATE_FILE_NAME "uistate.toml"
 
-toml::value uistate_current;
-toml::value uistate_default;
+/* TOML storage. Protected by uistate_mutex. */
+static toml::value uistate_current;
+static toml::value uistate_default;
 
-static Mutex uistate_mutex;
-static Mutex uistate_init_mutex;
+static Mutex uistate_mutex;      /* protects TOML values */
+static Mutex uistate_init_mutex; /* used with cv for init wait */
 static std::atomic<bool> uistate_ready{false};
 static std::condition_variable_any uistate_init_cv;
 static std::once_flag uistate_init_once;
@@ -46,69 +50,67 @@ static std::string uistate_file_path()
 
 static void uistate_print_errors(std::vector<toml::error_info> errors)
 {
-  for (auto error : errors) {
+  for (auto &error : errors) {
     std::string msg = toml::format_error(error);
-    printf("%s\n", msg.c_str());
+    fprintf(stderr, "%s\n", msg.c_str());
   }
 }
 
-static void uistate_init()
+static void uistate_init_impl()
 {
-  /* Load defaults. */
-  toml::result result = toml::try_parse_str(default_uistate_toml, version);
-  if (result.is_ok()) {
+  /* Parse defaults from header literal. */
+  toml::result default_result = toml::try_parse_str(default_uistate_toml, version);
+  if (default_result.is_ok()) {
     std::lock_guard<Mutex> lock(uistate_mutex);
-    uistate_default = result.unwrap();
+    uistate_default = default_result.unwrap();
   }
   else {
-    uistate_print_errors(result.unwrap_err());
+    uistate_print_errors(default_result.unwrap_err());
   }
 
   /* Load from on-disk file if found. */
-  if (BLI_exists(uistate_file_path().c_str())) {
-    /* Read existing uistate file. */
-    toml::result result = toml::try_parse(uistate_file_path(), version);
-    if (result.is_ok()) {
+  const std::string path = uistate_file_path();
+  if (!path.empty() && BLI_exists(path.c_str())) {
+    toml::result file_result = toml::try_parse(path, version);
+    if (file_result.is_ok()) {
       std::lock_guard<Mutex> lock(uistate_mutex);
-      uistate_current = result.unwrap();
+      uistate_current = file_result.unwrap();
     }
     else {
-      uistate_print_errors(result.unwrap_err());
+      uistate_print_errors(file_result.unwrap_err());
     }
   }
   else {
-    /* Create a new uistate file from defaults. */
+    /* No file: initialize from defaults and save. */
     {
       std::lock_guard<Mutex> lock(uistate_mutex);
       uistate_current = uistate_default;
     }
-    uistate_save();
+    memory.save();
   }
 
-  /* Mark ready and wake any waiters (covers both sync and async init). */
+  /* Mark ready and wake any waiters. */
   uistate_ready.store(true, std::memory_order_release);
   uistate_init_cv.notify_all();
 }
 
-void uistate_init_async()
+/* Manager implementation (thin wrapper around free functions but exposes ensure_init). */
+void MemoryFile::init_async()
 {
-  /* Ensure we only start one background init thread. `uistate_init()`
-   * itself sets `uistate_ready` and notifies waiters. */
-  std::call_once(uistate_init_once, []() { std::thread([]() { uistate_init(); }).detach(); });
+  std::call_once(uistate_init_once, []() { std::thread([]() { uistate_init_impl(); }).detach(); });
 }
 
-static void uistate_ensure_init()
+void MemoryFile::ensure_init()
 {
   if (uistate_ready.load(std::memory_order_acquire)) {
     return;
   }
-
-  printf("WARNING: Waiting for uistate_init_async() to complete.\n");
+  /* Wait using BLI Mutex + condition_variable_any. */
   std::unique_lock<Mutex> lock(uistate_init_mutex);
   uistate_init_cv.wait(lock, [] { return uistate_ready.load(std::memory_order_acquire); });
 }
 
-bool uistate_save()
+bool MemoryFile::save() const
 {
   std::lock_guard<Mutex> lock(uistate_mutex);
   if (uistate_current.is_empty()) {
@@ -124,110 +126,128 @@ bool uistate_save()
   return true;
 }
 
-void UIState::remove(const StringRef item)
+template<typename T> T MemorySection::get(const StringRef item) const
 {
-  uistate_ensure_init();
-  std::lock_guard<Mutex> lock(uistate_mutex);
+  if (!uistate_ready.load(std::memory_order_acquire)) {
+    std::unique_lock<Mutex> lock(uistate_init_mutex);
+    uistate_init_cv.wait(lock, [] { return uistate_ready.load(std::memory_order_acquire); });
+  }
 
+  std::lock_guard<Mutex> lock(uistate_mutex);
+  const std::string &sec = section;
+  const std::string key(item.data(), item.size());
+
+  const toml::value &cur = sec.empty() ? uistate_current[key] : uistate_current[sec][key];
+  const toml::value &def = sec.empty() ? uistate_default[key] : uistate_default[sec][key];
+  return toml::get_or(cur, toml::get_or(def, T{}));
+}
+
+template<typename T> void MemorySection::set(const StringRef item, const T &value)
+{
+  if (!uistate_ready.load(std::memory_order_acquire)) {
+    std::unique_lock<Mutex> lock(uistate_init_mutex);
+    uistate_init_cv.wait(lock, [] { return uistate_ready.load(std::memory_order_acquire); });
+  }
+
+  std::lock_guard<Mutex> lock(uistate_mutex);
+  const std::string &sec = section;
+  const std::string key(item.data(), item.size());
+  if (sec.empty()) {
+    uistate_current[key] = value;
+  }
+  else {
+    uistate_current[sec][key] = value;
+  }
+}
+
+void MemorySection::remove(const StringRef item)
+{
+  if (!uistate_ready.load(std::memory_order_acquire)) {
+    std::unique_lock<Mutex> lock(uistate_init_mutex);
+    uistate_init_cv.wait(lock, [] { return uistate_ready.load(std::memory_order_acquire); });
+  }
+  std::lock_guard<Mutex> lock(uistate_mutex);
   if (!uistate_current.is_table()) {
     return;
   }
-
   toml::table &root_tbl = uistate_current.as_table();
-  if (section.is_empty()) {
-    root_tbl.erase(item);
+  const std::string key(item.data(), item.size());
+  if (section.empty()) {
+    root_tbl.erase(key);
     return;
   }
-
   auto section_it = root_tbl.find(section);
   if (section_it == root_tbl.end()) {
     return;
   }
-
   toml::value &sec_val = section_it->second;
   if (!sec_val.is_table()) {
     return;
   }
-
   toml::table &sec_tbl = sec_val.as_table();
-  sec_tbl.erase(item);
+  sec_tbl.erase(key);
 }
 
-void UIState::remove_section()
+void MemorySection::remove_section()
 {
-  uistate_ensure_init();
+  if (!uistate_ready.load(std::memory_order_acquire)) {
+    std::unique_lock<Mutex> lock(uistate_init_mutex);
+    uistate_init_cv.wait(lock, [] { return uistate_ready.load(std::memory_order_acquire); });
+  }
   std::lock_guard<Mutex> lock(uistate_mutex);
-  if (section.is_empty() || !uistate_current.is_table()) {
+  if (section.empty() || !uistate_current.is_table()) {
     return;
   }
   toml::table &root_tbl = uistate_current.as_table();
   root_tbl.erase(section);
 }
 
-template<typename T> T UIState::get(const StringRef item) const
-{
-  uistate_ensure_init();
-  std::lock_guard<Mutex> lock(uistate_mutex);
-  const std::string sec = section;
-  const std::string key = item;
-  const toml::value &cur = sec.empty() ? uistate_current[key] : uistate_current[sec][key];
-  const toml::value &def = sec.empty() ? uistate_default[key] : uistate_default[sec][key];
-  return toml::get_or(cur, toml::get_or(def, T{}));
-}
+template std::string MemorySection::get<std::string>(const StringRef item) const;
+template void MemorySection::set<std::string>(const StringRef item, const std::string &value);
 
-template<typename T> void UIState::set(const StringRef item, const T &value)
-{
-  uistate_ensure_init();
-  std::lock_guard<Mutex> lock(uistate_mutex);
-  if (section.is_empty()) {
-    uistate_current[item] = value;
-  }
-  else {
-    uistate_current[section][item] = value;
-  }
-}
+template char MemorySection::get<char>(const StringRef item) const;
+template void MemorySection::set<char>(const StringRef item, const char &value);
 
-template std::string UIState::get<std::string>(const StringRef item) const;
-template void UIState::set<std::string>(const StringRef item, const std::string &value);
+template bool MemorySection::get<bool>(const StringRef item) const;
+template void MemorySection::set<bool>(const StringRef item, const bool &value);
 
-template char UIState::get<char>(const StringRef item) const;
-template void UIState::set<char>(const StringRef item, const char &value);
-template bool UIState::get<bool>(const StringRef item) const;
-template void UIState::set<bool>(const StringRef item, const bool &value);
+template int16_t MemorySection::get<int16_t>(const StringRef item) const;
+template void MemorySection::set<int16_t>(const StringRef item, const int16_t &value);
 
-template int16_t UIState::get<int16_t>(const StringRef item) const;
-template void UIState::set<int16_t>(const StringRef item, const int16_t &value);
+template uint16_t MemorySection::get<uint16_t>(const StringRef item) const;
+template void MemorySection::set<uint16_t>(const StringRef item, const uint16_t &value);
 
-template uint16_t UIState::get<uint16_t>(const StringRef item) const;
-template void UIState::set<uint16_t>(const StringRef item, const uint16_t &value);
+template int32_t MemorySection::get<int32_t>(const StringRef item) const;
+template void MemorySection::set<int32_t>(const StringRef item, const int32_t &value);
 
-template int32_t UIState::get<int32_t>(const StringRef item) const;
-template void UIState::set<int32_t>(const StringRef item, const int32_t &value);
+template uint32_t MemorySection::get<uint32_t>(const StringRef item) const;
+template void MemorySection::set<uint32_t>(const StringRef item, const uint32_t &value);
 
-template uint32_t UIState::get<uint32_t>(const StringRef item) const;
-template void UIState::set<uint32_t>(const StringRef item, const uint32_t &value);
+template int64_t MemorySection::get<int64_t>(const StringRef item) const;
+template void MemorySection::set<int64_t>(const StringRef item, const int64_t &value);
 
-template int64_t UIState::get<int64_t>(const StringRef item) const;
-template void UIState::set<int64_t>(const StringRef item, const int64_t &value);
+template uint64_t MemorySection::get<uint64_t>(const StringRef item) const;
+template void MemorySection::set<uint64_t>(const StringRef item, const uint64_t &value);
 
-template uint64_t UIState::get<uint64_t>(const StringRef item) const;
-template void UIState::set<uint64_t>(const StringRef item, const uint64_t &value);
+template float MemorySection::get<float>(const StringRef item) const;
+template void MemorySection::set<float>(const StringRef item, const float &value);
 
-template float UIState::get<float>(const StringRef item) const;
-template void UIState::set<float>(const StringRef item, const float &value);
+template double MemorySection::get<double>(const StringRef item) const;
+template void MemorySection::set<double>(const StringRef item, const double &value);
 
-template double UIState::get<double>(const StringRef item) const;
-template void UIState::set<double>(const StringRef item, const double &value);
+template std::vector<int> MemorySection::get<std::vector<int>>(const StringRef item) const;
+template void MemorySection::set<std::vector<int>>(const StringRef item,
+                                                   const std::vector<int> &value);
 
-template std::vector<int> UIState::get<std::vector<int>>(const StringRef item) const;
-template void UIState::set<std::vector<int>>(const StringRef item, const std::vector<int> &value);
+template std::vector<double> MemorySection::get<std::vector<double>>(const StringRef item) const;
+template void MemorySection::set<std::vector<double>>(const StringRef item,
+                                                      const std::vector<double> &value);
 
-template std::vector<double> UIState::get<std::vector<double>>(const StringRef item) const;
-template void UIState::set<std::vector<double>>(const StringRef item,
-                                                const std::vector<double> &value);
+template std::vector<float> MemorySection::get<std::vector<float>>(const StringRef item) const;
+template void MemorySection::set<std::vector<float>>(const StringRef item,
+                                                     const std::vector<float> &value);
 
-template std::vector<float> UIState::get<std::vector<float>>(const StringRef item) const;
-template void UIState::set<std::vector<float>>(const StringRef item,
-                                               const std::vector<float> &value);
+/* Global instance */
+MemoryFile memory;
 
 }  // namespace blender

@@ -100,7 +100,7 @@ static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectPara
 
 static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 {
-  UIState uistate("asset_browser");
+  MemorySection uistate = memory.open("asset_browser");
 
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_ASSETS);
   BLI_assert(sfile->op == nullptr);
@@ -146,7 +146,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 {
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_FILES);
 
-  UIState uistate("file_browser");
+  MemorySection uistate = memory.open("file_browser");
   FileSelectParams *params;
   wmOperator *op = sfile->op;
 
@@ -669,7 +669,7 @@ static bool file_select_use_default_sort_type(const SpaceFile *sfile)
 void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
 {
   wmOperator *op = sfile->op;
-  UIState uistate("file_browser");
+  MemorySection uistate = memory.open("file_browser");
 
   sfile->browse_mode = FILE_BROWSE_MODE_FILES;
 
@@ -699,8 +699,8 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
 void ED_fileselect_params_to_userdef(SpaceFile *sfile)
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
-  UIState uistate(sfile->browse_mode == FILE_BROWSE_MODE_ASSETS ? "asset_browser" :
-                                                                  "file_browser");
+  MemorySection uistate(sfile->browse_mode == FILE_BROWSE_MODE_ASSETS ? "asset_browser" :
+                                                                        "file_browser");
 
   uistate["thumbnail_size"] = params->thumbnail_size;
   uistate["details_flags"] = params->details_flags;
