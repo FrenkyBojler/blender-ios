@@ -39,6 +39,7 @@ set(SRC
   nodes/node_geo_bounding_box.cc
   nodes/node_geo_camera_info.cc
   nodes/node_geo_closure.cc
+  nodes/node_geo_collection_children.cc
   nodes/node_geo_collection_info.cc
   nodes/node_geo_combine_bundle.cc
   nodes/node_geo_common.cc
@@ -132,6 +133,7 @@ set(SRC
   nodes/node_geo_input_curve_tilt.cc
   nodes/node_geo_input_edge_smooth.cc
   nodes/node_geo_input_face_smooth.cc
+  nodes/node_geo_input_font.cc
   nodes/node_geo_input_id.cc
   nodes/node_geo_input_index.cc
   nodes/node_geo_input_instance_bounds.cc
@@ -232,6 +234,7 @@ set(SRC
   nodes/node_geo_separate_geometry.cc
   nodes/node_geo_set_curve_handles.cc
   nodes/node_geo_set_curve_normal.cc
+  nodes/node_geo_set_curve_order.cc
   nodes/node_geo_set_curve_radius.cc
   nodes/node_geo_set_curve_tilt.cc
   nodes/node_geo_set_geometry_bundle.cc
@@ -352,14 +355,6 @@ if(WITH_BULLET)
   list(APPEND INC
     ../../../../intern/rigidbody
   )
-endif()
-
-if(WITH_TBB)
-  if(WIN32)
-    # TBB includes Windows.h which will define min/max macros
-    # that will collide with the STL versions.
-    add_definitions(-DNOMINMAX)
-  endif()
 endif()
 
 if(WITH_IMAGE_OPENEXR)
