@@ -867,18 +867,15 @@ class VIEW3D_GGT_vr_captures(GizmoGroup):
         aspect_x = render_x / render_y if render_x < render_y else 1
         aspect_y = render_y / render_x if render_x > render_y else 1
 
-        # Base apsect to match native Blender Camera Gizmo (using Auto Sensor Fit)
+        # Base aspect to match native Blender Camera Gizmo (using Auto Sensor Fit)
         base_aspect = 1 / 4
         return aspect_x * base_aspect, aspect_y * base_aspect
 
     @staticmethod
     def get_selection_color(context, is_active_capture) -> tuple[float, float, float]:
-        theme = context.preferences.themes[0]
-        selection_color = Color(theme.view_3d.object_active)
+        selection_color = Color((0.25, 0.81, 1.0))
 
         # Shift the hue of the base theme selection color, decrease its saturation/value further for inactive captures
-        selection_color.h += 0.45
-        selection_color.s -= 0.1
         if not is_active_capture:
             selection_color.s += 0.2
             selection_color.v -= 0.5

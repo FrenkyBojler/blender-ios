@@ -300,6 +300,88 @@ static void wm_xr_viewfinder_update_transform_smoothed(wmXrSessionState *state,
   copy_v3_v3(r_smoothed_mat[3], state->viewfinder.capture_position);
 }
 
+static void wm_xr_viewfinder_draw_capture_camera(const bContext *C, wmXrSessionState *state)
+{
+  /* NOTE: This duplicates logic from the Python add-on VIEW3D_GGT_vr_captures gizmo, not ideal. */
+  if (state->viewfinder.active_mode != XR_VIEWFINDER_MODE_PLAYBACK) {
+    return;
+  }
+
+  const auto capture = wm_xr_get_active_location_scouting_capture(CTX_data_scene(C));
+  if (!capture.has_value()) {
+    return;
+  }
+
+  float capture_mat[4][4];
+  wm_xr_pose_to_mat(&capture->pose, capture_mat);
+
+  /* Compute focal. */
+  constexpr float sensor_fit_fac = 36 * 2; /* Twice the default Camera sensor fit (36mm). */
+  const float focal = capture->lens_focal / sensor_fit_fac;
+
+  /* Compute aspect. */
+  const RenderData *render_settings = &CTX_data_scene(C)->r;
+  const float render_x = render_settings->xsch * render_settings->xasp;
+  const float render_y = render_settings->ysch * render_settings->yasp;
+  const float aspect_x = render_x < render_y ? render_x / render_y : 1;
+  const float aspect_y = render_x > render_y ? render_y / render_x : 1;
+  /* Base aspect to match native Blender Camera Gizmo (using Auto Sensor Fit). */
+  constexpr float base_aspect = 1.0f / 4.0f;
+  const float aspect[2] = {aspect_x * base_aspect, aspect_y * base_aspect};
+
+  const float corners[4][3] = {
+      {-aspect[0], -aspect[1], -focal},
+      {aspect[0], -aspect[1], -focal},
+      {aspect[0], aspect[1], -focal},
+      {-aspect[0], aspect[1], -focal},
+  };
+
+  const float color[4] = {0.25f, 0.81f, 1.0f, 1.0f};
+
+  GPUVertFormat *format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+  uint col = GPU_vertformat_attr_add(format, "color", gpu::VertAttrType::SFLOAT_32_32_32_32);
+
+  GPU_matrix_push();
+  GPU_matrix_mul(capture_mat);
+
+  GPU_blend(GPU_BLEND_ALPHA);
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+  immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_FLAT_COLOR);
+
+  float viewport[4];
+  GPU_viewport_size_get_f(viewport);
+  immUniform2fv("viewportSize", &viewport[2]);
+  immUniform1f("lineWidth", 2.0f * U.pixelsize);
+
+  /* Camera frame. */
+  immBegin(GPU_PRIM_LINE_STRIP, 5);
+  for (int i = 0; i < 4; i++) {
+    immAttr4fv(col, color);
+    immVertex3fv(pos, corners[i]);
+  }
+  immAttr4fv(col, color);
+  immVertex3fv(pos, corners[0]);
+  immEnd();
+
+  /* Camera frustum lines from origin to each corner. */
+  immBegin(GPU_PRIM_LINES, 8);
+  for (int i = 0; i < 4; i++) {
+    immAttr4fv(col, color);
+    immVertex3f(pos, 0.0f, 0.0f, 0.0f);
+    immAttr4fv(col, color);
+    immVertex3fv(pos, corners[i]);
+  }
+  immEnd();
+
+  immUnbindProgram();
+  GPU_depth_test(GPU_DEPTH_NONE);
+  GPU_blend(GPU_BLEND_NONE);
+
+  GPU_matrix_pop();
+}
+
+
 static void wm_xr_draw_matrices_create(const wmXrDrawData *draw_data,
                                        const GHOST_XrDrawViewInfo *draw_view,
                                        const XrSessionSettings *session_settings,
@@ -1117,6 +1199,9 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   GPU_depth_mask(true);
   GPU_depth_test(GPU_DEPTH_NONE);
   GPU_matrix_pop();
+
+  /* Playback capture camera (drawn in world space). */
+  wm_xr_viewfinder_draw_capture_camera(C, state);
 }
 
 static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
