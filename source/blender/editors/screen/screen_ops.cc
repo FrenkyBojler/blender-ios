@@ -3254,7 +3254,7 @@ static void region_scale_validate_size(RegionMoveData *rmd)
   }
 }
 
-static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd)
+static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd, bool do_fade = false)
 {
   /* hidden areas may have bad 'View2D.cur' value,
    * correct before displaying. see #45156 */
@@ -3262,7 +3262,7 @@ static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd)
     ui::view2d_curRect_validate(&rmd->region->v2d);
   }
 
-  region_toggle_hidden(C, rmd->region, false);
+  region_toggle_hidden(C, rmd->region, do_fade);
   region_scale_validate_size(rmd);
 
   if ((rmd->region->flag & RGN_FLAG_HIDDEN) == 0) {
@@ -3272,7 +3272,7 @@ static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd)
         if ((region_tool_header->flag & RGN_FLAG_HIDDEN_BY_USER) == 0 &&
             (region_tool_header->flag & RGN_FLAG_HIDDEN) != 0)
         {
-          region_toggle_hidden(C, region_tool_header, false);
+          region_toggle_hidden(C, region_tool_header, do_fade);
         }
       }
     }
@@ -3328,7 +3328,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
           }
         }
         else if (rmd->region->flag & RGN_FLAG_HIDDEN) {
-          region_scale_toggle_hidden(C, rmd);
+          region_scale_toggle_hidden(C, rmd, true);
         }
 
         /* Hiding/unhiding is handled above, but still fix the size as requested. */
@@ -3377,7 +3377,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
           }
         }
         else if (rmd->region->flag & RGN_FLAG_HIDDEN) {
-          region_scale_toggle_hidden(C, rmd);
+          region_scale_toggle_hidden(C, rmd, true);
         }
 
         /* Hiding/unhiding is handled above, but still fix the size as requested. */
@@ -3409,7 +3409,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
       if (event->val == KM_RELEASE) {
         if (len_manhattan_v2v2_int(event->xy, rmd->orig_xy) <= WM_event_drag_threshold(event)) {
           if (rmd->region->flag & RGN_FLAG_HIDDEN) {
-            region_scale_toggle_hidden(C, rmd);
+            region_scale_toggle_hidden(C, rmd, true);
           }
           else if (rmd->region->flag & RGN_FLAG_TOO_SMALL) {
             region_scale_validate_size(rmd);
@@ -5149,7 +5149,7 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
         wmWindow *close_win = jd->win1;
         area_join_exit(C, op);
         if (do_close_win) {
-          wm_window_close(C, CTX_wm_manager(C), close_win);
+          wm_window_close_request(C, CTX_wm_manager(C), close_win);
         }
 
         WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
@@ -6362,6 +6362,8 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
 #endif
   }
 
+  WM_event_add_notifier(C, NC_SCREEN | ND_ANIMATION_PLAYBACK, screen);
+
   ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
   /* Since we follow draw-flags, we can't send notifier but tag regions ourselves. */
@@ -7046,7 +7048,7 @@ struct RegionAlphaInfo {
   int hidden;
 };
 
-#define TIMEOUT 0.1f
+#define TIMEOUT 0.22f
 #define TIMESTEP (1.0f / 60.0f)
 
 float ED_region_blend_alpha(ARegion *region)
