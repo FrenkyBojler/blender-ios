@@ -1668,7 +1668,7 @@ void panel_category_show_tab(ARegion *region, StringRef category)
 {
   const View2D *v2d = &region->v2d;
   for (PanelCategoryDyn &pc_dyn : region->runtime->panels_category) {
-    const bool found = STREQ(pc_dyn.idname, category.data());
+    const bool found = pc_dyn.idname == category;
     if (!found) {
       continue;
     }
