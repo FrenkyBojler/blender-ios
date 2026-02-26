@@ -644,6 +644,7 @@ class USDExportTest(AbstractUSDTest):
         self.check_primvar(prim, "p_byte_color", "VtArray<GfVec4f>", "vertex", 4)
         self.check_primvar(prim, "p_vec2", "VtArray<GfVec2f>", "vertex", 4)
         self.check_primvar(prim, "p_vec3", "VtArray<GfVec3f>", "vertex", 4)
+        self.check_primvar(prim, "p_vec4", "VtArray<GfVec4f>", "vertex", 4)
         self.check_primvar(prim, "p_quat", "VtArray<GfQuatf>", "vertex", 4)
         self.check_primvar_missing(prim, "p_mat4x4")
 
@@ -655,6 +656,7 @@ class USDExportTest(AbstractUSDTest):
         self.check_primvar_missing(prim, "e_byte_color")
         self.check_primvar_missing(prim, "e_vec2")
         self.check_primvar_missing(prim, "e_vec3")
+        self.check_primvar_missing(prim, "e_vec4")
         self.check_primvar_missing(prim, "e_quat")
         self.check_primvar_missing(prim, "e_mat4x4")
 
@@ -667,6 +669,7 @@ class USDExportTest(AbstractUSDTest):
         self.check_primvar(prim, "displayColor", "VtArray<GfVec3f>", "uniform", 1)
         self.check_primvar(prim, "f_vec2", "VtArray<GfVec2f>", "uniform", 1)
         self.check_primvar(prim, "f_vec3", "VtArray<GfVec3f>", "uniform", 1)
+        self.check_primvar(prim, "f_vec4", "VtArray<GfVec4f>", "uniform", 1)
         self.check_primvar(prim, "f_quat", "VtArray<GfQuatf>", "uniform", 1)
         self.check_primvar_missing(prim, "f_mat4x4")
 
@@ -678,6 +681,7 @@ class USDExportTest(AbstractUSDTest):
         self.check_primvar(prim, "fc_byte_color", "VtArray<GfVec4f>", "faceVarying", 4)
         self.check_primvar(prim, "fc_vec2", "VtArray<GfVec2f>", "faceVarying", 4)
         self.check_primvar(prim, "fc_vec3", "VtArray<GfVec3f>", "faceVarying", 4)
+        self.check_primvar(prim, "fc_vec4", "VtArray<GfVec4f>", "faceVarying", 4)
         self.check_primvar(prim, "fc_quat", "VtArray<GfQuatf>", "faceVarying", 4)
         self.check_primvar_missing(prim, "fc_mat4x4")
 
@@ -691,6 +695,7 @@ class USDExportTest(AbstractUSDTest):
         self.check_primvar(prim, "p_byte_color", "VtArray<GfVec4f>", "vertex", 24)
         self.check_primvar(prim, "p_vec2", "VtArray<GfVec2f>", "vertex", 24)
         self.check_primvar(prim, "p_vec3", "VtArray<GfVec3f>", "vertex", 24)
+        self.check_primvar(prim, "p_vec4", "VtArray<GfVec4f>", "vertex", 24)
         self.check_primvar(prim, "p_quat", "VtArray<GfQuatf>", "vertex", 24)
         self.check_primvar_missing(prim, "p_mat4x4")
 
@@ -702,6 +707,7 @@ class USDExportTest(AbstractUSDTest):
         self.check_primvar(prim, "sp_byte_color", "VtArray<GfVec4f>", "uniform", 2)
         self.check_primvar(prim, "sp_vec2", "VtArray<GfVec2f>", "uniform", 2)
         self.check_primvar(prim, "sp_vec3", "VtArray<GfVec3f>", "uniform", 2)
+        self.check_primvar(prim, "sp_vec4", "VtArray<GfVec4f>", "uniform", 2)
         self.check_primvar(prim, "sp_quat", "VtArray<GfQuatf>", "uniform", 2)
         self.check_primvar_missing(prim, "sp_mat4x4")
 
@@ -715,6 +721,7 @@ class USDExportTest(AbstractUSDTest):
         self.check_primvar(prim, "p_byte_color", "VtArray<GfVec4f>", "varying", 10)
         self.check_primvar(prim, "p_vec2", "VtArray<GfVec2f>", "varying", 10)
         self.check_primvar(prim, "p_vec3", "VtArray<GfVec3f>", "varying", 10)
+        self.check_primvar(prim, "p_vec4", "VtArray<GfVec4f>", "varying", 10)
         self.check_primvar(prim, "p_quat", "VtArray<GfQuatf>", "varying", 10)
         self.check_primvar_missing(prim, "p_mat4x4")
 
@@ -726,6 +733,7 @@ class USDExportTest(AbstractUSDTest):
         self.check_primvar(prim, "sp_byte_color", "VtArray<GfVec4f>", "uniform", 3)
         self.check_primvar(prim, "sp_vec2", "VtArray<GfVec2f>", "uniform", 3)
         self.check_primvar(prim, "sp_vec3", "VtArray<GfVec3f>", "uniform", 3)
+        self.check_primvar(prim, "sp_vec4", "VtArray<GfVec4f>", "uniform", 3)
         self.check_primvar(prim, "sp_quat", "VtArray<GfQuatf>", "uniform", 3)
         self.check_primvar_missing(prim, "sp_mat4x4")
 

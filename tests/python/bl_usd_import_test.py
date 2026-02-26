@@ -1096,6 +1096,7 @@ class USDImportTest(AbstractUSDTest):
         self.check_attribute(mesh, "p_color", 'POINT', 'FLOAT_COLOR', 4)
         self.check_attribute(mesh, "p_vec2", 'CORNER', 'FLOAT2', 4)  # TODO: Bug - wrong domain
         self.check_attribute(mesh, "p_vec3", 'POINT', 'FLOAT_VECTOR', 4)
+        self.check_attribute(mesh, "p_vec4", 'POINT', 'FLOAT4', 4)
         self.check_attribute(mesh, "p_quat", 'POINT', 'QUATERNION', 4)
         self.check_attribute_missing(mesh, "p_mat4x4")
 
@@ -1107,6 +1108,7 @@ class USDImportTest(AbstractUSDTest):
         self.check_attribute(mesh, "f_color", 'FACE', 'FLOAT_COLOR', 1)
         self.check_attribute(mesh, "f_vec2", 'FACE', 'FLOAT2', 1)
         self.check_attribute(mesh, "f_vec3", 'FACE', 'FLOAT_VECTOR', 1)
+        self.check_attribute(mesh, "f_vec4", 'FACE', 'FLOAT4', 1)
         self.check_attribute(mesh, "f_quat", 'FACE', 'QUATERNION', 1)
         self.check_attribute_missing(mesh, "f_mat4x4")
 
@@ -1119,6 +1121,7 @@ class USDImportTest(AbstractUSDTest):
         self.check_attribute(mesh, "displayColor", 'CORNER', 'FLOAT_COLOR', 4)
         self.check_attribute(mesh, "fc_vec2", 'CORNER', 'FLOAT2', 4)
         self.check_attribute(mesh, "fc_vec3", 'CORNER', 'FLOAT_VECTOR', 4)
+        self.check_attribute(mesh, "fc_vec4", 'CORNER', 'FLOAT4', 4)
         self.check_attribute(mesh, "fc_quat", 'CORNER', 'QUATERNION', 4)
         self.check_attribute_missing(mesh, "fc_mat4x4")
 
@@ -1135,6 +1138,7 @@ class USDImportTest(AbstractUSDTest):
         self.check_attribute(curves, "p_color", 'POINT', 'FLOAT_COLOR', 24)
         self.check_attribute(curves, "p_vec2", 'POINT', 'FLOAT2', 24)
         self.check_attribute(curves, "p_vec3", 'POINT', 'FLOAT_VECTOR', 24)
+        self.check_attribute(curves, "p_vec4", 'POINT', 'FLOAT4', 24)
         self.check_attribute(curves, "p_quat", 'POINT', 'QUATERNION', 24)
         self.check_attribute_missing(curves, "p_mat4x4")
 
@@ -1146,6 +1150,7 @@ class USDImportTest(AbstractUSDTest):
         self.check_attribute(curves, "sp_color", 'CURVE', 'FLOAT_COLOR', 2)
         self.check_attribute(curves, "sp_vec2", 'CURVE', 'FLOAT2', 2)
         self.check_attribute(curves, "sp_vec3", 'CURVE', 'FLOAT_VECTOR', 2)
+        self.check_attribute(curves, "sp_vec4", 'CURVE', 'FLOAT4', 2)
         self.check_attribute(curves, "sp_quat", 'CURVE', 'QUATERNION', 2)
         self.check_attribute_missing(curves, "sp_mat4x4")
 
@@ -1161,6 +1166,7 @@ class USDImportTest(AbstractUSDTest):
         self.check_attribute(curves, "p_color", 'POINT', 'FLOAT_COLOR', 10)
         self.check_attribute(curves, "p_vec2", 'POINT', 'FLOAT2', 10)
         self.check_attribute(curves, "p_vec3", 'POINT', 'FLOAT_VECTOR', 10)
+        self.check_attribute(curves, "p_vec4", 'POINT', 'FLOAT4', 10)
         self.check_attribute(curves, "p_quat", 'POINT', 'QUATERNION', 10)
         self.check_attribute_missing(curves, "p_mat4x4")
 
@@ -1172,6 +1178,7 @@ class USDImportTest(AbstractUSDTest):
         self.check_attribute(curves, "sp_color", 'CURVE', 'FLOAT_COLOR', 3)
         self.check_attribute(curves, "sp_vec2", 'CURVE', 'FLOAT2', 3)
         self.check_attribute(curves, "sp_vec3", 'CURVE', 'FLOAT_VECTOR', 3)
+        self.check_attribute(curves, "sp_vec4", 'CURVE', 'FLOAT4', 3)
         self.check_attribute(curves, "sp_quat", 'CURVE', 'QUATERNION', 3)
         self.check_attribute_missing(curves, "sp_mat4x4")
 
