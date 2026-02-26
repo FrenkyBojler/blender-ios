@@ -243,16 +243,16 @@ class ObjectRef {
     return (dupli_parent_ ? dupli_parent_ : object) == active_object;
   }
 
-  float random() const
+  bool is_range() const
   {
-    if (duplis_) {
-      /* NOTE: The random property is only used by EEVEE,
-       * which currently doesn't support instancing optimizations.
-       * However, ObjectInfos always call this function so the code
-       * is still reachable even if its result won't be used. */
-      // BLI_assert_unreachable();
-      /* TODO: This should fill a span instead. */
-      return 0.0;
+    return duplis_ != nullptr;
+  }
+
+  float random(int instance_index) const
+  {
+    if (instance_index != 0) {
+      BLI_assert(is_range());
+      return (*duplis_)[instance_index]->random_id * (1.0f / float(0xFFFFFFFF));
     }
 
     if (dupli_parent_ == nullptr) {
@@ -263,14 +263,15 @@ class ObjectRef {
     return dupli_object_->random_id * (1.0f / float(0xFFFFFFFF));
   }
 
-  bool find_rgba_attribute(const GPUUniformAttr &attr, float r_value[4]) const
+  bool find_rgba_attribute(const GPUUniformAttr &attr, int instance_index, float r_value[4]) const
   {
-    if (duplis_) {
-      /* NOTE: This function is only called for EEVEE, which currently doesn't support instancing
-       * optimizations, so this code should be unreachable. */
-      BLI_assert_unreachable();
-      /* TODO: r_value should be a Span. */
-      return false;
+    if (instance_index != 0) {
+      BLI_assert(is_range());
+      if (attr.use_dupli) {
+        /* If requesting instance data, check the parent particle system and object. */
+        return BKE_object_dupli_find_rgba_attribute(
+            object, (*duplis_)[instance_index], dupli_parent_, attr.name, r_value);
+      }
     }
 
     /* If requesting instance data, check the parent particle system and object. */
@@ -309,13 +310,8 @@ class ObjectRef {
    * systems need to be offset appropriately. */
   float4x4 particles_matrix() const
   {
-    if (duplis_) {
-      /* NOTE: Objects with particles don't support instancing optimizations yet, so this code
-       * should be unreachable. */
-      BLI_assert_unreachable();
-      /* TODO: This should fill a span instead. */
-      return float4x4::identity();
-    }
+    /* Objects with particles don't support instancing optimizations yet. */
+    BLI_assert(!is_range());
 
     /* TODO: Pass particle systems as a separate ObRef? */
     float4x4 dupli_mat = float4x4::identity();

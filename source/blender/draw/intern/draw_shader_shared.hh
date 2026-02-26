@@ -275,7 +275,7 @@ struct [[host_shared]] ObjectAttribute {
    * Go through all possible source of the given object uniform attribute.
    * Returns true if the attribute was correctly filled.
    */
-  bool sync(const draw::ObjectRef &ref, const GPUUniformAttr &attr);
+  bool sync(const draw::ObjectRef &ref, const GPUUniformAttr &attr, int instance_index);
 #endif
 };
 #pragma pack(pop)
