@@ -2945,8 +2945,6 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
   ARegion &region = *CTX_wm_region(C);
   const Direction direction = Direction(RNA_enum_get(op->ptr, "direction"));
   AbstractTreeView &tree_view = *dynamic_cast<AbstractTreeView *>(get_view_focused(C));
-  AbstractTreeViewItem *active_item = dynamic_cast<AbstractTreeViewItem *>(
-      region_views_find_active_item(&region));
 
   bool found_active = false;
   auto iter_fn = [&](blender::ui::BasicTreeViewItem::ItemIterFn fn) {
@@ -2956,20 +2954,25 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
                                AbstractTreeView::IterOptions::SkipFiltered);
   };
 
-  // if (!active_item || !active_item->is_filtered_visible()) {
-  //   /* Active item might be filtered out due to search string, set the first visible element active
-  //    * in that case. */
-  //   iter_fn([&](AbstractTreeViewItem &item) {
-  //     if (!found_active) {
-  //       item.on_activate(*C);
-  //       active_item = &item;
-  //       found_active = true;
-  //     }
-  //   });
+  AbstractTreeViewItem *active_item = nullptr;
+  iter_fn([&](AbstractTreeViewItem &item) {
+    if (active_item == nullptr) {
+      /* Active item might be filtered out due to search string, set the first visible element active
+       * in that case. */
+      active_item = &item;
+    }
+    if (item.is_active() && item.is_filtered_visible()) {
+      active_item = &item;
+      found_active = true;
+    }
+  });
 
-  //   return OPERATOR_FINISHED;
-  // }
+  if (!found_active) {
+    view_item_click_select(*C, active_item, tree_view, false, false, false);
+    return OPERATOR_FINISHED;
+  }
 
+  found_active = false;
   AbstractTreeViewItem *next_item = nullptr;
   switch (direction) {
     case Direction::UP: {
