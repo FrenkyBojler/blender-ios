@@ -2294,6 +2294,11 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Viewfinder Scale", "Location Scouting Viewfinder size scale");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
+  prop = RNA_def_property(srna, "viewfinder_crosshair_enabled", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Viewfinder Crosshair Enabled", "Enable the Viewfinder Crosshair");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
   prop = RNA_def_property(srna, "viewfinder_passepartout_enabled", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Viewfinder Passepartout Enabled", "Enable the Viewfinder Passepartout");

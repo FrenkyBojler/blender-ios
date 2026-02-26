@@ -172,6 +172,9 @@ class VIEW3D_PT_vr_location_scouting_viewfinder(VRButtonsPanel, Panel):
         layout.prop(session_settings, "viewfinder_hand", text="Hand", expand=True)
         layout.prop(session_settings, "viewfinder_scale", text="Scale")
 
+        col = layout.column(align=True, heading="Display")
+        col.prop(session_settings, "viewfinder_crosshair_enabled", text="Crosshair")
+
 class VIEW3D_PT_vr_location_scouting_viewfinder_passepartout(VRButtonsPanel, Panel):
     bl_label = "Passepartout"
     bl_parent_id = "VIEW3D_PT_vr_location_scouting_viewfinder"

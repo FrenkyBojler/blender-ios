@@ -868,7 +868,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
 // the logo.
 static constexpr float viewfinder_outline_color[4] = {0.26f, 0.26f, 0.26f, 0.2f};
 
-static void wm_xr_controller_viewfinder_draw_overlays(const rctf &viewfinder_rect)
+static void wm_xr_controller_viewfinder_draw_background(const rctf &viewfinder_rect)
 {
   float background_col[3];
   ui::theme::get_color_3fv(TH_TAB_ACTIVE, background_col);
@@ -949,12 +949,15 @@ static void wm_xr_controller_viewfinder_draw_view(const bContext *C,
   wm_xr_controller_viewfinder_draw_texture(view_tex, viewfinder_rect, tex_uv, tex_color);
 }
 
-static void wm_xr_controller_viewfinder_draw_capture_passepartout(
-    const XrSessionSettings *settings, const wmXrSessionState *state, const rctf &vf_rect)
+static void wm_xr_controller_viewfinder_draw_capture_overlays(const XrSessionSettings *settings,
+                                                              const wmXrSessionState *state,
+                                                              const rctf &vf_rect)
 {
-  if (!settings->viewfinder_passepartout_enabled ||
-      state->viewfinder.active_mode != XR_VIEWFINDER_MODE_LIVE)
-  {
+  /* Only draw overlays in Live capture mode, early return if there's no overlay to be drawn. */
+  if (state->viewfinder.active_mode != XR_VIEWFINDER_MODE_LIVE) {
+    return;
+  }
+  if (!settings->viewfinder_passepartout_enabled && !settings->viewfinder_crosshair_enabled) {
     return;
   }
 
@@ -968,22 +971,41 @@ static void wm_xr_controller_viewfinder_draw_capture_passepartout(
 
   GPU_blend(GPU_BLEND_ALPHA);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-  immUniformColor4f(0.0f, 0.0f, 0.0f, settings->viewfinder_passepartout_opacity);
 
-  /* Main passepartout dark border strips. */
-  immRectf(pos, vf_rect.xmin, capture_rect.ymax, vf_rect.xmax, vf_rect.ymax);
-  immRectf(pos, vf_rect.xmin, vf_rect.ymin, vf_rect.xmax, capture_rect.ymin);
-  immRectf(pos, vf_rect.xmin, capture_rect.ymin, capture_rect.xmin, capture_rect.ymax);
-  immRectf(pos, capture_rect.xmax, capture_rect.ymin, vf_rect.xmax, capture_rect.ymax);
+  if (settings->viewfinder_passepartout_enabled) {
+    immUniformColor4f(0.0f, 0.0f, 0.0f, settings->viewfinder_passepartout_opacity);
 
-  /* White wire frame around capture area for the passepartout to be visible at 0 opacity. */
-  immUniformColor4f(1.0f, 1.0f, 1.0f, 0.2f);
-  immBegin(GPU_PRIM_LINE_LOOP, 4);
-  immVertex2f(pos, capture_rect.xmin, capture_rect.ymin);
-  immVertex2f(pos, capture_rect.xmax, capture_rect.ymin);
-  immVertex2f(pos, capture_rect.xmax, capture_rect.ymax);
-  immVertex2f(pos, capture_rect.xmin, capture_rect.ymax);
-  immEnd();
+    /* Main passepartout dark border strips. */
+    immRectf(pos, vf_rect.xmin, capture_rect.ymax, vf_rect.xmax, vf_rect.ymax);
+    immRectf(pos, vf_rect.xmin, vf_rect.ymin, vf_rect.xmax, capture_rect.ymin);
+    immRectf(pos, vf_rect.xmin, capture_rect.ymin, capture_rect.xmin, capture_rect.ymax);
+    immRectf(pos, capture_rect.xmax, capture_rect.ymin, vf_rect.xmax, capture_rect.ymax);
+
+    /* White wire frame around capture area for the passepartout to be visible at 0 opacity. */
+    immUniformColor4f(1.0f, 1.0f, 1.0f, 0.2f);
+    immBegin(GPU_PRIM_LINE_LOOP, 4);
+    immVertex2f(pos, capture_rect.xmin, capture_rect.ymin);
+    immVertex2f(pos, capture_rect.xmax, capture_rect.ymin);
+    immVertex2f(pos, capture_rect.xmax, capture_rect.ymax);
+    immVertex2f(pos, capture_rect.xmin, capture_rect.ymax);
+    immEnd();
+  }
+
+  if (settings->viewfinder_crosshair_enabled) {
+    const float center_x = BLI_rctf_cent_x(&capture_rect);
+    const float center_y = BLI_rctf_cent_y(&capture_rect);
+    const float crosshair_size = BLI_rctf_size_y(&capture_rect) * 0.1f;
+
+    immUniformColor4f(1.0f, 1.0f, 0.0f, 0.8f);
+    immBegin(GPU_PRIM_LINES, 4);
+    /* Horizontal line. */
+    immVertex2f(pos, center_x - crosshair_size, center_y);
+    immVertex2f(pos, center_x + crosshair_size, center_y);
+    /* Vertical line. */
+    immVertex2f(pos, center_x, center_y - crosshair_size);
+    immVertex2f(pos, center_x, center_y + crosshair_size);
+    immEnd();
+  }
 
   immUnbindProgram();
   GPU_blend(GPU_BLEND_NONE);
@@ -1071,14 +1093,14 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   GPU_matrix_scale_1f(xr_ui_unit_fac);
 
   /* Main background overlays. */
-  wm_xr_controller_viewfinder_draw_overlays(viewfinder_rect);
+  wm_xr_controller_viewfinder_draw_background(viewfinder_rect);
 
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
   GPU_depth_mask(false);
 
   /* Viewfinder View texture and flash. */
   wm_xr_controller_viewfinder_draw_view(C, state, viewfinder_rect);
-  wm_xr_controller_viewfinder_draw_capture_passepartout(settings, state, viewfinder_rect);
+  wm_xr_controller_viewfinder_draw_capture_overlays(settings, state, viewfinder_rect);
   wm_xr_controller_viewfinder_draw_capture_flash(state, viewfinder_rect);
 
   /* UI Widgets. */
