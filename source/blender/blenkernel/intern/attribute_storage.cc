@@ -520,6 +520,7 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
     }
     case int8_t(AttrStorageType::Single): {
       if (dna_attr_type == int8_t(AttrType::String)) {
+        BLO_read_struct(&reader, AttributeStringOffsets, &dna_attr.data);
         auto &data = *static_cast<blender::AttributeStringOffsets *>(dna_attr.data);
         const GroupedSpan<char> offset_data = read_string_offsets(reader, data);
         const std::string str = std::string(offset_data[0].data(), offset_data[0].size());
