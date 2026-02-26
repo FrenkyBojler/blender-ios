@@ -95,6 +95,18 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
     FOREACH_NODETREE_END;
   }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 6)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
+      for (bNode &node : node_tree->nodes) {
+        if (STREQ(node.idname, "NodeImplicitConversion")) {
+          auto &data = *static_cast<NodeImplicitConversion *>(node.storage);
+          data.structure_type =
+              NodeSocketInterfaceStructureType::NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

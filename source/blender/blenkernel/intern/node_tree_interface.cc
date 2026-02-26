@@ -1444,6 +1444,14 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
                                      bNodeTree &dst_tree,
                                      Vector<AnimationBasePathChange> &anim_basepaths)
 {
+  if (ELEM(src_socket.runtime->inferred_structure_type,
+           nodes::StructureType::Grid,
+           nodes::StructureType::List))
+  {
+    /* Grids and Lists don't have input value nodes. */
+    return nullptr;
+  }
+
   const void *value = src_socket.default_value;
   const std::string src_property_path = value ? get_socket_property_path(
                                                     src_tree, src_socket, "default_value") :

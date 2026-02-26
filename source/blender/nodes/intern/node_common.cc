@@ -827,18 +827,23 @@ static void node_implicit_conversion_declare(nodes::NodeDeclarationBuilder &b)
     return;
   }
 
-  const StringRefNull socket_idname(
-      static_cast<const NodeImplicitConversion *>(node->storage)->type_idname);
+  const auto &storage = *static_cast<const NodeImplicitConversion *>(node->storage);
+  const StringRefNull socket_idname(storage.type_idname);
+  const nodes::StructureType structure_type = (storage.structure_type ==
+                                                       NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO ?
+                                                   nodes::StructureType::Dynamic :
+                                                   nodes::StructureType(storage.structure_type));
+
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
   b.add_input<nodes::decl::Custom>("Value")
       .idname(socket_idname.c_str())
-      .structure_type(nodes::StructureType::Dynamic)
+      .structure_type(structure_type)
       .optional_label();
   b.add_output<nodes::decl::Custom>("Value")
       .idname(socket_idname.c_str())
-      .structure_type(nodes::StructureType::Dynamic)
+      .structure_type(structure_type)
       .reference_pass_all()
       .propagate_all()
       .align_with_previous();
@@ -875,12 +880,15 @@ static void node_implicit_conversion_layout(ui::Layout &layout, bContext * /*C*/
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
   layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "structure_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_implicit_conversion_init(bNodeTree * /*ntree*/, bNode *node)
 {
   NodeImplicitConversion *data = MEM_new<NodeImplicitConversion>(__func__);
   STRNCPY(data->type_idname, "NodeSocketColor");
+  data->structure_type =
+      NodeSocketInterfaceStructureType::NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
   node->storage = data;
 }
 
@@ -903,6 +911,7 @@ static bool node_implicit_conversion_poll_instance(const bNode *node,
     }
     return false;
   }
+  /* TODO Node trees don't have a generic way to check valid structure types yet. */
   return true;
 }
 
