@@ -649,17 +649,23 @@ static ui::Layout &uiblock_prepare(ui::Block **block, const bContext *C, ui::Emb
 static ui::Block *viewfinder_action_label_ui_block(const bContext *C,
                                                    const wmXrSessionState *state)
 {
-  const char *active_action_prop = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                       "active_action_live" :
-                                       "active_action_playback";
-
   ui::Block *block = nullptr;
   ui::Layout &layout = uiblock_prepare(&block, C, ui::EmbossType::None);
 
+  const char *active_action_prop = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
+                                       "active_action_live" :
+                                       "active_action_playback";
+  const int active_action_idx = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
+                                    int(state->viewfinder.active_action_live) :
+                                    int(state->viewfinder.active_action_playback);
+
   PointerRNA ptr = RNA_pointer_create_discrete(
       &CTX_wm_manager(C)->id, RNA_XrViewfinderState, (void *)&state->viewfinder);
-  // TODO: Address the small menu down arrow that can be seen on the right side
-  layout.prop(&ptr, active_action_prop, ui::ITEM_R_COMPACT | ui::ITEM_R_ICON_NEVER, "", ICON_NONE);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, active_action_prop);
+
+  const char *active_action_label;
+  RNA_property_enum_name(nullptr, &ptr, prop, active_action_idx, &active_action_label);
+  layout.label(active_action_label, ICON_NONE);
 
   ui::block_end_xr(C, block);
 
@@ -846,7 +852,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
                                      viewfinder_rect.xmax - 0.8f;
   const float settings_label_y = viewfinder_rect.ymax + 0.47f;
 
-  const float action_label_x = viewfinder_rect.xmin - 0.1f;
+  const float action_label_x = viewfinder_rect.xmin + 0.05f;
   const float action_label_y = viewfinder_rect.ymin - 0.15f;
 
   const float action_enum_x = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
