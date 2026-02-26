@@ -164,10 +164,15 @@ static wmOperatorStatus strip_modifier_add_asset_exec(bContext *C, wmOperator *o
   if (!cmd) {
     return OPERATOR_CANCELLED;
   }
+  /* Assign the node group. */
   cmd->node_group = node_group;
   id_us_plus(&node_group->id);
+  /* Set the modifier name. */
   STRNCPY_UTF8(cmd->modifier.name, DATA_(node_group->id.name + 2));
   seq::modifier_unique_name(strip, &cmd->modifier);
+  /* Hide the datablock selector by default for assets. */
+  cmd->flag |= COMPOSITOR_MODIFIER_HIDE_DATABLOCK_SELECTOR;
+
   seq::modifier_persistent_uid_init(*strip, cmd->modifier);
 
   seq::compositor_nodes_update_interface(*scene, *cmd);

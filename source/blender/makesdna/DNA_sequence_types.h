@@ -947,9 +947,17 @@ struct SequencerTonemapModifierData {
   int type = 0; /* eModTonemapType */
 };
 
+enum SequencerCompositorModifierFlag {
+  COMPOSITOR_MODIFIER_HIDE_DATABLOCK_SELECTOR = (1 << 1),
+};
+
 struct SequencerCompositorModifierData {
   StripModifierData modifier;
   struct bNodeTree *node_group = nullptr;
+
+  /* SequencerCompositorModifierFlag. */
+  int8_t flag = 0;
+  char _pad[7] = {};
 
   SequencerCompositorModifierRuntime *runtime = nullptr;
 };

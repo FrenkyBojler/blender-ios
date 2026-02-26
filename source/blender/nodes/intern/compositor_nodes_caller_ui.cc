@@ -352,10 +352,12 @@ void draw_compositor_nodes_modifier_ui(const bContext &C,
 
   layout.use_property_split_set(true);
 
-  const char *newop = (cmd.node_group == nullptr) ?
-                          "node.new_compositor_sequencer_node_group" :
-                          "node.duplicate_compositing_modifier_node_group";
-  template_id(&layout, &C, modifier_ptr, "node_group", newop, nullptr, nullptr);
+  if ((cmd.flag & COMPOSITOR_MODIFIER_HIDE_DATABLOCK_SELECTOR) == 0) {
+    const char *newop = (cmd.node_group == nullptr) ?
+                            "node.new_compositor_sequencer_node_group" :
+                            "node.duplicate_compositing_modifier_node_group";
+    template_id(&layout, &C, modifier_ptr, "node_group", newop, nullptr, nullptr);
+  }
 
   if (cmd.node_group != nullptr) {
     bNodeTree &tree = *cmd.node_group;
