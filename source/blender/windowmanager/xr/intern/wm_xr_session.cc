@@ -557,24 +557,6 @@ void WM_xr_session_state_viewfinder_capture_lens_focal_set(wmXrData *xr, float l
   }
 }
 
-bool WM_xr_session_state_viewfinder_capture_dof_fstop_get(const wmXrData *xr, float *r_dof_fstop)
-{
-  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
-    *r_dof_fstop = 1.0f;
-    return false;
-  }
-
-  *r_dof_fstop = xr->runtime->session_state.viewfinder.capture_dof_fstop;
-  return true;
-}
-
-void WM_xr_session_state_viewfinder_capture_dof_fstop_set(wmXrData *xr, float dof_fstop)
-{
-  if (WM_xr_session_exists(xr)) {
-    xr->runtime->session_state.viewfinder.capture_dof_fstop = dof_fstop;
-  }
-}
-
 bool WM_xr_session_state_viewfinder_capture_dof_distance_get(const wmXrData *xr,
                                                              float *r_dof_distance)
 {
@@ -591,6 +573,24 @@ void WM_xr_session_state_viewfinder_capture_dof_distance_set(wmXrData *xr, float
 {
   if (WM_xr_session_exists(xr)) {
     xr->runtime->session_state.viewfinder.capture_dof_distance = dof_distance;
+  }
+}
+
+bool WM_xr_session_state_viewfinder_capture_dof_fstop_get(const wmXrData *xr, float *r_dof_fstop)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_dof_fstop = 1.0f;
+    return false;
+  }
+
+  *r_dof_fstop = xr->runtime->session_state.viewfinder.capture_dof_fstop;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_capture_dof_fstop_set(wmXrData *xr, float dof_fstop)
+{
+  if (WM_xr_session_exists(xr)) {
+    xr->runtime->session_state.viewfinder.capture_dof_fstop = dof_fstop;
   }
 }
 
