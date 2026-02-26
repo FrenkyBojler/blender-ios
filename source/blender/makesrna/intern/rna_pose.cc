@@ -652,14 +652,14 @@ static bool rna_PoseBones_lookup_string(PointerRNA *ptr, const char *key, Pointe
 static void rna_PoseChannel_matrix_basis_get(PointerRNA *ptr, float *values)
 {
   bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
-  BKE_pchan_to_mat4(pchan, reinterpret_cast<float (*)[4]>(values));
+  BKE_pchan_to_mat4(pchan, reinterpret_cast<float(*)[4]>(values));
 }
 
 static void rna_PoseChannel_matrix_basis_set(PointerRNA *ptr, const float *values)
 {
   bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
   /* No compatibility for predictable result. */
-  BKE_pchan_apply_mat4(pchan, reinterpret_cast<const float (*)[4]>(values), false);
+  BKE_pchan_apply_mat4(pchan, reinterpret_cast<const float(*)[4]>(values), false);
 }
 
 static void rna_PoseChannel_matrix_set(PointerRNA *ptr, const float *values)
@@ -669,7 +669,7 @@ static void rna_PoseChannel_matrix_set(PointerRNA *ptr, const float *values)
   float tmat[4][4];
 
   BKE_armature_mat_pose_to_bone_ex(
-      nullptr, ob, pchan, reinterpret_cast<const float (*)[4]>(values), tmat);
+      nullptr, ob, pchan, reinterpret_cast<const float(*)[4]>(values), tmat);
 
   /* No compatibility for predictable result. */
   BKE_pchan_apply_mat4(pchan, tmat, false);

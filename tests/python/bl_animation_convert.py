@@ -56,6 +56,8 @@ class ConvertRotationMode(unittest.TestCase):
 
     bone_no_rotation_keys: bpy.types.PoseBone
     bone_partially_keyed: bpy.types.PoseBone
+    bone_subframes: bpy.types.PoseBone
+    bone_keyed_rotation_mode: bpy.types.PoseBone
 
     def _assert_almost_equal_rotation_matrix(self, a: mathutils.Matrix, b: mathutils.Matrix):
         equal = True
@@ -96,6 +98,8 @@ class ConvertRotationMode(unittest.TestCase):
 
         self.bone_no_rotation_keys = pose.bones["bone_no_rotation_keys"]
         self.bone_partially_keyed = pose.bones["bone_partially_keyed"]
+        self.bone_subframes = pose.bones["bone_subframe_keys"]
+        self.bone_keyed_rotation_mode = pose.bones["bone_keyed_rotation_mode"]
 
     def test_convert_quat_to_xyz(self):
         self.bone_quat.convert_rotation_mode('XYZ')
@@ -149,7 +153,19 @@ class ConvertRotationMode(unittest.TestCase):
     def test_convert_keyed_rotation_mode(self):
         """ When the rotation mode itself is keyed and changes during the animation,
         the conversion has to make sure the animation is preserved. """
-        pass
+        keyed_frames = [1, 6, 7, 11, 12, 21]
+        matrices_before_conversion = []
+        for frame in keyed_frames:
+            bpy.context.scene.frame_set(frame)
+            matrices_before_conversion.append(self.bone_keyed_rotation_mode.matrix)
+        self.bone_keyed_rotation_mode.convert_rotation_mode('QUATERNION')
+
+        for i, frame in enumerate(keyed_frames):
+            bpy.context.scene.frame_set(frame)
+            self._assert_almost_equal_rotation_matrix(
+                matrices_before_conversion[i],
+                self.bone_keyed_rotation_mode.matrix)
+            self.assertEqual(self.bone_keyed_rotation_mode.rotation_mode, 'QUATERNION')
 
     def test_convert_unkeyed_rotation(self):
         """ When converting the rotation mode on a bone that has no keys on its rotation channels,
@@ -194,7 +210,18 @@ class ConvertRotationMode(unittest.TestCase):
                 self.assertAlmostEqual(fcurve.keyframe_points[i].co[0], frame, 2)
 
     def test_convert_subframes(self):
-        pass
+        self.assertEqual(self.bone_subframes.rotation_mode, 'XYZ')
+        fcurves = _get_fcurves_with_rna_path(
+            self.action,
+            self.action_slot,
+            'pose.bones["bone_subframe_keys"].rotation_euler')
+        self.assertEqual(len(fcurves), 3)
+        self.bone_subframes.convert_rotation_mode('XZY')
+        self.assertEqual(self.bone_subframes.rotation_mode, 'XZY')
+        expected_frames = [1, 2.5, 7.2]
+        for fcurve in fcurves:
+            for i, frame in enumerate(expected_frames):
+                self.assertAlmostEqual(fcurve.keyframe_points[i].co[0], frame, 2)
 
 
 def main():
