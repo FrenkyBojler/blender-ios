@@ -28,6 +28,8 @@ class Context(_StructRNA):
         :type path: str
         :param coerce: optional argument, when True, the property will be converted into its Python representation.
         :type coerce: bool
+        :return: Property value or property object.
+        :rtype: Any | :class:`bpy.types.bpy_prop`
         """
         # This is a convenience wrapper around `_StructRNA.path_resolve` which doesn't support accessing
         # context members. Without this wrapper many users were writing `exec("context.{:s}".format(data_path))`
@@ -122,7 +124,7 @@ class Library(_types.ID):
         """
         ID data-blocks that use this library
 
-        :type: tuple of :class:`bpy.types.ID`
+        :type: tuple[:class:`bpy.types.ID`, ...]
 
         .. note::
 
@@ -158,7 +160,7 @@ class Texture(_types.ID):
         """
         Materials that use this texture
 
-        :type: tuple of :class:`Material`
+        :type: tuple[:class:`Material`, ...]
 
         .. note:: Takes ``O(len(bpy.data.materials) * len(material.texture_slots))`` time.
         """
@@ -176,7 +178,7 @@ class Texture(_types.ID):
         """
         Object modifiers that use this texture
 
-        :type: tuple of :class:`Object`
+        :type: tuple[:class:`Object`, ...]
 
         .. note:: Takes ``O(len(bpy.data.objects) * len(obj.modifiers))`` time.
         """
@@ -198,7 +200,7 @@ class Collection(_types.ID):
         """
         A list of all children from this collection.
 
-        :type: list of :class:`Collection`
+        :type: list[:class:`Collection`]
 
         .. note::
 
@@ -220,7 +222,7 @@ class Collection(_types.ID):
         """
         The collection instance objects this collection is used in
 
-        :type: tuple of :class:`Object`
+        :type: tuple[:class:`Object`, ...]
 
         .. note:: Takes ``O(len(bpy.data.objects))`` time.
         """
@@ -239,7 +241,7 @@ class Object(_types.ID):
         """
         All the children of this object.
 
-        :type: tuple of :class:`Object`
+        :type: tuple[:class:`Object`, ...]
 
         .. note:: Takes ``O(len(bpy.data.objects))`` time.
         """
@@ -254,7 +256,7 @@ class Object(_types.ID):
         """
         A list of all children from this object.
 
-        :type: list of :class:`Object`
+        :type: list[:class:`Object`]
 
         .. note:: Takes ``O(len(bpy.data.objects))`` time.
         """
@@ -279,7 +281,7 @@ class Object(_types.ID):
         """
         The collections this object is in.
 
-        :type: tuple of :class:`Collection`
+        :type: tuple[:class:`Collection`, ...]
 
         .. note:: Takes ``O(len(bpy.data.collections) + len(bpy.data.scenes))`` time.
         """
@@ -299,7 +301,7 @@ class Object(_types.ID):
         """
         The scenes this object is in.
 
-        :type: tuple of :class:`Scene`
+        :type: tuple[:class:`Scene`, ...]
 
         .. note:: Takes ``O(len(bpy.data.scenes) * len(bpy.data.objects))`` time.
         """
@@ -944,10 +946,10 @@ class Gizmo(_StructRNA):
         :param shape: The cached shape to draw.
         :type shape: Any
         :param matrix: 4x4 matrix, when not given :class:`Gizmo.matrix_world` is used.
-        :type matrix: :class:`mathutils.Matrix`
+        :type matrix: :class:`mathutils.Matrix` | None
         :param select_id: The selection id.
            Only use when drawing within :class:`Gizmo.draw_select`.
-        :type select_id: int
+        :type select_id: int | None
         """
         import gpu
 
@@ -1041,7 +1043,8 @@ class Operator(_StructRNA, metaclass=_RNAMeta):
 
     def as_keywords(self, *, ignore=()):
         """
-        Return a copy of the properties as a dictionary.
+        :return: A copy of the properties as a dictionary.
+        :rtype: dict[str, Any]
         """
         ignore = ignore + ("rna_type",)
         return {
@@ -1221,14 +1224,14 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
         :param prop_filepath: Optional operator filepath property (defaults to "filepath").
         :type prop_filepath: str
         :param props_default: Properties to assign to each operator.
-        :type props_default: dict[str, Any]
+        :type props_default: dict[str, Any] | None
         :param filter_ext: Optional callback that takes the file extensions.
 
            Returning false excludes the file from the list.
 
         :type filter_ext: Callable[[str], bool] | None
         :param display_name: Optional callback that takes the full path, returns the name to display.
-        :type display_name: Callable[[str], str]
+        :type display_name: Callable[[str], str] | None
         """
 
         layout = self.layout

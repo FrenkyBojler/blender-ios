@@ -706,10 +706,10 @@ static void sequencer_draw_scopes(Scene *scene,
   GPU_debug_group_begin(get_scope_debug_name(eSpaceSeq_RegionType(space_sequencer.mainb)));
 
   gpu::Texture *input_texture = seq::preview_cache_get_gpu_display_texture(
-      scene, timeline_frame, 0);
+      scene, timeline_frame, 0, image_width, image_height);
   if (input_texture == nullptr) {
     input_texture = seq::preview_cache_get_gpu_texture(
-        scene, timeline_frame, space_sequencer.chanshown);
+        scene, timeline_frame, space_sequencer.chanshown, image_width, image_height);
   }
 
   SeqQuadsBatch quads;
@@ -773,6 +773,10 @@ static void sequencer_draw_scopes(Scene *scene,
       GPU_viewport_size_get_i(viewport_size_i);
       const int2 viewport_size = int2(viewport_size_i[2], viewport_size_i[3]);
       const int2 image_size = int2(image_width, image_height);
+      const eSpaceSeq_Proxy_RenderSize render_size_mode = eSpaceSeq_Proxy_RenderSize(
+          space_sequencer.render_size);
+      const float render_scale = seq::get_render_scale_factor(render_size_mode, scene->r.size);
+
       gpu::StorageBuf *raster_ssbo = GPU_storagebuf_create_ex(viewport_size.x * viewport_size.y *
                                                                   sizeof(SeqScopeRasterData),
                                                               nullptr,
@@ -798,6 +802,7 @@ static void sequencer_draw_scopes(Scene *scene,
         GPU_shader_uniform_1i(shader, "image_width", image_width);
         GPU_shader_uniform_1i(shader, "image_height", image_height);
         GPU_shader_uniform_1i(shader, "scope_mode", space_sequencer.mainb);
+        GPU_shader_uniform_1f(shader, "inv_render_scale", 1.0f / render_scale);
 
         const int2 groups_to_dispatch = math::divide_ceil(image_size, int2(16));
         GPU_compute_dispatch(shader, groups_to_dispatch.x, groups_to_dispatch.y, 1);
@@ -886,15 +891,15 @@ static void update_gpu_scopes(const ImBuf *input_ibuf,
   }
 
   /* Display space GPU texture is already calculated. */
+  const int width = GPU_texture_width(input_texture);
+  const int height = GPU_texture_height(input_texture);
   gpu::Texture *display_texture = seq::preview_cache_get_gpu_display_texture(
-      scene, timeline_frame, space_sequencer.chanshown);
+      scene, timeline_frame, space_sequencer.chanshown, width, height);
   if (display_texture != nullptr) {
     return;
   }
 
   /* Create GPU texture. */
-  const int width = GPU_texture_width(input_texture);
-  const int height = GPU_texture_height(input_texture);
   const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
   const gpu::TextureFormat format = gpu::TextureFormat::SFLOAT_16_16_16_16;
   display_texture = GPU_texture_create_2d(
@@ -966,9 +971,7 @@ static void update_cpu_scopes(const SpaceSeq &space_sequencer,
 
 static bool sequencer_draw_get_transform_preview(const SpaceSeq &sseq, const Scene &scene)
 {
-  if ((scene.ed->runtime.flag & SEQ_SHOW_TRANSFORM_PREVIEW) &&
-      (sseq.draw_flag & SEQ_DRAW_TRANSFORM_PREVIEW))
-  {
+  if (scene.ed->runtime->show_transform_preview && (sseq.draw_flag & SEQ_DRAW_TRANSFORM_PREVIEW)) {
     return true;
   }
 
@@ -986,8 +989,8 @@ static int sequencer_draw_get_transform_preview_frame(const Scene *scene)
 {
   int preview_frame;
 
-  if (scene->ed->runtime.flag & SEQ_SHOW_TRANSFORM_PREVIEW) {
-    preview_frame = scene->ed->runtime.transform_preview_frame;
+  if (scene->ed->runtime->show_transform_preview) {
+    preview_frame = scene->ed->runtime->transform_preview_frame;
     return preview_frame;
   }
 
@@ -1267,8 +1270,7 @@ static void preview_draw_color_render_begin(ARegion &region)
   gpu::FrameBuffer *render_fb = GPU_viewport_framebuffer_render_get(viewport);
   GPU_framebuffer_bind(render_fb);
 
-  float col[4] = {0, 0, 0, 0};
-  GPU_framebuffer_clear_color(render_fb, col);
+  GPU_framebuffer_clear_color(render_fb, double4(0.0));
 }
 
 /* Configure current GPU state to draw on the overlay frame-buffer of the viewport. */
@@ -1851,7 +1853,7 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
         C, timeline_frame, view_names[space_sequencer.multiview_eye]);
     if (use_gpu_texture && current_ibuf) {
       current_texture = seq::preview_cache_get_gpu_texture(
-          scene, timeline_frame, space_sequencer.chanshown);
+          scene, timeline_frame, space_sequencer.chanshown, current_ibuf->x, current_ibuf->y);
       if (current_texture == nullptr) {
         current_texture = create_texture(*current_ibuf);
         seq::preview_cache_set_gpu_texture(
