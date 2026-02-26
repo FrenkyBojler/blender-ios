@@ -276,6 +276,26 @@ class VIEW3D_OT_vr_landmark_activate(Operator):
 
 
 # Location Scouting
+def viewfinder_camera_gizmo_view3d_redraw_workaround():
+    # Workaround: After capturing or deleting a shot from the VR viewfinder, tag all View3D areas in the current context
+    #             window (parent XR window) for redraw to display the newly created/deleted capture.
+    #             The alternative to this is to give the capture camera Gizmo (VIEW3D_GGT_vr_captures) the VR_REDRAWS
+    #             option, however this makes it constantly redraw, causing performances to drop.
+
+    window = bpy.context.window
+
+    areas = [area for area in window.screen.areas if area.type == 'VIEW_3D']
+    for area in areas:
+        view3d_region = [region for region in area.regions if region.type == 'WINDOW'][0]
+        with bpy.context.temp_override(
+                window=window,
+                area=area,
+                region=view3d_region,
+                screen=window.screen
+        ):
+            bpy.context.region.tag_redraw()
+
+
 class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_capture"
     bl_label = "Viewfinder Capture"
@@ -332,6 +352,8 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
         capture.dof_fstop = xr_viewfinder.capture_dof_fstop
 
         xr_viewfinder.runtime_capture_flash = 1  # Internal value, setting to 1 will trigger a flash
+
+        viewfinder_camera_gizmo_view3d_redraw_workaround()
 
         return {'FINISHED'}
 
@@ -458,6 +480,8 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
                     captures.remove(scene.vr_captures_selected)
                     if scene.vr_captures_selected > 0:
                         scene.vr_captures_selected -= 1
+
+                    viewfinder_camera_gizmo_view3d_redraw_workaround()
 
                     return {'FINISHED'}
 
@@ -845,7 +869,7 @@ class VIEW3D_GGT_vr_captures(GizmoGroup):
     bl_label = "VR Location Scouting Captures Indicators"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'WINDOW'
-    bl_options = {'3D', 'DEPTH_3D', 'PERSISTENT', 'SCALE', 'VR_REDRAWS'}
+    bl_options = {'3D', 'DEPTH_3D', 'PERSISTENT', 'SCALE'}
 
     @staticmethod
     def compute_aspect(render_settings) -> tuple[float, float]:
@@ -882,15 +906,12 @@ class VIEW3D_GGT_vr_captures(GizmoGroup):
     @classmethod
     def poll(cls, context):
         view3d = context.space_data
-        # TODO: Might require some optimizations due to the use of VR_REDRAWS
         return view3d.shading.vr_show_captures
 
     def setup(self, context):
         pass
 
     def draw_prepare(self, context):
-        # TODO: Make this gizmo visible from inside the XR view (might need to create a separate gizmo)
-        #       Could also handle viewport selection, but that might be more confusing than anything.
         for g in self.gizmos:
             self.gizmos.remove(g)
 
