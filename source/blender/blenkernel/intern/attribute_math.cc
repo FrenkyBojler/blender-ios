@@ -257,11 +257,11 @@ void float4x4Mixer::finalize(const IndexMask &mask)
 }
 
 template<typename T>
-void mix_indices(const Span<T> src,
-                 const OffsetIndices<int> groups,
-                 const Span<int> all_indices,
-                 const std::optional<Span<float>> all_weights,
-                 MutableSpan<T> dst)
+void mix_groups(const Span<T> src,
+                const OffsetIndices<int> groups,
+                const Span<int> all_indices,
+                const std::optional<Span<float>> all_weights,
+                MutableSpan<T> dst)
 {
   DefaultPropagationMixer<T> mixer(dst);
   if (all_weights) {
@@ -283,11 +283,11 @@ void mix_indices(const Span<T> src,
   mixer.finalize();
 }
 
-void mix_indices(const GSpan src,
-                 const OffsetIndices<int> groups,
-                 const Span<int> all_indices,
-                 const std::optional<Span<float>> all_weights,
-                 GMutableSpan dst)
+void mix_groups(const GSpan src,
+                const OffsetIndices<int> groups,
+                const Span<int> all_indices,
+                const std::optional<Span<float>> all_weights,
+                GMutableSpan dst)
 {
   BLI_assert(groups.size() == dst.size());
   BLI_assert(groups.total_size() == all_indices.size());
@@ -295,7 +295,7 @@ void mix_indices(const GSpan src,
 
   to_static_type(src.type(), [&]<typename T>() {
     if constexpr (!std::is_void_v<DefaultMixer<T>>) {
-      mix_indices(src.typed<T>(), groups, all_indices, all_weights, dst.typed<T>());
+      mix_groups(src.typed<T>(), groups, all_indices, all_weights, dst.typed<T>());
     }
   });
 }

@@ -129,7 +129,7 @@ GreasePencil *merge_layers(const GreasePencil &src_grease_pencil,
     bke::GAttributeReader src_attribute = iter.get();
     bke::GSpanAttributeWriter new_attribute = new_attributes.lookup_or_add_for_write_only_span(
         iter.name, bke::AttrDomain::Layer, iter.data_type);
-    bke::attribute_math::mix_indices(
+    bke::attribute_math::mix_groups(
         GVArraySpan(src_attribute.varray), src_layers_by_dst, new_attribute.span);
     new_attribute.finish();
   });

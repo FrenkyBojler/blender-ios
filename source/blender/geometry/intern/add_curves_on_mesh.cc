@@ -378,11 +378,11 @@ AddCurvesOnMeshOutputs add_curves_on_mesh(CurvesGeometry &curves,
     const OffsetIndices<int> old_points_by_curve{curve_offsets.take_front(old_curves_num + 1)};
     Array<int> sizes(old_curves_num);
     offset_indices::copy_group_sizes(old_points_by_curve, sizes.index_range(), sizes);
-    bke::attribute_math::mix_indices(sizes.as_span(),
-                                     OffsetIndices(curve_neighbor_offset_data.as_span()),
-                                     curve_neighbor_index_data.as_span(),
-                                     curve_neighbor_weight_data.as_span(),
-                                     new_point_counts_per_curve.as_mutable_span());
+    bke::attribute_math::mix_groups(sizes.as_span(),
+                                    OffsetIndices(curve_neighbor_offset_data.as_span()),
+                                    curve_neighbor_index_data.as_span(),
+                                    curve_neighbor_weight_data.as_span(),
+                                    new_point_counts_per_curve.as_mutable_span());
   }
   else {
     new_point_counts_per_curve.fill(inputs.fallback_point_count);
@@ -424,11 +424,11 @@ AddCurvesOnMeshOutputs add_curves_on_mesh(CurvesGeometry &curves,
         lengths[curve_i] = length;
       }
     });
-    bke::attribute_math::mix_indices(lengths.as_span(),
-                                     OffsetIndices(curve_neighbor_offset_data.as_span()),
-                                     curve_neighbor_index_data.as_span(),
-                                     curve_neighbor_weight_data.as_span(),
-                                     new_lengths_cu.as_mutable_span());
+    bke::attribute_math::mix_groups(lengths.as_span(),
+                                    OffsetIndices(curve_neighbor_offset_data.as_span()),
+                                    curve_neighbor_index_data.as_span(),
+                                    curve_neighbor_weight_data.as_span(),
+                                    new_lengths_cu.as_mutable_span());
   }
   else {
     new_lengths_cu.fill(inputs.fallback_curve_length);
@@ -490,11 +490,11 @@ AddCurvesOnMeshOutputs add_curves_on_mesh(CurvesGeometry &curves,
           "resolution"))
   {
     if (inputs.interpolate_resolution) {
-      bke::attribute_math::mix_indices(resolution.span,
-                                       OffsetIndices(curve_neighbor_offset_data.as_span()),
-                                       curve_neighbor_index_data.as_span(),
-                                       curve_neighbor_weight_data.as_span(),
-                                       resolution.span.take_back(added_curves_num));
+      bke::attribute_math::mix_groups(resolution.span,
+                                      OffsetIndices(curve_neighbor_offset_data.as_span()),
+                                      curve_neighbor_index_data.as_span(),
+                                      curve_neighbor_weight_data.as_span(),
+                                      resolution.span.take_back(added_curves_num));
       resolution.finish();
     }
     else {

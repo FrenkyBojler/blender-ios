@@ -143,7 +143,7 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
 
     bke::GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span(
         id, bke::AttrDomain::Point, type);
-    bke::attribute_math::mix_indices(
+    bke::attribute_math::mix_groups(
         GVArraySpan(src_attribute.varray), map_offsets, merge_map_indices, dst_attribute.span);
     dst_attribute.finish();
   }
