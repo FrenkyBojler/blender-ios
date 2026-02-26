@@ -15,15 +15,20 @@
 #include "rna_internal.hh"
 
 #include "DNA_action_types.h"
+#include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 
 #include "BLI_math_base.h"
-
 #include "BLI_string_utf8_symbols.h"
 
 #include "UI_resources.hh"
 
 #include "WM_types.hh"
+
+#include "BKE_anim_data.hh"
+
+#include "ANIM_action.hh"
+#include "ANIM_convert.hh"
 
 namespace blender {
 
@@ -252,6 +257,28 @@ static void rna_PoseChannel_rotation_mode_set(PointerRNA *ptr, int value)
 
   /* finally, set the new rotation type */
   pchan->rotmode = clamp_i(value, ROT_MODE_MIN, ROT_MODE_MAX);
+}
+
+static void rna_PoseChannel_convert_rotation_mode(ID *id,
+                                                  bPoseChannel *pchan,
+                                                  Main *main,
+                                                  short rotation_mode)
+{
+  /* Already in the correct mode. */
+  if (pchan->rotmode == rotation_mode) {
+    return;
+  }
+
+  AnimData *adt = BKE_animdata_from_id(id);
+  if (adt && adt->action && adt->slot_handle != animrig::Slot::unassigned) {
+    animrig::RNAPathFCurveMap fcurves_by_rna_path;
+    animrig::build_rotation_fcurve_map(fcurves_by_rna_path, adt->action->wrap(), adt->slot_handle);
+    animrig::convert_pose_bone_rotation_keys(
+        main, *id, *pchan, fcurves_by_rna_path, eRotationModes(rotation_mode));
+    DEG_id_tag_update(&adt->action->id, ID_RECALC_ANIMATION);
+  }
+
+  pchan->rotmode = rotation_mode;
 }
 
 static float rna_PoseChannel_length_get(PointerRNA *ptr)
@@ -945,6 +972,19 @@ static void rna_def_pose_channel(BlenderRNA *brna)
       /* This description is shared by other "rotation_mode" properties. */
       "The kind of rotation to apply, values from other rotation modes are not used");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+
+  FunctionRNA *func = RNA_def_function(
+      srna, "convert_rotation_mode", "rna_PoseChannel_convert_rotation_mode");
+  RNA_def_function_ui_description(
+      func, "Changes the rotation mode and converts all animation to match that new mode");
+  RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_SELF_ID);
+  PropertyRNA *parm = RNA_def_enum(func,
+                                   "rotation_mode",
+                                   rna_enum_object_rotation_mode_items,
+                                   ROT_MODE_XYZ,
+                                   "Rotation Mode",
+                                   "The rotation mode to change to");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   /* Curved bones settings - Applied on top of rest-pose values. */
   rna_def_bone_curved_common(srna, true, false);

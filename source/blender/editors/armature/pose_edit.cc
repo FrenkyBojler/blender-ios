@@ -8,7 +8,6 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
 
@@ -21,7 +20,6 @@
 #include "BKE_anim_visualization.h"
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
-#include "BKE_fcurve.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_object.hh"
@@ -49,7 +47,6 @@
 #include "ANIM_bone_collections.hh"
 #include "ANIM_convert.hh"
 #include "ANIM_keyframing.hh"
-#include "ANIM_rna.hh"
 
 #include "armature_intern.hh"
 
@@ -622,36 +619,9 @@ void POSE_OT_autoside_names(wmOperatorType *ot)
 
 /* ********************************************** */
 
-/* Data structure to group rotation fcurves of different channelbags.  */
-
-static bool is_rotation_path(const StringRefNull rna_path)
-{
-  return rna_path.endswith(".rotation_quaternion") || rna_path.endswith(".rotation_euler") ||
-         rna_path.endswith(".rotation_axis_angle");
-}
-
-static void build_rotation_fcurve_map(animrig::RNAPathFCurveMap &pchan_rotations,
-                                      animrig::Action &action,
-                                      const animrig::slot_handle_t slot_handle)
-{
-  pchan_rotations.clear();
-  for (animrig::Channelbag *channelbag : animrig::channelbags_for_action_slot(action, slot_handle))
-  {
-    for (FCurve *fcurve : channelbag->fcurves()) {
-      StringRefNull rna_path(fcurve->rna_path);
-      if (!is_rotation_path(rna_path)) {
-        continue;
-      }
-      animrig::ChannelbagFCurveMap &rotations = pchan_rotations.lookup_or_add(rna_path, {});
-      animrig::RotationFCurves &fcurve_group = rotations.lookup_or_add(channelbag, {});
-      fcurve_group.fcurves[fcurve->array_index] = fcurve;
-    }
-  }
-}
-
 static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
 {
-  const int mode = RNA_enum_get(op->ptr, "type");
+  const short mode = RNA_enum_get(op->ptr, "type");
   Object *prev_ob = nullptr;
   /* A map built per object to make it quicker to find the FCurves of one bPoseChannel. */
   animrig::RNAPathFCurveMap fcurves_by_rna_path;
@@ -665,16 +635,17 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
     AnimData *adt = BKE_animdata_from_id(&ob->id);
     if (adt && adt->action && adt->slot_handle != animrig::Slot::unassigned) {
       if (prev_ob != ob) {
-        build_rotation_fcurve_map(fcurves_by_rna_path, adt->action->wrap(), adt->slot_handle);
+        animrig::build_rotation_fcurve_map(
+            fcurves_by_rna_path, adt->action->wrap(), adt->slot_handle);
       }
       animrig::convert_pose_bone_rotation_keys(
-          CTX_data_main(C), *ob, *pchan, fcurves_by_rna_path, eRotationModes(mode));
+          CTX_data_main(C), ob->id, *pchan, fcurves_by_rna_path, eRotationModes(mode));
       DEG_id_tag_update(&adt->action->id, ID_RECALC_ANIMATION);
     }
     else {
       /* No animation, just convert the values. */
       BKE_rotMode_change_values(
-          pchan->quat, pchan->eul, pchan->rotAxis, &pchan->rotAngle, pchan->rotmode, short(mode));
+          pchan->quat, pchan->eul, pchan->rotAxis, &pchan->rotAngle, pchan->rotmode, mode);
     }
 
     /* finally, set the new rotation type */

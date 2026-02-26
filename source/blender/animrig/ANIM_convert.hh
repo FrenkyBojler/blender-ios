@@ -8,15 +8,19 @@
  * \brief Functions to deal with transforming animation data.
  */
 
+#include "BKE_action.hh"
 #include "BLI_map.hh"
 
 namespace blender {
 struct FCurve;
-struct Object;
+struct ID;
 struct bPoseChannel;
 
 namespace animrig {
+
 struct Channelbag;
+
+/* Rotation FCurves of one entity. The last index is a nullptr for euler. */
 struct RotationFCurves {
   FCurve *fcurves[4];
 };
@@ -30,9 +34,17 @@ using RNAPathFCurveMap = Map<StringRef, ChannelbagFCurveMap>;
  *
  */
 void convert_pose_bone_rotation_keys(Main *bmain,
-                                     Object &ob,
+                                     ID &owner_id,
                                      bPoseChannel &pchan,
-                                     RNAPathFCurveMap &fcurves_by_rna_path,
+                                     const RNAPathFCurveMap &fcurves_by_rna_path,
                                      eRotationModes to_mode);
+
+/**
+ *
+ */
+void build_rotation_fcurve_map(RNAPathFCurveMap &r_pchan_rotations,
+                               Action &action,
+                               slot_handle_t slot_handle);
+
 }  // namespace animrig
 }  // namespace blender

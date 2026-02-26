@@ -94,12 +94,12 @@ static void get_rotation_values(const bPoseChannel &pose_bone, float rotation_va
 }
 
 void convert_pose_bone_rotation_keys(Main *bmain,
-                                     Object &ob,
+                                     ID &owner_id,
                                      bPoseChannel &pchan,
-                                     RNAPathFCurveMap &fcurves_by_rna_path,
+                                     const RNAPathFCurveMap &fcurves_by_rna_path,
                                      const eRotationModes to_mode)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete(&ob.id, RNA_PoseBone, &pchan);
+  PointerRNA ptr = RNA_pointer_create_discrete(&owner_id, RNA_PoseBone, &pchan);
   const std::optional<std::string> pchan_path = RNA_path_from_ID_to_struct(&ptr);
   if (!pchan_path) {
     return;
@@ -107,13 +107,14 @@ void convert_pose_bone_rotation_keys(Main *bmain,
   const StringRef rotation_mode = get_rotation_mode_path(eRotationModes(pchan.rotmode));
   /* This is the current rotation mode path. */
   std::string current_rotation_path = pchan_path.value() + "." + rotation_mode;
-  ChannelbagFCurveMap *channelbag_map = fcurves_by_rna_path.lookup_ptr(current_rotation_path);
+  const ChannelbagFCurveMap *channelbag_map = fcurves_by_rna_path.lookup_ptr(
+      current_rotation_path);
   if (!channelbag_map) {
     /* No rotation fcurves for that bone. */
     return;
   }
 
-  const StringRef rotation_mode_name = animrig::get_rotation_mode_path(to_mode);
+  const StringRef rotation_mode_name = get_rotation_mode_path(to_mode);
   std::string new_rotation_path = pchan_path.value() + "." + rotation_mode_name;
 
   /* Storing the previous rotation for euler angles larger than 180 degrees. */
@@ -134,8 +135,7 @@ void convert_pose_bone_rotation_keys(Main *bmain,
     if (is_rotation_order_change) {
       /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
        * rotation mode could influence the result. */
-      animrig::FCurveDescriptor descriptor = {
-          new_rotation_path, 0, PROP_FLOAT, PROP_EULER, pchan.name};
+      FCurveDescriptor descriptor = {new_rotation_path, 0, PROP_FLOAT, PROP_EULER, pchan.name};
       for (int i : IndexRange(3)) {
         descriptor.array_index = i;
         insertion_buffer[i] = &item.key->fcurve_ensure(bmain, descriptor);
@@ -146,8 +146,7 @@ void convert_pose_bone_rotation_keys(Main *bmain,
       for (int i : IndexRange(evaluation_buffer_count)) {
         evaluation_buffer[i] = item.value.fcurves[i];
       }
-      animrig::FCurveDescriptor descriptor = {
-          new_rotation_path, 0, PROP_FLOAT, PROP_EULER, pchan.name};
+      FCurveDescriptor descriptor = {new_rotation_path, 0, PROP_FLOAT, PROP_EULER, pchan.name};
       for (int i : IndexRange(insertion_buffer_count)) {
         descriptor.array_index = i;
         insertion_buffer[i] = &item.key->fcurve_ensure(bmain, descriptor);
@@ -208,4 +207,29 @@ void convert_pose_bone_rotation_keys(Main *bmain,
     }
   }
 }
+
+static bool is_rotation_path(const StringRefNull rna_path)
+{
+  return rna_path.endswith(".rotation_quaternion") || rna_path.endswith(".rotation_euler") ||
+         rna_path.endswith(".rotation_axis_angle");
+}
+
+void build_rotation_fcurve_map(RNAPathFCurveMap &r_pchan_rotations,
+                               Action &action,
+                               const slot_handle_t slot_handle)
+{
+  r_pchan_rotations.clear();
+  for (Channelbag *channelbag : channelbags_for_action_slot(action, slot_handle)) {
+    for (FCurve *fcurve : channelbag->fcurves()) {
+      StringRefNull rna_path(fcurve->rna_path);
+      if (!is_rotation_path(rna_path)) {
+        continue;
+      }
+      ChannelbagFCurveMap &rotations = r_pchan_rotations.lookup_or_add(rna_path, {});
+      RotationFCurves &fcurve_group = rotations.lookup_or_add(channelbag, {});
+      fcurve_group.fcurves[fcurve->array_index] = fcurve;
+    }
+  }
+}
+
 }  // namespace blender::animrig
