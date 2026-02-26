@@ -306,9 +306,11 @@ void MESH_OT_mark_freestyle_face(wmOperatorType *ot);
 void MESH_OT_uv_texture_add(wmOperatorType *ot);
 void MESH_OT_uv_texture_remove(wmOperatorType *ot);
 void MESH_OT_customdata_mask_clear(wmOperatorType *ot);
+void MESH_OT_customdata_face_sets_clear(wmOperatorType *ot);
 void MESH_OT_customdata_skin_add(wmOperatorType *ot);
 void MESH_OT_customdata_skin_clear(wmOperatorType *ot);
 void MESH_OT_customdata_custom_splitnormals_add(wmOperatorType *ot);
+void MESH_OT_customdata_custom_splitnormals_clear(wmOperatorType *ot);
 void MESH_OT_customdata_custom_splitnormals_clear(wmOperatorType *ot);
 void MESH_OT_reorder_vertices_spatial(wmOperatorType *ot);
 
