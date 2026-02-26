@@ -858,7 +858,83 @@ struct Preprocessor {
                     lex_.hash("return"),
                     lex_.hash("thread"),
                     lex_.hash("device"),
-                    lex_.hash("layout")),
+                    lex_.max_atom_value(),
+                    /* In order to avoid too many false positive edges in the DCE graph, pass a
+                     * list of common symbols that are builtin and shouldn't be considered as a
+                     * function. */
+                    Vector<TokenAtom>{
+                        lex_.hash("layout"),
+                        lex_.hash("float"),
+                        lex_.hash("float2"),
+                        lex_.hash("float3"),
+                        lex_.hash("float4"),
+                        lex_.hash("float2x2"),
+                        lex_.hash("float3x2"),
+                        lex_.hash("float4x2"),
+                        lex_.hash("float2x3"),
+                        lex_.hash("float3x3"),
+                        lex_.hash("float4x3"),
+                        lex_.hash("float2x4"),
+                        lex_.hash("float3x4"),
+                        lex_.hash("float4x4"),
+                        lex_.hash("packed_float3"),
+                        lex_.hash("packed_int3"),
+                        lex_.hash("int"),
+                        lex_.hash("int2"),
+                        lex_.hash("int3"),
+                        lex_.hash("int4"),
+                        lex_.hash("uint"),
+                        lex_.hash("uint2"),
+                        lex_.hash("uint3"),
+                        lex_.hash("uint4"),
+                        lex_.hash("bool"),
+                        lex_.hash("bool2"),
+                        lex_.hash("bool3"),
+                        lex_.hash("bool4"),
+                        lex_.hash("int32_t"),
+                        lex_.hash("uint32_t"),
+                        lex_.hash("bool32_t"),
+                        /* Builtin functions. */
+                        lex_.hash("any"),
+                        lex_.hash("all"),
+                        lex_.hash("texelFetch"),
+                        lex_.hash("texture"),
+                        lex_.hash("textureLod"),
+                        lex_.hash("textureSize"),
+                        lex_.hash("imageLoad"),
+                        lex_.hash("imageStore"),
+                        lex_.hash("imageSize"),
+                        lex_.hash("clamp"),
+                        lex_.hash("mix"),
+                        lex_.hash("dot"),
+                        lex_.hash("abs"),
+                        lex_.hash("min"),
+                        lex_.hash("max"),
+                        lex_.hash("for"),
+                        lex_.hash("if"),
+                        lex_.hash("while"),
+                        lex_.hash("cos"),
+                        lex_.hash("sin"),
+                        lex_.hash("tan"),
+                        lex_.hash("atan"),
+                        lex_.hash("acos"),
+                        lex_.hash("asin"),
+                        lex_.hash("exp"),
+                        lex_.hash("exp2"),
+                        lex_.hash("log"),
+                        lex_.hash("pow"),
+                        lex_.hash("length"),
+                        lex_.hash("floor"),
+                        lex_.hash("ceil"),
+                        lex_.hash("fract"),
+                        lex_.hash("sqrt"),
+                        lex_.hash("sign"),
+                        lex_.hash("return"),
+                        lex_.hash("intBitsToFloat"),
+                        lex_.hash("floatBitsToInt"),
+                        lex_.hash("uintBitsToFloat"),
+                        lex_.hash("floatBitsToUint"),
+                    }),
         enabled_macros(lex_.max_atom_value()),
         defined_atom(lex_.hash("defined")),
         va_args_atom(lex_.hash("__VA_ARGS__"))
@@ -904,13 +980,6 @@ struct Preprocessor {
   {
     Vector<TokenAtom> entry_points;
     entry_points.append(lex_.hash("main"));
-    /* TODO(fclem): Properly support forward declaration. */
-    entry_points.append(lex_.hash("nodetree_displacement"));
-    entry_points.append(lex_.hash("nodetree_surface"));
-    entry_points.append(lex_.hash("nodetree_volume"));
-    entry_points.append(lex_.hash("nodetree_thickness"));
-    entry_points.append(lex_.hash("derivative_scale_get"));
-    entry_points.append(lex_.hash("closure_to_rgba"));
 
     out_stream_.optimize(entry_points.as_span());
   }

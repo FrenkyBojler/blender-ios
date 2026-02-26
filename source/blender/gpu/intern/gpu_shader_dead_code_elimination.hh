@@ -6,6 +6,7 @@
  * \ingroup gpu
  */
 
+#include "BLI_bit_vector.hh"
 #include "BLI_map.hh"
 #include "BLI_set.hh"
 #include "BLI_vector.hh"
@@ -57,26 +58,17 @@ struct DCEStream {
     }
   } token_history;
 
-  /* Function ID that is unique for each function and all its overloads. */
-  using FnId = int;
-
   struct FunctionDeclaration {
     Token type, name, end;
-    FnId id;
   };
 
   struct FunctionGraph {
-    /* Counter to assign unique IDs to functions. */
-    int counter = 0;
-    /* Map declarations (name token) to a function id. */
     Vector<FunctionDeclaration> declarations;
-    /* Map identifier to id. */
-    Map<TokenAtom, FnId> names;
     /* Function call (from, to). */
-    Vector<std::pair<FnId, FnId>> edges;
+    Vector<std::pair<TokenAtom, TokenAtom>> edges;
   } graph;
 
-  FnId current_fn_id = -1;
+  TokenAtom current_fn = 0;
 
   /* State of the parser. Some section have DCE turned off because of unsupported syntax. */
   bool enabled_ = true;
@@ -86,20 +78,28 @@ struct DCEStream {
   const TokenAtom return_atom;
   const TokenAtom thread_atom;
   const TokenAtom device_atom;
-  const TokenAtom layout_atom;
+
+  /* Bit vector allowing to filter atoms that designate builtin functions or constructors that we
+   * should avoid creating graph for. */
+  bits::BitVector<> builtin_atoms;
 
  public:
   DCEStream(Token invalid_tok,
             TokenAtom return_atom,
             TokenAtom thread_atom,
             TokenAtom device_atom,
-            TokenAtom layout_atom)
+            uint16_t max_atom_value,
+            Span<TokenAtom> builtin_atoms)
       : token_history(invalid_tok),
         return_atom(return_atom),
         thread_atom(thread_atom),
         device_atom(device_atom),
-        layout_atom(layout_atom)
+        builtin_atoms(max_atom_value)
   {
+    for (auto atom : builtin_atoms) {
+      /* Atom values can only be separated by at least 2 values. */
+      this->builtin_atoms[atom / 2].set(true);
+    }
   }
 
   void set_enabled_parsing(bool value)
@@ -176,10 +176,10 @@ struct DCEStream {
           process_function();
           break;
         case TokenType::BracketOpen:
-          stack_depth += (current_fn_id != -1);
+          stack_depth += (current_fn != 0);
           break;
         case TokenType::BracketClose:
-          stack_depth -= (current_fn_id != -1);
+          stack_depth -= (current_fn != 0);
           ATTR_FALLTHROUGH;
         case TokenType::SemiColon:
           /* Finding a semicolon in global scope after a function signature means that this is
@@ -272,10 +272,10 @@ struct DCEStream {
         process_function();
         break;
       case TokenType::BracketOpen:
-        stack_depth += (current_fn_id != -1);
+        stack_depth += (current_fn != 0);
         break;
       case TokenType::BracketClose:
-        stack_depth -= (current_fn_id != -1);
+        stack_depth -= (current_fn != 0);
         ATTR_FALLTHROUGH;
       case TokenType::SemiColon:
         /* Finding a semicolon in global scope after a function signature means that this is
@@ -298,25 +298,26 @@ struct DCEStream {
     Token type_tok = token_history[1];
 
     /* Filter MSL & GLSL specific identifiers that could have confused the parser. */
-    if (type_tok.atom() == thread_atom || type_tok.atom() == device_atom ||
-        name_tok.atom() == layout_atom)
-    {
+    if (type_tok.atom() == thread_atom || type_tok.atom() == device_atom) {
+      return;
+    }
+    if (builtin_atoms[name_tok.atom() / 2]) {
       return;
     }
 
     if (type_tok.type() == TokenType::Word && type_tok.atom() != return_atom) {
       register_function_declaration(type_tok, name_tok);
     }
-    else if (current_fn_id != -1) {
+    else if (current_fn != 0) {
       register_function_call(name_tok);
     }
   }
 
   BLI_INLINE_METHOD void register_function_end(Token tok)
   {
-    if (stack_depth == 0 && current_fn_id != -1) {
+    if (stack_depth == 0 && current_fn != 0) {
       graph.declarations.last().end = tok;
-      current_fn_id = -1;
+      current_fn = 0;
     }
   }
 
@@ -329,49 +330,44 @@ struct DCEStream {
                        graph.declarations.last().name.flag != graph.declarations.last().end.flag,
                    "Missing call to register_function_end");
 
-    FnId id = graph.names.lookup_or_add_cb(name_tok.atom(), [this]() { return graph.counter++; });
-    graph.declarations.append(FunctionDeclaration{type_tok, name_tok, name_tok, id});
-    current_fn_id = id;
+    graph.declarations.append(FunctionDeclaration{type_tok, name_tok, name_tok});
+    current_fn = name_tok.atom();
   }
 
   /* Register a function call made inside the body of a function by creating an edge inside the
-   * graph. Does nothing if the function is not defined. */
+   * graph. */
   void register_function_call(Token name_tok)
   {
-    /* On Metal, the function prototypes are removed, which means they can be defined later on.
-     * For this reason we always add the symbol to the graph. */
-    int fn_id = graph.names.lookup_or_add_cb(name_tok.atom(),
-                                             [this]() { return graph.counter++; });
-    graph.edges.append_as(current_fn_id, fn_id);
+    graph.edges.append_as(current_fn, name_tok.atom());
   }
 
-  Map<FnId, Vector<FnId>> build_adjacency()
+  Map<TokenAtom, Vector<TokenAtom>> build_adjacency()
   {
-    Map<FnId, Vector<FnId>> adj;
-    adj.reserve(graph.counter);
+    Map<TokenAtom, Vector<TokenAtom>> adj;
+    adj.reserve(graph.declarations.size());
     for (const auto &[from, to] : graph.edges) {
       adj.lookup_or_add_default(from).append(to);
     }
     return adj;
   }
 
-  Set<FnId> compute_used_functions(const Vector<FnId> &roots)
+  Set<TokenAtom> compute_used_functions(Span<TokenAtom> &roots)
   {
-    Set<FnId> used;
-    used.reserve(graph.counter);
+    Set<TokenAtom> used;
+    used.reserve(graph.declarations.size());
 
     auto adj = build_adjacency();
 
-    std::vector<FnId> stack;
+    std::vector<TokenAtom> stack;
     stack.reserve(64);
 
-    for (FnId root : roots) {
+    for (TokenAtom root : roots) {
       if (used.add(root)) {
         stack.push_back(root);
       }
 
       while (!stack.empty()) {
-        FnId f = stack.back();
+        TokenAtom f = stack.back();
         stack.pop_back();
 
         const auto *calls = adj.lookup_ptr(f);
@@ -379,7 +375,7 @@ struct DCEStream {
           continue;
         }
 
-        for (FnId callee : *calls) {
+        for (TokenAtom callee : *calls) {
           if (used.add(callee)) {
             stack.push_back(callee);
           }
@@ -390,25 +386,12 @@ struct DCEStream {
     return used;
   }
 
-  void prune_unused_functions(const Span<TokenAtom> entry_points)
+  void prune_unused_functions(Span<TokenAtom> entry_points)
   {
-    Vector<FnId> entry_point_ids;
-    for (auto entry_point : entry_points) {
-      FnId id = graph.names.lookup_default(entry_point, 0);
-      if (id != 0) {
-        entry_point_ids.append(id);
-      }
-    }
+    Set<TokenAtom> used = compute_used_functions(entry_points);
 
-    if (entry_point_ids.is_empty()) {
-      /* Can be true inside tests. */
-      return;
-    }
-
-    Set<FnId> used = compute_used_functions(entry_point_ids);
-
-    for (auto [type_tok, name_tok, end_tok, id] : graph.declarations) {
-      if (used.contains(id)) {
+    for (auto [type_tok, name_tok, end_tok] : graph.declarations) {
+      if (used.contains(name_tok.atom())) {
         continue;
       }
 
