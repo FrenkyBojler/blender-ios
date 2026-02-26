@@ -1031,7 +1031,8 @@ static void wm_xr_controller_viewfinder_draw_backside_logo(const wmXrSessionStat
   /* Flip UV coords for horizontal mirror to draw on the backside of the viewfinder. */
   const rctf tex_uv = {1.0f, 0.0f, 0.0f, 1.0f};
   GPU_matrix_translate_3f(0.0f, 0.0f, -0.05f);
-  wm_xr_controller_viewfinder_draw_texture(logo_tex, logo_rect, tex_uv, viewfinder_alpha_accent_color);
+  wm_xr_controller_viewfinder_draw_texture(
+      logo_tex, logo_rect, tex_uv, viewfinder_alpha_accent_color);
 }
 
 static void wm_xr_controller_viewfinder_draw_capture_flash(wmXrSessionState *state,
