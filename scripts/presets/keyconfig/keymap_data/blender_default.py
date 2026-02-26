@@ -5323,7 +5323,7 @@ def km_sculpt(params):
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS', }, None),
         ("sculpt.color_filter",
          {"type": 'X', "value": 'PRESS', "ctrl": True},
-         {"properties": [("type", 'FILL'), ("strength", 1.0), ("use_immediate", True)]}),
+         {"properties": [("type", 'FILL'), ("strength", 1.0), ("use_immediate", True), ("use_secondary_color", True)]}),
         # Brush properties
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 0.9)]}),
@@ -8309,7 +8309,10 @@ def km_3d_view_tool_sculpt_color_filter(params):
         "3D View Tool: Sculpt, Color Filter",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
         {"items": [
-            ("sculpt.color_filter", {"type": params.tool_mouse, "value": 'PRESS'}, None)
+            ("sculpt.color_filter", {"type": params.tool_mouse, "value": 'PRESS'}, None),
+            ("sculpt.color_filter",
+             {"type": params.tool_mouse, "value": 'PRESS', "ctrl": True},
+             {"properties": [("use_secondary_color", True)]}),
         ]},
     )
 

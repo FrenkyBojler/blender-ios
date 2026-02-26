@@ -8899,7 +8899,7 @@ class VIEW3D_PT_sculpt_context_menu(Panel):
     def draw(self, context):
         layout = self.layout
 
-        paint = UnifiedPaintPanel.paint_settings(context)
+        paint = context.tool_settings.sculpt
         if paint is None:
             return
 

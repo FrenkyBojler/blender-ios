@@ -1897,9 +1897,11 @@ class _defs_sculpt:
                 row = layout.row(align=True)
                 if region_is_header:
                     row.ui_units_x = 4
-                row.prop(ups, "color", text="")
-                row.prop(ups, "secondary_color", text="")
-                if not region_is_header:
+                    row.prop(ups, "color", text="")
+                    row.prop(ups, "secondary_color", text="")
+                else:
+                    row.prop(ups, "color", text="")
+                    row.prop(ups, "secondary_color", text="")
                     row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
                     row.prop(ups, "use_unified_color", text="", icon='BRUSHES_ALL')
 
