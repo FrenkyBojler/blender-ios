@@ -46,7 +46,7 @@ static bool component_is_available(const GeometrySet &geometry,
     return false;
   }
   const GeometryComponent &component = *geometry.get_component(type);
-  return component.attribute_domain_size(domain) != 0;
+  return ((component.attribute_domain_size(domain) != 0) || (domain == AttrDomain::All));
 }
 
 static const GeometryComponent *find_source_component(const GeometrySet &geometry,
