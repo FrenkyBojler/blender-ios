@@ -26,6 +26,7 @@ set(SRC
   intern/armature.cc
   intern/bone_collections.cc
   intern/bonecolor.cc
+  intern/convert.cc
   intern/driver.cc
   intern/evaluation.cc
   intern/fcurve.cc
@@ -45,6 +46,7 @@ set(SRC
   ANIM_armature_iter.hh
   ANIM_bone_collections.hh
   ANIM_bonecolor.hh
+  ANIM_convert.hh
   ANIM_driver.hh
   ANIM_evaluation.hh
   ANIM_fcurve.hh
