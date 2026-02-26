@@ -742,7 +742,18 @@ inline DCEStream &operator<<(DCEStream &dst, const Token &tok)
 /** \name Preprocessor.
  * \{ */
 
-/* Fast C preprocessor implementation.  */
+/**
+ * Fast C preprocessor implementation.
+ *
+ * This is not a compliant implementation, but it supports most common features.
+ *
+ * What is not supported:
+ * - Trigraphs.
+ * - Backslash at end of a line does not continue a token.
+ * - Error checking is incomplete.
+ *
+ * Unsupported preprocessor directive (like #warning and #error) are left untouched.
+ */
 struct Preprocessor {
  private:
   using ExpressionLexer = shader::parser::ExpressionLexer;
@@ -861,7 +872,7 @@ struct Preprocessor {
   void preprocess()
   {
     if (lex_.directive_lines.is_empty()) {
-      /* FIXME: If there is not directive, DCE will not work. */
+      out_stream_ << TokenRange<Token>{.begin = lex_.front(), .end = lex_.back()};
       return;
     }
 
