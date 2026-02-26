@@ -2956,19 +2956,19 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
                                AbstractTreeView::IterOptions::SkipFiltered);
   };
 
-  if (!active_item || !active_item->is_filtered_visible()) {
-    /* Active item might be filtered out due to search string, set the first visible element active
-     * in that case. */
-    iter_fn([&](AbstractTreeViewItem &item) {
-      if (!found_active) {
-        item.on_activate(*C);
-        active_item = &item;
-        found_active = true;
-      }
-    });
+  // if (!active_item || !active_item->is_filtered_visible()) {
+  //   /* Active item might be filtered out due to search string, set the first visible element active
+  //    * in that case. */
+  //   iter_fn([&](AbstractTreeViewItem &item) {
+  //     if (!found_active) {
+  //       item.on_activate(*C);
+  //       active_item = &item;
+  //       found_active = true;
+  //     }
+  //   });
 
-    return OPERATOR_FINISHED;
-  }
+  //   return OPERATOR_FINISHED;
+  // }
 
   AbstractTreeViewItem *next_item = nullptr;
   switch (direction) {
@@ -3018,10 +3018,9 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
   }
 
   if (next_item) {
-    next_item->on_activate(*C);
-    tree_view.scroll_active_into_view();
+    view_item_click_select(*C, next_item, tree_view, false, false, false);
+    tree_view.scroll_active_into_view(true);
   }
-
   ED_region_tag_redraw(&region);
   return OPERATOR_FINISHED;
 }

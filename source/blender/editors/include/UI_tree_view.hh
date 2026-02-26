@@ -173,7 +173,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * \note Value should be greater than #MIN_ROWS. This is to prevent resizing below certain
    * height. */
   void set_default_rows(int default_rows);
-  void scroll_active_into_view();
+  void scroll_active_into_view(bool scroll_to_active);
 
  protected:
   virtual void build_tree() = 0;
