@@ -480,16 +480,21 @@ static void read_shared_array(BlendDataReader &reader,
   });
 }
 
-static OffsetIndices<int> read_offsets(BlendDataReader &reader,
-                                       const int64_t size,
-                                       int **data,
-                                       const ImplicitSharingInfo **sharing_info)
+static GroupedSpan<char> read_string_offsets(BlendDataReader &reader, AttributeStringOffsets &data)
 {
-  *sharing_info = BLO_read_shared(&reader, data, [&]() -> const ImplicitSharingInfo * {
-    BLO_read_int32_array(&reader, size + 1, data);
-    return implicit_sharing::info_for_mem_free(*data);
-  });
-  return OffsetIndices(Span(*data, size + 1));
+  const int size = data.size;
+  data.offsets_sharing_info = BLO_read_shared(
+      &reader, &data.offsets, [&]() -> const ImplicitSharingInfo * {
+        BLO_read_int32_array(&reader, size + 1, &data.offsets);
+        return implicit_sharing::info_for_mem_free(data.offsets);
+      });
+  const OffsetIndices offsets(Span(data.offsets, size + 1));
+  data.data_sharing_info = BLO_read_shared(
+      &reader, &data.data, [&]() -> const ImplicitSharingInfo * {
+        BLO_read_char_array(&reader, offsets.total_size(), &data.data);
+        return implicit_sharing::info_for_mem_free(data.data);
+      });
+  return GroupedSpan<char>(offsets, Span(data.data, offsets.total_size()));
 }
 
 static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &reader,
@@ -514,6 +519,14 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
       return array_data;
     }
     case int8_t(AttrStorageType::Single): {
+      if (dna_attr_type == int8_t(AttrType::String)) {
+        auto &data = *static_cast<blender::AttributeStringOffsets *>(dna_attr.data);
+        const GroupedSpan<char> offset_data = read_string_offsets(reader, data);
+        const std::string str = std::string(offset_data[0].data(), offset_data[0].size());
+        data.data_sharing_info->remove_user_and_delete_if_last();
+        data.offsets_sharing_info->remove_user_and_delete_if_last();
+        return Attribute::SingleData::from_value(GPointer(&str));
+      }
       BLO_read_struct(&reader, AttributeSingle, &dna_attr.data);
       auto &data = *static_cast<blender::AttributeSingle *>(dna_attr.data);
       read_shared_array(reader, dna_attr_type, 1, &data.data, &data.sharing_info);
@@ -525,14 +538,7 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
     case ATTR_STORAGE_TYPE_STRING_OFFSETS: {
       BLO_read_struct(&reader, AttributeStringOffsets, &dna_attr.data);
       auto &data = *static_cast<blender::AttributeStringOffsets *>(dna_attr.data);
-      const OffsetIndices offsets = read_offsets(
-          reader, data.size, &data.offsets, &data.offsets_sharing_info);
-      data.data_sharing_info = BLO_read_shared(
-          &reader, &data.data, [&]() -> const ImplicitSharingInfo * {
-            BLO_read_char_array(&reader, offsets.total_size(), &data.data);
-            return implicit_sharing::info_for_mem_free(data.data);
-          });
-      const GroupedSpan<char> offset_data(offsets, Span<char>(data.data, offsets.total_size()));
+      const GroupedSpan<char> offset_data = read_string_offsets(reader, data);
 
       /* This storage type is currently not used at runtime; convert to regular array storage. */
       Array<std::string> array_data(offset_data.size(), NoInitialization());
@@ -681,6 +687,33 @@ static bool string_attribute_has_string_longer_than_legacy(const Attribute::Arra
       strings, [](const std::string &str) { return str.size() > sizeof(MStringProperty::s); });
 }
 
+static AttributeStringOffsets strings_to_string_offsets(const Span<std::string> strings)
+{
+  auto *offset_data = new ImplicitSharedValue<Array<int>>(strings.size() + 1);
+  threading::parallel_for(strings.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      offset_data->data[i] = strings[i].size();
+    }
+  });
+  const OffsetIndices offsets = offset_indices::accumulate_counts_to_offsets(offset_data->data);
+  auto *data = new ImplicitSharedValue<Array<char>>(offsets.total_size());
+  threading::parallel_for(strings.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      data->data.as_mutable_span()
+          .slice(offsets[i])
+          .copy_from(Span(strings[i].data(), strings[i].size()));
+    }
+  });
+
+  AttributeStringOffsets offsets_dna{};
+  offsets_dna.data = data->data.data();
+  offsets_dna.data_sharing_info = data;
+  offsets_dna.offsets = offset_data->data.data();
+  offsets_dna.offsets_sharing_info = offset_data;
+  offsets_dna.size = strings.size();
+  return offsets_dna;
+}
+
 void attribute_storage_blend_write_prepare(AttributeStorage &data,
                                            const bool use_5_0_compatibility,
                                            FunctionRef<int(AttrDomain)> get_domain_size,
@@ -718,37 +751,14 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
           array_dna.size = array_data.size;
           return &array_dna;
         }
-
-        attribute_dna.storage_type = ATTR_STORAGE_TYPE_STRING_OFFSETS;
-
         /* Write string attributes (stored at runtime as #std::string) as an array of offsets and
          * array of character data. */
+        attribute_dna.storage_type = ATTR_STORAGE_TYPE_STRING_OFFSETS;
         const Span span(static_cast<const std::string *>(array_data.data), array_data.size);
-        auto *offset_data = new ImplicitSharedValue<Array<int>>(array_data.size + 1);
-        write_data.scope.construct<ImplicitSharingPtr<>>(offset_data);
-        threading::parallel_for(IndexRange(array_data.size), 4096, [&](const IndexRange range) {
-          for (const int i : range) {
-            offset_data->data[i] = span[i].size();
-          }
-        });
-        const OffsetIndices offsets = offset_indices::accumulate_counts_to_offsets(
-            offset_data->data);
-        auto *data = new ImplicitSharedValue<Array<char>>(offsets.total_size());
-        write_data.scope.construct<ImplicitSharingPtr<>>(data);
-        threading::parallel_for(IndexRange(array_data.size), 4096, [&](const IndexRange range) {
-          for (const int i : range) {
-            data->data.as_mutable_span()
-                .slice(offsets[i])
-                .copy_from(Span(span[i].data(), span[i].size()));
-          }
-        });
-
-        auto &offsets_dna = write_data.scope.construct<AttributeStringOffsets>();
-        offsets_dna.data = data->data.data();
-        offsets_dna.data_sharing_info = data;
-        offsets_dna.offsets = offset_data->data.data();
-        offsets_dna.offsets_sharing_info = offset_data;
-        offsets_dna.size = array_data.size;
+        auto &offsets_dna = write_data.scope.construct<AttributeStringOffsets>(
+            strings_to_string_offsets(span));
+        write_data.scope.construct<ImplicitSharingPtr<>>(offsets_dna.offsets_sharing_info);
+        write_data.scope.construct<ImplicitSharingPtr<>>(offsets_dna.data_sharing_info);
         return &offsets_dna;
       }
       attribute_dna.storage_type = int8_t(AttrStorageType::Array);
@@ -776,12 +786,22 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
         static_cast<AttributeArray *>(attribute_dna.data)->is_single = true;
       }
       else {
-        // TODO: NOT WORKING FOR STRING ATTRIBUTES
         attribute_dna.storage_type = int8_t(AttrStorageType::Single);
-        auto &single_dna = write_data.scope.construct<blender::AttributeSingle>();
-        single_dna.data = data->value;
-        single_dna.sharing_info = data->sharing_info.get();
-        attribute_dna.data = &single_dna;
+        if (attr.data_type() == AttrType::String) {
+          /* std::string cannot be serialized directly, reuse string offsets storage. */
+          const Span span(static_cast<const std::string *>(data->value), 1);
+          auto &offsets_dna = write_data.scope.construct<AttributeStringOffsets>(
+              strings_to_string_offsets(span));
+          write_data.scope.construct<ImplicitSharingPtr<>>(offsets_dna.offsets_sharing_info);
+          write_data.scope.construct<ImplicitSharingPtr<>>(offsets_dna.data_sharing_info);
+          attribute_dna.data = &offsets_dna;
+        }
+        else {
+          auto &single_dna = write_data.scope.construct<blender::AttributeSingle>();
+          single_dna.data = data->value;
+          single_dna.sharing_info = data->sharing_info.get();
+          attribute_dna.data = &single_dna;
+        }
       }
     }
 
@@ -807,6 +827,23 @@ AttributeStorage::BlendWriteData::BlendWriteData(ResourceScope &scope)
 {
 }
 
+static void write_string_offsets(BlendWriter &writer, AttributeStringOffsets *data_dna)
+{
+  const OffsetIndices offsets(Span(data_dna->offsets, data_dna->size + 1));
+  BLO_write_shared(
+      &writer,
+      data_dna->offsets,
+      sizeof(int) * (data_dna->size + 1),
+      data_dna->offsets_sharing_info,
+      [&]() { BLO_write_int32_array(&writer, data_dna->size + 1, data_dna->offsets); });
+  BLO_write_shared(&writer,
+                   data_dna->data,
+                   sizeof(char) * offsets.total_size(),
+                   data_dna->data_sharing_info,
+                   [&]() { BLO_write_char_array(&writer, offsets.total_size(), data_dna->data); });
+  writer.write_struct(data_dna);
+}
+
 void AttributeStorage::blend_write(BlendWriter &writer,
                                    const AttributeStorage::BlendWriteData &write_data)
 {
@@ -817,6 +854,11 @@ void AttributeStorage::blend_write(BlendWriter &writer,
     BLO_write_string(&writer, attr_dna.name);
     switch (attr_dna.storage_type) {
       case int8_t(AttrStorageType::Single): {
+        if (attr_dna.data_type == int8_t(AttrType::String)) {
+          write_string_offsets(writer,
+                               static_cast<blender::AttributeStringOffsets *>(attr_dna.data));
+          break;
+        }
         blender::AttributeSingle *single_dna = static_cast<blender::AttributeSingle *>(
             attr_dna.data);
         write_shared_array(
@@ -835,21 +877,8 @@ void AttributeStorage::blend_write(BlendWriter &writer,
         break;
       }
       case ATTR_STORAGE_TYPE_STRING_OFFSETS: {
-        auto *data_dna = static_cast<blender::AttributeStringOffsets *>(attr_dna.data);
-        const OffsetIndices offsets(Span(data_dna->offsets, data_dna->size + 1));
-        BLO_write_shared(
-            &writer,
-            data_dna->offsets,
-            sizeof(int) * (data_dna->size + 1),
-            data_dna->offsets_sharing_info,
-            [&]() { BLO_write_int32_array(&writer, data_dna->size + 1, data_dna->offsets); });
-        BLO_write_shared(
-            &writer,
-            data_dna->data,
-            sizeof(char) * offsets.total_size(),
-            data_dna->data_sharing_info,
-            [&]() { BLO_write_char_array(&writer, offsets.total_size(), data_dna->data); });
-        writer.write_struct(data_dna);
+        write_string_offsets(writer,
+                             static_cast<blender::AttributeStringOffsets *>(attr_dna.data));
         break;
       }
     }
