@@ -140,37 +140,9 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
     return false;
   }
 
-  /* Object motion. */
-  /* FIXME(fclem) As we are using original objects pointers, there is a chance the previous
-   * object key matches a totally different object if the scene was changed by user or python
-   * callback. In this case, we cannot correctly match objects between updates.
-   * What this means is that there will be incorrect motion vectors for these objects.
-   * We live with that until we have a correct way of identifying new objects. */
-  VelocityObjectData &vel = velocity_map.lookup_or_add_default(object_key);
-  vel.obj.ofs[step_] = object_steps_usage[step_]++;
-  vel.obj.resource_id = resource_handle.resource_index();
-  /* While VelocityObjectData is unique for each object/instance, multiple VelocityObjectDatas can
-   * point to the same offset in VelocityGeometryData, since geometry is stored local space. */
-  vel.id = particle_sys ? uint64_t(particle_sys) : uint64_t(ob->data);
-  object_steps[step_]->get_or_resize(vel.obj.ofs[step_]) = ob->object_to_world();
-  if (step_ == STEP_CURRENT) {
-    /* Replace invalid steps. Can happen if object was hidden in one of those steps. */
-    if (vel.obj.ofs[STEP_PREVIOUS] == -1) {
-      vel.obj.ofs[STEP_PREVIOUS] = object_steps_usage[STEP_PREVIOUS]++;
-      object_steps[STEP_PREVIOUS]->get_or_resize(
-          vel.obj.ofs[STEP_PREVIOUS]) = ob->object_to_world();
-    }
-    if (vel.obj.ofs[STEP_NEXT] == -1) {
-      if (inst_.is_viewport()) {
-        /* Just set it to 0. motion.next is not meant to be valid in the viewport. */
-        vel.obj.ofs[STEP_NEXT] = 0;
-      }
-      else {
-        vel.obj.ofs[STEP_NEXT] = object_steps_usage[STEP_NEXT]++;
-        object_steps[STEP_NEXT]->get_or_resize(vel.obj.ofs[STEP_NEXT]) = ob->object_to_world();
-      }
-    }
-  }
+  /* While VelocityObjectData is unique for each object/instance, multiple VelocityObjectDatas
+   * can point to the same offset in VelocityGeometryData, since geometry is stored local space. */
+  uint64_t velocity_id = particle_sys ? uint64_t(particle_sys) : uint64_t(ob->data);
 
   /* Geometry motion. */
   if (has_deform) {
@@ -194,43 +166,59 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
       return data;
     };
 
-    const VelocityGeometryData &data = geometry_map.lookup_or_add_cb(vel.id, add_cb);
+    const VelocityGeometryData &data = geometry_map.lookup_or_add_cb(velocity_id, add_cb);
+    has_deform = data.has_data();
+  }
 
-    if (!data.has_data()) {
-      has_deform = false;
+  bool any_have_motion = false;
+
+  for (ResourceIndex ressource_index : resource_handle.index_range()) {
+    /* Object motion. */
+    /* FIXME(fclem) As we are using original objects pointers, there is a chance the previous
+     * object key matches a totally different object if the scene was changed by user or python
+     * callback. In this case, we cannot correctly match objects between updates.
+     * What this means is that there will be incorrect motion vectors for these objects.
+     * We live with that until we have a correct way of identifying new objects. */
+    VelocityObjectData &vel = velocity_map.lookup_or_add_default(object_key);
+    vel.obj.ofs[step_] = object_steps_usage[step_]++;
+    vel.obj.resource_id = ressource_index.resource_index();
+    vel.id = velocity_id;
+    object_steps[step_]->get_or_resize(vel.obj.ofs[step_]) = ob->object_to_world();
+    if (step_ == STEP_CURRENT) {
+      /* Replace invalid steps. Can happen if object was hidden in one of those steps. */
+      if (vel.obj.ofs[STEP_PREVIOUS] == -1) {
+        vel.obj.ofs[STEP_PREVIOUS] = object_steps_usage[STEP_PREVIOUS]++;
+        object_steps[STEP_PREVIOUS]->get_or_resize(
+            vel.obj.ofs[STEP_PREVIOUS]) = ob->object_to_world();
+      }
+      if (vel.obj.ofs[STEP_NEXT] == -1) {
+        if (inst_.is_viewport()) {
+          /* Just set it to 0. motion.next is not meant to be valid in the viewport. */
+          vel.obj.ofs[STEP_NEXT] = 0;
+        }
+        else {
+          vel.obj.ofs[STEP_NEXT] = object_steps_usage[STEP_NEXT]++;
+          object_steps[STEP_NEXT]->get_or_resize(vel.obj.ofs[STEP_NEXT]) = ob->object_to_world();
+        }
+      }
+    }
+
+    /* Avoid drawing object that has no motions but were tagged as such. */
+    if (step_ == STEP_CURRENT && has_motion == true && has_deform == false) {
+      const float4x4 &obmat_curr = (*object_steps[STEP_CURRENT])[vel.obj.ofs[STEP_CURRENT]];
+      const float4x4 &obmat_prev = (*object_steps[STEP_PREVIOUS])[vel.obj.ofs[STEP_PREVIOUS]];
+      if (inst_.is_viewport()) {
+        any_have_motion = any_have_motion || (obmat_curr != obmat_prev);
+      }
+      else {
+        const float4x4 &obmat_next = (*object_steps[STEP_NEXT])[vel.obj.ofs[STEP_NEXT]];
+        any_have_motion = any_have_motion ||
+                          (obmat_curr != obmat_prev || obmat_curr != obmat_next);
+      }
     }
   }
 
-  /* Avoid drawing object that has no motions but were tagged as such. */
-  if (step_ == STEP_CURRENT && has_motion == true && has_deform == false) {
-    const float4x4 &obmat_curr = (*object_steps[STEP_CURRENT])[vel.obj.ofs[STEP_CURRENT]];
-    const float4x4 &obmat_prev = (*object_steps[STEP_PREVIOUS])[vel.obj.ofs[STEP_PREVIOUS]];
-    if (inst_.is_viewport()) {
-      has_motion = (obmat_curr != obmat_prev);
-    }
-    else {
-      const float4x4 &obmat_next = (*object_steps[STEP_NEXT])[vel.obj.ofs[STEP_NEXT]];
-      has_motion = (obmat_curr != obmat_prev || obmat_curr != obmat_next);
-    }
-  }
-
-#if 0
-  if (!has_motion && !has_deform) {
-    std::cout << "Detected no motion on " << ob->id.name << std::endl;
-  }
-  if (has_deform) {
-    std::cout << "Geometry Motion on " << ob->id.name << std::endl;
-  }
-  if (has_motion) {
-    std::cout << "Object Motion on " << ob->id.name << std::endl;
-  }
-#endif
-
-  if (!has_motion && !has_deform) {
-    return false;
-  }
-
-  return true;
+  return has_deform || any_have_motion;
 }
 
 void VelocityModule::geometry_steps_fill()
