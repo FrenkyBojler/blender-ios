@@ -92,9 +92,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::String>("Filter").optional_label().description(
       "Filters the geometry sets to process based on their tags");
 
-  auto &panel = b.add_panel("Solver").default_closed(true);
-  panel.add_input<decl::Int>("Substeps").default_value(10).min(1);
-  panel.add_input<decl::Int>("Constraint Iterations").default_value(1).min(1);
+  {
+    auto &solver_panel = b.add_panel("Solver").default_closed(true);
+    solver_panel.add_input<decl::Int>("Substeps").default_value(10).min(1);
+    solver_panel.add_input<decl::Int>("Constraint Iterations").default_value(1).min(1);
+  }
 }
 
 struct DataKey {
