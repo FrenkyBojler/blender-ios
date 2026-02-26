@@ -9,11 +9,8 @@
 #include <fmt/format.h>
 
 #include "BKE_context.hh"
-#include "BKE_global.hh"
 
 #include "BKE_library.hh"
-
-#include "BLI_listbase_iterator.hh"
 
 #include "BLT_translation.hh"
 
