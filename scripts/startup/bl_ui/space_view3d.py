@@ -8735,7 +8735,8 @@ class VIEW3D_PT_paint_texture_context_menu(Panel):
     @classmethod
     def poll(cls, context):
         # Since bl_space_type is ignored for popovers, we need to check if the Image Editor is in the right mode
-        if context.space_data.type == 'IMAGE_EDITOR' and context.space_data.mode != 'PAINT':
+        space = context.space_data
+        if space is not None and space.type == 'IMAGE_EDITOR' and space.mode != 'PAINT':
             return False
         return True
 
