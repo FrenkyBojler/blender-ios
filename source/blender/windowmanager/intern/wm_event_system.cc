@@ -15,6 +15,7 @@
 #include <fmt/format.h>
 
 #include "AS_asset_library.hh"
+#include "AS_asset_representation.hh"
 
 #include "DNA_listBase.h"
 #include "DNA_scene_types.h"
@@ -631,7 +632,7 @@ void wm_event_do_notifiers(bContext *C)
           WM_window_title_refresh(wm, &win);
         }
         else if (note->data == ND_UNDO) {
-          ED_preview_restart_queue_work(C);
+          ED_preview_restart_work(C);
         }
       }
 
@@ -1131,9 +1132,9 @@ bool WM_operator_poll_or_report_error(bContext *C, wmOperatorType *ot, ReportLis
   CTX_wm_operator_poll_msg_clear(C);
   BKE_reportf(reports,
               RPT_ERROR,
-              "Invalid context: \"%s\", %s",
-              CTX_IFACE_(ot->translation_context, ot->name),
-              msg ? msg : IFACE_("poll failed"));
+              RPT_("Invalid context: \"%s\", %s"),
+              CTX_RPT_(ot->translation_context, ot->name),
+              msg ? RPT_(msg) : RPT_("poll failed"));
   if (msg_free) {
     MEM_delete(msg);
   }
@@ -2139,8 +2140,7 @@ void WM_operator_name_call_ptr_with_depends_on_cursor(bContext *C,
 
   {
     std::string header_text = fmt::format(
-        "{} {}",
-        IFACE_("Input pending "),
+        fmt::runtime(IFACE_("Input pending {}")),
         drawstr.is_empty() ? CTX_IFACE_(ot->translation_context, ot->name) : drawstr);
     if (area != nullptr) {
       ED_area_status_text(area, header_text.c_str());
@@ -3533,6 +3533,16 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
               for (wmDrag &drag : lb->items_mutable()) {
                 if (!wm_drag_asset_path_exists(&drag).value_or(true)) {
                   continue;
+                }
+
+                if (wmDragAsset *asset_data = WM_drag_get_asset_data(&drag, 0)) {
+                  if (asset_data->asset->is_online()) {
+                    BKE_reportf(CTX_wm_reports(C),
+                                RPT_ERROR,
+                                "Asset '%s' is still downloading",
+                                asset_data->asset->get_name().c_str());
+                    continue;
+                  }
                 }
 
                 if (drop.poll(C, &drag, event)) {

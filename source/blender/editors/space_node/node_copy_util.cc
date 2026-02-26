@@ -18,6 +18,7 @@
 #include "BLI_vector.hh"
 
 #include "BKE_action.hh"
+#include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
@@ -237,6 +238,7 @@ static const bNodeSocket &find_socket_to_use_for_interface(const bNodeTree &node
 
 static bNodeTreeInterfaceSocket *add_interface_from_socket(const bNodeTree &original_tree,
                                                            const bNodeSocket &socket,
+                                                           const eNodeSocketInOut in_out,
                                                            bNodeTree &tree_for_interface,
                                                            bNodeTreeInterfacePanel *parent)
 {
@@ -251,7 +253,7 @@ static bNodeTreeInterfaceSocket *add_interface_from_socket(const bNodeTree &orig
   const bNode &node_for_io = socket_for_io.owner_node();
   const bNodeSocket &socket_for_name = prefer_node_for_interface_name ? socket : socket_for_io;
   bNodeTreeInterfaceSocket *io_socket = bke::node_interface::add_interface_socket_from_node(
-      tree_for_interface, node_for_io, socket_for_io, socket_for_io.idname, socket_for_name.name);
+      tree_for_interface, node_for_io, socket_for_io, socket_for_name.name, in_out);
   if (io_socket) {
     tree_for_interface.tree_interface.move_item_to_parent(io_socket->item, parent, INT32_MAX);
   }
@@ -335,22 +337,23 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
   if (params_.skip_hidden && !src_socket.is_visible()) {
     return;
   }
+  const eNodeSocketInOut in_out = eNodeSocketInOut(src_socket.in_out);
 
-  auto try_add_socket_data = [&](const bNodeSocket &key,
-                                 const bNodeSocket &template_socket) -> InterfaceSocketData * {
+  auto try_add_socket_data = [&](const bNodeSocket &key_socket) -> InterfaceSocketData * {
     InterfaceSocketData *data = io_mapping_.socket_data.lookup_ptr(
-        data_by_socket_.lookup_default(&key, nullptr));
+        data_by_socket_.lookup_default(&key_socket, nullptr));
     if (data) {
       return data;
     }
+
     bNodeTreeInterfaceSocket *io_socket = add_interface_from_socket(
-        src_tree, template_socket, dst_tree_, parent);
+        src_tree, key_socket, in_out, dst_tree_, parent);
     if (io_socket) {
       data = &io_mapping_.socket_data.lookup_or_add(io_socket, {});
-      data_by_socket_.add_new(&key, io_socket);
+      data_by_socket_.add_new(&key_socket, io_socket);
 
-      data->hidden = template_socket.flag & SOCK_HIDDEN;
-      data->collapsed = template_socket.flag & SOCK_COLLAPSED;
+      data->hidden = key_socket.flag & SOCK_HIDDEN;
+      data->collapsed = key_socket.flag & SOCK_COLLAPSED;
       return data;
     }
     return nullptr;
@@ -365,7 +368,7 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
 
   if (external_links.is_empty()) {
     if (!params_.skip_unconnected) {
-      if (InterfaceSocketData *data = try_add_socket_data(src_socket, src_socket)) {
+      if (InterfaceSocketData *data = try_add_socket_data(src_socket)) {
         data->internal_sockets.add({src_socket.owner_node(), src_socket});
       }
     }
@@ -377,20 +380,8 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
                                                                params_.use_unique_output;
   if (use_external_socket_key) {
     /* Create a unique interface socket for each external link. */
-    /* TODO This creates some problems:
-     * - Input sockets with the same external link still use the internal socket as the interface
-     *   template. The first input defines the interface type, which can lead to incorrect type
-     *   conversion for the remaining sockets. Interface state is also based on the first internal
-     *   socket.
-     *   The external link should define be the interface template here.
-     * - Output sockets with multiple external links are redundant because the internal socket is
-     *   used as the interface template.
-     *   Outputs should not create unique interface sockets for each link.
-     */
     for (const MutableNodeAndSocket &external_socket : external_links) {
-      if (InterfaceSocketData *data = try_add_socket_data(external_socket.find_socket(),
-                                                          src_socket))
-      {
+      if (InterfaceSocketData *data = try_add_socket_data(external_socket.find_socket())) {
         data->internal_sockets.add({src_socket.owner_node(), src_socket});
         data->external_sockets.add(external_socket);
       }
@@ -398,7 +389,7 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
   }
   else {
     /* Create interface based on the internal socket. */
-    if (InterfaceSocketData *data = try_add_socket_data(src_socket, src_socket)) {
+    if (InterfaceSocketData *data = try_add_socket_data(src_socket)) {
       data->internal_sockets.add({src_socket.owner_node(), src_socket});
       data->external_sockets.add_multiple(external_links);
     }
@@ -481,6 +472,66 @@ static void expose_declaration_item_recursive(NodeSetInterfaceBuilder &builder,
   }
 }
 
+static void make_panel_visible(bNode &node, const nodes::PanelDeclaration &panel_decl)
+{
+  for (bNodePanelState &panel_state : node.panel_states()) {
+    if (panel_state.identifier == panel_decl.identifier) {
+      panel_state.flag &= ~NODE_PANEL_COLLAPSED;
+      return;
+    }
+  }
+  BLI_assert_unreachable();
+}
+
+static bool make_parent_panels_visible_recursive(bNode &node,
+                                                 StringRef socket_identifier,
+                                                 const Span<nodes::ItemDeclaration *> item_decls)
+{
+  for (const nodes::ItemDeclaration *item_decl : item_decls) {
+    if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
+      if (socket_identifier == socket_decl->identifier) {
+        return true;
+      }
+    }
+    if (const auto *child_panel_decl = dynamic_cast<const nodes::PanelDeclaration *>(item_decl)) {
+      if (make_parent_panels_visible_recursive(node, socket_identifier, child_panel_decl->items)) {
+        make_panel_visible(node, *child_panel_decl);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+static void make_socket_visible(bNode &node, bNodeSocket &socket)
+{
+  socket.flag &= ~SOCK_HIDDEN;
+  if (const nodes::NodeDeclaration *node_decl = node.declaration()) {
+    make_parent_panels_visible_recursive(node, socket.identifier, node_decl->root_items);
+  }
+}
+
+/* Add a link to a node tree. If one of the sockets is visible the other will be visible too. */
+static bNodeLink &add_link_and_make_visible(bNodeTree &tree,
+                                            bNode &from_node,
+                                            bNodeSocket &from_socket,
+                                            bNode &to_node,
+                                            bNodeSocket &to_socket)
+{
+  BLI_assert(from_socket.is_available());
+  BLI_assert(to_socket.is_available());
+  if (!from_socket.is_user_hidden() || !to_socket.is_user_hidden()) {
+    if (from_socket.is_user_hidden() || from_socket.is_panel_collapsed()) {
+      make_socket_visible(from_node, from_socket);
+    }
+    if (to_socket.is_user_hidden() || to_socket.is_panel_collapsed()) {
+      make_socket_visible(to_node, to_socket);
+    }
+  }
+
+  return bke::node_add_link(tree, from_node, from_socket, to_node, to_socket);
+}
+
 NodeTreeInterfaceMapping build_node_declaration_interface(const NodeSetInterfaceParams &params,
                                                           const bNode &src_node,
                                                           bNodeTree &dst_tree)
@@ -538,6 +589,28 @@ static void map_panel(NodeTreeInterfaceMapping &io_mapping,
     }
   }
   io_mapping.panel_data.add(&io_panel, std::move(data));
+}
+
+/* Make sure the target node tree uses a different action than the source.
+ * Otherwise the target action is cleared to ensure a new action is created. */
+static void ensure_separate_actions(Main &bmain, const bNodeTree &src, bNodeTree &dst)
+{
+  const AnimData *src_adt = BKE_animdata_from_id(&src.id);
+  AnimData *dst_adt = BKE_animdata_from_id(&dst.id);
+  if (!src_adt || !dst_adt) {
+    /* Nothing to do:
+     * If the source has no animdata nothing will be copied.
+     * If the target has no animdata a new action will be created anyway. */
+    return;
+  }
+
+  if (dst_adt->action == src_adt->action) {
+    const bool unassign_ok = animrig::unassign_action({dst.id, *dst_adt});
+    BLI_assert_msg(unassign_ok, "Expected Action unassignment to work");
+    UNUSED_VARS_NDEBUG(unassign_ok);
+
+    DEG_relations_tag_update(&bmain);
+  }
 }
 
 NodeTreeInterfaceMapping map_group_node_interface(const NodeSetInterfaceParams &params,
@@ -619,11 +692,11 @@ NodeSetCopy NodeSetCopy::from_nodes(Main &bmain,
   /* Recreate internal links. */
   const Vector<const bNodeLink *> internal_links = find_internal_links(src_tree, src_nodes);
   for (const bNodeLink *src_link : internal_links) {
-    bke::node_add_link(dst_tree,
-                       *result.node_map_.lookup(src_link->fromnode),
-                       *socket_map.lookup(src_link->fromsock),
-                       *result.node_map_.lookup(src_link->tonode),
-                       *socket_map.lookup(src_link->tosock));
+    add_link_and_make_visible(dst_tree,
+                              *result.node_map_.lookup(src_link->fromnode),
+                              *socket_map.lookup(src_link->fromsock),
+                              *result.node_map_.lookup(src_link->tonode),
+                              *socket_map.lookup(src_link->tosock));
   }
 
   /* Recreate zone pairing between new nodes. */
@@ -632,6 +705,9 @@ NodeSetCopy NodeSetCopy::from_nodes(Main &bmain,
   remap_pairing(dst_tree, new_nodes, result.node_identifier_map_);
 
   /* Copy animation data of source nodes. */
+  if (&src_tree != &dst_tree) {
+    ensure_separate_actions(bmain, src_tree, dst_tree);
+  }
   BKE_animdata_copy_by_basepath(bmain, src_tree.id, dst_tree.id, anim_basepaths);
 
   /* Move nodes in the group to the center */
@@ -686,13 +762,14 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
         bNodeSocket *group_input_socket = node_group_input_find_socket(io_nodes.input_node,
                                                                        item.key->identifier);
         BLI_assert(group_input_socket);
-        bke::node_add_link(tree, *io_nodes.input_node, *group_input_socket, new_node, new_socket);
+        add_link_and_make_visible(
+            tree, *io_nodes.input_node, *group_input_socket, new_node, new_socket);
       }
       else {
         bNodeSocket *group_output_socket = node_group_output_find_socket(io_nodes.output_node,
                                                                          item.key->identifier);
         BLI_assert(group_output_socket);
-        bke::node_add_link(
+        add_link_and_make_visible(
             tree, new_node, new_socket, *io_nodes.output_node, *group_output_socket);
       }
     }
@@ -783,11 +860,11 @@ void connect_copied_nodes_to_external_sockets(const bNodeTree &src_tree,
 
   /* Actually add deduplicated links to the tree. */
   for (const std::pair<MutableNodeAndSocket, MutableNodeAndSocket> &item : unique_links) {
-    bke::node_add_link(dst_tree,
-                       item.first.node,
-                       item.first.find_socket(),
-                       item.second.node,
-                       item.second.find_socket());
+    add_link_and_make_visible(dst_tree,
+                              item.first.node,
+                              item.first.find_socket(),
+                              item.second.node,
+                              item.second.find_socket());
   }
 }
 
@@ -816,7 +893,8 @@ void connect_group_node_to_external_sockets(bNode &group_node,
     }
     for (const MutableNodeAndSocket &link : data->external_sockets) {
       BLI_assert(owner_tree.all_nodes().contains(&link.node));
-      bke::node_add_link(owner_tree, link.node, link.find_socket(), group_node, *group_node_input);
+      add_link_and_make_visible(
+          owner_tree, link.node, link.find_socket(), group_node, *group_node_input);
     }
     /* Keep old socket visibility. */
     SET_FLAG_FROM_TEST(group_node_input->flag, data->hidden, SOCK_HIDDEN);
@@ -834,7 +912,7 @@ void connect_group_node_to_external_sockets(bNode &group_node,
     }
     for (const MutableNodeAndSocket &link : data->external_sockets) {
       BLI_assert(owner_tree.all_nodes().contains(&link.node));
-      bke::node_add_link(
+      add_link_and_make_visible(
           owner_tree, group_node, *group_node_output, link.node, link.find_socket());
     }
     /* Keep old socket visibility. */
