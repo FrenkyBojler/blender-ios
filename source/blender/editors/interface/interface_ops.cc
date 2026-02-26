@@ -16,7 +16,8 @@
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h" /* for handling geometry nodes properties */
-#include "DNA_object_types.h"   /* for OB_DATA_SUPPORT_ID */
+#include "DNA_node_tree_interface_types.h"
+#include "DNA_object_types.h" /* for OB_DATA_SUPPORT_ID */
 #include "DNA_screen_types.h"
 
 #include "ANIM_keyframing.hh"
@@ -1040,6 +1041,83 @@ static void ui_context_selected_key_blocks(ID *owner_id_key, Vector<PointerRNA> 
   }
 }
 
+static void ui_context_matched_tree_interface_items(PointerRNA *ptr,
+                                                    PropertyRNA *prop,
+                                                    Vector<PointerRNA> *r_lb)
+{
+  bNodeTree *ntree = id_cast<bNodeTree *>(ptr->owner_id);
+  bNodeTreeInterfaceItem *active_item = static_cast<bNodeTreeInterfaceItem *>(ptr->data);
+  if (!active_item) {
+    return;
+  }
+
+  const char *prop_id = RNA_property_identifier(prop);
+  const bool is_generic_prop = STR_ELEM(
+      prop_id, "socket_type", "description", "optional_label", "hide_value", "hide_in_modifier");
+  ntree->tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
+    if (active_item->item_type != item.item_type) {
+      return true;
+    }
+    bool is_matched = false;
+    switch (eNodeTreeInterfaceItemType(item.item_type)) {
+      case NODE_INTERFACE_SOCKET: {
+        bNodeTreeInterfaceSocket &sock = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
+        if ((sock.flag & NODE_INTERFACE_SOCKET_SELECT) == 0) {
+          break;
+        }
+        /* Switch logic based on the property being edited. */
+        if (is_generic_prop) {
+          is_matched = true;
+          if (sock.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE) {
+            /* Disallow changing socket type for panel toggle. */
+            is_matched = !STREQ(prop_id, "socket_type");
+          }
+        }
+        else if (STREQ(prop_id, "structure_type")) {
+          const eNodeSocketDatatype type = sock.socket_typeinfo()->type;
+          const nodes::StructureType setting_structure_type = nodes::StructureType(
+              RNA_property_enum_get(ptr, prop));
+          switch (setting_structure_type) {
+            case nodes::StructureType::Single:
+            case nodes::StructureType::List:
+              is_matched = true;
+              break;
+            case nodes::StructureType::Field:
+              is_matched = nodes::socket_type_supports_fields(type);
+              break;
+            case nodes::StructureType::Grid:
+              is_matched = nodes::socket_type_supports_grids(type);
+              break;
+            case nodes::StructureType::Dynamic:
+              is_matched = nodes::socket_type_supports_fields(type) ||
+                           nodes::socket_type_supports_grids(type);
+              break;
+          }
+        }
+        else if (STREQ(prop_id, "attribute_domain") && sock.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
+          is_matched = nodes::socket_type_supports_attributes(sock.socket_typeinfo()->type);
+        }
+        else {
+          /* Other properties only support batch setting for selected items of the same type. */
+          bNodeTreeInterfaceSocket *active_sock = reinterpret_cast<bNodeTreeInterfaceSocket *>(
+              active_item);
+          is_matched = STREQ(sock.socket_type, active_sock->socket_type);
+        }
+        break;
+      }
+      case NODE_INTERFACE_PANEL: {
+        bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
+        is_matched = panel.flag & NODE_INTERFACE_PANEL_SELECT;
+        break;
+      }
+    }
+    if (is_matched) {
+      r_lb->append(RNA_pointer_create_discrete(&ntree->id, RNA_NodeTreeInterfaceItem, &item));
+    }
+    return true;
+  });
+}
+
 bool context_copy_to_selected_list(bContext *C,
                                    PointerRNA *ptr,
                                    PropertyRNA *prop,
@@ -1249,77 +1327,7 @@ bool context_copy_to_selected_list(bContext *C,
     *r_path = path;
   }
   else if (RNA_struct_is_a(ptr->type, RNA_NodeTreeInterfaceItem)) {
-    bNodeTree *ntree = id_cast<bNodeTree *>(ptr->owner_id);
-    bNodeTreeInterfaceItem *active_item = static_cast<bNodeTreeInterfaceItem *>(ptr->data);
-    if (!active_item) {
-      return false;
-    }
-    bNodeTreeInterfaceSocket *active_sock = nullptr;
-    if (active_item->item_type == NODE_INTERFACE_SOCKET) {
-      active_sock = reinterpret_cast<bNodeTreeInterfaceSocket *>(active_item);
-    }
-
-    const char *prop_id = RNA_property_identifier(prop);
-    const bool is_generic_prop = STR_ELEM(
-        prop_id, "socket_type", "description", "optional_label", "hide_value", "hide_in_modifier");
-    const bool is_structure_type = STREQ(prop_id, "structure_type");
-    const int new_structure_type = is_structure_type ? RNA_property_enum_get(ptr, prop) : 0;
-    ntree->tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
-      if (active_item->item_type != item.item_type) {
-        return true;
-      }
-      bool can_edit = false;
-      switch (eNodeTreeInterfaceItemType(item.item_type)) {
-        case NODE_INTERFACE_SOCKET: {
-          bNodeTreeInterfaceSocket &sock = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
-          if ((sock.flag & NODE_INTERFACE_SOCKET_SELECT) == 0) {
-            break;
-          }
-          if (is_generic_prop) {
-            can_edit = true;
-            if (sock.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE) {
-              can_edit = !STR_ELEM(prop_id, "socket_type");
-            }
-          }
-          else if (is_structure_type) {
-            const eNodeSocketDatatype type = sock.socket_typeinfo()->type;
-            const bool support_field = nodes::socket_type_supports_fields(type);
-            const bool support_grid = nodes::socket_type_supports_grids(type);
-            const bool support_dynamic = support_field || support_grid;
-            if (new_structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_GRID) {
-              can_edit = support_grid;
-            }
-            else if (new_structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD) {
-              can_edit = support_field;
-            }
-            else if (new_structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC) {
-              can_edit = support_dynamic;
-            }
-            else {
-              can_edit = true;
-            }
-          }
-          else if (STREQ(prop_id, "attribute_domain") && sock.flag & NODE_INTERFACE_SOCKET_OUTPUT)
-          {
-            const eNodeSocketDatatype type = sock.socket_typeinfo()->type;
-            can_edit = nodes::socket_type_supports_fields(type) && type != SOCK_MENU;
-          }
-          else {
-            can_edit = STREQ(sock.socket_type, active_sock->socket_type);
-          }
-          break;
-        }
-        case NODE_INTERFACE_PANEL: {
-          bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
-          can_edit = panel.flag & NODE_INTERFACE_PANEL_SELECT;
-          break;
-        }
-      }
-      if (can_edit) {
-        r_lb->append(RNA_pointer_create_discrete(&ntree->id, RNA_NodeTreeInterfaceItem, &item));
-      }
-      return true;
-    });
+    ui_context_matched_tree_interface_items(ptr, prop, r_lb);
   }
   else if (RNA_struct_is_a(ptr->type, RNA_AssetMetaData)) {
     /* Remap from #AssetRepresentation to #AssetMetaData. */
