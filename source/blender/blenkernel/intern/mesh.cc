@@ -362,7 +362,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     /* No need to store data in 5.0 data format, because it uses #CustomData at runtime anyway. */
     attribute_storage_blend_write_prepare(
         mesh->attribute_storage.wrap(),
-        false,
+        !is_undo,
         [&](const AttrDomain domain) { return mesh->attributes().domain_size(domain); },
         attribute_data);
     CustomData_blend_write_prepare(

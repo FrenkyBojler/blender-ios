@@ -767,6 +767,9 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
       array_dna.data = array_data.data;
       array_dna.sharing_info = array_data.sharing_info.get();
       array_dna.size = array_data.size;
+      if (attr.storage_type() == bke::AttrStorageType::Single) {
+        array_dna.is_single = 1;
+      }
       return &array_dna;
     };
 
@@ -782,9 +785,7 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
         const int domain_size = get_domain_size(attr.domain());
         auto &array_data = write_data.scope.construct<Attribute::ArrayData>(
             Attribute::ArrayData::from_value(value, domain_size));
-
         attribute_dna.data = create_dna_array(array_data);
-        static_cast<AttributeArray *>(attribute_dna.data)->is_single = true;
       }
       else {
         attribute_dna.storage_type = int8_t(AttrStorageType::Single);
