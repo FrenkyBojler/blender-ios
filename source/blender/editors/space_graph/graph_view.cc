@@ -655,6 +655,16 @@ static wmOperatorStatus graphview_fcurves_isolate_exec(bContext *C, wmOperator *
   return OPERATOR_FINISHED;
 }
 
+static bool graph_isolate_poll(bContext *C)
+{
+  if (ED_operator_graphedit_active(C)) {
+    SpaceGraph *sipo = CTX_wm_space_graph(C);
+    /* Operator is not supported yet in driver editor. */
+    return sipo->mode != SIPO_MODE_DRIVERS;
+  }
+  return false;
+}
+
 void GRAPH_OT_isolate(wmOperatorType *ot)
 {
   /* identifiers */
@@ -664,7 +674,7 @@ void GRAPH_OT_isolate(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = graphview_fcurves_isolate_exec;
-  ot->poll = ED_operator_graphedit_active;
+  ot->poll = graph_isolate_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
