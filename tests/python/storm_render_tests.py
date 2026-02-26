@@ -31,6 +31,7 @@ BLOCKLIST_HYDRA = [
     "image.*_float.*.blend",
     # Differences between devices/drivers causing this to fail
     "image.blend",
+    "normal_map_transform.blend",
     # VDB rendering is incorrect on Metal
     "overlapping_octrees.blend",
     # No number of sample support, so will not converge to gray as expected
@@ -41,6 +42,8 @@ BLOCKLIST_USD = [
     # Corrupted output around borders
     "image.*_half.*.blend",
     "image.*_float.*.blend",
+    # Differences between devices/drivers causing this to fail
+    "normal_map_transform.blend",
     # Nondeterministic exporting of lights in the scene
     "light_tree_node_subtended_angle.blend",
     # VDB rendering is incorrect on Metal
@@ -226,19 +229,21 @@ def main():
             blocklist += BLOCKLIST_VULKAN_HYDRA
         else:
             blocklist += BLOCKLIST_VULKAN_USD
-        gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
-        if gpu_vendor == "NVIDIA":
-            blocklist += BLOCKLIST_VULKAN_NVIDIA
-        elif gpu_vendor == "AMD":
-            blocklist += BLOCKLIST_VULKAN_AMD
-        elif gpu_vendor == "INTEL" and sys.platform == "linux":
-            blocklist += BLOCKLIST_VULKAN_INTEL_LINUX
+        if os.getenv("BLENDER_TEST_IGNORE_VENDOR_BLOCKLIST") is None:
+            gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
+            if gpu_vendor == "NVIDIA":
+                blocklist += BLOCKLIST_VULKAN_NVIDIA
+            elif gpu_vendor == "AMD":
+                blocklist += BLOCKLIST_VULKAN_AMD
+            elif gpu_vendor == "INTEL" and sys.platform == "linux":
+                blocklist += BLOCKLIST_VULKAN_INTEL_LINUX
     else:
-        gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
-        if gpu_vendor == "AMD":
-            blocklist += BLOCKLIST_AMD
-        elif gpu_vendor == "INTEL" and sys.platform == "linux":
-            blocklist += BLOCKLIST_OPENGL_INTEL_LINUX
+        if os.getenv("BLENDER_TEST_IGNORE_VENDOR_BLOCKLIST") is None:
+            gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
+            if gpu_vendor == "AMD":
+                blocklist += BLOCKLIST_AMD
+            elif gpu_vendor == "INTEL" and sys.platform == "linux":
+                blocklist += BLOCKLIST_OPENGL_INTEL_LINUX
 
     if args.export_method == 'HYDRA':
         report = StormReport(
