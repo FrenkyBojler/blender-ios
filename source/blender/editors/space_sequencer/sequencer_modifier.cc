@@ -6,17 +6,25 @@
  * \ingroup spseq
  */
 
+#include "AS_asset_representation.hh"
+
 #include "BLI_listbase.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
 
 #include "DEG_depsgraph.hh"
 
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 
+#include "ED_asset_import.hh"
+#include "ED_asset_menu_utils.hh"
 #include "ED_sequencer.hh"
 
 #include "WM_api.hh"
@@ -95,6 +103,110 @@ void SEQUENCER_OT_strip_modifier_add(wmOperatorType *ot)
   RNA_def_enum_funcs(prop, filter_modifiers_by_sequence_type_itemf);
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SEQUENCE);
   ot->prop = prop;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Add compositor modifier node group Operator
+ * \{ */
+
+static bNodeTree *get_asset_or_local_node_group(const bContext &C,
+                                                PointerRNA &ptr,
+                                                ReportList *reports)
+{
+  Main &bmain = *CTX_data_main(&C);
+  if (bNodeTree *group = reinterpret_cast<bNodeTree *>(
+          WM_operator_properties_id_lookup_from_name_or_session_uid(&bmain, &ptr, ID_NT)))
+  {
+    return group;
+  }
+
+  const asset_system::AssetRepresentation *asset =
+      asset::operator_asset_reference_props_get_asset_from_all_library(C, ptr, reports);
+  if (!asset) {
+    return nullptr;
+  }
+  return reinterpret_cast<bNodeTree *>(asset::asset_local_id_ensure_imported(bmain, *asset));
+}
+
+static bNodeTree *get_node_group(const bContext &C, PointerRNA &ptr, ReportList *reports)
+{
+  bNodeTree *node_group = get_asset_or_local_node_group(C, ptr, reports);
+  if (!node_group) {
+    return nullptr;
+  }
+  if (node_group->type != NTREE_COMPOSIT) {
+    if (reports) {
+      BKE_report(reports, RPT_ERROR, "Asset is not a compositor node group");
+    }
+    return nullptr;
+  }
+  return node_group;
+}
+
+static wmOperatorStatus strip_modifier_add_asset_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Strip *strip = seq::select_active_get(scene);
+
+  if (!strip) {
+    return OPERATOR_CANCELLED;
+  }
+
+  bNodeTree *node_group = get_node_group(*C, *op->ptr, op->reports);
+  if (!node_group) {
+    return OPERATOR_CANCELLED;
+  }
+
+  SequencerCompositorModifierData *cmd = reinterpret_cast<SequencerCompositorModifierData *>(
+      seq::modifier_new(strip, nullptr, eSeqModifierType_Compositor));
+  if (!cmd) {
+    return OPERATOR_CANCELLED;
+  }
+  cmd->node_group = node_group;
+  id_us_plus(&node_group->id);
+  STRNCPY_UTF8(cmd->modifier.name, DATA_(node_group->id.name + 2));
+  seq::modifier_unique_name(strip, &cmd->modifier);
+  seq::modifier_persistent_uid_init(*strip, cmd->modifier);
+
+  seq::compositor_nodes_update_interface(*scene, *cmd);
+
+  seq::relations_invalidate_cache(scene, strip);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+
+  return OPERATOR_FINISHED;
+}
+
+static std::string strip_modifier_add_asset_get_description(bContext *C,
+                                                            wmOperatorType * /*ot*/,
+                                                            PointerRNA *ptr)
+{
+  const asset_system::AssetRepresentation *asset =
+      asset::operator_asset_reference_props_get_asset_from_all_library(*C, *ptr, nullptr);
+  if (!asset) {
+    return "";
+  }
+  if (!asset->get_metadata().description) {
+    return "";
+  }
+  return TIP_(asset->get_metadata().description);
+}
+
+void SEQUENCER_OT_strip_modifier_add_node_group(wmOperatorType *ot)
+{
+  ot->name = "Add Strip Modifier";
+  ot->description = "Add a modifier to the strip";
+  ot->idname = "SEQUENCER_OT_strip_modifier_add_node_group";
+
+  ot->exec = strip_modifier_add_asset_exec;
+  ot->poll = sequencer_strip_editable_poll;
+  ot->get_description = strip_modifier_add_asset_get_description;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  asset::operator_asset_reference_props_register(*ot->srna);
+  WM_operator_properties_id_lookup(ot, false);
 }
 
 /** \} */

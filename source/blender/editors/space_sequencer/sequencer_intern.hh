@@ -327,6 +327,7 @@ void sequencer_buttons_register(ARegionType *art);
 /* sequencer_modifiers.c */
 
 void SEQUENCER_OT_strip_modifier_add(wmOperatorType *ot);
+void SEQUENCER_OT_strip_modifier_add_node_group(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_remove(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_move(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_copy(wmOperatorType *ot);
