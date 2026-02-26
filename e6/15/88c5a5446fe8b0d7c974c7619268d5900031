@@ -1,3 +1,4 @@
 Referenced by issue #46229, File browser window closes after hitting esc after render
 Referenced by commit e4fef1dd9bc628140ec542bb18ecbbee2fc0346d, Tests: UI: Add more UI tests for stacked full-screens (cont.)
 Referenced by pull request #154799, Fix #154313: Use-after-free of stale editor data with "Load UI" disabled
+Referenced by commit d7392d7d625710ee0f6684de6420e7c3621d9fe4, Fix #154313: Use-after-free of stale editor data with "Load UI" disabled
