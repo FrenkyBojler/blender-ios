@@ -2957,8 +2957,8 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
   AbstractTreeViewItem *active_item = nullptr;
   iter_fn([&](AbstractTreeViewItem &item) {
     if (active_item == nullptr) {
-      /* Active item might be filtered out due to search string, set the first visible element active
-       * in that case. */
+      /* Active item might be filtered out due to search string, set the first visible element
+       * active in that case. */
       active_item = &item;
     }
     if (item.is_active() && item.is_filtered_visible()) {

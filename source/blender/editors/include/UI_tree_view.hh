@@ -174,8 +174,8 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * height. */
   void set_default_rows(int default_rows);
   /**
-    * Scroll the view so the active item is visible.
-    */
+   * Scroll the view so the active item is visible.
+   */
   void scroll_active_into_view(bool scroll_to_active);
 
  protected:
@@ -295,6 +295,7 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
 
   int count_parents() const;
   AbstractTreeViewItem *get_parent();
+  /* Return first child view item. */
   AbstractTreeViewItem *get_child();
 
   void on_filter() override;
