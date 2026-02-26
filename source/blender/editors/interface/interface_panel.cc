@@ -1316,8 +1316,13 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
   /* Panel header backdrops for non sub-panels. */
   if (!is_subpanel && has_header) {
     float panel_headercolor[4];
-    theme::get_color_4fv(panel_matches_search_filter(panel) ? TH_MATCH : TH_PANEL_HEADER,
-                         panel_headercolor);
+    if (panel_matches_search_filter(panel)) {
+      /* NOTE: This should be replaced by global theme color. */
+      theme::get_color_type_4fv(TH_MATCH, SPACE_PROPERTIES, panel_headercolor);
+    }
+    else {
+      theme::get_color_4fv(TH_PANEL_HEADER, panel_headercolor);
+    }
     draw_roundbox_corner_set(is_open ? CNR_TOP_RIGHT | CNR_TOP_LEFT : CNR_ALL);
 
     /* Change the width a little bit to line up with the sides. */
