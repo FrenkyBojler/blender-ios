@@ -2733,7 +2733,7 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
   static const EnumPropertyItem viewfinder_modes[] = {
       {XR_VIEWFINDER_MODE_LIVE,
        "LIVE",
-       ICON_RECORD_ON,
+       ICON_RESTRICT_RENDER_OFF,
        "Live Mode",
        "Capture a shot using the viewfinder"},
       {XR_VIEWFINDER_MODE_PLAYBACK,
@@ -2760,7 +2760,7 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
        nullptr},
       {XR_VIEWFINDER_ACTION_PB_PREVIEW,
        "PREVIEW",
-       ICON_CAMERA_DATA,
+       ICON_OUTLINER_OB_CAMERA,
        "Preview selected shot in space"},
       {XR_VIEWFINDER_ACTION_PB_DELETE, "DELETE", ICON_TRASH, "Delete selected shot"},
       {0, nullptr, 0, nullptr, nullptr}};
