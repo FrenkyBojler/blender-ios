@@ -12,7 +12,6 @@
 
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
-#include "BLI_uistate.hh"
 
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
@@ -23,6 +22,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
+#include "BKE_uistate.hh"
 
 #include "BLT_translation.hh"
 

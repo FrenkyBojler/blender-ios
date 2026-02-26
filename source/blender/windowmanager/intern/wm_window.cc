@@ -44,7 +44,6 @@
 #include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
-#include "BLI_uistate.hh"
 
 #include "BLT_translation.hh"
 
@@ -56,6 +55,7 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
+#include "BKE_uistate.hh"
 #include "BKE_wm_runtime.hh"
 #include "BKE_workspace.hh"
 

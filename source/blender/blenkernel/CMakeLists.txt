@@ -60,6 +60,7 @@ set(SRC
   intern/bake_items_paths.cc
   intern/bake_items_serialize.cc
   intern/bake_items_socket.cc
+  intern/BKE_uistate.cc
   intern/blender.cc
   intern/blender_cli_command.cc
   intern/blender_copybuffer.cc
@@ -518,6 +519,7 @@ set(SRC
   BKE_texture.h
   BKE_tracking.hh
   BKE_type_conversions.hh
+  BKE_uistate.hh
   BKE_undo_system.hh
   BKE_unit.hh
   BKE_uvproject.h

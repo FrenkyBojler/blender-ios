@@ -28,7 +28,6 @@
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_timer.h"
-#include "BLI_uistate.hh"
 #include "BLI_utildefines.h"
 
 #include "BLO_undofile.hh"
@@ -50,6 +49,7 @@
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_sound.hh"
+#include "BKE_uistate.hh"
 #include "BKE_vfont.hh"
 
 #include "BKE_addon.h"
