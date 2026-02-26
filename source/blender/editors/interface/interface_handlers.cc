@@ -4821,7 +4821,7 @@ static int ui_do_but_BUT(bContext *C, Button *but, HandleButtonData *data, const
     }
   }
 #endif
-  if (but->drawflag & BUT_LINK) {
+  if (but->sub_style == ButtonSubStyle::Link) {
     if (!data->changed_cursor) {
       WM_cursor_set(data->window, WM_CURSOR_HAND_POINT);
       data->changed_cursor = true;

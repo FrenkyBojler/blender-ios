@@ -130,6 +130,9 @@ struct WidgetStateInfo {
   /** Copy of #Button.emboss. */
   EmbossType emboss;
 
+  /** Copy of #Button::sub_style. */
+  ButtonSubStyle sub_style;
+
   /** Show that holding the button opens a menu. */
   bool has_hold_action : 1;
   /** The button is in text input mode. */
@@ -2234,7 +2237,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   }
 #endif
   /* Draw text underline when the link button is active. */
-  if (but->drawflag & BUT_LINK && but->active) {
+  if (but->sub_style == ButtonSubStyle::Link && but->active) {
     float4 color;
     rgba_uchar_to_float(color, wcol->text);
     int width = BLF_width(fstyle->uifont_id, drawstr, drawstr_left_len);
@@ -2674,7 +2677,7 @@ static void widget_state(WidgetType *wt, const WidgetStateInfo *state, EmbossTyp
   }
 
   wt->wcol = *(wt->wcol_theme);
-  if (state->but_drawflag & BUT_LINK) {
+  if (state->sub_style == ButtonSubStyle::Link) {
     theme::get_color_4ubv(TH_LINK, wt->wcol.text);
     theme::get_color_4ubv(TH_LINK, wt->wcol.text_sel);
   }
@@ -5159,7 +5162,7 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
 #else
         wt = widget_type(UI_WTYPE_EXEC);
 #endif
-        if (but->drawflag & BUT_LINK) {
+        if (but->sub_style == ButtonSubStyle::Link) {
           wt->draw = nullptr;
           wt->custom = nullptr;
         }
@@ -5356,6 +5359,7 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
   state.but_flag = but->flag;
   state.but_drawflag = but->drawflag;
   state.emboss = but->emboss;
+  state.sub_style = but->sub_style;
 
   /* Override selected flag for drawing. */
   if (but->flag & UI_SELECT_DRAW) {

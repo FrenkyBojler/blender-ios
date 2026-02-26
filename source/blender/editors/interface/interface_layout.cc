@@ -3237,7 +3237,8 @@ void Layout::link(const StringRef url, const StringRef name, int icon)
   Button *button = uiItemFullO_ptr_ex(
       layout, ot, name, icon, wm::OpCallContext::InvokeDefault, eUI_Item_Flag(0), &opptr);
 
-  button->drawflag |= BUT_LINK;
+  button->sub_style = ButtonSubStyle::Link;
+
   if (this->alignment() == LayoutAlign::Right) {
     button->drawflag &= ~BUT_TEXT_LEFT;
     button->drawflag |= BUT_TEXT_RIGHT;

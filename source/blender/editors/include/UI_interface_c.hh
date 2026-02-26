@@ -385,9 +385,6 @@ enum {
 
   /** Draw icon inverted to indicate a special state. */
   BUT_ICON_INVERT = 1 << 27,
-
-  /** Draw the button as a link. */
-  BUT_LINK = 1 << 28,
 };
 
 enum class ButPointerType : uint8_t {
@@ -468,6 +465,13 @@ enum class ButtonType : int8_t {
   Decorator,
   /** An item a view (see #ui::AbstractViewItem). */
   ViewItem,
+};
+
+enum class ButtonSubStyle : int8_t {
+  /** Default button style. */
+  Default,
+  /** Link Style for #ButtonType::But buttons. */
+  Link,
 };
 
 inline char but_pointer_bit_max_index(ButPointerType pointer_type)

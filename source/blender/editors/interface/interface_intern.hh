@@ -196,6 +196,7 @@ struct Button : NonMovable {
   char flag2 = 0;
 
   ButtonType type = ButtonType(0);
+  ButtonSubStyle sub_style = ButtonSubStyle::Default;
   ButPointerType pointype = ButPointerType::None;
   bool bit = 0;
   /* 0-31 bit index. */
