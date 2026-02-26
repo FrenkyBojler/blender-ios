@@ -20,6 +20,7 @@
 #include "BLI_string.h"
 #include "BLI_sys_types.h"
 
+#include "BKE_animsys.h"
 #include "BKE_idprop.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
@@ -36,7 +37,7 @@ namespace blender {
 
 // static CLG_LogRef LOG = {"blend.doversion"};
 
-static void version_geometry_nodes_properties(NodesModifierData &nmd)
+static void version_geometry_nodes_properties(Main &bmain, Object &object, NodesModifierData &nmd)
 {
   const IDProperty *old_props = nmd.settings.properties;
   if (!old_props) {
@@ -56,8 +57,9 @@ static void version_geometry_nodes_properties(NodesModifierData &nmd)
   IDProperty *inputs = bke::idprop::create_group("inputs").release();
   IDP_AddToGroup(system_props, inputs);
 
+  const std::string inputs_path_prefix = fmt::format("modifiers[\"{}\"]", nmd.modifier.name);
   for (const bNodeTreeInterfaceSocket *input : ntree.interface_inputs()) {
-    const StringRef identifier = input->identifier;
+    const StringRefNull identifier = input->identifier;
     IDProperty *old_value_prop = IDP_GetPropertyFromGroup(old_props, identifier);
     if (!old_value_prop) {
       continue;
@@ -84,17 +86,45 @@ static void version_geometry_nodes_properties(NodesModifierData &nmd)
     STRNCPY(new_value_prop->name, "value");
     IDP_AddToGroup(group, new_value_prop);
 
-    const bool use_attribute = [&]() {
-      const IDProperty *use_attribute = IDP_GetPropertyFromGroup(old_props,
-                                                                 identifier + "_use_attribute");
-      if (!use_attribute) {
-        return false;
+    const std::string old_value_path = fmt::format("[\"{}\"]", identifier);
+    const std::string new_value_path = fmt::format(".properties.inputs.{}.value", identifier);
+    BKE_animdata_fix_paths_rename_all_ex(&bmain,
+                                         &object.id,
+                                         inputs_path_prefix.c_str(),
+                                         old_value_path.c_str(),
+                                         new_value_path.c_str(),
+                                         0,
+                                         0,
+                                         false,
+                                         false);
+
+    if (IDOverrideLibrary *override_library = object.id.override_library) {
+      for (IDOverrideLibraryProperty &prop : override_library->properties) {
+        const StringRef path = prop.rna_path;
+        const int64_t i = path.find(inputs_path_prefix);
+        if (i == StringRef::not_found) {
+          continue;
+        }
+        if (path.drop_known_prefix(inputs_path_prefix) != old_value_path) {
+          continue;
+        }
+        MEM_delete(prop.rna_path);
+        prop.rna_path = BLI_sprintfN("%s%s", inputs_path_prefix.c_str(), new_value_path.c_str());
       }
-      if (use_attribute->type == IDP_INT) {
-        return bool(IDP_int_get(use_attribute));
+    }
+
+    bool use_attribute = false;
+    if (const IDProperty *use_attribute_prop = IDP_GetPropertyFromGroup(
+            old_props, identifier + "_use_attribute"))
+    {
+      /* This property changed to an enum property and animation is not versioned. */
+      if (use_attribute_prop->type == IDP_INT) {
+        use_attribute = bool(IDP_int_get(use_attribute_prop));
       }
-      return bool(IDP_bool_get(use_attribute));
-    }();
+      else {
+        use_attribute = bool(IDP_bool_get(use_attribute_prop));
+      }
+    }
 
     const auto input_type = use_attribute ? nodes::GeometryNodesInputType::Attribute :
                                             nodes::GeometryNodesInputType::Value;
@@ -175,7 +205,8 @@ void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
   for (Object &object : bmain->objects) {
     for (ModifierData &md : object.modifiers) {
       if (md.type == eModifierType_Nodes) {
-        version_geometry_nodes_properties(reinterpret_cast<NodesModifierData &>(md));
+        version_geometry_nodes_properties(
+            *bmain, object, reinterpret_cast<NodesModifierData &>(md));
       }
     }
   }

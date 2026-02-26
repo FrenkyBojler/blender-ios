@@ -2034,17 +2034,18 @@ static int rna_NodesModifierWarning_type_get(PointerRNA *ptr)
   return int(warning->type);
 }
 
-static bool rna_NodesModifier_is_input_visible(NodesModifierData *nmd,
+static bool rna_NodesModifier_is_input_visible(PointerRNA nmd_ptr,
                                                ReportList *reports,
                                                const char *identifier)
 {
+  const Object &object = *id_cast<Object *>(nmd_ptr.owner_id);
+  const NodesModifierData *nmd = nmd_ptr.data_as<NodesModifierData>();
   bNodeTree *ntree = nmd->node_group;
-
   if (ntree == nullptr) {
     return false;
   }
 
-  nmd->runtime->usage_cache.ensure(*nmd);
+  nmd->runtime->usage_cache.ensure(object, *nmd);
   const auto &input_usages = nmd->runtime->usage_cache.inputs;
 
   for (bNodeTreeInterfaceSocket *socket : ntree->interface_inputs()) {
@@ -2057,17 +2058,18 @@ static bool rna_NodesModifier_is_input_visible(NodesModifierData *nmd,
   return false;
 }
 
-static bool rna_NodesModifier_is_input_used(NodesModifierData *nmd,
+static bool rna_NodesModifier_is_input_used(PointerRNA nmd_ptr,
                                             ReportList *reports,
                                             const char *identifier)
 {
+  const Object &object = *id_cast<Object *>(nmd_ptr.owner_id);
+  const NodesModifierData *nmd = nmd_ptr.data_as<NodesModifierData>();
   bNodeTree *ntree = nmd->node_group;
-
   if (ntree == nullptr) {
     return false;
   }
 
-  nmd->runtime->usage_cache.ensure(*nmd);
+  nmd->runtime->usage_cache.ensure(object, *nmd);
   const auto &input_usages = nmd->runtime->usage_cache.inputs;
 
   for (bNodeTreeInterfaceSocket *socket : ntree->interface_inputs()) {
@@ -8223,7 +8225,7 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   RNA_def_property_override_clear_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
 
   func = RNA_def_function(srna, "is_input_visible", "rna_NodesModifier_is_input_visible");
-  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  RNA_def_function_flag(func, FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
   RNA_def_function_ui_description(
       func, "Check whether an input is currently visible based on modifier settings.");
   parm = RNA_def_string(func, "identifier", "Identifier", 0, "", "The identifier of the input");
@@ -8232,7 +8234,7 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "is_input_used", "rna_NodesModifier_is_input_used");
-  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  RNA_def_function_flag(func, FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
   RNA_def_function_ui_description(
       func, "Check whether an input is currently used based on modifier settings.");
   parm = RNA_def_string(func, "identifier", "Identifier", 0, "", "The identifier of the input");

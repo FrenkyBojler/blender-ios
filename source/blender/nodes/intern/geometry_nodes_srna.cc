@@ -160,14 +160,16 @@ static StructRNA *create_outputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDa
     StructRNA *output_srna = RNA_def_struct_ptr(
         &RNA_blender_rna_get(), identifier.c_str(), RNA_PropertyGroup);
     BLI_assert(!RNA_struct_in_public_namespace(output_srna));
-    RNA_def_string(output_srna,
-                   "attribute_name",
-                   default_value.is_empty() ? nullptr : default_value.c_str(),
-                   0,
-                   name.c_str(),
-                   description.c_str());
+    PropertyRNA *prop = RNA_def_string(output_srna,
+                                       "attribute_name",
+                                       default_value.is_empty() ? nullptr : default_value.c_str(),
+                                       0,
+                                       name.c_str(),
+                                       description.c_str());
     RNA_def_struct_path_func_runtime(output_srna, rna_NodesModifierPropertyOutput_path);
     RNA_def_pointer_runtime(srna, identifier.c_str(), output_srna, name.c_str(), "");
+    RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
+    RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   }
 
   return srna;
