@@ -441,27 +441,9 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
 
                     return {'FINISHED'}
 
-                # Preview the selected capture in space TODO: Remove in favor of gizmos
+                # Preview the selected capture in space toggle
                 case 'PREVIEW':
-                    current_capture = captures[scene.vr_captures_selected]
-
-                    preview_cone_name = "CapturePreviewCone"
-
-                    # Create a dummy cone (or fetch it if it already exists) to represent the captured point
-                    if preview_cone_name in bpy.data.objects:
-                        cone = bpy.data.objects[preview_cone_name]
-                    else:
-                        # Create a new cone
-                        bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=0.25, depth=0.5, end_fill_type='NOTHING')
-                        cone = bpy.context.active_object
-                        cone.name = preview_cone_name
-
-                    cone.location = current_capture.location
-                    cone.rotation_quaternion = current_capture.orientation
-                    cone.rotation_mode = 'QUATERNION'
-
-                    # Scale on local Z to represent focal length, 50mm being 1.0 scale
-                    cone.scale.z = current_capture.lens_focal / 50
+                    xr_viewfinder.playback_capture_preview_enabled = not xr_viewfinder.playback_capture_preview_enabled
 
                     return {'FINISHED'}
 

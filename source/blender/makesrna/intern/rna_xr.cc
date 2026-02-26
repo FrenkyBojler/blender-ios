@@ -1176,6 +1176,30 @@ static void rna_XrSessionState_viewfinder_capture_dof_distance_set(PointerRNA *p
 #  endif
 }
 
+static bool rna_XrSessionState_viewfinder_playback_capture_preview_enabled_get(PointerRNA *ptr)
+{
+  bool value;
+#  ifdef WITH_XR_OPENXR
+  const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewfinder_playback_capture_preview_enabled_get(xr, &value);
+#  else
+  UNUSED_VARS(ptr);
+  value = 1.0f;
+#  endif
+  return value;
+}
+
+static void rna_XrSessionState_viewfinder_playback_capture_preview_enabled_set(PointerRNA *ptr,
+                                                                               bool value)
+{
+#  ifdef WITH_XR_OPENXR
+  wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewfinder_playback_capture_preview_enabled_set(xr, value);
+#  else
+  UNUSED_VARS(ptr, value);
+#  endif
+}
+
 static int rna_XrSessionState_viewfinder_active_mode_get(PointerRNA *ptr)
 {
   int value;
@@ -2821,8 +2845,9 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop,
                                  "rna_XrSessionState_viewfinder_capture_dof_enabled_get",
                                  "rna_XrSessionState_viewfinder_capture_dof_enabled_set");
-  RNA_def_property_ui_text(
-      prop, "Viewfinder Capture Depth of Field", "Toggle viewfinder capture depth of field");
+  RNA_def_property_ui_text(prop,
+                           "Viewfinder Capture Depth of Field Enabled",
+                           "Enable viewfinder capture depth of field");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "capture_lens_focal", PROP_FLOAT, PROP_NONE);
@@ -2854,6 +2879,18 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
                                "rna_XrSessionState_viewfinder_capture_dof_fstop_set",
                                nullptr);
   RNA_def_property_ui_text(prop, "Viewfinder Capture F-Stop", "Viewfinder capture f-stop ratio");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "playback_capture_preview_enabled", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_boolean_funcs(
+      prop,
+      "rna_XrSessionState_viewfinder_playback_capture_preview_enabled_get",
+      "rna_XrSessionState_viewfinder_playback_capture_preview_enabled_set");
+  RNA_def_property_ui_text(
+      prop,
+      "Viewfinder Playback Capture Preview Enabled",
+      "Enable preview of captured shots in space in Viewfinder Playback mode");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "active_mode", PROP_ENUM, PROP_NONE);

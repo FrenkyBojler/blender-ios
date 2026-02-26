@@ -303,7 +303,9 @@ static void wm_xr_viewfinder_update_transform_smoothed(wmXrSessionState *state,
 static void wm_xr_viewfinder_draw_capture_camera(const bContext *C, wmXrSessionState *state)
 {
   /* NOTE: This duplicates logic from the Python add-on VIEW3D_GGT_vr_captures gizmo, not ideal. */
-  if (state->viewfinder.active_mode != XR_VIEWFINDER_MODE_PLAYBACK) {
+  if (state->viewfinder.active_mode != XR_VIEWFINDER_MODE_PLAYBACK ||
+      state->viewfinder.playback_capture_preview_enabled == false)
+  {
     return;
   }
 
@@ -792,8 +794,26 @@ static ui::Block *viewfinder_action_enum_ui_block(const bContext *C, const wmXrS
   return block;
 }
 
-static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
-                                                     const wmXrSessionState *state)
+static ui::Block *viewfinder_settings_left_label_ui_block(const bContext *C,
+                                                           const wmXrSessionState *state)
+{
+
+  ui::Block *block = nullptr;
+  ui::Layout &layout = uiblock_prepare(&block, C, ui::EmbossType::Emboss);
+
+  if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
+    std::string settings_left_side_label = fmt::format(
+        "Preview Shots: {}", state->viewfinder.playback_capture_preview_enabled ? "on" : "off");
+    layout.label(settings_left_side_label.c_str(), ICON_NONE);
+  }
+
+  ui::block_end_xr(C, block);
+
+  return block;
+}
+
+static ui::Block *viewfinder_settings_right_label_ui_block(const bContext *C,
+                                                           const wmXrSessionState *state)
 {
 
   ui::Block *block = nullptr;
@@ -808,12 +828,12 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
   const int captures_len = RNA_property_collection_length(&scene_ptr, captures_len_prop);
   const int captures_idx = RNA_property_int_get(&scene_ptr, captures_idx_prop);
 
-  std::string settings_label;
+  std::string settings_right_side_label;
   switch (state->viewfinder.active_mode) {
     /* \xe2\x80\x87 corresponds to a Unicode Figure Space (BLI_STR_UTF8_FIGURE_SPACE). */
     case XR_VIEWFINDER_MODE_LIVE:
       // TODO: Clean-up by moving DoF status to another label on the left side of the viewfinder.
-      settings_label = fmt::format(
+      settings_right_side_label = fmt::format(
           "{:\xe2\x80\x87>3}mm   DoF: {}   d: {:\xe2\x80\x87<4.1f}   f {:\xe2\x80\x87<3.1f}",
           state->viewfinder.capture_lens_focal,
           state->viewfinder.capture_dof_enabled ? "on " : "off",
@@ -821,11 +841,12 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
           state->viewfinder.capture_dof_fstop);
       break;
     case XR_VIEWFINDER_MODE_PLAYBACK:
+      // TODO: Could add the capture camera option (Focal, DoF, f-stop)
       /* Current shot indicator (`current shot idx / all shots`). */
       if (captures_len > 0) {
         const int width = captures_len >= 10 ? 2 : 1;
         const char *pad_prefix = captures_len < 10 ? "     " : "";
-        settings_label = fmt::format("{}{:\xe2\x80\x87>{}} / {:\xe2\x80\x87>{}}",
+        settings_right_side_label = fmt::format("{}{:\xe2\x80\x87>{}} / {:\xe2\x80\x87>{}}",
                                      pad_prefix,
                                      captures_idx + 1,
                                      width,
@@ -838,7 +859,7 @@ static ui::Block *viewfinder_settings_label_ui_block(const bContext *C,
       return nullptr;
   }
 
-  layout.label(settings_label.c_str(), ICON_NONE);
+  layout.label(settings_right_side_label.c_str(), ICON_NONE);
 
   ui::block_end_xr(C, block);
 
@@ -927,7 +948,8 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   const float mode_tabs_x = viewfinder_rect.xmin - 0.15f;
   const float mode_tabs_y = viewfinder_rect.ymax + 0.45f;
 
-  const float settings_label_x = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
+  const float settings_left_label_x = viewfinder_rect.xmin + 0.05f;
+  const float settings_right_label_x = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
                                      viewfinder_rect.xmax - 3.7f :
                                      viewfinder_rect.xmax - 0.8f;
   const float settings_label_y = viewfinder_rect.ymax + 0.47f;
@@ -944,7 +966,8 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   const float captures_label_y = 0.1f;
 
   draw_block(viewfinder_mode_tabs_ui_block, mode_tabs_x, mode_tabs_y);
-  draw_block(viewfinder_settings_label_ui_block, settings_label_x, settings_label_y);
+  draw_block(viewfinder_settings_left_label_ui_block, settings_left_label_x, settings_label_y);
+  draw_block(viewfinder_settings_right_label_ui_block, settings_right_label_x, settings_label_y);
   draw_block(viewfinder_action_label_ui_block, action_label_x, action_label_y);
   draw_block(viewfinder_action_enum_ui_block, action_enum_x, action_enum_y);
   draw_block(viewfinder_missing_captures_label_ui_block, captures_label_x, captures_label_y);
@@ -1195,7 +1218,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   GPU_depth_test(GPU_DEPTH_NONE);
   GPU_matrix_pop();
 
-  /* Playback capture camera (drawn in world space). */
+  /* Selected playback capture camera (drawn in world space). */
   wm_xr_viewfinder_draw_capture_camera(C, state);
 }
 
