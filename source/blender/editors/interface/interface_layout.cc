@@ -4109,9 +4109,8 @@ int LayoutItemPanelHeader::resolve_dynamic_height()
   const int yoffs = Layout::resolve_dynamic_height();
   Panel *panel = this->root_panel();
   LayoutPanelHeader &header = panel->runtime->layout_panels.headers[this->index];
-  const float offset = style_get_dpi()->panelspace;
-  header.start_y = float(y_) - offset;
-  header.end_y = float(y_ + h_) - offset;
+  header.start_y = float(y_);
+  header.end_y = float(y_ + h_);
   return yoffs;
 }
 
@@ -4133,9 +4132,8 @@ int LayoutItemPanelBody::resolve_dynamic_height()
   const int yoffs = Layout::resolve_dynamic_height();
   Panel *panel = this->root_panel();
   LayoutPanelBody &body = panel->runtime->layout_panels.bodies[this->index];
-  const float offset = style_get_dpi()->panelspace;
-  body.start_y = float(y_ - space_) - offset;
-  body.end_y = float(y_ + h_ + space_) - offset;
+  body.start_y = float(y_ - space_);
+  body.end_y = float(y_ + h_ + space_);
   return yoffs;
 }
 
