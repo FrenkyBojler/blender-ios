@@ -140,11 +140,12 @@ float point_i_to_local_t(float i, float4 p1, float4 p2)
     float r1 = P1.w;
     float r2 = P2.w;
     float a = r2 - r1;
+    float l = length(P1.xyz - P2.xyz);
+
     if (abs(a) < 0.001f * l) {
       return (i / point_density - i_start) / i_delta;
     }
 
-    float l = length(P1.xyz - P2.xyz);
     if (!drw_view_is_perspective()) {
       float b = 2.0f * log(a / r1 + 1.0f) / i_delta;
       float exp_b = exp(b);
@@ -181,11 +182,12 @@ float local_t_to_point_i(float t, float4 p1, float4 p2)
     float r1 = P1.w;
     float r2 = P2.w;
     float a = r2 - r1;
+    float l = length(P1.xyz - P2.xyz);
+
     if (abs(a) < 0.001f * l) {
       return (t * i_delta + i_start) * point_density;
     }
 
-    float l = length(P1.xyz - P2.xyz);
     if (!drw_view_is_perspective()) {
       float b = 2.0f * log(a / r1 + 1.0f) / i_delta;
       float exp_b = exp(b);
