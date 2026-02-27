@@ -16,3 +16,4 @@ Referenced by issue #151032, Leftover system properties from addon can cause iss
 Referenced by issue #151345, Custom Properties get lost on load with Library Overridden Linked Armatures.
 Referenced by issue #152381, Blender 5.0 duplicates custom properties
 Referenced by issue #128555, Custom properties on Objects does not show the Enum Item Names
+Referenced by issue #154935, Crash when deleting object via the outliner
