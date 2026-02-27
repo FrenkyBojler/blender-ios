@@ -3474,10 +3474,7 @@ static wmOperatorStatus animchannels_select_filter_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  PointerRNA ptr = RNA_pointer_create_discrete(
-      id_cast<ID *>(CTX_wm_screen(C)), RNA_DopeSheet, ac.ads);
-  ui::textbutton_try_activate_over_redraws(
-      C, region_channels, ptr, RNA_struct_find_property(&ptr, "filter_text"));
+  ui::textbutton_try_activate_over_redraws(C, region_channels, ac.ads, "filter_text");
 
   return OPERATOR_FINISHED;
 }

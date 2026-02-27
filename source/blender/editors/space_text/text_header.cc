@@ -90,10 +90,8 @@ static wmOperatorStatus text_text_search_exec(bContext *C, wmOperator * /*op*/)
       ui::panel_category_active_set(region, "Text");
       ED_region_tag_redraw(region);
     }
-    PointerRNA ptr = RNA_pointer_create_discrete(
-        id_cast<ID *>(CTX_wm_screen(C)), RNA_SpaceTextEditor, st);
-    ui::textbutton_try_activate_over_redraws(
-        C, region, ptr, RNA_struct_find_property(&ptr, "find_text"));
+
+    ui::textbutton_try_activate_over_redraws(C, region, st, "find_text");
   }
   return OPERATOR_FINISHED;
 }

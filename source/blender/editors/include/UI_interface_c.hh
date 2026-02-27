@@ -3035,7 +3035,10 @@ void region_views_clear_search_highlight(const ARegion *region);
  * button is not found this will add a timer that will retry to open the button other 4 times. If
  * any other button in the screen is active, it will be deactivated.
  */
-bool textbutton_try_activate_over_redraws(
-    bContext *C, ARegion *region, PointerRNA &ptr, PropertyRNA *prop, wmEvent *event=nullptr);
+bool textbutton_try_activate_over_redraws(bContext *C,
+                                          ARegion *region,
+                                          const void *data,
+                                          StringRef propname,
+                                          const wmEvent *event = nullptr);
 }  // namespace ui
 }  // namespace blender

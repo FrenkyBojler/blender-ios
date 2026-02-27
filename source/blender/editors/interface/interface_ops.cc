@@ -2510,9 +2510,8 @@ static wmOperatorStatus ui_list_start_filter_invoke(bContext *C,
   if (ui_list_unhide_filter_options(list)) {
     ED_region_tag_redraw(region);
   }
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_UIList, list);
-  ui::textbutton_try_activate_over_redraws(
-      C, region, ptr, RNA_struct_find_property(&ptr, "filter_name"));
+
+  ui::textbutton_try_activate_over_redraws(C, region, list, "filter_name");
 
   return OPERATOR_FINISHED;
 }
