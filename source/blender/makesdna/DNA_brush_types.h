@@ -132,8 +132,9 @@ struct BrushGpencilSettings {
   float simplify_px = 0;
   /** Threshold distance for converting curve types. */
   float conversion_threshold = 0;
-  /* Curve type. */
-  int curve_type = 0;
+  /* #CurveType Used for converting. */
+  int8_t curve_type = 0;
+  char _pad4[3] = {};
 
   /* optional link of material to replace default in context */
   /** Material. */
