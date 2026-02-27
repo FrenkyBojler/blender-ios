@@ -31,14 +31,44 @@ namespace blender::nodes::node_geo_rasterize_points {
 
 NODE_STORAGE_FUNCS(NodeGeometryRasterizePoints)
 
+static EnumPropertyItem kernel_type_items[] = {
+    {int(geometry::KernelType::Constant),
+     "CONSTANT",
+     0,
+     N_("Constant"),
+     N_("Constant weight in each voxel")},
+    {int(geometry::KernelType::Linear),
+     "LINEAR",
+     0,
+     N_("Linear"),
+     N_("Linear falloff over the voxel range")},
+    {int(geometry::KernelType::QuadraticBSpline),
+     "QUADRATIC",
+     0,
+     N_("Quadratic B-Spline"),
+     N_("Quadratic b-spline kernel over 1.5 voxels")},
+    {int(geometry::KernelType::CubicBSpline),
+     "CONSTANT",
+     0,
+     N_("Cubic B-Spline"),
+     N_("Cube b-spline kernel over 2 voxels")},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
   b.add_input<decl::Geometry>("Points");
-  b.add_input<decl::Vector>("Position").implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Float>("Voxel Size").default_value(0.3f).min(0.01f).subtype(PROP_DISTANCE);
+  b.add_input<decl::Menu>("Kernel Type")
+      .static_items(kernel_type_items)
+      .default_value(geometry::KernelType::Linear)
+      .optional_label()
+      .description("Kernel function for computing weights at each voxel");
+
+  b.add_input<decl::Vector>("Position").implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
 
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
@@ -54,7 +84,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       auto &input_decl = b.add_input(socket_type, name, identifier);
       input_decl.socket_name_ptr(
           &tree->id, *RasterizePointsItemsAccessor::item_srna, &item, "name");
-      input_decl.supports_field();
+      input_decl.field_on_all();
 
       eNodeSocketDatatype output_socket_type = socket_type;
       /* Special case: affine transform attribute is converted to vector grid. */
@@ -140,7 +170,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   const NodeGeometryRasterizePoints &storage = node_storage(params.node());
-  const geometry::KernelType kernel_type = geometry::KernelType::Linear;
 
   const float voxel_size = params.extract_input<float>("Voxel Size");
   const double determinant = std::pow(double(voxel_size), 3.0);
@@ -150,6 +179,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   /* Same transform is used for the intermediate point data grid and all output grids. */
   const float4x4 grid_transform = math::from_scale<float4x4>(float3(voxel_size));
+  const geometry::KernelType kernel_type = params.get_input<geometry::KernelType>("Kernel Type");
 
   const GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
   const Field<float3> position_field = params.extract_input<Field<float3>>("Position");
