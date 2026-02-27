@@ -2334,13 +2334,20 @@ static void widget_draw_multiline_text(const uiFontStyle *fstyle,
   params.align = multiline_button->text_align;
 
   float ymax = rect->ymax;
-  rcti rect2 = *rect;
+  rcti line_rect = *rect;
   for (const StringRef line : multiline_button->wrap_cache->wrapped_lines) {
-    rect2.ymax = ymax;
+    line_rect.ymax = ymax;
     ymax -= line_height;
-    rect2.ymin = ymax;
-    fontstyle_draw_ex(
-        fstyle, &rect2, line.begin(), line.size(), wcol->text, &params, nullptr, nullptr, nullptr);
+    line_rect.ymin = ymax;
+    fontstyle_draw_ex(fstyle,
+                      &line_rect,
+                      line.begin(),
+                      line.size(),
+                      wcol->text,
+                      &params,
+                      nullptr,
+                      nullptr,
+                      nullptr);
   }
 }
 
