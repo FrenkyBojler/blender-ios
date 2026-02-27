@@ -50,7 +50,7 @@ class NODE_OT_align_selected(Operator, NWBase):
         if not selection:
             self.report({'WARNING'}, "No nodes to arrange in selection.")
             return {'CANCELLED'}
-        
+
         active_loc = None
         if nodes.active in selection:
             active_loc = copy(nodes.active.location_absolute)  # make a copy, not a reference
