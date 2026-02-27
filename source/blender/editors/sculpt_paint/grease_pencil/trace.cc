@@ -95,7 +95,6 @@ struct TraceJob {
   /* Frame number where the output frame is generated. */
   int frame_target;
   float threshold;
-  float radius;
   TurnPolicy turnpolicy;
   TraceMode mode;
   /* Custom source frame, allows overriding the default scene frame. */
@@ -203,10 +202,6 @@ static bke::CurvesGeometry grease_pencil_trace_image(TraceJob &trace_job, const 
   /* Only create fills since that is what the trace algorithm is also doing. Users can change the
    * appearance however they please afterwards. */
   attributes.add<bool>("hide_stroke", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
-
-  /* Uniform radius for all trace curves. */
-  attributes.add<float>(
-      "radius", bke::AttrDomain::Point, bke::AttributeInitValue(trace_job.radius));
 
   return trace_curves;
 }
@@ -392,7 +387,6 @@ static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *
   job->was_ob_created = false;
 
   job->threshold = RNA_float_get(op->ptr, "threshold");
-  job->radius = RNA_float_get(op->ptr, "radius");
   job->turnpolicy = TurnPolicy(RNA_enum_get(op->ptr, "turnpolicy"));
   job->mode = TraceMode(RNA_enum_get(op->ptr, "mode"));
   job->frame_number = RNA_int_get(op->ptr, "frame_number");
@@ -504,16 +498,6 @@ static void GREASE_PENCIL_OT_trace_image(wmOperatorType *ot)
                           "Target Object",
                           "Target Grease Pencil");
   RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
-
-  RNA_def_float_distance(ot->srna,
-                         "radius",
-                         0.01f,
-                         0.001f,
-                         1.0f,
-                         "Radius",
-                         "Radius of curve control points",
-                         0.001,
-                         1.0f);
 
   RNA_def_float_factor(ot->srna,
                        "threshold",
