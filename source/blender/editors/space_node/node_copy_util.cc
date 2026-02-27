@@ -858,13 +858,25 @@ using UniqueLinkSet = Set<std::pair<MutableNodeAndSocket, MutableNodeAndSocket>>
 /* Create a constant value or field input proxy node, using the source socket value. */
 static bNode *create_proxy_input_node(const bNodeTreeInterfaceSocket &io_socket,
                                       const bNodeTree &src_tree,
-                                      const bNodeSocket *src_socket,
+                                      const bNodeSocket &src_socket,
                                       bContext &C,
                                       bNodeTree &dst_tree,
                                       Vector<AnimationBasePathChange> &anim_basepaths)
 {
   const eNodeSocketDatatype socket_type = bke::node_socket_type_find(io_socket.socket_type)->type;
   const NodeDefaultInputType default_input_type = NodeDefaultInputType(io_socket.default_input);
+  /* TODO Inferred structure type isn't fully working yet, use declared structure type for now. */
+  // const nodes::StructureType structure_type = nodes::StructureType(
+  //     src_socket.runtime->inferred_structure_type);
+  const nodes::StructureType structure_type = io_socket.structure_type ==
+                                                      NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO ?
+                                                  nodes::StructureType::Dynamic :
+                                                  nodes::StructureType(io_socket.structure_type);
+
+  if (ELEM(structure_type, nodes::StructureType::Grid, nodes::StructureType::List)) {
+    /* Grids and Lists don't have input value nodes or implicit field inputs. */
+    return nullptr;
+  }
 
   if (bNode *proxy_node = bke::node_interface::create_proxy_implicit_input_node(
           socket_type, default_input_type, C, dst_tree))
@@ -872,13 +884,12 @@ static bNode *create_proxy_input_node(const bNodeTreeInterfaceSocket &io_socket,
     return proxy_node;
   }
 
-  if (!src_socket || !src_socket->default_value) {
+  if (!src_socket.default_value) {
     /* No proxy needed if the socket type does not have input values. */
     return nullptr;
   }
-
   if (bNode *proxy_node = bke::node_interface::create_proxy_const_input_node(
-          socket_type, src_tree, *src_socket, C, dst_tree, anim_basepaths))
+          socket_type, src_tree, src_socket, C, dst_tree, anim_basepaths))
   {
     return proxy_node;
   }
@@ -945,8 +956,10 @@ static void replace_interface_socket(
   if (incoming_links.is_empty()) {
     /* The socket has no incoming links. A proxy is needed if the socket value needs to be stored
      * or if the socket uses a default input field. */
-    proxy_node = create_proxy_input_node(
-        io_socket, src_tree, src_socket, C, dst_tree, anim_basepaths);
+    if (src_socket) {
+      proxy_node = create_proxy_input_node(
+          io_socket, src_tree, *src_socket, C, dst_tree, anim_basepaths);
+    }
   }
   else {
     /* A proxy is needed if any internal internal or external connection has a different type
