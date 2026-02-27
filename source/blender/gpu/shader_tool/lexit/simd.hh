@@ -79,7 +79,7 @@ template<int Size> struct u8_base {
 #  if defined(USE_NEON)
       vst1q_u8(dst + i * 16, lanes[i]);
 #  elif defined(USE_SSE4_2)
-      _mm_storeu_si128((__m128i_u *)dst + i, lanes[i]);
+      _mm_storeu_si128((__m128i *)dst + i, lanes[i]);
 #  endif
     }
   }
@@ -622,7 +622,7 @@ template<int Size> struct u16_base {
 #  if defined(USE_NEON)
       vst1q_u16(dst + i * 8, lanes[i]);
 #  elif defined(USE_SSE4_2)
-      _mm_storeu_si128((__m128i_u *)dst + i, lanes[i]);
+      _mm_storeu_si128((__m128i *)dst + i, lanes[i]);
 #  endif
     }
   }
@@ -714,7 +714,7 @@ template<int Size> struct u32_base {
 #  if defined(USE_NEON)
       vst1q_u32(dst + i * 4, lanes[i]);
 #  elif defined(USE_SSE4_2)
-      _mm_storeu_si128((__m128i_u *)dst + i, lanes[i]);
+      _mm_storeu_si128((__m128i *)dst + i, lanes[i]);
 #  endif
     }
   }
@@ -726,7 +726,7 @@ template<int Size> struct u32_base {
 #  if defined(USE_NEON)
       vst1q_u32(dst + i * 4, lanes[i]);
 #  elif defined(USE_SSE4_2)
-      _mm_store_si128((__m128i_u *)dst + i, lanes[i]);
+      _mm_store_si128((__m128i *)dst + i, lanes[i]);
 #  endif
     }
   }
