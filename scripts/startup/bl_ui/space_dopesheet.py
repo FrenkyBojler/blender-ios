@@ -1071,6 +1071,7 @@ class DOPESHEET_PT_dopesheet_overlay(Panel):
     bl_region_type = 'HEADER'
     bl_parent_id = "DOPESHEET_PT_overlay"
     bl_label = "Dope Sheet Overlays"
+    bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
         st = context.space_data
