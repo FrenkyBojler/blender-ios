@@ -406,7 +406,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
   /** Adds a label item that will display text and/or icon in the layout. */
   void label(StringRef name, int icon);
 
-  void label_multiline(StringRefNull label, FontStyleAlign align = UI_STYLE_TEXT_LEFT);
+  void label_multiline(StringRefNull label, int icon, FontStyleAlign align = UI_STYLE_TEXT_LEFT);
 
   /**
    * Adds a menu item, which is a button that when active will display a menu.

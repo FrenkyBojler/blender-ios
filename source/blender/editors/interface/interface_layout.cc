@@ -3246,12 +3246,36 @@ void Layout::label(const StringRef name, int icon)
   uiItem_simple(this, name, icon);
 }
 
-void Layout::label_multiline(StringRefNull text, FontStyleAlign align)
+void Layout::label_multiline(StringRefNull text, int icon, FontStyleAlign align)
 {
   block_layout_set_current(this->block(), this);
-  Button *but = uiDefBut(
-      this->block(), ButtonType::MultilineLabel, text, 0, 0, 100, UI_UNIT_Y, nullptr, 0, 0, "");
-  static_cast<ButtonMultilineLabel *>(but)->text_align = align;
+  Button *button = nullptr;
+  if (icon) {
+    button = uiDefIconTextBut(this->block(),
+                              ButtonType::MultilineLabel,
+                              icon,
+                              text,
+                              0,
+                              0,
+                              100,
+                              UI_UNIT_Y,
+                              nullptr,
+                              std::nullopt);
+  }
+  else {
+    button = uiDefBut(this->block(),
+                      ButtonType::MultilineLabel,
+                      text,
+                      0,
+                      0,
+                      100,
+                      UI_UNIT_Y,
+                      nullptr,
+                      0,
+                      0,
+                      std::nullopt);
+  }
+  static_cast<ButtonMultilineLabel *>(button)->text_align = align;
 }
 
 PropertySplitWrapper uiItemPropertySplitWrapperCreate(Layout *parent_layout)
@@ -4099,7 +4123,7 @@ void LayoutItemPanelHeader::resolve_impl()
   const int2 size = item->size();
   y_ -= size.y;
   ui_item_position(item, x_, y_, w_, size.y);
-  this->index = panel->runtime->layout_panels.bodies.size();
+  this->index = panel->runtime->layout_panels.headers.size();
   panel->runtime->layout_panels.headers.append(
       {float(y_), float(y_ + h_), open_prop_owner, open_prop_name});
 }
@@ -4132,8 +4156,9 @@ int LayoutItemPanelBody::resolve_dynamic_height()
   const int yoffs = Layout::resolve_dynamic_height();
   Panel *panel = this->root_panel();
   LayoutPanelBody &body = panel->runtime->layout_panels.bodies[this->index];
-  body.start_y = float(y_ - space_);
-  body.end_y = float(y_ + h_ + space_);
+  const int space = LayoutInternal::layout_space_get(this->parent_);
+  body.start_y = float(y_ - space);
+  body.end_y = float(y_ + h_ + space);
   return yoffs;
 }
 
@@ -5489,7 +5514,15 @@ void Layout::resolve()
 static Vector<StringRef> multiline_label_wrap_lines(ButtonMultilineLabel *button)
 {
   const uiFontStyle &fstyle = style_get()->widget;
-  const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&button->rect)), 0);
+  int icon_width_space = 0;
+  if (button->flag & UI_HAS_ICON) {
+    icon_width_space = UI_UNIT_X * (ui_text_pad_none.icon + ui_text_pad_none.text);
+    // const float icon_size = ICON_DEFAULT_HEIGHT * UI_SCALE_FAC;
+    // const float icon_padding = 2 * UI_SCALE_FAC;
+    // const float text_padding = UI_TEXT_MARGIN_X * U.widget_unit;
+    // icon_width_space = std::round(icon_size + icon_padding + text_padding);
+  }
+  const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&button->rect)) - icon_width_space, 0);
   StringRef text = button->str;
   text = text.trim();
   if (button->wrap_cache) {

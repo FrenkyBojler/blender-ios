@@ -2320,6 +2320,29 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   }
 }
 
+static void widget_draw_multiline_text(const uiFontStyle *fstyle,
+                                       const uiWidgetColors *wcol,
+                                       Button *but,
+                                       rcti *rect)
+{
+  /* Draw text. */
+  ButtonMultilineLabel *multiline_button = static_cast<ButtonMultilineLabel *>(but);
+  const float line_height = BLI_rcti_size_y(rect) / float(multiline_button->last_total_lines);
+
+  FontStyleDrawParams params{};
+  params.align = multiline_button->text_align;
+
+  float ymax = rect->ymax;
+  rcti rect2 = *rect;
+  for (const StringRef line : multiline_button->wrap_cache->wrapped_lines) {
+    rect2.ymax = ymax;
+    ymax -= line_height;
+    rect2.ymin = ymax;
+    fontstyle_draw_ex(
+        fstyle, &rect2, line.begin(), line.size(), wcol->text, &params, nullptr, nullptr, nullptr);
+  }
+}
+
 static void widget_draw_extra_icons(const uiWidgetColors *wcol,
                                     Button *but,
                                     rcti *rect,
@@ -2573,29 +2596,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
     widget_draw_text(fstyle, wcol, but, rect);
   }
   else {
-    /* Draw text. */
-    ButtonMultilineLabel *multiline_button = static_cast<ButtonMultilineLabel *>(but);
-    const float line_height = BLI_rcti_size_y(rect) / float(multiline_button->last_total_lines);
-
-    FontStyleDrawParams params{};
-    params.align = multiline_button->text_align;
-
-    float ymax = rect->ymax;
-    rcti rect2 = *rect;
-    for (const StringRef line : multiline_button->wrap_cache->wrapped_lines) {
-      rect2.ymax = ymax;
-      ymax -= line_height;
-      rect2.ymin = ymax;
-      fontstyle_draw_ex(fstyle,
-                        &rect2,
-                        line.begin(),
-                        line.size(),
-                        wcol->text,
-                        &params,
-                        nullptr,
-                        nullptr,
-                        nullptr);
-    }
+    widget_draw_multiline_text(fstyle, wcol, but, rect);
   }
   button_text_password_hide(password_str, but, true);
 
@@ -5079,6 +5080,7 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
       case ButtonType::Color:
         wt = widget_type(UI_WTYPE_SWATCH);
         break;
+      case ButtonType::MultilineLabel:
       case ButtonType::Label:
         widget_draw_text_icon(&style->widget, &tui->wcol_menu_back, but, rect);
         break;
@@ -5102,8 +5104,6 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
      * #EmbossType::NoneOrStatus will blend state colors if they apply. */
     switch (but->type) {
       case ButtonType::MultilineLabel:
-        wt = widget_type(UI_WTYPE_LABEL);
-        break;
       case ButtonType::Label:
       case ButtonType::Text:
         wt = widget_type(UI_WTYPE_ICON_LABEL);
@@ -5138,6 +5138,7 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
 
     switch (but->type) {
       case ButtonType::Label:
+      case ButtonType::MultilineLabel:
         wt = widget_type(UI_WTYPE_LABEL);
         if (but->drawflag & BUT_BOX_ITEM) {
           wt->wcol_theme = &tui->wcol_box;
@@ -5187,9 +5188,6 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
 
       case ButtonType::ListRow:
         wt = widget_type(UI_WTYPE_LISTITEM);
-        break;
-      case ButtonType::MultilineLabel:
-        wt = widget_type(UI_WTYPE_LABEL);
         break;
       case ButtonType::Text:
         wt = widget_type(UI_WTYPE_NAME);
