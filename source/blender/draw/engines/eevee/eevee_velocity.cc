@@ -176,7 +176,7 @@ bool VelocityModule::step_object_sync(const ObjectHandle &ob_handle,
      * What this means is that there will be incorrect motion vectors for these objects.
      * We live with that until we have a correct way of identifying new objects. */
     VelocityObjectData &vel = velocity_map.lookup_or_add_default(
-        ObjectKey(ob_handle.ref, instance_index++, 0));
+        ObjectKey(ob_handle.ref, instance_index++, ob_handle.sub_key));
     vel.obj.ofs[step_] = object_steps_usage[step_]++;
     vel.obj.resource_id = resource_index.resource_index();
     vel.id = velocity_id;
