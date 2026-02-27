@@ -1411,7 +1411,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(&object, mat_id + 1);
 
       Array<float> radii_lengths;
-      const bool is_line = false;
+      const bool is_line = gp_style->mode == GP_MATERIAL_MODE_LINE;
 
       if (gp_style->placement_mode == GP_MATERIAL_PLACEMENT_RADIUS && !is_line) {
         radii_lengths = get_radii_lengths(lengths, radii, points);
