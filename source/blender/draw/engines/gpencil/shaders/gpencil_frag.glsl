@@ -140,7 +140,7 @@ float point_i_to_local_t(float i, float4 p1, float4 p2)
     float r1 = P1.w;
     float r2 = P2.w;
     float a = r2 - r1;
-    if (abs(a) < 0.001f) {
+    if (abs(a) < 0.001f * l) {
       return (i / point_density - i_start) / i_delta;
     }
 
@@ -181,7 +181,7 @@ float local_t_to_point_i(float t, float4 p1, float4 p2)
     float r1 = P1.w;
     float r2 = P2.w;
     float a = r2 - r1;
-    if (abs(a) < 0.001f) {
+    if (abs(a) < 0.001f * l) {
       return (t * i_delta + i_start) * point_density;
     }
 

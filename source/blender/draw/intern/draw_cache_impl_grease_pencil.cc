@@ -1169,7 +1169,7 @@ static float segment_radius_length(const float l, const float r1, const float r2
 {
   const float a = r2 - r1;
   /* If the two radii are close to being the same, calculate as if they were. */
-  if (abs(a) < 0.001f) {
+  if (abs(a) < 0.001f * l) {
     return l / r1;
   }
 
