@@ -442,7 +442,7 @@ void AbstractTreeView::scroll_active_into_view(bool scroll_to_active)
               *scroll_value_ = index;
               return;
             }
-            if ((index > (*scroll_value_ + *visible_row_count - 1))) {
+            if (index > (*scroll_value_ + *visible_row_count - 1)) {
               *scroll_value_ = std::max(0, index - *visible_row_count + 1);
               return;
             }
