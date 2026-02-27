@@ -143,11 +143,16 @@ class VIEW3D_PT_vr_location_scouting_captures(VRButtonsPanel, Panel):
         row.template_list("VIEW3D_UL_vr_captures", "", scene, "vr_captures", scene, "vr_captures_selected", rows=3)
 
         col = row.column(align=True)
-        col.operator("view3d.vr_location_scouting_capture_remove", icon='REMOVE', text="")
+        col.operator("view3d.vr_location_scouting_browse_captures", icon='TRIA_UP', text="").backward = True
+        col.operator("view3d.vr_location_scouting_browse_captures", icon='TRIA_DOWN', text="").backward = False
+
         col.separator()
 
-        col.operator("view3d.vr_location_scouting_add_camera_from_capture", icon='OUTLINER_OB_CAMERA', text="")
-        col.operator("view3d.vr_location_scouting_active_camera_to_capture", icon='HIDE_OFF', text="")
+        col.operator("view3d.vr_location_scouting_remove_capture", icon='REMOVE', text="")
+
+        row = layout.row(align=True)
+        row.operator("view3d.vr_location_scouting_add_camera_from_capture", icon='OUTLINER_OB_CAMERA', text="Add Camera")
+        row.operator("view3d.vr_location_scouting_active_camera_to_capture", icon='HIDE_OFF', text="Set Active")
 
 
 class VIEW3D_PT_vr_location_scouting_viewfinder(VRButtonsPanel, Panel):

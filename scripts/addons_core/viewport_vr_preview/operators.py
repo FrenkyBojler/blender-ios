@@ -573,7 +573,7 @@ class VIEW3D_OT_vr_location_scouting_add_camera_from_capture(Operator):
 
 class VIEW3D_OT_vr_location_scouting_active_camera_to_capture(Operator):
     bl_idname = "view3d.vr_location_scouting_active_camera_to_capture"
-    bl_label = "Set Camera settings from VR Capture"
+    bl_label = "Set Camera from VR Capture"
     bl_description = "Set the active Scene Camera settings from the selected VR Capture"
     bl_options = {'UNDO', 'REGISTER'}
 
@@ -600,10 +600,10 @@ class VIEW3D_OT_vr_location_scouting_active_camera_to_capture(Operator):
         return {'FINISHED'}
 
 
-class VIEW3D_OT_vr_location_scouting_capture_remove(Operator):
-    bl_idname = "view3d.vr_location_scouting_capture_remove"
-    bl_label = "Remove VR Capture"
-    bl_description = "Delete the selected VR capture from the list"
+class VIEW3D_OT_vr_location_scouting_remove_capture(Operator):
+    bl_idname = "view3d.vr_location_scouting_remove_capture"
+    bl_label = "Remove Location Scouting Capture"
+    bl_description = "Remove the selected Location Scouting Capture"
     bl_options = {'UNDO', 'REGISTER'}
 
     def execute(self, context):
@@ -615,6 +615,30 @@ class VIEW3D_OT_vr_location_scouting_capture_remove(Operator):
 
         if scene.vr_captures_selected > 0:
             scene.vr_captures_selected -= 1
+
+        viewfinder_camera_gizmo_view3d_redraw_workaround()
+
+        return {'FINISHED'}
+
+
+class VIEW3D_OT_vr_location_scouting_browse_captures(Operator):
+    bl_idname = "view3d.vr_location_scouting_browse_captures"
+    bl_label = "Browse Location Scouting Captures"
+    bl_description = "Browse Location Scouting Captures forward or backward"
+
+    backward: bpy.props.BoolProperty(
+        name="Browse Backward",
+        default=False,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+    def execute(self, context):
+        scene = context.scene
+
+        incr = -1 if self.backward else 1
+        scene.vr_captures_selected = (scene.vr_captures_selected + incr) % len(scene.vr_captures)
+
+        viewfinder_camera_gizmo_view3d_redraw_workaround()
 
         return {'FINISHED'}
 
@@ -951,7 +975,8 @@ classes = (
     VIEW3D_OT_vr_location_scouting_viewfinder_apply_action,
     VIEW3D_OT_vr_location_scouting_add_camera_from_capture,
     VIEW3D_OT_vr_location_scouting_active_camera_to_capture,
-    VIEW3D_OT_vr_location_scouting_capture_remove,
+    VIEW3D_OT_vr_location_scouting_remove_capture,
+    VIEW3D_OT_vr_location_scouting_browse_captures,
     VIEW3D_OT_vr_location_scouting_viewfinder_cycle_mode,
     VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action,
 
