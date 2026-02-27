@@ -100,7 +100,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     for (Brush &brush : bmain->brushes) {
       if (brush.gpencil_settings != nullptr) {
         brush.gpencil_settings->curve_type = CURVE_TYPE_POLY;
-        brush.gpencil_settings->conversion_threshold = 0.001;
+        brush.gpencil_settings->conversion_threshold = 0.001f;
       }
     }
   }
