@@ -422,8 +422,12 @@ void AbstractTreeView::scroll_active_to_center()
       },
       AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered);
 
-  if ((active_item_index < *scroll_value_) || (active_item_index >= (*scroll_value_ + *visible_row_count))) {
-    *scroll_value_ = std::clamp(active_item_index - (*visible_row_count - 1) / 2, 0, (last_tot_items_ - *visible_row_count));
+  if ((active_item_index < *scroll_value_) ||
+      (active_item_index >= (*scroll_value_ + *visible_row_count)))
+  {
+    *scroll_value_ = std::clamp(active_item_index - (*visible_row_count - 1) / 2,
+                                0,
+                                (last_tot_items_ - *visible_row_count));
   }
 }
 
