@@ -504,24 +504,14 @@ static wmOperatorStatus mesh_customdata_face_sets_clear_exec(bContext *C,
                                                              wmOperator * /*op*/)
 {
   Object *object = ed::object::context_object(C);
-  if (!object || object->type != OB_MESH) {
-    return OPERATOR_CANCELLED;
-  }
-
   Mesh *mesh = id_cast<Mesh *>(object->data);
-  if (!ID_IS_EDITABLE(mesh) || ID_IS_OVERRIDE_LIBRARY(mesh)) {
-    return OPERATOR_CANCELLED;
-  }
 
   bool removed = false;
-
   if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-    /* Face sets are stored on the face domain as a 32-bit integer attribute. */
     removed = CustomData_free_layer_named(&em->bm->pdata, ".sculpt_face_set");
   }
   else {
-    bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-    removed = attributes.remove(".sculpt_face_set");
+    removed = mesh->attributes_for_write().remove(".sculpt_face_set");
   }
 
   if (!removed) {
