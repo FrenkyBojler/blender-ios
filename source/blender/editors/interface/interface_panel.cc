@@ -1562,7 +1562,6 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
                           int(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect);
 
   for (PanelCategoryDyn &pc_dyn : region->runtime->panels_category) {
-
     const rcti *rct = &pc_dyn.rect;
     if (rct->ymin > v2d->mask.ymax) {
       /* Scrolled outside the top of the view, check the next tab. */
