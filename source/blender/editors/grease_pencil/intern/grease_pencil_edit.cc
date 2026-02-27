@@ -5116,7 +5116,7 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
         /* Remove #hide_stroke attribute if all strokes are visible. */
         attributes.remove("hide_stroke");
       }
-      else if (!attributes.contains("radius")) {
+      else {
         /* If some strokes got unhidden, make sure that we create the radius attribute if it
          * doesn't exist already. */
         attributes.add<float>("radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.005f));
