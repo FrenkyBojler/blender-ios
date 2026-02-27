@@ -209,7 +209,7 @@ static float3 calc_normal(const Brush &brush, const StrokeCache &cache)
     case BRUSH_PROJECT_RAY_DIRECTION_VIEW_NORMAL:
       return -cache.view_normal_symm;
     case BRUSH_PROJECT_RAY_DIRECTION_PLANE_NORMAL:
-      return cache.sculpt_normal_symm;
+      return -cache.sculpt_normal_symm;
     default:
       BLI_assert_unreachable();
       return float3(0.0f);
