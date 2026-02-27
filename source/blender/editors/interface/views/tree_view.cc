@@ -438,7 +438,7 @@ void AbstractTreeView::scroll_active_into_view(bool scroll_to_active)
     foreach_item(
         [&, this](AbstractTreeViewItem &item) {
           if (item.is_active_) {
-            if ((index < *scroll_value_)) {
+            if (index < *scroll_value_) {
               *scroll_value_ = index;
               return;
             }
