@@ -3038,7 +3038,7 @@ void region_views_clear_search_highlight(const ARegion *region);
 bool textbutton_try_activate_over_redraws(bContext *C,
                                           ARegion *region,
                                           const void *data,
-                                          StringRef propname,
+                                          StringRefNull propname,
                                           const wmEvent *event = nullptr);
 }  // namespace ui
 }  // namespace blender

@@ -12576,7 +12576,7 @@ bool textbutton_activate_rna(const bContext *C,
 }
 
 bool textbutton_try_activate_over_redraws(
-    bContext *C, ARegion *region, const void *data, StringRef propname, const wmEvent *event)
+    bContext *C, ARegion *region, const void *data, StringRefNull propname, const wmEvent *event)
 {
   if (region->flag & RGN_FLAG_HIDDEN) {
     ED_region_toggle_hidden(const_cast<bContext *>(C), region);
@@ -12596,8 +12596,10 @@ bool textbutton_try_activate_over_redraws(
     region->runtime->auto_open_rna_button_timer = timer;
     return false;
   }
-  if (!event ||
-      !(event->type == TIMER && event->customdata == region->runtime->auto_open_rna_button_timer))
+  if (!event) {
+    return;
+  }
+  if (!(event->type == TIMER && event->customdata == region->runtime->auto_open_rna_button_timer))
   {
     return false;
   }
