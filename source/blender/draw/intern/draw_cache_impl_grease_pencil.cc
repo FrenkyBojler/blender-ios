@@ -1184,11 +1184,12 @@ static float segment_radius_length(const float l, const float r1, const float r2
   return 2.0f * log(E_i) / log(E);
 }
 
-static void get_radii_lengths(const Span<float> lengths,
-                              const VArray<float> &radii,
-                              const IndexRange &points,
-                              MutableSpan<float> radii_lengths)
+static Array<float> get_radii_lengths(const Span<float> lengths,
+                                      const VArray<float> &radii,
+                                      const IndexRange &points)
 {
+  Array<float> radii_lengths(lengths.size());
+
   float radii_length = 0.0f;
   for (const int i : lengths.index_range()) {
     const float l = lengths[i] - (i > 0 ? lengths[i - 1] : 0.0f);
@@ -1197,6 +1198,8 @@ static void get_radii_lengths(const Span<float> lengths,
     radii_length += segment_radius_length(l, r1, r2);
     radii_lengths[i] = radii_length;
   }
+
+  return radii_lengths;
 }
 
 static void grease_pencil_geom_batch_ensure(Object &object,
@@ -1407,11 +1410,11 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
       MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(&object, mat_id + 1);
 
-      Array<float> radii_lengths(lengths.size());
+      Array<float> radii_lengths;
       const bool is_line = false;
 
       if (gp_style->placement_mode == GP_MATERIAL_PLACEMENT_RADIUS && !is_line) {
-        get_radii_lengths(lengths, radii, points, radii_lengths);
+        radii_lengths = get_radii_lengths(lengths, radii, points);
       }
 
       auto get_u_stroke = [&](const int i) {
