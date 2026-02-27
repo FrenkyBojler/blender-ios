@@ -1387,8 +1387,12 @@ PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_ty
   if (need_roll_mapping_) {
     spline_ = std::make_unique<BezierSpline2f>();
     world_spline_ = std::make_unique<BezierSpline3f>();
-    debug_cursor_ = WM_paint_cursor_activate(
-        SPACE_TYPE_ANY, RGN_TYPE_ANY, paint_brush_cursor_poll, paint_draw_roll_debug, this);
+    /* Register the roll spline debug overlay only when the developer
+     * "Paint Debug" option is enabled (Preferences → Developer Extras). */
+    if (U.experimental.use_paint_debug) {
+      debug_cursor_ = WM_paint_cursor_activate(
+          SPACE_TYPE_ANY, RGN_TYPE_ANY, paint_brush_cursor_poll, paint_draw_roll_debug, this);
+    }
   }
 
   /* Check here if color sampling the main brush should do color conversion. This is done here
