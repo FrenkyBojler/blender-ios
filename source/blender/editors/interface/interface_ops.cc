@@ -1041,6 +1041,68 @@ static void ui_context_selected_key_blocks(ID *owner_id_key, Vector<PointerRNA> 
   }
 }
 
+static bool tree_interface_item_prop_matched(const bNodeTreeInterfaceItem &item,
+                                             const bNodeTreeInterfaceItem &active_item,
+                                             PointerRNA *ptr,
+                                             PropertyRNA *prop)
+{
+  if (active_item.item_type != item.item_type) {
+    return false;
+  }
+  const char *prop_id = RNA_property_identifier(prop);
+  const bool is_generic_prop = STR_ELEM(
+      prop_id, "socket_type", "description", "optional_label", "hide_value", "hide_in_modifier");
+
+  switch (eNodeTreeInterfaceItemType(item.item_type)) {
+    case NODE_INTERFACE_SOCKET: {
+      const bNodeTreeInterfaceSocket &sock = reinterpret_cast<const bNodeTreeInterfaceSocket &>(
+          item);
+      if ((sock.flag & NODE_INTERFACE_SOCKET_SELECT) == 0) {
+        return false;
+      }
+      /* Switch logic based on the property being edited. */
+      if (is_generic_prop) {
+        if (sock.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE) {
+          /* Disallow changing socket type for panel toggle. */
+          return !STREQ(prop_id, "socket_type");
+        }
+        return true;
+      }
+      if (STREQ(prop_id, "structure_type")) {
+        const eNodeSocketDatatype type = sock.socket_typeinfo()->type;
+        const int setting_structure_type = RNA_property_enum_get(ptr, prop);
+        switch (NodeSocketInterfaceStructureType(setting_structure_type)) {
+          case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO:
+          case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE:
+          case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_LIST:
+            return true;
+          case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD:
+            return nodes::socket_type_supports_fields(type);
+          case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_GRID:
+            return nodes::socket_type_supports_grids(type);
+          case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC:
+            return nodes::socket_type_supports_fields(type) ||
+                   nodes::socket_type_supports_grids(type);
+        }
+        return false;
+      }
+      if (STREQ(prop_id, "attribute_domain") && sock.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
+        return nodes::socket_type_supports_attributes(sock.socket_typeinfo()->type);
+      }
+      /* Other properties only support batch setting for selected items of the same type. */
+      const bNodeTreeInterfaceSocket *active_sock =
+          reinterpret_cast<const bNodeTreeInterfaceSocket *>(&active_item);
+      return sock.socket_typeinfo()->type == active_sock->socket_typeinfo()->type;
+    }
+    case NODE_INTERFACE_PANEL: {
+      const bNodeTreeInterfacePanel &panel = reinterpret_cast<const bNodeTreeInterfacePanel &>(
+          item);
+      return panel.flag & NODE_INTERFACE_PANEL_SELECT;
+    }
+  }
+  return false;
+}
+
 static void ui_context_matched_tree_interface_items(PointerRNA *ptr,
                                                     PropertyRNA *prop,
                                                     Vector<PointerRNA> *r_lb)
@@ -1050,68 +1112,8 @@ static void ui_context_matched_tree_interface_items(PointerRNA *ptr,
   if (!active_item) {
     return;
   }
-
-  const char *prop_id = RNA_property_identifier(prop);
-  const bool is_generic_prop = STR_ELEM(
-      prop_id, "socket_type", "description", "optional_label", "hide_value", "hide_in_modifier");
   ntree->tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
-    if (active_item->item_type != item.item_type) {
-      return true;
-    }
-    bool is_matched = false;
-    switch (eNodeTreeInterfaceItemType(item.item_type)) {
-      case NODE_INTERFACE_SOCKET: {
-        bNodeTreeInterfaceSocket &sock = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
-        if ((sock.flag & NODE_INTERFACE_SOCKET_SELECT) == 0) {
-          break;
-        }
-        /* Switch logic based on the property being edited. */
-        if (is_generic_prop) {
-          is_matched = true;
-          if (sock.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE) {
-            /* Disallow changing socket type for panel toggle. */
-            is_matched = !STREQ(prop_id, "socket_type");
-          }
-        }
-        else if (STREQ(prop_id, "structure_type")) {
-          const eNodeSocketDatatype type = sock.socket_typeinfo()->type;
-          const nodes::StructureType setting_structure_type = nodes::StructureType(
-              RNA_property_enum_get(ptr, prop));
-          switch (setting_structure_type) {
-            case nodes::StructureType::Single:
-            case nodes::StructureType::List:
-              is_matched = true;
-              break;
-            case nodes::StructureType::Field:
-              is_matched = nodes::socket_type_supports_fields(type);
-              break;
-            case nodes::StructureType::Grid:
-              is_matched = nodes::socket_type_supports_grids(type);
-              break;
-            case nodes::StructureType::Dynamic:
-              is_matched = nodes::socket_type_supports_fields(type) ||
-                           nodes::socket_type_supports_grids(type);
-              break;
-          }
-        }
-        else if (STREQ(prop_id, "attribute_domain") && sock.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-          is_matched = nodes::socket_type_supports_attributes(sock.socket_typeinfo()->type);
-        }
-        else {
-          /* Other properties only support batch setting for selected items of the same type. */
-          bNodeTreeInterfaceSocket *active_sock = reinterpret_cast<bNodeTreeInterfaceSocket *>(
-              active_item);
-          is_matched = STREQ(sock.socket_type, active_sock->socket_type);
-        }
-        break;
-      }
-      case NODE_INTERFACE_PANEL: {
-        bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
-        is_matched = panel.flag & NODE_INTERFACE_PANEL_SELECT;
-        break;
-      }
-    }
-    if (is_matched) {
+    if (tree_interface_item_prop_matched(item, *active_item, ptr, prop)) {
       r_lb->append(RNA_pointer_create_discrete(&ntree->id, RNA_NodeTreeInterfaceItem, &item));
     }
     return true;
