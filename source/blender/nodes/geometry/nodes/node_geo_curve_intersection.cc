@@ -159,7 +159,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .only_realized_data()
       .supported_type(GeometryComponent::Type::Mesh)
       .usage_by_menu("Mode", int16_t(IntersectionMode::Surface));
-
   b.add_input<decl::Bool>("Self Intersections")
       .default_value(false)
       .usage_by_menu("Mode",
@@ -177,7 +176,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .usage_by_menu("Mode",
                      {int16_t(IntersectionMode::Curve), int16_t(IntersectionMode::Curve_Project)})
       .description("Maximum distance between intersections");
-
   b.add_input<decl::Vector>("Direction")
       .default_value({0.0f, 0.0f, 1.0f})
       .usage_by_menu("Mode",
