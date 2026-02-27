@@ -30,7 +30,7 @@ struct RasterizePointsItemsAccessor : public socket_items::SocketItemsAccessorDe
     static constexpr StringRefNull list = "DATA_UL_rasterize_points_items";
   };
   struct rna_names {
-    static constexpr StringRefNull items = "grid_items";
+    static constexpr StringRefNull items = "rasterize_items";
     static constexpr StringRefNull active_index = "active_index";
   };
 

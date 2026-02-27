@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_volume.hh"
-#include "BKE_volume_enums.hh"
 #include "BKE_volume_grid.hh"
 
 #include "BLI_generic_array.hh"
@@ -28,7 +27,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_points_to_density_grid_cc {
+namespace blender::nodes::node_geo_rasterize_points {
 
 NODE_STORAGE_FUNCS(NodeGeometryRasterizePoints)
 
@@ -114,7 +113,8 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
-  if (ui::Layout *panel = layout.panel(C, "grid_items", false, IFACE_("Items"))) {
+
+  if (ui::Layout *panel = layout.panel(C, "rasterize_items", false, IFACE_("Items"))) {
     socket_items::ui::draw_items_list_with_operators<RasterizePointsItemsAccessor>(
         C, panel, ntree, node);
     socket_items::ui::draw_active_item_props<RasterizePointsItemsAccessor>(
@@ -248,11 +248,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodePointsToDensityGrid", GEO_NODE_RASTERIZE_POINTS);
-  ntype.ui_name = "Points to Density Grid";
+  geo_node_type_base(&ntype, "GeometryNodeRasterizePoints", GEO_NODE_RASTERIZE_POINTS);
+  ntype.ui_name = "Rasterize Points";
   ntype.ui_description = "Create volume grids from points with a weighted sum";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  ntype.enum_name_legacy = "POINTS_TO_DENSITY_GRID";
+  ntype.enum_name_legacy = "RASTERIZE_POINTS";
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.blend_write_storage_content = node_blend_write;
@@ -268,7 +268,7 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_points_to_density_grid_cc
+}  // namespace blender::nodes::node_geo_rasterize_points
 
 namespace blender::nodes {
 
