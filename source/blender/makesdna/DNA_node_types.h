@@ -2015,6 +2015,9 @@ struct bNodeTree {
   int interface_input_index(const bNodeTreeInterfaceSocket &io_socket) const;
   int interface_output_index(const bNodeTreeInterfaceSocket &io_socket) const;
   int interface_item_index(const bNodeTreeInterfaceItem &io_item) const;
+
+  int interface_input_index_by_identifier(StringRef identifier) const;
+  int interface_output_index_by_identifier(StringRef identifier) const;
 #endif
 };
 
@@ -2976,6 +2979,13 @@ struct NodeInputInt {
   DNA_DEFINE_CXX_METHODS(NodeInputInt)
 
   int integer = 0;
+};
+
+struct NodeInputMenu {
+  DNA_DEFINE_CXX_METHODS(NodeInputMenu)
+
+  /* Note: enum items are determined by the node output socket. */
+  int value = 0;
 };
 
 struct NodeInputRotation {
