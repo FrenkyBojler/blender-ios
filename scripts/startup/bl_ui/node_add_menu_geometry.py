@@ -574,6 +574,7 @@ class NODE_MT_gn_input_import_base(node_add_menu.NodeMenu):
 
     def draw(self, _context):
         layout = self.layout
+        self.node_operator(layout, "GeometryNodeImportABC", label="ABC (.abc)")
         self.node_operator(layout, "GeometryNodeImportCSV", label="CSV (.csv)")
         self.node_operator(layout, "GeometryNodeImportOBJ", label="Wavefront (.obj)")
         self.node_operator(layout, "GeometryNodeImportPLY", label="Stanford PLY (.ply)")

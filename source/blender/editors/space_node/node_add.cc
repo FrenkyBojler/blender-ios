@@ -1231,7 +1231,10 @@ static wmOperatorStatus node_add_import_node_exec(bContext *C, wmOperator *op)
   Vector<bNode *> new_nodes;
   for (const StringRefNull path : paths) {
     bNode *node = nullptr;
-    if (path.endswith(".csv")) {
+    if (path.endswith(".abc")) {
+      node = add_node(*C, "GeometryNodeImportabc", snode->runtime->cursor);
+    }
+    else if (path.endswith(".csv")) {
       node = add_node(*C, "GeometryNodeImportCSV", snode->runtime->cursor);
     }
     else if (path.endswith(".obj")) {
