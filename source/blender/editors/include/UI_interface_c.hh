@@ -3012,45 +3012,12 @@ AbstractViewItem *region_views_find_active_item(const ARegion *region);
 Button *region_views_find_active_item_but(const ARegion *region);
 void region_views_clear_search_highlight(const ARegion *region);
 
-enum HandleButtonState {
-  BUTTON_STATE_INIT,
-  BUTTON_STATE_HIGHLIGHT,
-  BUTTON_STATE_WAIT_FLASH,
-  BUTTON_STATE_WAIT_RELEASE,
-  BUTTON_STATE_WAIT_KEY_EVENT,
-  BUTTON_STATE_NUM_EDITING,
-  BUTTON_STATE_TEXT_EDITING,
-  BUTTON_STATE_TEXT_SELECTING,
-  BUTTON_STATE_MENU_OPEN,
-  BUTTON_STATE_WAIT_DRAG,
-  BUTTON_STATE_EXIT,
-};
-
-/**
- * Attempt to activate an button referencing an RNA property. If any other button in the screen is
- * active, it will be deactivated.
- * \param state: Activation state for button. Some states are specific to certain button types;
- * When an incompatible state is provided, the button will be activated as with
- * #BUTTON_STATE_HIGHLIGHT.
- * \param index: Index of the button that references the RNA property.
- * \return The center point of the button when successfully activated.
- */
-std::optional<int2> try_activate_rna_button(bContext *C,
-                                            ARegion *region,
-                                            HandleButtonState state,
-                                            PointerRNA *ptr,
-                                            PropertyRNA *prop,
-                                            bool warp_cursor_at_button = false,
-                                            int index = 0);
-
 /**
  * Attempt to activate a button referencing an RNA string property, if region is hidden or if the
  * button is not found this will add a timer that will retry to open the button other 4 times. If
  * any other button in the screen is active, it will be deactivated.
  */
-bool textbutton_try_activate_over_redraws(bContext *C,
-                                          ARegion *region,
-                                          PointerRNA &ptr,
-                                          PropertyRNA *prop);
+bool textbutton_try_activate_over_redraws(
+    bContext *C, ARegion *region, PointerRNA &ptr, PropertyRNA *prop, wmEvent *event=nullptr);
 }  // namespace ui
 }  // namespace blender
