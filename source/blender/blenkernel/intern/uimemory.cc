@@ -79,14 +79,6 @@ static void uimemory_init_impl()
       uimemory_print_errors(file_result.unwrap_err());
     }
   }
-  else {
-    /* No file: initialize from defaults and save. */
-    {
-      std::lock_guard<Mutex> lock(uimemory_mutex);
-      uimemory_current = uimemory_default;
-    }
-    uimemory.save();
-  }
 
   /* Mark ready and wake any waiters. */
   uimemory_ready.store(true, std::memory_order_release);
