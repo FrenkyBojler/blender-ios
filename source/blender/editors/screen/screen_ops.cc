@@ -6198,8 +6198,8 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   const int start_frame = PSFRA;
   const int end_frame = PEFRA;
   const bool is_playing_forward = (sad->flag & ANIMPLAY_FLAG_REVERSE) == 0;
-  const bool is_extreme_frame = is_playing_forward ? scene->r.cfra >= end_frame :
-                                                     scene->r.cfra <= start_frame;
+  const bool is_extreme_frame = is_playing_forward ? scene->r.cfra > end_frame :
+                                                     scene->r.cfra < start_frame;
   if (is_extreme_frame) {
     sad->flag |= ANIMPLAY_FLAG_JUMPED;
 
@@ -6211,6 +6211,10 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
         scene->r.cfra = is_playing_forward ? start_frame : end_frame;
         break;
       case SCE_LOOP_MODE_STOP:
+        /* Looping happens when playback overshoots the start/end frame. This means that 'STOP'
+         * mode will visit the last frame twice (once during playback, and once after overshoot +
+         * clamping). If this turns out to be undesired, the `is_extreme_frame` computation will
+         * have to take the loop mode into account. */
         CLAMP(scene->r.cfra, start_frame, end_frame);
         stop_playback(C);
         break;
@@ -6219,15 +6223,17 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
         stop_playback(C);
         break;
       case SCE_LOOP_MODE_BOUNCE:
-        CLAMP(scene->r.cfra, start_frame, end_frame);
         if (is_playing_forward) {
           BKE_sound_stop_scene(scene_eval);
           sad->flag |= ANIMPLAY_FLAG_REVERSE;
+          scene->r.cfra = end_frame - 1;
         }
         else {
           sad->flag &= ~ANIMPLAY_FLAG_REVERSE;
           BKE_sound_play_scene(scene_eval);
+          scene->r.cfra = start_frame + 1;
         }
+        CLAMP(scene->r.cfra, start_frame, end_frame);
         break;
     }
   }
