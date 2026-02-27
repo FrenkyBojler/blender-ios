@@ -960,7 +960,7 @@ if(POLICY CMP0119)
   option(WITH_GPU_SHADER_CPP_COMPILATION "\
   Compiler shaders using C++. \
   Allows testing Metal compilation on other platform and enable C++ IDE support for shader code"
-    OFF
+    ON
   )
   mark_as_advanced(WITH_GPU_SHADER_CPP_COMPILATION)
 else()
