@@ -20,6 +20,7 @@ import contextlib
 import multiprocessing
 import multiprocessing.managers
 import os
+import shutil
 import sys
 import subprocess
 
@@ -68,6 +69,9 @@ ignore_files: set[str] = set([
 ignore_directories = {
     "intern/itasc"
 }
+
+# Terminal width for printing
+TERM_WIDTH = shutil.get_terminal_size().columns if sys.stdout.isatty() else 0
 
 
 def compute_paths(paths: list[str], use_default_paths: bool) -> list[str]:
@@ -166,6 +170,8 @@ def clang_format_file(
         if sys.stdout.isatty():
             done.value += len(files_chunk)
             progress_text = f"[{done.value}/{total}] {files_chunk[0]}"
+            # Modern terminals only need \033[K, but Windows needs padding.
+            progress_text = progress_text.ljust(TERM_WIDTH - 1)
             sys.stdout.write(f"\r{progress_text}\033[K")
             sys.stdout.flush()
         else:
