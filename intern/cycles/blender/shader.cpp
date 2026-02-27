@@ -837,9 +837,7 @@ static ShaderNode *add_node(Scene *scene,
     if (b_image) {
       const blender::eImageSource b_image_source = blender::eImageSource(b_image->source);
       blender::PointerRNA image_rna_ptr = RNA_id_pointer_create(&b_image->id);
-      blender::PointerRNA colorspace_ptr = RNA_pointer_get(&image_rna_ptr, "colorspace_settings");
-      image->set_colorspace(ustring(get_enum_identifier(colorspace_ptr, "name")));
-
+      image->set_colorspace(ustring(b_image->colorspace_settings.name));
       image->set_animated(is_image_animated(b_image_source, b_image_user));
       image->set_alpha_type(get_image_alpha_type(*b_image));
 
@@ -912,8 +910,7 @@ static ShaderNode *add_node(Scene *scene,
     if (b_image) {
       const blender::eImageSource b_image_source = blender::eImageSource(b_image->source);
       blender::PointerRNA image_rna_ptr = RNA_id_pointer_create(&b_image->id);
-      blender::PointerRNA colorspace_ptr = RNA_pointer_get(&image_rna_ptr, "colorspace_settings");
-      env->set_colorspace(ustring(get_enum_identifier(colorspace_ptr, "name")));
+      env->set_colorspace(ustring(b_image->colorspace_settings.name));
       env->set_animated(is_image_animated(b_image_source, b_image_user));
       env->set_alpha_type(get_image_alpha_type(*b_image));
 
@@ -1067,9 +1064,10 @@ static ShaderNode *add_node(Scene *scene,
   else if (b_node.is_type("ShaderNodeNormalMap")) {
     const auto &storage = *static_cast<blender::NodeShaderNormalMap *>(b_node.storage);
     NormalMapNode *nmap = graph->create_node<NormalMapNode>();
-    nmap->set_space((NodeNormalMapSpace)storage.space);
+    nmap->set_space(NodeNormalMapSpace(storage.space));
     nmap->set_attribute(ustring(storage.uv_map));
-    nmap->set_convention((NodeNormalMapConvention)storage.convention);
+    nmap->set_convention(NodeNormalMapConvention(storage.convention));
+    nmap->set_base(NodeNormalMapBase(storage.base));
     node = nmap;
   }
   else if (b_node.is_type("ShaderNodeRadialTiling")) {
