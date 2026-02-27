@@ -365,8 +365,9 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
   {
     openvdb::CoordBBox intersect_box(ijk.offsetBy(-voxel_range_), ijk.offsetBy(voxel_range_));
     intersect_box.intersect(target_bounds);
-    if (intersect_box.empty())
+    if (intersect_box.empty()) {
       return;
+    }
 
     auto *const data = this->template buffer<0>();
     const auto &mask = *(this->template mask<0>());
@@ -399,7 +400,7 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
     }
   }
 
-  bool endPointLeaf(const openvdb::points::PointDataTree::LeafNodeType &)
+  bool endPointLeaf(const openvdb::points::PointDataTree::LeafNodeType & /*leaf_node*/)
   {
     return true;
   }
@@ -407,7 +408,7 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
   // XXX Example comment says:
   // "Return true for endPointLeaf() to continue, false for finalize() so we don't
   // recurse." but it looks like both should return "true"? Is this a bug in documentation?
-  bool finalize(const openvdb::Coord &, size_t)
+  bool finalize(const openvdb::Coord & /*origin*/, size_t /*idx*/)
   {
     return true;
   }
@@ -525,7 +526,6 @@ static bke::VolumeGrid<GridValueT> points_rasterize_with_kernel(
   using GridTraits = bke::VolumeGridTraits<GridValueT>;
   using TreeType = typename GridTraits::TreeType;
   using GridType = openvdb::Grid<TreeType>;
-  using GridValueType = typename GridTraits::PrimitiveType;
 
   typename std::shared_ptr<GridType> dst_grid = prepare_destination_grid<GridType, kernel_type>(
       point_data_grid, transform);
