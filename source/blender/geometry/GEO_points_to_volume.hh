@@ -113,23 +113,6 @@ namespace kernel_functions {
  * "Analysis and reduction of quadrature errors in the material point method (MPM)"
  * (Steffen et al., 2008) */
 
-template<KernelType kernel_type> inline bool kernel_non_zero_component(const float t)
-{
-  auto in_range = [t](const float range) { return -range <= t && t < range; };
-  if constexpr (kernel_type == KernelType::Constant) {
-    return in_range(0.5f);
-  }
-  if constexpr (kernel_type == KernelType::Linear) {
-    return in_range(1.0f);
-  }
-  if constexpr (kernel_type == KernelType::Quadratic) {
-    return in_range(1.5f);
-  }
-  if constexpr (kernel_type == KernelType::Cubic) {
-    return in_range(2.0f);
-  }
-}
-
 inline bool kernel_non_zero_component(const KernelType kernel_type, const float t)
 {
   auto in_range = [t](const float range) { return -range <= t && t < range; };
@@ -146,13 +129,6 @@ inline bool kernel_non_zero_component(const KernelType kernel_type, const float 
   return 0.0f;
 }
 
-template<KernelType kernel_type> inline bool kernel_non_zero(const float3 &v)
-{
-  return kernel_non_zero_component<kernel_type>(v.x) &&
-         kernel_non_zero_component<kernel_type>(v.y) &&
-         kernel_non_zero_component<kernel_type>(v.z);
-}
-
 inline bool kernel_non_zero(const KernelType kernel_type, const float3 &v)
 {
   return kernel_non_zero_component(kernel_type, v.x) &&
@@ -160,55 +136,20 @@ inline bool kernel_non_zero(const KernelType kernel_type, const float3 &v)
          kernel_non_zero_component(kernel_type, v.z);
 }
 
-template<KernelType kernel_type> constexpr int kernel_voxel_range()
-{
-  if constexpr (kernel_type == KernelType::Constant) {
-    return 1;
-  }
-  if constexpr (kernel_type == KernelType::Linear) {
-    return 1;
-  }
-  if constexpr (kernel_type == KernelType::Quadratic) {
-    return 2;
-  }
-  if constexpr (kernel_type == KernelType::Cubic) {
-    return 2;
-  }
-}
-
 inline int kernel_voxel_range(const KernelType kernel_type)
 {
   switch (kernel_type) {
     case KernelType::Constant:
-      return kernel_voxel_range<KernelType::Constant>();
+      return 1;
     case KernelType::Linear:
-      return kernel_voxel_range<KernelType::Linear>();
+      return 1;
     case KernelType::Quadratic:
-      return kernel_voxel_range<KernelType::Quadratic>();
+      return 2;
     case KernelType::Cubic:
-      return kernel_voxel_range<KernelType::Cubic>();
+      return 2;
   }
   BLI_assert_unreachable();
   return 0;
-}
-
-template<KernelType kernel_type> inline float kernel_eval_component(const float t)
-{
-  const float a = math::abs(t);
-  if constexpr (kernel_type == KernelType::Constant) {
-    UNUSED_VARS(t);
-    return 1.0f;
-  }
-  if constexpr (kernel_type == KernelType::Linear) {
-    return 1.0f - a;
-  }
-  if constexpr (kernel_type == KernelType::Quadratic) {
-    return a < 0.5f ? -a * a + 3.0f / 4.0f : (0.5f * a - 3.0f / 2.0f) * a + 9.0f / 8.0f;
-  }
-  if constexpr (kernel_type == KernelType::Cubic) {
-    return a < 1.0f ? (0.5f * a - 1.0f) * a * a + 2.0f / 3.0f :
-                      ((-a / 6.0f + 1.0f) * a - 2.0) * a + 4.0f / 3.0f;
-  }
 }
 
 inline float kernel_eval_component(const KernelType kernel_type, const float t)
@@ -226,12 +167,6 @@ inline float kernel_eval_component(const KernelType kernel_type, const float t)
                         ((-a / 6.0f + 1.0f) * a - 2.0) * a + 4.0f / 3.0f;
   }
   return 0.0f;
-}
-
-template<KernelType kernel_type> inline float kernel_eval(const float3 &v)
-{
-  return kernel_eval_component<kernel_type>(v.x) * kernel_eval_component<kernel_type>(v.y) *
-         kernel_eval_component<kernel_type>(v.z);
 }
 
 inline float kernel_eval(const KernelType kernel_type, const float3 &v)
