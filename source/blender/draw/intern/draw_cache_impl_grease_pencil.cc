@@ -1184,7 +1184,7 @@ static float segment_radius_length(const float l, const float r1, const float r2
   return 2.0f * log(E_i) / log(E);
 }
 
-static void get_radii_lengths(Span<float> lengths,
+static void get_radii_lengths(const Span<float> lengths,
                               const VArray<float> &radii,
                               const IndexRange &points,
                               MutableSpan<float> radii_lengths)
