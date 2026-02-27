@@ -58,6 +58,7 @@
 #include "UI_abstract_view.hh"
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
+#include "UI_tree_view.hh"
 
 #include "interface_intern.hh"
 
@@ -2751,7 +2752,10 @@ static wmOperatorStatus ui_view_item_rename_exec(bContext *C, wmOperator * /*op*
   view_item_begin_rename(*active_item);
   ED_region_tag_redraw(region);
 
-  /* TODO: Scroll to active rename button. */
+  if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(&active_item->get_view())) {
+    /* In tree views, ensure the active item is visible when renaming starts. */
+    tree_view->scroll_active_to_center();
+  }
   return OPERATOR_FINISHED;
 }
 

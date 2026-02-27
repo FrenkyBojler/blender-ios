@@ -399,6 +399,34 @@ void AbstractTreeView::scroll(ViewScrollDirection direction)
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
 }
 
+void AbstractTreeView::scroll_active_to_center()
+{
+  const std::optional<int> visible_row_count = tot_visible_row_count();
+
+  if (!custom_height_) {
+    return;
+  }
+
+  if (!visible_row_count.has_value()) {
+    return;
+  }
+
+  int index = 0;
+  int active_item_index = 0;
+  foreach_item(
+      [&, this](AbstractTreeViewItem &item) {
+        if (item.is_active_) {
+          active_item_index = index;
+        }
+        index++;
+      },
+      AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered);
+
+  if ((active_item_index < *scroll_value_) || (active_item_index >= (*scroll_value_ + *visible_row_count))) {
+    *scroll_value_ = std::clamp(active_item_index - (*visible_row_count - 1) / 2, 0, (last_tot_items_ - *visible_row_count));
+  }
+}
+
 void AbstractTreeView::scroll_active_into_view()
 {
   int index = 0;
