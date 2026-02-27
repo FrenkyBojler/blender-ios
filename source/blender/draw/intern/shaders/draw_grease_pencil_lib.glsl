@@ -354,16 +354,16 @@ float4 dot_segment(float2 xy, float4 ss1, float4 ss2, bool is_squares, float4 vi
   return screen_space_to_ndc(float4(ssp, z_depth, 0.0f), viewport_res.xy);
 }
 
-float2 get_rot(float4 viewport_res,
-               gpMaterialFlag material_flags,
-               float2 alignment_rot,
-               int4 ma,
-               int4 ma2,
-               float2 line,
-               float2 line_adj,
-               float3 wpos1,
-               float uv_rot,
-               float2 ss1)
+float2 get_rotation(float4 viewport_res,
+                    gpMaterialFlag material_flags,
+                    float2 alignment_rot,
+                    int4 ma,
+                    int4 ma2,
+                    float2 line,
+                    float2 line_adj,
+                    float3 wpos1,
+                    float uv_rot,
+                    float2 ss1)
 {
   uint alignment_mode = material_flags & GP_STROKE_ALIGNMENT;
 
@@ -609,16 +609,16 @@ float4 gpencil_vertex(float4 viewport_res,
 
       /* Rotation: Encoded as Cos + Sin sign. */
       float uv_rot = gpencil_decode_uvrot(point_data1.packed_data);
-      float2 x_axis = get_rot(viewport_res,
-                              material_flags,
-                              alignment_rot,
-                              ma,
-                              ma2,
-                              line,
-                              line_adj,
-                              wpos1,
-                              uv_rot,
-                              ss1.xy);
+      float2 x_axis = get_rotation(viewport_res,
+                                   material_flags,
+                                   alignment_rot,
+                                   ma,
+                                   ma2,
+                                   line,
+                                   line_adj,
+                                   wpos1,
+                                   uv_rot,
+                                   ss1.xy);
       out_aspect.xy = gpencil_decode_aspect(point_data1.packed_data);
       /* Invert for vertex shader. */
       out_aspect.xy = 1.0f / out_aspect.xy;
@@ -631,16 +631,16 @@ float4 gpencil_vertex(float4 viewport_res,
     else if (is_dot && !is_multi_dot) {
       /* Rotation: Encoded as Cos + Sin sign. */
       float uv_rot = gpencil_decode_uvrot(point_data1.packed_data);
-      float2 x_axis = get_rot(viewport_res,
-                              material_flags,
-                              alignment_rot,
-                              ma,
-                              ma2,
-                              line,
-                              line_adj,
-                              wpos1,
-                              uv_rot,
-                              ss1.xy);
+      float2 x_axis = get_rotation(viewport_res,
+                                   material_flags,
+                                   alignment_rot,
+                                   ma,
+                                   ma2,
+                                   line,
+                                   line_adj,
+                                   wpos1,
+                                   uv_rot,
+                                   ss1.xy);
       /* Rotate 90 degrees counter-clockwise. */
       float2 y_axis = float2(-x_axis.y, x_axis.x);
 
