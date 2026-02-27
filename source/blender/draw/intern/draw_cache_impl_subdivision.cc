@@ -735,6 +735,12 @@ static void build_vert_face_adjacency_maps(DRWSubdivCache &cache)
   MutableSpan<int> adjacent_faces = cache.subdiv_vert_face_adjacency->data<int>();
 
   offset_indices::reverse_indices_in_groups(loop_to_vert, offsets, adjacent_faces);
+
+  /* The shader expects face indices, but `reverse_indices_in_groups` stored loop indices.
+   * Since this is a quad mesh, divide the loop index by 4 to get the face index. */
+  for (int &face_index : adjacent_faces) {
+    face_index /= 4;
+  }
 }
 
 static bool draw_subdiv_build_cache(DRWSubdivCache &cache,
