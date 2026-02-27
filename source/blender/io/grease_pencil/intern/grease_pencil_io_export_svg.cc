@@ -169,10 +169,9 @@ ExportStatus SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
           return ExportStatus::InvalidActiveObjectType;
         }
         const GreasePencil &grease_pencil = *id_cast<GreasePencil *>(ob_eval.data);
-        frames = IndexMask::from_predicate(
-            frames, GrainSize(1024), memory, [&](const int frame_number) {
-              return this->is_selected_frame(grease_pencil, frame_number);
-            });
+        frames = IndexMask::from_predicate(frames, memory, [&](const int frame_number) {
+          return this->is_selected_frame(grease_pencil, frame_number);
+        });
       }
 
       if (frames.is_empty()) {
@@ -339,8 +338,11 @@ void SVGExporter::export_grease_pencil_layer(pugi::xml_node layer_node,
 
     if (is_outline) {
       write_fill_color_attribute(element_node, color, opacity);
+      /* Outlines might self-overlap which creates visual holes with the `even-odd` fill rule. */
+      element_node.append_attribute("fill-rule").set_value("nonzero");
     }
     else {
+      element_node.append_attribute("fill-rule").set_value("evenodd");
       if (width) {
         write_stroke_color_attribute(element_node, color, opacity, round_cap);
       }
@@ -512,7 +514,6 @@ pugi::xml_node SVGExporter::write_path(pugi::xml_node node,
   }
 
   element_node.append_attribute("d").set_value(txt.c_str());
-  element_node.append_attribute("fill-rule").set_value("evenodd");
 
   return element_node;
 }

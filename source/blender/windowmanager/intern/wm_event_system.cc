@@ -15,6 +15,7 @@
 #include <fmt/format.h>
 
 #include "AS_asset_library.hh"
+#include "AS_asset_representation.hh"
 
 #include "DNA_listBase.h"
 #include "DNA_scene_types.h"
@@ -631,7 +632,7 @@ void wm_event_do_notifiers(bContext *C)
           WM_window_title_refresh(wm, &win);
         }
         else if (note->data == ND_UNDO) {
-          ED_preview_restart_queue_work(C);
+          ED_preview_restart_work(C);
         }
       }
 
@@ -2906,7 +2907,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
           if (BLI_listbase_is_single(&file_area->spacedata)) {
             BLI_assert(root_win != &win);
 
-            wm_window_close(C, wm, &win);
+            wm_window_close_request(C, wm, &win);
 
             /* #wm_window_close() sets the context's window to null. */
             CTX_wm_window_set(C, root_win);
@@ -3532,6 +3533,16 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
               for (wmDrag &drag : lb->items_mutable()) {
                 if (!wm_drag_asset_path_exists(&drag).value_or(true)) {
                   continue;
+                }
+
+                if (wmDragAsset *asset_data = WM_drag_get_asset_data(&drag, 0)) {
+                  if (asset_data->asset->is_online()) {
+                    BKE_reportf(CTX_wm_reports(C),
+                                RPT_ERROR,
+                                "Asset '%s' is still downloading",
+                                asset_data->asset->get_name().c_str());
+                    continue;
+                  }
                 }
 
                 if (drop.poll(C, &drag, event)) {

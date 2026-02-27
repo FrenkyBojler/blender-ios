@@ -492,6 +492,9 @@ PassMain::Sub *ForwardPipeline::material_transparent_add(const Object *ob,
   has_holdout_ |= GPU_material_flag_get(gpumat, GPU_MATFLAG_HOLDOUT) ||
                   ob->visibility_flag & OB_HOLDOUT;
   has_transparent_ = true;
+  /* Must be checked here too,
+   * since this function is not called from PipelineModule::material_add. */
+  inst_.pipelines.has_raycast |= GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
   float sorting_value = math::dot(float3(ob->object_to_world().location()), camera_forward_);
   PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
   pass->state_set(state);
@@ -546,7 +549,8 @@ void ForwardPipeline::render(View &view,
                              Framebuffer &combined_fb,
                              int2 extent)
 {
-  if (!has_transparent_ && !has_opaque_) {
+  /* We need to ensure the pipeline runs if outputing the transparent render-pass (see #154895). */
+  if (!has_transparent_ && !has_opaque_ && inst_.render_buffers.data.transparent_id == -1) {
     return;
   }
 

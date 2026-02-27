@@ -558,8 +558,8 @@ static void block_bounds_calc_post_centered(Block *block)
 static void block_bounds_calc_centered_pie(Block *block)
 {
   const int xy[2] = {
-      int(block->pie_data.pie_center_spawned[0]),
-      int(block->pie_data.pie_center_spawned[1]),
+      int(block->pie_data->pie_center_spawned[0]),
+      int(block->pie_data->pie_center_spawned[1]),
   };
 
   block_translate(block, xy[0], xy[1]);
@@ -2333,8 +2333,8 @@ void block_draw(const bContext *C, Block *block)
 
   widgetbase_draw_cache_end();
   BLF_batch_draw_end();
-  GPU_scissor(scissor[0], scissor[1], scissor[2], scissor[3]);
   block_views_draw_overlays(region, block);
+  GPU_scissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 
   /* restore matrix */
   GPU_matrix_pop_projection();
