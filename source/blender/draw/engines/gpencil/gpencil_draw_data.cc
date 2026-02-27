@@ -254,12 +254,16 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
     mat_data->alignment_rot[0] = cosf(gp_style->alignment_rotation);
     mat_data->alignment_rot[1] = sinf(gp_style->alignment_rotation);
     if (gp_style->mode == GP_MATERIAL_MODE_LINE) {
+      /* Convert pixel size to stroke u, the factor of `500` is from legacy grease pencil. */
       mat_data->stroke_u_scale = 500.0f / gp_style->texture_pixsize;
     }
     else {
       switch (gp_style->placement_mode) {
         case GP_MATERIAL_PLACEMENT_RADIUS:
-          mat_data->stroke_u_scale = 50.0f / gp_style->placement_radius_spacing;
+          /* The radius spacing is a percentage and inverse, so it as a factor of `100` */
+          mat_data->stroke_u_scale = 100.0f / gp_style->placement_radius_spacing;
+          /* Divide by two, to convert diameter to radius. */
+          mat_data->stroke_u_scale *= 0.5f;
           break;
         case GP_MATERIAL_PLACEMENT_DENSITY:
           mat_data->stroke_u_scale = gp_style->placement_density;
