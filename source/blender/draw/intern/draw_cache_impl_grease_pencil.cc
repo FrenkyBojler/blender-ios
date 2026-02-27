@@ -1159,9 +1159,16 @@ static VArray<float> interpolate_corners(const bke::CurvesGeometry &curves)
   return VArray<float>::from_container(std::move(eval_corners));
 }
 
+/**
+ * Calculate the number of radii that can fit within a segment. (including fractional part)
+ *
+ * For tapered segments the radii are calculated such that they tangentially touch the segment's
+ * taper and each other.
+ */
 static float segment_radius_length(const float l, const float r1, const float r2)
 {
   const float a = r2 - r1;
+  /* If the two radii are close to being the same, calculate as if they were. */
   if (abs(a) < 0.001f) {
     return l / r1;
   }
@@ -1169,6 +1176,7 @@ static float segment_radius_length(const float l, const float r1, const float r2
   const float E = (l + a) / (l - a);
   const float E_i = a / r1 + 1.0f;
 
+  /* Return zero if one dot is inside the other. */
   if (E <= 0.0f || E_i <= 0.0f) {
     return 0.0f;
   }
