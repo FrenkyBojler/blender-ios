@@ -373,14 +373,6 @@ struct TextWrapCache {
   Vector<StringRef> wrapped_lines;
 };
 
-struct ButtonMultilineLabel : public Button {
-  int last_total_lines = 0;
-
-  /** Wrap cache from last redraw. */
-  std::shared_ptr<TextWrapCache> wrap_cache;
-  FontStyleAlign text_align = UI_STYLE_TEXT_LEFT;
-};
-
 /** Derived struct for #ButtonType::Num */
 struct ButtonNumber : public Button {
   float step_size = 0.0f;
@@ -464,6 +456,11 @@ struct ButtonSeparatorLine : public Button {
 /** Derived struct for #ButtonType::Label. */
 struct ButtonLabel : public Button {
   float alpha_factor = 1.0f;
+
+  bool is_multiline = false;
+  /** Wrap cache from last redraw. */
+  std::shared_ptr<TextWrapCache> wrap_cache;
+  FontStyleAlign text_align = UI_STYLE_TEXT_LEFT;
 };
 
 /** Derived struct for #ButtonType::Scroll. */
@@ -1604,6 +1601,8 @@ Button *button_prev(Button *but) ATTR_WARN_UNUSED_RESULT;
 Button *button_next(Button *but) ATTR_WARN_UNUSED_RESULT;
 Button *button_first(Block *block) ATTR_WARN_UNUSED_RESULT;
 Button *button_last(Block *block) ATTR_WARN_UNUSED_RESULT;
+
+bool button_label_is_multiline(const Button *button);
 
 Button *block_active_but_get(const Block *block);
 bool block_is_menu(const Block *block) ATTR_WARN_UNUSED_RESULT;

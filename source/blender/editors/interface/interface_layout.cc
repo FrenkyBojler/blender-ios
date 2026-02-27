@@ -96,6 +96,8 @@ struct LayoutRoot {
   Block *block;
   Layout *layout;
   LayoutDirection direction;
+
+  bool use_dynamic_height;
 };
 
 /* Item */
@@ -3251,31 +3253,17 @@ void Layout::label_multiline(StringRefNull text, int icon, FontStyleAlign align)
   block_layout_set_current(this->block(), this);
   Button *button = nullptr;
   if (icon) {
-    button = uiDefIconTextBut(this->block(),
-                              ButtonType::MultilineLabel,
-                              icon,
-                              text,
-                              0,
-                              0,
-                              100,
-                              UI_UNIT_Y,
-                              nullptr,
-                              std::nullopt);
+    button = uiDefIconTextBut(
+        this->block(), ButtonType::Label, icon, text, 0, 0, 100, UI_UNIT_Y, nullptr, std::nullopt);
   }
   else {
-    button = uiDefBut(this->block(),
-                      ButtonType::MultilineLabel,
-                      text,
-                      0,
-                      0,
-                      100,
-                      UI_UNIT_Y,
-                      nullptr,
-                      0,
-                      0,
-                      std::nullopt);
+    button = uiDefBut(
+        this->block(), ButtonType::Label, text, 0, 0, 100, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
   }
-  static_cast<ButtonMultilineLabel *>(button)->text_align = align;
+  this->root_->use_dynamic_height = true;
+  ButtonLabel *label = static_cast<ButtonLabel *>(button);
+  label->text_align = align;
+  label->is_multiline = true;
 }
 
 PropertySplitWrapper uiItemPropertySplitWrapperCreate(Layout *parent_layout)
@@ -3663,7 +3651,9 @@ void LayoutInternal::layout_estimate(Layout *layout)
 void LayoutInternal::layout_resolve(Layout *layout)
 {
   layout->resolve();
-  layout->resolve_dynamic_height();
+  if (layout->root_->use_dynamic_height) {
+    layout->resolve_dynamic_height();
+  }
 }
 
 /* single-row layout */
@@ -5511,7 +5501,7 @@ void Layout::resolve()
   }
 }
 
-static Vector<StringRef> multiline_label_wrap_lines(ButtonMultilineLabel *button)
+static Vector<StringRef> multiline_label_wrap_lines(ButtonLabel *button)
 {
   const uiFontStyle &fstyle = style_get()->widget;
   int icon_width_space = 0;
@@ -5550,7 +5540,6 @@ static Vector<StringRef> multiline_label_wrap_lines(ButtonMultilineLabel *button
   if (button->wrap_cache) {
     button->block->text_wrap_cache.append(button->wrap_cache);
     TextWrapCache &cache = *button->wrap_cache;
-    button->last_total_lines = cache.wrapped_lines.size();
     return cache.wrapped_lines;
   }
   button->wrap_cache = std::make_unique<TextWrapCache>();
@@ -5564,14 +5553,14 @@ static Vector<StringRef> multiline_label_wrap_lines(ButtonMultilineLabel *button
   Vector<StringRef> lines = BLF_string_wrap(
       fstyle.uifont_id, cache.text, width, BLFWrapMode::HardLimit);
   cache.wrapped_lines = lines;
-  button->last_total_lines = lines.size();
   return lines;
 }
 
-static void resolve_multiline_label(ButtonMultilineLabel *button)
+static void resolve_multiline_label(ButtonLabel *button)
 {
   multiline_label_wrap_lines(button);
-  button->rect.ymin = button->rect.ymax - UI_UNIT_Y * std::max(1, button->last_total_lines);
+  button->rect.ymin = button->rect.ymax -
+                      UI_UNIT_Y * std::max<int>(1, button->wrap_cache->wrapped_lines.size());
 }
 
 int Layout::resolve_dynamic_height()
@@ -5588,9 +5577,9 @@ int Layout::resolve_dynamic_height()
     }
     if (subitem->type() == ItemType::Button) {
       ButtonItem *sub_bitem = static_cast<ButtonItem *>(subitem);
-      if (sub_bitem->but->type == ButtonType::MultilineLabel) {
+      if (button_label_is_multiline(sub_bitem->but)) {
         int2 size = subitem->size();
-        resolve_multiline_label(static_cast<ButtonMultilineLabel *>(sub_bitem->but));
+        resolve_multiline_label(static_cast<ButtonLabel *>(sub_bitem->but));
         int2 new_size = subitem->size();
         if (this->local_direction() == LayoutDirection::Vertical) {
           extra_y_offs += new_size.y - size.y;

@@ -426,7 +426,6 @@ enum class ButtonType : int8_t {
   Scroll,
   Block,
   Label,
-  MultilineLabel,
   KeyEvent,
   HsvCube,
   /** Menu (often used in headers), `*_MENU` with different draw-type. */

@@ -857,6 +857,10 @@ static bool ui_but_equals_old(const Button *but, const Button *oldbut)
     }
   }
 
+  if (but->type == ButtonType::Label) {
+    return button_label_is_multiline(but) == button_label_is_multiline(oldbut);
+  }
+
   return true;
 }
 
@@ -991,11 +995,10 @@ static void ui_but_update_old_active_from_new(Button *oldbut, Button *but)
     std::swap(search_oldbut->arg_free_fn, search_but->arg_free_fn);
     std::swap(search_oldbut->arg, search_but->arg);
   }
-  if (oldbut->type == ButtonType::MultilineLabel) {
-    ButtonMultilineLabel *multiline_oldbut = static_cast<ButtonMultilineLabel *>(oldbut),
-                         *multiline_but = static_cast<ButtonMultilineLabel *>(but);
-    std::swap(multiline_oldbut->wrap_cache, multiline_but->wrap_cache);
-    std::swap(multiline_oldbut->last_total_lines, multiline_but->last_total_lines);
+  if (oldbut->type == ButtonType::Label) {
+    ButtonLabel *label_oldbut = static_cast<ButtonLabel *>(oldbut);
+    ButtonLabel *label_but = static_cast<ButtonLabel *>(but);
+    std::swap(label_oldbut->wrap_cache, label_but->wrap_cache);
   }
 
   /* copy hardmin for list rows to prevent 'sticking' highlight to mouse position
@@ -4294,9 +4297,6 @@ static std::unique_ptr<Button> ui_but_new(const ButtonType type)
     case ButtonType::Scroll:
       but = std::make_unique<ButtonScrollBar>();
       break;
-    case ButtonType::MultilineLabel:
-      but = std::make_unique<ButtonMultilineLabel>();
-      break;
     default:
       but = std::make_unique<Button>();
       break;
@@ -7038,6 +7038,12 @@ void ui_exit()
 void interface_tag_script_reload()
 {
   interface_tag_script_reload_queries();
+}
+
+bool button_label_is_multiline(const Button *button)
+{
+  return button->type == ButtonType::Label &&
+         static_cast<const ButtonLabel *>(button)->is_multiline;
 }
 
 }  // namespace ui
