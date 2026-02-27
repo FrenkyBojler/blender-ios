@@ -148,7 +148,7 @@ struct DCEStream {
     if (!enabled_) {
       return;
     }
-    const char *start_char = start.str_with_whitespace().begin();
+    const char *start_char = start.str_with_whitespace().data();
 
     Token tok = start;
 
@@ -260,7 +260,7 @@ struct DCEStream {
  private:
   Token set_start_char(Token tok, const char *start_offset = nullptr)
   {
-    int offset = start_offset ? tok.str_with_whitespace().begin() - start_offset : 0;
+    int offset = start_offset ? tok.str_with_whitespace().data() - start_offset : 0;
     tok.flag = int32_t(this->total_length + offset);
     return tok;
   }
