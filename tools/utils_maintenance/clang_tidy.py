@@ -23,6 +23,7 @@ __all__ = (
 import argparse
 import contextlib
 import multiprocessing
+import multiprocessing.managers
 import pathlib
 import sys
 import subprocess

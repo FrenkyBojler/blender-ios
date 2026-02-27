@@ -16,13 +16,18 @@ __all__ = (
 )
 
 import argparse
+import contextlib
 import multiprocessing
+import multiprocessing.managers
 import os
 import sys
 import subprocess
 
 from collections.abc import (
     Sequence,
+)
+from concurrent.futures import (
+    ProcessPoolExecutor,
 )
 
 VERSION_MIN = (20, 1, 8)
@@ -150,33 +155,69 @@ def clang_format_ensure_version() -> tuple[int, int, int] | None:
     return version_num
 
 
-def clang_format_file(files: list[str]) -> bytes:
+def clang_format_file(
+    files_chunk: list[str],
+    done: multiprocessing.managers.ValueProxy[int],
+    lock: contextlib.AbstractContextManager[bool],
+    total: int,
+) -> None:
+    # Progress display.
+    with lock:
+        if sys.stdout.isatty():
+            done.value += len(files_chunk)
+            progress_text = f"[{done.value}/{total}] {files_chunk[0]}"
+            sys.stdout.write(f"\r{progress_text}\033[K")
+            sys.stdout.flush()
+        else:
+            for file_path in files_chunk:
+                done.value += 1
+                progress_text = f"[{done.value}/{total}] {file_path}"
+                sys.stdout.write(f"{progress_text}\n")
+            sys.stdout.flush()
+
     cmd = [
         CLANG_FORMAT_CMD,
         # Update the files in-place.
         "-i",
-        # Shows the list of processed files.
-        "-verbose",
-    ] + files
-    return subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-
-
-def clang_print_output(output: bytes) -> None:
-    print(output.decode('utf8', errors='ignore').strip())
+    ] + files_chunk
+    subprocess.run(
+        cmd,
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 def clang_format(files: list[str]) -> None:
-    pool = multiprocessing.Pool()
+    if not files:
+        return
 
-    # Process in chunks to reduce overhead of starting processes.
-    cpu_count = multiprocessing.cpu_count()
-    chunk_size = min(max(len(files) // cpu_count // 2, 1), 32)
-    for i in range(0, len(files), chunk_size):
-        files_chunk = files[i:i + chunk_size]
-        pool.apply_async(clang_format_file, args=[files_chunk], callback=clang_print_output)
+    jobs = multiprocessing.cpu_count()
+    total_files = len(files)
 
-    pool.close()
-    pool.join()
+    with multiprocessing.Manager() as mpm:
+        done = mpm.Value("i", 0)
+        lock = mpm.Lock()
+
+        chunk_size = min(max(total_files // jobs // 2, 1), 32)
+        chunks = [files[i:i + chunk_size] for i in range(0, total_files, chunk_size)]
+
+        with ProcessPoolExecutor(max_workers=jobs) as executor:
+            futures = [
+                executor.submit(
+                    clang_format_file,
+                    chunk,
+                    done,
+                    lock,
+                    total_files,
+                )
+                for chunk in chunks
+            ]
+            for future in futures:
+                future.result()
+
+    if sys.stdout.isatty():
+        sys.stdout.write("\n")
 
 
 def argparse_create() -> argparse.ArgumentParser:
