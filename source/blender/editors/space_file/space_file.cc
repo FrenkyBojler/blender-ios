@@ -778,31 +778,31 @@ static void file_tools_region_exit(wmWindowManager * /*wm*/, ARegion *region)
     return a->sortorder < b->sortorder;
   });
 
-  MemorySection uistate = memory.open("file_browser.panels");
+  MemorySection mem = uimemory.open("file_browser.panels");
 
   for (const int i : panels.index_range()) {
     Panel *panel = panels[i];
     const bool is_open = !(panel->flag & PNL_CLOSED);
 
     if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_favorites")) {
-      uistate["bookmarks_index"] = i;
-      uistate["bookmarks_open"] = is_open;
+      mem["bookmarks_index"] = i;
+      mem["bookmarks_open"] = is_open;
     }
     else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_system")) {
-      uistate["system_index"] = i;
-      uistate["system_open"] = is_open;
+      mem["system_index"] = i;
+      mem["system_open"] = is_open;
     }
     else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_volumes")) {
-      uistate["volumes_index"] = i;
-      uistate["volumes_open"] = is_open;
+      mem["volumes_index"] = i;
+      mem["volumes_open"] = is_open;
     }
     else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_recents")) {
-      uistate["recent_index"] = i;
-      uistate["recent_open"] = is_open;
+      mem["recent_index"] = i;
+      mem["recent_open"] = is_open;
     }
     else if (STREQ(panel->type->idname, "FILEBROWSER_PT_advanced_filter")) {
-      uistate["advanced_filter_index"] = i;
-      uistate["advanced_filter_open"] = is_open;
+      mem["advanced_filter_index"] = i;
+      mem["advanced_filter_open"] = is_open;
     }
   }
 

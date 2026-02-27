@@ -125,7 +125,7 @@ struct WindowRuntime {
   wmIMEData *ime_data = nullptr;
   bool ime_data_is_composing = false;
 
-  std::string uistate_key = {};
+  std::string memory_key = {};
 
   /** Don't want to include ghost.h stuff. */
   void *ghostwin = nullptr;

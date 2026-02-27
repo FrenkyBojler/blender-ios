@@ -704,28 +704,28 @@ Panel *panel_begin(
     }
 
     /* Initialize File Browser panels from preferences. */
-    MemorySection uistate = memory.open("file_browser.panels");
+    MemorySection mem = uimemory.open("file_browser.panels");
 
     if (region->regiontype == RGN_TYPE_TOOLS && STRPREFIX(pt->idname, "FILEBROWSER_PT_")) {
       if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_favorites")) {
-        panel->sortorder = uistate["bookmarks_index"];
-        SET_FLAG_FROM_TEST(panel->flag, !uistate["bookmarks_open"], PNL_CLOSED);
+        panel->sortorder = mem["bookmarks_index"];
+        SET_FLAG_FROM_TEST(panel->flag, !mem["bookmarks_open"], PNL_CLOSED);
       }
       else if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_system")) {
-        panel->sortorder = uistate["system_index"];
-        SET_FLAG_FROM_TEST(panel->flag, !uistate["system_open"], PNL_CLOSED);
+        panel->sortorder = mem["system_index"];
+        SET_FLAG_FROM_TEST(panel->flag, !mem["system_open"], PNL_CLOSED);
       }
       else if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_volumes")) {
-        panel->sortorder = uistate["volumes_index"];
-        SET_FLAG_FROM_TEST(panel->flag, !uistate["volumes_open"], PNL_CLOSED);
+        panel->sortorder = mem["volumes_index"];
+        SET_FLAG_FROM_TEST(panel->flag, !mem["volumes_open"], PNL_CLOSED);
       }
       else if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_recents")) {
-        panel->sortorder = uistate["recent_index"];
-        SET_FLAG_FROM_TEST(panel->flag, !uistate["recent_open"], PNL_CLOSED);
+        panel->sortorder = mem["recent_index"];
+        SET_FLAG_FROM_TEST(panel->flag, !mem["recent_open"], PNL_CLOSED);
       }
       else if (STREQ(pt->idname, "FILEBROWSER_PT_advanced_filter")) {
-        panel->sortorder = uistate["advanced_filter_index"];
-        SET_FLAG_FROM_TEST(panel->flag, !uistate["advanced_filter_open"], PNL_CLOSED);
+        panel->sortorder = mem["advanced_filter_index"];
+        SET_FLAG_FROM_TEST(panel->flag, !mem["advanced_filter_open"], PNL_CLOSED);
       }
     }
 

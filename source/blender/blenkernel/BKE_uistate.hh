@@ -110,11 +110,11 @@ struct MemoryFile {
 };
 
 /* Global instance used by callers. */
-extern MemoryFile memory;
+extern MemoryFile uimemory;
 
 /**********************************/
 
-const StringRef default_uistate_toml = R"_delim_(
+const StringRef default_toml = R"_delim_(
 title = "Saved UI State Settings"
 name = "Blender"
 

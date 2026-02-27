@@ -191,7 +191,7 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
       return nullptr;
     }
 
-    win->runtime->uistate_key = key;
+    win->runtime->memory_key = key;
 
     area = CTX_wm_area(C);
     if (BLI_listbase_is_single(&area->spacedata) == false) {

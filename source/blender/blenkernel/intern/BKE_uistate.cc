@@ -27,28 +27,27 @@
 namespace blender {
 
 constexpr toml::spec version = toml::spec::v(1, 1, 0);
-#define UISTATE_FILE_NAME "uistate.toml"
+#define UIMEMORY_FILE_NAME "uimemory.toml"
 
-/* TOML storage. Protected by uistate_mutex. */
-static toml::value uistate_current;
-static toml::value uistate_default;
+/* TOML storage. Protected by memory_mutex. */
+static toml::value uimemory_current;
+static toml::value uimemory_default;
+static Mutex uimemory_mutex;      /* protects TOML values */
+static Mutex uimemory_init_mutex; /* used with cv for init wait */
+static std::atomic<bool> uimemory_ready{false};
+static std::condition_variable_any uimemory_init_cv;
+static std::once_flag uimemory_init_once;
 
-static Mutex uistate_mutex;      /* protects TOML values */
-static Mutex uistate_init_mutex; /* used with cv for init wait */
-static std::atomic<bool> uistate_ready{false};
-static std::condition_variable_any uistate_init_cv;
-static std::once_flag uistate_init_once;
-
-static std::string uistate_file_path()
+static std::string uimemory_file_path()
 {
   std::optional<std::string> datafiles_path = BKE_appdir_folder_id(BLENDER_USER_CONFIG, "");
   if (datafiles_path.has_value()) {
-    return *datafiles_path + SEP + UISTATE_FILE_NAME;
+    return *datafiles_path + SEP + UIMEMORY_FILE_NAME;
   }
   return {};
 }
 
-static void uistate_print_errors(std::vector<toml::error_info> errors)
+static void uimemory_print_errors(std::vector<toml::error_info> errors)
 {
   for (auto &error : errors) {
     std::string msg = toml::format_error(error);
@@ -56,68 +55,69 @@ static void uistate_print_errors(std::vector<toml::error_info> errors)
   }
 }
 
-static void uistate_init_impl()
+static void uimemory_init_impl()
 {
   /* Parse defaults from header literal. */
-  toml::result default_result = toml::try_parse_str(default_uistate_toml, version);
+  toml::result default_result = toml::try_parse_str(default_toml, version);
   if (default_result.is_ok()) {
-    std::lock_guard<Mutex> lock(uistate_mutex);
-    uistate_default = default_result.unwrap();
+    std::lock_guard<Mutex> lock(uimemory_mutex);
+    uimemory_default = default_result.unwrap();
   }
   else {
-    uistate_print_errors(default_result.unwrap_err());
+    uimemory_print_errors(default_result.unwrap_err());
   }
 
   /* Load from on-disk file if found. */
-  const std::string path = uistate_file_path();
+  const std::string path = uimemory_file_path();
   if (!path.empty() && BLI_exists(path.c_str())) {
     toml::result file_result = toml::try_parse(path, version);
     if (file_result.is_ok()) {
-      std::lock_guard<Mutex> lock(uistate_mutex);
-      uistate_current = file_result.unwrap();
+      std::lock_guard<Mutex> lock(uimemory_mutex);
+      uimemory_current = file_result.unwrap();
     }
     else {
-      uistate_print_errors(file_result.unwrap_err());
+      uimemory_print_errors(file_result.unwrap_err());
     }
   }
   else {
     /* No file: initialize from defaults and save. */
     {
-      std::lock_guard<Mutex> lock(uistate_mutex);
-      uistate_current = uistate_default;
+      std::lock_guard<Mutex> lock(uimemory_mutex);
+      uimemory_current = uimemory_default;
     }
-    memory.save();
+    uimemory.save();
   }
 
   /* Mark ready and wake any waiters. */
-  uistate_ready.store(true, std::memory_order_release);
-  uistate_init_cv.notify_all();
+  uimemory_ready.store(true, std::memory_order_release);
+  uimemory_init_cv.notify_all();
 }
 
 /* Manager implementation (thin wrapper around free functions but exposes ensure_init). */
 void MemoryFile::init_async()
 {
-  std::call_once(uistate_init_once, []() { std::thread([]() { uistate_init_impl(); }).detach(); });
+  std::call_once(uimemory_init_once,
+                 []() { std::thread([]() { uimemory_init_impl(); }).detach(); });
 }
 
 void MemoryFile::ensure_init()
 {
-  if (uistate_ready.load(std::memory_order_acquire)) {
+  if (uimemory_ready.load(std::memory_order_acquire)) {
     return;
   }
   /* Wait using BLI Mutex + condition_variable_any. */
-  std::unique_lock<Mutex> lock(uistate_init_mutex);
-  uistate_init_cv.wait(lock, [] { return uistate_ready.load(std::memory_order_acquire); });
+  std::unique_lock<Mutex> lock(uimemory_init_mutex);
+  uimemory_init_cv.wait(lock, [] { return uimemory_ready.load(std::memory_order_acquire); });
 }
 
 bool MemoryFile::save() const
 {
-  std::lock_guard<Mutex> lock(uistate_mutex);
-  if (uistate_current.is_empty()) {
+  std::lock_guard<Mutex> lock(uimemory_mutex);
+  if (uimemory_current.is_empty()) {
     return false;
   }
-  std::string s = toml::format(uistate_current, version);
-  FILE *fp = BLI_fopen(uistate_file_path().c_str(), "w");
+  std::string s = toml::format(uimemory_current, version);
+  FILE *fp = BLI_fopen(uimemory_file_path().c_str(), "w");
   if (fp == nullptr) {
     return false;
   }
@@ -128,49 +128,49 @@ bool MemoryFile::save() const
 
 template<typename T> T MemorySection::get(const StringRef item) const
 {
-  if (!uistate_ready.load(std::memory_order_acquire)) {
-    std::unique_lock<Mutex> lock(uistate_init_mutex);
-    uistate_init_cv.wait(lock, [] { return uistate_ready.load(std::memory_order_acquire); });
+  if (!uimemory_ready.load(std::memory_order_acquire)) {
+    std::unique_lock<Mutex> lock(uimemory_init_mutex);
+    uimemory_init_cv.wait(lock, [] { return uimemory_ready.load(std::memory_order_acquire); });
   }
 
-  std::lock_guard<Mutex> lock(uistate_mutex);
+  std::lock_guard<Mutex> lock(uimemory_mutex);
   const std::string &sec = section;
   const std::string key(item.data(), item.size());
 
-  const toml::value &cur = sec.empty() ? uistate_current[key] : uistate_current[sec][key];
-  const toml::value &def = sec.empty() ? uistate_default[key] : uistate_default[sec][key];
+  const toml::value &cur = sec.empty() ? uimemory_current[key] : uimemory_current[sec][key];
+  const toml::value &def = sec.empty() ? uimemory_default[key] : uimemory_default[sec][key];
   return toml::get_or(cur, toml::get_or(def, T{}));
 }
 
 template<typename T> void MemorySection::set(const StringRef item, const T &value)
 {
-  if (!uistate_ready.load(std::memory_order_acquire)) {
-    std::unique_lock<Mutex> lock(uistate_init_mutex);
-    uistate_init_cv.wait(lock, [] { return uistate_ready.load(std::memory_order_acquire); });
+  if (!uimemory_ready.load(std::memory_order_acquire)) {
+    std::unique_lock<Mutex> lock(uimemory_init_mutex);
+    uimemory_init_cv.wait(lock, [] { return uimemory_ready.load(std::memory_order_acquire); });
   }
 
-  std::lock_guard<Mutex> lock(uistate_mutex);
+  std::lock_guard<Mutex> lock(uimemory_mutex);
   const std::string &sec = section;
   const std::string key(item.data(), item.size());
   if (sec.empty()) {
-    uistate_current[key] = value;
+    uimemory_current[key] = value;
   }
   else {
-    uistate_current[sec][key] = value;
+    uimemory_current[sec][key] = value;
   }
 }
 
 void MemorySection::remove(const StringRef item)
 {
-  if (!uistate_ready.load(std::memory_order_acquire)) {
-    std::unique_lock<Mutex> lock(uistate_init_mutex);
-    uistate_init_cv.wait(lock, [] { return uistate_ready.load(std::memory_order_acquire); });
+  if (!uimemory_ready.load(std::memory_order_acquire)) {
+    std::unique_lock<Mutex> lock(uimemory_init_mutex);
+    uimemory_init_cv.wait(lock, [] { return uimemory_ready.load(std::memory_order_acquire); });
   }
-  std::lock_guard<Mutex> lock(uistate_mutex);
-  if (!uistate_current.is_table()) {
+  std::lock_guard<Mutex> lock(uimemory_mutex);
+  if (!uimemory_current.is_table()) {
     return;
   }
-  toml::table &root_tbl = uistate_current.as_table();
+  toml::table &root_tbl = uimemory_current.as_table();
   const std::string key(item.data(), item.size());
   if (section.empty()) {
     root_tbl.erase(key);
@@ -190,15 +190,15 @@ void MemorySection::remove(const StringRef item)
 
 void MemorySection::remove_section()
 {
-  if (!uistate_ready.load(std::memory_order_acquire)) {
-    std::unique_lock<Mutex> lock(uistate_init_mutex);
-    uistate_init_cv.wait(lock, [] { return uistate_ready.load(std::memory_order_acquire); });
+  if (!uimemory_ready.load(std::memory_order_acquire)) {
+    std::unique_lock<Mutex> lock(uimemory_init_mutex);
+    uimemory_init_cv.wait(lock, [] { return uimemory_ready.load(std::memory_order_acquire); });
   }
-  std::lock_guard<Mutex> lock(uistate_mutex);
-  if (section.empty() || !uistate_current.is_table()) {
+  std::lock_guard<Mutex> lock(uimemory_mutex);
+  if (section.empty() || !uimemory_current.is_table()) {
     return;
   }
-  toml::table &root_tbl = uistate_current.as_table();
+  toml::table &root_tbl = uimemory_current.as_table();
   root_tbl.erase(section);
 }
 
@@ -248,6 +248,6 @@ template void MemorySection::set<std::vector<float>>(const StringRef item,
                                                      const std::vector<float> &value);
 
 /* Global instance */
-MemoryFile memory;
+MemoryFile uimemory;
 
 }  // namespace blender

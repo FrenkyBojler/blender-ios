@@ -458,7 +458,7 @@ void wm_quit_with_optional_confirmation_prompt(bContext *C, wmWindow *win)
 /** \name Window Close
  * \{ */
 
-static StringRef get_window_uistate_key(eSpace_Type space_type)
+static StringRef get_window_memory_key(eSpace_Type space_type)
 {
   if (space_type == SPACE_FILE) {
     return "file";
@@ -512,7 +512,7 @@ void wm_window_close_request(bContext *C, wmWindowManager *wm, wmWindow *win)
   {
     bScreen *screen = WM_window_get_active_screen(win);
     if (screen && screen->temp && BLI_listbase_is_single(&screen->areabase)) {
-      if (!win->runtime->uistate_key.empty()) {
+      if (!win->runtime->memory_key.empty()) {
         /* Get DPI and scale from parent window, if there is one. */
         WM_window_dpi_set_userdef(win->parent ? win->parent : win);
 
@@ -523,8 +523,8 @@ void wm_window_close_request(bContext *C, wmWindowManager *wm, wmWindow *win)
                                      float(win->posx) * fac + float(win->sizex) * fac,
                                      float(win->posy) * fac,
                                      float(win->posy) * fac + float(win->sizey) * fac};
-        MemorySection uistate = memory.open("window.dimensions");
-        uistate[win->runtime->uistate_key] = bounds;
+        MemorySection mem = uimemory.open("window.dimensions");
+        mem[win->runtime->memory_key] = bounds;
       }
     }
   }
@@ -1433,9 +1433,9 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
   rcti rect;
   WM_window_dpi_set_userdef(CTX_wm_window(C));
   eWindowAlignment align;
-  StringRef key = get_window_uistate_key(eSpace_Type(space_type));
-  MemorySection uistate = memory.open("window.dimensions");
-  std::vector<float> bounds = uistate[key];
+  StringRef key = get_window_memory_key(eSpace_Type(space_type));
+  MemorySection mem = uimemory.open("window.dimensions");
+  std::vector<float> bounds = mem[key];
   const bool bounds_valid = (bounds.size() == 4 && (bounds[1] - bounds[0] > 150.0f) &&
                              (bounds[3] - bounds[2] > 100.0f));
   const bool mm_placement = WM_capabilities_flag() & WM_CAPABILITY_MULTIMONITOR_PLACEMENT;
@@ -1461,7 +1461,7 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
 
   wmWindow *win = WM_window_open(
       C, title, &rect, space_type, false, dialog, true, align, nullptr, nullptr);
-  win->runtime->uistate_key = key;
+  win->runtime->memory_key = key;
   return win;
 }
 
