@@ -184,7 +184,7 @@ struct TokenBuffer {
   void tokenize(const CharClass char_class_table[128]);
 
   /**
-   * @brief Merge complex literals such as floats and strings.
+   * @brief Merge complex literals such as floats, strings and comments.
    */
   void merge_complex_literals();
 

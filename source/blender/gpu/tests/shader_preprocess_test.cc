@@ -2711,6 +2711,21 @@ sA{AA=1;};SA{AA;};)";
   }
   {
     string input = R"(
+a /* Comment */
+//
+a
+/* //
+*/
+a
+// a
+a
+)";
+    string expect = R"(
+AZZAZAZA)";
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str, expect);
+  }
+  {
+    string input = R"(
 namespace T {}
 namespace T::U::V {}
 )";

@@ -39,10 +39,8 @@ struct LexerBase : lexit::TokenBuffer {
   OffsetIndices token_offsets;
 
  protected:
-  /* Change words into keyword (ex: `if`, `struct`, `template`). Must run before merge tokens. */
+  /* Change words into keyword (ex: `if`, `struct`, `template`). */
   void identify_keywords();
-  /* Merge tokens (ex: '2','.','e','-','3` into '2.e-3`). */
-  void merge_tokens();
 
   void update_string_view();
 };
@@ -70,8 +68,10 @@ struct ExpressionLexer : LexerBase {
   {
     str = input;
     process(input, default_char_class_table.data());
+    merge_complex_literals();
     identify_keywords();
-    merge_tokens();
+    update_string_view();
+
     token_types_str = std::string_view((const char *)types_.get(), size_);
     token_types = {types_.get(), size_};
     token_offsets = {offsets_.get(), size_ + 1};
@@ -88,8 +88,10 @@ struct FullLexer : LexerBase {
   {
     str = input;
     process(input, bsl_char_class_table.data());
+    merge_complex_literals();
     identify_keywords();
-    merge_tokens();
+    update_string_view();
+
     token_types_str = std::string_view((const char *)types_.get(), size_);
     token_types = {types_.get(), size_};
     token_offsets = {offsets_.get(), size_ + 1};

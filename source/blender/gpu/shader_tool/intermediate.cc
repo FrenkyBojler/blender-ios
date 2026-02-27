@@ -147,14 +147,6 @@ static always_inline TokenType multi_tok_lookup(TokenType input, std::string_vie
   }
 }
 
-void LexerBase::merge_tokens()
-{
-  merge_complex_literals();
-  // merge_whitespaces();
-
-  update_string_view();
-}
-
 constexpr always_inline uint8_t perfect_hash(std::string_view s)
 {
   return s.size() * (s[0] - s.back() * 2);
