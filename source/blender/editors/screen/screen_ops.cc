@@ -10,6 +10,7 @@
 #include <cstring>
 #include <fmt/format.h>
 
+#include "BLI_compiler_attrs.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_build_config.h"
@@ -96,6 +97,9 @@ namespace blender {
 #define KM_MODAL_APPLY 2
 #define KM_MODAL_SNAP_ON 3
 #define KM_MODAL_SNAP_OFF 4
+
+static wmOperatorStatus start_playback(bContext *C, int sync, int mode);
+static void stop_playback(bContext *C);
 
 /* -------------------------------------------------------------------- */
 /** \name Public Poll API
@@ -6190,38 +6194,45 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
     }
   }
 
-  /* reset 'jumped' flag before checking if we need to jump... */
-  sad->flag &= ~ANIMPLAY_FLAG_JUMPED;
+  /* Handle reaching the extreme frames. */
+  const int start_frame = PSFRA;
+  const int end_frame = PEFRA;
+  const bool is_playing_forward = (sad->flag & ANIMPLAY_FLAG_REVERSE) == 0;
+  const bool is_extreme_frame = is_playing_forward ? scene->r.cfra >= end_frame :
+                                                     scene->r.cfra <= start_frame;
+  if (is_extreme_frame) {
+    sad->flag |= ANIMPLAY_FLAG_JUMPED;
 
-  if (sad->flag & ANIMPLAY_FLAG_REVERSE) {
-    /* jump back to end? */
-    if (PRVRANGEON) {
-      if (scene->r.cfra < scene->r.psfra) {
-        scene->r.cfra = scene->r.pefra;
-        sad->flag |= ANIMPLAY_FLAG_JUMPED;
-      }
-    }
-    else {
-      if (scene->r.cfra < scene->r.sfra) {
-        scene->r.cfra = scene->r.efra;
-        sad->flag |= ANIMPLAY_FLAG_JUMPED;
-      }
+    switch (scene->playback_loop_mode) {
+      case SCE_LOOP_MODE_START:
+        stop_playback(C);
+        ATTR_FALLTHROUGH;
+      case SCE_LOOP_MODE_LOOP:
+        scene->r.cfra = is_playing_forward ? start_frame : end_frame;
+        break;
+      case SCE_LOOP_MODE_STOP:
+        CLAMP(scene->r.cfra, start_frame, end_frame);
+        stop_playback(C);
+        break;
+      case SCE_LOOP_MODE_RESTORE:
+        scene->r.cfra = sad->sfra;
+        stop_playback(C);
+        break;
+      case SCE_LOOP_MODE_BOUNCE:
+        CLAMP(scene->r.cfra, start_frame, end_frame);
+        if (is_playing_forward) {
+          BKE_sound_stop_scene(scene_eval);
+          sad->flag |= ANIMPLAY_FLAG_REVERSE;
+        }
+        else {
+          sad->flag &= ~ANIMPLAY_FLAG_REVERSE;
+          BKE_sound_play_scene(scene_eval);
+        }
+        break;
     }
   }
   else {
-    /* jump back to start? */
-    if (PRVRANGEON) {
-      if (scene->r.cfra > scene->r.pefra) {
-        scene->r.cfra = scene->r.psfra;
-        sad->flag |= ANIMPLAY_FLAG_JUMPED;
-      }
-    }
-    else {
-      if (scene->r.cfra > scene->r.efra) {
-        scene->r.cfra = scene->r.sfra;
-        sad->flag |= ANIMPLAY_FLAG_JUMPED;
-      }
-    }
+    sad->flag &= ~ANIMPLAY_FLAG_JUMPED;
   }
 
   /* next frame overridden by user action (pressed jump to first/last frame) */
