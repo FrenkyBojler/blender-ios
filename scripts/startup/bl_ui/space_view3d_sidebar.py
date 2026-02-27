@@ -11,6 +11,7 @@ class GlobalTransformPanelMixin:
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Animation"
+    bl_icon = 'OBJECT_DATA'
 
 
 class VIEW3D_PT_copy_global_transform(GlobalTransformPanelMixin, Panel):

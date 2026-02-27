@@ -1933,6 +1933,10 @@ static void rna_def_panel(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "", "The category (tab) in which the panel will be displayed, when applicable");
 
+  prop = RNA_def_property(srna, "bl_icon", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "type->icon");
+  RNA_def_property_ui_text(prop, "Icon", "Icon override for the panel label in the UI");
+
   prop = RNA_def_property(srna, "bl_owner_id", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "type->owner_id");
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);

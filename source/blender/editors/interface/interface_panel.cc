@@ -1495,16 +1495,24 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
     rcti *rct = &pc_dyn.rect;
     const char *category_id = pc_dyn.idname;
     const char *category_id_draw = IFACE_(category_id);
-    const int category_width = round_fl_to_int(
-        BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
 
     rct->xmin = rct_xmin;
     rct->xmax = rct_xmax;
 
-    rct->ymin = v2d->mask.ymax - (y_ofs + category_width + (tab_v_pad_text * 2));
-    rct->ymax = v2d->mask.ymax - (y_ofs);
-
-    y_ofs += category_width + tab_v_pad + (tab_v_pad_text * 2);
+    int category_width;
+    if (pc_dyn.icon != ICON_NONE) {
+      category_width = round_fl_to_int(UI_ICON_SIZE * zoom);
+      rct->ymin = v2d->mask.ymax - (y_ofs + category_width + tab_v_pad_text);
+      rct->ymax = v2d->mask.ymax - (y_ofs);
+      y_ofs += category_width + tab_v_pad + tab_v_pad_text;
+    }
+    else {
+      category_width = round_fl_to_int(
+          BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
+      rct->ymin = v2d->mask.ymax - (y_ofs + category_width + (tab_v_pad_text * 2));
+      rct->ymax = v2d->mask.ymax - (y_ofs);
+      y_ofs += category_width + tab_v_pad + (tab_v_pad_text * 2);
+    }
   }
 
   const int max_scroll = max_ii(y_ofs - BLI_rcti_size_y(&v2d->mask), 0);
@@ -1554,6 +1562,7 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
                           int(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect);
 
   for (PanelCategoryDyn &pc_dyn : region->runtime->panels_category) {
+
     const rcti *rct = &pc_dyn.rect;
     if (rct->ymin > v2d->mask.ymax) {
       /* Scrolled outside the top of the view, check the next tab. */
@@ -1624,31 +1633,49 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
     }
 
     /* Tab titles. */
-
-    /* Offset toward the middle of the rect. */
-    const int text_v_ofs = round_fl_to_int(float(rct_xmax - rct_xmin) * 0.5f);
-    /* Offset down as the font size increases. */
-    const int text_size_offset = round_fl_to_int(fstyle_points * UI_SCALE_FAC * 0.35f);
-
-    BLF_position(fontid,
-                 is_left ? rct->xmax - text_v_ofs + text_size_offset :
-                           rct->xmin + text_v_ofs - text_size_offset,
-                 is_left ? rct->ymin + tab_v_pad_text : rct->ymax - tab_v_pad_text,
-                 0.0f);
     BLF_color3ubv(fontid, is_active ? theme_col_tab_text_sel : theme_col_tab_text);
 
-    if (fstyle->shadow) {
-      BLF_enable(fontid, BLF_SHADOW);
-      const float shadow_color[4] = {
-          fstyle->shadowcolor, fstyle->shadowcolor, fstyle->shadowcolor, fstyle->shadowalpha};
-      BLF_shadow(fontid, FontShadowType(fstyle->shadow), shadow_color);
-      BLF_shadow_offset(fontid, fstyle->shadx, fstyle->shady);
+    if (pc_dyn.icon != ICON_NONE) {
+      const float ofs_x = round_fl_to_int(float(rct_xmax - rct_xmin) * 0.08f);
+      const float ofs_y = round_fl_to_int(float(rct->ymax - rct->ymin) * 0.15f);
+      BLF_disable(fontid, BLF_ROTATION);
+      icon_draw_ex(float(rct_xmin) + ofs_x,
+                   float(rct->ymin) + ofs_y,
+                   pc_dyn.icon,
+                   aspect / UI_SCALE_FAC,
+                   1.0f,
+                   0.0f,
+                   nullptr,
+                   false,
+                   nullptr,
+                   false);
+      BLF_size(fontid, fstyle_points * UI_SCALE_FAC);
+      BLF_enable(fontid, BLF_ROTATION);
     }
+    else {
+      /* Offset toward the middle of the rect. */
+      const int text_v_ofs = round_fl_to_int(float(rct_xmax - rct_xmin) * 0.5f);
+      /* Offset down as the font size increases. */
+      const int text_size_offset = round_fl_to_int(fstyle_points * UI_SCALE_FAC * 0.35f);
 
-    BLF_draw(fontid, category_id_draw, category_draw_len);
+      BLF_position(fontid,
+                   is_left ? rct->xmax - text_v_ofs + text_size_offset :
+                             rct->xmin + text_v_ofs - text_size_offset,
+                   is_left ? rct->ymin + tab_v_pad_text : rct->ymax - tab_v_pad_text,
+                   0.0f);
+      if (fstyle->shadow) {
+        BLF_enable(fontid, BLF_SHADOW);
+        const float shadow_color[4] = {
+            fstyle->shadowcolor, fstyle->shadowcolor, fstyle->shadowcolor, fstyle->shadowalpha};
+        BLF_shadow(fontid, FontShadowType(fstyle->shadow), shadow_color);
+        BLF_shadow_offset(fontid, fstyle->shadx, fstyle->shady);
+      }
 
-    if (fstyle->shadow) {
-      BLF_disable(fontid, BLF_SHADOW);
+      BLF_draw(fontid, category_id_draw, category_draw_len);
+
+      if (fstyle->shadow) {
+        BLF_disable(fontid, BLF_SHADOW);
+      }
     }
 
     GPU_blend(GPU_BLEND_NONE);
@@ -2496,12 +2523,13 @@ static PanelCategoryDyn *panel_categories_find_mouse_over(ARegion *region, const
   return nullptr;
 }
 
-void panel_category_add(ARegion *region, const char *name)
+void panel_category_add(ARegion *region, const char *name, int icon)
 {
   PanelCategoryDyn *pc_dyn = MEM_new<PanelCategoryDyn>(__func__);
   BLI_addtail(&region->runtime->panels_category, pc_dyn);
 
   STRNCPY_UTF8(pc_dyn->idname, name);
+  pc_dyn->icon = icon;
 
   /* 'pc_dyn->rect' must be set on draw. */
 }
