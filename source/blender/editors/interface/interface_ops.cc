@@ -2718,24 +2718,40 @@ static void UI_OT_view_scroll(wmOperatorType *ot)
  *
  * \{ */
 
+static AbstractViewItem *find_active_view_item(bContext *C)
+{
+  AbstractView *view = get_view_focused(C);
+  if (!view) {
+    return nullptr;
+  }
+  AbstractViewItem *active_item = nullptr;
+  view->foreach_view_item([&](AbstractViewItem &item) {
+    if (item.is_active()) {
+      active_item = &item;
+    }
+  });
+  return active_item;
+}
+
 static bool ui_view_item_rename_poll(bContext *C)
 {
   const ARegion *region = CTX_wm_region(C);
   if (region == nullptr) {
     return false;
   }
-  const AbstractViewItem *active_item = region_views_find_active_item(region);
+  const AbstractViewItem *active_item = find_active_view_item(C);
   return active_item != nullptr && view_item_can_rename(*active_item);
 }
 
 static wmOperatorStatus ui_view_item_rename_exec(bContext *C, wmOperator * /*op*/)
 {
   ARegion *region = CTX_wm_region(C);
-  AbstractViewItem *active_item = region_views_find_active_item(region);
+  AbstractViewItem *active_item = find_active_view_item(C);
 
   view_item_begin_rename(*active_item);
   ED_region_tag_redraw(region);
 
+  /* TODO: Scroll to active rename button. */
   return OPERATOR_FINISHED;
 }
 
