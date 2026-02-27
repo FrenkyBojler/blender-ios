@@ -859,10 +859,18 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
     /* the block and buttons were positioned in window space as in 2.4x, now
      * these menu blocks are regions so we bring it back to region space.
      * additionally we add some padding for the menu shadow or rounded menus */
+
+    const int top_margin = (block->direction & UI_DIR_DOWN) ?
+                         (block->flag & BLOCK_POPOVER ? UI_POPUP_MENU_TOP : 0) :
+                         margin;
+    const int bottom_margin = (block->direction & UI_DIR_DOWN) ?
+                            margin :
+                            (block->flag & BLOCK_POPOVER ? UI_POPUP_MENU_TOP : 0);
+
     region->winrct.xmin = block->rect.xmin - margin;
     region->winrct.xmax = block->rect.xmax + margin;
-    region->winrct.ymin = block->rect.ymin - margin;
-    region->winrct.ymax = block->rect.ymax + UI_POPUP_MENU_TOP;
+    region->winrct.ymin = block->rect.ymin - bottom_margin;
+    region->winrct.ymax = block->rect.ymax + top_margin;
 
     block_translate(block, -region->winrct.xmin, -region->winrct.ymin);
     /* Popups can change size, fix scroll offset if a panel was closed. */
