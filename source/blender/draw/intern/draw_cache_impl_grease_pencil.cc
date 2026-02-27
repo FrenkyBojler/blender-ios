@@ -1410,7 +1410,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       Array<float> radii_lengths(lengths.size());
       const bool is_line = false;
 
-      if (gp_style->placement_mode == GP_MATERIAL_PLACEMENT_RADIUS && (!is_line)) {
+      if (gp_style->placement_mode == GP_MATERIAL_PLACEMENT_RADIUS && !is_line) {
         get_radii_lengths(lengths, radii, points, radii_lengths);
       }
 
