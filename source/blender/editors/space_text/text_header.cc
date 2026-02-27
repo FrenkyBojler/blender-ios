@@ -22,9 +22,6 @@
 
 #include "UI_interface.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.hh"
-
 #include "text_intern.hh"
 
 namespace blender {

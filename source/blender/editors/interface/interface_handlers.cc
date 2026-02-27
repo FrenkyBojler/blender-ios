@@ -12597,7 +12597,7 @@ bool textbutton_try_activate_over_redraws(
     return false;
   }
   if (!event) {
-    return;
+    return false;
   }
   if (!(event->type == TIMER && event->customdata == region->runtime->auto_open_rna_button_timer))
   {
