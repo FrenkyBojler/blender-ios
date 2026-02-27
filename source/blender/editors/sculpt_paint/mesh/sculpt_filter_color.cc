@@ -72,28 +72,31 @@ static float3 fill_color_resolve_from_paint(const bContext *C, const bool use_se
   const Sculpt *sd = ts->sculpt;
   const Paint *paint = &sd->paint;
   const Brush *brush = BKE_paint_brush_for_read(paint);
+  auto color_from_array = [](const float color[3]) {
+    return float3(color[0], color[1], color[2]);
+  };
 
   /* Use brush colors if a brush tool is active, otherwise use unified paint colors. */
   if (WM_toolsystem_active_tool_is_brush(C) && brush) {
-    const float *color = use_secondary_color ? BKE_brush_secondary_color_get(paint, brush) :
-                                               BKE_brush_color_get(paint, brush);
-    return float3(color[0], color[1], color[2]);
+    const float3 color = use_secondary_color ?
+                             color_from_array(BKE_brush_secondary_color_get(paint, brush)) :
+                             color_from_array(BKE_brush_color_get(paint, brush));
+    return color;
   }
 
   /* Use unified paint colors when filter tool is active. */
-  const float *color = use_secondary_color ? paint->unified_paint_settings.secondary_color :
-                                             paint->unified_paint_settings.color;
-  return float3(color[0], color[1], color[2]);
+  const float3 color = use_secondary_color ?
+                           color_from_array(paint->unified_paint_settings.secondary_color) :
+                           color_from_array(paint->unified_paint_settings.color);
+  return color;
 }
 
-static float3 fill_color_resolve(const bContext *C,
-                                 wmOperator *op,
-                                 const bool use_secondary_color)
+static float3 fill_color_resolve(const bContext *C, wmOperator *op, const bool use_secondary_color)
 {
   if (RNA_struct_property_is_set(op->ptr, "fill_color")) {
-    float fill_color[3];
+    float3 fill_color;
     RNA_float_get_array(op->ptr, "fill_color", fill_color);
-    return float3(fill_color[0], fill_color[1], fill_color[2]);
+    return fill_color;
   }
 
   return fill_color_resolve_from_paint(C, use_secondary_color);
@@ -505,20 +508,18 @@ static wmOperatorStatus sculpt_color_filter_modal(bContext *C,
   }
 
   /* Use a pixel threshold to distinguish a click from a drag */
-  int start_mouse[2];
-  RNA_int_get_array(op->ptr, "start_mouse", start_mouse);
-  const int2 start_mouse_2d(start_mouse[0], start_mouse[1]);
-  const int2 mouse_2d(event->xy[0], event->xy[1]);
+  int2 start_mouse;
+  RNA_int_get_array(op->ptr, "start_mouse", &start_mouse[0]);
+  const int2 mouse_2d(event->mval[0], event->mval[1]);
 
   const int drag_threshold = WM_event_drag_threshold(event);
-  ss.filter_cache->has_dragged |= math::distance_manhattan(start_mouse_2d, mouse_2d) >
-                                  drag_threshold;
+  ss.filter_cache->has_dragged |= math::distance_manhattan(start_mouse, mouse_2d) > drag_threshold;
 
   if (!ss.filter_cache->has_dragged) {
     return OPERATOR_RUNNING_MODAL;
   }
 
-  const float len = (start_mouse[0] - event->xy[0]) * 0.001f;
+  const float len = (start_mouse[0] - event->mval[0]) * 0.001f;
   float filter_strength = ss.filter_cache->start_filter_strength * -len;
 
   RNA_float_set(op->ptr, "strength", filter_strength);
@@ -690,17 +691,16 @@ void SCULPT_OT_color_filter(wmOperatorType *ot)
   RNA_def_enum(
       ot->srna, "type", prop_color_filter_types, int(FilterType::Fill), "Filter Type", "");
 
-  PropertyRNA *prop = RNA_def_float_color(
-      ot->srna,
-      "fill_color",
-      3,
-      fill_filter_default_color,
-      0.0f,
-      FLT_MAX,
-      "Fill Color",
-      "",
-      0.0f,
-      1.0f);
+  PropertyRNA *prop = RNA_def_float_color(ot->srna,
+                                          "fill_color",
+                                          3,
+                                          fill_filter_default_color,
+                                          0.0f,
+                                          FLT_MAX,
+                                          "Fill Color",
+                                          "",
+                                          0.0f,
+                                          1.0f);
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MESH);
   RNA_def_property_subtype(prop, PROP_COLOR);
 
@@ -711,11 +711,7 @@ void SCULPT_OT_color_filter(wmOperatorType *ot)
                          "Apply once without entering modal interaction");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
-  prop = RNA_def_boolean(ot->srna,
-                         "use_secondary_color",
-                         false,
-                         "Use Secondary Color",
-                         "");
+  prop = RNA_def_boolean(ot->srna, "use_secondary_color", false, "Use Secondary Color", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
