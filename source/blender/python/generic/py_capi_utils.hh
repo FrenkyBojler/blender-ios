@@ -40,6 +40,12 @@ void PyC_StackSpit();
  * - The always returns a Python string (unless exiting where the function doesn't return).
  */
 [[nodiscard]] PyObject *PyC_ExceptionBuffer() ATTR_RETURNS_NONNULL;
+
+/**
+ * Get exit code `sys.exit(..)` was called with.
+ */
+[[nodiscard]] int PyC_ExceptionSystemExitCode();
+
 /**
  * A version of #PyC_ExceptionBuffer that returns the last exception only.
  *

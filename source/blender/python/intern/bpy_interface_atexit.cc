@@ -15,7 +15,13 @@
 #include "bpy.hh" /* own include */
 #include "bpy_capi_utils.hh"
 
+#include "../generic/py_capi_utils.hh"
+
 #include "WM_api.hh"
+
+#ifdef _WIN32
+#  include "BLI_winstuff.h"
+#endif
 
 namespace blender {
 
@@ -41,6 +47,16 @@ static PyObject *bpy_atexit(PyObject * /*self*/, PyObject * /*args*/, PyObject *
   const bool do_user_exit_actions = false;
 
   WM_exit_ex(C, do_python_exit, do_user_exit_actions);
+
+  /* Force immediate exit without e.g. heap cleanup that may deadlock on Windows. In
+   * general, using exit() is unsafe in multithreaded applications and not recommended
+   * to be used at all. But tests use it, and there's nothing stopping user Python
+   * code from using it either. */
+#ifdef _WIN32
+  TerminateProcess(GetCurrentProcess(), PyC_ExceptionSystemExitCode());
+#else
+  std::_Exit(PyC_ExceptionSystemExitCode());
+#endif
 
   Py_RETURN_NONE;
 }
