@@ -2142,9 +2142,6 @@ struct NodeImplicitConversion {
 
   /** Name of the socket type (e.g. `NodeSocketFloat`). */
   char type_idname[64] = "";
-  /** #NodeSocketInterfaceStructureType. */
-  int8_t structure_type = 0;
-  char _pad[3] = {};
 };
 
 /** \note This one has been replaced with #ImageUser, keep it for do_versions(). */

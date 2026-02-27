@@ -4180,8 +4180,6 @@ static int rna_NodeImplicitConversion_data_type_get(PointerRNA *ptr)
   return socket_type ? socket_type->type : SOCK_CUSTOM;
 }
 
-static void rna_NodeImplicitConversion_structure_type_validate(PointerRNA *ptr);
-
 static void rna_NodeImplicitConversion_data_type_set(PointerRNA *ptr, const int value)
 {
   const bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(value);
@@ -4189,8 +4187,6 @@ static void rna_NodeImplicitConversion_data_type_set(PointerRNA *ptr, const int 
     bNode &node = *ptr->data_as<bNode>();
     NodeImplicitConversion &data = *static_cast<NodeImplicitConversion *>(node.storage);
     STRNCPY(data.type_idname, socket_type->idname.c_str());
-
-    rna_NodeImplicitConversion_structure_type_validate(ptr);
   }
 }
 
@@ -4214,42 +4210,6 @@ static const EnumPropertyItem *rna_NodeImplicitConversion_data_type_itemf(bConte
         }
         return true;
       });
-}
-
-static const EnumPropertyItem *rna_NodeImplicitConversion_structure_type_itemf(
-    bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
-{
-  const bNodeTree &ntree = *id_cast<const bNodeTree *>(ptr->owner_id);
-  const bNode &node = *ptr->data_as<bNode>();
-  const NodeImplicitConversion &data = *static_cast<NodeImplicitConversion *>(node.storage);
-  const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(data.type_idname);
-  const eNodeSocketDatatype data_type = socket_type ? socket_type->type : SOCK_CUSTOM;
-  return rna_NodeSocket_structure_type_item_filter(&ntree, data_type, r_free);
-}
-
-static void rna_NodeImplicitConversion_structure_type_validate(PointerRNA *ptr)
-{
-  const bNodeTree &ntree = *id_cast<const bNodeTree *>(ptr->owner_id);
-  bNode &node = *ptr->data_as<bNode>();
-  NodeImplicitConversion &data = *static_cast<NodeImplicitConversion *>(node.storage);
-  const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(data.type_idname);
-  const eNodeSocketDatatype data_type = socket_type ? socket_type->type : SOCK_CUSTOM;
-  const NodeSocketInterfaceStructureType structure_type = NodeSocketInterfaceStructureType(
-      data.structure_type);
-
-  bool items_free = false;
-  const EnumPropertyItem *items = rna_NodeSocket_structure_type_item_filter(
-      &ntree, data_type, &items_free);
-
-  const int index = RNA_enum_from_value(items, structure_type);
-  if (index < 0) {
-    /* Invalid structure type, replace by first valid structure type. */
-    data.structure_type = NodeSocketInterfaceStructureType(items[0].value);
-  }
-
-  if (items_free) {
-    MEM_delete(items);
-  }
 }
 
 static void rna_NodeInputVector_vector_get(PointerRNA *ptr, float *values)
@@ -8851,16 +8811,6 @@ static void def_implicit_conversion(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_enum_default(prop, SOCK_FLOAT);
   RNA_def_property_ui_text(prop, "Data Type", "");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
-
-  prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
-  RNA_def_property_ui_text(
-      prop,
-      "Structure Type",
-      "What kind of higher order types are expected to flow through this node");
-  RNA_def_property_enum_funcs(
-      prop, nullptr, nullptr, "rna_NodeImplicitConversion_structure_type_itemf");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
