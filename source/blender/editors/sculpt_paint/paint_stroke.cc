@@ -59,6 +59,422 @@
 
 namespace blender::ed::sculpt_paint {
 
+/* -------------------------------------------------------------------- */
+/** \name Roll Texture Mapping Spline Helpers
+ * \{ */
+
+int PaintStroke::roll_max_points() const
+{
+  if (!need_roll_mapping_) {
+    return 1;
+  }
+
+  float s = std::max(spacing_raw_, 0.05f);
+  int tot = int(std::ceil(1.0f / s)) + 2;
+  tot = std::max(tot, 5);
+  return tot;
+}
+
+void PaintStroke::add_roll_point(const float2 &mouse_in,
+                                 const float2 &mouse_out,
+                                 const float3 &loc,
+                                 float size,
+                                 float pressure,
+                                 bool pen_flip,
+                                 float x_tilt,
+                                 float y_tilt)
+{
+  PaintStrokePoint *point = &points_[cur_point_];
+  int max_points = roll_max_points();
+
+  point->size = size;
+  point->mouse_in = mouse_in;
+  point->mouse_out = mouse_out;
+  point->x_tilt = x_tilt;
+  point->y_tilt = y_tilt;
+  point->pen_flip = pen_flip;
+  point->location = loc;
+  point->pressure = pressure;
+
+  cur_point_++;
+  if (cur_point_ >= max_points) {
+    cur_point_ = 0;
+  }
+  if (num_points_ < max_points) {
+    num_points_++;
+  }
+}
+
+void PaintStroke::prepend_virtual_roll_points()
+{
+  if (num_points_ < 2) {
+    return;
+  }
+
+  const int max_pts = roll_max_points();
+  const int oldest = (cur_point_ - num_points_ + max_pts) % max_pts;
+  const int next_oldest = (oldest + 1) % max_pts;
+  const int newest = (cur_point_ - 1 + max_pts) % max_pts;
+
+  const float3 p_start = points_[oldest].location;
+  const float2 m_start = points_[oldest].mouse_out;
+
+  float3 dir3 = points_[newest].location - p_start;
+  float2 dir2 = points_[newest].mouse_out - m_start;
+
+  const float len3 = math::length(dir3);
+  const float len2 = math::length(dir2);
+
+  if (len3 < 1e-7f || len2 < 1e-7f) {
+    return;
+  }
+
+  dir3 /= len3;
+  dir2 /= len2;
+
+  /* Brush radius in world and screen space. */
+  const float r_world = paint_calc_object_space_radius(vc, p_start, points_[oldest].size);
+  const float r_screen = points_[oldest].size;
+
+  /* Extend backward from the stroke start by 3 brush radii so that early
+   * dabs have generous spline coverage behind them.
+   * 12 straight-line bezier segments subdivide this linear extrapolation. */
+  constexpr int n_backward = 12;
+  const float total_backward_3d = r_world * 3.0f;
+  const float total_backward_2d = r_screen * 3.0f;
+  const float step_3d = total_backward_3d / float(n_backward);
+  const float step_2d = total_backward_2d / float(n_backward);
+
+  /* v[0] = farthest backward, v[n_backward] = p_start = points_[oldest]. */
+  float3 v3d[n_backward + 1];
+  float2 v2d[n_backward + 1];
+  for (int i = 0; i <= n_backward; i++) {
+    const float t = float(n_backward - i);
+    v3d[i] = p_start - dir3 * (t * step_3d);
+    v2d[i] = m_start - dir2 * (t * step_2d);
+  }
+
+  /* Splines are empty at this point, so these become the leading segments.
+   * First: n_backward segments of linear backward extension. */
+  for (int i = 0; i < n_backward; i++) {
+    const float2 a2 = v2d[i];
+    const float2 d2 = v2d[i + 1];
+    CubicBezier<float, 2> bez2d(a2,
+                                math::interpolate(a2, d2, 1.0f / 3.0f),
+                                math::interpolate(a2, d2, 2.0f / 3.0f),
+                                d2);
+    bez2d.update();
+    spline_->add(bez2d);
+
+    CubicBezier<float, 3> bez3d;
+    bez3d.ps[0] = v3d[i];
+    bez3d.ps[1] = math::interpolate(v3d[i], v3d[i + 1], 1.0f / 3.0f);
+    bez3d.ps[2] = math::interpolate(v3d[i], v3d[i + 1], 2.0f / 3.0f);
+    bez3d.ps[3] = v3d[i + 1];
+    bez3d.update();
+    world_spline_->add(bez3d);
+  }
+
+  /* Bridge the gap: the first real Catmull-Rom segment will start at
+   * points_[oldest+1], but the backward extension ends at points_[oldest].
+   * Add a linear bridging segment to close this gap. */
+  if (num_points_ >= 2) {
+    const float2 bridge_a2 = points_[oldest].mouse_out;
+    const float2 bridge_d2 = points_[next_oldest].mouse_out;
+    CubicBezier<float, 2> bridge2d(bridge_a2,
+                                    math::interpolate(bridge_a2, bridge_d2, 1.0f / 3.0f),
+                                    math::interpolate(bridge_a2, bridge_d2, 2.0f / 3.0f),
+                                    bridge_d2);
+    bridge2d.update();
+    spline_->add(bridge2d);
+
+    const float3 bridge_a3 = points_[oldest].location;
+    const float3 bridge_d3 = points_[next_oldest].location;
+    CubicBezier<float, 3> bridge3d;
+    bridge3d.ps[0] = bridge_a3;
+    bridge3d.ps[1] = math::interpolate(bridge_a3, bridge_d3, 1.0f / 3.0f);
+    bridge3d.ps[2] = math::interpolate(bridge_a3, bridge_d3, 2.0f / 3.0f);
+    bridge3d.ps[3] = bridge_d3;
+    bridge3d.update();
+    world_spline_->add(bridge3d);
+  }
+
+  /* Total virtual segments = backward extension + bridging. */
+  n_virtual_segments_ = n_backward + 1;
+}
+
+void PaintStroke::make_roll_spline(bContext *C)
+{
+  if (num_points_ < 4) {
+    return;
+  }
+
+  if (!roll_virtual_prepended_) {
+    roll_virtual_prepended_ = true;
+    prepend_virtual_roll_points();
+  }
+
+  int cur = (cur_point_ - 1 + num_points_) % num_points_;
+
+  int ia = (cur - 2 + num_points_) % num_points_;
+  int id = (cur - 1 + num_points_) % num_points_;
+  int ib = (cur - 3 + num_points_) % num_points_;
+  int ic = (cur - 0 + num_points_) % num_points_;
+
+  float2 a = points_[ia].mouse_out;
+  float2 b_pt = points_[ib].mouse_out;
+  float2 c_pt = points_[ic].mouse_out;
+  float2 d = points_[id].mouse_out;
+
+  float scale = 1.0f / 3.0f;
+
+  float2 tmp1 = d - a;
+  float2 tmp2 = a - b_pt;
+  b_pt = math::interpolate(tmp1, tmp2, 0.5f) * scale + a;
+
+  tmp1 = a - d;
+  tmp2 = d - c_pt;
+  c_pt = math::interpolate(tmp1, tmp2, 0.5f) * scale + d;
+
+  VecBase<float, 2> a2 = {a[0], a[1]};
+  VecBase<float, 2> b2 = {b_pt[0], b_pt[1]};
+  VecBase<float, 2> c2 = {c_pt[0], c_pt[1]};
+  VecBase<float, 2> d2 = {d[0], d[1]};
+
+  CubicBezier<float, 2> bez(a2, b2, c2, d2);
+  bez.update();
+  spline_->add(bez);
+
+  CubicBezier<float, 3> bez3d;
+
+  /* Project 2D bezier control points to 3D. */
+  {
+    float2 mvals[4];
+    for (int i = 0; i < 4; i++) {
+      mvals[i][0] = bez.ps[i][0];
+      mvals[i][1] = bez.ps[i][1];
+    }
+
+    float3 last_z_pos(0);
+    bool have_last_z = false;
+
+    for (int i = 0; i < 4; i++) {
+      if (!stroke_get_location_bvh(C, bez3d.ps[i], mvals[i], true)) {
+        if (!have_last_z) {
+          if (world_spline_->segments.size() > 0) {
+            auto &segs = world_spline_->segments;
+            copy_v3_v3(last_z_pos, segs[segs.size() - 1].bezier.ps[3]);
+          }
+          else {
+            copy_v3_v3(last_z_pos, last_world_space_position_);
+          }
+          have_last_z = true;
+        }
+
+        ED_view3d_win_to_3d(
+            CTX_wm_view3d(C), CTX_wm_region(C), last_z_pos, mvals[i], bez3d.ps[i]);
+      }
+      else {
+        copy_v3_v3(last_z_pos, bez3d.ps[i]);
+        have_last_z = true;
+      }
+    }
+
+    bez3d.update();
+  }
+  world_spline_->add(bez3d);
+
+  int max_pts = roll_max_points();
+  while (int64_t(spline_->segments.size()) > max_pts + 1) {
+    spline_->pop_front();
+    if (n_virtual_segments_ > 0) {
+      n_virtual_segments_--;
+    }
+  }
+  while (int64_t(world_spline_->segments.size()) > max_pts + 1) {
+    stroke_distance_world_ += world_spline_->segments[0].bezier.length;
+    world_spline_->pop_front();
+  }
+}
+
+void PaintStroke::compute_roll_center(StrokeCache &cache) const
+{
+  if (!world_spline_ || world_spline_->segments.is_empty()) {
+    cache.roll_center_s = -1.0f;
+    return;
+  }
+  float raw_s, dis;
+  float3 tan;
+  /* Full closest-point search, called once per dab on the main thread. */
+  float3 p = world_spline_->closest_point(cache.location, raw_s, tan, dis);
+  cache.roll_center_s = raw_s;
+  cache.roll_center_pos = p;
+  cache.roll_tangent = tan; /* already normalized by closest_point */
+}
+
+void PaintStroke::spline_uv(const StrokeCache &cache,
+                             const float co[3],
+                             float r_out[3],
+                             float r_tan[3]) const
+{
+  float3 tan;
+  float3 p;
+
+  if (cache.roll_center_s >= 0.0f) {
+    /* Fast path: project vertex onto stroke tangent to get an initial
+     * arc-length estimate, then refine with Newton iterations.
+     * This replaces an O(N²) closest-point search with O(log N) work,
+     * giving ~350x speedup for fine spacings (many spline segments). */
+    float s = cache.roll_center_s +
+              math::dot(float3(co) - cache.roll_center_pos, cache.roll_tangent);
+    s = std::clamp(s, 0.0f, world_spline_->length);
+
+    /* Newton refinement: minimize dot(spline(s) - co, tangent(s)) = 0. */
+    for (int iter = 0; iter < 3; iter++) {
+      p = world_spline_->evaluate(s);
+      tan = world_spline_->derivative(s, true); /* normalized */
+      const float err = math::dot(p - float3(co), tan);
+      if (std::abs(err) < 1e-5f) {
+        break;
+      }
+      s = std::clamp(s - err, 0.0f, world_spline_->length);
+    }
+    p = world_spline_->evaluate(s);
+    tan = world_spline_->derivative(s, true);
+    r_out[1] = s;
+  }
+  else {
+    /* Fallback: full closest-point search (used before center is precomputed). */
+    p = world_spline_->closest_point(float3(co), r_out[1], tan, r_out[0]);
+  }
+
+  copy_v3_v3(r_tan, tan);
+  r_out[0] = math::distance(p, float3(co));
+  r_out[2] = 0.0f;
+
+  float3 vec = p - float3(co);
+  float3 vec2;
+  cross_v3_v3v3(vec2, vec, tan);
+
+  if (math::dot(vec2, cache.view_normal) < 0.0f) {
+    r_out[0] = -r_out[0];
+  }
+
+  r_out[1] += stroke_distance_world_;
+}
+
+float PaintStroke::spline_length() const
+{
+  return world_spline_->length;
+}
+
+void PaintStroke::draw_debug_roll(bContext *C) const
+{
+  if (!need_roll_mapping_ || !spline_ || spline_->segments.size() == 0) {
+    return;
+  }
+
+  ARegion *region = CTX_wm_region(C);
+  if (!region) {
+    return;
+  }
+
+  const float ox = float(region->winrct.xmin);
+  const float oy = float(region->winrct.ymin);
+
+  GPU_line_smooth(true);
+  GPU_blend(GPU_BLEND_ALPHA);
+
+  const uint pos_attr = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
+  const int n_segs = int(spline_->segments.size());
+
+  /* Draw each segment as a curve: red = virtual backward extension, green = real. */
+  GPU_line_width(3.0f);
+  for (int seg_idx = 0; seg_idx < n_segs; seg_idx++) {
+    if (seg_idx < n_virtual_segments_) {
+      immUniformColor4ub(255, 50, 50, 200);
+    }
+    else {
+      immUniformColor4ub(50, 255, 50, 200);
+    }
+
+    const auto &b = spline_->segments[seg_idx].bezier;
+    constexpr int steps = 16;
+    immBegin(GPU_PRIM_LINE_STRIP, steps + 1);
+    for (int j = 0; j <= steps; j++) {
+      const float t = float(j) / float(steps);
+      const float omt = 1.0f - t;
+      const float x = omt * omt * omt * b.ps[0][0] + 3.0f * omt * omt * t * b.ps[1][0] +
+                       3.0f * omt * t * t * b.ps[2][0] + t * t * t * b.ps[3][0];
+      const float y = omt * omt * omt * b.ps[0][1] + 3.0f * omt * omt * t * b.ps[1][1] +
+                       3.0f * omt * t * t * b.ps[2][1] + t * t * t * b.ps[3][1];
+      immVertex2f(pos_attr, x + ox, y + oy);
+    }
+    immEnd();
+  }
+
+  /* Draw perpendicular ticks at each segment boundary: cyan. */
+  GPU_line_width(1.5f);
+  immUniformColor4ub(0, 200, 255, 200);
+  immBegin(GPU_PRIM_LINES, n_segs * 2);
+  for (int seg_idx = 0; seg_idx < n_segs; seg_idx++) {
+    const auto &b = spline_->segments[seg_idx].bezier;
+    /* Derivative at t=0 is 3*(p1 - p0). */
+    float2 deriv = 3.0f * (float2(b.ps[1]) - float2(b.ps[0]));
+    const float len = math::length(deriv);
+    if (len > 1e-6f) {
+      deriv /= len;
+    }
+    const float2 perp(-deriv[1], deriv[0]);
+    const float tick = 12.0f;
+    immVertex2f(pos_attr,
+                b.ps[0][0] + perp[0] * tick + ox,
+                b.ps[0][1] + perp[1] * tick + oy);
+    immVertex2f(pos_attr,
+                b.ps[0][0] - perp[0] * tick + ox,
+                b.ps[0][1] - perp[1] * tick + oy);
+  }
+  immEnd();
+
+  /* Mark the boundary between virtual and real segments: yellow tick. */
+  if (n_virtual_segments_ > 0 && n_virtual_segments_ < n_segs) {
+    GPU_line_width(2.5f);
+    immUniformColor4ub(255, 255, 0, 255);
+    const auto &bv = spline_->segments[n_virtual_segments_].bezier;
+    float2 dv = 3.0f * (float2(bv.ps[1]) - float2(bv.ps[0]));
+    const float dvl = math::length(dv);
+    if (dvl > 1e-6f) {
+      dv /= dvl;
+    }
+    const float2 pp(-dv[1], dv[0]);
+    const float big_tick = 25.0f;
+    immBegin(GPU_PRIM_LINES, 2);
+    immVertex2f(
+        pos_attr, bv.ps[0][0] + pp[0] * big_tick + ox, bv.ps[0][1] + pp[1] * big_tick + oy);
+    immVertex2f(
+        pos_attr, bv.ps[0][0] - pp[0] * big_tick + ox, bv.ps[0][1] - pp[1] * big_tick + oy);
+    immEnd();
+  }
+
+  immUnbindProgram();
+  GPU_blend(GPU_BLEND_NONE);
+  GPU_line_smooth(false);
+}
+
+static void paint_draw_roll_debug(bContext *C,
+                                  const int2 & /*xy*/,
+                                  const float2 & /*tilt*/,
+                                  void *customdata)
+{
+  PaintStroke *stroke = static_cast<PaintStroke *>(customdata);
+  stroke->draw_debug_roll(C);
+}
+
+/** \} */
+
 /*** Cursors ***/
 static void paint_draw_smooth_cursor(bContext *C,
                                      const int2 &xy,
@@ -539,6 +955,19 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
     return;
   }
 
+  add_roll_point(mval,
+                 mouse_out,
+                 location,
+                 paint_runtime->pixel_radius,
+                 pressure,
+                 pen_flip_,
+                 tilt_.x,
+                 tilt_.y);
+
+  if (need_roll_mapping_) {
+    make_roll_spline(C);
+  }
+
   /* Dash */
   bool add_step = true;
   if (paint_stroke_use_dash(brush)) {
@@ -549,19 +978,89 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
     }
   }
 
+  if (!add_step) {
+    ARegion *region = CTX_wm_region(C);
+    if (region) {
+      ED_region_tag_redraw(region);
+    }
+    tot_samples_++;
+    return;
+  }
+
+  /* When roll mapping is active, wait until we have at least one spline segment
+   * (requires 4 recorded points). Virtual backward segments are prepended at that
+   * point so the first dab already has full spline coverage. */
+  PaintStrokePoint *point;
+  PaintStrokePoint temp;
+
+  if (need_roll_mapping_) {
+    const int max_pts = roll_max_points();
+    const int half = (max_pts >> 1) + 2;
+
+    /* Wait until there are enough real spline segments ahead of the dab
+     * position to cover the full brush footprint (≈1 brush radius forward).
+     * At num_points_ == half, the real segments ahead of oldest_idx span
+     * approximately one brush radius, preventing forward-clamp artifacts.
+     * This also handles the num_points_ < 4 case (before any real segment
+     * exists), since half >= 5 for all spacing values. */
+    if (num_points_ < half) {
+      ARegion *region = CTX_wm_region(C);
+      if (region) {
+        ED_region_tag_redraw(region);
+      }
+      tot_samples_++;
+      return;
+    }
+
+    /* Look back half the rolling window to keep the current position centered in the
+     * spline for smooth UV mapping. When there is not enough history (early in a stroke),
+     * fall back to the oldest available point so painting begins immediately. */
+    const int oldest_idx = (cur_point_ - num_points_ + max_pts) % max_pts;
+    int look_back;
+    if (num_points_ <= half) {
+      look_back = oldest_idx;
+    }
+    else {
+      look_back = (cur_point_ - half + max_pts) % max_pts;
+    }
+
+    PaintStrokePoint *p1 = &points_[look_back];
+    /* Clamp p2 so it never wraps past the oldest point in the ring buffer.
+     * Previously (look_back - 1 + num_points_) % num_points_ would wrap to
+     * the newest point when look_back was at the oldest slot. */
+    int p2_idx;
+    if (look_back == oldest_idx) {
+      p2_idx = oldest_idx; /* can't go before oldest, use same point */
+    }
+    else {
+      p2_idx = (look_back - 1 + max_pts) % max_pts;
+    }
+    PaintStrokePoint *p2 = &points_[p2_idx];
+
+    point = &temp;
+    temp = *p1;
+
+    temp.location = math::interpolate(p1->location, p2->location, 0.5f);
+    temp.mouse_in = math::interpolate(p1->mouse_in, p2->mouse_in, 0.5f);
+    temp.mouse_out = math::interpolate(p1->mouse_out, p2->mouse_out, 0.5f);
+  }
+  else {
+    point = &points_[(cur_point_ - 1 + num_points_) % num_points_];
+  }
+
   /* Add to stroke */
-  if (add_step) {
+  {
     PointerRNA itemptr;
     RNA_collection_add(op->ptr, "stroke", &itemptr);
-    RNA_float_set(&itemptr, "size", paint_runtime->pixel_radius);
-    RNA_float_set_array(&itemptr, "location", location);
+    RNA_float_set(&itemptr, "size", point->size);
+    RNA_float_set_array(&itemptr, "location", point->location);
     /* Mouse coordinates modified by the stroke type options. */
-    RNA_float_set_array(&itemptr, "mouse", mouse_out);
+    RNA_float_set_array(&itemptr, "mouse", point->mouse_out);
     /* Original mouse coordinates. */
-    RNA_float_set_array(&itemptr, "mouse_event", mval);
-    RNA_float_set(&itemptr, "pressure", pressure);
-    RNA_float_set(&itemptr, "x_tilt", tilt_.x);
-    RNA_float_set(&itemptr, "y_tilt", tilt_.y);
+    RNA_float_set_array(&itemptr, "mouse_event", point->mouse_in);
+    RNA_float_set(&itemptr, "pressure", point->pressure);
+    RNA_float_set(&itemptr, "x_tilt", point->x_tilt);
+    RNA_float_set(&itemptr, "y_tilt", point->y_tilt);
 
     this->update_step(op, &itemptr);
 
@@ -791,6 +1290,8 @@ int PaintStroke::space_stroke(bContext *C,
     }
   }
 
+  spacing_raw_ = brush.spacing * 0.01f;
+
   float pressure = last_pressure_;
   float pressure_delta = final_pressure - last_pressure_;
   const float no_pressure_spacing = paint_space_stroke_spacing_no_pressure(
@@ -876,6 +1377,20 @@ PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_ty
   get_imapaint_zoom(C, &zoomx, &zoomy);
   zoom_2d_ = std::max(zoomx, zoomy);
 
+  const Brush *br = this->brush;
+  if (br->mtex.tex && br->mtex.brush_map_mode == MTEX_MAP_MODE_ROLL) {
+    need_roll_mapping_ = true;
+  }
+  if (br->mask_mtex.tex && br->mask_mtex.brush_map_mode == MTEX_MAP_MODE_ROLL) {
+    need_roll_mapping_ = true;
+  }
+  if (need_roll_mapping_) {
+    spline_ = std::make_unique<BezierSpline2f>();
+    world_spline_ = std::make_unique<BezierSpline3f>();
+    debug_cursor_ = WM_paint_cursor_activate(
+        SPACE_TYPE_ANY, RGN_TYPE_ANY, paint_brush_cursor_poll, paint_draw_roll_debug, this);
+  }
+
   /* Check here if color sampling the main brush should do color conversion. This is done here
    * to avoid locking up to get the image buffer during sampling. */
   paint_runtime->do_linear_conversion = false;
@@ -944,6 +1459,9 @@ void PaintStroke::free(bContext *C, wmOperator * /*op*/)
 
   if (stroke_cursor_) {
     WM_paint_cursor_end(static_cast<wmPaintCursor *>(stroke_cursor_));
+  }
+  if (debug_cursor_) {
+    WM_paint_cursor_end(static_cast<wmPaintCursor *>(debug_cursor_));
   }
 }
 
@@ -1436,11 +1954,23 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
     last_tablet_event_pressure_ = pressure;
   }
 
-  const int input_samples = BKE_brush_input_samples_get(paint, br);
-  this->add_sample(input_samples, event->mval[0], event->mval[1], pressure);
-
   PaintSample sample_average;
-  this->calc_average_sample(&sample_average);
+  if (!need_roll_mapping_) {
+    const int input_samples = BKE_brush_input_samples_get(paint, br);
+    this->add_sample(input_samples, event->mval[0], event->mval[1], pressure);
+    this->calc_average_sample(&sample_average);
+  }
+  else {
+    sample_average.mouse[0] = float(event->mval[0]);
+    sample_average.mouse[1] = float(event->mval[1]);
+    sample_average.pressure = pressure;
+  }
+
+  if (stroke_sample_index_ == 0) {
+    this->last_mouse_position[0] = event->mval[0];
+    this->last_mouse_position[1] = event->mval[1];
+  }
+  stroke_sample_index_++;
 
   /* Tilt. */
   if (WM_event_is_tablet(event)) {

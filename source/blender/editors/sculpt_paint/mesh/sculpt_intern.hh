@@ -31,6 +31,7 @@
 namespace blender {
 
 namespace ed::sculpt_paint {
+struct PaintStroke;
 namespace auto_mask {
 struct Cache;
 }
@@ -188,6 +189,17 @@ struct StrokeCache {
   float3 last_location_symm = float3(0);
   float stroke_distance = 0.0f;
 
+  /* Reference to the PaintStroke for roll texture mapping. */
+  PaintStroke *stroke = nullptr;
+
+  /* Precomputed per-dab for fast roll texture mapping. Set by
+   * PaintStroke::compute_roll_center() in update_step() before the
+   * per-vertex parallel loop. When roll_center_s < 0 the fast path
+   * is disabled and spline_uv() falls back to the full closest_point(). */
+  float roll_center_s = -1.0f;   /* raw arc-length on world_spline at brush center */
+  float3 roll_center_pos = {};    /* spline position at roll_center_s */
+  float3 roll_tangent = {};       /* normalized tangent at roll_center_s */
+
   /**
    * Used for alternating between deformations in brushes that need to apply different ones to
    * achieve certain effects.
@@ -269,6 +281,10 @@ struct StrokeCache {
    * 0 is Brush only; 1 is X mirror; 2 is Y mirror; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ.
    */
   int symmetry = 0;
+  ePaintSymmetryFlags symmetry_flags = ePaintSymmetryFlags(0);
+  int radial_symmetry_axis = 0;
+  float3 tile_offset = float3(0);
+
   /* The symmetry pass we are currently on between 0 and 7. */
   ePaintSymmetryFlags mirror_symmetry_pass = ePaintSymmetryFlags(0);
   float3 view_normal = float3(0);

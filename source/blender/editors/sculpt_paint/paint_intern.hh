@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_even_spline.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
@@ -98,6 +99,17 @@ struct PaintSample {
   float pressure = 0.0f;
 };
 
+struct PaintStrokePoint {
+  float2 mouse_in;
+  float2 mouse_out;
+  float3 location;
+  float pressure = 0.0f;
+  float x_tilt = 0.0f;
+  float y_tilt = 0.0f;
+  bool pen_flip = false;
+  float size = 0.0f;
+};
+
 /**
  * Common structure for various paint operators (e.g. Sculpt, Grease Pencil, Curves Sculpt)
  *
@@ -148,6 +160,21 @@ struct PaintStroke : NonCopyable, NonMovable {
   bool stroke_over_mesh_ = false;
   /* space distance covered so far */
   float stroke_distance_ = 0.0f;
+  float stroke_distance_world_ = 0.0f;
+
+  /* Roll texture mapping */
+  bool need_roll_mapping_ = false;
+  bool roll_virtual_prepended_ = false; /* true after virtual backward segments are prepended */
+  int n_virtual_segments_ = 0;          /* number of virtual backward segments prepended */
+  void *debug_cursor_ = nullptr;
+  int stroke_sample_index_ = 0;
+  float spacing_raw_ = 0.0f;
+  PaintStrokePoint points_[PAINT_MAX_INPUT_SAMPLES];
+  int num_points_ = 0;
+  int cur_point_ = 0;
+  int tot_points_ = 0;
+  std::unique_ptr<BezierSpline2f> spline_;
+  std::unique_ptr<BezierSpline3f> world_spline_;
 
   /* Set whether any stroke step has yet occurred
    * e.g. in sculpt mode, stroke doesn't start until cursor
@@ -221,6 +248,36 @@ struct PaintStroke : NonCopyable, NonMovable {
     return stroke_distance_;
   }
 
+  /**
+   * Compute roll-mapping UV coordinates for a 3D point along the stroke spline.
+   * \param cache: The sculpt stroke cache (for view_normal).
+   * \param co: Object-space position to project.
+   * \param r_out: Output: [distance_to_spline, arc_length_along_spline, 0].
+   * \param r_tan: Output: tangent at the closest spline point.
+   */
+  void spline_uv(const StrokeCache &cache,
+                  const float co[3],
+                  float r_out[3],
+                  float r_tan[3]) const;
+
+  float spline_length() const;
+
+  /** Returns true when roll texture mapping is active for this stroke. */
+  bool need_roll_mapping() const
+  {
+    return need_roll_mapping_;
+  }
+
+  /**
+   * Precompute the arc-length, position and tangent on the world spline for the
+   * brush center. Call this once per dab (single-threaded) before the per-vertex
+   * parallel loop. Stores results into StrokeCache for use by spline_uv().
+   */
+  void compute_roll_center(StrokeCache &cache) const;
+
+  /** Debug: draw the roll spline overlay in the viewport. */
+  void draw_debug_roll(bContext *C) const;
+
  protected:
   ~PaintStroke() = default;
   PaintStroke(bContext *C, wmOperator *op, int event_type);
@@ -274,6 +331,18 @@ struct PaintStroke : NonCopyable, NonMovable {
 
  private:
   void stroke_done(bContext *C, wmOperator *op, bool is_cancel);
+
+  int roll_max_points() const;
+  void add_roll_point(const float2 &mouse_in,
+                      const float2 &mouse_out,
+                      const float3 &loc,
+                      float size,
+                      float pressure,
+                      bool pen_flip,
+                      float x_tilt,
+                      float y_tilt);
+  void prepend_virtual_roll_points();
+  void make_roll_spline(bContext *C);
 
   void add_step(bContext *C, wmOperator *op, float2 mval, float pressure);
 

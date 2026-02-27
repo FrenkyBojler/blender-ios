@@ -73,6 +73,7 @@ static const EnumPropertyItem rna_enum_brush_texture_slot_map_all_mode_items[] =
     {MTEX_MAP_MODE_3D, "3D", 0, "3D", ""},
     {MTEX_MAP_MODE_RANDOM, "RANDOM", 0, "Random", ""},
     {MTEX_MAP_MODE_STENCIL, "STENCIL", 0, "Stencil", ""},
+    {MTEX_MAP_MODE_ROLL, "ROLL", 0, "Roll", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

@@ -24,6 +24,7 @@
 #include "BLI_math_axis_angle.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_rect.h"
@@ -2421,6 +2422,62 @@ void sculpt_apply_texture(const SculptSession &ss,
       add_v3_fl(r_rgba, brush.texture_sample_bias);  // v3 -> Ignore alpha
       *r_value -= brush.texture_sample_bias;
     }
+    else if (ss.cache && mtex->brush_map_mode == MTEX_MAP_MODE_ROLL) {
+      float3 point_3d;
+      point_3d[2] = 0.0f;
+
+      float3 tan;
+      float3 point_3d2;
+
+      float3 tile_point = float3(brush_point);
+
+      /* Find position in root tile by removing the tile shift added by do_tiled().
+       * cache.location = cache.location_symm + n * tile_step, so subtracting the
+       * difference maps the point back into the principal (n=0) tile. */
+      for (int i = 0; i < 3; i++) {
+        if (int(cache.symmetry_flags) & (PAINT_TILE_X << i)) {
+          float offset = cache.location[i] - cache.location_symm[i];
+          tile_point[i] -= offset;
+        }
+      }
+
+      /* Rotate into base radial slice. */
+      if (cache.radial_symmetry_pass > 0) {
+        mul_m4_v3(cache.symm_rot_mat_inv.ptr(), tile_point);
+      }
+
+      cache.stroke->spline_uv(cache, tile_point, point_3d, tan);
+
+      /* Loop through each possible symmetry combination. */
+      for (int i = 0; i < 8; i++) {
+        if ((int(cache.mirror_symmetry_pass) & i) != i) {
+          continue;
+        }
+
+        float3 symm_pt = tile_point;
+
+        for (int j = 0; j < 3; j++) {
+          if ((i & (1 << j)) && (i & int(cache.mirror_symmetry_pass))) {
+            symm_pt[j] = -symm_pt[j];
+          }
+        }
+
+        cache.stroke->spline_uv(cache, symm_pt, point_3d2, tan);
+
+        if (std::abs(point_3d2[0]) < std::abs(point_3d[0])) {
+          copy_v3_v3(point_3d, point_3d2);
+        }
+      }
+
+      mul_v3_fl(point_3d, 1.0f / cache.initial_radius);
+      float angle = mtex->rot;
+
+      float3 final_pt;
+      rotate_v2_v2fl(final_pt, point_3d, angle);
+
+      paint_get_tex_pixel(mtex, final_pt[0], -final_pt[1], ss.tex_pool, thread_id, r_value, r_rgba);
+      *r_value += brush.texture_sample_bias;
+    }
     else {
       const float2 point_2d = ED_view3d_project_float_v2_m4(
           cache.vc->region, symm_point, cache.projection_mat);
@@ -3655,12 +3712,16 @@ static void do_radial_symmetry(const Depsgraph &depsgraph,
   SculptSession &ss = *ob.runtime->sculpt_session;
   const Mesh &mesh = *id_cast<Mesh *>(ob.data);
 
+  ss.cache->radial_symmetry_axis = axis;
+
   for (int i = 1; i < mesh.radial_symmetry[axis - 'X']; i++) {
     const float angle = 2.0f * M_PI * i / mesh.radial_symmetry[axis - 'X'];
     ss.cache->radial_symmetry_pass = i;
     SCULPT_cache_calc_brushdata_symm(*ss.cache, symm, axis, angle);
     do_tiled(depsgraph, scene, sd, ob, brush, paint_mode_settings, action);
   }
+
+  ss.cache->radial_symmetry_axis = 0;
 }
 
 /**
@@ -3695,6 +3756,9 @@ static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
 
   cache.bstrength = brush_strength(sd, cache, feather, paint_mode_settings);
   cache.symmetry = symm;
+  cache.symmetry_flags = ePaintSymmetryFlags(
+      sd.paint.symmetry_flags & (PAINT_TILE_X | PAINT_TILE_Y | PAINT_TILE_Z));
+  copy_v3_v3(cache.tile_offset, sd.paint.tile_offset);
 
   /* `symm` is a bit combination of XYZ -
    * 1 is mirror X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
@@ -5833,10 +5897,18 @@ void SculptPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
   StrokeCache *cache = ss.cache;
   cache->stroke_distance = this->stroke_distance();
+  cache->stroke = this;
 
   SCULPT_stroke_modifiers_check(depsgraph, this->vc.rv3d, sd, ob, &brush);
   stroke_cache_update(itemptr);
   restore_from_undo_step_if_necessary(depsgraph, sd, ob);
+
+  /* Precompute roll-mapping center data once per dab (single-threaded) so
+   * that the per-vertex parallel loop in sculpt_apply_texture can use the
+   * fast Newton projection path instead of a full closest-point search. */
+  if (cache->stroke && cache->stroke->need_roll_mapping()) {
+    cache->stroke->compute_roll_center(*cache);
+  }
 
   if (dyntopo::stroke_is_dyntopo(ob, brush)) {
     do_symmetrical_brush_actions(
