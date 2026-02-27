@@ -126,7 +126,8 @@ def process_file(
     with lock:
         done.value += 1
         progress_text = f"[{done.value}/{total}] {file_path}"
-        if sys.stdout.isatty():
+        # Single line for interactive terminal, but fails on Windows currently.
+        if sys.stdout.isatty() and sys.platform != "win32":
             sys.stdout.write(f"\r{progress_text}\033[K")
         else:
             sys.stdout.write(f"{progress_text}\n")
