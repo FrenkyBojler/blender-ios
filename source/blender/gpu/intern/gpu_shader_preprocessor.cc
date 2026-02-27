@@ -710,7 +710,7 @@ struct TokenStream {
   }
 };
 
-inline DCEStream &operator<<(DCEStream &dst, const TokenStream &src)
+inline PruningStream &operator<<(PruningStream &dst, const TokenStream &src)
 {
   for (const auto tok : src.tokens) {
     dst.parse_token(tok);
@@ -722,14 +722,14 @@ inline DCEStream &operator<<(DCEStream &dst, const TokenStream &src)
   return dst;
 }
 
-inline DCEStream &operator<<(DCEStream &dst, const TokenRange<Token> &range)
+inline PruningStream &operator<<(PruningStream &dst, const TokenRange<Token> &range)
 {
   dst.parse_token_range(range.begin, range.end);
   dst << range.begin.buf_->substr(range.begin, range.end, true);
   return dst;
 }
 
-inline DCEStream &operator<<(DCEStream &dst, const Token &tok)
+inline PruningStream &operator<<(PruningStream &dst, const Token &tok)
 {
   dst.parse_token(tok);
   dst << tok.str_with_whitespace();
@@ -761,7 +761,7 @@ struct Preprocessor {
 
   AtomicLexer lex_;
 
-  DCEStream out_stream_;
+  PruningStream out_stream_;
 
   /* Cache the expression lexer to avoid memory allocations. */
   ExpressionLexer expression_lexer;
@@ -858,7 +858,6 @@ struct Preprocessor {
                     lex_.hash("return"),
                     lex_.hash("thread"),
                     lex_.hash("device"),
-                    lex_.max_atom_value(),
                     /* In order to avoid too many false positive edges in the DCE graph, pass a
                      * list of common symbols that are builtin and shouldn't be considered as a
                      * function. */
@@ -1654,7 +1653,7 @@ struct Preprocessor {
 /** \name Interface.
  * \{ */
 
-std::string Shader::run_preprocessor(StringRef source)
+std::string Shader::run_preprocessor(StringRef source, bool no_dead_code_elimination)
 {
   BLI_assert_msg(source.find("//") == std::string::npos && source.find("/*") == std::string::npos,
                  "Input source to the preprocessor should have no comments.");
@@ -1665,11 +1664,9 @@ std::string Shader::run_preprocessor(StringRef source)
 
   Preprocessor processor(source);
   processor.preprocess();
-
-  if (G.debug & G_DEBUG_GPU_SHADER_NO_DCE) {
-    return processor.result_get();
+  if (!no_dead_code_elimination) {
+    processor.optimize();
   }
-  processor.optimize();
   return processor.result_get();
 }
 

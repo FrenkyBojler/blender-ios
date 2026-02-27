@@ -21,7 +21,7 @@ namespace blender::gpu {
 
 /* Token stream that parses (some) symbols definitions, build a graph of usage and then prune
  * unused definitions for a given set of entry point functions. */
-struct DCEStream {
+struct PruningStream {
   using Token = lexit::Token;
   using TokenType = lexit::TokenType;
   using TokenAtom = lexit::TokenAtom;
@@ -84,17 +84,17 @@ struct DCEStream {
   bits::BitVector<> builtin_atoms;
 
  public:
-  DCEStream(Token invalid_tok,
-            TokenAtom return_atom,
-            TokenAtom thread_atom,
-            TokenAtom device_atom,
-            uint16_t max_atom_value,
-            Span<TokenAtom> builtin_atoms)
+  PruningStream(Token invalid_tok,
+                TokenAtom return_atom,
+                TokenAtom thread_atom,
+                TokenAtom device_atom,
+                Span<TokenAtom> builtin_atoms)
       : token_history(invalid_tok),
         return_atom(return_atom),
         thread_atom(thread_atom),
         device_atom(device_atom),
-        builtin_atoms(max_atom_value)
+        /* Reserve enough for all atoms, even generated ones during macro expansions. */
+        builtin_atoms(0x10000)
   {
     for (auto atom : builtin_atoms) {
       /* Atom values can only be separated by at least 2 values. */
@@ -111,7 +111,7 @@ struct DCEStream {
    * Checks if str is a contiguous continuation of the last inserted string ref.
    * If yes, merge it; else append str to the stream.
    */
-  DCEStream &operator<<(StringRef str)
+  PruningStream &operator<<(StringRef str)
   {
     if (str.is_empty()) {
       return *this;
