@@ -86,6 +86,7 @@ void main()
     /* Multiplier to map YUV U,V range (+-0.436, +-0.615) to +-0.5 on both axes. */
     float2 uv_scale = float2(0.5f / 0.436f, 0.5f / 0.615f);
     pos = yuva.yz * vec_size * uv_scale;
+    pos.y *= scope_aspect;
   }
 
   /* Determine final point color: we want to keep the hue, desaturate it a bit,
@@ -98,6 +99,9 @@ void main()
   }
   hsv.z = 1.0f;
   hsv_to_rgb(hsv, color);
+
+  /* Map pos.x to its respective partition. */
+  pos.x = ((pos.x + image_width / 2) / image_width) * scope_width - (image_width / 2) + (scope_index * scope_width);
 
   /* Calculate final point position in integer pixels. */
   float4 clip_pos = ModelViewProjectionMatrix * float4(pos * inv_render_scale, 0.0f, 1.0f);

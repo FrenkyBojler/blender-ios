@@ -414,7 +414,8 @@ static void add_vertical_line(const float val,
 static void draw_histogram(ARegion &region,
                            const ScopeHistogram &hist,
                            SeqQuadsBatch &quads,
-                           const rctf &area)
+                           const rctf &area,
+                           bool skip_border)
 {
   if (hist.data.is_empty()) {
     return;
@@ -447,11 +448,13 @@ static void draw_histogram(ARegion &region,
   add_vertical_line(max_val_g, {0, 128, 0, 128}, v2d, text_scale_x, text_scale_y, quads, area);
   add_vertical_line(max_val_b, {0, 0, 128, 128}, v2d, text_scale_x, text_scale_y, quads, area);
 
-  /* Horizontal lines. */
-  const float x_val_min = area.xmin;
-  const float x_val_max = area.xmin + (area.xmax - area.xmin) * max_val;
-  quads.add_line(x_val_min, area.ymin, x_val_max, area.ymin, col_grid);
-  quads.add_line(x_val_min, area.ymax, x_val_max, area.ymax, col_grid);
+  if (!skip_border) {
+    /* Horizontal lines. */
+    const float x_val_min = area.xmin;
+    const float x_val_max = area.xmin + (area.xmax - area.xmin) * max_val;
+    quads.add_line(x_val_min, area.ymin, x_val_max, area.ymin, col_grid);
+    quads.add_line(x_val_min, area.ymax, x_val_max, area.ymax, col_grid);
+  }
 
   /* Histogram area for each R/G/B channels, additively blended. */
   quads.draw();
@@ -498,7 +501,10 @@ static float2 rgb_to_uv_scaled(const float3 &rgb)
   return float2(u, v);
 }
 
-static void draw_waveform_graticule(ARegion *region, SeqQuadsBatch &quads, const rctf &area)
+static void draw_waveform_graticule(ARegion *region,
+                                    SeqQuadsBatch &quads,
+                                    const rctf &area,
+                                    bool skip_border)
 {
   /* Horizontal lines at 10%, 70%, 90%. */
   const float lines[3] = {0.1f, 0.7f, 0.9f};
@@ -513,22 +519,27 @@ static void draw_waveform_graticule(ARegion *region, SeqQuadsBatch &quads, const
     quads.add_line(x0, y, x1, y, col_grid);
     ui::view2d_text_cache_add(&region->v2d, x0 + 8, y + 8, buf, buf_len, col_grid);
   }
-  /* Border. */
-  uchar col_border[4] = {64, 64, 64, 128};
-  quads.add_wire_quad(x0, area.ymin, x1, area.ymax, col_border);
+  if (!skip_border) {
+    /* Border. */
+    uchar col_border[4] = {64, 64, 64, 128};
+    quads.add_wire_quad(x0, area.ymin, x1, area.ymax, col_border);
+  }
 
   quads.draw();
   ui::view2d_text_cache_draw(region);
 }
 
-static void draw_vectorscope_graticule(ARegion *region, SeqQuadsBatch &quads, const rctf &area)
+static void draw_vectorscope_graticule(ARegion *region,
+                                       SeqQuadsBatch &quads,
+                                       const rctf &area,
+                                       float y_corr)
 {
   const float skin_rad = DEG2RADF(123.0f); /* angle in radians of the skin tone line */
 
   const float w = BLI_rctf_size_x(&area);
-  const float h = BLI_rctf_size_y(&area);
+  const float h = BLI_rctf_size_y(&area) / y_corr;
   const float2 center{BLI_rctf_cent_x(&area), BLI_rctf_cent_y(&area)};
-  const float radius = ((w < h) ? w : h) * 0.5f;
+  const float radius = ((w < h) ? w : h) * 0.5f / 1.02f;
 
   /* Precalculate circle points/colors. */
   constexpr int circle_delta = 6;
@@ -539,7 +550,7 @@ static void draw_vectorscope_graticule(ARegion *region, SeqQuadsBatch &quads, co
     float a = DEG2RADF(i * circle_delta);
     float x = cosf(a);
     float y = sinf(a);
-    circle_pos[i] = float2(x, y);
+    circle_pos[i] = float2(x, y * y_corr);
     float u = x / SeqScopes::VECSCOPE_U_SCALE;
     float v = y / SeqScopes::VECSCOPE_V_SCALE;
 
@@ -615,7 +626,8 @@ static void draw_vectorscope_graticule(ARegion *region, SeqQuadsBatch &quads, co
 
   /* Cross. */
   quads.add_line(center.x - radius, center.y, center.x + radius, center.y, col_grid);
-  quads.add_line(center.x, center.y - radius, center.x, center.y + radius, col_grid);
+  quads.add_line(
+      center.x, center.y - radius * y_corr, center.x, center.y + radius * y_corr, col_grid);
 
   /* Inner circles. */
   for (int j = 1; j < 5; j++) {
@@ -650,15 +662,17 @@ static void draw_vectorscope_graticule(ARegion *region, SeqQuadsBatch &quads, co
   text_height *= text_scale_y;
 
   const uchar4 col_target(128, 128, 128, 192);
-  const float delta = radius * 0.01f;
+  const float2 delta = float2(radius * 0.01f, radius * 0.01f * y_corr);
   for (int i = 0; i < 6; i++) {
     float3 safe = primaries[i] * 0.75f;
-    float2 pos = center + rgb_to_uv_scaled(safe) * (radius * 2);
-    quads.add_wire_quad(pos.x - delta, pos.y - delta, pos.x + delta, pos.y + delta, col_target);
+    float2 pos = center + float2(rgb_to_uv_scaled(safe).x * (radius * 2),
+                                 rgb_to_uv_scaled(safe).y * (radius * y_corr * 2));
+    quads.add_wire_quad(
+        pos.x - delta.x, pos.y - delta.y, pos.x + delta.x, pos.y + delta.y, col_target);
 
     buf[0] = names[i];
     ui::view2d_text_cache_add(&region->v2d,
-                              pos.x + delta * 1.2f + text_width / 4,
+                              pos.x + delta.x * 1.2f + text_width / 4,
                               pos.y - text_height / 2,
                               buf,
                               1,
@@ -670,7 +684,7 @@ static void draw_vectorscope_graticule(ARegion *region, SeqQuadsBatch &quads, co
   quads.add_line(center.x,
                  center.y,
                  center.x + cosf(skin_rad) * radius,
-                 center.y + sinf(skin_rad) * radius,
+                 center.y + sinf(skin_rad) * radius * y_corr,
                  col_tone);
 
   quads.draw();
@@ -719,6 +733,21 @@ static void sequencer_draw_scopes(Scene *scene,
 
   const rctf preview = preview_get_full_position(region);
 
+  std::vector<short> scopes_list;
+  short scope_flag = 1;
+  for (short scope_bits = space_sequencer.scope; scope_bits > 0; scope_bits = scope_bits >> 1) {
+    if (scope_bits & 1) {
+      scopes_list.push_back(scope_flag);
+    }
+    scope_flag = scope_flag << 1;
+  }
+
+  /* Apply scale correction when vectorscope is drawn along other scopes and hence V2D_KEEPASPECT
+   * is off. */
+  const float scale_x = ui::view2d_scale_get_x(&region.v2d);
+  const float scale_y = ui::view2d_scale_get_y(&region.v2d);
+  const float y_corr = (scale_x > 0.0f && scale_y > 0.0f) ? (scale_x / scale_y) : 1.0f;
+
   /* Draw black rectangle over scopes area. */
   if (space_sequencer.view == SEQ_VIEW_SCOPES) {
     GPU_blend(GPU_BLEND_NONE);
@@ -734,117 +763,130 @@ static void sequencer_draw_scopes(Scene *scene,
     GPU_blend(GPU_BLEND_ALPHA);
   }
 
-  if (input_texture) {
-    if (ELEM(space_sequencer.view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
-      /* Draw overexposed overlay. */
-      GPU_blend(GPU_BLEND_NONE);
-      GPUVertFormat *imm_format = immVertexFormat();
-      const uint pos = GPU_vertformat_attr_add(imm_format, "pos", gpu::VertAttrType::SFLOAT_32_32);
-      const uint tex_coord = GPU_vertformat_attr_add(
-          imm_format, "texCoord", gpu::VertAttrType::SFLOAT_32_32);
+  if (input_texture && ELEM(space_sequencer.view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
+    /* Draw overexposed overlay. */
+    GPU_blend(GPU_BLEND_NONE);
+    GPUVertFormat *imm_format = immVertexFormat();
+    const uint pos = GPU_vertformat_attr_add(imm_format, "pos", gpu::VertAttrType::SFLOAT_32_32);
+    const uint tex_coord = GPU_vertformat_attr_add(
+        imm_format, "texCoord", gpu::VertAttrType::SFLOAT_32_32);
 
-      immBindBuiltinProgram(GPU_SHADER_SEQUENCER_ZEBRA);
-      immUniform1i("img_premultiplied", premultiplied ? 1 : 0);
-      immUniform1f("zebra_limit", space_sequencer.zebra / 100.0f);
+    immBindBuiltinProgram(GPU_SHADER_SEQUENCER_ZEBRA);
+    immUniform1i("img_premultiplied", premultiplied ? 1 : 0);
+    immUniform1f("zebra_limit", space_sequencer.zebra / 100.0f);
 
-      GPU_texture_bind(input_texture, 0);
-      rctf uv;
-      BLI_rctf_init(&uv, 0.0f, 1.0f, 0.0f, 1.0f);
-      immRectf_with_texco(pos, tex_coord, preview, uv);
-      GPU_texture_unbind(input_texture);
-      immUnbindProgram();
-    }
-    else if (!(space_sequencer.scope & SEQ_DRAW_IMG_HISTOGRAM)) {
-      /* Draw point-based scopes using a compute shader based rasterizer (using
-       * regular GPU pipeline to draw many points, where thousands of them can
-       * hit the same pixels, is very inefficient, especially on tile-based GPUs).
-       *
-       * Compute shader rasterizer does atomic adds of fixed point colors into
-       * a screen size buffer, then a fragment shader resolve pass outputs the
-       * final colors. */
-      const float point_size = (BLI_rcti_size_x(&region.v2d.mask) + 1) /
-                               BLI_rctf_size_x(&region.v2d.cur);
-      float3 coeffs;
-      IMB_colormanagement_get_luminance_coefficients(coeffs);
+    GPU_texture_bind(input_texture, 0);
+    rctf uv;
+    BLI_rctf_init(&uv, 0.0f, 1.0f, 0.0f, 1.0f);
+    immRectf_with_texco(pos, tex_coord, preview, uv);
+    GPU_texture_unbind(input_texture);
+    immUnbindProgram();
 
-      int viewport_size_i[4];
-      GPU_viewport_size_get_i(viewport_size_i);
-      const int2 viewport_size = int2(viewport_size_i[2], viewport_size_i[3]);
-      const int2 image_size = int2(image_width, image_height);
-      const eSpaceSeq_Proxy_RenderSize render_size_mode = eSpaceSeq_Proxy_RenderSize(
-          space_sequencer.render_size);
-      const float render_scale = seq::get_render_scale_factor(render_size_mode, scene->r.size);
+    GPU_debug_group_end();
+    return;
+  }
+  else if (input_texture) {
 
-      gpu::StorageBuf *raster_ssbo = GPU_storagebuf_create_ex(viewport_size.x * viewport_size.y *
-                                                                  sizeof(SeqScopeRasterData),
-                                                              nullptr,
-                                                              GPU_USAGE_DEVICE_ONLY,
-                                                              "Scopes Raster");
-      GPU_storagebuf_clear_to_zero(raster_ssbo);
-      /* Compute shader rasterization. */
-      {
-        gpu::Shader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_SEQUENCER_SCOPE_RASTER);
-        BLI_assert(shader);
-        GPU_shader_bind(shader);
+    /* Draw point-based scopes using a compute shader based rasterizer (using
+     * regular GPU pipeline to draw many points, where thousands of them can
+     * hit the same pixels, is very inefficient, especially on tile-based GPUs).
+     *
+     * Compute shader rasterizer does atomic adds of fixed point colors into
+     * a screen size buffer, then a fragment shader resolve pass outputs the
+     * final colors. */
+    const float point_size = (BLI_rcti_size_x(&region.v2d.mask) + 1) /
+                             BLI_rctf_size_x(&region.v2d.cur);
+    float3 coeffs;
+    IMB_colormanagement_get_luminance_coefficients(coeffs);
 
-        const int raster_ssbo_location = GPU_shader_get_ssbo_binding(shader, "raster_buf");
-        GPU_storagebuf_bind(raster_ssbo, raster_ssbo_location);
-        const int image_location = GPU_shader_get_sampler_binding(shader, "image");
-        GPU_texture_bind(input_texture, image_location);
+    int viewport_size_i[4];
+    GPU_viewport_size_get_i(viewport_size_i);
+    const int2 viewport_size = int2(viewport_size_i[2], viewport_size_i[3]);
+    const int2 image_size = int2(image_width, image_height);
+    const eSpaceSeq_Proxy_RenderSize render_size_mode = eSpaceSeq_Proxy_RenderSize(
+        space_sequencer.render_size);
+    const float render_scale = seq::get_render_scale_factor(render_size_mode, scene->r.size);
+    const int scope_width = image_width / scopes_list.size();
 
-        GPU_shader_uniform_1i(shader, "view_width", viewport_size.x);
-        GPU_shader_uniform_1i(shader, "view_height", viewport_size.y);
-        GPU_shader_uniform_3fv(shader, "luma_coeffs", coeffs);
-        GPU_shader_uniform_1f(shader, "scope_point_size", point_size);
-        GPU_shader_uniform_1b(shader, "img_premultiplied", premultiplied);
-        GPU_shader_uniform_1i(shader, "image_width", image_width);
-        GPU_shader_uniform_1i(shader, "image_height", image_height);
-        GPU_shader_uniform_1i(shader, "scope_mode", space_sequencer.scope);
-        GPU_shader_uniform_1f(shader, "inv_render_scale", 1.0f / render_scale);
+    gpu::StorageBuf *raster_ssbo = GPU_storagebuf_create_ex(viewport_size.x * viewport_size.y *
+                                                                sizeof(SeqScopeRasterData),
+                                                            nullptr,
+                                                            GPU_USAGE_DEVICE_ONLY,
+                                                            "Scopes Raster");
+    GPU_storagebuf_clear_to_zero(raster_ssbo);
 
-        const int2 groups_to_dispatch = math::divide_ceil(image_size, int2(16));
-        GPU_compute_dispatch(shader, groups_to_dispatch.x, groups_to_dispatch.y, 1);
+    gpu::Shader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_SEQUENCER_SCOPE_RASTER);
+    BLI_assert(shader);
+    GPU_shader_bind(shader);
 
-        GPU_shader_unbind();
-        GPU_storagebuf_unbind(raster_ssbo);
-        /* Make computed results consistently visible in the following resolve pass. */
-        GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
+    const int raster_ssbo_location = GPU_shader_get_ssbo_binding(shader, "raster_buf");
+    GPU_storagebuf_bind(raster_ssbo, raster_ssbo_location);
+    const int image_location = GPU_shader_get_sampler_binding(shader, "image");
+    GPU_texture_bind(input_texture, image_location);
+
+    for (int i = 0; i < scopes_list.size(); i++) {
+      short scp = scopes_list[i];
+
+      /* Skip CPU scopes. */
+      if (ELEM(scp, SEQ_DRAW_IMG_HISTOGRAM)) {
+        continue;
       }
 
-      /* Resolve pass. */
-      {
-        if (use_blend) {
-          GPU_blend(GPU_BLEND_ALPHA);
-        }
+      GPU_shader_uniform_1i(shader, "view_width", viewport_size.x);
+      GPU_shader_uniform_1i(shader, "view_height", viewport_size.y);
+      GPU_shader_uniform_3fv(shader, "luma_coeffs", coeffs);
+      GPU_shader_uniform_1f(shader, "scope_point_size", point_size);
+      GPU_shader_uniform_1b(shader, "img_premultiplied", premultiplied);
+      GPU_shader_uniform_1i(shader, "image_width", image_width);
+      GPU_shader_uniform_1i(shader, "image_height", image_height);
+      GPU_shader_uniform_1i(shader, "scope_mode", scp);
+      GPU_shader_uniform_1i(shader, "scope_index", i);
+      GPU_shader_uniform_1i(shader, "scope_width", scope_width);
+      GPU_shader_uniform_1f(shader, "scope_aspect", y_corr);
+      GPU_shader_uniform_1f(shader, "inv_render_scale", 1.0f / render_scale);
 
-        /* Depending on resolution of the image, different amounts of pixels are expected
-         * to hit the same locations of the scope. Adjust the scope transparency mapping
-         * exponent so that the scope has decent visibility without saturating or being too dark:
-         * 0.07 at height=2160 (4K) and up, 0.5 at height=360 and below, and interpolating between
-         * those. */
-        float alpha = math::clamp(ratiof(360.0f, 2160.0f, image_height), 0.0f, 1.0f);
-        float exponent = math::interpolate(0.5f, 0.07f, alpha);
+      const int2 groups_to_dispatch = math::divide_ceil(image_size, int2(16));
+      GPU_compute_dispatch(shader, groups_to_dispatch.x, groups_to_dispatch.y, 1);
+    }
 
-        gpu::Shader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_SEQUENCER_SCOPE_RESOLVE);
-        BLI_assert(shader);
+    GPU_shader_unbind();
+    GPU_storagebuf_unbind(raster_ssbo);
+    /* Make computed results consistently visible in the following resolve pass. */
+    GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
 
-        const int raster_ssbo_location = GPU_shader_get_ssbo_binding(shader, "raster_buf");
-        GPU_storagebuf_bind(raster_ssbo, raster_ssbo_location);
-
-        gpu::Batch *batch = GPU_batch_create_procedural(GPU_PRIM_TRIS, 3);
-
-        GPU_batch_set_shader(batch, shader);
-        GPU_batch_uniform_1i(batch, "view_width", viewport_size.x);
-        GPU_batch_uniform_1i(batch, "view_height", viewport_size.y);
-        GPU_batch_uniform_1f(batch, "alpha_exponent", exponent);
-        GPU_batch_draw(batch);
-
-        GPU_batch_discard(batch);
-        GPU_storagebuf_unbind(raster_ssbo);
+    /* Resolve pass. */
+    {
+      if (use_blend) {
+        GPU_blend(GPU_BLEND_ALPHA);
       }
 
-      GPU_storagebuf_free(raster_ssbo);
+      /* Depending on resolution of the image, different amounts of pixels are expected
+       * to hit the same locations of the scope. Adjust the scope transparency mapping
+       * exponent so that the scope has decent visibility without saturating or being too dark:
+       * 0.07 at height=2160 (4K) and up, 0.5 at height=360 and below, and interpolating between
+       * those. */
+      float alpha = math::clamp(ratiof(360.0f, 2160.0f, image_height), 0.0f, 1.0f);
+      float exponent = math::interpolate(0.5f, 0.07f, alpha);
+
+      gpu::Shader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_SEQUENCER_SCOPE_RESOLVE);
+      BLI_assert(shader);
+
+      const int raster_ssbo_location = GPU_shader_get_ssbo_binding(shader, "raster_buf");
+      GPU_storagebuf_bind(raster_ssbo, raster_ssbo_location);
+
+      gpu::Batch *batch = GPU_batch_create_procedural(GPU_PRIM_TRIS, 3);
+
+      GPU_batch_set_shader(batch, shader);
+      GPU_batch_uniform_1i(batch, "view_width", viewport_size.x);
+      GPU_batch_uniform_1i(batch, "view_height", viewport_size.y);
+      GPU_batch_uniform_1f(batch, "alpha_exponent", exponent);
+      GPU_batch_draw(batch);
+
+      GPU_batch_discard(batch);
+      GPU_storagebuf_unbind(raster_ssbo);
     }
+
+    GPU_storagebuf_free(raster_ssbo);
   }
 
   /* Draw scope graticules. */
@@ -852,19 +894,53 @@ static void sequencer_draw_scopes(Scene *scene,
     GPU_blend(GPU_BLEND_ALPHA);
   }
 
-  if (space_sequencer.scope & SEQ_DRAW_IMG_HISTOGRAM) {
-    draw_histogram(region, scopes->histogram, quads, preview);
+  const float space_x_per_scope = (preview.xmax - preview.xmin) / scopes_list.size();
+  rctf area = preview;
+
+  GPU_matrix_push();
+
+  const bool skip_individual_borders = scopes_list.size() > 1;
+
+  if (skip_individual_borders) {
+    uchar col_border[4] = {64, 64, 64, 128};
+    quads.add_wire_quad(preview.xmin, preview.ymin, preview.xmax, preview.ymax, col_border);
+    quads.draw();
   }
-  if (space_sequencer.scope & (SEQ_DRAW_IMG_WAVEFORM | SEQ_DRAW_IMG_RGBPARADE)) {
-    use_blend = true;
-    draw_waveform_graticule(&region, quads, preview);
-  }
-  if (space_sequencer.scope & SEQ_DRAW_IMG_VECTORSCOPE) {
-    use_blend = true;
-    draw_vectorscope_graticule(&region, quads, preview);
+
+  for (int i = 0; i < scopes_list.size(); i++) {
+    short scp = scopes_list[i];
+    /* Calculate partition for this scope. */
+    area.xmin = preview.xmin + i * space_x_per_scope;
+    area.xmax = area.xmin + space_x_per_scope;
+
+    /* The drawing functions may change the view matrices to region pixel space. Change it to
+     * view2D space before drawing. */
+    ui::view2d_view_ortho(&region.v2d);
+
+    switch (scp) {
+
+      case SEQ_DRAW_IMG_WAVEFORM:
+      case SEQ_DRAW_IMG_RGBPARADE:
+        use_blend = true;
+        draw_waveform_graticule(&region, quads, area, skip_individual_borders);
+        break;
+
+      case SEQ_DRAW_IMG_VECTORSCOPE:
+        use_blend = true;
+        draw_vectorscope_graticule(&region, quads, area, y_corr);
+        break;
+
+      case SEQ_DRAW_IMG_HISTOGRAM:
+        draw_histogram(region, scopes->histogram, quads, area, skip_individual_borders);
+        break;
+
+      default:
+        break;
+    }
   }
 
   quads.draw();
+  GPU_matrix_pop();
 
   if (use_blend) {
     GPU_blend(GPU_BLEND_NONE);
@@ -1620,7 +1696,8 @@ static void draw_registered_callbacks(const bContext *C, ARegion &region)
 
 static bool check_scope_needs_input_texture(const SpaceSeq &sseq)
 {
-  return !(sseq.scope & SEQ_DRAW_IMG_HISTOGRAM) &&
+  return (sseq.scope &
+          (SEQ_DRAW_IMG_WAVEFORM | SEQ_DRAW_IMG_RGBPARADE | SEQ_DRAW_IMG_VECTORSCOPE)) &&
          ELEM(sseq.view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW, SEQ_VIEW_SCOPES);
 }
 
