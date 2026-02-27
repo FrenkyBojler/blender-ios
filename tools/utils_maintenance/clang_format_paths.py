@@ -203,7 +203,7 @@ def clang_format(files: list[str]) -> None:
         chunk_size = min(max(total_files // jobs // 2, 1), 32)
         chunks = [files[i:i + chunk_size] for i in range(0, total_files, chunk_size)]
 
-        with ProcessPoolExecutor(max_workers=jobs) as executor:
+        with ProcessPoolExecutor() as executor:
             futures = [
                 executor.submit(
                     clang_format_file,

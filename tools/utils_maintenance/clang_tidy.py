@@ -199,14 +199,13 @@ def main() -> None:
         print("No files found to process.")
         return
 
-    jobs = multiprocessing.cpu_count()
     total_files = len(files)
 
     with multiprocessing.Manager() as mpm:
         done = mpm.Value("i", 0)
         lock = mpm.Lock()
 
-        with ProcessPoolExecutor(max_workers=jobs) as executor:
+        with ProcessPoolExecutor() as executor:
             futures = [
                 executor.submit(
                     process_file,
