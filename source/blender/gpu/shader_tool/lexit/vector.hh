@@ -13,6 +13,58 @@
 
 namespace lexit {
 
+template<typename T> class AlignedArrayPtr {
+ private:
+  T *ptr = nullptr;
+
+ public:
+  AlignedArrayPtr() = default;
+
+  AlignedArrayPtr(int size)
+  {
+    ptr = new (std::align_val_t{64}) T[size];
+  }
+
+  AlignedArrayPtr(const AlignedArrayPtr &other) = delete;
+
+  AlignedArrayPtr(AlignedArrayPtr &&other) : ptr(other.ptr)
+  {
+    other.ptr = nullptr;
+  }
+
+  ~AlignedArrayPtr()
+  {
+    ::operator delete[](ptr, std::align_val_t{64});
+  }
+
+  AlignedArrayPtr &operator=(AlignedArrayPtr &&other)
+  {
+    if (this != &other) {
+      ::operator delete[](ptr, std::align_val_t{64});
+      ptr = other.ptr;
+      other.ptr = nullptr;
+    }
+    return *this;
+  }
+
+  T *get()
+  {
+    return ptr;
+  }
+  const T *get() const
+  {
+    return ptr;
+  }
+  T &operator[](int i)
+  {
+    return ptr[i];
+  }
+  const T &operator[](int i) const
+  {
+    return ptr[i];
+  }
+};
+
 template<typename T> struct Vector {
  private:
   std::unique_ptr<T[]> data_;
@@ -28,7 +80,7 @@ template<typename T> struct Vector {
     if ((alloc_size_ >= new_size) && data_) {
       return;
     }
-    std::unique_ptr<T[]> new_ptr(new (std::align_val_t{64}) T[new_size]);
+    std::unique_ptr<T[]> new_ptr(new T[new_size]);
     if (data_) {
       std::memcpy(new_ptr.get(), data_.get(), new_size * sizeof(T));
     }

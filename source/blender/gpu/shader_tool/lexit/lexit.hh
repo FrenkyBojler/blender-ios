@@ -16,11 +16,11 @@
 #include <cstdint>
 #include <iostream>
 #include <iterator>
-#include <memory>
 #include <string_view>
 
 #include "identifier.hh"
 #include "types.hh"
+#include "vector.hh"
 
 // #define LEXIT_DEBUG
 
@@ -104,19 +104,26 @@ struct TokenMut : public Token {
   TokenAtom &atom();
 };
 
+template<typename T> struct AlignedDeleter {
+  void operator()(T *p) const
+  {
+    ::operator delete[](p, std::align_val_t{64});
+  }
+};
+
 struct TokenBuffer {
   /* Input string. */
   std::string_view str_;
   /* Type of each token. */
-  std::unique_ptr<TokenType[]> types_;
+  AlignedArrayPtr<TokenType> types_;
   /* Starting character index of each token. */
-  std::unique_ptr<uint32_t[]> offsets_;
+  AlignedArrayPtr<uint32_t> offsets_;
   /* Original character index of each token before whitespace merging. */
-  std::unique_ptr<uint32_t[]> offsets_end_;
+  AlignedArrayPtr<uint32_t> offsets_end_;
   /* Length in characters of each token. A value of 127 means the real size is over 126. */
-  std::unique_ptr<uint8_t[]> lengths_;
+  AlignedArrayPtr<uint8_t> lengths_;
   /* Unique id for identifiers (Words). Externally set (optional). */
-  std::unique_ptr<TokenAtom[]> atoms_;
+  AlignedArrayPtr<TokenAtom> atoms_;
   /* Number of tokens inside the buffer excluding the terminating EndOfFile token. */
   uint32_t size_ = 0;
   /* Number of tokens that can be contained. */
@@ -340,7 +347,7 @@ inline const TokenType &Token::type() const
 }
 inline TokenType &TokenMut::type()
 {
-  return buf_->types_[index_];
+  return const_cast<TokenBuffer *>(buf_)->types_[index_];
 }
 
 inline const TokenAtom &Token::atom() const
@@ -349,7 +356,7 @@ inline const TokenAtom &Token::atom() const
 }
 inline TokenAtom &TokenMut::atom()
 {
-  return buf_->atoms_[index_];
+  return const_cast<TokenBuffer *>(buf_)->atoms_[index_];
 }
 
 inline Token Token::next(int i) const

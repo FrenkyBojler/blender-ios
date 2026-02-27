@@ -9,6 +9,9 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#ifdef _MSC_VER
+#  include <intrin.h>
+#endif
 
 #if defined(__clang__) || defined(__GNUC__)
 #  define count_bits_i(i) __builtin_popcount(i)
@@ -21,6 +24,17 @@
 
 namespace lexit {
 
+int builtin_ctzll(uint64_t a)
+{
+#ifdef _MSC_VER
+  unsigned long ctz;
+  _BitScanForward64(&ctz, a);
+  return ctz;
+#else
+  return __builtin_ctzll(a);
+#endif
+}
+
 static uint32_t divide_ceil(uint32_t a, uint32_t b)
 {
   return (a + b - 1) / b;
@@ -28,11 +42,11 @@ static uint32_t divide_ceil(uint32_t a, uint32_t b)
 
 /* Helper function to realloc aligned array keeping elem_count data. */
 template<typename T>
-void realloc_aligned_array(std::unique_ptr<T[]> &ptr, size_t elem_count, size_t new_size)
+void realloc_aligned_array(AlignedArrayPtr<T> &ptr, size_t elem_count, size_t new_size)
 {
   assert(new_size > elem_count);
-  std::unique_ptr<T[]> new_ptr(new (std::align_val_t{64}) T[new_size]);
-  if (ptr) {
+  AlignedArrayPtr<T> new_ptr(new_size);
+  if (ptr.get()) {
     std::memcpy(new_ptr.get(), ptr.get(), elem_count * sizeof(T));
   }
   ptr = std::move(new_ptr);
@@ -334,13 +348,6 @@ alignas(16) static const uint8_t mask_popcount[256] = {
     5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 3, 4, 4, 5, 4, 5, 5, 6,
     4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
 
-#endif
-
-inline TokenType select(char char_value, char char_class, bool cond)
-{
-  return TokenType((cond) ? char_class : char_value);
-}
-
 template<int Size> struct ShuffleIndicesResult {
   simd::u8_base<Size> indices;
   int popcount;
@@ -405,6 +412,12 @@ inline ShuffleIndicesResult<4> shuffle_indices_from_emit_mask(uint64_t emit_mask
   *(uint64_t *)(combined + popcount) = v7, popcount += mask_popcount_7;
 
   return {simd::u8x64::load((const uint8_t *)&combined), popcount};
+}
+#endif
+
+inline TokenType select(char char_value, char char_class, bool cond)
+{
+  return TokenType((cond) ? char_class : char_value);
 }
 
 inline void TokenBuffer::tokenize_scalar(uint32_t &__restrict offset,
@@ -750,7 +763,7 @@ INLINE_METHOD void TokenBuffer::atomize_tokens_in_mask(uint64_t mask,
     return;
   }
   while (mask != 0) {
-    const int index = __builtin_ctzll(mask);
+    const int index = builtin_ctzll(mask);
     const int tok_id = tok_id_base + index;
 
     const int str_start = offsets_[tok_id];
@@ -772,7 +785,7 @@ INLINE_METHOD void TokenBuffer::atomize_short_tokens_in_mask(uint64_t mask,
                                                              const KeywordTable &kw_table)
 {
   while (mask != 0) {
-    const int index = __builtin_ctzll(mask);
+    const int index = builtin_ctzll(mask);
     const int tok_id = tok_id_base + index;
 
     const int str_start = offsets_[tok_id];
