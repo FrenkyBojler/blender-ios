@@ -82,7 +82,7 @@ template<typename T> struct Vector {
     }
     std::unique_ptr<T[]> new_ptr(new T[new_size]);
     if (data_) {
-      std::memcpy(new_ptr.get(), data_.get(), new_size * sizeof(T));
+      std::memcpy(new_ptr.get(), data_.get(), alloc_size_ * sizeof(T));
     }
     data_ = std::move(new_ptr);
     alloc_size_ = new_size;
