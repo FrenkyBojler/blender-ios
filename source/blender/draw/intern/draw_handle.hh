@@ -248,6 +248,14 @@ class ObjectRef {
     return duplis_ != nullptr;
   }
 
+  int instances_count() const
+  {
+    if (duplis_) {
+      return duplis_->size();
+    }
+    return 1;
+  }
+
   float random(int instance_index) const
   {
     if (instance_index != 0) {
