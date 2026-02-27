@@ -28,6 +28,7 @@ BLOCKLIST_ALL = [
     "shadow_min_pool_size.blend",
     "shadow_resolution_scale.blend",
     "shader_to_rgb_transparent.blend",
+    "subsurface_shader_to_rgb.blend"
 ]
 
 # Blocklist for device + build configuration that does not support OSL at all.
@@ -122,7 +123,6 @@ if platform.system() == "Darwin":
 
 BLOCKLIST_GPU = [
     # Uninvestigated differences with GPU.
-    'image_log.blend',
     'glass_mix_40964.blend',
     'filter_glossy_refraction_45609.blend',
     'bevel_mblur.blend',
