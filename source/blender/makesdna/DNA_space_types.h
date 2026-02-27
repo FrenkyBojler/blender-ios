@@ -350,7 +350,10 @@ struct SpaceSeq {
   char draw_flag = 0;
   char gizmo_flag = 0;
   short scope = 0; /* eSpaceSeq_ScopeType. */
-  char _pad[2] = {};
+  /* Order of selection of scopes. Size is the total number of scopes. */
+  short scope_order[4];
+  char scope_order_len = 0;
+  char _pad[1] = {};
 
   /** 2D cursor for transform. */
   float cursor[2] = {};

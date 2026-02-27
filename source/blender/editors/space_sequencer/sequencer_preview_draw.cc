@@ -733,14 +733,7 @@ static void sequencer_draw_scopes(Scene *scene,
 
   const rctf preview = preview_get_full_position(region);
 
-  std::vector<short> scopes_list;
-  short scope_flag = 1;
-  for (short scope_bits = space_sequencer.scope; scope_bits > 0; scope_bits = scope_bits >> 1) {
-    if (scope_bits & 1) {
-      scopes_list.push_back(scope_flag);
-    }
-    scope_flag = scope_flag << 1;
-  }
+  int scopes_count = space_sequencer.scope_order_len;
 
   /* Apply scale correction when vectorscope is drawn along other scopes and hence V2D_KEEPASPECT
    * is off. */
@@ -806,7 +799,7 @@ static void sequencer_draw_scopes(Scene *scene,
     const eSpaceSeq_Proxy_RenderSize render_size_mode = eSpaceSeq_Proxy_RenderSize(
         space_sequencer.render_size);
     const float render_scale = seq::get_render_scale_factor(render_size_mode, scene->r.size);
-    const int scope_width = image_width / scopes_list.size();
+    const int scope_width = image_width / scopes_count;
 
     gpu::StorageBuf *raster_ssbo = GPU_storagebuf_create_ex(viewport_size.x * viewport_size.y *
                                                                 sizeof(SeqScopeRasterData),
@@ -824,8 +817,8 @@ static void sequencer_draw_scopes(Scene *scene,
     const int image_location = GPU_shader_get_sampler_binding(shader, "image");
     GPU_texture_bind(input_texture, image_location);
 
-    for (int i = 0; i < scopes_list.size(); i++) {
-      short scp = scopes_list[i];
+    for (int i = 0; i < scopes_count; i++) {
+      short scp = space_sequencer.scope_order[i];
 
       /* Skip CPU scopes. */
       if (ELEM(scp, SEQ_DRAW_IMG_HISTOGRAM)) {
@@ -894,12 +887,12 @@ static void sequencer_draw_scopes(Scene *scene,
     GPU_blend(GPU_BLEND_ALPHA);
   }
 
-  const float space_x_per_scope = (preview.xmax - preview.xmin) / scopes_list.size();
+  const float space_x_per_scope = (preview.xmax - preview.xmin) / scopes_count;
   rctf area = preview;
 
   GPU_matrix_push();
 
-  const bool skip_individual_borders = scopes_list.size() > 1;
+  const bool skip_individual_borders = scopes_count > 1;
 
   if (skip_individual_borders) {
     uchar col_border[4] = {64, 64, 64, 128};
@@ -907,8 +900,8 @@ static void sequencer_draw_scopes(Scene *scene,
     quads.draw();
   }
 
-  for (int i = 0; i < scopes_list.size(); i++) {
-    short scp = scopes_list[i];
+  for (int i = 0; i < scopes_count; i++) {
+    short scp = space_sequencer.scope_order[i];
     /* Calculate partition for this scope. */
     area.xmin = preview.xmin + i * space_x_per_scope;
     area.xmax = area.xmin + space_x_per_scope;
