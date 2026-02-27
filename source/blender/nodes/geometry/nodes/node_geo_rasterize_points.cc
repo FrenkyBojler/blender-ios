@@ -140,7 +140,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   const NodeGeometryRasterizePoints &storage = node_storage(params.node());
-  const geometry::KernelType kernel_type = geometry::KernelType::Cubic;
+  const geometry::KernelType kernel_type = geometry::KernelType::Linear;
 
   const float voxel_size = params.extract_input<float>("Voxel Size");
   const double determinant = std::pow(double(voxel_size), 3.0);
