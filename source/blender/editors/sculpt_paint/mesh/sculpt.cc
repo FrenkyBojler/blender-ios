@@ -4043,18 +4043,17 @@ static void mask_brush_toggle_off(Paint *paint, StrokeCache *cache)
   cache->saved_active_brush = nullptr;
 }
 
-static void init_scene_project_brush_targets(const bContext *C,
+static void init_scene_project_brush_targets(const Depsgraph &depsgraph,
+                                             ViewLayer &view_layer,
+                                             const View3D &v3d,
                                              const Object &active_object,
                                              StrokeCache &cache)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
   cache.project_targets.clear();
 
-  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+  for (Base &base : *BKE_view_layer_object_bases_get(&view_layer)) {
     const bool is_active_object = base.object == &active_object;
-    const bool is_hidden = !BKE_base_is_visible(v3d, &base);
+    const bool is_hidden = !BKE_base_is_visible(&v3d, &base);
     Object *object = DEG_get_evaluated(&depsgraph, base.object);
 
     if (is_active_object || object->type != OB_MESH || is_hidden) {
@@ -5643,7 +5642,8 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
   }
 
   if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_SCENE_PROJECT) {
-    init_scene_project_brush_targets(this->evil_C, ob, *cache);
+    init_scene_project_brush_targets(
+        *this->depsgraph, *this->vc.view_layer, *this->vc.v3d, ob, *cache);
   }
 
   /* Not very nice, but with current events system implementation
