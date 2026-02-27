@@ -5500,7 +5500,7 @@ static void achannel_setting_widget_cb(bContext *C, void *ale_npoin, void *setti
 /* Determine if element pointed by @iter belongs to the same 'isolate visibility path' wrt to
  * @target
  */
-static bool anim_list_el_is_visibility_related_or_self(bAnimListElem *target, bAnimListElem *iter)
+static bool anim_list_el_is_visibility_related_or_self(const bAnimListElem *target, const bAnimListElem *iter)
 {
   /* 1. Self */
   if (target->data == iter->data) {
@@ -5526,14 +5526,14 @@ static bool anim_list_el_is_visibility_related_or_self(bAnimListElem *target, bA
   /* 4. Group / F-Curve Relationships
    * Target is FCurve, Iter is its Parent Group */
   if (target->type == ANIMTYPE_FCURVE && iter->type == ANIMTYPE_GROUP) {
-    FCurve *fcu = (FCurve *)target->data;
+    const FCurve *fcu = static_cast<const FCurve*>(target->data);
     if (fcu->grp == iter->data) {
       return true;
     }
   }
   /* Target is Group, Iter is its Child FCurve */
   if (target->type == ANIMTYPE_GROUP && iter->type == ANIMTYPE_FCURVE) {
-    FCurve *fcu = (FCurve *)iter->data;
+    const FCurve *fcu = static_cast<const FCurve*>(iter->data);
     if (fcu->grp == target->data) {
       return true;
     }
