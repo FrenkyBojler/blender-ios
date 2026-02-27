@@ -22,7 +22,7 @@ template<typename T> class AlignedArrayPtr {
 
   AlignedArrayPtr(int size)
   {
-    ptr = new (std::align_val_t{64}) T[size];
+    ptr = static_cast<T *>(operator new[](sizeof(T) * size, std::align_val_t{64}));
   }
 
   AlignedArrayPtr(const AlignedArrayPtr &other) = delete;
@@ -34,13 +34,13 @@ template<typename T> class AlignedArrayPtr {
 
   ~AlignedArrayPtr()
   {
-    ::operator delete[](ptr, std::align_val_t{64});
+    operator delete[](ptr, std::align_val_t{64});
   }
 
   AlignedArrayPtr &operator=(AlignedArrayPtr &&other)
   {
     if (this != &other) {
-      ::operator delete[](ptr, std::align_val_t{64});
+      operator delete[](ptr, std::align_val_t{64});
       ptr = other.ptr;
       other.ptr = nullptr;
     }
