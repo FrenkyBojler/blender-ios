@@ -81,7 +81,12 @@ struct IdentifierMap {
     uint16_t next;
     uint16_t size;
     uint32_t hash;
-    uint64_t data[0];
+
+    /** WORKAROUND: MSVC does not support trailing null size array. */
+    uint64_t *data() const
+    {
+      return (uint64_t *)(&hash + 1);
+    }
 
     /* Caller must ensure size matches. */
     template<int Size> bool operator==(const PaddedString<Size> &str) const
@@ -89,12 +94,12 @@ struct IdentifierMap {
       if (size != str.size) {
         return false;
       }
-      return std::equal(data, data + Size, str.data);
+      return std::equal(data(), data() + Size, str.data);
     }
 
     bool operator==(std::string_view str) const
     {
-      return std::string_view{(const char *)data, size} == str;
+      return std::string_view{(const char *)data(), size} == str;
     }
   };
 
@@ -171,8 +176,8 @@ struct IdentifierMap {
       id.size = str.size();
       id.hash = hash;
       /* Zero the end of the memcpy for the fast comparison. */
-      id.data[((str.size() - 1) / sizeof(Identifier))] = 0;
-      std::memcpy(id.data, str.data(), str.size());
+      id.data()[((str.size() - 1) / sizeof(Identifier))] = 0;
+      std::memcpy(id.data(), str.data(), str.size());
     }
     return new_index;
   }
