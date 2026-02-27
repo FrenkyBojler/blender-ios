@@ -736,7 +736,9 @@ static bool get_known_pass_type(blender::RenderPass &b_pass, PassType &type, Pas
   MAP_PASS("BakeDifferential", PASS_BAKE_DIFFERENTIAL, false);
 
   MAP_PASS("Denoising Albedo", PASS_DENOISING_ALBEDO, true);
+  MAP_PASS("Denoising Specular Albedo", PASS_DENOISING_SPECULAR_ALBEDO, true);
   MAP_PASS("Denoising Normal", PASS_DENOISING_NORMAL, true);
+  MAP_PASS("Denoising Roughness", PASS_DENOISING_ROUGHNESS, true);
   MAP_PASS("Denoising Depth", PASS_DENOISING_DEPTH, true);
 
   MAP_PASS("Shadow Catcher", PASS_SHADOW_CATCHER, false);
