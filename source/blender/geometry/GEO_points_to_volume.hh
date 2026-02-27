@@ -130,11 +130,34 @@ template<KernelType kernel_type> inline bool kernel_non_zero_component(const flo
   }
 }
 
+inline bool kernel_non_zero_component(const KernelType kernel_type, const float t)
+{
+  auto in_range = [t](const float range) { return -range <= t && t < range; };
+  switch (kernel_type) {
+    case KernelType::Constant:
+      return in_range(0.5f);
+    case KernelType::Linear:
+      return in_range(1.0f);
+    case KernelType::Quadratic:
+      return in_range(1.5f);
+    case KernelType::Cubic:
+      return in_range(2.0f);
+  }
+  return 0.0f;
+}
+
 template<KernelType kernel_type> inline bool kernel_non_zero(const float3 &v)
 {
   return kernel_non_zero_component<kernel_type>(v.x) &&
          kernel_non_zero_component<kernel_type>(v.y) &&
          kernel_non_zero_component<kernel_type>(v.z);
+}
+
+inline bool kernel_non_zero(const KernelType kernel_type, const float3 &v)
+{
+  return kernel_non_zero_component(kernel_type, v.x) &&
+         kernel_non_zero_component(kernel_type, v.y) &&
+         kernel_non_zero_component(kernel_type, v.z);
 }
 
 template<KernelType kernel_type> constexpr int kernel_voxel_range()
@@ -188,10 +211,33 @@ template<KernelType kernel_type> inline float kernel_eval_component(const float 
   }
 }
 
+inline float kernel_eval_component(const KernelType kernel_type, const float t)
+{
+  const float a = math::abs(t);
+  switch (kernel_type) {
+    case KernelType::Constant:
+      return 1.0f;
+    case KernelType::Linear:
+      return 1.0f - a;
+    case KernelType::Quadratic:
+      return a < 0.5f ? -a * a + 3.0f / 4.0f : (0.5f * a - 3.0f / 2.0f) * a + 9.0f / 8.0f;
+    case KernelType::Cubic:
+      return a < 1.0f ? (0.5f * a - 1.0f) * a * a + 2.0f / 3.0f :
+                        ((-a / 6.0f + 1.0f) * a - 2.0) * a + 4.0f / 3.0f;
+  }
+  return 0.0f;
+}
+
 template<KernelType kernel_type> inline float kernel_eval(const float3 &v)
 {
   return kernel_eval_component<kernel_type>(v.x) * kernel_eval_component<kernel_type>(v.y) *
          kernel_eval_component<kernel_type>(v.z);
+}
+
+inline float kernel_eval(const KernelType kernel_type, const float3 &v)
+{
+  return kernel_eval_component(kernel_type, v.x) * kernel_eval_component(kernel_type, v.y) *
+         kernel_eval_component(kernel_type, v.z);
 }
 
 }  // namespace kernel_functions
