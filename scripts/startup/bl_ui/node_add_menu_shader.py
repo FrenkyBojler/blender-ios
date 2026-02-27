@@ -123,6 +123,7 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
                 "Portal Depth"
             ],
         )
+        self.node_operator(layout, "FunctionNodeInputMenu")
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeObjectInfo",
             ["Location", "Color", "Alpha", "Object Index", "Material Index", "Random"],
@@ -198,7 +199,10 @@ class NODE_MT_shader_node_shader_base(node_add_menu.NodeMenu):
 
     @classmethod
     def poll(cls, context):
-        return super().poll(context) and (object_material_shader_nodes_poll(context) or world_shader_nodes_poll(context))
+        return (
+            super().poll(context) and
+            (object_material_shader_nodes_poll(context) or world_shader_nodes_poll(context))
+        )
 
     def draw(self, context):
         layout = self.layout

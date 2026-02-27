@@ -103,10 +103,10 @@ void RealizeOnDomainOperation::execute()
                                                          output_center_translation);
 
   /* Get the transformation from the output space to the input space */
-  float3x3 inverse_transformation = math::invert(input_transformation) * output_transformation;
+  float3x3 transformation = math::invert(input_transformation) * output_transformation;
 
   /* compute derivatives of input location */
-  float2 wh(compute_wh(inverse_transformation));
+  float2 wh(compute_wh(transformation));
 
   /* See if nearest filter will work.
      Todo: it will for interpolating filters if entire matrix is all 0,+1,-1 or translation is
@@ -117,34 +117,34 @@ void RealizeOnDomainOperation::execute()
   }
 
   /* Translate from pixel centers rather than pixel corners */
-  inverse_transformation = inverse_transformation * math::from_location<float3x3>(float2(0.5f));
+  transformation *= math::from_location<float3x3>(float2(0.5f));
 
   /* Don't make the input image smaller than 2 pixels, to avoid aliasing and moire patterns */
   if (wh.x * 2 > input.domain().data_size.x) {
-    inverse_transformation = math::from_scale<float3x3>(
-                                 float2(input.domain().data_size.x / (wh.x * 2), 1.0f)) *
-                             inverse_transformation;
+    transformation = math::from_scale<float3x3>(
+                         float2(input.domain().data_size.x / (wh.x * 2), 1.0f)) *
+                     transformation;
     wh.x = input.domain().data_size.x / 2;
   }
   if (wh.y * 2 > input.domain().data_size.y) {
-    inverse_transformation = math::from_scale<float3x3>(
-                                 float2(1.0f, input.domain().data_size.y / (wh.y * 2))) *
-                             inverse_transformation;
+    transformation = math::from_scale<float3x3>(
+                         float2(1.0f, input.domain().data_size.y / (wh.y * 2))) *
+                     transformation;
     wh.y = input.domain().data_size.y / 2;
   }
 
   this->get_result().allocate_texture(domain);
 
   if (this->context().use_gpu()) {
-    this->realize_on_domain_gpu(options, inverse_transformation, wh);
+    this->realize_on_domain_gpu(options, transformation, wh);
   }
   else {
-    this->realize_on_domain_cpu(options, inverse_transformation, wh);
+    this->realize_on_domain_cpu(options, transformation, wh);
   }
 }
 
 void RealizeOnDomainOperation::realize_on_domain_gpu(const SamplerOptions &options,
-                                                     const float3x3 &inverse_transformation,
+                                                     const float3x3 &transformation,
                                                      const float2 &wh)
 {
   Result &input = this->get_input();
@@ -194,11 +194,11 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const SamplerOptions &optio
   if (fast) {
     /* The matrix must produce uv coordinates */
     const float3x3 mat = math::from_scale<float3x3>(1.0f / float2(input.domain().data_size)) *
-                         inverse_transformation;
-    GPU_shader_uniform_mat3_as_mat4(shader, "inverse_matrix", mat.ptr());
+                         transformation;
+    GPU_shader_uniform_mat3_as_mat4(shader, "transformation", mat.ptr());
   }
   else {
-    GPU_shader_uniform_mat3_as_mat4(shader, "inverse_matrix", inverse_transformation.ptr());
+    GPU_shader_uniform_mat3_as_mat4(shader, "transformation", transformation.ptr());
     GPU_shader_uniform_2fv(shader, "wh", wh);
   }
 
@@ -219,16 +219,14 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const SamplerOptions &optio
 
 /* support for non-float types, does nearest sampling only. */
 template<typename T>
-BLI_INLINE void realize_on_domain(const Result &input,
-                                  Result &output,
-                                  const float3x3 &inverse_transformation)
+static void realize_on_domain(const Result &input, Result &output, const float3x3 &transformation)
 {
   const RealizationOptions realization_options = input.get_realization_options();
   const int2 input_size = input.domain().data_size;
   const int2 output_size = output.domain().data_size;
-  const float2 dPdx(inverse_transformation[0].xy() / float2(input_size));
-  const float2 dPdy(inverse_transformation[1].xy() / float2(input_size));
-  const float2 translate(inverse_transformation[2].xy() / float2(input_size));
+  const float2 dPdx(transformation[0].xy() / float2(input_size));
+  const float2 dPdy(transformation[1].xy() / float2(input_size));
+  const float2 translate(transformation[2].xy() / float2(input_size));
   parallel_for(output_size, [&](const int2 texel) {
     const float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
     T sample = input.sample<T>(uv,
@@ -240,14 +238,14 @@ BLI_INLINE void realize_on_domain(const Result &input,
 }
 
 template<math::Sampler sampler>
-BLI_INLINE void realize_on_domain(math::sampler2D &source,
-                                  Result &output,
-                                  const float3x3 &inverse_transformation,
-                                  const float2 &wh)
+static void realize_on_domain(math::sampler2D &source,
+                              Result &output,
+                              const float3x3 &transformation,
+                              const float2 &wh)
 {
-  const float2 dPdx(inverse_transformation[0].xy());
-  const float2 dPdy(inverse_transformation[1].xy());
-  const float2 translate(inverse_transformation[2].xy());
+  const float2 dPdx(transformation[0].xy());
+  const float2 dPdy(transformation[1].xy());
+  const float2 translate(transformation[2].xy());
   parallel_for(output.domain().data_size, [&](const int2 texel) {
     float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
     float4 sample = sample_rect<sampler>(source, uv, wh);
@@ -256,7 +254,7 @@ BLI_INLINE void realize_on_domain(math::sampler2D &source,
 }
 
 void RealizeOnDomainOperation::realize_on_domain_cpu(const SamplerOptions &options,
-                                                     const float3x3 &inverse_transformation,
+                                                     const float3x3 &transformation,
                                                      const float2 &wh)
 {
   Result &input = this->get_input();
@@ -270,16 +268,16 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const SamplerOptions &optio
     case ResultType::Float2:
       break;  // use the floating-point code
     case ResultType::Int:
-      realize_on_domain<int32_t>(input, output, inverse_transformation);
+      realize_on_domain<int32_t>(input, output, transformation);
       return;
     case ResultType::Int2:
-      realize_on_domain<int2>(input, output, inverse_transformation);
+      realize_on_domain<int2>(input, output, transformation);
       return;
     case ResultType::Bool:
-      realize_on_domain<bool>(input, output, inverse_transformation);
+      realize_on_domain<bool>(input, output, transformation);
       return;
     case ResultType::Menu:
-      realize_on_domain<nodes::MenuValue>(input, output, inverse_transformation);
+      realize_on_domain<nodes::MenuValue>(input, output, transformation);
       return;
     case ResultType::String:
       BLI_assert_unreachable();
@@ -290,16 +288,16 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const SamplerOptions &optio
   source.wrap_y = options.wrap_y;
   switch (options.sampler) {
     case math::Sampler::Nearest:
-      realize_on_domain<math::Sampler::Nearest>(source, output, inverse_transformation, wh);
+      realize_on_domain<math::Sampler::Nearest>(source, output, transformation, wh);
       break;
     case math::Sampler::Bilinear:
-      realize_on_domain<math::Sampler::Bilinear>(source, output, inverse_transformation, wh);
+      realize_on_domain<math::Sampler::Bilinear>(source, output, transformation, wh);
       break;
     default:  // Sampler::Box
-      realize_on_domain<math::Sampler::Box>(source, output, inverse_transformation, wh);
+      realize_on_domain<math::Sampler::Box>(source, output, transformation, wh);
       break;
     case math::Sampler::Bspline:
-      realize_on_domain<math::Sampler::Bspline>(source, output, inverse_transformation, wh);
+      realize_on_domain<math::Sampler::Bspline>(source, output, transformation, wh);
       break;
   }
 }
@@ -307,81 +305,6 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const SamplerOptions &optio
 Domain RealizeOnDomainOperation::compute_domain()
 {
   return target_domain_;
-}
-
-/* If the transformations of the input and output domains are within this tolerance value, then
- * realization shouldn't be needed. */
-static constexpr float transformation_tolerance = 10e-6f;
-
-Domain RealizeOnDomainOperation::compute_realized_transformation_domain(
-    Context &context, const Domain &domain, const bool realize_translation)
-{
-  /* If the domain is only infinitesimally rotated or scaled, return a domain with just the
-   * translation component if not realizing translation. */
-  if (math::is_equal(
-          float2x2(domain.transformation), float2x2::identity(), transformation_tolerance))
-  {
-    if (realize_translation) {
-      Domain realized_domain = domain;
-      realized_domain.transformation = float3x3::identity();
-      return realized_domain;
-    }
-    Domain realized_domain = domain;
-    realized_domain.transformation = math::from_location<float3x3>(
-        domain.transformation.location());
-    return realized_domain;
-  }
-
-  /* Compute the 4 corners of the domain. */
-  const int2 size = domain.data_size;
-  const float2 lower_left_corner = float2(0.0f);
-  const float2 lower_right_corner = float2(size.x, 0.0f);
-  const float2 upper_left_corner = float2(0.0f, size.y);
-  const float2 upper_right_corner = float2(size);
-
-  /* Eliminate the translation component of the transformation. Translation is ignored since it has
-   * no effect on the size of the domain and will be restored later. */
-  const float3x3 transformation = float3x3(float2x2(domain.transformation));
-
-  /* Translate the input such that it is centered in the virtual compositing space. */
-  const float2 center_translation = -float2(size) / 2.0f;
-  const float3x3 centered_transformation = math::translate(transformation, center_translation);
-
-  /* Transform each of the 4 corners of the image by the centered transformation. */
-  const float2 transformed_lower_left_corner = math::transform_point(centered_transformation,
-                                                                     lower_left_corner);
-  const float2 transformed_lower_right_corner = math::transform_point(centered_transformation,
-                                                                      lower_right_corner);
-  const float2 transformed_upper_left_corner = math::transform_point(centered_transformation,
-                                                                     upper_left_corner);
-  const float2 transformed_upper_right_corner = math::transform_point(centered_transformation,
-                                                                      upper_right_corner);
-
-  /* Compute the lower and upper bounds of the bounding box of the transformed corners. */
-  const float2 lower_bound = math::min(
-      math::min(transformed_lower_left_corner, transformed_lower_right_corner),
-      math::min(transformed_upper_left_corner, transformed_upper_right_corner));
-  const float2 upper_bound = math::max(
-      math::max(transformed_lower_left_corner, transformed_lower_right_corner),
-      math::max(transformed_upper_left_corner, transformed_upper_right_corner));
-
-  /* Round the bounds such that they cover the entire transformed domain, which means flooring for
-   * the lower bound and ceiling for the upper bound. */
-  const int2 integer_lower_bound = int2(math::floor(lower_bound));
-  const int2 integer_upper_bound = int2(math::ceil(upper_bound));
-
-  const int2 new_size = integer_upper_bound - integer_lower_bound;
-
-  /* Make sure the new size is safe by clamping to the hardware limits and an upper bound. */
-  const int max_size = context.use_gpu() ? GPU_max_texture_size() : 65536;
-  const int2 safe_size = math::clamp(new_size, int2(1), int2(max_size));
-
-  /* Create a domain from the new safe size and just the translation component of the
-   * transformation if not realizing translation. */
-  if (realize_translation) {
-    return Domain(safe_size);
-  }
-  return Domain(safe_size, math::from_location<float3x3>(domain.transformation.location()));
 }
 
 SimpleOperation *RealizeOnDomainOperation::construct_if_needed(
@@ -414,18 +337,24 @@ SimpleOperation *RealizeOnDomainOperation::construct_if_needed(
 
   const bool should_realize_translation = input_descriptor.realization_mode ==
                                           InputRealizationMode::Transforms;
-  const Domain realized_target_domain =
-      RealizeOnDomainOperation::compute_realized_transformation_domain(
-          context, target_domain, should_realize_translation);
+  const Domain realized_target_domain = target_domain.realize_transformation(
+      should_realize_translation);
 
   /* The input have an almost identical domain to the realized target domain, so no need to realize
    * it and the operation is not needed. */
-  if (Domain::is_equal(input_result.domain(), realized_target_domain, transformation_tolerance)) {
+  if (Domain::is_equal(input_result.domain(), realized_target_domain)) {
     return nullptr;
   }
 
-  /* Otherwise, realization is needed. */
-  return new RealizeOnDomainOperation(context, realized_target_domain, input_descriptor.type);
+  if (!context.use_gpu()) {
+    return new RealizeOnDomainOperation(context, realized_target_domain, input_descriptor.type);
+  }
+
+  /* Make sure the data size of the domain does not surpass what is possible on GPU. */
+  Domain safe_realized_target_domain = realized_target_domain;
+  safe_realized_target_domain.data_size = math::min(realized_target_domain.data_size,
+                                                    int2(GPU_max_texture_size()));
+  return new RealizeOnDomainOperation(context, safe_realized_target_domain, input_descriptor.type);
 }
 
 }  // namespace blender::compositor

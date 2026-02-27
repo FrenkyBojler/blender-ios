@@ -9,7 +9,7 @@
 template<enum Sampler sampler> void realize_on_domain()
 {
   const int2 texel = int2(gl_GlobalInvocationID.xy);
-  float2 uv = to_float2x2(inverse_matrix) * float2(texel) + inverse_matrix[2].xy;
+  float2 uv = to_float2x2(transformation) * float2(texel) + transformation[2].xy;
   imageStore(domain_img, texel, sample_rect<sampler>(input_tx, uv, wh));
 }
 
@@ -22,6 +22,6 @@ template void realize_on_domain<Sampler::Bspline>;
 void realize_on_domain_texture()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
-  float2 P = to_float2x2(inverse_matrix) * float2(texel) + inverse_matrix[2].xy;
+  float2 P = to_float2x2(transformation) * float2(texel) + transformation[2].xy;
   imageStore(domain_img, texel, texture(input_tx, P, 0));
 }
