@@ -414,7 +414,7 @@ void AbstractTreeView::scroll_active_to_center()
   int index = 0;
   int active_item_index = 0;
   foreach_item(
-      [&, this](AbstractTreeViewItem &item) {
+      [&](AbstractTreeViewItem &item) {
         if (item.is_active_) {
           active_item_index = index;
         }

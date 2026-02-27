@@ -2749,13 +2749,13 @@ static wmOperatorStatus ui_view_item_rename_exec(bContext *C, wmOperator * /*op*
   ARegion *region = CTX_wm_region(C);
   AbstractViewItem *active_item = find_active_view_item(C);
 
-  view_item_begin_rename(*active_item);
-  ED_region_tag_redraw(region);
-
   if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(&active_item->get_view())) {
     /* In tree views, ensure the active item is visible when renaming starts. */
     tree_view->scroll_active_to_center();
   }
+
+  view_item_begin_rename(*active_item);
+  ED_region_tag_redraw(region);
   return OPERATOR_FINISHED;
 }
 
