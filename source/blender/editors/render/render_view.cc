@@ -22,7 +22,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_uistate.hh"
+#include "BKE_uimemory.hh"
 
 #include "BLT_translation.hh"
 

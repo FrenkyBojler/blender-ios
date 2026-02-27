@@ -31,7 +31,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
-#include "BKE_uistate.hh"
+#include "BKE_uimemory.hh"
 
 #include "RNA_access.hh"
 

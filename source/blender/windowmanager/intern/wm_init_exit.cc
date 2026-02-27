@@ -49,7 +49,7 @@
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_sound.hh"
-#include "BKE_uistate.hh"
+#include "BKE_uimemory.hh"
 #include "BKE_vfont.hh"
 
 #include "BKE_addon.h"

@@ -45,7 +45,7 @@
 #include "BKE_idtype.hh"
 #include "BKE_main.hh"
 #include "BKE_preferences.h"
-#include "BKE_uistate.hh"
+#include "BKE_uimemory.hh"
 
 #include "BLO_userdef_default.h"
 

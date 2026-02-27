@@ -24,7 +24,7 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
-#include "BKE_uistate.hh"
+#include "BKE_uimemory.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"

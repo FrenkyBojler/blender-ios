@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "BKE_appdir.hh"
-#include "BKE_uistate.hh"
+#include "BKE_uimemory.hh"
 
 #include "BLI_fileops.h"
 #include "BLI_mutex.hh"
