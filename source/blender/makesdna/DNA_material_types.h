@@ -240,7 +240,7 @@ enum {
 };
 
 /* Grease Pencil Placement Drawing Modes */
-enum {
+enum eMaterialGPencilPlacementMode {
   GP_MATERIAL_PLACEMENT_SINGLE = 0,
   GP_MATERIAL_PLACEMENT_SUBDIV = 1,
   GP_MATERIAL_PLACEMENT_DENSITY = 2,
@@ -324,7 +324,7 @@ struct MaterialGPencilStyle {
   int alignment_mode = 0;
   /** Rotation for texture for Dots and Squares. */
   float alignment_rotation = 0;
-  /** Placement mode for Dots and Squares. */
+  /** #eMaterialGPencilPlacementMode Placement mode for Dots and Squares. */
   int placement_mode = 0;
   /* Number of points per segment when placement mode is `GP_MATERIAL_PLACEMENT_SUBDIV` */
   int placement_subdivisions = 0;
