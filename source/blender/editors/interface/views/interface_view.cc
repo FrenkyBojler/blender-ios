@@ -251,22 +251,16 @@ void region_view_scroll_at_borders(bContext *C, wmDropBox &dropbox, const wmEven
 
   float x = event->xy[0], y = event->xy[1];
   window_to_block_fl(region, block, &x, &y);
-  const float2 mouse_coords(x, y);
 
   std::optional<rcti> bounds = view->get_bounds();
-  Bounds<float2> top_bounds(float2(bounds->xmin, bounds->ymin),
-                            float2(bounds->xmax, bounds->ymax));
-  top_bounds.min.y = top_bounds.max.y - ((UI_UNIT_Y * 2 / 3) + 2);
-  Bounds<float2> bottom_bounds(float2(bounds->xmin, bounds->ymin),
-                               float2(bounds->xmax, bounds->ymax));
-  bottom_bounds.max.y = bottom_bounds.min.y + ((UI_UNIT_Y * 2 / 3) + 1);
 
+  const int margin = UI_UNIT_Y * 1 / 3;
   const std::optional<ViewScrollDirection> scroll_dir =
       [&]() -> std::optional<ViewScrollDirection> {
-    if (top_bounds.contains(mouse_coords)) {
+    if (y > bounds->ymax - margin) {
       return ViewScrollDirection::UP;
     }
-    if (bottom_bounds.contains(mouse_coords)) {
+    if (y < bounds->ymin + margin) {
       return ViewScrollDirection::DOWN;
     }
     return std::nullopt;

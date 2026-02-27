@@ -596,6 +596,7 @@ static void wm_drop_update_active(bContext *C, wmDrag *drag, const wmEvent *even
     if (drop_prev) {
       /* Remove timer if any when exiting the dropbox. */
       WM_event_timer_remove(CTX_wm_manager(C), nullptr, drop_prev->timer);
+      drop_prev->timer = nullptr;
       if (drop_prev->on_exit) {
         drop_prev->on_exit(drop_prev, drag);
         BLI_assert(drop_prev->draw_data == nullptr);
@@ -649,7 +650,7 @@ void wm_drags_handle_events(bContext *C, const wmEvent *event)
     bool is_drag_timer = false;
     for (wmDrag &drag : wm->runtime->drags) {
       if (drag.drop_state.active_dropbox) {
-        is_drag_timer |= drag.drop_state.active_dropbox->timer != nullptr;
+        is_drag_timer |= (event->customdata == drag.drop_state.active_dropbox->timer);
       }
     }
     if (!is_drag_timer) {
