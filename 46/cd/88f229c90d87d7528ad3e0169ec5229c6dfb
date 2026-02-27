@@ -3,3 +3,4 @@ Referenced by issue #127548, 4.2: Gizmo undo (back-ported fixes)
 Referenced by issue #126617, Blender crashing upon undoing Focal length movement.
 Referenced by issue #154848, Python Gizmo.target_set_prop() Doesn't Support Undo
 Referenced by pull request #154869, Fix #154848: Python Gizmo.target_set_prop() misses undo
+Referenced by commit f3ef6318c957ea4f1d6134a5b4b869ec1cd956f8, Fix #154848: Python Gizmo.target_set_prop() misses undo
