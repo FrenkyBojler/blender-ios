@@ -1373,10 +1373,10 @@ VolumeObjectBounds::VolumeObjectBounds(const Camera &camera, Object *ob)
   }
 }
 
-VolumeLayer *VolumePipeline::register_and_get_layer(Object *ob)
+VolumeLayer *VolumePipeline::register_and_get_layer(const ObjectHandle &ob_handle)
 {
   /* TODO(fclem): This is against design. Sync shouldn't depend on view properties (camera). */
-  VolumeObjectBounds object_bounds(inst_.camera, ob);
+  VolumeObjectBounds object_bounds(inst_.camera, ob_handle.ref.object);
   if (math::reduce_max(object_bounds.screen_bounds->size()) < 1e-5) {
     /* WORKAROUND(fclem): Fixes an issue with 0 scaled object (see #132889).
      * Is likely to be an issue somewhere else in the pipeline but it is hard to find. */

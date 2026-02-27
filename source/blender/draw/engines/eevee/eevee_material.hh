@@ -372,12 +372,15 @@ class MaterialModule {
   /**
    * Returned Material references are valid until the next call to this function or material_get().
    */
-  MaterialArray &material_array_get(Object *ob, bool has_motion);
+  MaterialArray &material_array_get(const ObjectHandle &ob_handle, bool has_motion);
   /**
    * Returned Material references are valid until the next call to this function or
    * material_array_get().
    */
-  Material &material_get(Object *ob, bool has_motion, int mat_nr, eMaterialGeometry geometry_type);
+  Material &material_get(const ObjectHandle &ob_handle,
+                         bool has_motion,
+                         int mat_nr,
+                         eMaterialGeometry geometry_type);
 
   /* Request default materials and return DEFAULT_MATERIALS if they are compiled. */
   ShaderGroups default_materials_load_async()
@@ -390,7 +393,7 @@ class MaterialModule {
   }
 
  private:
-  Material &material_sync(Object *ob,
+  Material &material_sync(const ObjectHandle &ob_handle,
                           blender::Material *blender_mat,
                           eMaterialGeometry geometry_type,
                           bool has_motion);

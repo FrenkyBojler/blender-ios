@@ -89,7 +89,7 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
 
   bool has_motion = inst_.velocity.step_object_sync(ob_handle, res_handle);
 
-  MaterialArray &material_array = inst_.materials.material_array_get(ob, has_motion);
+  MaterialArray &material_array = inst_.materials.material_array_get(ob_handle, has_motion);
 
   Span<gpu::Batch *> mat_geom = DRW_cache_object_surface_material_get(
       ob, material_array.gpu_materials);
@@ -171,7 +171,7 @@ bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRe
   ResourceHandleRange res_handle = inst_.manager->unique_handle_for_sculpt(ob_ref);
 
   bool has_motion = false;
-  MaterialArray &material_array = inst_.materials.material_array_get(ob, has_motion);
+  MaterialArray &material_array = inst_.materials.material_array_get(ob_handle, has_motion);
 
   bool is_alpha_blend = false;
   bool has_transparent_shadows = false;
@@ -248,7 +248,7 @@ void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const Obje
   bool has_motion = inst_.velocity.step_object_sync(ob_handle, res_handle);
 
   Material &material = inst_.materials.material_get(
-      ob, has_motion, material_slot - 1, MAT_GEOM_POINTCLOUD);
+      ob_handle, has_motion, material_slot - 1, MAT_GEOM_POINTCLOUD);
 
   auto drawcall_add = [&](MaterialPass &matpass, bool dual_sided = false) {
     if (matpass.sub_pass == nullptr) {
@@ -332,7 +332,7 @@ void SyncModule::sync_volume(Object *ob, ObjectHandle &ob_handle, const ObjectRe
   const bool has_motion = false;
 
   Material &material = inst_.materials.material_get(
-      ob, has_motion, material_slot - 1, MAT_GEOM_VOLUME);
+      ob_handle, has_motion, material_slot - 1, MAT_GEOM_VOLUME);
 
   if (!GPU_material_has_volume_output(material.volume_material.gpumat)) {
     return;
@@ -405,7 +405,8 @@ void SyncModule::sync_curves(Object *ob,
 
   bool has_motion = inst_.velocity.step_object_sync(
       ob_handle, res_handle, modifier_data, particle_sys);
-  Material &material = inst_.materials.material_get(ob, has_motion, mat_nr - 1, MAT_GEOM_CURVES);
+  Material &material = inst_.materials.material_get(
+      ob_handle, has_motion, mat_nr - 1, MAT_GEOM_CURVES);
 
   auto drawcall_add = [&](MaterialPass &matpass) {
     if (matpass.sub_pass == nullptr) {

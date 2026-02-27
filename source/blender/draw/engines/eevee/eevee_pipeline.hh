@@ -549,7 +549,7 @@ class VolumePipeline {
    * Returns correct volume layer for a given object and add the object to the layer.
    * Returns nullptr if the object is not visible at all.
    */
-  VolumeLayer *register_and_get_layer(Object *ob);
+  VolumeLayer *register_and_get_layer(const ObjectHandle &ob_handle);
 
   std::optional<Bounds<float>> object_integration_range() const;
 

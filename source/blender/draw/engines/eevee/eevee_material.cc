@@ -292,11 +292,12 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
   return matpass;
 }
 
-Material &MaterialModule::material_sync(Object *ob,
+Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
                                         blender::Material *blender_mat,
                                         eMaterialGeometry geometry_type,
                                         bool has_motion)
 {
+  Object *ob = ob_handle.ref.object;
   bool hide_on_camera = ob->visibility_flag & OB_HIDE_CAMERA;
 
   if (geometry_type == MAT_GEOM_VOLUME) {
@@ -313,7 +314,7 @@ Material &MaterialModule::material_sync(Object *ob,
 
     /* Volume needs to use one sub pass per object to support layering. */
     VolumeLayer *layer = hide_on_camera ? nullptr :
-                                          inst_.pipelines.volume.register_and_get_layer(ob);
+                                          inst_.pipelines.volume.register_and_get_layer(ob_handle);
     if (layer) {
       mat.volume_occupancy.sub_pass = layer->occupancy_add(
           ob, blender_mat, mat.volume_occupancy.gpumat);
@@ -450,7 +451,7 @@ Material &MaterialModule::material_sync(Object *ob,
   if (mat.has_volume) {
     /* Volume needs to use one sub pass per object to support layering. */
     VolumeLayer *layer = hide_on_camera ? nullptr :
-                                          inst_.pipelines.volume.register_and_get_layer(ob);
+                                          inst_.pipelines.volume.register_and_get_layer(ob_handle);
     if (layer) {
       mat.volume_occupancy.sub_pass = layer->occupancy_add(
           ob, blender_mat, mat.volume_occupancy.gpumat);
@@ -478,8 +479,9 @@ blender::Material *MaterialModule::material_from_slot(Object *ob, int slot)
   return ma;
 }
 
-MaterialArray &MaterialModule::material_array_get(Object *ob, bool has_motion)
+MaterialArray &MaterialModule::material_array_get(const ObjectHandle &ob_handle, bool has_motion)
 {
+  Object *ob = ob_handle.ref.object;
   material_array_.materials.clear();
   material_array_.gpu_materials.clear();
 
@@ -488,7 +490,7 @@ MaterialArray &MaterialModule::material_array_get(Object *ob, bool has_motion)
   for (auto i : IndexRange(materials_len)) {
     blender::Material *blender_mat = (material_override) ? material_override :
                                                            material_from_slot(ob, i);
-    Material &mat = material_sync(ob, blender_mat, to_material_geometry(ob), has_motion);
+    Material &mat = material_sync(ob_handle, blender_mat, to_material_geometry(ob), has_motion);
     /* \note Perform a whole copy since next material_sync() can move the Material memory location
      * (i.e: because of its container growing) */
     material_array_.materials.append(mat);
@@ -497,14 +499,15 @@ MaterialArray &MaterialModule::material_array_get(Object *ob, bool has_motion)
   return material_array_;
 }
 
-Material &MaterialModule::material_get(Object *ob,
+Material &MaterialModule::material_get(const ObjectHandle &ob_handle,
                                        bool has_motion,
                                        int mat_nr,
                                        eMaterialGeometry geometry_type)
 {
-  blender::Material *blender_mat = (material_override) ? material_override :
-                                                         material_from_slot(ob, mat_nr);
-  Material &mat = material_sync(ob, blender_mat, geometry_type, has_motion);
+  blender::Material *blender_mat = (material_override) ?
+                                       material_override :
+                                       material_from_slot(ob_handle.ref.object, mat_nr);
+  Material &mat = material_sync(ob_handle, blender_mat, geometry_type, has_motion);
   return mat;
 }
 
