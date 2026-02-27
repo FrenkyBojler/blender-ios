@@ -5500,7 +5500,8 @@ static void achannel_setting_widget_cb(bContext *C, void *ale_npoin, void *setti
 /* Determine if element pointed by @iter belongs to the same 'isolate visibility path' wrt to
  * @target
  */
-static bool anim_list_el_is_visibility_related_or_self(const bAnimListElem *target, const bAnimListElem *iter)
+static bool anim_list_el_is_visibility_related_or_self(const bAnimListElem *target,
+                                                       const bAnimListElem *iter)
 {
   /* 1. Self */
   if (target->data == iter->data) {
@@ -5526,14 +5527,14 @@ static bool anim_list_el_is_visibility_related_or_self(const bAnimListElem *targ
   /* 4. Group / F-Curve Relationships
    * Target is FCurve, Iter is its Parent Group */
   if (target->type == ANIMTYPE_FCURVE && iter->type == ANIMTYPE_GROUP) {
-    const FCurve *fcu = static_cast<const FCurve*>(target->data);
+    const FCurve *fcu = static_cast<const FCurve *>(target->data);
     if (fcu->grp == iter->data) {
       return true;
     }
   }
   /* Target is Group, Iter is its Child FCurve */
   if (target->type == ANIMTYPE_GROUP && iter->type == ANIMTYPE_FCURVE) {
-    const FCurve *fcu = static_cast<const FCurve*>(iter->data);
+    const FCurve *fcu = static_cast<const FCurve *>(iter->data);
     if (fcu->grp == target->data) {
       return true;
     }
@@ -5542,14 +5543,52 @@ static bool anim_list_el_is_visibility_related_or_self(const bAnimListElem *targ
   return false;
 };
 
+static void anim_channels_toggle_isolate(bAnimContext &ac, bAnimListElem *ale_setting)
+{
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
+  bool any_unrelated_visible = false;
+
+  /* 1. Get List of all channels. */
+  ANIM_animdata_filter(&ac,
+                       &anim_data,
+                       eAnimFilter_Flags(ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS),
+                       ac.data,
+                       eAnimCont_Types(ac.datatype));
+
+  /* 2. Pass 1: Check the state of UNRELATED channels.
+   * If we find visible unrelated items, we want to ISOLATE (hide them).
+   * If we find NO visible unrelated items, we are already isolated, so UN-ISOLATE (show them). */
+  for (bAnimListElem &ale_it : anim_data) {
+    if (anim_list_el_is_visibility_related_or_self(ale_setting, &ale_it)) {
+      continue;
+    }
+
+    if (ANIM_channel_setting_get(&ac, &ale_it, ACHANNEL_SETTING_VISIBLE) == 1) {
+      any_unrelated_visible = true;
+      break;
+    }
+  }
+
+  /* 3. Pass 2: Apply visibility. */
+  const eAnimChannels_SetFlag unrelated_setflag = any_unrelated_visible ? ACHANNEL_SETFLAG_CLEAR :
+                                                                          ACHANNEL_SETFLAG_ADD;
+  for (bAnimListElem &ale_it : anim_data) {
+    /* Parents/Children/Self are ALWAYS forced visible.
+     * Unrelated items are toggled depending on `any_unrelated_visible`. */
+    const bool is_related = anim_list_el_is_visibility_related_or_self(ale_setting, &ale_it);
+    const eAnimChannels_SetFlag setflag = is_related ? ACHANNEL_SETFLAG_ADD : unrelated_setflag;
+    ANIM_channel_setting_set(&ac, &ale_it, ACHANNEL_SETTING_VISIBLE, setflag);
+  }
+
+  ANIM_animdata_freelist(&anim_data);
+}
+
 /* callback for widget settings that need flushing */
 static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void *setting_wrap)
 {
   bAnimListElem *ale_setting = static_cast<bAnimListElem *>(ale_npoin);
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
-  const eAnimFilter_Flags animFilterChannelsDef = ANIMFILTER_DATA_VISIBLE |
-                                                  ANIMFILTER_LIST_CHANNELS;
   const eAnimChannel_Settings setting = eAnimChannel_Settings(POINTER_AS_INT(setting_wrap));
   short on = 0;
 
@@ -5597,41 +5636,7 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
   wmWindow *win = CTX_wm_window(C);
   /* Handle Ctrl+Click to 'Isolate'-toggle visibility of graph editor channels. */
   if (setting == ACHANNEL_SETTING_VISIBLE && (win->runtime->eventstate->modifier & KM_CTRL)) {
-
-    bool any_unrelated_visible = false;
-
-    /* 1. Get List of all channels */
-    ANIM_animdata_filter(
-        &ac, &anim_data, animFilterChannelsDef, ac.data, eAnimCont_Types(ac.datatype));
-
-    /* 2. Pass 1: Check the state of UNRELATED channels
-     * If we find visible unrelated items, we want to ISOLATE (Hide them).
-     * If we find NO visible unrelated items, we are already isolated, so UN-ISOLATE (Show them).*/
-    for (bAnimListElem &ale_it : anim_data) {
-
-      if (anim_list_el_is_visibility_related_or_self(ale_setting, &ale_it)) {
-        continue;
-      }
-
-      if (ANIM_channel_setting_get(&ac, &ale_it, setting) == 1) {
-        any_unrelated_visible = true;
-        break;
-      }
-    }
-
-    /* 3. Pass 2: Apply Visibility */
-    const eAnimChannels_SetFlag unrelated_setflag = any_unrelated_visible ?
-                                                        ACHANNEL_SETFLAG_CLEAR :
-                                                        ACHANNEL_SETFLAG_ADD;
-    for (bAnimListElem &ale_it : anim_data) {
-      /* Parents/Children/Self are ALWAYS forced Visible. Unrelated items are (un)selected
-       * depending on `any_unrelated_visible`. */
-      const bool is_related = anim_list_el_is_visibility_related_or_self(ale_setting, &ale_it);
-      const eAnimChannels_SetFlag setflag = is_related ? ACHANNEL_SETFLAG_ADD : unrelated_setflag;
-      ANIM_channel_setting_set(&ac, &ale_it, setting, setflag);
-    }
-
-    ANIM_animdata_freelist(&anim_data);
+    anim_channels_toggle_isolate(ac, ale_setting);
   }
 
   /* check if the setting is on... */
@@ -5643,8 +5648,11 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
   }
 
   /* get all channels that can possibly be chosen - but ignore hierarchy */
-  ANIM_animdata_filter(
-      &ac, &anim_data, animFilterChannelsDef, ac.data, eAnimCont_Types(ac.datatype));
+  ANIM_animdata_filter(&ac,
+                       &anim_data,
+                       eAnimFilter_Flags(ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS),
+                       ac.data,
+                       eAnimCont_Types(ac.datatype));
 
   /* call API method to flush the setting */
   ANIM_flush_setting_anim_channels(
