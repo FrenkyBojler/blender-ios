@@ -71,6 +71,7 @@ static const EnumPropertyItem image_source_items[] = {
 
 #  include "MOV_read.hh"
 
+#  include "ED_image.hh"
 #  include "ED_node.hh"
 
 #  include "DNA_space_types.h"
@@ -79,6 +80,12 @@ static const EnumPropertyItem image_source_items[] = {
 #  include "DEG_depsgraph_build.hh"
 
 namespace blender {
+
+bool rna_Image_no_renderresult_or_viewer_poll(PointerRNA * /*ptr*/, PointerRNA value)
+{
+  Image *image = id_cast<Image *>(value.owner_id);
+  return image->type != IMA_TYPE_R_RESULT && image->type != IMA_TYPE_COMPOSITE;
+}
 
 static bool rna_Image_is_stereo_3d_get(PointerRNA *ptr)
 {

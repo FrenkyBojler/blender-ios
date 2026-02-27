@@ -227,31 +227,30 @@ void VolumeProbeModule::set_view(View & /*view*/)
   int world_grid_index = 0;
   {
     /* Stable sorting of grids. */
-    std::sort(
-        grid_loaded.begin(), grid_loaded.end(), [](const VolumeProbe *a, const VolumeProbe *b) {
-          float volume_a = math::determinant(float3x3(a->object_to_world));
-          float volume_b = math::determinant(float3x3(b->object_to_world));
-          if (volume_a != volume_b) {
-            /* Smallest first. */
-            return volume_a < volume_b;
-          }
-          /* Volumes are identical. Any arbitrary criteria can be used to sort them.
-           * Use position to avoid unstable result caused by depsgraph non deterministic eval
-           * order. This could also become a priority parameter. */
-          float3 _a = a->object_to_world.location();
-          float3 _b = b->object_to_world.location();
-          if (_a.x != _b.x) {
-            return _a.x < _b.x;
-          }
-          if (_a.y != _b.y) {
-            return _a.y < _b.y;
-          }
-          if (_a.z != _b.z) {
-            return _a.z < _b.z;
-          }
-          /* Fallback to memory address, since there's no good alternative. */
-          return a < b;
-        });
+    std::ranges::sort(grid_loaded, [](const VolumeProbe *a, const VolumeProbe *b) {
+      float volume_a = math::determinant(float3x3(a->object_to_world));
+      float volume_b = math::determinant(float3x3(b->object_to_world));
+      if (volume_a != volume_b) {
+        /* Smallest first. */
+        return volume_a < volume_b;
+      }
+      /* Volumes are identical. Any arbitrary criteria can be used to sort them.
+       * Use position to avoid unstable result caused by depsgraph non deterministic eval
+       * order. This could also become a priority parameter. */
+      float3 _a = a->object_to_world.location();
+      float3 _b = b->object_to_world.location();
+      if (_a.x != _b.x) {
+        return _a.x < _b.x;
+      }
+      if (_a.y != _b.y) {
+        return _a.y < _b.y;
+      }
+      if (_a.z != _b.z) {
+        return _a.z < _b.z;
+      }
+      /* Fallback to memory address, since there's no good alternative. */
+      return a < b;
+    });
 
     /* Insert grids in UBO in sorted order. */
     int grids_len = 0;
@@ -1388,7 +1387,7 @@ void IrradianceBake::read_surfels(LightProbeGridCacheFrame *cache_frame)
   surfels_buf_.read();
 
   cache_frame->surfels_len = capture_info_buf_.surfel_len;
-  cache_frame->surfels = MEM_malloc_arrayN<Surfel>(cache_frame->surfels_len, __func__);
+  cache_frame->surfels = MEM_new_array_uninitialized<Surfel>(cache_frame->surfels_len, __func__);
 
   MutableSpan<Surfel> surfels_dst(static_cast<Surfel *>(cache_frame->surfels),
                                   cache_frame->surfels_len);
@@ -1459,16 +1458,17 @@ LightProbeGridCacheFrame *IrradianceBake::read_result_packed()
 
   int64_t sample_count = int64_t(irradiance_L0_tx_.width()) * irradiance_L0_tx_.height() *
                          irradiance_L0_tx_.depth();
-  cache_frame->irradiance.L0 = MEM_malloc_arrayN<float[3]>(sample_count, __func__);
-  cache_frame->irradiance.L1_a = MEM_malloc_arrayN<float[3]>(sample_count, __func__);
-  cache_frame->irradiance.L1_b = MEM_malloc_arrayN<float[3]>(sample_count, __func__);
-  cache_frame->irradiance.L1_c = MEM_malloc_arrayN<float[3]>(sample_count, __func__);
-  cache_frame->connectivity.validity = MEM_malloc_arrayN<uint8_t>(sample_count, __func__);
+  cache_frame->irradiance.L0 = MEM_new_array_uninitialized<float[3]>(sample_count, __func__);
+  cache_frame->irradiance.L1_a = MEM_new_array_uninitialized<float[3]>(sample_count, __func__);
+  cache_frame->irradiance.L1_b = MEM_new_array_uninitialized<float[3]>(sample_count, __func__);
+  cache_frame->irradiance.L1_c = MEM_new_array_uninitialized<float[3]>(sample_count, __func__);
+  cache_frame->connectivity.validity = MEM_new_array_uninitialized<uint8_t>(sample_count,
+                                                                            __func__);
 
-  cache_frame->visibility.L0 = MEM_malloc_arrayN<float>(sample_count, __func__);
-  cache_frame->visibility.L1_a = MEM_malloc_arrayN<float>(sample_count, __func__);
-  cache_frame->visibility.L1_b = MEM_malloc_arrayN<float>(sample_count, __func__);
-  cache_frame->visibility.L1_c = MEM_malloc_arrayN<float>(sample_count, __func__);
+  cache_frame->visibility.L0 = MEM_new_array_uninitialized<float>(sample_count, __func__);
+  cache_frame->visibility.L1_a = MEM_new_array_uninitialized<float>(sample_count, __func__);
+  cache_frame->visibility.L1_b = MEM_new_array_uninitialized<float>(sample_count, __func__);
+  cache_frame->visibility.L1_c = MEM_new_array_uninitialized<float>(sample_count, __func__);
 
   /* TODO(fclem): This could be done on GPU if that's faster. */
   for (auto i : IndexRange(sample_count)) {
@@ -1485,11 +1485,11 @@ LightProbeGridCacheFrame *IrradianceBake::read_result_packed()
         cache_frame->baking.validity[i]);
   }
 
-  MEM_SAFE_FREE(cache_frame->baking.L0);
-  MEM_SAFE_FREE(cache_frame->baking.L1_a);
-  MEM_SAFE_FREE(cache_frame->baking.L1_b);
-  MEM_SAFE_FREE(cache_frame->baking.L1_c);
-  MEM_SAFE_FREE(cache_frame->baking.validity);
+  MEM_SAFE_DELETE(cache_frame->baking.L0);
+  MEM_SAFE_DELETE(cache_frame->baking.L1_a);
+  MEM_SAFE_DELETE(cache_frame->baking.L1_b);
+  MEM_SAFE_DELETE(cache_frame->baking.L1_c);
+  MEM_SAFE_DELETE(cache_frame->baking.validity);
 
   return cache_frame;
 }

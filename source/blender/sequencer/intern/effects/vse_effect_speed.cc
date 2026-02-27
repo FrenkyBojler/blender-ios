@@ -25,8 +25,7 @@ namespace blender::seq {
 
 static void init_speed_effect(Strip *strip)
 {
-  MEM_SAFE_FREE(strip->effectdata);
-  SpeedControlVars *data = MEM_new_for_free<SpeedControlVars>("speedcontrolvars");
+  SpeedControlVars *data = MEM_new<SpeedControlVars>("speedcontrolvars");
   strip->effectdata = data;
   data->speed_control_type = SEQ_SPEED_STRETCH;
   data->speed_fader = 1.0f;
@@ -34,25 +33,23 @@ static void init_speed_effect(Strip *strip)
   data->speed_fader_frame_number = 0.0f;
 }
 
-static int num_inputs_speed()
-{
-  return 1;
-}
-
 static void free_speed_effect(Strip *strip, const bool /*do_id_user*/)
 {
-  SpeedControlVars *v = static_cast<SpeedControlVars *>(strip->effectdata);
-  if (v->frameMap) {
-    MEM_freeN(v->frameMap);
+  if (strip->effectdata) {
+    SpeedControlVars *v = static_cast<SpeedControlVars *>(strip->effectdata);
+    if (v->frameMap) {
+      MEM_delete(v->frameMap);
+    }
+    MEM_delete(v);
+    strip->effectdata = nullptr;
   }
-  MEM_SAFE_FREE(strip->effectdata);
 }
 
 static void copy_speed_effect(Strip *dst, const Strip *src, const int /*flag*/)
 {
-  dst->effectdata = MEM_dupallocN(src->effectdata);
-  SpeedControlVars *v = static_cast<SpeedControlVars *>(dst->effectdata);
+  SpeedControlVars *v = MEM_dupalloc(static_cast<SpeedControlVars *>(src->effectdata));
   v->frameMap = nullptr;
+  dst->effectdata = v;
 }
 
 static StripEarlyOut early_out_speed(const Strip * /*strip*/, float /*fac*/)
@@ -80,10 +77,10 @@ void strip_effect_speed_rebuild_map(Scene *scene, Strip *strip)
 
   SpeedControlVars *v = static_cast<SpeedControlVars *>(strip->effectdata);
   if (v->frameMap) {
-    MEM_freeN(v->frameMap);
+    MEM_delete(v->frameMap);
   }
 
-  v->frameMap = MEM_malloc_arrayN<float>(size_t(effect_strip_length), __func__);
+  v->frameMap = MEM_new_array_uninitialized<float>(size_t(effect_strip_length), __func__);
   v->frameMap[0] = 0.0f;
 
   float target_frame = 0;
@@ -200,7 +197,6 @@ static ImBuf *do_speed_effect(const RenderData *context,
 void speed_effect_get_handle(EffectHandle &rval)
 {
   rval.init = init_speed_effect;
-  rval.num_inputs = num_inputs_speed;
   rval.free = free_speed_effect;
   rval.copy = copy_speed_effect;
   rval.execute = do_speed_effect;

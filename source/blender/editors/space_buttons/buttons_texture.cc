@@ -374,7 +374,7 @@ void buttons_texture_context_compute(const bContext *C, SpaceProperties *sbuts)
   ID *pinid = sbuts->pinid;
 
   if (!ct) {
-    ct = MEM_callocN<ButsContextTexture>("ButsContextTexture");
+    ct = MEM_new_zeroed<ButsContextTexture>("ButsContextTexture");
     sbuts->texuser = ct;
   }
   else {
@@ -498,7 +498,7 @@ static void template_texture_user_menu(bContext *C, ui::Layout *layout, void * /
     /* add label per category */
     if (!last_category || !STREQ(last_category, user.category)) {
       layout->label(IFACE_(user.category), ICON_NONE);
-      but = block->buttons.last().get();
+      but = block->buttons_ptrs.last().get();
       but->drawflag = ui::BUT_TEXT_LEFT;
     }
 

@@ -245,9 +245,8 @@ template<> void socket_data_init_impl(bNodeSocketValueMenu &data)
 static void *make_socket_data(const StringRef socket_type)
 {
   void *socket_data = nullptr;
-  socket_data_to_static_type_tag(socket_type, [&socket_data](auto type_tag) {
-    using SocketDataType = typename decltype(type_tag)::type;
-    SocketDataType *new_socket_data = MEM_new_for_free<SocketDataType>(__func__);
+  socket_data_to_static_type(socket_type, [&socket_data]<typename SocketDataType>() {
+    SocketDataType *new_socket_data = MEM_new<SocketDataType>(__func__);
     socket_data_init_impl(*new_socket_data);
     socket_data = new_socket_data;
   });
@@ -260,23 +259,27 @@ static void *make_socket_data(const StringRef socket_type)
 /** \name Free Allocated Socket Data
  * \{ */
 
-template<typename T> void socket_data_free_impl(T & /*data*/, const bool /*do_id_user*/) {}
-template<> void socket_data_free_impl(bNodeSocketValueMenu &dst, const bool /*do_id_user*/)
+template<typename T> void socket_data_free_impl(T *data, const bool /*do_id_user*/)
 {
-  if (dst.enum_items) {
+  MEM_delete(data);
+}
+template<> void socket_data_free_impl(bNodeSocketValueMenu *data, const bool /*do_id_user*/)
+{
+  if (data->enum_items) {
     /* Release shared data pointer. */
-    dst.enum_items->remove_user_and_delete_if_last();
+    data->enum_items->remove_user_and_delete_if_last();
   }
+  MEM_delete(data);
 }
 
 static void socket_data_free(bNodeTreeInterfaceSocket &socket, const bool do_id_user)
 {
-  socket_data_to_static_type_tag(socket.socket_type, [&](auto type_tag) {
-    using SocketDataType = typename decltype(type_tag)::type;
+  socket_data_to_static_type(socket.socket_type, [&]<typename SocketDataType>() {
     if (do_id_user) {
       socket_data_id_user_decrement(get_socket_data_as<SocketDataType>(socket));
     }
-    socket_data_free_impl(get_socket_data_as<SocketDataType>(socket), do_id_user);
+    socket_data_free_impl(&get_socket_data_as<SocketDataType>(socket), do_id_user);
+    socket.socket_data = nullptr;
   });
 }
 
@@ -286,25 +289,28 @@ static void socket_data_free(bNodeTreeInterfaceSocket &socket, const bool do_id_
 /** \name Copy Allocated Socket Data
  * \{ */
 
-template<typename T> void socket_data_copy_impl(T & /*dst*/, const T & /*src*/) {}
-template<>
-void socket_data_copy_impl(bNodeSocketValueMenu &dst, const bNodeSocketValueMenu & /*src*/)
+template<typename T> T *socket_data_copy_impl(const T &src)
 {
+  return MEM_new<T>(__func__, src);
+}
+template<> bNodeSocketValueMenu *socket_data_copy_impl(const bNodeSocketValueMenu &src)
+{
+  bNodeSocketValueMenu *dst = MEM_new<bNodeSocketValueMenu>(__func__, src);
   /* Copy of shared data pointer. */
-  if (dst.enum_items) {
-    dst.enum_items->add_user();
+  if (dst->enum_items) {
+    dst->enum_items->add_user();
   }
+  return dst;
 }
 
 static void socket_data_copy(bNodeTreeInterfaceSocket &dst,
                              const bNodeTreeInterfaceSocket &src,
                              int flag)
 {
-  socket_data_to_static_type_tag(dst.socket_type, [&](auto type_tag) {
-    using SocketDataType = typename decltype(type_tag)::type;
-    dst.socket_data = MEM_dupallocN(src.socket_data);
-    socket_data_copy_impl(get_socket_data_as<SocketDataType>(dst),
-                          get_socket_data_as<SocketDataType>(src));
+  socket_data_to_static_type(dst.socket_type, [&]<typename SocketDataType>() {
+    if (src.socket_data) {
+      dst.socket_data = socket_data_copy_impl(get_socket_data_as<SocketDataType>(src));
+    }
     if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
       socket_data_id_user_increment(get_socket_data_as<SocketDataType>(dst));
     }
@@ -316,17 +322,15 @@ static void socket_data_copy_ptr(bNodeTreeInterfaceSocket &dst,
                                  const void *src_socket_data,
                                  int flag)
 {
-  socket_data_to_static_type_tag(dst.socket_type, [&](auto type_tag) {
-    using SocketDataType = typename decltype(type_tag)::type;
-
+  socket_data_to_static_type(dst.socket_type, [&]<typename SocketDataType>() {
     if (dst.socket_data != nullptr) {
       socket_data_free(dst, true);
-      MEM_SAFE_FREE(dst.socket_data);
     }
 
-    dst.socket_data = MEM_dupallocN(src_socket_data);
-    socket_data_copy_impl(get_socket_data_as<SocketDataType>(dst),
-                          *static_cast<const SocketDataType *>(src_socket_data));
+    if (src_socket_data) {
+      dst.socket_data = socket_data_copy_impl(
+          *static_cast<const SocketDataType *>(src_socket_data));
+    }
     if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
       socket_data_id_user_increment(get_socket_data_as<SocketDataType>(dst));
     }
@@ -416,8 +420,7 @@ inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMenu &da
 
 static void socket_data_write(BlendWriter *writer, bNodeTreeInterfaceSocket &socket)
 {
-  socket_data_to_static_type_tag(socket.socket_type, [&](auto type_tag) {
-    using SocketDataType = typename decltype(type_tag)::type;
+  socket_data_to_static_type(socket.socket_type, [&]<typename SocketDataType>() {
     socket_data_write_impl(writer, get_socket_data_as<SocketDataType>(socket));
   });
 }
@@ -447,8 +450,7 @@ template<> void socket_data_read_data_impl(BlendDataReader *reader, bNodeSocketV
 static void socket_data_read_data(BlendDataReader *reader, bNodeTreeInterfaceSocket &socket)
 {
   bool data_read = false;
-  socket_data_to_static_type_tag(socket.socket_type, [&](auto type_tag) {
-    using SocketDataType = typename decltype(type_tag)::type;
+  socket_data_to_static_type(socket.socket_type, [&]<typename SocketDataType>() {
     socket_data_read_data_impl(reader, reinterpret_cast<SocketDataType **>(&socket.socket_data));
     data_read = true;
   });
@@ -541,8 +543,7 @@ template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueMenu &
 static StringRefNull socket_type_from_data(const bNodeTreeInterfaceSocket &socket)
 {
   StringRefNull socket_type;
-  socket_data_to_static_type_tag(socket.socket_type, [&](auto type_tag) {
-    using SocketDataType = typename decltype(type_tag)::type;
+  socket_data_to_static_type(socket.socket_type, [&]<typename SocketDataType>() {
     socket_type = socket_type_from_data_impl(get_socket_data_as<SocketDataType>(socket));
   });
   return socket_type;
@@ -604,8 +605,7 @@ template<> void socket_data_foreach_id_impl(LibraryForeachIDData *cb, bNodeSocke
 
 static void socket_data_foreach_id(LibraryForeachIDData *data, bNodeTreeInterfaceSocket &socket)
 {
-  socket_data_to_static_type_tag(socket.socket_type, [&](auto type_tag) {
-    using SocketDataType = typename decltype(type_tag)::type;
+  socket_data_to_static_type(socket.socket_type, [&]<typename SocketDataType>() {
     socket_data_foreach_id_impl(data, get_socket_data_as<SocketDataType>(socket));
   });
 }
@@ -634,12 +634,12 @@ static void panel_init(bNodeTreeInterfacePanel &panel,
                        UidGeneratorFn generate_uid)
 {
   panel.items_num = items_src.size();
-  panel.items_array = MEM_calloc_arrayN<bNodeTreeInterfaceItem *>(panel.items_num, __func__);
+  panel.items_array = MEM_new_array_zeroed<bNodeTreeInterfaceItem *>(panel.items_num, __func__);
 
   /* Copy buffers. */
   for (const int i : items_src.index_range()) {
     const bNodeTreeInterfaceItem *item_src = items_src[i];
-    panel.items_array[i] = static_cast<bNodeTreeInterfaceItem *>(MEM_dupallocN(item_src));
+    panel.items_array[i] = MEM_dupalloc(item_src);
     item_types::item_copy(*panel.items_array[i], *item_src, flag, generate_uid);
   }
 }
@@ -698,17 +698,16 @@ static void item_free(bNodeTreeInterfaceItem &item, const bool do_id_user)
 
       if (socket.socket_data != nullptr) {
         socket_types::socket_data_free(socket, do_id_user);
-        MEM_SAFE_FREE(socket.socket_data);
       }
 
-      MEM_SAFE_FREE(socket.name);
-      MEM_SAFE_FREE(socket.description);
-      MEM_SAFE_FREE(socket.socket_type);
-      MEM_SAFE_FREE(socket.default_attribute_name);
-      MEM_SAFE_FREE(socket.identifier);
+      MEM_SAFE_DELETE(socket.name);
+      MEM_SAFE_DELETE(socket.description);
+      MEM_SAFE_DELETE(socket.socket_type);
+      MEM_SAFE_DELETE(socket.default_attribute_name);
+      MEM_SAFE_DELETE(socket.identifier);
       if (socket.properties) {
         IDP_FreePropertyContent_ex(socket.properties, do_id_user);
-        MEM_freeN(socket.properties);
+        MEM_delete(socket.properties);
       }
       break;
     }
@@ -716,13 +715,13 @@ static void item_free(bNodeTreeInterfaceItem &item, const bool do_id_user)
       bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
 
       panel.clear(do_id_user);
-      MEM_SAFE_FREE(panel.name);
-      MEM_SAFE_FREE(panel.description);
+      MEM_SAFE_DELETE(panel.name);
+      MEM_SAFE_DELETE(panel.description);
       break;
     }
   }
 
-  MEM_freeN(&item);
+  MEM_delete(&item);
 }
 
 void item_write_struct(BlendWriter *writer, bNodeTreeInterfaceItem &item);
@@ -900,9 +899,8 @@ bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
 
   if (this->socket_data != nullptr) {
     socket_types::socket_data_free(*this, true);
-    MEM_SAFE_FREE(this->socket_data);
   }
-  MEM_SAFE_FREE(this->socket_type);
+  MEM_SAFE_DELETE(this->socket_type);
 
   this->socket_type = BLI_strdupn(new_socket_type.data(), new_socket_type.size());
   this->socket_data = socket_types::make_socket_data(new_socket_type);
@@ -941,7 +939,7 @@ void bNodeTreeInterfaceSocket::update_socket_type()
                  "Cannot change socket base type without replacing socket data");
 
   if (new_socket_type != this->socket_type) {
-    MEM_SAFE_FREE(this->socket_type);
+    MEM_SAFE_DELETE(this->socket_type);
     this->socket_type = BLI_strdup(new_socket_type.c_str());
 
     bke::bNodeSocketType *stype = this->socket_typeinfo();
@@ -959,9 +957,8 @@ void bNodeTreeInterfaceSocket::init_from_socket_instance(const bNodeSocket *sock
 
   if (this->socket_data != nullptr) {
     socket_types::socket_data_free(*this, true);
-    MEM_SAFE_FREE(this->socket_data);
   }
-  MEM_SAFE_FREE(this->socket_type);
+  MEM_SAFE_DELETE(this->socket_type);
   if (socket->flag & SOCK_HIDE_VALUE) {
     this->flag |= NODE_INTERFACE_SOCKET_HIDE_VALUE;
   }
@@ -1141,13 +1138,13 @@ void bNodeTreeInterfacePanel::insert_item(bNodeTreeInterfaceItem &item, int posi
 
   MutableSpan<bNodeTreeInterfaceItem *> old_items = this->items();
   items_num++;
-  items_array = MEM_calloc_arrayN<bNodeTreeInterfaceItem *>(items_num, __func__);
+  items_array = MEM_new_array_zeroed<bNodeTreeInterfaceItem *>(items_num, __func__);
   this->items().take_front(position).copy_from(old_items.take_front(position));
   this->items().drop_front(position + 1).copy_from(old_items.drop_front(position));
   this->items()[position] = &item;
 
   if (old_items.data()) {
-    MEM_freeN(old_items.data());
+    MEM_delete(old_items.data());
   }
 }
 
@@ -1160,12 +1157,12 @@ bool bNodeTreeInterfacePanel::remove_item(bNodeTreeInterfaceItem &item, const bo
 
   MutableSpan<bNodeTreeInterfaceItem *> old_items = this->items();
   items_num--;
-  items_array = MEM_calloc_arrayN<bNodeTreeInterfaceItem *>(items_num, __func__);
+  items_array = MEM_new_array_zeroed<bNodeTreeInterfaceItem *>(items_num, __func__);
   this->items().take_front(position).copy_from(old_items.take_front(position));
   this->items().drop_front(position).copy_from(old_items.drop_front(position + 1));
 
   /* Guaranteed not empty, contains at least the removed item */
-  MEM_freeN(old_items.data());
+  MEM_delete(old_items.data());
 
   if (free) {
     item_types::item_free(item, true);
@@ -1179,7 +1176,7 @@ void bNodeTreeInterfacePanel::clear(bool do_id_user)
   for (bNodeTreeInterfaceItem *item : this->items()) {
     item_types::item_free(*item, do_id_user);
   }
-  MEM_SAFE_FREE(items_array);
+  MEM_SAFE_DELETE(items_array);
   items_array = nullptr;
   items_num = 0;
 }
@@ -1330,7 +1327,7 @@ static bNodeTreeInterfaceSocket *make_socket(const int uid,
     return nullptr;
   }
 
-  bNodeTreeInterfaceSocket *new_socket = MEM_new_for_free<bNodeTreeInterfaceSocket>(__func__);
+  bNodeTreeInterfaceSocket *new_socket = MEM_new<bNodeTreeInterfaceSocket>(__func__);
   BLI_assert(new_socket);
 
   /* Init common socket properties. */
@@ -1348,13 +1345,19 @@ static bNodeTreeInterfaceSocket *make_socket(const int uid,
   return new_socket;
 }
 
-bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
-                                                         const bNode &from_node,
-                                                         const bNodeSocket &from_sock,
-                                                         const StringRef socket_type,
-                                                         const StringRef name)
+bNodeTreeInterfaceSocket *add_interface_socket_from_node(
+    bNodeTree &ntree,
+    const bNode &from_node,
+    const bNodeSocket &from_sock,
+    const std::optional<StringRef> name,
+    const std::optional<eNodeSocketInOut> in_out)
 {
   ntree.ensure_topology_cache();
+
+  BLI_assert(from_sock.typeinfo);
+  const StringRef socket_type = from_sock.typeinfo->idname;
+  const bool is_input = in_out ? bool(*in_out & SOCK_IN) : from_sock.is_input();
+
   bNodeTreeInterfaceSocket *iosock = nullptr;
   if (from_node.is_group()) {
     if (const bNodeTree *group = reinterpret_cast<const bNodeTree *>(from_node.id)) {
@@ -1362,16 +1365,16 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
        */
       group->ensure_interface_cache();
       const bNodeTreeInterfaceSocket &src_io_socket =
-          from_sock.is_input() ? *group->interface_inputs()[from_sock.index()] :
-                                 *group->interface_outputs()[from_sock.index()];
+          is_input ? *group->interface_inputs()[from_sock.index()] :
+                     *group->interface_outputs()[from_sock.index()];
       iosock = reinterpret_cast<bNodeTreeInterfaceSocket *>(
           ntree.tree_interface.add_item_copy(src_io_socket.item, nullptr));
     }
   }
   if (!iosock) {
     NodeTreeInterfaceSocketFlag flag = NodeTreeInterfaceSocketFlag(0);
-    SET_FLAG_FROM_TEST(flag, from_sock.in_out & SOCK_IN, NODE_INTERFACE_SOCKET_INPUT);
-    SET_FLAG_FROM_TEST(flag, from_sock.in_out & SOCK_OUT, NODE_INTERFACE_SOCKET_OUTPUT);
+    SET_FLAG_FROM_TEST(flag, is_input, NODE_INTERFACE_SOCKET_INPUT);
+    SET_FLAG_FROM_TEST(flag, !is_input, NODE_INTERFACE_SOCKET_OUTPUT);
 
     const nodes::SocketDeclaration *decl = from_sock.runtime->declaration;
     StringRef description = from_sock.description;
@@ -1380,14 +1383,15 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
         description = decl->description;
       }
       SET_FLAG_FROM_TEST(flag, decl->optional_label, NODE_INTERFACE_SOCKET_OPTIONAL_LABEL);
-      if (socket_type == "NodeSocketMenu" && from_sock.type == SOCK_MENU) {
+      if (from_sock.type == SOCK_MENU) {
         if (const auto *menu_decl = dynamic_cast<const nodes::decl::Menu *>(decl)) {
           SET_FLAG_FROM_TEST(flag, menu_decl->is_expanded, NODE_INTERFACE_SOCKET_MENU_EXPANDED);
         }
       }
     }
 
-    iosock = ntree.tree_interface.add_socket(name, description, socket_type, flag, nullptr);
+    const StringRef io_name = name ? *name : node_socket_label(from_sock);
+    iosock = ntree.tree_interface.add_socket(io_name, description, socket_type, flag, nullptr);
 
     if (iosock) {
       if (decl) {
@@ -1412,7 +1416,7 @@ static bNodeTreeInterfacePanel *make_panel(const int uid,
 {
   BLI_assert(!name.is_empty());
 
-  bNodeTreeInterfacePanel *new_panel = MEM_new_for_free<bNodeTreeInterfacePanel>(__func__);
+  bNodeTreeInterfacePanel *new_panel = MEM_new<bNodeTreeInterfacePanel>(__func__);
   new_panel->item.item_type = NODE_INTERFACE_PANEL;
   new_panel->name = BLI_strdupn(name.data(), name.size());
   new_panel->description = description.is_empty() ?
@@ -1625,7 +1629,7 @@ bNodeTreeInterfaceItem *bNodeTreeInterface::add_item_copy(const bNodeTreeInterfa
   }
   BLI_assert(this->find_item(parent->item));
 
-  bNodeTreeInterfaceItem *citem = static_cast<bNodeTreeInterfaceItem *>(MEM_dupallocN(&item));
+  bNodeTreeInterfaceItem *citem = MEM_dupalloc(&item);
   item_types::item_copy(*citem, item, 0, [&]() { return this->next_uid++; });
   parent->add_item(*citem);
 
@@ -1642,7 +1646,7 @@ bNodeTreeInterfaceItem *bNodeTreeInterface::insert_item_copy(const bNodeTreeInte
   }
   BLI_assert(this->find_item(parent->item));
 
-  bNodeTreeInterfaceItem *citem = static_cast<bNodeTreeInterfaceItem *>(MEM_dupallocN(&item));
+  bNodeTreeInterfaceItem *citem = MEM_dupalloc(&item);
   item_types::item_copy(*citem, item, 0, [&]() { return this->next_uid++; });
   parent->insert_item(*citem, position);
 
@@ -1768,6 +1772,18 @@ void bNodeTreeInterface::ensure_items_cache() const
       return true;
     });
   });
+}
+
+int bNodeTreeInterface::input_index_by_identifier(const StringRef identifier) const
+{
+  BLI_assert(this->items_cache_is_available());
+  return this->runtime->inputs_.index_of_try_as(identifier);
+}
+
+int bNodeTreeInterface::output_index_by_identifier(const StringRef identifier) const
+{
+  BLI_assert(this->items_cache_is_available());
+  return this->runtime->outputs_.index_of_try_as(identifier);
 }
 
 void bNodeTreeInterface::tag_interface_changed()
