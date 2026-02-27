@@ -17,3 +17,4 @@ Referenced by issue #154600, Deleting UV layers reorders UV layers lower in the 
 Referenced by pull request #154775, Fix: Mesh: Active/default color attribute and UV map not set when created via Python
 Referenced by commit ca0884abb08e02d0350ea3d03f30cab1b28641b1, Fix: Mesh: Active/default color attribute and UV map not set when created via Python
 Referenced by issue #154938, Performance regression in 2.90 splash screen scene
+Referenced by issue #154974, The UV Project and the UV Warp modifiers don't allow to select UV Maps in blender 5.1.0 Beta
