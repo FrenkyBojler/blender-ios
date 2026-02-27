@@ -12123,7 +12123,7 @@ static int region_handler(bContext *C, const wmEvent *event, void * /*userdata*/
   if (event->type == TIMER && region->runtime->auto_open_rna_button_timer == event->customdata) {
     AutoOpenRNAButtonData *data = static_cast<AutoOpenRNAButtonData *>(
         region->runtime->auto_open_rna_button_timer->customdata);
-    textbutton_try_activate_over_redraws(C, region, data->ptr, data->prop,event);
+    textbutton_try_activate_over_redraws(C, region, data->ptr, data->prop, event);
     return WM_UI_HANDLER_BREAK;
   }
   if (region == nullptr || BLI_listbase_is_empty(&region->runtime->uiblocks)) {
@@ -12611,11 +12611,14 @@ bool textbutton_try_activate_over_redraws(
       UI_region_free_active_but_all(C, &other_region);
     }
   }
-
+  const int2 xy{BLI_rcti_cent_x(&region->winrct), BLI_rcti_cent_y(&region->winrct)};
+  ED_screen_set_active_region(C, CTX_wm_window(C), xy);
+  
   if (textbutton_activate_rna(C, region, &ptr, prop)) {
     WM_event_timer_remove(
         CTX_wm_manager(C), CTX_wm_window(C), region->runtime->auto_open_rna_button_timer);
     region->runtime->auto_open_rna_button_timer = nullptr;
+
     return true;
   }
 
