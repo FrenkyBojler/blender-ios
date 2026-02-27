@@ -5551,7 +5551,7 @@ static void anim_channels_toggle_isolate(bAnimContext &ac, bAnimListElem *ale_se
   /* 1. Get List of all channels. */
   ANIM_animdata_filter(&ac,
                        &anim_data,
-                       eAnimFilter_Flags(ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS),
+                       ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS,
                        ac.data,
                        eAnimCont_Types(ac.datatype));
 
@@ -5650,7 +5650,7 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
   /* get all channels that can possibly be chosen - but ignore hierarchy */
   ANIM_animdata_filter(&ac,
                        &anim_data,
-                       eAnimFilter_Flags(ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS),
+                       ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS,
                        ac.data,
                        eAnimCont_Types(ac.datatype));
 
