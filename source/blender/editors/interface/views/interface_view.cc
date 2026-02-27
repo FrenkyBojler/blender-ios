@@ -254,7 +254,7 @@ void region_view_scroll_at_borders(bContext *C, wmDropBox &dropbox, const wmEven
 
   std::optional<rcti> bounds = view->get_bounds();
 
-  const int margin = UI_UNIT_Y * 1 / 3;
+  const float margin = UI_UNIT_Y * 1 / 3;
   const std::optional<ViewScrollDirection> scroll_dir =
       [&]() -> std::optional<ViewScrollDirection> {
     if (y > bounds->ymax - margin) {
@@ -336,7 +336,9 @@ std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const AReg
     }
   }
 
-  if (AbstractView *view = region_view_find_at(region, xy, 0)) {
+  /* To continue scroll during drag when mouse is slightly outside the view, find the view with
+   * extra padding (UI_UNIT_Y). */
+  if (AbstractView *view = region_view_find_at(region, xy, UI_UNIT_Y)) {
     /* If we are above a tree, but not hovering any specific element, dropping something should
      * insert it after the last item. */
     if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
