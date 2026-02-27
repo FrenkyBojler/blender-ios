@@ -1,2 +1,3 @@
 Referenced by issue #154918, Grease Pencil unselected points/strokes not visible in editmode
 Referenced by pull request #154943, Fix: Grease Pencil: Missing versioning for edit mode wire color
+Referenced by commit 47a01751e5f154af264e4beb863a6b9d83772fe4, Fix: Grease Pencil: Missing versioning for edit mode wire color
