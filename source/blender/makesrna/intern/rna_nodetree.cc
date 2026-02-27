@@ -5990,11 +5990,11 @@ static void def_sh_normal_map(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   static const EnumPropertyItem prop_base_items[] = {
-      {SHD_NORMAL_MAP_BASE_SMOOTH,
-       "SMOOTH",
+      {SHD_NORMAL_MAP_BASE_ORIGINAL,
+       "ORIGINAL",
        0,
-       "Smooth Base",
-       "Apply normal map relative to the smooth (undisplaced) surface, for normal maps that match "
+       "Original Base",
+       "Apply normal map relative to the smooth undisplaced surface, for normal maps that match "
        "the displacement map"},
       {SHD_NORMAL_MAP_BASE_DISPLACED,
        "DISPLACED",

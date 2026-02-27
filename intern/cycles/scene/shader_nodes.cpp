@@ -7601,9 +7601,9 @@ NODE_DEFINE(NormalMapNode)
   SOCKET_ENUM(convention, "Convention", convention_enum, NODE_NORMAL_MAP_CONVENTION_OPENGL);
 
   static NodeEnum base_enum;
-  base_enum.insert("smooth", NODE_NORMAL_MAP_BASE_SMOOTH);
+  base_enum.insert("original", NODE_NORMAL_MAP_BASE_ORIGINAL);
   base_enum.insert("displaced", NODE_NORMAL_MAP_BASE_DISPLACED);
-  SOCKET_ENUM(base, "Base", base_enum, NODE_NORMAL_MAP_BASE_SMOOTH);
+  SOCKET_ENUM(base, "Base", base_enum, NODE_NORMAL_MAP_BASE_ORIGINAL);
 
   SOCKET_STRING(attribute, "Attribute", ustring());
 
@@ -7690,8 +7690,8 @@ void NormalMapNode::compile(SVMCompiler &compiler)
   if (convention == NODE_NORMAL_MAP_CONVENTION_DIRECTX) {
     flags |= NODE_NORMAL_MAP_FLAG_DIRECTX;
   }
-  if (base == NODE_NORMAL_MAP_BASE_SMOOTH) {
-    flags |= NODE_NORMAL_MAP_FLAG_SMOOTH;
+  if (base == NODE_NORMAL_MAP_BASE_ORIGINAL) {
+    flags |= NODE_NORMAL_MAP_FLAG_ORIGINAL;
   }
 
   compiler.add_node(NODE_NORMAL_MAP,

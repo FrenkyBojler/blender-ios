@@ -334,7 +334,7 @@ ccl_device_noinline void svm_node_normal_map(KernelGlobals kg,
 
   const uint space = flags & NODE_NORMAL_MAP_FLAG_SPACE_MASK;
   const bool invert_green = (flags & NODE_NORMAL_MAP_FLAG_DIRECTX) != 0;
-  const bool use_smooth_base = (flags & NODE_NORMAL_MAP_FLAG_SMOOTH) != 0;
+  const bool use_original_base = (flags & NODE_NORMAL_MAP_FLAG_ORIGINAL) != 0;
 
   float3 color = stack_load_float3(stack, color_offset);
   color = 2.0f * make_float3(color.x - 0.5f, color.y - 0.5f, color.z - 0.5f);
@@ -373,7 +373,7 @@ ccl_device_noinline void svm_node_normal_map(KernelGlobals kg,
 
     if (sd->shader & SHADER_SMOOTH_NORMAL) {
       const AttributeDescriptor attr_undisplaced_normal =
-          (use_smooth_base) ?
+          (use_original_base) ?
               find_attribute(kg, sd->object, sd->prim, ATTR_STD_NORMAL_UNDISPLACED) :
               AttributeDescriptor{ATTR_ELEMENT_NONE, NODE_ATTR_FLOAT3, ATTR_STD_NOT_FOUND};
       if (attr_undisplaced_normal.offset != ATTR_STD_NOT_FOUND) {

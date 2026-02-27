@@ -668,7 +668,7 @@ enum {
 
 /* normal map, base */
 enum {
-  SHD_NORMAL_MAP_BASE_SMOOTH = 0,
+  SHD_NORMAL_MAP_BASE_ORIGINAL = 0,
   SHD_NORMAL_MAP_BASE_DISPLACED = 1,
 };
 

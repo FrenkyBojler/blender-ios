@@ -363,7 +363,7 @@ enum NodeNormalMapConvention {
 };
 
 enum NodeNormalMapBase {
-  NODE_NORMAL_MAP_BASE_SMOOTH = 0,
+  NODE_NORMAL_MAP_BASE_ORIGINAL = 0,
   NODE_NORMAL_MAP_BASE_DISPLACED = 1,
 };
 
@@ -371,7 +371,7 @@ enum NodeNormalMapBase {
 enum NodeNormalMapFlags {
   NODE_NORMAL_MAP_FLAG_SPACE_MASK = 0x7,
   NODE_NORMAL_MAP_FLAG_DIRECTX = (1 << 3),
-  NODE_NORMAL_MAP_FLAG_SMOOTH = (1 << 4),
+  NODE_NORMAL_MAP_FLAG_ORIGINAL = (1 << 4),
 };
 
 enum NodeImageProjection {
