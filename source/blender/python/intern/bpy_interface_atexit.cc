@@ -17,6 +17,8 @@
 
 #include "WM_api.hh"
 
+#include <tbb/tbb.h>
+
 namespace blender {
 
 static PyObject *bpy_atexit(PyObject * /*self*/, PyObject * /*args*/, PyObject * /*kw*/)
@@ -41,6 +43,13 @@ static PyObject *bpy_atexit(PyObject * /*self*/, PyObject * /*args*/, PyObject *
   const bool do_user_exit_actions = false;
 
   WM_exit_ex(C, do_python_exit, do_user_exit_actions);
+
+  /* Terminate all TBB threads. */
+  tbb::task_scheduler_handle handle{tbb::attach{}};
+  bool success = tbb::finalize(handle, std::nothrow_t{});
+  if (!success) {
+    fprintf(stderr, "Warning: TBB workers failed to cleanly shut down.\n");
+  }
 
   Py_RETURN_NONE;
 }
