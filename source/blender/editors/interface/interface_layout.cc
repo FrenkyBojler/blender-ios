@@ -5507,10 +5507,6 @@ static Vector<StringRef> multiline_label_wrap_lines(ButtonLabel *button)
   int icon_width_space = 0;
   if (button->flag & UI_HAS_ICON) {
     icon_width_space = UI_UNIT_X * (ui_text_pad_none.icon + ui_text_pad_none.text);
-    // const float icon_size = ICON_DEFAULT_HEIGHT * UI_SCALE_FAC;
-    // const float icon_padding = 2 * UI_SCALE_FAC;
-    // const float text_padding = UI_TEXT_MARGIN_X * U.widget_unit;
-    // icon_width_space = std::round(icon_size + icon_padding + text_padding);
   }
   const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&button->rect)) - icon_width_space, 0);
   StringRef text = button->str;
