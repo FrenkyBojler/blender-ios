@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_index_mask_fwd.hh"
 #include "DNA_ID.h"
 #include "DNA_attribute_types.h"
 #include "DNA_customdata_types.h"
@@ -35,8 +36,6 @@ struct BVHTreeFromMesh;
 struct MeshRuntime;
 class AttributeAccessor;
 class MutableAttributeAccessor;
-struct LooseVertCache;
-struct LooseEdgeCache;
 enum class MeshNormalDomain : int8_t;
 }  // namespace bke
 
@@ -460,15 +459,15 @@ struct Mesh {
   /**
    * Cached information about loose edges, calculated lazily when necessary.
    */
-  const bke::LooseEdgeCache &loose_edges() const;
+  const IndexMask &loose_edges() const;
   /**
    * Cached information about vertices that aren't used by any edges.
    */
-  const bke::LooseVertCache &loose_verts() const;
+  const IndexMask &loose_verts() const;
   /**
    * Cached information about vertices that aren't used by faces (but may be used by loose edges).
    */
-  const bke::LooseVertCache &verts_no_face() const;
+  const IndexMask &verts_no_face() const;
   /**
    * True if the mesh has no faces or edges "inside" of other faces. Those edges or faces would
    * reuse a subset of the vertices of a face. Knowing the mesh is "clean" or "good" can mean

@@ -306,8 +306,7 @@ GroupedSpan<int> build_vert_to_edge_map(const Span<int2> edges,
   r_indices.reinitialize(offsets.total_size());
 
   /* Version of #reverse_indices_in_groups that accounts for storing two indices for each edge. */
-  int *counts = MEM_new_array_zeroed<int>(size_t(offsets.size()), __func__);
-  BLI_SCOPED_DEFER([&]() { MEM_delete(counts); })
+  Array<int> counts(offsets.size(), 0);
   threading::parallel_for(edges.index_range(), 1024, [&](const IndexRange range) {
     for (const int64_t edge : range) {
       for (const int vert : {edges[edge][0], edges[edge][1]}) {

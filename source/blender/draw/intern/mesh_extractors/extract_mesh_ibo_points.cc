@@ -49,22 +49,18 @@ static void process_ibo_verts_mesh(const MeshRenderData &mr, const Fn &process_v
 
   const int loose_edges_start = mr.corners_num;
   const Span<int2> edges = mr.edges;
-  const Span<int> loose_edges = mr.loose_edges;
-  threading::parallel_for(loose_edges.index_range(), 2048, [&](const IndexRange range) {
-    for (const int i : range) {
-      const int2 edge = edges[loose_edges[i]];
-      process_vert_fn(loose_edges_start + i * 2 + 0, edge[0]);
-      process_vert_fn(loose_edges_start + i * 2 + 1, edge[1]);
-    }
-  });
+  mr.loose_edges.foreach_index_optimized<int>(
+      [&](const int i, const int pos) {
+        const int2 edge = edges[i];
+        process_vert_fn(loose_edges_start + pos * 2 + 0, edge[0]);
+        process_vert_fn(loose_edges_start + pos * 2 + 1, edge[1]);
+      },
+      exec_mode::grain_size(2048));
 
-  const int loose_verts_start = mr.corners_num + loose_edges.size() * 2;
-  const Span<int> loose_verts = mr.loose_verts;
-  threading::parallel_for(loose_verts.index_range(), 2048, [&](const IndexRange range) {
-    for (const int i : range) {
-      process_vert_fn(loose_verts_start + i, loose_verts[i]);
-    }
-  });
+  const int loose_verts_start = mr.corners_num + mr.loose_edges.size() * 2;
+  mr.loose_verts.foreach_index_optimized<int>(
+      [&](const int i, const int pos) { process_vert_fn(loose_verts_start + pos, i); },
+      exec_mode::grain_size(2048));
 }
 
 static gpu::IndexBufPtr extract_points_mesh(const MeshRenderData &mr)
@@ -119,22 +115,18 @@ static void process_ibo_verts_bm(const MeshRenderData &mr, const Fn &process_ver
   });
 
   const int loose_edges_start = mr.corners_num;
-  const Span<int> loose_edges = mr.loose_edges;
-  threading::parallel_for(loose_edges.index_range(), 4096, [&](const IndexRange range) {
-    for (const int i : range) {
-      const BMEdge &edge = *BM_edge_at_index(&bm, loose_edges[i]);
-      process_vert_fn(loose_edges_start + i * 2 + 0, BM_elem_index_get(edge.v1));
-      process_vert_fn(loose_edges_start + i * 2 + 1, BM_elem_index_get(edge.v2));
-    }
-  });
+  mr.loose_edges.foreach_index(
+      [&](const int i, const int pos) {
+        const BMEdge &edge = *BM_edge_at_index(&bm, i);
+        process_vert_fn(loose_edges_start + pos * 2 + 0, BM_elem_index_get(edge.v1));
+        process_vert_fn(loose_edges_start + pos * 2 + 1, BM_elem_index_get(edge.v2));
+      },
+      exec_mode::grain_size(2048));
 
-  const int loose_verts_start = mr.corners_num + loose_edges.size() * 2;
-  const Span<int> loose_verts = mr.loose_verts;
-  threading::parallel_for(loose_verts.index_range(), 4096, [&](const IndexRange range) {
-    for (const int i : range) {
-      process_vert_fn(loose_verts_start + i, loose_verts[i]);
-    }
-  });
+  const int loose_verts_start = mr.corners_num + mr.loose_edges.size() * 2;
+  mr.loose_verts.foreach_index_optimized<int>(
+      [&](const int i, const int pos) { process_vert_fn(loose_verts_start + pos, i); },
+      exec_mode::grain_size(2048));
 }
 
 static gpu::IndexBufPtr extract_points_bm(const MeshRenderData &mr)
@@ -219,8 +211,8 @@ static gpu::IndexBufPtr extract_points_subdiv_mesh(const MeshRenderData &mr,
                                                    const DRWSubdivCache &subdiv_cache)
 {
   const Span<int2> coarse_edges = mr.edges;
-  const Span<int> loose_verts = mr.loose_verts;
-  const Span<int> loose_edges = mr.loose_edges;
+  const IndexMask &loose_verts = mr.loose_verts;
+  const IndexMask &loose_edges = mr.loose_edges;
   const int verts_per_edge = subdiv_verts_per_coarse_edge(subdiv_cache);
   const int loose_edge_verts_num = verts_per_edge * loose_edges.size();
 
@@ -235,8 +227,10 @@ static gpu::IndexBufPtr extract_points_subdiv_mesh(const MeshRenderData &mr,
   visible_corners = calc_vert_visibility_mapped_mesh(
       mr, visible_corners, corner_orig_verts, memory);
 
+  Array<int, 64> loose_verts_random_access(mr.loose_verts.size());
+  mr.loose_verts.to_indices(loose_verts_random_access.as_mutable_span());
   const IndexMask visible_loose = calc_vert_visibility_mapped_mesh(
-      mr, IndexMask(loose_verts.size()), loose_verts, memory);
+      mr, IndexMask(loose_verts.size()), loose_verts_random_access, memory);
 
   const int max_index = subdiv_cache.num_subdiv_loops + loose_edge_verts_num + loose_verts.size();
   GPUIndexBufBuilder builder;
@@ -278,8 +272,8 @@ static gpu::IndexBufPtr extract_points_subdiv_bm(const MeshRenderData &mr,
                                                  const DRWSubdivCache &subdiv_cache)
 {
   const Span<int2> coarse_edges = mr.edges;
-  const Span<int> loose_verts = mr.loose_verts;
-  const Span<int> loose_edges = mr.loose_edges;
+  const IndexMask &loose_verts = mr.loose_verts;
+  const IndexMask &loose_edges = mr.loose_edges;
   const int verts_per_edge = subdiv_verts_per_coarse_edge(subdiv_cache);
   const int loose_edge_verts_num = verts_per_edge * loose_edges.size();
 

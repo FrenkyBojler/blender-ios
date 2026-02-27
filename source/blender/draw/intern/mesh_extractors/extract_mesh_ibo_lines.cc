@@ -62,17 +62,18 @@ static void fill_loose_lines_ibo(const MeshRenderData &mr,
 
 static IndexMask calc_visible_loose_edge_indices(const MeshRenderData &mr, IndexMaskMemory &memory)
 {
-  const Span<int> loose_edges = mr.loose_edges;
-  IndexMask visible(loose_edges.size());
+  Array<int, 64> loose_edges_random_access(mr.loose_edges.size());
+  mr.loose_edges.to_indices(loose_edges_random_access.as_mutable_span());
+  IndexMask visible = mr.loose_edges;
   if (!mr.hide_edge.is_empty()) {
     const Span<bool> hide_edge = mr.hide_edge;
     visible = IndexMask::from_predicate(
-        visible, memory, [&](const int i) { return !hide_edge[loose_edges[i]]; });
+        visible, memory, [&](const int i) { return !hide_edge[loose_edges_random_access[i]]; });
   }
   if (mr.hide_unmapped_edges && mr.orig_index_edge != nullptr) {
     const int *orig_index = mr.orig_index_edge;
     visible = IndexMask::from_predicate(visible, memory, [&](const int64_t i) {
-      return orig_index[loose_edges[i]] != ORIGINDEX_NONE;
+      return orig_index[loose_edges_random_access[i]] != ORIGINDEX_NONE;
     });
   }
   return visible;
@@ -98,8 +99,7 @@ static void extract_lines_mesh(const MeshRenderData &mr,
     return;
   }
 
-  const IndexMask all_loose_edges = IndexMask::from_indices(mr.loose_edges, memory);
-  const IndexMask non_loose_edges = all_loose_edges.complement(IndexRange(mr.edges_num), memory);
+  const IndexMask non_loose_edges = mr.loose_edges.complement(IndexRange(mr.edges_num), memory);
   const IndexMask visible_non_loose_edges = calc_mesh_edge_visibility(mr, non_loose_edges, memory);
 
   GPUIndexBufBuilder builder;
@@ -175,15 +175,17 @@ static void extract_lines_bm(const MeshRenderData &mr,
                              bool &no_loose_wire)
 {
   const BMesh &bm = *mr.bm;
-  const Span<int> loose_edges = mr.loose_edges;
+  Array<int, 64> loose_edges_random_access(mr.loose_edges.size());
+  mr.loose_edges.to_indices(loose_edges_random_access.as_mutable_span());
 
   IndexMaskMemory memory;
   const IndexMask visible_loose_edges = IndexMask::from_predicate(
-      loose_edges.index_range(), memory, [&](const int i) {
-        const BMEdge &edge = *BM_edge_at_index(&const_cast<BMesh &>(bm), loose_edges[i]);
+      loose_edges_random_access.index_range(), memory, [&](const int i) {
+        const BMEdge &edge = *BM_edge_at_index(&const_cast<BMesh &>(bm),
+                                               loose_edges_random_access[i]);
         return !BM_elem_flag_test_bool(&edge, BM_ELEM_HIDDEN);
       });
-  const int max_index = mr.corners_num + loose_edges.size() * 2;
+  const int max_index = mr.corners_num + loose_edges_random_access.size() * 2;
 
   no_loose_wire = visible_loose_edges.is_empty();
 
@@ -196,8 +198,7 @@ static void extract_lines_bm(const MeshRenderData &mr,
     return;
   }
 
-  const IndexMask all_loose_edges = IndexMask::from_indices(mr.loose_edges, memory);
-  const IndexMask non_loose_edges = all_loose_edges.complement(IndexRange(bm.totedge), memory);
+  const IndexMask non_loose_edges = mr.loose_edges.complement(IndexRange(bm.totedge), memory);
   const IndexMask visible_non_loose_edges = IndexMask::from_predicate(
       non_loose_edges, memory, [&](const int i) {
         const BMEdge &edge = *BM_edge_at_index(&const_cast<BMesh &>(bm), i);
@@ -247,8 +248,9 @@ static void extract_lines_loose_geom_subdiv(const DRWSubdivCache &subdiv_cache,
                                             const int edge_loose_offset,
                                             gpu::IndexBuf *ibo)
 {
-  const Span<int> loose_edges = mr.loose_edges;
-  if (loose_edges.is_empty()) {
+  Array<int, 64> loose_edges_random_access(mr.loose_edges.size());
+  mr.loose_edges.to_indices(loose_edges_random_access.as_mutable_span());
+  if (loose_edges_random_access.is_empty()) {
     return;
   }
   const int edges_per_edge = subdiv_edges_per_coarse_edge(subdiv_cache);
@@ -271,8 +273,8 @@ static void extract_lines_loose_geom_subdiv(const DRWSubdivCache &subdiv_cache,
       if (orig_index_edge == nullptr) {
         const Span<bool> hide_edge = mr.hide_edge;
         if (!hide_edge.is_empty()) {
-          for (const int i : loose_edges.index_range()) {
-            const bool value = hide_edge[loose_edges[i]];
+          for (const int i : loose_edges_random_access.index_range()) {
+            const bool value = hide_edge[loose_edges_random_access[i]];
             flags_data.slice(i * edges_per_edge, edges_per_edge).fill(value);
           }
         }
@@ -282,8 +284,8 @@ static void extract_lines_loose_geom_subdiv(const DRWSubdivCache &subdiv_cache,
       }
       else {
         if (mr.bm) {
-          for (const int i : loose_edges.index_range()) {
-            const BMEdge *bm_edge = bm_original_edge_get(mr, loose_edges[i]);
+          for (const int i : loose_edges_random_access.index_range()) {
+            const BMEdge *bm_edge = bm_original_edge_get(mr, loose_edges_random_access[i]);
             const int value = (bm_edge) ? BM_elem_flag_test_bool(bm_edge, BM_ELEM_HIDDEN) : true;
             flags_data.slice(i * edges_per_edge, edges_per_edge).fill(value);
           }
@@ -291,10 +293,11 @@ static void extract_lines_loose_geom_subdiv(const DRWSubdivCache &subdiv_cache,
         else {
           const Span<bool> hide_edge = mr.hide_edge;
           if (!hide_edge.is_empty()) {
-            for (const int i : loose_edges.index_range()) {
-              const bool value = (orig_index_edge[loose_edges[i]] == ORIGINDEX_NONE) ?
+            for (const int i : loose_edges_random_access.index_range()) {
+              const bool value = (orig_index_edge[loose_edges_random_access[i]] ==
+                                  ORIGINDEX_NONE) ?
                                      false :
-                                     hide_edge[loose_edges[i]];
+                                     hide_edge[loose_edges_random_access[i]];
               flags_data.slice(i * edges_per_edge, edges_per_edge).fill(value);
             }
           }
@@ -307,8 +310,8 @@ static void extract_lines_loose_geom_subdiv(const DRWSubdivCache &subdiv_cache,
     }
     case MeshExtractType::BMesh: {
       BMesh *bm = mr.bm;
-      for (const int i : loose_edges.index_range()) {
-        const BMEdge *bm_edge = BM_edge_at_index(bm, loose_edges[i]);
+      for (const int i : loose_edges_random_access.index_range()) {
+        const BMEdge *bm_edge = BM_edge_at_index(bm, loose_edges_random_access[i]);
         const bool value = BM_elem_flag_test_bool(bm_edge, BM_ELEM_HIDDEN);
         flags_data.slice(i * edges_per_edge, edges_per_edge).fill(value);
       }

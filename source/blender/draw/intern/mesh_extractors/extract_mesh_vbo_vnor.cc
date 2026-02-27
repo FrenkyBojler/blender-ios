@@ -50,24 +50,22 @@ static void extract_vert_normals_bm(const MeshRenderData &mr,
     }
   });
 
-  const Span<int> loose_edges = mr.loose_edges;
-  threading::parallel_for(loose_edges.index_range(), 4096, [&](const IndexRange range) {
-    for (const int i : range) {
-      const BMEdge &edge = *BM_edge_at_index(&const_cast<BMesh &>(bm), loose_edges[i]);
-      loose_edge_data[i * 2 + 0] = gpu::convert_normal<gpu::PackedNormal>(
-          bm_vert_no_get(mr, edge.v1));
-      loose_edge_data[i * 2 + 1] = gpu::convert_normal<gpu::PackedNormal>(
-          bm_vert_no_get(mr, edge.v2));
-    }
-  });
+  mr.loose_edges.foreach_index(
+      [&](const int i, const int pos) {
+        const BMEdge &edge = *BM_edge_at_index(&const_cast<BMesh &>(bm), i);
+        loose_edge_data[pos * 2 + 0] = gpu::convert_normal<gpu::PackedNormal>(
+            bm_vert_no_get(mr, edge.v1));
+        loose_edge_data[pos * 2 + 1] = gpu::convert_normal<gpu::PackedNormal>(
+            bm_vert_no_get(mr, edge.v2));
+      },
+      exec_mode::grain_size(2048));
 
-  const Span<int> loose_verts = mr.loose_verts;
-  threading::parallel_for(loose_verts.index_range(), 2048, [&](const IndexRange range) {
-    for (const int i : range) {
-      const BMVert &vert = *BM_vert_at_index(&const_cast<BMesh &>(bm), loose_verts[i]);
-      loose_vert_data[i] = gpu::convert_normal<gpu::PackedNormal>(bm_vert_no_get(mr, &vert));
-    }
-  });
+  mr.loose_verts.foreach_index(
+      [&](const int i, const int pos) {
+        const BMVert &vert = *BM_vert_at_index(&const_cast<BMesh &>(bm), i);
+        loose_vert_data[pos] = gpu::convert_normal<gpu::PackedNormal>(bm_vert_no_get(mr, &vert));
+      },
+      exec_mode::grain_size(2048));
 }
 
 gpu::VertBufPtr extract_vert_normals(const MeshRenderData &mr)
