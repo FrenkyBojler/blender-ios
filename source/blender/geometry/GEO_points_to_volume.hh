@@ -89,7 +89,6 @@ MappedPointDataGrid points_to_point_data_grid(const VArray<float3> positions,
 struct PointRasterizeAttributeInfo {
   StringRef name;
   const CPPType &type;
-  bool use_normalization;
   bool use_staggered_vector;
   bool use_affine_vector;
 };
@@ -215,7 +214,6 @@ void points_rasterize(const MappedPointDataGrid &point_data_grid,
                       const KernelType kernel_type,
                       Span<PointRasterizeAttributeInfo> point_attributes,
                       const float4x4 &transform,
-                      std::optional<bke::GVolumeGrid> &r_weight_grid,
                       MutableSpan<bke::GVolumeGrid> r_attribute_grids);
 
 #endif

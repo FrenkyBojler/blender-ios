@@ -8104,13 +8104,6 @@ static void rna_def_rasterize_points_item(BlenderRNA *brna)
 
   rna_def_node_item_array_socket_item_common(srna, "RasterizePointsItemsAccessor", true);
 
-  prop = RNA_def_property(srna, "use_weighted_average", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GEO_NODE_RASTERIZE_POINTS_ITEM_NORMALIZE);
-  RNA_def_property_ui_text(
-      prop, "Normalize", "Divide the result by the total weight in each voxel");
-  RNA_def_property_update(
-      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<RasterizePointsItemsAccessor>");
-
   prop = RNA_def_property(srna, "use_staggered_vector", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, nullptr, "flag", GEO_NODE_RASTERIZE_POINTS_ITEM_VECTOR_STAGGERED);

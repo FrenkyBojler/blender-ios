@@ -3778,8 +3778,6 @@ typedef struct NodeGeometryRasterizePointsItem {
 } NodeGeometryRasterizePointsItem;
 
 typedef enum NodeGeometryRasterizePointsItemFlag {
-  /* Divide the result by the total weight in each voxel. */
-  GEO_NODE_RASTERIZE_POINTS_ITEM_NORMALIZE = 1 << 0,
   /* Classify the output as a staggered vector grid. */
   GEO_NODE_RASTERIZE_POINTS_ITEM_VECTOR_STAGGERED = 1 << 1,
   /* Read matrix attribute as an vector with an additional affine transform. */

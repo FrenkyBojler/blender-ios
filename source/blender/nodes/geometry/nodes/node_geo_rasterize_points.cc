@@ -41,9 +41,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Position").implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Float>("Voxel Size").default_value(0.3f).min(0.01f).subtype(PROP_DISTANCE);
 
-  b.add_input<decl::Float>("Mass").default_value(1.0f).min(0.0f).supports_field();
-  b.add_output<decl::Float>("Mass").structure_type(StructureType::Grid).align_with_previous();
-
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
   if (node && tree) {
@@ -156,7 +153,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
   const Field<float3> position_field = params.extract_input<Field<float3>>("Position");
-  const Field<float> mass_field = params.extract_input<Field<float>>("Mass");
 
   const Array<GeometryComponent::Type> component_types = {GeometryComponent::Type::Mesh,
                                                           GeometryComponent::Type::PointCloud,
@@ -183,7 +179,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     const NodeGeometryRasterizePointsItem &item = storage.items[i];
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
     const CPPType &cpptype = *bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
-    const bool use_normalization = (item.flag & GEO_NODE_RASTERIZE_POINTS_ITEM_NORMALIZE);
     const bool use_staggered_vector = (item.flag &
                                        GEO_NODE_RASTERIZE_POINTS_ITEM_VECTOR_STAGGERED);
     const bool use_affine_vector = (item.flag & GEO_NODE_RASTERIZE_POINTS_ITEM_AFFINE_VECTOR);
@@ -192,7 +187,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     /* Note: Item name is unique and can be used as an attribute identifier. */
     point_data_grid_attributes.append({item.name, value_buffers[i].as_span()});
     point_rasterize_attributes.append(
-        {item.name, cpptype, use_normalization, use_staggered_vector, use_affine_vector});
+        {item.name, cpptype, use_staggered_vector, use_affine_vector});
   }
 
   for (const int component_i : component_types.index_range()) {
@@ -220,20 +215,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry::MappedPointDataGrid point_data_grid = geometry::points_to_point_data_grid(
       positions, point_data_grid_attributes, grid_transform);
 
-  std::optional<bke::GVolumeGrid> output_mass_grid = params.output_is_required("Mass") ?
-                                                         std::make_optional<bke::GVolumeGrid>() :
-                                                         std::nullopt;
   // TODO only generate output grids that are actually needed.
   Array<bke::GVolumeGrid> output_attribute_grids(storage.items_num);
   geometry::points_rasterize(point_data_grid,
                              kernel_type,
                              point_rasterize_attributes,
                              grid_transform,
-                             output_mass_grid,
                              output_attribute_grids);
-  if (output_mass_grid) {
-    params.set_output("Mass", std::move(*output_mass_grid));
-  }
   for (const int i : IndexRange(storage.items_num)) {
     const NodeGeometryRasterizePointsItem &item = storage.items[i];
     const std::string identifier = RasterizePointsItemsAccessor::socket_identifier_for_item(item);

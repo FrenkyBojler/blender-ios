@@ -520,7 +520,6 @@ static bke::VolumeGrid<GridValueT> points_rasterize_with_kernel(
     const openvdb::points::PointDataGrid &point_data_grid,
     const StringRef value_attribute,
     const PointRasterizeAttributeInfo &attribute_info,
-    const openvdb::FloatGrid *normalization_grid,
     const float4x4 &transform)
 {
   using GridTraits = bke::VolumeGridTraits<GridValueT>;
@@ -535,18 +534,6 @@ static bke::VolumeGrid<GridValueT> points_rasterize_with_kernel(
   ValueSumTransfer<AttributeT, GridValueT, kernel_type, false> transfer(
       point_data_grid, *dst_grid, value_attribute);
   openvdb::points::rasterize(point_data_grid, transfer);
-
-  if (attribute_info.use_normalization) {
-    BLI_assert(normalization_grid != nullptr);
-    typename TreeType::Ptr normalized_tree = std::make_shared<TreeType>();
-    normalized_tree->combine2(
-        dst_grid->tree(),
-        normalization_grid->tree(),
-        [](const GridValueType &value, const float weight, GridValueType &result) {
-          result = (weight != 0.0f) ? value / weight : GridValueType(0.0f);
-        });
-    dst_grid->setTree(std::move(normalized_tree));
-  }
 
   if constexpr (std::is_same_v<GridValueT, float3>) {
     if (attribute_info.use_staggered_vector) {
@@ -574,40 +561,28 @@ static bke::VolumeGrid<GridValueT> points_rasterize_with_static_type(
     const KernelType kernel_type,
     const StringRef value_attribute,
     const PointRasterizeAttributeInfo &attribute_info,
-    const openvdb::FloatGrid *normalization_grid,
     const float4x4 &transform)
 {
   switch (kernel_type) {
     case KernelType::Constant: {
       return points_rasterize_with_kernel<AttributeT, GridValueT, KernelType::Constant>(
-          point_data_grid, value_attribute, attribute_info, normalization_grid, transform);
+          point_data_grid, value_attribute, attribute_info, transform);
     }
     case KernelType::Linear: {
       return points_rasterize_with_kernel<AttributeT, GridValueT, KernelType::Linear>(
-          point_data_grid, value_attribute, attribute_info, normalization_grid, transform);
+          point_data_grid, value_attribute, attribute_info, transform);
     }
     case KernelType::Quadratic: {
       return points_rasterize_with_kernel<AttributeT, GridValueT, KernelType::Quadratic>(
-          point_data_grid, value_attribute, attribute_info, normalization_grid, transform);
+          point_data_grid, value_attribute, attribute_info, transform);
     }
     case KernelType::Cubic: {
       return points_rasterize_with_kernel<AttributeT, GridValueT, KernelType::Cubic>(
-          point_data_grid, value_attribute, attribute_info, normalization_grid, transform);
+          point_data_grid, value_attribute, attribute_info, transform);
     }
   }
   BLI_assert_unreachable();
   return {};
-}
-
-static bke::VolumeGrid<float> points_weight_rasterize(
-    const openvdb::points::PointDataGrid &point_data_grid,
-    const KernelType kernel_type,
-    const float4x4 &transform)
-{
-  const PointRasterizeAttributeInfo attribute_info = {
-      {}, CPPType::get<float>(), false, false, false};
-  return points_rasterize_with_static_type<float, float>(
-      point_data_grid, kernel_type, nullptr, attribute_info, nullptr, transform);
 }
 
 static bke::GVolumeGrid points_attribute_rasterize(
@@ -615,7 +590,6 @@ static bke::GVolumeGrid points_attribute_rasterize(
     const KernelType kernel_type,
     const StringRef value_attribute,
     const PointRasterizeAttributeInfo &attribute_info,
-    const openvdb::FloatGrid *normalization_grid,
     const float4x4 &transform)
 {
   bke::GVolumeGrid result;
@@ -634,12 +608,8 @@ static bke::GVolumeGrid points_attribute_rasterize(
       // TODO support affine vector attribute conversion (float4x4 -> float3)
       using AttributeT = T;
       using GridValueT = T;
-      result = points_rasterize_with_static_type<AttributeT, GridValueT>(point_data_grid,
-                                                                         kernel_type,
-                                                                         value_attribute,
-                                                                         attribute_info,
-                                                                         normalization_grid,
-                                                                         transform);
+      result = points_rasterize_with_static_type<AttributeT, GridValueT>(
+          point_data_grid, kernel_type, value_attribute, attribute_info, transform);
     }
   });
   return result;
@@ -649,7 +619,6 @@ void points_rasterize(const MappedPointDataGrid &point_data_grid,
                       const KernelType kernel_type,
                       Span<PointRasterizeAttributeInfo> point_attributes,
                       const float4x4 &transform,
-                      std::optional<bke::GVolumeGrid> &r_weight_grid,
                       MutableSpan<bke::GVolumeGrid> r_attribute_grids)
 {
   BLI_assert(r_attribute_grids.size() == point_attributes.size());
@@ -663,37 +632,14 @@ void points_rasterize(const MappedPointDataGrid &point_data_grid,
           point_data_grid.grid->grid_ptr(access_token));
   BLI_assert(vdb_point_data_grid);
 
-  /* Rasterize the mass and/or weight grid if necessary. */
-  bool needs_weight_grid = false;
-  for (const PointRasterizeAttributeInfo &attribute : point_attributes) {
-    needs_weight_grid |= attribute.use_normalization;
-  }
-  bke::VolumeGrid<float> weight_grid;
-  if (needs_weight_grid) {
-    weight_grid = points_weight_rasterize(*vdb_point_data_grid, kernel_type, transform);
-    if (r_weight_grid) {
-      *r_weight_grid = weight_grid;
-    }
-  }
-
   for (const int i : point_attributes.index_range()) {
     const PointRasterizeAttributeInfo &attribute = point_attributes[i];
-
-    bke::VolumeTreeAccessToken weight_grid_access_token;
-    const openvdb::FloatGrid *normalization_grid = attribute.use_normalization ?
-                                                       &weight_grid.grid(
-                                                           weight_grid_access_token) :
-                                                       nullptr;
 
     const std::optional<std::string> vdb_attribute_name = find_vdb_attribute_name(
         point_data_grid.attribute_map, attribute.name);
     BLI_assert(vdb_attribute_name.has_value());
-    r_attribute_grids[i] = points_attribute_rasterize(*vdb_point_data_grid,
-                                                      kernel_type,
-                                                      *vdb_attribute_name,
-                                                      attribute,
-                                                      normalization_grid,
-                                                      transform);
+    r_attribute_grids[i] = points_attribute_rasterize(
+        *vdb_point_data_grid, kernel_type, *vdb_attribute_name, attribute, transform);
   }
 }
 
