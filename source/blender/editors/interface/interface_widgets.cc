@@ -5206,6 +5206,7 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
       case ButtonType::ListRow:
         wt = widget_type(UI_WTYPE_LISTITEM);
         break;
+
       case ButtonType::Text:
         wt = widget_type(UI_WTYPE_NAME);
         break;
