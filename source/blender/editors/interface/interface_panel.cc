@@ -1495,24 +1495,15 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
     rcti *rct = &pc_dyn.rect;
     const char *category_id = pc_dyn.idname;
     const char *category_id_draw = IFACE_(category_id);
+    const int category_width = round_fl_to_int(
+        pc_dyn.icon ? 10 * UI_SCALE_FAC * zoom :
+                      BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
 
     rct->xmin = rct_xmin;
     rct->xmax = rct_xmax;
-
-    int category_width;
-    if (pc_dyn.icon != ICON_NONE) {
-      category_width = round_fl_to_int(UI_ICON_SIZE * zoom);
-      rct->ymin = v2d->mask.ymax - (y_ofs + category_width + tab_v_pad_text);
-      rct->ymax = v2d->mask.ymax - (y_ofs);
-      y_ofs += category_width + tab_v_pad + tab_v_pad_text;
-    }
-    else {
-      category_width = round_fl_to_int(
-          BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
-      rct->ymin = v2d->mask.ymax - (y_ofs + category_width + (tab_v_pad_text * 2));
-      rct->ymax = v2d->mask.ymax - (y_ofs);
-      y_ofs += category_width + tab_v_pad + (tab_v_pad_text * 2);
-    }
+    rct->ymin = v2d->mask.ymax - (y_ofs + category_width + (tab_v_pad_text * 2));
+    rct->ymax = v2d->mask.ymax - (y_ofs);
+    y_ofs += category_width + tab_v_pad + (tab_v_pad_text * 2);
   }
 
   const int max_scroll = max_ii(y_ofs - BLI_rcti_size_y(&v2d->mask), 0);
