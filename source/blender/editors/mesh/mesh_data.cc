@@ -500,8 +500,7 @@ static wmOperatorStatus mesh_customdata_mask_clear_exec(bContext *C, wmOperator 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus mesh_customdata_face_sets_clear_exec(bContext *C,
-                                                             wmOperator * /*op*/)
+static wmOperatorStatus mesh_customdata_face_sets_clear_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *object = ed::object::context_object(C);
   Mesh *mesh = id_cast<Mesh *>(object->data);
@@ -537,9 +536,7 @@ static bool mesh_customdata_face_sets_clear_poll(bContext *C)
   }
 
   if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-    return CustomData_has_layer_named(&em->bm->pdata,
-                                      CD_PROP_INT32,
-                                      ".sculpt_face_set");
+    return CustomData_has_layer_named(&em->bm->pdata, CD_PROP_INT32, ".sculpt_face_set");
   }
 
   return mesh->attributes().contains(".sculpt_face_set");
