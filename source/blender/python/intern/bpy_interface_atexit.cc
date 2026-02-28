@@ -17,9 +17,15 @@
 
 #include "WM_api.hh"
 
+#ifdef _WIN32
+#  include "BLI_winstuff.h"
+#endif
+
 #include <tbb/tbb.h>
 
 namespace blender {
+
+extern int BPy_system_exit_code;
 
 static PyObject *bpy_atexit(PyObject * /*self*/, PyObject * /*args*/, PyObject * /*kw*/)
 {
@@ -46,10 +52,17 @@ static PyObject *bpy_atexit(PyObject * /*self*/, PyObject * /*args*/, PyObject *
 
   /* Terminate all TBB threads. */
   tbb::task_scheduler_handle handle{tbb::attach{}};
-  bool success = tbb::finalize(handle, std::nothrow_t{});
+  const bool success = tbb::finalize(handle, std::nothrow_t{});
   if (!success) {
     fprintf(stderr, "Warning: TBB workers failed to cleanly shut down.\n");
   }
+
+  /* Immediate exit with e.g. heap cleanup that may deadlock on Windows. */
+#ifdef _WIN32
+  TerminateProcess(GetCurrentProcess(), BPy_system_exit_code);
+#else
+  std::_Exit(BPy_system_exit_code);
+#endif
 
   Py_RETURN_NONE;
 }

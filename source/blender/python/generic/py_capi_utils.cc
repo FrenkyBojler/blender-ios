@@ -943,6 +943,8 @@ void PyC_Err_PrintWithFunc(PyObject *py_func)
 /** \name Exception Buffer Access
  * \{ */
 
+int BPy_system_exit_code = 0;
+
 /**
  * When a script calls `sys.exit(..)` it is expected that Blender quits,
  * internally this raises as `SystemExit` exception which this function detects.
@@ -964,6 +966,23 @@ static void pyc_exception_buffer_handle_system_exit()
   if (!PyErr_ExceptionMatches(PyExc_SystemExit)) {
     return;
   }
+
+  /* Get exit code and put back exception. */
+  PyObject *exc_obj = PyErr_GetRaisedException();
+  if (exc_obj) {
+    PyObject *code_obj = PyObject_GetAttrString(exc_obj, "code");
+    if (code_obj != nullptr) {
+      if (PyLong_Check(code_obj)) {
+        BPy_system_exit_code = (int)PyLong_AsLong(code_obj);
+      }
+      else if (code_obj != Py_None) {
+        BPy_system_exit_code = 1;
+      }
+      Py_DECREF(code_obj);
+    }
+    PyErr_SetRaisedException(exc_obj);
+  }
+
 /* Inspecting, follow Python's logic in #_Py_HandleSystemExit & treat as a regular exception. */
 #  if 0 /* FIXME: */
   if (_Py_GetConfig()->inspect) {
