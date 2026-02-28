@@ -64,6 +64,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   std::string velocity_name = params.extract_input<std::string>("Velocity Attribute");
   float velocity_scale = params.extract_input<float>("Velocity Scale");
 
+  double time = (frame + frame_offset) / 24;
+
 #ifdef WITH_ALEMBIC
   const std::optional<std::string> path = params.ensure_absolute_path(
       params.extract_input<std::string>("Path"));
@@ -106,8 +108,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   params.set_output("Instances", cached_value->geometry);
 
-  else params.error_message_add(NodeWarningType::Error,
-                                TIP_("Disabled, Blender was compiled without ABC I/O"));
+#else
+  params.error_message_add(NodeWarningType::Error,
+                           TIP_("Disabled, Blender was compiled without Alembic"));
   params.set_default_remaining_outputs();
 #endif
 }
