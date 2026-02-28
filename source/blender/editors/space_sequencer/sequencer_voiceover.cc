@@ -45,15 +45,18 @@ static bool g_voiceover_stop_requested = false;
 
 static int voiceover_countdown_get(const Editing *ed)
 {
-  return int((ed->runtime.flag & SEQ_EDIT_VOICEOVER_COUNTDOWN_MASK) >>
-             SEQ_EDIT_VOICEOVER_COUNTDOWN_SHIFT);
+  if (ed == nullptr || ed->runtime == nullptr) {
+    return 0;
+  }
+  return ed->runtime->voiceover_countdown;
 }
 
 static void voiceover_countdown_set(Editing *ed, const int seconds)
 {
-  const uint32_t value = uint32_t(min_ii(max_ii(seconds, 0), 255));
-  ed->runtime.flag &= ~SEQ_EDIT_VOICEOVER_COUNTDOWN_MASK;
-  ed->runtime.flag |= value << SEQ_EDIT_VOICEOVER_COUNTDOWN_SHIFT;
+  if (ed == nullptr || ed->runtime == nullptr) {
+    return;
+  }
+  ed->runtime->voiceover_countdown = min_ii(max_ii(seconds, 0), 255);
 }
 
 struct VoiceoverState {
@@ -243,7 +246,7 @@ static bool voiceover_is_playing_current_screen(const bContext *C)
   return (screen != nullptr) && (screen->animtimer != nullptr);
 }
 
-//voiceover: does not seem right to full deps?
+// voiceover: does not seem right to full deps?
 static Scene *voiceover_scene_eval_get(bContext *C)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
@@ -390,7 +393,9 @@ static void voiceover_stop_common(bContext *C, wmOperator *op, const bool cancel
 
   if (scene->ed) {
     voiceover_countdown_set(scene->ed, 0);
-    scene->ed->runtime.flag &= ~SEQ_EDIT_VOICEOVER_RECORDING;
+    if (scene->ed->runtime != nullptr) {
+      scene->ed->runtime->voiceover_recording = false;
+    }
   }
 }
 
@@ -460,8 +465,8 @@ static wmOperatorStatus sequencer_voiceover_record_modal(bContext *C,
     if (state->pre_roll_seconds > 0) {
       const auto now = std::chrono::steady_clock::now();
       if (now < state->pre_roll_deadline) {
-        const double remaining_seconds = std::chrono::duration<double>(state->pre_roll_deadline - now)
-                                             .count();
+        const double remaining_seconds =
+            std::chrono::duration<double>(state->pre_roll_deadline - now).count();
         const int remaining = max_ii(1, int(std::ceil(remaining_seconds)));
         if (remaining != voiceover_countdown_get(ed)) {
           voiceover_countdown_set(ed, remaining);
@@ -527,7 +532,7 @@ static wmOperatorStatus sequencer_voiceover_record_invoke(bContext *C,
   }
 
   Scene *scene = CTX_data_sequencer_scene(C);
-  if (scene->ed && (scene->ed->runtime.flag & SEQ_EDIT_VOICEOVER_RECORDING)) {
+  if (scene->ed && scene->ed->runtime && scene->ed->runtime->voiceover_recording) {
     g_voiceover_stop_requested = true;
     return OPERATOR_FINISHED;
   }
@@ -563,7 +568,7 @@ static wmOperatorStatus sequencer_voiceover_record_invoke(bContext *C,
   }
 
   state->timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
-  scene->ed->runtime.flag |= SEQ_EDIT_VOICEOVER_RECORDING;
+  scene->ed->runtime->voiceover_recording = true;
   voiceover_countdown_set(scene->ed, state->pre_roll_seconds);
   op->customdata = state;
   WM_event_add_modal_handler(C, op);

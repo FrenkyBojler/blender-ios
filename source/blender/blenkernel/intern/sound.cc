@@ -1579,7 +1579,6 @@ SoundVoiceoverSession *BKE_sound_voiceover_session_start(const SoundVoiceoverSet
   return session;
 }
 
-//voiceover: gain set?
 bool BKE_sound_voiceover_session_update(SoundVoiceoverSession *session, ReportList *reports)
 {
   if (session == nullptr || !session->capture_device || !session->writer) {

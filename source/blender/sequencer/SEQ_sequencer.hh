@@ -121,6 +121,8 @@ struct EditingRuntime {
    * blade tool. */
   int transform_preview_frame = 0;
   bool show_transform_preview = false;
+  bool voiceover_recording = false;
+  int voiceover_countdown = 0;
 
   CompositorCache &ensure_compositor_cache();
 };

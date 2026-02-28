@@ -658,8 +658,8 @@ struct Editing {
   int overlay_frame_flag = 0; /* eEditingOverlayFrameFlag */
   rctf overlay_frame_rect = {};
 
-  int show_missing_media_flag = 0; /* eEditingShowMissingMediaFlag */
-  int cache_flag = 0;              /* eEditingCacheFlag */
+  int show_missing_media_flag = 0;  /* eEditingShowMissingMediaFlag */
+  int cache_flag = 0;               /* eEditingCacheFlag */
   int voiceover_override_flags = 0; /* eEditingVoiceoverOverrideFlag */
   int voiceover_pre_roll = 3;
   int voiceover_channel = 1;
@@ -673,7 +673,7 @@ struct Editing {
   int voiceover_input_device = 0;
   char voiceover_directory[/*FILE_MAXDIR*/ 768] = "//";
   char voiceover_filename[256] = "voiceover"; /* initial base name+timestamp */
-  char _pad_voiceover[4] = {}; //unused but removing fails to build?
+  char _pad_voiceover[4] = {};
 
   seq::EditingRuntime *runtime = nullptr;
 

@@ -451,14 +451,13 @@ static const EnumPropertyItem *rna_SequenceEditor_voiceover_input_device_itemf(
 static bool rna_SequenceEditor_voiceover_is_recording_get(PointerRNA *ptr)
 {
   Editing *ed = static_cast<Editing *>(ptr->data);
-  return (ed->runtime.flag & SEQ_EDIT_VOICEOVER_RECORDING) != 0;
+  return (ed->runtime != nullptr) ? ed->runtime->voiceover_recording : false;
 }
 
 static int rna_SequenceEditor_voiceover_countdown_get(PointerRNA *ptr)
 {
   Editing *ed = static_cast<Editing *>(ptr->data);
-  return int((ed->runtime.flag & SEQ_EDIT_VOICEOVER_COUNTDOWN_MASK) >>
-             SEQ_EDIT_VOICEOVER_COUNTDOWN_SHIFT);
+  return (ed->runtime != nullptr) ? ed->runtime->voiceover_countdown : 0;
 }
 
 struct VoiceoverCodecPresetMap {
