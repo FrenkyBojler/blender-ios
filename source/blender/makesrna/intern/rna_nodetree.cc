@@ -9045,7 +9045,8 @@ static void rna_def_node(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "height");
   RNA_def_property_float_funcs(prop, nullptr, nullptr, "rna_Node_height_range");
   RNA_def_property_ui_text(
-      prop, "Height",
+      prop,
+      "Height",
       "Height of the node. This property holds true data only under certain circumstances, "
       "e.g. for a Frame node after the node graph was displayed. For most types of nodes, "
       "the displayed height is based on the node's contents and not reflected in this property.");
@@ -9054,8 +9055,8 @@ static void rna_def_node(BlenderRNA *brna)
   prop = RNA_def_property(srna, "dimensions", PROP_FLOAT, PROP_XYZ_LENGTH);
   RNA_def_property_array(prop, 2);
   RNA_def_property_float_funcs(prop, "rna_Node_dimensions_get", nullptr, nullptr);
-  RNA_def_property_ui_text(prop, "Dimensions",
-      "Absolute bounding box dimensions of the node after it was displayed");
+  RNA_def_property_ui_text(
+      prop, "Dimensions", "Absolute bounding box dimensions of the node after it was displayed");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
@@ -9161,7 +9162,9 @@ static void rna_def_node(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_options", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_OPTIONS);
-  RNA_def_property_ui_text(prop, "Show Options",
+  RNA_def_property_ui_text(
+      prop,
+      "Show Options",
       "Whether the node options are visible, e.g. the selected data-block of a node group node");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
 
@@ -9239,38 +9242,43 @@ static void rna_def_node(BlenderRNA *brna)
   prop = RNA_def_property(srna, "bl_width_default", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_sdna(prop, nullptr, "typeinfo->width");
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_ui_text(prop, "Default Width",
-      "Default width of the node when it is created");
+  RNA_def_property_ui_text(prop, "Default Width", "Default width of the node when it is created");
 
   prop = RNA_def_property(srna, "bl_width_min", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_sdna(prop, nullptr, "typeinfo->minwidth");
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_ui_text(prop, "Minimum Width",
-      "When changing the node's size, it has at least this width");
+  RNA_def_property_ui_text(
+      prop, "Minimum Width", "When changing the node's size, it has at least this width");
 
   prop = RNA_def_property(srna, "bl_width_max", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_sdna(prop, nullptr, "typeinfo->maxwidth");
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_ui_text(prop, "Maximum Width",
-      "When changing the node's size, it can have at most this width");
+  RNA_def_property_ui_text(
+      prop, "Maximum Width", "When changing the node's size, it can have at most this width");
 
   prop = RNA_def_property(srna, "bl_height_default", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_sdna(prop, nullptr, "typeinfo->height");
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_ui_text(prop, "Default Height",
+  RNA_def_property_ui_text(
+      prop,
+      "Default Height",
       "Default height of the node when it is created (mostly unused, see Height)");
 
   prop = RNA_def_property(srna, "bl_height_min", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_sdna(prop, nullptr, "typeinfo->minheight");
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_ui_text(prop, "Minimum Height",
+  RNA_def_property_ui_text(
+      prop,
+      "Minimum Height",
       "When changing the node's size, it has at least this height (mostly unused, see Height)");
 
   prop = RNA_def_property(srna, "bl_height_max", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_sdna(prop, nullptr, "typeinfo->maxheight");
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_ui_text(prop, "Maximum Height",
-      "When changing the node's size, it can have at most this height (mostly unused, see Height)");
+  RNA_def_property_ui_text(prop,
+                           "Maximum Height",
+                           "When changing the node's size, it can have at most this height "
+                           "(mostly unused, see Height)");
 
   /* poll */
   func = RNA_def_function(srna, "poll", nullptr);
