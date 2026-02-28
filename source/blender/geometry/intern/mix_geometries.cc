@@ -12,6 +12,9 @@
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 
+#include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_list.hh"
+
 namespace blender::geometry {
 
 static bool sharing_info_equal(const ImplicitSharingInfo *a, const ImplicitSharingInfo *b)
@@ -116,16 +119,6 @@ static void mix_attributes(bke::MutableAttributeAccessor attributes_a,
   }
 }
 
-static Map<int, int> create_value_to_first_index_map(const Span<int> values)
-{
-  Map<int, int> map;
-  map.reserve(values.size());
-  for (const int i : values.index_range()) {
-    map.add(values[i], i);
-  }
-  return map;
-}
-
 static Array<int> create_id_index_map(const bke::AttributeAccessor attributes_a,
                                       const bke::AttributeAccessor b_attributes,
                                       const bke::AttrDomain id_domain)
@@ -148,17 +141,93 @@ static Array<int> create_id_index_map(const bke::AttributeAccessor attributes_a,
   const VArraySpan ids_span_a(ids_a.varray.typed<int>());
   const VArraySpan ids_span_b(ids_b.varray.typed<int>());
 
-  const Map<int, int> id_map_b = create_value_to_first_index_map(ids_span_b);
+  /* Use #int instead of the default #int64_t for internal indices. */
+  const VectorSet<int,
+                  16,
+                  DefaultProbingStrategy,
+                  DefaultHash<int>,
+                  DefaultEquality<int>,
+                  SimpleVectorSetSlot<int, int>,
+                  GuardedAllocator>
+      id_map_b(ids_span_b);
   Array<int> index_map(ids_span_a.size());
   threading::parallel_for(ids_span_a.index_range(), 1024, [&](const IndexRange range) {
     for (const int i : range) {
-      index_map[i] = id_map_b.lookup_default(ids_span_a[i], -1);
+      index_map[i] = id_map_b.index_of_try(ids_span_a[i]);
     }
   });
   return index_map;
 }
 
-bke::GeometrySet mix_geometries(bke::GeometrySet a, const bke::GeometrySet &b, const float factor)
+void mix_socket_values(bke::SocketValueVariant &a,
+                       const bke::SocketValueVariant &b,
+                       const float factor)
+{
+  if (a.is_single() && b.is_single()) {
+    GMutablePointer a_ptr = a.get_single_ptr();
+    const GPointer b_ptr = b.get_single_ptr();
+    if (a_ptr.is_type<bke::GeometrySet>()) {
+      mix_geometries(*a_ptr.get<bke::GeometrySet>(), *b_ptr.get<bke::GeometrySet>(), factor);
+    }
+    if (a_ptr.is_type<nodes::BundlePtr>()) {
+      mix_bundles(a_ptr.get<nodes::BundlePtr>()->ensure_mutable_inplace(),
+                  **b_ptr.get<nodes::BundlePtr>(),
+                  factor);
+    }
+    else {
+      mix(GMutableSpan(a_ptr.type(), a_ptr.get(), 1),
+          GVArray::from_single_ref(*b_ptr.type(), 1, b_ptr.get()),
+          factor);
+    }
+  }
+  else if (a.is_list() && b.is_list()) {
+    nodes::ListPtr a_list_ptr = a.extract<nodes::ListPtr>();
+    nodes::List &a_list = a_list_ptr.ensure_mutable_inplace();
+    const nodes::ListPtr b_list = b.get<nodes::ListPtr>();
+    std::variant<GMutableSpan, GMutablePointer> a_values = a_list.values_for_write();
+    if (auto *a_span = std::get_if<GMutableSpan>(&a_values)) {
+      const GVArray b_varray = b_list->varray();
+      mix(*a_span, b_varray.slice(IndexRange(a_span->size())), factor);
+    }
+    else if (auto *a_pointer = std::get_if<GMutablePointer>(&a_values)) {
+      const GVArray b_varray = b_list->varray();
+      mix(GMutableSpan(*a_pointer->type(), a_pointer->get(), 1),
+          b_varray.slice(IndexRange(1)),
+          factor);
+    }
+    /* TODO: The API should not require extracting the list and storing it again. */
+    a = bke::SocketValueVariant::From(std::move(a_list_ptr));
+  }
+}
+
+static void mix_bundle_items(nodes::BundleItemValue &a,
+                             const nodes::BundleItemValue &b,
+                             const float factor)
+{
+  auto *a_socket_value = std::get_if<nodes::BundleItemSocketValue>(&a.value);
+  if (!a_socket_value) {
+    return;
+  }
+  const std::optional<bke::SocketValueVariant> b_socket_value = b.as_socket_value(
+      *a_socket_value->type);
+  if (!b_socket_value) {
+    return;
+  }
+  mix_socket_values(a_socket_value->value, *b_socket_value, factor);
+}
+
+void mix_bundles(nodes::Bundle &a, const nodes::Bundle &b, const float factor)
+{
+  for (const auto &[name, a_value] : a.items()) {
+    const nodes::BundleItemValue *b_value = b.lookup(name);
+    if (!b_value) {
+      continue;
+    }
+    mix_bundle_items(a_value, *b_value, factor);
+  }
+}
+
+void mix_geometries(bke::GeometrySet a, const bke::GeometrySet &b, const float factor)
 {
   if (Mesh *mesh_a = a.get_mesh_for_write()) {
     if (const Mesh *mesh_b = b.get_mesh()) {
@@ -209,7 +278,9 @@ bke::GeometrySet mix_geometries(bke::GeometrySet a, const bke::GeometrySet &b, c
                      {".reference_index"});
     }
   }
-  return a;
+  if (a.has_bundle() && b.has_bundle()) {
+    mix_bundles(a.bundle_for_write(), *b.bundle(), factor);
+  }
 }
 
 }  // namespace blender::geometry
