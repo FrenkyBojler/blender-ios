@@ -171,7 +171,9 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
               std::swap(min_value, max_value);
             }
             const uint32_t hash = noise::hash(id, seed);
-            return min_value + hash % (max_value - min_value + 1);
+            const uint64_t range = static_cast<int64_t>(max_value) -
+                                   static_cast<int64_t>(min_value) + 1;
+            return min_value + hash % (range);
           },
           mf::build::exec_presets::SomeSpanOrSingle<2>());
       builder.set_matching_fn(fn);
