@@ -7029,6 +7029,13 @@ void update_text_styles()
   style->tooltip.character_weight = weight;
 }
 
+void invalidate_text_wrap_cache(const ARegion &region)
+{
+  for (Block &block : region.runtime->uiblocks) {
+    block.text_wrap_cache.clear();
+  }
+}
+
 void ui_exit()
 {
   resources_free();
