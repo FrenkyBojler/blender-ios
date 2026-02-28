@@ -2952,7 +2952,6 @@ static wmOperatorStatus view3d_object_mode_menu_exec(bContext *C, wmOperator *op
   if (((ob->mode & OB_MODE_EDIT) == 0) && ELEM(ob->type, OB_ARMATURE)) {
     ed::object::mode_set(C, (ob->mode == OB_MODE_OBJECT) ? OB_MODE_POSE : OB_MODE_OBJECT);
     return OPERATOR_CANCELLED;
-    return OPERATOR_CANCELLED;
   }
 
   ui::pie_menu_invoke(C, "VIEW3D_MT_object_mode_pie", CTX_wm_window(C)->runtime->eventstate);
