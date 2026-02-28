@@ -300,9 +300,9 @@ MappedPointDataGrid points_to_point_data_grid(const VArray<float3> positions,
 }
 
 template<typename GridValueT>
-struct GenericKernelTransferBase : public openvdb::points::TransformTransfer,
-                                   public openvdb::points::VolumeTransfer<
-                                       typename bke::VolumeGridTraits<GridValueT>::TreeType> {
+struct KernelTransferBase : public openvdb::points::TransformTransfer,
+                            public openvdb::points::VolumeTransfer<
+                                typename bke::VolumeGridTraits<GridValueT>::TreeType> {
   using GridTraits = bke::VolumeGridTraits<GridValueT>;
   using TreeType = typename GridTraits::TreeType;
   using GridType = openvdb::Grid<TreeType>;
@@ -319,9 +319,9 @@ struct GenericKernelTransferBase : public openvdb::points::TransformTransfer,
   /* Point attribute handles for positions in the current leaf. */
   std::unique_ptr<openvdb::points::AttributeHandle<openvdb::Vec3f>> position_handle_;
 
-  GenericKernelTransferBase(const KernelType kernel_type,
-                            const openvdb::points::PointDataGrid &source,
-                            GridType &dest)
+  KernelTransferBase(const KernelType kernel_type,
+                     const openvdb::points::PointDataGrid &source,
+                     GridType &dest)
       : TransformTransfer(source.transform(), dest.transform()),
         openvdb::points::VolumeTransfer<TreeType>(dest.tree()),
         kernel_type_(kernel_type),
@@ -331,7 +331,7 @@ struct GenericKernelTransferBase : public openvdb::points::TransformTransfer,
   {
   }
 
-  GenericKernelTransferBase(const GenericKernelTransferBase &other)
+  KernelTransferBase(const KernelTransferBase &other)
       : TransformTransfer(other),
         openvdb::points::VolumeTransfer<TreeType>(other),
         kernel_type_(other.kernel_type_),
@@ -421,8 +421,8 @@ struct GenericKernelTransferBase : public openvdb::points::TransformTransfer,
 };
 
 template<typename AttributeT, typename GridValueT>
-struct GenericValueSumTransfer : public GenericKernelTransferBase<GridValueT> {
-  using Base = GenericKernelTransferBase<GridValueT>;
+struct ValueSumTransfer : public KernelTransferBase<GridValueT> {
+  using Base = KernelTransferBase<GridValueT>;
   using GridType = typename Base::GridType;
   using TreeType = typename Base::TreeType;
   using GridValueType = typename Base::GridValueType;
@@ -433,17 +433,17 @@ struct GenericValueSumTransfer : public GenericKernelTransferBase<GridValueT> {
   StringRef value_attribute_;
   std::unique_ptr<openvdb::points::AttributeHandle<AttributeType>> value_handle_;
 
-  GenericValueSumTransfer(const openvdb::points::PointDataGrid &source,
-                          const KernelType kernel_type,
-                          GridType &dest,
-                          StringRef value_attribute)
-      : GenericKernelTransferBase<GridValueT>(kernel_type, source, dest),
+  ValueSumTransfer(const openvdb::points::PointDataGrid &source,
+                   const KernelType kernel_type,
+                   GridType &dest,
+                   StringRef value_attribute)
+      : KernelTransferBase<GridValueT>(kernel_type, source, dest),
         value_attribute_(value_attribute)
   {
   }
 
-  GenericValueSumTransfer(const GenericValueSumTransfer &other)
-      : GenericKernelTransferBase<GridValueT>(other), value_attribute_(other.value_attribute_)
+  ValueSumTransfer(const ValueSumTransfer &other)
+      : KernelTransferBase<GridValueT>(other), value_attribute_(other.value_attribute_)
   {
   }
 
@@ -513,7 +513,7 @@ static bke::VolumeGrid<GridValueT> points_rasterize_with_static_type(
       point_data_grid, transform, kernel_type);
 
   BLI_assert(!value_attribute.is_empty());
-  GenericValueSumTransfer<AttributeT, GridValueT> transfer(
+  ValueSumTransfer<AttributeT, GridValueT> transfer(
       point_data_grid, kernel_type, *dst_grid, value_attribute);
   openvdb::points::rasterize(point_data_grid, transfer);
 
