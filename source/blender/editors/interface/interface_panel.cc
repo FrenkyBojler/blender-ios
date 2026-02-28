@@ -1501,8 +1501,10 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
 
     rct->xmin = rct_xmin;
     rct->xmax = rct_xmax;
+
     rct->ymin = v2d->mask.ymax - (y_ofs + category_width + (tab_v_pad_text * 2));
     rct->ymax = v2d->mask.ymax - (y_ofs);
+
     y_ofs += category_width + tab_v_pad + (tab_v_pad_text * 2);
   }
 
