@@ -2335,10 +2335,21 @@ static void widget_draw_multiline_text(const uiFontStyle *fstyle,
 
   float ymax = rect->ymax;
   rcti line_rect = *rect;
+  int sccissors[4];
+  GPU_scissor_get(sccissors);
+  int sccisors_ymin = sccissors[1];
+  int sccisors_ymax = sccisors_ymin + sccissors[3];
+
   for (const StringRef line : multiline_button->wrap_cache->wrapped_lines) {
     line_rect.ymax = ymax;
     ymax -= line_height;
     line_rect.ymin = ymax;
+    if (line_rect.ymax < sccisors_ymin) {
+      break;
+    }
+    if (line_rect.ymin > sccisors_ymax) {
+      continue;
+    }
     fontstyle_draw_ex(fstyle,
                       &line_rect,
                       line.begin(),
