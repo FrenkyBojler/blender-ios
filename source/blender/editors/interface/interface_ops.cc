@@ -3010,7 +3010,7 @@ static wmOperatorStatus region_start_filter_exec(bContext *C, wmOperator * /*op*
   ARegion *region = CTX_wm_region(C);
   if (!(region->flag & RGN_FLAG_SEARCH_FILTER_SHOW)) {
     region->flag |= RGN_FLAG_SEARCH_FILTER_SHOW;
-    region_panels_sort_for_search_filter_visivility_change(C, region);
+    region_panels_sort_for_search_filter_visibility_change(C, region);
   }
   if (region_panels_fits_only_categories(region)) {
     /* Enlarge region to show content to filter. */
@@ -3049,7 +3049,7 @@ static wmOperatorStatus region_clear_filter_exec(bContext *C, wmOperator * /*op*
   ED_region_search_filter_update(CTX_wm_area(C), region);
   ED_region_tag_redraw(region);
   region->flag &= ~RGN_FLAG_SEARCH_FILTER_SHOW;
-  region_panels_sort_for_search_filter_visivility_change(C, region);
+  region_panels_sort_for_search_filter_visibility_change(C, region);
   return OPERATOR_FINISHED;
 }
 

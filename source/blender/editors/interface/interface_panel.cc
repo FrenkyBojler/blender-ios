@@ -2937,7 +2937,7 @@ bool region_panels_fits_only_categories(const ARegion *region)
          int(std::ceil(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect));
 }
 
-void region_panels_sort_for_search_filter_visivility_change(bContext *C, const ARegion *region)
+void region_panels_sort_for_search_filter_visibility_change(bContext *C, const ARegion *region)
 {
   Vector<PanelSort> panel_sort;
   for (Panel &panel : region->panels) {
