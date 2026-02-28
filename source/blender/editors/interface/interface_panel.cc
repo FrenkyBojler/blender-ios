@@ -1496,7 +1496,7 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
     const char *category_id = pc_dyn.idname;
     const char *category_id_draw = IFACE_(category_id);
     const int category_width = round_fl_to_int(
-        pc_dyn.icon ? 10 * UI_SCALE_FAC * zoom :
+        pc_dyn.icon ? 8 * UI_SCALE_FAC * zoom :
                       BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
 
     rct->xmin = rct_xmin;
@@ -1628,8 +1628,9 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
     BLF_color3ubv(fontid, is_active ? theme_col_tab_text_sel : theme_col_tab_text);
 
     if (pc_dyn.icon != ICON_NONE) {
-      const float ofs_x = round_fl_to_int(float(rct_xmax - rct_xmin) * 0.08f);
-      const float ofs_y = round_fl_to_int(float(rct->ymax - rct->ymin) * 0.15f);
+      const float icon_size = 16.0f * UI_SCALE_FAC * zoom;
+      const float ofs_x = float(rct_xmax - rct_xmin - icon_size) / 2.0f;
+      const float ofs_y = float(rct->ymax - rct->ymin - icon_size) / 2.0f;
       BLF_disable(fontid, BLF_ROTATION);
       icon_draw_ex(float(rct_xmin) + ofs_x,
                    float(rct->ymin) + ofs_y,
