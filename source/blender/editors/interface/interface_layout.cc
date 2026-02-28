@@ -3252,13 +3252,33 @@ void Layout::label_multiline(StringRefNull text, int icon, FontStyleAlign align)
 {
   block_layout_set_current(this->block(), this);
   Button *button = nullptr;
+  /* Use a dummy string, let the layout system to be resolved and then do text wrap. */
+  const int width = ui_text_icon_width_ex(
+      this, "non-empty text", icon, ui_text_pad_none, UI_FSTYLE_WIDGET);
   if (icon) {
-    button = uiDefIconTextBut(
-        this->block(), ButtonType::Label, icon, text, 0, 0, 100, UI_UNIT_Y, nullptr, std::nullopt);
+    button = uiDefIconTextBut(this->block(),
+                              ButtonType::Label,
+                              icon,
+                              text,
+                              0,
+                              0,
+                              width,
+                              UI_UNIT_Y,
+                              nullptr,
+                              std::nullopt);
   }
   else {
-    button = uiDefBut(
-        this->block(), ButtonType::Label, text, 0, 0, 100, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
+    button = uiDefBut(this->block(),
+                      ButtonType::Label,
+                      text,
+                      0,
+                      0,
+                      width,
+                      UI_UNIT_Y,
+                      nullptr,
+                      0,
+                      0,
+                      std::nullopt);
   }
   this->root_->use_dynamic_height = true;
   ButtonLabel *label = static_cast<ButtonLabel *>(button);
@@ -5501,16 +5521,18 @@ void Layout::resolve()
   }
 }
 
-static Vector<StringRef> multiline_label_wrap_lines(ButtonLabel *button)
+static void label_multiline_wrap_lines(ButtonLabel *button)
 {
   const uiFontStyle &fstyle = style_get()->widget;
-  int icon_width_space = 0;
+  int icon_width_pad = 0;
   if (button->flag & UI_HAS_ICON) {
-    icon_width_space = UI_UNIT_X * (ui_text_pad_none.icon + ui_text_pad_none.text);
+    icon_width_pad = UI_UNIT_X * (ui_text_pad_none.icon + ui_text_pad_none.text);
   }
-  const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&button->rect)) - icon_width_space, 0);
+  const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&button->rect)) - icon_width_pad, 0);
   StringRef text = button->str;
   text = text.trim();
+  /* Sometimes blocks are updated from old blocks before resolving the layout, so the button could
+   * have adquire old button wrap cache. */
   if (button->wrap_cache) {
     TextWrapCache &cache = *button->wrap_cache;
     if (!(cache.wrap_width == width && cache.text == text)) {
@@ -5535,8 +5557,7 @@ static Vector<StringRef> multiline_label_wrap_lines(ButtonLabel *button)
   }
   if (button->wrap_cache) {
     button->block->text_wrap_cache.append(button->wrap_cache);
-    TextWrapCache &cache = *button->wrap_cache;
-    return cache.wrapped_lines;
+    return;
   }
   button->wrap_cache = std::make_unique<TextWrapCache>();
   TextWrapCache &cache = *button->wrap_cache;
@@ -5546,15 +5567,13 @@ static Vector<StringRef> multiline_label_wrap_lines(ButtonLabel *button)
   button->block->text_wrap_cache.append(button->wrap_cache);
 
   fontstyle_set(&fstyle);
-  Vector<StringRef> lines = BLF_string_wrap(
+  cache.wrapped_lines = BLF_string_wrap(
       fstyle.uifont_id, cache.text, width, BLFWrapMode::HardLimit);
-  cache.wrapped_lines = lines;
-  return lines;
 }
 
 static void resolve_multiline_label(ButtonLabel *button)
 {
-  multiline_label_wrap_lines(button);
+  label_multiline_wrap_lines(button);
   button->rect.ymin = button->rect.ymax -
                       UI_UNIT_Y * std::max<int>(1, button->wrap_cache->wrapped_lines.size());
 }
@@ -5564,10 +5583,13 @@ int Layout::resolve_dynamic_height()
   if (this->items().is_empty()) {
     return 0;
   }
+  /* Extra vertical offsset. */
   int extra_y_offs = 0;
+  /* Max new sub item heigth for horizontal layouts.*/
   int max_subitem_h = 0;
 
   for (Item *subitem : this->items()) {
+    /* Apply dynamic offset from previous items in vertical layouts. */
     if (extra_y_offs && this->local_direction() == LayoutDirection::Vertical) {
       ui_item_translate_y(subitem, -extra_y_offs);
     }

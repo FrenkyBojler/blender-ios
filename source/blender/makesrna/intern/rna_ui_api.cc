@@ -1688,7 +1688,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
 
   func = RNA_def_function(srna, "label_multiline", "rna_layout_label_multiline");
-  RNA_def_function_ui_description(func, "Displays text in the layout.");
+  RNA_def_function_ui_description(func, "Displays multiline text in the layout.");
   api_ui_item_common(func);
   parm = RNA_def_property(func, "icon_value", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
