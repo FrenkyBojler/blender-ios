@@ -16,6 +16,7 @@ set(INC
   ../../compositor/utilities
   ../../modifiers
   ../../io/common
+  ../../io/alembic
   ../../io/csv
   ../../io/ply
   ../../io/stl
@@ -364,6 +365,14 @@ endif()
 
 if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
+endif()
+
+if(WITH_ALEMBIC)
+  list(APPEND LIB
+    PRIVATE bf_io_common
+    PRIVATE bf_io_alembic
+  )
+  add_definitions(-DWITH_ALEMBIC)
 endif()
 
 add_node_discovery(
