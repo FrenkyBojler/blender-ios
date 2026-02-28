@@ -364,7 +364,7 @@ static void init_device_list(GHOST_IContext *ghost_context)
     index++;
   }
 
-  std::sort(GPG.devices.begin(), GPG.devices.end(), [&](const GPUDevice &a, const GPUDevice &b) {
+  std::ranges::sort(GPG.devices, [&](const GPUDevice &a, const GPUDevice &b) {
     if (a.name == b.name) {
       return a.index < b.index;
     }
@@ -502,7 +502,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
    *
    * TODO: We should re-validate vertex input dynamic state as there are multiple vendors with
    * similar issues. It might be an oversight. Will wait for feedback from the driver developers
-   * and perfrom some out of bounds error checks.
+   * and perform some out of bounds error checks.
    */
   if (GPU_type_matches(GPU_DEVICE_QUALCOMM, GPU_OS_WIN, GPU_DRIVER_ANY)) {
     extensions.vertex_input_dynamic_state = false;

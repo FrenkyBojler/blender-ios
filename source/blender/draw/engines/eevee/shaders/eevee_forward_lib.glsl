@@ -59,18 +59,24 @@ void forward_lighting_eval(float thickness, float3 &radiance, float3 &transmitta
     }
 #  endif
 
-    stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
+    if ((cl_transmit.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
+         cl_transmit.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID ||
+         cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) &&
+        (thickness != 0.0f))
+    {
+      stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
 
-    /* NOTE: Only evaluates `stack.cl[0]`. */
-    light_eval_transmission(stack,
-                            g_data.P,
-                            g_data.Ng,
-                            V,
-                            vPz,
-                            thickness,
-                            receiver_light_set,
-                            normal_offset,
-                            geometry_offset);
+      /* NOTE: Only evaluates `stack.cl[0]`. */
+      light_eval_transmission(stack,
+                              g_data.P,
+                              g_data.Ng,
+                              V,
+                              vPz,
+                              thickness,
+                              receiver_light_set,
+                              normal_offset,
+                              geometry_offset);
+    }
 
 #  if defined(MAT_SUBSURFACE)
     if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
@@ -115,9 +121,14 @@ void forward_lighting_eval(float thickness, float3 &radiance, float3 &transmitta
   /* Light clamping. */
   float clamp_direct = uniform_buf.clamp.surface_direct;
   float clamp_indirect = uniform_buf.clamp.surface_indirect;
+
   radiance_direct = colorspace_brightness_clamp_max(radiance_direct, clamp_direct);
   radiance_indirect = colorspace_brightness_clamp_max(radiance_indirect, clamp_indirect);
 
+  radiance_direct *= uniform_buf.clamp.direct_scale;
+  radiance_indirect *= uniform_buf.clamp.indirect_scale;
+
   radiance = radiance_direct + radiance_indirect + g_emission;
+
   transmittance = g_transmittance;
 }

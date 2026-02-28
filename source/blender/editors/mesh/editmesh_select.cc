@@ -1611,9 +1611,9 @@ void MESH_OT_select_mode(wmOperatorType *ot)
   PropertyRNA *prop;
 
   static const EnumPropertyItem actions_items[] = {
-      {0, "DISABLE", false, "Disable", "Disable selected markers"},
-      {1, "ENABLE", false, "Enable", "Enable selected markers"},
-      {2, "TOGGLE", false, "Toggle", "Toggle disabled flag for selected markers"},
+      {0, "DISABLE", false, "Disable", "Disable the selection mode"},
+      {1, "ENABLE", false, "Enable", "Enable the selection mode"},
+      {2, "TOGGLE", false, "Toggle", "Toggle the selection mode"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1864,7 +1864,7 @@ void MESH_OT_select_edge_loop_multi(wmOperatorType *ot)
                     "delimit_edge_loop",
                     rna_enum_mesh_walk_delimit_edge_loop_items,
                     BMW_DELIMIT_EDGE_LOOP_OUTER_CORNERS | BMW_DELIMIT_EDGE_LOOP_NGONS,
-                    "Boundary Delimit",
+                    "Delimit",
                     "Delimit edge loop selection");
 }
 
@@ -2365,7 +2365,7 @@ void MESH_OT_loop_select(wmOperatorType *ot)
                     "delimit_edge_loop",
                     rna_enum_mesh_walk_delimit_edge_loop_items,
                     BMW_DELIMIT_EDGE_LOOP_OUTER_CORNERS | BMW_DELIMIT_EDGE_LOOP_NGONS,
-                    "Boundary Delimit",
+                    "Delimit",
                     "Delimit edge loop selection");
   /* Only shown when face-select mode is enabled. */
   RNA_def_enum_flag(ot->srna,

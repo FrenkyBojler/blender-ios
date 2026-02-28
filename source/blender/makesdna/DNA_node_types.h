@@ -666,6 +666,12 @@ enum {
   SHD_NORMAL_MAP_CONVENTION_DIRECTX = 1,
 };
 
+/* normal map, base */
+enum {
+  SHD_NORMAL_MAP_BASE_ORIGINAL = 0,
+  SHD_NORMAL_MAP_BASE_DISPLACED = 1,
+};
+
 enum {
   SHD_AO_INSIDE = 1,
   SHD_AO_LOCAL = 2,
@@ -2015,6 +2021,9 @@ struct bNodeTree {
   int interface_input_index(const bNodeTreeInterfaceSocket &io_socket) const;
   int interface_output_index(const bNodeTreeInterfaceSocket &io_socket) const;
   int interface_item_index(const bNodeTreeInterfaceItem &io_item) const;
+
+  int interface_input_index_by_identifier(StringRef identifier) const;
+  int interface_output_index_by_identifier(StringRef identifier) const;
 #endif
 };
 
@@ -2132,6 +2141,13 @@ struct NodeFrame {
 
 struct NodeReroute {
   DNA_DEFINE_CXX_METHODS(NodeReroute)
+
+  /** Name of the socket type (e.g. `NodeSocketFloat`). */
+  char type_idname[64] = "";
+};
+
+struct NodeImplicitConversion {
+  DNA_DEFINE_CXX_METHODS(NodeImplicitConversion)
 
   /** Name of the socket type (e.g. `NodeSocketFloat`). */
   char type_idname[64] = "";
@@ -2333,7 +2349,9 @@ struct NodeCompositorFileOutput {
   int active_item_index = 0;
   /* Apply the render part of the display transform when saving non-linear images. */
   char save_as_render = 0;
-  char _pad[7] = {};
+  /* Add a file extension to the file name. */
+  char use_file_extension = 0;
+  char _pad[6] = {};
 };
 
 struct NodeImageMultiFileSocket {
@@ -2828,7 +2846,8 @@ struct NodeShaderNormalMap {
   int space = 0;
   char uv_map[/*MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX*/ 64] = "";
   char convention = SHD_NORMAL_MAP_CONVENTION_OPENGL;
-  char _pad[7];
+  char base = SHD_NORMAL_MAP_BASE_DISPLACED;
+  char _pad[6];
 };
 
 struct NodeRadialTiling {
@@ -2969,6 +2988,13 @@ struct NodeInputInt {
   int integer = 0;
 };
 
+struct NodeInputMenu {
+  DNA_DEFINE_CXX_METHODS(NodeInputMenu)
+
+  /* Note: enum items are determined by the node output socket. */
+  int value = 0;
+};
+
 struct NodeInputRotation {
   DNA_DEFINE_CXX_METHODS(NodeInputRotation)
 
@@ -2978,7 +3004,8 @@ struct NodeInputRotation {
 struct NodeInputVector {
   DNA_DEFINE_CXX_METHODS(NodeInputVector)
 
-  float vector[3] = {};
+  float vector[4] = {};
+  int dimensions = 3;
 };
 
 struct NodeInputColor {
