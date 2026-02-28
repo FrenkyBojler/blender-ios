@@ -77814,11 +77814,11 @@ msgstr "Nướng vật lý"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
+msgid "Bake All Physics"
 msgstr "Nướng Toàn Bộ các Vật Lý"
 
 
-msgid "Bake all dynamics"
+msgid "Bake all physics"
 msgstr "Nướng toàn bộ các vật lý"
 
 

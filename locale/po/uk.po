@@ -53618,11 +53618,11 @@ msgstr "Запекти фізику"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
+msgid "Bake All Physics"
 msgstr "Запекти всю фізику"
 
 
-msgid "Bake all dynamics"
+msgid "Bake all physics"
 msgstr "Запекти всю фізику"
 
 

@@ -80910,11 +80910,11 @@ msgstr "物理演算をベイク"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
+msgid "Bake All Physics"
 msgstr "すべての物理演算をベイク"
 
 
-msgid "Bake all dynamics"
+msgid "Bake all physics"
 msgstr "すべての物理演算をベイク"
 
 

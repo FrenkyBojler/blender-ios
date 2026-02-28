@@ -80486,11 +80486,11 @@ msgstr "烘焙物理运算结果"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
+msgid "Bake All Physics"
 msgstr "烘焙所有物理运算结果"
 
 
-msgid "Bake all dynamics"
+msgid "Bake all physics"
 msgstr "烘焙所有的物理运算结果"
 
 

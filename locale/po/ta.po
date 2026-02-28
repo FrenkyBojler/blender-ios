@@ -77766,11 +77766,11 @@ msgstr "சுடும் இயற்பியல்"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
+msgid "Bake All Physics"
 msgstr "அனைத்து இயற்பியலையும் சுட்டுக்கொள்ளுங்கள்"
 
 
-msgid "Bake all dynamics"
+msgid "Bake all physics"
 msgstr "அனைத்து இயற்பியலையும் சுட்டுக்கொள்ளுங்கள்"
 
 

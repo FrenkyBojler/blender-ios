@@ -66384,11 +66384,11 @@ msgstr "Fizik pişirin"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
+msgid "Bake All Physics"
 msgstr "Tüm Fizikleri Pişir"
 
 
-msgid "Bake all dynamics"
+msgid "Bake all physics"
 msgstr "Tüm fiziği pişir"
 
 

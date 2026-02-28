@@ -54270,11 +54270,11 @@ msgstr "烘焙物理運算"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
+msgid "Bake All Physics"
 msgstr "烘焙所有物理"
 
 
-msgid "Bake all dynamics"
+msgid "Bake all physics"
 msgstr "烘焙所有的物理運算"
 
 

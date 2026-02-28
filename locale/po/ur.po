@@ -73637,11 +73637,11 @@ msgstr "ﺲﮐﺰﻓ ﮏﯿﺑ"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
+msgid "Bake All Physics"
 msgstr "ﺎﻧﺎﮑﭘ ﺕﺎﯿﻌﯿﺒﻃ ﻡﺎﻤﺗ"
 
 
-msgid "Bake all dynamics"
+msgid "Bake all physics"
 msgstr "ﺎﻧﺎﮑﭘ ﺕﺎﯿﻌﯿﺒﻃ ﻡﺎﻤﺗ"
 
 

@@ -80484,11 +80484,11 @@ msgstr "გამოაცხვე ფიზიკა"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
+msgid "Bake All Physics"
 msgstr "ყველანაირი ფიზიკის ცხობა"
 
 
-msgid "Bake all dynamics"
+msgid "Bake all physics"
 msgstr "გამოაცხვე ყველანაირი ფიზიკა"
 
 

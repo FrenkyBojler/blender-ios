@@ -79588,12 +79588,12 @@ msgstr "Bake physics"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
-msgstr "Bake All Dynamics"
+msgid "Bake All Physics"
+msgstr "Bake All Physics"
 
 
-msgid "Bake all dynamics"
-msgstr "Bake all dynamics"
+msgid "Bake all physics"
+msgstr "Bake all physics"
 
 
 msgctxt "Operator"

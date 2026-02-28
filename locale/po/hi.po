@@ -3945,11 +3945,11 @@ msgstr "कारण"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
+msgid "Bake All Physics"
 msgstr "सभी भौतिकी भर्जन"
 
 
-msgid "Bake all dynamics"
+msgid "Bake all physics"
 msgstr "सभी भौतिकी भर्जन"
 
 

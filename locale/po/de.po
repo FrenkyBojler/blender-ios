@@ -34863,11 +34863,11 @@ msgstr "Physik backen"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
+msgid "Bake All Physics"
 msgstr "Jede Physik backen"
 
 
-msgid "Bake all dynamics"
+msgid "Bake all physics"
 msgstr "Backen aller Physiken"
 
 

@@ -16969,7 +16969,7 @@ msgstr "Пече физику"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
+msgid "Bake All Physics"
 msgstr "Испеци сву физику"
 
 

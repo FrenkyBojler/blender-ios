@@ -80484,11 +80484,11 @@ msgstr "Запечь физику"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
+msgid "Bake All Physics"
 msgstr "Запечь всю физику"
 
 
-msgid "Bake all dynamics"
+msgid "Bake all physics"
 msgstr "Запечь всю физику"
 
 
