@@ -10,6 +10,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
+#include "BKE_curves_utils.hh"
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_grease_pencil_fills.hh"
@@ -462,7 +463,7 @@ static IndexMask grease_pencil_get_visible_nurbs_points(Object &object,
           object, drawing, layer_index, memory);
 
   const IndexMask nurbs_points = IndexMask::from_predicate(
-      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
+      curves.points_range(), memory, [&](const int64_t point_i) {
         const int curve_i = point_to_curve_map[point_i];
         const bool is_selected = editable_and_selected_curves.contains(curve_i);
         const bool is_nurbs = types[curve_i] == CURVE_TYPE_NURBS;
@@ -487,11 +488,11 @@ static IndexMask grease_pencil_get_visible_nurbs_curves(Object &object,
       ed::greasepencil::retrieve_editable_and_selected_strokes(
           object, drawing, layer_index, memory);
 
-  const VArray<int8_t> types = curves.curve_types();
-  return IndexMask::from_predicate(
-      selected_editable_strokes, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        return types[curve_i] == CURVE_TYPE_NURBS;
-      });
+  return bke::curves::indices_for_type(curves.curve_types(),
+                                       curves.curve_type_counts(),
+                                       CURVE_TYPE_NURBS,
+                                       selected_editable_strokes,
+                                       memory);
 }
 
 static IndexMask grease_pencil_get_visible_non_nurbs_curves(
@@ -508,10 +509,9 @@ static IndexMask grease_pencil_get_visible_non_nurbs_curves(
   }
 
   const VArray<int8_t> types = curves.curve_types();
-  return IndexMask::from_predicate(
-      visible_strokes, GrainSize(4096), memory, [&](const int64_t curve) {
-        return types[curve] != CURVE_TYPE_NURBS;
-      });
+  return IndexMask::from_predicate(visible_strokes, memory, [&](const int64_t curve) {
+    return types[curve] != CURVE_TYPE_NURBS;
+  });
 }
 
 static void grease_pencil_cache_add_nurbs(Object &object,

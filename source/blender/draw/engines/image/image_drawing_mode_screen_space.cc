@@ -354,7 +354,6 @@ void ScreenSpaceDrawingMode::image_sync(blender::Image *image, ImageUser *iuser)
 
   state.partial_update.ensure_image(image);
   state.clear_need_full_update_flag();
-  state.float_buffers.reset_usage_flags();
 
   /* Step: Find out which screen space textures are needed to draw on the screen. Recycle
    * textures that are not on screen anymore. */
@@ -377,11 +376,6 @@ void ScreenSpaceDrawingMode::image_sync(blender::Image *image, ImageUser *iuser)
   add_shgroups();
 }
 
-void ScreenSpaceDrawingMode::draw_finish() const
-{
-  instance_.state.float_buffers.remove_unused_buffers();
-}
-
 void ScreenSpaceDrawingMode::draw_viewport() const
 {
   float clear_depth = instance_.state.flags.do_tile_drawing ? 0.75 : 1.0f;
@@ -390,8 +384,7 @@ void ScreenSpaceDrawingMode::draw_viewport() const
   instance_.manager->submit(instance_.state.depth_ps, instance_.state.view);
 
   GPU_framebuffer_bind(instance_.state.color_fb);
-  float4 clear_color = float4(0.0);
-  GPU_framebuffer_clear_color(instance_.state.color_fb, clear_color);
+  GPU_framebuffer_clear_color(instance_.state.color_fb, double4(0.0));
   instance_.manager->submit(instance_.state.image_ps, instance_.state.view);
 }
 
