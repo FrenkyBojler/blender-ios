@@ -53,6 +53,8 @@ void exporter_main(bContext *C, const PLYExportParams &export_params)
                   RPT_ERROR,
                   "PLY Export: Unable to find collection '%s'",
                   export_params.collection);
+
+      DEG_graph_free(depsgraph);
       return;
     }
 
