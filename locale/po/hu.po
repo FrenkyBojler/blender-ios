@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'c1168d06bba2')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-09 09:47+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2025-07-23 15:31+0000\n"
 "Last-Translator: Balázs Füvesi <fuvesib@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -1230,10 +1230,6 @@ msgid "Saturation"
 msgstr "Telítettség"
 
 
-msgid "Both"
-msgstr "Mindkettő"
-
-
 msgid "Active Layer"
 msgstr "Aktív réteg"
 
@@ -1360,42 +1356,6 @@ msgstr "RGB görbék használata az előzetes-megjelenítés taranszformációho
 
 msgid "View"
 msgstr "Nézet"
-
-
-msgid "Mix"
-msgstr "Keverés"
-
-
-msgid "Darken"
-msgstr "Sötétítés"
-
-
-msgid "Lighten"
-msgstr "Világosítás"
-
-
-msgid "Screen"
-msgstr "Képernyő"
-
-
-msgid "Overlay"
-msgstr "Rávetítés"
-
-
-msgid "Soft Light"
-msgstr "Lágy fény"
-
-
-msgid "Linear Light"
-msgstr "Lineáris fény"
-
-
-msgid "Difference"
-msgstr "Különbség"
-
-
-msgid "Divide"
-msgstr "Osztás"
 
 
 msgid "Brightness"
@@ -4041,6 +4001,10 @@ msgid "Blend Mode"
 msgstr "Keverési mód"
 
 
+msgid "Divide"
+msgstr "Osztás"
+
+
 msgid "Layer Opacity"
 msgstr "Réteg átlátszatlansága"
 
@@ -4083,18 +4047,6 @@ msgstr "Képkockasor"
 
 msgid "Layers"
 msgstr "Rétegek"
-
-
-msgid "Exclusion"
-msgstr "Kizárás"
-
-
-msgid "Erase Alpha"
-msgstr "Átlátszóság törlése"
-
-
-msgid "Add Alpha"
-msgstr "Átlátszóság hozzáadása"
 
 
 msgid "Box"
@@ -6012,6 +5964,14 @@ msgid "Specify how the modifier value is blended into the base value"
 msgstr "A módosító érték alapértékbe való keverésének meghatározása"
 
 
+msgid "Mix"
+msgstr "Keverés"
+
+
+msgid "Difference"
+msgstr "Különbség"
+
+
 msgid "True if the modifier tab is expanded"
 msgstr "Módosító kinyitása/összecsukása"
 
@@ -6118,6 +6078,34 @@ msgstr "Csillogás keménysége"
 
 msgid "Change line color along stroke"
 msgstr "Vonalszín megváltoztatása a vonal mentén"
+
+
+msgid "Darken"
+msgstr "Sötétítés"
+
+
+msgid "Lighten"
+msgstr "Világosítás"
+
+
+msgid "Screen"
+msgstr "Képernyő"
+
+
+msgid "Overlay"
+msgstr "Rávetítés"
+
+
+msgid "Soft Light"
+msgstr "Lágy fény"
+
+
+msgid "Linear Light"
+msgstr "Lineáris fény"
+
+
+msgid "Exclusion"
+msgstr "Kizárás"
 
 
 msgid "Line Style Geometry Modifier"
@@ -6577,24 +6565,36 @@ msgid "Use Material Mask"
 msgstr "Anyagmaszk használata"
 
 
-msgid "Clean Up"
-msgstr "Tisztítás"
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Rigid Body"
+msgstr "Szilárd test"
+
+
+msgid "Apply"
+msgstr "Elfogadás"
+
+
+msgid "Track"
+msgstr "Nyom"
 
 
 msgid "Show/Hide"
 msgstr "Mutat/Rejt"
 
 
-msgid "Metaball"
-msgstr "Meta test"
+msgid "Clean Up"
+msgstr "Tisztítás"
 
 
 msgid "Merge"
 msgstr "Összefésülés"
 
 
-msgid "Apply"
-msgstr "Elfogadás"
+msgid "Metaball"
+msgstr "Meta test"
 
 
 msgid "Keying"
@@ -6605,44 +6605,32 @@ msgid "Tracking"
 msgstr "Követés"
 
 
-msgid "Light"
-msgstr "Fényforrás"
-
-
-msgid "Track"
-msgstr "Nyom"
-
-
-msgid "Rigid Body"
-msgstr "Szilárd test"
-
-
-msgid "Relations"
-msgstr "Kapcsolatok"
-
-
-msgid "Align View"
-msgstr "Nézet igazítása"
-
-
-msgid "Navigation"
-msgstr "Navigáció"
+msgid "Mirror"
+msgstr "Tükrözés"
 
 
 msgid "Local View"
 msgstr "Helyi nézet"
 
 
-msgid "Mirror"
-msgstr "Tükrözés"
+msgid "Navigation"
+msgstr "Navigáció"
+
+
+msgid "Align View"
+msgstr "Nézet igazítása"
 
 
 msgid "Import"
 msgstr "Importálás"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Light"
+msgstr "Fényforrás"
+
+
+msgid "Relations"
+msgstr "Kapcsolatok"
 
 
 msgctxt "MovieClip"
@@ -10408,6 +10396,10 @@ msgid "Decimate Keyframes"
 msgstr "Kulcs-képkockák tizedelése"
 
 
+msgid "Both"
+msgstr "Mindkettő"
+
+
 msgid "Jump to previous/next keyframe"
 msgstr "Ugrás az előző/következő kulcskockára"
 
@@ -10934,10 +10926,6 @@ msgstr "Térháló deformálció kötés"
 
 msgid "Bind mesh to cage in mesh deform modifier"
 msgstr "Térháló kötése a ketrechez a térháló deformálás módosítóban"
-
-
-msgid "Add an metaball object to the scene"
-msgstr "Meta test hozzáadása a jelenethez"
 
 
 msgctxt "Operator"
@@ -12129,30 +12117,6 @@ msgid "Mixdown"
 msgstr "Lekeverés"
 
 
-msgid "Construct a Nurbs surface Circle"
-msgstr "Nurbs felület kör létrehozása"
-
-
-msgid "Construct a Nurbs surface Curve"
-msgstr "Nurbs felület görbe létrehozása"
-
-
-msgid "Construct a Nurbs surface Cylinder"
-msgstr "Nurbs henger létrehozása"
-
-
-msgid "Construct a Nurbs surface Sphere"
-msgstr "Nurbs gömb létrehozása"
-
-
-msgid "Construct a Nurbs surface Patch"
-msgstr "Nurbs felület darabka létrehozása"
-
-
-msgid "Construct a Nurbs surface Torus"
-msgstr "Nurbs tórusz létrehozása"
-
-
 msgid "Add a new texture"
 msgstr "Új textúra hozzáadása"
 
@@ -12793,12 +12757,12 @@ msgid "Detail Size"
 msgstr "Részlet mérete"
 
 
-msgid "Motion Tracking"
-msgstr "Mozgáskövetés"
-
-
 msgid "Render Pass"
 msgstr "Render vezeték"
+
+
+msgid "Motion Tracking"
+msgstr "Mozgáskövetés"
 
 
 msgid "Chain Scaling"
@@ -14441,6 +14405,11 @@ msgstr "Trimmelés kezdete"
 
 msgid "Outline Width"
 msgstr "Körvonal vastagsága"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Görbék"
 
 
 msgid "Translate X"
@@ -16175,10 +16144,6 @@ msgid "Saturation:"
 msgstr "Telítettség:"
 
 
-msgid "Value:"
-msgstr "Érték:"
-
-
 msgid "Alpha:"
 msgstr "Átlátszóság:"
 
@@ -16685,6 +16650,10 @@ msgid "Interpolation:"
 msgstr "Interpoláció:"
 
 
+msgid "Value:"
+msgstr "Érték:"
+
+
 msgid "Select Layer"
 msgstr "Réteg kijelölése"
 
@@ -16940,11 +16909,6 @@ msgstr "Nem lehet renderelni, nincs kamera"
 
 msgid "No border area selected"
 msgstr "Nincs téglalap-kijelölés"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Görbék"
 
 
 msgid "Glow"

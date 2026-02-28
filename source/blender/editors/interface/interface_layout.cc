@@ -181,6 +181,7 @@ struct LayoutInternal {
   static void layout_offset_size_set(Layout *layout, int x, int y, int w, int h);
   static void layout_move(Layout *layout, int delta_xmin, int delta_xmax);
   static void layout_space_set(Layout *layout, int space);
+  static int layout_space_get(Layout *layout);
 };
 
 Item::Item(ItemType type) : type_{type} {}
@@ -545,6 +546,11 @@ void LayoutInternal::layout_move(Layout *layout, int delta_xmin, int delta_xmax)
 void LayoutInternal::layout_space_set(Layout *layout, int space)
 {
   layout->space_ = space;
+}
+
+int LayoutInternal::layout_space_get(Layout *layout)
+{
+  return layout->space_;
 }
 
 /** \} */
@@ -3800,7 +3806,7 @@ static int spaces_after_column_item(const Layout *litem,
                                     const bool is_box)
 {
   if (next_item == nullptr) {
-    return 0;
+    return item->type() == ItemType::LayoutPanelHeader ? 1 : 0;
   }
   if (item->type() == ItemType::LayoutPanelHeader &&
       next_item->type() == ItemType::LayoutPanelHeader)
@@ -3808,10 +3814,16 @@ static int spaces_after_column_item(const Layout *litem,
     /* No extra space between layout panel headers. */
     return 0;
   }
-  if (item->type() == ItemType::LayoutPanelBody &&
-      !ELEM(next_item->type(), ItemType::LayoutPanelHeader, ItemType::LayoutPanelBody))
+  if (item->type() == ItemType::LayoutPanelHeader &&
+      next_item->type() == ItemType::LayoutPanelBody)
   {
-    /* One for the end of the panel and one at the start of the parent panel. */
+    /* One for the end of the panel header and one for the start of panel body. */
+    return 2;
+  }
+  if (item->type() == ItemType::LayoutPanelBody &&
+      next_item->type() == ItemType::LayoutPanelHeader)
+  {
+    /* One for the end of the panel body and one for the start of panel header. */
     return 2;
   }
   if (!is_box) {
@@ -3936,7 +3948,7 @@ void LayoutRadial::resolve_impl()
 
   int minx = x, miny = y, maxx = x, maxy = y;
 
-  this->block()->pie_data.pie_dir_mask = 0;
+  this->block()->pie_data->pie_dir_mask = 0;
 
   for (Item *item : this->items()) {
     /* Not all button types are drawn in a radial menu, do filtering here. */
@@ -3975,7 +3987,7 @@ void LayoutRadial::resolve_impl()
     }
 
     if (use_dir) {
-      this->block()->pie_data.pie_dir_mask |= 1 << int(dir);
+      this->block()->pie_data->pie_dir_mask |= 1 << int(dir);
     }
 
     const int2 size = item->size();
@@ -4045,9 +4057,8 @@ void LayoutItemPanelHeader::resolve_impl()
   const int2 size = item->size();
   y_ -= size.y;
   ui_item_position(item, x_, y_, w_, size.y);
-  const float offset = style_get_dpi()->panelspace;
   panel->runtime->layout_panels.headers.append(
-      {float(y_) - offset, float(y_ + h_) - offset, open_prop_owner, open_prop_name});
+      {float(y_), float(y_ + h_), open_prop_owner, open_prop_name});
 }
 
 /* panel body layout */
@@ -4055,10 +4066,10 @@ void LayoutItemPanelBody::resolve_impl()
 {
   Panel *panel = this->root_panel();
   LayoutColumn::resolve_impl();
-  const float offset = style_get_dpi()->panelspace;
+  const int space = LayoutInternal::layout_space_get(this->parent_);
   panel->runtime->layout_panels.bodies.append({
-      float(y_ - space_) - offset,
-      float(y_ + h_ + space_) - offset,
+      float(y_ - space),
+      float(y_ + h_ + space),
   });
 }
 
@@ -4810,7 +4821,6 @@ PanelLayout Layout::panel_prop(const bContext *C,
     header_litem->open_prop_name = open_prop_name;
 
     Layout *row = &header_litem->row(true);
-    row->ui_units_y_set(1.2f);
 
     Block *block = row->block();
     const int icon = is_open ? ICON_DOWNARROW_HLT : ICON_RIGHTARROW;
@@ -5463,6 +5473,7 @@ Layout &block_layout(Block *block,
       case LayoutType::VerticalBar:
         return MEM_new<LayoutColumn>(func, root);
       case LayoutType::PieMenu:
+        BLI_assert(block->pie_data);
         return MEM_new<LayoutRootPieMenu>(func, root);
       case LayoutType::Header:
         return MEM_new<LayoutRow>(func, ItemType::LayoutRoot, root);
@@ -5905,8 +5916,8 @@ static void ui_paneltype_draw_impl(bContext *C, PanelType *pt, Layout *layout, b
   if (show_header) {
     Layout *header = nullptr;
     if (support_layout_panel && !(pt->flag & PANEL_TYPE_NO_HEADER)) {
-      layout->separator(0.1f);
-      PanelLayout panel_layout = layout->panel(C, panel->type->idname, false);
+      PanelLayout panel_layout = layout->panel(
+          C, panel->type->idname, panel->type->flag & PANEL_TYPE_DEFAULT_CLOSED);
       header = panel_layout.header;
       body = panel_layout.body;
     }
@@ -5943,25 +5954,10 @@ static void ui_paneltype_draw_impl(bContext *C, PanelType *pt, Layout *layout, b
     return;
   }
   /* Draw child panels. */
-  Layout *prev_sub_col = nullptr;
   for (LinkData &link : pt->children) {
     PanelType *child_pt = static_cast<PanelType *>(link.data);
     if (child_pt->poll == nullptr || child_pt->poll(C, child_pt)) {
-      /* Add space if something was added to the layout. */
-      if (prev_sub_col && prev_sub_col->items().size() > 0) {
-        Item *last_sub_child = prev_sub_col->items().last();
-        Layout *last_sub_layout = ELEM(last_sub_child->type(),
-                                       ItemType::LayoutPanelBody,
-                                       ItemType::LayoutColumn) ?
-                                      static_cast<Layout *>(last_sub_child) :
-                                      nullptr;
-        if (last_sub_layout && !last_sub_layout->items().is_empty()) {
-          last_sub_layout->separator(0.2f);
-        }
-      }
-      Layout *sub_col = &body->column(false);
-      ui_paneltype_draw_impl(C, child_pt, sub_col, true);
-      prev_sub_col = sub_col;
+      ui_paneltype_draw_impl(C, child_pt, body, true);
     }
   }
 }
