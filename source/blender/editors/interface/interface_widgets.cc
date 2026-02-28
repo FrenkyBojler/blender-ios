@@ -2032,9 +2032,9 @@ Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox)
   constexpr int textbox_min_string_size_for_wrap_cache = sizeof(std::string);
   if (text.size() >= textbox_min_string_size_for_wrap_cache) {
     if (!textbox->wrap_cache) {
-      textbox->wrap_cache = std::make_unique<ButtonTextBox::WrapCache>();
+      textbox->wrap_cache = std::make_unique<TextWrapCache>();
     }
-    ButtonTextBox::WrapCache &cache = *textbox->wrap_cache;
+    TextWrapCache &cache = *textbox->wrap_cache;
     if (cache.wrap_width == width && text == cache.text) {
       return cache.wrapped_lines;
     }

@@ -780,7 +780,7 @@ void wm_event_do_notifiers(bContext *C)
 
           ED_region_do_listen(&region_params);
           if (note->category == NC_FONT_UI) {
-            blender::ui::invalidate_textboxes_wrap_cache(region);
+            ui::invalidate_text_wrap_cache(region);
           }
         }
 
@@ -807,7 +807,7 @@ void wm_event_do_notifiers(bContext *C)
             region_params.notifier = note;
             ED_region_do_listen(&region_params);
             if (note->category == NC_FONT_UI) {
-              blender::ui::invalidate_textboxes_wrap_cache(region);
+              ui::invalidate_text_wrap_cache(region);
             }
           }
         }

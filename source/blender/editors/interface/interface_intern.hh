@@ -367,6 +367,12 @@ struct Button : NonMovable {
   virtual ~Button() = default;
 };
 
+struct TextWrapCache {
+  int wrap_width = 0;
+  std::string text;
+  Vector<StringRef> wrapped_lines;
+};
+
 /** Derived struct for #ButtonType::TextBox */
 struct ButtonTextBox : public Button {
   static constexpr float grip_height_factor = 0.75f;
@@ -375,13 +381,9 @@ struct ButtonTextBox : public Button {
   /** Total number of wrapped lines in the last textbox redraw/event handling. */
   int last_total_lines = 0;
   int visible_lines = 0;
-  struct WrapCache {
-    int wrap_width = 0;
-    std::string text;
-    Vector<StringRef> wrapped_lines;
-  };
+
   /** Wrap cache from last redraw/event handling. */
-  std::unique_ptr<WrapCache> wrap_cache;
+  std::unique_ptr<TextWrapCache> wrap_cache;
   void line_scroll_set(int line_scroll);
 };
 
