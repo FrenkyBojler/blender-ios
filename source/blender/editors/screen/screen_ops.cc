@@ -5037,7 +5037,7 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
         wmWindow *close_win = jd->win1;
         area_join_exit(C, op);
         if (do_close_win) {
-          wm_window_close(C, CTX_wm_manager(C), close_win);
+          wm_window_close_request(C, CTX_wm_manager(C), close_win);
         }
 
         WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
@@ -6938,31 +6938,56 @@ static float ed_region_animation_ease(RegionAnimationEase ease, float t)
   switch (ease) {
     case RegionAnimationEase::Linear:
       return t;
-    case RegionAnimationEase::Sine:
+    case RegionAnimationEase::SineOut:
       return BLI_easing_sine_ease_out(t, begin, change, duration);
-    case RegionAnimationEase::Quad:
+    case RegionAnimationEase::SineIn:
+      return BLI_easing_sine_ease_in(t, begin, change, duration);
+    case RegionAnimationEase::QuadOut:
       return BLI_easing_quad_ease_out(t, begin, change, duration);
-    case RegionAnimationEase::Cubic:
+    case RegionAnimationEase::QuadIn:
+      return BLI_easing_quad_ease_in(t, begin, change, duration);
+    case RegionAnimationEase::CubicOut:
       return BLI_easing_cubic_ease_out(t, begin, change, duration);
-    case RegionAnimationEase::Quart:
+    case RegionAnimationEase::CubicIn:
+      return BLI_easing_cubic_ease_in(t, begin, change, duration);
+    case RegionAnimationEase::QuartOut:
       return BLI_easing_quart_ease_out(t, begin, change, duration);
-    case RegionAnimationEase::Quint:
+    case RegionAnimationEase::QuartIn:
+      return BLI_easing_quart_ease_in(t, begin, change, duration);
+    case RegionAnimationEase::QuintOut:
       return BLI_easing_quint_ease_out(t, begin, change, duration);
-    case RegionAnimationEase::Expo:
+    case RegionAnimationEase::QuintIn:
+      return BLI_easing_quint_ease_in(t, begin, change, duration);
+    case RegionAnimationEase::ExpoOut:
       return BLI_easing_expo_ease_out(t, begin, change, duration);
-    case RegionAnimationEase::Circ:
+    case RegionAnimationEase::ExpoIn:
+      return BLI_easing_expo_ease_in(t, begin, change, duration);
+    case RegionAnimationEase::CircOut:
       return BLI_easing_circ_ease_out(t, begin, change, duration);
-    case RegionAnimationEase::Back: {
+    case RegionAnimationEase::CircIn:
+      return BLI_easing_circ_ease_in(t, begin, change, duration);
+    case RegionAnimationEase::BackOut: {
       const float overshoot = 1.702f;
       return BLI_easing_back_ease_out(t, begin, change, duration, overshoot);
     }
-    case RegionAnimationEase::Elastic: {
+    case RegionAnimationEase::BackIn: {
+      const float overshoot = 1.702f;
+      return BLI_easing_back_ease_in(t, begin, change, duration, overshoot);
+    }
+    case RegionAnimationEase::ElasticOut: {
       const float amplitude = 0.15f;
       const float period = 0.15f;
       return BLI_easing_elastic_ease_out(t, begin, change, duration, amplitude, period);
     }
-    case RegionAnimationEase::Bounce:
+    case RegionAnimationEase::ElasticIn: {
+      const float amplitude = 0.15f;
+      const float period = 0.15f;
+      return BLI_easing_elastic_ease_in(t, begin, change, duration, amplitude, period);
+    }
+    case RegionAnimationEase::BounceOut:
       return BLI_easing_bounce_ease_out(t, begin, change, duration);
+    case RegionAnimationEase::BounceIn:
+      return BLI_easing_bounce_ease_in(t, begin, change, duration);
   }
 
   return t;
@@ -7139,7 +7164,7 @@ void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARe
                                 ANIMATION_DURATION_REGION,
                                 RegionAnimationType::Slide,
                                 dir,
-                                RegionAnimationEase::Quad);
+                                RegionAnimationEase::QuadOut);
 
   wmWindow *win = CTX_wm_window(C);
 

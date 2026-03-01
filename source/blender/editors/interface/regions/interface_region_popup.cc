@@ -861,11 +861,11 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
      * additionally we add some padding for the menu shadow or rounded menus */
 
     const int top_margin = (block->direction & UI_DIR_DOWN) ?
-                         (block->flag & BLOCK_POPOVER ? UI_POPUP_MENU_TOP : 0) :
-                         margin;
+                               (block->flag & BLOCK_POPOVER ? UI_POPUP_MENU_TOP : 0) :
+                               margin;
     const int bottom_margin = (block->direction & UI_DIR_DOWN) ?
-                            margin :
-                            (block->flag & BLOCK_POPOVER ? UI_POPUP_MENU_TOP : 0);
+                                  margin :
+                                  (block->flag & BLOCK_POPOVER ? UI_POPUP_MENU_TOP : 0);
 
     region->winrct.xmin = block->rect.xmin - margin;
     region->winrct.xmax = block->rect.xmax + margin;
@@ -880,7 +880,8 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
       ymin = min_ff(ymin, bt.rect.ymin);
       ymax = max_ff(ymax, bt.rect.ymax);
     }
-    const int scroll_pad = block_is_menu(block) ? UI_MENU_SCROLL_PAD : UI_UNIT_Y * 0.5f;
+    const float scroll_pad = (block_is_menu(block) ? UI_MENU_SCROLL_PAD : UI_UNIT_Y * 0.5f) /
+                             block->aspect;
     const float scroll_min = std::min(block->rect.ymax - ymax - scroll_pad, 0.0f);
     const float scroll_max = std::max(block->rect.ymin - ymin + scroll_pad, 0.0f);
     handle->scrolloffset = std::clamp(handle->scrolloffset, scroll_min, scroll_max);
@@ -893,7 +894,7 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
     }
     /* Layout panels are relative to `block->rect.ymax`. Rather than a
      * scroll, this is a offset applied due to the overflow at the top. */
-    layout_panel_popup_scroll_apply(block->panel, -scroll_min);
+    layout_panel_popup_scroll_apply(block->panel, -scroll_min - scroll_pad);
   }
   /* Apply popup scroll offset to layout panels. */
   layout_panel_popup_scroll_apply(block->panel, handle->scrolloffset);
@@ -1019,7 +1020,7 @@ PopupBlockHandle *popup_block_create(bContext *C,
     float duration = ANIMATION_DURATION_MENU;
     RegionAnimationDirection dir;
     RegionAnimationType anim_type;
-    RegionAnimationEase ease = RegionAnimationEase::Quad;
+    RegionAnimationEase ease = RegionAnimationEase::QuadOut;
 
     if (block->direction & UI_DIR_UP) {
       dir = RegionAnimationDirection::Up;
@@ -1050,7 +1051,7 @@ PopupBlockHandle *popup_block_create(bContext *C,
       else {
         anim_type = RegionAnimationType::Expand;
         duration = ANIMATION_DURATION_LARGE_DIALOG;
-        ease = RegionAnimationEase::Back;
+        ease = RegionAnimationEase::BackOut;
       }
     }
 
