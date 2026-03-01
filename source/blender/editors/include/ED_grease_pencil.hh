@@ -21,6 +21,8 @@
 
 #include "WM_api.hh"
 
+namespace blender {
+
 struct bContext;
 struct BrushColorJitterSettings;
 struct BrushGpencilSettings;
@@ -41,13 +43,11 @@ struct BVHTree;
 struct GreasePencilLineartModifierData;
 struct RV3DMatrixStore;
 
-namespace blender {
 class RandomNumberGenerator;
 namespace bke {
 enum class AttrDomain : int8_t;
 class CurvesGeometry;
 }  // namespace bke
-}  // namespace blender
 
 enum {
   LAYER_REORDER_ABOVE,
@@ -95,14 +95,11 @@ void ED_undosys_type_grease_pencil(UndoType *ut);
 /**
  * Get the selection mode for Grease Pencil selection operators: point, stroke, segment.
  */
-blender::bke::AttrDomain ED_grease_pencil_edit_selection_domain_get(
-    const ToolSettings *tool_settings);
-blender::bke::AttrDomain ED_grease_pencil_sculpt_selection_domain_get(
-    const ToolSettings *tool_settings);
-blender::bke::AttrDomain ED_grease_pencil_vertex_selection_domain_get(
-    const ToolSettings *tool_settings);
-blender::bke::AttrDomain ED_grease_pencil_selection_domain_get(const ToolSettings *tool_settings,
-                                                               const Object *object);
+bke::AttrDomain ED_grease_pencil_edit_selection_domain_get(const ToolSettings *tool_settings);
+bke::AttrDomain ED_grease_pencil_sculpt_selection_domain_get(const ToolSettings *tool_settings);
+bke::AttrDomain ED_grease_pencil_vertex_selection_domain_get(const ToolSettings *tool_settings);
+bke::AttrDomain ED_grease_pencil_selection_domain_get(const ToolSettings *tool_settings,
+                                                      const Object *object);
 /**
  * True if any vertex mask selection is used.
  */
@@ -119,7 +116,7 @@ bool ED_grease_pencil_segment_selection_enabled(const ToolSettings *tool_setting
 
 /** \} */
 
-namespace blender::ed::greasepencil {
+namespace ed::greasepencil {
 
 enum class ReprojectMode : int8_t { Front, Side, Top, View, Cursor, Surface, Keep };
 
@@ -240,7 +237,7 @@ void select_layer_channel(GreasePencil &grease_pencil, bke::greasepencil::Layer 
 struct KeyframeClipboard {
   /* Datatype for use in copy/paste buffer. */
   struct DrawingBufferItem {
-    blender::bke::greasepencil::FramesMapKeyT frame_number;
+    bke::greasepencil::FramesMapKeyT frame_number;
     bke::greasepencil::Drawing drawing;
     int duration;
     eBezTriple_KeyframeType keytype;
@@ -248,8 +245,8 @@ struct KeyframeClipboard {
 
   struct LayerBufferItem {
     Vector<DrawingBufferItem> drawing_buffers;
-    blender::bke::greasepencil::FramesMapKeyT first_frame;
-    blender::bke::greasepencil::FramesMapKeyT last_frame;
+    bke::greasepencil::FramesMapKeyT first_frame;
+    bke::greasepencil::FramesMapKeyT last_frame;
   };
 
   Map<std::string, LayerBufferItem> copy_buffer{};
@@ -413,9 +410,11 @@ IndexMask retrieve_visible_strokes(Object &grease_pencil_object,
 IndexMask retrieve_visible_points(Object &object,
                                   const bke::greasepencil::Drawing &drawing,
                                   IndexMaskMemory &memory);
-IndexMask retrieve_visible_shapes(Object &object,
-                                  const bke::greasepencil::Drawing &drawing,
-                                  IndexMaskMemory &memory);
+
+/* Note that this the fills that are visible, not the stroke that are also fills. */
+IndexMask retrieve_visible_fills(Object &object,
+                                 const bke::greasepencil::Drawing &drawing,
+                                 IndexMaskMemory &memory);
 
 IndexMask retrieve_visible_bezier_strokes(Object &object,
                                           const bke::greasepencil::Drawing &drawing,
@@ -904,7 +903,6 @@ bool apply_mask_as_selection(bke::CurvesGeometry &curves,
                              const IndexMask &selection,
                              bke::AttrDomain selection_domain,
                              StringRef attribute_name,
-                             GrainSize grain_size,
                              eSelectOp sel_op);
 
 bool apply_mask_as_segment_selection(bke::CurvesGeometry &curves,
@@ -912,7 +910,6 @@ bool apply_mask_as_segment_selection(bke::CurvesGeometry &curves,
                                      StringRef attribute_name,
                                      const Curves2DBVHTree &tree_data,
                                      IndexRange tree_data_range,
-                                     GrainSize grain_size,
                                      eSelectOp sel_op);
 
 namespace trim {
@@ -972,10 +969,9 @@ struct CurveBooleanOpParameters {
 
 bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                   const bke::CurvesGeometry &curves,
-                                  const std::optional<GroupedSpan<int>> shapes,
+                                  const std::optional<GroupedSpan<int>> fills,
                                   Span<float4> normal_planes,
-                                  const IndexMask &mask_shapes,
-                                  const IndexMask &clipping_shapes,
+                                  const IndexMask &clipping_fills,
                                   const float4x4 &layer_to_world,
                                   const ARegion &region,
                                   bool keep_caps);
@@ -1063,7 +1059,7 @@ float randomize_rotation(const BrushGpencilSettings &settings,
  * \param pressure: Pressure factor.
  */
 float randomize_rotation(const BrushGpencilSettings &settings,
-                         blender::RandomNumberGenerator &rng,
+                         RandomNumberGenerator &rng,
                          float stroke_factor,
                          float pressure);
 /**
@@ -1103,4 +1099,5 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
  */
 bool remove_fill_guides(bke::CurvesGeometry &curves);
 
-}  // namespace blender::ed::greasepencil
+}  // namespace ed::greasepencil
+}  // namespace blender

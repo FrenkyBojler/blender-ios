@@ -50,10 +50,19 @@ static inline Language language_from_filename(const std::string &filename)
 class SourceProcessor {
  public:
   using report_callback = parser::report_callback;
-  using Parser = parser::IntermediateForm;
+  using Parser = parser::IntermediateForm<parser::FullLexer, parser::FullParser>;
   using Scope = parser::Scope;
   using Token = parser::Token;
   using Tokens = std::vector<parser::Token>;
+
+  /* Cannot use `__` because of some compilers complaining about reserved symbols. */
+  static constexpr const char *namespace_separator = "_";
+  /* Add a prefix to all member functions so that they are not clashing with local variables. */
+  static constexpr const char *method_call_prefix = "_";
+  static constexpr const char *linted_struct_suffix = "_host_shared_";
+  static constexpr const char *uniform_struct_suffix = "uniform_";
+
+#define ERROR_TOK(token) (token).line_number(), (token).char_number(), (token).line_str()
 
  private:
   const std::string source_;
@@ -88,6 +97,12 @@ class SourceProcessor {
   /* Lightweight parsing. Only Source::dependencies and Source::symbol_table are populated. */
   metadata::Source parse_include_and_symbols();
 
+  /* Return the input string with comments removed. */
+  std::string remove_comments()
+  {
+    return remove_comments(source_);
+  }
+
   /* String hash are outputted inside GLSL and needs to fit 32 bits. */
   static uint32_t hash_string(const std::string &str)
   {
@@ -99,16 +114,14 @@ class SourceProcessor {
  private:
   /* --- Cleanup --- */
 
-  /* Remove single and multiline comments to avoid this complexity during parsing. */
+  /** Remove single and multi-line comments to avoid this complexity during parsing. */
   std::string remove_comments(const std::string &str);
   /* Lower preprocessor directives containing `GPU_SHADER`.
    * Avoid processing code that is not destined to be shader code and could contain unsupported
    * syntax. */
   std::string disabled_code_mutation(const std::string &str);
   /* Remove trailing white spaces. */
-  void cleanup_whitespace(Parser &parser);
-  /* Remove trailing white spaces. Version without Parser. */
-  std::string cleanup_whitespace(const std::string &str);
+  template<typename ParserT> void cleanup_whitespace(ParserT &parser);
   /* Successive mutations can introduce a lot of unneeded line directives. */
   void cleanup_line_directives(Parser &parser);
   /* Successive mutations can introduce a lot of unneeded blank lines. */
@@ -128,7 +141,7 @@ class SourceProcessor {
   void parse_includes(Parser &parser);
   /* Parse special pragma. */
   void parse_pragma_runtime_generated(Parser &parser);
-  /* Populate metadata::functions for runtime nodetree compilation. */
+  /** Populate metadata::functions for runtime node-tree compilation. */
   void parse_library_functions(Parser &parser);
   /* Populate metadata::builtins by scanning source for keywords. Can trigger false positive.
    * This is mostly legacy path as most builtin should be explicitly defined inside the BSL entry
@@ -157,7 +170,7 @@ class SourceProcessor {
   /* --- Lowering --- */
 
   /**
-   * Given our codestyle, we don't need the disambiguation.
+   * Given our code-style, we don't need the disambiguation.
    * Example: `x.template foo<int>()` > `x.foo<int>()`
    */
   void lower_template_dependent_names(Parser &parser);
@@ -175,18 +188,18 @@ class SourceProcessor {
   /**
    * Needs to run before namespace mutation so that `using` have more precedence.
    * Otherwise the following would fail.
-   *  ```cpp
-   *  namespace B {
-   *  int test(int a) {}
-   *  }
+   * \code{.cc}
+   * namespace B {
+   * int test(int a) {}
+   * }
    *
-   *  namespace A {
-   *  int test(int a) {}
-   *  int func(int a) {
-   *    using B::test;
-   *    return test(a); // Should reference B::test and not A::test
-   *  }
-   *  ```
+   * namespace A {
+   * int test(int a) {}
+   * int func(int a) {
+   *   using B::test;
+   *   return test(a); // Should reference B::test and not A::test
+   * }
+   * \endcode
    */
   void lower_using(Parser &parser);
   /* Example: `A::B` --> `A_B` */
@@ -315,7 +328,7 @@ class SourceProcessor {
   int static_array_size(const Scope &array, int fallback_value);
 
  public:
-  /* Remove trailing whitespaces. */
+  /** Remove trailing white-spaces. */
   static std::string strip_whitespace(const std::string &str);
 
   /* Example: `VertOut<float, 1>` > `VertOutTfloatT1` */

@@ -47,8 +47,7 @@
 /* For querying audio files. */
 #ifdef WITH_AUDASPACE
 #  include "BKE_sound.hh"
-#  include <AUD_Sound.h>
-#  include <AUD_Special.h>
+#  include <file/File.h>
 #endif
 
 /* Own include. */
@@ -302,7 +301,7 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
   if (id != nullptr) {
     const ID_Type id_type = GS(id->name);
     if (id_type == ID_IM) {
-      Image *ima = (Image *)id;
+      Image *ima = id_cast<Image *>(id);
       PointerRNA itemptr;
       char dir[FILE_MAX], file[FILE_MAX];
       BLI_path_split_dir_file(ima->filepath, dir, sizeof(dir), file, sizeof(file));
@@ -312,12 +311,12 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
       RNA_string_set(&itemptr, "name", file);
     }
     else if (id_type == ID_MC) {
-      MovieClip *clip = (MovieClip *)id;
+      MovieClip *clip = id_cast<MovieClip *>(id);
       RNA_string_set(drop->ptr, "filepath", clip->filepath);
       RNA_struct_property_unset(drop->ptr, "name");
     }
     else if (id_type == ID_SO) {
-      bSound *sound = (bSound *)id;
+      bSound *sound = id_cast<bSound *>(id);
       RNA_string_set(drop->ptr, "filepath", sound->filepath);
       RNA_struct_property_unset(drop->ptr, "name");
     }
@@ -353,15 +352,15 @@ static void get_drag_path(const bContext *C, wmDrag *drag, char r_path[FILE_MAX]
   if (id != nullptr) {
     const ID_Type id_type = GS(id->name);
     if (id_type == ID_IM) {
-      Image *ima = (Image *)id;
+      Image *ima = id_cast<Image *>(id);
       BLI_strncpy(r_path, ima->filepath, FILE_MAX);
     }
     else if (id_type == ID_MC) {
-      MovieClip *clip = (MovieClip *)id;
+      MovieClip *clip = id_cast<MovieClip *>(id);
       BLI_strncpy(r_path, clip->filepath, FILE_MAX);
     }
     else if (id_type == ID_SO) {
-      bSound *sound = (bSound *)id;
+      bSound *sound = id_cast<bSound *>(id);
       BLI_strncpy(r_path, sound->filepath, FILE_MAX);
     }
     BLI_path_abs(r_path, ID_BLEND_PATH_FROM_GLOBAL(id));
@@ -391,9 +390,9 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
 
   /* Sometimes the active theme is not the sequencer theme, e.g. when an operator invokes the
    * file browser. This makes sure we get the right color values for the theme. */
-  blender::ui::theme::bThemeState theme_state;
-  blender::ui::theme::theme_store(&theme_state);
-  blender::ui::theme::theme_set(SPACE_SEQ, RGN_TYPE_WINDOW);
+  ui::theme::bThemeState theme_state;
+  ui::theme::theme_store(&theme_state);
+  ui::theme::theme_set(SPACE_SEQ, RGN_TYPE_WINDOW);
 
   if (coords->use_snapping) {
     ui::view2d_view_ortho(&region->v2d);
@@ -512,7 +511,7 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
   batch.flush_batch();
 
   /* Clean after drawing up. */
-  blender::ui::theme::theme_restore(&theme_state);
+  ui::theme::theme_restore(&theme_state);
   GPU_matrix_pop();
   GPU_blend(GPU_BLEND_NONE);
 
@@ -544,23 +543,22 @@ struct DropJobData {
 
 static void prefetch_data_fn(void *custom_data, wmJobWorkerStatus * /*worker_status*/)
 {
-  DropJobData *job_data = (DropJobData *)custom_data;
+  DropJobData *job_data = static_cast<DropJobData *>(custom_data);
 
   if (job_data->only_audio) {
 #ifdef WITH_AUDASPACE
     /* Get the sound file length */
-    AUD_Sound *sound = AUD_Sound_file(job_data->path);
+    AUD_Sound sound = AUD_Sound(new aud::File(job_data->path));
     if (sound != nullptr) {
 
-      AUD_SoundInfo info = AUD_getInfo(sound);
-      if ((eSoundChannels)info.specs.channels != SOUND_CHANNELS_INVALID) {
+      SoundInfo info = bke::sound_info_get(sound);
+      if (info.specs.channels != SOUND_CHANNELS_INVALID) {
         g_drop_coords.audio_length = info.length;
       }
       /* The playback rate is defined by the scene. This will be computed later in
        * #update_overlay_strip_position_data, when we know the scene from the context. So set it to
        * 0 for now. */
       g_drop_coords.playback_rate = 0.0f;
-      AUD_Sound_free(sound);
       return;
     }
 #endif
@@ -577,14 +575,13 @@ static void prefetch_data_fn(void *custom_data, wmJobWorkerStatus * /*worker_sta
     MOV_close(anim);
 #ifdef WITH_AUDASPACE
     /* Try to load sound and see if the video has a sound channel. */
-    AUD_Sound *sound = AUD_Sound_file(job_data->path);
+    AUD_Sound sound = AUD_Sound(new aud::File(job_data->path));
     if (sound != nullptr) {
 
-      AUD_SoundInfo info = AUD_getInfo(sound);
-      if ((eSoundChannels)info.specs.channels != SOUND_CHANNELS_INVALID) {
+      SoundInfo info = bke::sound_info_get(sound);
+      if (info.specs.channels != SOUND_CHANNELS_INVALID) {
         g_drop_coords.channel_len = 2;
       }
-      AUD_Sound_free(sound);
     }
 #endif
   }
@@ -592,8 +589,8 @@ static void prefetch_data_fn(void *custom_data, wmJobWorkerStatus * /*worker_sta
 
 static void free_prefetch_data_fn(void *custom_data)
 {
-  DropJobData *job_data = (DropJobData *)custom_data;
-  MEM_freeN(job_data);
+  DropJobData *job_data = static_cast<DropJobData *>(custom_data);
+  MEM_delete(job_data);
 }
 
 static void start_audio_video_job(bContext *C, wmDrag *drag, bool only_audio)
@@ -610,7 +607,7 @@ static void start_audio_video_job(bContext *C, wmDrag *drag, bool only_audio)
                               eWM_JobFlag(0),
                               WM_JOB_TYPE_SEQ_DRAG_DROP_PREVIEW);
 
-  DropJobData *job_data = MEM_mallocN<DropJobData>("SeqDragDropPreviewData");
+  DropJobData *job_data = MEM_new_uninitialized<DropJobData>("SeqDragDropPreviewData");
   get_drag_path(C, drag, job_data->path);
 
   job_data->only_audio = only_audio;

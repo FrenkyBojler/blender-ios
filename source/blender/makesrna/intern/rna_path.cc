@@ -35,12 +35,14 @@
 #include "rna_access_internal.hh"
 #include "rna_internal.hh"
 
+namespace blender {
+
 int64_t RNAPath::hash() const
 {
   if (key.has_value()) {
-    return blender::get_default_hash(path, key.value());
+    return get_default_hash(path, key.value());
   }
-  return blender::get_default_hash(path, index.value_or(0));
+  return get_default_hash(path, index.value_or(0));
 };
 
 bool operator==(const RNAPath &left, const RNAPath &right)
@@ -79,7 +81,8 @@ static char *rna_path_token(const char **path, char *fixedbuf, int fixedlen)
   }
 
   /* Try to use fixed buffer if possible. */
-  char *buf = (len + 1 < fixedlen) ? fixedbuf : MEM_malloc_arrayN<char>(size_t(len) + 1, __func__);
+  char *buf = (len + 1 < fixedlen) ? fixedbuf :
+                                     MEM_new_array_uninitialized<char>(size_t(len) + 1, __func__);
   memcpy(buf, *path, sizeof(char) * len);
   buf[len] = '\0';
 
@@ -158,7 +161,8 @@ static char *rna_path_token_in_brackets(const char **path,
   }
 
   /* Try to use fixed buffer if possible. */
-  char *buf = (len + 1 < fixedlen) ? fixedbuf : MEM_malloc_arrayN<char>(size_t(len) + 1, __func__);
+  char *buf = (len + 1 < fixedlen) ? fixedbuf :
+                                     MEM_new_array_uninitialized<char>(size_t(len) + 1, __func__);
 
   /* Copy string, taking into account escaped ']' */
   if (quoted) {
@@ -240,7 +244,7 @@ static bool rna_path_parse_collection_key(const char **path,
     }
 
     if (token != fixedbuf) {
-      MEM_freeN(token);
+      MEM_delete(token);
     }
   }
   else {
@@ -297,7 +301,7 @@ static bool rna_path_parse_array_index(const char **path,
 
         if (temp_index == 0 && (token[0] != '0' || token[1] != '\0')) {
           if (token != fixedbuf) {
-            MEM_freeN(token);
+            MEM_delete(token);
           }
 
           return false;
@@ -319,7 +323,7 @@ static bool rna_path_parse_array_index(const char **path,
     }
 
     if (token != fixedbuf) {
-      MEM_freeN(token);
+      MEM_delete(token);
     }
 
     /* out of range */
@@ -427,7 +431,7 @@ static bool rna_path_parse(const PointerRNA *ptr,
     if (use_id_prop) { /* look up property name in current struct */
       IDProperty *group = RNA_struct_idprops(&curptr, false);
       if (group && quoted) {
-        prop = (PropertyRNA *)IDP_GetPropertyFromGroup(group, token);
+        prop = reinterpret_cast<PropertyRNA *>(IDP_GetPropertyFromGroup(group, token));
       }
     }
     else {
@@ -435,7 +439,7 @@ static bool rna_path_parse(const PointerRNA *ptr,
     }
 
     if (token != fixedbuf) {
-      MEM_freeN(token);
+      MEM_delete(token);
     }
 
     if (!prop) {
@@ -688,14 +692,14 @@ static UNUSED_FUNCTION_WITH_RETURN_TYPE(char *, RNA_path_back)(const char *path)
       return nullptr;
     }
     if (token != fixedbuf) {
-      MEM_freeN(token);
+      MEM_delete(token);
     }
 
     /* in case of collection we also need to strip off [] */
     bool quoted;
     token = rna_path_token_in_brackets(&current, fixedbuf, sizeof(fixedbuf), &quoted);
     if (token && token != fixedbuf) {
-      MEM_freeN(token);
+      MEM_delete(token);
     }
 
     if (!*current) {
@@ -814,7 +818,7 @@ static char *rna_idp_path_create(IDP_Chain *child_link)
   BLI_dynstr_free(dynstr);
 
   if (*path == '\0') {
-    MEM_freeN(path);
+    MEM_delete(path);
     path = nullptr;
   }
 
@@ -934,7 +938,7 @@ std::optional<std::string> RNA_path_from_struct_to_idproperty(PointerRNA *ptr,
   }
 
   std::string string_path(path);
-  MEM_freeN(path);
+  MEM_delete(path);
 
   return string_path;
 }
@@ -983,7 +987,7 @@ ID *RNA_find_real_ID_and_path(ID *id, const char **r_path)
 
 static std::optional<std::string> rna_prepend_real_ID_path(Main * /*bmain*/,
                                                            ID *id,
-                                                           const blender::StringRef path,
+                                                           const StringRef path,
                                                            ID **r_real_id)
 {
   if (r_real_id != nullptr) {
@@ -1024,7 +1028,7 @@ std::optional<std::string> RNA_path_from_ID_to_struct(const PointerRNA *ptr)
   if (!RNA_struct_is_ID(ptr->type)) {
     if (ptr->type->path) {
       /* if type has a path to some ID, use it */
-      ptrpath = ptr->type->path((PointerRNA *)ptr);
+      ptrpath = ptr->type->path(const_cast<PointerRNA *>(ptr));
     }
     else if (ptr->type->nested && RNA_struct_is_ID(ptr->type->nested)) {
       PropertyRNA *userprop;
@@ -1043,7 +1047,7 @@ std::optional<std::string> RNA_path_from_ID_to_struct(const PointerRNA *ptr)
         return std::nullopt;
       }
     }
-    else if (RNA_struct_is_a(ptr->type, &RNA_PropertyGroup)) {
+    else if (RNA_struct_is_a(ptr->type, RNA_PropertyGroup)) {
       /* special case, easier to deal with here than in ptr->type->path() */
       return rna_path_from_ID_to_idpgroup(ptr);
     }
@@ -1109,7 +1113,7 @@ static std::string rna_path_from_ptr_to_property_index_ex(const PointerRNA *ptr,
                                                           PropertyRNA *prop,
                                                           int index_dim,
                                                           int index,
-                                                          const blender::StringRef path_prefix)
+                                                          const StringRef path_prefix)
 {
   const bool is_rna = (prop->magic == RNA_MAGIC);
 
@@ -1215,7 +1219,7 @@ std::optional<std::string> RNA_path_resolve_from_type_to_property(const PointerR
       if (RNA_struct_is_a(prop_elem.ptr.type, type)) {
         if (const std::optional<std::string> ref_path = RNA_path_from_ID_to_struct(&prop_elem.ptr))
         {
-          path = blender::StringRef(*full_path).drop_prefix(ref_path->size() + 1);
+          path = StringRef(*full_path).drop_prefix(ref_path->size() + 1);
         }
         break;
       }
@@ -1358,3 +1362,5 @@ std::string RNA_path_property_py(const PointerRNA *ptr, PropertyRNA *prop, int i
   const int index_dim = (index == -1) ? 0 : 1;
   return RNA_path_from_ptr_to_property_index(ptr, prop, index_dim, index);
 }
+
+}  // namespace blender

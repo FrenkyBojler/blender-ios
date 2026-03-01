@@ -72,7 +72,7 @@ static void seqbase_unique_name(ListBaseT<Strip> *seqbasep, StripUniqueInfo *sui
 static bool seqbase_unique_name_recursive_fn(Strip *strip, void *arg_pt)
 {
   if (strip->seqbase.first) {
-    seqbase_unique_name(&strip->seqbase, (StripUniqueInfo *)arg_pt);
+    seqbase_unique_name(&strip->seqbase, static_cast<StripUniqueInfo *>(arg_pt));
   }
   return true;
 }
@@ -127,6 +127,8 @@ const char *get_default_stripname_by_type(int type)
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Crossfade");
     case STRIP_TYPE_GAMCROSS:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Gamma Crossfade");
+    case STRIP_TYPE_COMPOSITOR:
+      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Compositor");
     case STRIP_TYPE_ADD:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Add");
     case STRIP_TYPE_SUB:

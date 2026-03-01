@@ -18,6 +18,7 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_vfont_types.h"
 
 #include "BKE_collection.hh"
 #include "BKE_global.hh"
@@ -48,10 +49,10 @@
 #include "intern/depsgraph_tag.hh"
 #include "intern/depsgraph_type.hh"
 
+namespace blender {
+
 /* ****************** */
 /* External Build API */
-
-namespace deg = blender::deg;
 
 static deg::NodeType deg_build_scene_component_type(eDepsSceneComponentType component)
 {
@@ -195,6 +196,14 @@ void DEG_add_bone_relation(DepsNodeHandle *node_handle,
   deg_node_handle->builder->add_node_handle_relation(comp_key, deg_node_handle, description);
 }
 
+void DEG_add_vfont_relation(DepsNodeHandle *handle, VFont *vfont, const char *description)
+{
+  deg::OperationKey operation_key(
+      &vfont->id, deg::NodeType::PARAMETERS, deg::OperationCode::PARAMETERS_EXIT);
+  deg::DepsNodeHandle *deg_node_handle = get_node_handle(handle);
+  deg_node_handle->builder->add_node_handle_relation(operation_key, deg_node_handle, description);
+}
+
 void DEG_add_object_pointcache_relation(DepsNodeHandle *node_handle,
                                         Object *object,
                                         eDepsObjectComponentType component,
@@ -286,7 +295,7 @@ void DEG_graph_build_for_compositor_preview(Depsgraph *graph, bNodeTree *nodetre
   builder.build();
 }
 
-void DEG_graph_build_from_ids(Depsgraph *graph, blender::Span<ID *> ids)
+void DEG_graph_build_from_ids(Depsgraph *graph, Span<ID *> ids)
 {
   deg::FromIDsBuilderPipeline builder(graph, ids);
   builder.build();
@@ -321,7 +330,7 @@ void DEG_graph_tag_relations_update(Depsgraph *graph)
 
 void DEG_graph_relations_update(Depsgraph *graph)
 {
-  deg::Depsgraph *deg_graph = (deg::Depsgraph *)graph;
+  deg::Depsgraph *deg_graph = reinterpret_cast<deg::Depsgraph *>(graph);
   if (!deg_graph->need_update_relations) {
     /* Graph is up to date, nothing to do. */
     return;
@@ -336,3 +345,5 @@ void DEG_relations_tag_update(Main *bmain)
     DEG_graph_tag_relations_update(reinterpret_cast<Depsgraph *>(depsgraph));
   }
 }
+
+}  // namespace blender

@@ -34,6 +34,8 @@
 
 #include "render_intern.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Utilities for Finding Areas
  * \{ */
@@ -315,7 +317,7 @@ static wmOperatorStatus render_view_cancel_exec(bContext *C, wmOperator * /*op*/
     return OPERATOR_FINISHED;
   }
   if (WM_window_is_temp_screen(win)) {
-    wm_window_close(C, CTX_wm_manager(C), win);
+    wm_window_close_request(C, CTX_wm_manager(C), win);
     return OPERATOR_FINISHED;
   }
 
@@ -326,7 +328,7 @@ void RENDER_OT_view_cancel(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Cancel Render View";
-  ot->description = "Cancel show render view";
+  ot->description = "Cancel showing the render view";
   ot->idname = "RENDER_OT_view_cancel";
 
   /* API callbacks. */
@@ -357,7 +359,7 @@ static wmOperatorStatus render_view_show_invoke(bContext *C, wmOperator *op, con
       const bScreen *screen = WM_window_get_active_screen(&win);
 
       if ((WM_window_is_temp_screen(&win) &&
-           ((ScrArea *)screen->areabase.first)->spacetype == SPACE_IMAGE) ||
+           (static_cast<ScrArea *>(screen->areabase.first))->spacetype == SPACE_IMAGE) ||
           (&win == win_show && win_show != wincur))
       {
         wm_window_raise(&win);
@@ -405,3 +407,5 @@ void RENDER_OT_view_show(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

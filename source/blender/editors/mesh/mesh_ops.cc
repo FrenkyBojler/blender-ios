@@ -16,6 +16,8 @@
 
 #include "mesh_intern.hh" /* own include */
 
+namespace blender {
+
 /**************************** registration **********************************/
 
 void ED_operatortypes_mesh()
@@ -116,7 +118,8 @@ void ED_operatortypes_mesh()
   WM_operatortype_append(MESH_OT_select_similar);
   WM_operatortype_append(MESH_OT_select_similar_region);
   WM_operatortype_append(MESH_OT_select_mode);
-  WM_operatortype_append(MESH_OT_loop_multi_select);
+  WM_operatortype_append(MESH_OT_select_edge_loop_multi);
+  WM_operatortype_append(MESH_OT_select_edge_ring_multi);
   WM_operatortype_append(MESH_OT_mark_seam);
   WM_operatortype_append(MESH_OT_mark_sharp);
 #if defined(WITH_FREESTYLE)
@@ -188,6 +191,8 @@ void ED_operatortypes_mesh()
   WM_operatortype_append(MESH_OT_mod_weighted_strength);
   WM_operatortype_append(MESH_OT_flip_quad_tessellation);
   WM_operatortype_append(MESH_OT_reorder_vertices_spatial);
+
+  WM_operatortype_append(MESH_OT_circularize);
 }
 
 #if 0 /* UNUSED, remove? */
@@ -364,3 +369,5 @@ void ED_keymap_mesh(wmKeyConfig *keyconf)
   point_normals_modal_keymap(keyconf);
   bevel_modal_keymap(keyconf);
 }
+
+}  // namespace blender

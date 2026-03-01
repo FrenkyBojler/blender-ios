@@ -20,6 +20,8 @@
 #include "BKE_blender_user_menu.hh"
 #include "BKE_idprop.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Menu Type
  * \{ */
@@ -42,7 +44,7 @@ bUserMenu *BKE_blender_user_menu_ensure(ListBaseT<bUserMenu> *lb,
 {
   bUserMenu *um = BKE_blender_user_menu_find(lb, space_type, context);
   if (um == nullptr) {
-    um = MEM_new_for_free<bUserMenu>(__func__);
+    um = MEM_new<bUserMenu>(__func__);
     um->space_type = space_type;
     STRNCPY(um->context, context);
     BLI_addhead(lb, um);
@@ -58,26 +60,25 @@ bUserMenu *BKE_blender_user_menu_ensure(ListBaseT<bUserMenu> *lb,
 
 bUserMenuItem *BKE_blender_user_menu_item_add(ListBaseT<bUserMenuItem> *lb, int type)
 {
-  uint size;
+  bUserMenuItem *umi;
 
   if (type == USER_MENU_TYPE_SEP) {
-    size = sizeof(bUserMenuItem);
+    umi = MEM_new<bUserMenuItem>(__func__);
   }
   else if (type == USER_MENU_TYPE_OPERATOR) {
-    size = sizeof(bUserMenuItem_Op);
+    umi = reinterpret_cast<bUserMenuItem *>(MEM_new<bUserMenuItem_Op>(__func__));
   }
   else if (type == USER_MENU_TYPE_MENU) {
-    size = sizeof(bUserMenuItem_Menu);
+    umi = reinterpret_cast<bUserMenuItem *>(MEM_new<bUserMenuItem_Menu>(__func__));
   }
   else if (type == USER_MENU_TYPE_PROP) {
-    size = sizeof(bUserMenuItem_Prop);
+    umi = reinterpret_cast<bUserMenuItem *>(MEM_new<bUserMenuItem_Prop>(__func__));
   }
   else {
-    size = sizeof(bUserMenuItem);
+    umi = MEM_new<bUserMenuItem>(__func__);
     BLI_assert(0);
   }
 
-  bUserMenuItem *umi = static_cast<bUserMenuItem *>(MEM_callocN(size, __func__));
   umi->type = type;
   BLI_addtail(lb, umi);
   return umi;
@@ -86,12 +87,12 @@ bUserMenuItem *BKE_blender_user_menu_item_add(ListBaseT<bUserMenuItem> *lb, int 
 void BKE_blender_user_menu_item_free(bUserMenuItem *umi)
 {
   if (umi->type == USER_MENU_TYPE_OPERATOR) {
-    bUserMenuItem_Op *umi_op = (bUserMenuItem_Op *)umi;
+    bUserMenuItem_Op *umi_op = reinterpret_cast<bUserMenuItem_Op *>(umi);
     if (umi_op->prop) {
       IDP_FreeProperty(umi_op->prop);
     }
   }
-  MEM_freeN(umi);
+  MEM_delete(umi);
 }
 
 void BKE_blender_user_menu_item_free_list(ListBaseT<bUserMenuItem> *lb)
@@ -106,3 +107,5 @@ void BKE_blender_user_menu_item_free_list(ListBaseT<bUserMenuItem> *lb)
 }
 
 /** \} */
+
+}  // namespace blender

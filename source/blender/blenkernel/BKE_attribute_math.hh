@@ -22,45 +22,35 @@
 #include "BKE_attribute.hh"
 
 namespace blender {
-class GVArray;
-}
 
-namespace blender::bke::attribute_math {
+class GVArray;
+
+namespace bke::attribute_math {
 
 /**
  * Utility function that simplifies calling a templated function based on a run-time data type.
  */
-template<typename Func>
-inline void convert_to_static_type(const CPPType &cpp_type, const Func &func)
+template<typename Fn> inline void to_static_type(const CPPType &cpp_type, Fn &&fn)
 {
-  cpp_type.to_static_type_tag<float,
-                              float2,
-                              float3,
-                              int,
-                              int2,
-                              bool,
-                              int8_t,
-                              short2,
-                              ColorGeometry4f,
-                              ColorGeometry4b,
-                              math::Quaternion,
-                              float4x4>([&](auto type_tag) {
-    using T = typename decltype(type_tag)::type;
-    if constexpr (std::is_same_v<T, void>) {
-      /* It's expected that the given cpp type is one of the supported ones. */
-      BLI_assert_unreachable();
-    }
-    else {
-      func(T());
-    }
-  });
+  cpp_type.to_static_type<float,
+                          float2,
+                          float3,
+                          float4,
+                          int,
+                          int2,
+                          bool,
+                          int8_t,
+                          short2,
+                          ColorGeometry4f,
+                          ColorGeometry4b,
+                          math::Quaternion,
+                          float4x4>([&]<typename T>() { fn.template operator()<T>(); });
 }
 
-template<typename Func>
-inline void convert_to_static_type(const bke::AttrType data_type, const Func &func)
+template<typename Fn> inline void to_static_type(const bke::AttrType data_type, Fn &&fn)
 {
   const CPPType &cpp_type = bke::attribute_type_to_cpp_type(data_type);
-  convert_to_static_type(cpp_type, func);
+  to_static_type(cpp_type, std::forward<Fn>(fn));
 }
 
 /* -------------------------------------------------------------------- */
@@ -107,6 +97,11 @@ template<> inline float2 mix2(const float factor, const float2 &a, const float2 
 }
 
 template<> inline float3 mix2(const float factor, const float3 &a, const float3 &b)
+{
+  return math::interpolate(a, b, factor);
+}
+
+template<> inline float4 mix2(const float factor, const float4 &a, const float4 &b)
 {
   return math::interpolate(a, b, factor);
 }
@@ -174,6 +169,12 @@ inline float2 mix3(const float3 &weights, const float2 &v0, const float2 &v1, co
 
 template<>
 inline float3 mix3(const float3 &weights, const float3 &v0, const float3 &v1, const float3 &v2)
+{
+  return weights.x * v0 + weights.y * v1 + weights.z * v2;
+}
+
+template<>
+inline float4 mix3(const float3 &weights, const float4 &v0, const float4 &v1, const float4 &v2)
 {
   return weights.x * v0 + weights.y * v1 + weights.z * v2;
 }
@@ -266,6 +267,13 @@ inline float2 mix4(
 template<>
 inline float3 mix4(
     const float4 &weights, const float3 &v0, const float3 &v1, const float3 &v2, const float3 &v3)
+{
+  return weights.x * v0 + weights.y * v1 + weights.z * v2 + weights.w * v3;
+}
+
+template<>
+inline float4 mix4(
+    const float4 &weights, const float4 &v0, const float4 &v1, const float4 &v2, const float4 &v3)
 {
   return weights.x * v0 + weights.y * v1 + weights.z * v2 + weights.w * v3;
 }
@@ -578,6 +586,9 @@ template<> struct DefaultMixerStruct<float2> {
 template<> struct DefaultMixerStruct<float3> {
   using type = SimpleMixer<float3>;
 };
+template<> struct DefaultMixerStruct<float4> {
+  using type = SimpleMixer<float4>;
+};
 template<> struct DefaultMixerStruct<ColorGeometry4f> {
   /* Use a special mixer for colors. ColorGeometry4f can't be added/multiplied, because this is not
    * something one should usually do with colors. */
@@ -686,6 +697,23 @@ using DefaultPropagationMixer = typename DefaultPropagationMixerStruct<T>::type;
  * mixer for the given type. */
 template<typename T> using DefaultMixer = typename DefaultMixerStruct<T>::type;
 
+void mix_groups(GSpan src,
+                OffsetIndices<int> groups,
+                Span<int> all_indices,
+                std::optional<Span<float>> all_weights,
+                GMutableSpan dst);
+inline void mix_groups(GSpan src,
+                       OffsetIndices<int> groups,
+                       Span<int> all_indices,
+                       GMutableSpan dst)
+{
+  mix_groups(src, groups, all_indices, std::nullopt, dst);
+}
+inline void mix_groups(GSpan src, GroupedSpan<int> indices, GMutableSpan dst)
+{
+  mix_groups(src, indices.offsets, indices.data, dst);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -697,6 +725,8 @@ template<typename T> using DefaultMixer = typename DefaultMixerStruct<T>::type;
 
 void gather(GSpan src, Span<int> map, GMutableSpan dst);
 void gather(const GVArray &src, Span<int> map, GMutableSpan dst);
+void gather(GSpan src, Span<int> map, const IndexMask &dst_mask, GMutableSpan dst);
+void gather(const GVArray &src, Span<int> map, const IndexMask &dst_mask, GMutableSpan dst);
 void gather_group_to_group(OffsetIndices<int> src_offsets,
                            OffsetIndices<int> dst_offsets,
                            const IndexMask &selection,
@@ -714,4 +744,6 @@ void gather_ranges_to_groups(Span<IndexRange> src_ranges,
 
 /** \} */
 
-}  // namespace blender::bke::attribute_math
+}  // namespace bke::attribute_math
+
+}  // namespace blender

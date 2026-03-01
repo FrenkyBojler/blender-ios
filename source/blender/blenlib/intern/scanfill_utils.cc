@@ -22,6 +22,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 struct PolyInfo {
   ScanFillEdge *edge_first, *edge_last;
   ScanFillVert *vert_outer;
@@ -89,12 +91,12 @@ void BLI_scanfill_obj_dump(ScanFillContext *sf_ctx)
 }
 #endif
 
-using IsectMap = blender::Map<ScanFillEdge *, ListBaseT<LinkData> *>;
+using IsectMap = Map<ScanFillEdge *, ListBaseT<LinkData> *>;
 
 static ListBaseT<LinkData> *edge_isect_ls_ensure(IsectMap *isect_hash, ScanFillEdge *eed)
 {
-  return isect_hash->lookup_or_add_cb(eed,
-                                      []() { return MEM_callocN<ListBaseT<LinkData>>(__func__); });
+  return isect_hash->lookup_or_add_cb(
+      eed, []() { return MEM_new_zeroed<ListBaseT<LinkData>>(__func__); });
 }
 
 static ListBaseT<LinkData> *edge_isect_ls_add(IsectMap *isect_hash,
@@ -104,7 +106,7 @@ static ListBaseT<LinkData> *edge_isect_ls_add(IsectMap *isect_hash,
   ListBaseT<LinkData> *e_ls;
   LinkData *isect_link;
   e_ls = edge_isect_ls_ensure(isect_hash, eed);
-  isect_link = MEM_callocN<LinkData>(__func__);
+  isect_link = MEM_new_zeroed<LinkData>(__func__);
   isect_link->data = isect;
   EFLAG_SET(eed, E_ISISECT);
   BLI_addtail(e_ls, isect_link);
@@ -116,9 +118,9 @@ static int edge_isect_ls_sort_cb(void *thunk, const void *def_a_ptr, const void 
   const float *co = static_cast<const float *>(thunk);
 
   const ScanFillIsect *i_a = static_cast<const ScanFillIsect *>(
-      ((const LinkData *)def_a_ptr)->data);
+      (static_cast<const LinkData *>(def_a_ptr))->data);
   const ScanFillIsect *i_b = static_cast<const ScanFillIsect *>(
-      ((const LinkData *)def_b_ptr)->data);
+      (static_cast<const LinkData *>(def_b_ptr))->data);
   const float a = len_squared_v2v2(co, i_a->co);
   const float b = len_squared_v2v2(co, i_b->co);
 
@@ -191,7 +193,7 @@ static bool scanfill_preprocess_self_isect(ScanFillContext *sf_ctx,
               isect_hash = MEM_new<IsectMap>(__func__);
             }
 
-            isect = MEM_mallocN<ScanFillIsect>(__func__);
+            isect = MEM_new_uninitialized<ScanFillIsect>(__func__);
 
             BLI_addtail(&isect_lb, isect);
 
@@ -269,7 +271,7 @@ static bool scanfill_preprocess_self_isect(ScanFillContext *sf_ctx,
         }
 
         BLI_freelistN(e_ls);
-        MEM_freeN(e_ls);
+        MEM_delete(e_ls);
 
         if (pi->edge_last == nullptr) {
           pi->edge_last = eed;
@@ -367,7 +369,7 @@ bool BLI_scanfill_calc_self_isect(ScanFillContext *sf_ctx,
     return false;
   }
 
-  PolyInfo *poly_info = MEM_calloc_arrayN<PolyInfo>(poly_num, __func__);
+  PolyInfo *poly_info = MEM_new_array_zeroed<PolyInfo>(poly_num, __func__);
 
   /* get the polygon span */
   if (sf_ctx->poly_nr == 0) {
@@ -407,7 +409,7 @@ bool BLI_scanfill_calc_self_isect(ScanFillContext *sf_ctx,
     }
   }
 
-  MEM_freeN(poly_info);
+  MEM_delete(poly_info);
 
   if (changed == false) {
     return false;
@@ -457,3 +459,5 @@ bool BLI_scanfill_calc_self_isect(ScanFillContext *sf_ctx,
 
   return changed;
 }
+
+}  // namespace blender

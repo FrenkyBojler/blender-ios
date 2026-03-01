@@ -2,12 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup cmpnodes
- */
-
 #include "BLI_assert.h"
-#include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -41,7 +36,7 @@ static const EnumPropertyItem type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void cmp_node_blur_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
@@ -68,10 +63,10 @@ static void cmp_node_blur_declare(NodeDeclarationBuilder &b)
           "independently");
 }
 
-static void node_composit_init_blur(bNodeTree * /*ntree*/, bNode *node)
+static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, but allocated for forward compatibility. */
-  NodeBlurData *data = MEM_new_for_free<NodeBlurData>(__func__);
+  NodeBlurData *data = MEM_new<NodeBlurData>(__func__);
   node->storage = data;
 }
 
@@ -446,31 +441,29 @@ class BlurOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new BlurOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_blur_cc
-
-static void register_node_type_cmp_blur()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_composite_blur_cc;
-
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeBlur", CMP_NODE_BLUR);
   ntype.ui_name = "Blur";
   ntype.ui_description = "Blur an image, using several blur modes";
   ntype.enum_name_legacy = "BLUR";
   ntype.nclass = NODE_CLASS_OP_FILTER;
-  ntype.declare = file_ns::cmp_node_blur_declare;
+  ntype.declare = node_declare;
   ntype.flag |= NODE_PREVIEW;
-  ntype.initfunc = file_ns::node_composit_init_blur;
-  blender::bke::node_type_storage(
+  ntype.initfunc = node_init;
+  bke::node_type_storage(
       ntype, "NodeBlurData", node_free_standard_storage, node_copy_standard_storage);
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.get_compositor_operation = get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_blur)
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_composite_blur_cc

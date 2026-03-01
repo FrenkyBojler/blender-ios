@@ -492,7 +492,7 @@ void rna_collection_search_update_fn(
         name = RNA_property_string_get_alloc(
             &itemptr, data->item_search_prop, name_buf, sizeof(name_buf), nullptr);
       }
-      else if (itemptr.type == &RNA_ActionSlot) {
+      else if (itemptr.type == RNA_ActionSlot) {
         /* FIXME: This special case is fairly annoying.
          *
          * `item_search_prop` now allows to specify another string property than the default RNA
@@ -526,11 +526,21 @@ void rna_collection_search_update_fn(
         cis->has_sep_char = has_sep_char;
         items_list.append(std::move(cis));
         if (name != name_buf) {
-          MEM_freeN(name);
+          MEM_delete(name);
         }
       }
     }
     RNA_PROP_END;
+
+    /* Sort alphabetically (matches other search layouts). */
+    std::ranges::sort(
+        items_list,
+        [](const std::unique_ptr<CollItemSearch> &a, const std::unique_ptr<CollItemSearch> &b) {
+          return BLI_strcasecmp_natural(a->name.c_str(), b->name.c_str()) < 0;
+        });
+    for (const int i : items_list.index_range()) {
+      items_list[i]->index = i;
+    }
   }
   else {
     BLI_assert(RNA_property_type(data->target_prop) == PROP_STRING);
@@ -566,9 +576,8 @@ void rna_collection_search_update_fn(
                                });
 
     if (search_flag & PROP_STRING_SEARCH_SORT) {
-      std::sort(
-          items_list.begin(),
-          items_list.end(),
+      std::ranges::sort(
+          items_list,
           [](const std::unique_ptr<CollItemSearch> &a, const std::unique_ptr<CollItemSearch> &b) {
             return BLI_strcasecmp_natural(a->name.c_str(), b->name.c_str()) < 0;
           });
@@ -608,7 +617,7 @@ int icon_from_id(const ID *id)
 
   /* exception for objects */
   if (GS(id->name) == ID_OB) {
-    Object *ob = (Object *)id;
+    Object *ob = id_cast<Object *>(const_cast<ID *>(id));
 
     if (ob->type == OB_EMPTY) {
       return ICON_EMPTY_DATA;
@@ -618,7 +627,7 @@ int icon_from_id(const ID *id)
 
   /* otherwise get it through RNA, creating the pointer
    * will set the right type, also with subclassing */
-  PointerRNA ptr = RNA_id_pointer_create((ID *)id);
+  PointerRNA ptr = RNA_id_pointer_create(const_cast<ID *>(id));
 
   return (ptr.type) ? RNA_struct_ui_icon(ptr.type) : ICON_NONE;
 }
@@ -876,7 +885,7 @@ struct ButStoreElem {
 
 ButStore *butstore_create(Block *block)
 {
-  ButStore *bs_handle = MEM_callocN<ButStore>(__func__);
+  ButStore *bs_handle = MEM_new_zeroed<ButStore>(__func__);
 
   bs_handle->block = block;
   BLI_addtail(&block->butstore, bs_handle);
@@ -902,7 +911,7 @@ void butstore_free(Block *block, ButStore *bs_handle)
   BLI_assert(BLI_findindex(&block->butstore, bs_handle) != -1);
   BLI_remlink(&block->butstore, bs_handle);
 
-  MEM_freeN(bs_handle);
+  MEM_delete(bs_handle);
 }
 
 bool butstore_is_valid(ButStore *bs_handle)
@@ -925,7 +934,7 @@ bool butstore_is_registered(Block *block, Button *but)
 
 void butstore_register(ButStore *bs_handle, Button **but_p)
 {
-  ButStoreElem *bs_elem = MEM_callocN<ButStoreElem>(__func__);
+  ButStoreElem *bs_elem = MEM_new_zeroed<ButStoreElem>(__func__);
   BLI_assert(*but_p);
   bs_elem->but_p = but_p;
 
@@ -937,7 +946,7 @@ void butstore_unregister(ButStore *bs_handle, Button **but_p)
   for (ButStoreElem &bs_elem : bs_handle->items.items_mutable()) {
     if (bs_elem.but_p == but_p) {
       BLI_remlink(&bs_handle->items, &bs_elem);
-      MEM_freeN(&bs_elem);
+      MEM_delete(&bs_elem);
     }
   }
 

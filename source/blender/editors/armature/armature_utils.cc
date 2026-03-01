@@ -34,6 +34,8 @@
 
 #include <cstring>
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Validation
  * \{ */
@@ -281,7 +283,7 @@ void armature_select_mirrored_ex(bArmature *arm, const int flag)
   /* Select mirrored bones */
   if (arm->flag & ARM_MIRROR_EDIT) {
     for (EditBone &curBone : *arm->edbo) {
-      if (blender::animrig::bone_is_visible(arm, &curBone)) {
+      if (animrig::bone_is_visible(arm, &curBone)) {
         if (curBone.flag & flag) {
           EditBone *ebone_mirr = ED_armature_ebone_get_mirrored(arm->edbo, &curBone);
           if (ebone_mirr) {
@@ -308,7 +310,7 @@ void armature_tag_select_mirrored(bArmature *arm)
   /* Select mirrored bones */
   if (arm->flag & ARM_MIRROR_EDIT) {
     for (EditBone &curBone : *arm->edbo) {
-      if (blender::animrig::bone_is_visible(arm, &curBone)) {
+      if (animrig::bone_is_visible(arm, &curBone)) {
         if (curBone.flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL)) {
           EditBone *ebone_mirr = ED_armature_ebone_get_mirrored(arm->edbo, &curBone);
           if (ebone_mirr && (ebone_mirr->flag & BONE_SELECTED) == 0) {
@@ -348,7 +350,7 @@ void ED_armature_ebone_transform_mirror_update(bArmature *arm, EditBone *ebo, bo
 
   /* no layer check, correct mirror is more important */
   if (!check_select ||
-      (blender::animrig::bone_is_visible(arm, ebo) && (ebo->flag & (BONE_TIPSEL | BONE_ROOTSEL))))
+      (animrig::bone_is_visible(arm, ebo) && (ebo->flag & (BONE_TIPSEL | BONE_ROOTSEL))))
   {
     EditBone *eboflip = ED_armature_ebone_get_mirrored(arm->edbo, ebo);
     if (eboflip) {
@@ -417,7 +419,7 @@ void ED_armature_ebone_transform_mirror_update(bArmature *arm, EditBone *ebo, bo
 
 void ED_armature_edit_transform_mirror_update(Object *obedit)
 {
-  bArmature *arm = static_cast<bArmature *>(obedit->data);
+  bArmature *arm = id_cast<bArmature *>(obedit->data);
   for (EditBone &ebo : *arm->edbo) {
     ED_armature_ebone_transform_mirror_update(arm, &ebo, true);
   }
@@ -452,7 +454,7 @@ static EditBone *make_boneList_recursive(ListBaseT<EditBone> *edbo,
   EditBone *eBoneTest = nullptr;
 
   for (Bone &curBone : *bones) {
-    eBone = MEM_new_for_free<EditBone>("make_editbone");
+    eBone = MEM_new<EditBone>("make_editbone");
     eBone->temp.bone = &curBone;
 
     /* Copy relevant data from bone to eBone
@@ -674,7 +676,7 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
     constexpr float adjusted_bone_length = 2 * bone_length_threshold;
 
     /* Build a map from parent to its children, to speed up the loop below. */
-    blender::Map<EditBone *, blender::VectorSet<EditBone *>> parent_to_children;
+    Map<EditBone *, VectorSet<EditBone *>> parent_to_children;
     for (EditBone &eBone : *arm->edbo) {
       parent_to_children.lookup_or_add_default(eBone.parent).add_new(&eBone);
     }
@@ -716,7 +718,7 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
         printf("Warning: elongated (almost) zero sized bone: %s\n", eBone.name);
       }
 
-      blender::VectorSet<EditBone *> *children = parent_to_children.lookup_ptr(&eBone);
+      VectorSet<EditBone *> *children = parent_to_children.lookup_ptr(&eBone);
       if (children) {
         for (EditBone *child : *children) {
           child->flag &= ~BONE_CONNECTED;
@@ -727,7 +729,7 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
 
   /* Copy the bones from the edit-data into the armature. */
   for (EditBone &eBone : *arm->edbo) {
-    newBone = MEM_new_for_free<Bone>("bone");
+    newBone = MEM_new<Bone>("bone");
     eBone.temp.bone = newBone; /* Associate the real Bones with the EditBones */
 
     STRNCPY_UTF8(newBone->name, eBone.name);
@@ -782,7 +784,7 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
     newBone->color = eBone.color;
 
     for (BoneCollectionReference &ref : eBone.bone_collections) {
-      BoneCollectionReference *newBoneRef = MEM_new_for_free<BoneCollectionReference>(
+      BoneCollectionReference *newBoneRef = MEM_new<BoneCollectionReference>(
           "ED_armature_from_edit", ref);
       BLI_addtail(&newBone->runtime.collections, newBoneRef);
     }
@@ -829,7 +831,7 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
   for (obt = static_cast<Object *>(bmain->objects.first); obt;
        obt = static_cast<Object *>(obt->id.next))
   {
-    if (obt->data == arm) {
+    if (obt->data == id_cast<const ID *>(arm)) {
       BKE_pose_rebuild(bmain, obt, arm, true);
     }
   }
@@ -854,7 +856,7 @@ void ED_armature_edit_free(bArmature *arm)
 
       BLI_freelistN(arm->edbo);
     }
-    MEM_freeN(arm->edbo);
+    MEM_delete(arm->edbo);
     arm->edbo = nullptr;
     arm->act_edbone = nullptr;
   }
@@ -863,7 +865,7 @@ void ED_armature_edit_free(bArmature *arm)
 void ED_armature_to_edit(bArmature *arm)
 {
   ED_armature_edit_free(arm);
-  arm->edbo = MEM_callocN<ListBaseT<EditBone>>("edbo armature");
+  arm->edbo = MEM_new_zeroed<ListBaseT<EditBone>>("edbo armature");
   arm->act_edbone = make_boneList(arm->edbo, &arm->bonebase, arm->act_bone);
 }
 
@@ -889,7 +891,7 @@ void ED_armature_ebone_listbase_free(ListBaseT<EditBone> *lb, const bool do_id_u
 
     BLI_freelistN(&ebone->bone_collections);
 
-    MEM_freeN(ebone);
+    MEM_delete(ebone);
   }
 
   BLI_listbase_clear(lb);
@@ -902,7 +904,7 @@ void ED_armature_ebone_listbase_copy(ListBaseT<EditBone> *lb_dst,
   BLI_assert(BLI_listbase_is_empty(lb_dst));
 
   for (EditBone &ebone_src : *lb_src) {
-    EditBone *ebone_dst = static_cast<EditBone *>(MEM_dupallocN(&ebone_src));
+    EditBone *ebone_dst = MEM_dupalloc(&ebone_src);
     if (ebone_dst->prop) {
       ebone_dst->prop = IDP_CopyProperty_ex(ebone_dst->prop,
                                             do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT);
@@ -1002,3 +1004,5 @@ void ED_armature_ebone_select_set(EditBone *ebone, bool select)
 }
 
 /** \} */
+
+}  // namespace blender

@@ -14,6 +14,8 @@
 
 #include "BLI_enum_flags.hh"
 
+namespace blender {
+
 struct Main;
 struct MovieClip;
 struct ReportList;
@@ -21,7 +23,7 @@ struct bNodeTree;
 struct Scene;
 struct Strip;
 
-namespace blender::seq {
+namespace seq {
 
 /**
  * Check if one strip is input to the other.
@@ -58,9 +60,9 @@ void relations_invalidate_cache_raw(Scene *scene, Strip *strip);
 void relations_invalidate_scene_strips(const Main *bmain, const Scene *scene_target);
 
 /**
- * Invalidates the cache for all strips that uses the given node tree as a compositor modifier.
+ * Invalidates the cache for all strips that uses the given compositor node tree.
  */
-void relations_invalidate_compositor_modifiers(const Main *bmain, const bNodeTree *node_tree);
+void relations_invalidate_compositor_users(const Main *bmain, const bNodeTree *node_tree);
 
 void relations_invalidate_movieclip_strips(Main *bmain, MovieClip *clip_target);
 /**
@@ -112,4 +114,5 @@ size_t final_image_cache_calc_memory_size(const Scene *scene);
 
 bool exists_in_seqbase(const Strip *strip, const ListBaseT<Strip> *seqbase);
 
-}  // namespace blender::seq
+}  // namespace seq
+}  // namespace blender

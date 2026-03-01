@@ -13,12 +13,16 @@
 #include "DNA_defs.h"
 
 namespace blender {
+
 template<typename CoordT> struct KDTree;
 template<typename T, int Size> struct VecBase;
-}  // namespace blender
-using KDTree3d = blender::KDTree<blender::VecBase<float, 3>>;
+using KDTree3d = KDTree<VecBase<float, 3>>;
 
 struct AnimData;
+
+namespace draw {
+struct ParticleBatchCache;
+};
 
 /** #SPHFluidSettings::flag */
 enum {
@@ -748,7 +752,7 @@ struct ParticleSystem {
   /** Influence of the lattice modifier. */
   float lattice_strength = 0;
 
-  void *batch_cache = nullptr;
+  draw::ParticleBatchCache *batch_cache = nullptr;
 
   /**
    * Set by dependency graph's copy-on-evaluation, allows to quickly go
@@ -760,3 +764,5 @@ struct ParticleSystem {
    */
   struct ParticleSystem *orig_psys = nullptr;
 };
+
+}  // namespace blender

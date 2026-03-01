@@ -21,6 +21,8 @@
 #include "bmesh_tools.hh"
 #include "intern/bmesh_operators_private.hh"
 
+namespace blender {
+
 #define ELE_NEW 1
 #define EDGE_MARK 4
 
@@ -61,7 +63,7 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
   uint nors_tot;
   bool calc_winding = false;
 
-  blender::Map<BMVert *, ScanFillVert *> sf_vert_map;
+  Map<BMVert *, ScanFillVert *> sf_vert_map;
   sf_vert_map.reserve(BMO_slot_buffer_len(op->slots_in, "edges"));
 
   BMO_slot_vec_get(op->slots_in, "normal", normal);
@@ -98,7 +100,7 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
     uint i;
     bool is_degenerate = true;
 
-    nors = MEM_malloc_arrayN<SortNormal>(nors_tot, __func__);
+    nors = MEM_new_array_uninitialized<SortNormal>(nors_tot, __func__);
 
     for (sf_vert = static_cast<ScanFillVert *>(sf_ctx.fillvertbase.first), i = 0; sf_vert;
          sf_vert = sf_vert->next, i++)
@@ -161,7 +163,7 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
       normalize_v3(normal);
     }
 
-    MEM_freeN(nors);
+    MEM_delete(nors);
   }
   else {
     calc_winding = false;
@@ -263,3 +265,5 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
 
   BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "geom.out", BM_EDGE | BM_FACE, ELE_NEW);
 }
+
+}  // namespace blender

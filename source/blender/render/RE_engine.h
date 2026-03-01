@@ -16,8 +16,12 @@
 
 #include "BLI_threads.h"
 
-struct BakeTargets;
+namespace blender {
+
 struct BakePixel;
+struct BakeTargets;
+struct bNode;
+struct bNodeTree;
 struct Depsgraph;
 struct GPUContext;
 struct Main;
@@ -33,8 +37,6 @@ struct ReportList;
 struct Scene;
 struct ViewLayer;
 struct ViewRender;
-struct bNode;
-struct bNodeTree;
 
 /* External Engine */
 
@@ -160,7 +162,7 @@ struct RenderEngine {
   void *update_render_passes_data;
 
   /* GPU context. */
-  void *system_gpu_context; /* WindowManager GPU context -> GHOSTContext. */
+  GHOST_IContext *system_gpu_context; /* WindowManager GPU context -> GHOSTContext. */
   ThreadMutex blender_gpu_context_mutex;
   bool use_drw_render_context;
   struct GPUContext *blender_gpu_context;
@@ -288,3 +290,5 @@ void RE_engine_free_blender_memory(struct RenderEngine *engine);
 void RE_engine_tile_highlight_set(
     struct RenderEngine *engine, int x, int y, int width, int height, bool highlight);
 void RE_engine_tile_highlight_clear_all(struct RenderEngine *engine);
+
+}  // namespace blender

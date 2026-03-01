@@ -14,12 +14,14 @@
 
 #include "gpu_texture_private.hh"
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
+
+class GLTexturePool;
 
 class GLTexture : public Texture {
   friend class GLStateManager;
   friend class GLFrameBuffer;
+  friend class GLTexturePool;
 
  private:
   /**
@@ -77,7 +79,7 @@ class GLTexture : public Texture {
    */
   void generate_mipmap() override;
   void copy_to(Texture *dst) override;
-  void clear(eGPUDataFormat format, const void *data) override;
+  void clear(const double4 data) override;
   void swizzle_set(const char swizzle_mask[4]) override;
   void mip_range_set(int min, int max) override;
   void *read(int mip, eGPUDataFormat type) override;
@@ -379,5 +381,14 @@ inline GLenum channel_len_to_gl(int channel_len)
   }
 }
 
-}  // namespace gpu
-}  // namespace blender
+BLI_INLINE GLTexture *unwrap(Texture *tex)
+{
+  return static_cast<GLTexture *>(tex);
+}
+
+BLI_INLINE Texture *wrap(GLTexture *texture)
+{
+  return static_cast<Texture *>(texture);
+}
+
+}  // namespace blender::gpu

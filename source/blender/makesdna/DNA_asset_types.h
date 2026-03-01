@@ -15,11 +15,11 @@
 #include <memory>
 
 namespace blender {
+
 class StringRef;
-}
-namespace blender::asset_system {
+namespace asset_system {
 class AssetLibrary;
-}  // namespace blender::asset_system
+}  // namespace asset_system
 
 enum eAssetLibraryType {
   /** Display assets from the current session (current "Main"). */
@@ -51,6 +51,8 @@ enum eAssetImportMethod {
 
 enum eAssetLibrary_Flag {
   ASSET_LIBRARY_RELATIVE_PATH = (1 << 0),
+  ASSET_LIBRARY_DISABLED = (1 << 1),
+  ASSET_LIBRARY_USE_REMOTE_URL = (1 << 2),
 };
 
 /**
@@ -191,8 +193,8 @@ struct AssetWeakReference {
   /**
    * See AssetRepresentation::make_weak_reference().
    */
-  static AssetWeakReference make_reference(const blender::asset_system::AssetLibrary &library,
-                                           blender::StringRef library_relative_identifier);
+  static AssetWeakReference make_reference(const asset_system::AssetLibrary &library,
+                                           StringRef library_relative_identifier);
 #endif
 };
 
@@ -200,3 +202,5 @@ struct AssetCatalogPathLink {
   struct AssetCatalogPathLink *next = nullptr, *prev = nullptr;
   char *path = nullptr;
 };
+
+}  // namespace blender

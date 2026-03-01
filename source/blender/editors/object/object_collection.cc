@@ -61,15 +61,15 @@ static const EnumPropertyItem *collection_object_active_itemf(bContext *C,
                                                               PropertyRNA * /*prop*/,
                                                               bool *r_free)
 {
+  if (C == nullptr) {
+    return rna_enum_dummy_NULL_items;
+  }
+
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   Object *ob;
   EnumPropertyItem *item = nullptr, item_tmp = {0};
   int totitem = 0;
-
-  if (C == nullptr) {
-    return rna_enum_dummy_NULL_items;
-  }
 
   ob = context_object(C);
 
@@ -475,7 +475,6 @@ static bool collection_export_all_poll(bContext *C)
 
 static wmOperatorStatus collection_exporter_add_exec(bContext *C, wmOperator *op)
 {
-  using namespace blender;
   Collection *collection = CTX_data_collection(C);
 
   char name[MAX_ID_NAME - 2]; /* id name */
@@ -571,7 +570,6 @@ static void COLLECTION_OT_exporter_remove(wmOperatorType *ot)
 
 static wmOperatorStatus collection_exporter_move_exec(bContext *C, wmOperator *op)
 {
-  using namespace blender;
   Collection *collection = CTX_data_collection(C);
   const int dir = RNA_enum_get(op->ptr, "direction");
   const int from = collection->active_exporter_index;
@@ -621,7 +619,6 @@ static wmOperatorStatus collection_exporter_export(bContext *C,
                                                    Collection *collection,
                                                    const bool report_success)
 {
-  using namespace blender;
   bke::FileHandlerType *fh = bke::file_handler_find(data->fh_idname);
   if (!fh) {
     BKE_reportf(op->reports, RPT_ERROR, "File handler '%s' not found", data->fh_idname);
@@ -868,7 +865,7 @@ static void collection_exporter_menu_draw(const bContext * /*C*/, Menu *menu)
 
 void collection_exporter_register()
 {
-  MenuType *mt = MEM_callocN<MenuType>(__func__);
+  MenuType *mt = MEM_new_zeroed<MenuType>(__func__);
   STRNCPY_UTF8(mt->idname, "COLLECTION_MT_exporter_add");
   STRNCPY_UTF8(mt->label, N_("Add Exporter"));
   mt->draw = collection_exporter_menu_draw;
@@ -1002,7 +999,7 @@ static wmOperatorStatus collection_remove_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Object *ob = context_object(C);
   Collection *collection = static_cast<Collection *>(
-      CTX_data_pointer_get_type(C, "collection", &RNA_Collection).data);
+      CTX_data_pointer_get_type(C, "collection", RNA_Collection).data);
 
   if (!ob || !collection) {
     return OPERATOR_CANCELLED;
@@ -1110,7 +1107,7 @@ static wmOperatorStatus select_grouped_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   Collection *collection = static_cast<Collection *>(
-      CTX_data_pointer_get_type(C, "collection", &RNA_Collection).data);
+      CTX_data_pointer_get_type(C, "collection", RNA_Collection).data);
 
   if (!collection) {
     return OPERATOR_CANCELLED;

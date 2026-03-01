@@ -26,7 +26,8 @@
 
 #include "asset_shelf.hh"
 
-using namespace blender;
+namespace blender {
+
 using namespace blender::ed::asset;
 
 AssetShelfSettings::AssetShelfSettings() = default;
@@ -48,7 +49,7 @@ AssetShelfSettings &AssetShelfSettings::operator=(const AssetShelfSettings &othe
     BKE_asset_catalog_path_list_free(this->enabled_catalog_paths);
   }
   if (this->active_catalog_path != other.active_catalog_path) {
-    MEM_SAFE_FREE(this->active_catalog_path);
+    MEM_SAFE_DELETE(this->active_catalog_path);
   }
 
   /* Copy from 'other'. */
@@ -68,10 +69,10 @@ AssetShelfSettings &AssetShelfSettings::operator=(const AssetShelfSettings &othe
 AssetShelfSettings::~AssetShelfSettings()
 {
   BKE_asset_catalog_path_list_free(enabled_catalog_paths);
-  MEM_SAFE_FREE(active_catalog_path);
+  MEM_SAFE_DELETE(active_catalog_path);
 }
 
-namespace blender::ed::asset::shelf {
+namespace ed::asset::shelf {
 
 void settings_blend_write(BlendWriter *writer, const AssetShelfSettings &settings)
 {
@@ -187,4 +188,5 @@ void settings_foreach_enabled_catalog_path(
   }
 }
 
-}  // namespace blender::ed::asset::shelf
+}  // namespace ed::asset::shelf
+}  // namespace blender

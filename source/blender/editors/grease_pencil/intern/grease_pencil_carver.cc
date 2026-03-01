@@ -9,6 +9,7 @@
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
+#include "BKE_grease_pencil_fills.hh"
 #include "BKE_material.hh"
 #include "BKE_paint.hh"
 
@@ -20,10 +21,13 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_material_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "WM_api.hh"
 
-namespace blender::ed::greasepencil {
+namespace blender {
+
+namespace ed::greasepencil {
 
 /**
  * Apply the stroke carver to a drawing.
@@ -90,37 +94,10 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
 
   placement.project(cut_pos2d, input_curves.positions_for_write().take_back(mcoords.size()));
 
-  /* TODO(@filedescriptor): This can be remove when the material fill rework is done. */
-  {
-    const VArray<int> materials = *attributes.lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Curve, -1);
-
-    VectorSet<int> fill_material_indices;
-    for (const int mat_i : IndexRange(obact.totcol)) {
-      Material *material = BKE_object_material_get(&obact, mat_i + 1);
-      if (material != nullptr && material->gp_style != nullptr &&
-          (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0)
-      {
-        fill_material_indices.add_new(mat_i);
-      }
-    }
-
-    Array<bool> use_fill(src.curves_num());
-    for (const int i : src.curves_range()) {
-      const int mat_index = materials[i];
-      use_fill[i] = fill_material_indices.contains(mat_index);
-    }
-
-    bke::SpanAttributeWriter<bool> fill_writer = attributes.lookup_or_add_for_write_span<bool>(
-        "is_fill", bke::AttrDomain::Curve);
-    fill_writer.span.drop_back(1).copy_from(use_fill);
-    fill_writer.finish();
-  }
-
-  bke::SpanAttributeWriter<bool> fill_writer = attributes.lookup_or_add_for_write_span<bool>(
-      "is_fill", bke::AttrDomain::Curve);
-  fill_writer.span.last() = true;
-  fill_writer.finish();
+  bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
+      "fill_id", bke::AttrDomain::Curve);
+  fill_ids.span.last() = bke::greasepencil::get_next_available_fill_id(fill_ids.span.varray());
+  fill_ids.finish();
 
   const IndexRange clipping_points = IndexRange::from_begin_size(src.points_num(), mcoords.size());
   const IndexRange clipping_curves = IndexRange::from_single(src.curves_num());
@@ -136,29 +113,27 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
   bke::fill_attribute_range_default(
       attributes,
       bke::AttrDomain::Curve,
-      bke::attribute_filter_from_skip_ref({"is_fill", "cyclic", "curve_type"}),
+      bke::attribute_filter_from_skip_ref({"fill_id", "cyclic", "curve_type"}),
       clipping_curves);
 
   carver::CurveBooleanOpParameters op_params;
   op_params.boolean_mode = carver::Operation::Difference;
 
-  /* TODO. */
-  bke::greasepencil::Drawing drawing_temp(drawing);
-  drawing_temp.strokes_for_write() = std::move(input_curves);
-  drawing_temp.tag_topology_changed();
+  bke::greasepencil::Drawing drawing_with_stroke(drawing);
+  drawing_with_stroke.strokes_for_write() = std::move(input_curves);
+  drawing_with_stroke.tag_topology_changed();
 
-  const std::optional<GroupedSpan<int>> shapes = drawing_temp.shapes();
-  const int num_shapes = shapes.has_value() ? shapes->size() : drawing_temp.strokes().curves_num();
+  const std::optional<GroupedSpan<int>> fills = drawing_with_stroke.fills();
+  const int num_fills = fills.has_value() ? fills->size() :
+                                            drawing_with_stroke.strokes().curves_num();
 
-  const IndexRange shape_mask = IndexRange(num_shapes);
-  const IndexRange clipping_shapes = IndexRange::from_single(num_shapes - 1);
+  const IndexRange clipping_fills = IndexRange::from_single(num_fills - 1);
 
   bke::CurvesGeometry carved_strokes = carver::curve_boolean(op_params,
-                                                             drawing_temp.strokes(),
-                                                             shapes,
+                                                             drawing_with_stroke.strokes(),
+                                                             fills,
                                                              normal_planes,
-                                                             shape_mask,
-                                                             clipping_shapes,
+                                                             clipping_fills,
                                                              layer_to_world,
                                                              region,
                                                              keep_caps);
@@ -185,7 +160,7 @@ static wmOperatorStatus stroke_carver_execute(const bContext *C, const Span<int2
   Object *obact = CTX_data_active_object(C);
   Object *ob_eval = DEG_get_evaluated(depsgraph, obact);
 
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(obact->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(obact->data);
 
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
@@ -266,7 +241,7 @@ static wmOperatorStatus stroke_carver_execute(const bContext *C, const Span<int2
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus grease_pencil_stroke_carver(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_stroke_carver_exec(bContext *C, wmOperator *op)
 {
   const Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
 
@@ -277,11 +252,11 @@ static wmOperatorStatus grease_pencil_stroke_carver(bContext *C, wmOperator *op)
   return stroke_carver_execute(C, mcoords);
 }
 
-}  // namespace blender::ed::greasepencil
+}  // namespace ed::greasepencil
 
 void GREASE_PENCIL_OT_stroke_carver(wmOperatorType *ot)
 {
-  using namespace blender::ed::greasepencil;
+  using namespace ed::greasepencil;
 
   ot->name = "Grease Pencil Carver";
   ot->idname = "GREASE_PENCIL_OT_stroke_carver";
@@ -289,7 +264,7 @@ void GREASE_PENCIL_OT_stroke_carver(wmOperatorType *ot)
 
   ot->invoke = WM_gesture_lasso_invoke;
   ot->modal = WM_gesture_lasso_modal;
-  ot->exec = grease_pencil_stroke_carver;
+  ot->exec = grease_pencil_stroke_carver_exec;
   ot->poll = grease_pencil_painting_poll;
   ot->cancel = WM_gesture_lasso_cancel;
 
@@ -297,3 +272,5 @@ void GREASE_PENCIL_OT_stroke_carver(wmOperatorType *ot)
 
   WM_operator_properties_gesture_lasso(ot);
 }
+
+}  // namespace blender

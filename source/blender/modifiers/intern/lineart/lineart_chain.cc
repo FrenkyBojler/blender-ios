@@ -16,6 +16,8 @@
 #include <algorithm> /* For `min/max`. */
 #include <cmath>
 
+namespace blender {
+
 #define LRT_OTHER_VERT(e, vt) ((vt) == (e)->v1 ? (e)->v2 : ((vt) == (e)->v2 ? (e)->v1 : nullptr))
 
 struct Object;
@@ -217,18 +219,25 @@ void MOD_lineart_chain_feature_lines(LineartData *ld)
     LineartVert *new_vt;
     float N[3] = {0};
 
-    if (e->t1) {
-      N[0] += e->t1->gn[0];
-      N[1] += e->t1->gn[1];
-      N[2] += e->t1->gn[2];
+    if (e->flags & MOD_LINEART_EDGE_FLAG_PROJECTED_SHADOW) {
+      /* We do not have actual target triangle reference for projected shadow lines, so the normal
+       * is unavailable at this point. In which case we set that to (0,0,1). */
+      N[0] = 1.0f;
     }
-    if (e->t2) {
-      N[0] += e->t2->gn[0];
-      N[1] += e->t2->gn[1];
-      N[2] += e->t2->gn[2];
-    }
-    if (e->t1 || e->t2) {
-      normalize_v3(N);
+    else {
+      if (e->t1) {
+        N[0] += e->t1->gn[0];
+        N[1] += e->t1->gn[1];
+        N[2] += e->t1->gn[2];
+      }
+      if (e->t2) {
+        N[0] += e->t2->gn[0];
+        N[1] += e->t2->gn[1];
+        N[2] += e->t2->gn[2];
+      }
+      if (e->t1 || e->t2) {
+        normalize_v3(N);
+      }
     }
 
     /* Step 1: grow left. */
@@ -678,7 +687,7 @@ void MOD_lineart_chain_split_for_fixed_occlusion(LineartData *ld)
     ec->loop_id = loop_id;
     loop_id++;
 
-    LineartEdgeChainItem *first_eci = (LineartEdgeChainItem *)ec->chain.first;
+    LineartEdgeChainItem *first_eci = static_cast<LineartEdgeChainItem *>(ec->chain.first);
     int fixed_occ = first_eci->occlusion;
     uint8_t fixed_mask = first_eci->material_mask_bits;
     uint32_t fixed_shadow = first_eci->shadow_mask_bits;
@@ -717,7 +726,7 @@ void MOD_lineart_chain_split_for_fixed_occlusion(LineartData *ld)
         new_ec->chain.last = ec->chain.last;
         new_ec->loop_id = loop_id;
         ec->chain.last = eci->prev;
-        ((LineartEdgeChainItem *)ec->chain.last)->next = nullptr;
+        (static_cast<LineartEdgeChainItem *>(ec->chain.last))->next = nullptr;
         eci->prev = nullptr;
 
         /* End the previous one. */
@@ -788,10 +797,10 @@ static void lineart_chain_connect(LineartData * /*ld*/,
         return;
       }
     }
-    ((LineartEdgeChainItem *)onto->chain.last)->next = static_cast<LineartEdgeChainItem *>(
-        sub->chain.first);
-    ((LineartEdgeChainItem *)sub->chain.first)->prev = static_cast<LineartEdgeChainItem *>(
-        onto->chain.last);
+    (static_cast<LineartEdgeChainItem *>(onto->chain.last))->next =
+        static_cast<LineartEdgeChainItem *>(sub->chain.first);
+    (static_cast<LineartEdgeChainItem *>(sub->chain.first))->prev =
+        static_cast<LineartEdgeChainItem *>(onto->chain.last);
     onto->chain.last = sub->chain.last;
   }
   else {              /* L-R L--R. */
@@ -807,10 +816,10 @@ static void lineart_chain_connect(LineartData * /*ld*/,
         return;
       }
     }
-    ((LineartEdgeChainItem *)sub->chain.last)->next = static_cast<LineartEdgeChainItem *>(
-        onto->chain.first);
-    ((LineartEdgeChainItem *)onto->chain.first)->prev = static_cast<LineartEdgeChainItem *>(
-        sub->chain.last);
+    (static_cast<LineartEdgeChainItem *>(sub->chain.last))->next =
+        static_cast<LineartEdgeChainItem *>(onto->chain.first);
+    (static_cast<LineartEdgeChainItem *>(onto->chain.first))->prev =
+        static_cast<LineartEdgeChainItem *>(sub->chain.last);
     onto->chain.first = sub->chain.first;
   }
 }
@@ -1243,7 +1252,7 @@ void MOD_lineart_chain_clip_at_border(LineartData *ld)
   ld->chains.last = ld->chains.first = nullptr;
   while (LineartEdgeChain *ec = static_cast<LineartEdgeChain *>(BLI_pophead(&swap))) {
     bool ec_added = false;
-    LineartEdgeChainItem *first_eci = (LineartEdgeChainItem *)ec->chain.first;
+    LineartEdgeChainItem *first_eci = static_cast<LineartEdgeChainItem *>(ec->chain.first);
     is_inside = LRT_ECI_INSIDE(first_eci) ? true : false;
     if (!is_inside) {
       ec->picked = 1;
@@ -1310,7 +1319,7 @@ void MOD_lineart_chain_split_angle(LineartData *ld, float angle_threshold_rad)
   while (LineartEdgeChain *ec = static_cast<LineartEdgeChain *>(BLI_pophead(&swap))) {
     ec->next = ec->prev = nullptr;
     BLI_addtail(&ld->chains, ec);
-    LineartEdgeChainItem *first_eci = (LineartEdgeChainItem *)ec->chain.first;
+    LineartEdgeChainItem *first_eci = static_cast<LineartEdgeChainItem *>(ec->chain.first);
     for (eci = first_eci->next; eci; eci = next_eci) {
       next_eci = eci->next;
       prev_eci = eci->prev;
@@ -1327,7 +1336,7 @@ void MOD_lineart_chain_split_angle(LineartData *ld, float angle_threshold_rad)
         new_ec->chain.first = eci;
         new_ec->chain.last = ec->chain.last;
         ec->chain.last = eci->prev;
-        ((LineartEdgeChainItem *)ec->chain.last)->next = nullptr;
+        (static_cast<LineartEdgeChainItem *>(ec->chain.last))->next = nullptr;
         eci->prev = nullptr;
 
         /* End the previous one. */
@@ -1409,3 +1418,5 @@ void MOD_lineart_chain_find_silhouette_backdrop_objects(LineartData *ld)
     }
   }
 }
+
+}  // namespace blender

@@ -28,6 +28,7 @@
 #include "DNA_view3d_types.h"
 
 #include "BKE_colortools.hh"
+#include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"
@@ -58,6 +59,7 @@
 #include "RE_pipeline.h"
 
 #include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "RNA_access.hh"
@@ -66,6 +68,8 @@
 #include "SEQ_relations.hh"
 
 #include "render_intern.hh"
+
+namespace blender {
 
 /* Render Callbacks */
 static bool render_break(void *rjv);
@@ -270,7 +274,7 @@ static void screen_render_single_layer_set(
     char scene_name[MAX_ID_NAME - 2];
 
     RNA_string_get(op->ptr, "scene", scene_name);
-    scn = (Scene *)BLI_findstring(&mainp->scenes, scene_name, offsetof(ID, name) + 2);
+    scn = static_cast<Scene *>(BLI_findstring(&mainp->scenes, scene_name, offsetof(ID, name) + 2));
 
     if (scn) {
       /* camera switch won't have updated */
@@ -286,7 +290,8 @@ static void screen_render_single_layer_set(
     char rl_name[RE_MAXNAME];
 
     RNA_string_get(op->ptr, "layer", rl_name);
-    rl = (ViewLayer *)BLI_findstring(&(*scene)->view_layers, rl_name, offsetof(ViewLayer, name));
+    rl = static_cast<ViewLayer *>(
+        BLI_findstring(&(*scene)->view_layers, rl_name, offsetof(ViewLayer, name)));
 
     if (rl) {
       *single_layer = rl;
@@ -321,6 +326,37 @@ static void get_render_operator_frame_range(wmOperator *render_operator,
   else {
     frame_end = scene->r.efra;
   }
+}
+
+/* When rendering an animation, saving files is required, either through scene saving or through
+ * a compositor File Output node. */
+static bool disable_save_output_allowed(const bool is_animation, Scene &scene, ReportList *reports)
+{
+  const bool save_output = (scene.r.mode & R_SAVE_OUTPUT) != 0;
+  const bool do_compositing = (scene.r.scemode & R_DOCOMP) != 0;
+  const bool do_sequencer = RE_seq_render_active(&scene, &scene.r);
+
+  if (is_animation && do_sequencer && !save_output) {
+    BKE_report(reports, RPT_ERROR, "Render output disabled in Output properties");
+    return false;
+  }
+
+  if (is_animation && !save_output && !do_compositing) {
+    BKE_report(reports, RPT_ERROR, "Render output and compositing disabled in Output properties");
+    return false;
+  }
+
+  if (is_animation && !save_output && do_compositing) {
+    if (!bke::compositor::node_tree_has_linked_file_output(scene.compositing_node_group)) {
+      BKE_report(reports,
+                 RPT_ERROR,
+                 "Render output disabled in Output properties and no active compositing File "
+                 "Output nodes");
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /* executes blocking render */
@@ -381,6 +417,10 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  if (!disable_save_output_allowed(is_animation, *scene, op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
+
   re = RE_NewSceneRender(scene);
 
   G.is_break = false;
@@ -396,7 +436,7 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
    * otherwise, invalidated cache entries can make their way into
    * the output rendering. We can't put that into RE_RenderFrame,
    * since sequence rendering can call that recursively... */
-  blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::FinalAndIntra);
+  seq::cache_cleanup(scene, seq::CacheCleanup::FinalAndIntra);
 
   RE_SetReports(re, op->reports);
 
@@ -583,7 +623,7 @@ static void image_renderinfo_cb(void *rjv, RenderStats *rs)
   if (rr) {
     /* `malloc` is OK here, `stats_draw` is not in tile threads. */
     if (rr->text == nullptr) {
-      rr->text = MEM_calloc_arrayN<char>(IMA_MAX_RENDER_TEXT_SIZE, "rendertext");
+      rr->text = MEM_new_array_zeroed<char>(IMA_MAX_RENDER_TEXT_SIZE, "rendertext");
     }
 
     make_renderinfo_string(rs, rj->scene, rj->v3d_override, rr->error, rr->text);
@@ -658,7 +698,7 @@ static void render_image_update_pass_and_layer(RenderJob *rj, RenderResult *rr, 
     /* TODO(sergey): is there faster way to get the layer index? */
     if (rr->renlay) {
       int layer = BLI_findstringindex(
-          &main_rr->layers, (char *)rr->renlay->name, offsetof(RenderLayer, name));
+          &main_rr->layers, static_cast<char *>(rr->renlay->name), offsetof(RenderLayer, name));
       sima->iuser.layer = layer;
       rj->last_layer = layer;
     }
@@ -850,9 +890,6 @@ static void render_endjob(void *rjv)
     }
   }
 
-  /* XXX above function sets all tags in nodes */
-  ntreeCompositClearTags(rj->scene->compositing_node_group);
-
   /* potentially set by caller */
   rj->scene->r.scemode &= ~R_NO_FRAME_UPDATE;
 
@@ -951,7 +988,7 @@ static void render_drawlock(void *rjv, bool lock)
 /** Catch escape key to cancel. */
 static wmOperatorStatus screen_render_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Scene *scene = (Scene *)op->customdata;
+  Scene *scene = static_cast<Scene *>(op->customdata);
 
   /* no running blender, remove handler and pass through */
   if (0 == WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_RENDER)) {
@@ -965,7 +1002,7 @@ static wmOperatorStatus screen_render_modal(bContext *C, wmOperator *op, const w
 static void screen_render_cancel(bContext *C, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  Scene *scene = (Scene *)op->customdata;
+  Scene *scene = static_cast<Scene *>(op->customdata);
 
   /* kill on cancel, because job is using op->reports */
   WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_RENDER);
@@ -1078,6 +1115,10 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
     return OPERATOR_CANCELLED;
   }
 
+  if (!disable_save_output_allowed(is_animation, *scene, op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
+
   if (!RE_is_rendering_allowed(scene, single_layer, camera_override, op->reports)) {
     return OPERATOR_CANCELLED;
   }
@@ -1090,9 +1131,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   /* Reports are done inside check function, and it will return false if there are other strips to
    * render. */
-  if ((scene->r.scemode & R_DOSEQ) &&
-      blender::seq::relations_check_scene_recursion(scene, op->reports))
-  {
+  if ((scene->r.scemode & R_DOSEQ) && seq::relations_check_scene_recursion(scene, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1111,7 +1150,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   ED_editors_flush_edits_ex(bmain, true, false);
 
   /* Cleanup VSE cache, since it is not guaranteed that stored images are invalid. */
-  blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::FinalAndIntra);
+  seq::cache_cleanup(scene, seq::CacheCleanup::FinalAndIntra);
 
   /* store spare
    * get view3d layer, local layer, make this nice API call to render
@@ -1204,6 +1243,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   re = RE_NewSceneRender(scene);
   RE_display_init(re);
   RE_display_ensure_gpu_context(re);
+  IMB_ensure_gpu_context();
   RE_test_break_cb(re, rj, render_breakjob);
   RE_draw_lock_cb(re, rj, render_drawlock);
   RE_display_update_cb(re, rj, image_rect_update);
@@ -1403,3 +1443,5 @@ void RENDER_OT_shutter_curve_preset(wmOperatorType *ot)
   RNA_def_property_translation_context(prop,
                                        BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
 }
+
+}  // namespace blender

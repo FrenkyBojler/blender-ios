@@ -15,8 +15,7 @@
 
 #include "BLO_read_write.hh"
 
-using blender::IndexRange;
-using blender::StringRef;
+namespace blender {
 
 void BKE_viewer_path_init(ViewerPath *viewer_path)
 {
@@ -65,7 +64,7 @@ uint64_t BKE_viewer_path_hash(const ViewerPath &viewer_path)
   uint64_t hash = 0;
   for (ViewerPathElem &elem : viewer_path.path) {
     const uint64_t elem_hash = BKE_viewer_path_elem_hash(elem);
-    hash = blender::get_default_hash(hash, elem_hash);
+    hash = get_default_hash(hash, elem_hash);
   }
   return hash;
 }
@@ -167,8 +166,7 @@ void BKE_viewer_path_foreach_id(LibraryForeachIDData *data, ViewerPath *viewer_p
   }
 }
 
-void BKE_viewer_path_id_remap(ViewerPath *viewer_path,
-                              const blender::bke::id::IDRemapper &mappings)
+void BKE_viewer_path_id_remap(ViewerPath *viewer_path, const bke::id::IDRemapper &mappings)
 {
   for (ViewerPathElem &elem : viewer_path->path) {
     switch (ViewerPathElemType(elem.type)) {
@@ -192,7 +190,7 @@ void BKE_viewer_path_id_remap(ViewerPath *viewer_path,
 
 template<typename T> static T *make_elem(const ViewerPathElemType type)
 {
-  T *elem = MEM_new_for_free<T>(__func__);
+  T *elem = MEM_new<T>(__func__);
   elem->base.type = type;
   return elem;
 }
@@ -405,7 +403,6 @@ bool BKE_viewer_path_elem_equal(const ViewerPathElem *a,
 
 uint64_t BKE_viewer_path_elem_hash(const ViewerPathElem &elem)
 {
-  using blender::get_default_hash;
   switch (ViewerPathElemType(elem.type)) {
     case VIEWER_PATH_ELEM_TYPE_ID: {
       const auto &typed_elem = reinterpret_cast<const IDViewerPathElem &>(elem);
@@ -465,7 +462,9 @@ void BKE_viewer_path_elem_free(ViewerPathElem *elem)
     }
   }
   if (elem->ui_name) {
-    MEM_freeN(elem->ui_name);
+    MEM_delete(elem->ui_name);
   }
-  MEM_freeN(elem);
+  MEM_delete(elem);
 }
+
+}  // namespace blender

@@ -30,10 +30,12 @@
 
 #include "physics_intern.hh"
 
+namespace blender {
+
 /************************ add/del boid rule operators *********************/
 static wmOperatorStatus rule_add_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", &RNA_ParticleSettings);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", RNA_ParticleSettings);
   ParticleSettings *part = static_cast<ParticleSettings *>(ptr.data);
   int type = RNA_enum_get(op->ptr, "type");
 
@@ -79,7 +81,7 @@ void BOID_OT_rule_add(wmOperatorType *ot)
 static wmOperatorStatus rule_del_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", &RNA_ParticleSettings);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", RNA_ParticleSettings);
   ParticleSettings *part = static_cast<ParticleSettings *>(ptr.data);
   BoidRule *rule;
   BoidState *state;
@@ -93,7 +95,7 @@ static wmOperatorStatus rule_del_exec(bContext *C, wmOperator * /*op*/)
   for (BoidRule &rule : state->rules) {
     if (rule.flag & BOIDRULE_CURRENT) {
       BLI_remlink(&state->rules, &rule);
-      MEM_freeN(&rule);
+      MEM_delete(&rule);
       break;
     }
   }
@@ -126,7 +128,7 @@ void BOID_OT_rule_del(wmOperatorType *ot)
 /************************ move up/down boid rule operators *********************/
 static wmOperatorStatus rule_move_up_exec(bContext *C, wmOperator * /*op*/)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", &RNA_ParticleSettings);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", RNA_ParticleSettings);
   ParticleSettings *part = static_cast<ParticleSettings *>(ptr.data);
   BoidState *state;
 
@@ -162,7 +164,7 @@ void BOID_OT_rule_move_up(wmOperatorType *ot)
 
 static wmOperatorStatus rule_move_down_exec(bContext *C, wmOperator * /*op*/)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", &RNA_ParticleSettings);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", RNA_ParticleSettings);
   ParticleSettings *part = static_cast<ParticleSettings *>(ptr.data);
   BoidState *state;
 
@@ -199,7 +201,7 @@ void BOID_OT_rule_move_down(wmOperatorType *ot)
 /************************ add/del boid state operators *********************/
 static wmOperatorStatus state_add_exec(bContext *C, wmOperator * /*op*/)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", &RNA_ParticleSettings);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", RNA_ParticleSettings);
   ParticleSettings *part = static_cast<ParticleSettings *>(ptr.data);
   BoidState *state;
 
@@ -235,7 +237,7 @@ void BOID_OT_state_add(wmOperatorType *ot)
 static wmOperatorStatus state_del_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", &RNA_ParticleSettings);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", RNA_ParticleSettings);
   ParticleSettings *part = static_cast<ParticleSettings *>(ptr.data);
   BoidState *state;
 
@@ -246,7 +248,7 @@ static wmOperatorStatus state_del_exec(bContext *C, wmOperator * /*op*/)
   for (BoidState &state : part->boids->states) {
     if (state.flag & BOIDSTATE_CURRENT) {
       BLI_remlink(&part->boids->states, &state);
-      MEM_freeN(&state);
+      MEM_delete(&state);
       break;
     }
   }
@@ -285,7 +287,7 @@ void BOID_OT_state_del(wmOperatorType *ot)
 /************************ move up/down boid state operators *********************/
 static wmOperatorStatus state_move_up_exec(bContext *C, wmOperator * /*op*/)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", &RNA_ParticleSettings);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", RNA_ParticleSettings);
   ParticleSettings *part = static_cast<ParticleSettings *>(ptr.data);
   BoidSettings *boids;
 
@@ -320,7 +322,7 @@ void BOID_OT_state_move_up(wmOperatorType *ot)
 
 static wmOperatorStatus state_move_down_exec(bContext *C, wmOperator * /*op*/)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", &RNA_ParticleSettings);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_settings", RNA_ParticleSettings);
   ParticleSettings *part = static_cast<ParticleSettings *>(ptr.data);
   BoidSettings *boids;
 
@@ -353,3 +355,5 @@ void BOID_OT_state_move_down(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
+}  // namespace blender

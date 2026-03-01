@@ -9,8 +9,12 @@
  * \brief display list (or rather multi purpose list) stuff.
  */
 
+#include "DNA_curve_enums.h"
 #include "DNA_listBase.h"
 
+namespace blender {
+
+struct Depsgraph;
 struct Nurb;
 
 /** #DispList.type */
@@ -40,12 +44,11 @@ enum {
 
 /* prototypes */
 
-struct Depsgraph;
 struct Object;
 struct Scene;
 
 /* Used for curves, nurbs, meta-balls. */
-typedef struct DispList {
+struct DispList {
   struct DispList *next, *prev;
   short type, flag;
   int parts, nr;
@@ -54,7 +57,7 @@ typedef struct DispList {
   int *index;
   int charidx;
   int totindex; /* indexed array drawing surfaces */
-} DispList;
+};
 
 DispList *BKE_displist_find(ListBaseT<DispList> *lb, int type);
 void BKE_displist_free(ListBaseT<DispList> *lb);
@@ -78,11 +81,15 @@ bool BKE_displist_surfindex_get(
  * Pass this along if known since it saves time calculating the normal.
  * This is also used to initialize #DispList.nors (one normal per display list).
  * \param flip_normal: Flip the normal (same as passing \a normal_proj negated).
+ * \param fill_solver: Triangulation solver (#CU_FILL_SOLVER_SWEEP_LINE, etc.).
+ * \param fill_rule: Fill rule for CDT solver (#CU_FILL_RULE_EVEN_ODD, etc.).
  */
 void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
                        ListBaseT<DispList> *to,
                        const float normal_proj[3],
-                       bool flip_normal);
+                       bool flip_normal,
+                       CurveFillSolverType fill_solver,
+                       CurveFillRuleType fill_rule);
 
 float BKE_displist_calc_taper(struct Depsgraph *depsgraph,
                               const struct Scene *scene,
@@ -91,3 +98,5 @@ float BKE_displist_calc_taper(struct Depsgraph *depsgraph,
                               int tot);
 
 void BKE_displist_minmax(const ListBaseT<DispList> *dispbase, float min[3], float max[3]);
+
+}  // namespace blender
