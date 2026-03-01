@@ -69,6 +69,8 @@
 /* Deep pixel images */
 #include <OpenEXR/ImfDeepFrameBuffer.h>
 #include <OpenEXR/ImfDeepScanLineInputPart.h>
+#include <OpenEXR/ImfDeepScanLineOutputFile.h>
+#include <OpenEXR/ImfDeepScanLineOutputPart.h>
 #include <OpenEXR/ImfDeepTiledInputPart.h>
 
 #include "DNA_scene_types.h" /* For OpenEXR compression constants */
@@ -772,11 +774,278 @@ static bool imb_save_openexr_float(ImBuf *ibuf, const char *filepath, const int 
   return true;
 }
 
+static bool imb_save_openexr_deep(ImBuf *ibuf, const char *filepath, const int flags)
+{
+  if (ibuf->deep_buffers.is_empty()) {
+    CLOG_ERROR(&LOG, "Attempt to save deep EXR: ImBuf has no deep data");
+    return false;
+  }
+
+  OStream *file_stream = nullptr;
+  bool ok = false;
+
+  try {
+    /* Create main header from image dimensions. */
+    const int width = ibuf->x;
+    const int height = ibuf->y;
+    Header header(width, height);
+    /* compression & metadata */
+    const int compression = ibuf->foptions.flag & OPENEXR_CODEC_MASK;
+    openexr_header_compression(&header, compression, ibuf->foptions.quality);
+    openexr_header_metadata_global(&header, ibuf->metadata, ibuf->ppm);
+    openexr_header_metadata_colorspace(&header, ibuf);
+
+    /* If we have view names for deep parts, advertise them in the header as global
+     * multiView metadata (per-part views are set on each part header below). */
+    if (!ibuf->deep_view_names.is_empty()) {
+      if (ibuf->deep_view_names.size() == 1) {
+        if (!ibuf->deep_view_names[0].empty()) {
+          header.insert("view", StringAttribute(ibuf->deep_view_names[0]));
+        }
+      }
+      else {
+        StringVector views;
+        for (const std::string &v : ibuf->deep_view_names) {
+          views.push_back(v);
+        }
+        addMultiView(header, views);
+      }
+    }
+
+    /* output stream (handle IB_mem) */
+    if (flags & IB_mem) {
+      file_stream = new OMemStream(ibuf);
+    }
+    else {
+      file_stream = new OFileStream(filepath);
+    }
+
+    const bool write_half = (ibuf->foptions.flag & OPENEXR_HALF) != 0;
+    const float half_max_val = compression_half_max(compression, ibuf->foptions.quality);
+
+    /* Full multipart deep write (OpenEXR >= 3.x):
+     * Build per-part headers (each marked DEEPSCANLINE), create a MultiPartOutputFile,
+     * then write each part using DeepScanLineOutputPart. */
+    const int parts = int(ibuf->deep_buffers.size());
+    if (parts == 0) {
+      CLOG_ERROR(&LOG, "No deep buffers present");
+      delete file_stream;
+      return false;
+    }
+
+    Vector<Header> part_headers;
+    part_headers.resize(parts);
+    for (int p = 0; p < parts; ++p) {
+      /* Start from the global header but mark per-part properties. */
+      part_headers[p] = header;
+      part_headers[p].setType(DEEPSCANLINE);
+
+      /* MultiPartOutputFile requires each header to have a name. Prefer view name
+       * when present, otherwise use a unique "partN" fallback. */
+      std::string part_name;
+      if (p < ibuf->deep_view_names.size() && !ibuf->deep_view_names[p].empty()) {
+        part_name = ibuf->deep_view_names[p];
+      }
+      else {
+        part_name = std::string("part") + std::to_string(p);
+      }
+      part_headers[p].setName(part_name);
+
+      /* Also record per-part view attribute when available to aid round-trip. */
+      if (p < ibuf->deep_view_names.size() && !ibuf->deep_view_names[p].empty()) {
+        part_headers[p].insert("view", StringAttribute(ibuf->deep_view_names[p]));
+      }
+
+      /* Insert channels for this part (match requested output type). */
+      const ImBufDeepBuffer &pdb = ibuf->deep_buffers[p];
+      for (const std::string &ch_name : pdb.channel_names) {
+        part_headers[p].channels().insert(ch_name, Channel(write_half ? Imf::HALF : Imf::FLOAT));
+      }
+      if (std::find(pdb.channel_names.begin(), pdb.channel_names.end(), "Z") ==
+          pdb.channel_names.end())
+      {
+        part_headers[p].channels().insert("Z", Channel(write_half ? Imf::HALF : Imf::FLOAT));
+      }
+    }
+
+    /* Create multipart output file */
+    MultiPartOutputFile mpofile(*(static_cast<Imf::OStream *>(file_stream)),
+                                part_headers.data(),
+                                static_cast<int>(part_headers.size()));
+
+    /* For each part, prepare DeepFrameBuffer and write using DeepScanLineOutputPart. */
+    for (int p = 0; p < parts; ++p) {
+      ImBufDeepBuffer &db = ibuf->deep_buffers[p];
+
+      const Box2i &dw = part_headers[p].dataWindow();
+      const int data_width = dw.max.x - dw.min.x + 1;
+      const int data_height = dw.max.y - dw.min.y + 1;
+      const int pixel_count = data_width * data_height;
+
+      if (int(db.sample_counts.size()) < pixel_count) {
+        CLOG_ERROR(&LOG, "Deep buffer sample_counts smaller than expected for part %d", p);
+        return false;
+      }
+
+      const int nchan = int(db.channel_names.size());
+
+      /* If writing HALF, convert all per-sample floats to half into temporary buffers
+       * so DeepSlice can point into them with Imf::HALF. Otherwise use float pointers. */
+      const int total_samples = db.depths.size();
+
+      /* Temp storage (kept inside scope until writePixels completes) */
+      Vector<half> tmp_depths;
+      Vector<half> tmp_channel_data;
+      Vector<Vector<float *>> channel_pointers_float(nchan, Vector<float *>());
+      Vector<Vector<half *>> channel_pointers_half;
+      Vector<float *> depth_pointers_float;
+      Vector<half *> depth_pointers_half;
+
+      if (write_half) {
+        /* Convert depths and channels to half. */
+        tmp_depths.resize(total_samples);
+        tmp_channel_data.resize(size_t(total_samples) * size_t(nchan));
+
+        /* Convert sample-by-sample using per-pixel offsets to match layout. */
+        for (int s = 0; s < total_samples; ++s) {
+          tmp_depths[s] = float_to_half_safe(db.depths[s], half_max_val);
+        }
+
+        for (int s = 0; s < total_samples; ++s) {
+          for (int c = 0; c < nchan; ++c) {
+            const float v = db.channel_data[s * nchan + c];
+            tmp_channel_data[size_t(s) * nchan + c] = float_to_half_safe(v, half_max_val);
+          }
+        }
+
+        /* Build pointer arrays into the half buffers (per-pixel pointers). */
+        channel_pointers_half.resize(nchan, Vector<half *>());
+        for (int c = 0; c < nchan; ++c) {
+          channel_pointers_half[c].resize(pixel_count);
+        }
+        depth_pointers_half.resize(pixel_count);
+
+        for (int pix = 0; pix < pixel_count; ++pix) {
+          const int offset = db.sample_offsets[pix];
+          const int scnt = db.sample_counts[pix];
+          if (scnt > 0) {
+            depth_pointers_half[pix] = tmp_depths.data() + offset;
+            for (int c = 0; c < nchan; ++c) {
+              channel_pointers_half[c][pix] = tmp_channel_data.data() + (offset * nchan) + c;
+            }
+          }
+          else {
+            depth_pointers_half[pix] = nullptr;
+            for (int c = 0; c < nchan; ++c) {
+              channel_pointers_half[c][pix] = nullptr;
+            }
+          }
+        }
+      }
+      else {
+        /* Float path: build pointers into existing float arrays. */
+        channel_pointers_float = Vector<Vector<float *>>(nchan, Vector<float *>());
+        for (int c = 0; c < nchan; ++c) {
+          channel_pointers_float[c].resize(pixel_count);
+        }
+        depth_pointers_float.resize(pixel_count);
+
+        for (int pix = 0; pix < pixel_count; ++pix) {
+          const int offset = db.sample_offsets[pix];
+          const int scnt = db.sample_counts[pix];
+          if (scnt > 0) {
+            depth_pointers_float[pix] = db.depths.data() + offset;
+            for (int c = 0; c < nchan; ++c) {
+              channel_pointers_float[c][pix] = db.channel_data.data() + (offset * nchan) + c;
+            }
+          }
+          else {
+            depth_pointers_float[pix] = nullptr;
+            for (int c = 0; c < nchan; ++c) {
+              channel_pointers_float[c][pix] = nullptr;
+            }
+          }
+        }
+      }
+
+      DeepFrameBuffer dfb;
+      dfb.insertSampleCountSlice(
+          Slice(Imf::UINT,
+                (char *)(db.sample_counts.data() - dw.min.x - dw.min.y * data_width),
+                sizeof(int),
+                sizeof(int) * data_width));
+
+      if (write_half) {
+        for (int c = 0; c < nchan; ++c) {
+          dfb.insert(db.channel_names[c],
+                     DeepSlice(Imf::HALF,
+                               (char *)(channel_pointers_half[c].data() - dw.min.x -
+                                        dw.min.y * data_width),
+                               sizeof(half *),
+                               sizeof(half *) * data_width,
+                               sizeof(half) * nchan));
+        }
+
+        dfb.insert(
+            "Z",
+            DeepSlice(Imf::HALF,
+                      (char *)(depth_pointers_half.data() - dw.min.x - dw.min.y * data_width),
+                      sizeof(half *),
+                      sizeof(half *) * data_width,
+                      sizeof(half)));
+      }
+      else {
+        for (int c = 0; c < nchan; ++c) {
+          dfb.insert(db.channel_names[c],
+                     DeepSlice(Imf::FLOAT,
+                               (char *)(channel_pointers_float[c].data() - dw.min.x -
+                                        dw.min.y * data_width),
+                               sizeof(float *),
+                               sizeof(float *) * data_width,
+                               sizeof(float) * nchan));
+        }
+
+        dfb.insert(
+            "Z",
+            DeepSlice(Imf::FLOAT,
+                      (char *)(depth_pointers_float.data() - dw.min.x - dw.min.y * data_width),
+                      sizeof(float *),
+                      sizeof(float *) * data_width,
+                      sizeof(float)));
+      }
+
+      Imf::DeepScanLineOutputPart outpart(mpofile, p);
+      outpart.setFrameBuffer(dfb);
+      outpart.writePixels(data_height);
+    }
+
+    ok = true;
+  }
+  catch (const std::exception &exc) {
+    CLOG_ERROR(&LOG, "%s: %s", __func__, exc.what());
+    delete file_stream;
+    return false;
+  }
+  catch (...) {
+    CLOG_ERROR(&LOG, "Unknown error in %s", __func__);
+    delete file_stream;
+    return false;
+  }
+
+  /* Destroy stream after parts written */
+  delete file_stream;
+  return ok;
+}
+
 bool imb_save_openexr(ImBuf *ibuf, const char *filepath, int flags)
 {
   if (flags & IB_mem) {
     imb_addencodedbufferImBuf(ibuf);
     ibuf->encoded_size = 0;
+  }
+
+  if (!ibuf->deep_buffers.is_empty()) {
+    return imb_save_openexr_deep(ibuf, filepath, flags);
   }
 
   if (ibuf->foptions.flag & OPENEXR_HALF) {
@@ -2296,8 +2565,21 @@ static ImBuf *imb_load_openexr_deep(
   try {
     /* Create appropriate deep input based on file type */
     if (header.type() == DEEPSCANLINE) {
-      ibuf->deep_buffers.resize(file.parts());
-      for (int part = 0; part < file.parts(); ++part) {
+      const int parts = file.parts();
+      ibuf->deep_buffers.resize(parts);
+      ibuf->deep_view_names.resize(parts);
+      for (int part = 0; part < parts; ++part) {
+        /* Preserve per-part view name when available so we can round-trip. */
+        const Header &part_header = file.header(part);
+        if (part_header.hasView()) {
+          ibuf->deep_view_names[part] = part_header.view();
+        }
+        else if (hasMultiView(part_header)) {
+          StringVector mv = multiView(part_header);
+          if (!mv.empty()) {
+            ibuf->deep_view_names[part] = mv[0];
+          }
+        }
         DeepScanLineInputPart deep_in(file, part);
         if (!imb_read_deep_scanlines(deep_in, ibuf->deep_buffers[part])) {
           IMB_freeImBuf(ibuf);
@@ -2319,11 +2601,18 @@ static ImBuf *imb_load_openexr_deep(
 
   /* Flatten deep image to float buffer for display */
   ImBuf *flattened_ibuf = flatten_deep_to_float(ibuf, 0);
+  if (!flattened_ibuf) {
+    IMB_freeImBuf(ibuf);
+    return nullptr;
+  }
 
-  /* Free the original deep ibuf since we now have a flattened version */
+  /* Move deep buffers and view names into flattened ibuf so returned ImBuf is
+   * viewable but retains deep data for saving later. */
+  flattened_ibuf->deep_buffers = std::move(ibuf->deep_buffers);
+  flattened_ibuf->deep_view_names = std::move(ibuf->deep_view_names);
+  flattened_ibuf->flags |= IB_deep_data;
+  /* Free the temporary raw deep-only ImBuf (now that ownership moved). */
   IMB_freeImBuf(ibuf);
-
-  /* Use the flattened image from here on */
   ibuf = flattened_ibuf;
 
   /* Check line order and flip if image is stored bottom-to-top */

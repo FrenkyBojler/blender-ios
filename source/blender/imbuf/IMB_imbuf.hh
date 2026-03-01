@@ -380,10 +380,11 @@ void IMB_saturation(ImBuf *ibuf, float sat);
 /** Flatten a deep image to a regular float image using front-to-back compositing. */
 
 enum DeepFlattenMode {
+  /* These assume we have a front-to-back sample order. */
   DEEP_FLATTEN_COMPOSITE,  // Standard front-to-back over
   DEEP_FLATTEN_NEAREST,    // Only the nearest sample
   DEEP_FLATTEN_FARTHEST,   // Only the farthest sample
-  DEEP_FLATTEN_AVERAGE,    // Average all samples
+  DEEP_FLATTEN_AVERAGE,    // Average of all samples
   DEEP_FLATTEN_SUM,        // Additive (for volumes/fire)
 };
 
@@ -399,6 +400,10 @@ struct DeepFlattenOptions {
 ImBuf *flatten_deep_to_float(const ImBuf *deep_ibuf,
                              int part,
                              const DeepFlattenOptions *options = nullptr);
+
+/* For testing. Add pixel samples from the *float* buffer of a regular flat
+ * image at a specified depth. Add multiples front to back. */
+bool IMB_deep_populate_from_flat(ImBuf *deep_ibuf, const ImBuf *flat_ibuf, float depth, int part);
 
 /**
  * Get the number of samples for a specific pixel in a deep image.

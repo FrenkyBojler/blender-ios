@@ -297,6 +297,7 @@ struct ImBuf {
 
   /* Deep pixels buffers, one per deep view. */
   blender::Vector<ImBufDeepBuffer> deep_buffers;
+  blender::Vector<std::string> deep_view_names;
 
   /** Image buffer on the GPU. */
   ImBufGPU gpu;

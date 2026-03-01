@@ -466,4 +466,109 @@ ImBuf *flatten_deep_to_float(const ImBuf *deep_ibuf, int part, const DeepFlatten
   return result;
 }
 
+/* For testing. Make sure to add images with increasing depth, otherwise
+ * the depths will be in incorrect order. In that case you'd need to call
+ * IMB_deep_finalize with the sorting option. */
+bool IMB_deep_populate_from_flat(ImBuf *deep_ibuf, const ImBuf *flat_ibuf, float depth, int part)
+{
+  if (!deep_ibuf || !flat_ibuf) {
+    return false;
+  }
+
+  /* Require a float buffer on the source. */
+  if (!flat_ibuf->float_buffer.data) {
+    return false;
+  }
+
+  /* Dimensions must match. */
+  if (deep_ibuf->x != flat_ibuf->x || deep_ibuf->y != flat_ibuf->y) {
+    return false;
+  }
+
+  const int width = deep_ibuf->x;
+  const int height = deep_ibuf->y;
+  const int pixel_count = width * height;
+
+  /* Ensure deep buffer exists for the requested part. */
+  if (deep_ibuf->deep_buffers.size() < part + 1) {
+    deep_ibuf->flags |= IB_deep_data;
+    deep_ibuf->deep_buffers.resize(part + 1);
+  }
+
+  ImBufDeepBuffer &deep = deep_ibuf->deep_buffers[part];
+
+  /* If this is a brand-new deep buffer, initialize sample_counts and offsets.
+   * We will append samples and the caller should call IMB_deep_finalize() after
+   * all appends to rebuild offsets and optionally sort by depth. */
+  if (deep.sample_counts.is_empty()) {
+    deep.sample_counts.reinitialize(pixel_count);
+    for (int i = 0; i < pixel_count; ++i) {
+      deep.sample_counts[i] = 0;
+    }
+    deep.sample_offsets.reinitialize(pixel_count + 1); /* will be rebuilt by finalize */
+  }
+  else if (deep.sample_counts.size() != pixel_count) {
+    /* Mismatched image sizes for existing deep buffer. */
+    return false;
+  }
+
+  /* Channels per sample: default to 4 (RGBA) when not set. */
+  if (deep.channels_per_sample == 0) {
+    deep.channels_per_sample = 4;
+  }
+
+  const int channels_per_sample = deep.channels_per_sample;
+
+  /* We currently expect 4-channel RGBA source or fewer; if channels_per_sample differs
+   * from 4 it's safer to reject to avoid subtle layout bugs. */
+  if (channels_per_sample != 4) {
+    return false;
+  }
+
+  /* Prepare to append one sample per pixel in bulk. */
+  const int append_samples = pixel_count;
+
+  /* Reserve/resize depth array and channel_data for appended samples. */
+  const int old_depth_size = deep.depths.size();
+  deep.depths.resize(old_depth_size + append_samples);
+
+  const int old_channel_size = deep.channel_data.size();
+  deep.channel_data.resize(old_channel_size + append_samples * channels_per_sample);
+
+  /* Copy per-pixel data into appended region and increment sample_counts. */
+  const float *src = flat_ibuf->float_buffer.data;
+  const int src_channels = flat_ibuf->channels;
+
+  for (int i = 0; i < pixel_count; ++i) {
+    /* Depth */
+    deep.depths[old_depth_size + i] = depth;
+
+    /* Channels: copy up to 4 floats from source float buffer; fill missing channels. */
+    const float *s = src + size_t(i) * 4; /* typical layout in float_buffer */
+    float *dst = deep.channel_data.data() + size_t(old_channel_size) +
+                 size_t(i) * channels_per_sample;
+
+    if (src_channels >= 4) {
+      dst[0] = s[0];
+      dst[1] = s[1];
+      dst[2] = s[2];
+      dst[3] = s[3];
+    }
+    else {
+      dst[0] = (src_channels >= 1) ? s[0] : 0.0f;
+      dst[1] = (src_channels >= 2) ? s[1] : dst[0];
+      dst[2] = (src_channels >= 3) ? s[2] : dst[0];
+      dst[3] = 1.0f;
+    }
+
+    /* Increment sample count for this pixel. */
+    deep.sample_counts[i] += 1;
+  }
+
+  IMB_deep_finalize(deep_ibuf, part, false);
+
+  deep_ibuf->flags |= IB_deep_data;
+  return true;
+}
+
 }  // namespace blender
