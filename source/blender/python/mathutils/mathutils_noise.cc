@@ -153,13 +153,13 @@ static float frand()
   "   :type noise_basis: Literal['BLENDER', 'PERLIN_ORIGINAL', 'PERLIN_NEW', " \
   "'VORONOI_F1', 'VORONOI_F2', " \
   "'VORONOI_F3', 'VORONOI_F4', 'VORONOI_F2F1', 'VORONOI_CRACKLE', " \
-  "'CELLNOISE'].\n"
+  "'CELLNOISE']\n"
 
 #define BPY_NOISE_METRIC_ENUM_DOC \
   "   :param distance_metric: A distance metric string.\n" \
   "   :type distance_metric: Literal['DISTANCE', 'DISTANCE_SQUARED', 'MANHATTAN', " \
   "'CHEBYCHEV', " \
-  "'MINKOVSKY', 'MINKOVSKY_HALF', 'MINKOVSKY_FOUR'].\n"
+  "'MINKOVSKY', 'MINKOVSKY_HALF', 'MINKOVSKY_FOUR']\n"
 
 /* Noise basis enum */
 #define DEFAULT_NOISE_TYPE TEX_STDPERLIN
@@ -339,7 +339,7 @@ PyDoc_STRVAR(
     "\n"
     "   Returns a vector with random entries in the range (-1, 1).\n"
     "\n"
-    "   :param size: The size of the vector to be produced.\n"
+    "   :param size: The size of the vector to be produced, must be 2 or greater.\n"
     "   :type size: int\n"
     "   :return: The random vector.\n"
     "   :rtype: :class:`mathutils.Vector`\n");
@@ -372,7 +372,7 @@ PyDoc_STRVAR(
     M_Noise_seed_set_doc,
     ".. function:: seed_set(seed, /)\n"
     "\n"
-    "   Sets the random seed used for random_unit_vector, and random.\n"
+    "   Sets the random seed used for random_unit_vector, random_vector, and random.\n"
     "\n"
     "   :param seed: Seed used for the random generator.\n"
     "      When seed is zero, the current time will be used instead.\n"
@@ -490,7 +490,7 @@ PyDoc_STRVAR(
     "   :type hard: bool\n" BPY_NOISE_BASIS_ENUM_DOC
     "   :param amplitude_scale: The amplitude scaling factor.\n"
     "   :type amplitude_scale: float\n"
-    "   :param frequency_scale: The frequency scaling factor\n"
+    "   :param frequency_scale: The frequency scaling factor.\n"
     "   :type frequency_scale: float\n"
     "   :return: The turbulence value.\n"
     "   :rtype: float\n");
@@ -551,7 +551,7 @@ PyDoc_STRVAR(
     "   :type hard: bool\n" BPY_NOISE_BASIS_ENUM_DOC
     "   :param amplitude_scale: The amplitude scaling factor.\n"
     "   :type amplitude_scale: float\n"
-    "   :param frequency_scale: The frequency scaling factor\n"
+    "   :param frequency_scale: The frequency scaling factor.\n"
     "   :type frequency_scale: float\n"
     "   :return: The turbulence vector.\n"
     "   :rtype: :class:`mathutils.Vector`\n");
@@ -609,12 +609,12 @@ PyDoc_STRVAR(
     "\n"
     "   :param position: The position to evaluate the selected noise function.\n"
     "   :type position: :class:`mathutils.Vector`\n"
-    "   :param H: The fractal increment factor.\n"
+    "   :param H: The fractal increment parameter.\n"
     "   :type H: float\n"
     "   :param lacunarity: The gap between successive frequencies.\n"
     "   :type lacunarity: float\n"
     "   :param octaves: The number of different noise frequencies used.\n"
-    "   :type octaves: int\n" BPY_NOISE_BASIS_ENUM_DOC
+    "   :type octaves: float\n" BPY_NOISE_BASIS_ENUM_DOC
     "   :return: The fractal Brownian motion noise value.\n"
     "   :rtype: float\n");
 static PyObject *M_Noise_fractal(PyObject * /*self*/, PyObject *args, PyObject *kw)
@@ -666,12 +666,12 @@ PyDoc_STRVAR(
     "\n"
     "   :param position: The position to evaluate the selected noise function.\n"
     "   :type position: :class:`mathutils.Vector`\n"
-    "   :param H: The fractal increment factor.\n"
+    "   :param H: Determines the highest fractal dimension.\n"
     "   :type H: float\n"
     "   :param lacunarity: The gap between successive frequencies.\n"
     "   :type lacunarity: float\n"
     "   :param octaves: The number of different noise frequencies used.\n"
-    "   :type octaves: int\n" BPY_NOISE_BASIS_ENUM_DOC
+    "   :type octaves: float\n" BPY_NOISE_BASIS_ENUM_DOC
     "   :return: The multifractal noise value.\n"
     "   :rtype: float\n");
 static PyObject *M_Noise_multi_fractal(PyObject * /*self*/, PyObject *args, PyObject *kw)
@@ -730,12 +730,12 @@ PyDoc_STRVAR(
     "   :type noise_type1: Literal['BLENDER', 'PERLIN_ORIGINAL', 'PERLIN_NEW', "
     "'VORONOI_F1', 'VORONOI_F2', "
     "'VORONOI_F3', 'VORONOI_F4', 'VORONOI_F2F1', 'VORONOI_CRACKLE', "
-    "'CELLNOISE'].\n"
+    "'CELLNOISE']\n"
     "   :param noise_type2: A noise type string.\n"
     "   :type noise_type2: Literal['BLENDER', 'PERLIN_ORIGINAL', 'PERLIN_NEW', "
     "'VORONOI_F1', 'VORONOI_F2', "
     "'VORONOI_F3', 'VORONOI_F4', 'VORONOI_F2F1', 'VORONOI_CRACKLE', "
-    "'CELLNOISE'].\n"
+    "'CELLNOISE']\n"
     "   :return: The variable lacunarity noise value.\n"
     "   :rtype: float\n");
 static PyObject *M_Noise_variable_lacunarity(PyObject * /*self*/, PyObject *args, PyObject *kw)
@@ -801,7 +801,7 @@ PyDoc_STRVAR(
     "   :param lacunarity: The gap between successive frequencies.\n"
     "   :type lacunarity: float\n"
     "   :param octaves: The number of different noise frequencies used.\n"
-    "   :type octaves: int\n"
+    "   :type octaves: float\n"
     "   :param offset: The height of the terrain above 'sea level'.\n"
     "   :type offset: float\n" BPY_NOISE_BASIS_ENUM_DOC
     "   :return: The heterogeneous terrain value.\n"
@@ -861,7 +861,7 @@ PyDoc_STRVAR(
     "   :param lacunarity: The gap between successive frequencies.\n"
     "   :type lacunarity: float\n"
     "   :param octaves: The number of different noise frequencies used.\n"
-    "   :type octaves: int\n"
+    "   :type octaves: float\n"
     "   :param offset: The height of the terrain above 'sea level'.\n"
     "   :type offset: float\n"
     "   :param gain: Scaling applied to the values.\n"
@@ -926,7 +926,7 @@ PyDoc_STRVAR(
     "   :param lacunarity: The gap between successive frequencies.\n"
     "   :type lacunarity: float\n"
     "   :param octaves: The number of different noise frequencies used.\n"
-    "   :type octaves: int\n"
+    "   :type octaves: float\n"
     "   :param offset: The height of the terrain above 'sea level'.\n"
     "   :type offset: float\n"
     "   :param gain: Scaling applied to the values.\n"
@@ -1041,7 +1041,7 @@ PyDoc_STRVAR(
     "\n"
     "   Returns cell noise value at the specified position.\n"
     "\n"
-    "   :param position: The position to evaluate the selected noise function.\n"
+    "   :param position: The position to evaluate the cell noise at.\n"
     "   :type position: :class:`mathutils.Vector`\n"
     "   :return: The cell noise value.\n"
     "   :rtype: float\n");
@@ -1068,7 +1068,7 @@ PyDoc_STRVAR(
     "\n"
     "   Returns cell noise vector at the specified position.\n"
     "\n"
-    "   :param position: The position to evaluate the selected noise function.\n"
+    "   :param position: The position to evaluate the cell noise at.\n"
     "   :type position: :class:`mathutils.Vector`\n"
     "   :return: The cell noise vector.\n"
     "   :rtype: :class:`mathutils.Vector`\n");

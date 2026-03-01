@@ -132,25 +132,6 @@ void AbstractTreeView::foreach_root_item(ItemIterFn iter_fn) const
   }
 }
 
-AbstractTreeViewItem *AbstractTreeView::find_hovered(const ARegion &region, const int2 &xy)
-{
-  AbstractTreeViewItem *hovered_item = nullptr;
-  this->foreach_item_recursive(
-      [&](AbstractTreeViewItem &item) {
-        if (hovered_item) {
-          return;
-        }
-
-        std::optional<rctf> win_rect = item.get_win_rect(region);
-        if (win_rect && BLI_rctf_isect_y(&*win_rect, xy[1])) {
-          hovered_item = &item;
-        }
-      },
-      IterOptions::SkipCollapsed | IterOptions::SkipFiltered);
-
-  return hovered_item;
-}
-
 void AbstractTreeView::set_default_rows(int default_rows)
 {
   BLI_assert_msg(default_rows >= MIN_ROWS,
@@ -279,11 +260,11 @@ void AbstractTreeView::get_hierarchy_lines(const ARegion &region,
 
 static ButtonViewItem *find_first_view_item_but(const Block &block, const AbstractTreeView &view)
 {
-  for (const std::unique_ptr<Button> &but : block.buttons) {
-    if (but->type != ButtonType::ViewItem) {
+  for (Button &but : block.buttons()) {
+    if (but.type != ButtonType::ViewItem) {
       continue;
     }
-    auto *view_item_but = static_cast<ButtonViewItem *>(but.get());
+    auto *view_item_but = static_cast<ButtonViewItem *>(&but);
     if (&view_item_but->view_item->get_view() == &view) {
       return view_item_but;
     }

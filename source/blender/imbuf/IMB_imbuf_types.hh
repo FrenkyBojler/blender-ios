@@ -11,9 +11,10 @@
  * Image buffer types.
  */
 
+#include "BLI_vector.hh"
+
 #include "DNA_vec_types.h" /* for rcti */
 
-#include "BLI_vector.hh"
 #include "IMB_imbuf_enums.h"
 
 namespace blender {
@@ -81,8 +82,11 @@ using ColorSpace = ocio::ColorSpace;
 
 struct ImbFormatOptions {
   short flag = 0;
-  /** Quality serves dual purpose as quality number for JPEG or compression amount for PNG. */
-  char quality = 0;
+  /** Quality for JPEG, WebP, AVIF. */
+  char quality = 90;
+  /* Compression amount for PNG.
+   * Default to low compression ratio that is not time consuming. */
+  char compress = 15;
 };
 
 /* -------------------------------------------------------------------- */
@@ -91,7 +95,7 @@ struct ImbFormatOptions {
  * \{ */
 
 struct ImBufDeepBuffer {
-  /** Number of samples per pixel (size = width * height). */
+  /** Number of samples at each pixel (size = width * height). */
   blender::Vector<int> sample_counts;
 
   /** Cumulative sample offsets for O(1) pixel access (size = width * height + 1).
@@ -158,6 +162,9 @@ enum eImBufFlags {
   IB_has_display_window = 1 << 17,
   /** Contains deep pixel data */
   IB_deep_data = 1 << 18,
+
+  /** Perform no color space conversions when reading, leave the image in the file colorspace. */
+  IB_no_colorspace_convert = 1 << 18,
 };
 
 /** \} */
@@ -288,7 +295,8 @@ struct ImBuf {
    */
   ImBufFloatBuffer float_buffer;
 
-  blender::Vector<ImBufDeepBuffer> deep_buffer_views;
+  /* Deep pixels buffers, one per deep view. */
+  blender::Vector<ImBufDeepBuffer> deep_buffers;
 
   /** Image buffer on the GPU. */
   ImBufGPU gpu;
@@ -354,6 +362,9 @@ enum {
   IB_DISPLAY_BUFFER_INVALID = (1 << 4),
   /** image buffer is persistent in the memory and should never be removed from the cache */
   IB_PERSISTENT = (1 << 5),
+  /** The image buffer is backed by a GPU texture storage but the host buffers either do not exist
+   * or are out-dated and needs to read from the GPU texture. */
+  IB_HOST_BUFFER_INVALID = (1 << 6),
 };
 
 /** \} */
