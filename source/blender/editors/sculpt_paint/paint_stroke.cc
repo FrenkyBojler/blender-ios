@@ -199,14 +199,25 @@ void PaintStroke::prepend_virtual_roll_points()
     world_spline_->add(bridge3d);
   }
 
-  /* Total virtual segments = backward extension + bridging. */
-  n_virtual_segments_ = n_backward + 1;
+  /* Only the backward extension is virtual; the bridge covers actual
+   * stroke territory (point[0] → point[1]), so the yellow boundary
+   * marker ends up at the real stroke starting position. */
+  n_virtual_segments_ = n_backward;
 }
 
 void PaintStroke::make_roll_spline(bContext *C)
 {
   if (num_points_ < 4) {
     return;
+  }
+
+  /* Remove the trailing extension segment from the previous call. */
+  if (has_trailing_roll_segment_) {
+    spline_->segments.resize(spline_->segments.size() - 1);
+    spline_->update();
+    world_spline_->segments.resize(world_spline_->segments.size() - 1);
+    world_spline_->update();
+    has_trailing_roll_segment_ = false;
   }
 
   if (!roll_virtual_prepended_) {
@@ -284,16 +295,212 @@ void PaintStroke::make_roll_spline(bContext *C)
   }
   world_spline_->add(bez3d);
 
+  /* Trailing segment: extend spline from points_[cur-1] to points_[cur] (newest).
+   * Catmull-Rom ends one sample behind the mouse because it needs a look-ahead
+   * point; this trailing extension closes that gap so the debug-draw spline
+   * (and texture mapping) reaches the current cursor position. */
+  {
+    float2 tr_p0 = points_[ia].mouse_out; /* Guide before (cur-2). */
+    float2 tr_p1 = points_[id].mouse_out; /* Start (cur-1). */
+    float2 tr_p2 = points_[ic].mouse_out; /* End = newest (cur). */
+    float2 tr_p3 = 2.0f * tr_p2 - tr_p1; /* Extrapolated guide after. */
+
+    /* Catmull-Rom to Bezier: ctrl1 = P1 + (P2-P0)/6, ctrl2 = P2 - (P3-P1)/6. */
+    float2 tr_ctrl1 = tr_p1 + (tr_p2 - tr_p0) * (1.0f / 6.0f);
+    float2 tr_ctrl2 = tr_p2 - (tr_p3 - tr_p1) * (1.0f / 6.0f);
+
+    CubicBezier<float, 2> trail_bez(tr_p1, tr_ctrl1, tr_ctrl2, tr_p2);
+    trail_bez.update();
+    spline_->add(trail_bez);
+
+    /* Project trailing control points to 3D. */
+    CubicBezier<float, 3> trail_bez3d;
+    {
+      float2 tr_mvals[4] = {tr_p1, tr_ctrl1, tr_ctrl2, tr_p2};
+      float3 last_z(0);
+      bool have_z = false;
+
+      for (int i = 0; i < 4; i++) {
+        if (!stroke_get_location_bvh(C, trail_bez3d.ps[i], tr_mvals[i], true)) {
+          if (!have_z) {
+            auto &segs = world_spline_->segments;
+            if (segs.size() > 0) {
+              copy_v3_v3(last_z, segs[segs.size() - 1].bezier.ps[3]);
+            }
+            else {
+              copy_v3_v3(last_z, last_world_space_position_);
+            }
+            have_z = true;
+          }
+          ED_view3d_win_to_3d(
+              CTX_wm_view3d(C), CTX_wm_region(C), last_z, tr_mvals[i], trail_bez3d.ps[i]);
+        }
+        else {
+          copy_v3_v3(last_z, trail_bez3d.ps[i]);
+          have_z = true;
+        }
+      }
+      trail_bez3d.update();
+    }
+    world_spline_->add(trail_bez3d);
+    has_trailing_roll_segment_ = true;
+  }
+
+  /* +2 to account for the trailing extension segment. */
   int max_pts = roll_max_points();
-  while (int64_t(spline_->segments.size()) > max_pts + 1) {
+  while (int64_t(spline_->segments.size()) > max_pts + 2) {
     spline_->pop_front();
     if (n_virtual_segments_ > 0) {
       n_virtual_segments_--;
     }
   }
-  while (int64_t(world_spline_->segments.size()) > max_pts + 1) {
+  while (int64_t(world_spline_->segments.size()) > max_pts + 2) {
     stroke_distance_world_ += world_spline_->segments[0].bezier.length;
     world_spline_->pop_front();
+  }
+}
+
+void PaintStroke::finish_roll_stroke(bContext *C,
+                                     wmOperator *op,
+                                     const float2 &mouse_up,
+                                     float pressure)
+{
+  if (!need_roll_mapping_ || !spline_ || num_points_ < 4) {
+    return;
+  }
+
+  const PaintMode mode = BKE_paintmode_get_active_from_context(C);
+  const Brush &brush = *BKE_paint_brush_for_read(this->paint);
+  bke::PaintRuntime *paint_runtime = this->paint->runtime;
+
+  /* 1. Process any remaining spacing steps up to the mouse-up position. */
+  if (paint_space_stroke_enabled(brush, mode)) {
+    space_stroke(C, op, mouse_up, pressure);
+  }
+
+  /* 2. Force-record the exact mouse-up position as a roll point
+   *    (even if it doesn't fall on a spacing boundary). */
+  {
+    float2 mouse_out = paint_stroke_jitter_pos(
+        this->paint, mode, brush, pressure, stroke_mode_, zoom_2d_, mouse_up);
+    float3 location;
+    bool is_location_is_set;
+    update(C, brush, mode, mouse_up, mouse_out, pressure, location, &is_location_is_set);
+    if (is_location_is_set) {
+      add_roll_point(
+          mouse_up, mouse_out, location, paint_runtime->pixel_radius, pressure, pen_flip_,
+          tilt_.x, tilt_.y);
+    }
+    else if (num_points_ > 0) {
+      /* Fallback: use last known location so the spline still extends. */
+      const int last = (cur_point_ - 1 + roll_max_points()) % roll_max_points();
+      add_roll_point(mouse_up,
+                     mouse_out,
+                     points_[last].location,
+                     points_[last].size,
+                     pressure,
+                     pen_flip_,
+                     tilt_.x,
+                     tilt_.y);
+    }
+    make_roll_spline(C);
+  }
+
+  /* 3. Append a virtual forward extension so the last dab has spline
+   *    coverage for the brush half that extends beyond the stroke end.
+   *    Mirrors prepend_virtual_roll_points() but in the forward direction. */
+  if (num_points_ >= 2 && spline_->segments.size() > 0) {
+    const int max_pts = roll_max_points();
+    const int newest = (cur_point_ - 1 + max_pts) % max_pts;
+    const int oldest = (cur_point_ - num_points_ + max_pts) % max_pts;
+
+    const float3 p_end = points_[newest].location;
+    const float2 m_end = points_[newest].mouse_out;
+
+    float3 dir3 = p_end - points_[oldest].location;
+    float2 dir2 = m_end - points_[oldest].mouse_out;
+    const float len3 = math::length(dir3);
+    const float len2 = math::length(dir2);
+
+    if (len3 > 1e-7f && len2 > 1e-7f) {
+      dir3 /= len3;
+      dir2 /= len2;
+
+      const float r_world = paint_calc_object_space_radius(vc, p_end, points_[newest].size);
+      const float r_screen = points_[newest].size;
+
+      constexpr int n_forward = 12;
+      const float total_fwd_3d = r_world * 3.0f;
+      const float total_fwd_2d = r_screen * 3.0f;
+      const float step_3d = total_fwd_3d / float(n_forward);
+      const float step_2d = total_fwd_2d / float(n_forward);
+
+      /* v[0] = p_end (newest), v[n_forward] = farthest forward. */
+      float3 v3d[n_forward + 1];
+      float2 v2d[n_forward + 1];
+      for (int i = 0; i <= n_forward; i++) {
+        v3d[i] = p_end + dir3 * (float(i) * step_3d);
+        v2d[i] = m_end + dir2 * (float(i) * step_2d);
+      }
+
+      for (int i = 0; i < n_forward; i++) {
+        const float2 a2 = v2d[i];
+        const float2 d2 = v2d[i + 1];
+        CubicBezier<float, 2> bez2d(a2,
+                                     math::interpolate(a2, d2, 1.0f / 3.0f),
+                                     math::interpolate(a2, d2, 2.0f / 3.0f),
+                                     d2);
+        bez2d.update();
+        spline_->add(bez2d);
+
+        CubicBezier<float, 3> bez3d;
+        bez3d.ps[0] = v3d[i];
+        bez3d.ps[1] = math::interpolate(v3d[i], v3d[i + 1], 1.0f / 3.0f);
+        bez3d.ps[2] = math::interpolate(v3d[i], v3d[i + 1], 2.0f / 3.0f);
+        bez3d.ps[3] = v3d[i + 1];
+        bez3d.update();
+        world_spline_->add(bez3d);
+      }
+    }
+  }
+
+  /* 4. Flush deferred dabs: advance look_back from its current position
+   *    to the newest recorded point, placing a dab at each step. */
+  const int max_pts = roll_max_points();
+  const int half = (max_pts >> 1) + 2;
+  const int oldest_idx = (cur_point_ - num_points_ + max_pts) % max_pts;
+
+  /* Where the last placed dab was (or would be). */
+  int flush_start;
+  if (num_points_ <= half) {
+    flush_start = oldest_idx;
+  }
+  else {
+    flush_start = (cur_point_ - half + max_pts) % max_pts;
+  }
+
+  /* Advance one step at a time toward the newest point. */
+  const int newest = (cur_point_ - 1 + max_pts) % max_pts;
+  int idx = (flush_start + 1) % max_pts;
+
+  while (idx != ((newest + 1) % max_pts)) {
+    PaintStrokePoint *point = &points_[idx];
+
+    PointerRNA itemptr;
+    RNA_collection_add(op->ptr, "stroke", &itemptr);
+    RNA_float_set(&itemptr, "size", point->size);
+    RNA_float_set_array(&itemptr, "location", point->location);
+    RNA_float_set_array(&itemptr, "mouse", point->mouse_out);
+    RNA_float_set_array(&itemptr, "mouse_event", point->mouse_in);
+    RNA_float_set(&itemptr, "pressure", point->pressure);
+    RNA_float_set(&itemptr, "x_tilt", point->x_tilt);
+    RNA_float_set(&itemptr, "y_tilt", point->y_tilt);
+
+    this->update_step(op, &itemptr);
+    RNA_collection_clear(op->ptr, "stroke");
+
+    tot_samples_++;
+    idx = (idx + 1) % max_pts;
   }
 }
 
@@ -395,10 +602,13 @@ void PaintStroke::draw_debug_roll(bContext *C) const
   GPU_line_width(3.0f);
   for (int seg_idx = 0; seg_idx < n_segs; seg_idx++) {
     if (seg_idx < n_virtual_segments_) {
-      immUniformColor4ub(255, 50, 50, 200);
+      immUniformColor4ub(255, 50, 50, 200); /* Virtual: red. */
+    }
+    else if (has_trailing_roll_segment_ && seg_idx == n_segs - 1) {
+      immUniformColor4ub(100, 100, 255, 200); /* Trailing: blue. */
     }
     else {
-      immUniformColor4ub(50, 255, 50, 200);
+      immUniformColor4ub(50, 255, 50, 200); /* Real: green. */
     }
 
     const auto &b = spline_->segments[seg_idx].bezier;
@@ -952,6 +1162,21 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
     copy_v3_v3(paint_runtime->last_location, location);
   }
   if (!paint_runtime->last_hit) {
+    /* For roll mapping, record the press position even during a "dry run"
+     * (e.g. rake angle not yet established).  update() sets is_location_is_set
+     * when the mesh was actually hit, so the 3D location is valid. Without
+     * this, the first recorded roll point ends up one spacing step away from
+     * the real mouse-down position. */
+    if (need_roll_mapping_ && is_location_is_set) {
+      add_roll_point(mval,
+                     mouse_out,
+                     location,
+                     paint_runtime->pixel_radius,
+                     pressure,
+                     pen_flip_,
+                     tilt_.x,
+                     tilt_.y);
+    }
     return;
   }
 
@@ -2076,12 +2301,14 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       if (this->constrain_line) {
         paint_stroke_line_constrain(this->last_mouse_position, this->constrained_pos, mouse);
       }
+      this->finish_roll_stroke(C, op, mouse, pressure);
       this->line_end(C, op, mouse);
       this->stroke_done(C, op, false);
       return OPERATOR_FINISHED;
     }
   }
   else if (ELEM(event->type, EVT_RETKEY, EVT_SPACEKEY)) {
+    this->finish_roll_stroke(C, op, sample_average.mouse, pressure);
     this->line_end(C, op, sample_average.mouse);
     this->stroke_done(C, op, false);
     return OPERATOR_FINISHED;

@@ -164,8 +164,9 @@ struct PaintStroke : NonCopyable, NonMovable {
 
   /* Roll texture mapping */
   bool need_roll_mapping_ = false;
-  bool roll_virtual_prepended_ = false; /* true after virtual backward segments are prepended */
-  int n_virtual_segments_ = 0;          /* number of virtual backward segments prepended */
+  bool roll_virtual_prepended_ = false;     /* true after virtual backward segments are prepended */
+  bool has_trailing_roll_segment_ = false; /* true when a trailing extension segment exists */
+  int n_virtual_segments_ = 0;             /* number of virtual backward segments prepended */
   void *debug_cursor_ = nullptr;
   int stroke_sample_index_ = 0;
   float spacing_raw_ = 0.0f;
@@ -343,6 +344,7 @@ struct PaintStroke : NonCopyable, NonMovable {
                       float y_tilt);
   void prepend_virtual_roll_points();
   void make_roll_spline(bContext *C);
+  void finish_roll_stroke(bContext *C, wmOperator *op, const float2 &mouse_up, float pressure);
 
   void add_step(bContext *C, wmOperator *op, float2 mval, float pressure);
 
