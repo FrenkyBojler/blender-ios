@@ -56,11 +56,11 @@ std::optional<SocketValueVariant> convert_single_socket_value(const bNodeSocket 
     return std::nullopt;
   }
   const bke::DataTypeConversions &type_conversions = bke::get_implicit_type_conversions();
-  if (type_conversions.is_convertible(*old_cpp_type, *new_cpp_type)) {
+  if (type_conversions.is_backward_convertible(*old_cpp_type, *new_cpp_type)) {
     const void *old_value_ptr = old_value.get_single_ptr_raw();
     SocketValueVariant new_value;
     void *new_value_ptr = new_value.allocate_single(new_type);
-    type_conversions.convert_to_uninitialized(
+    type_conversions.convert_to_uninitialized_backward(
         *old_cpp_type, *new_cpp_type, old_value_ptr, new_value_ptr);
     return new_value;
   }

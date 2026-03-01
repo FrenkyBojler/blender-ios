@@ -82,6 +82,7 @@ std::optional<ElemVariant> convert_socket_elem(const bNodeSocket &old_socket,
         }
         return new_elem;
       }
+      break;
     }
     case SOCK_FLOAT: {
       const FloatElem &float_elem = std::get<FloatElem>(old_elem.elem);
@@ -92,6 +93,7 @@ std::optional<ElemVariant> convert_socket_elem(const bNodeSocket &old_socket,
         vector_elem.z.merge(float_elem);
         return ElemVariant{vector_elem};
       }
+      break;
     }
     default:
       break;

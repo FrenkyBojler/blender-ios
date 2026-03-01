@@ -21,7 +21,10 @@ struct ConversionFunctions {
 
 class DataTypeConversions {
  private:
-  Map<std::pair<mf::DataType, mf::DataType>, ConversionFunctions> conversions_;
+  Map<std::pair<mf::DataType, mf::DataType>, ConversionFunctions>
+      conversions_;  // Default conversion.
+  Map<std::pair<mf::DataType, mf::DataType>, ConversionFunctions>
+      backward_conversions_;  // Backward conversion for propagation.
 
  public:
   void add(mf::DataType from_type,
@@ -34,8 +37,28 @@ class DataTypeConversions {
                          {&fn, convert_single_to_initialized, convert_single_to_uninitialized});
   }
 
+  void add_backward(mf::DataType from_type,
+                    mf::DataType to_type,
+                    const mf::MultiFunction &fn,
+                    void (*convert_single_to_initialized)(const void *src, void *dst),
+                    void (*convert_single_to_uninitialized)(const void *src, void *dst))
+  {
+    backward_conversions_.add_new(
+        {from_type, to_type},
+        {&fn, convert_single_to_initialized, convert_single_to_uninitialized});
+  }
+
   const ConversionFunctions *get_conversion_functions(mf::DataType from, mf::DataType to) const
   {
+    return conversions_.lookup_ptr({from, to});
+  }
+
+  const ConversionFunctions *get_backward_conversion_functions(mf::DataType from,
+                                                               mf::DataType to) const
+  {
+    if (const ConversionFunctions *functions = backward_conversions_.lookup_ptr({from, to})) {
+      return functions;
+    }
     return conversions_.lookup_ptr({from, to});
   }
 
@@ -45,9 +68,23 @@ class DataTypeConversions {
                                           mf::DataType::ForSingle(to));
   }
 
+  const ConversionFunctions *get_backward_conversion_functions(const CPPType &from,
+                                                               const CPPType &to) const
+  {
+    return this->get_backward_conversion_functions(mf::DataType::ForSingle(from),
+                                                   mf::DataType::ForSingle(to));
+  }
+
   const mf::MultiFunction *get_conversion_multi_function(mf::DataType from, mf::DataType to) const
   {
     const ConversionFunctions *functions = this->get_conversion_functions(from, to);
+    return functions ? functions->multi_function : nullptr;
+  }
+
+  const mf::MultiFunction *get_backward_conversion_multi_function(mf::DataType from,
+                                                                  mf::DataType to) const
+  {
+    const ConversionFunctions *functions = this->get_backward_conversion_functions(from, to);
     return functions ? functions->multi_function : nullptr;
   }
 
@@ -57,10 +94,28 @@ class DataTypeConversions {
         {mf::DataType::ForSingle(from_type), mf::DataType::ForSingle(to_type)});
   }
 
+  bool is_backward_convertible(const CPPType &from_type, const CPPType &to_type) const
+  {
+    if (backward_conversions_.contains(
+            {mf::DataType::ForSingle(from_type), mf::DataType::ForSingle(to_type)}))
+    {
+      return true;
+    }
+    else {
+      /* Check default forward conversion if there is no specific backward conversion */
+      return this->is_convertible(from_type, to_type);
+    }
+  }
+
   void convert_to_uninitialized(const CPPType &from_type,
                                 const CPPType &to_type,
                                 const void *from_value,
                                 void *to_value) const;
+
+  void convert_to_uninitialized_backward(const CPPType &from_type,
+                                         const CPPType &to_type,
+                                         const void *from_value,
+                                         void *to_value) const;
 
   void convert_to_initialized_n(GSpan from_span, GMutableSpan to_span) const;
 
