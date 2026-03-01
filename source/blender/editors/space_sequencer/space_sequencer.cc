@@ -223,7 +223,6 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
   SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
   ARegion *region_main = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
   ARegion *region_preview = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
-  ARegion *region_tools = BKE_area_find_region_type(area, RGN_TYPE_TOOLS);
   bool view_changed = false;
 
   switch (sseq->view) {

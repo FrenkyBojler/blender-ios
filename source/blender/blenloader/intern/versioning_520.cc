@@ -10,6 +10,8 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_space_enums.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_sys_types.h"
@@ -94,6 +96,34 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 6)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &sl : area.spacedata) {
+          if (sl.spacetype == SPACE_SEQ) {
+            SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(&sl);
+            /* Convert old sseq->mainb values to new sseq->scope bit enum flags. */
+            enum { MAINB_VECTORSCOPE = 3, MAINB_HISTOGRAM = 4, MAINB_RGBPARADE = 5 };
+            switch (sseq->mainb) {
+              case MAINB_VECTORSCOPE:
+                sseq->scope = sseq->scope_order[0] = SEQ_DRAW_IMG_VECTORSCOPE;
+                break;
+              case MAINB_HISTOGRAM:
+                sseq->scope = sseq->scope_order[0] = SEQ_DRAW_IMG_HISTOGRAM;
+                break;
+              case MAINB_RGBPARADE:
+                sseq->scope = sseq->scope_order[0] = SEQ_DRAW_IMG_RGBPARADE;
+                break;
+              default:
+                sseq->scope = sseq->scope_order[0] = SEQ_DRAW_IMG_WAVEFORM;
+                break;
+            }
+            sseq->scope_order_len = 1;
+          }
+        }
+      }
+    }
   }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
