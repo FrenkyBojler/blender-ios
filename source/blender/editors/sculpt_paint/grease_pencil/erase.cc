@@ -1034,24 +1034,21 @@ struct EraseOperationExecutor {
     carver::CurveBooleanOpParameters op_params;
     op_params.boolean_mode = carver::Operation::Difference;
 
-    /* TODO. */
-    bke::greasepencil::Drawing drawing_temp(drawing);
-    drawing_temp.strokes_for_write() = std::move(input_curves);
-    drawing_temp.tag_topology_changed();
+    bke::greasepencil::Drawing drawing_with_stroke(drawing);
+    drawing_with_stroke.strokes_for_write() = std::move(input_curves);
+    drawing_with_stroke.tag_topology_changed();
 
-    const std::optional<GroupedSpan<int>> shapes = drawing_temp.shapes();
-    const int num_shapes = shapes.has_value() ? shapes->size() :
-                                                drawing_temp.strokes().curves_num();
+    const std::optional<GroupedSpan<int>> fills = drawing_with_stroke.fills();
+    const int num_fills = fills.has_value() ? fills->size() :
+                                              drawing_with_stroke.strokes().curves_num();
 
-    const IndexRange shape_mask = IndexRange(num_shapes);
-    const IndexRange clipping_shapes = IndexRange::from_single(num_shapes - 1);
+    const IndexRange clipping_fills = IndexRange::from_single(num_fills - 1);
 
     dst = carver::curve_boolean(op_params,
-                                drawing_temp.strokes(),
-                                shapes,
+                                drawing_with_stroke.strokes(),
+                                fills,
                                 normal_planes,
-                                shape_mask,
-                                clipping_shapes,
+                                clipping_fills,
                                 layer_to_world,
                                 region,
                                 keep_caps);
