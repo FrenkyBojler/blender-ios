@@ -75,6 +75,23 @@ std::optional<ElemVariant> convert_socket_elem(const bNodeSocket &old_socket,
         }
         return ElemVariant{rotation_elem};
       }
+      if (new_type == SOCK_FLOAT) {
+        std::optional<ElemVariant> new_elem = ElemVariant{FloatElem()};
+        if (old_elem) {
+          new_elem->set_all();
+        }
+        return new_elem;
+      }
+    }
+    case SOCK_FLOAT: {
+      const FloatElem &float_elem = std::get<FloatElem>(old_elem.elem);
+      if (new_type == SOCK_VECTOR) {
+        VectorElem vector_elem;
+        vector_elem.x.merge(float_elem);
+        vector_elem.y.merge(float_elem);
+        vector_elem.z.merge(float_elem);
+        return ElemVariant{vector_elem};
+      }
     }
     default:
       break;

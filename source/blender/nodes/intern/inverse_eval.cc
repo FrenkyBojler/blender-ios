@@ -107,7 +107,9 @@ static bool propagate_socket_elem(const SocketInContext &ctx_from,
   /* Perform implicit conversion if necessary. */
   const std::optional<ElemVariant> to_elem = convert_socket_elem(
       *ctx_from.socket, *ctx_to.socket, *from_elem);
-  if (!to_elem || !*to_elem) {
+  bool a = !to_elem;
+  bool b = !*to_elem;
+  if (a || b) {
     return false;
   }
   elem_by_socket.lookup_or_add(ctx_to, *to_elem).merge(*to_elem);
@@ -189,7 +191,8 @@ LocalInverseEvalTargets find_local_inverse_eval_targets(const bNodeTree &tree,
     /* Combine the elems from each group input node. */
     for (const bNode *node : tree.group_input_nodes()) {
       const bNodeSocket &socket = node->output_socket(group_input_index);
-      if (const ElemVariant *socket_elem = elem_by_socket.lookup_ptr({nullptr, &socket})) {
+      const ElemVariant *socket_elem = elem_by_socket.lookup_ptr({nullptr, &socket});
+      if (socket_elem) {
         elem->merge(*socket_elem);
       }
     }
