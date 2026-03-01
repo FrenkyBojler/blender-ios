@@ -107,9 +107,7 @@ static bool propagate_socket_elem(const SocketInContext &ctx_from,
   /* Perform implicit conversion if necessary. */
   const std::optional<ElemVariant> to_elem = convert_socket_elem(
       *ctx_from.socket, *ctx_to.socket, *from_elem);
-  bool a = !to_elem;
-  bool b = !*to_elem;
-  if (a || b) {
+  if (!to_elem || !*to_elem) {
     return false;
   }
   elem_by_socket.lookup_or_add(ctx_to, *to_elem).merge(*to_elem);
