@@ -17,6 +17,7 @@
 #include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_grease_pencil_fills.hh"
 #include "BKE_material.hh"
 #include "BKE_paint.hh"
 
@@ -981,37 +982,10 @@ struct EraseOperationExecutor {
 
     placement.project(cut_pos2d, input_curves.positions_for_write().take_back(mcoords.size()));
 
-    /* TODO(@filedescriptor): This can be remove when the material fill rework is done. */
-    {
-      const VArray<int> materials = *attributes.lookup_or_default<int>(
-          "material_index", bke::AttrDomain::Curve, -1);
-
-      VectorSet<int> fill_material_indices;
-      for (const int mat_i : IndexRange(obact.totcol)) {
-        Material *material = BKE_object_material_get(&obact, mat_i + 1);
-        if (material != nullptr && material->gp_style != nullptr &&
-            (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0)
-        {
-          fill_material_indices.add_new(mat_i);
-        }
-      }
-
-      Array<bool> use_fill(src.curves_num());
-      for (const int i : src.curves_range()) {
-        const int mat_index = materials[i];
-        use_fill[i] = fill_material_indices.contains(mat_index);
-      }
-
-      bke::SpanAttributeWriter<bool> fill_writer = attributes.lookup_or_add_for_write_span<bool>(
-          "is_fill", bke::AttrDomain::Curve);
-      fill_writer.span.drop_back(1).copy_from(use_fill);
-      fill_writer.finish();
-    }
-
-    bke::SpanAttributeWriter<bool> fill_writer = attributes.lookup_or_add_for_write_span<bool>(
-        "is_fill", bke::AttrDomain::Curve);
-    fill_writer.span.last() = true;
-    fill_writer.finish();
+    bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
+        "fill_id", bke::AttrDomain::Curve);
+    fill_ids.span.last() = bke::greasepencil::get_next_available_fill_id(fill_ids.span.varray());
+    fill_ids.finish();
 
     const IndexRange clipping_points = IndexRange::from_begin_size(src.points_num(),
                                                                    mcoords.size());
@@ -1028,7 +1002,7 @@ struct EraseOperationExecutor {
     bke::fill_attribute_range_default(
         attributes,
         bke::AttrDomain::Curve,
-        bke::attribute_filter_from_skip_ref({"is_fill", "cyclic", "curve_type"}),
+        bke::attribute_filter_from_skip_ref({"fill_id", "cyclic", "curve_type"}),
         clipping_curves);
 
     carver::CurveBooleanOpParameters op_params;
@@ -1134,13 +1108,13 @@ struct EraseOperationExecutor {
         case GP_BRUSH_ERASER_STROKE:
           erased = stroke_eraser(*obact, src, screen_space_positions, dst);
           break;
-        case GP_BRUSH_ERASER_HARD:
-          erased = hard_eraser(*obact, src, screen_space_positions, dst, self.keep_caps_);
+          // case GP_BRUSH_ERASER_HARD:
+          //   erased = hard_eraser(*obact, src, screen_space_positions, dst, self.keep_caps_);
           break;
         case GP_BRUSH_ERASER_SOFT:
           erased = soft_eraser(*obact, src, screen_space_positions, dst, self.keep_caps_);
           break;
-        case GP_BRUSH_ERASER_CARVE:
+        case GP_BRUSH_ERASER_HARD:
           const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
 
           /* Initialize helper class for projecting screen space coordinates. */
@@ -1303,7 +1277,7 @@ void EraseOperation::on_stroke_done(const bContext &C)
     grease_pencil.runtime->temp_eraser_size = 0.0f;
   }
 
-  if (eraser_mode_ != GP_BRUSH_ERASER_CARVE) {
+  if (eraser_mode_ != GP_BRUSH_ERASER_HARD) {
     for (GreasePencilDrawing *drawing_ : affected_drawings_) {
       bke::greasepencil::Drawing &drawing = drawing_->wrap();
 
