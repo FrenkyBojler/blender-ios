@@ -257,6 +257,10 @@ void IMB_deep_finalize(ImBuf *ibuf, int part, bool sort_by_depth)
     return;
   }
 
+  if (part < 0 || part >= ibuf->deep_buffers.size()) {
+    return;
+  }
+
   ImBufDeepBuffer &deep = ibuf->deep_buffers[part];
   const int pixel_count = ibuf->x * ibuf->y;
   const int channels_per_sample = deep.channels_per_sample;
@@ -265,13 +269,8 @@ void IMB_deep_finalize(ImBuf *ibuf, int part, bool sort_by_depth)
     return;
   }
 
-  /* Rebuild sample_offsets array (prefix sum) */
-  deep.sample_offsets.reinitialize(pixel_count + 1);
-  deep.sample_offsets[0] = 0;
-
-  for (int i = 0; i < pixel_count; i++) {
-    deep.sample_offsets[i + 1] = deep.sample_offsets[i] + deep.sample_counts[i];
-  }
+  /* Rebuild sample_offsets array (prefix sum) using the helper. */
+  IMB_deep_rebuild_offsets(ibuf, part);
 
   /* Sort samples by depth if requested */
   if (sort_by_depth && !deep.depths.is_empty()) {
@@ -320,6 +319,164 @@ void IMB_deep_finalize(ImBuf *ibuf, int part, bool sort_by_depth)
              temp_channels.data(),
              sample_count * channels_per_sample * sizeof(float));
     }
+  }
+}
+
+bool IMB_deep_reserve_for_appends(ImBuf *ibuf, int part, size_t total_samples_estimate)
+{
+  if (!ibuf) {
+    return false;
+  }
+
+  if (part < 0) {
+    return false;
+  }
+
+  if (ibuf->deep_buffers.size() < part + 1) {
+    ibuf->deep_buffers.resize(part + 1);
+  }
+
+  ImBufDeepBuffer &deep = ibuf->deep_buffers[part];
+  const int pixel_count = ibuf->x * ibuf->y;
+
+  if (deep.sample_counts.is_empty()) {
+    deep.sample_counts.reinitialize(pixel_count);
+    for (int i = 0; i < pixel_count; ++i) {
+      deep.sample_counts[i] = 0;
+    }
+    deep.sample_offsets.reinitialize(pixel_count + 1);
+  }
+  else if (deep.sample_counts.size() != pixel_count) {
+    return false;
+  }
+
+  if (deep.channels_per_sample == 0) {
+    deep.channels_per_sample = 4;
+  }
+
+  /* Reserve capacity to avoid repeated reallocations while appending. */
+  if (total_samples_estimate > 0) {
+    deep.depths.reserve(deep.depths.size() + total_samples_estimate);
+    deep.channel_data.reserve(deep.channel_data.size() +
+                              total_samples_estimate * deep.channels_per_sample);
+  }
+
+  ibuf->flags |= IB_deep_data;
+  return true;
+}
+
+bool IMB_deep_append_flat_bulk(ImBuf *deep_ibuf, const ImBuf *flat_ibuf, float depth, int part)
+{
+  if (!deep_ibuf || !flat_ibuf) {
+    return false;
+  }
+
+  if (!flat_ibuf->float_buffer.data) {
+    return false;
+  }
+
+  if (deep_ibuf->x != flat_ibuf->x || deep_ibuf->y != flat_ibuf->y) {
+    return false;
+  }
+
+  const int width = deep_ibuf->x;
+  const int height = deep_ibuf->y;
+  const int pixel_count = width * height;
+
+  if (deep_ibuf->deep_buffers.size() < part + 1) {
+    deep_ibuf->flags |= IB_deep_data;
+    deep_ibuf->deep_buffers.resize(part + 1);
+  }
+
+  ImBufDeepBuffer &deep = deep_ibuf->deep_buffers[part];
+
+  if (deep.sample_counts.is_empty()) {
+    deep.sample_counts.reinitialize(pixel_count);
+    for (int i = 0; i < pixel_count; ++i) {
+      deep.sample_counts[i] = 0;
+    }
+    deep.sample_offsets.reinitialize(pixel_count + 1); /* caller must rebuild offsets */
+  }
+  else if (deep.sample_counts.size() != pixel_count) {
+    return false;
+  }
+
+  if (deep.channels_per_sample == 0) {
+    deep.channels_per_sample = 4;
+  }
+
+  const int cps = deep.channels_per_sample;
+
+  /* Reserve space for appended samples (one per pixel). */
+  const size_t append_samples = static_cast<size_t>(pixel_count);
+  deep.depths.reserve(deep.depths.size() + append_samples);
+  deep.channel_data.reserve(deep.channel_data.size() + append_samples * cps);
+
+  const float *src = flat_ibuf->float_buffer.data;
+  const int src_channels = flat_ibuf->channels;
+
+  const int old_depth_size = deep.depths.size();
+  const int old_channel_size = deep.channel_data.size();
+
+  deep.depths.resize(old_depth_size + append_samples);
+  deep.channel_data.resize(old_channel_size + append_samples * cps);
+
+  for (int i = 0; i < pixel_count; ++i) {
+    /* depth */
+    deep.depths[old_depth_size + i] = depth;
+
+    /* channel data */
+    const float *s = src + size_t(i) * 4; /* typical layout */
+    float *dst = deep.channel_data.data() + size_t(old_channel_size) + size_t(i) * cps;
+
+    if (src_channels >= 4) {
+      dst[0] = s[0];
+      dst[1] = s[1];
+      dst[2] = s[2];
+      dst[3] = s[3];
+      for (int c = 4; c < cps; ++c) {
+        dst[c] = 0.0f;
+      }
+    }
+    else {
+      dst[0] = (src_channels >= 1) ? s[0] : 0.0f;
+      dst[1] = (src_channels >= 2) ? s[1] : dst[0];
+      dst[2] = (src_channels >= 3) ? s[2] : dst[0];
+      dst[3] = 1.0f;
+      for (int c = 4; c < cps; ++c) {
+        dst[c] = 0.0f;
+      }
+    }
+
+    /* increment per-pixel sample count */
+    deep.sample_counts[i] += 1;
+  }
+
+  deep_ibuf->flags |= IB_deep_data;
+  return true;
+}
+
+void IMB_deep_rebuild_offsets(ImBuf *ibuf, int part)
+{
+  if (!ibuf || !(ibuf->flags & IB_deep_data)) {
+    return;
+  }
+
+  if (part < 0 || part >= ibuf->deep_buffers.size()) {
+    return;
+  }
+
+  ImBufDeepBuffer &deep = ibuf->deep_buffers[part];
+  const int pixel_count = ibuf->x * ibuf->y;
+
+  if (deep.sample_counts.is_empty()) {
+    return;
+  }
+
+  deep.sample_offsets.reinitialize(pixel_count + 1);
+  deep.sample_offsets[0] = 0;
+  for (int i = 0; i < pixel_count; ++i) {
+    deep.sample_offsets[i + 1] = deep.sample_offsets[i] + deep.sample_counts[i];
   }
 }
 
@@ -485,87 +642,22 @@ bool IMB_deep_populate_from_flat(ImBuf *deep_ibuf, const ImBuf *flat_ibuf, float
     return false;
   }
 
-  const int width = deep_ibuf->x;
-  const int height = deep_ibuf->y;
-  const int pixel_count = width * height;
-
-  /* Ensure deep buffer exists for the requested part. */
-  if (deep_ibuf->deep_buffers.size() < part + 1) {
-    deep_ibuf->flags |= IB_deep_data;
-    deep_ibuf->deep_buffers.resize(part + 1);
+  /* Append one sample-per-pixel in bulk. This does not rebuild offsets. */
+  if (!IMB_deep_append_flat_bulk(deep_ibuf, flat_ibuf, depth, part)) {
+    return false;
   }
 
+  /* Ensure offsets are correct (cheap). We don't sort here because caller intent
+   * is to keep append order; use IMB_deep_finalize(..., true) if sorting is wanted. */
+  IMB_deep_rebuild_offsets(deep_ibuf, part);
+
+  /* Ensure channel names for a simple RGBA layout (same semantics as previous impl). */
   ImBufDeepBuffer &deep = deep_ibuf->deep_buffers[part];
-
-  /* If this is a brand-new deep buffer, initialize sample_counts and offsets.
-   * We will append samples and the caller should call IMB_deep_finalize() after
-   * all appends to rebuild offsets and optionally sort by depth. */
-  if (deep.sample_counts.is_empty()) {
-    deep.sample_counts.reinitialize(pixel_count);
-    for (int i = 0; i < pixel_count; ++i) {
-      deep.sample_counts[i] = 0;
-    }
-    deep.sample_offsets.reinitialize(pixel_count + 1); /* will be rebuilt by finalize */
-  }
-  else if (deep.sample_counts.size() != pixel_count) {
-    /* Mismatched image sizes for existing deep buffer. */
-    return false;
-  }
-
-  /* Channels per sample: default to 4 (RGBA) when not set. */
-  if (deep.channels_per_sample == 0) {
-    deep.channels_per_sample = 4;
-  }
-
-  const int channels_per_sample = deep.channels_per_sample;
-
-  /* We currently expect 4-channel RGBA source or fewer; if channels_per_sample differs
-   * from 4 it's safer to reject to avoid subtle layout bugs. */
-  if (channels_per_sample != 4) {
-    return false;
-  }
-
-  /* Prepare to append one sample per pixel in bulk. */
-  const int append_samples = pixel_count;
-
-  /* Reserve/resize depth array and channel_data for appended samples. */
-  const int old_depth_size = deep.depths.size();
-  deep.depths.resize(old_depth_size + append_samples);
-
-  const int old_channel_size = deep.channel_data.size();
-  deep.channel_data.resize(old_channel_size + append_samples * channels_per_sample);
-
-  /* Copy per-pixel data into appended region and increment sample_counts. */
-  const float *src = flat_ibuf->float_buffer.data;
-  const int src_channels = flat_ibuf->channels;
-
-  for (int i = 0; i < pixel_count; ++i) {
-    /* Depth */
-    deep.depths[old_depth_size + i] = depth;
-
-    /* Channels: copy up to 4 floats from source float buffer; fill missing channels. */
-    const float *s = src + size_t(i) * 4; /* typical layout in float_buffer */
-    float *dst = deep.channel_data.data() + size_t(old_channel_size) +
-                 size_t(i) * channels_per_sample;
-
-    if (src_channels >= 4) {
-      dst[0] = s[0];
-      dst[1] = s[1];
-      dst[2] = s[2];
-      dst[3] = s[3];
-    }
-    else {
-      dst[0] = (src_channels >= 1) ? s[0] : 0.0f;
-      dst[1] = (src_channels >= 2) ? s[1] : dst[0];
-      dst[2] = (src_channels >= 3) ? s[2] : dst[0];
-      dst[3] = 1.0f;
-    }
-
-    /* Increment sample count for this pixel. */
-    deep.sample_counts[i] += 1;
-  }
-
-  IMB_deep_finalize(deep_ibuf, part, false);
+  deep.channel_names.clear();
+  deep.channel_names.append("R");
+  deep.channel_names.append("G");
+  deep.channel_names.append("B");
+  deep.channel_names.append("A");
 
   deep_ibuf->flags |= IB_deep_data;
   return true;
