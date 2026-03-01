@@ -1,1 +1,2 @@
 Referenced by issue #155018, Dyntopo crash with shape keys activated
+Referenced by pull request #155046, Fix #155018: Crash when activating dyntopo on mesh with shape key
