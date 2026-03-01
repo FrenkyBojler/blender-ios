@@ -3574,6 +3574,10 @@ def km_cryptomatte_sample_modal_map(_params):
         ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'RELEASE', "any": True}, None),
         ("SAMPLE_BEGIN", {"type": 'LEFTMOUSE', "value": 'PRESS', "any": True}, None),
         ("SAMPLE_RELEASE", {"type": 'LEFTMOUSE', "value": 'RELEASE', "any": True}, None),
+        ("INVERT_PRESS", {"type": 'LEFT_ALT', "value": 'PRESS', "any": True}, None),
+        ("INVERT_RELEASE", {"type": 'LEFT_ALT', "value": 'RELEASE', "any": True}, None),
+        ("INVERT_PRESS", {"type": 'RIGHT_ALT', "value": 'PRESS', "any": True}, None),
+        ("INVERT_RELEASE", {"type": 'RIGHT_ALT', "value": 'RELEASE', "any": True}, None),
     ])
 
     return keymap
