@@ -26,8 +26,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curves");
-  const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const Field<float> weight = params.extract_input<Field<float>>("Weight");
+
+  static auto mask_negative = mf::build::SI2_SO<bool, float, bool>(
+      "And", [](bool a, float b) { return a && (b > 0.0f); });
+
+  const Field<bool> selection(FieldOperation::from(
+      mask_negative, {params.extract_input<Field<bool>>("Selection"), weight}));
 
   std::atomic<bool> has_nurbs = false;
 
@@ -69,7 +74,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     };
   });
 
-  if (!has_nurbs) {
+  if (!has_nurbs && geometry_set.has_curves()) {
     params.error_message_add(NodeWarningType::Info, TIP_("Input curves do not have NURBS type"));
   }
 
