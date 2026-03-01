@@ -2953,20 +2953,19 @@ enum eOrbitAxisLock {
   ORB_AXIS_LOCK_NONE = 0,
   ORB_AXIS_LOCK_AZIMUTH = 1,
   ORB_AXIS_LOCK_ELEVATION = 2,
-  ORB_AXIS_MOVE_ALONG_LOCAL_Z = 3,
+  ORB_AXIS_LOCK_DISTANCE = 3,
 };
 
 enum eObjectOrbitAroundTargetModal {
   ORB_MODAL_CONFIRM = 1,
   ORB_MODAL_CANCEL,
-  ORB_MODAL_SWITCH_TO_TARGET,   /* T key - switch to target modal. */
-  ORB_MODAL_AZIMUTH_LOCK,       /* Z key - horizontal lock. */
-  ORB_MODAL_ELEVATION_LOCK,     /* Shift+Z key - vertical lock. */
-  ORB_MODAL_MOVE_ALONG_LOCAL_Z, /* M key - move along local Z. */
-  ORB_MODAL_FLIP,               /* F key - 180° rotation around local Y. */
-  ORB_MODAL_SYMMETRY,           /* S key - symmetry around intersection point. */
-  ORB_MODAL_PRECISION_ENABLE,   /* Left Shift - enable precision mode. */
-  ORB_MODAL_PRECISION_DISABLE,  /* Left Shift release - disable precision mode. */
+  ORB_MODAL_SWITCH_TO_TARGET,  /* T key - switch to target modal. */
+  ORB_MODAL_AZIMUTH_LOCK,     /* Z key - axis lock (Z twice = local Z). */
+  ORB_MODAL_ELEVATION_LOCK,   /* Shift+Z key - plane lock. */
+  ORB_MODAL_FLIP,             /* F key - 180° rotation around local Y. */
+  ORB_MODAL_SYMMETRY,         /* S key - symmetry around intersection point. */
+  ORB_MODAL_PRECISION_ENABLE,  /* Left Shift - enable precision mode. */
+  ORB_MODAL_PRECISION_DISABLE, /* Left Shift release - disable precision mode. */
 };
 
 struct ObjectOrbitAroundTargetData {
@@ -3016,7 +3015,7 @@ static void object_orbit_around_target_set_cursor(bContext *C,
     case ORB_AXIS_LOCK_ELEVATION:
       WM_cursor_set(win, WM_CURSOR_NS_ARROW); /* North-South arrow for elevation. */
       break;
-    case ORB_AXIS_MOVE_ALONG_LOCAL_Z:
+    case ORB_AXIS_LOCK_DISTANCE:
       WM_cursor_set(win, WM_CURSOR_NS_ARROW); /* North-South arrow for distance. */
       break;
     case ORB_AXIS_LOCK_NONE:
@@ -3034,16 +3033,20 @@ static void object_orbit_around_target_update_status(bContext *C,
   status.opmodal(IFACE_("Cancel"), op->type, ORB_MODAL_CANCEL);
   status.opmodal(IFACE_("Confirm"), op->type, ORB_MODAL_CONFIRM);
   status.opmodal(IFACE_("Target Mode"), op->type, ORB_MODAL_SWITCH_TO_TARGET);
-  status.opmodal(
-      IFACE_("Axis"), op->type, ORB_MODAL_AZIMUTH_LOCK, lead->axis_lock == ORB_AXIS_LOCK_AZIMUTH);
+  const char *axis_label = (lead->axis_lock == ORB_AXIS_LOCK_AZIMUTH) ?
+                               IFACE_("(x2) Axis Local Z") :
+                           (lead->axis_lock == ORB_AXIS_LOCK_DISTANCE) ?
+                               IFACE_("(x3) Axis Confirm") :
+                               IFACE_("Axis");
+  status.opmodal(axis_label,
+                 op->type,
+                 ORB_MODAL_AZIMUTH_LOCK,
+                 lead->axis_lock == ORB_AXIS_LOCK_AZIMUTH ||
+                     lead->axis_lock == ORB_AXIS_LOCK_DISTANCE);
   status.opmodal(IFACE_("Plane"),
                  op->type,
                  ORB_MODAL_ELEVATION_LOCK,
                  lead->axis_lock == ORB_AXIS_LOCK_ELEVATION);
-  status.opmodal(IFACE_("Move Along Local Z"),
-                 op->type,
-                 ORB_MODAL_MOVE_ALONG_LOCAL_Z,
-                 lead->axis_lock == ORB_AXIS_MOVE_ALONG_LOCAL_Z);
 
   /* Show direction inversion state for symmetry. */
   bool any_inverted = false;
@@ -3209,8 +3212,7 @@ void object_orbit_around_target_modal_keymap(wmKeyConfig *keyconf)
       {ORB_MODAL_SWITCH_TO_TARGET, "TARGET_MODE", 0, "Switch to Target mode", ""},
       {ORB_MODAL_AZIMUTH_LOCK, "AZIMUTH_LOCK", 0, "Axis", ""},
       {ORB_MODAL_ELEVATION_LOCK, "ELEVATION_LOCK", 0, "Plane", ""},
-      {ORB_MODAL_MOVE_ALONG_LOCAL_Z, "MOVE_ALONG_LOCAL_Z", 0, "Move Along Local Z", ""},
-      {ORB_MODAL_FLIP, "FLIP", 0, "Flip Direction", ""},
+      {ORB_MODAL_FLIP, "FLIP", 0, "Flip", ""},
       {ORB_MODAL_SYMMETRY, "SYMMETRY", 0, "Symmetry", ""},
       {ORB_MODAL_PRECISION_ENABLE, "PRECISION_ENABLE", 0, "Precision On", ""},
       {ORB_MODAL_PRECISION_DISABLE, "PRECISION_DISABLE", 0, "Precision Off", ""},
@@ -3414,13 +3416,13 @@ static wmOperatorStatus object_orbit_around_target_modal(bContext *C,
       else if (ooatd->axis_lock == ORB_AXIS_LOCK_ELEVATION) {
         azimuth_delta = 0.0f; /* Lock azimuth, only allow elevation. */
       }
-      else if (ooatd->axis_lock == ORB_AXIS_MOVE_ALONG_LOCAL_Z) {
+      else if (ooatd->axis_lock == ORB_AXIS_LOCK_DISTANCE) {
         azimuth_delta = 0.0f;   /* Lock azimuth, only allow distance. */
         elevation_delta = 0.0f; /* Lock elevation, only allow distance. */
       }
 
       for (ObjectOrbitAroundTargetData::ObjectData &light : ooatd->objects) {
-        if (ooatd->axis_lock == ORB_AXIS_MOVE_ALONG_LOCAL_Z) {
+        if (ooatd->axis_lock == ORB_AXIS_LOCK_DISTANCE) {
           /* Distance mode: only change distance, keep direction. */
           float sensitivity = 0.1f;
           if (ooatd->precision_mode) {
@@ -3480,12 +3482,16 @@ static wmOperatorStatus object_orbit_around_target_modal(bContext *C,
         return OPERATOR_FINISHED;
 
       case ORB_MODAL_AZIMUTH_LOCK: {
-        /* Toggle azimuth lock (horizontal movement only). */
+        /* Cycle: None -> Azimuth -> Distance (local Z) -> None.
+         * Pressing Z twice activates distance lock, matching standard transform behavior. */
         if (ooatd->axis_lock == ORB_AXIS_LOCK_AZIMUTH) {
-          ooatd->axis_lock = ORB_AXIS_LOCK_NONE; /* Turn off lock. */
+          ooatd->axis_lock = ORB_AXIS_LOCK_DISTANCE;
+        }
+        else if (ooatd->axis_lock == ORB_AXIS_LOCK_DISTANCE) {
+          ooatd->axis_lock = ORB_AXIS_LOCK_NONE;
         }
         else {
-          ooatd->axis_lock = ORB_AXIS_LOCK_AZIMUTH; /* Lock to azimuth only. */
+          ooatd->axis_lock = ORB_AXIS_LOCK_AZIMUTH;
         }
         /* Update reference point to current mouse position. */
         ooatd->current_mval[0] = float(event->mval[0]);
@@ -3505,25 +3511,6 @@ static wmOperatorStatus object_orbit_around_target_modal(bContext *C,
         }
         else {
           ooatd->axis_lock = ORB_AXIS_LOCK_ELEVATION; /* Lock to elevation only. */
-        }
-        /* Update reference point to current mouse position. */
-        ooatd->current_mval[0] = float(event->mval[0]);
-        ooatd->current_mval[1] = float(event->mval[1]);
-        /* Set appropriate cursor. */
-        object_orbit_around_target_set_cursor(C, ooatd);
-        /* Update status text. */
-        object_orbit_around_target_update_status(C, op, ooatd);
-        ED_region_tag_redraw(ooatd->vc.region);
-        return OPERATOR_RUNNING_MODAL;
-      }
-
-      case ORB_MODAL_MOVE_ALONG_LOCAL_Z: {
-        /* Toggle distance lock (distance movement only). */
-        if (ooatd->axis_lock == ORB_AXIS_MOVE_ALONG_LOCAL_Z) {
-          ooatd->axis_lock = ORB_AXIS_LOCK_NONE; /* Turn off lock. */
-        }
-        else {
-          ooatd->axis_lock = ORB_AXIS_MOVE_ALONG_LOCAL_Z; /* Lock to distance only. */
         }
         /* Update reference point to current mouse position. */
         ooatd->current_mval[0] = float(event->mval[0]);
