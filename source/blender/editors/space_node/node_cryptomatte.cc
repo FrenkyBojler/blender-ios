@@ -39,8 +39,6 @@
 #include "NOD_composite.hh"
 
 #include "RNA_access.hh"
-#include "RNA_define.hh"
-#include "RNA_prototypes.hh"
 
 #include "IMB_imbuf_types.hh"
 
@@ -531,7 +529,7 @@ static wmOperatorStatus cryptomatte_pick_invoke(bContext *C,
   picker->node = node;
   picker->ntree = ntree;
   picker->session = ntreeCompositCryptomatteSession(node);
-  picker->is_add = RNA_boolean_get(op->ptr, "is_add");
+  picker->is_add = STREQ(op->type->idname, "NODE_OT_cryptomatte_entry_add");
   picker->cb_win = CTX_wm_window(C);
   picker->draw_handle_sample_text = WM_draw_cb_activate(
       picker->cb_win, cryptomatte_draw_cb, picker);
@@ -603,7 +601,7 @@ static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, cons
 /** \name Operator Registration
  * \{ */
 
-static void cryptomatte_entry_op_define(wmOperatorType *ot, bool is_add)
+static void cryptomatte_entry_op_define(wmOperatorType *ot)
 {
   ot->invoke = cryptomatte_pick_invoke;
   ot->modal = cryptomatte_pick_modal;
@@ -611,10 +609,6 @@ static void cryptomatte_entry_op_define(wmOperatorType *ot, bool is_add)
   ot->poll = cryptomatte_pick_poll;
 
   ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
-
-  PropertyRNA *prop = RNA_def_boolean(
-      ot->srna, "is_add", is_add, "Is Add", "Whether to add or remove the entry");
-  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 void NODE_OT_cryptomatte_entry_add(wmOperatorType *ot)
@@ -623,7 +617,7 @@ void NODE_OT_cryptomatte_entry_add(wmOperatorType *ot)
   ot->idname = "NODE_OT_cryptomatte_entry_add";
   ot->description = "Add object or material to matte, by picking a color from the Pick output";
 
-  cryptomatte_entry_op_define(ot, true);
+  cryptomatte_entry_op_define(ot);
 }
 
 void NODE_OT_cryptomatte_entry_remove(wmOperatorType *ot)
@@ -633,7 +627,7 @@ void NODE_OT_cryptomatte_entry_remove(wmOperatorType *ot)
   ot->description =
       "Remove object or material from matte, by picking a color from the Pick output";
 
-  cryptomatte_entry_op_define(ot, false);
+  cryptomatte_entry_op_define(ot);
 }
 
 /** \} */
