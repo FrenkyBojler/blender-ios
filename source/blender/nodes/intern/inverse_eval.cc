@@ -189,8 +189,7 @@ LocalInverseEvalTargets find_local_inverse_eval_targets(const bNodeTree &tree,
     /* Combine the elems from each group input node. */
     for (const bNode *node : tree.group_input_nodes()) {
       const bNodeSocket &socket = node->output_socket(group_input_index);
-      const ElemVariant *socket_elem = elem_by_socket.lookup_ptr({nullptr, &socket});
-      if (socket_elem) {
+      if (const ElemVariant *socket_elem = elem_by_socket.lookup_ptr({nullptr, &socket})) {
         elem->merge(*socket_elem);
       }
     }
