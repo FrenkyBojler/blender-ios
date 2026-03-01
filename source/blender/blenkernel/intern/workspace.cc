@@ -133,12 +133,12 @@ static void workspace_blend_write(BlendWriter *writer, ID *id, const void *id_ad
 {
   WorkSpace *workspace = id_cast<WorkSpace *>(id);
 
-  BLO_write_id_struct(writer, WorkSpace, id_address, &workspace->id);
+  writer->write_id_struct(id_address, workspace);
   BKE_id_blend_write(writer, &workspace->id);
-  BLO_write_struct_list(writer, WorkSpaceLayout, &workspace->layouts);
-  BLO_write_struct_list(writer, WorkSpaceDataRelation, &workspace->hook_layout_relations);
-  BLO_write_struct_list(writer, wmOwnerID, &workspace->owner_ids);
-  BLO_write_struct_list(writer, bToolRef, &workspace->tools);
+  writer->write_struct_list(&workspace->layouts);
+  writer->write_struct_list(&workspace->hook_layout_relations);
+  writer->write_struct_list(&workspace->owner_ids);
+  writer->write_struct_list(&workspace->tools);
   for (bToolRef &tref : workspace->tools) {
     if (tref.properties) {
       IDP_BlendWrite(writer, tref.properties);
@@ -225,35 +225,35 @@ static void workspace_blend_read_after_liblink(BlendLibReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_WS = {
-    /*id_code*/ WorkSpace::id_type,
-    /*id_filter*/ FILTER_ID_WS,
-    /*dependencies_id_types*/ FILTER_ID_SCE,
-    /*main_listbase_index*/ INDEX_ID_WS,
-    /*struct_size*/ sizeof(WorkSpace),
-    /*name*/ "WorkSpace",
-    /*name_plural*/ N_("workspaces"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_WORKSPACE,
-    /*flags*/ IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO |
-        IDTYPE_FLAGS_NEVER_UNUSED,
-    /*asset_type_info*/ nullptr,
+    .id_code = WorkSpace::id_type,
+    .id_filter = FILTER_ID_WS,
+    .dependencies_id_types = FILTER_ID_SCE,
+    .main_listbase_index = INDEX_ID_WS,
+    .struct_size = sizeof(WorkSpace),
+    .name = "WorkSpace",
+    .name_plural = N_("workspaces"),
+    .translation_context = BLT_I18NCONTEXT_ID_WORKSPACE,
+    .flags = IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO |
+             IDTYPE_FLAGS_NEVER_UNUSED,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ workspace_init_data,
-    /*copy_data*/ workspace_copy_data,
-    /*free_data*/ workspace_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ workspace_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = workspace_init_data,
+    .copy_data = workspace_copy_data,
+    .free_data = workspace_free_data,
+    .make_local = nullptr,
+    .foreach_id = workspace_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ workspace_blend_write,
-    /*blend_read_data*/ workspace_blend_read_data,
-    /*blend_read_after_liblink*/ workspace_blend_read_after_liblink,
+    .blend_write = workspace_blend_write,
+    .blend_read_data = workspace_blend_read_data,
+    .blend_read_after_liblink = workspace_blend_read_after_liblink,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 /* -------------------------------------------------------------------- */
@@ -290,7 +290,7 @@ static void workspace_relation_add(ListBaseT<WorkSpaceDataRelation> *relation_li
                                    const int parentid,
                                    void *data)
 {
-  WorkSpaceDataRelation *relation = MEM_new_for_free<WorkSpaceDataRelation>(__func__);
+  WorkSpaceDataRelation *relation = MEM_new<WorkSpaceDataRelation>(__func__);
   relation->parent = parent;
   relation->parentid = parentid;
   relation->value = data;
@@ -301,7 +301,7 @@ static void workspace_relation_remove(ListBaseT<WorkSpaceDataRelation> *relation
                                       WorkSpaceDataRelation *relation)
 {
   BLI_remlink(relation_list, relation);
-  MEM_freeN(relation);
+  MEM_delete(relation);
 }
 
 static void workspace_relation_ensure_updated(ListBaseT<WorkSpaceDataRelation> *relation_list,
@@ -388,7 +388,7 @@ void BKE_workspace_remove(Main *bmain, WorkSpace *workspace)
 
 WorkSpaceInstanceHook *BKE_workspace_instance_hook_create(const Main *bmain, const int winid)
 {
-  WorkSpaceInstanceHook *hook = MEM_new_for_free<WorkSpaceInstanceHook>(__func__);
+  WorkSpaceInstanceHook *hook = MEM_new<WorkSpaceInstanceHook>(__func__);
 
   /* set an active screen-layout for each possible window/workspace combination */
   for (WorkSpace *workspace = static_cast<WorkSpace *>(bmain->workspaces.first); workspace;
@@ -424,7 +424,7 @@ void BKE_workspace_instance_hook_free(const Main *bmain, WorkSpaceInstanceHook *
     }
   }
 
-  MEM_freeN(hook);
+  MEM_delete(hook);
 }
 
 WorkSpaceLayout *BKE_workspace_layout_add(Main *bmain,
@@ -432,7 +432,7 @@ WorkSpaceLayout *BKE_workspace_layout_add(Main *bmain,
                                           bScreen &screen,
                                           const char *name)
 {
-  WorkSpaceLayout *layout = MEM_new_for_free<WorkSpaceLayout>(__func__);
+  WorkSpaceLayout *layout = MEM_new<WorkSpaceLayout>(__func__);
 
   BLI_assert(!bmain || !workspaces_is_screen_used(bmain, &screen));
 #ifdef NDEBUG
@@ -576,13 +576,13 @@ WorkSpaceLayout *BKE_workspace_layout_iter_circular(const WorkSpace *workspace,
 void BKE_workspace_tool_remove(WorkSpace *workspace, bToolRef *tref)
 {
   if (tref->runtime) {
-    MEM_freeN(tref->runtime);
+    MEM_delete(tref->runtime);
   }
   if (tref->properties) {
     IDP_FreeProperty(tref->properties);
   }
   BLI_remlink(&workspace->tools, tref);
-  MEM_freeN(tref);
+  MEM_delete(tref);
 }
 
 void BKE_workspace_tool_id_replace_table(WorkSpace *workspace,

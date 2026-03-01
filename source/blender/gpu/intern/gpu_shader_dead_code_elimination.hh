@@ -141,7 +141,7 @@ struct DeadCodeEliminator
     Token name_tok = prev(parenthesis_tok);
     /* WATCH(fclem): It could be that a line directive is put between the return type and the
      * function name (which would mess up the). This is currently not happening with the
-     * current codebase but might in the future. Checking for it would be quite expensive. */
+     * current code-base but might in the future. Checking for it would be quite expensive. */
     if (name_tok != TokenType::Word) {
       return;
     }
@@ -304,19 +304,12 @@ struct DeadCodeEliminator
       }
       else {
         /* Prototype. */
-#ifdef __APPLE__
-        /* Filter MSL specific identifiers that could have confused the parser. */
+        /* Filter MSL & GLSL specific identifiers that could have confused the parser. */
         StringRef type_str = str(type);
-        if (type_str == "thread" || type_str == "device") {
-          continue;
-        }
-#else
-        /* Filter GLSL specific identifiers that could have confused the parser. */
         StringRef name_str = str(name_tok);
-        if (name_str == "layout") {
+        if (type_str == "thread" || type_str == "device" || name_str == "layout") {
           continue;
         }
-#endif
         erase(type, next(end_of_args));
       }
     }
@@ -330,8 +323,8 @@ struct DeadCodeEliminator
 
   static StringRef str(const Token t)
   {
-    /* Note: Whitespaces where not merged (because of TokenizePreprocessor), so using
-     * str_view_with_whitespace will be faster.  */
+    /* NOTE: White-spaces where not merged (because of #TokenizePreprocessor),
+     * so using #str_view_with_whitespace will be faster. */
     return t.str_view_with_whitespace();
   }
 

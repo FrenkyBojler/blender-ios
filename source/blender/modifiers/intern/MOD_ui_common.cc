@@ -273,20 +273,28 @@ static void modifier_ops_extra_draw(bContext *C, ui::Layout *layout, void *md_v)
   layout->separator();
 
   /* Move to first. */
-  op_ptr = layout->op("OBJECT_OT_modifier_move_to_index",
-                      IFACE_("Move to First"),
-                      ICON_TRIA_UP,
-                      wm::OpCallContext::InvokeDefault,
-                      UI_ITEM_NONE);
-  RNA_int_set(&op_ptr, "index", 0);
+  {
+    ui::Layout &row = layout->row(false);
+    op_ptr = row.op("OBJECT_OT_modifier_move_to_index",
+                    IFACE_("Move to First"),
+                    ICON_TRIA_UP,
+                    wm::OpCallContext::InvokeDefault,
+                    UI_ITEM_NONE);
+    RNA_int_set(&op_ptr, "index", 0);
+    row.enabled_set(md->prev != nullptr);
+  }
 
   /* Move to last. */
-  op_ptr = layout->op("OBJECT_OT_modifier_move_to_index",
-                      IFACE_("Move to Last"),
-                      ICON_TRIA_DOWN,
-                      wm::OpCallContext::InvokeDefault,
-                      UI_ITEM_NONE);
-  RNA_int_set(&op_ptr, "index", BLI_listbase_count(&ob->modifiers) - 1);
+  {
+    ui::Layout &row = layout->row(false);
+    op_ptr = row.op("OBJECT_OT_modifier_move_to_index",
+                    IFACE_("Move to Last"),
+                    ICON_TRIA_DOWN,
+                    wm::OpCallContext::InvokeDefault,
+                    UI_ITEM_NONE);
+    RNA_int_set(&op_ptr, "index", BLI_listbase_count(&ob->modifiers) - 1);
+    row.enabled_set(md->next != nullptr);
+  }
 
   layout->separator();
 
@@ -461,7 +469,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
 
 PanelType *modifier_panel_register(ARegionType *region_type, ModifierType type, PanelDrawFn draw)
 {
-  PanelType *panel_type = MEM_callocN<PanelType>(__func__);
+  PanelType *panel_type = MEM_new_zeroed<PanelType>(__func__);
 
   BKE_modifier_type_panel_id(type, panel_type->idname);
   STRNCPY_UTF8(panel_type->label, "");
@@ -493,7 +501,7 @@ PanelType *modifier_subpanel_register(ARegionType *region_type,
                                       PanelDrawFn draw,
                                       PanelType *parent)
 {
-  PanelType *panel_type = MEM_callocN<PanelType>(__func__);
+  PanelType *panel_type = MEM_new_zeroed<PanelType>(__func__);
 
   BLI_assert(parent != nullptr);
   SNPRINTF_UTF8(panel_type->idname, "%s_%s", parent->idname, name);

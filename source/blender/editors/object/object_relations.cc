@@ -54,6 +54,7 @@
 #include "BKE_lib_override.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_light_linking.h"
 #include "BKE_main.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh_types.hh"
@@ -1421,7 +1422,7 @@ static void link_to_scene(Main * /*bmain*/, ushort /*nr*/)
 
   for (base = FIRSTBASE; base; base = base->next) {
     if (BASE_SELECTED(v3d, base)) {
-      nbase = MEM_mallocN<Base>("newbase");
+      nbase = MEM_new_uninitialized<Base>("newbase");
       *nbase = *base;
       BLI_addhead(&(sce->base), nbase);
       id_us_plus((ID *)base->object);
@@ -1479,7 +1480,34 @@ enum {
   MAKE_LINKS_CONSTRAINTS = 7,
   MAKE_LINKS_FONTS = 8,
   MAKE_LINKS_SHADERFX = 9,
+  MAKE_LINKS_LIGHT_LINKING = 10,
+  MAKE_LINKS_SHADOW_LINKING = 11,
 };
+
+/* Matches has_geometry_visibility() from Python.
+ * Indicates whether an object has shading/visibility settings. */
+static bool has_geometry_visibility(const Object &object)
+{
+  if (ELEM(object.type,
+           OB_MESH,
+           OB_CURVES_LEGACY,
+           OB_SURF,
+           OB_FONT,
+           OB_MBALL,
+           OB_LAMP,
+           OB_VOLUME,
+           OB_POINTCLOUD,
+           OB_CURVES))
+  {
+    return true;
+  }
+
+  if (object.transflag & OB_DUPLICOLLECTION && object.instance_collection) {
+    return true;
+  }
+
+  return false;
+}
 
 /* Return true if make link data is allowed, false otherwise */
 static bool allow_make_links_data(const int type, Object *ob_src, Object *ob_dst)
@@ -1526,6 +1554,9 @@ static bool allow_make_links_data(const int type, Object *ob_src, Object *ob_dst
         return true;
       }
       break;
+    case MAKE_LINKS_LIGHT_LINKING:
+    case MAKE_LINKS_SHADOW_LINKING:
+      return has_geometry_visibility(*ob_src) && has_geometry_visibility(*ob_dst);
   }
   return false;
 }
@@ -1669,6 +1700,12 @@ static wmOperatorStatus make_links_data_exec(bContext *C, wmOperator *op)
             DEG_id_tag_update(&ob_dst->id,
                               ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
             break;
+          case MAKE_LINKS_LIGHT_LINKING:
+            BKE_light_linking_copy_receiver_collection(bmain, *ob_dst, *ob_src);
+            break;
+          case MAKE_LINKS_SHADOW_LINKING:
+            BKE_light_linking_copy_blocker_collection(bmain, *ob_dst, *ob_src);
+            break;
         }
       }
     }
@@ -1746,6 +1783,16 @@ void OBJECT_OT_make_links_data(wmOperatorType *ot)
        0,
        "Copy Grease Pencil Effects",
        "Replace Grease Pencil Effects"},
+      {MAKE_LINKS_LIGHT_LINKING,
+       "LIGHT_LINKING",
+       0,
+       "Copy Light Linking",
+       "Replace assigned Light Linking collection"},
+      {MAKE_LINKS_SHADOW_LINKING,
+       "SHADOW_LINKING",
+       0,
+       "Copy Shadow Linking",
+       "Replace assigned Shadow Linking collection"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1846,7 +1893,7 @@ static Collection *single_object_users_collection(Main *bmain,
        * refresh view-layers/collections caching at the end. */
       BKE_collection_child_add_no_sync(bmain, collection, collection_child_new);
       BLI_remlink(&collection->children, child);
-      MEM_freeN(child);
+      MEM_delete(child);
       if (child == orig_child_last) {
         break;
       }
@@ -2978,7 +3025,7 @@ void OBJECT_OT_make_single_user(wmOperatorType *ot)
 /** \name Drop Named Material on Object Operator
  * \{ */
 
-std::string drop_named_material_tooltip(bContext *C, const char *name, const int mval[2])
+std::string drop_named_material_tooltip(bContext *C, StringRef name, const int mval[2])
 {
   int mat_slot = 0;
   Object *ob = ED_view3d_give_material_slot_under_cursor(C, mval, &mat_slot);
