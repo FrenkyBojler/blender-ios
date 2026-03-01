@@ -2729,20 +2729,25 @@ static void rna_SpaceSequencer_scope_type_set(PointerRNA *ptr, int value)
     int old = sseq->scope;
     sseq->scope = value;
 
+    /* As multiple scopes could be unselected at once by selecting a scope without holding the
+     * shift key, `removed` could also contain multiple 1 bits. */
     int removed = old & ~value;
     int added = value & ~old;
 
     if (removed) {
       for (int i = 0; i < sseq->scope_order_len; i++) {
-        if (sseq->scope_order[i] == removed || sseq->scope_order[i] == 0) {
+        if (removed & sseq->scope_order[i]) {
           sseq->scope_order[i] = 0;
-          if (i + 1 < sseq->scope_order_len) {
-            sseq->scope_order[i] = sseq->scope_order[i + 1];
-            sseq->scope_order[i + 1] = 0;
-          }
         }
       }
-      sseq->scope_order_len--;
+
+      for (int i = 0; i < sseq->scope_order_len; i++) {
+        if (sseq->scope_order[i] == 0 && i + 1 < sseq->scope_order_len) {
+          sseq->scope_order[i] = sseq->scope_order[i + 1];
+          sseq->scope_order[i + 1] = 0;
+        }
+      }
+      sseq->scope_order_len -= count_bits_i(removed);
     }
     if (added) {
       sseq->scope_order[sseq->scope_order_len] = added;

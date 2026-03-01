@@ -86,7 +86,8 @@ void main()
     /* Multiplier to map YUV U,V range (+-0.436, +-0.615) to +-0.5 on both axes. */
     float2 uv_scale = float2(0.5f / 0.436f, 0.5f / 0.615f);
     pos = yuva.yz * vec_size * uv_scale;
-    pos.y *= scope_aspect;
+    /* Compensate for non unity aspect ratio view matrices. */
+    pos *= scale_correction;
   }
 
   /* Determine final point color: we want to keep the hue, desaturate it a bit,

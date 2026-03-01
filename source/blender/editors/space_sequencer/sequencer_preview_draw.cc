@@ -529,12 +529,14 @@ static void draw_waveform_graticule(ARegion *region,
   ui::view2d_text_cache_draw(region);
 }
 
-static void draw_vectorscope_graticule(ARegion *region,
-                                       SeqQuadsBatch &quads,
-                                       const rctf &area,
-                                       float y_corr)
+static void draw_vectorscope_graticule(ARegion *region, SeqQuadsBatch &quads, const rctf &area)
 {
   const float skin_rad = DEG2RADF(123.0f); /* angle in radians of the skin tone line */
+
+  /* Scale Correction to maintain unity aspect ratio. */
+  const float scale_x = ui::view2d_scale_get_x(&region->v2d);
+  const float scale_y = ui::view2d_scale_get_y(&region->v2d);
+  const float y_corr = (scale_x > 0.0f && scale_y > 0.0f) ? (scale_x / scale_y) : 1.0f;
 
   const float w = BLI_rctf_size_x(&area);
   const float h = BLI_rctf_size_y(&area) / y_corr;
@@ -735,12 +737,6 @@ static void sequencer_draw_scopes(Scene *scene,
 
   int scopes_count = space_sequencer.scope_order_len;
 
-  /* Apply scale correction when vectorscope is drawn along other scopes and hence V2D_KEEPASPECT
-   * is off. */
-  const float scale_x = ui::view2d_scale_get_x(&region.v2d);
-  const float scale_y = ui::view2d_scale_get_y(&region.v2d);
-  const float y_corr = (scale_x > 0.0f && scale_y > 0.0f) ? (scale_x / scale_y) : 1.0f;
-
   /* Draw black rectangle over scopes area. */
   if (space_sequencer.view == SEQ_VIEW_SCOPES) {
     GPU_blend(GPU_BLEND_NONE);
@@ -801,6 +797,18 @@ static void sequencer_draw_scopes(Scene *scene,
     const float render_scale = seq::get_render_scale_factor(render_size_mode, scene->r.size);
     const int scope_width = image_width / scopes_count;
 
+    /* Scale correction for vectorscope when it is drawn along other scopes and hence
+     * `V2D_KEEPASPECT` is off. */
+    float2 scale_correction;
+    const float scale_x = ui::view2d_scale_get_x(&region.v2d);
+    const float scale_y = ui::view2d_scale_get_y(&region.v2d);
+    scale_correction.x = (scale_x > 0.0f && scale_y > 0.0f && scale_y < scale_x) ?
+                             (scale_y / scale_x) :
+                             1.0f;
+    scale_correction.y = (scale_x > 0.0f && scale_y > 0.0f && scale_x < scale_y) ?
+                             (scale_x / scale_y) :
+                             1.0f;
+
     gpu::StorageBuf *raster_ssbo = GPU_storagebuf_create_ex(viewport_size.x * viewport_size.y *
                                                                 sizeof(SeqScopeRasterData),
                                                             nullptr,
@@ -835,7 +843,7 @@ static void sequencer_draw_scopes(Scene *scene,
       GPU_shader_uniform_1i(shader, "scope_mode", scp);
       GPU_shader_uniform_1i(shader, "scope_index", i);
       GPU_shader_uniform_1i(shader, "scope_width", scope_width);
-      GPU_shader_uniform_1f(shader, "scope_aspect", y_corr);
+      GPU_shader_uniform_2fv(shader, "scale_correction", scale_correction);
       GPU_shader_uniform_1f(shader, "inv_render_scale", 1.0f / render_scale);
 
       const int2 groups_to_dispatch = math::divide_ceil(image_size, int2(16));
@@ -890,7 +898,7 @@ static void sequencer_draw_scopes(Scene *scene,
   const float space_x_per_scope = (preview.xmax - preview.xmin) / scopes_count;
   rctf area = preview;
 
-  GPU_matrix_push();
+  GPU_matrix_push_projection();
 
   const bool skip_individual_borders = scopes_count > 1;
 
@@ -920,7 +928,7 @@ static void sequencer_draw_scopes(Scene *scene,
 
       case SEQ_DRAW_IMG_VECTORSCOPE:
         use_blend = true;
-        draw_vectorscope_graticule(&region, quads, area, y_corr);
+        draw_vectorscope_graticule(&region, quads, area);
         break;
 
       case SEQ_DRAW_IMG_HISTOGRAM:
@@ -933,7 +941,7 @@ static void sequencer_draw_scopes(Scene *scene,
   }
 
   quads.draw();
-  GPU_matrix_pop();
+  GPU_matrix_pop_projection();
 
   if (use_blend) {
     GPU_blend(GPU_BLEND_NONE);
