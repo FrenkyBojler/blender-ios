@@ -1285,12 +1285,15 @@ static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreE
       case ID_LT:
       case ID_LA:
       case ID_CA:
+<<<<<<< Updated upstream
       case ID_KE:
         context = BCONTEXT_DATA;
         if (te->parent && te->parent->store_elem && te->parent->store_elem->id) {
           ptr = RNA_id_pointer_create(te->parent->store_elem->id);
         }
         break;
+=======
+>>>>>>> Stashed changes
       case ID_SPK:
       case ID_AR:
       case ID_GD_LEGACY:
@@ -1306,6 +1309,10 @@ static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreE
         break;
       case ID_WO:
         context = BCONTEXT_WORLD;
+        break;
+      case ID_KE:
+        context = BCONTEXT_DATA;
+        ptr = RNA_id_pointer_create(te->parent->store_elem->id);
         break;
     }
   }
