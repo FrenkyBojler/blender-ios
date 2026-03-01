@@ -10,6 +10,7 @@
 #include "BLI_string.h"
 
 #include "BKE_instances.hh"
+#include "BKE_mesh.h"
 #include "BKE_report.hh"
 
 #ifdef WITH_ALEMBIC
@@ -17,6 +18,15 @@
 #endif
 
 namespace blender::nodes::node_geo_import_abc {
+
+enum MeshSeqCacheModifierReadFlag {
+  MOD_MESHSEQ_READ_VERT = (1 << 0),
+  MOD_MESHSEQ_READ_POLY = (1 << 1),
+  MOD_MESHSEQ_READ_UV = (1 << 2),
+  MOD_MESHSEQ_READ_COLOR = (1 << 3),
+  MOD_MESHSEQ_INTERPOLATE_VERTICES = (1 << 4),
+  MOD_MESHSEQ_READ_ATTRIBUTES = (1 << 5),
+};
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -29,6 +39,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .path_filter("*.abc")
       .optional_label()
       .description("Path to an Alembic file");
+  b.add_input<decl::String>("Object Path").optional_label().description("Object Path");
+
   {
     auto &p = b.add_panel("Time").default_closed(false);
     p.add_input<decl::Bool>("Sequence");
@@ -66,47 +78,73 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   double time = (frame + frame_offset) / 24;
 
+  Object *self_object = const_cast<Object *>(params.self_object());
+  const char *err_str = nullptr;
+  GeometrySet geometry_set;
+  Mesh *mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
+  geometry_set.replace_mesh(mesh);
+
 #ifdef WITH_ALEMBIC
   const std::optional<std::string> path = params.ensure_absolute_path(
       params.extract_input<std::string>("Path"));
+  const std::string object_path = params.extract_input<std::string>("Object Path");
   if (!path) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  std::shared_ptr<const LoadAbcCache> cached_value = memory_cache::get_loaded<LoadAbcCache>(
-      GenericStringKey{"import_abc_node"}, {StringRefNull(*path)}, [&]() {
-        AlembicImportParams import_params;
-        // STRNCPY(import_params.paths, path->c_str());
-        import_params.is_sequence = is_sequence;
-        import_params.global_scale = 1.0f;
-
-        ABCReadParams params;
-        params.time = time;
-        params.velocity_name = velocity_name.c_str();
-        params.velocity_scale = velocity_scale;
-
-        Vector<bke::GeometrySet> geometries;
-        // OBJ_import_geometries(&import_params, geometries);
-
-        auto instances = std::make_unique<bke::Instances>(geometries.size());
-        MutableSpan<int> handles = instances->reference_handles_for_write();
-        instances->transforms_for_write().fill(float4x4::identity());
-        for (const int i : geometries.index_range()) {
-          handles[i] = instances->add_reference(bke::InstanceReference{std::move(geometries[i])});
-        }
-
-        auto cached_value = std::make_unique<LoadAbcCache>();
-        cached_value->geometry = GeometrySet::from_instances(std::move(instances));
-
-        return cached_value;
-      });
-
-  for (const geo_eval_log::NodeWarning &warning : cached_value->warnings) {
-    params.error_message_add(warning.type, warning.message);
+  CacheArchiveHandle *handle = ABC_create_handle(params.bmain(), path->c_str(), nullptr, nullptr);
+  if (!handle) {
+    params.error_message_add(NodeWarningType::Error, TIP_("No handle"));
+    params.set_default_remaining_outputs();
+    return;
   }
 
-  params.set_output("Instances", cached_value->geometry);
+  CacheReader *reader = CacheReader_open_alembic_object(
+      handle, nullptr, self_object, object_path.c_str(), is_sequence);
+
+  if (!reader) {
+    ABC_free_handle(handle);
+    params.error_message_add(NodeWarningType::Error, TIP_("No reader/object"));
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  ABCReadParams read_params;
+  read_params.time = time;
+  read_params.velocity_name = velocity_name.c_str();
+  read_params.velocity_scale = velocity_scale;
+  read_params.read_flags = (MOD_MESHSEQ_READ_VERT | MOD_MESHSEQ_READ_POLY | MOD_MESHSEQ_READ_UV |
+                            MOD_MESHSEQ_READ_COLOR | MOD_MESHSEQ_READ_ATTRIBUTES);
+
+  ABC_read_geometry(reader, self_object, geometry_set, &read_params, &err_str);
+
+  if (err_str) {
+    params.error_message_add(NodeWarningType::Error, err_str);
+  }
+  if (geometry_set.is_empty()) {
+    params.error_message_add(NodeWarningType::Error, "No geometry");
+  }
+
+  Vector<bke::GeometrySet> geometries;
+  geometries.append(geometry_set);
+
+  float mat[4][4];
+  ABC_get_transform(reader, mat, read_params.time, 1);
+
+  auto instances = std::make_unique<bke::Instances>(geometries.size());
+  MutableSpan<int> handles = instances->reference_handles_for_write();
+  MutableSpan<float4x4> transforms = instances->transforms_for_write();
+
+  for (const int i : geometries.index_range()) {
+    handles[i] = instances->add_reference(bke::InstanceReference{std::move(geometries[i])});
+    transforms[i] = float4x4(mat);
+  }
+
+  params.set_output("Instances", bke::GeometrySet::from_instances(std::move(instances)));
+
+  ABC_CacheReader_free(reader);
+  ABC_free_handle(handle);
 
 #else
   params.error_message_add(NodeWarningType::Error,
