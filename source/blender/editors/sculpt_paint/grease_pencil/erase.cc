@@ -498,89 +498,6 @@ struct EraseOperationExecutor {
     return true;
   }
 
-  /* The hard eraser cuts out the curves at their intersection with the eraser, and removes
-   * everything that lies in-between two consecutive intersections. Note that intersections are
-   * computed using integers (pixel-space) to avoid floating-point approximation errors. */
-
-  bool hard_eraser(Object &ob,
-                   const bke::CurvesGeometry &src,
-                   const Span<float2> screen_space_positions,
-                   bke::CurvesGeometry &dst,
-                   const bool keep_caps) const
-  {
-    const VArray<bool> src_cyclic = src.cyclic();
-    const int src_points_num = src.points_num();
-
-    /* For the hard erase, we compute with a circle, so there can only be a maximum of two
-     * intersection per segment. */
-    const Vector<EraserRing> eraser_rings(
-        1, {this->eraser_radius, this->eraser_squared_radius_pixels, 0.0f, true});
-    const int intersections_max_per_segment = eraser_rings.size() * 2;
-
-    /* Compute intersections between the eraser and the curves in the source domain. */
-    Array<std::pair<int, PointCircleSide>> src_point_ring(src_points_num,
-                                                          {-1, PointCircleSide::Outside});
-    Array<SegmentCircleIntersection> src_intersections(src_points_num *
-                                                       intersections_max_per_segment);
-    curves_intersections_and_points_sides(
-        src, screen_space_positions, eraser_rings, src_point_ring, src_intersections);
-
-    Array<Vector<ed::greasepencil::PointTransferData>> src_to_dst_points(src_points_num);
-
-    const VArray<int> &stroke_material = *src.attributes().lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Curve, 0);
-    const VArray<float> &point_opacity = *src.attributes().lookup_or_default<float>(
-        "opacity", bke::AttrDomain::Point, 1.0f);
-
-    const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
-    for (const int src_curve : src.curves_range()) {
-      const IndexRange src_points = src_points_by_curve[src_curve];
-
-      if (skip_strokes_with_locked_material(
-              ob, src_curve, src_points, stroke_material, point_opacity, src_to_dst_points))
-      {
-        continue;
-      }
-
-      for (const int src_point : src_points) {
-        Vector<ed::greasepencil::PointTransferData> &dst_points = src_to_dst_points[src_point];
-        const int src_next_point = (src_point == src_points.last()) ? src_points.first() :
-                                                                      (src_point + 1);
-        const PointCircleSide point_side = src_point_ring[src_point].second;
-
-        /* Add the source point only if it does not lie inside of the eraser. */
-        if (point_side != PointCircleSide::Inside) {
-          dst_points.append({src_point,
-                             src_next_point,
-                             0.0f,
-                             true,
-                             (point_side == PointCircleSide::InsideOutsideBoundary)});
-        }
-
-        /* Add all intersections with the eraser. */
-        const IndexRange src_point_intersections(src_point * intersections_max_per_segment,
-                                                 intersections_max_per_segment);
-        for (const SegmentCircleIntersection &intersection :
-             src_intersections.as_span().slice(src_point_intersections))
-        {
-          if (!intersection.is_valid()) {
-            /* Stop at the first non valid intersection. */
-            break;
-          }
-          dst_points.append({src_point,
-                             src_next_point,
-                             intersection.factor,
-                             false,
-                             intersection.inside_outside_intersection});
-        }
-      }
-    }
-
-    ed::greasepencil::compute_topology_change(src, dst, src_to_dst_points, keep_caps);
-
-    return true;
-  }
-
   Vector<EraserRing> compute_piecewise_linear_falloff() const
   {
     /* The changes in opacity implied by the soft eraser are described by a falloff curve
@@ -1108,13 +1025,7 @@ struct EraseOperationExecutor {
         case GP_BRUSH_ERASER_STROKE:
           erased = stroke_eraser(*obact, src, screen_space_positions, dst);
           break;
-          // case GP_BRUSH_ERASER_HARD:
-          //   erased = hard_eraser(*obact, src, screen_space_positions, dst, self.keep_caps_);
-          break;
-        case GP_BRUSH_ERASER_SOFT:
-          erased = soft_eraser(*obact, src, screen_space_positions, dst, self.keep_caps_);
-          break;
-        case GP_BRUSH_ERASER_HARD:
+        case GP_BRUSH_ERASER_HARD: {
           const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
 
           /* Initialize helper class for projecting screen space coordinates. */
@@ -1131,6 +1042,10 @@ struct EraseOperationExecutor {
                                 layer_to_world,
                                 dst,
                                 self.keep_caps_);
+          break;
+        }
+        case GP_BRUSH_ERASER_SOFT:
+          erased = soft_eraser(*obact, src, screen_space_positions, dst, self.keep_caps_);
           break;
       }
 
