@@ -6530,7 +6530,6 @@ def km_light_orbit_around_target_modal(_params):
         ("TARGET_MODE", {"type": 'T', "value": 'PRESS'}, None),
         ("AZIMUTH_LOCK", {"type": 'Z', "value": 'PRESS'}, None),
         ("ELEVATION_LOCK", {"type": 'Z', "value": 'PRESS', "shift": True}, None),
-        ("MOVE_ALONG_LOCAL_Z", {"type": 'M', "value": 'PRESS'}, None),
         ("FLIP", {"type": 'F', "value": 'PRESS'}, None),
         ("SYMMETRY", {"type": 'S', "value": 'PRESS'}, None),
         ("PRECISION_ENABLE", {"type": 'LEFT_SHIFT', "value": 'PRESS'}, None),
