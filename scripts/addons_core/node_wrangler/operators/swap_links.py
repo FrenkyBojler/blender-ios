@@ -35,6 +35,9 @@ class NODE_OT_swap_links(Operator, NWBase):
         # Swap outputs
         if len(selected_nodes) == 2:
             n2 = selected_nodes[1]
+            if any(link for link in links if link.from_node in selected_nodes and link.to_node in selected_nodes):
+                self.report({'WARNING'}, "One of the selected nodes is connected to another selected node")
+                return {'CANCELLED'}
             if n1.outputs and n2.outputs:
                 n1_outputs = []
                 n2_outputs = []
