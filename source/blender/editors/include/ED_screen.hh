@@ -217,6 +217,7 @@ enum class RegionAnimationEase : uint8_t {
 void ED_region_add_animation_timer(bContext *C,
                                    ScrArea *area,
                                    ARegion *region,
+                                   float delay,
                                    float duration,
                                    RegionAnimationType type,
                                    RegionAnimationDirection direction,

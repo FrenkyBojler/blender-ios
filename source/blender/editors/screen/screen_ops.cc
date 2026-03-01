@@ -6923,6 +6923,7 @@ struct RegionAlphaInfo {
   ScrArea *area;
   ARegion *region, *child_region; /* other region */
   int hidden;
+  float delay;
   float duration;
   RegionAnimationType type;
   RegionAnimationDirection direction;
@@ -7005,7 +7006,7 @@ void ED_region_blend_animation(ARegion *region,
   if (region->runtime->regiontimer == nullptr &&
       (region->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) && region->prev)
   {
-    region = region->prev;
+    // region = region->prev;
   }
 
   if (!region->runtime->regiontimer) {
@@ -7014,7 +7015,12 @@ void ED_region_blend_animation(ARegion *region,
 
   RegionAlphaInfo *rgi = static_cast<RegionAlphaInfo *>(region->runtime->regiontimer->customdata);
 
-  float factor = float(region->runtime->regiontimer->time_duration) / rgi->duration;
+  if (region->runtime->regiontimer->time_duration < rgi->delay) {
+    *alpha = 0.0f;
+    return;
+  }
+
+  float factor = float(region->runtime->regiontimer->time_duration - rgi->delay) / rgi->duration;
   /* makes sure the blend out works 100% - without area redraws */
   if (rgi->hidden) {
     factor = 0.9f - ANIMATION_TIMESTEP - factor;
@@ -7113,6 +7119,7 @@ static void region_blend_end(bContext *C, ARegion *region, const bool is_running
 void ED_region_add_animation_timer(bContext *C,
                                    ScrArea *area,
                                    ARegion *region,
+                                   float delay,
                                    float duration,
                                    RegionAnimationType type,
                                    RegionAnimationDirection direction,
@@ -7134,6 +7141,7 @@ void ED_region_add_animation_timer(bContext *C,
   rgi->type = type;
   rgi->direction = direction;
   rgi->ease = ease;
+  rgi->delay = delay;
   rgi->duration = duration;
   region->flag &= ~RGN_FLAG_HIDDEN;
 
@@ -7158,13 +7166,24 @@ void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARe
     dir = RegionAnimationDirection::Down;
   }
 
+  float delay = 0.0f;
+  float duration = ANIMATION_DURATION_REGION;
+
+  const bool hiding = region->flag & RGN_FLAG_HIDDEN;
+
+  if (!hiding && region->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) {
+    delay = ANIMATION_DURATION_REGION;
+  }
+
   ED_region_add_animation_timer(C,
                                 area,
                                 region,
-                                ANIMATION_DURATION_REGION,
+                                delay,
+                                duration,
                                 RegionAnimationType::Slide,
                                 dir,
-                                RegionAnimationEase::QuadOut);
+                                hiding ? RegionAnimationEase::QuadIn :
+                                         RegionAnimationEase::QuadOut);
 
   wmWindow *win = CTX_wm_window(C);
 
@@ -7178,9 +7197,10 @@ void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARe
     ED_region_visibility_change_update_ex(C, area, region, true, false);
   }
 
-  if (region->next) {
+  if (region->next && !hiding) {
     if (region->next->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) {
       rgi->child_region = region->next;
+      ED_region_visibility_change_update_animated(C, area, region->next);
     }
   }
 }
@@ -7204,7 +7224,7 @@ static wmOperatorStatus region_blend_invoke(bContext *C, wmOperator * /*op*/, co
   }
 
   /* end timer? */
-  if (rgi->region->runtime->regiontimer->time_duration > double(rgi->duration)) {
+  if (rgi->region->runtime->regiontimer->time_duration > double(rgi->duration + rgi->delay)) {
     region_blend_end(C, rgi->region, false);
     return (OPERATOR_FINISHED | OPERATOR_PASS_THROUGH);
   }
