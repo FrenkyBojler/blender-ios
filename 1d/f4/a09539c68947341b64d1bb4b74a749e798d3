@@ -2,3 +2,4 @@ Referenced by issue #147905, The radius indicator circle for Proportional Editin
 Referenced by commit f8a592a7f039a7391e741e169345b80c6a944447, Fix #147905: No radius indicator for proportional UV editing
 Referenced by issue #149469, VSE: Snap line is missing in 5.0
 Referenced by issue #151799, VSE: Snap line does not draw
+Referenced by issue #155031, Proportional edit overlay not shown in movie_clip editor mask mode
