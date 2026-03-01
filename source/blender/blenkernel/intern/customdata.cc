@@ -209,7 +209,7 @@ static void layerCopy_mdeformvert(const void *source, void *dest, const int coun
   for (i = 0; i < count; i++) {
     MDeformVert *dvert = static_cast<MDeformVert *>(POINTER_OFFSET(dest, i * size));
 
-    if (dvert->totweight) {
+    if (dvert->totweight > 0) {
       MDeformWeight *dw = MEM_new_array_uninitialized<MDeformWeight>(size_t(dvert->totweight),
                                                                      __func__);
 
@@ -218,6 +218,7 @@ static void layerCopy_mdeformvert(const void *source, void *dest, const int coun
     }
     else {
       dvert->dw = nullptr;
+      dvert->totweight = 0;
     }
   }
 }
