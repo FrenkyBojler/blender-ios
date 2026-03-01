@@ -8,6 +8,7 @@ FRAGMENT_SHADER_CREATE_INFO(gpencil_geometry)
 
 #include "draw_colormanagement_lib.glsl"
 #include "draw_grease_pencil_lib.glsl"
+#include "gpu_shader_common_hash.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 
 float3 gpencil_lighting()
@@ -102,6 +103,48 @@ float2 rotate_uv(float2 uv, float2 x_axis)
   uv = transpose(float2x2(x_axis, y_axis)) * uv;
 
   return uv;
+}
+
+float4 get_dot_color(float2 uv, int i)
+{
+
+  if (true) {
+    float rand = hash_uint_to_float(i + 6723);
+    rand *= 2.0f;
+    rand -= 0.5f;
+    rand *= M_PI;
+
+    // rand *= 0.8f;
+
+    uv -= 0.5f;
+    uv = rotate_uv(uv, float2(cos(rand), sin(rand)));
+    uv += 0.5f;
+  }
+  if (true) {
+    float rand = hash_uint_to_float(i + 5321);
+
+    // rand -=0.5f;
+    // rand *= 2.0f;
+    // rand += 1.0f;
+
+    uv -= 0.5f;
+    uv /= rand;
+    uv += 0.5f;
+  }
+
+  float4 col = get_color(uv);
+  if (true) {
+    float rand = hash_uint_to_float(i + 8964);
+    // col.rgb *= rand * 0.8 + 0.2;
+    col.rgb *= rand;
+  }
+  if (true) {
+    float rand = hash_uint_to_float(i + 6893);
+    // col.w *= rand * 0.8 + 0.2;
+    col *= rand;
+  }
+
+  return col;
 }
 
 float4 alpha_over(float4 base, float4 over)
@@ -367,7 +410,7 @@ void main()
           float2 uv = (view_coord - pos.xy) / pos.w;
           uv = rotate_uv(uv, gp_interp_flat.aspect.zw);
 
-          frag_color = alpha_over(get_color(uv * 0.5f + 0.5f), frag_color);
+          frag_color = alpha_over(get_dot_color(uv * 0.5f + 0.5f, i), frag_color);
 
           /* Break early if full opacity. */
           if (frag_color.w > 0.999f) {
@@ -376,7 +419,9 @@ void main()
         }
       }
       else {
-        frag_color = get_color(gp_interp.uv);
+        int i = int(gp_interp_flat.point_length.x);
+
+        frag_color = get_dot_color(gp_interp.uv, i);
       }
     }
     else {  // line
