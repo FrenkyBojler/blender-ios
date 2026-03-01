@@ -102,7 +102,8 @@ void main()
   hsv_to_rgb(hsv, color);
 
   /* Map pos.x to its respective partition. */
-  pos.x = ((pos.x + image_width / 2) / image_width) * scope_width - (image_width / 2) + (scope_index * scope_width);
+  pos.x = ((pos.x + image_width / 2) / image_width) * scope_width - (image_width / 2) +
+          (scope_index * scope_width);
 
   /* Calculate final point position in integer pixels. */
   float4 clip_pos = ModelViewProjectionMatrix * float4(pos * inv_render_scale, 0.0f, 1.0f);
