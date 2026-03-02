@@ -166,13 +166,22 @@ void mix_socket_values(bke::SocketValueVariant &a,
   if (a.is_single() && b.is_single()) {
     GMutablePointer a_ptr = a.get_single_ptr();
     const GPointer b_ptr = b.get_single_ptr();
+    if (!a_ptr || !b_ptr) {
+      return;
+    }
+    if (a_ptr.is_type<std::string>()) {
+      return;
+    }
     if (a_ptr.is_type<bke::GeometrySet>()) {
       mix_geometries(*a_ptr.get<bke::GeometrySet>(), *b_ptr.get<bke::GeometrySet>(), factor);
     }
-    if (a_ptr.is_type<nodes::BundlePtr>()) {
-      mix_bundles(a_ptr.get<nodes::BundlePtr>()->ensure_mutable_inplace(),
-                  **b_ptr.get<nodes::BundlePtr>(),
-                  factor);
+    else if (a_ptr.is_type<nodes::BundlePtr>()) {
+      nodes::BundlePtr &a_bundle_ptr = *a_ptr.get<nodes::BundlePtr>();
+      const nodes::BundlePtr &b_bundle_ptr = *b_ptr.get<nodes::BundlePtr>();
+      if (!a_bundle_ptr || !b_bundle_ptr) {
+        return;
+      }
+      mix_bundles(a_bundle_ptr.ensure_mutable_inplace(), *b_bundle_ptr, factor);
     }
     else {
       mix(GMutableSpan(a_ptr.type(), a_ptr.get(), 1),
@@ -227,7 +236,7 @@ void mix_bundles(nodes::Bundle &a, const nodes::Bundle &b, const float factor)
   }
 }
 
-void mix_geometries(bke::GeometrySet a, const bke::GeometrySet &b, const float factor)
+void mix_geometries(bke::GeometrySet &a, const bke::GeometrySet &b, const float factor)
 {
   if (Mesh *mesh_a = a.get_mesh_for_write()) {
     if (const Mesh *mesh_b = b.get_mesh()) {

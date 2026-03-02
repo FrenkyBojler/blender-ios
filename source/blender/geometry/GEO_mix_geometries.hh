@@ -15,7 +15,7 @@ namespace blender::geometry {
  *
  * If mixing is not possible, the geometry from the `a` input is returned.
  */
-void mix_geometries(bke::GeometrySet a, const bke::GeometrySet &b, float factor);
+void mix_geometries(bke::GeometrySet &a, const bke::GeometrySet &b, float factor);
 
 void mix_bundles(nodes::Bundle &a, const nodes::Bundle &b, float factor);
 
