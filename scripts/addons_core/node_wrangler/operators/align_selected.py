@@ -157,14 +157,8 @@ class NODE_OT_align_selected(Operator, NWBase):
         if horizontal:
             current_pos = min_x
             margin = self.margin
-        else:
-            current_pos = max_y
-            # Use a smaller margin for hidden nodes.
-            margin = 0.5 * self.margin
 
-        for i, node in enumerate(nodes):
-
-            if horizontal:
+            for i, node in enumerate(nodes):
                 if i > 0:
                     target_x = current_pos
                     if node.bl_idname == "NodeFrame":
@@ -180,7 +174,12 @@ class NODE_OT_align_selected(Operator, NWBase):
                     node.location_absolute.y = mid_y + weird_offset
                 else:
                     node.location_absolute.y = mid_y + (self.get_height(node) / 2)
-            else:
+        else:
+            current_pos = max_y
+            # Use a smaller margin for hidden nodes.
+            margin = 0.5 * self.margin
+
+            for i, node in enumerate(nodes):
                 if i > 0:
                     if node.bl_idname == "NodeFrame":
                         self.move_children(node, current_pos - node.location_absolute.y, axis="Y")
