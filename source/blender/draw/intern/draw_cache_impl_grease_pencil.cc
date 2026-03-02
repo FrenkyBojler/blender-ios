@@ -10,6 +10,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
+#include "BKE_curves_utils.hh"
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_grease_pencil_fills.hh"
@@ -61,6 +62,7 @@ struct GreasePencilBatchCache {
 
   /* Crazy-space point positions for original points. */
   gpu::VertBuf *edit_points_pos;
+  gpu::VertBuf *edit_points_rad;
   /* Selection of original points. */
   gpu::VertBuf *edit_points_selection;
   /* vflag of original points. */
@@ -190,6 +192,7 @@ static void grease_pencil_batch_cache_clear(GreasePencil &grease_pencil)
   GPU_BATCH_DISCARD_SAFE(cache->edit_handles);
 
   GPU_VERTBUF_DISCARD_SAFE(cache->edit_points_pos);
+  GPU_VERTBUF_DISCARD_SAFE(cache->edit_points_rad);
   GPU_VERTBUF_DISCARD_SAFE(cache->edit_points_selection);
   GPU_VERTBUF_DISCARD_SAFE(cache->edit_points_vflag);
   GPU_INDEXBUF_DISCARD_SAFE(cache->edit_points_indices);
@@ -460,7 +463,7 @@ static IndexMask grease_pencil_get_visible_nurbs_points(Object &object,
           object, drawing, layer_index, memory);
 
   const IndexMask nurbs_points = IndexMask::from_predicate(
-      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
+      curves.points_range(), memory, [&](const int64_t point_i) {
         const int curve_i = point_to_curve_map[point_i];
         const bool is_selected = editable_and_selected_curves.contains(curve_i);
         const bool is_nurbs = types[curve_i] == CURVE_TYPE_NURBS;
@@ -485,11 +488,11 @@ static IndexMask grease_pencil_get_visible_nurbs_curves(Object &object,
       ed::greasepencil::retrieve_editable_and_selected_strokes(
           object, drawing, layer_index, memory);
 
-  const VArray<int8_t> types = curves.curve_types();
-  return IndexMask::from_predicate(
-      selected_editable_strokes, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        return types[curve_i] == CURVE_TYPE_NURBS;
-      });
+  return bke::curves::indices_for_type(curves.curve_types(),
+                                       curves.curve_type_counts(),
+                                       CURVE_TYPE_NURBS,
+                                       selected_editable_strokes,
+                                       memory);
 }
 
 static IndexMask grease_pencil_get_visible_non_nurbs_curves(
@@ -506,10 +509,9 @@ static IndexMask grease_pencil_get_visible_non_nurbs_curves(
   }
 
   const VArray<int8_t> types = curves.curve_types();
-  return IndexMask::from_predicate(
-      visible_strokes, GrainSize(4096), memory, [&](const int64_t curve) {
-        return types[curve] != CURVE_TYPE_NURBS;
-      });
+  return IndexMask::from_predicate(visible_strokes, memory, [&](const int64_t curve) {
+    return types[curve] != CURVE_TYPE_NURBS;
+  });
 }
 
 static void grease_pencil_cache_add_nurbs(Object &object,
@@ -741,6 +743,9 @@ static void grease_pencil_edit_batch_ensure(Object &object,
   static const GPUVertFormat format_edit_points_pos = GPU_vertformat_from_attribute(
       "pos", gpu::VertAttrType::SFLOAT_32_32_32);
 
+  static const GPUVertFormat format_edit_points_rad = GPU_vertformat_from_attribute(
+      "rad", gpu::VertAttrType::SFLOAT_32);
+
   static const GPUVertFormat format_edit_line_pos = GPU_vertformat_from_attribute(
       "pos", gpu::VertAttrType::SFLOAT_32_32_32);
 
@@ -758,6 +763,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
 
   GPUUsageType vbo_flag = GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY;
   cache->edit_points_pos = GPU_vertbuf_create_with_format_ex(format_edit_points_pos, vbo_flag);
+  cache->edit_points_rad = GPU_vertbuf_create_with_format_ex(format_edit_points_rad, vbo_flag);
   cache->edit_points_selection = GPU_vertbuf_create_with_format_ex(format_edit_points_selection,
                                                                    vbo_flag);
   cache->edit_points_vflag = GPU_vertbuf_create_with_format_ex(format_edit_points_vflag, vbo_flag);
@@ -810,6 +816,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
   }
 
   GPU_vertbuf_data_alloc(*cache->edit_points_pos, total_points_num);
+  GPU_vertbuf_data_alloc(*cache->edit_points_rad, total_points_num);
   GPU_vertbuf_data_alloc(*cache->edit_points_selection, total_points_num);
   GPU_vertbuf_data_alloc(*cache->edit_points_vflag, total_points_num);
   GPU_vertbuf_data_alloc(*cache->edit_line_pos, total_line_points_num);
@@ -817,6 +824,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
   GPU_vertbuf_data_alloc(*cache->edit_points_info, total_points_num);
 
   MutableSpan<float3> edit_points = cache->edit_points_pos->data<float3>();
+  MutableSpan<float> edit_rad = cache->edit_points_rad->data<float>();
   MutableSpan<float> edit_points_selection = cache->edit_points_selection->data<float>();
   MutableSpan<uint32_t> edit_points_vflag = cache->edit_points_vflag->data<uint32_t>();
   MutableSpan<float3> edit_line_points = cache->edit_line_pos->data<float3>();
@@ -826,6 +834,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
   edit_points_vflag.fill(0);
   edit_points_info.fill(0);
   edit_line_selection.fill(0.0f);
+  edit_rad.fill(0.0f);
 
   int visible_points_num = 0;
   int total_line_ids_num = 0;
@@ -839,6 +848,8 @@ static void grease_pencil_edit_batch_ensure(Object &object,
     const OffsetIndices<int> points_by_curve_eval = curves.evaluated_points_by_curve();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
+    const VArraySpan<float> radii = curves.radius();
+
     IndexMaskMemory memory;
     const IndexMask visible_strokes_for_lines = grease_pencil_get_visible_non_nurbs_curves(
         object, info.drawing, info.layer_index, memory);
@@ -849,6 +860,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
     if (!layer.is_locked()) {
       math::transform_points(
           curves.positions(), layer_space_to_object_space, edit_points.slice(points));
+      edit_rad.slice(points).copy_from(radii);
     }
 
     math::transform_points(curves.evaluated_positions(),
@@ -945,6 +957,9 @@ static void grease_pencil_edit_batch_ensure(Object &object,
     MutableSpan<float3> positions_slice_left = edit_points.slice(left_slice);
     MutableSpan<float3> positions_slice_right = edit_points.slice(right_slice);
 
+    MutableSpan<float> radius_slice_left = edit_rad.slice(left_slice);
+    MutableSpan<float> radius_slice_right = edit_rad.slice(right_slice);
+
     const Span<float3> handles_left = *curves.handle_positions_left();
     const Span<float3> handles_right = *curves.handle_positions_right();
 
@@ -972,6 +987,9 @@ static void grease_pencil_edit_batch_ensure(Object &object,
                             selected_right[point_i];
       edit_points_info.slice(left_slice)[pos] = bezier_data_value(types_left[point_i], selected);
       edit_points_info.slice(right_slice)[pos] = bezier_data_value(types_right[point_i], selected);
+
+      radius_slice_left[pos] = radii[point_i];
+      radius_slice_right[pos] = radii[point_i];
 
       edit_points_info.slice(points)[point_i] = EDIT_CURVES_BEZIER_KNOT;
     });
@@ -1060,6 +1078,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
   cache->edit_handles = GPU_batch_create(
       GPU_PRIM_LINES, cache->edit_points_pos, cache->edit_handles_ibo);
   GPU_batch_vertbuf_add(cache->edit_handles, cache->edit_points_info, false);
+  GPU_batch_vertbuf_add(cache->edit_handles, cache->edit_points_rad, false);
   GPU_batch_vertbuf_add(cache->edit_handles, cache->edit_points_selection, false);
 
   /* Allow creation of buffer texture. */
