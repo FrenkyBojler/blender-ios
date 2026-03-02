@@ -1576,7 +1576,7 @@ static bool transinfo_show_overlay(TransInfo *t, ARegion *region)
        * editing drawing that will not happen if we return false here. */
       return true;
     }
-    case SPACE_CLIP : {
+    case SPACE_CLIP: {
       const SpaceClip *sclip = static_cast<const SpaceClip *>(t->area->spacedata.first);
       return (sclip->overlay.flag & SC_SHOW_OVERLAYS) != 0;
     }
