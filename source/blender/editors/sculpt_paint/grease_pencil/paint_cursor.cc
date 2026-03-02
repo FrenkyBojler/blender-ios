@@ -1,6 +1,6 @@
 /* SPDX-FileCopyrightText: 2026 Blender Authors
-*
-* SPDX-License-Identifier: GPL-2.0-or-later */
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "editors/sculpt_paint/paint_cursor.hh"
 
@@ -202,5 +202,5 @@ void grease_pencil_cursor_draw(PaintCursorContext &pcontext)
   immUniformColor4f(darkcolor[0], darkcolor[1], darkcolor[2], 0.8f);
   imm_draw_circle_wire_2d(pcontext.pos, mval.x, mval.y, pcontext.pixel_radius + 1, 32);
 }
-}
-}
+}  // namespace ed::sculpt_paint
+}  // namespace blender

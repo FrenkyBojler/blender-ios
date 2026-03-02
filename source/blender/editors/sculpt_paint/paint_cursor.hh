@@ -1,6 +1,6 @@
 /* SPDX-FileCopyrightText: 2026 Blender Authors
-*
-* SPDX-License-Identifier: GPL-2.0-or-later */
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edsculpt
@@ -88,10 +88,10 @@ struct PaintCursorContext {
   int pixel_radius;
 };
 
-void grease_pencil_cursor_draw(PaintCursorContext& pcontext);
+void grease_pencil_cursor_draw(PaintCursorContext &pcontext);
 
-void mesh_cursor_update_and_init(PaintCursorContext& pcontext);
-void mesh_cursor_active_draw(PaintCursorContext& pcontext);
-void mesh_cursor_inactive_draw(PaintCursorContext& pcontext);
-}
-}
+void mesh_cursor_update_and_init(PaintCursorContext &pcontext);
+void mesh_cursor_active_draw(PaintCursorContext &pcontext);
+void mesh_cursor_inactive_draw(PaintCursorContext &pcontext);
+}  // namespace ed::sculpt_paint
+}  // namespace blender

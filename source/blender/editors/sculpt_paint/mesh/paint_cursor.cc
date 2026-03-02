@@ -195,15 +195,14 @@ void mesh_cursor_update_and_init(PaintCursorContext &pcontext)
   }
 
   if (pcontext.is_cursor_over_mesh) {
-    brush_unprojected_size_update(
-        *pcontext.paint, brush, vc, pcontext.scene_space_location);
+    brush_unprojected_size_update(*pcontext.paint, brush, vc, pcontext.scene_space_location);
   }
 }
 
 static void geometry_preview_lines_draw(const Depsgraph &depsgraph,
-                                               const uint gpuattr,
-                                               const Brush &brush,
-                                               const Object &object)
+                                        const uint gpuattr,
+                                        const Brush &brush,
+                                        const Object &object)
 {
   if (!(brush.flag & BRUSH_GRAB_ACTIVE_VERTEX)) {
     return;
@@ -280,8 +279,7 @@ void mesh_cursor_active_draw(PaintCursorContext &pcontext)
   /* Draw the special active cursors different brush types may have. */
 
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_GRAB) {
-    geometry_preview_lines_draw(
-        *pcontext.depsgraph, pcontext.pos, brush, *pcontext.vc.obact);
+    geometry_preview_lines_draw(*pcontext.depsgraph, pcontext.pos, brush, *pcontext.vc.obact);
   }
 
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE) {
@@ -323,10 +321,10 @@ void mesh_cursor_active_draw(PaintCursorContext &pcontext)
 }
 
 static void screen_space_point_draw(const uint gpuattr,
-                                           const ARegion *region,
-                                           const float true_location[3],
-                                           const float obmat[4][4],
-                                           const int size)
+                                    const ARegion *region,
+                                    const float true_location[3],
+                                    const float obmat[4][4],
+                                    const int size)
 {
   float translation_vertex_cursor[3], location[3];
   copy_v3_v3(location, true_location);
@@ -340,11 +338,11 @@ static void screen_space_point_draw(const uint gpuattr,
 }
 
 static void tiling_preview_draw(const uint gpuattr,
-                                       const ARegion *region,
-                                       const float true_location[3],
-                                       const Sculpt &sd,
-                                       const Object &ob,
-                                       const float radius)
+                                const ARegion *region,
+                                const float true_location[3],
+                                const Sculpt &sd,
+                                const Object &ob,
+                                const float radius)
 {
   BLI_assert(ob.type == OB_MESH);
   const Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf(&ob);
@@ -389,11 +387,11 @@ static void tiling_preview_draw(const uint gpuattr,
 }
 
 static void point_with_symmetry_draw(const uint gpuattr,
-                                            const ARegion *region,
-                                            const float true_location[3],
-                                            const Sculpt &sd,
-                                            const Object &ob,
-                                            const float radius)
+                                     const ARegion *region,
+                                     const float true_location[3],
+                                     const Sculpt &sd,
+                                     const Object &ob,
+                                     const float radius)
 {
   const Mesh *mesh = id_cast<const Mesh *>(ob.data);
   const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
@@ -428,11 +426,11 @@ static void point_with_symmetry_draw(const uint gpuattr,
 }
 
 static void layer_brush_height_preview_draw(const uint gpuattr,
-                                                   const Brush &brush,
-                                                   const float rds,
-                                                   const float line_width,
-                                                   const float3 &outline_col,
-                                                   const float alpha)
+                                            const Brush &brush,
+                                            const float rds,
+                                            const float line_width,
+                                            const float3 &outline_col,
+                                            const float alpha)
 {
   const float4x4 cursor_trans = math::translate(float4x4::identity(),
                                                 float3(0.0f, 0.0f, brush.height));
@@ -531,10 +529,10 @@ static void pose_brush_origins_draw(const PaintCursorContext &pcontext)
   immUniformColor4f(1.0f, 1.0f, 1.0f, 0.8f);
   for (const int i : ss.pose_ik_chain_preview->initial_orig_coords.index_range()) {
     screen_space_point_draw(pcontext.pos,
-                                   pcontext.region,
-                                   ss.pose_ik_chain_preview->initial_orig_coords[i],
-                                   pcontext.vc.obact->object_to_world().ptr(),
-                                   3);
+                            pcontext.region,
+                            ss.pose_ik_chain_preview->initial_orig_coords[i],
+                            pcontext.vc.obact->object_to_world().ptr(),
+                            3);
   }
 }
 
@@ -547,10 +545,10 @@ static void boundary_preview_pivot_draw(const PaintCursorContext &pcontext)
   }
   immUniformColor4f(1.0f, 1.0f, 1.0f, 0.8f);
   screen_space_point_draw(pcontext.pos,
-                                 pcontext.region,
-                                 pcontext.ss->boundary_preview->pivot_position,
-                                 pcontext.vc.obact->object_to_world().ptr(),
-                                 3);
+                          pcontext.region,
+                          pcontext.ss->boundary_preview->pivot_position,
+                          pcontext.vc.obact->object_to_world().ptr(),
+                          3);
 }
 
 static void boundary_preview_update(const PaintCursorContext &pcontext)
@@ -604,11 +602,11 @@ void mesh_cursor_inactive_draw(PaintCursorContext &pcontext)
   if (math::distance(active_vertex_co, pcontext.location) < pcontext.radius) {
     immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha);
     point_with_symmetry_draw(pcontext.pos,
-                                    pcontext.region,
-                                    active_vertex_co,
-                                    *pcontext.sd,
-                                    active_object,
-                                    pcontext.radius);
+                             pcontext.region,
+                             active_vertex_co,
+                             *pcontext.sd,
+                             active_object,
+                             pcontext.radius);
   }
 
   /* Pose brush updates and rotation origins. */
@@ -644,7 +642,8 @@ void mesh_cursor_inactive_draw(PaintCursorContext &pcontext)
     float3 position;
     switch (bke::object::pbvh_get(active_object)->type()) {
       case bke::pbvh::Type::Mesh: {
-        const Span<float3> positions = bke::pbvh::vert_positions_eval(*pcontext.depsgraph, active_object);
+        const Span<float3> positions = bke::pbvh::vert_positions_eval(*pcontext.depsgraph,
+                                                                      active_object);
         position = positions[vert];
         break;
       }
@@ -689,8 +688,7 @@ void mesh_cursor_inactive_draw(PaintCursorContext &pcontext)
   {
     geometry_preview_lines_update(
         *pcontext.depsgraph, *pcontext.vc.obact, *pcontext.ss, pcontext.radius);
-    geometry_preview_lines_draw(
-        *pcontext.depsgraph, pcontext.pos, *pcontext.brush, active_object);
+    geometry_preview_lines_draw(*pcontext.depsgraph, pcontext.pos, *pcontext.brush, active_object);
   }
 
   if (pcontext.is_brush_active && brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_POSE) {
