@@ -1664,6 +1664,7 @@ static wmOperatorStatus make_links_data_exec(bContext *C, wmOperator *op)
             BKE_constraints_free(&ob_dst->constraints);
             BKE_constraints_copy(&ob_dst->constraints, &ob_src->constraints, true);
             DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
+            WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, nullptr);
             break;
           case MAKE_LINKS_FONTS: {
             Curve *cu_src = id_cast<Curve *>(ob_src->data);
@@ -1729,7 +1730,7 @@ static wmOperatorStatus make_links_data_exec(bContext *C, wmOperator *op)
   DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
   WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, CTX_wm_view3d(C));
-  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT, nullptr);
 
   return OPERATOR_FINISHED;
 }
