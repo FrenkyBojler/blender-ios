@@ -1,2 +1,3 @@
 Referenced by issue #145594, Compositor color tests failing on Windows
 Referenced by issue #145670, The Aspect X/Y format does not adjust the apperence of the final render in the image editor
+Referenced by issue #155060, Crash when using Vulkan and adding a subdivision surface modifier that produces a lot of geometry
