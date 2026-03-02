@@ -123,9 +123,9 @@ class NODE_OT_align_selected(Operator, NWBase):
 
         return min_x, max_x, min_y, max_y
     
+    # TODO - Make this take in a single tuple
     def move_children(self, frame, offset, axis):
         children = self.frame_children(frame)
-        print(frame, self.get_height(frame))
 
         if -1.0 < offset < 1.0:
             return
@@ -140,9 +140,6 @@ class NODE_OT_align_selected(Operator, NWBase):
                     node.location_absolute.y += offset
 
     def arrange_nodes(self, nodes):
-        # TODO: Actually use margin, just zeroed this out for testing
-        margin = self.margin
-
         min_x, max_x, min_y, max_y = self.get_bounds(nodes)
         mid_x = (max_x + min_x) / 2
         mid_y = (max_y + min_y) / 2
@@ -151,12 +148,10 @@ class NODE_OT_align_selected(Operator, NWBase):
         y_locs = [self.get_middle(n) for n in nodes]
         horizontal = max(x_locs) - min(x_locs) > max(y_locs) - min(y_locs)
 
-        # Sort selection by location of node mid-point
         if horizontal:
             nodes = sorted(nodes, key=self.get_center)
         else:
             nodes = sorted(nodes, key=self.get_middle, reverse=True)
-
 
         # Alignment
         if horizontal:
