@@ -15,7 +15,8 @@ struct Thickness {
 
   static Thickness from(float value, ThicknessMode mode)
   {
-    return {.data = (mode == THICKNESS_MODE_SLAB ? -value : value)};
+    // TODO(not_mark): match with thickness_pack/thickness_unpack!
+    return {.data = (mode == THICKNESS_MODE_SPHERE ? value : -value)};
   }
 
   static Thickness zero()
@@ -30,7 +31,7 @@ struct Thickness {
 
   ThicknessMode mode() const
   {
-    return data >= 0.0 ? THICKNESS_MODE_SLAB : THICKNESS_MODE_SPHERE;
+    return data >= 0.0 ? THICKNESS_MODE_SPHERE : THICKNESS_MODE_SLAB;
   }
 };
 
