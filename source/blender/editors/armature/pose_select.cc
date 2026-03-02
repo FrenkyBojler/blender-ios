@@ -56,6 +56,67 @@ namespace blender {
 
 /* ***************** Pose Select Utilities ********************* */
 
+/* NOTE: SEL_TOGGLE is assumed to have already been handled! */
+static void pose_do_bone_select(bPoseChannel *pchan, const int select_mode)
+{
+  /* select pchan only if selectable, but deselect works always */
+  switch (select_mode) {
+    case SEL_SELECT:
+      if (!(pchan->bone->flag & BONE_UNSELECTABLE)) {
+        animrig::bone_select(pchan);
+      }
+      break;
+    case SEL_DESELECT:
+      animrig::bone_deselect(pchan);
+      break;
+    case SEL_INVERT:
+      if (pchan->flag & POSE_SELECTED) {
+        animrig::bone_deselect(pchan);
+      }
+      else if (!(pchan->bone->flag & BONE_UNSELECTABLE)) {
+        animrig::bone_select(pchan);
+      }
+      break;
+  }
+}
+
+/* Useful to get the selection before modifying it. */
+static Set<bPoseChannel *> get_selected_pose_bones(Object *pose_object)
+{
+  Set<bPoseChannel *> selected_pose_bones;
+  bArmature *arm = id_cast<bArmature *>((pose_object) ? pose_object->data : nullptr);
+  for (bPoseChannel &pchan : pose_object->pose->chanbase) {
+    if (animrig::bone_is_selected(arm, &pchan)) {
+      selected_pose_bones.add(&pchan);
+    }
+  }
+  return selected_pose_bones;
+}
+
+static bool pose_bone_is_below_one_of(bPoseChannel &bone,
+                                      const Set<bPoseChannel *> &potential_parents)
+{
+  bPoseChannel *bone_iter = &bone;
+  while (bone_iter) {
+    if (potential_parents.contains(bone_iter)) {
+      return true;
+    }
+    bone_iter = bone_iter->parent;
+  }
+  return false;
+}
+
+static void deselect_pose_bones(const Set<bPoseChannel *> &pose_bones)
+{
+  for (bPoseChannel *pose_bone : pose_bones) {
+    if (!pose_bone) {
+      /* There may be a nullptr in the set if selecting siblings of root bones. */
+      continue;
+    }
+    animrig::bone_deselect(pose_bone);
+  }
+}
+
 static bool pose_select_parents(bContext *C, const bool extend)
 {
   Vector<Object *> objects = BKE_object_pose_array_get_unique(
@@ -122,30 +183,6 @@ static bool pose_select_children(bContext *C, const bool all, const bool extend)
   }
 
   return changed_any_selection;
-}
-
-/* NOTE: SEL_TOGGLE is assumed to have already been handled! */
-static void pose_do_bone_select(bPoseChannel *pchan, const int select_mode)
-{
-  /* select pchan only if selectable, but deselect works always */
-  switch (select_mode) {
-    case SEL_SELECT:
-      if (!(pchan->bone->flag & BONE_UNSELECTABLE)) {
-        animrig::bone_select(pchan);
-      }
-      break;
-    case SEL_DESELECT:
-      animrig::bone_deselect(pchan);
-      break;
-    case SEL_INVERT:
-      if (pchan->flag & POSE_SELECTED) {
-        animrig::bone_deselect(pchan);
-      }
-      else if (!(pchan->bone->flag & BONE_UNSELECTABLE)) {
-        animrig::bone_select(pchan);
-      }
-      break;
-  }
 }
 
 void ED_pose_bone_select_tag_update(Object *ob)
@@ -969,43 +1006,6 @@ static bool pose_select_same_collection(bContext *C, const bool extend)
   }
 
   return changed_any_selection;
-}
-
-/* Useful to get the selection before modifying it. */
-static Set<bPoseChannel *> get_selected_pose_bones(Object *pose_object)
-{
-  Set<bPoseChannel *> selected_pose_bones;
-  bArmature *arm = id_cast<bArmature *>((pose_object) ? pose_object->data : nullptr);
-  for (bPoseChannel &pchan : pose_object->pose->chanbase) {
-    if (animrig::bone_is_selected(arm, &pchan)) {
-      selected_pose_bones.add(&pchan);
-    }
-  }
-  return selected_pose_bones;
-}
-
-static bool pose_bone_is_below_one_of(bPoseChannel &bone,
-                                      const Set<bPoseChannel *> &potential_parents)
-{
-  bPoseChannel *bone_iter = &bone;
-  while (bone_iter) {
-    if (potential_parents.contains(bone_iter)) {
-      return true;
-    }
-    bone_iter = bone_iter->parent;
-  }
-  return false;
-}
-
-static void deselect_pose_bones(const Set<bPoseChannel *> &pose_bones)
-{
-  for (bPoseChannel *pose_bone : pose_bones) {
-    if (!pose_bone) {
-      /* There may be a nullptr in the set if selecting siblings of root bones. */
-      continue;
-    }
-    animrig::bone_deselect(pose_bone);
-  }
 }
 
 static bool pose_select_siblings(bContext *C, const bool extend)
