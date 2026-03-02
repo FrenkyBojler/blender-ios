@@ -122,14 +122,26 @@ class NODE_OT_align_selected(Operator, NWBase):
         max_y = max(self.get_top(node) for node in nodes)
 
         return min_x, max_x, min_y, max_y
+    
+    def move_children(self, frame, offset, axis):
+        children = self.frame_children(frame)
+        
+        for node in children:
+            if node.bl_static_type == 'FRAME':
+                self.move_children(node, offset, axis)
+            else:
+                if axis == 'X':
+                    node.location_absolute.x += offset
+                else:
+                    node.location_absolute.y += offset
 
     def arrange_nodes(self, nodes):
         margin = self.margin
 
         # Check if nodes should be laid out horizontally or vertically
         # use dimension to get center of node, not corner
-        x_locs = [n.location_absolute.x + (self.get_width(n) / 2) for n in nodes]
-        y_locs = [n.location_absolute.y - (self.get_height(n) / 2) for n in nodes]
+        x_locs = [self.get_center(n) for n in nodes]
+        y_locs = [self.get_middle(n) for n in nodes]
         x_range = max(x_locs) - min(x_locs)
         y_range = max(y_locs) - min(y_locs)
         mid_x = (max(x_locs) + min(x_locs)) / 2
@@ -138,9 +150,9 @@ class NODE_OT_align_selected(Operator, NWBase):
 
         # Sort selection by location of node mid-point
         if horizontal:
-            nodes = sorted(nodes, key=lambda n: n.location_absolute.x + (self.get_width(n) / 2))
+            nodes = sorted(nodes, key=self.get_center)
         else:
-            nodes = sorted(nodes, key=lambda n: n.location_absolute.y - (self.get_height(n) / 2), reverse=True)
+            nodes = sorted(nodes, key=self.get_middle, reverse=True)
 
         # Alignment
         current_pos = 0
@@ -154,34 +166,41 @@ class NODE_OT_align_selected(Operator, NWBase):
             if horizontal:
                 print(node, node.location_absolute)
                 if i > 0:
-                    if node.bl_idname != "NodeFrame":
-                        node.location_absolute.x = current_pos
+                    target_x = current_pos
+                    if node.bl_idname == "NodeFrame":
+                        self.move_children(node, target_x - node.location_absolute.x, axis="X")
+                    else:
+                        node.location_absolute.x = target_x
 
                 if i == 0:
-                    current_pos += node.location_absolute.x + self.get_width(node) + current_margin
-                else:
-                    current_pos += current_margin + self.get_width(node)
+                    current_pos += self.get_left(node)
+                current_pos += current_margin + self.get_width(node)
                 
-                if node.bl_idname != "NodeFrame":
-                    node.location_absolute.y = mid_y + (self.get_height(node) / 2)
-                print(node, node.location_absolute)
+                target_y = mid_y + (self.get_height(node) / 2)
+                if node.bl_idname == "NodeFrame":
+                    self.move_children(node, target_y - node.location_absolute.y, axis="Y")
+                else:
+                    node.location_absolute.y = target_y
             else:
                 # `node.bl_height_min` is the min size of a collapsed node, +6 for the outlines and margins.
                 hide_offset = (self.get_height(node) - (node.bl_height_min + 6)) / 2 if node.hide else 0
                 
                 if i > 0:
-                    if node.bl_idname != "NodeFrame":
-                        # Hidden nodes center their sockets around the label instead of below.
-                        node.location_absolute.y = current_pos - hide_offset
+                    # Hidden nodes center their sockets around the label instead of below.
+                    target_y = current_pos - hide_offset
+                    if node.bl_idname == "NodeFrame":
+                        self.move_children(node, target_y - node.location_absolute.y, axis="Y")
+                    node.location_absolute.y = target_y
                 
                 if i == 0:
-                    current_pos += node.location_absolute.y + self.get_height(node) - (current_margin * 0.3)
-                else:
-                    # Use half-margin for vertical alignment.
-                    current_pos -= (current_margin * 0.3) + self.get_height(node)
+                    current_pos += node.location_absolute.y
+                # Use half-margin for vertical alignment.
+                current_pos -= (current_margin * 0.3) + self.get_height(node)
 
-                if node.bl_idname != "NodeFrame":
-                    node.location_absolute.x = mid_x - (self.get_width(node) / 2)
+                target_x = mid_x - (self.get_width(node) / 2)
+                if node.bl_idname == "NodeFrame":
+                    self.move_children(node, target_x - node.location_absolute.x, axis="X")
+                node.location_absolute.x = target_x
 
     def execute(self, context):
         nodes = context.selected_nodes
