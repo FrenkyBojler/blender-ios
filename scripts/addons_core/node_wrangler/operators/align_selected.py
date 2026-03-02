@@ -224,13 +224,21 @@ class NODE_OT_align_selected(Operator, NWBase):
         sorted_keys = sorted(parent_map.keys(), key=self.parent_depth, reverse=True)
         for parent in sorted_keys:
             children = parent_map[parent]
+            
+            # When a frame's children get moved, this introduces a shift in where the frame is visually positioned.
+            # If said frame is going to be arranged with other frames/nodes, compensate for this shift to keep
+            # location calculations accurate. 
 
-            if parent:
+            # Otherwise, allow for this to freely happen as it feels more natural
+            # in cases where the frame isn't part of the selection.
+            should_anchor = getattr(parent, "select", False) and (len(parent_map.get(parent.parent, ())) > 1)
+
+            if should_anchor:
                 old_left, old_top = self.get_left(parent), self.get_top(parent)
                 
             self.arrange_nodes(children)
 
-            if parent:
+            if should_anchor:
                 self.move_children(parent, offset=old_left - self.get_left(parent), axis="X")
                 self.move_children(parent, offset=old_top - self.get_top(parent), axis="Y")
 
