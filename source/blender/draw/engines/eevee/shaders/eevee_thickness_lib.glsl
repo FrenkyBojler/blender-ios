@@ -15,7 +15,7 @@ struct Thickness {
 
   static Thickness from(float value, ThicknessMode mode)
   {
-    return {.data = (mode == THICKNESS_MODE_SLAB ? value : -value)};
+    return {.data = (mode == THICKNESS_MODE_SLAB ? -value : value)};
   }
 
   static Thickness zero()
