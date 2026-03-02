@@ -4,3 +4,4 @@ Referenced by issue #149469, VSE: Snap line is missing in 5.0
 Referenced by issue #151799, VSE: Snap line does not draw
 Referenced by issue #155031, Proportional edit overlay not shown in movie_clip editor mask mode
 Referenced by pull request #155055, Fix #155031: Proportional edit overlay not shown in clip editor mask mode
+Referenced by commit 472cce10e7bafc20514e280ad00128d65678ef72, Fix #155031: Proportional edit overlay not shown in clip editor mask mode
