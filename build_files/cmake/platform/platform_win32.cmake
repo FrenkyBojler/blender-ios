@@ -120,6 +120,8 @@ add_definitions(
   -D_SCL_SECURE_NO_DEPRECATE
   -D_CONSOLE
   -D_LIB
+  -D_USE_MATH_DEFINES
+  -DNOMINMAX
 )
 
 # MSVC11 needs _ALLOW_KEYWORD_MACROS to build
@@ -649,7 +651,7 @@ if(WITH_OPENVDB)
       debug ${OPENVDB_LIBPATH}/openvdb_d.lib
     )
   endif()
-  set(OPENVDB_DEFINITIONS -DNOMINMAX -D_USE_MATH_DEFINES)
+  set(OPENVDB_DEFINITIONS -DNOMINMAX)
 endif()
 
 if(WITH_NANOVDB)

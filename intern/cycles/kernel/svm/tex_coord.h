@@ -128,7 +128,8 @@ ccl_device_inline float3 texco_normal_from_uv(KernelGlobals kg,
   float3 N;
   if ((sd->type & PRIMITIVE_TRIANGLE) && (sd->shader & SHADER_SMOOTH_NORMAL)) {
     N = (sd->type == PRIMITIVE_TRIANGLE) ?
-            triangle_smooth_normal(kg, zero_float3(), sd->prim, u, v) :
+            triangle_smooth_normal(
+                kg, zero_float3(), sd->object, sd->object_flag, sd->prim, u, v) :
             motion_triangle_smooth_normal(kg, zero_float3(), sd->object, sd->prim, u, v, sd->time);
     if (is_zero(N)) {
       N = sd->Ng;
@@ -328,13 +329,16 @@ ccl_device_noinline void svm_node_normal_map(KernelGlobals kg,
   uint color_offset;
   uint strength_offset;
   uint normal_offset;
-  uint space;
-  svm_unpack_node_uchar4(node.y, &color_offset, &strength_offset, &normal_offset, &space);
+  uint flags;
+  svm_unpack_node_uchar4(node.y, &color_offset, &strength_offset, &normal_offset, &flags);
+
+  const uint space = flags & NODE_NORMAL_MAP_FLAG_SPACE_MASK;
+  const bool invert_green = (flags & NODE_NORMAL_MAP_FLAG_DIRECTX) != 0;
+  const bool use_original_base = (flags & NODE_NORMAL_MAP_FLAG_ORIGINAL) != 0;
 
   float3 color = stack_load_float3(stack, color_offset);
   color = 2.0f * make_float3(color.x - 0.5f, color.y - 0.5f, color.z - 0.5f);
 
-  const bool invert_green = (node.w & NODE_NORMAL_MAP_CONVENTION_DIRECTX) != 0;
   if (invert_green) {
     color.y = -color.y;
   }
@@ -354,8 +358,7 @@ ccl_device_noinline void svm_node_normal_map(KernelGlobals kg,
 
     /* first try to get tangent attribute */
     const AttributeDescriptor attr = find_attribute(kg, sd, node.z);
-    const AttributeDescriptor attr_sign = find_attribute(
-        kg, sd, node.w & ~NODE_NORMAL_MAP_CONVENTION_DIRECTX);
+    const AttributeDescriptor attr_sign = find_attribute(kg, sd, node.w);
 
     if (attr.offset == ATTR_STD_NOT_FOUND || attr_sign.offset == ATTR_STD_NOT_FOUND) {
       /* Fall back to unperturbed normal. */
@@ -369,8 +372,10 @@ ccl_device_noinline void svm_node_normal_map(KernelGlobals kg,
     float3 normal;
 
     if (sd->shader & SHADER_SMOOTH_NORMAL) {
-      const AttributeDescriptor attr_undisplaced_normal = find_attribute(
-          kg, sd->object, sd->prim, ATTR_STD_NORMAL_UNDISPLACED);
+      const AttributeDescriptor attr_undisplaced_normal =
+          (use_original_base) ?
+              find_attribute(kg, sd->object, sd->prim, ATTR_STD_NORMAL_UNDISPLACED) :
+              AttributeDescriptor{ATTR_ELEMENT_NONE, NODE_ATTR_FLOAT3, ATTR_STD_NOT_FOUND};
       if (attr_undisplaced_normal.offset != ATTR_STD_NOT_FOUND) {
         normal =
             primitive_surface_attribute<float3>(kg, sd, attr_undisplaced_normal, false, false).val;
@@ -379,7 +384,7 @@ ccl_device_noinline void svm_node_normal_map(KernelGlobals kg,
         linear_interpolate_strength = true;
       }
       else {
-        normal = triangle_smooth_normal_unnormalized(kg, sd, sd->Ng, sd->prim, sd->u, sd->v);
+        normal = triangle_smooth_normal_unnormalized_object_space(kg, sd);
       }
     }
     else {
