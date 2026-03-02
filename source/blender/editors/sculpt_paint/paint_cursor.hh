@@ -19,8 +19,7 @@
 
 #include "ED_view3d.hh"
 
-namespace blender {
-namespace ed::sculpt_paint {
+namespace blender::ed::sculpt_paint {
 enum class PaintCursorDrawingType {
   Curve,
   Cursor2D,
@@ -93,5 +92,4 @@ void grease_pencil_cursor_draw(PaintCursorContext &pcontext);
 void mesh_cursor_update_and_init(PaintCursorContext &pcontext);
 void mesh_cursor_active_draw(PaintCursorContext &pcontext);
 void mesh_cursor_inactive_draw(PaintCursorContext &pcontext);
-}  // namespace ed::sculpt_paint
-}  // namespace blender
+}  // namespace blender::ed::sculpt_paint

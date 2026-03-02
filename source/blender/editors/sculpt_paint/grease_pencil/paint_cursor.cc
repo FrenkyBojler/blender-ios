@@ -25,8 +25,7 @@
 
 #include "grease_pencil_intern.hh"
 
-namespace blender {
-namespace ed::sculpt_paint {
+namespace blender::ed::sculpt_paint {
 static int project_brush_radius_grease_pencil(ViewContext *vc,
                                               const float radius,
                                               const float3 world_location,
@@ -202,5 +201,4 @@ void grease_pencil_cursor_draw(PaintCursorContext &pcontext)
   immUniformColor4f(darkcolor[0], darkcolor[1], darkcolor[2], 0.8f);
   imm_draw_circle_wire_2d(pcontext.pos, mval.x, mval.y, pcontext.pixel_radius + 1, 32);
 }
-}  // namespace ed::sculpt_paint
-}  // namespace blender
+}  // namespace blender::ed::sculpt_paint

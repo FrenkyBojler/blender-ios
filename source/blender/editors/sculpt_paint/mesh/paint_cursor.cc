@@ -41,8 +41,7 @@
 
 #include "bmesh.hh"
 
-namespace blender {
-namespace ed::sculpt_paint {
+namespace blender::ed::sculpt_paint {
 static int brush_radius_project(ViewContext *vc, float radius, const float location[3])
 {
   float view[3], nonortho[3], ortho[3], offset[3], p1[2], p2[2];
@@ -736,5 +735,4 @@ void mesh_cursor_inactive_draw(PaintCursorContext &pcontext)
   wmWindowViewport(pcontext.win);
 }
 
-}  // namespace ed::sculpt_paint
-}  // namespace blender
+}  // namespace blender::ed::sculpt_paint
