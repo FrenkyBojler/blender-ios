@@ -125,7 +125,8 @@ class NODE_OT_align_selected(Operator, NWBase):
     
     def move_children(self, frame, offset, axis):
         children = self.frame_children(frame)
-        
+        print(frame, self.get_height(frame))
+
         if -1.0 < offset < 1.0:
             return
 
@@ -139,6 +140,7 @@ class NODE_OT_align_selected(Operator, NWBase):
                     node.location_absolute.y += offset
 
     def arrange_nodes(self, nodes):
+        # TODO: Actually use margin, just zeroed this out for testing
         margin = self.margin
 
         # Check if nodes should be laid out horizontally or vertically
@@ -167,7 +169,6 @@ class NODE_OT_align_selected(Operator, NWBase):
             current_margin = current_margin * 0.5 if node.hide else current_margin
 
             if horizontal:
-                print(node, node.location_absolute)
                 if i > 0:
                     target_x = current_pos
                     if node.bl_idname == "NodeFrame":
@@ -223,41 +224,19 @@ class NODE_OT_align_selected(Operator, NWBase):
             self.report({'WARNING'}, "No nodes to arrange in selection.")
             return {'CANCELLED'}
 
-        active_loc = None
-        if context.active_node:
-            active_loc = copy(context.active_node.location_absolute)  # make a copy, not a reference
-
-        # Check if nodes should be laid out horizontally or vertically
-        # use dimension to get center of node, not corner
-        x_locs = [n.location_absolute.x + (n.dimensions.x / 2) for n in nodes]
-        y_locs = [n.location_absolute.y - (n.dimensions.y / 2) for n in nodes]
-        x_range = max(x_locs) - min(x_locs)
-        y_range = max(y_locs) - min(y_locs)
-        mid_x = (max(x_locs) + min(x_locs)) / 2
-        mid_y = (max(y_locs) + min(y_locs)) / 2
-        horizontal = x_range > y_range
-
         sorted_keys = sorted(parent_map.keys(), key=self.parent_depth, reverse=True)
         for parent in sorted_keys:
             children = parent_map[parent]
-            for child in children:
-                child.label = str(self.parent_depth(parent) + 1)
 
+            if parent:
+                old_left, old_top = self.get_left(parent), self.get_top(parent)
+                
             self.arrange_nodes(children)
 
-        # If active node is selected, center nodes around it
-        if active_loc is not None:
-            active_loc_diff = active_loc - context.active_node.location_absolute
-            for node in nodes:
-                node.location_absolute += active_loc_diff
-        else:  # Position nodes centered around where they used to be
-            locs = ([n.location_absolute.x + (n.dimensions.x / 2) for n in nodes]
-                    ) if horizontal else ([n.location_absolute.y - (n.dimensions.y / 2) for n in nodes])
-            new_mid = (max(locs) + min(locs)) / 2
-            for node in nodes:
-                if horizontal:
-                    node.location_absolute.x += (mid_x - new_mid)
-                else:
-                    node.location_absolute.y += (mid_y - new_mid)
+            if parent:
+                self.move_children(parent, offset=old_left - self.get_left(parent), axis="X")
+                self.move_children(parent, offset=old_top - self.get_top(parent), axis="Y")
+
+        # TODO - Anchoring to active node / bounds mid_point
 
         return {'FINISHED'}
