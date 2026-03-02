@@ -159,10 +159,11 @@ static Array<int> create_id_index_map(const bke::AttributeAccessor attributes_a,
   return index_map;
 }
 
-void mix_socket_values(bke::SocketValueVariant &a,
-                       const bke::SocketValueVariant &b,
-                       const float factor)
+static void mix_socket_values_same_type(bke::SocketValueVariant &a,
+                                        const bke::SocketValueVariant &b,
+                                        const float factor)
 {
+  BLI_assert(a.socket_type() == b.socket_type());
   if (a.is_single() && b.is_single()) {
     GMutablePointer a_ptr = a.get_single_ptr();
     const GPointer b_ptr = b.get_single_ptr();
@@ -209,6 +210,20 @@ void mix_socket_values(bke::SocketValueVariant &a,
   }
 }
 
+void mix_socket_values(bke::SocketValueVariant &a,
+                       const bke::SocketValueVariant &b,
+                       const float factor)
+{
+  std::optional<bke::SocketValueVariant> b_converted = nodes::implicitly_convert_socket_value(
+      *bke::node_socket_type_find_static(b.socket_type(), 0),
+      b,
+      *bke::node_socket_type_find_static(a.socket_type(), 0));
+  if (!b_converted) {
+    return;
+  }
+  mix_socket_values_same_type(a, *b_converted, factor);
+}
+
 static void mix_bundle_items(nodes::BundleItemValue &a,
                              const nodes::BundleItemValue &b,
                              const float factor)
@@ -217,12 +232,11 @@ static void mix_bundle_items(nodes::BundleItemValue &a,
   if (!a_socket_value) {
     return;
   }
-  const std::optional<bke::SocketValueVariant> b_socket_value = b.as_socket_value(
-      *a_socket_value->type);
+  const auto *b_socket_value = std::get_if<nodes::BundleItemSocketValue>(&b.value);
   if (!b_socket_value) {
     return;
   }
-  mix_socket_values(a_socket_value->value, *b_socket_value, factor);
+  mix_socket_values(a_socket_value->value, b_socket_value->value, factor);
 }
 
 void mix_bundles(nodes::Bundle &a, const nodes::Bundle &b, const float factor)
