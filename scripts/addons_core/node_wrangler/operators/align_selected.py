@@ -50,8 +50,8 @@ class NODE_OT_align_selected(Operator, NWBase):
 
         # Check if nodes should be laid out horizontally or vertically
         # use dimension to get center of node, not corner
-        x_locs = [n.location.x + (n.dimensions.x / 2) for n in nodes]
-        y_locs = [n.location.y - (n.dimensions.y / 2) for n in nodes]
+        x_locs = [n.location_absolute.x + (n.dimensions.x / 2) for n in nodes]
+        y_locs = [n.location_absolute.y - (n.dimensions.y / 2) for n in nodes]
         x_range = max(x_locs) - min(x_locs)
         y_range = max(y_locs) - min(y_locs)
         mid_x = (max(x_locs) + min(x_locs)) / 2
@@ -60,9 +60,9 @@ class NODE_OT_align_selected(Operator, NWBase):
 
         # Sort selection by location of node mid-point
         if horizontal:
-            nodes = sorted(nodes, key=lambda n: n.location.x + (n.dimensions.x / 2))
+            nodes = sorted(nodes, key=lambda n: n.location_absolute.x + (n.dimensions.x / 2))
         else:
-            nodes = sorted(nodes, key=lambda n: n.location.y - (n.dimensions.y / 2), reverse=True)
+            nodes = sorted(nodes, key=lambda n: n.location_absolute.y - (n.dimensions.y / 2), reverse=True)
 
         # Alignment
         current_pos = 0
@@ -74,19 +74,19 @@ class NODE_OT_align_selected(Operator, NWBase):
             current_margin = current_margin * 0.5 if node.hide else current_margin
 
             if horizontal:
-                print(node, node.location)
+                print(node, node.location_absolute)
                 if i > 0:
                     if node.bl_idname != "NodeFrame":
-                        node.location.x = current_pos
+                        node.location_absolute.x = current_pos
 
                 if i == 0:
-                    current_pos += node.location.x + node.dimensions.x + current_margin
+                    current_pos += node.location_absolute.x + node.dimensions.x + current_margin
                 else:
                     current_pos += current_margin + node.dimensions.x
                 
                 if node.bl_idname != "NodeFrame":
-                    node.location.y = mid_y + (node.dimensions.y / 2)
-                print(node, node.location)
+                    node.location_absolute.y = mid_y + (node.dimensions.y / 2)
+                print(node, node.location_absolute)
             else:
                 # `node.bl_height_min` is the min size of a collapsed node, +6 for the outlines and margins.
                 hide_offset = (node.dimensions.y - (node.bl_height_min + 6)) / 2 if node.hide else 0
@@ -94,16 +94,16 @@ class NODE_OT_align_selected(Operator, NWBase):
                 if i > 0:
                     if node.bl_idname != "NodeFrame":
                         # Hidden nodes center their sockets around the label instead of below.
-                        node.location.y = current_pos - hide_offset
+                        node.location_absolute.y = current_pos - hide_offset
                 
                 if i == 0:
-                    current_pos += node.location.y + node.dimensions.y - (current_margin * 0.3)
+                    current_pos += node.location_absolute.y + node.dimensions.y - (current_margin * 0.3)
                 else:
                     # Use half-margin for vertical alignment.
                     current_pos -= (current_margin * 0.3) + node.dimensions.y
 
                 if node.bl_idname != "NodeFrame":
-                    node.location.x = mid_x - (node.dimensions.x / 2)
+                    node.location_absolute.x = mid_x - (node.dimensions.x / 2)
 
     def execute(self, context):
         nodes = context.selected_nodes
