@@ -7002,13 +7002,6 @@ void ED_region_blend_animation(ARegion *region,
                                float *offset_bottom)
 
 {
-  /* check parent too */
-  if (region->runtime->regiontimer == nullptr &&
-      (region->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) && region->prev)
-  {
-    // region = region->prev;
-  }
-
   if (!region->runtime->regiontimer) {
     return;
   }
@@ -7016,7 +7009,7 @@ void ED_region_blend_animation(ARegion *region,
   RegionAlphaInfo *rgi = static_cast<RegionAlphaInfo *>(region->runtime->regiontimer->customdata);
 
   if (region->runtime->regiontimer->time_duration < rgi->delay) {
-    *alpha = 0.0f;
+    *alpha = rgi->hidden ? 1.0f : 0.0f;
     return;
   }
 
@@ -7171,6 +7164,15 @@ void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARe
 
   const bool hiding = region->flag & RGN_FLAG_HIDDEN;
 
+  if (region->next) {
+    if (region->next->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) {
+      ED_region_visibility_change_update_animated(C, area, region->next);
+      if (hiding) {
+        delay = ANIMATION_DURATION_REGION;
+      }
+    }
+  }
+
   if (!hiding && region->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) {
     delay = ANIMATION_DURATION_REGION;
   }
@@ -7195,13 +7197,6 @@ void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARe
   }
   else {
     ED_region_visibility_change_update_ex(C, area, region, true, false);
-  }
-
-  if (region->next && !hiding) {
-    if (region->next->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) {
-      rgi->child_region = region->next;
-      ED_region_visibility_change_update_animated(C, area, region->next);
-    }
   }
 }
 
