@@ -47,6 +47,7 @@ constexpr StringRefNull mass = "mass";
 constexpr StringRefNull moment_of_inertia = "moment_of_inertia";
 constexpr StringRefNull static_friction = "static_friction";
 constexpr StringRefNull dynamic_friction = "dynamic_friction";
+constexpr StringRefNull radius = "radius";
 
 }  // namespace attribute_names
 
@@ -88,9 +89,16 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(1 / 25.0f)
       .subtype(PROP_TIME_ABSOLUTE);
 
-  auto &panel = b.add_panel("Solver").default_closed(true);
-  panel.add_input<decl::Int>("Substeps").default_value(10).min(1);
-  panel.add_input<decl::Int>("Constraint Iterations").default_value(1).min(1);
+  b.add_input<decl::String>("Filter").optional_label().description(
+      "Filters the geometry sets to process based on their tags");
+
+  b.add_input<decl::Matrix>("Simulation to World");
+
+  {
+    auto &solver_panel = b.add_panel("Solver").default_closed(true);
+    solver_panel.add_input<decl::Int>("Substeps").default_value(10).min(1);
+    solver_panel.add_input<decl::Int>("Constraint Iterations").default_value(1).min(1);
+  }
 }
 
 struct DataKey {
@@ -250,8 +258,12 @@ struct StaticMeshInfo {
 };
 
 struct DeformingMeshInfo {
-  const Mesh *prev_mesh;
+  /** This is one longer than the number of substeps because it also contains the initial mesh. */
   Vector<const Mesh *> substep_meshes;
+  /**
+   * This contains one bvh tree per substep. A future optimization could be to not build
+   * independent BVH trees for each mesh because the are usually very similar.
+   */
   Vector<bke::BVHTreeFromMesh> substep_bvh_trees;
 };
 
@@ -278,6 +290,7 @@ struct GeometryData {
   bke::MutableAttributeAccessor attributes;
   AttrDomain domain;
   int size;
+  bool uses_rotation = false;
   /** Easy access to curve data for curves and grease pencil layers. */
   bke::CurvesGeometry *curves = nullptr;
 
@@ -306,9 +319,14 @@ struct GeometryData {
   VArray<float> dynamic_frictions;
   VArray<float> masses;
   VArraySpan<float3> moments_of_inertia;
+  VArray<float> radii;
+  /** Actually the same as radii for now. */
+  VArray<float> prev_radii;
 
   Array<float> inv_masses;
   Array<float3> inv_moments_of_inertia;
+
+  Array<bool> is_hard_pinned;
 
   Vector<DampingConstraintUsage> damping_constraints;
   Vector<PinPositionConstraintUsage> pin_position_constraints;
@@ -377,18 +395,19 @@ static const Field<bool> &get_constant_true_field()
 }
 
 struct SubstepInterval {
+  int current_i;
   float begin_factor;
   float end_factor;
   bool is_first;
   bool is_last;
-  int current_i;
 
   SubstepInterval(const int substeps, const int current_i)
-      : begin_factor(float(current_i) / substeps),
+      : current_i(current_i),
+        begin_factor(float(current_i) / substeps),
         end_factor(float(current_i + 1) / substeps),
         is_first(current_i == 0),
-        is_last(current_i == substeps - 1),
-        current_i(current_i)
+        is_last(current_i == substeps - 1)
+
   {
   }
 };
@@ -526,6 +545,11 @@ class XpbdSolverStep {
   const float sub_delta_time_;
   float substep_compliance_factor_;
 
+  const float4x4 simulation_to_world_;
+  const float4x4 world_to_simulation_;
+
+  std::string geometry_tag_filter_;
+
   int constraint_iterations_;
 
   Geometries geometries_;
@@ -544,10 +568,15 @@ class XpbdSolverStep {
   XpbdSolverStep(Bundle &world,
                  const float total_delta_time,
                  const int substeps,
-                 const int constraint_iterations)
+                 const int constraint_iterations,
+                 const StringRef geometry_tag_filter,
+                 const float4x4 &simulation_to_world)
       : world_(world),
         substeps_(substeps),
         sub_delta_time_(total_delta_time / substeps_),
+        simulation_to_world_(simulation_to_world),
+        world_to_simulation_(math::invert(simulation_to_world)),
+        geometry_tag_filter_(geometry_tag_filter),
         constraint_iterations_(constraint_iterations)
   {
     substep_compliance_factor_ = math::safe_rcp(pow2f(sub_delta_time_));
@@ -611,39 +640,45 @@ class XpbdSolverStep {
                                  }
                                  nested_bundle_paths_.add_as(*type, Bundle::combine_path(path));
                                });
+    /* Ensure the order is deterministic. */
+    for (MutableSpan<std::string> paths : nested_bundle_paths_.values()) {
+      std::ranges::sort(paths);
+    }
   }
 
   void gather_from_world__geometries()
   {
-    /* Gather geometry bundle paths. */
-    const Vector<std::string> paths = gather_bundle_paths_by_data_type(world_, SOCK_GEOMETRY);
-    const int num_geometry_sets = paths.size();
-    geometries_.geometry_sets.reinitialize(num_geometry_sets);
-
-    for (const int i : IndexRange(num_geometry_sets)) {
-      const StringRef path = paths[i];
-      GeometrySetData &geo_set_data = geometries_.geometry_sets[i];
+    /* Gather geometry sets to process from the world. */
+    Vector<std::string> paths = gather_bundle_paths_by_data_type(world_, SOCK_GEOMETRY);
+    /* Ensure the order is deterministic. */
+    std::ranges::sort(paths);
+    for (const StringRef path : paths) {
+      GeometrySetData geo_set_data;
       geo_set_data.path = path;
       geo_set_data.geometry = std::move(*world_.lookup_path_for_write_ptr<GeometrySet>(path));
-      if (!geo_set_data.geometry.has_bundle()) {
-        continue;
-      }
-      const Bundle &bundle_in_geo = *geo_set_data.geometry.bundle();
-      if (const std::optional<ListPtr> tags_list_ptr = bundle_in_geo.lookup_path<ListPtr>("tags"))
-      {
-        if (*tags_list_ptr) {
-          const List &tags_list = **tags_list_ptr;
-          if (tags_list.cpp_type().is<std::string>()) {
-            tags_list.foreach<std::string>(
-                [&](const std::string &tag) { geo_set_data.tags.add(tag); });
+      if (geo_set_data.geometry.has_bundle()) {
+        const Bundle &bundle_in_geo = *geo_set_data.geometry.bundle();
+        if (const std::optional<ListPtr> tags_list_ptr = bundle_in_geo.lookup_path<ListPtr>(
+                "tags"))
+        {
+          if (*tags_list_ptr) {
+            const List &tags_list = **tags_list_ptr;
+            if (tags_list.cpp_type().is<std::string>()) {
+              tags_list.foreach<std::string>(
+                  [&](const std::string &tag) { geo_set_data.tags.add(tag); });
+            }
           }
         }
       }
+      if (!tag_filter_matches(geometry_tag_filter_, geo_set_data.tags)) {
+        continue;
+      }
+      geometries_.geometry_sets.append(std::move(geo_set_data));
     }
 
     /* Gather individual components that should be simulated. There may be more than geometry sets
      * because each geometry set could contain e.g. a mesh and curves. */
-    for (const int geo_bundle_i : IndexRange(num_geometry_sets)) {
+    for (const int geo_bundle_i : geometries_.geometry_sets.index_range()) {
       GeometrySetData &geo_set_data = geometries_.geometry_sets[geo_bundle_i];
       GeometrySet &geometry = geo_set_data.geometry;
       for (bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh,
@@ -693,22 +728,30 @@ class XpbdSolverStep {
           geo_data.attributes, attribute_names::position, domain);
       geo_data.velocity_attr = this->ensure_attribute<float3>(
           geo_data.attributes, attribute_names::velocity, domain);
-      geo_data.rotation_attr = this->ensure_attribute<math::Quaternion>(
-          geo_data.attributes, attribute_names::rotation, domain);
-      geo_data.angular_velocity_attr = this->ensure_attribute<float3>(
-          geo_data.attributes, attribute_names::angular_velocity, domain);
       geo_data.external_force_attr = *geo_data.attributes.lookup_or_default<float3>(
           attribute_names::external_force, domain, float3(0, 0, 0));
-      geo_data.external_torque_attr = *geo_data.attributes.lookup_or_default<float3>(
-          attribute_names::external_torque, domain, float3(0, 0, 0));
       geo_data.static_frictions = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::static_friction, domain, 0.0f);
       geo_data.dynamic_frictions = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::dynamic_friction, domain, 0.0f);
       geo_data.masses = *geo_data.attributes.lookup_or_default<float>(
           attribute_names::mass, domain, 1.0f);
-      geo_data.moments_of_inertia = *geo_data.attributes.lookup_or_default<float3>(
-          attribute_names::moment_of_inertia, domain, float3(1.0f));
+      geo_data.radii = *geo_data.attributes.lookup_or_default<float>(
+          attribute_names::radius, domain, 0.0f);
+      geo_data.prev_radii = geo_data.radii;
+      geo_data.is_hard_pinned.reinitialize(geo_data.size);
+      geo_data.is_hard_pinned.fill(false);
+      if (geo_data.attributes.contains(attribute_names::rotation)) {
+        geo_data.uses_rotation = true;
+        geo_data.rotation_attr = this->ensure_attribute<math::Quaternion>(
+            geo_data.attributes, attribute_names::rotation, domain);
+        geo_data.angular_velocity_attr = this->ensure_attribute<float3>(
+            geo_data.attributes, attribute_names::angular_velocity, domain);
+        geo_data.external_torque_attr = *geo_data.attributes.lookup_or_default<float3>(
+            attribute_names::external_torque, domain, float3(0, 0, 0));
+        geo_data.moments_of_inertia = *geo_data.attributes.lookup_or_default<float3>(
+            attribute_names::moment_of_inertia, domain, float3(1.0f));
+      }
     }
   }
 
@@ -721,27 +764,36 @@ class XpbdSolverStep {
         continue;
       }
       const Bundle &bundle = **bundle_ptr;
-      const std::optional<float3> position = bundle.lookup<float3>("position");
-      const std::optional<float3> normal = bundle.lookup<float3>("normal");
+      /* Retrieve collision plane in world space. */
+      const std::optional<float3> position_wo = bundle.lookup<float3>("position");
+      const std::optional<float3> normal_wo = bundle.lookup<float3>("normal");
       const float friction = bundle.lookup<float>("friction").value_or(0.0f);
-      if (!position || !normal) {
+      if (!position_wo || !normal_wo) {
         continue;
       }
-      if (math::is_zero(*normal)) {
-        continue;
+      const float3 prev_position_wo =
+          bundle.lookup<float3>("prev_position").value_or(*position_wo);
+      float3 prev_normal_wo = bundle.lookup<float3>("prev_normal").value_or(*normal_wo);
+      if (math::is_zero(prev_normal_wo)) {
+        prev_normal_wo = *normal_wo;
       }
-      const float3 prev_position = bundle.lookup<float3>("prev_position").value_or(*position);
-      float3 prev_normal = bundle.lookup<float3>("prev_normal").value_or(*normal);
-      if (math::is_zero(prev_normal)) {
-        prev_normal = *normal;
+      /* Convert to simulation space. */
+      const float3 position_sim = math::transform_point(world_to_simulation_, *position_wo);
+      const float3 prev_position_sim = math::transform_point(world_to_simulation_,
+                                                             prev_position_wo);
+      const float3 normal_sim = math::transform_direction(world_to_simulation_, *normal_wo);
+      const float3 prev_normal_sim = math::transform_direction(world_to_simulation_,
+                                                               prev_normal_wo);
+      if (math::is_zero(normal_sim) || math::is_zero(prev_normal_sim)) {
+        continue;
       }
 
       const int collider_i = constraints_.infinite_plane_colliders.append_and_get_index(
           {path,
-           *position,
-           math::normalize(*normal),
-           prev_position,
-           math::normalize(prev_normal),
+           position_sim,
+           math::normalize(normal_sim),
+           prev_position_sim,
+           math::normalize(prev_normal_sim),
            friction});
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
@@ -771,8 +823,10 @@ class XpbdSolverStep {
           collider.begin_normal, collider.end_normal, substep.end_factor);
       for (const int point_i : chunk.points_range) {
         const float3 &position = positions[point_i];
+        const float radius = math::interpolate(
+            geo_data.prev_radii[point_i], geo_data.radii[point_i], substep.end_factor);
 
-        const float distance = math::dot(position - collider_position, collider_normal);
+        const float distance = math::dot(position - collider_position, collider_normal) - radius;
         if (distance >= max_distance) {
           continue;
         }
@@ -823,8 +877,8 @@ class XpbdSolverStep {
       }
       Vector<int> instance_id_stack;
       this->gather_colliders_in_geometry(path,
-                                         float4x4::identity(),
-                                         float4x4::identity(),
+                                         world_to_simulation_,
+                                         world_to_simulation_,
                                          *geometry,
                                          prev_geometry,
                                          friction,
@@ -851,17 +905,25 @@ class XpbdSolverStep {
       const float4x4 &prev_mesh_to_local = math::interpolate(
           collider.begin_transform, collider.end_transform, substep.begin_factor);
       const float4x4 local_to_mesh = math::invert(mesh_to_local);
+      /* Only uniform scaling is correctly handled here. For non-uniform scaling, just the max
+       * scale along one axis is used. */
+      const float3 mesh_to_local_radius_scale = math::abs(math::to_scale(local_to_mesh));
+      const float local_to_mesh_radius_factor = std::max({mesh_to_local_radius_scale.x,
+                                                          mesh_to_local_radius_scale.y,
+                                                          mesh_to_local_radius_scale.z});
 
       if (const auto *static_mesh = std::get_if<StaticMeshInfo>(&collider.mesh)) {
         this->gather_contacts__mesh_collider__static(chunk_i,
                                                      max_distance,
                                                      solver_refs_i,
+                                                     substep,
                                                      collider,
                                                      collider_usage,
                                                      *static_mesh,
                                                      mesh_to_local,
                                                      prev_mesh_to_local,
                                                      local_to_mesh,
+                                                     local_to_mesh_radius_factor,
                                                      prev_contacts,
                                                      r_contacts);
       }
@@ -876,6 +938,7 @@ class XpbdSolverStep {
                                                         mesh_to_local,
                                                         prev_mesh_to_local,
                                                         local_to_mesh,
+                                                        local_to_mesh_radius_factor,
                                                         prev_contacts,
                                                         r_contacts);
       }
@@ -885,12 +948,14 @@ class XpbdSolverStep {
   void gather_contacts__mesh_collider__static(const int chunk_i,
                                               const float max_distance,
                                               const int solver_refs_i,
+                                              const SubstepInterval &substep,
                                               const MeshCollider &collider,
                                               const MeshColliderUsage &collider_usage,
                                               const StaticMeshInfo &static_mesh,
                                               const float4x4 &mesh_to_local,
                                               const float4x4 &prev_mesh_to_local,
                                               const float4x4 &local_to_mesh,
+                                              const float local_to_mesh_radius_factor,
                                               const ExternalPlaneContacts &prev_contacts,
                                               ExternalPlaneContacts &r_contacts)
   {
@@ -906,10 +971,16 @@ class XpbdSolverStep {
         geometries_.solver_refs[solver_refs_i][chunk.data_key_i].positions;
 
     for (const int point_i : chunk.points_range) {
+      if (geo_data.is_hard_pinned[point_i]) {
+        continue;
+      }
       const float3 &pos_local = positions[point_i];
       const float3 pos_mesh = math::transform_point(local_to_mesh, pos_local);
+      const float radius_local = math::interpolate(
+          geo_data.prev_radii[point_i], geo_data.radii[point_i], substep.end_factor);
+      const float radius_mesh = local_to_mesh_radius_factor * radius_local;
       const std::optional<ClosestMeshContact> contact = this->get_closest_mesh_contact(
-          pos_mesh, bvh, corner_tris, corner_verts, vert_positions, max_distance);
+          pos_mesh, bvh, corner_tris, corner_verts, vert_positions, max_distance + radius_mesh);
       if (!contact) {
         continue;
       }
@@ -928,7 +999,7 @@ class XpbdSolverStep {
                                                         contact->nearest_pos :
                                                     collision_axis);
       const int contact_i = r_contacts.points.append_and_get_index(point_i);
-      r_contacts.positions_on_plane.append(contact_pos_local);
+      r_contacts.positions_on_plane.append(contact_pos_local + radius_local * valid_axis);
       r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
       r_contacts.separating_axes.append(valid_axis);
       r_contacts.static_frictions.append(static_friction);
@@ -953,6 +1024,7 @@ class XpbdSolverStep {
                                                  const float4x4 &mesh_to_local,
                                                  const float4x4 &prev_mesh_to_local,
                                                  const float4x4 &local_to_mesh,
+                                                 const float local_to_mesh_radius_factor,
                                                  const ExternalPlaneContacts &prev_contacts,
                                                  ExternalPlaneContacts &r_contacts)
   {
@@ -962,19 +1034,24 @@ class XpbdSolverStep {
     const Span<float3> positions =
         geometries_.solver_refs[solver_refs_i][chunk.data_key_i].positions;
 
-    const Mesh &mesh = *deforming_mesh.substep_meshes[substep.current_i];
+    const Mesh &mesh = *deforming_mesh.substep_meshes[substep.current_i + 1];
     const Span<int3> corner_tris = mesh.corner_tris();
     const Span<int> corner_verts = mesh.corner_verts();
     const Span<float3> vert_positions = mesh.vert_positions();
     const Span<float3> prev_vert_positions =
-        substep.is_first ? deforming_mesh.prev_mesh->vert_positions() :
-                           deforming_mesh.substep_meshes[substep.current_i - 1]->vert_positions();
+        deforming_mesh.substep_meshes[substep.current_i]->vert_positions();
 
     for (const int point_i : chunk.points_range) {
+      if (geo_data.is_hard_pinned[point_i]) {
+        continue;
+      }
       const float3 &pos_local = positions[point_i];
       const float3 pos_mesh = math::transform_point(local_to_mesh, pos_local);
+      const float radius_local = math::interpolate(
+          geo_data.prev_radii[point_i], geo_data.radii[point_i], substep.end_factor);
+      const float radius_mesh = local_to_mesh_radius_factor * radius_local;
       const std::optional<ClosestMeshContact> contact = this->get_closest_mesh_contact(
-          pos_mesh, bvh, corner_tris, corner_verts, vert_positions, max_distance);
+          pos_mesh, bvh, corner_tris, corner_verts, vert_positions, max_distance + radius_mesh);
       if (!contact) {
         continue;
       }
@@ -998,7 +1075,7 @@ class XpbdSolverStep {
                                                         contact->nearest_pos :
                                                     collision_axis);
       const int contact_i = r_contacts.points.append_and_get_index(point_i);
-      r_contacts.positions_on_plane.append(contact_pos_local);
+      r_contacts.positions_on_plane.append(contact_pos_local + radius_local * valid_axis);
       r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
       r_contacts.separating_axes.append(valid_axis);
       r_contacts.static_frictions.append(static_friction);
@@ -1014,8 +1091,10 @@ class XpbdSolverStep {
   }
 
   struct ClosestMeshContact {
+    /** The nearest position exactly on the mesh surface. */
     float3 nearest_pos;
     float3 bary_coords;
+    /** This does not take the radius into account. */
     bool is_inside;
     int tri_i;
   };
@@ -1197,7 +1276,7 @@ class XpbdSolverStep {
     }
     const int verts_num = mesh.verts_num;
     DeformingMeshInfo result;
-    result.substep_meshes.resize(substeps_);
+    result.substep_meshes.resize(substeps_ + 1);
     result.substep_bvh_trees.resize(substeps_);
 
     const Span<float3> begin_positions = prev_mesh->vert_positions();
@@ -1218,12 +1297,12 @@ class XpbdSolverStep {
                   begin_positions[i], end_positions[i], substep.end_factor);
             }
             substep_mesh->tag_positions_changed();
-            result.substep_meshes[substep_i] = substep_mesh;
+            result.substep_meshes[substep_i + 1] = substep_mesh;
             result.substep_bvh_trees[substep_i] = substep_mesh->bvh_corner_tris();
           }
         });
 
-    result.prev_mesh = prev_mesh;
+    result.substep_meshes.first() = prev_mesh;
     result.substep_meshes.last() = &mesh;
     result.substep_bvh_trees.last() = mesh.bvh_corner_tris();
     return result;
@@ -1327,6 +1406,9 @@ class XpbdSolverStep {
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
+      if (!geo_data.uses_rotation) {
+        continue;
+      }
       geo_data.inv_moments_of_inertia.reinitialize(geo_data.size);
       MutableSpan<float3> inv_moments_of_inertia = geo_data.inv_moments_of_inertia;
 
@@ -1349,11 +1431,7 @@ class XpbdSolverStep {
     TLS &tls = tls_.local();
     const Span<std::string> paths = nested_bundle_paths_.lookup(RodStretchShearBundle::name);
     for (const StringRef path : paths) {
-      const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
-      if (!bundle_ptr || !*bundle_ptr) {
-        continue;
-      }
-      const Bundle &bundle = **bundle_ptr;
+      const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
       RodStretchShearConstraint constraint;
       constraint.path = path;
       constraint.rest_length = this->get_field_or_constant<float>(bundle, "rest_length", 0.0f);
@@ -1368,6 +1446,9 @@ class XpbdSolverStep {
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
+        if (!geo_data.uses_rotation) {
+          continue;
+        }
         if (!geo_data.curves) {
           continue;
         }
@@ -1479,6 +1560,9 @@ class XpbdSolverStep {
 
       for (const int data_key_i : geometries_.data.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
+        if (!geo_data.uses_rotation) {
+          continue;
+        }
         if (!geo_data.curves) {
           continue;
         }
@@ -1670,12 +1754,14 @@ class XpbdSolverStep {
                   chunk.points_range,
                   linear_dampings.get_span_for_range(chunk.points_range),
                   constraint_usage.linear_damping_lambdas.slice(chunk.points_range)));
-          chunk_data.static_velocity_constraints.append(
-              &tls.scope.construct<xpbd::AngularDampingConstraintSet>(
-                  data_key_i,
-                  chunk.points_range,
-                  angular_dampings.get_span_for_range(chunk.points_range),
-                  constraint_usage.angular_damping_lambdas.slice(chunk.points_range)));
+          if (geo_data.uses_rotation) {
+            chunk_data.static_velocity_constraints.append(
+                &tls.scope.construct<xpbd::AngularDampingConstraintSet>(
+                    data_key_i,
+                    chunk.points_range,
+                    angular_dampings.get_span_for_range(chunk.points_range),
+                    constraint_usage.angular_damping_lambdas.slice(chunk.points_range)));
+          }
         }
       }
     }
@@ -1757,6 +1843,14 @@ class XpbdSolverStep {
         constraint_usage.compliances_varray.materialize_compressed_to_uninitialized(pin_mask,
                                                                                     compliances);
 
+        for (const int pin_i : points.index_range()) {
+          const int point_i = points[pin_i];
+          const float compliance = compliances[pin_i];
+          if (compliance <= 0.0f) {
+            geo_data.is_hard_pinned[point_i] = true;
+          }
+        }
+
         const VArraySpan<float3> prev_positions_attr = *geo_data.attributes.lookup<float3>(
             constraint.prev_position_attr, geo_data.domain);
         const VArraySpan<bool> was_pinned_attr = *geo_data.attributes.lookup<bool>(
@@ -1812,6 +1906,10 @@ class XpbdSolverStep {
       }
       for (const PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints)
       {
+        if (constraint_usage.points.is_empty()) {
+          /* If there is nothing pinned, these attributes don't need to exist. */
+          continue;
+        }
         const PinPositionConstraint &constraint =
             constraints_.pin_position_constraints[constraint_usage.constraint_i];
         if (bke::SpanAttributeWriter<bool> was_pinned_attr =
@@ -1869,6 +1967,9 @@ class XpbdSolverStep {
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
+        if (!geo_data.uses_rotation) {
+          continue;
+        }
         if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
           geo_data.pin_rotation_constraints.append({constraint_i});
         }
@@ -1980,6 +2081,10 @@ class XpbdSolverStep {
       }
       for (const PinRotationConstraintUsage &constraint_usage : geo_data.pin_rotation_constraints)
       {
+        if (constraint_usage.points.is_empty()) {
+          /* If there is nothing pinned, these attributes don't need to exist. */
+          continue;
+        }
         const PinRotationConstraint &constraint =
             constraints_.pin_rotation_constraints[constraint_usage.constraint_i];
         if (bke::SpanAttributeWriter<bool> was_pinned_attr =
@@ -2032,7 +2137,7 @@ class XpbdSolverStep {
         int solver_refs_i = 0;
         for (const int substep_i : IndexRange(substeps_)) {
           const SubstepInterval substep(substeps_, substep_i);
-          this->simulate__update_pin_positions__chunk(chunk_i, substep);
+          this->simulate__update_pins__chunk(chunk_i, substep);
           this->simulate__inertial_update__chunk(chunk_i, solver_refs_i);
           this->simulate__gather_dynamic_constraints__chunk(substep, chunk_i, solver_refs_i);
           this->simulate__reset_forces__chunk(chunk_i);
@@ -2057,7 +2162,7 @@ class XpbdSolverStep {
       for (const int substep_i : IndexRange(substeps_)) {
         const SubstepInterval substep(substeps_, substep_i);
         this->parallel_for_each_chunk(16, [&](const int chunk_i) {
-          this->simulate__update_pin_positions__chunk(chunk_i, substep);
+          this->simulate__update_pins__chunk(chunk_i, substep);
           this->simulate__inertial_update__chunk(chunk_i, solver_refs_i);
         });
         this->simulate__gather_dynamic_constraints(substep, solver_refs_i);
@@ -2099,27 +2204,32 @@ class XpbdSolverStep {
 
         if (direction == 0) {
           ref.positions = geo_data.temp_positions;
-          ref.rotations = geo_data.temp_rotations;
           ref.prev_positions = geo_data.position_attr.span;
-          ref.prev_rotations = geo_data.rotation_attr.span;
+          if (geo_data.uses_rotation) {
+            ref.rotations = geo_data.temp_rotations;
+            ref.prev_rotations = geo_data.rotation_attr.span;
+          }
         }
         else {
           ref.positions = geo_data.position_attr.span;
-          ref.rotations = geo_data.rotation_attr.span;
           ref.prev_positions = geo_data.temp_positions;
-          ref.prev_rotations = geo_data.temp_rotations;
+          if (geo_data.uses_rotation) {
+            ref.rotations = geo_data.rotation_attr.span;
+            ref.prev_rotations = geo_data.temp_rotations;
+          }
         }
-
         ref.velocities = geo_data.velocity_attr.span;
         ref.inv_masses = geo_data.inv_masses;
-        ref.angular_velocities = geo_data.angular_velocity_attr.span;
-        ref.moments_of_inertia = geo_data.moments_of_inertia;
-        ref.inv_moments_of_inertia = geo_data.inv_moments_of_inertia;
+        if (geo_data.uses_rotation) {
+          ref.angular_velocities = geo_data.angular_velocity_attr.span;
+          ref.moments_of_inertia = geo_data.moments_of_inertia;
+          ref.inv_moments_of_inertia = geo_data.inv_moments_of_inertia;
+        }
       }
     }
   }
 
-  void simulate__update_pin_positions__chunk(const int chunk_i, const SubstepInterval &substep)
+  void simulate__update_pins__chunk(const int chunk_i, const SubstepInterval &substep)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const int data_key_i = chunk.data_key_i;
@@ -2139,16 +2249,19 @@ class XpbdSolverStep {
         constraint_usage.current_positions[pin_i] = pin_pos;
       }
     }
-    for (const PinRotationConstraintChunkUsage &constraint_chunk_usage :
-         chunk_data.pin_rotation_constraints)
-    {
-      const PinRotationConstraintUsage &constraint_usage =
-          geo_data.pin_rotation_constraints[constraint_chunk_usage.constraint_usage_i];
-      for (const int pin_i : constraint_chunk_usage.pin_range) {
-        const math::Quaternion &begin_rot = constraint_usage.begin_rotations[pin_i];
-        const math::Quaternion &end_rot = constraint_usage.end_rotations[pin_i];
-        const math::Quaternion pin_rot = math::interpolate(begin_rot, end_rot, substep.end_factor);
-        constraint_usage.current_rotations[pin_i] = pin_rot;
+    if (geo_data.uses_rotation) {
+      for (const PinRotationConstraintChunkUsage &constraint_chunk_usage :
+           chunk_data.pin_rotation_constraints)
+      {
+        const PinRotationConstraintUsage &constraint_usage =
+            geo_data.pin_rotation_constraints[constraint_chunk_usage.constraint_usage_i];
+        for (const int pin_i : constraint_chunk_usage.pin_range) {
+          const math::Quaternion &begin_rot = constraint_usage.begin_rotations[pin_i];
+          const math::Quaternion &end_rot = constraint_usage.end_rotations[pin_i];
+          const math::Quaternion pin_rot = math::interpolate(
+              begin_rot, end_rot, substep.end_factor);
+          constraint_usage.current_rotations[pin_i] = pin_rot;
+        }
       }
     }
   }
@@ -2167,13 +2280,15 @@ class XpbdSolverStep {
                                       geo_data.velocity_attr.span.slice(points_range),
                                       geo_data.inv_masses.as_span().slice(points_range),
                                       geo_data.external_force_attr.slice(points_range));
-    this->integrate_angular_velocities(
-        sub_delta_time_,
-        ref.prev_rotations.slice(points_range),
-        ref.rotations.slice(points_range),
-        geo_data.angular_velocity_attr.span.slice(points_range),
-        geo_data.inv_moments_of_inertia.as_span().slice(points_range),
-        geo_data.external_torque_attr.slice(points_range));
+    if (geo_data.uses_rotation) {
+      this->integrate_angular_velocities(
+          sub_delta_time_,
+          ref.prev_rotations.slice(points_range),
+          ref.rotations.slice(points_range),
+          geo_data.angular_velocity_attr.span.slice(points_range),
+          geo_data.inv_moments_of_inertia.as_span().slice(points_range),
+          geo_data.external_torque_attr.slice(points_range));
+    }
   }
 
   void simulate__gather_dynamic_constraints(const SubstepInterval &substep,
@@ -2297,10 +2412,12 @@ class XpbdSolverStep {
                                    ref.prev_positions.slice(points_range),
                                    ref.positions.slice(points_range),
                                    geo_data.velocity_attr.span.slice(points_range));
-    this->update_angular_velocities(sub_delta_time_,
-                                    ref.prev_rotations.slice(points_range),
-                                    ref.rotations.slice(points_range),
-                                    geo_data.angular_velocity_attr.span.slice(points_range));
+    if (geo_data.uses_rotation) {
+      this->update_angular_velocities(sub_delta_time_,
+                                      ref.prev_rotations.slice(points_range),
+                                      ref.rotations.slice(points_range),
+                                      geo_data.angular_velocity_attr.span.slice(points_range));
+    }
   }
 
   void simulate__velocity_solve(const int solver_refs_i)
@@ -2601,8 +2718,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int constraint_iterations = params.get_input<int>("Constraint Iterations");
   const float delta_time = std::max(0.0f, params.get_input<float>("Delta Time"));
   Bundle &world = world_ptr.ensure_mutable_inplace();
+  const std::string geometry_tag_filter = params.extract_input<std::string>("Filter");
+  const float4x4 simulation_to_world = params.extract_input<float4x4>("Simulation to World");
 
-  XpbdSolverStep step(world, delta_time, substeps, constraint_iterations);
+  XpbdSolverStep step(world,
+                      delta_time,
+                      substeps,
+                      constraint_iterations,
+                      geometry_tag_filter,
+                      simulation_to_world);
   step.do_step();
 
   for (const StringRef warning : step.warnings()) {
