@@ -7,6 +7,9 @@
  * \ingroup bke
  */
 
+#include <type_traits>
+#include <typeinfo>
+
 #include "BLI_compiler_attrs.h"
 #include "DNA_listBase.h"
 
@@ -82,12 +85,8 @@ struct ShaderFxTypeInfo {
    */
   void (*copy_data)(const ShaderFxData *fx, ShaderFxData *target);
 
-  /* Initialize new instance data for this effect type, this function
-   * should set effect variables to their default values.
-   *
-   * This function is optional.
-   */
-  void (*init_data)(ShaderFxData *fx);
+  /* Allocate and initialize new instance data for this effect type. */
+  ShaderFxData *(*new_data)();
 
   /* Free internal effect data variables, this function should
    * not free the fx variable itself.
@@ -169,7 +168,6 @@ bool BKE_shaderfx_depends_ontime(ShaderFxData *fx);
 bool BKE_shaderfx_is_nonlocal_in_liboverride(const Object *ob, const ShaderFxData *shaderfx);
 ShaderFxData *BKE_shaderfx_findby_type(Object *ob, ShaderFxType type);
 ShaderFxData *BKE_shaderfx_findby_name(Object *ob, const char *name);
-void BKE_shaderfx_copydata_generic(const ShaderFxData *fx_src, ShaderFxData *fx_dst);
 void BKE_shaderfx_copydata(ShaderFxData *fx, ShaderFxData *target);
 void BKE_shaderfx_copydata_ex(ShaderFxData *fx, ShaderFxData *target, int flag);
 void BKE_shaderfx_copy(ListBaseT<ShaderFxData> *dst, const ListBaseT<ShaderFxData> *src);
@@ -184,5 +182,30 @@ void BKE_shaderfx_blend_write(BlendWriter *writer, ListBaseT<ShaderFxData> *fxba
 void BKE_shaderfx_blend_read_data(BlendDataReader *reader,
                                   ListBaseT<ShaderFxData> *lb,
                                   Object *ob);
+
+/* Templates for ShaderFxType methods. */
+
+template<typename T> ShaderFxData *shaderfx_new_data()
+{
+  return &MEM_new<T>(typeid(T).name())->shaderfx;
+}
+
+template<typename T> void shaderfx_copy_data(const ShaderFxData *src, ShaderFxData *dst)
+{
+  const T &src_t = *reinterpret_cast<const T *>(src);
+  T &dst_t = *reinterpret_cast<T *>(dst);
+
+  if constexpr (std::is_constructible_v<T, dna::internal::ShallowDataConstRef<T>>) {
+    new (&dst_t) T(dna::shallow_copy(src_t));
+  }
+  else {
+    new (&dst_t) T(src_t);
+  }
+}
+
+template<typename T> void shaderfx_free_data(ShaderFxData *fx)
+{
+  reinterpret_cast<T *>(fx)->~T();
+}
 
 }  // namespace blender

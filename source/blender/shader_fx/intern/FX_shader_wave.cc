@@ -23,19 +23,6 @@
 
 namespace blender {
 
-static void init_data(ShaderFxData *fx)
-{
-  WaveShaderFxData *gpfx = reinterpret_cast<WaveShaderFxData *>(fx);
-  gpfx->amplitude = 10.0f;
-  gpfx->period = 20.0f;
-  gpfx->phase = 0.0f;
-  gpfx->orientation = 1;
-}
-
-static void copy_data(const ShaderFxData *md, ShaderFxData *target)
-{
-  BKE_shaderfx_copydata_generic(md, target);
-}
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
@@ -65,10 +52,10 @@ ShaderFxTypeInfo shaderfx_Type_Wave = {
     /*type*/ eShaderFxType_GpencilType,
     /*flags*/ ShaderFxTypeFlag(0),
 
-    /*copy_data*/ copy_data,
+    /*copy_data*/ shaderfx_copy_data<WaveShaderFxData>,
 
-    /*init_data*/ init_data,
-    /*free_data*/ nullptr,
+    /*new_data*/ shaderfx_new_data<WaveShaderFxData>,
+    /*free_data*/ shaderfx_free_data<WaveShaderFxData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

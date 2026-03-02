@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_math_constants.h"
+
 struct DRWShadingGroup;
 namespace blender {
 
@@ -117,13 +119,13 @@ struct ShaderFxData_Runtime {
 
 struct BlurShaderFxData {
   ShaderFxData shaderfx;
-  float radius[2] = {};
+  float radius[2] = {50.0f, 50.0f};
   /** Flags. */
   int flag = 0;
   /** Number of samples. */
-  int samples = 0;
+  int samples = 8;
   /** Rotation of blur effect. */
-  float rotation = 0;
+  float rotation = 0.0f;
   char _pad[4] = {};
 
   ShaderFxData_Runtime runtime;
@@ -131,10 +133,10 @@ struct BlurShaderFxData {
 
 struct ColorizeShaderFxData {
   ShaderFxData shaderfx;
-  int mode = 0;
-  float low_color[4] = {};
-  float high_color[4] = {};
-  float factor = 0;
+  int mode = eShaderFxColorizeMode_GrayScale;
+  float low_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+  float high_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  float factor = 0.5f;
   /** Flags. */
   int flag = 0;
   char _pad[4] = {};
@@ -145,7 +147,7 @@ struct ColorizeShaderFxData {
 struct FlipShaderFxData {
   ShaderFxData shaderfx;
   /** Flags. */
-  int flag = 0;
+  int flag = FX_FLIP_HORIZONTAL;
   /** Internal, not visible in rna. */
   int flipmode = 0;
   ShaderFxData_Runtime runtime;
@@ -153,16 +155,16 @@ struct FlipShaderFxData {
 
 struct GlowShaderFxData {
   ShaderFxData shaderfx;
-  float glow_color[4] = {};
-  float select_color[3] = {};
-  float threshold = 0;
+  float glow_color[4] = {0.75f, 1.0f, 1.0f, 1.0f};
+  float select_color[3] = {0.0f, 0.0f, 0.0f};
+  float threshold = 0.1f;
   /** Flags. */
   int flag = 0;
   int mode = 0;
-  float blur[2] = {};
-  int samples = 0;
+  float blur[2] = {50.0f, 50.0f};
+  int samples = 8;
   /** Rotation of effect. */
-  float rotation = 0;
+  float rotation = 0.0f;
   /** Blend modes. */
   int blend_mode = 0;
   char _pad[4] = {};
@@ -173,23 +175,23 @@ struct GlowShaderFxData {
 struct PixelShaderFxData {
   ShaderFxData shaderfx;
   /** Last element used for shader only. */
-  int size[3] = {};
+  int size[3] = {5, 5, 0};
   /** Flags. */
   int flag = 0;
-  float rgba[4] = {};
+  float rgba[4] = {0.0f, 0.0f, 0.0f, 0.9f};
   ShaderFxData_Runtime runtime;
 };
 
 struct RimShaderFxData {
   ShaderFxData shaderfx;
-  int offset[2] = {};
+  int offset[2] = {50, -100};
   /** Flags. */
   int flag = 0;
-  float rim_rgb[3] = {};
-  float mask_rgb[3] = {};
-  int mode = 0;
-  int blur[2] = {};
-  int samples = 0;
+  float rim_rgb[3] = {1.0f, 1.0f, 0.5f};
+  float mask_rgb[3] = {0.0f, 0.0f, 0.0f};
+  int mode = eShaderFxRimMode_Overlay;
+  int blur[2] = {0, 0};
+  int samples = 2;
   char _pad[4] = {};
   ShaderFxData_Runtime runtime;
 };
@@ -197,18 +199,18 @@ struct RimShaderFxData {
 struct ShadowShaderFxData {
   ShaderFxData shaderfx;
   struct Object *object = nullptr;
-  int offset[2] = {};
+  int offset[2] = {15, 20};
   /** Flags. */
   int flag = 0;
-  float shadow_rgba[4] = {};
-  float amplitude = 0;
-  float period = 0;
-  float phase = 0;
-  int orientation = 0;
-  float scale[2] = {};
-  float rotation = 0;
-  int blur[2] = {};
-  int samples = 0;
+  float shadow_rgba[4] = {0.0f, 0.0f, 0.0f, 0.8f};
+  float amplitude = 10.0f;
+  float period = 20.0f;
+  float phase = 0.0f;
+  int orientation = 1;
+  float scale[2] = {1.0f, 1.0f};
+  float rotation = 0.0f;
+  int blur[2] = {5, 5};
+  int samples = 2;
   char _pad[4] = {};
   ShaderFxData_Runtime runtime;
 };
@@ -218,8 +220,8 @@ struct SwirlShaderFxData {
   struct Object *object = nullptr;
   /** Flags. */
   int flag = 0;
-  int radius = 0;
-  float angle = 0;
+  int radius = 100;
+  float angle = M_PI_2;
   /** Not visible in rna. */
   int transparent = 0;
   ShaderFxData_Runtime runtime;
@@ -227,10 +229,10 @@ struct SwirlShaderFxData {
 
 struct WaveShaderFxData {
   ShaderFxData shaderfx;
-  float amplitude = 0;
-  float period = 0;
-  float phase = 0;
-  int orientation = 0;
+  float amplitude = 10.0f;
+  float period = 20.0f;
+  float phase = 0.0f;
+  int orientation = 1;
   /** Flags. */
   int flag = 0;
   char _pad[4] = {};

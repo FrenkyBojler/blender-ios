@@ -31,29 +31,6 @@
 
 namespace blender {
 
-static void init_data(ShaderFxData *md)
-{
-  ShadowShaderFxData *gpfx = reinterpret_cast<ShadowShaderFxData *>(md);
-  gpfx->rotation = 0.0f;
-  ARRAY_SET_ITEMS(gpfx->offset, 15, 20);
-  ARRAY_SET_ITEMS(gpfx->scale, 1.0f, 1.0f);
-  ARRAY_SET_ITEMS(gpfx->shadow_rgba, 0.0f, 0.0f, 0.0f, 0.8f);
-
-  gpfx->amplitude = 10.0f;
-  gpfx->period = 20.0f;
-  gpfx->phase = 0.0f;
-  gpfx->orientation = 1;
-
-  ARRAY_SET_ITEMS(gpfx->blur, 5, 5);
-  gpfx->samples = 2;
-
-  gpfx->object = nullptr;
-}
-
-static void copy_data(const ShaderFxData *md, ShaderFxData *target)
-{
-  BKE_shaderfx_copydata_generic(md, target);
-}
 
 static void update_depsgraph(ShaderFxData *fx, const ModifierUpdateDepsgraphContext *ctx)
 {
@@ -157,10 +134,10 @@ ShaderFxTypeInfo shaderfx_Type_Shadow = {
     /*type*/ eShaderFxType_GpencilType,
     /*flags*/ ShaderFxTypeFlag(0),
 
-    /*copy_data*/ copy_data,
+    /*copy_data*/ shaderfx_copy_data<ShadowShaderFxData>,
 
-    /*init_data*/ init_data,
-    /*free_data*/ nullptr,
+    /*new_data*/ shaderfx_new_data<ShadowShaderFxData>,
+    /*free_data*/ shaderfx_free_data<ShadowShaderFxData>,
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,

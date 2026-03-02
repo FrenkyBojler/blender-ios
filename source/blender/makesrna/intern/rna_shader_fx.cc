@@ -227,7 +227,6 @@ static void rna_def_shader_fx_blur(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "samples");
   RNA_def_property_range(prop, 0, 32);
   RNA_def_property_ui_range(prop, 0, 32, 2, -1);
-  RNA_def_property_int_default(prop, 4);
   RNA_def_property_ui_text(prop, "Samples", "Number of Blur Samples (zero, disable blur)");
   RNA_def_property_update(prop, NC_OBJECT | ND_SHADERFX, "rna_ShaderFx_update");
 
@@ -406,7 +405,6 @@ static void rna_def_shader_fx_rim(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "samples");
   RNA_def_property_range(prop, 0, 32);
   RNA_def_property_ui_range(prop, 0, 32, 2, -1);
-  RNA_def_property_int_default(prop, 4);
   RNA_def_property_ui_text(prop, "Samples", "Number of Blur Samples (zero, disable blur)");
   RNA_def_property_update(prop, NC_OBJECT | ND_SHADERFX, "rna_ShaderFx_update");
 
@@ -497,7 +495,6 @@ static void rna_def_shader_fx_shadow(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "samples");
   RNA_def_property_range(prop, 0, 32);
   RNA_def_property_ui_range(prop, 0, 32, 2, -1);
-  RNA_def_property_int_default(prop, 4);
   RNA_def_property_ui_text(prop, "Samples", "Number of Blur Samples (zero, disable blur)");
   RNA_def_property_update(prop, NC_OBJECT | ND_SHADERFX, "rna_ShaderFx_update");
 
@@ -571,7 +568,6 @@ static void rna_def_shader_fx_glow(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "samples");
   RNA_def_property_range(prop, 1, 32);
   RNA_def_property_ui_range(prop, 1, 32, 2, -1);
-  RNA_def_property_int_default(prop, 4);
   RNA_def_property_ui_text(prop, "Samples", "Number of Blur Samples");
   RNA_def_property_update(prop, NC_OBJECT | ND_SHADERFX, "rna_ShaderFx_update");
 

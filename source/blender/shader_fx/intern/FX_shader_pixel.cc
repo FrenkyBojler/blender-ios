@@ -25,17 +25,6 @@
 
 namespace blender {
 
-static void init_data(ShaderFxData *fx)
-{
-  PixelShaderFxData *gpfx = reinterpret_cast<PixelShaderFxData *>(fx);
-  ARRAY_SET_ITEMS(gpfx->size, 5, 5);
-  ARRAY_SET_ITEMS(gpfx->rgba, 0.0f, 0.0f, 0.0f, 0.9f);
-}
-
-static void copy_data(const ShaderFxData *md, ShaderFxData *target)
-{
-  BKE_shaderfx_copydata_generic(md, target);
-}
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
@@ -63,10 +52,10 @@ ShaderFxTypeInfo shaderfx_Type_Pixel = {
     /*type*/ eShaderFxType_GpencilType,
     /*flags*/ ShaderFxTypeFlag(0),
 
-    /*copy_data*/ copy_data,
+    /*copy_data*/ shaderfx_copy_data<PixelShaderFxData>,
 
-    /*init_data*/ init_data,
-    /*free_data*/ nullptr,
+    /*new_data*/ shaderfx_new_data<PixelShaderFxData>,
+    /*free_data*/ shaderfx_free_data<PixelShaderFxData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

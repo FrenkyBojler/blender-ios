@@ -6,6 +6,8 @@
  * \ingroup shader_fx
  */
 
+#include "BLI_assert.h"
+
 #include "BKE_shader_fx.hh"
 
 #include "FX_shader_types.hh"
@@ -14,7 +16,13 @@ namespace blender {
 
 void shaderfx_type_init(ShaderFxTypeInfo *types[])
 {
-#define INIT_FX_TYPE(typeName) (types[eShaderFxType_##typeName] = &shaderfx_Type_##typeName)
+#define INIT_FX_TYPE(typeName) \
+  do { \
+    types[eShaderFxType_##typeName] = &shaderfx_Type_##typeName; \
+    BLI_assert(shaderfx_Type_##typeName.copy_data != nullptr); \
+    BLI_assert(shaderfx_Type_##typeName.new_data != nullptr); \
+    BLI_assert(shaderfx_Type_##typeName.free_data != nullptr); \
+  } while (false)
   INIT_FX_TYPE(Blur);
   INIT_FX_TYPE(Colorize);
   INIT_FX_TYPE(Flip);

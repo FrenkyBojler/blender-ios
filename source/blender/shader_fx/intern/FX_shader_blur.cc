@@ -25,18 +25,6 @@
 
 namespace blender {
 
-static void init_data(ShaderFxData *fx)
-{
-  BlurShaderFxData *gpfx = reinterpret_cast<BlurShaderFxData *>(fx);
-  copy_v2_fl(gpfx->radius, 50.0f);
-  gpfx->samples = 8;
-  gpfx->rotation = 0.0f;
-}
-
-static void copy_data(const ShaderFxData *md, ShaderFxData *target)
-{
-  BKE_shaderfx_copydata_generic(md, target);
-}
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
@@ -69,10 +57,10 @@ ShaderFxTypeInfo shaderfx_Type_Blur = {
     /*type*/ eShaderFxType_GpencilType,
     /*flags*/ ShaderFxTypeFlag(0),
 
-    /*copy_data*/ copy_data,
+    /*copy_data*/ shaderfx_copy_data<BlurShaderFxData>,
 
-    /*init_data*/ init_data,
-    /*free_data*/ nullptr,
+    /*new_data*/ shaderfx_new_data<BlurShaderFxData>,
+    /*free_data*/ shaderfx_free_data<BlurShaderFxData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

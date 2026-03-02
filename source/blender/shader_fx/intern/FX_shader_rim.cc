@@ -27,22 +27,6 @@
 
 namespace blender {
 
-static void init_data(ShaderFxData *fx)
-{
-  RimShaderFxData *gpfx = reinterpret_cast<RimShaderFxData *>(fx);
-  ARRAY_SET_ITEMS(gpfx->offset, 50, -100);
-  ARRAY_SET_ITEMS(gpfx->rim_rgb, 1.0f, 1.0f, 0.5f);
-  ARRAY_SET_ITEMS(gpfx->mask_rgb, 0.0f, 0.0f, 0.0f);
-  gpfx->mode = eShaderFxRimMode_Overlay;
-
-  ARRAY_SET_ITEMS(gpfx->blur, 0, 0);
-  gpfx->samples = 2;
-}
-
-static void copy_data(const ShaderFxData *md, ShaderFxData *target)
-{
-  BKE_shaderfx_copydata_generic(md, target);
-}
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
@@ -93,10 +77,10 @@ ShaderFxTypeInfo shaderfx_Type_Rim = {
     /*type*/ eShaderFxType_GpencilType,
     /*flags*/ ShaderFxTypeFlag(0),
 
-    /*copy_data*/ copy_data,
+    /*copy_data*/ shaderfx_copy_data<RimShaderFxData>,
 
-    /*init_data*/ init_data,
-    /*free_data*/ nullptr,
+    /*new_data*/ shaderfx_new_data<RimShaderFxData>,
+    /*free_data*/ shaderfx_free_data<RimShaderFxData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

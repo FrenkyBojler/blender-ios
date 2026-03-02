@@ -23,16 +23,6 @@
 
 namespace blender {
 
-static void init_data(ShaderFxData *fx)
-{
-  FlipShaderFxData *gpfx = reinterpret_cast<FlipShaderFxData *>(fx);
-  gpfx->flag |= FX_FLIP_HORIZONTAL;
-}
-
-static void copy_data(const ShaderFxData *md, ShaderFxData *target)
-{
-  BKE_shaderfx_copydata_generic(md, target);
-}
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
@@ -62,10 +52,10 @@ ShaderFxTypeInfo shaderfx_Type_Flip = {
     /*type*/ eShaderFxType_GpencilType,
     /*flags*/ ShaderFxTypeFlag(0),
 
-    /*copy_data*/ copy_data,
+    /*copy_data*/ shaderfx_copy_data<FlipShaderFxData>,
 
-    /*init_data*/ init_data,
-    /*free_data*/ nullptr,
+    /*new_data*/ shaderfx_new_data<FlipShaderFxData>,
+    /*free_data*/ shaderfx_free_data<FlipShaderFxData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

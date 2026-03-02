@@ -30,17 +30,6 @@
 
 namespace blender {
 
-static void init_data(ShaderFxData *md)
-{
-  SwirlShaderFxData *gpmd = reinterpret_cast<SwirlShaderFxData *>(md);
-  gpmd->radius = 100;
-  gpmd->angle = M_PI_2;
-}
-
-static void copy_data(const ShaderFxData *md, ShaderFxData *target)
-{
-  BKE_shaderfx_copydata_generic(md, target);
-}
 
 static void update_depsgraph(ShaderFxData *fx, const ModifierUpdateDepsgraphContext *ctx)
 {
@@ -92,10 +81,10 @@ ShaderFxTypeInfo shaderfx_Type_Swirl = {
     /*type*/ eShaderFxType_GpencilType,
     /*flags*/ ShaderFxTypeFlag(0),
 
-    /*copy_data*/ copy_data,
+    /*copy_data*/ shaderfx_copy_data<SwirlShaderFxData>,
 
-    /*init_data*/ init_data,
-    /*free_data*/ nullptr,
+    /*new_data*/ shaderfx_new_data<SwirlShaderFxData>,
+    /*free_data*/ shaderfx_free_data<SwirlShaderFxData>,
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,

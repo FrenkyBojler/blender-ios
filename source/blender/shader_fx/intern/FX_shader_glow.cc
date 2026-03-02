@@ -29,20 +29,6 @@
 
 namespace blender {
 
-static void init_data(ShaderFxData *md)
-{
-  GlowShaderFxData *gpfx = reinterpret_cast<GlowShaderFxData *>(md);
-  ARRAY_SET_ITEMS(gpfx->glow_color, 0.75f, 1.0f, 1.0f, 1.0f);
-  ARRAY_SET_ITEMS(gpfx->select_color, 0.0f, 0.0f, 0.0f);
-  copy_v2_fl(gpfx->blur, 50.0f);
-  gpfx->threshold = 0.1f;
-  gpfx->samples = 8;
-}
-
-static void copy_data(const ShaderFxData *md, ShaderFxData *target)
-{
-  BKE_shaderfx_copydata_generic(md, target);
-}
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
@@ -95,10 +81,10 @@ ShaderFxTypeInfo shaderfx_Type_Glow = {
     /*type*/ eShaderFxType_GpencilType,
     /*flags*/ ShaderFxTypeFlag(0),
 
-    /*copy_data*/ copy_data,
+    /*copy_data*/ shaderfx_copy_data<GlowShaderFxData>,
 
-    /*init_data*/ init_data,
-    /*free_data*/ nullptr,
+    /*new_data*/ shaderfx_new_data<GlowShaderFxData>,
+    /*free_data*/ shaderfx_free_data<GlowShaderFxData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

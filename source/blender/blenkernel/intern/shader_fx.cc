@@ -56,8 +56,7 @@ void BKE_shaderfx_init()
 ShaderFxData *BKE_shaderfx_new(int type)
 {
   const ShaderFxTypeInfo *fxi = BKE_shaderfx_get_info(ShaderFxType(type));
-  ShaderFxData *fx = static_cast<ShaderFxData *>(
-      MEM_new_zeroed(fxi->struct_size, fxi->struct_name));
+  ShaderFxData *fx = fxi->new_data();
 
   /* NOTE: this name must be made unique later. */
   STRNCPY_UTF8(fx->name, DATA_(fxi->name));
@@ -66,14 +65,10 @@ ShaderFxData *BKE_shaderfx_new(int type)
   fx->mode = eShaderFxMode_Realtime | eShaderFxMode_Render;
   fx->flag = eShaderFxFlag_OverrideLibrary_Local;
   /* Expand only the parent panel by default. */
-  fx->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT;
+  fx->ui_expand_flag |= UI_PANEL_DATA_EXPAND_ROOT;
 
   if (fxi->flags & eShaderFxTypeFlag_EnableInEditmode) {
     fx->mode |= eShaderFxMode_Editmode;
-  }
-
-  if (fxi->init_data) {
-    fxi->init_data(fx);
   }
 
   return fx;
@@ -100,9 +95,8 @@ void BKE_shaderfx_free_ex(ShaderFxData *fx, const int flag)
     }
   }
 
-  if (fxi->free_data) {
-    fxi->free_data(fx);
-  }
+  fxi->free_data(fx);
+
   if (fx->error) {
     MEM_delete(fx->error);
   }
@@ -158,23 +152,6 @@ void BKE_shaderfx_panel_expand(ShaderFxData *fx)
   fx->ui_expand_flag |= UI_PANEL_DATA_EXPAND_ROOT;
 }
 
-void BKE_shaderfx_copydata_generic(const ShaderFxData *fx_src, ShaderFxData *fx_dst)
-{
-  const ShaderFxTypeInfo *fxi = BKE_shaderfx_get_info(ShaderFxType(fx_src->type));
-
-  /* `fx_dst` may have already be fully initialized with some extra allocated data,
-   * we need to free it now to avoid a memory leak. */
-  if (fxi->free_data) {
-    fxi->free_data(fx_dst);
-  }
-
-  const size_t data_size = sizeof(ShaderFxData);
-  const char *fx_src_data = (reinterpret_cast<const char *>(fx_src)) + data_size;
-  char *fx_dst_data = (reinterpret_cast<char *>(fx_dst)) + data_size;
-  BLI_assert(data_size <= size_t(fxi->struct_size));
-  memcpy(fx_dst_data, fx_src_data, size_t(fxi->struct_size) - data_size);
-}
-
 static void shaderfx_copy_data_id_us_cb(void * /*user_data*/,
                                         Object * /*ob*/,
                                         ID **idpoin,
@@ -190,13 +167,14 @@ void BKE_shaderfx_copydata_ex(ShaderFxData *fx, ShaderFxData *target, const int 
 {
   const ShaderFxTypeInfo *fxi = BKE_shaderfx_get_info(ShaderFxType(fx->type));
 
-  target->mode = fx->mode;
-  target->flag = fx->flag;
-  target->ui_expand_flag = fx->ui_expand_flag;
+  /* Preserve next and prev pointers. */
+  ShaderFxData *next = target->next;
+  ShaderFxData *prev = target->prev;
 
-  if (fxi->copy_data) {
-    fxi->copy_data(fx, target);
-  }
+  fxi->copy_data(fx, target);
+
+  target->next = next;
+  target->prev = prev;
 
   if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
     if (fxi->foreach_ID_link) {
