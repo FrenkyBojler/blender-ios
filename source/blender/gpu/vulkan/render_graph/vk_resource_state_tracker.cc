@@ -40,9 +40,9 @@ void VKResourceStateTracker::add_image(VkImage vk_image,
                                        const char *name)
 {
   UNUSED_VARS_NDEBUG(name);
+  std::scoped_lock lock(mutex);
   BLI_assert_msg(!image_resources_.contains(vk_image),
                  "Image resource is added twice to the render graph.");
-  std::scoped_lock lock(mutex);
   ResourceHandle handle = create_resource_slot();
   Resource &resource = resources_[handle];
   image_resources_.add_new(vk_image, handle);
@@ -94,9 +94,9 @@ void VKResourceStateTracker::add_swapchain_image(VkImage vk_image, const char *n
 void VKResourceStateTracker::add_buffer(VkBuffer vk_buffer, const char *name)
 {
   UNUSED_VARS_NDEBUG(name);
+  std::scoped_lock lock(mutex);
   BLI_assert_msg(!buffer_resources_.contains(vk_buffer),
                  "Buffer resource is added twice to the render graph.");
-  std::scoped_lock lock(mutex);
   ResourceHandle handle = create_resource_slot();
   Resource &resource = resources_[handle];
   buffer_resources_.add_new(vk_buffer, handle);
