@@ -165,8 +165,8 @@ if(WITH_CYCLES_DEVICE_ONEAPI AND WITH_CYCLES_ONEAPI_BINARIES)
   #   * ocloc libraries: ${OCLOC_INSTALL_DIR}/lib
   #   * IGC (Intel Graphics Compiler) libraries: ${IGC_INSTALL_DIR}/lib
   if(WIN32)
-    set (OCLOC_LD_LIBRARY_PATH "")
-    set (OCLOC_ENV_COMMAND "")
+    set(OCLOC_LD_LIBRARY_PATH "")
+    set(OCLOC_ENV_COMMAND "")
   else()
     set(OCLOC_LD_LIBRARY_PATH "${OCLOC_INSTALL_DIR}/lib:${IGC_INSTALL_DIR}/lib")
     set(OCLOC_ENV_COMMAND
