@@ -146,7 +146,7 @@ static void blo_update_defaults_screen(bScreen *screen,
         sima->uv_face_opacity = 0.0f;
         sima->uv_edge_opacity = 0.0f;
       }
-      else if (STREQ(workspace_name, "Compositing")) {
+      else if (BLI_str_startswith(workspace_name, "Compositing")) {
         SpaceImage *sima = static_cast<SpaceImage *>(area.spacedata.first);
         sima->overlay.flag &= ~SI_OVERLAY_DRAW_TEXT_INFO;
       }
