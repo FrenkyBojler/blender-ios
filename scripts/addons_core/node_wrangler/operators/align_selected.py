@@ -17,6 +17,9 @@ from ..utils.nodes import (
 )
 
 
+weird_offset = 10
+frame_margin = 30
+
 #### ------------------------------ OPERATORS ------------------------------ ####
 
 class NODE_OT_align_selected(Operator, NWBase):
@@ -45,13 +48,88 @@ class NODE_OT_align_selected(Operator, NWBase):
             
         raise Exception("This should be unreachable.")
     
+    def frame_children(self, frame):
+        for node in self.tree.nodes:
+            if node.parent == frame:
+                yield node
+    
+    def get_width(self, node):
+        if node.bl_static_type == 'FRAME':
+            return self.get_right(node) - self.get_left(node)
+        else:
+            return node.width
+    
+    def get_height(self, node):
+        if node.bl_static_type == 'FRAME':
+            return self.get_top(node) - self.get_bottom(node)
+        else:
+            return node.width * node.dimensions.y/node.dimensions.x
+
+    def get_left(self, node):
+        if node.bl_static_type == 'REROUTE':
+            return node.location_absolute.x
+        elif node.bl_static_type == 'FRAME':
+            return min(self.get_left(node) for node in self.frame_children(node)) - frame_margin
+        else:
+            return node.location_absolute.x
+
+    def get_center(self, node):
+        if node.bl_static_type == 'REROUTE':
+            return node.location_absolute.x
+        else:
+            return node.location_absolute.x + (0.5 * node.width)
+
+    def get_right(self, node):
+        if node.bl_static_type == 'REROUTE':
+            return node.location_absolute.x
+        elif node.bl_static_type == 'FRAME':
+            return max(self.get_right(node) for node in self.frame_children(node)) + frame_margin
+        else:
+            return node.location_absolute.x + node.width
+
+    def get_top(self, node):
+        if node.bl_static_type == 'REROUTE':
+            return node.location_absolute.y
+        elif node.bl_static_type == 'FRAME':
+            return max(self.get_top(node) for node in self.frame_children(node)) + frame_margin
+        elif node.hide:
+            return node.location_absolute.y + (0.5 * self.get_height(node)) - weird_offset
+        else:
+            return node.location_absolute.y
+
+    def get_middle(self, node):
+        if node.bl_static_type == 'REROUTE':
+            return node.location_absolute.y
+        elif node.hide:
+            return node.location_absolute.y - weird_offset
+        else:
+            return node.location_absolute.y - (0.5 * self.get_height(node))
+
+    def get_bottom(self, node):
+        if node.bl_static_type == 'REROUTE':
+            return node.location_absolute.y
+        elif node.bl_static_type == 'FRAME':
+            return min(self.get_bottom(node) for node in self.frame_children(node)) - frame_margin
+        elif node.hide:
+            return node.location_absolute.y - (0.5 * self.get_height(node)) - weird_offset
+        else:
+            return node.location_absolute.y - self.get_height(node)
+
+    def get_bounds(self, nodes):
+        min_x = min(self.get_left(node) for node in nodes)
+        max_x = max(self.get_right(node) for node in nodes)
+        min_y = min(self.get_bottom(node) for node in nodes)
+        max_y = max(self.get_top(node) for node in nodes)
+
+        return min_x, max_x, min_y, max_y
+
     def arrange_nodes(self, nodes):
         margin = self.margin
 
         # Check if nodes should be laid out horizontally or vertically
         # use dimension to get center of node, not corner
-        x_locs = [n.location_absolute.x + (n.dimensions.x / 2) for n in nodes]
-        y_locs = [n.location_absolute.y - (n.dimensions.y / 2) for n in nodes]
+        x_locs = [n.location_absolute.x + (self.get_width(n) / 2) for n in nodes]
+        y_locs = [n.location_absolute.y - (self.get_height(n) / 2) for n in nodes]
         x_range = max(x_locs) - min(x_locs)
         y_range = max(y_locs) - min(y_locs)
         mid_x = (max(x_locs) + min(x_locs)) / 2
@@ -60,15 +138,15 @@ class NODE_OT_align_selected(Operator, NWBase):
 
         # Sort selection by location of node mid-point
         if horizontal:
-            nodes = sorted(nodes, key=lambda n: n.location_absolute.x + (n.dimensions.x / 2))
+            nodes = sorted(nodes, key=lambda n: n.location_absolute.x + (self.get_width(n) / 2))
         else:
-            nodes = sorted(nodes, key=lambda n: n.location_absolute.y - (n.dimensions.y / 2), reverse=True)
+            nodes = sorted(nodes, key=lambda n: n.location_absolute.y - (self.get_height(n) / 2), reverse=True)
 
         # Alignment
         current_pos = 0
         for i, node in enumerate(nodes):
 
-            current_margin = margin
+            current_margin = 0
 
             # Use a smaller margin for hidden nodes.
             current_margin = current_margin * 0.5 if node.hide else current_margin
@@ -80,16 +158,16 @@ class NODE_OT_align_selected(Operator, NWBase):
                         node.location_absolute.x = current_pos
 
                 if i == 0:
-                    current_pos += node.location_absolute.x + node.dimensions.x + current_margin
+                    current_pos += node.location_absolute.x + self.get_width(node) + current_margin
                 else:
-                    current_pos += current_margin + node.dimensions.x
+                    current_pos += current_margin + self.get_width(node)
                 
                 if node.bl_idname != "NodeFrame":
-                    node.location_absolute.y = mid_y + (node.dimensions.y / 2)
+                    node.location_absolute.y = mid_y + (self.get_height(node) / 2)
                 print(node, node.location_absolute)
             else:
                 # `node.bl_height_min` is the min size of a collapsed node, +6 for the outlines and margins.
-                hide_offset = (node.dimensions.y - (node.bl_height_min + 6)) / 2 if node.hide else 0
+                hide_offset = (self.get_height(node) - (node.bl_height_min + 6)) / 2 if node.hide else 0
                 
                 if i > 0:
                     if node.bl_idname != "NodeFrame":
@@ -97,17 +175,18 @@ class NODE_OT_align_selected(Operator, NWBase):
                         node.location_absolute.y = current_pos - hide_offset
                 
                 if i == 0:
-                    current_pos += node.location_absolute.y + node.dimensions.y - (current_margin * 0.3)
+                    current_pos += node.location_absolute.y + self.get_height(node) - (current_margin * 0.3)
                 else:
                     # Use half-margin for vertical alignment.
-                    current_pos -= (current_margin * 0.3) + node.dimensions.y
+                    current_pos -= (current_margin * 0.3) + self.get_height(node)
 
                 if node.bl_idname != "NodeFrame":
-                    node.location_absolute.x = mid_x - (node.dimensions.x / 2)
+                    node.location_absolute.x = mid_x - (self.get_width(node) / 2)
 
     def execute(self, context):
         nodes = context.selected_nodes
         parent_map = {}
+        self.tree = context.space_data.edit_tree
 
         for node in nodes:
             children = parent_map.get(node.parent, None)
@@ -115,6 +194,8 @@ class NODE_OT_align_selected(Operator, NWBase):
                 parent_map[node.parent] = []
 
             parent_map[node.parent].append(node)
+
+        self.parent_map = parent_map
 
         if not nodes:
             self.report({'WARNING'}, "No nodes to arrange in selection.")
