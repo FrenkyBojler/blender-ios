@@ -9,3 +9,4 @@ Referenced by issue #46394, bgelauncher embedded and standalone
 Referenced by issue #46235, Lens Flares no longer working in Blender's Internal renderer
 Referenced by issue #44662, Freestyle gives no visual output when the Save Buffers option is enabled
 Referenced by issue #44310, Other render slots cleared after each render
+Referenced by pull request #155073, Fix #154959: Output Stereo Playblast as video in Stereo 3D broken
