@@ -14,6 +14,7 @@ using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
+static int BPy_Nature_bool(PyObject *a);
 static PyObject *BPy_Nature_and(PyObject *a, PyObject *b);
 static PyObject *BPy_Nature_xor(PyObject *a, PyObject *b);
 static PyObject *BPy_Nature_or(PyObject *a, PyObject *b);
@@ -30,7 +31,7 @@ static PyNumberMethods nature_as_number = {
     /*nb_negative*/ nullptr,
     /*nb_positive*/ nullptr,
     /*nb_absolute*/ nullptr,
-    /*nb_bool*/ nullptr,
+    /*nb_bool*/ (inquiry)BPy_Nature_bool,
     /*nb_invert*/ nullptr,
     /*nb_lshift*/ nullptr,
     /*nb_rshift*/ nullptr,
@@ -169,6 +170,22 @@ int Nature_Init(PyObject *module)
 #undef ADD_TYPE_CONST
 
   return 0;
+}
+
+static int BPy_Nature_bool(PyObject *a)
+{
+  long v;
+  if (!BPy_Nature_Check(a)) {
+    PyErr_SetString(PyExc_TypeError, "operand must be a Nature object");
+    return 0;
+  }
+
+  if ((v = PyLong_AsLong(a)) == -1 && PyErr_Occurred()) {
+    PyErr_SetString(PyExc_ValueError, "operand 1: unexpected Nature value");
+    return 0;
+  }
+
+  return v != 0;
 }
 
 static PyObject *BPy_Nature_bitwise(PyObject *a, int op, PyObject *b)
