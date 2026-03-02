@@ -148,12 +148,11 @@ BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
   ResourceScope scope;
   scope.allocator().provide_buffer(allocation_buffer);
 
-  IndexMaskMemory memory;
   const IndexMask index_mask = IndexMask::from_predicate(
       IndexRange(grid::LeafNodeMask::SIZE),
-      GrainSize(grid::LeafNodeMask::SIZE),
-      memory,
-      [&](const int64_t i) { return leaf_node_mask.isOn(i); });
+      scope.allocator(),
+      [&](const int64_t i) { return leaf_node_mask.isOn(i); },
+      exec_mode::serial);
 
   const openvdb::Coord any_voxel_in_leaf = leaf_bbox.min();
   MutableSpan<openvdb::Coord> voxels = scope.allocator().allocate_array<openvdb::Coord>(

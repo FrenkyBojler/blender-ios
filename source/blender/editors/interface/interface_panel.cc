@@ -868,11 +868,20 @@ static void ui_offset_panel_block(Block *block)
   /* Compute bounds and offset. */
   block_bounds_calc(block);
 
-  const int ofsy = block->panel->sizey - style->panelspace;
+  const int panels_space = style->panelspace;
+  const int ofsy = block->panel->sizey - panels_space;
 
-  for (const std::unique_ptr<Button> &but : block->buttons) {
-    but->rect.ymin += ofsy;
-    but->rect.ymax += ofsy;
+  for (Button &but : block->buttons()) {
+    but.rect.ymin += ofsy;
+    but.rect.ymax += ofsy;
+  }
+  for (LayoutPanelBody &body : block->panel->runtime->layout_panels.bodies) {
+    body.start_y -= panels_space;
+    body.end_y -= panels_space;
+  }
+  for (LayoutPanelHeader &headcer : block->panel->runtime->layout_panels.headers) {
+    headcer.start_y -= panels_space;
+    headcer.end_y -= panels_space;
   }
 
   block->rect.xmax = block->panel->sizex;
@@ -951,8 +960,8 @@ static void panel_remove_invisible_layouts_recursive(Panel *panel, const Panel *
   if (parent_panel != nullptr && panel_is_closed(parent_panel)) {
     /* The parent panel is closed, so this panel can be completely removed. */
     block_set_search_only(block, true);
-    for (const std::unique_ptr<Button> &but : block->buttons) {
-      but->flag |= UI_HIDDEN;
+    for (Button &but : block->buttons()) {
+      but.flag |= UI_HIDDEN;
     }
   }
   else if (panel_is_closed(panel)) {
@@ -1203,6 +1212,11 @@ void draw_layout_panels_backdrop(const ARegion *region,
   /* Draw backdrops for layout panels. */
   const float aspect = block_is_popup_any(panel->runtime->block) ? panel->runtime->block->aspect :
                                                                    1.0f;
+  float scroll_pad = 0.0f;
+  if (block_is_popup_any(panel->runtime->block)) {
+    scroll_pad = (block_is_menu(panel->runtime->block) ? UI_MENU_SCROLL_PAD : UI_UNIT_Y * 0.5f) /
+                 aspect;
+  }
 
   for (const LayoutPanelBody &body : panel->runtime->layout_panels.bodies) {
 
@@ -1219,8 +1233,9 @@ void draw_layout_panels_backdrop(const ARegion *region,
       continue;
     }
     /* If the layout panel is at the end of the root panel, it's bottom corners are rounded. */
-    const bool is_main_panel_end = panel_blockspace.ymin - panel->runtime->block->rect.ymin <
-                                   (10.0f / aspect);
+    const bool is_main_panel_end = panel_blockspace.ymin -
+                                       (panel->runtime->block->rect.ymin + scroll_pad) <
+                                   (10.0f * UI_SCALE_FAC / aspect);
     if (is_main_panel_end) {
       panel_blockspace.ymin = panel->runtime->block->rect.ymin;
       draw_roundbox_corner_set(CNR_BOTTOM_RIGHT | CNR_BOTTOM_LEFT);
@@ -1919,8 +1934,11 @@ static void ui_do_animate(bContext *C, Panel *panel)
   HandlePanelData *data = static_cast<HandlePanelData *>(panel->activedata);
   ARegion *region = CTX_wm_region(C);
 
-  float fac = (BLI_time_now_seconds() - data->starttime) / ANIMATION_TIME;
-  fac = min_ff(sqrtf(fac), 1.0f);
+  float fac = 1.0f;
+  if (!(U.uiflag & USER_REDUCE_MOTION)) {
+    fac = (BLI_time_now_seconds() - data->starttime) / ANIMATION_TIME;
+    fac = min_ff(sqrtf(fac), 1.0f);
+  }
 
   if (uiAlignPanelStep(region, fac, false)) {
     ED_region_tag_redraw(region);

@@ -243,6 +243,7 @@ class MeshTest(ABC):
         self.expected_object.name = self.exp_object_name
         x, y, z = self.test_object.location
         self.expected_object.location = (x, y + 10, z)
+        self.apply_operations(self.expected_object.name)
 
     def create_evaluated_object(self):
         """
@@ -771,7 +772,7 @@ class SpecMeshTest(MeshTest):
             print("Applied operator {}".format(operator))
 
         if operator.mode != 'OBJECT':
-            bpy.ops.object.mode_set('OBJECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
 
     def _apply_deform_modifier(self, test_object, operation: DeformModifierSpec):
         """
