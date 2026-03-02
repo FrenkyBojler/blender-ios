@@ -143,15 +143,13 @@ class NODE_OT_align_selected(Operator, NWBase):
         # TODO: Actually use margin, just zeroed this out for testing
         margin = self.margin
 
-        # Check if nodes should be laid out horizontally or vertically
-        # use dimension to get center of node, not corner
+        min_x, max_x, min_y, max_y = self.get_bounds(nodes)
+        mid_x = (max_x + min_x) / 2
+        mid_y = (max_y + min_y) / 2
+
         x_locs = [self.get_center(n) for n in nodes]
         y_locs = [self.get_middle(n) for n in nodes]
-        x_range = max(x_locs) - min(x_locs)
-        y_range = max(y_locs) - min(y_locs)
-        mid_x = (max(x_locs) + min(x_locs)) / 2
-        mid_y = (max(y_locs) + min(y_locs)) / 2
-        horizontal = x_range > y_range
+        horizontal = max(x_locs) - min(x_locs) > max(y_locs) - min(y_locs)
 
         # Sort selection by location of node mid-point
         if horizontal:
