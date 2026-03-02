@@ -11,11 +11,11 @@
 #include <optional>
 
 #include "BKE_brush.hh"
+#include "BKE_bvhutils.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
-#include "BKE_bvhutils.hh"
 #include "BLI_array.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_quaternion_types.hh"
@@ -51,7 +51,6 @@ enum class Type : int8_t;
 }  // namespace ed::sculpt_paint
 struct bContext;
 struct BMLog;
-struct BVHTreeFromMesh;
 struct Dial;
 struct DistRayAABB_Precalc;
 struct Image;
