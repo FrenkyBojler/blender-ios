@@ -1,3 +1,4 @@
 Referenced by issue #145594, Compositor color tests failing on Windows
 Referenced by pull request #147737, Fix: Run node link pointer repair again
 Referenced by commit 8a98c6992f079706b6fe6d4d80302f80ce5692e3, Fix: Run node link pointer repair again
+Referenced by issue #155060, Crash when using Vulkan and adding a subdivision surface modifier that produces a lot of geometry
