@@ -155,7 +155,7 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
 
     WM_window_dpi_set_userdef(CTX_wm_window(C));
 
-    std::string key = "image";
+    std::string key = "IMAGE_EDITOR";
     MemorySection memory("temp.window.dimensions");
     std::vector<float> bounds = memory[key];
 
