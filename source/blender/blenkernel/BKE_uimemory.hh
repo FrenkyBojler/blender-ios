@@ -134,25 +134,29 @@ display_type = 1
 sort_type = 1
 flag = 0
 
-["file_browser.panels"]
-bookmarks_index = 0
-system_index = 1
-volumes_index = 2
-recent_index = 3
-advanced_filter_index = 4
-bookmarks_open = true
-system_open = true
-volumes_open = true
-recent_open = true
-advanced_filter_open = true
+["panel.sortorder"]
+_default = 0
 
-["window.dimensions"]
-userpref = [100.0, 940.0, 350.0, 900.0]
-file = [100.0, 1160.0, 350.0, 950.0]
-image = [50.0, 1360.0, 50.0, 830.0]
-graph = [50.0, 950.0, 200.0, 780.0]
-info = [100.0, 1000.0, 300.0, 880.0]
-outliner = [100.0, 550.0, 350.0, 800.0]
+["panel.open"]
+_default = true
+
+["temp.window.dimensions"]
+_default = [100.0, 900.0, 200.0, 800.0]
+#userpref = [100.0, 940.0, 350.0, 900.0]
+#file = [100.0, 1160.0, 350.0, 950.0]
+#image = [50.0, 1360.0, 50.0, 830.0]
+#graph = [50.0, 950.0, 200.0, 780.0]
+#info = [100.0, 1000.0, 300.0, 880.0]
+#outliner = [100.0, 550.0, 350.0, 800.0]
+
+[show.dialog.info]
+_default = true
+
+[show.dialog.warnings]
+_default = true
+
+[show.dialog.confirmations]
+_default = true
 
 )_delim_";
 

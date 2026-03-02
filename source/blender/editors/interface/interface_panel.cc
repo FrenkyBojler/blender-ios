@@ -703,30 +703,11 @@ Panel *panel_begin(
       panel->runtime_flag |= PANEL_WAS_CLOSED;
     }
 
-    /* Initialize File Browser panels from preferences. */
-    MemorySection mem = uimemory.open("file_browser.panels");
-
     if (region->regiontype == RGN_TYPE_TOOLS && STRPREFIX(pt->idname, "FILEBROWSER_PT_")) {
-      if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_favorites")) {
-        panel->sortorder = mem["bookmarks_index"];
-        SET_FLAG_FROM_TEST(panel->flag, !mem["bookmarks_open"], PNL_CLOSED);
-      }
-      else if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_system")) {
-        panel->sortorder = mem["system_index"];
-        SET_FLAG_FROM_TEST(panel->flag, !mem["system_open"], PNL_CLOSED);
-      }
-      else if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_volumes")) {
-        panel->sortorder = mem["volumes_index"];
-        SET_FLAG_FROM_TEST(panel->flag, !mem["volumes_open"], PNL_CLOSED);
-      }
-      else if (STREQ(pt->idname, "FILEBROWSER_PT_bookmarks_recents")) {
-        panel->sortorder = mem["recent_index"];
-        SET_FLAG_FROM_TEST(panel->flag, !mem["recent_open"], PNL_CLOSED);
-      }
-      else if (STREQ(pt->idname, "FILEBROWSER_PT_advanced_filter")) {
-        panel->sortorder = mem["advanced_filter_index"];
-        SET_FLAG_FROM_TEST(panel->flag, !mem["advanced_filter_open"], PNL_CLOSED);
-      }
+      MemorySection mem = uimemory.open("panel.sortorder");
+      panel->sortorder = mem[pt->idname];
+      mem.section = "panel.open";
+      SET_FLAG_FROM_TEST(panel->flag, !mem[pt->idname], PNL_CLOSED);
     }
 
     panel->ofsx = 0;

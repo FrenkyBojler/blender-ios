@@ -118,6 +118,39 @@ bool MemoryFile::save() const
   return true;
 }
 
+static const toml::value *uimemory_find_in(const toml::value &root,
+                                           const std::string &section_name,
+                                           const std::string &k)
+{
+  if (!root.is_table()) {
+    return nullptr;
+  }
+  const toml::table &root_tbl = root.as_table();
+
+  if (section_name.empty()) {
+    auto it = root_tbl.find(k);
+    if (it != root_tbl.end()) {
+      return &it->second;
+    }
+    return nullptr;
+  }
+
+  auto sit = root_tbl.find(section_name);
+  if (sit == root_tbl.end()) {
+    return nullptr;
+  }
+  const toml::value &sec_val = sit->second;
+  if (!sec_val.is_table()) {
+    return nullptr;
+  }
+  const toml::table &sec_tbl = sec_val.as_table();
+  auto it = sec_tbl.find(k);
+  if (it != sec_tbl.end()) {
+    return &it->second;
+  }
+  return nullptr;
+}
+
 template<typename T> T MemorySection::get(const StringRef item) const
 {
   if (!uimemory_ready.load(std::memory_order_acquire)) {
@@ -129,9 +162,32 @@ template<typename T> T MemorySection::get(const StringRef item) const
   const std::string &sec = section;
   const std::string key(item.data(), item.size());
 
-  const toml::value &cur = sec.empty() ? uimemory_current[key] : uimemory_current[sec][key];
-  const toml::value &def = sec.empty() ? uimemory_default[key] : uimemory_default[sec][key];
-  return toml::get_or(cur, toml::get_or(def, T{}));
+  /* 1) Try user value first; return immediately if present. */
+  if (const toml::value *v = uimemory_find_in(uimemory_current, sec, key)) {
+    return toml::get_or(*v, T{});
+  }
+
+  /* 2) Per-key builtin default. */
+  if (const toml::value *v = uimemory_find_in(uimemory_default, sec, key)) {
+    return toml::get_or(*v, T{});
+  }
+
+  /* 3) User section-level "_default" (allow user override of section default). */
+  if (!sec.empty()) {
+    if (const toml::value *v = uimemory_find_in(uimemory_current, sec, "_default")) {
+      return toml::get_or(*v, T{});
+    }
+  }
+
+  /* 4) Builtin section-level "_default". */
+  if (!sec.empty()) {
+    if (const toml::value *v = uimemory_find_in(uimemory_default, sec, "_default")) {
+      return toml::get_or(*v, T{});
+    }
+  }
+
+  /* 5) Final fallback. */
+  return T{};
 }
 
 template<typename T> void MemorySection::set(const StringRef item, const T &value)

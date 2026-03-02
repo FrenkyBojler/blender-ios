@@ -778,32 +778,13 @@ static void file_tools_region_exit(wmWindowManager * /*wm*/, ARegion *region)
     return a->sortorder < b->sortorder;
   });
 
-  MemorySection mem = uimemory.open("file_browser.panels");
-
+  MemorySection sortorder = uimemory.open("panel.sortorder");
+  MemorySection open = uimemory.open("panel.open");
   for (const int i : panels.index_range()) {
     Panel *panel = panels[i];
     const bool is_open = !(panel->flag & PNL_CLOSED);
-
-    if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_favorites")) {
-      mem["bookmarks_index"] = i;
-      mem["bookmarks_open"] = is_open;
-    }
-    else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_system")) {
-      mem["system_index"] = i;
-      mem["system_open"] = is_open;
-    }
-    else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_volumes")) {
-      mem["volumes_index"] = i;
-      mem["volumes_open"] = is_open;
-    }
-    else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_recents")) {
-      mem["recent_index"] = i;
-      mem["recent_open"] = is_open;
-    }
-    else if (STREQ(panel->type->idname, "FILEBROWSER_PT_advanced_filter")) {
-      mem["advanced_filter_index"] = i;
-      mem["advanced_filter_open"] = is_open;
-    }
+    sortorder[panel->type->idname] = i;
+    open[panel->type->idname] = is_open;
   }
 
   U.runtime.is_dirty = true;
