@@ -104,7 +104,8 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
   if (!pchan_path) {
     return false;
   }
-  const StringRef rotation_mode = get_rotation_mode_path(eRotationModes(pchan.rotmode));
+  const eRotationModes current_mode = eRotationModes(pchan.rotmode);
+  const StringRef rotation_mode = get_rotation_mode_path(current_mode);
   /* This is the current rotation mode path. */
   std::string current_rotation_path = pchan_path.value() + "." + rotation_mode;
   const ChannelbagFCurveMap *channelbag_map = fcurves_by_rna_path.lookup_ptr(
@@ -123,10 +124,10 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
   float rotation_values[4];
   float rotation_matrix[3][3];
 
-  const int evaluation_buffer_count = pchan.rotmode > ROT_MODE_QUAT ? 3 : 4;
+  const int evaluation_buffer_count = current_mode > ROT_MODE_QUAT ? 3 : 4;
   const int insertion_buffer_count = to_mode > ROT_MODE_QUAT ? 3 : 4;
   /* True if the conversion is just between different euler rotations. */
-  const bool is_rotation_order_change = pchan.rotmode > ROT_MODE_QUAT && to_mode > ROT_MODE_QUAT;
+  const bool is_rotation_order_change = current_mode > ROT_MODE_QUAT && to_mode > ROT_MODE_QUAT;
   FCurve *evaluation_buffer[4];
   FCurve *insertion_buffer[4];
 
@@ -180,7 +181,7 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
         rotation_values[fcurve->array_index] = evaluate_fcurve(fcurve, frame);
       }
       /* Convert those to the new rotation mode. */
-      rotation_values_to_matrix(rotation_values, eRotationModes(pchan.rotmode), rotation_matrix);
+      rotation_values_to_matrix(rotation_values, current_mode, rotation_matrix);
       matrix_to_rotation_values(rotation_matrix, to_mode, previous_conversion, converted_rotation);
       for (int i : IndexRange(insertion_buffer_count)) {
         /* Insert a key */

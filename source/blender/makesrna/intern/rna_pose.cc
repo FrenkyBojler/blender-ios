@@ -29,6 +29,8 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_convert.hh"
+#include "ANIM_fcurve.hh"
+#include "ANIM_rna.hh"
 
 namespace blender {
 
@@ -259,8 +261,12 @@ static void rna_PoseChannel_rotation_mode_set(PointerRNA *ptr, int value)
   pchan->rotmode = clamp_i(value, ROT_MODE_MIN, ROT_MODE_MAX);
 }
 
-static void rna_PoseChannel_convert_rotation_mode(
-    ID *id, bPoseChannel *pchan, Main *main, bContext *C, short rotation_mode)
+static void rna_PoseChannel_convert_rotation_mode(ID *id,
+                                                  bPoseChannel *pchan,
+                                                  Main *main,
+                                                  bContext *C,
+                                                  const short rotation_mode,
+                                                  const bool bake)
 {
   /* Already in the correct mode. */
   if (pchan->rotmode == rotation_mode) {
@@ -275,6 +281,11 @@ static void rna_PoseChannel_convert_rotation_mode(
   if (adt && adt->action && adt->slot_handle != animrig::Slot::unassigned) {
     animrig::RNAPathFCurveMap fcurves_by_rna_path;
     animrig::build_rotation_fcurve_map(fcurves_by_rna_path, adt->action->wrap(), adt->slot_handle);
+    if (bake) {
+      std::string foo = "pose.bones[\"" + pchan->name + "\"]" +
+                        animrig::get_rotation_mode_path(eRotationModes(pchan->rotmode));
+      // TODO implement baking
+    }
     const bool converted = animrig::convert_pose_bone_rotation_keys(
         main, *id, *pchan, fcurves_by_rna_path, eRotationModes(rotation_mode));
     if (converted) {
@@ -1000,6 +1011,13 @@ static void rna_def_pose_channel(BlenderRNA *brna)
                                    "Rotation Mode",
                                    "The rotation mode to change to");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  PropertyRNA *parm = RNA_def_boolean(
+      func,
+      "bake",
+      false,
+      "Bake",
+      "Insert a key on every frame to ensure interpolation is preserved");
 
   /* Curved bones settings - Applied on top of rest-pose values. */
   rna_def_bone_curved_common(srna, true, false);
