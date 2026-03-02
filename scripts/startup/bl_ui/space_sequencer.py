@@ -424,15 +424,18 @@ class SEQUENCER_MT_view(Menu):
         is_sequencer_view = st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}
         is_sequencer_only = st.view_type == 'SEQUENCER'
         is_image_preview = st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}
+        is_scopes_view = st.view_type == 'SCOPES'
 
         if st.view_type in {'PREVIEW', 'SCOPES'}:
             # Specifying the REGION_PREVIEW context is needed in preview-only
             # mode, else the lookup for the shortcut will fail in
             # wm_keymap_item_find_props() (see #32595).
             layout.operator_context = 'INVOKE_REGION_PREVIEW'
-        layout.prop(st, "show_region_toolbar")
-        layout.prop(st, "show_region_ui")
-        layout.prop(st, "show_region_tool_header")
+
+        if not is_scopes_view:
+            layout.prop(st, "show_region_toolbar")
+            layout.prop(st, "show_region_ui")
+            layout.prop(st, "show_region_tool_header")
         layout.operator_context = 'INVOKE_DEFAULT'
         if is_sequencer_view:
             layout.prop(st, "show_region_hud")
@@ -445,8 +448,9 @@ class SEQUENCER_MT_view(Menu):
             layout.prop(st, "show_transform_preview", text="Preview During Transform")
         layout.separator()
 
-        layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.operator("sequencer.refresh_all", icon='FILE_REFRESH', text="Refresh All")
+        if not is_scopes_view:
+            layout.operator_context = 'INVOKE_REGION_WIN'
+            layout.operator("sequencer.refresh_all", icon='FILE_REFRESH', text="Refresh All")
         layout.operator_context = 'INVOKE_DEFAULT'
         layout.separator()
 
@@ -454,7 +458,8 @@ class SEQUENCER_MT_view(Menu):
         if st.view_type in {'PREVIEW', 'SCOPES'}:
             # See above (#32595)
             layout.operator_context = 'INVOKE_REGION_PREVIEW'
-        layout.operator("sequencer.view_selected", text="Frame Selected")
+        if not is_scopes_view:
+            layout.operator("sequencer.view_selected", text="Frame Selected")
         if is_sequencer_view and context.sequencer_scene:
             layout.operator_context = 'INVOKE_REGION_WIN'
             layout.operator("sequencer.view_all")
@@ -469,7 +474,8 @@ class SEQUENCER_MT_view(Menu):
             if is_sequencer_view:
                 layout.separator()
             layout.operator_context = 'INVOKE_REGION_PREVIEW'
-            layout.operator("sequencer.view_all_preview", text="Fit Preview in Window")
+            if not is_scopes_view:
+                layout.operator("sequencer.view_all_preview", text="Fit Preview in Window")
             if is_sequencer_view:
                 layout.menu("SEQUENCER_MT_preview_zoom", text="Preview Zoom")
             else:
@@ -493,28 +499,29 @@ class SEQUENCER_MT_view(Menu):
             layout.menu("SEQUENCER_MT_range")
             layout.separator()
 
-        layout.operator("render.opengl", text="Render Still Preview", icon='RENDER_STILL').sequencer = True
-        props = layout.operator("render.opengl", text="Render Sequence Preview", icon='RENDER_ANIMATION')
-        props.animation = True
-        props.sequencer = True
+        if not is_scopes_view:
+            layout.operator("render.opengl", text="Render Still Preview", icon='RENDER_STILL').sequencer = True
+            props = layout.operator("render.opengl", text="Render Sequence Preview", icon='RENDER_ANIMATION')
+            props.animation = True
+            props.sequencer = True
 
-        layout.separator()
+            layout.separator()
 
-        layout.operator("sequencer.export_subtitles", text="Export Subtitles", icon='EXPORT')
-        layout.separator()
+            layout.operator("sequencer.export_subtitles", text="Export Subtitles", icon='EXPORT')
+            layout.separator()
 
-        # Note that the context is needed for the shortcut to display properly.
-        layout.operator_context = 'INVOKE_REGION_PREVIEW' if is_preview else 'INVOKE_REGION_WIN'
-        props = layout.operator(
-            "wm.context_toggle_enum",
-            text="Toggle Sequencer/Preview",
-            icon='SEQ_SEQUENCER' if is_preview else 'SEQ_PREVIEW',
-        )
-        props.data_path = "space_data.view_type"
-        props.value_1 = 'SEQUENCER'
-        props.value_2 = 'PREVIEW'
-        layout.operator_context = 'INVOKE_DEFAULT'
-        layout.separator()
+            # Note that the context is needed for the shortcut to display properly.
+            layout.operator_context = 'INVOKE_REGION_PREVIEW' if is_preview else 'INVOKE_REGION_WIN'
+            props = layout.operator(
+                "wm.context_toggle_enum",
+                text="Toggle Sequencer/Preview",
+                icon='SEQ_SEQUENCER' if is_preview else 'SEQ_PREVIEW',
+            )
+            props.data_path = "space_data.view_type"
+            props.value_1 = 'SEQUENCER'
+            props.value_2 = 'PREVIEW'
+            layout.operator_context = 'INVOKE_DEFAULT'
+            layout.separator()
 
         layout.menu("INFO_MT_area")
 

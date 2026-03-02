@@ -782,6 +782,13 @@ static void sequencer_footer_region_listener(const wmRegionListenerParams *param
   }
 }
 
+/* ********************* tool header region ********************** */
+static bool sequencer_tool_header_region_poll(const RegionPollParams *params)
+{
+  const SpaceSeq *sseq = static_cast<SpaceSeq *>(params->area->spacedata.first);
+  return sseq->view != SEQ_VIEW_SCOPES;
+}
+
 /* *********************** toolbar region ************************ */
 
 static bool sequencer_tools_region_poll(const RegionPollParams *params)
@@ -1020,6 +1027,12 @@ static void sequencer_preview_region_listener(const wmRegionListenerParams *para
 
 /* *********************** buttons region ************************ */
 
+static bool sequencer_buttons_region_poll(const RegionPollParams *params)
+{
+  const SpaceSeq *sseq = static_cast<SpaceSeq *>(params->area->spacedata.first);
+  return sseq->view != SEQ_VIEW_SCOPES;
+}
+
 /* Add handlers, stuff you only do once or on area/region changes. */
 static void sequencer_buttons_region_init(wmWindowManager *wm, ARegion *region)
 {
@@ -1199,6 +1212,7 @@ void ED_spacetype_sequencer()
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
   art->message_subscribe = ED_area_do_mgs_subscribe_for_tool_ui;
   art->listener = sequencer_buttons_region_listener;
+  art->poll = sequencer_buttons_region_poll;
   art->init = sequencer_buttons_region_init;
   art->snap_size = ED_region_generic_panel_region_snap_size;
   art->draw = sequencer_buttons_region_draw;
@@ -1236,6 +1250,7 @@ void ED_spacetype_sequencer()
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
   art->listener = sequencer_main_region_listener;
+  art->poll = sequencer_tool_header_region_poll;
   art->init = sequencer_header_region_init;
   art->draw = sequencer_header_region_draw;
   art->message_subscribe = ED_area_do_mgs_subscribe_for_tool_header;

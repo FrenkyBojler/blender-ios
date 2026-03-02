@@ -405,6 +405,8 @@ enum eSpaceSeq_ScopeType {
   SEQ_DRAW_IMG_VECTORSCOPE = (1 << 2),
   SEQ_DRAW_IMG_HISTOGRAM = (1 << 3),
   SEQ_DRAW_IMG_RGBPARADE = (1 << 4),
+  /* Note: Increment the size of `SpaceSeq.scope_order[]` in `DNA_space_types.h` when adding a new
+     scope. */
 };
 
 /** #SpaceSeq.draw_flag */
