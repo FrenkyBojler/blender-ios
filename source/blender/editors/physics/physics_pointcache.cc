@@ -291,7 +291,7 @@ static wmOperatorStatus ptcache_free_bake_all_exec(bContext *C, wmOperator * /*o
 void PTCACHE_OT_bake_all(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Bake All Dynamics";
+  ot->name = "Bake All Physics";
   ot->description = "Bake all physics simulations in the current scene";
   ot->idname = "PTCACHE_OT_bake_all";
 
