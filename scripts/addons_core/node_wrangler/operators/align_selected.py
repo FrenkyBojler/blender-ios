@@ -203,7 +203,8 @@ class NODE_OT_align_selected(Operator, NWBase):
                 target_x = mid_x - (self.get_width(node) / 2)
                 if node.bl_idname == "NodeFrame":
                     self.move_children(node, target_x - node.location_absolute.x, axis="X")
-                node.location_absolute.x = target_x
+                else:
+                    node.location_absolute.x = target_x
 
     def execute(self, context):
         nodes = context.selected_nodes
