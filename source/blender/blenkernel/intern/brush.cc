@@ -1961,8 +1961,7 @@ bool supports_inverted_direction(const Brush &brush)
               SCULPT_BRUSH_TYPE_PLANE,
               SCULPT_BRUSH_TYPE_CLAY,
               SCULPT_BRUSH_TYPE_PINCH,
-              SCULPT_BRUSH_TYPE_MASK,
-              SCULPT_BRUSH_TYPE_SCENE_PROJECT);
+              SCULPT_BRUSH_TYPE_MASK);
 }
 bool supports_gravity(const Brush &brush)
 {
