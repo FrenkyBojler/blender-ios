@@ -577,25 +577,9 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
   }
   bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C));
   if (screen->animtimer) {
-    if (scene->r.flag & SCER_ALLOW_PREROLL) {
-      wmTimer *wt = screen->animtimer;
-      ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
-      const int2 range = BKE_scene_get_playback_range(scene);
-      if (sad->flag & ANIMPLAY_FLAG_REVERSE) {
-        if (scene->r.cfra < range.x) {
-          scene->r.cfra = range.y;
-        }
-      }
-      else {
-        if (scene->r.cfra > range.y) {
-          scene->r.cfra = range.x;
-        }
-      }
-    }
-    else {
-      /* While playing back, the playhead should not leave the playback range. */
-      BKE_scene_frame_clamp_to_playback_range(scene);
-    }
+    wmTimer *wt = screen->animtimer;
+    ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
+    BKE_scene_frame_clamp_to_playback_range(scene, (sad->flag & ANIMPLAY_FLAG_REVERSE) == 0);
   }
   FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
 

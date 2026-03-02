@@ -1955,23 +1955,7 @@ void ED_screen_animation_timer(
 
     sad->sfra = scene->r.cfra;
     /* Make sure that were are inside the scene or preview frame range. */
-    if (scene->r.flag & SCER_ALLOW_PREROLL) {
-      const int2 range = BKE_scene_get_playback_range(scene);
-      /* `enable` holds the playback direction. */
-      if (enable < 0) {
-        if (scene->r.cfra < range.x) {
-          scene->r.cfra = range.y;
-        }
-      }
-      else if (enable > 0) {
-        if (scene->r.cfra > range.y) {
-          scene->r.cfra = range.x;
-        }
-      }
-    }
-    else {
-      BKE_scene_frame_clamp_to_playback_range(scene);
-    }
+    BKE_scene_frame_clamp_to_playback_range(scene, enable > 0);
     if (scene->r.cfra != sad->sfra) {
       sad->flag |= ANIMPLAY_FLAG_JUMPED;
     }

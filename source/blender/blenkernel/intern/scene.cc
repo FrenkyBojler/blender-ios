@@ -2508,22 +2508,34 @@ void BKE_scene_frame_set(Scene *scene, float frame)
 
 int2 BKE_scene_get_playback_range(const Scene *scene)
 {
-  int2 range = {scene->r.sfra, scene->r.efra};
   if (scene->r.flag & SCER_PRV_RANGE) {
-    range.x = scene->r.psfra;
-    range.y = scene->r.pefra;
+    return {scene->r.psfra, scene->r.pefra};
   }
-  return range;
+  return {scene->r.sfra, scene->r.efra};
 }
 
-void BKE_scene_frame_clamp_to_playback_range(Scene *scene)
+void BKE_scene_frame_clamp_to_playback_range(Scene *scene, const bool is_playing_forward)
 {
   const int2 range = BKE_scene_get_playback_range(scene);
-
-  if (scene->r.cfra < range.x || scene->r.cfra > range.y) {
-    /* Always set to the start frame if out of playback bounds. This is to avoid the flicker to
-     * the last frame. */
-    scene->r.cfra = range.x;
+  if (scene->r.flag & SCER_ALLOW_PREROLL) {
+    if (is_playing_forward) {
+      if (scene->r.cfra > range.y) {
+        scene->r.cfra = range[0];
+      }
+    }
+    else {
+      if (scene->r.cfra < range.x) {
+        scene->r.cfra = range[1];
+      }
+    }
+  }
+  else {
+    if (is_playing_forward) {
+      scene->r.cfra = range[0];
+    }
+    else {
+      scene->r.cfra = range[1];
+    }
   }
 }
 
