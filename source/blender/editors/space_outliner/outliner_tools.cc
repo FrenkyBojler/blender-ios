@@ -238,7 +238,6 @@ static void unlink_action_fn(bContext *C,
 
   /* just set action to nullptr */
   BKE_animdata_set_action(CTX_wm_reports(C), tsep->id, nullptr);
-  DEG_id_tag_update(tsep->id, ID_RECALC_ANIMATION);
 }
 
 static void unlink_material_fn(bContext * /*C*/,
@@ -1765,7 +1764,6 @@ static void unlinkact_animdata_fn(int /*event*/,
 {
   /* just set action to nullptr */
   BKE_animdata_set_action(nullptr, tselem->id, nullptr);
-  DEG_id_tag_update(tselem->id, ID_RECALC_ANIMATION);
 }
 
 static void cleardrivers_animdata_fn(int /*event*/,
@@ -3206,7 +3204,6 @@ static void actionset_id_fn(TreeElement * /*te*/,
   if (tselem->type == TSE_ANIM_DATA) {
     /* "animation" entries - action is child of this */
     BKE_animdata_set_action(nullptr, tselem->id, act);
-    DEG_id_tag_update(tselem->id, ID_RECALC_ANIMATION);
   }
   /* TODO: if any other "expander" channels which own actions need to support this menu,
    * add: tselem->type = ...
@@ -3214,7 +3211,6 @@ static void actionset_id_fn(TreeElement * /*te*/,
   else if (tsep && (tsep->type == TSE_ANIM_DATA)) {
     /* "animation" entries case again */
     BKE_animdata_set_action(nullptr, tsep->id, act);
-    DEG_id_tag_update(tsep->id, ID_RECALC_ANIMATION);
   }
   /* TODO: other cases not supported yet. */
 }
