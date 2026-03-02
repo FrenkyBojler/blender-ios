@@ -72,22 +72,17 @@ static float3 fill_color_resolve_from_paint(const bContext *C, const bool use_se
   const Sculpt *sd = ts->sculpt;
   const Paint *paint = &sd->paint;
   const Brush *brush = BKE_paint_brush_for_read(paint);
-  auto color_from_array = [](const float color[3]) {
-    return float3(color[0], color[1], color[2]);
-  };
 
   /* Use brush colors if a brush tool is active, otherwise use unified paint colors. */
   if (WM_toolsystem_active_tool_is_brush(C) && brush) {
-    const float3 color = use_secondary_color ?
-                             color_from_array(BKE_brush_secondary_color_get(paint, brush)) :
-                             color_from_array(BKE_brush_color_get(paint, brush));
+    const float3 color = use_secondary_color ? BKE_brush_secondary_color_get(paint, brush) :
+                                               BKE_brush_color_get(paint, brush);
     return color;
   }
 
   /* Use unified paint colors when filter tool is active. */
-  const float3 color = use_secondary_color ?
-                           color_from_array(paint->unified_paint_settings.secondary_color) :
-                           color_from_array(paint->unified_paint_settings.color);
+  const float3 color = use_secondary_color ? paint->unified_paint_settings.secondary_color :
+                                             paint->unified_paint_settings.color;
   return color;
 }
 

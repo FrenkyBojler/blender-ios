@@ -8900,12 +8900,7 @@ class VIEW3D_PT_sculpt_context_menu(Panel):
         layout = self.layout
 
         paint = context.tool_settings.sculpt
-        if paint is None:
-            return
-
         brush = paint.brush
-        if brush is None:
-            return
 
         capabilities = brush.sculpt_capabilities
 

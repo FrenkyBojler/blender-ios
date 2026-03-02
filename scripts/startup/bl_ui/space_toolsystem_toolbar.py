@@ -1902,6 +1902,7 @@ class _defs_sculpt:
                 else:
                     row.prop(ups, "color", text="")
                     row.prop(ups, "secondary_color", text="")
+                    row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
 
             layout.prop(props, "strength")
 
