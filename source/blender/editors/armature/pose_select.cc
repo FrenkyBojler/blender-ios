@@ -54,6 +54,9 @@
 
 namespace blender {
 
+static bool pose_select_parents(bContext *C, const bool extend);
+static bool pose_select_children(bContext *C, const bool all, const bool extend);
+
 /* ***************** Pose Select Utilities ********************* */
 
 /* NOTE: SEL_TOGGLE is assumed to have already been handled! */
@@ -731,63 +734,15 @@ void POSE_OT_select_constraint_target(wmOperatorType *ot)
  * selected we then keep the non-active objects untouched (selected/unselected). */
 static wmOperatorStatus pose_select_hierarchy_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
-  bArmature *arm = id_cast<bArmature *>(ob->data);
-  bPoseChannel *pchan_act;
-  int direction = RNA_enum_get(op->ptr, "direction");
-  const bool add_to_sel = RNA_boolean_get(op->ptr, "extend");
+  const int direction = RNA_enum_get(op->ptr, "direction");
+  const bool extend = RNA_boolean_get(op->ptr, "extend");
   bool changed = false;
 
-  pchan_act = BKE_pose_channel_active_if_bonecoll_visible(ob);
-  if (pchan_act == nullptr) {
-    return OPERATOR_CANCELLED;
-  }
-
   if (direction == BONE_SELECT_PARENT) {
-    if (pchan_act->parent) {
-      Bone *bone_parent;
-      bone_parent = pchan_act->parent->bone;
-
-      if (animrig::bone_is_selectable(arm, bone_parent)) {
-        if (!add_to_sel) {
-          animrig::bone_deselect(pchan_act);
-        }
-        animrig::bone_select(pchan_act->parent);
-        arm->act_bone = bone_parent;
-
-        changed = true;
-      }
-    }
+    changed = pose_select_parents(C, extend);
   }
   else { /* direction == BONE_SELECT_CHILD */
-    bPoseChannel *bone_child = nullptr;
-    int pass;
-
-    /* first pass, only connected bones (the logical direct child) */
-    for (pass = 0; pass < 2 && (bone_child == nullptr); pass++) {
-      for (bPoseChannel &pchan_iter : ob->pose->chanbase) {
-        /* possible we have multiple children, some invisible */
-        if (animrig::bone_is_selectable(arm, &pchan_iter)) {
-          if (pchan_iter.parent == pchan_act) {
-            if ((pass == 1) || (pchan_iter.bone->flag & BONE_CONNECTED)) {
-              bone_child = &pchan_iter;
-              break;
-            }
-          }
-        }
-      }
-    }
-
-    if (bone_child) {
-      arm->act_bone = bone_child->bone;
-
-      if (!add_to_sel) {
-        animrig::bone_deselect(pchan_act);
-      }
-      animrig::bone_select(bone_child);
-
-      changed = true;
-    }
+    changed = pose_select_children(C, false, extend);
   }
 
   if (changed == false) {
@@ -795,8 +750,6 @@ static wmOperatorStatus pose_select_hierarchy_exec(bContext *C, wmOperator *op)
   }
 
   ED_outliner_select_sync_from_pose_bone_tag(C);
-
-  ED_pose_bone_select_tag_update(ob);
 
   return OPERATOR_FINISHED;
 }
