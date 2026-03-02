@@ -66,7 +66,7 @@ void main()
 
   fragment_displacement();
 
-  g_thickness = Thickness{.value = nodetree_thickness(), .mode = thickness_mode};
+  g_thickness = Thickness::from(nodetree_thickness(), thickness_mode);
 
   nodetree_surface(closure_rand);
 

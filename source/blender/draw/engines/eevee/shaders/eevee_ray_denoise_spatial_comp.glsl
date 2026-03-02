@@ -108,7 +108,7 @@ void main()
   float3 V = drw_world_incident_vector(P);
 
   Thickness thickness = gbuffer::read_thickness(gbuf_header, texel_fullres);
-  if (thickness.value != 0.0f) {
+  if (thickness.value() != 0.0f) {
     transmission_thickness_amend_closure(closure, V, thickness);
   }
 

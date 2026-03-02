@@ -63,8 +63,8 @@ void thickness_from_shadow_single(uint l_idx,
      * This avoids self shadowing issue. */
     hit_distance += (normal_offset + 1.0f) * texel_radius;
 
-    if ((hit_distance > gbuffer_thickness.value * 0.001f) &&
-        (hit_distance < gbuffer_thickness.value * 1.0f))
+    if ((hit_distance > gbuffer_thickness.value() * 0.001f) &&
+        (hit_distance < gbuffer_thickness.value() * 1.0f))
     {
       float weight = 1.0f;
       saturate(dot(lv.L, -Ng));
@@ -127,7 +127,7 @@ void main()
   uchar data_layer = uniform_buf.pipeline.gbuffer_additional_data_layer_id;
   float2 data_packed = imageLoad(gbuf_normal_img, int3(texel, int(data_layer))).rg;
   Thickness gbuffer_thickness = gbuffer::thickness_unpack(data_packed.x);
-  if (gbuffer_thickness.value == 0.0f) {
+  if (gbuffer_thickness.value() == 0.0f) {
     return;
   }
 
@@ -136,8 +136,9 @@ void main()
     return;
   }
 
-  if ((shadow_thickness < gbuffer_thickness.value)) {
-    data_packed.x = gbuffer::thickness_pack(Thickness{shadow_thickness, gbuffer_thickness.mode});
+  if ((shadow_thickness < gbuffer_thickness.value())) {
+    data_packed.x = gbuffer::thickness_pack(
+        Thickness::from(shadow_thickness, gbuffer_thickness.mode()));
     imageStore(gbuf_normal_img, int3(texel, int(data_layer)), float4(data_packed, 0.0f, 0.0f));
   }
 }

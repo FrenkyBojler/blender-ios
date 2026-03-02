@@ -61,10 +61,10 @@ void main()
         albedo_front += cl.color;
         break;
       case CLOSURE_BSDF_TRANSLUCENT_ID:
-        albedo_back += (thickness.value != 0.0f) ? square(cl.color) : cl.color;
+        albedo_back += (thickness.value() != 0.0f) ? square(cl.color) : cl.color;
         break;
       case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID: {
-        cl_refract.color += (thickness.value != 0.0f) ? square(cl.color) : cl.color;
+        cl_refract.color += (thickness.value() != 0.0f) ? square(cl.color) : cl.color;
         /* Average roughness and normals. */
         float weight = reduce_add(cl.color);
         cl_refract.N += cl.N * weight;

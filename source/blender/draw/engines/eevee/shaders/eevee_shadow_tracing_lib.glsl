@@ -122,8 +122,8 @@ template<typename ShadowRayType>
 bool shadow_map_trace(ShadowRayType ray, int sample_count, float step_offset)
 {
   ShadowMapTracingState state = shadow_map_trace_init(sample_count, step_offset);
-  for (int i = 0; (i <= sample_count) && (i <= SHADOW_MAX_STEP) && (state.hit == false); i++)
-  { /* Saturate to always cover the shading point position when i == sample_count. */
+  for (int i = 0; (i <= sample_count) && (i <= SHADOW_MAX_STEP) && (state.hit == false);
+       i++) { /* Saturate to always cover the shading point position when i == sample_count. */
     state.ray_time = square(saturate(float(i) * state.ray_step_mul + state.ray_step_bias));
 
     ShadowTracingSample samp = shadow_map_trace_sample(state, ray);
@@ -472,7 +472,8 @@ float shadow_eval(LightData light,
     /* Ideally, we should bias using the chosen ray direction. In practice, this conflict with our
      * shadow tile usage tagging system as the sampling position becomes heavily shifted from the
      * tagging position. This is the same thing happening with missing tiles with large radii. */
-    P += abs(is_directional ? thickness.value : min(thickness.value, distance_to_shadow - 0.01f)) *
+    P += abs(is_directional ? thickness.value() :
+                              min(thickness.value(), distance_to_shadow - 0.01f)) *
          L;
   }
   /* Avoid self intersection with respect to numerical precision. */

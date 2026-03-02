@@ -205,7 +205,7 @@ float3 bxdf_ggx_sample_vndf(float3 rand, float3 Vt, float alpha, float &G_V)
 BsdfSample bxdf_ggx_sample_refraction(
     float3 rand, float3 Vt, float alpha, float ior, Thickness thickness, const bool do_clamp)
 {
-  if (thickness.value != 0.0f) {
+  if (thickness.value() != 0.0f) {
     /* The incoming ray is inside the material for the second refraction event. */
     ior = 1.0f / ior;
   }
@@ -241,7 +241,7 @@ BsdfSample bxdf_ggx_sample_refraction(
 BsdfEval bxdf_ggx_eval_refraction(
     float3 N, float3 L, float3 V, float alpha, float ior, Thickness thickness, const bool do_clamp)
 {
-  if (thickness.value != 0.0f) {
+  if (thickness.value() != 0.0f) {
     ior = 1.0f / ior;
   }
 
@@ -371,13 +371,13 @@ LightProbeRay bxdf_ggx_lightprobe_transmission(ClosureRefraction cl, float3 V, T
   LightProbeRay probe;
   probe.perceptual_roughness = bxdf_ggx_perceived_roughness_transmission(cl.roughness, cl.ior);
   probe.dominant_direction = bxdf_ggx_dominant_direction_transmission(
-      cl.N, V, thickness.value != 0.0f ? 1.0f / cl.ior : cl.ior, probe.perceptual_roughness);
+      cl.N, V, thickness.value() != 0.0f ? 1.0f / cl.ior : cl.ior, probe.perceptual_roughness);
   return probe;
 }
 
 void bxdf_ggx_context_amend_transmission(ClosureUndetermined &cl, float3 &V, Thickness thickness)
 {
-  if (thickness.value != 0.0f) {
+  if (thickness.value() != 0.0f) {
     ClosureRefraction bsdf = to_closure_refraction(cl);
     float perceived_roughness = bxdf_ggx_perceived_roughness_transmission(bsdf.roughness,
                                                                           bsdf.ior);
@@ -389,7 +389,7 @@ void bxdf_ggx_context_amend_transmission(ClosureUndetermined &cl, float3 &V, Thi
 
 Ray bxdf_ggx_ray_amend_transmission(ClosureUndetermined cl, float3 V, Ray ray, Thickness thickness)
 {
-  if (thickness.value != 0.0f) {
+  if (thickness.value() != 0.0f) {
     ClosureRefraction bsdf = to_closure_refraction(cl);
     float perceived_roughness = bxdf_ggx_perceived_roughness_transmission(bsdf.roughness,
                                                                           bsdf.ior);
@@ -414,14 +414,14 @@ ClosureLight bxdf_ggx_light_transmission(ClosureRefraction cl, float3 V, Thickne
 {
   float perceptual_roughness = bxdf_ggx_perceived_roughness_transmission(cl.roughness, cl.ior);
 
-  if (thickness.value != 0.0f) {
+  if (thickness.value() != 0.0f) {
     float3 L = bxdf_ggx_dominant_direction_transmission(cl.N, V, cl.ior, perceptual_roughness);
     cl.N = -thickness_shape_intersect(thickness, cl.N, L).hit_N;
     V = -L;
   }
   /* Ad-hoc solution to reuse the reflection LUT. To be eventually replaced by own precomputed
    * table. */
-  float3 R = refract(-V, cl.N, (thickness.value != 0.0f) ? cl.ior : (1.0f / cl.ior));
+  float3 R = refract(-V, cl.N, (thickness.value() != 0.0f) ? cl.ior : (1.0f / cl.ior));
   float cos_theta = dot(-cl.N, R);
 
   ClosureLight light;

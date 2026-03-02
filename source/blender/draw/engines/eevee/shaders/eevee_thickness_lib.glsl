@@ -6,6 +6,34 @@
 
 #include "gpu_shader_compat.hh"
 
+enum ThicknessMode : bool { THICKNESS_MODE_SLAB = false, THICKNESS_MODE_SPHERE = true };
+
+/* Storage for object thickness, which packs both thickness value and
+ * an associated model mode (slab, sphere) through the sign bit. */
+struct Thickness {
+  float data;
+
+  static Thickness from(float value, ThicknessMode mode)
+  {
+    return {.data = (mode == THICKNESS_MODE_SLAB ? value : -value)};
+  }
+
+  static Thickness zero()
+  {
+    return {.data = 0.0f};
+  }
+
+  float value() const
+  {
+    return abs(data);
+  }
+
+  ThicknessMode mode() const
+  {
+    return data >= 0.0 ? THICKNESS_MODE_SLAB : THICKNESS_MODE_SPHERE;
+  }
+};
+
 struct ThicknessIsect {
   /* Normal at the intersection point on the sphere. */
   float3 hit_N;
@@ -45,8 +73,8 @@ ThicknessIsect thickness_plane_intersect(float plane_distance, float3 N, float3 
 
 ThicknessIsect thickness_shape_intersect(Thickness thickness, float3 N, float3 L)
 {
-  if (thickness.mode == THICKNESS_MODE_SPHERE) {
-    return thickness_sphere_intersect(thickness.value, N, L);
+  if (thickness.mode() == THICKNESS_MODE_SPHERE) {
+    return thickness_sphere_intersect(thickness.value(), N, L);
   }
-  return thickness_plane_intersect(thickness.value, N, L);
+  return thickness_plane_intersect(thickness.value(), N, L);
 }

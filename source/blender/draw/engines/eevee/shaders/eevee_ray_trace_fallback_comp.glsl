@@ -59,7 +59,7 @@ void main()
   if (closure_index == 0) {
     const gbuffer::Header gbuf_header = gbuffer::read_header(texel_fullres);
     const Thickness thickness = gbuffer::read_thickness(gbuf_header, texel_fullres);
-    if (thickness.value != 0.0f) {
+    if (thickness.value() != 0.0f) {
       ClosureUndetermined cl = gbuffer::read_bin(texel_fullres, closure_index);
       ray = raytrace_thickness_ray_amend(ray, cl, V, thickness);
     }

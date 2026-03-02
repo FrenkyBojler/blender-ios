@@ -23,6 +23,8 @@
 #include "gpu_shader_math_vector_reduce_lib.glsl"
 #include "infos/eevee_common_infos.hh"
 
+#include "eevee_thickness_lib.glsl"
+
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
@@ -182,9 +184,9 @@ float thickness_pack(Thickness thickness)
    * distance and remap to it. Or tweak the hyperbole equality. */
   /* NOTE: Sign encodes the thickness mode. */
   /* Remap [0..+inf) to [0..1/2]. */
-  float thickness_packed = thickness.value / (1.0f + 2.0f * thickness.value);
+  float thickness_packed = thickness.data / (1.0f + 2.0f * thickness.data);
   /* Mirror the negative from [0..1/2] to [1..1/2]. O is mapped to 0 for precision. */
-  return (thickness.mode == THICKNESS_MODE_SPHERE) ? 1.0f - thickness_packed : thickness_packed;
+  return thickness.data < 0.0f ? 1.0f - thickness_packed : thickness_packed;
 }
 
 Thickness thickness_unpack(float thickness_packed)
@@ -194,8 +196,7 @@ Thickness thickness_unpack(float thickness_packed)
   /* Remap [0..1/2] to [0..+inf). */
   thickness = thickness / (1.0f - 2.0f * thickness);
   /* Retrieve mode. */
-  return (thickness_packed > 0.5f) ? Thickness{thickness, THICKNESS_MODE_SPHERE} :
-                                     Thickness{thickness, THICKNESS_MODE_SLAB};
+  return {.data = (thickness_packed > 0.5f ? thickness : -thickness)};
 }
 
 /**
