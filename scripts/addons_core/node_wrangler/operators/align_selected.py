@@ -157,8 +157,13 @@ class NODE_OT_align_selected(Operator, NWBase):
         else:
             nodes = sorted(nodes, key=self.get_middle, reverse=True)
 
+
         # Alignment
-        current_pos = 0
+        if horizontal:
+            current_pos = min_x
+        else:
+            current_pos = max_y
+
         for i, node in enumerate(nodes):
 
             current_margin = 0
@@ -173,9 +178,7 @@ class NODE_OT_align_selected(Operator, NWBase):
                         self.move_children(node, target_x - node.location_absolute.x, axis="X")
                     else:
                         node.location_absolute.x = target_x
-
-                if i == 0:
-                    current_pos += self.get_left(node)
+                
                 current_pos += current_margin + self.get_width(node)
                 
                 if node.bl_idname == "NodeFrame":
@@ -185,18 +188,14 @@ class NODE_OT_align_selected(Operator, NWBase):
                 else:
                     node.location_absolute.y = mid_y + (self.get_height(node) / 2)
             else:
-                # `node.bl_height_min` is the min size of a collapsed node, +6 for the outlines and margins.
-                hide_offset = (self.get_height(node) - (node.bl_height_min + 6)) / 2 if node.hide else 0
-                
                 if i > 0:
-                    # Hidden nodes center their sockets around the label instead of below.
-                    target_y = current_pos - hide_offset
                     if node.bl_idname == "NodeFrame":
-                        self.move_children(node, target_y - node.location_absolute.y, axis="Y")
-                    node.location_absolute.y = target_y
+                        self.move_children(node, current_pos - node.location_absolute.y, axis="Y")
+                    elif node.hide:
+                        node.location_absolute.y = current_pos + (-0.5 * self.get_height(node)) + weird_offset
+                    else:
+                        node.location_absolute.y = current_pos
                 
-                if i == 0:
-                    current_pos += node.location_absolute.y
                 # Use half-margin for vertical alignment.
                 current_pos -= (current_margin * 0.3) + self.get_height(node)
 
