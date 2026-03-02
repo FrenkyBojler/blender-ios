@@ -1932,11 +1932,7 @@ static void rna_NodesModifier_node_group_update(Main *bmain, Scene *scene, Point
 static StructRNA *rna_NodesModifierProperties_refine(PointerRNA *ptr)
 {
   auto *nmd = ptr->data_as<NodesModifierData>();
-  if (!nmd->node_group) {
-    return RNA_NodesModifierPropertiesEmpty;
-  }
-  if (!nmd->node_group->runtime->geometry_nodes_modifier_srna) {
-    BLI_assert(nmd->node_group->id.tag & ID_TAG_MISSING);
+  if (!nmd->node_group || ID_MISSING(nmd->node_group)) {
     return RNA_NodesModifierPropertiesEmpty;
   }
   return nmd->node_group->runtime->geometry_nodes_modifier_srna;

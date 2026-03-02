@@ -445,10 +445,8 @@ static void update_system_properties(Object &object, NodesModifierData &nmd)
     nmd.modifier.system_properties =
         bke::idprop::create_group("NodesModifierProperties").release();
   }
-  if (nmd.node_group) {
-    if (nmd.node_group->id.tag == ID_TAG_MISSING) {
-      return;
-    }
+  if (nmd.node_group || ID_MISSING(nmd.node_group)) {
+    return;
   }
   PointerRNA properties_ptr = RNA_pointer_create_discrete(
       &object.id, RNA_NodesModifierProperties, &nmd);
