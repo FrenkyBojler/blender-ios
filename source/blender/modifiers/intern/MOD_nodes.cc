@@ -439,15 +439,25 @@ static void update_panels_from_node_group(NodesModifierData &nmd)
   nmd.panels_num = interface_panels.size();
 }
 
-void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd)
+static void update_system_properties(Object &object, NodesModifierData &nmd)
 {
-  if (!nmd->modifier.system_properties) {
-    nmd->modifier.system_properties =
+  if (!nmd.modifier.system_properties) {
+    nmd.modifier.system_properties =
         bke::idprop::create_group("NodesModifierProperties").release();
   }
+  if (nmd.node_group) {
+    if (nmd.node_group->id.tag == ID_TAG_MISSING) {
+      return;
+    }
+  }
   PointerRNA properties_ptr = RNA_pointer_create_discrete(
-      &object->id, RNA_NodesModifierProperties, nmd);
-  RNA_sync_system_properties(properties_ptr, *nmd->modifier.system_properties);
+      &object.id, RNA_NodesModifierProperties, &nmd);
+  RNA_sync_system_properties(properties_ptr, *nmd.modifier.system_properties);
+}
+
+void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd)
+{
+  update_system_properties(*object, *nmd);
   update_bakes_from_node_group(*nmd);
   update_panels_from_node_group(*nmd);
   nmd->runtime->usage_cache.reset();

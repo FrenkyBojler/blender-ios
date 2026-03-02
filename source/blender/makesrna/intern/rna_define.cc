@@ -1046,6 +1046,10 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
     }
 
     prop = RNA_def_property(&srna->cont, "rna_type", PROP_POINTER, PROP_NONE);
+    prop->flag_internal |= PROP_INTERN_BUILTIN;
+    if (srna->cont.prop_lookup_set) {
+      srna->cont.prop_lookup_set->remove_as(prop->identifier);
+    }
     RNA_def_property_flag(prop, PROP_HIDDEN);
     RNA_def_property_ui_text(prop, "RNA", "RNA type definition");
 
