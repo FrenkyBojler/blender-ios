@@ -1,0 +1,1 @@
+Referenced by pull request #155061, Fix: bpy.ops.render.render(write_still=True) broken after recent changes
