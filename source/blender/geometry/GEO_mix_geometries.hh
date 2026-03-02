@@ -9,16 +9,15 @@
 
 namespace blender::geometry {
 
-/**
- * Mixes both geometries if possible (e.g. if corresponding meshes have the same number of
- * vertices).
- *
- * If mixing is not possible, the geometry from the `a` input is returned.
- */
 void mix_geometries(bke::GeometrySet &a, const bke::GeometrySet &b, float factor);
 
 void mix_bundles(nodes::Bundle &a, const nodes::Bundle &b, float factor);
 
+/**
+ * Mixes both geometries if possible (e.g. if corresponding meshes have the same number of
+ * vertices), or index mapping is possible via the `id` attribute. Also mix single values, lists,
+ * and bundle item values when types are compatible.
+ */
 void mix_socket_values(bke::SocketValueVariant &a,
                        const bke::SocketValueVariant &b,
                        const float factor);
