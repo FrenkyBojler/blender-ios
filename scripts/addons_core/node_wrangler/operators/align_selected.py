@@ -126,6 +126,9 @@ class NODE_OT_align_selected(Operator, NWBase):
     def move_children(self, frame, offset, axis):
         children = self.frame_children(frame)
         
+        if -1.0 < offset < 1.0:
+            return
+
         for node in children:
             if node.bl_static_type == 'FRAME':
                 self.move_children(node, offset, axis)
