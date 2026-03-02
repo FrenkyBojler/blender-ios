@@ -180,11 +180,12 @@ class NODE_OT_align_selected(Operator, NWBase):
                     current_pos += self.get_left(node)
                 current_pos += current_margin + self.get_width(node)
                 
-                target_y = mid_y + (self.get_height(node) / 2)
                 if node.bl_idname == "NodeFrame":
-                    self.move_children(node, target_y - node.location_absolute.y, axis="Y")
+                    self.move_children(node, mid_y + (self.get_height(node) / 2) - node.location_absolute.y, axis="Y")
+                elif node.hide:
+                    node.location_absolute.y = mid_y + weird_offset
                 else:
-                    node.location_absolute.y = target_y
+                    node.location_absolute.y = mid_y + (self.get_height(node) / 2)
             else:
                 # `node.bl_height_min` is the min size of a collapsed node, +6 for the outlines and margins.
                 hide_offset = (self.get_height(node) - (node.bl_height_min + 6)) / 2 if node.hide else 0
