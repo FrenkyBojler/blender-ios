@@ -63,6 +63,11 @@ class Shader {
   /* WORKAROUND: True if this shader is a polyline shader and needs an appropriate setup to render.
    * Eventually, in the future, we should modify the user code instead of relying on such hacks. */
   bool is_polyline = false;
+  /* WORKAROUND: Skip preprocessor for shader that we can't ensure the content.
+   * This avoid crashes until we make the preprocessor robust to errors.
+   * Also the preprocessor doesn't support forward declaration at the moment and needs manual
+   * tweaking. */
+  bool skip_preprocessor = false;
 
  protected:
   /** For debugging purpose. */
@@ -143,6 +148,8 @@ class Shader {
                                   StringRef shader_name_with_stage_name,
                                   StringRef extension,
                                   StringRef source);
+
+  static std::string run_preprocessor(StringRef source);
 
  protected:
   void print_log(Span<StringRefNull> sources,

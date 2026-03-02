@@ -17,7 +17,6 @@ set(INC
 )
 
 set(INC_SYS
-
 )
 
 set(SRC
@@ -46,6 +45,8 @@ set(SRC
   SEQ_utils.hh
 
   intern/animation.cc
+  intern/cache/compositor_cache.cc
+  intern/cache/compositor_cache.hh
   intern/cache/final_image_cache.cc
   intern/cache/final_image_cache.hh
   intern/cache/intra_frame_cache.cc
@@ -60,6 +61,7 @@ set(SRC
   intern/effects/vse_effect_add_sub_mul.cc
   intern/effects/vse_effect_adjustment.cc
   intern/effects/vse_effect_blend.cc
+  intern/effects/vse_effect_compositor.cc
   intern/effects/vse_effect_cross.cc
   intern/effects/vse_effect_gaussian_blur.cc
   intern/effects/vse_effect_glow.cc
@@ -108,6 +110,8 @@ set(SRC
   intern/strip_transform.cc
   intern/utils.cc
   intern/utils.hh
+  intern/vse_compositor.cc
+  intern/vse_compositor.hh
 )
 
 set(LIB
@@ -118,7 +122,8 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::draw
+  PRIVATE bf::extern::xxhash
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
@@ -129,25 +134,13 @@ set(LIB
   PRIVATE bf::render
   PRIVATE bf::windowmanager
   bf_compositor
+  PRIVATE bf::dependencies::optional::audaspace
+  PRIVATE bf::dependencies::optional::fftw3
 )
 
 if(WITH_AUDASPACE)
-  list(APPEND INC_SYS
-    ${AUDASPACE_C_INCLUDE_DIRS}
-  )
-  if(WITH_SYSTEM_AUDASPACE)
-    list(APPEND LIB
-      ${AUDASPACE_C_LIBRARIES}
-      ${AUDASPACE_PY_LIBRARIES}
-    )
-  endif()
-  add_definitions(-DWITH_AUDASPACE)
-
   if(WITH_FFTW3)
     add_definitions(-DWITH_CONVOLUTION)
-  endif()
-  if(WITH_RUBBERBAND)
-    add_definitions(-DWITH_RUBBERBAND)
   endif()
 endif()
 

@@ -37,7 +37,7 @@
 #include "ED_transform_snap_object_context.hh"
 #include "ED_view3d.hh"
 
-#include "GHOST_Types.h"
+#include "GHOST_Types.hh"
 
 #include "GPU_immediate.hh"
 #include "GPU_state.hh"
@@ -187,13 +187,13 @@ static void wm_xr_grab_init(wmOperator *op)
 {
   BLI_assert(op->customdata == nullptr);
 
-  op->customdata = MEM_callocN<XrGrabData>(__func__);
+  op->customdata = MEM_new_zeroed<XrGrabData>(__func__);
 }
 
 static void wm_xr_grab_uninit(wmOperator *op)
 {
   XrGrabData *data = static_cast<XrGrabData *>(op->customdata);
-  MEM_SAFE_FREE(data);
+  MEM_SAFE_DELETE(data);
   op->customdata = nullptr;
 }
 
@@ -661,7 +661,7 @@ static void wm_xr_fly_init(wmOperator *op, const wmXrData *xr)
 {
   BLI_assert(op->customdata == nullptr);
 
-  XrFlyData *data = MEM_callocN<XrFlyData>(__func__);
+  XrFlyData *data = MEM_new_zeroed<XrFlyData>(__func__);
   op->customdata = data;
 
   WM_xr_session_state_viewer_pose_rotation_get(xr, data->viewer_rot);
@@ -671,7 +671,7 @@ static void wm_xr_fly_init(wmOperator *op, const wmXrData *xr)
 static void wm_xr_fly_uninit(wmOperator *op)
 {
   XrFlyData *data = static_cast<XrFlyData *>(op->customdata);
-  MEM_SAFE_FREE(data);
+  MEM_SAFE_DELETE(data);
   op->customdata = nullptr;
 }
 
@@ -1348,8 +1348,7 @@ static void wm_xr_navigation_teleport_data_update(wmOperator *op,
   data->teleportation_scale = nav_scale;
 }
 
-static void wm_xr_navigation_teleport_raycast(Scene *scene,
-                                              Depsgraph *depsgraph,
+static void wm_xr_navigation_teleport_raycast(Depsgraph *depsgraph,
                                               const float origin[3],
                                               const float direction[3],
                                               float *ray_dist,
@@ -1361,7 +1360,7 @@ static void wm_xr_navigation_teleport_raycast(Scene *scene,
                                               float r_obmat[4][4])
 {
   /* Uses same raycast method as Scene.ray_cast(). */
-  ed::transform::SnapObjectContext *sctx = ed::transform::snap_object_context_create(scene, 0);
+  ed::transform::SnapObjectContext *sctx = ed::transform::snap_object_context_create();
 
   ed::transform::SnapObjectParams params{};
   params.snap_target_select = (selectable_only ? SCE_SNAP_TARGET_ONLY_SELECTABLE :
@@ -1468,8 +1467,7 @@ static XrTeleportRayResult wm_xr_navigation_teleport_arc_scene_intersect(bContex
     float3 hit_location;
     float3 hit_normal;
     const Object *ob = nullptr;
-    wm_xr_navigation_teleport_raycast(CTX_data_scene(C),
-                                      CTX_data_ensure_evaluated_depsgraph(C),
+    wm_xr_navigation_teleport_raycast(CTX_data_ensure_evaluated_depsgraph(C),
                                       segment_origin,
                                       segment_direction,
                                       &segment_ray_length,

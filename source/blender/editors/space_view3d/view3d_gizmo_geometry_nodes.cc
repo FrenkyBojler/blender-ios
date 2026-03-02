@@ -776,7 +776,7 @@ struct GeoNodesObjectGizmoID {
   const Object *object_orig;
   bke::NodeGizmoID gizmo_id;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(GeoNodesObjectGizmoID, object_orig, gizmo_id)
+  friend bool operator==(const GeoNodesObjectGizmoID &a, const GeoNodesObjectGizmoID &b) = default;
 
   uint64_t hash() const
   {
@@ -912,7 +912,7 @@ static bool WIDGETGROUP_geometry_nodes_poll(const bContext *C, wmGizmoGroupType 
 {
   ScrArea *area = CTX_wm_area(C);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
-  if (v3d->gizmo_flag & V3D_GIZMO_HIDE_MODIFIER) {
+  if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_MODIFIER)) {
     return false;
   }
   return true;

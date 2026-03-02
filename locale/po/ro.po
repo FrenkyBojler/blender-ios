@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-05 11:52+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2025-09-04 22:59+0000\n"
 "Last-Translator: Dominic Iastrebschi <domjotebit@gmail.com>\n"
 "Language-Team: Romanian <https://translate.blender.org/projects/blender-ui/ui/ro/>\n"
@@ -2136,14 +2136,6 @@ msgid "UV"
 msgstr "UV"
 
 
-msgid "Light"
-msgstr "Lumină"
-
-
-msgid "Add Image"
-msgstr "Adăugare Imagine"
-
-
 msgid "Apply"
 msgstr "Aplicare"
 
@@ -2158,6 +2150,14 @@ msgstr "Aspect"
 
 msgid "Tracking"
 msgstr "Urmărire"
+
+
+msgid "Light"
+msgstr "Lumină"
+
+
+msgid "Add Image"
+msgstr "Adăugare Imagine"
 
 
 msgid "Marker"
@@ -3191,10 +3191,6 @@ msgid "%d items"
 msgstr "%d obiecte"
 
 
-msgid "Value:"
-msgstr "Valoare:"
-
-
 msgid "Hex"
 msgstr "Hex"
 
@@ -3567,6 +3563,10 @@ msgstr "Nume fișier"
 
 msgid "Driver Value:"
 msgstr "Valoare Driver:"
+
+
+msgid "Value:"
+msgstr "Valoare:"
 
 
 msgid "Delete target variable"

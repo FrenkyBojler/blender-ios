@@ -158,7 +158,7 @@ Scene *BKE_scene_find_replacement(
 bool BKE_scene_has_view_layer(const Scene *scene, const ViewLayer *layer);
 Scene *BKE_scene_find_from_collection(const Main *bmain, const Collection *collection);
 
-Object *BKE_scene_camera_switch_find(Scene *scene);
+Object *BKE_scene_camera_switch_find(const Scene *scene, const int time);
 bool BKE_scene_camera_switch_update(Scene *scene);
 
 const char *BKE_scene_find_marker_name(const Scene *scene, int frame);
@@ -297,7 +297,7 @@ void BKE_scene_multiview_view_filepath_get(const RenderData *rd,
                                            char *r_filepath);
 const char *BKE_scene_multiview_view_suffix_get(const RenderData *rd, const char *viewname);
 const char *BKE_scene_multiview_view_id_suffix_get(const RenderData *rd, int view_id);
-void BKE_scene_multiview_view_prefix_get(Scene *scene,
+void BKE_scene_multiview_view_prefix_get(const Scene *scene,
                                          const char *filepath,
                                          char *r_prefix,
                                          const char **r_ext);

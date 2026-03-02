@@ -296,7 +296,7 @@ bool ED_operator_region_view3d_active(bContext *C)
     return true;
   }
 
-  CTX_wm_operator_poll_msg_set(C, "expected a view3d region");
+  CTX_wm_operator_poll_msg_set(C, "Expected a view3d region");
   return false;
 }
 
@@ -322,7 +322,7 @@ bool ED_operator_animview_active(bContext *C)
     }
   }
 
-  CTX_wm_operator_poll_msg_set(C, "expected a timeline/animation area to be active");
+  CTX_wm_operator_poll_msg_set(C, "Expected a timeline/animation area to be active");
   return false;
 }
 
@@ -392,6 +392,11 @@ bool ED_operator_action_active(bContext *C)
 bool ED_operator_buttons_active(bContext *C)
 {
   return ed_spacetype_test(C, SPACE_PROPERTIES);
+}
+
+bool ED_operator_preferences_active(bContext *C)
+{
+  return ed_spacetype_test(C, SPACE_USERPREF);
 }
 
 bool ED_operator_node_active(bContext *C)
@@ -546,7 +551,7 @@ bool ED_operator_editmesh_region_view3d(bContext *C)
     return true;
   }
 
-  CTX_wm_operator_poll_msg_set(C, "expected a view3d region & editmesh");
+  CTX_wm_operator_poll_msg_set(C, "Expected a view3d region & editmesh");
   return false;
 }
 
@@ -686,7 +691,7 @@ bool ED_operator_editsurfcurve_region_view3d(bContext *C)
     return true;
   }
 
-  CTX_wm_operator_poll_msg_set(C, "expected a view3d region & editcurve");
+  CTX_wm_operator_poll_msg_set(C, "Expected a view3d region & editcurve");
   return false;
 }
 
@@ -727,7 +732,7 @@ bool ED_operator_editfont(bContext *C)
       return true;
     }
   }
-  CTX_wm_operator_poll_msg_set(C, "expected an active edit-font object");
+  CTX_wm_operator_poll_msg_set(C, "Expected an active edit-font object");
   return false;
 }
 
@@ -751,7 +756,7 @@ bool ED_operator_editmball(bContext *C)
 
 bool ED_operator_camera_poll(bContext *C)
 {
-  Camera *cam = static_cast<Camera *>(CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
+  Camera *cam = static_cast<Camera *>(CTX_data_pointer_get_type(C, "camera", RNA_Camera).data);
   return (cam != nullptr && ID_IS_EDITABLE(cam));
 }
 
@@ -1132,7 +1137,7 @@ static void actionzone_exit(wmOperator *op)
 {
   sActionzoneData *sad = static_cast<sActionzoneData *>(op->customdata);
   if (sad) {
-    MEM_freeN(sad);
+    MEM_delete(sad);
   }
   op->customdata = nullptr;
 
@@ -1182,7 +1187,7 @@ static wmOperatorStatus actionzone_invoke(bContext *C, wmOperator *op, const wmE
 
   /* ok we do the action-zone */
   sActionzoneData *sad = static_cast<sActionzoneData *>(
-      op->customdata = MEM_callocN<sActionzoneData>("sActionzoneData"));
+      op->customdata = MEM_new_zeroed<sActionzoneData>("sActionzoneData"));
   sad->sa1 = screen_actionzone_area(screen, az);
   sad->az = az;
   sad->x = event->xy[0];
@@ -1443,7 +1448,7 @@ static bool area_swap_init(wmOperator *op, const wmEvent *event)
     return false;
   }
 
-  sAreaSwapData *sd = MEM_callocN<sAreaSwapData>("sAreaSwapData");
+  sAreaSwapData *sd = MEM_new_zeroed<sAreaSwapData>("sAreaSwapData");
   sd->sa1 = sad->sa1;
   sd->sa2 = sad->sa2;
   op->customdata = sd;
@@ -1454,7 +1459,7 @@ static bool area_swap_init(wmOperator *op, const wmEvent *event)
 static void area_swap_exit(bContext *C, wmOperator *op)
 {
   sAreaSwapData *sd = static_cast<sAreaSwapData *>(op->customdata);
-  MEM_freeN(sd);
+  MEM_delete(sd);
   op->customdata = nullptr;
 
   WM_cursor_modal_restore(CTX_wm_window(C));
@@ -1886,7 +1891,7 @@ static void area_move_out_draw_cb(const wmWindow *win, void *userdata)
   float factor = 1.0f;
   if (now > md->end_time) {
     WM_draw_cb_exit(md->win, md->draw_callback);
-    MEM_freeN(md);
+    MEM_delete(md);
     return;
   }
   if (now < md->end_time) {
@@ -1924,7 +1929,7 @@ static bool area_move_init(bContext *C, wmOperator *op)
     return false;
   }
 
-  sAreaMoveData *md = MEM_callocN<sAreaMoveData>("sAreaMoveData");
+  sAreaMoveData *md = MEM_new_zeroed<sAreaMoveData>("sAreaMoveData");
   op->customdata = md;
 
   const int xy[2] = {x, y};
@@ -2487,7 +2492,7 @@ static void area_split_draw_cb(const wmWindow * /*win*/, void *userdata)
 static bool area_split_menu_init(bContext *C, wmOperator *op)
 {
   /* custom data */
-  sAreaSplitData *sd = MEM_callocN<sAreaSplitData>("op_area_split");
+  sAreaSplitData *sd = MEM_new_zeroed<sAreaSplitData>("op_area_split");
   op->customdata = sd;
 
   sd->sarea = CTX_wm_area(C);
@@ -2509,7 +2514,7 @@ static bool area_split_init(bContext *C, wmOperator *op)
   const eScreenAxis dir_axis = eScreenAxis(RNA_enum_get(op->ptr, "direction"));
 
   /* custom data */
-  sAreaSplitData *sd = MEM_callocN<sAreaSplitData>("op_area_split");
+  sAreaSplitData *sd = MEM_new_zeroed<sAreaSplitData>("op_area_split");
   op->customdata = sd;
 
   sd->sarea = area;
@@ -2620,7 +2625,7 @@ static void area_split_exit(bContext *C, wmOperator *op)
       WM_draw_cb_exit(CTX_wm_window(C), sd->draw_callback);
     }
 
-    MEM_freeN(sd);
+    MEM_delete(sd);
     op->customdata = nullptr;
   }
 
@@ -3030,7 +3035,7 @@ static void region_scale_exit(wmOperator *op)
   RegionMoveData *rmd = static_cast<RegionMoveData *>(op->customdata);
   WM_draw_cb_exit(rmd->win, rmd->draw_callback);
 
-  MEM_freeN(rmd);
+  MEM_delete(rmd);
   op->customdata = nullptr;
 
   screen_modal_action_end();
@@ -3048,7 +3053,7 @@ static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const w
   AZone *az = sad->az;
 
   if (az->region) {
-    RegionMoveData *rmd = MEM_callocN<RegionMoveData>("RegionMoveData");
+    RegionMoveData *rmd = MEM_new_zeroed<RegionMoveData>("RegionMoveData");
 
     op->customdata = rmd;
 
@@ -3136,7 +3141,7 @@ static void region_scale_validate_size(RegionMoveData *rmd)
   }
 }
 
-static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd)
+static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd, bool do_fade = false)
 {
   /* hidden areas may have bad 'View2D.cur' value,
    * correct before displaying. see #45156 */
@@ -3144,7 +3149,7 @@ static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd)
     ui::view2d_curRect_validate(&rmd->region->v2d);
   }
 
-  region_toggle_hidden(C, rmd->region, false);
+  region_toggle_hidden(C, rmd->region, do_fade);
   region_scale_validate_size(rmd);
 
   if ((rmd->region->flag & RGN_FLAG_HIDDEN) == 0) {
@@ -3154,7 +3159,7 @@ static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd)
         if ((region_tool_header->flag & RGN_FLAG_HIDDEN_BY_USER) == 0 &&
             (region_tool_header->flag & RGN_FLAG_HIDDEN) != 0)
         {
-          region_toggle_hidden(C, region_tool_header, false);
+          region_toggle_hidden(C, region_tool_header, do_fade);
         }
       }
     }
@@ -3210,7 +3215,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
           }
         }
         else if (rmd->region->flag & RGN_FLAG_HIDDEN) {
-          region_scale_toggle_hidden(C, rmd);
+          region_scale_toggle_hidden(C, rmd, true);
         }
 
         /* Hiding/unhiding is handled above, but still fix the size as requested. */
@@ -3259,7 +3264,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
           }
         }
         else if (rmd->region->flag & RGN_FLAG_HIDDEN) {
-          region_scale_toggle_hidden(C, rmd);
+          region_scale_toggle_hidden(C, rmd, true);
         }
 
         /* Hiding/unhiding is handled above, but still fix the size as requested. */
@@ -3291,7 +3296,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
       if (event->val == KM_RELEASE) {
         if (len_manhattan_v2v2_int(event->xy, rmd->orig_xy) <= WM_event_drag_threshold(event)) {
           if (rmd->region->flag & RGN_FLAG_HIDDEN) {
-            region_scale_toggle_hidden(C, rmd);
+            region_scale_toggle_hidden(C, rmd, true);
           }
           else if (rmd->region->flag & RGN_FLAG_TOO_SMALL) {
             region_scale_validate_size(rmd);
@@ -3367,7 +3372,7 @@ struct QuadViewSizeData {
 static void quadview_size_exit(wmOperator *op)
 {
   QuadViewSizeData *qsd = static_cast<QuadViewSizeData *>(op->customdata);
-  MEM_freeN(qsd);
+  MEM_delete(qsd);
   op->customdata = nullptr;
   screen_modal_action_end();
 }
@@ -3382,7 +3387,7 @@ static wmOperatorStatus quadview_size_invoke(bContext *C, wmOperator *op, const 
   }
 
   if (sad->sa1) {
-    QuadViewSizeData *qsd = MEM_callocN<QuadViewSizeData>("QuadViewSizeData");
+    QuadViewSizeData *qsd = MEM_new_zeroed<QuadViewSizeData>("QuadViewSizeData");
     op->customdata = qsd;
     qsd->area = sad->sa1;
     qsd->region = sad->az->region;
@@ -4243,7 +4248,7 @@ static bool area_join_init(bContext *C, wmOperator *op, ScrArea *sa1, ScrArea *s
     return false;
   }
 
-  sAreaJoinData *jd = MEM_callocN<sAreaJoinData>("op_area_join");
+  sAreaJoinData *jd = MEM_new_zeroed<sAreaJoinData>("op_area_join");
   jd->sa1 = sa1;
   jd->sa2 = sa2;
   jd->dir = area_getorientation(sa1, sa2);
@@ -4312,7 +4317,7 @@ static void area_join_exit(bContext *C, wmOperator *op)
       WM_draw_cb_exit(jd->draw_dock_win, jd->draw_dock_callback);
     }
 
-    MEM_freeN(jd);
+    MEM_delete(jd);
     op->customdata = nullptr;
   }
 
@@ -5073,7 +5078,7 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
         wmWindow *close_win = jd->win1;
         area_join_exit(C, op);
         if (do_close_win) {
-          wm_window_close(C, CTX_wm_manager(C), close_win);
+          wm_window_close_request(C, CTX_wm_manager(C), close_win);
         }
 
         WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
@@ -5806,7 +5811,7 @@ void ED_screens_header_tools_menu_create(bContext *C, ui::Layout *layout, void *
   ScrArea *area = CTX_wm_area(C);
   {
     PointerRNA ptr = RNA_pointer_create_discrete(
-        id_cast<ID *>(CTX_wm_screen(C)), &RNA_Space, area->spacedata.first);
+        id_cast<ID *>(CTX_wm_screen(C)), RNA_Space, area->spacedata.first);
     if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
       layout->prop(&ptr, "show_region_header", UI_ITEM_NONE, IFACE_("Show Header"), ICON_NONE);
     }
@@ -5839,7 +5844,7 @@ void ED_screens_footer_tools_menu_create(bContext *C, ui::Layout *layout, void *
 
   {
     PointerRNA ptr = RNA_pointer_create_discrete(
-        id_cast<ID *>(CTX_wm_screen(C)), &RNA_Space, area->spacedata.first);
+        id_cast<ID *>(CTX_wm_screen(C)), RNA_Space, area->spacedata.first);
     layout->prop(&ptr, "show_region_footer", UI_ITEM_NONE, IFACE_("Show Footer"), ICON_NONE);
   }
 
@@ -5865,7 +5870,7 @@ void ED_screens_region_flip_menu_create(bContext *C, ui::Layout *layout, void * 
 
 static void ed_screens_statusbar_menu_create(ui::Layout &layout, void * /*arg*/)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_PreferencesView, &U);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_PreferencesView, &U);
   layout.prop(&ptr, "show_statusbar_stats", UI_ITEM_NONE, IFACE_("Scene Statistics"), ICON_NONE);
   layout.prop(
       &ptr, "show_statusbar_scene_duration", UI_ITEM_NONE, IFACE_("Scene Duration"), ICON_NONE);
@@ -6275,6 +6280,8 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
 #endif
   }
 
+  WM_event_add_notifier(C, NC_SCREEN | ND_ANIMATION_PLAYBACK, screen);
+
   ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
   /* Since we follow draw-flags, we can't send notifier but tag regions ourselves. */
@@ -6390,6 +6397,19 @@ void ED_reset_audio_device(bContext *C)
   }
 }
 
+wmWindow *ED_window_animation_playing_no_scrub(const wmWindowManager *wm)
+{
+  for (wmWindow &win : wm->windows) {
+    bScreen *screen = WM_window_get_active_screen(&win);
+
+    if (screen->animtimer) {
+      return &win;
+    }
+  }
+
+  return nullptr;
+}
+
 bScreen *ED_screen_animation_playing(const wmWindowManager *wm)
 {
   for (wmWindow &win : wm->windows) {
@@ -6401,6 +6421,22 @@ bScreen *ED_screen_animation_playing(const wmWindowManager *wm)
   }
 
   return nullptr;
+}
+
+Scene *ED_screen_find_playing_scene(const bScreen *screen, const bool scrub)
+{
+  if (!screen->animtimer) {
+    return nullptr;
+  }
+  wmTimer *wt = screen->animtimer;
+  ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
+  if (scrub) {
+    if (screen->scrubbing) {
+      return sad->scene;
+    }
+    return nullptr;
+  }
+  return sad->scene;
 }
 
 bScreen *ED_screen_animation_no_scrub(const wmWindowManager *wm)
@@ -6541,17 +6577,19 @@ static wmOperatorStatus screen_animation_cancel_exec(bContext *C, wmOperator *op
   if (screen) {
     bool restore_start_frame = RNA_boolean_get(op->ptr, "restore_frame") && screen->animtimer;
     int frame;
+    Scene *scene;
     if (restore_start_frame) {
       ScreenAnimData *sad = static_cast<ScreenAnimData *>(screen->animtimer->customdata);
       frame = sad->sfra;
+      scene = sad->scene;
     }
 
     /* Stop playback */
     ED_screen_animation_play(C, 0, 0);
     if (restore_start_frame) {
-      Scene *scene = CTX_data_scene(C);
       /* reset current frame and just send a notifier to deal with the rest */
       scene->r.cfra = frame;
+      ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
       WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
     }
   }
@@ -6694,7 +6732,7 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   if (prop && RNA_property_is_set(op->ptr, prop)) {
     /* Set active section via RNA, so it can fail properly. */
 
-    PointerRNA pref_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Preferences, &U);
+    PointerRNA pref_ptr = RNA_pointer_create_discrete(nullptr, RNA_Preferences, &U);
     PropertyRNA *active_section_prop = RNA_struct_find_property(&pref_ptr, "active_section");
 
     RNA_property_enum_set(&pref_ptr, active_section_prop, RNA_property_enum_get(op->ptr, prop));
@@ -6928,7 +6966,7 @@ struct RegionAlphaInfo {
   int hidden;
 };
 
-#define TIMEOUT 0.1f
+#define TIMEOUT 0.22f
 #define TIMESTEP (1.0f / 60.0f)
 
 float ED_region_blend_alpha(ARegion *region)
@@ -6995,7 +7033,7 @@ void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARe
 
     region_blend_end(C, region, true);
   }
-  RegionAlphaInfo *rgi = MEM_callocN<RegionAlphaInfo>("RegionAlphaInfo");
+  RegionAlphaInfo *rgi = MEM_new_zeroed<RegionAlphaInfo>("RegionAlphaInfo");
 
   rgi->hidden = region->flag & RGN_FLAG_HIDDEN;
   rgi->area = area;
@@ -7081,7 +7119,7 @@ static wmOperatorStatus space_type_set_or_cycle_exec(bContext *C, wmOperator *op
   const int space_type = RNA_enum_get(op->ptr, "space_type");
 
   ScrArea *area = CTX_wm_area(C);
-  PointerRNA ptr = RNA_pointer_create_discrete(id_cast<ID *>(CTX_wm_screen(C)), &RNA_Area, area);
+  PointerRNA ptr = RNA_pointer_create_discrete(id_cast<ID *>(CTX_wm_screen(C)), RNA_Area, area);
   PropertyRNA *prop_type = RNA_struct_find_property(&ptr, "type");
   PropertyRNA *prop_ui_type = RNA_struct_find_property(&ptr, "ui_type");
 
@@ -7109,7 +7147,7 @@ static wmOperatorStatus space_type_set_or_cycle_exec(bContext *C, wmOperator *op
       }
     }
     if (free) {
-      MEM_freeN(item);
+      MEM_delete(item);
     }
   }
 
@@ -7317,11 +7355,11 @@ static void context_cycle_prop_get(bScreen *screen,
   switch (area->spacetype) {
     case SPACE_PROPERTIES:
       *r_ptr = RNA_pointer_create_discrete(
-          &screen->id, &RNA_SpaceProperties, area->spacedata.first);
+          &screen->id, RNA_SpaceProperties, area->spacedata.first);
       propname = "context";
       break;
     case SPACE_USERPREF:
-      *r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Preferences, &U);
+      *r_ptr = RNA_pointer_create_discrete(nullptr, RNA_Preferences, &U);
       propname = "active_section";
       break;
     default:
@@ -7563,7 +7601,7 @@ static std::string screen_drop_scene_tooltip(bContext * /*C*/,
                                                  [2],
                                              wmDropBox * /*drop*/)
 {
-  const char *dragged_scene_name = WM_drag_get_item_name(drag);
+  const std::string dragged_scene_name = WM_drag_get_item_name(drag);
   wmDragAsset *asset_drag = WM_drag_get_asset_data(drag, ID_SCE);
   if (asset_drag) {
     switch (asset_drag->import_settings.method) {

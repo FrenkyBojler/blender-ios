@@ -150,7 +150,7 @@ static PointerRNA rna_ParticleEdit_brush_get(PointerRNA *ptr)
 
   brush = &pset->brush[pset->brushtype];
 
-  return RNA_pointer_create_with_parent(*ptr, &RNA_ParticleBrush, brush);
+  return RNA_pointer_create_with_parent(*ptr, RNA_ParticleBrush, brush);
 }
 
 static PointerRNA rna_ParticleBrush_curve_get(PointerRNA * /*ptr*/)
@@ -217,28 +217,30 @@ static const EnumPropertyItem *rna_ParticleEdit_tool_itemf(bContext *C,
                                                            PropertyRNA * /*prop*/,
                                                            bool * /*r_free*/)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Object *ob = BKE_view_layer_active_object_get(view_layer);
+  if (C) {
+    const Scene *scene = CTX_data_scene(C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
+    BKE_view_layer_synced_ensure(scene, view_layer);
+    Object *ob = BKE_view_layer_active_object_get(view_layer);
 #  if 0
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Scene *scene = CTX_data_scene(C);
   PTCacheEdit *edit = PE_get_current(depsgraph, scene, ob);
   ParticleSystem *psys = edit ? edit->psys : nullptr;
 #  else
-  /* use this rather than PE_get_current() - because the editing cache is
-   * dependent on the cache being updated which can happen after this UI
-   * draws causing a glitch #28883. */
-  ParticleSystem *psys = psys_get_current(ob);
+    /* use this rather than PE_get_current() - because the editing cache is
+     * dependent on the cache being updated which can happen after this UI
+     * draws causing a glitch #28883. */
+    ParticleSystem *psys = psys_get_current(ob);
 #  endif
 
-  if (psys) {
-    if (psys->flag & PSYS_GLOBAL_HAIR) {
-      return rna_enum_particle_edit_disconnected_hair_brush_items;
-    }
-    else {
-      return rna_enum_particle_edit_hair_brush_items;
+    if (psys) {
+      if (psys->flag & PSYS_GLOBAL_HAIR) {
+        return rna_enum_particle_edit_disconnected_hair_brush_items;
+      }
+      else {
+        return rna_enum_particle_edit_hair_brush_items;
+      }
     }
   }
 
@@ -436,12 +438,6 @@ static void rna_ImaPaint_stencil_update(bContext *C, PointerRNA * /*ptr*/)
   }
 }
 
-static bool rna_ImaPaint_imagetype_poll(PointerRNA * /*ptr*/, PointerRNA value)
-{
-  Image *image = id_cast<Image *>(value.owner_id);
-  return image->type != IMA_TYPE_R_RESULT && image->type != IMA_TYPE_COMPOSITE;
-}
-
 static void rna_ImaPaint_canvas_update(bContext *C, PointerRNA * /*ptr*/)
 {
   Main *bmain = CTX_data_main(C);
@@ -473,12 +469,6 @@ static void rna_UvSculpt_curve_preset_set(PointerRNA *ptr, int value)
 
 /** \name Paint mode settings
  * \{ */
-
-static bool rna_PaintModeSettings_canvas_image_poll(PointerRNA * /*ptr*/, PointerRNA value)
-{
-  Image *image = id_cast<Image *>(value.owner_id);
-  return !ELEM(image->type, IMA_TYPE_COMPOSITE, IMA_TYPE_R_RESULT);
-}
 
 static void rna_PaintModeSettings_canvas_source_update(bContext *C, PointerRNA * /*ptr*/)
 {
@@ -1405,7 +1395,7 @@ static void rna_def_paint_mode(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "canvas_image", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_funcs(
-      prop, nullptr, nullptr, nullptr, "rna_PaintModeSettings_canvas_image_poll");
+      prop, nullptr, nullptr, nullptr, "rna_Image_no_renderresult_or_viewer_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Texture", "Image used as painting target");
 }
@@ -1485,20 +1475,23 @@ static void rna_def_image_paint(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Stencil Image", "Image used as stencil");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, "rna_ImaPaint_stencil_update");
-  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_ImaPaint_imagetype_poll");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_Image_no_renderresult_or_viewer_poll");
 
   prop = RNA_def_property(srna, "canvas", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Canvas", "Image used as canvas");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, "rna_ImaPaint_canvas_update");
-  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_ImaPaint_imagetype_poll");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_Image_no_renderresult_or_viewer_poll");
 
   prop = RNA_def_property(srna, "clone_image", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "clone");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Clone Image", "Image used as clone source");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_ImaPaint_imagetype_poll");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_Image_no_renderresult_or_viewer_poll");
 
   prop = RNA_def_property(srna, "stencil_color", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_range(prop, 0.0, 1.0);

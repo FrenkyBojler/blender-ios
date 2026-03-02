@@ -24,8 +24,10 @@ set(SRC
   intermediate.hh
   processor.hh
   scope.hh
-  token_stream.hh
   token.hh
+  token_stream.hh
+
+  lexit/lexit.cc
 )
 
 if(WITH_GPU_SHADER_ASSERT)

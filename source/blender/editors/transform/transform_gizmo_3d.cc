@@ -892,7 +892,8 @@ static int gizmo_3d_foreach_selected(const bContext *C,
   else if (ob && (ob->mode & OB_MODE_ALL_PAINT)) {
     if (ob->mode & OB_MODE_SCULPT) {
       totsel = 1;
-      run_coord_with_matrix(ob->sculpt->pivot_pos, false, ob->object_to_world().ptr());
+      run_coord_with_matrix(
+          ob->runtime->sculpt_session->pivot_pos, false, ob->object_to_world().ptr());
     }
   }
   else if (ob && ob->mode & OB_MODE_PARTICLE_EDIT) {
@@ -1017,15 +1018,16 @@ int calc_gizmo_stats(const bContext *C,
   }
 
   if (params->use_local_axis && (ob && ob->mode & (OB_MODE_EDIT | OB_MODE_POSE))) {
+    const float4x4 &ob_mat = ob->object_to_world();
     float diff_mat[3][3];
-    copy_m3_m4(diff_mat, ob->object_to_world().ptr());
+    copy_m3_m4(diff_mat, ob_mat.ptr());
     normalize_m3(diff_mat);
     invert_m3(diff_mat);
     mul_m3_m3_pre(tbounds->axis, diff_mat);
     normalize_m3(tbounds->axis);
 
     tbounds->use_matrix_space = true;
-    copy_m4_m4(tbounds->matrix_space, ob->object_to_world().ptr());
+    copy_m4_m4(tbounds->matrix_space, ob_mat.ptr());
   }
 
   const auto gizmo_3d_tbounds_calc_fn = [&](const float3 &co) { calc_tw_center(tbounds, co); };
@@ -1042,12 +1044,13 @@ int calc_gizmo_stats(const bContext *C,
     mul_v3_fl(tbounds->center, 1.0f / float(totsel)); /* Centroid! */
 
     if (obedit || (ob && (ob->mode & (OB_MODE_POSE | OB_MODE_SCULPT)))) {
+      const float4x4 &ob_mat = ob->object_to_world();
       if (ob->mode & OB_MODE_POSE) {
-        invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
+        invert_m4_m4(ob->runtime->world_to_object.ptr(), ob_mat.ptr());
       }
-      mul_m4_v3(ob->object_to_world().ptr(), tbounds->center);
-      mul_m4_v3(ob->object_to_world().ptr(), tbounds->min);
-      mul_m4_v3(ob->object_to_world().ptr(), tbounds->max);
+      mul_m4_v3(ob_mat.ptr(), tbounds->center);
+      mul_m4_v3(ob_mat.ptr(), tbounds->min);
+      mul_m4_v3(ob_mat.ptr(), tbounds->max);
     }
   }
 
@@ -1093,8 +1096,8 @@ static bool gizmo_3d_calc_pos(const bContext *C,
       BKE_view_layer_synced_ensure(scene, view_layer);
       Object *ob = BKE_view_layer_active_object_get(view_layer);
       if (ob != nullptr) {
-        if ((ob->mode & OB_MODE_ALL_SCULPT) && ob->sculpt) {
-          SculptSession *ss = ob->sculpt;
+        if ((ob->mode & OB_MODE_ALL_SCULPT) && ob->runtime->sculpt_session) {
+          SculptSession *ss = ob->runtime->sculpt_session;
           copy_v3_v3(r_pivot_pos, ss->pivot_pos);
           return true;
         }
@@ -1221,7 +1224,7 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   TransformOrientationSlot *orient_slot = BKE_scene_orientation_slot_get_from_flag(scene,
                                                                                    orient_flag);
   PointerRNA orient_ref_ptr = RNA_pointer_create_discrete(
-      &scene->id, &RNA_TransformOrientationSlot, orient_slot);
+      &scene->id, RNA_TransformOrientationSlot, orient_slot);
   const ToolSettings *ts = scene->toolsettings;
 
   PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
@@ -1238,7 +1241,7 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   {
     /* We could be more specific here, for now subscribe to any cursor change. */
     PointerRNA cursor_ptr = RNA_pointer_create_discrete(
-        &scene->id, &RNA_View3DCursor, &scene->cursor);
+        &scene->id, RNA_View3DCursor, &scene->cursor);
     WM_msg_subscribe_rna(mbus, &cursor_ptr, nullptr, &msg_sub_value_gz_tag_refresh, __func__);
   }
 
@@ -1256,7 +1259,7 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   }
 
   PointerRNA toolsettings_ptr = RNA_pointer_create_discrete(
-      &scene->id, &RNA_ToolSettings, scene->toolsettings);
+      &scene->id, RNA_ToolSettings, scene->toolsettings);
 
   if (ELEM(type_fn, VIEW3D_GGT_xform_gizmo, VIEW3D_GGT_xform_shear)) {
     const PropertyRNA *props[] = {
@@ -1279,7 +1282,7 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   }
 
   PointerRNA view3d_ptr = RNA_pointer_create_discrete(
-      &screen->id, &RNA_SpaceView3D, area->spacedata.first);
+      &screen->id, RNA_SpaceView3D, area->spacedata.first);
 
   if (type_fn == VIEW3D_GGT_xform_gizmo) {
     GizmoGroup *ggd = static_cast<GizmoGroup *>(gzgroup->customdata);
@@ -1616,7 +1619,7 @@ static void gizmo_3d_setup_draw_modal(wmGizmo *axis, const int axis_idx, const i
 
 static GizmoGroup *gizmogroup_init(wmGizmoGroup *gzgroup)
 {
-  GizmoGroup *ggd = MEM_callocN<GizmoGroup>(__func__);
+  GizmoGroup *ggd = MEM_new_zeroed<GizmoGroup>(__func__);
 
   const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_3d", true);
   const wmGizmoType *gzt_dial = WM_gizmotype_find("GIZMO_GT_dial_3d", true);

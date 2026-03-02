@@ -12,11 +12,6 @@ set(INC
 )
 
 set(INC_SYS
-  ../../../extern/wcwidth
-  ../../../extern/json/include
-
-  ${ZLIB_INCLUDE_DIRS}
-  ${ZSTD_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -222,6 +217,7 @@ set(SRC
   BLI_disjoint_set.hh
   BLI_dot_export.hh
   BLI_dot_export_attribute_enums.hh
+  BLI_dynamic_stack_buffer.hh
   BLI_dynstr.h
   BLI_easing.h
   BLI_endian_defines.h
@@ -229,6 +225,7 @@ set(SRC
   BLI_endian_switch_inline.h
   BLI_enum_flags.hh
   BLI_enumerable_thread_specific.hh
+  BLI_execution_mode.hh
   BLI_expr_pylike_eval.h
   BLI_fftw.hh
   BLI_fileops.h
@@ -312,7 +309,6 @@ set(SRC
   BLI_math_matrix.hh
   BLI_math_matrix_types.hh
   BLI_math_mpq.hh
-  BLI_math_numbers.hh
   BLI_math_quaternion.hh
   BLI_math_quaternion_types.hh
   BLI_math_rotation.h
@@ -382,7 +378,6 @@ set(SRC
   BLI_string_utf8.h
   BLI_string_utf8_symbols.h
   BLI_string_utils.hh
-  BLI_struct_equality_utils.hh
   BLI_sub_frame.hh
   BLI_subprocess.hh
   BLI_sys_types.h
@@ -422,17 +417,19 @@ set(SRC
 
 set(LIB
   PUBLIC bf::dna
-  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::extern::json
   PRIVATE bf::extern::xxhash
   bf_intern_eigen
   PRIVATE bf::intern::guardedalloc
-  extern_wcwidth
+  PRIVATE bf::extern::wcwidth
   PRIVATE bf::intern::atomic
-  PRIVATE extern_fmtlib
-  PUBLIC bf::dependencies::optional::tbb
+  PUBLIC bf::dependencies::fmt
   PRIVATE bf::dependencies::eigen
-  ${ZLIB_LIBRARIES}
-  ${ZSTD_LIBRARIES}
+  PUBLIC bf::dependencies::optional::tbb
+  PRIVATE bf::dependencies::zlib
+  PRIVATE bf::dependencies::zstd
+  PRIVATE bf::dependencies::optional::gmp
+  PRIVATE bf::dependencies::optional::fftw3
 )
 
 if(NOT WITH_PYTHON_MODULE)
@@ -445,28 +442,6 @@ endif()
 
 if(WITH_MEM_VALGRIND)
   add_definitions(-DWITH_MEM_VALGRIND)
-endif()
-
-if(WITH_GMP)
-  add_definitions(-DWITH_GMP)
-
-  list(APPEND INC_SYS
-    ${GMP_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${GMP_LIBRARIES}
-  )
-endif()
-
-if(WITH_FFTW3)
-  list(APPEND INC_SYS
-    ${FFTW3_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${FFTW3_LIBRARIES}
-  )
-  add_definitions(-DWITH_FFTW3)
 endif()
 
 if(WIN32)
@@ -500,6 +475,11 @@ if(UNIX AND NOT APPLE)
   list(APPEND LIB
     bf_intern_libc_compat
   )
+endif()
+
+# needed for BLI_subprocess.cc when using the mold linker.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  list(APPEND LIB rt)
 endif()
 
 # no need to compile object files for inline headers.
@@ -591,7 +571,7 @@ if(WITH_GTESTS)
     tests/BLI_polyfill_2d_test.cc
     tests/BLI_pool_test.cc
     tests/BLI_random_access_iterator_mixin_test.cc
-    tests/BLI_ressource_strings.h
+    tests/BLI_resource_strings.h
     tests/BLI_serialize_test.cc
     tests/BLI_session_uid_test.cc
     tests/BLI_set_test.cc

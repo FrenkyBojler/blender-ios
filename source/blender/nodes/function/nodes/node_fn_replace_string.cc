@@ -10,6 +10,7 @@ namespace blender::nodes::node_fn_replace_string_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_input<decl::String>("String").optional_label();
@@ -27,7 +28,7 @@ static std::string replace_all(const StringRefNull str,
   }
   char *new_str_ptr = BLI_string_replaceN(str.c_str(), from.c_str(), to.c_str());
   std::string new_str{new_str_ptr};
-  MEM_freeN(new_str_ptr);
+  MEM_delete(new_str_ptr);
   return new_str;
 }
 

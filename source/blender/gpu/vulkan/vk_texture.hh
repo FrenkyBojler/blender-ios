@@ -34,6 +34,7 @@ class VKTexture : public Texture {
   friend class VKDescriptorSetTracker;
   friend class VKDescriptorSetUpdator;
   friend class VKContext;
+  friend class VKTexturePool;
 
   /**
    * Texture format how the texture is stored on the device.
@@ -80,7 +81,7 @@ class VKTexture : public Texture {
    * \brief Has this texture data.
    *
    * Is used to decide if host image copy can be performed to overwrite the data outside the
-   * rendergraph.
+   * render-graph.
    */
   bool has_data_ = false;
   bool allow_host_image_copy_ = false;
@@ -93,7 +94,7 @@ class VKTexture : public Texture {
   void generate_mipmap() override;
   void copy_to(Texture *tex) override;
   void copy_to(VKTexture &dst_texture, VkImageAspectFlags vk_image_aspect);
-  void clear(eGPUDataFormat format, const void *data) override;
+  void clear(const double4 data) override;
   void clear_depth_stencil(const GPUFrameBufferBits buffer,
                            float clear_depth,
                            uint clear_stencil,

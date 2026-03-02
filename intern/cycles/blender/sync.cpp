@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include "BKE_appdir.hh"
-#include "BKE_scene.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_world_types.h"
 #include "RNA_prototypes.hh"
@@ -570,7 +569,7 @@ void BlenderSync::sync_film(blender::ViewLayer &b_view_layer,
   blender::PointerRNA scene_rna_ptr = RNA_id_pointer_create(&b_scene->id);
   blender::PointerRNA cscene = RNA_pointer_get(&scene_rna_ptr, "cycles");
   blender::PointerRNA view_layer_rna_ptr = RNA_pointer_create_id_subdata(
-      b_scene->id, &blender::RNA_ViewLayer, &b_view_layer);
+      b_scene->id, blender::RNA_ViewLayer, &b_view_layer);
   blender::PointerRNA crl = RNA_pointer_get(&view_layer_rna_ptr, "cycles");
 
   Film *film = scene->film;
@@ -733,8 +732,8 @@ static bool get_known_pass_type(blender::RenderPass &b_pass, PassType &type, Pas
   MAP_PASS("BakeSeed", PASS_BAKE_SEED, false);
   MAP_PASS("BakeDifferential", PASS_BAKE_DIFFERENTIAL, false);
 
-  MAP_PASS("Denoising Normal", PASS_DENOISING_NORMAL, true);
   MAP_PASS("Denoising Albedo", PASS_DENOISING_ALBEDO, true);
+  MAP_PASS("Denoising Normal", PASS_DENOISING_NORMAL, true);
   MAP_PASS("Denoising Depth", PASS_DENOISING_DEPTH, true);
 
   MAP_PASS("Shadow Catcher", PASS_SHADOW_CATCHER, false);
@@ -971,13 +970,16 @@ bool BlenderSync::get_session_pause(blender::Scene &b_scene, bool background)
 SessionParams BlenderSync::get_session_params(blender::RenderEngine &b_engine,
                                               blender::UserDef &b_preferences,
                                               blender::Scene &b_scene,
-                                              bool background)
+                                              bool background,
+                                              float pixelsize)
 {
   SessionParams params;
+
+  /* Feature Set */
   blender::PointerRNA scene_rna_ptr = RNA_id_pointer_create(&b_scene.id);
   blender::PointerRNA cscene = RNA_pointer_get(&scene_rna_ptr, "cycles");
 
-  if (background && (b_engine.flag & blender::RE_ENGINE_PREVIEW) == 0) {
+  if (background) {
     /* Viewport and preview renders do not require temp directory and do request session
      * parameters more often than the background render.
      * Optimize RNA-C++ usage and memory allocation a bit by saving string access which we know
@@ -1022,7 +1024,14 @@ SessionParams BlenderSync::get_session_params(blender::RenderEngine &b_engine,
   }
 
   /* Viewport Performance */
-  params.pixel_size = BKE_render_preview_pixel_size(&b_scene.r);
+  if (b_scene.r.preview_pixel_size == 0) {
+    /* Automatic pixel size. */
+    params.pixel_size = (pixelsize > 1.5f) ? 2 : 1;
+  }
+  else {
+    /* Specific user chosen pixel size. */
+    params.pixel_size = b_scene.r.preview_pixel_size;
+  }
 
   if (background) {
     params.pixel_size = 1;
@@ -1100,7 +1109,7 @@ DenoiseParams BlenderSync::get_denoise_params(blender::Scene &b_scene,
 
     if (b_view_layer) {
       blender::PointerRNA view_layer_rna_ptr = RNA_pointer_create_id_subdata(
-          b_scene.id, &blender::RNA_ViewLayer, b_view_layer);
+          b_scene.id, blender::RNA_ViewLayer, b_view_layer);
       blender::PointerRNA clayer = RNA_pointer_get(&view_layer_rna_ptr, "cycles");
       if (!get_boolean(clayer, "use_denoising")) {
         denoising.use = false;

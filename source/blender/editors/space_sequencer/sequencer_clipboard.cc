@@ -52,7 +52,6 @@
 #include "DEG_depsgraph_build.hh"
 
 #include "ANIM_action.hh"
-#include "ANIM_action_legacy.hh"
 #include "ANIM_animdata.hh"
 
 #include "UI_view2d.hh"
@@ -162,7 +161,7 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
                               PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)}));
 
   /* Create an empty sequence editor data to store all copied strips. */
-  scene_dst->ed = MEM_new_for_free<Editing>(__func__);
+  scene_dst->ed = MEM_new<Editing>(__func__);
   seq::seqbase_duplicate_recursive(bmain_src,
                                    scene_src,
                                    scene_dst,
@@ -365,7 +364,7 @@ static bool sequencer_paste_animation(Main *bmain_dst, Scene *scene_dst, Scene *
     return false;
   }
 
-  for (FCurve *fcu : animrig::legacy::fcurves_for_assigned_action(scene_src->adt)) {
+  for (FCurve *fcu : animrig::fcurves_for_assigned_action(scene_src->adt)) {
     animrig::action_fcurve_attach(act_dst->wrap(),
                                   scene_dst->adt->slot_handle,
                                   *BKE_fcurve_copy(fcu),

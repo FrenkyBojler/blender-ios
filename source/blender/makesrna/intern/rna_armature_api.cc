@@ -125,29 +125,29 @@ static bool rna_BoneCollection_assign_abstract(BoneCollection *bcoll,
     return false;
   }
 
-  if (RNA_struct_is_a(bone_ptr->type, &RNA_PoseBone)) {
+  if (RNA_struct_is_a(bone_ptr->type, RNA_PoseBone)) {
     bPoseChannel *pchan = static_cast<bPoseChannel *>(bone_ptr->data);
     const bool made_any_change = assign_bone(bcoll, pchan->bone);
     if (made_any_change) {
-      WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_COLLECTION, nullptr);
     }
     return made_any_change;
   }
 
-  if (RNA_struct_is_a(bone_ptr->type, &RNA_Bone)) {
+  if (RNA_struct_is_a(bone_ptr->type, RNA_Bone)) {
     Bone *bone = static_cast<Bone *>(bone_ptr->data);
     const bool made_any_change = assign_bone(bcoll, bone);
     if (made_any_change) {
-      WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_COLLECTION, nullptr);
     }
     return made_any_change;
   }
 
-  if (RNA_struct_is_a(bone_ptr->type, &RNA_EditBone)) {
+  if (RNA_struct_is_a(bone_ptr->type, RNA_EditBone)) {
     EditBone *ebone = static_cast<EditBone *>(bone_ptr->data);
     const bool made_any_change = assign_ebone(bcoll, ebone);
     if (made_any_change) {
-      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, nullptr);
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_COLLECTION, nullptr);
     }
     return made_any_change;
   }

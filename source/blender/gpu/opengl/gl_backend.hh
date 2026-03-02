@@ -32,6 +32,7 @@
 #include "gl_shader.hh"
 #include "gl_storage_buffer.hh"
 #include "gl_texture.hh"
+#include "gl_texture_pool.hh"
 #include "gl_uniform_buffer.hh"
 #include "gl_vertex_buffer.hh"
 
@@ -87,7 +88,7 @@ class GLBackend : public GPUBackend {
     GLTexture::samplers_update();
   };
 
-  Context *context_alloc(void *ghost_window, void * /*ghost_context*/) override
+  Context *context_alloc(GHOST_IWindow *ghost_window, GHOST_IContext * /*ghost_context*/) override
   {
     return new GLContext(ghost_window, shared_orphan_list_);
   };
@@ -131,6 +132,8 @@ class GLBackend : public GPUBackend {
   {
     return new GLTexture(name);
   };
+
+  TexturePool *texturepool_alloc() override;
 
   UniformBuf *uniformbuf_alloc(size_t size, const char *name) override
   {
