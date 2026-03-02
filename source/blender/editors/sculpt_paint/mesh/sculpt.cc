@@ -2366,7 +2366,7 @@ static float brush_strength(const Sculpt &sd,
        * and this strength value is unused. */
       return 0.0f;
     case SCULPT_BRUSH_TYPE_SCENE_PROJECT:
-      return alpha * pressure * overlap * feather;
+      return flip * alpha * pressure * overlap * feather;
   }
   BLI_assert_unreachable();
   return 0.0f;
