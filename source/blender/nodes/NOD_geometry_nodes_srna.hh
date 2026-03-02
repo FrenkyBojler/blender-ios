@@ -32,11 +32,14 @@ extern const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute
 
 struct GeneratedTreeSrnaData {
   ResourceScope scope;
-  Vector<StructRNA *> structs;
+  StructRNA *properties_struct;
+  BlenderRNA *generated_rna;
+  GeneratedTreeSrnaData();
+  ~GeneratedTreeSrnaData();
 };
 
-StructRNA *get_geometry_nodes_interface_srna_for_modifier(const bNodeTree &tree,
-                                                          GeneratedTreeSrnaData &r_generated);
+std::unique_ptr<GeneratedTreeSrnaData> create_geometry_nodes_rna_for_modifier(
+    const bNodeTree &tree);
 
 }  // namespace nodes
 }  // namespace blender

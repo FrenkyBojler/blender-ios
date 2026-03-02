@@ -586,20 +586,8 @@ class NodeTreeMainUpdater {
 
     if (result.interface_changed) {
       if (ntree.type == NTREE_GEOMETRY) {
-        if (ntree.runtime->geometry_nodes_srna_data) {
-          for (StructRNA *srna : ntree.runtime->geometry_nodes_srna_data->structs) {
-            /* Avoid warning when freeing the #StructRNA. */
-            RNA_struct_py_type_set(srna, nullptr);
-            RNA_struct_free(&RNA_blender_rna_get(), srna);
-          }
-          ntree.runtime->geometry_nodes_srna_data->structs.clear();
-          ntree.runtime->geometry_nodes_srna_data.reset();
-          ntree.runtime->geometry_nodes_modifier_srna = nullptr;
-        }
-        ntree.runtime->geometry_nodes_srna_data = std::make_unique<GeneratedTreeSrnaData>();
-        ntree.runtime->geometry_nodes_modifier_srna =
-            nodes::get_geometry_nodes_interface_srna_for_modifier(
-                ntree, *ntree.runtime->geometry_nodes_srna_data);
+        ntree.runtime->geometry_nodes_srna_data = nodes::create_geometry_nodes_rna_for_modifier(
+            ntree);
       }
     }
 
