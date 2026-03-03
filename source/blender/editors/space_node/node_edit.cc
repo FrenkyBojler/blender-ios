@@ -379,7 +379,8 @@ namespace ed::space_node {
 /** \name Node Generic
  * \{ */
 
-static bool socket_is_occluded(const float2 &location,
+static bool socket_is_occluded(const float2 &cursor,
+                               const float2 &location,
                                const bNode &node_the_socket_belongs_to,
                                const Span<bNode *> sorted_nodes)
 {
@@ -389,10 +390,17 @@ static bool socket_is_occluded(const float2 &location,
       return false;
     }
 
-    rctf socket_hitbox;
-    const float socket_hitbox_radius = NODE_SOCKSIZE - 0.1f * U.widget_unit;
-    BLI_rctf_init_pt_radius(&socket_hitbox, location, socket_hitbox_radius);
-    if (BLI_rctf_inside_rctf(&node->runtime->draw_bounds, &socket_hitbox)) {
+    if (BLI_rctf_isect_pt_v(&node->runtime->draw_bounds, cursor)) {
+      /* The cursor actually hovers over a node in front of the socket. */
+      return true;
+    }
+
+    /* The hitbox of the socket is larger than the socket symbol to make dragging links easier.
+    Check, if the socket symbol is fully occluded to prevent picking them from behind nodes.*/
+    rctf socket_draw_bounds;
+    const float socket_draw_radius = NODE_SOCKSIZE - 0.1f * U.widget_unit;
+    BLI_rctf_init_pt_radius(&socket_draw_bounds, location, socket_draw_radius);
+    if (BLI_rctf_inside_rctf(&node->runtime->draw_bounds, &socket_draw_bounds)) {
       return true;
     }
   }
@@ -791,7 +799,8 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
   bNodeSocket *best_socket = nullptr;
 
   auto update_best_socket = [&](bNodeSocket *socket, const float distance) {
-    if (socket_is_occluded(socket->runtime->location, socket->owner_node(), sorted_nodes)) {
+    if (socket_is_occluded(cursor, socket->runtime->location, socket->owner_node(), sorted_nodes))
+    {
       return;
     }
     if (distance < best_distance) {
