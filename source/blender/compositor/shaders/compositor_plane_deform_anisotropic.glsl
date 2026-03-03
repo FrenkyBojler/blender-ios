@@ -23,12 +23,15 @@ void main()
   }
   float2 projected_coordinates = transformed_coordinates.xy / transformed_coordinates.z;
 
-  /* The derivatives of the projected coordinates with respect to x and y are the first and
-   * second columns respectively, divided by the z projection factor as can be shown by
-   * differentiating the above matrix multiplication with respect to x and y. Divide by the
-   * output size since textureGrad assumes derivatives with respect to texel coordinates. */
-  float2 x_gradient = (homography_matrix[0].xy / transformed_coordinates.z) / output_size.x;
-  float2 y_gradient = (homography_matrix[1].xy / transformed_coordinates.z) / output_size.y;
+  /* Derivative of transformed_coordinates.xy / transformed_coordinates.z vs texel */
+  float2 x_gradient =
+    (homography_matrix[0].xy * transformed_coordinates.z -
+     transformed_coordinates.xy * homography_matrix[0].z) /
+    (transformed_coordinates.z * transformed_coordinates.z * output_size.x);
+  float2 y_gradient =
+    (homography_matrix[1].xy * transformed_coordinates.z -
+     transformed_coordinates.xy * homography_matrix[1].z) /
+    (transformed_coordinates.z * transformed_coordinates.z * output_size.y);
 
   float4 sampled_color = textureGrad(input_tx, projected_coordinates, x_gradient, y_gradient);
 
