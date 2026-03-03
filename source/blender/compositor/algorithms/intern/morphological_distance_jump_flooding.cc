@@ -67,7 +67,7 @@ static void jump_flooding_pass_cpu(const Result &input,
                                    const MorphologicalDistanceMetric /* distance_metric */,
                                    const bool is_initial_pass)
 {
-  const bool is_last_pass = !is_initial_pass && step_size == 1;
+  const bool is_last_pass = step_size == 1;
   const bool is_dilate = operator_type == MorphologicalOperatorType::Dilate;
   const int squared_radius = radius * radius;
   const int2 size = input.domain().data_size;
@@ -183,7 +183,7 @@ void morphological_distance_jump_flooding(Context &context,
   /* The algorithm starts with a step size that is half the size of the image. However, the
    * algorithm assumes a square image that is a power of two in width without loss of generality.
    * To generalize that, we use half the next power of two of the maximum dimension. */
-  const int first_step_size = math::max(1, power_of_2_max_i(radius) / 2);
+  const int first_step_size = power_of_2_max_i(radius);
 
   /* Successively apply a jump flooding pass, halving the step size every time and swapping the
    * ping-pong buffers. */

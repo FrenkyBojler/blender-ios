@@ -16,7 +16,7 @@ void main()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
 
-  const bool is_last_pass = !is_initial_pass && step_size == 1;
+  const bool is_last_pass = step_size == 1;
   const int2 size = texture_size(input_tx);
   const float squared_radius = radius * radius;
 
