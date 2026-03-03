@@ -875,29 +875,29 @@ void BKE_sound_update_scene_listener(Scene *scene)
 AUD_SequenceEntry BKE_sound_scene_add_scene_sound(Scene *scene, Strip *strip)
 {
   sound_verify_evaluated_id(&scene->id);
-  AUD_Sequence parent_sound = BKE_strip_get_parent_sound(strip, scene);
-  strip->runtime->last_sound_sequence = parent_sound;
+  AUD_Sequence parent_sound_sequence = BKE_sound_get_parent_sequence(strip, scene);
+  strip->runtime->last_sound_sequence = parent_sound_sequence;
   if (strip->scene && scene != strip->scene) {
     int startframe = strip->left_handle();
     int endframe = strip->right_handle(scene);
     int frameskip = strip->startofs + strip->anim_startofs;
     const double fps = scene->frames_per_second();
-    return AUD_SequenceEntry(parent_sound->add(strip->scene->runtime->audio.sound_scene,
-                                               startframe / fps,
-                                               endframe / fps,
-                                               frameskip / fps));
+    return AUD_SequenceEntry(parent_sound_sequence->add(strip->scene->runtime->audio.sound_scene,
+                                                        startframe / fps,
+                                                        endframe / fps,
+                                                        frameskip / fps));
   }
   return nullptr;
 }
 
-AUD_Sound BKE_get_sound_hanlde(Strip *strip)
+AUD_Sound BKE_get_sound_handle(Strip *strip)
 {
   return strip->type == STRIP_TYPE_META ?
              std::static_pointer_cast<aud::ISound>(strip->runtime->meta_sound_sequence) :
              BKE_sound_playback_handle_get(strip->sound);
 }
 
-AUD_Sequence BKE_strip_get_parent_sound(Strip *strip, Scene *scene)
+AUD_Sequence BKE_sound_get_parent_sequence(Strip *strip, Scene *scene)
 {
   Strip *parent_strip = blender::seq::lookup_meta_by_strip(scene->ed, strip);
 
@@ -928,7 +928,7 @@ AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
   int frameskip = strip->startofs + strip->anim_startofs;
 
   const double fps = scene->frames_per_second();
-  AUD_Sequence parent_sound = BKE_strip_get_parent_sound(strip, scene);
+  AUD_Sequence parent_sound_sequence = BKE_sound_get_parent_sequence(strip, scene);
   double offset_time = 0.0f;
 
   if (strip->type != STRIP_TYPE_META) {
@@ -937,19 +937,19 @@ AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
   }
 
   /* Store last parent sequence so it can be removed. */
-  strip->runtime->last_sound_sequence = parent_sound;
+  strip->runtime->last_sound_sequence = parent_sound_sequence;
 
   const Strip *parent_strip = blender::seq::lookup_meta_by_strip(scene->ed, strip);
   int parent_start = 0;
   if (parent_strip != nullptr) {
     parent_start = parent_strip->left_handle();
     /* If this strip is inside a meta, update the meta's scene_sound entry. */
-    parent_strip->runtime->scene_sound->setSound(parent_sound);
+    parent_strip->runtime->scene_sound->setSound(parent_sound_sequence);
   }
-  return AUD_SequenceEntry(parent_sound->add(BKE_get_sound_hanlde(strip),
-                                             (startframe - parent_start) / fps,
-                                             (endframe - parent_start) / fps,
-                                             -fmax(offset_time, 0.0)));
+  return AUD_SequenceEntry(parent_sound_sequence->add(BKE_get_sound_handle(strip),
+                                                      (startframe - parent_start) / fps,
+                                                      (endframe - parent_start) / fps,
+                                                      -fmax(offset_time, 0.0)));
 }
 
 void BKE_sound_remove_scene_sound(Scene *scene, AUD_SequenceEntry handle)
@@ -957,7 +957,7 @@ void BKE_sound_remove_scene_sound(Scene *scene, AUD_SequenceEntry handle)
   scene->runtime->audio.sound_scene->remove(handle);
 }
 
-void BKE_sound_remove_sound(AUD_Sequence sound_sequence, AUD_SequenceEntry handle)
+void BKE_sound_sequence_remove_sound(AUD_Sequence sound_sequence, AUD_SequenceEntry handle)
 {
   sound_sequence->remove(handle);
 }

@@ -119,13 +119,13 @@ void BKE_sound_update_scene_listener(Scene *scene);
 
 AUD_SequenceEntry BKE_sound_scene_add_scene_sound(Scene *scene, Strip *strip);
 AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip);
-AUD_Sound BKE_get_sound_hanlde(Strip *strip);
+AUD_Sound BKE_get_sound_handle(Strip *strip);
 
 void BKE_sound_remove_scene_sound(Scene *scene, AUD_SequenceEntry handle);
 
-AUD_Sequence BKE_strip_get_parent_sound(Strip *Strip, Scene *scene);
+AUD_Sequence BKE_sound_get_parent_sequence(Strip *Strip, Scene *scene);
 
-void BKE_sound_remove_sound(AUD_Sequence sound_sequence, AUD_SequenceEntry handle);
+void BKE_sound_sequence_remove_sound(AUD_Sequence sound_sequence, AUD_SequenceEntry handle);
 void BKE_sound_mute_scene_sound(AUD_SequenceEntry handle, bool mute);
 
 void BKE_sound_move_scene_sound(const Scene *scene,
