@@ -20,3 +20,4 @@ Referenced by issue #154938, Performance regression in 2.90 splash screen scene
 Referenced by issue #154974, The UV Project and the UV Warp modifiers don't allow to select UV Maps in blender 5.1.0 Beta
 Referenced by pull request #154993, Fix #154974: impossible to set UV maps in modifiers via UI
 Referenced by commit 5ec945e363cfeae4cf8672f65996719940ab3d41, Fix #154974: impossible to set UV maps in modifiers via UI
+Referenced by issue #155021, Entering Edit mode crashes Blender: Calloc array aborted due to integer overflow
