@@ -15,6 +15,7 @@
 #include <optional>
 #include <thread>
 
+#include "BKE_sound_types.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_build_config.h"
@@ -776,6 +777,19 @@ AUD_Device BKE_sound_mixdown(const Scene *scene,
   }
 }
 
+static AUD_Sequence BKE_sound_create_sequence(Scene *scene)
+{
+  aud::Specs specs;
+  specs.channels = aud::CHANNELS_STEREO;
+  specs.rate = aud::RATE_48000;
+  AUD_Sequence sound_sequence = AUD_Sequence(
+      new aud::Sequence(specs, scene->frames_per_second(), scene->audio.flag & AUDIO_MUTE));
+  sound_sequence->setSpeedOfSound(scene->audio.speed_of_sound);
+  sound_sequence->setDopplerFactor(scene->audio.doppler_factor);
+  sound_sequence->setDistanceModel(aud::DistanceModel(scene->audio.distance_model));
+  return sound_sequence;
+}
+
 void BKE_sound_create_scene(Scene *scene)
 {
   sound_verify_evaluated_id(&scene->id);
@@ -786,15 +800,7 @@ void BKE_sound_create_scene(Scene *scene)
   }
 
   bke::SceneAudioRuntime &audio = scene->runtime->audio;
-
-  aud::Specs specs;
-  specs.channels = aud::CHANNELS_STEREO;
-  specs.rate = aud::RATE_48000;
-  audio.sound_scene = AUD_Sequence(
-      new aud::Sequence(specs, scene->frames_per_second(), scene->audio.flag & AUDIO_MUTE));
-  audio.sound_scene->setSpeedOfSound(scene->audio.speed_of_sound);
-  audio.sound_scene->setDopplerFactor(scene->audio.doppler_factor);
-  audio.sound_scene->setDistanceModel(aud::DistanceModel(scene->audio.distance_model));
+  audio.sound_scene = BKE_sound_create_sequence(scene);
   audio.playback_handle = nullptr;
   audio.sound_scrub_handle = nullptr;
   audio.speaker_handles.clear();
@@ -903,11 +909,7 @@ AUD_Sequence BKE_sound_get_parent_sequence(Scene *scene, Strip *strip)
 
   if (parent_strip != nullptr) {
     if (parent_strip->runtime->meta_sound_sequence == nullptr) {
-      aud::Specs specs;
-      specs.channels = aud::CHANNELS_STEREO;
-      specs.rate = aud::RATE_48000;
-      parent_strip->runtime->meta_sound_sequence = AUD_Sequence(
-          new aud::Sequence(specs, scene->frames_per_second(), scene->audio.flag & AUDIO_MUTE));
+      parent_strip->runtime->meta_sound_sequence = BKE_sound_create_sequence(scene);
     }
     return parent_strip->runtime->meta_sound_sequence;
   }
