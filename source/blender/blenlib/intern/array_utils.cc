@@ -82,9 +82,9 @@ void copy_group_to_group(const OffsetIndices<int> src_offsets,
                          GMutableSpan dst)
 {
   /* Each group might be large, so a threaded copy might make sense here too. */
-  selection.foreach_index(GrainSize(512), [&](const int i) {
-    dst.slice(dst_offsets[i]).copy_from(src.slice(src_offsets[i]));
-  });
+  selection.foreach_index(
+      [&](const int i) { dst.slice(dst_offsets[i]).copy_from(src.slice(src_offsets[i])); },
+      exec_mode::grain_size(512));
 }
 
 void count_indices(const Span<int> indices, MutableSpan<int> counts)
@@ -282,6 +282,26 @@ bool contains(const VArray<bool> &varray, const IndexMask &indices_to_check, con
         return false;
       },
       std::logical_or());
+}
+
+IndexMask indices_non_negative(const IndexMask &universe,
+                               const Span<int> values,
+                               LinearAllocator<> &memory)
+{
+  return IndexMask::from_predicate(
+      universe, memory, [&](const int i) { return values[i] >= 0; }, exec_mode::grain_size(4096));
+}
+
+IndexMask indices_in_range(const IndexMask &universe,
+                           const Span<int> values,
+                           const IndexRange range,
+                           LinearAllocator<> &memory)
+{
+  return IndexMask::from_predicate(
+      universe,
+      memory,
+      [&](const int i) { return range.contains(values[i]); },
+      exec_mode::grain_size(4096));
 }
 
 int64_t count_booleans(const VArray<bool> &varray)

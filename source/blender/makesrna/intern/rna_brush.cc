@@ -1865,6 +1865,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag2");
   RNA_def_property_enum_items(prop, rna_enum_gpencil_brush_stroke_type_items);
   RNA_def_property_ui_text(prop, "Stroke Mode", "Mode to use when creating strokes");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_BrushGpencilSettings_update");
 
@@ -2574,6 +2575,7 @@ static void rna_def_brush(BlenderRNA *brna)
   prop = RNA_def_property(srna, "blend", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, prop_blend_items);
   RNA_def_property_ui_text(prop, "Blending Mode", "Brush blending mode");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   /**
