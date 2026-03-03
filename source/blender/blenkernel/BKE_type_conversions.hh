@@ -21,10 +21,10 @@ struct ConversionFunctions {
 
 class DataTypeConversions {
  private:
-  Map<std::pair<mf::DataType, mf::DataType>, ConversionFunctions>
-      conversions_;  // Default conversion.
-  Map<std::pair<mf::DataType, mf::DataType>, ConversionFunctions>
-      backward_conversions_;  // Backward conversion for propagation.
+  /* Default conversion. */
+  Map<std::pair<mf::DataType, mf::DataType>, ConversionFunctions> conversions_;
+  /* Backward conversion for propagation. */
+  Map<std::pair<mf::DataType, mf::DataType>, ConversionFunctions> backward_conversions_;
 
  public:
   void add(mf::DataType from_type,
@@ -102,7 +102,7 @@ class DataTypeConversions {
       return true;
     }
     else {
-      /* Check default forward conversion if there is no specific backward conversion */
+      /* Check default forward conversion if there is no specific backward conversion. */
       return this->is_convertible(from_type, to_type);
     }
   }
