@@ -2230,32 +2230,14 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
   view3d_operator_needs_gpu(C);
 
   bool is_translate_init = false;
+  bool is_finished = false;
 
   /* Handle modal keymap events. */
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
-      case AXIS_TARGET_MODAL_CONFIRM: {
-        Scene *scene = CTX_data_scene(C);
-        for (XFormAxisItem &item : xfd->object_data) {
-          PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, RNA_Object, &item.ob->id);
-          const char *rotation_property = "rotation_euler";
-          switch (item.ob->rotmode) {
-            case ROT_MODE_QUAT:
-              rotation_property = "rotation_quaternion";
-              break;
-            case ROT_MODE_AXISANGLE:
-              rotation_property = "rotation_axis_angle";
-              break;
-            default:
-              break;
-          }
-          PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
-          animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
-        }
-        ED_workspace_status_text(C, nullptr);
-        object_transform_axis_target_free_data(op);
-        return OPERATOR_FINISHED;
-      }
+      case AXIS_TARGET_MODAL_CONFIRM:
+        is_finished = true;
+        break;
       case AXIS_TARGET_MODAL_CANCEL:
         object_transform_axis_target_cancel(C, op);
         return OPERATOR_CANCELLED;
@@ -2274,26 +2256,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
   if (ISMOUSE_BUTTON(xfd->init_event) && (event->type == xfd->init_event) &&
       (event->val == KM_RELEASE))
   {
-    Scene *scene = CTX_data_scene(C);
-    for (XFormAxisItem &item : xfd->object_data) {
-      PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, RNA_Object, &item.ob->id);
-      const char *rotation_property = "rotation_euler";
-      switch (item.ob->rotmode) {
-        case ROT_MODE_QUAT:
-          rotation_property = "rotation_quaternion";
-          break;
-        case ROT_MODE_AXISANGLE:
-          rotation_property = "rotation_axis_angle";
-          break;
-        default:
-          break;
-      }
-      PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
-      animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
-    }
-    ED_workspace_status_text(C, nullptr);
-    object_transform_axis_target_free_data(op);
-    return OPERATOR_FINISHED;
+    is_finished = true;
   }
 
   object_transform_axis_target_update_status(C, op, xfd);
@@ -2445,6 +2408,29 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     }
 
     ED_region_tag_redraw(xfd->vc.region);
+  }
+
+  if (is_finished) {
+    Scene *scene = CTX_data_scene(C);
+    for (XFormAxisItem &item : xfd->object_data) {
+      PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, RNA_Object, &item.ob->id);
+      const char *rotation_property = "rotation_euler";
+      switch (item.ob->rotmode) {
+        case ROT_MODE_QUAT:
+          rotation_property = "rotation_quaternion";
+          break;
+        case ROT_MODE_AXISANGLE:
+          rotation_property = "rotation_axis_angle";
+          break;
+        default:
+          break;
+      }
+      PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
+      animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+    }
+    ED_workspace_status_text(C, nullptr);
+    object_transform_axis_target_free_data(op);
+    return OPERATOR_FINISHED;
   }
 
   return OPERATOR_RUNNING_MODAL;
