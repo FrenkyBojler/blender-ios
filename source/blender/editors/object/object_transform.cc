@@ -2271,6 +2271,31 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     }
   }
 
+  if (ISMOUSE_BUTTON(xfd->init_event) && (event->type == xfd->init_event) &&
+      (event->val == KM_RELEASE))
+  {
+    Scene *scene = CTX_data_scene(C);
+    for (XFormAxisItem &item : xfd->object_data) {
+      PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, RNA_Object, &item.ob->id);
+      const char *rotation_property = "rotation_euler";
+      switch (item.ob->rotmode) {
+        case ROT_MODE_QUAT:
+          rotation_property = "rotation_quaternion";
+          break;
+        case ROT_MODE_AXISANGLE:
+          rotation_property = "rotation_axis_angle";
+          break;
+        default:
+          break;
+      }
+      PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
+      animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+    }
+    ED_workspace_status_text(C, nullptr);
+    object_transform_axis_target_free_data(op);
+    return OPERATOR_FINISHED;
+  }
+
   object_transform_axis_target_update_status(C, op, xfd);
 
   const bool is_translate = xfd->is_translate;
