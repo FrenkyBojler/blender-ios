@@ -11,6 +11,7 @@
 #include "ANIM_rna.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_vector.hh"
 
@@ -93,14 +94,20 @@ StringRef get_rotation_mode_path(const eRotationModes rotation_mode)
 
 std::optional<eRotationModes> get_rotation_mode_from_path(const StringRefNull rna_path)
 {
-  if (rna_path.endswith(".rotation_quaternion")) {
+  /* Accounting for the difference between objects and bones where the latter is e.g.
+   * `pose.bones["foo"].rotation_euler`. */
+  const int start_of_propname = max_ii(0, rna_path.rfind(".") + 1);
+  if (!rna_path.substr(start_of_propname, rna_path.size()).startswith("rotation_")) {
+    return std::nullopt;
+  }
+  if (rna_path.endswith("rotation_quaternion")) {
     return ROT_MODE_QUAT;
   }
-  else if (rna_path.endswith(".rotation_euler")) {
+  else if (rna_path.endswith("rotation_euler")) {
     /* Cannot determine the rotation order from the path alone. */
     return ROT_MODE_EUL;
   }
-  else if (rna_path.endswith(".rotation_axis_angle")) {
+  else if (rna_path.endswith("rotation_axis_angle")) {
     return ROT_MODE_AXISANGLE;
   }
   return std::nullopt;
@@ -121,8 +128,7 @@ std::optional<eRotationModes> get_rotation_mode_from_rna_pointer(const PointerRN
 
 bool is_rotation_path(const StringRefNull rna_path)
 {
-  return rna_path.endswith(".rotation_quaternion") || rna_path.endswith(".rotation_euler") ||
-         rna_path.endswith(".rotation_axis_angle");
+  return get_rotation_mode_from_path(rna_path).has_value();
 }
 
 static bool is_idproperty_keyable(const IDProperty *id_prop, PointerRNA *ptr, PropertyRNA *prop)

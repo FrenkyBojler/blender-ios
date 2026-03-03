@@ -27,23 +27,32 @@ Vector<float> get_rna_values(PointerRNA *ptr, PropertyRNA *prop);
 
 /** Get the rna path for the given rotation mode. */
 StringRef get_rotation_mode_path(eRotationModes rotation_mode);
+
 /**
- * Returns the rotation mode of the given rna path or a nullopt if the `rna_path` is not for a
+ * Given an RNA path to a rotation property, return the corresponding rotation mode.
+ *
+ * \returns the rotation mode of the given rna path or a nullopt if the `rna_path` is not for a
  * rotation property.
  *
  * \note that this returns ROT_MODE_EUL for any euler rotation mode since it cannot determine the
  * rotation order.
  */
-std::optional<eRotationModes> get_rotation_mode_from_path(const StringRefNull rna_path);
+std::optional<eRotationModes> get_rotation_mode_from_path(StringRefNull rna_path);
+
 /**
- * Returns the rotation mode of the given rna pointer.
+ * Given a PointerRNA return the rotation mode of the data it points to.
+ *
+ * \returns the rotation mode of the given rna pointer or a nullopt if the data has no rotation
+ * mode.
  */
 std::optional<eRotationModes> get_rotation_mode_from_rna_pointer(const PointerRNA &ptr);
 
 /**
- * Returns true if the given rna path is for a rotation property.
+ * Given an RNA path, check if it is a path to a rotation property.
+ *
+ * \returns true if the given rna path is for a rotation property.
  */
-bool is_rotation_path(const StringRefNull rna_path);
+bool is_rotation_path(StringRefNull rna_path);
 
 /**
  * Returns a Vector of ID properties on the given pointer that can be animated. Not all pointer
