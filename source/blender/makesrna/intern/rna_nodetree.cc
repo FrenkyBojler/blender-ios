@@ -5014,7 +5014,7 @@ static void def_fn_input_vector(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(prop, "Vector", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  prop = RNA_def_property(srna, "dimensions", PROP_INT, PROP_NONE);
+  prop = RNA_def_property(srna, "vector_dimensions", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "dimensions");
   RNA_def_property_range(prop, 2, 4);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -6123,6 +6123,31 @@ static void def_sh_normal_map(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_enum_items(prop, prop_convention_items);
   RNA_def_property_ui_text(prop, "Mode", "OpenGL or DirectX");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  static const EnumPropertyItem prop_base_items[] = {
+      {SHD_NORMAL_MAP_BASE_ORIGINAL,
+       "ORIGINAL",
+       0,
+       "Original Base",
+       "Apply normal map relative to the smooth undisplaced surface, for normal maps that match "
+       "the displacement map"},
+      {SHD_NORMAL_MAP_BASE_DISPLACED,
+       "DISPLACED",
+       0,
+       "Displaced Base",
+       "Apply normal map relative to the displaced surface, for normal maps that are to be "
+       "applied in addition to the displacement map"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "base", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, prop_base_items);
+  RNA_def_property_ui_text(
+      prop,
+      "Base",
+      "Base surface that the normal map is applied relative to, when displacement is used");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
   RNA_def_struct_sdna_from(srna, "bNode", nullptr);
 }
 
