@@ -327,7 +327,7 @@ static void handle_captions_listener(const wmSpaceTypeListenerParams *params)
             }
 
             if (is_added) {
-              captions_update_strips_style(scene);
+              seq::captions_update_strips_style(scene);
               changed = true;
             }
           }

@@ -20,6 +20,9 @@
 
 #include "readfile.hh"
 
+#include "SEQ_sequencer.hh"
+#include "SEQ_captions.hh"
+
 #include "versioning_common.hh"
 
 // #include "CLG_log.h"
@@ -94,6 +97,14 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 6)) {
+    for (Scene &scene : bmain->scenes) {
+      Editing *ed = seq::editing_get(&scene);
+      if(ed != nullptr) {
+        seq::captions_style_ensure(ed);
+      }
+    }
   }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning

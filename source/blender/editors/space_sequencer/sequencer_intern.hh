@@ -443,7 +443,6 @@ MenuType add_scene_menu_type();
 
 /* captions.cc */
 void captions_update_active_channel(Editing *ed);
-void captions_update_strips_style(Scene *scene);
 
 }  // namespace ed::vse
 }  // namespace blender

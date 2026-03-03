@@ -50,69 +50,6 @@ void captions_update_active_channel(Editing *ed){
         ed->captions_act_channel = blender::seq::channel_get_by_index(&ed->channels, 1);
     }
 }
-
-void captions_update_strips_style(Scene *scene)
-{
-    if(scene == nullptr){
-        return;
-    }
-
-    Editing *ed = seq::editing_get(scene);
-    if(ed == nullptr){
-        return;
-    }
-
-    TextVars *leader_vers = ed->captions_style;
-    if(leader_vers == nullptr) {
-        return;
-    }
-
-    for (CaptionsStripRef &ref : ed->captions_strips) {
-      if(ref.use_custom_style) {
-        continue;
-      }
-
-      Strip *strip = ref.strip;
-      TextVars *vers = (TextVars *)strip->effectdata;
-      if(vers == nullptr) {
-        continue;
-      }
-
-        if(vers != leader_vers) {
-            /* Font and size */
-            vers->text_font = leader_vers->text_font;
-            vers->text_size = leader_vers->text_size;
-
-            /* Colors */
-            copy_v4_v4(vers->color, leader_vers->color);
-            copy_v4_v4(vers->shadow_color, leader_vers->shadow_color);
-            copy_v4_v4(vers->outline_color, leader_vers->outline_color);
-            copy_v4_v4(vers->box_color, leader_vers->box_color);
-
-            /* Shadow */
-            vers->shadow_angle = leader_vers->shadow_angle;
-            vers->shadow_offset = leader_vers->shadow_offset;
-            vers->shadow_blur = leader_vers->shadow_blur;
-
-            /* Outline */
-            vers->outline_width = leader_vers->outline_width;
-
-            copy_v3_v3(vers->loc, leader_vers->loc);
-            vers->wrap_width = leader_vers->wrap_width;
-            vers->box_margin = leader_vers->box_margin;
-            vers->box_roundness = leader_vers->box_roundness;
-
-            vers->align = leader_vers->align;
-            vers->anchor_x = leader_vers->anchor_x;
-            vers->anchor_y = leader_vers->anchor_y;
-
-            /* All style flags */
-            vers->flag = leader_vers->flag;
-
-            seq::relations_invalidate_cache_raw(scene, strip);
-        }
-    }
-}
 }  // namespace ed::vse
 
 namespace seq {
@@ -151,11 +88,73 @@ static void captions_init_default_style(Editing *ed)
     data->wrap_width = 1.0f;
 }
 
+void captions_update_strips_style(Scene *scene)
+{
+    if(scene == nullptr){
+        return;
+    }
+
+    Editing *ed = seq::editing_get(scene);
+    if(ed == nullptr){
+        return;
+    }
+
+    TextVars *leader_vers = ed->captions_style;
+    if(leader_vers == nullptr) {
+        return;
+    }
+    
+    for (CaptionsStripRef &ref : ed->captions_strips) {
+      if(ref.use_custom_style) {
+        continue;
+      }
+
+      Strip *strip = ref.strip;
+      TextVars *vers = (TextVars *)strip->effectdata;
+      if(vers == nullptr) {
+        continue;
+      }
+            /* Font and size */
+            vers->text_font = leader_vers->text_font;
+            vers->text_size = leader_vers->text_size;
+
+            /* Colors */
+            copy_v4_v4(vers->color, leader_vers->color);
+            copy_v4_v4(vers->shadow_color, leader_vers->shadow_color);
+            copy_v4_v4(vers->outline_color, leader_vers->outline_color);
+            copy_v4_v4(vers->box_color, leader_vers->box_color);
+
+            /* Shadow */
+            vers->shadow_angle = leader_vers->shadow_angle;
+            vers->shadow_offset = leader_vers->shadow_offset;
+            vers->shadow_blur = leader_vers->shadow_blur;
+
+            /* Outline */
+            vers->outline_width = leader_vers->outline_width;
+
+            copy_v3_v3(vers->loc, leader_vers->loc);
+            vers->wrap_width = leader_vers->wrap_width;
+            vers->box_margin = leader_vers->box_margin;
+            vers->box_roundness = leader_vers->box_roundness;
+
+            vers->align = leader_vers->align;
+            vers->anchor_x = leader_vers->anchor_x;
+            vers->anchor_y = leader_vers->anchor_y;
+
+            /* All style flags */
+            vers->flag = leader_vers->flag;
+
+            seq::relations_invalidate_cache_raw(scene, strip);
+        }
+    }
+
 TextVars *captions_style_ensure(Editing *ed) {
     if(ed->captions_style == nullptr) {
         captions_init_default_style(ed);
     }
-    printf("leader style: %p\n", ed->captions_style);
+    if (ed->captions_act_channel == nullptr) {
+      ed::vse::captions_update_active_channel(ed);
+    }
     return ed->captions_style;
 }
 
@@ -243,7 +242,7 @@ void captions_update_strips(Scene *scene)
 
     BLI_listbase_sort(&ed->captions_strips, compare_strips_start);
 
-    ed::vse::captions_update_strips_style(scene);
+    captions_update_strips_style(scene);
   }
 }
 

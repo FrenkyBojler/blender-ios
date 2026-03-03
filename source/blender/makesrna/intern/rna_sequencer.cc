@@ -251,7 +251,13 @@ static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
   }
 
   Scene *scene = CTX_data_sequencer_scene(C);
-  Strip *strip = static_cast<Strip *>(ptr->data);
+
+  Strip *strip = nullptr;
+  /* Have to do that check because updates from the captions editor also get here */
+  if (RNA_struct_is_a(ptr->type, RNA_Strip)) {
+    strip = static_cast<Strip *>(ptr->data);
+  }
+
   Editing *ed = seq::editing_get(scene);
 
   if(scene->ed && strip){
@@ -259,13 +265,15 @@ static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
   }
 
   /* Check whether should update caption strips. TODO: Currently it make it rebuild the entire collection, should be changed */
-  //TODO: ;;GD Make this work with the panel, maybe check for region somehow?
-  /*if(area->spacetype == SPACE_CAPTIONS) {
-      WM_event_add_notifier(C, NC_SPACE | ND_SEQUENCER | NA_EDITED, scene);
+  /* If there's no strip, it means it's from the captions editor */
+  ///* Currently that's the only way to edit text properties in the sequencer space, so this check works. */
+  if(!strip){
+    seq::captions_update_strips_style(scene);
+      //WM_event_add_notifier(C, NC_SPACE | ND_SEQUENCER | NA_EDITED, scene);
   } else {
-    CaptionsStripRef *ref = captions_get_ref_by_strip(ed ,strip);
-    captions_mark_ref_style_custom(ref, true);
-  }*/
+    CaptionsStripRef *ref = seq::captions_get_ref_by_strip(ed ,strip);
+    seq::captions_mark_ref_style_custom(ref, true);
+  }
 }
 
 static void UNUSED_FUNCTION(rna_Strip_invalidate_composite_update)(Main * /*bmain*/,
