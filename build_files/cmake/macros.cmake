@@ -551,12 +551,9 @@ endfunction()
 function(setup_platform_linker_libs
   target
   )
-  # TBB malloc must be early in the list, to be before PTHREAD (see #57998).
-  if(WITH_TBB_MALLOC_PROXY)
-    target_link_libraries(${target}
-      PRIVATE ${TBB_MALLOC_LIBRARIES}
-      PRIVATE ${TBB_MALLOC_PROXY_LIBRARIES}
-    )
+  # jemalloc must be early in the list, to be before pthread (see #57998).
+  if(WITH_MEM_JEMALLOC)
+    target_link_libraries(${target} PRIVATE ${JEMALLOC_LIBRARIES})
   endif()
 
   if(WIN32 AND NOT UNIX)

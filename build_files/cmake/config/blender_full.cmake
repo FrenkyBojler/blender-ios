@@ -63,6 +63,8 @@ set(WITH_MATERIALX           ON  CACHE BOOL "" FORCE)
 set(WITH_HYDRA               ON  CACHE BOOL "" FORCE)
 set(WITH_XR_OPENXR           ON  CACHE BOOL "" FORCE)
 
+set(WITH_MEM_JEMALLOC        ON  CACHE BOOL "" FORCE)
+
 # platform dependent options
 if(APPLE)
   set(WITH_COREAUDIO           ON  CACHE BOOL "" FORCE)
