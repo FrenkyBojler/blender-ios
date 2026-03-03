@@ -750,12 +750,6 @@ static void rna_userdef_window_csd_params_update(Main *bmain, Scene *scene, Poin
   rna_userdef_update(bmain, scene, ptr);
 }
 
-static void rna_userdef_anisotropic_update(Main *bmain, Scene *scene, PointerRNA *ptr)
-{
-  GPU_samplers_update();
-  rna_userdef_update(bmain, scene, ptr);
-}
-
 static void rna_userdef_gl_texture_limit_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   BKE_image_free_all_gputextures(bmain);
@@ -5955,14 +5949,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem anisotropic_items[] = {
-      {1, "FILTER_0", 0, "Off", ""},
-      {2, "FILTER_2", 0, "2" BLI_STR_UTF8_MULTIPLICATION_SIGN, ""},
-      {4, "FILTER_4", 0, "4" BLI_STR_UTF8_MULTIPLICATION_SIGN, ""},
-      {8, "FILTER_8", 0, "8" BLI_STR_UTF8_MULTIPLICATION_SIGN, ""},
-      {16, "FILTER_16", 0, "16" BLI_STR_UTF8_MULTIPLICATION_SIGN, ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
 
   static const EnumPropertyItem audio_mixing_samples_items[] = {
       {256, "SAMPLES_256", 0, "256 Samples", "Set audio mixing buffer size to 256 samples"},
@@ -6166,19 +6152,12 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   /* Textures */
-
   prop = RNA_def_property(srna, "image_draw_method", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, image_draw_methods);
   RNA_def_property_enum_sdna(prop, nullptr, "image_draw_method");
   RNA_def_property_ui_text(
       prop, "Image Display Method", "Method used for displaying images on the screen");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
-
-  prop = RNA_def_property(srna, "anisotropic_filter", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "anisotropic_filter");
-  RNA_def_property_enum_items(prop, anisotropic_items);
-  RNA_def_property_ui_text(prop, "Anisotropic Filtering", "Quality of anisotropic filtering");
-  RNA_def_property_update(prop, 0, "rna_userdef_anisotropic_update");
 
   prop = RNA_def_property(srna, "gl_texture_limit", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "glreslimit");

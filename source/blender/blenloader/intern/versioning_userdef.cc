@@ -1017,9 +1017,6 @@ void blo_do_versions_userdef(UserDef *userdef)
     if (userdef->widget_unit == 0) {
       userdef->widget_unit = 20;
     }
-    if (userdef->anisotropic_filter <= 0) {
-      userdef->anisotropic_filter = 1;
-    }
 
     if (userdef->ndof_translation_sensitivity == 0.0f) {
       userdef->ndof_translation_sensitivity = 1.0f;

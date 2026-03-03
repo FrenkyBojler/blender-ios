@@ -16,6 +16,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_enum_flags.hh"
+#include "BLI_index_range.hh"
 
 #include "GPU_format.hh"
 
@@ -305,11 +306,11 @@ enum GPUSamplerFiltering {
   /**
    * Enable Anisotropic filtering. This only has effect if `GPU_SAMPLER_FILTERING_MIPMAP` is set.
    * The filtered result is implementation dependent.
-   *
-   * The maximum amount of samples is always set to its maximum possible value and can't be
-   * changed, except by the user through the user preferences, see the use of U.anisotropic_filter.
    */
-  GPU_SAMPLER_FILTERING_ANISOTROPIC = (1 << 2),
+  GPU_SAMPLER_FILTERING_ANISOTROPIC_2 = (1 << 2),
+  GPU_SAMPLER_FILTERING_ANISOTROPIC_4 = (2 << 2),
+  GPU_SAMPLER_FILTERING_ANISOTROPIC_8 = (3 << 2),
+  GPU_SAMPLER_FILTERING_ANISOTROPIC_16 = (4 << 2),
 };
 
 ENUM_OPERATORS(GPUSamplerFiltering)
@@ -317,8 +318,11 @@ ENUM_OPERATORS(GPUSamplerFiltering)
 /** The number of every possible filtering configuration. */
 static const int GPU_SAMPLER_FILTERING_TYPES_COUNT = (GPU_SAMPLER_FILTERING_LINEAR |
                                                       GPU_SAMPLER_FILTERING_MIPMAP |
-                                                      GPU_SAMPLER_FILTERING_ANISOTROPIC) +
+                                                      GPU_SAMPLER_FILTERING_ANISOTROPIC_16) +
                                                      1;
+static constexpr GPUSamplerFiltering GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK =
+    (GPU_SAMPLER_FILTERING_ANISOTROPIC_2 | GPU_SAMPLER_FILTERING_ANISOTROPIC_4 |
+     GPU_SAMPLER_FILTERING_ANISOTROPIC_8 | GPU_SAMPLER_FILTERING_ANISOTROPIC_16);
 
 /**
  * The `GPUSamplerExtendMode` specifies how the texture will be extrapolated for out-of-bound
@@ -537,6 +541,48 @@ struct GPUSamplerState {
     }
   }
 
+  static int anisotropic_samples_get(const GPUSamplerFiltering filtering_flags)
+  {
+    switch (filtering_flags & GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK) {
+      case GPU_SAMPLER_FILTERING_ANISOTROPIC_2:
+        return 2;
+      case GPU_SAMPLER_FILTERING_ANISOTROPIC_4:
+        return 4;
+      case GPU_SAMPLER_FILTERING_ANISOTROPIC_8:
+        return 8;
+      case GPU_SAMPLER_FILTERING_ANISOTROPIC_16:
+        return 16;
+      default:
+        return 0;
+    }
+    return 0;
+  }
+
+  /**
+   * Update the sampler with the given filter (number of anisotropic samples).
+   */
+  static void anisotropic_samples_set(GPUSamplerFiltering &filtering_flags,
+                                      int anisotropic_samples)
+  {
+    filtering_flags &= ~GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK;
+    if (anisotropic_samples <= 1) {
+      return;
+    }
+
+    if (IndexRange::from_begin_end_inclusive(2, 3).contains(anisotropic_samples)) {
+      filtering_flags |= GPU_SAMPLER_FILTERING_ANISOTROPIC_2;
+    }
+    else if (IndexRange::from_begin_end_inclusive(4, 7).contains(anisotropic_samples)) {
+      filtering_flags |= GPU_SAMPLER_FILTERING_ANISOTROPIC_4;
+    }
+    else if (IndexRange::from_begin_end_inclusive(8, 15).contains(anisotropic_samples)) {
+      filtering_flags |= GPU_SAMPLER_FILTERING_ANISOTROPIC_8;
+    }
+    else {
+      filtering_flags |= GPU_SAMPLER_FILTERING_ANISOTROPIC_16;
+    }
+  }
+
   std::string to_string() const
   {
     if (this->type == GPU_SAMPLER_STATE_TYPE_INTERNAL) {
@@ -569,8 +615,25 @@ struct GPUSamplerState {
       serialized_parameters += "mipmap_";
     }
 
-    if (this->filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC) {
-      serialized_parameters += "anisotropic_";
+    if ((this->filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_2) ==
+        GPU_SAMPLER_FILTERING_ANISOTROPIC_2)
+    {
+      serialized_parameters += "anisotropic2x_";
+    }
+    else if ((this->filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_4) ==
+             GPU_SAMPLER_FILTERING_ANISOTROPIC_4)
+    {
+      serialized_parameters += "anisotropic4x_";
+    }
+    else if ((this->filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_8) ==
+             GPU_SAMPLER_FILTERING_ANISOTROPIC_8)
+    {
+      serialized_parameters += "anisotropic8x_";
+    }
+    else if ((this->filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_16) ==
+             GPU_SAMPLER_FILTERING_ANISOTROPIC_16)
+    {
+      serialized_parameters += "anisotropic16x_";
     }
 
     switch (this->extend_x) {
@@ -668,21 +731,23 @@ enum eGPUDataFormat {
   /* GPU_DATA_UINT_24_8_DEPRECATED is deprecated since Blender 5.0. It is still here as python
    * add-ons can still use it. */
   GPU_DATA_UINT_24_8_DEPRECATED,
-  /** Special type used for packed 32bit per pixel textures. Data is stored in reverse order. */
+  /** Special type used for packed 32bit per pixel textures. Data is stored in reverse order.
+   */
   GPU_DATA_10_11_11_REV,
   GPU_DATA_2_10_10_10_REV,
 };
 
 /**
- * Texture usage flags allow backend implementations to contextually optimize texture resources.
- * Any texture with an explicit flag should not perform operations which are not explicitly
- * specified in the usage flags. If usage is unknown upfront, then GPU_TEXTURE_USAGE_GENERAL can be
- * used.
+ * Texture usage flags allow backend implementations to contextually optimize texture
+ * resources. Any texture with an explicit flag should not perform operations which are not
+ * explicitly specified in the usage flags. If usage is unknown upfront, then
+ * GPU_TEXTURE_USAGE_GENERAL can be used.
  *
- * NOTE: These usage flags act as hints for the backend implementations. There may be no benefit in
- * some circumstances, and certain resource types may insert additional usage as required. However,
- * explicit usage can ensure that hardware features such as render target/texture compression can
- * be used. For explicit APIs such as Metal/Vulkan, texture usage needs to be specified up-front.
+ * NOTE: These usage flags act as hints for the backend implementations. There may be no
+ * benefit in some circumstances, and certain resource types may insert additional usage as
+ * required. However, explicit usage can ensure that hardware features such as render
+ * target/texture compression can be used. For explicit APIs such as Metal/Vulkan, texture
+ * usage needs to be specified up-front.
  */
 enum eGPUTextureUsage {
   /* Whether texture is sampled or read during a shader. */
@@ -691,8 +756,8 @@ enum eGPUTextureUsage {
   GPU_TEXTURE_USAGE_SHADER_WRITE = (1 << 1),
   /* Whether a texture is used as an attachment in a frame-buffer. */
   GPU_TEXTURE_USAGE_ATTACHMENT = (1 << 2),
-  /* Whether a texture is used to create a texture view utilizing a different texture format to the
-   * source textures format. This includes the use of stencil views. */
+  /* Whether a texture is used to create a texture view utilizing a different texture format to
+   * the source textures format. This includes the use of stencil views. */
   GPU_TEXTURE_USAGE_FORMAT_VIEW = (1 << 3),
   /* Whether the texture needs to be read from by the CPU. */
   GPU_TEXTURE_USAGE_HOST_READ = (1 << 4),
@@ -722,9 +787,9 @@ class Texture;
 }  // namespace gpu
 
 /**
- * \note \a data is expected to be float. If the \a format is not compatible with float data or if
- * the data is not in float format, use GPU_texture_update to upload the data with the right data
- * format.
+ * \note \a data is expected to be float. If the \a format is not compatible with float data or
+ * if the data is not in float format, use GPU_texture_update to upload the data with the right
+ * data format.
  *
  * Textures created via other means will either inherit usage from the source resource, or also
  * be initialized with `GPU_TEXTURE_USAGE_GENERAL`.
@@ -783,7 +848,8 @@ gpu::Texture *GPU_texture_create_cube_array(const char *name,
 /**
  * DDS texture loading. Return nullptr if compressed texture support is not available.
  * \a data should hold all the data for \a mip_len mipmaps.
- * The data is expected to be in compressed form. This isn't going to compress un-compress data.
+ * The data is expected to be in compressed form. This isn't going to compress un-compress
+ * data.
  */
 gpu::Texture *GPU_texture_create_compressed_2d(const char *name,
                                                int width,
@@ -794,7 +860,8 @@ gpu::Texture *GPU_texture_create_compressed_2d(const char *name,
                                                const void *data);
 
 /**
- * Create a buffer texture that allow access to a buffer \a vertex_buf through a sampler of type
+ * Create a buffer texture that allow access to a buffer \a vertex_buf through a sampler of
+ * type
  * `(FLOAT/INT/UINT)_BUFFER`.
  */
 gpu::Texture *GPU_texture_create_from_vertbuf(const char *name, gpu::VertBuf *vertex_buf);
@@ -815,8 +882,8 @@ gpu::Texture *GPU_texture_create_error(int dimension, bool array);
 /**
  * Add a reference to this texture for usage.
  * This internally increment the reference counter.
- * This avoids the texture being free between the time it is referenced by the drawing logic and
- * the time it is actually dereferenced.
+ * This avoids the texture being free between the time it is referenced by the drawing logic
+ * and the time it is actually dereferenced.
  */
 void GPU_texture_ref(gpu::Texture *texture);
 
@@ -842,23 +909,23 @@ void GPU_texture_free(gpu::Texture *texture);
  * \{ */
 
 /**
- * Create an alias of the source texture data. A view can cover the whole texture or only a range
- * of mip levels and/or array layer range.
+ * Create an alias of the source texture data. A view can cover the whole texture or only a
+ * range of mip levels and/or array layer range.
  *
  * \a view_format is the format in which the view will interpret the data of \a source_texture.
- * It must match the format of \a source_texture in size (ex: RGBA8 can be reinterpreted as R32UI).
- * See https://www.khronos.org/opengl/wiki/Texture_Storage#View_texture_aliases for an exhaustive
- * list.
+ * It must match the format of \a source_texture in size (ex: RGBA8 can be reinterpreted as
+ * R32UI). See https://www.khronos.org/opengl/wiki/Texture_Storage#View_texture_aliases for an
+ * exhaustive list.
  *
  * \note If \a source_texture is freed, the texture view will continue to be valid.
- * \note If \a mip_start or \a mip_len is bigger than available mips they will be clamped to the
- * source texture available range.
- * \note If \a cube_as_array is true, then the created view will be a 2D array texture instead of a
- * cube-map texture or cube-map-array texture.
+ * \note If \a mip_start or \a mip_len is bigger than available mips they will be clamped to
+ * the source texture available range.
+ * \note If \a cube_as_array is true, then the created view will be a 2D array texture instead
+ * of a cube-map texture or cube-map-array texture.
  *
  * For Depth-Stencil texture view formats:
- * \note If \a use_stencil is true, the texture is expected to be bound to a UINT sampler and will
- * return the stencil value (in a range of [0..255]) as the first component.
+ * \note If \a use_stencil is true, the texture is expected to be bound to a UINT sampler and
+ * will return the stencil value (in a range of [0..255]) as the first component.
  * \note If \a use_stencil is false (default), the texture is expected to be bound to a DEPTH
  * sampler and will return the normalized depth value (in a range of [0..1])  as the first
  * component.
@@ -899,7 +966,8 @@ void GPU_texture_update(gpu::Texture *texture, eGPUDataFormat data_format, const
  * \note This function only update the content of mip 0. Either specify other mips or use
  * `GPU_texture_update_mipmap_chain` to generate them if needed.
  *
- * \a offset_x , \a offset_y , \a offset_z specify the bottom left corner of the updated region.
+ * \a offset_x , \a offset_y , \a offset_z specify the bottom left corner of the updated
+ * region.
  * \a width , \a height , \a depth specify the extent of the updated region.
  */
 void GPU_texture_update_sub(gpu::Texture *texture,
@@ -1008,7 +1076,8 @@ void GPU_texture_compare_mode(gpu::Texture *texture, bool use_compare);
 
 /**
  * Set \a tex texture filter usage.
- * If \a use_filter is true, the texture will use linear interpolation between neighboring texels.
+ * If \a use_filter is true, the texture will use linear interpolation between neighboring
+ * texels.
  * \note Does not work on non-normalized integer textures.
  * \note Does not modify the mip-map usage state.
  */
@@ -1016,34 +1085,34 @@ void GPU_texture_filter_mode(gpu::Texture *texture, bool use_filter);
 
 /**
  * Set \a tex texture filter and mip-map usage.
- * If \a use_filter is true, the texture will use linear interpolation between neighboring texels.
- * If \a use_mipmap is true, the texture will use mip-mapping as anti-aliasing method.
+ * If \a use_filter is true, the texture will use linear interpolation between neighboring
+ * texels. If \a use_mipmap is true, the texture will use mip-mapping as anti-aliasing method.
  * If both are set to true, the texture will use linear interpolation between mip-map levels.
  * \note Does not work on non-normalized integer textures.
  */
 void GPU_texture_mipmap_mode(gpu::Texture *texture, bool use_mipmap, bool use_filter);
 
 /**
- * Set anisotropic filter usage. Filter sample count is determined globally by
- * `U.anisotropic_filter` and updated when `GPU_samplers_update` is called.
+ * Set anisotropic filter samples. Anisotropic filtering is disabled when samples is 1 or less.
  */
-void GPU_texture_anisotropic_filter(gpu::Texture *texture, bool use_aniso);
+void GPU_texture_anisotropic_filter(gpu::Texture *texture, int samples);
 
 /**
- * Set \a tex texture sampling method for coordinates outside of the [0..1] uv range along the x
- * axis. See GPUSamplerExtendMode for the available and meaning of different extend modes.
+ * Set \a tex texture sampling method for coordinates outside of the [0..1] uv range along the
+ * x axis. See GPUSamplerExtendMode for the available and meaning of different extend modes.
  */
 void GPU_texture_extend_mode_x(gpu::Texture *texture, GPUSamplerExtendMode extend_mode);
 
 /**
- * Set \a tex texture sampling method for coordinates outside of the [0..1] uv range along the y
- * axis. See GPUSamplerExtendMode for the available and meaning of different extend modes.
+ * Set \a tex texture sampling method for coordinates outside of the [0..1] uv range along the
+ * y axis. See GPUSamplerExtendMode for the available and meaning of different extend modes.
  */
 void GPU_texture_extend_mode_y(gpu::Texture *texture, GPUSamplerExtendMode extend_mode);
 
 /**
- * Set \a tex texture sampling method for coordinates outside of the [0..1] uv range along both the
- * x and y axis. See GPUSamplerExtendMode for the available and meaning of different extend modes.
+ * Set \a tex texture sampling method for coordinates outside of the [0..1] uv range along both
+ * the x and y axis. See GPUSamplerExtendMode for the available and meaning of different extend
+ * modes.
  */
 void GPU_texture_extend_mode(gpu::Texture *texture, GPUSamplerExtendMode extend_mode);
 
@@ -1155,8 +1224,8 @@ bool GPU_texture_has_signed_format(const gpu::Texture *texture);
 
 /**
  * Returns the pixel dimensions of a texture's mip-map level.
- * \a size is expected to be a pointer to a vector of dimension matching the texture's dimension
- * (including the array dimension).
+ * \a size is expected to be a pointer to a vector of dimension matching the texture's
+ * dimension (including the array dimension).
  */
 void GPU_texture_get_mipmap_size(gpu::Texture *texture, int mip_level, int *r_size);
 
@@ -1246,8 +1315,8 @@ void GPU_pixel_buffer_free(GPUPixelBuffer *pixel_buf);
 /**
  * Maps a pixel buffer to RAM, giving back access rights to CPU.
  * The returned pointer is only valid until `GPU_pixel_buffer_unmap` is called.
- * A #GPUPixelBuffer needs to be unmapped before being used for GPU side operation (like texture
- * update through `GPU_texture_update_sub_from_pixel_buffer`).
+ * A #GPUPixelBuffer needs to be unmapped before being used for GPU side operation (like
+ * texture update through `GPU_texture_update_sub_from_pixel_buffer`).
  */
 void *GPU_pixel_buffer_map(GPUPixelBuffer *pixel_buf);
 

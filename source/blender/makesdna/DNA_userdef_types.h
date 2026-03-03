@@ -1090,7 +1090,7 @@ struct UserDef {
   /** eUserpref_ShaderCompileMethod (OpenGL only). */
   short shader_compilation_method = USER_SHADER_COMPILE_THREAD;
 
-  char _pad16[2] = {};
+  char _pad16[4] = {};
 
   /** #GPUBackendType */
   short gpu_backend = USER_GPU_BACKEND_DEFAULT;
@@ -1100,7 +1100,6 @@ struct UserDef {
 
   /** Private, defaults to 20 for 72 DPI setting. */
   short widget_unit = 0;
-  short anisotropic_filter = 2;
 
   /** Tablet API to use (Windows only). */
   short tablet_api = USER_TABLET_AUTOMATIC;
