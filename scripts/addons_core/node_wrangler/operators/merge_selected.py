@@ -348,7 +348,7 @@ class NODE_OT_merge_selected(Operator, NWBase):
             if was_multi:
                 continue
 
-            # only non-multi-input nodes will need socket numbers & the do_hide check
+            # Multi-input nodes don't need socket numbers and the do_hide check.
 
             socket_dict = {
                 'ShaderNodeMix': [6, 7],
