@@ -3540,29 +3540,46 @@ struct NodeForeachGeometryElementInputItem {
   char *name = nullptr;
   /** #eNodeSocketDatatype. */
   short socket_type = 0;
-  char _pad[2] = {};
+  /** The number of dimensions in the vector socket if the socket type is vector, otherwise unused.
+   */
+  char vector_socket_dimensions = 0;
+  char _pad[1] = {};
+  /** #PropertySubType. For now only used for the socket UI (units), not evaluation. */
+  int socket_subtype = 0;
   /** Generated identifier that stays the same even when the name or order changes. */
   int identifier = 0;
+  int _pad2[1] = {};
 };
 
 struct NodeForeachGeometryElementMainItem {
   char *name = nullptr;
   /** #eNodeSocketDatatype. */
   short socket_type = 0;
-  char _pad[2] = {};
+  /** The number of dimensions in the vector socket if the socket type is vector, otherwise unused.
+   */
+  char vector_socket_dimensions = 0;
+  char _pad[1] = {};
+  /** #PropertySubType. For now only used for the socket UI (units), not evaluation. */
+  int socket_subtype = 0;
   /** Generated identifier that stays the same even when the name or order changes. */
   int identifier = 0;
+  int _pad2[1] = {};
 };
 
 struct NodeForeachGeometryElementGenerationItem {
   char *name = nullptr;
   /** #eNodeSocketDatatype. */
   short socket_type = 0;
+  /** The number of dimensions in the vector socket if the socket type is vector, otherwise unused.
+   */
+  char vector_socket_dimensions = 0;
   /** #AttrDomain. */
   uint8_t domain = 0;
-  char _pad[1] = {};
+  /** #PropertySubType. For now only used for the socket UI (units), not evaluation. */
+  int socket_subtype = 0;
   /** Generated identifier that stays the same even when the name or order changes. */
   int identifier = 0;
+  int _pad[1] = {};
 };
 
 struct NodeForeachGeometryElementInputItems {

@@ -18,6 +18,7 @@ struct ForeachGeometryElementInputItemsAccessor
   static constexpr StringRefNull node_idname = "GeometryNodeForeachGeometryElementOutput";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
+  static constexpr bool has_vector_dimensions = true;
   struct operator_idnames {
     static constexpr StringRefNull add_item =
         "NODE_OT_foreach_geometry_element_zone_input_item_add";
@@ -82,10 +83,18 @@ struct ForeachGeometryElementInputItemsAccessor
   static void init_with_socket_type_and_name(bNode &node,
                                              ItemT &item,
                                              const eNodeSocketDatatype socket_type,
-                                             const char *name)
+                                             const char *name,
+                                             std::optional<int> dimensions = std::nullopt)
   {
     auto *storage = static_cast<NodeGeometryForeachGeometryElementOutput *>(node.storage);
     item.socket_type = socket_type;
+    if (socket_type == SOCK_VECTOR) {
+      item.vector_socket_dimensions = dimensions.value_or(3);
+    }
+    else {
+      item.vector_socket_dimensions = 0;
+    }
+    item.socket_subtype = 0;
     item.identifier = storage->generation_items.next_identifier++;
     socket_items::set_item_name_and_make_unique<ForeachGeometryElementInputItemsAccessor>(
         node, item, name);
@@ -104,6 +113,7 @@ struct ForeachGeometryElementMainItemsAccessor : public socket_items::SocketItem
   static constexpr StringRefNull node_idname = "GeometryNodeForeachGeometryElementOutput";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
+  static constexpr bool has_vector_dimensions = true;
   struct operator_idnames {
     static constexpr StringRefNull add_item =
         "NODE_OT_foreach_geometry_element_zone_main_item_add";
@@ -167,10 +177,18 @@ struct ForeachGeometryElementMainItemsAccessor : public socket_items::SocketItem
   static void init_with_socket_type_and_name(bNode &node,
                                              ItemT &item,
                                              const eNodeSocketDatatype socket_type,
-                                             const char *name)
+                                             const char *name,
+                                             std::optional<int> dimensions = std::nullopt)
   {
     auto *storage = static_cast<NodeGeometryForeachGeometryElementOutput *>(node.storage);
     item.socket_type = socket_type;
+    if (socket_type == SOCK_VECTOR) {
+      item.vector_socket_dimensions = dimensions.value_or(3);
+    }
+    else {
+      item.vector_socket_dimensions = 0;
+    }
+    item.socket_subtype = 0;
     item.identifier = storage->generation_items.next_identifier++;
     socket_items::set_item_name_and_make_unique<ForeachGeometryElementMainItemsAccessor>(
         node, item, name);
@@ -190,6 +208,7 @@ struct ForeachGeometryElementGenerationItemsAccessor
   static constexpr StringRefNull node_idname = "GeometryNodeForeachGeometryElementOutput";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
+  static constexpr bool has_vector_dimensions = true;
   struct operator_idnames {
     static constexpr StringRefNull add_item =
         "NODE_OT_foreach_geometry_element_zone_generation_item_add";
@@ -254,10 +273,18 @@ struct ForeachGeometryElementGenerationItemsAccessor
   static void init_with_socket_type_and_name(bNode &node,
                                              ItemT &item,
                                              const eNodeSocketDatatype socket_type,
-                                             const char *name)
+                                             const char *name,
+                                             std::optional<int> dimensions = std::nullopt)
   {
     auto *storage = static_cast<NodeGeometryForeachGeometryElementOutput *>(node.storage);
     item.socket_type = socket_type;
+    if (socket_type == SOCK_VECTOR) {
+      item.vector_socket_dimensions = dimensions.value_or(3);
+    }
+    else {
+      item.vector_socket_dimensions = 0;
+    }
+    item.socket_subtype = 0;
     item.identifier = storage->generation_items.next_identifier++;
     socket_items::set_item_name_and_make_unique<ForeachGeometryElementGenerationItemsAccessor>(
         node, item, name);
