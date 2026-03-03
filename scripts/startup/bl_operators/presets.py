@@ -323,6 +323,7 @@ class AddPresetTextStripStyle(AddPresetBase, Operator):
     preset_menu = "STRIP_PT_text_style_presets"
 
     preset_defines = [
+        "scene = bpy.context.sequencer_scene",
         "strip = bpy.context.active_strip",
     ]
 

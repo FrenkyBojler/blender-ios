@@ -1,4 +1,5 @@
 import bpy
+scene = bpy.context.sequencer_scene
 strip = bpy.context.active_strip
 
 strip.wrap_width = 1.0
@@ -15,7 +16,9 @@ strip.shadow_angle = 1.134
 strip.shadow_offset = 0.04
 strip.shadow_blur = 0.1
 strip.use_box = False
-strip.location = (0.05, 0.05)
+strip.location = (0.5, 0.5)
 strip.alignment_x = 'LEFT'
 strip.anchor_x = 'LEFT'
 strip.anchor_y = 'BOTTOM'
+strip.transform.offset_x = -(scene.render.resolution_x * 0.45)
+strip.transform.offset_y = -(scene.render.resolution_y * 0.45)
