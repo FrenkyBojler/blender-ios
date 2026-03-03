@@ -196,7 +196,7 @@ Thickness thickness_unpack(float thickness_packed)
   /* Remap [0..1/2] to [0..+inf). */
   thickness = thickness / (1.0f - 2.0f * thickness);
   /* Retrieve mode. */
-  return {.data = (thickness_packed > 0.5f ? thickness : -thickness)};
+  return {.data = (thickness_packed > 0.5f ? -thickness : thickness)};
 }
 
 /**
