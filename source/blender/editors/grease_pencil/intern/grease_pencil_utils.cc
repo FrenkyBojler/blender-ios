@@ -980,10 +980,9 @@ IndexMask retrieve_editable_strokes(Object &object,
     return curves_range;
   }
   /* Get all the strokes that have their material unlocked. */
-  return IndexMask::from_predicate(
-      curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        return !locked_material_indices.contains(materials[curve_i]);
-      });
+  return IndexMask::from_predicate(curves_range, memory, [&](const int64_t curve_i) {
+    return !locked_material_indices.contains(materials[curve_i]);
+  });
 }
 
 IndexMask retrieve_editable_fill_strokes(Object &object,
@@ -1007,9 +1006,7 @@ IndexMask retrieve_editable_fill_strokes(Object &object,
     return {};
   }
   const IndexMask fill_strokes = IndexMask::from_predicate(
-      curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        return fill_ids[curve_i] != 0;
-      });
+      curves_range, memory, [&](const int64_t curve_i) { return fill_ids[curve_i] != 0; });
   return IndexMask::from_intersection(editable_strokes, fill_strokes, memory);
 }
 
@@ -1036,14 +1033,13 @@ IndexMask retrieve_editable_strokes_by_material(Object &object,
     return curves_range;
   }
   /* Get all the strokes that share the same material and have it unlocked. */
-  return IndexMask::from_predicate(
-      curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        const int material_index = materials[curve_i];
-        if (material_index == mat_i) {
-          return !locked_material_indices.contains(material_index);
-        }
-        return false;
-      });
+  return IndexMask::from_predicate(curves_range, memory, [&](const int64_t curve_i) {
+    const int material_index = materials[curve_i];
+    if (material_index == mat_i) {
+      return !locked_material_indices.contains(material_index);
+    }
+    return false;
+  });
 }
 
 IndexMask retrieve_editable_points(Object &object,
@@ -1084,10 +1080,9 @@ IndexMask retrieve_editable_points(Object &object,
     return points_range;
   }
   /* Get all the points that are part of a stroke with an unlocked material. */
-  return IndexMask::from_predicate(
-      points_range, GrainSize(4096), memory, [&](const int64_t point_i) {
-        return !locked_material_indices.contains(materials[point_i]);
-      });
+  return IndexMask::from_predicate(points_range, memory, [&](const int64_t point_i) {
+    return !locked_material_indices.contains(materials[point_i]);
+  });
 }
 
 IndexMask retrieve_editable_elements(Object &object,
@@ -1124,11 +1119,10 @@ IndexMask retrieve_visible_strokes(Object &object,
   /* Get all the strokes that have their material visible. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
       "material_index", bke::AttrDomain::Curve, 0);
-  return IndexMask::from_predicate(
-      curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        const int material_index = materials[curve_i];
-        return !hidden_material_indices.contains(material_index);
-      });
+  return IndexMask::from_predicate(curves_range, memory, [&](const int64_t curve_i) {
+    const int material_index = materials[curve_i];
+    return !hidden_material_indices.contains(material_index);
+  });
 }
 
 IndexMask retrieve_visible_points(Object &object,
@@ -1157,11 +1151,10 @@ IndexMask retrieve_visible_points(Object &object,
   }
 
   /* Get all the points that are part of a stroke with a visible material. */
-  return IndexMask::from_predicate(
-      points_range, GrainSize(4096), memory, [&](const int64_t point_i) {
-        const int material_index = materials[point_i];
-        return !hidden_material_indices.contains(material_index);
-      });
+  return IndexMask::from_predicate(points_range, memory, [&](const int64_t point_i) {
+    const int material_index = materials[point_i];
+    return !hidden_material_indices.contains(material_index);
+  });
 }
 
 IndexMask retrieve_visible_bezier_strokes(Object &object,
@@ -1251,13 +1244,12 @@ IndexMask retrieve_visible_fills(Object &object,
   /* Get all the fills that have their first curve's material visible. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
       "material_index", bke::AttrDomain::Curve, 0);
-  return IndexMask::from_predicate(
-      fills->index_range(), GrainSize(4096), memory, [&](const int64_t fill_index) {
-        const Span<int> fill = (*fills)[fill_index];
-        const int curve_i = fill.first();
-        const int material_index = materials[curve_i];
-        return !hidden_material_indices.contains(material_index);
-      });
+  return IndexMask::from_predicate(fills->index_range(), memory, [&](const int64_t fill_index) {
+    const Span<int> fill = (*fills)[fill_index];
+    const int curve_i = fill.first();
+    const int material_index = materials[curve_i];
+    return !hidden_material_indices.contains(material_index);
+  });
 }
 
 IndexMask retrieve_visible_bezier_handle_points(Object &object,
@@ -1294,7 +1286,7 @@ IndexMask retrieve_visible_bezier_handle_points(Object &object,
       object, drawing, layer_index, memory);
 
   const IndexMask selected_points = IndexMask::from_predicate(
-      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
+      curves.points_range(), memory, [&](const int64_t point_i) {
         const bool is_selected = selected_point[point_i] || selected_left[point_i] ||
                                  selected_right[point_i];
         const bool is_bezier = types[point_to_curve_map[point_i]] == CURVE_TYPE_BEZIER;
@@ -1583,23 +1575,25 @@ Array<PointTransferData> compute_topology_change(
            src_attributes, dst_attributes, {bke::AttrDomain::Point}))
   {
     bke::attribute_math::to_static_type(attribute.dst.span.type(), [&]<typename T>() {
-      auto src_attr = attribute.src.typed<T>();
-      auto dst_attr = attribute.dst.span.typed<T>();
+      if constexpr (!std::is_same_v<T, std::string>) {
+        auto src_attr = attribute.src.typed<T>();
+        auto dst_attr = attribute.dst.span.typed<T>();
 
-      threading::parallel_for(dst.points_range(), 4096, [&](const IndexRange dst_points) {
-        for (const int dst_point : dst_points) {
-          const PointTransferData &point_transfer = dst_transfer_data[dst_point];
-          if (point_transfer.is_src_point) {
-            dst_attr[dst_point] = src_attr[point_transfer.src_point];
+        threading::parallel_for(dst.points_range(), 4096, [&](const IndexRange dst_points) {
+          for (const int dst_point : dst_points) {
+            const PointTransferData &point_transfer = dst_transfer_data[dst_point];
+            if (point_transfer.is_src_point) {
+              dst_attr[dst_point] = src_attr[point_transfer.src_point];
+            }
+            else {
+              dst_attr[dst_point] = bke::attribute_math::mix2<T>(
+                  point_transfer.factor,
+                  src_attr[point_transfer.src_point],
+                  src_attr[point_transfer.src_next_point]);
+            }
           }
-          else {
-            dst_attr[dst_point] = bke::attribute_math::mix2<T>(
-                point_transfer.factor,
-                src_attr[point_transfer.src_point],
-                src_attr[point_transfer.src_next_point]);
-          }
-        }
-      });
+        });
+      }
 
       attribute.dst.finish();
     });
@@ -1984,16 +1978,8 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
 
   /* Ensure that the layer names are unique by merging layers with the same name. */
   const int old_layers_num = eval_grease_pencil.layers().size();
-  Vector<Vector<int>> layers_map;
-  Map<StringRef, int> new_layer_index_by_name;
-  for (const int layer_i : IndexRange(old_layers_num)) {
-    const Layer &layer = eval_grease_pencil.layer(layer_i);
-    const int new_layer_index = new_layer_index_by_name.lookup_or_add_cb(
-        layer.name(), [&]() { return layers_map.append_and_get_index_as(); });
-    layers_map[new_layer_index].append(layer_i);
-  }
-  GreasePencil &merged_layers_grease_pencil = *geometry::merge_layers(
-      eval_grease_pencil, layers_map, {});
+  GreasePencil &merged_layers_grease_pencil = *geometry::merge_layers_by_name(
+      eval_grease_pencil, VArray<bool>::from_single(true, old_layers_num), {});
 
   Map<const Layer *, const Layer *> eval_to_orig_layer_map;
   {

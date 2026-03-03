@@ -668,8 +668,6 @@ static void wm_file_read_pre(bool use_data, bool /*use_userdef*/)
   /* Always do this as both startup and preferences may have loaded in many font's
    * at a different zoom level to the file being loaded. */
   ui::view2d_zoom_cache_reset();
-
-  ED_preview_restart_queue_free();
 }
 
 /**
@@ -2276,7 +2274,7 @@ static bool wm_file_write(bContext *C,
 static void wm_autosave_location(char filepath[FILE_MAX])
 {
   const int pid = abs(getpid());
-  char filename[1024];
+  char filename[FILE_MAX];
 
   /* Normally there is no need to check for this to be nullptr,
    * however this runs on exit when it may be cleared. */
@@ -2511,7 +2509,7 @@ static wmOperatorStatus wm_homefile_write_exec(bContext *C, wmOperator *op)
 
   /* Check current window and close it if temp. */
   if (win && WM_window_is_temp_screen(win)) {
-    wm_window_close(C, wm, win);
+    wm_window_close_request(C, wm, win);
   }
 
   /* Update keymaps in user preferences. */
