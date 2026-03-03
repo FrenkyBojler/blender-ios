@@ -745,6 +745,13 @@ struct BlenderRNA {
    * These are ensured to have unique names (with #STRUCT_PUBLIC_NAMESPACE enabled).
    */
   Map<StringRef, StructRNA *> structs_map;
+
+  /**
+   * This RNA container is created at runtime and not not the main static RNA. This is currently
+   * needed because we "override the destruction" of the main RNA static RNA container via
+   * #RNA_exit() rather than relying on static initialization order for destruction.
+   */
+  bool runtime;
 };
 
 #define CONTAINER_RNA_ID(cont) (*(const char **)(((ContainerRNA *)(cont)) + 1))

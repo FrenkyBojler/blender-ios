@@ -703,6 +703,7 @@ static bool rna_range_from_int_type(const char *dnatype, int r_range[2])
 BlenderRNA *RNA_create_runtime()
 {
   BlenderRNA *brna = MEM_new<BlenderRNA>(__func__);
+  brna->runtime = true;
   return brna;
 }
 
@@ -885,6 +886,10 @@ void RNA_free(BlenderRNA *brna)
     /* Reverse iteration to make removing from vector faster. */
     for (auto srna = brna->structs.rbegin(); srna != brna->structs.rend(); srna++) {
       RNA_struct_free(brna, srna->get());
+    }
+
+    if (brna->runtime) {
+      MEM_delete(brna);
     }
   }
 

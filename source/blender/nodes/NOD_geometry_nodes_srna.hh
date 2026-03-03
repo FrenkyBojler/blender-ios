@@ -38,7 +38,7 @@ struct GeneratedTreeSrnaData {
   ~GeneratedTreeSrnaData();
 };
 
-std::unique_ptr<GeneratedTreeSrnaData> create_geometry_nodes_rna_for_modifier(
+std::shared_ptr<GeneratedTreeSrnaData> create_geometry_nodes_rna_for_modifier(
     const bNodeTree &tree);
 
 }  // namespace nodes

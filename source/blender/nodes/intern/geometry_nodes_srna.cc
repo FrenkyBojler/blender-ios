@@ -203,7 +203,7 @@ GeneratedTreeSrnaData::~GeneratedTreeSrnaData()
   RNA_free(generated_rna);
 }
 
-std::unique_ptr<GeneratedTreeSrnaData> create_geometry_nodes_rna_for_modifier(
+std::shared_ptr<GeneratedTreeSrnaData> create_geometry_nodes_rna_for_modifier(
     const bNodeTree &tree)
 {
   std::cout << __func__ << std::endl;
