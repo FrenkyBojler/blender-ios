@@ -123,7 +123,7 @@ AUD_Sound BKE_get_sound_handle(Strip *strip);
 
 void BKE_sound_remove_scene_sound(Scene *scene, AUD_SequenceEntry handle);
 
-AUD_Sequence BKE_sound_get_parent_sequence(Strip *Strip, Scene *scene);
+AUD_Sequence BKE_sound_get_parent_sequence(Scene *scene, Strip *Strip);
 
 void BKE_sound_sequence_remove_sound(AUD_Sequence sound_sequence, AUD_SequenceEntry handle);
 void BKE_sound_mute_scene_sound(AUD_SequenceEntry handle, bool mute);

@@ -875,7 +875,7 @@ void BKE_sound_update_scene_listener(Scene *scene)
 AUD_SequenceEntry BKE_sound_scene_add_scene_sound(Scene *scene, Strip *strip)
 {
   sound_verify_evaluated_id(&scene->id);
-  AUD_Sequence parent_sound_sequence = BKE_sound_get_parent_sequence(strip, scene);
+  AUD_Sequence parent_sound_sequence = BKE_sound_get_parent_sequence(scene, strip);
   strip->runtime->last_sound_sequence = parent_sound_sequence;
   if (strip->scene && scene != strip->scene) {
     int startframe = strip->left_handle();
@@ -897,7 +897,7 @@ AUD_Sound BKE_get_sound_handle(Strip *strip)
              BKE_sound_playback_handle_get(strip->sound);
 }
 
-AUD_Sequence BKE_sound_get_parent_sequence(Strip *strip, Scene *scene)
+AUD_Sequence BKE_sound_get_parent_sequence(Scene *scene, Strip *strip)
 {
   Strip *parent_strip = blender::seq::lookup_meta_by_strip(scene->ed, strip);
 
@@ -928,7 +928,7 @@ AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
   int frameskip = strip->startofs + strip->anim_startofs;
 
   const double fps = scene->frames_per_second();
-  AUD_Sequence parent_sound_sequence = BKE_sound_get_parent_sequence(strip, scene);
+  AUD_Sequence parent_sound_sequence = BKE_sound_get_parent_sequence(scene, strip);
   double offset_time = 0.0f;
 
   if (strip->type != STRIP_TYPE_META) {

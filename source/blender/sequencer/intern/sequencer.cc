@@ -1116,7 +1116,7 @@ static bool seq_mute_sound_strips_cb(Strip *strip, void * /*user_data*/)
 /* Adds sound of strip to the `scene->sound_scene` - "sound timeline". */
 static void strip_update_mix_sounds(Scene *scene, Strip *strip)
 {
-  AUD_Sequence parent_sound_sequence = BKE_sound_get_parent_sequence(strip, scene);
+  AUD_Sequence parent_sound_sequence = BKE_sound_get_parent_sequence(scene, strip);
   if (strip->runtime->scene_sound != nullptr &&
       parent_sound_sequence == strip->runtime->last_sound_sequence)
   {
