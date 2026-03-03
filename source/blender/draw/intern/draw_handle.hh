@@ -183,6 +183,13 @@ class ResourceHandleRange {
     return index_;
   }
 
+  ResourceHandle sub_handle(int index)
+  {
+    BLI_assert(index < index_.count);
+    return ResourceHandle(index_.first.resource_index() + index,
+                          index_.first.has_inverted_handedness());
+  }
+
   /* These functions are to keep existing engine code to work.
    * Should be used only for objects and code paths that don't support ranged synchronization. */
 
@@ -254,6 +261,17 @@ class ObjectRef {
       return duplis_->size();
     }
     return 1;
+  }
+
+  float4x4 object_to_world(int instance_index) const
+  {
+    if (is_range()) {
+      return float4x4((*duplis_)[instance_index]->mat);
+    }
+    else {
+      BLI_assert(instance_index == 0);
+      return object->object_to_world();
+    }
   }
 
   float random(int instance_index) const

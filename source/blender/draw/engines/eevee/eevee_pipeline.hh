@@ -210,12 +210,11 @@ class ForwardPipeline {
                                      blender::Material *blender_mat,
                                      GPUMaterial *gpumat);
 
-  PassMain::Sub *prepass_transparent_add(const Object *ob,
-                                         blender::Material *blender_mat,
-                                         GPUMaterial *gpumat);
-  PassMain::Sub *material_transparent_add(const Object *ob,
-                                          blender::Material *blender_mat,
-                                          GPUMaterial *gpumat);
+  void transparent_add(const ObjectHandle &ob_handle,
+                       blender::Material *blender_mat,
+                       GPUMaterial *gpumat,
+                       Vector<PassMain::Sub *> &prepass_subpasses,
+                       Vector<PassMain::Sub *> &material_subpasses);
 
   bool use_colored_transparency() const;
 

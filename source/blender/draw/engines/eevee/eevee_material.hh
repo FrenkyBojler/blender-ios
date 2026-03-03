@@ -307,8 +307,8 @@ struct ShaderKey {
  * \{ */
 
 struct MaterialPass {
-  GPUMaterial *gpumat;
-  PassMain::Sub *sub_pass;
+  GPUMaterial *gpumat = nullptr;
+  PassMain::Sub *sub_pass = nullptr;
 };
 
 struct Material {
@@ -329,8 +329,29 @@ struct Material {
   MaterialPass volume_material;
 };
 
-struct MaterialArray {
-  Vector<Material> materials;
+struct SubPassArrays {
+  Vector<PassMain::Sub *> shading_blend_transparent_sub_passes;
+  Vector<PassMain::Sub *> overlap_masking_sub_passes;
+  Vector<PassMain::Sub *> volume_occupancy_sub_passes;
+  Vector<PassMain::Sub *> volume_material_sub_passes;
+
+  void clear()
+  {
+    shading_blend_transparent_sub_passes.clear();
+    overlap_masking_sub_passes.clear();
+    volume_occupancy_sub_passes.clear();
+    volume_material_sub_passes.clear();
+  }
+};
+
+struct MaterialSync : Material {
+  SubPassArrays *sub_pass_arrays = nullptr;
+
+  MaterialSync(Material &material) : Material(material) {}
+};
+
+struct MaterialSyncArray {
+  Vector<MaterialSync> materials;
   Vector<GPUMaterial *> gpu_materials;
 };
 
@@ -353,7 +374,8 @@ class MaterialModule {
   Map<MaterialKey, Material> material_map_;
   Map<ShaderKey, PassMain::Sub *> shader_map_;
 
-  MaterialArray material_array_;
+  Vector<SubPassArrays> sub_pass_arrays_;
+  MaterialSyncArray material_array_;
 
   blender::Material *error_mat_;
 
@@ -372,15 +394,15 @@ class MaterialModule {
   /**
    * Returned Material references are valid until the next call to this function or material_get().
    */
-  MaterialArray &material_array_get(const ObjectHandle &ob_handle, bool has_motion);
+  MaterialSyncArray &material_array_get(const ObjectHandle &ob_handle, bool has_motion);
   /**
    * Returned Material references are valid until the next call to this function or
    * material_array_get().
    */
-  Material &material_get(const ObjectHandle &ob_handle,
-                         bool has_motion,
-                         int mat_nr,
-                         eMaterialGeometry geometry_type);
+  MaterialSync material_get(const ObjectHandle &ob_handle,
+                            bool has_motion,
+                            int mat_nr,
+                            eMaterialGeometry geometry_type);
 
   /* Request default materials and return DEFAULT_MATERIALS if they are compiled. */
   ShaderGroups default_materials_load_async()
@@ -395,6 +417,7 @@ class MaterialModule {
  private:
   Material &material_sync(const ObjectHandle &ob_handle,
                           blender::Material *blender_mat,
+                          SubPassArrays &sub_pass_arrays,
                           eMaterialGeometry geometry_type,
                           bool has_motion);
 

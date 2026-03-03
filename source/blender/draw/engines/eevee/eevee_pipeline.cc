@@ -451,62 +451,66 @@ PassMain::Sub *ForwardPipeline::material_opaque_add(const Object *ob,
   return &pass->sub(GPU_material_get_name(gpumat));
 }
 
-PassMain::Sub *ForwardPipeline::prepass_transparent_add(const Object *ob,
-                                                        blender::Material *blender_mat,
-                                                        GPUMaterial *gpumat)
+void ForwardPipeline::transparent_add(const ObjectHandle &ob_handle,
+                                      blender::Material *blender_mat,
+                                      GPUMaterial *gpumat,
+                                      Vector<PassMain::Sub *> &prepass_subpasses,
+                                      Vector<PassMain::Sub *> &material_subpasses)
 {
-  if ((blender_mat->blend_flag & MA_BL_HIDE_BACKFACE) == 0) {
-    return nullptr;
-  }
-  DRWState state = DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
-                   inst_.film.depth.test_state;
+  DRWState prepass_state = DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
+                           inst_.film.depth.test_state;
+
+  DRWState material_state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_TRANSPARENCY |
+                            DRW_STATE_CLIP_CONTROL_UNIT_RANGE | inst_.film.depth.test_state;
+
   if (blender_mat->blend_flag & MA_BL_CULL_BACKFACE) {
-    state |= DRW_STATE_CULL_BACK;
+    prepass_state |= DRW_STATE_CULL_BACK;
+    material_state |= DRW_STATE_CULL_BACK;
   }
+
   has_transparent_ = true;
-  float sorting_value = math::dot(float3(ob->object_to_world().location()), camera_forward_);
-  PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
-  pass->state_set(state);
-  pass->material_set(*inst_.manager, gpumat, true);
-
-  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA) &&
-      GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT))
-  {
-    pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
-    pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
-  }
-  return pass;
-}
-
-PassMain::Sub *ForwardPipeline::material_transparent_add(const Object *ob,
-                                                         blender::Material *blender_mat,
-                                                         GPUMaterial *gpumat)
-{
-  DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_TRANSPARENCY |
-                   DRW_STATE_CLIP_CONTROL_UNIT_RANGE | inst_.film.depth.test_state;
-  if (blender_mat->blend_flag & MA_BL_CULL_BACKFACE) {
-    state |= DRW_STATE_CULL_BACK;
-  }
   has_colored_transparency_ |= GPU_material_flag_get(gpumat,
-                                                     GPU_MATFLAG_TRANSPARENT_MAYBE_COLORED) != 0;
+                                                     GPU_MATFLAG_TRANSPARENT_MAYBE_COLORED);
   has_holdout_ |= GPU_material_flag_get(gpumat, GPU_MATFLAG_HOLDOUT) ||
-                  ob->visibility_flag & OB_HOLDOUT;
-  has_transparent_ = true;
+                  ob_handle.ref.object->visibility_flag & OB_HOLDOUT;
   /* Must be checked here too,
    * since this function is not called from PipelineModule::material_add. */
   inst_.pipelines.has_raycast |= GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
-  float sorting_value = math::dot(float3(ob->object_to_world().location()), camera_forward_);
-  PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
-  pass->state_set(state);
-  pass->material_set(*inst_.manager, gpumat, true);
 
-  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA) &&
-      GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT))
-  {
-    pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
-    pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
+  const bool bind_previous_layer = GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA) &&
+                                   GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT);
+
+  /* Transparent needs to use one sub pass per object to support reordering.
+   * NOTE: Pre-pass needs to be created first in order to be sorted first. */
+
+  for (int i : IndexRange(ob_handle.ref.instances_count())) {
+    float sorting_value = math::dot(float3(ob_handle.ref.object_to_world(i).location()),
+                                    camera_forward_);
+
+    /* Prepass */
+    if (blender_mat->blend_flag & MA_BL_HIDE_BACKFACE) {
+      PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
+      pass->state_set(prepass_state);
+      pass->material_set(*inst_.manager, gpumat, true);
+      if (bind_previous_layer) {
+        pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
+        pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
+      }
+      prepass_subpasses.append(pass);
+    }
+
+    /* Material */
+    {
+      PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
+      pass->state_set(material_state);
+      pass->material_set(*inst_.manager, gpumat, true);
+      if (bind_previous_layer) {
+        pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
+        pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
+      }
+      material_subpasses.append(pass);
+    }
   }
-  return pass;
 }
 
 void ForwardPipeline::TransparencyBuffer::acquire(int2 extent, bool use_colored_transparency)
