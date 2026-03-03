@@ -3245,8 +3245,12 @@ static const char *region_panels_collect_categories(ARegion *region,
   for (LinkNode *pt_link = panel_types_stack; pt_link; pt_link = pt_link->next) {
     PanelType *pt = static_cast<PanelType *>(pt_link->link);
     if (pt->category[0]) {
-      if (!ui::panel_category_find(region, pt->category)) {
+      PanelCategoryDyn *cat = ui::panel_category_find(region, pt->category);
+      if (!cat) {
         ui::panel_category_add(region, pt->category, pt->icon);
+      }
+      else if (cat->icon == ICON_NONE && pt->icon != ICON_NONE) {
+        cat->icon = pt->icon;
       }
     }
   }
