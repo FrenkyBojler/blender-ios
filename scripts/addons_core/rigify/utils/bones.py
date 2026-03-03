@@ -207,33 +207,38 @@ def copy_bone_properties(obj: ArmatureObject, bone_name_1: str, bone_name_2: str
 
         if widget:
             pose_bone_2.custom_shape = pose_bone_1.custom_shape
-            
-        # Copy BBone properties from Bone data
+
         bone_1 = obj.data.bones[bone_name_1]
         bone_2 = obj.data.bones[bone_name_2]
         
-        # Only copy if source bone has bbone segments
+        bbone_shared_properties = [
+            'bbone_curveinx', 'bbone_curveinz',
+            'bbone_curveoutx', 'bbone_curveoutz',
+            'bbone_easein', 'bbone_easeout',
+            'bbone_rollin', 'bbone_rollout',
+            'bbone_scalein', 'bbone_scaleout'
+            ]
+
+        bbone_bone_properties = [
+            'bbone_segments', 'bbone_mapping_mode', 'use_endroll_as_inroll', 'use_scale_easing',
+            'bbone_x', 'bbone_z',
+            'bbone_custom_handle_start', 'bbone_custom_handle_end'
+            ]
+        
+        # We use 'data.bones' because the segments property doesn't exist in 'pose.bones'.
+        # Copy edit_bone / bone properties.
         if bone_1.bbone_segments > 1:
-            # Copy all BBone properties from obj.data.bones (Bone properties)
-            for name in ['bbone_curveinx', 'bbone_curveinz', 'bbone_curveoutx', 'bbone_curveoutz',
-                         'bbone_easein', 'bbone_easeout',
-                         'bbone_mapping_mode', 'bbone_rollin', 'bbone_rollout',
-                         'bbone_scalein', 'bbone_scaleout', 'bbone_segments',
-                         'bbone_x', 'bbone_z', 'use_endroll_as_inroll', 'use_scale_easing',
-                         'bbone_custom_handle_start', 'bbone_custom_handle_end']:
+            for name in bbone_shared_properties:
+                setattr(bone_2, name, getattr(bone_1, name))
+                
+            for name in bbone_bone_properties:
                 setattr(bone_2, name, getattr(bone_1, name))
         
-        # Only copy if source bone has bbone segments
+        # Copy pose.bones properties.
         if bone_1.bbone_segments > 1:
-            # Copy all BBone properties from obj.data.pose.bones (PoseBone properties)
-            for name in ['bbone_curveinx', 'bbone_curveinz', 'bbone_curveoutx', 'bbone_curveoutz',
-                         'bbone_easein', 'bbone_easeout',
-                         'bbone_rollin', 'bbone_rollout',
-                         'bbone_scalein', 'bbone_scaleout',
-                        ]:
+            for name in bbone_shared_properties:
                 setattr(pose_bone_2, name, getattr(pose_bone_1, name))
         
-            
     else:
         raise MetarigError("Cannot copy bone properties in edit mode")
 
