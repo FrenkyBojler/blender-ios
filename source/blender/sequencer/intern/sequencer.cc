@@ -1195,13 +1195,13 @@ static void seq_update_sound_strips(Scene *scene, Strip *strip)
   }
 
   /* Ensure strip is playing correct sound. */
-  if (BLI_listbase_is_empty(&strip->modifiers) && strip->type != STRIP_TYPE_META) {
+  if (BLI_listbase_is_empty(&strip->modifiers)) {
     /* No modifiers: ensure we are playing the sound ID. However do not do this
      * if we are pitch correcting, as the proper playback handle will be assigned there.
      * Changing between original file sound and the pitch correction sound produces garbage
      * audio in renders. */
     if (strip->runtime->sound_time_stretch == nullptr) {
-      BKE_sound_update_scene_sound(strip->runtime->scene_sound, strip->sound);
+      BKE_sound_update_sequence_handle(strip->runtime->scene_sound, BKE_get_sound_handle(strip));
     }
   }
   else {
