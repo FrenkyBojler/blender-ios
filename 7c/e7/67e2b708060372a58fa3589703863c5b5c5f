@@ -1,1 +1,1 @@
-Referenced by issue #155107, Blender crash when drag'n'dropping files and processing them with `FileHandler`
+Referenced by issue #155107, `read_homefile()` inside python file drop handler causes Blender to crash
