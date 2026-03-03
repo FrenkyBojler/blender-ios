@@ -722,21 +722,21 @@ static void blend_rotation_with_conversion(PointerRNA &ptr,
     fcurve_rotation_values[fcurve->array_index] = evaluate_fcurve(fcurve, eval_time);
   }
 
-  /* Converting to a 3x3 matrix makes it easy to apply afterwards. */
-  float rotation_matrix[3][3];
+  /* Converting to quaternion simplifies blending below. */
+  float4 fcurve_quat;
   switch (fcurve_rotation_mode) {
     case ROT_MODE_QUAT: {
-      quat_to_mat3(rotation_matrix, fcurve_rotation_values);
+      copy_qt_qt(fcurve_quat, fcurve_rotation_values);
       break;
     }
     case ROT_MODE_EUL: {
       /* TODO: determine the rotation order for euler angles. This has to be stored at the
        * point of pose creation. */
-      eulO_to_mat3(rotation_matrix, fcurve_rotation_values, ROT_MODE_XYZ);
+      eulO_to_quat(fcurve_quat, fcurve_rotation_values, ROT_MODE_XYZ);
       break;
     }
     case ROT_MODE_AXISANGLE: {
-      axis_angle_to_mat3(rotation_matrix, &fcurve_rotation_values[1], fcurve_rotation_values[0]);
+      axis_angle_to_quat(fcurve_quat, &fcurve_rotation_values[1], fcurve_rotation_values[0]);
       break;
     }
     default: {
@@ -744,21 +744,18 @@ static void blend_rotation_with_conversion(PointerRNA &ptr,
     }
   }
 
-  /* Apply the rotation matrix to the `ptr`. */
-  float blended_matrix[3][3];
+  float4 interp_quat;
   if (ptr.type == RNA_PoseBone) {
     bPoseChannel *pose_bone = static_cast<bPoseChannel *>(ptr.data);
-    float bone_matrix[3][3];
-    BKE_pchan_rot_to_mat3(pose_bone, bone_matrix);
-    interp_m3_m3m3(blended_matrix, bone_matrix, rotation_matrix, blend_factor);
-    BKE_pchan_mat3_to_rot(pose_bone, blended_matrix, true);
+    const float4 quat = BKE_pchan_rot_to_quat(*pose_bone);
+    interp_qt_qtqt(interp_quat, quat, fcurve_quat, blend_factor);
+    BKE_pchan_quat_to_rot(*pose_bone, interp_quat);
   }
   else if (ptr.type == RNA_Object) {
     Object *object = static_cast<Object *>(ptr.data);
-    float object_matrix[3][3];
-    BKE_object_rot_to_mat3(object, object_matrix, true);
-    interp_m3_m3m3(blended_matrix, object_matrix, rotation_matrix, blend_factor);
-    BKE_object_mat3_to_rot(object, blended_matrix, true);
+    const float4 quat = BKE_object_rot_to_quat(*object);
+    interp_qt_qtqt(interp_quat, quat, fcurve_quat, blend_factor);
+    BKE_object_quat_to_rot(*object, interp_quat);
   }
   else {
     BLI_assert_unreachable();
