@@ -1,2 +1,3 @@
 Referenced by issue #152681, Save dialog does not auto-add .blend extension
 Referenced by pull request #155136, Fix #155103: Revert File Browser Selection Behavior
+Referenced by commit ec089dd4c2ba8331ac32a5dc8c8e943916ab4f2d, Fix #155103: Revert File Browser Selection Behavior
