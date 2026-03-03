@@ -36,7 +36,7 @@ static gpu::Texture *create_base_texture(TextureFormat format)
   GPU_framebuffer_bind(fbo);
 
   float4 zero_color(0.0f, 0.0f, 0.0f, 0.0f);
-  GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, zero_color, 0.0f, 0u);
+  GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, {0.0, 0.0, 0.0, 0.0}, 0.0f, 0u);
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
   GPU_framebuffer_free(fbo);
@@ -91,16 +91,16 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
   GPU_framebuffer_bind(fbo);
 
   /* Clear FBO to specific color. */
-  float4 test_color(2.0f, 0.25f, 1.25f, 0.25f);
+  double4 test_color = {2.0, 0.25, 1.25, 0.25};
   for (uint i = to_component_len(FormatB); i < 4; ++i) {
-    test_color[i] = 0.0f;
+    test_color[i] = 0.0;
   }
   GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, test_color, 0.0f, 0u);
 
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
   /* Second check; the view texture should read back this color. */
-  EXPECT_EQ(get_texture_color(view), test_color);
+  EXPECT_EQ(get_texture_color(view), float4(test_color));
 
   GPU_framebuffer_free(fbo);
   GPU_texture_free(view);
