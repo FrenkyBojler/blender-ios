@@ -4335,8 +4335,10 @@ static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
     load_data.effect.type = STRIP_TYPE_TEXT;
 
     int length = 100; // TODO: change to DEFAULT_IMG_STRIP_LENGTH 
+    if(op->ptr != nullptr && op!=nullptr){
     if (RNA_struct_find_property(op->ptr, "length")) {
         length = RNA_int_get(op->ptr, "length");
+    }
     }
     length = get_extend_right(start_frame, channel, &ed->captions_strips, length);
 

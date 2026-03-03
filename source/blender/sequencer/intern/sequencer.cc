@@ -310,8 +310,8 @@ Editing *editing_ensure(Scene *scene)
     channels_ensure(&ed->channels);
 
     /* Making sure that Captions Style is exists */
+    captions_style_ensure(ed);
   }
-  captions_style_ensure(ed);
 
   return scene->ed;
 }

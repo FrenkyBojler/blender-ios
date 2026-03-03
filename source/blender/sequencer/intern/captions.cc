@@ -119,7 +119,7 @@ namespace seq {
 
 static void captions_init_default_style(Editing *ed)
 {
-    TextVars *data = MEM_new_for_free<TextVars>("textvars");
+    TextVars *data = MEM_new<TextVars>("textvars");
     ed->captions_style = data;
 
     data->flag |= SEQ_TEXT_OUTLINE;
@@ -184,7 +184,7 @@ static ListBaseT<struct CaptionsStripRef> captions_build_strip_refs(Editing *ed)
   for (Strip &strip : ed->seqbase) {
     if (strip.channel == ed->captions_act_channel->index) {
       if (strip.type == STRIP_TYPE_TEXT) {
-        CaptionsStripRef *ref = (CaptionsStripRef *)MEM_callocN(sizeof(CaptionsStripRef), "strip ref");
+        CaptionsStripRef *ref = (CaptionsStripRef *)MEM_new_zeroed(sizeof(CaptionsStripRef), "strip ref");
         ref->strip = &strip;
         BLI_addtail(&result, ref);
       }
@@ -202,7 +202,7 @@ static void captions_free_strip_refs(Editing *ed)
 
   ListBase *refs = &ed->captions_strips;
   for (CaptionsStripRef &ref : ed->captions_strips.items_mutable()) {
-    MEM_freeN(&ref);
+    MEM_delete(&ref);
   }
   BLI_listbase_clear(refs);
 }

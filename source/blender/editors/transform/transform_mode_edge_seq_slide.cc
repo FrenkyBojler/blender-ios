@@ -114,6 +114,7 @@ static void applySeqSlide(TransInfo *t)
 
 struct SeqSlideParams {
   bool use_restore_handle_selection;
+  bool is_new;
 };
 
 static void initSeqSlide(TransInfo *t, wmOperator *op)
