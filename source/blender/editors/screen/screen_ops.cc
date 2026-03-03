@@ -6205,14 +6205,14 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
     sad->flag |= ANIMPLAY_FLAG_JUMPED;
 
     switch (scene->playback_loop_mode) {
-      case SCE_LOOP_MODE_START:
+      case SCE_LOOP_MODE_STOP_START_FRAME:
         stop_playback(C);
         ATTR_FALLTHROUGH;
-      case SCE_LOOP_MODE_LOOP:
+      case SCE_LOOP_MODE_INFINITE:
         scene->r.cfra = is_playing_forward ? start_frame : end_frame;
         break;
-      case SCE_LOOP_MODE_STOP:
-        /* Looping happens when playback overshoots the start/end frame. This means that 'STOP'
+      case SCE_LOOP_MODE_STOP_END_FRAME:
+        /* Looping happens when playback overshoots the start/end frame. This means that this
          * mode will visit the last frame twice (once during playback, and once after overshoot +
          * clamping). If this turns out to be undesired, the `is_extreme_frame` computation will
          * have to take the loop mode into account. */

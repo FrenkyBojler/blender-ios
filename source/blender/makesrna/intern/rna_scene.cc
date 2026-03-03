@@ -8723,12 +8723,20 @@ void RNA_def_scene(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem playback_loop_mode_items[] = {
-      {SCE_LOOP_MODE_STOP, "STOP", 0, "Stop", "Stop without looping"},
-      {SCE_LOOP_MODE_LOOP, "LOOP", 0, "Loop", "After the last frame, jump back to the first"},
-      {SCE_LOOP_MODE_START,
-       "START",
+      {SCE_LOOP_MODE_INFINITE,
+       "INFINITE",
        0,
-       "Start Frame",
+       "Infinite",
+       "After the last frame, jump back to the first and keep playing, inifinitely"},
+      {SCE_LOOP_MODE_STOP_END_FRAME,
+       "STOP_END_FRAME",
+       0,
+       "Stop at End Frame",
+       "Stop playback at the last frame, without looping"},
+      {SCE_LOOP_MODE_STOP_START_FRAME,
+       "STOP_START_FRAME",
+       0,
+       "Stop at Start Frame",
        "After the last frame, jump back to the first and stop playback"},
       {SCE_LOOP_MODE_RESTORE,
        "RESTORE",
@@ -8983,7 +8991,7 @@ void RNA_def_scene(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "playback_loop_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, playback_loop_mode_items);
-  RNA_def_property_enum_default(prop, SCE_LOOP_MODE_LOOP);
+  RNA_def_property_enum_default(prop, SCE_LOOP_MODE_INFINITE);
   RNA_def_property_ui_text(prop, "Loop Mode", "What to do when playback reaches the last frame");
   RNA_def_property_update(prop, NC_SCENE, nullptr);
 

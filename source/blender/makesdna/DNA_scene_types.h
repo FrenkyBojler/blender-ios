@@ -2714,9 +2714,9 @@ enum {
 
 /** #Scene::playback_loop_mode */
 enum eScenePlaybackLoopMode {
-  SCE_LOOP_MODE_LOOP = 0,
-  SCE_LOOP_MODE_STOP = 1,
-  SCE_LOOP_MODE_START = 2,
+  SCE_LOOP_MODE_INFINITE = 0,
+  SCE_LOOP_MODE_STOP_END_FRAME = 1,
+  SCE_LOOP_MODE_STOP_START_FRAME = 2,
   SCE_LOOP_MODE_RESTORE = 3,
   SCE_LOOP_MODE_BOUNCE = 4,
 };
@@ -2791,7 +2791,7 @@ struct Scene {
   /** None of the dependency graph vars is mean to be saved. */
   SceneDepsgraphsMap *depsgraph_hash = nullptr;
 
-  uint8_t playback_loop_mode = SCE_LOOP_MODE_LOOP;
+  uint8_t playback_loop_mode = SCE_LOOP_MODE_INFINITE;
   char _pad7[3] = {};
 
   /* User-Defined KeyingSets. */
