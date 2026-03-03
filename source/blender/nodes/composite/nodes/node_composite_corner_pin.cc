@@ -223,14 +223,12 @@ class CornerPinOperation : public NodeOperation {
       }
       else {
         /* Derivative of transformed_coordinates.xy / transformed_coordinates.z vs texels. */
-        float2 x_gradient =
-          (homography_matrix[0].xy() * transformed_coordinates.z -
-           transformed_coordinates.xy() * homography_matrix[0].z) /
-          (transformed_coordinates.z * transformed_coordinates.z * size.x);
-        float2 y_gradient =
-          (homography_matrix[1].xy() * transformed_coordinates.z -
-           transformed_coordinates.xy() * homography_matrix[1].z) /
-          (transformed_coordinates.z * transformed_coordinates.z * size.y);
+        float2 x_gradient = (homography_matrix[0].xy() * transformed_coordinates.z -
+                             transformed_coordinates.xy() * homography_matrix[0].z) /
+                            (transformed_coordinates.z * transformed_coordinates.z * size.x);
+        float2 y_gradient = (homography_matrix[1].xy() * transformed_coordinates.z -
+                             transformed_coordinates.xy() * homography_matrix[1].z) /
+                            (transformed_coordinates.z * transformed_coordinates.z * size.y);
         const float2x2 jacobian = float2x2(x_gradient, y_gradient);
         sampled_color = float4(input.sample<Color>(projected_coordinates,
                                                    Interpolation::Anisotropic,
