@@ -364,6 +364,7 @@ struct Geometries {
    */
   Vector<GeometryDataChunk> chunks;
   int max_chunk_size = -1;
+  int64_t total_points_num = -1;
 
   /**
    * Two arrays of geometry references are used because the arrays containing the previous and
@@ -718,10 +719,12 @@ class XpbdSolverStep {
         }
       }
     }
+    geometries_.total_points_num = 0;
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
       const AttrDomain domain = geo_data.domain;
       geo_data.size = geo_data.attributes.domain_size(domain);
+      geometries_.total_points_num += geo_data.size;
       geo_data.temp_positions.reinitialize(geo_data.size);
       geo_data.temp_rotations.reinitialize(geo_data.size);
       geo_data.position_attr = this->ensure_attribute<float3>(
@@ -2125,7 +2128,8 @@ class XpbdSolverStep {
           }
         },
         threading::individual_task_sizes(
-            [&](const int i) { return evaluators[i]->evaluation_mask().size(); }));
+            [&](const int i) { return evaluators[i]->evaluation_mask().size(); },
+            geometries_.total_points_num));
   }
 
   void do_simulation()
