@@ -987,9 +987,6 @@ void BKE_sound_move_scene_sound(const Scene *scene,
 
 void BKE_sound_move_scene_sound_defaults(Scene *scene, Strip *strip)
 {
-  Editing *ed = scene->ed;
-  Strip *parent_strip = blender::seq::lookup_meta_by_strip(ed, strip);
-  int parent_start = parent_strip == nullptr ? 0 : parent_strip->left_handle();
   sound_verify_evaluated_id(&scene->id);
   if (strip->runtime->scene_sound) {
     double offset_time = 0.0f;
@@ -1001,8 +998,8 @@ void BKE_sound_move_scene_sound_defaults(Scene *scene, Strip *strip)
     }
     BKE_sound_move_scene_sound(scene,
                                strip->runtime->scene_sound,
-                               strip->left_handle() - parent_start,
-                               strip->right_handle(scene) - parent_start,
+                               strip->left_handle(),
+                               strip->right_handle(scene),
                                strip->startofs + strip->anim_startofs,
                                offset_time);
   }
