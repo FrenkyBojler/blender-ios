@@ -323,35 +323,42 @@ class AddPresetTextStripStyle(AddPresetBase, Operator):
     preset_menu = "STRIP_PT_text_style_presets"
 
     preset_defines = [
-        "strip = bpy.context.active_strip"
-    ]
-
-    preset_values = [
-        "strip.wrap_width",
-        "strip.font",
-        "strip.use_bold",
-        "strip.use_italic",
-        "strip.font_size",
-        "strip.color",
-        "strip.use_outline",
-        "strip.outline_color",
-        "strip.outline_width",
-        "strip.use_shadow",
-        "strip.shadow_color",
-        "strip.shadow_angle",
-        "strip.shadow_offset",
-        "strip.shadow_blur",
-        "strip.use_box",
-        "strip.box_color",
-        "strip.box_margin",
-        "strip.box_roundness",
-        "strip.location",
-        "strip.alignment_x",
-        "strip.anchor_x",
-        "strip.anchor_y",
+        "strip = bpy.context.active_strip",
     ]
 
     preset_subdir = "sequencer/text_style"
+
+    @property
+    def preset_values(self):
+        preset_values = [
+            "strip.wrap_width",
+            "strip.use_bold",
+            "strip.use_italic",
+            "strip.font_size",
+            "strip.color",
+            "strip.use_outline",
+            "strip.outline_color",
+            "strip.outline_width",
+            "strip.use_shadow",
+            "strip.shadow_color",
+            "strip.shadow_angle",
+            "strip.shadow_offset",
+            "strip.shadow_blur",
+            "strip.use_box",
+            "strip.box_color",
+            "strip.box_margin",
+            "strip.box_roundness",
+            "strip.alignment_x",
+            "strip.anchor_x",
+            "strip.anchor_y",
+            "strip.transform.offset_x",
+            "strip.transform.offset_y",
+        ]
+
+        strip = bpy.context.active_strip
+        if strip is not None and strip.font is not None:
+            preset_values.append("strip.font")
+        return preset_values
 
 
 class AddPresetRender(AddPresetBase, Operator):
