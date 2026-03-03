@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <fmt/format.h>
+#include <iostream>
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
@@ -195,7 +196,7 @@ static StructRNA *create_panels_srna(const bNodeTree &tree, GeneratedTreeSrnaDat
 
 GeneratedTreeSrnaData::GeneratedTreeSrnaData()
 {
-  generated_rna = RNA_create();
+  generated_rna = RNA_create_runtime();
 }
 GeneratedTreeSrnaData::~GeneratedTreeSrnaData()
 {
@@ -205,6 +206,7 @@ GeneratedTreeSrnaData::~GeneratedTreeSrnaData()
 std::unique_ptr<GeneratedTreeSrnaData> create_geometry_nodes_rna_for_modifier(
     const bNodeTree &tree)
 {
+  std::cout << __func__ << std::endl;
   auto generated = std::make_unique<GeneratedTreeSrnaData>();
   tree.ensure_interface_cache();
 

@@ -1026,9 +1026,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
     template_id(&layout, &C, modifier_ptr, "node_group", newop, nullptr, nullptr);
   }
 
-  if (nmd.node_group != nullptr && !ID_MISSING(nmd.node_group) &&
-      nmd.settings.properties != nullptr)
-  {
+  if (nmd.node_group != nullptr && !ID_MISSING(nmd.node_group)) {
     nmd.runtime->usage_cache.ensure(object, nmd);
     ctx.input_usages = nmd.runtime->usage_cache.inputs;
     ctx.output_usages = nmd.runtime->usage_cache.outputs;

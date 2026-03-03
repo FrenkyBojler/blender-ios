@@ -33,6 +33,7 @@ namespace blender {
 struct Scene;
 
 BlenderRNA *RNA_create();
+BlenderRNA *RNA_create_runtime();
 void RNA_define_free(BlenderRNA *brna);
 void RNA_free(BlenderRNA *brna);
 

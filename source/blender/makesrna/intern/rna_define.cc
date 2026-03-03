@@ -700,6 +700,12 @@ static bool rna_range_from_int_type(const char *dnatype, int r_range[2])
 
 /* Blender Data Definition */
 
+BlenderRNA *RNA_create_runtime()
+{
+  BlenderRNA *brna = MEM_new<BlenderRNA>(__func__);
+  return brna;
+}
+
 BlenderRNA *RNA_create()
 {
   BlenderRNA *brna = MEM_new<BlenderRNA>(__func__);
