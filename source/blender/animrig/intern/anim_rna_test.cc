@@ -8,11 +8,10 @@ TEST(ANIM_rna, is_rotation_path)
 {
   EXPECT_TRUE(is_rotation_path("rotation_euler"));
   EXPECT_TRUE(is_rotation_path("pose.bones[\"test\"].rotation_euler"));
-  /* Even though this is not a real path this is identified as a rotation path. */
-  EXPECT_TRUE(is_rotation_path(".rotation_euler"));
 
   EXPECT_FALSE(is_rotation_path("xrotation_euler"));
   EXPECT_FALSE(is_rotation_path("rotation_euler2"));
+  EXPECT_FALSE(is_rotation_path("[\"rotation_euler\"]"));
   EXPECT_FALSE(is_rotation_path("pose.bones[\"test\"][\"rotation_euler\"]"));
 }
 
@@ -22,8 +21,6 @@ TEST(ANIM_rna, rotation_mode_from_path)
   EXPECT_EQ(ROT_MODE_EUL, get_rotation_mode_from_path("rotation_euler").value());
   EXPECT_EQ(ROT_MODE_EUL,
             get_rotation_mode_from_path("pose.bones[\"test\"].rotation_euler").value());
-  /* Even though this is not a real path it is still identified as euler. */
-  EXPECT_EQ(ROT_MODE_EUL, get_rotation_mode_from_path(".rotation_euler").value());
   EXPECT_EQ(ROT_MODE_AXISANGLE, get_rotation_mode_from_path("rotation_axis_angle").value());
 
   EXPECT_EQ(std::nullopt, get_rotation_mode_from_path("scale"));

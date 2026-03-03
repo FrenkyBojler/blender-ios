@@ -95,19 +95,22 @@ StringRef get_rotation_mode_path(const eRotationModes rotation_mode)
 std::optional<eRotationModes> get_rotation_mode_from_path(const StringRefNull rna_path)
 {
   /* Accounting for the difference between objects and bones where the latter is e.g.
-   * `pose.bones["foo"].rotation_euler`. */
-  const int start_of_propname = max_ii(0, rna_path.rfind(".") + 1);
+   * `pose.bones["foo"].rotation_euler`. Assumes that rfind returns -1 if the string
+   * is not found. */
+  const int start_of_propname = rna_path.rfind(".") + 1;
   if (!rna_path.substr(start_of_propname, rna_path.size()).startswith("rotation_")) {
     return std::nullopt;
   }
-  if (rna_path.endswith("rotation_quaternion")) {
+  /* We already know that "rotation_" is in the rna_path, we can skip the full check for
+   * "rotation_quaternion", "rotation_euler" or "rotation_axis_angle". */
+  if (rna_path.endswith("quaternion")) {
     return ROT_MODE_QUAT;
   }
-  else if (rna_path.endswith("rotation_euler")) {
+  else if (rna_path.endswith("euler")) {
     /* Cannot determine the rotation order from the path alone. */
     return ROT_MODE_EUL;
   }
-  else if (rna_path.endswith("rotation_axis_angle")) {
+  else if (rna_path.endswith("axis_angle")) {
     return ROT_MODE_AXISANGLE;
   }
   return std::nullopt;

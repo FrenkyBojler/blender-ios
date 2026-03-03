@@ -36,6 +36,8 @@ StringRef get_rotation_mode_path(eRotationModes rotation_mode);
  *
  * \note that this returns ROT_MODE_EUL for any euler rotation mode since it cannot determine the
  * rotation order.
+ *
+ * \note that this function assumes that the rna_path is syntactically valid.
  */
 std::optional<eRotationModes> get_rotation_mode_from_path(StringRefNull rna_path);
 
