@@ -1517,6 +1517,17 @@ void ED_screen_scene_change(bContext *C,
 
   if (refresh_toolsystem) {
     WM_toolsystem_refresh_screen_window(win);
+
+    WorkSpace *workspace = WM_window_get_active_workspace(win);
+    for (ScrArea &area : screen->areabase) {
+      if (area.runtime.tool && area.runtime.tool->runtime) {
+        bToolKey tkey{};
+        tkey.space_type = area.runtime.tool->space_type;
+        tkey.mode = area.runtime.tool->mode;
+        WM_toolsystem_refresh(C, workspace, &tkey);
+      }
+    }
+
   }
 }
 
