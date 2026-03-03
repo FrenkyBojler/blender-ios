@@ -3730,6 +3730,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   if (!main->is_read_invalid) {
     blo_do_versions_510(fd, lib, main);
   }
+  if (!main->is_read_invalid) {
+    blo_do_versions_520(fd, lib, main);
+  }
 
   /* WATCH IT!!!: pointers from libdata have not been converted yet here! */
   /* WATCH IT 2!: #UserDef struct init see #do_versions_userdef() above! */
@@ -3794,6 +3797,9 @@ static void do_versions_after_linking(FileData *fd, Main *main)
   }
   if (!main->is_read_invalid) {
     do_versions_after_linking_510(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_520(fd, main);
   }
 
   main->is_locked_for_linking = false;
@@ -4499,6 +4505,8 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 
     /* Make all relative paths, relative to the open blend file. */
     fix_relpaths_library(fd->relabase, bfd->main);
+
+    bfd->main->need_preview_render_restart = fd->need_preview_render_restart;
   }
   else {
     BKE_layer_collection_resync_allow();
@@ -6128,6 +6136,11 @@ Main *BLO_read_lib_get_main(BlendLibReader *reader)
 BlendFileReadReport *BLO_read_lib_reports(BlendLibReader *reader)
 {
   return reader->fd->reports;
+}
+
+void BLO_read_data_set_need_preview_render_restart(BlendDataReader *reader)
+{
+  reader->fd->need_preview_render_restart = true;
 }
 
 /** \} */

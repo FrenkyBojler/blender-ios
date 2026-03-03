@@ -293,7 +293,7 @@ uint Object::visibility_for_tracing() const
   return SHADOW_CATCHER_OBJECT_VISIBILITY(is_shadow_catcher, visibility & PATH_RAY_ALL_VISIBILITY);
 }
 
-float Object::compute_volume_step_size() const
+float Object::compute_volume_step_size(Progress &progress) const
 {
   if (geometry->is_light()) {
     /* World volume. */
@@ -343,7 +343,7 @@ float Object::compute_volume_step_size() const
     for (Attribute &attr : volume->attributes.attributes) {
       if (attr.element == ATTR_ELEMENT_VOXEL) {
         ImageHandle &handle = attr.data_voxel();
-        const ImageMetaData &metadata = handle.metadata();
+        const ImageMetaData &metadata = handle.metadata(progress);
         if (metadata.nanovdb_byte_size == 0) {
           continue;
         }
@@ -445,7 +445,7 @@ bool Object::has_shadow_linking() const
   return false;
 }
 
-void Object::set_tfm(Transform tfm)
+void Object::adjust_volume_tfm(Transform &tfm)
 {
   if (geometry) {
     if (geometry->is_volume()) {
@@ -458,9 +458,27 @@ void Object::set_tfm(Transform tfm)
       transform_translate(tfm, offset);
     }
   }
+}
 
+void Object::set_tfm(Transform tfm)
+{
+  adjust_volume_tfm(tfm);
   const SocketType *socket = get_tfm_socket();
   set(*socket, tfm);
+}
+
+bool Object::tfm_equals(Transform tfm)
+{
+  adjust_volume_tfm(tfm);
+  return tfm == get_tfm();
+}
+
+void Object::set_motion_tfm(Transform tfm, const int step_index)
+{
+  adjust_volume_tfm(tfm);
+  array<Transform> motion = get_motion();
+  motion[step_index] = tfm;
+  set_motion(motion);
 }
 
 /* Object Manager */

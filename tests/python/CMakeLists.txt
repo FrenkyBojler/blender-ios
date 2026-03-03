@@ -126,6 +126,8 @@ if(WITH_UI_TESTS)
       --no-window-frame
       -p 0 0 800 600
       --gpu-backend ${backend}
+      # Log operator calls at a debug level so it is easier to debug runs on the buildbot that fail
+      --log "operator" --log-level "debug"
       "${EXE_PARAMS}"
       "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
       "${ARGN}"
@@ -321,6 +323,11 @@ add_blender_test(
 add_blender_test(
   script_pyapi_grease_pencil
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_grease_pencil.py
+)
+
+add_blender_test(
+  script_pyapi_annotations
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_annotations.py
 )
 
 # ------------------------------------------------------------------------------
@@ -909,7 +916,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
         endforeach()
       endif()
 
-      if(WITH_VULKAN_BACKEND AND (name STREQUAL "workbench" OR name STREQUAL "overlay" OR WITH_GPU_RENDER_TESTS_VULKAN)
+      if(WITH_VULKAN_BACKEND AND (name STREQUAL "overlay" OR WITH_GPU_RENDER_TESTS_VULKAN)
           AND (NOT (name STREQUAL "storm_hydra" OR name STREQUAL "storm_usd") OR WITH_STORM_TESTS_VULKAN))
         foreach(render_test ${render_tests})
           add_render_test(
@@ -927,7 +934,8 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     add_gpu_render_tests(eevee "eevee_render_tests.py" "${gpu_render_tests}")
     add_gpu_render_tests(workbench "workbench_render_tests.py" "${gpu_render_tests}")
     if(WITH_GPU_RENDER_TESTS_HEADED)
-      add_gpu_render_tests(overlay "overlay_render_tests.py" "${gpu_render_tests}")
+      # Temporarilly disabled until 154533 is merged to avoid errors on the builder.
+      # add_gpu_render_tests(overlay "overlay_render_tests.py" "${gpu_render_tests}")
     endif()
     if(WITH_HYDRA)
       add_gpu_render_tests(storm_hydra "storm_render_tests.py" "${gpu_render_tests}" --export_method "HYDRA")
@@ -936,6 +944,15 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
       add_gpu_render_tests(storm_usd "storm_render_tests.py" "${gpu_render_tests}" --export_method "USD")
     endif()
   endif()
+endif()
+
+if(WITH_CYCLES AND WITH_CYCLES_OSL)
+  add_blender_test(
+    cycles_osl_compile_test
+    --python ${CMAKE_CURRENT_LIST_DIR}/cycles_osl_compile_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/render"
+  )
 endif()
 
 # ------------------------------------------------------------------------------
@@ -1377,6 +1394,17 @@ endif()
 
 if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
+    bl_voxel_remesh
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/voxel_remesh_test.py
+  )
+
+  add_blender_test(
+    bl_voxel_remesh_compare
+    ${TEST_SRC_DIR}/sculpting/voxel_remesh_compare.blend
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/voxel_remesh_compare_test.py
+  )
+
+  add_blender_test(
     bl_sculpt_mask
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mask_test.py
     --
@@ -1400,6 +1428,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_sculpt_mesh_filter
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mesh_filter_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/sculpting"
+  )
+
+  add_blender_test(
+    bl_sculpt_automasking
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/automask_test.py
     --
     --testdir "${TEST_SRC_DIR}/sculpting"
   )
@@ -1465,6 +1500,7 @@ if(WITH_UI_TESTS)
     test_sculpt.mask_expand_and_invert
     test_sculpt.mask_gestures
     test_sculpt.trim_gestures
+    test_sculpt.primitive_tool_add
     test_tools.sculpt_mode_toolbar
     test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix
@@ -1517,6 +1553,15 @@ if(TEST_SRC_DIR_EXISTS)
   # TODO: disabled for now after collection unification
   # add_subdirectory(view_layer)
 endif()
+
+# ------------------------------------------------------------------------------
+# Remote Asset Library tests
+# ------------------------------------------------------------------------------
+if(TEST_SRC_DIR_EXISTS)
+  add_subdirectory(assets)
+endif()
+
+
 
 # ------------------------------------------------------------------------------
 # Linux Release sanity checks
