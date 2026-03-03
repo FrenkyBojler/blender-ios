@@ -1,2 +1,3 @@
 Referenced by issue #155103, Regression: name sanitization non-functional  in file-save dialog, `*` globbing also broken
 Referenced by issue #155105, Animation Regression Test: Slight issue with the keying part of the test.
+Referenced by issue #155109, Nodes: Crash when making node group
